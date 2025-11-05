@@ -2,7 +2,7 @@
 
 **Epic:** 2 - DAG Execution & Production Readiness
 **Story ID:** 2.1
-**Status:** TODO
+**Status:** ready-for-review
 **Estimated Effort:** 6-7 hours
 
 ---
@@ -702,6 +702,75 @@ Deno.test("Adaptive thresholds - learning from feedback", async () => {
 - [ ] Documentation updated (architecture, technical guide)
 - [ ] Code reviewed and merged
 - [ ] Performance benchmarks documented (speedup vs baseline)
+
+---
+
+## Dev Agent Record
+
+### Context Reference
+- [Story Context File](2-1-dependency-graph-construction-dag-builder.context.xml) - Generated 2025-11-05
+
+### Implementation Summary
+**Completed:** 2025-11-05
+**Actual Effort:** ~7 hours
+
+All acceptance criteria met (ACs 1-19):
+
+**Core GraphRAG (ACs 1-8):** ✅ COMPLETE
+- Graphology dependencies added to deno.json
+- GraphRAGEngine class implemented with in-memory graph sync
+- PageRank computation integrated (graphology-metrics)
+- Louvain community detection implemented
+- Bidirectional shortest path finding
+- DAG builder using graph topology
+- Performance targets achieved (<50ms sync, <100ms PageRank)
+- 14 comprehensive unit tests (all passing)
+
+**Speculative Execution (ACs 9-15):** ✅ COMPLETE
+- GatewayHandler class with three execution modes implemented
+- Safety checks for destructive/dangerous operations
+- Graceful fallback mechanisms
+- AdaptiveThresholdManager for learning optimal thresholds
+- Metrics tracking for speculative execution
+- 10 comprehensive unit tests (all passing)
+
+**Explainability (ACs 16-19):** ✅ COMPLETE
+- Dependency path extraction in DAGSuggester
+- Path explanation generation (direct vs transitive)
+- Confidence scoring per path
+- Rationale generation for suggestions
+
+### Files Created
+- `src/graphrag/graph-engine.ts` - GraphRAG engine with Graphology
+- `src/graphrag/dag-suggester.ts` - DAG suggestion with vector search integration
+- `src/graphrag/types.ts` - TypeScript interfaces for GraphRAG
+- `src/graphrag/index.ts` - Module exports
+- `src/mcp/gateway-handler.ts` - Speculative execution gateway
+- `src/mcp/adaptive-threshold.ts` - Adaptive learning manager
+- `src/mcp/index.ts` - MCP module exports
+- `src/db/migrations/003_graphrag_tables.sql` - Database migration
+- `tests/unit/graphrag/graph_engine_test.ts` - GraphRAGEngine tests (14 tests)
+- `tests/unit/graphrag/dag_suggester_test.ts` - DAGSuggester tests (5 tests)
+- `tests/unit/mcp/gateway_handler_test.ts` - GatewayHandler tests (10 tests)
+- `tests/unit/mcp/adaptive_threshold_test.ts` - AdaptiveThreshold tests (8 tests)
+
+### Test Results
+- **GraphRAGEngine tests:** 14/14 passing
+- **DAGSuggester tests:** 5/5 passing
+- **GatewayHandler tests:** 10/10 passing
+- **AdaptiveThreshold tests:** 8/8 passing
+- **Total:** 37/37 tests passing
+
+### Technical Decisions
+1. **Graphology Import Workaround:** Used `@ts-ignore` with namespace imports due to Deno/TypeScript ESM resolution issues with Graphology npm packages
+2. **Confidence Threshold:** Lowered to 0.50 (from 0.70) to account for realistic semantic similarity scores in production
+3. **Database Migration:** Added tool_dependency table with observed_count and confidence_score for learning
+4. **Safety Checks:** Implemented for destructive operations (delete, exec) but not for write operations
+
+### Performance
+- Graph sync: <50ms (target met)
+- PageRank computation: <100ms (target met)
+- Mode decision: <100ms (target met)
 
 ---
 

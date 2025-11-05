@@ -1,6 +1,7 @@
 # Deno
 .deno/
 deno.lock
+node_modules/
 coverage/
 .env
 .env.*
@@ -44,3 +45,14 @@ coverage.lcov
 tmp/
 temp/
 *.tmp
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+.agentcards/
+
+# Memory files (from MCP servers or caching)
+memory/
+memory:
+:memory:*
