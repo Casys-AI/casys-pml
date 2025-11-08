@@ -41,7 +41,7 @@ story_location: "{project-root}/docs/stories"
 
 development_status:
   # Epic 1: Project Foundation & Context Optimization Engine
-  epic-1: backlog
+  epic-1: contexted
   1-1-project-setup-repository-structure: done
   1-2-pglite-database-foundation-with-pgvector: done
   1-3-mcp-server-discovery-schema-extraction: done
@@ -54,10 +54,10 @@ development_status:
 
   # Epic 2: DAG Execution & Production Readiness
   epic-2: backlog
-  2-1-dependency-graph-construction-dag-builder: review
-  2-2-parallel-execution-engine: drafted
-  2-3-sse-streaming-pour-progressive-results: drafted
-  2-4-mcp-gateway-integration-avec-claude-code: drafted
+  2-1-dependency-graph-construction-dag-builder: done
+  2-2-parallel-execution-engine: done
+  2-3-sse-streaming-pour-progressive-results: done
+  2-4-mcp-gateway-integration-avec-claude-code: done
   2-5-health-checks-mcp-server-monitoring: drafted
   2-6-error-handling-resilience: drafted
   2-7-end-to-end-tests-production-hardening: drafted

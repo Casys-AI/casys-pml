@@ -8,6 +8,7 @@
 
 import { Command } from "@cliffy/command";
 import { createInitCommand } from "./cli/commands/init.ts";
+import { createServeCommand } from "./cli/commands/serve.ts";
 import { setupLogger } from "./telemetry/index.ts";
 import { createDefaultClient } from "./db/client.ts";
 import { TelemetryService } from "./telemetry/telemetry.ts";
@@ -65,6 +66,7 @@ export async function main(): Promise<void> {
     .globalOption("--telemetry", "Enable telemetry (opt-in)")
     .globalOption("--no-telemetry", "Disable telemetry")
     .command("init", createInitCommand())
+    .command("serve", createServeCommand())
     .parse(Deno.args);
 }
 

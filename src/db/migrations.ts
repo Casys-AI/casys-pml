@@ -240,9 +240,23 @@ CREATE TABLE IF NOT EXISTS config (
   updated_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Tool dependencies table: Track relationships between tools for GraphRAG
+CREATE TABLE IF NOT EXISTS tool_dependency (
+  from_tool_id TEXT NOT NULL,
+  to_tool_id TEXT NOT NULL,
+  observed_count INTEGER DEFAULT 1,
+  confidence_score REAL DEFAULT 0.0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (from_tool_id, to_tool_id)
+);
+
 -- Indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_tool_schema_server_id ON tool_schema(server_id);
 CREATE INDEX IF NOT EXISTS idx_tool_embedding_server_id ON tool_embedding(server_id);
+CREATE INDEX IF NOT EXISTS idx_tool_dependency_from ON tool_dependency(from_tool_id);
+CREATE INDEX IF NOT EXISTS idx_tool_dependency_to ON tool_dependency(to_tool_id);
+CREATE INDEX IF NOT EXISTS idx_tool_dependency_confidence ON tool_dependency(confidence_score);
 `;
 
   return {
@@ -273,6 +287,7 @@ CREATE INDEX IF NOT EXISTS idx_tool_embedding_server_id ON tool_embedding(server
     },
     down: async (db: PGliteClient) => {
       // Drop tables in reverse order (respecting foreign keys)
+      await db.exec("DROP TABLE IF EXISTS tool_dependency CASCADE;");
       await db.exec("DROP TABLE IF EXISTS config CASCADE;");
       await db.exec("DROP TABLE IF EXISTS tool_embedding CASCADE;");
       await db.exec("DROP TABLE IF EXISTS tool_schema CASCADE;");

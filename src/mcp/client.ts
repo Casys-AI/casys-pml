@@ -220,6 +220,52 @@ export class MCPClient {
   }
 
   /**
+   * Call a tool on the MCP server
+   *
+   * @param toolName - Name of the tool to call
+   * @param args - Tool arguments
+   * @returns Tool execution result
+   */
+  async callTool(
+    toolName: string,
+    args: Record<string, unknown>,
+  ): Promise<unknown> {
+    try {
+      const callRequest = {
+        jsonrpc: "2.0",
+        id: this.requestId++,
+        method: "tools/call",
+        params: {
+          name: toolName,
+          arguments: args,
+        },
+      };
+
+      const response = await this.sendRequest(callRequest);
+
+      if (response.error) {
+        throw new Error(
+          `tools/call failed for ${toolName}: ${response.error.message}`,
+        );
+      }
+
+      return response.result;
+    } catch (error) {
+      log.error(
+        `Failed to call tool ${toolName} on ${this.server.id}: ${error}`,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Alias for close() to maintain backward compatibility
+   */
+  async disconnect(): Promise<void> {
+    await this.close();
+  }
+
+  /**
    * Close the connection
    */
   async close(): Promise<void> {
