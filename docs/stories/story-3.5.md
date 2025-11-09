@@ -1,370 +1,265 @@
-# Story 3.5: PII Detection & Tokenization
+# Story 3.5: Safe-to-Fail Branches & Resilient Workflows
 
 **Epic:** 3 - Agent Code Execution & Local Processing
 **Story ID:** 3.5
 **Status:** drafted
-**Estimated Effort:** 5-7 heures
+**Estimated Effort:** 4-6 heures
 
 ---
 
 ## User Story
 
-**As a** security-conscious user,
-**I want** personally identifiable information (PII) automatically detected and tokenized,
-**So that** sensitive data never reaches the LLM context.
+**As a** developer building robust production workflows,
+**I want** to leverage sandbox tasks as safe-to-fail branches in my DAG,
+**So that** I can implement resilient workflows with graceful degradation and retry safety.
 
 ---
 
 ## Acceptance Criteria
 
-1. ✅ PII detection module créé (`src/sandbox/pii-detector.ts`)
-2. ✅ Patterns detected: emails, phone numbers, credit cards, SSNs, API keys
-3. ✅ Tokenization strategy: Replace PII with `[EMAIL_1]`, `[PHONE_1]`, etc.
-4. ✅ Reverse mapping stored securely (in-memory only, never persisted)
-5. ✅ Agent receives tokenized data, can reference tokens in code
-6. ✅ De-tokenization happens only for final output (if needed)
-7. ✅ Opt-out flag: `--no-pii-protection` for trusted environments
-8. ✅ Unit tests: Validate detection accuracy (>95% for common PII types)
-9. ✅ Integration test: Email in dataset → tokenized → agent never sees raw email
+1. ✅ DAG executor enhanced pour marquer sandbox tasks comme "safe-to-fail" (failure doesn't halt workflow)
+2. ✅ Partial success mode: DAG continues même si sandbox branches fail
+3. ✅ Aggregation patterns implemented: collect results from successful branches, ignore failures
+4. ✅ Example resilient workflow: Parallel analysis (fast/ML/stats) → use first success
+5. ✅ Retry logic: Failed sandbox tasks can be retried without side effects (idempotent)
+6. ✅ Graceful degradation test: ML analysis timeout → fallback to simple stats
+7. ✅ A/B testing pattern: Run 2 algorithms in parallel, compare results
+8. ✅ Error isolation verification: Sandbox failure doesn't corrupt MCP tasks downstream
+9. ✅ Documentation: Resilient workflow patterns guide avec code examples
+10. ✅ Integration test: Multi-branch workflow with intentional failures → verify partial success
 
 ---
 
 ## Tasks / Subtasks
 
-### Phase 1: PII Detection Module (2-3h)
+### Phase 1: DAG Executor Enhancement (2-3h)
 
-- [ ] **Task 1: Create PII detector** (AC: #1)
-  - [ ] Créer `src/sandbox/pii-detector.ts` module
-  - [ ] Créer classe `PIIDetector` avec detection logic
-  - [ ] Créer interface `PIIMatch` avec type + position + value
-  - [ ] Exporter module dans `mod.ts`
+- [ ] **Task 1: Mark sandbox tasks as safe-to-fail** (AC: #1)
+  - [ ] Modifier `src/dag/executor.ts`
+  - [ ] Ajouter property `safeToFail: boolean` dans Task type
+  - [ ] Auto-detect: tasks avec `tool: "agentcards:execute_code"` → safeToFail = true
+  - [ ] Tasks MCP normaux → safeToFail = false
 
-- [ ] **Task 2: Implement pattern detection** (AC: #2)
-  - [ ] Email regex: `/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g`
-  - [ ] Phone regex (US/CA): `/\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g`
-  - [ ] Credit card regex: `/\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g`
-  - [ ] SSN regex (US): `/\b\d{3}-\d{2}-\d{4}\b/g`
-  - [ ] API key patterns: `/\b(sk|pk)_[a-zA-Z0-9]{32,}\b/g` (generic pattern)
-  - [ ] Supporter custom patterns (configurable)
+- [ ] **Task 2: Partial success execution mode** (AC: #2)
+  - [ ] Modifier `executeTask()` pour capturer failures sandbox
+  - [ ] Si `task.safeToFail === true` et failure → log warning, continue workflow
+  - [ ] Si `task.safeToFail === false` et failure → halt workflow (comportement actuel)
+  - [ ] Return partial results: `{ success: [...], failed: [...] }`
 
-### Phase 2: Tokenization Strategy (2h)
+- [ ] **Task 3: Aggregation patterns** (AC: #3)
+  - [ ] Créer helper `aggregateSuccessfulResults(taskIds: string[])`
+  - [ ] Collecte results de toutes branches successful
+  - [ ] Ignore branches failed (safe-to-fail)
+  - [ ] Exemple: `$OUTPUT.aggregate(["fast", "ml", "stats"])` → retourne seulement successes
 
-- [ ] **Task 3: Implement tokenization** (AC: #3, #4)
-  - [ ] Créer `TokenizationManager` classe
-  - [ ] Replace detected PII avec tokens: `[EMAIL_1]`, `[PHONE_2]`, etc.
-  - [ ] Maintenir reverse mapping: `{ "EMAIL_1": "alice@example.com" }`
-  - [ ] Store mapping in-memory uniquement (no persistence to disk)
-  - [ ] Générer unique token IDs (sequential counter par type)
+### Phase 2: Resilient Workflow Patterns (2h)
 
-- [ ] **Task 4: Agent code support** (AC: #5)
-  - [ ] Agent reçoit données tokenizées
-  - [ ] Agent peut référencer tokens dans code: `if (email === "[EMAIL_1]")`
-  - [ ] Tokens survivent processing (remain in output)
-  - [ ] Agent n'a jamais accès aux valeurs originales
+- [ ] **Task 4: Parallel analysis pattern** (AC: #4)
+  - [ ] Créer exemple workflow: 3 approaches parallèles (fast/ML/stats)
+  - [ ] Launch simultanément avec différents timeouts
+  - [ ] Use first success pattern: return dès qu'une approche réussit
+  - [ ] Aggregator task: `$OUTPUT.firstSuccess(["fast", "ml", "stats"])`
 
-### Phase 3: De-tokenization & Opt-Out (1-2h)
+- [ ] **Task 5: Graceful degradation pattern** (AC: #6)
+  - [ ] Workflow avec fallback automatique
+  - [ ] Priorité: ML analysis (2s timeout) → Stats analysis (fallback)
+  - [ ] Si ML timeout → log degradation → use stats result
+  - [ ] Test: Force ML timeout → verify stats fallback works
 
-- [ ] **Task 5: De-tokenization for final output** (AC: #6)
-  - [ ] Optionnel: de-tokenize result avant envoi au LLM
-  - [ ] User peut décider: keep tokens OR restore original values
-  - [ ] Default: keep tokens (plus sûr)
-  - [ ] Flag: `detokenize: true` pour restoration
+- [ ] **Task 6: A/B testing pattern** (AC: #7)
+  - [ ] Run 2 algorithms en parallèle (algo_a, algo_b)
+  - [ ] Compare results: `{ a: $OUTPUT.algo_a, b: $OUTPUT.algo_b }`
+  - [ ] Metric collection: execution_time, accuracy, etc.
+  - [ ] Return both results pour comparison
 
-- [ ] **Task 6: Opt-out mechanism** (AC: #7)
-  - [ ] CLI flag: `--no-pii-protection`
-  - [ ] Config option: `pii_protection: false` dans config.yaml
-  - [ ] Environment variable: `AGENTCARDS_NO_PII_PROTECTION=1`
-  - [ ] Warning message si opt-out activé
+### Phase 3: Retry Safety & Error Isolation (1-2h)
 
-### Phase 4: Testing & Validation (1-2h)
+- [ ] **Task 7: Retry logic for sandbox tasks** (AC: #5)
+  - [ ] Implement retry mechanism: max 3 attempts
+  - [ ] Retry seulement si `task.safeToFail === true`
+  - [ ] Exponential backoff: 100ms, 200ms, 400ms
+  - [ ] Test: Failed sandbox task → auto-retry → eventual success
 
-- [ ] **Task 7: Unit tests for detection accuracy** (AC: #8)
-  - [ ] Test: Email detection >95% accuracy (true positives + false negatives)
-  - [ ] Test: Phone number detection >95% accuracy
-  - [ ] Test: Credit card detection >95% accuracy
-  - [ ] Test: SSN detection >95% accuracy
-  - [ ] Test: API key detection >90% accuracy (plus variabilité)
-  - [ ] Test: False positives <5% (e.g., pas "test@test" comme email valide)
+- [ ] **Task 8: Error isolation verification** (AC: #8)
+  - [ ] Test workflow: sandbox fail → MCP task downstream
+  - [ ] Verify: Sandbox failure doesn't corrupt downstream state
+  - [ ] Verify: $OUTPUT references to failed tasks → return null/undefined
+  - [ ] Verify: DAG continues execution avec partial results
 
-- [ ] **Task 8: Integration test** (AC: #9)
-  - [ ] Test E2E: Dataset avec emails → tokenization → agent execution → verification
-  - [ ] Valider: Agent code ne voit jamais email original
-  - [ ] Valider: Tokens présents dans résultat final
-  - [ ] Valider: De-tokenization fonctionne si demandée
+### Phase 4: Documentation & Integration Tests (1h)
+
+- [ ] **Task 9: Resilient workflow patterns guide** (AC: #9)
+  - [ ] Documentation: `docs/resilient-workflows.md`
+  - [ ] Pattern 1: Parallel speculative branches
+  - [ ] Pattern 2: Graceful degradation
+  - [ ] Pattern 3: A/B testing
+  - [ ] Pattern 4: Retry with idempotency
+  - [ ] Code examples pour chaque pattern
+
+- [ ] **Task 10: Integration tests** (AC: #10)
+  - [ ] Test: Multi-branch workflow avec intentional failures
+  - [ ] Scenario 1: 3 parallel branches, 1 fails → verify 2 succeed
+  - [ ] Scenario 2: ML timeout → fallback stats → verify graceful degradation
+  - [ ] Scenario 3: Retry failed sandbox → verify eventual success
+  - [ ] Scenario 4: Error isolation → verify downstream not corrupted
 
 ---
 
 ## Dev Notes
 
-### PII Detection Patterns
+### Safe-to-Fail Property
 
-**Supported PII Types:**
-| Type | Pattern | Example | Token Format |
-|------|---------|---------|--------------|
-| Email | `[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}` | alice@example.com | `[EMAIL_1]` |
-| Phone (US) | `\d{3}[-.]?\d{3}[-.]?\d{4}` | 555-123-4567 | `[PHONE_1]` |
-| Credit Card | `\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}` | 1234-5678-9012-3456 | `[CARD_1]` |
-| SSN (US) | `\d{3}-\d{2}-\d{4}` | 123-45-6789 | `[SSN_1]` |
-| API Key | `(sk|pk)_[a-zA-Z0-9]{32,}` | sk_test_abc123... | `[APIKEY_1]` |
+**Why sandbox tasks are safe-to-fail:**
+- **Idempotent**: Re-execution produces same result
+- **Isolated**: No side effects (pas de fichier créé, pas d'API call externe)
+- **Stateless**: Failure doesn't corrupt system state
 
-**Regex Design Principles:**
-- High precision (minimize false positives)
-- Good recall (catch real PII)
-- Performance: compiled regexes, cached
-
-### Tokenization Architecture
-
-**Flow:**
-```
-1. Data Source (MCP tool) → Raw Data (with PII)
-2. PIIDetector.scan(data) → Identify PII locations
-3. TokenizationManager.tokenize(data, matches) → Replace with tokens
-4. Tokenized Data → Agent code execution
-5. Agent output (with tokens)
-6. [Optional] De-tokenize → Restore original values
-7. Final output
-```
-
-**Security Model:**
-- Original PII never persisted to disk
-- Reverse mapping stored in-memory only
-- Mapping cleared after execution completes
-- No logs contain raw PII
-
-### Example: Email Tokenization
-
-**Input:**
-```json
-{
-  "users": [
-    { "name": "Alice", "email": "alice@example.com" },
-    { "name": "Bob", "email": "bob@company.org" }
-  ]
-}
-```
-
-**After Tokenization:**
-```json
-{
-  "users": [
-    { "name": "Alice", "email": "[EMAIL_1]" },
-    { "name": "Bob", "email": "[EMAIL_2]" }
-  ]
-}
-```
-
-**Reverse Mapping (in-memory):**
+**Contrast with MCP tasks:**
 ```typescript
+// ❌ MCP Task: NOT safe-to-fail
 {
-  "EMAIL_1": "alice@example.com",
-  "EMAIL_2": "bob@company.org"
+  id: "create_issue",
+  tool: "github:create_issue",
+  safeToFail: false  // Side effect! Can't retry without duplication
+}
+
+// ✅ Sandbox Task: Safe-to-fail
+{
+  id: "analyze",
+  tool: "agentcards:execute_code",
+  code: "analyzeData(commits)",
+  safeToFail: true  // Idempotent! Can retry/fail safely
 }
 ```
 
-**Agent Code (sees tokenized data):**
-```typescript
-const users = context.users;
-const aliceEmail = users.find(u => u.name === "Alice").email;
-// aliceEmail === "[EMAIL_1]" (agent never sees raw email)
+### Resilient Workflow Example
 
-return {
-  emailDomain: "[EMAIL_1]".split('@')[1] // Fails gracefully, returns undefined
+**Complete resilient workflow:**
+```typescript
+const resilientWorkflow: DAGStructure = {
+  tasks: [
+    // Fetch data (MCP task - NOT safe-to-fail)
+    {
+      id: "fetch",
+      tool: "github:list_commits",
+      arguments: { repo: "agentcards", limit: 1000 },
+      depends_on: [],
+      safeToFail: false
+    },
+
+    // Launch 3 parallel analysis approaches (ALL safe-to-fail)
+    {
+      id: "fast",
+      tool: "agentcards:execute_code",
+      code: "simpleAnalysis(commits)",
+      timeout: 500,
+      depends_on: ["fetch"],
+      safeToFail: true  // Can fail without consequences
+    },
+    {
+      id: "ml",
+      tool: "agentcards:execute_code",
+      code: "mlAnalysis(commits)",
+      timeout: 2000,
+      depends_on: ["fetch"],
+      safeToFail: true  // Can fail without consequences
+    },
+    {
+      id: "stats",
+      tool: "agentcards:execute_code",
+      code: "statisticalAnalysis(commits)",
+      depends_on: ["fetch"],
+      safeToFail: true  // Can fail without consequences
+    },
+
+    // Aggregate successful results
+    {
+      id: "aggregate",
+      tool: "agentcards:execute_code",
+      code: `
+        const results = [];
+        if ($OUTPUT.fast) results.push({ type: 'fast', ...fastResult });
+        if ($OUTPUT.ml) results.push({ type: 'ml', ...mlResult });
+        if ($OUTPUT.stats) results.push({ type: 'stats', ...statsResult });
+        return mergeBestInsights(results);
+      `,
+      depends_on: ["fast", "ml", "stats"],
+      safeToFail: true
+    },
+
+    // Create GitHub issue (MCP task - NOT safe-to-fail)
+    {
+      id: "create_issue",
+      tool: "github:create_issue",
+      arguments: {
+        title: "Analysis Results",
+        body: "$OUTPUT.aggregate"
+      },
+      depends_on: ["aggregate"],
+      safeToFail: false  // Side effect! Must succeed or halt
+    }
+  ]
 };
 ```
 
-**De-tokenization (optional):**
+**Execution scenarios:**
+
+1. **All succeed**: Fast (200ms), ML (1.8s), Stats (1.2s) → Aggregate all 3
+2. **ML timeouts**: Fast (200ms), ML (timeout), Stats (1.2s) → Aggregate 2 (graceful degradation)
+3. **Only fast succeeds**: Fast (200ms), ML (error), Stats (error) → Aggregate 1 (degraded but functional)
+4. **All fail**: Fast/ML/Stats all fail → Aggregate gets empty results → Create issue fails (acceptable)
+
+### Performance Characteristics
+
+**Benefits of safe-to-fail branches:**
+- **Aggressive speculation**: Try multiple approaches without risk
+- **Graceful degradation**: Partial success better than complete failure
+- **Retry safety**: Idempotent tasks can be retried without duplication
+- **A/B testing**: Run experiments in production safely
+
+**Trade-offs:**
+- **Wasted compute**: Failed branches consume CPU (but cheap resource)
+- **Complexity**: More branches = more debugging
+- **Latency variance**: Results depend on which branches succeed
+
+### Integration with Speculative Execution (Epic 2)
+
+Safe-to-fail branches unlock **speculative resilience**:
+
 ```typescript
-// Before: { emailDomain: undefined }
-// After de-tokenization: { emailDomain: "example.com" }
+// Gateway can speculatively execute multiple hypotheses
+const speculativeExecution = await gatewayHandler.processIntent({
+  text: "Analyze commits and find trends"
+});
+
+// If confidence > 0.70 → Execute speculatively
+// Launch 3 sandbox branches in parallel (all safe-to-fail)
+// If predictions wrong → Discard results (no side effects)
+// If predictions right → Agent gets instant multi-perspective analysis
 ```
 
-### Project Structure Alignment
-
-**New Module: `src/sandbox/pii-detector.ts`**
-```
-src/sandbox/
-├── executor.ts           # Story 3.1
-├── context-builder.ts    # Story 3.2
-├── data-pipeline.ts      # Story 3.3
-├── pii-detector.ts       # Story 3.5 (NEW)
-└── types.ts              # Shared types
-```
-
-**Integration Points:**
-- `src/sandbox/executor.ts`: Call PII detector before/after code execution
-- `src/mcp/gateway-server.ts`: Enable/disable PII protection per request
-- `src/config/loader.ts`: Load `pii_protection` config flag
-
-### Testing Strategy
-
-**Test Organization:**
-```
-tests/unit/sandbox/
-├── pii_detector_test.ts        # Detection accuracy tests
-├── tokenization_test.ts        # Tokenization logic tests
-└── pii_integration_test.ts     # E2E PII flow tests
-
-tests/fixtures/
-└── pii-test-data.json          # Test datasets with known PII
-```
-
-**Accuracy Metrics:**
-- **Precision**: `TP / (TP + FP)` >95%
-- **Recall**: `TP / (TP + FN)` >95%
-- **F1 Score**: `2 * (Precision * Recall) / (Precision + Recall)` >95%
-
-**Test Data:**
-```typescript
-const testEmails = [
-  { value: "alice@example.com", valid: true },
-  { value: "bob.smith@company.co.uk", valid: true },
-  { value: "not-an-email", valid: false },
-  { value: "test@", valid: false },
-  { value: "@test.com", valid: false }
-];
-```
-
-### Learnings from Previous Stories
-
-**From Story 3.1 (Sandbox):**
-- Sandbox execution isolée
-- Return value serialization (JSON-only)
-[Source: stories/story-3.1.md]
-
-**From Story 3.2 (Tools Injection):**
-- Tool wrappers génèrent données brutes
-- Data flows through sandbox
-[Source: stories/story-3.2.md]
-
-**From Story 3.3 (Data Pipeline):**
-- Large datasets processed locally
-- Metrics logging (input/output sizes)
-[Source: stories/story-3.3.md]
-
-**From Story 3.4 (execute_code Tool):**
-- Gateway integration patterns
-- MCP tool schema design
-[Source: stories/story-3.4.md]
-
-### Configuration Example
-
-**config.yaml:**
-```yaml
-pii_protection:
-  enabled: true
-  types:
-    - email
-    - phone
-    - credit_card
-    - ssn
-    - api_key
-  detokenize_output: false  # Keep tokens in final output (safer)
-```
-
-**CLI Usage:**
-```bash
-# Enable PII protection (default)
-./agentcards serve
-
-# Disable PII protection (opt-out)
-./agentcards serve --no-pii-protection
-
-# Environment variable
-AGENTCARDS_NO_PII_PROTECTION=1 ./agentcards serve
-```
-
-### Performance Considerations
-
-**Regex Performance:**
-- Pre-compile all regex patterns (once at startup)
-- Use `exec()` in loop for multiple matches
-- Target: <10ms overhead for 1MB dataset
-
-**Memory Overhead:**
-- Reverse mapping: ~100 bytes per token
-- 1000 PII items → ~100KB memory (acceptable)
-
-### Security Considerations
-
-**Threat Model:**
-1. **PII leakage to LLM**: Prevented by tokenization
-2. **PII in logs**: Prevented by never logging raw values
-3. **PII in telemetry**: Metrics exclude PII (only counts)
-
-**Compliance:**
-- GDPR-friendly (PII never leaves local machine)
-- HIPAA consideration (medical PII not detected by default)
-- Extensible for custom PII types
-
-### Limitations & Future Work
-
-**Current Scope:**
-- Regex-based detection (fast but not ML-based)
-- English-language PII patterns
-- Common PII types only
-
-**Future Enhancements (out of scope):**
-- ML-based PII detection (higher accuracy)
-- Multi-language support
-- Medical PII (HIPAA compliance)
-- Financial PII (IBAN, routing numbers)
-
-### Out of Scope (Story 3.5)
-
-- Result caching (Story 3.6)
-- E2E documentation (Story 3.7)
-- ML-based detection
-- Multi-language support
-
-### References
-
-- [Epic 3 Overview](../epics.md#Epic-3-Agent-Code-Execution--Local-Processing)
-- [Story 3.1 - Sandbox](./story-3.1.md)
-- [Story 3.2 - Tools Injection](./story-3.2.md)
-- [Story 3.3 - Data Pipeline](./story-3.3.md)
-- [Story 3.4 - execute_code Tool](./story-3.4.md)
+**Without safe-to-fail**: Speculative execution too risky (side effects)
+**With safe-to-fail**: Speculative execution becomes aggressive and safe
 
 ---
 
-## Dev Agent Record
+## Prerequisites
 
-### Context Reference
-
-<!-- Path(s) to story context XML will be added here by context workflow -->
-
-### Agent Model Used
-
-_To be filled by Dev Agent_
-
-### Debug Log References
-
-_Dev implementation notes, challenges, and solutions go here_
-
-### Completion Notes List
-
-_Key completion notes for next story (patterns, services, deviations) go here_
-
-### File List
-
-**Files to be Created (NEW):**
-- `src/sandbox/pii-detector.ts`
-- `tests/unit/sandbox/pii_detector_test.ts`
-- `tests/unit/sandbox/tokenization_test.ts`
-- `tests/unit/sandbox/pii_integration_test.ts`
-- `tests/fixtures/pii-test-data.json`
-
-**Files to be Modified (MODIFIED):**
-- `src/sandbox/executor.ts` (integrate PII detection)
-- `src/sandbox/types.ts` (add PII types)
-- `src/mcp/gateway-server.ts` (add --no-pii-protection flag)
-- `src/config/loader.ts` (load pii_protection config)
-- `mod.ts` (export PII detector)
-
-**Files to be Deleted (DELETED):**
-- None
+- **Story 3.4**: `agentcards:execute_code` tool functional
+- **Epic 2**: DAG executor with parallel execution
+- **Epic 2**: Speculative execution capability
 
 ---
 
-## Change Log
+## Definition of Done
 
-- **2025-11-09**: Story drafted by BMM workflow, based on Epic 3 requirements
+- [ ] DAG executor marks sandbox tasks as safe-to-fail automatically
+- [ ] Partial success mode: Workflow continues despite sandbox failures
+- [ ] Aggregation helpers implemented and tested
+- [ ] 3+ resilient workflow patterns documented with examples
+- [ ] Retry logic works for sandbox tasks (idempotent)
+- [ ] Error isolation verified (sandbox failure doesn't corrupt downstream)
+- [ ] Integration tests: Multi-branch workflows with intentional failures pass
+- [ ] Documentation: Resilient workflow patterns guide complete
+- [ ] Code review approved
+- [ ] Tests pass (unit + integration)

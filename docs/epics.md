@@ -202,6 +202,41 @@ So that I can debug issues et measure success metrics (context usage, latency).
 
 Implémenter le système de DAG execution pour parallélisation intelligente des workflows multi-tools, intégrer AgentCards comme MCP gateway avec Claude Code, et hardening production avec health checks, error handling robuste, et tests end-to-end. Ce second epic livre un système production-ready capable de réduire la latence des workflows de 5x à 1x via parallélisation, complétant ainsi la double value proposition d'AgentCards (context + speed).
 
+**Architecture Clarification: GraphRAG vs DAG:**
+
+Il est crucial de comprendre la distinction entre deux composants architecturaux complémentaires :
+
+- **GraphRAG (Epic 1)** = Base de connaissances globale
+  - Stocke TOUS les tools de TOUS les MCP servers (687 tools)
+  - Contient l'historique des workflows exécutés (succès/échecs, patterns)
+  - Maintient les relations entre tools (ex: "filesystem:read" suivi de "json:parse" dans 85% des cas)
+  - **Scope:** Global, toutes les possibilités
+
+- **DAG (Epic 2)** = Instance de workflow spécifique
+  - Un workflow concret pour UNE tâche précise
+  - Contient uniquement les 3-5 tools pertinents pour cette requête
+  - Définit explicitement les dépendances (task B dépend de task A)
+  - **Scope:** Local, single execution
+
+**Comment ils permettent le Speculative Execution:**
+
+```
+GraphRAG (Epic 1) → Apprend les patterns historiques
+        ↓
+DAG Suggester → Prédit quel DAG construire basé sur l'intent
+        ↓
+DAG (Epic 2) → Structure concrète à exécuter
+        ↓
+Execution Spéculative → Lance le DAG prédit AVANT que l'agent demande
+        ↓
+Résultats cachés → Agent obtient réponse instantanée
+```
+
+Sans GraphRAG (la connaissance), impossible de prédire quel DAG construire.
+Sans DAG (la structure), impossible d'exécuter en parallèle ou spéculativement.
+
+Le **Speculative Execution** n'est possible que grâce au **graph de dépendances** qui encode les patterns appris dans GraphRAG et permet la prédiction de workflows complets.
+
 **Value Delivery:**
 
 À la fin de cet epic, un développeur peut exécuter des workflows cross-MCP complexes avec parallélisation automatique, observant des gains de performance 3-5x sur workflows typiques, le tout via une gateway stable et fiable intégrée à Claude Code.
@@ -390,9 +425,35 @@ Implémenter un environnement d'exécution sécurisé permettant aux agents d'é
 
 À la fin de cet epic, un développeur peut exécuter des workflows qui traitent localement des datasets volumineux (ex: 1000 commits GitHub), filtrent et agrègent les données dans un sandbox sécurisé, et retournent seulement le résumé pertinent (<1KB) au lieu des données brutes (>1MB), récupérant 99%+ de contexte additionnel et protégeant automatiquement les données sensibles.
 
+**Estimation:** 8 stories (3.1 à 3.8)
+
 **Design Philosophy:**
 
 Inspiré par l'approche Anthropic de code execution, Epic 3 combine le meilleur des deux mondes : vector search (Epic 1) pour découvrir les tools pertinents, puis code execution pour traiter les résultats localement. L'agent écrit du code au lieu d'appeler directement les tools, permettant filtrage, agrégation, et transformation avant que les données n'atteignent le contexte LLM.
+
+**Safe-to-Fail Branches Pattern (Story 3.5 - Synergie avec Speculative Execution d'Epic 2):**
+
+Une propriété architecturale critique qui émerge dès que le sandbox est intégré au DAG (Story 3.5, juste après `execute_code` tool en 3.4) est le pattern des **branches safe-to-fail** : les tâches sandbox peuvent échouer sans compromettre l'ensemble du workflow, car elles s'exécutent dans un environnement isolé. Contrairement aux appels MCP directs (qui peuvent avoir des effets de bord - écriture fichier, création issue GitHub), le code sandbox est **idempotent et isolé**.
+
+**Cette propriété débloque la vraie puissance du Speculative Execution (Epic 2)** : avec les MCP tools directs, l'exécution spéculative est risquée (prédiction incorrecte = side effect indésirable), mais avec le sandbox, tu peux :
+
+**Séquence logique Epic 3** : Foundation (3.1) → Tools Injection (3.2) → Data Processing (3.3) → execute_code Tool (3.4) → **Safe-to-Fail Branches (3.5)** → PII Protection (3.6) → Caching (3.7) → E2E Tests (3.8). Safe-to-fail arrive dès que execute_code est opérationnel, car c'est une propriété architecturale du système, pas une optimization tardive.
+
+1. **Intelligent Environment Isolation** : Le gateway exécute les opérations lourdes dans un environnement séparé invisible à l'agent. L'agent ne voit jamais les données brutes (1000 commits = 1.2MB), seulement le résultat traité (summary = 2KB). Pas de pollution de contexte.
+
+2. **Aggressive Speculation Without Risk** : Prédire et exécuter plusieurs approches simultanément (fast/ML/stats) sans risque. Si les prédictions sont incorrectes, on discard les résultats (pas de side effects). Si correctes, l'agent obtient une analyse multi-perspective instantanée.
+
+3. **Resilient Workflows** : Lancer 3 approches d'analyse en parallèle, utiliser celle qui réussit. Les MCP tools ne peuvent pas faire ça (side effects, retry = duplicates), mais les sandbox branches le peuvent (failures are free, successes are valuable).
+
+4. **Graceful Degradation** : Si l'analyse ML timeout, fallback automatique sur l'analyse statistique. Pas de rollback nécessaire, les branches échouées sont juste ignorées.
+
+5. **Retry Safety** : Réexécuter des branches sandbox sans risque de duplication d'effets (idempotent).
+
+6. **A/B Testing en Production** : Tester 2 algorithmes en parallèle, comparer les résultats, choisir le meilleur.
+
+Le combo **Speculative Execution (Epic 2) + Safe-to-Fail Branches (Epic 3)** transforme le DAG executor en système de **speculative resilience** : exécuter plusieurs hypothèses simultanément, conserver les succès, ignorer les échecs. Les branches sandbox échouées ne consomment que du temps CPU (ressource peu coûteuse), tandis que les branches MCP échouées peuvent laisser des états corrompus.
+
+**Vision architecturale** : Une gateway qui ne route pas simplement les requêtes, mais **orchestre intelligemment la computation** au nom des agents AI contraints par le contexte.
 
 ---
 
@@ -482,7 +543,29 @@ So that I can process data locally instead of loading everything into context.
 
 ---
 
-**Story 3.5: PII Detection & Tokenization**
+**Story 3.5: Safe-to-Fail Branches & Resilient Workflows**
+
+As a developer building robust production workflows,
+I want to leverage sandbox tasks as safe-to-fail branches in my DAG,
+So that I can implement resilient workflows with graceful degradation and retry safety.
+
+**Acceptance Criteria:**
+1. DAG executor enhanced pour marquer sandbox tasks comme "safe-to-fail" (failure doesn't halt workflow)
+2. Partial success mode: DAG continues même si sandbox branches fail
+3. Aggregation patterns implemented: collect results from successful branches, ignore failures
+4. Example resilient workflow: Parallel analysis (fast/ML/stats) → use first success
+5. Retry logic: Failed sandbox tasks can be retried without side effects (idempotent)
+6. Graceful degradation test: ML analysis timeout → fallback to simple stats
+7. A/B testing pattern: Run 2 algorithms in parallel, compare results
+8. Error isolation verification: Sandbox failure doesn't corrupt MCP tasks downstream
+9. Documentation: Resilient workflow patterns guide avec code examples
+10. Integration test: Multi-branch workflow with intentional failures → verify partial success
+
+**Prerequisites:** Story 3.4 (execute_code tool)
+
+---
+
+**Story 3.6: PII Detection & Tokenization**
 
 As a security-conscious user,
 I want personally identifiable information (PII) automatically detected and tokenized,
@@ -499,11 +582,11 @@ So that sensitive data never reaches the LLM context.
 8. Unit tests: Validate detection accuracy (>95% for common PII types)
 9. Integration test: Email in dataset → tokenized → agent never sees raw email
 
-**Prerequisites:** Story 3.4 (execute_code tool)
+**Prerequisites:** Story 3.5 (safe-to-fail branches)
 
 ---
 
-**Story 3.6: Code Execution Caching & Optimization**
+**Story 3.7: Code Execution Caching & Optimization**
 
 As a developer running repetitive workflows,
 I want code execution results cached intelligently,
@@ -520,11 +603,11 @@ So that I don't re-execute identical code with identical inputs.
 8. Persistence optional: Save cache to PGlite for cross-session reuse
 9. Performance: Cache hit rate >60% for typical workflows
 
-**Prerequisites:** Story 3.5 (PII tokenization)
+**Prerequisites:** Story 3.6 (PII tokenization)
 
 ---
 
-**Story 3.7: End-to-End Code Execution Tests & Documentation**
+**Story 3.8: End-to-End Code Execution Tests & Documentation**
 
 As a developer adopting code execution,
 I want comprehensive tests and documentation,
@@ -537,15 +620,17 @@ So that I understand how to use the feature effectively.
    - Multi-server data aggregation (GitHub + Jira + Slack)
    - PII-sensitive workflow (email processing)
    - Error handling (timeout, syntax error, runtime error)
+   - Resilient workflows with safe-to-fail branches
 3. Performance regression tests added to benchmark suite
 4. Documentation: README section "Code Execution Mode"
 5. Examples provided: 5+ real-world use cases with code samples
 6. Comparison benchmarks: Tool calls vs Code execution (context & latency)
 7. Migration guide: When to use code execution vs DAG workflows
 8. Security documentation: Sandbox limitations, PII protection details
-9. Video tutorial: 3-minute quickstart (optional, can be deferred)
+9. Resilient workflow patterns comprehensive documentation
+10. Video tutorial: 3-minute quickstart (optional, can be deferred)
 
-**Prerequisites:** Story 3.6 (caching)
+**Prerequisites:** Story 3.7 (caching)
 
 ---
 

@@ -63,6 +63,11 @@ AgentCards se différencie par une approche **PGlite-first, zero-config, et doub
 **Migration & Setup**
 - **FR016:** Le système doit pouvoir lire le mcp.json existant de Claude Code et générer automatiquement la configuration AgentCards correspondante
 
+**Code Execution & Sandbox**
+- **FR017:** Le système doit permettre l'exécution de code TypeScript généré par les agents dans un environnement Deno sandbox isolé avec permissions explicites
+- **FR018:** Le système doit supporter les **branches DAG safe-to-fail** : tâches sandbox pouvant échouer sans compromettre le workflow global, permettant resilient workflows, graceful degradation, et retry safety
+- **FR019:** Le système doit injecter les MCP tools pertinents dans le contexte d'exécution sandbox via vector search, permettant aux agents d'appeler les tools directement depuis le code TypeScript
+
 ### Non-Functional Requirements
 
 - **NFR001: Performance** - Le système doit exécuter un workflow typique de 5 tools avec une latence P95 <3 secondes (amélioration 5x vs exécution séquentielle baseline)
@@ -219,6 +224,8 @@ Pas d'interface graphique MVP, mais output console optimisé:
 - Health checks et observability
 - Tests end-to-end et production hardening
 
+**Note architecturale:** Le **DAG** (instance de workflow spécifique) est distinct du **GraphRAG** (Epic 1 - base de connaissances globale). GraphRAG stocke tous les tools et patterns historiques ; le DAG Suggester interroge GraphRAG pour prédire quel DAG construire pour une tâche donnée ; le DAG Executor exécute ce DAG (possiblement spéculativement). Le speculative execution n'est possible que grâce à cette architecture : GraphRAG (la connaissance) → DAG Suggester (l'intelligence) → DAG (le plan d'exécution).
+
 **Estimation:** 6-7 stories
 
 ---
@@ -236,9 +243,19 @@ Pas d'interface graphique MVP, mais output console optimisé:
 - Code execution caching et optimizations
 - Documentation et tests E2E complets
 
-**Estimation:** 7 stories
+**Estimation:** 8 stories (3.1 à 3.8)
 
 **Value Proposition:** Réduction additionnelle de contexte (<5% → <1% pour large datasets), protection automatique des données sensibles, et traitement local des données volumineuses (1MB+ → <1KB dans contexte)
+
+**Architectural Benefit (Safe-to-Fail Branches + Speculative Execution):** L'isolation du sandbox permet de créer des **branches DAG safe-to-fail** : des tâches qui peuvent échouer sans compromettre le workflow global. Contrairement aux appels MCP (effets de bord possibles comme création de fichiers ou issues GitHub), le code sandbox est **idempotent et isolé**.
+
+Cette propriété débloque la **vraie puissance du speculative execution** (Epic 2) : avec les MCP tools directs, l'exécution spéculative est risquée (prédiction incorrecte = side effect indésirable), mais avec le sandbox, tu peux :
+- **Prédire et exécuter** plusieurs approches simultanément sans risque
+- **Échouer gracieusement** si les prédictions sont incorrectes (pas de corruption)
+- **Retry en toute sécurité** sans duplication d'effets
+- **A/B test en production** avec plusieurs algorithmes en parallèle
+
+Le combo **Speculative Execution (Epic 2) + Safe-to-Fail Branches (Epic 3)** transforme le DAG executor en système de **speculative resilience** : exécuter plusieurs hypothèses simultanément, conserver les succès, ignorer les échecs.
 
 ---
 

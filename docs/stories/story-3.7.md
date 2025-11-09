@@ -1,346 +1,327 @@
-# Story 3.7: End-to-End Code Execution Tests & Documentation
+# Story 3.7: Code Execution Caching & Optimization
 
 **Epic:** 3 - Agent Code Execution & Local Processing
 **Story ID:** 3.7
 **Status:** drafted
-**Estimated Effort:** 6-8 heures
+**Estimated Effort:** 4-6 heures
 
 ---
 
 ## User Story
 
-**As a** developer adopting code execution,
-**I want** comprehensive tests and documentation,
-**So that** I understand how to use the feature effectively.
+**As a** developer running repetitive workflows,
+**I want** code execution results cached intelligently,
+**So that** I don't re-execute identical code with identical inputs.
 
 ---
 
 ## Acceptance Criteria
 
-1. ✅ E2E test suite créé (`tests/e2e/code-execution/`)
-2. ✅ Test scenarios:
-   - GitHub commits analysis (large dataset filtering)
-   - Multi-server data aggregation (GitHub + Jira + Slack)
-   - PII-sensitive workflow (email processing)
-   - Error handling (timeout, syntax error, runtime error)
-3. ✅ Performance regression tests added to benchmark suite
-4. ✅ Documentation: README section "Code Execution Mode"
-5. ✅ Examples provided: 5+ real-world use cases with code samples
-6. ✅ Comparison benchmarks: Tool calls vs Code execution (context & latency)
-7. ✅ Migration guide: When to use code execution vs DAG workflows
-8. ✅ Security documentation: Sandbox limitations, PII protection details
-9. ✅ Video tutorial: 3-minute quickstart (optional, can be deferred)
+1. ✅ Code execution cache implemented (in-memory LRU, max 100 entries)
+2. ✅ Cache key: hash(code + context + tool_versions)
+3. ✅ Cache hit: Return cached result without execution (<10ms)
+4. ✅ Cache invalidation: Auto-invalidate on tool schema changes
+5. ✅ Cache stats logged: hit_rate, avg_latency_saved_ms
+6. ✅ Configurable: `--no-cache` flag to disable caching
+7. ✅ TTL support: Cache entries expire after 5 minutes
+8. ✅ Persistence optional: Save cache to PGlite for cross-session reuse
+9. ✅ Performance: Cache hit rate >60% for typical workflows
 
 ---
 
 ## Tasks / Subtasks
 
-### Phase 1: E2E Test Suite (3-4h)
+### Phase 1: Cache Implementation (2-3h)
 
-- [ ] **Task 1: Create E2E test structure** (AC: #1)
-  - [ ] Créer `tests/e2e/code-execution/` directory
-  - [ ] Créer structure: `01-setup.test.ts`, `02-github-analysis.test.ts`, etc.
-  - [ ] Setup helpers: mock MCP servers, test data generators
-  - [ ] Cleanup helpers: DB reset, cache clear
+- [ ] **Task 1: Create cache module** (AC: #1)
+  - [ ] Créer `src/sandbox/cache.ts` module
+  - [ ] Implémenter LRU cache (max 100 entries)
+  - [ ] Créer interface `CacheEntry` avec result + timestamp + metadata
+  - [ ] Exporter module dans `mod.ts`
 
-- [ ] **Task 2: GitHub commits analysis test** (AC: #2.1)
-  - [ ] Test: Fetch 1000 commits → filter last week → aggregate by author
-  - [ ] Valider: Output <1KB, input >1MB (context savings)
-  - [ ] Valider: Execution time <3 seconds
-  - [ ] Valider: Cache hit on second run
+- [ ] **Task 2: Cache key generation** (AC: #2)
+  - [ ] Générer hash from code + context + tool_versions
+  - [ ] Utiliser crypto hash (SHA-256 ou xxhash pour performance)
+  - [ ] Format: `${hash(code)}_${hash(context)}_${toolVersionsHash}`
+  - [ ] Gérer ordering de context keys (stable hash)
 
-- [ ] **Task 3: Multi-server aggregation test** (AC: #2.2)
-  - [ ] Test: Fetch from GitHub + Jira + Slack (3 MCP servers)
-  - [ ] Tool injection: Vector search finds relevant tools
-  - [ ] Aggregate results in sandbox
-  - [ ] Valider: All 3 servers called correctly
+### Phase 2: Cache Operations (1-2h)
 
-- [ ] **Task 4: PII-sensitive workflow test** (AC: #2.3)
-  - [ ] Test: Dataset avec emails → PII tokenization → agent execution
-  - [ ] Valider: Agent code never sees raw emails
-  - [ ] Valider: Tokens `[EMAIL_1]` présents dans output
-  - [ ] Valider: De-tokenization fonctionne si activée
+- [ ] **Task 3: Cache hit path** (AC: #3)
+  - [ ] Check cache avant exécution
+  - [ ] Si hit: return cached result immédiatement
+  - [ ] Target latency: <10ms pour cache hit
+  - [ ] Logger cache hit pour telemetry
 
-- [ ] **Task 5: Error handling tests** (AC: #2.4)
-  - [ ] Test: Syntax error → structured error response
-  - [ ] Test: Runtime error → exception caught et retournée
-  - [ ] Test: Timeout → process killed après 30s
-  - [ ] Test: Memory limit → process killed si heap >512MB
+- [ ] **Task 4: Cache invalidation** (AC: #4)
+  - [ ] Détecter tool schema changes (via MCP server version)
+  - [ ] Invalider tous les entries utilisant tool modifié
+  - [ ] Hook dans MCP discovery pour invalidation automatique
+  - [ ] Logger invalidations pour debugging
 
-### Phase 2: Performance & Regression Tests (2h)
+### Phase 3: TTL & Configuration (1h)
 
-- [ ] **Task 6: Performance regression tests** (AC: #3)
-  - [ ] Benchmark: Sandbox startup time (<100ms)
-  - [ ] Benchmark: Code execution overhead (<50ms)
-  - [ ] Benchmark: Cache hit latency (<10ms)
-  - [ ] Benchmark: Large dataset processing (1000 items <2s)
-  - [ ] Ajouter à `tests/benchmarks/` suite
+- [ ] **Task 5: TTL support** (AC: #7)
+  - [ ] Default TTL: 5 minutes (300 seconds)
+  - [ ] Check TTL à chaque cache access
+  - [ ] Purger expired entries automatiquement
+  - [ ] Configurable TTL via config.yaml
 
-- [ ] **Task 7: Comparison benchmarks** (AC: #6)
-  - [ ] Benchmark: Direct tool calls (baseline)
-  - [ ] Benchmark: Code execution (local processing)
-  - [ ] Mesurer: Latency (time), Context usage (tokens)
-  - [ ] Documenter speedup et context savings
+- [ ] **Task 6: Configuration & opt-out** (AC: #6)
+  - [ ] CLI flag: `--no-cache` pour désactiver
+  - [ ] Config option: `code_execution_cache: false`
+  - [ ] Environment variable: `AGENTCARDS_NO_CACHE=1`
+  - [ ] Default: cache enabled
 
-### Phase 3: Documentation (2-3h)
+### Phase 4: Persistence & Metrics (1-2h)
 
-- [ ] **Task 8: README Code Execution Mode section** (AC: #4)
-  - [ ] Section overview: What is code execution mode?
-  - [ ] When to use: Large datasets, complex processing
-  - [ ] Quick start: First code execution example
-  - [ ] Configuration: Flags, config options
+- [ ] **Task 7: Optional persistence to PGlite** (AC: #8)
+  - [ ] Créer table `code_execution_cache` dans PGlite
+  - [ ] Schema: `(cache_key TEXT PRIMARY KEY, result JSONB, created_at TIMESTAMP, expires_at TIMESTAMP)`
+  - [ ] Save cache entries to DB (async, non-blocking)
+  - [ ] Load cache from DB au startup
+  - [ ] Config option: `cache_persistence: true|false` (default: false)
 
-- [ ] **Task 9: Real-world use cases** (AC: #5)
-  - [ ] Example 1: GitHub commit analysis
-  - [ ] Example 2: Log aggregation across services
-  - [ ] Example 3: Data pipeline (fetch → transform → export)
-  - [ ] Example 4: PII-safe data processing
-  - [ ] Example 5: Multi-step workflow with caching
-  - [ ] Code samples pour chaque use case
-
-- [ ] **Task 10: Migration guide** (AC: #7)
-  - [ ] Decision tree: Code execution vs DAG vs Direct tool calls
-  - [ ] When to use code execution: criteria + examples
-  - [ ] When to use DAG workflows: criteria + examples
-  - [ ] When to use direct tool calls: criteria + examples
-  - [ ] Migration examples: Before/After comparisons
-
-- [ ] **Task 11: Security documentation** (AC: #8)
-  - [ ] Sandbox security model: Permissions, isolation
-  - [ ] PII protection: Detection, tokenization, opt-out
-  - [ ] Limitations: No network, no filesystem write
-  - [ ] Best practices: Input validation, error handling
-
-### Phase 4: Video Tutorial (Optional, 1h)
-
-- [ ] **Task 12: 3-minute quickstart video** (AC: #9, optional)
-  - [ ] Script: Install → Configure → First code execution
-  - [ ] Demo: GitHub commits analysis example
-  - [ ] Show: Context savings metrics
-  - [ ] Upload: Embed in README
-  - [ ] **Note: Can be deferred to post-epic**
+- [ ] **Task 8: Cache metrics** (AC: #5, #9)
+  - [ ] Logger cache hit rate: `hits / (hits + misses)`
+  - [ ] Logger avg latency saved: `avg(execution_time - cache_latency)`
+  - [ ] Track hit rate >60% target
+  - [ ] Dashboard-ready metrics pour telemetry
 
 ---
 
 ## Dev Notes
 
-### E2E Test Suite Structure
+### Cache Architecture
 
-**Test Organization:**
+**Cache Flow:**
 ```
-tests/e2e/code-execution/
-├── 01-sandbox-isolation.test.ts       # Security tests
-├── 02-github-commits-analysis.test.ts # Real-world use case
-├── 03-multi-server-aggregation.test.ts # Cross-server workflow
-├── 04-pii-protection.test.ts          # PII tokenization
-├── 05-error-handling.test.ts          # Error scenarios
-├── 06-caching.test.ts                 # Cache behavior
-└── 07-performance.test.ts             # Performance benchmarks
+1. Request: execute_code(code, context)
+2. Generate cache_key = hash(code + context + tool_versions)
+3. Check cache:
+   - Hit? → Return cached result (<10ms)
+   - Miss? → Execute code → Store in cache → Return result
+4. Log metrics (hit/miss, latency)
 ```
 
-**Test Helpers:**
+**LRU Eviction:**
+- Max 100 entries in memory
+- Least Recently Used evicted when full
+- TTL-based expiration (5 minutes default)
+
+### Cache Key Design
+
+**Components:**
+1. **Code hash**: SHA-256 of TypeScript code string
+2. **Context hash**: SHA-256 of sorted JSON.stringify(context)
+3. **Tool versions**: MCP server version hashes (from discovery)
+
+**Example:**
 ```typescript
-// tests/fixtures/code-execution-helpers.ts
-export async function setupCodeExecutionTest() {
-  const db = createTestDB();
-  const sandbox = new CodeSandbox();
-  const mockGitHub = new MockGitHubClient();
-  return { db, sandbox, mockGitHub };
-}
-
-export async function cleanupCodeExecutionTest({ db, sandbox }) {
-  await db.close();
-  await sandbox.cleanup();
-}
-```
-
-### Example Test: GitHub Commits Analysis
-
-```typescript
-Deno.test("E2E: GitHub commits analysis", async () => {
-  const { sandbox, mockGitHub } = await setupCodeExecutionTest();
-
-  // Mock: 1000 commits (2MB dataset)
-  const commits = generateMockCommits(1000);
-  mockGitHub.setCommits(commits);
-
-  // Execute code in sandbox
-  const result = await sandbox.execute(`
-    const commits = await github.listCommits({ limit: 1000 });
-    const lastWeek = commits.filter(c =>
-      new Date(c.date) > Date.now() - 7*24*3600*1000
-    );
-    return {
-      total: lastWeek.length,
-      authors: [...new Set(lastWeek.map(c => c.author))]
-    };
-  `, { github: mockGitHub });
-
-  // Validate results
-  assertEquals(result.result.total, 42);
-  assertEquals(result.result.authors.length, 5);
-
-  // Validate context savings
-  const inputSize = Buffer.byteLength(JSON.stringify(commits), 'utf8');
-  const outputSize = Buffer.byteLength(JSON.stringify(result.result), 'utf8');
-  assert(inputSize > 1_000_000); // >1MB input
-  assert(outputSize < 1_000); // <1KB output
-  const savings = ((inputSize - outputSize) / inputSize) * 100;
-  assert(savings > 99); // >99% savings
-
-  await cleanupCodeExecutionTest({ sandbox, mockGitHub });
+const cacheKey = generateCacheKey({
+  code: "const x = await github.listCommits({ limit: 10 }); return x.length;",
+  context: { limit: 10 },
+  toolVersions: { github: "v1.2.3" }
 });
+// Result: "a3f8d92_b4e1c67_c9d2f34"
 ```
 
-### Documentation Structure
+**Why this works:**
+- Same code + same context + same tool versions = deterministic result
+- Tool version changes → invalidate (schema might have changed)
 
-**README.md Section: Code Execution Mode**
+### Performance Characteristics
 
-```markdown
-## Code Execution Mode
+**Cache Hit:**
+- Latency: <10ms (in-memory lookup)
+- Savings: Avoid sandbox spawn (~100ms) + code execution (~1-10s)
+- Speedup: 10-1000x faster
 
-### Overview
+**Cache Miss:**
+- Overhead: ~1ms (hash generation + cache check)
+- Still execute code normally
 
-AgentCards allows agents to write and execute TypeScript code locally in a secure sandbox, enabling:
-- **Context savings**: Process large datasets (MB) locally, return summaries (KB)
-- **Performance**: Parallel processing, streaming support
-- **Privacy**: PII detection and tokenization
-- **Flexibility**: Full TypeScript language support
+**Target Hit Rate:**
+- >60% for typical workflows (repetitive queries)
+- Example: "Analyze commits" run 10 times → 9 cache hits
 
-### Quick Start
+### Project Structure Alignment
 
-```typescript
-// 1. Enable code execution mode
-await mcp.callTool("agentcards:execute_code", {
-  intent: "Analyze GitHub commits from last week",
-  code: `
-    const commits = await github.listCommits({ limit: 1000 });
-    const lastWeek = commits.filter(c => isLastWeek(c.date));
-    return { count: lastWeek.length };
-  `
-});
+**New Module: `src/sandbox/cache.ts`**
+```
+src/sandbox/
+├── executor.ts           # Story 3.1
+├── context-builder.ts    # Story 3.2
+├── data-pipeline.ts      # Story 3.3
+├── pii-detector.ts       # Story 3.5
+├── cache.ts              # Story 3.6 (NEW)
+└── types.ts              # Shared types
 ```
 
-### When to Use Code Execution
+**Integration Points:**
+- `src/sandbox/executor.ts`: Check cache before execution
+- `src/mcp/gateway-server.ts`: Tool version tracking
+- `src/db/client.ts`: Optional cache persistence
 
-| Scenario | Use Code Execution? | Rationale |
-|----------|---------------------|-----------|
-| Process >100 items | ✅ Yes | Save context tokens |
-| Complex transformations | ✅ Yes | Full TypeScript support |
-| Single tool, small result | ❌ No | Direct tool call faster |
-| Real-time (<100ms) | ❌ No | Use DAG parallel execution |
+### Cache Persistence Schema
 
-### Security & Privacy
+**PGlite Table:**
+```sql
+CREATE TABLE IF NOT EXISTS code_execution_cache (
+  cache_key TEXT PRIMARY KEY,
+  code TEXT NOT NULL,
+  context JSONB,
+  result JSONB NOT NULL,
+  tool_versions JSONB NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  expires_at TIMESTAMP NOT NULL,
+  hit_count INTEGER DEFAULT 0
+);
 
-- **Sandbox isolation**: No filesystem write, no network access
-- **PII protection**: Automatic email, phone, credit card tokenization
-- **Timeout**: 30s default (configurable)
-- **Memory limit**: 512MB heap
-
-### Performance Benchmarks
-
-| Metric | Direct Tool Call | Code Execution | Improvement |
-|--------|------------------|----------------|-------------|
-| Latency (1000 items) | 5s | 2s | 2.5x faster |
-| Context usage | 2MB | 500 bytes | 99.98% savings |
-| Cache hit rate | N/A | 70% | 10x faster (cached) |
+CREATE INDEX idx_expires_at ON code_execution_cache(expires_at);
 ```
 
-### Migration Guide Content
-
-**Decision Tree:**
-```
-Need to process data?
-├─ Small dataset (<100 items)?
-│  └─ Use: Direct tool call
-│
-├─ Large dataset (>100 items)?
-│  ├─ Complex processing needed?
-│  │  └─ Use: Code execution
-│  │
-│  └─ Simple aggregation?
-│     └─ Use: Code execution OR DAG
-│
-└─ Multiple independent tools?
-   └─ Use: DAG parallel execution
-```
-
-**Example Migrations:**
-
-**Before (Direct tool call):**
-```typescript
-const commits = await github.listCommits({ limit: 1000 });
-// Problem: 2MB data loaded into LLM context
-```
-
-**After (Code execution):**
-```typescript
-await agentcards.executeCode({
-  intent: "Get commit count",
-  code: `
-    const commits = await github.listCommits({ limit: 1000 });
-    return { count: commits.length };
-  `
-});
-// Solution: Only 20 bytes in context
-```
-
-### Security Documentation
-
-**Sandbox Security Model:**
-```
-Deno Sandbox Permissions:
-✅ --allow-env                 (Environment variables)
-✅ --allow-read=~/.agentcards  (AgentCards data only)
-❌ --deny-write                (No write access)
-❌ --deny-net                  (No network access)
-❌ --deny-run                  (No subprocess spawning)
-❌ --deny-ffi                  (No native code)
-```
-
-**PII Protection:**
-- Automatically detects: emails, phones, credit cards, SSNs, API keys
-- Replaces with tokens: `[EMAIL_1]`, `[PHONE_2]`, etc.
-- Opt-out: `--no-pii-protection` flag
-
-### Learnings from Previous Stories
-
-**From Story 2.7 (E2E Tests):**
-- E2E test structure patterns
-- Mock MCP servers utilities
-- Performance benchmarking approaches
-[Source: stories/story-2.7.md]
-
-**From Stories 3.1-3.6:**
-- Complete code execution infrastructure
-- All features implemented and tested
-- Ready for E2E integration testing
+**Persistence Strategy:**
+- Write to DB async (non-blocking)
+- Read from DB at startup (warm cache)
+- Cleanup expired entries via cron job (future)
 
 ### Testing Strategy
 
-**Coverage Goals:**
-- E2E tests: 100% of user workflows
-- Performance tests: All critical paths benchmarked
-- Security tests: All isolation mechanisms validated
+**Test Organization:**
+```
+tests/unit/sandbox/
+├── cache_test.ts              # Cache operations tests
+├── cache_key_test.ts          # Hash generation tests
+└── cache_invalidation_test.ts # Invalidation logic tests
 
-**Test Execution:**
-```bash
-# Run E2E suite
-deno test tests/e2e/code-execution/
-
-# Run performance benchmarks
-deno bench tests/benchmarks/code-execution/
-
-# Run full suite with coverage
-deno test --coverage=coverage tests/
-deno coverage coverage
+tests/benchmarks/
+└── cache_performance_bench.ts # Cache hit/miss performance
 ```
 
-### Out of Scope (Story 3.7)
+**Test Scenarios:**
+1. Cache hit: Same code + context → return cached result
+2. Cache miss: Different code → execute and cache
+3. Cache invalidation: Tool version change → invalidate entries
+4. TTL expiration: Expired entry → execute and refresh
+5. LRU eviction: 101st entry → evict oldest
+6. Persistence: Save to DB → restart → load from DB
 
-- Video tutorial (optional, can be deferred)
-- Advanced optimization guides
-- Multi-language code support (only TypeScript)
+### Learnings from Previous Stories
+
+**From Story 3.1 (Sandbox):**
+- Execution time varies: 100ms-10s
+- Caching saves significant latency
+[Source: stories/story-3.1.md]
+
+**From Story 3.2 (Tools Injection):**
+- Tool versions tracked via MCP discovery
+- Tool schema changes require invalidation
+[Source: stories/story-3.2.md]
+
+**From Story 3.3 (Data Pipeline):**
+- Large dataset processing takes seconds
+- Cache hit saves processing time
+[Source: stories/story-3.3.md]
+
+**From Story 3.4 (execute_code Tool):**
+- Gateway integration patterns
+- Metrics logging infrastructure
+[Source: stories/story-3.4.md]
+
+**From Story 1.2 (PGlite):**
+- Database schema management
+- Table creation patterns
+[Source: stories/story-1.2.md]
+
+### Configuration Example
+
+**config.yaml:**
+```yaml
+code_execution:
+  cache:
+    enabled: true
+    max_entries: 100
+    ttl_seconds: 300  # 5 minutes
+    persistence: false  # Optional: save to PGlite
+```
+
+**CLI Usage:**
+```bash
+# Enable cache (default)
+./agentcards serve
+
+# Disable cache
+./agentcards serve --no-cache
+
+# Environment variable
+AGENTCARDS_NO_CACHE=1 ./agentcards serve
+```
+
+### Cache Metrics Dashboard
+
+**Metrics Tracked:**
+```typescript
+{
+  cache_hits: 45,
+  cache_misses: 10,
+  hit_rate: 0.818,  // 81.8%
+  avg_latency_saved_ms: 2340,
+  total_saved_ms: 105300  // ~105 seconds saved
+}
+```
+
+**Telemetry Integration:**
+```typescript
+await telemetry.logMetric("code_execution_cache_hit_rate", hitRate);
+await telemetry.logMetric("code_execution_cache_latency_saved", avgLatencySaved);
+```
+
+### Performance Optimizations
+
+**Hash Function Choice:**
+- SHA-256: Cryptographically secure but slower (~1ms)
+- xxHash: Fast non-crypto hash (~0.1ms)
+- **Recommendation**: xxHash for cache keys (speed > crypto strength)
+
+**Context Normalization:**
+```typescript
+// Ensure stable hash for same context
+const normalizeContext = (ctx: Record<string, unknown>) => {
+  const sorted = Object.keys(ctx).sort().reduce((acc, key) => {
+    acc[key] = ctx[key];
+    return acc;
+  }, {} as Record<string, unknown>);
+  return JSON.stringify(sorted);
+};
+```
+
+### Security Considerations
+
+**Cache Poisoning:**
+- Not a concern (local-only, no user-controlled cache)
+- Cache key includes tool versions (prevents version confusion)
+
+**Memory Limits:**
+- LRU cache max 100 entries (~10MB memory max)
+- No risk of memory exhaustion
+
+### Limitations & Future Work
+
+**Current Scope:**
+- In-memory LRU cache (simple, fast)
+- Optional persistence to PGlite
+
+**Future Enhancements (out of scope):**
+- Distributed cache (Redis) for multi-instance
+- Smarter eviction policy (LFU, ARC)
+- Cache warming (pre-populate common queries)
+
+### Out of Scope (Story 3.6)
+
+- E2E documentation (Story 3.7)
+- Distributed caching
+- Cache analytics dashboard
 
 ### References
 
@@ -349,9 +330,7 @@ deno coverage coverage
 - [Story 3.2 - Tools Injection](./story-3.2.md)
 - [Story 3.3 - Data Pipeline](./story-3.3.md)
 - [Story 3.4 - execute_code Tool](./story-3.4.md)
-- [Story 3.5 - PII Detection](./story-3.5.md)
-- [Story 3.6 - Caching](./story-3.6.md)
-- [Story 2.7 - E2E Tests (Epic 2)](./story-2.7.md)
+- [Story 1.2 - PGlite Database](./story-1.2.md)
 
 ---
 
@@ -376,21 +355,19 @@ _Key completion notes for next story (patterns, services, deviations) go here_
 ### File List
 
 **Files to be Created (NEW):**
-- `tests/e2e/code-execution/01-sandbox-isolation.test.ts`
-- `tests/e2e/code-execution/02-github-commits-analysis.test.ts`
-- `tests/e2e/code-execution/03-multi-server-aggregation.test.ts`
-- `tests/e2e/code-execution/04-pii-protection.test.ts`
-- `tests/e2e/code-execution/05-error-handling.test.ts`
-- `tests/e2e/code-execution/06-caching.test.ts`
-- `tests/e2e/code-execution/07-performance.test.ts`
-- `tests/fixtures/code-execution-helpers.ts`
-- `tests/benchmarks/code-execution/comparison_bench.ts`
-- `docs/guides/code-execution-migration.md`
-- `docs/guides/code-execution-security.md`
+- `src/sandbox/cache.ts`
+- `src/db/migrations/005_code_execution_cache.ts`
+- `tests/unit/sandbox/cache_test.ts`
+- `tests/unit/sandbox/cache_key_test.ts`
+- `tests/unit/sandbox/cache_invalidation_test.ts`
+- `tests/benchmarks/cache_performance_bench.ts`
 
 **Files to be Modified (MODIFIED):**
-- `README.md` (add Code Execution Mode section)
-- `.github/workflows/ci.yml` (add E2E code-execution tests)
+- `src/sandbox/executor.ts` (integrate cache check)
+- `src/sandbox/types.ts` (add cache types)
+- `src/mcp/gateway-server.ts` (add --no-cache flag)
+- `src/config/loader.ts` (load cache config)
+- `mod.ts` (export cache module)
 
 **Files to be Deleted (DELETED):**
 - None

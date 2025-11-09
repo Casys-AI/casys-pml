@@ -1,327 +1,320 @@
-# Story 3.6: Code Execution Caching & Optimization
+# Story 3.6: PII Detection & Tokenization
 
 **Epic:** 3 - Agent Code Execution & Local Processing
 **Story ID:** 3.6
 **Status:** drafted
-**Estimated Effort:** 4-6 heures
+**Estimated Effort:** 5-7 heures
 
 ---
 
 ## User Story
 
-**As a** developer running repetitive workflows,
-**I want** code execution results cached intelligently,
-**So that** I don't re-execute identical code with identical inputs.
+**As a** security-conscious user,
+**I want** personally identifiable information (PII) automatically detected and tokenized,
+**So that** sensitive data never reaches the LLM context.
 
 ---
 
 ## Acceptance Criteria
 
-1. ✅ Code execution cache implemented (in-memory LRU, max 100 entries)
-2. ✅ Cache key: hash(code + context + tool_versions)
-3. ✅ Cache hit: Return cached result without execution (<10ms)
-4. ✅ Cache invalidation: Auto-invalidate on tool schema changes
-5. ✅ Cache stats logged: hit_rate, avg_latency_saved_ms
-6. ✅ Configurable: `--no-cache` flag to disable caching
-7. ✅ TTL support: Cache entries expire after 5 minutes
-8. ✅ Persistence optional: Save cache to PGlite for cross-session reuse
-9. ✅ Performance: Cache hit rate >60% for typical workflows
+1. ✅ PII detection module créé (`src/sandbox/pii-detector.ts`)
+2. ✅ Patterns detected: emails, phone numbers, credit cards, SSNs, API keys
+3. ✅ Tokenization strategy: Replace PII with `[EMAIL_1]`, `[PHONE_1]`, etc.
+4. ✅ Reverse mapping stored securely (in-memory only, never persisted)
+5. ✅ Agent receives tokenized data, can reference tokens in code
+6. ✅ De-tokenization happens only for final output (if needed)
+7. ✅ Opt-out flag: `--no-pii-protection` for trusted environments
+8. ✅ Unit tests: Validate detection accuracy (>95% for common PII types)
+9. ✅ Integration test: Email in dataset → tokenized → agent never sees raw email
 
 ---
 
 ## Tasks / Subtasks
 
-### Phase 1: Cache Implementation (2-3h)
+### Phase 1: PII Detection Module (2-3h)
 
-- [ ] **Task 1: Create cache module** (AC: #1)
-  - [ ] Créer `src/sandbox/cache.ts` module
-  - [ ] Implémenter LRU cache (max 100 entries)
-  - [ ] Créer interface `CacheEntry` avec result + timestamp + metadata
+- [ ] **Task 1: Create PII detector** (AC: #1)
+  - [ ] Créer `src/sandbox/pii-detector.ts` module
+  - [ ] Créer classe `PIIDetector` avec detection logic
+  - [ ] Créer interface `PIIMatch` avec type + position + value
   - [ ] Exporter module dans `mod.ts`
 
-- [ ] **Task 2: Cache key generation** (AC: #2)
-  - [ ] Générer hash from code + context + tool_versions
-  - [ ] Utiliser crypto hash (SHA-256 ou xxhash pour performance)
-  - [ ] Format: `${hash(code)}_${hash(context)}_${toolVersionsHash}`
-  - [ ] Gérer ordering de context keys (stable hash)
+- [ ] **Task 2: Implement pattern detection** (AC: #2)
+  - [ ] Email regex: `/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g`
+  - [ ] Phone regex (US/CA): `/\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g`
+  - [ ] Credit card regex: `/\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g`
+  - [ ] SSN regex (US): `/\b\d{3}-\d{2}-\d{4}\b/g`
+  - [ ] API key patterns: `/\b(sk|pk)_[a-zA-Z0-9]{32,}\b/g` (generic pattern)
+  - [ ] Supporter custom patterns (configurable)
 
-### Phase 2: Cache Operations (1-2h)
+### Phase 2: Tokenization Strategy (2h)
 
-- [ ] **Task 3: Cache hit path** (AC: #3)
-  - [ ] Check cache avant exécution
-  - [ ] Si hit: return cached result immédiatement
-  - [ ] Target latency: <10ms pour cache hit
-  - [ ] Logger cache hit pour telemetry
+- [ ] **Task 3: Implement tokenization** (AC: #3, #4)
+  - [ ] Créer `TokenizationManager` classe
+  - [ ] Replace detected PII avec tokens: `[EMAIL_1]`, `[PHONE_2]`, etc.
+  - [ ] Maintenir reverse mapping: `{ "EMAIL_1": "alice@example.com" }`
+  - [ ] Store mapping in-memory uniquement (no persistence to disk)
+  - [ ] Générer unique token IDs (sequential counter par type)
 
-- [ ] **Task 4: Cache invalidation** (AC: #4)
-  - [ ] Détecter tool schema changes (via MCP server version)
-  - [ ] Invalider tous les entries utilisant tool modifié
-  - [ ] Hook dans MCP discovery pour invalidation automatique
-  - [ ] Logger invalidations pour debugging
+- [ ] **Task 4: Agent code support** (AC: #5)
+  - [ ] Agent reçoit données tokenizées
+  - [ ] Agent peut référencer tokens dans code: `if (email === "[EMAIL_1]")`
+  - [ ] Tokens survivent processing (remain in output)
+  - [ ] Agent n'a jamais accès aux valeurs originales
 
-### Phase 3: TTL & Configuration (1h)
+### Phase 3: De-tokenization & Opt-Out (1-2h)
 
-- [ ] **Task 5: TTL support** (AC: #7)
-  - [ ] Default TTL: 5 minutes (300 seconds)
-  - [ ] Check TTL à chaque cache access
-  - [ ] Purger expired entries automatiquement
-  - [ ] Configurable TTL via config.yaml
+- [ ] **Task 5: De-tokenization for final output** (AC: #6)
+  - [ ] Optionnel: de-tokenize result avant envoi au LLM
+  - [ ] User peut décider: keep tokens OR restore original values
+  - [ ] Default: keep tokens (plus sûr)
+  - [ ] Flag: `detokenize: true` pour restoration
 
-- [ ] **Task 6: Configuration & opt-out** (AC: #6)
-  - [ ] CLI flag: `--no-cache` pour désactiver
-  - [ ] Config option: `code_execution_cache: false`
-  - [ ] Environment variable: `AGENTCARDS_NO_CACHE=1`
-  - [ ] Default: cache enabled
+- [ ] **Task 6: Opt-out mechanism** (AC: #7)
+  - [ ] CLI flag: `--no-pii-protection`
+  - [ ] Config option: `pii_protection: false` dans config.yaml
+  - [ ] Environment variable: `AGENTCARDS_NO_PII_PROTECTION=1`
+  - [ ] Warning message si opt-out activé
 
-### Phase 4: Persistence & Metrics (1-2h)
+### Phase 4: Testing & Validation (1-2h)
 
-- [ ] **Task 7: Optional persistence to PGlite** (AC: #8)
-  - [ ] Créer table `code_execution_cache` dans PGlite
-  - [ ] Schema: `(cache_key TEXT PRIMARY KEY, result JSONB, created_at TIMESTAMP, expires_at TIMESTAMP)`
-  - [ ] Save cache entries to DB (async, non-blocking)
-  - [ ] Load cache from DB au startup
-  - [ ] Config option: `cache_persistence: true|false` (default: false)
+- [ ] **Task 7: Unit tests for detection accuracy** (AC: #8)
+  - [ ] Test: Email detection >95% accuracy (true positives + false negatives)
+  - [ ] Test: Phone number detection >95% accuracy
+  - [ ] Test: Credit card detection >95% accuracy
+  - [ ] Test: SSN detection >95% accuracy
+  - [ ] Test: API key detection >90% accuracy (plus variabilité)
+  - [ ] Test: False positives <5% (e.g., pas "test@test" comme email valide)
 
-- [ ] **Task 8: Cache metrics** (AC: #5, #9)
-  - [ ] Logger cache hit rate: `hits / (hits + misses)`
-  - [ ] Logger avg latency saved: `avg(execution_time - cache_latency)`
-  - [ ] Track hit rate >60% target
-  - [ ] Dashboard-ready metrics pour telemetry
+- [ ] **Task 8: Integration test** (AC: #9)
+  - [ ] Test E2E: Dataset avec emails → tokenization → agent execution → verification
+  - [ ] Valider: Agent code ne voit jamais email original
+  - [ ] Valider: Tokens présents dans résultat final
+  - [ ] Valider: De-tokenization fonctionne si demandée
 
 ---
 
 ## Dev Notes
 
-### Cache Architecture
+### PII Detection Patterns
 
-**Cache Flow:**
+**Supported PII Types:**
+| Type | Pattern | Example | Token Format |
+|------|---------|---------|--------------|
+| Email | `[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}` | alice@example.com | `[EMAIL_1]` |
+| Phone (US) | `\d{3}[-.]?\d{3}[-.]?\d{4}` | 555-123-4567 | `[PHONE_1]` |
+| Credit Card | `\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}` | 1234-5678-9012-3456 | `[CARD_1]` |
+| SSN (US) | `\d{3}-\d{2}-\d{4}` | 123-45-6789 | `[SSN_1]` |
+| API Key | `(sk|pk)_[a-zA-Z0-9]{32,}` | sk_test_abc123... | `[APIKEY_1]` |
+
+**Regex Design Principles:**
+- High precision (minimize false positives)
+- Good recall (catch real PII)
+- Performance: compiled regexes, cached
+
+### Tokenization Architecture
+
+**Flow:**
 ```
-1. Request: execute_code(code, context)
-2. Generate cache_key = hash(code + context + tool_versions)
-3. Check cache:
-   - Hit? → Return cached result (<10ms)
-   - Miss? → Execute code → Store in cache → Return result
-4. Log metrics (hit/miss, latency)
+1. Data Source (MCP tool) → Raw Data (with PII)
+2. PIIDetector.scan(data) → Identify PII locations
+3. TokenizationManager.tokenize(data, matches) → Replace with tokens
+4. Tokenized Data → Agent code execution
+5. Agent output (with tokens)
+6. [Optional] De-tokenize → Restore original values
+7. Final output
 ```
 
-**LRU Eviction:**
-- Max 100 entries in memory
-- Least Recently Used evicted when full
-- TTL-based expiration (5 minutes default)
+**Security Model:**
+- Original PII never persisted to disk
+- Reverse mapping stored in-memory only
+- Mapping cleared after execution completes
+- No logs contain raw PII
 
-### Cache Key Design
+### Example: Email Tokenization
 
-**Components:**
-1. **Code hash**: SHA-256 of TypeScript code string
-2. **Context hash**: SHA-256 of sorted JSON.stringify(context)
-3. **Tool versions**: MCP server version hashes (from discovery)
+**Input:**
+```json
+{
+  "users": [
+    { "name": "Alice", "email": "alice@example.com" },
+    { "name": "Bob", "email": "bob@company.org" }
+  ]
+}
+```
 
-**Example:**
+**After Tokenization:**
+```json
+{
+  "users": [
+    { "name": "Alice", "email": "[EMAIL_1]" },
+    { "name": "Bob", "email": "[EMAIL_2]" }
+  ]
+}
+```
+
+**Reverse Mapping (in-memory):**
 ```typescript
-const cacheKey = generateCacheKey({
-  code: "const x = await github.listCommits({ limit: 10 }); return x.length;",
-  context: { limit: 10 },
-  toolVersions: { github: "v1.2.3" }
-});
-// Result: "a3f8d92_b4e1c67_c9d2f34"
+{
+  "EMAIL_1": "alice@example.com",
+  "EMAIL_2": "bob@company.org"
+}
 ```
 
-**Why this works:**
-- Same code + same context + same tool versions = deterministic result
-- Tool version changes → invalidate (schema might have changed)
+**Agent Code (sees tokenized data):**
+```typescript
+const users = context.users;
+const aliceEmail = users.find(u => u.name === "Alice").email;
+// aliceEmail === "[EMAIL_1]" (agent never sees raw email)
 
-### Performance Characteristics
+return {
+  emailDomain: "[EMAIL_1]".split('@')[1] // Fails gracefully, returns undefined
+};
+```
 
-**Cache Hit:**
-- Latency: <10ms (in-memory lookup)
-- Savings: Avoid sandbox spawn (~100ms) + code execution (~1-10s)
-- Speedup: 10-1000x faster
-
-**Cache Miss:**
-- Overhead: ~1ms (hash generation + cache check)
-- Still execute code normally
-
-**Target Hit Rate:**
-- >60% for typical workflows (repetitive queries)
-- Example: "Analyze commits" run 10 times → 9 cache hits
+**De-tokenization (optional):**
+```typescript
+// Before: { emailDomain: undefined }
+// After de-tokenization: { emailDomain: "example.com" }
+```
 
 ### Project Structure Alignment
 
-**New Module: `src/sandbox/cache.ts`**
+**New Module: `src/sandbox/pii-detector.ts`**
 ```
 src/sandbox/
 ├── executor.ts           # Story 3.1
 ├── context-builder.ts    # Story 3.2
 ├── data-pipeline.ts      # Story 3.3
-├── pii-detector.ts       # Story 3.5
-├── cache.ts              # Story 3.6 (NEW)
+├── pii-detector.ts       # Story 3.5 (NEW)
 └── types.ts              # Shared types
 ```
 
 **Integration Points:**
-- `src/sandbox/executor.ts`: Check cache before execution
-- `src/mcp/gateway-server.ts`: Tool version tracking
-- `src/db/client.ts`: Optional cache persistence
-
-### Cache Persistence Schema
-
-**PGlite Table:**
-```sql
-CREATE TABLE IF NOT EXISTS code_execution_cache (
-  cache_key TEXT PRIMARY KEY,
-  code TEXT NOT NULL,
-  context JSONB,
-  result JSONB NOT NULL,
-  tool_versions JSONB NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  expires_at TIMESTAMP NOT NULL,
-  hit_count INTEGER DEFAULT 0
-);
-
-CREATE INDEX idx_expires_at ON code_execution_cache(expires_at);
-```
-
-**Persistence Strategy:**
-- Write to DB async (non-blocking)
-- Read from DB at startup (warm cache)
-- Cleanup expired entries via cron job (future)
+- `src/sandbox/executor.ts`: Call PII detector before/after code execution
+- `src/mcp/gateway-server.ts`: Enable/disable PII protection per request
+- `src/config/loader.ts`: Load `pii_protection` config flag
 
 ### Testing Strategy
 
 **Test Organization:**
 ```
 tests/unit/sandbox/
-├── cache_test.ts              # Cache operations tests
-├── cache_key_test.ts          # Hash generation tests
-└── cache_invalidation_test.ts # Invalidation logic tests
+├── pii_detector_test.ts        # Detection accuracy tests
+├── tokenization_test.ts        # Tokenization logic tests
+└── pii_integration_test.ts     # E2E PII flow tests
 
-tests/benchmarks/
-└── cache_performance_bench.ts # Cache hit/miss performance
+tests/fixtures/
+└── pii-test-data.json          # Test datasets with known PII
 ```
 
-**Test Scenarios:**
-1. Cache hit: Same code + context → return cached result
-2. Cache miss: Different code → execute and cache
-3. Cache invalidation: Tool version change → invalidate entries
-4. TTL expiration: Expired entry → execute and refresh
-5. LRU eviction: 101st entry → evict oldest
-6. Persistence: Save to DB → restart → load from DB
+**Accuracy Metrics:**
+- **Precision**: `TP / (TP + FP)` >95%
+- **Recall**: `TP / (TP + FN)` >95%
+- **F1 Score**: `2 * (Precision * Recall) / (Precision + Recall)` >95%
+
+**Test Data:**
+```typescript
+const testEmails = [
+  { value: "alice@example.com", valid: true },
+  { value: "bob.smith@company.co.uk", valid: true },
+  { value: "not-an-email", valid: false },
+  { value: "test@", valid: false },
+  { value: "@test.com", valid: false }
+];
+```
 
 ### Learnings from Previous Stories
 
 **From Story 3.1 (Sandbox):**
-- Execution time varies: 100ms-10s
-- Caching saves significant latency
+- Sandbox execution isolée
+- Return value serialization (JSON-only)
 [Source: stories/story-3.1.md]
 
 **From Story 3.2 (Tools Injection):**
-- Tool versions tracked via MCP discovery
-- Tool schema changes require invalidation
+- Tool wrappers génèrent données brutes
+- Data flows through sandbox
 [Source: stories/story-3.2.md]
 
 **From Story 3.3 (Data Pipeline):**
-- Large dataset processing takes seconds
-- Cache hit saves processing time
+- Large datasets processed locally
+- Metrics logging (input/output sizes)
 [Source: stories/story-3.3.md]
 
 **From Story 3.4 (execute_code Tool):**
 - Gateway integration patterns
-- Metrics logging infrastructure
+- MCP tool schema design
 [Source: stories/story-3.4.md]
-
-**From Story 1.2 (PGlite):**
-- Database schema management
-- Table creation patterns
-[Source: stories/story-1.2.md]
 
 ### Configuration Example
 
 **config.yaml:**
 ```yaml
-code_execution:
-  cache:
-    enabled: true
-    max_entries: 100
-    ttl_seconds: 300  # 5 minutes
-    persistence: false  # Optional: save to PGlite
+pii_protection:
+  enabled: true
+  types:
+    - email
+    - phone
+    - credit_card
+    - ssn
+    - api_key
+  detokenize_output: false  # Keep tokens in final output (safer)
 ```
 
 **CLI Usage:**
 ```bash
-# Enable cache (default)
+# Enable PII protection (default)
 ./agentcards serve
 
-# Disable cache
-./agentcards serve --no-cache
+# Disable PII protection (opt-out)
+./agentcards serve --no-pii-protection
 
 # Environment variable
-AGENTCARDS_NO_CACHE=1 ./agentcards serve
+AGENTCARDS_NO_PII_PROTECTION=1 ./agentcards serve
 ```
 
-### Cache Metrics Dashboard
+### Performance Considerations
 
-**Metrics Tracked:**
-```typescript
-{
-  cache_hits: 45,
-  cache_misses: 10,
-  hit_rate: 0.818,  // 81.8%
-  avg_latency_saved_ms: 2340,
-  total_saved_ms: 105300  // ~105 seconds saved
-}
-```
+**Regex Performance:**
+- Pre-compile all regex patterns (once at startup)
+- Use `exec()` in loop for multiple matches
+- Target: <10ms overhead for 1MB dataset
 
-**Telemetry Integration:**
-```typescript
-await telemetry.logMetric("code_execution_cache_hit_rate", hitRate);
-await telemetry.logMetric("code_execution_cache_latency_saved", avgLatencySaved);
-```
-
-### Performance Optimizations
-
-**Hash Function Choice:**
-- SHA-256: Cryptographically secure but slower (~1ms)
-- xxHash: Fast non-crypto hash (~0.1ms)
-- **Recommendation**: xxHash for cache keys (speed > crypto strength)
-
-**Context Normalization:**
-```typescript
-// Ensure stable hash for same context
-const normalizeContext = (ctx: Record<string, unknown>) => {
-  const sorted = Object.keys(ctx).sort().reduce((acc, key) => {
-    acc[key] = ctx[key];
-    return acc;
-  }, {} as Record<string, unknown>);
-  return JSON.stringify(sorted);
-};
-```
+**Memory Overhead:**
+- Reverse mapping: ~100 bytes per token
+- 1000 PII items → ~100KB memory (acceptable)
 
 ### Security Considerations
 
-**Cache Poisoning:**
-- Not a concern (local-only, no user-controlled cache)
-- Cache key includes tool versions (prevents version confusion)
+**Threat Model:**
+1. **PII leakage to LLM**: Prevented by tokenization
+2. **PII in logs**: Prevented by never logging raw values
+3. **PII in telemetry**: Metrics exclude PII (only counts)
 
-**Memory Limits:**
-- LRU cache max 100 entries (~10MB memory max)
-- No risk of memory exhaustion
+**Compliance:**
+- GDPR-friendly (PII never leaves local machine)
+- HIPAA consideration (medical PII not detected by default)
+- Extensible for custom PII types
 
 ### Limitations & Future Work
 
 **Current Scope:**
-- In-memory LRU cache (simple, fast)
-- Optional persistence to PGlite
+- Regex-based detection (fast but not ML-based)
+- English-language PII patterns
+- Common PII types only
 
 **Future Enhancements (out of scope):**
-- Distributed cache (Redis) for multi-instance
-- Smarter eviction policy (LFU, ARC)
-- Cache warming (pre-populate common queries)
+- ML-based PII detection (higher accuracy)
+- Multi-language support
+- Medical PII (HIPAA compliance)
+- Financial PII (IBAN, routing numbers)
 
-### Out of Scope (Story 3.6)
+### Out of Scope (Story 3.5)
 
+- Result caching (Story 3.6)
 - E2E documentation (Story 3.7)
-- Distributed caching
-- Cache analytics dashboard
+- ML-based detection
+- Multi-language support
 
 ### References
 
@@ -330,7 +323,6 @@ const normalizeContext = (ctx: Record<string, unknown>) => {
 - [Story 3.2 - Tools Injection](./story-3.2.md)
 - [Story 3.3 - Data Pipeline](./story-3.3.md)
 - [Story 3.4 - execute_code Tool](./story-3.4.md)
-- [Story 1.2 - PGlite Database](./story-1.2.md)
 
 ---
 
@@ -355,19 +347,18 @@ _Key completion notes for next story (patterns, services, deviations) go here_
 ### File List
 
 **Files to be Created (NEW):**
-- `src/sandbox/cache.ts`
-- `src/db/migrations/005_code_execution_cache.ts`
-- `tests/unit/sandbox/cache_test.ts`
-- `tests/unit/sandbox/cache_key_test.ts`
-- `tests/unit/sandbox/cache_invalidation_test.ts`
-- `tests/benchmarks/cache_performance_bench.ts`
+- `src/sandbox/pii-detector.ts`
+- `tests/unit/sandbox/pii_detector_test.ts`
+- `tests/unit/sandbox/tokenization_test.ts`
+- `tests/unit/sandbox/pii_integration_test.ts`
+- `tests/fixtures/pii-test-data.json`
 
 **Files to be Modified (MODIFIED):**
-- `src/sandbox/executor.ts` (integrate cache check)
-- `src/sandbox/types.ts` (add cache types)
-- `src/mcp/gateway-server.ts` (add --no-cache flag)
-- `src/config/loader.ts` (load cache config)
-- `mod.ts` (export cache module)
+- `src/sandbox/executor.ts` (integrate PII detection)
+- `src/sandbox/types.ts` (add PII types)
+- `src/mcp/gateway-server.ts` (add --no-pii-protection flag)
+- `src/config/loader.ts` (load pii_protection config)
+- `mod.ts` (export PII detector)
 
 **Files to be Deleted (DELETED):**
 - None
