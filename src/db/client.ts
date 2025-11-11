@@ -45,16 +45,22 @@ export class PGliteClient {
    */
   async connect(): Promise<void> {
     try {
+      // Normalize :memory: (SQLite convention) to memory:// (PGlite convention)
+      let normalizedPath = this.dbPath;
+      if (this.dbPath === ":memory:") {
+        normalizedPath = "memory://";
+      }
+
       // Ensure directory exists (skip for memory databases)
-      if (!this.dbPath.startsWith("memory://")) {
-        const dir = this.dbPath.substring(0, this.dbPath.lastIndexOf("/"));
+      if (!normalizedPath.startsWith("memory://")) {
+        const dir = normalizedPath.substring(0, normalizedPath.lastIndexOf("/"));
         if (dir && dir.length > 0) {
           await ensureDir(dir);
         }
       }
 
       // Initialize PGlite with pgvector extension
-      this.db = new PGlite(this.dbPath, {
+      this.db = new PGlite(normalizedPath, {
         extensions: { vector },
       });
 

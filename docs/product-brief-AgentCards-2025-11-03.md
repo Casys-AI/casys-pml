@@ -1,16 +1,16 @@
-# Product Brief: AgentCards
+# Product Brief: AgentsCards
 
 **Date:** 2025-11-03
 **Author:** BMad
 **Status:** Draft for PM Review
-**Project Name:** AgentCards
+**Project Name:** AgentsCards
 
 ---
 
 ## Initial Context
 
 **Origin Story:**
-Le projet AgentCards émerge d'une triple motivation:
+Le projet AgentsCards émerge d'une triple motivation:
 - Frustration personnelle avec Claude Code utilisant de nombreux MCP servers (explosion du contexte)
 - Observation que tous les compétiteurs actuels (AIRIS, Smithery, Unla) ont raté l'opportunité du vrai lazy loading
 - Inspiration de LLMCompiler pour apporter la parallélisation intelligente au monde MCP

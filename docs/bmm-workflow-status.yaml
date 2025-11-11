@@ -31,7 +31,7 @@ workflow_path: "greenfield-level-2.yaml"
 workflow_status:
   # Phase 1: Analysis
   brainstorm-project: docs/brainstorming-session-results-2025-11-03.md
-  research: optional
+  research: docs/research-market-2025-11-11.md
   product-brief: docs/product-brief-AgentCards-2025-11-03.md
 
   # Phase 2: Planning
