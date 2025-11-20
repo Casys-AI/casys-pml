@@ -9,6 +9,7 @@ import {
   detectMCPConfigPath,
   getAgentCardsConfigDir,
   getAgentCardsConfigPath,
+  getLegacyConfigPath,
   getAgentCardsDatabasePath,
 } from "../../../src/cli/utils.ts";
 
@@ -51,10 +52,20 @@ Deno.test("getAgentCardsConfigDir - returns valid directory path", () => {
   }
 });
 
-Deno.test("getAgentCardsConfigPath - returns valid config path", () => {
+Deno.test("getAgentCardsConfigPath - returns valid config path (JSON)", () => {
   const path = getAgentCardsConfigPath();
 
-  // Should end with config.yaml
+  // Should end with config.json (ADR-009)
+  assert(path.endsWith("config.json"));
+
+  // Should contain .agentcards directory
+  assert(path.includes(".agentcards"));
+});
+
+Deno.test("getLegacyConfigPath - returns YAML config path (deprecated)", () => {
+  const path = getLegacyConfigPath();
+
+  // Should end with config.yaml (legacy)
   assert(path.endsWith("config.yaml"));
 
   // Should contain .agentcards directory
@@ -95,4 +106,19 @@ Deno.test("Paths are consistent across utility functions", () => {
 
   // Database path should start with config dir
   assert(dbPath.startsWith(configDir));
+});
+
+Deno.test("Legacy YAML path differs from JSON path only in extension", () => {
+  const jsonPath = getAgentCardsConfigPath();
+  const yamlPath = getLegacyConfigPath();
+
+  // Same base path
+  const jsonBase = jsonPath.replace(".json", "");
+  const yamlBase = yamlPath.replace(".yaml", "");
+
+  assert(jsonBase === yamlBase, "Base paths should be identical");
+
+  // Different extensions
+  assert(jsonPath.endsWith(".json"));
+  assert(yamlPath.endsWith(".yaml"));
 });

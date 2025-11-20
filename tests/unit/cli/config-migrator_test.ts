@@ -78,3 +78,34 @@ Deno.test("ConfigMigrator - preview displays server info", async () => {
     console.log = originalLog;
   }
 });
+
+Deno.test("ConfigMigrator - generates JSON config (not YAML) per ADR-009", async () => {
+  const migrator = new ConfigMigrator();
+
+  const fixturesDir = join(Deno.cwd(), "tests", "fixtures");
+  const configPath = join(fixturesDir, "mcp-config-sample.json");
+
+  // Capture console output to verify JSON format message
+  const originalLog = console.log;
+  const logs: string[] = [];
+  console.log = (...args: unknown[]) => {
+    logs.push(args.join(" "));
+  };
+
+  try {
+    await migrator.migrate({
+      configPath,
+      dryRun: true,
+    });
+
+    const fullOutput = logs.join("\n");
+
+    // Should mention config.json (not config.yaml)
+    assert(fullOutput.includes("config.json"), "Should reference config.json output");
+
+    // Should NOT mention YAML
+    assert(!fullOutput.toLowerCase().includes("yaml"), "Should not mention YAML format");
+  } finally {
+    console.log = originalLog;
+  }
+});

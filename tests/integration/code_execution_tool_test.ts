@@ -159,11 +159,6 @@ Deno.test({
   },
 });
 
-// TODO: This test is disabled because context injection to sandbox is not yet implemented
-// AC #4 requires this feature but the sandbox executor doesn't support injecting context yet
-// The context is only stored in the response but never passed to the executing code
-// See: Story 3.4 - Need to extend DenoSandboxExecutor.execute() to accept context parameter
-/*
 Deno.test({
   name: "Integration: execute_code with context injection",
   sanitizeOps: false,
@@ -186,7 +181,6 @@ Deno.test({
     assertEquals(response.result.sum, 30, "Should compute sum from context");
   },
 });
-*/
 
 Deno.test({
   name: "Integration: execute_code validation (code size limit)",

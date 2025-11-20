@@ -7,7 +7,6 @@
  * @module cli/config-migrator
  */
 
-import { stringify } from "@std/yaml";
 import * as log from "@std/log";
 import { ensureDir } from "@std/fs";
 import { PGliteClient } from "../db/client.ts";
@@ -97,32 +96,40 @@ export class ConfigMigrator {
         };
       }
 
-      // Step 3: Generate AgentCards config
+      // Step 3: Generate AgentCards config (JSON format per ADR-009)
       const configDir = getAgentCardsConfigDir();
-      const agentCardsConfigPath = getAgentCardsConfigPath();
+      const agentCardsConfigPath = getAgentCardsConfigPath(); // Now returns .json
 
       // Create config directory
       await ensureDir(configDir);
 
-      // Write config.yaml
-      // Clean undefined values before stringifying (YAML can't handle undefined)
+      // Write config.json (not YAML - ADR-009)
+      // Clean undefined values for consistent JSON output
       const cleanConfig = {
-        servers: mcpConfig.servers.map((server) => {
-          const cleaned: Record<string, unknown> = {
-            id: server.id,
-            name: server.name,
+        mcpServers: mcpConfig.servers.reduce((acc, server) => {
+          acc[server.id] = {
             command: server.command,
-            protocol: server.protocol,
+            ...(server.args !== undefined && { args: server.args }),
+            ...(server.env !== undefined && { env: server.env }),
           };
-          if (server.args !== undefined) cleaned.args = server.args;
-          if (server.env !== undefined) cleaned.env = server.env;
-          return cleaned;
-        }),
+          return acc;
+        }, {} as Record<string, any>),
+        context: {
+          topK: 10,
+          similarityThreshold: 0.7
+        },
+        execution: {
+          maxConcurrency: 10,
+          timeout: 30000
+        }
       };
-      const configYaml = stringify(cleanConfig);
-      await Deno.writeTextFile(agentCardsConfigPath, configYaml);
 
-      console.log(`✓ Generated AgentCards config: ${agentCardsConfigPath}\n`);
+      // Write JSON with pretty-printing (2-space indent)
+      const configJSON = JSON.stringify(cleanConfig, null, 2);
+      await Deno.writeTextFile(agentCardsConfigPath, configJSON);
+
+      console.log(`✓ Generated AgentCards config: ${agentCardsConfigPath}`);
+      console.log(`  Format: JSON (MCP ecosystem compatible) ✅\n`);
 
       // Step 4: Initialize database and discover servers
       console.log("🔍 Discovering MCP servers and extracting schemas...");

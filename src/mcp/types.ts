@@ -57,3 +57,61 @@ export interface DiscoveryStats {
   failures: Map<string, string>;
   duration: number;
 }
+
+/**
+ * Code execution request (agentcards:execute_code tool)
+ */
+export interface CodeExecutionRequest {
+  /**
+   * TypeScript code to execute in sandbox
+   */
+  code: string;
+
+  /**
+   * Natural language description of task (optional, triggers tool discovery)
+   */
+  intent?: string;
+
+  /**
+   * Custom context/data to inject into sandbox (optional)
+   */
+  context?: Record<string, unknown>;
+
+  /**
+   * Sandbox configuration (timeout, memory, etc.)
+   */
+  sandbox_config?: {
+    timeout?: number;
+    memoryLimit?: number;
+    allowedReadPaths?: string[];
+  };
+}
+
+/**
+ * Code execution response
+ */
+export interface CodeExecutionResponse {
+  /**
+   * Execution result (JSON-serializable)
+   */
+  result: unknown;
+
+  /**
+   * Console logs from code execution
+   */
+  logs: string[];
+
+  /**
+   * Execution metrics
+   */
+  metrics: {
+    executionTimeMs: number;
+    inputSizeBytes: number;
+    outputSizeBytes: number;
+  };
+
+  /**
+   * Optional state for checkpoint persistence
+   */
+  state?: Record<string, unknown>;
+}

@@ -64,13 +64,55 @@ export function getAgentCardsConfigDir(): string {
 }
 
 /**
- * Get the AgentCards config file path
+ * Get the AgentCards config file path (JSON format)
+ *
+ * NOTE: Changed from config.yaml to config.json per ADR-009
+ * for MCP ecosystem alignment
  */
 export function getAgentCardsConfigPath(): string {
   const configDir = getAgentCardsConfigDir();
   const os = Deno.build.os;
   const separator = os === "windows" ? "\\" : "/";
+  return `${configDir}${separator}config.json`;
+}
+
+/**
+ * Get the legacy YAML config path (deprecated)
+ *
+ * @deprecated Use getAgentCardsConfigPath() instead
+ */
+export function getLegacyConfigPath(): string {
+  const configDir = getAgentCardsConfigDir();
+  const os = Deno.build.os;
+  const separator = os === "windows" ? "\\" : "/";
   return `${configDir}${separator}config.yaml`;
+}
+
+/**
+ * Find config file (JSON or YAML) with auto-detection
+ *
+ * Prefers JSON, fallback to YAML with deprecation warning
+ */
+export async function findConfigFile(): Promise<{ path: string; format: "json" | "yaml" }> {
+  const jsonPath = getAgentCardsConfigPath();
+  const yamlPath = getLegacyConfigPath();
+
+  // Prefer JSON
+  try {
+    await Deno.stat(jsonPath);
+    return { path: jsonPath, format: "json" };
+  } catch {
+    // Fallback to YAML
+    try {
+      await Deno.stat(yamlPath);
+      console.warn("⚠️  YAML config detected. JSON is now recommended for MCP compatibility.");
+      console.warn("    Migrate with: ./agentcards migrate-config");
+      return { path: yamlPath, format: "yaml" };
+    } catch {
+      // Neither exists - will use JSON for new config
+      return { path: jsonPath, format: "json" };
+    }
+  }
 }
 
 /**

@@ -1,7 +1,8 @@
-# Code Sandboxing + MCP Tools : Au-delà de l'Approche Anthropic
+# MCP Gateway Architecture (Part 3): Code Sandboxing + MCP Tools Injection
 
-**Auteur:** Casys Team
-**Date:** Janvier 2025
+**Auteur:** Erwan Lee Pesle
+**Date:** Novembre 2025
+**Série:** MCP Gateway Architecture
 
 ---
 
@@ -60,12 +61,13 @@ const commits = await listCommits({ repo: 'foo' });
 **Avantages :**
 - Contrôle de flux naturel (boucles, conditions)
 - Réduction de contexte massive (98.7% dans leurs tests)
-- Progressive tool loading (search_tools ou filesystem exploration)
 - Accès aux MCP servers via imports
 
 **Leur paradigme :**
 
-MCP servers exposés comme **fichiers TypeScript** que l'agent découvre et importe. L'agent peut explorer `./servers/` pour trouver les tools disponibles ou utiliser une fonction `search_tools`.
+MCP servers exposés comme **fichiers TypeScript** que l'agent découvre et importe.
+
+**Note importante :** L'article d'Anthropic mentionne "progressive tool loading" mais ne détaille pas le mécanisme exact de découverte des tools. Plusieurs approches sont possibles (exploration filesystem, index préchargé, etc.), mais le détail d'implémentation n'est pas spécifié.
 
 ---
 
@@ -288,7 +290,7 @@ return mergeResults(results);
 |--------|-------------------------|----------------------|
 | **Code execution** | ✅ Sandbox | ✅ Sandbox Deno |
 | **Accès MCP tools** | ✅ Filesystem imports | ✅ Direct injection |
-| **Progressive loading** | ✅ search_tools / filesystem | ✅ Vector search |
+| **Tool discovery** | ⚠️ Non spécifié dans l'article | ✅ Vector search (similarity) |
 | **Paradigme** | `import { listCommits } from './servers/github'` | `const commits = await github.listCommits()` |
 | **Type safety** | ✅ TypeScript files | ✅ Generated TypeScript types |
 | **Sécurité** | ✅ Sandbox (à implémenter) | ✅ Deno permissions granulaires |
@@ -296,9 +298,9 @@ return mergeResults(results);
 
 **Différences clés :**
 
-**Anthropic :** Structure filesystem explicite. L'agent explore `./servers/` et importe les tools comme des modules.
+**Anthropic :** Structure filesystem explicite. L'agent explore `./servers/` et importe les tools comme des modules. Le mécanisme de découverte n'est pas détaillé dans leur article.
 
-**Casys :** Injection directe dans le contexte. Vector search identifie les tools pertinents, qui sont injectés comme fonctions disponibles globalement.
+**Casys :** Injection directe dans le contexte. **Vector search intelligent** identifie les tools pertinents (similarity > 0.6), qui sont injectés comme fonctions disponibles globalement. Seuls les top-k tools pertinents sont injectés, évitant la saturation du contexte.
 
 **Les deux approches** permettent au code d'accéder aux MCP servers, mais **Casys ajoute** :
 - ✅ Vector search intelligent (top-k tools pertinents)
@@ -505,5 +507,12 @@ Le code sandboxing d'Anthropic a introduit un paradigme puissant : exécuter du 
 Le résultat : des workflows MCP qui traitent des données volumineuses efficacement, sans saturer le contexte, tout en maintenant la sécurité.
 
 ---
+
+---
+
+**À propos de cette série :**
+- **Part 1:** [Semantic Discovery and Parallel Execution](https://www.linkedin.com/pulse/mcp-gateway-architecture-part-1-semantic-discovery-erwan-lee-pesle-kiczf/)
+- **Part 2:** [Adaptive Workflows with AIL/HIL](#) (publié)
+- **Part 3:** Code Sandboxing + MCP Tools Injection (cet article)
 
 **À propos de Casys MCP Gateway** : Casys est une plateforme d'orchestration intelligente pour agents MCP, combinant code sandboxing sécurisé, MCP tools injection, et adaptive feedback loops. Open source bientôt.

@@ -6,12 +6,46 @@
 
 /**
  * DAG task representation
+ *
+ * Supports two task types (Story 3.4):
+ * - mcp_tool (default): Execute MCP tool
+ * - code_execution: Execute code in sandbox
  */
 export interface Task {
   id: string;
   tool: string;
   arguments: Record<string, unknown>;
   depends_on: string[];
+
+  /**
+   * Task type (Story 3.4)
+   * @default "mcp_tool"
+   */
+  type?: "mcp_tool" | "code_execution";
+
+  /**
+   * TypeScript code to execute (only for type="code_execution")
+   */
+  code?: string;
+
+  /**
+   * Intent for tool discovery (only for type="code_execution")
+   */
+  intent?: string;
+
+  /**
+   * Sandbox configuration (only for type="code_execution")
+   */
+  sandbox_config?: {
+    timeout?: number;
+    memoryLimit?: number;
+    allowedReadPaths?: string[];
+  };
+
+  /**
+   * Flag for side-effects (Story 2.5-3 HIL approval)
+   */
+  side_effects?: boolean;
 }
 
 /**

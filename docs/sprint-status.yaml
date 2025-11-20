@@ -73,16 +73,16 @@ development_status:
   2.5-1-event-stream-command-queue-state-management: done
   2.5-2-checkpoint-resume: done
   2.5-3-ail-hil-integration-dag-replanning: done
-  epic-2.5-retrospective: optional
+  epic-2.5-retrospective: completed
 
   # Epic 3: Agent Code Execution & Local Processing (Sandbox Isolation)
   # 8 stories, ~12-15h
   # Prerequisite for Epic 3.5 (safe speculation)
   epic-3: backlog
   3-1-deno-sandbox-executor-foundation: done
-  3-2-mcp-tools-injection-into-code-context: review
+  3-2-mcp-tools-injection-into-code-context: done
   3-3-local-data-processing-pipeline: drafted
-  3-4-agentcards-execute-code-mcp-tool: drafted
+  3-4-agentcards-execute-code-mcp-tool: review
   3-5-pii-detection-tokenization: drafted
   3-6-code-execution-caching-optimization: drafted
   3-7-end-to-end-code-execution-tests-documentation: drafted

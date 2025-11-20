@@ -11,8 +11,8 @@
  */
 
 import { ParallelExecutor } from "./executor.ts";
-import type { DAGStructure } from "../graphrag/types.ts";
-import type { ExecutorConfig, ExecutionEvent, ToolExecutor } from "./types.ts";
+import type { DAGStructure, Task } from "../graphrag/types.ts";
+import type { ExecutorConfig, ExecutionEvent, ToolExecutor, TaskResult } from "./types.ts";
 import { EventStream } from "./event-stream.ts";
 import { CommandQueue } from "./command-queue.ts";
 import {
@@ -26,6 +26,10 @@ import { CheckpointManager } from "./checkpoint-manager.ts";
 import type { PGliteClient } from "../db/client.ts";
 import { getLogger } from "../telemetry/logger.ts";
 import type { DAGSuggester } from "../graphrag/dag-suggester.ts";
+import { DenoSandboxExecutor } from "../sandbox/executor.ts";
+import { ContextBuilder } from "../sandbox/context-builder.ts";
+import type { VectorSearch } from "../vector/search.ts";
+import type { MCPClient } from "../mcp/client.ts";
 
 const log = getLogger("controlled-executor");
 
@@ -48,6 +52,8 @@ export class ControlledExecutor extends ParallelExecutor {
   private dagSuggester: DAGSuggester | null = null;
   private replanCount: number = 0; // Rate limiting for replans (Story 2.5-3 Task 3)
   private readonly MAX_REPLANS = 3; // Maximum replans per workflow
+  private vectorSearch: VectorSearch | null = null; // Story 3.4
+  private contextBuilder: ContextBuilder | null = null; // Story 3.4
 
   /**
    * Create a new controlled executor
@@ -84,6 +90,24 @@ export class ControlledExecutor extends ParallelExecutor {
    */
   setDAGSuggester(dagSuggester: DAGSuggester): void {
     this.dagSuggester = dagSuggester;
+  }
+
+  /**
+   * Set code execution support (Story 3.4)
+   *
+   * Required for executing code_execution tasks.
+   * Call this before executeStream() to enable code execution in DAG.
+   *
+   * @param vectorSearch - VectorSearch instance for intent-based tool discovery
+   * @param mcpClients - Map of MCP clients for tool injection
+   */
+  setCodeExecutionSupport(
+    vectorSearch: VectorSearch,
+    mcpClients: Map<string, MCPClient>,
+  ): void {
+    this.vectorSearch = vectorSearch;
+    this.contextBuilder = new ContextBuilder(vectorSearch, mcpClients);
+    log.debug("Code execution support enabled");
   }
 
   /**
@@ -991,5 +1015,136 @@ export class ControlledExecutor extends ParallelExecutor {
    */
   getCommandQueueStats() {
     return this.commandQueue.getStats();
+  }
+
+  /**
+   * Override: Execute task with support for code_execution type (Story 3.4)
+   *
+   * Routes tasks based on type:
+   * - code_execution: Delegate to sandbox with tool injection
+   * - mcp_tool (default): Delegate to parent ParallelExecutor
+   *
+   * @param task - Task to execute
+   * @param previousResults - Results from previous tasks
+   * @returns Task output and execution time
+   */
+  protected override async executeTask(
+    task: Task,
+    previousResults: Map<string, TaskResult>,
+  ): Promise<{ output: unknown; executionTimeMs: number }> {
+    const taskType = task.type ?? "mcp_tool";
+
+    // Route based on task type
+    if (taskType === "code_execution") {
+      return await this.executeCodeTask(task, previousResults);
+    } else {
+      // Default: MCP tool execution (delegate to parent)
+      return await super.executeTask(task, previousResults);
+    }
+  }
+
+  /**
+   * Execute code_execution task (Story 3.4)
+   *
+   * Process:
+   * 1. Resolve dependencies from previousResults
+   * 2. Intent-based mode: vector search → inject tools
+   * 3. Execute code in sandbox with context
+   * 4. Return result for checkpoint persistence
+   *
+   * @param task - Code execution task
+   * @param previousResults - Results from previous tasks
+   * @returns Execution result
+   */
+  private async executeCodeTask(
+    task: Task,
+    previousResults: Map<string, TaskResult>,
+  ): Promise<{ output: unknown; executionTimeMs: number }> {
+    const startTime = performance.now();
+
+    try {
+      log.debug(`Executing code task: ${task.id}`);
+
+      // Validate task structure
+      if (!task.code) {
+        throw new Error(
+          `Code execution task ${task.id} missing required 'code' field`,
+        );
+      }
+
+      // Build execution context: merge deps + custom context
+      const executionContext: Record<string, unknown> = {
+        ...task.arguments, // Custom context from task
+      };
+
+      // Resolve dependencies: $OUTPUT[dep_id] → actual results
+      const deps: Record<string, unknown> = {};
+      for (const depId of task.depends_on) {
+        const depResult = previousResults.get(depId);
+        if (depResult?.status === "error") {
+          throw new Error(`Dependency task ${depId} failed: ${depResult.error}`);
+        }
+        if (!depResult) {
+          throw new Error(`Dependency task ${depId} not found in results`);
+        }
+        deps[depId] = depResult.output;
+      }
+      executionContext.deps = deps;
+
+      // Intent-based mode: inject tools via vector search
+      if (task.intent && this.contextBuilder && this.vectorSearch) {
+        log.debug(`Intent-based code execution: "${task.intent}"`);
+
+        const toolResults = await this.vectorSearch.searchTools(task.intent, 5, 0.6);
+
+        if (toolResults.length > 0) {
+          const toolContext = await this.contextBuilder.buildContextFromSearchResults(
+            toolResults,
+          );
+          Object.assign(executionContext, toolContext);
+          log.debug(`Injected ${Object.keys(toolContext).length} tool servers`);
+        }
+      }
+
+      // Configure sandbox
+      const sandboxConfig = task.sandbox_config || {};
+      const executor = new DenoSandboxExecutor({
+        timeout: sandboxConfig.timeout ?? 30000,
+        memoryLimit: sandboxConfig.memoryLimit ?? 512,
+        allowedReadPaths: sandboxConfig.allowedReadPaths ?? [],
+      });
+
+      // Execute code in sandbox with injected context (deps + custom context)
+      const result = await executor.execute(task.code, executionContext);
+
+      if (!result.success) {
+        const error = result.error!;
+        throw new Error(`${error.type}: ${error.message}`);
+      }
+
+      const executionTimeMs = performance.now() - startTime;
+
+      log.info(`Code task ${task.id} succeeded`, {
+        executionTimeMs: executionTimeMs.toFixed(2),
+        resultType: typeof result.result,
+      });
+
+      // Return result for checkpoint persistence (AC #10, #11)
+      return {
+        output: {
+          result: result.result,
+          state: executionContext, // For checkpoint compatibility
+          executionTimeMs: result.executionTimeMs,
+        },
+        executionTimeMs,
+      };
+    } catch (error) {
+      const executionTimeMs = performance.now() - startTime;
+      log.error(`Code task ${task.id} failed`, {
+        error: error instanceof Error ? error.message : String(error),
+        executionTimeMs,
+      });
+      throw error;
+    }
   }
 }

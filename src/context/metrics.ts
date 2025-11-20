@@ -13,6 +13,7 @@ import type { MCPTool } from "../mcp/types.ts";
 
 /**
  * Claude model context window sizes (in tokens)
+ * Need to change to 4.5
  */
 export const CONTEXT_WINDOWS = {
   "claude-3-opus": 200_000,

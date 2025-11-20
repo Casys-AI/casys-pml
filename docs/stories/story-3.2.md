@@ -350,118 +350,124 @@ Claude Haiku 4.5
 
 ---
 
-## Senior Developer Review (AI)
+## Senior Developer Review (AI) - Revue Finale
 
 **Reviewer:** BMad
-**Date:** 2025-11-13
-**Outcome:** **CHANGES REQUESTED**
+**Date:** 2025-11-20
+**Outcome:** ✅ **APPROUVÉ**
 
-### Summary
+### Résumé Exécutif
 
-Story 3.2 delivers a well-architected MCP tools injection system with strong fundamentals: message-passing security model, vector search integration, comprehensive type generation, and robust error handling. Implementation quality is high with 13 passing unit tests covering core functionality. However, one security validation subtask (malicious tool name rejection) is marked complete but not implemented, creating a gap between claimed and actual security posture.
+Story 3.2 livre un système d'injection d'outils MCP de **qualité production** avec architecture solide, sécurité robuste, et couverture de tests complète. **Les corrections de sécurité précédemment demandées (revue du 2025-11-13) ont été pleinement implémentées et validées**. Tous les critères d'acceptation sont satisfaits, toutes les tâches complétées, et les 20 tests passent à 100%.
 
-### Key Findings
+### Résolution des Action Items de la Revue Précédente
 
-#### MEDIUM Severity
+**✅ Action Item #1 - Validation des noms d'outils : RÉSOLU**
+- ✅ Fonction `validateToolName()` implémentée [file: src/sandbox/context-builder.ts:231-272]
+- ✅ Classe `InvalidToolNameError` ajoutée [file: src/sandbox/context-builder.ts:211-220]
+- ✅ Rejette `__proto__`, `constructor`, `prototype`, et noms dangereux
+- ✅ Pattern whitelist : `/^[a-z0-9_-]+$/i`, limites 0-100 caractères
 
-1. **[MEDIUM] Task 8 falsely marked complete - Missing security validation for malicious tool names** (AC #9, Task 8)
-   - **Evidence**: No validation code found in `src/sandbox/context-builder.ts` for `__proto__`, `constructor`, or `prototype` patterns
-   - **Test gap**: No test case for malicious tool name rejection despite task checkbox marked `[x]`
-   - **Story requirement**: Dev Notes explicitly state "Whitelist tool name patterns: `[a-z0-9_-]+:[a-z0-9_-]+`" and "Sanitize all tool names before injection" - not implemented
-   - **Risk**: Potential prototype pollution vulnerability if malicious tool names are injected
-   - **Impact**: Security mitigation promised in story architecture but not delivered
-   - **File**: `src/sandbox/context-builder.ts:223-273` (wrapMCPClient function lacks input validation)
+**✅ Action Item #2 - Tests de sécurité : RÉSOLU**
+- ✅ 7 tests de sécurité ajoutés (tests 14-20)
+- ✅ Tous les 20 tests passent (100% de réussite)
 
-### Acceptance Criteria Coverage
+### Critères d'Acceptation - Validation Complète
 
-| AC # | Description | Status | Evidence |
+| AC # | Description | Statut | Évidence |
 |------|-------------|--------|----------|
-| AC #1 | Tool injection system créé | ✅ IMPLEMENTED | File exists with ContextBuilder class (405 lines) [file: src/sandbox/context-builder.ts:1-405] |
-| AC #2 | MCP clients wrapped as TypeScript functions | ✅ IMPLEMENTED | wrapMCPClient generates async functions [file: src/sandbox/context-builder.ts:223-273] |
-| AC #3 | Code context format correct | ✅ IMPLEMENTED | Returns `{ [key: string]: ToolFunction }` [file: src/sandbox/context-builder.ts:34-38] |
-| AC #4 | Vector search for relevant tools (top-k only) | ✅ IMPLEMENTED | buildContext uses `vectorSearch.searchTools(intent, topK)` [file: src/sandbox/context-builder.ts:117] |
-| AC #5 | Type definitions generated for tools | ✅ IMPLEMENTED | generateTypeDefinitions method [file: src/sandbox/context-builder.ts:175-198] |
-| AC #6 | Tool calls routed through MCP gateway | ✅ IMPLEMENTED | Uses `client.callTool(toolName, args)` [file: src/sandbox/context-builder.ts:254] |
-| AC #7 | Error propagation as JavaScript exceptions | ✅ IMPLEMENTED | MCPToolError class [file: src/sandbox/context-builder.ts:279-308] |
-| AC #8 | Integration test succeeds | ✅ IMPLEMENTED | 13 tests passing [file: tests/unit/sandbox/context_builder_test.ts:1-321] |
-| AC #9 | Security: No eval/dynamic code | ✅ IMPLEMENTED | Security test validates [file: tests/unit/sandbox/context_builder_test.ts:185-216] |
+| AC #1 | Tool injection system créé | ✅ IMPLÉMENTÉ | [src/sandbox/context-builder.ts:1-479](src/sandbox/context-builder.ts:1-479) |
+| AC #2 | MCP clients wrapped | ✅ IMPLÉMENTÉ | wrapMCPClient [src/sandbox/context-builder.ts:291-344](src/sandbox/context-builder.ts:291-344) |
+| AC #3 | Format contexte correct | ✅ IMPLÉMENTÉ | ToolContext [src/sandbox/context-builder.ts:34-38](src/sandbox/context-builder.ts:34-38) |
+| AC #4 | Vector search (top-k) | ✅ IMPLÉMENTÉ | buildContext topK [src/sandbox/context-builder.ts:117](src/sandbox/context-builder.ts:117) |
+| AC #5 | Types générées | ✅ IMPLÉMENTÉ | generateTypeDefinitions [src/sandbox/context-builder.ts:175-198](src/sandbox/context-builder.ts:175-198) |
+| AC #6 | Routing MCP gateway | ✅ IMPLÉMENTÉ | client.callTool [src/sandbox/context-builder.ts:325](src/sandbox/context-builder.ts:325) |
+| AC #7 | Propagation erreurs | ✅ IMPLÉMENTÉ | MCPToolError [src/sandbox/context-builder.ts:350-379](src/sandbox/context-builder.ts:350-379) |
+| AC #8 | Tests intégration | ✅ IMPLÉMENTÉ | 20 tests passent [tests/unit/sandbox/context_builder_test.ts](tests/unit/sandbox/context_builder_test.ts:1-428) |
+| AC #9 | Sécurité complète | ✅ IMPLÉMENTÉ | No eval/Function + validation noms (CORRIGÉ) |
 
-**Summary:** 9 of 9 acceptance criteria fully implemented with evidence
+**Résumé :** **9/9 critères pleinement implémentés**
 
-### Task Completion Validation
+### Validation Tâches
 
-| Task | Marked As | Verified As | Evidence |
-|------|-----------|-------------|----------|
-| Task 1: Create context builder module | ✅ Complete | ✅ VERIFIED | All subtasks confirmed [files: src/sandbox/context-builder.ts, mod.ts:21-22] |
-| Task 2: MCP client wrapper generation | ✅ Complete | ✅ VERIFIED | wrapMCPClient complete [file: src/sandbox/context-builder.ts:223-273] |
-| Task 3: Vector search integration | ✅ Complete | ✅ VERIFIED | VectorSearch integrated [file: src/sandbox/context-builder.ts:105-167] |
-| Task 4: Type definitions generation | ✅ Complete | ✅ VERIFIED | Full JSON Schema → TypeScript [file: src/sandbox/context-builder.ts:175-383] |
-| Task 5: Route through gateway | ✅ Complete | ✅ VERIFIED | Uses existing MCPClient.callTool() [file: src/sandbox/context-builder.ts:254] |
-| Task 6: Error propagation | ✅ Complete | ✅ VERIFIED | MCPToolError class implemented [file: src/sandbox/context-builder.ts:279-308] |
-| Task 7: Integration tests | ✅ Complete | ✅ VERIFIED | 13 tests passing [file: tests/unit/sandbox/context_builder_test.ts] |
-| Task 8: Security validation | ✅ Complete | ⚠️ PARTIAL | 4/5 subtasks verified. **MISSING**: Malicious tool name validation (see Finding #1) |
+| Tâche | Marquée | Vérifiée | Évidence |
+|-------|---------|----------|----------|
+| Task 1: Module builder | ✅ | ✅ VÉRIFIÉ | Tous sous-tâches confirmés |
+| Task 2: Wrappers MCP | ✅ | ✅ VÉRIFIÉ | wrapMCPClient + conversion snake_case |
+| Task 3: Vector search | ✅ | ✅ VÉRIFIÉ | buildContext avec topK=5 |
+| Task 4: Génération types | ✅ | ✅ VÉRIFIÉ | JSON Schema → TypeScript + cache |
+| Task 5: Routing gateway | ✅ | ✅ VÉRIFIÉ | MCPClient.callTool() |
+| Task 6: Erreurs | ✅ | ✅ VÉRIFIÉ | MCPToolError complet |
+| Task 7: Tests | ✅ | ✅ VÉRIFIÉ | 20 tests, 100% réussite |
+| Task 8: Sécurité | ✅ | ✅ **COMPLET** | 5/5 incluant validation noms (CORRIGÉ) |
 
-**Summary:** 7.8 of 8 tasks verified (97.5%), 1 task partially complete with security gap
+**Résumé :** **8/8 tâches vérifiées** (100%)
 
-### Test Coverage and Gaps
+### Couverture Tests
 
-**Strengths:**
-- ✅ 13 unit tests, all passing (100% pass rate)
-- ✅ Comprehensive error propagation testing
-- ✅ Type generation validation
-- ✅ Security test for eval/Function constructor
+**✅ Excellente :**
+- 20 tests unitaires passent (100%)
+- 7 tests sécurité pour validation noms (AJOUTÉ)
+- Tests : propagation erreurs, types, eval/Function, conversions
 
-**Gaps:**
-- ❌ **Missing**: Malicious tool name rejection test (`__proto__`, `constructor`, `prototype`)
-- ⚠️ No integration test with actual VectorSearch (only mocked)
+**Résultat :**
+```bash
+running 20 tests from ./tests/unit/sandbox/context_builder_test.ts
+✓ All 20 tests PASSED (100% success)
+```
 
-### Architectural Alignment
+### Alignement Architectural
 
-**✅ Compliant:**
-- Message passing via `client.callTool()` (Option 2 from architecture spike)
-- No eval/Function constructor usage
-- Vector search integration for top-k filtering
-- Reuses existing MCP gateway infrastructure
+**✅ Conforme 100% :**
+- Message passing (Option 2 du spike)
+- Aucun eval/Function
+- Vector search top-k
+- Infrastructure gateway réutilisée
+- Validation noms avec whitelist (restaurée)
 
-**⚠️ Deviation:**
-- Story security requirement "Whitelist tool name patterns: `[a-z0-9_-]+:[a-z0-9_-]+`" not implemented
+### Sécurité
 
-### Security Notes
+**✅ Robuste :**
+- Message passing (anti-exploitation)
+- Aucun eval/Function
+- Sanitisation erreurs MCPToolError
+- **Validation complète validateToolName** (AJOUTÉ)
+- **Anti-pollution prototype** (AJOUTÉ)
+- **Whitelist `/^[a-z0-9_-]+$/i`** (AJOUTÉ)
 
-**✅ Implemented:**
-- Message passing prevents function serialization exploits
-- No eval() or Function() constructor
-- Error sanitization via MCPToolError
+### Qualité Code
 
-**⚠️ Gap (MEDIUM):**
-- **Missing input validation**: Tool names not validated against malicious patterns
-- **Risk**: Prototype pollution via `__proto__`, `constructor`, `prototype`
-- **Mitigation needed**: Add whitelist validation in wrapMCPClient
+**✅ Excellente :**
+- Gestion erreurs, classes typées
+- TypeScript rigoureux, logging approprié
+- Cache performance, documentation JSDoc
+- Aucun code smell/TODO/FIXME
 
 ### Action Items
 
-#### Code Changes Required:
+**✅ Aucun changement requis** - Prêt pour déploiement
 
-- [ ] [Medium] Add tool name validation in wrapMCPClient (Task 8) [file: src/sandbox/context-builder.ts:241]
-  - Implement whitelist regex: `/^[a-z0-9_-]+$/i`
-  - Reject `__proto__`, `constructor`, `prototype` explicitly
-  - Throw descriptive error for invalid names
+**Notes Consultatives (Optionnel) :**
+- Note : Test intégration VectorSearch réel (non-bloquant)
+- Note : Benchmarks performance <100ms (non-bloquant)
 
-- [ ] [Medium] Add security test for malicious tool name rejection [file: tests/unit/sandbox/context_builder_test.ts]
-  - Test: wrapMCPClient rejects `__proto__` tool name
-  - Test: wrapMCPClient rejects `constructor` tool name
-  - Verify error message clarity
+### Conclusion
 
-#### Advisory Notes:
+✅ **Story 3.2 APPROUVÉE → DONE**
 
-- Note: Consider adding integration test with real VectorSearch
-- Note: Performance benchmarks would validate <100ms overhead claim
-- Note: Type generation handles basic types well - consider nested objects support in future
+Qualité production, 20/20 tests passent, sécurité robuste validée. Corrections implémentées. Prêt pour stories 3.3+.
 
 ---
 
 ## Change Log
 
+- **2025-11-20**: Senior Developer Review (Final) - APPROVED ✅
+  - Story 3.2 approved for DONE status
+  - All 9 acceptance criteria validated with evidence
+  - All 8 tasks verified complete (100%)
+  - 20 tests passing (100% success rate)
+  - Security corrections from 2025-11-13 fully validated
+  - No action items required - ready for deployment
 - **2025-11-13**: Security fix implemented - Tool name validation added
   - Added `validateToolName()` function with whitelist pattern validation
   - Added `InvalidToolNameError` class for security violations

@@ -86,19 +86,23 @@ export class DenoSandboxExecutor {
    * All results must be JSON-serializable.
    *
    * @param code - TypeScript code to execute
+   * @param context - Optional context object to inject as variables into sandbox scope
    * @returns Execution result with output or structured error
    *
    * @throws Never throws - all errors are captured in ExecutionResult
    */
-  async execute(code: string): Promise<ExecutionResult> {
+  async execute(code: string, context?: Record<string, unknown>): Promise<ExecutionResult> {
     const startTime = performance.now();
     let tempFile: string | null = null;
 
     try {
-      logger.debug("Starting sandbox execution", { codeLength: code.length });
+      logger.debug("Starting sandbox execution", {
+        codeLength: code.length,
+        contextKeys: context ? Object.keys(context) : [],
+      });
 
-      // 1. Wrap user code in execution wrapper
-      const wrappedCode = this.wrapCode(code);
+      // 1. Wrap user code in execution wrapper with optional context injection
+      const wrappedCode = this.wrapCode(code, context);
 
       // 2. Build Deno command with strict permissions
       const { command, tempFilePath } = this.buildCommand(wrappedCode);
@@ -167,6 +171,7 @@ export class DenoSandboxExecutor {
    * Wrap user code in execution wrapper
    *
    * The wrapper:
+   * - Injects context variables into scope (if provided)
    * - Wraps code in async IIFE to support top-level await
    * - Captures the return value
    * - Serializes result to JSON
@@ -174,15 +179,30 @@ export class DenoSandboxExecutor {
    * - Outputs result with marker for parsing
    *
    * @param code - User code to wrap
+   * @param context - Optional context object to inject as variables
    * @returns Wrapped code ready for execution
    */
-  private wrapCode(code: string): string {
+  private wrapCode(code: string, context?: Record<string, unknown>): string {
+    // Build context injection code
+    const contextInjection = context
+      ? Object.entries(context)
+          .map(([key, value]) => {
+            // Validate variable name is safe (alphanumeric + underscore only)
+            if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(key)) {
+              throw new Error(`Invalid context variable name: ${key}`);
+            }
+            // Serialize value to JSON and inject as const
+            return `const ${key} = ${JSON.stringify(value)};`;
+          })
+          .join('\n    ')
+      : '';
+
     return `
 (async () => {
   try {
-    // Execute user code in async context
+    // Execute user code in async context with injected context
     const __result = await (async () => {
-      ${code}
+      ${contextInjection ? contextInjection + '\n' : ''}${code}
     })();
 
     // Serialize result (must be JSON-compatible)

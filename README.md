@@ -188,6 +188,125 @@ await callTool("agentcards:execute_workflow", {
 
 4. **Context Optimization**: Instead of loading all 100+ tool schemas, AgentCards dynamically loads only what's needed.
 
+### Code Execution Mode
+
+AgentCards integrates code execution into DAG workflows, enabling hybrid orchestration that combines MCP tool calls with local data processing. This is the **primary delegation point** between workflow orchestration and sandbox execution.
+
+#### When to Use Code Execution
+
+**Use code_execution task type when:**
+- Processing large datasets fetched from MCP tools (>100 items)
+- Complex multi-step transformations across multiple tool results
+- Local filtering/aggregation before returning to LLM context
+- Idempotent operations safe for checkpoint/resume
+
+**Use direct MCP tool calls when:**
+- Single tool with small result (<10KB)
+- No processing needed
+- Stateful operations requiring immediate commit
+
+#### Example: Hybrid DAG Workflow
+
+```typescript
+// ControlledExecutor builds this DAG
+const dag = {
+  tasks: [
+    // Layer 0: Fetch via MCP (parallel)
+    {
+      id: "fetch_commits",
+      tool: "github:list_commits",
+      type: "mcp_tool",
+      arguments: { repo: "anthropics/claude", limit: 1000 }
+    },
+    {
+      id: "fetch_issues",
+      tool: "github:list_issues",
+      type: "mcp_tool",
+      arguments: { state: "open" }
+    },
+
+    // Layer 1: Process locally (code execution)
+    {
+      id: "analyze",
+      type: "code_execution",
+      code: `
+        const commits = deps.fetch_commits;
+        const issues = deps.fetch_issues;
+
+        const lastWeek = commits.filter(c => isLastWeek(c.date));
+        const openIssues = issues.filter(i => i.state === "open");
+
+        return {
+          commits_last_week: lastWeek.length,
+          open_issues: openIssues.length,
+          top_contributors: getTopContributors(lastWeek)
+        };
+      `,
+      depends_on: ["fetch_commits", "fetch_issues"]
+    }
+  ]
+};
+
+// Execute with automatic checkpointing
+for await (const event of executor.executeStream(dag)) {
+  if (event.type === "checkpoint") {
+    console.log("State saved - can resume if crash");
+  }
+}
+```
+
+#### Intent-Based Tool Injection
+
+Code execution tasks can optionally specify an `intent` to automatically discover and inject relevant MCP tools:
+
+```typescript
+// Claude calls tool directly (not via DAG)
+await mcp.callTool("agentcards:execute_code", {
+  intent: "Analyze GitHub commits from last week",
+  code: `
+    const commits = await github.listCommits({ repo: "anthropics/claude", limit: 1000 });
+    const lastWeek = commits.filter(c => isLastWeek(c.date));
+    return {
+      total: lastWeek.length,
+      authors: [...new Set(lastWeek.map(c => c.author))]
+    };
+  `
+});
+
+// AgentCards:
+// 1. Vector search: "Analyze GitHub commits" → identifies "github" tools
+// 2. Inject github client into sandbox
+// 3. Execute code with tools available
+// 4. Return result: { total: 42, authors: ["alice", "bob"] }
+```
+
+#### Safe-to-Fail Pattern
+
+Code execution tasks are **idempotent** and **isolated**:
+- Virtual filesystem (no permanent side-effects)
+- Can be rolled back without corruption
+- Safe for speculative execution
+- Checkpoint-compatible (state in PGlite)
+
+#### Performance Characteristics
+
+- Sandbox startup: <100ms
+- Intent-based tool discovery: <200ms
+- Total execution timeout: 30s (configurable)
+- Memory limit: 512MB (configurable)
+
+#### Security
+
+**Sandbox Isolation:**
+- Code runs in isolated Deno subprocess
+- Limited permissions (only `~/.agentcards` read access)
+- No network access from sandbox
+
+**Input Validation:**
+- Code string validated (no empty, max 100KB)
+- Context object validated (JSON-serializable only)
+- Intent string sanitized (no code injection)
+
 ### Troubleshooting
 
 #### MCP Server Not Connecting
@@ -200,7 +319,7 @@ await callTool("agentcards:execute_workflow", {
 **Solutions:**
 1. **Check server configuration:**
    ```bash
-   cat ~/.agentcards/config.yaml
+   cat ~/.agentcards/config.json
    ```
    Verify all MCP server commands are correct and in your PATH.
 
@@ -270,10 +389,13 @@ await callTool("agentcards:execute_workflow", {
    ```
 
 2. **Reduce concurrent tool limit:**
-   Edit `~/.agentcards/config.yaml`:
-   ```yaml
-   execution:
-     maxConcurrency: 5  # Reduce from default 10
+   Edit `~/.agentcards/config.json`:
+   ```json
+   {
+     "execution": {
+       "maxConcurrency": 5
+     }
+   }
    ```
 
 3. **Restart the gateway periodically:**

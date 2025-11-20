@@ -27,9 +27,11 @@ import type { DAGSuggester } from "../graphrag/dag-suggester.ts";
 import type { ParallelExecutor } from "../dag/executor.ts";
 import { GatewayHandler } from "./gateway-handler.ts";
 import { MCPClient } from "./client.ts";
-import type { MCPTool } from "./types.ts";
+import type { MCPTool, CodeExecutionRequest, CodeExecutionResponse } from "./types.ts";
 import type { DAGStructure } from "../graphrag/types.ts";
 import { HealthChecker } from "../health/health-checker.ts";
+import { DenoSandboxExecutor } from "../sandbox/executor.ts";
+import { ContextBuilder } from "../sandbox/context-builder.ts";
 
 /**
  * MCP JSON-RPC error codes
@@ -63,6 +65,7 @@ export class AgentCardsGatewayServer {
   private gatewayHandler: GatewayHandler;
   private healthChecker: HealthChecker;
   private config: Required<GatewayServerConfig>;
+  private contextBuilder: ContextBuilder;
 
   constructor(
     private db: PGliteClient,
@@ -106,6 +109,10 @@ export class AgentCardsGatewayServer {
 
     // Initialize Health Checker
     this.healthChecker = new HealthChecker(this.mcpClients);
+
+    // Initialize Context Builder for tool injection (Story 3.4)
+    // Sandbox executors are created per-request with custom config
+    this.contextBuilder = new ContextBuilder(this.vectorSearch, this.mcpClients);
 
     this.setupHandlers();
   }
@@ -191,8 +198,52 @@ export class AgentCardsGatewayServer {
         },
       };
 
+      // Add code execution tool (Story 3.4)
+      const executeCodeTool: MCPTool = {
+        name: "agentcards:execute_code",
+        description:
+          "Execute TypeScript code in secure sandbox with access to MCP tools. Process large datasets locally before returning results to save context tokens.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            code: {
+              type: "string",
+              description: "TypeScript code to execute in sandbox",
+            },
+            intent: {
+              type: "string",
+              description: "Natural language description of task (optional, triggers tool discovery)",
+            },
+            context: {
+              type: "object",
+              description: "Custom context/data to inject into sandbox (optional)",
+            },
+            sandbox_config: {
+              type: "object",
+              description: "Sandbox configuration (timeout, memory, etc.)",
+              properties: {
+                timeout: {
+                  type: "number",
+                  description: "Maximum execution time in milliseconds (default: 30000)",
+                },
+                memoryLimit: {
+                  type: "number",
+                  description: "Maximum heap memory in megabytes (default: 512)",
+                },
+                allowedReadPaths: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Additional read paths to allow",
+                },
+              },
+            },
+          },
+          required: ["code"],
+        },
+      };
+
       return {
-        tools: [workflowTool, ...tools].map((schema) => ({
+        tools: [workflowTool, executeCodeTool, ...tools].map((schema) => ({
           name: schema.name,
           description: schema.description,
           inputSchema: schema.inputSchema,
@@ -235,6 +286,11 @@ export class AgentCardsGatewayServer {
       // Check if this is a workflow request
       if (name === "agentcards:execute_workflow") {
         return await this.handleWorkflowExecution(args);
+      }
+
+      // Check if this is a code execution request (Story 3.4)
+      if (name === "agentcards:execute_code") {
+        return await this.handleExecuteCode(args);
       }
 
       // Single tool execution (proxy to underlying MCP server)
@@ -383,6 +439,135 @@ export class AgentCardsGatewayServer {
       "Either 'intent' or 'workflow' must be provided",
       { received: Object.keys(workflowArgs) },
     );
+  }
+
+  /**
+   * Handle code execution (Story 3.4)
+   *
+   * Supports two modes:
+   * 1. Intent-based: Natural language → vector search → tool injection → execute
+   * 2. Explicit: Direct code execution with provided context
+   *
+   * @param args - Code execution arguments
+   * @returns Execution result with metrics
+   */
+  private async handleExecuteCode(args: unknown): Promise<{ content: Array<{ type: string; text: string }> } | { error: { code: number; message: string; data?: unknown } }> {
+    try {
+      const request = args as CodeExecutionRequest;
+
+      // Validate required parameters
+      if (!request.code || typeof request.code !== "string") {
+        return this.formatMCPError(
+          MCPErrorCodes.INVALID_PARAMS,
+          "Missing or invalid required parameter: 'code' must be a non-empty string",
+        );
+      }
+
+      // Validate code size (max 100KB)
+      const codeSizeBytes = new TextEncoder().encode(request.code).length;
+      if (codeSizeBytes > 100 * 1024) {
+        return this.formatMCPError(
+          MCPErrorCodes.INVALID_PARAMS,
+          `Code size exceeds maximum: ${codeSizeBytes} bytes (max: 102400)`,
+        );
+      }
+
+      log.info("Executing code in sandbox", {
+        intent: request.intent ? `"${request.intent.substring(0, 50)}..."` : "none",
+        contextKeys: request.context ? Object.keys(request.context) : [],
+        codeSize: codeSizeBytes,
+      });
+
+      // Build execution context
+      let executionContext = request.context || {};
+
+      // Intent-based mode: Use vector search to discover and inject relevant tools
+      if (request.intent) {
+        log.debug("Intent-based mode: discovering relevant tools");
+
+        // Vector search for relevant tools (top 5)
+        const toolResults = await this.vectorSearch.searchTools(request.intent, 5, 0.6);
+
+        if (toolResults.length > 0) {
+          log.debug(`Found ${toolResults.length} relevant tools for intent`);
+
+          // Build tool context using ContextBuilder
+          const toolContext = await this.contextBuilder.buildContextFromSearchResults(
+            toolResults,
+          );
+
+          // Merge tool context with user-provided context
+          executionContext = { ...executionContext, ...toolContext };
+        } else {
+          log.warn("No relevant tools found for intent (similarity threshold not met)");
+        }
+      }
+
+      // Configure sandbox
+      const sandboxConfig = request.sandbox_config || {};
+      const executor = new DenoSandboxExecutor({
+        timeout: sandboxConfig.timeout ?? 30000,
+        memoryLimit: sandboxConfig.memoryLimit ?? 512,
+        allowedReadPaths: sandboxConfig.allowedReadPaths ?? [],
+      });
+
+      // Execute code in sandbox with injected context
+      const startTime = performance.now();
+      const result = await executor.execute(request.code, executionContext);
+      const executionTimeMs = performance.now() - startTime;
+
+      // Handle execution failure
+      if (!result.success) {
+        const error = result.error!;
+        return this.formatMCPError(
+          MCPErrorCodes.INTERNAL_ERROR,
+          `Code execution failed: ${error.type} - ${error.message}`,
+          {
+            error_type: error.type,
+            error_message: error.message,
+            stack: error.stack,
+            execution_time_ms: executionTimeMs,
+          },
+        );
+      }
+
+      // Calculate output size
+      const outputSizeBytes = new TextEncoder().encode(
+        JSON.stringify(result.result),
+      ).length;
+
+      // Build response
+      const response: CodeExecutionResponse = {
+        result: result.result,
+        logs: [], // TODO: Capture console logs in future enhancement
+        metrics: {
+          executionTimeMs: result.executionTimeMs,
+          inputSizeBytes: codeSizeBytes,
+          outputSizeBytes,
+        },
+        state: executionContext, // Return context for checkpoint compatibility
+      };
+
+      log.info("Code execution succeeded", {
+        executionTimeMs: response.metrics.executionTimeMs.toFixed(2),
+        outputSize: outputSizeBytes,
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(response, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      log.error(`execute_code error: ${error}`);
+      return this.formatMCPError(
+        MCPErrorCodes.INTERNAL_ERROR,
+        `Code execution failed: ${(error as Error).message}`,
+      );
+    }
   }
 
   /**

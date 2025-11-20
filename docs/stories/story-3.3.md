@@ -2,20 +2,108 @@
 
 **Epic:** 3 - Agent Code Execution & Local Processing
 **Story ID:** 3.3
-**Status:** drafted
-**Estimated Effort:** 5-7 heures
+**Status:** drafted ⚠️ **SCOPE NEEDS CLARIFICATION**
+**Estimated Effort:** TBD (pending scope review)
 
 ---
 
-## User Story
+## ⚠️ SCOPE CLARIFICATION NEEDED - Discussion 2025-11-20
+
+### Issue Identified
+
+Story 3.3 scope **overlaps/conflicts** with Story 3.4 and the actual architecture.
+
+### Original Intent vs Reality
+
+**Original Story 3.3 Intent:**
+- Implement "data processing pipeline" with pre-built helpers (filter, map, reduce, groupBy)
+- Seemed to suggest a library of processing utilities
+
+**Actual Architecture (ADR-007 + Anthropic Code Execution research):**
+- The LLM agent **writes TypeScript code directly** to process data
+- No pre-built "pipeline" - agents generate custom processing code
+- Code executes in sandbox (3.1) with MCP tools injection (3.2)
+- **Story 3.4 (`execute_code` tool) already implements this pattern**
+
+### The Confusion
+
+**Key questions:**
+1. Who writes the processing code?
+   - Original 3.3: Pre-built helpers?
+   - Reality: Agent writes custom TypeScript code
+
+2. What's the difference between 3.3 and 3.4?
+   - AC #8 in 3.3: "Integration with DAG executor: Code execution as DAG task type"
+   - **This is Story 3.4's core responsibility!**
+
+3. Is a "pipeline library" needed?
+   - Anthropic approach: Agent writes vanilla TypeScript
+   - No mention of pre-built processing helpers in ADR-007 or PRD
+
+### Analysis of Acceptance Criteria Overlap
+
+**Story 3.3 ACs that are actually Story 3.4:**
+- AC #1: "Data processing pipeline implemented in sandbox" → 3.4 execute_code
+- AC #2: "Agent code can: filter, map, reduce" → 3.4 with agent-written code
+- AC #8: "Integration with DAG executor" → **3.4 Phase 3 explicitly covers this**
+- AC #9: "Metrics logged" → 3.4 already includes metrics in output schema
+
+**What might be unique to 3.3 (if redefined):**
+- AC #6: "Streaming support" - but agents can use ReadableStream in 3.4
+- AC #7: "Memory efficiency" - sandbox config in 3.4
+
+### Possible Resolutions
+
+**Option A: SKIP Story 3.3 Entirely** ⭐ RECOMMENDED
+- Story 3.4 already covers the real need (code execution + data processing)
+- Agent writes custom code, no need for pre-built pipeline
+- PRD FR017-FR019 fully covered by Story 3.4
+- **Pros:** No duplication, cleaner architecture
+- **Cons:** None identified
+
+**Option B: REDEFINE as "Standard Library for Sandbox"**
+- Provide common utilities available in sandbox context
+- Like lodash, date-fns, or data transformation helpers
+- Agents can use them optionally in their code
+- **Pros:** Could be helpful for common patterns
+- **Cons:** May not be needed, adds maintenance burden
+
+**Option C: DEFER Until Real Need Emerges**
+- Implement Story 3.4 first
+- Monitor what patterns emerge from actual usage
+- Extract common patterns into library later if needed
+- **Pros:** Data-driven, avoids over-engineering
+- **Cons:** Delays potential optimization
+
+### Recommendation
+
+**Skip or Defer Story 3.3:**
+- Story 3.4 delivers the actual architectural need
+- No clear differentiation from 3.4 in current form
+- If utilities are needed, add them incrementally in future stories
+
+### Action Items
+
+- [ ] BMad decision: Skip, Redefine, or Defer?
+- [ ] If Skip: Update sprint-status to "cancelled" with reason
+- [ ] If Redefine: New ACs focusing on stdlib, not pipeline
+- [ ] If Defer: Move to backlog pending 3.4 completion + usage analysis
+
+---
+
+## User Story (ORIGINAL - SUBJECT TO CHANGE)
 
 **As a** user executing workflows with large datasets,
 **I want** data to be processed locally before reaching the LLM context,
 **So that** I save context tokens and get faster responses.
 
+**⚠️ NOTE:** This user story may be redundant with Story 3.4 execute_code tool.
+
 ---
 
-## Acceptance Criteria
+## Acceptance Criteria (⚠️ ORIGINAL - LIKELY REDUNDANT WITH 3.4)
+
+**NOTE:** These ACs overlap significantly with Story 3.4. Review needed before implementation.
 
 1. ✅ Data processing pipeline implemented in sandbox
 2. ✅ Agent code can: filter, map, reduce, aggregate large datasets
@@ -29,9 +117,11 @@
 
 ---
 
-## Tasks / Subtasks
+## Tasks / Subtasks (⚠️ ORIGINAL - SUBJECT TO MAJOR REVISION)
 
-### Phase 1: Pipeline Foundation (2h)
+**NOTE:** These tasks assume a "pipeline library" approach that may not align with the actual architecture. Awaiting scope clarification.
+
+### Phase 1: Pipeline Foundation (2h) - MAY BE REDUNDANT
 
 - [ ] **Task 1: Implement data processing helpers** (AC: #1, #2)
   - [ ] Créer `src/sandbox/data-pipeline.ts` module
@@ -310,7 +400,7 @@ return { total, daily: byDay };
 
 ### Context Reference
 
-<!-- Path(s) to story context XML will be added here by context workflow -->
+<!-- Context will be generated when story scope is clarified -->
 
 ### Agent Model Used
 
@@ -345,4 +435,47 @@ _Key completion notes for next story (patterns, services, deviations) go here_
 
 ## Change Log
 
+- **2025-11-20**: **SCOPE CLARIFICATION ADDED** - Story overlaps significantly with Story 3.4. Marked for review: Skip, Redefine, or Defer pending BMad decision.
 - **2025-11-09**: Story drafted by BMM workflow, based on Epic 3 requirements
+
+---
+
+## Summary of Discussion (2025-11-20)
+
+### What We Discovered
+
+During Story 3.4 contextualization, we realized that:
+
+1. **Story 3.3 and 3.4 solve the same problem differently:**
+   - 3.3: Pre-built "pipeline" with helpers (filter, map, reduce)
+   - 3.4: Agent writes custom TypeScript code
+
+2. **Anthropic's architecture (which we're following) uses 3.4's approach:**
+   - No pre-built pipeline library
+   - Agents write vanilla TypeScript code
+   - Code executes in sandbox with tool injection
+
+3. **Multiple ACs in 3.3 are actually 3.4's responsibility:**
+   - AC #8: "Integration with DAG executor" → **This is 3.4 Phase 3!**
+   - AC #1, #2, #9: Already covered by 3.4
+
+### Three Options Forward
+
+**Option A: Skip 3.3** ⭐
+- Story 3.4 delivers the actual need
+- No duplication, cleaner Epic 3 scope
+- FR017-FR019 from PRD fully covered by 3.4
+
+**Option B: Redefine as "Sandbox Standard Library"**
+- Provide optional utilities (lodash-style)
+- Agents can use if helpful
+- Not a "pipeline" but a "stdlib"
+
+**Option C: Defer**
+- Implement 3.4 first
+- See what patterns emerge
+- Extract common utilities later if needed
+
+### Next Steps
+
+Awaiting BMad's decision on which option to pursue before any further work on Story 3.3.

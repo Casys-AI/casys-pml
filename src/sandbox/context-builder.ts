@@ -167,6 +167,70 @@ export class ContextBuilder {
   }
 
   /**
+   * Build tool context from search results (Story 3.4 helper)
+   *
+   * Convenience method that directly accepts SearchResults from vector search
+   * instead of requiring an intent string.
+   *
+   * @param searchResults Results from vector search (already filtered)
+   * @returns Tool context ready for sandbox injection
+   */
+  async buildContextFromSearchResults(
+    searchResults: SearchResult[],
+  ): Promise<ToolContext> {
+    const startTime = performance.now();
+    const context: ToolContext = {};
+
+    try {
+      logger.info(`Building context from ${searchResults.length} search results`);
+
+      // Group tools by server
+      const toolsByServer = new Map<string, ToolMetadata[]>();
+      for (const searchResult of searchResults) {
+        if (!toolsByServer.has(searchResult.serverId)) {
+          toolsByServer.set(searchResult.serverId, []);
+        }
+        toolsByServer.get(searchResult.serverId)!.push({
+          serverId: searchResult.serverId,
+          toolName: searchResult.toolName,
+          description: searchResult.schema.description,
+          inputSchema: searchResult.schema.inputSchema as Record<
+            string,
+            unknown
+          >,
+        });
+      }
+
+      // Build wrappers for each server
+      for (const [serverId, tools] of toolsByServer.entries()) {
+        const client = this.mcpClients.get(serverId);
+        if (!client) {
+          logger.warn(`MCP client not found for server: ${serverId}`);
+          continue;
+        }
+
+        const serverToolContext = wrapMCPClient(client, tools);
+        if (Object.keys(serverToolContext).length > 0) {
+          context[serverId] = serverToolContext;
+        }
+
+        logger.debug(`Injected ${Object.keys(serverToolContext).length} tools for ${serverId}`);
+      }
+
+      const elapsed = performance.now() - startTime;
+      logger.info(`Context built successfully (${elapsed.toFixed(1)}ms, ${Object.keys(context).length} servers)`);
+
+      return context;
+    } catch (error) {
+      logger.error("Failed to build context from search results", {
+        error: error instanceof Error ? error.message : String(error),
+        resultsCount: searchResults.length,
+      });
+      throw error;
+    }
+  }
+
+  /**
    * Generate TypeScript type definitions for tools
    *
    * @param tools Tools to generate types for
