@@ -31,10 +31,15 @@ export interface Decision {
 
 /**
  * Task result for completed tasks tracking (re-export from types.ts)
+ *
+ * Status values (Story 3.5):
+ * - "success": Task completed successfully
+ * - "error": Critical failure, halts workflow
+ * - "failed_safe": Safe-to-fail task failed, workflow continues
  */
 export interface TaskResult {
   taskId: string;
-  status: "success" | "error";
+  status: "success" | "error" | "failed_safe";
   output?: unknown;
   error?: string;
   executionTimeMs?: number;

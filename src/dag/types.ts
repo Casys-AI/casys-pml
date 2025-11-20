@@ -6,10 +6,15 @@
 
 /**
  * Result of a single task execution
+ *
+ * Status values (Story 3.5):
+ * - "success": Task completed successfully
+ * - "error": Critical failure, halts workflow
+ * - "failed_safe": Safe-to-fail task failed, workflow continues
  */
 export interface TaskResult {
   taskId: string;
-  status: "success" | "error";
+  status: "success" | "error" | "failed_safe";
   output?: unknown;
   error?: string;
   executionTimeMs?: number;
@@ -106,10 +111,10 @@ export type ToolExecutor = (
 /**
  * Execution event types for real-time observability
  *
- * 9 event types covering workflow lifecycle:
+ * 10 event types covering workflow lifecycle (Story 3.5 adds task_warning):
  * - workflow_start/complete: Workflow boundaries
  * - layer_start: Layer execution start
- * - task_start/complete/error: Individual task lifecycle
+ * - task_start/complete/error/warning: Individual task lifecycle
  * - state_updated: State changes via reducers
  * - checkpoint: Checkpoint created (Story 2.5-2)
  * - decision_required: AIL/HIL decision needed (Story 2.5-3)
@@ -148,6 +153,14 @@ export type ExecutionEvent =
       workflow_id: string;
       task_id: string;
       error: string;
+    }
+  | {
+      type: "task_warning";
+      timestamp: number;
+      workflow_id: string;
+      task_id: string;
+      error: string;
+      message: string;
     }
   | {
       type: "state_updated";

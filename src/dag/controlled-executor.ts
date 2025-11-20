@@ -34,6 +34,22 @@ import type { MCPClient } from "../mcp/client.ts";
 const log = getLogger("controlled-executor");
 
 /**
+ * Determines if a task is safe-to-fail (Story 3.5)
+ *
+ * Safe-to-fail tasks:
+ * - Are code_execution type (NOT MCP tools)
+ * - Have NO side effects (idempotent, isolated)
+ *
+ * These tasks can fail without halting the workflow.
+ *
+ * @param task - Task to check
+ * @returns true if task can fail safely
+ */
+function isSafeToFail(task: Task): boolean {
+  return !task.side_effects && task.type === "code_execution";
+}
+
+/**
  * ControlledExecutor extends ParallelExecutor with adaptive feedback loops
  *
  * Features:
@@ -371,26 +387,55 @@ export class ControlledExecutor extends ParallelExecutor {
           await this.eventStream.emit(completeEvent);
           yield completeEvent;
         } else {
-          failedTasks++;
+          // Story 3.5: Differentiate safe-to-fail vs critical failures
           const errorMsg = result.reason?.message || String(result.reason);
-          const taskResult = {
-            taskId: task.id,
-            status: "error" as const,
-            error: errorMsg,
-          };
-          results.set(task.id, taskResult);
-          layerTaskResults.push(taskResult);
+          const isSafe = isSafeToFail(task);
 
-          // Emit task_error event
-          const errorEvent: ExecutionEvent = {
-            type: "task_error",
-            timestamp: Date.now(),
-            workflow_id: workflowId,
-            task_id: task.id,
-            error: errorMsg,
-          };
-          await this.eventStream.emit(errorEvent);
-          yield errorEvent;
+          if (isSafe) {
+            // Safe-to-fail task: Log warning, continue workflow
+            log.warn(`Safe-to-fail task ${task.id} failed (continuing): ${errorMsg}`);
+            const taskResult = {
+              taskId: task.id,
+              status: "failed_safe" as const,
+              output: null,
+              error: errorMsg,
+            };
+            results.set(task.id, taskResult);
+            layerTaskResults.push(taskResult);
+
+            // Emit task_warning event (non-critical)
+            const warningEvent: ExecutionEvent = {
+              type: "task_warning",
+              timestamp: Date.now(),
+              workflow_id: workflowId,
+              task_id: task.id,
+              error: errorMsg,
+              message: "Safe-to-fail task failed, workflow continues",
+            };
+            await this.eventStream.emit(warningEvent);
+            yield warningEvent;
+          } else {
+            // Critical failure: Halt workflow
+            failedTasks++;
+            const taskResult = {
+              taskId: task.id,
+              status: "error" as const,
+              error: errorMsg,
+            };
+            results.set(task.id, taskResult);
+            layerTaskResults.push(taskResult);
+
+            // Emit task_error event
+            const errorEvent: ExecutionEvent = {
+              type: "task_error",
+              timestamp: Date.now(),
+              workflow_id: workflowId,
+              task_id: task.id,
+              error: errorMsg,
+            };
+            await this.eventStream.emit(errorEvent);
+            yield errorEvent;
+          }
         }
       }
 
@@ -1036,11 +1081,61 @@ export class ControlledExecutor extends ParallelExecutor {
 
     // Route based on task type
     if (taskType === "code_execution") {
+      // Story 3.5: Add retry logic for safe-to-fail sandbox tasks
+      if (isSafeToFail(task)) {
+        return await this.executeWithRetry(task, previousResults);
+      }
       return await this.executeCodeTask(task, previousResults);
     } else {
       // Default: MCP tool execution (delegate to parent)
       return await super.executeTask(task, previousResults);
     }
+  }
+
+  /**
+   * Execute safe-to-fail task with retry logic (Story 3.5 - Task 7)
+   *
+   * Retry strategy:
+   * - Max 3 attempts
+   * - Exponential backoff: 100ms, 200ms, 400ms
+   * - Only for safe-to-fail tasks (idempotent)
+   *
+   * @param task - Safe-to-fail task
+   * @param previousResults - Results from previous tasks
+   * @returns Execution result
+   */
+  private async executeWithRetry(
+    task: Task,
+    previousResults: Map<string, TaskResult>,
+  ): Promise<{ output: unknown; executionTimeMs: number }> {
+    const maxAttempts = 3;
+    const baseDelay = 100; // ms
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        log.debug(`Executing safe-to-fail task ${task.id} (attempt ${attempt}/${maxAttempts})`);
+        return await this.executeCodeTask(task, previousResults);
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+
+        if (attempt < maxAttempts) {
+          // Exponential backoff: 100ms, 200ms, 400ms
+          const delay = baseDelay * Math.pow(2, attempt - 1);
+          log.warn(
+            `Safe-to-fail task ${task.id} failed (attempt ${attempt}/${maxAttempts}), retrying in ${delay}ms: ${lastError.message}`
+          );
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        } else {
+          log.error(
+            `Safe-to-fail task ${task.id} failed after ${maxAttempts} attempts: ${lastError.message}`
+          );
+        }
+      }
+    }
+
+    // All retries exhausted, throw the last error
+    throw lastError!;
   }
 
   /**
@@ -1078,16 +1173,22 @@ export class ControlledExecutor extends ParallelExecutor {
       };
 
       // Resolve dependencies: $OUTPUT[dep_id] → actual results
-      const deps: Record<string, unknown> = {};
+      // Story 3.5: Pass full TaskResult to enable resilient patterns
+      const deps: Record<string, TaskResult> = {};
       for (const depId of task.depends_on) {
         const depResult = previousResults.get(depId);
+
+        // Critical failures halt execution
         if (depResult?.status === "error") {
           throw new Error(`Dependency task ${depId} failed: ${depResult.error}`);
         }
         if (!depResult) {
           throw new Error(`Dependency task ${depId} not found in results`);
         }
-        deps[depId] = depResult.output;
+
+        // Story 3.5: Store full TaskResult (status, output, error)
+        // Enables user code to check: if (deps.task?.status === "success")
+        deps[depId] = depResult;
       }
       executionContext.deps = deps;
 

@@ -1,0 +1,92 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>3.6</storyId>
+    <title>PII Detection & Tokenization</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-20</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/story-3.6.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>security-conscious user</asA>
+    <iWant>personally identifiable information (PII) automatically detected and tokenized</iWant>
+    <soThat>sensitive data never reaches the LLM context</soThat>
+    <tasks>
+### Phase 1: PII Detection Module (2-3h)
+- Task 1: Create PII detector (AC: #1)
+  - Create src/sandbox/pii-detector.ts module
+  - Create PIIDetector class with detection logic
+  - Create PIIMatch interface with type + position + value
+  - Export module in mod.ts
+
+- Task 2: Implement pattern detection (AC: #2)
+  - Email regex, Phone regex (US/CA), Credit card regex
+  - SSN regex (US), API key patterns
+  - Support custom patterns (configurable)
+
+### Phase 2: Tokenization Strategy (2h)
+- Task 3: Implement tokenization (AC: #3, #4)
+  - Create TokenizationManager class
+  - Replace detected PII with tokens: [EMAIL_1], [PHONE_2], etc.
+  - Maintain reverse mapping in-memory only
+  - Generate unique token IDs
+
+- Task 4: Agent code support (AC: #5)
+  - Agent receives tokenized data
+  - Agent can reference tokens in code
+  - Tokens survive processing
+  - Agent never has access to original values
+
+### Phase 3: De-tokenization & Opt-Out (1-2h)
+- Task 5: De-tokenization for final output (AC: #6)
+  - Optional: de-tokenize result before sending to LLM
+  - User can decide: keep tokens OR restore original values
+  - Flag: detokenize: true for restoration
+
+- Task 6: Opt-out mechanism (AC: #7)
+  - CLI flag: --no-pii-protection
+  - Config option: pii_protection: false
+  - Environment variable: AGENTCARDS_NO_PII_PROTECTION=1
+  - Warning message if opt-out active
+
+### Phase 4: Testing & Validation (1-2h)
+- Task 7: Unit tests for detection accuracy (AC: #8)
+  - Test detection >95% accuracy for all PII types
+  - Test false positives <5%
+
+- Task 8: Integration test (AC: #9)
+  - E2E test: Dataset with emails → tokenization → agent execution
+  - Validate: Agent code never sees original email
+  - Validate: Tokens present in final result
+  - Validate: De-tokenization works if requested
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+1. PII detection module created (src/sandbox/pii-detector.ts)
+2. Patterns detected: emails, phone numbers, credit cards, SSNs, API keys
+3. Tokenization strategy: Replace PII with [EMAIL_1], [PHONE_1], etc.
+4. Reverse mapping stored securely (in-memory only, never persisted)
+5. Agent receives tokenized data, can reference tokens in code
+6. De-tokenization happens only for final output (if needed)
+7. Opt-out flag: --no-pii-protection for trusted environments
+8. Unit tests: Validate detection accuracy (>95% for common PII types)
+9. Integration test: Email in dataset → tokenized → agent never sees raw email
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs></docs>
+    <code></code>
+    <dependencies></dependencies>
+  </artifacts>
+
+  <constraints></constraints>
+  <interfaces></interfaces>
+  <tests>
+    <standards></standards>
+    <locations></locations>
+    <ideas></ideas>
+  </tests>
+</story-context>

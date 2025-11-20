@@ -2,12 +2,49 @@
 
 **Epic:** 3 - Agent Code Execution & Local Processing
 **Story ID:** 3.3
-**Status:** drafted ⚠️ **SCOPE NEEDS CLARIFICATION**
-**Estimated Effort:** TBD (pending scope review)
+**Status:** deprecated
+**Estimated Effort:** N/A (deprecated)
 
 ---
 
-## ⚠️ SCOPE CLARIFICATION NEEDED - Discussion 2025-11-20
+## ⚠️ DEPRECATED - Architecture Decision 2025-11-20
+
+**Raison de dépréciation :**
+
+Cette story est **architecturalement incompatible** avec Epic 2.5 (AIL/HIL Feedback Loops) et **redondante** avec Story 3.4.
+
+**Problèmes identifiés :**
+
+1. **Coupe l'Agent-in-the-Loop (AIL)** :
+   - Processing pipeline séparé = boîte noire sans interaction
+   - Agent ne peut pas observer, ajuster, ou replan durant l'exécution
+   - Contradictoire avec architecture adaptive DAG (Epic 2.5)
+
+2. **Redondant avec Story 3.4** :
+   - Story 3.4 (`agentcards:execute_code`) permet déjà code execution dans DAG
+   - DAG avec code_execution tasks = pipeline de processing
+   - Event stream + checkpoints permettent AIL durant processing
+   - Exemple : fetch → analyze → deep_dive (agent peut injecter tasks dynamiquement)
+
+3. **Alternative supérieure existe** :
+   ```typescript
+   // Au lieu de pipeline séparé, utiliser DAG hybride avec AIL :
+   const workflow = {
+     tasks: [
+       { id: "fetch", tool: "github:list_commits" },  // MCP
+       { id: "analyze", type: "code_execution", code: "..." },  // Processing
+       // Agent peut observer + injecter tasks durant execution
+     ]
+   };
+   ```
+
+**Décision :** Utiliser Story 3.4 (DAG + code_execution) qui préserve AIL et permet workflows adaptatifs.
+
+**Impact :** Aucun - fonctionnalité déjà couverte par architecture existante.
+
+---
+
+## ⚠️ SCOPE CLARIFICATION NEEDED - Discussion 2025-11-20 (ARCHIVÉ)
 
 ### Issue Identified
 

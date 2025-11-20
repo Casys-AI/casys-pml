@@ -99,7 +99,7 @@ Deno.test({
           tool: "code_execution",
           type: "code_execution",
           code: `
-            const data = deps.fetch_data;
+            const data = deps.fetch_data.output;
             const sum = data.numbers.reduce((a, b) => a + b, 0);
             const avg = sum / data.numbers.length;
             return { sum, avg, count: data.numbers.length };
@@ -233,6 +233,7 @@ Deno.test({
           `,
           arguments: {},
           depends_on: ["fetch_value"],
+          side_effects: true,  // NOT safe-to-fail → should fail immediately
         },
       ],
     };
@@ -292,7 +293,7 @@ Deno.test({
           tool: "code_execution",
           type: "code_execution",
           code: `
-            const data = deps.generate_data;
+            const data = deps.generate_data.output;
             const filtered = data.result.values.filter(v => v > 25);
             return { filtered };
           `,
@@ -304,7 +305,7 @@ Deno.test({
           tool: "code_execution",
           type: "code_execution",
           code: `
-            const data = deps.filter_data;
+            const data = deps.filter_data.output;
             const sum = data.result.filtered.reduce((a, b) => a + b, 0);
             return { sum, count: data.result.filtered.length };
           `,
