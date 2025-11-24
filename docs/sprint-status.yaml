@@ -78,7 +78,8 @@ development_status:
   # Epic 3: Agent Code Execution & Local Processing (Sandbox Isolation)
   # 8 stories (3.3 deprecated), ~10-13h
   # Prerequisite for Epic 3.5 (safe speculation)
-  epic-3: backlog
+  # COMPLETED: 2025-11-24 (7/7 active stories done, 3.3 deprecated)
+  epic-3: done
   3-1-deno-sandbox-executor-foundation: done
   3-2-mcp-tools-injection-into-code-context: done
   3-3-local-data-processing-pipeline: deprecated  # Architectural issue: breaks AIL, redundant with 3.4 DAG + code_execution
@@ -87,7 +88,7 @@ development_status:
   3-6-pii-detection-tokenization: done
   3-7-code-execution-caching-optimization: done
   3-8-end-to-end-code-execution-tests-documentation: done
-  3-9-sandbox-security-hardening: in-progress
+  3-9-sandbox-security-hardening: done
   epic-3-retrospective: optional
 
   # Epic 3.5: Speculative Execution with Sandbox Isolation
