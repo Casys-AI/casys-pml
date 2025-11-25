@@ -6,6 +6,12 @@
 **Epic:** 2.5 (Agent-Controlled DAG Execution)
 **Reviewers:** Winston (Architect), John (PM)
 
+> **⚠️ UPDATE 2025-11-24:** This spike initially proposed 6 command handlers and SSE streaming pattern for AIL/HIL. After implementation (Story 2.5-3) and comprehensive analysis, architectural decisions were formalized:
+> - **ADR-018: Command Handlers Minimalism** - Only 4 handlers needed (continue, abort, replan_dag, approval_response), 4 deferred (inject_tasks, skip_layer, modify_args, checkpoint_response) per YAGNI
+> - **ADR-019: Two-Level AIL Architecture** - SSE streaming pattern incompatible with MCP one-shot protocol. Use Gateway HTTP response pattern (Level 1) + Agent Delegation tasks (Level 3) instead.
+>
+> **Spike remains valuable** for architectural concepts (3-Loop Learning, Progressive Discovery, Multi-Turn State), but implementation details superseded by ADRs.
+
 ---
 
 ## Executive Summary

@@ -234,6 +234,10 @@ Pas d'interface graphique MVP, mais output console optimisé:
 
 ### Epic 2.5: Adaptive DAG Feedback Loops (Foundation)
 
+> **⚠️ UPDATE 2025-11-24:**
+> - **ADR-018**: Story 2.5-4 scope reduced (16h → 4h) - Command Handlers Minimalism
+> - **ADR-019**: AIL/HIL implementation clarified - Two-Level Architecture (Gateway HTTP + Agent Delegation), not SSE streaming
+
 **Objectif:** Établir la fondation pour workflows adaptatifs avec feedback loops Agent-in-the-Loop (AIL) et Human-in-the-Loop (HIL), préparant l'intégration avec Epic 3 (Sandbox)
 
 **Architecture 3-Loop Learning (Phase 1 - Foundation):**
@@ -245,10 +249,13 @@ Pas d'interface graphique MVP, mais output console optimisé:
 - **Fréquence:** Milliseconds (pendant l'exécution)
 
 **Loop 2 (Adaptation - Runtime):**
-- Agent-in-the-Loop (AIL): Décisions autonomes pendant l'exécution
+- Agent-in-the-Loop (AIL): Décisions autonomes via HTTP response pattern (ADR-019 Level 1)
+  - Pre-execution confidence check (<0.6 → AIL required)
+  - Per-layer validation (HTTP response with partial results)
 - Human-in-the-Loop (HIL): Validation humaine pour opérations critiques (CRUCIAL pour Epic 3)
 - DAG re-planning dynamique via GraphRAG queries
 - **Fréquence:** Seconds à minutes (entre layers)
+- **Note:** Story 2.5-3 SSE pattern incompatible with MCP (see ADR-019)
 
 **Loop 3 (Meta-Learning - Basic):**
 - GraphRAG updates from execution patterns (co-occurrence, preferences)
@@ -258,9 +265,10 @@ Pas d'interface graphique MVP, mais output console optimisé:
 **Livrables clés (ADR-007 - Phase 1):**
 - ControlledExecutor extends ParallelExecutor avec event stream + commands
 - Checkpoint/resume infrastructure (PGlite persistence)
-- AIL/HIL integration avec multi-turn conversations
-- DAG replanning via DAGSuggester.replanDAG()
-- Command handlers completion (Story 2.5-4): inject_tasks, skip_layer, modify_args, checkpoint_response
+- AIL/HIL integration avec multi-turn conversations (Story 2.5-3 - SSE pattern, needs Gateway HTTP refactor per ADR-019)
+- DAG replanning via DAGSuggester.replanDAG() (PRIMARY mechanism per ADR-018)
+- Command infrastructure hardening (Story 2.5-4): Race condition fix, error handling (4h per ADR-018)
+  - Deferred handlers: inject_tasks, skip_layer, modify_args, checkpoint_response (YAGNI until proven need)
 - GraphRAG feedback loop (updateFromExecution)
 - Un seul agent en conversation continue (pas de filtering contexte)
 
@@ -277,7 +285,7 @@ Pas d'interface graphique MVP, mais output console optimisé:
   - Loop 3 avancé avec données réelles de production
 
 **Estimation:**
-- Stories 2.5-1 to 2.5-4: 23-26h / 4 stories (Story 2.5-4 added 2025-11-24 after audit findings)
+- Stories 2.5-1 to 2.5-4: 19-22h / 4 stories (Story 2.5-4 reduced 16h→4h per ADR-018)
 
 **Rationale de deferral:**
 - Epic 2.5 = Foundation focused (Loop 1-2 + Loop 3 basique)

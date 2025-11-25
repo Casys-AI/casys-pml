@@ -5,6 +5,8 @@ Author: Bob (Scrum Master) via BMM Workflow
 Epic ID: 2.5
 Status: Ready for Story Generation
 
+> **⚠️ UPDATE 2025-11-24:** AIL/HIL implementation clarified. Story 2.5-3 SSE pattern incompatible with MCP one-shot protocol. See **ADR-019: Two-Level AIL Architecture** for MCP-compatible HTTP response pattern. Loop 2 details updated accordingly.
+
 ---
 
 ## Overview

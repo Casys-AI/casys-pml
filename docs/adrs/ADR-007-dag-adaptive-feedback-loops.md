@@ -3,8 +3,11 @@
 **Status:** ⏳ Proposed v2.0 - Pending Approval
 **Date:** 2025-11-13
 **Updated:** 2025-11-13 (Ready for formal approval)
+**Updated:** 2025-11-24 (AIL/HIL implementation details superseded by ADR-019)
 **Deciders:** BMad
 **Technical Review:** Complete
+
+> **⚠️ UPDATE 2025-11-24:** AIL/HIL implementation approach clarified in **ADR-019: Two-Level AIL Architecture**. SSE streaming pattern incompatible with MCP one-shot protocol. Use Gateway HTTP response pattern for production MCP compatibility.
 
 ---
 

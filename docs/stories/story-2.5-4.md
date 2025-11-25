@@ -1,4 +1,4 @@
-# Story 2.5-4: Command Infrastructure Hardening
+, ce# Story 2.5-4: Command Infrastructure Hardening
 
 **Status:** drafted
 **Epic:** 2.5 - Adaptive DAG Feedback Loops (Foundation)

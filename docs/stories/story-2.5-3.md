@@ -2,11 +2,52 @@
 
 **Epic:** 2.5 - Adaptive DAG Feedback Loops (Foundation)
 **Story ID:** 2.5.3
-**Status:** done
+**Status:** done (with known limitations - see below)
 **Estimated Effort:** 3-4 heures
 **Actual Effort:** ~4h (including E2E test implementation)
 **Priority:** P1 (Depends on 2.5-2)
 **Story Key:** 2.5-3-ail-hil-integration-dag-replanning
+
+---
+
+## ✅ Scope Clarification (Updated 2025-11-24)
+
+**Level 2 AIL Pattern - Internal Native Agents:**
+
+This story implements **Level 2 AIL** (Runtime AIL with Internal Native Agents) per **ADR-019: Three-Level AIL Architecture**. The SSE + Commands pattern is designed for **internal native agents** (JS/TS code running within Gateway), NOT for external MCP clients.
+
+**Valid Use Cases:**
+- ✅ **Internal rule-based agents** - State machines, business logic decision engines
+- ✅ **Multi-agent collaboration** - Security, performance, cost agents coordinating via SSE + Commands
+- ✅ **Background autonomous workflows** - Long-running pipelines with self-recovery
+- ✅ **LLM agents via API directe** - Anthropic API calls (not via MCP)
+- ✅ **Internal Gateway aggregation** - SSE used internally to aggregate parallel task execution (LangGraph pattern)
+
+**Cannot Be Used With:**
+- ❌ **External MCP agents** (Claude Code) - Use Level 1 Gateway HTTP (Story 2.5-4)
+- ❌ **Embedded MCP agents** (haiku/sonnet tasks) - Use Level 3 Task Delegation (Epic 3.5+)
+
+**Why External MCP Agents Cannot Use SSE:**
+- MCP is Request → Response protocol (one-shot)
+- MCP clients cannot receive SSE events mid-execution
+- External agents must use HTTP responses (ADR-019 Level 1)
+
+**Why This Implementation is Still Valuable:**
+- Internal native agents (JS/TS code) CAN subscribe to SSE - no MCP limitation
+- Commands enable actor model pattern for multi-agent coordination (ADR-018)
+- Gateway uses SSE internally for parallel task aggregation
+- Story 2.5-3 implementation NOT wasted - critical for Level 2 AIL
+
+**Architecture References:**
+- **ADR-018**: Command Handlers Minimalism (Level 2 internal control plane)
+- **ADR-019**: Three-Level AIL Architecture (when to use SSE vs HTTP vs Task Delegation)
+- **Story 2.5-4**: Gateway HTTP + BUG-001 fix (Level 1 for external MCP agents)
+
+**Implementation Status:**
+- ✅ SSE pattern implemented and working
+- ✅ Commands queue operational (continue, abort, replan_dag, approval_response)
+- ✅ Type-safe, high code quality (see Code Review Record)
+- ⚠️ BUG-001 race condition in CommandQueue (Story 2.5-4 will fix)
 
 ---
 

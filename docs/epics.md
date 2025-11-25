@@ -503,54 +503,36 @@ So that workflows can adapt based on discoveries and critical operations get hum
 
 ---
 
-**Story 2.5-4: Command Handlers Completion**
+**Story 2.5-4: Command Infrastructure Hardening** *(Scope Reduced per ADR-018)*
+
+> **UPDATE 2025-11-24:** Original scope (8 command handlers, 16h) reduced to 4h per **ADR-018: Command Handlers Minimalism**. Focus on production-blocking bug fixes and error handling, not new handlers.
 
 As a developer building adaptive workflows,
-I want complete command handler implementations for dynamic workflow control,
-So that I can inject tasks, skip layers, modify arguments, and respond to checkpoints programmatically during execution.
+I want robust command infrastructure with proper error handling,
+So that the existing 4 core commands operate reliably in production.
 
 **Acceptance Criteria:**
-1. `inject_tasks` command handler:
-   - Dynamically inject new tasks into DAG without full replanning
-   - Position options: current_layer, next_layer, end
-   - Cycle detection validation
-   - Tests: Inject 3 tasks → verify DAG extended
+1. Fix BUG-001: Race condition in CommandQueue.processCommands()
+   - Async/await properly handles Promise resolution
+   - No commands lost during parallel processing
+   - Integration tests verify fix
 
-2. `skip_layer` command handler:
-   - Skip execution of current or next layer(s)
-   - Target options: current, next
-   - Skip count support (skip N layers)
-   - Tests: Skip next layer → verify bypassed
+2. Improve command registry error handling:
+   - Centralized command dispatch with Map registry
+   - Try/catch wrappers around all handlers
+   - Error events emitted for observability
+   - Unknown commands logged as warnings (not errors)
 
-3. `modify_args` command handler:
-   - Modify task arguments before execution
-   - Merge strategies: replace, merge
-   - Validation: Cannot modify already-executed tasks
-   - Tests: Modify args with merge → verify preserved
+3. Document Replan-First Architecture (ADR-018):
+   - Update story with ADR-018 rationale
+   - Add note to spike (over-scoping correction)
+   - Update engineering backlog with deferred handlers
 
-4. `checkpoint_response` command handler:
-   - Custom checkpoint continuation logic
-   - Actions: continue, rollback, retry, modify_and_continue
-   - Rollback to specific checkpoint_id
-   - Tests: Rollback → verify state restored
-
-5. Command handler registry & dispatcher:
-   - Centralized Map-based routing (O(1) lookup)
-   - All 8 handlers registered (continue, abort, replan_dag, inject_tasks, skip_layer, modify_args, approval_response, checkpoint_response)
-   - Error handling: Try/catch wrappers with event emission
-   - Tests: Unknown command → verify warning logged
-
-6. Integration tests (5 scenarios):
-   - Full workflow with inject_tasks command
-   - Skip layer with in-flight tasks
-   - Modify args with replace strategy
-   - Checkpoint rollback recovery
-   - Command error handling
-
-7. Documentation updates:
-   - Architecture.md - Command handler extensibility section
-   - README.md - Dynamic workflow control examples
-   - JSDoc comments for all handlers
+**Deferred Handlers** (See ADR-018 + engineering-backlog.md):
+- ❌ `inject_tasks` - Redundant with `replan_dag`
+- ❌ `skip_layer` - Safe-to-fail branches cover this
+- ❌ `modify_args` - No proven HIL correction workflow yet
+- ❌ `checkpoint_response` - Composition of existing handlers sufficient
 
 **Prerequisites:** Story 2.5-3 (AIL/HIL integration)
 
