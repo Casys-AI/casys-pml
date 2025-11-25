@@ -4,16 +4,22 @@
  * Learns optimal confidence thresholds based on execution feedback.
  * Adjusts thresholds dynamically to minimize false positives and false negatives.
  *
+ * Extended in Epic 4 Phase 1 (Story 4.1c) with PGlite persistence:
+ * - Thresholds survive server restarts
+ * - Context-based threshold lookup (per ADR-008)
+ *
  * @module mcp/adaptive-threshold
  */
 
 import * as log from "@std/log";
 import type { ExecutionRecord, SpeculativeMetrics } from "../graphrag/types.ts";
+import type { PGliteClient } from "../db/client.ts";
+import type { StoredThreshold, ThresholdContext } from "../learning/types.ts";
 
 /**
  * Adaptive threshold configuration
  */
-interface AdaptiveConfig {
+export interface AdaptiveConfig {
   initialExplicitThreshold: number;
   initialSuggestionThreshold: number;
   learningRate: number;
@@ -37,6 +43,8 @@ interface ThresholdAdjustment {
  * Uses sliding window of recent executions to adjust thresholds dynamically.
  * Increases thresholds if too many false positives (failed speculative executions).
  * Decreases thresholds if too many false negatives (successful manual confirmations).
+ *
+ * Epic 4 Phase 1: Added PGlite persistence for thresholds.
  */
 export class AdaptiveThresholdManager {
   private config: AdaptiveConfig;
@@ -46,7 +54,12 @@ export class AdaptiveThresholdManager {
     suggestionThreshold?: number;
   } = {};
 
-  constructor(config?: Partial<AdaptiveConfig>) {
+  // Epic 4 Phase 1: Persistence layer
+  private db: PGliteClient | null = null;
+  private thresholdCache: Map<string, StoredThreshold> = new Map();
+  private currentContextHash: string = "default";
+
+  constructor(config?: Partial<AdaptiveConfig>, db?: PGliteClient) {
     this.config = {
       initialExplicitThreshold: 0.50,
       initialSuggestionThreshold: 0.70,
@@ -55,6 +68,170 @@ export class AdaptiveThresholdManager {
       maxThreshold: 0.90,
       windowSize: 50,
       ...config,
+    };
+    this.db = db ?? null;
+  }
+
+  /**
+   * Set database client for persistence (can be set after construction)
+   */
+  setDatabase(db: PGliteClient): void {
+    this.db = db;
+  }
+
+  /**
+   * Load thresholds from database for a specific context
+   *
+   * @param context - Context for threshold lookup
+   * @returns Loaded thresholds or null if not found
+   */
+  async loadThresholds(context?: ThresholdContext): Promise<StoredThreshold | null> {
+    if (!this.db) return null;
+
+    const contextHash = this.hashContext(context || {});
+    this.currentContextHash = contextHash;
+
+    // Check cache first
+    if (this.thresholdCache.has(contextHash)) {
+      const cached = this.thresholdCache.get(contextHash)!;
+      this.currentThresholds = {
+        suggestionThreshold: cached.suggestionThreshold,
+        explicitThreshold: cached.explicitThreshold,
+      };
+      return cached;
+    }
+
+    try {
+      const rows = await this.db.query(
+        `SELECT context_hash, context_keys, suggestion_threshold, explicit_threshold,
+                success_rate, sample_count, created_at, updated_at
+         FROM adaptive_thresholds
+         WHERE context_hash = $1`,
+        [contextHash],
+      );
+
+      if (rows.length > 0) {
+        const stored = this.deserializeThreshold(rows[0]);
+        this.thresholdCache.set(contextHash, stored);
+        this.currentThresholds = {
+          suggestionThreshold: stored.suggestionThreshold,
+          explicitThreshold: stored.explicitThreshold,
+        };
+        log.info(`[AdaptiveThreshold] Loaded thresholds for context ${contextHash}: suggestion=${stored.suggestionThreshold.toFixed(2)}, explicit=${stored.explicitThreshold.toFixed(2)}`);
+        return stored;
+      }
+    } catch (error) {
+      log.error(`[AdaptiveThreshold] Failed to load thresholds: ${error}`);
+    }
+
+    return null;
+  }
+
+  /**
+   * Save current thresholds to database
+   *
+   * @param context - Context for threshold storage
+   */
+  async saveThresholds(context?: ThresholdContext): Promise<void> {
+    if (!this.db) return;
+
+    const contextHash = context ? this.hashContext(context) : this.currentContextHash;
+    const contextKeys = context || {};
+    const thresholds = this.getThresholds();
+
+    // Calculate success rate from recent history
+    const speculativeExecs = this.executionHistory.filter((e) => e.mode === "speculative");
+    const successRate = speculativeExecs.length > 0
+      ? speculativeExecs.filter((e) => e.success).length / speculativeExecs.length
+      : null;
+
+    try {
+      // Use query instead of exec for parameterized inserts (PGlite limitation)
+      await this.db.query(
+        `INSERT INTO adaptive_thresholds
+           (context_hash, context_keys, suggestion_threshold, explicit_threshold, success_rate, sample_count, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, NOW())
+         ON CONFLICT (context_hash) DO UPDATE SET
+           suggestion_threshold = $3,
+           explicit_threshold = $4,
+           success_rate = $5,
+           sample_count = adaptive_thresholds.sample_count + $6,
+           updated_at = NOW()`,
+        [
+          contextHash,
+          JSON.stringify(contextKeys),
+          thresholds.suggestionThreshold,
+          thresholds.explicitThreshold,
+          successRate,
+          this.executionHistory.length,
+        ],
+      );
+
+      // Update cache
+      const stored: StoredThreshold = {
+        contextHash,
+        contextKeys,
+        suggestionThreshold: thresholds.suggestionThreshold!,
+        explicitThreshold: thresholds.explicitThreshold!,
+        successRate,
+        sampleCount: this.executionHistory.length,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      this.thresholdCache.set(contextHash, stored);
+
+      log.debug(`[AdaptiveThreshold] Saved thresholds for context ${contextHash}`);
+    } catch (error) {
+      log.error(`[AdaptiveThreshold] Failed to save thresholds: ${error}`);
+    }
+  }
+
+  /**
+   * Get all stored thresholds (for monitoring/debugging)
+   */
+  async getAllStoredThresholds(): Promise<StoredThreshold[]> {
+    if (!this.db) return [];
+
+    try {
+      const rows = await this.db.query(
+        `SELECT context_hash, context_keys, suggestion_threshold, explicit_threshold,
+                success_rate, sample_count, created_at, updated_at
+         FROM adaptive_thresholds
+         ORDER BY updated_at DESC`,
+      );
+
+      return rows.map((row) => this.deserializeThreshold(row));
+    } catch (error) {
+      log.error(`[AdaptiveThreshold] Failed to get all thresholds: ${error}`);
+      return [];
+    }
+  }
+
+  /**
+   * Hash context for database lookup (matches EpisodicMemoryStore format)
+   */
+  private hashContext(context: ThresholdContext): string {
+    const keys = ["workflowType", "domain", "complexity"];
+    return keys
+      .map((k) => `${k}:${context[k] ?? "default"}`)
+      .join("|");
+  }
+
+  /**
+   * Deserialize database row to StoredThreshold
+   */
+  private deserializeThreshold(row: Record<string, unknown>): StoredThreshold {
+    return {
+      contextHash: row.context_hash as string,
+      contextKeys: typeof row.context_keys === "string"
+        ? JSON.parse(row.context_keys)
+        : row.context_keys as Record<string, unknown>,
+      suggestionThreshold: Number(row.suggestion_threshold),
+      explicitThreshold: Number(row.explicit_threshold),
+      successRate: row.success_rate !== null ? Number(row.success_rate) : null,
+      sampleCount: Number(row.sample_count),
+      createdAt: new Date(row.created_at as string),
+      updatedAt: new Date(row.updated_at as string),
     };
   }
 
@@ -133,6 +310,11 @@ export class AdaptiveThresholdManager {
     if (adjustment.suggestionThreshold) {
       this.currentThresholds.suggestionThreshold = adjustment.suggestionThreshold;
       log.info(`Adaptive threshold adjustment: ${adjustment.reason}`);
+
+      // Epic 4 Phase 1: Persist adjustment to database
+      this.saveThresholds().catch((err) =>
+        log.error(`[AdaptiveThreshold] Failed to persist adjustment: ${err}`)
+      );
     }
   }
 

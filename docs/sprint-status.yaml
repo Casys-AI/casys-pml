@@ -73,7 +73,7 @@ development_status:
   2.5-1-event-stream-command-queue-state-management: done
   2.5-2-checkpoint-resume: done
   2.5-3-ail-hil-integration-dag-replanning: done
-  2.5-4-mcp-control-tools-per-layer-validation: ready-for-review  # 7.5h (Spike: workflow_dags table for DAG persistence) - All ACs complete, 13 tests passing
+  2.5-4-mcp-control-tools-per-layer-validation: review  # 7.5h (Spike: workflow_dags table for DAG persistence) - All ACs complete, 13 tests passing, E2E tests updated
   epic-2.5-retrospective: completed
 
   # Epic 3: Agent Code Execution & Local Processing (Sandbox Isolation)

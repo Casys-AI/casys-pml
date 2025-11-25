@@ -140,9 +140,9 @@ Deno.test({
       assert(Array.isArray(listResult.tools));
       assert(listResult.tools.length > 0);
 
-      // Verify workflow tool is present
+      // Verify workflow tool is present (renamed in Story 2.5-4)
       const workflowTool = listResult.tools.find((t: MCPTool) =>
-        t.name === "agentcards:execute_workflow"
+        t.name === "agentcards:execute_dag"
       );
       assertExists(workflowTool);
 
@@ -162,10 +162,10 @@ Deno.test({
       const parsedResult = JSON.parse(callResult.content[0].text);
       assertEquals(parsedResult.success, true);
 
-      // 6. Test workflow execution
+      // 6. Test workflow execution (renamed in Story 2.5-4)
       const workflowResult = await handleCallTool({
         params: {
-          name: "agentcards:execute_workflow",
+          name: "agentcards:execute_dag",
           arguments: {
             workflow: {
               tasks: [
@@ -189,7 +189,7 @@ Deno.test({
 
       assertExists(workflowResult.content);
       const workflowResponse = JSON.parse(workflowResult.content[0].text);
-      assertEquals(workflowResponse.status, "completed");
+      assertEquals(workflowResponse.status, "complete");
       assertExists(workflowResponse.results);
 
       console.log("✓ E2E integration test completed successfully");

@@ -15,9 +15,12 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
-  ListToolsRequestSchema,
+  type CallToolRequest,
   CallToolRequestSchema,
+  type GetPromptRequest,
   GetPromptRequestSchema,
+  type ListToolsRequest,
+  ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import * as log from "@std/log";
 import type { PGliteClient } from "../db/client.ts";
@@ -27,12 +30,23 @@ import type { DAGSuggester } from "../graphrag/dag-suggester.ts";
 import type { ParallelExecutor } from "../dag/executor.ts";
 import { GatewayHandler } from "./gateway-handler.ts";
 import { MCPClient } from "./client.ts";
-import type { MCPTool, CodeExecutionRequest, CodeExecutionResponse } from "./types.ts";
+import type { CodeExecutionRequest, CodeExecutionResponse, MCPTool } from "./types.ts";
 import type { DAGStructure } from "../graphrag/types.ts";
 import { HealthChecker } from "../health/health-checker.ts";
 import { DenoSandboxExecutor } from "../sandbox/executor.ts";
 import { ContextBuilder } from "../sandbox/context-builder.ts";
-import { captureError, startTransaction, addBreadcrumb } from "../telemetry/sentry.ts";
+import { addBreadcrumb, captureError, startTransaction } from "../telemetry/sentry.ts";
+// Story 2.5-4: MCP Control Tools & Per-Layer Validation
+import {
+  deleteWorkflowDAG,
+  extendWorkflowDAGExpiration,
+  getWorkflowDAG,
+  saveWorkflowDAG,
+  updateWorkflowDAG,
+} from "./workflow-dag-store.ts";
+import { ControlledExecutor } from "../dag/controlled-executor.ts";
+import { CheckpointManager } from "../dag/checkpoint-manager.ts";
+import type { ExecutionEvent, TaskResult } from "../dag/types.ts";
 
 /**
  * MCP JSON-RPC error codes
@@ -72,6 +86,23 @@ export interface GatewayServerConfig {
  * Transparent gateway that exposes AgentCards as a single MCP server.
  * Claude Code sees all tools from all MCP servers + workflow execution capability.
  */
+/**
+ * Active workflow state for per-layer validation (Story 2.5-4)
+ */
+interface ActiveWorkflow {
+  workflowId: string;
+  executor: ControlledExecutor;
+  generator: AsyncGenerator<ExecutionEvent, import("../dag/state.ts").WorkflowState, void>;
+  dag: DAGStructure;
+  currentLayer: number;
+  totalLayers: number;
+  layerResults: TaskResult[];
+  status: "running" | "paused" | "complete" | "aborted";
+  createdAt: Date;
+  lastActivityAt: Date;
+  latestCheckpointId: string | null;
+}
+
 export class AgentCardsGatewayServer {
   private server: Server;
   private gatewayHandler: GatewayHandler;
@@ -80,6 +111,8 @@ export class AgentCardsGatewayServer {
   private contextBuilder: ContextBuilder;
   private toolSchemaCache: Map<string, string> = new Map(); // serverId:toolName → schema hash
   private httpServer: Deno.HttpServer | null = null; // HTTP server for SSE transport (ADR-014)
+  private activeWorkflows: Map<string, ActiveWorkflow> = new Map(); // Story 2.5-4
+  private checkpointManager: CheckpointManager | null = null; // Story 2.5-4
 
   constructor(
     // @ts-ignore: db kept for future use (direct queries)
@@ -140,6 +173,9 @@ export class AgentCardsGatewayServer {
     // Sandbox executors are created per-request with custom config
     this.contextBuilder = new ContextBuilder(this.vectorSearch, this.mcpClients);
 
+    // Initialize CheckpointManager for per-layer validation (Story 2.5-4)
+    this.checkpointManager = new CheckpointManager(this.db, true);
+
     this.setupHandlers();
   }
 
@@ -150,19 +186,19 @@ export class AgentCardsGatewayServer {
     // Handler: tools/list
     this.server.setRequestHandler(
       ListToolsRequestSchema,
-      async (request: any) => await this.handleListTools(request),
+      async (request: ListToolsRequest) => await this.handleListTools(request),
     );
 
     // Handler: tools/call
     this.server.setRequestHandler(
       CallToolRequestSchema,
-      async (request: any) => await this.handleCallTool(request),
+      async (request: CallToolRequest) => await this.handleCallTool(request),
     );
 
     // Handler: prompts/get (optional)
     this.server.setRequestHandler(
       GetPromptRequestSchema,
-      async (request: any) => await this.handleGetPrompt(request),
+      async (request: GetPromptRequest) => await this.handleGetPrompt(request),
     );
 
     log.info("MCP handlers registered: tools/list, tools/call, prompts/get");
@@ -177,7 +213,13 @@ export class AgentCardsGatewayServer {
    * @param request - MCP request with optional params.query
    * @returns List of available tools
    */
-  private async handleListTools(request: unknown): Promise<{ tools: Array<{ name: string; description: string; inputSchema: unknown }> } | { error: { code: number; message: string; data?: unknown } }> {
+  private handleListTools(
+    request: unknown,
+  ): Promise<
+    { tools: Array<{ name: string; description: string; inputSchema: Record<string, unknown> }> } | {
+      error: { code: number; message: string; data?: unknown };
+    }
+  > {
     const transaction = startTransaction("mcp.tools.list", "mcp");
     try {
       const params = (request as { params?: { query?: string } }).params;
@@ -195,24 +237,26 @@ export class AgentCardsGatewayServer {
       // Underlying tools are accessed internally via DAGSuggester + vector search
       log.info(`list_tools: returning meta-tools only (ADR-013)`);
       if (query) {
-        log.debug(`Query "${query}" ignored - use execute_workflow with intent instead`);
+        log.debug(`Query "${query}" ignored - use execute_dag with intent instead`);
       }
 
-      // Add special workflow execution tool
-      const workflowTool: MCPTool = {
-        name: "agentcards:execute_workflow",
+      // Add special DAG execution tool (renamed from execute_workflow - Story 2.5-4)
+      const executeDagTool: MCPTool = {
+        name: "agentcards:execute_dag",
         description:
-          "Execute a multi-tool workflow using AgentCards DAG engine. Supports intent-based suggestions or explicit workflow definitions. Provide EITHER 'intent' (for AI suggestion) OR 'workflow' (for explicit DAG), not both.",
+          "Execute a multi-tool DAG (Directed Acyclic Graph) workflow. Supports intent-based suggestions or explicit DAG definitions. Provide EITHER 'intent' (for AI suggestion) OR 'workflow' (for explicit DAG), not both.",
         inputSchema: {
           type: "object",
           properties: {
             intent: {
               type: "string",
-              description: "Natural language description of what you want to accomplish (use this for AI-suggested workflows)",
+              description:
+                "Natural language description of what you want to accomplish (use this for AI-suggested workflows)",
             },
             workflow: {
               type: "object",
-              description: "Explicit DAG workflow structure with tasks and dependencies (use this for explicit workflows)",
+              description:
+                "Explicit DAG workflow structure with tasks and dependencies (use this for explicit workflows)",
             },
           },
           // Note: Both fields optional, but at least one should be provided
@@ -264,7 +308,8 @@ export class AgentCardsGatewayServer {
             },
             intent: {
               type: "string",
-              description: "Natural language description of task (optional, triggers tool discovery)",
+              description:
+                "Natural language description of task (optional, triggers tool discovery)",
             },
             context: {
               type: "object",
@@ -294,18 +339,119 @@ export class AgentCardsGatewayServer {
         },
       };
 
+      // Story 2.5-4: Control tools for per-layer validation (ADR-020)
+      const continueTool: MCPTool = {
+        name: "agentcards:continue",
+        description:
+          "Continue DAG execution to next layer. Use after receiving layer_complete status from execute_dag with per_layer_validation enabled.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            workflow_id: {
+              type: "string",
+              description: "Workflow ID from execute_dag response",
+            },
+            reason: {
+              type: "string",
+              description: "Optional reason for continuing",
+            },
+          },
+          required: ["workflow_id"],
+        },
+      };
+
+      const abortTool: MCPTool = {
+        name: "agentcards:abort",
+        description:
+          "Abort DAG execution. Use to stop a running workflow when issues are detected.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            workflow_id: {
+              type: "string",
+              description: "Workflow ID to abort",
+            },
+            reason: {
+              type: "string",
+              description: "Reason for aborting the workflow",
+            },
+          },
+          required: ["workflow_id", "reason"],
+        },
+      };
+
+      const replanTool: MCPTool = {
+        name: "agentcards:replan",
+        description:
+          "Replan DAG with new requirement. Triggers GraphRAG to add new tasks based on discovered context (e.g., found XML files → add XML parser).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            workflow_id: {
+              type: "string",
+              description: "Workflow ID to replan",
+            },
+            new_requirement: {
+              type: "string",
+              description: "Natural language description of what needs to be added",
+            },
+            available_context: {
+              type: "object",
+              description: "Context data for replanning (e.g., discovered files)",
+            },
+          },
+          required: ["workflow_id", "new_requirement"],
+        },
+      };
+
+      const approvalResponseTool: MCPTool = {
+        name: "agentcards:approval_response",
+        description:
+          "Respond to HIL (Human-in-the-Loop) approval checkpoint. Use when workflow pauses for approval of critical operations.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            workflow_id: {
+              type: "string",
+              description: "Workflow ID requiring approval",
+            },
+            checkpoint_id: {
+              type: "string",
+              description: "Checkpoint ID from the approval request",
+            },
+            approved: {
+              type: "boolean",
+              description: "true to approve, false to reject",
+            },
+            feedback: {
+              type: "string",
+              description: "Optional feedback or reason for decision",
+            },
+          },
+          required: ["workflow_id", "checkpoint_id", "approved"],
+        },
+      };
+
       // ADR-013: Only return meta-tools (no underlying tools)
       const result = {
-        tools: [workflowTool, searchToolsTool, executeCodeTool].map((schema) => ({
+        tools: [
+          executeDagTool,
+          searchToolsTool,
+          executeCodeTool,
+          continueTool,
+          abortTool,
+          replanTool,
+          approvalResponseTool,
+        ].map((schema) => ({
           name: schema.name,
           description: schema.description,
           inputSchema: schema.inputSchema,
         })),
       };
-      transaction.setData("tools_returned", 3);
+      transaction.setData("tools_returned", 7);
 
       transaction.finish();
-      return result;
+      return Promise.resolve(result);
     } catch (error) {
       log.error(`list_tools error: ${error}`);
       captureError(error as Error, {
@@ -313,10 +459,10 @@ export class AgentCardsGatewayServer {
         handler: "handleListTools",
       });
       transaction.finish();
-      return this.formatMCPError(
+      return Promise.resolve(this.formatMCPError(
         MCPErrorCodes.INTERNAL_ERROR,
         `Failed to list tools: ${(error as Error).message}`,
-      );
+      ));
     }
   }
 
@@ -325,12 +471,19 @@ export class AgentCardsGatewayServer {
    *
    * Supports both single tool execution and workflow execution.
    * - Single tool: Proxies to underlying MCP server (e.g., "filesystem:read")
-   * - Workflow: Executes via AgentCards DAG engine ("agentcards:execute_workflow")
+   * - DAG execution: Executes via AgentCards DAG engine ("agentcards:execute_dag")
+   * - Control tools: continue, abort, replan_dag, approval_response (Story 2.5-4)
    *
    * @param request - MCP request with params.name and params.arguments
    * @returns Tool execution result
    */
-  private async handleCallTool(request: unknown): Promise<{ content: Array<{ type: string; text: string }> } | { error: { code: number; message: string; data?: unknown } }> {
+  private async handleCallTool(
+    request: unknown,
+  ): Promise<
+    { content: Array<{ type: string; text: string }> } | {
+      error: { code: number; message: string; data?: unknown };
+    }
+  > {
     const transaction = startTransaction("mcp.tools.call", "mcp");
     try {
       const params = (request as { params?: { name?: string; arguments?: unknown } }).params;
@@ -351,9 +504,34 @@ export class AgentCardsGatewayServer {
 
       log.info(`call_tool: ${name}`);
 
-      // Check if this is a workflow request
-      if (name === "agentcards:execute_workflow") {
+      // Check if this is a DAG execution request (renamed from execute_workflow)
+      if (name === "agentcards:execute_dag") {
         const result = await this.handleWorkflowExecution(args);
+        transaction.finish();
+        return result;
+      }
+
+      // Story 2.5-4: Control tools for per-layer validation
+      if (name === "agentcards:continue") {
+        const result = await this.handleContinue(args);
+        transaction.finish();
+        return result;
+      }
+
+      if (name === "agentcards:abort") {
+        const result = await this.handleAbort(args);
+        transaction.finish();
+        return result;
+      }
+
+      if (name === "agentcards:replan") {
+        const result = await this.handleReplan(args);
+        transaction.finish();
+        return result;
+      }
+
+      if (name === "agentcards:approval_response") {
+        const result = await this.handleApprovalResponse(args);
         transaction.finish();
         return result;
       }
@@ -418,19 +596,41 @@ export class AgentCardsGatewayServer {
   /**
    * Handle workflow execution
    *
-   * Supports two modes:
+   * Supports three modes:
    * 1. Intent-based: Natural language → DAG suggestion
    * 2. Explicit: DAG structure → Execute
+   * 3. Per-layer validation: Execute with pauses between layers (Story 2.5-4)
    *
-   * @param args - Workflow arguments (intent or workflow)
-   * @returns Execution result or suggestion
+   * @param args - Workflow arguments (intent or workflow, optional config)
+   * @returns Execution result, suggestion, or layer_complete status
    */
-  private async handleWorkflowExecution(args: unknown): Promise<{ content: Array<{ type: string; text: string }> } | { error: { code: number; message: string; data?: unknown } }> {
-    const workflowArgs = args as { intent?: string; workflow?: DAGStructure };
+  private async handleWorkflowExecution(
+    args: unknown,
+  ): Promise<
+    { content: Array<{ type: string; text: string }> } | {
+      error: { code: number; message: string; data?: unknown };
+    }
+  > {
+    const workflowArgs = args as {
+      intent?: string;
+      workflow?: DAGStructure;
+      config?: { per_layer_validation?: boolean };
+    };
+    const perLayerValidation = workflowArgs.config?.per_layer_validation === true;
 
     // Case 1: Explicit workflow provided
     if (workflowArgs.workflow) {
-      log.info("Executing explicit workflow");
+      log.info(`Executing explicit workflow (per_layer_validation: ${perLayerValidation})`);
+
+      // Story 2.5-4: Per-layer validation mode
+      if (perLayerValidation) {
+        return await this.executeWithPerLayerValidation(
+          workflowArgs.workflow,
+          workflowArgs.intent ?? "explicit_workflow",
+        );
+      }
+
+      // Standard execution (no validation pauses)
       const result = await this.executor.execute(workflowArgs.workflow);
 
       // Update graph with execution data (learning loop)
@@ -449,7 +649,7 @@ export class AgentCardsGatewayServer {
             type: "text",
             text: JSON.stringify(
               {
-                status: "completed",
+                status: "complete",
                 results: result.results,
                 execution_time_ms: result.executionTimeMs,
                 parallelization_layers: result.parallelizationLayers,
@@ -465,7 +665,9 @@ export class AgentCardsGatewayServer {
 
     // Case 2: Intent-based (GraphRAG suggestion)
     if (workflowArgs.intent) {
-      log.info(`Processing workflow intent: "${workflowArgs.intent}"`);
+      log.info(
+        `Processing workflow intent: "${workflowArgs.intent}" (per_layer_validation: ${perLayerValidation})`,
+      );
 
       const executionMode = await this.gatewayHandler.processIntent({
         text: workflowArgs.intent,
@@ -479,7 +681,8 @@ export class AgentCardsGatewayServer {
               text: JSON.stringify(
                 {
                   mode: "explicit_required",
-                  message: executionMode.explanation || "Low confidence - please provide explicit workflow",
+                  message: executionMode.explanation ||
+                    "Low confidence - please provide explicit workflow",
                   confidence: executionMode.confidence,
                 },
                 null,
@@ -491,6 +694,14 @@ export class AgentCardsGatewayServer {
       }
 
       if (executionMode.mode === "suggestion") {
+        // Story 2.5-4: If per_layer_validation enabled, execute the suggested DAG
+        if (perLayerValidation && executionMode.dagStructure) {
+          return await this.executeWithPerLayerValidation(
+            executionMode.dagStructure,
+            workflowArgs.intent,
+          );
+        }
+
         return {
           content: [
             {
@@ -540,6 +751,153 @@ export class AgentCardsGatewayServer {
   }
 
   /**
+   * Execute workflow with per-layer validation (Story 2.5-4)
+   *
+   * Starts DAG execution and pauses after first layer, returning
+   * layer_complete status with workflow_id for continuation.
+   *
+   * @param dag - DAG structure to execute
+   * @param intent - Original intent text
+   * @returns layer_complete status or complete status
+   */
+  private async executeWithPerLayerValidation(
+    dag: DAGStructure,
+    intent: string,
+  ): Promise<{ content: Array<{ type: string; text: string }> }> {
+    const workflowId = crypto.randomUUID();
+
+    // Save DAG to database for stateless continuation
+    await saveWorkflowDAG(this.db, workflowId, dag, intent);
+
+    // Create ControlledExecutor for this workflow
+    const controlledExecutor = new ControlledExecutor(
+      async (tool, args) => {
+        // Route to underlying MCP servers
+        const [serverId, ...toolNameParts] = tool.split(":");
+        const toolName = toolNameParts.join(":");
+        const client = this.mcpClients.get(serverId);
+        if (!client) {
+          throw new Error(`Unknown MCP server: ${serverId}`);
+        }
+        return await client.callTool(toolName, args);
+      },
+      { taskTimeout: 30000 },
+    );
+
+    // Configure checkpointing
+    controlledExecutor.setCheckpointManager(this.db, true);
+    controlledExecutor.setDAGSuggester(this.dagSuggester);
+
+    // Start streaming execution
+    const generator = controlledExecutor.executeStream(dag, workflowId);
+
+    // Collect events until first layer completes
+    const layerResults: TaskResult[] = [];
+    let currentLayer = 0;
+    let totalLayers = 0;
+    let latestCheckpointId: string | null = null;
+
+    for await (const event of generator) {
+      if (event.type === "workflow_start") {
+        totalLayers = event.total_layers ?? 0;
+      }
+
+      if (event.type === "task_complete" || event.type === "task_error") {
+        layerResults.push({
+          taskId: event.task_id ?? "",
+          status: event.type === "task_complete" ? "success" : "error",
+          output: event.type === "task_complete"
+            ? { execution_time_ms: event.execution_time_ms }
+            : undefined,
+          error: event.type === "task_error" ? event.error : undefined,
+        });
+      }
+
+      if (event.type === "checkpoint") {
+        latestCheckpointId = event.checkpoint_id ?? null;
+        currentLayer = event.layer_index ?? 0;
+
+        // Pause after first layer completes (layer 0)
+        // Store active workflow state for continuation
+        const activeWorkflow: ActiveWorkflow = {
+          workflowId,
+          executor: controlledExecutor,
+          generator,
+          dag,
+          currentLayer,
+          totalLayers,
+          layerResults: [...layerResults],
+          status: "paused",
+          createdAt: new Date(),
+          lastActivityAt: new Date(),
+          latestCheckpointId,
+        };
+        this.activeWorkflows.set(workflowId, activeWorkflow);
+
+        // Return layer_complete status
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  status: "layer_complete",
+                  workflow_id: workflowId,
+                  checkpoint_id: latestCheckpointId,
+                  layer_index: currentLayer,
+                  total_layers: totalLayers,
+                  layer_results: layerResults,
+                  next_layer_preview: currentLayer + 1 < totalLayers
+                    ? { layer_index: currentLayer + 1 }
+                    : null,
+                  options: ["continue", "replan", "abort"],
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      }
+
+      if (event.type === "workflow_complete") {
+        // Workflow completed in first layer (single layer DAG)
+        await deleteWorkflowDAG(this.db, workflowId);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  status: "complete",
+                  workflow_id: workflowId,
+                  total_time_ms: event.total_time_ms,
+                  successful_tasks: event.successful_tasks,
+                  failed_tasks: event.failed_tasks,
+                  results: layerResults,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      }
+    }
+
+    // Should not reach here
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({ status: "complete", workflow_id: workflowId }),
+        },
+      ],
+    };
+  }
+
+  /**
    * Handle search_tools request (Spike: search-tools-graph-traversal)
    *
    * Combines semantic search with graph-based recommendations:
@@ -550,7 +908,9 @@ export class AgentCardsGatewayServer {
    * @param args - Search arguments (query, limit, include_related, context_tools)
    * @returns Search results with scores
    */
-  private async handleSearchTools(args: unknown): Promise<{ content: Array<{ type: string; text: string }> }> {
+  private async handleSearchTools(
+    args: unknown,
+  ): Promise<{ content: Array<{ type: string; text: string }> }> {
     const params = args as {
       query?: string;
       limit?: number;
@@ -571,7 +931,7 @@ export class AgentCardsGatewayServer {
     }
 
     const query = params.query;
-    const limit = params.limit || 5;
+    const limit = params.limit || 10;
     const includeRelated = params.include_related || false;
     const contextTools = params.context_tools || [];
 
@@ -644,19 +1004,25 @@ export class AgentCardsGatewayServer {
       }
     }
 
-    log.info(`search_tools: found ${topResults.length} results (alpha=${alpha}, edges=${edgeCount})`);
+    log.info(
+      `search_tools: found ${topResults.length} results (alpha=${alpha}, edges=${edgeCount})`,
+    );
 
     return {
       content: [{
         type: "text",
-        text: JSON.stringify({
-          tools: topResults,
-          meta: {
-            query,
-            alpha,
-            edge_count: edgeCount,
+        text: JSON.stringify(
+          {
+            tools: topResults,
+            meta: {
+              query,
+              alpha,
+              edge_count: edgeCount,
+            },
           },
-        }, null, 2),
+          null,
+          2,
+        ),
       }],
     };
   }
@@ -671,7 +1037,13 @@ export class AgentCardsGatewayServer {
    * @param args - Code execution arguments
    * @returns Execution result with metrics
    */
-  private async handleExecuteCode(args: unknown): Promise<{ content: Array<{ type: string; text: string }> } | { error: { code: number; message: string; data?: unknown } }> {
+  private async handleExecuteCode(
+    args: unknown,
+  ): Promise<
+    { content: Array<{ type: string; text: string }> } | {
+      error: { code: number; message: string; data?: unknown };
+    }
+  > {
     try {
       const request = args as CodeExecutionRequest;
 
@@ -797,6 +1169,574 @@ export class AgentCardsGatewayServer {
   }
 
   /**
+   * Handle continue command (Story 2.5-4)
+   *
+   * Continues a paused workflow to the next layer.
+   * Uses in-memory activeWorkflows if available, otherwise loads from DB.
+   *
+   * @param args - Continue arguments (workflow_id, reason?)
+   * @returns Next layer results or completion status
+   */
+  private async handleContinue(
+    args: unknown,
+  ): Promise<
+    { content: Array<{ type: string; text: string }> } | {
+      error: { code: number; message: string; data?: unknown };
+    }
+  > {
+    const params = args as { workflow_id?: string; reason?: string };
+
+    if (!params.workflow_id) {
+      return this.formatMCPError(
+        MCPErrorCodes.INVALID_PARAMS,
+        "Missing required parameter: 'workflow_id'",
+      );
+    }
+
+    log.info(
+      `handleContinue: workflow_id=${params.workflow_id}, reason=${params.reason || "none"}`,
+    );
+
+    // Check in-memory workflows first
+    const activeWorkflow = this.activeWorkflows.get(params.workflow_id);
+
+    if (activeWorkflow) {
+      // Resume from in-memory state
+      return await this.continueFromActiveWorkflow(activeWorkflow, params.reason);
+    }
+
+    // Fallback: Load from database (workflow was lost from memory, e.g., restart)
+    const dag = await getWorkflowDAG(this.db, params.workflow_id);
+    if (!dag) {
+      return this.formatMCPError(
+        MCPErrorCodes.INVALID_PARAMS,
+        `Workflow ${params.workflow_id} not found or expired`,
+        { workflow_id: params.workflow_id },
+      );
+    }
+
+    // Load latest checkpoint
+    if (!this.checkpointManager) {
+      return this.formatMCPError(
+        MCPErrorCodes.INTERNAL_ERROR,
+        "CheckpointManager not initialized",
+      );
+    }
+
+    const latestCheckpoint = await this.checkpointManager.getLatestCheckpoint(params.workflow_id);
+    if (!latestCheckpoint) {
+      return this.formatMCPError(
+        MCPErrorCodes.INVALID_PARAMS,
+        `No checkpoints found for workflow ${params.workflow_id}`,
+      );
+    }
+
+    // Create new executor and resume from checkpoint
+    const controlledExecutor = new ControlledExecutor(
+      async (tool, toolArgs) => {
+        const [serverId, ...toolNameParts] = tool.split(":");
+        const toolName = toolNameParts.join(":");
+        const client = this.mcpClients.get(serverId);
+        if (!client) {
+          throw new Error(`Unknown MCP server: ${serverId}`);
+        }
+        return await client.callTool(toolName, toolArgs);
+      },
+    );
+
+    controlledExecutor.setCheckpointManager(this.db, true);
+    controlledExecutor.setDAGSuggester(this.dagSuggester);
+
+    // Resume from checkpoint
+    const generator = controlledExecutor.resumeFromCheckpoint(dag, latestCheckpoint.id);
+
+    // Process events until next checkpoint or completion
+    return await this.processGeneratorUntilPause(
+      params.workflow_id,
+      controlledExecutor,
+      generator,
+      dag,
+      latestCheckpoint.layer + 1,
+    );
+  }
+
+  /**
+   * Continue workflow from active in-memory state
+   */
+  private async continueFromActiveWorkflow(
+    workflow: ActiveWorkflow,
+    reason?: string,
+  ): Promise<{ content: Array<{ type: string; text: string }> }> {
+    log.debug(`Continuing workflow ${workflow.workflowId} from layer ${workflow.currentLayer}`);
+
+    // Enqueue continue command to executor
+    workflow.executor.enqueueCommand({
+      type: "continue",
+      reason: reason || "external_agent_continue",
+    });
+
+    workflow.status = "running";
+    workflow.lastActivityAt = new Date();
+
+    // Extend DAG TTL
+    await extendWorkflowDAGExpiration(this.db, workflow.workflowId);
+
+    // Process events until next checkpoint or completion
+    return await this.processGeneratorUntilPause(
+      workflow.workflowId,
+      workflow.executor,
+      workflow.generator,
+      workflow.dag,
+      workflow.currentLayer + 1,
+    );
+  }
+
+  /**
+   * Process generator events until next pause point or completion
+   */
+  private async processGeneratorUntilPause(
+    workflowId: string,
+    executor: ControlledExecutor,
+    generator: AsyncGenerator<ExecutionEvent, import("../dag/state.ts").WorkflowState, void>,
+    dag: DAGStructure,
+    expectedLayer: number,
+  ): Promise<{ content: Array<{ type: string; text: string }> }> {
+    const layerResults: TaskResult[] = [];
+    let currentLayer = expectedLayer;
+    let totalLayers = 0;
+    let latestCheckpointId: string | null = null;
+
+    for await (const event of generator) {
+      if (event.type === "workflow_start") {
+        totalLayers = event.total_layers ?? 0;
+      }
+
+      if (event.type === "task_complete" || event.type === "task_error") {
+        layerResults.push({
+          taskId: event.task_id ?? "",
+          status: event.type === "task_complete" ? "success" : "error",
+          output: event.type === "task_complete"
+            ? { execution_time_ms: event.execution_time_ms }
+            : undefined,
+          error: event.type === "task_error" ? event.error : undefined,
+        });
+      }
+
+      if (event.type === "checkpoint") {
+        latestCheckpointId = event.checkpoint_id ?? null;
+        currentLayer = event.layer_index ?? currentLayer;
+
+        // Update active workflow state
+        const activeWorkflow: ActiveWorkflow = {
+          workflowId,
+          executor,
+          generator,
+          dag,
+          currentLayer,
+          totalLayers,
+          layerResults: [...layerResults],
+          status: "paused",
+          createdAt: this.activeWorkflows.get(workflowId)?.createdAt ?? new Date(),
+          lastActivityAt: new Date(),
+          latestCheckpointId,
+        };
+        this.activeWorkflows.set(workflowId, activeWorkflow);
+
+        // Return layer_complete status
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  status: "layer_complete",
+                  workflow_id: workflowId,
+                  checkpoint_id: latestCheckpointId,
+                  layer_index: currentLayer,
+                  total_layers: totalLayers,
+                  layer_results: layerResults,
+                  options: ["continue", "replan", "abort"],
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      }
+
+      if (event.type === "workflow_complete") {
+        // Workflow completed - clean up
+        this.activeWorkflows.delete(workflowId);
+        await deleteWorkflowDAG(this.db, workflowId);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  status: "complete",
+                  workflow_id: workflowId,
+                  total_time_ms: event.total_time_ms,
+                  successful_tasks: event.successful_tasks,
+                  failed_tasks: event.failed_tasks,
+                  results: layerResults,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      }
+    }
+
+    // Generator exhausted without workflow_complete (unexpected)
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({ status: "complete", workflow_id: workflowId }),
+        },
+      ],
+    };
+  }
+
+  /**
+   * Handle abort command (Story 2.5-4)
+   *
+   * Aborts a running or paused workflow, cleaning up resources.
+   *
+   * @param args - Abort arguments (workflow_id, reason)
+   * @returns Abort confirmation with partial results
+   */
+  private async handleAbort(
+    args: unknown,
+  ): Promise<
+    { content: Array<{ type: string; text: string }> } | {
+      error: { code: number; message: string; data?: unknown };
+    }
+  > {
+    const params = args as { workflow_id?: string; reason?: string };
+
+    if (!params.workflow_id) {
+      return this.formatMCPError(
+        MCPErrorCodes.INVALID_PARAMS,
+        "Missing required parameter: 'workflow_id'",
+      );
+    }
+
+    if (!params.reason) {
+      return this.formatMCPError(
+        MCPErrorCodes.INVALID_PARAMS,
+        "Missing required parameter: 'reason'",
+      );
+    }
+
+    log.info(`handleAbort: workflow_id=${params.workflow_id}, reason=${params.reason}`);
+
+    // Check if workflow exists
+    const activeWorkflow = this.activeWorkflows.get(params.workflow_id);
+    const dag = await getWorkflowDAG(this.db, params.workflow_id);
+
+    if (!activeWorkflow && !dag) {
+      return this.formatMCPError(
+        MCPErrorCodes.INVALID_PARAMS,
+        `Workflow ${params.workflow_id} not found or expired`,
+        { workflow_id: params.workflow_id },
+      );
+    }
+
+    // Send abort command if workflow is active
+    if (activeWorkflow) {
+      activeWorkflow.executor.enqueueCommand({
+        type: "abort",
+        reason: params.reason,
+      });
+      activeWorkflow.status = "aborted";
+    }
+
+    // Collect partial results
+    const partialResults = activeWorkflow?.layerResults ?? [];
+    const completedLayers = activeWorkflow?.currentLayer ?? 0;
+
+    // Clean up resources
+    this.activeWorkflows.delete(params.workflow_id);
+    await deleteWorkflowDAG(this.db, params.workflow_id);
+
+    log.info(`Workflow ${params.workflow_id} aborted: ${params.reason}`);
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            {
+              status: "aborted",
+              workflow_id: params.workflow_id,
+              reason: params.reason,
+              completed_layers: completedLayers,
+              partial_results: partialResults,
+            },
+            null,
+            2,
+          ),
+        },
+      ],
+    };
+  }
+
+  /**
+   * Handle replan command (Story 2.5-4)
+   *
+   * Replans a workflow by adding new tasks via GraphRAG.
+   *
+   * @param args - Replan arguments (workflow_id, new_requirement, available_context?)
+   * @returns Updated DAG with new tasks
+   */
+  private async handleReplan(
+    args: unknown,
+  ): Promise<
+    { content: Array<{ type: string; text: string }> } | {
+      error: { code: number; message: string; data?: unknown };
+    }
+  > {
+    const params = args as {
+      workflow_id?: string;
+      new_requirement?: string;
+      available_context?: Record<string, unknown>;
+    };
+
+    if (!params.workflow_id) {
+      return this.formatMCPError(
+        MCPErrorCodes.INVALID_PARAMS,
+        "Missing required parameter: 'workflow_id'",
+      );
+    }
+
+    if (!params.new_requirement) {
+      return this.formatMCPError(
+        MCPErrorCodes.INVALID_PARAMS,
+        "Missing required parameter: 'new_requirement'",
+      );
+    }
+
+    log.info(
+      `handleReplan: workflow_id=${params.workflow_id}, new_requirement=${params.new_requirement}`,
+    );
+
+    // Get current DAG
+    const currentDag = await getWorkflowDAG(this.db, params.workflow_id);
+    if (!currentDag) {
+      return this.formatMCPError(
+        MCPErrorCodes.INVALID_PARAMS,
+        `Workflow ${params.workflow_id} not found or expired`,
+        { workflow_id: params.workflow_id },
+      );
+    }
+
+    // Get active workflow state
+    const activeWorkflow = this.activeWorkflows.get(params.workflow_id);
+    const completedTasks = activeWorkflow?.layerResults ?? [];
+
+    // Replan via DAGSuggester/GraphRAG
+    try {
+      const augmentedDAG = await this.dagSuggester.replanDAG(currentDag, {
+        completedTasks: completedTasks.map((t) => ({
+          taskId: t.taskId,
+          status: t.status,
+          output: t.output,
+        })),
+        newRequirement: params.new_requirement,
+        availableContext: params.available_context ?? {},
+      });
+
+      // Calculate new tasks added
+      const newTasksCount = augmentedDAG.tasks.length - currentDag.tasks.length;
+      const newTaskIds = augmentedDAG.tasks
+        .filter((t) => !currentDag.tasks.some((ct) => ct.id === t.id))
+        .map((t) => t.id);
+
+      // Update DAG in database
+      await updateWorkflowDAG(this.db, params.workflow_id, augmentedDAG);
+
+      // Update active workflow if exists
+      if (activeWorkflow) {
+        activeWorkflow.dag = augmentedDAG;
+        activeWorkflow.lastActivityAt = new Date();
+
+        // Send replan command to executor
+        activeWorkflow.executor.enqueueCommand({
+          type: "replan_dag",
+          new_requirement: params.new_requirement,
+          available_context: params.available_context ?? {},
+        });
+      }
+
+      log.info(`Workflow ${params.workflow_id} replanned: ${newTasksCount} new tasks`);
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                status: "replanned",
+                workflow_id: params.workflow_id,
+                new_requirement: params.new_requirement,
+                new_tasks_count: newTasksCount,
+                new_task_ids: newTaskIds,
+                total_tasks: augmentedDAG.tasks.length,
+                options: ["continue", "abort"],
+              },
+              null,
+              2,
+            ),
+          },
+        ],
+      };
+    } catch (error) {
+      log.error(`Replan failed: ${error}`);
+      return this.formatMCPError(
+        MCPErrorCodes.INTERNAL_ERROR,
+        `Replanning failed: ${error instanceof Error ? error.message : String(error)}`,
+        { workflow_id: params.workflow_id },
+      );
+    }
+  }
+
+  /**
+   * Handle approval_response command (Story 2.5-4)
+   *
+   * Responds to a HIL approval checkpoint, continuing or rejecting the workflow.
+   *
+   * @param args - Approval arguments (workflow_id, checkpoint_id, approved, feedback?)
+   * @returns Approval confirmation or next layer results
+   */
+  private async handleApprovalResponse(
+    args: unknown,
+  ): Promise<
+    { content: Array<{ type: string; text: string }> } | {
+      error: { code: number; message: string; data?: unknown };
+    }
+  > {
+    const params = args as {
+      workflow_id?: string;
+      checkpoint_id?: string;
+      approved?: boolean;
+      feedback?: string;
+    };
+
+    if (!params.workflow_id) {
+      return this.formatMCPError(
+        MCPErrorCodes.INVALID_PARAMS,
+        "Missing required parameter: 'workflow_id'",
+      );
+    }
+
+    if (!params.checkpoint_id) {
+      return this.formatMCPError(
+        MCPErrorCodes.INVALID_PARAMS,
+        "Missing required parameter: 'checkpoint_id'",
+      );
+    }
+
+    if (params.approved === undefined) {
+      return this.formatMCPError(
+        MCPErrorCodes.INVALID_PARAMS,
+        "Missing required parameter: 'approved'",
+      );
+    }
+
+    log.info(
+      `handleApprovalResponse: workflow_id=${params.workflow_id}, checkpoint_id=${params.checkpoint_id}, approved=${params.approved}`,
+    );
+
+    // Get active workflow
+    const activeWorkflow = this.activeWorkflows.get(params.workflow_id);
+
+    if (!activeWorkflow) {
+      // Check if workflow exists in DB
+      const dag = await getWorkflowDAG(this.db, params.workflow_id);
+      if (!dag) {
+        return this.formatMCPError(
+          MCPErrorCodes.INVALID_PARAMS,
+          `Workflow ${params.workflow_id} not found or expired`,
+          { workflow_id: params.workflow_id },
+        );
+      }
+
+      // Workflow exists but not active - it needs to be resumed
+      return this.formatMCPError(
+        MCPErrorCodes.INVALID_PARAMS,
+        `Workflow ${params.workflow_id} is not active. Use 'continue' to resume.`,
+        { workflow_id: params.workflow_id },
+      );
+    }
+
+    // Send approval command to executor
+    activeWorkflow.executor.enqueueCommand({
+      type: "approval_response",
+      checkpoint_id: params.checkpoint_id,
+      approved: params.approved,
+      feedback: params.feedback,
+    });
+
+    if (!params.approved) {
+      // Rejected - abort workflow
+      activeWorkflow.status = "aborted";
+
+      const partialResults = activeWorkflow.layerResults;
+      const completedLayers = activeWorkflow.currentLayer;
+
+      // Clean up
+      this.activeWorkflows.delete(params.workflow_id);
+      await deleteWorkflowDAG(this.db, params.workflow_id);
+
+      log.info(`Workflow ${params.workflow_id} rejected at checkpoint ${params.checkpoint_id}`);
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                status: "rejected",
+                workflow_id: params.workflow_id,
+                checkpoint_id: params.checkpoint_id,
+                feedback: params.feedback,
+                completed_layers: completedLayers,
+                partial_results: partialResults,
+              },
+              null,
+              2,
+            ),
+          },
+        ],
+      };
+    }
+
+    // Approved - continue execution
+    activeWorkflow.status = "running";
+    activeWorkflow.lastActivityAt = new Date();
+
+    // Extend TTL
+    await extendWorkflowDAGExpiration(this.db, params.workflow_id);
+
+    log.info(`Workflow ${params.workflow_id} approved at checkpoint ${params.checkpoint_id}`);
+
+    // Continue to next layer
+    return await this.processGeneratorUntilPause(
+      params.workflow_id,
+      activeWorkflow.executor,
+      activeWorkflow.generator,
+      activeWorkflow.dag,
+      activeWorkflow.currentLayer + 1,
+    );
+  }
+
+  /**
    * Handler: prompts/get
    *
    * Optional handler for retrieving pre-defined prompts.
@@ -805,11 +1745,11 @@ export class AgentCardsGatewayServer {
    * @param request - MCP request
    * @returns Empty prompts list
    */
-  private async handleGetPrompt(_request: unknown): Promise<{ prompts: Array<unknown> }> {
+  private handleGetPrompt(_request: unknown): Promise<{ prompts: Array<unknown> }> {
     log.debug("prompts/get called (not implemented)");
-    return {
+    return Promise.resolve({
       prompts: [],
-    };
+    });
   }
 
   /**
@@ -966,14 +1906,17 @@ export class AgentCardsGatewayServer {
             headers: { "Content-Type": "application/json" },
           });
         } catch (error) {
-          return new Response(JSON.stringify({
-            jsonrpc: "2.0",
-            error: { code: -32700, message: `Parse error: ${error}` },
-            id: null,
-          }), {
-            status: 400,
-            headers: { "Content-Type": "application/json" },
-          });
+          return new Response(
+            JSON.stringify({
+              jsonrpc: "2.0",
+              error: { code: -32700, message: `Parse error: ${error}` },
+              id: null,
+            }),
+            {
+              status: 400,
+              headers: { "Content-Type": "application/json" },
+            },
+          );
         }
       }
 
@@ -999,7 +1942,9 @@ export class AgentCardsGatewayServer {
 
     try {
       if (method === "tools/list") {
-        const result = await this.handleListTools(params as { query?: string; limit?: number } | undefined);
+        const result = await this.handleListTools(
+          params as { query?: string; limit?: number } | undefined,
+        );
         return { jsonrpc: "2.0", id, result };
       }
 

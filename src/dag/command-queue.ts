@@ -166,9 +166,18 @@ export function isValidCommand(cmd: unknown): cmd is Command {
  * - Type validation for safety
  * - Command injection latency tracking
  */
+/**
+ * Statistics for command queue operations
+ */
+export interface CommandQueueStats {
+  total_commands: number;
+  processed_commands: number;
+  rejected_commands: number;
+}
+
 export class CommandQueue {
   private queue: AsyncQueue<Command>;
-  private stats = {
+  private stats: CommandQueueStats = {
     total_commands: 0,
     processed_commands: 0,
     rejected_commands: 0,
@@ -273,7 +282,7 @@ export class CommandQueue {
   /**
    * Get queue statistics
    */
-  getStats() {
+  getStats(): CommandQueueStats {
     return { ...this.stats };
   }
 }

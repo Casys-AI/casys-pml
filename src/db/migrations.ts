@@ -13,6 +13,8 @@ import { DatabaseError } from "../errors/error-types.ts";
 import { createErrorLoggingMigration } from "./migrations/003_error_logging.ts";
 import { createMcpToolTablesMigration } from "./migrations/004_mcp_tool_tables.ts";
 import { createWorkflowCheckpointsMigration } from "./migrations/006_workflow_checkpoints_migration.ts";
+import { createEpisodicMemoryMigration } from "./migrations/007_episodic_memory_migration.ts";
+import { createWorkflowDagsMigration } from "./migrations/008_workflow_dags_migration.ts";
 
 /**
  * Migration definition
@@ -367,5 +369,7 @@ export function getAllMigrations(): Migration[] {
     createErrorLoggingMigration(),
     createMcpToolTablesMigration(),
     createWorkflowCheckpointsMigration(),
+    createEpisodicMemoryMigration(),
+    createWorkflowDagsMigration(),
   ];
 }

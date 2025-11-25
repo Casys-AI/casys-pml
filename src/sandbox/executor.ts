@@ -27,7 +27,7 @@ import type {
   StructuredError,
 } from "./types.ts";
 import { getLogger } from "../telemetry/logger.ts";
-import { CodeExecutionCache, generateCacheKey } from "./cache.ts";
+import { CodeExecutionCache, generateCacheKey, type CacheStats } from "./cache.ts";
 import {
   SecurityValidator,
   SecurityValidationError,
@@ -36,6 +36,7 @@ import {
   ResourceLimiter,
   ResourceLimitError,
   type ExecutionToken,
+  type ResourceStats,
 } from "./resource-limiter.ts";
 
 const logger = getLogger("default");
@@ -756,7 +757,7 @@ export class DenoSandboxExecutor {
    *
    * @returns Cache stats or null if caching is disabled
    */
-  getCacheStats() {
+  getCacheStats(): CacheStats | null {
     if (!this.cache) {
       return null;
     }
@@ -779,7 +780,7 @@ export class DenoSandboxExecutor {
    *
    * @returns Resource usage stats
    */
-  getResourceStats() {
+  getResourceStats(): ResourceStats {
     return this.resourceLimiter.getStats();
   }
 }

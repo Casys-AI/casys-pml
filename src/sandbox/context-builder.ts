@@ -408,6 +408,18 @@ export function wrapMCPClient(
 }
 
 /**
+ * JSON representation of MCPToolError
+ */
+export interface MCPToolErrorJSON {
+  type: string;
+  toolName: string;
+  message: string;
+  originalMessage: string;
+  timestamp: number;
+  stack?: string;
+}
+
+/**
  * Error class for tool invocation failures
  * Preserves error information while making it safe for serialization
  */
@@ -430,7 +442,7 @@ export class MCPToolError extends Error {
   /**
    * Convert to JSON-serializable object
    */
-  toJSON() {
+  toJSON(): MCPToolErrorJSON {
     return {
       type: this.name,
       toolName: this.toolName,

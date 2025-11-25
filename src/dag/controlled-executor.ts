@@ -13,8 +13,8 @@
 import { ParallelExecutor } from "./executor.ts";
 import type { DAGStructure, Task } from "../graphrag/types.ts";
 import type { ExecutorConfig, ExecutionEvent, ToolExecutor, TaskResult } from "./types.ts";
-import { EventStream } from "./event-stream.ts";
-import { CommandQueue } from "./command-queue.ts";
+import { EventStream, type EventStreamStats } from "./event-stream.ts";
+import { CommandQueue, type CommandQueueStats } from "./command-queue.ts";
 import {
   createInitialState,
   getStateSnapshot,
@@ -1051,14 +1051,14 @@ export class ControlledExecutor extends ParallelExecutor {
   /**
    * Get event stream statistics
    */
-  getEventStreamStats() {
+  getEventStreamStats(): EventStreamStats {
     return this.eventStream.getStats();
   }
 
   /**
    * Get command queue statistics
    */
-  getCommandQueueStats() {
+  getCommandQueueStats(): CommandQueueStats {
     return this.commandQueue.getStats();
   }
 
