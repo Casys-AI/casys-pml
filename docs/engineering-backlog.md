@@ -1,6 +1,6 @@
 # Engineering Backlog - AgentCards
 
-**Last Updated:** 2025-11-24
+**Last Updated:** 2025-11-26
 **Project:** AgentCards
 **Maintainer:** BMad
 
@@ -12,136 +12,80 @@
 - [🟡 HIGH - Performance & Stability](#-high---performance--stability)
 - [🟢 MEDIUM - Code Quality](#-medium---code-quality)
 - [⚪ LOW - Technical Debt](#-low---technical-debt)
+- [✅ RESOLVED - Archive](#-resolved---archive)
 
 ---
 
 ## 🔴 CRITICAL - Production Blockers
 
 **Priority:** P0 - Fix before production deployment
-**Total Estimated Effort:** 8 hours
+**Total Estimated Effort:** 7 hours
 
-### BUG-001: Race Condition in CommandQueue.processCommands()
+### BUG-005: DAGSuggester Dependency Ordering Bias
 
-**Severity:** HIGH (P0)
-**Status:** ✅ RESOLVED (2025-11-25)
-**Discovered:** 2025-11-24 (Comprehensive Audit)
-**Estimate:** 2 hours
-**Actual:** 15 minutes
+**Severity:** CRITICAL (P0)
+**Status:** Open
+**Discovered:** 2025-11-26 (Spike: dag-suggester-dependency-analysis)
+**Estimate:** 3 hours
 
 **Impact:**
-- Commands lost or duplicated during async processing
-- Workflow state corruption possible
-- AIL/HIL decision points unreliable
+
+- Tools running in parallel instead of sequence when "Child" appears before "Parent" in candidate list
+- Increased failure rate for complex workflows
+- Undermines reliability of Hybrid Search (which randomizes order)
 
 **Location:**
-- **File:** `src/dag/command-queue.ts`
-- **Lines:** 197-214
-- **Method:** `processCommands()`
+
+- **File:** `src/graphrag/graph-engine.ts`
+- **Method:** `buildDAG()`
 
 **Root Cause:**
+
 ```typescript
-while (!this.queue.isEmpty()) {
-  const cmd = this.queue.dequeue();
-  Promise.resolve(cmd).then((c) => commands.push(c));
+for (let i = 0; i < candidates.length; i++) {
+  for (let j = 0; j < i; j++) {
+    // ❌ Only looks backwards
+    // Dependencies missed if parent is at index > i
+  }
 }
-return commands; // ❌ Returns BEFORE .then() executes
 ```
 
 **Fix Required:**
-```typescript
-async processCommands(): Promise<Command[]> {
-  const commands: Command[] = [];
-  const promises = [];
+Implement Full Adjacency Matrix approach (ADR-024):
 
-  while (!this.queue.isEmpty()) {
-    promises.push(this.queue.dequeue().then(c => commands.push(c)));
-  }
+1. Compare all N\*N pairs regardless of list order
+2. Add dependencies for any detected path (Parent -> Child)
+3. Run topological sort to detect/break cycles
 
-  await Promise.all(promises); // ✅ MUST await
-  return commands;
-}
-```
-
-**Validation:**
-- Add integration test: Enqueue 10 commands → verify all 10 processed
-- Add concurrency test: Parallel enqueue/dequeue → verify no race
-- Run E2E workflow test suite → verify no regressions
-
-**Resolution (2025-11-25):**
-Added `drainSync()` method to AsyncQueue and refactored `processCommands()` to use it:
-```typescript
-drainSync(): T[] {
-  const items = [...this.queue];
-  this.queue = [];
-  return items;
-}
-
-processCommands(): Command[] {
-  const commands = this.queue.drainSync(); // Synchronous, no race
-  // ...
-}
-```
-
-**Related:**
-- Epic 2.5: Adaptive DAG Feedback Loops
-- Story 2.5-1: Event Stream, Command Queue & State Management
+**Related:** ADR-024
 
 ---
 
-### BUG-002: EventStream Subscriber Memory Leak
+### BUG-006: Hybrid Search Logic Not Used by Suggester
 
-**Severity:** MEDIUM (P1)
-**Status:** ✅ RESOLVED (already fixed in codebase)
-**Discovered:** 2025-11-24 (Comprehensive Audit)
-**Estimate:** 1 hour
-**Actual:** 0 minutes (code already had try/finally)
+**Severity:** CRITICAL (P0)
+**Status:** Open
+**Discovered:** 2025-11-26 (Code Review)
+**Estimate:** 4 hours
 
 **Impact:**
-- Subscriber counter never decremented
-- Memory leak on long-running workflows
-- Stats reporting incorrect subscriber count
+
+- `execute_dag` uses naive Vector Search while advanced Hybrid Search exists but is unused
+- Implicit dependencies (graph-based) are missed
+- Inconsistent results between `search_tools` (smart) and `execute_dag` (dumb)
 
 **Location:**
-- **File:** `src/dag/event-stream.ts`
-- **Lines:** 86-100
-- **Method:** `subscribe()`
 
-**Root Cause:**
-```typescript
-async *subscribe(): AsyncIterableIterator<ExecutionEvent> {
-  this.stats.subscribers++; // ✅ Incremented
-  // ... subscription logic ...
-  // ❌ NEVER decremented on unsubscribe/error
-}
-```
+- **File:** `src/graphrag/dag-suggester.ts`
+- **Method:** `suggestDAG()`
 
 **Fix Required:**
-```typescript
-async *subscribe(): AsyncIterableIterator<ExecutionEvent> {
-  this.stats.subscribers++;
-  try {
-    let lastIndex = 0;
-    while (!this.closed) {
-      while (lastIndex < this.events.length) {
-        yield this.events[lastIndex];
-        lastIndex++;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 10));
-    }
-  } finally {
-    this.stats.subscribers--; // ✅ Cleanup in finally block
-  }
-}
-```
 
-**Validation:**
-- Add test: Subscribe → unsubscribe → verify counter decremented
-- Add test: Subscribe → throw error → verify cleanup in finally
-- Memory profiling: Run 100 workflows → verify no leak
+1. Extract hybrid search logic from `src/mcp/gateway-server.ts` to `GraphRAGEngine` (ADR-022)
+2. Implement Dynamic Candidate Expansion (ADR-023)
+3. Update `DAGSuggester` to use new `graphEngine.searchToolsHybrid()`
 
-**Related:**
-- Epic 2.5: Adaptive DAG Feedback Loops
-- Story 2.5-1: Event Stream, Command Queue & State Management
+**Related:** ADR-022, ADR-023, Story 5.1
 
 ---
 
@@ -153,16 +97,19 @@ async *subscribe(): AsyncIterableIterator<ExecutionEvent> {
 **Estimate:** 1 hour (simplified fix)
 
 **Impact:**
+
 - `toolSchemaCache` Map grows unbounded (theoretical)
 - Realistic impact: Even 5000 tools = <1MB memory (negligible)
 - No TTL or eviction policy
 
 **Location:**
+
 - **File:** `src/mcp/gateway-server.ts`
 - **Lines:** 881-887
 - **Method:** `buildToolVersionsMap()`
 
 **Root Cause:**
+
 ```typescript
 private toolSchemaCache = new Map<string, string>(); // ❌ Unbounded
 
@@ -176,6 +123,7 @@ private buildToolVersionsMap(): Record<string, string> {
 ```
 
 **Fix Required:**
+
 ```typescript
 // 1. Add LRU cache dependency to deno.json:
 "imports": {
@@ -193,11 +141,13 @@ private toolSchemaCache = new LRUCache<string, string>({
 ```
 
 **Validation:**
+
 - Add test: Insert 1500 schemas → verify size capped at 1000
 - Add test: TTL expiration → verify old entries evicted
 - Memory profiling: 24h runtime → verify stable memory
 
 **Configuration:**
+
 - Add to `GatewayConfig`:
   ```typescript
   cacheConfig?: {
@@ -207,68 +157,64 @@ private toolSchemaCache = new LRUCache<string, string>({
   ```
 
 **Related:**
+
 - Epic 2: DAG Execution & Production Readiness
 - Story 2.4: MCP Gateway Integration avec Claude Code
 
 ---
 
-### BUG-004: Rate Limiter Per-Server Instead of Per-Tool
-
-**Severity:** MEDIUM (P1)
-**Status:** ✅ RESOLVED (2025-11-25)
-**Discovered:** 2025-11-24 (Comprehensive Audit)
-**Estimate:** 2 hours
-**Actual:** 5 minutes
-
-**Impact:**
-- Single aggressive tool can exhaust entire server quota
-- Other tools from same server blocked unnecessarily
-- Rate limit bypass if multiple tools target same server
-
 **Location:**
-- **File:** `src/dag/executor.ts`
-- **Lines:** 256-259
-- **Method:** `executeTask()`
+
+- **File:** `src/graphrag/graph-engine.ts`
+- **Method:** `buildDAG()`
 
 **Root Cause:**
+
 ```typescript
-const [serverId] = task.tool.split(":");
-if (serverId) {
-  await this.rateLimiter.waitForSlot(serverId); // ❌ Per server only
+for (let i = 0; i < candidates.length; i++) {
+  for (let j = 0; j < i; j++) {
+    // ❌ Only looks backwards
+    // Dependencies missed if parent is at index > i
+  }
 }
 ```
 
 **Fix Required:**
-```typescript
-// Use full tool ID as rate limit key
-const rateKey = task.tool; // ✅ "github:list_commits", not just "github"
-await this.rateLimiter.waitForSlot(rateKey);
-```
+Implement Full Adjacency Matrix approach (ADR-024):
 
-**Additional Enhancement:**
-```typescript
-// Support hierarchical rate limiting (both server AND tool level)
-interface RateLimitConfig {
-  serverLimit?: number; // e.g., 100 req/min for entire server
-  toolLimit?: number;   // e.g., 10 req/min for specific tool
-}
+1. Compare all N\*N pairs regardless of list order
+2. Add dependencies for any detected path (Parent -> Child)
+3. Run topological sort to detect/break cycles
 
-// Check both limits:
-const [serverId] = task.tool.split(":");
-await this.rateLimiter.waitForSlot(serverId, "server");  // Server-level
-await this.rateLimiter.waitForSlot(task.tool, "tool");   // Tool-level
-```
-
-**Validation:**
-- Add test: Single tool exhausts quota → verify other tools not blocked
-- Add test: 100 requests to tool1 → verify tool2 unaffected (same server)
-- Integration test: Real MCP servers → verify rate limits respected
-
-**Related:**
-- Epic 2: DAG Execution & Production Readiness
-- Story 2.6: Error Handling & Resilience
+**Related:** ADR-024
 
 ---
+
+### BUG-006: Hybrid Search Logic Not Used by Suggester
+
+**Severity:** CRITICAL (P0)
+**Status:** Open
+**Discovered:** 2025-11-26 (Code Review)
+**Estimate:** 4 hours
+
+**Impact:**
+
+- `execute_dag` uses naive Vector Search while advanced Hybrid Search exists but is unused
+- Implicit dependencies (graph-based) are missed
+- Inconsistent results between `search_tools` (smart) and `execute_dag` (dumb)
+
+**Location:**
+
+- **File:** `src/graphrag/dag-suggester.ts`
+- **Method:** `suggestDAG()`
+
+**Fix Required:**
+
+1. Extract hybrid search logic from `src/mcp/gateway-server.ts` to `GraphRAGEngine` (ADR-022)
+2. Implement Dynamic Candidate Expansion (ADR-023)
+3. Update `DAGSuggester` to use new `graphEngine.searchToolsHybrid()`
+
+**Related:** ADR-022, ADR-023, Story 5.1
 
 ## 🟡 HIGH - Performance & Stability
 
@@ -282,17 +228,20 @@ await this.rateLimiter.waitForSlot(task.tool, "tool");   // Tool-level
 **Estimate:** 3 hours
 
 **Impact:**
+
 - `events` array grows unbounded in memory
 - Long-running workflows cause memory exhaustion
 - No cleanup or ring buffer implementation
 
 **Location:**
+
 - **File:** `src/dag/event-stream.ts`
 - **Line:** 34
 - **Property:** `private events: ExecutionEvent[] = [];`
 
 **Fix Required:**
 Implement ring buffer with configurable size:
+
 ```typescript
 private events: ExecutionEvent[] = [];
 private maxEvents: number = 1000; // Configurable
@@ -310,6 +259,7 @@ async emit(event: ExecutionEvent): Promise<void> {
 ```
 
 **Validation:**
+
 - Add test: Emit 2000 events → verify array capped at 1000
 - Memory profiling: 1000 workflows → verify stable memory
 
@@ -323,16 +273,19 @@ async emit(event: ExecutionEvent): Promise<void> {
 **Estimate:** 4 hours
 
 **Impact:**
+
 - Every query re-encodes embedding even if query cached
 - Unnecessary BGE-M3 inference calls
 - P95 latency inflated by ~20-50ms
 
 **Location:**
+
 - **File:** `src/vector/search.ts`
 - **Method:** `searchTools()`
 
 **Fix Required:**
 Implement LRU cache for query embeddings:
+
 ```typescript
 import { LRUCache } from "lru-cache";
 
@@ -355,6 +308,7 @@ async searchTools(query: string, topK: number): Promise<SearchResult[]> {
 ```
 
 **Expected Improvement:**
+
 - Cache hit rate: 60-70% (common queries repeated)
 - P95 latency: <100ms → <50ms on cache hit
 
@@ -368,16 +322,19 @@ async searchTools(query: string, topK: number): Promise<SearchResult[]> {
 **Estimate:** 5 hours
 
 **Impact:**
+
 - PageRank + Louvain recalculated on every graph sync
 - Unnecessary computation if graph unchanged
 - Sync latency ~150-200ms even when no changes
 
 **Location:**
+
 - **File:** `src/graphrag/graph-engine.ts`
 - **Method:** `syncFromDatabase()`
 
 **Fix Required:**
 Implement dirty flag + lazy recomputation:
+
 ```typescript
 private isDirty: boolean = false;
 private lastSyncHash: string = "";
@@ -407,6 +364,7 @@ getPageRank(nodeId: string): number {
 ```
 
 **Expected Improvement:**
+
 - Sync latency: ~150ms → <10ms on no-change case
 - Metrics recomputation: Only when graph structure changes
 
@@ -424,11 +382,13 @@ getPageRank(nodeId: string): number {
 **Estimate:** 1 week
 
 **Impact:**
+
 - 10+ occurrences of `any` type
 - Loss of compile-time type checking
 - IntelliSense degraded, harder maintenance
 
 **Occurrences:**
+
 1. `src/mcp/gateway-server.ts:153-165` - Request handlers
 2. `src/dag/controlled-executor.ts:163` - Layer type
 3. `src/vector/embeddings.ts` - Model instance
@@ -436,14 +396,16 @@ getPageRank(nodeId: string): number {
 
 **Fix Strategy:**
 Replace all `any` with:
+
 - Specific types where structure known
 - `unknown` + type guards where structure unknown
 - Runtime validation with Zod or similar
 
 **Example Fix:**
+
 ```typescript
 // BEFORE
-async (request: any) => await this.handleListTools(request)
+async (request: any) => await this.handleListTools(request);
 
 // AFTER
 interface ListToolsRequest {
@@ -459,10 +421,11 @@ async (request: ListToolsRequest) => {
     throw new ValidationError("query must be string");
   }
   return await this.handleListTools(request);
-}
+};
 ```
 
 **Validation:**
+
 - Enable `noImplicitAny: true` strict mode
 - Zero `any` types in codebase
 - All tests passing
@@ -477,6 +440,7 @@ async (request: ListToolsRequest) => {
 **Estimate:** 1 week
 
 **Impact:**
+
 - `gateway-server.ts`: 1,055 LOC (too large)
 - `controlled-executor.ts`: 1,251 LOC (too large)
 - Difficult to maintain, high cognitive load
@@ -484,6 +448,7 @@ async (request: ListToolsRequest) => {
 **Refactoring Plan:**
 
 **gateway-server.ts (1,055 LOC) → 3 modules:**
+
 ```
 src/mcp/
   ├─ gateway-server.ts (300 LOC - orchestration)
@@ -492,6 +457,7 @@ src/mcp/
 ```
 
 **controlled-executor.ts (1,251 LOC) → 3 modules:**
+
 ```
 src/dag/
   ├─ controlled-executor.ts (400 LOC - orchestration)
@@ -500,6 +466,7 @@ src/dag/
 ```
 
 **Validation:**
+
 - Max file size: 500 LOC (guideline)
 - All tests passing
 - No breaking changes to public APIs
@@ -518,16 +485,19 @@ src/dag/
 **Estimate:** 2 hours
 
 **Impact:**
+
 - Temp files potentially not deleted on sandbox error
 - Disk space leak on repeated failures
 - Minor issue (tmp cleaned on reboot)
 
 **Location:**
+
 - **File:** `src/sandbox/executor.ts`
 - **Method:** `execute()`
 
 **Fix Required:**
 Add try/finally cleanup:
+
 ```typescript
 async execute(code: string, context: Record<string, unknown>) {
   const tempFile = await this.createTempFile(code);
@@ -551,29 +521,32 @@ async execute(code: string, context: Record<string, unknown>) {
 **Estimate:** 3 hours
 
 **Impact:**
+
 - `console.log()` in sandbox code not captured
 - Debugging difficult for users
 - CodeExecutionResponse returns empty `logs: []`
 
 **Location:**
+
 - **File:** `src/mcp/gateway-server.ts`
 - **Line:** 768
 - **Comment:** `logs: [], // TODO: Capture console logs in future enhancement`
 
 **Fix Required:**
 Implement stdout/stderr capture in sandbox subprocess:
+
 ```typescript
 const process = new Deno.Command("deno", {
   args: ["run", "--allow-env", tempFile],
-  stdout: "piped",  // ✅ Capture stdout
-  stderr: "piped",  // ✅ Capture stderr
+  stdout: "piped", // ✅ Capture stdout
+  stderr: "piped", // ✅ Capture stderr
 });
 
 const { stdout, stderr } = await process.output();
 const logs = [
   new TextDecoder().decode(stdout),
-  new TextDecoder().decode(stderr)
-].filter(log => log.length > 0);
+  new TextDecoder().decode(stderr),
+].filter((log) => log.length > 0);
 ```
 
 ---
@@ -581,18 +554,21 @@ const logs = [
 ## Metrics & Tracking
 
 **Total Open Issues:** 10 (3 resolved)
+
 - 🔴 CRITICAL: 0 ✅ (was 3)
 - 🟡 HIGH: 3 (12h estimate)
 - 🟢 MEDIUM: 2 (2 weeks estimate)
 - ⚪ LOW: 5 (ongoing)
 
 **Sprint 0 Target (1 week):**
+
 - ✅ Fix all 3 CRITICAL bugs - DONE (2025-11-25)
 - ✅ BUG-001: CommandQueue race condition - RESOLVED
 - ✅ BUG-002: EventStream subscriber leak - RESOLVED (already fixed)
 - ✅ BUG-004: Rate limiter granularity - RESOLVED
 
 **Sprint 1 Target (2 weeks):**
+
 - Address 3 HIGH priority items
 - Begin QUALITY-001 (type safety pass)
 
@@ -635,11 +611,13 @@ executor.enqueueCommand({
 ```
 
 **Reconsider if:**
-- >10 user complaints about replan_dag speed/unpredictability in 3 months
+
+- > 10 user complaints about replan_dag speed/unpredictability in 3 months
 - GraphRAG query optimization exhausted
 - Proven use case where manual control superior
 
 **Mitigation before reconsidering:**
+
 - Optimize GraphRAG query speed (currently ~50ms)
 - Improve DAGSuggester confidence scores
 - Add caching for common replan patterns
@@ -677,11 +655,13 @@ executor.enqueueCommand({
 ```
 
 **Reconsider if:**
-- >5 proven use cases where conditional skip needed
+
+- > 5 proven use cases where conditional skip needed
 - Safe-to-fail pattern insufficient for use case
 - Requirement for mid-execution layer skip (not failure-based)
 
 **Mitigation before reconsidering:**
+
 - Enhance safe-to-fail logic (conditional dependencies)
 - Implement pre-conditions for tasks
 - Add layer-level side_effects configuration
@@ -706,16 +686,18 @@ executor.enqueueCommand({
   type: "modify_args",
   task_id: "create_issue",
   new_arguments: { assignee: "correct-username" },
-  merge_strategy: "merge"
+  merge_strategy: "merge",
 });
 ```
 
 **Reconsider if:**
-- >3 user requests for runtime argument modification
+
+- > 3 user requests for runtime argument modification
 - HIL correction workflow emerges in production
 - Real-world use case where replan_dag too heavy
 
 **Mitigation before reconsidering:**
+
 - Validate replan_dag can't cover use case
 - Design clear merge/replace semantics
 - Consider security implications (arg modification risks)
@@ -757,11 +739,13 @@ executor.enqueueCommand({
 ```
 
 **Reconsider if:**
-- >5 use cases where composition insufficient
+
+- > 5 use cases where composition insufficient
 - Performance issue with multiple commands
 - Transactional requirement (modify + continue atomic)
 
 **Mitigation before reconsidering:**
+
 - Validate composition pattern works for all cases
 - Optimize command queue processing if performance issue
 - Consider transaction semantics carefully
@@ -773,17 +757,40 @@ executor.enqueueCommand({
 ---
 
 **Review Process:**
+
 - Monthly review during retrospectives
 - Track user feedback for deferred features
 - Reassess after Epic 2.5, 3.5, 4 completion
 - Decision authority: Tech Lead (BMad)
 
 **Approval Required if Reconsidering:**
+
 - [ ] Evidence of proven need (>threshold)
 - [ ] Architecture review (no better alternative)
 - [ ] Compatibility check (no breaking changes)
 - [ ] Test strategy defined
 - [ ] BMad approval
 
-**Last Updated:** 2025-11-24
+---
+
+## ✅ RESOLVED - Archive
+
+### BUG-001: Race Condition in CommandQueue.processCommands()
+
+**Status:** ✅ RESOLVED (2025-11-25)
+**Resolution:** Added `drainSync()` method to AsyncQueue.
+
+### BUG-002: EventStream Subscriber Memory Leak
+
+**Status:** ✅ RESOLVED (already fixed in codebase)
+**Resolution:** Code already had try/finally block.
+
+### BUG-004: Rate Limiter Per-Server Instead of Per-Tool
+
+**Status:** ✅ RESOLVED (2025-11-25)
+**Resolution:** Changed rate limit key from `serverId` to `toolId`.
+
+---
+
+**Last Updated:** 2025-11-26
 **Next Review:** 2025-12-01
