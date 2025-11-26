@@ -1,4 +1,4 @@
-import { PGliteClient } from "./src/db/client.ts";
+import { PGliteClient } from "../src/db/client.ts";
 const db = new PGliteClient();
 await db.initialize();
 const rows = await db.query("SELECT server_id, name FROM tool_schema LIMIT 20");

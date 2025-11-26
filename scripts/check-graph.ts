@@ -3,7 +3,7 @@
  * Quick diagnostic script to check graph state in database
  */
 
-import { createDefaultClient } from "./src/db/client.ts";
+import { createDefaultClient } from "../src/db/client.ts";
 
 const db = createDefaultClient();
 await db.connect();
