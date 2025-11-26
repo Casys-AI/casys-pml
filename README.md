@@ -45,6 +45,21 @@ deno task build
 
 That's it! AgentCards will discover your MCP servers, extract schemas, and generate embeddings.
 
+### 🎮 Try the Playground
+
+Explore AgentCards features with interactive Jupyter notebooks:
+
+```bash
+cd playground
+deno jupyter --install
+jupyter notebook notebooks/
+```
+
+Or open directly in GitHub Codespaces:
+- [Open Playground](https://github.com/codespaces/new/Casys-AI/AgentCards)
+
+See [`playground/README.md`](playground/README.md) for details.
+
 ### Optional: Error Tracking with Sentry
 
 AgentCards supports [Sentry](https://sentry.io) for production error tracking and performance monitoring (see [ADR-011](docs/adrs/ADR-011-sentry-integration.md)).
