@@ -5,7 +5,27 @@
  * Use in Jupyter notebooks to visualize workflow structures and execution.
  */
 
-import type { DAGWorkflow, DAGTask } from "../../src/dag/types.ts";
+// =============================================================================
+// LOCAL TYPES FOR VISUALIZATION
+// =============================================================================
+// These match the notebook usage patterns and are compatible with various DAG formats
+
+/**
+ * DAG task for visualization
+ */
+export interface DAGTask {
+  id: string;
+  tool_name?: string;
+  dependencies?: string[];
+}
+
+/**
+ * DAG workflow for visualization
+ */
+export interface DAGWorkflow {
+  id?: string;
+  tasks: DAGTask[];
+}
 
 /**
  * Edge representation for GraphRAG visualization
@@ -52,7 +72,7 @@ export function dagToMermaid(dag: DAGWorkflow): string {
     if (!task.dependencies || task.dependencies.length === 0) {
       entryNodes.add(task.id);
     }
-    for (const dep of task.dependencies || []) {
+    for (const _dep of task.dependencies || []) {
       hasIncoming.add(task.id);
     }
   }
@@ -217,12 +237,8 @@ export function graphragEvolutionToMermaid(
 ): string {
   const lines: string[] = ["graph TB"];
 
-  // Create maps for comparison
+  // Create map for comparison
   const beforeMap = new Map(before.map((e) => [`${e.source}-${e.target}`, e.weight]));
-  const afterMap = new Map(after.map((e) => [`${e.source}-${e.target}`, e.weight]));
-
-  // Get all unique edges
-  const allKeys = new Set([...beforeMap.keys(), ...afterMap.keys()]);
 
   lines.push(`    subgraph Before["Before Execution"]`);
   for (const edge of before.slice(0, 10)) {
@@ -248,7 +264,7 @@ export function graphragEvolutionToMermaid(
  */
 export function dagStats(dag: DAGWorkflow): string {
   const totalTasks = dag.tasks.length;
-  const withDeps = dag.tasks.filter((t) => t.dependencies && t.dependencies.length > 0).length;
+  const withDeps = dag.tasks.filter((t: DAGTask) => t.dependencies && t.dependencies.length > 0).length;
   const entryPoints = totalTasks - withDeps;
 
   return `DAG Stats:
@@ -300,4 +316,223 @@ export function mapExecutorEvent(event: Record<string, unknown>): ExecutionEvent
     default:
       return null;
   }
+}
+
+// =============================================================================
+// JUPYTER DISPLAY FUNCTIONS
+// =============================================================================
+// These functions render Mermaid diagrams in Deno Jupyter notebooks.
+// Uses mermaid.ink API to generate SVG server-side.
+
+import pako from "npm:pako@2";
+
+/**
+ * Encode mermaid diagram for mermaid.ink API
+ * Format: UTF-8 → deflate → base64url
+ */
+function encodeMermaidForInk(diagram: string): string {
+  const data = new TextEncoder().encode(diagram);
+  const compressed = pako.deflate(data, { level: 9 });
+  const base64 = btoa(String.fromCharCode(...compressed))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
+  return base64;
+}
+
+/**
+ * Render any Mermaid definition and display as SVG in Jupyter
+ * Uses Kroki.io API for server-side SVG generation
+ *
+ * @example
+ * ```typescript
+ * await displayMermaid("graph TD\n  A --> B");
+ * ```
+ */
+export async function displayMermaid(definition: string): Promise<unknown> {
+  // Encode and fetch SVG from Kroki.io
+  const encoded = encodeMermaidForInk(definition);
+  const url = `https://kroki.io/mermaid/svg/${encoded}`;
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Kroki returned ${response.status}`);
+  }
+
+  const svg = await response.text();
+
+  // @ts-ignore - Deno.jupyter exists in Jupyter runtime
+  if (typeof Deno !== "undefined" && Deno.jupyter) {
+    // @ts-ignore
+    return Deno.jupyter.svg`${svg}`;
+  }
+
+  // Non-Jupyter: return SVG string
+  return svg;
+}
+
+/**
+ * Display a DAG workflow as a visual diagram
+ *
+ * @example
+ * ```typescript
+ * await displayDag(workflow);
+ * ```
+ */
+export async function displayDag(dag: DAGWorkflow): Promise<unknown> {
+  return displayMermaid(dagToMermaid(dag));
+}
+
+/**
+ * Display DAG execution layers showing parallel/sequential groups
+ *
+ * @example
+ * ```typescript
+ * await displayLayers(layers);
+ * ```
+ */
+export async function displayLayers(layers: DAGTask[][]): Promise<unknown> {
+  return displayMermaid(layersToMermaid(layers));
+}
+
+/**
+ * Display GraphRAG tool relationships as a visual graph
+ *
+ * @example
+ * ```typescript
+ * await displayGraphrag(edges, { minWeight: 0.3 });
+ * ```
+ */
+export async function displayGraphrag(
+  edges: ToolEdge[],
+  options?: { minWeight?: number; maxNodes?: number }
+): Promise<unknown> {
+  return displayMermaid(graphragToMermaid(edges, options));
+}
+
+/**
+ * Display execution timeline as a sequence diagram
+ *
+ * @example
+ * ```typescript
+ * await displayTimeline(events);
+ * ```
+ */
+export async function displayTimeline(events: ExecutionEvent[]): Promise<unknown> {
+  return displayMermaid(executionTimelineToMermaid(events));
+}
+
+/**
+ * Display GraphRAG evolution (before/after learning)
+ *
+ * @example
+ * ```typescript
+ * await displayEvolution(edgesBefore, edgesAfter);
+ * ```
+ */
+export async function displayEvolution(
+  before: ToolEdge[],
+  after: ToolEdge[]
+): Promise<unknown> {
+  return displayMermaid(graphragEvolutionToMermaid(before, after));
+}
+
+// =============================================================================
+// WORKFLOW TEMPLATES VISUALIZATION (Story 5.2)
+// =============================================================================
+
+/**
+ * Workflow edge from WorkflowLoader
+ */
+export interface WorkflowEdge {
+  from: string;
+  to: string;
+  workflowName: string;
+}
+
+/**
+ * Convert workflow edges to Mermaid diagram
+ * Groups edges by workflow name with subgraphs
+ *
+ * @example
+ * ```typescript
+ * const edges = loader.convertToEdges(workflows);
+ * const mermaid = workflowEdgesToMermaid(edges);
+ * await displayMermaid(mermaid);
+ * ```
+ */
+export function workflowEdgesToMermaid(
+  edges: WorkflowEdge[],
+  options?: { grouped?: boolean }
+): string {
+  const lines: string[] = ["graph LR"];
+  const grouped = options?.grouped ?? true;
+
+  if (grouped) {
+    // Group edges by workflow
+    const byWorkflow = new Map<string, WorkflowEdge[]>();
+    for (const edge of edges) {
+      const list = byWorkflow.get(edge.workflowName) || [];
+      list.push(edge);
+      byWorkflow.set(edge.workflowName, list);
+    }
+
+    // Create subgraph per workflow
+    for (const [workflowName, workflowEdges] of byWorkflow) {
+      lines.push(`    subgraph ${sanitizeId(workflowName)}["${workflowName}"]`);
+      for (const edge of workflowEdges) {
+        const fromId = `${sanitizeId(workflowName)}_${sanitizeId(edge.from)}`;
+        const toId = `${sanitizeId(workflowName)}_${sanitizeId(edge.to)}`;
+        lines.push(`        ${fromId}["${edge.from}"] --> ${toId}["${edge.to}"]`);
+      }
+      lines.push(`    end`);
+    }
+  } else {
+    // Flat graph (edges can share nodes across workflows)
+    for (const edge of edges) {
+      lines.push(`    ${sanitizeId(edge.from)}["${edge.from}"] --> ${sanitizeId(edge.to)}["${edge.to}"]`);
+    }
+  }
+
+  if (edges.length === 0) {
+    lines.push(`    empty["No workflow edges defined"]`);
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Display workflow edges as visual diagram
+ *
+ * @example
+ * ```typescript
+ * const edges = loader.convertToEdges(workflows);
+ * await displayWorkflowEdges(edges);
+ * ```
+ */
+export async function displayWorkflowEdges(
+  edges: WorkflowEdge[],
+  options?: { grouped?: boolean }
+): Promise<unknown> {
+  return displayMermaid(workflowEdgesToMermaid(edges, options));
+}
+
+/**
+ * Generate stats summary for workflow templates
+ */
+export function workflowStats(
+  workflows: Array<{ name: string; steps?: string[]; edges?: [string, string][] }>
+): string {
+  const withSteps = workflows.filter(w => w.steps && w.steps.length >= 2).length;
+  const withEdges = workflows.filter(w => w.edges && w.edges.length >= 1).length;
+  const totalEdges = workflows.reduce((sum, w) => {
+    if (w.steps) return sum + Math.max(0, w.steps.length - 1);
+    if (w.edges) return sum + w.edges.length;
+    return sum;
+  }, 0);
+
+  return `Workflow Stats:
+  - Total workflows: ${workflows.length}
+  - Using steps (linear): ${withSteps}
+  - Using edges (DAG): ${withEdges}
+  - Total edges: ${totalEdges}`;
 }

@@ -45,39 +45,60 @@ export class DAGSuggester {
   }
 
   /**
-   * Suggest DAG structure for a given workflow intent
+   * Suggest DAG structure for a given workflow intent (ADR-022: Hybrid Search)
    *
    * Process:
-   * 1. Vector search for semantic candidates (top-10)
-   * 2. Rank by PageRank for importance
-   * 3. Build DAG using graph topology
-   * 4. Calculate confidence score
-   * 5. Find alternative tools from same community
+   * 1. Hybrid search for candidates (semantic + graph relatedness)
+   * 2. Rank by finalScore (already combines semantic + graph)
+   * 3. Boost by PageRank for importance
+   * 4. Build DAG using graph topology
+   * 5. Calculate confidence score
+   * 6. Find alternative tools from same community
    *
    * @param intent - Workflow intent with natural language description
    * @returns Suggested DAG with confidence, rationale, and alternatives, or null if confidence too low
    */
   async suggestDAG(intent: WorkflowIntent): Promise<SuggestedDAG | null> {
     try {
-      // 1. Vector search for semantic candidates
-      const candidates = await this.vectorSearch.searchTools(intent.text, 10, 0.6);
+      // ADR-022: Use hybrid search (semantic + graph) instead of pure vector search
+      // This helps discover intermediate tools that are logically necessary but not
+      // explicitly mentioned in the intent (e.g., finding npm_install between git_clone and deploy)
+      const contextTools = intent.toolsConsidered || [];
+      const hybridCandidates = await this.graphEngine.searchToolsHybrid(
+        this.vectorSearch,
+        intent.text,
+        10, // top-10 candidates
+        contextTools,
+        false, // no related tools needed here
+      );
 
-      if (candidates.length === 0) {
-        log.info(`No semantic candidates found for intent: "${intent.text}"`);
+      if (hybridCandidates.length === 0) {
+        log.info(`No candidates found for intent: "${intent.text}"`);
         return null;
       }
 
-      // 2. Rank by PageRank (Graphology)
-      const rankedCandidates = candidates
+      // 2. Rank by hybrid finalScore + PageRank boost
+      const rankedCandidates = hybridCandidates
+        .map((c) => ({
+          toolId: c.toolId,
+          serverId: c.serverId,
+          toolName: c.toolName,
+          score: c.finalScore, // Use hybrid finalScore as base
+          semanticScore: c.semanticScore,
+          graphScore: c.graphScore,
+          pageRank: this.graphEngine.getPageRank(c.toolId),
+          schema: c.schema,
+        }))
+        // Combine finalScore with PageRank: 80% finalScore + 20% PageRank
         .map((c) => ({
           ...c,
-          pageRank: this.graphEngine.getPageRank(c.toolId),
+          combinedScore: c.score * 0.8 + c.pageRank * 0.2,
         }))
-        .sort((a, b) => b.pageRank - a.pageRank)
+        .sort((a, b) => b.combinedScore - a.combinedScore)
         .slice(0, 5);
 
       log.debug(
-        `Ranked candidates by PageRank: ${rankedCandidates.map((c) => `${c.toolId} (${c.pageRank.toFixed(3)})`).join(", ")}`,
+        `Ranked candidates (hybrid+PageRank): ${rankedCandidates.map((c) => `${c.toolId} (final=${c.score.toFixed(2)}, PR=${c.pageRank.toFixed(3)})`).join(", ")}`,
       );
 
       // 3. Build DAG using graph topology (Graphology)
@@ -88,8 +109,11 @@ export class DAGSuggester {
       // 4. Extract dependency paths for explainability
       const dependencyPaths = this.extractDependencyPaths(rankedCandidates.map((c) => c.toolId));
 
-      // 5. Calculate confidence
-      const { confidence, semanticScore, pageRankScore, pathStrength } = this.calculateConfidence(rankedCandidates, dependencyPaths);
+      // 5. Calculate confidence (adjusted for hybrid search)
+      const { confidence, semanticScore, pageRankScore, pathStrength } = this.calculateConfidenceHybrid(
+        rankedCandidates,
+        dependencyPaths,
+      );
 
       log.info(
         `Confidence: ${confidence.toFixed(2)} (semantic: ${semanticScore.toFixed(2)}, pageRank: ${pageRankScore.toFixed(2)}, pathStrength: ${pathStrength.toFixed(2)}) for intent: "${intent.text}"`,
@@ -105,8 +129,8 @@ export class DAGSuggester {
         .findCommunityMembers(rankedCandidates[0].toolId)
         .slice(0, 3);
 
-      // 7. Generate rationale
-      const rationale = this.generateRationale(rankedCandidates, dependencyPaths);
+      // 7. Generate rationale (updated for hybrid)
+      const rationale = this.generateRationaleHybrid(rankedCandidates, dependencyPaths);
 
       return {
         dagStructure,
@@ -185,23 +209,39 @@ export class DAGSuggester {
     return 0.50;
   }
 
+  // =============================================================================
+  // Story 5.2 / ADR-022: Hybrid Search Support Methods
+  // =============================================================================
+  // NOTE: Legacy calculateConfidence() and generateRationale() removed (ADR-022)
+  // Use calculateConfidenceHybrid() and generateRationaleHybrid() instead
+
   /**
-   * Calculate overall confidence score
+   * Calculate confidence for hybrid search candidates (ADR-022)
    *
-   * Combines semantic similarity, PageRank importance, and dependency path strength.
+   * Uses the already-computed hybrid finalScore which includes both semantic and graph scores.
+   * This provides a more accurate confidence since graph context is already factored in.
    *
-   * @param candidates - Ranked candidate tools with scores
+   * @param candidates - Ranked candidates with hybrid scores
    * @param dependencyPaths - Extracted dependency paths
-   * @returns Confidence score between 0 and 1
+   * @returns Confidence breakdown
    */
-  private calculateConfidence(
-    candidates: Array<{ score: number; pageRank: number }>,
+  private calculateConfidenceHybrid(
+    candidates: Array<{
+      score: number;
+      semanticScore: number;
+      graphScore: number;
+      pageRank: number;
+      combinedScore: number;
+    }>,
     dependencyPaths: DependencyPath[],
   ): { confidence: number; semanticScore: number; pageRankScore: number; pathStrength: number } {
-    if (candidates.length === 0) return { confidence: 0, semanticScore: 0, pageRankScore: 0, pathStrength: 0 };
+    if (candidates.length === 0) {
+      return { confidence: 0, semanticScore: 0, pageRankScore: 0, pathStrength: 0 };
+    }
 
-    // Semantic score (top candidate)
-    const semanticScore = candidates[0].score;
+    // Use the hybrid finalScore as base (already includes semantic + graph)
+    const hybridScore = candidates[0].score;
+    const semanticScore = candidates[0].semanticScore;
 
     // PageRank score (average of top 3)
     const pageRankScore = candidates.slice(0, 3).reduce((sum, c) => sum + c.pageRank, 0) /
@@ -212,41 +252,61 @@ export class DAGSuggester {
       ? dependencyPaths.reduce((sum, p) => sum + (p.confidence || 0.5), 0) / dependencyPaths.length
       : 0.5;
 
-    // Weighted combination
-    // Semantic: 50%, PageRank: 30%, Path strength: 20%
-    const confidence = semanticScore * 0.5 + pageRankScore * 0.3 + pathStrength * 0.2;
+    // Weighted combination adjusted for hybrid search:
+    // Hybrid score already includes graph, so reduce weight on pathStrength
+    // Hybrid: 55%, PageRank: 30%, Path strength: 15%
+    const confidence = hybridScore * 0.55 + pageRankScore * 0.30 + pathStrength * 0.15;
+
     return { confidence, semanticScore, pageRankScore, pathStrength };
   }
 
   /**
-   * Generate human-readable rationale for the suggested DAG
+   * Generate rationale for hybrid search candidates (ADR-022)
    *
-   * @param candidates - Ranked candidate tools
+   * Includes both semantic and graph contributions in the explanation.
+   *
+   * @param candidates - Ranked candidates with hybrid scores
    * @param dependencyPaths - Extracted dependency paths
    * @returns Rationale text
    */
-  private generateRationale(
-    candidates: Array<{ toolId: string; score: number; pageRank: number }>,
+  private generateRationaleHybrid(
+    candidates: Array<{
+      toolId: string;
+      score: number;
+      semanticScore: number;
+      graphScore: number;
+      pageRank: number;
+    }>,
     dependencyPaths: DependencyPath[],
   ): string {
     const topTool = candidates[0];
     const parts: string[] = [];
 
-    // Semantic match
-    parts.push(`Based on semantic similarity (${(topTool.score * 100).toFixed(0)}%)`);
+    // Hybrid match (main score)
+    parts.push(`Based on hybrid search (${(topTool.score * 100).toFixed(0)}%)`);
+
+    // Semantic contribution
+    if (topTool.semanticScore > 0) {
+      parts.push(`semantic: ${(topTool.semanticScore * 100).toFixed(0)}%`);
+    }
+
+    // Graph contribution
+    if (topTool.graphScore > 0) {
+      parts.push(`graph: ${(topTool.graphScore * 100).toFixed(0)}%`);
+    }
 
     // PageRank importance
     if (topTool.pageRank > 0.01) {
-      parts.push(`PageRank importance (${(topTool.pageRank * 100).toFixed(1)}%)`);
+      parts.push(`PageRank: ${(topTool.pageRank * 100).toFixed(1)}%`);
     }
 
-    // Dependency strength
+    // Dependency paths
     if (dependencyPaths.length > 0) {
       const directDeps = dependencyPaths.filter((p) => p.hops === 1).length;
-      parts.push(`${dependencyPaths.length} dependency paths (${directDeps} direct)`);
+      parts.push(`${dependencyPaths.length} deps (${directDeps} direct)`);
     }
 
-    return parts.join(" and ") + ".";
+    return parts.join(", ") + ".";
   }
 
   /**

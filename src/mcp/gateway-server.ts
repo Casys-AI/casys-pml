@@ -898,8 +898,9 @@ export class AgentCardsGatewayServer {
   }
 
   /**
-   * Handle search_tools request (Spike: search-tools-graph-traversal)
+   * Handle search_tools request (Story 5.2 / ADR-022: Refactored)
    *
+   * Delegates to GraphRAGEngine.searchToolsHybrid() for centralized hybrid search logic.
    * Combines semantic search with graph-based recommendations:
    * 1. Semantic search for query-matching tools
    * 2. Adaptive alpha: more semantic weight when graph is sparse
@@ -937,10 +938,16 @@ export class AgentCardsGatewayServer {
 
     log.info(`search_tools: query="${query}", limit=${limit}, include_related=${includeRelated}`);
 
-    // 1. Semantic search (main candidates)
-    const semanticResults = await this.vectorSearch.searchTools(query, limit * 2, 0.5);
+    // ADR-022: Delegate to centralized hybrid search in GraphRAGEngine
+    const hybridResults = await this.graphEngine.searchToolsHybrid(
+      this.vectorSearch,
+      query,
+      limit,
+      contextTools,
+      includeRelated,
+    );
 
-    if (semanticResults.length === 0) {
+    if (hybridResults.length === 0) {
       return {
         content: [{
           type: "text",
@@ -952,60 +959,30 @@ export class AgentCardsGatewayServer {
       };
     }
 
-    // 2. Calculate adaptive alpha based on graph density (ADR-015)
+    // Map to MCP response format (snake_case for external API)
+    const results = hybridResults.map((result) => ({
+      tool_id: result.toolId,
+      server_id: result.serverId,
+      description: result.description,
+      semantic_score: result.semanticScore,
+      graph_score: result.graphScore,
+      final_score: result.finalScore,
+      related_tools: result.relatedTools?.map((rt) => ({
+        tool_id: rt.toolId,
+        relation: rt.relation,
+        score: rt.score,
+      })) || [],
+    }));
+
+    // Get meta info from graph engine
     const edgeCount = this.graphEngine.getEdgeCount();
     const nodeCount = this.graphEngine.getStats().nodeCount;
-    const maxPossibleEdges = nodeCount * (nodeCount - 1); // directed graph
+    const maxPossibleEdges = nodeCount * (nodeCount - 1);
     const density = maxPossibleEdges > 0 ? edgeCount / maxPossibleEdges : 0;
     const alpha = Math.max(0.5, 1.0 - density * 2);
 
-    // 3. Compute final scores with graph boost
-    const results = semanticResults.map((result) => {
-      const graphScore = this.graphEngine.computeGraphRelatedness(result.toolId, contextTools);
-      const finalScore = alpha * result.score + (1 - alpha) * graphScore;
-
-      return {
-        tool_id: result.toolId,
-        server_id: result.serverId,
-        description: result.schema?.description || "",
-        semantic_score: Math.round(result.score * 100) / 100,
-        graph_score: Math.round(graphScore * 100) / 100,
-        final_score: Math.round(finalScore * 100) / 100,
-        related_tools: [] as Array<{ tool_id: string; relation: string; score: number }>,
-      };
-    });
-
-    // Sort by final score and limit
-    results.sort((a, b) => b.final_score - a.final_score);
-    const topResults = results.slice(0, limit);
-
-    // 4. Add related tools if requested
-    if (includeRelated) {
-      for (const result of topResults) {
-        // Get in-neighbors (tools often used BEFORE this one)
-        const inNeighbors = this.graphEngine.getNeighbors(result.tool_id, "in");
-        for (const neighbor of inNeighbors.slice(0, 2)) {
-          result.related_tools.push({
-            tool_id: neighbor,
-            relation: "often_before",
-            score: 0.8,
-          });
-        }
-
-        // Get out-neighbors (tools often used AFTER this one)
-        const outNeighbors = this.graphEngine.getNeighbors(result.tool_id, "out");
-        for (const neighbor of outNeighbors.slice(0, 2)) {
-          result.related_tools.push({
-            tool_id: neighbor,
-            relation: "often_after",
-            score: 0.8,
-          });
-        }
-      }
-    }
-
     log.info(
-      `search_tools: found ${topResults.length} results (alpha=${alpha}, edges=${edgeCount})`,
+      `search_tools: found ${results.length} results (alpha=${alpha.toFixed(2)}, edges=${edgeCount})`,
     );
 
     return {
@@ -1013,10 +990,10 @@ export class AgentCardsGatewayServer {
         type: "text",
         text: JSON.stringify(
           {
-            tools: topResults,
+            tools: results,
             meta: {
               query,
-              alpha,
+              alpha: Math.round(alpha * 100) / 100,
               edge_count: edgeCount,
             },
           },

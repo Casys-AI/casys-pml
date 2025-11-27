@@ -247,3 +247,35 @@ export interface CompletedTask {
   status: "success" | "error" | "failed_safe";
   executionTimeMs?: number;
 }
+
+// =============================================================================
+// Story 5.2 / ADR-022: Hybrid Search Integration
+// =============================================================================
+
+/**
+ * Result from hybrid search combining semantic and graph scores (ADR-022)
+ *
+ * Centralizes the hybrid search logic for use in both:
+ * - GatewayServer.handleSearchTools (MCP tool)
+ * - DAGSuggester.suggestDAG (internal)
+ */
+export interface HybridSearchResult {
+  toolId: string;
+  serverId: string;
+  toolName: string;
+  description: string;
+  /** Semantic similarity score (0-1) */
+  semanticScore: number;
+  /** Graph relatedness score (0-1) */
+  graphScore: number;
+  /** Combined final score: α × semantic + (1-α) × graph */
+  finalScore: number;
+  /** Related tools (in/out neighbors) if requested */
+  relatedTools?: Array<{
+    toolId: string;
+    relation: "often_before" | "often_after";
+    score: number;
+  }>;
+  /** Original schema from tool_schema table */
+  schema?: Record<string, unknown>;
+}

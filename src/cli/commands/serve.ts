@@ -18,6 +18,7 @@ import { GraphRAGEngine } from "../../graphrag/graph-engine.ts";
 import { DAGSuggester } from "../../graphrag/dag-suggester.ts";
 import { ParallelExecutor } from "../../dag/executor.ts";
 import { AgentCardsGatewayServer } from "../../mcp/gateway-server.ts";
+import { WorkflowSyncService } from "../../graphrag/workflow-sync.ts";
 import type { MCPServer } from "../../mcp/types.ts";
 import type { ToolExecutor } from "../../dag/types.ts";
 
@@ -182,6 +183,15 @@ export function createServeCommand() {
         // Run migrations
         const runner = new MigrationRunner(db);
         await runner.runUp(getAllMigrations());
+
+        // Story 5.2: Auto-bootstrap graph from workflow templates if empty
+        const workflowSyncService = new WorkflowSyncService(db);
+        const bootstrapped = await workflowSyncService.bootstrapIfEmpty(
+          "./config/workflow-templates.yaml",
+        );
+        if (bootstrapped) {
+          log.info("✓ Graph bootstrapped from workflow-templates.yaml");
+        }
 
         // 3. Connect to MCP servers
         log.info("Step 3/6: Connecting to MCP servers...");

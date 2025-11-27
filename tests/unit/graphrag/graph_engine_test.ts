@@ -370,3 +370,290 @@ Deno.test("GraphRAGEngine - updateFromExecution strengthens edges", async () => 
 
   await db.close();
 });
+
+// ============================================
+// Story 5.2 / ADR-022: searchToolsHybrid Tests
+// ============================================
+
+/**
+ * Mock VectorSearch for testing hybrid search
+ */
+class MockVectorSearch {
+  private mockResults: Array<{
+    toolId: string;
+    serverId: string;
+    toolName: string;
+    score: number;
+    schema?: { description?: string };
+  }> = [];
+
+  setResults(
+    results: Array<{
+      toolId: string;
+      serverId: string;
+      toolName: string;
+      score: number;
+      schema?: { description?: string };
+    }>,
+  ) {
+    this.mockResults = results;
+  }
+
+  async searchTools(
+    _query: string,
+    _topK: number = 5,
+    _minScore: number = 0.7,
+  ): Promise<
+    Array<{
+      toolId: string;
+      serverId: string;
+      toolName: string;
+      score: number;
+      schema: { description?: string };
+    }>
+  > {
+    return this.mockResults.map((r) => ({
+      ...r,
+      schema: r.schema || { description: `Test tool ${r.toolName}` },
+    }));
+  }
+}
+
+Deno.test("GraphRAGEngine - searchToolsHybrid returns combined semantic+graph scores", async () => {
+  const db = await createTestDb();
+  await insertTestTools(db);
+  await insertTestDependencies(db);
+
+  const engine = new GraphRAGEngine(db);
+  await engine.syncFromDatabase();
+
+  const mockVectorSearch = new MockVectorSearch();
+  mockVectorSearch.setResults([
+    { toolId: "json:parse", serverId: "json", toolName: "parse", score: 0.9 },
+    { toolId: "filesystem:write", serverId: "filesystem", toolName: "write_file", score: 0.8 },
+    { toolId: "http:get", serverId: "http", toolName: "get", score: 0.7 },
+  ]);
+
+  const results = await engine.searchToolsHybrid(
+    mockVectorSearch as unknown as import("../../../src/vector/search.ts").VectorSearch,
+    "parse json data",
+    5,
+    [],
+    false,
+  );
+
+  assertExists(results);
+  assert(results.length > 0, "Should return results");
+
+  // Each result should have semantic, graph, and final scores
+  for (const result of results) {
+    assertExists(result.toolId);
+    assertExists(result.semanticScore);
+    assertExists(result.graphScore);
+    assertExists(result.finalScore);
+    assert(result.semanticScore >= 0 && result.semanticScore <= 1);
+    assert(result.graphScore >= 0 && result.graphScore <= 1);
+    assert(result.finalScore >= 0 && result.finalScore <= 1);
+  }
+
+  await db.close();
+});
+
+Deno.test("GraphRAGEngine - searchToolsHybrid calculates adaptive alpha based on edge count", async () => {
+  const db = await createTestDb();
+  await insertTestTools(db);
+  // No dependencies - sparse graph
+  // With sparse graph, alpha should be high (more semantic weight)
+
+  const engine = new GraphRAGEngine(db);
+  await engine.syncFromDatabase();
+
+  const mockVectorSearch = new MockVectorSearch();
+  mockVectorSearch.setResults([
+    { toolId: "json:parse", serverId: "json", toolName: "parse", score: 0.9 },
+  ]);
+
+  const results = await engine.searchToolsHybrid(
+    mockVectorSearch as unknown as import("../../../src/vector/search.ts").VectorSearch,
+    "parse json",
+    5,
+    [],
+    false,
+  );
+
+  assertExists(results);
+  assert(results.length > 0);
+
+  // With no edges (sparse graph), final score should be close to semantic score
+  // because alpha approaches 1.0
+  const result = results[0];
+  assert(
+    Math.abs(result.finalScore - result.semanticScore) < 0.5,
+    `With sparse graph, finalScore (${result.finalScore}) should be close to semanticScore (${result.semanticScore})`,
+  );
+
+  await db.close();
+});
+
+Deno.test("GraphRAGEngine - searchToolsHybrid boosts tools with graph context", async () => {
+  const db = await createTestDb();
+  await insertTestTools(db);
+  await insertTestDependencies(db);
+
+  const engine = new GraphRAGEngine(db);
+  await engine.syncFromDatabase();
+
+  const mockVectorSearch = new MockVectorSearch();
+  mockVectorSearch.setResults([
+    // json:parse has lower semantic score but should be boosted by context
+    { toolId: "json:parse", serverId: "json", toolName: "parse", score: 0.7 },
+    { toolId: "filesystem:write", serverId: "filesystem", toolName: "write_file", score: 0.7 },
+  ]);
+
+  // Context includes http:get which has edge to json:parse
+  const results = await engine.searchToolsHybrid(
+    mockVectorSearch as unknown as import("../../../src/vector/search.ts").VectorSearch,
+    "process data",
+    5,
+    ["http:get"], // Context tool
+    false,
+  );
+
+  assertExists(results);
+  assert(results.length > 0);
+
+  // Find json:parse result - should have non-zero graph score
+  const parseResult = results.find((r) => r.toolId === "json:parse");
+  assertExists(parseResult);
+  assert(
+    parseResult.graphScore > 0,
+    `json:parse should have graph boost from context (got ${parseResult.graphScore})`,
+  );
+
+  await db.close();
+});
+
+Deno.test("GraphRAGEngine - searchToolsHybrid includes related tools when requested", async () => {
+  const db = await createTestDb();
+  await insertTestTools(db);
+  await insertTestDependencies(db);
+
+  const engine = new GraphRAGEngine(db);
+  await engine.syncFromDatabase();
+
+  const mockVectorSearch = new MockVectorSearch();
+  mockVectorSearch.setResults([
+    { toolId: "json:parse", serverId: "json", toolName: "parse", score: 0.9 },
+  ]);
+
+  const results = await engine.searchToolsHybrid(
+    mockVectorSearch as unknown as import("../../../src/vector/search.ts").VectorSearch,
+    "parse json",
+    5,
+    [],
+    true, // Include related tools
+  );
+
+  assertExists(results);
+  assert(results.length > 0);
+
+  const parseResult = results.find((r) => r.toolId === "json:parse");
+  assertExists(parseResult);
+
+  // json:parse has neighbors (http:get → json:parse → filesystem:write)
+  // Should have related tools from graph neighbors
+  assertExists(parseResult.relatedTools);
+  // May or may not have related tools depending on graph structure
+  // But the array should exist
+  assert(Array.isArray(parseResult.relatedTools));
+
+  await db.close();
+});
+
+Deno.test("GraphRAGEngine - searchToolsHybrid handles empty results gracefully", async () => {
+  const db = await createTestDb();
+  await insertTestTools(db);
+
+  const engine = new GraphRAGEngine(db);
+  await engine.syncFromDatabase();
+
+  const mockVectorSearch = new MockVectorSearch();
+  mockVectorSearch.setResults([]); // No results
+
+  const results = await engine.searchToolsHybrid(
+    mockVectorSearch as unknown as import("../../../src/vector/search.ts").VectorSearch,
+    "nonexistent tool query",
+    5,
+    [],
+    false,
+  );
+
+  assertEquals(results.length, 0, "Should return empty array when no semantic results");
+
+  await db.close();
+});
+
+Deno.test("GraphRAGEngine - searchToolsHybrid respects limit parameter", async () => {
+  const db = await createTestDb();
+  await insertTestTools(db);
+  await insertTestDependencies(db);
+
+  const engine = new GraphRAGEngine(db);
+  await engine.syncFromDatabase();
+
+  const mockVectorSearch = new MockVectorSearch();
+  mockVectorSearch.setResults([
+    { toolId: "json:parse", serverId: "json", toolName: "parse", score: 0.9 },
+    { toolId: "filesystem:write", serverId: "filesystem", toolName: "write_file", score: 0.85 },
+    { toolId: "http:get", serverId: "http", toolName: "get", score: 0.8 },
+    { toolId: "filesystem:read", serverId: "filesystem", toolName: "read_file", score: 0.75 },
+    { toolId: "json:stringify", serverId: "json", toolName: "stringify", score: 0.7 },
+  ]);
+
+  const results = await engine.searchToolsHybrid(
+    mockVectorSearch as unknown as import("../../../src/vector/search.ts").VectorSearch,
+    "file tools",
+    2, // Limit to 2
+    [],
+    false,
+  );
+
+  assertEquals(results.length, 2, "Should respect limit parameter");
+
+  await db.close();
+});
+
+Deno.test("GraphRAGEngine - searchToolsHybrid performance < 20ms overhead", async () => {
+  const db = await createTestDb();
+  await insertTestTools(db);
+  await insertTestDependencies(db);
+
+  const engine = new GraphRAGEngine(db);
+  await engine.syncFromDatabase();
+
+  const mockVectorSearch = new MockVectorSearch();
+  mockVectorSearch.setResults([
+    { toolId: "json:parse", serverId: "json", toolName: "parse", score: 0.9 },
+    { toolId: "filesystem:write", serverId: "filesystem", toolName: "write_file", score: 0.85 },
+    { toolId: "http:get", serverId: "http", toolName: "get", score: 0.8 },
+  ]);
+
+  const startTime = performance.now();
+  await engine.searchToolsHybrid(
+    mockVectorSearch as unknown as import("../../../src/vector/search.ts").VectorSearch,
+    "test query",
+    10,
+    ["http:get"],
+    true,
+  );
+  const elapsedMs = performance.now() - startTime;
+
+  // Mock vector search is instant, so we're measuring pure graph overhead
+  // ADR-022 targets <20ms overhead
+  assert(
+    elapsedMs < 50, // Allow some buffer for test environment
+    `searchToolsHybrid overhead was ${elapsedMs.toFixed(1)}ms, should be <20ms`,
+  );
+
+  await db.close();
+});

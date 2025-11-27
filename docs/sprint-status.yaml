@@ -120,9 +120,9 @@ development_status:
   # 2 stories, ~4-6h
   # Hybrid search: semantic + graph-based relatedness (Adamic-Adar)
   # See spike: docs/spikes/spike-search-tools-graph-traversal.md
-  epic-5: contexted
+  epic-5: done  # Both stories completed 2025-11-27
   5-1-search-tools-semantic-graph-hybrid: done
-  5-2-workflow-templates-graph-bootstrap: drafted
+  5-2-workflow-templates-graph-bootstrap: done  # Code Review APPROVED 2025-11-27, 52 tests passing
   epic-5-retrospective: optional
 
   # Epic 6: Real-time Graph Monitoring & Observability

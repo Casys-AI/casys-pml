@@ -71,130 +71,158 @@ async function insertTestData(db: PGliteClient, model: EmbeddingModel): Promise<
   }
 }
 
-Deno.test("DAGSuggester - suggests DAG for high confidence intent", async () => {
-  const db = await createTestDb();
-  const model = new EmbeddingModel();
-  await model.load();
+Deno.test({
+  name: "DAGSuggester - suggests DAG for high confidence intent",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    const db = await createTestDb();
+    const model = new EmbeddingModel();
+    await model.load();
 
-  await insertTestData(db, model);
+    await insertTestData(db, model);
 
-  const graphEngine = new GraphRAGEngine(db);
-  await graphEngine.syncFromDatabase();
+    const graphEngine = new GraphRAGEngine(db);
+    await graphEngine.syncFromDatabase();
 
-  const vectorSearch = new VectorSearch(db, model);
-  const suggester = new DAGSuggester(graphEngine, vectorSearch);
+    const vectorSearch = new VectorSearch(db, model);
+    const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
-  const suggestion = await suggester.suggestDAG({
-    text: "read file and parse JSON",
-  });
+    const suggestion = await suggester.suggestDAG({
+      text: "read file and parse JSON",
+    });
 
-  assertExists(suggestion, "Should return suggestion for high confidence intent");
-  assertExists(suggestion!.dagStructure);
-  assertExists(suggestion!.confidence);
-  assert(suggestion!.confidence >= 0.5, "Confidence should be reasonable");
+    assertExists(suggestion, "Should return suggestion for high confidence intent");
+    assertExists(suggestion!.dagStructure);
+    assertExists(suggestion!.confidence);
+    assert(suggestion!.confidence >= 0.5, "Confidence should be reasonable");
 
-  await db.close();
+    await db.close();
+  },
 });
 
-Deno.test("DAGSuggester - returns null for low confidence intent", async () => {
-  const db = await createTestDb();
-  const model = new EmbeddingModel();
-  await model.load();
+Deno.test({
+  name: "DAGSuggester - returns null for low confidence intent",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    const db = await createTestDb();
+    const model = new EmbeddingModel();
+    await model.load();
 
-  // Insert minimal data to ensure low confidence
-  await insertTestData(db, model);
+    // Insert minimal data to ensure low confidence
+    await insertTestData(db, model);
 
-  const graphEngine = new GraphRAGEngine(db);
-  await graphEngine.syncFromDatabase();
+    const graphEngine = new GraphRAGEngine(db);
+    await graphEngine.syncFromDatabase();
 
-  const vectorSearch = new VectorSearch(db, model);
-  const suggester = new DAGSuggester(graphEngine, vectorSearch);
+    const vectorSearch = new VectorSearch(db, model);
+    const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
-  const suggestion = await suggester.suggestDAG({
-    text: "completely unrelated quantum mechanics calculation",
-  });
+    const suggestion = await suggester.suggestDAG({
+      text: "completely unrelated quantum mechanics calculation",
+    });
 
-  // Should return null due to low semantic similarity
-  assertEquals(suggestion, null, "Should return null for very low confidence");
+    // Should return null due to low semantic similarity
+    assertEquals(suggestion, null, "Should return null for very low confidence");
 
-  await db.close();
+    await db.close();
+  },
 });
 
-Deno.test("DAGSuggester - includes dependency paths in suggestion", async () => {
-  const db = await createTestDb();
-  const model = new EmbeddingModel();
-  await model.load();
+Deno.test({
+  name: "DAGSuggester - includes dependency paths in suggestion",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    const db = await createTestDb();
+    const model = new EmbeddingModel();
+    await model.load();
 
-  await insertTestData(db, model);
+    await insertTestData(db, model);
 
-  const graphEngine = new GraphRAGEngine(db);
-  await graphEngine.syncFromDatabase();
+    const graphEngine = new GraphRAGEngine(db);
+    await graphEngine.syncFromDatabase();
 
-  const vectorSearch = new VectorSearch(db, model);
-  const suggester = new DAGSuggester(graphEngine, vectorSearch);
+    const vectorSearch = new VectorSearch(db, model);
+    const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
-  const suggestion = await suggester.suggestDAG({
-    text: "fetch HTTP and parse JSON",
-  });
+    const suggestion = await suggester.suggestDAG({
+      text: "fetch HTTP and parse JSON",
+    });
 
-  if (suggestion) {
-    assertExists(suggestion.dependencyPaths, "Should include dependency paths");
-    assert(Array.isArray(suggestion.dependencyPaths), "Dependency paths should be an array");
-  }
+    if (suggestion) {
+      assertExists(suggestion.dependencyPaths, "Should include dependency paths");
+      assert(Array.isArray(suggestion.dependencyPaths), "Dependency paths should be an array");
+    }
 
-  await db.close();
+    await db.close();
+  },
 });
 
-Deno.test("DAGSuggester - generates rationale for suggestion", async () => {
-  const db = await createTestDb();
-  const model = new EmbeddingModel();
-  await model.load();
+Deno.test({
+  name: "DAGSuggester - generates rationale for suggestion",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    const db = await createTestDb();
+    const model = new EmbeddingModel();
+    await model.load();
 
-  await insertTestData(db, model);
+    await insertTestData(db, model);
 
-  const graphEngine = new GraphRAGEngine(db);
-  await graphEngine.syncFromDatabase();
+    const graphEngine = new GraphRAGEngine(db);
+    await graphEngine.syncFromDatabase();
 
-  const vectorSearch = new VectorSearch(db, model);
-  const suggester = new DAGSuggester(graphEngine, vectorSearch);
+    const vectorSearch = new VectorSearch(db, model);
+    const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
-  const suggestion = await suggester.suggestDAG({
-    text: "read file",
-  });
+    const suggestion = await suggester.suggestDAG({
+      text: "read file",
+    });
 
-  if (suggestion) {
-    assertExists(suggestion.rationale, "Should include rationale");
-    assert(suggestion.rationale.length > 0, "Rationale should not be empty");
-    assert(
-      suggestion.rationale.includes("semantic") || suggestion.rationale.includes("PageRank"),
-      "Rationale should mention semantic or PageRank",
-    );
-  }
+    if (suggestion) {
+      assertExists(suggestion.rationale, "Should include rationale");
+      assert(suggestion.rationale.length > 0, "Rationale should not be empty");
+      // ADR-022: Now uses hybrid search rationale
+      assert(
+        suggestion.rationale.includes("hybrid") ||
+          suggestion.rationale.includes("semantic") ||
+          suggestion.rationale.includes("PageRank"),
+        "Rationale should mention hybrid, semantic, or PageRank",
+      );
+    }
 
-  await db.close();
+    await db.close();
+  },
 });
 
-Deno.test("DAGSuggester - finds alternative tools from same community", async () => {
-  const db = await createTestDb();
-  const model = new EmbeddingModel();
-  await model.load();
+Deno.test({
+  name: "DAGSuggester - finds alternative tools from same community",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    const db = await createTestDb();
+    const model = new EmbeddingModel();
+    await model.load();
 
-  await insertTestData(db, model);
+    await insertTestData(db, model);
 
-  const graphEngine = new GraphRAGEngine(db);
-  await graphEngine.syncFromDatabase();
+    const graphEngine = new GraphRAGEngine(db);
+    await graphEngine.syncFromDatabase();
 
-  const vectorSearch = new VectorSearch(db, model);
-  const suggester = new DAGSuggester(graphEngine, vectorSearch);
+    const vectorSearch = new VectorSearch(db, model);
+    const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
-  const suggestion = await suggester.suggestDAG({
-    text: "work with files",
-  });
+    const suggestion = await suggester.suggestDAG({
+      text: "work with files",
+    });
 
-  if (suggestion) {
-    assertExists(suggestion.alternatives);
-    assert(Array.isArray(suggestion.alternatives), "Alternatives should be an array");
-  }
+    if (suggestion) {
+      assertExists(suggestion.alternatives);
+      assert(Array.isArray(suggestion.alternatives), "Alternatives should be an array");
+    }
 
-  await db.close();
+    await db.close();
+  },
 });

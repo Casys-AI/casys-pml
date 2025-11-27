@@ -1,0 +1,51 @@
+# Workflow Templates Configuration (Story 5.2)
+#
+# Define common tool sequences to bootstrap the graph.
+# Tool ID format: serverId:toolName (from your MCP server config)
+#
+# TWO FORMATS SUPPORTED:
+#
+# 1. steps (linear sequence):
+#    steps: [A, B, C] → creates edges: A→B, B→C
+#
+# 2. edges (explicit DAG):
+#    edges: [[A,B], [A,C], [B,D], [C,D]]
+#    → creates edges: A→B, A→C, B→D, C→D (parallel branches)
+#
+# Use `steps` for simple workflows, `edges` for complex DAGs with branching.
+# Cannot use both in the same workflow.
+#
+# IMPORTANT: Replace the examples below with YOUR actual MCP tool IDs.
+# Run `agentcards status` to see available tools from your configured servers.
+
+workflows: []
+
+# ============================================================================
+# EXAMPLES (uncomment and adapt to your MCP servers)
+# ============================================================================
+#
+# Example 1: Linear sequence (steps format)
+# - name: parse_json_file
+#   steps:
+#     - filesystem:read_file
+#     - json:parse
+#
+# Example 2: DAG with parallel branches (edges format)
+# - name: fetch_and_process
+#   edges:
+#     - [api:fetch, transform:parse]
+#     - [api:fetch, validate:schema]    # fetch leads to TWO tools (parallel)
+#     - [transform:parse, db:save]
+#     - [validate:schema, db:save]      # save waits for both
+#
+# Example 3: Web research with branching
+# - name: web_research
+#   edges:
+#     - [tavily:search, browser:fetch]
+#     - [browser:fetch, llm:summarize]
+#     - [browser:fetch, llm:extract_entities]  # parallel analysis
+#
+# To find your tool IDs:
+# 1. Check your MCP config (~/.config/Claude/claude_desktop_config.json)
+# 2. Run: agentcards status
+# 3. Look at server_id:tool_name format in the output

@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted (2025-11-27 - Sprint Change Proposal approved)
 
 ## Context
 

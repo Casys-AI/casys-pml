@@ -15,6 +15,7 @@ import { createMcpToolTablesMigration } from "./migrations/004_mcp_tool_tables.t
 import { createWorkflowCheckpointsMigration } from "./migrations/006_workflow_checkpoints_migration.ts";
 import { createEpisodicMemoryMigration } from "./migrations/007_episodic_memory_migration.ts";
 import { createWorkflowDagsMigration } from "./migrations/008_workflow_dags_migration.ts";
+import { createToolDependencySourceMigration } from "./migrations/009_tool_dependency_source_migration.ts";
 
 /**
  * Migration definition
@@ -371,5 +372,6 @@ export function getAllMigrations(): Migration[] {
     createWorkflowCheckpointsMigration(),
     createEpisodicMemoryMigration(),
     createWorkflowDagsMigration(),
+    createToolDependencySourceMigration(),
   ];
 }

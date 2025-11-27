@@ -17,7 +17,8 @@ import louvainPkg from "graphology-communities-louvain";
 import { bidirectional } from "graphology-shortest-path";
 import * as log from "@std/log";
 import type { PGliteClient } from "../db/client.ts";
-import type { DAGStructure, GraphStats, WorkflowExecution } from "./types.ts";
+import type { VectorSearch } from "../vector/search.ts";
+import type { DAGStructure, GraphStats, WorkflowExecution, HybridSearchResult } from "./types.ts";
 
 // Extract exports from Graphology packages
 const { DirectedGraph } = graphologyPkg as any;
@@ -547,5 +548,138 @@ export class GraphRAGEngine {
       communities: new Set(Object.values(this.communities)).size,
       avgPageRank,
     };
+  }
+
+  // ============================================
+  // Story 5.2 / ADR-022: Hybrid Search Integration
+  // ============================================
+
+  /**
+   * Hybrid Search: Combines semantic search with graph-based recommendations (ADR-022)
+   *
+   * Process:
+   * 1. Semantic search for query-matching tools (base candidates)
+   * 2. Calculate adaptive alpha based on graph density
+   * 3. Compute graph relatedness for each candidate (Adamic-Adar / direct edges)
+   * 4. Combine scores: finalScore = α × semantic + (1-α) × graph
+   * 5. Optionally add related tools (in/out neighbors)
+   *
+   * Graceful degradation: Falls back to semantic-only if graph is empty (alpha=1.0)
+   *
+   * Performance target: <20ms overhead (ADR-022)
+   *
+   * @param vectorSearch - VectorSearch instance for semantic search
+   * @param query - Natural language search query
+   * @param limit - Maximum number of results (default: 10)
+   * @param contextTools - Tools already in context (boosts related tools)
+   * @param includeRelated - Include related tools via graph neighbors (default: false)
+   * @returns Sorted array of hybrid search results (highest finalScore first)
+   */
+  async searchToolsHybrid(
+    vectorSearch: VectorSearch,
+    query: string,
+    limit: number = 10,
+    contextTools: string[] = [],
+    includeRelated: boolean = false,
+  ): Promise<HybridSearchResult[]> {
+    const startTime = performance.now();
+
+    try {
+      // 1. Semantic search for base candidates (fetch extra for graph filtering)
+      const semanticResults = await vectorSearch.searchTools(query, limit * 2, 0.5);
+
+      if (semanticResults.length === 0) {
+        log.debug(`[searchToolsHybrid] No semantic candidates for: "${query}"`);
+        return [];
+      }
+
+      // 2. Calculate adaptive alpha based on graph density
+      // More semantic weight when graph is sparse (cold start)
+      const edgeCount = this.getEdgeCount();
+      const nodeCount = this.getStats().nodeCount;
+      const maxPossibleEdges = nodeCount * (nodeCount - 1); // directed graph
+      const density = maxPossibleEdges > 0 ? edgeCount / maxPossibleEdges : 0;
+      const alpha = Math.max(0.5, 1.0 - density * 2);
+
+      log.debug(
+        `[searchToolsHybrid] alpha=${alpha.toFixed(2)} (density=${density.toFixed(4)}, edges=${edgeCount})`,
+      );
+
+      // 3. Compute hybrid scores for each candidate
+      const results: HybridSearchResult[] = semanticResults.map((result) => {
+        const graphScore = this.computeGraphRelatedness(result.toolId, contextTools);
+        const finalScore = alpha * result.score + (1 - alpha) * graphScore;
+
+        const hybridResult: HybridSearchResult = {
+          toolId: result.toolId,
+          serverId: result.serverId,
+          toolName: result.toolName,
+          description: result.schema?.description || "",
+          semanticScore: Math.round(result.score * 100) / 100,
+          graphScore: Math.round(graphScore * 100) / 100,
+          finalScore: Math.round(finalScore * 100) / 100,
+          schema: result.schema as unknown as Record<string, unknown>,
+        };
+
+        return hybridResult;
+      });
+
+      // 4. Sort by final score (descending) and limit
+      results.sort((a, b) => b.finalScore - a.finalScore);
+      const topResults = results.slice(0, limit);
+
+      // 5. Add related tools if requested
+      if (includeRelated) {
+        for (const result of topResults) {
+          result.relatedTools = [];
+
+          // Get in-neighbors (tools often used BEFORE this one)
+          const inNeighbors = this.getNeighbors(result.toolId, "in");
+          for (const neighbor of inNeighbors.slice(0, 2)) {
+            result.relatedTools.push({
+              toolId: neighbor,
+              relation: "often_before",
+              score: 0.8,
+            });
+          }
+
+          // Get out-neighbors (tools often used AFTER this one)
+          const outNeighbors = this.getNeighbors(result.toolId, "out");
+          for (const neighbor of outNeighbors.slice(0, 2)) {
+            result.relatedTools.push({
+              toolId: neighbor,
+              relation: "often_after",
+              score: 0.8,
+            });
+          }
+        }
+      }
+
+      const elapsedMs = performance.now() - startTime;
+      log.info(
+        `[searchToolsHybrid] "${query}" → ${topResults.length} results (alpha=${alpha.toFixed(2)}, ${elapsedMs.toFixed(1)}ms)`,
+      );
+
+      return topResults;
+    } catch (error) {
+      log.error(`[searchToolsHybrid] Failed: ${error}`);
+      // Graceful degradation: fall back to semantic-only
+      try {
+        const fallbackResults = await vectorSearch.searchTools(query, limit, 0.5);
+        return fallbackResults.map((r) => ({
+          toolId: r.toolId,
+          serverId: r.serverId,
+          toolName: r.toolName,
+          description: r.schema?.description || "",
+          semanticScore: r.score,
+          graphScore: 0,
+          finalScore: r.score,
+          schema: r.schema as unknown as Record<string, unknown>,
+        }));
+      } catch (fallbackError) {
+        log.error(`[searchToolsHybrid] Fallback also failed: ${fallbackError}`);
+        return [];
+      }
+    }
   }
 }
