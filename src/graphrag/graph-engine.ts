@@ -690,6 +690,49 @@ export class GraphRAGEngine {
   }
 
   // ============================================
+  // Story 6.2: Graph Visualization Dashboard
+  // ============================================
+
+  /**
+   * Get complete graph snapshot for visualization
+   *
+   * Returns all nodes and edges with their attributes for rendering
+   * in the dashboard interface.
+   *
+   * @returns GraphSnapshot containing nodes, edges, and metadata
+   */
+  getGraphSnapshot(): GraphSnapshot {
+    const nodes = this.graph.nodes().map((toolId: string) => ({
+      id: toolId,
+      label: toolId.split("__").pop() || toolId, // Extract tool name
+      server: toolId.split("__")[1] || "unknown",
+      pagerank: this.pageRanks[toolId] || 0,
+      degree: this.graph.degree(toolId),
+    }));
+
+    const edges = this.graph.edges().map((edgeKey: string) => {
+      const edge = this.graph.getEdgeAttributes(edgeKey);
+      return {
+        source: this.graph.source(edgeKey),
+        target: this.graph.target(edgeKey),
+        confidence: edge.confidence_score,
+        observed_count: edge.observed_count,
+      };
+    });
+
+    return {
+      nodes,
+      edges,
+      metadata: {
+        total_nodes: nodes.length,
+        total_edges: edges.length,
+        density: this.getDensity(),
+        last_updated: new Date().toISOString(),
+      },
+    };
+  }
+
+  // ============================================
   // Story 5.2 / ADR-022: Hybrid Search Integration
   // ============================================
 
@@ -821,4 +864,33 @@ export class GraphRAGEngine {
       }
     }
   }
+}
+
+// ============================================
+// Story 6.2: Graph Snapshot Types
+// ============================================
+
+/**
+ * Graph snapshot for visualization dashboard
+ */
+export interface GraphSnapshot {
+  nodes: Array<{
+    id: string;
+    label: string;
+    server: string;
+    pagerank: number;
+    degree: number;
+  }>;
+  edges: Array<{
+    source: string;
+    target: string;
+    confidence: number;
+    observed_count: number;
+  }>;
+  metadata: {
+    total_nodes: number;
+    total_edges: number;
+    density: number;
+    last_updated: string;
+  };
 }

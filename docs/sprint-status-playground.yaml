@@ -41,8 +41,8 @@ development_status:
   # Epic 1: Infrastructure Playground
   epic-1: backlog
   1-1-devcontainer-configuration: done
-  1-2-mcp-servers-configuration: drafted
-  1-3-workflow-templates-configuration: backlog
+  1-2-mcp-servers-configuration: done
+  1-3-workflow-templates-configuration: done
   1-4-llm-api-key-setup-script: backlog
   1-5-idempotent-init-helper: backlog
   1-6-mermaid-rendering-helper: done

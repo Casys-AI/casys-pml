@@ -12,11 +12,12 @@ import { createDefaultClient } from "../../db/client.ts";
 import { MigrationRunner, getAllMigrations } from "../../db/migrations.ts";
 import { WorkflowSyncService } from "../../graphrag/workflow-sync.ts";
 import { WorkflowLoader } from "../../graphrag/workflow-loader.ts";
+import { getWorkflowTemplatesPath } from "../utils.ts";
 
 /**
  * Default workflow templates path
  */
-const DEFAULT_WORKFLOW_PATH = "./config/workflow-templates.yaml";
+const DEFAULT_WORKFLOW_PATH = getWorkflowTemplatesPath();
 
 /**
  * Create workflows command group

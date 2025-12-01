@@ -11,6 +11,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { vector } from "@electric-sql/pglite/vector";
 import * as log from "@std/log";
 import { ensureDir } from "@std/fs";
+import { getAgentCardsDatabasePath } from "../cli/utils.ts";
 
 /**
  * Row returned from database query
@@ -180,9 +181,10 @@ export class PGliteClient {
 
 /**
  * Create a default database client pointing to ~/.agentcards/.agentcards.db
+ *
+ * Respects AGENTCARDS_DB_PATH environment variable for custom paths (ADR-021).
  */
 export function createDefaultClient(): PGliteClient {
-  const homeDir = Deno.env.get("HOME") || Deno.env.get("USERPROFILE") || ".";
-  const dbPath = `${homeDir}/.agentcards/.agentcards.db`;
+  const dbPath = getAgentCardsDatabasePath();
   return new PGliteClient(dbPath);
 }

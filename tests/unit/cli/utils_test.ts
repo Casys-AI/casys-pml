@@ -4,13 +4,14 @@
  * @module tests/unit/cli/utils_test
  */
 
-import { assert } from "@std/assert";
+import { assert, assertEquals } from "@std/assert";
 import {
   detectMCPConfigPath,
   getAgentCardsConfigDir,
   getAgentCardsConfigPath,
   getLegacyConfigPath,
   getAgentCardsDatabasePath,
+  getWorkflowTemplatesPath,
 } from "../../../src/cli/utils.ts";
 
 /**
@@ -104,8 +105,34 @@ Deno.test("Paths are consistent across utility functions", () => {
   // Config path should start with config dir
   assert(configPath.startsWith(configDir));
 
-  // Database path should start with config dir
+  // Database path should start with config dir (when no env var set)
   assert(dbPath.startsWith(configDir));
+});
+
+Deno.test("getAgentCardsDatabasePath - respects AGENTCARDS_DB_PATH env var", () => {
+  const customPath = "/workspaces/AgentCards/.agentcards.db";
+
+  // Set custom path
+  Deno.env.set("AGENTCARDS_DB_PATH", customPath);
+
+  try {
+    const path = getAgentCardsDatabasePath();
+    assertEquals(path, customPath);
+  } finally {
+    // Clean up
+    Deno.env.delete("AGENTCARDS_DB_PATH");
+  }
+});
+
+Deno.test("getAgentCardsDatabasePath - uses default when env var not set", () => {
+  // Ensure env var is not set
+  Deno.env.delete("AGENTCARDS_DB_PATH");
+
+  const path = getAgentCardsDatabasePath();
+
+  // Should use default path
+  assert(path.includes(".agentcards"));
+  assert(path.endsWith(".agentcards.db"));
 });
 
 Deno.test("Legacy YAML path differs from JSON path only in extension", () => {
@@ -121,4 +148,53 @@ Deno.test("Legacy YAML path differs from JSON path only in extension", () => {
   // Different extensions
   assert(jsonPath.endsWith(".json"));
   assert(yamlPath.endsWith(".yaml"));
+});
+
+Deno.test("getWorkflowTemplatesPath - respects AGENTCARDS_WORKFLOW_PATH env var", () => {
+  const customPath = "playground/config/workflow-templates.yaml";
+
+  // Set custom path
+  Deno.env.set("AGENTCARDS_WORKFLOW_PATH", customPath);
+
+  try {
+    const path = getWorkflowTemplatesPath();
+    assertEquals(path, customPath);
+  } finally {
+    // Clean up
+    Deno.env.delete("AGENTCARDS_WORKFLOW_PATH");
+  }
+});
+
+Deno.test("getWorkflowTemplatesPath - uses default when env var not set", () => {
+  // Ensure env var is not set
+  Deno.env.delete("AGENTCARDS_WORKFLOW_PATH");
+
+  const path = getWorkflowTemplatesPath();
+
+  // Should use default path
+  assertEquals(path, "./config/workflow-templates.yaml");
+});
+
+Deno.test("getWorkflowTemplatesPath - supports various path formats", () => {
+  const testPaths = [
+    "playground/config/workflow-templates.yaml", // Relative path
+    "/absolute/path/workflow-templates.yaml", // Absolute path
+    "./config/workflow-templates.yaml", // Dot-relative path
+    "../parent/workflow-templates.yaml", // Parent directory path
+  ];
+
+  for (const testPath of testPaths) {
+    Deno.env.set("AGENTCARDS_WORKFLOW_PATH", testPath);
+
+    try {
+      const path = getWorkflowTemplatesPath();
+      assertEquals(
+        path,
+        testPath,
+        `Should return custom path: ${testPath}`,
+      );
+    } finally {
+      Deno.env.delete("AGENTCARDS_WORKFLOW_PATH");
+    }
+  }
 });

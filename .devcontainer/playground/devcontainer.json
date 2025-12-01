@@ -24,6 +24,10 @@
       }
     }
   },
+  "remoteEnv": {
+    "AGENTCARDS_DB_PATH": "/workspaces/AgentCards/.agentcards.db",
+    "AGENTCARDS_WORKFLOW_PATH": "playground/config/workflow-templates.yaml"
+  },
   "postCreateCommand": "bash .devcontainer/playground/post-create.sh",
   "forwardPorts": [3000, 8888],
   "portsAttributes": {

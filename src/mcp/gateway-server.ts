@@ -47,6 +47,7 @@ import {
 import { ControlledExecutor } from "../dag/controlled-executor.ts";
 import { CheckpointManager } from "../dag/checkpoint-manager.ts";
 import type { ExecutionEvent, TaskResult } from "../dag/types.ts";
+import { EventsStreamManager } from "../server/events-stream.ts";
 
 /**
  * MCP JSON-RPC error codes
@@ -113,6 +114,7 @@ export class AgentCardsGatewayServer {
   private httpServer: Deno.HttpServer | null = null; // HTTP server for SSE transport (ADR-014)
   private activeWorkflows: Map<string, ActiveWorkflow> = new Map(); // Story 2.5-4
   private checkpointManager: CheckpointManager | null = null; // Story 2.5-4
+  private eventsStream: EventsStreamManager | null = null; // Story 6.1: Real-time graph events
 
   constructor(
     // @ts-ignore: db kept for future use (direct queries)
@@ -1863,15 +1865,72 @@ export class AgentCardsGatewayServer {
     // Start periodic health checks
     this.healthChecker.startPeriodicChecks();
 
+    // Initialize events stream manager (Story 6.1)
+    this.eventsStream = new EventsStreamManager(this.graphEngine);
+    log.info(`✓ EventsStreamManager initialized`);
+
+    // CORS headers for Fresh dashboard (runs on different port)
+    const corsHeaders = {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+    };
+
     // Create HTTP server
     this.httpServer = Deno.serve({ port }, async (req) => {
       const url = new URL(req.url);
 
+      // Handle CORS preflight
+      if (req.method === "OPTIONS") {
+        return new Response(null, { headers: corsHeaders });
+      }
+
       // Health check endpoint
       if (url.pathname === "/health" && req.method === "GET") {
         return new Response(JSON.stringify({ status: "ok" }), {
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...corsHeaders },
         });
+      }
+
+      // Server-Sent Events stream for graph events (Story 6.1)
+      if (url.pathname === "/events/stream" && req.method === "GET") {
+        if (!this.eventsStream) {
+          return new Response(
+            JSON.stringify({ error: "Events stream not initialized" }),
+            { status: 503, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        return this.eventsStream.handleRequest(req);
+      }
+
+      // Dashboard static HTML (Story 6.2)
+      if (url.pathname === "/dashboard" && req.method === "GET") {
+        try {
+          const html = await Deno.readTextFile("public/dashboard.html");
+          return new Response(html, {
+            headers: { "Content-Type": "text/html; charset=utf-8" },
+          });
+        } catch (error) {
+          return new Response(
+            JSON.stringify({ error: "Dashboard not found" }),
+            { status: 404, headers: { "Content-Type": "application/json" } },
+          );
+        }
+      }
+
+      // Graph snapshot API (Story 6.2)
+      if (url.pathname === "/api/graph/snapshot" && req.method === "GET") {
+        try {
+          const snapshot = this.graphEngine.getGraphSnapshot();
+          return new Response(JSON.stringify(snapshot), {
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          });
+        } catch (error) {
+          return new Response(
+            JSON.stringify({ error: `Failed to get graph snapshot: ${error}` }),
+            { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } },
+          );
+        }
       }
 
       // JSON-RPC message endpoint
@@ -1903,7 +1962,9 @@ export class AgentCardsGatewayServer {
     log.info(`✓ AgentCards MCP gateway started (HTTP mode on port ${port})`);
     log.info(`  Server: ${this.config.name} v${this.config.version}`);
     log.info(`  Connected MCP servers: ${this.mcpClients.size}`);
-    log.info(`  Endpoints: GET /health, POST /message`);
+    log.info(
+      `  Endpoints: GET /health, GET /events/stream, GET /dashboard, GET /api/graph/snapshot, POST /message`,
+    );
   }
 
   /**
@@ -1952,6 +2013,12 @@ export class AgentCardsGatewayServer {
 
     // Stop health checks
     this.healthChecker.stopPeriodicChecks();
+
+    // Close events stream (Story 6.1)
+    if (this.eventsStream) {
+      this.eventsStream.close();
+      this.eventsStream = null;
+    }
 
     // Close HTTP server if running (ADR-014)
     if (this.httpServer) {

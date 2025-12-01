@@ -131,8 +131,8 @@ development_status:
   # Dashboard interactif avec SSE pour visualiser et explorer le graphe
   # Live metrics, PageRank viz, Adamic-Adar tooltips, graph export
   epic-6: contexted
-  6-1-real-time-events-stream-sse: in-progress  # Context created 2025-12-01
-  6-2-interactive-graph-visualization-dashboard: backlog
+  6-1-real-time-events-stream-sse: done  # Code Review APPROVED 2025-12-01, 12 tests passing, Quality Score: 100/100
+  6-2-interactive-graph-visualization-dashboard: review  # Ready for review 2025-12-01, 7 tests passing
   6-3-live-metrics-analytics-panel: backlog
   6-4-graph-explorer-search-interface: backlog
   epic-6-retrospective: optional

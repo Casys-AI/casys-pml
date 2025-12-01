@@ -117,10 +117,62 @@ export async function findConfigFile(): Promise<{ path: string; format: "json" |
 
 /**
  * Get the AgentCards database path
+ *
+ * Supports custom path via AGENTCARDS_DB_PATH environment variable.
+ * This is useful for:
+ * - Codespace environments where ~/.agentcards/ is not persisted
+ * - Testing with isolated databases
+ * - Custom deployment scenarios
+ *
+ * @returns Database path (custom or default ~/.agentcards/.agentcards.db)
+ *
+ * @example
+ * // Use default path
+ * getAgentCardsDatabasePath() // ~/.agentcards/.agentcards.db
+ *
+ * @example
+ * // Use custom path in Codespace
+ * AGENTCARDS_DB_PATH=/workspaces/AgentCards/.agentcards.db
+ * getAgentCardsDatabasePath() // /workspaces/AgentCards/.agentcards.db
  */
 export function getAgentCardsDatabasePath(): string {
+  // Allow custom DB path via environment variable (ADR-021)
+  const customPath = Deno.env.get("AGENTCARDS_DB_PATH");
+  if (customPath) {
+    return customPath;
+  }
+
+  // Default: ~/.agentcards/.agentcards.db
   const configDir = getAgentCardsConfigDir();
   const os = Deno.build.os;
   const separator = os === "windows" ? "\\" : "/";
   return `${configDir}${separator}.agentcards.db`;
+}
+
+/**
+ * Get the workflow templates file path
+ *
+ * Respects AGENTCARDS_WORKFLOW_PATH environment variable for custom paths.
+ * Defaults to ./config/workflow-templates.yaml (relative to current working directory)
+ *
+ * @returns Absolute or relative path to workflow templates YAML file
+ *
+ * @example
+ * // Use default path
+ * getWorkflowTemplatesPath() // ./config/workflow-templates.yaml
+ *
+ * @example
+ * // Use custom path for playground
+ * AGENTCARDS_WORKFLOW_PATH=playground/config/workflow-templates.yaml
+ * getWorkflowTemplatesPath() // playground/config/workflow-templates.yaml
+ */
+export function getWorkflowTemplatesPath(): string {
+  // Allow custom workflow path via environment variable
+  const customPath = Deno.env.get("AGENTCARDS_WORKFLOW_PATH");
+  if (customPath) {
+    return customPath;
+  }
+
+  // Default: ./config/workflow-templates.yaml (relative to cwd)
+  return "./config/workflow-templates.yaml";
 }

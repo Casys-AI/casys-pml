@@ -19,44 +19,45 @@ import { DAGSuggester } from "../../graphrag/dag-suggester.ts";
 import { ParallelExecutor } from "../../dag/executor.ts";
 import { AgentCardsGatewayServer } from "../../mcp/gateway-server.ts";
 import { WorkflowSyncService } from "../../graphrag/workflow-sync.ts";
+import { getWorkflowTemplatesPath } from "../utils.ts";
 import type { MCPServer } from "../../mcp/types.ts";
 import type { ToolExecutor } from "../../dag/types.ts";
 
 /**
- * Default MCP config path
- * Supports both AgentCards config and Claude Code config
+ * Find and validate config file
+ *
+ * Requires explicit --config flag to avoid assumptions about config location.
+ * This makes the tool more predictable and easier to use in different environments.
  */
-const DEFAULT_CONFIG_PATHS = [
-  `${Deno.env.get("HOME")}/.agentcards/config.yaml`,
-  `${Deno.env.get("HOME")}/.config/Claude/claude_desktop_config.json`,
-];
+async function findConfigFile(configPath?: string): Promise<string> {
+  if (!configPath) {
+    throw new Error(
+      `❌ No MCP server configuration provided.
 
-/**
- * Find first existing config file
- */
-async function findConfigFile(customPath?: string): Promise<string> {
-  if (customPath) {
-    try {
-      await Deno.stat(customPath);
-      return customPath;
-    } catch {
-      throw new Error(`Config file not found: ${customPath}`);
-    }
+Please specify your MCP servers config file using --config:
+
+  ${Deno.build.os === "windows" ? ">" : "$"} agentcards serve --port 3001 --config <path-to-config>
+
+Examples:
+  • ./config/mcp-servers.json
+  • ./playground/config/mcp-servers.json
+  • ~/.config/agentcards/mcp-servers.json
+
+Need help creating a config? See: https://github.com/anthropics/agentcards#configuration`,
+    );
   }
 
-  for (const path of DEFAULT_CONFIG_PATHS) {
-    try {
-      await Deno.stat(path);
-      log.info(`Found config at: ${path}`);
-      return path;
-    } catch {
-      // Continue searching
-    }
-  }
+  try {
+    await Deno.stat(configPath);
+    log.info(`✓ Found MCP config: ${configPath}`);
+    return configPath;
+  } catch {
+    throw new Error(
+      `❌ Config file not found: ${configPath}
 
-  throw new Error(
-    `No MCP configuration found. Checked:\n${DEFAULT_CONFIG_PATHS.map((p) => `  - ${p}`).join("\n")}\n\nRun 'agentcards init' first.`,
-  );
+Please check that the file exists and the path is correct.`,
+    );
+  }
 }
 
 /**
@@ -130,21 +131,20 @@ function createToolExecutor(
  * Create serve command
  *
  * Usage:
- *   agentcards serve                 # Auto-detect config and start gateway
- *   agentcards serve --config <path> # Use custom config path
- *   agentcards serve --port 3000     # Enable HTTP server (stdio is default)
+ *   agentcards serve --config ./config/mcp-servers.json --port 3001
+ *   agentcards serve --config ~/.config/agentcards/mcp-servers.json
  */
 export function createServeCommand() {
   return new Command()
     .name("serve")
-    .description("Start AgentCards MCP gateway server (stdio mode)")
+    .description("Start AgentCards MCP gateway server")
     .option(
       "--config <path:string>",
-      "Path to MCP config file (auto-detected if not provided)",
+      "Path to MCP servers config file (required)",
     )
     .option(
       "--port <port:number>",
-      "HTTP port for SSE transport (optional, stdio is default)",
+      "HTTP port for HTTP/SSE transport (optional, stdio is default)",
     )
     .option(
       "--no-speculative",
@@ -187,7 +187,7 @@ export function createServeCommand() {
         // Story 5.2: Auto-bootstrap graph from workflow templates if empty
         const workflowSyncService = new WorkflowSyncService(db);
         const bootstrapped = await workflowSyncService.bootstrapIfEmpty(
-          "./config/workflow-templates.yaml",
+          getWorkflowTemplatesPath(),
         );
         if (bootstrapped) {
           log.info("✓ Graph bootstrapped from workflow-templates.yaml");
@@ -279,12 +279,36 @@ export function createServeCommand() {
           await gateway.start();
         }
 
-        // Setup graceful shutdown
-        const shutdown = async () => {
+        // Setup graceful shutdown (ADR-020: Fix hanging shutdown)
+        let isShuttingDown = false;
+        const shutdown = () => {
+          if (isShuttingDown) return;
+          isShuttingDown = true;
+
           log.info("\n\nShutting down...");
-          await gateway.stop();
-          await db.close();
-          Deno.exit(0);
+          log.info("Shutting down AgentCards gateway...");
+
+          // Force exit after 2 seconds if graceful shutdown hangs
+          const forceExitTimer = setTimeout(() => {
+            log.warn("Graceful shutdown timeout - forcing exit");
+            Deno.exit(1);
+          }, 2000);
+
+          // Attempt graceful shutdown
+          Promise.all([
+            gateway.stop(),
+            db.close(),
+          ])
+            .then(() => {
+              clearTimeout(forceExitTimer);
+              log.info("✓ Shutdown complete");
+              Deno.exit(0);
+            })
+            .catch((err) => {
+              clearTimeout(forceExitTimer);
+              log.error(`Shutdown error: ${err}`);
+              Deno.exit(1);
+            });
         };
 
         Deno.addSignalListener("SIGINT", shutdown);
