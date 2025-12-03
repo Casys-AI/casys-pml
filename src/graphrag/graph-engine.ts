@@ -254,30 +254,63 @@ export class GraphRAGEngine {
    * @returns DAG structure with tasks and dependencies
    */
   buildDAG(candidateTools: string[]): DAGStructure {
-    const tasks = [];
+    const n = candidateTools.length;
 
-    for (let i = 0; i < candidateTools.length; i++) {
-      const toolId = candidateTools[i];
-      const dependsOn: string[] = [];
+    // ADR-024: Build full adjacency matrix (N×N) to avoid ordering bias
+    // Check dependencies in BOTH directions regardless of list order
+    const adjacency: boolean[][] = Array.from({ length: n }, () => Array(n).fill(false));
+    const edgeWeights: number[][] = Array.from({ length: n }, () => Array(n).fill(0));
 
-      // Find dependencies from previous tools in the list
-      for (let j = 0; j < i; j++) {
-        const prevToolId = candidateTools[j];
-        const path = this.findShortestPath(prevToolId, toolId);
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        if (i === j) continue;
 
-        // If path exists and is short (≤3 hops), add as dependency
+        const fromTool = candidateTools[j];
+        const toTool = candidateTools[i];
+        const path = this.findShortestPath(fromTool, toTool);
+
+        // If path exists and is short (≤3 hops), mark as dependency
         if (path && path.length > 0 && path.length <= 4) {
+          adjacency[i][j] = true;
+          // Weight based on path length: shorter = stronger
+          edgeWeights[i][j] = 1.0 / path.length;
+        }
+      }
+    }
+
+    // ADR-024: Detect and break cycles using edge weights
+    // If A→B and B→A both exist, keep the one with higher weight (shorter path)
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        if (adjacency[i][j] && adjacency[j][i]) {
+          // Cycle detected: keep edge with higher weight
+          if (edgeWeights[i][j] >= edgeWeights[j][i]) {
+            adjacency[j][i] = false; // Remove j→i edge
+            log.debug(`[buildDAG] Cycle broken: keeping ${candidateTools[j]} → ${candidateTools[i]}`);
+          } else {
+            adjacency[i][j] = false; // Remove i→j edge
+            log.debug(`[buildDAG] Cycle broken: keeping ${candidateTools[i]} → ${candidateTools[j]}`);
+          }
+        }
+      }
+    }
+
+    // Build tasks with resolved dependencies
+    const tasks = candidateTools.map((toolId, i) => {
+      const dependsOn: string[] = [];
+      for (let j = 0; j < n; j++) {
+        if (adjacency[i][j]) {
           dependsOn.push(`task_${j}`);
         }
       }
 
-      tasks.push({
+      return {
         id: `task_${i}`,
         tool: toolId,
         arguments: {},
         depends_on: dependsOn,
-      });
-    }
+      };
+    });
 
     return { tasks };
   }
@@ -362,7 +395,7 @@ export class GraphRAGEngine {
           execution.intent_text || null,
           JSON.stringify(execution.dag_structure),
           execution.success,
-          execution.execution_time_ms,
+          Math.round(execution.execution_time_ms), // INTEGER column
           execution.error_message || null,
         ],
       );
@@ -789,24 +822,31 @@ export class GraphRAGEngine {
     const startTime = performance.now();
 
     try {
-      // 1. Semantic search for base candidates (fetch extra for graph filtering)
-      const semanticResults = await vectorSearch.searchTools(query, limit * 2, 0.5);
+      // 1. Calculate graph density for adaptive parameters
+      const edgeCount = this.getEdgeCount();
+      const nodeCount = this.getStats().nodeCount;
+      const maxPossibleEdges = nodeCount * (nodeCount - 1); // directed graph
+      const density = maxPossibleEdges > 0 ? edgeCount / maxPossibleEdges : 0;
+
+      // ADR-023: Dynamic Candidate Expansion based on graph maturity
+      // Cold start: 1.5x (trust semantic), Growing: 2.0x, Mature: 3.0x (find hidden gems)
+      const expansionMultiplier = density < 0.01 ? 1.5 : density < 0.10 ? 2.0 : 3.0;
+      const searchLimit = Math.ceil(limit * expansionMultiplier);
+
+      // 2. Semantic search for base candidates with dynamic expansion
+      const semanticResults = await vectorSearch.searchTools(query, searchLimit, 0.5);
 
       if (semanticResults.length === 0) {
         log.debug(`[searchToolsHybrid] No semantic candidates for: "${query}"`);
         return [];
       }
 
-      // 2. Calculate adaptive alpha based on graph density
+      // 3. Calculate adaptive alpha based on graph density (ADR-015)
       // More semantic weight when graph is sparse (cold start)
-      const edgeCount = this.getEdgeCount();
-      const nodeCount = this.getStats().nodeCount;
-      const maxPossibleEdges = nodeCount * (nodeCount - 1); // directed graph
-      const density = maxPossibleEdges > 0 ? edgeCount / maxPossibleEdges : 0;
       const alpha = Math.max(0.5, 1.0 - density * 2);
 
       log.debug(
-        `[searchToolsHybrid] alpha=${alpha.toFixed(2)} (density=${density.toFixed(4)}, edges=${edgeCount})`,
+        `[searchToolsHybrid] alpha=${alpha.toFixed(2)}, expansion=${expansionMultiplier}x (density=${density.toFixed(4)}, edges=${edgeCount})`,
       );
 
       // 3. Compute hybrid scores for each candidate

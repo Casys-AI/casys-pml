@@ -176,3 +176,23 @@ export function getWorkflowTemplatesPath(): string {
   // Default: ./config/workflow-templates.yaml (relative to cwd)
   return "./config/workflow-templates.yaml";
 }
+
+/**
+ * Calculate SHA-256 hash of a file
+ *
+ * Used for detecting config changes to trigger auto-init.
+ *
+ * @param filePath - Path to file to hash
+ * @returns Hex-encoded SHA-256 hash string
+ */
+export async function hashFile(filePath: string): Promise<string> {
+  const content = await Deno.readFile(filePath);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", content);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * Config key for storing MCP servers config hash
+ */
+export const MCP_CONFIG_HASH_KEY = "mcp_servers_config_hash";

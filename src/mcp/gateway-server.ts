@@ -2054,9 +2054,7 @@ export class AgentCardsGatewayServer {
       }
 
       if (method === "tools/list") {
-        const result = await this.handleListTools(
-          params as { query?: string; limit?: number } | undefined,
-        );
+        const result = await this.handleListTools({ params });
         return { jsonrpc: "2.0", id, result };
       }
 

@@ -136,11 +136,6 @@ export class DAGSuggester {
         `Confidence: ${confidence.toFixed(2)} (semantic: ${semanticScore.toFixed(2)}, pageRank: ${pageRankScore.toFixed(2)}, pathStrength: ${pathStrength.toFixed(2)}) for intent: "${intent.text}"`,
       );
 
-      if (confidence < 0.50) {
-        log.info(`Confidence too low (${confidence.toFixed(2)}) for intent: "${intent.text}"`);
-        return null;
-      }
-
       // 6. Find alternatives from same community (Graphology)
       const alternatives = this.graphEngine
         .findCommunityMembers(rankedCandidates[0].toolId)
@@ -148,6 +143,20 @@ export class DAGSuggester {
 
       // 7. Generate rationale (updated for hybrid)
       const rationale = this.generateRationaleHybrid(rankedCandidates, dependencyPaths);
+
+      // ADR-026: Never return null if we have valid candidates
+      // Instead, return suggestion with warning for low confidence
+      if (confidence < 0.50) {
+        log.info(`Confidence below threshold (${confidence.toFixed(2)}), returning suggestion with warning`);
+        return {
+          dagStructure,
+          confidence,
+          rationale,
+          dependencyPaths,
+          alternatives,
+          warning: "Low confidence suggestion - graph is in cold start mode. Confidence may improve with usage.",
+        };
+      }
 
       return {
         dagStructure,
@@ -233,10 +242,43 @@ export class DAGSuggester {
   // Use calculateConfidenceHybrid() and generateRationaleHybrid() instead
 
   /**
-   * Calculate confidence for hybrid search candidates (ADR-022)
+   * Get adaptive weights for confidence calculation based on graph density (ADR-026)
+   *
+   * In cold start (sparse graph), semantic search is more reliable than graph metrics.
+   * As the graph matures with more edges, PageRank and paths become more meaningful.
+   *
+   * Density thresholds:
+   * - <0.01 (cold start): Trust semantic heavily (85%)
+   * - <0.10 (growing): Balanced approach (65%)
+   * - >=0.10 (mature): Full graph integration (55%)
+   *
+   * @returns Weight configuration for confidence calculation
+   */
+  private getAdaptiveWeights(): { hybrid: number; pageRank: number; path: number } {
+    const density = this.graphEngine.getGraphDensity();
+
+    if (density < 0.01) {
+      // Cold start: trust semantic heavily, minimal weight on empty graph metrics
+      log.debug(`[DAGSuggester] Cold start weights (density=${density.toFixed(4)})`);
+      return { hybrid: 0.85, pageRank: 0.05, path: 0.10 };
+    } else if (density < 0.10) {
+      // Growing graph: balanced approach
+      log.debug(`[DAGSuggester] Growing graph weights (density=${density.toFixed(4)})`);
+      return { hybrid: 0.65, pageRank: 0.20, path: 0.15 };
+    } else {
+      // Mature graph: current formula (original ADR-022)
+      log.debug(`[DAGSuggester] Mature graph weights (density=${density.toFixed(4)})`);
+      return { hybrid: 0.55, pageRank: 0.30, path: 0.15 };
+    }
+  }
+
+  /**
+   * Calculate confidence for hybrid search candidates (ADR-022, ADR-026)
    *
    * Uses the already-computed hybrid finalScore which includes both semantic and graph scores.
    * This provides a more accurate confidence since graph context is already factored in.
+   *
+   * ADR-026: Uses adaptive weights based on graph density to handle cold start better.
    *
    * @param candidates - Ranked candidates with hybrid scores
    * @param dependencyPaths - Extracted dependency paths
@@ -269,10 +311,9 @@ export class DAGSuggester {
       ? dependencyPaths.reduce((sum, p) => sum + (p.confidence || 0.5), 0) / dependencyPaths.length
       : 0.5;
 
-    // Weighted combination adjusted for hybrid search:
-    // Hybrid score already includes graph, so reduce weight on pathStrength
-    // Hybrid: 55%, PageRank: 30%, Path strength: 15%
-    const confidence = hybridScore * 0.55 + pageRankScore * 0.30 + pathStrength * 0.15;
+    // ADR-026: Use adaptive weights based on graph density
+    const weights = this.getAdaptiveWeights();
+    const confidence = hybridScore * weights.hybrid + pageRankScore * weights.pageRank + pathStrength * weights.path;
 
     return { confidence, semanticScore, pageRankScore, pathStrength };
   }

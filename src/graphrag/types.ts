@@ -109,6 +109,8 @@ export interface SuggestedDAG {
   rationale: string;
   dependencyPaths?: DependencyPath[];
   alternatives?: string[];
+  /** Warning message for low confidence suggestions (ADR-026) */
+  warning?: string;
 }
 
 /**

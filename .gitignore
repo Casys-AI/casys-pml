@@ -2,6 +2,7 @@
 .deno/
 deno.lock
 node_modules/
+.node_modules/
 coverage/
 .env
 .env.*
@@ -40,6 +41,7 @@ Thumbs.db
 # Testing
 .nyc_output/
 coverage.lcov
+.playwright-mcp/
 
 # Temporary files
 tmp/

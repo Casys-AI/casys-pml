@@ -122,13 +122,14 @@ export class GatewayHandler {
 
       // 4. Decide mode based on confidence
       if (suggestion.confidence < explicitThreshold) {
-        // Low confidence: Ask user
+        // Low confidence: Ask user (ADR-026: may include cold start warning)
         return {
           mode: "explicit_required",
           confidence: suggestion.confidence,
           dagStructure: suggestion.dagStructure,
           explanation: `Low confidence (${(suggestion.confidence * 100).toFixed(0)}%). ${suggestion.rationale}`,
           note: "Please review and confirm the suggested tools.",
+          warning: suggestion.warning, // ADR-026: Include cold start warning if present
         };
       } else if (suggestion.confidence < suggestionThreshold) {
         // Medium confidence: Show suggestion

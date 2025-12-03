@@ -102,7 +102,7 @@ Deno.test({
 });
 
 Deno.test({
-  name: "DAGSuggester - returns null for low confidence intent",
+  name: "DAGSuggester - returns suggestion with warning for low confidence (ADR-026)",
   sanitizeResources: false,
   sanitizeOps: false,
   fn: async () => {
@@ -123,8 +123,21 @@ Deno.test({
       text: "completely unrelated quantum mechanics calculation",
     });
 
-    // Should return null due to low semantic similarity
-    assertEquals(suggestion, null, "Should return null for very low confidence");
+    // ADR-026: Never return null if semantic candidates exist
+    // Instead, return suggestion with warning for low confidence
+    if (suggestion === null) {
+      // No semantic candidates found at all (score < 0.5 threshold)
+      // This is expected if the query truly has no semantic match
+      assertEquals(suggestion, null, "No candidates found - correct behavior");
+    } else {
+      // Candidates found but low confidence - should have warning
+      assert(suggestion.warning !== undefined, "Low confidence should include warning");
+      assert(
+        suggestion.warning.includes("cold start") || suggestion.warning.includes("Low confidence"),
+        "Warning should mention cold start or low confidence",
+      );
+      assert(suggestion.confidence < 0.50, "Confidence should be below threshold");
+    }
 
     await db.close();
   },

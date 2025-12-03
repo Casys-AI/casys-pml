@@ -20,6 +20,7 @@ import { ParallelExecutor } from "../../dag/executor.ts";
 import { AgentCardsGatewayServer } from "../../mcp/gateway-server.ts";
 import { WorkflowSyncService } from "../../graphrag/workflow-sync.ts";
 import { getWorkflowTemplatesPath } from "../utils.ts";
+import { autoInitIfConfigChanged } from "../auto-init.ts";
 import type { MCPServer } from "../../mcp/types.ts";
 import type { ToolExecutor } from "../../dag/types.ts";
 
@@ -183,6 +184,12 @@ export function createServeCommand() {
         // Run migrations
         const runner = new MigrationRunner(db);
         await runner.runUp(getAllMigrations());
+
+        // 2.5 Auto-init if config changed (discovers tools & generates embeddings)
+        const autoInitResult = await autoInitIfConfigChanged(configPath, db);
+        if (autoInitResult.performed) {
+          log.info(`✓ Auto-init: ${autoInitResult.toolsCount} tools discovered (${autoInitResult.reason})`);
+        }
 
         // 3. Connect to MCP servers
         log.info("Step 3/6: Connecting to MCP servers...");

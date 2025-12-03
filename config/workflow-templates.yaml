@@ -1,173 +1,91 @@
 # ============================================================================
-# Workflow Templates Configuration - AgentCards Playground
+# Workflow Templates - Examples & Documentation
 # ============================================================================
 #
-# Ce fichier définit des workflows prédéfinis pour démontrer les patterns GraphRAG
-# et bootstrapper le système avec des séquences d'outils communes.
+# Ce fichier contient des EXEMPLES de workflows DAG.
+# Ces templates NE SONT PAS chargés automatiquement - le GraphRAG apprend
+# les patterns organiquement depuis l'usage réel (ADR-026 gère le cold start).
 #
-# USAGE:
-#   agentcards workflows sync --path playground/config/workflow-templates.yaml
+# Pour charger manuellement (optionnel):
+#   agentcards workflows sync --path config/workflow-templates.yaml
 #
-# FORMATS SUPPORTÉS:
+# ============================================================================
+# FORMAT DES TOOL IDs
+# ============================================================================
 #
-# 1. Format Linéaire (steps):
-#    - Simple séquence d'outils: [A, B, C] → crée les edges A→B, B→C
-#    - Minimum 2 outils requis
-#    - Idéal pour workflows simples sans branchement
+#   serverId:toolName
+#   Exemples: filesystem:read_file, memory:create_entities, fetch:http_get
 #
-# 2. Format DAG (edges):
-#    - DAG explicite avec parallélisation: [[A,B], [A,C], [B,D], [C,D]]
-#    - Minimum 1 edge requis
-#    - Permet fan-out (A→B et A→C) et fan-in (B→D et C→D)
-#    - Idéal pour workflows complexes avec branchements parallèles
+# ============================================================================
+# SERVEURS MCP DISPONIBLES
+# ============================================================================
 #
-# FORMAT DES TOOL IDs:
-#   serverId:toolName (ex: filesystem:read_file, memory:create_entities)
-#
-# SERVEURS MCP CONFIGURÉS (voir playground/config/mcp-servers.json):
-#   - filesystem: Opérations fichiers (read_file, list_directory, write_file)
-#   - memory: Knowledge graph local (create_entities, create_relations, read_graph)
-#   - sequential-thinking: Résolution problèmes avec branchement DAG
+#   - filesystem: read_file, write_file, list_directory, edit_file...
+#   - memory: create_entities, create_relations, read_graph, search_nodes...
+#   - sequential-thinking: sequentialthinking
+#   - playwright: navigate, click, screenshot, type, evaluate, drag...
 #
 # ============================================================================
 
 workflows:
   # ==========================================================================
-  # WORKFLOW 1: Parallélisation Pure (Pattern: Fan-out)
+  # EXEMPLE 1: Format "steps" (séquentiel linéaire)
   # ==========================================================================
   #
-  # OBJECTIF PÉDAGOGIQUE:
-  #   Démontrer l'exécution parallèle de tâches indépendantes (fan-out DAG)
-  #
-  # PATTERN GraphRAG:
-  #   Un outil source déclenche PLUSIEURS outils en parallèle sans dépendances
-  #   Similaire à: Promise.all([taskA(), taskB(), taskC()])
+  # Format: steps: [A, B, C] → crée les edges A→B, B→C
+  # Utilisé pour les pipelines simples sans branchement.
   #
   # STRUCTURE:
-  #        list_directory
-  #       /       |        \
-  #      /        |         \
-  #   read_file  read_file  read_file
+  #   read_file → create_entities → read_graph
   #
-  # USE CASE:
-  #   Explorer un répertoire puis lire plusieurs fichiers en parallèle
-  #   (package.json, README.md, tsconfig.json)
-  #
-  - name: parallel_file_analysis
-    edges:
-      - [filesystem:list_directory, filesystem:read_file]
-      - [filesystem:list_directory, filesystem:read_file]  # Deuxième lecture parallèle
-      - [filesystem:list_directory, filesystem:read_file]  # Troisième lecture parallèle
-
-  # ==========================================================================
-  # WORKFLOW 2: Pattern Récurrent (Filesystem → Memory)
-  # ==========================================================================
-  #
-  # OBJECTIF PÉDAGOGIQUE:
-  #   Démontrer une séquence linéaire récurrente que GraphRAG peut apprendre
-  #
-  # PATTERN GraphRAG:
-  #   Séquence commune: Lire données → Extraire entités → Construire graphe
-  #   Ce pattern est fréquent dans les pipelines de traitement de données
-  #
-  # STRUCTURE (format steps - linéaire):
-  #   read_file → create_entities → create_relations → read_graph
-  #
-  # USE CASE:
-  #   1. Lire un fichier de documentation
-  #   2. Extraire les entités (projets, personnes, technologies)
-  #   3. Créer les relations entre entités (projet "uses" technologie)
-  #   4. Valider le graphe construit
-  #
-  # NOTE:
-  #   Format 'steps' utilisé car workflow strictement séquentiel (pas de branchement)
-  #
-  - name: document_to_knowledge_graph
+  - name: sequential_pipeline
     steps:
       - filesystem:read_file
       - memory:create_entities
-      - memory:create_relations
       - memory:read_graph
 
   # ==========================================================================
-  # WORKFLOW 3: DAG Multi-niveaux (Fan-out → Parallel → Fan-in)
+  # EXEMPLE 2: Format "edges" (DAG explicite)
   # ==========================================================================
   #
-  # OBJECTIF PÉDAGOGIQUE:
-  #   Démontrer un DAG complexe avec plusieurs niveaux de dépendances
-  #
-  # PATTERN GraphRAG:
-  #   Combinaison de fan-out (1→N) et fan-in (N→1) avec traitement parallèle
-  #   Ce pattern permet l'optimisation par le GraphRAG suggester
+  # Format: edges: [[A,B], [B,C], [C,D]]
+  # Chaque paire [source, target] crée un edge dans le GraphRAG.
+  # Note: Les edges sont pour APPRENDRE les patterns, pas pour l'exécution.
   #
   # STRUCTURE:
-  #                    list_directory
-  #                   /              \
-  #                  /                \
-  #          read_file                read_file
-  #                |                      |
-  #                |                      |
-  #         create_entities        create_entities
-  #                 \                    /
-  #                  \                  /
-  #                   \                /
-  #                    create_relations
-  #                           |
-  #                           |
-  #                       read_graph
+  #   list_directory → read_file → create_entities → create_relations
   #
-  # USE CASE:
-  #   1. Lister le contenu d'un répertoire (fan-out)
-  #   2. Lire plusieurs fichiers EN PARALLÈLE
-  #   3. Extraire les entités de chaque fichier EN PARALLÈLE
-  #   4. Fusionner les résultats avec create_relations (fan-in)
-  #   5. Valider le graphe final
-  #
-  # BÉNÉFICE GraphRAG:
-  #   Le système apprend que ces étapes parallèles peuvent être optimisées
-  #   et que create_relations doit attendre TOUTES les entités avant de s'exécuter
-  #
-  - name: multi_file_knowledge_extraction
+  - name: file_to_knowledge
     edges:
-      # Niveau 1: Fan-out initial (1 → 2)
       - [filesystem:list_directory, filesystem:read_file]
-      - [filesystem:list_directory, filesystem:read_file]
-
-      # Niveau 2: Traitement parallèle (2 branches indépendantes)
-      # Note: Les deux read_file sont distincts, donc deux create_entities en parallèle
       - [filesystem:read_file, memory:create_entities]
-      - [filesystem:read_file, memory:create_entities]
-
-      # Niveau 3: Fan-in (2 → 1)
-      # Les deux create_entities doivent compléter avant create_relations
-      - [memory:create_entities, memory:create_relations]
       - [memory:create_entities, memory:create_relations]
 
-      # Niveau 4: Validation finale
-      - [memory:create_relations, memory:read_graph]
+  # ==========================================================================
+  # EXEMPLE 3: Browser automation pipeline (avec playwright)
+  # ==========================================================================
+  #
+  # STRUCTURE:
+  #   navigate → snapshot → create_entities
+  #
+  - name: web_scraping_pipeline
+    steps:
+      - playwright:browser_navigate
+      - playwright:browser_snapshot
+      - memory:create_entities
 
 # ============================================================================
-# NOTES D'IMPLÉMENTATION GraphRAG
+# COMMENT LE GRAPHRAG APPREND
 # ============================================================================
 #
-# Ces workflows bootstrappent le graphe avec des edges ayant:
-#   - source: 'user' (défini par l'utilisateur)
-#   - confidence: 0.90 (haute confiance car explicitement défini)
-#   - edge_type: 'tool_dependency'
+# Le GraphRAG n'a PAS BESOIN de ces templates pour fonctionner.
+# Il apprend les patterns depuis l'usage réel:
 #
-# Le GraphRAG suggester utilisera ces patterns pour:
-#   1. Suggérer des outils suivants probables (basé sur fréquence)
-#   2. Optimiser l'ordre d'exécution (détection de parallélisation)
-#   3. Apprendre de nouveaux patterns via usage réel (épistémologie)
+#   1. User exécute: read_file → create_entities
+#   2. GraphRAG crée edge: read_file → create_entities (confidence: 0.9)
+#   3. Plus c'est utilisé, plus la confidence augmente
+#   4. Suggestions futures basées sur ces patterns appris
 #
-# ============================================================================
-# VALIDATION
-# ============================================================================
-#
-# Pour valider ce fichier:
-#   1. Syntaxe YAML: Parseable par @std/yaml
-#   2. Schema: Conforme à WorkflowTemplatesFile interface
-#   3. Tool IDs: Référencent des serveurs configurés dans mcp-servers.json
-#   4. Compatibilité: agentcards workflows sync --path <ce-fichier>
+# ADR-026 gère le "cold start" quand le graphe est vide.
 #
 # ============================================================================

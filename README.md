@@ -1,76 +1,103 @@
-# AgentCards 🃏
+# AgentCards
 
-[![CI](https://github.com/YOUR_USERNAME/agentcards/workflows/CI/badge.svg)](https://github.com/YOUR_USERNAME/agentcards/actions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Deno Version](https://img.shields.io/badge/deno-2.5.x-blue.svg)](https://deno.land)
+[![CI](https://github.com/Casys-AI/AgentCards/workflows/CI/badge.svg)](https://github.com/Casys-AI/AgentCards/actions)
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+[![Deno Version](https://img.shields.io/badge/deno-2.x-blue.svg)](https://deno.land)
 
-**MCP Server Context Optimization Engine** - Intelligent gateway for Model Context Protocol servers with semantic context loading, workflow orchestration, and local embeddings.
+**Intelligent MCP Gateway with GraphRAG Learning** - Consolidates all your MCP servers into a single entry point with semantic search, DAG workflow orchestration, and self-improving tool discovery.
 
-AgentCards acts as a **transparent MCP gateway** that consolidates all your MCP servers into a single entry point, using semantic search and AI-powered workflow execution to optimize context and enable parallel tool execution.
-
----
-
-## 🎯 Features
-
-- **🔍 Semantic Vector Search** - Fast, local context retrieval using PGLite + pgvector
-- **🧠 Local Embeddings** - BGE-Large-EN-v1.5 model for privacy-first embedding generation
-- **📊 MCP Schema Discovery** - Automatic extraction and indexing of MCP server capabilities
-- **⚡ On-Demand Loading** - Smart context optimization to stay within token budgets
-- **🔄 Parallel Execution** - DAG-based orchestration for multi-server workflows
-- **🚀 Workflow Automation** - Intent-based or explicit multi-tool execution
-- **🔌 Transparent Proxying** - Single MCP server exposing all your tools
-- **💾 Embedded Database** - Zero-config PostgreSQL with WASM (PGlite)
+AgentCards solves two critical problems with MCP ecosystems:
+1. **Context Saturation** - Tool schemas consume 30-50% of LLM context window → reduced to <5%
+2. **Sequential Latency** - Multi-tool workflows run serially → parallelized via DAG execution
 
 ---
 
-## 🚀 Quick Start
+## Key Features
+
+### Core Gateway
+- **Transparent Proxying** - Single MCP server exposing all your tools (`filesystem:read_file`, `github:create_issue`, etc.)
+- **Semantic Tool Search** - Find relevant tools via natural language intent, not just keywords
+- **DAG Workflow Execution** - Parallel execution of independent tasks with dependency resolution
+- **On-Demand Schema Loading** - Only load tools needed for current task (<5% context usage)
+
+### Intelligent Discovery (GraphRAG)
+- **Hybrid Search** - Combines semantic similarity + graph-based relatedness (Adamic-Adar algorithm)
+- **Adaptive Learning** - Graph learns from execution patterns, improving suggestions over time
+- **Workflow Templates** - Bootstrap with predefined patterns, evolve from usage
+
+### Execution Control
+- **Agent-in-the-Loop (AIL)** - Automatic decisions with per-layer validation
+- **Human-in-the-Loop (HIL)** - Approval checkpoints for critical operations
+- **Checkpoint/Resume** - Interruptible workflows with state persistence
+- **Speculative Execution** - Predict and pre-execute likely next steps (confidence-based)
+
+### Sandbox Execution
+- **Secure Code Execution** - Run TypeScript in isolated Deno sandbox
+- **MCP Tool Injection** - Access MCP tools from sandbox code via intent-based discovery
+- **PII Protection** - Automatic detection and tokenization of sensitive data
+- **Execution Caching** - Avoid re-running identical code
+
+### Observability (Dashboard)
+- **Real-time SSE Events** - Live graph updates, edge creation, metrics streaming
+- **Interactive Graph Visualization** - Cytoscape.js force-directed graph with PageRank sizing
+- **Live Metrics Panel** - Success rate, latency, edge count, graph density
+- **Server Filtering** - Toggle visibility by MCP server
+
+### Developer Experience
+- **Zero-Config Setup** - Auto-discovers MCP servers, generates embeddings
+- **Local-First** - All data in PGlite, no cloud dependencies
+- **100% Local Embeddings** - BGE-Large-EN-v1.5 via Transformers.js
+
+---
+
+## Quick Start
 
 ### Prerequisites
 
-- [Deno](https://deno.land/) 2.5.x or higher
+- [Deno](https://deno.land/) 2.x or higher
 
 ### Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/agentcards.git
-cd agentcards
+git clone https://github.com/Casys-AI/AgentCards.git
+cd AgentCards
 
-# Build the CLI binary
-deno task build
-
-# Initialize from your Claude Desktop config
-./agentcards init
+# Start the gateway (auto-init on first run)
+deno task serve:playground
 ```
 
-That's it! AgentCards will discover your MCP servers, extract schemas, and generate embeddings.
+The gateway will:
+1. Discover configured MCP servers
+2. Extract tool schemas via MCP protocol
+3. Generate embeddings (BGE-Large-EN-v1.5)
+4. Start listening on port 3001
 
-### 🎮 Try the Playground
+### Dashboard
 
-Explore AgentCards features with interactive Jupyter notebooks (Deno kernel):
-
-**8 Progressive Notebooks:**
-- 01-03: Sandbox basics, context injection, DAG workflows
-- 04-05: MCP discovery, LLM integration with tool calling
-- 06-07: Multi-LLM support, security demonstrations
-- 08: **ControlledExecutor** - Advanced execution with event streaming, episodic memory, decision points
-
-**Visualization Features:**
-- Mermaid diagrams for DAG structures and execution timelines
-- GraphRAG relationship graphs showing tool co-usage patterns
-- Real-time learning visualization
+Access the real-time monitoring dashboard:
 
 ```bash
-cd playground
-deno jupyter --install
-jupyter notebook notebooks/
+# Start Fresh dashboard (requires gateway running)
+deno task dev:fresh
 ```
 
-Or open directly in GitHub Codespaces:
+Open http://localhost:8080/dashboard to see:
+- Live graph visualization with PageRank-sized nodes
+- Edge creation in real-time via SSE
+- Metrics panel (success rate, latency, density)
 
+### Playground (Work in Progress)
+
+The Jupyter notebook playground is under development. Current notebooks explore:
+- Sandbox execution basics
+- DAG workflow construction
+- MCP tool injection
+
+```bash
+# Open in GitHub Codespaces (recommended)
+```
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Casys-AI/AgentCards?devcontainer_path=.devcontainer/playground/devcontainer.json)
-
-See [`playground/README.md`](playground/README.md) for details.
 
 ### Optional: Error Tracking with Sentry
 
@@ -103,7 +130,7 @@ If `SENTRY_DSN` is not set, Sentry is disabled and AgentCards will run normally.
 
 ---
 
-## 🔌 Usage with Claude Code
+## Usage with Claude Code
 
 AgentCards integrates seamlessly with Claude Code as an intelligent MCP gateway.
 
@@ -164,70 +191,71 @@ The gateway will:
 - ✅ Start listening for MCP requests from Claude Code
 - ✅ Provide intelligent tool discovery via semantic search
 
-### Step 4: Enjoy Unified Tool Access
+### Step 4: Available MCP Tools
 
-Once configured, Claude Code sees AgentCards as a **single MCP server** with all your tools:
+Once configured, AgentCards exposes these tools:
 
-**🔧 All your tools from all servers (transparent proxying):**
+**Proxied Tools** - All your configured MCP tools with `server:tool` naming:
 ```
-filesystem:read_file
-filesystem:write_file
-github:create_issue
-github:search_repos
-database:query
-slack:send_message
+filesystem:read_file, filesystem:write_file
+github:create_issue, github:search_repos
+memory:create_entities, memory:search_nodes
 ... (all your configured MCP tools)
 ```
 
-**🚀 Special workflow execution tool:**
-```
-agentcards:execute_workflow
-```
+**AgentCards Meta-Tools:**
+| Tool | Description |
+|------|-------------|
+| `agentcards:search_tools` | Semantic + graph hybrid tool search |
+| `agentcards:execute_dag` | Execute DAG workflows (intent or explicit) |
+| `agentcards:execute_code` | Run TypeScript in sandbox with MCP tools |
+| `agentcards:continue` | Continue paused workflow execution |
+| `agentcards:abort` | Abort running workflow |
+| `agentcards:replan` | Replan DAG with new requirements |
+| `agentcards:approval_response` | Respond to HIL approval checkpoints |
 
 ### Example Usage
 
-**Single tool execution (transparent proxy):**
+**Search for relevant tools:**
 ```typescript
-await callTool("filesystem:read_file", {
-  path: "/config.json"
+await callTool("agentcards:search_tools", {
+  query: "read and parse configuration files",
+  include_related: true  // Include graph-recommended tools
 });
 ```
 
-**Intent-based workflow execution:**
+**Intent-based DAG execution:**
 ```typescript
-await callTool("agentcards:execute_workflow", {
-  intent: "Read the config file, parse it, and create a GitHub issue with the settings"
+await callTool("agentcards:execute_dag", {
+  intent: "Read the config file and create a memory entity with its contents"
 });
+// AgentCards suggests DAG, executes if confidence > threshold
 ```
 
-**Explicit DAG workflow with parallelization:**
+**Explicit DAG with parallel tasks:**
 ```typescript
-await callTool("agentcards:execute_workflow", {
+await callTool("agentcards:execute_dag", {
   workflow: {
     tasks: [
-      {
-        id: "t1",
-        tool: "filesystem:read_file",
-        arguments: { path: "/config.json" },
-        depends_on: []
-      },
-      {
-        id: "t2",
-        tool: "json:parse",
-        arguments: { json: "$OUTPUT[t1]" },
-        depends_on: ["t1"]
-      },
-      {
-        id: "t3",
-        tool: "github:create_issue",
-        arguments: {
-          title: "Config Update",
-          body: "$OUTPUT[t2]"
-        },
-        depends_on: ["t2"]
-      }
+      { id: "t1", tool: "filesystem:read_file", arguments: { path: "config.json" } },
+      { id: "t2", tool: "filesystem:read_file", arguments: { path: "package.json" } },
+      { id: "t3", tool: "memory:create_entities",
+        arguments: { entities: [{ name: "config", content: "$t1.result" }] },
+        depends_on: ["t1"] }
     ]
   }
+});
+// t1 and t2 execute in parallel, t3 waits for t1
+```
+
+**Sandbox code execution:**
+```typescript
+await callTool("agentcards:execute_code", {
+  intent: "Process filesystem data",  // Discovers and injects relevant tools
+  code: `
+    const files = await filesystem.readDirectory({ path: "." });
+    return files.filter(f => f.endsWith('.json')).length;
+  `
 });
 ```
 
@@ -440,215 +468,32 @@ await mcp.callTool("agentcards:execute_code", {
 
 ### Troubleshooting
 
-#### MCP Server Not Connecting
+**Common Issues:**
 
-**Symptoms:**
-- Gateway fails to start
-- "Connection refused" errors in logs
-- Specific MCP server tools not appearing
+| Problem | Solution |
+|---------|----------|
+| Gateway fails to start | Check MCP server configs, verify paths in config |
+| Tools not appearing | Run `deno task serve:playground` to reinitialize |
+| Slow tool discovery | Clear cache, regenerate embeddings |
+| Memory issues | Reduce `maxConcurrency` in config |
 
-**Solutions:**
-1. **Check server configuration:**
-   ```bash
-   cat ~/.agentcards/config.json
-   ```
-   Verify all MCP server commands are correct and in your PATH.
+**Debug Commands:**
+```bash
+# Enable verbose logging
+LOG_LEVEL=debug deno task serve:playground
 
-2. **Test individual MCP servers:**
-   ```bash
-   # Test a server directly
-   /path/to/mcp-server-command --help
-   ```
+# Check database
+ls -lh .agentcards.db
 
-3. **Check server health:**
-   ```bash
-   # Use the status command to check all servers
-   ./agentcards status
-   ```
+# Run tests
+deno task test
+```
 
-4. **Review logs:**
-   ```bash
-   tail -f ~/.agentcards/logs/agentcards.log
-   ```
-
-5. **Restart with verbose logging:**
-   ```bash
-   LOG_LEVEL=debug ./agentcards serve
-   ```
-
-#### Vector Search Performance Issues
-
-**Symptoms:**
-- Slow tool discovery
-- High latency when searching for tools
-- Timeouts during semantic search
-
-**Solutions:**
-1. **Check database index:**
-   ```bash
-   # Verify HNSW index exists
-   ./agentcards debug --check-index
-   ```
-
-2. **Regenerate embeddings:**
-   ```bash
-   # Force re-generation of embeddings
-   ./agentcards init --force-embeddings
-   ```
-
-3. **Reduce tool count:**
-   - Limit `context.topK` in config to reduce search scope
-   - Disable unused MCP servers
-
-4. **Clear cache:**
-   ```bash
-   rm -rf ~/.agentcards/cache
-   ./agentcards init
-   ```
-
-#### Memory Issues
-
-**Symptoms:**
-- High memory usage
-- Gradual memory growth
-- Out of memory errors
-
-**Solutions:**
-1. **Clear cache:**
-   ```bash
-   ./agentcards cache clear
-   ```
-
-2. **Reduce concurrent tool limit:**
-   Edit `~/.agentcards/config.json`:
-   ```json
-   {
-     "execution": {
-       "maxConcurrency": 5
-     }
-   }
-   ```
-
-3. **Restart the gateway periodically:**
-   ```bash
-   # Add to cron or systemd for automatic restart
-   ./agentcards serve
-   ```
-
-4. **Monitor memory usage:**
-   ```bash
-   # Check current memory usage
-   ./agentcards debug --memory
-   ```
-
-#### Claude Code Can't Connect
-
-**Symptoms:**
-- AgentCards not appearing in Claude Code
-- "Server not responding" errors
-
-**Solutions:**
-1. **Verify absolute path:**
-   ```bash
-   # Find the absolute path
-   which agentcards
-   # or
-   readlink -f ./agentcards
-   ```
-
-2. **Check execute permissions:**
-   ```bash
-   chmod +x /absolute/path/to/agentcards
-   ```
-
-3. **Test gateway manually:**
-   ```bash
-   # Run gateway in test mode
-   ./agentcards serve --test
-   ```
-
-4. **Restart Claude Desktop:**
-   - Close Claude Desktop completely
-   - Wait 5 seconds
-   - Restart Claude Desktop
-
-5. **Verify configuration syntax:**
-   ```bash
-   # Validate JSON syntax
-   cat ~/.config/Claude/claude_desktop_config.json | jq .
-   ```
-
-#### Tools Not Appearing
-
-**Symptoms:**
-- Some or all tools missing from Claude Code
-- Expected tools not in tool list
-
-**Solutions:**
-1. **Refresh tool catalog:**
-   ```bash
-   ./agentcards init
-   ```
-
-2. **Verify underlying servers:**
-   ```bash
-   # Check each MCP server individually
-   ./agentcards status
-   ```
-
-3. **Check embeddings:**
-   ```bash
-   # Verify embeddings were generated
-   ls -lh ~/.agentcards/db
-   # Should show database files
-   ```
-
-4. **Force full re-initialization:**
-   ```bash
-   # Backup and reset
-   mv ~/.agentcards ~/.agentcards.backup
-   ./agentcards init
-   ```
-
-#### Performance Degradation
-
-**Symptoms:**
-- Slow response times
-- Increased latency over time
-
-**Solutions:**
-1. **Run performance diagnostics:**
-   ```bash
-   ./agentcards debug --performance
-   ```
-
-2. **Check database size:**
-   ```bash
-   du -h ~/.agentcards/db
-   ```
-
-3. **Compact database:**
-   ```bash
-   ./agentcards vacuum
-   ```
-
-4. **Review benchmark results:**
-   ```bash
-   deno bench --allow-all tests/benchmarks/
-   ```
-
-#### Getting Help
-
-If you're still experiencing issues:
-
-1. **Check existing issues:** [GitHub Issues](https://github.com/YOUR_USERNAME/agentcards/issues)
-2. **Enable debug logging:** `LOG_LEVEL=debug ./agentcards serve`
-3. **Collect diagnostics:** `./agentcards debug --full`
-4. **Report issue:** Include logs, config, and Deno version
+**Getting Help:** [GitHub Issues](https://github.com/Casys-AI/AgentCards/issues)
 
 ---
 
-## 🛠️ Development
+## Development
 
 ### Deno Tasks
 
@@ -702,7 +547,7 @@ deno task build
 
 ---
 
-## 🧪 Testing
+## Testing
 
 ```bash
 # Run all tests
@@ -729,61 +574,81 @@ Tests are organized in:
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
-agentcards/
+AgentCards/
 ├── src/
-│   ├── main.ts              # Entry point
-│   ├── cli/                 # CLI commands (init, serve)
-│   ├── db/                  # Database modules (PGlite + pgvector)
-│   ├── mcp/                 # MCP client/server logic
-│   │   ├── gateway-server.ts   # MCP gateway server
+│   ├── main.ts                 # Entry point
+│   ├── cli/                    # CLI commands (init, serve)
+│   ├── db/                     # Database (PGlite + pgvector + migrations)
+│   ├── mcp/                    # MCP protocol
+│   │   ├── gateway-server.ts   # MCP gateway with meta-tools
+│   │   ├── gateway-handler.ts  # Request handlers
 │   │   ├── client.ts           # MCP client wrapper
-│   │   └── discovery.ts        # Server discovery
-│   ├── vector/              # Embedding & semantic search
-│   │   ├── embeddings.ts       # BGE-Large-EN-v1.5
-│   │   └── search.ts           # Vector search
-│   ├── dag/                 # DAG execution engine
-│   │   └── executor.ts         # Parallel executor
-│   ├── graphrag/            # Graph algorithms & RAG
-│   │   ├── graph-engine.ts     # Graphology integration
-│   │   └── dag-suggester.ts    # Workflow suggestions
-│   └── telemetry/           # Logging & metrics
-├── tests/
-│   ├── unit/                # Unit tests
-│   ├── integration/         # Integration tests
-│   └── benchmark/           # Performance benchmarks
-├── docs/                    # Documentation
+│   │   └── discovery.ts        # Server auto-discovery
+│   ├── vector/                 # Embeddings & search
+│   │   ├── embeddings.ts       # BGE-Large-EN-v1.5 via Transformers.js
+│   │   └── search.ts           # Vector similarity search
+│   ├── dag/                    # DAG execution
+│   │   ├── executor.ts         # Parallel executor
+│   │   └── controlled-executor.ts  # With AIL/HIL support
+│   ├── graphrag/               # Graph learning
+│   │   ├── graph-engine.ts     # Graphology + PageRank + Adamic-Adar
+│   │   ├── dag-suggester.ts    # Intent → DAG suggestions
+│   │   └── workflow-sync.ts    # Template bootstrapping
+│   ├── sandbox/                # Code execution
+│   │   ├── deno-executor.ts    # Isolated Deno subprocess
+│   │   ├── context-builder.ts  # MCP tool injection
+│   │   └── pii-detector.ts     # Sensitive data protection
+│   ├── web/                    # Fresh dashboard
+│   │   ├── routes/             # Pages and API routes
+│   │   └── islands/            # Interactive components
+│   └── telemetry/              # Logging & metrics
+├── tests/                      # Unit, integration, benchmarks
+├── docs/
 │   ├── PRD.md                  # Product requirements
-│   ├── architecture.md         # Architecture decisions
-│   └── stories/                # User stories
-├── .github/workflows/       # CI/CD pipelines
-└── deno.json                # Deno configuration
+│   ├── adrs/                   # Architecture Decision Records
+│   ├── stories/                # User stories
+│   └── sprint-status.yaml      # Development progress
+├── config/                     # MCP server configs
+├── playground/                 # Jupyter notebooks (WIP)
+└── deno.json                   # Tasks and dependencies
 ```
 
 ---
 
-## 📚 Documentation
+## Documentation
 
-- **[Product Requirements Document](docs/PRD.md)** - Product vision and requirements
-- **[Architecture Decisions](docs/architecture.md)** - Technical architecture and decisions
-- **[Epic Breakdown](docs/epics.md)** - Feature epics and implementation plan
+- **[Product Requirements](docs/PRD.md)** - Goals, features, user journeys
+- **[Architecture Decisions](docs/adrs/)** - ADRs for technical decisions
 - **[Sprint Status](docs/sprint-status.yaml)** - Current development progress
+- **[Stories](docs/stories/)** - Detailed implementation stories
 
 ---
 
-## 🔒 Security
+## Security
 
-AgentCards runs **locally** with explicit Deno permissions:
-- No cloud dependencies for embeddings (100% local)
-- All data stored in local PGlite database (`~/.agentcards/db`)
-- MCP server communication via stdio (no network)
-- Review permission flags in `deno.json` tasks before running
+AgentCards is designed for local-first, privacy-respecting operation:
+
+**Data Privacy:**
+- All embeddings generated locally (BGE-Large-EN-v1.5 via Transformers.js)
+- Data stored in local PGlite database (`.agentcards.db`)
+- No cloud dependencies or external API calls for core functionality
+
+**Sandbox Isolation:**
+- Code execution runs in isolated Deno subprocess
+- Limited permissions (configurable read paths only)
+- No network access from sandbox by default
+- PII detection and tokenization before execution
+
+**MCP Communication:**
+- Server communication via stdio (no network exposure)
+- HTTP mode available for dashboard (configurable port)
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! Here's how to get started:
 
@@ -799,8 +664,8 @@ We welcome contributions! Here's how to get started:
 
 ```bash
 # Clone your fork
-git clone https://github.com/YOUR_USERNAME/agentcards.git
-cd agentcards
+git clone https://github.com/Casys-AI/AgentCards.git
+cd AgentCards
 
 # Install dependencies (Deno manages this automatically)
 deno cache src/main.ts
@@ -814,26 +679,22 @@ deno task dev
 
 ---
 
-## 📄 License
+## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **AGPL-3.0 License** - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **[Deno](https://deno.land/)** - Modern JavaScript/TypeScript runtime
+- **[Fresh](https://fresh.deno.dev/)** - Next-gen web framework for Deno
 - **[PGlite](https://github.com/electric-sql/pglite)** - Lightweight PostgreSQL WASM
 - **[Transformers.js](https://github.com/xenova/transformers.js)** - Local ML model inference
 - **[MCP SDK](https://github.com/modelcontextprotocol)** - Model Context Protocol by Anthropic
 - **[Graphology](https://graphology.github.io/)** - Graph data structure and algorithms
+- **[Cytoscape.js](https://js.cytoscape.org/)** - Graph visualization library
 
 ---
 
-<div align="center">
-
-**Built with ❤️ using Deno and the Model Context Protocol**
-
-[Report Bug](https://github.com/YOUR_USERNAME/agentcards/issues) · [Request Feature](https://github.com/YOUR_USERNAME/agentcards/issues) · [Documentation](docs/)
-
-</div>
+[Report Bug](https://github.com/Casys-AI/AgentCards/issues) | [Request Feature](https://github.com/Casys-AI/AgentCards/issues) | [Documentation](docs/)

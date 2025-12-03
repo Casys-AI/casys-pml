@@ -191,14 +191,14 @@ export default function GraphVisualization({ apiBase: _apiBase }: GraphVisualiza
 
     eventSource.addEventListener("edge_created", (event: any) => {
       const data = JSON.parse(event.data);
-      const edgeId = `${data.from_tool}-${data.to_tool}`;
+      const edgeId = `${data.from_tool_id}-${data.to_tool_id}`;
       if (!cy.$id(edgeId).length) {
         const newEdge = cy.add({
           group: "edges",
           data: {
             id: edgeId,
-            source: data.from_tool,
-            target: data.to_tool,
+            source: data.from_tool_id,
+            target: data.to_tool_id,
             confidence: data.confidence_score || 0.5,
             observed_count: data.observed_count || 1,
           },
@@ -211,7 +211,7 @@ export default function GraphVisualization({ apiBase: _apiBase }: GraphVisualiza
 
     eventSource.addEventListener("edge_updated", (event: any) => {
       const data = JSON.parse(event.data);
-      const edgeId = `${data.from_tool}-${data.to_tool}`;
+      const edgeId = `${data.from_tool_id}-${data.to_tool_id}`;
       const edge = cy.$id(edgeId);
       if (edge.length) {
         edge.data({
