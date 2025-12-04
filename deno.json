@@ -21,6 +21,7 @@
     "dev:fresh": "cd src/web && vite",
     "dev:fresh:legacy": "cd src/web && deno run -A --unstable-hmr dev.ts",
     "fresh:build": "cd src/web && vite build",
+    "fresh:start": "cd src/web && deno run -A _fresh/server/server-entry.mjs",
     "test": "deno test --allow-all",
     "test:unit": "deno test --allow-all tests/unit/",
     "test:integration": "deno test --allow-all tests/integration/ --ignore=tests/integration/e2e_migration_test.ts",
