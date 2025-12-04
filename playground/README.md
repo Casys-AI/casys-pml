@@ -6,13 +6,13 @@ Interactive Jupyter notebooks demonstrating AgentCards MCP Gateway features.
 
 ### Option 1: GitHub Codespaces (Recommended)
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Casys-AI/AgentCards?devcontainer_path=.devcontainer/playground/devcontainer.json)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Casys-AI/mcp-gateway?devcontainer_path=.devcontainer/playground/devcontainer.json)
 
 ### Option 2: Local Development
 
 ```bash
 # Clone and navigate
-git clone https://github.com/Casys-AI/AgentCards.git
+git clone https://github.com/Casys-AI/mcp-gateway.git
 cd AgentCards
 
 # Setup MCP config

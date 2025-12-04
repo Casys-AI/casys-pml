@@ -757,13 +757,34 @@ export class GraphRAGEngine {
    * @returns GraphSnapshot containing nodes, edges, and metadata
    */
   getGraphSnapshot(): GraphSnapshot {
-    const nodes = this.graph.nodes().map((toolId: string) => ({
-      id: toolId,
-      label: toolId.split("__").pop() || toolId, // Extract tool name
-      server: toolId.split("__")[1] || "unknown",
-      pagerank: this.pageRanks[toolId] || 0,
-      degree: this.graph.degree(toolId),
-    }));
+    const nodes = this.graph.nodes().map((toolId: string) => {
+      // Tool IDs can be in format "server:tool_name" or "mcp__server__tool_name"
+      // Support both formats for backward compatibility
+      let server = "unknown";
+      let label = toolId;
+
+      if (toolId.includes(":")) {
+        // Format: "server:tool_name" (e.g., "filesystem:read_file")
+        const colonIndex = toolId.indexOf(":");
+        server = toolId.substring(0, colonIndex);
+        label = toolId.substring(colonIndex + 1);
+      } else if (toolId.includes("__")) {
+        // Format: "mcp__server__tool_name"
+        const parts = toolId.split("__");
+        if (parts.length >= 3) {
+          server = parts[1];
+          label = parts.slice(2).join("__");
+        }
+      }
+
+      return {
+        id: toolId,
+        label,
+        server,
+        pagerank: this.pageRanks[toolId] || 0,
+        degree: this.graph.degree(toolId),
+      };
+    });
 
     const edges = this.graph.edges().map((edgeKey: string) => {
       const edge = this.graph.getEdgeAttributes(edgeKey);
@@ -785,6 +806,111 @@ export class GraphRAGEngine {
         last_updated: new Date().toISOString(),
       },
     };
+  }
+
+  // ============================================
+  // Story 6.4: Search Tools for Autocomplete
+  // ============================================
+
+  /**
+   * Search tools for autocomplete suggestions (Story 6.4 AC10)
+   *
+   * Fast prefix-based search on tool name/server for autocomplete.
+   * Returns results with pagerank for ranking display.
+   *
+   * @param query - Search query (min 2 chars)
+   * @param limit - Maximum results (default: 10)
+   * @returns Array of matching tools with metadata
+   */
+  searchToolsForAutocomplete(
+    query: string,
+    limit: number = 10,
+  ): Array<{
+    tool_id: string;
+    name: string;
+    server: string;
+    description: string;
+    score: number;
+    pagerank: number;
+  }> {
+    if (query.length < 2) return [];
+
+    const lowerQuery = query.toLowerCase();
+    const results: Array<{
+      tool_id: string;
+      name: string;
+      server: string;
+      description: string;
+      score: number;
+      pagerank: number;
+    }> = [];
+
+    // Search through all nodes in graph
+    this.graph.forEachNode((toolId: string, attrs: { name?: string; serverId?: string; metadata?: { description?: string } }) => {
+      // Extract server and name from tool_id
+      let server = "unknown";
+      let name = toolId;
+
+      if (toolId.includes(":")) {
+        const colonIndex = toolId.indexOf(":");
+        server = toolId.substring(0, colonIndex);
+        name = toolId.substring(colonIndex + 1);
+      } else if (toolId.includes("__")) {
+        const parts = toolId.split("__");
+        if (parts.length >= 3) {
+          server = parts[1];
+          name = parts.slice(2).join("__");
+        }
+      }
+
+      const description = attrs.metadata?.description || attrs.name || "";
+      const lowerName = name.toLowerCase();
+      const lowerServer = server.toLowerCase();
+      const lowerDescription = description.toLowerCase();
+
+      // Score based on match quality
+      let score = 0;
+
+      // Exact name match = highest score
+      if (lowerName === lowerQuery) {
+        score = 1.0;
+      }
+      // Name starts with query = high score
+      else if (lowerName.startsWith(lowerQuery)) {
+        score = 0.9;
+      }
+      // Name contains query = medium score
+      else if (lowerName.includes(lowerQuery)) {
+        score = 0.7;
+      }
+      // Server matches = lower score
+      else if (lowerServer.includes(lowerQuery)) {
+        score = 0.5;
+      }
+      // Description contains query = lowest score
+      else if (lowerDescription.includes(lowerQuery)) {
+        score = 0.3;
+      }
+
+      if (score > 0) {
+        results.push({
+          tool_id: toolId,
+          name,
+          server,
+          description: description.substring(0, 200), // Truncate for autocomplete
+          score,
+          pagerank: this.pageRanks[toolId] || 0,
+        });
+      }
+    });
+
+    // Sort by score (desc), then by pagerank (desc)
+    results.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return b.pagerank - a.pagerank;
+    });
+
+    return results.slice(0, limit);
   }
 
   // ============================================

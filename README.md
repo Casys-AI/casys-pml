@@ -1,6 +1,6 @@
 # AgentCards
 
-[![CI](https://github.com/Casys-AI/AgentCards/workflows/CI/badge.svg)](https://github.com/Casys-AI/AgentCards/actions)
+[![CI](https://github.com/Casys-AI/mcp-gateway/workflows/CI/badge.svg)](https://github.com/Casys-AI/mcp-gateway/actions)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Deno Version](https://img.shields.io/badge/deno-2.x-blue.svg)](https://deno.land)
 
@@ -60,7 +60,7 @@ AgentCards solves two critical problems with MCP ecosystems:
 
 ```bash
 # Clone the repository
-git clone https://github.com/Casys-AI/AgentCards.git
+git clone https://github.com/Casys-AI/mcp-gateway.git
 cd AgentCards
 
 # Start the gateway (auto-init on first run)
@@ -97,7 +97,7 @@ The Jupyter notebook playground is under development. Current notebooks explore:
 ```bash
 # Open in GitHub Codespaces (recommended)
 ```
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Casys-AI/AgentCards?devcontainer_path=.devcontainer/playground/devcontainer.json)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Casys-AI/mcp-gateway?devcontainer_path=.devcontainer/playground/devcontainer.json)
 
 ### Optional: Error Tracking with Sentry
 
@@ -489,7 +489,7 @@ ls -lh .agentcards.db
 deno task test
 ```
 
-**Getting Help:** [GitHub Issues](https://github.com/Casys-AI/AgentCards/issues)
+**Getting Help:** [GitHub Issues](https://github.com/Casys-AI/mcp-gateway/issues)
 
 ---
 
@@ -664,7 +664,7 @@ We welcome contributions! Here's how to get started:
 
 ```bash
 # Clone your fork
-git clone https://github.com/Casys-AI/AgentCards.git
+git clone https://github.com/Casys-AI/mcp-gateway.git
 cd AgentCards
 
 # Install dependencies (Deno manages this automatically)
@@ -697,4 +697,4 @@ This project is licensed under the **AGPL-3.0 License** - see the [LICENSE](LICE
 
 ---
 
-[Report Bug](https://github.com/Casys-AI/AgentCards/issues) | [Request Feature](https://github.com/Casys-AI/AgentCards/issues) | [Documentation](docs/)
+[Report Bug](https://github.com/Casys-AI/mcp-gateway/issues) | [Request Feature](https://github.com/Casys-AI/mcp-gateway/issues) | [Documentation](docs/)

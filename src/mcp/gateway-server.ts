@@ -1961,6 +1961,116 @@ export class AgentCardsGatewayServer {
         }
       }
 
+      // Path Finding API (Story 6.4 AC4)
+      if (url.pathname === "/api/graph/path" && req.method === "GET") {
+        try {
+          const from = url.searchParams.get("from") || "";
+          const to = url.searchParams.get("to") || "";
+
+          if (!from || !to) {
+            return new Response(
+              JSON.stringify({ error: "Missing required parameters: 'from' and 'to'" }),
+              { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } },
+            );
+          }
+
+          const path = this.graphEngine.findShortestPath(from, to);
+          return new Response(
+            JSON.stringify({
+              path: path || [],
+              total_hops: path ? path.length - 1 : -1,
+              from,
+              to,
+            }),
+            { headers: { "Content-Type": "application/json", ...corsHeaders } },
+          );
+        } catch (error) {
+          return new Response(
+            JSON.stringify({ error: `Path finding failed: ${error}` }),
+            { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } },
+          );
+        }
+      }
+
+      // Related Tools API (Story 6.4 AC6 - Adamic-Adar)
+      if (url.pathname === "/api/graph/related" && req.method === "GET") {
+        try {
+          const toolId = url.searchParams.get("tool_id") || "";
+          const limit = parseInt(url.searchParams.get("limit") || "5", 10);
+
+          if (!toolId) {
+            return new Response(
+              JSON.stringify({ error: "Missing required parameter: 'tool_id'" }),
+              { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } },
+            );
+          }
+
+          const related = this.graphEngine.computeAdamicAdar(toolId, limit);
+
+          // Enrich with server info and edge data
+          const enrichedRelated = related.map((r) => {
+            const edgeData = this.graphEngine.getEdgeData(toolId, r.toolId) ||
+              this.graphEngine.getEdgeData(r.toolId, toolId);
+
+            // Extract server and name from tool_id
+            let server = "unknown";
+            let name = r.toolId;
+            if (r.toolId.includes(":")) {
+              const colonIndex = r.toolId.indexOf(":");
+              server = r.toolId.substring(0, colonIndex);
+              name = r.toolId.substring(colonIndex + 1);
+            }
+
+            return {
+              tool_id: r.toolId,
+              name,
+              server,
+              adamic_adar_score: Math.round(r.score * 1000) / 1000,
+              edge_confidence: edgeData?.weight ?? null,
+            };
+          });
+
+          return new Response(
+            JSON.stringify({
+              tool_id: toolId,
+              related: enrichedRelated,
+            }),
+            { headers: { "Content-Type": "application/json", ...corsHeaders } },
+          );
+        } catch (error) {
+          return new Response(
+            JSON.stringify({ error: `Related tools lookup failed: ${error}` }),
+            { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } },
+          );
+        }
+      }
+
+      // Search Tools API (Story 6.4 AC10)
+      if (url.pathname === "/api/tools/search" && req.method === "GET") {
+        try {
+          const q = url.searchParams.get("q") || "";
+          const limit = parseInt(url.searchParams.get("limit") || "10", 10);
+
+          if (q.length < 2) {
+            return new Response(
+              JSON.stringify({ results: [], total: 0 }),
+              { headers: { "Content-Type": "application/json", ...corsHeaders } },
+            );
+          }
+
+          const results = this.graphEngine.searchToolsForAutocomplete(q, limit);
+          return new Response(
+            JSON.stringify({ results, total: results.length }),
+            { headers: { "Content-Type": "application/json", ...corsHeaders } },
+          );
+        } catch (error) {
+          return new Response(
+            JSON.stringify({ error: `Search failed: ${error}` }),
+            { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } },
+          );
+        }
+      }
+
       // Metrics API (Story 6.3)
       if (url.pathname === "/api/metrics" && req.method === "GET") {
         try {
