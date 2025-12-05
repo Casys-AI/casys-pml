@@ -136,3 +136,32 @@ development_status:
   6-3-live-metrics-analytics-panel: done  # Code Review APPROVED 2025-12-02, 23 tests passing, Quality Score: 95/100
   6-4-graph-explorer-search-interface: done  # Code Review APPROVED 2025-12-04, 11 tests passing, all 11 ACs validated
   epic-6-retrospective: optional
+
+  # Epic 7: Emergent Capabilities & Learning System
+  # ADR-027 (Execute Code Graph Learning), ADR-028 (Emergent Capabilities System)
+  # 5 stories (7.1, 7.2a, 7.2b, 7.3a, 7.3b, 7.4, 7.5a, 7.5b), ~2-3 semaines
+  # Transforms AgentCards into a system where capabilities EMERGE from usage
+  epic-7: in-progress
+  7-1-ipc-tracking-tool-usage-capture: done  # Completed 2025-12-05 (41 tests passing)
+  7-1b-worker-rpc-bridge: done  # ADR-032 - Code Review APPROVED 2025-12-05, 34 tests passing, all 7 ACs validated
+  7-2a-capability-storage-migration-eager-learning: in-progress
+  7-2b-schema-inference-ts-morph-zod: backlog
+  7-3a-capability-matching-search-capabilities-tool: backlog
+  7-3b-capability-injection-nested-tracing: backlog
+  7-4-suggestion-engine-proactive-recommendations: backlog
+  7-5a-capability-result-cache: backlog
+  7-5b-capability-pruning: optional
+  epic-7-retrospective: optional
+
+  # Epic 8: Hypergraph Capabilities Visualization
+  # ADR-029 (Hypergraph Capabilities Visualization)
+  # 5 stories, ~1-2 semaines
+  # Visualize capabilities as hyperedges (N-ary relations between tools)
+  # Depends on: Epic 6 (Dashboard), Epic 7 (Capabilities Storage)
+  epic-8: backlog
+  8-1-capability-data-api: backlog
+  8-2-compound-graph-builder: backlog
+  8-3-hypergraph-view-mode: backlog
+  8-4-code-panel-integration: backlog
+  8-5-capability-explorer: backlog
+  epic-8-retrospective: optional

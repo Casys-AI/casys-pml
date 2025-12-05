@@ -33,8 +33,9 @@ import { MCPClient } from "./client.ts";
 import type { CodeExecutionRequest, CodeExecutionResponse, MCPTool } from "./types.ts";
 import type { DAGStructure } from "../graphrag/types.ts";
 import { HealthChecker } from "../health/health-checker.ts";
-import { DenoSandboxExecutor } from "../sandbox/executor.ts";
+import { DenoSandboxExecutor, type WorkerExecutionConfig } from "../sandbox/executor.ts";
 import { ContextBuilder } from "../sandbox/context-builder.ts";
+// TraceEvent imported from sandbox/types.ts is now used via executeWithTools result
 import { addBreadcrumb, captureError, startTransaction } from "../telemetry/sentry.ts";
 // Story 2.5-4: MCP Control Tools & Per-Layer Validation
 import {
@@ -59,6 +60,13 @@ const MCPErrorCodes = {
   INVALID_PARAMS: -32602,
   INTERNAL_ERROR: -32603,
 } as const;
+
+// ============================================
+// Story 7.1b: Native Tracing via Worker RPC Bridge
+// ============================================
+// The parseTraces() function from Story 7.1 has been removed.
+// Tracing is now handled natively in WorkerBridge (src/sandbox/worker-bridge.ts).
+// See ADR-032 for details on the Worker RPC Bridge architecture.
 
 /**
  * MCP Gateway Server Configuration
@@ -159,10 +167,11 @@ export class AgentCardsGatewayServer {
       },
     );
 
-    // Initialize Gateway Handler
+    // Initialize Gateway Handler (ADR-030: pass mcpClients for real execution)
     this.gatewayHandler = new GatewayHandler(
       this.graphEngine,
       this.dagSuggester,
+      this.mcpClients,  // ADR-030: enable real tool execution
       {
         enableSpeculative: this.config.enableSpeculative,
       },
@@ -1049,30 +1058,8 @@ export class AgentCardsGatewayServer {
         codeSize: codeSizeBytes,
       });
 
-      // Build execution context
-      let executionContext = request.context || {};
-
-      // Intent-based mode: Use vector search to discover and inject relevant tools
-      if (request.intent) {
-        log.debug("Intent-based mode: discovering relevant tools");
-
-        // Vector search for relevant tools (top 5)
-        const toolResults = await this.vectorSearch.searchTools(request.intent, 5, 0.6);
-
-        if (toolResults.length > 0) {
-          log.debug(`Found ${toolResults.length} relevant tools for intent`);
-
-          // Build tool context using ContextBuilder
-          const toolContext = await this.contextBuilder.buildContextFromSearchResults(
-            toolResults,
-          );
-
-          // Merge tool context with user-provided context
-          executionContext = { ...executionContext, ...toolContext };
-        } else {
-          log.warn("No relevant tools found for intent (similarity threshold not met)");
-        }
-      }
+      // Build execution context (for non-tool variables)
+      const executionContext = request.context || {};
 
       // Configure sandbox
       const sandboxConfig = request.sandbox_config || {};
@@ -1088,9 +1075,39 @@ export class AgentCardsGatewayServer {
       const toolVersions = this.buildToolVersionsMap();
       executor.setToolVersions(toolVersions);
 
-      // Execute code in sandbox with injected context
+      // Story 7.1b: Use Worker RPC Bridge for tool execution with native tracing
+      let toolDefinitions: import("../sandbox/types.ts").ToolDefinition[] = [];
+      let toolsCalled: string[] = [];
+
+      // Intent-based mode: Use vector search to discover tools
+      if (request.intent) {
+        log.debug("Intent-based mode: discovering relevant tools for Worker RPC bridge");
+
+        // Vector search for relevant tools (top 5)
+        const toolResults = await this.vectorSearch.searchTools(request.intent, 5, 0.6);
+
+        if (toolResults.length > 0) {
+          log.debug(`Found ${toolResults.length} relevant tools for intent`);
+
+          // Build tool definitions for Worker RPC bridge (Story 7.1b)
+          toolDefinitions = this.contextBuilder.buildToolDefinitions(toolResults);
+        } else {
+          log.warn("No relevant tools found for intent (similarity threshold not met)");
+        }
+      }
+
+      // Execute code using Worker RPC bridge (Story 7.1b: native tracing)
       const startTime = performance.now();
-      const result = await executor.execute(request.code, executionContext);
+      const workerConfig: WorkerExecutionConfig = {
+        toolDefinitions,
+        mcpClients: this.mcpClients,
+      };
+
+      const result = await executor.executeWithTools(
+        request.code,
+        workerConfig,
+        executionContext,
+      );
       const executionTimeMs = performance.now() - startTime;
 
       // Handle execution failure
@@ -1108,12 +1125,48 @@ export class AgentCardsGatewayServer {
         );
       }
 
+      // Story 7.1b: Use native traces from Worker RPC bridge (replaces stdout parsing)
+      let trackedToolsCount = 0;
+      if (result.toolsCalled && result.toolsCalled.length > 0) {
+        toolsCalled = result.toolsCalled;
+        log.info(`[Story 7.1b] Tracked ${toolsCalled.length} tool calls via native tracing`, {
+          tools: toolsCalled,
+        });
+
+        // Build WorkflowExecution from traced tool calls
+        const tracedDAG = {
+          tasks: toolsCalled.map((tool, index) => ({
+            id: `traced_${index}`,
+            tool,
+            arguments: {},
+            depends_on: index > 0 ? [`traced_${index - 1}`] : [], // Sequential dependency assumption
+          })),
+        };
+
+        // Update GraphRAG with execution data
+        await this.graphEngine.updateFromExecution({
+          execution_id: crypto.randomUUID(),
+          executed_at: new Date(),
+          intent_text: request.intent ?? "code_execution",
+          dag_structure: tracedDAG,
+          success: true,
+          execution_time_ms: executionTimeMs,
+        });
+
+        trackedToolsCount = toolsCalled.length;
+      }
+
+      // Log native trace stats (Story 7.1b)
+      if (result.traces && result.traces.length > 0) {
+        log.debug(`[Story 7.1b] Captured ${result.traces.length} native trace events`);
+      }
+
       // Calculate output size
       const outputSizeBytes = new TextEncoder().encode(
         JSON.stringify(result.result),
       ).length;
 
-      // Build response
+      // Build response (Story 7.1b: traces are kept internal, not exposed to user)
       const response: CodeExecutionResponse = {
         result: result.result,
         logs: [], // TODO: Capture console logs in future enhancement
@@ -1128,6 +1181,7 @@ export class AgentCardsGatewayServer {
       log.info("Code execution succeeded", {
         executionTimeMs: response.metrics.executionTimeMs.toFixed(2),
         outputSize: outputSizeBytes,
+        trackedTools: trackedToolsCount, // Story 7.1b: native tracing
       });
 
       return {

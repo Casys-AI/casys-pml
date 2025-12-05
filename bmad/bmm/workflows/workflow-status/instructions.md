@@ -4,6 +4,7 @@
 <critical>You MUST have already loaded and processed: {project-root}/bmad/bmm/workflows/workflow-status/workflow.yaml</critical>
 <critical>This workflow operates in multiple modes: interactive (default), validate, data, init-check, update</critical>
 <critical>Other workflows can call this as a service to avoid duplicating status logic</critical>
+<critical>⚠️ ABSOLUTELY NO TIME ESTIMATES - NEVER mention hours, days, weeks, months, or ANY time-based predictions. AI has fundamentally changed development speed - what once took teams weeks/months can now be done by one person in hours. DO NOT give ANY time estimates whatsoever.</critical>
 
 <workflow>
 
@@ -36,12 +37,19 @@
 <action>Search {output_folder}/ for file: bmm-workflow-status.yaml</action>
 
 <check if="no status file found">
-  <output>No workflow status found. To get started:
+  <output>No workflow status found.</output>
+  <ask>Would you like to run Workflow Init now? (y/n)</ask>
 
-Load analyst agent and run: `workflow-init`
+  <check if="response == y OR response == yes">
+    <action>Launching workflow-init to set up your project tracking...</action>
+    <invoke-workflow path="{project-root}/bmad/bmm/workflows/workflow-status/init/workflow.yaml"></invoke-workflow>
+    <action>Exit workflow and let workflow-init take over</action>
+  </check>
 
-This will guide you through project setup and create your workflow path.</output>
-<action>Exit workflow</action>
+  <check if="else">
+    <output>No workflow status file. Run workflow-init when ready to enable progress tracking.</output>
+    <action>Exit workflow</action>
+  </check>
 </check>
 
 <check if="status file found">
@@ -79,6 +87,7 @@ Parse these fields from YAML comments and metadata:
 <action>Load workflow path file based on workflow_path field</action>
 <action>Identify current phase from next workflow to be done</action>
 <action>Build list of completed, pending, and optional workflows</action>
+<action>For each workflow, look up its agent from the path file</action>
 
 <output>
 ## 📊 Current Status
@@ -93,7 +102,7 @@ Parse these fields from YAML comments and metadata:
 {{phase_name}}:
 {{#each workflows_in_phase}}
 
-- {{workflow_name}}: {{status_display}}
+- {{workflow_name}} ({{agent}}): {{status_display}}
   {{/each}}
   {{/each}}
 
@@ -118,7 +127,7 @@ Parse these fields from YAML comments and metadata:
 <step n="4" goal="Offer actions">
 <ask>What would you like to do?
 
-1. **Start next workflow** - {{next_workflow_name}} ({{next_agent}} agent)
+1. **Start next workflow** - {{next_workflow_name}} ({{next_agent}})
    {{#if optional_workflows_available}}
 2. **Run optional workflow** - Choose from available options
    {{/if}}

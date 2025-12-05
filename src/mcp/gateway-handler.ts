@@ -20,6 +20,7 @@ import type {
   Task,
 } from "../graphrag/types.ts";
 import { AdaptiveThresholdManager } from "./adaptive-threshold.ts";
+import type { MCPClient } from "./client.ts";
 
 /**
  * Safety check configuration
@@ -31,6 +32,13 @@ interface SafetyCheck {
 }
 
 /**
+ * Execution mode for tool calls (ADR-030)
+ * - "real": Execute tools via MCP clients (production)
+ * - "dry_run": Simulate execution without side effects
+ */
+export type ToolExecutionMode = "real" | "dry_run";
+
+/**
  * Gateway configuration
  */
 interface GatewayConfig {
@@ -38,6 +46,7 @@ interface GatewayConfig {
   suggestionThreshold: number; // Below this: suggestion, above: speculative
   enableSpeculative: boolean;
   safetyChecks: SafetyCheck[];
+  executionMode: ToolExecutionMode; // ADR-030: real vs dry_run
 }
 
 /**
@@ -61,6 +70,8 @@ const DEFAULT_SAFETY_CHECKS: SafetyCheck[] = [
  *
  * Intelligent gateway that decides execution mode based on confidence,
  * implements safety checks, and supports speculative execution.
+ *
+ * ADR-030: Now supports real tool execution via MCPClients.
  */
 export class GatewayHandler {
   private config: GatewayConfig;
@@ -69,6 +80,7 @@ export class GatewayHandler {
   constructor(
     private graphEngine: GraphRAGEngine,
     private dagSuggester: DAGSuggester,
+    private mcpClients: Map<string, MCPClient>,  // ADR-030: MCP clients for real execution
     config?: Partial<GatewayConfig>,
   ) {
     this.config = {
@@ -76,6 +88,7 @@ export class GatewayHandler {
       suggestionThreshold: 0.70,
       enableSpeculative: true,
       safetyChecks: DEFAULT_SAFETY_CHECKS,
+      executionMode: "real",  // ADR-030: default to real execution
       ...config,
     };
 
@@ -236,11 +249,10 @@ export class GatewayHandler {
         continue;
       }
 
-      // Simulate execution
+      // Execute task (real or dry_run based on config - ADR-030)
       const startTime = performance.now();
       try {
-        // TODO: Call actual MCP tool execution
-        const result = await this.simulateToolExecution(task);
+        const result = await this.executeTask(task);
         const executionTime = performance.now() - startTime;
 
         results.push({
@@ -267,9 +279,73 @@ export class GatewayHandler {
   }
 
   /**
-   * Simulate tool execution (placeholder)
+   * Execute a task (routes to real or simulated based on config)
+   *
+   * ADR-030: Supports both real execution and dry_run mode.
    *
    * @param task - Task to execute
+   * @returns Execution result
+   */
+  private async executeTask(task: Task): Promise<unknown> {
+    if (this.config.executionMode === "dry_run") {
+      return this.simulateToolExecution(task);
+    }
+    return this.executeToolReal(task);
+  }
+
+  /**
+   * Execute tool via MCP client (ADR-030)
+   *
+   * Tracing is automatically handled by wrapMCPClient() from Story 7.1.
+   *
+   * @param task - Task to execute
+   * @returns Real execution result from MCP server
+   */
+  private async executeToolReal(task: Task): Promise<unknown> {
+    // Parse tool ID: "serverId:toolName" or "mcp__serverId__toolName"
+    let serverId: string;
+    let toolName: string;
+
+    if (task.tool.includes(":")) {
+      [serverId, toolName] = task.tool.split(":", 2);
+    } else if (task.tool.includes("__")) {
+      // Format: mcp__server__tool
+      const parts = task.tool.split("__");
+      if (parts.length >= 3) {
+        serverId = parts[1];
+        toolName = parts.slice(2).join("__");
+      } else {
+        throw new Error(`Invalid tool format: ${task.tool}`);
+      }
+    } else {
+      throw new Error(`Invalid tool format: ${task.tool} (expected server:tool or mcp__server__tool)`);
+    }
+
+    const client = this.mcpClients.get(serverId);
+    if (!client) {
+      const available = Array.from(this.mcpClients.keys()).join(", ");
+      throw new Error(`MCP server "${serverId}" not connected. Available: ${available || "none"}`);
+    }
+
+    log.debug(`[ADR-030] Executing real tool: ${serverId}:${toolName}`, {
+      arguments: Object.keys(task.arguments || {}),
+    });
+
+    // Call the real MCP tool (tracing handled by wrapMCPClient - Story 7.1)
+    const result = await client.callTool(toolName, task.arguments || {});
+
+    log.debug(`[ADR-030] Tool execution completed: ${serverId}:${toolName}`);
+
+    return result;
+  }
+
+  /**
+   * Simulate tool execution (dry_run mode)
+   *
+   * Used for dry-run/preview without side effects.
+   * ADR-031 will enhance this with cached results and schema-based mocks.
+   *
+   * @param task - Task to simulate
    * @returns Simulated result
    */
   private async simulateToolExecution(task: Task): Promise<unknown> {
@@ -280,6 +356,7 @@ export class GatewayHandler {
       tool: task.tool,
       status: "completed",
       output: `Simulated execution of ${task.tool}`,
+      _dry_run: true,
     };
   }
 

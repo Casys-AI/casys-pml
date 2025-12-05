@@ -6,7 +6,10 @@ import {
   ThreeLoopIllustration,
   CapabilitiesIllustration,
   HypergraphIllustration,
-  OrchestratorIllustration
+  StructuralEmergenceIllustration,
+  SandboxIllustration,
+  HILIllustration,
+  SearchIllustration
 } from "../components/FeatureIllustrations.tsx";
 
 export const handler = {
@@ -230,7 +233,7 @@ export default function LandingPage() {
                   <strong>Relationships emerge from planning.</strong>
                 </p>
                 <div class="emergence-visual">
-                  <OrchestratorIllustration />
+                  <StructuralEmergenceIllustration />
                 </div>
               </div>
 
@@ -264,18 +267,18 @@ export default function LandingPage() {
                 <ThreeLoopIllustration />
               </div>
               <div class="loop-content">
-                <h3 class="loop-title">Three Learning Loops</h3>
+                <h3 class="loop-title">The Three Loops</h3>
                 <div class="loop-item">
-                  <span class="loop-badge loop-execution">Execution</span>
-                  <p>Immediate task completion. What works right now.</p>
+                  <span class="loop-badge loop-execution">Adaptation</span>
+                  <p>Execution → DAG. Immediate correction.</p>
                 </div>
                 <div class="loop-item">
-                  <span class="loop-badge loop-adaptation">Adaptation</span>
-                  <p>Pattern recognition. What works repeatedly.</p>
+                  <span class="loop-badge loop-adaptation">Speculation</span>
+                  <p>Execution → Patterns. Rule optimization.</p>
                 </div>
                 <div class="loop-item">
-                  <span class="loop-badge loop-meta">Meta-Learning</span>
-                  <p>System evolution. What makes the system itself better.</p>
+                  <span class="loop-badge loop-meta">Crystallization</span>
+                  <p>Execution → Capabilities. Context evolution.</p>
                 </div>
               </div>
             </div>
@@ -291,7 +294,7 @@ export default function LandingPage() {
               <span class="section-label">The Moat</span>
               <h2 class="section-title">Network Effect on Capabilities</h2>
               <p class="section-desc">
-                The code is 100% open source. The value is in the accumulated intelligence.
+                The code is 100% open source. The value is in the emerged capabilities.
               </p>
             </div>
 
@@ -339,8 +342,8 @@ export default function LandingPage() {
 
             <div class="moat-insight">
               <p>
-                A fork starts with zero patterns.<br/>
-                <strong>The intelligence is in the database, not the code.</strong>
+                A fork starts with zero patterns. Zero capabilities.<br/>
+                <strong>The value is in the learned patterns, not the code.</strong>
               </p>
             </div>
           </div>
@@ -361,38 +364,29 @@ export default function LandingPage() {
                 <div class="tech-icon">
                   <HypergraphIllustration />
                 </div>
-                <h4>Hypergraph Memory</h4>
-                <p>N-ary relationships capture how tools combine. Not just pairs — full capability signatures.</p>
+                <h4>Hypergraph Structure</h4>
+                <p>N-ary relationships capture how tools combine into capabilities. Not just pairs — full patterns.</p>
               </div>
 
               <div class="tech-card">
-                <div class="tech-icon-svg">
-                  <svg viewBox="0 0 48 48" fill="none">
-                    <rect x="8" y="8" width="32" height="32" rx="4" stroke="#FFB86F" stroke-width="2"/>
-                    <path d="M16 24 L22 30 L32 18" stroke="#4ade80" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
+                <div class="tech-icon">
+                  <SandboxIllustration />
                 </div>
                 <h4>Secure Sandbox</h4>
                 <p>Deno runtime executes generated code safely. PII filtering before storage.</p>
               </div>
 
               <div class="tech-card">
-                <div class="tech-icon-svg">
-                  <svg viewBox="0 0 48 48" fill="none">
-                    <circle cx="24" cy="24" r="16" stroke="#FFB86F" stroke-width="2"/>
-                    <path d="M24 14 L24 24 L32 28" stroke="#FFB86F" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
+                <div class="tech-icon">
+                  <HILIllustration />
                 </div>
                 <h4>Human-in-the-Loop</h4>
                 <p>Granular AIL/HIL checkpoints. Approve sensitive operations before execution.</p>
               </div>
 
               <div class="tech-card">
-                <div class="tech-icon-svg">
-                  <svg viewBox="0 0 48 48" fill="none">
-                    <path d="M8 40 L24 8 L40 40 Z" stroke="#FFB86F" stroke-width="2" fill="none"/>
-                    <circle cx="24" cy="28" r="6" stroke="#FFB86F" stroke-width="2"/>
-                  </svg>
+                <div class="tech-icon">
+                  <SearchIllustration />
                 </div>
                 <h4>Semantic Routing</h4>
                 <p>BGE embeddings understand intent. Find tools by description, not memorization.</p>
@@ -1006,18 +1000,21 @@ export default function LandingPage() {
           }
 
           .loop-execution {
-            background: rgba(255, 184, 111, 0.15);
+            background: rgba(255, 184, 111, 0.2);
             color: var(--accent);
+            border: 1px solid rgba(255, 184, 111, 0.3);
           }
 
           .loop-adaptation {
-            background: rgba(167, 139, 250, 0.15);
-            color: var(--purple);
+            background: rgba(255, 184, 111, 0.1);
+            color: var(--accent);
+            border: 1px dashed rgba(255, 184, 111, 0.3);
           }
 
           .loop-meta {
-            background: rgba(74, 222, 128, 0.15);
-            color: var(--green);
+            background: rgba(255, 184, 111, 0.05);
+            color: var(--text-muted);
+            border: 1px dotted rgba(255, 184, 111, 0.3);
           }
 
           .loop-item p {
@@ -1171,7 +1168,7 @@ export default function LandingPage() {
             margin-bottom: 1rem;
             border-radius: 8px;
             overflow: hidden;
-            background: var(--bg);
+            background: transparent;
           }
 
           .tech-icon-svg {

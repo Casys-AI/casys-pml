@@ -44,7 +44,7 @@ export default function GraphVisualization({
   pathNodes,
 }: GraphVisualizationProps) {
   // Use prop or fallback to localhost for dev
-  const apiBase = apiBaseProp || "http://localhost:3001";
+  const apiBase = apiBaseProp || "http://localhost:3003";
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<any>(null);
   const [selectedNode, setSelectedNode] = useState<NodeData | null>(null);

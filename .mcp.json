@@ -2,13 +2,14 @@
   "mcpServers": {
       "agentcards": {
         "type": "http",
-        "url": "http://localhost:3001/mcp"
+        "url": "http://localhost:3003/mcp"
       },
     "playwright": {
       "command": "npx",
       "args": [
         "@playwright/mcp@latest"
       ]
-    }
+    },
+    
   }
 }

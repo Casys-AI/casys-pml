@@ -17,6 +17,7 @@ import { createEpisodicMemoryMigration } from "./migrations/007_episodic_memory_
 import { createWorkflowDagsMigration } from "./migrations/008_workflow_dags_migration.ts";
 import { createToolDependencySourceMigration } from "./migrations/009_tool_dependency_source_migration.ts";
 import { createGraphRagTablesMigration } from "./migrations/010_graphrag_tables_migration.ts";
+import { createCapabilityStorageMigration } from "./migrations/011_capability_storage_migration.ts";
 
 /**
  * Migration definition
@@ -375,5 +376,6 @@ export function getAllMigrations(): Migration[] {
     createWorkflowDagsMigration(),
     createToolDependencySourceMigration(),
     createGraphRagTablesMigration(),
+    createCapabilityStorageMigration(),
   ];
 }

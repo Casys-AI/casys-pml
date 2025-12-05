@@ -2,9 +2,28 @@
 
 ## Status
 
-**Approved** (2025-12-04) → Integrated into Epic 7 (Story 7.1)
+**Partially Superseded** (2025-12-05)
 
-> **Decision: Option B (Accurate Tracking)** - IPC via `__TRACE__` prefix on stdout
+> **⚠️ Tracing Approach Superseded by ADR-032**
+>
+> The `__TRACE__` stdout parsing approach described in Phase 2 of this ADR has been **superseded** by [ADR-032: Sandbox Worker RPC Bridge](ADR-032-sandbox-worker-rpc-bridge.md).
+>
+> **Why:** The subprocess approach cannot serialize MCP client functions. ADR-032 implements a Worker + RPC Bridge where tracing happens natively in the bridge (Main process), eliminating the need for stdout parsing.
+>
+> **What remains valid:**
+> - The rationale for graph learning from `execute_code`
+> - The vision for Claude as high-level orchestrator
+> - The learning loop concepts
+>
+> **What is superseded:**
+> - Phase 2 implementation (`__TRACE__` prefix, `parseTraces()`, etc.)
+> - IPC mechanism selection (stdout prefix → postMessage RPC)
+
+---
+
+**Original Status:** Approved (2025-12-04) → Integrated into Epic 7 (Story 7.1)
+
+> **Original Decision: Option B (Accurate Tracking)** - IPC via `__TRACE__` prefix on stdout
 
 > **Rationale (2025-12-03):** Code execution is expected to become a central feature. Claude may reuse code snippets, store successful patterns, and learn from execution history. Accurate tracking is worth the implementation complexity.
 

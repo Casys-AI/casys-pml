@@ -14,6 +14,6 @@ if (Deno.args.includes("build")) {
 } else {
   const port = parseInt(Deno.env.get("FRESH_PORT") || "8080");
   console.log(`\n🍋 Fresh dashboard: http://localhost:${port}/dashboard`);
-  console.log(`📊 API: http://localhost:3001\n`);
+  console.log(`📊 API: http://localhost:3003\n`);
   await builder.listen(async () => (await import("./main.ts")).app, { port });
 }

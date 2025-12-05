@@ -17,6 +17,7 @@
 
 import type { MCPClient } from "../mcp/client.ts";
 import type { VectorSearch, SearchResult } from "../vector/search.ts";
+import type { ToolDefinition } from "./types.ts";
 import { getLogger } from "../telemetry/logger.ts";
 
 const logger = getLogger("default");
@@ -267,6 +268,34 @@ export class ContextBuilder {
   clearTypeCache(): void {
     this.typeDefinitionCache.clear();
   }
+
+  /**
+   * Build serializable tool definitions for Worker RPC bridge (Story 7.1b)
+   *
+   * Converts SearchResults to ToolDefinition objects that can be serialized
+   * and sent to the Worker. The Worker uses these to generate tool proxies.
+   *
+   * @param searchResults Results from vector search
+   * @returns Array of serializable tool definitions
+   */
+  buildToolDefinitions(searchResults: SearchResult[]): ToolDefinition[] {
+    const definitions: ToolDefinition[] = [];
+
+    for (const result of searchResults) {
+      definitions.push({
+        server: result.serverId,
+        name: result.toolName,
+        description: result.schema.description || "",
+        inputSchema: result.schema.inputSchema as Record<string, unknown> || {},
+      });
+    }
+
+    logger.debug(`Built ${definitions.length} tool definitions for Worker`, {
+      servers: [...new Set(definitions.map(d => d.server))],
+    });
+
+    return definitions;
+  }
 }
 
 /**
@@ -335,6 +364,10 @@ function validateToolName(toolName: string): void {
   }
 }
 
+// Story 7.1b: Tracing is now handled natively in WorkerBridge (RPC bridge)
+// The wrapToolCall(), setTracingEnabled(), isTracingEnabled() functions have been removed
+// See: src/sandbox/worker-bridge.ts for native tracing implementation
+
 /**
  * Wrap MCP client tools as TypeScript functions
  *
@@ -344,6 +377,7 @@ function validateToolName(toolName: string): void {
  * - Return tool results asynchronously
  * - Propagate errors as exceptions
  * - Validate tool names for security (prevent prototype pollution)
+ * Note: Story 7.1b moved tracing to WorkerBridge (native RPC tracing)
  *
  * Security: No function serialization, no eval - just simple function objects
  *
@@ -377,8 +411,8 @@ export function wrapMCPClient(
     // Convert snake_case tool names to camelCase for JavaScript API
     const methodName = snakeToCamel(toolName);
 
-    // Create async wrapper function
-    wrapped[methodName] = async (args: Record<string, unknown>): Promise<unknown> => {
+    // Create base tool function
+    const baseFn = async (args: Record<string, unknown>): Promise<unknown> => {
       try {
         logger.debug(`Calling tool: ${client.serverId}:${toolName}`, {
           argsKeys: Object.keys(args),
@@ -402,6 +436,10 @@ export function wrapMCPClient(
         );
       }
     };
+
+    // Story 7.1b: Tracing now handled natively in WorkerBridge
+    // wrapMCPClient is kept for backward compatibility but tracing is removed
+    wrapped[methodName] = baseFn;
   }
 
   return wrapped;

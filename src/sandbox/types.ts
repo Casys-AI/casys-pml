@@ -130,3 +130,120 @@ export interface CommandOutput {
   stdout: string;
   stderr: string;
 }
+
+// =============================================================================
+// Worker RPC Bridge Types (Story 7.1b / ADR-032)
+// =============================================================================
+
+/**
+ * Tool definition for Worker sandbox (serializable - no functions!)
+ * Passed to Worker during initialization to generate tool proxies.
+ */
+export interface ToolDefinition {
+  /** MCP server identifier (e.g., "filesystem", "memory") */
+  server: string;
+  /** Tool name (e.g., "read_file", "write_file") */
+  name: string;
+  /** Human-readable tool description */
+  description: string;
+  /** JSON Schema for tool input parameters */
+  inputSchema: Record<string, unknown>;
+}
+
+/**
+ * RPC call request from Worker to Bridge
+ * Sent when sandbox code calls an MCP tool.
+ */
+export interface RPCCallMessage {
+  type: "rpc_call";
+  /** UUID for correlating request/response */
+  id: string;
+  /** MCP server identifier (e.g., "filesystem") */
+  server: string;
+  /** Tool name (e.g., "read_file") */
+  tool: string;
+  /** Tool arguments */
+  args: Record<string, unknown>;
+}
+
+/**
+ * RPC result response from Bridge to Worker
+ * Sent after Bridge executes tool call via MCPClient.
+ */
+export interface RPCResultMessage {
+  type: "rpc_result";
+  /** Matching request ID */
+  id: string;
+  /** Whether tool call succeeded */
+  success: boolean;
+  /** Tool result (if success) */
+  result?: unknown;
+  /** Error message (if failure) */
+  error?: string;
+}
+
+/**
+ * Initialization message from Bridge to Worker
+ * Sent when Worker is created to setup sandbox environment.
+ */
+export interface InitMessage {
+  type: "init";
+  /** TypeScript code to execute */
+  code: string;
+  /** Tool definitions for proxy generation */
+  toolDefinitions: ToolDefinition[];
+  /** Optional context variables to inject */
+  context?: Record<string, unknown>;
+}
+
+/**
+ * Execution complete message from Worker to Bridge
+ * Sent when sandbox code execution finishes.
+ */
+export interface ExecutionCompleteMessage {
+  type: "execution_complete";
+  /** Whether execution succeeded */
+  success: boolean;
+  /** Execution result (if success) */
+  result?: unknown;
+  /** Error message (if failure) */
+  error?: string;
+}
+
+/**
+ * Union type for all Worker → Bridge messages
+ */
+export type WorkerToBridgeMessage = RPCCallMessage | ExecutionCompleteMessage;
+
+/**
+ * Union type for all Bridge → Worker messages
+ */
+export type BridgeToWorkerMessage = InitMessage | RPCResultMessage;
+
+/**
+ * Trace event for native tool call tracking
+ * Captured in WorkerBridge during RPC handling (not stdout parsing).
+ */
+export interface TraceEvent {
+  /** Event type */
+  type: "tool_start" | "tool_end";
+  /** Tool identifier (e.g., "filesystem:read_file") */
+  tool: string;
+  /** UUID for correlating start/end events */
+  trace_id: string;
+  /** Timestamp in milliseconds */
+  ts: number;
+  /** Whether tool call succeeded (for tool_end only) */
+  success?: boolean;
+  /** Execution duration in milliseconds (for tool_end only) */
+  duration_ms?: number;
+  /** Error message (for failed tool_end only) */
+  error?: string;
+}
+
+/**
+ * Execution mode for sandbox
+ * - subprocess: Original Deno subprocess (deprecated)
+ * - worker: Web Worker with RPC bridge (default)
+ */
+export type ExecutionMode = "subprocess" | "worker";

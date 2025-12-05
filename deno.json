@@ -17,25 +17,36 @@
   },
   "nodeModulesDir": "auto",
   "tasks": {
-    "dev": "deno run --watch --allow-all src/main.ts",
+    "dev:api": "deno run --watch --allow-all src/main.ts serve --port 3003 --config config/.mcp-servers.json",
     "dev:fresh": "cd src/web && vite",
-    "dev:fresh:legacy": "cd src/web && deno run -A --unstable-hmr dev.ts",
-    "fresh:build": "cd src/web && vite build",
-    "fresh:start": "cd src/web && deno run -A _fresh/server/server-entry.mjs",
-    "test": "deno test --allow-all",
-    "test:unit": "deno test --allow-all tests/unit/",
-    "test:integration": "deno test --allow-all tests/integration/ --ignore=tests/integration/e2e_migration_test.ts",
+    "dev:build": "cd src/web && vite build",
+    "prod:start": "sudo systemctl start casys-dashboard casys-api",
+    "prod:start:dashboard": "sudo systemctl start casys-dashboard",
+    "prod:start:api": "sudo systemctl start casys-api",
+    "prod:stop": "sudo systemctl stop casys-dashboard casys-api",
+    "prod:stop:dashboard": "sudo systemctl stop casys-dashboard",
+    "prod:stop:api": "sudo systemctl stop casys-api",
+    "prod:restart": "sudo systemctl restart casys-dashboard casys-api",
+    "prod:restart:dashboard": "sudo systemctl restart casys-dashboard",
+    "prod:restart:api": "sudo systemctl restart casys-api",
+    "prod:status": "sudo systemctl status casys-dashboard casys-api --no-pager",
+    "prod:status:dashboard": "sudo systemctl status casys-dashboard --no-pager",
+    "prod:status:api": "sudo systemctl status casys-api --no-pager",
+    "prod:logs": "journalctl -u casys-api -u casys-dashboard -f",
+    "prod:logs:dashboard": "journalctl -u casys-dashboard -f",
+    "prod:logs:api": "journalctl -u casys-api -f",
+    "prod:build": "cd src/web && vite build",
+    "test": "deno test --allow-all --unstable-worker-options",
+    "test:unit": "deno test --allow-all --unstable-worker-options tests/unit/",
+    "test:integration": "deno test --allow-all --unstable-worker-options tests/integration/ --ignore=tests/integration/e2e_migration_test.ts",
+    "test:worker": "deno test --allow-all --unstable-worker-options tests/unit/sandbox/worker_bridge_test.ts",
     "test:e2e": "RUN_E2E_TESTS=true deno test --allow-all tests/integration/e2e_migration_test.ts",
     "bench": "deno bench --allow-all",
     "lint": "deno lint",
     "fmt": "deno fmt",
     "check": "deno check src/**/*.ts",
-    "build": "deno compile --allow-all --output=agentcards src/main.ts",
     "cli": "deno run --allow-all src/main.ts",
-    "cli:init:dry": "deno run --allow-all src/main.ts init --dry-run --config tests/fixtures/mcp-config-sample.json",
-    "cli:init:dry:mocks": "deno run --allow-all src/main.ts init --dry-run --config tests/fixtures/mcp-config-mocks.json",
-    "cli:init:help": "deno run --allow-all src/main.ts init --help",
-    "serve:playground": "AGENTCARDS_WORKFLOW_PATH=config/workflow-templates.yaml AGENTCARDS_DB_PATH=/home/ubuntu/CascadeProjects/AgentCards/.agentcards.db deno run --allow-all src/main.ts serve --port 3001 --config config/.mcp-servers.json",
+    "build": "deno compile --allow-all --output=agentcards src/main.ts",
     "mock:fs": "deno run --allow-all tests/mocks/filesystem-mock.ts",
     "mock:db": "deno run --allow-all tests/mocks/database-mock.ts",
     "mock:api": "deno run --allow-all tests/mocks/api-mock.ts"
@@ -48,7 +59,9 @@
   },
   "lint": {
     "rules": {
-      "tags": ["recommended"]
+      "tags": [
+        "recommended"
+      ]
     }
   },
   "imports": {

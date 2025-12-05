@@ -25,6 +25,9 @@ import type {
   SandboxConfig,
   ExecutionResult,
   StructuredError,
+  ExecutionMode,
+  ToolDefinition,
+  TraceEvent,
 } from "./types.ts";
 import { getLogger } from "../telemetry/logger.ts";
 import { CodeExecutionCache, generateCacheKey, type CacheStats } from "./cache.ts";
@@ -38,6 +41,8 @@ import {
   type ExecutionToken,
   type ResourceStats,
 } from "./resource-limiter.ts";
+import { WorkerBridge } from "./worker-bridge.ts";
+import type { MCPClient } from "../mcp/client.ts";
 
 const logger = getLogger("default");
 
@@ -68,12 +73,36 @@ const RESULT_MARKER = "__SANDBOX_RESULT__:";
  * console.log(result.result); // 2
  * ```
  */
+/**
+ * Extended configuration for Worker mode execution (Story 7.1b)
+ */
+export interface WorkerExecutionConfig {
+  /** Tool definitions for RPC bridge */
+  toolDefinitions: ToolDefinition[];
+  /** MCP clients for tool execution */
+  mcpClients: Map<string, MCPClient>;
+}
+
+/**
+ * Extended execution result with trace events (Story 7.1b)
+ */
+export interface ExecutionResultWithTraces extends ExecutionResult {
+  /** Native trace events from Worker RPC bridge */
+  traces?: TraceEvent[];
+  /** List of successfully called tools */
+  toolsCalled?: string[];
+}
+
 export class DenoSandboxExecutor {
   private config: Required<SandboxConfig>;
   private cache: CodeExecutionCache | null = null;
   private toolVersions: Record<string, string> = {};
   private securityValidator: SecurityValidator;
   private resourceLimiter: ResourceLimiter;
+  /** Current execution mode (Story 7.1b) */
+  private executionMode: ExecutionMode = "worker";
+  /** Last WorkerBridge instance for trace access (Story 7.1b) */
+  private lastBridge: WorkerBridge | null = null;
 
   /**
    * Create a new sandbox executor
@@ -529,7 +558,8 @@ export class DenoSandboxExecutor {
       }
 
       // Parse result from stdout
-      return this.parseOutput(stdoutText);
+      const parsed = this.parseOutput(stdoutText);
+      return parsed;
     } catch (error) {
       clearTimeout(timeoutId);
 
@@ -782,5 +812,169 @@ export class DenoSandboxExecutor {
    */
   getResourceStats(): ResourceStats {
     return this.resourceLimiter.getStats();
+  }
+
+  // ==========================================================================
+  // Story 7.1b: Worker Mode Execution with RPC Bridge
+  // ==========================================================================
+
+  /**
+   * Set execution mode (Story 7.1b)
+   *
+   * @param mode - "worker" (default, new) or "subprocess" (deprecated)
+   */
+  setExecutionMode(mode: ExecutionMode): void {
+    this.executionMode = mode;
+    logger.info(`Execution mode set to: ${mode}`);
+  }
+
+  /**
+   * Get current execution mode
+   */
+  getExecutionMode(): ExecutionMode {
+    return this.executionMode;
+  }
+
+  /**
+   * Execute code with MCP tools via Worker RPC bridge (Story 7.1b)
+   *
+   * This is the new execution method that provides:
+   * - Working MCP tool calls in sandbox (via RPC proxies)
+   * - Native tracing (no stdout parsing)
+   * - Full isolation via Worker with permissions: "none"
+   *
+   * @param code TypeScript code to execute
+   * @param workerConfig Tool definitions and MCP clients for RPC bridge
+   * @param context Optional context variables to inject
+   * @returns Execution result with traces and tools called
+   */
+  async executeWithTools(
+    code: string,
+    workerConfig: WorkerExecutionConfig,
+    context?: Record<string, unknown>,
+  ): Promise<ExecutionResultWithTraces> {
+    const startTime = performance.now();
+    let resourceToken: ExecutionToken | null = null;
+
+    try {
+      // SECURITY: Validate code and context BEFORE any execution
+      try {
+        this.securityValidator.validate(code, context);
+      } catch (securityError) {
+        if (securityError instanceof SecurityValidationError) {
+          logger.warn("Security validation failed", {
+            violationType: securityError.violationType,
+            pattern: securityError.pattern,
+          });
+
+          return {
+            success: false,
+            error: {
+              type: "SecurityError",
+              message: securityError.message,
+            },
+            executionTimeMs: performance.now() - startTime,
+          };
+        }
+        throw securityError;
+      }
+
+      // RESOURCE LIMITS: Acquire execution slot
+      try {
+        resourceToken = await this.resourceLimiter.acquire(this.config.memoryLimit);
+      } catch (resourceError) {
+        if (resourceError instanceof ResourceLimitError) {
+          logger.warn("Resource limit exceeded", {
+            limitType: resourceError.limitType,
+            currentValue: resourceError.currentValue,
+            maxValue: resourceError.maxValue,
+          });
+
+          return {
+            success: false,
+            error: {
+              type: "ResourceLimitError",
+              message: resourceError.message,
+            },
+            executionTimeMs: performance.now() - startTime,
+          };
+        }
+        throw resourceError;
+      }
+
+      logger.debug("Starting Worker execution with tools", {
+        codeLength: code.length,
+        toolCount: workerConfig.toolDefinitions.length,
+        contextKeys: context ? Object.keys(context) : [],
+      });
+
+      // Create WorkerBridge and execute
+      const bridge = new WorkerBridge(workerConfig.mcpClients, {
+        timeout: this.config.timeout,
+      });
+      this.lastBridge = bridge;
+
+      const result = await bridge.execute(
+        code,
+        workerConfig.toolDefinitions,
+        context,
+      );
+
+      // Get native traces from bridge
+      const traces = bridge.getTraces();
+      const toolsCalled = bridge.getToolsCalled();
+
+      logger.info("Worker execution with tools completed", {
+        success: result.success,
+        executionTimeMs: result.executionTimeMs,
+        tracesCount: traces.length,
+        toolsCalledCount: toolsCalled.length,
+      });
+
+      return {
+        ...result,
+        traces,
+        toolsCalled,
+      };
+    } catch (error) {
+      const executionTimeMs = performance.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      logger.debug("Worker execution with tools failed", {
+        error: errorMessage,
+        executionTimeMs,
+      });
+
+      return {
+        success: false,
+        error: {
+          type: "RuntimeError",
+          message: errorMessage,
+        },
+        executionTimeMs,
+      };
+    } finally {
+      if (resourceToken) {
+        this.resourceLimiter.release(resourceToken);
+      }
+    }
+  }
+
+  /**
+   * Get traces from last Worker execution
+   *
+   * @returns Trace events from last execution, or empty array if none
+   */
+  getLastTraces(): TraceEvent[] {
+    return this.lastBridge?.getTraces() ?? [];
+  }
+
+  /**
+   * Get tools called from last Worker execution
+   *
+   * @returns List of tool IDs called in last execution
+   */
+  getLastToolsCalled(): string[] {
+    return this.lastBridge?.getToolsCalled() ?? [];
   }
 }

@@ -4,6 +4,22 @@
 
 **Approved** (2025-12-04) → Integrated into Epic 7 (Stories 7.1-7.5)
 
+> **⚠️ IPC Section Superseded by ADR-032 (2025-12-05)**
+>
+> The IPC mechanism described in this ADR (`__TRACE__` stdout parsing) has been **superseded** by [ADR-032: Sandbox Worker RPC Bridge](ADR-032-sandbox-worker-rpc-bridge.md).
+>
+> **What changed:**
+> - `__TRACE__` stdout prefix → postMessage RPC
+> - Subprocess → Deno Worker (`permissions: "none"`)
+> - Tracing via stdout parsing → Native tracing in RPC Bridge
+> - Capability injection via `wrapCapability()` → Inline functions in Worker context (Option B)
+>
+> **What remains valid:**
+> - Capability lifecycle (Eager Learning + Lazy Suggestions)
+> - CapabilityMatcher, SuggestionEngine architecture
+> - Database schema (workflow_pattern, capability_cache)
+> - GraphRAG integration for learning
+
 ## Context
 
 Avec ADR-027 (Execute Code Graph Learning), AgentCards peut apprendre des patterns d'exécution de code. Cependant, cette connaissance reste **implicite** dans le graphe (edges entre tools).
@@ -96,37 +112,48 @@ L'objectif de cet ADR est de définir comment faire **émerger des capabilities 
 > };
 > ```
 
-### 4. Traces capabilities : seulement pour les appels nested
-> **Décision:** Les traces `__TRACE__ capability_*` sont émises uniquement pour les appels capability → capability (layers).
+### 4. Capability Execution: Inline Functions (Option B - ADR-032)
+
+> **Updated 2025-12-05:** With ADR-032 Worker RPC Bridge, capabilities use **Option B: Inline Functions**.
 >
-> | Contexte | Observable ? | Trace ? |
-> |----------|--------------|---------|
-> | Gateway → Capability | ✅ On sait côté Gateway | ❌ Pas besoin |
-> | Capability → MCP tool | ❌ Dans sandbox | ✅ `tool_start/end` |
-> | Capability → Capability | ❌ Dans sandbox | ✅ `capability_start/end` |
+> **Why Option B?**
+> - No RPC overhead for capability → capability calls
+> - Simpler architecture (capabilities are just functions in the same context)
+> - MCP tool calls still go through RPC bridge (and get traced there)
 >
-> **Rationale:** Même logique que MCP tools - on trace ce qu'on ne peut pas observer depuis l'extérieur du sandbox.
+> | Call Type | Mechanism | Tracing |
+> |-----------|-----------|---------|
+> | Code → MCP tool | RPC to bridge | ✅ Traced in bridge (native) |
+> | Code → Capability | Direct function call | ✅ Traced via wrapper in Worker |
+> | Capability → MCP tool | RPC to bridge | ✅ Traced in bridge (native) |
+> | Capability → Capability | Direct function call | ✅ Traced via wrapper in Worker |
 >
 > ```typescript
-> // Dans wrapCapability() - seulement pour appels nested
-> wrapped[capName] = async (args) => {
->   console.log(`__TRACE__${JSON.stringify({
->     type: "capability_start",
->     capability_id: cap.id,
->     name: cap.name
->   })}`);
+> // In Worker context - capabilities are inline functions
+> const capabilities = {
+>   runTests: async (args) => {
+>     // Tracing wrapper (in Worker, not RPC)
+>     traces.push({ type: "capability_start", name: "runTests", ts: Date.now() });
 >
->   const result = await executeCodeSnippet(cap.code_snippet, args);
+>     // Capability code - can call MCP tools (via RPC) or other capabilities (direct)
+>     const results = await mcp.jest.run({ path: args.path }); // RPC → traced in bridge
 >
->   console.log(`__TRACE__${JSON.stringify({
->     type: "capability_end",
->     capability_id: cap.id,
->     success: true
->   })}`);
+>     traces.push({ type: "capability_end", name: "runTests", success: true });
+>     return results;
+>   },
 >
->   return result;
+>   deployProd: async (args) => {
+>     traces.push({ type: "capability_start", name: "deployProd", ts: Date.now() });
+>
+>     await capabilities.runTests({ path: "./tests" }); // Direct call → traced above
+>     await mcp.kubernetes.deploy({ ... });              // RPC → traced in bridge
+>
+>     traces.push({ type: "capability_end", name: "deployProd", success: true });
+>   }
 > };
 > ```
+>
+> **Trace Collection:** Worker sends all traces back to bridge at end of execution via final postMessage.
 
 ### 5. Layers de capabilities (capability → capability)
 > **Décision:** Une capability peut appeler une autre capability naturellement.
@@ -243,6 +270,15 @@ Implémenter un système où les capabilities émergent automatiquement de l'usa
 
 ### IPC: Communication Sandbox ↔ Parent
 
+> **⚠️ SUPERSEDED BY ADR-032**
+>
+> This section describes the original `__TRACE__` stdout approach.
+> See [ADR-032](ADR-032-sandbox-worker-rpc-bridge.md) for the new Worker RPC Bridge architecture.
+> The new approach uses `postMessage` RPC with native tracing in the bridge.
+
+<details>
+<summary>Original Design (Superseded)</summary>
+
 **Décision (voir ADR-027):** stdout avec préfixe `__TRACE__`
 
 ```
@@ -284,7 +320,12 @@ Implémenter un système où les capabilities émergent automatiquement de l'usa
 
 **Verdict:** `__TRACE__` prefix sur stdout avec parsing côté Gateway.
 
-#### Event Types Complets
+</details>
+
+#### Event Types (Still Valid - Transport Changed)
+
+> **Note:** These event types remain valid. Only the transport changed from `__TRACE__` stdout to postMessage RPC.
+> The WorkerBridge in ADR-032 captures these events natively without stdout parsing.
 
 ```typescript
 // Fichier: src/sandbox/ipc-types.ts

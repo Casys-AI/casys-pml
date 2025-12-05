@@ -194,11 +194,19 @@ Deno.test("ContextBuilder - security: uses message passing, not function seriali
     "./src/sandbox/context-builder.ts",
   );
 
-  // Check that wrapMCPClient creates proper functions
+  // Check that wrapMCPClient creates proper async functions (base function)
+  // Story 7.1b: baseFn is now assigned directly (tracing moved to WorkerBridge)
   assertStringIncludes(
     contextBuilderCode,
-    "wrapped[methodName] = async (args: Record<string, unknown>): Promise<unknown>",
-    "Should use proper async function creation",
+    "const baseFn = async (args: Record<string, unknown>): Promise<unknown>",
+    "Should use proper async function creation for baseFn",
+  );
+
+  // Check that baseFn is assigned directly (Story 7.1b: tracing now in WorkerBridge)
+  assertStringIncludes(
+    contextBuilderCode,
+    "wrapped[methodName] = baseFn",
+    "Should assign baseFn directly (tracing in WorkerBridge)",
   );
 
   // Check that error class exists for safe error propagation
@@ -425,3 +433,10 @@ Deno.test("Security - wrapMCPClient rejects tool name that's too long", () => {
     "too long",
   );
 });
+
+// ============================================
+// Story 7.1b: Tracing moved to WorkerBridge
+// ============================================
+// Story 7.1 tests for setTracingEnabled, isTracingEnabled, and __TRACE__ emission
+// have been removed. Tracing is now handled natively in WorkerBridge (RPC bridge).
+// See tests/unit/sandbox/worker_bridge_test.ts for new tracing tests.

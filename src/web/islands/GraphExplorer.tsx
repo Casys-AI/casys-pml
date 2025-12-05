@@ -43,7 +43,7 @@ interface GraphExplorerProps {
 }
 
 export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerProps) {
-  const apiBase = apiBaseProp || "http://localhost:3001";
+  const apiBase = apiBaseProp || "http://localhost:3003";
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<ToolSearchResult[]>([]);

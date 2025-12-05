@@ -465,12 +465,12 @@ Cette propriété débloque la **vraie puissance du speculative execution** (Epi
 
 ### Epic 7: Emergent Capabilities & Learning System
 
-> **ADRs:** ADR-027 (Execute Code Graph Learning), ADR-028 (Emergent Capabilities System)
+> **ADRs:** ADR-027 (Execute Code Graph Learning), ADR-028 (Emergent Capabilities System), ADR-032 (Sandbox Worker RPC Bridge)
 > **Research:** docs/research/research-technical-2025-12-03.md
 
 **Objectif:** Transformer AgentCards en système où les capabilities **émergent de l'usage** plutôt que d'être pré-définies. Claude devient un **orchestrateur de haut niveau** qui délègue l'exécution à AgentCards, récupérant des capabilities apprises et des suggestions proactives basées sur les patterns d'exécution réels.
 
-**Architecture 3 Couches:**
+**Architecture 3 Couches (ADR-032 - Worker RPC Bridge):**
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -482,25 +482,28 @@ Cette propriété débloque la **vraie puissance du speculative execution** (Epi
 └─────────────────────────────────────────────────────────────┘
                           ▲ IPC: result + suggestions
 ┌─────────────────────────────────────────────────────────────┐
-│  LAYER 2: CAPABILITY ENGINE                                  │
+│  LAYER 2: CAPABILITY ENGINE + RPC BRIDGE                     │
 │  • CapabilityMatcher: intent → capability matching          │
-│  • SnippetLibrary: code prouvé stocké                       │
+│  • WorkerBridge: routes RPC calls to MCPClients             │
+│  • Native Tracing: ALL tool calls traced in bridge          │
 │  • SuggestionEngine: Louvain + Adamic-Adar                  │
 │  • GraphRAG: PageRank, communities, edges                   │
 └─────────────────────────────────────────────────────────────┘
-                          ▲ __TRACE__ events
+                          ▲ postMessage RPC (tool calls)
 ┌─────────────────────────────────────────────────────────────┐
-│  LAYER 3: EXECUTION (Deno Sandbox)                          │
-│  • Wrappers tracés (tool_start, tool_end)                   │
+│  LAYER 3: EXECUTION (Deno Worker, permissions: "none")      │
+│  • Tool proxies: mcp.server.tool() → RPC call to bridge     │
+│  • Capability code: inline functions (no RPC overhead)      │
 │  • Isolation complète, pas de discovery runtime             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 **Livrables clés:**
 
-**Phase 1 - IPC Tracking (Quick Win ~70 LOC):**
-- Wrappers `__TRACE__` dans `context-builder.ts` pour tracker tools appelés
-- Parser traces dans `gateway-server.ts` après exécution
+**Phase 1 - Worker RPC Bridge (ADR-032):**
+- Deno Worker avec `permissions: "none"` pour isolation
+- RPC Bridge dans main process route les appels vers MCPClients
+- Tracing natif dans le bridge (pas de parsing stdout)
 - Appel `graphEngine.updateFromExecution()` avec tools réels
 
 **Phase 2 - Capability Storage:**
