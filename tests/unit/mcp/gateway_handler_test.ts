@@ -98,7 +98,7 @@ Deno.test("GatewayHandler - explicit_required mode for low confidence", async ()
   const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
   // Set high thresholds to force explicit_required
-  const gateway = new GatewayHandler(graphEngine, suggester, {
+  const gateway = new GatewayHandler(graphEngine, suggester, new Map(), {
     explicitThreshold: 0.80,
     suggestionThreshold: 0.90,
   });
@@ -128,7 +128,7 @@ Deno.test("GatewayHandler - suggestion mode for medium confidence", async () => 
   const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
   // Set thresholds for suggestion mode
-  const gateway = new GatewayHandler(graphEngine, suggester, {
+  const gateway = new GatewayHandler(graphEngine, suggester, new Map(), {
     explicitThreshold: 0.20,
     suggestionThreshold: 0.60,
   });
@@ -163,7 +163,7 @@ Deno.test("GatewayHandler - speculative_execution mode for high confidence", asy
   const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
   // Set low thresholds for speculative execution
-  const gateway = new GatewayHandler(graphEngine, suggester, {
+  const gateway = new GatewayHandler(graphEngine, suggester, new Map(), {
     explicitThreshold: 0.20,
     suggestionThreshold: 0.35,
     enableSpeculative: true,
@@ -204,7 +204,7 @@ Deno.test("GatewayHandler - blocks dangerous delete operations", async () => {
   const vectorSearch = new VectorSearch(db, model);
   const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
-  const gateway = new GatewayHandler(graphEngine, suggester, {
+  const gateway = new GatewayHandler(graphEngine, suggester, new Map(), {
     explicitThreshold: 0.30,
     suggestionThreshold: 0.40,
   });
@@ -233,7 +233,7 @@ Deno.test("GatewayHandler - blocks shell execution", async () => {
   const vectorSearch = new VectorSearch(db, model);
   const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
-  const gateway = new GatewayHandler(graphEngine, suggester, {
+  const gateway = new GatewayHandler(graphEngine, suggester, new Map(), {
     explicitThreshold: 0.30,
     suggestionThreshold: 0.40,
   });
@@ -265,7 +265,7 @@ Deno.test("GatewayHandler - graceful fallback when no DAG found", async () => {
   const vectorSearch = new VectorSearch(db, model);
   const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
-  const gateway = new GatewayHandler(graphEngine, suggester);
+  const gateway = new GatewayHandler(graphEngine, suggester, new Map());
 
   const result = await gateway.processIntent({
     text: "quantum mechanics calculation",
@@ -291,7 +291,7 @@ Deno.test("GatewayHandler - falls back to suggestion when speculative disabled",
   const vectorSearch = new VectorSearch(db, model);
   const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
-  const gateway = new GatewayHandler(graphEngine, suggester, {
+  const gateway = new GatewayHandler(graphEngine, suggester, new Map(), {
     explicitThreshold: 0.20,
     suggestionThreshold: 0.35,
     enableSpeculative: false,
@@ -325,7 +325,7 @@ Deno.test("GatewayHandler - records user feedback for adaptive learning", async 
   const vectorSearch = new VectorSearch(db, model);
   const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
-  const gateway = new GatewayHandler(graphEngine, suggester);
+  const gateway = new GatewayHandler(graphEngine, suggester, new Map());
 
   // Record user feedback
   gateway.recordUserFeedback(0.75, true);
@@ -355,7 +355,7 @@ Deno.test("GatewayHandler - tracks speculative execution metrics", async () => {
   const vectorSearch = new VectorSearch(db, model);
   const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
-  const gateway = new GatewayHandler(graphEngine, suggester, {
+  const gateway = new GatewayHandler(graphEngine, suggester, new Map(), {
     explicitThreshold: 0.20,
     suggestionThreshold: 0.35,
     enableSpeculative: true,
@@ -395,7 +395,7 @@ Deno.test("GatewayHandler - mode decision completes within 100ms", async () => {
   const vectorSearch = new VectorSearch(db, model);
   const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
-  const gateway = new GatewayHandler(graphEngine, suggester, {
+  const gateway = new GatewayHandler(graphEngine, suggester, new Map(), {
     enableSpeculative: false, // Disable speculative to measure decision time only
   });
 

@@ -108,7 +108,7 @@ author: Erwan Lee Pesle
 
 - [x] Task 9: Créer `src/web/routes/blog/feed.xml.ts` - flux RSS Atom
 - [x] Task 10: Ajouter route `/blog/feed.xml` avec métadonnées (title, description, author)
-- [x] Task 11: Webhook endpoint `/api/blog/published` pour notifier Make.com (optionnel)
+- [x] Task 11: ~~Webhook endpoint~~ → Utiliser RSS polling dans Make.com (plus simple)
 
 #### Part D: Workflow work-to-blog Modification
 
