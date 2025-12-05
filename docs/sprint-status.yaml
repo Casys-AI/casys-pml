@@ -144,7 +144,7 @@ development_status:
   epic-7: in-progress
   7-1-ipc-tracking-tool-usage-capture: done  # Completed 2025-12-05 (41 tests passing)
   7-1b-worker-rpc-bridge: done  # ADR-032 - Code Review APPROVED 2025-12-05, 34 tests passing, all 7 ACs validated
-  7-2a-capability-storage-migration-eager-learning: in-progress
+  7-2a-capability-storage-migration-eager-learning: review  # Completed 2025-12-05, 27 tests passing
   7-2b-schema-inference-ts-morph-zod: backlog
   7-3a-capability-matching-search-capabilities-tool: backlog
   7-3b-capability-injection-nested-tracing: backlog

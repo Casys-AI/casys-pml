@@ -3,7 +3,7 @@
 > **Epic:** 7 - Emergent Capabilities & Learning System
 > **ADRs:** ADR-027 (Execute Code Graph Learning), ADR-028 (Emergent Capabilities System)
 > **Prerequisites:** Story 7.1b (Worker RPC Bridge - DONE)
-> **Status:** ready-for-dev
+> **Status:** Ready for Review
 
 ## User Story
 
@@ -68,8 +68,8 @@ Cette story étend ces tables pour supporter les **capabilities** (code exécuta
 
 ### AC1: Migration 011 Created
 
-- [ ] Fichier `src/db/migrations/011_capability_storage_migration.ts` créé
-- [ ] Extension de `workflow_pattern` avec colonnes capability:
+- [x] Fichier `src/db/migrations/011_capability_storage_migration.ts` créé
+- [x] Extension de `workflow_pattern` avec colonnes capability:
   ```sql
   ALTER TABLE workflow_pattern ADD COLUMN IF NOT EXISTS code_snippet TEXT;
   ALTER TABLE workflow_pattern ADD COLUMN IF NOT EXISTS code_hash TEXT UNIQUE;
@@ -82,21 +82,21 @@ Cette story étend ces tables pour supporter les **capabilities** (code exécuta
   ALTER TABLE workflow_pattern ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
   ALTER TABLE workflow_pattern ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'emergent';
   ```
-- [ ] Extension de `workflow_execution` avec colonnes code:
+- [x] Extension de `workflow_execution` avec colonnes code:
   ```sql
   ALTER TABLE workflow_execution ADD COLUMN IF NOT EXISTS code_snippet TEXT;
   ALTER TABLE workflow_execution ADD COLUMN IF NOT EXISTS code_hash TEXT;
   ```
-- [ ] Migration enregistrée dans `src/db/migrations.ts`
+- [x] Migration enregistrée dans `src/db/migrations.ts`
 
 ### AC2: Index HNSW on intent_embedding
 
-- [ ] Index HNSW sur `intent_embedding` pour recherche rapide (déjà existant dans migration 010)
-- [ ] Vérifier que l'index fonctionne avec les nouvelles données
+- [x] Index HNSW sur `intent_embedding` pour recherche rapide (déjà existant dans migration 010)
+- [x] Vérifier que l'index fonctionne avec les nouvelles données
 
 ### AC3: Index on code_hash
 
-- [ ] Index unique sur `code_hash` pour upsert rapide:
+- [x] Index unique sur `code_hash` pour upsert rapide:
   ```sql
   CREATE UNIQUE INDEX IF NOT EXISTS idx_workflow_pattern_code_hash
   ON workflow_pattern(code_hash) WHERE code_hash IS NOT NULL;
@@ -104,8 +104,8 @@ Cette story étend ces tables pour supporter les **capabilities** (code exécuta
 
 ### AC4: CapabilityStore Class
 
-- [ ] Fichier `src/capabilities/capability-store.ts` créé (~150 LOC)
-- [ ] Interface `Capability`:
+- [x] Fichier `src/capabilities/capability-store.ts` créé (~150 LOC)
+- [x] Interface `Capability`:
   ```typescript
   interface Capability {
     id: string;
@@ -125,13 +125,13 @@ Cette story étend ces tables pour supporter les **capabilities** (code exécuta
     source: 'emergent' | 'manual';
   }
   ```
-- [ ] Method `saveCapability(code: string, intent: string, duration_ms: number): Promise<Capability>`
-- [ ] Method `findByCodeHash(codeHash: string): Promise<Capability | null>`
-- [ ] Method `updateUsage(codeHash: string, success: boolean, duration_ms: number): Promise<void>`
+- [x] Method `saveCapability(code: string, intent: string, duration_ms: number): Promise<Capability>`
+- [x] Method `findByCodeHash(codeHash: string): Promise<Capability | null>`
+- [x] Method `updateUsage(codeHash: string, success: boolean, duration_ms: number): Promise<void>`
 
 ### AC5: Eager Insert Logic
 
-- [ ] Après chaque execution réussie avec intent:
+- [x] Après chaque execution réussie avec intent:
   ```sql
   INSERT INTO workflow_pattern (code_hash, code_snippet, intent_embedding, name, description, source, created_at, success_rate, avg_duration_ms)
   VALUES ($1, $2, $3, $4, $5, 'emergent', NOW(), 1.0, $6)
@@ -146,23 +146,23 @@ Cette story étend ces tables pour supporter les **capabilities** (code exécuta
 
 ### AC6: Hash Function
 
-- [ ] Function `hashCode(code: string): string` utilisant SHA-256
-- [ ] Hash normalisé (trim, consistent whitespace)
-- [ ] Collision résistant
+- [x] Function `hashCode(code: string): string` utilisant SHA-256
+- [x] Hash normalisé (trim, consistent whitespace)
+- [x] Collision résistant
 
 ### AC7: Integration with WorkerBridge
 
-- [ ] `WorkerBridge.execute()` appelle `CapabilityStore.saveCapability()` après exécution réussie
-- [ ] Si intent fourni ET execution réussie → capability créée/mise à jour
-- [ ] Traces de tool usage incluses dans capability metadata
+- [x] `WorkerBridge.execute()` appelle `CapabilityStore.saveCapability()` après exécution réussie
+- [x] Si intent fourni ET execution réussie → capability créée/mise à jour
+- [x] Traces de tool usage incluses dans capability metadata
 
 ### AC8: Tests
 
-- [ ] Test: exec 1x → verify capability créée avec usage_count = 1
-- [ ] Test: exec 2x même code → verify usage_count = 2, success_rate recalculée
-- [ ] Test: exec avec échec → verify success_rate diminue
-- [ ] Test: migration idempotente (peut être rejouée)
-- [ ] Test: hash collision handling
+- [x] Test: exec 1x → verify capability créée avec usage_count = 1
+- [x] Test: exec 2x même code → verify usage_count = 2, success_rate recalculée
+- [x] Test: exec avec échec → verify success_rate diminue
+- [x] Test: migration idempotente (peut être rejouée)
+- [x] Test: hash collision handling
 
 ## Technical Requirements
 
@@ -329,11 +329,36 @@ deno task cli db:status
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Debug Log References
 
+- Tests passing: 27/27 capability tests, 15/15 db tests
+
 ### Completion Notes List
 
+- Implemented Migration 011 extending workflow_pattern and workflow_execution tables
+- Created CapabilityStore class with eager learning UPSERT pattern
+- Added SHA-256 hashCode function with whitespace normalization
+- Integrated with WorkerBridge - saves capability on successful execution with intent
+- All 8 ACs satisfied with comprehensive test coverage
+
+### Change Log
+
+- 2025-12-05: Story implementation complete - all tests passing
+
 ### File List
+
+**New Files:**
+- `src/db/migrations/011_capability_storage_migration.ts` - Migration extending tables
+- `src/capabilities/capability-store.ts` - CapabilityStore class (~280 LOC)
+- `src/capabilities/types.ts` - Type definitions (Capability, CacheConfig, etc.)
+- `src/capabilities/hash.ts` - hashCode and normalizeCode functions
+- `src/capabilities/mod.ts` - Module exports
+- `tests/unit/capabilities/capability_store_test.ts` - 15 tests for CapabilityStore
+- `tests/unit/capabilities/hash_test.ts` - 12 tests for hash functions
+
+**Modified Files:**
+- `src/db/migrations.ts` - Added import and registration for migration 011
+- `src/sandbox/worker-bridge.ts` - Added optional CapabilityStore integration for eager learning
 
