@@ -651,31 +651,58 @@ export class ControlledExecutor extends ParallelExecutor {
 
     const summary = [
       `=== Workflow Approval Checkpoint ===\n`,
-      `Layer ${layerIdx} completed\n`,
-      `\nTasks executed in this layer: ${layers[layerIdx].length}`,
+      `Layer ${layerIdx} completed successfully\n`,
+      `\n## Execution Summary`,
+      `Tasks executed in this layer: ${layers[layerIdx].length}`,
       `Total tasks completed: ${completedTasks}`,
-      `Total tasks failed: ${failedTasks}\n`,
-      `\nRecent task results:`,
+      `Total tasks failed: ${failedTasks}`,
+      `Current workflow status: ${
+        failedTasks === 0 ? "All tasks successful" : "Some tasks have errors"
+      }`,
+      `\n## Recent Task Results`,
       ...this.state.tasks.slice(-3).map((t) =>
         `  - ${t.taskId}: ${t.status} ${
           t.executionTimeMs ? `(${t.executionTimeMs.toFixed(0)}ms)` : ""
+        }`
+      ),
+      `\n## Layer ${layerIdx} Task Details`,
+      ...layers[layerIdx].map((t: any) =>
+        `  - Task ID: ${t.id}\n    Tool: ${t.tool}\n    Dependencies: ${
+          t.depends_on?.length || 0
+        }\n    Status: ${
+          this.state?.tasks.find((task) => task.taskId === t.id)?.status ||
+          "unknown"
         }`
       ),
     ];
 
     if (nextLayer) {
       summary.push(
-        `\n\nNext layer preview (${nextLayer.length} tasks):`,
-        ...nextLayer.slice(0, 3).map((t: any) => `  - ${t.id}: ${t.tool}`),
+        `\n## Next Layer Preview`,
+        `The next layer contains ${nextLayer.length} task(s):`,
+        ...nextLayer.slice(0, 5).map((t: any) =>
+          `  - Task ID: ${t.id}\n    Tool: ${t.tool}\n    Dependencies: ${
+            t.depends_on?.join(", ") || "none"
+          }`
+        ),
       );
-      if (nextLayer.length > 3) {
-        summary.push(`  ... and ${nextLayer.length - 3} more tasks`);
+      if (nextLayer.length > 5) {
+        summary.push(`  ... and ${nextLayer.length - 5} more tasks`);
       }
+      summary.push(
+        `\n## Approval Request`,
+        `The workflow is ready to proceed to layer ${layerIdx + 1}.`,
+        `Please review the completed tasks and upcoming work before approving.`,
+        `\nApprove to continue execution? [Y/N]`,
+      );
     } else {
-      summary.push(`\n\nThis is the final layer.`);
+      summary.push(
+        `\n## Final Layer Reached`,
+        `This was the final layer of the workflow.`,
+        `All planned tasks have been executed.`,
+        `\nApprove to complete the workflow? [Y/N]`,
+      );
     }
-
-    summary.push(`\n\nApprove to continue? [Y/N]`);
 
     return summary.join("\n");
   }
@@ -783,12 +810,11 @@ export class ControlledExecutor extends ParallelExecutor {
       const commands = await this.commandQueue.processCommandsByType(["abort", "pause"]);
       for (const cmd of commands) {
         log.info(`Processing control command: ${cmd.type}`);
-        // TODO: Story 2.5-3 - Implement command handlers
-        // For now, just log them
         if (cmd.type === "abort") {
           log.warn(`Abort command received: ${cmd.reason}`);
-          // Will implement abort logic in Story 2.5-3
+          throw new Error(`Workflow aborted by agent: ${cmd.reason}`);
         }
+        // TODO: Story 2.5-3 - Implement pause command handler
       }
 
       // 4b.5 Story 3.5-1: Start speculative execution for next layer
@@ -1448,7 +1474,9 @@ export class ControlledExecutor extends ParallelExecutor {
         log.info(`Processing control command: ${cmd.type}`);
         if (cmd.type === "abort") {
           log.warn(`Abort command received: ${cmd.reason}`);
+          throw new Error(`Workflow aborted by agent: ${cmd.reason}`);
         }
+        // TODO: Story 2.5-3 - Implement pause command handler
       }
 
       // 6c. Emit task_start for each task
