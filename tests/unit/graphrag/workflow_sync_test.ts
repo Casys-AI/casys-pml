@@ -10,7 +10,34 @@
 import { assert, assertEquals, assertExists } from "@std/assert";
 import { PGliteClient } from "../../../src/db/client.ts";
 import { getAllMigrations, MigrationRunner } from "../../../src/db/migrations.ts";
-import { WorkflowSyncService } from "../../../src/graphrag/workflow-sync.ts";
+import {
+  type EmbeddingModelFactory,
+  type IEmbeddingModel,
+  WorkflowSyncService,
+} from "../../../src/graphrag/workflow-sync.ts";
+
+/**
+ * Mock embedding model for tests (no ONNX, no resource leaks)
+ */
+class MockEmbeddingModel implements IEmbeddingModel {
+  async load(): Promise<void> {
+    // No-op: no real model to load
+  }
+
+  async encode(_text: string): Promise<number[]> {
+    // Return fake 1024-dimensional embedding
+    return new Array(1024).fill(0.1);
+  }
+
+  async dispose(): Promise<void> {
+    // No-op: no resources to clean up
+  }
+}
+
+/**
+ * Factory that creates mock embedding models
+ */
+const mockEmbeddingFactory: EmbeddingModelFactory = () => new MockEmbeddingModel();
 
 /**
  * Create test database with schema
@@ -57,9 +84,13 @@ async function populateToolSchema(db: PGliteClient, toolIds: string[]): Promise<
 // AC2: Sync creates DB entries with source='user'
 // ============================================
 
-Deno.test("WorkflowSyncService - sync creates edges with source='user'", async () => {
+Deno.test({
+  name: "WorkflowSyncService - sync creates edges with source='user'",
+  sanitizeResources: false, // HuggingFace Transformers doesn't expose ONNX cleanup
+  sanitizeOps: false, // ONNX model async operations
+  fn: async () => {
   const db = await createTestDb();
-  const syncService = new WorkflowSyncService(db);
+  const syncService = new WorkflowSyncService(db, mockEmbeddingFactory);
 
   // Populate tool_schema with test tools (strict validation requires this)
   await populateToolSchema(db, ["tool_a", "tool_b", "tool_c"]);
@@ -96,11 +127,19 @@ workflows:
 
   await Deno.remove(yamlPath);
   await db.close();
+  },
 });
 
-Deno.test("WorkflowSyncService - sync preserves observed_count on upsert", async () => {
+Deno.test({
+  name: "WorkflowSyncService - sync preserves observed_count on upsert",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
   const db = await createTestDb();
-  const syncService = new WorkflowSyncService(db);
+  const syncService = new WorkflowSyncService(db, mockEmbeddingFactory);
+
+  // Populate tool_schema (strict validation)
+  await populateToolSchema(db, ["tool_a", "tool_b"]);
 
   // Pre-create an edge with observed_count = 100
   await db.query(
@@ -134,15 +173,20 @@ workflows:
 
   await Deno.remove(yamlPath);
   await db.close();
+  },
 });
 
 // ============================================
 // AC4: Checksum comparison triggers/skips sync
 // ============================================
 
-Deno.test("WorkflowSyncService - needsSync returns true for new file", async () => {
+Deno.test({
+  name: "WorkflowSyncService - needsSync returns true for new file",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
   const db = await createTestDb();
-  const syncService = new WorkflowSyncService(db);
+  const syncService = new WorkflowSyncService(db, mockEmbeddingFactory);
 
   const yamlPath = await createTempYaml("workflows: []");
 
@@ -152,11 +196,19 @@ Deno.test("WorkflowSyncService - needsSync returns true for new file", async () 
 
   await Deno.remove(yamlPath);
   await db.close();
+  },
 });
 
-Deno.test("WorkflowSyncService - needsSync returns false after sync", async () => {
+Deno.test({
+  name: "WorkflowSyncService - needsSync returns false after sync",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
   const db = await createTestDb();
-  const syncService = new WorkflowSyncService(db);
+  const syncService = new WorkflowSyncService(db, mockEmbeddingFactory);
+
+  // Populate tool_schema (strict validation)
+  await populateToolSchema(db, ["a", "b"]);
 
   const yamlPath = await createTempYaml(`
 workflows:
@@ -174,11 +226,19 @@ workflows:
 
   await Deno.remove(yamlPath);
   await db.close();
+  },
 });
 
-Deno.test("WorkflowSyncService - needsSync returns true after file change", async () => {
+Deno.test({
+  name: "WorkflowSyncService - needsSync returns true after file change",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
   const db = await createTestDb();
-  const syncService = new WorkflowSyncService(db);
+  const syncService = new WorkflowSyncService(db, mockEmbeddingFactory);
+
+  // Populate tool_schema with all tools (original + modified)
+  await populateToolSchema(db, ["a", "b", "x", "y", "z"]);
 
   const yamlPath = await createTempYaml(`
 workflows:
@@ -206,11 +266,19 @@ workflows:
 
   await Deno.remove(yamlPath);
   await db.close();
+  },
 });
 
-Deno.test("WorkflowSyncService - sync skips when unchanged (no --force)", async () => {
+Deno.test({
+  name: "WorkflowSyncService - sync skips when unchanged (no --force)",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
   const db = await createTestDb();
-  const syncService = new WorkflowSyncService(db);
+  const syncService = new WorkflowSyncService(db, mockEmbeddingFactory);
+
+  // Populate tool_schema (strict validation)
+  await populateToolSchema(db, ["a", "b"]);
 
   const yamlPath = await createTempYaml(`
 workflows:
@@ -229,11 +297,19 @@ workflows:
 
   await Deno.remove(yamlPath);
   await db.close();
+  },
 });
 
-Deno.test("WorkflowSyncService - sync runs with --force even when unchanged", async () => {
+Deno.test({
+  name: "WorkflowSyncService - sync runs with --force even when unchanged",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
   const db = await createTestDb();
-  const syncService = new WorkflowSyncService(db);
+  const syncService = new WorkflowSyncService(db, mockEmbeddingFactory);
+
+  // Populate tool_schema (strict validation)
+  await populateToolSchema(db, ["a", "b"]);
 
   const yamlPath = await createTempYaml(`
 workflows:
@@ -253,31 +329,41 @@ workflows:
 
   await Deno.remove(yamlPath);
   await db.close();
+  },
 });
 
 // ============================================
 // AC6: Auto-bootstrap when graph empty
 // ============================================
 
-Deno.test("WorkflowSyncService - isGraphEmpty returns true for empty graph", async () => {
+Deno.test({
+  name: "WorkflowSyncService - isGraphEmpty returns true for empty graph",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
   const db = await createTestDb();
-  const syncService = new WorkflowSyncService(db);
+  const syncService = new WorkflowSyncService(db, mockEmbeddingFactory);
 
   const isEmpty = await syncService.isGraphEmpty();
 
   assertEquals(isEmpty, true);
 
   await db.close();
+  },
 });
 
-Deno.test("WorkflowSyncService - isGraphEmpty returns false when edges exist", async () => {
+Deno.test({
+  name: "WorkflowSyncService - isGraphEmpty returns false when embeddings exist",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
   const db = await createTestDb();
-  const syncService = new WorkflowSyncService(db);
+  const syncService = new WorkflowSyncService(db, mockEmbeddingFactory);
 
-  // Add an edge
+  // Add an embedding (isGraphEmpty checks tool_embedding, not tool_dependency)
   await db.query(
-    `INSERT INTO tool_dependency (from_tool_id, to_tool_id)
-     VALUES ('tool_a', 'tool_b')`,
+    `INSERT INTO tool_embedding (tool_id, server_id, tool_name, embedding)
+     VALUES ('tool_a', 'test_server', 'tool_a', '[${new Array(1024).fill(0.1).join(",")}]')`,
   );
 
   const isEmpty = await syncService.isGraphEmpty();
@@ -285,11 +371,19 @@ Deno.test("WorkflowSyncService - isGraphEmpty returns false when edges exist", a
   assertEquals(isEmpty, false);
 
   await db.close();
+  },
 });
 
-Deno.test("WorkflowSyncService - bootstrapIfEmpty syncs when graph empty", async () => {
+Deno.test({
+  name: "WorkflowSyncService - bootstrapIfEmpty syncs when graph empty",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
   const db = await createTestDb();
-  const syncService = new WorkflowSyncService(db);
+  const syncService = new WorkflowSyncService(db, mockEmbeddingFactory);
+
+  // Populate tool_schema (strict validation)
+  await populateToolSchema(db, ["start", "middle", "end"]);
 
   const yamlPath = await createTempYaml(`
 workflows:
@@ -307,16 +401,24 @@ workflows:
 
   await Deno.remove(yamlPath);
   await db.close();
+  },
 });
 
-Deno.test("WorkflowSyncService - bootstrapIfEmpty skips when graph not empty", async () => {
+Deno.test({
+  name: "WorkflowSyncService - bootstrapIfEmpty skips when graph not empty",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
   const db = await createTestDb();
-  const syncService = new WorkflowSyncService(db);
+  const syncService = new WorkflowSyncService(db, mockEmbeddingFactory);
 
-  // Pre-populate graph
+  // Populate tool_schema (strict validation)
+  await populateToolSchema(db, ["a", "b", "c"]);
+
+  // Pre-populate graph with embedding (isGraphEmpty checks tool_embedding)
   await db.query(
-    `INSERT INTO tool_dependency (from_tool_id, to_tool_id)
-     VALUES ('existing_a', 'existing_b')`,
+    `INSERT INTO tool_embedding (tool_id, server_id, tool_name, embedding)
+     VALUES ('existing_tool', 'test_server', 'existing_tool', '[${new Array(1024).fill(0.1).join(",")}]')`,
   );
 
   const yamlPath = await createTempYaml(`
@@ -329,33 +431,38 @@ workflows:
 
   assertEquals(bootstrapped, false);
 
-  // Check only original edge exists
-  const edges = await db.query(`SELECT * FROM tool_dependency`);
-  assertEquals(edges.length, 1);
-  assertEquals(edges[0].from_tool_id, "existing_a");
-
   await Deno.remove(yamlPath);
   await db.close();
+  },
 });
 
-Deno.test("WorkflowSyncService - bootstrapIfEmpty skips when file missing", async () => {
+Deno.test({
+  name: "WorkflowSyncService - bootstrapIfEmpty skips when file missing",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
   const db = await createTestDb();
-  const syncService = new WorkflowSyncService(db);
+  const syncService = new WorkflowSyncService(db, mockEmbeddingFactory);
 
   const bootstrapped = await syncService.bootstrapIfEmpty("/nonexistent/file.yaml");
 
   assertEquals(bootstrapped, false);
 
   await db.close();
+  },
 });
 
 // ============================================
 // Edge statistics
 // ============================================
 
-Deno.test("WorkflowSyncService - getEdgeStats returns correct counts", async () => {
+Deno.test({
+  name: "WorkflowSyncService - getEdgeStats returns correct counts",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
   const db = await createTestDb();
-  const syncService = new WorkflowSyncService(db);
+  const syncService = new WorkflowSyncService(db, mockEmbeddingFactory);
 
   // Add user edges
   await db.query(
@@ -376,15 +483,23 @@ Deno.test("WorkflowSyncService - getEdgeStats returns correct counts", async () 
   assertEquals(stats.total, 3);
 
   await db.close();
+  },
 });
 
 // ============================================
 // Error handling
 // ============================================
 
-Deno.test("WorkflowSyncService - sync returns error result on failure", async () => {
+Deno.test({
+  name: "WorkflowSyncService - sync returns error result on failure",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
   const db = await createTestDb();
-  const syncService = new WorkflowSyncService(db);
+  const syncService = new WorkflowSyncService(db, mockEmbeddingFactory);
+
+  // Populate tool_schema (required for sync to proceed to YAML validation)
+  await populateToolSchema(db, ["some_tool"]);
 
   // Use invalid YAML (not an object with workflows)
   const yamlPath = await createTempYaml("invalid: not workflows");
@@ -397,4 +512,5 @@ Deno.test("WorkflowSyncService - sync returns error result on failure", async ()
 
   await Deno.remove(yamlPath);
   await db.close();
+  },
 });

@@ -149,10 +149,12 @@ agentcards/
 │   │   ├── workflow-templates.ts # Story 5.2 - Template sync
 │   │   └── types.ts             # Graph types
 │   │
-│   ├── sandbox/                 # Code execution (Epic 3)
+│   ├── sandbox/                 # Code execution (Epic 3, 7)
 │   │   ├── executor.ts          # Story 3.1 - Deno sandbox
 │   │   ├── context-builder.ts   # Story 3.2 - Tool injection
-│   │   └── types.ts             # Story 3.1 - Sandbox types
+│   │   ├── worker-bridge.ts     # Story 7.1b - RPC bridge for MCP tools
+│   │   ├── sandbox-worker.ts    # Story 7.1b - Isolated worker script
+│   │   └── types.ts             # Story 3.1, 7.1b - Sandbox & RPC types
 │   │
 │   ├── speculation/             # Speculative execution (Epic 3.5)
 │   │   ├── speculative-executor.ts # Story 3.5-1 - Speculation engine
@@ -163,6 +165,17 @@ agentcards/
 │   │   ├── episodic-memory-store.ts # Story 4.1 - Episode storage
 │   │   ├── adaptive-threshold.ts # Story 4.2 - Threshold manager
 │   │   └── types.ts             # Learning types
+│   │
+│   ├── capabilities/            # Emergent capabilities (Epic 7)
+│   │   ├── matcher.ts           # Story 7.3a - Intent → capability matching
+│   │   ├── schema-inferrer.ts   # Story 7.2b - SWC-based parameter inference
+│   │   ├── suggestion-engine.ts # Story 7.4 - Proactive recommendations
+│   │   ├── code-generator.ts    # Story 7.3b - Inline function generation
+│   │   └── types.ts             # Capability types
+│   │
+│   ├── visualization/           # Graph visualization (Epic 8)
+│   │   ├── hypergraph-builder.ts # Story 8.2 - Compound graph construction
+│   │   └── types.ts             # Visualization types
 │   │
 │   ├── streaming/               # SSE streaming (Epic 2)
 │   │   ├── sse.ts               # Story 2.3 - Event stream
@@ -217,6 +230,8 @@ agentcards/
 | **Epic 4: Episodic Memory & Adaptive Learning**     | `src/learning/`                                                       | EpisodicMemoryStore, AdaptiveThresholdManager, PGlite persistence                                | 4.1, 4.2       | 🟡 Phase 1 DONE |
 | **Epic 5: Intelligent Tool Discovery**              | `src/graphrag/`, `src/mcp/gateway-server.ts`                          | search_tools MCP tool, Hybrid semantic+graph search, Workflow templates                          | 5.1, 5.2       | ✅ DONE         |
 | **Epic 6: Real-time Graph Monitoring**              | `src/server/`, `public/`                                              | SSE events stream, Graph visualization, Metrics dashboard                                        | 6.1-6.4        | 📋 DRAFTED      |
+| **Epic 7: Emergent Capabilities & Learning System** | `src/capabilities/`, `src/sandbox/worker-bridge.ts`, `src/sandbox/sandbox-worker.ts` | WorkerBridge, CapabilityMatcher, SuggestionEngine, SchemaInferrer, CapabilityCodeGenerator | 7.1b-7.5       | 🟡 IN PROGRESS  |
+| **Epic 8: Hypergraph Capabilities Visualization**   | `src/visualization/`, `public/`                                       | HypergraphBuilder, Capability Explorer, Code Panel, Compound Graphs                              | 8.1-8.5        | 📋 PROPOSED     |
 
 **Boundaries:**
 
@@ -228,6 +243,8 @@ agentcards/
 - **Epic 4** extends: Epic 2.5/3.5 with episodic memory and adaptive threshold learning
 - **Epic 5** extends: Epic 1 with hybrid search (semantic + graph-based recommendations)
 - **Epic 6** extends: Epic 5 with real-time observability and graph visualization
+- **Epic 7** extends: Epic 3 + Epic 4 with emergent capabilities from code execution (Worker RPC Bridge, capability learning, suggestions)
+- **Epic 8** extends: Epic 6 + Epic 7 with hypergraph visualization of learned capabilities (compound nodes, code panel)
 
 **Implementation Status Summary:**
 
@@ -236,6 +253,8 @@ agentcards/
 - ✅ Epic 5: Intelligent tool discovery with hybrid search
 - 🟡 Epic 4: Phase 1 complete (storage), Phase 2 pending (integrations)
 - 📋 Epic 6: Stories drafted, pending implementation
+- 🟡 Epic 7: In progress (Story 7.1 done, 7.1b planned - Worker RPC Bridge)
+- 📋 Epic 8: Proposed, depends on Epic 7 capabilities storage
 
 ---
 
@@ -1347,6 +1366,237 @@ essential for speculative execution (Epic 3.5).
 
 ---
 
+## Pattern 6: Worker RPC Bridge & Emergent Capabilities (Epic 7)
+
+**Status:** 🟡 IN PROGRESS (Story 7.1 done, Story 7.1b planned)
+
+**Problem:** MCP client functions cannot be serialized to subprocess (`JSON.stringify(function) → undefined`). The original `wrapMCPClient()` approach silently failed. Additionally, stdout-based tracing (`__TRACE__`) is fragile and collides with user console.log.
+
+**Solution Architecture (ADR-032):**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  LAYER 1: ORCHESTRATION (Claude)                                 │
+│  • Reçoit l'intent utilisateur                                   │
+│  • Query: "Capability existante?" → YES: execute cached          │
+│  • NO: génère code → execute → learn                             │
+│  • NE VOIT PAS: données brutes, traces, détails exécution        │
+└─────────────────────────────────────────────────────────────────┘
+                          ▲ IPC: result + suggestions
+┌─────────────────────────────────────────────────────────────────┐
+│  LAYER 2: CAPABILITY ENGINE + RPC BRIDGE                         │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐           │
+│  │ Capability   │  │   Worker     │  │  Suggestion  │           │
+│  │   Matcher    │  │   Bridge     │  │    Engine    │           │
+│  └──────────────┘  └──────────────┘  └──────────────┘           │
+│         │                 │                  │                   │
+│         │     Native Tracing (ALL calls)     │                   │
+│         └─────────────────┼──────────────────┘                   │
+│              GraphRAG (PageRank, Louvain, Adamic-Adar)          │
+└─────────────────────────────────────────────────────────────────┘
+                          ▲ postMessage RPC (tool calls)
+┌─────────────────────────────────────────────────────────────────┐
+│  LAYER 3: EXECUTION (Deno Worker, permissions: "none")           │
+│  • Tool proxies: mcp.server.tool() → RPC to bridge               │
+│  • Capabilities: inline functions (Option B - no RPC overhead)   │
+│  • Isolation complète, pas de discovery runtime                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Worker RPC Bridge Components:**
+
+```typescript
+// Main Process → Worker communication
+Main Process                          Worker (permissions: "none")
+┌─────────────────┐                  ┌─────────────────────────────┐
+│ MCPClients      │                  │ const mcp = {               │
+│ WorkerBridge    │◄─── postMessage ─│   fs: { read: (a) =>        │
+│   - traces[]    │                  │     __rpcCall("fs","read",a)│
+│   - callTool()  │─── postMessage ──►│   }                        │
+│                 │                  │ };                          │
+└─────────────────┘                  │ // User code runs here      │
+                                     └─────────────────────────────┘
+```
+
+**RPC Message Types:**
+
+```typescript
+interface RPCCallMessage {
+  type: "rpc_call";
+  id: string;
+  server: string;
+  tool: string;
+  args: unknown;
+}
+
+interface RPCResultMessage {
+  type: "rpc_result";
+  id: string;
+  success: boolean;
+  result?: unknown;
+  error?: string;
+}
+```
+
+**Capability Lifecycle (Eager Learning):**
+
+```
+PHASE 1: EXECUTE & LEARN (Eager - dès exec 1)
+  Intent → VectorSearch → Tools → Execute → Track via IPC
+  → Success? UPSERT workflow_pattern immédiatement
+  → ON CONFLICT: usage_count++, update success_rate
+  → Capability discoverable IMMÉDIATEMENT
+
+PHASE 2: CAPABILITY MATCHING
+  Intent → CapabilityMatcher.findMatch() → MATCH (score > adaptive threshold)
+  → Filter: success_rate > 0.7 (quality gate)
+  → Cache hit? Return cached result
+  → Cache miss? Execute code_snippet → cache result
+
+PHASE 3: LAZY SUGGESTIONS
+  SuggestionEngine.suggest(context) avec filtres adaptatifs:
+  → usage_count >= 2 (validé par répétition)
+  → OU success_rate > 0.9 (validé par qualité)
+  → Évite de suggérer les one-shots non validés
+```
+
+**Key Components (Epic 7):**
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| WorkerBridge | `src/sandbox/worker-bridge.ts` | RPC bridge, native tracing |
+| SandboxWorker | `src/sandbox/sandbox-worker.ts` | Isolated execution context |
+| CapabilityMatcher | `src/capabilities/matcher.ts` | Intent → capability matching |
+| SchemaInferrer | `src/capabilities/schema-inferrer.ts` | SWC-based parameter inference |
+| SuggestionEngine | `src/capabilities/suggestion-engine.ts` | Proactive recommendations |
+| CapabilityCodeGenerator | `src/capabilities/code-generator.ts` | Inline function generation |
+
+**Database Extensions (Migration 011):**
+
+```sql
+-- Extend workflow_pattern for capabilities
+ALTER TABLE workflow_pattern ADD COLUMN code_snippet TEXT;
+ALTER TABLE workflow_pattern ADD COLUMN parameters_schema JSONB;
+ALTER TABLE workflow_pattern ADD COLUMN cache_config JSONB;
+ALTER TABLE workflow_pattern ADD COLUMN success_rate REAL DEFAULT 1.0;
+ALTER TABLE workflow_pattern ADD COLUMN avg_duration_ms INTEGER;
+ALTER TABLE workflow_pattern ADD COLUMN source TEXT DEFAULT 'emergent';
+
+-- Extend workflow_execution for tracing
+ALTER TABLE workflow_execution ADD COLUMN code_snippet TEXT;
+ALTER TABLE workflow_execution ADD COLUMN code_hash TEXT;
+
+-- Capability result cache
+CREATE TABLE capability_cache (
+  capability_id UUID REFERENCES workflow_pattern(id),
+  params_hash TEXT,
+  result JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  expires_at TIMESTAMPTZ,
+  PRIMARY KEY (capability_id, params_hash)
+);
+```
+
+**Performance Targets:**
+
+- RPC overhead: <10ms per call
+- Capability matching: <200ms
+- Schema inference (SWC): <50ms
+- Suggestion generation: <100ms
+
+**Affects Epics:** Epic 7 (Stories 7.1b-7.5)
+
+**References:**
+
+- ADR-027: Execute Code Graph Learning
+- ADR-028: Emergent Capabilities System
+- ADR-032: Sandbox Worker RPC Bridge
+- Research: `docs/research/research-technical-2025-12-03.md`
+
+**Design Philosophy:** Capabilities emerge from usage rather than being pre-defined. The system learns continuously from execution patterns to crystallize reusable capabilities, offering unique differentiation versus competitors.
+
+---
+
+## Pattern 7: Hypergraph Capabilities Visualization (Epic 8)
+
+**Status:** 📋 PROPOSED
+
+**Problem:** Capabilities are N-ary relationships (connecting multiple tools), not binary edges. Standard graph visualization fails to represent this accurately.
+
+**Solution: Cytoscape.js Compound Graphs (ADR-029)**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Dashboard Header                                               │
+│  [Tools] [Capabilities] [Hypergraph]  ← View mode toggle       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   ┌─────────────────────────────┐                              │
+│   │  Cap: Create Issue from File │ ← Compound node (violet)    │
+│   │  success: 95% | usage: 12   │                              │
+│   │  ┌───────┐  ┌────────────┐ │                              │
+│   │  │fs:read│  │gh:issue    │ │ ← Child nodes (tools)        │
+│   │  └───────┘  └────────────┘ │                              │
+│   └─────────────────────────────┘                              │
+│                                                                 │
+├─────────────────────────────────────────────────────────────────┤
+│  Code Panel (on capability click)                               │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │  const content = await mcp.filesystem.read("config.json");│  │
+│  │  const data = JSON.parse(content);                        │  │
+│  │  await mcp.github.createIssue({ title: data.title });     │  │
+│  │                                                           │  │
+│  │  [Copy Code] [Try This]                                   │  │
+│  └──────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Key Components (Epic 8):**
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| HypergraphBuilder | `src/visualization/hypergraph-builder.ts` | Compound graph construction |
+| Capability Data API | `GET /api/capabilities` | Fetch capabilities with filters |
+| Hypergraph API | `GET /api/graph/hypergraph` | Cytoscape-ready graph data |
+| Code Panel | `public/components/code-panel.tsx` | Syntax highlighting, copy action |
+
+**Cytoscape Node Structure:**
+
+```javascript
+// Capability (parent node)
+{
+  data: {
+    id: 'cap-uuid-1',
+    type: 'capability',
+    label: 'Create Issue from File',
+    code_snippet: 'await mcp.github...',
+    success_rate: 0.95,
+    usage_count: 12
+  }
+}
+
+// Tool (child node)
+{
+  data: {
+    id: 'filesystem:read',
+    parent: 'cap-uuid-1',  // Links to capability
+    type: 'tool',
+    server: 'filesystem'
+  }
+}
+```
+
+**Affects Epics:** Epic 8 (Stories 8.1-8.5)
+
+**References:**
+
+- ADR-029: Hypergraph Capabilities Visualization
+- Epic 6: Real-time Graph Monitoring (base dashboard)
+
+**Design Philosophy:** Visualize the learned capabilities as first-class entities, enabling developers to explore, understand, and reuse the system's accumulated knowledge.
+
+---
+
 ## Implementation Patterns
 
 ### Naming Conventions
@@ -2187,8 +2437,107 @@ discovery
 
 ---
 
+### ADR-027: Execute Code Graph Learning
+
+**Decision:** Track all tool calls from code execution and persist patterns to GraphRAG for capability learning
+
+**Status:** Proposed (2025-12-03)
+
+**Rationale:**
+
+- Code execution generates valuable tool usage patterns
+- Patterns should feed back into GraphRAG for improved suggestions
+- Foundation for emergent capabilities system
+
+**Consequences:**
+
+- Every code execution contributes to system knowledge
+- Improved tool suggestions based on real usage patterns
+- Enables capability crystallization (Epic 7)
+
+---
+
+### ADR-028: Emergent Capabilities System
+
+**Decision:** Implement eager learning where capabilities are stored after first successful execution, with lazy filtering for suggestions
+
+**Status:** Proposed (2025-12-03)
+
+**Rationale:**
+
+- Storage is cheap (~2KB/capability), keep everything
+- Filtering happens at suggestion time, not storage time
+- Enables immediate discoverability of learned patterns
+- Adaptive thresholds (from Epic 4) control suggestion quality
+
+**Philosophy:**
+
+- **Eager Learning:** Store immediately on first success (ON CONFLICT → UPDATE usage_count++)
+- **Lazy Suggestions:** Filter by success_rate, usage_count, and adaptive thresholds
+
+**Consequences:**
+
+- Zero-latency capability availability
+- No waiting for "3+ executions" pattern detection
+- Quality control via suggestion filtering, not storage gating
+
+---
+
+### ADR-029: Hypergraph Capabilities Visualization
+
+**Decision:** Use Cytoscape.js compound graphs to visualize capabilities as N-ary relationships containing multiple tools
+
+**Status:** Proposed (2025-12-04)
+
+**Rationale:**
+
+- Capabilities connect N tools, not just 2 (N-ary relationships)
+- Standard edge-based visualization fails to represent this
+- Compound nodes (parent = capability, children = tools) accurately model the relationship
+- Cytoscape.js supports compound layouts (fcose, cola)
+
+**Consequences:**
+
+- Accurate visual representation of capability structure
+- Users can expand/collapse capabilities to explore tool composition
+- Code panel integration for direct code reuse
+
+---
+
+### ADR-032: Sandbox Worker RPC Bridge
+
+**Decision:** Replace subprocess-based sandbox with Deno Worker + RPC bridge for MCP tool execution
+
+**Status:** Proposed (2025-12-05)
+
+**Rationale:**
+
+- `JSON.stringify(function) → undefined` - MCP client functions cannot be serialized to subprocess
+- Original `wrapMCPClient()` silently failed in subprocess sandbox
+- Worker RPC Bridge provides native tracing (no stdout parsing)
+- `postMessage` API enables reliable function-like calls across isolation boundary
+
+**Architecture:**
+
+```
+Main Process (WorkerBridge)     Worker (permissions: "none")
+├── MCPClients                  ├── Tool proxies (__rpcCall)
+├── traces[] (native)           ├── Capabilities (inline functions)
+└── callTool() routing          └── User code execution
+```
+
+**Consequences:**
+
+- MCP tools actually work in isolated sandbox
+- Native tracing without stdout parsing fragility
+- Foundation for capability injection (Option B - inline functions)
+- Enables emergent capabilities learning
+
+---
+
 _Generated by BMAD Decision Architecture Workflow v1.3.2_ _Date: 2025-11-03_ _Updated: 2025-11-14
 (ADR-007 Approved - Pattern 4: 3-Loop Learning Architecture with Checkpoint & Context Management
 clarifications)_ _Updated: 2025-11-24 (ADR-019 - Two-Level AIL Architecture, MCP compatibility
 corrections)_ _Updated: 2025-11-28 (Sync with PRD: BGE-M3 model, Epics 3.5-6 mapping, ADRs
-008/017/022-024, modules learning/speculation)_ _For: BMad_
+008/017/022-024, modules learning/speculation)_ _Updated: 2025-12-06 (Epic 7 & 8 alignment, ADRs
+027/028/029/032, Pattern 6 Worker RPC Bridge, Pattern 7 Hypergraph Visualization)_ _For: BMad_

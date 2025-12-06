@@ -620,7 +620,7 @@ if (deps.fetch?.status === "success") {
 
 ## See Also
 
-- [ADR-010: Hybrid DAG Architecture](./adrs/ADR-010-hybrid-dag-architecture.md) - Safe-to-fail
+- [ADR-010: Hybrid DAG Architecture](../adrs/ADR-010-hybrid-dag-architecture.md) - Safe-to-fail
   property definition
 - [Epic 3 Technical Spec](./tech-spec-epic-3.md) - Sandbox foundation for safe-to-fail
 - [Story 3.4](./stories/story-3.4.md) - Code execution foundation

@@ -215,7 +215,8 @@ understand what it does and how to start.
 
 **Goal:** Créer la séquence de notebooks propre (00-06) avec progression claire et checkpoints.
 
-**Value:** Un développeur comprend le problème MCP et la solution Casys Gateway en ~2h de travail.
+**Value:** Un développeur comprend le paradigme AgentCards (exécution de code → capability learning
+→ réutilisation) en ~2h de travail interactif.
 
 ---
 
@@ -298,61 +299,60 @@ workflows are optimized.
 
 ---
 
-### Story 2.5: Notebook 04 - Sandbox Security
+### Story 2.5: Notebook 04 - Code Execution & Worker RPC
 
-**As a** user, **I want** to see the sandbox execution, **So that** I understand how code runs
-safely.
+**As a** user, **I want** to see how code executes with MCP tool access, **So that** I understand
+how the Worker RPC Bridge enables safe tool usage from sandbox.
 
 **Acceptance Criteria:**
 
-1. Explication: Pourquoi sandbox (sécurité, isolation)
+1. Explication: Worker RPC Bridge architecture (ADR-032)
 2. Demo Live:
-   - Exécute code TypeScript simple dans sandbox
-   - Montre les permissions (read-only paths, no network)
+   - Exécute code TypeScript qui appelle des MCP tools via RPC
+   - Montre le tracing natif (tool_start, tool_end events)
    - Tente une opération interdite → erreur claire
-3. Use Case: Traitement de données (1MB input → 1KB summary)
-4. Checkpoint: Écrire un script sandbox qui transforme des données
+3. Use Case: Code qui lit un fichier via MCP et le traite
+4. Checkpoint: Écrire du code appelant 2 MCP tools
 
 **Prerequisites:** Story 2.4
 
 ---
 
-### Story 2.6: Notebook 05 - GraphRAG Learning
+### Story 2.6: Notebook 05 - Capability Learning
 
-**As a** user, **I want** to see how the system learns patterns, **So that** I understand the
-adaptive behavior.
+**As a** user, **I want** to see how capabilities emerge from code execution, **So that** I
+understand the learning system.
 
 **Acceptance Criteria:**
 
-1. Explication: GraphRAG, patterns, confidence scores
+1. Explication: Eager Learning (store on 1st success), workflow_pattern table
 2. Demo Live:
-   - Affiche le graphe initial (vide ou bootstrap)
-   - Exécute un workflow 3x
-   - Montre le graphe mis à jour (edges, confidence)
-   - Query "search related tools" → montre recommandations
-3. Visualisation: Graphe avec Mermaid ou ASCII
-4. Checkpoint: Prédire quel outil sera suggéré après X
+   - Exécute du code avec intent → capability créée immédiatement
+   - Montre le storage (code_snippet, intent_embedding, usage_count)
+   - Query via `search_capabilities` tool → trouve la capability
+3. Visualisation: Table des capabilities avec stats
+4. Checkpoint: Trouver une capability matching un intent donné
 
 **Prerequisites:** Story 2.5
 
 ---
 
-### Story 2.7: Notebook 06 - Workflow Templates
+### Story 2.7: Notebook 06 - Emergent Capability Reuse
 
-**As a** user, **I want** to define my own workflow patterns, **So that** I can customize the system
-for my use cases.
+**As a** user, **I want** to see how to reuse learned capabilities, **So that** I can skip code
+generation for proven patterns.
 
 **Acceptance Criteria:**
 
-1. Explication: Format YAML, CLI sync, bootstrap
+1. Explication: Capability Matching vs code generation, Suggestion Engine
 2. Demo Live:
-   - Affiche `workflow-templates.yaml` existant
-   - Ajoute un nouveau workflow via code
-   - Exécute `agentcards workflows sync`
-   - Vérifie que le graphe est mis à jour
-3. Interactive: User définit son propre workflow
-4. Checkpoint: Créer un workflow template pour un use case donné
-5. Next Steps: Liens vers documentation complète, contribution
+   - Match intent → retrieve cached capability
+   - Exécute capability sans régénération Claude
+   - Montre les suggestions proactives du Suggestion Engine
+   - Capability injection dans Worker context (inline functions)
+3. Interactive: Créer et réutiliser une capability custom
+4. Checkpoint: Créer une capability et la réutiliser par intent
+5. Next Steps: Liens vers documentation Epic 7, contribution
 
 **Prerequisites:** Story 2.6
 

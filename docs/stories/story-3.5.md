@@ -501,7 +501,7 @@ Breaking change sur deps context géré proprement. Documentation complète et p
 
 **References:**
 
-- [ADR-010: Hybrid DAG Architecture](./adrs/ADR-010-hybrid-dag-architecture.md)
+- [ADR-010: Hybrid DAG Architecture](../adrs/ADR-010-hybrid-dag-architecture.md)
 - [Epic 3 Technical Spec](./tech-spec-epic-3.md)
 - [Story 3.4](./stories/story-3.4.md)
 - [Resilient Workflows Guide](./resilient-workflows.md)

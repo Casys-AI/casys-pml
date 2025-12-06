@@ -58,7 +58,7 @@
         >Helper idempotent pour eviter re-initialisation couteuse. Support verbose pour notebook 00. Depends on stories 1.2, 1.3, 1.4.</snippet>
       </doc>
       <doc>
-        <path>docs/adrs/accepted/ADR-021-configurable-database-path.md</path>
+        <path>docs/adrs/ADR-021-configurable-database-path.md</path>
         <title>ADR-021: Configurable Database Path</title>
         <section>Environment Variable</section>
         <snippet

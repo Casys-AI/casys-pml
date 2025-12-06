@@ -30,16 +30,36 @@ export interface SyncResult {
 }
 
 /**
+ * Interface for embedding model (allows mocking in tests)
+ */
+export interface IEmbeddingModel {
+  load(): Promise<void>;
+  encode(text: string): Promise<number[]>;
+  dispose(): Promise<void>;
+}
+
+/**
+ * Factory function type for creating embedding models
+ */
+export type EmbeddingModelFactory = () => IEmbeddingModel;
+
+/**
+ * Default factory that creates real EmbeddingModel
+ */
+const defaultEmbeddingFactory: EmbeddingModelFactory = () => new EmbeddingModel();
+
+/**
  * Workflow Templates Sync Service
  *
  * Handles synchronization of YAML workflow templates to the database.
  */
 export class WorkflowSyncService {
   private loader: WorkflowLoader;
-  private embeddingModel: EmbeddingModel | null = null;
+  private embeddingFactory: EmbeddingModelFactory;
 
-  constructor(private db: PGliteClient) {
+  constructor(private db: PGliteClient, embeddingFactory?: EmbeddingModelFactory) {
     this.loader = new WorkflowLoader();
+    this.embeddingFactory = embeddingFactory ?? defaultEmbeddingFactory;
   }
 
   /**
@@ -253,65 +273,69 @@ export class WorkflowSyncService {
 
     log.info(`[WorkflowSync] Generating embeddings for ${missingToolIds.length} tools...`);
 
-    // Lazy-load embedding model
-    if (!this.embeddingModel) {
-      this.embeddingModel = new EmbeddingModel();
-    }
-    await this.embeddingModel.load();
+    // Create and load embedding model using factory (allows mocking in tests)
+    const model = this.embeddingFactory();
+    await model.load();
 
     let created = 0;
-    for (const toolId of missingToolIds) {
-      try {
-        // Fetch schema from tool_schema
-        const schema = await this.db.queryOne(
-          `SELECT tool_id, server_id, name, description, input_schema
-           FROM tool_schema WHERE tool_id = $1`,
-          [toolId],
-        );
+    try {
+      for (const toolId of missingToolIds) {
+        try {
+          // Fetch schema from tool_schema
+          const schema = await this.db.queryOne(
+            `SELECT tool_id, server_id, name, description, input_schema
+             FROM tool_schema WHERE tool_id = $1`,
+            [toolId],
+          );
 
-        if (!schema) {
-          log.warn(`[WorkflowSync] Tool ${toolId} not found in tool_schema`);
-          continue;
+          if (!schema) {
+            log.warn(`[WorkflowSync] Tool ${toolId} not found in tool_schema`);
+            continue;
+          }
+
+          // Generate embedding from schema text
+          const schemaObj = {
+            tool_id: schema.tool_id as string,
+            server_id: schema.server_id as string,
+            name: schema.name as string,
+            description: (schema.description as string) || "",
+            input_schema: (typeof schema.input_schema === "string"
+              ? JSON.parse(schema.input_schema)
+              : schema.input_schema) as Record<string, unknown>,
+          };
+          const text = schemaToText(schemaObj);
+          const embedding = await model.encode(text);
+
+          // Insert into tool_embedding
+          await this.db.query(
+            `INSERT INTO tool_embedding (tool_id, server_id, tool_name, embedding, metadata, created_at)
+             VALUES ($1, $2, $3, $4, $5, NOW())
+             ON CONFLICT (tool_id) DO UPDATE
+             SET embedding = EXCLUDED.embedding,
+                 metadata = EXCLUDED.metadata,
+                 created_at = NOW()`,
+            [
+              schemaObj.tool_id,
+              schemaObj.server_id,
+              schemaObj.name,
+              `[${embedding.join(",")}]`,
+              JSON.stringify({
+                source: "workflow_sync",
+                generated_at: new Date().toISOString(),
+              }),
+            ],
+          );
+
+          created++;
+          log.debug(`[WorkflowSync] Generated embedding for: ${toolId}`);
+        } catch (error) {
+          log.warn(`[WorkflowSync] Failed to generate embedding for ${toolId}: ${error}`);
         }
-
-        // Generate embedding from schema text
-        const schemaObj = {
-          tool_id: schema.tool_id as string,
-          server_id: schema.server_id as string,
-          name: schema.name as string,
-          description: (schema.description as string) || "",
-          input_schema: (typeof schema.input_schema === "string"
-            ? JSON.parse(schema.input_schema)
-            : schema.input_schema) as Record<string, unknown>,
-        };
-        const text = schemaToText(schemaObj);
-        const embedding = await this.embeddingModel.encode(text);
-
-        // Insert into tool_embedding
-        await this.db.query(
-          `INSERT INTO tool_embedding (tool_id, server_id, tool_name, embedding, metadata, created_at)
-           VALUES ($1, $2, $3, $4, $5, NOW())
-           ON CONFLICT (tool_id) DO UPDATE
-           SET embedding = EXCLUDED.embedding,
-               metadata = EXCLUDED.metadata,
-               created_at = NOW()`,
-          [
-            schemaObj.tool_id,
-            schemaObj.server_id,
-            schemaObj.name,
-            `[${embedding.join(",")}]`,
-            JSON.stringify({
-              source: "workflow_sync",
-              generated_at: new Date().toISOString(),
-            }),
-          ],
-        );
-
-        created++;
-        log.debug(`[WorkflowSync] Generated embedding for: ${toolId}`);
-      } catch (error) {
-        log.warn(`[WorkflowSync] Failed to generate embedding for ${toolId}: ${error}`);
       }
+    } finally {
+      // Always clean up embedding model resources
+      await model.dispose();
+      log.debug("[WorkflowSync] Embedding model disposed");
     }
 
     return created;

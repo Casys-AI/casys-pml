@@ -146,6 +146,38 @@ export class EmbeddingModel {
   isLoaded(): boolean {
     return this.model !== null;
   }
+
+  /**
+   * Dispose of the model and free resources
+   * Call this when the model is no longer needed to prevent resource leaks
+   */
+  async dispose(): Promise<void> {
+    if (!this.model) {
+      return;
+    }
+
+    try {
+      // Try various cleanup methods that might exist on the model
+      if (typeof this.model.dispose === "function") {
+        await this.model.dispose();
+      } else if (typeof this.model.destroy === "function") {
+        await this.model.destroy();
+      } else if (typeof this.model.close === "function") {
+        await this.model.close();
+      } else if (this.model.model && typeof this.model.model.dispose === "function") {
+        // Some pipelines have nested model objects
+        await this.model.model.dispose();
+      } else if (this.model.model && this.model.model.session && typeof this.model.model.session.release === "function") {
+        // ONNX runtime sessions have release() method
+        await this.model.model.session.release();
+      }
+    } catch (error) {
+      log.warn(`Failed to dispose embedding model: ${error}`);
+    }
+
+    this.model = null;
+    this.loading = null;
+  }
 }
 
 /**

@@ -13,8 +13,8 @@
   exécutables avec de vrais appels
 
 - **Enseigner la solution Casys MCP Gateway étape par étape** - Guider progressivement à travers :
-  context optimization → DAG execution → sandbox → GraphRAG, avec des exemples concrets et
-  interactifs
+  context optimization → DAG execution → sandbox → capability learning → emergent reuse, avec des
+  exemples concrets et interactifs
 
 - **Fournir un environnement LLM-agnostic prêt à l'emploi** - Un Codespace GitHub où tout fonctionne
   out-of-the-box avec le provider de son choix (OpenAI, Anthropic, Google via Vercel AI SDK), en
@@ -27,15 +27,18 @@ outils externes. Cependant, l'adoption à grande échelle se heurte à deux prob
 l'explosion du contexte (30-50% de la fenêtre consommée par les schémas d'outils) et la latence
 séquentielle des appels.
 
-Casys MCP Gateway est une solution LLM-agnostic (fonctionne avec Claude, GPT-4, Gemini via Vercel AI
-SDK) qui résout ces problèmes via quatre mécanismes : recherche vectorielle pour le chargement à la
-demande, exécution DAG pour la parallélisation, sandbox Deno pour l'exécution de code sécurisée, et
-GraphRAG pour l'apprentissage de patterns.
+**Le paradigme AgentCards :** Plutôt que d'orchestrer des appels MCP individuels, Claude **compose
+du code TypeScript** qui est ensuite **exécuté par AgentCards** dans un Worker sandbox sécurisé. Ce
+code appelle les MCP tools via un RPC Bridge. Le système **apprend** de chaque exécution réussie,
+cristallisant des "capabilities" réutilisables. Résultat : Claude devient un compositeur de code de
+haut niveau, AgentCards gère l'exécution sécurisée et l'apprentissage.
 
-Ce playground existe pour rendre ces concepts accessibles. Pas de mocks - de vrais serveurs MCP, de
-vrais appels LLM, des métriques réelles. L'objectif est que chaque développeur puisse constater
-lui-même le problème et la solution. La gateway supporte deux modes de transport (stdio et HTTP)
-pour s'adapter à différents cas d'usage.
+Casys MCP Gateway est LLM-agnostic (Claude, GPT-4, Gemini via Vercel AI SDK) et résout les problèmes
+MCP via : recherche vectorielle (context <5%), Worker RPC Bridge (exécution sécurisée avec tracing),
+et capability learning (réutilisation de code prouvé).
+
+Ce playground rend ces concepts accessibles avec de vrais serveurs MCP, de vrais appels, des
+métriques réelles. La gateway supporte stdio et HTTP pour différents cas d'usage.
 
 ---
 
@@ -75,9 +78,12 @@ pour s'adapter à différents cas d'usage.
   <5%
 - **FR011:** Le notebook "DAG Execution" doit visualiser le graphe de dépendances et le speedup
   obtenu
-- **FR012:** Le notebook "Sandbox" doit exécuter du code TypeScript isolé et montrer les contrôles
-  de sécurité
-- **FR013:** Le notebook "GraphRAG" doit montrer l'apprentissage de patterns d'usage d'outils
+- **FR012:** Le notebook "Sandbox" doit exécuter du code TypeScript isolé via Worker RPC Bridge et
+  montrer les contrôles de sécurité avec tracing natif des tool calls
+- **FR013:** Le notebook "Capability Learning" doit montrer comment les capabilities émergent de
+  l'exécution de code (eager learning, search_capabilities tool)
+- **FR014:** Le notebook "Emergent Reuse" doit démontrer la réutilisation de capabilities prouvées
+  et les suggestions du Suggestion Engine
 
 **MCP Servers & Workflow Templates**
 
@@ -217,9 +223,9 @@ pour s'adapter à différents cas d'usage.
 - 01-the-problem : Démonstration context explosion + latency
 - 02-context-optimization : Vector search, chargement à la demande
 - 03-dag-execution : Parallélisation, visualisation graphe
-- 04-sandbox-security : Exécution isolée, contrôles sécurité
-- 05-graphrag-learning : Patterns d'usage, apprentissage
-- 06-workflow-templates : Définir ses patterns YAML, `agentcards workflows sync`, bootstrap graph
+- 04-sandbox-security : Worker RPC Bridge, exécution isolée avec tracing natif des tool calls
+- 05-capability-learning : Comment les capabilities émergent de l'exécution (eager learning)
+- 06-emergent-reuse : Réutilisation de code prouvé, Suggestion Engine, capability injection
 - Nettoyage des anciens notebooks (archivage ou suppression)
 
 > **Note:** Detailed epic breakdown with full story specifications is available in

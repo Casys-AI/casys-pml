@@ -189,7 +189,7 @@ export async function ensurePlaygroundReady(options?: InitOptions): Promise<Init
 - [PRD: FR001 - Quick Start](../PRD-playground.md#functional-requirements)
 - [Epics: Story 1.5 - Idempotent Init Helper](../epics-playground.md#story-15-idempotent-init-helper)
 - [Story 1.4: LLM API Key Setup Script](1-4-llm-api-key-setup-script.md) - Previous story learnings
-- [ADR-021: Environment Variable Configuration](../adrs/ADR-021-environment-variable-configuration.md) -
+- [ADR-021: Configurable Database Path](../adrs/ADR-021-configurable-database-path.md) -
   DB path pattern
 
 ## Dev Agent Record

@@ -67,49 +67,47 @@ Architecture Decision Records documenting key technical decisions.
 - **[ADR-027-execute-code-graph-learning.md](./adrs/ADR-027-execute-code-graph-learning.md)** -
   Execute code GraphRAG learning integration
 
-#### adrs/accepted/
+#### adrs/ (continued)
 
-- **[ADR-007-dag-adaptive-feedback-loops.md](./adrs/accepted/ADR-007-dag-adaptive-feedback-loops.md)** -
+- **[ADR-007-dag-adaptive-feedback-loops.md](./adrs/ADR-007-dag-adaptive-feedback-loops.md)** -
   DAG adaptive feedback with AIL/HIL replanning
-- **[ADR-009-json-config-format.md](./adrs/accepted/ADR-009-json-config-format.md)** - JSON
+- **[ADR-009-json-config-format.md](./adrs/ADR-009-json-config-format.md)** - JSON
   configuration format decision
-- **[ADR-010-hybrid-dag-architecture.md](./adrs/accepted/ADR-010-hybrid-dag-architecture.md)** -
+- **[ADR-010-hybrid-dag-architecture.md](./adrs/ADR-010-hybrid-dag-architecture.md)** -
   Hybrid DAG architecture design
-- **[ADR-011-sentry-integration.md](./adrs/accepted/ADR-011-sentry-integration.md)** - Sentry error
+- **[ADR-011-sentry-integration.md](./adrs/ADR-011-sentry-integration.md)** - Sentry error
   tracking integration
-- **[ADR-012-mcp-stdio-logging.md](./adrs/accepted/ADR-012-mcp-stdio-logging.md)** - MCP stdio
+- **[ADR-012-mcp-stdio-logging.md](./adrs/ADR-012-mcp-stdio-logging.md)** - MCP stdio
   logging approach
-- **[ADR-013-tools-list-semantic-filtering.md](./adrs/accepted/ADR-013-tools-list-semantic-filtering.md)** -
+- **[ADR-013-tools-list-semantic-filtering.md](./adrs/ADR-013-tools-list-semantic-filtering.md)** -
   Semantic filtering for tools list
-- **[ADR-014-http-sse-transport.md](./adrs/accepted/ADR-014-http-sse-transport.md)** - HTTP SSE
+- **[ADR-014-http-sse-transport.md](./adrs/ADR-014-http-sse-transport.md)** - HTTP SSE
   transport layer decision
-- **[ADR-015-dynamic-alpha-graph-density.md](./adrs/accepted/ADR-015-dynamic-alpha-graph-density.md)** -
+- **[ADR-015-dynamic-alpha-graph-density.md](./adrs/ADR-015-dynamic-alpha-graph-density.md)** -
   Dynamic alpha based on graph density
-- **[ADR-016-repl-style-auto-return.md](./adrs/accepted/ADR-016-repl-style-auto-return.md)** -
+- **[ADR-016-repl-style-auto-return.md](./adrs/ADR-016-repl-style-auto-return.md)** -
   REPL-style auto-return for code execution
-- **[ADR-018-command-handlers-minimalism.md](./adrs/accepted/ADR-018-command-handlers-minimalism.md)** -
+- **[ADR-018-command-handlers-minimalism.md](./adrs/ADR-018-command-handlers-minimalism.md)** -
   Minimalist command handlers design
-- **[ADR-019-three-level-ail-architecture.md](./adrs/accepted/ADR-019-three-level-ail-architecture.md)** -
+- **[ADR-019-three-level-ail-architecture.md](./adrs/ADR-019-three-level-ail-architecture.md)** -
   Three-level AIL architecture (superseded by ADR-020)
-- **[ADR-020-ail-control-protocol.md](./adrs/accepted/ADR-020-ail-control-protocol.md)** - AIL
+- **[ADR-020-ail-control-protocol.md](./adrs/ADR-020-ail-control-protocol.md)** - AIL
   control protocol specification
-- **[ADR-020-graceful-shutdown-timeout.md](./adrs/accepted/ADR-020-graceful-shutdown-timeout.md)** -
+- **[ADR-020-graceful-shutdown-timeout.md](./adrs/ADR-020-graceful-shutdown-timeout.md)** -
   Graceful shutdown timeout handling
-- **[ADR-021-configurable-database-path.md](./adrs/accepted/ADR-021-configurable-database-path.md)** -
+- **[ADR-021-configurable-database-path.md](./adrs/ADR-021-configurable-database-path.md)** -
   Configurable database path support
-- **[ADR-021-jsr-publishing-strategy.md](./adrs/accepted/ADR-021-jsr-publishing-strategy.md)** - JSR
-  publishing strategy for Deno
-- **[ADR-021-workflow-sync-missing-nodes.md](./adrs/accepted/ADR-021-workflow-sync-missing-nodes.md)** -
+- **[ADR-021-workflow-sync-missing-nodes.md](./adrs/ADR-021-workflow-sync-missing-nodes.md)** -
   Workflow sync missing nodes handling
-- **[ADR-022-hybrid-search-integration.md](./adrs/accepted/ADR-022-hybrid-search-integration.md)** -
+- **[ADR-022-hybrid-search-integration.md](./adrs/ADR-022-hybrid-search-integration.md)** -
   Hybrid search integration in DAGSuggester
-- **[ADR-023-dynamic-candidate-expansion.md](./adrs/accepted/ADR-023-dynamic-candidate-expansion.md)** -
+- **[ADR-023-dynamic-candidate-expansion.md](./adrs/ADR-023-dynamic-candidate-expansion.md)** -
   Dynamic candidate expansion algorithm
-- **[ADR-024-adjacency-matrix-dependencies.md](./adrs/accepted/ADR-024-adjacency-matrix-dependencies.md)** -
+- **[ADR-024-adjacency-matrix-dependencies.md](./adrs/ADR-024-adjacency-matrix-dependencies.md)** -
   Adjacency matrix for dependency management
-- **[ADR-025-mcp-streamable-http-transport.md](./adrs/accepted/ADR-025-mcp-streamable-http-transport.md)** -
+- **[ADR-025-mcp-streamable-http-transport.md](./adrs/ADR-025-mcp-streamable-http-transport.md)** -
   MCP streamable HTTP transport
-- **[ADR-026-cold-start-confidence-formula.md](./adrs/accepted/ADR-026-cold-start-confidence-formula.md)** -
+- **[ADR-026-cold-start-confidence-formula.md](./adrs/ADR-026-cold-start-confidence-formula.md)** -
   Cold start confidence calculation formula
 
 ### api/
