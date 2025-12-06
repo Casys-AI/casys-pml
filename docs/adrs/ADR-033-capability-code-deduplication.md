@@ -1,11 +1,9 @@
 # ADR-033: Capability Code Deduplication Strategy
 
-## Status
+**Status:** 📝 Draft
+**Date:** 2025-12-05 | **Requires:** Research
 
-**Proposed** (2025-12-05) → Requires Research
-
-> ⚠️ **Ce ADR est exploratoire.** Aucune décision active n'est prise. Une recherche approfondie est
-> nécessaire avant de statuer.
+> ADR exploratoire - recherche approfondie nécessaire avant décision.
 
 ## Context
 

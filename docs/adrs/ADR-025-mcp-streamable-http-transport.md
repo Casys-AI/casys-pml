@@ -1,7 +1,7 @@
 # ADR-025: MCP Streamable HTTP Transport
 
-**Status:** Accepted **Date:** 2025-12-02 **Context:** Story 6.3 Code Review / Infrastructure
-Enhancement
+**Status:** ✅ Implemented
+**Date:** 2025-12-02 | **Story:** 6.3 (Infrastructure)
 
 ## Context
 

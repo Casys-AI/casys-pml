@@ -1,8 +1,7 @@
 # ADR-013: Tools/List Semantic Filtering for Context Optimization
 
-## Status
-
-**Accepted** - 2025-11-21
+**Status:** ✅ Implemented
+**Date:** 2025-11-21
 
 ## Context
 

@@ -1,8 +1,7 @@
 # ADR-017: Gateway Exposure Modes
 
-**Status:** Proposed **Date:** 2025-11-24 **Context:** Architectural drift between PRD vision and
-ADR-013 implementation **Decision Makers:** BMad (Product/Tech Lead) **Related:** ADR-013
-(Meta-Tools Only Gateway)
+**Status:** 📝 Draft
+**Date:** 2025-11-24 | **Deciders:** BMad | **Related:** ADR-013
 
 ---
 

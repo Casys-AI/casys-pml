@@ -1,9 +1,7 @@
 # ADR-034: Native OpenTelemetry Integration (Deno 2.2+)
 
-**Status:** Proposed
-**Date:** 2025-12-05
-**Deciders:** Architecture Team
-**Tags:** observability, telemetry, deno, otel
+**Status:** 📝 Draft
+**Date:** 2025-12-05 | **Deciders:** Architecture Team
 
 ## Context
 

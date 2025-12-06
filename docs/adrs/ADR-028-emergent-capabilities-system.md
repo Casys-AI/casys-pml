@@ -1,18 +1,9 @@
 # ADR-028: Emergent Capabilities System
 
-## Status
+**Status:** 🚧 Implementing
+**Date:** 2025-12-04 | **Epic:** 7 (Stories 7.1-7.5)
 
-**Approved** (2025-12-04) → Integrated into Epic 7 (Stories 7.1-7.5)
-
-> **⚠️ IPC Section Superseded by ADR-032 (2025-12-05)**
->
-> The IPC mechanism described in this ADR (`__TRACE__` stdout parsing) has been **superseded** by
-> [ADR-032: Sandbox Worker RPC Bridge](ADR-032-sandbox-worker-rpc-bridge.md).
->
-> **What changed:**
->
-> - `__TRACE__` stdout prefix → postMessage RPC
-> - Subprocess → Deno Worker (`permissions: "none"`)
+> **Note:** IPC mechanism superseded by ADR-032 (Worker RPC Bridge).
 > - Tracing via stdout parsing → Native tracing in RPC Bridge
 > - Capability injection via `wrapCapability()` → Inline functions in Worker context (Option B)
 >

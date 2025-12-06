@@ -1,11 +1,9 @@
 # ADR-031: Intelligent Dry-Run with MCP Mocking
 
-## Status
+**Status:** 📝 Draft
+**Date:** 2025-12-05 | **Depends on:** ADR-032
 
-**Draft** - 2025-12-05
-
-> **Note:** This ADR assumes the Worker RPC Bridge from ADR-032 is implemented. The `wrapToolCall()`
-> references below are conceptually replaced by the RPC bridge interception.
+> Assumes Worker RPC Bridge from ADR-032 is implemented.
 
 ## Context
 

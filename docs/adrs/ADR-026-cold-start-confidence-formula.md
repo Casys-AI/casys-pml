@@ -1,8 +1,7 @@
 # ADR-026: Cold Start Confidence Formula for DAG Suggestions
 
-## Status
-
-**Accepted** (2025-12-02)
+**Status:** ✅ Implemented
+**Date:** 2025-12-02
 
 ## Context
 

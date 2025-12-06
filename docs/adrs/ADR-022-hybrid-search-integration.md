@@ -1,8 +1,7 @@
 # ADR-022: Hybrid Search Integration in DAG Suggester
 
-## Status
-
-Accepted (2025-11-27 - Sprint Change Proposal approved)
+**Status:** ✅ Implemented
+**Date:** 2025-11-27
 
 ## Context
 

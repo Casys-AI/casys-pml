@@ -1,8 +1,7 @@
 # ADR-030: Gateway Real Execution Implementation
 
-## Status
-
-**Approved** - 2025-12-05 (Updated from Proposed 2025-12-04)
+**Status:** 🚧 Implementing
+**Date:** 2025-12-05
 
 ## Context
 

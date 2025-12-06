@@ -1,11 +1,9 @@
 # ADR-020: AIL Control Protocol - Unified Command Architecture
 
-## Status
+**Status:** 📝 Draft
+**Date:** 2025-11-25 | **Consolidates:** ADR-018 + ADR-019
 
-**APPROVED** - 2025-11-25
-
-> **Consolidates:** ADR-018 (Command Handlers) + ADR-019 (Three-Level Architecture) **Supersedes:**
-> ADR-018, ADR-019 (marked as superseded, kept for history)
+> Deferred to Epic 3.5+ - SSE streaming incompatible with MCP one-shot protocol.
 
 ## Executive Summary
 

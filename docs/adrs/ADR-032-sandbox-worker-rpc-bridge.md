@@ -1,11 +1,9 @@
 # ADR-032: Sandbox Worker RPC Bridge with Native Tracing
 
-## Status
+**Status:** 📝 Draft
+**Date:** 2025-12-05 | **Supersedes:** ADR-027 (partially)
 
-**Proposed** - 2025-12-05
-
-**Supersedes:** ADR-027 (partially) - Replaces `__TRACE__` stdout parsing with native RPC bridge
-tracing
+> Replaces `__TRACE__` stdout parsing with native RPC bridge tracing.
 
 ## Context
 

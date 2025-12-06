@@ -1,8 +1,7 @@
 # ADR-021: Workflow Sync Missing Node Creation
 
-## Status
-
-**RESOLVED** - Implemented comprehensive fix
+**Status:** ✅ Implemented
+**Date:** 2025-12-01
 
 ## Context
 

@@ -1,18 +1,9 @@
 # ADR-018: Command Handlers Minimalism - Unified Control Plane
 
-## Status
+**Status:** ⛔ Superseded
+**Date:** 2025-11-24 | **Superseded by:** ADR-020 (2025-11-25)
 
-**SUPERSEDED** - 2025-11-25 by ADR-020
-
-> This ADR documented initial command handler minimalism decisions. See **ADR-020: AIL Control
-> Protocol** for the consolidated architecture.
-
-**History:**
-
-- 2025-11-24: APPROVED
-- 2025-11-24: Updated (Clarified for internal native agents - Level 2 AIL)
-- 2025-11-25: Updated (Commands exposed as MCP meta-tools for Level 1 external agents)
-- 2025-11-25: SUPERSEDED by ADR-020
+> See **ADR-020: AIL Control Protocol** for the consolidated architecture.
 
 > **⚠️ ARCHITECTURE UPDATE 2025-11-25:** The 4 command handlers serve **two purposes**:
 >

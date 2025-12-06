@@ -1,18 +1,9 @@
 # ADR-019: Three-Level AIL Architecture - MCP Compatibility + Internal Agents
 
-## Status
+**Status:** ⛔ Superseded
+**Date:** 2025-11-24 | **Superseded by:** ADR-020 (2025-11-25)
 
-**SUPERSEDED** - 2025-11-25 by ADR-020
-
-> This ADR documented the three-level AIL architecture discovery. See **ADR-020: AIL Control
-> Protocol** for the consolidated architecture.
-
-**History:**
-
-- 2025-11-24: APPROVED
-- 2025-11-24: Updated (Clarified internal native agents can use SSE - Level 2)
-- 2025-11-25: Updated (Level 1 commands exposed as MCP meta-tools)
-- 2025-11-25: SUPERSEDED by ADR-020
+> See **ADR-020: AIL Control Protocol** for the consolidated architecture.
 
 ## Context
 

@@ -1,7 +1,7 @@
 # ADR-020: Graceful Shutdown with Timeout Guard
 
-**Status:** Accepted **Date:** 2025-12-01 **Context:** Story 6.2 - Interactive Graph Visualization
-Dashboard
+**Status:** ✅ Implemented
+**Date:** 2025-12-01 | **Story:** 6.2 (Graph Visualization)
 
 ## Problem
 

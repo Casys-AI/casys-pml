@@ -1,7 +1,7 @@
 # ADR-021: Configurable Database Path via Environment Variable
 
-**Status:** ✅ Accepted **Date:** 2025-12-01 **Context:** Story 1.3 - Workflow Templates
-Configuration (Playground) **Decision Makers:** Dev Team
+**Status:** ✅ Implemented
+**Date:** 2025-12-01 | **Story:** 1.3 (Workflow Templates)
 
 ---
 

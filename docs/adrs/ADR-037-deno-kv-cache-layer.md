@@ -1,9 +1,7 @@
 # ADR-037: Deno KV as Cache Layer
 
-**Status:** Rejected
-**Date:** 2025-12-05
-**Deciders:** Architecture Team
-**Tags:** cache, kv, performance, deno
+**Status:** ❌ Rejected
+**Date:** 2025-12-05 | **Deciders:** Architecture Team
 
 ## Rejection Reason
 

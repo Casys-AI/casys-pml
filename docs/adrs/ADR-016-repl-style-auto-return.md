@@ -1,6 +1,7 @@
 # ADR-016: REPL-Style Auto-Return for Code Execution
 
-**Status:** Accepted **Date:** 2025-11-21 **Context:** Story 3.4 - execute_code tool bug fix
+**Status:** ✅ Implemented
+**Date:** 2025-11-21 | **Story:** 3.4 (execute_code bug fix)
 
 ## Context
 

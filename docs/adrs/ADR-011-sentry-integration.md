@@ -1,7 +1,7 @@
 # ADR-011: Sentry Integration for Error Tracking & Performance Monitoring
 
-**Status:** ✅ Accepted **Date:** 2025-11-20 **Deciders:** Development Team **Technical Story:**
-Production Observability & Error Tracking
+**Status:** ✅ Implemented
+**Date:** 2025-11-20 | **Deciders:** Development Team
 
 ---
 

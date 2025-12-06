@@ -1,8 +1,7 @@
 # ADR-029: Hypergraph Capabilities Visualization
 
-## Status
-
-Proposed (2025-12-04)
+**Status:** 📝 Draft
+**Date:** 2025-12-04
 
 ## Context
 

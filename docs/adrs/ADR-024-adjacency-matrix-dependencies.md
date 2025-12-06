@@ -1,8 +1,7 @@
 # ADR-024: Full Adjacency Matrix for Dependency Resolution
 
-## Status
-
-**Accepted** (2025-12-03)
+**Status:** ✅ Implemented
+**Date:** 2025-12-03
 
 ## Context
 

@@ -1,23 +1,10 @@
 # ADR-027: Execute Code Graph Learning Integration
 
-## Status
+**Status:** ⛔ Superseded
+**Date:** 2025-12-05 | **Superseded by:** ADR-032
 
-**Partially Superseded** (2025-12-05)
-
-> **⚠️ Tracing Approach Superseded by ADR-032**
->
-> The `__TRACE__` stdout parsing approach described in Phase 2 of this ADR has been **superseded**
-> by [ADR-032: Sandbox Worker RPC Bridge](ADR-032-sandbox-worker-rpc-bridge.md).
->
-> **Why:** The subprocess approach cannot serialize MCP client functions. ADR-032 implements a
-> Worker + RPC Bridge where tracing happens natively in the bridge (Main process), eliminating the
-> need for stdout parsing.
->
-> **What remains valid:**
->
-> - The rationale for graph learning from `execute_code`
-> - The vision for Claude as high-level orchestrator
-> - The learning loop concepts
+> Tracing approach (`__TRACE__` stdout parsing) replaced by Worker RPC Bridge.
+> The rationale and vision remain valid; implementation changed.
 >
 > **What is superseded:**
 >

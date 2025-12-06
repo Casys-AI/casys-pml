@@ -1,7 +1,7 @@
 # ADR-010: Architecture DAG Hybride - Nœuds Externes vs Nœuds de Logique
 
-**Status:** ✅ Accepted **Date:** 2025-11-20 **Deciders:** BMad **Technical Story:** Epic 3 - Agent
-Code Execution & Local Processing
+**Status:** ✅ Implemented
+**Date:** 2025-11-20 | **Deciders:** BMad | **Epic:** 3 (Sandbox)
 
 ---
 

@@ -1,9 +1,7 @@
 # ADR-035: Permission Sets for Sandbox Security (Deno 2.5+)
 
-**Status:** Proposed
-**Date:** 2025-12-05
-**Deciders:** Architecture Team
-**Tags:** security, sandbox, permissions, deno
+**Status:** 📝 Draft
+**Date:** 2025-12-05 | **Deciders:** Architecture Team
 
 ## Context
 

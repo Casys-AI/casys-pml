@@ -1,8 +1,8 @@
 # ADR-008: Episodic Memory & Adaptive Thresholds for Meta-Learning
 
-**Status:** ✅ Fully Implemented **Date:** 2025-11-13 **Updated:** 2025-12-05 (Phase 1 + Phase 2
-complete) **Deciders:** BMad **Technical Review:** Complete **Prerequisite:** ADR-007
-implementation + Epic 3 (Sandbox) completion
+**Status:** ✅ Implemented
+**Date:** 2025-11-13 | **Updated:** 2025-12-05 | **Deciders:** BMad
+**Prerequisite:** ADR-007 + Epic 3 (Sandbox)
 
 **Implementation Status (2025-12-05):**
 

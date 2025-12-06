@@ -1,7 +1,7 @@
 # ADR-009: JSON Configuration Format for MCP Ecosystem Alignment
 
-**Status:** Accepted **Date:** 2025-11-18 **Author:** BMad **Decision:** Migrate from YAML to JSON
-as primary configuration format
+**Status:** ✅ Implemented
+**Date:** 2025-11-18 | **Author:** BMad
 
 ---
 

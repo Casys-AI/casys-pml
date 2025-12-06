@@ -1,9 +1,7 @@
 # ADR-036: BroadcastChannel for Event Distribution
 
-**Status:** Proposed
-**Date:** 2025-12-05
-**Deciders:** Architecture Team
-**Tags:** events, sse, dashboard, workers, deno
+**Status:** 📝 Draft
+**Date:** 2025-12-05 | **Deciders:** Architecture Team
 
 ## Context
 

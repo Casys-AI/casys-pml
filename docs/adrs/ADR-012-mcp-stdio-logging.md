@@ -1,6 +1,7 @@
 # ADR-012: MCP STDIO Logging Strategy
 
-**Date:** 2025-11-21 **Status:** Accepted **Deciders:** Équipe AgentCards
+**Status:** ✅ Implemented
+**Date:** 2025-11-21 | **Deciders:** Équipe AgentCards
 
 ## Context
 

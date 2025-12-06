@@ -1,6 +1,7 @@
 # ADR-015: Dynamic Alpha Based on Graph Density
 
-**Status:** Accepted **Date:** 2025-11-21 **Context:** Story 5.1 - search_tools hybrid scoring
+**Status:** ✅ Implemented
+**Date:** 2025-11-21 | **Story:** 5.1 (search_tools hybrid scoring)
 
 ## Context
 

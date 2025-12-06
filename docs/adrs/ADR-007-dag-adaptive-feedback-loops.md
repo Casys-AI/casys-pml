@@ -1,8 +1,9 @@
 # ADR-007: DAG Adaptatif avec Feedback Loops AIL/HIL et Re-planification Dynamique
 
-**Status:** ✅ Accepted - Implementation Complete (3/4 stories done) **Date:** 2025-11-13
-**Updated:** 2025-11-13 (Ready for formal approval) **Updated:** 2025-11-24 (AIL/HIL implementation
-details superseded by ADR-019) **Deciders:** BMad **Technical Review:** Complete
+**Status:** ✅ Implemented
+**Date:** 2025-11-13 | **Updated:** 2025-11-24 | **Deciders:** BMad
+
+> **Note:** AIL/HIL implementation details superseded by ADR-019.
 
 > **⚠️ UPDATE 2025-11-24:** AIL/HIL implementation approach clarified in **ADR-019: Two-Level AIL
 > Architecture**. SSE streaming pattern incompatible with MCP one-shot protocol. Use Gateway HTTP
