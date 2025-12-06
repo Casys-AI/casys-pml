@@ -51,11 +51,18 @@ AgentCards solves two critical problems with MCP ecosystems:
 - **Live Metrics Panel** - Success rate, latency, edge count, graph density
 - **Server Filtering** - Toggle visibility by MCP server
 
+### Emergent Capabilities (In Progress)
+
+- **Learning from Usage** - Capabilities emerge from execution patterns, not predefined
+- **Capability Matching** - Find and reuse proven code via intent similarity
+- **Proactive Suggestions** - Louvain communities + Adamic-Adar for smart recommendations
+- **Hypergraph Visualization** - Cytoscape.js compound graphs showing N-ary tool relationships
+
 ### Developer Experience
 
 - **Zero-Config Setup** - Auto-discovers MCP servers, generates embeddings
 - **Local-First** - All data in PGlite, no cloud dependencies
-- **100% Local Embeddings** - BGE-Large-EN-v1.5 via Transformers.js
+- **100% Local Embeddings** - BGE-M3 via Transformers.js
 
 ---
 
@@ -80,7 +87,7 @@ The gateway will:
 
 1. Discover configured MCP servers
 2. Extract tool schemas via MCP protocol
-3. Generate embeddings (BGE-Large-EN-v1.5)
+3. Generate embeddings (BGE-M3)
 4. Start listening on port 3001
 
 ### Dashboard
@@ -206,7 +213,7 @@ deno run --allow-all src/main.ts serve
 The gateway will:
 
 - ✅ Connect to all your configured MCP servers
-- ✅ Load AI models (BGE-Large-EN-v1.5 for embeddings)
+- ✅ Load AI models (BGE-M3 for embeddings)
 - ✅ Start listening for MCP requests from Claude Code
 - ✅ Provide intelligent tool discovery via semantic search
 
@@ -623,52 +630,33 @@ Tests are organized in:
 
 ```
 AgentCards/
-├── src/
-│   ├── main.ts                 # Entry point
-│   ├── cli/                    # CLI commands (init, serve)
-│   ├── db/                     # Database (PGlite + pgvector + migrations)
-│   ├── mcp/                    # MCP protocol
-│   │   ├── gateway-server.ts   # MCP gateway with meta-tools
-│   │   ├── gateway-handler.ts  # Request handlers
-│   │   ├── client.ts           # MCP client wrapper
-│   │   └── discovery.ts        # Server auto-discovery
-│   ├── vector/                 # Embeddings & search
-│   │   ├── embeddings.ts       # BGE-Large-EN-v1.5 via Transformers.js
-│   │   └── search.ts           # Vector similarity search
-│   ├── dag/                    # DAG execution
-│   │   ├── executor.ts         # Parallel executor
-│   │   └── controlled-executor.ts  # With AIL/HIL support
-│   ├── graphrag/               # Graph learning
-│   │   ├── graph-engine.ts     # Graphology + PageRank + Adamic-Adar
-│   │   ├── dag-suggester.ts    # Intent → DAG suggestions
-│   │   └── workflow-sync.ts    # Template bootstrapping
-│   ├── sandbox/                # Code execution
-│   │   ├── deno-executor.ts    # Isolated Deno subprocess
-│   │   ├── context-builder.ts  # MCP tool injection
-│   │   └── pii-detector.ts     # Sensitive data protection
-│   ├── web/                    # Fresh dashboard
-│   │   ├── routes/             # Pages and API routes
-│   │   └── islands/            # Interactive components
-│   └── telemetry/              # Logging & metrics
-├── tests/                      # Unit, integration, benchmarks
-├── docs/
-│   ├── PRD.md                  # Product requirements
-│   ├── adrs/                   # Architecture Decision Records
-│   ├── stories/                # User stories
-│   └── sprint-status.yaml      # Development progress
-├── config/                     # MCP server configs
-├── playground/                 # Jupyter notebooks (WIP)
-└── deno.json                   # Tasks and dependencies
+├── src/                    # Source code
+│   ├── cli/                # CLI commands (init, serve)
+│   ├── db/                 # PGlite + pgvector + migrations
+│   ├── mcp/                # MCP gateway & protocol
+│   ├── dag/                # DAG execution & control
+│   ├── graphrag/           # Graph learning (PageRank, Louvain)
+│   ├── sandbox/            # Deno sandbox execution
+│   ├── capabilities/       # Emergent capabilities (Epic 7)
+│   └── vector/             # Embeddings (BGE-M3)
+├── tests/                  # Unit, integration, benchmarks
+├── docs/                   # Documentation
+│   ├── architecture/       # Detailed architecture docs
+│   └── adrs/               # Architecture Decision Records
+├── playground/             # Jupyter notebooks
+└── deno.json               # Tasks and dependencies
 ```
+
+> **See [Architecture Documentation](docs/architecture/)** for detailed module structure and patterns.
 
 ---
 
 ## Documentation
 
+- **[Architecture](docs/architecture/)** - System design, patterns, module structure
 - **[Product Requirements](docs/PRD.md)** - Goals, features, user journeys
-- **[Architecture Decisions](docs/adrs/)** - ADRs for technical decisions
-- **[Sprint Status](docs/sprint-status.yaml)** - Current development progress
-- **[Stories](docs/stories/)** - Detailed implementation stories
+- **[Architecture Decisions](docs/architecture/architecture-decision-records-adrs.md)** - ADRs for technical decisions
+- **[Epic Breakdown](docs/epics.md)** - Stories and implementation status
 
 ---
 
@@ -678,7 +666,7 @@ AgentCards is designed for local-first, privacy-respecting operation:
 
 **Data Privacy:**
 
-- All embeddings generated locally (BGE-Large-EN-v1.5 via Transformers.js)
+- All embeddings generated locally (BGE-M3 via Transformers.js)
 - Data stored in local PGlite database (`.agentcards.db`)
 - No cloud dependencies or external API calls for core functionality
 
