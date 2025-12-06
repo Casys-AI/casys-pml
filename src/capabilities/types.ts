@@ -9,9 +9,13 @@
 
 /**
  * JSON Schema type (simplified for capability parameters)
+ *
+ * Note: 'type' is optional to support unconstrained schemas ({})
+ * which accept any value when no type can be inferred.
  */
 export interface JSONSchema {
-  type: string;
+  $schema?: string;
+  type?: string;
   properties?: Record<string, JSONSchema>;
   required?: string[];
   items?: JSONSchema;

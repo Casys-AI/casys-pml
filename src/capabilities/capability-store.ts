@@ -15,6 +15,7 @@ import type { Row } from "../db/client.ts";
 import type { CacheConfig, Capability, SaveCapabilityInput } from "./types.ts";
 import { hashCode } from "./hash.ts";
 import { getLogger } from "../telemetry/logger.ts";
+import type { SchemaInferrer } from "./schema-inferrer.ts";
 
 const logger = getLogger("default");
 
@@ -51,8 +52,11 @@ export class CapabilityStore {
   constructor(
     private db: PGliteClient,
     private embeddingModel: EmbeddingModel,
+    private schemaInferrer?: SchemaInferrer,
   ) {
-    logger.debug("CapabilityStore initialized");
+    logger.debug("CapabilityStore initialized", {
+      schemaInferrerEnabled: !!schemaInferrer,
+    });
   }
 
   /**
@@ -84,6 +88,22 @@ export class CapabilityStore {
       throw new Error(`Embedding generation failed: ${errorMsg}`);
     }
     const embeddingStr = `[${embedding.join(",")}]`;
+
+    // Infer parameters schema from code (Story 7.2b)
+    let parametersSchema: Capability["parametersSchema"] | undefined;
+    if (this.schemaInferrer) {
+      try {
+        parametersSchema = await this.schemaInferrer.inferSchema(code);
+        logger.debug("Schema inferred for capability", {
+          codeHash,
+          properties: Object.keys(parametersSchema.properties || {}),
+        });
+      } catch (error) {
+        logger.warn("Schema inference failed, continuing without schema", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
 
     // Build dag_structure with tools used (for graph analysis)
     const dagStructure = {
@@ -119,10 +139,11 @@ export class CapabilityStore {
         description,
         success_rate,
         avg_duration_ms,
+        parameters_schema,
         created_at,
         source
       ) VALUES (
-        $1, $2, $3, 1, $4, NOW(), $5, $6, $7, $8, $9, $10, $11, NOW(), 'emergent'
+        $1, $2, $3, 1, $4, NOW(), $5, $6, $7, $8, $9, $10, $11, $12, NOW(), 'emergent'
       )
       ON CONFLICT (code_hash) WHERE code_hash IS NOT NULL DO UPDATE SET
         usage_count = workflow_pattern.usage_count + 1,
@@ -132,7 +153,8 @@ export class CapabilityStore {
           / (workflow_pattern.usage_count + 1)::real,
         avg_duration_ms = (
           (workflow_pattern.avg_duration_ms * workflow_pattern.usage_count) + $11
-        ) / (workflow_pattern.usage_count + 1)
+        ) / (workflow_pattern.usage_count + 1),
+        parameters_schema = $12
       RETURNING *`,
       [
         patternHash,
@@ -146,6 +168,7 @@ export class CapabilityStore {
         description || intent,
         success ? 1.0 : 0.0,
         durationMs,
+        parametersSchema ? JSON.stringify(parametersSchema) : null,
       ],
     );
 

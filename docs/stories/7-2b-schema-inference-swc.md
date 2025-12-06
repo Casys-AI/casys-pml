@@ -1,9 +1,9 @@
-# Story 7.2b: Schema Inference (SWC AST Parser)
+# Story 7.2b: Schema Inference (SWC)
 
 > **Epic:** 7 - Emergent Capabilities & Learning System
 > **ADRs:** ADR-027 (Execute Code Graph Learning), ADR-028 (Emergent Capabilities System)
 > **Prerequisites:** Story 7.2a (Capability Storage - ✅ DONE, 32 tests passing)
-> **Status:** ready-for-dev
+> **Status:** done
 
 ## User Story
 
@@ -101,61 +101,61 @@ Create a `SchemaInferrer` class that:
 
 ### AC1: SchemaInferrer Class Created
 
-- [ ] File `src/capabilities/schema-inferrer.ts` created
-- [ ] Class `SchemaInferrer` exported
-- [ ] Constructor: `constructor(db: PGliteClient)`
-- [ ] Import: `https://deno.land/x/swc@0.2.1/mod.ts` (no deno.json change needed)
+- [x] File `src/capabilities/schema-inferrer.ts` created
+- [x] Class `SchemaInferrer` exported
+- [x] Constructor: `constructor(db: PGliteClient)`
+- [x] Import: `https://deno.land/x/swc@0.2.1/mod.ts` (no deno.json change needed)
 
 ### AC2: inferSchema Method
 
-- [ ] Method `inferSchema(code: string): Promise<JSONSchema>` implemented
-- [ ] Returns JSON Schema with `type: "object"` and `properties`
-- [ ] Empty properties `{}` if no `args.xxx` detected
-- [ ] Graceful error handling (returns empty schema on parse errors)
+- [x] Method `inferSchema(code: string): Promise<JSONSchema>` implemented
+- [x] Returns JSON Schema with `type: "object"` and `properties`
+- [x] Empty properties `{}` if no `args.xxx` detected
+- [x] Graceful error handling (returns empty schema on parse errors)
 
 ### AC3: args.xxx Detection via AST
 
-- [ ] Detect `MemberExpression` where object is `args` identifier
-- [ ] Extract property names (e.g., `args.filePath` → `filePath`)
-- [ ] Handle nested access (e.g., `args.config.timeout` → `config: object`)
-- [ ] Handle destructuring: `const { filePath } = args` via `ObjectPattern`
+- [x] Detect `MemberExpression` where object is `args` identifier
+- [x] Extract property names (e.g., `args.filePath` → `filePath`)
+- [x] Handle nested access (e.g., `args.config.timeout` → `config: object`)
+- [x] Handle destructuring: `const { filePath } = args` via `ObjectPattern`
 
 ### AC4: Type Inference from MCP Schemas
 
-- [ ] Query `tool_schema.input_schema` to get tool parameter types
-- [ ] When `args.xxx` passed to MCP tool, infer type from tool schema
-- [ ] Example: `fs.read({ path: args.filePath })` → infer `filePath: string`
-- [ ] Track argument usage across multiple tool calls, use most specific type
+- [x] Query `tool_schema.input_schema` to get tool parameter types
+- [x] When `args.xxx` passed to MCP tool, infer type from tool schema
+- [x] Example: `fs.read({ path: args.filePath })` → infer `filePath: string`
+- [x] Track argument usage across multiple tool calls, use most specific type
 
 ### AC5: Type Inference Fallbacks
 
-- [ ] Comparison: `args.enabled === true` → `enabled: boolean`
-- [ ] Comparison: `args.count > 0` → `count: number`
-- [ ] Property access: `args.items.length` → `items: array`
-- [ ] String method: `args.name.toLowerCase()` → `name: string`
-- [ ] Ultimate fallback: `unknown` type
+- [x] Comparison: `args.enabled === true` → `enabled: boolean`
+- [x] Comparison: `args.count > 0` → `count: number`
+- [x] Property access: `args.items.length` → `items: array`
+- [x] String method: `args.name.toLowerCase()` → `name: string`
+- [x] Ultimate fallback: `unknown` type
 
 ### AC6: JSON Schema Generation
 
-- [ ] Build JSON Schema directly from inferred types
-- [ ] Include `$schema: "http://json-schema.org/draft-07/schema#"`
-- [ ] Include `type: "object"` and `properties`
-- [ ] Mark as required if used without optional chaining
+- [x] Build JSON Schema directly from inferred types
+- [x] Include `$schema: "http://json-schema.org/draft-07/schema#"`
+- [x] Include `type: "object"` and `properties`
+- [x] Mark as required if used without optional chaining
 
 ### AC7: Integration with CapabilityStore
 
-- [ ] `CapabilityStore` constructor accepts optional `SchemaInferrer`
-- [ ] `saveCapability()` calls `inferSchema(code)` after embedding generation
-- [ ] Schema stored in database via UPSERT
+- [x] `CapabilityStore` constructor accepts optional `SchemaInferrer`
+- [x] `saveCapability()` calls `inferSchema(code)` after embedding generation
+- [x] Schema stored in database via UPSERT
 
 ### AC8: Tests
 
-- [ ] Test: `args.filePath` in `fs.read()` → `filePath: string`
-- [ ] Test: `args.unknown` not mappable → `unknown: unknown`
-- [ ] Test: destructured args → all properties detected
-- [ ] Test: nested access → object schema
-- [ ] Test: comparison operators → correct type inference
-- [ ] Test: no args → empty properties
+- [x] Test: `args.filePath` in `fs.read()` → `filePath: string`
+- [x] Test: `args.unknown` not mappable → `unknown: unknown`
+- [x] Test: destructured args → all properties detected
+- [x] Test: nested access → object schema
+- [x] Test: comparison operators → correct type inference
+- [x] Test: no args → empty properties
 
 ---
 
@@ -461,8 +461,10 @@ tests/unit/capabilities/
 
 ## Estimation
 
-- **Effort:** 1-2 jours (simplified from ts-morph approach)
-- **LOC:** ~150 net (schema-inferrer.ts + tests)
+- **Effort:** 2-3 jours (actual: multi-source inference added complexity)
+- **LOC:** ~692 net (schema-inferrer.ts) + 395 tests = 1087 total
+  - Initial estimate was ~150 LOC but scope expanded with MCP tool inference
+  - Multi-source type inference (MCP tools, operations, comparisons) added significant logic
 - **Risk:** Low (SWC validated, simple AST traversal)
 
 ---
@@ -479,7 +481,9 @@ tests/unit/capabilities/
 
 ### File List
 
-- [ ] `src/capabilities/schema-inferrer.ts` - NEW (~150 LOC)
-- [ ] `src/capabilities/capability-store.ts` - MODIFY constructor
-- [ ] `src/capabilities/mod.ts` - MODIFY exports
-- [ ] `tests/unit/capabilities/schema_inferrer_test.ts` - NEW
+- [x] `src/capabilities/schema-inferrer.ts` - NEW (692 LOC)
+- [x] `src/capabilities/capability-store.ts` - MODIFY constructor + saveCapability
+- [x] `src/capabilities/mod.ts` - MODIFY exports
+- [x] `src/capabilities/types.ts` - MODIFY JSONSchema interface ($schema field)
+- [x] `tests/unit/capabilities/schema_inferrer_test.ts` - NEW (19 tests, all passing)
+- [x] `src/web/posts/2025-12-06-automatic-schema-inference-swc.md` - NEW (blog post FR, 490 LOC)
