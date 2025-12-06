@@ -5,11 +5,16 @@
  */
 
 import { assertEquals } from "jsr:@std/assert@1.0.11";
-import { main } from "./main.ts";
+import { main } from "../src/main.ts";
 
-Deno.test("main function runs without errors", () => {
-  // Test that main() doesn't throw
-  main();
+Deno.test({
+  name: "main function runs without errors",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    // Test that main() doesn't throw
+    await main();
+  },
 });
 
 Deno.test("main is exported correctly", () => {

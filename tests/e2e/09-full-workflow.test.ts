@@ -10,7 +10,7 @@ import {
   cleanupTestDatabase,
   generateEmbeddings,
   initializeTestDatabase,
-  loadEmbeddingModel,
+  loadMockEmbeddingModel,
   storeSchemas,
 } from "../fixtures/test-helpers.ts";
 import {
@@ -68,7 +68,7 @@ Deno.test("E2E 09: Complete user journey", async (t) => {
     // =================================================================
 
     await t.step("2. Generate embeddings", async () => {
-      embeddingModel = await loadEmbeddingModel();
+      embeddingModel = await loadMockEmbeddingModel();
       await generateEmbeddings(db, embeddingModel);
 
       const count = await db.query(

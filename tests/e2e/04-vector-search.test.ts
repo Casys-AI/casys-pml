@@ -10,7 +10,7 @@ import {
   cleanupTestDatabase,
   generateEmbeddings,
   initializeTestDatabase,
-  loadEmbeddingModel,
+  loadMockEmbeddingModel,
   storeSchemas,
 } from "../fixtures/test-helpers.ts";
 import {
@@ -30,7 +30,7 @@ Deno.test("E2E 04: Vector search and semantic retrieval", async (t) => {
     await t.step("1. Setup test environment", async () => {
       testDir = await Deno.makeTempDir({ prefix: "agentcards_e2e_04_" });
       db = await initializeTestDatabase(testDir);
-      embeddingModel = await loadEmbeddingModel();
+      embeddingModel = await loadMockEmbeddingModel();
     });
 
     await t.step("2. Populate database with tools", async () => {

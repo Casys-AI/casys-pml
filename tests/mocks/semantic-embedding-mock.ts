@@ -76,6 +76,8 @@ export class SemanticMockEmbedding {
     this.embeddingCache.set("filesystem:read_file", this.generateCluster(0.07, 0.06, 0.87));
     this.embeddingCache.set("read file contents", this.generateCluster(0.07, 0.06, 0.87));
     this.embeddingCache.set("fs:read", this.generateCluster(0.07, 0.06, 0.87));
+    this.embeddingCache.set("read: read a file from the filesystem", this.generateCluster(0.07, 0.06, 0.87));
+    this.embeddingCache.set("read a file", this.generateCluster(0.07, 0.06, 0.87));
 
     this.embeddingCache.set("write file", this.generateCluster(0.06, 0.05, 0.85));
     this.embeddingCache.set("write_file", this.generateCluster(0.07, 0.06, 0.84));

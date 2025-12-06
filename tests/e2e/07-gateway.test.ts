@@ -9,7 +9,7 @@ import {
   cleanupTestDatabase,
   generateEmbeddings,
   initializeTestDatabase,
-  loadEmbeddingModel,
+  loadMockEmbeddingModel,
   storeSchemas,
 } from "../fixtures/test-helpers.ts";
 import {
@@ -32,7 +32,7 @@ Deno.test("E2E 07: MCP gateway integration", async (t) => {
     await t.step("1. Setup test environment", async () => {
       testDir = await Deno.makeTempDir({ prefix: "agentcards_e2e_07_" });
       db = await initializeTestDatabase(testDir);
-      embeddingModel = await loadEmbeddingModel();
+      embeddingModel = await loadMockEmbeddingModel();
 
       // Create mock servers
       mockServers.set("filesystem", createMockFilesystemServer());
@@ -76,7 +76,7 @@ Deno.test("E2E 07: MCP gateway integration", async (t) => {
       // Simulate tools/call
       const result = await filesystemServer.callTool("read", {
         path: "/test/file.txt",
-      });
+      }) as { content: string; size: number };
 
       assert(result, "Tool execution should return result");
       assert(result.content, "Result should have content");

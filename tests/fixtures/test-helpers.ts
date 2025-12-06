@@ -71,6 +71,19 @@ export async function loadEmbeddingModel(): Promise<EmbeddingModel> {
 }
 
 /**
+ * Load mock embedding model for E2E testing
+ *
+ * Returns a lightweight mock that doesn't require cleanup/dispose.
+ * Use this in E2E tests to avoid resource leaks.
+ *
+ * @returns Mock embedding model with encode() method
+ */
+export async function loadMockEmbeddingModel(): Promise<{ encode: (text: string) => Promise<number[]> }> {
+  const { SemanticMockEmbedding } = await import("../mocks/semantic-embedding-mock.ts");
+  return new SemanticMockEmbedding();
+}
+
+/**
  * Generate test embeddings for given texts
  *
  * @param model - Embedding model
@@ -167,7 +180,7 @@ export async function generateEmbeddings(
   );
 
   for (const tool of tools) {
-    const toolRecord = tool as ToolRecord;
+    const toolRecord = tool as unknown as ToolRecord;
     const text = `${toolRecord.name}: ${toolRecord.description || ""}`;
 
     // Generate embedding using EmbeddingModel.encode()

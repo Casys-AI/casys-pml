@@ -187,8 +187,8 @@ export function createMockFilesystemServer(): MockMCPServer {
 
   server.addTool(
     "read",
-    (_args: { path: string }) => ({
-      content: `mock content from ${_args.path}`,
+    (args: ToolArgs) => ({
+      content: `mock content from ${args.path as string}`,
       size: 42,
     }),
     10,
@@ -197,10 +197,10 @@ export function createMockFilesystemServer(): MockMCPServer {
 
   server.addTool(
     "write",
-    (args: { path: string; content: string }) => ({
+    (args: ToolArgs) => ({
       success: true,
-      path: args.path,
-      bytesWritten: args.content.length,
+      path: args.path as string,
+      bytesWritten: (args.content as string).length,
     }),
     15,
     "Write content to a file",
@@ -208,7 +208,7 @@ export function createMockFilesystemServer(): MockMCPServer {
 
   server.addTool(
     "list",
-    (_args: { path: string }) => ({
+    (_args: ToolArgs) => ({
       files: ["file1.txt", "file2.json", "dir1/"],
       count: 3,
     }),
@@ -227,9 +227,9 @@ export function createMockJsonServer(): MockMCPServer {
 
   server.addTool(
     "parse",
-    (args: { json: string }) => {
+    (args: ToolArgs) => {
       try {
-        return { data: JSON.parse(args.json), success: true };
+        return { data: JSON.parse(args.json as string), success: true };
       } catch (error) {
         throw new Error(`Invalid JSON: ${(error as Error).message}`);
       }
@@ -240,7 +240,7 @@ export function createMockJsonServer(): MockMCPServer {
 
   server.addTool(
     "stringify",
-    (args: { obj: unknown }) => ({
+    (args: ToolArgs) => ({
       json: JSON.stringify(args.obj),
       success: true,
     }),
@@ -259,10 +259,10 @@ export function createMockApiServer(): MockMCPServer {
 
   server.addTool(
     "get",
-    (args: { url: string }) => ({
+    (args: ToolArgs) => ({
       status: 200,
       data: { message: "mock response" },
-      url: args.url,
+      url: args.url as string,
     }),
     50,
     "Perform GET request",
@@ -270,10 +270,10 @@ export function createMockApiServer(): MockMCPServer {
 
   server.addTool(
     "post",
-    (args: { url: string; body: Record<string, unknown> }) => ({
+    (args: ToolArgs) => ({
       status: 201,
-      data: { id: "mock-id", ...args.body },
-      url: args.url,
+      data: { id: "mock-id", ...(args.body as Record<string, unknown>) },
+      url: args.url as string,
     }),
     75,
     "Perform POST request",
