@@ -37,7 +37,7 @@ export default function LandingPage({ data }: { data: { latestPosts: Post[] } })
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta
           name="description"
-          content="The workflow engine for AI agents. Your agents execute. CAI captures what works. Workflows emerge automatically—no design required."
+          content="An open-source research project exploring emergent workflows in multi-agent systems. What happens when AI agents coordinate through code execution?"
         />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
@@ -119,7 +119,7 @@ export default function LandingPage({ data }: { data: { latestPosts: Post[] } })
             <nav class="nav">
               <a href="#problem" class="nav-link">Why</a>
               <a href="#how" class="nav-link">How</a>
-              <a href="#moat" class="nav-link">Moat</a>
+              <a href="#tech" class="nav-link">Tech</a>
               <a href="/blog" class="nav-link">Blog</a>
               <a href="/dashboard" class="nav-link">Dashboard</a>
               <a
@@ -142,49 +142,59 @@ export default function LandingPage({ data }: { data: { latestPosts: Post[] } })
         ═══════════════════════════════════════════════════════════════════ */
         }
         <main class="hero">
-          <div class="hero-content">
-            <p class="hero-eyebrow">The Workflow Engine for AI Agents</p>
-            <h1 class="hero-title">
-              Workflows that<br />
-              <span class="hero-title-accent">write themselves.</span>
-            </h1>
-            <p class="hero-desc">
-              Your agents execute. CAI captures what works.<br />
-              Successful patterns crystallize into reusable workflows.<br />
-              No drag-and-drop. No manual design. Just emergence.
-            </p>
-            <div class="hero-actions">
-              <a href="#how" class="btn btn-primary">
-                See How It Works
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
+          <div class="hero-grid">
+            <div class="hero-content">
+              <p class="hero-eyebrow">Open Source Research Project</p>
+              <h1 class="hero-title">
+                An agent discovered a pattern.<br />
+                <span class="hero-title-accent">Then another agent used it.</span>
+              </h1>
+              <p class="hero-desc">
+                CAI captures emergent workflows — tool combinations that agents
+                discover through execution, not design. These patterns become
+                reusable capabilities for the entire system.
+              </p>
+              <div class="hero-actions">
+                <a href="#how" class="btn btn-primary">
+                  See How It Works
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M12 5v14M5 12l7 7 7-7" />
+                  </svg>
+                </a>
+                <a
+                  href="https://github.com/Casys-AI/casys-intelligence"
+                  class="btn btn-ghost"
+                  target="_blank"
+                  rel="noopener"
                 >
-                  <path d="M12 5v14M5 12l7 7 7-7" />
-                </svg>
-              </a>
-              <a
-                href="https://github.com/Casys-AI/casys-intelligence"
-                class="btn btn-ghost"
-                target="_blank"
-                rel="noopener"
-              >
-                View Source
-              </a>
+                  View on GitHub
+                </a>
+              </div>
             </div>
-          </div>
 
-          {/* The Key Insight */}
-          <div class="insight-card">
-            <div class="insight-quote">"</div>
-            <p class="insight-text">
-              n8n is for workflows you design.<br />
-              <strong>CAI is for workflows your agent discovers.</strong>
-            </p>
+            {/* Concrete Example - Visual Proof */}
+            <div class="hero-example">
+              <div class="example-header">
+                <span class="example-badge">Captured Pattern</span>
+                <span class="example-id">#workflow-247</span>
+              </div>
+              <pre class="example-code"><code>{`// Agent discovered this combination
+fetch_data → validate_schema → transform_json
+
+// Now available to all agents as:
+capabilities.use("data_pipeline")`}</code></pre>
+              <div class="example-footer">
+                <span class="example-stat">12 reuses</span>
+                <span class="example-stat">3 agents</span>
+              </div>
+            </div>
           </div>
         </main>
 
@@ -197,18 +207,18 @@ export default function LandingPage({ data }: { data: { latestPosts: Post[] } })
           <div class="container">
             <div class="problem-grid">
               <div class="problem-content">
-                <span class="section-label">The Problem</span>
+                <span class="section-label">The Observation</span>
                 <h2 class="problem-title">
-                  Your agent solves problems.<br />
-                  <span class="problem-highlight">Then forgets how.</span>
+                  Agents discover patterns.<br />
+                  <span class="problem-highlight">Then they're lost.</span>
                 </h2>
                 <p class="problem-desc">
-                  Your agent figures out how to read a config, query an API, and generate a report.
-                  30 minutes of iteration. Session ends. Gone.
+                  When AI agents solve problems, they often find clever ways to combine tools.
+                  But these discoveries vanish when the session ends.
                 </p>
                 <p class="problem-desc">
-                  Next time? Same 30 minutes. Same trial and error.
-                  Every session starts from zero.
+                  What if we could capture these emergent patterns?
+                  What if agents could learn from each other's discoveries?
                 </p>
               </div>
               <div class="problem-visual">
@@ -357,70 +367,62 @@ export default function LandingPage({ data }: { data: { latestPosts: Post[] } })
 
         {
           /* ═══════════════════════════════════════════════════════════════════
-            THE MOAT - Network Effect
+            THE COLLECTIVE QUESTION
         ═══════════════════════════════════════════════════════════════════ */
         }
-        <section id="moat" class="section-moat">
+        <section id="collective" class="section-moat">
           <div class="container">
             <div class="section-header">
-              <span class="section-label">The Moat</span>
-              <h2 class="section-title">Network Effect on Capabilities</h2>
+              <span class="section-label">The Collective</span>
+              <h2 class="section-title">Patterns that propagate</h2>
               <p class="section-desc">
-                The code is 100% open source. The value is in the emerged capabilities.
+                When one agent discovers a useful combination, it becomes available to all.
               </p>
             </div>
 
-            <div class="moat-comparison">
-              <div class="moat-card moat-local">
-                <div class="moat-header">
-                  <span class="moat-icon">💻</span>
-                  <h3>Local / Self-Hosted</h3>
-                </div>
-                <ul class="moat-features">
-                  <li>Your instance, your patterns</li>
-                  <li>Capabilities from your agents only</li>
-                  <li>Isolated learning</li>
-                  <li class="moat-feature-highlight">Starts from zero patterns</li>
-                </ul>
-                <div class="moat-graph">
-                  <svg viewBox="0 0 200 80" fill="none">
-                    <path d="M10 70 L190 60" stroke="#8a8078" stroke-width="2" />
-                    <text x="100" y="40" fill="#8a8078" font-size="10" text-anchor="middle">
-                      Linear growth
-                    </text>
+            <div class="propagation-flow">
+              <div class="flow-step">
+                <div class="flow-icon">
+                  <svg viewBox="0 0 40 40" fill="none">
+                    <circle cx="20" cy="20" r="8" stroke="#FFB86F" stroke-width="2"/>
+                    <path d="M20 8v6M20 26v6M8 20h6M26 20h6" stroke="#FFB86F" stroke-width="2"/>
                   </svg>
                 </div>
+                <h4>Discovery</h4>
+                <p>Agent A combines tools in a new way to solve a task</p>
               </div>
-
-              <div class="moat-vs">VS</div>
-
-              <div class="moat-card moat-hosted">
-                <div class="moat-header">
-                  <span class="moat-icon">🌐</span>
-                  <h3>Hosted / Collective</h3>
-                </div>
-                <ul class="moat-features">
-                  <li>Every execution reveals patterns</li>
-                  <li>Patterns promoted into capabilities</li>
-                  <li>Collective learning</li>
-                  <li class="moat-feature-highlight">Starts with everyone's capabilities</li>
-                </ul>
-                <div class="moat-graph">
-                  <svg viewBox="0 0 200 80" fill="none">
-                    <path d="M10 70 Q60 65 100 40 T190 10" stroke="#FFB86F" stroke-width="2" />
-                    <text x="100" y="60" fill="#FFB86F" font-size="10" text-anchor="middle">
-                      Exponential growth
-                    </text>
+              <div class="flow-arrow">
+                <svg viewBox="0 0 40 20" fill="none">
+                  <path d="M5 10h25M25 5l5 5-5 5" stroke="#FFB86F" stroke-width="2"/>
+                </svg>
+              </div>
+              <div class="flow-step">
+                <div class="flow-icon">
+                  <svg viewBox="0 0 40 40" fill="none">
+                    <rect x="8" y="12" width="24" height="16" rx="2" stroke="#FFB86F" stroke-width="2"/>
+                    <path d="M12 8h16M14 4h12" stroke="#FFB86F" stroke-width="2" opacity="0.5"/>
                   </svg>
                 </div>
+                <h4>Capture</h4>
+                <p>The pattern is extracted and stored in the hypergraph</p>
               </div>
-            </div>
-
-            <div class="moat-insight">
-              <p>
-                A fork starts with zero patterns. Zero capabilities.<br />
-                <strong>The value is in the learned patterns, not the code.</strong>
-              </p>
+              <div class="flow-arrow">
+                <svg viewBox="0 0 40 20" fill="none">
+                  <path d="M5 10h25M25 5l5 5-5 5" stroke="#FFB86F" stroke-width="2"/>
+                </svg>
+              </div>
+              <div class="flow-step flow-step-highlight">
+                <div class="flow-icon">
+                  <svg viewBox="0 0 40 40" fill="none">
+                    <circle cx="20" cy="14" r="6" stroke="#FFB86F" stroke-width="2"/>
+                    <circle cx="12" cy="28" r="5" stroke="#FFB86F" stroke-width="2"/>
+                    <circle cx="28" cy="28" r="5" stroke="#FFB86F" stroke-width="2"/>
+                    <path d="M17 18l-3 6M23 18l3 6M15 28h10" stroke="#FFB86F" stroke-width="1.5" stroke-dasharray="2 2"/>
+                  </svg>
+                </div>
+                <h4>Propagation</h4>
+                <p>Agent B, C, D... can now use this capability</p>
+              </div>
             </div>
           </div>
         </section>
@@ -430,7 +432,7 @@ export default function LandingPage({ data }: { data: { latestPosts: Post[] } })
             TECHNICAL FOUNDATION
         ═══════════════════════════════════════════════════════════════════ */
         }
-        <section class="section-tech">
+        <section id="tech" class="section-tech">
           <div class="container">
             <div class="section-header">
               <span class="section-label">Under the Hood</span>
@@ -546,8 +548,8 @@ export default function LandingPage({ data }: { data: { latestPosts: Post[] } })
         <section class="section-cta">
           <div class="container">
             <div class="cta-content">
-              <h2>Let your agents build their own library.</h2>
-              <p>Self-host with full control, or join the collective and inherit thousands of workflows.</p>
+              <h2>Curious? Dive in.</h2>
+              <p>CAI is fully open source. Explore the code, run experiments, or contribute to the research.</p>
               <div class="cta-actions">
                 <a
                   href="https://github.com/Casys-AI/casys-intelligence"
@@ -558,10 +560,10 @@ export default function LandingPage({ data }: { data: { latestPosts: Post[] } })
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
                   </svg>
-                  Clone & Self-Host
+                  Clone & Experiment
                 </a>
-                <a href="https://casys.ai" class="btn btn-accent" target="_blank" rel="noopener">
-                  Join the Collective
+                <a href="/blog" class="btn btn-accent">
+                  Read the Blog
                   <svg
                     width="16"
                     height="16"
@@ -779,15 +781,22 @@ export default function LandingPage({ data }: { data: { latestPosts: Post[] } })
             z-index: 10;
             min-height: 100vh;
             display: flex;
-            flex-direction: column;
-            justify-content: center;
+            align-items: center;
             padding: 8rem 2rem 4rem;
             max-width: 1200px;
             margin: 0 auto;
           }
 
+          .hero-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr;
+            gap: 3rem;
+            align-items: center;
+            width: 100%;
+          }
+
           .hero-content {
-            max-width: 800px;
+            max-width: 600px;
           }
 
           .hero-eyebrow {
@@ -802,11 +811,11 @@ export default function LandingPage({ data }: { data: { latestPosts: Post[] } })
 
           .hero-title {
             font-family: var(--font-display);
-            font-size: clamp(3rem, 7vw, 5rem);
+            font-size: clamp(2.25rem, 4vw, 3rem);
             font-weight: 400;
-            line-height: 1.1;
+            line-height: 1.2;
             letter-spacing: -0.02em;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1.25rem;
             color: var(--text);
           }
 
@@ -816,11 +825,11 @@ export default function LandingPage({ data }: { data: { latestPosts: Post[] } })
           }
 
           .hero-desc {
-            font-size: 1.125rem;
-            line-height: 1.8;
+            font-size: 1rem;
+            line-height: 1.7;
             color: var(--text-muted);
-            max-width: 600px;
-            margin-bottom: 2.5rem;
+            max-width: 480px;
+            margin-bottom: 2rem;
           }
 
           .hero-actions {
@@ -878,38 +887,69 @@ export default function LandingPage({ data }: { data: { latestPosts: Post[] } })
             color: var(--bg);
           }
 
-          /* Insight Card */
-          .insight-card {
-            margin-top: 4rem;
-            padding: 2rem 2.5rem;
-            background: var(--bg-elevated);
+          /* Hero Example Card */
+          .hero-example {
+            background: var(--bg-card);
             border: 1px solid var(--border-strong);
             border-radius: 12px;
-            max-width: 500px;
-            position: relative;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
           }
 
-          .insight-quote {
-            font-family: var(--font-display);
-            font-size: 4rem;
-            color: var(--accent);
-            opacity: 0.3;
-            position: absolute;
-            top: 0.5rem;
-            left: 1rem;
-            line-height: 1;
+          .example-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1.25rem;
+            background: var(--bg-elevated);
+            border-bottom: 1px solid var(--border);
           }
 
-          .insight-text {
-            font-size: 1rem;
-            line-height: 1.7;
-            color: var(--text-muted);
-            position: relative;
-          }
-
-          .insight-text strong {
-            color: var(--accent);
+          .example-badge {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
             font-weight: 600;
+            color: var(--green);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            padding: 0.25rem 0.5rem;
+            background: rgba(74, 222, 128, 0.1);
+            border-radius: 4px;
+          }
+
+          .example-id {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-dim);
+          }
+
+          .example-code {
+            padding: 1.25rem;
+            margin: 0;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            line-height: 1.6;
+            color: var(--text-muted);
+            background: transparent;
+            overflow-x: auto;
+          }
+
+          .example-code code {
+            color: var(--text-muted);
+          }
+
+          .example-footer {
+            display: flex;
+            gap: 1.5rem;
+            padding: 0.75rem 1.25rem;
+            background: var(--bg-elevated);
+            border-top: 1px solid var(--border);
+          }
+
+          .example-stat {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--accent);
           }
 
           /* ═══════════════════════════════════════════════════════════════════
@@ -1182,105 +1222,68 @@ export default function LandingPage({ data }: { data: { latestPosts: Post[] } })
             background: var(--bg);
           }
 
-          .moat-comparison {
+          /* Propagation Flow */
+          .propagation-flow {
             display: flex;
-            align-items: stretch;
-            gap: 2rem;
-            margin-bottom: 3rem;
-          }
-
-          .moat-card {
-            flex: 1;
-            padding: 2.5rem;
+            align-items: flex-start;
+            justify-content: center;
+            gap: 1rem;
+            padding: 3rem 2rem;
             background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: 16px;
           }
 
-          .moat-local {
-            opacity: 0.7;
+          .flow-step {
+            flex: 1;
+            max-width: 220px;
+            text-align: center;
+            padding: 1.5rem;
           }
 
-          .moat-hosted {
-            border-color: var(--accent);
-            box-shadow: 0 0 60px rgba(255, 184, 111, 0.1);
+          .flow-step-highlight {
+            background: var(--accent-dim);
+            border-radius: 12px;
           }
 
-          .moat-header {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
+          .flow-icon {
+            width: 56px;
+            height: 56px;
+            margin: 0 auto 1rem;
+            padding: 8px;
+            background: var(--bg-elevated);
+            border-radius: 12px;
+            border: 1px solid var(--border);
           }
 
-          .moat-icon {
-            font-size: 1.5rem;
-          }
-
-          .moat-header h3 {
-            font-family: var(--font-display);
-            font-size: 1.25rem;
-            font-weight: 400;
-          }
-
-          .moat-features {
-            list-style: none;
-            margin-bottom: 2rem;
-          }
-
-          .moat-features li {
-            padding: 0.5rem 0;
-            color: var(--text-muted);
-            font-size: 0.95rem;
-            border-bottom: 1px solid var(--border);
-          }
-
-          .moat-features li:last-child {
-            border-bottom: none;
-          }
-
-          .moat-feature-highlight {
-            color: var(--text) !important;
-            font-weight: 500;
-          }
-
-          .moat-hosted .moat-feature-highlight {
-            color: var(--accent) !important;
-          }
-
-          .moat-graph {
-            height: 80px;
-          }
-
-          .moat-graph svg {
+          .flow-icon svg {
             width: 100%;
             height: 100%;
           }
 
-          .moat-vs {
+          .flow-step h4 {
+            font-family: var(--font-display);
+            font-size: 1.1rem;
+            font-weight: 400;
+            margin-bottom: 0.5rem;
+            color: var(--text);
+          }
+
+          .flow-step p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+          }
+
+          .flow-arrow {
             display: flex;
             align-items: center;
-            font-family: var(--font-mono);
-            font-size: 0.875rem;
-            color: var(--text-dim);
+            padding-top: 2rem;
           }
 
-          .moat-insight {
-            text-align: center;
-            padding: 2rem;
-            background: var(--bg-elevated);
-            border-radius: 12px;
-          }
-
-          .moat-insight p {
-            font-size: 1.125rem;
-            color: var(--text-muted);
-            line-height: 1.7;
-          }
-
-          .moat-insight strong {
-            color: var(--accent);
-            font-weight: 600;
+          .flow-arrow svg {
+            width: 40px;
+            height: 20px;
           }
 
           /* ═══════════════════════════════════════════════════════════════════
@@ -1575,8 +1578,17 @@ export default function LandingPage({ data }: { data: { latestPosts: Post[] } })
               padding: 6rem 1.5rem 3rem;
             }
 
+            .hero-grid {
+              grid-template-columns: 1fr;
+              gap: 2rem;
+            }
+
             .hero-title {
               font-size: 2.5rem;
+            }
+
+            .hero-example {
+              max-width: 100%;
             }
 
             .problem-grid,
@@ -1586,13 +1598,14 @@ export default function LandingPage({ data }: { data: { latestPosts: Post[] } })
               gap: 2rem;
             }
 
-            .moat-comparison {
+            .propagation-flow {
               flex-direction: column;
+              align-items: center;
             }
 
-            .moat-vs {
-              justify-content: center;
-              padding: 1rem;
+            .flow-arrow {
+              transform: rotate(90deg);
+              padding: 0.5rem 0;
             }
 
             .tech-grid {

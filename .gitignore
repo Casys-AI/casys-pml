@@ -103,3 +103,6 @@ docs/*-playground.*
 docs/index.md
 docs/PRD.md
 docs/epics.md
+docs/ux-design-*
+docs/wireframes-*
+docs/mockups-*
