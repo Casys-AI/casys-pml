@@ -1,6 +1,7 @@
 import { extract } from "@std/front-matter/yaml";
 import { render } from "@deno/gfm";
 import { dirname, join } from "@std/path";
+import { deflate } from "pako";
 
 // Import Prism language support for syntax highlighting
 import "npm:prismjs@1.29.0/components/prism-typescript.js";
@@ -35,13 +36,11 @@ export interface Post {
   html: string;
 }
 
-// More robust path resolution - works in dev and production
-const getPostsDir = (): string => {
-  const currentDir = dirname(new URL(import.meta.url).pathname);
-  return join(currentDir, "../posts");
-};
-
-const POSTS_DIR = getPostsDir();
+// Use working directory for production compatibility
+// Note: When running via Vite, cwd is already "src/web"
+const POSTS_DIR = Deno.cwd().endsWith("src/web")
+  ? join(Deno.cwd(), "posts")
+  : join(Deno.cwd(), "src/web/posts");
 
 export async function getPosts(): Promise<Post[]> {
   const posts: Post[] = [];
@@ -96,6 +95,149 @@ export async function getPost(slug: string): Promise<Post | null> {
   }
 }
 
+
+// Helper to create Kroki URL
+function createKrokiUrl(type: string, source: string): string {
+  const data = new TextEncoder().encode(source);
+  const compressed = deflate(data, { level: 9 });
+  // Convert to base64url
+  const result = btoa(Array.from(compressed, (b) => String.fromCharCode(b)).join(""))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
+  return `https://kroki.io/${type}/svg/${result}`;
+}
+
+// Cache for external excalidraw files
+const excalidrawCache = new Map<string, string>();
+
+// Helper to get project root directory
+function getProjectRoot(): string {
+  const cwd = Deno.cwd();
+  const root = cwd.endsWith("src/web") ? join(cwd, "../..") : cwd;
+  return root;
+}
+
+// Load external excalidraw file and create Kroki URL
+async function loadExcalidrawFile(filePath: string): Promise<string | null> {
+  try {
+    // Check cache first
+    if (excalidrawCache.has(filePath)) {
+      console.log(`[loadExcalidrawFile] Cache hit for: ${filePath}`);
+      return excalidrawCache.get(filePath)!;
+    }
+
+    const root = getProjectRoot();
+    const fullPath = join(root, filePath);
+    console.log(`[loadExcalidrawFile] Loading from: ${fullPath} (cwd: ${Deno.cwd()}, root: ${root})`);
+
+    const content = await Deno.readTextFile(fullPath);
+    console.log(`[loadExcalidrawFile] File loaded, size: ${content.length} bytes`);
+
+    const url = createKrokiUrl("excalidraw", content);
+    console.log(`[loadExcalidrawFile] Kroki URL generated, length: ${url.length}`);
+
+    // Cache the result
+    excalidrawCache.set(filePath, url);
+    return url;
+  } catch (error) {
+    console.error(`[loadExcalidrawFile] Error loading ${filePath}:`, error);
+    return null;
+  }
+}
+
+// Pre-process markdown to replace excalidraw: references before GFM rendering
+async function preprocessMarkdown(markdown: string): Promise<string> {
+  // Match markdown image syntax: ![alt](excalidraw:path/to/file.excalidraw)
+  const excalidrawRefRegex = /!\[([^\]]*)\]\(excalidraw:([^)]+)\)/g;
+  const matches = [...markdown.matchAll(excalidrawRefRegex)];
+
+  console.log(`[preprocessMarkdown] Found ${matches.length} excalidraw references`);
+
+  for (const match of matches) {
+    const [fullMatch, alt, filePath] = match;
+    console.log(`[preprocessMarkdown] Processing: ${filePath}`);
+    const url = await loadExcalidrawFile(filePath);
+    if (url) {
+      // Replace with simple markdown image
+      const replacement = `![${alt || "Excalidraw Diagram"}](${url})`;
+      markdown = markdown.replace(fullMatch, replacement);
+      console.log(`[preprocessMarkdown] Replaced with image`);
+    } else {
+      console.error(`[preprocessMarkdown] Failed to load: ${filePath}`);
+    }
+  }
+
+  // Match mermaid code blocks: ```mermaid\n...\n```
+  const mermaidRegex = /```mermaid\s*\n([\s\S]*?)```/g;
+  const mermaidMatches = [...markdown.matchAll(mermaidRegex)];
+
+  console.log(`[preprocessMarkdown] Found ${mermaidMatches.length} mermaid diagrams`);
+
+  for (const match of mermaidMatches) {
+    const [fullMatch, code] = match;
+    const url = createKrokiUrl("mermaid", code.trim());
+    // Replace with simple markdown image
+    const replacement = `![Mermaid Diagram](${url})`;
+    markdown = markdown.replace(fullMatch, replacement);
+    console.log(`[preprocessMarkdown] Replaced mermaid with image`);
+  }
+
+  return markdown;
+}
+
+async function processContent(html: string): Promise<string> {
+
+  // Replace mermaid code blocks with Kroki images
+  let result = html.replace(
+    /<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/g,
+    (_match, code) => {
+      // Unescape HTML entities
+      const unescaped = code
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&amp;/g, "&")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'");
+
+      const url = createKrokiUrl("mermaid", unescaped.trim());
+      return `<div class="diagram-container" style="display: flex; justify-content: center; margin: 2rem 0;"><img src="${url}" alt="Mermaid Diagram" loading="lazy" /></div>`;
+    }
+  );
+
+  // Replace excalidraw code blocks with Kroki images
+  // Match both plain <pre><code> and <pre><code class="language-excalidraw">
+  // We detect Excalidraw blocks by checking if the content starts with Excalidraw JSON structure
+  result = result.replace(
+    /<pre><code(?:\s+class="[^"]*")?\s*>([\s\S]*?)<\/code><\/pre>/g,
+    (match, code) => {
+      // Unescape HTML entities
+      const unescaped = code
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&amp;/g, "&")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .trim();
+
+      // Check if this is an Excalidraw diagram (starts with { and contains "type": "excalidraw")
+      if (unescaped.startsWith('{') && unescaped.includes('"type": "excalidraw"')) {
+        try {
+          const url = createKrokiUrl("excalidraw", unescaped);
+          return `<div class="diagram-container" style="display: flex; justify-content: center; margin: 2rem 0;"><img src="${url}" alt="Excalidraw Diagram" loading="lazy" /></div>`;
+        } catch (error) {
+          console.error("Error creating Excalidraw diagram:", error);
+          return match;
+        }
+      }
+
+      // Not an Excalidraw diagram, return original
+      return match;
+    }
+  );
+
+  return result;
+}
+
 async function getPostByFilename(filename: string, content?: string): Promise<Post | null> {
   try {
     // If content not provided, read from file
@@ -125,8 +267,14 @@ async function getPostByFilename(filename: string, content?: string): Promise<Po
       console.warn(`Post ${filename}: Slug contains non-URL-safe characters: ${slug}`);
     }
 
+    // Pre-process markdown for excalidraw references
+    const processedBody = await preprocessMarkdown(body);
+
     // Render markdown to HTML with GFM (includes sanitization)
-    const html = render(body);
+    let html = render(processedBody);
+
+    // Process HTML for diagrams (mermaid and inline excalidraw)
+    html = await processContent(html);
 
     return {
       slug,

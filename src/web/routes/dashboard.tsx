@@ -22,7 +22,7 @@ export default function Dashboard({ data }: { data: { apiBase: string } }) {
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
           rel="stylesheet"
         />
         <script src="https://cdn.jsdelivr.net/npm/cytoscape@3.30.4/dist/cytoscape.min.js"></script>
@@ -46,8 +46,9 @@ export default function Dashboard({ data }: { data: { apiBase: string } }) {
             --warning: #fbbf24;
             --error: #f87171;
             --info: #60a5fa;
-            --font-sans: 'DM Sans', -apple-system, sans-serif;
-            --font-mono: 'JetBrains Mono', monospace;
+            --font-sans: 'Geist', -apple-system, system-ui, sans-serif;
+            --font-mono: 'Geist Mono', monospace;
+            --font-display: 'Instrument Serif', Georgia, serif;
           }
 
           * {

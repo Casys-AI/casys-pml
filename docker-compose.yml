@@ -55,8 +55,8 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-changeme}
       - GF_INSTALL_PLUGINS=
       # Disable Grafana Live WebSocket (fixes SSH tunnel slow loading)
       - GF_LIVE_MAX_CONNECTIONS=0

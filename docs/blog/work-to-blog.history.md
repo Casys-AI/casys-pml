@@ -1,6 +1,6 @@
 ---
 lastUsed: 2025-12-06
-totalArticles: 1
+totalArticles: 2
 preferredLanguage: en
 ---
 
@@ -14,4 +14,5 @@ preferredLanguage: en
 
 ## Article History
 
+- 2025-12-06: "When Your Code Writes Its Own API Contract" (article, EN) - published
 - 2025-12-06: "The Bug That Passed Every Test" (article, EN) - published (transformed from LinkedIn)

@@ -299,11 +299,12 @@ export function createServeCommand() {
           log.info("\n\nShutting down...");
           log.info("Shutting down AgentCards gateway...");
 
-          // Force exit after 2 seconds if graceful shutdown hangs
+          // Force exit after 10 seconds if graceful shutdown hangs
+          // PGlite needs time to flush WAL and close cleanly
           const forceExitTimer = setTimeout(() => {
             log.warn("Graceful shutdown timeout - forcing exit");
             Deno.exit(1);
-          }, 2000);
+          }, 10000);
 
           // Attempt graceful shutdown
           Promise.all([

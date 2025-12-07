@@ -3,6 +3,7 @@ import { HttpError, page } from "fresh";
 import { Head } from "fresh/runtime";
 import { PRISM_THEME_CSS } from "../../utils/prism-theme.ts";
 import { formatDate, getPost, type Post } from "../../utils/posts.ts";
+import ArchitectureDiagram from "../../components/ArchitectureDiagram.tsx";
 
 export const handler = {
   async GET(ctx: any) {
@@ -83,10 +84,18 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
               </div>
             </header>
 
-            <div
-              class="markdown-body article-content"
-              dangerouslySetInnerHTML={{ __html: post.html }}
-            />
+            <div class="markdown-body article-content">
+              {post.html.split("<!-- component: ArchitectureDiagram -->").map((part, index, array) => (
+                <>
+                  <div dangerouslySetInnerHTML={{ __html: part }} />
+                  {index < array.length - 1 && (
+                    <div style={{ height: "400px", margin: "2rem 0", border: "1px solid var(--border)", borderRadius: "12px", background: "var(--bg-card)", overflow: "hidden" }}>
+                      <ArchitectureDiagram />
+                    </div>
+                  )}
+                </>
+              ))}
+            </div>
 
             <footer class="article-footer">
               <div class="share-section">
@@ -386,13 +395,13 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
           .markdown-body pre,
           .markdown-body pre[class*="language-"],
           .markdown-body .highlight {
-            background: #1e1e1e !important;
-            border: 1px solid rgba(255, 184, 111, 0.15);
-            border-radius: 12px;
-            padding: 1.5rem !important;
+            background: #1a1a1d !important;
+            border: 1px solid rgba(255, 184, 111, 0.6) !important;
+            border-radius: 8px;
+            padding: 1.25rem !important;
             overflow-x: auto;
-            margin: 2rem 0 !important;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            margin: 1.5rem 0 !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
           }
 
           .markdown-body .highlight {
@@ -416,8 +425,8 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
             background: transparent !important;
             border: none !important;
             padding: 0 !important;
-            font-size: 14px !important;
-            line-height: 1.6 !important;
+            font-size: 12px !important;
+            line-height: 1.7 !important;
             color: #d4d4d4 !important;
             font-family: 'Geist Mono', 'Consolas', 'Monaco', monospace !important;
           }

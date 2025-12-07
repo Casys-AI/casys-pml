@@ -54,6 +54,9 @@ temp/
 *.db-shm
 *.db-wal
 .agentcards/
+*.db.corrupted-*
+*.db.backup-*
+*.db.old
 
 # Memory files (from MCP servers or caching)
 memory/
@@ -69,3 +72,33 @@ monitoring/data/
 # Claude Code personal config
 .claude/
 .agentvibes/
+
+# Serena MCP project data (local cache and memories)
+.serena/
+
+# Personal MCP config files
+.mcp.json
+
+# Deployment scripts (contain server-specific info)
+scripts/deploy.sh
+
+# BMAD methodology framework (proprietary)
+bmad/
+
+# Internal documentation (not for open source)
+docs/research/
+docs/spikes/
+docs/retrospectives/
+docs/security/
+docs/sprint-artifacts/
+docs/archive/
+docs/stories/
+docs/blog/draft/
+docs/*backlog*
+docs/*sprint*
+docs/*workflow-plan*
+docs/bmm-*
+docs/*-playground.*
+docs/index.md
+docs/PRD.md
+docs/epics.md

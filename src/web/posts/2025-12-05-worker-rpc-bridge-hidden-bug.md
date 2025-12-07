@@ -89,31 +89,14 @@ The moment I saw that output, weeks of mysterious "it should work" debugging sud
 
 The solution wasn't a one-liner. We needed to fundamentally rethink how tools cross the Worker boundary.
 
-**Before:**
-```
-Main Thread                    Worker
-    │                            │
-    └── tools (functions) ──────→│ (lost in serialization)
-                                 │
-                                 └── code runs without tools
-```
+### Before: Silent Failure
 
-**After:**
-```
-Main Thread                    Worker
-    │                            │
-    └── toolDefinitions ────────→│ (serializable metadata)
-    │   (names, schemas)         │
-    │                            └── generates proxy functions
-    │                            │
-    │←── RPC: call("search") ────┤
-    │                            │
-    └── executes real tool ──────│
-    │                            │
-    │──── RPC: result ──────────→│
-                                 │
-                                 └── code receives result
-```
+![Before: Silent Failure](excalidraw:src/web/assets/diagrams/rpc-bridge-before.excalidraw)
+
+### After: RPC Bridge Solution
+
+![After: RPC Bridge Solution](excalidraw:src/web/assets/diagrams/rpc-bridge-after.excalidraw)
+
 
 The key insights:
 
@@ -142,6 +125,27 @@ function createToolProxy(definition: ToolDefinition): ToolFunction {
   };
 }
 ```
+
+
+## Architecture Visualization
+
+Here is how the system works using a Mermaid diagram :
+
+```mermaid
+graph TD
+    A[User Code] -->|Calls| B(Tool Proxy)
+    B -->|RPC Message| C{Worker Bridge}
+    C -->|PostMessage| D[Main Thread]
+    D -->|Executes| E[Real Tool]
+    E -->|Result| D
+    D -->|PostMessage| C
+    C -->|Resolves| B
+    B -->|Return| A
+```
+
+#
+
+<!-- component: ArchitectureDiagram -->
 
 ## Lessons Learned
 

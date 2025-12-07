@@ -136,7 +136,7 @@ export class AgentCardsGatewayServer {
   ) {
     // Merge config with defaults
     this.config = {
-      name: config?.name ?? "agentcards",
+      name: config?.name ?? "mcp-gateway",
       version: config?.version ?? "1.0.0",
       enableSpeculative: config?.enableSpeculative ?? true,
       defaultToolLimit: config?.defaultToolLimit ?? 10,
@@ -157,6 +157,7 @@ export class AgentCardsGatewayServer {
     this.server = new Server(
       {
         name: this.config.name,
+        title: "Multi-tool DAG orchestration, semantic tool search, sandboxed code execution",
         version: this.config.version,
       },
       {
@@ -2210,8 +2211,9 @@ export class AgentCardsGatewayServer {
               tools: { listChanged: true },
             },
             serverInfo: {
-              name: this.config.name || "agentcards-gateway",
-              version: this.config.version || "0.1.0",
+              name: this.config.name || "mcp-gateway",
+              title: "Multi-tool DAG orchestration, semantic tool search, sandboxed code execution",
+              version: this.config.version || "1.0.0",
             },
           },
         };

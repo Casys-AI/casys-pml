@@ -17,8 +17,8 @@
   },
   "nodeModulesDir": "auto",
   "tasks": {
-    "dev": "deno run --watch --allow-all src/main.ts serve --port 3003 --config config/.mcp-servers.json",
-    "dev:api": "deno run --watch --allow-all src/main.ts serve --port 3003 --config config/.mcp-servers.json",
+    "dev": "deno run --watch --allow-all --unstable-worker-options src/main.ts serve --port 3003 --config config/.mcp-servers.json",
+    "dev:api": "deno run --watch --allow-all --unstable-worker-options src/main.ts serve --port 3003 --config config/.mcp-servers.json",
     "dev:fresh": "cd src/web && vite",
     "dev:build": "cd src/web && vite build",
     "prod:start": "sudo systemctl start casys-dashboard casys-api",
@@ -48,7 +48,7 @@
     "lint": "deno lint",
     "fmt": "deno fmt",
     "check": "deno check src/**/*.ts",
-    "cli": "deno run --allow-all src/main.ts",
+    "cli": "deno run --allow-all --unstable-worker-options src/main.ts",
     "build": "deno compile --allow-all --output=agentcards src/main.ts",
     "mock:fs": "deno run --allow-all tests/mocks/filesystem-mock.ts",
     "mock:db": "deno run --allow-all tests/mocks/database-mock.ts",
@@ -62,9 +62,16 @@
   },
   "lint": {
     "rules": {
-      "tags": ["recommended"]
+      "tags": [
+        "recommended"
+      ]
     },
-    "exclude": ["tests/integration/", "tests/e2e/", "tests/load/", "tests/memory/"]
+    "exclude": [
+      "tests/integration/",
+      "tests/e2e/",
+      "tests/load/",
+      "tests/memory/"
+    ]
   },
   "imports": {
     "fresh": "jsr:@fresh/core@^2.0.0",
@@ -85,8 +92,8 @@
     "@std/log": "jsr:@std/log@0.224.14",
     "@std/yaml": "jsr:@std/yaml@1.0.10",
     "@cliffy/command": "jsr:@cliffy/command@1.0.0-rc.8",
-    "@electric-sql/pglite": "npm:@electric-sql/pglite@0.3.11",
-    "@electric-sql/pglite/vector": "npm:@electric-sql/pglite@0.3.11/vector",
+    "@electric-sql/pglite": "npm:@electric-sql/pglite@0.3.14",
+    "@electric-sql/pglite/vector": "npm:@electric-sql/pglite@0.3.14/vector",
     "@huggingface/transformers": "npm:@huggingface/transformers@3.7.6",
     "graphology": "npm:graphology@^0.25.4",
     "graphology-metrics": "npm:graphology-metrics@^2.2.0",
@@ -97,7 +104,10 @@
     "@sentry/deno": "npm:@sentry/deno@^10.8.0",
     "@std/front-matter": "jsr:@std/front-matter@^1",
     "@std/path": "jsr:@std/path@^1",
-    "@deno/gfm": "jsr:@deno/gfm@^0.11.0"
+    "@deno/gfm": "jsr:@deno/gfm@^0.11.0",
+    "pako": "npm:pako@^2.1.0",
+    "@types/pako": "npm:@types/pako@^2.0.0",
+    "@seontechnologies/playwright-utils": "npm:@seontechnologies/playwright-utils@^3.10.1"
   },
   "compilerOptions": {
     "strict": true,
