@@ -37,7 +37,7 @@ export default function LandingPage({ data }: { data: { latestPosts: Post[] } })
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta
           name="description"
-          content="The intelligence layer for MCP. Patterns become capabilities. Capabilities become collective. Your agents benefit from what all agents discover."
+          content="The workflow engine for AI agents. Your agents execute. CAI captures what works. Workflows emerge automatically—no design required."
         />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
@@ -143,15 +143,15 @@ export default function LandingPage({ data }: { data: { latestPosts: Post[] } })
         }
         <main class="hero">
           <div class="hero-content">
-            <p class="hero-eyebrow">The Intelligence Layer for MCP</p>
+            <p class="hero-eyebrow">The Workflow Engine for AI Agents</p>
             <h1 class="hero-title">
-              Patterns become capabilities.<br />
-              Capabilities become <span class="hero-title-accent">collective.</span>
+              Workflows that<br />
+              <span class="hero-title-accent">write themselves.</span>
             </h1>
             <p class="hero-desc">
-              CAI isn't a gateway. It's where agent intelligence emerges.<br />
-              Every execution reveals patterns. Patterns crystallize into capabilities.<br />
-              The more agents use it, the smarter everyone gets.
+              Your agents execute. CAI captures what works.<br />
+              Successful patterns crystallize into reusable workflows.<br />
+              No drag-and-drop. No manual design. Just emergence.
             </p>
             <div class="hero-actions">
               <a href="#how" class="btn btn-primary">
@@ -182,8 +182,8 @@ export default function LandingPage({ data }: { data: { latestPosts: Post[] } })
           <div class="insight-card">
             <div class="insight-quote">"</div>
             <p class="insight-text">
-              Smithery is npm — the packages.<br />
-              <strong>CAI is the intelligent runtime</strong> that knows how to combine them.
+              n8n is for workflows you design.<br />
+              <strong>CAI is for workflows your agent discovers.</strong>
             </p>
           </div>
         </main>
@@ -199,16 +199,16 @@ export default function LandingPage({ data }: { data: { latestPosts: Post[] } })
               <div class="problem-content">
                 <span class="section-label">The Problem</span>
                 <h2 class="problem-title">
-                  Agents discover patterns.<br />
-                  <span class="problem-highlight">Then they're lost.</span>
+                  Your agent solves problems.<br />
+                  <span class="problem-highlight">Then forgets how.</span>
                 </h2>
                 <p class="problem-desc">
-                  Your agent finds a brilliant way to combine three MCPs. Session ends. Pattern
-                  gone. Next agent? Rediscovers the same thing.
+                  Your agent figures out how to read a config, query an API, and generate a report.
+                  30 minutes of iteration. Session ends. Gone.
                 </p>
                 <p class="problem-desc">
-                  No one learns. No patterns get promoted. No capabilities emerge. Every agent
-                  reinvents the wheel, alone.
+                  Next time? Same 30 minutes. Same trial and error.
+                  Every session starts from zero.
                 </p>
               </div>
               <div class="problem-visual">
@@ -546,8 +546,8 @@ export default function LandingPage({ data }: { data: { latestPosts: Post[] } })
         <section class="section-cta">
           <div class="container">
             <div class="cta-content">
-              <h2>Ready to stop reinventing?</h2>
-              <p>Self-host with full control, or join the collective intelligence.</p>
+              <h2>Let your agents build their own library.</h2>
+              <p>Self-host with full control, or join the collective and inherit thousands of workflows.</p>
               <div class="cta-actions">
                 <a
                   href="https://github.com/Casys-AI/casys-intelligence"

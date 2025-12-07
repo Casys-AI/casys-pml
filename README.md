@@ -629,7 +629,7 @@ Tests are organized in:
 ## Project Structure
 
 ```
-AgentCards/
+casys-intelligence/
 ├── src/                    # Source code
 │   ├── cli/                # CLI commands (init, serve)
 │   ├── db/                 # PGlite + pgvector + migrations
@@ -637,13 +637,17 @@ AgentCards/
 │   ├── dag/                # DAG execution & control
 │   ├── graphrag/           # Graph learning (PageRank, Louvain)
 │   ├── sandbox/            # Deno sandbox execution
-│   ├── capabilities/       # Emergent capabilities (Epic 7)
-│   └── vector/             # Embeddings (BGE-M3)
+│   ├── capabilities/       # Emergent capabilities
+│   ├── vector/             # Embeddings (BGE-M3)
+│   └── web/                # Fresh dashboard
 ├── tests/                  # Unit, integration, benchmarks
 ├── docs/                   # Documentation
-│   ├── architecture/       # Detailed architecture docs
-│   └── adrs/               # Architecture Decision Records
-├── playground/             # Jupyter notebooks
+│   ├── architecture/       # System architecture
+│   ├── adrs/               # Architecture Decision Records
+│   ├── user-docs/          # User guides
+│   └── diagrams/           # Excalidraw diagrams
+├── playground/             # Jupyter notebooks for testing
+├── config/                 # Configuration templates
 └── deno.json               # Tasks and dependencies
 ```
 
@@ -654,9 +658,9 @@ AgentCards/
 ## Documentation
 
 - **[Architecture](docs/architecture/)** - System design, patterns, module structure
-- **[Product Requirements](docs/PRD.md)** - Goals, features, user journeys
-- **[Architecture Decisions](docs/architecture/architecture-decision-records-adrs.md)** - ADRs for technical decisions
-- **[Epic Breakdown](docs/epics.md)** - Stories and implementation status
+- **[Architecture Decisions](docs/adrs/)** - ADRs for technical decisions
+- **[User Guide](docs/user-docs/)** - Getting started and usage guides
+- **[Contributing](CONTRIBUTING.md)** - How to contribute to the project
 
 ---
 

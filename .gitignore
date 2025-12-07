@@ -93,7 +93,8 @@ docs/security/
 docs/sprint-artifacts/
 docs/archive/
 docs/stories/
-docs/blog/draft/
+docs/blog/
+docs/legacy/
 docs/*backlog*
 docs/*sprint*
 docs/*workflow-plan*
