@@ -52,7 +52,9 @@
     "build": "deno compile --allow-all --output=agentcards src/main.ts",
     "mock:fs": "deno run --allow-all tests/mocks/filesystem-mock.ts",
     "mock:db": "deno run --allow-all tests/mocks/database-mock.ts",
-    "mock:api": "deno run --allow-all tests/mocks/api-mock.ts"
+    "mock:api": "deno run --allow-all tests/mocks/api-mock.ts",
+    "db:generate": "deno run --allow-all npm:drizzle-kit generate",
+    "db:studio": "deno run --allow-all npm:drizzle-kit studio"
   },
   "fmt": {
     "useTabs": false,
@@ -107,7 +109,10 @@
     "@deno/gfm": "jsr:@deno/gfm@^0.11.0",
     "pako": "npm:pako@^2.1.0",
     "@types/pako": "npm:@types/pako@^2.0.0",
-    "@seontechnologies/playwright-utils": "npm:@seontechnologies/playwright-utils@^3.10.1"
+    "@seontechnologies/playwright-utils": "npm:@seontechnologies/playwright-utils@^3.10.1",
+    "drizzle-orm": "npm:drizzle-orm@^0.39.1",
+    "drizzle-kit": "npm:drizzle-kit@^0.30.4",
+    "@ts-rex/argon2": "jsr:@ts-rex/argon2@^1.0.0"
   },
   "compilerOptions": {
     "strict": true,

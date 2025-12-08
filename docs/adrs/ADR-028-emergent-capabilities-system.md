@@ -4,6 +4,7 @@
 **Date:** 2025-12-04 | **Epic:** 7 (Stories 7.1-7.5)
 
 > **Note:** IPC mechanism superseded by ADR-032 (Worker RPC Bridge).
+>
 > - Tracing via stdout parsing → Native tracing in RPC Bridge
 > - Capability injection via `wrapCapability()` → Inline functions in Worker context (Option B)
 >
@@ -265,10 +266,11 @@ Implémenter un système où les capabilities émergent automatiquement de l'usa
 │         └─────────────────┼─────────────────┘                    │
 │                           │                                      │
 │              ┌────────────▼────────────┐                         │
-│              │       GraphRAG          │                         │
-│              │  PageRank │ Louvain │   │                         │
-│              │  Adamic-Adar │ Paths    │                         │
-│              └─────────────────────────┘                         │
+              │       GraphRAG          │                         │
+              │  PageRank │ Louvain     │ (Tools Layer)           │
+              │  Spectral Clustering    │ (Capabilities Layer)    │
+              │  Adamic-Adar │ Paths    │                         │
+              └─────────────────────────┘                         │
 └─────────────────────────────────────────────────────────────────┘
                           ▲
                           │ __TRACE__ events
@@ -352,41 +354,41 @@ Implémenter un système où les capabilities émergent automatiquement de l'usa
 export type IPCEvent =
   // Tool lifecycle
   | {
-    type: "tool_start";
-    tool: string; // "server:tool_name"
-    trace_id: string; // UUID for correlation
-    ts: number; // Unix timestamp ms
-  }
+      type: "tool_start";
+      tool: string; // "server:tool_name"
+      trace_id: string; // UUID for correlation
+      ts: number; // Unix timestamp ms
+    }
   | {
-    type: "tool_end";
-    tool: string;
-    trace_id: string;
-    success: boolean;
-    duration_ms: number;
-    error?: string; // Only if success=false
-  }
+      type: "tool_end";
+      tool: string;
+      trace_id: string;
+      success: boolean;
+      duration_ms: number;
+      error?: string; // Only if success=false
+    }
   // Progress for long tasks (Future)
   | {
-    type: "progress";
-    message: string;
-    done?: number;
-    total?: number;
-    percent?: number;
-  }
+      type: "progress";
+      message: string;
+      done?: number;
+      total?: number;
+      percent?: number;
+    }
   // Debug logging (opt-in)
   | {
-    type: "log";
-    level: "debug" | "info" | "warn";
-    message: string;
-    data?: Record<string, unknown>;
-  }
+      type: "log";
+      level: "debug" | "info" | "warn";
+      message: string;
+      data?: Record<string, unknown>;
+    }
   // Capability hint (code can suggest capabilities)
   | {
-    type: "capability_hint";
-    name: string;
-    description: string;
-    tools_used: string[];
-  };
+      type: "capability_hint";
+      name: string;
+      description: string;
+      tools_used: string[];
+    };
 
 /**
  * Serialization helper
@@ -546,10 +548,7 @@ export interface Suggestion {
 }
 
 export class SuggestionEngine {
-  constructor(
-    private graph: GraphRAGEngine,
-    private db: PGliteClient,
-  ) {}
+  constructor(private graph: GraphRAGEngine, private db: PGliteClient) {}
 
   /**
    * Generate suggestions based on current context
@@ -621,8 +620,10 @@ export class SuggestionEngine {
   }
 
   private async getCapabilitiesForCommunity(
-    community: string,
-  ): Promise<Array<{ pattern_id: string; name: string; success_rate: number }>> {
+    community: string
+  ): Promise<
+    Array<{ pattern_id: string; name: string; success_rate: number }>
+  > {
     // Query capabilities whose tools are in this community
     const result = await this.db.query(`
       SELECT DISTINCT wp.pattern_id, wp.name, wp.success_rate
@@ -636,7 +637,9 @@ export class SuggestionEngine {
     // Filter by community membership
     return result.filter((cap: any) => {
       const tools = cap.dag_structure?.tasks?.map((t: any) => t.tool) || [];
-      return tools.some((t: string) => this.graph.getCommunity(t) === community);
+      return tools.some(
+        (t: string) => this.graph.getCommunity(t) === community
+      );
     });
   }
 
@@ -864,7 +867,7 @@ interface InvalidationTrigger {
 class CacheInvalidationService {
   constructor(
     private db: PGliteClient,
-    private executionCache: CodeExecutionCache,
+    private executionCache: CodeExecutionCache
   ) {}
 
   /**
@@ -880,7 +883,7 @@ class CacheInvalidationService {
       FROM workflow_pattern
       WHERE dag_structure::text LIKE $1
     `,
-      [`%${toolId}%`],
+      [`%${toolId}%`]
     );
 
     // 2. Delete their cached results
@@ -891,7 +894,7 @@ class CacheInvalidationService {
         WHERE capability_id = $1
         RETURNING 1
       `,
-        [cap.pattern_id],
+        [cap.pattern_id]
       );
       invalidated += deleted.length;
     }
@@ -912,13 +915,16 @@ class CacheInvalidationService {
   /**
    * Invalidate specific capability
    */
-  async invalidateCapability(capabilityId: string, reason: string): Promise<void> {
+  async invalidateCapability(
+    capabilityId: string,
+    reason: string
+  ): Promise<void> {
     await this.db.query(
       `
       DELETE FROM capability_cache
       WHERE capability_id = $1
     `,
-      [capabilityId],
+      [capabilityId]
     );
 
     await this.logInvalidation({
@@ -942,7 +948,7 @@ class CacheInvalidationService {
       WHERE pattern_id = $1
       RETURNING failure_count
     `,
-      [capabilityId],
+      [capabilityId]
     );
 
     // If 3+ failures, invalidate cache
@@ -957,7 +963,7 @@ class CacheInvalidationService {
       INSERT INTO cache_invalidation_log (trigger_type, tool_id, capability_id, timestamp)
       VALUES ($1, $2, $3, $4)
     `,
-      [trigger.type, trigger.toolId, trigger.capabilityId, trigger.timestamp],
+      [trigger.type, trigger.toolId, trigger.capabilityId, trigger.timestamp]
     );
   }
 }
