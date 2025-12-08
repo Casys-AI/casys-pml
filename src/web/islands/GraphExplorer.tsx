@@ -224,8 +224,8 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
 
   return (
     <div class="w-full h-full relative overflow-hidden">
-      {/* Search Bar */}
-      <div class="absolute top-5 left-1/2 -translate-x-1/2 z-[100] flex gap-3 items-center">
+      {/* Search Bar - top-16 to clear dashboard header */}
+      <div class="absolute top-16 left-1/2 -translate-x-1/2 z-[100] flex gap-3 items-center">
         <div class="relative">
           <input
             ref={searchInputRef}

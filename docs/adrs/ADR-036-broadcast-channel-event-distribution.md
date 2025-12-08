@@ -340,21 +340,94 @@ eventBus.on("capability.learned", (event) => {
 
 ## Implementation
 
-### Story Proposée (Epic 6 - Dashboard)
+### Architecture Cible Complète
 
-**Story: Event Bus with BroadcastChannel**
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                    BroadcastChannel: "agentcards-events"                      │
+│                                                                              │
+│  PRODUCERS (émettent des événements)                                         │
+│  ════════════════════════════════════                                        │
+│                                                                              │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐               │
+│  │  SandboxWorker  │  │  WorkerBridge   │  │  DAG Executor   │               │
+│  │                 │  │                 │  │                 │               │
+│  │ capability_start│  │ tool_start      │  │ dag.started     │               │
+│  │ capability_end  │  │ tool_end        │  │ dag.task.*      │               │
+│  │                 │  │                 │  │ dag.completed   │               │
+│  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘               │
+│           │                    │                    │                        │
+│  ┌────────┴────────┐  ┌────────┴────────┐  ┌────────┴────────┐               │
+│  │  GraphRAGEngine │  │ CapabilityStore │  │  Health/Metrics │               │
+│  │                 │  │                 │  │                 │               │
+│  │ graph.synced    │  │ capability.     │  │ health.check    │               │
+│  │ edge.created    │  │   learned       │  │ metrics.snapshot│               │
+│  │ edge.updated    │  │ capability.     │  │                 │               │
+│  │                 │  │   matched       │  │                 │               │
+│  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘               │
+│           │                    │                    │                        │
+│           └────────────────────┼────────────────────┘                        │
+│                                │                                             │
+│                                ▼                                             │
+│  CONSUMERS (écoutent les événements)                                         │
+│  ═══════════════════════════════════                                         │
+│                                                                              │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐               │
+│  │  SSE Handler    │  │ Metrics         │  │  Future:        │               │
+│  │  → Dashboard    │  │ Collector       │  │  Webhooks, etc. │               │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘               │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
 
-1. Créer `src/events/types.ts` avec les types d'événements
+### Plan d'Implémentation Progressif
+
+#### Phase 1: Story 7.3b - Capability Traces Only ✅ PLANNED
+
+**Scope:** BroadcastChannel pour `capability_start` / `capability_end` uniquement
+
+```typescript
+// src/sandbox/sandbox-worker.ts
+const traceChannel = new BroadcastChannel("agentcards-traces");
+
+function __trace(event: Partial<TraceEvent>): void {
+  traceChannel.postMessage({ ...event, ts: Date.now() });
+}
+```
+
+**Avantages:**
+- Validation du pattern BroadcastChannel cross-worker
+- Scope contrôlé, risque minimal
+- Base pour Phase 2
+
+**Story:** `docs/sprint-artifacts/7-3b-capability-injection-nested-tracing.md`
+
+#### Phase 2: Story 6.5 - Full EventBus Refactoring ✅ CREATED
+
+**Story:** `docs/sprint-artifacts/6-5-eventbus-broadcast-channel.md`
+
+**Scope:** Migration complète vers EventBus centralisé
+
+**Tasks:**
+1. Créer `src/events/types.ts` avec tous les types d'événements
 2. Créer `src/events/event-bus.ts` avec le singleton EventBus
-3. Refactorer `src/server/sse-handler.ts` pour utiliser l'event bus
-4. Refactorer `src/dag/executor.ts` pour émettre via event bus
-5. Ajouter émission dans `src/sandbox/worker-bridge.ts`
-6. Créer `src/telemetry/metrics-collector.ts` pour collecter via events
-7. Tests: event emission, multi-subscriber, cross-worker
+3. Migrer `tool_start/end` de WorkerBridge vers EventBus
+4. Migrer DAG events vers EventBus
+5. Migrer GraphRAG events vers EventBus
+6. Refactorer `src/server/sse-handler.ts` pour consommer via EventBus
+7. Créer `src/telemetry/metrics-collector.ts` pour collecter via events
+8. Tests: event emission, multi-subscriber, cross-worker
 
-**Estimation:** 1-2 jours
+**Estimation:** 1.5-2 jours
 
-**Prerequisites:** None (API native Deno)
+**Prerequisites:** Story 7.3b complétée (valide le pattern)
+
+### Story Originale (SUPERSEDED by Phased Approach)
+
+~~**Story: Event Bus with BroadcastChannel**~~
+
+> ⚠️ Remplacée par le plan d'implémentation progressif ci-dessus.
+> Phase 1 (7.3b) puis Phase 2 (refactoring story).
 
 ## References
 

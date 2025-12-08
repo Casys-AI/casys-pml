@@ -16,7 +16,7 @@
  * @module web/routes/_middleware
  */
 
-import { FreshContext } from "$fresh/server.ts";
+import type { FreshContext } from "fresh";
 import { isCloudMode } from "../../lib/auth.ts";
 import { getSessionFromRequest } from "../../server/auth/session.ts";
 import { isProtectedRoute, isPublicRoute } from "../route-guards.ts";

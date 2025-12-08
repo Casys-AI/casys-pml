@@ -1,7 +1,9 @@
-// @ts-nocheck
+// @ts-nocheck: Large landing page with complex inline styles
 import { page } from "fresh";
+import type { FreshContext } from "fresh";
 import { Head } from "fresh/runtime";
 import { formatDate, getPosts, type Post } from "../utils/posts.ts";
+import type { AuthState } from "./_middleware.ts";
 
 import {
   CapabilitiesIllustration,
@@ -13,22 +15,36 @@ import {
   ThreeLoopIllustration,
 } from "../components/FeatureIllustrations.tsx";
 
+interface LandingPageData {
+  latestPosts: Post[];
+  isCloudMode: boolean;
+  user: AuthState["user"];
+}
+
 export const handler = {
-  async GET(_ctx: any) {
+  async GET(ctx: FreshContext<AuthState>) {
     try {
       const posts = await getPosts();
       const latestPosts = posts.slice(0, 3);
-      return page({ latestPosts });
+      return page({
+        latestPosts,
+        isCloudMode: ctx.state.isCloudMode,
+        user: ctx.state.user,
+      });
     } catch (error) {
       console.error("Error loading posts for landing page:", error);
       // Return empty array on error - landing page should still work
-      return page({ latestPosts: [] });
+      return page({
+        latestPosts: [],
+        isCloudMode: ctx.state.isCloudMode,
+        user: ctx.state.user,
+      });
     }
   },
 };
 
-export default function LandingPage({ data }: { data: { latestPosts: Post[] } }) {
-  const { latestPosts } = data;
+export default function LandingPage({ data }: { data: LandingPageData }) {
+  const { latestPosts, isCloudMode, user } = data;
 
   return (
     <>
@@ -132,6 +148,45 @@ export default function LandingPage({ data }: { data: { latestPosts: Post[] } })
                   <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
                 </svg>
               </a>
+              {/* Auth section: Sign in or Local mode badge */}
+              {isCloudMode
+                ? (
+                  user
+                    ? (
+                      <a href="/dashboard/settings" class="nav-user">
+                        <img
+                          src={user.avatarUrl || "/default-avatar.svg"}
+                          alt={user.username}
+                          class="nav-avatar"
+                        />
+                        <span class="nav-username">{user.username}</span>
+                      </a>
+                    )
+                    : (
+                      <a href="/auth/signin" class="btn btn-signin">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+                        </svg>
+                        Sign in with GitHub
+                      </a>
+                    )
+                )
+                : (
+                  <span class="badge-local">
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                      <circle cx="12" cy="10" r="3" />
+                    </svg>
+                    Local Mode
+                  </span>
+                )}
             </nav>
           </div>
         </header>
@@ -150,9 +205,9 @@ export default function LandingPage({ data }: { data: { latestPosts: Post[] } })
                 <span class="hero-title-accent">Then another agent used it.</span>
               </h1>
               <p class="hero-desc">
-                CAI captures emergent workflows — tool combinations that agents
-                discover through execution, not design. These patterns become
-                reusable capabilities for the entire system.
+                CAI captures emergent workflows — tool combinations that agents discover through
+                execution, not design. These patterns become reusable capabilities for the entire
+                system.
               </p>
               <div class="hero-actions">
                 <a href="#how" class="btn btn-primary">
@@ -213,12 +268,12 @@ capabilities.use("data_pipeline")`}</code></pre>
                   <span class="problem-highlight">Then they're lost.</span>
                 </h2>
                 <p class="problem-desc">
-                  When AI agents solve problems, they often find clever ways to combine tools.
-                  But these discoveries vanish when the session ends.
+                  When AI agents solve problems, they often find clever ways to combine tools. But
+                  these discoveries vanish when the session ends.
                 </p>
                 <p class="problem-desc">
-                  What if we could capture these emergent patterns?
-                  What if agents could learn from each other's discoveries?
+                  What if we could capture these emergent patterns? What if agents could learn from
+                  each other's discoveries?
                 </p>
               </div>
               <div class="problem-visual">
@@ -384,8 +439,8 @@ capabilities.use("data_pipeline")`}</code></pre>
               <div class="flow-step">
                 <div class="flow-icon">
                   <svg viewBox="0 0 40 40" fill="none">
-                    <circle cx="20" cy="20" r="8" stroke="#FFB86F" stroke-width="2"/>
-                    <path d="M20 8v6M20 26v6M8 20h6M26 20h6" stroke="#FFB86F" stroke-width="2"/>
+                    <circle cx="20" cy="20" r="8" stroke="#FFB86F" stroke-width="2" />
+                    <path d="M20 8v6M20 26v6M8 20h6M26 20h6" stroke="#FFB86F" stroke-width="2" />
                   </svg>
                 </div>
                 <h4>Discovery</h4>
@@ -393,14 +448,22 @@ capabilities.use("data_pipeline")`}</code></pre>
               </div>
               <div class="flow-arrow">
                 <svg viewBox="0 0 40 20" fill="none">
-                  <path d="M5 10h25M25 5l5 5-5 5" stroke="#FFB86F" stroke-width="2"/>
+                  <path d="M5 10h25M25 5l5 5-5 5" stroke="#FFB86F" stroke-width="2" />
                 </svg>
               </div>
               <div class="flow-step">
                 <div class="flow-icon">
                   <svg viewBox="0 0 40 40" fill="none">
-                    <rect x="8" y="12" width="24" height="16" rx="2" stroke="#FFB86F" stroke-width="2"/>
-                    <path d="M12 8h16M14 4h12" stroke="#FFB86F" stroke-width="2" opacity="0.5"/>
+                    <rect
+                      x="8"
+                      y="12"
+                      width="24"
+                      height="16"
+                      rx="2"
+                      stroke="#FFB86F"
+                      stroke-width="2"
+                    />
+                    <path d="M12 8h16M14 4h12" stroke="#FFB86F" stroke-width="2" opacity="0.5" />
                   </svg>
                 </div>
                 <h4>Capture</h4>
@@ -408,16 +471,21 @@ capabilities.use("data_pipeline")`}</code></pre>
               </div>
               <div class="flow-arrow">
                 <svg viewBox="0 0 40 20" fill="none">
-                  <path d="M5 10h25M25 5l5 5-5 5" stroke="#FFB86F" stroke-width="2"/>
+                  <path d="M5 10h25M25 5l5 5-5 5" stroke="#FFB86F" stroke-width="2" />
                 </svg>
               </div>
               <div class="flow-step flow-step-highlight">
                 <div class="flow-icon">
                   <svg viewBox="0 0 40 40" fill="none">
-                    <circle cx="20" cy="14" r="6" stroke="#FFB86F" stroke-width="2"/>
-                    <circle cx="12" cy="28" r="5" stroke="#FFB86F" stroke-width="2"/>
-                    <circle cx="28" cy="28" r="5" stroke="#FFB86F" stroke-width="2"/>
-                    <path d="M17 18l-3 6M23 18l3 6M15 28h10" stroke="#FFB86F" stroke-width="1.5" stroke-dasharray="2 2"/>
+                    <circle cx="20" cy="14" r="6" stroke="#FFB86F" stroke-width="2" />
+                    <circle cx="12" cy="28" r="5" stroke="#FFB86F" stroke-width="2" />
+                    <circle cx="28" cy="28" r="5" stroke="#FFB86F" stroke-width="2" />
+                    <path
+                      d="M17 18l-3 6M23 18l3 6M15 28h10"
+                      stroke="#FFB86F"
+                      stroke-width="1.5"
+                      stroke-dasharray="2 2"
+                    />
                   </svg>
                 </div>
                 <h4>Propagation</h4>
@@ -549,7 +617,10 @@ capabilities.use("data_pipeline")`}</code></pre>
           <div class="container">
             <div class="cta-content">
               <h2>Curious? Dive in.</h2>
-              <p>CAI is fully open source. Explore the code, run experiments, or contribute to the research.</p>
+              <p>
+                CAI is fully open source. Explore the code, run experiments, or contribute to the
+                research.
+              </p>
               <div class="cta-actions">
                 <a
                   href="https://github.com/Casys-AI/casys-intelligence"
@@ -771,6 +842,74 @@ capabilities.use("data_pipeline")`}</code></pre>
 
           .nav-link-github:hover {
             background: var(--accent-dim);
+          }
+
+          /* Auth Elements */
+          .btn-signin {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            font-family: var(--font-sans);
+            text-decoration: none;
+            border-radius: 8px;
+            background: var(--accent);
+            color: var(--bg);
+            transition: all 0.2s;
+            cursor: pointer;
+            border: none;
+          }
+
+          .btn-signin:hover {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
+          }
+
+          .badge-local {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.375rem 0.75rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            font-family: var(--font-mono);
+            color: var(--green);
+            background: rgba(74, 222, 128, 0.1);
+            border: 1px solid rgba(74, 222, 128, 0.2);
+            border-radius: 6px;
+            letter-spacing: 0.02em;
+          }
+
+          .nav-user {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.375rem 0.75rem;
+            text-decoration: none;
+            border-radius: 8px;
+            background: var(--accent-dim);
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+          }
+
+          .nav-user:hover {
+            border-color: var(--accent);
+            background: var(--accent-medium);
+          }
+
+          .nav-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            object-fit: cover;
+          }
+
+          .nav-username {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text);
           }
 
           /* ═══════════════════════════════════════════════════════════════════

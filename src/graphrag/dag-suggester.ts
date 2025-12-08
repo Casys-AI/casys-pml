@@ -644,7 +644,7 @@ export class DAGSuggester {
         if (this.isDangerousOperation(neighborId)) continue;
 
         const edgeData = this.graphEngine.getEdgeData(lastToolId, neighborId);
-        
+
         // Calculate Recency Boost (Story 7.4 - ADR-038)
         // Check if tool was used in recent tasks of this workflow
         const recencyBoost = executedTools.has(neighborId) ? 0.10 : 0.0;
@@ -662,7 +662,9 @@ export class DAGSuggester {
         predictions.push({
           toolId: neighborId,
           confidence: adjusted.confidence,
-          reasoning: `Historical co-occurrence (60%) + Community (30%) + Recency (${(recencyBoost * 100).toFixed(0)}%)`,
+          reasoning: `Historical co-occurrence (60%) + Community (30%) + Recency (${
+            (recencyBoost * 100).toFixed(0)
+          }%)`,
           source: "co-occurrence",
         });
         seenTools.add(neighborId);

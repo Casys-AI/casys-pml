@@ -16,7 +16,7 @@ _Note: Cet ADR remplace et consolide les anciennes tentatives de définition d'a
 | :----------------------- | :----------- | :----------------- | :---------------------------------------------------- |
 | **Hybrid Search**        | Tools        | ✅ **Implemented** | `src/graphrag/graph-engine.ts`                        |
 | **Next Step Prediction** | Tools        | ✅ **Implemented** | `src/graphrag/dag-suggester.ts` (Refactored Dec 2025) |
-| **Capability Match**     | Capabilities | ✅ **Implemented** | `src/capabilities/matcher.ts` (Story 7.3a)            |
+| **DAG Construction**     | Structure    | ✅ **Implemented** | `src/graphrag/graph-engine.ts` (Shortest Path)        |
 | **Strategic Discovery**  | Capabilities | 🚧 **Todo**        | Story 7.4 (Spectral Clustering)                       |
 
 ---
@@ -64,13 +64,26 @@ Prédit le prochain outil probable après l'action courante. Formule simplifiée
 const toolScore =
   cooccurrenceConfidence * 0.6 + // Historique direct (A -> B)
   communityBoost * 0.3 + // Louvain (Même cluster dense)
-  recencyBoost * 0.1; // Récence (Utilisé récemment dans le projet)
+  recencyBoost * 0.1 + // Récence (Utilisé récemment dans le projet)
+  pageRank * 0.1; // Bonus mineur d'importance globale
 ```
 
 - **Cooccurrence :** Poids de l'arête A -> B.
-- **Louvain :** Bonus si A et B sont dans la même communauté.
+- **Louvain :** Bonus si A et B sont dans la même communauté. Préféré à LPA pour sa stabilité et qualité (modularité), malgré une complexité théorique plus élevée (O(n log n)).
 - **Recency (NEW) :** Bonus si l'outil a été utilisé dans les dernières 24h du projet.
-- _Note:_ PageRank et Adamic-Adar ont été retirés de ce scope pour réduire le bruit et le biais de popularité.
+- **PageRank :** Mesure l'importance globale du nœud dans le graphe. Utilisé comme bonus mineur.
+- _Note:_ Adamic-Adar a été retiré de ce scope pour réduire le bruit, mais reste utilisé dans le Hybrid Search.
+
+### 2.3 DAG Construction (Structural Layer)
+
+**Location:** `src/graphrag/graph-engine.ts`
+
+Une fois les outils sélectionnés, il faut déterminer leur ordre d'exécution (dépendances).
+
+- **Shortest Path (Graphology) :**
+  - Utilisé pour inférer les dépendances entre outils sélectionnés.
+  - Si `PathLength(A, B) <= 3` (dans le graphe historique), on considère que B dépend de A.
+  - Permet de reconstruire la causalité sans avoir besoin d'un modèle explicite.
 
 ---
 

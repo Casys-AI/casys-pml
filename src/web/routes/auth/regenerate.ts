@@ -13,7 +13,9 @@
  */
 
 import { getDb } from "../../../server/auth/db.ts";
-import { getSessionFromRequest } from "../../../server/auth/session.ts";
+import { getSessionFromRequest, setFlashApiKey } from "../../../server/auth/session.ts";
+import { getSessionId } from "../../../server/auth/oauth.ts";
+import { getKv } from "../../../server/auth/kv.ts";
 import { users } from "../../../db/schema/users.ts";
 import { generateApiKey, hashApiKey } from "../../../lib/api-key.ts";
 import { eq } from "drizzle-orm";
@@ -52,7 +54,14 @@ export const handler = {
       })
       .where(eq(users.id, session.userId));
 
-    // 4. Return new key (shown ONCE - never retrievable after this response)
+    // 4. Store key in flash session for Settings page display
+    const sessionId = await getSessionId(ctx.req);
+    if (sessionId) {
+      const kv = await getKv();
+      await setFlashApiKey(kv, sessionId, key);
+    }
+
+    // 5. Return new key (shown ONCE - never retrievable after this response)
     return new Response(
       JSON.stringify({
         key,
