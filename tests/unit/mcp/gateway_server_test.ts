@@ -135,6 +135,8 @@ Deno.test("AgentCardsGatewayServer - Initialization", () => {
     dagSuggester,
     executor,
     mcpClients,
+    undefined, // capabilityStore
+    undefined, // adaptiveThresholdManager
     {
       name: "agentcards-test",
       version: "1.0.0-test",
@@ -167,8 +169,8 @@ Deno.test("AgentCardsGatewayServer - list_tools without query", async () => {
 
   assertExists(result.tools);
   assert(Array.isArray(result.tools));
-  // ADR-013: Should return 7 meta-tools (execute_dag, search_tools, execute_code, continue, abort, replan, approval_response)
-  assertEquals(result.tools.length, 7);
+  // ADR-013: Should return 8 meta-tools (execute_dag, search_tools, search_capabilities, execute_code, continue, abort, replan, approval_response)
+  assertEquals(result.tools.length, 8);
 
   // Verify DAG execution tool is included (renamed from execute_workflow)
   const dagTool = result.tools.find((t: MCPTool) => t.name === "agentcards:execute_dag");

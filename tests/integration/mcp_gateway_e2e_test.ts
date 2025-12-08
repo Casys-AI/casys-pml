@@ -120,6 +120,8 @@ Deno.test({
         dagSuggester,
         executor,
         mcpClients,
+        undefined, // capabilityStore
+        undefined, // adaptiveThresholdManager
         {
           name: "agentcards-test",
           version: "1.0.0-test",

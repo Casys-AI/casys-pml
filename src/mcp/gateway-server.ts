@@ -52,6 +52,7 @@ import { ControlledExecutor } from "../dag/controlled-executor.ts";
 import { CheckpointManager } from "../dag/checkpoint-manager.ts";
 import type { ExecutionEvent, TaskResult } from "../dag/types.ts";
 import { EventsStreamManager } from "../server/events-stream.ts";
+import { logAuthMode, validateRequest } from "../lib/auth.ts";
 
 /**
  * MCP JSON-RPC error codes
@@ -1109,7 +1110,7 @@ export class AgentCardsGatewayServer {
             success_rate: match.capability.successRate,
             usage_count: match.capability.usageCount,
             score: match.score, // Final score (Semantic * Reliability)
-            semantic_score: match.semanticScore
+            semantic_score: match.semanticScore,
           }]
           : [],
         suggestions: [], // To be implemented in Story 7.4 (Strategic Discovery)
@@ -1248,27 +1249,27 @@ export class AgentCardsGatewayServer {
             // Use intent similarity if available, otherwise fallback to success rate
             let confidence = capability.successRate;
             if (request.intent) {
-               // Re-calculate similarity would be expensive here without vector search results
-               // Just use successRate as a proxy for "confidence in this capability"
-               // Or if we had the match result passed in, we'd use that.
-               // For now, successRate is a reasonable proxy for established capabilities.
+              // Re-calculate similarity would be expensive here without vector search results
+              // Just use successRate as a proxy for "confidence in this capability"
+              // Or if we had the match result passed in, we'd use that.
+              // For now, successRate is a reasonable proxy for established capabilities.
             }
 
             this.adaptiveThresholdManager.recordExecution({
-              mode: "speculative", // Treat user execution of capability as "speculative" confirmation? 
-              // Actually, if user runs it, it's "manual" or "explicit". 
-              // But AC6 says "mode: speculative". 
+              mode: "speculative", // Treat user execution of capability as "speculative" confirmation?
+              // Actually, if user runs it, it's "manual" or "explicit".
+              // But AC6 says "mode: speculative".
               // If we treat it as speculative, we confirm the system's "suggestion" (the search result).
-              confidence: confidence, 
+              confidence: confidence,
               success: true,
               executionTime: executionTimeMs,
               timestamp: Date.now(),
             });
-            
+
             log.info(`[Story 7.3a] Capability feedback recorded`, { id: capability.id });
           }
         } catch (err) {
-           log.warn(`[Story 7.3a] Failed to record capability feedback: ${err}`);
+          log.warn(`[Story 7.3a] Failed to record capability feedback: ${err}`);
         }
       }
 
@@ -2085,12 +2086,24 @@ export class AgentCardsGatewayServer {
     this.eventsStream = new EventsStreamManager(this.graphEngine);
     log.info(`✓ EventsStreamManager initialized`);
 
+    // Story 9.3: Log auth mode at startup (AC #5)
+    logAuthMode("API Server");
+
     // CORS headers for Fresh dashboard (runs on different port)
-    const corsHeaders = {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
+    // Prod: https://DOMAIN, Dev: http://localhost:FRESH_PORT
+    const getAllowedOrigin = (): string => {
+      const domain = Deno.env.get("DOMAIN");
+      if (domain) return `https://${domain}`;
+      const dashboardPort = Deno.env.get("FRESH_PORT") || "8081";
+      return `http://localhost:${dashboardPort}`;
     };
+    const allowedOrigin = getAllowedOrigin();
+    const corsHeaders = {
+      "Access-Control-Allow-Origin": allowedOrigin,
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, x-api-key",
+    };
+    log.info(`✓ CORS configured for origin: ${allowedOrigin}`);
 
     // Create HTTP server
     this.httpServer = Deno.serve({ port }, async (req) => {
@@ -2099,6 +2112,25 @@ export class AgentCardsGatewayServer {
       // Handle CORS preflight
       if (req.method === "OPTIONS") {
         return new Response(null, { headers: corsHeaders });
+      }
+
+      // Story 9.3: Auth validation for protected routes
+      const PUBLIC_ROUTES = ["/health"];
+      if (!PUBLIC_ROUTES.includes(url.pathname)) {
+        const auth = await validateRequest(req);
+        if (!auth) {
+          return new Response(
+            JSON.stringify({
+              error: "Unauthorized",
+              message: "Valid API key required",
+            }),
+            {
+              status: 401,
+              headers: { "Content-Type": "application/json", ...corsHeaders },
+            },
+          );
+        }
+        // TODO (Story 9.5): Propagate auth.user_id into execution context for data isolation
       }
 
       // MCP Streamable HTTP endpoint (for Claude Code HTTP transport)

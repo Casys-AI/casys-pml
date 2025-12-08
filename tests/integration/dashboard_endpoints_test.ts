@@ -15,7 +15,7 @@ import { DAGSuggester } from "../../src/graphrag/dag-suggester.ts";
 import { ParallelExecutor } from "../../src/dag/executor.ts";
 import { EmbeddingModel } from "../../src/vector/embeddings.ts";
 
-const TEST_PORT = 3001; // Use different port to avoid conflicts
+const TEST_PORT = 3006; // Use 3006-3008 range to avoid conflicts with dev server (3003)
 
 /**
  * Helper to create a fully initialized gateway for testing
@@ -51,6 +51,8 @@ async function createTestGateway(db: PGliteClient): Promise<{
     dagSuggester,
     executor,
     mcpClients,
+    undefined, // capabilityStore
+    undefined, // adaptiveThresholdManager
     {
       name: "test-gateway",
       version: "1.0.0",
@@ -92,6 +94,8 @@ Deno.test({
       // Cleanup
       await gateway.stop();
       await db.close();
+      // Wait for port to be released
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
   },
 });
@@ -140,6 +144,8 @@ Deno.test({
       // Cleanup
       await gateway.stop();
       await db.close();
+      // Wait for port to be released (needs longer delay for HTTP server cleanup due to TCP TIME_WAIT)
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
   },
 });
