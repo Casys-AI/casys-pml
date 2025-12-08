@@ -1,36 +1,16 @@
-
 import { assertEquals, assertExists } from "@std/assert";
 import { PGlite } from "@electric-sql/pglite";
-import { createDrizzleClient } from "../../../src/db/drizzle.ts";
+import { createDrizzleClient, runDrizzleMigrations } from "../../../src/db/drizzle.ts";
 import { users } from "../../../src/db/schema/users.ts";
 import { eq } from "drizzle-orm";
-
 
 Deno.test("Drizzle + PGlite - create and query user", async () => {
   // Create in-memory PGlite
   const pglite = new PGlite("memory://");
   const db = createDrizzleClient(pglite);
 
-  // Run migrations - using migrate() from drizzle-orm/pglite/migrator
-  // Note: In a real app we would use the generated SQL files, but for this test
-  // we might need to rely on push or effectively mocking the schema creation if we haven't generated migrations yet.
-  // HOWEVER, preventing `drizzle-kit generate` from running during test means we need away to apply schema.
-  // For unit tests, we can use `db.run` to create table manually matching schema or use `drizzle-kit push` logic if available.
-  // Given we haven't run generation yet, let's manually create the table for this unit test to verify Drizzle client works.
-  
-  await pglite.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      github_id TEXT UNIQUE,
-      username TEXT NOT NULL,
-      email TEXT,
-      role TEXT DEFAULT 'user',
-      api_key_hash TEXT,
-      api_key_prefix TEXT UNIQUE,
-      created_at TIMESTAMP DEFAULT NOW() NOT NULL,
-      updated_at TIMESTAMP DEFAULT NOW() NOT NULL
-    );
-  `);
+  // Run Drizzle migrations (uses generated SQL from ./drizzle/)
+  await runDrizzleMigrations(db);
 
   // Insert user
   const newUser = {
@@ -62,21 +42,9 @@ Deno.test("Drizzle + PGlite - create and query user", async () => {
 Deno.test("Drizzle + PGlite - API key prefix lookup", async () => {
   const pglite = new PGlite("memory://");
   const db = createDrizzleClient(pglite);
-  
-  // Manually create schema for test (see above note)
-  await pglite.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      github_id TEXT UNIQUE,
-      username TEXT NOT NULL,
-      email TEXT,
-      role TEXT DEFAULT 'user',
-      api_key_hash TEXT,
-      api_key_prefix TEXT UNIQUE,
-      created_at TIMESTAMP DEFAULT NOW() NOT NULL,
-      updated_at TIMESTAMP DEFAULT NOW() NOT NULL
-    );
-  `);
+
+  // Run Drizzle migrations (uses generated SQL from ./drizzle/)
+  await runDrizzleMigrations(db);
 
   // Insert user with API key
   const newUser = {

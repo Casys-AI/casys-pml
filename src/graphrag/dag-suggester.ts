@@ -11,6 +11,8 @@ import * as log from "@std/log";
 import type { VectorSearch } from "../vector/search.ts";
 import type { GraphRAGEngine } from "./graph-engine.ts";
 import type { EpisodicMemoryStore } from "../learning/episodic-memory-store.ts";
+import type { CapabilityMatcher } from "../capabilities/matcher.ts";
+import type { CapabilityMatch } from "../capabilities/types.ts";
 import type {
   CompletedTask,
   DAGStructure,
@@ -29,11 +31,15 @@ import type {
  */
 export class DAGSuggester {
   private episodicMemory: EpisodicMemoryStore | null = null; // Story 4.1e - Episodic memory integration
+  private capabilityMatcher: CapabilityMatcher | null = null; // Story 7.3a - Capability matching
 
   constructor(
     private graphEngine: GraphRAGEngine,
     private vectorSearch: VectorSearch,
-  ) {}
+    capabilityMatcher?: CapabilityMatcher,
+  ) {
+    this.capabilityMatcher = capabilityMatcher || null;
+  }
 
   /**
    * Get GraphRAGEngine instance for feedback loop (Story 2.5-3 Task 4)
@@ -59,6 +65,34 @@ export class DAGSuggester {
   setEpisodicMemoryStore(store: EpisodicMemoryStore): void {
     this.episodicMemory = store;
     log.debug("[DAGSuggester] Episodic memory enabled for learning-enhanced predictions");
+  }
+
+  /**
+   * Set capability matcher (Story 7.3a)
+   *
+   * Allows injecting matcher after construction if needed.
+   *
+   * @param matcher - CapabilityMatcher instance
+   */
+  setCapabilityMatcher(matcher: CapabilityMatcher): void {
+    this.capabilityMatcher = matcher;
+    log.debug("[DAGSuggester] Capability matching enabled");
+  }
+
+  /**
+   * Search for capabilities matching an intent (Active Search - Story 7.3a)
+   *
+   * Delegates to CapabilityMatcher helper for logic (Semantic * Reliability).
+   *
+   * @param intent - User intent
+   * @returns Best capability match or null
+   */
+  async searchCapabilities(intent: string): Promise<CapabilityMatch | null> {
+    if (!this.capabilityMatcher) {
+      log.debug("[DAGSuggester] searchCapabilities called but CapabilityMatcher not configured");
+      return null;
+    }
+    return await this.capabilityMatcher.findMatch(intent);
   }
 
   /**
@@ -610,7 +644,12 @@ export class DAGSuggester {
         if (this.isDangerousOperation(neighborId)) continue;
 
         const edgeData = this.graphEngine.getEdgeData(lastToolId, neighborId);
-        const baseConfidence = this.calculateCooccurrenceConfidence(edgeData);
+        
+        // Calculate Recency Boost (Story 7.4 - ADR-038)
+        // Check if tool was used in recent tasks of this workflow
+        const recencyBoost = executedTools.has(neighborId) ? 0.10 : 0.0;
+
+        const baseConfidence = this.calculateCooccurrenceConfidence(edgeData, recencyBoost);
 
         // Story 4.1e: Apply episodic learning adjustments
         const adjusted = this.adjustConfidenceFromEpisodes(
@@ -623,35 +662,15 @@ export class DAGSuggester {
         predictions.push({
           toolId: neighborId,
           confidence: adjusted.confidence,
-          reasoning: `Historical co-occurrence with ${lastToolId} (${
-            edgeData?.count ?? 0
-          } observations, ${((edgeData?.weight ?? 0) * 100).toFixed(0)}% confidence)`,
+          reasoning: `Historical co-occurrence (60%) + Community (30%) + Recency (${(recencyBoost * 100).toFixed(0)}%)`,
           source: "co-occurrence",
         });
         seenTools.add(neighborId);
       }
 
-      // 5. Boost with Adamic-Adar similarity for 2-hop patterns
-      const adamicAdarResults = this.graphEngine.computeAdamicAdar(lastToolId, 5);
-      for (const { toolId, score } of adamicAdarResults) {
-        if (seenTools.has(toolId) || executedTools.has(toolId)) continue;
-        if (this.isDangerousOperation(toolId)) continue;
-
-        const pageRank = this.graphEngine.getPageRank(toolId);
-        const baseConfidence = Math.min((score * 0.3) + (pageRank * 0.2), 0.65); // Cap at 0.65 for indirect
-
-        // Story 4.1e: Apply episodic learning adjustments
-        const adjusted = this.adjustConfidenceFromEpisodes(baseConfidence, toolId, episodeStats);
-        if (!adjusted) continue; // Excluded due to high failure rate
-
-        predictions.push({
-          toolId,
-          confidence: adjusted.confidence,
-          reasoning: `2-hop pattern similarity (Adamic-Adar: ${score.toFixed(2)})`,
-          source: "learned",
-        });
-        seenTools.add(toolId);
-      }
+      // NOTE: Adamic-Adar (2-hop) removed for passive suggestion (ADR-038)
+      // It is too slow for this scope and dilutes the signal.
+      // Kept for Active Hybrid Search only.
 
       // 6. Sort by confidence (descending)
       predictions.sort((a, b) => b.confidence - a.confidence);
@@ -950,20 +969,25 @@ export class DAGSuggester {
    * Calculate confidence for co-occurrence-based prediction
    *
    * @param edgeData - Edge attributes from GraphRAG
+   * @param recencyBoost - Boost if tool was used recently (default: 0)
    * @returns Confidence score (0-1)
    */
   private calculateCooccurrenceConfidence(
     edgeData: { weight: number; count: number } | null,
+    recencyBoost: number = 0,
   ): number {
     if (!edgeData) return 0.30;
 
-    // Base: edge weight (confidence_score from DB)
-    let confidence = edgeData.weight;
+    // Base: edge weight (confidence_score from DB) - Max 0.60 (ADR-038)
+    let confidence = Math.min(edgeData.weight, 0.60);
 
-    // Boost by observation count (diminishing returns)
+    // Boost by observation count (diminishing returns) - Max 0.20
     // 1 observation: +0, 5: +0.10, 10: +0.15, 20+: +0.20
     const countBoost = Math.min(Math.log2(edgeData.count + 1) * 0.05, 0.20);
     confidence += countBoost;
+
+    // Boost by recency - Max 0.10
+    confidence += Math.min(recencyBoost, 0.10);
 
     return Math.min(confidence, 0.95); // Cap at 0.95
   }

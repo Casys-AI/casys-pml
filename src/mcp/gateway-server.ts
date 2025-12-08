@@ -37,6 +37,9 @@ import { DenoSandboxExecutor, type WorkerExecutionConfig } from "../sandbox/exec
 import { ContextBuilder } from "../sandbox/context-builder.ts";
 // TraceEvent imported from sandbox/types.ts is now used via executeWithTools result
 import { addBreadcrumb, captureError, startTransaction } from "../telemetry/sentry.ts";
+import type { CapabilityStore } from "../capabilities/capability-store.ts";
+import type { AdaptiveThresholdManager } from "./adaptive-threshold.ts";
+import { hashCode } from "../capabilities/hash.ts";
 // Story 2.5-4: MCP Control Tools & Per-Layer Validation
 import {
   deleteWorkflowDAG,
@@ -132,6 +135,9 @@ export class AgentCardsGatewayServer {
     private dagSuggester: DAGSuggester,
     private executor: ParallelExecutor,
     private mcpClients: Map<string, MCPClient>,
+    // Optional for backward compatibility, but required for Story 7.3a features
+    private capabilityStore?: CapabilityStore,
+    private adaptiveThresholdManager?: AdaptiveThresholdManager,
     config?: GatewayServerConfig,
   ) {
     // Merge config with defaults
@@ -307,6 +313,27 @@ export class AgentCardsGatewayServer {
         },
       };
 
+      // Add search_capabilities tool (Story 7.3a)
+      const searchCapabilitiesTool: MCPTool = {
+        name: "agentcards:search_capabilities",
+        description:
+          "Search for existing learned capabilities (code patterns) matching your intent. Returns capabilities that can be executed directly to solve your problem.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            intent: {
+              type: "string",
+              description: "Natural language description of what you want to accomplish",
+            },
+            include_suggestions: {
+              type: "boolean",
+              description: "Include related capability suggestions from the graph (default: false)",
+            },
+          },
+          required: ["intent"],
+        },
+      };
+
       // Add code execution tool (Story 3.4)
       const executeCodeTool: MCPTool = {
         name: "agentcards:execute_code",
@@ -450,6 +477,7 @@ export class AgentCardsGatewayServer {
         tools: [
           executeDagTool,
           searchToolsTool,
+          searchCapabilitiesTool,
           executeCodeTool,
           continueTool,
           abortTool,
@@ -559,6 +587,13 @@ export class AgentCardsGatewayServer {
       // Check if this is a search_tools request (Spike: search-tools-graph-traversal)
       if (name === "agentcards:search_tools") {
         const result = await this.handleSearchTools(args);
+        transaction.finish();
+        return result;
+      }
+
+      // Check if this is a search_capabilities request (Story 7.3a)
+      if (name === "agentcards:search_capabilities") {
+        const result = await this.handleSearchCapabilities(args);
         transaction.finish();
         return result;
       }
@@ -1020,6 +1055,90 @@ export class AgentCardsGatewayServer {
   }
 
   /**
+   * Handle search_capabilities request (Story 7.3a)
+   *
+   * Delegates to DAGSuggester.searchCapabilities() for capability matching.
+   * Matches capabilities using semantic similarity * reliability score.
+   *
+   * @param args - Search arguments (intent, include_suggestions)
+   * @returns Capability matches formatted for Claude
+   */
+  private async handleSearchCapabilities(
+    args: unknown,
+  ): Promise<
+    | { content: Array<{ type: string; text: string }> }
+    | { error: { code: number; message: string; data?: unknown } }
+  > {
+    const transaction = startTransaction("mcp.capabilities.search", "mcp");
+    try {
+      const params = args as {
+        intent?: string;
+        include_suggestions?: boolean;
+      };
+
+      if (!params.intent || typeof params.intent !== "string") {
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              error: "Missing required parameter: 'intent'",
+            }),
+          }],
+        };
+      }
+
+      const intent = params.intent;
+      transaction.setData("intent", intent);
+      addBreadcrumb("mcp", "Processing search_capabilities request", { intent });
+
+      log.info(`search_capabilities: "${intent}"`);
+
+      // 1. Search for capability match via DAGSuggester
+      // Note: DAGSuggester orchestrates the CapabilityMatcher
+      const match = await this.dagSuggester.searchCapabilities(intent);
+
+      // 2. Format response (AC5)
+      const response = {
+        capabilities: match
+          ? [{
+            id: match.capability.id,
+            name: match.capability.name,
+            description: match.capability.description,
+            code_snippet: match.capability.codeSnippet,
+            parameters_schema: match.parametersSchema,
+            success_rate: match.capability.successRate,
+            usage_count: match.capability.usageCount,
+            score: match.score, // Final score (Semantic * Reliability)
+            semantic_score: match.semanticScore
+          }]
+          : [],
+        suggestions: [], // To be implemented in Story 7.4 (Strategic Discovery)
+        threshold_used: match?.thresholdUsed ?? 0,
+        total_found: match ? 1 : 0,
+      };
+
+      transaction.finish();
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(response, null, 2),
+        }],
+      };
+    } catch (error) {
+      log.error(`search_capabilities error: ${error}`);
+      captureError(error as Error, {
+        operation: "capabilities/search",
+        handler: "handleSearchCapabilities",
+      });
+      transaction.finish();
+      return this.formatMCPError(
+        MCPErrorCodes.INTERNAL_ERROR,
+        `Capability search failed: ${(error as Error).message}`,
+      );
+    }
+  }
+
+  /**
    * Handle code execution (Story 3.4)
    *
    * Supports two modes:
@@ -1113,6 +1232,45 @@ export class AgentCardsGatewayServer {
         executionContext,
       );
       const executionTimeMs = performance.now() - startTime;
+
+      // Handle capability feedback (Story 7.3a / AC6)
+      if (this.capabilityStore && this.adaptiveThresholdManager && result.success) {
+        try {
+          // Identify if executed code matches a known capability
+          const codeHash = await hashCode(request.code);
+          const capability = await this.capabilityStore.findByCodeHash(codeHash);
+
+          if (capability) {
+            // Update usage stats
+            await this.capabilityStore.updateUsage(codeHash, true, executionTimeMs);
+
+            // Record execution for adaptive learning
+            // Use intent similarity if available, otherwise fallback to success rate
+            let confidence = capability.successRate;
+            if (request.intent) {
+               // Re-calculate similarity would be expensive here without vector search results
+               // Just use successRate as a proxy for "confidence in this capability"
+               // Or if we had the match result passed in, we'd use that.
+               // For now, successRate is a reasonable proxy for established capabilities.
+            }
+
+            this.adaptiveThresholdManager.recordExecution({
+              mode: "speculative", // Treat user execution of capability as "speculative" confirmation? 
+              // Actually, if user runs it, it's "manual" or "explicit". 
+              // But AC6 says "mode: speculative". 
+              // If we treat it as speculative, we confirm the system's "suggestion" (the search result).
+              confidence: confidence, 
+              success: true,
+              executionTime: executionTimeMs,
+              timestamp: Date.now(),
+            });
+            
+            log.info(`[Story 7.3a] Capability feedback recorded`, { id: capability.id });
+          }
+        } catch (err) {
+           log.warn(`[Story 7.3a] Failed to record capability feedback: ${err}`);
+        }
+      }
 
       // Handle execution failure
       if (!result.success) {

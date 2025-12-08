@@ -29,8 +29,7 @@ const DEFAULT_CONFIG: EventsStreamConfig = {
   maxClients: 100,
   heartbeatIntervalMs: 30_000,
   corsOrigins: [
-    "http://localhost:3000",
-    "http://localhost:8080",
+    "http://localhost:*", // Allow any localhost port (dev)
     "http://127.0.0.1:*",
   ],
 };

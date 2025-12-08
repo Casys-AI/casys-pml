@@ -102,5 +102,22 @@ export interface CapabilitySearchResult {
   similarity: number;
 }
 
+/**
+ * Result of intelligent capability matching (Story 7.3a)
+ * Includes final score calculation and threshold comparison data.
+ */
+export interface CapabilityMatch {
+  /** The matched capability */
+  capability: Capability;
+  /** Final calculated score (Semantic * Reliability) */
+  score: number;
+  /** Raw semantic similarity score (0-1) */
+  semanticScore: number;
+  /** The adaptive threshold used for the decision */
+  thresholdUsed: number;
+  /** The inferred parameters schema for calling this capability */
+  parametersSchema: JSONSchema | null;
+}
+
 // Note: Database row types are inferred from PGlite query results.
 // See rowToCapability() in capability-store.ts for the mapping logic.

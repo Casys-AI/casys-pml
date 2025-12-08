@@ -23,6 +23,10 @@ import { getWorkflowTemplatesPath } from "../utils.ts";
 import { autoInitIfConfigChanged } from "../auto-init.ts";
 import type { MCPServer } from "../../mcp/types.ts";
 import type { ToolExecutor } from "../../dag/types.ts";
+import { CapabilityMatcher } from "../../capabilities/matcher.ts";
+import { CapabilityStore } from "../../capabilities/capability-store.ts";
+import { SchemaInferrer } from "../../capabilities/schema-inferrer.ts";
+import { AdaptiveThresholdManager } from "../../mcp/adaptive-threshold.ts";
 
 /**
  * Find and validate config file
@@ -217,7 +221,13 @@ export function createServeCommand() {
         const graphEngine = new GraphRAGEngine(db);
         await graphEngine.syncFromDatabase();
 
-        const dagSuggester = new DAGSuggester(graphEngine, vectorSearch);
+        // 4.1 Initialize Capabilities System (Story 7.3a)
+        const schemaInferrer = new SchemaInferrer(db);
+        const capabilityStore = new CapabilityStore(db, embeddingModel, schemaInferrer);
+        const adaptiveThresholdManager = new AdaptiveThresholdManager({}, db);
+        const capabilityMatcher = new CapabilityMatcher(capabilityStore, adaptiveThresholdManager);
+
+        const dagSuggester = new DAGSuggester(graphEngine, vectorSearch, capabilityMatcher);
 
         // Create tool executor with tracking callback (Story 3.7)
         // Gateway reference will be set after gateway is created
@@ -262,6 +272,8 @@ export function createServeCommand() {
           dagSuggester,
           executor,
           mcpClients,
+          capabilityStore,
+          adaptiveThresholdManager,
           {
             name: "agentcards",
             version: "1.0.0",

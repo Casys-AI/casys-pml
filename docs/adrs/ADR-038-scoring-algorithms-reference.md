@@ -10,6 +10,15 @@ AgentCards utilise plusieurs algorithmes pour la découverte d'outils (Tools) et
 
 _Note: Cet ADR remplace et consolide les anciennes tentatives de définition d'algorithmes (ex-ADR-033)._
 
+## Implementation Status
+
+| Algorithm                | Component    | Status             | Location                                              |
+| :----------------------- | :----------- | :----------------- | :---------------------------------------------------- |
+| **Hybrid Search**        | Tools        | ✅ **Implemented** | `src/graphrag/graph-engine.ts`                        |
+| **Next Step Prediction** | Tools        | ✅ **Implemented** | `src/graphrag/dag-suggester.ts` (Refactored Dec 2025) |
+| **Capability Match**     | Capabilities | ✅ **Implemented** | `src/capabilities/matcher.ts` (Story 7.3a)            |
+| **Strategic Discovery**  | Capabilities | 🚧 **Todo**        | Story 7.4 (Spectral Clustering)                       |
+
 ---
 
 ## 1. Algorithms Matrix (Summary)
@@ -77,11 +86,11 @@ Trouve une capability qui répond à une demande explicite.
 
 ```typescript
 // Formule Multiplicative Stricte
-const matchScore = SemanticSimilarity * ReliabilityFactor;
+const matchScore = semanticScore * reliabilityFactor;
 ```
 
-- **SemanticSimilarity :** Vector Cosine Similarity (Intent vs Description).
-- **ReliabilityFactor :** `SuccessRate` historique.
+- **semanticScore :** Vector Cosine Similarity (Intent vs Description).
+- **reliabilityFactor :** Basé sur `successRate` historique.
 
   - Si `success_rate < 0.5` → Factor `0.1` (Disqualification).
   - Si `success_rate > 0.9` → Factor `1.2` (Bonus).
@@ -132,13 +141,14 @@ if (score >= threshold) {
 
 Les valeurs utilisées dans les formules doivent être monitorées et ajustées.
 
-| Value    | Algorithm       | Role                          | Status             |
-| :------- | :-------------- | :---------------------------- | :----------------- |
-| **0.60** | Tool Prediction | Poids Cooccurrence            | Validé (Empirique) |
-| **0.30** | Tool Prediction | Poids Louvain                 | Validé (Empirique) |
-| **0.50** | Hybrid Search   | Alpha Floor                   | Validé (ADR-022)   |
-| **0.50** | Reliability     | Seuil de pénalité SuccessRate | À valider          |
-| **1.20** | Reliability     | Bonus High Success            | À valider          |
+| Value    | Algorithm           | Role                          | Status             |
+| :------- | :------------------ | :---------------------------- | :----------------- |
+| **0.60** | Tool Prediction     | Poids Cooccurrence            | Validé (Empirique) |
+| **0.30** | Tool Prediction     | Poids Louvain                 | Validé (Empirique) |
+| **0.50** | Hybrid Search       | Alpha Floor                   | Validé (ADR-022)   |
+| **0.50** | Reliability         | Seuil de pénalité SuccessRate | À valider          |
+| **1.20** | Reliability         | Bonus High Success            | À valider          |
+| **0.50** | Strategic Discovery | Spectral Cluster Boost        | À valider          |
 
 ---
 

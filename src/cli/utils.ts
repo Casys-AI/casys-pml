@@ -7,6 +7,8 @@
  * @module cli/utils
  */
 
+import { resolvePath } from "../lib/paths.ts";
+
 /**
  * Detect the default MCP configuration path for Claude Desktop
  *
@@ -139,7 +141,7 @@ export function getAgentCardsDatabasePath(): string {
   // Allow custom DB path via environment variable (ADR-021)
   const customPath = Deno.env.get("AGENTCARDS_DB_PATH");
   if (customPath) {
-    return customPath;
+    return resolvePath(customPath);
   }
 
   // Default: ~/.agentcards/.agentcards.db

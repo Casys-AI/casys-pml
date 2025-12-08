@@ -4,22 +4,14 @@
   "license": "MIT",
   "exports": "./mod.ts",
   "publish": {
-    "include": [
-      "mod.ts",
-      "src/",
-      "README.md",
-      "LICENSE"
-    ],
-    "exclude": [
-      "src/**/*_test.ts",
-      "src/**/*.bench.ts"
-    ]
+    "include": ["mod.ts", "src/", "README.md", "LICENSE"],
+    "exclude": ["src/**/*_test.ts", "src/**/*.bench.ts"]
   },
   "nodeModulesDir": "auto",
   "tasks": {
-    "dev": "deno run --watch --allow-all --unstable-worker-options src/main.ts serve --port 3003 --config config/.mcp-servers.json",
-    "dev:api": "deno run --watch --allow-all --unstable-worker-options src/main.ts serve --port 3003 --config config/.mcp-servers.json",
-    "dev:fresh": "cd src/web && vite",
+    "dev": "deno run --watch --allow-all --env --unstable-worker-options src/main.ts serve --port 3003 --config config/.mcp-servers.json",
+    "dev:api": "deno run --watch --allow-all --env --unstable-worker-options src/main.ts serve --port 3003 --config config/.mcp-servers.json",
+    "dev:fresh": "cd src/web && deno run -A --env --unstable-kv --node-modules-dir=auto npm:vite",
     "dev:build": "cd src/web && vite build",
     "prod:start": "sudo systemctl start casys-dashboard casys-api",
     "prod:start:dashboard": "sudo systemctl start casys-dashboard",
@@ -64,9 +56,7 @@
   },
   "lint": {
     "rules": {
-      "tags": [
-        "recommended"
-      ]
+      "tags": ["recommended"]
     },
     "exclude": [
       "tests/integration/",
@@ -112,7 +102,8 @@
     "@seontechnologies/playwright-utils": "npm:@seontechnologies/playwright-utils@^3.10.1",
     "drizzle-orm": "npm:drizzle-orm@^0.39.1",
     "drizzle-kit": "npm:drizzle-kit@^0.30.4",
-    "@ts-rex/argon2": "jsr:@ts-rex/argon2@^1.0.0"
+    "@ts-rex/argon2": "jsr:@ts-rex/argon2@^1.0.0",
+    "@deno/kv-oauth": "jsr:@deno/kv-oauth@^0.11.0"
   },
   "compilerOptions": {
     "strict": true,
