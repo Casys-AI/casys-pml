@@ -84,11 +84,6 @@ scripts/deploy.sh
 
 # BMAD methodology framework (proprietary)
 .bmad/
-.bmad-*
-bmad-*
-.agent/
-.windsurf
-
 
 
 # Internal documentation (not for open source)
