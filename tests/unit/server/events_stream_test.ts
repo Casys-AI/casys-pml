@@ -1,48 +1,15 @@
 /**
  * Unit tests for EventsStreamManager
  * Story 6.1: Real-time Events Stream (SSE)
+ * Story 6.5: EventBus Integration (ADR-036)
  */
 
 import { assertEquals, assertExists } from "@std/assert";
 import { EventsStreamManager } from "../../../src/server/events-stream.ts";
-import type { GraphRAGEngine } from "../../../src/graphrag/graph-engine.ts";
-import type { GraphEvent } from "../../../src/graphrag/events.ts";
-
-// Mock GraphRAGEngine
-class MockGraphEngine {
-  private listeners: Map<string, ((event: GraphEvent) => void)[]> = new Map();
-
-  on(event: "graph_event", listener: (event: GraphEvent) => void): void {
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, []);
-    }
-    this.listeners.get(event)!.push(listener);
-  }
-
-  off(event: "graph_event", listener: (event: GraphEvent) => void): void {
-    const listeners = this.listeners.get(event);
-    if (listeners) {
-      const index = listeners.indexOf(listener);
-      if (index !== -1) {
-        listeners.splice(index, 1);
-      }
-    }
-  }
-
-  // Test helper: emit event to all listeners
-  emitEvent(event: GraphEvent): void {
-    const listeners = this.listeners.get("graph_event");
-    if (listeners) {
-      for (const listener of listeners) {
-        listener(event);
-      }
-    }
-  }
-}
+import { eventBus } from "../../../src/events/mod.ts";
 
 Deno.test("EventsStreamManager - initialization", () => {
-  const mockEngine = new MockGraphEngine() as unknown as GraphRAGEngine;
-  const manager = new EventsStreamManager(mockEngine);
+  const manager = new EventsStreamManager();
 
   const stats = manager.getStats();
   assertEquals(stats.connectedClients, 0);
@@ -52,8 +19,7 @@ Deno.test("EventsStreamManager - initialization", () => {
 });
 
 Deno.test("EventsStreamManager - client limit enforcement", async () => {
-  const mockEngine = new MockGraphEngine() as unknown as GraphRAGEngine;
-  const manager = new EventsStreamManager(mockEngine, {
+  const manager = new EventsStreamManager({
     maxClients: 2,
     heartbeatIntervalMs: 60000,
     corsOrigins: [],
@@ -90,8 +56,7 @@ Deno.test("EventsStreamManager - client limit enforcement", async () => {
 });
 
 Deno.test("EventsStreamManager - CORS headers", () => {
-  const mockEngine = new MockGraphEngine() as unknown as GraphRAGEngine;
-  const manager = new EventsStreamManager(mockEngine, {
+  const manager = new EventsStreamManager({
     maxClients: 100,
     heartbeatIntervalMs: 60000,
     corsOrigins: ["http://localhost:3000", "http://localhost:*"],
@@ -112,8 +77,7 @@ Deno.test("EventsStreamManager - CORS headers", () => {
 });
 
 Deno.test("EventsStreamManager - CORS wildcard pattern", () => {
-  const mockEngine = new MockGraphEngine() as unknown as GraphRAGEngine;
-  const manager = new EventsStreamManager(mockEngine, {
+  const manager = new EventsStreamManager({
     maxClients: 100,
     heartbeatIntervalMs: 60000,
     corsOrigins: ["http://localhost:*"],
@@ -133,8 +97,7 @@ Deno.test("EventsStreamManager - CORS wildcard pattern", () => {
 });
 
 Deno.test("EventsStreamManager - response headers", () => {
-  const mockEngine = new MockGraphEngine() as unknown as GraphRAGEngine;
-  const manager = new EventsStreamManager(mockEngine);
+  const manager = new EventsStreamManager();
 
   const controller = new AbortController();
   const req = new Request("http://localhost/events/stream", {
@@ -152,8 +115,7 @@ Deno.test("EventsStreamManager - response headers", () => {
 });
 
 Deno.test("EventsStreamManager - stats tracking", () => {
-  const mockEngine = new MockGraphEngine() as unknown as GraphRAGEngine;
-  const manager = new EventsStreamManager(mockEngine);
+  const manager = new EventsStreamManager();
 
   const stats1 = manager.getStats();
   assertEquals(stats1.connectedClients, 0);
@@ -174,8 +136,7 @@ Deno.test("EventsStreamManager - stats tracking", () => {
 });
 
 Deno.test("EventsStreamManager - cleanup on close", () => {
-  const mockEngine = new MockGraphEngine() as unknown as GraphRAGEngine;
-  const manager = new EventsStreamManager(mockEngine);
+  const manager = new EventsStreamManager();
 
   const controller = new AbortController();
   const req = new Request("http://localhost/events/stream", {
@@ -188,4 +149,53 @@ Deno.test("EventsStreamManager - cleanup on close", () => {
   manager.close();
 
   assertEquals(manager.getStats().connectedClients, 0);
+});
+
+// Story 6.5: Filter tests
+Deno.test("EventsStreamManager - filter parameter parsing", () => {
+  const manager = new EventsStreamManager();
+
+  const controller = new AbortController();
+  const req = new Request("http://localhost/events/stream?filter=dag.*,algorithm.*", {
+    signal: controller.signal,
+  });
+
+  const res = manager.handleRequest(req);
+  assertEquals(res.status, 200);
+
+  manager.close();
+});
+
+Deno.test("EventsStreamManager - subscribes to EventBus", async () => {
+  const manager = new EventsStreamManager({
+    maxClients: 10,
+    heartbeatIntervalMs: 60000,
+    corsOrigins: ["*"],
+  });
+
+  const controller = new AbortController();
+  const req = new Request("http://localhost/events/stream", {
+    signal: controller.signal,
+  });
+
+  const res = manager.handleRequest(req);
+  assertEquals(res.status, 200);
+
+  // Give time for connected event to be sent
+  await new Promise((resolve) => setTimeout(resolve, 50));
+
+  // Emit an event via EventBus - it should be received by the manager
+  eventBus.emit({
+    type: "tool.start",
+    source: "test",
+    payload: { tool_id: "test:tool", trace_id: "123" },
+  });
+
+  // Give time for event to propagate
+  await new Promise((resolve) => setTimeout(resolve, 50));
+
+  // Manager should still have 1 client
+  assertEquals(manager.getStats().connectedClients, 1);
+
+  manager.close();
 });

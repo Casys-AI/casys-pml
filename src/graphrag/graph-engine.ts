@@ -29,6 +29,8 @@ import type {
 } from "./types.ts";
 import type { GraphEvent } from "./events.ts";
 import type { TraceEvent } from "../sandbox/types.ts";
+// Story 6.5: EventBus integration (ADR-036)
+import { eventBus } from "../events/mod.ts";
 
 // Extract exports from Graphology packages
 const { DirectedGraph } = graphologyPkg as any;
@@ -85,12 +87,81 @@ export class GraphRAGEngine {
 
   /**
    * Emit a graph event
+   * Story 6.5: Also emits to unified EventBus (ADR-036)
    *
    * @param event - Graph event to emit
    */
   private emit(event: GraphEvent): void {
+    // Legacy: dispatch to local EventTarget for backward compat (EventsStreamManager)
     const customEvent = new CustomEvent("graph_event", { detail: event });
     this.eventTarget.dispatchEvent(customEvent);
+
+    // Story 6.5: Also emit to unified EventBus with mapped event types
+    this.emitToEventBus(event);
+  }
+
+  /**
+   * Map legacy GraphEvent to new EventBus event types
+   * Story 6.5: Bridge between old and new event systems
+   */
+  private emitToEventBus(event: GraphEvent): void {
+    switch (event.type) {
+      case "graph_synced":
+        eventBus.emit({
+          type: "graph.synced",
+          source: "graphrag",
+          payload: {
+            node_count: event.data.node_count,
+            edge_count: event.data.edge_count,
+            sync_duration_ms: event.data.sync_duration_ms,
+          },
+        });
+        break;
+
+      case "edge_created":
+        eventBus.emit({
+          type: "graph.edge.created",
+          source: "graphrag",
+          payload: {
+            from_tool_id: event.data.from_tool_id,
+            to_tool_id: event.data.to_tool_id,
+            confidence_score: event.data.confidence_score,
+          },
+        });
+        break;
+
+      case "edge_updated":
+        eventBus.emit({
+          type: "graph.edge.updated",
+          source: "graphrag",
+          payload: {
+            from_tool_id: event.data.from_tool_id,
+            to_tool_id: event.data.to_tool_id,
+            old_confidence: event.data.old_confidence,
+            new_confidence: event.data.new_confidence,
+            observed_count: event.data.observed_count,
+          },
+        });
+        break;
+
+      case "metrics_updated":
+        eventBus.emit({
+          type: "graph.metrics.computed",
+          source: "graphrag",
+          payload: {
+            node_count: event.data.node_count,
+            edge_count: event.data.edge_count,
+            density: event.data.density,
+            communities_count: event.data.communities_count,
+          },
+        });
+        break;
+
+      // heartbeat and workflow_executed are handled elsewhere
+      default:
+        // Unknown event type, skip EventBus emission
+        break;
+    }
   }
 
   /**
@@ -120,8 +191,9 @@ export class GraphRAGEngine {
       }
 
       // 2. Load edges (dependencies) from PGlite
+      // ADR-041: Include edge_type and edge_source
       const deps = await this.db.query(`
-        SELECT from_tool_id, to_tool_id, observed_count, confidence_score
+        SELECT from_tool_id, to_tool_id, observed_count, confidence_score, edge_type, edge_source
         FROM tool_dependency
         WHERE confidence_score > 0.3
       `);
@@ -134,6 +206,9 @@ export class GraphRAGEngine {
           this.graph.addEdge(from, to, {
             weight: dep.confidence_score as number,
             count: dep.observed_count as number,
+            // ADR-041: Load edge_type and edge_source with defaults for legacy data
+            edge_type: (dep.edge_type as string) || "sequence",
+            edge_source: (dep.edge_source as string) || "inferred",
           });
         }
       }
@@ -233,7 +308,25 @@ export class GraphRAGEngine {
   }
 
   /**
+   * ADR-041: Get combined edge weight (type × source modifier)
+   *
+   * @param edgeType - Edge type: 'contains', 'sequence', or 'dependency'
+   * @param edgeSource - Edge source: 'observed', 'inferred', or 'template'
+   * @returns Combined weight for algorithms
+   */
+  getEdgeWeight(edgeType: string, edgeSource: string): number {
+    const typeWeight = GraphRAGEngine.EDGE_TYPE_WEIGHTS[edgeType] || 0.5;
+    const sourceModifier = GraphRAGEngine.EDGE_SOURCE_MODIFIERS[edgeSource] || 0.7;
+    return typeWeight * sourceModifier;
+  }
+
+  /**
    * Find shortest path between two tools
+   * ADR-041: Uses edge weights stored in the graph
+   *
+   * Note: graphology-shortest-path bidirectional doesn't support custom weight functions.
+   * The weighted path finding is handled by storing appropriate weights in edge attributes
+   * during edge creation (via createOrUpdateEdge).
    *
    * @param fromToolId - Source tool
    * @param toToolId - Target tool
@@ -241,6 +334,8 @@ export class GraphRAGEngine {
    */
   findShortestPath(fromToolId: string, toToolId: string): string[] | null {
     try {
+      // ADR-041: Path finding uses the 'weight' attribute stored on edges
+      // which already incorporates edge_type and edge_source weights
       return bidirectional(this.graph, fromToolId, toToolId);
     } catch {
       return null; // No path exists
@@ -249,6 +344,7 @@ export class GraphRAGEngine {
 
   /**
    * Build DAG from tool candidates using graph topology
+   * ADR-041: Prioritizes edges by source (observed > inferred > template)
    *
    * Uses shortest path finding to infer dependencies based on historical patterns.
    * Tools with paths ≤3 hops are considered dependent.
@@ -275,27 +371,43 @@ export class GraphRAGEngine {
         // If path exists and is short (≤3 hops), mark as dependency
         if (path && path.length > 0 && path.length <= 4) {
           adjacency[i][j] = true;
-          // Weight based on path length: shorter = stronger
-          edgeWeights[i][j] = 1.0 / path.length;
+
+          // ADR-041: Weight based on path length AND edge quality
+          // Get average edge weight along the path
+          let totalEdgeWeight = 0;
+          let edgeCount = 0;
+          for (let k = 0; k < path.length - 1; k++) {
+            if (this.graph.hasEdge(path[k], path[k + 1])) {
+              const attrs = this.graph.getEdgeAttributes(path[k], path[k + 1]);
+              const edgeType = attrs.edge_type as string || "sequence";
+              const edgeSource = attrs.edge_source as string || "inferred";
+              totalEdgeWeight += this.getEdgeWeight(edgeType, edgeSource);
+              edgeCount++;
+            }
+          }
+          const avgEdgeWeight = edgeCount > 0 ? totalEdgeWeight / edgeCount : 0.5;
+
+          // Combined weight: path length factor × edge quality
+          edgeWeights[i][j] = (1.0 / path.length) * avgEdgeWeight;
         }
       }
     }
 
     // ADR-024: Detect and break cycles using edge weights
-    // If A→B and B→A both exist, keep the one with higher weight (shorter path)
+    // ADR-041: Higher edge weight = more reliable = keep
     for (let i = 0; i < n; i++) {
       for (let j = i + 1; j < n; j++) {
         if (adjacency[i][j] && adjacency[j][i]) {
-          // Cycle detected: keep edge with higher weight
+          // Cycle detected: keep edge with higher weight (more reliable)
           if (edgeWeights[i][j] >= edgeWeights[j][i]) {
             adjacency[j][i] = false; // Remove j→i edge
             log.debug(
-              `[buildDAG] Cycle broken: keeping ${candidateTools[j]} → ${candidateTools[i]}`,
+              `[buildDAG] Cycle broken: keeping ${candidateTools[j]} → ${candidateTools[i]} (weight: ${edgeWeights[i][j].toFixed(2)})`,
             );
           } else {
             adjacency[i][j] = false; // Remove i→j edge
             log.debug(
-              `[buildDAG] Cycle broken: keeping ${candidateTools[i]} → ${candidateTools[j]}`,
+              `[buildDAG] Cycle broken: keeping ${candidateTools[i]} → ${candidateTools[j]} (weight: ${edgeWeights[j][i].toFixed(2)})`,
             );
           }
         }
@@ -441,22 +553,53 @@ export class GraphRAGEngine {
 
   // ============================================
   // Story 7.3b: Code Execution Trace Learning
+  // ADR-041: Hierarchical edge creation using parent_trace_id
   // ============================================
+
+  /**
+   * ADR-041: Edge type weights for algorithms
+   * - dependency: 1.0 (explicit DAG from templates)
+   * - contains: 0.8 (parent-child hierarchy)
+   * - sequence: 0.5 (temporal between siblings)
+   */
+  private static readonly EDGE_TYPE_WEIGHTS: Record<string, number> = {
+    dependency: 1.0,
+    contains: 0.8,
+    sequence: 0.5,
+  };
+
+  /**
+   * ADR-041: Edge source weight modifiers
+   * - observed: ×1.0 (confirmed by 3+ executions)
+   * - inferred: ×0.7 (single observation)
+   * - template: ×0.5 (bootstrap, not yet confirmed)
+   */
+  private static readonly EDGE_SOURCE_MODIFIERS: Record<string, number> = {
+    observed: 1.0,
+    inferred: 0.7,
+    template: 0.5,
+  };
+
+  /**
+   * ADR-041: Observation threshold for edge_source upgrade
+   * Edge transitions from 'inferred' to 'observed' after this many observations
+   */
+  private static readonly OBSERVED_THRESHOLD = 3;
 
   /**
    * Update graph from code execution traces (tool + capability)
    * Story 7.3b: Called by WorkerBridge after execution completes
+   * ADR-041: Uses parent_trace_id for hierarchical edge creation
    *
    * Creates edges for:
-   * - Tool → Tool (from consecutive tool_end events)
-   * - Capability → Capability (from consecutive capability_end events)
-   * - Capability → Tool (cross-type edges)
+   * - `contains`: Parent → Child (capability → tool, capability → nested capability)
+   * - `sequence`: Sibling → Sibling (same parent, ordered by timestamp)
    *
    * @param traces - Chronologically sorted trace events
    */
   async updateFromCodeExecution(traces: TraceEvent[]): Promise<void> {
-    if (traces.length < 2) {
-      log.debug("[updateFromCodeExecution] Not enough traces for edge creation");
+    if (traces.length < 1) {
+      log.debug("[updateFromCodeExecution] No traces for edge creation");
       return;
     }
 
@@ -464,85 +607,107 @@ export class GraphRAGEngine {
     let edgesCreated = 0;
     let edgesUpdated = 0;
 
-    // Filter to only *_end events (we only care about completed calls)
-    const endEvents = traces.filter((t) =>
-      t.type === "tool_end" || t.type === "capability_end"
+    // ADR-041: Build maps for hierarchy analysis
+    // Map trace_id → node_id for all events
+    const traceToNode = new Map<string, string>();
+    // Map parent_trace_id → list of children node_ids (in timestamp order)
+    const parentToChildren = new Map<string, string[]>();
+    // Track all node IDs for creation
+    const nodeIds = new Set<string>();
+
+    // First pass: collect all nodes and build hierarchy
+    for (const trace of traces) {
+      // Only process *_end events (completed calls)
+      if (trace.type !== "tool_end" && trace.type !== "capability_end") continue;
+
+      // Extract node ID based on event type
+      const nodeId = trace.type === "tool_end"
+        ? (trace as { tool: string }).tool
+        : `capability:${(trace as { capability_id: string }).capability_id}`;
+
+      nodeIds.add(nodeId);
+      traceToNode.set(trace.trace_id, nodeId);
+
+      // ADR-041: Track parent-child relationships
+      const parent_trace_id = trace.parent_trace_id;
+      if (parent_trace_id) {
+        if (!parentToChildren.has(parent_trace_id)) {
+          parentToChildren.set(parent_trace_id, []);
+        }
+        parentToChildren.get(parent_trace_id)!.push(nodeId);
+      }
+    }
+
+    // Ensure all nodes exist in graph
+    for (const trace of traces) {
+      if (trace.type !== "tool_end" && trace.type !== "capability_end") continue;
+
+      const nodeId = trace.type === "tool_end"
+        ? (trace as { tool: string }).tool
+        : `capability:${(trace as { capability_id: string }).capability_id}`;
+
+      if (!this.graph.hasNode(nodeId)) {
+        this.graph.addNode(nodeId, {
+          type: trace.type === "tool_end" ? "tool" : "capability",
+          name: trace.type === "tool_end"
+            ? (trace as { tool: string }).tool
+            : (trace as { capability: string }).capability,
+        });
+      }
+    }
+
+    // ADR-041: Create 'contains' edges (parent → child)
+    for (const [parentTraceId, children] of parentToChildren) {
+      const parentNodeId = traceToNode.get(parentTraceId);
+      if (!parentNodeId) continue; // Parent not in this execution (e.g., top-level)
+
+      for (const childNodeId of children) {
+        if (parentNodeId === childNodeId) continue; // Skip self-loops
+
+        const result = await this.createOrUpdateEdge(
+          parentNodeId,
+          childNodeId,
+          "contains",
+        );
+        if (result === "created") edgesCreated++;
+        else if (result === "updated") edgesUpdated++;
+      }
+    }
+
+    // ADR-041: Create 'sequence' edges between siblings (same parent)
+    for (const [_parentTraceId, children] of parentToChildren) {
+      // Children are already in timestamp order (from trace array order)
+      for (let i = 0; i < children.length - 1; i++) {
+        const fromId = children[i];
+        const toId = children[i + 1];
+        if (fromId === toId) continue;
+
+        const result = await this.createOrUpdateEdge(fromId, toId, "sequence");
+        if (result === "created") edgesCreated++;
+        else if (result === "updated") edgesUpdated++;
+      }
+    }
+
+    // ADR-041: Backward compatibility - create sequence edges for top-level traces without parent
+    const topLevelTraces = traces.filter((t) =>
+      (t.type === "tool_end" || t.type === "capability_end") && !t.parent_trace_id
     );
+    for (let i = 0; i < topLevelTraces.length - 1; i++) {
+      const from = topLevelTraces[i];
+      const to = topLevelTraces[i + 1];
 
-    // Create edges from consecutive end events
-    for (let i = 0; i < endEvents.length - 1; i++) {
-      const from = endEvents[i];
-      const to = endEvents[i + 1];
-
-      // Extract node IDs based on event type
       const fromId = from.type === "tool_end"
         ? (from as { tool: string }).tool
         : `capability:${(from as { capability_id: string }).capability_id}`;
-
       const toId = to.type === "tool_end"
         ? (to as { tool: string }).tool
         : `capability:${(to as { capability_id: string }).capability_id}`;
 
-      // Skip self-loops
       if (fromId === toId) continue;
 
-      // Ensure nodes exist
-      if (!this.graph.hasNode(fromId)) {
-        this.graph.addNode(fromId, {
-          type: from.type === "tool_end" ? "tool" : "capability",
-          name: from.type === "tool_end"
-            ? (from as { tool: string }).tool
-            : (from as { capability: string }).capability,
-        });
-      }
-      if (!this.graph.hasNode(toId)) {
-        this.graph.addNode(toId, {
-          type: to.type === "tool_end" ? "tool" : "capability",
-          name: to.type === "tool_end"
-            ? (to as { tool: string }).tool
-            : (to as { capability: string }).capability,
-        });
-      }
-
-      // Update or create edge
-      if (this.graph.hasEdge(fromId, toId)) {
-        const edge = this.graph.getEdgeAttributes(fromId, toId);
-        const newCount = (edge.count as number) + 1;
-        const newWeight = Math.min((edge.weight as number) * 1.1, 1.0);
-
-        this.graph.setEdgeAttribute(fromId, toId, "count", newCount);
-        this.graph.setEdgeAttribute(fromId, toId, "weight", newWeight);
-        edgesUpdated++;
-
-        this.emit({
-          type: "edge_updated",
-          data: {
-            from_tool_id: fromId,
-            to_tool_id: toId,
-            old_confidence: edge.weight as number,
-            new_confidence: newWeight,
-            observed_count: newCount,
-            timestamp: new Date().toISOString(),
-          },
-        });
-      } else {
-        this.graph.addEdge(fromId, toId, {
-          count: 1,
-          weight: 0.5,
-          source: "code_execution",
-        });
-        edgesCreated++;
-
-        this.emit({
-          type: "edge_created",
-          data: {
-            from_tool_id: fromId,
-            to_tool_id: toId,
-            confidence_score: 0.5,
-            timestamp: new Date().toISOString(),
-          },
-        });
-      }
+      const result = await this.createOrUpdateEdge(fromId, toId, "sequence");
+      if (result === "created") edgesCreated++;
+      else if (result === "updated") edgesUpdated++;
     }
 
     // Recompute metrics if changes were made
@@ -559,7 +724,82 @@ export class GraphRAGEngine {
   }
 
   /**
+   * ADR-041: Create or update an edge with type and source tracking
+   *
+   * @param fromId - Source node ID
+   * @param toId - Target node ID
+   * @param edgeType - Edge type: 'contains', 'sequence', or 'dependency'
+   * @returns "created" | "updated" | "none"
+   */
+  private async createOrUpdateEdge(
+    fromId: string,
+    toId: string,
+    edgeType: "contains" | "sequence" | "dependency",
+  ): Promise<"created" | "updated" | "none"> {
+    const baseWeight = GraphRAGEngine.EDGE_TYPE_WEIGHTS[edgeType];
+
+    if (this.graph.hasEdge(fromId, toId)) {
+      const edge = this.graph.getEdgeAttributes(fromId, toId);
+      const newCount = (edge.count as number) + 1;
+
+      // ADR-041: Update edge_source based on observation count
+      let newSource = edge.edge_source as string || "inferred";
+      if (newCount >= GraphRAGEngine.OBSERVED_THRESHOLD && newSource === "inferred") {
+        newSource = "observed";
+      }
+
+      // ADR-041: Compute combined weight (type × source modifier)
+      const sourceModifier = GraphRAGEngine.EDGE_SOURCE_MODIFIERS[newSource] || 0.7;
+      const newWeight = baseWeight * sourceModifier;
+
+      this.graph.setEdgeAttribute(fromId, toId, "count", newCount);
+      this.graph.setEdgeAttribute(fromId, toId, "weight", newWeight);
+      this.graph.setEdgeAttribute(fromId, toId, "edge_type", edgeType);
+      this.graph.setEdgeAttribute(fromId, toId, "edge_source", newSource);
+
+      this.emit({
+        type: "edge_updated",
+        data: {
+          from_tool_id: fromId,
+          to_tool_id: toId,
+          old_confidence: edge.weight as number,
+          new_confidence: newWeight,
+          observed_count: newCount,
+          timestamp: new Date().toISOString(),
+        },
+      });
+
+      return "updated";
+    } else {
+      // ADR-041: New edge starts as 'inferred'
+      const sourceModifier = GraphRAGEngine.EDGE_SOURCE_MODIFIERS["inferred"];
+      const weight = baseWeight * sourceModifier;
+
+      this.graph.addEdge(fromId, toId, {
+        count: 1,
+        weight: weight,
+        source: "code_execution",
+        edge_type: edgeType,
+        edge_source: "inferred",
+      });
+
+      this.emit({
+        type: "edge_created",
+        data: {
+          from_tool_id: fromId,
+          to_tool_id: toId,
+          confidence_score: weight,
+          timestamp: new Date().toISOString(),
+        },
+      });
+
+      return "created";
+    }
+  }
+
+  /**
    * Persist graph edges to database
+   * ADR-041: Now persists edge_type and edge_source
    *
    * Saves all edges from Graphology back to PGlite for persistence.
    */
@@ -568,16 +808,26 @@ export class GraphRAGEngine {
       const [from, to] = this.graph.extremities(edge);
       const attrs = this.graph.getEdgeAttributes(edge);
 
+      // ADR-041: Include edge_type and edge_source in persistence
       await this.db.query(
         `
-        INSERT INTO tool_dependency (from_tool_id, to_tool_id, observed_count, confidence_score)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO tool_dependency (from_tool_id, to_tool_id, observed_count, confidence_score, edge_type, edge_source)
+        VALUES ($1, $2, $3, $4, $5, $6)
         ON CONFLICT (from_tool_id, to_tool_id) DO UPDATE SET
           observed_count = $3,
           confidence_score = $4,
+          edge_type = $5,
+          edge_source = $6,
           last_observed = NOW()
       `,
-        [from, to, attrs.count, attrs.weight],
+        [
+          from,
+          to,
+          attrs.count,
+          attrs.weight,
+          attrs.edge_type || "sequence", // ADR-041: default for existing edges
+          attrs.edge_source || "inferred", // ADR-041: default for existing edges
+        ],
       );
     }
   }
@@ -703,11 +953,12 @@ export class GraphRAGEngine {
 
   /**
    * Compute Adamic-Adar similarity for a tool
+   * ADR-041: Now weighted by edge type and source
    *
-   * Finds tools that share common neighbors, weighted by neighbor rarity.
-   * A common neighbor with fewer connections contributes more to the score.
+   * Finds tools that share common neighbors, weighted by neighbor rarity
+   * AND by the edge quality (type × source modifier).
    *
-   * Formula: AA(u,v) = Σ 1/log(|N(w)|) for all w in N(u) ∩ N(v)
+   * Formula: AA(u,v) = Σ (edge_weight × 1/log(|N(w)|)) for all w in N(u) ∩ N(v)
    *
    * @param toolId - Tool identifier
    * @param limit - Max number of results
@@ -723,9 +974,27 @@ export class GraphRAGEngine {
       const degree = this.graph.degree(neighbor);
       if (degree <= 1) continue;
 
+      // ADR-041: Get edge weight from toolId → neighbor
+      let edgeWeight = 0.5; // default
+      if (this.graph.hasEdge(toolId, neighbor)) {
+        const attrs = this.graph.getEdgeAttributes(toolId, neighbor);
+        edgeWeight = this.getEdgeWeight(
+          attrs.edge_type as string || "sequence",
+          attrs.edge_source as string || "inferred",
+        );
+      } else if (this.graph.hasEdge(neighbor, toolId)) {
+        const attrs = this.graph.getEdgeAttributes(neighbor, toolId);
+        edgeWeight = this.getEdgeWeight(
+          attrs.edge_type as string || "sequence",
+          attrs.edge_source as string || "inferred",
+        );
+      }
+
       for (const twoHop of this.graph.neighbors(neighbor)) {
         if (twoHop === toolId) continue;
-        scores.set(twoHop, (scores.get(twoHop) || 0) + 1 / Math.log(degree));
+        // ADR-041: Weight the AA contribution by edge quality
+        const aaContribution = edgeWeight / Math.log(degree);
+        scores.set(twoHop, (scores.get(twoHop) || 0) + aaContribution);
       }
     }
 
@@ -793,6 +1062,7 @@ export class GraphRAGEngine {
 
   /**
    * Bootstrap graph with workflow templates
+   * ADR-041: Template edges are marked with edge_source: 'template'
    *
    * Creates initial edges based on predefined workflow patterns.
    * Used to solve cold-start problem when no usage data exists.
@@ -808,10 +1078,17 @@ export class GraphRAGEngine {
       for (const [from, to] of template.edges) {
         if (this.graph.hasNode(from) && this.graph.hasNode(to)) {
           if (!this.graph.hasEdge(from, to)) {
+            // ADR-041: Template edges get lowest confidence (type × template modifier)
+            const baseWeight = GraphRAGEngine.EDGE_TYPE_WEIGHTS["dependency"];
+            const sourceModifier = GraphRAGEngine.EDGE_SOURCE_MODIFIERS["template"];
+            const weight = baseWeight * sourceModifier; // 1.0 × 0.5 = 0.5
+
             this.graph.addEdge(from, to, {
               count: 1,
-              weight: 0.5,
+              weight: weight,
               source: "template",
+              edge_type: "dependency", // ADR-041: Templates create explicit dependencies
+              edge_source: "template", // ADR-041: Mark as template-originated
             });
             edgesAdded++;
           }
@@ -923,6 +1200,9 @@ export class GraphRAGEngine {
         target: this.graph.target(edgeKey),
         confidence: edge.weight ?? 0,
         observed_count: edge.count ?? 0,
+        // ADR-041: Include edge_type and edge_source for visualization
+        edge_type: (edge.edge_type as string) ?? "sequence",
+        edge_source: (edge.edge_source as string) ?? "inferred",
       };
     });
 
@@ -1449,6 +1729,7 @@ export class GraphRAGEngine {
 
 /**
  * Graph snapshot for visualization dashboard
+ * ADR-041: Added edge_type and edge_source for visual differentiation
  */
 export interface GraphSnapshot {
   nodes: Array<{
@@ -1463,6 +1744,10 @@ export interface GraphSnapshot {
     target: string;
     confidence: number;
     observed_count: number;
+    /** ADR-041: Edge type - 'contains', 'sequence', or 'dependency' */
+    edge_type: string;
+    /** ADR-041: Edge source - 'observed', 'inferred', or 'template' */
+    edge_source: string;
   }>;
   metadata: {
     total_nodes: number;

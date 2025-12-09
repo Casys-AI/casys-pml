@@ -16,6 +16,8 @@ import type { CacheConfig, Capability, SaveCapabilityInput } from "./types.ts";
 import { hashCode } from "./hash.ts";
 import { getLogger } from "../telemetry/logger.ts";
 import type { SchemaInferrer } from "./schema-inferrer.ts";
+// Story 6.5: EventBus integration (ADR-036)
+import { eventBus } from "../events/mod.ts";
 
 const logger = getLogger("default");
 
@@ -186,6 +188,21 @@ export class CapabilityStore {
       successRate: capability.successRate,
     });
 
+    // Story 6.5: Emit capability.learned event (ADR-036)
+    eventBus.emit({
+      type: "capability.learned",
+      source: "capability-store",
+      payload: {
+        capability_id: capability.id,
+        name: capability.name ?? this.generateName(intent),
+        intent: intent.substring(0, 100), // Truncate for event payload
+        tools_used: toolsUsed ?? [],
+        is_new: capability.usageCount === 1,
+        usage_count: capability.usageCount,
+        success_rate: capability.successRate,
+      },
+    });
+
     return capability;
   }
 
@@ -245,32 +262,34 @@ export class CapabilityStore {
    *
    * @param intent Natural language query
    * @param limit Maximum results (default: 5)
-   * @param minSimilarity Minimum similarity threshold (default: 0.5)
-   * @returns Capabilities sorted by similarity
+   * @param minSemanticScore Minimum semantic score threshold (default: 0.5)
+   * @returns Capabilities sorted by semanticScore (harmonized with HybridSearchResult)
    */
   async searchByIntent(
     intent: string,
     limit = 5,
-    minSimilarity = 0.5,
-  ): Promise<Array<{ capability: Capability; similarity: number }>> {
+    minSemanticScore = 0.5,
+  ): Promise<Array<{ capability: Capability; semanticScore: number }>> {
     const embedding = await this.embeddingModel.encode(intent);
     const embeddingStr = `[${embedding.join(",")}]`;
 
     const result = await this.db.query(
       `SELECT *,
-        1 - (intent_embedding <=> $1::vector) as similarity
+        1 - (intent_embedding <=> $1::vector) as semantic_score
       FROM workflow_pattern
       WHERE code_hash IS NOT NULL
         AND 1 - (intent_embedding <=> $1::vector) >= $2
       ORDER BY intent_embedding <=> $1::vector
       LIMIT $3`,
-      [embeddingStr, minSimilarity, limit],
+      [embeddingStr, minSemanticScore, limit],
     );
 
-    return result.map((row) => ({
+    const matches = result.map((row) => ({
       capability: this.rowToCapability(row as Row),
-      similarity: row.similarity as number,
+      semanticScore: row.semantic_score as number,
     }));
+
+    return matches;
   }
 
   /**

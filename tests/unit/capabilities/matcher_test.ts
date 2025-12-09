@@ -57,7 +57,7 @@ Deno.test("CapabilityMatcher - finds match above threshold", async () => {
   // Setup: Cap with 0.9 semantic, 1.0 reliability
   // Score = 0.9 * 1.2 (boost) = 1.08 (capped at 0.95)
   const cap = createCap("cap-1", 1.0);
-  (store as any).setSearchResults([{ capability: cap, similarity: 0.9 }]);
+  (store as any).setSearchResults([{ capability: cap, semanticScore: 0.9 }]);
 
   const match = await matcher.findMatch("test intent");
 
@@ -78,7 +78,7 @@ Deno.test("CapabilityMatcher - rejects match below threshold", async () => {
   (thresholds as any).setThresholds({ suggestionThreshold: 0.80, explicitThreshold: 0.50 });
   
   const cap = createCap("cap-1", 1.0);
-  (store as any).setSearchResults([{ capability: cap, similarity: 0.6 }]);
+  (store as any).setSearchResults([{ capability: cap, semanticScore: 0.6 }]);
 
   const match = await matcher.findMatch("test intent");
 
@@ -94,7 +94,7 @@ Deno.test("CapabilityMatcher - penalizes low reliability", async () => {
   // Score = 0.9 * 0.1 (penalty) = 0.09
   // Threshold = 0.70
   const cap = createCap("cap-bad", 0.4);
-  (store as any).setSearchResults([{ capability: cap, similarity: 0.9 }]);
+  (store as any).setSearchResults([{ capability: cap, semanticScore: 0.9 }]);
 
   const match = await matcher.findMatch("test intent");
 

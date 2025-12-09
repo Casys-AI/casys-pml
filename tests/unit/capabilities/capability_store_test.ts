@@ -466,7 +466,7 @@ Deno.test("CapabilityStore - searchByIntent returns matching capabilities", asyn
 
   // Should return results (mock embedding creates deterministic values)
   assertEquals(results.length >= 1, true);
-  assertEquals(results[0].similarity >= 0, true);
+  assertEquals(results[0].semanticScore >= 0, true);
   assertExists(results[0].capability.id);
 
   await db.close();

@@ -18,6 +18,8 @@ import type {
 import { getLogger } from "../telemetry/logger.ts";
 import { DAGExecutionError, TimeoutError } from "../errors/error-types.ts";
 import { RateLimiter } from "../utils/rate-limiter.ts";
+// Story 6.5: EventBus integration (ADR-036)
+import { eventBus } from "../events/mod.ts";
 
 const log = getLogger("default");
 
@@ -59,6 +61,7 @@ export class ParallelExecutor {
 
   /**
    * Execute a DAG workflow with automatic parallelization
+   * Story 6.5: Emits DAG events to EventBus (ADR-036)
    *
    * @param dag - DAG structure to execute
    * @returns Execution result with metrics
@@ -66,6 +69,7 @@ export class ParallelExecutor {
    */
   async execute(dag: DAGStructure): Promise<DAGExecutionResult> {
     const startTime = performance.now();
+    const executionId = crypto.randomUUID();
 
     if (this.config.verbose) {
       log.info(`Starting DAG execution with ${dag.tasks.length} tasks`);
@@ -73,6 +77,18 @@ export class ParallelExecutor {
 
     // 1. Topological sort to identify parallel execution layers
     const layers = this.topologicalSort(dag);
+
+    // Story 6.5: Emit dag.started event
+    eventBus.emit({
+      type: "dag.started",
+      source: "dag-executor",
+      payload: {
+        execution_id: executionId,
+        task_count: dag.tasks.length,
+        layer_count: layers.length,
+        task_ids: dag.tasks.map((t) => t.id),
+      },
+    });
 
     if (this.config.verbose) {
       log.info(
@@ -98,8 +114,24 @@ export class ParallelExecutor {
       }
 
       // Execute all tasks in this layer in parallel using Promise.allSettled
+      // Story 6.5: Emit task events before/after execution
       const layerResults = await Promise.allSettled(
-        layer.map((task) => this.executeTask(task, results)),
+        layer.map(async (task) => {
+          // Emit dag.task.started
+          eventBus.emit({
+            type: "dag.task.started",
+            source: "dag-executor",
+            payload: {
+              execution_id: executionId,
+              task_id: task.id,
+              tool: task.tool,
+              layer: layerIdx,
+              args: task.arguments,
+            },
+          });
+
+          return this.executeTask(task, results);
+        }),
       );
 
       // Collect results and errors
@@ -116,6 +148,18 @@ export class ParallelExecutor {
             executionTimeMs: result.value.executionTimeMs,
           });
 
+          // Story 6.5: Emit dag.task.completed
+          eventBus.emit({
+            type: "dag.task.completed",
+            source: "dag-executor",
+            payload: {
+              execution_id: executionId,
+              task_id: task.id,
+              tool: task.tool,
+              duration_ms: result.value.executionTimeMs,
+            },
+          });
+
           if (this.config.verbose) {
             log.info(
               `✓ Task ${task.id} succeeded (${result.value.executionTimeMs.toFixed(1)}ms)`,
@@ -124,6 +168,9 @@ export class ParallelExecutor {
         } else {
           // Task failed - log but continue execution
           const errorMsg = result.reason?.message || String(result.reason);
+          const recoverable = result.reason instanceof DAGExecutionError
+            ? result.reason.recoverable
+            : true;
           const taskError: TaskError = {
             taskId: task.id,
             error: errorMsg,
@@ -135,6 +182,19 @@ export class ParallelExecutor {
             taskId: task.id,
             status: "error",
             error: errorMsg,
+          });
+
+          // Story 6.5: Emit dag.task.failed
+          eventBus.emit({
+            type: "dag.task.failed",
+            source: "dag-executor",
+            payload: {
+              execution_id: executionId,
+              task_id: task.id,
+              tool: task.tool,
+              error: errorMsg,
+              recoverable,
+            },
           });
 
           if (this.config.verbose) {
@@ -155,6 +215,20 @@ export class ParallelExecutor {
       successfulTasks: Array.from(results.values()).filter((r) => r.status === "success").length,
       failedTasks: errors.length,
     };
+
+    // Story 6.5: Emit dag.completed event
+    eventBus.emit({
+      type: "dag.completed",
+      source: "dag-executor",
+      payload: {
+        execution_id: executionId,
+        total_duration_ms: totalTime,
+        successful_tasks: executionResult.successfulTasks,
+        failed_tasks: executionResult.failedTasks,
+        success: executionResult.failedTasks === 0,
+        speedup: this.calculateSpeedup(executionResult),
+      },
+    });
 
     if (this.config.verbose) {
       log.info(

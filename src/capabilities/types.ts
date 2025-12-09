@@ -98,8 +98,8 @@ export interface SaveCapabilityInput {
 export interface CapabilitySearchResult {
   /** The matched capability */
   capability: Capability;
-  /** Semantic similarity score (0-1) */
-  similarity: number;
+  /** Semantic similarity score (0-1) - harmonized with HybridSearchResult */
+  semanticScore: number;
 }
 
 /**

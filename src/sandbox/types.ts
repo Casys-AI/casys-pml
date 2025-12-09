@@ -153,6 +153,7 @@ export interface ToolDefinition {
 /**
  * RPC call request from Worker to Bridge
  * Sent when sandbox code calls an MCP tool.
+ * ADR-041: Added parent_trace_id for hierarchical trace tracking.
  */
 export interface RPCCallMessage {
   type: "rpc_call";
@@ -164,6 +165,8 @@ export interface RPCCallMessage {
   tool: string;
   /** Tool arguments */
   args: Record<string, unknown>;
+  /** ADR-041: Parent trace ID for hierarchical tracking (capability → tool) */
+  parent_trace_id?: string;
 }
 
 /**
@@ -225,6 +228,7 @@ export type BridgeToWorkerMessage = InitMessage | RPCResultMessage;
 /**
  * Base interface for trace events (common fields)
  * Story 7.3b: Discriminated union for tool + capability traces
+ * ADR-041: Added parent_trace_id and args for hierarchical tracking
  */
 interface BaseTraceEvent {
   /** UUID for correlating start/end events */
@@ -237,6 +241,12 @@ interface BaseTraceEvent {
   duration_ms?: number;
   /** Error message (for failed *_end only) */
   error?: string;
+
+  // ADR-041: Hierarchical trace tracking
+  /** Parent trace ID for hierarchical call tracking (capability → tool, capability → capability) */
+  parent_trace_id?: string;
+  /** Arguments passed to the call (for debugging and learning) */
+  args?: Record<string, unknown>;
 }
 
 /**

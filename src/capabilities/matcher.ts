@@ -19,6 +19,8 @@ import type { CapabilityStore } from "./capability-store.ts";
 import type { AdaptiveThresholdManager } from "../mcp/adaptive-threshold.ts";
 import type { CapabilityMatch } from "./types.ts";
 import { getLogger } from "../telemetry/logger.ts";
+// Story 6.5: EventBus integration (ADR-036)
+import { eventBus } from "../events/mod.ts";
 
 const logger = getLogger("default");
 
@@ -59,15 +61,15 @@ export class CapabilityMatcher {
         reliabilityFactor = 1.2; // Boost highly reliable
       }
 
-      // 4. Calculate Final Score
-      let score = candidate.similarity * reliabilityFactor;
+      // 4. Calculate Final Score (semanticScore harmonized with HybridSearchResult)
+      let score = candidate.semanticScore * reliabilityFactor;
 
       // Cap at 0.95 (ADR-038 Global Cap)
       score = Math.min(score, 0.95);
 
       logger.debug("Capability candidate scored", {
         id: candidate.capability.id,
-        semantic: candidate.similarity.toFixed(2),
+        semanticScore: candidate.semanticScore.toFixed(2),
         reliability: reliabilityFactor,
         final: score.toFixed(2),
         threshold,
@@ -80,7 +82,7 @@ export class CapabilityMatcher {
           bestMatch = {
             capability: candidate.capability,
             score,
-            semanticScore: candidate.similarity,
+            semanticScore: candidate.semanticScore,
             thresholdUsed: threshold,
             parametersSchema: candidate.capability.parametersSchema || null,
           };
@@ -93,6 +95,21 @@ export class CapabilityMatcher {
         id: bestMatch.capability.id,
         score: bestMatch.score.toFixed(2),
         intent,
+      });
+
+      // Story 6.5: Emit capability.matched event (ADR-036)
+      eventBus.emit({
+        type: "capability.matched",
+        source: "capability-matcher",
+        payload: {
+          capability_id: bestMatch.capability.id,
+          name: bestMatch.capability.name ?? "unknown",
+          intent: intent.substring(0, 100),
+          score: bestMatch.score,
+          semantic_score: bestMatch.semanticScore,
+          threshold_used: bestMatch.thresholdUsed,
+          selected: true,
+        },
       });
     } else {
       logger.debug("No capability match above threshold", { intent, threshold });

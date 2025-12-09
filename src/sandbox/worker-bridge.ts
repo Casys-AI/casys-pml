@@ -36,6 +36,8 @@ import type { Capability } from "../capabilities/types.ts";
 import type { GraphRAGEngine } from "../graphrag/graph-engine.ts";
 import { CapabilityCodeGenerator } from "../capabilities/code-generator.ts";
 import { getLogger } from "../telemetry/logger.ts";
+// Story 6.5: EventBus integration (ADR-036)
+import { eventBus } from "../events/mod.ts";
 
 const logger = getLogger("default");
 
@@ -112,10 +114,37 @@ export class WorkerBridge {
     this.graphRAG = config?.graphRAG;
 
     // Story 7.3b: Setup BroadcastChannel for capability traces
+    // Story 6.5: Bridge capability traces to unified EventBus (ADR-036)
     this.traceChannel = new BroadcastChannel("cai-traces");
     this.traceChannel.onmessage = (e: MessageEvent<CapabilityTraceEvent>) => {
-      // Add capability traces to unified trace array in real-time
+      // Add capability traces to unified trace array in real-time (backward compat)
       this.traces.push(e.data);
+
+      // Story 6.5: Forward capability traces to unified EventBus
+      if (e.data.type === "capability_start") {
+        eventBus.emit({
+          type: "capability.start",
+          source: "sandbox-worker",
+          payload: {
+            capability_id: e.data.capability_id,
+            capability: e.data.capability,
+            trace_id: e.data.trace_id,
+          },
+        });
+      } else if (e.data.type === "capability_end") {
+        eventBus.emit({
+          type: "capability.end",
+          source: "sandbox-worker",
+          payload: {
+            capability_id: e.data.capability_id,
+            capability: e.data.capability,
+            trace_id: e.data.trace_id,
+            success: e.data.success ?? true,
+            duration_ms: e.data.duration_ms ?? 0,
+            error: e.data.error,
+          },
+        });
+      }
     };
 
     // Story 7.3b: Code generator for capability injection
@@ -307,18 +336,36 @@ export class WorkerBridge {
 
   /**
    * Handle RPC call from Worker - route to MCPClient with native tracing
+   * Story 6.5: Also emits events to EventBus (ADR-036)
+   * ADR-041: Extracts parent_trace_id for hierarchical tracking
    */
   private async handleRPCCall(msg: RPCCallMessage): Promise<void> {
-    const { id, server, tool, args } = msg;
+    const { id, server, tool, args, parent_trace_id } = msg;
     const toolId = `${server}:${tool}`;
     const startTime = Date.now();
 
     // TRACE START - native tracing in bridge!
+    // ADR-041: Include args and parent_trace_id for hierarchical tracking
     this.traces.push({
       type: "tool_start",
       tool: toolId,
       trace_id: id,
       ts: startTime,
+      args: args,
+      parent_trace_id: parent_trace_id, // ADR-041: Propagate hierarchy
+    });
+
+    // Story 6.5: Emit tool.start event to EventBus
+    // ADR-041: Include parent_trace_id in event payload
+    eventBus.emit({
+      type: "tool.start",
+      source: "worker-bridge",
+      payload: {
+        tool_id: toolId,
+        trace_id: id,
+        args: args,
+        parent_trace_id: parent_trace_id, // ADR-041
+      },
     });
 
     logger.debug("RPC call received", { id, server, tool, argsKeys: Object.keys(args) });
@@ -330,15 +377,33 @@ export class WorkerBridge {
       }
 
       const result = await client.callTool(tool, args);
+      const endTime = Date.now();
+      const durationMs = endTime - startTime;
 
       // TRACE END - success
+      // ADR-041: Include parent_trace_id for hierarchical tracking
       this.traces.push({
         type: "tool_end",
         tool: toolId,
         trace_id: id,
-        ts: Date.now(),
+        ts: endTime,
         success: true,
-        duration_ms: Date.now() - startTime,
+        duration_ms: durationMs,
+        parent_trace_id: parent_trace_id, // ADR-041
+      });
+
+      // Story 6.5: Emit tool.end event to EventBus (success)
+      // ADR-041: Include parent_trace_id in event payload
+      eventBus.emit({
+        type: "tool.end",
+        source: "worker-bridge",
+        payload: {
+          tool_id: toolId,
+          trace_id: id,
+          success: true,
+          duration_ms: durationMs,
+          parent_trace_id: parent_trace_id, // ADR-041
+        },
       });
 
       // Send result back to Worker
@@ -350,19 +415,38 @@ export class WorkerBridge {
       };
       this.worker?.postMessage(response);
 
-      logger.debug("RPC call succeeded", { id, tool: toolId, duration_ms: Date.now() - startTime });
+      logger.debug("RPC call succeeded", { id, tool: toolId, duration_ms: durationMs });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
+      const endTime = Date.now();
+      const durationMs = endTime - startTime;
 
       // TRACE END - failure
+      // ADR-041: Include parent_trace_id for hierarchical tracking
       this.traces.push({
         type: "tool_end",
         tool: toolId,
         trace_id: id,
-        ts: Date.now(),
+        ts: endTime,
         success: false,
-        duration_ms: Date.now() - startTime,
+        duration_ms: durationMs,
         error: errorMessage,
+        parent_trace_id: parent_trace_id, // ADR-041
+      });
+
+      // Story 6.5: Emit tool.end event to EventBus (failure)
+      // ADR-041: Include parent_trace_id in event payload
+      eventBus.emit({
+        type: "tool.end",
+        source: "worker-bridge",
+        payload: {
+          tool_id: toolId,
+          trace_id: id,
+          success: false,
+          duration_ms: durationMs,
+          error: errorMessage,
+          parent_trace_id: parent_trace_id, // ADR-041
+        },
       });
 
       // Send error back to Worker

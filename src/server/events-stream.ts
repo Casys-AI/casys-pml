@@ -1,13 +1,14 @@
 /**
- * Server-Sent Events (SSE) Stream Manager for Graph Events
+ * Server-Sent Events (SSE) Stream Manager for System Events
  * Story 6.1: Real-time Events Stream (SSE)
+ * Story 6.5: EventBus Integration (ADR-036)
  *
- * Manages long-lived SSE connections for real-time graph monitoring.
- * Broadcasts graph events to all connected clients with heartbeat support.
+ * Manages long-lived SSE connections for real-time system monitoring.
+ * Broadcasts all events from unified EventBus to connected clients with heartbeat support.
  */
 
-import type { GraphRAGEngine } from "../graphrag/graph-engine.ts";
-import type { GraphEvent } from "../graphrag/events.ts";
+import type { CaiEvent, EventType } from "../events/types.ts";
+import { eventBus } from "../events/mod.ts";
 import * as log from "@std/log";
 
 /**
@@ -35,35 +36,43 @@ const DEFAULT_CONFIG: EventsStreamConfig = {
 };
 
 /**
- * Manages SSE connections for graph events
+ * Client connection with optional filters
+ */
+interface ClientConnection {
+  writer: WritableStreamDefaultWriter<Uint8Array>;
+  filters: string[]; // Event type prefixes to include (empty = all events)
+}
+
+/**
+ * Manages SSE connections for system events
+ * Story 6.5: Subscribes to unified EventBus (ADR-036)
  */
 export class EventsStreamManager {
-  private clients: Set<WritableStreamDefaultWriter<Uint8Array>> = new Set();
+  private clients: Map<string, ClientConnection> = new Map();
   private startTime = Date.now();
   private heartbeatInterval?: number;
   private encoder = new TextEncoder();
-  private graphEventListener: (event: GraphEvent) => void;
+  private unsubscribe: (() => void) | null = null;
 
   constructor(
-    private graphEngine: GraphRAGEngine,
     private config: EventsStreamConfig = DEFAULT_CONFIG,
   ) {
-    // Bind event listener
-    this.graphEventListener = this.broadcastEvent.bind(this);
-
-    // Subscribe to graph events
-    this.graphEngine.on("graph_event", this.graphEventListener);
+    // Story 6.5: Subscribe to EventBus instead of GraphRAGEngine
+    this.unsubscribe = eventBus.on("*", (event) => {
+      this.broadcastEvent(event);
+    });
 
     // Start heartbeat
     this.startHeartbeat();
 
     log.info(
-      `EventsStreamManager initialized (max clients: ${config.maxClients}, heartbeat: ${config.heartbeatIntervalMs}ms)`,
+      `EventsStreamManager initialized with EventBus (max clients: ${config.maxClients}, heartbeat: ${config.heartbeatIntervalMs}ms)`,
     );
   }
 
   /**
    * Handle incoming SSE connection request
+   * Story 6.5 AC#12: Support optional ?filter= query param
    *
    * @param request - HTTP request
    * @returns SSE response stream or 503 if too many clients
@@ -86,22 +95,32 @@ export class EventsStreamManager {
       );
     }
 
+    // Story 6.5 AC#12: Parse optional filter param
+    const url = new URL(request.url);
+    const filterParam = url.searchParams.get("filter");
+    const filters = filterParam
+      ? filterParam.split(",").map((f) => f.trim()).filter((f) => f.length > 0)
+      : [];
+
     // Create transform stream for SSE
     const { readable, writable } = new TransformStream<
       Uint8Array,
       Uint8Array
     >();
     const writer = writable.getWriter();
+    const clientId = crypto.randomUUID();
 
-    // Register client
-    this.clients.add(writer);
+    // Register client with filters
+    this.clients.set(clientId, { writer, filters });
     log.info(
-      `SSE client connected (${this.clients.size}/${this.config.maxClients})`,
+      `SSE client connected (${this.clients.size}/${this.config.maxClients})${
+        filters.length > 0 ? ` filters: [${filters.join(", ")}]` : ""
+      }`,
     );
 
     // Remove client on connection close/abort
     request.signal.addEventListener("abort", () => {
-      this.clients.delete(writer);
+      this.clients.delete(clientId);
       writer.close().catch(() => {});
       log.info(
         `SSE client disconnected (${this.clients.size}/${this.config.maxClients})`,
@@ -109,14 +128,17 @@ export class EventsStreamManager {
     });
 
     // Send initial connected event
-    this.sendToClient(writer, {
-      type: "connected" as const,
-      data: {
-        client_id: crypto.randomUUID(),
+    const connectedEvent: CaiEvent<"system.startup"> = {
+      type: "system.startup",
+      timestamp: Date.now(),
+      source: "events-stream",
+      payload: {
+        client_id: clientId,
         connected_clients: this.clients.size,
-        timestamp: new Date().toISOString(),
+        filters: filters.length > 0 ? filters : ["*"],
       },
-    } as unknown as GraphEvent).catch((err) => {
+    };
+    this.sendToClient(writer, connectedEvent).catch((err) => {
       log.error(`Failed to send connected event: ${err}`);
     });
 
@@ -136,30 +158,63 @@ export class EventsStreamManager {
   }
 
   /**
-   * Broadcast event to all connected clients
+   * Check if event matches client filters
+   * Story 6.5 AC#12: Filter syntax ?filter=algorithm.*,dag.*
    *
-   * @param event - Graph event to broadcast
+   * @param eventType - Event type to check
+   * @param filters - Client filter prefixes
+   * @returns True if event should be sent to client
    */
-  private async broadcastEvent(event: GraphEvent): Promise<void> {
-    const deadClients: WritableStreamDefaultWriter<Uint8Array>[] = [];
+  private matchesFilters(eventType: EventType, filters: string[]): boolean {
+    // Empty filters = receive all events
+    if (filters.length === 0) return true;
 
-    // Send to all clients
-    for (const client of this.clients) {
+    // Check if event type starts with any filter prefix
+    return filters.some((filter) => {
+      if (filter.endsWith(".*")) {
+        // Wildcard match: "algorithm.*" matches "algorithm.scored"
+        const prefix = filter.slice(0, -2);
+        return eventType.startsWith(prefix);
+      }
+      // Exact match
+      return eventType === filter;
+    });
+  }
+
+  /**
+   * Broadcast event to all connected clients
+   * Story 6.5: Broadcasts CaiEvent from EventBus
+   *
+   * @param event - Event to broadcast
+   */
+  private async broadcastEvent(event: CaiEvent): Promise<void> {
+    const deadClients: string[] = [];
+
+    // Send to all clients (with filter check)
+    for (const [clientId, client] of this.clients) {
+      // Story 6.5 AC#12: Check if event matches client filters
+      if (!this.matchesFilters(event.type, client.filters)) {
+        continue; // Skip this client
+      }
+
       try {
-        await this.sendToClient(client, event);
+        await this.sendToClient(client.writer, event);
       } catch (error) {
         log.debug(`Client send failed, marking for removal: ${error}`);
-        deadClients.push(client);
+        deadClients.push(clientId);
       }
     }
 
     // Clean up dead clients
-    for (const client of deadClients) {
-      this.clients.delete(client);
-      try {
-        await client.close();
-      } catch {
-        // Ignore close errors
+    for (const clientId of deadClients) {
+      const client = this.clients.get(clientId);
+      this.clients.delete(clientId);
+      if (client) {
+        try {
+          await client.writer.close();
+        } catch {
+          // Ignore close errors
+        }
       }
     }
 
@@ -178,29 +233,27 @@ export class EventsStreamManager {
    */
   private async sendToClient(
     writer: WritableStreamDefaultWriter<Uint8Array>,
-    event: GraphEvent,
+    event: CaiEvent,
   ): Promise<void> {
     // SSE format: event: {type}\ndata: {JSON}\n\n
-    const sseData = `event: ${event.type}\ndata: ${JSON.stringify(event.data)}\n\n`;
+    const sseData = `event: ${event.type}\ndata: ${JSON.stringify(event.payload)}\n\n`;
     await writer.write(this.encoder.encode(sseData));
   }
 
   /**
    * Start heartbeat interval to keep connections alive
+   * Story 6.5: Uses EventBus heartbeat event
    */
   private startHeartbeat(): void {
     this.heartbeatInterval = setInterval(() => {
-      const heartbeatEvent: GraphEvent = {
+      // Emit heartbeat via EventBus (will be picked up by our subscription)
+      eventBus.emit({
         type: "heartbeat",
-        data: {
+        source: "events-stream",
+        payload: {
           connected_clients: this.clients.size,
           uptime_seconds: Math.floor((Date.now() - this.startTime) / 1000),
-          timestamp: new Date().toISOString(),
         },
-      };
-
-      this.broadcastEvent(heartbeatEvent).catch((err) => {
-        log.error(`Heartbeat broadcast failed: ${err}`);
       });
     }, this.config.heartbeatIntervalMs);
 
@@ -260,12 +313,15 @@ export class EventsStreamManager {
       this.heartbeatInterval = undefined;
     }
 
-    // Unsubscribe from graph events
-    this.graphEngine.off("graph_event", this.graphEventListener);
+    // Unsubscribe from EventBus
+    if (this.unsubscribe) {
+      this.unsubscribe();
+      this.unsubscribe = null;
+    }
 
     // Close all client connections
-    for (const client of this.clients) {
-      client.close().catch(() => {});
+    for (const [_, client] of this.clients) {
+      client.writer.close().catch(() => {});
     }
     this.clients.clear();
 
