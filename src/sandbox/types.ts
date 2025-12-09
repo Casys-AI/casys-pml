@@ -194,6 +194,8 @@ export interface InitMessage {
   toolDefinitions: ToolDefinition[];
   /** Optional context variables to inject */
   context?: Record<string, unknown>;
+  /** Optional capability context code (Story 7.3b - inline functions) */
+  capabilityContext?: string;
 }
 
 /**
@@ -221,25 +223,51 @@ export type WorkerToBridgeMessage = RPCCallMessage | ExecutionCompleteMessage;
 export type BridgeToWorkerMessage = InitMessage | RPCResultMessage;
 
 /**
- * Trace event for native tool call tracking
- * Captured in WorkerBridge during RPC handling (not stdout parsing).
+ * Base interface for trace events (common fields)
+ * Story 7.3b: Discriminated union for tool + capability traces
  */
-export interface TraceEvent {
-  /** Event type */
-  type: "tool_start" | "tool_end";
-  /** Tool identifier (e.g., "filesystem:read_file") */
-  tool: string;
+interface BaseTraceEvent {
   /** UUID for correlating start/end events */
   trace_id: string;
   /** Timestamp in milliseconds */
   ts: number;
-  /** Whether tool call succeeded (for tool_end only) */
+  /** Whether call succeeded (for *_end only) */
   success?: boolean;
-  /** Execution duration in milliseconds (for tool_end only) */
+  /** Execution duration in milliseconds (for *_end only) */
   duration_ms?: number;
-  /** Error message (for failed tool_end only) */
+  /** Error message (for failed *_end only) */
   error?: string;
 }
+
+/**
+ * Tool trace events (existing behavior)
+ * Captured in WorkerBridge during RPC handling.
+ */
+export interface ToolTraceEvent extends BaseTraceEvent {
+  /** Event type */
+  type: "tool_start" | "tool_end";
+  /** Tool identifier (e.g., "filesystem:read_file") */
+  tool: string;
+}
+
+/**
+ * Capability trace events (Story 7.3b)
+ * Captured in Worker via __trace() and BroadcastChannel (ADR-036).
+ */
+export interface CapabilityTraceEvent extends BaseTraceEvent {
+  /** Event type */
+  type: "capability_start" | "capability_end";
+  /** Capability name */
+  capability: string;
+  /** Capability UUID */
+  capability_id: string;
+}
+
+/**
+ * Discriminated union for all trace events (type-safe!)
+ * Use type narrowing: if (event.type === "tool_start") { event.tool }
+ */
+export type TraceEvent = ToolTraceEvent | CapabilityTraceEvent;
 
 /**
  * Execution mode for sandbox

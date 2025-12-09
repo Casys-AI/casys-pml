@@ -28,6 +28,7 @@ import type {
   WorkflowExecution,
 } from "./types.ts";
 import type { GraphEvent } from "./events.ts";
+import type { TraceEvent } from "../sandbox/types.ts";
 
 // Extract exports from Graphology packages
 const { DirectedGraph } = graphologyPkg as any;
@@ -436,6 +437,125 @@ export class GraphRAGEngine {
       log.error(`Failed to update graph from execution: ${error}`);
       throw error;
     }
+  }
+
+  // ============================================
+  // Story 7.3b: Code Execution Trace Learning
+  // ============================================
+
+  /**
+   * Update graph from code execution traces (tool + capability)
+   * Story 7.3b: Called by WorkerBridge after execution completes
+   *
+   * Creates edges for:
+   * - Tool → Tool (from consecutive tool_end events)
+   * - Capability → Capability (from consecutive capability_end events)
+   * - Capability → Tool (cross-type edges)
+   *
+   * @param traces - Chronologically sorted trace events
+   */
+  async updateFromCodeExecution(traces: TraceEvent[]): Promise<void> {
+    if (traces.length < 2) {
+      log.debug("[updateFromCodeExecution] Not enough traces for edge creation");
+      return;
+    }
+
+    const startTime = performance.now();
+    let edgesCreated = 0;
+    let edgesUpdated = 0;
+
+    // Filter to only *_end events (we only care about completed calls)
+    const endEvents = traces.filter((t) =>
+      t.type === "tool_end" || t.type === "capability_end"
+    );
+
+    // Create edges from consecutive end events
+    for (let i = 0; i < endEvents.length - 1; i++) {
+      const from = endEvents[i];
+      const to = endEvents[i + 1];
+
+      // Extract node IDs based on event type
+      const fromId = from.type === "tool_end"
+        ? (from as { tool: string }).tool
+        : `capability:${(from as { capability_id: string }).capability_id}`;
+
+      const toId = to.type === "tool_end"
+        ? (to as { tool: string }).tool
+        : `capability:${(to as { capability_id: string }).capability_id}`;
+
+      // Skip self-loops
+      if (fromId === toId) continue;
+
+      // Ensure nodes exist
+      if (!this.graph.hasNode(fromId)) {
+        this.graph.addNode(fromId, {
+          type: from.type === "tool_end" ? "tool" : "capability",
+          name: from.type === "tool_end"
+            ? (from as { tool: string }).tool
+            : (from as { capability: string }).capability,
+        });
+      }
+      if (!this.graph.hasNode(toId)) {
+        this.graph.addNode(toId, {
+          type: to.type === "tool_end" ? "tool" : "capability",
+          name: to.type === "tool_end"
+            ? (to as { tool: string }).tool
+            : (to as { capability: string }).capability,
+        });
+      }
+
+      // Update or create edge
+      if (this.graph.hasEdge(fromId, toId)) {
+        const edge = this.graph.getEdgeAttributes(fromId, toId);
+        const newCount = (edge.count as number) + 1;
+        const newWeight = Math.min((edge.weight as number) * 1.1, 1.0);
+
+        this.graph.setEdgeAttribute(fromId, toId, "count", newCount);
+        this.graph.setEdgeAttribute(fromId, toId, "weight", newWeight);
+        edgesUpdated++;
+
+        this.emit({
+          type: "edge_updated",
+          data: {
+            from_tool_id: fromId,
+            to_tool_id: toId,
+            old_confidence: edge.weight as number,
+            new_confidence: newWeight,
+            observed_count: newCount,
+            timestamp: new Date().toISOString(),
+          },
+        });
+      } else {
+        this.graph.addEdge(fromId, toId, {
+          count: 1,
+          weight: 0.5,
+          source: "code_execution",
+        });
+        edgesCreated++;
+
+        this.emit({
+          type: "edge_created",
+          data: {
+            from_tool_id: fromId,
+            to_tool_id: toId,
+            confidence_score: 0.5,
+            timestamp: new Date().toISOString(),
+          },
+        });
+      }
+    }
+
+    // Recompute metrics if changes were made
+    if (edgesCreated > 0 || edgesUpdated > 0) {
+      if (this.graph.order > 0) {
+        await this.precomputeMetrics();
+      }
+    }
+
+    const elapsed = performance.now() - startTime;
+    log.info(
+      `[updateFromCodeExecution] Processed ${traces.length} traces: ${edgesCreated} edges created, ${edgesUpdated} updated (${elapsed.toFixed(1)}ms)`,
+    );
   }
 
   /**
