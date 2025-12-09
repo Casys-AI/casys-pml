@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-Index des décisions d'architecture du projet AgentCards.
+Index des décisions d'architecture du projet Casys Intelligence.
 
 ## Status Legend
 
@@ -43,7 +43,7 @@ Index des décisions d'architecture du projet AgentCards.
 | 019  | [Three-Level AIL Architecture](./ADR-019-three-level-ail-architecture.md)                   | superseded | -              | → ADR-020                                       |
 | 020  | [AIL Control Protocol](./ADR-020-ail-control-protocol.md)                                   | accepted   | -              | Unified command architecture                    |
 | 020b | [Graceful Shutdown Timeout](./ADR-020-graceful-shutdown-timeout.md)                         | accepted   | -              | Timeout guard shutdown                          |
-| 021  | [Configurable Database Path](./ADR-021-configurable-database-path.md)                       | accepted   | -              | AGENTCARDS_DB_PATH env var                      |
+| 021  | [Configurable Database Path](./ADR-021-configurable-database-path.md)                       | accepted   | -              | CAI_DB_PATH env var                      |
 | 021b | [Workflow Sync Missing Nodes](./ADR-021-workflow-sync-missing-nodes.md)                     | accepted   | -              | Création nœuds manquants                        |
 | 022  | [Hybrid Search Integration](./ADR-022-hybrid-search-integration.md)                         | accepted   | -              | Hybrid search DAG suggester                     |
 | 023  | [Dynamic Candidate Expansion](./ADR-023-dynamic-candidate-expansion.md)                     | accepted   | -              | Expansion candidats hybrid                      |

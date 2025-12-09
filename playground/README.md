@@ -215,12 +215,12 @@ deno task serve:playground
 
 | Tool                      | Description                      |
 | ------------------------- | -------------------------------- |
-| `agentcards_execute_code` | Safe code execution in sandbox   |
-| `agentcards_execute_dag`  | DAG workflow orchestration       |
-| `agentcards_search_tools` | Semantic tool search             |
-| `agentcards_continue`     | Continue paused DAG execution    |
-| `agentcards_abort`        | Abort running DAG                |
-| `agentcards_replan`       | Replan DAG with new requirements |
+| `cai_execute_code` | Safe code execution in sandbox   |
+| `cai_execute_dag`  | DAG workflow orchestration       |
+| `cai_search_tools` | Semantic tool search             |
+| `cai_continue`     | Continue paused DAG execution    |
+| `cai_abort`        | Abort running DAG                |
+| `cai_replan`       | Replan DAG with new requirements |
 
 ## Troubleshooting / FAQ
 

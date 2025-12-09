@@ -4,38 +4,38 @@ _Updated: December 2025_
 
 ## Vision
 
-**Casys Intelligence** (CAI) est un **MCP gateway intelligent** qui résout deux problèmes critiques
-des écosystèmes MCP :
+**Casys Intelligence** (CAI) is an **intelligent MCP gateway** that solves two critical problems
+in MCP ecosystems:
 
-1. **Saturation du contexte LLM** — Les schémas d'outils consomment 30-50% de la fenêtre de contexte
-   → réduit à **<5%**
-2. **Latence séquentielle** — Les workflows multi-outils s'exécutent en série → parallélisés via
+1. **LLM context saturation** — Tool schemas consume 30-50% of the context window
+   → reduced to **<5%**
+2. **Sequential latency** — Multi-tool workflows run serially → parallelized via
    **DAG execution** (5x speedup)
 
-## Différenciation Clé
+## Key Differentiation
 
-| Problème                  | Solution CAI                                | Bénéfice              |
+| Problem                   | CAI Solution                                | Benefit               |
 | ------------------------- | ------------------------------------------- | --------------------- |
-| 100+ tools = contexte saturé | Meta-tools only + semantic search on-demand | <5% contexte utilisé  |
-| Workflows séquentiels     | DAG avec détection automatique des dépendances | 5x speedup            |
-| Suggestions statiques     | GraphRAG (PageRank, Louvain, Adamic-Adar)   | Apprentissage continu |
-| Exécution manuelle        | Speculative Execution (confidence > 0.85)   | 0ms latence perçue    |
-| Code isolé des tools      | Sandbox avec injection MCP                  | Hybrid orchestration  |
+| 100+ tools = saturated context | Meta-tools only + semantic search on-demand | <5% context used      |
+| Sequential workflows      | DAG with automatic dependency detection     | 5x speedup            |
+| Static suggestions        | GraphRAG (PageRank, Louvain, Adamic-Adar)   | Continuous learning   |
+| Manual execution          | Speculative Execution (confidence > 0.85)   | 0ms perceived latency |
+| Code isolated from tools  | Sandbox with MCP injection                  | Hybrid orchestration  |
 
-## Architecture en 3 Couches
+## 3-Layer Architecture
 
-> **Diagramme interactif :** [architecture-overview.excalidraw](../diagrams/architecture-overview.excalidraw)
+> **Interactive diagram:** [architecture-overview.excalidraw](../diagrams/architecture-overview.excalidraw)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  COUCHE 1: ORCHESTRATION (Claude / LLM)                     │
-│  • Reçoit l'intent utilisateur                              │
-│  • Appelle les meta-tools CAI (cai:execute_dag, etc.)       │
-│  • Voit uniquement les résultats agrégés                    │
+│  LAYER 1: ORCHESTRATION (Claude / LLM)                      │
+│  • Receives user intent                                     │
+│  • Calls CAI meta-tools (cai:execute_dag, etc.)             │
+│  • Sees only aggregated results                             │
 └─────────────────────────────────────────────────────────────┘
                               │
 ┌─────────────────────────────────────────────────────────────┐
-│  COUCHE 2: GATEWAY INTELLIGENTE                             │
+│  LAYER 2: INTELLIGENT GATEWAY                               │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐   │
 │  │ Vector Search│  │  DAG Engine  │  │  GraphRAG Engine │   │
 │  │  (BGE-M3)    │  │  (Parallel)  │  │  (Graphology)    │   │
@@ -48,36 +48,36 @@ des écosystèmes MCP :
 └─────────────────────────────────────────────────────────────┘
                               │
 ┌─────────────────────────────────────────────────────────────┐
-│  COUCHE 3: MCP SERVERS                                      │
+│  LAYER 3: MCP SERVERS                                       │
 │  filesystem, github, memory, slack, notion, tavily, etc.    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## Stack Technologique
+## Technology Stack
 
-| Composant      | Technologie                  | Justification                                |
+| Component      | Technology                   | Justification                                |
 | -------------- | ---------------------------- | -------------------------------------------- |
-| Runtime        | Deno 2.x                     | TypeScript natif, sécurisé par défaut        |
-| Database       | PGlite (PostgreSQL WASM)     | Portable single-file, pgvector intégré       |
+| Runtime        | Deno 2.x                     | Native TypeScript, secure by default         |
+| Database       | PGlite (PostgreSQL WASM)     | Portable single-file, built-in pgvector      |
 | ORM            | Drizzle ORM                  | Type-safe, migrations, users table           |
 | Vector Search  | pgvector HNSW                | <100ms P95, 1024-dim embeddings              |
-| Embeddings     | BGE-M3 (Transformers.js)     | 100% local, multi-lingue, SOTA open          |
+| Embeddings     | BGE-M3 (Transformers.js)     | 100% local, multilingual, SOTA open          |
 | Graph Algorithms | Graphology                 | PageRank, Louvain, bidirectional search      |
 | MCP Protocol   | @modelcontextprotocol/sdk    | Official SDK, stdio + HTTP transport         |
 | Web UI         | Fresh 2 + Vite + Preact      | SSR, islands architecture, Tailwind 4        |
 | Auth           | GitHub OAuth + API Keys      | Deno KV sessions, Argon2id hashing           |
 
-## Métriques Cibles
+## Target Metrics
 
-| Métrique                   | Cible          | Status     |
+| Metric                     | Target         | Status     |
 | -------------------------- | -------------- | ---------- |
-| Context usage              | <5%            | ✅ Atteint |
-| Vector search P95          | <100ms         | ✅ Atteint |
-| 5-tool workflow P95        | <3s            | ✅ Atteint |
-| DAG speedup                | 5x vs séquentiel | ✅ Atteint |
-| Speculation success rate   | >85%           | 🟡 En cours |
+| Context usage              | <5%            | ✅ Achieved |
+| Vector search P95          | <100ms         | ✅ Achieved |
+| 5-tool workflow P95        | <3s            | ✅ Achieved |
+| DAG speedup                | 5x vs sequential | ✅ Achieved |
+| Speculation success rate   | >85%           | 🟡 In progress |
 
-## Roadmap Épics
+## Epic Roadmap
 
 ```
 Epic 1-3   ✅ DONE      Foundation + DAG + Sandbox
@@ -100,10 +100,10 @@ Epic 9     🟡 PROGRESS  Authentication & Multi-tenancy (4/5 stories done)
 | 9.4   | Landing Page & Dashboard UI Auth         | ✅ Done |
 | 9.5   | Rate Limiting & Data Isolation           | 📋 Backlog |
 
-## Architecture d'Authentification
+## Authentication Architecture
 
 ```
-┌─────────────────────────────────┐     ┌──────────────────────────┐
+┌─────────────────────────────┐     ┌──────────────────────────┐
 │ Fresh Dashboard                 │     │ API Server (MCP Gateway) │
 │ (prod:8080 / dev:8081)          │     │ (prod:3001 / dev:3003)   │
 │                                 │     │                          │
@@ -117,20 +117,20 @@ Mode Detection: GITHUB_CLIENT_ID env var
   - Local Mode: Zero auth (bypass all checks)
 ```
 
-## Principes Directeurs
+## Guiding Principles
 
-1. **Boring Technology** — Préférer les solutions éprouvées (PGlite, Deno) aux expérimentales
-2. **Local-First** — Toutes les données restent sur la machine de l'utilisateur (mode local)
-3. **Zero-Config** — Auto-découverte des MCP servers, génération d'embeddings automatique
-4. **Speculative by Default** — L'exécution spéculative est LA feature, pas une option
-5. **Meta-Tools Only** — Expose des meta-tools intelligents, pas de proxying transparent
+1. **Boring Technology** — Prefer proven solutions (PGlite, Deno) over experimental ones
+2. **Local-First** — All data stays on the user's machine (local mode)
+3. **Zero-Config** — Auto-discovery of MCP servers, automatic embedding generation
+4. **Speculative by Default** — Speculative execution is THE feature, not an option
+5. **Meta-Tools Only** — Expose intelligent meta-tools, no transparent proxying
 
 ---
 
-_Pour les détails techniques, voir les documents spécifiques :_
+_For technical details, see the specific documents:_
 
-- [Project Structure](./project-structure.md) — Structure du projet
-- [Novel Pattern Designs](./novel-pattern-designs.md) — Patterns architecturaux innovants
-- [Technology Stack Details](./technology-stack-details.md) — Stack technique détaillé
-- [ADRs](./architecture-decision-records-adrs.md) — Décisions techniques documentées
-- [Epic Mapping](./epic-to-architecture-mapping.md) — Traçabilité PRD → Architecture
+- [Project Structure](./project-structure.md) — Project structure
+- [Novel Pattern Designs](./novel-pattern-designs.md) — Innovative architectural patterns
+- [Technology Stack Details](./technology-stack-details.md) — Detailed tech stack
+- [ADRs](./architecture-decision-records-adrs.md) — Documented technical decisions
+- [Epic Mapping](./epic-to-architecture-mapping.md) — PRD → Architecture traceability

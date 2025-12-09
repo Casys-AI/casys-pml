@@ -1,7 +1,7 @@
 /**
  * Init Command
  *
- * CLI command to migrate Claude Desktop MCP configuration to AgentCards
+ * CLI command to migrate Claude Desktop MCP configuration to Casys Intelligence
  *
  * @module cli/commands/init
  */
@@ -13,14 +13,14 @@ import { ConfigMigrator } from "../config-migrator.ts";
  * Create init command
  *
  * Usage:
- *   agentcards init                    # Auto-detect config and migrate
- *   agentcards init --dry-run          # Preview migration without changes
- *   agentcards init --config <path>    # Use custom config path
+ *   cai init                    # Auto-detect config and migrate
+ *   cai init --dry-run          # Preview migration without changes
+ *   cai init --config <path>    # Use custom config path
  */
 export function createInitCommand() {
   return new Command()
     .name("init")
-    .description("Migrate existing MCP configuration to AgentCards")
+    .description("Migrate existing MCP configuration to Casys Intelligence")
     .option(
       "--dry-run",
       "Preview changes without applying them",

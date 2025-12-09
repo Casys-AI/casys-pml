@@ -14,8 +14,8 @@ import { getAgentCardsConfigPath, getLegacyConfigPath } from "../utils.ts";
  * Create migrate-config command
  *
  * Usage:
- *   agentcards migrate-config          # Migrate YAML → JSON
- *   agentcards migrate-config --force  # Overwrite existing JSON
+ *   cai migrate-config          # Migrate YAML → JSON
+ *   cai migrate-config --force  # Overwrite existing JSON
  */
 export function createMigrateConfigCommand() {
   return new Command()
@@ -119,6 +119,6 @@ export function createMigrateConfigCommand() {
       // Step 7: Suggest cleanup
       console.log("🗑️  You can now delete the old YAML config:");
       console.log(`   rm ${yamlPath}\n`);
-      console.log("💡 Tip: AgentCards will now use the JSON config automatically.");
+      console.log("💡 Tip: Casys Intelligence will now use the JSON config automatically.");
     });
 }

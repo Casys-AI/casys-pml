@@ -150,7 +150,7 @@ confidence = 0.72 * 0.85 + 0.059 * 0.05 + 0.5 * 0.10
 # Test manuel validé (2025-12-02)
 curl -s -X POST http://localhost:3001/mcp \
   -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"agentcards:execute_dag","arguments":{"intent":"Read the deno.json file"}}}'
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"cai:execute_dag","arguments":{"intent":"Read the deno.json file"}}}'
 
 # Résultat attendu: confidence > 0, mode = "suggestion"
 ```

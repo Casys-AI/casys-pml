@@ -3,8 +3,8 @@
 **First Story (1.1):** Initialize project using Deno's official tooling:
 
 ```bash
-deno init agentcards
-cd agentcards
+deno init cai
+cd cai
 ```
 
 **What This Provides:**

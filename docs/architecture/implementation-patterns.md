@@ -60,26 +60,26 @@ export type { Config, ToolSchema } from "./src/types.ts";
 
 ```typescript
 // src/utils/errors.ts
-export class AgentCardsError extends Error {
+export class Casys IntelligenceError extends Error {
   constructor(message: string, public code: string) {
     super(message);
-    this.name = "AgentCardsError";
+    this.name = "Casys IntelligenceError";
   }
 }
 
-export class MCPServerError extends AgentCardsError {
+export class MCPServerError extends Casys IntelligenceError {
   constructor(message: string, public serverId: string) {
     super(message, "MCP_SERVER_ERROR");
   }
 }
 
-export class VectorSearchError extends AgentCardsError {
+export class VectorSearchError extends Casys IntelligenceError {
   constructor(message: string) {
     super(message, "VECTOR_SEARCH_ERROR");
   }
 }
 
-export class DAGExecutionError extends AgentCardsError {
+export class DAGExecutionError extends Casys IntelligenceError {
   constructor(message: string, public toolId?: string) {
     super(message, "DAG_EXECUTION_ERROR");
   }
@@ -143,6 +143,6 @@ logger.debug("Vector search query", { query, results });
 **Log Destinations:**
 
 - Console: INFO level (colorized for terminal)
-- File: `~/.agentcards/logs/agentcards.log` (all levels, rotated daily)
+- File: `~/.cai/logs/cai.log` (all levels, rotated daily)
 
 ---

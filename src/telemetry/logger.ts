@@ -18,7 +18,7 @@ import type { LoggerConfig } from "./types.ts";
  */
 const DEFAULT_LOG_FILE = `${
   Deno.env.get("HOME") || Deno.env.get("USERPROFILE") || "."
-}/.agentcards/logs/agentcards.log`;
+}/.cai/logs/cai.log`;
 
 /**
  * Maximum log file size (10MB) before rotation
@@ -198,7 +198,7 @@ export async function setupLogger(config?: LoggerConfig): Promise<void> {
     },
   });
 
-  log.info("AgentCards logging initialized", {
+  log.info("Casys Intelligence logging initialized", {
     logFile: logFilePath,
     level: config?.level || "DEBUG",
   });

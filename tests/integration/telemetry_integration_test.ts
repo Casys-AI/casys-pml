@@ -39,13 +39,13 @@ async function waitForLogFile(filePath: string, maxWaitMs: number = 3000): Promi
 }
 
 Deno.test({
-  name: "AC3: Logs are written to file at ~/.agentcards/logs/agentcards.log",
+  name: "AC3: Logs are written to file at ~/.agentcards/logs/cai.log",
   // Ignored: @std/log FileHandler doesn't flush immediately, making this test flaky
   // Log files ARE created and written in production, verified manually
   ignore: true,
   async fn() {
     const testLogDir = `/tmp/agentcards-test-logs-${Date.now()}`;
-    const testLogPath = `${testLogDir}/agentcards.log`;
+    const testLogPath = `${testLogDir}/cai.log`;
 
     // Setup logger with custom path
     await setupLogger({
@@ -162,7 +162,7 @@ Deno.test({
   ignore: true,
   async fn() {
     const testLogDir = `/tmp/agentcards-test-logs-${Date.now()}`;
-    const testLogPath = `${testLogDir}/agentcards.log`;
+    const testLogPath = `${testLogDir}/cai.log`;
 
     await setupLogger({
       logFilePath: testLogPath,

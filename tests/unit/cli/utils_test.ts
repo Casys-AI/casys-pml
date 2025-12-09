@@ -43,8 +43,8 @@ Deno.test("detectMCPConfigPath - returns OS-specific path", () => {
 Deno.test("getAgentCardsConfigDir - returns valid directory path", () => {
   const dir = getAgentCardsConfigDir();
 
-  // Should end with .agentcards
-  assert(dir.endsWith(".agentcards"));
+  // Should end with .cai
+  assert(dir.endsWith(".cai"));
 
   // Should contain home directory reference
   const homeDir = Deno.env.get("HOME") || Deno.env.get("USERPROFILE");
@@ -59,8 +59,8 @@ Deno.test("getAgentCardsConfigPath - returns valid config path (JSON)", () => {
   // Should end with config.json (ADR-009)
   assert(path.endsWith("config.json"));
 
-  // Should contain .agentcards directory
-  assert(path.includes(".agentcards"));
+  // Should contain .cai directory
+  assert(path.includes(".cai"));
 });
 
 Deno.test("getLegacyConfigPath - returns YAML config path (deprecated)", () => {
@@ -69,18 +69,30 @@ Deno.test("getLegacyConfigPath - returns YAML config path (deprecated)", () => {
   // Should end with config.yaml (legacy)
   assert(path.endsWith("config.yaml"));
 
-  // Should contain .agentcards directory
-  assert(path.includes(".agentcards"));
+  // Should contain .cai directory
+  assert(path.includes(".cai"));
 });
 
 Deno.test("getAgentCardsDatabasePath - returns valid database path", () => {
-  const path = getAgentCardsDatabasePath();
+  // Ensure both new and legacy env vars are not set for this test
+  const oldCaiPath = Deno.env.get("CAI_DB_PATH");
+  const oldAgentCardsPath = Deno.env.get("AGENTCARDS_DB_PATH");
+  Deno.env.delete("CAI_DB_PATH");
+  Deno.env.delete("AGENTCARDS_DB_PATH");
 
-  // Should end with .agentcards.db
-  assert(path.endsWith(".agentcards.db"));
+  try {
+    const path = getAgentCardsDatabasePath();
 
-  // Should contain .agentcards directory
-  assert(path.includes(".agentcards"));
+    // Should end with .cai.db
+    assert(path.endsWith(".cai.db"));
+
+    // Should contain .cai directory
+    assert(path.includes(".cai"));
+  } finally {
+    // Restore original env vars
+    if (oldCaiPath) Deno.env.set("CAI_DB_PATH", oldCaiPath);
+    if (oldAgentCardsPath) Deno.env.set("AGENTCARDS_DB_PATH", oldAgentCardsPath);
+  }
 });
 
 Deno.test("All paths use correct separators for OS", () => {
@@ -98,41 +110,62 @@ Deno.test("All paths use correct separators for OS", () => {
 });
 
 Deno.test("Paths are consistent across utility functions", () => {
-  const configDir = getAgentCardsConfigDir();
-  const configPath = getAgentCardsConfigPath();
-  const dbPath = getAgentCardsDatabasePath();
+  // Ensure both new and legacy env vars are not set for this test
+  const oldCaiPath = Deno.env.get("CAI_DB_PATH");
+  const oldAgentCardsPath = Deno.env.get("AGENTCARDS_DB_PATH");
+  Deno.env.delete("CAI_DB_PATH");
+  Deno.env.delete("AGENTCARDS_DB_PATH");
 
-  // Config path should start with config dir
-  assert(configPath.startsWith(configDir));
+  try {
+    const configDir = getAgentCardsConfigDir();
+    const configPath = getAgentCardsConfigPath();
+    const dbPath = getAgentCardsDatabasePath();
 
-  // Database path should start with config dir (when no env var set)
-  assert(dbPath.startsWith(configDir));
+    // Config path should start with config dir
+    assert(configPath.startsWith(configDir));
+
+    // Database path should start with config dir (when no env var set)
+    assert(dbPath.startsWith(configDir));
+  } finally {
+    // Restore original env vars
+    if (oldCaiPath) Deno.env.set("CAI_DB_PATH", oldCaiPath);
+    if (oldAgentCardsPath) Deno.env.set("AGENTCARDS_DB_PATH", oldAgentCardsPath);
+  }
 });
 
-Deno.test("getAgentCardsDatabasePath - respects AGENTCARDS_DB_PATH env var", () => {
-  const customPath = "/workspaces/AgentCards/.agentcards.db";
+Deno.test("getAgentCardsDatabasePath - respects CAI_DB_PATH env var", () => {
+  const customPath = "/workspaces/AgentCards/.cai.db";
 
   // Set custom path
-  Deno.env.set("AGENTCARDS_DB_PATH", customPath);
+  Deno.env.set("CAI_DB_PATH", customPath);
 
   try {
     const path = getAgentCardsDatabasePath();
     assertEquals(path, customPath);
   } finally {
     // Clean up
-    Deno.env.delete("AGENTCARDS_DB_PATH");
+    Deno.env.delete("CAI_DB_PATH");
   }
 });
 
 Deno.test("getAgentCardsDatabasePath - uses default when env var not set", () => {
-  // Ensure env var is not set
+  // Ensure both new and legacy env vars are not set
+  const oldCaiPath = Deno.env.get("CAI_DB_PATH");
+  const oldAgentCardsPath = Deno.env.get("AGENTCARDS_DB_PATH");
+  Deno.env.delete("CAI_DB_PATH");
   Deno.env.delete("AGENTCARDS_DB_PATH");
 
-  const path = getAgentCardsDatabasePath();
+  try {
+    const path = getAgentCardsDatabasePath();
 
-  // Should use default path
-  assert(path.includes(".agentcards"));
-  assert(path.endsWith(".agentcards.db"));
+    // Should use default path
+    assert(path.includes(".cai"));
+    assert(path.endsWith(".cai.db"));
+  } finally {
+    // Restore original env vars
+    if (oldCaiPath) Deno.env.set("CAI_DB_PATH", oldCaiPath);
+    if (oldAgentCardsPath) Deno.env.set("AGENTCARDS_DB_PATH", oldAgentCardsPath);
+  }
 });
 
 Deno.test("Legacy YAML path differs from JSON path only in extension", () => {
@@ -150,29 +183,38 @@ Deno.test("Legacy YAML path differs from JSON path only in extension", () => {
   assert(yamlPath.endsWith(".yaml"));
 });
 
-Deno.test("getWorkflowTemplatesPath - respects AGENTCARDS_WORKFLOW_PATH env var", () => {
+Deno.test("getWorkflowTemplatesPath - respects CAI_WORKFLOW_PATH env var", () => {
   const customPath = "playground/config/workflow-templates.yaml";
 
   // Set custom path
-  Deno.env.set("AGENTCARDS_WORKFLOW_PATH", customPath);
+  Deno.env.set("CAI_WORKFLOW_PATH", customPath);
 
   try {
     const path = getWorkflowTemplatesPath();
     assertEquals(path, customPath);
   } finally {
     // Clean up
-    Deno.env.delete("AGENTCARDS_WORKFLOW_PATH");
+    Deno.env.delete("CAI_WORKFLOW_PATH");
   }
 });
 
 Deno.test("getWorkflowTemplatesPath - uses default when env var not set", () => {
-  // Ensure env var is not set
+  // Ensure both new and legacy env vars are not set
+  const oldCaiPath = Deno.env.get("CAI_WORKFLOW_PATH");
+  const oldAgentCardsPath = Deno.env.get("AGENTCARDS_WORKFLOW_PATH");
+  Deno.env.delete("CAI_WORKFLOW_PATH");
   Deno.env.delete("AGENTCARDS_WORKFLOW_PATH");
 
-  const path = getWorkflowTemplatesPath();
+  try {
+    const path = getWorkflowTemplatesPath();
 
-  // Should use default path
-  assertEquals(path, "./config/workflow-templates.yaml");
+    // Should use default path
+    assertEquals(path, "./config/workflow-templates.yaml");
+  } finally {
+    // Restore original env vars
+    if (oldCaiPath) Deno.env.set("CAI_WORKFLOW_PATH", oldCaiPath);
+    if (oldAgentCardsPath) Deno.env.set("AGENTCARDS_WORKFLOW_PATH", oldAgentCardsPath);
+  }
 });
 
 Deno.test("getWorkflowTemplatesPath - supports various path formats", () => {
@@ -184,7 +226,7 @@ Deno.test("getWorkflowTemplatesPath - supports various path formats", () => {
   ];
 
   for (const testPath of testPaths) {
-    Deno.env.set("AGENTCARDS_WORKFLOW_PATH", testPath);
+    Deno.env.set("CAI_WORKFLOW_PATH", testPath);
 
     try {
       const path = getWorkflowTemplatesPath();
@@ -194,7 +236,7 @@ Deno.test("getWorkflowTemplatesPath - supports various path formats", () => {
         `Should return custom path: ${testPath}`,
       );
     } finally {
-      Deno.env.delete("AGENTCARDS_WORKFLOW_PATH");
+      Deno.env.delete("CAI_WORKFLOW_PATH");
     }
   }
 });

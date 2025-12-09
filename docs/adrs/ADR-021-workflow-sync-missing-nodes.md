@@ -177,21 +177,21 @@ This ensures bootstrap runs when nodes are missing, not just when edges are miss
 
 Before running workflow sync, ensure:
 
-1. MCP servers are configured in `agentcards.json`
-2. Run `agentcards init` to discover tools and populate `tool_schema`
+1. MCP servers are configured in `cai.json`
+2. Run `cai init` to discover tools and populate `tool_schema`
 3. Workflow templates reference valid tool IDs
 
 ### Command Flow
 
 ```bash
 # 1. Initialize (populates tool_schema)
-agentcards init
+cai init
 
 # 2. Sync workflows (validates tools, generates embeddings, creates edges)
-agentcards workflows sync --file playground/config/workflow-templates.yaml
+cai workflows sync --file playground/config/workflow-templates.yaml
 
 # 3. Start server (graph will load correctly)
-agentcards serve
+cai serve
 ```
 
 ### Error Messages
@@ -199,7 +199,7 @@ agentcards serve
 If tools are missing from `tool_schema`:
 
 ```
-[WorkflowSync] No tools found in tool_schema. Run 'agentcards serve' first to discover tools.
+[WorkflowSync] No tools found in tool_schema. Run 'cai serve' first to discover tools.
 ```
 
 If workflow references unknown tool:

@@ -9,12 +9,12 @@
 
 ### Problem Statement
 
-AgentCards has an **architectural inconsistency** between documented vision and implementation
+Casys Intelligence has an **architectural inconsistency** between documented vision and implementation
 regarding how tools are exposed to Claude Code:
 
 **PRD Vision (docs/PRD.md, line 7):**
 
-> "AgentCards acts as a **transparent MCP gateway** that consolidates all your MCP servers into a
+> "Casys Intelligence acts as a **transparent MCP gateway** that consolidates all your MCP servers into a
 > single entry point"
 
 **ADR-013 Reality (Accepted 2025-11-14):**
@@ -51,7 +51,7 @@ await callTool("filesystem:read_file", { path: "/config.json" });
 **3. Competitive Positioning:**
 
 - AIRIS, Smithery, Context Forge: Transparent proxies
-- AgentCards: Meta-tools only (different paradigm)
+- Casys Intelligence: Meta-tools only (different paradigm)
 - May limit addressable market to "advanced users"
 
 ### Discovery Source
@@ -138,7 +138,7 @@ async handleListTools(request: unknown): Promise<ListToolsResult> {
 ````markdown
 # README.md (Updated)
 
-AgentCards uses **semantic intent-based workflows** instead of direct tool calls.
+Casys Intelligence uses **semantic intent-based workflows** instead of direct tool calls.
 
 ## ❌ OLD (Direct Tool Calls)
 
@@ -342,14 +342,14 @@ full_proxy:
 #### 4. Migration Path
 
 ````markdown
-## Migration Guide: Direct MCP → AgentCards
+## Migration Guide: Direct MCP → Casys Intelligence
 
 ### Phase 1: Full Proxy (Week 1-2)
 
 Start with transparent proxy to minimize disruption:
 
 ```yaml
-# ~/.agentcards/config.yaml
+# ~/.cai/config.yaml
 gateway:
   tools_exposure: "full_proxy"
 ```
@@ -468,7 +468,7 @@ async handleListTools(request: ListToolsRequest): Promise<ListToolsResult> {
 ### Default Configuration
 
 ```yaml
-# ~/.agentcards/config.yaml (default)
+# ~/.cai/config.yaml (default)
 gateway:
   tools_exposure: "meta_only" # ADR-013 preserved as default
 ```
@@ -522,7 +522,7 @@ Users opt-in to hybrid/full_proxy as needed.
 1. **Smart Defaults:**
    - meta_only default (ADR-013 preserved)
    - Presets with clear names (migration, balanced, advanced)
-   - CLI wizard: `agentcards config --wizard`
+   - CLI wizard: `cai config --wizard`
 
 2. **Documentation:**
    - Decision tree: "Which mode is right for me?"
@@ -550,7 +550,7 @@ Users opt-in to hybrid/full_proxy as needed.
 
 - Create `config/gateway-presets.yaml`
 - Add config validation (Zod schema)
-- CLI: `agentcards config --preset hybrid_balanced`
+- CLI: `cai config --preset hybrid_balanced`
 
 **Day 4-5: Testing & Documentation**
 
@@ -571,7 +571,7 @@ Users opt-in to hybrid/full_proxy as needed.
 
 **UX Improvements:**
 
-- CLI wizard: `agentcards config --wizard`
+- CLI wizard: `cai config --wizard`
 - Config validation warnings
 - Performance dashboard (context usage real-time)
 

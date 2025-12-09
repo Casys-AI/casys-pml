@@ -7,8 +7,8 @@
 
 ## Context
 
-AgentCards acts as an MCP (Model Context Protocol) gateway that consolidates multiple MCP servers.
-The current implementation uses YAML for configuration files (`~/.agentcards/config.yaml`), while
+Casys Intelligence acts as an MCP (Model Context Protocol) gateway that consolidates multiple MCP servers.
+The current implementation uses YAML for configuration files (`~/.cai/config.yaml`), while
 the entire MCP ecosystem standardizes on JSON:
 
 **MCP Ecosystem Format:**
@@ -19,16 +19,16 @@ the entire MCP ecosystem standardizes on JSON:
 - Official MCP documentation examples: JSON
 - MCP SDK types: JSON schemas
 
-**Current AgentCards Format:**
+**Current Casys Intelligence Format:**
 
-- Configuration: `~/.agentcards/config.yaml` (YAML)
+- Configuration: `~/.cai/config.yaml` (YAML)
 - Creates friction: users must convert between formats
 - No direct reuse of existing MCP configurations
 
 **Problem Statement:** The YAML configuration format creates unnecessary friction for users who
 already have MCP servers configured in Claude Desktop (JSON format). Users must:
 
-1. Maintain two different config formats (JSON for Claude Desktop, YAML for AgentCards)
+1. Maintain two different config formats (JSON for Claude Desktop, YAML for Casys Intelligence)
 2. Manually convert MCP server definitions from JSON → YAML
 3. Learn YAML syntax when they're already familiar with JSON from MCP ecosystem
 
@@ -38,17 +38,17 @@ This violates the principle of least surprise and creates onboarding friction.
 
 ## Decision
 
-**Adopt JSON as the primary configuration format for AgentCards**, with temporary backward
+**Adopt JSON as the primary configuration format for Casys Intelligence**, with temporary backward
 compatibility for YAML during migration period.
 
-**Configuration file:** `~/.agentcards/config.json` (was: `config.yaml`)
+**Configuration file:** `~/.cai/config.json` (was: `config.yaml`)
 
 **Migration Strategy:**
 
 1. **Support both formats** (auto-detection by file extension)
 2. **Default to JSON** for all new configurations
 3. **Deprecate YAML** with migration path
-4. **Provide migration tool:** `./agentcards migrate-config`
+4. **Provide migration tool:** `./cai migrate-config`
 
 ---
 
@@ -77,7 +77,7 @@ Users can directly copy MCP server configurations from Claude Desktop:
 → User must convert to YAML:
 
 ```yaml
-# ~/.agentcards/config.yaml
+# ~/.cai/config.yaml
 mcpServers:
   - id: filesystem
     command: npx
@@ -90,7 +90,7 @@ mcpServers:
 **After (JSON - seamless):**
 
 ```json
-// ~/.agentcards/config.json
+// ~/.cai/config.json
 {
   "mcpServers": {
     "filesystem": {
@@ -133,7 +133,7 @@ JSON enables first-class schema validation with JSON Schema:
 
 ```json
 {
-  "$schema": "https://agentcards.dev/config.schema.json",
+  "$schema": "https://cai.dev/config.schema.json",
   "mcpServers": { ... }
 }
 ```
@@ -156,7 +156,7 @@ MCP Protocol itself uses JSON-RPC:
 Using JSON for configuration maintains consistency across the entire stack:
 
 ```
-User Config (JSON) → AgentCards (JSON) → MCP Protocol (JSON-RPC) → MCP Servers (JSON)
+User Config (JSON) → Casys Intelligence (JSON) → MCP Protocol (JSON-RPC) → MCP Servers (JSON)
 ```
 
 ### 5. Ecosystem Familiarity
@@ -251,8 +251,8 @@ async function loadConfig(configPath?: string): Promise<Config> {
 
 async function findConfigFile(): Promise<string> {
   // Prefer JSON, fallback to YAML
-  const jsonPath = `${HOME}/.agentcards/config.json`;
-  const yamlPath = `${HOME}/.agentcards/config.yaml`;
+  const jsonPath = `${HOME}/.cai/config.json`;
+  const yamlPath = `${HOME}/.cai/config.yaml`;
 
   try {
     await Deno.stat(jsonPath);
@@ -261,7 +261,7 @@ async function findConfigFile(): Promise<string> {
     try {
       await Deno.stat(yamlPath);
       console.warn("⚠️  YAML config detected. JSON is now recommended for MCP compatibility.");
-      console.warn("    Run: ./agentcards migrate-config");
+      console.warn("    Run: ./cai migrate-config");
       return yamlPath;
     } catch {
       throw new Error("No config file found");
@@ -272,12 +272,12 @@ async function findConfigFile(): Promise<string> {
 
 ### Phase 2: Migration Tool
 
-**Command:** `./agentcards migrate-config`
+**Command:** `./cai migrate-config`
 
 ```typescript
 async function migrateConfig() {
-  const yamlPath = `${HOME}/.agentcards/config.yaml`;
-  const jsonPath = `${HOME}/.agentcards/config.json`;
+  const yamlPath = `${HOME}/.cai/config.yaml`;
+  const jsonPath = `${HOME}/.cai/config.json`;
 
   // 1. Check if YAML exists
   if (!await exists(yamlPath)) {
@@ -331,7 +331,7 @@ async function initConfig(mcpServers: MCPServer[]) {
   };
 
   // Write JSON (not YAML)
-  const configPath = `${HOME}/.agentcards/config.json`;
+  const configPath = `${HOME}/.cai/config.json`;
   await Deno.writeTextFile(
     configPath,
     JSON.stringify(config, null, 2),
@@ -348,7 +348,7 @@ async function initConfig(mcpServers: MCPServer[]) {
 1. **Warning on YAML load:**
    ```
    ⚠️  WARNING: YAML config support will be removed in v2.0
-       Please migrate to JSON: ./agentcards migrate-config
+       Please migrate to JSON: ./cai migrate-config
    ```
 
 2. **Documentation updates:**
@@ -370,7 +370,7 @@ async function initConfig(mcpServers: MCPServer[]) {
 ```json
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "AgentCards Configuration",
+  "title": "Casys Intelligence Configuration",
   "type": "object",
   "required": ["mcpServers"],
   "properties": {
@@ -491,29 +491,29 @@ async function initConfig(mcpServers: MCPServer[]) {
 **Step 1: Auto-migration on next run**
 
 ```bash
-# AgentCards detects YAML and prompts
-./agentcards serve
+# Casys Intelligence detects YAML and prompts
+./cai serve
 
 # Output:
-# ⚠️  YAML config detected: ~/.agentcards/config.yaml
-#     AgentCards now uses JSON for MCP compatibility.
+# ⚠️  YAML config detected: ~/.cai/config.yaml
+#     Casys Intelligence now uses JSON for MCP compatibility.
 #     Migrate now? (Y/n): y
 #
-# ✓ Config migrated to: ~/.agentcards/config.json
+# ✓ Config migrated to: ~/.cai/config.json
 # You can delete the old YAML file:
-#   rm ~/.agentcards/config.yaml
+#   rm ~/.cai/config.yaml
 ```
 
 **Step 2: Manual migration**
 
 ```bash
-./agentcards migrate-config
+./cai migrate-config
 ```
 
 **Step 3: New users**
 
 ```bash
-./agentcards init  # → generates config.json (not YAML)
+./cai init  # → generates config.json (not YAML)
 ```
 
 ### For Developers
@@ -535,7 +535,7 @@ async function initConfig(mcpServers: MCPServer[]) {
 ## Success Metrics
 
 1. **User Friction Reduced**
-   - Measure: Time to configure AgentCards (before/after)
+   - Measure: Time to configure Casys Intelligence (before/after)
    - Target: <2 minutes (was: 5-10 minutes with YAML conversion)
 
 2. **Support Questions Reduced**
@@ -568,7 +568,7 @@ async function initConfig(mcpServers: MCPServer[]) {
 - **ADR-007:** DAG Adaptive Feedback Loops (uses JSON for checkpoint serialization)
 - **ADR-008:** Episodic Memory (uses JSON for telemetry logging)
 
-Pattern: AgentCards consistently uses JSON for data serialization. Configuration should follow the
+Pattern: Casys Intelligence consistently uses JSON for data serialization. Configuration should follow the
 same pattern.
 
 ---
@@ -578,7 +578,7 @@ same pattern.
 ### Before (YAML)
 
 ```yaml
-# ~/.agentcards/config.yaml
+# ~/.cai/config.yaml
 mcpServers:
   - id: filesystem
     name: Filesystem Server
@@ -610,7 +610,7 @@ execution:
 
 ```json
 {
-  "$schema": "https://agentcards.dev/config.schema.json",
+  "$schema": "https://cai.dev/config.schema.json",
   "mcpServers": {
     "filesystem": {
       "command": "npx",

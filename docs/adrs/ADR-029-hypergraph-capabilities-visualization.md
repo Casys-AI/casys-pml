@@ -5,7 +5,7 @@
 
 ## Context
 
-Avec Epic 7 (Emergent Capabilities System), AgentCards stocke des **capabilities** qui sont des
+Avec Epic 7 (Emergent Capabilities System), Casys Intelligence stocke des **capabilities** qui sont des
 patterns de code réutilisables connectant **N tools** ensemble. Une capability n'est pas une
 relation binaire (A → B) mais une relation N-aire (A, B, C, D utilisés ensemble).
 

@@ -419,7 +419,7 @@ export class ControlledExecutor extends ParallelExecutor {
     // Build context for hashing (consistent with EpisodicMemoryStore.hashContext)
     const context = {
       workflowType: "dag-execution",
-      domain: "agentcards",
+      domain: "cai",
       complexity: this.state.tasks.length > 10
         ? "high"
         : this.state.tasks.length > 5

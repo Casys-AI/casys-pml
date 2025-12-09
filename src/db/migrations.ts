@@ -214,7 +214,7 @@ export class MigrationRunner {
  */
 export function createInitialMigration(): Migration {
   const initialSql = `
--- Migration 001: Initial Schema for AgentCards
+-- Migration 001: Initial Schema for Casys Intelligence
 -- Created: 2025-11-03
 -- Purpose: Create tables for embeddings, schemas, and configuration
 

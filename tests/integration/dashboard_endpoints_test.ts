@@ -2,11 +2,11 @@
  * Integration tests for dashboard HTTP endpoints - Story 6.2
  *
  * Tests the /dashboard and /api/graph/snapshot endpoints
- * served by the AgentCards gateway server.
+ * served by the Casys Intelligence gateway server.
  */
 
 import { assertEquals, assertExists } from "@std/assert";
-import { AgentCardsGatewayServer } from "../../src/mcp/gateway-server.ts";
+import { CasysIntelligenceGatewayServer } from "../../src/mcp/gateway-server.ts";
 import { createDefaultClient, PGliteClient } from "../../src/db/client.ts";
 import { getAllMigrations, MigrationRunner } from "../../src/db/migrations.ts";
 import { GraphRAGEngine } from "../../src/graphrag/graph-engine.ts";
@@ -21,7 +21,7 @@ const TEST_PORT = 3006; // Use 3006-3008 range to avoid conflicts with dev serve
  * Helper to create a fully initialized gateway for testing
  */
 async function createTestGateway(db: PGliteClient): Promise<{
-  gateway: AgentCardsGatewayServer;
+  gateway: CasysIntelligenceGatewayServer;
   graphEngine: GraphRAGEngine;
 }> {
   // Initialize embedding model
@@ -44,7 +44,7 @@ async function createTestGateway(db: PGliteClient): Promise<{
   // Empty MCP clients map (dashboard doesn't need actual MCP connections)
   const mcpClients = new Map();
 
-  const gateway = new AgentCardsGatewayServer(
+  const gateway = new CasysIntelligenceGatewayServer(
     db,
     vectorSearch,
     graphEngine,

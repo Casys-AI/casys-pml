@@ -4,15 +4,15 @@
 
 ```bash
 # Story 1.7: Migration tool
-agentcards init [--dry-run] [--config <path>]
+cai init [--dry-run] [--config <path>]
 # Output: Migration summary, instructions
 
 # Story 2.4: Gateway server
-agentcards serve [--port <port>] [--stdio]
+cai serve [--port <port>] [--stdio]
 # Runs MCP gateway server
 
 # Story 2.5: Health checks
-agentcards status [--verbose]
+cai status [--verbose]
 # Output: Server health, database size, metrics
 ```
 

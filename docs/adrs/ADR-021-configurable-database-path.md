@@ -7,7 +7,7 @@
 
 ## Context and Problem Statement
 
-AgentCards stores its PGlite database in a hardcoded location: `~/.agentcards/.agentcards.db` (user
+Casys Intelligence stores its PGlite database in a hardcoded location: `~/.cai/.cai.db` (user
 home directory).
 
 **Problem:** In ephemeral environments like **GitHub Codespaces**, the home directory
@@ -39,7 +39,7 @@ This causes:
 
 ### Option 1: ✅ Environment Variable (CHOSEN)
 
-**Implementation:** Add `AGENTCARDS_DB_PATH` env var support to `getAgentCardsDatabasePath()`
+**Implementation:** Add `CAI_DB_PATH` env var support to `getCasys IntelligenceDatabasePath()`
 
 **Pros:**
 
@@ -56,7 +56,7 @@ This causes:
 
 ### Option 2: Config File Option
 
-**Implementation:** Add `database.path` to `~/.agentcards/config.json`
+**Implementation:** Add `database.path` to `~/.cai/config.json`
 
 **Pros:**
 
@@ -65,7 +65,7 @@ This causes:
 
 **Cons:**
 
-- ❌ Config file is also in `~/.agentcards/` (same persistence problem!)
+- ❌ Config file is also in `~/.cai/` (same persistence problem!)
 - ❌ Chicken-and-egg: Can't read config if DB path is in config
 - ❌ More complex implementation
 
@@ -86,7 +86,7 @@ This causes:
 
 ### Option 4: Change Default Path
 
-**Implementation:** Move default to project directory (e.g., `./.agentcards.db`)
+**Implementation:** Move default to project directory (e.g., `./.cai.db`)
 
 **Pros:**
 
@@ -105,25 +105,25 @@ This causes:
 
 **Chosen Option:** **Option 1 - Environment Variable**
 
-Add support for `AGENTCARDS_DB_PATH` environment variable to override the default database path.
+Add support for `CAI_DB_PATH` environment variable to override the default database path.
 
 ### Implementation
 
 **Modified:** `src/cli/utils.ts`
 
 ```typescript
-export function getAgentCardsDatabasePath(): string {
+export function getCasys IntelligenceDatabasePath(): string {
   // Allow custom DB path via environment variable (ADR-021)
-  const customPath = Deno.env.get("AGENTCARDS_DB_PATH");
+  const customPath = Deno.env.get("CAI_DB_PATH");
   if (customPath) {
     return customPath;
   }
 
-  // Default: ~/.agentcards/.agentcards.db
-  const configDir = getAgentCardsConfigDir();
+  // Default: ~/.cai/.cai.db
+  const configDir = getCasys IntelligenceConfigDir();
   const os = Deno.build.os;
   const separator = os === "windows" ? "\\" : "/";
-  return `${configDir}${separator}.agentcards.db`;
+  return `${configDir}${separator}.cai.db`;
 }
 ```
 
@@ -143,14 +143,14 @@ export function getAgentCardsDatabasePath(): string {
 ```bash
 # In .devcontainer.json
 "remoteEnv": {
-  "AGENTCARDS_DB_PATH": "/workspaces/AgentCards/.agentcards.db"
+  "CAI_DB_PATH": "/workspaces/Casys Intelligence/.cai.db"
 }
 ```
 
 ✅ **Test Isolation:** Parallel tests can use isolated databases
 
 ```bash
-AGENTCARDS_DB_PATH=/tmp/test-db-${TEST_ID}.db deno test
+CAI_DB_PATH=/tmp/test-db-${TEST_ID}.db deno test
 ```
 
 ✅ **Zero Breaking Changes:** Existing users unaffected (default unchanged)
@@ -159,7 +159,7 @@ AGENTCARDS_DB_PATH=/tmp/test-db-${TEST_ID}.db deno test
 
 ```bash
 # Production server
-AGENTCARDS_DB_PATH=/var/lib/agentcards/agentcards.db agentcards serve
+CAI_DB_PATH=/var/lib/cai/cai.db cai serve
 ```
 
 ### Negative
@@ -192,12 +192,12 @@ configure playground environment
 ```bash
 # Test 1: Default behavior (unchanged)
 deno task cli workflows sync --file playground/config/workflow-templates.yaml
-# → Uses ~/.agentcards/.agentcards.db ✅
+# → Uses ~/.cai/.cai.db ✅
 
 # Test 2: Custom path via env var
-AGENTCARDS_DB_PATH=/workspaces/AgentCards/.agentcards.db \
+CAI_DB_PATH=/workspaces/Casys Intelligence/.cai.db \
   deno task cli workflows sync --file playground/config/workflow-templates.yaml
-# → Uses /workspaces/AgentCards/.agentcards.db ✅
+# → Uses /workspaces/Casys Intelligence/.cai.db ✅
 ```
 
 ---

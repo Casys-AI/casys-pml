@@ -51,20 +51,20 @@ Deno.test("Smoke test - getGraphSnapshot retourne structure JSON valide", async 
 Deno.test("Smoke test - Fresh dashboard.tsx exists and contains required elements", async () => {
   // Story 6.2: Dashboard migrated from public/dashboard.html to Fresh
   const routeCode = await Deno.readTextFile("src/web/routes/dashboard.tsx");
-  const islandCode = await Deno.readTextFile("src/web/islands/GraphVisualization.tsx");
+  const graphVizCode = await Deno.readTextFile("src/web/islands/GraphVisualization.tsx");
   const metricsCode = await Deno.readTextFile("src/web/islands/MetricsPanel.tsx");
 
   // Vérifier dashboard route
   assertEquals(
-    routeCode.includes("AgentCards - Graph Dashboard"),
+    routeCode.includes("CAI - Graph Dashboard"),
     true,
     "Route doit avoir le titre",
   );
   assertEquals(routeCode.includes("cytoscape"), true, "Route doit inclure Cytoscape CDN");
   assertEquals(
-    routeCode.includes("GraphVisualization"),
+    routeCode.includes("GraphExplorer"),
     true,
-    "Route doit utiliser GraphVisualization island",
+    "Route doit utiliser GraphExplorer island",
   );
   assertEquals(
     routeCode.includes("MetricsPanel"),
@@ -72,15 +72,15 @@ Deno.test("Smoke test - Fresh dashboard.tsx exists and contains required element
     "Route doit utiliser MetricsPanel island (Story 6.3)",
   );
 
-  // Vérifier GraphVisualization island
+  // Vérifier GraphVisualization island (composant avec API/SSE)
   assertEquals(
-    islandCode.includes("/api/graph/snapshot"),
+    graphVizCode.includes("/api/graph/snapshot"),
     true,
     "Island doit appeler l'API snapshot",
   );
-  assertEquals(islandCode.includes("/events/stream"), true, "Island doit se connecter au SSE");
+  assertEquals(graphVizCode.includes("/events/stream"), true, "Island doit se connecter au SSE");
   assertEquals(
-    islandCode.includes("EventSource"),
+    graphVizCode.includes("EventSource"),
     true,
     "Island doit utiliser EventSource pour SSE",
   );

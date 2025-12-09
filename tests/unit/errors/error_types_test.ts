@@ -4,7 +4,7 @@
 
 import { assert, assertEquals, assertInstanceOf } from "@std/assert";
 import {
-  AgentCardsError,
+  CasysIntelligenceError,
   ConfigurationError,
   DAGExecutionError,
   DatabaseError,
@@ -13,8 +13,8 @@ import {
   VectorSearchError,
 } from "../../../src/errors/error-types.ts";
 
-Deno.test("AgentCardsError - base error class", () => {
-  const error = new AgentCardsError(
+Deno.test("CasysIntelligenceError - base error class", () => {
+  const error = new CasysIntelligenceError(
     "Test error",
     "TEST_ERROR",
     true,
@@ -25,7 +25,7 @@ Deno.test("AgentCardsError - base error class", () => {
   assertEquals(error.code, "TEST_ERROR");
   assertEquals(error.recoverable, true);
   assertEquals(error.suggestion, "Try this fix");
-  assertEquals(error.name, "AgentCardsError");
+  assertEquals(error.name, "CasysIntelligenceError");
   assertInstanceOf(error, Error);
 });
 

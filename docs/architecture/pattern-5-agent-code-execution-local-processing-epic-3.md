@@ -70,7 +70,7 @@ const code = `
 
 **3. execute_code MCP Tool** (`src/mcp/gateway-server.ts`) - Story 3.4 ⏳
 
-- MCP tool: `agentcards:execute_code`
+- MCP tool: `cai:execute_code`
 - Input: `{ code: string, intent?: string, context?: object, sandbox_config?: object }`
 - Output: `{ result: any, logs: string[], metrics: object, state?: object }`
 - Modes: Intent-based (vector search) or Explicit (provided context)
@@ -131,7 +131,7 @@ const dag = {
 
 ## Security Model
 
-- **Explicit permissions only:** `--allow-env`, `--allow-read=~/.agentcards`
+- **Explicit permissions only:** `--allow-env`, `--allow-read=~/.cai`
 - **Deny by default:** `--deny-write`, `--deny-net`, `--deny-run`, `--deny-ffi`
 - **No eval():** Template strings only, no dynamic code generation
 - **Process isolation:** Code runs in separate subprocess

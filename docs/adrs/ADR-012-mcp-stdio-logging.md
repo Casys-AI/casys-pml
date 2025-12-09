@@ -1,11 +1,11 @@
 # ADR-012: MCP STDIO Logging Strategy
 
 **Status:** ✅ Implemented
-**Date:** 2025-11-21 | **Deciders:** Équipe AgentCards
+**Date:** 2025-11-21 | **Deciders:** Équipe Casys Intelligence
 
 ## Context
 
-AgentCards fonctionne comme un serveur MCP (Model Context Protocol) utilisant le transport stdio.
+Casys Intelligence fonctionne comme un serveur MCP (Model Context Protocol) utilisant le transport stdio.
 Dans ce mode :
 
 - **stdout** est réservé exclusivement aux messages JSON-RPC

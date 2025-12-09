@@ -112,7 +112,7 @@ export class WorkerBridge {
     this.graphRAG = config?.graphRAG;
 
     // Story 7.3b: Setup BroadcastChannel for capability traces
-    this.traceChannel = new BroadcastChannel("agentcards-traces");
+    this.traceChannel = new BroadcastChannel("cai-traces");
     this.traceChannel.onmessage = (e: MessageEvent<CapabilityTraceEvent>) => {
       // Add capability traces to unified trace array in real-time
       this.traces.push(e.data);

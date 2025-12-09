@@ -2,22 +2,22 @@
 
 ## Overview
 
-AgentCards est conçu comme un outil **local-first** sans dépendances cloud pour le MVP. L'architecture supporte néanmoins une évolution vers des déploiements edge/cloud.
+Casys Intelligence is designed as a **local-first** tool with no cloud dependencies for the MVP. The architecture nevertheless supports evolution toward edge/cloud deployments.
 
-## Architecture de Déploiement
+## Deployment Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                     USER MACHINE (Local-First)                       │
 │                                                                     │
 │  ┌─────────────────┐     ┌─────────────────┐     ┌───────────────┐ │
-│  │  Claude Desktop │────►│   AgentCards    │────►│  MCP Servers  │ │
+│  │  Claude Desktop │────►│   Casys Intelligence    │────►│  MCP Servers  │ │
 │  │  (Claude Code)  │     │    Gateway      │     │  (15+ types)  │ │
 │  └─────────────────┘     └────────┬────────┘     └───────────────┘ │
 │                                   │                                 │
 │                          ┌────────▼────────┐                       │
 │                          │    PGlite DB    │                       │
-│                          │ ~/.agentcards/  │                       │
+│                          │ ~/.cai/  │                       │
 │                          └─────────────────┘                       │
 │                                                                     │
 │  ┌─────────────────────────────────────────────────────────────┐   │
@@ -30,37 +30,37 @@ AgentCards est conçu comme un outil **local-first** sans dépendances cloud pou
 
 ---
 
-## Modes de Déploiement
+## Deployment Modes
 
 ### Mode 1: CLI Binary (Production)
 
 ```bash
 # Installation via deno install
-deno install -Agf -n agentcards jsr:@agentcards/cli
+deno install -Agf -n cai jsr:@cai/cli
 
-# Usage direct
-agentcards init     # Migration config MCP
-agentcards serve    # Démarrage gateway
+# Direct usage
+cai init     # MCP config migration
+cai serve    # Start gateway
 ```
 
-**Caractéristiques :**
-- Single binary compilé (~50MB avec Deno runtime)
-- Zero dépendances externes
-- Portable entre machines
+**Characteristics:**
+- Single compiled binary (~50MB with Deno runtime)
+- Zero external dependencies
+- Portable between machines
 
 ### Mode 2: Development (Source)
 
 ```bash
-# Clone + run depuis source
-git clone https://github.com/Casys-AI/mcp-gateway.git
-cd AgentCards
+# Clone + run from source
+git clone https://github.com/casys-ai/casys-intelligence.git
+cd casys-intelligence
 deno task serve:playground
 ```
 
-**Caractéristiques :**
-- Hot reload avec `deno task dev`
-- Accès debug logs
-- Tests et benchmarks disponibles
+**Characteristics:**
+- Hot reload with `deno task dev`
+- Debug logs access
+- Tests and benchmarks available
 
 ### Mode 3: Docker (Future)
 
@@ -75,49 +75,49 @@ CMD ["deno", "run", "-A", "src/main.ts", "serve"]
 
 ---
 
-## Plateformes Supportées
+## Supported Platforms
 
 | Platform | Architecture | Status | Notes |
 |----------|-------------|--------|-------|
-| macOS | x64 (Intel) | ✅ Testé | Primary dev platform |
-| macOS | ARM64 (M1/M2) | ✅ Testé | Full support |
-| Linux | x64 | ✅ Testé | CI/CD environment |
-| Linux | ARM64 | 🟡 Non testé | Should work (Deno support) |
+| macOS | x64 (Intel) | ✅ Tested | Primary dev platform |
+| macOS | ARM64 (M1/M2) | ✅ Tested | Full support |
+| Linux | x64 | ✅ Tested | CI/CD environment |
+| Linux | ARM64 | 🟡 Not tested | Should work (Deno support) |
 | Windows | x64 | 🟡 Via WSL | Native Deno possible |
-| Windows | ARM64 | ❌ Non supporté | Deno support limited |
+| Windows | ARM64 | ❌ Not supported | Deno support limited |
 
 ---
 
-## Exigences Système
+## System Requirements
 
 ### Minimum
 
-| Resource | Valeur | Justification |
-|----------|--------|---------------|
+| Resource | Value | Justification |
+|----------|-------|---------------|
 | RAM | 4 GB | BGE-M3 model (~2GB) + HNSW index |
 | Disk | 1 GB | Database + logs + model cache |
 | CPU | 2 cores | Parallel DAG execution |
 | Deno | 2.2+ LTS | Minimum stable version |
 
-### Recommandé
+### Recommended
 
-| Resource | Valeur | Bénéfice |
-|----------|--------|----------|
-| RAM | 8 GB | Marge pour MCP servers multiples |
-| Disk | 5 GB | Historique exécutions, episodic memory |
-| CPU | 4+ cores | Meilleur parallélisme DAG |
-| Deno | 2.5+ | Dernières optimisations |
+| Resource | Value | Benefit |
+|----------|-------|---------|
+| RAM | 8 GB | Margin for multiple MCP servers |
+| Disk | 5 GB | Execution history, episodic memory |
+| CPU | 4+ cores | Better DAG parallelism |
+| Deno | 2.5+ | Latest optimizations |
 
 ---
 
-## Structure Fichiers Runtime
+## Runtime File Structure
 
 ```
-~/.agentcards/                    # User data directory
-├── config.yaml                   # Configuration utilisateur
-├── agentcards.db                 # PGlite database (single file)
+~/.cai/                    # User data directory
+├── config.yaml                   # User configuration
+├── cai.db                 # PGlite database (single file)
 ├── logs/
-│   └── agentcards.log            # Application logs (rotated)
+│   └── cai.log            # Application logs (rotated)
 ├── cache/
 │   ├── embeddings/               # Cached model weights
 │   └── results/                  # Execution result cache
@@ -126,53 +126,53 @@ CMD ["deno", "run", "-A", "src/main.ts", "serve"]
 
 ---
 
-## Communication Inter-Processus
+## Inter-Process Communication
 
-### Claude Desktop ↔ AgentCards
+### Claude Desktop ↔ Casys Intelligence
 
 ```
 ┌──────────────────┐          ┌──────────────────┐
-│  Claude Desktop  │  stdio   │   AgentCards     │
+│  Claude Desktop  │  stdio   │   Casys Intelligence     │
 │                  │◄────────►│   Gateway        │
 │  (JSON-RPC)      │          │   (MCP Server)   │
 └──────────────────┘          └──────────────────┘
 ```
 
-**Protocole :** JSON-RPC 2.0 over stdio
-- Pas de port réseau exposé
-- Communication bidirectionnelle synchrone
-- Timeout: 30s par requête
+**Protocol:** JSON-RPC 2.0 over stdio
+- No network port exposed
+- Bidirectional synchronous communication
+- Timeout: 30s per request
 
-### AgentCards ↔ MCP Servers
+### Casys Intelligence ↔ MCP Servers
 
 ```
 ┌──────────────────┐          ┌──────────────────┐
-│   AgentCards     │  stdio   │   MCP Server     │
+│   Casys Intelligence     │  stdio   │   MCP Server     │
 │   Gateway        │◄────────►│   (filesystem)   │
 │                  │          │   (github)       │
 │                  │          │   (memory)       │
 └──────────────────┘          └──────────────────┘
 ```
 
-**Process Management :**
-- `Deno.Command` pour spawning
-- Pool de connexions persistantes
-- Restart automatique si crash
+**Process Management:**
+- `Deno.Command` for spawning
+- Persistent connection pool
+- Automatic restart on crash
 
 ### Dashboard ↔ Gateway
 
 ```
 ┌──────────────────┐   SSE    ┌──────────────────┐
-│   Fresh Web      │◄─────────│   AgentCards     │
+│   Fresh Web      │◄─────────│   Casys Intelligence     │
 │   Dashboard      │   HTTP   │   Gateway        │
 │   :8080          │─────────►│   :3001          │
 └──────────────────┘          └──────────────────┘
 ```
 
-**Protocole :**
-- SSE (Server-Sent Events) pour streaming temps réel
-- REST pour commands (approve, abort, replan)
-- WebSocket future option pour bidirectionnel
+**Protocol:**
+- SSE (Server-Sent Events) for real-time streaming
+- REST for commands (approve, abort, replan)
+- WebSocket future option for bidirectional
 
 ---
 
@@ -192,16 +192,16 @@ logger.info("Tool call", {
 });
 ```
 
-**Levels :** DEBUG, INFO, WARN, ERROR, CRITICAL
+**Levels:** DEBUG, INFO, WARN, ERROR, CRITICAL
 
 ### Metrics (Future: Epic 6)
 
 | Metric | Type | Description |
 |--------|------|-------------|
-| `dag_execution_duration_ms` | Histogram | Temps d'exécution workflow |
-| `tool_call_latency_ms` | Histogram | Latence par tool |
-| `speculation_success_rate` | Gauge | Taux succès spéculation |
-| `context_usage_percent` | Gauge | % contexte LLM utilisé |
+| `dag_execution_duration_ms` | Histogram | Workflow execution time |
+| `tool_call_latency_ms` | Histogram | Latency per tool |
+| `speculation_success_rate` | Gauge | Speculation success rate |
+| `context_usage_percent` | Gauge | % LLM context used |
 
 ### Tracing (Sentry Optional)
 
@@ -217,7 +217,7 @@ SENTRY_TRACES_SAMPLE_RATE=0.1
 
 ### Horizontal Scaling (Out of Scope MVP)
 
-AgentCards est single-instance par design (état local). Pour multi-instance :
+Casys Intelligence is single-instance by design (local state). For multi-instance:
 
 ```
 Future: Shared PGlite via S3/GCS + PGlite-sync
@@ -234,36 +234,36 @@ Future: Shared PGlite via S3/GCS + PGlite-sync
 
 ---
 
-## Distribution Future
+## Future Distribution
 
 ### Option 1: JSR Package
 
 ```bash
-deno install -Agf jsr:@agentcards/cli
+deno install -Agf jsr:@cai/cli
 ```
 
 ### Option 2: Homebrew
 
 ```bash
-brew tap casys-ai/agentcards
-brew install agentcards
+brew tap casys-ai/cai
+brew install cai
 ```
 
 ### Option 3: npm (via deno compile)
 
 ```bash
-npx @agentcards/cli serve
+npx @cai/cli serve
 ```
 
 ### Option 4: Deno Deploy (Edge)
 
 ```typescript
 // Future: Worker mode for edge deployment
-Deno.serve(agentcardsHandler);
+Deno.serve(caiHandler);
 ```
 
 ---
 
-*Références :*
-- [Development Environment](./development-environment.md) - Setup développeur
-- [Performance Considerations](./performance-considerations.md) - Optimisations
+*References:*
+- [Development Environment](./development-environment.md) - Developer setup
+- [Performance Considerations](./performance-considerations.md) - Optimizations

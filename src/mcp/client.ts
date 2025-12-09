@@ -125,7 +125,7 @@ export class MCPClient {
         protocolVersion: "2024-11-05",
         capabilities: {},
         clientInfo: {
-          name: "agentcards",
+          name: "cai",
           version: "0.1.0",
         },
       },

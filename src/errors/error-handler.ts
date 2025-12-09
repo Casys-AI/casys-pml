@@ -9,7 +9,7 @@
 
 import { getLogger } from "../telemetry/logger.ts";
 import type { PGliteClient } from "../db/client.ts";
-import { AgentCardsError } from "./error-types.ts";
+import { CasysIntelligenceError } from "./error-types.ts";
 
 const log = getLogger("default");
 
@@ -30,7 +30,7 @@ export class ErrorHandler {
    * @param context - Optional context string for debugging
    */
   static handle(error: Error, context?: string): void {
-    if (error instanceof AgentCardsError) {
+    if (error instanceof CasysIntelligenceError) {
       // Custom error - log with structured context
       log.error(`[${error.code}] ${error.message}`, {
         code: error.code,
@@ -59,7 +59,7 @@ export class ErrorHandler {
 
       console.error(`❌ Unexpected error: ${error.message}`);
       console.log(
-        `💡 Please report this issue with logs from ~/.agentcards/logs/`,
+        `💡 Please report this issue with logs from ~/.cai/logs/`,
       );
     }
   }

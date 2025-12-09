@@ -1,5 +1,5 @@
 /**
- * AgentCards - MCP Server Context Optimization Engine
+ * Casys Intelligence - MCP Server Context Optimization Engine
  *
  * Main entry point for the application.
  *
@@ -72,7 +72,7 @@ export async function main(): Promise<void> {
   await handleTelemetryFlags();
 
   await new Command()
-    .name("agentcards")
+    .name("cai")
     .version("0.1.0")
     .description("MCP Server Context Optimization Engine")
     .globalOption("--telemetry", "Enable telemetry (opt-in)")

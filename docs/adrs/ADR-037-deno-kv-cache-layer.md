@@ -17,7 +17,7 @@ Ce ADR est conservé comme référence si le besoin évolue (ex: scaling horizon
 
 ## Context
 
-AgentCards utilise plusieurs mécanismes de cache custom:
+Casys Intelligence utilise plusieurs mécanismes de cache custom:
 
 | Fichier | Type | Persistence | TTL |
 |---------|------|-------------|-----|
@@ -103,7 +103,7 @@ await kv.atomic()
          │                                      │
          │ SQLite (auto)                        │ PGlite file
          ▼                                      ▼
-    ./data/cache.db                      ./data/agentcards.db
+    ./data/cache.db                      ./data/cai.db
 ```
 
 ### Use Cases
@@ -301,7 +301,7 @@ let kvInstance: Deno.Kv | null = null;
 
 export async function getKV(): Promise<Deno.Kv> {
   if (!kvInstance) {
-    const dbPath = Deno.env.get("AGENTCARDS_CACHE_PATH") ?? "./data/cache.db";
+    const dbPath = Deno.env.get("CAI_CACHE_PATH") ?? "./data/cache.db";
     kvInstance = await Deno.openKv(dbPath);
   }
   return kvInstance;

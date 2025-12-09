@@ -11,37 +11,37 @@ import { ensurePlaygroundReady, getPlaygroundDbPath } from "./init.ts";
 // Unit Tests - getPlaygroundDbPath
 // ============================================================================
 
-Deno.test("getPlaygroundDbPath - uses AGENTCARDS_DB_PATH env var when set", () => {
+Deno.test("getPlaygroundDbPath - uses CAI_DB_PATH env var when set", () => {
   const customPath = "/custom/path/test.db";
-  const originalValue = Deno.env.get("AGENTCARDS_DB_PATH");
+  const originalValue = Deno.env.get("CAI_DB_PATH");
 
-  Deno.env.set("AGENTCARDS_DB_PATH", customPath);
+  Deno.env.set("CAI_DB_PATH", customPath);
   try {
     const path = getPlaygroundDbPath();
     assertEquals(path, customPath);
   } finally {
     if (originalValue) {
-      Deno.env.set("AGENTCARDS_DB_PATH", originalValue);
+      Deno.env.set("CAI_DB_PATH", originalValue);
     } else {
-      Deno.env.delete("AGENTCARDS_DB_PATH");
+      Deno.env.delete("CAI_DB_PATH");
     }
   }
 });
 
 Deno.test("getPlaygroundDbPath - falls back to default when env var not set", () => {
-  const originalValue = Deno.env.get("AGENTCARDS_DB_PATH");
-  Deno.env.delete("AGENTCARDS_DB_PATH");
+  const originalValue = Deno.env.get("CAI_DB_PATH");
+  Deno.env.delete("CAI_DB_PATH");
 
   try {
     const path = getPlaygroundDbPath();
     assert(
-      path.endsWith(".agentcards.db"),
-      `Expected path to end with .agentcards.db, got: ${path}`,
+      path.endsWith(".cai.db"),
+      `Expected path to end with .cai.db, got: ${path}`,
     );
-    assert(path.includes(".agentcards"), `Expected path to include .agentcards, got: ${path}`);
+    assert(path.includes(".cai"), `Expected path to include .cai, got: ${path}`);
   } finally {
     if (originalValue) {
-      Deno.env.set("AGENTCARDS_DB_PATH", originalValue);
+      Deno.env.set("CAI_DB_PATH", originalValue);
     }
   }
 });

@@ -10,8 +10,8 @@
 
 ```bash
 # Clone repository
-git clone https://github.com/username/agentcards.git
-cd agentcards
+git clone https://github.com/username/cai.git
+cd cai
 
 # Initialize Deno project (Story 1.1)
 deno task init
@@ -47,7 +47,7 @@ deno task dev -- serve
     "bench": "deno bench -A",
     "fmt": "deno fmt",
     "lint": "deno lint",
-    "build": "deno compile -A -o dist/agentcards main.ts"
+    "build": "deno compile -A -o dist/cai main.ts"
   }
 }
 ```

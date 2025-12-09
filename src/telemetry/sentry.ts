@@ -1,7 +1,7 @@
 /**
  * Sentry Integration Module
  *
- * Provides error tracking and performance monitoring for AgentCards
+ * Provides error tracking and performance monitoring for Casys Intelligence
  *
  * @module telemetry/sentry
  */
@@ -54,7 +54,7 @@ export async function initSentry(): Promise<void> {
   Sentry.init({
     dsn,
     environment,
-    release: release ? `agentcards@${release}` : undefined,
+    release: release ? `casys-intelligence@${release}` : undefined,
     tracesSampleRate,
 
     // Filter events before sending

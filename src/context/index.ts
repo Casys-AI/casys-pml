@@ -2,7 +2,7 @@
  * Context Optimization Module
  *
  * Provides on-demand schema loading and context window optimization
- * for AgentCards MCP tool discovery system.
+ * for Casys Intelligence MCP tool discovery system.
  *
  * @module context
  */

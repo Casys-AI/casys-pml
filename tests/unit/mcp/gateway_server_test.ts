@@ -12,7 +12,7 @@
  */
 
 import { assert, assertEquals, assertExists } from "@std/assert";
-import { AgentCardsGatewayServer } from "../../../src/mcp/gateway-server.ts";
+import { CasysIntelligenceGatewayServer } from "../../../src/mcp/gateway-server.ts";
 import type { PGliteClient } from "../../../src/db/client.ts";
 import type { SearchResult, VectorSearch } from "../../../src/vector/search.ts";
 import type { GraphRAGEngine } from "../../../src/graphrag/graph-engine.ts";
@@ -120,7 +120,7 @@ function createMockMCPClient(_serverId: string): MCPClient {
   } as unknown as MCPClient;
 }
 
-Deno.test("AgentCardsGatewayServer - Initialization", () => {
+Deno.test("CasysIntelligenceGatewayServer - Initialization", () => {
   const db = createMockDB();
   const vectorSearch = createMockVectorSearch();
   const graphEngine = createMockGraphEngine();
@@ -128,7 +128,7 @@ Deno.test("AgentCardsGatewayServer - Initialization", () => {
   const executor = createMockExecutor();
   const mcpClients = new Map<string, MCPClient>();
 
-  const gateway = new AgentCardsGatewayServer(
+  const gateway = new CasysIntelligenceGatewayServer(
     db,
     vectorSearch,
     graphEngine,
@@ -146,7 +146,7 @@ Deno.test("AgentCardsGatewayServer - Initialization", () => {
   assertExists(gateway);
 });
 
-Deno.test("AgentCardsGatewayServer - list_tools without query", async () => {
+Deno.test("CasysIntelligenceGatewayServer - list_tools without query", async () => {
   const db = createMockDB();
   const vectorSearch = createMockVectorSearch();
   const graphEngine = createMockGraphEngine();
@@ -154,7 +154,7 @@ Deno.test("AgentCardsGatewayServer - list_tools without query", async () => {
   const executor = createMockExecutor();
   const mcpClients = new Map<string, MCPClient>();
 
-  const gateway = new AgentCardsGatewayServer(
+  const gateway = new CasysIntelligenceGatewayServer(
     db,
     vectorSearch,
     graphEngine,
@@ -173,12 +173,12 @@ Deno.test("AgentCardsGatewayServer - list_tools without query", async () => {
   assertEquals(result.tools.length, 8);
 
   // Verify DAG execution tool is included (renamed from execute_workflow)
-  const dagTool = result.tools.find((t: MCPTool) => t.name === "agentcards:execute_dag");
+  const dagTool = result.tools.find((t: MCPTool) => t.name === "cai:execute_dag");
   assertExists(dagTool);
-  assertEquals(dagTool.name, "agentcards:execute_dag");
+  assertEquals(dagTool.name, "cai:execute_dag");
 });
 
-Deno.test("AgentCardsGatewayServer - list_tools with query", async () => {
+Deno.test("CasysIntelligenceGatewayServer - list_tools with query", async () => {
   const db = createMockDB();
   const vectorSearch = createMockVectorSearch();
   const graphEngine = createMockGraphEngine();
@@ -186,7 +186,7 @@ Deno.test("AgentCardsGatewayServer - list_tools with query", async () => {
   const executor = createMockExecutor();
   const mcpClients = new Map<string, MCPClient>();
 
-  const gateway = new AgentCardsGatewayServer(
+  const gateway = new CasysIntelligenceGatewayServer(
     db,
     vectorSearch,
     graphEngine,
@@ -202,11 +202,11 @@ Deno.test("AgentCardsGatewayServer - list_tools with query", async () => {
   assert(Array.isArray(result.tools));
 
   // Should include DAG execution tool + semantic search results (renamed from execute_workflow)
-  const dagTool = result.tools.find((t: MCPTool) => t.name === "agentcards:execute_dag");
+  const dagTool = result.tools.find((t: MCPTool) => t.name === "cai:execute_dag");
   assertExists(dagTool);
 });
 
-Deno.test("AgentCardsGatewayServer - call_tool single tool proxy", async () => {
+Deno.test("CasysIntelligenceGatewayServer - call_tool single tool proxy", async () => {
   const db = createMockDB();
   const vectorSearch = createMockVectorSearch();
   const graphEngine = createMockGraphEngine();
@@ -216,7 +216,7 @@ Deno.test("AgentCardsGatewayServer - call_tool single tool proxy", async () => {
   const mcpClients = new Map<string, MCPClient>();
   mcpClients.set("filesystem", createMockMCPClient("filesystem"));
 
-  const gateway = new AgentCardsGatewayServer(
+  const gateway = new CasysIntelligenceGatewayServer(
     db,
     vectorSearch,
     graphEngine,
@@ -238,7 +238,7 @@ Deno.test("AgentCardsGatewayServer - call_tool single tool proxy", async () => {
   assertEquals(result.content[0].type, "text");
 });
 
-Deno.test("AgentCardsGatewayServer - call_tool workflow execution", async () => {
+Deno.test("CasysIntelligenceGatewayServer - call_tool workflow execution", async () => {
   const db = createMockDB();
   const vectorSearch = createMockVectorSearch();
   const graphEngine = createMockGraphEngine();
@@ -246,7 +246,7 @@ Deno.test("AgentCardsGatewayServer - call_tool workflow execution", async () => 
   const executor = createMockExecutor();
   const mcpClients = new Map<string, MCPClient>();
 
-  const gateway = new AgentCardsGatewayServer(
+  const gateway = new CasysIntelligenceGatewayServer(
     db,
     vectorSearch,
     graphEngine,
@@ -258,7 +258,7 @@ Deno.test("AgentCardsGatewayServer - call_tool workflow execution", async () => 
   const handleCallTool = (gateway as any).handleCallTool.bind(gateway);
   const result = await handleCallTool({
     params: {
-      name: "agentcards:execute_dag",
+      name: "cai:execute_dag",
       arguments: {
         workflow: {
           tasks: [
@@ -277,7 +277,7 @@ Deno.test("AgentCardsGatewayServer - call_tool workflow execution", async () => 
   assertExists(response.results);
 });
 
-Deno.test("AgentCardsGatewayServer - MCP error responses", async () => {
+Deno.test("CasysIntelligenceGatewayServer - MCP error responses", async () => {
   const db = createMockDB();
   const vectorSearch = createMockVectorSearch();
   const graphEngine = createMockGraphEngine();
@@ -285,7 +285,7 @@ Deno.test("AgentCardsGatewayServer - MCP error responses", async () => {
   const executor = createMockExecutor();
   const mcpClients = new Map<string, MCPClient>();
 
-  const gateway = new AgentCardsGatewayServer(
+  const gateway = new CasysIntelligenceGatewayServer(
     db,
     vectorSearch,
     graphEngine,
@@ -307,7 +307,7 @@ Deno.test("AgentCardsGatewayServer - MCP error responses", async () => {
   assert(result.error.message.includes("Missing required parameter"));
 });
 
-Deno.test("AgentCardsGatewayServer - Unknown MCP server error", async () => {
+Deno.test("CasysIntelligenceGatewayServer - Unknown MCP server error", async () => {
   const db = createMockDB();
   const vectorSearch = createMockVectorSearch();
   const graphEngine = createMockGraphEngine();
@@ -315,7 +315,7 @@ Deno.test("AgentCardsGatewayServer - Unknown MCP server error", async () => {
   const executor = createMockExecutor();
   const mcpClients = new Map<string, MCPClient>(); // Empty - no servers
 
-  const gateway = new AgentCardsGatewayServer(
+  const gateway = new CasysIntelligenceGatewayServer(
     db,
     vectorSearch,
     graphEngine,

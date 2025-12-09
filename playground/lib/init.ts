@@ -144,12 +144,12 @@ export async function ensurePlaygroundReady(
 /**
  * Get the database path for playground use.
  *
- * Uses AGENTCARDS_DB_PATH env var (set in .env files).
- * Falls back to default ~/.agentcards/.agentcards.db if not set.
+ * Uses CAI_DB_PATH env var (set in .env files).
+ * Falls back to default ~/.cai/.cai.db if not set.
  */
 export function getPlaygroundDbPath(): string {
   // Use env var from .env file (loaded automatically by Deno 2.0+)
-  const envPath = Deno.env.get("AGENTCARDS_DB_PATH");
+  const envPath = Deno.env.get("CAI_DB_PATH");
   if (envPath) {
     return envPath;
   }
@@ -159,7 +159,7 @@ export function getPlaygroundDbPath(): string {
   if (!homeDir) {
     throw new Error("Cannot determine home directory");
   }
-  return `${homeDir}/.agentcards/.agentcards.db`;
+  return `${homeDir}/.cai/.cai.db`;
 }
 
 // ============================================================================

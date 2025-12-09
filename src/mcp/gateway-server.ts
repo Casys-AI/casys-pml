@@ -1,7 +1,7 @@
 /**
  * MCP Gateway Server
  *
- * Exposes AgentCards functionality via MCP protocol (stdio transport)
+ * Exposes Casys Intelligence functionality via MCP protocol (stdio transport)
  * Compatible with Claude Code and other MCP clients.
  *
  * Implements MCP methods:
@@ -96,7 +96,7 @@ export interface GatewayServerConfig {
 /**
  * MCP Gateway Server
  *
- * Transparent gateway that exposes AgentCards as a single MCP server.
+ * Transparent gateway that exposes Casys Intelligence as a single MCP server.
  * Claude Code sees all tools from all MCP servers + workflow execution capability.
  */
 /**
@@ -116,7 +116,7 @@ interface ActiveWorkflow {
   latestCheckpointId: string | null;
 }
 
-export class AgentCardsGatewayServer {
+export class CasysIntelligenceGatewayServer {
   private server: Server;
   private gatewayHandler: GatewayHandler;
   private healthChecker: HealthChecker;
@@ -262,7 +262,7 @@ export class AgentCardsGatewayServer {
 
       // Add special DAG execution tool (renamed from execute_workflow - Story 2.5-4)
       const executeDagTool: MCPTool = {
-        name: "agentcards:execute_dag",
+        name: "cai:execute_dag",
         description:
           "Execute a multi-tool DAG (Directed Acyclic Graph) workflow. Supports intent-based suggestions or explicit DAG definitions. Provide EITHER 'intent' (for AI suggestion) OR 'workflow' (for explicit DAG), not both.",
         inputSchema: {
@@ -286,7 +286,7 @@ export class AgentCardsGatewayServer {
 
       // Add search_tools (Spike: search-tools-graph-traversal)
       const searchToolsTool: MCPTool = {
-        name: "agentcards:search_tools",
+        name: "cai:search_tools",
         description:
           "Search for relevant tools using semantic search and graph-based recommendations. Returns tools matching your query with optional related tools from usage patterns.",
         inputSchema: {
@@ -316,7 +316,7 @@ export class AgentCardsGatewayServer {
 
       // Add search_capabilities tool (Story 7.3a)
       const searchCapabilitiesTool: MCPTool = {
-        name: "agentcards:search_capabilities",
+        name: "cai:search_capabilities",
         description:
           "Search for existing learned capabilities (code patterns) matching your intent. Returns capabilities that can be executed directly to solve your problem.",
         inputSchema: {
@@ -337,7 +337,7 @@ export class AgentCardsGatewayServer {
 
       // Add code execution tool (Story 3.4)
       const executeCodeTool: MCPTool = {
-        name: "agentcards:execute_code",
+        name: "cai:execute_code",
         description:
           "[INTERNAL] Execute TypeScript/JavaScript in Deno sandbox. Simple expressions auto-return, multi-statement code requires explicit return. See ADR-016 for details.",
         inputSchema: {
@@ -382,7 +382,7 @@ export class AgentCardsGatewayServer {
 
       // Story 2.5-4: Control tools for per-layer validation (ADR-020)
       const continueTool: MCPTool = {
-        name: "agentcards:continue",
+        name: "cai:continue",
         description:
           "Continue DAG execution to next layer. Use after receiving layer_complete status from execute_dag with per_layer_validation enabled.",
         inputSchema: {
@@ -402,7 +402,7 @@ export class AgentCardsGatewayServer {
       };
 
       const abortTool: MCPTool = {
-        name: "agentcards:abort",
+        name: "cai:abort",
         description:
           "Abort DAG execution. Use to stop a running workflow when issues are detected.",
         inputSchema: {
@@ -422,7 +422,7 @@ export class AgentCardsGatewayServer {
       };
 
       const replanTool: MCPTool = {
-        name: "agentcards:replan",
+        name: "cai:replan",
         description:
           "Replan DAG with new requirement. Triggers GraphRAG to add new tasks based on discovered context (e.g., found XML files → add XML parser).",
         inputSchema: {
@@ -446,7 +446,7 @@ export class AgentCardsGatewayServer {
       };
 
       const approvalResponseTool: MCPTool = {
-        name: "agentcards:approval_response",
+        name: "cai:approval_response",
         description:
           "Respond to HIL (Human-in-the-Loop) approval checkpoint. Use when workflow pauses for approval of critical operations.",
         inputSchema: {
@@ -513,7 +513,7 @@ export class AgentCardsGatewayServer {
    *
    * Supports both single tool execution and workflow execution.
    * - Single tool: Proxies to underlying MCP server (e.g., "filesystem:read")
-   * - DAG execution: Executes via AgentCards DAG engine ("agentcards:execute_dag")
+   * - DAG execution: Executes via Casys Intelligence DAG engine ("cai:execute_dag")
    * - Control tools: continue, abort, replan_dag, approval_response (Story 2.5-4)
    *
    * @param request - MCP request with params.name and params.arguments
@@ -547,53 +547,53 @@ export class AgentCardsGatewayServer {
       log.info(`call_tool: ${name}`);
 
       // Check if this is a DAG execution request (renamed from execute_workflow)
-      if (name === "agentcards:execute_dag") {
+      if (name === "cai:execute_dag") {
         const result = await this.handleWorkflowExecution(args);
         transaction.finish();
         return result;
       }
 
       // Story 2.5-4: Control tools for per-layer validation
-      if (name === "agentcards:continue") {
+      if (name === "cai:continue") {
         const result = await this.handleContinue(args);
         transaction.finish();
         return result;
       }
 
-      if (name === "agentcards:abort") {
+      if (name === "cai:abort") {
         const result = await this.handleAbort(args);
         transaction.finish();
         return result;
       }
 
-      if (name === "agentcards:replan") {
+      if (name === "cai:replan") {
         const result = await this.handleReplan(args);
         transaction.finish();
         return result;
       }
 
-      if (name === "agentcards:approval_response") {
+      if (name === "cai:approval_response") {
         const result = await this.handleApprovalResponse(args);
         transaction.finish();
         return result;
       }
 
       // Check if this is a code execution request (Story 3.4)
-      if (name === "agentcards:execute_code") {
+      if (name === "cai:execute_code") {
         const result = await this.handleExecuteCode(args);
         transaction.finish();
         return result;
       }
 
       // Check if this is a search_tools request (Spike: search-tools-graph-traversal)
-      if (name === "agentcards:search_tools") {
+      if (name === "cai:search_tools") {
         const result = await this.handleSearchTools(args);
         transaction.finish();
         return result;
       }
 
       // Check if this is a search_capabilities request (Story 7.3a)
-      if (name === "agentcards:search_capabilities") {
+      if (name === "cai:search_capabilities") {
         const result = await this.handleSearchCapabilities(args);
         transaction.finish();
         return result;
@@ -2061,10 +2061,10 @@ export class AgentCardsGatewayServer {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
 
-    log.info("✓ AgentCards MCP gateway started (stdio mode)");
+    log.info("✓ Casys Intelligence MCP gateway started (stdio mode)");
     log.info(`  Server: ${this.config.name} v${this.config.version}`);
     log.info(`  Connected MCP servers: ${this.mcpClients.size}`);
-    log.info("  Claude Code can now connect to agentcards");
+    log.info("  Claude Code can now connect to cai");
   }
 
   /**
@@ -2370,7 +2370,7 @@ export class AgentCardsGatewayServer {
       return new Response("Not Found", { status: 404 });
     });
 
-    log.info(`✓ AgentCards MCP gateway started (HTTP mode on port ${port})`);
+    log.info(`✓ Casys Intelligence MCP gateway started (HTTP mode on port ${port})`);
     log.info(`  Server: ${this.config.name} v${this.config.version}`);
     log.info(`  Connected MCP servers: ${this.mcpClients.size}`);
     log.info(
@@ -2442,7 +2442,7 @@ export class AgentCardsGatewayServer {
    * Graceful shutdown
    */
   async stop(): Promise<void> {
-    log.info("Shutting down AgentCards gateway...");
+    log.info("Shutting down Casys Intelligence gateway...");
 
     // Stop health checks
     this.healthChecker.stopPeriodicChecks();

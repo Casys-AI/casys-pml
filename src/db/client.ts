@@ -41,7 +41,7 @@ export class PGliteClient {
 
   /**
    * Initialize and connect to the database
-   * Creates ~/.agentcards/ directory if it doesn't exist
+   * Creates ~/.cai/ directory if it doesn't exist
    * Initializes PGlite with pgvector extension
    */
   async connect(): Promise<void> {
@@ -180,7 +180,7 @@ export class PGliteClient {
 }
 
 /**
- * Create a default database client pointing to ~/.agentcards/.agentcards.db
+ * Create a default database client pointing to ~/.cai/.cai.db
  *
  * Respects AGENTCARDS_DB_PATH environment variable for custom paths (ADR-021).
  */

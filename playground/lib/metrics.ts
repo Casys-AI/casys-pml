@@ -1,5 +1,5 @@
 /**
- * Metrics Visualization Helpers for AgentCards Playground
+ * Metrics Visualization Helpers for Casys Intelligence Playground
  *
  * ASCII-based metrics display for Jupyter notebooks.
  * Shows progress bars, metric comparisons, and speedup charts.

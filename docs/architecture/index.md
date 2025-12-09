@@ -1,8 +1,8 @@
-# Decision Architecture - AgentCards
+# Decision Architecture - Casys Intelligence
 
 ## Table of Contents
 
-- [Decision Architecture - AgentCards](#table-of-contents)
+- [Decision Architecture - Casys Intelligence](#table-of-contents)
   - [Executive Summary](./executive-summary.md)
   - [Project Initialization](./project-initialization.md)
   - [Decision Summary](./decision-summary.md)

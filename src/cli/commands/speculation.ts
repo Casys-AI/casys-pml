@@ -34,14 +34,14 @@ function getManager(): SpeculationManager {
  * Create speculation command group
  *
  * Usage:
- *   agentcards speculation config                    # Show current config
- *   agentcards speculation config --threshold 0.75   # Update threshold
- *   agentcards speculation config --enable           # Enable speculation
- *   agentcards speculation config --disable          # Disable speculation
- *   agentcards speculation config --timeout 15000    # Set timeout
- *   agentcards speculation stats                     # Show metrics
- *   agentcards speculation stats --json              # JSON output
- *   agentcards speculation stats --reset             # Reset metrics
+ *   cai speculation config                    # Show current config
+ *   cai speculation config --threshold 0.75   # Update threshold
+ *   cai speculation config --enable           # Enable speculation
+ *   cai speculation config --disable          # Disable speculation
+ *   cai speculation config --timeout 15000    # Set timeout
+ *   cai speculation stats                     # Show metrics
+ *   cai speculation stats --json              # JSON output
+ *   cai speculation stats --reset             # Reset metrics
  */
 export function createSpeculationCommand() {
   return new Command()

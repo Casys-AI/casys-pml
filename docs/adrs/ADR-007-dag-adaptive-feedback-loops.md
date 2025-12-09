@@ -15,7 +15,7 @@
 
 ### Système Actuel
 
-Le système AgentCards utilise un `ParallelExecutor` qui exécute un DAG de manière linéaire et
+Le système Casys Intelligence utilise un `ParallelExecutor` qui exécute un DAG de manière linéaire et
 complète en une seule passe:
 
 ```typescript
@@ -206,7 +206,7 @@ graph.addConditionalEdge("task1", (state) => state.condition ? "task2" : "task3"
 - 🔴 Migration coûteuse (20-30h)
 - 🟡 Parallélisme moins naturel
 
-**Verdict:** 🟡 Excellent pour nouveau projet, trop coûteux pour AgentCards.
+**Verdict:** 🟡 Excellent pour nouveau projet, trop coûteux pour Casys Intelligence.
 
 ---
 

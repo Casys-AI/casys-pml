@@ -35,7 +35,7 @@ Survey of industry standards:
 | Jupyter/IPython      | Auto-return last expression | REPL   |
 | E2B Sandbox          | Auto-return last expression | REPL   |
 | LangChain PythonREPL | Explicit `print()` required | Script |
-| AgentCards (current) | Explicit `return` required  | Script |
+| Casys Intelligence (current) | Explicit `return` required  | Script |
 
 **LLM Training Data:** 80%+ of code execution examples in training data use REPL-style auto-return.
 

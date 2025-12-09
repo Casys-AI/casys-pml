@@ -17,12 +17,12 @@
 
 ## Context
 
-Avec ADR-027 (Execute Code Graph Learning), AgentCards peut apprendre des patterns d'exécution de
+Avec ADR-027 (Execute Code Graph Learning), Casys Intelligence peut apprendre des patterns d'exécution de
 code. Cependant, cette connaissance reste **implicite** dans le graphe (edges entre tools).
 
 L'objectif de cet ADR est de définir comment faire **émerger des capabilities explicites** de
 l'usage - créant un nouveau paradigme où Claude devient un orchestrateur de haut niveau qui délègue
-l'exécution à AgentCards.
+l'exécution à Casys Intelligence.
 
 ### État Actuel vs Vision
 
@@ -45,7 +45,7 @@ l'exécution à AgentCards.
 │                                                                  │
 │  ✅ Réutilisation de code prouvé                                 │
 │  ✅ Suggestions basées sur communities Louvain                   │
-│  ✅ Claude orchestre, AgentCards exécute                         │
+│  ✅ Claude orchestre, Casys Intelligence exécute                         │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -55,7 +55,7 @@ l'exécution à AgentCards.
 | ------------------ | ----------- | ------------- | --------------- | --------- |
 | Docker Dynamic MCP | ❌          | ❌            | ❌              | Container |
 | Anthropic PTC      | ❌          | ❌            | ❌              | Sandbox   |
-| **AgentCards**     | ✅ GraphRAG | ✅ Louvain/AA | ✅ Capabilities | Sandbox   |
+| **Casys Intelligence**     | ✅ GraphRAG | ✅ Louvain/AA | ✅ Capabilities | Sandbox   |
 
 ### Triggers
 
@@ -1164,7 +1164,7 @@ Pour les longues tâches, streamer les events `progress` en temps réel via SSE.
 Permettre à l'utilisateur de créer des capabilities manuellement:
 
 ```typescript
-await agentcards.create_capability({
+await cai.create_capability({
   name: "weekly-report",
   intent: "Generate weekly activity report",
   code: `const commits = await github.listCommits(...); ...`,
@@ -1177,7 +1177,7 @@ Track versions quand le code évolue, permettre rollback.
 
 ### Capability Sharing
 
-Export/import de capabilities entre instances AgentCards.
+Export/import de capabilities entre instances Casys Intelligence.
 
 ## References
 

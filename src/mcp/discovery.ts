@@ -30,7 +30,7 @@ export class MCPServerDiscovery {
   /**
    * Load and parse MCP configuration from YAML file
    *
-   * Supports both ~/.agentcards/config.yaml and Claude Code mcp.json
+   * Supports both ~/.cai/config.yaml and Claude Code mcp.json
    */
   async loadConfig(): Promise<MCPConfig> {
     try {
@@ -97,7 +97,7 @@ export class MCPServerDiscovery {
       return { servers };
     }
 
-    // Handle AgentCards config.yaml format: { servers: [...] }
+    // Handle Casys Intelligence config.yaml format: { servers: [...] }
     if (typeof raw === "object" && raw !== null && "servers" in raw) {
       const servers = (raw as Record<string, unknown>).servers;
       if (Array.isArray(servers)) {
@@ -188,6 +188,6 @@ export class MCPServerDiscovery {
  */
 export function createDefaultDiscovery(): MCPServerDiscovery {
   const homeDir = Deno.env.get("HOME") || Deno.env.get("USERPROFILE") || ".";
-  const configPath = `${homeDir}/.agentcards/config.yaml`;
+  const configPath = `${homeDir}/.cai/config.yaml`;
   return new MCPServerDiscovery(configPath);
 }
