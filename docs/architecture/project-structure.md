@@ -1,118 +1,199 @@
 # Project Structure
 
+_Updated: December 2025_
+
 ```
-agentcards/
+casys-intelligence/
 ├── deno.json                    # Deno config, tasks, imports
-├── deps.ts                      # Centralized dependencies
+├── drizzle.config.ts            # Drizzle ORM configuration
 ├── mod.ts                       # Public API exports
-├── main.ts                      # CLI entry point
+├── config/
+│   └── .mcp-servers.json        # MCP servers configuration
 │
 ├── src/
-│   ├── cli/                     # CLI commands (Epic 1)
+│   ├── main.ts                  # CLI entry point
+│   │
+│   ├── cli/                     # CLI commands
 │   │   ├── commands/
-│   │   │   ├── init.ts          # Story 1.7 - Migration tool
-│   │   │   ├── serve.ts         # Story 2.4 - Gateway server
-│   │   │   └── status.ts        # Story 2.5 - Health checks
-│   │   └── main.ts              # cliffy CLI setup
+│   │   │   ├── init.ts          # Initialize CAI (migrate config, extract schemas)
+│   │   │   ├── serve.ts         # Start MCP gateway server
+│   │   │   ├── status.ts        # Health checks
+│   │   │   ├── migrate-config.ts # Config migration helper
+│   │   │   ├── speculation.ts   # Speculation management
+│   │   │   └── workflows.ts     # Workflow commands
+│   │   ├── auto-init.ts         # Auto-initialization logic
+│   │   ├── config-migrator.ts   # Claude Desktop config migration
+│   │   └── utils.ts             # CLI utilities, path helpers
 │   │
-│   ├── db/                      # Database layer (Epic 1)
+│   ├── db/                      # Database layer
 │   │   ├── client.ts            # PGlite initialization
+│   │   ├── migrations.ts        # SQL migration runner
 │   │   ├── migrations/          # SQL schema evolution
-│   │   │   └── 001_initial.sql  # Story 1.2 - Initial schema
-│   │   └── queries.ts           # Prepared queries
+│   │   │   └── *.sql            # Versioned migrations
+│   │   └── schema/              # Drizzle schema definitions
+│   │       └── users.ts         # Users table (Epic 9)
 │   │
-│   ├── vector/                  # Vector search (Epic 1)
-│   │   ├── embeddings.ts        # Story 1.4 - BGE model inference
-│   │   ├── search.ts            # Story 1.5 - Semantic search
-│   │   └── index.ts             # HNSW index management
+│   ├── lib/                     # Shared libraries
+│   │   ├── auth.ts              # Auth helpers (API keys, hashing)
+│   │   ├── paths.ts             # Path resolution utilities
+│   │   └── *.ts                 # Other shared utilities
 │   │
-│   ├── mcp/                     # MCP protocol (Epic 1, 2, 3)
-│   │   ├── discovery.ts         # Story 1.3 - Server discovery
+│   ├── server/                  # HTTP server components
+│   │   ├── auth/                # Authentication (Epic 9)
+│   │   │   ├── middleware.ts    # Auth middleware
+│   │   │   ├── oauth.ts         # GitHub OAuth handlers
+│   │   │   └── api-key.ts       # API key validation
+│   │   ├── events-stream.ts     # SSE event streaming
+│   │   └── sse-handler.ts       # SSE connection handler
+│   │
+│   ├── mcp/                     # MCP protocol layer
+│   │   ├── gateway-server.ts    # Main gateway server, tool handlers
 │   │   ├── client.ts            # MCP SDK wrapper
-│   │   ├── gateway-server.ts    # Story 2.4 - Gateway server
+│   │   ├── discovery.ts         # Server discovery
 │   │   └── types.ts             # MCP type definitions
 │   │
-│   ├── dag/                     # DAG execution (Epic 2, 2.5)
-│   │   ├── builder.ts           # Story 2.1 - Dependency graph
-│   │   ├── executor.ts          # Story 2.2 - Parallel execution
-│   │   ├── controlled-executor.ts # Story 2.5-1 - Adaptive executor
-│   │   ├── state.ts             # Story 2.5-1 - WorkflowState
-│   │   ├── event-stream.ts      # Story 2.5-1 - Event streaming
-│   │   ├── command-queue.ts     # Story 2.5-1 - Command queue
-│   │   ├── checkpoint-manager.ts # Story 2.5-2 - Checkpoints
+│   ├── dag/                     # DAG execution engine
+│   │   ├── builder.ts           # Dependency graph construction
+│   │   ├── executor.ts          # Parallel execution
+│   │   ├── controlled-executor.ts # Adaptive executor (AIL/HIL)
+│   │   ├── state.ts             # WorkflowState management
+│   │   ├── event-stream.ts      # Event streaming
+│   │   ├── command-queue.ts     # Command queue
+│   │   ├── checkpoint-manager.ts # Checkpoint/resume
 │   │   └── types.ts             # DAG node/edge types
 │   │
-│   ├── graphrag/                # GraphRAG (Epic 2.5, 5)
-│   │   ├── engine.ts            # Story 2.5-3 - Graph engine
-│   │   ├── dag-suggester.ts     # Story 2.5-3 - DAG replanning
-│   │   ├── workflow-templates.ts # Story 5.2 - Template sync
+│   ├── graphrag/                # GraphRAG engine
+│   │   ├── graph-engine.ts      # Core graph algorithms
+│   │   ├── dag-suggester.ts     # DAG replanning
+│   │   ├── workflow-templates.ts # Template sync
 │   │   └── types.ts             # Graph types
 │   │
-│   ├── sandbox/                 # Code execution (Epic 3, 7)
-│   │   ├── executor.ts          # Story 3.1 - Deno sandbox
-│   │   ├── context-builder.ts   # Story 3.2 - Tool injection
-│   │   ├── worker-bridge.ts     # Story 7.1b - RPC bridge for MCP tools
-│   │   ├── sandbox-worker.ts    # Story 7.1b - Isolated worker script
-│   │   └── types.ts             # Story 3.1, 7.1b - Sandbox & RPC types
+│   ├── sandbox/                 # Code execution sandbox
+│   │   ├── sandbox-worker.ts    # Isolated worker script
+│   │   ├── worker-bridge.ts     # RPC bridge for MCP tools
+│   │   ├── context-builder.ts   # Tool injection
+│   │   └── types.ts             # Sandbox & RPC types
 │   │
-│   ├── speculation/             # Speculative execution (Epic 3.5)
-│   │   ├── speculative-executor.ts # Story 3.5-1 - Speculation engine
-│   │   ├── cache.ts             # Story 3.5-1 - Result caching
+│   ├── speculation/             # Speculative execution
+│   │   ├── speculative-executor.ts # Speculation engine
+│   │   ├── cache.ts             # Result caching
 │   │   └── types.ts             # Speculation types
 │   │
-│   ├── learning/                # Adaptive learning (Epic 4)
-│   │   ├── episodic-memory-store.ts # Story 4.1 - Episode storage
-│   │   ├── adaptive-threshold.ts # Story 4.2 - Threshold manager
+│   ├── learning/                # Adaptive learning
+│   │   ├── episodic-memory-store.ts # Episode storage
+│   │   ├── adaptive-threshold.ts # Threshold manager
 │   │   └── types.ts             # Learning types
 │   │
 │   ├── capabilities/            # Emergent capabilities (Epic 7)
-│   │   ├── matcher.ts           # Story 7.3a - Intent → capability matching
-│   │   ├── schema-inferrer.ts   # Story 7.2b - SWC-based parameter inference
-│   │   ├── suggestion-engine.ts # Story 7.4 - Proactive recommendations
-│   │   ├── code-generator.ts    # Story 7.3b - Inline function generation
+│   │   ├── matcher.ts           # Intent → capability matching
+│   │   ├── schema-inferrer.ts   # SWC-based parameter inference
+│   │   ├── code-generator.ts    # Inline function generation
+│   │   ├── executor.ts          # Capability execution
+│   │   ├── mod.ts               # Module exports
 │   │   └── types.ts             # Capability types
 │   │
-│   ├── visualization/           # Graph visualization (Epic 8)
-│   │   ├── hypergraph-builder.ts # Story 8.2 - Compound graph construction
-│   │   └── types.ts             # Visualization types
+│   ├── vector/                  # Vector search
+│   │   ├── embeddings.ts        # BGE-M3 model inference
+│   │   ├── search.ts            # Semantic search
+│   │   └── index.ts             # HNSW index management
 │   │
-│   ├── streaming/               # SSE streaming (Epic 2)
-│   │   ├── sse.ts               # Story 2.3 - Event stream
-│   │   └── types.ts             # Event types
+│   ├── context/                 # Context management
+│   │   └── *.ts                 # Context utilities
 │   │
-│   ├── config/                  # Configuration (Epic 1)
-│   │   ├── loader.ts            # YAML config loading
-│   │   ├── validator.ts         # Config schema validation
-│   │   └── types.ts             # Config interfaces
+│   ├── health/                  # Health checks
+│   │   └── *.ts                 # Health check utilities
 │   │
-│   ├── telemetry/               # Observability (Epic 1)
-│   │   ├── logger.ts            # Story 1.8 - std/log wrapper
+│   ├── errors/                  # Error handling
+│   │   └── error-types.ts       # Custom error types
+│   │
+│   ├── telemetry/               # Observability
+│   │   ├── logger.ts            # std/log wrapper
 │   │   ├── metrics.ts           # Context/latency tracking
 │   │   └── types.ts             # Metric definitions
 │   │
-│   └── utils/                   # Shared utilities
-│       ├── errors.ts            # Story 2.6 - Custom error types
-│       ├── retry.ts             # Retry logic with backoff
-│       └── validation.ts        # Input validation helpers
+│   ├── utils/                   # Shared utilities
+│   │   ├── errors.ts            # Error utilities
+│   │   ├── retry.ts             # Retry logic with backoff
+│   │   └── validation.ts        # Input validation helpers
+│   │
+│   └── web/                     # Fresh 2 dashboard
+│       ├── main.ts              # Fresh entry point
+│       ├── dev.ts               # Development server
+│       ├── vite.config.ts       # Vite configuration
+│       ├── routes/              # Fresh routes
+│       │   ├── index.tsx        # Landing page
+│       │   ├── auth/            # Auth routes (signin, callback, signout)
+│       │   ├── dashboard/       # Dashboard routes
+│       │   │   ├── index.tsx    # Main dashboard
+│       │   │   └── settings.tsx # User settings
+│       │   └── api/             # API routes
+│       ├── islands/             # Interactive Preact islands
+│       ├── components/          # Shared UI components
+│       ├── assets/              # Static assets
+│       └── utils/               # Web utilities
 │
 ├── tests/                       # Test suite
 │   ├── unit/                    # Unit tests
+│   │   ├── sandbox/             # Sandbox tests
+│   │   ├── capabilities/        # Capabilities tests
+│   │   └── ...
 │   ├── integration/             # Integration tests
-│   ├── e2e/                     # Story 2.7 - E2E scenarios
-│   ├── benchmarks/              # Performance tests
-│   └── fixtures/                # Mock data, MCP servers
+│   ├── fixtures/                # Mock data
+│   └── mocks/                   # Mock MCP servers
+│
+├── playground/                  # Jupyter notebook playground
+│   ├── notebooks/               # Interactive notebooks
+│   ├── lib/                     # Playground helpers
+│   ├── scripts/                 # Setup scripts
+│   └── server.ts                # Playground server
 │
 ├── docs/                        # Documentation
-│   ├── architecture/            # Architecture documentation (this folder)
-│   ├── PRD.md                   # Product requirements
-│   ├── epics.md                 # Epic breakdown
-│   └── api/                     # API documentation
+│   ├── architecture/            # Architecture docs (this folder)
+│   ├── adrs/                    # Architecture Decision Records
+│   ├── sprint-artifacts/        # Sprint stories and specs
+│   ├── user-docs/               # User guides
+│   ├── spikes/                  # Technical spikes
+│   ├── retrospectives/          # Sprint retrospectives
+│   └── blog/                    # Blog posts
 │
-└── .agentcards/                 # User data directory (created at runtime)
-    ├── config.yaml              # User configuration
-    ├── agentcards.db            # PGlite database file
-    └── logs/                    # Application logs
-        └── agentcards.log
+├── drizzle/                     # Drizzle migrations output
+│
+├── scripts/                     # Ops scripts
+│
+├── monitoring/                  # Monitoring configs
+│
+└── .devcontainer/               # Dev container configs
+    └── playground/              # Playground devcontainer
 ```
+
+## Key Directories
+
+### `src/cli/`
+
+CLI commands and utilities. Entry point is `src/main.ts` which routes to commands in
+`src/cli/commands/`.
+
+### `src/server/`
+
+HTTP server components including authentication middleware (Epic 9), SSE streaming, and event
+handlers.
+
+### `src/mcp/`
+
+MCP protocol implementation. `gateway-server.ts` is the main gateway exposing meta-tools
+(`cai:execute_dag`, `cai:search_tools`, etc.).
+
+### `src/sandbox/`
+
+Isolated code execution environment. Uses Deno subprocess with restricted permissions.
+`worker-bridge.ts` provides RPC for MCP tool access from sandbox.
+
+### `src/web/`
+
+Fresh 2 + Vite dashboard. Routes are in `routes/`, interactive components in `islands/`.
+
+### `playground/`
+
+Jupyter notebook environment for interactive exploration of CAI features.
 
 ---

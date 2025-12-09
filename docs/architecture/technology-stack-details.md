@@ -1,6 +1,6 @@
 # Technology Stack Details
 
-_Status: Updated December 2025_
+_Updated: December 2025_
 
 ## 1. Runtime & Build
 
@@ -9,27 +9,29 @@ _Status: Updated December 2025_
 | **Runtime**       | Deno 2.x (permissioned, `--allow-all` for gateway), TypeScript 5.7 target ES2022 |
 | **Module System** | `deno.json` (imports map), npm compatibility for Graphology, HuggingFace, Vite   |
 | **Web UI**        | Fresh 2 + Preact 10.27, Tailwind 4 via Vite dev server                           |
-| **Tasks**         | `deno task dev`, `deno task dev:fresh`, `deno task db:*`                         |
+| **Tasks**         | `deno task dev`, `deno task dev:fresh`, `deno task db:*`, `deno task prod:*`     |
 | **Testing**       | `deno test` (unit + integration), Playwright utils for E2E                       |
 
 ## 2. Application Services
 
-| Service                                          | Tech                                        | Notes                                   |
-| ------------------------------------------------ | ------------------------------------------- | --------------------------------------- |
-| **Gateway Server** (`src/mcp/gateway-server.ts`) | Deno HTTP server, SSE streaming             | Route `execute_code`, MCP orchestration |
-| **Sandbox / Executor** (`src/sandbox/*`)         | Deno subprocess isolation, permission-bound | Wraps MCP calls, emits trace events     |
-| **CLI** (`src/main.ts`)                          | Command router (serve, sync, migrate)       | Shares same runtime as gateway          |
-| **Auth Layer** (`src/server/auth/*`)             | GitHub OAuth + API keys                     | Sessions in Deno KV, users in Drizzle   |
+| Service                                    | Tech                                        | Notes                                           |
+| ------------------------------------------ | ------------------------------------------- | ----------------------------------------------- |
+| **Gateway Server** (`src/mcp/gateway-server.ts`) | Deno HTTP server, SSE streaming        | Route `cai:execute_dag`, `cai:execute_code`, MCP orchestration |
+| **Sandbox / Executor** (`src/sandbox/*`)   | Deno subprocess isolation, permission-bound | Wraps MCP calls, emits trace events             |
+| **CLI** (`src/main.ts`)                    | Command router (serve, init, status)        | Shares same runtime as gateway                  |
+| **Auth Layer** (`src/server/auth/*`)       | GitHub OAuth + API keys                     | Sessions in Deno KV, users in Drizzle           |
+| **Dashboard** (`src/web/*`)                | Fresh 2 + Vite                              | Port 8081 (dev) / 8080 (prod)                   |
 
 ## 3. Data & Storage
 
 | Component          | Technology                                  | Purpose                                             |
 | ------------------ | ------------------------------------------- | --------------------------------------------------- |
-| **PGlite 0.3.11**  | PostgreSQL 17 WASM + pgvector               | Primary relational store, persisted on filesystem   |
+| **PGlite 0.3.14**  | PostgreSQL 17 WASM + pgvector               | Primary relational store, persisted on filesystem   |
 | **Drizzle ORM**    | `drizzle-orm/pglite`                        | Application tables (`users`, future RBAC/secrets)   |
 | **SQL Migrations** | Custom runner (`src/db/migrations.ts`)      | Tool index, GraphRAG, episodic memory, telemetry    |
 | **Vector Search**  | pgvector HNSW (`vector_cosine_ops`, `m=16`) | `tool_embedding`, `workflow_pattern`                |
 | **Deno KV**        | `Deno.openKv()` singleton                   | OAuth sessions, pending states, future secret cache |
+| **Database Path**  | `.cai.db` (prod) / `.cai-dev.db` (dev)      | Configurable via `CAI_DB_PATH` env var              |
 
 See `docs/architecture/data-architecture.md` for the exhaustive schema.
 
@@ -44,27 +46,66 @@ See `docs/architecture/data-architecture.md` for the exhaustive schema.
 
 ## 5. MCP & External Integrations
 
-| Area                   | Details                                                                             |
-| ---------------------- | ----------------------------------------------------------------------------------- |
-| **MCP SDK**            | `@modelcontextprotocol/sdk` official implementation                                 |
-| **Transports**         | stdio (primary), SSE output to clients                                              |
-| **Hosted MCP Servers** | >15 servers launched via `Deno.Command` (GitHub, Filesystem, Memory, Tavily, etc.)  |
-| **Config**             | `config/.mcp-servers.json` (gateway) + future per-user configs (`user_mcp_configs`) |
+| Area                   | Details                                                                              |
+| ---------------------- | ------------------------------------------------------------------------------------ |
+| **MCP SDK**            | `@modelcontextprotocol/sdk@1.0.4` official implementation                            |
+| **Transports**         | stdio (local mode), HTTP with API key (cloud mode), SSE output to clients            |
+| **Hosted MCP Servers** | >15 servers launched via `Deno.Command` (GitHub, Filesystem, Memory, Tavily, etc.)   |
+| **Config**             | `config/.mcp-servers.json` (gateway) + future per-user configs (`user_mcp_configs`)  |
+| **Meta-Tools**         | `cai:search_tools`, `cai:execute_dag`, `cai:execute_code`, `cai:search_capabilities` |
 
-## 6. DevOps & Observability
+## 6. Authentication (Epic 9)
+
+| Component            | Technology                           | Notes                                      |
+| -------------------- | ------------------------------------ | ------------------------------------------ |
+| **OAuth Provider**   | GitHub via `@deno/kv-oauth`          | Single sign-on, CSRF protection            |
+| **Session Storage**  | Deno KV                              | 30-day TTL, cookie-based                   |
+| **API Keys**         | `ac_` prefix + 24 random chars       | For MCP gateway access (cloud mode)        |
+| **Key Hashing**      | Argon2id via `@ts-rex/argon2`        | Secure storage in `users` table            |
+| **Mode Detection**   | `GITHUB_CLIENT_ID` env var presence  | Cloud mode vs Local mode (zero auth)       |
+
+### Dual-Server Architecture
+
+```
+┌─────────────────────────────────┐     ┌──────────────────────────┐
+│ Fresh Dashboard                 │     │ API Server (MCP Gateway) │
+│ Port: 8081 (dev) / 8080 (prod)  │     │ Port: 3003 (dev) / 3001 (prod) │
+│                                 │     │                          │
+│ Auth: Session Cookie            │     │ Auth: x-api-key Header   │
+│ Routes: /dashboard, /settings   │     │ Routes: /mcp, /health    │
+└─────────────────────────────────┘     └──────────────────────────┘
+```
+
+## 7. DevOps & Observability
 
 | Tooling           | Purpose                                                                 |
 | ----------------- | ----------------------------------------------------------------------- |
 | `@std/log`        | Structured logging (JSON optional)                                      |
 | `metrics` table   | Lightweight telemetry (counts, latency)                                 |
-| `scripts/` (bash) | Ops helpers (devcontainer, deploy placeholders)                         |
+| `scripts/` (bash) | Ops helpers (devcontainer, deploy)                                      |
 | Systemd targets   | `deno task prod:*` interacts with `casys-dashboard` / `casys-api` units |
+| Sentry (optional) | Error tracking, performance monitoring (ADR-011)                        |
 
-## 7. Roadmap Items
+## 8. Key Environment Variables
 
-1. **Full Drizzle schema generation** (replace ad-hoc SQL migrations for GraphRAG tables)
-2. **Secret management** (KMS-backed `user_secrets`, envelope encryption)
-3. **Observability stack** (export metrics to ClickHouse / Prometheus)
+| Variable              | Default                    | Description                        |
+| --------------------- | -------------------------- | ---------------------------------- |
+| `CAI_DB_PATH`         | `.cai.db`                  | Database path                      |
+| `CAI_API_KEY`         | -                          | API key for cloud mode MCP access  |
+| `GITHUB_CLIENT_ID`    | -                          | Enables cloud mode when set        |
+| `GITHUB_CLIENT_SECRET`| -                          | GitHub OAuth secret                |
+| `PORT_API`            | `3003`                     | API server port                    |
+| `PORT_DASHBOARD`      | `8081`                     | Fresh dashboard port               |
+| `LOG_LEVEL`           | `info`                     | Logging verbosity                  |
+| `SENTRY_DSN`          | -                          | Sentry error tracking (optional)   |
+
+## 9. Roadmap Items
+
+1. **Full Drizzle schema generation** — Replace ad-hoc SQL migrations for GraphRAG tables
+2. **Secret management** — KMS-backed `user_secrets`, envelope encryption
+3. **Observability stack** — Export metrics to ClickHouse / Prometheus
+4. **Gateway exposure modes** — ADR-017 (semantic, hybrid, full_proxy modes)
+5. **Rate limiting** — Story 9.5 (per-user quotas, data isolation)
 
 ---
 
@@ -74,3 +115,4 @@ See `docs/architecture/data-architecture.md` for the exhaustive schema.
 - `src/db/migrations.ts`, `src/db/schema/*`
 - `docs/architecture/data-architecture.md`
 - `docs/adrs/ADR-038-scoring-algorithms-reference.md`
+- `docs/sprint-artifacts/tech-rename-to-casys-intelligence.md`
