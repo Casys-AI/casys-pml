@@ -7,8 +7,8 @@
 
 > **⚠️ ARCHITECTURE UPDATE 2025-11-25:** The 4 command handlers serve **two purposes**:
 >
-> 1. **Level 1 (External MCP agents)**: Exposed as MCP meta-tools (`agentcards:continue`,
->    `agentcards:abort`, `agentcards:replan_dag`, `agentcards:approval_response`)
+> 1. **Level 1 (External MCP agents)**: Exposed as MCP meta-tools (`cai:continue`,
+>    `cai:abort`, `cai:replan_dag`, `cai:approval_response`)
 > 2. **Level 2 (Internal native agents)**: Used via CommandQueue for async control
 
 ## Context
@@ -26,8 +26,8 @@ During implementation of Epic 2.5 (Adaptive DAG Feedback Loops), we discovered:
 
 **Level 1 - External MCP agents (Claude Code)**:
 
-- ✅ Via MCP meta-tools: `agentcards:continue`, `agentcards:abort`, `agentcards:replan_dag`,
-  `agentcards:approval_response`
+- ✅ Via MCP meta-tools: `cai:continue`, `cai:abort`, `cai:replan_dag`,
+  `cai:approval_response`
 - ✅ HTTP Request/Response pattern (MCP compatible)
 
 **Level 2 - Internal native agents (JS/TS in Gateway)**:
@@ -243,11 +243,11 @@ WRITE), safety validation **Status**: ✅ Implemented, tested
 
 The 4 commands are exposed as MCP meta-tools for external agents (Claude Code):
 
-### Tool: `agentcards:continue`
+### Tool: `cai:continue`
 
 ```typescript
 {
-  name: "agentcards:continue",
+  name: "cai:continue",
   description: "Continue workflow execution to next layer",
   inputSchema: {
     type: "object",
@@ -260,11 +260,11 @@ The 4 commands are exposed as MCP meta-tools for external agents (Claude Code):
 }
 ```
 
-### Tool: `agentcards:abort`
+### Tool: `cai:abort`
 
 ```typescript
 {
-  name: "agentcards:abort",
+  name: "cai:abort",
   description: "Abort workflow execution",
   inputSchema: {
     type: "object",
@@ -277,11 +277,11 @@ The 4 commands are exposed as MCP meta-tools for external agents (Claude Code):
 }
 ```
 
-### Tool: `agentcards:replan_dag`
+### Tool: `cai:replan_dag`
 
 ```typescript
 {
-  name: "agentcards:replan_dag",
+  name: "cai:replan_dag",
   description: "Replan workflow with new requirement (triggers GraphRAG)",
   inputSchema: {
     type: "object",
@@ -295,11 +295,11 @@ The 4 commands are exposed as MCP meta-tools for external agents (Claude Code):
 }
 ```
 
-### Tool: `agentcards:approval_response`
+### Tool: `cai:approval_response`
 
 ```typescript
 {
-  name: "agentcards:approval_response",
+  name: "cai:approval_response",
   description: "Respond to HIL (Human-in-the-Loop) approval checkpoint",
   inputSchema: {
     type: "object",
@@ -318,7 +318,7 @@ The 4 commands are exposed as MCP meta-tools for external agents (Claude Code):
 
 ```typescript
 // 1. Start workflow with per-layer validation
-let response = await agentcards.execute_workflow({
+let response = await cai.execute_workflow({
   intent: "Analyze codebase for security issues",
   config: { per_layer_validation: true },
 });
@@ -330,21 +330,21 @@ while (response.status === "layer_complete") {
 
   if (analysis.needsMoreTools) {
     // Replan: Add new tools based on discovery
-    response = await agentcards.replan_dag({
+    response = await cai.replan_dag({
       workflow_id: response.workflow_id,
       new_requirement: "Add XML parser for config files",
       available_context: { xml_files: analysis.discoveredFiles },
     });
   } else if (analysis.criticalIssue) {
     // Abort: Stop execution
-    response = await agentcards.abort({
+    response = await cai.abort({
       workflow_id: response.workflow_id,
       reason: "Critical security issue found",
     });
     break;
   } else {
     // Continue: Proceed to next layer
-    response = await agentcards.continue({
+    response = await cai.continue({
       workflow_id: response.workflow_id,
     });
   }

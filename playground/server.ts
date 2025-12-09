@@ -3,7 +3,7 @@
 /**
  * Real MCP Gateway HTTP Server
  *
- * Full AgentCards MCP gateway with all features:
+ * Full Casys Intelligence MCP gateway with all features:
  * - Code sandbox execution
  * - DAG workflow execution
  * - GraphRAG tool recommendations
@@ -14,18 +14,18 @@
  *   deno run --allow-all playground/server.ts
  *
  * Available MCP tools:
- * - agentcards__agentcards_execute_code
- * - agentcards__agentcards_execute_dag
- * - agentcards__agentcards_search_tools
- * - agentcards__agentcards_continue
- * - agentcards__agentcards_abort
- * - agentcards__agentcards_replan
- * - agentcards__agentcards_approval_response
+ * - cai__cai_execute_code
+ * - cai__cai_execute_dag
+ * - cai__cai_search_tools
+ * - cai__cai_continue
+ * - cai__cai_abort
+ * - cai__cai_replan
+ * - cai__cai_approval_response
  */
 
-// Import directly from source (playground is in AgentCards repo)
+// Import directly from source (playground is in Casys Intelligence repo)
 import {
-  AgentCardsGatewayServer,
+  Casys IntelligenceGatewayServer,
   ControlledExecutor,
   createDefaultClient,
   DAGSuggester,
@@ -41,7 +41,7 @@ import {
 
 const PORT = parseInt(Deno.env.get("PORT") || "3000");
 
-console.log("🚀 Initializing AgentCards MCP Gateway...\n");
+console.log("🚀 Initializing Casys Intelligence MCP Gateway...\n");
 
 try {
   // 1. Initialize database
@@ -75,7 +75,7 @@ try {
 
   const toolExecutor: ToolExecutor = async (toolName: string, args: Record<string, unknown>) => {
     // For standalone mode, we execute code directly in sandbox
-    if (toolName === "execute_code" || toolName === "agentcards:execute_code") {
+    if (toolName === "execute_code" || toolName === "cai:execute_code") {
       const code = args.code as string;
       const context = args.context;
       return await sandbox.execute(code, context);
@@ -98,7 +98,7 @@ try {
 
   // 4. Create gateway server (standalone mode without external MCP servers)
   console.log("Step 4/5: Creating gateway server...");
-  const gateway = new AgentCardsGatewayServer(
+  const gateway = new Casys IntelligenceGatewayServer(
     db,
     vectorSearch,
     graphEngine,
@@ -127,13 +127,13 @@ try {
   console.log();
 
   console.log("📋 Available MCP tools:");
-  console.log("   • agentcards__agentcards_execute_code - Execute TypeScript/JavaScript safely");
-  console.log("   • agentcards__agentcards_execute_dag - Execute DAG workflows");
-  console.log("   • agentcards__agentcards_search_tools - Semantic tool search");
-  console.log("   • agentcards__agentcards_continue - Continue DAG execution");
-  console.log("   • agentcards__agentcards_abort - Abort DAG execution");
-  console.log("   • agentcards__agentcards_replan - Replan DAG with new requirements");
-  console.log("   • agentcards__agentcards_approval_response - Respond to approval requests");
+  console.log("   • cai__cai_execute_code - Execute TypeScript/JavaScript safely");
+  console.log("   • cai__cai_execute_dag - Execute DAG workflows");
+  console.log("   • cai__cai_search_tools - Semantic tool search");
+  console.log("   • cai__cai_continue - Continue DAG execution");
+  console.log("   • cai__cai_abort - Abort DAG execution");
+  console.log("   • cai__cai_replan - Replan DAG with new requirements");
+  console.log("   • cai__cai_approval_response - Respond to approval requests");
   console.log();
 
   console.log("✅ MCP Gateway ready!\n");

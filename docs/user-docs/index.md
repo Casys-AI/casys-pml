@@ -1,53 +1,53 @@
-# Documentation AgentCards
+# Casys Intelligence Documentation
 
-> MCP Gateway intelligent avec apprentissage GraphRAG
-
----
-
-## Liens rapides
-
-| Document                                 | Description                                | Public         |
-| ---------------------------------------- | ------------------------------------------ | -------------- |
-| [Démarrage rapide](./getting-started.md) | Installation et premier workflow en 10 min | Tous           |
-| [Guide utilisateur](./user-guide.md)     | Documentation complète des fonctionnalités | Intermédiaire+ |
-| [Référence API](./api-reference.md)      | Documentation technique des outils MCP     | Avancé         |
+> Intelligent MCP Gateway with GraphRAG Learning
 
 ---
 
-## Par où commencer?
+## Quick Links
 
-### Nouveau sur AgentCards?
-
-1. **[Démarrage rapide](./getting-started.md)** - Installez et configurez en 10 minutes
-2. Testez votre premier workflow avec Claude Code
-3. Explorez les fonctionnalités dans le [Guide utilisateur](./user-guide.md)
-
-### Développeur / Intégration?
-
-1. **[Référence API](./api-reference.md)** - Tous les outils MCP documentés
-2. Patterns d'intégration et exemples de code
-3. Types de données et gestion des erreurs
+| Document                                 | Description                              | Audience       |
+| ---------------------------------------- | ---------------------------------------- | -------------- |
+| [Getting Started](./getting-started.md)  | Installation and first workflow in 10 min | Everyone       |
+| [User Guide](./user-guide.md)            | Complete feature documentation           | Intermediate+  |
+| [API Reference](./api-reference.md)      | Technical MCP tools documentation        | Advanced       |
 
 ---
 
-## Fonctionnalités principales
+## Where to Start?
 
-| Fonctionnalité           | Description                                   |
-| ------------------------ | --------------------------------------------- |
-| **Recherche sémantique** | Trouvez les outils par intention naturelle    |
-| **Exécution DAG**        | Parallélisez automatiquement vos workflows    |
-| **Sandbox TypeScript**   | Exécutez du code en isolation sécurisée       |
-| **GraphRAG**             | Recommandations qui s'améliorent avec l'usage |
-| **AIL/HIL**              | Points de décision agent et humain            |
+### New to Casys Intelligence?
+
+1. **[Getting Started](./getting-started.md)** - Install and configure in 10 minutes
+2. Test your first workflow with Claude Code
+3. Explore features in the [User Guide](./user-guide.md)
+
+### Developer / Integration?
+
+1. **[API Reference](./api-reference.md)** - All MCP tools documented
+2. Integration patterns and code examples
+3. Data types and error handling
 
 ---
 
-## Ressources additionnelles
+## Key Features
+
+| Feature                  | Description                                      |
+| ------------------------ | ------------------------------------------------ |
+| **Semantic Search**      | Find tools by natural language intent            |
+| **DAG Execution**        | Automatically parallelize your workflows         |
+| **TypeScript Sandbox**   | Execute code in secure isolation                 |
+| **GraphRAG**             | Recommendations that improve with usage          |
+| **AIL/HIL**              | Agent and human decision points                  |
+
+---
+
+## Additional Resources
 
 - **[PRD](../PRD.md)** - Product Requirements Document
-- **[Architecture](../architecture.md)** - Décisions techniques (ADRs)
-- **[GitHub Issues](https://github.com/Casys-AI/mcp-gateway/issues)** - Support et bugs
+- **[Architecture](../architecture/)** - Technical decisions (ADRs)
+- **[GitHub Issues](https://github.com/casys-ai/casys-intelligence/issues)** - Support and bugs
 
 ---
 
-_Documentation générée le 2025-12-03_ _Version: 1.0.0_
+_Documentation generated on 2025-12-03_ _Version: 1.0.0_

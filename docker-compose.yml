@@ -2,7 +2,7 @@ services:
   # Loki - Log aggregation
   loki:
     image: grafana/loki:3.4.1
-    container_name: agentcards-loki
+    container_name: cai-loki
     ports:
       - "3100:3100"
     command: -config.file=/etc/loki/local-config.yaml
@@ -16,10 +16,10 @@ services:
   # Promtail - Log shipper (LTS - migrate to Alloy before March 2026)
   promtail:
     image: grafana/promtail:3.0.0
-    container_name: agentcards-promtail
+    container_name: cai-promtail
     volumes:
       - ./monitoring/promtail-config.yaml:/etc/promtail/config.yaml
-      - /home/ubuntu/.agentcards/logs:/var/log/agentcards:ro
+      - /home/ubuntu/.cai/logs:/var/log/cai:ro
     command: -config.file=/etc/promtail/config.yaml
     depends_on:
       - loki
@@ -30,7 +30,7 @@ services:
   # Prometheus - Metrics collection
   prometheus:
     image: prom/prometheus:v3.1.0
-    container_name: agentcards-prometheus
+    container_name: cai-prometheus
     ports:
       - "9090:9090"
     volumes:
@@ -51,7 +51,7 @@ services:
   # Grafana - Visualization & Dashboards
   grafana:
     image: grafana/grafana:12.3.0
-    container_name: agentcards-grafana
+    container_name: cai-grafana
     ports:
       - "3000:3000"
     environment:
@@ -76,7 +76,7 @@ services:
   # Node Exporter - System metrics
   node-exporter:
     image: prom/node-exporter:v1.8.2
-    container_name: agentcards-node-exporter
+    container_name: cai-node-exporter
     command:
       - "--path.rootfs=/host"
     pid: host

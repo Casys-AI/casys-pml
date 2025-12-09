@@ -5,7 +5,7 @@
 
 ## Context
 
-AgentCards distribue des événements temps réel vers le dashboard via SSE:
+Casys Intelligence distribue des événements temps réel vers le dashboard via SSE:
 
 - `src/server/events-stream.ts` - Gestion des connexions SSE
 - `src/server/sse-handler.ts` - Handler HTTP pour SSE
@@ -40,7 +40,7 @@ Adopter BroadcastChannel comme bus d'événements interne pour découpler les é
 
 ```typescript
 // Création d'un canal (même nom = même canal)
-const channel = new BroadcastChannel("agentcards-events");
+const channel = new BroadcastChannel("cai-events");
 
 // Émission (broadcast à tous les listeners)
 channel.postMessage({ type: "task_completed", payload: {...} });
@@ -58,7 +58,7 @@ channel.close();
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                    BroadcastChannel: "agentcards-events"            │
+│                    BroadcastChannel: "cai-events"            │
 └───────────────────────────────┬─────────────────────────────────────┘
                                 │
         ┌───────────────────────┼───────────────────────┐
@@ -75,7 +75,7 @@ channel.close();
                                 │
                                 ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                    BroadcastChannel: "agentcards-events"            │
+│                    BroadcastChannel: "cai-events"            │
 └───────────────────────────────┬─────────────────────────────────────┘
                                 │
         ┌───────────────────────┼───────────────────────┐
@@ -92,7 +92,7 @@ channel.close();
 
 ```typescript
 // src/events/types.ts
-interface AgentCardsEvent {
+interface Casys IntelligenceEvent {
   type: EventType;
   timestamp: number;
   source: string;
@@ -127,19 +127,19 @@ type EventType =
 
 ```typescript
 // src/events/event-bus.ts
-const CHANNEL_NAME = "agentcards-events";
+const CHANNEL_NAME = "cai-events";
 
 class EventBus {
   private channel: BroadcastChannel;
-  private handlers: Map<string, Set<(event: AgentCardsEvent) => void>> = new Map();
+  private handlers: Map<string, Set<(event: Casys IntelligenceEvent) => void>> = new Map();
 
   constructor() {
     this.channel = new BroadcastChannel(CHANNEL_NAME);
     this.channel.onmessage = (e) => this.dispatch(e.data);
   }
 
-  emit(event: Omit<AgentCardsEvent, "timestamp">): void {
-    const fullEvent: AgentCardsEvent = {
+  emit(event: Omit<Casys IntelligenceEvent, "timestamp">): void {
+    const fullEvent: Casys IntelligenceEvent = {
       ...event,
       timestamp: Date.now(),
     };
@@ -148,7 +148,7 @@ class EventBus {
     this.dispatch(fullEvent);
   }
 
-  on(type: EventType | "*", handler: (event: AgentCardsEvent) => void): () => void {
+  on(type: EventType | "*", handler: (event: Casys IntelligenceEvent) => void): () => void {
     const handlers = this.handlers.get(type) ?? new Set();
     handlers.add(handler);
     this.handlers.set(type, handlers);
@@ -157,7 +157,7 @@ class EventBus {
     return () => handlers.delete(handler);
   }
 
-  private dispatch(event: AgentCardsEvent): void {
+  private dispatch(event: Casys IntelligenceEvent): void {
     // Specific handlers
     this.handlers.get(event.type)?.forEach((h) => h(event));
     // Wildcard handlers
@@ -251,7 +251,7 @@ class DAGExecutor {
 // src/sandbox/sandbox-worker.ts - Updated
 // Note: BroadcastChannel works across workers!
 
-const eventChannel = new BroadcastChannel("agentcards-events");
+const eventChannel = new BroadcastChannel("cai-events");
 
 function emitEvent(type: string, payload: unknown): void {
   eventChannel.postMessage({
@@ -344,7 +344,7 @@ eventBus.on("capability.learned", (event) => {
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                    BroadcastChannel: "agentcards-events"                      │
+│                    BroadcastChannel: "cai-events"                      │
 │                                                                              │
 │  PRODUCERS (émettent des événements)                                         │
 │  ════════════════════════════════════                                        │
@@ -388,7 +388,7 @@ eventBus.on("capability.learned", (event) => {
 
 ```typescript
 // src/sandbox/sandbox-worker.ts
-const traceChannel = new BroadcastChannel("agentcards-traces");
+const traceChannel = new BroadcastChannel("cai-traces");
 
 function __trace(event: Partial<TraceEvent>): void {
   traceChannel.postMessage({ ...event, ts: Date.now() });

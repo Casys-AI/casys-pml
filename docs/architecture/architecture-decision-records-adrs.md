@@ -130,7 +130,7 @@ even before Claude's call, right? That was the idea)
 
 **Rationale:**
 
-- **THE feature** - core differentiator of AgentCards
+- **THE feature** - core differentiator of Casys Intelligence
 - 0ms perceived latency (results ready when user confirms)
 - Even with Claude confirmation dialogs, provides instant results vs 2-5s wait
 - Context savings ($5-10/day) >> waste from occasional misspeculation ($0.50)

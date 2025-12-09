@@ -13,7 +13,7 @@ dist/
 build/
 _fresh/
 *.exe
-agentcards
+cai
 
 # Logs
 *.log
@@ -53,7 +53,7 @@ temp/
 *.db
 *.db-shm
 *.db-wal
-.agentcards/
+.cai/
 *.db.corrupted-*
 *.db.backup-*
 *.db.old

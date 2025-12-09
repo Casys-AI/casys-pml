@@ -9,7 +9,7 @@
 
 ### Current State
 
-AgentCards est une gateway MCP qui orchestre plusieurs serveurs MCP (filesystem, playwright, tavily,
+Casys Intelligence est une gateway MCP qui orchestre plusieurs serveurs MCP (filesystem, playwright, tavily,
 memory, exa) avec recherche sémantique, exécution de workflows DAG, et sandboxing de code.
 
 **Système de logging actuel:**
@@ -49,7 +49,7 @@ memory, exa) avec recherche sémantique, exécution de workflows DAG, et sandbox
 
 ## Decision
 
-**Nous adoptons Sentry comme solution d'observabilité pour AgentCards.**
+**Nous adoptons Sentry comme solution d'observabilité pour Casys Intelligence.**
 
 ### Ce que nous trackons
 
@@ -106,7 +106,7 @@ memory, exa) avec recherche sémantique, exécution de workflows DAG, et sandbox
 
 ```
 ┌─────────────────────────────────────────────────┐
-│          AgentCards Gateway (main.ts)           │
+│          Casys Intelligence Gateway (main.ts)           │
 │         ↓ Sentry.init() au démarrage            │
 └─────────────────────────────────────────────────┘
                        │
@@ -459,8 +459,8 @@ sampling rate selon volume
 - [Sentry Deno SDK Documentation](https://docs.sentry.io/platforms/javascript/guides/deno/)
 - [Sentry Performance Monitoring](https://docs.sentry.io/product/performance/)
 - [Best Practices for Error Tracking](https://docs.sentry.io/platforms/javascript/best-practices/)
-- AgentCards ADR-010: Hybrid DAG Architecture
-- AgentCards Epic 3: Code Execution & Sandbox
+- Casys Intelligence ADR-010: Hybrid DAG Architecture
+- Casys Intelligence Epic 3: Code Execution & Sandbox
 
 ---
 

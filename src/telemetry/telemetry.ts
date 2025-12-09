@@ -19,7 +19,7 @@ import type { TelemetryConfig } from "./types.ts";
  */
 const DEFAULT_CONFIG_PATH = `${
   Deno.env.get("HOME") || Deno.env.get("USERPROFILE") || "."
-}/.agentcards/config.yaml`;
+}/.cai/config.yaml`;
 
 /**
  * Telemetry Service
@@ -126,7 +126,7 @@ export class TelemetryService {
   async promptConsent(): Promise<void> {
     console.log("\n📊 Telemetry & Analytics");
     console.log("─────────────────────────");
-    console.log("AgentCards can collect anonymous usage metrics to improve the product.");
+    console.log("Casys Intelligence can collect anonymous usage metrics to improve the product.");
     console.log("Metrics include: context usage %, query latency, tool counts.");
     console.log("NO sensitive data (queries, schemas, outputs) is collected.\n");
 

@@ -49,10 +49,10 @@ export function detectMCPConfigPath(): string {
 }
 
 /**
- * Get the AgentCards config directory path
+ * Get the Casys Intelligence config directory path
  *
- * Returns ~/.agentcards on Unix-like systems
- * Returns %USERPROFILE%\.agentcards on Windows
+ * Returns ~/.cai on Unix-like systems
+ * Returns %USERPROFILE%\.cai on Windows
  */
 export function getAgentCardsConfigDir(): string {
   const homeDir = Deno.env.get("HOME") || Deno.env.get("USERPROFILE");
@@ -62,11 +62,11 @@ export function getAgentCardsConfigDir(): string {
 
   const os = Deno.build.os;
   const separator = os === "windows" ? "\\" : "/";
-  return `${homeDir}${separator}.agentcards`;
+  return `${homeDir}${separator}.cai`;
 }
 
 /**
- * Get the AgentCards config file path (JSON format)
+ * Get the Casys Intelligence config file path (JSON format)
  *
  * NOTE: Changed from config.yaml to config.json per ADR-009
  * for MCP ecosystem alignment
@@ -108,7 +108,7 @@ export async function findConfigFile(): Promise<{ path: string; format: "json" |
     try {
       await Deno.stat(yamlPath);
       console.warn("⚠️  YAML config detected. JSON is now recommended for MCP compatibility.");
-      console.warn("    Migrate with: ./agentcards migrate-config");
+      console.warn("    Migrate with: ./cai migrate-config");
       return { path: yamlPath, format: "yaml" };
     } catch {
       // Neither exists - will use JSON for new config
@@ -118,37 +118,42 @@ export async function findConfigFile(): Promise<{ path: string; format: "json" |
 }
 
 /**
- * Get the AgentCards database path
+ * Get the Casys Intelligence database path
  *
  * Supports custom path via AGENTCARDS_DB_PATH environment variable.
  * This is useful for:
- * - Codespace environments where ~/.agentcards/ is not persisted
+ * - Codespace environments where ~/.cai/ is not persisted
  * - Testing with isolated databases
  * - Custom deployment scenarios
  *
- * @returns Database path (custom or default ~/.agentcards/.agentcards.db)
+ * @returns Database path (custom or default ~/.cai/.cai.db)
  *
  * @example
  * // Use default path
- * getAgentCardsDatabasePath() // ~/.agentcards/.agentcards.db
+ * getAgentCardsDatabasePath() // ~/.cai/.cai.db
  *
  * @example
  * // Use custom path in Codespace
- * AGENTCARDS_DB_PATH=/workspaces/AgentCards/.agentcards.db
- * getAgentCardsDatabasePath() // /workspaces/AgentCards/.agentcards.db
+ * AGENTCARDS_DB_PATH=/workspaces/AgentCards/.cai.db
+ * getAgentCardsDatabasePath() // /workspaces/AgentCards/.cai.db
  */
 export function getAgentCardsDatabasePath(): string {
   // Allow custom DB path via environment variable (ADR-021)
-  const customPath = Deno.env.get("AGENTCARDS_DB_PATH");
+  // Support both new CAI_DB_PATH and legacy AGENTCARDS_DB_PATH
+  const customPath = Deno.env.get("CAI_DB_PATH") ?? Deno.env.get("AGENTCARDS_DB_PATH");
   if (customPath) {
+    // Warn about deprecated env var
+    if (Deno.env.get("AGENTCARDS_DB_PATH") && !Deno.env.get("CAI_DB_PATH")) {
+      console.warn("⚠️  AGENTCARDS_DB_PATH is deprecated. Use CAI_DB_PATH instead.");
+    }
     return resolvePath(customPath);
   }
 
-  // Default: ~/.agentcards/.agentcards.db
+  // Default: ~/.cai/.cai.db
   const configDir = getAgentCardsConfigDir();
   const os = Deno.build.os;
   const separator = os === "windows" ? "\\" : "/";
-  return `${configDir}${separator}.agentcards.db`;
+  return `${configDir}${separator}.cai.db`;
 }
 
 /**
@@ -170,8 +175,13 @@ export function getAgentCardsDatabasePath(): string {
  */
 export function getWorkflowTemplatesPath(): string {
   // Allow custom workflow path via environment variable
-  const customPath = Deno.env.get("AGENTCARDS_WORKFLOW_PATH");
+  // Support both new CAI_WORKFLOW_PATH and legacy AGENTCARDS_WORKFLOW_PATH
+  const customPath = Deno.env.get("CAI_WORKFLOW_PATH") ?? Deno.env.get("AGENTCARDS_WORKFLOW_PATH");
   if (customPath) {
+    // Warn about deprecated env var
+    if (Deno.env.get("AGENTCARDS_WORKFLOW_PATH") && !Deno.env.get("CAI_WORKFLOW_PATH")) {
+      console.warn("⚠️  AGENTCARDS_WORKFLOW_PATH is deprecated. Use CAI_WORKFLOW_PATH instead.");
+    }
     return customPath;
   }
 

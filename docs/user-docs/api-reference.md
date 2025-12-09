@@ -1,65 +1,65 @@
-# Référence API AgentCards
+# Casys Intelligence API Reference
 
-## Vue d'ensemble
+## Overview
 
-AgentCards expose ses fonctionnalités via le protocole MCP (Model Context Protocol). Cette référence
-documente tous les outils (tools) disponibles.
+Casys Intelligence exposes its features via the MCP (Model Context Protocol). This reference
+documents all available tools.
 
 **Version:** 1.0.0
 
-**Transports disponibles:**
+**Available transports:**
 
-| Transport           | Commande                                    | Features                                |
+| Transport           | Command                                     | Features                                |
 | ------------------- | ------------------------------------------- | --------------------------------------- |
-| **stdio**           | `agentcards serve --config ...`             | MCP protocol, logs console              |
-| **Streamable HTTP** | `agentcards serve --config ... --port 3001` | MCP sur `/mcp` + Dashboard + Events SSE |
+| **stdio**           | `cai serve --config ...`             | MCP protocol, console logs              |
+| **Streamable HTTP** | `cai serve --config ... --port 3001` | MCP on `/mcp` + Dashboard + Events SSE  |
 
-> **Note:** Le mode stdio est recommandé pour Claude Code. Le mode Streamable HTTP (spec MCP
-> 2025-03-26) active le dashboard Fresh et les events temps réel.
+> **Note:** stdio mode is recommended for Claude Code. Streamable HTTP mode (MCP spec
+> 2025-03-26) enables the Fresh dashboard and real-time events.
 
 ---
 
-## Architecture des outils
+## Tool Architecture
 
-AgentCards expose deux types d'outils:
+Casys Intelligence exposes two types of tools:
 
 | Type               | Pattern             | Description                                                  |
 | ------------------ | ------------------- | ------------------------------------------------------------ |
-| **Meta-tools**     | `agentcards:*`      | Outils intelligents d'AgentCards (recherche, DAG, sandbox)   |
-| **Outils proxiés** | `serverId:toolName` | Outils des serveurs MCP sous-jacents (filesystem, github...) |
+| **Meta-tools**     | `cai:*`      | Casys Intelligence intelligent tools (search, DAG, sandbox)         |
+| **Proxied tools**  | `serverId:toolName` | Tools from underlying MCP servers (filesystem, github...)    |
 
-> **Note:** Par défaut, seuls les meta-tools sont listés pour minimiser l'usage du contexte
-> (ADR-013). Les outils sous-jacents sont découverts via `search_tools` ou utilisés directement si
-> leur nom est connu.
+> **Note:** By default, only meta-tools are listed to minimize context usage
+> (ADR-013). Underlying tools are discovered via `search_tools` or used directly if
+> their name is known.
 
 ---
 
-## Meta-Tools AgentCards
+## Casys Intelligence Meta-Tools
 
-### agentcards:search_tools
+### cai:search_tools
 
-Recherche sémantique et recommandations basées sur le graphe d'usage.
+Semantic search and recommendations based on the usage graph.
 
-**Paramètres:**
+**Parameters:**
 
-| Nom               | Type     | Requis | Description                                                |
-| ----------------- | -------- | ------ | ---------------------------------------------------------- |
-| `query`           | string   | Oui    | Description en langage naturel de ce que vous voulez faire |
-| `limit`           | number   | Non    | Nombre max d'outils à retourner (défaut: 5)                |
-| `include_related` | boolean  | Non    | Inclure outils connexes du graphe (défaut: false)          |
-| `context_tools`   | string[] | Non    | Outils déjà utilisés - booste les outils liés              |
+| Name              | Type     | Required | Description                                              |
+| ----------------- | -------- | -------- | -------------------------------------------------------- |
+| `query`           | string   | Yes      | Natural language description of what you want to do      |
+| `limit`           | number   | No       | Max number of tools to return (default: 5)               |
+| `include_related` | boolean  | No       | Include related tools from graph (default: false)        |
+| `context_tools`   | string[] | No       | Already used tools - boosts related tools                |
 
-**Exemple de requête:**
+**Request example:**
 
 ```typescript
-await callTool("agentcards:search_tools", {
-  query: "lire et parser des fichiers JSON",
+await callTool("cai:search_tools", {
+  query: "read and parse JSON files",
   limit: 5,
   include_related: true,
 });
 ```
 
-**Exemple de réponse:**
+**Response example:**
 
 ```json
 {
@@ -72,56 +72,56 @@ await callTool("agentcards:search_tools", {
 
 ---
 
-### agentcards:execute_dag
+### cai:execute_dag
 
-Exécute un workflow DAG (Directed Acyclic Graph) multi-outils.
+Execute a multi-tool DAG (Directed Acyclic Graph) workflow.
 
-**Modes d'utilisation:**
+**Usage modes:**
 
-- **Intent:** Fournir `intent` → AgentCards suggère et exécute le DAG optimal
-- **Explicit:** Fournir `workflow` → Exécute le DAG défini explicitement
+- **Intent:** Provide `intent` → Casys Intelligence suggests and executes the optimal DAG
+- **Explicit:** Provide `workflow` → Executes the explicitly defined DAG
 
-> Fournir **soit** `intent` **soit** `workflow`, pas les deux.
+> Provide **either** `intent` **or** `workflow`, not both.
 
-**Paramètres:**
+**Parameters:**
 
-| Nom                    | Type    | Requis | Description                                               |
-| ---------------------- | ------- | ------ | --------------------------------------------------------- |
-| `intent`               | string  | Non*   | Description naturelle de l'objectif (mode suggestion)     |
-| `workflow`             | object  | Non*   | Structure DAG explicite (mode explicit)                   |
-| `per_layer_validation` | boolean | Non    | Pause entre chaque couche pour validation (défaut: false) |
+| Name                   | Type    | Required | Description                                               |
+| ---------------------- | ------- | -------- | --------------------------------------------------------- |
+| `intent`               | string  | No*      | Natural description of the goal (suggestion mode)         |
+| `workflow`             | object  | No*      | Explicit DAG structure (explicit mode)                    |
+| `per_layer_validation` | boolean | No       | Pause between each layer for validation (default: false)  |
 
-*Au moins un des deux est requis.
+*At least one of the two is required.
 
-**Structure workflow (mode explicit):**
+**Workflow structure (explicit mode):**
 
 ```typescript
 {
   workflow: {
     tasks: [
       {
-        id: string,           // Identifiant unique de la tâche
-        tool: string,         // Nom de l'outil (serverId:toolName)
-        arguments: object,    // Arguments de l'outil
-        depends_on?: string[] // IDs des tâches dépendantes
+        id: string,           // Unique task identifier
+        tool: string,         // Tool name (serverId:toolName)
+        arguments: object,    // Tool arguments
+        depends_on?: string[] // IDs of dependent tasks
       }
     ]
   }
 }
 ```
 
-**Exemple - Mode Intent:**
+**Example - Intent Mode:**
 
 ```typescript
-await callTool("agentcards:execute_dag", {
-  intent: "Lire config.json et créer une entité mémoire avec son contenu",
+await callTool("cai:execute_dag", {
+  intent: "Read config.json and create a memory entity with its content",
 });
 ```
 
-**Exemple - Mode Explicit avec parallélisation:**
+**Example - Explicit Mode with parallelization:**
 
 ```typescript
-await callTool("agentcards:execute_dag", {
+await callTool("cai:execute_dag", {
   workflow: {
     tasks: [
       { id: "t1", tool: "filesystem:read_file", arguments: { path: "config.json" } },
@@ -135,10 +135,10 @@ await callTool("agentcards:execute_dag", {
     ],
   },
 });
-// t1 et t2 s'exécutent en parallèle, t3 attend t1
+// t1 and t2 execute in parallel, t3 waits for t1
 ```
 
-**Exemple de réponse (succès):**
+**Response example (success):**
 
 ```json
 {
@@ -149,49 +149,49 @@ await callTool("agentcards:execute_dag", {
 }
 ```
 
-**Exemple de réponse (validation par couche):**
+**Response example (per-layer validation):**
 
 ```json
 {
   "content": [{
     "type": "text",
-    "text": "{\"status\":\"layer_complete\",\"workflow_id\":\"wf_abc123\",\"current_layer\":1,\"total_layers\":3,\"layer_results\":[...],\"next_action\":\"Use agentcards:continue to proceed\"}"
+    "text": "{\"status\":\"layer_complete\",\"workflow_id\":\"wf_abc123\",\"current_layer\":1,\"total_layers\":3,\"layer_results\":[...],\"next_action\":\"Use cai:continue to proceed\"}"
   }]
 }
 ```
 
 ---
 
-### agentcards:execute_code
+### cai:execute_code
 
-Exécute du code TypeScript/JavaScript dans un sandbox Deno isolé.
+Execute TypeScript/JavaScript code in an isolated Deno sandbox.
 
-**Paramètres:**
+**Parameters:**
 
-| Nom              | Type   | Requis | Description                                      |
-| ---------------- | ------ | ------ | ------------------------------------------------ |
-| `code`           | string | Oui    | Code TypeScript à exécuter                       |
-| `intent`         | string | Non    | Description pour découverte automatique d'outils |
-| `context`        | object | Non    | Données/contexte à injecter dans le sandbox      |
-| `sandbox_config` | object | Non    | Configuration du sandbox                         |
+| Name             | Type   | Required | Description                                       |
+| ---------------- | ------ | -------- | ------------------------------------------------- |
+| `code`           | string | Yes      | TypeScript code to execute                        |
+| `intent`         | string | No       | Description for automatic tool discovery          |
+| `context`        | object | No       | Data/context to inject into the sandbox           |
+| `sandbox_config` | object | No       | Sandbox configuration                             |
 
-**Options sandbox_config:**
+**sandbox_config options:**
 
-| Option             | Type     | Défaut | Description                               |
-| ------------------ | -------- | ------ | ----------------------------------------- |
-| `timeout`          | number   | 30000  | Timeout en millisecondes                  |
-| `memoryLimit`      | number   | 512    | Limite mémoire heap en MB                 |
-| `allowedReadPaths` | string[] | []     | Chemins de lecture additionnels autorisés |
+| Option             | Type     | Default | Description                              |
+| ------------------ | -------- | ------- | ---------------------------------------- |
+| `timeout`          | number   | 30000   | Timeout in milliseconds                  |
+| `memoryLimit`      | number   | 512     | Heap memory limit in MB                  |
+| `allowedReadPaths` | string[] | []      | Additional allowed read paths            |
 
-**Comportement REPL:**
+**REPL behavior:**
 
-- Expressions simples → auto-return (`2 + 2` retourne `4`)
-- Multi-statements → `return` explicite requis
+- Simple expressions → auto-return (`2 + 2` returns `4`)
+- Multi-statements → explicit `return` required
 
-**Exemple - Traitement de données:**
+**Example - Data processing:**
 
 ```typescript
-await callTool("agentcards:execute_code", {
+await callTool("cai:execute_code", {
   code: `
     const items = context.data;
     const filtered = items.filter(x => x.active);
@@ -204,20 +204,20 @@ await callTool("agentcards:execute_code", {
 });
 ```
 
-**Exemple - Avec découverte d'outils:**
+**Example - With tool discovery:**
 
 ```typescript
-await callTool("agentcards:execute_code", {
-  intent: "Analyser les commits GitHub",
+await callTool("cai:execute_code", {
+  intent: "Analyze GitHub commits",
   code: `
-    // 'github' injecté automatiquement grâce à l'intent
+    // 'github' injected automatically thanks to intent
     const commits = await github.listCommits({ limit: 100 });
     return commits.filter(c => c.author === "alice").length;
   `,
 });
 ```
 
-**Exemple de réponse:**
+**Response example:**
 
 ```json
 {
@@ -230,69 +230,69 @@ await callTool("agentcards:execute_code", {
 
 ---
 
-### agentcards:continue
+### cai:continue
 
-Continue l'exécution d'un workflow pausé (après validation par couche).
+Continue execution of a paused workflow (after per-layer validation).
 
-**Paramètres:**
+**Parameters:**
 
-| Nom           | Type   | Requis | Description                               |
-| ------------- | ------ | ------ | ----------------------------------------- |
-| `workflow_id` | string | Oui    | ID du workflow (retourné par execute_dag) |
-| `reason`      | string | Non    | Raison de la continuation                 |
+| Name          | Type   | Required | Description                               |
+| ------------- | ------ | -------- | ----------------------------------------- |
+| `workflow_id` | string | Yes      | Workflow ID (returned by execute_dag)     |
+| `reason`      | string | No       | Reason for continuation                   |
 
-**Exemple:**
+**Example:**
 
 ```typescript
-await callTool("agentcards:continue", {
+await callTool("cai:continue", {
   workflow_id: "wf_abc123",
-  reason: "Couche 1 validée, continuer",
+  reason: "Layer 1 validated, continue",
 });
 ```
 
 ---
 
-### agentcards:abort
+### cai:abort
 
-Arrête un workflow en cours d'exécution.
+Stop a running workflow.
 
-**Paramètres:**
+**Parameters:**
 
-| Nom           | Type   | Requis | Description              |
-| ------------- | ------ | ------ | ------------------------ |
-| `workflow_id` | string | Oui    | ID du workflow à arrêter |
-| `reason`      | string | Oui    | Raison de l'arrêt        |
+| Name          | Type   | Required | Description              |
+| ------------- | ------ | -------- | ------------------------ |
+| `workflow_id` | string | Yes      | Workflow ID to stop      |
+| `reason`      | string | Yes      | Reason for stopping      |
 
-**Exemple:**
+**Example:**
 
 ```typescript
-await callTool("agentcards:abort", {
+await callTool("cai:abort", {
   workflow_id: "wf_abc123",
-  reason: "Erreur détectée dans les résultats de la couche 1",
+  reason: "Error detected in layer 1 results",
 });
 ```
 
 ---
 
-### agentcards:replan
+### cai:replan
 
-Re-planifie un DAG avec de nouvelles exigences (découvertes pendant l'exécution).
+Re-plan a DAG with new requirements (discovered during execution).
 
-**Paramètres:**
+**Parameters:**
 
-| Nom                 | Type   | Requis | Description                            |
-| ------------------- | ------ | ------ | -------------------------------------- |
-| `workflow_id`       | string | Oui    | ID du workflow à replanifier           |
-| `new_requirement`   | string | Oui    | Description de ce qui doit être ajouté |
-| `available_context` | object | Non    | Contexte pour la replanification       |
+| Name                | Type   | Required | Description                             |
+| ------------------- | ------ | -------- | --------------------------------------- |
+| `workflow_id`       | string | Yes      | Workflow ID to replan                   |
+| `new_requirement`   | string | Yes      | Description of what needs to be added   |
+| `available_context` | object | No       | Context for replanning                  |
 
-**Exemple:**
+**Example:**
 
 ```typescript
-// Après avoir découvert des fichiers XML inattendus
-await callTool("agentcards:replan", {
+// After discovering unexpected XML files
+await callTool("cai:replan", {
   workflow_id: "wf_abc123",
-  new_requirement: "Parser les fichiers XML découverts",
+  new_requirement: "Parse discovered XML files",
   available_context: {
     discovered_files: ["config.xml", "data.xml"],
   },
@@ -301,63 +301,62 @@ await callTool("agentcards:replan", {
 
 ---
 
-### agentcards:approval_response
+### cai:approval_response
 
-Répond à un checkpoint d'approbation Human-in-the-Loop (HIL).
+Respond to a Human-in-the-Loop (HIL) approval checkpoint.
 
-**Paramètres:**
+**Parameters:**
 
-| Nom             | Type    | Requis | Description                                 |
-| --------------- | ------- | ------ | ------------------------------------------- |
-| `workflow_id`   | string  | Oui    | ID du workflow                              |
-| `checkpoint_id` | string  | Oui    | ID du checkpoint (retourné par le workflow) |
-| `approved`      | boolean | Oui    | `true` pour approuver, `false` pour rejeter |
-| `feedback`      | string  | Non    | Commentaire ou raison de la décision        |
+| Name            | Type    | Required | Description                                     |
+| --------------- | ------- | -------- | ----------------------------------------------- |
+| `workflow_id`   | string  | Yes      | Workflow ID                                     |
+| `checkpoint_id` | string  | Yes      | Checkpoint ID (returned by workflow)            |
+| `approved`      | boolean | Yes      | `true` to approve, `false` to reject            |
+| `feedback`      | string  | No       | Comment or reason for the decision              |
 
-**Exemple:**
+**Example:**
 
 ```typescript
-await callTool("agentcards:approval_response", {
+await callTool("cai:approval_response", {
   workflow_id: "wf_abc123",
   checkpoint_id: "cp_xyz789",
   approved: true,
-  feedback: "Opération validée, procéder au déploiement",
+  feedback: "Operation validated, proceed with deployment",
 });
 ```
 
 ---
 
-## Outils proxiés
+## Proxied Tools
 
-Les outils des serveurs MCP sous-jacents sont accessibles via le pattern `serverId:toolName`.
+Tools from underlying MCP servers are accessible via the `serverId:toolName` pattern.
 
-**Exemples:**
+**Examples:**
 
 ```typescript
-// Lecture de fichier via serveur filesystem
+// File reading via filesystem server
 await callTool("filesystem:read_file", { path: "/path/to/file.txt" });
 
-// Création d'issue GitHub
+// GitHub issue creation
 await callTool("github:create_issue", {
   repo: "owner/repo",
   title: "Bug report",
   body: "Description...",
 });
 
-// Recherche dans la mémoire
+// Memory search
 await callTool("memory:search_nodes", { query: "configuration" });
 ```
 
-> **Découverte:** Utilisez `agentcards:search_tools` pour trouver les outils disponibles par
-> intention.
+> **Discovery:** Use `cai:search_tools` to find available tools by intent.
 
 ---
 
-## Types de données
+## Data Types
 
 ### DAGStructure
 
-Structure d'un workflow DAG.
+Structure of a DAG workflow.
 
 ```typescript
 interface DAGStructure {
@@ -365,18 +364,18 @@ interface DAGStructure {
 }
 
 interface DAGTask {
-  id: string; // Identifiant unique
+  id: string; // Unique identifier
   tool: string; // "serverId:toolName"
   type?: "mcp_tool" | "code_execution";
   arguments: Record<string, unknown>;
-  depends_on?: string[]; // IDs des dépendances
-  code?: string; // Pour type: "code_execution"
+  depends_on?: string[]; // Dependency IDs
+  code?: string; // For type: "code_execution"
 }
 ```
 
 ### TaskResult
 
-Résultat d'exécution d'une tâche.
+Task execution result.
 
 ```typescript
 interface TaskResult {
@@ -390,72 +389,72 @@ interface TaskResult {
 
 ### WorkflowStatus
 
-Statut d'un workflow.
+Workflow status.
 
 ```typescript
 type WorkflowStatus =
-  | "running" // En cours d'exécution
-  | "paused" // En attente de validation/approbation
-  | "complete" // Terminé avec succès
-  | "aborted" // Arrêté par l'utilisateur
-  | "error"; // Échec
+  | "running" // Currently executing
+  | "paused" // Waiting for validation/approval
+  | "complete" // Completed successfully
+  | "aborted" // Stopped by user
+  | "error"; // Failed
 ```
 
 ---
 
-## Codes d'erreur
+## Error Codes
 
-| Code   | Nom              | Description          | Résolution                                      |
-| ------ | ---------------- | -------------------- | ----------------------------------------------- |
-| -32700 | PARSE_ERROR      | JSON invalide        | Vérifier le format de la requête                |
-| -32600 | INVALID_REQUEST  | Requête malformée    | Vérifier la structure MCP                       |
-| -32601 | METHOD_NOT_FOUND | Méthode inconnue     | Utiliser tools/list, tools/call, ou prompts/get |
-| -32602 | INVALID_PARAMS   | Paramètres invalides | Vérifier les paramètres requis                  |
-| -32603 | INTERNAL_ERROR   | Erreur interne       | Consulter les logs, réessayer                   |
+| Code   | Name             | Description        | Resolution                                       |
+| ------ | ---------------- | ------------------ | ------------------------------------------------ |
+| -32700 | PARSE_ERROR      | Invalid JSON       | Check request format                             |
+| -32600 | INVALID_REQUEST  | Malformed request  | Check MCP structure                              |
+| -32601 | METHOD_NOT_FOUND | Unknown method     | Use tools/list, tools/call, or prompts/get       |
+| -32602 | INVALID_PARAMS   | Invalid parameters | Check required parameters                        |
+| -32603 | INTERNAL_ERROR   | Internal error     | Check logs, retry                                |
 
-**Erreurs spécifiques AgentCards:**
+**Casys Intelligence specific errors:**
 
-| Erreur               | Description                    | Résolution                                      |
-| -------------------- | ------------------------------ | ----------------------------------------------- |
-| `WORKFLOW_NOT_FOUND` | Workflow ID inexistant         | Vérifier l'ID, le workflow a peut-être expiré   |
-| `TOOL_NOT_FOUND`     | Outil inconnu                  | Utiliser search_tools pour découvrir les outils |
-| `SANDBOX_TIMEOUT`    | Code execution timeout         | Réduire la complexité ou augmenter timeout      |
-| `SANDBOX_MEMORY`     | Dépassement mémoire sandbox    | Réduire les données ou augmenter memoryLimit    |
-| `MCP_SERVER_ERROR`   | Erreur serveur MCP sous-jacent | Vérifier la connexion au serveur MCP            |
+| Error                | Description                    | Resolution                                       |
+| -------------------- | ------------------------------ | ------------------------------------------------ |
+| `WORKFLOW_NOT_FOUND` | Non-existent workflow ID       | Check ID, workflow may have expired              |
+| `TOOL_NOT_FOUND`     | Unknown tool                   | Use search_tools to discover tools               |
+| `SANDBOX_TIMEOUT`    | Code execution timeout         | Reduce complexity or increase timeout            |
+| `SANDBOX_MEMORY`     | Sandbox memory exceeded        | Reduce data or increase memoryLimit              |
+| `MCP_SERVER_ERROR`   | Underlying MCP server error    | Check MCP server connection                      |
 
 ---
 
-## Limites
+## Limits
 
-| Ressource          | Limite  | Configurable                       |
+| Resource           | Limit   | Configurable                       |
 | ------------------ | ------- | ---------------------------------- |
-| Timeout par outil  | 30s     | Oui (`sandbox_config.timeout`)     |
-| Mémoire sandbox    | 512MB   | Oui (`sandbox_config.memoryLimit`) |
-| Taille code        | 100KB   | Non                                |
-| Workflows actifs   | 100     | Non                                |
-| TTL workflow pausé | 1 heure | Non                                |
-| Cache entries      | 100     | Oui (`--no-cache` pour désactiver) |
+| Per-tool timeout   | 30s     | Yes (`sandbox_config.timeout`)     |
+| Sandbox memory     | 512MB   | Yes (`sandbox_config.memoryLimit`) |
+| Code size          | 100KB   | No                                 |
+| Active workflows   | 100     | No                                 |
+| Paused workflow TTL| 1 hour  | No                                 |
+| Cache entries      | 100     | Yes (`--no-cache` to disable)      |
 
 ---
 
-## Exemples complets
+## Complete Examples
 
-### Workflow d'analyse de projet
+### Project Analysis Workflow
 
 ```typescript
-// 1. Découvrir les outils pertinents
-const tools = await callTool("agentcards:search_tools", {
-  query: "lire fichiers et analyser structure projet",
+// 1. Discover relevant tools
+const tools = await callTool("cai:search_tools", {
+  query: "read files and analyze project structure",
   include_related: true,
 });
 
-// 2. Exécuter un workflow DAG
-const result = await callTool("agentcards:execute_dag", {
-  intent: "Lire tous les fichiers TypeScript dans src/ et compter les lignes",
+// 2. Execute a DAG workflow
+const result = await callTool("cai:execute_dag", {
+  intent: "Read all TypeScript files in src/ and count lines",
 });
 
-// 3. Post-traiter avec le sandbox
-const analysis = await callTool("agentcards:execute_code", {
+// 3. Post-process with sandbox
+const analysis = await callTool("cai:execute_code", {
   code: `
     const files = context.files;
     return {
@@ -468,33 +467,33 @@ const analysis = await callTool("agentcards:execute_code", {
 });
 ```
 
-### Workflow avec validation humaine
+### Workflow with Human Validation
 
 ```typescript
-// 1. Démarrer avec validation par couche
-const workflow = await callTool("agentcards:execute_dag", {
-  intent: "Déployer la nouvelle version en production",
+// 1. Start with per-layer validation
+const workflow = await callTool("cai:execute_dag", {
+  intent: "Deploy new version to production",
   per_layer_validation: true,
 });
 
-// 2. Examiner les résultats de la couche
+// 2. Examine layer results
 console.log(workflow.layer_results);
 
-// 3. Approuver et continuer
-await callTool("agentcards:continue", {
+// 3. Approve and continue
+await callTool("cai:continue", {
   workflow_id: workflow.workflow_id,
-  reason: "Tests passés, approuvé pour déploiement",
+  reason: "Tests passed, approved for deployment",
 });
 ```
 
 ---
 
-## Voir aussi
+## See Also
 
-- [Démarrage rapide](./getting-started.md) - Installation et configuration
-- [Guide utilisateur](./user-guide.md) - Utilisation détaillée
-- [FAQ](./faq.md) - Questions fréquentes
+- [Getting Started](./getting-started.md) - Installation and configuration
+- [User Guide](./user-guide.md) - Detailed usage
+- [FAQ](./faq.md) - Frequently asked questions
 
 ---
 
-_Généré le 2025-12-03 par le workflow user-docs BMAD_
+_Generated on 2025-12-03 by BMAD user-docs workflow_

@@ -1,7 +1,7 @@
 /**
  * Configuration Migration Service
  *
- * Migrates Claude Desktop MCP configuration to AgentCards format
+ * Migrates Claude Desktop MCP configuration to Casys Intelligence format
  * and triggers schema discovery and embedding generation.
  *
  * @module cli/config-migrator
@@ -49,7 +49,7 @@ export interface MigrationOptions {
  * Orchestrates the full migration workflow:
  * 1. Detect/load Claude Desktop MCP config
  * 2. Parse and validate config
- * 3. Generate AgentCards config.yaml
+ * 3. Generate Casys Intelligence config.yaml
  * 4. Discover servers and extract schemas
  * 5. Generate embeddings
  * 6. Display instructions for updating Claude Desktop config
@@ -65,7 +65,7 @@ export class ConfigMigrator {
       return await this.previewMigration(configPath);
     }
 
-    console.log("🔄 Starting AgentCards migration...\n");
+    console.log("🔄 Starting Casys Intelligence migration...\n");
 
     try {
       // Step 1: Detect MCP config path
@@ -97,7 +97,7 @@ export class ConfigMigrator {
         };
       }
 
-      // Step 3: Generate AgentCards config (JSON format per ADR-009)
+      // Step 3: Generate Casys Intelligence config (JSON format per ADR-009)
       const configDir = getAgentCardsConfigDir();
       const agentCardsConfigPath = getAgentCardsConfigPath(); // Now returns .json
 
@@ -129,7 +129,7 @@ export class ConfigMigrator {
       const configJSON = JSON.stringify(cleanConfig, null, 2);
       await Deno.writeTextFile(agentCardsConfigPath, configJSON);
 
-      console.log(`✓ Generated AgentCards config: ${agentCardsConfigPath}`);
+      console.log(`✓ Generated Casys Intelligence config: ${agentCardsConfigPath}`);
       console.log(`  Format: JSON (MCP ecosystem compatible) ✅\n`);
 
       // Step 4: Initialize database and discover servers
@@ -226,7 +226,7 @@ export class ConfigMigrator {
         });
       }
 
-      console.log(`\n  AgentCards config will be created at:`);
+      console.log(`\n  Casys Intelligence config will be created at:`);
       console.log(`    ${getAgentCardsConfigPath()}`);
       console.log(`\n  Run without --dry-run to apply migration`);
 
@@ -261,8 +261,8 @@ export class ConfigMigrator {
 
     const newConfig = {
       mcpServers: {
-        agentcards: {
-          command: "agentcards",
+        cai: {
+          command: "cai",
           args: ["serve"],
         },
       },
@@ -270,13 +270,13 @@ export class ConfigMigrator {
 
     console.log(JSON.stringify(newConfig, null, 2));
 
-    console.log("\n💡 AgentCards now acts as a gateway to all your MCP servers!");
+    console.log("\n💡 Casys Intelligence now acts as a gateway to all your MCP servers!");
     console.log("   All tool schemas are indexed with semantic search.");
     console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
   }
 
   /**
-   * Rollback migration by removing AgentCards directory
+   * Rollback migration by removing Casys Intelligence directory
    */
   private async rollback(): Promise<void> {
     console.log("🔄 Rolling back migration...");
@@ -285,7 +285,7 @@ export class ConfigMigrator {
 
     try {
       await Deno.remove(configDir, { recursive: true });
-      console.log("✓ Rollback complete - AgentCards config removed");
+      console.log("✓ Rollback complete - Casys Intelligence config removed");
     } catch (error) {
       // Ignore errors if directory doesn't exist
       if (!(error instanceof Deno.errors.NotFound)) {

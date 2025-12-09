@@ -18,7 +18,7 @@
 
 ```typescript
 // Single source of truth
-const config = await loadConfig("~/.agentcards/config.yaml");
+const config = await loadConfig("~/.cai/config.yaml");
 // Pass explicitly, no global state
 ```
 

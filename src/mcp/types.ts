@@ -59,7 +59,7 @@ export interface DiscoveryStats {
 }
 
 /**
- * Code execution request (agentcards:execute_code tool)
+ * Code execution request (cai:execute_code tool)
  */
 export interface CodeExecutionRequest {
   /**

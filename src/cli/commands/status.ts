@@ -21,7 +21,7 @@ import type { MCPServer } from "../../mcp/types.ts";
  * Default MCP config path
  */
 const DEFAULT_CONFIG_PATHS = [
-  `${Deno.env.get("HOME")}/.agentcards/config.yaml`,
+  `${Deno.env.get("HOME")}/.cai/config.yaml`,
   `${Deno.env.get("HOME")}/.config/Claude/claude_desktop_config.json`,
 ];
 
@@ -48,7 +48,7 @@ async function findConfigFile(customPath?: string): Promise<string> {
   }
 
   throw new Error(
-    "No config file found. Run 'agentcards init' to create one.",
+    "No config file found. Run 'cai init' to create one.",
   );
 }
 
@@ -81,7 +81,7 @@ function displayHealthStatus(
   summary: { total: number; healthy: number; degraded: number; down: number },
 ): void {
   console.log("╔════════════════════════════════════════════════╗");
-  console.log("║         AgentCards Health Status              ║");
+  console.log("║         Casys Intelligence Health Status              ║");
   console.log("╚════════════════════════════════════════════════╝\n");
 
   console.log(`📊 Summary: ${summary.healthy}/${summary.total} servers healthy\n`);
@@ -111,7 +111,7 @@ function displayHealthStatus(
 
   if (summary.down > 0) {
     console.warn(
-      `⚠️  ${summary.down} server(s) are down. Run 'agentcards init' to reconfigure.`,
+      `⚠️  ${summary.down} server(s) are down. Run 'cai init' to reconfigure.`,
     );
   }
 }
@@ -149,10 +149,10 @@ function formatDate(date: Date): string {
  * Create status command
  *
  * Usage:
- *   agentcards status                    # One-time health check
- *   agentcards status --json             # JSON output
- *   agentcards status --watch            # Watch mode (refresh every 30s)
- *   agentcards status --config <path>    # Use custom config path
+ *   cai status                    # One-time health check
+ *   cai status --json             # JSON output
+ *   cai status --watch            # Watch mode (refresh every 30s)
+ *   cai status --config <path>    # Use custom config path
  */
 export function createStatusCommand() {
   return new Command()
@@ -173,7 +173,7 @@ export function createStatusCommand() {
 
         if (servers.length === 0) {
           console.log("No MCP servers configured.");
-          console.log("Run 'agentcards init' to configure servers.");
+          console.log("Run 'cai init' to configure servers.");
           return;
         }
 

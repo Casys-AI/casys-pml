@@ -1,7 +1,7 @@
 /**
  * Project Path Utilities
  *
- * Centralized path resolution for AgentCards.
+ * Centralized path resolution for Casys Intelligence.
  * Detects project root by looking for deno.json marker file.
  * All relative paths should be resolved through this module.
  *
@@ -90,7 +90,7 @@ export function getProjectRoot(): string {
  *
  * @example
  * resolvePath("./drizzle") // /home/user/project/drizzle
- * resolvePath(".agentcards-dev.db") // /home/user/project/.agentcards-dev.db
+ * resolvePath(".cai-dev.db") // /home/user/project/.cai-dev.db
  * resolvePath("/absolute/path") // /absolute/path (unchanged)
  */
 export function resolvePath(relativePath: string): string {

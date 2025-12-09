@@ -1,7 +1,7 @@
 /**
  * Serve Command
  *
- * CLI command to start AgentCards as an MCP gateway server
+ * CLI command to start Casys Intelligence as an MCP gateway server
  *
  * @module cli/commands/serve
  */
@@ -17,7 +17,7 @@ import { VectorSearch } from "../../vector/search.ts";
 import { GraphRAGEngine } from "../../graphrag/graph-engine.ts";
 import { DAGSuggester } from "../../graphrag/dag-suggester.ts";
 import { ParallelExecutor } from "../../dag/executor.ts";
-import { AgentCardsGatewayServer } from "../../mcp/gateway-server.ts";
+import { CasysIntelligenceGatewayServer } from "../../mcp/gateway-server.ts";
 import { WorkflowSyncService } from "../../graphrag/workflow-sync.ts";
 import { getWorkflowTemplatesPath } from "../utils.ts";
 import { autoInitIfConfigChanged } from "../auto-init.ts";
@@ -41,14 +41,14 @@ async function findConfigFile(configPath?: string): Promise<string> {
 
 Please specify your MCP servers config file using --config:
 
-  ${Deno.build.os === "windows" ? ">" : "$"} agentcards serve --port 3001 --config <path-to-config>
+  ${Deno.build.os === "windows" ? ">" : "$"} cai serve --port 3001 --config <path-to-config>
 
 Examples:
   • ./config/mcp-servers.json
   • ./playground/config/mcp-servers.json
-  • ~/.config/agentcards/mcp-servers.json
+  • ~/.config/cai/mcp-servers.json
 
-Need help creating a config? See: https://github.com/anthropics/agentcards#configuration`,
+Need help creating a config? See: https://github.com/casys-ai/casys-intelligence#configuration`,
     );
   }
 
@@ -136,13 +136,13 @@ function createToolExecutor(
  * Create serve command
  *
  * Usage:
- *   agentcards serve --config ./config/mcp-servers.json --port 3001
- *   agentcards serve --config ~/.config/agentcards/mcp-servers.json
+ *   cai serve --config ./config/mcp-servers.json --port 3001
+ *   cai serve --config ~/.config/cai/mcp-servers.json
  */
 export function createServeCommand() {
   return new Command()
     .name("serve")
-    .description("Start AgentCards MCP gateway server")
+    .description("Start Casys Intelligence MCP gateway server")
     .option(
       "--config <path:string>",
       "Path to MCP servers config file (required)",
@@ -168,7 +168,7 @@ export function createServeCommand() {
     )
     .action(async (options) => {
       try {
-        log.info("🚀 Starting AgentCards MCP Gateway...\n");
+        log.info("🚀 Starting Casys Intelligence MCP Gateway...\n");
 
         // 1. Find and load config
         log.info("Step 1/6: Loading configuration...");
@@ -243,7 +243,9 @@ export function createServeCommand() {
 
         // Check PII protection settings
         // --no-pii-protection sets options.piiProtection to false
+        // Support both CAI_NO_PII_PROTECTION and legacy AGENTCARDS_NO_PII_PROTECTION
         const piiProtectionEnabled = options.piiProtection !== false &&
+          Deno.env.get("CAI_NO_PII_PROTECTION") !== "1" &&
           Deno.env.get("AGENTCARDS_NO_PII_PROTECTION") !== "1";
 
         if (!piiProtectionEnabled) {
@@ -254,7 +256,9 @@ export function createServeCommand() {
 
         // Check cache settings
         // --no-cache sets options.cache to false
+        // Support both CAI_NO_CACHE and legacy AGENTCARDS_NO_CACHE
         const cacheEnabled = options.cache !== false &&
+          Deno.env.get("CAI_NO_CACHE") !== "1" &&
           Deno.env.get("AGENTCARDS_NO_CACHE") !== "1";
 
         if (!cacheEnabled) {
@@ -265,7 +269,7 @@ export function createServeCommand() {
 
         // 5. Create gateway server
         log.info("Step 5/6: Starting MCP gateway...");
-        const gateway = new AgentCardsGatewayServer(
+        const gateway = new CasysIntelligenceGatewayServer(
           db,
           vectorSearch,
           graphEngine,
@@ -275,7 +279,7 @@ export function createServeCommand() {
           capabilityStore,
           adaptiveThresholdManager,
           {
-            name: "agentcards",
+            name: "cai",
             version: "1.0.0",
             enableSpeculative: options.speculative,
             defaultToolLimit: 10,
@@ -309,7 +313,7 @@ export function createServeCommand() {
           isShuttingDown = true;
 
           log.info("\n\nShutting down...");
-          log.info("Shutting down AgentCards gateway...");
+          log.info("Shutting down Casys Intelligence gateway...");
 
           // Force exit after 10 seconds if graceful shutdown hangs
           // PGlite needs time to flush WAL and close cleanly

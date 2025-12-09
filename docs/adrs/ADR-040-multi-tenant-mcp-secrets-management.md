@@ -7,7 +7,7 @@
 
 ## Context
 
-AgentCards supports two deployment modes:
+Casys Intelligence supports two deployment modes:
 - **Self-hosted (Local):** Single-user, offline, no authentication
 - **Cloud (SaaS):** Multi-tenant, GitHub OAuth, API keys
 
@@ -207,7 +207,7 @@ export const userSecrets = sqliteTable("user_secrets", {
 **Decision: Mono-repo (open source) for MVP**
 
 ```
-github.com/casys-ai/agentcards/     # Public - MIT/Apache 2.0
+github.com/casys-ai/cai/     # Public - MIT/Apache 2.0
 ├── src/
 │   ├── core/           # GraphRAG, embeddings
 │   ├── mcp/            # Gateway, MCP management

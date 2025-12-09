@@ -7,7 +7,7 @@
 
 ## Context
 
-AgentCards utilise un système de DAG (Directed Acyclic Graph) pour orchestrer des workflows
+Casys Intelligence utilise un système de DAG (Directed Acyclic Graph) pour orchestrer des workflows
 complexes. Avec l'introduction de l'Epic 3 (code execution dans sandbox), nous avons maintenant
 **deux types fondamentalement différents de nœuds** dans nos DAGs qui coexistent et communiquent.
 
@@ -75,7 +75,7 @@ interopérables :
   id: "fetch_data",
   tool: "github:list_commits",
   arguments: {
-    repo: "agentcards",
+    repo: "cai",
     limit: 1000
   },
   side_effects: true  // Explicit: external API call
@@ -486,7 +486,7 @@ function isCodeExecutionTask(task: Task): boolean {
 ## Related Decisions
 
 - **ADR-007:** DAG Adaptive Feedback Loops - Définit la base du DAG executor
-- **Story 3.4:** `agentcards:execute_code` MCP Tool - Implémente code execution
+- **Story 3.4:** `cai:execute_code` MCP Tool - Implémente code execution
 - **Story 3.5:** Safe-to-Fail Branches - Exploite cette architecture pour resilience
 - **Epic 3 Tech Spec:** Agent Code Execution & Local Processing - Vision globale
 
@@ -495,7 +495,7 @@ function isCodeExecutionTask(task: Task): boolean {
 ## References
 
 - [Epic 3 Technical Specification](../tech-spec-epic-3.md)
-- [Story 3.4: agentcards:execute_code](../stories/story-3.4.md)
+- [Story 3.4: cai:execute_code](../stories/story-3.4.md)
 - [Story 3.5: Safe-to-Fail Branches](../stories/story-3.5.md)
 - [ControlledExecutor Implementation](../../src/dag/controlled-executor.ts)
 - [ParallelExecutor Implementation](../../src/dag/executor.ts)

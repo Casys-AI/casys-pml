@@ -1,7 +1,7 @@
 /**
- * AgentCards - Public API Exports
+ * Casys Intelligence - Public API Exports
  *
- * This module exports the public API for AgentCards.
+ * This module exports the public API for Casys Intelligence (CAI).
  *
  * Note: The CLI entry point (main) is not exported here.
  * Use `deno run --allow-all jsr:@casys/mcp-gateway` to run the CLI.
@@ -10,7 +10,9 @@
  */
 
 // MCP Gateway Server
-export { AgentCardsGatewayServer } from "./src/mcp/gateway-server.ts";
+export { CasysIntelligenceGatewayServer } from "./src/mcp/gateway-server.ts";
+// Legacy export for backward compatibility (deprecated)
+export { CasysIntelligenceGatewayServer as AgentCardsGatewayServer } from "./src/mcp/gateway-server.ts";
 export type { GatewayServerConfig } from "./src/mcp/gateway-server.ts";
 export { MCPClient } from "./src/mcp/client.ts";
 export { MCPServerDiscovery } from "./src/mcp/discovery.ts";

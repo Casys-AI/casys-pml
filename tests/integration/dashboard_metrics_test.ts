@@ -1,7 +1,7 @@
 /**
  * Integration tests for /api/metrics endpoint - Story 6.3
  *
- * Tests the metrics API endpoint served by the AgentCards gateway server.
+ * Tests the metrics API endpoint served by the Casys Intelligence gateway server.
  */
 
 import { assert, assertEquals, assertExists } from "@std/assert";

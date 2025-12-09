@@ -71,7 +71,7 @@ export default function ArchitectureDiagram() {
           font-size="14"
           letter-spacing="1"
         >
-          AGENTCARDS GATEWAY
+          CASYS INTELLIGENCE GATEWAY
         </text>
 
         {/* Internal Modules */}

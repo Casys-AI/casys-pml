@@ -1,55 +1,55 @@
-# Guide Utilisateur AgentCards
+# Casys Intelligence User Guide
 
-## Vue d'ensemble
+## Overview
 
-AgentCards est un MCP gateway intelligent conçu pour les agents de codage (Claude Code, Cursor,
-etc.). Il agit comme un point d'entrée unique vers tous vos serveurs MCP, optimisant l'utilisation
-du contexte LLM et parallélisant l'exécution des workflows.
+Casys Intelligence is an intelligent MCP gateway designed for coding agents (Claude Code, Cursor,
+etc.). It acts as a single entry point to all your MCP servers, optimizing LLM context usage
+and parallelizing workflow execution.
 
-**Bénéfices principaux:**
+**Key benefits:**
 
-- **Contexte optimisé:** Réduction de 30-50% → <5% grâce au chargement on-demand
-- **Exécution parallèle:** Workflows 5x plus rapides via DAG
-- **Découverte intelligente:** Recherche sémantique + recommandations basées sur le graphe
-- **Apprentissage continu:** Le système s'améliore avec l'usage
+- **Optimized context:** Reduced from 30-50% → <5% through on-demand loading
+- **Parallel execution:** Workflows 5x faster via DAG
+- **Intelligent discovery:** Semantic search + graph-based recommendations
+- **Continuous learning:** The system improves with usage
 
-### Concepts clés
+### Key Concepts
 
-| Terme                            | Définition                                                               |
-| -------------------------------- | ------------------------------------------------------------------------ |
-| **MCP (Model Context Protocol)** | Protocole standard d'Anthropic pour connecter LLMs à des outils externes |
-| **Gateway**                      | Point d'entrée unique qui agrège et proxie tous vos serveurs MCP         |
-| **DAG (Directed Acyclic Graph)** | Structure représentant les dépendances entre tâches pour parallélisation |
-| **GraphRAG**                     | Base de connaissances apprenante qui améliore les suggestions d'outils   |
-| **Sandbox**                      | Environnement isolé pour exécuter du code TypeScript en sécurité         |
-| **AIL (Agent-in-the-Loop)**      | Décisions automatiques de l'agent pendant l'exécution                    |
-| **HIL (Human-in-the-Loop)**      | Points d'approbation humaine pour opérations critiques                   |
+| Term                             | Definition                                                                |
+| -------------------------------- | ------------------------------------------------------------------------- |
+| **MCP (Model Context Protocol)** | Anthropic's standard protocol for connecting LLMs to external tools       |
+| **Gateway**                      | Single entry point that aggregates and proxies all your MCP servers       |
+| **DAG (Directed Acyclic Graph)** | Structure representing task dependencies for parallelization              |
+| **GraphRAG**                     | Learning knowledge base that improves tool suggestions                    |
+| **Sandbox**                      | Isolated environment for executing TypeScript code securely               |
+| **AIL (Agent-in-the-Loop)**      | Automatic agent decisions during execution                                |
+| **HIL (Human-in-the-Loop)**      | Human approval checkpoints for critical operations                        |
 
 ---
 
-## Fonctionnalités principales
+## Main Features
 
-### 1. Recherche sémantique d'outils
+### 1. Semantic Tool Search
 
-Trouvez les outils pertinents par intention naturelle, pas par nom exact.
+Find relevant tools by natural intent, not by exact name.
 
-**Comment l'utiliser:**
+**How to use:**
 
-1. Décrivez ce que vous voulez accomplir en langage naturel
-2. AgentCards utilise les embeddings (BGE-Large-EN-v1.5) pour trouver les outils similaires
-3. Le GraphRAG booste les outils fréquemment utilisés ensemble
+1. Describe what you want to accomplish in natural language
+2. Casys Intelligence uses embeddings (BGE-Large-EN-v1.5) to find similar tools
+3. GraphRAG boosts tools frequently used together
 
-**Exemple:**
+**Example:**
 
 ```typescript
-// Via l'outil MCP
-await callTool("agentcards:search_tools", {
-  query: "lire et parser des fichiers de configuration",
+// Via MCP tool
+await callTool("cai:search_tools", {
+  query: "read and parse configuration files",
   limit: 5,
-  include_related: true  // Inclut recommandations du graphe
+  include_related: true  // Include graph recommendations
 });
 
-// Résultat
+// Result
 {
   "tools": [
     { "name": "filesystem:read_file", "score": 0.92 },
@@ -61,39 +61,39 @@ await callTool("agentcards:search_tools", {
 
 **Tips:**
 
-- Utilisez `include_related: true` pour découvrir des outils connexes via le graphe
-- Plus le graphe apprend, meilleures sont les recommandations
+- Use `include_related: true` to discover related tools via the graph
+- The more the graph learns, the better the recommendations
 
 ---
 
-### 2. Exécution de workflows DAG
+### 2. DAG Workflow Execution
 
-Orchestrez des workflows multi-outils avec parallélisation automatique.
+Orchestrate multi-tool workflows with automatic parallelization.
 
-**Comment l'utiliser:**
+**How to use:**
 
-1. **Mode Intent:** Décrivez votre objectif, AgentCards suggère le DAG optimal
-2. **Mode Explicit:** Définissez vous-même la structure du workflow
-3. AgentCards détecte les dépendances et parallélise les tâches indépendantes
+1. **Intent mode:** Describe your goal, Casys Intelligence suggests the optimal DAG
+2. **Explicit mode:** Define the workflow structure yourself
+3. Casys Intelligence detects dependencies and parallelizes independent tasks
 
-**Exemple - Mode Intent:**
+**Example - Intent Mode:**
 
 ```typescript
-await callTool("agentcards:execute_dag", {
-  intent: "Lire les 3 fichiers config.json, package.json, README.md et résumer leur contenu",
+await callTool("cai:execute_dag", {
+  intent: "Read the 3 files config.json, package.json, README.md and summarize their content",
 });
 
-// AgentCards:
-// 1. Identifie les 3 lectures comme indépendantes
-// 2. Les exécute en parallèle (Promise.all)
-// 3. Agrège les résultats
-// Temps: 1.8s au lieu de 5.4s (3x amélioration)
+// Casys Intelligence:
+// 1. Identifies the 3 reads as independent
+// 2. Executes them in parallel (Promise.all)
+// 3. Aggregates results
+// Time: 1.8s instead of 5.4s (3x improvement)
 ```
 
-**Exemple - Mode Explicit avec dépendances:**
+**Example - Explicit Mode with dependencies:**
 
 ```typescript
-await callTool("agentcards:execute_dag", {
+await callTool("cai:execute_dag", {
   workflow: {
     tasks: [
       { id: "t1", tool: "filesystem:read_file", arguments: { path: "config.json" } },
@@ -103,7 +103,7 @@ await callTool("agentcards:execute_dag", {
         tool: "memory:create_entities",
         arguments: { entities: [{ name: "config", content: "$t1.result" }] },
         depends_on: ["t1"],
-      }, // Attend t1, mais t1 et t2 sont parallèles
+      }, // Waits for t1, but t1 and t2 are parallel
     ],
   },
 });
@@ -111,134 +111,134 @@ await callTool("agentcards:execute_dag", {
 
 **Tips:**
 
-- Le mode Intent est idéal pour découvrir des patterns
-- Le mode Explicit offre un contrôle total sur la structure
-- Utilisez `$taskId.result` pour référencer les résultats de tâches précédentes
+- Intent mode is ideal for discovering patterns
+- Explicit mode offers total control over structure
+- Use `$taskId.result` to reference results from previous tasks
 
 ---
 
-### 3. Exécution de code sandbox
+### 3. Sandbox Code Execution
 
-Exécutez du TypeScript dans un environnement isolé avec accès aux outils MCP.
+Execute TypeScript in an isolated environment with access to MCP tools.
 
-**Comment l'utiliser:**
+**How to use:**
 
-1. Écrivez du code TypeScript pour traiter des données
-2. Optionnel: spécifiez un `intent` pour découvrir automatiquement les outils pertinents
-3. Le code s'exécute dans un subprocess Deno isolé
+1. Write TypeScript code to process data
+2. Optional: specify an `intent` to automatically discover relevant tools
+3. Code executes in an isolated Deno subprocess
 
-**Exemple - Traitement local de données volumineuses:**
+**Example - Local processing of large datasets:**
 
 ```typescript
-await callTool("agentcards:execute_code", {
-  intent: "Analyser les commits GitHub",
+await callTool("cai:execute_code", {
+  intent: "Analyze GitHub commits",
   code: `
-    // 'github' injecté automatiquement grâce à l'intent
+    // 'github' injected automatically thanks to intent
     const commits = await github.listCommits({ repo: "anthropics/claude", limit: 1000 });
 
-    // Filtrage local (pas de coût contexte)
+    // Local filtering (no context cost)
     const lastWeek = commits.filter(c =>
       new Date(c.date) > Date.now() - 7 * 24 * 3600 * 1000
     );
 
-    // Agrégation locale
+    // Local aggregation
     const byAuthor = lastWeek.reduce((acc, c) => {
       acc[c.author] = (acc[c.author] || 0) + 1;
       return acc;
     }, {});
 
-    // Retourne résumé compact
+    // Return compact summary
     return Object.entries(byAuthor)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5);
   `,
 });
 
-// Résultat: [["alice", 42], ["bob", 28], ...] (500 bytes)
-// Au lieu de 1000 commits bruts (1.2MB)
-// Économie contexte: 99.96%
+// Result: [["alice", 42], ["bob", 28], ...] (500 bytes)
+// Instead of 1000 raw commits (1.2MB)
+// Context savings: 99.96%
 ```
 
-**Style REPL:**
+**REPL style:**
 
-- Expressions simples: auto-return (`2 + 2` → `4`)
-- Multi-statements: `return` explicite requis
+- Simple expressions: auto-return (`2 + 2` → `4`)
+- Multi-statements: explicit `return` required
 
 **Tips:**
 
-- Idéal pour filtrer/agréger de gros datasets avant injection dans le contexte LLM
-- Le cache évite de ré-exécuter du code identique
-- La protection PII tokenise automatiquement les données sensibles
+- Ideal for filtering/aggregating large datasets before injecting into LLM context
+- Cache avoids re-executing identical code
+- PII protection automatically tokenizes sensitive data
 
 ---
 
-### 4. Contrôle de workflow (AIL/HIL)
+### 4. Workflow Control (AIL/HIL)
 
-Gérez l'exécution avec des points de décision agent et humain.
+Manage execution with agent and human decision points.
 
 **Agent-in-the-Loop (AIL):**
 
-- Décisions automatiques basées sur la confiance
-- Re-planification dynamique si découverte de nouveaux besoins
+- Automatic decisions based on confidence
+- Dynamic re-planning if new needs are discovered
 
 **Human-in-the-Loop (HIL):**
 
-- Checkpoints d'approbation pour opérations critiques
-- Possibilité de modifier le plan avant continuation
+- Approval checkpoints for critical operations
+- Ability to modify the plan before continuing
 
-**Exemple - Workflow avec validation:**
+**Example - Workflow with validation:**
 
 ```typescript
-// Exécution avec validation par couche
-const result = await callTool("agentcards:execute_dag", {
-  intent: "Déployer la nouvelle version",
-  per_layer_validation: true, // Pause entre chaque couche
+// Execution with per-layer validation
+const result = await callTool("cai:execute_dag", {
+  intent: "Deploy the new version",
+  per_layer_validation: true, // Pause between each layer
 });
 
-// Si le workflow pause pour approbation:
-await callTool("agentcards:approval_response", {
+// If workflow pauses for approval:
+await callTool("cai:approval_response", {
   workflow_id: result.workflow_id,
   checkpoint_id: result.checkpoint_id,
   approved: true,
-  feedback: "Continuer avec le déploiement",
+  feedback: "Continue with deployment",
 });
 ```
 
-**Commandes de contrôle:**
+**Control commands:**
 
-| Outil                          | Usage                                       |
-| ------------------------------ | ------------------------------------------- |
-| `agentcards:continue`          | Reprendre un workflow pausé                 |
-| `agentcards:abort`             | Arrêter un workflow en cours                |
-| `agentcards:replan`            | Modifier le DAG avec de nouvelles exigences |
-| `agentcards:approval_response` | Répondre à un checkpoint HIL                |
+| Tool                          | Usage                                  |
+| ----------------------------- | -------------------------------------- |
+| `cai:continue`          | Resume a paused workflow               |
+| `cai:abort`             | Stop a running workflow                |
+| `cai:replan`            | Modify DAG with new requirements       |
+| `cai:approval_response` | Respond to an HIL checkpoint           |
 
 ---
 
 ## Configuration
 
-### Options de ligne de commande
+### Command Line Options
 
-| Option                | Type   | Défaut   | Description                                    |
-| --------------------- | ------ | -------- | ---------------------------------------------- |
-| `--config <path>`     | string | (requis) | Chemin vers le fichier de config MCP           |
-| `--port <number>`     | number | stdio    | Port HTTP pour transport SSE (optionnel)       |
-| `--no-speculative`    | flag   | false    | Désactiver l'exécution spéculative             |
-| `--no-pii-protection` | flag   | false    | Désactiver la protection des données sensibles |
-| `--no-cache`          | flag   | false    | Désactiver le cache d'exécution de code        |
+| Option                | Type   | Default  | Description                                   |
+| --------------------- | ------ | -------- | --------------------------------------------- |
+| `--config <path>`     | string | (required) | Path to MCP config file                     |
+| `--port <number>`     | number | stdio    | HTTP port for SSE transport (optional)        |
+| `--no-speculative`    | flag   | false    | Disable speculative execution                 |
+| `--no-pii-protection` | flag   | false    | Disable sensitive data protection             |
+| `--no-cache`          | flag   | false    | Disable code execution cache                  |
 
-### Variables d'environnement
+### Environment Variables
 
-| Variable                       | Description                                        |
-| ------------------------------ | -------------------------------------------------- |
-| `AGENTCARDS_DB_PATH`           | Chemin personnalisé pour la base de données PGlite |
-| `AGENTCARDS_WORKFLOW_PATH`     | Chemin vers les templates de workflow              |
-| `AGENTCARDS_NO_PII_PROTECTION` | `1` pour désactiver la protection PII              |
-| `AGENTCARDS_NO_CACHE`          | `1` pour désactiver le cache                       |
-| `SENTRY_DSN`                   | DSN Sentry pour le tracking d'erreurs (optionnel)  |
-| `LOG_LEVEL`                    | Niveau de log: `debug`, `info`, `warn`, `error`    |
+| Variable                       | Description                                      |
+| ------------------------------ | ------------------------------------------------ |
+| `CAI_DB_PATH`           | Custom path for PGlite database                  |
+| `CAI_WORKFLOW_PATH`     | Path to workflow templates                       |
+| `CAI_NO_PII_PROTECTION` | `1` to disable PII protection                    |
+| `CAI_NO_CACHE`          | `1` to disable cache                             |
+| `SENTRY_DSN`                   | Sentry DSN for error tracking (optional)         |
+| `LOG_LEVEL`                    | Log level: `debug`, `info`, `warn`, `error`      |
 
-### Exemple de configuration MCP
+### MCP Configuration Example
 
 ```json
 {
@@ -264,38 +264,38 @@ await callTool("agentcards:approval_response", {
 
 ---
 
-## Workflows courants
+## Common Workflows
 
-### Workflow 1: Analyse de codebase
+### Workflow 1: Codebase Analysis
 
-**Objectif:** Analyser la structure d'un projet et créer une documentation
+**Goal:** Analyze project structure and create documentation
 
-1. **Découvrir les fichiers**
+1. **Discover files**
 
-   Utilisez la recherche sémantique pour trouver les outils pertinents:
+   Use semantic search to find relevant tools:
 
    ```typescript
-   await callTool("agentcards:search_tools", {
-     query: "lister et lire les fichiers source",
+   await callTool("cai:search_tools", {
+     query: "list and read source files",
    });
    ```
 
-2. **Exécuter le workflow**
+2. **Execute the workflow**
 
-   Créez un DAG pour paralléliser la lecture:
+   Create a DAG to parallelize reading:
 
    ```typescript
-   await callTool("agentcards:execute_dag", {
-     intent: "Lire tous les fichiers TypeScript dans src/ et générer un résumé",
+   await callTool("cai:execute_dag", {
+     intent: "Read all TypeScript files in src/ and generate a summary",
    });
    ```
 
-3. **Traiter localement**
+3. **Process locally**
 
-   Utilisez le sandbox pour agréger les résultats:
+   Use the sandbox to aggregate results:
 
    ```typescript
-   await callTool("agentcards:execute_code", {
+   await callTool("cai:execute_code", {
      code: `
        const files = context.files;
        return {
@@ -308,34 +308,33 @@ await callTool("agentcards:approval_response", {
    });
    ```
 
-**Résultat:** Documentation générée avec statistiques, le tout en quelques secondes grâce à la
-parallélisation.
+**Result:** Documentation generated with statistics, all in seconds thanks to parallelization.
 
 ---
 
-### Workflow 2: Migration de données
+### Workflow 2: Data Migration
 
-**Objectif:** Transformer et migrer des données entre formats
+**Goal:** Transform and migrate data between formats
 
-1. Lire les données sources (parallèle si multiples fichiers)
-2. Transformer via code sandbox (filtrage, mapping)
-3. Écrire vers la destination
+1. Read source data (parallel if multiple files)
+2. Transform via sandbox code (filtering, mapping)
+3. Write to destination
 
 ```typescript
-await callTool("agentcards:execute_dag", {
+await callTool("cai:execute_dag", {
   workflow: {
     tasks: [
-      // Lecture parallèle
+      // Parallel reading
       { id: "read1", tool: "filesystem:read_file", arguments: { path: "data1.json" } },
       { id: "read2", tool: "filesystem:read_file", arguments: { path: "data2.json" } },
-      // Transformation (attend les lectures)
+      // Transformation (waits for reads)
       {
         id: "transform",
         type: "code_execution",
         code: `return [...deps.read1, ...deps.read2].filter(x => x.active)`,
         depends_on: ["read1", "read2"],
       },
-      // Écriture
+      // Writing
       {
         id: "write",
         tool: "filesystem:write_file",
@@ -349,63 +348,61 @@ await callTool("agentcards:execute_dag", {
 
 ---
 
-## Bonnes pratiques
+## Best Practices
 
 ### Performance
 
-- **Utilisez le mode Intent** pour les nouveaux workflows - le GraphRAG apprend des patterns
-  optimaux
-- **Parallélisez les lectures** - les opérations de lecture sont généralement indépendantes
-- **Traitez localement** - le sandbox évite d'injecter des données volumineuses dans le contexte
-- **Activez le cache** - évite de ré-exécuter du code identique
+- **Use Intent mode** for new workflows - GraphRAG learns optimal patterns
+- **Parallelize reads** - read operations are generally independent
+- **Process locally** - sandbox avoids injecting large data into context
+- **Enable cache** - avoids re-executing identical code
 
-### Sécurité
+### Security
 
-- **Gardez la protection PII activée** sauf en environnement de confiance
-- **Utilisez des chemins absolus** dans les configurations
-- **Limitez les permissions** des serveurs MCP (répertoires autorisés, tokens scoped)
-- **Reviewez les workflows** avant d'approuver les checkpoints HIL
+- **Keep PII protection enabled** except in trusted environments
+- **Use absolute paths** in configurations
+- **Limit permissions** for MCP servers (allowed directories, scoped tokens)
+- **Review workflows** before approving HIL checkpoints
 
-### Organisation
+### Organization
 
-- **Un fichier de config par environnement** (dev, staging, prod)
-- **Nommez vos serveurs MCP clairement** (`github-prod`, `filesystem-local`)
-- **Documentez vos workflows** explicites pour réutilisation
+- **One config file per environment** (dev, staging, prod)
+- **Name your MCP servers clearly** (`github-prod`, `filesystem-local`)
+- **Document explicit workflows** for reuse
 
 ---
 
-## Observabilité
+## Observability
 
-AgentCards offre plusieurs options de monitoring:
+Casys Intelligence offers several monitoring options:
 
-| Outil                | stdio | Streamable HTTP | Description                            |
-| -------------------- | :---: | :-------------: | -------------------------------------- |
-| **Grafana/Loki**     |  ✅   |       ✅        | Logs via Promtail (lit les fichiers)   |
-| **Sentry**           |  ✅   |       ✅        | Error tracking (connexion HTTP propre) |
-| **Dashboard Fresh**  |  ❌   |       ✅        | UI temps réel sur port 8080            |
-| **Console (stderr)** |  ✅   |       ✅        | Logs console via stderr                |
+| Tool                 | stdio | Streamable HTTP | Description                          |
+| -------------------- | :---: | :-------------: | ------------------------------------ |
+| **Grafana/Loki**     |  ✅   |       ✅        | Logs via Promtail (reads files)      |
+| **Sentry**           |  ✅   |       ✅        | Error tracking (own HTTP connection) |
+| **Fresh Dashboard**  |  ❌   |       ✅        | Real-time UI on port 8080            |
+| **Console (stderr)** |  ✅   |       ✅        | Console logs via stderr              |
 
-### Stack Grafana/Loki/Promtail
+### Grafana/Loki/Promtail Stack
 
-Le monitoring fonctionne **indépendamment du mode de transport** car Promtail lit les fichiers de
-log:
+Monitoring works **independently of transport mode** because Promtail reads log files:
 
 ```bash
-# Démarrer le stack monitoring
+# Start monitoring stack
 cd monitoring && docker-compose up -d
 
-# Accéder à Grafana
+# Access Grafana
 open http://localhost:3000  # admin/admin
 ```
 
-**Logs agrégés:**
+**Aggregated logs:**
 
-- `~/.agentcards/logs/agentcards.log` (JSON structuré)
-- Requêtes LogQL: `{job="agentcards"}`, `{job="agentcards", level="ERROR"}`
+- `~/.cai/logs/cai.log` (structured JSON)
+- LogQL queries: `{job="cai"}`, `{job="cai", level="ERROR"}`
 
 ### Sentry (Error Tracking)
 
-Sentry utilise sa propre connexion HTTP, fonctionne en stdio et HTTP:
+Sentry uses its own HTTP connection, works in both stdio and HTTP:
 
 ```bash
 # .env
@@ -415,52 +412,51 @@ SENTRY_ENVIRONMENT=production
 
 ---
 
-## Modes de transport
+## Transport Modes
 
-AgentCards supporte deux modes de transport MCP:
+Casys Intelligence supports two MCP transport modes:
 
-| Mode                | Commande                                    | Dashboard | Cas d'usage                         |
+| Mode                | Command                                     | Dashboard | Use Case                            |
 | ------------------- | ------------------------------------------- | --------- | ----------------------------------- |
-| **stdio**           | `agentcards serve --config ...`             | Non       | Claude Code, intégration directe    |
-| **Streamable HTTP** | `agentcards serve --config ... --port 3001` | Oui       | Développement, debugging, dashboard |
+| **stdio**           | `cai serve --config ...`             | No        | Claude Code, direct integration     |
+| **Streamable HTTP** | `cai serve --config ... --port 3001` | Yes       | Development, debugging, dashboard   |
 
-**stdio (défaut):**
+**stdio (default):**
 
 - Communication via stdin/stdout
-- Optimal pour intégration Claude Code
-- Pas de dashboard Fresh disponible
-- Pas d'API HTTP
+- Optimal for Claude Code integration
+- No Fresh dashboard available
+- No HTTP API
 
 **Streamable HTTP:**
 
-- Transport MCP sur `/mcp` (spec MCP 2025-03-26)
-- Dashboard Fresh accessible (`deno task dev:fresh` sur port 8080)
-- Events graph temps réel via SSE sur `/events/stream`
-- APIs REST pour snapshots et métriques
-- Idéal pour développement et monitoring
+- MCP transport on `/mcp` (MCP spec 2025-03-26)
+- Fresh dashboard accessible (`deno task dev:fresh` on port 8080)
+- Real-time graph events via SSE on `/events/stream`
+- REST APIs for snapshots and metrics
+- Ideal for development and monitoring
 
-> **Recommandation:** Utilisez stdio pour la production avec Claude Code, Streamable HTTP pour le
-> développement et debugging.
-
----
-
-## Limites connues
-
-- **Pas de support multi-tenant** - Conçu pour usage développeur individuel
-- **Embeddings locaux uniquement** - Pas d'option cloud pour les embeddings (par design, pour la vie
-  privée)
-- **Sandbox read-only par défaut** - Écriture fichier nécessite permissions explicites
-- **Dashboard Fresh** - Nécessite le mode Streamable HTTP (`--port`), indisponible en stdio
+> **Recommendation:** Use stdio for production with Claude Code, Streamable HTTP for development
+> and debugging.
 
 ---
 
-## Voir aussi
+## Known Limitations
 
-- [Démarrage rapide](./getting-started.md) - Installation et premier workflow
-- [Référence API](./api-reference.md) - Documentation technique des outils MCP
-- [FAQ](./faq.md) - Questions fréquentes
-- [Dépannage](./troubleshooting.md) - Résolution de problèmes
+- **No multi-tenant support** - Designed for individual developer use
+- **Local embeddings only** - No cloud option for embeddings (by design, for privacy)
+- **Sandbox read-only by default** - File writing requires explicit permissions
+- **Fresh Dashboard** - Requires Streamable HTTP mode (`--port`), unavailable in stdio
 
 ---
 
-_Généré le 2025-12-03 par le workflow user-docs BMAD_
+## See Also
+
+- [Getting Started](./getting-started.md) - Installation and first workflow
+- [API Reference](./api-reference.md) - Technical MCP tools documentation
+- [FAQ](./faq.md) - Frequently asked questions
+- [Troubleshooting](./troubleshooting.md) - Problem resolution
+
+---
+
+_Generated on 2025-12-03 by BMAD user-docs workflow_

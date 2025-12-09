@@ -5,7 +5,7 @@
 
 ## Context
 
-The AgentCards gateway currently only supports stdio transport, which makes testing difficult:
+The Casys Intelligence gateway currently only supports stdio transport, which makes testing difficult:
 
 - Each `echo | deno run` command launches a new gateway instance
 - Cannot send requests to a running standalone gateway

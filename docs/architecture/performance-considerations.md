@@ -1,18 +1,18 @@
 # Performance Considerations
 
-## Objectifs (NFR001)
+## Targets (NFR001)
 
-| Métrique | Cible | Mesuré | Status |
+| Metric | Target | Measured | Status |
 |----------|-------|--------|--------|
 | Vector Search P95 | <100ms | ~45ms | ✅ |
 | 5-tool Workflow P95 | <3s | ~1.8s | ✅ |
 | Context Usage | <5% | ~3% | ✅ |
 | DAG Speedup | 5x | 4.8x | ✅ |
-| Speculation Success | >85% | 🟡 | En cours |
+| Speculation Success | >85% | 🟡 | In progress |
 
 ---
 
-## Architecture Performance
+## Performance Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -44,14 +44,14 @@
 
 ---
 
-## Optimisations par Composant
+## Optimizations by Component
 
 ### 1. Vector Search (HNSW)
 
-**Configuration pgvector :**
+**pgvector Configuration:**
 
 ```sql
--- Index HNSW optimisé
+-- Optimized HNSW index
 CREATE INDEX ON mcp_tools
 USING hnsw (embedding vector_cosine_ops)
 WITH (m = 16, ef_construction = 64);
@@ -60,13 +60,13 @@ WITH (m = 16, ef_construction = 64);
 SET hnsw.ef_search = 40;  -- Balance recall/speed
 ```
 
-| Paramètre | Valeur | Trade-off |
+| Parameter | Value | Trade-off |
 |-----------|--------|-----------|
-| `m` | 16 | Mémoire vs qualité |
+| `m` | 16 | Memory vs quality |
 | `ef_construction` | 64 | Build time vs recall |
 | `ef_search` | 40 | Query time vs accuracy |
 
-**Benchmarks :**
+**Benchmarks:**
 
 | # Tools | Query Time | Recall@10 |
 |---------|------------|-----------|
@@ -76,23 +76,23 @@ SET hnsw.ef_search = 40;  -- Balance recall/speed
 
 ### 2. Embeddings Generation
 
-**BGE-M3 via Transformers.js :**
+**BGE-M3 via Transformers.js:**
 
 ```typescript
 // Lazy loading + caching
 const embedder = await pipeline("feature-extraction", "Xenova/bge-m3", {
   quantized: false,  // Full precision for quality
-  cache_dir: "~/.agentcards/cache/embeddings",
+  cache_dir: "~/.cai/cache/embeddings",
 });
 ```
 
-| Phase | Durée | Fréquence |
+| Phase | Duration | Frequency |
 |-------|-------|-----------|
 | Model load | ~3s | 1x per session |
 | Batch (10 texts) | ~200ms | Per tool discovery |
 | Single text | ~50ms | Per query |
 
-**Optimisation batch :**
+**Batch optimization:**
 
 ```typescript
 // Parallel batch processing
@@ -105,7 +105,7 @@ const embeddings = await Promise.all(
 
 ### 3. DAG Execution
 
-**Parallélisation :**
+**Parallelization:**
 
 ```typescript
 // Topological layers executed in parallel
@@ -117,7 +117,7 @@ async executeLayer(layer: DAGNode[]): Promise<void> {
 }
 ```
 
-**Speedup Analysis :**
+**Speedup Analysis:**
 
 ```
 Sequential:  A → B → C → D → E  (sum of all durations)
@@ -139,7 +139,7 @@ Speedup: 5x
 
 ### 4. Speculation Engine
 
-**Confidence-based execution :**
+**Confidence-based execution:**
 
 ```typescript
 if (confidence >= 0.85 && !isDangerous(dag)) {
@@ -149,7 +149,7 @@ if (confidence >= 0.85 && !isDangerous(dag)) {
 }
 ```
 
-**Performance impact :**
+**Performance impact:**
 
 | Scenario | Without Speculation | With Speculation |
 |----------|---------------------|------------------|
@@ -159,7 +159,7 @@ if (confidence >= 0.85 && !isDangerous(dag)) {
 
 ### 5. GraphRAG (Graphology)
 
-**Computation caching :**
+**Computation caching:**
 
 ```typescript
 class GraphRAGEngine {
@@ -225,7 +225,7 @@ const executionCache = new LRUCache<string, ExecutionResult>({
 
 ```typescript
 const db = new PGlite({
-  dataDir: "~/.agentcards/agentcards.db",
+  dataDir: "~/.cai/cai.db",
   // WAL mode for concurrent reads
   pragmas: {
     journal_mode: "wal",
@@ -238,13 +238,13 @@ const db = new PGlite({
 ### Query Optimization
 
 ```sql
--- Index pour recherches fréquentes
+-- Indexes for frequent searches
 CREATE INDEX idx_tools_server ON mcp_tools(server_name);
 CREATE INDEX idx_executions_workflow ON workflow_execution(workflow_id);
 CREATE INDEX idx_patterns_intent ON workflow_pattern USING gin(intent_embedding);
 
--- Vacuum automatique désactivé (read-heavy workload)
--- Manuel: VACUUM ANALYZE après batch inserts
+-- Automatic vacuum disabled (read-heavy workload)
+-- Manual: VACUUM ANALYZE after batch inserts
 ```
 
 ---
@@ -329,7 +329,7 @@ deno run --inspect-brk src/main.ts serve
 
 ---
 
-*Références :*
+*References:*
 - [ADR-001: PGlite over SQLite](./architecture-decision-records-adrs.md#adr-001-pglite-over-sqlite-for-vector-search)
 - [ADR-003: BGE-M3 Embeddings](./architecture-decision-records-adrs.md#adr-003-bge-m3-for-local-embeddings)
 - [Pattern 3: Speculative Execution](./novel-pattern-designs.md#pattern-3-speculative-execution-with-graphrag-the-feature)

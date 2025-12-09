@@ -1,5 +1,5 @@
 /**
- * Custom Error Types for AgentCards
+ * Custom Error Types for Casys Intelligence
  *
  * Provides a hierarchy of error classes with user-friendly messages,
  * error codes, recoverability flags, and suggestions for resolution.
@@ -8,14 +8,14 @@
  */
 
 /**
- * Base error class for AgentCards
+ * Base error class for Casys Intelligence
  *
  * All custom errors extend this class to provide:
  * - Unique error code for categorization
  * - Recoverable flag to indicate if the operation can continue
  * - User-friendly suggestion for how to resolve the error
  */
-export class AgentCardsError extends Error {
+export class CasysIntelligenceError extends Error {
   constructor(
     message: string,
     public code: string,
@@ -39,7 +39,7 @@ export class AgentCardsError extends Error {
  * - Communication with server fails
  * - Server returns invalid response
  */
-export class MCPServerError extends AgentCardsError {
+export class MCPServerError extends CasysIntelligenceError {
   constructor(
     public serverId: string,
     message: string,
@@ -49,7 +49,7 @@ export class MCPServerError extends AgentCardsError {
       message,
       "MCP_SERVER_ERROR",
       true, // Recoverable - can continue with other servers
-      `Check server configuration for '${serverId}' or run 'agentcards status'`,
+      `Check server configuration for '${serverId}' or run 'cai status'`,
     );
   }
 }
@@ -62,7 +62,7 @@ export class MCPServerError extends AgentCardsError {
  * - Vector database query fails
  * - Search returns invalid results
  */
-export class VectorSearchError extends AgentCardsError {
+export class VectorSearchError extends CasysIntelligenceError {
   constructor(message: string, public query?: string) {
     super(
       message,
@@ -81,7 +81,7 @@ export class VectorSearchError extends AgentCardsError {
  * - Task execution fails
  * - Workflow cannot complete
  */
-export class DAGExecutionError extends AgentCardsError {
+export class DAGExecutionError extends CasysIntelligenceError {
   constructor(
     message: string,
     public taskId?: string,
@@ -104,7 +104,7 @@ export class DAGExecutionError extends AgentCardsError {
  * - Query execution fails
  * - Transaction fails
  */
-export class DatabaseError extends AgentCardsError {
+export class DatabaseError extends CasysIntelligenceError {
   constructor(message: string, public operation: string) {
     super(
       message,
@@ -123,13 +123,13 @@ export class DatabaseError extends AgentCardsError {
  * - Configuration is invalid
  * - Config file cannot be read
  */
-export class ConfigurationError extends AgentCardsError {
+export class ConfigurationError extends CasysIntelligenceError {
   constructor(message: string, public configKey?: string) {
     super(
       message,
       "CONFIGURATION_ERROR",
       false, // Not recoverable - configuration is required
-      "Run 'agentcards init' to reconfigure",
+      "Run 'cai init' to reconfigure",
     );
   }
 }
@@ -139,7 +139,7 @@ export class ConfigurationError extends AgentCardsError {
  *
  * Thrown when an operation exceeds its timeout threshold
  */
-export class TimeoutError extends AgentCardsError {
+export class TimeoutError extends CasysIntelligenceError {
   constructor(
     public operation: string,
     public timeoutMs: number,

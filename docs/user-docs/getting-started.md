@@ -1,34 +1,32 @@
-# Démarrage Rapide avec AgentCards
+# Getting Started with Casys Intelligence
 
-> **Temps estimé:** ~10 minutes
+> **Estimated time:** ~10 minutes
 
-## Qu'est-ce qu'AgentCards?
+## What is Casys Intelligence?
 
-AgentCards est un MCP gateway intelligent qui consolide tous vos serveurs MCP en un point d'entrée
-unique avec recherche sémantique, orchestration de workflows DAG, et découverte d'outils
-auto-apprenante.
+Casys Intelligence is an intelligent MCP gateway that consolidates all your MCP servers into a single
+entry point with semantic search, DAG workflow orchestration, and self-improving tool discovery.
 
-**Problèmes résolus:**
+**Problems solved:**
 
-- **Saturation du contexte** - Les schemas d'outils consomment 30-50% de la fenêtre LLM → réduit à
-  <5%
-- **Latence séquentielle** - Les workflows multi-outils s'exécutent en série → parallélisés via DAG
+- **Context saturation** - Tool schemas consume 30-50% of LLM window → reduced to <5%
+- **Sequential latency** - Multi-tool workflows run serially → parallelized via DAG
 
-## Prérequis
+## Prerequisites
 
-Avant de commencer, assurez-vous d'avoir:
+Before starting, make sure you have:
 
-- [ ] **Deno 2.x ou supérieur** - [Installation Deno](https://deno.land/)
-- [ ] **Git** - Pour cloner le repository
-- [ ] **Un agent de codage** - Claude Code, Cursor, ou autre client MCP
+- [ ] **Deno 2.x or higher** - [Deno Installation](https://deno.land/)
+- [ ] **Git** - To clone the repository
+- [ ] **A coding agent** - Claude Code, Cursor, or another MCP client
 
-### Vérifier Deno
+### Verify Deno
 
 ```bash
 deno --version
 ```
 
-Vous devriez voir:
+You should see:
 
 ```
 deno 2.x.x (...)
@@ -36,49 +34,49 @@ deno 2.x.x (...)
 
 ## Installation
 
-### Étape 1: Cloner le repository
+### Step 1: Clone the repository
 
 ```bash
-git clone https://github.com/Casys-AI/mcp-gateway.git
-cd AgentCards
+git clone https://github.com/casys-ai/casys-intelligence.git
+cd casys-intelligence
 ```
 
-### Étape 2: Builder le CLI
+### Step 2: Build the CLI
 
 ```bash
 deno task build
 ```
 
-Vous devriez voir:
+You should see:
 
 ```
-Compile file:///.../src/main.ts to agentcards
+Compile file:///.../src/main.ts to cai
 ```
 
-### Étape 3: Vérifier l'installation
+### Step 3: Verify installation
 
 ```bash
-./agentcards --help
+./cai --help
 ```
 
-Sortie attendue:
+Expected output:
 
 ```
-Usage: agentcards [options] [command]
+Usage: cai [options] [command]
 
 Commands:
-  init    Initialize AgentCards from MCP config
-  serve   Start AgentCards MCP gateway server
+  init    Initialize Casys Intelligence from MCP config
+  serve   Start Casys Intelligence MCP gateway server
   status  Show gateway status and health
 ```
 
-## Tutoriel: Votre premier workflow avec Claude Code
+## Tutorial: Your First Workflow with Claude Code
 
-Configurons AgentCards comme gateway MCP pour Claude Code en quelques étapes.
+Let's configure Casys Intelligence as an MCP gateway for Claude Code in a few steps.
 
-### 1. Préparer votre configuration MCP
+### 1. Prepare your MCP configuration
 
-Créez un fichier de configuration pour vos serveurs MCP:
+Create a configuration file for your MCP servers:
 
 ```bash
 mkdir -p config
@@ -98,37 +96,37 @@ cat > config/mcp-servers.json << 'EOF'
 EOF
 ```
 
-> **Tip:** Vous pouvez aussi migrer votre config Claude Desktop existante avec
-> `./agentcards init --config ~/.config/Claude/claude_desktop_config.json`
+> **Tip:** You can also migrate your existing Claude Desktop config with
+> `./cai init --config ~/.config/Claude/claude_desktop_config.json`
 
-### 2. Initialiser AgentCards
+### 2. Initialize Casys Intelligence
 
 ```bash
-./agentcards init --config config/mcp-servers.json
+./cai init --config config/mcp-servers.json
 ```
 
-Cette commande:
+This command:
 
-- Découvre tous vos serveurs MCP configurés
-- Extrait les schemas d'outils via le protocole MCP
-- Génère les embeddings pour la recherche sémantique
-- Stocke tout dans une base PGlite locale (`~/.agentcards/db`)
+- Discovers all your configured MCP servers
+- Extracts tool schemas via MCP protocol
+- Generates embeddings for semantic search
+- Stores everything in a local PGlite database (`~/.cai/db`)
 
-Sortie attendue:
+Expected output:
 
 ```
-🚀 Initializing AgentCards...
+🚀 Initializing Casys Intelligence...
 ✓ Found 2 MCP server(s)
 ✓ Extracted 15 tool schemas
 ✓ Generated embeddings (BGE-Large-EN-v1.5)
-✓ Stored in ~/.agentcards/db
+✓ Stored in ~/.cai/db
 
-AgentCards is ready!
+Casys Intelligence is ready!
 ```
 
-### 3. Configurer Claude Code
+### 3. Configure Claude Code
 
-Ajoutez AgentCards à votre configuration Claude Code MCP:
+Add Casys Intelligence to your Claude Code MCP configuration:
 
 **Linux/macOS:** `~/.config/Claude/claude_desktop_config.json` **Windows:**
 `%APPDATA%\Claude\claude_desktop_config.json`
@@ -136,41 +134,41 @@ Ajoutez AgentCards à votre configuration Claude Code MCP:
 ```json
 {
   "mcpServers": {
-    "agentcards": {
-      "command": "/chemin/absolu/vers/agentcards",
-      "args": ["serve", "--config", "/chemin/absolu/vers/config/mcp-servers.json"]
+    "cai": {
+      "command": "/absolute/path/to/cai",
+      "args": ["serve", "--config", "/absolute/path/to/config/mcp-servers.json"]
     }
   }
 }
 ```
 
-> **Important:** Utilisez des chemins **absolus** pour `command` et `--config`.
+> **Important:** Use **absolute** paths for `command` and `--config`.
 
-### 4. Lancer et tester
+### 4. Launch and test
 
-Redémarrez Claude Code. Le gateway démarre automatiquement.
+Restart Claude Code. The gateway starts automatically.
 
-Pour tester manuellement:
+To test manually:
 
-**Mode stdio (défaut - recommandé pour Claude Code):**
-
-```bash
-./agentcards serve --config config/mcp-servers.json
-```
-
-**Mode HTTP (avec dashboard Fresh):**
+**stdio mode (default - recommended for Claude Code):**
 
 ```bash
-./agentcards serve --config config/mcp-servers.json --port 3001
+./cai serve --config config/mcp-servers.json
 ```
 
-> **Note:** Le dashboard Fresh (`deno task dev:fresh`) nécessite le mode HTTP (`--port`). En mode
-> stdio, seule l'interface MCP est disponible.
+**HTTP mode (with Fresh dashboard):**
 
-Vous devriez voir:
+```bash
+./cai serve --config config/mcp-servers.json --port 3001
+```
+
+> **Note:** The Fresh dashboard (`deno task dev:fresh`) requires HTTP mode (`--port`). In stdio
+> mode, only the MCP interface is available.
+
+You should see:
 
 ```
-🚀 Starting AgentCards MCP Gateway...
+🚀 Starting Casys Intelligence MCP Gateway...
 
 Step 1/6: Loading configuration...
 ✓ Found MCP config: config/mcp-servers.json
@@ -182,62 +180,62 @@ Step 4/6: Loading AI models...
 Step 5/6: Starting MCP gateway...
 Step 6/6: Listening for MCP requests...
 
-AgentCards gateway running on port 3001
+Casys Intelligence gateway running on port 3001
 ```
 
-**Félicitations!** Vous avez configuré AgentCards comme gateway MCP intelligent.
+**Congratulations!** You have configured Casys Intelligence as an intelligent MCP gateway.
 
-## Premiers pas avec les meta-tools
+## First Steps with Meta-Tools
 
-Une fois connecté, testez ces outils dans Claude Code:
+Once connected, test these tools in Claude Code:
 
-### Recherche sémantique d'outils
-
-```
-Utilise agentcards:search_tools pour trouver des outils liés à "lire des fichiers JSON"
-```
-
-### Exécution de workflow DAG
+### Semantic tool search
 
 ```
-Utilise agentcards:execute_dag avec l'intent "Lire config.json et créer une entité mémoire"
+Use cai:search_tools to find tools related to "read JSON files"
 ```
 
-### Exécution de code sandbox
+### DAG workflow execution
 
 ```
-Utilise agentcards:execute_code pour filtrer et agréger des données localement
+Use cai:execute_dag with intent "Read config.json and create a memory entity"
 ```
 
-## Monitoring (optionnel)
+### Sandbox code execution
 
-AgentCards inclut un stack Grafana/Loki/Promtail pour le monitoring des logs:
+```
+Use cai:execute_code to filter and aggregate data locally
+```
+
+## Monitoring (optional)
+
+Casys Intelligence includes a Grafana/Loki/Promtail stack for log monitoring:
 
 ```bash
-# Démarrer le stack monitoring
+# Start the monitoring stack
 cd monitoring && docker-compose up -d
 
-# Accéder à Grafana (admin/admin)
+# Access Grafana (admin/admin)
 open http://localhost:3000
 ```
 
-> **Note:** Le monitoring fonctionne en mode stdio ET Streamable HTTP car Promtail lit les fichiers
-> de log (`~/.agentcards/logs/`).
+> **Note:** Monitoring works in both stdio AND Streamable HTTP modes because Promtail reads log
+> files (`~/.cai/logs/`).
 
 ---
 
-## Prochaines étapes
+## Next Steps
 
-Maintenant que vous êtes opérationnel:
+Now that you're up and running:
 
-- **[Guide Utilisateur](./user-guide.md)** - Découvrir toutes les fonctionnalités
-- **[Référence API](./api-reference.md)** - Documentation technique des MCP tools
+- **[User Guide](./user-guide.md)** - Discover all features
+- **[API Reference](./api-reference.md)** - Technical MCP tools documentation
 
-## Besoin d'aide?
+## Need Help?
 
-- **GitHub Issues:** [Casys-AI/mcp-gateway/issues](https://github.com/Casys-AI/mcp-gateway/issues)
-- **Documentation:** [docs/](https://github.com/Casys-AI/mcp-gateway/tree/main/docs)
+- **GitHub Issues:** [casys-ai/casys-intelligence/issues](https://github.com/casys-ai/casys-intelligence/issues)
+- **Documentation:** [docs/](https://github.com/casys-ai/casys-intelligence/tree/main/docs)
 
 ---
 
-_Généré le 2025-12-03 par le workflow user-docs BMAD_
+_Generated on 2025-12-03 by BMAD user-docs workflow_

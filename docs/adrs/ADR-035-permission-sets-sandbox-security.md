@@ -5,7 +5,7 @@
 
 ## Context
 
-AgentCards exécute du code généré par LLM dans un sandbox Deno isolé:
+Casys Intelligence exécute du code généré par LLM dans un sandbox Deno isolé:
 
 - `src/sandbox/executor.ts` - Exécution dans subprocess Deno
 - `src/sandbox/worker-bridge.ts` - Communication RPC avec le worker

@@ -5,7 +5,7 @@
 
 ## Context
 
-AgentCards dispose actuellement d'une infrastructure de télémétrie custom:
+Casys Intelligence dispose actuellement d'une infrastructure de télémétrie custom:
 
 - `src/telemetry/logger.ts` - Logging structuré avec niveaux
 - `src/telemetry/telemetry.ts` - Métriques et spans custom
@@ -39,7 +39,7 @@ deno run --unstable-otel src/main.ts serve
 
 **Configuration via variables d'environnement:**
 ```bash
-OTEL_SERVICE_NAME=agentcards
+OTEL_SERVICE_NAME=cai
 OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
 OTEL_EXPORTER_OTLP_PROTOCOL=grpc  # ou http/protobuf
 OTEL_TRACES_SAMPLER=parentbased_traceidratio
@@ -50,7 +50,7 @@ OTEL_TRACES_SAMPLER_ARG=0.1  # 10% sampling en prod
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  AgentCards (Deno --unstable-otel)                          │
+│  Casys Intelligence (Deno --unstable-otel)                          │
 │                                                             │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
 │  │ MCP Gateway │  │ DAG Engine  │  │ Sandbox Executor    │  │
@@ -113,7 +113,7 @@ services:
 // src/telemetry/otel.ts - wrapper pour spans custom
 import { trace } from "npm:@opentelemetry/api";
 
-const tracer = trace.getTracer("agentcards", "0.1.0");
+const tracer = trace.getTracer("cai", "0.1.0");
 
 export function withSpan<T>(
   name: string,

@@ -21,7 +21,7 @@ they come), allowing agents to make decisions mid-execution. However, MCP is fun
 **Request → Response protocol** (one-shot), which means:
 
 1. **MCP Client (Claude Code)** sends a single request
-2. **MCP Server (AgentCards Gateway)** processes the request
+2. **MCP Server (Casys Intelligence Gateway)** processes the request
 3. **MCP Server** returns **ONE response** (not streaming events)
 4. **No bidirectional communication** during execution
 
@@ -268,16 +268,16 @@ async executeLayerByLayer(dag: DAGStructure, config: ExecutionConfig) {
 
 Level 1 external agents use **4 MCP meta-tools** (see ADR-018 for full specification):
 
-- `agentcards:continue` - Continue to next layer
-- `agentcards:abort` - Abort workflow execution
-- `agentcards:replan_dag` - Replan with new requirement (triggers GraphRAG)
-- `agentcards:approval_response` - Respond to HIL approval checkpoint
+- `cai:continue` - Continue to next layer
+- `cai:abort` - Abort workflow execution
+- `cai:replan_dag` - Replan with new requirement (triggers GraphRAG)
+- `cai:approval_response` - Respond to HIL approval checkpoint
 
 **External Agent Workflow (Claude Code via MCP):**
 
 ```typescript
 // Claude Code (MCP Client) execution flow - using MCP meta-tools
-let response = await agentcards.execute_workflow({
+let response = await cai.execute_workflow({
   intent: "Analyze codebase",
   config: { per_layer_validation: true },
 });
@@ -289,21 +289,21 @@ while (response.status === "layer_complete") {
 
   if (analysis.needsMoreTools) {
     // Replan: Add new tools based on discovery
-    response = await agentcards.replan_dag({
+    response = await cai.replan_dag({
       workflow_id: response.workflow_id,
       new_requirement: "Add XML parser for discovered files",
       available_context: { xml_files: ["data.xml", "config.xml"] },
     });
   } else if (analysis.criticalIssue) {
     // Abort: Stop execution
-    response = await agentcards.abort({
+    response = await cai.abort({
       workflow_id: response.workflow_id,
       reason: "Critical security issue found",
     });
     break;
   } else {
     // Continue: Proceed to next layer
-    response = await agentcards.continue({
+    response = await cai.continue({
       workflow_id: response.workflow_id,
     });
   }

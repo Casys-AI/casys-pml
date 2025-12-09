@@ -389,7 +389,7 @@ Track effectiveness via:
 ## Future Vision: Claude as High-Level Orchestrator
 
 The ultimate goal is to transform Claude from a tool caller into a **strategic orchestrator** that
-delegates execution to AgentCards:
+delegates execution to Casys Intelligence:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
