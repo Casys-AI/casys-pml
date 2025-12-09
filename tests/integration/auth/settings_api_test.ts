@@ -113,6 +113,8 @@ Deno.test({
       const mockCtx = {
         req: new Request("http://localhost/api/user/delete", {
           method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ confirmation: "DELETE" }),
         }),
         state: {
           user: { id: "local", username: "local" },
@@ -139,6 +141,8 @@ Deno.test("DELETE /api/user/delete - returns 400 for local user in cloud mode", 
     const mockCtx = {
       req: new Request("http://localhost/api/user/delete", {
         method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmation: "DELETE" }),
       }),
       state: {
         user: { id: "local", username: "local" },
@@ -164,6 +168,8 @@ Deno.test("DELETE /api/user/delete - returns 400 for null user", async () => {
     const mockCtx = {
       req: new Request("http://localhost/api/user/delete", {
         method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmation: "DELETE" }),
       }),
       state: {
         user: null,
@@ -177,6 +183,59 @@ Deno.test("DELETE /api/user/delete - returns 400 for null user", async () => {
 
     const body = await response.json();
     assertEquals(body.error, "Cannot delete local user");
+  });
+});
+
+Deno.test("DELETE /api/user/delete - returns 400 without confirmation body", async () => {
+  await withEnv("GITHUB_CLIENT_ID", "test_client_id", async () => {
+    const { handler } = await import(
+      "../../../src/web/routes/api/user/delete.ts"
+    );
+
+    const mockCtx = {
+      req: new Request("http://localhost/api/user/delete", {
+        method: "DELETE",
+        // No body - should fail validation
+      }),
+      state: {
+        user: { id: "user-123", username: "testuser" },
+        isCloudMode: true,
+      },
+    };
+
+    // deno-lint-ignore no-explicit-any
+    const response = await handler.DELETE(mockCtx as any);
+    assertEquals(response.status, 400);
+
+    const body = await response.json();
+    assertEquals(body.error, "Invalid request body. Send { confirmation: 'DELETE' }");
+  });
+});
+
+Deno.test("DELETE /api/user/delete - returns 400 with wrong confirmation", async () => {
+  await withEnv("GITHUB_CLIENT_ID", "test_client_id", async () => {
+    const { handler } = await import(
+      "../../../src/web/routes/api/user/delete.ts"
+    );
+
+    const mockCtx = {
+      req: new Request("http://localhost/api/user/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmation: "WRONG" }),
+      }),
+      state: {
+        user: { id: "user-123", username: "testuser" },
+        isCloudMode: true,
+      },
+    };
+
+    // deno-lint-ignore no-explicit-any
+    const response = await handler.DELETE(mockCtx as any);
+    assertEquals(response.status, 400);
+
+    const body = await response.json();
+    assertEquals(body.error, "Confirmation required. Send { confirmation: 'DELETE' }");
   });
 });
 

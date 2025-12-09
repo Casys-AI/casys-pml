@@ -16,7 +16,7 @@ import type { AuthState } from "../_middleware.ts";
 import { getDb } from "../../../server/auth/db.ts";
 import { users } from "../../../db/schema/users.ts";
 import { eq } from "drizzle-orm";
-import { consumeFlashApiKey } from "../../../server/auth/session.ts";
+import { peekFlashApiKey } from "../../../server/auth/session.ts";
 import { getSessionId } from "../../../server/auth/oauth.ts";
 import { getKv } from "../../../server/auth/kv.ts";
 import SettingsIsland from "../../islands/SettingsIsland.tsx";
@@ -61,7 +61,7 @@ export const handler = {
         const sessionId = await getSessionId(ctx.req);
         if (sessionId) {
           const kv = await getKv();
-          flashApiKey = await consumeFlashApiKey(kv, sessionId);
+          flashApiKey = await peekFlashApiKey(kv, sessionId);
         }
       } catch (error) {
         console.error("Error fetching API key info:", error);
@@ -110,7 +110,7 @@ export default function SettingsPage({ data }: { data: SettingsData }) {
         <title>Settings - CAI</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
           href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
           rel="stylesheet"

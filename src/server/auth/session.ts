@@ -82,8 +82,26 @@ export async function setFlashApiKey(
 }
 
 /**
+ * Peek at flash API key without consuming it.
+ * Key remains available until TTL expires (5 minutes).
+ * Use this for displaying the key on Settings page.
+ *
+ * @param kv - Deno KV instance
+ * @param sessionId - Session ID to retrieve flash from
+ * @returns API key if available, null otherwise
+ */
+export async function peekFlashApiKey(
+  kv: Deno.Kv,
+  sessionId: string,
+): Promise<string | null> {
+  const result = await kv.get<string>(["flash_api_key", sessionId]);
+  return result.value;
+}
+
+/**
  * Get and consume flash API key (returns null if already consumed)
  * This ensures the API key is shown only once.
+ * Use this when you want to explicitly invalidate the flash key.
  *
  * @param kv - Deno KV instance
  * @param sessionId - Session ID to retrieve flash from

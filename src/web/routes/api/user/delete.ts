@@ -24,6 +24,7 @@ export const handler = {
   /**
    * Delete user account
    * Requires authenticated session in cloud mode
+   * Body must contain { confirmation: "DELETE" } for security
    */
   async DELETE(ctx: FreshContext<AuthState>) {
     const { user, isCloudMode } = ctx.state;
@@ -43,6 +44,28 @@ export const handler = {
     if (!user || user.id === "local") {
       return new Response(
         JSON.stringify({ error: "Cannot delete local user" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    // AC #8: Require double confirmation - verify "DELETE" typed in body
+    try {
+      const body = await ctx.req.json();
+      if (body?.confirmation !== "DELETE") {
+        return new Response(
+          JSON.stringify({ error: "Confirmation required. Send { confirmation: 'DELETE' }" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      }
+    } catch {
+      return new Response(
+        JSON.stringify({ error: "Invalid request body. Send { confirmation: 'DELETE' }" }),
         {
           status: 400,
           headers: { "Content-Type": "application/json" },

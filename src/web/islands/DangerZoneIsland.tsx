@@ -21,11 +21,9 @@ export default function DangerZoneIsland() {
       const res = await fetch("/auth/regenerate", { method: "POST" });
       const data = await res.json();
       if (data.key) {
-        alert(
-          "New API Key: " +
-            data.key +
-            "\n\nSave this key - it will not be shown again!",
-        );
+        // Reload page - the new key will be displayed via flash session
+        // This is more secure than showing in an alert (no screenshot risk)
+        showRegenerateModal.value = false;
         location.reload();
       } else {
         alert("Error: " + (data.error || "Unknown error"));
@@ -46,7 +44,11 @@ export default function DangerZoneIsland() {
 
     isLoading.value = true;
     try {
-      const res = await fetch("/api/user/delete", { method: "DELETE" });
+      const res = await fetch("/api/user/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmation: deleteConfirmText.value }),
+      });
       const data = await res.json();
       if (data.success) {
         window.location.href = "/";
