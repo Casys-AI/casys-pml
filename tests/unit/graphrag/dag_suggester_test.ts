@@ -2,6 +2,8 @@
  * Unit tests for DAG Suggester
  *
  * Tests integration between vector search and graph algorithms.
+ *
+ * PERFORMANCE: Uses shared DB to avoid re-running migrations for each test
  */
 
 import { assert, assertEquals, assertExists } from "@std/assert";
@@ -12,19 +14,9 @@ import { MockEmbeddingModel } from "../../fixtures/mock-embedding-model.ts";
 import { PGliteClient } from "../../../src/db/client.ts";
 import { getAllMigrations, MigrationRunner } from "../../../src/db/migrations.ts";
 
-/**
- * Create test database with full schema
- */
-async function createTestDb(): Promise<PGliteClient> {
-  const db = new PGliteClient("memory://");
-  await db.connect();
-
-  // Run all migrations properly (including edge_type columns from migration 012)
-  const migrationRunner = new MigrationRunner(db);
-  await migrationRunner.runUp(getAllMigrations());
-
-  return db;
-}
+// Shared DB and model for all tests in this file (migrations run once)
+let sharedDb: PGliteClient;
+let sharedModel: MockEmbeddingModel;
 
 /**
  * Insert comprehensive test data
@@ -86,21 +78,42 @@ async function insertTestData(db: PGliteClient, model: EmbeddingModel): Promise<
   }
 }
 
+// ==============================================================================
+// SETUP: Create shared DB once for all tests (saves ~400ms)
+// ==============================================================================
+Deno.test({
+  name: "[SETUP] Initialize shared DB and test data",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    // Create DB and run migrations once
+    sharedDb = new PGliteClient("memory://");
+    await sharedDb.connect();
+
+    const migrationRunner = new MigrationRunner(sharedDb);
+    await migrationRunner.runUp(getAllMigrations());
+
+    // Load model once
+    sharedModel = new MockEmbeddingModel();
+    await sharedModel.load();
+
+    // Insert test data once
+    await insertTestData(sharedDb, sharedModel);
+  },
+});
+
+// ==============================================================================
+// TESTS: All tests use shared DB
+// ==============================================================================
 Deno.test({
   name: "DAGSuggester - suggests DAG for high confidence intent",
   sanitizeResources: false,
   sanitizeOps: false,
   fn: async () => {
-    const db = await createTestDb();
-    const model = new MockEmbeddingModel();
-    await model.load();
-
-    await insertTestData(db, model);
-
-    const graphEngine = new GraphRAGEngine(db);
+    const graphEngine = new GraphRAGEngine(sharedDb);
     await graphEngine.syncFromDatabase();
 
-    const vectorSearch = new VectorSearch(db, model);
+    const vectorSearch = new VectorSearch(sharedDb, sharedModel);
     const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
     const suggestion = await suggester.suggestDAG({
@@ -113,8 +126,6 @@ Deno.test({
     // Note: In test graphs with minimal density, confidence is lower than production
     // Accept >= 0.3 for test data (production with richer graphs will have higher confidence)
     assert(suggestion!.confidence >= 0.3, "Confidence should be reasonable for test graph");
-
-    await db.close();
   },
 });
 
@@ -123,17 +134,10 @@ Deno.test({
   sanitizeResources: false,
   sanitizeOps: false,
   fn: async () => {
-    const db = await createTestDb();
-    const model = new MockEmbeddingModel();
-    await model.load();
-
-    // Insert minimal data to ensure low confidence
-    await insertTestData(db, model);
-
-    const graphEngine = new GraphRAGEngine(db);
+    const graphEngine = new GraphRAGEngine(sharedDb);
     await graphEngine.syncFromDatabase();
 
-    const vectorSearch = new VectorSearch(db, model);
+    const vectorSearch = new VectorSearch(sharedDb, sharedModel);
     const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
     const suggestion = await suggester.suggestDAG({
@@ -156,7 +160,7 @@ Deno.test({
       assert(suggestion.confidence < 0.50, "Confidence should be below threshold");
     }
 
-    await db.close();
+
   },
 });
 
@@ -165,16 +169,16 @@ Deno.test({
   sanitizeResources: false,
   sanitizeOps: false,
   fn: async () => {
-    const db = await createTestDb();
-    const model = new MockEmbeddingModel();
-    await model.load();
+    // Using shared DB
+    // Using shared model
+    
 
-    await insertTestData(db, model);
+    
 
-    const graphEngine = new GraphRAGEngine(db);
+    const graphEngine = new GraphRAGEngine(sharedDb);
     await graphEngine.syncFromDatabase();
 
-    const vectorSearch = new VectorSearch(db, model);
+    const vectorSearch = new VectorSearch(sharedDb, sharedModel);
     const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
     const suggestion = await suggester.suggestDAG({
@@ -186,7 +190,7 @@ Deno.test({
       assert(Array.isArray(suggestion.dependencyPaths), "Dependency paths should be an array");
     }
 
-    await db.close();
+
   },
 });
 
@@ -195,16 +199,16 @@ Deno.test({
   sanitizeResources: false,
   sanitizeOps: false,
   fn: async () => {
-    const db = await createTestDb();
-    const model = new MockEmbeddingModel();
-    await model.load();
+    // Using shared DB
+    // Using shared model
+    
 
-    await insertTestData(db, model);
+    
 
-    const graphEngine = new GraphRAGEngine(db);
+    const graphEngine = new GraphRAGEngine(sharedDb);
     await graphEngine.syncFromDatabase();
 
-    const vectorSearch = new VectorSearch(db, model);
+    const vectorSearch = new VectorSearch(sharedDb, sharedModel);
     const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
     const suggestion = await suggester.suggestDAG({
@@ -223,7 +227,7 @@ Deno.test({
       );
     }
 
-    await db.close();
+
   },
 });
 
@@ -232,16 +236,16 @@ Deno.test({
   sanitizeResources: false,
   sanitizeOps: false,
   fn: async () => {
-    const db = await createTestDb();
-    const model = new MockEmbeddingModel();
-    await model.load();
+    // Using shared DB
+    // Using shared model
+    
 
-    await insertTestData(db, model);
+    
 
-    const graphEngine = new GraphRAGEngine(db);
+    const graphEngine = new GraphRAGEngine(sharedDb);
     await graphEngine.syncFromDatabase();
 
-    const vectorSearch = new VectorSearch(db, model);
+    const vectorSearch = new VectorSearch(sharedDb, sharedModel);
     const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
     const suggestion = await suggester.suggestDAG({
@@ -253,6 +257,18 @@ Deno.test({
       assert(Array.isArray(suggestion.alternatives), "Alternatives should be an array");
     }
 
-    await db.close();
+
+  },
+});
+
+// ==============================================================================
+// TEARDOWN: Close shared DB
+// ==============================================================================
+Deno.test({
+  name: "[TEARDOWN] Close shared DB",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    await sharedDb.close();
   },
 });
