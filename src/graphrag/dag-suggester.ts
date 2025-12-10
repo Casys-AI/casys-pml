@@ -1056,6 +1056,16 @@ export class DAGSuggester {
       // Search for capabilities matching context tools
       const matches = await this.capabilityStore.searchByContext(contextTools, 5, 0.3);
 
+      if (matches.length === 0) {
+        return [];
+      }
+
+      // ADR-038: Compute spectral cluster boosts for Strategic Discovery
+      const clusterBoosts = await this.computeClusterBoosts(
+        matches.map((m) => m.capability),
+        contextTools,
+      );
+
       for (const match of matches) {
         const capability = match.capability;
         const capabilityToolId = `capability:${capability.id}`;
@@ -1063,9 +1073,14 @@ export class DAGSuggester {
         // Skip if already seen (unlikely but safety check)
         if (seenTools.has(capabilityToolId)) continue;
 
-        // Calculate base confidence from overlap score
-        // Scale to 0.4-0.85 range (capabilities are powerful but need confirmation)
-        const baseConfidence = 0.4 + (match.overlapScore * 0.45);
+        // ADR-038: Strategic Discovery uses MULTIPLICATIVE formula
+        // discoveryScore = overlapScore * (1 + structuralBoost)
+        const clusterBoost = clusterBoosts.get(capability.id) ?? 0;
+        const discoveryScore = match.overlapScore * (1 + clusterBoost);
+
+        // Scale to 0.4-0.85 confidence range (capabilities need confirmation)
+        // discoveryScore is in [0, ~1.5], map to [0.4, 0.85]
+        const baseConfidence = Math.min(0.85, 0.4 + (discoveryScore * 0.30));
 
         // Apply episodic learning adjustments
         const adjusted = this.adjustConfidenceFromEpisodes(
@@ -1079,7 +1094,7 @@ export class DAGSuggester {
         predictions.push({
           toolId: capabilityToolId,
           confidence: adjusted.confidence,
-          reasoning: `Capability matches context (${(match.overlapScore * 100).toFixed(0)}% overlap)`,
+          reasoning: `Capability matches context (${(match.overlapScore * 100).toFixed(0)}% overlap${clusterBoost > 0 ? `, +${(clusterBoost * 100).toFixed(0)}% cluster boost` : ""})`,
           source: "capability",
           capabilityId: capability.id,
         });
@@ -1340,7 +1355,10 @@ export class DAGSuggester {
       for (const match of matches) {
         const capability = match.capability;
         const clusterBoost = clusterBoosts.get(capability.id) ?? 0;
-        const finalScore = match.overlapScore + clusterBoost;
+        // ADR-038: Strategic Discovery uses MULTIPLICATIVE formula
+        // finalScore = overlapScore * (1 + structuralBoost)
+        // If overlap = 0, score = 0 (no suggestion) - this is intentional
+        const finalScore = match.overlapScore * (1 + clusterBoost);
 
         // Skip low-scoring capabilities
         if (finalScore < 0.4) {
@@ -1372,14 +1390,15 @@ export class DAGSuggester {
   }
 
   /**
-   * Compute cluster boosts for capabilities (Story 7.4 AC#3)
+   * Compute cluster boosts for capabilities (Story 7.4 AC#3, AC#8)
    *
    * Uses spectral clustering to identify the active cluster based on
    * context tools, then boosts capabilities in the same cluster.
+   * Also applies HypergraphPageRank scoring for centrality-based boost.
    *
    * @param capabilities - Capabilities to evaluate
    * @param contextTools - Tools currently in use
-   * @returns Map of capability_id to boost value (0 to 0.5)
+   * @returns Map of capability_id to boost value (0 to ~0.65: cluster 0.5 + PageRank ~0.15)
    */
   private async computeClusterBoosts(
     capabilities: Capability[],
@@ -1411,12 +1430,20 @@ export class DAGSuggester {
         toolsUsed: this.getCapabilityToolsUsed(cap),
       }));
 
-      // Build bipartite matrix and compute clusters
-      this.spectralClustering.buildBipartiteMatrix(
-        Array.from(allToolsUsed),
-        clusterableCapabilities,
-      );
-      this.spectralClustering.computeClusters();
+      const toolsArray = Array.from(allToolsUsed);
+
+      // Issue #7: Try to restore from cache first to avoid expensive O(n³) recomputation
+      const cacheHit = this.spectralClustering.restoreFromCacheIfValid(toolsArray, clusterableCapabilities);
+
+      if (!cacheHit) {
+        // Build bipartite matrix and compute clusters (expensive)
+        this.spectralClustering.buildBipartiteMatrix(toolsArray, clusterableCapabilities);
+        this.spectralClustering.computeClusters();
+
+        // Compute PageRank and save to cache
+        this.spectralClustering.computeHypergraphPageRank(clusterableCapabilities);
+        this.spectralClustering.saveToCache(toolsArray, clusterableCapabilities);
+      }
 
       // Identify active cluster
       const activeCluster = this.spectralClustering.identifyActiveCluster(contextTools);
@@ -1426,16 +1453,27 @@ export class DAGSuggester {
         return boosts;
       }
 
-      // Compute boost for each capability
+      // Compute cluster boost for each capability
       for (const capData of clusterableCapabilities) {
-        const boost = this.spectralClustering.getClusterBoost(capData, activeCluster);
-        if (boost > 0) {
-          boosts.set(capData.id, boost);
+        const clusterBoost = this.spectralClustering.getClusterBoost(capData, activeCluster);
+        if (clusterBoost > 0) {
+          boosts.set(capData.id, clusterBoost);
+        }
+      }
+
+      // Story 7.4 AC#8: Apply HypergraphPageRank scoring for centrality boost
+      // (PageRank is already computed, either fresh or from cache)
+      for (const capData of clusterableCapabilities) {
+        const prScore = this.spectralClustering.getPageRank(capData.id);
+        if (prScore > 0) {
+          const existingBoost = boosts.get(capData.id) ?? 0;
+          // Weight PageRank at 30% (0.3 * prScore gives max ~0.15 additional boost)
+          boosts.set(capData.id, existingBoost + prScore * 0.3);
         }
       }
 
       log.debug(
-        `[DAGSuggester] Computed cluster boosts for ${boosts.size} capabilities (active cluster: ${activeCluster})`,
+        `[DAGSuggester] Computed cluster + PageRank boosts for ${boosts.size} capabilities (active cluster: ${activeCluster}, cacheHit: ${cacheHit})`,
       );
     } catch (error) {
       log.error(`[DAGSuggester] Cluster boost computation failed: ${error}`);
@@ -1445,19 +1483,16 @@ export class DAGSuggester {
   }
 
   /**
-   * Extract tools_used from capability dag_structure (Story 7.4)
+   * Extract tools_used from capability (Story 7.4)
    *
-   * Note: In a full implementation, this would parse the capability's
-   * dag_structure JSONB field for the tools_used array.
-   * Currently returns an empty array as the tools are handled via searchByContext.
+   * Returns the tools_used array from the capability, which is extracted
+   * from dag_structure JSONB by CapabilityStore.rowToCapability().
    *
-   * @param _capability - Capability to extract from (unused in current impl)
+   * @param capability - Capability to extract from
    * @returns Array of tool IDs used by the capability
    */
-  private getCapabilityToolsUsed(_capability: Capability): string[] {
-    // TODO: Parse capability.dag_structure.tools_used when available
-    // For now, the tools overlap is computed in searchByContext SQL query
-    return [];
+  private getCapabilityToolsUsed(capability: Capability): string[] {
+    return capability.toolsUsed ?? [];
   }
 
   /**

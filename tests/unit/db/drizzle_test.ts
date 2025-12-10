@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 
 Deno.test("Drizzle + PGlite - create and query user", async () => {
   // Create in-memory PGlite
-  const pglite = new PGlite("memory://");
+  const pglite = new PGlite(`memory://${crypto.randomUUID()}`);
   const db = createDrizzleClient(pglite);
 
   // Run Drizzle migrations (uses generated SQL from ./drizzle/)
@@ -40,7 +40,7 @@ Deno.test("Drizzle + PGlite - create and query user", async () => {
 });
 
 Deno.test("Drizzle + PGlite - API key prefix lookup", async () => {
-  const pglite = new PGlite("memory://");
+  const pglite = new PGlite(`memory://${crypto.randomUUID()}`);
   const db = createDrizzleClient(pglite);
 
   // Run Drizzle migrations (uses generated SQL from ./drizzle/)

@@ -17,7 +17,7 @@ import { getAllMigrations, MigrationRunner } from "../../../src/db/migrations.ts
  * Create test database with full schema including episodic memory
  */
 async function createTestDb(): Promise<PGliteClient> {
-  const db = new PGliteClient("memory://");
+  const db = new PGliteClient(`memory://${crypto.randomUUID()}`);
   await db.connect();
 
   // Run all migrations properly (including edge_type columns from migration 012)

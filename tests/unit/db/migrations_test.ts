@@ -11,7 +11,7 @@ import { createInitialMigration, Migration, MigrationRunner } from "../../../src
 // Helper to create unique test database using in-memory databases
 function getTestDbPath(_testName: string): string {
   // Use in-memory database for tests to avoid file leaks
-  return "memory://";
+  return `memory://${crypto.randomUUID()}`;
 }
 
 Deno.test("AC6: Migration system - initialization", async () => {

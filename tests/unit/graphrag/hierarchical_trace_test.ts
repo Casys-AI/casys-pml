@@ -16,34 +16,34 @@ Deno.test("ADR-041: updateFromCodeExecution creates 'contains' edges for parent-
     {
       type: "capability_start",
       capability: "analyze_file",
-      capability_id: "cap-uuid-1",
-      trace_id: "trace-cap1",
+      capabilityId: "cap-uuid-1",
+      traceId: "trace-cap1",
       ts: 1000,
     },
     {
       type: "tool_start",
       tool: "filesystem:read_file",
-      trace_id: "trace-tool1",
+      traceId: "trace-tool1",
       ts: 1100,
-      parent_trace_id: "trace-cap1", // ADR-041: Parent is capability
+      parentTraceId: "trace-cap1", // ADR-041: Parent is capability
     },
     {
       type: "tool_end",
       tool: "filesystem:read_file",
-      trace_id: "trace-tool1",
+      traceId: "trace-tool1",
       ts: 1200,
       success: true,
-      duration_ms: 100,
-      parent_trace_id: "trace-cap1",
+      durationMs: 100,
+      parentTraceId: "trace-cap1",
     },
     {
       type: "capability_end",
       capability: "analyze_file",
-      capability_id: "cap-uuid-1",
-      trace_id: "trace-cap1",
+      capabilityId: "cap-uuid-1",
+      traceId: "trace-cap1",
       ts: 1300,
       success: true,
-      duration_ms: 300,
+      durationMs: 300,
     },
   ];
 
@@ -56,11 +56,11 @@ Deno.test("ADR-041: updateFromCodeExecution creates 'contains' edges for parent-
 
     const nodeId = trace.type === "tool_end"
       ? (trace as { tool: string }).tool
-      : `capability:${(trace as { capability_id: string }).capability_id}`;
+      : `capability:${(trace as { capabilityId: string }).capabilityId}`;
 
-    traceToNode.set(trace.trace_id, nodeId);
+    traceToNode.set(trace.traceId, nodeId);
 
-    const parent_trace_id = trace.parent_trace_id;
+    const parent_trace_id = trace.parentTraceId;
     if (parent_trace_id) {
       if (!parentToChildren.has(parent_trace_id)) {
         parentToChildren.set(parent_trace_id, []);
@@ -85,52 +85,52 @@ Deno.test("ADR-041: nested capabilities have correct parent_trace_id", () => {
     {
       type: "capability_start",
       capability: "outer_cap",
-      capability_id: "outer-uuid",
-      trace_id: "trace-outer",
+      capabilityId: "outer-uuid",
+      traceId: "trace-outer",
       ts: 1000,
     },
     {
       type: "capability_start",
       capability: "inner_cap",
-      capability_id: "inner-uuid",
-      trace_id: "trace-inner",
+      capabilityId: "inner-uuid",
+      traceId: "trace-inner",
       ts: 1100,
-      parent_trace_id: "trace-outer", // Nested capability
+      parentTraceId: "trace-outer", // Nested capability
     },
     {
       type: "tool_start",
       tool: "memory:store",
-      trace_id: "trace-tool",
+      traceId: "trace-tool",
       ts: 1200,
-      parent_trace_id: "trace-inner", // Tool inside inner capability
+      parentTraceId: "trace-inner", // Tool inside inner capability
     },
     {
       type: "tool_end",
       tool: "memory:store",
-      trace_id: "trace-tool",
+      traceId: "trace-tool",
       ts: 1300,
       success: true,
-      duration_ms: 100,
-      parent_trace_id: "trace-inner",
+      durationMs: 100,
+      parentTraceId: "trace-inner",
     },
     {
       type: "capability_end",
       capability: "inner_cap",
-      capability_id: "inner-uuid",
-      trace_id: "trace-inner",
+      capabilityId: "inner-uuid",
+      traceId: "trace-inner",
       ts: 1400,
       success: true,
-      duration_ms: 300,
-      parent_trace_id: "trace-outer",
+      durationMs: 300,
+      parentTraceId: "trace-outer",
     },
     {
       type: "capability_end",
       capability: "outer_cap",
-      capability_id: "outer-uuid",
-      trace_id: "trace-outer",
+      capabilityId: "outer-uuid",
+      traceId: "trace-outer",
       ts: 1500,
       success: true,
-      duration_ms: 500,
+      durationMs: 500,
     },
   ];
 
@@ -142,9 +142,9 @@ Deno.test("ADR-041: nested capabilities have correct parent_trace_id", () => {
 
     const nodeId = trace.type === "tool_end"
       ? (trace as { tool: string }).tool
-      : `capability:${(trace as { capability_id: string }).capability_id}`;
+      : `capability:${(trace as { capabilityId: string }).capabilityId}`;
 
-    const parent_trace_id = trace.parent_trace_id;
+    const parent_trace_id = trace.parentTraceId;
     if (parent_trace_id) {
       if (!parentToChildren.has(parent_trace_id)) {
         parentToChildren.set(parent_trace_id, []);
@@ -173,69 +173,69 @@ Deno.test("ADR-041: sequence edges only between siblings", () => {
     {
       type: "capability_start",
       capability: "multi_tool_cap",
-      capability_id: "cap-uuid",
-      trace_id: "trace-cap",
+      capabilityId: "cap-uuid",
+      traceId: "trace-cap",
       ts: 1000,
     },
     // Tool 1
     {
       type: "tool_start",
       tool: "fs:read",
-      trace_id: "trace-t1",
+      traceId: "trace-t1",
       ts: 1100,
-      parent_trace_id: "trace-cap",
+      parentTraceId: "trace-cap",
     },
     {
       type: "tool_end",
       tool: "fs:read",
-      trace_id: "trace-t1",
+      traceId: "trace-t1",
       ts: 1150,
       success: true,
-      duration_ms: 50,
-      parent_trace_id: "trace-cap",
+      durationMs: 50,
+      parentTraceId: "trace-cap",
     },
     // Tool 2
     {
       type: "tool_start",
       tool: "fs:write",
-      trace_id: "trace-t2",
+      traceId: "trace-t2",
       ts: 1200,
-      parent_trace_id: "trace-cap",
+      parentTraceId: "trace-cap",
     },
     {
       type: "tool_end",
       tool: "fs:write",
-      trace_id: "trace-t2",
+      traceId: "trace-t2",
       ts: 1250,
       success: true,
-      duration_ms: 50,
-      parent_trace_id: "trace-cap",
+      durationMs: 50,
+      parentTraceId: "trace-cap",
     },
     // Tool 3
     {
       type: "tool_start",
       tool: "fs:delete",
-      trace_id: "trace-t3",
+      traceId: "trace-t3",
       ts: 1300,
-      parent_trace_id: "trace-cap",
+      parentTraceId: "trace-cap",
     },
     {
       type: "tool_end",
       tool: "fs:delete",
-      trace_id: "trace-t3",
+      traceId: "trace-t3",
       ts: 1350,
       success: true,
-      duration_ms: 50,
-      parent_trace_id: "trace-cap",
+      durationMs: 50,
+      parentTraceId: "trace-cap",
     },
     {
       type: "capability_end",
       capability: "multi_tool_cap",
-      capability_id: "cap-uuid",
-      trace_id: "trace-cap",
+      capabilityId: "cap-uuid",
+      traceId: "trace-cap",
       ts: 1400,
       success: true,
-      duration_ms: 400,
+      durationMs: 400,
     },
   ];
 
@@ -247,9 +247,9 @@ Deno.test("ADR-041: sequence edges only between siblings", () => {
 
     const nodeId = trace.type === "tool_end"
       ? (trace as { tool: string }).tool
-      : `capability:${(trace as { capability_id: string }).capability_id}`;
+      : `capability:${(trace as { capabilityId: string }).capabilityId}`;
 
-    const parent_trace_id = trace.parent_trace_id;
+    const parent_trace_id = trace.parentTraceId;
     if (parent_trace_id) {
       if (!parentToChildren.has(parent_trace_id)) {
         parentToChildren.set(parent_trace_id, []);
@@ -282,37 +282,37 @@ Deno.test("ADR-041: backward compat - traces without parent_trace_id create sequ
     {
       type: "tool_start",
       tool: "fs:read",
-      trace_id: "t1",
+      traceId: "t1",
       ts: 1000,
       // No parent_trace_id (legacy)
     },
     {
       type: "tool_end",
       tool: "fs:read",
-      trace_id: "t1",
+      traceId: "t1",
       ts: 1100,
       success: true,
-      duration_ms: 100,
+      durationMs: 100,
     },
     {
       type: "tool_start",
       tool: "fs:write",
-      trace_id: "t2",
+      traceId: "t2",
       ts: 1200,
     },
     {
       type: "tool_end",
       tool: "fs:write",
-      trace_id: "t2",
+      traceId: "t2",
       ts: 1300,
       success: true,
-      duration_ms: 100,
+      durationMs: 100,
     },
   ];
 
   // Filter top-level traces (no parent)
   const topLevelEndEvents = traces.filter((t) =>
-    (t.type === "tool_end" || t.type === "capability_end") && !t.parent_trace_id
+    (t.type === "tool_end" || t.type === "capability_end") && !t.parentTraceId
   );
 
   assertEquals(topLevelEndEvents.length, 2);

@@ -188,7 +188,7 @@ Deno.test("EventsStreamManager - subscribes to EventBus", async () => {
   eventBus.emit({
     type: "tool.start",
     source: "test",
-    payload: { tool_id: "test:tool", trace_id: "123" },
+    payload: { tool_id: "test:tool", traceId: "123" },
   });
 
   // Give time for event to propagate

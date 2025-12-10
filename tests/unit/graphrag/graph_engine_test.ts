@@ -21,7 +21,7 @@ import { getAllMigrations, MigrationRunner } from "../../../src/db/migrations.ts
  * Create test database with schema
  */
 async function createTestDb(): Promise<PGliteClient> {
-  const db = new PGliteClient("memory://");
+  const db = new PGliteClient(`memory://${crypto.randomUUID()}`);
   await db.connect();
 
   // Run all migrations properly
@@ -88,7 +88,7 @@ async function insertTestDependencies(db: PGliteClient): Promise<void> {
 
 Deno.test("GraphRAGEngine - can import Graphology dependencies", () => {
   // Test that Graphology modules are accessible
-  const engine = new GraphRAGEngine(new PGliteClient("memory://"));
+  const engine = new GraphRAGEngine(new PGliteClient(`memory://${crypto.randomUUID()}`));
   assertExists(engine);
 });
 

@@ -266,13 +266,13 @@ Deno.test({
     const event: TraceEvent = {
       type: "tool_start",
       tool: "test-server:echo",
-      trace_id: "test-uuid",
+      traceId: "test-uuid",
       ts: Date.now(),
     };
 
     assertEquals(event.type, "tool_start");
     assertExists(event.tool);
-    assertExists(event.trace_id);
+    assertExists(event.traceId);
     assertExists(event.ts);
   },
 });
@@ -283,15 +283,15 @@ Deno.test({
     const event: TraceEvent = {
       type: "tool_end",
       tool: "test-server:echo",
-      trace_id: "test-uuid",
+      traceId: "test-uuid",
       ts: Date.now(),
       success: true,
-      duration_ms: 100,
+      durationMs: 100,
     };
 
     assertEquals(event.type, "tool_end");
     assertEquals(event.success, true);
-    assertExists(event.duration_ms);
+    assertExists(event.durationMs);
   },
 });
 
@@ -301,10 +301,10 @@ Deno.test({
     const event: TraceEvent = {
       type: "tool_end",
       tool: "test-server:echo",
-      trace_id: "test-uuid",
+      traceId: "test-uuid",
       ts: Date.now(),
       success: false,
-      duration_ms: 50,
+      durationMs: 50,
       error: "Tool execution failed",
     };
 
@@ -406,7 +406,7 @@ Deno.test({
     assertExists(startTrace);
     if (startTrace && startTrace.type === "tool_start") {
       assertEquals(startTrace.tool, "test-server:echo");
-      assertExists(startTrace.trace_id);
+      assertExists(startTrace.traceId);
     }
 
     // Verify tool_end (type narrowing for discriminated union)
@@ -414,8 +414,8 @@ Deno.test({
     assertExists(endTrace);
     if (endTrace && endTrace.type === "tool_end") {
       assertEquals(endTrace.success, true);
-      assertExists(endTrace.duration_ms);
-      if (startTrace) assertEquals(endTrace.trace_id, startTrace.trace_id);
+      assertExists(endTrace.durationMs);
+      if (startTrace) assertEquals(endTrace.traceId, startTrace.traceId);
     }
 
     // Verify tools called
@@ -829,10 +829,10 @@ Deno.test({
 
     assertExists(endEvent);
     if (endEvent && endEvent.type === "tool_end") {
-      assertExists(endEvent.duration_ms);
+      assertExists(endEvent.durationMs);
       // RPC overhead should be reasonable (< 100ms including Worker startup)
       // Note: First Worker execution may be slower due to module loading
-      assertGreater(500, endEvent.duration_ms!, "RPC overhead exceeds 500ms");
+      assertGreater(500, endEvent.durationMs!, "RPC overhead exceeds 500ms");
     }
     bridge.cleanup(); // Story 7.3b: Close BroadcastChannel
   },
@@ -1084,7 +1084,7 @@ Deno.test({
     // Note: capability name is normalized to JS identifier
     if (startTrace && startTrace.type === "capability_start") {
       assertStringIncludes(startTrace.capability, "tracedCapability");
-      assertEquals(startTrace.capability_id, "cap-traced");
+      assertEquals(startTrace.capabilityId, "cap-traced");
     }
     bridge.cleanup();
   },

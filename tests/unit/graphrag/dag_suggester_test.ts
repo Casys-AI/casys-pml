@@ -87,7 +87,7 @@ Deno.test({
   sanitizeOps: false,
   fn: async () => {
     // Create DB and run migrations once
-    sharedDb = new PGliteClient("memory://");
+    sharedDb = new PGliteClient(`memory://${crypto.randomUUID()}`);
     await sharedDb.connect();
 
     const migrationRunner = new MigrationRunner(sharedDb);

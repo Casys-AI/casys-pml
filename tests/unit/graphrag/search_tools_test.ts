@@ -15,7 +15,7 @@ import { PGliteClient } from "../../../src/db/client.ts";
 import { getAllMigrations, MigrationRunner } from "../../../src/db/migrations.ts";
 
 async function createTestDb(): Promise<PGliteClient> {
-  const db = new PGliteClient("memory://");
+  const db = new PGliteClient(`memory://${crypto.randomUUID()}`);
   await db.connect();
 
   const migrationRunner = new MigrationRunner(db);

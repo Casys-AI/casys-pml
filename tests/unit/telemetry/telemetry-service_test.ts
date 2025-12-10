@@ -11,7 +11,7 @@ import { getAllMigrations, MigrationRunner } from "../../../src/db/migrations.ts
 
 // Helper to create test database
 async function createTestDb(): Promise<PGliteClient> {
-  const testDb = new PGliteClient("memory://");
+  const testDb = new PGliteClient(`memory://${crypto.randomUUID()}`);
   await testDb.connect();
 
   // Run migrations

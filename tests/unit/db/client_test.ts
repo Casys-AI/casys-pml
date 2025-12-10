@@ -12,7 +12,7 @@ import { getAllMigrations, MigrationRunner } from "../../../src/db/migrations.ts
 function getTestDbPath(_testName: string): string {
   // Use in-memory database for tests to avoid file leaks
   // All migrations including metrics table are now run via getAllMigrations()
-  return "memory://";
+  return `memory://${crypto.randomUUID()}`;
 }
 
 Deno.test("AC1: PGlite database initialization", async () => {

@@ -140,7 +140,7 @@ Deno.test({
 
     // Verify capability trace content
     if (capStart && capStart.type === "capability_start") {
-      assertEquals(capStart.capability_id, "cap-tool-caller");
+      assertEquals(capStart.capabilityId, "cap-tool-caller");
     }
 
     // Verify tool trace content
@@ -289,7 +289,7 @@ Deno.test({
     const capIds: string[] = [];
     for (const t of capStarts) {
       if (t.type === "capability_start") {
-        capIds.push(t.capability_id);
+        capIds.push(t.capabilityId);
       }
     }
 

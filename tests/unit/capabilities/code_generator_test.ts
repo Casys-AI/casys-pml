@@ -541,6 +541,6 @@ Deno.test({
     const code = generator.generateInlineCode(capability);
 
     // Both start and end traces should include capability_id
-    assertStringIncludes(code, 'capability_id: "unique-cap-id-123"');
+    assertStringIncludes(code, 'capabilityId: "unique-cap-id-123"');
   },
 });

@@ -84,7 +84,7 @@ Deno.test("compareContextUsage - shows before/after savings", () => {
 });
 
 Deno.test("logContextUsage - stores metric in database", async () => {
-  const db = new PGliteClient("memory://");
+  const db = new PGliteClient(`memory://${crypto.randomUUID()}`);
   await db.connect();
 
   // Create metrics table
@@ -120,7 +120,7 @@ Deno.test("logContextUsage - stores metric in database", async () => {
 });
 
 Deno.test("logQueryLatency - stores latency metric in database", async () => {
-  const db = new PGliteClient("memory://");
+  const db = new PGliteClient(`memory://${crypto.randomUUID()}`);
   await db.connect();
 
   await db.exec(`
@@ -153,7 +153,7 @@ Deno.test("logQueryLatency - stores latency metric in database", async () => {
 });
 
 Deno.test("logCacheHitRate - stores hit rate metric", async () => {
-  const db = new PGliteClient("memory://");
+  const db = new PGliteClient(`memory://${crypto.randomUUID()}`);
   await db.connect();
 
   await db.exec(`
@@ -179,7 +179,7 @@ Deno.test("logCacheHitRate - stores hit rate metric", async () => {
 });
 
 Deno.test("getRecentMetrics - retrieves metrics from database", async () => {
-  const db = new PGliteClient("memory://");
+  const db = new PGliteClient(`memory://${crypto.randomUUID()}`);
   await db.connect();
 
   await db.exec(`
@@ -218,7 +218,7 @@ Deno.test("getRecentMetrics - retrieves metrics from database", async () => {
 });
 
 Deno.test("calculateP95Latency - computes 95th percentile correctly", async () => {
-  const db = new PGliteClient("memory://");
+  const db = new PGliteClient(`memory://${crypto.randomUUID()}`);
   await db.connect();
 
   await db.exec(`
@@ -249,7 +249,7 @@ Deno.test("calculateP95Latency - computes 95th percentile correctly", async () =
 });
 
 Deno.test("calculateP95Latency - returns null when no data", async () => {
-  const db = new PGliteClient("memory://");
+  const db = new PGliteClient(`memory://${crypto.randomUUID()}`);
   await db.connect();
 
   await db.exec(`

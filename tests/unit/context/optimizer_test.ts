@@ -44,7 +44,7 @@ function createMockSearchResults(count: number): SearchResult[] {
 
 // Setup test database with metrics table
 async function setupTestDatabase(): Promise<PGliteClient> {
-  const db = new PGliteClient("memory://");
+  const db = new PGliteClient(`memory://${crypto.randomUUID()}`);
   await db.connect();
 
   await db.exec(`

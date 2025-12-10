@@ -53,7 +53,7 @@ class MockEmbeddingModel {
  * Create test database with full schema
  */
 async function createTestDb(): Promise<PGliteClient> {
-  const db = new PGliteClient("memory://");
+  const db = new PGliteClient(`memory://${crypto.randomUUID()}`);
   await db.connect();
 
   const migrationRunner = new MigrationRunner(db);
