@@ -1,4 +1,4 @@
-# Story Technique: Renommage AgentCards → Casys Intelligence
+# Story Technique: Renommage AgentCards → Casys PML
 
 **Type:** Refactoring Technique **Story ID:** TECH-001 **Status:** implemented **Branche:**
 `refactor/rename-to-casys-intelligence`
@@ -7,16 +7,16 @@
 
 ## Contexte
 
-Le projet évolue vers une vision plus large : **Casys Intelligence** - un framework de **Collective
-Agentic Intelligence** (CAI). Le naming interne doit refléter cette nouvelle identité.
+Le projet évolue vers une vision plus large : **Casys PML** - un framework de **Collective
+Agentic Intelligence** (PML). Le naming interne doit refléter cette nouvelle identité.
 
 ### Branding
 
 | Élément           | Valeur                          |
 | ----------------- | ------------------------------- |
-| **Nom produit**   | Casys Intelligence              |
-| **Tagline**       | Collective Agentic Intelligence |
-| **Acronyme code** | CAI (de "Collective Agentic Intelligence") |
+| **Nom produit**   | Casys PML              |
+| **Tagline**       | Procedural Memory Layer |
+| **Acronyme code** | PML (de "Procedural Memory Layer") |
 | **Repo GitHub**   | `casys-ai/casys-intelligence`   |
 | **Package**       | `@casys/intelligence`           |
 | **CLI**           | `cai`                           |
@@ -27,7 +27,7 @@ Agentic Intelligence** (CAI). Le naming interne doit refléter cette nouvelle id
 | ---------------- | ---------------------- | ----------------------------- | ---------- |
 | Repo GitHub      | `Casys-AI/AgentCards`  | `casys-ai/casys-intelligence` | ✅ Créé |
 | Package          | (non publié)           | `@casys/intelligence`         | ✅ Créé    |
-| Branding externe | "AgentCards"           | "Casys Intelligence"          | ✅ Créé |
+| Branding externe | "AgentCards"           | "Casys PML"          | ✅ Créé |
 | Code interne     | `agentcards`           | `cai`                         | ✅ Créé |
 
 ### Périmètre
@@ -38,8 +38,8 @@ Agentic Intelligence** (CAI). Le naming interne doit refléter cette nouvelle id
 | ----------------- | ------ | -------------------------------------------- |
 | Variables d'env   | 80     | `AGENTCARDS_DB_PATH` → `CAI_DB_PATH`         |
 | Fichier DB        | 5      | `.agentcards.db` → `.cai.db`                 |
-| Noms d'outils MCP | 30     | `agentcards:execute_dag` → `cai:execute_dag` |
-| Logs/strings      | 100    | "AgentCards" → "Casys Intelligence"          |
+| Noms d'outils MCP | 30     | `agentcards:execute_dag` → `pml:execute_dag` |
+| Logs/strings      | 100    | "AgentCards" → "Casys PML"          |
 | Tests             | 120    | Références dans fixtures et mocks            |
 | Docs internes     | 100    | ADRs, spikes, comments                       |
 | Config            | 40     | docker-compose, deno.json, monitoring        |
@@ -105,7 +105,7 @@ du repo, **Afin de** éviter la confusion pour les contributeurs et utilisateurs
 
 ### Phase 4: Noms d'Outils MCP
 
-- [x] **T4.1** Renommer préfixe `agentcards:` → `cai:`
+- [x] **T4.1** Renommer préfixe `agentcards:` → `pml:`
 - [x] **T4.2** Mettre à jour les schémas d'outils
 - [x] **T4.3** Mettre à jour les tests
 
@@ -118,7 +118,7 @@ du repo, **Afin de** éviter la confusion pour les contributeurs et utilisateurs
 
 ### Phase 5: Logs et Strings
 
-- [x] **T5.1** Remplacer "AgentCards" → "Casys Intelligence" dans les logs
+- [x] **T5.1** Remplacer "AgentCards" → "Casys PML" dans les logs
 - [x] **T5.2** Mettre à jour les messages d'erreur
 - [x] **T5.3** Mettre à jour les banners CLI
 

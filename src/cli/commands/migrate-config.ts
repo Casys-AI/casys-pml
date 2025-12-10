@@ -119,6 +119,6 @@ export function createMigrateConfigCommand() {
       // Step 7: Suggest cleanup
       console.log("🗑️  You can now delete the old YAML config:");
       console.log(`   rm ${yamlPath}\n`);
-      console.log("💡 Tip: Casys Intelligence will now use the JSON config automatically.");
+      console.log("💡 Tip: Casys PML will now use the JSON config automatically.");
     });
 }

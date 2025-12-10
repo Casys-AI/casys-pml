@@ -16,7 +16,7 @@ _Updated: December 2025_
 
 | Service                                    | Tech                                        | Notes                                           |
 | ------------------------------------------ | ------------------------------------------- | ----------------------------------------------- |
-| **Gateway Server** (`src/mcp/gateway-server.ts`) | Deno HTTP server, SSE streaming        | Route `cai:execute_dag`, `cai:execute_code`, MCP orchestration |
+| **Gateway Server** (`src/mcp/gateway-server.ts`) | Deno HTTP server, SSE streaming        | Route `pml:execute_dag`, `pml:execute_code`, MCP orchestration |
 | **Sandbox / Executor** (`src/sandbox/*`)   | Deno subprocess isolation, permission-bound | Wraps MCP calls, emits trace events             |
 | **CLI** (`src/main.ts`)                    | Command router (serve, init, status)        | Shares same runtime as gateway                  |
 | **Auth Layer** (`src/server/auth/*`)       | GitHub OAuth + API keys                     | Sessions in Deno KV, users in Drizzle           |
@@ -52,7 +52,7 @@ See `docs/architecture/data-architecture.md` for the exhaustive schema.
 | **Transports**         | stdio (local mode), HTTP with API key (cloud mode), SSE output to clients            |
 | **Hosted MCP Servers** | >15 servers launched via `Deno.Command` (GitHub, Filesystem, Memory, Tavily, etc.)   |
 | **Config**             | `config/.mcp-servers.json` (gateway) + future per-user configs (`user_mcp_configs`)  |
-| **Meta-Tools**         | `cai:search_tools`, `cai:execute_dag`, `cai:execute_code`, `cai:search_capabilities` |
+| **Meta-Tools**         | `pml:search_tools`, `pml:execute_dag`, `pml:execute_code`, `pml:search_capabilities` |
 
 ## 6. Authentication (Epic 9)
 

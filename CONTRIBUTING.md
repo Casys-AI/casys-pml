@@ -1,6 +1,6 @@
-# Contributing to Casys Intelligence
+# Contributing to Casys PML
 
-Thank you for your interest in contributing to Casys Intelligence! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing to Casys PML! This document provides guidelines and instructions for contributing.
 
 ## Getting Started
 

@@ -23,7 +23,7 @@ _Status: Updated December 2025_
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-Casys Intelligence currently manages **three families of stores**:
+Casys PML currently manages **three families of stores**:
 
 | Store                        | Role                                                      | Tech                                                                    |
 | ---------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------- |

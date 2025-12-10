@@ -1,7 +1,7 @@
 /**
- * Casys Intelligence - Public API Exports
+ * Casys PML - Public API Exports
  *
- * This module exports the public API for Casys Intelligence (CAI).
+ * This module exports the public API for Casys PML (CAI).
  *
  * Note: The CLI entry point (main) is not exported here.
  * Use `deno run --allow-all jsr:@casys/mcp-gateway` to run the CLI.

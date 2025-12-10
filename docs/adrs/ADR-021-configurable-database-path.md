@@ -7,7 +7,7 @@
 
 ## Context and Problem Statement
 
-Casys Intelligence stores its PGlite database in a hardcoded location: `~/.cai/.cai.db` (user
+Casys PML stores its PGlite database in a hardcoded location: `~/.cai/.cai.db` (user
 home directory).
 
 **Problem:** In ephemeral environments like **GitHub Codespaces**, the home directory
@@ -39,7 +39,7 @@ This causes:
 
 ### Option 1: ✅ Environment Variable (CHOSEN)
 
-**Implementation:** Add `CAI_DB_PATH` env var support to `getCasys IntelligenceDatabasePath()`
+**Implementation:** Add `CAI_DB_PATH` env var support to `getCasys PMLDatabasePath()`
 
 **Pros:**
 
@@ -112,7 +112,7 @@ Add support for `CAI_DB_PATH` environment variable to override the default datab
 **Modified:** `src/cli/utils.ts`
 
 ```typescript
-export function getCasys IntelligenceDatabasePath(): string {
+export function getCasys PMLDatabasePath(): string {
   // Allow custom DB path via environment variable (ADR-021)
   const customPath = Deno.env.get("CAI_DB_PATH");
   if (customPath) {
@@ -120,7 +120,7 @@ export function getCasys IntelligenceDatabasePath(): string {
   }
 
   // Default: ~/.cai/.cai.db
-  const configDir = getCasys IntelligenceConfigDir();
+  const configDir = getCasys PMLConfigDir();
   const os = Deno.build.os;
   const separator = os === "windows" ? "\\" : "/";
   return `${configDir}${separator}.cai.db`;
@@ -143,7 +143,7 @@ export function getCasys IntelligenceDatabasePath(): string {
 ```bash
 # In .devcontainer.json
 "remoteEnv": {
-  "CAI_DB_PATH": "/workspaces/Casys Intelligence/.cai.db"
+  "CAI_DB_PATH": "/workspaces/Casys PML/.cai.db"
 }
 ```
 
@@ -195,9 +195,9 @@ deno task cli workflows sync --file playground/config/workflow-templates.yaml
 # → Uses ~/.cai/.cai.db ✅
 
 # Test 2: Custom path via env var
-CAI_DB_PATH=/workspaces/Casys Intelligence/.cai.db \
+CAI_DB_PATH=/workspaces/Casys PML/.cai.db \
   deno task cli workflows sync --file playground/config/workflow-templates.yaml
-# → Uses /workspaces/Casys Intelligence/.cai.db ✅
+# → Uses /workspaces/Casys PML/.cai.db ✅
 ```
 
 ---

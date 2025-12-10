@@ -1,7 +1,7 @@
 /**
  * Project Path Utilities
  *
- * Centralized path resolution for Casys Intelligence.
+ * Centralized path resolution for Casys PML.
  * Detects project root by looking for deno.json marker file.
  * All relative paths should be resolved through this module.
  *

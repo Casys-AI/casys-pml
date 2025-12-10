@@ -15,7 +15,7 @@ import { getLogger } from "../telemetry/logger.ts";
 const logger = getLogger("default");
 
 /**
- * BroadcastChannel name for all Casys Intelligence events
+ * BroadcastChannel name for all Casys PML events
  */
 const CHANNEL_NAME = "cai-events";
 

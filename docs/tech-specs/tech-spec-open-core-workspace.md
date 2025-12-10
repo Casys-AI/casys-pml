@@ -10,8 +10,8 @@
 
 ### Problem Statement
 
-Casys Intelligence doit adopter un modèle **Open Core** :
-- **Core** (AGPL) : Moteur CAI open-source, self-hostable
+Casys PML doit adopter un modèle **Open Core** :
+- **Core** (AGPL) : Moteur PML open-source, self-hostable
 - **Cloud** (Propriétaire) : SaaS multi-tenant avec features premium
 
 Le challenge : développer les deux dans un workflow unifié compatible avec Claude Code, sans perdre l'historique git ni casser le code existant.

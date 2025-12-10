@@ -15,7 +15,7 @@ casys-intelligence/
 │   │
 │   ├── cli/                     # CLI commands
 │   │   ├── commands/
-│   │   │   ├── init.ts          # Initialize CAI (migrate config, extract schemas)
+│   │   │   ├── init.ts          # Initialize PML (migrate config, extract schemas)
 │   │   │   ├── serve.ts         # Start MCP gateway server
 │   │   │   ├── status.ts        # Health checks
 │   │   │   ├── migrate-config.ts # Config migration helper
@@ -181,7 +181,7 @@ handlers.
 ### `src/mcp/`
 
 MCP protocol implementation. `gateway-server.ts` is the main gateway exposing meta-tools
-(`cai:execute_dag`, `cai:search_tools`, etc.).
+(`pml:execute_dag`, `pml:search_tools`, etc.).
 
 ### `src/sandbox/`
 
@@ -194,6 +194,6 @@ Fresh 2 + Vite dashboard. Routes are in `routes/`, interactive components in `is
 
 ### `playground/`
 
-Jupyter notebook environment for interactive exploration of CAI features.
+Jupyter notebook environment for interactive exploration of PML features.
 
 ---

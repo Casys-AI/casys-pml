@@ -1,8 +1,8 @@
-# Casys Intelligence User Guide
+# Casys PML User Guide
 
 ## Overview
 
-Casys Intelligence is an intelligent MCP gateway designed for coding agents (Claude Code, Cursor,
+Casys PML is an intelligent MCP gateway designed for coding agents (Claude Code, Cursor,
 etc.). It acts as a single entry point to all your MCP servers, optimizing LLM context usage
 and parallelizing workflow execution.
 
@@ -36,14 +36,14 @@ Find relevant tools by natural intent, not by exact name.
 **How to use:**
 
 1. Describe what you want to accomplish in natural language
-2. Casys Intelligence uses embeddings (BGE-Large-EN-v1.5) to find similar tools
+2. Casys PML uses embeddings (BGE-Large-EN-v1.5) to find similar tools
 3. GraphRAG boosts tools frequently used together
 
 **Example:**
 
 ```typescript
 // Via MCP tool
-await callTool("cai:search_tools", {
+await callTool("pml:search_tools", {
   query: "read and parse configuration files",
   limit: 5,
   include_related: true  // Include graph recommendations
@@ -72,18 +72,18 @@ Orchestrate multi-tool workflows with automatic parallelization.
 
 **How to use:**
 
-1. **Intent mode:** Describe your goal, Casys Intelligence suggests the optimal DAG
+1. **Intent mode:** Describe your goal, Casys PML suggests the optimal DAG
 2. **Explicit mode:** Define the workflow structure yourself
-3. Casys Intelligence detects dependencies and parallelizes independent tasks
+3. Casys PML detects dependencies and parallelizes independent tasks
 
 **Example - Intent Mode:**
 
 ```typescript
-await callTool("cai:execute_dag", {
+await callTool("pml:execute_dag", {
   intent: "Read the 3 files config.json, package.json, README.md and summarize their content",
 });
 
-// Casys Intelligence:
+// Casys PML:
 // 1. Identifies the 3 reads as independent
 // 2. Executes them in parallel (Promise.all)
 // 3. Aggregates results
@@ -93,7 +93,7 @@ await callTool("cai:execute_dag", {
 **Example - Explicit Mode with dependencies:**
 
 ```typescript
-await callTool("cai:execute_dag", {
+await callTool("pml:execute_dag", {
   workflow: {
     tasks: [
       { id: "t1", tool: "filesystem:read_file", arguments: { path: "config.json" } },
@@ -130,7 +130,7 @@ Execute TypeScript in an isolated environment with access to MCP tools.
 **Example - Local processing of large datasets:**
 
 ```typescript
-await callTool("cai:execute_code", {
+await callTool("pml:execute_code", {
   intent: "Analyze GitHub commits",
   code: `
     // 'github' injected automatically thanks to intent
@@ -190,13 +190,13 @@ Manage execution with agent and human decision points.
 
 ```typescript
 // Execution with per-layer validation
-const result = await callTool("cai:execute_dag", {
+const result = await callTool("pml:execute_dag", {
   intent: "Deploy the new version",
   per_layer_validation: true, // Pause between each layer
 });
 
 // If workflow pauses for approval:
-await callTool("cai:approval_response", {
+await callTool("pml:approval_response", {
   workflow_id: result.workflow_id,
   checkpoint_id: result.checkpoint_id,
   approved: true,
@@ -208,10 +208,10 @@ await callTool("cai:approval_response", {
 
 | Tool                          | Usage                                  |
 | ----------------------------- | -------------------------------------- |
-| `cai:continue`          | Resume a paused workflow               |
-| `cai:abort`             | Stop a running workflow                |
-| `cai:replan`            | Modify DAG with new requirements       |
-| `cai:approval_response` | Respond to an HIL checkpoint           |
+| `pml:continue`          | Resume a paused workflow               |
+| `pml:abort`             | Stop a running workflow                |
+| `pml:replan`            | Modify DAG with new requirements       |
+| `pml:approval_response` | Respond to an HIL checkpoint           |
 
 ---
 
@@ -275,7 +275,7 @@ await callTool("cai:approval_response", {
    Use semantic search to find relevant tools:
 
    ```typescript
-   await callTool("cai:search_tools", {
+   await callTool("pml:search_tools", {
      query: "list and read source files",
    });
    ```
@@ -285,7 +285,7 @@ await callTool("cai:approval_response", {
    Create a DAG to parallelize reading:
 
    ```typescript
-   await callTool("cai:execute_dag", {
+   await callTool("pml:execute_dag", {
      intent: "Read all TypeScript files in src/ and generate a summary",
    });
    ```
@@ -295,7 +295,7 @@ await callTool("cai:approval_response", {
    Use the sandbox to aggregate results:
 
    ```typescript
-   await callTool("cai:execute_code", {
+   await callTool("pml:execute_code", {
      code: `
        const files = context.files;
        return {
@@ -321,7 +321,7 @@ await callTool("cai:approval_response", {
 3. Write to destination
 
 ```typescript
-await callTool("cai:execute_dag", {
+await callTool("pml:execute_dag", {
   workflow: {
     tasks: [
       // Parallel reading
@@ -374,7 +374,7 @@ await callTool("cai:execute_dag", {
 
 ## Observability
 
-Casys Intelligence offers several monitoring options:
+Casys PML offers several monitoring options:
 
 | Tool                 | stdio | Streamable HTTP | Description                          |
 | -------------------- | :---: | :-------------: | ------------------------------------ |
@@ -414,7 +414,7 @@ SENTRY_ENVIRONMENT=production
 
 ## Transport Modes
 
-Casys Intelligence supports two MCP transport modes:
+Casys PML supports two MCP transport modes:
 
 | Mode                | Command                                     | Dashboard | Use Case                            |
 | ------------------- | ------------------------------------------- | --------- | ----------------------------------- |

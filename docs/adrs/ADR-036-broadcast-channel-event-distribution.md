@@ -5,7 +5,7 @@
 
 ## Context
 
-Casys Intelligence distribue des événements temps réel vers le dashboard via SSE:
+Casys PML distribue des événements temps réel vers le dashboard via SSE:
 
 - `src/server/events-stream.ts` - Gestion des connexions SSE
 - `src/server/sse-handler.ts` - Handler HTTP pour SSE
@@ -92,7 +92,7 @@ channel.close();
 
 ```typescript
 // src/events/types.ts
-interface Casys IntelligenceEvent {
+interface Casys PMLEvent {
   type: EventType;
   timestamp: number;
   source: string;
@@ -131,15 +131,15 @@ const CHANNEL_NAME = "cai-events";
 
 class EventBus {
   private channel: BroadcastChannel;
-  private handlers: Map<string, Set<(event: Casys IntelligenceEvent) => void>> = new Map();
+  private handlers: Map<string, Set<(event: Casys PMLEvent) => void>> = new Map();
 
   constructor() {
     this.channel = new BroadcastChannel(CHANNEL_NAME);
     this.channel.onmessage = (e) => this.dispatch(e.data);
   }
 
-  emit(event: Omit<Casys IntelligenceEvent, "timestamp">): void {
-    const fullEvent: Casys IntelligenceEvent = {
+  emit(event: Omit<Casys PMLEvent, "timestamp">): void {
+    const fullEvent: Casys PMLEvent = {
       ...event,
       timestamp: Date.now(),
     };
@@ -148,7 +148,7 @@ class EventBus {
     this.dispatch(fullEvent);
   }
 
-  on(type: EventType | "*", handler: (event: Casys IntelligenceEvent) => void): () => void {
+  on(type: EventType | "*", handler: (event: Casys PMLEvent) => void): () => void {
     const handlers = this.handlers.get(type) ?? new Set();
     handlers.add(handler);
     this.handlers.set(type, handlers);
@@ -157,7 +157,7 @@ class EventBus {
     return () => handlers.delete(handler);
   }
 
-  private dispatch(event: Casys IntelligenceEvent): void {
+  private dispatch(event: Casys PMLEvent): void {
     // Specific handlers
     this.handlers.get(event.type)?.forEach((h) => h(event));
     // Wildcard handlers

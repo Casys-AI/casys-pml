@@ -1,10 +1,10 @@
-# Getting Started with Casys Intelligence
+# Getting Started with Casys PML
 
 > **Estimated time:** ~10 minutes
 
-## What is Casys Intelligence?
+## What is Casys PML?
 
-Casys Intelligence is an intelligent MCP gateway that consolidates all your MCP servers into a single
+Casys PML is an intelligent MCP gateway that consolidates all your MCP servers into a single
 entry point with semantic search, DAG workflow orchestration, and self-improving tool discovery.
 
 **Problems solved:**
@@ -65,14 +65,14 @@ Expected output:
 Usage: cai [options] [command]
 
 Commands:
-  init    Initialize Casys Intelligence from MCP config
-  serve   Start Casys Intelligence MCP gateway server
+  init    Initialize Casys PML from MCP config
+  serve   Start Casys PML MCP gateway server
   status  Show gateway status and health
 ```
 
 ## Tutorial: Your First Workflow with Claude Code
 
-Let's configure Casys Intelligence as an MCP gateway for Claude Code in a few steps.
+Let's configure Casys PML as an MCP gateway for Claude Code in a few steps.
 
 ### 1. Prepare your MCP configuration
 
@@ -99,7 +99,7 @@ EOF
 > **Tip:** You can also migrate your existing Claude Desktop config with
 > `./cai init --config ~/.config/Claude/claude_desktop_config.json`
 
-### 2. Initialize Casys Intelligence
+### 2. Initialize Casys PML
 
 ```bash
 ./cai init --config config/mcp-servers.json
@@ -115,18 +115,18 @@ This command:
 Expected output:
 
 ```
-🚀 Initializing Casys Intelligence...
+🚀 Initializing Casys PML...
 ✓ Found 2 MCP server(s)
 ✓ Extracted 15 tool schemas
 ✓ Generated embeddings (BGE-Large-EN-v1.5)
 ✓ Stored in ~/.cai/db
 
-Casys Intelligence is ready!
+Casys PML is ready!
 ```
 
 ### 3. Configure Claude Code
 
-Add Casys Intelligence to your Claude Code MCP configuration:
+Add Casys PML to your Claude Code MCP configuration:
 
 **Linux/macOS:** `~/.config/Claude/claude_desktop_config.json` **Windows:**
 `%APPDATA%\Claude\claude_desktop_config.json`
@@ -168,7 +168,7 @@ To test manually:
 You should see:
 
 ```
-🚀 Starting Casys Intelligence MCP Gateway...
+🚀 Starting Casys PML MCP Gateway...
 
 Step 1/6: Loading configuration...
 ✓ Found MCP config: config/mcp-servers.json
@@ -180,10 +180,10 @@ Step 4/6: Loading AI models...
 Step 5/6: Starting MCP gateway...
 Step 6/6: Listening for MCP requests...
 
-Casys Intelligence gateway running on port 3001
+Casys PML gateway running on port 3001
 ```
 
-**Congratulations!** You have configured Casys Intelligence as an intelligent MCP gateway.
+**Congratulations!** You have configured Casys PML as an intelligent MCP gateway.
 
 ## First Steps with Meta-Tools
 
@@ -192,24 +192,24 @@ Once connected, test these tools in Claude Code:
 ### Semantic tool search
 
 ```
-Use cai:search_tools to find tools related to "read JSON files"
+Use pml:search_tools to find tools related to "read JSON files"
 ```
 
 ### DAG workflow execution
 
 ```
-Use cai:execute_dag with intent "Read config.json and create a memory entity"
+Use pml:execute_dag with intent "Read config.json and create a memory entity"
 ```
 
 ### Sandbox code execution
 
 ```
-Use cai:execute_code to filter and aggregate data locally
+Use pml:execute_code to filter and aggregate data locally
 ```
 
 ## Monitoring (optional)
 
-Casys Intelligence includes a Grafana/Loki/Promtail stack for log monitoring:
+Casys PML includes a Grafana/Loki/Promtail stack for log monitoring:
 
 ```bash
 # Start the monitoring stack

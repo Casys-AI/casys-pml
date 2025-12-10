@@ -1,7 +1,7 @@
 /**
  * Sentry Integration Module
  *
- * Provides error tracking and performance monitoring for Casys Intelligence
+ * Provides error tracking and performance monitoring for Casys PML
  *
  * @module telemetry/sentry
  */

@@ -13,7 +13,7 @@ candidate tools for a workflow.
   described (e.g., finding `git_clone` and `deploy` but missing `npm_install`).
 
 Meanwhile, Story 5.1 implemented a powerful "Hybrid Search" logic (Semantic + Adamic-Adar + Graph
-Neighbors) inside the `cai:search_tools` MCP tool. This logic is currently trapped inside the
+Neighbors) inside the `pml:search_tools` MCP tool. This logic is currently trapped inside the
 `GatewayServer` handler and is not reused by the `DAGSuggester`.
 
 This disconnect leads to "fragile DAGs" for complex requests, where critical intermediate steps are

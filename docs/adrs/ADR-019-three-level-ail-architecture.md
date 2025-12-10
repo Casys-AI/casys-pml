@@ -21,7 +21,7 @@ they come), allowing agents to make decisions mid-execution. However, MCP is fun
 **Request → Response protocol** (one-shot), which means:
 
 1. **MCP Client (Claude Code)** sends a single request
-2. **MCP Server (Casys Intelligence Gateway)** processes the request
+2. **MCP Server (Casys PML Gateway)** processes the request
 3. **MCP Server** returns **ONE response** (not streaming events)
 4. **No bidirectional communication** during execution
 
@@ -268,10 +268,10 @@ async executeLayerByLayer(dag: DAGStructure, config: ExecutionConfig) {
 
 Level 1 external agents use **4 MCP meta-tools** (see ADR-018 for full specification):
 
-- `cai:continue` - Continue to next layer
-- `cai:abort` - Abort workflow execution
-- `cai:replan_dag` - Replan with new requirement (triggers GraphRAG)
-- `cai:approval_response` - Respond to HIL approval checkpoint
+- `pml:continue` - Continue to next layer
+- `pml:abort` - Abort workflow execution
+- `pml:replan_dag` - Replan with new requirement (triggers GraphRAG)
+- `pml:approval_response` - Respond to HIL approval checkpoint
 
 **External Agent Workflow (Claude Code via MCP):**
 

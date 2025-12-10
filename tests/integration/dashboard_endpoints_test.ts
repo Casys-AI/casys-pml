@@ -2,7 +2,7 @@
  * Integration tests for dashboard HTTP endpoints - Story 6.2
  *
  * Tests the /dashboard and /api/graph/snapshot endpoints
- * served by the Casys Intelligence gateway server.
+ * served by the Casys PML gateway server.
  */
 
 import { assertEquals, assertExists } from "@std/assert";

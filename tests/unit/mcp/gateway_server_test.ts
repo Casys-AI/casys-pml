@@ -199,12 +199,12 @@ Deno.test({
   // ADR-013: Verify presence of critical meta-tools (more robust than exact count)
   // This approach survives refactoring that adds/removes tools
   const criticalTools = [
-    "cai:execute_dag",
-    "cai:search_tools",
-    "cai:execute_code",
-    "cai:continue",
-    "cai:abort",
-    "cai:replan",
+    "pml:execute_dag",
+    "pml:search_tools",
+    "pml:execute_code",
+    "pml:continue",
+    "pml:abort",
+    "pml:replan",
   ];
 
   criticalTools.forEach((name) => {
@@ -219,9 +219,9 @@ Deno.test({
   );
 
   // Verify DAG execution tool is included (renamed from execute_workflow)
-  const dagTool = result.tools.find((t: MCPTool) => t.name === "cai:execute_dag");
+  const dagTool = result.tools.find((t: MCPTool) => t.name === "pml:execute_dag");
   assertExists(dagTool);
-  assertEquals(dagTool.name, "cai:execute_dag");
+  assertEquals(dagTool.name, "pml:execute_dag");
   },
 });
 
@@ -252,7 +252,7 @@ Deno.test({
   assert(Array.isArray(result.tools));
 
   // Should include DAG execution tool + semantic search results (renamed from execute_workflow)
-  const dagTool = result.tools.find((t: MCPTool) => t.name === "cai:execute_dag");
+  const dagTool = result.tools.find((t: MCPTool) => t.name === "pml:execute_dag");
   assertExists(dagTool);
   },
 });
@@ -309,7 +309,7 @@ Deno.test("CasysIntelligenceGatewayServer - call_tool workflow execution", async
   const handleCallTool = (gateway as any).handleCallTool.bind(gateway);
   const result = await handleCallTool({
     params: {
-      name: "cai:execute_dag",
+      name: "pml:execute_dag",
       arguments: {
         workflow: {
           tasks: [

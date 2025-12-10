@@ -11,7 +11,7 @@
 
 ### Problème
 
-Le dashboard Casys Intelligence est actuellement accessible sans authentification. Pour un produit destiné aux développeurs, il faut :
+Le dashboard Casys PML est actuellement accessible sans authentification. Pour un produit destiné aux développeurs, il faut :
 - Tracker chaque utilisateur individuellement
 - Appliquer le rate limiting par utilisateur (pas seulement par IP)
 - Séparer les données utilisateur (historique DAGs, préférences) tout en gardant l'apprentissage global (embeddings/GraphRAG partagés)
@@ -124,7 +124,7 @@ Implémenter un **modèle d'authentification hybride** :
 
 ### Architecture 2 Serveurs (IMPORTANT)
 
-Casys Intelligence utilise **deux serveurs distincts** qui nécessitent chacun leur propre mécanisme d'auth:
+Casys PML utilise **deux serveurs distincts** qui nécessitent chacun leur propre mécanisme d'auth:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -336,7 +336,7 @@ Exemple: ac_a1b2c3d4e5f6g7h8i9j0k1l2
 
 ### Self-hosted Mode (Local)
 
-- [ ] **AC 5:** Given Casys Intelligence lancé sans `GITHUB_CLIENT_ID`, When il démarre, Then le mode local est activé (pas d'auth requise)
+- [ ] **AC 5:** Given Casys PML lancé sans `GITHUB_CLIENT_ID`, When il démarre, Then le mode local est activé (pas d'auth requise)
 - [ ] **AC 6:** Given le mode local, When une requête arrive, Then `user_id = "local"` est injecté automatiquement
 
 ### Multi-tenant & Isolation

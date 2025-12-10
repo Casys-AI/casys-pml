@@ -7,8 +7,8 @@
 
 > **⚠️ ARCHITECTURE UPDATE 2025-11-25:** The 4 command handlers serve **two purposes**:
 >
-> 1. **Level 1 (External MCP agents)**: Exposed as MCP meta-tools (`cai:continue`,
->    `cai:abort`, `cai:replan_dag`, `cai:approval_response`)
+> 1. **Level 1 (External MCP agents)**: Exposed as MCP meta-tools (`pml:continue`,
+>    `pml:abort`, `pml:replan_dag`, `pml:approval_response`)
 > 2. **Level 2 (Internal native agents)**: Used via CommandQueue for async control
 
 ## Context
@@ -26,8 +26,8 @@ During implementation of Epic 2.5 (Adaptive DAG Feedback Loops), we discovered:
 
 **Level 1 - External MCP agents (Claude Code)**:
 
-- ✅ Via MCP meta-tools: `cai:continue`, `cai:abort`, `cai:replan_dag`,
-  `cai:approval_response`
+- ✅ Via MCP meta-tools: `pml:continue`, `pml:abort`, `pml:replan_dag`,
+  `pml:approval_response`
 - ✅ HTTP Request/Response pattern (MCP compatible)
 
 **Level 2 - Internal native agents (JS/TS in Gateway)**:
@@ -243,11 +243,11 @@ WRITE), safety validation **Status**: ✅ Implemented, tested
 
 The 4 commands are exposed as MCP meta-tools for external agents (Claude Code):
 
-### Tool: `cai:continue`
+### Tool: `pml:continue`
 
 ```typescript
 {
-  name: "cai:continue",
+  name: "pml:continue",
   description: "Continue workflow execution to next layer",
   inputSchema: {
     type: "object",
@@ -260,11 +260,11 @@ The 4 commands are exposed as MCP meta-tools for external agents (Claude Code):
 }
 ```
 
-### Tool: `cai:abort`
+### Tool: `pml:abort`
 
 ```typescript
 {
-  name: "cai:abort",
+  name: "pml:abort",
   description: "Abort workflow execution",
   inputSchema: {
     type: "object",
@@ -277,11 +277,11 @@ The 4 commands are exposed as MCP meta-tools for external agents (Claude Code):
 }
 ```
 
-### Tool: `cai:replan_dag`
+### Tool: `pml:replan_dag`
 
 ```typescript
 {
-  name: "cai:replan_dag",
+  name: "pml:replan_dag",
   description: "Replan workflow with new requirement (triggers GraphRAG)",
   inputSchema: {
     type: "object",
@@ -295,11 +295,11 @@ The 4 commands are exposed as MCP meta-tools for external agents (Claude Code):
 }
 ```
 
-### Tool: `cai:approval_response`
+### Tool: `pml:approval_response`
 
 ```typescript
 {
-  name: "cai:approval_response",
+  name: "pml:approval_response",
   description: "Respond to HIL (Human-in-the-Loop) approval checkpoint",
   inputSchema: {
     type: "object",

@@ -79,7 +79,7 @@ Deno.test({
     const result = await listToolsMethod({});
 
     // Verify execute_code tool is registered
-    const executeCodeTool = result.tools.find((t: any) => t.name === "cai:execute_code");
+    const executeCodeTool = result.tools.find((t: any) => t.name === "pml:execute_code");
 
     assertExists(executeCodeTool, "execute_code tool should be registered");
     assertEquals(

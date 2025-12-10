@@ -19,7 +19,7 @@ services:
     container_name: cai-promtail
     volumes:
       - ./monitoring/promtail-config.yaml:/etc/promtail/config.yaml
-      - /home/ubuntu/.cai/logs:/var/log/cai:ro
+      - /home/ubuntu/.cai/logs:/var/log/pml:ro
     command: -config.file=/etc/promtail/config.yaml
     depends_on:
       - loki

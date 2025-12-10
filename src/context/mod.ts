@@ -2,7 +2,7 @@
  * Context Optimization Module
  *
  * Provides on-demand schema loading and context window optimization
- * for Casys Intelligence MCP tool discovery system.
+ * for Casys PML MCP tool discovery system.
  *
  * @module context
  */

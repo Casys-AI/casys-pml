@@ -17,12 +17,12 @@
 
 ## Context
 
-Avec ADR-027 (Execute Code Graph Learning), Casys Intelligence peut apprendre des patterns d'exécution de
+Avec ADR-027 (Execute Code Graph Learning), Casys PML peut apprendre des patterns d'exécution de
 code. Cependant, cette connaissance reste **implicite** dans le graphe (edges entre tools).
 
 L'objectif de cet ADR est de définir comment faire **émerger des capabilities explicites** de
 l'usage - créant un nouveau paradigme où Claude devient un orchestrateur de haut niveau qui délègue
-l'exécution à Casys Intelligence.
+l'exécution à Casys PML.
 
 ### État Actuel vs Vision
 
@@ -45,7 +45,7 @@ l'exécution à Casys Intelligence.
 │                                                                  │
 │  ✅ Réutilisation de code prouvé                                 │
 │  ✅ Suggestions basées sur communities Louvain                   │
-│  ✅ Claude orchestre, Casys Intelligence exécute                         │
+│  ✅ Claude orchestre, Casys PML exécute                         │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -55,7 +55,7 @@ l'exécution à Casys Intelligence.
 | ------------------ | ----------- | ------------- | --------------- | --------- |
 | Docker Dynamic MCP | ❌          | ❌            | ❌              | Container |
 | Anthropic PTC      | ❌          | ❌            | ❌              | Sandbox   |
-| **Casys Intelligence**     | ✅ GraphRAG | ✅ Louvain/AA | ✅ Capabilities | Sandbox   |
+| **Casys PML**     | ✅ GraphRAG | ✅ Louvain/AA | ✅ Capabilities | Sandbox   |
 
 ### Triggers
 
@@ -1177,7 +1177,7 @@ Track versions quand le code évolue, permettre rollback.
 
 ### Capability Sharing
 
-Export/import de capabilities entre instances Casys Intelligence.
+Export/import de capabilities entre instances Casys PML.
 
 ## References
 

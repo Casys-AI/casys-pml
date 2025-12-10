@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-Index des décisions d'architecture du projet Casys Intelligence.
+Index des décisions d'architecture du projet Casys PML.
 
 ## Status Legend
 

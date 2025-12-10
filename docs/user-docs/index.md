@@ -1,4 +1,4 @@
-# Casys Intelligence Documentation
+# Casys PML Documentation
 
 > Intelligent MCP Gateway with GraphRAG Learning
 
@@ -16,7 +16,7 @@
 
 ## Where to Start?
 
-### New to Casys Intelligence?
+### New to Casys PML?
 
 1. **[Getting Started](./getting-started.md)** - Install and configure in 10 minutes
 2. Test your first workflow with Claude Code

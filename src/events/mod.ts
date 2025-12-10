@@ -1,5 +1,5 @@
 /**
- * Events Module - Unified Event Distribution for Casys Intelligence
+ * Events Module - Unified Event Distribution for Casys PML
  * Story 6.5: EventBus with BroadcastChannel (ADR-036)
  *
  * @module events

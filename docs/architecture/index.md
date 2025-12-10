@@ -1,4 +1,4 @@
-# Architecture Documentation - Casys Intelligence
+# Architecture Documentation - Casys PML
 
 ## Overview
 
@@ -44,7 +44,7 @@
 
 | Need | Document |
 |------|----------|
-| What is CAI? | [Executive Summary](./executive-summary.md) |
+| What is PML? | [Executive Summary](./executive-summary.md) |
 | What tech do we use? | [Technology Stack](./technology-stack-details.md) |
 | Database schema? | [Data Architecture](./data-architecture.md) |
 | How to name things? | [Implementation Patterns](./implementation-patterns.md) |

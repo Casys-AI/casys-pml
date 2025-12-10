@@ -1,7 +1,7 @@
 /**
  * MCP Gateway E2E Integration Test
  *
- * End-to-end test simulating Claude Code client interacting with Casys Intelligence gateway.
+ * End-to-end test simulating Claude Code client interacting with Casys PML gateway.
  * Tests the complete flow: stdio transport, MCP protocol, tool execution.
  *
  * @module tests/integration/mcp_gateway_e2e_test
@@ -140,7 +140,7 @@ Deno.test({
 
       // Verify workflow tool is present (renamed in Story 2.5-4)
       const workflowTool = listResult.tools.find((t: MCPTool) =>
-        t.name === "cai:execute_dag"
+        t.name === "pml:execute_dag"
       );
       assertExists(workflowTool);
 
@@ -163,7 +163,7 @@ Deno.test({
       // 6. Test workflow execution (renamed in Story 2.5-4)
       const workflowResult = await handleCallTool({
         params: {
-          name: "cai:execute_dag",
+          name: "pml:execute_dag",
           arguments: {
             workflow: {
               tasks: [

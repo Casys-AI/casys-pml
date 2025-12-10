@@ -48,7 +48,7 @@ Deno.test("Integration - CLI command registration", async () => {
   assertEquals(command.getName(), "init", "Command should be named 'init'");
   assertEquals(
     command.getDescription(),
-    "Migrate existing MCP configuration to Casys Intelligence",
+    "Migrate existing MCP configuration to Casys PML",
     "Command should have correct description",
   );
 

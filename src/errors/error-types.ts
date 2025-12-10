@@ -1,5 +1,5 @@
 /**
- * Custom Error Types for Casys Intelligence
+ * Custom Error Types for Casys PML
  *
  * Provides a hierarchy of error classes with user-friendly messages,
  * error codes, recoverability flags, and suggestions for resolution.
@@ -8,7 +8,7 @@
  */
 
 /**
- * Base error class for Casys Intelligence
+ * Base error class for Casys PML
  *
  * All custom errors extend this class to provide:
  * - Unique error code for categorization

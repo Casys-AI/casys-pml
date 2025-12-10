@@ -225,7 +225,7 @@ export class MigrationRunner {
  */
 export function createInitialMigration(): Migration {
   const initialSql = `
--- Migration 001: Initial Schema for Casys Intelligence
+-- Migration 001: Initial Schema for Casys PML
 -- Created: 2025-11-03
 -- Purpose: Create tables for embeddings, schemas, and configuration
 

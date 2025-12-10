@@ -6,7 +6,7 @@
 
 ## Context
 
-Casys Intelligence utilise plusieurs algorithmes pour la découverte d'outils (Tools) et de capacités (Capabilities). Ce document centralise les formules mathématiques et justifie les choix d'architecture (Graphes simples vs Hypergraphes, Additif vs Multiplicatif).
+Casys PML utilise plusieurs algorithmes pour la découverte d'outils (Tools) et de capacités (Capabilities). Ce document centralise les formules mathématiques et justifie les choix d'architecture (Graphes simples vs Hypergraphes, Additif vs Multiplicatif).
 
 _Note: Cet ADR remplace et consolide les anciennes tentatives de définition d'algorithmes (ex-ADR-033)._
 
