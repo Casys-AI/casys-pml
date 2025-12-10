@@ -1,6 +1,6 @@
 # ADR-039: Algorithm Observability & Adaptive Weight Preparation
 
-**Status:** 📝 Proposed
+**Status:** ✅ Implemented (Story 7.6)
 **Date:** 2025-12-08
 **Depends on:** ADR-038 (Scoring Algorithms Reference), ADR-008 (Adaptive Thresholds)
 
