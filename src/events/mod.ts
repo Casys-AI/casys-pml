@@ -12,55 +12,48 @@ export { EventBus, eventBus } from "./event-bus.ts";
 export type {
   // Core types
   AgentCardsEvent,
+  // Algorithm event payloads (Story 7.6 preparation)
+  AlgorithmAnomalyPayload,
+  AlgorithmFeedbackPayload,
+  // Typed events
+  AlgorithmScoredEvent,
+  AlgorithmScoredPayload,
+  AlgorithmSuggestedPayload,
   CaiEvent,
-  EventHandler,
-  EventType,
-  WildcardEventHandler,
-
-  // Tool event payloads
-  ToolEndPayload,
-  ToolStartPayload,
-
+  CapabilityEndEvent,
   // Capability event payloads
   CapabilityEndPayload,
+  CapabilityLearnedEvent,
   CapabilityLearnedPayload,
+  CapabilityMatchedEvent,
   CapabilityMatchedPayload,
+  CapabilityStartEvent,
   CapabilityStartPayload,
-
+  DagCompletedEvent,
   // DAG event payloads
   DagCompletedPayload,
   DagReplannedPayload,
+  DagStartedEvent,
   DagStartedPayload,
   DagTaskCompletedPayload,
   DagTaskFailedPayload,
   DagTaskStartedPayload,
-
+  EventHandler,
+  EventType,
   // Graph event payloads
   GraphEdgeCreatedPayload,
   GraphEdgeUpdatedPayload,
+  GraphSyncedEvent,
   GraphSyncedPayload,
-
-  // Algorithm event payloads (Story 7.6 preparation)
-  AlgorithmAnomalyPayload,
-  AlgorithmFeedbackPayload,
-  AlgorithmScoredPayload,
-  AlgorithmSuggestedPayload,
-  ThresholdAdjustedPayload,
-
   // System event payloads
   HealthCheckPayload,
   HeartbeatPayload,
   MetricsSnapshotPayload,
-
-  // Typed events
-  AlgorithmScoredEvent,
-  CapabilityEndEvent,
-  CapabilityLearnedEvent,
-  CapabilityMatchedEvent,
-  CapabilityStartEvent,
-  DagCompletedEvent,
-  DagStartedEvent,
-  GraphSyncedEvent,
+  ThresholdAdjustedPayload,
   ToolEndEvent,
+  // Tool event payloads
+  ToolEndPayload,
   ToolStartEvent,
+  ToolStartPayload,
+  WildcardEventHandler,
 } from "./types.ts";

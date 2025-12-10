@@ -11,7 +11,7 @@
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import type { PGlite } from "@electric-sql/pglite";
-import * as schema from "./schema/index.ts";
+import * as schema from "./schema/mod.ts";
 import { resolvePath } from "../lib/paths.ts";
 
 export type DrizzleDB = ReturnType<typeof drizzle<typeof schema>>;

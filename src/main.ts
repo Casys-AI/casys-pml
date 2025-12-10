@@ -14,7 +14,7 @@ import { createStatusCommand } from "./cli/commands/status.ts";
 import { createMigrateConfigCommand } from "./cli/commands/migrate-config.ts";
 import { createWorkflowsCommand } from "./cli/commands/workflows.ts";
 import { createSpeculationCommand } from "./cli/commands/speculation.ts";
-import { setupLogger } from "./telemetry/index.ts";
+import { setupLogger } from "./telemetry/mod.ts";
 import { createDefaultClient } from "./db/client.ts";
 import { TelemetryService } from "./telemetry/telemetry.ts";
 import { getAllMigrations, MigrationRunner } from "./db/migrations.ts";
@@ -59,8 +59,18 @@ async function handleTelemetryFlags(): Promise<void> {
  * Main CLI application
  */
 export async function main(): Promise<void> {
-  // Load environment variables from .env file (if exists)
-  await load({ export: true, envPath: ".env" });
+  // Load environment variables based on DENO_ENV
+  // Production: .env.production ONLY (no fallback to .env for security)
+  // Development: .env only
+  const isProduction = Deno.env.get("DENO_ENV") === "production";
+  const envFile = isProduction ? ".env.production" : ".env";
+
+  try {
+    await load({ export: true, envPath: envFile });
+  } catch {
+    // Env file not found, continue with system environment
+    console.warn(`Warning: ${envFile} not found, using system environment only`);
+  }
 
   // Initialize logging first
   await setupLogger();

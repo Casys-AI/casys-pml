@@ -7,6 +7,7 @@
  * @module vector
  */
 
+// Embedding generation
 export {
   EmbeddingModel,
   generateEmbeddingForTool,
@@ -21,6 +22,6 @@ export type {
   ToolSchema,
 } from "./embeddings.ts";
 
+// Vector search
 export { VectorSearch } from "./search.ts";
-
 export type { SearchResult } from "./search.ts";

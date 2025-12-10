@@ -140,3 +140,105 @@ export function logAuthMode(serverName: string): void {
     );
   }
 }
+
+/**
+ * Validate auth configuration at startup
+ *
+ * SECURITY: Prevents accidental deployment without authentication.
+ * - Production (DENO_ENV=production): FAILS if no GITHUB_CLIENT_ID
+ * - Development: Shows WARNING but allows startup
+ *
+ * @param serverName - Name of the server for logging
+ * @throws Error in production if auth not configured
+ */
+export function validateAuthConfig(serverName: string): void {
+  const isProduction = Deno.env.get("DENO_ENV") === "production";
+  const hasAuth = isCloudMode();
+
+  if (!hasAuth && isProduction) {
+    const errorMsg = `
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  🚨 SECURITY ERROR: REFUSING TO START IN PRODUCTION WITHOUT AUTHENTICATION  ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║                                                                              ║
+║  DENO_ENV=production but GITHUB_CLIENT_ID is not set!                        ║
+║                                                                              ║
+║  This would expose ALL endpoints without any authentication.                 ║
+║  Anyone could access the MCP gateway and filesystem.                         ║
+║                                                                              ║
+║  TO FIX:                                                                     ║
+║  1. Set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET in .env.production         ║
+║  2. Or remove DENO_ENV=production for local development                      ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+`;
+    log.critical(errorMsg);
+    console.error(errorMsg);
+    throw new Error(
+      `[${serverName}] SECURITY: Cannot start in production without authentication configured`,
+    );
+  }
+
+  if (!hasAuth && !isProduction) {
+    const warningMsg = `
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  ⚠️  WARNING: RUNNING IN LOCAL MODE - NO AUTHENTICATION                      ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃                                                                              ┃
+┃  All endpoints are accessible without authentication.                        ┃
+┃  This is OK for local development but NEVER deploy like this!                ┃
+┃                                                                              ┃
+┃  To enable auth: Set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET               ┃
+┃                                                                              ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+`;
+    log.warn(warningMsg);
+    console.warn(warningMsg);
+  }
+}
+
+/**
+ * User filter for data isolation queries
+ * Story 9.5: Multi-tenant data isolation
+ */
+export interface UserFilter {
+  /** WHERE clause fragment (e.g., "user_id = $1"), null if no filtering */
+  where: string | null;
+  /** Parameters for WHERE clause */
+  params: string[];
+}
+
+/**
+ * Build WHERE clause filter for user_id isolation (Story 9.5)
+ *
+ * Cloud mode: Returns SQL filter `user_id = $1` with user_id param
+ * Local mode: Returns null (no filtering, all data visible)
+ *
+ * @param authResult - Authentication result (null if unauthenticated)
+ * @returns UserFilter object with where clause and params
+ *
+ * @example
+ * ```typescript
+ * // Cloud mode
+ * const filter = buildUserFilter({ user_id: "uuid-123", username: "alice" });
+ * // filter.where = "user_id = $1"
+ * // filter.params = ["uuid-123"]
+ *
+ * // Local mode
+ * const filter = buildUserFilter({ user_id: "local", username: "local" });
+ * // filter.where = null
+ * // filter.params = []
+ * ```
+ */
+export function buildUserFilter(authResult: AuthResult | null): UserFilter {
+  // Local mode: no filtering (all executions visible)
+  if (!isCloudMode() || !authResult || authResult.user_id === "local") {
+    return { where: null, params: [] };
+  }
+
+  // Cloud mode: filter by user_id
+  return {
+    where: "user_id = $1",
+    params: [authResult.user_id],
+  };
+}

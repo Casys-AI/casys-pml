@@ -2,7 +2,17 @@
   "name": "@casys/mcp-gateway",
   "version": "0.1.0",
   "license": "MIT",
-  "exports": "./mod.ts",
+  "exports": {
+    ".": "./mod.ts",
+    "./capabilities": "./src/capabilities/mod.ts",
+    "./dag": "./src/dag/mod.ts",
+    "./sandbox": "./src/sandbox/mod.ts",
+    "./mcp": "./src/mcp/mod.ts",
+    "./graphrag": "./src/graphrag/mod.ts",
+    "./vector": "./src/vector/mod.ts",
+    "./db": "./src/db/mod.ts",
+    "./events": "./src/events/mod.ts"
+  },
   "publish": {
     "include": ["mod.ts", "src/", "README.md", "LICENSE"],
     "exclude": ["src/**/*_test.ts", "src/**/*.bench.ts"]
