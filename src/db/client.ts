@@ -188,3 +188,15 @@ export function createDefaultClient(): PGliteClient {
   const dbPath = getAgentCardsDatabasePath();
   return new PGliteClient(dbPath);
 }
+
+/**
+ * Get a connected database client
+ *
+ * Creates and connects to the default database.
+ * Used by route handlers that need immediate database access.
+ */
+export async function getDb(): Promise<PGliteClient> {
+  const client = createDefaultClient();
+  await client.connect();
+  return client;
+}

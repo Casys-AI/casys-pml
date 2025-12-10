@@ -74,8 +74,8 @@ Deno.test("Resume from Checkpoint", async (t) => {
     let layerCount = 0;
 
     for await (const event of executor.executeStream(dag, "resume-test-1")) {
-      if (event.type === "checkpoint" && event.layer_index === 2) {
-        checkpoint_id = event.checkpoint_id;
+      if (event.type === "checkpoint" && event.layerIndex ===2) {
+        checkpoint_id = event.checkpointId;
       }
       if (event.type === "layer_start") {
         layerCount++;
@@ -108,7 +108,7 @@ Deno.test("Resume from Checkpoint", async (t) => {
     const finalState = executor2.getState();
     assertExists(finalState);
     assertEquals(finalState.tasks.length, 5); // All 5 tasks completed
-    assertEquals(finalState.current_layer, 4); // Final layer is 4
+    assertEquals(finalState.currentLayer, 4); // Final layer is 4
   });
 
   await t.step("completed layers skipped (no re-execution)", async () => {
@@ -128,8 +128,8 @@ Deno.test("Resume from Checkpoint", async (t) => {
     // Execute and checkpoint at layer 0
     let checkpoint_id: string | null = null;
     for await (const event of executor.executeStream(dag, "resume-test-2")) {
-      if (event.type === "checkpoint" && event.layer_index === 0) {
-        checkpoint_id = event.checkpoint_id;
+      if (event.type === "checkpoint" && event.layerIndex ===0) {
+        checkpoint_id = event.checkpointId;
       }
     }
 
@@ -173,8 +173,8 @@ Deno.test("Resume from Checkpoint", async (t) => {
     // Execute and get checkpoint from layer 1
     let checkpoint_id: string | null = null;
     for await (const event of executor.executeStream(dag, "resume-test-3")) {
-      if (event.type === "checkpoint" && event.layer_index === 1) {
-        checkpoint_id = event.checkpoint_id;
+      if (event.type === "checkpoint" && event.layerIndex ===1) {
+        checkpoint_id = event.checkpointId;
       }
     }
 
@@ -197,12 +197,12 @@ Deno.test("Resume from Checkpoint", async (t) => {
 
     // First layer should be layer 2
     if (layerStartEvents[0].type === "layer_start") {
-      assertEquals(layerStartEvents[0].layer_index, 2);
+      assertEquals(layerStartEvents[0].layerIndex, 2);
     }
 
     // Second layer should be layer 3
     if (layerStartEvents[1].type === "layer_start") {
-      assertEquals(layerStartEvents[1].layer_index, 3);
+      assertEquals(layerStartEvents[1].layerIndex, 3);
     }
   });
 
@@ -223,8 +223,8 @@ Deno.test("Resume from Checkpoint", async (t) => {
     // Execute and get checkpoint from layer 1
     let checkpoint_id: string | null = null;
     for await (const event of executor.executeStream(dag, "resume-test-4")) {
-      if (event.type === "checkpoint" && event.layer_index === 1) {
-        checkpoint_id = event.checkpoint_id;
+      if (event.type === "checkpoint" && event.layerIndex ===1) {
+        checkpoint_id = event.checkpointId;
       }
     }
 
@@ -243,9 +243,9 @@ Deno.test("Resume from Checkpoint", async (t) => {
     assertExists(stateAfterResume);
 
     // Verify state structure preserved
-    assertEquals(stateAfterResume.workflow_id, "resume-test-4");
+    assertEquals(stateAfterResume.workflowId, "resume-test-4");
     assertEquals(stateAfterResume.tasks.length, 3); // All 3 tasks
-    assertEquals(stateAfterResume.current_layer, 2); // Final layer
+    assertEquals(stateAfterResume.currentLayer, 2); // Final layer
     assertEquals(stateAfterResume.messages.length, 0); // No messages in this test
     assertEquals(stateAfterResume.decisions.length, 0); // No decisions
   });

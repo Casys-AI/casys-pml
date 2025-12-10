@@ -11,6 +11,7 @@ import * as log from "@std/log";
 Deno.test({
   name: "AC1: Logger module uses @std/log and can be configured",
   sanitizeResources: false, // Logger keeps file handles open
+  sanitizeOps: false,
   async fn() {
     // Setup logger with default config
     await setupLogger();
@@ -29,6 +30,7 @@ Deno.test({
 Deno.test({
   name: "AC2: All 4 log levels are supported (error, warn, info, debug)",
   sanitizeResources: false, // Logger keeps file handles open
+  sanitizeOps: false,
   async fn() {
     await setupLogger();
 

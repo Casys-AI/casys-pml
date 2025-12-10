@@ -72,7 +72,7 @@ Deno.test("E2E HIL Workflow: Human approves continuation", async () => {
       if (hilEventReceived) {
         executor.enqueueCommand({
           type: "approval_response",
-          checkpoint_id: "test-checkpoint",
+          checkpointId: "test-checkpoint",
           approved: true,
           feedback: "Looks good, proceed",
         });
@@ -85,17 +85,17 @@ Deno.test("E2E HIL Workflow: Human approves continuation", async () => {
       events.push(event);
 
       // Track HIL event
-      if (event.type === "decision_required" && event.decision_type === "HIL") {
+      if (event.type === "decision_required" && event.decisionType === "HIL") {
         hilEventReceived = true;
         // Get checkpoint ID from most recent checkpoint event
         const lastCheckpoint = events.filter((e) => e.type === "checkpoint").slice(-1)[0];
         if (lastCheckpoint) {
-          const checkpointId = (lastCheckpoint as any).checkpoint_id;
+          const checkpointId = (lastCheckpoint as any).checkpointId;
           // Send approval
           setTimeout(() => {
             executor.enqueueCommand({
               type: "approval_response",
-              checkpoint_id: checkpointId,
+              checkpointId: checkpointId,
               approved: true,
               feedback: "Looks good, proceed",
             });
@@ -106,7 +106,7 @@ Deno.test("E2E HIL Workflow: Human approves continuation", async () => {
 
     // Verify HIL decision event emitted
     const hilEvent = events.find(
-      (e) => e.type === "decision_required" && e.decision_type === "HIL",
+      (e) => e.type === "decision_required" && e.decisionType === "HIL",
     );
     assertExists(hilEvent, "HIL decision_required event should be emitted");
 
@@ -135,7 +135,7 @@ Deno.test("E2E HIL Workflow: Human approves continuation", async () => {
     const completeEvent = events.find((e) => e.type === "workflow_complete");
     assertExists(completeEvent, "Workflow should complete after approval");
     assertEquals(
-      (completeEvent as any).successful_tasks,
+      (completeEvent as any).successfulTasks,
       3,
       "All 3 tasks should complete",
     );
@@ -179,13 +179,13 @@ Deno.test("E2E HIL Workflow: Human rejects and workflow aborts", async () => {
         events.push(event);
 
         // Human rejects the dangerous operation
-        if (event.type === "decision_required" && event.decision_type === "HIL") {
+        if (event.type === "decision_required" && event.decisionType === "HIL") {
           const lastCheckpoint = events.filter((e) => e.type === "checkpoint").slice(-1)[0];
           if (lastCheckpoint) {
             setTimeout(() => {
               executor.enqueueCommand({
                 type: "approval_response",
-                checkpoint_id: (lastCheckpoint as any).checkpoint_id,
+                checkpointId: (lastCheckpoint as any).checkpointId,
                 approved: false,
                 feedback: "Rejecting delete operation - too risky",
               });
@@ -253,7 +253,7 @@ Deno.test("E2E HIL Workflow: Never mode skips all approvals", async () => {
 
     // Verify NO HIL events emitted
     const hilEvents = events.filter(
-      (e) => e.type === "decision_required" && e.decision_type === "HIL",
+      (e) => e.type === "decision_required" && e.decisionType === "HIL",
     );
 
     assertEquals(

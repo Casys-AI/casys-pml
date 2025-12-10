@@ -45,12 +45,12 @@ Deno.test("AIL: decision_required event emitted per_layer", async () => {
 
   // Find AIL decision_required event
   const ailEvent = events.find(
-    (e) => e.type === "decision_required" && e.decision_type === "AIL",
+    (e) => e.type === "decision_required" && e.decisionType === "AIL",
   );
 
   assertExists(ailEvent, "AIL decision_required event should be emitted");
   assertEquals(
-    (ailEvent as any).decision_type,
+    (ailEvent as any).decisionType,
     "AIL",
     "Decision type should be AIL",
   );
@@ -85,7 +85,7 @@ Deno.test("AIL: decision_required event emitted on_error only", async () => {
 
   // AIL should trigger because task failed
   const ailEvent = events.find(
-    (e) => e.type === "decision_required" && e.decision_type === "AIL",
+    (e) => e.type === "decision_required" && e.decisionType === "AIL",
   );
 
   assertExists(
@@ -210,7 +210,7 @@ Deno.test("HIL: decision_required event emitted when approval_required=always", 
   // Enqueue approval response
   executor.enqueueCommand({
     type: "approval_response",
-    checkpoint_id: "test-checkpoint",
+    checkpointId: "test-checkpoint",
     approved: true,
   });
 
@@ -220,11 +220,11 @@ Deno.test("HIL: decision_required event emitted when approval_required=always", 
   }
 
   const hilEvent = events.find(
-    (e) => e.type === "decision_required" && e.decision_type === "HIL",
+    (e) => e.type === "decision_required" && e.decisionType === "HIL",
   );
 
   assertExists(hilEvent, "HIL decision_required event should be emitted");
-  assertEquals((hilEvent as any).decision_type, "HIL");
+  assertEquals((hilEvent as any).decisionType, "HIL");
 });
 
 // Test 7: HIL checkpoint skipped when approval_required="never"
@@ -248,7 +248,7 @@ Deno.test("HIL: checkpoint skipped when approval_required=never", async () => {
   }
 
   const hilEvent = events.find(
-    (e) => e.type === "decision_required" && e.decision_type === "HIL",
+    (e) => e.type === "decision_required" && e.decisionType === "HIL",
   );
 
   assertEquals(
@@ -275,7 +275,7 @@ Deno.test("HIL: summary generated within token limit", async () => {
 
   executor.enqueueCommand({
     type: "approval_response",
-    checkpoint_id: "test",
+    checkpointId: "test",
     approved: true,
   });
 
@@ -285,7 +285,7 @@ Deno.test("HIL: summary generated within token limit", async () => {
   }
 
   const hilEvent = events.find(
-    (e) => e.type === "decision_required" && e.decision_type === "HIL",
+    (e) => e.type === "decision_required" && e.decisionType === "HIL",
   ) as any;
 
   assertExists(hilEvent, "HIL event should exist");
@@ -317,7 +317,7 @@ Deno.test("HIL: approved response continues execution", async () => {
 
   executor.enqueueCommand({
     type: "approval_response",
-    checkpoint_id: "test",
+    checkpointId: "test",
     approved: true,
     feedback: "looks good",
   });
@@ -351,7 +351,7 @@ Deno.test("HIL: rejected response aborts workflow", async () => {
 
   executor.enqueueCommand({
     type: "approval_response",
-    checkpoint_id: "test",
+    checkpointId: "test",
     approved: false,
     feedback: "not ready",
   });
@@ -386,7 +386,7 @@ Deno.test("HIL: decisions logged to WorkflowState.decisions[]", async () => {
 
   executor.enqueueCommand({
     type: "approval_response",
-    checkpoint_id: "test",
+    checkpointId: "test",
     approved: true,
   });
 

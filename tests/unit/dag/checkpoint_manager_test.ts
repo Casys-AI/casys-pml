@@ -54,17 +54,17 @@ Deno.test("CheckpointManager - CRUD Operations", async (t) => {
 
     // Verify checkpoint structure
     assertExists(checkpoint.id);
-    assertEquals(checkpoint.workflow_id, workflow_id);
+    assertEquals(checkpoint.workflowId, workflow_id);
     assertEquals(checkpoint.layer, layer);
     assertExists(checkpoint.timestamp);
-    assertEquals(checkpoint.state.workflow_id, workflow_id);
+    assertEquals(checkpoint.state.workflowId, workflow_id);
   });
 
   await t.step("loadCheckpoint by ID returns correct state", async () => {
     const workflow_id = "test-workflow-2";
     const layer = 1;
     const state = updateState(createInitialState(workflow_id), {
-      current_layer: 1,
+      currentLayer: 1,
       messages: [{ role: "user", content: "Test", timestamp: Date.now() }],
     });
 
@@ -77,7 +77,7 @@ Deno.test("CheckpointManager - CRUD Operations", async (t) => {
     // Verify loaded state matches saved
     assertExists(loaded);
     assertEquals(loaded.id, saved.id);
-    assertEquals(loaded.workflow_id, workflow_id);
+    assertEquals(loaded.workflowId, workflow_id);
     assertEquals(loaded.layer, layer);
     assertEquals(loaded.state.messages.length, 1);
     assertEquals(loaded.state.messages[0].content, "Test");
@@ -98,12 +98,12 @@ Deno.test("CheckpointManager - CRUD Operations", async (t) => {
     // Wait 10ms to ensure different timestamps
     await new Promise((resolve) => setTimeout(resolve, 10));
 
-    const state2 = updateState(state1, { current_layer: 1 });
+    const state2 = updateState(state1, { currentLayer: 1 });
     await manager.saveCheckpoint(workflow_id, 1, state2);
 
     await new Promise((resolve) => setTimeout(resolve, 10));
 
-    const state3 = updateState(state2, { current_layer: 2 });
+    const state3 = updateState(state2, { currentLayer: 2 });
     const checkpoint3 = await manager.saveCheckpoint(workflow_id, 2, state3);
 
     // Get latest
@@ -142,7 +142,7 @@ Deno.test("CheckpointManager - State Serialization Round-Trip", async (t) => {
     // Create complex state with all fields populated
     let state = createInitialState(workflow_id);
     state = updateState(state, {
-      current_layer: 3,
+      currentLayer: 3,
       messages: [
         { role: "system", content: "System prompt", timestamp: 1 },
         { role: "user", content: "User input", timestamp: 2 },
@@ -174,8 +174,8 @@ Deno.test("CheckpointManager - State Serialization Round-Trip", async (t) => {
 
     // Verify all fields preserved
     assertExists(loaded);
-    assertEquals(loaded.state.workflow_id, workflow_id);
-    assertEquals(loaded.state.current_layer, 3);
+    assertEquals(loaded.state.workflowId, workflow_id);
+    assertEquals(loaded.state.currentLayer, 3);
     assertEquals(loaded.state.messages.length, 3);
     assertEquals(loaded.state.tasks.length, 2);
     assertEquals(loaded.state.decisions.length, 1);
@@ -203,7 +203,7 @@ Deno.test("CheckpointManager - Pruning", async (t) => {
     // Create 8 checkpoints
     for (let i = 0; i < 8; i++) {
       const state = updateState(createInitialState(workflow_id), {
-        current_layer: i,
+        currentLayer: i,
       });
       await manager.saveCheckpoint(workflow_id, i, state);
       // Small delay to ensure different timestamps
@@ -228,7 +228,7 @@ Deno.test("CheckpointManager - Pruning", async (t) => {
     // Create only 3 checkpoints
     for (let i = 0; i < 3; i++) {
       const state = updateState(createInitialState(workflow_id), {
-        current_layer: i,
+        currentLayer: i,
       });
       await manager.saveCheckpoint(workflow_id, i, state);
     }
@@ -338,7 +338,7 @@ Deno.test("CheckpointManager - Performance", async (t) => {
     // Run 100 checkpoint saves
     for (let i = 0; i < iterations; i++) {
       const state = updateState(createInitialState(workflow_id), {
-        current_layer: i,
+        currentLayer: i,
       });
 
       const startTime = performance.now();

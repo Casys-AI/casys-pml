@@ -13,59 +13,9 @@
  */
 
 import { assertEquals, assertExists } from "@std/assert";
-import { ControlledExecutor } from "../../src/dag/controlled-executor.ts";
-import { createDefaultClient } from "../../src/db/client.ts";
-import { getAllMigrations, MigrationRunner } from "../../src/db/migrations.ts";
-import { VectorSearch } from "../../src/vector/search.ts";
-import { EmbeddingModel } from "../../src/vector/embeddings.ts";
-import type { PGliteClient } from "../../src/db/client.ts";
 import type { DAGStructure } from "../../src/graphrag/types.ts";
 import type { ExecutionEvent } from "../../src/dag/types.ts";
-
-/**
- * Shared test context (initialized once)
- */
-let sharedDb: PGliteClient;
-let sharedEmbeddingModel: EmbeddingModel;
-
-/**
- * Initialize shared resources once for all tests
- */
-async function initializeOnce() {
-  if (!sharedDb) {
-    sharedDb = createDefaultClient();
-    await sharedDb.connect();
-
-    const runner = new MigrationRunner(sharedDb);
-    await runner.runUp(getAllMigrations());
-  }
-
-  if (!sharedEmbeddingModel) {
-    sharedEmbeddingModel = new EmbeddingModel();
-    await sharedEmbeddingModel.load();
-  }
-}
-
-/**
- * Helper to create test executor with dependencies
- */
-async function createTestExecutor(toolExecutor: any) {
-  await initializeOnce();
-
-  const vectorSearch = new VectorSearch(sharedDb, sharedEmbeddingModel);
-
-  const executor = new ControlledExecutor(toolExecutor, {
-    verbose: true,
-  });
-
-  // Enable code execution support
-  executor.setCodeExecutionSupport(vectorSearch, new Map());
-
-  // Enable checkpointing
-  executor.setCheckpointManager(sharedDb);
-
-  return executor;
-}
+import { createTestExecutor } from "./test-helpers.ts";
 
 Deno.test({
   name: "E2E: ControlledExecutor executes code_execution task",
@@ -120,7 +70,7 @@ Deno.test({
     const workflowComplete = events.find((e) => e.type === "workflow_complete") as any;
     assertExists(workflowComplete, "Workflow should complete");
     assertEquals(
-      workflowComplete.successful_tasks,
+      workflowComplete.successfulTasks,
       2,
       "Both tasks should succeed",
     );
@@ -184,7 +134,7 @@ Deno.test({
     // Verify completion
     const workflowComplete = events.find((e) => e.type === "workflow_complete") as any;
     assertExists(workflowComplete, "Workflow should complete");
-    assertEquals(workflowComplete.successful_tasks, 1, "Task should succeed");
+    assertEquals(workflowComplete.successfulTasks, 1, "Task should succeed");
 
     // Verify result
     const state = executor.getState();
@@ -238,13 +188,13 @@ Deno.test({
 
     // Verify first task succeeded
     const fetchSuccess = events.find(
-      (e) => e.type === "task_complete" && (e as any).task_id === "fetch_value",
+      (e) => e.type === "task_complete" && (e as any).taskId === "fetch_value",
     );
     assertExists(fetchSuccess, "First task should succeed");
 
     // Verify second task failed
     const processError = events.find(
-      (e) => e.type === "task_error" && (e as any).task_id === "process_with_error",
+      (e) => e.type === "task_error" && (e as any).taskId === "process_with_error",
     );
     assertExists(processError, "Code execution task should fail");
 
@@ -315,7 +265,7 @@ Deno.test({
     const workflowComplete = events.find((e) => e.type === "workflow_complete") as any;
     assertExists(workflowComplete, "Workflow should complete");
     assertEquals(
-      workflowComplete.successful_tasks,
+      workflowComplete.successfulTasks,
       3,
       "All 3 tasks should succeed",
     );

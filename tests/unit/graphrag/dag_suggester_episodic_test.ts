@@ -8,7 +8,7 @@ import { assert, assertEquals, assertExists } from "@std/assert";
 import { DAGSuggester } from "../../../src/graphrag/dag-suggester.ts";
 import { GraphRAGEngine } from "../../../src/graphrag/graph-engine.ts";
 import { VectorSearch } from "../../../src/vector/search.ts";
-import { EmbeddingModel } from "../../../src/vector/embeddings.ts";
+import { MockEmbeddingModel } from "../../fixtures/mock-embedding-model.ts";
 import { EpisodicMemoryStore } from "../../../src/learning/episodic-memory-store.ts";
 import { PGliteClient } from "../../../src/db/client.ts";
 import { getAllMigrations, MigrationRunner } from "../../../src/db/migrations.ts";
@@ -30,7 +30,7 @@ async function createTestDb(): Promise<PGliteClient> {
 /**
  * Insert test tools and dependencies
  */
-async function insertTestTools(db: PGliteClient, model: EmbeddingModel): Promise<void> {
+async function insertTestTools(db: PGliteClient, model: MockEmbeddingModel): Promise<void> {
   const tools = [
     { id: "git:clone", server: "git", name: "clone", desc: "Clone git repository" },
     { id: "npm:install", server: "npm", name: "install", desc: "Install npm dependencies" },
@@ -78,7 +78,7 @@ Deno.test({
   sanitizeOps: false,
   fn: async () => {
     const db = await createTestDb();
-    const model = new EmbeddingModel();
+    const model = new MockEmbeddingModel();
     await model.load();
 
     await insertTestTools(db, model);
@@ -125,7 +125,7 @@ Deno.test({
   sanitizeOps: false,
   fn: async () => {
     const db = await createTestDb();
-    const model = new EmbeddingModel();
+    const model = new MockEmbeddingModel();
     await model.load();
 
     await insertTestTools(db, model);
@@ -196,7 +196,7 @@ Deno.test({
   sanitizeOps: false,
   fn: async () => {
     const db = await createTestDb();
-    const model = new EmbeddingModel();
+    const model = new MockEmbeddingModel();
     await model.load();
 
     await insertTestTools(db, model);
@@ -290,7 +290,7 @@ Deno.test({
   sanitizeOps: false,
   fn: async () => {
     const db = await createTestDb();
-    const model = new EmbeddingModel();
+    const model = new MockEmbeddingModel();
     await model.load();
 
     await insertTestTools(db, model);
@@ -379,7 +379,7 @@ Deno.test({
   sanitizeOps: false,
   fn: async () => {
     const db = await createTestDb();
-    const model = new EmbeddingModel();
+    const model = new MockEmbeddingModel();
     await model.load();
 
     await insertTestTools(db, model);
@@ -423,7 +423,7 @@ Deno.test({
   sanitizeOps: false,
   fn: async () => {
     const db = await createTestDb();
-    const model = new EmbeddingModel();
+    const model = new MockEmbeddingModel();
     await model.load();
 
     await insertTestTools(db, model);

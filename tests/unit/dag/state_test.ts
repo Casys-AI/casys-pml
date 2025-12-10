@@ -112,8 +112,8 @@ Deno.test("WorkflowState - Reducers", async (t) => {
 Deno.test("WorkflowState - Invariants", async (t) => {
   await t.step("validateStateInvariants passes for valid state", () => {
     const state: WorkflowState = {
-      workflow_id: "test-workflow",
-      current_layer: 0,
+      workflowId: "test-workflow",
+      currentLayer: 0,
       messages: [],
       tasks: [],
       decisions: [],
@@ -126,8 +126,8 @@ Deno.test("WorkflowState - Invariants", async (t) => {
 
   await t.step("validateStateInvariants rejects empty workflow_id", () => {
     const state: WorkflowState = {
-      workflow_id: "",
-      current_layer: 0,
+      workflowId: "",
+      currentLayer: 0,
       messages: [],
       tasks: [],
       decisions: [],
@@ -143,8 +143,8 @@ Deno.test("WorkflowState - Invariants", async (t) => {
 
   await t.step("validateStateInvariants rejects negative layer", () => {
     const state: WorkflowState = {
-      workflow_id: "test",
-      current_layer: -1,
+      workflowId: "test",
+      currentLayer: -1,
       messages: [],
       tasks: [],
       decisions: [],
@@ -162,8 +162,8 @@ Deno.test("WorkflowState - Invariants", async (t) => {
     "validateStateInvariants rejects tasks.length < decisions.length",
     () => {
       const state: WorkflowState = {
-        workflow_id: "test",
-        current_layer: 0,
+        workflowId: "test",
+        currentLayer: 0,
         messages: [],
         tasks: [{ taskId: "task1", status: "success" }],
         decisions: [
@@ -183,8 +183,8 @@ Deno.test("WorkflowState - Invariants", async (t) => {
 
   await t.step("validateStateInvariants allows tasks.length >= decisions.length", () => {
     const state: WorkflowState = {
-      workflow_id: "test",
-      current_layer: 0,
+      workflowId: "test",
+      currentLayer: 0,
       messages: [],
       tasks: [
         { taskId: "task1", status: "success" },
@@ -253,25 +253,25 @@ Deno.test("WorkflowState - updateState", async (t) => {
     assertEquals(updated.context.key, "value");
   });
 
-  await t.step("updateState updates current_layer", () => {
+  await t.step("updateState updates currentLayer", () => {
     const state = createInitialState("test");
 
-    const updated = updateState(state, { current_layer: 5 });
+    const updated = updateState(state, { currentLayer: 5 });
 
-    assertEquals(updated.current_layer, 5);
-    assertEquals(state.current_layer, 0); // Original unchanged
+    assertEquals(updated.currentLayer, 5);
+    assertEquals(state.currentLayer, 0); // Original unchanged
   });
 
   await t.step("updateState applies multiple updates atomically", () => {
     const state = createInitialState("test");
 
     const updated = updateState(state, {
-      current_layer: 2,
+      currentLayer: 2,
       messages: [{ role: "user", content: "test", timestamp: 1 }],
       context: { key: "value" },
     });
 
-    assertEquals(updated.current_layer, 2);
+    assertEquals(updated.currentLayer, 2);
     assertEquals(updated.messages.length, 1);
     assertEquals(updated.context.key, "value");
   });
@@ -295,9 +295,9 @@ Deno.test("WorkflowState - updateState", async (t) => {
   await t.step("updateState preserves workflow_id (immutable)", () => {
     const state = createInitialState("original-id");
 
-    const updated = updateState(state, { current_layer: 1 });
+    const updated = updateState(state, { currentLayer: 1 });
 
-    assertEquals(updated.workflow_id, "original-id");
+    assertEquals(updated.workflowId, "original-id");
   });
 });
 
@@ -305,8 +305,8 @@ Deno.test("WorkflowState - Helpers", async (t) => {
   await t.step("createInitialState creates valid state", () => {
     const state = createInitialState("test-workflow");
 
-    assertEquals(state.workflow_id, "test-workflow");
-    assertEquals(state.current_layer, 0);
+    assertEquals(state.workflowId, "test-workflow");
+    assertEquals(state.currentLayer, 0);
     assertEquals(state.messages.length, 0);
     assertEquals(state.tasks.length, 0);
     assertEquals(state.decisions.length, 0);
@@ -321,7 +321,7 @@ Deno.test("WorkflowState - Helpers", async (t) => {
     const snapshot = getStateSnapshot(state);
 
     // Snapshot should be frozen
-    assertEquals(snapshot.workflow_id, "test");
+    assertEquals(snapshot.workflowId, "test");
 
     // Attempting to modify should throw in strict mode
     // (In non-strict mode, it silently fails)

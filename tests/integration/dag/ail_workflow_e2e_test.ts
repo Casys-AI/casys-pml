@@ -158,8 +158,8 @@ Deno.test("E2E AIL Workflow: Agent discovers XML files and triggers replanning",
     setTimeout(() => {
       executor.enqueueCommand({
         type: "replan_dag",
-        new_requirement: "parse XML files found in directory",
-        available_context: { xml_files: ["data.xml", "config.xml"] },
+        newRequirement: "parse XML files found in directory",
+        availableContext: { xml_files: ["data.xml", "config.xml"] },
       });
     }, 50);
 
@@ -171,7 +171,7 @@ Deno.test("E2E AIL Workflow: Agent discovers XML files and triggers replanning",
       // After AIL decision event, auto-continue after replan
       if (
         event.type === "decision_required" &&
-        event.decision_type === "AIL"
+        event.decisionType === "AIL"
       ) {
         // Give replan time to process, then continue
         setTimeout(() => {
@@ -182,7 +182,7 @@ Deno.test("E2E AIL Workflow: Agent discovers XML files and triggers replanning",
 
     // 7. Verify AIL decision event emitted
     const ailEvent = events.find(
-      (e) => e.type === "decision_required" && e.decision_type === "AIL",
+      (e) => e.type === "decision_required" && e.decisionType === "AIL",
     );
     assertExists(ailEvent, "AIL decision_required event should be emitted");
 
@@ -202,7 +202,7 @@ Deno.test("E2E AIL Workflow: Agent discovers XML files and triggers replanning",
     const completeEvent = events.find((e) => e.type === "workflow_complete");
     assertExists(completeEvent, "Workflow should complete");
     assertEquals(
-      (completeEvent as any).successful_tasks >= 1,
+      (completeEvent as any).successfulTasks >= 1,
       true,
       "At least initial task should succeed",
     );

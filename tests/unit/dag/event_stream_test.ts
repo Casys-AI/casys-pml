@@ -21,8 +21,8 @@ Deno.test("EventStream - Event Emission", async (t) => {
     const event: ExecutionEvent = {
       type: "workflow_start",
       timestamp: Date.now(),
-      workflow_id: "test",
-      total_layers: 3,
+      workflowId: "test",
+      totalLayers: 3,
     };
 
     const emitted = await stream.emit(event);
@@ -38,64 +38,64 @@ Deno.test("EventStream - Event Emission", async (t) => {
       {
         type: "workflow_start",
         timestamp: Date.now(),
-        workflow_id: "test",
-        total_layers: 1,
+        workflowId: "test",
+        totalLayers: 1,
       },
       {
         type: "layer_start",
         timestamp: Date.now(),
-        workflow_id: "test",
-        layer_index: 0,
-        tasks_count: 2,
+        workflowId: "test",
+        layerIndex: 0,
+        tasksCount: 2,
       },
       {
         type: "task_start",
         timestamp: Date.now(),
-        workflow_id: "test",
-        task_id: "task1",
+        workflowId: "test",
+        taskId: "task1",
         tool: "tool1",
       },
       {
         type: "task_complete",
         timestamp: Date.now(),
-        workflow_id: "test",
-        task_id: "task1",
+        workflowId: "test",
+        taskId: "task1",
         executionTimeMs: 10,
       },
       {
         type: "task_error",
         timestamp: Date.now(),
-        workflow_id: "test",
-        task_id: "task2",
+        workflowId: "test",
+        taskId: "task2",
         error: "test error",
       },
       {
         type: "state_updated",
         timestamp: Date.now(),
-        workflow_id: "test",
-        updates: { tasks_added: 1 },
+        workflowId: "test",
+        updates: { tasksAdded: 1 },
       },
       {
         type: "checkpoint",
         timestamp: Date.now(),
-        workflow_id: "test",
-        checkpoint_id: "cp1",
-        layer_index: 0,
+        workflowId: "test",
+        checkpointId: "cp1",
+        layerIndex: 0,
       },
       {
         type: "decision_required",
         timestamp: Date.now(),
-        workflow_id: "test",
-        decision_type: "HIL",
+        workflowId: "test",
+        decisionType: "HIL",
         description: "test decision",
       },
       {
         type: "workflow_complete",
         timestamp: Date.now(),
-        workflow_id: "test",
-        total_time_ms: 100,
-        successful_tasks: 1,
-        failed_tasks: 1,
+        workflowId: "test",
+        totalTimeMs: 100,
+        successfulTasks: 1,
+        failedTasks: 1,
       },
     ];
 
@@ -117,8 +117,8 @@ Deno.test("EventStream - Event Emission", async (t) => {
     const event: ExecutionEvent = {
       type: "workflow_start",
       timestamp: Date.now(),
-      workflow_id: "test",
-      total_layers: 1,
+      workflowId: "test",
+      totalLayers: 1,
     };
 
     // Start subscriber in background
@@ -135,10 +135,10 @@ Deno.test("EventStream - Event Emission", async (t) => {
     await stream.emit({
       type: "workflow_complete",
       timestamp: Date.now(),
-      workflow_id: "test",
-      total_time_ms: 10,
-      successful_tasks: 0,
-      failed_tasks: 0,
+      workflowId: "test",
+      totalTimeMs: 10,
+      successfulTasks: 0,
+      failedTasks: 0,
     });
 
     // Wait for subscriber to process
@@ -158,8 +158,8 @@ Deno.test("EventStream - Event Emission", async (t) => {
     const event: ExecutionEvent = {
       type: "workflow_start",
       timestamp: Date.now(),
-      workflow_id: "test",
-      total_layers: 1,
+      workflowId: "test",
+      totalLayers: 1,
     };
 
     const emitted = await stream.emit(event);
@@ -176,8 +176,8 @@ Deno.test("EventStream - Performance", async (t) => {
       const event: ExecutionEvent = {
         type: "task_complete",
         timestamp: Date.now(),
-        workflow_id: "test",
-        task_id: `task${i}`,
+        workflowId: "test",
+        taskId: `task${i}`,
         executionTimeMs: 10,
       };
 
@@ -228,8 +228,8 @@ Deno.test("EventStream - Performance", async (t) => {
       await stream.emit({
         type: "task_complete",
         timestamp: Date.now(),
-        workflow_id: "test",
-        task_id: `task${i}`,
+        workflowId: "test",
+        taskId: `task${i}`,
         executionTimeMs: 10,
       });
     }
@@ -266,8 +266,8 @@ Deno.test("EventStream - Statistics", async (t) => {
       await stream.emit({
         type: "task_complete",
         timestamp: Date.now(),
-        workflow_id: "test",
-        task_id: `task${i}`,
+        workflowId: "test",
+        taskId: `task${i}`,
         executionTimeMs: 10,
       });
     }
@@ -315,25 +315,25 @@ Deno.test("EventStream - Multiple Subscribers", async (t) => {
     await stream.emit({
       type: "workflow_start",
       timestamp: Date.now(),
-      workflow_id: "test",
-      total_layers: 1,
+      workflowId: "test",
+      totalLayers: 1,
     });
 
     await stream.emit({
       type: "task_complete",
       timestamp: Date.now(),
-      workflow_id: "test",
-      task_id: "task1",
+      workflowId: "test",
+      taskId: "task1",
       executionTimeMs: 10,
     });
 
     await stream.emit({
       type: "workflow_complete",
       timestamp: Date.now(),
-      workflow_id: "test",
-      total_time_ms: 100,
-      successful_tasks: 1,
-      failed_tasks: 0,
+      workflowId: "test",
+      totalTimeMs: 100,
+      successfulTasks: 1,
+      failedTasks: 0,
     });
 
     // Wait for both subscribers

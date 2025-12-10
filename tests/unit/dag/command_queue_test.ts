@@ -146,7 +146,7 @@ Deno.test("CommandQueue - Command Validation", async (t) => {
           dependsOn: [],
         },
       ],
-      target_layer: 2,
+      targetLayer: 2,
     };
 
     assertEquals(isValidCommand(cmd), true);
@@ -156,18 +156,18 @@ Deno.test("CommandQueue - Command Validation", async (t) => {
     const commands: Command[] = [
       { type: "continue", reason: "test" },
       { type: "abort", reason: "test" },
-      { type: "inject_tasks", tasks: [], target_layer: 0 },
-      { type: "replan_dag", new_requirement: "test requirement", available_context: {} },
-      { type: "skip_layer", layer_index: 1, reason: "test" },
-      { type: "modify_args", task_id: "task1", updates: {} },
+      { type: "inject_tasks", tasks: [], targetLayer: 0 },
+      { type: "replan_dag", newRequirement: "test requirement", availableContext: {} },
+      { type: "skip_layer", layerIndex: 1, reason: "test" },
+      { type: "modify_args", taskId: "task1", updates: {} },
       {
         type: "checkpoint_response",
-        checkpoint_id: "cp1",
+        checkpointId: "cp1",
         decision: "continue",
       },
       {
         type: "approval_response",
-        checkpoint_id: "cp1",
+        checkpointId: "cp1",
         approved: true,
       },
     ];
@@ -341,8 +341,8 @@ Deno.test("CommandQueue - Statistics", async (t) => {
     const queue = new CommandQueue();
 
     const initialStats = queue.getStats();
-    assertEquals(initialStats.total_commands, 0);
-    assertEquals(initialStats.processed_commands, 0);
+    assertEquals(initialStats.totalCommands, 0);
+    assertEquals(initialStats.processedCommands, 0);
 
     // Enqueue 5 commands
     for (let i = 0; i < 5; i++) {
@@ -350,15 +350,15 @@ Deno.test("CommandQueue - Statistics", async (t) => {
     }
 
     let stats = queue.getStats();
-    assertEquals(stats.total_commands, 5);
-    assertEquals(stats.processed_commands, 0);
+    assertEquals(stats.totalCommands, 5);
+    assertEquals(stats.processedCommands, 0);
 
     // Process commands
     await queue.processCommandsAsync();
 
     stats = queue.getStats();
-    assertEquals(stats.total_commands, 5);
-    assertEquals(stats.processed_commands, 5);
+    assertEquals(stats.totalCommands, 5);
+    assertEquals(stats.processedCommands, 5);
   });
 
   await t.step("rejected_commands incremented on invalid command", () => {
@@ -371,6 +371,6 @@ Deno.test("CommandQueue - Statistics", async (t) => {
     }
 
     const stats = queue.getStats();
-    assertEquals(stats.rejected_commands, 1);
+    assertEquals(stats.rejectedCommands, 1);
   });
 });

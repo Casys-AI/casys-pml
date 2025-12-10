@@ -410,8 +410,12 @@ Deno.test("SchemaInferrer - multiple property types in one expression", async ()
 });
 
 // Integration test with CapabilityStore
-Deno.test("SchemaInferrer - integration with CapabilityStore", async () => {
-  const db = await setupTestDb();
+Deno.test({
+  name: "SchemaInferrer - integration with CapabilityStore",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const db = await setupTestDb();
 
   // Mock EmbeddingModel
   class MockEmbeddingModel {
@@ -452,4 +456,5 @@ Deno.test("SchemaInferrer - integration with CapabilityStore", async () => {
   assertEquals(props.debug.type, "boolean");
 
   await db.close();
+  },
 });

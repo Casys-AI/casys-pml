@@ -13,7 +13,7 @@
 
 import { assert, assertEquals, assertExists } from "@std/assert";
 import { VectorSearch } from "../../../src/vector/search.ts";
-import { EmbeddingModel } from "../../../src/vector/embeddings.ts";
+import { MockEmbeddingModel } from "../../fixtures/mock-embedding-model.ts";
 import { PGliteClient } from "../../../src/db/client.ts";
 import { createInitialMigration } from "../../../src/db/migrations.ts";
 
@@ -37,7 +37,7 @@ async function createTestDb(): Promise<PGliteClient> {
  */
 async function insertTestEmbeddings(
   db: PGliteClient,
-  model: EmbeddingModel,
+  model: MockEmbeddingModel,
 ): Promise<void> {
   // Test tools with descriptions designed for semantic search testing
   const testTools = [
@@ -161,7 +161,7 @@ async function insertTestEmbeddings(
 // AC3: Test searchTools() API basic functionality
 Deno.test("VectorSearch - searchTools() returns results", { ignore: true }, async () => {
   const db = await createTestDb();
-  const model = new EmbeddingModel();
+  const model = new MockEmbeddingModel();
   await model.load();
 
   await insertTestEmbeddings(db, model);
@@ -190,7 +190,7 @@ Deno.test(
   { ignore: true },
   async () => {
     const db = await createTestDb();
-    const model = new EmbeddingModel();
+    const model = new MockEmbeddingModel();
     await model.load();
 
     await insertTestEmbeddings(db, model);
@@ -213,7 +213,7 @@ Deno.test(
   { ignore: true },
   async () => {
     const db = await createTestDb();
-    const model = new EmbeddingModel();
+    const model = new MockEmbeddingModel();
     await model.load();
 
     await insertTestEmbeddings(db, model);
@@ -236,7 +236,7 @@ Deno.test(
   { ignore: true },
   async () => {
     const db = await createTestDb();
-    const model = new EmbeddingModel();
+    const model = new MockEmbeddingModel();
     await model.load();
 
     await insertTestEmbeddings(db, model);
@@ -262,7 +262,7 @@ Deno.test(
   { ignore: true },
   async () => {
     const db = await createTestDb();
-    const model = new EmbeddingModel();
+    const model = new MockEmbeddingModel();
     await model.load();
 
     await insertTestEmbeddings(db, model);
@@ -294,7 +294,7 @@ Deno.test(
   { ignore: true },
   async () => {
     const db = await createTestDb();
-    const model = new EmbeddingModel();
+    const model = new MockEmbeddingModel();
     await model.load();
 
     await insertTestEmbeddings(db, model);
@@ -319,7 +319,7 @@ Deno.test(
   { ignore: true },
   async () => {
     const db = await createTestDb();
-    const model = new EmbeddingModel();
+    const model = new MockEmbeddingModel();
     await model.load();
 
     await insertTestEmbeddings(db, model);
@@ -348,7 +348,7 @@ Deno.test(
   { ignore: true },
   async () => {
     const db = await createTestDb();
-    const model = new EmbeddingModel();
+    const model = new MockEmbeddingModel();
     await model.load();
 
     await insertTestEmbeddings(db, model);
@@ -374,7 +374,7 @@ Deno.test(
 // Edge case: Empty query
 Deno.test("VectorSearch - handles empty query", async () => {
   const db = await createTestDb();
-  const model = new EmbeddingModel(); // Don't load model for this test
+  const model = new MockEmbeddingModel(); // Don't load model for this test
 
   const vectorSearch = new VectorSearch(db, model);
   const results = await vectorSearch.searchTools("", 5);
@@ -391,7 +391,7 @@ Deno.test(
   { ignore: true },
   async () => {
     const db = await createTestDb();
-    const model = new EmbeddingModel();
+    const model = new MockEmbeddingModel();
     await model.load();
 
     await insertTestEmbeddings(db, model);
@@ -415,7 +415,7 @@ Deno.test(
 // Edge case: Invalid topK parameter
 Deno.test("VectorSearch - handles invalid topK", { ignore: true }, async () => {
   const db = await createTestDb();
-  const model = new EmbeddingModel();
+  const model = new MockEmbeddingModel();
   await model.load();
 
   await insertTestEmbeddings(db, model);
@@ -432,7 +432,7 @@ Deno.test("VectorSearch - handles invalid topK", { ignore: true }, async () => {
 // Edge case: Invalid minScore parameter
 Deno.test("VectorSearch - handles invalid minScore", { ignore: true }, async () => {
   const db = await createTestDb();
-  const model = new EmbeddingModel();
+  const model = new MockEmbeddingModel();
   await model.load();
 
   await insertTestEmbeddings(db, model);
@@ -452,7 +452,7 @@ Deno.test(
   { ignore: true },
   async () => {
     const db = await createTestDb();
-    const model = new EmbeddingModel();
+    const model = new MockEmbeddingModel();
     await model.load();
 
     await insertTestEmbeddings(db, model);

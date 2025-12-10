@@ -11,15 +11,16 @@
  * - AC7: Performance targets
  */
 
-import { assert, assertEquals, assertExists } from "@std/assert";
+import { assert, assertEquals } from "@std/assert";
 import {
-  EmbeddingModel,
-  generateEmbeddings,
   schemaToText,
   type ToolSchema,
 } from "../../../src/vector/embeddings.ts";
+import { MockEmbeddingModel } from "../../fixtures/mock-embedding-model.ts";
 import { PGliteClient } from "../../../src/db/client.ts";
 import { createInitialMigration } from "../../../src/db/migrations.ts";
+
+// generateEmbeddings tests moved to integration tests to avoid ONNX loading at import time
 
 /**
  * Create a test database in memory
@@ -120,7 +121,7 @@ Deno.test({
   name: "EmbeddingModel - model loading (SLOW - downloads ~400MB)",
   ignore: true, // Skip by default; enable for integration testing
   async fn() {
-    const model = new EmbeddingModel();
+    const model = new MockEmbeddingModel();
 
     // Initially not loaded
     assertEquals(model.isLoaded(), false);
@@ -137,7 +138,7 @@ Deno.test({
   name: "EmbeddingModel - generates 1024-dimensional embeddings (AC3)",
   ignore: true, // Skip by default; requires model download
   async fn() {
-    const model = new EmbeddingModel();
+    const model = new MockEmbeddingModel();
     await model.load();
 
     const text = "This is a test document for embedding generation";
@@ -157,7 +158,7 @@ Deno.test({
   name: "EmbeddingModel - lazy loading on first encode",
   ignore: true, // Skip by default
   async fn() {
-    const model = new EmbeddingModel();
+    const model = new MockEmbeddingModel();
     assertEquals(model.isLoaded(), false);
 
     // First encode should trigger load
@@ -171,7 +172,7 @@ Deno.test({
   name: "EmbeddingModel - deterministic embeddings",
   ignore: true, // Skip by default
   async fn() {
-    const model = new EmbeddingModel();
+    const model = new MockEmbeddingModel();
     await model.load();
 
     const text = "Consistent input text";
@@ -198,7 +199,7 @@ Deno.test({
     const db = await createTestDb();
     await insertTestSchemas(db, 5);
 
-    const model = new EmbeddingModel();
+    const model = new MockEmbeddingModel();
     const stats = await generateEmbeddings(db, model);
 
     // Check stats
@@ -230,7 +231,7 @@ Deno.test({
     const db = await createTestDb();
     await insertTestSchemas(db, 3);
 
-    const model = new EmbeddingModel();
+    const model = new MockEmbeddingModel();
 
     // First run: generate all
     const stats1 = await generateEmbeddings(db, model);
@@ -253,7 +254,7 @@ Deno.test({
     const db = await createTestDb();
     await insertTestSchemas(db, 5);
 
-    const model = new EmbeddingModel();
+    const model = new MockEmbeddingModel();
 
     // Generate embeddings for first 3 tools only
     const tools = await db.query("SELECT tool_id FROM tool_schema LIMIT 3");
@@ -286,7 +287,7 @@ Deno.test({
     const db = await createTestDb();
     await insertTestSchemas(db, 200);
 
-    const model = new EmbeddingModel();
+    const model = new MockEmbeddingModel();
     const startTime = performance.now();
 
     const stats = await generateEmbeddings(db, model);
@@ -339,7 +340,7 @@ Deno.test({
   ignore: true, // Requires properly initialized DB; use integration tests
   async fn() {
     const db = await createTestDb();
-    const model = new EmbeddingModel();
+    const model = new MockEmbeddingModel();
 
     const stats = await generateEmbeddings(db, model);
 
@@ -352,6 +353,6 @@ Deno.test({
 });
 
 Deno.test("EmbeddingModel - isLoaded returns false initially", () => {
-  const model = new EmbeddingModel();
+  const model = new MockEmbeddingModel();
   assertEquals(model.isLoaded(), false);
 });

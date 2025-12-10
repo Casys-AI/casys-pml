@@ -11,9 +11,9 @@
  */
 
 import { assertEquals, assertExists } from "@std/assert";
-import { ControlledExecutor } from "../../src/dag/controlled-executor.ts";
 import type { DAGStructure } from "../../src/graphrag/types.ts";
 import type { ExecutionEvent } from "../../src/dag/types.ts";
+import { createTestExecutor } from "./test-helpers.ts";
 
 /**
  * AC #4: Parallel analysis pattern - fast/ML/stats with first success
@@ -118,7 +118,7 @@ Deno.test({
     };
 
     // Execute DAG
-    const executor = new ControlledExecutor(mockExecutor);
+    const executor = await createTestExecutor(mockExecutor);
     const events: ExecutionEvent[] = [];
 
     for await (const event of executor.executeStream(dag)) {
@@ -127,13 +127,13 @@ Deno.test({
 
     // Verify workflow completed
     const completeEvent = events.find((e) => e.type === "workflow_complete") as
-      | { type: "workflow_complete"; successful_tasks: number; failed_tasks: number }
+      | { type: "workflow_complete"; successfulTasks: number; failedTasks: number }
       | undefined;
     assertExists(completeEvent);
 
     // Verify aggregation worked (at least fast and stats should succeed)
     const aggregateComplete = events.find(
-      (e) => e.type === "task_complete" && e.task_id === "aggregate",
+      (e) => e.type === "task_complete" && (e as any).taskId === "aggregate",
     );
     assertExists(aggregateComplete);
 
@@ -207,7 +207,7 @@ Deno.test({
       ],
     };
 
-    const executor = new ControlledExecutor(mockExecutor);
+    const executor = await createTestExecutor(mockExecutor);
     const events: ExecutionEvent[] = [];
 
     for await (const event of executor.executeStream(dag)) {
@@ -216,29 +216,29 @@ Deno.test({
 
     // Verify ML task failed safely
     const mlWarning = events.find(
-      (e) => e.type === "task_warning" && e.task_id === "ml_analysis",
+      (e) => e.type === "task_warning" && (e as any).taskId === "ml_analysis",
     );
     assertExists(mlWarning, "ML task should emit warning");
 
     // Verify stats fallback succeeded
     const statsComplete = events.find(
-      (e) => e.type === "task_complete" && e.task_id === "stats_fallback",
+      (e) => e.type === "task_complete" && (e as any).taskId === "stats_fallback",
     );
     assertExists(statsComplete, "Stats fallback should complete");
 
     // Verify final aggregator succeeded with fallback
     const finalComplete = events.find(
-      (e) => e.type === "task_complete" && e.task_id === "final",
+      (e) => e.type === "task_complete" && (e as any).taskId === "final",
     );
     assertExists(finalComplete, "Final aggregator should complete");
 
     // Verify workflow completed successfully
     const workflowComplete = events.find((e) => e.type === "workflow_complete") as
-      | { type: "workflow_complete"; successful_tasks: number }
+      | { type: "workflow_complete"; successfulTasks: number }
       | undefined;
     assertExists(workflowComplete);
     assertEquals(
-      workflowComplete.successful_tasks,
+      workflowComplete.successfulTasks,
       3,
       "Should have 3 successful tasks (fetch, stats, final)",
     );
@@ -325,7 +325,7 @@ Deno.test({
       ],
     };
 
-    const executor = new ControlledExecutor(mockExecutor);
+    const executor = await createTestExecutor(mockExecutor);
     const events: ExecutionEvent[] = [];
 
     for await (const event of executor.executeStream(dag)) {
@@ -334,19 +334,19 @@ Deno.test({
 
     // Verify algo_a succeeded
     const algoAComplete = events.find(
-      (e) => e.type === "task_complete" && e.task_id === "algo_a",
+      (e) => e.type === "task_complete" && (e as any).taskId === "algo_a",
     );
     assertExists(algoAComplete, "Algorithm A should complete");
 
     // Verify algo_b failed safely
     const algoBWarning = events.find(
-      (e) => e.type === "task_warning" && e.task_id === "algo_b",
+      (e) => e.type === "task_warning" && (e as any).taskId === "algo_b",
     );
     assertExists(algoBWarning, "Algorithm B should fail safely");
 
     // Verify comparison succeeded with partial results
     const compareComplete = events.find(
-      (e) => e.type === "task_complete" && e.task_id === "compare",
+      (e) => e.type === "task_complete" && (e as any).taskId === "compare",
     );
     assertExists(compareComplete, "Comparison should complete");
 
@@ -397,7 +397,7 @@ Deno.test({
       ],
     };
 
-    const executor = new ControlledExecutor(mockExecutor);
+    const executor = await createTestExecutor(mockExecutor);
     const events: ExecutionEvent[] = [];
 
     for await (const event of executor.executeStream(dag)) {
@@ -406,7 +406,7 @@ Deno.test({
 
     // Verify task succeeded
     const retryComplete = events.find(
-      (e) => e.type === "task_complete" && e.task_id === "retry_task",
+      (e) => e.type === "task_complete" && (e as any).taskId === "retry_task",
     );
     assertExists(retryComplete, "Task with retry capability should complete");
 
@@ -468,7 +468,7 @@ Deno.test({
       ],
     };
 
-    const executor = new ControlledExecutor(mockExecutor);
+    const executor = await createTestExecutor(mockExecutor);
     const events: ExecutionEvent[] = [];
 
     for await (const event of executor.executeStream(dag)) {
@@ -477,19 +477,19 @@ Deno.test({
 
     // Verify sandbox_fail emitted warning
     const sandboxWarning = events.find(
-      (e) => e.type === "task_warning" && e.task_id === "sandbox_fail",
+      (e) => e.type === "task_warning" && (e as any).taskId === "sandbox_fail",
     );
     assertExists(sandboxWarning, "Sandbox failure should emit warning");
 
     // Verify safe_branch succeeded
     const safeBranchComplete = events.find(
-      (e) => e.type === "task_complete" && e.task_id === "safe_branch",
+      (e) => e.type === "task_complete" && (e as any).taskId === "safe_branch",
     );
     assertExists(safeBranchComplete, "Safe branch should complete");
 
     // Verify MCP downstream task succeeded (error isolation)
     const mcpComplete = events.find(
-      (e) => e.type === "task_complete" && e.task_id === "mcp_downstream",
+      (e) => e.type === "task_complete" && (e as any).taskId === "mcp_downstream",
     );
     assertExists(mcpComplete, "MCP downstream should complete (error isolated)");
 
@@ -568,7 +568,7 @@ Deno.test({
       ],
     };
 
-    const executor = new ControlledExecutor(mockExecutor);
+    const executor = await createTestExecutor(mockExecutor);
     const events: ExecutionEvent[] = [];
 
     for await (const event of executor.executeStream(dag)) {
@@ -577,32 +577,32 @@ Deno.test({
 
     // Verify 1 branch failed safely
     const branch2Warning = events.find(
-      (e) => e.type === "task_warning" && e.task_id === "branch_2",
+      (e) => e.type === "task_warning" && (e as any).taskId === "branch_2",
     );
     assertExists(branch2Warning, "Branch 2 should fail safely");
 
     // Verify 2 branches succeeded
     const branch1Complete = events.find(
-      (e) => e.type === "task_complete" && e.task_id === "branch_1",
+      (e) => e.type === "task_complete" && (e as any).taskId === "branch_1",
     );
     const branch3Complete = events.find(
-      (e) => e.type === "task_complete" && e.task_id === "branch_3",
+      (e) => e.type === "task_complete" && (e as any).taskId === "branch_3",
     );
     assertExists(branch1Complete, "Branch 1 should complete");
     assertExists(branch3Complete, "Branch 3 should complete");
 
     // Verify final aggregation succeeded with 2/3 results
     const finalComplete = events.find(
-      (e) => e.type === "task_complete" && e.task_id === "final",
+      (e) => e.type === "task_complete" && (e as any).taskId === "final",
     );
     assertExists(finalComplete, "Final aggregation should complete");
 
     // Verify workflow completed
     const workflowComplete = events.find((e) => e.type === "workflow_complete") as
-      | { type: "workflow_complete"; successful_tasks: number; failed_tasks: number }
+      | { type: "workflow_complete"; successfulTasks: number; failedTasks: number }
       | undefined;
     assertExists(workflowComplete);
-    assertEquals(workflowComplete.failed_tasks, 0, "No critical failures");
+    assertEquals(workflowComplete.failedTasks, 0, "No critical failures");
 
     console.log("✅ AC #10: Multi-branch partial success validated");
   },

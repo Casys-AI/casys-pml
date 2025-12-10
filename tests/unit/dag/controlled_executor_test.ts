@@ -159,7 +159,7 @@ Deno.test("ControlledExecutor - Command Queue", async (t) => {
     });
 
     const stats = executor.getCommandQueueStats();
-    assertEquals(stats.total_commands, 1);
+    assertEquals(stats.totalCommands, 1);
   });
 
   await t.step("commands processed during execution", async () => {
@@ -191,7 +191,7 @@ Deno.test("ControlledExecutor - Command Queue", async (t) => {
 
     assertEquals(errorThrown, true, "Abort command should throw an error");
     const stats = executor.getCommandQueueStats();
-    assertEquals(stats.processed_commands, 1);
+    assertEquals(stats.processedCommands, 1);
   });
 });
 
@@ -355,7 +355,7 @@ Deno.test("ControlledExecutor - State Management", async (t) => {
 
     const stats = executor.getCommandQueueStats();
 
-    assertEquals(stats.total_commands, 0);
-    assertEquals(stats.processed_commands, 0);
+    assertEquals(stats.totalCommands, 0);
+    assertEquals(stats.processedCommands, 0);
   });
 });
