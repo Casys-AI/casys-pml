@@ -328,7 +328,10 @@ Deno.test("CasysIntelligenceGatewayServer - call_tool workflow execution", async
   assertExists(response.results);
 });
 
-Deno.test("CasysIntelligenceGatewayServer - MCP error responses", async () => {
+Deno.test({
+  name: "CasysIntelligenceGatewayServer - MCP error responses",
+  sanitizeOps: false, // Async operations may overlap in parallel mode
+  fn: async () => {
   const db = createMockDB();
   const vectorSearch = createMockVectorSearch();
   const graphEngine = createMockGraphEngine();
@@ -356,9 +359,13 @@ Deno.test("CasysIntelligenceGatewayServer - MCP error responses", async () => {
   assertExists(result.error);
   assertEquals(result.error.code, -32602); // INVALID_PARAMS
   assert(result.error.message.includes("Missing required parameter"));
+  },
 });
 
-Deno.test("CasysIntelligenceGatewayServer - Unknown MCP server error", async () => {
+Deno.test({
+  name: "CasysIntelligenceGatewayServer - Unknown MCP server error",
+  sanitizeOps: false, // Async operations may overlap in parallel mode
+  fn: async () => {
   const db = createMockDB();
   const vectorSearch = createMockVectorSearch();
   const graphEngine = createMockGraphEngine();
@@ -386,4 +393,5 @@ Deno.test("CasysIntelligenceGatewayServer - Unknown MCP server error", async () 
   assertExists(result.error);
   assertEquals(result.error.code, -32602); // INVALID_PARAMS
   assert(result.error.message.includes("Unknown MCP server"));
+  },
 });
