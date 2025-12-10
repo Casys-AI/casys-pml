@@ -46,12 +46,17 @@ export class MockEmbeddingModel {
   }
 
   /**
-   * Generate deterministic 1024-dimensional embedding
+   * Generate deterministic 1024-dimensional embedding with semantic similarity
    *
-   * Uses simple hash of input text to generate consistent values.
-   * NOT semantically meaningful, but suitable for testing.
+   * Uses TF-IDF-inspired approach:
+   * - Tokenizes text into words (lowercase, alphanumeric)
+   * - Each word maps to specific dimensions via stable hash
+   * - Word frequency determines magnitude
+   * - Normalized for cosine similarity
    *
-   * @param text Input text (used to generate deterministic hash)
+   * Texts with similar words will have high cosine similarity.
+   *
+   * @param text Input text
    * @returns 1024-dimensional vector with values in [-1, 1]
    */
   async encode(text: string): Promise<number[]> {
@@ -59,24 +64,56 @@ export class MockEmbeddingModel {
       await this.load();
     }
 
-    // Generate simple hash from text
-    let hash = 0;
-    for (let i = 0; i < text.length; i++) {
-      const char = text.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32bit integer
+    // Common stop words to filter out (improves semantic similarity)
+    const stopWords = new Set([
+      "a", "an", "and", "are", "as", "at", "be", "by", "for",
+      "from", "has", "he", "in", "is", "it", "its", "of", "on",
+      "that", "the", "to", "was", "will", "with",
+    ]);
+
+    // Tokenize: lowercase, split on non-alphanumeric, filter empty and stop words
+    const tokens = text
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((t) => t.length > 0 && !stopWords.has(t));
+
+    // Count term frequencies
+    const termFreq = new Map<string, number>();
+    for (const token of tokens) {
+      termFreq.set(token, (termFreq.get(token) || 0) + 1);
     }
 
-    // Use hash as seed for pseudo-random but deterministic values
-    const embedding: number[] = [];
-    let seed = Math.abs(hash);
+    // Initialize embedding vector (1024 dimensions)
+    const embedding = new Array(1024).fill(0);
 
-    // Generate 1024 dimensions
-    for (let i = 0; i < 1024; i++) {
-      // Simple pseudo-random generator (deterministic)
-      seed = (seed * 9301 + 49297) % 233280;
-      const value = (seed / 233280) * 2 - 1; // Normalize to [-1, 1]
-      embedding.push(value);
+    // Map each word to dimensions and add its TF score
+    for (const [word, freq] of termFreq.entries()) {
+      // Stable hash for word -> dimension mapping
+      let hash = 0;
+      for (let i = 0; i < word.length; i++) {
+        hash = ((hash << 5) - hash) + word.charCodeAt(i);
+        hash = hash & hash; // 32-bit
+      }
+
+      // Map to 30 dimensions per word for very high overlap on matching words
+      // Use positive values only to avoid negative dot products that reduce similarity
+      const numDims = 30;
+      for (let i = 0; i < numDims; i++) {
+        const dimIndex = Math.abs((hash + i * 1000) % 1024);
+        // All positive contributions - matching words will always increase similarity
+        embedding[dimIndex] += freq;
+      }
+    }
+
+    // Normalize to unit length for cosine similarity
+    const magnitude = Math.sqrt(
+      embedding.reduce((sum, val) => sum + val * val, 0),
+    );
+
+    if (magnitude > 0) {
+      for (let i = 0; i < embedding.length; i++) {
+        embedding[i] /= magnitude;
+      }
     }
 
     return embedding;

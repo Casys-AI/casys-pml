@@ -12,7 +12,9 @@ import type { VectorSearch } from "../vector/search.ts";
 import type { GraphRAGEngine } from "./graph-engine.ts";
 import type { EpisodicMemoryStore } from "../learning/episodic-memory-store.ts";
 import type { CapabilityMatcher } from "../capabilities/matcher.ts";
-import type { CapabilityMatch } from "../capabilities/types.ts";
+import type { CapabilityMatch, Capability } from "../capabilities/types.ts";
+import type { CapabilityStore } from "../capabilities/capability-store.ts";
+import { SpectralClusteringManager, type ClusterableCapability } from "./spectral-clustering.ts";
 import type {
   CompletedTask,
   DAGStructure,
@@ -32,13 +34,29 @@ import type {
 export class DAGSuggester {
   private episodicMemory: EpisodicMemoryStore | null = null; // Story 4.1e - Episodic memory integration
   private capabilityMatcher: CapabilityMatcher | null = null; // Story 7.3a - Capability matching
+  private capabilityStore: CapabilityStore | null = null; // Story 7.4 - Strategic discovery
+  private spectralClustering: SpectralClusteringManager | null = null; // Story 7.4 - Cluster boost
 
   constructor(
     private graphEngine: GraphRAGEngine,
     private vectorSearch: VectorSearch,
     capabilityMatcher?: CapabilityMatcher,
+    capabilityStore?: CapabilityStore,
   ) {
     this.capabilityMatcher = capabilityMatcher || null;
+    this.capabilityStore = capabilityStore || null;
+  }
+
+  /**
+   * Set capability store for strategic discovery (Story 7.4)
+   *
+   * Enables context-based capability search in DAG suggestions.
+   *
+   * @param store - CapabilityStore instance
+   */
+  setCapabilityStore(store: CapabilityStore): void {
+    this.capabilityStore = store;
+    log.debug("[DAGSuggester] Capability store configured for strategic discovery");
   }
 
   /**
@@ -160,6 +178,9 @@ export class DAGSuggester {
       const dagStructure = this.graphEngine.buildDAG(
         rankedCandidates.map((c) => c.toolId),
       );
+
+      // Story 7.4: Strategic Discovery - Inject matching capabilities
+      await this.injectMatchingCapabilities(dagStructure, rankedCandidates.map((c) => c.toolId));
 
       // 4. Extract dependency paths for explainability
       const dependencyPaths = this.extractDependencyPaths(rankedCandidates.map((c) => c.toolId));
@@ -674,6 +695,15 @@ export class DAGSuggester {
       // It is too slow for this scope and dilutes the signal.
       // Kept for Active Hybrid Search only.
 
+      // 5. Story 7.4: Query capabilities matching context tools
+      const contextToolsList = Array.from(executedTools);
+      const capabilityPredictions = await this.predictCapabilities(
+        contextToolsList,
+        seenTools,
+        episodeStats,
+      );
+      predictions.push(...capabilityPredictions);
+
       // 6. Sort by confidence (descending)
       predictions.sort((a, b) => b.confidence - a.confidence);
 
@@ -994,6 +1024,81 @@ export class DAGSuggester {
     return Math.min(confidence, 0.95); // Cap at 0.95
   }
 
+  /**
+   * Predict capabilities based on context tools (Story 7.4 AC#6)
+   *
+   * Uses CapabilityStore.searchByContext() to find capabilities
+   * whose tools_used overlap with the current context.
+   *
+   * @param contextTools - Tools currently executed in workflow
+   * @param seenTools - Tools already in predictions (for deduplication)
+   * @param episodeStats - Episode statistics for adjustment
+   * @returns Array of PredictedNode with source="capability"
+   */
+  private async predictCapabilities(
+    contextTools: string[],
+    seenTools: Set<string>,
+    episodeStats: Map<string, {
+      total: number;
+      successes: number;
+      failures: number;
+      successRate: number;
+      failureRate: number;
+    }>,
+  ): Promise<PredictedNode[]> {
+    if (!this.capabilityStore || contextTools.length === 0) {
+      return [];
+    }
+
+    const predictions: PredictedNode[] = [];
+
+    try {
+      // Search for capabilities matching context tools
+      const matches = await this.capabilityStore.searchByContext(contextTools, 5, 0.3);
+
+      for (const match of matches) {
+        const capability = match.capability;
+        const capabilityToolId = `capability:${capability.id}`;
+
+        // Skip if already seen (unlikely but safety check)
+        if (seenTools.has(capabilityToolId)) continue;
+
+        // Calculate base confidence from overlap score
+        // Scale to 0.4-0.85 range (capabilities are powerful but need confirmation)
+        const baseConfidence = 0.4 + (match.overlapScore * 0.45);
+
+        // Apply episodic learning adjustments
+        const adjusted = this.adjustConfidenceFromEpisodes(
+          baseConfidence,
+          capabilityToolId,
+          episodeStats,
+        );
+
+        if (!adjusted) continue; // Excluded due to high failure rate
+
+        predictions.push({
+          toolId: capabilityToolId,
+          confidence: adjusted.confidence,
+          reasoning: `Capability matches context (${(match.overlapScore * 100).toFixed(0)}% overlap)`,
+          source: "capability",
+          capabilityId: capability.id,
+        });
+
+        seenTools.add(capabilityToolId);
+      }
+
+      if (predictions.length > 0) {
+        log.debug(
+          `[predictCapabilities] Found ${predictions.length} capability predictions`,
+        );
+      }
+    } catch (error) {
+      log.error(`[predictCapabilities] Failed: ${error}`);
+    }
+
+    return predictions;
+  }
+
   // =============================================================================
   // Story 3.5-1: Agent Hints & Pattern Export (AC #12, #13)
   // =============================================================================
@@ -1183,5 +1288,218 @@ export class DAGSuggester {
         `Cycle detected: topological sort produced ${sorted.length} tasks, expected ${dag.tasks.length}`,
       );
     }
+  }
+
+  // =============================================================================
+  // Story 7.4: Strategic Discovery - Mixed DAG (Tools + Capabilities)
+  // =============================================================================
+
+  /**
+   * Inject matching capabilities into DAG (Story 7.4 AC#4, AC#5, AC#7)
+   *
+   * Process:
+   * 1. Extract context tools from existing DAG tasks
+   * 2. Search for capabilities with overlapping tools_used
+   * 3. Apply spectral clustering boost if active cluster matches
+   * 4. Create capability tasks and insert at appropriate layer
+   * 5. Set dependencies based on tool overlap
+   *
+   * @param dag - DAG structure to augment (modified in place)
+   * @param contextTools - Tools already in the DAG
+   */
+  private async injectMatchingCapabilities(
+    dag: DAGStructure,
+    contextTools: string[],
+  ): Promise<void> {
+    if (!this.capabilityStore || contextTools.length === 0) {
+      return; // No capability store configured or no context
+    }
+
+    const startTime = performance.now();
+
+    try {
+      // 1. Search for capabilities matching context tools
+      const matches = await this.capabilityStore.searchByContext(contextTools, 3, 0.3);
+
+      if (matches.length === 0) {
+        log.debug("[DAGSuggester] No matching capabilities for context tools");
+        return;
+      }
+
+      log.debug(
+        `[DAGSuggester] Found ${matches.length} matching capabilities for context`,
+      );
+
+      // 2. Initialize or update spectral clustering for boost calculation
+      const clusterBoosts = await this.computeClusterBoosts(
+        matches.map((m) => m.capability),
+        contextTools,
+      );
+
+      // 3. Create capability tasks and insert into DAG
+      for (const match of matches) {
+        const capability = match.capability;
+        const clusterBoost = clusterBoosts.get(capability.id) ?? 0;
+        const finalScore = match.overlapScore + clusterBoost;
+
+        // Skip low-scoring capabilities
+        if (finalScore < 0.4) {
+          log.debug(
+            `[DAGSuggester] Skipping capability ${capability.id} (score: ${finalScore.toFixed(2)})`,
+          );
+          continue;
+        }
+
+        // 4. Create capability task
+        const capabilityTask = this.createCapabilityTask(capability, dag, contextTools);
+
+        // 5. Add to DAG
+        dag.tasks.push(capabilityTask);
+
+        log.info(
+          `[DAGSuggester] Injected capability task ${capabilityTask.id} (overlap: ${match.overlapScore.toFixed(2)}, boost: ${clusterBoost.toFixed(2)})`,
+        );
+      }
+
+      const elapsedMs = performance.now() - startTime;
+      log.debug(
+        `[DAGSuggester] Capability injection complete (${elapsedMs.toFixed(1)}ms)`,
+      );
+    } catch (error) {
+      log.error(`[DAGSuggester] Capability injection failed: ${error}`);
+      // Graceful degradation: continue without capabilities
+    }
+  }
+
+  /**
+   * Compute cluster boosts for capabilities (Story 7.4 AC#3)
+   *
+   * Uses spectral clustering to identify the active cluster based on
+   * context tools, then boosts capabilities in the same cluster.
+   *
+   * @param capabilities - Capabilities to evaluate
+   * @param contextTools - Tools currently in use
+   * @returns Map of capability_id to boost value (0 to 0.5)
+   */
+  private async computeClusterBoosts(
+    capabilities: Capability[],
+    contextTools: string[],
+  ): Promise<Map<string, number>> {
+    const boosts = new Map<string, number>();
+
+    if (capabilities.length < 2 || contextTools.length < 2) {
+      // Not enough data for meaningful clustering
+      return boosts;
+    }
+
+    try {
+      // Initialize spectral clustering if not already done
+      if (!this.spectralClustering) {
+        this.spectralClustering = new SpectralClusteringManager();
+      }
+
+      // Collect all tools used by capabilities
+      const allToolsUsed = new Set<string>(contextTools);
+      for (const cap of capabilities) {
+        const capTools = this.getCapabilityToolsUsed(cap);
+        capTools.forEach((t) => allToolsUsed.add(t));
+      }
+
+      // Build clusterable capabilities
+      const clusterableCapabilities: ClusterableCapability[] = capabilities.map((cap) => ({
+        id: cap.id,
+        toolsUsed: this.getCapabilityToolsUsed(cap),
+      }));
+
+      // Build bipartite matrix and compute clusters
+      this.spectralClustering.buildBipartiteMatrix(
+        Array.from(allToolsUsed),
+        clusterableCapabilities,
+      );
+      this.spectralClustering.computeClusters();
+
+      // Identify active cluster
+      const activeCluster = this.spectralClustering.identifyActiveCluster(contextTools);
+
+      if (activeCluster < 0) {
+        log.debug("[DAGSuggester] No active cluster identified for boost");
+        return boosts;
+      }
+
+      // Compute boost for each capability
+      for (const capData of clusterableCapabilities) {
+        const boost = this.spectralClustering.getClusterBoost(capData, activeCluster);
+        if (boost > 0) {
+          boosts.set(capData.id, boost);
+        }
+      }
+
+      log.debug(
+        `[DAGSuggester] Computed cluster boosts for ${boosts.size} capabilities (active cluster: ${activeCluster})`,
+      );
+    } catch (error) {
+      log.error(`[DAGSuggester] Cluster boost computation failed: ${error}`);
+    }
+
+    return boosts;
+  }
+
+  /**
+   * Extract tools_used from capability dag_structure (Story 7.4)
+   *
+   * Note: In a full implementation, this would parse the capability's
+   * dag_structure JSONB field for the tools_used array.
+   * Currently returns an empty array as the tools are handled via searchByContext.
+   *
+   * @param _capability - Capability to extract from (unused in current impl)
+   * @returns Array of tool IDs used by the capability
+   */
+  private getCapabilityToolsUsed(_capability: Capability): string[] {
+    // TODO: Parse capability.dag_structure.tools_used when available
+    // For now, the tools overlap is computed in searchByContext SQL query
+    return [];
+  }
+
+  /**
+   * Create a capability task for DAG insertion (Story 7.4 AC#5)
+   *
+   * @param capability - Capability to convert to task
+   * @param dag - Current DAG structure (for ID generation)
+   * @param _contextTools - Context tools for dependency resolution (currently unused)
+   * @returns Task with type="capability"
+   */
+  private createCapabilityTask(
+    capability: Capability,
+    dag: DAGStructure,
+    _contextTools: string[],
+  ): DAGStructure["tasks"][0] {
+    const taskId = `cap_${capability.id.substring(0, 8)}_${dag.tasks.length}`;
+
+    // Determine dependencies: find tasks that provide the capability's required tools
+    const dependsOn: string[] = [];
+    const capToolsUsed = this.getCapabilityToolsUsed(capability);
+
+    for (const existingTask of dag.tasks) {
+      // If existing task's tool is in capability's tools_used, add dependency
+      if (capToolsUsed.includes(existingTask.tool)) {
+        dependsOn.push(existingTask.id);
+      }
+    }
+
+    // If no dependencies found, depend on the last tool task (sequential insertion)
+    if (dependsOn.length === 0 && dag.tasks.length > 0) {
+      const lastTask = dag.tasks[dag.tasks.length - 1];
+      dependsOn.push(lastTask.id);
+    }
+
+    return {
+      id: taskId,
+      tool: capability.name ?? `capability_${capability.id.substring(0, 8)}`,
+      type: "capability",
+      capabilityId: capability.id,
+      code: capability.codeSnippet,
+      arguments: {},
+      dependsOn,
+    };
   }
 }
