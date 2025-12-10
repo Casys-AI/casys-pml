@@ -49,11 +49,11 @@ export default function LandingPage({ data }: { data: LandingPageData }) {
   return (
     <>
       <Head>
-        <title>CAI - Collective Agentic Intelligence</title>
+        <title>Casys PML - Procedural Memory Layer</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta
           name="description"
-          content="An open-source research project exploring emergent workflows in multi-agent systems. What happens when AI agents coordinate through code execution?"
+          content="An open-source Procedural Memory Layer for AI agents. Casys PML captures emergent workflows and crystallizes them into reusable skills. RAG gave agents knowledge. PML gives them skills."
         />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
@@ -129,8 +129,8 @@ export default function LandingPage({ data }: { data: LandingPageData }) {
         <header class="header">
           <div class="header-inner">
             <a href="/" class="logo">
-              <span class="logo-mark">CAI</span>
-              <span class="logo-text">Collective Agentic Intelligence</span>
+              <span class="logo-mark">Casys PML</span>
+              <span class="logo-text">Procedural Memory Layer</span>
             </a>
             <nav class="nav">
               <a href="#problem" class="nav-link">Why</a>
@@ -199,15 +199,15 @@ export default function LandingPage({ data }: { data: LandingPageData }) {
         <main class="hero">
           <div class="hero-grid">
             <div class="hero-content">
-              <p class="hero-eyebrow">Open Source Research Project</p>
+              <p class="hero-eyebrow">Open-Source Procedural Memory Layer</p>
               <h1 class="hero-title">
                 An agent discovered a pattern.<br />
                 <span class="hero-title-accent">Then another agent used it.</span>
               </h1>
               <p class="hero-desc">
-                CAI captures emergent workflows — tool combinations that agents discover through
-                execution, not design. These patterns become reusable capabilities for the entire
-                system.
+                Casys PML captures emergent workflows — tool combinations that agents discover through
+                execution, not design. These patterns crystallize into reusable skills.
+                RAG gave agents knowledge. PML gives them skills.
               </p>
               <div class="hero-actions">
                 <a href="#how" class="btn btn-primary">
@@ -329,7 +329,7 @@ capabilities.use("data_pipeline")`}</code></pre>
               <span class="section-label">The Solution</span>
               <h2 class="section-title">Two Levels of Emergence</h2>
               <p class="section-desc">
-                CAI tracks how agents combine MCPs — both planned and improvised.<br />
+                Casys PML tracks how agents combine MCPs — both planned and improvised.<br />
                 Patterns that work get promoted to explicit capabilities.
               </p>
             </div>
@@ -618,7 +618,7 @@ capabilities.use("data_pipeline")`}</code></pre>
             <div class="cta-content">
               <h2>Curious? Dive in.</h2>
               <p>
-                CAI is fully open source. Explore the code, run experiments, or contribute to the
+                Casys PML is fully open source. Explore the code, run experiments, or contribute to the
                 research.
               </p>
               <div class="cta-actions">
@@ -655,8 +655,8 @@ capabilities.use("data_pipeline")`}</code></pre>
         <footer class="footer">
           <div class="footer-inner">
             <div class="footer-brand">
-              <span class="logo-mark">CAI</span>
-              <span class="footer-tagline">Collective Agentic Intelligence</span>
+              <span class="logo-mark">Casys PML</span>
+              <span class="footer-tagline">Procedural Memory Layer</span>
             </div>
             <div class="footer-links">
               <a href="https://casys.ai" target="_blank" rel="noopener">Casys.ai</a>
