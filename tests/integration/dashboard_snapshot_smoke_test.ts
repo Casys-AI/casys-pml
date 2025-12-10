@@ -56,7 +56,7 @@ Deno.test("Smoke test - Fresh dashboard.tsx exists and contains required element
 
   // Vérifier dashboard route
   assertEquals(
-    routeCode.includes("CAI - Graph Dashboard"),
+    routeCode.includes("Casys PML - Graph Dashboard"),
     true,
     "Route doit avoir le titre",
   );
