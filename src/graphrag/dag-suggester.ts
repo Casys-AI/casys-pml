@@ -24,6 +24,8 @@ import type {
   WorkflowIntent,
   WorkflowPredictionState,
 } from "./types.ts";
+// Story 7.6: Algorithm tracing (ADR-039)
+import type { AlgorithmTracer } from "../telemetry/algorithm-tracer.ts";
 
 /**
  * DAG Suggester
@@ -36,6 +38,7 @@ export class DAGSuggester {
   private capabilityMatcher: CapabilityMatcher | null = null; // Story 7.3a - Capability matching
   private capabilityStore: CapabilityStore | null = null; // Story 7.4 - Strategic discovery
   private spectralClustering: SpectralClusteringManager | null = null; // Story 7.4 - Cluster boost
+  private algorithmTracer: AlgorithmTracer | null = null; // Story 7.6 - Algorithm tracing
 
   constructor(
     private graphEngine: GraphRAGEngine,
@@ -95,6 +98,18 @@ export class DAGSuggester {
   setCapabilityMatcher(matcher: CapabilityMatcher): void {
     this.capabilityMatcher = matcher;
     log.debug("[DAGSuggester] Capability matching enabled");
+  }
+
+  /**
+   * Set algorithm tracer (Story 7.6 - ADR-039)
+   *
+   * Enables tracing of predictNextNodes() and suggestDAG() decisions.
+   *
+   * @param tracer - AlgorithmTracer instance
+   */
+  setAlgorithmTracer(tracer: AlgorithmTracer): void {
+    this.algorithmTracer = tracer;
+    log.debug("[DAGSuggester] Algorithm tracing enabled");
   }
 
   /**
@@ -173,6 +188,30 @@ export class DAGSuggester {
           ).join(", ")
         }`,
       );
+
+      // Story 7.6: Log trace for each candidate in suggestDAG (fire-and-forget)
+      const graphDensity = this.graphEngine.getGraphDensity();
+      for (const candidate of rankedCandidates) {
+        this.algorithmTracer?.logTrace({
+          algorithmMode: "active_search",
+          targetType: "tool",
+          intent: intent.text.substring(0, 200),
+          signals: {
+            semanticScore: candidate.semanticScore,
+            pagerank: candidate.pageRank,
+            graphDensity,
+            spectralClusterMatch: false, // N/A for tool selection
+          },
+          params: {
+            alpha: 0.8, // Hybrid: 80% finalScore
+            reliabilityFactor: 1.0, // No reliability filter for tools
+            structuralBoost: 0.2, // PageRank contribution
+          },
+          finalScore: candidate.combinedScore,
+          thresholdUsed: 0.5, // ADR-026 threshold
+          decision: "accepted", // All top-5 candidates are accepted
+        });
+      }
 
       // 3. Build DAG using graph topology (Graphology)
       const dagStructure = this.graphEngine.buildDAG(
@@ -637,12 +676,15 @@ export class DAGSuggester {
       const executedTools = new Set(tasks.map((t) => t.tool));
 
       // 3. Query community members (Louvain algorithm)
+      const graphDensity = this.graphEngine.getGraphDensity();
       const communityMembers = this.graphEngine.findCommunityMembers(lastToolId);
       for (const memberId of communityMembers.slice(0, 5)) {
         if (seenTools.has(memberId) || executedTools.has(memberId)) continue;
         if (this.isDangerousOperation(memberId)) continue;
 
         const pageRank = this.graphEngine.getPageRank(memberId);
+        const edgeData = this.graphEngine.getEdgeData(lastToolId, memberId);
+        const aaScore = this.graphEngine.adamicAdarBetween(lastToolId, memberId);
         const baseConfidence = this.calculateCommunityConfidence(memberId, lastToolId, pageRank);
 
         // Story 4.1e: Apply episodic learning adjustments
@@ -656,6 +698,27 @@ export class DAGSuggester {
           source: "community",
         });
         seenTools.add(memberId);
+
+        // Story 7.6: Log trace for community prediction (fire-and-forget)
+        this.algorithmTracer?.logTrace({
+          algorithmMode: "passive_suggestion",
+          targetType: "tool",
+          signals: {
+            pagerank: pageRank,
+            cooccurrence: edgeData?.weight ?? 0,
+            adamicAdar: aaScore,
+            graphDensity,
+            spectralClusterMatch: false, // N/A for tool predictions
+          },
+          params: {
+            alpha: 0.4, // Base community confidence
+            reliabilityFactor: 1.0,
+            structuralBoost: 0,
+          },
+          finalScore: adjusted.confidence,
+          thresholdUsed: 0, // No threshold for passive suggestions
+          decision: "accepted",
+        });
       }
 
       // 4. Query outgoing edges (co-occurrence patterns)
@@ -689,6 +752,25 @@ export class DAGSuggester {
           source: "co-occurrence",
         });
         seenTools.add(neighborId);
+
+        // Story 7.6: Log trace for co-occurrence prediction (fire-and-forget)
+        this.algorithmTracer?.logTrace({
+          algorithmMode: "passive_suggestion",
+          targetType: "tool",
+          signals: {
+            cooccurrence: edgeData?.weight ?? 0,
+            graphDensity,
+            spectralClusterMatch: false, // N/A for tool predictions
+          },
+          params: {
+            alpha: 0.6, // Base edge weight contribution
+            reliabilityFactor: 1.0,
+            structuralBoost: recencyBoost,
+          },
+          finalScore: adjusted.confidence,
+          thresholdUsed: 0, // No threshold for passive suggestions
+          decision: "accepted",
+        });
       }
 
       // NOTE: Adamic-Adar (2-hop) removed for passive suggestion (ADR-038)
@@ -1097,6 +1179,26 @@ export class DAGSuggester {
           reasoning: `Capability matches context (${(match.overlapScore * 100).toFixed(0)}% overlap${clusterBoost > 0 ? `, +${(clusterBoost * 100).toFixed(0)}% cluster boost` : ""})`,
           source: "capability",
           capabilityId: capability.id,
+        });
+
+        // Story 7.6: Log trace for capability prediction (fire-and-forget)
+        this.algorithmTracer?.logTrace({
+          algorithmMode: "passive_suggestion",
+          targetType: "capability",
+          signals: {
+            toolsOverlap: match.overlapScore,
+            successRate: capability.successRate,
+            graphDensity: this.graphEngine.getGraphDensity(),
+            spectralClusterMatch: clusterBoost > 0,
+          },
+          params: {
+            alpha: 0.3, // Overlap contribution
+            reliabilityFactor: 1.0,
+            structuralBoost: clusterBoost,
+          },
+          finalScore: adjusted.confidence,
+          thresholdUsed: 0.3, // Context search threshold
+          decision: "accepted",
         });
 
         seenTools.add(capabilityToolId);

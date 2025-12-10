@@ -1690,10 +1690,11 @@ export class ControlledExecutor extends ParallelExecutor {
   }
 
   /**
-   * Override: Execute task with support for code_execution type (Story 3.4)
+   * Override: Execute task with support for code_execution and capability types (Story 3.4, Story 7.4)
    *
    * Routes tasks based on type:
    * - code_execution: Delegate to sandbox with tool injection
+   * - capability: Execute learned capability code (Story 7.4 AC#7)
    * - mcp_tool (default): Delegate to parent ParallelExecutor
    *
    * @param task - Task to execute
@@ -1713,9 +1714,115 @@ export class ControlledExecutor extends ParallelExecutor {
         return await this.executeWithRetry(task, previousResults);
       }
       return await this.executeCodeTask(task, previousResults);
+    } else if (taskType === "capability") {
+      // Story 7.4: Execute learned capability
+      return await this.executeCapabilityTask(task, previousResults);
     } else {
       // Default: MCP tool execution (delegate to parent)
       return await super.executeTask(task, previousResults);
+    }
+  }
+
+  /**
+   * Execute capability task (Story 7.4 AC#7, AC#11)
+   *
+   * Capabilities are learned code patterns stored in CapabilityStore.
+   * They are executed in a sandbox similar to code_execution tasks.
+   *
+   * Process:
+   * 1. Validate task has capabilityId and code
+   * 2. Build execution context from dependencies
+   * 3. Execute in sandbox
+   * 4. Return result for checkpoint persistence
+   *
+   * @param task - Capability task (must have capabilityId and code)
+   * @param previousResults - Results from previous tasks
+   * @returns Execution result
+   */
+  private async executeCapabilityTask(
+    task: Task,
+    previousResults: Map<string, TaskResult>,
+  ): Promise<{ output: unknown; executionTimeMs: number }> {
+    const startTime = performance.now();
+
+    try {
+      log.debug(`Executing capability task: ${task.id} (capability: ${task.capabilityId})`);
+
+      // Validate task structure
+      if (!task.capabilityId) {
+        throw new Error(
+          `Capability task ${task.id} missing required 'capabilityId' field`,
+        );
+      }
+      if (!task.code) {
+        throw new Error(
+          `Capability task ${task.id} missing required 'code' field`,
+        );
+      }
+
+      // Build execution context from dependencies
+      const executionContext: Record<string, unknown> = {
+        ...task.arguments,
+        capabilityId: task.capabilityId,
+      };
+
+      // Resolve dependencies
+      const deps: Record<string, TaskResult> = {};
+      for (const depId of task.dependsOn) {
+        const depResult = previousResults.get(depId);
+
+        if (depResult?.status === "error") {
+          throw new Error(`Dependency task ${depId} failed: ${depResult.error}`);
+        }
+        if (!depResult) {
+          throw new Error(`Dependency task ${depId} not found in results`);
+        }
+
+        deps[depId] = depResult;
+      }
+      executionContext.deps = deps;
+
+      // Configure sandbox (capabilities use default safe config)
+      const sandboxConfig = task.sandboxConfig || {};
+      const executor = new DenoSandboxExecutor({
+        timeout: sandboxConfig.timeout ?? 30000,
+        memoryLimit: sandboxConfig.memoryLimit ?? 512,
+        allowedReadPaths: sandboxConfig.allowedReadPaths ?? [],
+      });
+
+      // Execute capability code in sandbox
+      const result = await executor.execute(task.code, executionContext);
+
+      if (!result.success) {
+        const error = result.error!;
+        throw new Error(`${error.type}: ${error.message}`);
+      }
+
+      const executionTimeMs = performance.now() - startTime;
+
+      log.info(`Capability task ${task.id} succeeded`, {
+        capabilityId: task.capabilityId,
+        executionTimeMs: executionTimeMs.toFixed(2),
+        resultType: typeof result.result,
+      });
+
+      // Return result for checkpoint persistence (AC#11)
+      return {
+        output: {
+          result: result.result,
+          capabilityId: task.capabilityId,
+          executionTimeMs: result.executionTimeMs,
+        },
+        executionTimeMs,
+      };
+    } catch (error) {
+      const executionTimeMs = performance.now() - startTime;
+      log.error(`Capability task ${task.id} failed`, {
+        capabilityId: task.capabilityId,
+        error: error instanceof Error ? error.message : String(error),
+        executionTimeMs,
+      });
+      throw error;
     }
   }
 

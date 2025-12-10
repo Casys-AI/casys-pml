@@ -70,6 +70,8 @@ export interface Capability {
   lastUsed: Date;
   /** Source: 'emergent' (auto-learned) or 'manual' (user-defined) */
   source: "emergent" | "manual";
+  /** Tools used by this capability (extracted from dag_structure) - Story 7.4 */
+  toolsUsed?: string[];
 }
 
 /**
@@ -121,3 +123,157 @@ export interface CapabilityMatch {
 
 // Note: Database row types are inferred from PGlite query results.
 // See rowToCapability() in capability-store.ts for the mapping logic.
+
+/**
+ * API Types (Story 8.1)
+ * INTERNAL types use camelCase. Mapping to snake_case happens in gateway-server.ts
+ */
+
+/**
+ * Filters for listing capabilities (internal camelCase)
+ */
+export interface CapabilityFilters {
+  /** Filter by Louvain community */
+  communityId?: number;
+  /** Minimum success rate (0-1) */
+  minSuccessRate?: number;
+  /** Minimum usage count */
+  minUsage?: number;
+  /** Maximum results per page */
+  limit?: number;
+  /** Pagination offset */
+  offset?: number;
+  /** Sort field */
+  sort?: "usageCount" | "successRate" | "lastUsed" | "createdAt";
+  /** Sort order */
+  order?: "asc" | "desc";
+}
+
+/**
+ * Single capability in API response (internal camelCase)
+ * Maps to snake_case at API boundary in gateway-server.ts
+ */
+export interface CapabilityResponseInternal {
+  id: string; // pattern_id UUID
+  name: string | null; // Human-readable name
+  description: string | null; // Intent description
+  codeSnippet: string; // TypeScript code
+  toolsUsed: string[]; // ["filesystem:read", "github:create_issue"]
+  successRate: number; // 0-1
+  usageCount: number; // Total executions
+  avgDurationMs: number; // Average execution time
+  communityId: number | null; // Louvain cluster
+  intentPreview: string; // First 100 chars of intent
+  createdAt: string; // ISO timestamp
+  lastUsed: string; // ISO timestamp
+  source: "emergent" | "manual"; // Learning source
+}
+
+/**
+ * Response from listCapabilities (internal camelCase)
+ */
+export interface CapabilityListResponseInternal {
+  capabilities: CapabilityResponseInternal[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+/**
+ * Options for building hypergraph data (internal camelCase)
+ */
+export interface HypergraphOptions {
+  /** Include standalone tools not in capabilities */
+  includeTools?: boolean;
+  /** Filter capabilities by minimum success rate */
+  minSuccessRate?: number;
+  /** Filter capabilities by minimum usage */
+  minUsage?: number;
+}
+
+/**
+ * Cytoscape node for capability (parent node in compound graph)
+ * Internal camelCase - maps to snake_case at API boundary
+ */
+export interface CapabilityNode {
+  data: {
+    id: string; // "cap-{uuid}"
+    type: "capability";
+    label: string; // Name or intent preview
+    codeSnippet: string;
+    successRate: number;
+    usageCount: number;
+    toolsCount: number; // Number of child tools
+  };
+}
+
+/**
+ * Cytoscape node for tool (child of capability or standalone)
+ * Internal camelCase - maps to snake_case at API boundary
+ */
+export interface ToolNode {
+  data: {
+    id: string; // "filesystem:read"
+    parent?: string; // "cap-{uuid}" if part of capability
+    type: "tool";
+    server: string; // "filesystem"
+    label: string; // "read"
+    pagerank: number; // From GraphSnapshot
+    degree: number; // From GraphSnapshot
+  };
+}
+
+/**
+ * Cytoscape edge between capabilities that share tools
+ * Internal camelCase - maps to snake_case at API boundary
+ */
+export interface CapabilityEdge {
+  data: {
+    id: string;
+    source: string; // "cap-{uuid1}"
+    target: string; // "cap-{uuid2}"
+    sharedTools: number; // Count of shared tools
+    edgeType: "capability_link";
+    edgeSource: "inferred";
+  };
+}
+
+/**
+ * Hierarchical edge (capability → tool via parentTraceId, ADR-041)
+ * Internal camelCase - maps to snake_case at API boundary
+ */
+export interface HierarchicalEdge {
+  data: {
+    id: string;
+    source: string; // "cap-{uuid}" (parent)
+    target: string; // "filesystem:read" (child tool)
+    edgeType: "hierarchy";
+    edgeSource: "observed"; // From trace data
+    observedCount: number; // Number of times this call was traced
+  };
+}
+
+/**
+ * Union type for all Cytoscape nodes
+ */
+export type CytoscapeNode = CapabilityNode | ToolNode;
+
+/**
+ * Union type for all Cytoscape edges
+ */
+export type CytoscapeEdge = CapabilityEdge | HierarchicalEdge;
+
+/**
+ * Response from buildHypergraphData (internal camelCase)
+ * Maps to snake_case at API boundary in gateway-server.ts
+ */
+export interface HypergraphResponseInternal {
+  nodes: CytoscapeNode[];
+  edges: CytoscapeEdge[];
+  capabilitiesCount: number;
+  toolsCount: number;
+  metadata: {
+    generatedAt: string;
+    version: string;
+  };
+}

@@ -330,6 +330,142 @@ export class CapabilityStore {
   }
 
   /**
+   * Search capabilities by context tools overlap (Story 7.4 - AC#2)
+   *
+   * Finds capabilities whose `tools_used` overlap with the provided context tools.
+   * Used for Strategic Discovery Mode (ADR-038) to suggest capabilities
+   * that match the current tool context in a DAG workflow.
+   *
+   * Overlap score: `|intersection| / |capability.tools_used|`
+   * Only returns capabilities with overlap >= minOverlap (default 0.3)
+   *
+   * @param contextTools - Tools currently in use (from DAG context)
+   * @param limit - Maximum results (default: 5)
+   * @param minOverlap - Minimum overlap threshold (default: 0.3 = 30%)
+   * @returns Capabilities sorted by overlapScore descending
+   */
+  async searchByContext(
+    contextTools: string[],
+    limit = 5,
+    minOverlap = 0.3,
+  ): Promise<Array<{ capability: Capability; overlapScore: number }>> {
+    if (contextTools.length === 0) {
+      logger.debug("searchByContext called with empty contextTools");
+      return [];
+    }
+
+    // Issue #5 fix: Input validation for security (prevent injection via malformed strings)
+    const MAX_TOOL_LENGTH = 256;
+    const MAX_TOOLS = 100;
+    const validatedTools = contextTools
+      .filter((t): t is string => typeof t === "string" && t.length > 0 && t.length <= MAX_TOOL_LENGTH)
+      .slice(0, MAX_TOOLS);
+
+    if (validatedTools.length === 0) {
+      logger.warn("searchByContext: All contextTools filtered out during validation");
+      return [];
+    }
+
+    if (validatedTools.length !== contextTools.length) {
+      logger.debug("searchByContext: Some tools filtered", {
+        original: contextTools.length,
+        validated: validatedTools.length,
+      });
+    }
+
+    // Query capabilities with tools_used in dag_structure JSONB
+    // Calculate overlap: count matching tools / total tools in capability
+    const result = await this.db.query(
+      `WITH capability_tools AS (
+        SELECT
+          pattern_id,
+          dag_structure,
+          code_snippet,
+          code_hash,
+          intent_embedding,
+          name,
+          description,
+          usage_count,
+          success_count,
+          success_rate,
+          avg_duration_ms,
+          created_at,
+          last_used,
+          source,
+          cache_config,
+          parameters_schema,
+          -- Extract tools_used array from JSONB
+          COALESCE(
+            (dag_structure->>'tools_used')::jsonb,
+            '[]'::jsonb
+          ) as tools_used_arr
+        FROM workflow_pattern
+        WHERE code_hash IS NOT NULL
+          AND dag_structure IS NOT NULL
+          AND dag_structure->>'tools_used' IS NOT NULL
+      ),
+      overlap_calc AS (
+        SELECT
+          ct.*,
+          -- Count how many context tools are in this capability's tools_used
+          (
+            SELECT COUNT(*)
+            FROM jsonb_array_elements_text(ct.tools_used_arr) as tool
+            WHERE tool = ANY($1::text[])
+          ) as matching_count,
+          -- Total tools in capability
+          jsonb_array_length(ct.tools_used_arr) as total_tools
+        FROM capability_tools ct
+      )
+      SELECT
+        *,
+        CASE
+          WHEN total_tools > 0
+          THEN matching_count::real / total_tools::real
+          ELSE 0
+        END as overlap_score
+      FROM overlap_calc
+      WHERE total_tools > 0
+        AND matching_count::real / total_tools::real >= $2
+      ORDER BY overlap_score DESC, usage_count DESC
+      LIMIT $3`,
+      [validatedTools, minOverlap, limit],
+    );
+
+    const matches = result.map((row) => ({
+      capability: this.rowToCapability(row as Row),
+      overlapScore: row.overlap_score as number,
+    }));
+
+    logger.debug("searchByContext results", {
+      contextTools: validatedTools.slice(0, 3),
+      matchCount: matches.length,
+      topScore: matches[0]?.overlapScore ?? 0,
+    });
+
+    return matches;
+  }
+
+  /**
+   * Find a capability by its ID (Story 7.4)
+   *
+   * @param id - Capability pattern_id
+   * @returns Capability if found, null otherwise
+   */
+  async findById(id: string): Promise<Capability | null> {
+    const result = await this.db.query(
+      `SELECT * FROM workflow_pattern WHERE pattern_id = $1`,
+      [id],
+    );
+
+    if (result.length === 0) {
+      return null;
+    }
+
+    return this.rowToCapability(result[0] as Row);
+  }
+
+  /**
    * Convert database row to Capability object
    */
   private rowToCapability(row: Row): Capability {
@@ -360,6 +496,21 @@ export class CapabilityStore {
       }
     }
 
+    // Story 7.4: Extract tools_used from dag_structure JSONB
+    let toolsUsed: string[] | undefined;
+    if (row.dag_structure) {
+      try {
+        const dagStruct = typeof row.dag_structure === "string"
+          ? JSON.parse(row.dag_structure)
+          : row.dag_structure;
+        if (Array.isArray(dagStruct?.tools_used)) {
+          toolsUsed = dagStruct.tools_used;
+        }
+      } catch {
+        // Ignore parse errors, toolsUsed remains undefined
+      }
+    }
+
     return {
       id: row.pattern_id as string,
       codeSnippet: (row.code_snippet as string) || "",
@@ -376,6 +527,7 @@ export class CapabilityStore {
       createdAt: new Date((row.created_at as string) || Date.now()),
       lastUsed: new Date(row.last_used as string),
       source: ((row.source as string) as "emergent" | "manual") || "emergent",
+      toolsUsed,
     };
   }
 

@@ -7,9 +7,10 @@
 /**
  * DAG task representation
  *
- * Supports two task types (Story 3.4):
+ * Supports three task types (Story 3.4, Story 7.4):
  * - mcp_tool (default): Execute MCP tool
  * - code_execution: Execute code in sandbox
+ * - capability: Execute learned capability (Story 7.4)
  */
 export interface Task {
   id: string;
@@ -18,10 +19,24 @@ export interface Task {
   dependsOn: string[];
 
   /**
-   * Task type (Story 3.4)
+   * Task type (Story 3.4, Story 7.4)
+   *
+   * - mcp_tool: Execute MCP tool (default)
+   * - code_execution: Execute code in sandbox
+   * - capability: Execute learned capability (Story 7.4)
+   *
    * @default "mcp_tool"
    */
-  type?: "mcp_tool" | "code_execution";
+  type?: "mcp_tool" | "code_execution" | "capability";
+
+  /**
+   * Capability ID for type="capability" tasks (Story 7.4)
+   *
+   * References a learned capability from CapabilityStore.
+   * When set, the executor will retrieve the capability's code
+   * and execute it with injected context.
+   */
+  capabilityId?: string;
 
   /**
    * TypeScript code to execute (only for type="code_execution")
@@ -74,6 +89,7 @@ export interface WorkflowExecution {
   success: boolean;
   executionTimeMs: number;
   errorMessage?: string;
+  userId?: string; // Story 9.5: Multi-tenant data isolation
 }
 
 /**
@@ -170,19 +186,35 @@ export interface SpeculativeMetrics {
 // =============================================================================
 
 /**
- * Predicted next node for speculative execution (Story 3.5-1)
+ * Predicted next node for speculative execution (Story 3.5-1, Story 7.4)
  *
- * Represents a tool that is likely to be requested next based on:
+ * Represents a tool or capability that is likely to be requested next based on:
  * - Historical co-occurrence patterns
  * - Community membership (Louvain)
- * - Context similarity
+ * - Learned capabilities (Story 7.4)
+ * - Agent hints and learned patterns
+ *
+ * Note: "adamic-adar" source removed per ADR-038 (dilutes signal for passive suggestion).
  */
 export interface PredictedNode {
   toolId: string;
   confidence: number;
   reasoning: string;
-  source: "community" | "co-occurrence" | "hint" | "learned";
+  /**
+   * Prediction source (Story 7.4 - ADR-038)
+   *
+   * - community: Same Louvain community as completed task
+   * - co-occurrence: Historical edge weight (observed co-usage)
+   * - capability: Learned capability matching context tools (Story 7.4)
+   * - hint: Agent-provided hint for bootstrap
+   * - learned: Pattern learned from execution history
+   */
+  source: "community" | "co-occurrence" | "capability" | "hint" | "learned";
   wasCorrect?: boolean; // Set after validation
+  /**
+   * Capability ID if source is "capability" (Story 7.4)
+   */
+  capabilityId?: string;
 }
 
 /**
