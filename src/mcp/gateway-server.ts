@@ -40,6 +40,7 @@ import { addBreadcrumb, captureError, startTransaction } from "../telemetry/sent
 import type { CapabilityStore } from "../capabilities/capability-store.ts";
 import type { AdaptiveThresholdManager } from "./adaptive-threshold.ts";
 import { hashCode } from "../capabilities/hash.ts";
+import { CapabilityDataService } from "../capabilities/mod.ts";
 // Story 2.5-4: MCP Control Tools & Per-Layer Validation
 import {
   deleteWorkflowDAG,
@@ -52,7 +53,7 @@ import { ControlledExecutor } from "../dag/controlled-executor.ts";
 import { CheckpointManager } from "../dag/checkpoint-manager.ts";
 import type { ExecutionEvent, TaskResult } from "../dag/types.ts";
 import { EventsStreamManager } from "../server/events-stream.ts";
-import { logAuthMode, validateRequest } from "../lib/auth.ts";
+import { logAuthMode, validateAuthConfig, validateRequest } from "../lib/auth.ts";
 import { RateLimiter } from "../utils/rate-limiter.ts";
 import { getRateLimitKey } from "../lib/rate-limiter-helpers.ts";
 
@@ -129,6 +130,7 @@ export class CasysIntelligenceGatewayServer {
   private activeWorkflows: Map<string, ActiveWorkflow> = new Map(); // Story 2.5-4
   private checkpointManager: CheckpointManager | null = null; // Story 2.5-4
   private eventsStream: EventsStreamManager | null = null; // Story 6.1: Real-time graph events
+  private capabilityDataService: CapabilityDataService; // Story 8.1: Capability Data API
 
   constructor(
     // @ts-ignore: db kept for future use (direct queries)
@@ -196,6 +198,9 @@ export class CasysIntelligenceGatewayServer {
 
     // Initialize CheckpointManager for per-layer validation (Story 2.5-4)
     this.checkpointManager = new CheckpointManager(this.db, true);
+
+    // Initialize CapabilityDataService for API endpoints (Story 8.1)
+    this.capabilityDataService = new CapabilityDataService(this.db, this.graphEngine);
 
     this.setupHandlers();
   }
@@ -2107,10 +2112,13 @@ export class CasysIntelligenceGatewayServer {
     // Story 9.3: Log auth mode at startup (AC #5)
     logAuthMode("API Server");
 
+    // SECURITY: Validate auth config - fails in production without auth
+    validateAuthConfig("API Server");
+
     // Story 9.5: Rate limiters per endpoint (cloud mode only)
     const RATE_LIMITERS = {
-      mcp: new RateLimiter(100, 60000),  // 100 req/min for MCP gateway
-      api: new RateLimiter(200, 60000),  // 200 req/min for API routes (graph, executions)
+      mcp: new RateLimiter(100, 60000), // 100 req/min for MCP gateway
+      api: new RateLimiter(200, 60000), // 200 req/min for API routes (graph, executions)
     };
 
     // CORS headers for Fresh dashboard (runs on different port)
@@ -2158,8 +2166,8 @@ export class CasysIntelligenceGatewayServer {
 
         // Story 9.5: Rate limiting per user_id (cloud mode) or IP/shared (local mode)
         const clientIp = req.headers.get("x-forwarded-for") ||
-                        req.headers.get("cf-connecting-ip") ||
-                        "unknown";
+          req.headers.get("cf-connecting-ip") ||
+          "unknown";
         const rateLimitKey = getRateLimitKey(authResult, clientIp);
 
         // Select rate limiter based on endpoint
@@ -2378,6 +2386,252 @@ export class CasysIntelligenceGatewayServer {
         }
       }
 
+      // Capabilities API (Story 8.1)
+      if (url.pathname === "/api/capabilities" && req.method === "GET") {
+        try {
+          // Parse and validate query parameters
+          const filters: import("../capabilities/types.ts").CapabilityFilters = {};
+
+          const communityIdParam = url.searchParams.get("community_id");
+          if (communityIdParam) {
+            const communityId = parseInt(communityIdParam, 10);
+            if (!isNaN(communityId)) {
+              filters.communityId = communityId;
+            }
+          }
+
+          const minSuccessRateParam = url.searchParams.get("min_success_rate");
+          if (minSuccessRateParam) {
+            const minSuccessRate = parseFloat(minSuccessRateParam);
+            if (!isNaN(minSuccessRate)) {
+              // Fix #20: Validate minSuccessRate range
+              if (minSuccessRate < 0 || minSuccessRate > 1) {
+                return new Response(
+                  JSON.stringify({ error: "min_success_rate must be between 0 and 1" }),
+                  { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } },
+                );
+              }
+              filters.minSuccessRate = minSuccessRate;
+            }
+          }
+
+          const minUsageParam = url.searchParams.get("min_usage");
+          if (minUsageParam) {
+            const minUsage = parseInt(minUsageParam, 10);
+            if (!isNaN(minUsage)) {
+              // Fix #20: Validate minUsage >= 0
+              if (minUsage < 0) {
+                return new Response(
+                  JSON.stringify({ error: "min_usage must be >= 0" }),
+                  { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } },
+                );
+              }
+              filters.minUsage = minUsage;
+            }
+          }
+
+          const limitParam = url.searchParams.get("limit");
+          if (limitParam) {
+            let limit = parseInt(limitParam, 10);
+            if (!isNaN(limit)) {
+              limit = Math.min(limit, 100); // Cap at 100
+              filters.limit = limit;
+            }
+          }
+
+          const offsetParam = url.searchParams.get("offset");
+          if (offsetParam) {
+            const offset = parseInt(offsetParam, 10);
+            if (!isNaN(offset)) {
+              // Fix #20: Validate offset >= 0
+              if (offset < 0) {
+                return new Response(
+                  JSON.stringify({ error: "offset must be >= 0" }),
+                  { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } },
+                );
+              }
+              filters.offset = offset;
+            }
+          }
+
+          const sortParam = url.searchParams.get("sort");
+          if (
+            sortParam === "usage_count" || sortParam === "success_rate" ||
+            sortParam === "last_used" || sortParam === "created_at"
+          ) {
+            // Map snake_case to camelCase for internal use
+            const sortMap: Record<string, "usageCount" | "successRate" | "lastUsed" | "createdAt"> =
+              {
+                usage_count: "usageCount",
+                success_rate: "successRate",
+                last_used: "lastUsed",
+                created_at: "createdAt",
+              };
+            filters.sort = sortMap[sortParam];
+          }
+
+          const orderParam = url.searchParams.get("order");
+          if (orderParam === "asc" || orderParam === "desc") {
+            filters.order = orderParam;
+          }
+
+          // Call service
+          const result = await this.capabilityDataService.listCapabilities(filters);
+
+          // Map camelCase to snake_case for external API
+          const response = {
+            capabilities: result.capabilities.map((cap) => ({
+              id: cap.id,
+              name: cap.name,
+              description: cap.description,
+              code_snippet: cap.codeSnippet,
+              tools_used: cap.toolsUsed,
+              success_rate: cap.successRate,
+              usage_count: cap.usageCount,
+              avg_duration_ms: cap.avgDurationMs,
+              community_id: cap.communityId,
+              intent_preview: cap.intentPreview,
+              created_at: cap.createdAt,
+              last_used: cap.lastUsed,
+              source: cap.source,
+            })),
+            total: result.total,
+            limit: result.limit,
+            offset: result.offset,
+          };
+
+          return new Response(JSON.stringify(response), {
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          });
+        } catch (error) {
+          return new Response(
+            JSON.stringify({ error: `Failed to list capabilities: ${error}` }),
+            { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } },
+          );
+        }
+      }
+
+      // Hypergraph API (Story 8.1)
+      if (url.pathname === "/api/graph/hypergraph" && req.method === "GET") {
+        try {
+          // Parse query parameters
+          const options: import("../capabilities/types.ts").HypergraphOptions = {};
+
+          const includeToolsParam = url.searchParams.get("include_tools");
+          if (includeToolsParam !== null) {
+            options.includeTools = includeToolsParam === "true";
+          }
+
+          const minSuccessRateParam = url.searchParams.get("min_success_rate");
+          if (minSuccessRateParam) {
+            const minSuccessRate = parseFloat(minSuccessRateParam);
+            if (!isNaN(minSuccessRate)) {
+              // Fix #20: Validate minSuccessRate range
+              if (minSuccessRate < 0 || minSuccessRate > 1) {
+                return new Response(
+                  JSON.stringify({ error: "min_success_rate must be between 0 and 1" }),
+                  { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } },
+                );
+              }
+              options.minSuccessRate = minSuccessRate;
+            }
+          }
+
+          const minUsageParam = url.searchParams.get("min_usage");
+          if (minUsageParam) {
+            const minUsage = parseInt(minUsageParam, 10);
+            if (!isNaN(minUsage)) {
+              // Fix #20: Validate minUsage >= 0
+              if (minUsage < 0) {
+                return new Response(
+                  JSON.stringify({ error: "min_usage must be >= 0" }),
+                  { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } },
+                );
+              }
+              options.minUsage = minUsage;
+            }
+          }
+
+          // Call service
+          const result = await this.capabilityDataService.buildHypergraphData(options);
+
+          // Map camelCase to snake_case for external API
+          const mapNodeData = (node: import("../capabilities/types.ts").CytoscapeNode) => {
+            if (node.data.type === "capability") {
+              return {
+                data: {
+                  id: node.data.id,
+                  type: node.data.type,
+                  label: node.data.label,
+                  code_snippet: node.data.codeSnippet,
+                  success_rate: node.data.successRate,
+                  usage_count: node.data.usageCount,
+                  tools_count: node.data.toolsCount,
+                },
+              };
+            } else {
+              return {
+                data: {
+                  id: node.data.id,
+                  parent: node.data.parent,
+                  type: node.data.type,
+                  server: node.data.server,
+                  label: node.data.label,
+                  pagerank: node.data.pagerank,
+                  degree: node.data.degree,
+                },
+              };
+            }
+          };
+
+          const mapEdgeData = (edge: import("../capabilities/types.ts").CytoscapeEdge) => {
+            if (edge.data.edgeType === "capability_link") {
+              return {
+                data: {
+                  id: edge.data.id,
+                  source: edge.data.source,
+                  target: edge.data.target,
+                  shared_tools: edge.data.sharedTools,
+                  edge_type: edge.data.edgeType,
+                  edge_source: edge.data.edgeSource,
+                },
+              };
+            } else {
+              return {
+                data: {
+                  id: edge.data.id,
+                  source: edge.data.source,
+                  target: edge.data.target,
+                  edge_type: edge.data.edgeType,
+                  edge_source: edge.data.edgeSource,
+                  observed_count: edge.data.observedCount,
+                },
+              };
+            }
+          };
+
+          const response = {
+            nodes: result.nodes.map(mapNodeData),
+            edges: result.edges.map(mapEdgeData),
+            capabilities_count: result.capabilitiesCount,
+            tools_count: result.toolsCount,
+            metadata: {
+              generated_at: result.metadata.generatedAt,
+              version: result.metadata.version,
+            },
+          };
+
+          return new Response(JSON.stringify(response), {
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          });
+        } catch (error) {
+          return new Response(
+            JSON.stringify({ error: `Failed to build hypergraph: ${error}` }),
+            { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } },
+          );
+        }
+      }
+
       // Metrics API (Story 6.3)
       if (url.pathname === "/api/metrics" && req.method === "GET") {
         try {
@@ -2433,7 +2687,7 @@ export class CasysIntelligenceGatewayServer {
     log.info(`  Server: ${this.config.name} v${this.config.version}`);
     log.info(`  Connected MCP servers: ${this.mcpClients.size}`);
     log.info(
-      `  Endpoints: GET /health, GET /events/stream, GET /dashboard, GET /api/graph/snapshot, GET /api/metrics, POST /message`,
+      `  Endpoints: GET /health, GET /events/stream, GET /dashboard, GET /api/graph/snapshot, GET /api/graph/hypergraph, GET /api/capabilities, GET /api/metrics, POST /message`,
     );
   }
 
