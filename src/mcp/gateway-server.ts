@@ -119,7 +119,7 @@ interface ActiveWorkflow {
   latestCheckpointId: string | null;
 }
 
-export class CasysIntelligenceGatewayServer {
+export class PMLGatewayServer {
   private server: Server;
   private gatewayHandler: GatewayHandler;
   private healthChecker: HealthChecker;

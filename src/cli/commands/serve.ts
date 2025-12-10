@@ -17,7 +17,7 @@ import { VectorSearch } from "../../vector/search.ts";
 import { GraphRAGEngine } from "../../graphrag/graph-engine.ts";
 import { DAGSuggester } from "../../graphrag/dag-suggester.ts";
 import { ParallelExecutor } from "../../dag/executor.ts";
-import { CasysIntelligenceGatewayServer } from "../../mcp/gateway-server.ts";
+import { PMLGatewayServer } from "../../mcp/gateway-server.ts";
 import { WorkflowSyncService } from "../../graphrag/workflow-sync.ts";
 import { getWorkflowTemplatesPath } from "../utils.ts";
 import { autoInitIfConfigChanged } from "../auto-init.ts";
@@ -269,7 +269,7 @@ export function createServeCommand() {
 
         // 5. Create gateway server
         log.info("Step 5/6: Starting MCP gateway...");
-        const gateway = new CasysIntelligenceGatewayServer(
+        const gateway = new PMLGatewayServer(
           db,
           vectorSearch,
           graphEngine,

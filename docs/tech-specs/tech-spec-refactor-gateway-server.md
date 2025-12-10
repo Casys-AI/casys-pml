@@ -598,7 +598,7 @@ import { WorkflowStateManager } from "./handlers/workflow-state-manager.ts";
 import { WorkflowOrchestrationHandler } from "./handlers/workflow-orchestration-handler.ts";
 import { MCPProtocolHandler } from "./handlers/mcp-protocol-handler.ts";
 
-export class CasysIntelligenceGatewayServer {
+export class PMLGatewayServer {
   private schemaManager: SchemaManager;
   private toolSearchHandler: ToolSearchHandler;
   private codeExecutionHandler: CodeExecutionHandler;

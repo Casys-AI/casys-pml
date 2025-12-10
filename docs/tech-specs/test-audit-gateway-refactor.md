@@ -178,7 +178,7 @@ execute: async (dag: DAGStructure) => {
 
 **Code:**
 ```typescript
-const gateway = new CasysIntelligenceGatewayServer(...);
+const gateway = new PMLGatewayServer(...);
 assertExists(gateway);
 ```
 

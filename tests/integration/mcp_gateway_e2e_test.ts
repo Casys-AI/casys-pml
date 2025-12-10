@@ -10,7 +10,7 @@
 import { assert, assertEquals, assertExists } from "@std/assert";
 import { createDefaultClient } from "../../src/db/client.ts";
 import { getAllMigrations, MigrationRunner } from "../../src/db/migrations.ts";
-import { CasysIntelligenceGatewayServer } from "../../src/mcp/gateway-server.ts";
+import { PMLGatewayServer } from "../../src/mcp/gateway-server.ts";
 import { EmbeddingModel } from "../../src/vector/embeddings.ts";
 import { VectorSearch } from "../../src/vector/search.ts";
 import { GraphRAGEngine } from "../../src/graphrag/graph-engine.ts";
@@ -113,7 +113,7 @@ Deno.test({
       mcpClients.set("mock-server", createMockMCPClient());
 
       // 3. Create gateway
-      const gateway = new CasysIntelligenceGatewayServer(
+      const gateway = new PMLGatewayServer(
         db,
         vectorSearch,
         graphEngine,
@@ -222,7 +222,7 @@ Deno.test({
 
       const mcpClients = new Map();
 
-      const gateway = new CasysIntelligenceGatewayServer(
+      const gateway = new PMLGatewayServer(
         db,
         vectorSearch,
         graphEngine,
