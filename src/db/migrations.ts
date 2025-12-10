@@ -19,6 +19,7 @@ import { createToolDependencySourceMigration } from "./migrations/009_tool_depen
 import { createGraphRagTablesMigration } from "./migrations/010_graphrag_tables_migration.ts";
 import { createCapabilityStorageMigration } from "./migrations/011_capability_storage_migration.ts";
 import { createEdgeTypesMigration } from "./migrations/012_edge_types_migration.ts";
+import { createUserIdWorkflowExecutionMigration } from "./migrations/013_user_id_workflow_execution.ts";
 
 /**
  * Migration definition
@@ -103,9 +104,12 @@ export class MigrationRunner {
       return;
     }
 
+    const totalStart = performance.now();
+
     for (const migration of pending) {
       try {
         log.info(`Running migration ${migration.version}: ${migration.name}`);
+        const migrationStart = performance.now();
 
         await this.db.transaction(async (tx) => {
           // Run the migration up script
@@ -117,7 +121,8 @@ export class MigrationRunner {
           await tx.exec(query);
         });
 
-        log.info(`✓ Migration ${migration.version} applied`);
+        const migrationTime = performance.now() - migrationStart;
+        log.info(`✓ Migration ${migration.version} applied (${migrationTime.toFixed(1)}ms)`);
       } catch (error) {
         log.error(
           `✗ Migration ${migration.version} failed: ${error}`,
@@ -132,7 +137,8 @@ export class MigrationRunner {
       }
     }
 
-    log.info(`All ${pending.length} migrations applied successfully`);
+    const totalTime = performance.now() - totalStart;
+    log.info(`All ${pending.length} migrations applied successfully (total: ${totalTime.toFixed(1)}ms)`);
   }
 
   /**
@@ -384,5 +390,6 @@ export function getAllMigrations(): Migration[] {
     createGraphRagTablesMigration(),
     createCapabilityStorageMigration(),
     createEdgeTypesMigration(), // ADR-041: Hierarchical trace tracking
+    createUserIdWorkflowExecutionMigration(), // Story 9.5: Multi-tenant data isolation
   ];
 }
