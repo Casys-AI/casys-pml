@@ -93,7 +93,7 @@ Deno.test("ControlledExecutor - executeStream", async (t) => {
     // Get final state after execution
     finalState = executor.getState();
 
-    assertEquals(finalState?.workflow_id, "test-workflow");
+    assertEquals(finalState?.workflowId, "test-workflow");
     assertEquals(finalState?.tasks.length, 1);
     assertEquals(finalState?.tasks[0].taskId, "task1");
   });
@@ -329,7 +329,7 @@ Deno.test("ControlledExecutor - State Management", async (t) => {
     const state = executor.getState();
 
     // Should be readonly
-    assertEquals(state?.workflow_id, "test");
+    assertEquals(state?.workflowId, "test");
   });
 
   await t.step("getEventStreamStats returns stats", async () => {

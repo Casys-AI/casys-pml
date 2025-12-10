@@ -106,10 +106,10 @@ Deno.test("Checkpoint Integration - ControlledExecutor", async (t) => {
 
     const checkpointEvent = checkpointEvents[0];
     if (checkpointEvent.type === "checkpoint") {
-      assertExists(checkpointEvent.checkpoint_id);
+      assertExists(checkpointEvent.checkpointId);
       // Verify it's a valid UUID (basic check)
-      assertEquals(checkpointEvent.checkpoint_id.length > 30, true);
-      assertEquals(checkpointEvent.layer_index, 0);
+      assertEquals(checkpointEvent.checkpointId.length > 30, true);
+      assertEquals(checkpointEvent.layerIndex, 0);
     }
   });
 
@@ -144,7 +144,7 @@ Deno.test("Checkpoint Integration - ControlledExecutor", async (t) => {
     const checkpointEvents = events.filter((e) => e.type === "checkpoint");
     assertEquals(checkpointEvents.length, 1);
     if (checkpointEvents[0].type === "checkpoint") {
-      assertEquals(checkpointEvents[0].checkpoint_id.startsWith("failed-"), true);
+      assertEquals(checkpointEvents[0].checkpointId.startsWith("failed-"), true);
     }
   });
 
