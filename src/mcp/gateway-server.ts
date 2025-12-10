@@ -858,12 +858,12 @@ export class CasysIntelligenceGatewayServer {
 
     for await (const event of generator) {
       if (event.type === "workflow_start") {
-        totalLayers = event.total_layers ?? 0;
+        totalLayers = event.totalLayers ?? 0;
       }
 
       if (event.type === "task_complete" || event.type === "task_error") {
         layerResults.push({
-          taskId: event.task_id ?? "",
+          taskId: event.taskId ?? "",
           status: event.type === "task_complete" ? "success" : "error",
           output: event.type === "task_complete"
             ? { executionTimeMs: event.executionTimeMs }
@@ -873,8 +873,8 @@ export class CasysIntelligenceGatewayServer {
       }
 
       if (event.type === "checkpoint") {
-        latestCheckpointId = event.checkpoint_id ?? null;
-        currentLayer = event.layer_index ?? 0;
+        latestCheckpointId = event.checkpointId ?? null;
+        currentLayer = event.layerIndex ?? 0;
 
         // Pause after first layer completes (layer 0)
         // Store active workflow state for continuation
@@ -931,9 +931,9 @@ export class CasysIntelligenceGatewayServer {
                 {
                   status: "complete",
                   workflow_id: workflowId,
-                  total_time_ms: event.total_time_ms,
-                  successful_tasks: event.successful_tasks,
-                  failed_tasks: event.failed_tasks,
+                  total_time_ms: event.totalTimeMs,
+                  successful_tasks: event.successfulTasks,
+                  failed_tasks: event.failedTasks,
                   results: layerResults,
                 },
                 null,
@@ -1514,12 +1514,12 @@ export class CasysIntelligenceGatewayServer {
 
     for await (const event of generator) {
       if (event.type === "workflow_start") {
-        totalLayers = event.total_layers ?? 0;
+        totalLayers = event.totalLayers ?? 0;
       }
 
       if (event.type === "task_complete" || event.type === "task_error") {
         layerResults.push({
-          taskId: event.task_id ?? "",
+          taskId: event.taskId ?? "",
           status: event.type === "task_complete" ? "success" : "error",
           output: event.type === "task_complete"
             ? { executionTimeMs: event.executionTimeMs }
@@ -1529,8 +1529,8 @@ export class CasysIntelligenceGatewayServer {
       }
 
       if (event.type === "checkpoint") {
-        latestCheckpointId = event.checkpoint_id ?? null;
-        currentLayer = event.layer_index ?? currentLayer;
+        latestCheckpointId = event.checkpointId ?? null;
+        currentLayer = event.layerIndex ?? currentLayer;
 
         // Update active workflow state
         const activeWorkflow: ActiveWorkflow = {
@@ -1584,9 +1584,9 @@ export class CasysIntelligenceGatewayServer {
                 {
                   status: "complete",
                   workflow_id: workflowId,
-                  total_time_ms: event.total_time_ms,
-                  successful_tasks: event.successful_tasks,
-                  failed_tasks: event.failed_tasks,
+                  total_time_ms: event.totalTimeMs,
+                  successful_tasks: event.successfulTasks,
+                  failed_tasks: event.failedTasks,
                   results: layerResults,
                 },
                 null,

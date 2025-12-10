@@ -61,11 +61,11 @@ Deno.test("Resume from Checkpoint", async (t) => {
     // Create 5-layer DAG
     const dag: DAGStructure = {
       tasks: [
-        { id: "task1", tool: "tool1", arguments: {}, depends_on: [] },
-        { id: "task2", tool: "tool2", arguments: {}, depends_on: ["task1"] },
-        { id: "task3", tool: "tool3", arguments: {}, depends_on: ["task2"] },
-        { id: "task4", tool: "tool4", arguments: {}, depends_on: ["task3"] },
-        { id: "task5", tool: "tool5", arguments: {}, depends_on: ["task4"] },
+        { id: "task1", tool: "tool1", arguments: {}, dependsOn: [] },
+        { id: "task2", tool: "tool2", arguments: {}, dependsOn: ["task1"] },
+        { id: "task3", tool: "tool3", arguments: {}, dependsOn: ["task2"] },
+        { id: "task4", tool: "tool4", arguments: {}, dependsOn: ["task3"] },
+        { id: "task5", tool: "tool5", arguments: {}, dependsOn: ["task4"] },
       ],
     };
 
@@ -119,9 +119,9 @@ Deno.test("Resume from Checkpoint", async (t) => {
 
     const dag: DAGStructure = {
       tasks: [
-        { id: "task1", tool: "tool1", arguments: {}, depends_on: [] },
-        { id: "task2", tool: "tool2", arguments: {}, depends_on: ["task1"] },
-        { id: "task3", tool: "tool3", arguments: {}, depends_on: ["task2"] },
+        { id: "task1", tool: "tool1", arguments: {}, dependsOn: [] },
+        { id: "task2", tool: "tool2", arguments: {}, dependsOn: ["task1"] },
+        { id: "task3", tool: "tool3", arguments: {}, dependsOn: ["task2"] },
       ],
     };
 
@@ -163,10 +163,10 @@ Deno.test("Resume from Checkpoint", async (t) => {
 
     const dag: DAGStructure = {
       tasks: [
-        { id: "task1", tool: "tool1", arguments: {}, depends_on: [] },
-        { id: "task2", tool: "tool2", arguments: {}, depends_on: ["task1"] },
-        { id: "task3", tool: "tool3", arguments: {}, depends_on: ["task2"] },
-        { id: "task4", tool: "tool4", arguments: {}, depends_on: ["task3"] },
+        { id: "task1", tool: "tool1", arguments: {}, dependsOn: [] },
+        { id: "task2", tool: "tool2", arguments: {}, dependsOn: ["task1"] },
+        { id: "task3", tool: "tool3", arguments: {}, dependsOn: ["task2"] },
+        { id: "task4", tool: "tool4", arguments: {}, dependsOn: ["task3"] },
       ],
     };
 
@@ -214,9 +214,9 @@ Deno.test("Resume from Checkpoint", async (t) => {
 
     const dag: DAGStructure = {
       tasks: [
-        { id: "task1", tool: "tool1", arguments: {}, depends_on: [] },
-        { id: "task2", tool: "tool2", arguments: {}, depends_on: ["task1"] },
-        { id: "task3", tool: "tool3", arguments: {}, depends_on: ["task2"] },
+        { id: "task1", tool: "tool1", arguments: {}, dependsOn: [] },
+        { id: "task2", tool: "tool2", arguments: {}, dependsOn: ["task1"] },
+        { id: "task3", tool: "tool3", arguments: {}, dependsOn: ["task2"] },
       ],
     };
 

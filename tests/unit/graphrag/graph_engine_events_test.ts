@@ -65,9 +65,9 @@ Deno.test("GraphRAGEngine - graph_synced event on syncFromDatabase", async () =>
 
   const syncEvent = syncedEvents[0];
   assertEquals(syncEvent.type, "graph_synced");
-  assertExists(syncEvent.data.node_count);
-  assertExists(syncEvent.data.edge_count);
-  assertExists(syncEvent.data.sync_duration_ms);
+  assertExists(syncEvent.data.nodeCount);
+  assertExists(syncEvent.data.edgeCount);
+  assertExists(syncEvent.data.syncDurationMs);
   assertExists(syncEvent.data.timestamp);
 
   // Timestamp should be valid ISO8601

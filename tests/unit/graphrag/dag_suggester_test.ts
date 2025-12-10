@@ -10,7 +10,7 @@ import { GraphRAGEngine } from "../../../src/graphrag/graph-engine.ts";
 import { VectorSearch } from "../../../src/vector/search.ts";
 import { EmbeddingModel } from "../../../src/vector/embeddings.ts";
 import { PGliteClient } from "../../../src/db/client.ts";
-import { createInitialMigration } from "../../../src/db/migrations.ts";
+import { getAllMigrations, MigrationRunner } from "../../../src/db/migrations.ts";
 
 /**
  * Create test database with full schema
@@ -19,13 +19,9 @@ async function createTestDb(): Promise<PGliteClient> {
   const db = new PGliteClient("memory://");
   await db.connect();
 
-  const migration = createInitialMigration();
-  await migration.up(db);
-
-  const graphragMigration = await Deno.readTextFile(
-    "src/db/migrations/003_graphrag_tables.sql",
-  );
-  await db.exec(graphragMigration);
+  // Run all migrations properly (including edge_type columns from migration 012)
+  const migrationRunner = new MigrationRunner(db);
+  await migrationRunner.runUp(getAllMigrations());
 
   return db;
 }

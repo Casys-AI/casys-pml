@@ -205,7 +205,7 @@ interface DAGTask {
   id: string;
   tool: string;
   arguments: Record<string, unknown>;
-  depends_on: string[];
+  dependsOn: string[];
 }
 
 interface DAGStructure {
@@ -226,7 +226,7 @@ export function createTestDAG(taskCount: number): DAGStructure {
       id: `task-${i}`,
       tool: `server:tool-${i}`,
       arguments: { input: `value-${i}` },
-      depends_on: i > 0 ? [`task-${i - 1}`] : [],
+      dependsOn: i > 0 ? [`task-${i - 1}`] : [],
     });
   }
 

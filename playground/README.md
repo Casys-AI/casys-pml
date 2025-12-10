@@ -40,8 +40,8 @@ real MCP servers, make real LLM calls, and see real metrics.
 
 ```bash
 # Clone and navigate
-git clone https://github.com/Casys-AI/AgentCards.git
-cd AgentCards
+git clone https://github.com/Casys-AI/casys-intelligence.git
+cd casys-intelligence
 
 # Setup environment
 cp .env.example .env
@@ -51,7 +51,8 @@ cp .env.example .env
 deno jupyter --install
 
 # Start the MCP Gateway (first run: ~2-3 min for BGE-M3 model download)
-deno task serve:playground
+# The gateway runs on http://localhost:3003 - keep this terminal open
+deno task dev
 
 # Launch notebooks in another terminal
 jupyter notebook playground/notebooks/
@@ -201,15 +202,34 @@ See [config/README.md](../config/README.md) for details.
 
 ## MCP HTTP Server
 
-Start the full MCP Gateway:
+Start the MCP Gateway before running notebooks:
 
 ```bash
 # From AgentCards root
-deno task serve:playground
+deno task dev
 ```
 
-**First run:** ~2-3 minutes (downloads BGE-M3 model - 2.2GB) **Subsequent runs:** ~5 seconds
-(cached)
+The gateway runs on **http://localhost:3003**. You must start it manually - Claude cannot start it for you.
+
+**First run:** ~2-3 minutes (downloads BGE-M3 model - 2.2GB)
+**Subsequent runs:** ~5 seconds (cached)
+
+### Configuring Claude to use CAI
+
+Add to your MCP settings (`.mcp.json` or Claude Desktop config):
+
+```json
+{
+  "mcpServers": {
+    "cai": {
+      "type": "http",
+      "url": "http://localhost:3003/mcp"
+    }
+  }
+}
+```
+
+No API key needed for local development. The gateway reads your MCP server configs from `config/.mcp-servers.json`.
 
 ### Available Tools
 
@@ -244,9 +264,9 @@ deno task serve:playground
 
 **Solution:**
 
-1. Start the gateway first: `deno task serve:playground`
+1. Start the gateway first: `deno task dev`
 2. Wait for "Ready on http://localhost:3003" message
-3. Check port 3003 is not blocked: `curl http://localhost:3003/api/tools`
+3. Check port 3003 is not blocked: `curl http://localhost:3003/health`
 4. First run downloads 2.2GB model—be patient
 
 ### Notebook stuck at embedding loading

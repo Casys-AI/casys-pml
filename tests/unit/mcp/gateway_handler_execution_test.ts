@@ -87,7 +87,7 @@ Deno.test("ADR-030: executeToolReal - calls MCP client with correct args", async
     id: "task_1",
     tool: "filesystem:read_file",
     arguments: { path: "/test.txt" },
-    depends_on: [],
+    dependsOn: [],
   };
 
   const result = await executeToolReal(task);
@@ -115,7 +115,7 @@ Deno.test("ADR-030: executeToolReal - handles mcp__server__tool format", async (
     id: "task_1",
     tool: "mcp__playwright__browser_navigate",
     arguments: { url: "https://example.com" },
-    depends_on: [],
+    dependsOn: [],
   };
 
   await executeToolReal(task);
@@ -135,7 +135,7 @@ Deno.test("ADR-030: executeToolReal - throws on missing server", async () => {
     id: "task_1",
     tool: "unknown:some_tool",
     arguments: {},
-    depends_on: [],
+    dependsOn: [],
   };
 
   let error: Error | null = null;
@@ -159,7 +159,7 @@ Deno.test("ADR-030: executeToolReal - throws on invalid tool format", async () =
     id: "task_1",
     tool: "invalid_format_no_separator",
     arguments: {},
-    depends_on: [],
+    dependsOn: [],
   };
 
   let error: Error | null = null;
@@ -190,7 +190,7 @@ Deno.test("ADR-030: dry_run mode - does NOT call MCP client", async () => {
     id: "task_1",
     tool: "filesystem:read_file",
     arguments: { path: "/test.txt" },
-    depends_on: [],
+    dependsOn: [],
   };
 
   const result = await executeTask(task);
@@ -217,7 +217,7 @@ Deno.test("ADR-030: real mode - DOES call MCP client", async () => {
     id: "task_1",
     tool: "filesystem:read_file",
     arguments: { path: "/test.txt" },
-    depends_on: [],
+    dependsOn: [],
   };
 
   const result = await executeTask(task);
@@ -244,7 +244,7 @@ Deno.test("ADR-030: executeTask routes based on executionMode config", async () 
     id: "task_1",
     tool: "test:some_tool",
     arguments: {},
-    depends_on: [],
+    dependsOn: [],
   };
 
   // Test dry_run

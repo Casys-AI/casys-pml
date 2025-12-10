@@ -54,8 +54,8 @@ export interface TaskResult {
  * - context: Shared execution context (reducer: merge)
  */
 export interface WorkflowState {
-  workflow_id: string;
-  current_layer: number;
+  workflowId: string;
+  currentLayer: number;
   messages: Message[];
   tasks: TaskResult[];
   decisions: Decision[];
@@ -67,11 +67,11 @@ export interface WorkflowState {
  */
 export type StateUpdate =
   & Partial<
-    Omit<WorkflowState, "workflow_id" | "current_layer">
+    Omit<WorkflowState, "workflowId" | "currentLayer">
   >
   & {
-    workflow_id?: never; // Prevent workflow_id changes
-    current_layer?: number; // Allow layer updates
+    workflowId?: never; // Prevent workflowId changes
+    currentLayer?: number; // Allow layer updates
   };
 
 /**
@@ -148,13 +148,13 @@ export function contextReducer(
  * @throws Error if invariants violated
  */
 export function validateStateInvariants(state: WorkflowState): void {
-  if (!state.workflow_id || state.workflow_id.trim() === "") {
+  if (!state.workflowId || state.workflowId.trim() === "") {
     throw new Error("State invariant violated: workflow_id must be non-empty");
   }
 
-  if (state.current_layer < 0) {
+  if (state.currentLayer < 0) {
     throw new Error(
-      `State invariant violated: current_layer must be >= 0 (got ${state.current_layer})`,
+      `State invariant violated: current_layer must be >= 0 (got ${state.currentLayer})`,
     );
   }
 
@@ -188,8 +188,8 @@ export function updateState(
   update: StateUpdate,
 ): WorkflowState {
   const newState: WorkflowState = {
-    workflow_id: state.workflow_id, // Immutable
-    current_layer: update.current_layer ?? state.current_layer,
+    workflowId: state.workflowId, // Immutable
+    currentLayer: update.currentLayer ?? state.currentLayer,
     messages: update.messages ? messagesReducer(state.messages, update.messages) : state.messages,
     tasks: update.tasks ? tasksReducer(state.tasks, update.tasks) : state.tasks,
     decisions: update.decisions
@@ -210,10 +210,10 @@ export function updateState(
  * @param workflow_id - Unique workflow identifier
  * @returns Initial state with empty arrays and context
  */
-export function createInitialState(workflow_id: string): WorkflowState {
+export function createInitialState(workflowId: string): WorkflowState {
   const state: WorkflowState = {
-    workflow_id,
-    current_layer: 0,
+    workflowId,
+    currentLayer: 0,
     messages: [],
     tasks: [],
     decisions: [],

@@ -37,8 +37,8 @@ Deno.test({
           id: "fetch",
           tool: "mock:fetch_data",
           arguments: {},
-          depends_on: [],
-          side_effects: true, // MCP task - NOT safe-to-fail
+          dependsOn: [],
+          sideEffects: true, // MCP task - NOT safe-to-fail
         },
 
         // Launch 3 parallel analysis approaches (NO side effects = safe-to-fail)
@@ -52,8 +52,8 @@ Deno.test({
           `,
           tool: "code_execution",
           arguments: {},
-          depends_on: ["fetch"],
-          side_effects: false, // Safe-to-fail
+          dependsOn: ["fetch"],
+          sideEffects: false, // Safe-to-fail
         },
         {
           id: "ml",
@@ -69,8 +69,8 @@ Deno.test({
           `,
           tool: "code_execution",
           arguments: {},
-          depends_on: ["fetch"],
-          side_effects: false, // Safe-to-fail
+          dependsOn: ["fetch"],
+          sideEffects: false, // Safe-to-fail
         },
         {
           id: "stats",
@@ -83,8 +83,8 @@ Deno.test({
           `,
           tool: "code_execution",
           arguments: {},
-          depends_on: ["fetch"],
-          side_effects: false, // Safe-to-fail
+          dependsOn: ["fetch"],
+          sideEffects: false, // Safe-to-fail
         },
 
         // Aggregate successful results using deps context
@@ -111,8 +111,8 @@ Deno.test({
           `,
           tool: "code_execution",
           arguments: {},
-          depends_on: ["fast", "ml", "stats"],
-          side_effects: false,
+          dependsOn: ["fast", "ml", "stats"],
+          sideEffects: false,
         },
       ],
     };
@@ -162,8 +162,8 @@ Deno.test({
           id: "fetch",
           tool: "mock:fetch_data",
           arguments: {},
-          depends_on: [],
-          side_effects: true,
+          dependsOn: [],
+          sideEffects: true,
         },
         // ML analysis with forced timeout
         {
@@ -172,8 +172,8 @@ Deno.test({
           code: `throw new Error("ML analysis timeout");`,
           tool: "code_execution",
           arguments: {},
-          depends_on: ["fetch"],
-          side_effects: false, // Safe-to-fail
+          dependsOn: ["fetch"],
+          sideEffects: false, // Safe-to-fail
         },
         // Stats fallback
         {
@@ -185,8 +185,8 @@ Deno.test({
           `,
           tool: "code_execution",
           arguments: {},
-          depends_on: ["fetch"],
-          side_effects: false,
+          dependsOn: ["fetch"],
+          sideEffects: false,
         },
         // Aggregator with fallback logic
         {
@@ -201,8 +201,8 @@ Deno.test({
           `,
           tool: "code_execution",
           arguments: {},
-          depends_on: ["ml_analysis", "stats_fallback"],
-          side_effects: false,
+          dependsOn: ["ml_analysis", "stats_fallback"],
+          sideEffects: false,
         },
       ],
     };
@@ -268,8 +268,8 @@ Deno.test({
           id: "fetch",
           tool: "mock:fetch_data",
           arguments: {},
-          depends_on: [],
-          side_effects: true,
+          dependsOn: [],
+          sideEffects: true,
         },
         // Algorithm A
         {
@@ -282,8 +282,8 @@ Deno.test({
           `,
           tool: "code_execution",
           arguments: {},
-          depends_on: ["fetch"],
-          side_effects: false,
+          dependsOn: ["fetch"],
+          sideEffects: false,
         },
         // Algorithm B (with potential failure)
         {
@@ -300,8 +300,8 @@ Deno.test({
           `,
           tool: "code_execution",
           arguments: {},
-          depends_on: ["fetch"],
-          side_effects: false, // Safe-to-fail
+          dependsOn: ["fetch"],
+          sideEffects: false, // Safe-to-fail
         },
         // Compare results
         {
@@ -319,8 +319,8 @@ Deno.test({
           `,
           tool: "code_execution",
           arguments: {},
-          depends_on: ["algo_a", "algo_b"],
-          side_effects: false,
+          dependsOn: ["algo_a", "algo_b"],
+          sideEffects: false,
         },
       ],
     };
@@ -378,8 +378,8 @@ Deno.test({
           id: "source",
           tool: "mock:data",
           arguments: {},
-          depends_on: [],
-          side_effects: true,
+          dependsOn: [],
+          sideEffects: true,
         },
         // Sandbox task that succeeds (to verify retry path works)
         {
@@ -391,8 +391,8 @@ Deno.test({
           `,
           tool: "code_execution",
           arguments: {},
-          depends_on: ["source"],
-          side_effects: false, // Safe-to-fail → enables retry
+          dependsOn: ["source"],
+          sideEffects: false, // Safe-to-fail → enables retry
         },
       ],
     };
@@ -444,8 +444,8 @@ Deno.test({
           code: `throw new Error("Sandbox analysis failed");`,
           tool: "code_execution",
           arguments: {},
-          depends_on: [],
-          side_effects: false, // Safe-to-fail
+          dependsOn: [],
+          sideEffects: false, // Safe-to-fail
         },
         // Parallel safe branch
         {
@@ -454,16 +454,16 @@ Deno.test({
           code: `return { status: "ok", data: [1, 2, 3] };`,
           tool: "code_execution",
           arguments: {},
-          depends_on: [],
-          side_effects: false,
+          dependsOn: [],
+          sideEffects: false,
         },
         // Downstream MCP task (depends on both)
         {
           id: "mcp_downstream",
           tool: "mock:process_result",
           arguments: {},
-          depends_on: ["sandbox_fail", "safe_branch"],
-          side_effects: true, // MCP task - NOT safe-to-fail
+          dependsOn: ["sandbox_fail", "safe_branch"],
+          sideEffects: true, // MCP task - NOT safe-to-fail
         },
       ],
     };
@@ -518,8 +518,8 @@ Deno.test({
           id: "source",
           tool: "mock:data_source",
           arguments: {},
-          depends_on: [],
-          side_effects: true,
+          dependsOn: [],
+          sideEffects: true,
         },
         // 3 parallel branches with intentional failures
         {
@@ -528,8 +528,8 @@ Deno.test({
           code: `return { branch: 1, result: deps.source.output.count * 2 };`,
           tool: "code_execution",
           arguments: {},
-          depends_on: ["source"],
-          side_effects: false,
+          dependsOn: ["source"],
+          sideEffects: false,
         },
         {
           id: "branch_2",
@@ -537,8 +537,8 @@ Deno.test({
           code: `throw new Error("Branch 2 intentional failure");`,
           tool: "code_execution",
           arguments: {},
-          depends_on: ["source"],
-          side_effects: false, // Safe-to-fail
+          dependsOn: ["source"],
+          sideEffects: false, // Safe-to-fail
         },
         {
           id: "branch_3",
@@ -546,8 +546,8 @@ Deno.test({
           code: `return { branch: 3, result: deps.source.output.count / 2 };`,
           tool: "code_execution",
           arguments: {},
-          depends_on: ["source"],
-          side_effects: false,
+          dependsOn: ["source"],
+          sideEffects: false,
         },
         // Aggregate partial results
         {
@@ -562,8 +562,8 @@ Deno.test({
           `,
           tool: "code_execution",
           arguments: {},
-          depends_on: ["branch_1", "branch_2", "branch_3"],
-          side_effects: false,
+          dependsOn: ["branch_1", "branch_2", "branch_3"],
+          sideEffects: false,
         },
       ],
     };

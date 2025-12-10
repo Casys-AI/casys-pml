@@ -164,10 +164,10 @@ Deno.test("GraphRAGEngine.getPageRankTop - returns sorted results", async () => 
   const top10 = engine.getPageRankTop(10);
 
   assertEquals(top10.length, 3, "Should return 3 tools");
-  assertEquals(top10[0].tool_id, "tool2", "Highest PageRank should be first");
+  assertEquals(top10[0].toolId, "tool2", "Highest PageRank should be first");
   assertEquals(top10[0].score, 0.5);
-  assertEquals(top10[1].tool_id, "tool1", "Second highest should be second");
-  assertEquals(top10[2].tool_id, "tool3", "Lowest should be last");
+  assertEquals(top10[1].toolId, "tool1", "Second highest should be second");
+  assertEquals(top10[2].toolId, "tool3", "Lowest should be last");
 
   await db.close();
 });
@@ -256,24 +256,24 @@ Deno.test("GraphRAGEngine.getMetrics - returns correct structure", async () => {
   assertExists(metrics.period, "should have period stats");
 
   // Verify current metrics
-  assertEquals(typeof metrics.current.node_count, "number");
-  assertEquals(typeof metrics.current.edge_count, "number");
+  assertEquals(typeof metrics.current.nodeCount, "number");
+  assertEquals(typeof metrics.current.edgeCount, "number");
   assertEquals(typeof metrics.current.density, "number");
-  assertEquals(typeof metrics.current.adaptive_alpha, "number");
-  assertEquals(typeof metrics.current.communities_count, "number");
-  assertEquals(Array.isArray(metrics.current.pagerank_top_10), true);
+  assertEquals(typeof metrics.current.adaptiveAlpha, "number");
+  assertEquals(typeof metrics.current.communitiesCount, "number");
+  assertEquals(Array.isArray(metrics.current.pagerankTop10), true);
 
   // Verify timeseries structure
-  assertEquals(Array.isArray(metrics.timeseries.edge_count), true);
-  assertEquals(Array.isArray(metrics.timeseries.avg_confidence), true);
-  assertEquals(Array.isArray(metrics.timeseries.workflow_rate), true);
+  assertEquals(Array.isArray(metrics.timeseries.edgeCount), true);
+  assertEquals(Array.isArray(metrics.timeseries.avgConfidence), true);
+  assertEquals(Array.isArray(metrics.timeseries.workflowRate), true);
 
   // Verify period stats
   assertEquals(metrics.period.range, "24h");
-  assertEquals(typeof metrics.period.workflows_executed, "number");
-  assertEquals(typeof metrics.period.workflows_success_rate, "number");
-  assertEquals(typeof metrics.period.new_edges_created, "number");
-  assertEquals(typeof metrics.period.new_nodes_added, "number");
+  assertEquals(typeof metrics.period.workflowsExecuted, "number");
+  assertEquals(typeof metrics.period.workflowsSuccessRate, "number");
+  assertEquals(typeof metrics.period.newEdgesCreated, "number");
+  assertEquals(typeof metrics.period.newNodesAdded, "number");
 
   await db.close();
 });
@@ -285,12 +285,12 @@ Deno.test("GraphRAGEngine.getMetrics - empty graph returns zeros", async () => {
 
   const metrics = await engine.getMetrics("1h");
 
-  assertEquals(metrics.current.node_count, 0);
-  assertEquals(metrics.current.edge_count, 0);
+  assertEquals(metrics.current.nodeCount, 0);
+  assertEquals(metrics.current.edgeCount, 0);
   assertEquals(metrics.current.density, 0);
-  assertEquals(metrics.current.adaptive_alpha, 1.0);
-  assertEquals(metrics.current.communities_count, 0);
-  assertEquals(metrics.current.pagerank_top_10.length, 0);
+  assertEquals(metrics.current.adaptiveAlpha, 1.0);
+  assertEquals(metrics.current.communitiesCount, 0);
+  assertEquals(metrics.current.pagerankTop10.length, 0);
 
   await db.close();
 });
@@ -327,12 +327,12 @@ Deno.test("GraphRAGEngine.getMetrics - with graph data", async () => {
 
   const metrics = await engine.getMetrics("24h");
 
-  assertEquals(metrics.current.node_count, 2);
-  assertEquals(metrics.current.edge_count, 1);
+  assertEquals(metrics.current.nodeCount, 2);
+  assertEquals(metrics.current.edgeCount, 1);
   assert(metrics.current.density > 0);
-  assert(metrics.current.adaptive_alpha < 1.0);
-  assertEquals(metrics.current.communities_count, 1);
-  assertEquals(metrics.current.pagerank_top_10.length, 2);
+  assert(metrics.current.adaptiveAlpha < 1.0);
+  assertEquals(metrics.current.communitiesCount, 1);
+  assertEquals(metrics.current.pagerankTop10.length, 2);
 
   await db.close();
 });

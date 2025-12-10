@@ -123,77 +123,77 @@ export type ExecutionEvent =
   | {
     type: "workflow_start";
     timestamp: number;
-    workflow_id: string;
-    total_layers: number;
+    workflowId: string;
+    totalLayers: number;
   }
   | {
     type: "layer_start";
     timestamp: number;
-    workflow_id: string;
-    layer_index: number;
-    tasks_count: number;
+    workflowId: string;
+    layerIndex: number;
+    tasksCount: number;
   }
   | {
     type: "task_start";
     timestamp: number;
-    workflow_id: string;
-    task_id: string;
+    workflowId: string;
+    taskId: string;
     tool: string;
   }
   | {
     type: "task_complete";
     timestamp: number;
-    workflow_id: string;
-    task_id: string;
-    execution_time_ms: number;
+    workflowId: string;
+    taskId: string;
+    executionTimeMs: number;
   }
   | {
     type: "task_error";
     timestamp: number;
-    workflow_id: string;
-    task_id: string;
+    workflowId: string;
+    taskId: string;
     error: string;
   }
   | {
     type: "task_warning";
     timestamp: number;
-    workflow_id: string;
-    task_id: string;
+    workflowId: string;
+    taskId: string;
     error: string;
     message: string;
   }
   | {
     type: "state_updated";
     timestamp: number;
-    workflow_id: string;
+    workflowId: string;
     updates: {
-      messages_added?: number;
-      tasks_added?: number;
-      decisions_added?: number;
-      context_keys?: string[];
+      messagesAdded?: number;
+      tasksAdded?: number;
+      decisionsAdded?: number;
+      contextKeys?: string[];
     };
   }
   | {
     type: "checkpoint";
     timestamp: number;
-    workflow_id: string;
-    checkpoint_id: string;
-    layer_index: number;
+    workflowId: string;
+    checkpointId: string;
+    layerIndex: number;
   }
   | {
     type: "decision_required";
     timestamp: number;
-    workflow_id: string;
-    decision_type: "AIL" | "HIL";
+    workflowId: string;
+    decisionType: "AIL" | "HIL";
     description: string;
   }
   | {
     type: "workflow_complete";
     timestamp: number;
-    workflow_id: string;
-    total_time_ms: number;
-    successful_tasks: number;
-    failed_tasks: number;
+    workflowId: string;
+    totalTimeMs: number;
+    successfulTasks: number;
+    failedTasks: number;
   };
 
 // ============================================================================
@@ -214,7 +214,7 @@ export interface Checkpoint {
   id: string;
 
   /** Workflow instance this checkpoint belongs to */
-  workflow_id: string;
+  workflowId: string;
 
   /** Timestamp when checkpoint was created */
   timestamp: Date;
@@ -259,7 +259,7 @@ export type Command =
       id: string;
       tool: string;
       arguments: Record<string, unknown>;
-      depends_on: string[];
+      dependsOn: string[];
     }>;
     target_layer: number;
   }

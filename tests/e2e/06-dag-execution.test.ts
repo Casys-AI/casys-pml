@@ -56,13 +56,13 @@ Deno.test("E2E 06: DAG parallel execution", async (t) => {
             id: "task1",
             tool: "server1:step1",
             arguments: { input: "test" },
-            depends_on: [],
+            dependsOn: [],
           },
           {
             id: "task2",
             tool: "server1:step2",
             arguments: { data: "$OUTPUT[task1].result" },
-            depends_on: ["task1"],
+            dependsOn: ["task1"],
           },
         ],
       };
@@ -89,19 +89,19 @@ Deno.test("E2E 06: DAG parallel execution", async (t) => {
             id: "parallel1",
             tool: "server1:step1",
             arguments: { input: "a" },
-            depends_on: [],
+            dependsOn: [],
           },
           {
             id: "parallel2",
             tool: "server1:step1",
             arguments: { input: "b" },
-            depends_on: [],
+            dependsOn: [],
           },
           {
             id: "parallel3",
             tool: "server2:transform",
             arguments: { value: "c" },
-            depends_on: [],
+            dependsOn: [],
           },
         ],
       };
@@ -120,15 +120,15 @@ Deno.test("E2E 06: DAG parallel execution", async (t) => {
       const dag: DAGStructure = {
         tasks: [
           // Layer 1: 2 parallel tasks
-          { id: "t1", tool: "server1:step1", arguments: { input: "1" }, depends_on: [] },
-          { id: "t2", tool: "server1:step1", arguments: { input: "2" }, depends_on: [] },
+          { id: "t1", tool: "server1:step1", arguments: { input: "1" }, dependsOn: [] },
+          { id: "t2", tool: "server1:step1", arguments: { input: "2" }, dependsOn: [] },
 
           // Layer 2: depends on t1
           {
             id: "t3",
             tool: "server1:step2",
             arguments: { data: "$OUTPUT[t1].result" },
-            depends_on: ["t1"],
+            dependsOn: ["t1"],
           },
 
           // Layer 3: depends on both t2 and t3
@@ -136,7 +136,7 @@ Deno.test("E2E 06: DAG parallel execution", async (t) => {
             id: "t4",
             tool: "server2:transform",
             arguments: { value: "$OUTPUT[t3].result" },
-            depends_on: ["t2", "t3"],
+            dependsOn: ["t2", "t3"],
           },
         ],
       };
@@ -163,8 +163,8 @@ Deno.test("E2E 06: DAG parallel execution", async (t) => {
 
       const dag: DAGStructure = {
         tasks: [
-          { id: "success", tool: "server1:step1", arguments: { input: "ok" }, depends_on: [] },
-          { id: "failure", tool: "server1:fail", arguments: {}, depends_on: [] },
+          { id: "success", tool: "server1:step1", arguments: { input: "ok" }, dependsOn: [] },
+          { id: "failure", tool: "server1:fail", arguments: {}, dependsOn: [] },
         ],
       };
 
@@ -184,13 +184,13 @@ Deno.test("E2E 06: DAG parallel execution", async (t) => {
             id: "source",
             tool: "server1:step1",
             arguments: { input: "data" },
-            depends_on: [],
+            dependsOn: [],
           },
           {
             id: "consumer",
             tool: "server1:step2",
             arguments: { data: "$OUTPUT[source].result" },
-            depends_on: ["source"],
+            dependsOn: ["source"],
           },
         ],
       };
@@ -210,7 +210,7 @@ Deno.test("E2E 06: DAG parallel execution", async (t) => {
           id: `task${i}`,
           tool: "server1:step1",
           arguments: { input: `value${i}` },
-          depends_on: i > 0 ? [`task${i - 1}`] : [],
+          dependsOn: i > 0 ? [`task${i - 1}`] : [],
         });
       }
 

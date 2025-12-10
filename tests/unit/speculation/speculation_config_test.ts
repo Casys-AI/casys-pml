@@ -304,8 +304,8 @@ Deno.test("SpeculationConfigLoader: toSpeculationConfig converts correctly", () 
   const specConfig = toSpeculationConfig(fileConfig);
 
   assertEquals(specConfig.enabled, true);
-  assertEquals(specConfig.confidence_threshold, 0.75);
-  assertEquals(specConfig.max_concurrent, 4);
+  assertEquals(specConfig.confidenceThreshold, 0.75);
+  assertEquals(specConfig.maxConcurrent, 4);
 });
 
 // === Default Values Tests ===

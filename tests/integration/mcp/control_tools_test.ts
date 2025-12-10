@@ -44,7 +44,7 @@ function createTestDAG(taskCount: number = 2): DAGStructure {
       id: `task-${i + 1}`,
       tool: `test:tool_${i + 1}`,
       arguments: { arg: `value-${i + 1}` },
-      depends_on: i > 0 ? [`task-${i}`] : [],
+      dependsOn: i > 0 ? [`task-${i}`] : [],
     });
   }
   return { tasks };
@@ -261,7 +261,7 @@ Deno.test("Per-layer validation: Replan updates DAG in database", async () => {
           id: "task-xml-parser",
           tool: "xml:parse",
           arguments: { file: "data.xml" },
-          depends_on: ["task-2"],
+          dependsOn: ["task-2"],
         },
       ],
     };

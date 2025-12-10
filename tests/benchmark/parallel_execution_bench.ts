@@ -80,11 +80,11 @@ Deno.bench("Parallel execution - 5 independent tasks @500ms each", {
 
   const dag: DAGStructure = {
     tasks: [
-      { id: "t1", tool: "mock:delay", arguments: { ms: 500 }, depends_on: [] },
-      { id: "t2", tool: "mock:delay", arguments: { ms: 500 }, depends_on: [] },
-      { id: "t3", tool: "mock:delay", arguments: { ms: 500 }, depends_on: [] },
-      { id: "t4", tool: "mock:delay", arguments: { ms: 500 }, depends_on: [] },
-      { id: "t5", tool: "mock:delay", arguments: { ms: 500 }, depends_on: [] },
+      { id: "t1", tool: "mock:delay", arguments: { ms: 500 }, dependsOn: [] },
+      { id: "t2", tool: "mock:delay", arguments: { ms: 500 }, dependsOn: [] },
+      { id: "t3", tool: "mock:delay", arguments: { ms: 500 }, dependsOn: [] },
+      { id: "t4", tool: "mock:delay", arguments: { ms: 500 }, dependsOn: [] },
+      { id: "t5", tool: "mock:delay", arguments: { ms: 500 }, dependsOn: [] },
     ],
   };
 
@@ -99,11 +99,11 @@ Deno.bench("Parallel execution - 5-task mixed parallel/sequential", {
   // [t1, t2] → t3 → [t4, t5]
   const dag: DAGStructure = {
     tasks: [
-      { id: "t1", tool: "mock:delay", arguments: { ms: 400 }, depends_on: [] },
-      { id: "t2", tool: "mock:delay", arguments: { ms: 400 }, depends_on: [] },
-      { id: "t3", tool: "mock:delay", arguments: { ms: 400 }, depends_on: ["t1", "t2"] },
-      { id: "t4", tool: "mock:delay", arguments: { ms: 400 }, depends_on: ["t3"] },
-      { id: "t5", tool: "mock:delay", arguments: { ms: 400 }, depends_on: ["t3"] },
+      { id: "t1", tool: "mock:delay", arguments: { ms: 400 }, dependsOn: [] },
+      { id: "t2", tool: "mock:delay", arguments: { ms: 400 }, dependsOn: [] },
+      { id: "t3", tool: "mock:delay", arguments: { ms: 400 }, dependsOn: ["t1", "t2"] },
+      { id: "t4", tool: "mock:delay", arguments: { ms: 400 }, dependsOn: ["t3"] },
+      { id: "t5", tool: "mock:delay", arguments: { ms: 400 }, dependsOn: ["t3"] },
     ],
   };
 
@@ -123,11 +123,11 @@ Deno.bench("Sequential baseline - 5 tasks @200ms each", {
   // Fully sequential chain
   const dag: DAGStructure = {
     tasks: [
-      { id: "t1", tool: "mock:delay", arguments: { ms: 200 }, depends_on: [] },
-      { id: "t2", tool: "mock:delay", arguments: { ms: 200 }, depends_on: ["t1"] },
-      { id: "t3", tool: "mock:delay", arguments: { ms: 200 }, depends_on: ["t2"] },
-      { id: "t4", tool: "mock:delay", arguments: { ms: 200 }, depends_on: ["t3"] },
-      { id: "t5", tool: "mock:delay", arguments: { ms: 200 }, depends_on: ["t4"] },
+      { id: "t1", tool: "mock:delay", arguments: { ms: 200 }, dependsOn: [] },
+      { id: "t2", tool: "mock:delay", arguments: { ms: 200 }, dependsOn: ["t1"] },
+      { id: "t3", tool: "mock:delay", arguments: { ms: 200 }, dependsOn: ["t2"] },
+      { id: "t4", tool: "mock:delay", arguments: { ms: 200 }, dependsOn: ["t3"] },
+      { id: "t5", tool: "mock:delay", arguments: { ms: 200 }, dependsOn: ["t4"] },
     ],
   };
 
@@ -142,11 +142,11 @@ Deno.bench("Parallel execution - 5 independent tasks @200ms each", {
   // Fully parallel
   const dag: DAGStructure = {
     tasks: [
-      { id: "t1", tool: "mock:delay", arguments: { ms: 200 }, depends_on: [] },
-      { id: "t2", tool: "mock:delay", arguments: { ms: 200 }, depends_on: [] },
-      { id: "t3", tool: "mock:delay", arguments: { ms: 200 }, depends_on: [] },
-      { id: "t4", tool: "mock:delay", arguments: { ms: 200 }, depends_on: [] },
-      { id: "t5", tool: "mock:delay", arguments: { ms: 200 }, depends_on: [] },
+      { id: "t1", tool: "mock:delay", arguments: { ms: 200 }, dependsOn: [] },
+      { id: "t2", tool: "mock:delay", arguments: { ms: 200 }, dependsOn: [] },
+      { id: "t3", tool: "mock:delay", arguments: { ms: 200 }, dependsOn: [] },
+      { id: "t4", tool: "mock:delay", arguments: { ms: 200 }, dependsOn: [] },
+      { id: "t5", tool: "mock:delay", arguments: { ms: 200 }, dependsOn: [] },
     ],
   };
 
@@ -173,11 +173,11 @@ if (import.meta.main) {
       const executor = new ParallelExecutor(createBenchmarkExecutor());
       const dag: DAGStructure = {
         tasks: [
-          { id: "t1", tool: "mock:delay", arguments: { ms: 500 }, depends_on: [] },
-          { id: "t2", tool: "mock:delay", arguments: { ms: 500 }, depends_on: [] },
-          { id: "t3", tool: "mock:delay", arguments: { ms: 500 }, depends_on: [] },
-          { id: "t4", tool: "mock:delay", arguments: { ms: 500 }, depends_on: [] },
-          { id: "t5", tool: "mock:delay", arguments: { ms: 500 }, depends_on: [] },
+          { id: "t1", tool: "mock:delay", arguments: { ms: 500 }, dependsOn: [] },
+          { id: "t2", tool: "mock:delay", arguments: { ms: 500 }, dependsOn: [] },
+          { id: "t3", tool: "mock:delay", arguments: { ms: 500 }, dependsOn: [] },
+          { id: "t4", tool: "mock:delay", arguments: { ms: 500 }, dependsOn: [] },
+          { id: "t5", tool: "mock:delay", arguments: { ms: 500 }, dependsOn: [] },
         ],
       };
 
@@ -204,11 +204,11 @@ if (import.meta.main) {
 
     const dag: DAGStructure = {
       tasks: [
-        { id: "t1", tool: "mock:delay", arguments: { ms: 200 }, depends_on: [] },
-        { id: "t2", tool: "mock:delay", arguments: { ms: 200 }, depends_on: [] },
-        { id: "t3", tool: "mock:delay", arguments: { ms: 200 }, depends_on: [] },
-        { id: "t4", tool: "mock:delay", arguments: { ms: 200 }, depends_on: [] },
-        { id: "t5", tool: "mock:delay", arguments: { ms: 200 }, depends_on: [] },
+        { id: "t1", tool: "mock:delay", arguments: { ms: 200 }, dependsOn: [] },
+        { id: "t2", tool: "mock:delay", arguments: { ms: 200 }, dependsOn: [] },
+        { id: "t3", tool: "mock:delay", arguments: { ms: 200 }, dependsOn: [] },
+        { id: "t4", tool: "mock:delay", arguments: { ms: 200 }, dependsOn: [] },
+        { id: "t5", tool: "mock:delay", arguments: { ms: 200 }, dependsOn: [] },
       ],
     };
 
@@ -245,12 +245,12 @@ if (import.meta.main) {
     // Diamond pattern: t1 → [t2, t3] → t4 → [t5, t6]
     const dag: DAGStructure = {
       tasks: [
-        { id: "t1", tool: "mock:delay", arguments: { ms: 150 }, depends_on: [] },
-        { id: "t2", tool: "mock:delay", arguments: { ms: 150 }, depends_on: ["t1"] },
-        { id: "t3", tool: "mock:delay", arguments: { ms: 150 }, depends_on: ["t1"] },
-        { id: "t4", tool: "mock:delay", arguments: { ms: 150 }, depends_on: ["t2", "t3"] },
-        { id: "t5", tool: "mock:delay", arguments: { ms: 150 }, depends_on: ["t4"] },
-        { id: "t6", tool: "mock:delay", arguments: { ms: 150 }, depends_on: ["t4"] },
+        { id: "t1", tool: "mock:delay", arguments: { ms: 150 }, dependsOn: [] },
+        { id: "t2", tool: "mock:delay", arguments: { ms: 150 }, dependsOn: ["t1"] },
+        { id: "t3", tool: "mock:delay", arguments: { ms: 150 }, dependsOn: ["t1"] },
+        { id: "t4", tool: "mock:delay", arguments: { ms: 150 }, dependsOn: ["t2", "t3"] },
+        { id: "t5", tool: "mock:delay", arguments: { ms: 150 }, dependsOn: ["t4"] },
+        { id: "t6", tool: "mock:delay", arguments: { ms: 150 }, dependsOn: ["t4"] },
       ],
     };
 

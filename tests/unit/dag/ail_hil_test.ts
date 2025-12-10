@@ -31,7 +31,7 @@ Deno.test("AIL: decision_required event emitted per_layer", async () => {
 
   const dag: DAGStructure = {
     tasks: [
-      { id: "task1", tool: "test_tool", arguments: {}, depends_on: [] },
+      { id: "task1", tool: "test_tool", arguments: {}, dependsOn: [] },
     ],
   };
 
@@ -71,7 +71,7 @@ Deno.test("AIL: decision_required event emitted on_error only", async () => {
 
   const dag: DAGStructure = {
     tasks: [
-      { id: "task1", tool: "failing_tool", arguments: {}, depends_on: [] },
+      { id: "task1", tool: "failing_tool", arguments: {}, dependsOn: [] },
     ],
   };
 
@@ -105,7 +105,7 @@ Deno.test("AIL: continue command processed correctly", async () => {
 
   const dag: DAGStructure = {
     tasks: [
-      { id: "task1", tool: "test_tool", arguments: {}, depends_on: [] },
+      { id: "task1", tool: "test_tool", arguments: {}, dependsOn: [] },
     ],
   };
 
@@ -133,8 +133,8 @@ Deno.test("AIL: abort command halts execution gracefully", async () => {
 
   const dag: DAGStructure = {
     tasks: [
-      { id: "task1", tool: "test_tool", arguments: {}, depends_on: [] },
-      { id: "task2", tool: "test_tool", arguments: {}, depends_on: ["task1"] },
+      { id: "task1", tool: "test_tool", arguments: {}, dependsOn: [] },
+      { id: "task2", tool: "test_tool", arguments: {}, dependsOn: ["task1"] },
     ],
   };
 
@@ -171,7 +171,7 @@ Deno.test("AIL: decisions logged to WorkflowState.decisions[]", async () => {
 
   const dag: DAGStructure = {
     tasks: [
-      { id: "task1", tool: "test_tool", arguments: {}, depends_on: [] },
+      { id: "task1", tool: "test_tool", arguments: {}, dependsOn: [] },
     ],
   };
 
@@ -203,7 +203,7 @@ Deno.test("HIL: decision_required event emitted when approval_required=always", 
 
   const dag: DAGStructure = {
     tasks: [
-      { id: "task1", tool: "test_tool", arguments: {}, depends_on: [] },
+      { id: "task1", tool: "test_tool", arguments: {}, dependsOn: [] },
     ],
   };
 
@@ -238,7 +238,7 @@ Deno.test("HIL: checkpoint skipped when approval_required=never", async () => {
 
   const dag: DAGStructure = {
     tasks: [
-      { id: "task1", tool: "test_tool", arguments: {}, depends_on: [] },
+      { id: "task1", tool: "test_tool", arguments: {}, dependsOn: [] },
     ],
   };
 
@@ -269,7 +269,7 @@ Deno.test("HIL: summary generated within token limit", async () => {
 
   const dag: DAGStructure = {
     tasks: [
-      { id: "task1", tool: "test_tool", arguments: {}, depends_on: [] },
+      { id: "task1", tool: "test_tool", arguments: {}, dependsOn: [] },
     ],
   };
 
@@ -311,7 +311,7 @@ Deno.test("HIL: approved response continues execution", async () => {
 
   const dag: DAGStructure = {
     tasks: [
-      { id: "task1", tool: "test_tool", arguments: {}, depends_on: [] },
+      { id: "task1", tool: "test_tool", arguments: {}, dependsOn: [] },
     ],
   };
 
@@ -345,7 +345,7 @@ Deno.test("HIL: rejected response aborts workflow", async () => {
 
   const dag: DAGStructure = {
     tasks: [
-      { id: "task1", tool: "test_tool", arguments: {}, depends_on: [] },
+      { id: "task1", tool: "test_tool", arguments: {}, dependsOn: [] },
     ],
   };
 
@@ -380,7 +380,7 @@ Deno.test("HIL: decisions logged to WorkflowState.decisions[]", async () => {
 
   const dag: DAGStructure = {
     tasks: [
-      { id: "task1", tool: "test_tool", arguments: {}, depends_on: [] },
+      { id: "task1", tool: "test_tool", arguments: {}, dependsOn: [] },
     ],
   };
 

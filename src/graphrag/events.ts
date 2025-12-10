@@ -6,9 +6,9 @@
 export interface GraphSyncedEvent {
   type: "graph_synced";
   data: {
-    node_count: number;
-    edge_count: number;
-    sync_duration_ms: number;
+    nodeCount: number;
+    edgeCount: number;
+    syncDurationMs: number;
     timestamp: string;
   };
 }
@@ -16,9 +16,12 @@ export interface GraphSyncedEvent {
 export interface EdgeCreatedEvent {
   type: "edge_created";
   data: {
-    from_tool_id: string;
-    to_tool_id: string;
-    confidence_score: number;
+    fromToolId: string;
+    toToolId: string;
+    confidenceScore: number;
+    observedCount: number; // ADR-041
+    edgeType: string; // ADR-041: 'contains', 'sequence', or 'dependency'
+    edgeSource: string; // ADR-041: 'observed', 'inferred', or 'template'
     timestamp: string;
   };
 }
@@ -26,11 +29,13 @@ export interface EdgeCreatedEvent {
 export interface EdgeUpdatedEvent {
   type: "edge_updated";
   data: {
-    from_tool_id: string;
-    to_tool_id: string;
-    old_confidence: number;
-    new_confidence: number;
-    observed_count: number;
+    fromToolId: string;
+    toToolId: string;
+    oldConfidence: number;
+    newConfidence: number;
+    observedCount: number;
+    edgeType: string; // ADR-041: 'contains', 'sequence', or 'dependency'
+    edgeSource: string; // ADR-041: 'observed', 'inferred', or 'template'
     timestamp: string;
   };
 }
@@ -38,10 +43,10 @@ export interface EdgeUpdatedEvent {
 export interface WorkflowExecutedEvent {
   type: "workflow_executed";
   data: {
-    workflow_id: string;
-    tool_ids: string[];
+    workflowId: string;
+    toolIds: string[];
     success: boolean;
-    execution_time_ms: number;
+    executionTimeMs: number;
     timestamp: string;
   };
 }
@@ -49,11 +54,11 @@ export interface WorkflowExecutedEvent {
 export interface MetricsUpdatedEvent {
   type: "metrics_updated";
   data: {
-    edge_count: number;
-    node_count: number;
+    edgeCount: number;
+    nodeCount: number;
     density: number;
-    pagerank_top_10: Array<{ tool_id: string; score: number }>;
-    communities_count: number;
+    pagerankTop10: Array<{ toolId: string; score: number }>;
+    communitiesCount: number;
     timestamp: string;
   };
 }
@@ -61,8 +66,8 @@ export interface MetricsUpdatedEvent {
 export interface HeartbeatEvent {
   type: "heartbeat";
   data: {
-    connected_clients: number;
-    uptime_seconds: number;
+    connectedClients: number;
+    uptimeSeconds: number;
     timestamp: string;
   };
 }

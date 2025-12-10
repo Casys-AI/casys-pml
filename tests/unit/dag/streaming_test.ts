@@ -86,8 +86,8 @@ Deno.test("StreamingExecutor - task_start events emitted", async () => {
 
   const dag: DAGStructure = {
     tasks: [
-      { id: "t1", tool: "mock:delay", arguments: { ms: 10 }, depends_on: [] },
-      { id: "t2", tool: "mock:delay", arguments: { ms: 10 }, depends_on: [] },
+      { id: "t1", tool: "mock:delay", arguments: { ms: 10 }, dependsOn: [] },
+      { id: "t2", tool: "mock:delay", arguments: { ms: 10 }, dependsOn: [] },
     ],
   };
 
@@ -108,8 +108,8 @@ Deno.test("StreamingExecutor - task_complete events emitted", async () => {
 
   const dag: DAGStructure = {
     tasks: [
-      { id: "t1", tool: "mock:echo", arguments: { value: "result1" }, depends_on: [] },
-      { id: "t2", tool: "mock:echo", arguments: { value: "result2" }, depends_on: [] },
+      { id: "t1", tool: "mock:echo", arguments: { value: "result1" }, dependsOn: [] },
+      { id: "t2", tool: "mock:echo", arguments: { value: "result2" }, dependsOn: [] },
     ],
   };
 
@@ -130,7 +130,7 @@ Deno.test("StreamingExecutor - execution_complete event emitted", async () => {
 
   const dag: DAGStructure = {
     tasks: [
-      { id: "t1", tool: "mock:delay", arguments: { ms: 10 }, depends_on: [] },
+      { id: "t1", tool: "mock:delay", arguments: { ms: 10 }, dependsOn: [] },
     ],
   };
 
@@ -153,7 +153,7 @@ Deno.test("StreamingExecutor - error events emitted on task failure", async () =
 
   const dag: DAGStructure = {
     tasks: [
-      { id: "t1", tool: "mock:fail", arguments: { message: "Test error" }, depends_on: [] },
+      { id: "t1", tool: "mock:fail", arguments: { message: "Test error" }, dependsOn: [] },
     ],
   };
 
@@ -178,8 +178,8 @@ Deno.test("StreamingExecutor - events streamed progressively", async () => {
   // Two layers: t1 → t2
   const dag: DAGStructure = {
     tasks: [
-      { id: "t1", tool: "mock:delay", arguments: { ms: 50 }, depends_on: [] },
-      { id: "t2", tool: "mock:delay", arguments: { ms: 50 }, depends_on: ["t1"] },
+      { id: "t1", tool: "mock:delay", arguments: { ms: 50 }, dependsOn: [] },
+      { id: "t2", tool: "mock:delay", arguments: { ms: 50 }, dependsOn: ["t1"] },
     ],
   };
 
@@ -216,9 +216,9 @@ Deno.test("StreamingExecutor - parallel tasks stream as they complete", async ()
   // Three parallel tasks with different durations
   const dag: DAGStructure = {
     tasks: [
-      { id: "t1", tool: "mock:delay", arguments: { ms: 100 }, depends_on: [] },
-      { id: "t2", tool: "mock:delay", arguments: { ms: 50 }, depends_on: [] },
-      { id: "t3", tool: "mock:delay", arguments: { ms: 75 }, depends_on: [] },
+      { id: "t1", tool: "mock:delay", arguments: { ms: 100 }, dependsOn: [] },
+      { id: "t2", tool: "mock:delay", arguments: { ms: 50 }, dependsOn: [] },
+      { id: "t3", tool: "mock:delay", arguments: { ms: 75 }, dependsOn: [] },
     ],
   };
 
@@ -249,7 +249,7 @@ Deno.test("StreamingExecutor - task_start payload structure", async () => {
 
   const dag: DAGStructure = {
     tasks: [
-      { id: "test-task", tool: "mock:echo", arguments: {}, depends_on: [] },
+      { id: "test-task", tool: "mock:echo", arguments: {}, dependsOn: [] },
     ],
   };
 
@@ -269,7 +269,7 @@ Deno.test("StreamingExecutor - task_complete payload structure (success)", async
 
   const dag: DAGStructure = {
     tasks: [
-      { id: "test-task", tool: "mock:echo", arguments: { value: 42 }, depends_on: [] },
+      { id: "test-task", tool: "mock:echo", arguments: { value: 42 }, dependsOn: [] },
     ],
   };
 
@@ -291,7 +291,7 @@ Deno.test("StreamingExecutor - task_complete payload structure (error)", async (
 
   const dag: DAGStructure = {
     tasks: [
-      { id: "test-task", tool: "mock:fail", arguments: { message: "Test error" }, depends_on: [] },
+      { id: "test-task", tool: "mock:fail", arguments: { message: "Test error" }, dependsOn: [] },
     ],
   };
 
@@ -350,9 +350,9 @@ Deno.test("StreamingExecutor - complete workflow with mixed success/failure", as
 
   const dag: DAGStructure = {
     tasks: [
-      { id: "t1", tool: "mock:echo", arguments: { value: "ok" }, depends_on: [] },
-      { id: "t2", tool: "mock:fail", arguments: { message: "Error" }, depends_on: [] },
-      { id: "t3", tool: "mock:echo", arguments: { value: "ok" }, depends_on: ["t1"] },
+      { id: "t1", tool: "mock:echo", arguments: { value: "ok" }, dependsOn: [] },
+      { id: "t2", tool: "mock:fail", arguments: { message: "Error" }, dependsOn: [] },
+      { id: "t3", tool: "mock:echo", arguments: { value: "ok" }, dependsOn: ["t1"] },
     ],
   };
 
@@ -399,9 +399,9 @@ Deno.test("StreamingExecutor - speedup calculation in execution_complete", async
   // 3 parallel tasks @ 100ms each
   const dag: DAGStructure = {
     tasks: [
-      { id: "t1", tool: "mock:delay", arguments: { ms: 100 }, depends_on: [] },
-      { id: "t2", tool: "mock:delay", arguments: { ms: 100 }, depends_on: [] },
-      { id: "t3", tool: "mock:delay", arguments: { ms: 100 }, depends_on: [] },
+      { id: "t1", tool: "mock:delay", arguments: { ms: 100 }, dependsOn: [] },
+      { id: "t2", tool: "mock:delay", arguments: { ms: 100 }, dependsOn: [] },
+      { id: "t3", tool: "mock:delay", arguments: { ms: 100 }, dependsOn: [] },
     ],
   };
 

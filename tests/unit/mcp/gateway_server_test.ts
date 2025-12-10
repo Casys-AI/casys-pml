@@ -262,7 +262,7 @@ Deno.test("CasysIntelligenceGatewayServer - call_tool workflow execution", async
       arguments: {
         workflow: {
           tasks: [
-            { id: "t1", tool: "test:tool", arguments: {}, depends_on: [] },
+            { id: "t1", tool: "test:tool", arguments: {}, dependsOn: [] },
           ],
         },
       },

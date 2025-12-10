@@ -1,6 +1,6 @@
 # ADR-036: BroadcastChannel for Event Distribution
 
-**Status:** 📝 Draft
+**Status:** Implemented
 **Date:** 2025-12-05 | **Deciders:** Architecture Team
 
 ## Context

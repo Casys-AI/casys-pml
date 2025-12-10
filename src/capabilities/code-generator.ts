@@ -79,21 +79,25 @@ export class CapabilityCodeGenerator {
 
     // 3. Generate inline function with tracing + depth guard
     // Note: __trace and __capabilityDepth are provided by sandbox-worker.ts
+    // ADR-041: Robust stack management with single capability_end emission in finally
     return `async (args) => {
   const __depth = (__capabilityDepth || 0);
   if (__depth >= ${MAX_DEPTH}) {
     throw new Error("Capability depth exceeded (max: ${MAX_DEPTH}). Possible cycle detected.");
   }
   __capabilityDepth = __depth + 1;
-  __trace({ type: "capability_start", capability: "${name}", capability_id: "${capability.id}" });
+  __trace({ type: "capability_start", capability: "${name}", capability_id: "${capability.id}", args });
+  let __capSuccess = true;
+  let __capError = null;
   try {
     ${sanitizedCode}
   } catch (e) {
-    __trace({ type: "capability_end", capability: "${name}", capability_id: "${capability.id}", success: false, error: e.message });
+    __capSuccess = false;
+    __capError = e;
     throw e;
   } finally {
     __capabilityDepth = __depth;
-    __trace({ type: "capability_end", capability: "${name}", capability_id: "${capability.id}", success: true });
+    __trace({ type: "capability_end", capability: "${name}", capability_id: "${capability.id}", success: __capSuccess, error: __capError?.message });
   }
 }`;
   }

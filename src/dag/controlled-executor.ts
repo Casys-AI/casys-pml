@@ -58,7 +58,7 @@ const log = getLogger("controlled-executor");
  * @returns true if task can fail safely
  */
 function isSafeToFail(task: Task): boolean {
-  return !task.side_effects && task.type === "code_execution";
+  return !task.sideEffects && task.type === "code_execution";
 }
 
 /**
@@ -183,7 +183,7 @@ export class ControlledExecutor extends ParallelExecutor {
     // Initialize components if not already done
     if (!this.speculativeExecutor) {
       this.speculativeExecutor = new SpeculativeExecutor({
-        maxConcurrent: this.speculationConfig.max_concurrent,
+        maxConcurrent: this.speculationConfig.maxConcurrent,
       });
     }
 
@@ -203,8 +203,8 @@ export class ControlledExecutor extends ParallelExecutor {
     }
 
     log.info("[ControlledExecutor] Speculation enabled", {
-      threshold: this.speculationConfig.confidence_threshold,
-      maxConcurrent: this.speculationConfig.max_concurrent,
+      threshold: this.speculationConfig.confidenceThreshold,
+      maxConcurrent: this.speculationConfig.maxConcurrent,
     });
   }
 
@@ -252,7 +252,7 @@ export class ControlledExecutor extends ParallelExecutor {
       // Filter predictions that meet threshold
       const toSpeculate = this.speculationManager
         ? this.speculationManager.filterForSpeculation(predictions)
-        : predictions.filter((p) => p.confidence >= this.speculationConfig.confidence_threshold);
+        : predictions.filter((p) => p.confidence >= this.speculationConfig.confidenceThreshold);
 
       if (toSpeculate.length === 0) {
         log.debug("[ControlledExecutor] No predictions meet speculation threshold");
@@ -262,7 +262,7 @@ export class ControlledExecutor extends ParallelExecutor {
       // Capture speculation start events for metrics
       for (const prediction of toSpeculate) {
         this.captureSpeculationStart(
-          this.state?.workflow_id ?? "unknown",
+          this.state?.workflowId ?? "unknown",
           prediction.toolId,
           prediction.confidence,
           prediction.reasoning,
@@ -368,7 +368,7 @@ export class ControlledExecutor extends ParallelExecutor {
 
     // Non-blocking capture (fire-and-forget)
     this.episodicMemory.capture({
-      workflow_id: workflowId,
+      workflow_id: workflowId, // Map to DB snake_case
       event_type: "task_complete",
       task_id: taskId,
       timestamp: Date.now(),
@@ -395,7 +395,7 @@ export class ControlledExecutor extends ParallelExecutor {
         },
         context: this.state
           ? {
-            currentLayer: this.state.current_layer,
+            currentLayer: this.state.currentLayer,
             completedTasksCount: this.state.tasks.filter((t) => t.status === "success").length,
             failedTasksCount: this.state.tasks.filter((t) => t.status === "error").length,
           }
@@ -453,7 +453,7 @@ export class ControlledExecutor extends ParallelExecutor {
 
     // Non-blocking capture (fire-and-forget)
     this.episodicMemory.capture({
-      workflow_id: workflowId,
+      workflow_id: workflowId, // Map to DB snake_case
       event_type: "ail_decision",
       timestamp: Date.now(),
       context_hash: this.state ? this.getContextHash() : undefined,
@@ -465,7 +465,7 @@ export class ControlledExecutor extends ParallelExecutor {
         },
         context: this.state
           ? {
-            currentLayer: this.state.current_layer,
+            currentLayer: this.state.currentLayer,
             completedTasksCount: this.state.tasks.filter((t) => t.status === "success").length,
             failedTasksCount: this.state.tasks.filter((t) => t.status === "error").length,
           }
@@ -497,7 +497,7 @@ export class ControlledExecutor extends ParallelExecutor {
 
     // Non-blocking capture (fire-and-forget)
     this.episodicMemory.capture({
-      workflow_id: workflowId,
+      workflow_id: workflowId, // Map to DB snake_case
       event_type: "hil_decision",
       timestamp: Date.now(),
       context_hash: this.state ? this.getContextHash() : undefined,
@@ -510,13 +510,13 @@ export class ControlledExecutor extends ParallelExecutor {
         },
         context: this.state
           ? {
-            currentLayer: this.state.current_layer,
+            currentLayer: this.state.currentLayer,
             completedTasksCount: this.state.tasks.filter((t) => t.status === "success").length,
             failedTasksCount: this.state.tasks.filter((t) => t.status === "error").length,
           }
           : undefined,
         metadata: {
-          checkpoint_id: checkpointId,
+          checkpointId: checkpointId,
         },
       },
     }).catch((err) => {
@@ -550,7 +550,7 @@ export class ControlledExecutor extends ParallelExecutor {
 
     // Non-blocking capture (fire-and-forget)
     this.episodicMemory.capture({
-      workflow_id: workflowId,
+      workflow_id: workflowId, // Map to DB snake_case
       event_type: "speculation_start",
       timestamp: Date.now(),
       context_hash: this.state ? this.getContextHash() : undefined,
@@ -563,7 +563,7 @@ export class ControlledExecutor extends ParallelExecutor {
         },
         context: this.state
           ? {
-            currentLayer: this.state.current_layer,
+            currentLayer: this.state.currentLayer,
             completedTasksCount: this.state.tasks.filter((t) => t.status === "success").length,
             failedTasksCount: this.state.tasks.filter((t) => t.status === "error").length,
           }
@@ -618,8 +618,8 @@ export class ControlledExecutor extends ParallelExecutor {
     if (mode === "always") return true;
     if (mode === "never") return false;
     if (mode === "critical_only") {
-      // Check if any task in layer has side_effects flag
-      return layer.some((task) => task.side_effects === true);
+      // Check if any task in layer has sideEffects flag
+      return layer.some((task) => task.sideEffects === true);
     }
 
     return false;
@@ -779,8 +779,8 @@ export class ControlledExecutor extends ParallelExecutor {
     const startEvent: ExecutionEvent = {
       type: "workflow_start",
       timestamp: Date.now(),
-      workflow_id: workflowId,
-      total_layers: layers.length,
+      workflowId: workflowId,
+      totalLayers: layers.length,
     };
     await this.eventStream.emit(startEvent);
     yield startEvent;
@@ -797,9 +797,9 @@ export class ControlledExecutor extends ParallelExecutor {
       const layerStartEvent: ExecutionEvent = {
         type: "layer_start",
         timestamp: Date.now(),
-        workflow_id: workflowId,
-        layer_index: layerIdx,
-        tasks_count: layer.length,
+        workflowId: workflowId,
+        layerIndex: layerIdx,
+        tasksCount: layer.length,
       };
       await this.eventStream.emit(layerStartEvent);
       yield layerStartEvent;
@@ -836,8 +836,8 @@ export class ControlledExecutor extends ParallelExecutor {
         const taskStartEvent: ExecutionEvent = {
           type: "task_start",
           timestamp: Date.now(),
-          workflow_id: workflowId,
-          task_id: task.id,
+          workflowId: workflowId,
+          taskId: task.id,
           tool: task.tool,
         };
         await this.eventStream.emit(taskStartEvent);
@@ -870,9 +870,9 @@ export class ControlledExecutor extends ParallelExecutor {
           const completeEvent: ExecutionEvent = {
             type: "task_complete",
             timestamp: Date.now(),
-            workflow_id: workflowId,
-            task_id: task.id,
-            execution_time_ms: result.value.executionTimeMs,
+            workflowId: workflowId,
+            taskId: task.id,
+            executionTimeMs: result.value.executionTimeMs,
           };
           await this.eventStream.emit(completeEvent);
           yield completeEvent;
@@ -909,8 +909,8 @@ export class ControlledExecutor extends ParallelExecutor {
             const warningEvent: ExecutionEvent = {
               type: "task_warning",
               timestamp: Date.now(),
-              workflow_id: workflowId,
-              task_id: task.id,
+              workflowId: workflowId,
+              taskId: task.id,
               error: errorMsg,
               message: "Safe-to-fail task failed, workflow continues",
             };
@@ -941,8 +941,8 @@ export class ControlledExecutor extends ParallelExecutor {
             const errorEvent: ExecutionEvent = {
               type: "task_error",
               timestamp: Date.now(),
-              workflow_id: workflowId,
-              task_id: task.id,
+              workflowId: workflowId,
+              taskId: task.id,
               error: errorMsg,
             };
             await this.eventStream.emit(errorEvent);
@@ -963,7 +963,7 @@ export class ControlledExecutor extends ParallelExecutor {
 
       // 4f. Update state via reducers
       const stateUpdate: StateUpdate = {
-        current_layer: layerIdx,
+        currentLayer: layerIdx,
         tasks: layerTaskResults,
       };
       this.state = updateState(this.state, stateUpdate);
@@ -972,9 +972,9 @@ export class ControlledExecutor extends ParallelExecutor {
       const stateEvent: ExecutionEvent = {
         type: "state_updated",
         timestamp: Date.now(),
-        workflow_id: workflowId,
+        workflowId: workflowId,
         updates: {
-          tasks_added: layerTaskResults.length,
+          tasksAdded: layerTaskResults.length,
         },
       };
       await this.eventStream.emit(stateEvent);
@@ -995,9 +995,9 @@ export class ControlledExecutor extends ParallelExecutor {
           const checkpointEvent: ExecutionEvent = {
             type: "checkpoint",
             timestamp: Date.now(),
-            workflow_id: workflowId,
-            checkpoint_id: checkpoint.id,
-            layer_index: layerIdx,
+            workflowId: workflowId,
+            checkpointId: checkpoint.id,
+            layerIndex: layerIdx,
           };
           await this.eventStream.emit(checkpointEvent);
           yield checkpointEvent;
@@ -1009,9 +1009,9 @@ export class ControlledExecutor extends ParallelExecutor {
           const checkpointEvent: ExecutionEvent = {
             type: "checkpoint",
             timestamp: Date.now(),
-            workflow_id: workflowId,
-            checkpoint_id: checkpointId,
-            layer_index: layerIdx,
+            workflowId: workflowId,
+            checkpointId: checkpointId,
+            layerIndex: layerIdx,
           };
           await this.eventStream.emit(checkpointEvent);
           yield checkpointEvent;
@@ -1024,8 +1024,8 @@ export class ControlledExecutor extends ParallelExecutor {
         const ailEvent: ExecutionEvent = {
           type: "decision_required",
           timestamp: Date.now(),
-          workflow_id: workflowId,
-          decision_type: "AIL",
+          workflowId: workflowId,
+          decisionType: "AIL",
           description: `Layer ${layerIdx} completed. Agent decision required.`,
         };
         await this.eventStream.emit(ailEvent);
@@ -1201,9 +1201,9 @@ export class ControlledExecutor extends ParallelExecutor {
             const replanEvent: ExecutionEvent = {
               type: "state_updated",
               timestamp: Date.now(),
-              workflow_id: workflowId,
+              workflowId: workflowId,
               updates: {
-                context_keys: ["dag_replanned"],
+                contextKeys: ["dag_replanned"],
               },
             };
             await this.eventStream.emit(replanEvent);
@@ -1251,8 +1251,8 @@ export class ControlledExecutor extends ParallelExecutor {
         const hilEvent: ExecutionEvent = {
           type: "decision_required",
           timestamp: Date.now(),
-          workflow_id: workflowId,
-          decision_type: "HIL",
+          workflowId: workflowId,
+          decisionType: "HIL",
           description: summary,
         };
         await this.eventStream.emit(hilEvent);
@@ -1326,10 +1326,10 @@ export class ControlledExecutor extends ParallelExecutor {
     const completeEvent: ExecutionEvent = {
       type: "workflow_complete",
       timestamp: Date.now(),
-      workflow_id: workflowId,
-      total_time_ms: totalTime,
-      successful_tasks: successfulTasks,
-      failed_tasks: failedTasks,
+      workflowId: workflowId,
+      totalTimeMs: totalTime,
+      successfulTasks: successfulTasks,
+      failedTasks: failedTasks,
     };
     await this.eventStream.emit(completeEvent);
     yield completeEvent;
@@ -1342,13 +1342,13 @@ export class ControlledExecutor extends ParallelExecutor {
 
         // Build WorkflowExecution record
         const execution = {
-          execution_id: workflowId,
-          executed_at: new Date(),
-          intent_text: "workflow-execution", // Could be extracted from initial intent
-          dag_structure: dag,
+          executionId: workflowId,
+          executedAt: new Date(),
+          intentText: "workflow-execution", // Could be extracted from initial intent
+          dagStructure: dag,
           success: failedTasks === 0,
-          execution_time_ms: totalTime,
-          error_message: failedTasks > 0 ? `${failedTasks} tasks failed` : undefined,
+          executionTimeMs: totalTime,
+          errorMessage: failedTasks > 0 ? `${failedTasks} tasks failed` : undefined,
         };
 
         // Fire-and-forget: Update GraphRAG asynchronously (don't await)
@@ -1409,12 +1409,12 @@ export class ControlledExecutor extends ParallelExecutor {
     }
 
     log.info(
-      `Resuming workflow ${checkpoint.workflow_id} from checkpoint ${checkpoint_id} (layer ${checkpoint.layer})`,
+      `Resuming workflow ${checkpoint.workflowId} from checkpoint ${checkpoint_id} (layer ${checkpoint.layer})`,
     );
 
     // 2. Restore WorkflowState
     this.state = checkpoint.state;
-    const workflowId = checkpoint.workflow_id;
+    const workflowId = checkpoint.workflowId;
 
     // 3. Reset event stream and command queue for resume
     this.eventStream = new EventStream();
@@ -1427,8 +1427,8 @@ export class ControlledExecutor extends ParallelExecutor {
     const startEvent: ExecutionEvent = {
       type: "workflow_start",
       timestamp: Date.now(),
-      workflow_id: workflowId,
-      total_layers: layers.length,
+      workflowId: workflowId,
+      totalLayers: layers.length,
     };
     await this.eventStream.emit(startEvent);
     yield startEvent;
@@ -1459,9 +1459,9 @@ export class ControlledExecutor extends ParallelExecutor {
       const layerStartEvent: ExecutionEvent = {
         type: "layer_start",
         timestamp: Date.now(),
-        workflow_id: workflowId,
-        layer_index: actualLayerIdx,
-        tasks_count: layer.length,
+        workflowId: workflowId,
+        layerIndex: actualLayerIdx,
+        tasksCount: layer.length,
       };
       await this.eventStream.emit(layerStartEvent);
       yield layerStartEvent;
@@ -1484,8 +1484,8 @@ export class ControlledExecutor extends ParallelExecutor {
         const taskStartEvent: ExecutionEvent = {
           type: "task_start",
           timestamp: Date.now(),
-          workflow_id: workflowId,
-          task_id: task.id,
+          workflowId: workflowId,
+          taskId: task.id,
           tool: task.tool,
         };
         await this.eventStream.emit(taskStartEvent);
@@ -1517,9 +1517,9 @@ export class ControlledExecutor extends ParallelExecutor {
           const completeEvent: ExecutionEvent = {
             type: "task_complete",
             timestamp: Date.now(),
-            workflow_id: workflowId,
-            task_id: task.id,
-            execution_time_ms: result.value.executionTimeMs,
+            workflowId: workflowId,
+            taskId: task.id,
+            executionTimeMs: result.value.executionTimeMs,
           };
           await this.eventStream.emit(completeEvent);
           yield completeEvent;
@@ -1546,8 +1546,8 @@ export class ControlledExecutor extends ParallelExecutor {
           const errorEvent: ExecutionEvent = {
             type: "task_error",
             timestamp: Date.now(),
-            workflow_id: workflowId,
-            task_id: task.id,
+            workflowId: workflowId,
+            taskId: task.id,
             error: errorMsg,
           };
           await this.eventStream.emit(errorEvent);
@@ -1567,7 +1567,7 @@ export class ControlledExecutor extends ParallelExecutor {
 
       // 6f. Update state via reducers
       const stateUpdate: StateUpdate = {
-        current_layer: actualLayerIdx,
+        currentLayer: actualLayerIdx,
         tasks: layerTaskResults,
       };
       this.state = updateState(this.state, stateUpdate);
@@ -1575,9 +1575,9 @@ export class ControlledExecutor extends ParallelExecutor {
       const stateEvent: ExecutionEvent = {
         type: "state_updated",
         timestamp: Date.now(),
-        workflow_id: workflowId,
+        workflowId: workflowId,
         updates: {
-          tasks_added: layerTaskResults.length,
+          tasksAdded: layerTaskResults.length,
         },
       };
       await this.eventStream.emit(stateEvent);
@@ -1595,9 +1595,9 @@ export class ControlledExecutor extends ParallelExecutor {
           const checkpointEvent: ExecutionEvent = {
             type: "checkpoint",
             timestamp: Date.now(),
-            workflow_id: workflowId,
-            checkpoint_id: newCheckpoint.id,
-            layer_index: actualLayerIdx,
+            workflowId: workflowId,
+            checkpointId: newCheckpoint.id,
+            layerIndex: actualLayerIdx,
           };
           await this.eventStream.emit(checkpointEvent);
           yield checkpointEvent;
@@ -1606,9 +1606,9 @@ export class ControlledExecutor extends ParallelExecutor {
           const checkpointEvent: ExecutionEvent = {
             type: "checkpoint",
             timestamp: Date.now(),
-            workflow_id: workflowId,
-            checkpoint_id: `failed-${actualLayerIdx}`,
-            layer_index: actualLayerIdx,
+            workflowId: workflowId,
+            checkpointId: `failed-${actualLayerIdx}`,
+            layerIndex: actualLayerIdx,
           };
           await this.eventStream.emit(checkpointEvent);
           yield checkpointEvent;
@@ -1621,10 +1621,10 @@ export class ControlledExecutor extends ParallelExecutor {
     const completeEvent: ExecutionEvent = {
       type: "workflow_complete",
       timestamp: Date.now(),
-      workflow_id: workflowId,
-      total_time_ms: totalTime,
-      successful_tasks: successfulTasks,
-      failed_tasks: failedTasks,
+      workflowId: workflowId,
+      totalTimeMs: totalTime,
+      successfulTasks: successfulTasks,
+      failedTasks: failedTasks,
     };
     await this.eventStream.emit(completeEvent);
     yield completeEvent;
@@ -1797,7 +1797,7 @@ export class ControlledExecutor extends ParallelExecutor {
       // Resolve dependencies: $OUTPUT[dep_id] → actual results
       // Story 3.5: Pass full TaskResult to enable resilient patterns
       const deps: Record<string, TaskResult> = {};
-      for (const depId of task.depends_on) {
+      for (const depId of task.dependsOn) {
         const depResult = previousResults.get(depId);
 
         // Critical failures halt execution
@@ -1830,7 +1830,7 @@ export class ControlledExecutor extends ParallelExecutor {
       }
 
       // Configure sandbox
-      const sandboxConfig = task.sandbox_config || {};
+      const sandboxConfig = task.sandboxConfig || {};
       const executor = new DenoSandboxExecutor({
         timeout: sandboxConfig.timeout ?? 30000,
         memoryLimit: sandboxConfig.memoryLimit ?? 512,

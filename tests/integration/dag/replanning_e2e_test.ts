@@ -165,7 +165,7 @@ Deno.test("E2E Dynamic Replanning: XML discovery triggers replan with new tools"
           id: "task1",
           tool: "filesystem:list_directory",
           arguments: { path: "/data" },
-          depends_on: [],
+          dependsOn: [],
         },
       ],
     };
@@ -217,7 +217,7 @@ Deno.test("E2E Dynamic Replanning: XML discovery triggers replan with new tools"
     // 6. Verify dependencies set correctly (new tasks depend on completed task1)
     const firstNewTask = newTasks[0];
     assertEquals(
-      firstNewTask.depends_on.includes("task1"),
+      firstNewTask.dependsOn.includes("task1"),
       true,
       "New tasks should depend on completed task",
     );
@@ -262,7 +262,7 @@ Deno.test("E2E Dynamic Replanning: No relevant tools returns unchanged DAG", asy
 
     const initialDAG: DAGStructure = {
       tasks: [
-        { id: "task1", tool: "filesystem:list_directory", arguments: {}, depends_on: [] },
+        { id: "task1", tool: "filesystem:list_directory", arguments: {}, dependsOn: [] },
       ],
     };
 
@@ -302,8 +302,8 @@ Deno.test("E2E Dynamic Replanning: Cycle detection rejects invalid replan", asyn
     // Create DAG with potential for circular dependency
     const initialDAG: DAGStructure = {
       tasks: [
-        { id: "task1", tool: "filesystem:read_file", arguments: {}, depends_on: [] },
-        { id: "task2", tool: "data:process", arguments: {}, depends_on: ["task1"] },
+        { id: "task1", tool: "filesystem:read_file", arguments: {}, dependsOn: [] },
+        { id: "task2", tool: "data:process", arguments: {}, dependsOn: ["task1"] },
       ],
     };
 
@@ -321,7 +321,7 @@ Deno.test("E2E Dynamic Replanning: Cycle detection rejects invalid replan", asyn
     // Try to manually verify no cycles via topological sort simulation
     const taskIds = new Set(augmentedDAG.tasks.map((t) => t.id));
     for (const task of augmentedDAG.tasks) {
-      for (const dep of task.depends_on) {
+      for (const dep of task.dependsOn) {
         assertEquals(
           taskIds.has(dep),
           true,
@@ -366,7 +366,7 @@ Deno.test("E2E Dynamic Replanning: PageRank ranking influences tool selection", 
 
     const initialDAG: DAGStructure = {
       tasks: [
-        { id: "task1", tool: "filesystem:list_directory", arguments: {}, depends_on: [] },
+        { id: "task1", tool: "filesystem:list_directory", arguments: {}, dependsOn: [] },
       ],
     };
 

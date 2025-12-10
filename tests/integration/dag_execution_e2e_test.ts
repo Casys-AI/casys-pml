@@ -109,19 +109,19 @@ Deno.test("E2E - Simple parallel workflow (3 independent file reads)", async () 
         id: "read_config",
         tool: "filesystem:read_file",
         arguments: { path: "/app/config.json" },
-        depends_on: [],
+        dependsOn: [],
       },
       {
         id: "read_schema",
         tool: "filesystem:read_file",
         arguments: { path: "/app/schema.sql" },
-        depends_on: [],
+        dependsOn: [],
       },
       {
         id: "read_readme",
         tool: "filesystem:read_file",
         arguments: { path: "/app/README.md" },
-        depends_on: [],
+        dependsOn: [],
       },
     ],
   };
@@ -166,13 +166,13 @@ Deno.test("E2E - Sequential workflow with dependencies (search → fetch → wri
         id: "search_docs",
         tool: "search:web_search",
         arguments: { query: "TypeScript best practices", limit: 5 },
-        depends_on: [],
+        dependsOn: [],
       },
       {
         id: "fetch_page",
         tool: "fetch:fetch_url",
         arguments: { url: "$OUTPUT[search_docs].results[0].url" },
-        depends_on: ["search_docs"],
+        dependsOn: ["search_docs"],
       },
       {
         id: "save_content",
@@ -181,7 +181,7 @@ Deno.test("E2E - Sequential workflow with dependencies (search → fetch → wri
           path: "/tmp/fetched_content.html",
           content: "$OUTPUT[fetch_page].content",
         },
-        depends_on: ["fetch_page"],
+        dependsOn: ["fetch_page"],
       },
     ],
   };
@@ -219,19 +219,19 @@ Deno.test("E2E - Mixed parallel/sequential (diamond pattern)", async () => {
         id: "list_files",
         tool: "filesystem:list_directory",
         arguments: { path: "/app/src" },
-        depends_on: [],
+        dependsOn: [],
       },
       {
         id: "read_file1",
         tool: "filesystem:read_file",
         arguments: { path: "/app/src/file1.ts" },
-        depends_on: ["list_files"],
+        dependsOn: ["list_files"],
       },
       {
         id: "read_file2",
         tool: "filesystem:read_file",
         arguments: { path: "/app/src/file2.ts" },
-        depends_on: ["list_files"],
+        dependsOn: ["list_files"],
       },
       {
         id: "write_summary",
@@ -240,7 +240,7 @@ Deno.test("E2E - Mixed parallel/sequential (diamond pattern)", async () => {
           path: "/tmp/summary.txt",
           content: "Summary of file1 and file2",
         },
-        depends_on: ["read_file1", "read_file2"],
+        dependsOn: ["read_file1", "read_file2"],
       },
     ],
   };
@@ -278,19 +278,19 @@ Deno.test("E2E - Partial failure handling (one task fails, others continue)", as
         id: "valid_task1",
         tool: "filesystem:read_file",
         arguments: { path: "/app/config.json" },
-        depends_on: [],
+        dependsOn: [],
       },
       {
         id: "invalid_task",
         tool: "nonexistent:bad_tool", // This will fail
         arguments: { foo: "bar" },
-        depends_on: [],
+        dependsOn: [],
       },
       {
         id: "valid_task2",
         tool: "filesystem:list_directory",
         arguments: { path: "/app/src" },
-        depends_on: [],
+        dependsOn: [],
       },
     ],
   };
@@ -328,52 +328,52 @@ Deno.test("E2E - Complex workflow with 8 tasks (mixed pattern)", async () => {
         id: "search",
         tool: "search:web_search",
         arguments: { query: "documentation" },
-        depends_on: [],
+        dependsOn: [],
       },
       {
         id: "list_dir",
         tool: "filesystem:list_directory",
         arguments: { path: "/app" },
-        depends_on: [],
+        dependsOn: [],
       },
       // Layer 2: Depends on layer 1
       {
         id: "fetch",
         tool: "fetch:fetch_url",
         arguments: { url: "https://example.com/docs" },
-        depends_on: ["search"],
+        dependsOn: ["search"],
       },
       {
         id: "read1",
         tool: "filesystem:read_file",
         arguments: { path: "/app/file1.ts" },
-        depends_on: ["list_dir"],
+        dependsOn: ["list_dir"],
       },
       {
         id: "read2",
         tool: "filesystem:read_file",
         arguments: { path: "/app/file2.ts" },
-        depends_on: ["list_dir"],
+        dependsOn: ["list_dir"],
       },
       // Layer 3: Depends on layer 2
       {
         id: "write1",
         tool: "filesystem:write_file",
         arguments: { path: "/tmp/fetched.html", content: "$OUTPUT[fetch].content" },
-        depends_on: ["fetch"],
+        dependsOn: ["fetch"],
       },
       {
         id: "write2",
         tool: "filesystem:write_file",
         arguments: { path: "/tmp/combined.txt", content: "combined" },
-        depends_on: ["read1", "read2"],
+        dependsOn: ["read1", "read2"],
       },
       // Layer 4: Final summary
       {
         id: "summary",
         tool: "filesystem:write_file",
         arguments: { path: "/tmp/summary.txt", content: "workflow complete" },
-        depends_on: ["write1", "write2"],
+        dependsOn: ["write1", "write2"],
       },
     ],
   };
@@ -409,22 +409,22 @@ Deno.test("E2E - Performance comparison (parallel vs sequential baseline)", asyn
   // 5 independent tasks
   const parallelDAG: DAGStructure = {
     tasks: [
-      { id: "t1", tool: "filesystem:read_file", arguments: { path: "/a" }, depends_on: [] },
-      { id: "t2", tool: "filesystem:read_file", arguments: { path: "/b" }, depends_on: [] },
-      { id: "t3", tool: "filesystem:read_file", arguments: { path: "/c" }, depends_on: [] },
-      { id: "t4", tool: "filesystem:read_file", arguments: { path: "/d" }, depends_on: [] },
-      { id: "t5", tool: "filesystem:read_file", arguments: { path: "/e" }, depends_on: [] },
+      { id: "t1", tool: "filesystem:read_file", arguments: { path: "/a" }, dependsOn: [] },
+      { id: "t2", tool: "filesystem:read_file", arguments: { path: "/b" }, dependsOn: [] },
+      { id: "t3", tool: "filesystem:read_file", arguments: { path: "/c" }, dependsOn: [] },
+      { id: "t4", tool: "filesystem:read_file", arguments: { path: "/d" }, dependsOn: [] },
+      { id: "t5", tool: "filesystem:read_file", arguments: { path: "/e" }, dependsOn: [] },
     ],
   };
 
   // Same tasks but sequential
   const sequentialDAG: DAGStructure = {
     tasks: [
-      { id: "t1", tool: "filesystem:read_file", arguments: { path: "/a" }, depends_on: [] },
-      { id: "t2", tool: "filesystem:read_file", arguments: { path: "/b" }, depends_on: ["t1"] },
-      { id: "t3", tool: "filesystem:read_file", arguments: { path: "/c" }, depends_on: ["t2"] },
-      { id: "t4", tool: "filesystem:read_file", arguments: { path: "/d" }, depends_on: ["t3"] },
-      { id: "t5", tool: "filesystem:read_file", arguments: { path: "/e" }, depends_on: ["t4"] },
+      { id: "t1", tool: "filesystem:read_file", arguments: { path: "/a" }, dependsOn: [] },
+      { id: "t2", tool: "filesystem:read_file", arguments: { path: "/b" }, dependsOn: ["t1"] },
+      { id: "t3", tool: "filesystem:read_file", arguments: { path: "/c" }, dependsOn: ["t2"] },
+      { id: "t4", tool: "filesystem:read_file", arguments: { path: "/d" }, dependsOn: ["t3"] },
+      { id: "t5", tool: "filesystem:read_file", arguments: { path: "/e" }, dependsOn: ["t4"] },
     ],
   };
 

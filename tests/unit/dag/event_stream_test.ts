@@ -60,7 +60,7 @@ Deno.test("EventStream - Event Emission", async (t) => {
         timestamp: Date.now(),
         workflow_id: "test",
         task_id: "task1",
-        execution_time_ms: 10,
+        executionTimeMs: 10,
       },
       {
         type: "task_error",
@@ -178,7 +178,7 @@ Deno.test("EventStream - Performance", async (t) => {
         timestamp: Date.now(),
         workflow_id: "test",
         task_id: `task${i}`,
-        execution_time_ms: 10,
+        executionTimeMs: 10,
       };
 
       const start = performance.now();
@@ -230,7 +230,7 @@ Deno.test("EventStream - Performance", async (t) => {
         timestamp: Date.now(),
         workflow_id: "test",
         task_id: `task${i}`,
-        execution_time_ms: 10,
+        executionTimeMs: 10,
       });
     }
     const emitTime = performance.now() - startTime;
@@ -268,7 +268,7 @@ Deno.test("EventStream - Statistics", async (t) => {
         timestamp: Date.now(),
         workflow_id: "test",
         task_id: `task${i}`,
-        execution_time_ms: 10,
+        executionTimeMs: 10,
       });
     }
 
@@ -324,7 +324,7 @@ Deno.test("EventStream - Multiple Subscribers", async (t) => {
       timestamp: Date.now(),
       workflow_id: "test",
       task_id: "task1",
-      execution_time_ms: 10,
+      executionTimeMs: 10,
     });
 
     await stream.emit({

@@ -270,7 +270,7 @@ Deno.test("GraphRAGEngine - buildDAG creates dependencies based on graph topolog
 
   // json:parse should depend on http:get (path exists)
   assert(
-    dag.tasks[1].depends_on.length > 0,
+    dag.tasks[1].dependsOn.length > 0,
     "json:parse should have dependencies",
   );
 
@@ -288,9 +288,9 @@ Deno.test("GraphRAGEngine - buildDAG handles tools with no dependencies", async 
   const dag = engine.buildDAG(["filesystem:read", "http:get"]);
 
   assertEquals(dag.tasks.length, 2);
-  assertEquals(dag.tasks[0].depends_on.length, 0, "First task should have no dependencies");
+  assertEquals(dag.tasks[0].dependsOn.length, 0, "First task should have no dependencies");
   assertEquals(
-    dag.tasks[1].depends_on.length,
+    dag.tasks[1].dependsOn.length,
     0,
     "Second task should have no dependencies (no path)",
   );
@@ -351,17 +351,17 @@ Deno.test("GraphRAGEngine - updateFromExecution strengthens edges", async () => 
 
   // Simulate workflow execution
   const execution = {
-    execution_id: crypto.randomUUID(),
-    executed_at: new Date(),
-    intent_text: "test workflow",
-    dag_structure: {
+    executionId: crypto.randomUUID(),
+    executedAt: new Date(),
+    intentText: "test workflow",
+    dagStructure: {
       tasks: [
-        { id: "task_0", tool: "http:get", arguments: {}, depends_on: [] },
-        { id: "task_1", tool: "json:parse", arguments: {}, depends_on: ["task_0"] },
+        { id: "task_0", tool: "http:get", arguments: {}, dependsOn: [] },
+        { id: "task_1", tool: "json:parse", arguments: {}, dependsOn: ["task_0"] },
       ],
     },
     success: true,
-    execution_time_ms: 100,
+    executionTimeMs: 100,
   };
 
   await engine.updateFromExecution(execution);

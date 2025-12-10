@@ -51,8 +51,8 @@ const VALIDATION_CONSTRAINTS = {
  */
 export const DEFAULT_FILE_CONFIG: SpeculationFileConfig = {
   enabled: DEFAULT_SPECULATION_CONFIG.enabled,
-  confidence_threshold: DEFAULT_SPECULATION_CONFIG.confidence_threshold,
-  max_concurrent_speculations: DEFAULT_SPECULATION_CONFIG.max_concurrent,
+  confidence_threshold: DEFAULT_SPECULATION_CONFIG.confidenceThreshold,
+  max_concurrent_speculations: DEFAULT_SPECULATION_CONFIG.maxConcurrent,
   speculation_timeout: 10000,
   adaptive: {
     enabled: true,
@@ -239,8 +239,8 @@ export function toSpeculationConfig(
 ): SpeculationConfig {
   return {
     enabled: fileConfig.enabled,
-    confidence_threshold: fileConfig.confidence_threshold,
-    max_concurrent: fileConfig.max_concurrent_speculations,
+    confidenceThreshold: fileConfig.confidence_threshold,
+    maxConcurrent: fileConfig.max_concurrent_speculations,
   };
 }
 

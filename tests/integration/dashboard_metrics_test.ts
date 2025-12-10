@@ -58,24 +58,24 @@ Deno.test("GET /api/metrics - GraphRAGEngine.getMetrics returns valid structure"
   assertExists(metrics.period);
 
   // Verify current metrics types
-  assertEquals(typeof metrics.current.node_count, "number");
-  assertEquals(typeof metrics.current.edge_count, "number");
+  assertEquals(typeof metrics.current.nodeCount, "number");
+  assertEquals(typeof metrics.current.edgeCount, "number");
   assertEquals(typeof metrics.current.density, "number");
-  assertEquals(typeof metrics.current.adaptive_alpha, "number");
-  assertEquals(typeof metrics.current.communities_count, "number");
-  assertEquals(Array.isArray(metrics.current.pagerank_top_10), true);
+  assertEquals(typeof metrics.current.adaptiveAlpha, "number");
+  assertEquals(typeof metrics.current.communitiesCount, "number");
+  assertEquals(Array.isArray(metrics.current.pagerankTop10), true);
 
   // Verify timeseries arrays
-  assertEquals(Array.isArray(metrics.timeseries.edge_count), true);
-  assertEquals(Array.isArray(metrics.timeseries.avg_confidence), true);
-  assertEquals(Array.isArray(metrics.timeseries.workflow_rate), true);
+  assertEquals(Array.isArray(metrics.timeseries.edgeCount), true);
+  assertEquals(Array.isArray(metrics.timeseries.avgConfidence), true);
+  assertEquals(Array.isArray(metrics.timeseries.workflowRate), true);
 
   // Verify period stats
   assertEquals(metrics.period.range, "24h");
-  assertEquals(typeof metrics.period.workflows_executed, "number");
-  assertEquals(typeof metrics.period.workflows_success_rate, "number");
-  assertEquals(typeof metrics.period.new_edges_created, "number");
-  assertEquals(typeof metrics.period.new_nodes_added, "number");
+  assertEquals(typeof metrics.period.workflowsExecuted, "number");
+  assertEquals(typeof metrics.period.workflowsSuccessRate, "number");
+  assertEquals(typeof metrics.period.newEdgesCreated, "number");
+  assertEquals(typeof metrics.period.newNodesAdded, "number");
 
   await db.close();
 });
@@ -109,23 +109,23 @@ Deno.test("GET /api/metrics - empty graph returns sensible defaults", async () =
   const metrics = await graphEngine.getMetrics("24h");
 
   // Empty graph should have zero nodes/edges
-  assertEquals(metrics.current.node_count, 0);
-  assertEquals(metrics.current.edge_count, 0);
+  assertEquals(metrics.current.nodeCount, 0);
+  assertEquals(metrics.current.edgeCount, 0);
   assertEquals(metrics.current.density, 0);
 
   // Alpha should be 1.0 (pure semantic) for empty graph
-  assertEquals(metrics.current.adaptive_alpha, 1.0);
+  assertEquals(metrics.current.adaptiveAlpha, 1.0);
 
   // No communities
-  assertEquals(metrics.current.communities_count, 0);
+  assertEquals(metrics.current.communitiesCount, 0);
 
   // Empty PageRank list
-  assertEquals(metrics.current.pagerank_top_10.length, 0);
+  assertEquals(metrics.current.pagerankTop10.length, 0);
 
   // Empty timeseries (no historical data)
-  assertEquals(metrics.timeseries.edge_count.length, 0);
-  assertEquals(metrics.timeseries.avg_confidence.length, 0);
-  assertEquals(metrics.timeseries.workflow_rate.length, 0);
+  assertEquals(metrics.timeseries.edgeCount.length, 0);
+  assertEquals(metrics.timeseries.avgConfidence.length, 0);
+  assertEquals(metrics.timeseries.workflowRate.length, 0);
 
   await db.close();
 });
@@ -149,16 +149,16 @@ Deno.test("GET /api/metrics - with graph data", async () => {
   const metrics = await graphEngine.getMetrics("24h");
 
   // Should reflect graph data
-  assertEquals(metrics.current.node_count, 3);
-  assertEquals(metrics.current.edge_count, 2);
+  assertEquals(metrics.current.nodeCount, 3);
+  assertEquals(metrics.current.edgeCount, 2);
   assert(metrics.current.density > 0, "Density should be > 0");
-  assert(metrics.current.adaptive_alpha < 1.0, "Alpha should be < 1.0 for graph with edges");
-  assertEquals(metrics.current.communities_count, 2);
-  assertEquals(metrics.current.pagerank_top_10.length, 3);
+  assert(metrics.current.adaptiveAlpha < 1.0, "Alpha should be < 1.0 for graph with edges");
+  assertEquals(metrics.current.communitiesCount, 2);
+  assertEquals(metrics.current.pagerankTop10.length, 3);
 
   // Verify PageRank ordering (descending)
-  assertEquals(metrics.current.pagerank_top_10[0].tool_id, "tool1");
-  assertEquals(metrics.current.pagerank_top_10[0].score, 0.4);
+  assertEquals(metrics.current.pagerankTop10[0].toolId, "tool1");
+  assertEquals(metrics.current.pagerankTop10[0].score, 0.4);
 
   await db.close();
 });
@@ -176,11 +176,11 @@ Deno.test("GET /api/metrics - pagerank_top_10 is sorted descending", async () =>
   };
 
   const metrics = await graphEngine.getMetrics("24h");
-  const pageranks = metrics.current.pagerank_top_10;
+  const pageranks = metrics.current.pagerankTop10;
 
-  assertEquals(pageranks[0].tool_id, "tool_high");
-  assertEquals(pageranks[1].tool_id, "tool_medium");
-  assertEquals(pageranks[2].tool_id, "tool_low");
+  assertEquals(pageranks[0].toolId, "tool_high");
+  assertEquals(pageranks[1].toolId, "tool_medium");
+  assertEquals(pageranks[2].toolId, "tool_low");
 
   await db.close();
 });
@@ -222,12 +222,12 @@ Deno.test("GET /api/metrics - adaptive_alpha in valid range", async () => {
     const metrics = await graphEngine.getMetrics("24h");
 
     assert(
-      metrics.current.adaptive_alpha >= 0.5,
-      `Alpha should be >= 0.5, got ${metrics.current.adaptive_alpha}`,
+      metrics.current.adaptiveAlpha >= 0.5,
+      `Alpha should be >= 0.5, got ${metrics.current.adaptiveAlpha}`,
     );
     assert(
-      metrics.current.adaptive_alpha <= 1.0,
-      `Alpha should be <= 1.0, got ${metrics.current.adaptive_alpha}`,
+      metrics.current.adaptiveAlpha <= 1.0,
+      `Alpha should be <= 1.0, got ${metrics.current.adaptiveAlpha}`,
     );
   }
 
@@ -241,11 +241,11 @@ Deno.test("GET /api/metrics - success_rate is percentage (0-100)", async () => {
   const metrics = await graphEngine.getMetrics("24h");
 
   assert(
-    metrics.period.workflows_success_rate >= 0,
+    metrics.period.workflowsSuccessRate >= 0,
     "Success rate should be >= 0",
   );
   assert(
-    metrics.period.workflows_success_rate <= 100,
+    metrics.period.workflowsSuccessRate <= 100,
     "Success rate should be <= 100",
   );
 

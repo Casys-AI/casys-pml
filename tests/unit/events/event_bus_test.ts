@@ -35,8 +35,8 @@ Deno.test("EventBus", async (t) => {
       type: "tool.start",
       source: "test",
       payload: {
-        tool_id: "github:list_repos",
-        trace_id: "trace-123",
+        toolId: "github:list_repos",
+        traceId: "trace-123",
       } as ToolStartPayload,
     });
 
@@ -46,7 +46,7 @@ Deno.test("EventBus", async (t) => {
     assertEquals(received.length, 1);
     assertEquals(received[0].type, "tool.start");
     assertEquals(received[0].source, "test");
-    assertEquals((received[0].payload as ToolStartPayload).tool_id, "github:list_repos");
+    assertEquals((received[0].payload as ToolStartPayload).toolId, "github:list_repos");
     assertExists(received[0].timestamp);
 
     unsubscribe();
@@ -382,14 +382,14 @@ Deno.test("EventBus", async (t) => {
     bus.on("tool.start", (event) => {
       const payload = event.payload as ToolStartPayload;
       // Access typed properties - use void to suppress unused warnings
-      void (payload.tool_id as string);
-      void (payload.trace_id as string);
+      void (payload.toolId as string);
+      void (payload.traceId as string);
     });
 
     bus.on("tool.end", (event) => {
       const payload = event.payload as ToolEndPayload;
       void (payload.success as boolean);
-      void (payload.duration_ms as number);
+      void (payload.durationMs as number);
     });
 
     bus.close();

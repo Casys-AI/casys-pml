@@ -134,13 +134,13 @@ Deno.test("E2E 09: Complete user journey", async (t) => {
             id: "read",
             tool: "filesystem:read",
             arguments: { path: "/data.json" },
-            depends_on: [],
+            dependsOn: [],
           },
           {
             id: "parse",
             tool: "json:parse",
             arguments: { json: '{"test": "value"}' },
-            depends_on: ["read"],
+            dependsOn: ["read"],
           },
           {
             id: "write",
@@ -149,7 +149,7 @@ Deno.test("E2E 09: Complete user journey", async (t) => {
               path: "/output.json",
               content: "$OUTPUT[parse].data",
             },
-            depends_on: ["parse"],
+            dependsOn: ["parse"],
           },
         ],
       };
@@ -221,7 +221,7 @@ Deno.test("E2E 09: Complete user journey", async (t) => {
           id: `task${i}`,
           tool: "filesystem:read",
           arguments: { path: `/file${i}.txt` },
-          depends_on: i > 0 ? [`task${i - 1}`] : [],
+          dependsOn: i > 0 ? [`task${i - 1}`] : [],
         })),
       };
 

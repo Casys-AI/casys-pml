@@ -17,7 +17,7 @@ _Note: Cet ADR remplace et consolide les anciennes tentatives de définition d'a
 | **Hybrid Search**        | Tools        | ✅ **Implemented** | `src/graphrag/graph-engine.ts`                        |
 | **Next Step Prediction** | Tools        | ✅ **Implemented** | `src/graphrag/dag-suggester.ts` (Refactored Dec 2025) |
 | **DAG Construction**     | Structure    | ✅ **Implemented** | `src/graphrag/graph-engine.ts` (Shortest Path)        |
-| **Strategic Discovery**  | Capabilities | 🚧 **Todo**        | Story 7.4 (Spectral Clustering)                       |
+| **Strategic Discovery**  | Capabilities | 🚧 **In Progress** | Story 7.4 (Spectral Clustering + Hypergraph PageRank) |
 
 ---
 
@@ -50,9 +50,10 @@ const finalScore = alpha * semanticScore + (1 - alpha) * graphScore;
   - `density > 0.25` (Mature) → `alpha = 0.5` (Equilibré)
   - _Rationale :_ On ne fait pas confiance au graphe quand il est vide.
 
-- **Graph Score (Adamic-Adar) :**
-  - `AA(u,v) = Σ 1/log(|N(w)|)`
+- **Graph Score (Weighted Adamic-Adar - ADR-041):**
+  - `AA(u,v) = Σ (edge_weight × 1/log(|N(w)|))`
   - Mesure si l'outil cherché a des "amis communs" avec les outils du contexte actuel.
+  - **Pondération :** Les contributions sont multipliées par la qualité de l'edge (type × source).
 
 ### 2.2 Next Step Prediction (Passive Tool Suggestion)
 
@@ -80,10 +81,13 @@ const toolScore =
 
 Une fois les outils sélectionnés, il faut déterminer leur ordre d'exécution (dépendances).
 
-- **Shortest Path (Graphology) :**
+- **Dijkstra Weighted Shortest Path (ADR-041):**
   - Utilisé pour inférer les dépendances entre outils sélectionnés.
   - Si `PathLength(A, B) <= 3` (dans le graphe historique), on considère que B dépend de A.
-  - Permet de reconstruire la causalité sans avoir besoin d'un modèle explicite.
+  - **Pondération par qualité d'edge :** `cost = 1 / weight` (poids élevé = coût faible = préféré)
+  - **Edge Types :** `dependency` (1.0) > `contains` (0.8) > `sequence` (0.5)
+  - **Edge Sources :** `observed` (×1.0) > `inferred` (×0.7) > `template` (×0.5)
+  - Permet de favoriser les chemins confirmés par l'historique vs les templates bootstrap.
 
 ---
 
@@ -162,6 +166,13 @@ Les valeurs utilisées dans les formules doivent être monitorées et ajustées.
 | **0.50** | Reliability         | Seuil de pénalité SuccessRate | À valider          |
 | **1.20** | Reliability         | Bonus High Success            | À valider          |
 | **0.50** | Strategic Discovery | Spectral Cluster Boost        | À valider          |
+| **1.00** | Edge Type (ADR-041) | Poids `dependency`            | Validé             |
+| **0.80** | Edge Type (ADR-041) | Poids `contains`              | Validé             |
+| **0.50** | Edge Type (ADR-041) | Poids `sequence`              | Validé             |
+| **1.00** | Edge Source (ADR-041) | Multiplicateur `observed`   | Validé             |
+| **0.70** | Edge Source (ADR-041) | Multiplicateur `inferred`   | Validé             |
+| **0.50** | Edge Source (ADR-041) | Multiplicateur `template`   | Validé             |
+| **3**    | Edge Promotion (ADR-041) | Seuil inferred→observed  | Validé             |
 
 ---
 

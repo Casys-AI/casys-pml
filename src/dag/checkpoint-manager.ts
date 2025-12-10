@@ -74,8 +74,8 @@ export class CheckpointManager {
       // Serialize WorkflowState to JSON
       // Note: Excludes filesystem state (documented limitation - AC-2.4)
       const serializedState = JSON.stringify({
-        workflow_id: state.workflow_id,
-        current_layer: state.current_layer,
+        workflow_id: state.workflowId, // Map to DB snake_case
+        current_layer: state.currentLayer, // Map to DB snake_case
         messages: state.messages,
         tasks: state.tasks,
         decisions: state.decisions,
@@ -108,7 +108,7 @@ export class CheckpointManager {
 
       return {
         id,
-        workflow_id,
+        workflowId: workflow_id, // Map from DB snake_case parameter
         timestamp,
         layer,
         state,
@@ -151,7 +151,7 @@ export class CheckpointManager {
 
       return {
         id: row.id as string,
-        workflow_id: row.workflow_id as string,
+        workflowId: row.workflow_id as string, // Map from DB snake_case
         timestamp: new Date(row.timestamp as string),
         layer: row.layer as number,
         state: state as WorkflowState,
@@ -195,7 +195,7 @@ export class CheckpointManager {
 
       return {
         id: row.id as string,
-        workflow_id: row.workflow_id as string,
+        workflowId: row.workflow_id as string, // Map from DB snake_case
         timestamp: new Date(row.timestamp as string),
         layer: row.layer as number,
         state: state as WorkflowState,

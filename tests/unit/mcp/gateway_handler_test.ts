@@ -17,7 +17,7 @@ import { GraphRAGEngine } from "../../../src/graphrag/graph-engine.ts";
 import { DAGSuggester } from "../../../src/graphrag/dag-suggester.ts";
 import { VectorSearch } from "../../../src/vector/search.ts";
 import { PGliteClient } from "../../../src/db/client.ts";
-import { createInitialMigration } from "../../../src/db/migrations.ts";
+import { getAllMigrations, MigrationRunner } from "../../../src/db/migrations.ts";
 
 /**
  * Mock embedding model for tests (no ONNX, no resource leaks)
@@ -56,13 +56,8 @@ async function createTestDb(): Promise<PGliteClient> {
   const db = new PGliteClient("memory://");
   await db.connect();
 
-  const migration = createInitialMigration();
-  await migration.up(db);
-
-  const graphragMigration = await Deno.readTextFile(
-    "src/db/migrations/003_graphrag_tables.sql",
-  );
-  await db.exec(graphragMigration);
+  const migrationRunner = new MigrationRunner(db);
+  await migrationRunner.runUp(getAllMigrations());
 
   return db;
 }
@@ -212,7 +207,7 @@ Deno.test("GatewayHandler - speculative_execution mode for high confidence", asy
   // If speculative execution happened, verify results exist
   if (result.mode === "speculative_execution") {
     assertExists(result.results);
-    assertExists(result.execution_time_ms);
+    assertExists(result.executionTimeMs);
     assert(Array.isArray(result.results), "Results should be an array");
   }
 

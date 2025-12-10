@@ -172,8 +172,8 @@ export class MetricsCollector {
         } else {
           this.toolCallsFailed++;
         }
-        if (typeof payload.duration_ms === "number") {
-          observeHistogram(this.toolCallDuration, payload.duration_ms);
+        if (typeof payload.durationMs === "number") {
+          observeHistogram(this.toolCallDuration, payload.durationMs);
         }
         break;
 
@@ -193,16 +193,16 @@ export class MetricsCollector {
       // DAG events
       case "dag.started":
         this.dagExecutionsTotal++;
-        if (typeof payload.execution_id === "string") {
-          this.activeDags.add(payload.execution_id);
+        if (typeof payload.executionId === "string") {
+          this.activeDags.add(payload.executionId);
           this.activeDagExecutions = this.activeDags.size;
         }
         break;
 
       case "dag.task.completed":
         this.dagTasksCompleted++;
-        if (typeof payload.duration_ms === "number") {
-          observeHistogram(this.dagTaskDuration, payload.duration_ms);
+        if (typeof payload.durationMs === "number") {
+          observeHistogram(this.dagTaskDuration, payload.durationMs);
         }
         break;
 
@@ -211,12 +211,12 @@ export class MetricsCollector {
         break;
 
       case "dag.completed":
-        if (typeof payload.execution_id === "string") {
-          this.activeDags.delete(payload.execution_id);
+        if (typeof payload.executionId === "string") {
+          this.activeDags.delete(payload.executionId);
           this.activeDagExecutions = this.activeDags.size;
         }
-        if (typeof payload.total_duration_ms === "number") {
-          observeHistogram(this.dagExecutionDuration, payload.total_duration_ms);
+        if (typeof payload.totalDurationMs === "number") {
+          observeHistogram(this.dagExecutionDuration, payload.totalDurationMs);
         }
         break;
 
@@ -235,8 +235,8 @@ export class MetricsCollector {
 
       // System events
       case "heartbeat":
-        if (typeof payload.connected_clients === "number") {
-          this.connectedSseClients = payload.connected_clients;
+        if (typeof payload.connectedClients === "number") {
+          this.connectedSseClients = payload.connectedClients;
         }
         break;
 

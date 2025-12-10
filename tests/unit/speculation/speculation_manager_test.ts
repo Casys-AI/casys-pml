@@ -48,7 +48,7 @@ Deno.test("SpeculationManager: shouldSpeculate returns false when confidence bel
 });
 
 Deno.test("SpeculationManager: uses default threshold of 0.70", () => {
-  assertEquals(DEFAULT_SPECULATION_CONFIG.confidence_threshold, 0.70);
+  assertEquals(DEFAULT_SPECULATION_CONFIG.confidenceThreshold, 0.70);
 });
 
 Deno.test("SpeculationManager: shouldSpeculate returns false when speculation disabled", () => {
@@ -86,7 +86,7 @@ Deno.test("SpeculationManager: filterForSpeculation filters predictions meeting 
 
 Deno.test("SpeculationManager: filterForSpeculation respects max_concurrent limit", () => {
   const manager = createManager();
-  manager.updateConfig({ max_concurrent: 2 });
+  manager.updateConfig({ maxConcurrent: 2 });
 
   const predictions: PredictedNode[] = [
     { toolId: "tool_a", confidence: 0.90, reasoning: "Test", source: "co-occurrence" },
@@ -105,7 +105,7 @@ Deno.test("SpeculationManager: filterForSpeculation respects max_concurrent limi
 Deno.test("SpeculationManager: recordOutcome tracks hit metrics (AC #7)", async () => {
   const manager = createManager();
   await manager.recordOutcome({
-    prediction_id: "pred_1",
+    predictionId: "pred_1",
     toolId: "tool_a",
     wasCorrect: true,
     executionTimeMs: 100,
@@ -113,16 +113,16 @@ Deno.test("SpeculationManager: recordOutcome tracks hit metrics (AC #7)", async 
   });
 
   const metrics = manager.getMetrics();
-  assertEquals(metrics.total_hits, 1);
-  assertEquals(metrics.total_misses, 0);
-  assertEquals(metrics.total_speculations, 1);
-  assertEquals(metrics.hit_rate, 1.0);
+  assertEquals(metrics.totalHits, 1);
+  assertEquals(metrics.totalMisses, 0);
+  assertEquals(metrics.totalSpeculations, 1);
+  assertEquals(metrics.hitRate, 1.0);
 });
 
 Deno.test("SpeculationManager: recordOutcome tracks miss metrics (AC #7)", async () => {
   const manager = createManager();
   await manager.recordOutcome({
-    prediction_id: "pred_1",
+    predictionId: "pred_1",
     toolId: "tool_a",
     wasCorrect: false,
     executionTimeMs: 100,
@@ -130,10 +130,10 @@ Deno.test("SpeculationManager: recordOutcome tracks miss metrics (AC #7)", async
   });
 
   const metrics = manager.getMetrics();
-  assertEquals(metrics.total_hits, 0);
-  assertEquals(metrics.total_misses, 1);
-  assertEquals(metrics.total_speculations, 1);
-  assertEquals(metrics.false_positive_rate, 1.0);
+  assertEquals(metrics.totalHits, 0);
+  assertEquals(metrics.totalMisses, 1);
+  assertEquals(metrics.totalSpeculations, 1);
+  assertEquals(metrics.falsePositiveRate, 1.0);
 });
 
 Deno.test("SpeculationManager: recordOutcome calculates net benefit correctly (AC #7)", async () => {
@@ -141,7 +141,7 @@ Deno.test("SpeculationManager: recordOutcome calculates net benefit correctly (A
 
   // Hit: saves 200ms
   await manager.recordOutcome({
-    prediction_id: "pred_1",
+    predictionId: "pred_1",
     toolId: "tool_a",
     wasCorrect: true,
     executionTimeMs: 200,
@@ -150,7 +150,7 @@ Deno.test("SpeculationManager: recordOutcome calculates net benefit correctly (A
 
   // Miss: wastes 100ms
   await manager.recordOutcome({
-    prediction_id: "pred_2",
+    predictionId: "pred_2",
     toolId: "tool_b",
     wasCorrect: false,
     executionTimeMs: 100,
@@ -158,7 +158,7 @@ Deno.test("SpeculationManager: recordOutcome calculates net benefit correctly (A
   });
 
   const metrics = manager.getMetrics();
-  assertEquals(metrics.net_benefit_ms, 100); // 200 - 100
+  assertEquals(metrics.netBenefitMs, 100); // 200 - 100
 });
 
 // === getMetrics tests ===
@@ -167,22 +167,22 @@ Deno.test("SpeculationManager: getMetrics returns valid metrics structure (AC #7
   const manager = createManager();
   const metrics = manager.getMetrics();
 
-  assertExists(metrics.hit_rate);
-  assertExists(metrics.net_benefit_ms);
-  assertExists(metrics.false_positive_rate);
-  assertExists(metrics.total_speculations);
-  assertExists(metrics.total_hits);
-  assertExists(metrics.total_misses);
+  assertExists(metrics.hitRate);
+  assertExists(metrics.netBenefitMs);
+  assertExists(metrics.falsePositiveRate);
+  assertExists(metrics.totalSpeculations);
+  assertExists(metrics.totalHits);
+  assertExists(metrics.totalMisses);
 });
 
 Deno.test("SpeculationManager: getMetrics returns zero metrics when no speculations", () => {
   const manager = createManager();
   const metrics = manager.getMetrics();
 
-  assertEquals(metrics.hit_rate, 0);
-  assertEquals(metrics.net_benefit_ms, 0);
-  assertEquals(metrics.false_positive_rate, 0);
-  assertEquals(metrics.total_speculations, 0);
+  assertEquals(metrics.hitRate, 0);
+  assertEquals(metrics.netBenefitMs, 0);
+  assertEquals(metrics.falsePositiveRate, 0);
+  assertEquals(metrics.totalSpeculations, 0);
 });
 
 // === resetMetrics tests ===
@@ -191,7 +191,7 @@ Deno.test("SpeculationManager: resetMetrics resets all metrics to zero", async (
   const manager = createManager();
 
   await manager.recordOutcome({
-    prediction_id: "pred_1",
+    predictionId: "pred_1",
     toolId: "tool_a",
     wasCorrect: true,
     executionTimeMs: 100,
@@ -201,9 +201,9 @@ Deno.test("SpeculationManager: resetMetrics resets all metrics to zero", async (
   manager.resetMetrics();
 
   const metrics = manager.getMetrics();
-  assertEquals(metrics.total_speculations, 0);
-  assertEquals(metrics.total_hits, 0);
-  assertEquals(metrics.total_misses, 0);
+  assertEquals(metrics.totalSpeculations, 0);
+  assertEquals(metrics.totalHits, 0);
+  assertEquals(metrics.totalMisses, 0);
 });
 
 // === getSpeculationThreshold tests ===
@@ -215,6 +215,6 @@ Deno.test("SpeculationManager: getSpeculationThreshold returns configured thresh
 
 Deno.test("SpeculationManager: getSpeculationThreshold returns custom threshold after update", () => {
   const manager = createManager();
-  manager.updateConfig({ confidence_threshold: 0.80 });
+  manager.updateConfig({ confidenceThreshold: 0.80 });
   assertEquals(manager.getSpeculationThreshold(), 0.80);
 });

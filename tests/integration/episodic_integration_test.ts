@@ -78,7 +78,7 @@ Deno.test("Story 4.1d - Task 1: EpisodicMemoryStore Integration", async (t) => {
 
     const dag: DAGStructure = {
       tasks: [
-        { id: "task1", tool: "tool1", arguments: {}, depends_on: [] },
+        { id: "task1", tool: "tool1", arguments: {}, dependsOn: [] },
       ],
     };
 
@@ -102,8 +102,8 @@ Deno.test("Story 4.1d - Task 2: task_complete Events Captured", async (t) => {
 
     const dag: DAGStructure = {
       tasks: [
-        { id: "task1", tool: "tool1", arguments: {}, depends_on: [] },
-        { id: "task2", tool: "tool2", arguments: {}, depends_on: ["task1"] },
+        { id: "task1", tool: "tool1", arguments: {}, dependsOn: [] },
+        { id: "task2", tool: "tool2", arguments: {}, dependsOn: ["task1"] },
       ],
     };
 
@@ -142,7 +142,7 @@ Deno.test("Story 4.1d - Task 2: task_complete Events Captured", async (t) => {
 
     const dag: DAGStructure = {
       tasks: [
-        { id: "task1", tool: "tool1", arguments: {}, depends_on: [] },
+        { id: "task1", tool: "tool1", arguments: {}, dependsOn: [] },
       ],
     };
 
@@ -175,7 +175,7 @@ Deno.test("Story 4.1d - Task 2: task_complete Events Captured", async (t) => {
 
     const dag: DAGStructure = {
       tasks: [
-        { id: "task1", tool: "tool1", arguments: {}, depends_on: [] },
+        { id: "task1", tool: "tool1", arguments: {}, dependsOn: [] },
       ],
     };
 
@@ -205,7 +205,7 @@ Deno.test("Story 4.1d - Task 5: speculation_start Event Support", async (t) => {
 
     // Initialize state by running a simple workflow first
     const dag: DAGStructure = {
-      tasks: [{ id: "task1", tool: "tool1", arguments: {}, depends_on: [] }],
+      tasks: [{ id: "task1", tool: "tool1", arguments: {}, dependsOn: [] }],
     };
     for await (const _event of executor.executeStream(dag, "spec-workflow")) {
       // Initialize state
@@ -265,7 +265,7 @@ Deno.test("Story 4.1d - Task 6: Performance Validation", async (t) => {
       id: `task${i}`,
       tool: `tool${i}`,
       arguments: {},
-      depends_on: [] as string[],
+      dependsOn: [] as string[],
     }));
 
     const dag: DAGStructure = { tasks };
@@ -308,7 +308,7 @@ Deno.test("Story 4.1d - Task 6: Performance Validation", async (t) => {
         id: `task${i}`,
         tool: `tool${i}`,
         arguments: {},
-        depends_on: [],
+        dependsOn: [],
       })),
     };
 
@@ -362,7 +362,7 @@ Deno.test("Story 4.1d - Task 6: Performance Validation", async (t) => {
       id: `task${i}`,
       tool: `tool${i}`,
       arguments: {},
-      depends_on: [] as string[],
+      dependsOn: [] as string[],
     }));
 
     const dag: DAGStructure = { tasks };
@@ -399,9 +399,9 @@ Deno.test("Story 4.1d - Task 7: Integration Tests", async (t) => {
 
     const dag: DAGStructure = {
       tasks: [
-        { id: "task1", tool: "tool1", arguments: {}, depends_on: [] },
-        { id: "task2", tool: "tool2", arguments: {}, depends_on: ["task1"] },
-        { id: "task3", tool: "tool3", arguments: {}, depends_on: ["task2"] },
+        { id: "task1", tool: "tool1", arguments: {}, dependsOn: [] },
+        { id: "task2", tool: "tool2", arguments: {}, dependsOn: ["task1"] },
+        { id: "task3", tool: "tool3", arguments: {}, dependsOn: ["task2"] },
       ],
     };
 
@@ -439,7 +439,7 @@ Deno.test("Story 4.1d - Task 7: Integration Tests", async (t) => {
     executor.setEpisodicMemoryStore(episodicMemory);
 
     const dag: DAGStructure = {
-      tasks: [{ id: "task1", tool: "tool1", arguments: {}, depends_on: [] }],
+      tasks: [{ id: "task1", tool: "tool1", arguments: {}, dependsOn: [] }],
     };
 
     for await (const _event of executor.executeStream(dag, "hash-test")) {
@@ -469,7 +469,7 @@ Deno.test("Story 4.1d - Task 7: Integration Tests", async (t) => {
     executor.setEpisodicMemoryStore(episodicMemory);
 
     const dag: DAGStructure = {
-      tasks: [{ id: "task1", tool: "tool1", arguments: {}, depends_on: [] }],
+      tasks: [{ id: "task1", tool: "tool1", arguments: {}, dependsOn: [] }],
     };
 
     for await (const _event of executor.executeStream(dag, "metadata-test")) {

@@ -143,7 +143,7 @@ Deno.test("CommandQueue - Command Validation", async (t) => {
           id: "task1",
           tool: "tool1",
           arguments: {},
-          depends_on: [],
+          dependsOn: [],
         },
       ],
       target_layer: 2,

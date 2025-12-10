@@ -27,7 +27,7 @@ Deno.test("MetricsCollector", async (t) => {
     eventBus.emit({
       type: "tool.start",
       source: "test",
-      payload: { tool_id: "test:tool", trace_id: "123" },
+      payload: { toolId: "test:tool", traceId: "123" },
     });
 
     // Allow event propagation
@@ -46,14 +46,14 @@ Deno.test("MetricsCollector", async (t) => {
     eventBus.emit({
       type: "tool.end",
       source: "test",
-      payload: { tool_id: "test:tool", trace_id: "123", success: true, duration_ms: 50 },
+      payload: { toolId: "test:tool", traceId: "123", success: true, durationMs: 50 },
     });
 
     // Failure
     eventBus.emit({
       type: "tool.end",
       source: "test",
-      payload: { tool_id: "test:tool2", trace_id: "456", success: false, duration_ms: 100 },
+      payload: { toolId: "test:tool2", traceId: "456", success: false, durationMs: 100 },
     });
 
     await new Promise((r) => setTimeout(r, 10));
@@ -73,7 +73,7 @@ Deno.test("MetricsCollector", async (t) => {
     eventBus.emit({
       type: "capability.start",
       source: "test",
-      payload: { capability_id: "cap1", capability: "test", trace_id: "123" },
+      payload: { capability_id: "cap1", capability: "test", traceId: "123" },
     });
 
     eventBus.emit({
@@ -105,7 +105,7 @@ Deno.test("MetricsCollector", async (t) => {
     eventBus.emit({
       type: "dag.started",
       source: "test",
-      payload: { execution_id: "dag-1", task_count: 3, layer_count: 2, task_ids: ["t1", "t2", "t3"] },
+      payload: { executionId: "dag-1", task_count: 3, layer_count: 2, task_ids: ["t1", "t2", "t3"] },
     });
 
     await new Promise((r) => setTimeout(r, 10));
@@ -118,14 +118,14 @@ Deno.test("MetricsCollector", async (t) => {
     eventBus.emit({
       type: "dag.task.completed",
       source: "test",
-      payload: { execution_id: "dag-1", task_id: "t1", tool: "test:tool", duration_ms: 100 },
+      payload: { executionId: "dag-1", taskId: "t1", tool: "test:tool", durationMs: 100 },
     });
 
     // Task failed
     eventBus.emit({
       type: "dag.task.failed",
       source: "test",
-      payload: { execution_id: "dag-1", task_id: "t2", tool: "test:tool2", error: "timeout", recoverable: true },
+      payload: { executionId: "dag-1", taskId: "t2", tool: "test:tool2", error: "timeout", recoverable: true },
     });
 
     await new Promise((r) => setTimeout(r, 10));
@@ -138,7 +138,7 @@ Deno.test("MetricsCollector", async (t) => {
     eventBus.emit({
       type: "dag.completed",
       source: "test",
-      payload: { execution_id: "dag-1", total_duration_ms: 500, successful_tasks: 2, failed_tasks: 1, success: false },
+      payload: { executionId: "dag-1", totalDurationMs: 500, successfulTasks: 2, failedTasks: 1, success: false },
     });
 
     await new Promise((r) => setTimeout(r, 10));
@@ -157,19 +157,19 @@ Deno.test("MetricsCollector", async (t) => {
     eventBus.emit({
       type: "graph.edge.created",
       source: "test",
-      payload: { from_tool_id: "a", to_tool_id: "b", confidence_score: 0.8 },
+      payload: { from_toolId: "a", to_toolId: "b", confidence_score: 0.8 },
     });
 
     eventBus.emit({
       type: "graph.edge.updated",
       source: "test",
-      payload: { from_tool_id: "a", to_tool_id: "b", old_confidence: 0.8, new_confidence: 0.9, observed_count: 2 },
+      payload: { from_toolId: "a", to_toolId: "b", old_confidence: 0.8, new_confidence: 0.9, observed_count: 2 },
     });
 
     eventBus.emit({
       type: "graph.synced",
       source: "test",
-      payload: { node_count: 10, edge_count: 15, sync_duration_ms: 50 },
+      payload: { nodeCount: 10, edgeCount: 15, sync_durationMs: 50 },
     });
 
     await new Promise((r) => setTimeout(r, 10));
@@ -188,7 +188,7 @@ Deno.test("MetricsCollector", async (t) => {
     eventBus.emit({
       type: "heartbeat",
       source: "test",
-      payload: { connected_clients: 5, uptime_seconds: 100 },
+      payload: { connectedClients: 5, uptimeSeconds: 100 },
     });
 
     await new Promise((r) => setTimeout(r, 10));
@@ -202,7 +202,7 @@ Deno.test("MetricsCollector", async (t) => {
   await t.step("reset() clears all metrics", async () => {
     const collector = new MetricsCollector();
 
-    eventBus.emit({ type: "tool.start", source: "test", payload: { tool_id: "t", trace_id: "1" } });
+    eventBus.emit({ type: "tool.start", source: "test", payload: { toolId: "t", traceId: "1" } });
     eventBus.emit({ type: "capability.learned", source: "test", payload: {} });
     await new Promise((r) => setTimeout(r, 10));
 
@@ -222,8 +222,8 @@ Deno.test("MetricsCollector", async (t) => {
   await t.step("toPrometheusFormat() generates valid format", async () => {
     const collector = new MetricsCollector();
 
-    eventBus.emit({ type: "tool.start", source: "test", payload: { tool_id: "t", trace_id: "1" } });
-    eventBus.emit({ type: "tool.end", source: "test", payload: { tool_id: "t", trace_id: "1", success: true, duration_ms: 50 } });
+    eventBus.emit({ type: "tool.start", source: "test", payload: { toolId: "t", traceId: "1" } });
+    eventBus.emit({ type: "tool.end", source: "test", payload: { toolId: "t", traceId: "1", success: true, durationMs: 50 } });
     await new Promise((r) => setTimeout(r, 10));
 
     const prometheus = collector.toPrometheusFormat();
@@ -247,7 +247,7 @@ Deno.test("MetricsCollector", async (t) => {
       eventBus.emit({
         type: "tool.end",
         source: "test",
-        payload: { tool_id: "t", trace_id: String(duration), success: true, duration_ms: duration },
+        payload: { toolId: "t", traceId: String(duration), success: true, durationMs: duration },
       });
     }
 

@@ -1,77 +1,56 @@
-# Decision Architecture - Casys Intelligence
+# Architecture Documentation - Casys Intelligence
 
-## Table of Contents
+## Overview
 
-- [Decision Architecture - Casys Intelligence](#table-of-contents)
-  - [Executive Summary](./executive-summary.md)
-  - [Project Initialization](./project-initialization.md)
-  - [Decision Summary](./decision-summary.md)
-  - [Version Verification](./version-verification.md)
-  - [Project Structure](./project-structure.md)
-  - [Epic to Architecture Mapping](./epic-to-architecture-mapping.md)
-  - [Technology Stack Details](./technology-stack-details.md)
-    - [Core Technologies](./technology-stack-details.md#core-technologies)
-    - [Integration Points](./technology-stack-details.md#integration-points)
-  - [Novel Pattern Designs](./novel-pattern-designs.md)
-    - [Pattern 1: DAG Builder with JSON Schema Dependency Detection](./novel-pattern-designs.md#pattern-1-dag-builder-with-json-schema-dependency-detection)
-    - [Pattern 2: Context Budget Management](./novel-pattern-designs.md#pattern-2-context-budget-management)
-    - [Pattern 3: Speculative Execution with GraphRAG (THE Feature)](./novel-pattern-designs.md#pattern-3-speculative-execution-with-graphrag-the-feature)
-    - [Pattern 4: 3-Loop Learning Architecture (Adaptive DAG Feedback Loops)](./novel-pattern-designs.md#pattern-4-3-loop-learning-architecture-adaptive-dag-feedback-loops)
-    - [Components:](./novel-pattern-designs.md#components)
-    - [Complete Feedback Loop (3 Phases):](./novel-pattern-designs.md#complete-feedback-loop-3-phases)
-    - [4 Roles of GraphRAG in Feedback Loop:](./novel-pattern-designs.md#4-roles-of-graphrag-in-feedback-loop)
-    - [Integration with ControlledExecutor:](./novel-pattern-designs.md#integration-with-controlledexecutor)
-    - [Benefits:](./novel-pattern-designs.md#benefits)
-    - [Checkpoint Architecture & Workflow State](./novel-pattern-designs.md#checkpoint-architecture-workflow-state)
-    - [Context Management & Agent Architecture](./novel-pattern-designs.md#context-management-agent-architecture)
-    - [Performance Targets:](./novel-pattern-designs.md#performance-targets)
-    - [Implementation Plan:](./novel-pattern-designs.md#implementation-plan)
-  - [Pattern 5: Agent Code Execution & Local Processing (Epic 3)](./pattern-5-agent-code-execution-local-processing-epic-3.md)
-    - [The Flow (Anthropic-Inspired Code Execution)](./pattern-5-agent-code-execution-local-processing-epic-3.md#the-flow-anthropic-inspired-code-execution)
-    - [Architecture Components](./pattern-5-agent-code-execution-local-processing-epic-3.md#architecture-components)
-    - [Epic 2.5 Integration (Delegation Pattern)](./pattern-5-agent-code-execution-local-processing-epic-3.md#epic-25-integration-delegation-pattern)
-    - [What Epic 3 Does vs Doesn't Do](./pattern-5-agent-code-execution-local-processing-epic-3.md#what-epic-3-does-vs-doesnt-do)
-    - [Performance Targets](./pattern-5-agent-code-execution-local-processing-epic-3.md#performance-targets)
-    - [Security Model](./pattern-5-agent-code-execution-local-processing-epic-3.md#security-model)
-    - [Implementation Plan](./pattern-5-agent-code-execution-local-processing-epic-3.md#implementation-plan)
-  - [Pattern 6: Worker RPC Bridge & Emergent Capabilities (Epic 7)](./pattern-6-worker-rpc-bridge-emergent-capabilities-epic-7.md)
-  - [Pattern 7: Hypergraph Capabilities Visualization (Epic 8)](./pattern-7-hypergraph-capabilities-visualization-epic-8.md)
-  - [Implementation Patterns](./implementation-patterns.md)
-    - [Naming Conventions](./implementation-patterns.md#naming-conventions)
-    - [Code Organization](./implementation-patterns.md#code-organization)
-    - [Error Handling](./implementation-patterns.md#error-handling)
-    - [Logging Strategy](./implementation-patterns.md#logging-strategy)
-  - [Consistency Rules](./consistency-rules.md)
-    - [Cross-Cutting Patterns](./consistency-rules.md#cross-cutting-patterns)
-  - [Data Architecture](./data-architecture.md)
-    - [Database Schema (PGlite)](./data-architecture.md#database-schema-pglite)
-    - [Data Models](./data-architecture.md#data-models)
-  - [API Contracts](./api-contracts.md)
-    - [CLI Commands](./api-contracts.md#cli-commands)
-    - [Internal APIs](./api-contracts.md#internal-apis)
-  - [Security Architecture](./security-architecture.md)
-  - [Performance Considerations](./performance-considerations.md)
-    - [Targets (from NFR001)](./performance-considerations.md#targets-from-nfr001)
-    - [Optimization Strategies](./performance-considerations.md#optimization-strategies)
-  - [Deployment Architecture](./deployment-architecture.md)
-  - [Development Environment](./development-environment.md)
-    - [Prerequisites](./development-environment.md#prerequisites)
-    - [Setup Commands](./development-environment.md#setup-commands)
-    - [deno.json Tasks](./development-environment.md#denojson-tasks)
-  - [Architecture Decision Records (ADRs)](./architecture-decision-records-adrs.md)
-    - [ADR-001: PGlite over SQLite for Vector Search](./architecture-decision-records-adrs.md#adr-001-pglite-over-sqlite-for-vector-search)
-    - [ADR-002: Custom DAG Implementation (Zero External Dependencies)](./architecture-decision-records-adrs.md#adr-002-custom-dag-implementation-zero-external-dependencies)
-    - [ADR-003: BGE-M3 for Local Embeddings](./architecture-decision-records-adrs.md#adr-003-bge-m3-for-local-embeddings)
-    - [ADR-004: stdio Transport Primary, SSE Optional](./architecture-decision-records-adrs.md#adr-004-stdio-transport-primary-sse-optional)
-    - [ADR-005: Graphology for GraphRAG (True Graph Algorithms)](./architecture-decision-records-adrs.md#adr-005-graphology-for-graphrag-true-graph-algorithms)
-    - [ADR-006: Speculative Execution as Default Mode](./architecture-decision-records-adrs.md#adr-006-speculative-execution-as-default-mode)
-    - [ADR-007: DAG Adaptatif avec Feedback Loops AIL/HIL et Re-planification Dynamique](./architecture-decision-records-adrs.md#adr-007-dag-adaptatif-avec-feedback-loops-ailhil-et-re-planification-dynamique)
-    - [ADR-008: Episodic Memory & Adaptive Thresholds for Meta-Learning](./architecture-decision-records-adrs.md#adr-008-episodic-memory-adaptive-thresholds-for-meta-learning)
-    - [ADR-017: Gateway Exposure Modes](./architecture-decision-records-adrs.md#adr-017-gateway-exposure-modes)
-    - [ADR-022: Hybrid Search Integration in DAG Suggester](./architecture-decision-records-adrs.md#adr-022-hybrid-search-integration-in-dag-suggester)
-    - [ADR-023: Dynamic Candidate Expansion for Hybrid Search](./architecture-decision-records-adrs.md#adr-023-dynamic-candidate-expansion-for-hybrid-search)
-    - [ADR-024: Full Adjacency Matrix for Dependency Resolution](./architecture-decision-records-adrs.md#adr-024-full-adjacency-matrix-for-dependency-resolution)
-    - [ADR-027: Execute Code Graph Learning](./architecture-decision-records-adrs.md#adr-027-execute-code-graph-learning)
-    - [ADR-028: Emergent Capabilities System](./architecture-decision-records-adrs.md#adr-028-emergent-capabilities-system)
-    - [ADR-029: Hypergraph Capabilities Visualization](./architecture-decision-records-adrs.md#adr-029-hypergraph-capabilities-visualization)
-    - [ADR-032: Sandbox Worker RPC Bridge](./architecture-decision-records-adrs.md#adr-032-sandbox-worker-rpc-bridge)
+- [Executive Summary](./executive-summary.md) - Vision, 3-layer architecture, key metrics
+- [Technology Stack](./technology-stack-details.md) - Runtime, storage, ML, integrations
+- [Epic to Architecture Mapping](./epic-to-architecture-mapping.md) - Epics → modules/components
+
+## Core Design
+
+- [Data Architecture](./data-architecture.md) - Database schema, PGlite, migrations
+- [Security Architecture](./security-architecture.md) - Auth, sandbox, permissions
+- [Performance Considerations](./performance-considerations.md) - Targets, optimization strategies
+- [Deployment Architecture](./deployment-architecture.md) - Local vs cloud, dual-server setup
+
+## Patterns
+
+### Novel Patterns (1-4)
+
+- [Novel Pattern Designs](./novel-pattern-designs.md)
+  - Pattern 1: DAG Builder with JSON Schema Dependency Detection
+  - Pattern 2: Context Budget Management
+  - Pattern 3: Speculative Execution with GraphRAG
+  - Pattern 4: 3-Loop Learning Architecture
+
+### Epic-Specific Patterns (5-7)
+
+- [Pattern 5: Agent Code Execution](./pattern-5-agent-code-execution-local-processing-epic-3.md) - Sandbox, safe-to-fail
+- [Pattern 6: Worker RPC Bridge](./pattern-6-worker-rpc-bridge-emergent-capabilities-epic-7.md) - Capabilities learning
+- [Pattern 7: Hypergraph Visualization](./pattern-7-hypergraph-capabilities-visualization-epic-8.md) - Compound graphs
+
+## Implementation
+
+- [Implementation Patterns](./implementation-patterns.md) - Naming, code organization, error handling, logging
+- [Project Structure](./project-structure.md) - Directory layout, module boundaries
+
+## Decisions
+
+- [Architecture Decision Records](./architecture-decision-records-adrs.md) → [Full ADR Index](../adrs/index.md)
+
+---
+
+## Quick Links
+
+| Need | Document |
+|------|----------|
+| What is CAI? | [Executive Summary](./executive-summary.md) |
+| What tech do we use? | [Technology Stack](./technology-stack-details.md) |
+| Database schema? | [Data Architecture](./data-architecture.md) |
+| How to name things? | [Implementation Patterns](./implementation-patterns.md) |
+| Why this decision? | [ADR Index](../adrs/index.md) |
+| Epic status? | [Epic Mapping](./epic-to-architecture-mapping.md) |
+
+---
+
+_Updated: 2025-12-10_

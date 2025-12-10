@@ -50,7 +50,6 @@ Casys Intelligence solves two critical problems with MCP ecosystems:
 - **Real-time SSE Events** — Live graph updates, edge creation, metrics streaming
 - **Interactive Graph Visualization** — Cytoscape.js force-directed graph with PageRank sizing
 - **Live Metrics Panel** — Success rate, latency, edge count, graph density
-- **GitHub OAuth** — Cloud mode with authentication, local mode without
 
 ### Emergent Capabilities (In Progress)
 
@@ -166,47 +165,38 @@ This will:
 - Generate embeddings for semantic search
 - Store everything in a local PGlite database (`.cai.db`)
 
-### Step 2: Configure Claude Code
+### Step 2: Start the Gateway
 
-**Local Mode (Self-Hosted, No Auth):**
-
-Add to your `.mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "mcp-gateway": {
-      "command": "deno",
-      "args": ["task", "cli", "serve"],
-      "cwd": "/path/to/casys-intelligence"
-    }
-  }
-}
-```
-
-**Cloud Mode (Hosted, With Auth):**
-
-```json
-{
-  "mcpServers": {
-    "mcp-gateway": {
-      "type": "http",
-      "url": "https://intelligence.casys.ai/mcp",
-      "headers": {
-        "x-api-key": "${CAI_API_KEY}"
-      }
-    }
-  }
-}
-```
-
-Then set your API key:
+CAI runs as an HTTP server that you start **before** using Claude:
 
 ```bash
-export CAI_API_KEY="ac_your_api_key_here"
+# Terminal 1: Start the API gateway (port 3003)
+deno task dev
+
+# Terminal 2 (optional): Start the dashboard (port 8081)
+deno task dev:fresh
 ```
 
-### Step 3: Available MCP Tools
+The gateway must be running for Claude to connect.
+
+### Step 3: Configure Claude Code
+
+Add to your MCP settings (`.mcp.json` or Claude Desktop config):
+
+```json
+{
+  "mcpServers": {
+    "cai": {
+      "type": "http",
+      "url": "http://localhost:3003/mcp"
+    }
+  }
+}
+```
+
+That's it! The gateway reads MCP server configs from `config/.mcp-servers.json` and API keys for third-party services (Tavily, GitHub, etc.) from your `.env` file.
+
+### Step 4: Available MCP Tools
 
 Once configured, CAI exposes these meta-tools:
 
@@ -390,8 +380,7 @@ deno task prod:logs        # View logs
 deno task deploy:all       # Pull, build, restart
 
 # CLI
-deno task cli init         # Initialize CAI
-deno task cli serve        # Start MCP gateway (stdio)
+deno task cli init         # Initialize CAI (discover MCPs, generate embeddings)
 deno task cli status       # Check health
 ```
 
@@ -422,13 +411,6 @@ Casys Intelligence is designed for local-first, privacy-respecting operation:
 - Data stored in local PGlite database (`.cai.db`)
 - No cloud dependencies or external API calls for core functionality
 
-**Authentication (Cloud Mode):**
-
-- GitHub OAuth for user authentication
-- API keys for MCP gateway access (`ac_` prefix + 24 random chars)
-- Argon2id hashing for key storage
-- Session management via Deno KV (30-day TTL)
-
 **Sandbox Isolation:**
 
 - Code execution runs in isolated Deno subprocess
@@ -438,8 +420,7 @@ Casys Intelligence is designed for local-first, privacy-respecting operation:
 
 **MCP Communication:**
 
-- Server communication via stdio (local mode)
-- HTTP with API key authentication (cloud mode)
+- HTTP server on localhost (no auth required for local use)
 
 ---
 

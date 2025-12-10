@@ -497,7 +497,7 @@ export class DAGSuggester {
           id: newTaskId,
           tool: candidate.toolId,
           arguments: context.availableContext || {},
-          depends_on: dependsOn,
+          dependsOn: dependsOn,
         };
       });
 
@@ -580,7 +580,7 @@ export class DAGSuggester {
 
     try {
       // 1. Get completed tasks from either source
-      const tasks = workflowState?.completed_tasks ?? completedTasks ?? [];
+      const tasks = workflowState?.completedTasks ?? completedTasks ?? [];
 
       if (tasks.length === 0) {
         log.debug("[predictNextNodes] No completed tasks, returning empty predictions");
@@ -724,7 +724,7 @@ export class DAGSuggester {
     const ctx = workflowState.context || {};
     const workflowType = (ctx.workflowType as string) || "unknown";
     const domain = (ctx.domain as string) || "general";
-    const complexity = workflowState.completed_tasks?.length.toString() || "0";
+    const complexity = workflowState.completedTasks?.length.toString() || "0";
 
     return `workflowType:${workflowType}|domain:${domain}|complexity:${complexity}`;
   }
@@ -760,7 +760,7 @@ export class DAGSuggester {
       const context = {
         workflowType: (ctx.workflowType as string) || "unknown",
         domain: (ctx.domain as string) || "general",
-        complexity: workflowState.completed_tasks?.length.toString() || "0",
+        complexity: workflowState.completedTasks?.length.toString() || "0",
       };
 
       const episodes = await this.episodicMemory.retrieveRelevant(context, {
@@ -1152,8 +1152,8 @@ export class DAGSuggester {
 
     // Build adjacency list and in-degree map
     for (const task of dag.tasks) {
-      inDegree.set(task.id, task.depends_on.length);
-      for (const dep of task.depends_on) {
+      inDegree.set(task.id, task.dependsOn.length);
+      for (const dep of task.dependsOn) {
         if (!adjList.has(dep)) adjList.set(dep, []);
         adjList.get(dep)!.push(task.id);
       }

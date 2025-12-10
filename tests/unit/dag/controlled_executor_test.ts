@@ -48,8 +48,8 @@ Deno.test("ControlledExecutor - executeStream", async (t) => {
 
     const dag: DAGStructure = {
       tasks: [
-        { id: "task1", tool: "tool1", arguments: {}, depends_on: [] },
-        { id: "task2", tool: "tool2", arguments: {}, depends_on: ["task1"] },
+        { id: "task1", tool: "tool1", arguments: {}, dependsOn: [] },
+        { id: "task2", tool: "tool2", arguments: {}, dependsOn: ["task1"] },
       ],
     };
 
@@ -81,7 +81,7 @@ Deno.test("ControlledExecutor - executeStream", async (t) => {
 
     const dag: DAGStructure = {
       tasks: [
-        { id: "task1", tool: "tool1", arguments: {}, depends_on: [] },
+        { id: "task1", tool: "tool1", arguments: {}, dependsOn: [] },
       ],
     };
 
@@ -103,8 +103,8 @@ Deno.test("ControlledExecutor - executeStream", async (t) => {
 
     const dag: DAGStructure = {
       tasks: [
-        { id: "task1", tool: "tool1", arguments: {}, depends_on: [] },
-        { id: "task2", tool: "tool2", arguments: {}, depends_on: [] },
+        { id: "task1", tool: "tool1", arguments: {}, dependsOn: [] },
+        { id: "task2", tool: "tool2", arguments: {}, dependsOn: [] },
       ],
     };
 
@@ -129,9 +129,9 @@ Deno.test("ControlledExecutor - executeStream", async (t) => {
 
     const dag: DAGStructure = {
       tasks: [
-        { id: "task1", tool: "tool1", arguments: {}, depends_on: [] },
-        { id: "task2", tool: "tool2", arguments: {}, depends_on: ["task1"] },
-        { id: "task3", tool: "tool3", arguments: {}, depends_on: ["task2"] },
+        { id: "task1", tool: "tool1", arguments: {}, dependsOn: [] },
+        { id: "task2", tool: "tool2", arguments: {}, dependsOn: ["task1"] },
+        { id: "task3", tool: "tool3", arguments: {}, dependsOn: ["task2"] },
       ],
     };
 
@@ -167,8 +167,8 @@ Deno.test("ControlledExecutor - Command Queue", async (t) => {
 
     const dag: DAGStructure = {
       tasks: [
-        { id: "task1", tool: "tool1", arguments: {}, depends_on: [] },
-        { id: "task2", tool: "tool2", arguments: {}, depends_on: ["task1"] },
+        { id: "task1", tool: "tool1", arguments: {}, dependsOn: [] },
+        { id: "task2", tool: "tool2", arguments: {}, dependsOn: ["task1"] },
       ],
     };
 
@@ -201,7 +201,7 @@ Deno.test("ControlledExecutor - Backward Compatibility", async (t) => {
 
     const dag: DAGStructure = {
       tasks: [
-        { id: "task1", tool: "tool1", arguments: {}, depends_on: [] },
+        { id: "task1", tool: "tool1", arguments: {}, dependsOn: [] },
       ],
     };
 
@@ -219,7 +219,7 @@ Deno.test("ControlledExecutor - Backward Compatibility", async (t) => {
 
     const dag: DAGStructure = {
       tasks: [
-        { id: "task1", tool: "tool1", arguments: {}, depends_on: [] },
+        { id: "task1", tool: "tool1", arguments: {}, dependsOn: [] },
       ],
     };
 
@@ -243,11 +243,11 @@ Deno.test("ControlledExecutor - Performance", async (t) => {
     // Sequential: 500ms, Parallel: ~100ms, Speedup: ~5x
     const dag: DAGStructure = {
       tasks: [
-        { id: "task1", tool: "tool1", arguments: {}, depends_on: [] },
-        { id: "task2", tool: "tool2", arguments: {}, depends_on: [] },
-        { id: "task3", tool: "tool3", arguments: {}, depends_on: [] },
-        { id: "task4", tool: "tool4", arguments: {}, depends_on: [] },
-        { id: "task5", tool: "tool5", arguments: {}, depends_on: [] },
+        { id: "task1", tool: "tool1", arguments: {}, dependsOn: [] },
+        { id: "task2", tool: "tool2", arguments: {}, dependsOn: [] },
+        { id: "task3", tool: "tool3", arguments: {}, dependsOn: [] },
+        { id: "task4", tool: "tool4", arguments: {}, dependsOn: [] },
+        { id: "task5", tool: "tool5", arguments: {}, dependsOn: [] },
       ],
     };
 
@@ -279,9 +279,9 @@ Deno.test("ControlledExecutor - Performance", async (t) => {
 
     const dag: DAGStructure = {
       tasks: [
-        { id: "task1", tool: "tool1", arguments: {}, depends_on: [] },
-        { id: "task2", tool: "tool2", arguments: {}, depends_on: [] },
-        { id: "task3", tool: "tool3", arguments: {}, depends_on: [] },
+        { id: "task1", tool: "tool1", arguments: {}, dependsOn: [] },
+        { id: "task2", tool: "tool2", arguments: {}, dependsOn: [] },
+        { id: "task3", tool: "tool3", arguments: {}, dependsOn: [] },
       ],
     };
 
@@ -318,7 +318,7 @@ Deno.test("ControlledExecutor - State Management", async (t) => {
 
     const dag: DAGStructure = {
       tasks: [
-        { id: "task1", tool: "tool1", arguments: {}, depends_on: [] },
+        { id: "task1", tool: "tool1", arguments: {}, dependsOn: [] },
       ],
     };
 
@@ -337,7 +337,7 @@ Deno.test("ControlledExecutor - State Management", async (t) => {
 
     const dag: DAGStructure = {
       tasks: [
-        { id: "task1", tool: "tool1", arguments: {}, depends_on: [] },
+        { id: "task1", tool: "tool1", arguments: {}, dependsOn: [] },
       ],
     };
 

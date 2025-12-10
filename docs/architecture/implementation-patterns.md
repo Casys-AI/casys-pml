@@ -6,22 +6,36 @@
 
 - Files: `kebab-case.ts` (e.g., `vector-search.ts`)
 - Directories: `kebab-case/` (e.g., `mcp/`, `dag/`)
-- Test files: `*.test.ts` (co-located with source)
+- Test files: `*_test.ts` or `*.test.ts` (co-located with source)
 - Benchmark files: `*.bench.ts`
 
 **Code Identifiers:**
 
 - Classes: `PascalCase` (e.g., `VectorSearchEngine`)
-- Interfaces/Types: `PascalCase` with `I` prefix for interfaces (e.g., `IConfig`, `ToolSchema`)
+- Interfaces/Types: `PascalCase` (e.g., `ToolSchema`, `ExecutionMode`)
 - Functions: `camelCase` (e.g., `buildDependencyGraph`)
-- Constants: `UPPER_SNAKE_CASE` (e.g., `MAX_RETRIES`)
-- Private fields: `_camelCase` with underscore prefix
+- Constants: `UPPER_SNAKE_CASE` (e.g., `MAX_RETRIES`, `DEFAULT_TIMEOUT`)
+- Enums: `PascalCase` name, `PascalCase` values (e.g., `EdgeType.Sequence`)
+- Private fields: `_camelCase` with underscore prefix (e.g., `_internalState`)
+
+**Events & API:**
+
+- Event types: `dot.notation` (e.g., `tool.start`, `dag.completed`, `graph.edge.created`)
+- Event/API payload fields: `camelCase` (e.g., `toolId`, `executionTimeMs`, `traceId`)
+- Event sources: `kebab-case` (e.g., `worker-bridge`, `dag-executor`)
 
 **Database:**
 
 - Tables: `snake_case` singular (e.g., `tool_schema`, `embedding`)
 - Columns: `snake_case` (e.g., `tool_id`, `created_at`)
 - Indexes: `idx_{table}_{column}` (e.g., `idx_embedding_vector`)
+
+**Conversion Rules:**
+
+When data crosses boundaries:
+- **DB → TypeScript**: Convert `snake_case` to `camelCase` (e.g., `tool_id` → `toolId`)
+- **TypeScript → DB**: Convert `camelCase` to `snake_case` (e.g., `toolId` → `tool_id`)
+- **TypeScript → JSON API**: Keep `camelCase` (no conversion needed)
 
 ## Code Organization
 
@@ -60,26 +74,26 @@ export type { Config, ToolSchema } from "./src/types.ts";
 
 ```typescript
 // src/utils/errors.ts
-export class Casys IntelligenceError extends Error {
+export class CaiError extends Error {
   constructor(message: string, public code: string) {
     super(message);
-    this.name = "Casys IntelligenceError";
+    this.name = "CaiError";
   }
 }
 
-export class MCPServerError extends Casys IntelligenceError {
+export class MCPServerError extends CaiError {
   constructor(message: string, public serverId: string) {
     super(message, "MCP_SERVER_ERROR");
   }
 }
 
-export class VectorSearchError extends Casys IntelligenceError {
+export class VectorSearchError extends CaiError {
   constructor(message: string) {
     super(message, "VECTOR_SEARCH_ERROR");
   }
 }
 
-export class DAGExecutionError extends Casys IntelligenceError {
+export class DAGExecutionError extends CaiError {
   constructor(message: string, public toolId?: string) {
     super(message, "DAG_EXECUTION_ERROR");
   }
@@ -144,5 +158,40 @@ logger.debug("Vector search query", { query, results });
 
 - Console: INFO level (colorized for terminal)
 - File: `~/.cai/logs/cai.log` (all levels, rotated daily)
+
+## Cross-Cutting Patterns
+
+**Date/Time Handling:**
+
+- All timestamps: ISO 8601 format (`2025-11-03T10:30:45.123Z`)
+- Library: Native `Date` object, no moment.js
+- Storage: PostgreSQL `TIMESTAMPTZ` type
+
+**Async Patterns:**
+
+- All I/O operations: `async/await` (no callbacks)
+- Parallel operations: `Promise.all()` for independent tasks
+- Sequential: `for...of` with `await` for dependent tasks
+
+**Configuration Access:**
+
+```typescript
+// Single source of truth
+const config = await loadConfig("~/.cai/config.yaml");
+// Pass explicitly, no global state
+```
+
+**Retries:**
+
+```typescript
+// src/utils/retry.ts
+export async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries = 3,
+  delayMs = 1000,
+): Promise<T> {
+  // Exponential backoff: 1s, 2s, 4s
+}
+```
 
 ---

@@ -11,7 +11,7 @@ import { VectorSearch } from "../../../src/vector/search.ts";
 import { EmbeddingModel } from "../../../src/vector/embeddings.ts";
 import { EpisodicMemoryStore } from "../../../src/learning/episodic-memory-store.ts";
 import { PGliteClient } from "../../../src/db/client.ts";
-import { createInitialMigration } from "../../../src/db/migrations.ts";
+import { getAllMigrations, MigrationRunner } from "../../../src/db/migrations.ts";
 
 /**
  * Create test database with full schema including episodic memory
@@ -20,20 +20,9 @@ async function createTestDb(): Promise<PGliteClient> {
   const db = new PGliteClient("memory://");
   await db.connect();
 
-  const migration = createInitialMigration();
-  await migration.up(db);
-
-  // GraphRAG tables
-  const graphragMigration = await Deno.readTextFile(
-    "src/db/migrations/003_graphrag_tables.sql",
-  );
-  await db.exec(graphragMigration);
-
-  // Episodic memory tables (Migration 007)
-  const episodicMigration = await Deno.readTextFile(
-    "src/db/migrations/007_episodic_memory.sql",
-  );
-  await db.exec(episodicMigration);
+  // Run all migrations properly (including edge_type columns from migration 012)
+  const migrationRunner = new MigrationRunner(db);
+  await migrationRunner.runUp(getAllMigrations());
 
   return db;
 }
@@ -103,9 +92,9 @@ Deno.test({
     // No episodic memory set - should use base confidence only
     const predictions = await suggester.predictNextNodes(
       {
-        workflow_id: "test-workflow",
-        current_layer: 1,
-        completed_tasks: [
+        workflowId: "test-workflow",
+        currentLayer: 1,
+        completedTasks: [
           { tool: "git:clone", status: "success", taskId: "task-1" },
         ],
       },
@@ -175,9 +164,9 @@ Deno.test({
     // Now predict - should have confidence boost
     const predictions = await suggester.predictNextNodes(
       {
-        workflow_id: "test-workflow",
-        current_layer: 1,
-        completed_tasks: [
+        workflowId: "test-workflow",
+        currentLayer: 1,
+        completedTasks: [
           { tool: "git:clone", status: "success", taskId: "task-1" },
         ],
         context: { workflowType: "unknown", domain: "general" },
@@ -264,9 +253,9 @@ Deno.test({
 
     const predictions = await suggester.predictNextNodes(
       {
-        workflow_id: "test-workflow",
-        current_layer: 2,
-        completed_tasks: [
+        workflowId: "test-workflow",
+        currentLayer: 2,
+        completedTasks: [
           { tool: "git:clone", status: "success", taskId: "task-1" },
           { tool: "npm:install", status: "success", taskId: "task-2" },
         ],
@@ -356,9 +345,9 @@ Deno.test({
 
     const predictions = await suggester.predictNextNodes(
       {
-        workflow_id: "test-workflow",
-        current_layer: 3,
-        completed_tasks: [
+        workflowId: "test-workflow",
+        currentLayer: 3,
+        completedTasks: [
           { tool: "git:clone", status: "success", taskId: "task-1" },
           { tool: "npm:install", status: "success", taskId: "task-2" },
           { tool: "npm:test", status: "success", taskId: "task-3" },
@@ -405,9 +394,9 @@ Deno.test({
 
     const predictions = await suggester.predictNextNodes(
       {
-        workflow_id: "test-workflow",
-        current_layer: 1,
-        completed_tasks: [
+        workflowId: "test-workflow",
+        currentLayer: 1,
+        completedTasks: [
           { tool: "git:clone", status: "success", taskId: "task-1" },
         ],
       },
@@ -474,9 +463,9 @@ Deno.test({
 
     const predictions = await suggester.predictNextNodes(
       {
-        workflow_id: "test-workflow-perf",
-        current_layer: 1,
-        completed_tasks: [
+        workflowId: "test-workflow-perf",
+        currentLayer: 1,
+        completedTasks: [
           { tool: "git:clone", status: "success", taskId: "task-1" },
         ],
         context: { workflowType: "unknown", domain: "general" },

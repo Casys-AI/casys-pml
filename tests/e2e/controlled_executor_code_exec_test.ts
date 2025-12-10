@@ -90,7 +90,7 @@ Deno.test({
           id: "fetch_data",
           tool: "mock:get_data",
           arguments: {},
-          depends_on: [],
+          dependsOn: [],
           type: "mcp_tool",
         },
         // Layer 1: Process data via code execution
@@ -105,7 +105,7 @@ Deno.test({
             return { sum, avg, count: data.numbers.length };
           `,
           arguments: {},
-          depends_on: ["fetch_data"],
+          dependsOn: ["fetch_data"],
         },
       ],
     };
@@ -170,7 +170,7 @@ Deno.test({
             return fibonacci(10);
           `,
           arguments: {},
-          depends_on: [],
+          dependsOn: [],
         },
       ],
     };
@@ -213,7 +213,7 @@ Deno.test({
           id: "fetch_value",
           tool: "mock:get_value",
           arguments: {},
-          depends_on: [],
+          dependsOn: [],
           type: "mcp_tool",
         },
         {
@@ -224,8 +224,8 @@ Deno.test({
             throw new Error("Intentional error for testing");
           `,
           arguments: {},
-          depends_on: ["fetch_value"],
-          side_effects: true, // NOT safe-to-fail → should fail immediately
+          dependsOn: ["fetch_value"],
+          sideEffects: true, // NOT safe-to-fail → should fail immediately
         },
       ],
     };
@@ -276,7 +276,7 @@ Deno.test({
           type: "code_execution",
           code: "return { values: [10, 20, 30, 40, 50] };",
           arguments: {},
-          depends_on: [],
+          dependsOn: [],
         },
         {
           id: "filter_data",
@@ -288,7 +288,7 @@ Deno.test({
             return { filtered };
           `,
           arguments: {},
-          depends_on: ["generate_data"],
+          dependsOn: ["generate_data"],
         },
         {
           id: "aggregate_data",
@@ -300,7 +300,7 @@ Deno.test({
             return { sum, count: data.result.filtered.length };
           `,
           arguments: {},
-          depends_on: ["filter_data"],
+          dependsOn: ["filter_data"],
         },
       ],
     };

@@ -19,15 +19,15 @@ import type { PredictedNode, SpeculationConfig, SpeculationMetrics } from "../gr
  */
 export const DEFAULT_SPECULATION_CONFIG: SpeculationConfig = {
   enabled: true,
-  confidence_threshold: 0.70, // AC #4: >0.70 for speculation
-  max_concurrent: 3,
+  confidenceThreshold: 0.70, // AC #4: >0.70 for speculation
+  maxConcurrent: 3,
 };
 
 /**
  * Speculation outcome for feedback loop
  */
 export interface SpeculationOutcome {
-  prediction_id: string;
+  predictionId: string;
   toolId: string;
   wasCorrect: boolean;
   executionTimeMs: number;
@@ -92,9 +92,9 @@ export class SpeculationManager {
     if (this.thresholdManager) {
       const thresholds = this.thresholdManager.getThresholds();
       // Use suggestion threshold as speculation threshold (they're correlated)
-      return thresholds.suggestionThreshold ?? this.config.confidence_threshold;
+      return thresholds.suggestionThreshold ?? this.config.confidenceThreshold;
     }
-    return this.config.confidence_threshold;
+    return this.config.confidenceThreshold;
   }
 
   /**
@@ -131,7 +131,7 @@ export class SpeculationManager {
 
     return predictions
       .filter((p) => p.confidence >= threshold)
-      .slice(0, this.config.max_concurrent);
+      .slice(0, this.config.maxConcurrent);
   }
 
   /**
@@ -261,12 +261,12 @@ export class SpeculationManager {
     const netBenefitMs = this.totalSavedMs - this.totalWastedMs;
 
     return {
-      hit_rate: hitRate,
-      net_benefit_ms: netBenefitMs,
-      false_positive_rate: falsePositiveRate,
-      total_speculations: this.totalSpeculations,
-      total_hits: this.totalHits,
-      total_misses: this.totalMisses,
+      hitRate: hitRate,
+      netBenefitMs: netBenefitMs,
+      falsePositiveRate: falsePositiveRate,
+      totalSpeculations: this.totalSpeculations,
+      totalHits: this.totalHits,
+      totalMisses: this.totalMisses,
     };
   }
 

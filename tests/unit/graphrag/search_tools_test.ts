@@ -69,17 +69,17 @@ Deno.test("GraphRAGEngine - getEdgeCount increases after updateFromExecution", a
 
   // Execute workflow with dependencies
   await engine.updateFromExecution({
-    execution_id: "test-1",
-    executed_at: new Date(),
-    intent_text: "test workflow",
-    dag_structure: {
+    executionId: "test-1",
+    executedAt: new Date(),
+    intentText: "test workflow",
+    dagStructure: {
       tasks: [
-        { id: "t1", tool: "filesystem:read", arguments: {}, depends_on: [] },
-        { id: "t2", tool: "filesystem:write", arguments: {}, depends_on: ["t1"] },
+        { id: "t1", tool: "filesystem:read", arguments: {}, dependsOn: [] },
+        { id: "t2", tool: "filesystem:write", arguments: {}, dependsOn: ["t1"] },
       ],
     },
     success: true,
-    execution_time_ms: 100,
+    executionTimeMs: 100,
   });
 
   const edgeCount = engine.getEdgeCount();
@@ -96,17 +96,17 @@ Deno.test("GraphRAGEngine - computeAdamicAdar finds related tools", async () => 
 
   // Create workflow: screenshot depends on navigate
   await engine.updateFromExecution({
-    execution_id: "test-workflow",
-    executed_at: new Date(),
-    intent_text: "take screenshot",
-    dag_structure: {
+    executionId: "test-workflow",
+    executedAt: new Date(),
+    intentText: "take screenshot",
+    dagStructure: {
       tasks: [
-        { id: "t1", tool: "playwright:navigate", arguments: {}, depends_on: [] },
-        { id: "t2", tool: "playwright:screenshot", arguments: {}, depends_on: ["t1"] },
+        { id: "t1", tool: "playwright:navigate", arguments: {}, dependsOn: [] },
+        { id: "t2", tool: "playwright:screenshot", arguments: {}, dependsOn: ["t1"] },
       ],
     },
     success: true,
-    execution_time_ms: 100,
+    executionTimeMs: 100,
   });
 
   // Find tools related to navigate
@@ -134,17 +134,17 @@ Deno.test("GraphRAGEngine - computeGraphRelatedness returns score", async () => 
 
   // Create some edges
   await engine.updateFromExecution({
-    execution_id: "test-1",
-    executed_at: new Date(),
-    intent_text: "file operations",
-    dag_structure: {
+    executionId: "test-1",
+    executedAt: new Date(),
+    intentText: "file operations",
+    dagStructure: {
       tasks: [
-        { id: "t1", tool: "filesystem:read", arguments: {}, depends_on: [] },
-        { id: "t2", tool: "filesystem:write", arguments: {}, depends_on: ["t1"] },
+        { id: "t1", tool: "filesystem:read", arguments: {}, dependsOn: [] },
+        { id: "t2", tool: "filesystem:write", arguments: {}, dependsOn: ["t1"] },
       ],
     },
     success: true,
-    execution_time_ms: 100,
+    executionTimeMs: 100,
   });
 
   const score = engine.computeGraphRelatedness("filesystem:list", ["filesystem:read"]);
@@ -208,17 +208,17 @@ Deno.test("GraphRAGEngine - getNeighbors returns connected tools", async () => {
 
   // Create edge: read → write
   await engine.updateFromExecution({
-    execution_id: "test-1",
-    executed_at: new Date(),
-    intent_text: "copy file",
-    dag_structure: {
+    executionId: "test-1",
+    executedAt: new Date(),
+    intentText: "copy file",
+    dagStructure: {
       tasks: [
-        { id: "t1", tool: "filesystem:read", arguments: {}, depends_on: [] },
-        { id: "t2", tool: "filesystem:write", arguments: {}, depends_on: ["t1"] },
+        { id: "t1", tool: "filesystem:read", arguments: {}, dependsOn: [] },
+        { id: "t2", tool: "filesystem:write", arguments: {}, dependsOn: ["t1"] },
       ],
     },
     success: true,
-    execution_time_ms: 100,
+    executionTimeMs: 100,
   });
 
   const outNeighbors = engine.getNeighbors("filesystem:read", "out");

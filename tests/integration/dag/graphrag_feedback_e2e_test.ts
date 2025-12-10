@@ -127,9 +127,9 @@ Deno.test("E2E GraphRAG Feedback: Workflow execution updates knowledge graph", a
 
     const dag: DAGStructure = {
       tasks: [
-        { id: "task1", tool: "fs:read", arguments: { path: "/data.txt" }, depends_on: [] },
-        { id: "task2", tool: "data:process", arguments: {}, depends_on: ["task1"] },
-        { id: "task3", tool: "fs:write", arguments: {}, depends_on: ["task2"] },
+        { id: "task1", tool: "fs:read", arguments: { path: "/data.txt" }, dependsOn: [] },
+        { id: "task2", tool: "data:process", arguments: {}, dependsOn: ["task1"] },
+        { id: "task3", tool: "fs:write", arguments: {}, dependsOn: ["task2"] },
       ],
     };
 
@@ -215,9 +215,9 @@ Deno.test("E2E GraphRAG Feedback: PageRank recomputed after update", async () =>
     // Execute workflow (adds more edges to data:process)
     const dag: DAGStructure = {
       tasks: [
-        { id: "task1", tool: "fs:read", arguments: {}, depends_on: [] },
-        { id: "task2", tool: "data:process", arguments: {}, depends_on: ["task1"] },
-        { id: "task3", tool: "fs:write", arguments: {}, depends_on: ["task2"] },
+        { id: "task1", tool: "fs:read", arguments: {}, dependsOn: [] },
+        { id: "task2", tool: "data:process", arguments: {}, dependsOn: ["task1"] },
+        { id: "task3", tool: "fs:write", arguments: {}, dependsOn: ["task2"] },
       ],
     };
 
@@ -265,8 +265,8 @@ Deno.test("E2E GraphRAG Feedback: Subsequent DAG suggestions use updated graph",
     // 1. Execute first workflow (establishes pattern)
     const dag1: DAGStructure = {
       tasks: [
-        { id: "task1", tool: "fs:read", arguments: {}, depends_on: [] },
-        { id: "task2", tool: "data:process", arguments: {}, depends_on: ["task1"] },
+        { id: "task1", tool: "fs:read", arguments: {}, dependsOn: [] },
+        { id: "task2", tool: "data:process", arguments: {}, dependsOn: ["task1"] },
       ],
     };
 
@@ -282,8 +282,8 @@ Deno.test("E2E GraphRAG Feedback: Subsequent DAG suggestions use updated graph",
     // 3. Execute second workflow (uses same pattern)
     const dag2: DAGStructure = {
       tasks: [
-        { id: "task1", tool: "fs:read", arguments: {}, depends_on: [] },
-        { id: "task2", tool: "data:process", arguments: {}, depends_on: ["task1"] },
+        { id: "task1", tool: "fs:read", arguments: {}, dependsOn: [] },
+        { id: "task2", tool: "data:process", arguments: {}, dependsOn: ["task1"] },
       ],
     };
 
@@ -334,7 +334,7 @@ Deno.test("E2E GraphRAG Feedback: Fire-and-forget doesn't block workflow complet
 
     const dag: DAGStructure = {
       tasks: [
-        { id: "task1", tool: "fs:read", arguments: {}, depends_on: [] },
+        { id: "task1", tool: "fs:read", arguments: {}, dependsOn: [] },
       ],
     };
 

@@ -140,7 +140,7 @@ Deno.bench("Parallel execution (5 tasks, all parallel)", async (b) => {
       id: `task${i}`,
       tool: `server:tool${i}`,
       arguments: { input: `value${i}` },
-      depends_on: [], // All parallel
+      dependsOn: [], // All parallel
     })),
   };
 

@@ -86,7 +86,7 @@ Deno.test("SSE E2E - SSE stream format validation", async () => {
         id: "task1",
         tool: "filesystem:read_file",
         arguments: { path: "/test.txt" },
-        depends_on: [],
+        dependsOn: [],
       },
     ],
   };
@@ -128,13 +128,13 @@ Deno.test("SSE E2E - Progressive streaming (events not batched)", async () => {
         id: "t1",
         tool: "filesystem:read_file",
         arguments: { path: "/file1.txt" },
-        depends_on: [],
+        dependsOn: [],
       },
       {
         id: "t2",
         tool: "filesystem:read_file",
         arguments: { path: "/file2.txt" },
-        depends_on: ["t1"],
+        dependsOn: ["t1"],
       },
     ],
   };
@@ -180,7 +180,7 @@ Deno.test("SSE E2E - Event payload structure validation", async () => {
         id: "task1",
         tool: "filesystem:read_file",
         arguments: { path: "/test.txt" },
-        depends_on: [],
+        dependsOn: [],
       },
     ],
   };
@@ -235,7 +235,7 @@ Deno.test("SSE E2E - Error event handling", async () => {
         id: "failing_task",
         tool: "mock:fail",
         arguments: { message: "Simulated error" },
-        depends_on: [],
+        dependsOn: [],
       },
     ],
   };
@@ -277,13 +277,13 @@ Deno.test("SSE E2E - Graceful degradation to batch mode", async () => {
         id: "task1",
         tool: "filesystem:read_file",
         arguments: { path: "/test.txt" },
-        depends_on: [],
+        dependsOn: [],
       },
       {
         id: "task2",
         tool: "filesystem:read_file",
         arguments: { path: "/test2.txt" },
-        depends_on: [],
+        dependsOn: [],
       },
     ],
   };
@@ -320,7 +320,7 @@ Deno.test("SSE E2E - Graceful degradation with SSE support", async () => {
         id: "task1",
         tool: "filesystem:read_file",
         arguments: { path: "/test.txt" },
-        depends_on: [],
+        dependsOn: [],
       },
     ],
   };
@@ -355,19 +355,19 @@ Deno.test("SSE E2E - Parallel tasks stream as they complete", async () => {
         id: "fast",
         tool: "filesystem:read_file",
         arguments: { path: "/fast.txt" },
-        depends_on: [],
+        dependsOn: [],
       },
       {
         id: "slow",
         tool: "search:web_search",
         arguments: { query: "test" },
-        depends_on: [],
+        dependsOn: [],
       },
       {
         id: "medium",
         tool: "filesystem:write_file",
         arguments: { path: "/out.txt", content: "data" },
-        depends_on: [],
+        dependsOn: [],
       },
     ],
   };
@@ -417,25 +417,25 @@ Deno.test("SSE E2E - Complex workflow with mixed patterns", async () => {
         id: "t1",
         tool: "filesystem:read_file",
         arguments: { path: "/input.txt" },
-        depends_on: [],
+        dependsOn: [],
       },
       {
         id: "t2",
         tool: "filesystem:read_file",
         arguments: { path: "/file2.txt" },
-        depends_on: ["t1"],
+        dependsOn: ["t1"],
       },
       {
         id: "t3",
         tool: "search:web_search",
         arguments: { query: "test" },
-        depends_on: ["t1"],
+        dependsOn: ["t1"],
       },
       {
         id: "t4",
         tool: "filesystem:write_file",
         arguments: { path: "/output.txt", content: "result" },
-        depends_on: ["t2", "t3"],
+        dependsOn: ["t2", "t3"],
       },
     ],
   };
@@ -476,7 +476,7 @@ Deno.test("SSE E2E - Memory management with buffer limits", async () => {
     id: `task_${i}`,
     tool: "filesystem:read_file",
     arguments: { path: `/file${i}.txt` },
-    depends_on: [],
+    dependsOn: [],
   }));
 
   const dag: DAGStructure = { tasks };
@@ -512,9 +512,9 @@ Deno.test("SSE E2E - Performance: speedup calculation accuracy", async () => {
   // 3 parallel tasks @ ~50ms each
   const dag: DAGStructure = {
     tasks: [
-      { id: "t1", tool: "filesystem:read_file", arguments: { path: "/a" }, depends_on: [] },
-      { id: "t2", tool: "filesystem:read_file", arguments: { path: "/b" }, depends_on: [] },
-      { id: "t3", tool: "filesystem:read_file", arguments: { path: "/c" }, depends_on: [] },
+      { id: "t1", tool: "filesystem:read_file", arguments: { path: "/a" }, dependsOn: [] },
+      { id: "t2", tool: "filesystem:read_file", arguments: { path: "/b" }, dependsOn: [] },
+      { id: "t3", tool: "filesystem:read_file", arguments: { path: "/c" }, dependsOn: [] },
     ],
   };
 

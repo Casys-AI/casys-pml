@@ -60,9 +60,9 @@ Deno.test("E2E HIL Workflow: Human approves continuation", async () => {
     // Multi-layer DAG to trigger HIL checkpoint
     const dag: DAGStructure = {
       tasks: [
-        { id: "task1", tool: "read_file", arguments: { path: "/data.txt" }, depends_on: [] },
-        { id: "task2", tool: "process_data", arguments: {}, depends_on: ["task1"] },
-        { id: "task3", tool: "write_output", arguments: {}, depends_on: ["task2"] },
+        { id: "task1", tool: "read_file", arguments: { path: "/data.txt" }, dependsOn: [] },
+        { id: "task2", tool: "process_data", arguments: {}, dependsOn: ["task1"] },
+        { id: "task3", tool: "write_output", arguments: {}, dependsOn: ["task2"] },
       ],
     };
 
@@ -166,8 +166,8 @@ Deno.test("E2E HIL Workflow: Human rejects and workflow aborts", async () => {
 
     const dag: DAGStructure = {
       tasks: [
-        { id: "task1", tool: "read_file", arguments: {}, depends_on: [] },
-        { id: "task2", tool: "delete_file", arguments: {}, depends_on: ["task1"] },
+        { id: "task1", tool: "read_file", arguments: {}, dependsOn: [] },
+        { id: "task2", tool: "delete_file", arguments: {}, dependsOn: ["task1"] },
       ],
     };
 
@@ -241,8 +241,8 @@ Deno.test("E2E HIL Workflow: Never mode skips all approvals", async () => {
 
     const dag: DAGStructure = {
       tasks: [
-        { id: "task1", tool: "read_file", arguments: {}, depends_on: [] },
-        { id: "task2", tool: "process_data", arguments: {}, depends_on: ["task1"] },
+        { id: "task1", tool: "read_file", arguments: {}, dependsOn: [] },
+        { id: "task2", tool: "process_data", arguments: {}, dependsOn: ["task1"] },
       ],
     };
 

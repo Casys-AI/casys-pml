@@ -193,7 +193,7 @@ export class SpeculativeExecutor {
       if (result.success) {
         // Cache successful result
         this.speculationCache.set(prediction.toolId, {
-          prediction_id: predictionId,
+          predictionId: predictionId,
           toolId: prediction.toolId,
           result: result.result,
           confidence: prediction.confidence,
@@ -324,7 +324,7 @@ export class SpeculativeExecutor {
       // Record outcome for learning
       if (this.speculationManager) {
         const outcome: SpeculationOutcome = {
-          prediction_id: cached.prediction_id,
+          predictionId: cached.predictionId,
           toolId: cached.toolId,
           wasCorrect: true,
           executionTimeMs: cached.executionTimeMs,
@@ -341,7 +341,7 @@ export class SpeculativeExecutor {
       // Record miss for this incorrect speculation
       if (this.speculationManager) {
         const outcome: SpeculationOutcome = {
-          prediction_id: speculatedCache.prediction_id,
+          predictionId: speculatedCache.predictionId,
           toolId: speculatedCache.toolId,
           wasCorrect: false,
           executionTimeMs: speculatedCache.executionTimeMs,

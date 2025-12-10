@@ -149,7 +149,7 @@ Deno.test("E2E AIL Workflow: Agent discovers XML files and triggers replanning",
           id: "task1",
           tool: "list_directory",
           arguments: { path: "/data" },
-          depends_on: [],
+          dependsOn: [],
         },
       ],
     };
@@ -242,8 +242,8 @@ Deno.test("E2E AIL Workflow: Agent abort command stops execution", async () => {
 
     const dag: DAGStructure = {
       tasks: [
-        { id: "task1", tool: "list_directory", arguments: {}, depends_on: [] },
-        { id: "task2", tool: "read_file", arguments: {}, depends_on: ["task1"] },
+        { id: "task1", tool: "list_directory", arguments: {}, dependsOn: [] },
+        { id: "task2", tool: "read_file", arguments: {}, dependsOn: ["task1"] },
       ],
     };
 

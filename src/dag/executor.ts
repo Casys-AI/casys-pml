@@ -260,7 +260,7 @@ export class ParallelExecutor {
 
       for (const [taskId, task] of remaining) {
         // Check if all dependencies are completed
-        const allDepsSatisfied = task.depends_on.every((depId) => completed.has(depId));
+        const allDepsSatisfied = task.dependsOn.every((depId: string) => completed.has(depId));
 
         if (allDepsSatisfied && !inProgress.has(taskId)) {
           ready.push(task);
@@ -310,7 +310,7 @@ export class ParallelExecutor {
       const resolvedArgs = this.resolveArguments(task.arguments, previousResults);
 
       // 2. Check if dependencies failed
-      for (const depId of task.depends_on) {
+      for (const depId of task.dependsOn) {
         const depResult = previousResults.get(depId);
         if (depResult?.status === "error") {
           throw new DAGExecutionError(

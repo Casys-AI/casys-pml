@@ -70,11 +70,11 @@ Deno.test("ParallelExecutor - topological sort for parallel layers", async () =>
   // DAG: [t1, t2] → t3 → [t4, t5]
   const dag: DAGStructure = {
     tasks: [
-      { id: "t1", tool: "mock:delay", arguments: { ms: 10 }, depends_on: [] },
-      { id: "t2", tool: "mock:delay", arguments: { ms: 10 }, depends_on: [] },
-      { id: "t3", tool: "mock:delay", arguments: { ms: 10 }, depends_on: ["t1", "t2"] },
-      { id: "t4", tool: "mock:delay", arguments: { ms: 10 }, depends_on: ["t3"] },
-      { id: "t5", tool: "mock:delay", arguments: { ms: 10 }, depends_on: ["t3"] },
+      { id: "t1", tool: "mock:delay", arguments: { ms: 10 }, dependsOn: [] },
+      { id: "t2", tool: "mock:delay", arguments: { ms: 10 }, dependsOn: [] },
+      { id: "t3", tool: "mock:delay", arguments: { ms: 10 }, dependsOn: ["t1", "t2"] },
+      { id: "t4", tool: "mock:delay", arguments: { ms: 10 }, dependsOn: ["t3"] },
+      { id: "t5", tool: "mock:delay", arguments: { ms: 10 }, dependsOn: ["t3"] },
     ],
   };
 
@@ -92,9 +92,9 @@ Deno.test("ParallelExecutor - all independent tasks in single layer", async () =
   // All tasks independent
   const dag: DAGStructure = {
     tasks: [
-      { id: "t1", tool: "mock:delay", arguments: { ms: 10 }, depends_on: [] },
-      { id: "t2", tool: "mock:delay", arguments: { ms: 10 }, depends_on: [] },
-      { id: "t3", tool: "mock:delay", arguments: { ms: 10 }, depends_on: [] },
+      { id: "t1", tool: "mock:delay", arguments: { ms: 10 }, dependsOn: [] },
+      { id: "t2", tool: "mock:delay", arguments: { ms: 10 }, dependsOn: [] },
+      { id: "t3", tool: "mock:delay", arguments: { ms: 10 }, dependsOn: [] },
     ],
   };
 
@@ -115,9 +115,9 @@ Deno.test("ParallelExecutor - parallel execution timing", async () => {
   // 3 independent tasks @ 100ms each
   const dag: DAGStructure = {
     tasks: [
-      { id: "t1", tool: "mock:delay", arguments: { ms: 100 }, depends_on: [] },
-      { id: "t2", tool: "mock:delay", arguments: { ms: 100 }, depends_on: [] },
-      { id: "t3", tool: "mock:delay", arguments: { ms: 100 }, depends_on: [] },
+      { id: "t1", tool: "mock:delay", arguments: { ms: 100 }, dependsOn: [] },
+      { id: "t2", tool: "mock:delay", arguments: { ms: 100 }, dependsOn: [] },
+      { id: "t3", tool: "mock:delay", arguments: { ms: 100 }, dependsOn: [] },
     ],
   };
 
@@ -142,9 +142,9 @@ Deno.test("ParallelExecutor - sequential execution respects dependencies", async
   // Sequential chain: t1 → t2 → t3
   const dag: DAGStructure = {
     tasks: [
-      { id: "t1", tool: "mock:delay", arguments: { ms: 50 }, depends_on: [] },
-      { id: "t2", tool: "mock:delay", arguments: { ms: 50 }, depends_on: ["t1"] },
-      { id: "t3", tool: "mock:delay", arguments: { ms: 50 }, depends_on: ["t2"] },
+      { id: "t1", tool: "mock:delay", arguments: { ms: 50 }, dependsOn: [] },
+      { id: "t2", tool: "mock:delay", arguments: { ms: 50 }, dependsOn: ["t1"] },
+      { id: "t3", tool: "mock:delay", arguments: { ms: 50 }, dependsOn: ["t2"] },
     ],
   };
 
@@ -166,9 +166,9 @@ Deno.test("ParallelExecutor - partial success when one task fails", async () => 
 
   const dag: DAGStructure = {
     tasks: [
-      { id: "t1", tool: "mock:delay", arguments: { ms: 10 }, depends_on: [] },
-      { id: "t2", tool: "mock:fail", arguments: { message: "Task 2 failed" }, depends_on: [] },
-      { id: "t3", tool: "mock:delay", arguments: { ms: 10 }, depends_on: [] },
+      { id: "t1", tool: "mock:delay", arguments: { ms: 10 }, dependsOn: [] },
+      { id: "t2", tool: "mock:fail", arguments: { message: "Task 2 failed" }, dependsOn: [] },
+      { id: "t3", tool: "mock:delay", arguments: { ms: 10 }, dependsOn: [] },
     ],
   };
 
@@ -187,8 +187,8 @@ Deno.test("ParallelExecutor - dependent task fails when dependency fails", async
 
   const dag: DAGStructure = {
     tasks: [
-      { id: "t1", tool: "mock:fail", arguments: { message: "Base task failed" }, depends_on: [] },
-      { id: "t2", tool: "mock:delay", arguments: { ms: 10 }, depends_on: ["t1"] },
+      { id: "t1", tool: "mock:fail", arguments: { message: "Base task failed" }, dependsOn: [] },
+      { id: "t2", tool: "mock:delay", arguments: { ms: 10 }, dependsOn: ["t1"] },
     ],
   };
 
@@ -209,8 +209,8 @@ Deno.test("ParallelExecutor - results aggregation structure", async () => {
 
   const dag: DAGStructure = {
     tasks: [
-      { id: "t1", tool: "mock:echo", arguments: { value: "result1" }, depends_on: [] },
-      { id: "t2", tool: "mock:fail", arguments: { message: "Error" }, depends_on: [] },
+      { id: "t1", tool: "mock:echo", arguments: { value: "result1" }, dependsOn: [] },
+      { id: "t2", tool: "mock:fail", arguments: { message: "Error" }, dependsOn: [] },
     ],
   };
 
@@ -248,9 +248,9 @@ Deno.test("ParallelExecutor - performance measurement and speedup calculation", 
   // 3 parallel tasks @ 100ms each
   const dag: DAGStructure = {
     tasks: [
-      { id: "t1", tool: "mock:delay", arguments: { ms: 100 }, depends_on: [] },
-      { id: "t2", tool: "mock:delay", arguments: { ms: 100 }, depends_on: [] },
-      { id: "t3", tool: "mock:delay", arguments: { ms: 100 }, depends_on: [] },
+      { id: "t1", tool: "mock:delay", arguments: { ms: 100 }, dependsOn: [] },
+      { id: "t2", tool: "mock:delay", arguments: { ms: 100 }, dependsOn: [] },
+      { id: "t3", tool: "mock:delay", arguments: { ms: 100 }, dependsOn: [] },
     ],
   };
 
@@ -283,8 +283,8 @@ Deno.test("ParallelExecutor - $OUTPUT reference resolution", async () => {
 
   const dag: DAGStructure = {
     tasks: [
-      { id: "t1", tool: "mock:echo", arguments: { data: "hello" }, depends_on: [] },
-      { id: "t2", tool: "mock:echo", arguments: { input: "$OUTPUT[t1]" }, depends_on: ["t1"] },
+      { id: "t1", tool: "mock:echo", arguments: { data: "hello" }, dependsOn: [] },
+      { id: "t2", tool: "mock:echo", arguments: { input: "$OUTPUT[t1]" }, dependsOn: ["t1"] },
     ],
   };
 
@@ -309,13 +309,13 @@ Deno.test("ParallelExecutor - $OUTPUT nested property resolution", async () => {
         id: "t1",
         tool: "mock:echo",
         arguments: { result: { nested: { value: 42 } } },
-        depends_on: [],
+        dependsOn: [],
       },
       {
         id: "t2",
         tool: "mock:echo",
         arguments: { extracted: "$OUTPUT[t1].result.nested.value" },
-        depends_on: ["t1"],
+        dependsOn: ["t1"],
       },
     ],
   };
@@ -338,9 +338,9 @@ Deno.test("ParallelExecutor - detects circular dependencies", async () => {
   // Circular: t1 → t2 → t3 → t1
   const dag: DAGStructure = {
     tasks: [
-      { id: "t1", tool: "mock:echo", arguments: {}, depends_on: ["t3"] },
-      { id: "t2", tool: "mock:echo", arguments: {}, depends_on: ["t1"] },
-      { id: "t3", tool: "mock:echo", arguments: {}, depends_on: ["t2"] },
+      { id: "t1", tool: "mock:echo", arguments: {}, dependsOn: ["t3"] },
+      { id: "t2", tool: "mock:echo", arguments: {}, dependsOn: ["t1"] },
+      { id: "t3", tool: "mock:echo", arguments: {}, dependsOn: ["t2"] },
     ],
   };
 
@@ -360,7 +360,7 @@ Deno.test("ParallelExecutor - handles missing dependency reference", async () =>
 
   const dag: DAGStructure = {
     tasks: [
-      { id: "t1", tool: "mock:echo", arguments: { input: "$OUTPUT[nonexistent]" }, depends_on: [] },
+      { id: "t1", tool: "mock:echo", arguments: { input: "$OUTPUT[nonexistent]" }, dependsOn: [] },
     ],
   };
 
@@ -380,7 +380,7 @@ Deno.test({
 
     const dag: DAGStructure = {
       tasks: [
-        { id: "t1", tool: "mock:delay", arguments: { ms: 1000 }, depends_on: [] },
+        { id: "t1", tool: "mock:delay", arguments: { ms: 1000 }, dependsOn: [] },
       ],
     };
 
@@ -414,7 +414,7 @@ Deno.test("ParallelExecutor - handles single task DAG", async () => {
 
   const dag: DAGStructure = {
     tasks: [
-      { id: "t1", tool: "mock:echo", arguments: { value: "solo" }, depends_on: [] },
+      { id: "t1", tool: "mock:echo", arguments: { value: "solo" }, dependsOn: [] },
     ],
   };
 
@@ -435,10 +435,10 @@ Deno.test("ParallelExecutor - complex diamond DAG pattern", async () => {
   // Diamond: t1 → [t2, t3] → t4
   const dag: DAGStructure = {
     tasks: [
-      { id: "t1", tool: "mock:delay", arguments: { ms: 10 }, depends_on: [] },
-      { id: "t2", tool: "mock:delay", arguments: { ms: 10 }, depends_on: ["t1"] },
-      { id: "t3", tool: "mock:delay", arguments: { ms: 10 }, depends_on: ["t1"] },
-      { id: "t4", tool: "mock:delay", arguments: { ms: 10 }, depends_on: ["t2", "t3"] },
+      { id: "t1", tool: "mock:delay", arguments: { ms: 10 }, dependsOn: [] },
+      { id: "t2", tool: "mock:delay", arguments: { ms: 10 }, dependsOn: ["t1"] },
+      { id: "t3", tool: "mock:delay", arguments: { ms: 10 }, dependsOn: ["t1"] },
+      { id: "t4", tool: "mock:delay", arguments: { ms: 10 }, dependsOn: ["t2", "t3"] },
     ],
   };
 

@@ -157,7 +157,7 @@ export class GatewayHandler {
           confidence: suggestion.confidence,
           dagStructure: suggestion.dagStructure,
           explanation: suggestion.rationale,
-          dependency_paths: suggestion.dependencyPaths,
+          dependencyPaths: suggestion.dependencyPaths, // Harmonized: camelCase convention
           note: "Review the suggested DAG and approve to execute.",
         };
       } else if (this.config.enableSpeculative) {
@@ -185,8 +185,8 @@ export class GatewayHandler {
           dagStructure: suggestion.dagStructure,
           results,
           explanation: suggestion.rationale,
-          execution_time_ms: executionTime,
-          dag_used: suggestion.dagStructure,
+          executionTimeMs: executionTime,
+          dagUsed: suggestion.dagStructure,
         };
       } else {
         // Speculative disabled: fallback to suggestion
@@ -245,7 +245,7 @@ export class GatewayHandler {
 
     for (const task of dag.tasks) {
       // Wait for dependencies
-      const depsReady = task.depends_on.every((dep) => executedTasks.has(dep));
+      const depsReady = task.dependsOn.every((dep) => executedTasks.has(dep));
       if (!depsReady) {
         results.push({
           taskId: task.id,
