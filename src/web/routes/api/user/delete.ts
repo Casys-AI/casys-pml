@@ -19,6 +19,7 @@ import { destroySession } from "../../../../server/auth/session.ts";
 import { getSessionId } from "../../../../server/auth/oauth.ts";
 import { getKv } from "../../../../server/auth/kv.ts";
 import type { AuthState } from "../../_middleware.ts";
+import { getDb as getPGliteDb } from "../../../../db/client.ts"; // Story 9.5: workflow_execution anonymization
 
 export const handler = {
   /**
@@ -76,6 +77,21 @@ export const handler = {
     try {
       const db = await getDb();
       const anonymizedId = `deleted-${crypto.randomUUID()}`;
+
+      // Story 9.5 AC #5, #8: Anonymize workflow_execution BEFORE deleting user
+      // Preserves execution history for analytics while removing user linkage
+      try {
+        const pgliteDb = await getPGliteDb();
+        await pgliteDb.query(
+          `UPDATE workflow_execution
+           SET user_id = $1, updated_by = $1
+           WHERE user_id = $2`,
+          [anonymizedId, user.id],
+        );
+      } catch (error) {
+        console.error("Error anonymizing workflow_execution:", error);
+        // Continue with user deletion even if workflow anonymization fails
+      }
 
       // AC #9: Anonymize user data instead of hard delete
       // This preserves referential integrity while removing PII

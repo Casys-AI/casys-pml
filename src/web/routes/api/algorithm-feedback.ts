@@ -9,9 +9,10 @@
  * @module web/routes/api/algorithm-feedback
  */
 
-import type { FreshContext } from "fresh";
+import type { Context } from "fresh";
 import { getDb } from "../../../db/client.ts";
 import { AlgorithmTracer, type UserAction } from "../../../telemetry/algorithm-tracer.ts";
+import type { AuthState } from "../_middleware.ts";
 
 /**
  * Request body schema
@@ -39,8 +40,23 @@ export const handler = {
    * - userAction: "selected" | "ignored" | "explicit_rejection"
    * - executionSuccess?: boolean (optional, for "selected" actions)
    * - durationMs?: number (optional, execution duration)
+   *
+   * Protection: In cloud mode, requires authenticated user (AC6)
    */
-  async POST(ctx: FreshContext) {
+  async POST(ctx: Context<AuthState>) {
+    const { user, isCloudMode } = ctx.state;
+
+    // AC6: Protected by auth in cloud mode
+    if (isCloudMode && (!user || user.id === "local")) {
+      return new Response(
+        JSON.stringify({ error: "Authentication required in cloud mode" }),
+        {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
     try {
       const body = await ctx.req.json() as Partial<FeedbackRequest>;
 
@@ -131,8 +147,23 @@ export const handler = {
    * Query params:
    * - windowHours: number (default: 24)
    * - mode: "active_search" | "passive_suggestion" (optional filter)
+   *
+   * Protection: In cloud mode, requires authenticated user
    */
-  async GET(ctx: FreshContext) {
+  async GET(ctx: Context<AuthState>) {
+    const { user, isCloudMode } = ctx.state;
+
+    // Protected in cloud mode (metrics are sensitive data)
+    if (isCloudMode && (!user || user.id === "local")) {
+      return new Response(
+        JSON.stringify({ error: "Authentication required in cloud mode" }),
+        {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
     try {
       const url = new URL(ctx.req.url);
       const windowHoursParam = url.searchParams.get("windowHours");

@@ -29,14 +29,12 @@ export type EventType =
   | "dag.task.failed"
   | "dag.completed"
   | "dag.replanned" // AIL/HIL replan event
-
   // ──────────────────────────────────────────────────────────────────────────
   // SPECULATION EVENTS (Epic 3.5)
   // ──────────────────────────────────────────────────────────────────────────
   | "speculation.started"
   | "speculation.committed"
   | "speculation.rolledback"
-
   // ──────────────────────────────────────────────────────────────────────────
   // ALGORITHM EVENTS (ADR-039 - Story 7.6)
   // ──────────────────────────────────────────────────────────────────────────
@@ -48,7 +46,6 @@ export type EventType =
   | "algorithm.feedback.rejected"
   | "algorithm.threshold.adjusted"
   | "algorithm.anomaly.detected"
-
   // ──────────────────────────────────────────────────────────────────────────
   // LEARNING EVENTS (Epic 7)
   // ──────────────────────────────────────────────────────────────────────────
@@ -61,7 +58,6 @@ export type EventType =
   | "cache.hit"
   | "cache.miss"
   | "cache.invalidated"
-
   // ──────────────────────────────────────────────────────────────────────────
   // GRAPH EVENTS (GraphRAG)
   // ──────────────────────────────────────────────────────────────────────────
@@ -70,14 +66,12 @@ export type EventType =
   | "graph.edge.updated"
   | "graph.metrics.computed"
   | "graph.community.detected"
-
   // ──────────────────────────────────────────────────────────────────────────
   // SEARCH EVENTS
   // ──────────────────────────────────────────────────────────────────────────
   | "search.started"
   | "search.completed"
   | "search.hybrid.reranked"
-
   // ──────────────────────────────────────────────────────────────────────────
   // SYSTEM EVENTS
   // ──────────────────────────────────────────────────────────────────────────

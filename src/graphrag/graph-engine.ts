@@ -411,12 +411,16 @@ export class GraphRAGEngine {
           if (edgeWeights[i][j] >= edgeWeights[j][i]) {
             adjacency[j][i] = false; // Remove j→i edge
             log.debug(
-              `[buildDAG] Cycle broken: keeping ${candidateTools[j]} → ${candidateTools[i]} (weight: ${edgeWeights[i][j].toFixed(2)})`,
+              `[buildDAG] Cycle broken: keeping ${candidateTools[j]} → ${
+                candidateTools[i]
+              } (weight: ${edgeWeights[i][j].toFixed(2)})`,
             );
           } else {
             adjacency[i][j] = false; // Remove i→j edge
             log.debug(
-              `[buildDAG] Cycle broken: keeping ${candidateTools[i]} → ${candidateTools[j]} (weight: ${edgeWeights[j][i].toFixed(2)})`,
+              `[buildDAG] Cycle broken: keeping ${candidateTools[i]} → ${
+                candidateTools[j]
+              } (weight: ${edgeWeights[j][i].toFixed(2)})`,
             );
           }
         }
@@ -525,16 +529,20 @@ export class GraphRAGEngine {
       await this.persistEdgesToDB();
 
       // Persist workflow execution for time-series analytics (Story 6.3)
+      // Story 9.5: Include user_id and created_by for multi-tenant isolation
+      const userId = execution.userId || "local";
       await this.db.query(
         `INSERT INTO workflow_execution
-         (intent_text, dag_structure, success, execution_time_ms, error_message)
-         VALUES ($1, $2, $3, $4, $5)`,
+         (intent_text, dag_structure, success, execution_time_ms, error_message, user_id, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
           execution.intentText || null,
           JSON.stringify(execution.dagStructure),
           execution.success,
           Math.round(execution.executionTimeMs), // INTEGER column
           execution.errorMessage || null,
+          userId,
+          userId, // created_by = user_id
         ],
       );
 
@@ -633,9 +641,9 @@ export class GraphRAGEngine {
     let edgesUpdated = 0;
 
     // ADR-041: Build maps for hierarchy analysis
-    // Map trace_id → node_id for all events
+    // Map traceId → node_id for all events
     const traceToNode = new Map<string, string>();
-    // Map parent_trace_id → list of children node_ids (in timestamp order)
+    // Map parentTraceId → list of children node_ids (in timestamp order)
     const parentToChildren = new Map<string, string[]>();
     // Track all node IDs for creation
     const nodeIds = new Set<string>();
@@ -648,18 +656,18 @@ export class GraphRAGEngine {
       // Extract node ID based on event type
       const nodeId = trace.type === "tool_end"
         ? (trace as { tool: string }).tool
-        : `capability:${(trace as { capability_id: string }).capability_id}`;
+        : `capability:${(trace as { capabilityId: string }).capabilityId}`;
 
       nodeIds.add(nodeId);
-      traceToNode.set(trace.trace_id, nodeId);
+      traceToNode.set(trace.traceId, nodeId);
 
       // ADR-041: Track parent-child relationships
-      const parent_trace_id = trace.parent_trace_id;
-      if (parent_trace_id) {
-        if (!parentToChildren.has(parent_trace_id)) {
-          parentToChildren.set(parent_trace_id, []);
+      const parentTraceId = trace.parentTraceId;
+      if (parentTraceId) {
+        if (!parentToChildren.has(parentTraceId)) {
+          parentToChildren.set(parentTraceId, []);
         }
-        parentToChildren.get(parent_trace_id)!.push(nodeId);
+        parentToChildren.get(parentTraceId)!.push(nodeId);
       }
     }
 
@@ -669,7 +677,7 @@ export class GraphRAGEngine {
 
       const nodeId = trace.type === "tool_end"
         ? (trace as { tool: string }).tool
-        : `capability:${(trace as { capability_id: string }).capability_id}`;
+        : `capability:${(trace as { capabilityId: string }).capabilityId}`;
 
       if (!this.graph.hasNode(nodeId)) {
         this.graph.addNode(nodeId, {
@@ -715,7 +723,7 @@ export class GraphRAGEngine {
 
     // ADR-041: Backward compatibility - create sequence edges for top-level traces without parent
     const topLevelTraces = traces.filter((t) =>
-      (t.type === "tool_end" || t.type === "capability_end") && !t.parent_trace_id
+      (t.type === "tool_end" || t.type === "capability_end") && !t.parentTraceId
     );
     for (let i = 0; i < topLevelTraces.length - 1; i++) {
       const from = topLevelTraces[i];
@@ -723,10 +731,10 @@ export class GraphRAGEngine {
 
       const fromId = from.type === "tool_end"
         ? (from as { tool: string }).tool
-        : `capability:${(from as { capability_id: string }).capability_id}`;
+        : `capability:${(from as { capabilityId: string }).capabilityId}`;
       const toId = to.type === "tool_end"
         ? (to as { tool: string }).tool
-        : `capability:${(to as { capability_id: string }).capability_id}`;
+        : `capability:${(to as { capabilityId: string }).capabilityId}`;
 
       if (fromId === toId) continue;
 
@@ -744,7 +752,9 @@ export class GraphRAGEngine {
 
     const elapsed = performance.now() - startTime;
     log.info(
-      `[updateFromCodeExecution] Processed ${traces.length} traces: ${edgesCreated} edges created, ${edgesUpdated} updated (${elapsed.toFixed(1)}ms)`,
+      `[updateFromCodeExecution] Processed ${traces.length} traces: ${edgesCreated} edges created, ${edgesUpdated} updated (${
+        elapsed.toFixed(1)
+      }ms)`,
     );
   }
 

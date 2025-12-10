@@ -178,10 +178,13 @@ export class EventBus {
    * @returns Unsubscribe function (in case event never fires)
    */
   once<T extends EventType>(type: T, handler: EventHandler<T>): () => void {
-    const unsubscribe = this.on(type, ((event: CaiEvent<T>) => {
-      unsubscribe();
-      handler(event);
-    }) as EventHandler<T>);
+    const unsubscribe = this.on(
+      type,
+      ((event: CaiEvent<T>) => {
+        unsubscribe();
+        handler(event);
+      }) as EventHandler<T>,
+    );
     return unsubscribe;
   }
 

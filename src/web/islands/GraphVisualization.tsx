@@ -607,7 +607,10 @@ export default function GraphVisualization({
         }}
       >
         {/* MCP Servers */}
-        <h3 class="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--text-dim)" }}>
+        <h3
+          class="text-xs font-semibold uppercase tracking-widest mb-3"
+          style={{ color: "var(--text-dim)" }}
+        >
           MCP Servers
         </h3>
         {Array.from(servers).map((server) => (
@@ -623,7 +626,10 @@ export default function GraphVisualization({
         <Divider />
 
         {/* Edge Types */}
-        <h3 class="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--text-dim)" }}>
+        <h3
+          class="text-xs font-semibold uppercase tracking-widest mb-3"
+          style={{ color: "var(--text-dim)" }}
+        >
           Edge Types
         </h3>
         <LegendItem label="Contains (parent→child)" color="#22c55e" lineStyle="solid" />
@@ -633,12 +639,20 @@ export default function GraphVisualization({
         <Divider />
 
         {/* Confidence */}
-        <h3 class="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--text-dim)" }}>
+        <h3
+          class="text-xs font-semibold uppercase tracking-widest mb-3"
+          style={{ color: "var(--text-dim)" }}
+        >
           Confidence
         </h3>
         <LegendItem label="Observed (3+ runs)" color="var(--text-dim)" lineStyle="solid" />
         <LegendItem label="Inferred (1-2 runs)" color="var(--text-dim)" lineStyle="dashed" />
-        <LegendItem label="Template (bootstrap)" color="var(--text-dim)" lineStyle="dotted" opacity={0.5} />
+        <LegendItem
+          label="Template (bootstrap)"
+          color="var(--text-dim)"
+          lineStyle="dotted"
+          opacity={0.5}
+        />
 
         <Divider />
 

@@ -21,14 +21,31 @@ import type { CapabilityMatch } from "./types.ts";
 import { getLogger } from "../telemetry/logger.ts";
 // Story 6.5: EventBus integration (ADR-036)
 import { eventBus } from "../events/mod.ts";
+// Story 7.6: Algorithm tracing (ADR-039)
+import type { AlgorithmTracer, DecisionType } from "../telemetry/algorithm-tracer.ts";
 
 const logger = getLogger("default");
 
 export class CapabilityMatcher {
+  private algorithmTracer: AlgorithmTracer | null = null;
+
   constructor(
     private capabilityStore: CapabilityStore,
     private adaptiveThresholds: AdaptiveThresholdManager,
-  ) {}
+    algorithmTracer?: AlgorithmTracer,
+  ) {
+    this.algorithmTracer = algorithmTracer || null;
+  }
+
+  /**
+   * Set algorithm tracer for observability (Story 7.6 - ADR-039)
+   *
+   * @param tracer - AlgorithmTracer instance
+   */
+  setAlgorithmTracer(tracer: AlgorithmTracer): void {
+    this.algorithmTracer = tracer;
+    logger.debug("Algorithm tracer configured for CapabilityMatcher");
+  }
 
   /**
    * Find the best capability matching the intent
@@ -67,15 +84,47 @@ export class CapabilityMatcher {
       // Cap at 0.95 (ADR-038 Global Cap)
       score = Math.min(score, 0.95);
 
+      // 5. Determine decision for tracing
+      let decision: DecisionType;
+      if (reliabilityFactor === 0.1 && score < threshold) {
+        decision = "filtered_by_reliability";
+      } else if (score >= threshold) {
+        decision = "accepted";
+      } else {
+        decision = "rejected_by_threshold";
+      }
+
       logger.debug("Capability candidate scored", {
         id: candidate.capability.id,
         semanticScore: candidate.semanticScore.toFixed(2),
         reliability: reliabilityFactor,
         final: score.toFixed(2),
         threshold,
+        decision,
       });
 
-      // 5. Check against Threshold
+      // Story 7.6: Log trace for each candidate (fire-and-forget)
+      this.algorithmTracer?.logTrace({
+        algorithmMode: "active_search",
+        targetType: "capability",
+        intent: intent.substring(0, 200),
+        signals: {
+          semanticScore: candidate.semanticScore,
+          successRate: candidate.capability.successRate,
+          graphDensity: 0, // Not used in active search
+          spectralClusterMatch: false, // Not used in active search
+        },
+        params: {
+          alpha: 1.0, // Pure semantic for active search
+          reliabilityFactor,
+          structuralBoost: 0, // Not used in active search
+        },
+        finalScore: score,
+        thresholdUsed: threshold,
+        decision,
+      });
+
+      // 6. Check against Threshold
       if (score >= threshold) {
         // Keep the best one
         if (!bestMatch || score > bestMatch.score) {
@@ -98,16 +147,17 @@ export class CapabilityMatcher {
       });
 
       // Story 6.5: Emit capability.matched event (ADR-036)
+      // Convention: camelCase for event payload fields (per implementation-patterns.md)
       eventBus.emit({
         type: "capability.matched",
         source: "capability-matcher",
         payload: {
-          capability_id: bestMatch.capability.id,
+          capabilityId: bestMatch.capability.id,
           name: bestMatch.capability.name ?? "unknown",
           intent: intent.substring(0, 100),
           score: bestMatch.score,
-          semantic_score: bestMatch.semanticScore,
-          threshold_used: bestMatch.thresholdUsed,
+          semanticScore: bestMatch.semanticScore,
+          thresholdUsed: bestMatch.thresholdUsed,
           selected: true,
         },
       });

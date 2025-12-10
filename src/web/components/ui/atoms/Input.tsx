@@ -3,7 +3,7 @@
  */
 
 import type { JSX } from "preact";
-import { useRef, useEffect } from "preact/hooks";
+import { useEffect, useRef } from "preact/hooks";
 
 interface InputProps {
   value: string;
@@ -50,7 +50,9 @@ export default function Input({
     <input
       ref={inputRef}
       type={type}
-      class={`py-3 px-4 rounded-lg text-sm font-medium outline-none transition-all duration-200 placeholder:opacity-50 ${className || ""}`}
+      class={`py-3 px-4 rounded-lg text-sm font-medium outline-none transition-all duration-200 placeholder:opacity-50 ${
+        className || ""
+      }`}
       style={{
         background: "var(--bg-surface)",
         border: "1px solid var(--border)",

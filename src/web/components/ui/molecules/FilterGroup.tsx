@@ -43,8 +43,7 @@ export default function FilterGroup({
           onClick={() => onToggle?.(item.id)}
           onMouseOver={(e) =>
             isClickable && (e.currentTarget.style.background = "var(--accent-dim)")}
-          onMouseOut={(e) =>
-            isClickable && (e.currentTarget.style.background = "transparent")}
+          onMouseOut={(e) => isClickable && (e.currentTarget.style.background = "transparent")}
         >
           {/* Indicator */}
           {showIndicator === "dot" && (
@@ -57,7 +56,9 @@ export default function FilterGroup({
             <div
               class="w-6 h-0.5 flex-shrink-0"
               style={{
-                background: item.lineStyle === "solid" ? (item.color || "var(--text-dim)") : "transparent",
+                background: item.lineStyle === "solid"
+                  ? (item.color || "var(--text-dim)")
+                  : "transparent",
                 borderTop: item.lineStyle !== "solid"
                   ? `2px ${item.lineStyle || "solid"} ${item.color || "var(--text-dim)"}`
                   : "none",

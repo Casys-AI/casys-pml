@@ -35,7 +35,7 @@ Deno.test("Event Flow Integration", async (t) => {
       source: "worker-bridge",
       payload: {
         tool_id: "github:list_repos",
-        trace_id: "trace-123",
+        traceId: "trace-123",
         args: { owner: "test" },
       },
     });
@@ -46,9 +46,9 @@ Deno.test("Event Flow Integration", async (t) => {
       source: "worker-bridge",
       payload: {
         tool_id: "github:list_repos",
-        trace_id: "trace-123",
+        traceId: "trace-123",
         success: true,
-        duration_ms: 150,
+        durationMs: 150,
       },
     });
 
@@ -105,7 +105,7 @@ Deno.test("Event Flow Integration", async (t) => {
         execution_id: executionId,
         task_id: "task_0",
         tool: "filesystem:read_file",
-        duration_ms: 50,
+        durationMs: 50,
       },
     });
 
@@ -126,7 +126,7 @@ Deno.test("Event Flow Integration", async (t) => {
       source: "dag-executor",
       payload: {
         execution_id: executionId,
-        total_duration_ms: 500,
+        total_durationMs: 500,
         successful_tasks: 2,
         failed_tasks: 1,
         success: false,
@@ -159,9 +159,9 @@ Deno.test("Event Flow Integration", async (t) => {
       type: "capability.start",
       source: "sandbox-worker",
       payload: {
-        capability_id: "cap-123",
+        capabilityId: "cap-123",
         capability: "search_and_summarize",
-        trace_id: "trace-456",
+        traceId: "trace-456",
       },
     });
 
@@ -169,11 +169,11 @@ Deno.test("Event Flow Integration", async (t) => {
       type: "capability.end",
       source: "sandbox-worker",
       payload: {
-        capability_id: "cap-123",
+        capabilityId: "cap-123",
         capability: "search_and_summarize",
-        trace_id: "trace-456",
+        traceId: "trace-456",
         success: true,
-        duration_ms: 200,
+        durationMs: 200,
       },
     });
 
@@ -181,7 +181,7 @@ Deno.test("Event Flow Integration", async (t) => {
       type: "capability.learned",
       source: "capability-store",
       payload: {
-        capability_id: "cap-789",
+        capabilityId: "cap-789",
         name: "Search and summarize",
         intent: "search for documents and summarize",
         tools_used: ["search:query", "llm:summarize"],
@@ -195,7 +195,7 @@ Deno.test("Event Flow Integration", async (t) => {
       type: "capability.matched",
       source: "capability-matcher",
       payload: {
-        capability_id: "cap-789",
+        capabilityId: "cap-789",
         name: "Search and summarize",
         intent: "find and summarize docs",
         score: 0.92,
@@ -231,7 +231,7 @@ Deno.test("Event Flow Integration", async (t) => {
       payload: {
         node_count: 50,
         edge_count: 75,
-        sync_duration_ms: 45,
+        sync_durationMs: 45,
       },
     });
 
@@ -353,7 +353,7 @@ Deno.test("Event Flow Integration", async (t) => {
     eventBus.emit({
       type: "tool.start",
       source: "test",
-      payload: { tool_id: "test:tool", trace_id: "123" },
+      payload: { tool_id: "test:tool", traceId: "123" },
     });
 
     await new Promise((r) => setTimeout(r, 20));

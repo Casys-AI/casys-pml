@@ -105,7 +105,8 @@ export default function DangerZoneIsland() {
         <div class="modal-overlay" onClick={() => (showRegenerateModal.value = false)}>
           <div
             class="modal-content"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) =>
+              e.stopPropagation()}
           >
             <h2>Regenerate API Key?</h2>
             <p>
@@ -138,7 +139,8 @@ export default function DangerZoneIsland() {
         <div class="modal-overlay" onClick={() => (showDeleteModal.value = false)}>
           <div
             class="modal-content"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) =>
+              e.stopPropagation()}
           >
             <h2>Delete Account?</h2>
             <p>

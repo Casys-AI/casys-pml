@@ -35,7 +35,10 @@ const BLOCKED_PATTERNS: Array<{ pattern: RegExp; description: string }> = [
   { pattern: /\bDeno\b/, description: "Deno namespace access" },
   { pattern: /\bself\b/, description: "Worker self reference" },
   // Allow globalThis.__capabilityDepth for depth tracking
-  { pattern: /\bglobalThis\b(?!\.__capabilityDepth)/, description: "globalThis access (except depth)" },
+  {
+    pattern: /\bglobalThis\b(?!\.__capabilityDepth)/,
+    description: "globalThis access (except depth)",
+  },
 ];
 
 /**
@@ -80,13 +83,14 @@ export class CapabilityCodeGenerator {
     // 3. Generate inline function with tracing + depth guard
     // Note: __trace and __capabilityDepth are provided by sandbox-worker.ts
     // ADR-041: Robust stack management with single capability_end emission in finally
+    // Convention: camelCase for event payload fields (per implementation-patterns.md)
     return `async (args) => {
   const __depth = (__capabilityDepth || 0);
   if (__depth >= ${MAX_DEPTH}) {
     throw new Error("Capability depth exceeded (max: ${MAX_DEPTH}). Possible cycle detected.");
   }
   __capabilityDepth = __depth + 1;
-  __trace({ type: "capability_start", capability: "${name}", capability_id: "${capability.id}", args });
+  __trace({ type: "capability_start", capability: "${name}", capabilityId: "${capability.id}", args });
   let __capSuccess = true;
   let __capError = null;
   try {
@@ -97,7 +101,7 @@ export class CapabilityCodeGenerator {
     throw e;
   } finally {
     __capabilityDepth = __depth;
-    __trace({ type: "capability_end", capability: "${name}", capability_id: "${capability.id}", success: __capSuccess, error: __capError?.message });
+    __trace({ type: "capability_end", capability: "${name}", capabilityId: "${capability.id}", success: __capSuccess, error: __capError?.message });
   }
 }`;
   }

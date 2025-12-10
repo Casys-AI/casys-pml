@@ -307,8 +307,7 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
         title="Find Path (Ctrl+P)"
         onMouseOver={(e) =>
           !showPathFinder && (e.currentTarget.style.borderColor = "var(--accent-medium)")}
-        onMouseOut={(e) =>
-          !showPathFinder && (e.currentTarget.style.borderColor = "var(--border)")}
+        onMouseOut={(e) => !showPathFinder && (e.currentTarget.style.borderColor = "var(--border)")}
       >
         Path
       </button>

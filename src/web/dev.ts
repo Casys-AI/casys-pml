@@ -8,10 +8,13 @@
  * For direct Vite usage, run: deno task dev:fresh
  */
 
-import { logAuthMode } from "../lib/auth.ts";
+import { logAuthMode, validateAuthConfig } from "../lib/auth.ts";
 
 // Story 9.3: Log auth mode at startup (AC #5)
 logAuthMode("Fresh Dashboard");
+
+// SECURITY: Validate auth config - fails in production without auth
+validateAuthConfig("Fresh Dashboard");
 
 // Get port from environment or use default
 const port = parseInt(Deno.env.get("PORT_DASHBOARD") || "8081");

@@ -1,7 +1,6 @@
-
 import { extract } from "@std/front-matter/yaml";
 import { render } from "@deno/gfm";
-import { dirname, join } from "@std/path";
+import { join } from "@std/path";
 import { deflate } from "pako";
 
 // Import Prism language support for syntax highlighting
@@ -96,7 +95,6 @@ export async function getPost(slug: string): Promise<Post | null> {
   }
 }
 
-
 // Helper to create Kroki URL
 function createKrokiUrl(type: string, source: string): string {
   const data = new TextEncoder().encode(source);
@@ -129,7 +127,9 @@ async function loadExcalidrawFile(filePath: string): Promise<string | null> {
 
     const root = getProjectRoot();
     const fullPath = join(root, filePath);
-    console.log(`[loadExcalidrawFile] Loading from: ${fullPath} (cwd: ${Deno.cwd()}, root: ${root})`);
+    console.log(
+      `[loadExcalidrawFile] Loading from: ${fullPath} (cwd: ${Deno.cwd()}, root: ${root})`,
+    );
 
     const content = await Deno.readTextFile(fullPath);
     console.log(`[loadExcalidrawFile] File loaded, size: ${content.length} bytes`);
@@ -187,7 +187,6 @@ async function preprocessMarkdown(markdown: string): Promise<string> {
 }
 
 async function processContent(html: string): Promise<string> {
-
   // Replace mermaid code blocks with Kroki images
   let result = html.replace(
     /<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/g,
@@ -202,7 +201,7 @@ async function processContent(html: string): Promise<string> {
 
       const url = createKrokiUrl("mermaid", unescaped.trim());
       return `<div class="diagram-container" style="display: flex; justify-content: center; margin: 2rem 0;"><img src="${url}" alt="Mermaid Diagram" loading="lazy" /></div>`;
-    }
+    },
   );
 
   // Replace excalidraw code blocks with Kroki images
@@ -221,7 +220,7 @@ async function processContent(html: string): Promise<string> {
         .trim();
 
       // Check if this is an Excalidraw diagram (starts with { and contains "type": "excalidraw")
-      if (unescaped.startsWith('{') && unescaped.includes('"type": "excalidraw"')) {
+      if (unescaped.startsWith("{") && unescaped.includes('"type": "excalidraw"')) {
         try {
           const url = createKrokiUrl("excalidraw", unescaped);
           return `<div class="diagram-container" style="display: flex; justify-content: center; margin: 2rem 0;"><img src="${url}" alt="Excalidraw Diagram" loading="lazy" /></div>`;
@@ -233,7 +232,7 @@ async function processContent(html: string): Promise<string> {
 
       // Not an Excalidraw diagram, return original
       return match;
-    }
+    },
   );
 
   return result;

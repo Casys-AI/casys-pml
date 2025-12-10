@@ -73,9 +73,9 @@ export interface AlgorithmSignals {
  * Algorithm parameters used (camelCase - internal TypeScript)
  */
 export interface AlgorithmParams {
-  alpha: number;              // Semantic vs Graph balance
-  reliabilityFactor: number;  // Impact of success_rate
-  structuralBoost: number;    // Impact of cluster match
+  alpha: number; // Semantic vs Graph balance
+  reliabilityFactor: number; // Impact of success_rate
+  structuralBoost: number; // Impact of cluster match
 }
 
 /**
@@ -323,7 +323,10 @@ export class AlgorithmTracer {
    * @param modeFilter - Optional filter by algorithm mode
    * @returns Aggregated metrics
    */
-  async getMetrics(windowHours: number = 24, modeFilter?: AlgorithmMode): Promise<AlgorithmMetrics> {
+  async getMetrics(
+    windowHours: number = 24,
+    modeFilter?: AlgorithmMode,
+  ): Promise<AlgorithmMetrics> {
     const modeClause = modeFilter ? `AND algorithm_mode = '${modeFilter}'` : "";
 
     try {

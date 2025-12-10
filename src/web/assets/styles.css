@@ -6,7 +6,7 @@
   --color-cai-bg: #0a0908;
   --color-cai-bg-elevated: #12110f;
   --color-cai-bg-surface: #1a1816;
-  --color-cai-accent: #FFB86F;
+  --color-cai-accent: #ffb86f;
   --color-cai-accent-dim: rgba(255, 184, 111, 0.1);
   --color-cai-accent-medium: rgba(255, 184, 111, 0.2);
   --color-cai-accent-strong: rgba(255, 184, 111, 0.3);
@@ -22,7 +22,7 @@
 
   /* Edge type colors */
   --color-edge-contains: #22c55e;
-  --color-edge-sequence: #FFB86F;
+  --color-edge-sequence: #ffb86f;
   --color-edge-dependency: #f5f0ea;
 
   /* Glass colors */
@@ -49,7 +49,7 @@
   --bg: #0a0908;
   --bg-elevated: #12110f;
   --bg-surface: #1a1816;
-  --accent: #FFB86F;
+  --accent: #ffb86f;
   --accent-dim: rgba(255, 184, 111, 0.1);
   --accent-medium: rgba(255, 184, 111, 0.2);
   --accent-strong: rgba(255, 184, 111, 0.3);
@@ -62,9 +62,9 @@
   --warning: #fbbf24;
   --error: #f87171;
   --info: #60a5fa;
-  --font-sans: 'Geist', -apple-system, system-ui, sans-serif;
-  --font-mono: 'Geist Mono', monospace;
-  --font-display: 'Instrument Serif', Georgia, serif;
+  --font-sans: "Geist", -apple-system, system-ui, sans-serif;
+  --font-mono: "Geist Mono", monospace;
+  --font-display: "Instrument Serif", Georgia, serif;
 }
 
 /* Keyframes */

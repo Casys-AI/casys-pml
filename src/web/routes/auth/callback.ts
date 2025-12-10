@@ -43,6 +43,30 @@ interface GitHubEmail {
   verified: boolean;
 }
 
+/**
+ * Check if user is allowed based on whitelist
+ * If ALLOWED_GITHUB_USERS is not set or empty, all users are allowed
+ *
+ * @param username - GitHub username to check
+ * @returns true if allowed, false if blocked
+ */
+function isUserAllowed(username: string): boolean {
+  const allowedUsers = Deno.env.get("ALLOWED_GITHUB_USERS");
+
+  // If not set or empty, allow all users
+  if (!allowedUsers || allowedUsers.trim() === "") {
+    return true;
+  }
+
+  // Parse comma-separated list and check membership
+  const whitelist = allowedUsers
+    .split(",")
+    .map((u) => u.trim().toLowerCase())
+    .filter((u) => u.length > 0);
+
+  return whitelist.includes(username.toLowerCase());
+}
+
 export const handler = {
   /**
    * Handle OAuth callback from GitHub
@@ -57,6 +81,17 @@ export const handler = {
         fetchGitHubUser(tokens.accessToken),
         fetchGitHubPrimaryEmail(tokens.accessToken),
       ]);
+
+      // 2.5. Check whitelist (if configured)
+      if (!isUserAllowed(ghUser.login)) {
+        console.warn(`[OAuth] User ${ghUser.login} not in whitelist, access denied`);
+        return new Response(null, {
+          status: 302,
+          headers: {
+            Location: "/auth/signin?error=not_allowed",
+          },
+        });
+      }
 
       // 3. Upsert user in database
       const db = await getDb();

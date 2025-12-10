@@ -3,12 +3,11 @@
  * Contains: SearchBar, MCP Servers filter, Edge Types legend, Confidence legend, Export buttons
  */
 
-import { SearchBar } from "../ui/molecules/SearchBar.tsx";
-import { FilterGroup } from "../ui/molecules/FilterGroup.tsx";
-import { LegendItem } from "../ui/molecules/LegendItem.tsx";
-import { Button } from "../ui/atoms/Button.tsx";
-import { Divider } from "../ui/atoms/Divider.tsx";
-import { Badge } from "../ui/atoms/Badge.tsx";
+import SearchBar from "../ui/molecules/SearchBar.tsx";
+import LegendItem from "../ui/molecules/LegendItem.tsx";
+import Button from "../ui/atoms/Button.tsx";
+import Divider from "../ui/atoms/Divider.tsx";
+import Badge from "../ui/atoms/Badge.tsx";
 
 interface SidebarProps {
   // Search
@@ -54,16 +53,44 @@ export default function Sidebar({
 
   // Edge types legend data
   const edgeTypes = [
-    { id: "contains", label: "Contains (parent→child)", color: "#22c55e", lineStyle: "solid" as const },
+    {
+      id: "contains",
+      label: "Contains (parent→child)",
+      color: "#22c55e",
+      lineStyle: "solid" as const,
+    },
     { id: "sequence", label: "Sequence (siblings)", color: "#FFB86F", lineStyle: "solid" as const },
-    { id: "dependency", label: "Dependency (explicit)", color: "#f5f0ea", lineStyle: "solid" as const },
+    {
+      id: "dependency",
+      label: "Dependency (explicit)",
+      color: "#f5f0ea",
+      lineStyle: "solid" as const,
+    },
   ];
 
   // Confidence legend data
   const confidenceLevels = [
-    { id: "observed", label: "Observed (3+ runs)", color: "var(--text-dim)", lineStyle: "solid" as const, opacity: 1 },
-    { id: "inferred", label: "Inferred (1-2 runs)", color: "var(--text-dim)", lineStyle: "dashed" as const, opacity: 1 },
-    { id: "template", label: "Template (bootstrap)", color: "var(--text-dim)", lineStyle: "dotted" as const, opacity: 0.5 },
+    {
+      id: "observed",
+      label: "Observed (3+ runs)",
+      color: "var(--text-dim)",
+      lineStyle: "solid" as const,
+      opacity: 1,
+    },
+    {
+      id: "inferred",
+      label: "Inferred (1-2 runs)",
+      color: "var(--text-dim)",
+      lineStyle: "dashed" as const,
+      opacity: 1,
+    },
+    {
+      id: "template",
+      label: "Template (bootstrap)",
+      color: "var(--text-dim)",
+      lineStyle: "dotted" as const,
+      opacity: 0.5,
+    },
   ];
 
   return (

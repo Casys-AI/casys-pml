@@ -126,30 +126,30 @@ export function isValidCommand(cmd: unknown): cmd is Command {
 
     case "inject_tasks":
       return Array.isArray(command.tasks) &&
-        typeof command.target_layer === "number";
+        typeof command.targetLayer === "number";
 
     case "replan_dag":
       // Story 2.5-3: Updated fields
-      return typeof command.new_requirement === "string" &&
-        typeof command.available_context === "object";
+      return typeof command.newRequirement === "string" &&
+        typeof command.availableContext === "object";
 
     case "skip_layer":
-      return typeof command.layer_index === "number" &&
+      return typeof command.layerIndex === "number" &&
         typeof command.reason === "string";
 
     case "modify_args":
-      return typeof command.task_id === "string" &&
+      return typeof command.taskId === "string" &&
         typeof command.updates === "object";
 
     case "checkpoint_response":
-      return typeof command.checkpoint_id === "string" &&
+      return typeof command.checkpointId === "string" &&
         (command.decision === "continue" ||
           command.decision === "rollback" ||
           command.decision === "modify");
 
     case "approval_response":
       // Story 2.5-3: HIL approval response
-      return typeof command.checkpoint_id === "string" &&
+      return typeof command.checkpointId === "string" &&
         typeof command.approved === "boolean";
 
     default:
@@ -170,17 +170,17 @@ export function isValidCommand(cmd: unknown): cmd is Command {
  * Statistics for command queue operations
  */
 export interface CommandQueueStats {
-  total_commands: number;
-  processed_commands: number;
-  rejected_commands: number;
+  totalCommands: number;
+  processedCommands: number;
+  rejectedCommands: number;
 }
 
 export class CommandQueue {
   private queue: AsyncQueue<Command>;
   private stats: CommandQueueStats = {
-    total_commands: 0,
-    processed_commands: 0,
-    rejected_commands: 0,
+    totalCommands: 0,
+    processedCommands: 0,
+    rejectedCommands: 0,
   };
 
   constructor() {
@@ -197,14 +197,14 @@ export class CommandQueue {
    */
   enqueue(command: Command): void {
     if (!isValidCommand(command)) {
-      this.stats.rejected_commands++;
+      this.stats.rejectedCommands++;
       throw new Error(
         `Invalid command type: ${JSON.stringify(command)}`,
       );
     }
 
     this.queue.enqueue(command);
-    this.stats.total_commands++;
+    this.stats.totalCommands++;
 
     log.debug(`Command enqueued: ${command.type}`);
   }
@@ -223,7 +223,7 @@ export class CommandQueue {
     // returned before callbacks executed (microtask queue timing)
     const commands = this.queue.drainSync();
 
-    this.stats.processed_commands += commands.length;
+    this.stats.processedCommands += commands.length;
 
     if (commands.length > 0) {
       log.info(`Processed ${commands.length} commands`);
@@ -249,7 +249,7 @@ export class CommandQueue {
       commands.push(cmd);
     }
 
-    this.stats.processed_commands += commands.length;
+    this.stats.processedCommands += commands.length;
 
     if (commands.length > 0) {
       log.info(`Processed ${commands.length} commands`);
@@ -286,7 +286,7 @@ export class CommandQueue {
       this.queue.enqueue(cmd);
     }
 
-    this.stats.processed_commands += matching.length;
+    this.stats.processedCommands += matching.length;
 
     if (matching.length > 0) {
       log.info(`Processed ${matching.length} commands of types: ${types.join(", ")}`);

@@ -85,11 +85,24 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
             </header>
 
             <div class="markdown-body article-content">
-              {post.html.split("<!-- component: ArchitectureDiagram -->").map((part, index, array) => (
+              {post.html.split("<!-- component: ArchitectureDiagram -->").map((
+                part,
+                index,
+                array,
+              ) => (
                 <>
                   <div dangerouslySetInnerHTML={{ __html: part }} />
                   {index < array.length - 1 && (
-                    <div style={{ height: "400px", margin: "2rem 0", border: "1px solid var(--border)", borderRadius: "12px", background: "var(--bg-card)", overflow: "hidden" }}>
+                    <div
+                      style={{
+                        height: "400px",
+                        margin: "2rem 0",
+                        border: "1px solid var(--border)",
+                        borderRadius: "12px",
+                        background: "var(--bg-card)",
+                        overflow: "hidden",
+                      }}
+                    >
                       <ArchitectureDiagram />
                     </div>
                   )}

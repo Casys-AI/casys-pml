@@ -21,7 +21,8 @@ interface ButtonProps {
 
 const variantStyles: Record<ButtonVariant, { base: string; hover: string }> = {
   default: {
-    base: "background: var(--accent-dim); border: 1px solid var(--border-strong); color: var(--text-muted);",
+    base:
+      "background: var(--accent-dim); border: 1px solid var(--border-strong); color: var(--text-muted);",
     hover: "background: var(--accent-medium); border-color: var(--accent); color: var(--accent);",
   },
   primary: {
@@ -33,7 +34,8 @@ const variantStyles: Record<ButtonVariant, { base: string; hover: string }> = {
     hover: "background: var(--accent-dim); color: var(--text);",
   },
   danger: {
-    base: "background: rgba(248, 113, 113, 0.1); border: 1px solid rgba(248, 113, 113, 0.2); color: var(--error);",
+    base:
+      "background: rgba(248, 113, 113, 0.1); border: 1px solid rgba(248, 113, 113, 0.2); color: var(--error);",
     hover: "background: rgba(248, 113, 113, 0.2); border-color: var(--error);",
   },
 };
@@ -59,7 +61,9 @@ export default function Button({
   return (
     <button
       type={type}
-      class={`rounded-lg font-medium cursor-pointer transition-all duration-200 ${sizeStyles[size]} ${className || ""}`}
+      class={`rounded-lg font-medium cursor-pointer transition-all duration-200 ${
+        sizeStyles[size]
+      } ${className || ""}`}
       style={styles.base}
       onClick={onClick}
       disabled={disabled}
@@ -70,7 +74,8 @@ export default function Button({
           hoverParts.forEach((part) => {
             const [prop, val] = part.split(":").map((s) => s.trim());
             if (prop && val) {
-              (e.currentTarget.style as any)[prop.replace(/-([a-z])/g, (_, l) => l.toUpperCase())] = val;
+              (e.currentTarget.style as any)[prop.replace(/-([a-z])/g, (_, l) => l.toUpperCase())] =
+                val;
             }
           });
         }
@@ -81,7 +86,8 @@ export default function Button({
           baseParts.forEach((part) => {
             const [prop, val] = part.split(":").map((s) => s.trim());
             if (prop && val) {
-              (e.currentTarget.style as any)[prop.replace(/-([a-z])/g, (_, l) => l.toUpperCase())] = val;
+              (e.currentTarget.style as any)[prop.replace(/-([a-z])/g, (_, l) => l.toUpperCase())] =
+                val;
             }
           });
         }

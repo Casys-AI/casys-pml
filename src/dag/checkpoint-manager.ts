@@ -144,17 +144,27 @@ export class CheckpointManager {
       }
 
       // Deserialize JSONB state
-      const state = typeof row.state === "string" ? JSON.parse(row.state as string) : row.state;
+      const dbState = typeof row.state === "string" ? JSON.parse(row.state as string) : row.state;
 
-      // Validate state structure
-      this.validateStateStructure(state);
+      // Validate state structure (validates DB format)
+      this.validateStateStructure(dbState);
+
+      // Map DB snake_case to TS camelCase
+      const state: WorkflowState = {
+        workflowId: dbState.workflow_id,
+        currentLayer: dbState.current_layer,
+        messages: dbState.messages,
+        tasks: dbState.tasks,
+        decisions: dbState.decisions,
+        context: dbState.context,
+      };
 
       return {
         id: row.id as string,
         workflowId: row.workflow_id as string, // Map from DB snake_case
         timestamp: new Date(row.timestamp as string),
         layer: row.layer as number,
-        state: state as WorkflowState,
+        state: state,
       };
     } catch (error) {
       log.error(`Failed to load checkpoint ${checkpoint_id}: ${error}`);
@@ -188,17 +198,27 @@ export class CheckpointManager {
       }
 
       // Deserialize JSONB state
-      const state = typeof row.state === "string" ? JSON.parse(row.state as string) : row.state;
+      const dbState = typeof row.state === "string" ? JSON.parse(row.state as string) : row.state;
 
-      // Validate state structure
-      this.validateStateStructure(state);
+      // Validate state structure (validates DB format)
+      this.validateStateStructure(dbState);
+
+      // Map DB snake_case to TS camelCase
+      const state: WorkflowState = {
+        workflowId: dbState.workflow_id,
+        currentLayer: dbState.current_layer,
+        messages: dbState.messages,
+        tasks: dbState.tasks,
+        decisions: dbState.decisions,
+        context: dbState.context,
+      };
 
       return {
         id: row.id as string,
         workflowId: row.workflow_id as string, // Map from DB snake_case
         timestamp: new Date(row.timestamp as string),
         layer: row.layer as number,
-        state: state as WorkflowState,
+        state: state,
       };
     } catch (error) {
       log.error(`Failed to get latest checkpoint for ${workflow_id}: ${error}`);

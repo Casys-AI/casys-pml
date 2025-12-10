@@ -12,9 +12,9 @@ import type { VectorSearch } from "../vector/search.ts";
 import type { GraphRAGEngine } from "./graph-engine.ts";
 import type { EpisodicMemoryStore } from "../learning/episodic-memory-store.ts";
 import type { CapabilityMatcher } from "../capabilities/matcher.ts";
-import type { CapabilityMatch, Capability } from "../capabilities/types.ts";
+import type { Capability, CapabilityMatch } from "../capabilities/types.ts";
 import type { CapabilityStore } from "../capabilities/capability-store.ts";
-import { SpectralClusteringManager, type ClusterableCapability } from "./spectral-clustering.ts";
+import { type ClusterableCapability, SpectralClusteringManager } from "./spectral-clustering.ts";
 import type {
   CompletedTask,
   DAGStructure,
@@ -1176,7 +1176,11 @@ export class DAGSuggester {
         predictions.push({
           toolId: capabilityToolId,
           confidence: adjusted.confidence,
-          reasoning: `Capability matches context (${(match.overlapScore * 100).toFixed(0)}% overlap${clusterBoost > 0 ? `, +${(clusterBoost * 100).toFixed(0)}% cluster boost` : ""})`,
+          reasoning: `Capability matches context (${
+            (match.overlapScore * 100).toFixed(0)
+          }% overlap${
+            clusterBoost > 0 ? `, +${(clusterBoost * 100).toFixed(0)}% cluster boost` : ""
+          })`,
           source: "capability",
           capabilityId: capability.id,
         });
@@ -1477,7 +1481,9 @@ export class DAGSuggester {
         dag.tasks.push(capabilityTask);
 
         log.info(
-          `[DAGSuggester] Injected capability task ${capabilityTask.id} (overlap: ${match.overlapScore.toFixed(2)}, boost: ${clusterBoost.toFixed(2)})`,
+          `[DAGSuggester] Injected capability task ${capabilityTask.id} (overlap: ${
+            match.overlapScore.toFixed(2)
+          }, boost: ${clusterBoost.toFixed(2)})`,
         );
       }
 
@@ -1535,7 +1541,10 @@ export class DAGSuggester {
       const toolsArray = Array.from(allToolsUsed);
 
       // Issue #7: Try to restore from cache first to avoid expensive O(n³) recomputation
-      const cacheHit = this.spectralClustering.restoreFromCacheIfValid(toolsArray, clusterableCapabilities);
+      const cacheHit = this.spectralClustering.restoreFromCacheIfValid(
+        toolsArray,
+        clusterableCapabilities,
+      );
 
       if (!cacheHit) {
         // Build bipartite matrix and compute clusters (expensive)

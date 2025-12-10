@@ -140,7 +140,9 @@ export class MigrationRunner {
     }
 
     const totalTime = performance.now() - totalStart;
-    log.info(`All ${pending.length} migrations applied successfully (total: ${totalTime.toFixed(1)}ms)`);
+    log.info(
+      `All ${pending.length} migrations applied successfully (total: ${totalTime.toFixed(1)}ms)`,
+    );
   }
 
   /**

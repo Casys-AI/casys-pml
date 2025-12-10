@@ -25,7 +25,7 @@ export function generateApiKey(): { key: string; prefix: string } {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   const randomPart = Array.from(
     crypto.getRandomValues(new Uint8Array(API_KEY_LENGTH)),
-    (byte) => chars[byte % chars.length]
+    (byte) => chars[byte % chars.length],
   ).join("");
 
   const key = `${API_KEY_PREFIX}${randomPart}`;

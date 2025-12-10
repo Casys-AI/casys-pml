@@ -108,7 +108,9 @@ export default function MetricsPanel(
   }, [dateRange]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !chartRef.current || !metrics || !metrics.timeseries) return;
+    if (typeof window === "undefined" || !chartRef.current || !metrics || !metrics.timeseries) {
+      return;
+    }
 
     // @ts-ignore
     const Chart = globalThis.Chart;
@@ -511,7 +513,9 @@ export default function MetricsPanel(
               Top Tools (PageRank)
             </h3>
             <div
-              class={(metrics.current.pagerankTop10?.length ?? 0) > 6 ? "max-h-60 overflow-y-auto" : ""}
+              class={(metrics.current.pagerankTop10?.length ?? 0) > 6
+                ? "max-h-60 overflow-y-auto"
+                : ""}
             >
               {(metrics.current.pagerankTop10 ?? []).map((tool, idx) => (
                 <div

@@ -167,7 +167,10 @@ export class EmbeddingModel {
       } else if (this.model.model && typeof this.model.model.dispose === "function") {
         // Some pipelines have nested model objects
         await this.model.model.dispose();
-      } else if (this.model.model && this.model.model.session && typeof this.model.model.session.release === "function") {
+      } else if (
+        this.model.model && this.model.model.session &&
+        typeof this.model.model.session.release === "function"
+      ) {
         // ONNX runtime sessions have release() method
         await this.model.model.session.release();
       }

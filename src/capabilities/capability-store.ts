@@ -358,7 +358,9 @@ export class CapabilityStore {
     const MAX_TOOL_LENGTH = 256;
     const MAX_TOOLS = 100;
     const validatedTools = contextTools
-      .filter((t): t is string => typeof t === "string" && t.length > 0 && t.length <= MAX_TOOL_LENGTH)
+      .filter((t): t is string =>
+        typeof t === "string" && t.length > 0 && t.length <= MAX_TOOL_LENGTH
+      )
       .slice(0, MAX_TOOLS);
 
     if (validatedTools.length === 0) {

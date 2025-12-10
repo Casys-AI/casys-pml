@@ -341,7 +341,9 @@ export class MetricsCollector {
     for (const bucket of metrics.histograms.tool_call_duration_ms.buckets) {
       lines.push(`cai_tool_call_duration_ms_bucket{le="${bucket.le}"} ${bucket.count}`);
     }
-    lines.push(`cai_tool_call_duration_ms_bucket{le="+Inf"} ${metrics.histograms.tool_call_duration_ms.count}`);
+    lines.push(
+      `cai_tool_call_duration_ms_bucket{le="+Inf"} ${metrics.histograms.tool_call_duration_ms.count}`,
+    );
     lines.push(`cai_tool_call_duration_ms_sum ${metrics.histograms.tool_call_duration_ms.sum}`);
     lines.push(`cai_tool_call_duration_ms_count ${metrics.histograms.tool_call_duration_ms.count}`);
 

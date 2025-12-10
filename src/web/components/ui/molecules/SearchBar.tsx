@@ -3,7 +3,7 @@
  * Combines: Input + Kbd atoms
  */
 
-import { useRef, useEffect } from "preact/hooks";
+import { useEffect, useRef } from "preact/hooks";
 import Kbd from "../atoms/Kbd.tsx";
 
 interface SearchBarProps {

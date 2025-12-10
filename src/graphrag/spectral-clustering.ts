@@ -14,7 +14,7 @@
  * @module graphrag/spectral-clustering
  */
 
-import { Matrix, EigenvalueDecomposition } from "ml-matrix";
+import { EigenvalueDecomposition, Matrix } from "ml-matrix";
 import { getLogger } from "../telemetry/logger.ts";
 
 const logger = getLogger("default");
@@ -432,7 +432,8 @@ export class SpectralClusteringManager {
         const clusterPoints = data.filter((_, i) => labels[i] === c);
         if (clusterPoints.length > 0) {
           for (let d = 0; d < dims; d++) {
-            centroids[c][d] = clusterPoints.reduce((sum, p) => sum + p[d], 0) / clusterPoints.length;
+            centroids[c][d] = clusterPoints.reduce((sum, p) => sum + p[d], 0) /
+              clusterPoints.length;
           }
         }
       }
