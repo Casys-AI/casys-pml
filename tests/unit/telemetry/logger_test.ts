@@ -50,6 +50,7 @@ Deno.test({
 Deno.test({
   name: "AC3: Logger can be configured with custom file path",
   sanitizeResources: false, // Logger creates and keeps file handles open
+  sanitizeOps: false, // File stat operations may overlap in parallel mode
   async fn() {
     const testLogPath = `/tmp/agentcards-test-${Date.now()}.log`;
 

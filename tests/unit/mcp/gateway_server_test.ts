@@ -120,7 +120,10 @@ function createMockMCPClient(_serverId: string): MCPClient {
   } as unknown as MCPClient;
 }
 
-Deno.test("CasysIntelligenceGatewayServer - Initialization", () => {
+Deno.test({
+  name: "CasysIntelligenceGatewayServer - Initialization",
+  sanitizeOps: false, // Async operations may overlap in parallel mode
+  fn: () => {
   const db = createMockDB();
   const vectorSearch = createMockVectorSearch();
   const graphEngine = createMockGraphEngine();
@@ -144,6 +147,7 @@ Deno.test("CasysIntelligenceGatewayServer - Initialization", () => {
   );
 
   assertExists(gateway);
+  },
 });
 
 /**
@@ -165,7 +169,10 @@ Deno.test("CasysIntelligenceGatewayServer - Initialization", () => {
  * If a test breaks, update to call the new handler location or maintain delegation.
  */
 
-Deno.test("CasysIntelligenceGatewayServer - list_tools without query", async () => {
+Deno.test({
+  name: "CasysIntelligenceGatewayServer - list_tools without query",
+  sanitizeOps: false, // Async operations may overlap in parallel mode
+  fn: async () => {
   const db = createMockDB();
   const vectorSearch = createMockVectorSearch();
   const graphEngine = createMockGraphEngine();
@@ -215,9 +222,13 @@ Deno.test("CasysIntelligenceGatewayServer - list_tools without query", async () 
   const dagTool = result.tools.find((t: MCPTool) => t.name === "cai:execute_dag");
   assertExists(dagTool);
   assertEquals(dagTool.name, "cai:execute_dag");
+  },
 });
 
-Deno.test("CasysIntelligenceGatewayServer - list_tools with query", async () => {
+Deno.test({
+  name: "CasysIntelligenceGatewayServer - list_tools with query",
+  sanitizeOps: false, // Async operations may overlap in parallel mode
+  fn: async () => {
   const db = createMockDB();
   const vectorSearch = createMockVectorSearch();
   const graphEngine = createMockGraphEngine();
@@ -243,6 +254,7 @@ Deno.test("CasysIntelligenceGatewayServer - list_tools with query", async () => 
   // Should include DAG execution tool + semantic search results (renamed from execute_workflow)
   const dagTool = result.tools.find((t: MCPTool) => t.name === "cai:execute_dag");
   assertExists(dagTool);
+  },
 });
 
 Deno.test("CasysIntelligenceGatewayServer - call_tool single tool proxy", async () => {
