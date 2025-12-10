@@ -20,6 +20,8 @@ import { createGraphRagTablesMigration } from "./migrations/010_graphrag_tables_
 import { createCapabilityStorageMigration } from "./migrations/011_capability_storage_migration.ts";
 import { createEdgeTypesMigration } from "./migrations/012_edge_types_migration.ts";
 import { createUserIdWorkflowExecutionMigration } from "./migrations/013_user_id_workflow_execution.ts";
+import { createAlgorithmTracesMigration } from "./migrations/014_algorithm_traces_migration.ts";
+import { createCapabilityCommunityIdMigration } from "./migrations/015_capability_community_id.ts";
 
 /**
  * Migration definition
@@ -391,5 +393,7 @@ export function getAllMigrations(): Migration[] {
     createCapabilityStorageMigration(),
     createEdgeTypesMigration(), // ADR-041: Hierarchical trace tracking
     createUserIdWorkflowExecutionMigration(), // Story 9.5: Multi-tenant data isolation
+    createAlgorithmTracesMigration(), // Story 7.6 - ADR-039: Algorithm observability
+    createCapabilityCommunityIdMigration(), // Story 8.1: Capability community clustering
   ];
 }
