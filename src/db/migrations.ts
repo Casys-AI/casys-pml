@@ -18,6 +18,7 @@ import { createWorkflowDagsMigration } from "./migrations/008_workflow_dags_migr
 import { createToolDependencySourceMigration } from "./migrations/009_tool_dependency_source_migration.ts";
 import { createGraphRagTablesMigration } from "./migrations/010_graphrag_tables_migration.ts";
 import { createCapabilityStorageMigration } from "./migrations/011_capability_storage_migration.ts";
+import { createEdgeTypesMigration } from "./migrations/012_edge_types_migration.ts";
 
 /**
  * Migration definition
@@ -382,5 +383,6 @@ export function getAllMigrations(): Migration[] {
     createToolDependencySourceMigration(),
     createGraphRagTablesMigration(),
     createCapabilityStorageMigration(),
+    createEdgeTypesMigration(), // ADR-041: Hierarchical trace tracking
   ];
 }

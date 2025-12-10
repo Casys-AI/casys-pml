@@ -121,6 +121,7 @@ export class WorkerBridge {
       this.traces.push(e.data);
 
       // Story 6.5: Forward capability traces to unified EventBus
+      // ADR-041: Include parent_trace_id for hierarchical tracking
       if (e.data.type === "capability_start") {
         eventBus.emit({
           type: "capability.start",
@@ -129,6 +130,8 @@ export class WorkerBridge {
             capability_id: e.data.capability_id,
             capability: e.data.capability,
             trace_id: e.data.trace_id,
+            parent_trace_id: e.data.parent_trace_id, // ADR-041
+            args: e.data.args, // ADR-041
           },
         });
       } else if (e.data.type === "capability_end") {
@@ -139,6 +142,7 @@ export class WorkerBridge {
             capability_id: e.data.capability_id,
             capability: e.data.capability,
             trace_id: e.data.trace_id,
+            parent_trace_id: e.data.parent_trace_id, // ADR-041
             success: e.data.success ?? true,
             duration_ms: e.data.duration_ms ?? 0,
             error: e.data.error,
