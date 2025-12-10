@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "preact/hooks";
+import { Badge, Button, Divider, LegendItem } from "../components/ui/mod.ts";
 
 interface GraphVisualizationProps {
   apiBase: string;
@@ -20,6 +21,9 @@ interface GraphSnapshot {
     target: string;
     confidence: number;
     observed_count: number;
+    // ADR-041: Edge type and source for visualization
+    edge_type?: string; // 'contains', 'sequence', or 'dependency'
+    edge_source?: string; // 'observed', 'inferred', or 'template'
   }>;
   metadata: {
     total_nodes: number;
@@ -139,15 +143,42 @@ export default function GraphVisualization({
             display: "none",
           },
         },
+        // ADR-041: Edge styles based on type (color) and source (line style)
+        // Type colors: contains=green, sequence=orange, dependency=white
+        // Source styles: observed=solid, inferred=dashed, template=dotted
         {
           selector: "edge",
           style: {
             width: (ele: any) => Math.max(1, (ele.data("confidence") || 0) * 5),
-            "line-color": "rgba(255, 184, 111, 0.3)",
-            "target-arrow-color": "rgba(255, 184, 111, 0.3)",
+            // ADR-041: Color by edge_type
+            "line-color": (ele: any) => {
+              const type = ele.data("edge_type") || "sequence";
+              if (type === "contains") return "#22c55e"; // green
+              if (type === "dependency") return "#f5f0ea"; // white
+              return "#FFB86F"; // orange (sequence)
+            },
+            "target-arrow-color": (ele: any) => {
+              const type = ele.data("edge_type") || "sequence";
+              if (type === "contains") return "#22c55e";
+              if (type === "dependency") return "#f5f0ea";
+              return "#FFB86F";
+            },
             "target-arrow-shape": "triangle",
             "curve-style": "bezier",
-            opacity: 0.6,
+            // ADR-041: Line style by edge_source
+            "line-style": (ele: any) => {
+              const source = ele.data("edge_source") || "inferred";
+              if (source === "observed") return "solid";
+              if (source === "template") return "dotted";
+              return "dashed"; // inferred
+            },
+            // ADR-041: Opacity by edge_source
+            opacity: (ele: any) => {
+              const source = ele.data("edge_source") || "inferred";
+              if (source === "observed") return 0.9;
+              if (source === "template") return 0.4;
+              return 0.6; // inferred
+            },
           },
         },
         {
@@ -316,34 +347,51 @@ export default function GraphVisualization({
       }
     });
 
-    eventSource.addEventListener("edge_created", (event: any) => {
+    eventSource.addEventListener("graph.edge.created", (event: any) => {
       const data = JSON.parse(event.data);
-      const edgeId = `${data.from_tool_id}-${data.to_tool_id}`;
+      const edgeId = `${data.fromToolId}-${data.toToolId}`;
       if (!cy.$id(edgeId).length) {
         const newEdge = cy.add({
           group: "edges",
           data: {
             id: edgeId,
-            source: data.from_tool_id,
-            target: data.to_tool_id,
-            confidence: data.confidence_score || 0.5,
-            observed_count: data.observed_count || 1,
+            source: data.fromToolId,
+            target: data.toToolId,
+            confidence: data.confidenceScore || 0.5,
+            observed_count: data.observedCount || 1,
+            edge_type: data.edgeType || "sequence", // ADR-041
+            edge_source: data.edgeSource || "inferred", // ADR-041
           },
         });
         newEdge.addClass("highlight");
         setTimeout(() => newEdge.removeClass("highlight"), 2000);
+
+        // Update degree for connected nodes and orphan status
+        const sourceNode = cy.$id(data.fromToolId);
+        const targetNode = cy.$id(data.toToolId);
+        if (sourceNode.length) {
+          sourceNode.data("degree", sourceNode.degree());
+          sourceNode.removeClass("orphan orphan-hidden");
+        }
+        if (targetNode.length) {
+          targetNode.data("degree", targetNode.degree());
+          targetNode.removeClass("orphan orphan-hidden");
+        }
+
         cy.layout({ name: "cose", animate: true }).run();
       }
     });
 
-    eventSource.addEventListener("edge_updated", (event: any) => {
+    eventSource.addEventListener("graph.edge.updated", (event: any) => {
       const data = JSON.parse(event.data);
-      const edgeId = `${data.from_tool_id}-${data.to_tool_id}`;
+      const edgeId = `${data.fromToolId}-${data.toToolId}`;
       const edge = cy.$id(edgeId);
       if (edge.length) {
         edge.data({
-          confidence: data.confidence_score,
-          observed_count: data.observed_count,
+          confidence: data.newConfidence, // ADR-041: use newConfidence from event
+          observed_count: data.observedCount,
+          edge_type: data.edgeType || "sequence", // ADR-041
+          edge_source: data.edgeSource || "inferred", // ADR-041
         });
         edge.addClass("highlight");
         setTimeout(() => edge.removeClass("highlight"), 2000);
@@ -426,7 +474,7 @@ export default function GraphVisualization({
         },
       }));
 
-      // Add edges
+      // Add edges (ADR-041: include edge_type and edge_source)
       const edges = data.edges.map((edge) => ({
         group: "edges",
         data: {
@@ -435,6 +483,8 @@ export default function GraphVisualization({
           target: edge.target,
           confidence: edge.confidence,
           observed_count: edge.observed_count,
+          edge_type: edge.edge_type || "sequence",
+          edge_source: edge.edge_source || "inferred",
         },
       }));
 
@@ -546,114 +596,71 @@ export default function GraphVisualization({
     <>
       <div ref={containerRef} class="w-full h-full absolute top-0 left-0" />
 
-      {/* Legend Panel */}
+      {/* Legend Panel - Sidebar Left (using Atomic Design components) */}
       <div
-        class="absolute top-5 right-5 p-5 rounded-xl z-10 transition-all duration-300"
+        class="absolute top-5 left-5 p-4 rounded-xl z-10 transition-all duration-300 max-h-[calc(100vh-120px)] overflow-y-auto"
         style={{
-          background: "rgba(18, 17, 15, 0.9)",
-          border: "1px solid rgba(255, 184, 111, 0.1)",
+          background: "rgba(18, 17, 15, 0.95)",
+          border: "1px solid var(--border)",
           backdropFilter: "blur(12px)",
+          minWidth: "200px",
         }}
       >
-        <h3
-          class="text-xs font-semibold uppercase tracking-widest mb-4"
-          style={{ color: "#8a8078" }}
-        >
+        {/* MCP Servers */}
+        <h3 class="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--text-dim)" }}>
           MCP Servers
         </h3>
         {Array.from(servers).map((server) => (
-          <div
+          <Badge
             key={server}
-            class={`flex items-center gap-2.5 py-2 px-3 -mx-3 cursor-pointer rounded-lg transition-all duration-200 ${
-              hiddenServers.has(server) ? "opacity-35" : ""
-            }`}
-            style={{ ":hover": { background: "rgba(255, 184, 111, 0.05)" } }}
+            color={serverColors[server] || serverColors.unknown}
+            label={server}
+            active={!hiddenServers.has(server)}
             onClick={() => toggleServer(server)}
-            onMouseOver={(e) => e.currentTarget.style.background = "rgba(255, 184, 111, 0.05)"}
-            onMouseOut={(e) => e.currentTarget.style.background = "transparent"}
-          >
-            <div
-              class="w-3 h-3 rounded-full transition-all duration-200 hover:scale-125"
-              style={{ backgroundColor: serverColors[server] || serverColors.unknown }}
-            />
-            <span class="text-sm font-medium" style={{ color: "#d5c3b5" }}>{server}</span>
-          </div>
+          />
         ))}
 
+        <Divider />
+
+        {/* Edge Types */}
+        <h3 class="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--text-dim)" }}>
+          Edge Types
+        </h3>
+        <LegendItem label="Contains (parent→child)" color="#22c55e" lineStyle="solid" />
+        <LegendItem label="Sequence (siblings)" color="#FFB86F" lineStyle="solid" />
+        <LegendItem label="Dependency (explicit)" color="#f5f0ea" lineStyle="solid" />
+
+        <Divider />
+
+        {/* Confidence */}
+        <h3 class="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--text-dim)" }}>
+          Confidence
+        </h3>
+        <LegendItem label="Observed (3+ runs)" color="var(--text-dim)" lineStyle="solid" />
+        <LegendItem label="Inferred (1-2 runs)" color="var(--text-dim)" lineStyle="dashed" />
+        <LegendItem label="Template (bootstrap)" color="var(--text-dim)" lineStyle="dotted" opacity={0.5} />
+
+        <Divider />
+
         {/* Orphan toggle */}
-        <div
-          class="h-px my-3"
-          style={{
-            background:
-              "linear-gradient(to right, transparent, rgba(255, 184, 111, 0.2), transparent)",
-          }}
-        />
-        <div
-          class={`flex items-center gap-2.5 py-2 px-3 -mx-3 cursor-pointer rounded-lg transition-all duration-200 ${
-            showOrphanNodes ? "" : "opacity-35"
-          }`}
+        <Badge
+          color="transparent"
+          label="Orphan nodes"
+          active={showOrphanNodes}
           onClick={toggleOrphanNodes}
-          onMouseOver={(e) => e.currentTarget.style.background = "rgba(255, 184, 111, 0.05)"}
-          onMouseOut={(e) => e.currentTarget.style.background = "transparent"}
-        >
-          <div
-            class="w-3 h-3 rounded-full border-2 border-dashed"
-            style={{ borderColor: "#8a8078", background: "#1a1816" }}
-          />
-          <span class="text-sm font-medium" style={{ color: "#d5c3b5" }}>Orphan nodes</span>
-        </div>
+          class="border-2 border-dashed"
+        />
+
+        <Divider />
 
         {/* Export buttons */}
-        <div
-          class="h-px my-3"
-          style={{
-            background:
-              "linear-gradient(to right, transparent, rgba(255, 184, 111, 0.2), transparent)",
-          }}
-        />
-        <div class="flex gap-2 mt-3">
-          <button
-            onClick={() => exportGraph("json")}
-            class="flex-1 py-2 px-3.5 rounded-lg text-xs font-medium cursor-pointer transition-all duration-200"
-            style={{
-              background: "rgba(255, 184, 111, 0.1)",
-              border: "1px solid rgba(255, 184, 111, 0.2)",
-              color: "#d5c3b5",
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.background = "rgba(255, 184, 111, 0.2)";
-              e.currentTarget.style.borderColor = "#FFB86F";
-              e.currentTarget.style.color = "#FFB86F";
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.background = "rgba(255, 184, 111, 0.1)";
-              e.currentTarget.style.borderColor = "rgba(255, 184, 111, 0.2)";
-              e.currentTarget.style.color = "#d5c3b5";
-            }}
-          >
+        <div class="flex gap-2">
+          <Button variant="default" size="sm" onClick={() => exportGraph("json")} class="flex-1">
             Export JSON
-          </button>
-          <button
-            onClick={() => exportGraph("png")}
-            class="flex-1 py-2 px-3.5 rounded-lg text-xs font-medium cursor-pointer transition-all duration-200"
-            style={{
-              background: "rgba(255, 184, 111, 0.1)",
-              border: "1px solid rgba(255, 184, 111, 0.2)",
-              color: "#d5c3b5",
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.background = "rgba(255, 184, 111, 0.2)";
-              e.currentTarget.style.borderColor = "#FFB86F";
-              e.currentTarget.style.color = "#FFB86F";
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.background = "rgba(255, 184, 111, 0.1)";
-              e.currentTarget.style.borderColor = "rgba(255, 184, 111, 0.2)";
-              e.currentTarget.style.color = "#d5c3b5";
-            }}
-          >
+          </Button>
+          <Button variant="default" size="sm" onClick={() => exportGraph("png")} class="flex-1">
             Export PNG
-          </button>
+          </Button>
         </div>
       </div>
 

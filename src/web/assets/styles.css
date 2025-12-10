@@ -2,6 +2,29 @@
 
 /* Custom theme extending Tailwind 4 */
 @theme {
+  /* Casys Design System Colors */
+  --color-cai-bg: #0a0908;
+  --color-cai-bg-elevated: #12110f;
+  --color-cai-bg-surface: #1a1816;
+  --color-cai-accent: #FFB86F;
+  --color-cai-accent-dim: rgba(255, 184, 111, 0.1);
+  --color-cai-accent-medium: rgba(255, 184, 111, 0.2);
+  --color-cai-accent-strong: rgba(255, 184, 111, 0.3);
+  --color-cai-text: #f5f0ea;
+  --color-cai-text-muted: #d5c3b5;
+  --color-cai-text-dim: #8a8078;
+  --color-cai-border: rgba(255, 184, 111, 0.1);
+  --color-cai-border-strong: rgba(255, 184, 111, 0.2);
+  --color-cai-success: #4ade80;
+  --color-cai-warning: #fbbf24;
+  --color-cai-error: #f87171;
+  --color-cai-info: #60a5fa;
+
+  /* Edge type colors */
+  --color-edge-contains: #22c55e;
+  --color-edge-sequence: #FFB86F;
+  --color-edge-dependency: #f5f0ea;
+
   /* Glass colors */
   --color-glass-bg: rgba(15, 23, 42, 0.8);
   --color-glass-border: rgba(148, 163, 184, 0.1);
@@ -19,6 +42,29 @@
   --animate-spin-slow: spin 0.8s linear infinite;
   --animate-slide-up: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   --animate-fade-slide: fadeSlideDown 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* CSS Custom Properties for backward compatibility with existing components */
+:root {
+  --bg: #0a0908;
+  --bg-elevated: #12110f;
+  --bg-surface: #1a1816;
+  --accent: #FFB86F;
+  --accent-dim: rgba(255, 184, 111, 0.1);
+  --accent-medium: rgba(255, 184, 111, 0.2);
+  --accent-strong: rgba(255, 184, 111, 0.3);
+  --text: #f5f0ea;
+  --text-muted: #d5c3b5;
+  --text-dim: #8a8078;
+  --border: rgba(255, 184, 111, 0.1);
+  --border-strong: rgba(255, 184, 111, 0.2);
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --error: #f87171;
+  --info: #60a5fa;
+  --font-sans: 'Geist', -apple-system, system-ui, sans-serif;
+  --font-mono: 'Geist Mono', monospace;
+  --font-display: 'Instrument Serif', Georgia, serif;
 }
 
 /* Keyframes */

@@ -14,7 +14,7 @@ import pagerankPkg from "graphology-metrics/centrality/pagerank.js";
 // @ts-ignore: NPM module resolution
 import louvainPkg from "graphology-communities-louvain";
 // @ts-ignore: NPM module resolution
-import { bidirectional } from "graphology-shortest-path";
+import { dijkstra } from "graphology-shortest-path";
 import * as log from "@std/log";
 import type { PGliteClient } from "../db/client.ts";
 import type { VectorSearch } from "../vector/search.ts";
@@ -24,6 +24,7 @@ import type {
   GraphStats,
   HybridSearchResult,
   MetricsTimeRange,
+  Task,
   TimeSeriesPoint,
   WorkflowExecution,
 } from "./types.ts";
@@ -111,9 +112,9 @@ export class GraphRAGEngine {
           type: "graph.synced",
           source: "graphrag",
           payload: {
-            node_count: event.data.node_count,
-            edge_count: event.data.edge_count,
-            sync_duration_ms: event.data.sync_duration_ms,
+            nodeCount: event.data.nodeCount,
+            edgeCount: event.data.edgeCount,
+            syncDurationMs: event.data.syncDurationMs,
           },
         });
         break;
@@ -123,9 +124,9 @@ export class GraphRAGEngine {
           type: "graph.edge.created",
           source: "graphrag",
           payload: {
-            from_tool_id: event.data.from_tool_id,
-            to_tool_id: event.data.to_tool_id,
-            confidence_score: event.data.confidence_score,
+            fromToolId: event.data.fromToolId,
+            toToolId: event.data.toToolId,
+            confidenceScore: event.data.confidenceScore,
           },
         });
         break;
@@ -135,11 +136,11 @@ export class GraphRAGEngine {
           type: "graph.edge.updated",
           source: "graphrag",
           payload: {
-            from_tool_id: event.data.from_tool_id,
-            to_tool_id: event.data.to_tool_id,
-            old_confidence: event.data.old_confidence,
-            new_confidence: event.data.new_confidence,
-            observed_count: event.data.observed_count,
+            fromToolId: event.data.fromToolId,
+            toToolId: event.data.toToolId,
+            oldConfidence: event.data.oldConfidence,
+            newConfidence: event.data.newConfidence,
+            observedCount: event.data.observedCount,
           },
         });
         break;
@@ -149,10 +150,10 @@ export class GraphRAGEngine {
           type: "graph.metrics.computed",
           source: "graphrag",
           payload: {
-            node_count: event.data.node_count,
-            edge_count: event.data.edge_count,
+            nodeCount: event.data.nodeCount,
+            edgeCount: event.data.edgeCount,
             density: event.data.density,
-            communities_count: event.data.communities_count,
+            communitiesCount: event.data.communitiesCount,
           },
         });
         break;
@@ -229,9 +230,9 @@ export class GraphRAGEngine {
       this.emit({
         type: "graph_synced",
         data: {
-          node_count: this.graph.order,
-          edge_count: this.graph.size,
-          sync_duration_ms: syncTime,
+          nodeCount: this.graph.order,
+          edgeCount: this.graph.size,
+          syncDurationMs: syncTime,
           timestamp: new Date().toISOString(),
         },
       });
@@ -322,11 +323,10 @@ export class GraphRAGEngine {
 
   /**
    * Find shortest path between two tools
-   * ADR-041: Uses edge weights stored in the graph
+   * ADR-041: Uses Dijkstra with weighted edges for optimal path finding
    *
-   * Note: graphology-shortest-path bidirectional doesn't support custom weight functions.
-   * The weighted path finding is handled by storing appropriate weights in edge attributes
-   * during edge creation (via createOrUpdateEdge).
+   * Dijkstra minimizes total cost, so we convert weight to cost:
+   * cost = 1 / weight (higher weight = lower cost = preferred path)
    *
    * @param fromToolId - Source tool
    * @param toToolId - Target tool
@@ -334,9 +334,18 @@ export class GraphRAGEngine {
    */
   findShortestPath(fromToolId: string, toToolId: string): string[] | null {
     try {
-      // ADR-041: Path finding uses the 'weight' attribute stored on edges
-      // which already incorporates edge_type and edge_source weights
-      return bidirectional(this.graph, fromToolId, toToolId);
+      // ADR-041: Use Dijkstra with custom weight function
+      // Convert weight to cost: higher weight = lower cost = preferred
+      return dijkstra.bidirectional(
+        this.graph,
+        fromToolId,
+        toToolId,
+        (edge: string) => {
+          const weight = this.graph.getEdgeAttribute(edge, "weight") as number || 0.5;
+          // Invert weight to cost (min 0.1 to avoid division issues)
+          return 1 / Math.max(weight, 0.1);
+        },
+      );
     } catch {
       return null; // No path exists
     }
@@ -427,7 +436,7 @@ export class GraphRAGEngine {
         id: `task_${i}`,
         tool: toolId,
         arguments: {},
-        depends_on: dependsOn,
+        dependsOn: dependsOn,
       };
     });
 
@@ -443,17 +452,20 @@ export class GraphRAGEngine {
    */
   async updateFromExecution(execution: WorkflowExecution): Promise<void> {
     const startTime = performance.now();
-    const toolIds = execution.dag_structure.tasks.map((t) => t.tool);
+    const toolIds = execution.dagStructure.tasks.map((t: Task) => t.tool);
 
     try {
       // Extract dependencies from executed DAG
-      for (const task of execution.dag_structure.tasks) {
-        for (const depTaskId of task.depends_on) {
-          const depTask = execution.dag_structure.tasks.find((t) => t.id === depTaskId);
+      for (const task of execution.dagStructure.tasks) {
+        for (const depTaskId of task.dependsOn) {
+          const depTask = execution.dagStructure.tasks.find((t: Task) => t.id === depTaskId);
           if (!depTask) continue;
 
           const fromTool = depTask.tool;
           const toTool = task.tool;
+
+          // Skip self-loops (same tool used multiple times in DAG)
+          if (fromTool === toTool) continue;
 
           // Update or add edge in Graphology
           if (this.graph.hasEdge(fromTool, toTool)) {
@@ -469,11 +481,13 @@ export class GraphRAGEngine {
             this.emit({
               type: "edge_updated",
               data: {
-                from_tool_id: fromTool,
-                to_tool_id: toTool,
-                old_confidence: oldConfidence,
-                new_confidence: newConfidence,
-                observed_count: newCount,
+                fromToolId: fromTool,
+                toToolId: toTool,
+                oldConfidence: oldConfidence,
+                newConfidence: newConfidence,
+                observedCount: newCount,
+                edgeType: "dependency", // ADR-041: DAG dependencies are explicit
+                edgeSource: "template", // ADR-041: from DAG template
                 timestamp: new Date().toISOString(),
               },
             });
@@ -481,15 +495,20 @@ export class GraphRAGEngine {
             this.graph.addEdge(fromTool, toTool, {
               count: 1,
               weight: 0.5,
+              edge_type: "dependency", // ADR-041: DAG dependencies are explicit
+              edge_source: "template", // ADR-041: from DAG template
             });
 
             // Emit edge_created event
             this.emit({
               type: "edge_created",
               data: {
-                from_tool_id: fromTool,
-                to_tool_id: toTool,
-                confidence_score: 0.5,
+                fromToolId: fromTool,
+                toToolId: toTool,
+                confidenceScore: 0.5,
+                observedCount: 1, // ADR-041
+                edgeType: "dependency", // ADR-041: DAG dependencies are explicit
+                edgeSource: "template", // ADR-041: from DAG template
                 timestamp: new Date().toISOString(),
               },
             });
@@ -511,11 +530,11 @@ export class GraphRAGEngine {
          (intent_text, dag_structure, success, execution_time_ms, error_message)
          VALUES ($1, $2, $3, $4, $5)`,
         [
-          execution.intent_text || null,
-          JSON.stringify(execution.dag_structure),
+          execution.intentText || null,
+          JSON.stringify(execution.dagStructure),
           execution.success,
-          Math.round(execution.execution_time_ms), // INTEGER column
-          execution.error_message || null,
+          Math.round(execution.executionTimeMs), // INTEGER column
+          execution.errorMessage || null,
         ],
       );
 
@@ -525,10 +544,10 @@ export class GraphRAGEngine {
       this.emit({
         type: "workflow_executed",
         data: {
-          workflow_id: execution.execution_id,
-          tool_ids: toolIds,
+          workflowId: execution.executionId,
+          toolIds: toolIds,
           success: execution.success,
-          execution_time_ms: executionTime,
+          executionTimeMs: executionTime,
           timestamp: new Date().toISOString(),
         },
       });
@@ -537,11 +556,11 @@ export class GraphRAGEngine {
       this.emit({
         type: "metrics_updated",
         data: {
-          edge_count: this.graph.size,
-          node_count: this.graph.order,
+          edgeCount: this.graph.size,
+          nodeCount: this.graph.order,
           density: this.getDensity(),
-          pagerank_top_10: this.getTopPageRank(10),
-          communities_count: this.getCommunitiesCount(),
+          pagerankTop10: this.getTopPageRank(10),
+          communitiesCount: this.getCommunitiesCount(),
           timestamp: new Date().toISOString(),
         },
       });
@@ -558,26 +577,32 @@ export class GraphRAGEngine {
 
   /**
    * ADR-041: Edge type weights for algorithms
-   * - dependency: 1.0 (explicit DAG from templates)
-   * - contains: 0.8 (parent-child hierarchy)
-   * - sequence: 0.5 (temporal between siblings)
+   *
+   * Combined weight formula: final_weight = type_weight × source_modifier
+   *
+   * Examples of combined weights:
+   * - dependency + observed = 1.0 × 1.0 = 1.0 (strongest)
+   * - contains + observed   = 0.8 × 1.0 = 0.8
+   * - contains + inferred   = 0.8 × 0.7 = 0.56
+   * - sequence + inferred   = 0.5 × 0.7 = 0.35
+   * - sequence + template   = 0.5 × 0.5 = 0.25 (weakest)
+   *
+   * For Dijkstra shortest path: cost = 1/weight
+   * Higher weight = lower cost = preferred path
    */
   private static readonly EDGE_TYPE_WEIGHTS: Record<string, number> = {
-    dependency: 1.0,
-    contains: 0.8,
-    sequence: 0.5,
+    dependency: 1.0, // Explicit DAG from templates
+    contains: 0.8, // Parent-child hierarchy (capability → tool)
+    sequence: 0.5, // Temporal order between siblings
   };
 
   /**
-   * ADR-041: Edge source weight modifiers
-   * - observed: ×1.0 (confirmed by 3+ executions)
-   * - inferred: ×0.7 (single observation)
-   * - template: ×0.5 (bootstrap, not yet confirmed)
+   * ADR-041: Edge source weight modifiers (multiplied with type weight)
    */
   private static readonly EDGE_SOURCE_MODIFIERS: Record<string, number> = {
-    observed: 1.0,
-    inferred: 0.7,
-    template: 0.5,
+    observed: 1.0, // Confirmed by 3+ executions
+    inferred: 0.7, // 1-2 observations
+    template: 0.5, // Bootstrap, not yet confirmed
   };
 
   /**
@@ -760,11 +785,13 @@ export class GraphRAGEngine {
       this.emit({
         type: "edge_updated",
         data: {
-          from_tool_id: fromId,
-          to_tool_id: toId,
-          old_confidence: edge.weight as number,
-          new_confidence: newWeight,
-          observed_count: newCount,
+          fromToolId: fromId,
+          toToolId: toId,
+          oldConfidence: edge.weight as number,
+          newConfidence: newWeight,
+          observedCount: newCount,
+          edgeType: edgeType, // ADR-041
+          edgeSource: newSource, // ADR-041
           timestamp: new Date().toISOString(),
         },
       });
@@ -786,9 +813,12 @@ export class GraphRAGEngine {
       this.emit({
         type: "edge_created",
         data: {
-          from_tool_id: fromId,
-          to_tool_id: toId,
-          confidence_score: weight,
+          fromToolId: fromId,
+          toToolId: toId,
+          confidenceScore: weight,
+          observedCount: 1, // ADR-041: new edges start at count=1
+          edgeType: edgeType, // ADR-041
+          edgeSource: "inferred", // ADR-041: new edges start as inferred
           timestamp: new Date().toISOString(),
         },
       });
@@ -845,6 +875,7 @@ export class GraphRAGEngine {
 
   /**
    * Get edge data between two tools (Story 3.5-1)
+   * ADR-041: Now includes edge_type and edge_source
    *
    * Returns the edge attributes if edge exists, null otherwise.
    *
@@ -852,13 +883,20 @@ export class GraphRAGEngine {
    * @param toToolId - Target tool
    * @returns Edge attributes or null
    */
-  getEdgeData(fromToolId: string, toToolId: string): { weight: number; count: number } | null {
+  getEdgeData(fromToolId: string, toToolId: string): {
+    weight: number;
+    count: number;
+    edge_type: string;
+    edge_source: string;
+  } | null {
     if (!this.graph.hasEdge(fromToolId, toToolId)) return null;
 
     const attrs = this.graph.getEdgeAttributes(fromToolId, toToolId);
     return {
       weight: attrs.weight as number,
       count: attrs.count as number,
+      edge_type: (attrs.edge_type as string) || "sequence",
+      edge_source: (attrs.edge_source as string) || "inferred",
     };
   }
 
@@ -1136,12 +1174,12 @@ export class GraphRAGEngine {
   /**
    * Get top N tools by PageRank score
    */
-  private getTopPageRank(n: number): Array<{ tool_id: string; score: number }> {
+  private getTopPageRank(n: number): Array<{ toolId: string; score: number }> {
     const entries = Object.entries(this.pageRanks)
       .sort(([, a], [, b]) => b - a)
       .slice(0, n);
 
-    return entries.map(([tool_id, score]) => ({ tool_id, score }));
+    return entries.map(([toolId, score]) => ({ toolId, score }));
   }
 
   /**
@@ -1504,7 +1542,7 @@ export class GraphRAGEngine {
   /**
    * Get top N tools by PageRank - public version for metrics (Story 6.3)
    */
-  getPageRankTop(n: number): Array<{ tool_id: string; score: number }> {
+  getPageRankTop(n: number): Array<{ toolId: string; score: number }> {
     return this.getTopPageRank(n);
   }
 
@@ -1528,12 +1566,12 @@ export class GraphRAGEngine {
 
     // Current snapshot metrics
     const current = {
-      node_count: this.graph.order,
-      edge_count: this.graph.size,
+      nodeCount: this.graph.order,
+      edgeCount: this.graph.size,
       density: this.getDensity(),
-      adaptive_alpha: this.getAdaptiveAlpha(),
-      communities_count: this.getCommunitiesCount(),
-      pagerank_top_10: this.getTopPageRank(10),
+      adaptiveAlpha: this.getAdaptiveAlpha(),
+      communitiesCount: this.getCommunitiesCount(),
+      pagerankTop10: this.getTopPageRank(10),
     };
 
     // Calculate interval for time range
@@ -1570,9 +1608,9 @@ export class GraphRAGEngine {
     range: MetricsTimeRange,
     startDate: Date,
   ): Promise<{
-    edge_count: TimeSeriesPoint[];
-    avg_confidence: TimeSeriesPoint[];
-    workflow_rate: TimeSeriesPoint[];
+    edgeCount: TimeSeriesPoint[];
+    avgConfidence: TimeSeriesPoint[];
+    workflowRate: TimeSeriesPoint[];
   }> {
     // Determine bucket size based on range
     const bucketMinutes = range === "1h" ? 5 : range === "24h" ? 60 : 360; // 6h buckets for 7d
@@ -1625,15 +1663,15 @@ export class GraphRAGEngine {
       );
 
       return {
-        edge_count: edgeCountResult.map((row: Record<string, unknown>) => ({
+        edgeCount: edgeCountResult.map((row: Record<string, unknown>) => ({
           timestamp: String(row.bucket),
           value: Number(row.avg_value) || 0,
         })),
-        avg_confidence: avgConfidenceResult.map((row: Record<string, unknown>) => ({
+        avgConfidence: avgConfidenceResult.map((row: Record<string, unknown>) => ({
           timestamp: String(row.bucket),
           value: Number(row.avg_value) || 0,
         })),
-        workflow_rate: workflowRateResult.map((row: Record<string, unknown>) => ({
+        workflowRate: workflowRateResult.map((row: Record<string, unknown>) => ({
           timestamp: String(row.bucket),
           value: Number(row.count) || 0,
         })),
@@ -1641,9 +1679,9 @@ export class GraphRAGEngine {
     } catch (error) {
       log.warn(`[getMetricsTimeSeries] Query failed, returning empty data: ${error}`);
       return {
-        edge_count: [],
-        avg_confidence: [],
-        workflow_rate: [],
+        edgeCount: [],
+        avgConfidence: [],
+        workflowRate: [],
       };
     }
   }
@@ -1660,10 +1698,10 @@ export class GraphRAGEngine {
     startDate: Date,
   ): Promise<{
     range: MetricsTimeRange;
-    workflows_executed: number;
-    workflows_success_rate: number;
-    new_edges_created: number;
-    new_nodes_added: number;
+    workflowsExecuted: number;
+    workflowsSuccessRate: number;
+    newEdgesCreated: number;
+    newNodesAdded: number;
   }> {
     try {
       // Workflow statistics
@@ -1705,19 +1743,19 @@ export class GraphRAGEngine {
 
       return {
         range,
-        workflows_executed: total,
-        workflows_success_rate: Math.round(successRate * 10) / 10,
-        new_edges_created: Number(newEdges[0]?.count) || 0,
-        new_nodes_added: Number(newNodes[0]?.count) || 0,
+        workflowsExecuted: total,
+        workflowsSuccessRate: Math.round(successRate * 10) / 10,
+        newEdgesCreated: Number(newEdges[0]?.count) || 0,
+        newNodesAdded: Number(newNodes[0]?.count) || 0,
       };
     } catch (error) {
       log.warn(`[getPeriodStats] Query failed, returning zeros: ${error}`);
       return {
         range,
-        workflows_executed: 0,
-        workflows_success_rate: 0,
-        new_edges_created: 0,
-        new_nodes_added: 0,
+        workflowsExecuted: 0,
+        workflowsSuccessRate: 0,
+        newEdgesCreated: 0,
+        newNodesAdded: 0,
       };
     }
   }

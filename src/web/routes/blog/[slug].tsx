@@ -546,6 +546,24 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
             .article-snippet { font-size: 1rem; }
             .article-meta { gap: 0.5rem; }
             .footer-inner { flex-direction: column; gap: 1.5rem; text-align: center; }
+
+            /* Code blocks mobile */
+            .markdown-body pre,
+            .markdown-body pre[class*="language-"],
+            .markdown-body .highlight {
+              padding: 0.75rem !important;
+              margin-left: -1rem !important;
+              margin-right: -1rem !important;
+              border-radius: 0 !important;
+              border-left: none !important;
+              border-right: none !important;
+            }
+
+            .markdown-body pre code,
+            .markdown-body pre[class*="language-"] code {
+              font-size: 11px !important;
+              -webkit-overflow-scrolling: touch;
+            }
           }
         `}
         </style>

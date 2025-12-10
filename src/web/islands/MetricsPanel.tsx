@@ -21,24 +21,24 @@ interface TimeSeriesPoint {
 
 interface GraphMetricsResponse {
   current: {
-    node_count: number;
-    edge_count: number;
+    nodeCount: number;
+    edgeCount: number;
     density: number;
-    adaptive_alpha: number;
-    communities_count: number;
-    pagerank_top_10: Array<{ tool_id: string; score: number }>;
+    adaptiveAlpha: number;
+    communitiesCount: number;
+    pagerankTop10: Array<{ toolId: string; score: number }>;
   };
   timeseries: {
-    edge_count: TimeSeriesPoint[];
-    avg_confidence: TimeSeriesPoint[];
-    workflow_rate: TimeSeriesPoint[];
+    edgeCount: TimeSeriesPoint[];
+    avgConfidence: TimeSeriesPoint[];
+    workflowRate: TimeSeriesPoint[];
   };
   period: {
     range: MetricsTimeRange;
-    workflows_executed: number;
-    workflows_success_rate: number;
-    new_edges_created: number;
-    new_nodes_added: number;
+    workflowsExecuted: number;
+    workflowsSuccessRate: number;
+    newEdgesCreated: number;
+    newNodesAdded: number;
   };
 }
 
@@ -88,11 +88,11 @@ export default function MetricsPanel(
             ...prev,
             current: {
               ...prev.current,
-              edge_count: data.edge_count ?? prev.current.edge_count,
-              node_count: data.node_count ?? prev.current.node_count,
+              edgeCount: data.edgeCount ?? prev.current.edgeCount,
+              nodeCount: data.nodeCount ?? prev.current.nodeCount,
               density: data.density ?? prev.current.density,
-              pagerank_top_10: data.pagerank_top_10 ?? prev.current.pagerank_top_10,
-              communities_count: data.communities_count ?? prev.current.communities_count,
+              pagerankTop10: data.pagerankTop10 ?? prev.current.pagerankTop10,
+              communitiesCount: data.communitiesCount ?? prev.current.communitiesCount,
             },
           };
         });
@@ -108,7 +108,7 @@ export default function MetricsPanel(
   }, [dateRange]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !chartRef.current || !metrics) return;
+    if (typeof window === "undefined" || !chartRef.current || !metrics || !metrics.timeseries) return;
 
     // @ts-ignore
     const Chart = globalThis.Chart;
@@ -122,17 +122,17 @@ export default function MetricsPanel(
 
     switch (activeChart) {
       case "edges":
-        chartData = metrics.timeseries.edge_count;
+        chartData = metrics.timeseries.edgeCount ?? [];
         label = "Edge Count";
         color = "rgb(255, 184, 111)"; // accent
         break;
       case "confidence":
-        chartData = metrics.timeseries.avg_confidence;
+        chartData = metrics.timeseries.avgConfidence ?? [];
         label = "Avg Confidence";
         color = "rgb(74, 222, 128)"; // success
         break;
       case "workflows":
-        chartData = metrics.timeseries.workflow_rate;
+        chartData = metrics.timeseries.workflowRate ?? [];
         label = "Workflows/Hour";
         color = "rgb(251, 191, 36)"; // warning
         break;
@@ -181,29 +181,28 @@ export default function MetricsPanel(
   }, [metrics, activeChart]);
 
   const exportMetricsCSV = () => {
-    if (!metrics) return;
-    const headers = ["timestamp", "edge_count", "avg_confidence", "workflow_rate"];
-    const maxLen = Math.max(
-      metrics.timeseries.edge_count.length,
-      metrics.timeseries.avg_confidence.length,
-      metrics.timeseries.workflow_rate.length,
-    );
+    if (!metrics || !metrics.timeseries) return;
+    const headers = ["timestamp", "edgeCount", "avgConfidence", "workflowRate"];
+    const edgeCount = metrics.timeseries.edgeCount ?? [];
+    const avgConfidence = metrics.timeseries.avgConfidence ?? [];
+    const workflowRate = metrics.timeseries.workflowRate ?? [];
+    const maxLen = Math.max(edgeCount.length, avgConfidence.length, workflowRate.length);
     const rows: string[][] = [];
     for (let i = 0; i < maxLen; i++) {
       rows.push([
-        metrics.timeseries.edge_count[i]?.timestamp || "",
-        String(metrics.timeseries.edge_count[i]?.value || ""),
-        String(metrics.timeseries.avg_confidence[i]?.value || ""),
-        String(metrics.timeseries.workflow_rate[i]?.value || ""),
+        edgeCount[i]?.timestamp || "",
+        String(edgeCount[i]?.value || ""),
+        String(avgConfidence[i]?.value || ""),
+        String(workflowRate[i]?.value || ""),
       ]);
     }
     rows.push([]);
     rows.push(["# Current Metrics"]);
-    rows.push(["node_count", String(metrics.current.node_count)]);
-    rows.push(["edge_count", String(metrics.current.edge_count)]);
+    rows.push(["nodeCount", String(metrics.current.nodeCount)]);
+    rows.push(["edgeCount", String(metrics.current.edgeCount)]);
     rows.push(["density", String(metrics.current.density.toFixed(6))]);
-    rows.push(["adaptive_alpha", String(metrics.current.adaptive_alpha.toFixed(4))]);
-    rows.push(["communities_count", String(metrics.current.communities_count)]);
+    rows.push(["adaptiveAlpha", String(metrics.current.adaptiveAlpha.toFixed(4))]);
+    rows.push(["communitiesCount", String(metrics.current.communitiesCount)]);
 
     const csv = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
@@ -408,10 +407,10 @@ export default function MetricsPanel(
           {/* Metrics Grid */}
           <div class="grid grid-cols-2 gap-3">
             {[
-              { label: "Nodes", value: metrics.current.node_count },
-              { label: "Edges", value: metrics.current.edge_count },
+              { label: "Nodes", value: metrics.current.nodeCount },
+              { label: "Edges", value: metrics.current.edgeCount },
               { label: "Density", value: `${(metrics.current.density * 100).toFixed(2)}%` },
-              { label: "Communities", value: metrics.current.communities_count },
+              { label: "Communities", value: metrics.current.communitiesCount },
             ].map((metric) => (
               <div
                 key={metric.label}
@@ -455,15 +454,15 @@ export default function MetricsPanel(
               >
                 Adaptive Alpha
               </span>
-              <span style={{ color: getAlphaIndicator(metrics.current.adaptive_alpha).color }}>
-                {getAlphaIndicator(metrics.current.adaptive_alpha).label}
+              <span style={{ color: getAlphaIndicator(metrics.current.adaptiveAlpha).color }}>
+                {getAlphaIndicator(metrics.current.adaptiveAlpha).label}
               </span>
             </div>
             <div class="h-2 rounded overflow-hidden" style={{ background: "var(--bg)" }}>
               <div
                 class="h-full rounded transition-all duration-500"
                 style={{
-                  width: `${metrics.current.adaptive_alpha * 100}%`,
+                  width: `${metrics.current.adaptiveAlpha * 100}%`,
                   background: "linear-gradient(to right, var(--accent), var(--warning))",
                 }}
               />
@@ -472,20 +471,20 @@ export default function MetricsPanel(
               class="text-sm text-right mt-2 font-medium tabular-nums"
               style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}
             >
-              {metrics.current.adaptive_alpha.toFixed(3)}
+              {metrics.current.adaptiveAlpha.toFixed(3)}
             </div>
           </div>
 
           {/* Workflow Stats */}
           <div class="p-4 rounded-xl" style={styles.card}>
             {[
-              { label: `Workflows (${dateRange})`, value: metrics.period.workflows_executed },
+              { label: `Workflows (${dateRange})`, value: metrics.period.workflowsExecuted },
               {
                 label: "Success Rate",
-                value: `${metrics.period.workflows_success_rate.toFixed(1)}%`,
-                color: getSuccessRateColor(metrics.period.workflows_success_rate),
+                value: `${metrics.period.workflowsSuccessRate.toFixed(1)}%`,
+                color: getSuccessRateColor(metrics.period.workflowsSuccessRate),
               },
-              { label: "New Edges", value: metrics.period.new_edges_created },
+              { label: "New Edges", value: metrics.period.newEdgesCreated },
             ].map((stat, i, arr) => (
               <div
                 key={stat.label}
@@ -512,11 +511,11 @@ export default function MetricsPanel(
               Top Tools (PageRank)
             </h3>
             <div
-              class={metrics.current.pagerank_top_10.length > 6 ? "max-h-60 overflow-y-auto" : ""}
+              class={(metrics.current.pagerankTop10?.length ?? 0) > 6 ? "max-h-60 overflow-y-auto" : ""}
             >
-              {metrics.current.pagerank_top_10.map((tool, idx) => (
+              {(metrics.current.pagerankTop10 ?? []).map((tool, idx) => (
                 <div
-                  key={tool.tool_id}
+                  key={tool.toolId}
                   class="flex items-center gap-3 py-2.5 px-2 -mx-2 rounded-lg transition-colors"
                   onMouseOver={(e) => e.currentTarget.style.background = "var(--accent-dim)"}
                   onMouseOut={(e) => e.currentTarget.style.background = "transparent"}
@@ -529,10 +528,10 @@ export default function MetricsPanel(
                   </span>
                   <span
                     class="flex-1 truncate font-medium text-sm"
-                    title={tool.tool_id}
+                    title={tool.toolId}
                     style={{ color: "var(--text)" }}
                   >
-                    {tool.tool_id.split("__").pop() || tool.tool_id}
+                    {tool.toolId.split("__").pop() || tool.toolId}
                   </span>
                   <span
                     class="text-xs"
@@ -542,7 +541,7 @@ export default function MetricsPanel(
                   </span>
                 </div>
               ))}
-              {metrics.current.pagerank_top_10.length === 0 && (
+              {(metrics.current.pagerankTop10?.length ?? 0) === 0 && (
                 <div class="text-sm py-3 text-center" style={{ color: "var(--text-dim)" }}>
                   No tools yet
                 </div>

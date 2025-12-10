@@ -671,25 +671,35 @@ export class CasysIntelligenceGatewayServer {
     if (workflowArgs.workflow) {
       log.info(`Executing explicit workflow (per_layer_validation: ${perLayerValidation})`);
 
+      // Normalize tasks: ensure dependsOn is always an array (API boundary validation)
+      // Root tasks without dependencies may omit dependsOn field
+      const normalizedWorkflow: DAGStructure = {
+        ...workflowArgs.workflow,
+        tasks: workflowArgs.workflow.tasks.map((task) => ({
+          ...task,
+          dependsOn: task.dependsOn ?? [],
+        })),
+      };
+
       // Story 2.5-4: Per-layer validation mode
       if (perLayerValidation) {
         return await this.executeWithPerLayerValidation(
-          workflowArgs.workflow,
+          normalizedWorkflow,
           workflowArgs.intent ?? "explicit_workflow",
         );
       }
 
       // Standard execution (no validation pauses)
-      const result = await this.executor.execute(workflowArgs.workflow);
+      const result = await this.executor.execute(normalizedWorkflow);
 
       // Update graph with execution data (learning loop)
       await this.graphEngine.updateFromExecution({
-        execution_id: crypto.randomUUID(),
-        executed_at: new Date(),
-        intent_text: workflowArgs.intent ?? "",
-        dag_structure: workflowArgs.workflow,
+        executionId: crypto.randomUUID(),
+        executedAt: new Date(),
+        intentText: workflowArgs.intent ?? "",
+        dagStructure: normalizedWorkflow,
         success: result.errors.length === 0,
-        execution_time_ms: result.executionTimeMs,
+        executionTimeMs: result.executionTimeMs,
       });
 
       return {
@@ -700,7 +710,7 @@ export class CasysIntelligenceGatewayServer {
               {
                 status: "completed",
                 results: result.results,
-                execution_time_ms: result.executionTimeMs,
+                executionTimeMs: result.executionTimeMs,
                 parallelization_layers: result.parallelizationLayers,
                 errors: result.errors,
               },
@@ -780,7 +790,7 @@ export class CasysIntelligenceGatewayServer {
                   mode: "speculative_execution",
                   results: executionMode.results,
                   confidence: executionMode.confidence,
-                  execution_time_ms: executionMode.execution_time_ms,
+                  executionTimeMs: executionMode.executionTimeMs,
                 },
                 null,
                 2,
@@ -856,7 +866,7 @@ export class CasysIntelligenceGatewayServer {
           taskId: event.task_id ?? "",
           status: event.type === "task_complete" ? "success" : "error",
           output: event.type === "task_complete"
-            ? { execution_time_ms: event.execution_time_ms }
+            ? { executionTimeMs: event.executionTimeMs }
             : undefined,
           error: event.type === "task_error" ? event.error : undefined,
         });
@@ -1283,7 +1293,7 @@ export class CasysIntelligenceGatewayServer {
             error_type: error.type,
             error_message: error.message,
             stack: error.stack,
-            execution_time_ms: executionTimeMs,
+            executionTimeMs: executionTimeMs,
           },
         );
       }
@@ -1302,18 +1312,18 @@ export class CasysIntelligenceGatewayServer {
             id: `traced_${index}`,
             tool,
             arguments: {},
-            depends_on: index > 0 ? [`traced_${index - 1}`] : [], // Sequential dependency assumption
+            dependsOn: index > 0 ? [`traced_${index - 1}`] : [], // Sequential dependency assumption
           })),
         };
 
         // Update GraphRAG with execution data
         await this.graphEngine.updateFromExecution({
-          execution_id: crypto.randomUUID(),
-          executed_at: new Date(),
-          intent_text: request.intent ?? "code_execution",
-          dag_structure: tracedDAG,
+          executionId: crypto.randomUUID(),
+          executedAt: new Date(),
+          intentText: request.intent ?? "code_execution",
+          dagStructure: tracedDAG,
           success: true,
-          execution_time_ms: executionTimeMs,
+          executionTimeMs: executionTimeMs,
         });
 
         trackedToolsCount = toolsCalled.length;
@@ -1512,7 +1522,7 @@ export class CasysIntelligenceGatewayServer {
           taskId: event.task_id ?? "",
           status: event.type === "task_complete" ? "success" : "error",
           output: event.type === "task_complete"
-            ? { execution_time_ms: event.execution_time_ms }
+            ? { executionTimeMs: event.executionTimeMs }
             : undefined,
           error: event.type === "task_error" ? event.error : undefined,
         });
@@ -2082,9 +2092,9 @@ export class CasysIntelligenceGatewayServer {
     // Start periodic health checks
     this.healthChecker.startPeriodicChecks();
 
-    // Initialize events stream manager (Story 6.1)
-    this.eventsStream = new EventsStreamManager(this.graphEngine);
-    log.info(`✓ EventsStreamManager initialized`);
+    // Initialize events stream manager (Story 6.1, Story 6.5: uses EventBus)
+    this.eventsStream = new EventsStreamManager();
+    log.info(`✓ EventsStreamManager initialized with EventBus`);
 
     // Story 9.3: Log auth mode at startup (AC #5)
     logAuthMode("API Server");

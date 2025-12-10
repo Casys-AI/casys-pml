@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useRef, useState } from "preact/hooks";
+import { createPortal } from "preact/compat";
 import GraphVisualization from "./GraphVisualization.tsx";
 
 interface ToolSearchResult {
@@ -55,9 +56,16 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
   const [showPathFinder, setShowPathFinder] = useState(false);
   const [pathFrom, setPathFrom] = useState("");
   const [pathTo, setPathTo] = useState("");
+  const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchTimeoutRef = useRef<number | null>(null);
+
+  // Find header slot for portal
+  useEffect(() => {
+    const slot = document.getElementById("header-search-slot");
+    if (slot) setHeaderSlot(slot);
+  }, []);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -222,58 +230,51 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
     },
   };
 
-  return (
-    <div class="w-full h-full relative overflow-hidden">
-      {/* Search Bar - top-16 to clear dashboard header */}
-      <div class="absolute top-16 left-1/2 -translate-x-1/2 z-[100] flex gap-3 items-center">
-        <div class="relative">
-          <input
-            ref={searchInputRef}
-            type="text"
-            class="w-[420px] py-3.5 px-5 pr-[70px] rounded-xl text-[15px] font-medium outline-none transition-all duration-200 placeholder:opacity-50"
-            style={{
-              ...styles.input,
-              fontFamily: "var(--font-sans)",
-            }}
-            placeholder="Search tools... (/ or Ctrl+K)"
-            value={searchQuery}
-            onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
-            onFocus={(e) => {
-              searchQuery.length >= 2 && setShowResults(true);
-              Object.assign(e.currentTarget.style, styles.inputFocus);
-            }}
-            onBlur={(e) => {
-              setTimeout(() => setShowResults(false), 200);
-              e.currentTarget.style.borderColor = "var(--border)";
-              e.currentTarget.style.boxShadow = "none";
-            }}
-          />
-          <span class="absolute right-4 top-1/2 -translate-y-1/2">
-            <kbd
-              class="px-2.5 py-1 rounded-md text-xs font-medium"
-              style={styles.kbd}
-            >
-              /
-            </kbd>
-          </span>
-        </div>
+  // SearchBar component to portal into header
+  const searchBarContent = (
+    <div class="flex gap-3 items-center">
+      <div class="relative">
+        <input
+          ref={searchInputRef}
+          type="text"
+          class="w-[420px] py-2.5 px-4 pr-[60px] rounded-xl text-sm font-medium outline-none transition-all duration-200 placeholder:opacity-50"
+          style={{
+            ...styles.input,
+            fontFamily: "var(--font-sans)",
+          }}
+          placeholder="Search tools... (/ or Ctrl+K)"
+          value={searchQuery}
+          onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
+          onFocus={(e) => {
+            searchQuery.length >= 2 && setShowResults(true);
+            Object.assign(e.currentTarget.style, styles.inputFocus);
+          }}
+          onBlur={(e) => {
+            setTimeout(() => setShowResults(false), 200);
+            e.currentTarget.style.borderColor = "var(--border)";
+            e.currentTarget.style.boxShadow = "none";
+          }}
+        />
+        <span class="absolute right-3 top-1/2 -translate-y-1/2">
+          <kbd class="px-2 py-0.5 rounded-md text-xs font-medium" style={styles.kbd}>/</kbd>
+        </span>
 
-        {/* Autocomplete Results */}
+        {/* Autocomplete Results - dropdown below search */}
         {showResults && searchResults.length > 0 && (
           <div
-            class="absolute top-full left-0 right-auto w-[420px] mt-2 rounded-xl overflow-hidden max-h-[400px] overflow-y-auto shadow-2xl"
+            class="absolute top-full left-0 right-0 mt-2 rounded-xl overflow-hidden max-h-[400px] overflow-y-auto shadow-2xl z-50"
             style={styles.panel}
           >
             {searchResults.map((result) => (
               <div
                 key={result.tool_id}
-                class="px-5 py-3.5 cursor-pointer flex justify-between items-center transition-colors"
+                class="px-4 py-3 cursor-pointer flex justify-between items-center transition-colors"
                 style={{ borderBottom: "1px solid var(--border)" }}
                 onClick={() => selectSearchResult(result)}
                 onMouseOver={(e) => e.currentTarget.style.background = "var(--accent-dim)"}
                 onMouseOut={(e) => e.currentTarget.style.background = "transparent"}
               >
-                <div class="flex gap-3.5 items-center">
+                <div class="flex gap-3 items-center">
                   <span style={{ color: "var(--text)", fontWeight: 600, fontSize: "0.875rem" }}>
                     {result.name}
                   </span>
@@ -284,7 +285,7 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
                     {result.server}
                   </span>
                 </div>
-                <div class="flex gap-4 text-xs">
+                <div class="flex gap-3 text-xs">
                   <span style={{ color: "var(--success)", fontWeight: 600 }}>
                     {(result.score * 100).toFixed(0)}%
                   </span>
@@ -296,26 +297,33 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
             ))}
           </div>
         )}
-
-        {/* Path Finder Toggle */}
-        <button
-          class="py-3.5 px-5 rounded-xl text-sm font-semibold transition-all duration-200"
-          style={showPathFinder ? styles.buttonActive : styles.button}
-          onClick={() => setShowPathFinder(!showPathFinder)}
-          title="Find Path (Ctrl+P)"
-          onMouseOver={(e) =>
-            !showPathFinder && (e.currentTarget.style.borderColor = "var(--accent-medium)")}
-          onMouseOut={(e) =>
-            !showPathFinder && (e.currentTarget.style.borderColor = "var(--border)")}
-        >
-          Path
-        </button>
       </div>
+
+      {/* Path Finder Toggle */}
+      <button
+        class="py-2.5 px-4 rounded-xl text-sm font-semibold transition-all duration-200"
+        style={showPathFinder ? styles.buttonActive : styles.button}
+        onClick={() => setShowPathFinder(!showPathFinder)}
+        title="Find Path (Ctrl+P)"
+        onMouseOver={(e) =>
+          !showPathFinder && (e.currentTarget.style.borderColor = "var(--accent-medium)")}
+        onMouseOut={(e) =>
+          !showPathFinder && (e.currentTarget.style.borderColor = "var(--border)")}
+      >
+        Path
+      </button>
+    </div>
+  );
+
+  return (
+    <div class="w-full h-full relative overflow-hidden">
+      {/* SearchBar rendered in header via portal */}
+      {headerSlot && createPortal(searchBarContent, headerSlot)}
 
       {/* Path Finder Panel */}
       {showPathFinder && (
         <div
-          class="absolute top-20 left-1/2 -translate-x-1/2 z-[90] p-4 px-5 rounded-xl shadow-2xl"
+          class="absolute top-20 left-1/2 -translate-x-1/2 z-[90] p-4 px-5 rounded-xl shadow-2xl mt-2"
           style={styles.panel}
         >
           <div class="flex gap-3 items-center">
@@ -405,10 +413,10 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
         </div>
       )}
 
-      {/* Breadcrumbs */}
+      {/* Breadcrumbs - positioned to avoid legend panel */}
       {breadcrumbs.length > 0 && (
         <div
-          class="absolute top-20 left-5 z-[80] py-2.5 px-4 rounded-xl flex items-center gap-2.5 text-sm"
+          class="absolute top-5 left-[240px] z-[80] py-2.5 px-4 rounded-xl flex items-center gap-2.5 text-sm"
           style={styles.panel}
         >
           <span style={{ color: "var(--text-dim)", fontWeight: 500 }}>History:</span>
@@ -517,29 +525,6 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
         highlightedNodeId={highlightedNode}
         pathNodes={pathNodes}
       />
-
-      {/* Keyboard Shortcuts Help */}
-      <div
-        class="absolute bottom-5 right-5 z-[80] py-3 px-4 rounded-xl text-xs flex gap-5"
-        style={styles.panel}
-      >
-        <span style={{ color: "var(--text-dim)" }}>
-          <kbd class="px-2 py-0.5 rounded mr-1.5 text-[11px] font-medium" style={styles.kbd}>/</kbd>
-          Search
-        </span>
-        <span style={{ color: "var(--text-dim)" }}>
-          <kbd class="px-2 py-0.5 rounded mr-1.5 text-[11px] font-medium" style={styles.kbd}>
-            Esc
-          </kbd>
-          Clear
-        </span>
-        <span style={{ color: "var(--text-dim)" }}>
-          <kbd class="px-2 py-0.5 rounded mr-1.5 text-[11px] font-medium" style={styles.kbd}>
-            Ctrl+P
-          </kbd>
-          Path
-        </span>
-      </div>
     </div>
   );
 }

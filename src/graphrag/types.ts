@@ -15,7 +15,7 @@ export interface Task {
   id: string;
   tool: string;
   arguments: Record<string, unknown>;
-  depends_on: string[];
+  dependsOn: string[];
 
   /**
    * Task type (Story 3.4)
@@ -36,7 +36,7 @@ export interface Task {
   /**
    * Sandbox configuration (only for type="code_execution")
    */
-  sandbox_config?: {
+  sandboxConfig?: {
     timeout?: number;
     memoryLimit?: number;
     allowedReadPaths?: string[];
@@ -45,7 +45,7 @@ export interface Task {
   /**
    * Flag for side-effects (Story 2.5-3 HIL approval)
    */
-  side_effects?: boolean;
+  sideEffects?: boolean;
 }
 
 /**
@@ -67,13 +67,13 @@ export interface WorkflowIntent {
  * Workflow execution record
  */
 export interface WorkflowExecution {
-  execution_id: string;
-  executed_at: Date;
-  intent_text: string;
-  dag_structure: DAGStructure;
+  executionId: string;
+  executedAt: Date;
+  intentText: string;
+  dagStructure: DAGStructure;
   success: boolean;
-  execution_time_ms: number;
-  error_message?: string;
+  executionTimeMs: number;
+  errorMessage?: string;
 }
 
 /**
@@ -125,9 +125,9 @@ export interface ExecutionMode {
   warning?: string;
   error?: string;
   note?: string;
-  execution_time_ms?: number;
-  dag_used?: DAGStructure;
-  dependency_paths?: DependencyPath[];
+  executionTimeMs?: number;
+  dagUsed?: DAGStructure;
+  dependencyPaths?: DependencyPath[];
 }
 
 /**
@@ -190,15 +190,15 @@ export interface PredictedNode {
  */
 export interface SpeculationConfig {
   enabled: boolean;
-  confidence_threshold: number; // Default: 0.70
-  max_concurrent: number; // Default: 3
+  confidenceThreshold: number; // Default: 0.70
+  maxConcurrent: number; // Default: 3
 }
 
 /**
  * Cached result from speculative execution (Story 3.5-1)
  */
 export interface SpeculationCache {
-  prediction_id: string;
+  predictionId: string;
   toolId: string;
   result: unknown;
   confidence: number;
@@ -210,23 +210,23 @@ export interface SpeculationCache {
  * Speculation metrics for monitoring (Story 3.5-1)
  */
 export interface SpeculationMetrics {
-  hit_rate: number;
-  net_benefit_ms: number;
-  false_positive_rate: number;
-  total_speculations: number;
-  total_hits: number;
-  total_misses: number;
+  hitRate: number;
+  netBenefitMs: number;
+  falsePositiveRate: number;
+  totalSpeculations: number;
+  totalHits: number;
+  totalMisses: number;
 }
 
 /**
  * Learned pattern from execution history (Story 3.5-1)
  */
 export interface LearnedPattern {
-  from_tool: string;
-  to_tool: string;
-  success_rate: number;
-  observation_count: number;
-  avg_confidence: number;
+  fromTool: string;
+  toTool: string;
+  successRate: number;
+  observationCount: number;
+  avgConfidence: number;
   source: "user" | "learned";
 }
 
@@ -234,9 +234,9 @@ export interface LearnedPattern {
  * Workflow state for prediction (Story 3.5-1)
  */
 export interface WorkflowPredictionState {
-  workflow_id: string;
-  current_layer: number;
-  completed_tasks: CompletedTask[];
+  workflowId: string;
+  currentLayer: number;
+  completedTasks: CompletedTask[];
   context?: Record<string, unknown>;
 }
 
@@ -308,27 +308,27 @@ export interface TimeSeriesPoint {
 export interface GraphMetricsResponse {
   /** Current snapshot metrics */
   current: {
-    node_count: number;
-    edge_count: number;
+    nodeCount: number;
+    edgeCount: number;
     density: number;
-    adaptive_alpha: number;
-    communities_count: number;
-    pagerank_top_10: Array<{ tool_id: string; score: number }>;
+    adaptiveAlpha: number;
+    communitiesCount: number;
+    pagerankTop10: Array<{ toolId: string; score: number }>;
   };
 
   /** Time series data for charts */
   timeseries: {
-    edge_count: TimeSeriesPoint[];
-    avg_confidence: TimeSeriesPoint[];
-    workflow_rate: TimeSeriesPoint[];
+    edgeCount: TimeSeriesPoint[];
+    avgConfidence: TimeSeriesPoint[];
+    workflowRate: TimeSeriesPoint[];
   };
 
   /** Period statistics */
   period: {
     range: MetricsTimeRange;
-    workflows_executed: number;
-    workflows_success_rate: number;
-    new_edges_created: number;
-    new_nodes_added: number;
+    workflowsExecuted: number;
+    workflowsSuccessRate: number;
+    newEdgesCreated: number;
+    newNodesAdded: number;
   };
 }
