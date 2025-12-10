@@ -90,6 +90,9 @@ export class ControlledExecutor extends ParallelExecutor {
   private speculationConfig: SpeculationConfig = DEFAULT_SPECULATION_CONFIG;
   private lastCompletedTool: string | null = null; // For pattern reinforcement
 
+  // Story 9.5: Multi-tenant data isolation
+  private userId: string = "local";
+
   /**
    * Create a new controlled executor
    *
@@ -100,6 +103,7 @@ export class ControlledExecutor extends ParallelExecutor {
     super(toolExecutor, config);
     this.eventStream = new EventStream();
     this.commandQueue = new CommandQueue();
+    this.userId = config.userId ?? "local"; // Story 9.5: Multi-tenant isolation
   }
 
   /**
@@ -1349,6 +1353,7 @@ export class ControlledExecutor extends ParallelExecutor {
           success: failedTasks === 0,
           executionTimeMs: totalTime,
           errorMessage: failedTasks > 0 ? `${failedTasks} tasks failed` : undefined,
+          userId: this.userId, // Story 9.5: Multi-tenant data isolation
         };
 
         // Fire-and-forget: Update GraphRAG asynchronously (don't await)

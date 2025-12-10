@@ -53,6 +53,8 @@ import { CheckpointManager } from "../dag/checkpoint-manager.ts";
 import type { ExecutionEvent, TaskResult } from "../dag/types.ts";
 import { EventsStreamManager } from "../server/events-stream.ts";
 import { logAuthMode, validateRequest } from "../lib/auth.ts";
+import { RateLimiter } from "../utils/rate-limiter.ts";
+import { getRateLimitKey } from "../lib/rate-limiter-helpers.ts";
 
 /**
  * MCP JSON-RPC error codes
@@ -521,6 +523,7 @@ export class CasysIntelligenceGatewayServer {
    */
   private async handleCallTool(
     request: unknown,
+    userId?: string, // Story 9.5: Multi-tenant isolation
   ): Promise<
     { content: Array<{ type: string; text: string }> } | {
       error: { code: number; message: string; data?: unknown };
@@ -548,7 +551,7 @@ export class CasysIntelligenceGatewayServer {
 
       // Check if this is a DAG execution request (renamed from execute_workflow)
       if (name === "cai:execute_dag") {
-        const result = await this.handleWorkflowExecution(args);
+        const result = await this.handleWorkflowExecution(args, userId);
         transaction.finish();
         return result;
       }
@@ -655,6 +658,7 @@ export class CasysIntelligenceGatewayServer {
    */
   private async handleWorkflowExecution(
     args: unknown,
+    userId?: string, // Story 9.5: Multi-tenant isolation
   ): Promise<
     { content: Array<{ type: string; text: string }> } | {
       error: { code: number; message: string; data?: unknown };
@@ -686,6 +690,7 @@ export class CasysIntelligenceGatewayServer {
         return await this.executeWithPerLayerValidation(
           normalizedWorkflow,
           workflowArgs.intent ?? "explicit_workflow",
+          userId, // Story 9.5: Multi-tenant isolation
         );
       }
 
@@ -700,6 +705,7 @@ export class CasysIntelligenceGatewayServer {
         dagStructure: normalizedWorkflow,
         success: result.errors.length === 0,
         executionTimeMs: result.executionTimeMs,
+        userId: userId ?? "local", // Story 9.5: Multi-tenant isolation
       });
 
       return {
@@ -758,6 +764,7 @@ export class CasysIntelligenceGatewayServer {
           return await this.executeWithPerLayerValidation(
             executionMode.dagStructure,
             workflowArgs.intent,
+            userId, // Story 9.5: Multi-tenant isolation
           );
         }
 
@@ -822,6 +829,7 @@ export class CasysIntelligenceGatewayServer {
   private async executeWithPerLayerValidation(
     dag: DAGStructure,
     intent: string,
+    userId?: string, // Story 9.5: Multi-tenant isolation
   ): Promise<{ content: Array<{ type: string; text: string }> }> {
     const workflowId = crypto.randomUUID();
 
@@ -840,7 +848,7 @@ export class CasysIntelligenceGatewayServer {
         }
         return await client.callTool(toolName, args);
       },
-      { taskTimeout: 30000 },
+      { taskTimeout: 30000, userId: userId ?? "local" }, // Story 9.5: Multi-tenant isolation
     );
 
     // Configure checkpointing
@@ -2099,6 +2107,12 @@ export class CasysIntelligenceGatewayServer {
     // Story 9.3: Log auth mode at startup (AC #5)
     logAuthMode("API Server");
 
+    // Story 9.5: Rate limiters per endpoint (cloud mode only)
+    const RATE_LIMITERS = {
+      mcp: new RateLimiter(100, 60000),  // 100 req/min for MCP gateway
+      api: new RateLimiter(200, 60000),  // 200 req/min for API routes (graph, executions)
+    };
+
     // CORS headers for Fresh dashboard (runs on different port)
     // Prod: https://DOMAIN, Dev: http://localhost:FRESH_PORT
     const getAllowedOrigin = (): string => {
@@ -2126,9 +2140,10 @@ export class CasysIntelligenceGatewayServer {
 
       // Story 9.3: Auth validation for protected routes
       const PUBLIC_ROUTES = ["/health"];
+      let authResult = null;
       if (!PUBLIC_ROUTES.includes(url.pathname)) {
-        const auth = await validateRequest(req);
-        if (!auth) {
+        authResult = await validateRequest(req);
+        if (!authResult) {
           return new Response(
             JSON.stringify({
               error: "Unauthorized",
@@ -2140,7 +2155,41 @@ export class CasysIntelligenceGatewayServer {
             },
           );
         }
-        // TODO (Story 9.5): Propagate auth.user_id into execution context for data isolation
+
+        // Story 9.5: Rate limiting per user_id (cloud mode) or IP/shared (local mode)
+        const clientIp = req.headers.get("x-forwarded-for") ||
+                        req.headers.get("cf-connecting-ip") ||
+                        "unknown";
+        const rateLimitKey = getRateLimitKey(authResult, clientIp);
+
+        // Select rate limiter based on endpoint
+        let limiter: RateLimiter | null = null;
+        if (url.pathname === "/mcp") {
+          limiter = RATE_LIMITERS.mcp;
+        } else if (url.pathname.startsWith("/api/")) {
+          limiter = RATE_LIMITERS.api;
+        }
+        // No limiter for /health and /events/stream
+
+        // Check rate limit
+        if (limiter && !(await limiter.checkLimit(rateLimitKey))) {
+          log.warn(`Rate limit exceeded for ${rateLimitKey} on ${url.pathname}`);
+          return new Response(
+            JSON.stringify({
+              error: "Rate limit exceeded",
+              message: "Too many requests. Please try again later.",
+              retryAfter: 60,
+            }),
+            {
+              status: 429,
+              headers: {
+                "Content-Type": "application/json",
+                "Retry-After": "60",
+                ...corsHeaders,
+              },
+            },
+          );
+        }
       }
 
       // MCP Streamable HTTP endpoint (for Claude Code HTTP transport)
@@ -2150,7 +2199,7 @@ export class CasysIntelligenceGatewayServer {
         if (req.method === "POST") {
           try {
             const body = await req.json();
-            const response = await this.handleJsonRpcRequest(body);
+            const response = await this.handleJsonRpcRequest(body, authResult?.user_id);
             return new Response(JSON.stringify(response), {
               headers: {
                 "Content-Type": "application/json",
@@ -2358,7 +2407,7 @@ export class CasysIntelligenceGatewayServer {
       if (url.pathname === "/message" && req.method === "POST") {
         try {
           const body = await req.json();
-          const response = await this.handleJsonRpcRequest(body);
+          const response = await this.handleJsonRpcRequest(body, authResult?.user_id);
           return new Response(JSON.stringify(response), {
             headers: { "Content-Type": "application/json" },
           });
@@ -2391,12 +2440,15 @@ export class CasysIntelligenceGatewayServer {
   /**
    * Handle a JSON-RPC request directly (for HTTP transport)
    */
-  private async handleJsonRpcRequest(request: {
-    jsonrpc: string;
-    id: number | string;
-    method: string;
-    params?: Record<string, unknown>;
-  }): Promise<Record<string, unknown>> {
+  private async handleJsonRpcRequest(
+    request: {
+      jsonrpc: string;
+      id: number | string;
+      method: string;
+      params?: Record<string, unknown>;
+    },
+    userId?: string, // Story 9.5: Multi-tenant isolation
+  ): Promise<Record<string, unknown>> {
     const { id, method, params } = request;
 
     try {
@@ -2430,7 +2482,7 @@ export class CasysIntelligenceGatewayServer {
       }
 
       if (method === "tools/call") {
-        const result = await this.handleCallTool({ params });
+        const result = await this.handleCallTool({ params }, userId);
         return { jsonrpc: "2.0", id, result };
       }
 

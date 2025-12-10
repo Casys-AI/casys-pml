@@ -94,6 +94,13 @@ export interface ExecutorConfig {
     enabled: boolean;
     approval_required: "always" | "critical_only" | "never";
   };
+
+  /**
+   * User ID for multi-tenant isolation (Story 9.5)
+   * Passed to workflow_execution INSERT for data isolation.
+   * Defaults to "local" for backward compatibility.
+   */
+  userId?: string;
 }
 
 /**
@@ -261,32 +268,32 @@ export type Command =
       arguments: Record<string, unknown>;
       dependsOn: string[];
     }>;
-    target_layer: number;
+    targetLayer: number;
   }
   | {
     type: "replan_dag";
-    new_requirement: string; // Natural language description of new requirement
-    available_context: Record<string, unknown>; // Current execution context
+    newRequirement: string; // Natural language description of new requirement
+    availableContext: Record<string, unknown>; // Current execution context
   }
   | {
     type: "skip_layer";
-    layer_index: number;
+    layerIndex: number;
     reason: string;
   }
   | {
     type: "modify_args";
-    task_id: string;
+    taskId: string;
     updates: Record<string, unknown>;
   }
   | {
     type: "checkpoint_response";
-    checkpoint_id: string;
+    checkpointId: string;
     decision: "continue" | "rollback" | "modify";
     modifications?: Record<string, unknown>;
   }
   | {
     type: "approval_response";
-    checkpoint_id: string; // References the checkpoint being approved/rejected
+    checkpointId: string; // References the checkpoint being approved/rejected
     approved: boolean; // true = continue, false = abort
     feedback?: string; // Optional human feedback
   };
