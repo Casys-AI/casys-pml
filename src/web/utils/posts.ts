@@ -283,7 +283,7 @@ async function getPostByFilename(filename: string, content?: string): Promise<Po
       category: attrs.category || "general",
       tags: Array.isArray(attrs.tags) ? attrs.tags : [],
       snippet: attrs.snippet || "",
-      author: attrs.author || "CAI Team",
+      author: attrs.author || "Casys Team",
       content: body,
       html,
     };

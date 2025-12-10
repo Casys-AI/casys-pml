@@ -21,11 +21,11 @@ export default function BlogIndex({ data }: { data: { posts: Post[] } }) {
   return (
     <>
       <Head>
-        <title>Blog - CAI</title>
+        <title>Blog - Casys PML</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta
           name="description"
-          content="Engineering insights, technical deep-dives, and lessons learned building Collective Agentic Intelligence."
+          content="Engineering insights, technical deep-dives, and lessons learned building Casys PML - a Procedural Memory Layer for AI agents."
         />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
@@ -36,7 +36,7 @@ export default function BlogIndex({ data }: { data: { posts: Post[] } }) {
         <link
           rel="alternate"
           type="application/atom+xml"
-          title="CAI Blog Feed"
+          title="Casys PML Blog Feed"
           href="/blog/feed.xml"
         />
       </Head>
@@ -45,8 +45,8 @@ export default function BlogIndex({ data }: { data: { posts: Post[] } }) {
         <header class="header">
           <div class="header-inner">
             <a href="/" class="logo">
-              <span class="logo-mark">CAI</span>
-              <span class="logo-text">Collective Agentic Intelligence</span>
+              <span class="logo-mark">Casys PML</span>
+              <span class="logo-text">Procedural Memory Layer</span>
             </a>
             <nav class="nav">
               <a href="/" class="nav-link">Home</a>
@@ -68,7 +68,7 @@ export default function BlogIndex({ data }: { data: { posts: Post[] } }) {
               <span class="section-label">Engineering Blog</span>
               <h1 class="blog-title">Insights & Deep Dives</h1>
               <p class="blog-desc">
-                Technical explorations, debugging stories, and lessons learned building CAI.
+                Technical explorations, debugging stories, and lessons learned building Casys PML.
               </p>
             </div>
 
@@ -110,8 +110,8 @@ export default function BlogIndex({ data }: { data: { posts: Post[] } }) {
         <footer class="footer">
           <div class="footer-inner">
             <div class="footer-brand">
-              <span class="logo-mark">CAI</span>
-              <span class="footer-tagline">Collective Agentic Intelligence</span>
+              <span class="logo-mark">Casys PML</span>
+              <span class="footer-tagline">Procedural Memory Layer</span>
             </div>
             <div class="footer-links">
               <a href="https://casys.ai" target="_blank" rel="noopener">Casys.ai</a>

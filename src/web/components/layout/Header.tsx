@@ -52,7 +52,7 @@ export default function Header({ user, isCloudMode, children }: HeaderProps) {
         >
           <path d="M19 12H5M12 19l-7-7 7-7" />
         </svg>
-        CAI
+        Casys PML
       </a>
 
       {/* Center: Search slot (portal target) */}

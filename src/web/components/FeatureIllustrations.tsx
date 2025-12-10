@@ -1939,7 +1939,7 @@ export function OrchestratorIllustration() {
           font-size="12"
           font-weight="bold"
         >
-          CAI GATEWAY
+          PML GATEWAY
         </text>
 
         {/* Processing indicator */}
