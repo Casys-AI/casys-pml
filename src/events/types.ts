@@ -120,9 +120,9 @@ export type AgentCardsEvent<T extends EventType = EventType, P = unknown> = CaiE
  */
 export interface ToolStartPayload {
   /** Full tool identifier (server:tool_name) */
-  tool_id: string;
+  toolId: string;
   /** Unique trace ID for correlating start/end */
-  trace_id: string;
+  traceId: string;
   /** Tool arguments (may be redacted for sensitive data) */
   args?: Record<string, unknown>;
 }
@@ -132,17 +132,17 @@ export interface ToolStartPayload {
  */
 export interface ToolEndPayload {
   /** Full tool identifier (server:tool_name) */
-  tool_id: string;
+  toolId: string;
   /** Unique trace ID for correlating start/end */
-  trace_id: string;
+  traceId: string;
   /** Whether tool execution succeeded */
   success: boolean;
   /** Execution duration in milliseconds */
-  duration_ms: number;
+  durationMs: number;
   /** Error message if failed */
   error?: string;
   /** Result summary (truncated for large outputs) */
-  result_summary?: string;
+  resultSummary?: string;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -154,13 +154,13 @@ export interface ToolEndPayload {
  */
 export interface CapabilityStartPayload {
   /** Capability identifier (code hash) */
-  capability_id: string;
+  capabilityId: string;
   /** Capability name */
   capability: string;
   /** Trace ID for correlation */
-  trace_id: string;
+  traceId: string;
   /** Parent trace ID if nested */
-  parent_trace_id?: string;
+  parentTraceId?: string;
   /** Arguments passed to capability */
   args?: Record<string, unknown>;
 }
@@ -170,15 +170,15 @@ export interface CapabilityStartPayload {
  */
 export interface CapabilityEndPayload {
   /** Capability identifier (code hash) */
-  capability_id: string;
+  capabilityId: string;
   /** Capability name */
   capability: string;
   /** Trace ID for correlation */
-  trace_id: string;
+  traceId: string;
   /** Whether capability execution succeeded */
   success: boolean;
   /** Execution duration in milliseconds */
-  duration_ms: number;
+  durationMs: number;
   /** Error message if failed */
   error?: string;
 }
@@ -188,19 +188,19 @@ export interface CapabilityEndPayload {
  */
 export interface CapabilityLearnedPayload {
   /** Capability identifier (code hash) */
-  capability_id: string;
+  capabilityId: string;
   /** Capability name */
   name: string;
   /** Intent that triggered learning */
   intent: string;
   /** Tools used by capability */
-  tools_used: string[];
+  toolsUsed: string[];
   /** Whether this is a new capability or update */
-  is_new: boolean;
+  isNew: boolean;
   /** Usage count after save */
-  usage_count: number;
+  usageCount: number;
   /** Success rate */
-  success_rate: number;
+  successRate: number;
 }
 
 /**
@@ -208,7 +208,7 @@ export interface CapabilityLearnedPayload {
  */
 export interface CapabilityMatchedPayload {
   /** Capability identifier (code hash) */
-  capability_id: string;
+  capabilityId: string;
   /** Capability name */
   name: string;
   /** Intent that was matched */
@@ -216,9 +216,9 @@ export interface CapabilityMatchedPayload {
   /** Final calculated score (semantic * reliability factor, capped at 0.95) */
   score: number;
   /** Raw semantic similarity score (0-1) before adjustments */
-  semantic_score: number;
+  semanticScore: number;
   /** Threshold used for matching */
-  threshold_used: number;
+  thresholdUsed: number;
   /** Whether capability was selected for execution */
   selected: boolean;
 }
@@ -232,15 +232,15 @@ export interface CapabilityMatchedPayload {
  */
 export interface DagStartedPayload {
   /** Execution ID */
-  execution_id: string;
+  executionId: string;
   /** Intent text (if available) */
   intent?: string;
   /** Total number of tasks */
-  task_count: number;
+  taskCount: number;
   /** Number of parallel layers */
-  layer_count: number;
+  layerCount: number;
   /** Task IDs */
-  task_ids: string[];
+  taskIds: string[];
 }
 
 /**
@@ -248,9 +248,9 @@ export interface DagStartedPayload {
  */
 export interface DagTaskStartedPayload {
   /** Execution ID */
-  execution_id: string;
+  executionId: string;
   /** Task ID */
-  task_id: string;
+  taskId: string;
   /** Tool being executed */
   tool: string;
   /** Layer number (for parallel execution) */
@@ -264,15 +264,15 @@ export interface DagTaskStartedPayload {
  */
 export interface DagTaskCompletedPayload {
   /** Execution ID */
-  execution_id: string;
+  executionId: string;
   /** Task ID */
-  task_id: string;
+  taskId: string;
   /** Tool that was executed */
   tool: string;
   /** Execution duration in milliseconds */
-  duration_ms: number;
+  durationMs: number;
   /** Result summary */
-  result_summary?: string;
+  resultSummary?: string;
 }
 
 /**
@@ -280,9 +280,9 @@ export interface DagTaskCompletedPayload {
  */
 export interface DagTaskFailedPayload {
   /** Execution ID */
-  execution_id: string;
+  executionId: string;
   /** Task ID */
-  task_id: string;
+  taskId: string;
   /** Tool that failed */
   tool: string;
   /** Error message */
@@ -296,13 +296,13 @@ export interface DagTaskFailedPayload {
  */
 export interface DagCompletedPayload {
   /** Execution ID */
-  execution_id: string;
+  executionId: string;
   /** Total execution time in milliseconds */
-  total_duration_ms: number;
+  totalDurationMs: number;
   /** Number of successful tasks */
-  successful_tasks: number;
+  successfulTasks: number;
   /** Number of failed tasks */
-  failed_tasks: number;
+  failedTasks: number;
   /** Overall success (all tasks completed) */
   success: boolean;
   /** Parallelization speedup factor */
@@ -314,15 +314,15 @@ export interface DagCompletedPayload {
  */
 export interface DagReplannedPayload {
   /** Execution ID */
-  execution_id: string;
+  executionId: string;
   /** Reason for replan */
   reason: "ail_decision" | "hil_decision" | "error_recovery";
   /** Tasks added */
-  tasks_added: string[];
+  tasksAdded: string[];
   /** Tasks removed */
-  tasks_removed: string[];
+  tasksRemoved: string[];
   /** New layer count */
-  new_layer_count: number;
+  newLayerCount: number;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -334,11 +334,11 @@ export interface DagReplannedPayload {
  */
 export interface GraphSyncedPayload {
   /** Number of nodes in graph */
-  node_count: number;
+  nodeCount: number;
   /** Number of edges in graph */
-  edge_count: number;
+  edgeCount: number;
   /** Sync duration in milliseconds */
-  sync_duration_ms: number;
+  syncDurationMs: number;
 }
 
 /**
@@ -346,11 +346,11 @@ export interface GraphSyncedPayload {
  */
 export interface GraphEdgeCreatedPayload {
   /** Source tool ID */
-  from_tool_id: string;
+  fromToolId: string;
   /** Target tool ID */
-  to_tool_id: string;
+  toToolId: string;
   /** Initial confidence score */
-  confidence_score: number;
+  confidenceScore: number;
   /** Source of edge (execution, template, manual) */
   source?: string;
 }
@@ -360,15 +360,15 @@ export interface GraphEdgeCreatedPayload {
  */
 export interface GraphEdgeUpdatedPayload {
   /** Source tool ID */
-  from_tool_id: string;
+  fromToolId: string;
   /** Target tool ID */
-  to_tool_id: string;
+  toToolId: string;
   /** Previous confidence score */
-  old_confidence: number;
+  oldConfidence: number;
   /** New confidence score */
-  new_confidence: number;
+  newConfidence: number;
   /** Total observation count */
-  observed_count: number;
+  observedCount: number;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -379,27 +379,27 @@ export interface GraphEdgeUpdatedPayload {
  * Payload for algorithm.scored events
  */
 export interface AlgorithmScoredPayload {
-  /** Item identifier (tool_id or capability_id) */
-  item_id: string;
+  /** Item identifier (toolId or capabilityId) */
+  itemId: string;
   /** Type of item being scored */
-  item_type: "tool" | "capability";
+  itemType: "tool" | "capability";
   /** Intent text (if applicable) */
   intent?: string;
   /** Individual scoring signals */
   signals: {
     /** Semantic similarity score (0-1) */
-    semantic_score?: number;
+    semanticScore?: number;
     /** Graph-based relatedness score (0-1) */
-    graph_score?: number;
+    graphScore?: number;
     /** Historical success rate (0-1) */
-    success_rate?: number;
+    successRate?: number;
     /** PageRank centrality score */
     pagerank?: number;
     /** Adamic-Adar similarity */
-    adamic_adar?: number;
+    adamicAdar?: number;
   };
   /** Combined final score */
-  final_score: number;
+  finalScore: number;
   /** Current threshold for acceptance */
   threshold: number;
   /** Whether item was accepted or filtered */
@@ -411,17 +411,17 @@ export interface AlgorithmScoredPayload {
  */
 export interface AlgorithmSuggestedPayload {
   /** Unique suggestion ID */
-  suggestion_id: string;
+  suggestionId: string;
   /** Type of suggestion */
-  suggestion_type: "tool" | "capability" | "workflow";
+  suggestionType: "tool" | "capability" | "workflow";
   /** Item being suggested */
-  item_id: string;
+  itemId: string;
   /** Confidence in suggestion (0-1) */
   confidence: number;
   /** Reason for suggestion */
   reason: string;
   /** Context tools that influenced suggestion */
-  context_tools?: string[];
+  contextTools?: string[];
 }
 
 /**
@@ -429,13 +429,13 @@ export interface AlgorithmSuggestedPayload {
  */
 export interface AlgorithmFeedbackPayload {
   /** Suggestion ID being responded to */
-  suggestion_id: string;
+  suggestionId: string;
   /** Feedback action */
   action: "selected" | "ignored" | "rejected";
   /** Time from suggestion to action in milliseconds */
-  time_to_action_ms?: number;
+  timeToActionMs?: number;
   /** Optional feedback text */
-  feedback_text?: string;
+  feedbackText?: string;
 }
 
 /**
@@ -443,15 +443,15 @@ export interface AlgorithmFeedbackPayload {
  */
 export interface ThresholdAdjustedPayload {
   /** Context hash (for context-specific thresholds) */
-  context_hash: string;
+  contextHash: string;
   /** Previous threshold value */
-  old_value: number;
+  oldValue: number;
   /** New threshold value */
-  new_value: number;
+  newValue: number;
   /** Reason for adjustment */
   reason: "success_feedback" | "failure_feedback" | "decay" | "manual";
   /** Number of samples used for adjustment */
-  sample_count?: number;
+  sampleCount?: number;
 }
 
 /**
@@ -459,7 +459,7 @@ export interface ThresholdAdjustedPayload {
  */
 export interface AlgorithmAnomalyPayload {
   /** Type of anomaly */
-  anomaly_type: "score_drift" | "success_drop" | "latency_spike" | "usage_anomaly";
+  anomalyType: "score_drift" | "success_drop" | "latency_spike" | "usage_anomaly";
   /** Metric that triggered detection */
   metric: string;
   /** Expected value */
@@ -467,7 +467,7 @@ export interface AlgorithmAnomalyPayload {
   /** Actual value */
   actual: number;
   /** Standard deviations from mean */
-  z_score: number;
+  zScore: number;
   /** Severity level */
   severity: "low" | "medium" | "high";
 }
@@ -481,9 +481,9 @@ export interface AlgorithmAnomalyPayload {
  */
 export interface HeartbeatPayload {
   /** Number of connected SSE clients */
-  connected_clients: number;
+  connectedClients: number;
   /** Uptime in seconds */
-  uptime_seconds: number;
+  uptimeSeconds: number;
 }
 
 /**
@@ -495,7 +495,7 @@ export interface HealthCheckPayload {
   /** Health status */
   status: "healthy" | "degraded" | "unhealthy";
   /** Response time in milliseconds */
-  latency_ms: number;
+  latencyMs: number;
   /** Additional details */
   details?: Record<string, unknown>;
 }
@@ -505,17 +505,17 @@ export interface HealthCheckPayload {
  */
 export interface MetricsSnapshotPayload {
   /** Node count */
-  node_count: number;
+  nodeCount: number;
   /** Edge count */
-  edge_count: number;
+  edgeCount: number;
   /** Graph density */
   density: number;
   /** Active DAG executions */
-  active_executions: number;
+  activeExecutions: number;
   /** Capabilities count */
-  capabilities_count: number;
+  capabilitiesCount: number;
   /** Memory usage in bytes */
-  memory_usage_bytes?: number;
+  memoryUsageBytes?: number;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
