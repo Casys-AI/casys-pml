@@ -28,7 +28,7 @@ declare const self: DedicatedWorkerGlobalScope;
 
 // =============================================================================
 // Story 7.3b: Capability Tracing via BroadcastChannel (ADR-036)
-// ADR-041: Hierarchical trace tracking with parent_trace_id propagation
+// ADR-041: Hierarchical trace tracking with parentTraceId propagation
 // =============================================================================
 
 /**
@@ -38,22 +38,27 @@ declare const self: DedicatedWorkerGlobalScope;
 const traceChannel = new BroadcastChannel("cai-traces");
 
 // ADR-041: Context stack for hierarchical trace tracking
-// Tracks current trace context (trace_id of active capability)
+// Tracks current trace context (traceId of active capability)
 // Stack supports nested capabilities: [outermost, ..., current]
 interface TraceContext {
-  trace_id: string;
+  traceId: string;
   capability: string;
-  capability_id: string;
+  capabilityId: string;
 }
 const __traceContextStack: TraceContext[] = [];
 
+// ADR-041: Root parent trace ID from workflow/task context
+// Initialized from InitMessage.parentTraceId
+let __rootParentTraceId: string | undefined;
+
 /**
- * Get current trace context (for parent_trace_id propagation)
- * Returns the trace_id of the currently executing capability, or undefined
+ * Get current trace context (for parentTraceId propagation)
+ * Returns the traceId of the currently executing capability,
+ * or the root parent trace ID from workflow, or undefined
  */
 function __getCurrentTraceId(): string | undefined {
-  if (__traceContextStack.length === 0) return undefined;
-  return __traceContextStack[__traceContextStack.length - 1].trace_id;
+  if (__traceContextStack.length === 0) return __rootParentTraceId;
+  return __traceContextStack[__traceContextStack.length - 1].traceId;
 }
 
 // Note: __capabilityDepth is now closure-scoped in the capability context
@@ -63,29 +68,29 @@ function __getCurrentTraceId(): string | undefined {
 /**
  * Trace function for capability events
  * Emits traces via BroadcastChannel for real-time collection
- * ADR-041: Manages trace context stack and propagates parent_trace_id
+ * ADR-041: Manages trace context stack and propagates parentTraceId
  *
- * @param event - Partial trace event (type, capability, capability_id required)
+ * @param event - Partial trace event (type, capability, capabilityId required)
  */
 function __trace(event: Partial<CapabilityTraceEvent>): void {
   try {
-    // ADR-041: Generate trace_id for this event
-    const trace_id = crypto.randomUUID();
+    // ADR-041: Generate traceId for this event
+    const traceId = crypto.randomUUID();
 
-    // ADR-041: Get parent_trace_id from current context (before push/pop)
-    const parent_trace_id = event.type === "capability_start"
-      ? __getCurrentTraceId() // Parent is the CURRENT top of stack
+    // ADR-041: Get parentTraceId from current context (before push/pop)
+    const parentTraceId = event.type === "capability_start"
+      ? __getCurrentTraceId() // Parent is the CURRENT top of stack (or root)
       : undefined; // For capability_end, parent is already set
 
     const fullEvent: CapabilityTraceEvent = {
       type: event.type as "capability_start" | "capability_end",
       capability: event.capability || "unknown",
-      capability_id: event.capability_id || "unknown",
-      trace_id: trace_id,
+      capabilityId: event.capabilityId || "unknown",
+      traceId: traceId,
       ts: Date.now(),
       success: event.success,
       error: event.error,
-      parent_trace_id: parent_trace_id,
+      parentTraceId: parentTraceId,
       args: event.args,
     };
 
@@ -93,19 +98,19 @@ function __trace(event: Partial<CapabilityTraceEvent>): void {
     if (event.type === "capability_start") {
       // Push new context onto stack
       __traceContextStack.push({
-        trace_id: trace_id,
+        traceId: traceId,
         capability: event.capability || "unknown",
-        capability_id: event.capability_id || "unknown",
+        capabilityId: event.capabilityId || "unknown",
       });
     } else if (event.type === "capability_end") {
       // Pop context from stack (find matching capability)
-      // Use capability_id to match in case of concurrent calls
+      // Use capabilityId to match in case of concurrent calls
       const idx = __traceContextStack.findLastIndex(
-        (ctx) => ctx.capability_id === event.capability_id,
+        (ctx) => ctx.capabilityId === event.capabilityId,
       );
       if (idx !== -1) {
-        // Update fullEvent.trace_id to match the start event
-        fullEvent.trace_id = __traceContextStack[idx].trace_id;
+        // Update fullEvent.traceId to match the start event
+        fullEvent.traceId = __traceContextStack[idx].traceId;
         __traceContextStack.splice(idx, 1);
       }
     }
@@ -131,7 +136,7 @@ const pendingCalls = new Map<string, {
 
 /**
  * RPC call function - sends message to bridge and waits for response
- * ADR-041: Includes parent_trace_id for hierarchical tracking (capability → tool)
+ * ADR-041: Includes parentTraceId for hierarchical tracking (capability → tool)
  *
  * @param server MCP server identifier
  * @param tool Tool name
@@ -145,20 +150,20 @@ async function __rpcCall(
 ): Promise<unknown> {
   const id = crypto.randomUUID();
 
-  // ADR-041: Get current trace context for parent_trace_id
-  const parent_trace_id = __getCurrentTraceId();
+  // ADR-041: Get current trace context for parentTraceId
+  const parentTraceId = __getCurrentTraceId();
 
   return new Promise((resolve, reject) => {
     pendingCalls.set(id, { resolve, reject });
 
-    // Send RPC request to bridge with parent_trace_id (ADR-041)
+    // Send RPC request to bridge with parentTraceId (ADR-041)
     self.postMessage({
       type: "rpc_call",
       id,
       server,
       tool,
       args,
-      parent_trace_id, // ADR-041: Propagate trace context
+      parentTraceId, // ADR-041: Propagate trace context
     });
   });
 }
@@ -263,9 +268,13 @@ self.onmessage = async (e: MessageEvent<BridgeToWorkerMessage>) => {
 /**
  * Handle init message - setup and execute user code
  * Story 7.3b: Now accepts capabilityContext for inline capability functions
+ * ADR-041: Initializes root parent trace ID for hierarchical tracking
  */
 async function handleInit(msg: InitMessage): Promise<void> {
-  const { code, toolDefinitions, context, capabilityContext } = msg;
+  const { code, toolDefinitions, context, capabilityContext, parentTraceId } = msg;
+
+  // ADR-041: Initialize root parent trace ID from workflow/task context
+  __rootParentTraceId = parentTraceId;
 
   try {
     // Generate tool proxies from definitions

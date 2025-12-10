@@ -171,7 +171,7 @@ Deno.test({
     assertExists(capEnd, "Should have capability_end trace");
 
     if (capStart && capStart.type === "capability_start") {
-      assertEquals(capStart.capability_id, "cap-e2e-deploy");
+      assertEquals(capStart.capabilityId, "cap-e2e-deploy");
     }
 
     bridge.cleanup();
@@ -394,7 +394,7 @@ Deno.test({
     // Error trace should indicate failure
     if (capEnd && capEnd.type === "capability_end") {
       // Note: success might still be true in finally block, but error was thrown
-      assertExists(capEnd.capability_id);
+      assertExists(capEnd.capabilityId);
     }
 
     bridge.cleanup();
