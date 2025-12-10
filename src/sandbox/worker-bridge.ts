@@ -121,16 +121,17 @@ export class WorkerBridge {
       this.traces.push(e.data);
 
       // Story 6.5: Forward capability traces to unified EventBus
-      // ADR-041: Include parent_trace_id for hierarchical tracking
+      // ADR-041: Include parentTraceId for hierarchical tracking
+      // Convert internal snake_case to camelCase for event payloads (per implementation-patterns.md)
       if (e.data.type === "capability_start") {
         eventBus.emit({
           type: "capability.start",
           source: "sandbox-worker",
           payload: {
-            capability_id: e.data.capability_id,
+            capabilityId: e.data.capability_id,
             capability: e.data.capability,
-            trace_id: e.data.trace_id,
-            parent_trace_id: e.data.parent_trace_id, // ADR-041
+            traceId: e.data.trace_id,
+            parentTraceId: e.data.parent_trace_id, // ADR-041
             args: e.data.args, // ADR-041
           },
         });
@@ -139,12 +140,12 @@ export class WorkerBridge {
           type: "capability.end",
           source: "sandbox-worker",
           payload: {
-            capability_id: e.data.capability_id,
+            capabilityId: e.data.capability_id,
             capability: e.data.capability,
-            trace_id: e.data.trace_id,
-            parent_trace_id: e.data.parent_trace_id, // ADR-041
+            traceId: e.data.trace_id,
+            parentTraceId: e.data.parent_trace_id, // ADR-041
             success: e.data.success ?? true,
-            duration_ms: e.data.duration_ms ?? 0,
+            durationMs: e.data.duration_ms ?? 0,
             error: e.data.error,
           },
         });
@@ -360,15 +361,15 @@ export class WorkerBridge {
     });
 
     // Story 6.5: Emit tool.start event to EventBus
-    // ADR-041: Include parent_trace_id in event payload
+    // ADR-041: Include parentTraceId in event payload
+    // Convert internal snake_case to camelCase for event payloads (per implementation-patterns.md)
     eventBus.emit({
       type: "tool.start",
       source: "worker-bridge",
       payload: {
-        tool_id: toolId,
-        trace_id: id,
+        toolId: toolId,
+        traceId: id,
         args: args,
-        parent_trace_id: parent_trace_id, // ADR-041
       },
     });
 
@@ -397,16 +398,15 @@ export class WorkerBridge {
       });
 
       // Story 6.5: Emit tool.end event to EventBus (success)
-      // ADR-041: Include parent_trace_id in event payload
+      // Convert internal snake_case to camelCase for event payloads (per implementation-patterns.md)
       eventBus.emit({
         type: "tool.end",
         source: "worker-bridge",
         payload: {
-          tool_id: toolId,
-          trace_id: id,
+          toolId: toolId,
+          traceId: id,
           success: true,
-          duration_ms: durationMs,
-          parent_trace_id: parent_trace_id, // ADR-041
+          durationMs: durationMs,
         },
       });
 
@@ -439,17 +439,16 @@ export class WorkerBridge {
       });
 
       // Story 6.5: Emit tool.end event to EventBus (failure)
-      // ADR-041: Include parent_trace_id in event payload
+      // Convert internal snake_case to camelCase for event payloads (per implementation-patterns.md)
       eventBus.emit({
         type: "tool.end",
         source: "worker-bridge",
         payload: {
-          tool_id: toolId,
-          trace_id: id,
+          toolId: toolId,
+          traceId: id,
           success: false,
-          duration_ms: durationMs,
+          durationMs: durationMs,
           error: errorMessage,
-          parent_trace_id: parent_trace_id, // ADR-041
         },
       });
 

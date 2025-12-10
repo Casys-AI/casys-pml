@@ -231,55 +231,55 @@ function createStatsSubcommand() {
  */
 function displayStats(
   metrics: {
-    hit_rate: number;
-    net_benefit_ms: number;
-    false_positive_rate: number;
-    total_speculations: number;
-    total_hits: number;
-    total_misses: number;
+    hitRate: number;
+    netBenefitMs: number;
+    falsePositiveRate: number;
+    totalSpeculations: number;
+    totalHits: number;
+    totalMisses: number;
   },
-  config: { enabled: boolean; confidence_threshold: number; max_concurrent: number },
+  config: { enabled: boolean; confidenceThreshold: number; maxConcurrent: number },
 ): void {
   console.log("📊 Speculation Statistics:\n");
 
   // Status
   console.log(`   Status:             ${config.enabled ? "🟢 Active" : "🔴 Disabled"}`);
-  console.log(`   Current Threshold:  ${config.confidence_threshold.toFixed(2)}`);
+  console.log(`   Current Threshold:  ${config.confidenceThreshold.toFixed(2)}`);
   console.log("");
 
   // Core metrics
   console.log("   Execution Metrics:");
-  console.log(`     Total Speculations: ${metrics.total_speculations}`);
-  console.log(`     Hits:               ${metrics.total_hits}`);
-  console.log(`     Misses:             ${metrics.total_misses}`);
+  console.log(`     Total Speculations: ${metrics.totalSpeculations}`);
+  console.log(`     Hits:               ${metrics.totalHits}`);
+  console.log(`     Misses:             ${metrics.totalMisses}`);
   console.log("");
 
   // Rates
   console.log("   Performance:");
-  console.log(`     Hit Rate:           ${(metrics.hit_rate * 100).toFixed(1)}%`);
-  console.log(`     False Positive Rate: ${(metrics.false_positive_rate * 100).toFixed(1)}%`);
-  console.log(`     Net Benefit:        ${metrics.net_benefit_ms.toFixed(0)}ms`);
+  console.log(`     Hit Rate:           ${(metrics.hitRate * 100).toFixed(1)}%`);
+  console.log(`     False Positive Rate: ${(metrics.falsePositiveRate * 100).toFixed(1)}%`);
+  console.log(`     Net Benefit:        ${metrics.netBenefitMs.toFixed(0)}ms`);
 
   // Interpretation
   console.log("\n   📈 Analysis:");
-  if (metrics.total_speculations === 0) {
+  if (metrics.totalSpeculations === 0) {
     console.log("      No speculations recorded yet.");
-  } else if (metrics.hit_rate >= 0.8) {
+  } else if (metrics.hitRate >= 0.8) {
     console.log("      🌟 Excellent hit rate! Speculation is highly effective.");
-  } else if (metrics.hit_rate >= 0.6) {
+  } else if (metrics.hitRate >= 0.6) {
     console.log("      ✅ Good hit rate. Speculation is providing value.");
-  } else if (metrics.hit_rate >= 0.4) {
+  } else if (metrics.hitRate >= 0.4) {
     console.log("      ⚠️  Moderate hit rate. Consider raising threshold.");
   } else {
     console.log("      ❌ Low hit rate. Consider raising threshold significantly.");
   }
 
-  if (metrics.net_benefit_ms > 0) {
-    console.log(`      💰 Net time saved: ${metrics.net_benefit_ms.toFixed(0)}ms`);
-  } else if (metrics.net_benefit_ms < 0) {
+  if (metrics.netBenefitMs > 0) {
+    console.log(`      💰 Net time saved: ${metrics.netBenefitMs.toFixed(0)}ms`);
+  } else if (metrics.netBenefitMs < 0) {
     console.log(
       `      ⚠️  Net time lost: ${
-        Math.abs(metrics.net_benefit_ms).toFixed(0)
+        Math.abs(metrics.netBenefitMs).toFixed(0)
       }ms (consider raising threshold)`,
     );
   }
