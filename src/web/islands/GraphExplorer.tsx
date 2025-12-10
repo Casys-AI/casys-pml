@@ -7,7 +7,7 @@
 
 import { useEffect, useRef, useState } from "preact/hooks";
 import { createPortal } from "preact/compat";
-import GraphVisualization from "./GraphVisualization.tsx";
+import D3GraphVisualization from "./D3GraphVisualization.tsx";
 
 interface ToolSearchResult {
   tool_id: string;
@@ -517,8 +517,8 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
         </div>
       )}
 
-      {/* Graph Visualization */}
-      <GraphVisualization
+      {/* Graph Visualization (D3.js - supports hyperedges) */}
+      <D3GraphVisualization
         apiBase={apiBase}
         onNodeSelect={handleNodeSelect}
         highlightedNodeId={highlightedNode}
