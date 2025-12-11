@@ -1228,7 +1228,11 @@ export class PMLGatewayServer {
       });
 
       // Build execution context (for non-tool variables)
-      const executionContext = request.context || {};
+      // Story 8.3: Include intent in context for capability learning
+      const executionContext = {
+        ...request.context,
+        intent: request.intent,
+      };
 
       // Configure sandbox
       const sandboxConfig = request.sandbox_config || {};
@@ -1238,6 +1242,9 @@ export class PMLGatewayServer {
         allowedReadPaths: sandboxConfig.allowedReadPaths ?? [],
         piiProtection: this.config.piiProtection,
         cacheConfig: this.config.cacheConfig,
+        // Story 8.3: Enable capability learning from code execution
+        capabilityStore: this.capabilityStore,
+        graphRAG: this.graphEngine,
       });
 
       // Set tool versions for cache key generation (Story 3.7)

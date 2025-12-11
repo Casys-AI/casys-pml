@@ -68,7 +68,7 @@ interface CapabilityZone {
   minRadius: number;
 }
 
-/** Hypergraph API response (Story 8.1/8.3) */
+/** Hypergraph API response (Story 8.1/8.3) - snake_case from API */
 interface HypergraphResponse {
   nodes: Array<{
     data: {
@@ -79,10 +79,11 @@ interface HypergraphResponse {
       pagerank?: number;
       degree?: number;
       parents?: string[];
-      successRate?: number;
-      usageCount?: number;
-      toolsCount?: number;
-      codeSnippet?: string;
+      // API returns snake_case
+      success_rate?: number;
+      usage_count?: number;
+      tools_count?: number;
+      code_snippet?: string;
     };
   }>;
   edges: Array<{
@@ -90,10 +91,10 @@ interface HypergraphResponse {
       id: string;
       source: string;
       target: string;
-      edgeType: string;
-      edgeSource: string;
-      sharedTools?: number;
-      observedCount?: number;
+      edge_type: string;
+      edge_source: string;
+      shared_tools?: number;
+      observed_count?: number;
     };
   }>;
   capability_zones?: CapabilityZone[];
@@ -192,8 +193,6 @@ export default function D3GraphVisualization({
 
   // State
   const [selectedNode, setSelectedNode] = useState<GraphNodeData | null>(null);
-  // Story 8.4: Will be used for capability panel integration
-  const [_selectedCapability, setSelectedCapability] = useState<CapabilityData | null>(null);
   const [servers, setServers] = useState<Set<string>>(new Set());
   const [hiddenServers, setHiddenServers] = useState<Set<string>>(new Set());
   const [showOrphanNodes, setShowOrphanNodes] = useState(true);
@@ -224,7 +223,6 @@ export default function D3GraphVisualization({
     (zone: CapabilityZone) => {
       const capData = capabilityDataRef.current.get(zone.id);
       if (capData) {
-        setSelectedCapability(capData);
         onCapabilitySelect?.(capData);
         // Emit BroadcastChannel event for cross-tab sync
         // Channel name: PML_EVENTS_CHANNEL from src/events/event-bus.ts
@@ -462,23 +460,24 @@ export default function D3GraphVisualization({
             y: Math.random() * 600,
           });
         } else if (d.type === "capability") {
-          // Store capability data for tooltips/selection
+          // Store capability data for tooltips/selection (convert snake_case from API)
           capMap.set(d.id, {
             id: d.id,
             label: d.label,
-            successRate: d.successRate || 0,
-            usageCount: d.usageCount || 0,
-            toolsCount: d.toolsCount || 0,
-            codeSnippet: d.codeSnippet,
+            successRate: d.success_rate || 0,
+            usageCount: d.usage_count || 0,
+            toolsCount: d.tools_count || 0,
+            codeSnippet: d.code_snippet,
           });
         }
       }
 
       // Convert edges (filter to tool-tool edges for force layout)
+      // API returns snake_case: edge_type, edge_source, observed_count
       const links: SimLink[] = data.edges
         .filter(
           (edge) =>
-            edge.data.edgeType !== "hierarchy" && edge.data.edgeType !== "capability_link",
+            edge.data.edge_type !== "hierarchy" && edge.data.edge_type !== "capability_link",
         )
         .map((edge) => ({
           source: edge.data.source,
@@ -488,11 +487,28 @@ export default function D3GraphVisualization({
             source: edge.data.source,
             target: edge.data.target,
             confidence: 0.5, // Default for capability edges
-            observed_count: edge.data.observedCount || 1,
-            edge_type: (edge.data.edgeType || "sequence") as EdgeType,
-            edge_source: (edge.data.edgeSource || "inferred") as EdgeSource,
+            observed_count: edge.data.observed_count || 1,
+            edge_type: (edge.data.edge_type || "sequence") as EdgeType,
+            edge_source: (edge.data.edge_source || "inferred") as EdgeSource,
           },
         }));
+
+      // Story 8.3: Create capability nodes for zones without tools (toolless capabilities)
+      for (const zone of data.capability_zones || []) {
+        if (zone.toolIds.length === 0) {
+          // Capability sans tools → créer un noeud capability
+          nodes.push({
+            id: zone.id,
+            label: zone.label,
+            server: "capability", // Special server type for capability nodes
+            pagerank: 0,
+            degree: 0,
+            nodeType: "capability",
+            x: Math.random() * 800,
+            y: Math.random() * 600,
+          });
+        }
+      }
 
       nodesRef.current = nodes;
       linksRef.current = links;
@@ -642,22 +658,54 @@ export default function D3GraphVisualization({
     // Update circles
     nodeMerge
       .select("circle")
-      .attr("r", (d: SimNode) => getNodeRadius(d.pagerank))
-      .attr("fill", (d: SimNode) => getServerColor(d.server))
+      .attr("r", (d: SimNode) => {
+        // Story 8.3: Capability nodes are smaller (anchor points for hulls)
+        if (d.nodeType === "capability") return 12;
+        return getNodeRadius(d.pagerank);
+      })
+      .attr("fill", (d: SimNode) => {
+        // Story 8.3: Capability nodes use zone color from their hull
+        if (d.nodeType === "capability") {
+          const zone = capabilityZonesRef.current.find((z) => z.id === d.id);
+          return zone?.color || "#8b5cf6"; // Fallback to violet
+        }
+        return getServerColor(d.server);
+      })
       .attr("opacity", (d: SimNode) => {
+        // Story 8.3: Capability nodes always visible
+        if (d.nodeType === "capability") return 0.8;
         if (hiddenServers.has(d.server)) return 0;
         if (!showOrphanNodes && d.degree === 0) return 0;
         if (d.degree === 0) return 0.4;
         return 1;
       })
-      .attr("stroke-dasharray", (d: SimNode) => (d.degree === 0 ? "4,2" : "none"));
+      .attr("stroke-dasharray", (d: SimNode) => {
+        // Story 8.3: Capability nodes have dashed border
+        if (d.nodeType === "capability") return "3,2";
+        return d.degree === 0 ? "4,2" : "none";
+      })
+      .attr("stroke", (d: SimNode) => {
+        // Story 8.3: Capability nodes have matching colored stroke
+        if (d.nodeType === "capability") {
+          const zone = capabilityZonesRef.current.find((z) => z.id === d.id);
+          return zone?.color || "#8b5cf6";
+        }
+        return "rgba(255, 255, 255, 0.3)";
+      })
+      .attr("stroke-width", (d: SimNode) => (d.nodeType === "capability" ? 2 : 2));
 
     // Update labels
     nodeMerge
       .select(".node-label")
-      .text((d: SimNode) => truncateLabel(d.label, getNodeRadius(d.pagerank)))
+      .text((d: SimNode) => {
+        // Story 8.3: Hide label for capability nodes (hull has the label)
+        if (d.nodeType === "capability") return "";
+        return truncateLabel(d.label, getNodeRadius(d.pagerank));
+      })
       .attr("font-size", (d: SimNode) => Math.max(8, Math.min(12, getNodeRadius(d.pagerank) * 0.6)))
       .attr("opacity", (d: SimNode) => {
+        // Story 8.3: Hide label for capability nodes
+        if (d.nodeType === "capability") return 0;
         if (hiddenServers.has(d.server)) return 0;
         if (!showOrphanNodes && d.degree === 0) return 0;
         return 1;
@@ -834,22 +882,39 @@ export default function D3GraphVisualization({
 
     capabilityZonesRef.current = [...capabilityZonesRef.current, newZone];
 
-    // Update capability data map for tooltips
+    // Update capability data map for tooltips and CodePanel
     capabilityDataRef.current.set(data.capabilityId, {
       id: data.capabilityId,
       label: data.label,
       successRate: data.successRate || 0,
       usageCount: data.usageCount || 0,
       toolsCount: data.toolIds?.length || 0,
+      codeSnippet: data.codeSnippet,
+      toolIds: data.toolIds,
     });
 
-    // Update tool nodes with new parent
-    for (const toolId of data.toolIds || []) {
-      const node = nodesRef.current.find((n) => n.id === toolId);
-      if (node) {
-        if (!node.parents) node.parents = [];
-        if (!node.parents.includes(data.capabilityId)) {
-          node.parents.push(data.capabilityId);
+    // Story 8.3: If 0 tools, create a capability node for the hull to anchor to
+    if (!data.toolIds || data.toolIds.length === 0) {
+      const capNode: SimNode = {
+        id: data.capabilityId,
+        label: data.label,
+        server: "capability",
+        pagerank: 0,
+        degree: 0,
+        nodeType: "capability",
+        x: Math.random() * 800,
+        y: Math.random() * 600,
+      };
+      nodesRef.current = [...nodesRef.current, capNode];
+    } else {
+      // Update tool nodes with new parent
+      for (const toolId of data.toolIds) {
+        const node = nodesRef.current.find((n) => n.id === toolId);
+        if (node) {
+          if (!node.parents) node.parents = [];
+          if (!node.parents.includes(data.capabilityId)) {
+            node.parents.push(data.capabilityId);
+          }
         }
       }
     }
@@ -1333,9 +1398,17 @@ function drawCapabilityHulls(
 
   // Prepare hull data
   const hullData = zones.map((zone) => {
-    // Get positions of tools in this capability
-    const toolNodes = nodes.filter((n) => zone.toolIds.includes(n.id));
-    const points: [number, number][] = toolNodes.map((n) => [n.x, n.y]);
+    let points: [number, number][];
+
+    if (zone.toolIds.length === 0) {
+      // Story 8.3: Capability sans tools → utiliser le noeud capability comme point
+      const capNode = nodes.find((n) => n.id === zone.id && n.nodeType === "capability");
+      points = capNode ? [[capNode.x, capNode.y]] : [];
+    } else {
+      // Get positions of tools in this capability
+      const toolNodes = nodes.filter((n) => zone.toolIds.includes(n.id));
+      points = toolNodes.map((n) => [n.x, n.y]);
+    }
 
     // Calculate hull (need at least 3 points)
     let hull: [number, number][] | null = null;
