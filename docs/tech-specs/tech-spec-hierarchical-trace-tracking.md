@@ -37,7 +37,7 @@ Implémenter la propagation de `parent_trace_id` à travers toute la stack d'ex�
 - Types mis à jour (`RPCCallMessage`)
 - `updateFromCodeExecution()` utilisant la hiérarchie
 - Algorithmes pondérés (`findShortestPath`, `computeAdamicAdar`)
-- Visualisation Cytoscape avec styles par type d'edge
+- Visualisation D3.js avec styles par type d'edge
 
 **Out of Scope:**
 - A/B testing des poids (Story 7.6)
@@ -123,9 +123,9 @@ Implémenter la propagation de `parent_trace_id` à travers toute la stack d'ex�
   - `computeAdamicAdar()` : pondère contributions par qualité d'edge
   - `buildDAG()` : utilise poids moyens pour breaking cycles
 
-- [x] **Task 8: Cytoscape Visualization** - Différencier visuellement les edges (2 dimensions)
+- [x] **Task 8: D3.js Visualization** - Différencier visuellement les edges (2 dimensions)
   - `getGraphSnapshot()` : inclut `edge_type` et `edge_source`
-  - `GraphVisualization.tsx` :
+  - `D3GraphVisualization.tsx` (migré depuis GraphVisualization.tsx) :
     - Couleur = Type : contains=#22c55e, sequence=#FFB86F, dependency=#f5f0ea
     - Style ligne = Source : observed=solid, inferred=dashed, template=dotted
     - Légende complète ajoutée au panel
@@ -144,7 +144,7 @@ Implémenter la propagation de `parent_trace_id` à travers toute la stack d'ex�
 - [x] AC6: `findShortestPath()` utilise les poids combinés (type × source)
 - [x] AC7: Edges avec `observed_count >= 3` passent de `inferred` à `observed`
 - [x] AC8: Backward compat : traces sans `parent_trace_id` créent des edges `sequence` (comportement actuel)
-- [x] AC9: Dashboard Cytoscape : couleur = type, style ligne = source
+- [x] AC9: Dashboard D3.js : couleur = type, style ligne = source
 
 ## Additional Context
 

@@ -23,8 +23,10 @@ export type {
   CapabilityMatch,
   CapabilityResponseInternal,
   CapabilitySearchResult,
-  CytoscapeEdge,
-  CytoscapeNode,
+  CytoscapeEdge, // @deprecated - use GraphEdge
+  CytoscapeNode, // @deprecated - use GraphNode
+  GraphEdge,
+  GraphNode,
   HypergraphOptions,
   HypergraphResponseInternal,
   JSONSchema,

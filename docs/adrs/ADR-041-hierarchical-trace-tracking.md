@@ -221,7 +221,7 @@ interface CapabilityStartPayload {
 ### Phase 4: Persistence & Visualization - DONE
 
 - [x] Database migration 012 for `edge_type` and `edge_source` columns
-- [x] Cytoscape visualization with color-coded edge types
+- [x] D3.js visualization with color-coded edge types (migrated from Cytoscape)
 - [x] Legend for edge types and confidence levels
 
 ### Phase 5: Algorithm Tuning - FUTURE

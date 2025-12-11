@@ -4,13 +4,13 @@ Modern, interactive graph visualization dashboard built with **Deno Fresh**.
 
 ## Features
 
-- ✅ **Server-Side Rendering (SSR)** with Preact
-- ✅ **Islands Architecture** for interactive components
-- ✅ **Real-time updates** via Server-Sent Events (SSE)
-- ✅ **Interactive graph visualization** with Cytoscape.js
-- ✅ **Responsive design** with Tailwind CSS
-- ✅ **TypeScript** end-to-end
-- ✅ **Zero build step** (Deno native)
+- **Server-Side Rendering (SSR)** with Preact
+- **Islands Architecture** for interactive components
+- **Real-time updates** via Server-Sent Events (SSE)
+- **Interactive graph visualization** with D3.js force-directed layout
+- **Responsive design** with Tailwind CSS
+- **TypeScript** end-to-end
+- **Zero build step** (Deno native)
 
 ## Quick Start
 
@@ -19,8 +19,8 @@ Modern, interactive graph visualization dashboard built with **Deno Fresh**.
 The Fresh dashboard fetches data from the Casys PML gateway API.
 
 ```bash
-# Start gateway on port 3001
-deno run --allow-all src/main.ts serve --port 3001 --config playground/config/mcp-servers.json
+# Start gateway on port 3003
+deno task dev
 ```
 
 ### 2. Start the Fresh Dashboard
@@ -35,24 +35,29 @@ deno run -A src/web/dev.ts
 
 The dashboard will be available at:
 
-- **Dashboard:** http://localhost:8080/dashboard
-- **Gateway API:** http://localhost:3001
+- **Dashboard:** http://localhost:8081/dashboard
+- **Gateway API:** http://localhost:3003
 
 ## Architecture
 
 ```
 src/web/
 ├── routes/
-│   └── dashboard.tsx       # SSR route for /dashboard
+│   └── dashboard.tsx           # SSR route for /dashboard
 ├── islands/
-│   └── GraphVisualization.tsx  # Interactive graph component
+│   ├── D3GraphVisualization.tsx  # Interactive D3.js graph component
+│   └── GraphExplorer.tsx       # Graph explorer with panels
 ├── components/
-│   ├── Legend.tsx          # Server filter legend
-│   └── NodeDetails.tsx     # Node details panel
-├── static/                 # Static assets
-├── fresh.config.ts         # Fresh configuration
-├── fresh.gen.ts            # Generated manifest (auto)
-└── dev.ts                  # Server entry point
+│   ├── ui/                     # Atomic design UI components
+│   │   ├── Badge.tsx           # Server filter badge
+│   │   ├── GraphLegendPanel.tsx # Legend panel
+│   │   ├── NodeDetailsPanel.tsx # Node details panel
+│   │   └── GraphTooltip.tsx    # Hover tooltip
+│   └── layout/                 # Layout components
+├── static/                     # Static assets
+├── fresh.config.ts             # Fresh configuration
+├── fresh.gen.ts                # Generated manifest (auto)
+└── dev.ts                      # Server entry point
 ```
 
 ## How It Works
@@ -61,18 +66,20 @@ src/web/
 
 1. **Route (`dashboard.tsx`):**
    - Server-side rendered
-   - Loads Cytoscape.js from CDN
-   - Hydrates GraphVisualization island
+   - Loads D3.js from CDN
+   - Hydrates D3GraphVisualization island
 
-2. **Island (`GraphVisualization.tsx`):**
+2. **Island (`D3GraphVisualization.tsx`):**
    - Client-side interactive
+   - D3.js force-directed layout with zoom/pan
    - Fetches initial graph data from `/api/graph/snapshot`
    - Connects to `/events/stream` for real-time updates
-   - Manages Cytoscape instance and user interactions
+   - Supports hyperedges (multiple parents per node)
 
 3. **Components:**
-   - `Legend.tsx`: MCP server filtering
-   - `NodeDetails.tsx`: Node information panel
+   - `GraphLegendPanel.tsx`: MCP server filtering, edge type legend
+   - `NodeDetailsPanel.tsx`: Node information panel
+   - `GraphTooltip.tsx`: Enriched hover tooltip
 
 ### Real-Time Updates
 
@@ -85,19 +92,23 @@ eventSource.addEventListener("node_created", (event) => {
   // Add new node to graph
 });
 
-eventSource.addEventListener("edge_created", (event) => {
+eventSource.addEventListener("graph.edge.created", (event) => {
   // Add new edge to graph
+});
+
+eventSource.addEventListener("graph.edge.updated", (event) => {
+  // Update edge confidence/type
 });
 ```
 
 ## Environment Variables
 
 ```bash
-# Fresh server port (default: 8080)
-FRESH_PORT=8080
+# Fresh server port (default: 8081)
+FRESH_PORT=8081
 
-# Casys PML gateway API base URL (default: http://localhost:3001)
-API_BASE=http://localhost:3001
+# Casys PML gateway API base URL (default: http://localhost:3003)
+API_BASE=http://localhost:3003
 ```
 
 ## Development
@@ -125,34 +136,28 @@ deno task fresh:build
 deployctl deploy
 ```
 
-## Migration from HTML Dashboard
+## Migration Notes
 
-The original HTML dashboard (`public/dashboard.html`) is now replaced with this Fresh
-implementation:
+### Cytoscape.js to D3.js (December 2024)
 
-**Before (HTML):**
+The visualization was migrated from Cytoscape.js to D3.js to support hyperedges
+(multiple parents per node). See commit `cb15d9e`.
 
-- 530 lines of HTML/CSS/JS in one file
-- Manual DOM manipulation
-- No component structure
-- Hard to test and maintain
-
-**After (Fresh):**
-
-- Clean component architecture
-- TypeScript type safety
-- Hot reload in development
-- Reusable islands and components
-- Server-side rendering for better performance
+**Key changes:**
+- Force-directed layout with d3-force
+- SVG-based rendering (vs Canvas)
+- Full zoom/pan support with d3-zoom
+- Drag and drop node positioning
+- Edge markers for different edge types
 
 ## Troubleshooting
 
 ### Dashboard shows empty graph
 
-1. Ensure gateway is running on port 3001
+1. Ensure gateway is running on port 3003
 2. Check if workflows are synced to database:
    ```bash
-   deno task cli workflows sync --file playground/config/workflow-templates.yaml --force
+   deno task cli init
    ```
 3. Restart gateway to reload graph from database
 
@@ -162,15 +167,15 @@ implementation:
 - Check browser console for connection errors
 - Ensure no CORS issues (Fresh and gateway on same origin or CORS enabled)
 
-### Cytoscape not loading
+### D3 not loading
 
 - Check browser console for CDN errors
-- Verify internet connection (Cytoscape loaded from CDN)
-- Consider vendoring Cytoscape for offline use
+- Verify internet connection (D3 loaded from CDN)
+- Consider vendoring D3 for offline use
 
 ## Related Documentation
 
 - [Story 6.2 - Interactive Graph Visualization Dashboard](../../docs/stories/6-2-interactive-graph-visualization-dashboard.md)
-- [ADR-020 - Graceful Shutdown with Timeout Guard](../../docs/adr/ADR-020-graceful-shutdown-timeout.md)
+- [ADR-029 - Hypergraph Capabilities Visualization](../../docs/adrs/ADR-029-hypergraph-capabilities-visualization.md)
 - [Fresh Documentation](https://fresh.deno.dev/)
-- [Cytoscape.js Documentation](https://js.cytoscape.org/)
+- [D3.js Documentation](https://d3js.org/)

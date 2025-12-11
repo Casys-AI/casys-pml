@@ -2556,7 +2556,7 @@ export class PMLGatewayServer {
           const result = await this.capabilityDataService.buildHypergraphData(options);
 
           // Map camelCase to snake_case for external API
-          const mapNodeData = (node: import("../capabilities/types.ts").CytoscapeNode) => {
+          const mapNodeData = (node: import("../capabilities/types.ts").GraphNode) => {
             if (node.data.type === "capability") {
               return {
                 data: {
@@ -2584,7 +2584,7 @@ export class PMLGatewayServer {
             }
           };
 
-          const mapEdgeData = (edge: import("../capabilities/types.ts").CytoscapeEdge) => {
+          const mapEdgeData = (edge: import("../capabilities/types.ts").GraphEdge) => {
             if (edge.data.edgeType === "capability_link") {
               return {
                 data: {

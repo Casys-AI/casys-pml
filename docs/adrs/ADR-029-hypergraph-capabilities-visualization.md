@@ -1,7 +1,11 @@
 # ADR-029: Hypergraph Capabilities Visualization
 
-**Status:** 📝 Draft
+**Status:** ✅ Accepted (Superseded Decision)
 **Date:** 2025-12-04
+**Updated:** 2025-12-11
+
+> **Note:** The original decision chose Cytoscape.js compound graphs. After implementation,
+> we migrated to D3.js for better hyperedge support. See [Migration Notes](#migration-notes).
 
 ## Context
 
@@ -32,7 +36,7 @@ Mais une capability est une **hyperedge** qui connecte N nodes simultanément:
 - **Graph (Graphology):** Nodes = tools, Edges = co-occurrences binaires
 - **Louvain:** Détecte des communautés (clusters de tools)
 - **workflow_pattern:** Stocke capabilities avec `code_snippet` (ADR-028)
-- **Visualisation (Epic 6):** Graph classique avec Cytoscape.js
+- **Visualisation (Epic 6):** Graph classique avec D3.js (migré depuis Cytoscape.js)
 
 ### Questions à Résoudre
 
@@ -45,7 +49,7 @@ Mais une capability est une **hyperedge** qui connecte N nodes simultanément:
 
 - **DX:** Visualisation claire des capabilities et leur code
 - **Performance:** Pas de surcharge pour le graph existant
-- **Simplicité:** Réutiliser l'infrastructure existante (Cytoscape.js)
+- **Simplicité:** Réutiliser l'infrastructure existante (D3.js)
 - **Évolutivité:** Permettre des visualisations plus riches à l'avenir
 - **Intégration:** Le mode hypergraph DOIT s'intégrer dans le dashboard EXISTANT (Epic 6), pas une
   nouvelle page
@@ -210,16 +214,26 @@ Utiliser ou créer une bibliothèque hypergraph dédiée.
 
 ## Decision
 
-**Option A: Cytoscape.js Compound Graphs** pour le MVP, avec évolution possible vers Option C
-(Overlay) pour les cas où un tool appartient à plusieurs capabilities.
+**Option E: D3.js Force-Directed Graph** (supersedes original Option A)
 
-### Rationale
+Après implémentation initiale avec Cytoscape.js, nous avons migré vers D3.js pour les raisons
+suivantes:
 
-1. **Réutilisation:** Cytoscape.js déjà intégré (Epic 6)
-2. **Natif:** Compound graphs = feature built-in, pas de hack
-3. **Intuitif:** "Containment" facile à comprendre visuellement
-4. **Code visible:** Click sur capability → panel avec code_snippet
-5. **Incrémental:** On peut ajouter Overlay mode plus tard
+### Rationale (Updated December 2024)
+
+1. **Hyperedge Support:** Cytoscape.js compound nodes **ne supportent pas plusieurs parents**.
+   Un node enfant ne peut avoir qu'un seul parent, ce qui rend impossible la représentation
+   d'un tool partagé entre plusieurs capabilities. D3.js permet de dessiner manuellement des
+   liens multiples (hyperedges) sans cette limitation.
+2. **Performance:** SVG-based rendering plus performant pour graphes dynamiques
+3. **Flexibilité:** Contrôle total sur le layout force-directed (d3-force)
+4. **Zoom/Pan natif:** d3-zoom offre une UX fluide
+5. **Drag & Drop:** Positionnement interactif des nodes
+
+### Original Decision (Superseded)
+
+L'option A (Cytoscape.js Compound Graphs) était le choix initial. Voir l'historique git pour
+l'implémentation originale.
 
 ### Gestion des Multi-Membership
 
@@ -255,11 +269,12 @@ Un tool peut appartenir à plusieurs capabilities. Solutions:
             │
             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  Cytoscape.js (existing dashboard)                              │
-│  - Compound layout (cola, dagre, or fcose)                     │
+│  D3.js Force-Directed Graph (dashboard)                         │
+│  - d3-force layout with zoom/pan (d3-zoom)                     │
 │  - Capability nodes: violet, expandable                        │
 │  - Tool nodes: colored by server (existing)                    │
 │  - Click capability → CodePanel with syntax highlighting       │
+│  - SVG-based rendering with drag support                       │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -379,10 +394,41 @@ interface HypergraphResponse {
 - Performance with 100+ capabilities: mitigate with pagination/filtering
 - Code snippet security: ensure no secrets in displayed code
 
+## Migration Notes
+
+### Cytoscape.js → D3.js (December 2024)
+
+**Commit:** `cb15d9e`
+
+**Files Changed:**
+- `src/web/islands/GraphVisualization.tsx` → Deleted (Cytoscape implementation)
+- `src/web/islands/D3GraphVisualization.tsx` → New (D3.js implementation)
+- `src/web/routes/dashboard.tsx` → Updated CDN from Cytoscape to D3.js
+- `src/capabilities/types.ts` → Added `GraphNode`/`GraphEdge` aliases
+
+**Key Differences:**
+| Aspect | Cytoscape.js | D3.js |
+|--------|--------------|-------|
+| Rendering | Canvas | SVG |
+| Layout | Built-in (cose) | d3-force |
+| Zoom/Pan | Built-in | d3-zoom |
+| Compound Nodes | Native support | Manual grouping |
+| Edge Markers | Built-in | SVG markers |
+
+**Why D3.js:**
+- **Critical:** Cytoscape.js compound nodes do NOT support multiple parents. A tool can only
+  belong to ONE capability in Cytoscape, but our data model requires tools to be shared across
+  multiple capabilities (hyperedges).
+- D3.js allows manual hyperedge rendering where a tool node can visually connect to N capabilities
+- SVG allows per-element styling and interaction
+- d3-force more customizable for complex layouts
+- Lower memory footprint for large graphs
+
 ## References
 
 - [ADR-027: Execute Code Graph Learning](./ADR-027-execute-code-graph-learning.md)
 - [ADR-028: Emergent Capabilities System](./ADR-028-emergent-capabilities-system.md)
-- [Cytoscape.js Compound Graphs](https://js.cytoscape.org/#notation/compound-nodes)
+- [D3.js Force-Directed Graph](https://d3js.org/d3-force)
+- [D3.js Zoom](https://d3js.org/d3-zoom)
 - [hypergraphs-plot](https://github.com/isislab-unisa/hypergraphs-plot) - Reference implementation
 - [IEEE VIS 2024: Structure-Aware Simplification for Hypergraph Visualization](https://ieeevis.org/year/2024/program/paper_v-full-1746.html)

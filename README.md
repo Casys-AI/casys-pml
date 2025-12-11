@@ -47,7 +47,7 @@ Casys PML solves two critical problems with MCP ecosystems:
 ### Dashboard & Observability
 
 - **Real-time SSE Events** — Live graph updates, edge creation, metrics streaming
-- **Interactive Graph Visualization** — Cytoscape.js force-directed graph with PageRank sizing
+- **Interactive Graph Visualization** — D3.js force-directed graph with PageRank sizing and hyperedge support
 - **Live Metrics Panel** — Success rate, latency, edge count, graph density
 
 ### Emergent Capabilities (In Progress)
@@ -470,7 +470,7 @@ details.
 - **[Transformers.js](https://github.com/xenova/transformers.js)** — Local ML model inference
 - **[MCP SDK](https://github.com/modelcontextprotocol)** — Model Context Protocol by Anthropic
 - **[Graphology](https://graphology.github.io/)** — Graph data structure and algorithms
-- **[Cytoscape.js](https://js.cytoscape.org/)** — Graph visualization library
+- **[D3.js](https://d3js.org/)** — Graph visualization library
 
 ---
 

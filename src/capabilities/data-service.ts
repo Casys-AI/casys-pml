@@ -2,7 +2,10 @@
  * Capability Data Service (Epic 8 - Story 8.1)
  *
  * Provides API data layer for capabilities and hypergraph visualization.
- * Queries workflow_pattern table and builds Cytoscape-ready graph data.
+ * Queries workflow_pattern table and builds graph-ready data for D3.js visualization.
+ *
+ * Note: Migration from Cytoscape.js to D3.js completed in cb15d9e.
+ * Type aliases CytoscapeNode/CytoscapeEdge kept for backward compatibility.
  *
  * @module capabilities/data-service
  */
@@ -214,7 +217,7 @@ export class CapabilityDataService {
   }
 
   /**
-   * Build hypergraph data for Cytoscape visualization
+   * Build hypergraph data for D3.js visualization
    *
    * Creates a compound graph with:
    * - Capability nodes (parents)
@@ -222,8 +225,10 @@ export class CapabilityDataService {
    * - Hierarchical edges (capability → tool)
    * - Capability links (shared tools)
    *
+   * Note: Migrated from Cytoscape.js to D3.js for hyperedge support.
+   *
    * @param options Hypergraph build options
-   * @returns Cytoscape-ready hypergraph data
+   * @returns Graph-ready hypergraph data for D3.js force-directed layout
    */
   async buildHypergraphData(
     options: HypergraphOptions = {},
