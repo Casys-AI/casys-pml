@@ -85,7 +85,7 @@ export default function SettingsPage({ data }: { data: SettingsData }) {
     mcpServers: {
       "mcp-gateway": {
         type: "http",
-        url: "https://intelligence.casys.ai/mcp",
+        url: "https://pml.casys.ai/mcp",
         headers: {
           "x-api-key": "${CAI_API_KEY}",
         },
@@ -99,7 +99,7 @@ export default function SettingsPage({ data }: { data: SettingsData }) {
         type: "stdio",
         command: "deno",
         args: ["task", "mcp"],
-        cwd: "/path/to/casys-intelligence",
+        cwd: "/path/to/casys-pml",
       },
     },
   };

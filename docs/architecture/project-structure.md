@@ -3,7 +3,7 @@
 _Updated: December 2025_
 
 ```
-casys-intelligence/
+casys-pml/
 ├── deno.json                    # Deno config, tasks, imports
 ├── drizzle.config.ts            # Drizzle ORM configuration
 ├── mod.ts                       # Public API exports

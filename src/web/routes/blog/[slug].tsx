@@ -117,7 +117,7 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
                   <a
                     href={`https://twitter.com/intent/tweet?text=${
                       encodeURIComponent(post.title)
-                    }&url=${encodeURIComponent(`https://intelligence.casys.ai/blog/${post.slug}`)}`}
+                    }&url=${encodeURIComponent(`https://pml.casys.ai/blog/${post.slug}`)}`}
                     target="_blank"
                     rel="noopener"
                     class="share-link"
@@ -126,7 +126,7 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
                   </a>
                   <a
                     href={`https://www.linkedin.com/sharing/share-offsite/?url=${
-                      encodeURIComponent(`https://intelligence.casys.ai/blog/${post.slug}`)
+                      encodeURIComponent(`https://pml.casys.ai/blog/${post.slug}`)
                     }`}
                     target="_blank"
                     rel="noopener"
@@ -150,7 +150,7 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
             <div class="footer-links">
               <a href="https://casys.ai" target="_blank" rel="noopener">Casys.ai</a>
               <a
-                href="https://github.com/Casys-AI/casys-intelligence"
+                href="https://github.com/Casys-AI/casys-pml"
                 target="_blank"
                 rel="noopener"
               >

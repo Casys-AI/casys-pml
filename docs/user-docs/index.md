@@ -46,7 +46,7 @@
 
 - **[PRD](../PRD.md)** - Product Requirements Document
 - **[Architecture](../architecture/)** - Technical decisions (ADRs)
-- **[GitHub Issues](https://github.com/casys-ai/casys-intelligence/issues)** - Support and bugs
+- **[GitHub Issues](https://github.com/casys-ai/casys-pml/issues)** - Support and bugs
 
 ---
 

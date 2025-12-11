@@ -23,7 +23,7 @@ There was just one problem: it never actually worked.
 
 ## The Setup
 
-We're building AgentCards, a platform where AI agents can execute code with access to external tools
+We're building Casys PML, a platform where AI agents can execute code with access to external tools
 via the Model Context Protocol (MCP). Think of it as giving an LLM the ability to call APIs, query
 databases, or interact with services—all within a sandboxed environment.
 

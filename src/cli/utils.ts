@@ -51,10 +51,10 @@ export function detectMCPConfigPath(): string {
 /**
  * Get the Casys PML config directory path
  *
- * Returns ~/.cai on Unix-like systems
- * Returns %USERPROFILE%\.cai on Windows
+ * Returns ~/.pml on Unix-like systems
+ * Returns %USERPROFILE%\.pml on Windows
  */
-export function getAgentCardsConfigDir(): string {
+export function getPmlConfigDir(): string {
   const homeDir = Deno.env.get("HOME") || Deno.env.get("USERPROFILE");
   if (!homeDir) {
     throw new Error("Cannot determine home directory");
@@ -62,7 +62,14 @@ export function getAgentCardsConfigDir(): string {
 
   const os = Deno.build.os;
   const separator = os === "windows" ? "\\" : "/";
-  return `${homeDir}${separator}.cai`;
+  return `${homeDir}${separator}.pml`;
+}
+
+/**
+ * @deprecated Use getPmlConfigDir() instead
+ */
+export function getAgentCardsConfigDir(): string {
+  return getPmlConfigDir();
 }
 
 /**
@@ -71,20 +78,27 @@ export function getAgentCardsConfigDir(): string {
  * NOTE: Changed from config.yaml to config.json per ADR-009
  * for MCP ecosystem alignment
  */
-export function getAgentCardsConfigPath(): string {
-  const configDir = getAgentCardsConfigDir();
+export function getPmlConfigPath(): string {
+  const configDir = getPmlConfigDir();
   const os = Deno.build.os;
   const separator = os === "windows" ? "\\" : "/";
   return `${configDir}${separator}config.json`;
 }
 
 /**
+ * @deprecated Use getPmlConfigPath() instead
+ */
+export function getAgentCardsConfigPath(): string {
+  return getPmlConfigPath();
+}
+
+/**
  * Get the legacy YAML config path (deprecated)
  *
- * @deprecated Use getAgentCardsConfigPath() instead
+ * @deprecated Use getPmlConfigPath() instead
  */
 export function getLegacyConfigPath(): string {
-  const configDir = getAgentCardsConfigDir();
+  const configDir = getPmlConfigDir();
   const os = Deno.build.os;
   const separator = os === "windows" ? "\\" : "/";
   return `${configDir}${separator}config.yaml`;
@@ -96,7 +110,7 @@ export function getLegacyConfigPath(): string {
  * Prefers JSON, fallback to YAML with deprecation warning
  */
 export async function findConfigFile(): Promise<{ path: string; format: "json" | "yaml" }> {
-  const jsonPath = getAgentCardsConfigPath();
+  const jsonPath = getPmlConfigPath();
   const yamlPath = getLegacyConfigPath();
 
   // Prefer JSON
@@ -108,7 +122,7 @@ export async function findConfigFile(): Promise<{ path: string; format: "json" |
     try {
       await Deno.stat(yamlPath);
       console.warn("⚠️  YAML config detected. JSON is now recommended for MCP compatibility.");
-      console.warn("    Migrate with: ./cai migrate-config");
+      console.warn("    Migrate with: pml migrate-config");
       return { path: yamlPath, format: "yaml" };
     } catch {
       // Neither exists - will use JSON for new config
@@ -120,46 +134,59 @@ export async function findConfigFile(): Promise<{ path: string; format: "json" |
 /**
  * Get the Casys PML database path
  *
- * Supports custom path via AGENTCARDS_DB_PATH environment variable.
+ * Supports custom path via PML_DB_PATH environment variable.
  * This is useful for:
- * - Codespace environments where ~/.cai/ is not persisted
+ * - Codespace environments where ~/.pml/ is not persisted
  * - Testing with isolated databases
  * - Custom deployment scenarios
  *
- * @returns Database path (custom or default ~/.cai/.cai.db)
+ * @returns Database path (custom or default ~/.pml/.pml.db)
  *
  * @example
  * // Use default path
- * getAgentCardsDatabasePath() // ~/.cai/.cai.db
+ * getPmlDatabasePath() // ~/.pml/.pml.db
  *
  * @example
  * // Use custom path in Codespace
- * AGENTCARDS_DB_PATH=/workspaces/AgentCards/.cai.db
- * getAgentCardsDatabasePath() // /workspaces/AgentCards/.cai.db
+ * PML_DB_PATH=/workspaces/project/.pml.db
+ * getPmlDatabasePath() // /workspaces/project/.pml.db
  */
-export function getAgentCardsDatabasePath(): string {
+export function getPmlDatabasePath(): string {
   // Allow custom DB path via environment variable (ADR-021)
-  // Support both new CAI_DB_PATH and legacy AGENTCARDS_DB_PATH
-  const customPath = Deno.env.get("CAI_DB_PATH") ?? Deno.env.get("AGENTCARDS_DB_PATH");
+  // Support new PML_DB_PATH and legacy CAI_DB_PATH/AGENTCARDS_DB_PATH
+  const customPath = Deno.env.get("PML_DB_PATH") ??
+    Deno.env.get("CAI_DB_PATH") ??
+    Deno.env.get("AGENTCARDS_DB_PATH");
   if (customPath) {
-    // Warn about deprecated env var
-    if (Deno.env.get("AGENTCARDS_DB_PATH") && !Deno.env.get("CAI_DB_PATH")) {
-      console.warn("⚠️  AGENTCARDS_DB_PATH is deprecated. Use CAI_DB_PATH instead.");
+    // Warn about deprecated env vars
+    if (!Deno.env.get("PML_DB_PATH")) {
+      if (Deno.env.get("CAI_DB_PATH")) {
+        console.warn("⚠️  CAI_DB_PATH is deprecated. Use PML_DB_PATH instead.");
+      } else if (Deno.env.get("AGENTCARDS_DB_PATH")) {
+        console.warn("⚠️  AGENTCARDS_DB_PATH is deprecated. Use PML_DB_PATH instead.");
+      }
     }
     return resolvePath(customPath);
   }
 
-  // Default: ~/.cai/.cai.db
-  const configDir = getAgentCardsConfigDir();
+  // Default: ~/.pml/.pml.db
+  const configDir = getPmlConfigDir();
   const os = Deno.build.os;
   const separator = os === "windows" ? "\\" : "/";
-  return `${configDir}${separator}.cai.db`;
+  return `${configDir}${separator}.pml.db`;
+}
+
+/**
+ * @deprecated Use getPmlDatabasePath() instead
+ */
+export function getAgentCardsDatabasePath(): string {
+  return getPmlDatabasePath();
 }
 
 /**
  * Get the workflow templates file path
  *
- * Respects AGENTCARDS_WORKFLOW_PATH environment variable for custom paths.
+ * Respects PML_WORKFLOW_PATH environment variable for custom paths.
  * Defaults to ./config/workflow-templates.yaml (relative to current working directory)
  *
  * @returns Absolute or relative path to workflow templates YAML file
@@ -170,17 +197,23 @@ export function getAgentCardsDatabasePath(): string {
  *
  * @example
  * // Use custom path for playground
- * AGENTCARDS_WORKFLOW_PATH=playground/config/workflow-templates.yaml
+ * PML_WORKFLOW_PATH=playground/config/workflow-templates.yaml
  * getWorkflowTemplatesPath() // playground/config/workflow-templates.yaml
  */
 export function getWorkflowTemplatesPath(): string {
   // Allow custom workflow path via environment variable
-  // Support both new CAI_WORKFLOW_PATH and legacy AGENTCARDS_WORKFLOW_PATH
-  const customPath = Deno.env.get("CAI_WORKFLOW_PATH") ?? Deno.env.get("AGENTCARDS_WORKFLOW_PATH");
+  // Support new PML_WORKFLOW_PATH and legacy CAI_WORKFLOW_PATH/AGENTCARDS_WORKFLOW_PATH
+  const customPath = Deno.env.get("PML_WORKFLOW_PATH") ??
+    Deno.env.get("CAI_WORKFLOW_PATH") ??
+    Deno.env.get("AGENTCARDS_WORKFLOW_PATH");
   if (customPath) {
-    // Warn about deprecated env var
-    if (Deno.env.get("AGENTCARDS_WORKFLOW_PATH") && !Deno.env.get("CAI_WORKFLOW_PATH")) {
-      console.warn("⚠️  AGENTCARDS_WORKFLOW_PATH is deprecated. Use CAI_WORKFLOW_PATH instead.");
+    // Warn about deprecated env vars
+    if (!Deno.env.get("PML_WORKFLOW_PATH")) {
+      if (Deno.env.get("CAI_WORKFLOW_PATH")) {
+        console.warn("⚠️  CAI_WORKFLOW_PATH is deprecated. Use PML_WORKFLOW_PATH instead.");
+      } else if (Deno.env.get("AGENTCARDS_WORKFLOW_PATH")) {
+        console.warn("⚠️  AGENTCARDS_WORKFLOW_PATH is deprecated. Use PML_WORKFLOW_PATH instead.");
+      }
     }
     return customPath;
   }

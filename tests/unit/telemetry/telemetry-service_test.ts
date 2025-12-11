@@ -51,7 +51,7 @@ Deno.test("AC4: Metrics table exists with correct schema", async () => {
 
 Deno.test("AC5: Telemetry service can track metrics", async () => {
   const db = await createTestDb();
-  const configPath = `/tmp/agentcards-test-config-${Date.now()}.yaml`;
+  const configPath = `/tmp/pml-test-config-${Date.now()}.yaml`;
 
   const telemetry = new TelemetryService(db, configPath);
 
@@ -81,7 +81,7 @@ Deno.test("AC5: Telemetry service can track metrics", async () => {
 
 Deno.test("AC6: Telemetry is disabled by default (opt-in)", async () => {
   const db = await createTestDb();
-  const configPath = `/tmp/agentcards-test-config-${Date.now()}.yaml`;
+  const configPath = `/tmp/pml-test-config-${Date.now()}.yaml`;
 
   const telemetry = new TelemetryService(db, configPath);
   await telemetry.initialize();
@@ -110,7 +110,7 @@ Deno.test("AC6: Telemetry is disabled by default (opt-in)", async () => {
 
 Deno.test("AC5: Key metrics can be tracked (context_usage_pct, query_latency_ms, tools_loaded_count)", async () => {
   const db = await createTestDb();
-  const configPath = `/tmp/agentcards-test-config-${Date.now()}.yaml`;
+  const configPath = `/tmp/pml-test-config-${Date.now()}.yaml`;
 
   const telemetry = new TelemetryService(db, configPath);
   await telemetry.setEnabled(true);

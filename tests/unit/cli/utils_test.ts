@@ -7,9 +7,9 @@
 import { assert, assertEquals } from "@std/assert";
 import {
   detectMCPConfigPath,
-  getAgentCardsConfigDir,
-  getAgentCardsConfigPath,
-  getAgentCardsDatabasePath,
+  getPmlConfigDir,
+  getPmlConfigPath,
+  getPmlDatabasePath,
   getLegacyConfigPath,
   getWorkflowTemplatesPath,
 } from "../../../src/cli/utils.ts";
@@ -40,11 +40,11 @@ Deno.test("detectMCPConfigPath - returns OS-specific path", () => {
   }
 });
 
-Deno.test("getAgentCardsConfigDir - returns valid directory path", () => {
-  const dir = getAgentCardsConfigDir();
+Deno.test("getPmlConfigDir - returns valid directory path", () => {
+  const dir = getPmlConfigDir();
 
-  // Should end with .cai
-  assert(dir.endsWith(".cai"));
+  // Should end with .pml
+  assert(dir.endsWith(".pml"));
 
   // Should contain home directory reference
   const homeDir = Deno.env.get("HOME") || Deno.env.get("USERPROFILE");
@@ -53,14 +53,14 @@ Deno.test("getAgentCardsConfigDir - returns valid directory path", () => {
   }
 });
 
-Deno.test("getAgentCardsConfigPath - returns valid config path (JSON)", () => {
-  const path = getAgentCardsConfigPath();
+Deno.test("getPmlConfigPath - returns valid config path (JSON)", () => {
+  const path = getPmlConfigPath();
 
   // Should end with config.json (ADR-009)
   assert(path.endsWith("config.json"));
 
-  // Should contain .cai directory
-  assert(path.includes(".cai"));
+  // Should contain .pml directory
+  assert(path.includes(".pml"));
 });
 
 Deno.test("getLegacyConfigPath - returns YAML config path (deprecated)", () => {
@@ -69,11 +69,11 @@ Deno.test("getLegacyConfigPath - returns YAML config path (deprecated)", () => {
   // Should end with config.yaml (legacy)
   assert(path.endsWith("config.yaml"));
 
-  // Should contain .cai directory
-  assert(path.includes(".cai"));
+  // Should contain .pml directory
+  assert(path.includes(".pml"));
 });
 
-Deno.test("getAgentCardsDatabasePath - returns valid database path", () => {
+Deno.test("getPmlDatabasePath - returns valid database path", () => {
   // Ensure both new and legacy env vars are not set for this test
   const oldCaiPath = Deno.env.get("CAI_DB_PATH");
   const oldAgentCardsPath = Deno.env.get("AGENTCARDS_DB_PATH");
@@ -81,13 +81,13 @@ Deno.test("getAgentCardsDatabasePath - returns valid database path", () => {
   Deno.env.delete("AGENTCARDS_DB_PATH");
 
   try {
-    const path = getAgentCardsDatabasePath();
+    const path = getPmlDatabasePath();
 
-    // Should end with .cai.db
-    assert(path.endsWith(".cai.db"));
+    // Should end with .pml.db
+    assert(path.endsWith(".pml.db"));
 
-    // Should contain .cai directory
-    assert(path.includes(".cai"));
+    // Should contain .pml directory
+    assert(path.includes(".pml"));
   } finally {
     // Restore original env vars
     if (oldCaiPath) Deno.env.set("CAI_DB_PATH", oldCaiPath);
@@ -99,9 +99,9 @@ Deno.test("All paths use correct separators for OS", () => {
   const os = Deno.build.os;
   const separator = os === "windows" ? "\\" : "/";
 
-  const configDir = getAgentCardsConfigDir();
-  const configPath = getAgentCardsConfigPath();
-  const dbPath = getAgentCardsDatabasePath();
+  const configDir = getPmlConfigDir();
+  const configPath = getPmlConfigPath();
+  const dbPath = getPmlDatabasePath();
 
   // Verify paths use correct separator
   assert(configDir.includes(separator));
@@ -117,9 +117,9 @@ Deno.test("Paths are consistent across utility functions", () => {
   Deno.env.delete("AGENTCARDS_DB_PATH");
 
   try {
-    const configDir = getAgentCardsConfigDir();
-    const configPath = getAgentCardsConfigPath();
-    const dbPath = getAgentCardsDatabasePath();
+    const configDir = getPmlConfigDir();
+    const configPath = getPmlConfigPath();
+    const dbPath = getPmlDatabasePath();
 
     // Config path should start with config dir
     assert(configPath.startsWith(configDir));
@@ -133,14 +133,14 @@ Deno.test("Paths are consistent across utility functions", () => {
   }
 });
 
-Deno.test("getAgentCardsDatabasePath - respects CAI_DB_PATH env var", () => {
-  const customPath = "/workspaces/AgentCards/.cai.db";
+Deno.test("getPmlDatabasePath - respects CAI_DB_PATH env var", () => {
+  const customPath = "/workspaces/PML/.pml.db";
 
   // Set custom path
   Deno.env.set("CAI_DB_PATH", customPath);
 
   try {
-    const path = getAgentCardsDatabasePath();
+    const path = getPmlDatabasePath();
     assertEquals(path, customPath);
   } finally {
     // Clean up
@@ -148,7 +148,7 @@ Deno.test("getAgentCardsDatabasePath - respects CAI_DB_PATH env var", () => {
   }
 });
 
-Deno.test("getAgentCardsDatabasePath - uses default when env var not set", () => {
+Deno.test("getPmlDatabasePath - uses default when env var not set", () => {
   // Ensure both new and legacy env vars are not set
   const oldCaiPath = Deno.env.get("CAI_DB_PATH");
   const oldAgentCardsPath = Deno.env.get("AGENTCARDS_DB_PATH");
@@ -156,11 +156,11 @@ Deno.test("getAgentCardsDatabasePath - uses default when env var not set", () =>
   Deno.env.delete("AGENTCARDS_DB_PATH");
 
   try {
-    const path = getAgentCardsDatabasePath();
+    const path = getPmlDatabasePath();
 
     // Should use default path
-    assert(path.includes(".cai"));
-    assert(path.endsWith(".cai.db"));
+    assert(path.includes(".pml"));
+    assert(path.endsWith(".pml.db"));
   } finally {
     // Restore original env vars
     if (oldCaiPath) Deno.env.set("CAI_DB_PATH", oldCaiPath);
@@ -169,7 +169,7 @@ Deno.test("getAgentCardsDatabasePath - uses default when env var not set", () =>
 });
 
 Deno.test("Legacy YAML path differs from JSON path only in extension", () => {
-  const jsonPath = getAgentCardsConfigPath();
+  const jsonPath = getPmlConfigPath();
   const yamlPath = getLegacyConfigPath();
 
   // Same base path

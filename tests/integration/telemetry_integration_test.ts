@@ -44,7 +44,7 @@ Deno.test({
   // Log files ARE created and written in production, verified manually
   ignore: true,
   async fn() {
-    const testLogDir = `/tmp/agentcards-test-logs-${Date.now()}`;
+    const testLogDir = `/tmp/pml-test-logs-${Date.now()}`;
     const testLogPath = `${testLogDir}/cai.log`;
 
     // Setup logger with custom path
@@ -95,7 +95,7 @@ Deno.test({
 
 Deno.test("AC7: Telemetry can be enabled/disabled via service methods", async () => {
   const db = await createTestDb();
-  const configPath = `/tmp/agentcards-test-config-${Date.now()}.yaml`;
+  const configPath = `/tmp/pml-test-config-${Date.now()}.yaml`;
 
   const telemetry = new TelemetryService(db, configPath);
 
@@ -125,7 +125,7 @@ Deno.test("AC7: Telemetry can be enabled/disabled via service methods", async ()
 
 Deno.test("AC8: Privacy - No network calls, all data local", async () => {
   const db = await createTestDb();
-  const configPath = `/tmp/agentcards-test-config-${Date.now()}.yaml`;
+  const configPath = `/tmp/pml-test-config-${Date.now()}.yaml`;
 
   const telemetry = new TelemetryService(db, configPath);
   await telemetry.setEnabled(true);
@@ -161,7 +161,7 @@ Deno.test({
   // Log rotation DOES work in production, verified manually
   ignore: true,
   async fn() {
-    const testLogDir = `/tmp/agentcards-test-logs-${Date.now()}`;
+    const testLogDir = `/tmp/pml-test-logs-${Date.now()}`;
     const testLogPath = `${testLogDir}/cai.log`;
 
     await setupLogger({

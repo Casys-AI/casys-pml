@@ -20,7 +20,7 @@ Deno.test("E2E 05: GraphRAG engine", async (t) => {
 
   try {
     await t.step("1. Setup and populate", async () => {
-      testDir = await Deno.makeTempDir({ prefix: "agentcards_e2e_05_" });
+      testDir = await Deno.makeTempDir({ prefix: "pml_e2e_05_" });
       db = await initializeTestDatabase(testDir);
 
       const server = createMockFilesystemServer();

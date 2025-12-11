@@ -116,7 +116,7 @@ export default function BlogIndex({ data }: { data: { posts: Post[] } }) {
             <div class="footer-links">
               <a href="https://casys.ai" target="_blank" rel="noopener">Casys.ai</a>
               <a
-                href="https://github.com/Casys-AI/casys-intelligence"
+                href="https://github.com/Casys-AI/casys-pml"
                 target="_blank"
                 rel="noopener"
               >

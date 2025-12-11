@@ -139,7 +139,7 @@ export default function LandingPage({ data }: { data: LandingPageData }) {
               <a href="/blog" class="nav-link">Blog</a>
               <a href="/dashboard" class="nav-link">Dashboard</a>
               <a
-                href="https://github.com/Casys-AI/casys-intelligence"
+                href="https://github.com/Casys-AI/casys-pml"
                 class="nav-link nav-link-github"
                 target="_blank"
                 rel="noopener"
@@ -224,7 +224,7 @@ export default function LandingPage({ data }: { data: LandingPageData }) {
                   </svg>
                 </a>
                 <a
-                  href="https://github.com/Casys-AI/casys-intelligence"
+                  href="https://github.com/Casys-AI/casys-pml"
                   class="btn btn-ghost"
                   target="_blank"
                   rel="noopener"
@@ -623,7 +623,7 @@ capabilities.use("data_pipeline")`}</code></pre>
               </p>
               <div class="cta-actions">
                 <a
-                  href="https://github.com/Casys-AI/casys-intelligence"
+                  href="https://github.com/Casys-AI/casys-pml"
                   class="btn btn-primary"
                   target="_blank"
                   rel="noopener"
@@ -661,7 +661,7 @@ capabilities.use("data_pipeline")`}</code></pre>
             <div class="footer-links">
               <a href="https://casys.ai" target="_blank" rel="noopener">Casys.ai</a>
               <a
-                href="https://github.com/Casys-AI/casys-intelligence"
+                href="https://github.com/Casys-AI/casys-pml"
                 target="_blank"
                 rel="noopener"
               >

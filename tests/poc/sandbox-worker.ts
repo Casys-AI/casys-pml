@@ -34,7 +34,7 @@ self.addEventListener("message", async (event: MessageEvent) => {
 });
 
 /**
- * Test code that uses AgentCards bridge
+ * Test code that uses Casys PML bridge
  */
 async function runTestCode() {
   log("Testing vector search...");

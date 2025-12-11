@@ -22,7 +22,7 @@ Deno.test("E2E 02: MCP server discovery and tool extraction", async (t) => {
 
   try {
     await t.step("1. Setup test database", async () => {
-      testDir = await Deno.makeTempDir({ prefix: "agentcards_e2e_02_" });
+      testDir = await Deno.makeTempDir({ prefix: "pml_e2e_02_" });
       db = await initializeTestDatabase(testDir);
     });
 

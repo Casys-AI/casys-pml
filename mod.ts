@@ -12,7 +12,7 @@
 // MCP Gateway Server
 export { PMLGatewayServer } from "./src/mcp/gateway-server.ts";
 // Legacy exports for backward compatibility (deprecated)
-export { PMLGatewayServer as CasysIntelligenceGatewayServer } from "./src/mcp/gateway-server.ts";
+export { PMLGatewayServer as CasysPmlGatewayServer } from "./src/mcp/gateway-server.ts";
 export { PMLGatewayServer as AgentCardsGatewayServer } from "./src/mcp/gateway-server.ts";
 export type { GatewayServerConfig } from "./src/mcp/gateway-server.ts";
 export { MCPClient } from "./src/mcp/client.ts";

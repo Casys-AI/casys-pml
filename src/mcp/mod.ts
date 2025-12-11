@@ -13,7 +13,7 @@
 // Gateway server
 export { PMLGatewayServer } from "./gateway-server.ts";
 // Legacy exports for backward compatibility (deprecated)
-export { PMLGatewayServer as CasysIntelligenceGatewayServer } from "./gateway-server.ts";
+export { PMLGatewayServer as CasysPmlGatewayServer } from "./gateway-server.ts";
 export { PMLGatewayServer as AgentCardsGatewayServer } from "./gateway-server.ts";
 export type { GatewayServerConfig } from "./gateway-server.ts";
 

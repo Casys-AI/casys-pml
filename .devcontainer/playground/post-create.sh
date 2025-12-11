@@ -1,9 +1,9 @@
 #!/bin/bash
-# Post-create script for AgentCards Playground
+# Post-create script for Casys PML Playground
 
 set -e
 
-echo "Setting up AgentCards Playground..."
+echo "Setting up Casys PML Playground..."
 
 # Cache all Deno dependencies
 echo "Caching Deno dependencies..."

@@ -55,7 +55,7 @@ the core value proposition of Casys PML:
 Expose only Casys PML meta-tools:
 
 - `cai_execute_workflow` - Intent-based tool orchestration
-- `cai_execute_code` - Sandbox code execution
+- `pml_execute_code` - Sandbox code execution
 - `exa_get_code_context_exa` - Code search (high-value)
 - `exa_web_search_exa` - Web search (high-value)
 

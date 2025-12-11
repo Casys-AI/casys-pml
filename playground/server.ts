@@ -14,18 +14,18 @@
  *   deno run --allow-all playground/server.ts
  *
  * Available MCP tools:
- * - cai__cai_execute_code
- * - cai__cai_execute_dag
- * - cai__cai_search_tools
- * - cai__cai_continue
- * - cai__cai_abort
- * - cai__cai_replan
- * - cai__cai_approval_response
+ * - pml__pml_execute_code
+ * - pml__pml_execute_dag
+ * - pml__pml_search_tools
+ * - pml__pml_continue
+ * - pml__pml_abort
+ * - pml__pml_replan
+ * - pml__pml_approval_response
  */
 
 // Import directly from source (playground is in Casys PML repo)
 import {
-  Casys PMLGatewayServer,
+  PMLGatewayServer,
   ControlledExecutor,
   createDefaultClient,
   DAGSuggester,
@@ -98,7 +98,7 @@ try {
 
   // 4. Create gateway server (standalone mode without external MCP servers)
   console.log("Step 4/5: Creating gateway server...");
-  const gateway = new Casys PMLGatewayServer(
+  const gateway = new PMLGatewayServer(
     db,
     vectorSearch,
     graphEngine,
@@ -127,13 +127,13 @@ try {
   console.log();
 
   console.log("📋 Available MCP tools:");
-  console.log("   • cai__cai_execute_code - Execute TypeScript/JavaScript safely");
-  console.log("   • cai__cai_execute_dag - Execute DAG workflows");
-  console.log("   • cai__cai_search_tools - Semantic tool search");
-  console.log("   • cai__cai_continue - Continue DAG execution");
-  console.log("   • cai__cai_abort - Abort DAG execution");
-  console.log("   • cai__cai_replan - Replan DAG with new requirements");
-  console.log("   • cai__cai_approval_response - Respond to approval requests");
+  console.log("   • pml__pml_execute_code - Execute TypeScript/JavaScript safely");
+  console.log("   • pml__pml_execute_dag - Execute DAG workflows");
+  console.log("   • pml__pml_search_tools - Semantic tool search");
+  console.log("   • pml__pml_continue - Continue DAG execution");
+  console.log("   • pml__pml_abort - Abort DAG execution");
+  console.log("   • pml__pml_replan - Replan DAG with new requirements");
+  console.log("   • pml__pml_approval_response - Respond to approval requests");
   console.log();
 
   console.log("✅ MCP Gateway ready!\n");

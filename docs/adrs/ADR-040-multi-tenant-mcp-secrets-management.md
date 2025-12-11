@@ -35,7 +35,7 @@ Key questions addressed:
 │    "mcpServers": {                                              │
 │      "mcp-gateway": {                                           │
 │        "type": "http",                                          │
-│        "url": "https://intelligence.casys.ai/mcp",              │
+│        "url": "https://pml.casys.ai/mcp",              │
 │        "headers": { "x-api-key": "${CAI_API_KEY}" }             │
 │      }                                                          │
 │    }                                                            │

@@ -1,5 +1,5 @@
 {
-  "name": "AgentCards Playground",
+  "name": "Casys PML Playground",
   "build": {
     "dockerfile": "Dockerfile",
     "context": "../.."
@@ -25,7 +25,7 @@
     }
   },
   "remoteEnv": {
-    "AGENTCARDS_DB_PATH": "/workspaces/AgentCards/.agentcards.db",
+    "AGENTCARDS_DB_PATH": "/workspaces/Casys PML/.agentcards.db",
     "AGENTCARDS_WORKFLOW_PATH": "playground/config/workflow-templates.yaml"
   },
   "postCreateCommand": "bash .devcontainer/playground/post-create.sh",

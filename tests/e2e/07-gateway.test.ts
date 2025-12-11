@@ -30,7 +30,7 @@ Deno.test("E2E 07: MCP gateway integration", async (t) => {
 
   try {
     await t.step("1. Setup test environment", async () => {
-      testDir = await Deno.makeTempDir({ prefix: "agentcards_e2e_07_" });
+      testDir = await Deno.makeTempDir({ prefix: "pml_e2e_07_" });
       db = await initializeTestDatabase(testDir);
       embeddingModel = await loadMockEmbeddingModel();
 

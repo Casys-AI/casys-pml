@@ -1,4 +1,4 @@
-# AgentCards Monitoring Stack
+# Casys PML Monitoring Stack
 
 Observability stack with Grafana, Loki, Prometheus, and Promtail.
 
@@ -36,9 +36,9 @@ Metrics collection and time-series database.
 
 ### 🚚 Promtail
 
-Log shipper that reads AgentCards logs and sends them to Loki.
+Log shipper that reads Casys PML logs and sends them to Loki.
 
-**Monitored logs:** `/home/ubuntu/.agentcards/logs/*.log`
+**Monitored logs:** `/home/ubuntu/.pml/logs/*.log`
 
 ## Usage
 
@@ -49,27 +49,27 @@ Log shipper that reads AgentCards logs and sends them to Loki.
 3. Select **Loki** datasource
 4. Query examples:
    ```logql
-   {job="agentcards"}
-   {job="agentcards", level="ERROR"}
-   {job="agentcards"} |= "Sentry"
-   {job="agentcards"} | json | level="INFO"
+   {job="pml"}
+   {job="pml", level="ERROR"}
+   {job="pml"} |= "Sentry"
+   {job="pml"} | json | level="INFO"
    ```
 
 ### Creating Dashboards
 
 1. Go to **Dashboards** → **New Dashboard**
 2. Add panels with queries:
-   - **Log panel:** `{job="agentcards"}`
-   - **Error count:** `count_over_time({job="agentcards", level="ERROR"}[5m])`
-   - **Request rate:** `rate({job="agentcards"} |= "call_tool"[1m])`
+   - **Log panel:** `{job="pml"}`
+   - **Error count:** `count_over_time({job="pml", level="ERROR"}[5m])`
+   - **Request rate:** `rate({job="pml"} |= "call_tool"[1m])`
 
 ### Metrics (Future)
 
 When Prometheus exporter is added:
 
-- `agentcards_mcp_requests_total`
-- `agentcards_mcp_request_duration_seconds`
-- `agentcards_tools_called_total`
+- `pml_mcp_requests_total`
+- `pml_mcp_request_duration_seconds`
+- `pml_tools_called_total`
 
 ## Configuration Files
 
@@ -95,7 +95,7 @@ docker-compose logs promtail
 curl http://localhost:3100/ready
 
 # Verify log file permissions
-ls -la /home/ubuntu/.agentcards/logs/
+ls -la /home/ubuntu/.pml/logs/
 ```
 
 ### High memory usage
@@ -109,7 +109,7 @@ limits_config:
 
 ## Next Steps
 
-1. Add Prometheus exporter to AgentCards
+1. Add Prometheus exporter to Casys PML
 2. Create custom dashboards
 3. Set up alerting rules
 4. Add Tempo for distributed tracing (optional)

@@ -1,6 +1,6 @@
 import { getPosts, type Post } from "../../utils/posts.ts";
 
-const SITE_URL = "https://intelligence.casys.ai";
+const SITE_URL = "https://pml.casys.ai";
 const FEED_TITLE = "Casys PML - Procedural Memory Layer Blog";
 const FEED_DESCRIPTION =
   "Engineering insights, technical deep-dives, and lessons learned building Casys PML - a Procedural Memory Layer for AI agents.";

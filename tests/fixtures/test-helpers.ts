@@ -21,7 +21,7 @@ import { EmbeddingModel } from "../../src/vector/embeddings.ts";
 export async function initializeTestDatabase(
   testDir?: string,
 ): Promise<PGliteClient> {
-  const dir = testDir || await Deno.makeTempDir({ prefix: "agentcards_test_" });
+  const dir = testDir || await Deno.makeTempDir({ prefix: "pml_test_" });
   const dbPath = `${dir}/test.db`;
 
   const db = new PGliteClient(dbPath);

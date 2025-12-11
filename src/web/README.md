@@ -1,4 +1,4 @@
-# AgentCards Fresh Dashboard
+# Casys PML Fresh Dashboard
 
 Modern, interactive graph visualization dashboard built with **Deno Fresh**.
 
@@ -14,9 +14,9 @@ Modern, interactive graph visualization dashboard built with **Deno Fresh**.
 
 ## Quick Start
 
-### 1. Start the AgentCards Gateway (required)
+### 1. Start the Casys PML Gateway (required)
 
-The Fresh dashboard fetches data from the AgentCards gateway API.
+The Fresh dashboard fetches data from the Casys PML gateway API.
 
 ```bash
 # Start gateway on port 3001
@@ -96,7 +96,7 @@ eventSource.addEventListener("edge_created", (event) => {
 # Fresh server port (default: 8080)
 FRESH_PORT=8080
 
-# AgentCards gateway API base URL (default: http://localhost:3001)
+# Casys PML gateway API base URL (default: http://localhost:3001)
 API_BASE=http://localhost:3001
 ```
 

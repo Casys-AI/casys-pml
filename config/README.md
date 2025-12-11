@@ -1,6 +1,6 @@
-# Configuration AgentCards
+# Configuration Casys PML
 
-Ce dossier contient les fichiers de configuration versionnés pour AgentCards.
+Ce dossier contient les fichiers de configuration versionnés pour Casys PML.
 
 ## Structure
 
@@ -50,12 +50,12 @@ Template avec chemin relatif `.` - fonctionne partout (local + Codespace) :
 
 ### `.mcp.json` (Claude Code)
 
-Configure AgentCards gateway comme serveur MCP pour Claude Code :
+Configure Casys PML gateway comme serveur MCP pour Claude Code :
 
 ```json
 {
   "mcpServers": {
-    "agentcards": {
+    "pml": {
       "command": "deno",
       "args": ["run", "--allow-all", "src/main.ts", "serve", "--config", ".mcp-servers.json"]
     }

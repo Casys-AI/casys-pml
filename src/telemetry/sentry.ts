@@ -54,7 +54,7 @@ export async function initSentry(): Promise<void> {
   Sentry.init({
     dsn,
     environment,
-    release: release ? `casys-intelligence@${release}` : undefined,
+    release: release ? `casys-pml@${release}` : undefined,
     tracesSampleRate,
 
     // Filter events before sending

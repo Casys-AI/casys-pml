@@ -52,8 +52,8 @@ cai serve    # Start gateway
 
 ```bash
 # Clone + run from source
-git clone https://github.com/casys-ai/casys-intelligence.git
-cd casys-intelligence
+git clone https://github.com/casys-ai/casys-pml.git
+cd casys-pml
 deno task serve:playground
 ```
 

@@ -14,8 +14,8 @@ Thank you for your interest in contributing to Casys PML! This document provides
 
 ```bash
 # Clone the repository
-git clone https://github.com/Casys-AI/casys-intelligence.git
-cd casys-intelligence
+git clone https://github.com/Casys-AI/casys-pml.git
+cd casys-pml
 
 # Copy environment template
 cp .env.example .env
@@ -106,14 +106,14 @@ deno task test:coverage
 
 ## Reporting Issues
 
-- Use [GitHub Issues](https://github.com/Casys-AI/casys-intelligence/issues)
+- Use [GitHub Issues](https://github.com/Casys-AI/casys-pml/issues)
 - Include reproduction steps
 - Provide environment details (OS, Deno version)
 - Add relevant logs or screenshots
 
 ## Questions?
 
-- Open a [Discussion](https://github.com/Casys-AI/casys-intelligence/discussions)
+- Open a [Discussion](https://github.com/Casys-AI/casys-pml/discussions)
 - Check existing issues and discussions first
 
 ## License

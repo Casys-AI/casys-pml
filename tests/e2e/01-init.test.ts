@@ -13,7 +13,7 @@ Deno.test("E2E 01: Database initialization and migrations", async (t) => {
 
   try {
     await t.step("1. Create temporary directory", async () => {
-      testDir = await Deno.makeTempDir({ prefix: "agentcards_e2e_01_" });
+      testDir = await Deno.makeTempDir({ prefix: "pml_e2e_01_" });
       assert(testDir, "Test directory should be created");
     });
 

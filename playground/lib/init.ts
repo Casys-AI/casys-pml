@@ -359,7 +359,7 @@ async function runFullInit(options: FullInitOptions): Promise<FullInitResult> {
 // ============================================================================
 
 if (import.meta.main) {
-  console.log("🚀 AgentCards Playground Init\n");
+  console.log("🚀 Casys PML Playground Init\n");
 
   const status = await ensurePlaygroundReady({ verbose: true });
 

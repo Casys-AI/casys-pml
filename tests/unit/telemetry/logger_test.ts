@@ -52,7 +52,7 @@ Deno.test({
   sanitizeResources: false, // Logger creates and keeps file handles open
   sanitizeOps: false, // File stat operations may overlap in parallel mode
   async fn() {
-    const testLogPath = `/tmp/agentcards-test-${Date.now()}.log`;
+    const testLogPath = `/tmp/pml-test-${Date.now()}.log`;
 
     await setupLogger({
       logFilePath: testLogPath,

@@ -1,45 +1,45 @@
-# Story Technique: Renommage AgentCards → Casys PML
+# Story Technique: Renommage Casys PML → Casys PML
 
-**Type:** Refactoring Technique **Story ID:** TECH-001 **Status:** implemented **Branche:**
-`refactor/rename-to-casys-intelligence`
+**Type:** Refactoring Technique **Story ID:** TECH-001 **Status:** completed **Branche:**
+`refactor/rename-to-casys-pml`
 
 ---
 
 ## Contexte
 
-Le projet évolue vers une vision plus large : **Casys PML** - un framework de **Collective
-Agentic Intelligence** (PML). Le naming interne doit refléter cette nouvelle identité.
+Le projet évolue vers une vision plus large : **Casys PML** - un framework de **Procedural
+Memory Layer** (PML). Le naming interne doit refléter cette nouvelle identité.
 
 ### Branding
 
 | Élément           | Valeur                          |
 | ----------------- | ------------------------------- |
-| **Nom produit**   | Casys PML              |
-| **Tagline**       | Procedural Memory Layer |
-| **Acronyme code** | PML (de "Procedural Memory Layer") |
-| **Repo GitHub**   | `casys-ai/casys-intelligence`   |
-| **Package**       | `@casys/intelligence`           |
-| **CLI**           | `cai`                           |
+| **Nom produit**   | Casys PML                       |
+| **Tagline**       | Procedural Memory Layer         |
+| **Acronyme code** | PML                             |
+| **Repo GitHub**   | `Casys-AI/casys-pml`            |
+| **Package**       | `@casys/pml`                    |
+| **CLI**           | `pml`                           |
 
-### État Actuel
+### État Final
 
-| Élément          | Valeur Actuelle        | Cible                         | Status     |
+| Élément          | Valeur Initiale        | Valeur Finale                 | Status     |
 | ---------------- | ---------------------- | ----------------------------- | ---------- |
-| Repo GitHub      | `Casys-AI/AgentCards`  | `casys-ai/casys-intelligence` | ✅ Créé |
-| Package          | (non publié)           | `@casys/intelligence`         | ✅ Créé    |
-| Branding externe | "AgentCards"           | "Casys PML"          | ✅ Créé |
-| Code interne     | `agentcards`           | `cai`                         | ✅ Créé |
+| Repo GitHub      | `Casys-AI/Casys PML`  | `Casys-AI/casys-pml`          | ✅ Done    |
+| Package          | (non publié)           | `@casys/pml`                  | ✅ Done    |
+| Branding externe | "Casys PML"           | "Casys PML"                   | ✅ Done    |
+| Code interne     | `agentcards` → `cai`   | `pml`                         | ✅ Done    |
 
 ### Périmètre
 
-**~600 occurrences** dans **~100 fichiers** à renommer :
+**~600 occurrences** dans **~100 fichiers** renommés :
 
 | Catégorie         | ~Count | Exemples                                     |
 | ----------------- | ------ | -------------------------------------------- |
-| Variables d'env   | 80     | `AGENTCARDS_DB_PATH` → `CAI_DB_PATH`         |
-| Fichier DB        | 5      | `.agentcards.db` → `.cai.db`                 |
-| Noms d'outils MCP | 30     | `agentcards:execute_dag` → `pml:execute_dag` |
-| Logs/strings      | 100    | "AgentCards" → "Casys PML"          |
+| Variables d'env   | 80     | `PML_DB_PATH` → `PML_DB_PATH`                |
+| Fichier DB        | 5      | `.pml.db` → `.pml.db`                        |
+| Noms d'outils MCP | 30     | `cai_execute_dag` → `pml_execute_dag`        |
+| Logs/strings      | 100    | "Casys PML" → "Casys PML"           |
 | Tests             | 120    | Références dans fixtures et mocks            |
 | Docs internes     | 100    | ADRs, spikes, comments                       |
 | Config            | 40     | docker-compose, deno.json, monitoring        |
@@ -67,14 +67,14 @@ du repo, **Afin de** éviter la confusion pour les contributeurs et utilisateurs
 
 ### Phase 1: Préparation
 
-- [x] **T1.1** Renommer repo GitHub vers `Casys-AI/casys-intelligence`
-- [x] **T1.2** Créer branche `refactor/rename-to-casys-intelligence` depuis `main`
+- [x] **T1.1** Renommer repo GitHub vers `Casys-AI/casys-pml`
+- [x] **T1.2** Créer branche `refactor/rename-to-casys-pml` depuis `main`
 - [x] **T1.3** Backup de la DB de dev si nécessaire
 
 ### Phase 2: Variables d'Environnement
 
-- [x] **T2.1** Renommer `AGENTCARDS_DB_PATH` → `CAI_DB_PATH`
-- [x] **T2.2** Renommer `AGENTCARDS_WORKFLOW_PATH` → `CAI_WORKFLOW_PATH`
+- [x] **T2.1** Renommer `AGENTCARDS_DB_PATH` → `PML_DB_PATH`
+- [x] **T2.2** Renommer `AGENTCARDS_WORKFLOW_PATH` → `PML_WORKFLOW_PATH`
 - [x] **T2.3** Ajouter backward-compat avec deprecation warning
 - [x] **T2.4** Mettre à jour `.env.example`
 - [x] **T2.5** Mettre à jour `docker-compose.yml`
@@ -90,7 +90,7 @@ du repo, **Afin de** éviter la confusion pour les contributeurs et utilisateurs
 
 ### Phase 3: Dossier Base de Données (PGlite)
 
-- [x] **T3.1** Renommer dossier `.agentcards.db/` → `.cai.db/`
+- [x] **T3.1** Renommer dossier `.agentcards.db/` → `.pml.db/`
 - [x] **T3.2** Mettre à jour `.gitignore` (pattern `*.db` couvre déjà)
 - [x] **T3.3** Mettre à jour les paths dans le code
 - [x] **T3.4** Ajouter script de migration automatique pour users existants
@@ -118,7 +118,7 @@ du repo, **Afin de** éviter la confusion pour les contributeurs et utilisateurs
 
 ### Phase 5: Logs et Strings
 
-- [x] **T5.1** Remplacer "AgentCards" → "Casys PML" dans les logs
+- [x] **T5.1** Remplacer "Casys PML" → "Casys PML" dans les logs
 - [x] **T5.2** Mettre à jour les messages d'erreur
 - [x] **T5.3** Mettre à jour les banners CLI
 
@@ -187,7 +187,7 @@ Pour les utilisateurs existants avec une installation `agentcards` :
 AGENTCARDS_DB_PATH=./data/.agentcards.db
 
 # Nouveau (recommandé)
-CAI_DB_PATH=./data/.cai.db
+PML_DB_PATH=./data/.pml.db
 ```
 
 Les anciennes variables seront supportées avec un warning de dépréciation pendant 2 versions

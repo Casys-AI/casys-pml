@@ -21,14 +21,13 @@ Le challenge : développer les deux dans un workflow unifié compatible avec Cla
 **Monorepo privé + synchronisation automatique vers repo public**
 
 ```
-casys-intelligence-cloud (PRIVÉ - repo de dev principal)
+casys-pml-cloud (PRIVÉ - repo de dev principal)
 ├── src/
 │   ├── core/           ← Code AGPL (sync → repo public)
 │   ├── cloud/          ← Code SaaS propriétaire
 │   └── shared/         ← Types partagés (sync → repo public)
 ├── packages/
 │   └── mcp-connector/  ← Package client (npm public)
-├── .bmad/              ← BMAD (sync → repo public)
 ├── docs/               ← Docs (sync → repo public)
 └── .github/workflows/
     └── sync-to-public.yml
@@ -55,8 +54,8 @@ casys-intelligence-cloud (PRIVÉ - repo de dev principal)
 
 | Repo | Visibilité | Contenu | License |
 |------|------------|---------|---------|
-| `Casys-AI/casys-intelligence` | Public | Core + docs + BMAD | AGPL-3.0 |
-| `Casys-AI/casys-intelligence-cloud` | Privé | Tout (core + cloud) | Propriétaire |
+| `Casys-AI/casys-pml` | Public | Core + docs + BMAD | AGPL-3.0 |
+| `Casys-AI/casys-pml-cloud` | Privé | Tout (core + cloud) | Propriétaire |
 
 ### Current State Analysis
 
@@ -105,14 +104,14 @@ Code "cloud" déjà implémenté dans le repo actuel :
 
 #### Task 1.1: Créer le repo privé
 ```bash
-# Sur GitHub: créer Casys-AI/casys-intelligence-cloud (privé)
+# Sur GitHub: créer Casys-AI/casys-pml-cloud (privé)
 ```
 
 #### Task 1.2: Migrer les remotes
 ```bash
 # Dans le repo local
 git remote rename origin public
-git remote add origin git@github.com:Casys-AI/casys-intelligence-cloud.git
+git remote add origin git@github.com:Casys-AI/casys-pml-cloud.git
 git push -u origin main --all
 git push origin --tags
 ```
@@ -120,8 +119,8 @@ git push origin --tags
 #### Task 1.3: Vérifier que tout fonctionne
 ```bash
 git remote -v
-# origin  → casys-intelligence-cloud (privé)
-# public  → casys-intelligence (public)
+# origin  → casys-pml-cloud (privé)
+# public  → casys-pml (public)
 ```
 
 ### Phase 2: GitHub Action Sync
@@ -162,7 +161,7 @@ jobs:
         with:
           source-directory: '.'
           destination-github-username: 'Casys-AI'
-          destination-repository-name: 'casys-intelligence'
+          destination-repository-name: 'casys-pml'
           target-branch: main
           exclude: |
             src/cloud/
@@ -232,7 +231,7 @@ packages/mcp-connector/
 ## Acceptance Criteria
 
 ### Phase 1: Migration Git
-- [ ] **AC 1.1:** Le repo privé `casys-intelligence-cloud` existe et contient tout le code
+- [ ] **AC 1.1:** Le repo privé `casys-pml-cloud` existe et contient tout le code
 - [ ] **AC 1.2:** `git remote -v` montre origin=privé, public=public
 - [ ] **AC 1.3:** `git push origin main` pousse vers le privé
 - [ ] **AC 1.4:** L'historique git complet est préservé
@@ -270,7 +269,7 @@ git remote rename public origin
 ### Workflow Claude Code
 
 Après migration, le workflow quotidien :
-1. Dev dans `casys-intelligence-cloud` (privé)
+1. Dev dans `casys-pml-cloud` (privé)
 2. Claude Code voit **tout** le code (core + cloud)
 3. Push sur main → sync auto vers public (sauf cloud/)
 4. Contributors externes → PR sur repo public → merge dans privé

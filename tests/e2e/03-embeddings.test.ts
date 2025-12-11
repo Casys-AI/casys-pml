@@ -25,7 +25,7 @@ Deno.test({
 
     try {
       await t.step("1. Setup test database and load model", async () => {
-        testDir = await Deno.makeTempDir({ prefix: "agentcards_e2e_03_" });
+        testDir = await Deno.makeTempDir({ prefix: "pml_e2e_03_" });
         db = await initializeTestDatabase(testDir);
 
         console.log("  Loading BGE-M3 model (may take a moment)...");

@@ -28,7 +28,7 @@ Deno.test("E2E 04: Vector search and semantic retrieval", async (t) => {
 
   try {
     await t.step("1. Setup test environment", async () => {
-      testDir = await Deno.makeTempDir({ prefix: "agentcards_e2e_04_" });
+      testDir = await Deno.makeTempDir({ prefix: "pml_e2e_04_" });
       db = await initializeTestDatabase(testDir);
       embeddingModel = await loadMockEmbeddingModel();
     });

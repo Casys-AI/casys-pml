@@ -1,6 +1,6 @@
 # Mock MCP Servers
 
-Mock MCP servers for testing AgentCards without real dependencies.
+Mock MCP servers for testing Casys PML without real dependencies.
 
 ## Available Mocks
 

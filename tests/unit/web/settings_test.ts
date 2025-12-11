@@ -33,7 +33,7 @@ Deno.test("MCP Config Cloud Mode - has correct HTTP transport structure", () => 
     mcpServers: {
       "mcp-gateway": {
         type: "http",
-        url: "https://intelligence.casys.ai/mcp",
+        url: "https://pml.casys.ai/mcp",
         headers: {
           "x-api-key": "${CAI_API_KEY}",
         },
@@ -45,7 +45,7 @@ Deno.test("MCP Config Cloud Mode - has correct HTTP transport structure", () => 
   assertEquals(mcpConfigCloud.mcpServers["mcp-gateway"].type, "http");
   assertEquals(
     mcpConfigCloud.mcpServers["mcp-gateway"].url,
-    "https://intelligence.casys.ai/mcp",
+    "https://pml.casys.ai/mcp",
   );
   assertEquals(
     mcpConfigCloud.mcpServers["mcp-gateway"].headers["x-api-key"],
@@ -58,7 +58,7 @@ Deno.test("MCP Config Cloud Mode - uses environment variable expansion for API k
     mcpServers: {
       "mcp-gateway": {
         type: "http",
-        url: "https://intelligence.casys.ai/mcp",
+        url: "https://pml.casys.ai/mcp",
         headers: {
           "x-api-key": "${CAI_API_KEY}",
         },
@@ -80,7 +80,7 @@ Deno.test("MCP Config Local Mode - has correct stdio transport structure", () =>
         type: "stdio",
         command: "deno",
         args: ["task", "mcp"],
-        cwd: "/path/to/casys-intelligence",
+        cwd: "/path/to/casys-pml",
       },
     },
   };
@@ -99,7 +99,7 @@ Deno.test("MCP Config Local Mode - does not include API key headers", () => {
         type: "stdio",
         command: "deno",
         args: ["task", "mcp"],
-        cwd: "/path/to/casys-intelligence",
+        cwd: "/path/to/casys-pml",
       },
     },
   };

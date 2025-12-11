@@ -1,7 +1,7 @@
-# AgentCards Playground
+# Casys PML Playground
 
 > **TL;DR:** Real MCP servers, real LLM calls, no mocks. Interactive notebooks to explore the Casys
-> MCP Gateway in minutes.
+> PML Gateway in minutes.
 
 ## What is this?
 
@@ -9,7 +9,7 @@ LLM agents today face a **context explosion problem**. When you connect 3-5 MCP 
 GPT, you're injecting 30-50% of your context window with tool definitions alone. Add in conversation
 history, and you quickly hit limits—paying more tokens for diminishing returns.
 
-**Casys MCP Gateway** solves this by acting as an intelligent proxy between your LLM and MCP
+**Casys PML Gateway** solves this by acting as an intelligent proxy between your LLM and MCP
 servers:
 
 - **Vector Search:** Find the right tools semantically instead of listing all 200+
@@ -24,7 +24,7 @@ real MCP servers, make real LLM calls, and see real metrics.
 
 ### Option 1: GitHub Codespaces (Recommended)
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Casys-AI/AgentCards?devcontainer_path=.devcontainer/playground/devcontainer.json)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Casys-AI/casys-pml?devcontainer_path=.devcontainer/playground/devcontainer.json)
 
 **Steps (< 5 minutes):**
 
@@ -40,8 +40,8 @@ real MCP servers, make real LLM calls, and see real metrics.
 
 ```bash
 # Clone and navigate
-git clone https://github.com/Casys-AI/casys-intelligence.git
-cd casys-intelligence
+git clone https://github.com/Casys-AI/casys-pml.git
+cd casys-pml
 
 # Setup environment
 cp .env.example .env
@@ -185,7 +185,7 @@ console.log(result.text);
 All configuration is at **project root**:
 
 ```
-AgentCards/
+casys-pml/
 ├── .env                       # API keys (gitignored)
 ├── .env.example               # Template with all variables
 ├── .mcp-servers.json          # MCP server config (gitignored)
@@ -205,7 +205,7 @@ See [config/README.md](../config/README.md) for details.
 Start the MCP Gateway before running notebooks:
 
 ```bash
-# From AgentCards root
+# From project root
 deno task dev
 ```
 
@@ -235,12 +235,12 @@ No API key needed for local development. The gateway reads your MCP server confi
 
 | Tool                      | Description                      |
 | ------------------------- | -------------------------------- |
-| `cai_execute_code` | Safe code execution in sandbox   |
-| `cai_execute_dag`  | DAG workflow orchestration       |
-| `cai_search_tools` | Semantic tool search             |
-| `cai_continue`     | Continue paused DAG execution    |
-| `cai_abort`        | Abort running DAG                |
-| `cai_replan`       | Replan DAG with new requirements |
+| `pml_execute_code` | Safe code execution in sandbox   |
+| `pml_execute_dag`  | DAG workflow orchestration       |
+| `pml_search_tools` | Semantic tool search             |
+| `pml_continue`     | Continue paused DAG execution    |
+| `pml_abort`        | Abort running DAG                |
+| `pml_replan`       | Replan DAG with new requirements |
 
 ## Troubleshooting / FAQ
 

@@ -60,12 +60,12 @@ async function createTestConfig(): Promise<string> {
   const config = {
     mcpServers: {
       filesystem: {
-        command: "/home/ubuntu/CascadeProjects/AgentCards/tests/mocks/run-filesystem-mock.sh",
+        command: "/home/ubuntu/CascadeProjects/Casys PML/tests/mocks/run-filesystem-mock.sh",
         args: [],
         protocol: "stdio",
       },
       database: {
-        command: "/home/ubuntu/CascadeProjects/AgentCards/tests/mocks/run-database-mock.sh",
+        command: "/home/ubuntu/CascadeProjects/Casys PML/tests/mocks/run-database-mock.sh",
         args: [],
         protocol: "stdio",
         env: {
@@ -74,7 +74,7 @@ async function createTestConfig(): Promise<string> {
         },
       },
       api: {
-        command: "/home/ubuntu/CascadeProjects/AgentCards/tests/mocks/run-api-mock.sh",
+        command: "/home/ubuntu/CascadeProjects/Casys PML/tests/mocks/run-api-mock.sh",
         args: [],
         protocol: "stdio",
       },

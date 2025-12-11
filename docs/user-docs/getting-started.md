@@ -37,8 +37,8 @@ deno 2.x.x (...)
 ### Step 1: Clone the repository
 
 ```bash
-git clone https://github.com/casys-ai/casys-intelligence.git
-cd casys-intelligence
+git clone https://github.com/casys-ai/casys-pml.git
+cd casys-pml
 ```
 
 ### Step 2: Build the CLI
@@ -233,8 +233,8 @@ Now that you're up and running:
 
 ## Need Help?
 
-- **GitHub Issues:** [casys-ai/casys-intelligence/issues](https://github.com/casys-ai/casys-intelligence/issues)
-- **Documentation:** [docs/](https://github.com/casys-ai/casys-intelligence/tree/main/docs)
+- **GitHub Issues:** [casys-ai/casys-pml/issues](https://github.com/casys-ai/casys-pml/issues)
+- **Documentation:** [docs/](https://github.com/casys-ai/casys-pml/tree/main/docs)
 
 ---
 

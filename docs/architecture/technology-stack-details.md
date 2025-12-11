@@ -115,4 +115,4 @@ See `docs/architecture/data-architecture.md` for the exhaustive schema.
 - `src/db/migrations.ts`, `src/db/schema/*`
 - `docs/architecture/data-architecture.md`
 - `docs/adrs/ADR-038-scoring-algorithms-reference.md`
-- `docs/sprint-artifacts/tech-rename-to-casys-intelligence.md`
+- `docs/sprint-artifacts/tech-rename-to-casys-pml.md`

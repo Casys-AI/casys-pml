@@ -1,6 +1,6 @@
 # Context Optimization Module
 
-On-demand schema loading and context window optimization for AgentCards.
+On-demand schema loading and context window optimization for Casys PML.
 
 ## Overview
 
@@ -62,7 +62,7 @@ import { PGliteClient } from "./src/db/client.ts";
 import { EmbeddingModel } from "./src/vector/embeddings.ts";
 
 // Initialize dependencies
-const db = new PGliteClient("~/.agentcards/.agentcards.db");
+const db = new PGliteClient("~/.pml/.pml.db");
 await db.connect();
 
 const embeddingModel = new EmbeddingModel();
@@ -318,4 +318,4 @@ User asks: "read a file from disk"
 
 ## License
 
-Part of AgentCards project.
+Part of Casys PML project.

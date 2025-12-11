@@ -1,6 +1,6 @@
 # Casys PML
 
-[![CI](https://github.com/casys-ai/casys-intelligence/workflows/CI/badge.svg)](https://github.com/casys-ai/casys-intelligence/actions)
+[![CI](https://github.com/casys-ai/casys-pml/workflows/CI/badge.svg)](https://github.com/casys-ai/casys-pml/actions)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Deno Version](https://img.shields.io/badge/deno-2.x-blue.svg)](https://deno.land)
 
@@ -74,8 +74,8 @@ Casys PML solves two critical problems with MCP ecosystems:
 
 ```bash
 # Clone the repository
-git clone https://github.com/casys-ai/casys-intelligence.git
-cd casys-intelligence
+git clone https://github.com/casys-ai/casys-pml.git
+cd casys-pml
 
 # Start the API gateway (port 3003)
 deno task dev
@@ -109,7 +109,7 @@ The Jupyter notebook playground provides interactive exploration of PML features
 # Open in GitHub Codespaces (recommended)
 ```
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/casys-ai/casys-intelligence?devcontainer_path=.devcontainer/playground/devcontainer.json)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/casys-ai/casys-pml?devcontainer_path=.devcontainer/playground/devcontainer.json)
 
 Notebooks cover:
 
@@ -345,7 +345,7 @@ ls -lh .cai.db
 deno task test
 ```
 
-**Getting Help:** [GitHub Issues](https://github.com/casys-ai/casys-intelligence/issues)
+**Getting Help:** [GitHub Issues](https://github.com/casys-ai/casys-pml/issues)
 
 ---
 
@@ -439,8 +439,8 @@ We welcome contributions! Here's how to get started:
 
 ```bash
 # Clone your fork
-git clone https://github.com/casys-ai/casys-intelligence.git
-cd casys-intelligence
+git clone https://github.com/casys-ai/casys-pml.git
+cd casys-pml
 
 # Install dependencies (Deno manages this automatically)
 deno cache src/main.ts
@@ -474,6 +474,6 @@ details.
 
 ---
 
-[Report Bug](https://github.com/casys-ai/casys-intelligence/issues) |
-[Request Feature](https://github.com/casys-ai/casys-intelligence/issues) |
+[Report Bug](https://github.com/casys-ai/casys-pml/issues) |
+[Request Feature](https://github.com/casys-ai/casys-pml/issues) |
 [Documentation](docs/)

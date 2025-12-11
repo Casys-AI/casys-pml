@@ -1,5 +1,5 @@
 /**
- * POC: AgentCards Bridge for Sandbox
+ * POC: Casys PML Bridge for Sandbox
  *
  * Provides MCP tools access from within Deno sandbox via message passing.
  * This is injected into the sandbox worker context.

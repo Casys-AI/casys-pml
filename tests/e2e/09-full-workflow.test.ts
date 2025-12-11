@@ -40,7 +40,7 @@ Deno.test("E2E 09: Complete user journey", async (t) => {
 
     await t.step("1. Initialize and discover servers", async () => {
       // Create test database
-      testDir = await Deno.makeTempDir({ prefix: "agentcards_e2e_full_" });
+      testDir = await Deno.makeTempDir({ prefix: "pml_e2e_full_" });
       db = await initializeTestDatabase(testDir);
 
       // Create mock MCP servers

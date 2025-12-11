@@ -21,7 +21,7 @@ Deno.test({
       ],
       stdout: "piped",
       stderr: "piped",
-      cwd: "/home/ubuntu/CascadeProjects/AgentCards",
+      cwd: "/home/ubuntu/CascadeProjects/Casys PML",
     });
 
     const { stdout, stderr, code } = await process.output();
@@ -68,7 +68,7 @@ Deno.test({
   async fn() {
     // Override HOME to use non-existent test location
     const originalHome = Deno.env.get("HOME");
-    const testHome = `/tmp/agentcards-test-no-config-${Date.now()}`;
+    const testHome = `/tmp/pml-test-no-config-${Date.now()}`;
     Deno.env.set("HOME", testHome);
 
     try {
@@ -82,7 +82,7 @@ Deno.test({
         ],
         stdout: "piped",
         stderr: "piped",
-        cwd: "/home/ubuntu/CascadeProjects/AgentCards",
+        cwd: "/home/ubuntu/CascadeProjects/Casys PML",
       });
 
       const { stderr, code } = await process.output();

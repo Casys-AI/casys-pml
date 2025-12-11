@@ -141,7 +141,7 @@ Deno.test({
     undefined, // capabilityStore
     undefined, // adaptiveThresholdManager
     {
-      name: "agentcards-test",
+      name: "pml-test",
       version: "1.0.0-test",
     },
   );

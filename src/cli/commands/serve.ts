@@ -48,7 +48,7 @@ Examples:
   • ./playground/config/mcp-servers.json
   • ~/.config/cai/mcp-servers.json
 
-Need help creating a config? See: https://github.com/casys-ai/casys-intelligence#configuration`,
+Need help creating a config? See: https://github.com/casys-ai/casys-pml#configuration`,
     );
   }
 

@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => {
     plugins: [fresh(), tailwindcss()],
     server: {
       port: parseInt(env.PORT_DASHBOARD || "8081"),
-      allowedHosts: ["intelligence.casys.ai", "localhost"],
+      allowedHosts: ["pml.casys.ai", "localhost"],
     },
     build: {
       sourcemap: false, // Suppress sourcemap warnings

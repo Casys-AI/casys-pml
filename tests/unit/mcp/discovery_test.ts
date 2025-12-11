@@ -9,7 +9,7 @@ import { MCPServerDiscovery } from "../../../src/mcp/discovery.ts";
 
 // Helper to create temporary config files
 function getTempConfigPath(testName: string): string {
-  return `/tmp/agentcards-test-config-${testName}-${Date.now()}.yaml`;
+  return `/tmp/pml-test-config-${testName}-${Date.now()}.yaml`;
 }
 
 // Sample YAML config
