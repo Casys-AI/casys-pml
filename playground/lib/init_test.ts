@@ -11,37 +11,47 @@ import { ensurePlaygroundReady, getPlaygroundDbPath } from "./init.ts";
 // Unit Tests - getPlaygroundDbPath
 // ============================================================================
 
-Deno.test("getPlaygroundDbPath - uses CAI_DB_PATH env var when set", () => {
+Deno.test("getPlaygroundDbPath - uses PML_DB_PATH env var when set", () => {
   const customPath = "/custom/path/test.db";
-  const originalValue = Deno.env.get("CAI_DB_PATH");
+  const originalPml = Deno.env.get("PML_DB_PATH");
+  const originalCai = Deno.env.get("CAI_DB_PATH");
 
-  Deno.env.set("CAI_DB_PATH", customPath);
+  Deno.env.delete("CAI_DB_PATH");
+  Deno.env.set("PML_DB_PATH", customPath);
   try {
     const path = getPlaygroundDbPath();
     assertEquals(path, customPath);
   } finally {
-    if (originalValue) {
-      Deno.env.set("CAI_DB_PATH", originalValue);
+    if (originalPml) {
+      Deno.env.set("PML_DB_PATH", originalPml);
     } else {
-      Deno.env.delete("CAI_DB_PATH");
+      Deno.env.delete("PML_DB_PATH");
+    }
+    if (originalCai) {
+      Deno.env.set("CAI_DB_PATH", originalCai);
     }
   }
 });
 
 Deno.test("getPlaygroundDbPath - falls back to default when env var not set", () => {
-  const originalValue = Deno.env.get("CAI_DB_PATH");
+  const originalPml = Deno.env.get("PML_DB_PATH");
+  const originalCai = Deno.env.get("CAI_DB_PATH");
+  Deno.env.delete("PML_DB_PATH");
   Deno.env.delete("CAI_DB_PATH");
 
   try {
     const path = getPlaygroundDbPath();
     assert(
-      path.endsWith(".cai.db"),
-      `Expected path to end with .cai.db, got: ${path}`,
+      path.endsWith(".pml.db"),
+      `Expected path to end with .pml.db, got: ${path}`,
     );
-    assert(path.includes(".cai"), `Expected path to include .cai, got: ${path}`);
+    assert(path.includes(".pml"), `Expected path to include .pml, got: ${path}`);
   } finally {
-    if (originalValue) {
-      Deno.env.set("CAI_DB_PATH", originalValue);
+    if (originalPml) {
+      Deno.env.set("PML_DB_PATH", originalPml);
+    }
+    if (originalCai) {
+      Deno.env.set("CAI_DB_PATH", originalCai);
     }
   }
 });

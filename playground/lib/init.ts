@@ -144,13 +144,17 @@ export async function ensurePlaygroundReady(
 /**
  * Get the database path for playground use.
  *
- * Uses CAI_DB_PATH env var (set in .env files).
- * Falls back to default ~/.cai/.cai.db if not set.
+ * Uses PML_DB_PATH env var (set in .env files).
+ * Falls back to CAI_DB_PATH for backward compatibility.
+ * Falls back to default ~/.pml/.pml.db if not set.
  */
 export function getPlaygroundDbPath(): string {
   // Use env var from .env file (loaded automatically by Deno 2.0+)
-  const envPath = Deno.env.get("CAI_DB_PATH");
+  const envPath = Deno.env.get("PML_DB_PATH") ?? Deno.env.get("CAI_DB_PATH");
   if (envPath) {
+    if (!Deno.env.get("PML_DB_PATH") && Deno.env.get("CAI_DB_PATH")) {
+      console.warn("⚠️  CAI_DB_PATH is deprecated. Use PML_DB_PATH instead.");
+    }
     return envPath;
   }
 
@@ -159,7 +163,7 @@ export function getPlaygroundDbPath(): string {
   if (!homeDir) {
     throw new Error("Cannot determine home directory");
   }
-  return `${homeDir}/.cai/.cai.db`;
+  return `${homeDir}/.pml/.pml.db`;
 }
 
 // ============================================================================
