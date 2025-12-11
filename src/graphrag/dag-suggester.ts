@@ -1112,6 +1112,8 @@ export class DAGSuggester {
    * Uses CapabilityStore.searchByContext() to find capabilities
    * whose tools_used overlap with the current context.
    *
+   * ADR-042 §4: Also suggests alternative capabilities for matched ones.
+   *
    * @param contextTools - Tools currently executed in workflow
    * @param seenTools - Tools already in predictions (for deduplication)
    * @param episodeStats - Episode statistics for adjustment
@@ -1206,11 +1208,20 @@ export class DAGSuggester {
         });
 
         seenTools.add(capabilityToolId);
+
+        // ADR-042 §4: Suggest alternative capabilities
+        const alternativePredictions = await this.suggestAlternatives(
+          capability,
+          adjusted.confidence,
+          seenTools,
+          episodeStats,
+        );
+        predictions.push(...alternativePredictions);
       }
 
       if (predictions.length > 0) {
         log.debug(
-          `[predictCapabilities] Found ${predictions.length} capability predictions`,
+          `[predictCapabilities] Found ${predictions.length} capability predictions (incl. alternatives)`,
         );
       }
     } catch (error) {
@@ -1218,6 +1229,122 @@ export class DAGSuggester {
     }
 
     return predictions;
+  }
+
+  /**
+   * Suggest alternative capabilities for a matched capability (ADR-042 §4)
+   *
+   * Uses `alternative` edges from capability_dependency table to find
+   * interchangeable capabilities that respond to the same intent.
+   *
+   * @param matchedCapability - The primary matched capability
+   * @param matchedScore - Score of the primary match
+   * @param seenTools - Tools already in predictions (for deduplication)
+   * @param episodeStats - Episode statistics for adjustment
+   * @returns Array of PredictedNode with source="alternative"
+   */
+  private async suggestAlternatives(
+    matchedCapability: Capability,
+    matchedScore: number,
+    seenTools: Set<string>,
+    episodeStats: Map<string, {
+      total: number;
+      successes: number;
+      failures: number;
+      successRate: number;
+      failureRate: number;
+    }>,
+  ): Promise<PredictedNode[]> {
+    if (!this.capabilityStore) {
+      return [];
+    }
+
+    const alternatives: PredictedNode[] = [];
+
+    try {
+      // Get both directions for 'alternative' edges (symmetric relationship)
+      const deps = await this.capabilityStore.getDependencies(matchedCapability.id, "both");
+      const alternativeEdges = deps.filter((d) => d.edgeType === "alternative");
+
+      if (alternativeEdges.length === 0) {
+        return [];
+      }
+
+      for (const alt of alternativeEdges) {
+        // Determine the alternative capability ID (could be either from or to)
+        const altCapId = alt.fromCapabilityId === matchedCapability.id
+          ? alt.toCapabilityId
+          : alt.fromCapabilityId;
+
+        const altCapToolId = `capability:${altCapId}`;
+
+        // Skip if already suggested
+        if (seenTools.has(altCapToolId)) continue;
+
+        // Fetch the alternative capability
+        const altCap = await this.capabilityStore.findById(altCapId);
+        if (!altCap) continue;
+
+        // ADR-042: Only suggest alternatives with success rate > 0.7
+        if (altCap.successRate <= 0.7) {
+          log.debug(`[suggestAlternatives] Skipping ${altCapId} due to low success rate: ${altCap.successRate}`);
+          continue;
+        }
+
+        // ADR-042: Score is 90% of matched capability's score (slight reduction)
+        const baseConfidence = matchedScore * 0.9;
+
+        // Apply episodic learning adjustments
+        const adjusted = this.adjustConfidenceFromEpisodes(
+          baseConfidence,
+          altCapToolId,
+          episodeStats,
+        );
+
+        if (!adjusted) continue; // Excluded due to high failure rate
+
+        alternatives.push({
+          toolId: altCapToolId,
+          confidence: adjusted.confidence,
+          reasoning: `Alternative to ${matchedCapability.name ?? matchedCapability.id.substring(0, 8)} (${
+            (altCap.successRate * 100).toFixed(0)
+          }% success rate)`,
+          source: "capability",
+          capabilityId: altCapId,
+        });
+
+        // Story 7.6: Log trace for alternative suggestion (fire-and-forget)
+        this.algorithmTracer?.logTrace({
+          algorithmMode: "passive_suggestion",
+          targetType: "capability",
+          signals: {
+            successRate: altCap.successRate,
+            graphDensity: this.graphEngine.getGraphDensity(),
+            spectralClusterMatch: false,
+          },
+          params: {
+            alpha: 0.9, // Alternative penalty factor
+            reliabilityFactor: 1.0,
+            structuralBoost: 0,
+          },
+          finalScore: adjusted.confidence,
+          thresholdUsed: 0.7, // Alternative success rate threshold
+          decision: "accepted",
+        });
+
+        seenTools.add(altCapToolId);
+      }
+
+      if (alternatives.length > 0) {
+        log.debug(
+          `[suggestAlternatives] Found ${alternatives.length} alternative capabilities for ${matchedCapability.id}`,
+        );
+      }
+    } catch (error) {
+      log.error(`[suggestAlternatives] Failed: ${error}`);
+    }
+
+    return alternatives;
   }
 
   // =============================================================================

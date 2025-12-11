@@ -16,8 +16,19 @@
 
 import { EigenvalueDecomposition, Matrix } from "ml-matrix";
 import { getLogger } from "../telemetry/logger.ts";
+import type { CapabilityDependency, CapabilityEdgeType } from "../capabilities/types.ts";
 
 const logger = getLogger("default");
+
+/**
+ * Edge type weights for capability-to-capability edges (ADR-042)
+ */
+const EDGE_TYPE_WEIGHTS: Record<CapabilityEdgeType, number> = {
+  dependency: 1.0,
+  contains: 0.8,
+  alternative: 0.6,
+  sequence: 0.5,
+};
 
 /**
  * Capability data for clustering (minimal interface)
@@ -125,11 +136,18 @@ export class SpectralClusteringManager {
    * - Columns: Same as rows
    * - Values: 1 if tool-capability connection, 0 otherwise
    *
+   * ADR-042: Also includes capability→capability edges from dependencies.
+   *
    * @param tools - List of tool IDs
    * @param capabilities - List of capabilities with their tools_used
+   * @param capabilityDependencies - Optional: capability→capability edges (ADR-042)
    * @returns The adjacency matrix
    */
-  buildBipartiteMatrix(tools: string[], capabilities: ClusterableCapability[]): Matrix {
+  buildBipartiteMatrix(
+    tools: string[],
+    capabilities: ClusterableCapability[],
+    capabilityDependencies?: CapabilityDependency[],
+  ): Matrix {
     const startTime = performance.now();
 
     // Build index maps
@@ -158,6 +176,36 @@ export class SpectralClusteringManager {
       }
     }
 
+    // ADR-042 §1: Add capability→capability edges from dependencies
+    // These are symmetric for clustering (undirected graph)
+    if (capabilityDependencies && capabilityDependencies.length > 0) {
+      let capCapEdgesAdded = 0;
+
+      for (const dep of capabilityDependencies) {
+        // Only include edges with confidence > 0.3 (as per ADR-042)
+        if (dep.confidenceScore <= 0.3) continue;
+
+        const fromIdx = this.capabilityIndex.get(dep.fromCapabilityId);
+        const toIdx = this.capabilityIndex.get(dep.toCapabilityId);
+
+        if (fromIdx !== undefined && toIdx !== undefined) {
+          // Weight based on edge_type and confidence (ADR-042)
+          const typeWeight = EDGE_TYPE_WEIGHTS[dep.edgeType];
+          const weight = typeWeight * dep.confidenceScore;
+
+          // Symmetric for clustering (undirected graph)
+          data[fromIdx][toIdx] = Math.max(data[fromIdx][toIdx], weight);
+          data[toIdx][fromIdx] = Math.max(data[toIdx][fromIdx], weight);
+          capCapEdgesAdded++;
+        }
+      }
+
+      logger.debug("Added capability→capability edges to matrix (ADR-042)", {
+        edgesProvided: capabilityDependencies.length,
+        edgesAdded: capCapEdgesAdded,
+      });
+    }
+
     this.adjacencyMatrix = new Matrix(data);
 
     const elapsedMs = performance.now() - startTime;
@@ -165,6 +213,7 @@ export class SpectralClusteringManager {
       tools: tools.length,
       capabilities: capabilities.length,
       matrixSize: n,
+      hasCapDependencies: !!capabilityDependencies?.length,
       elapsedMs: elapsedMs.toFixed(1),
     });
 
@@ -545,15 +594,21 @@ export class SpectralClusteringManager {
    * are hyperedges connecting multiple tools. Computes importance
    * score via power iteration.
    *
+   * ADR-042 §2: Considers directed Cap→Cap edges for PageRank.
+   * A capability with many 'dependency' edges incoming = more important.
+   * A capability that 'contains' others = "meta-capability" = more important.
+   *
    * @param capabilities - Capabilities to rank
    * @param dampingFactor - PageRank damping factor (default: 0.85)
    * @param maxIter - Maximum iterations (default: 100)
+   * @param capabilityDependencies - Optional: Cap→Cap edges for directed PageRank (ADR-042)
    * @returns Map of capability_id to PageRank score (0-1)
    */
   computeHypergraphPageRank(
     capabilities: ClusterableCapability[],
     dampingFactor = 0.85,
     maxIter = 100,
+    capabilityDependencies?: CapabilityDependency[],
   ): Map<string, number> {
     const startTime = performance.now();
 
@@ -563,8 +618,37 @@ export class SpectralClusteringManager {
     }
 
     const n = this.adjacencyMatrix.rows;
-    // Note: numTools available if needed for tool-specific logic
-    // const _numTools = this.toolIndex.size;
+
+    // Copy adjacency matrix for modification with directed edges
+    const pageRankMatrix: number[][] = [];
+    for (let i = 0; i < n; i++) {
+      pageRankMatrix.push([...this.adjacencyMatrix.getRow(i)]);
+    }
+
+    // ADR-042 §2: Add directed Cap→Cap edges for PageRank
+    // 'dependency' and 'contains' edges contribute to target's importance
+    if (capabilityDependencies && capabilityDependencies.length > 0) {
+      let directedEdgesAdded = 0;
+
+      for (const dep of capabilityDependencies) {
+        // Only 'dependency' and 'contains' types contribute to PageRank (ADR-042)
+        if (dep.edgeType !== "dependency" && dep.edgeType !== "contains") continue;
+
+        const fromIdx = this.capabilityIndex.get(dep.fromCapabilityId);
+        const toIdx = this.capabilityIndex.get(dep.toCapabilityId);
+
+        if (fromIdx !== undefined && toIdx !== undefined) {
+          // Directed edge: from → to (to receives PageRank)
+          // Weight by confidence score
+          pageRankMatrix[fromIdx][toIdx] += dep.confidenceScore;
+          directedEdgesAdded++;
+        }
+      }
+
+      logger.debug("Added directed Cap→Cap edges for PageRank (ADR-042)", {
+        directedEdgesAdded,
+      });
+    }
 
     // Initialize scores uniformly
     let scores = new Array(n).fill(1 / n);
@@ -574,13 +658,13 @@ export class SpectralClusteringManager {
       const newScores = new Array(n).fill((1 - dampingFactor) / n);
 
       for (let i = 0; i < n; i++) {
-        // Get outgoing edges (degree)
-        const outDegree = this.adjacencyMatrix.getRow(i).reduce((a, b) => a + b, 0);
+        // Get outgoing edges (degree) from modified matrix
+        const outDegree = pageRankMatrix[i].reduce((a, b) => a + b, 0);
 
         if (outDegree > 0) {
           for (let j = 0; j < n; j++) {
-            if (this.adjacencyMatrix.get(i, j) > 0) {
-              newScores[j] += dampingFactor * scores[i] / outDegree;
+            if (pageRankMatrix[i][j] > 0) {
+              newScores[j] += dampingFactor * scores[i] * pageRankMatrix[i][j] / outDegree;
             }
           }
         } else {
@@ -610,6 +694,7 @@ export class SpectralClusteringManager {
     const elapsedMs = performance.now() - startTime;
     logger.debug("Hypergraph PageRank computed", {
       capabilities: capabilities.length,
+      hasCapDependencies: !!capabilityDependencies?.length,
       elapsedMs: elapsedMs.toFixed(1),
     });
 

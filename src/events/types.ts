@@ -53,6 +53,8 @@ export type EventType =
   | "capability.matched"
   | "capability.executed"
   | "capability.pruned"
+  | "capability.dependency.created"
+  | "capability.dependency.removed"
   | "learning.pattern.detected"
   | "learning.edge.strengthened"
   | "cache.hit"

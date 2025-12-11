@@ -214,6 +214,39 @@ export class GraphRAGEngine {
         }
       }
 
+      // 3. Load capability-to-capability edges from capability_dependency table
+      const capDeps = await this.db.query(`
+        SELECT from_capability_id, to_capability_id, observed_count, confidence_score, edge_type, edge_source
+        FROM capability_dependency
+        WHERE confidence_score > 0.3
+      `);
+
+      for (const dep of capDeps) {
+        const fromNode = `capability:${dep.from_capability_id}`;
+        const toNode = `capability:${dep.to_capability_id}`;
+
+        // Ensure capability nodes exist
+        if (!this.graph.hasNode(fromNode)) {
+          this.graph.addNode(fromNode, { type: "capability" });
+        }
+        if (!this.graph.hasNode(toNode)) {
+          this.graph.addNode(toNode, { type: "capability" });
+        }
+
+        // Add edge if not already present
+        if (!this.graph.hasEdge(fromNode, toNode)) {
+          this.graph.addEdge(fromNode, toNode, {
+            weight: dep.confidence_score as number,
+            count: dep.observed_count as number,
+            edge_type: (dep.edge_type as string) || "sequence",
+            edge_source: (dep.edge_source as string) || "inferred",
+            relationship: "capability_dependency",
+          });
+        }
+      }
+
+      log.debug(`Loaded ${capDeps.length} capability-to-capability edges`);
+
       const syncTime = performance.now() - startTime;
       log.info(
         `✓ Graph synced: ${this.graph.order} nodes, ${this.graph.size} edges (${
@@ -601,6 +634,7 @@ export class GraphRAGEngine {
   private static readonly EDGE_TYPE_WEIGHTS: Record<string, number> = {
     dependency: 1.0, // Explicit DAG from templates
     contains: 0.8, // Parent-child hierarchy (capability → tool)
+    alternative: 0.6, // Same intent, different implementation (capability ↔ capability)
     sequence: 0.5, // Temporal order between siblings
   };
 
@@ -690,6 +724,7 @@ export class GraphRAGEngine {
     }
 
     // ADR-041: Create 'contains' edges (parent → child)
+    // Tech-spec: Also persist capability→capability edges to capability_dependency table
     for (const [parentTraceId, children] of parentToChildren) {
       const parentNodeId = traceToNode.get(parentTraceId);
       if (!parentNodeId) continue; // Parent not in this execution (e.g., top-level)
@@ -704,6 +739,19 @@ export class GraphRAGEngine {
         );
         if (result === "created") edgesCreated++;
         else if (result === "updated") edgesUpdated++;
+
+        // Tech-spec Task 5: Persist capability→capability edges to capability_dependency
+        if (parentNodeId.startsWith("capability:") && childNodeId.startsWith("capability:")) {
+          const fromCapabilityId = parentNodeId.replace("capability:", "");
+          const toCapabilityId = childNodeId.replace("capability:", "");
+
+          try {
+            await this.persistCapabilityDependency(fromCapabilityId, toCapabilityId, "contains");
+          } catch (error) {
+            // Log but don't fail - edge already tracked in graph
+            log.warn(`Failed to persist capability dependency: ${error}`);
+          }
+        }
       }
     }
 
@@ -834,6 +882,72 @@ export class GraphRAGEngine {
       });
 
       return "created";
+    }
+  }
+
+  /**
+   * Tech-spec Task 5: Persist capability→capability edge to capability_dependency table
+   *
+   * Uses UPSERT to handle repeated observations:
+   * - First observation: creates with edge_source='inferred'
+   * - 3+ observations: upgrades to edge_source='observed'
+   *
+   * @param fromCapabilityId - Source capability UUID
+   * @param toCapabilityId - Target capability UUID
+   * @param edgeType - Edge type: 'contains', 'sequence', 'dependency', 'alternative'
+   */
+  private async persistCapabilityDependency(
+    fromCapabilityId: string,
+    toCapabilityId: string,
+    edgeType: "contains" | "sequence" | "dependency" | "alternative",
+  ): Promise<void> {
+    const baseWeight = GraphRAGEngine.EDGE_TYPE_WEIGHTS[edgeType];
+    const inferredModifier = GraphRAGEngine.EDGE_SOURCE_MODIFIERS["inferred"];
+    const observedModifier = GraphRAGEngine.EDGE_SOURCE_MODIFIERS["observed"];
+    const threshold = GraphRAGEngine.OBSERVED_THRESHOLD;
+
+    await this.db.query(
+      `INSERT INTO capability_dependency (
+        from_capability_id, to_capability_id, observed_count, confidence_score,
+        edge_type, edge_source, created_at, last_observed
+      ) VALUES ($1, $2, 1, $3, $4, 'inferred', NOW(), NOW())
+      ON CONFLICT (from_capability_id, to_capability_id) DO UPDATE SET
+        observed_count = capability_dependency.observed_count + 1,
+        last_observed = NOW(),
+        edge_source = CASE
+          WHEN capability_dependency.observed_count + 1 >= $5
+            AND capability_dependency.edge_source = 'inferred'
+          THEN 'observed'
+          ELSE capability_dependency.edge_source
+        END,
+        confidence_score = $6 * CASE
+          WHEN capability_dependency.observed_count + 1 >= $5
+            AND capability_dependency.edge_source = 'inferred'
+          THEN $7
+          ELSE $8
+        END`,
+      [
+        fromCapabilityId,
+        toCapabilityId,
+        baseWeight * inferredModifier, // initial confidence
+        edgeType,
+        threshold,
+        baseWeight,
+        observedModifier,
+        inferredModifier,
+      ],
+    );
+
+    // Warn if contains cycle detected (potential paradox)
+    if (edgeType === "contains") {
+      const reverseExists = await this.db.queryOne(
+        `SELECT 1 FROM capability_dependency
+         WHERE from_capability_id = $1 AND to_capability_id = $2 AND edge_type = 'contains'`,
+        [toCapabilityId, fromCapabilityId],
+      );
+      if (reverseExists) {
+        log.warn(`Potential paradox: contains cycle detected between capabilities ${fromCapabilityId} ↔ ${toCapabilityId}`);
+      }
     }
   }
 

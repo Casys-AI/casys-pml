@@ -179,4 +179,9 @@ Les valeurs utilisées dans les formules doivent être monitorées et ajustées.
 ## 5. Future Improvements
 
 1.  **Online Learning des Poids :** Remplacer les poids statiques (0.50, 0.25) par des poids appris via régression logistique sur les feedbacks utilisateurs.
-2.  **Unified Hypergraph :** À terme, fusionner le graphe des Tools et l'hypergraphe des Capabilities pour un calcul unifié (mais coûteux).
+2.  ~~**Unified Hypergraph :**~~ **→ ADR-042 (Capability Hyperedges)** : Les relations capability→capability (hyperedges) sont maintenant stockées dans `capability_dependency`. ADR-042 définit comment enrichir le Spectral Clustering, PageRank, et Capability Match avec ces relations.
+
+## 6. Related ADRs
+
+- **ADR-041:** Hierarchical Trace Tracking (edge_type, edge_source)
+- **ADR-042:** Capability-to-Capability Hyperedges (enrichissement des algorithmes avec les relations cap→cap)

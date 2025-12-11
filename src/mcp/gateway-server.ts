@@ -2479,22 +2479,33 @@ export class PMLGatewayServer {
           const result = await this.capabilityDataService.listCapabilities(filters);
 
           // Map camelCase to snake_case for external API
+          // Tech-spec AC 8: Include dependencies_count for each capability
+          const capabilitiesWithDeps = await Promise.all(
+            result.capabilities.map(async (cap) => {
+              const depsCount = this.capabilityStore
+                ? await this.capabilityStore.getDependenciesCount(cap.id)
+                : 0;
+              return {
+                id: cap.id,
+                name: cap.name,
+                description: cap.description,
+                code_snippet: cap.codeSnippet,
+                tools_used: cap.toolsUsed,
+                success_rate: cap.successRate,
+                usage_count: cap.usageCount,
+                avg_duration_ms: cap.avgDurationMs,
+                community_id: cap.communityId,
+                intent_preview: cap.intentPreview,
+                created_at: cap.createdAt,
+                last_used: cap.lastUsed,
+                source: cap.source,
+                dependencies_count: depsCount,
+              };
+            }),
+          );
+
           const response = {
-            capabilities: result.capabilities.map((cap) => ({
-              id: cap.id,
-              name: cap.name,
-              description: cap.description,
-              code_snippet: cap.codeSnippet,
-              tools_used: cap.toolsUsed,
-              success_rate: cap.successRate,
-              usage_count: cap.usageCount,
-              avg_duration_ms: cap.avgDurationMs,
-              community_id: cap.communityId,
-              intent_preview: cap.intentPreview,
-              created_at: cap.createdAt,
-              last_used: cap.lastUsed,
-              source: cap.source,
-            })),
+            capabilities: capabilitiesWithDeps,
             total: result.total,
             limit: result.limit,
             offset: result.offset,
@@ -2506,6 +2517,153 @@ export class PMLGatewayServer {
         } catch (error) {
           return new Response(
             JSON.stringify({ error: `Failed to list capabilities: ${error}` }),
+            { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } },
+          );
+        }
+      }
+
+      // Tech-spec: GET /api/capabilities/:id/dependencies - Get capability dependencies
+      const capDepMatch = url.pathname.match(/^\/api\/capabilities\/([\w-]+)\/dependencies$/);
+      if (capDepMatch && req.method === "GET") {
+        try {
+          if (!this.capabilityStore) {
+            return new Response(
+              JSON.stringify({ error: "Capability store not initialized" }),
+              { status: 503, headers: { "Content-Type": "application/json", ...corsHeaders } },
+            );
+          }
+
+          const capabilityId = capDepMatch[1];
+          const directionParam = url.searchParams.get("direction") || "both";
+
+          // Validate direction
+          if (!["from", "to", "both"].includes(directionParam)) {
+            return new Response(
+              JSON.stringify({ error: "direction must be 'from', 'to', or 'both'" }),
+              { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } },
+            );
+          }
+
+          const deps = await this.capabilityStore.getDependencies(
+            capabilityId,
+            directionParam as "from" | "to" | "both",
+          );
+
+          const response = {
+            capability_id: capabilityId,
+            dependencies: deps.map((d) => ({
+              from_capability_id: d.fromCapabilityId,
+              to_capability_id: d.toCapabilityId,
+              observed_count: d.observedCount,
+              confidence_score: d.confidenceScore,
+              edge_type: d.edgeType,
+              edge_source: d.edgeSource,
+              created_at: d.createdAt.toISOString(),
+              last_observed: d.lastObserved.toISOString(),
+            })),
+            total: deps.length,
+          };
+
+          return new Response(JSON.stringify(response), {
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          });
+        } catch (error) {
+          return new Response(
+            JSON.stringify({ error: `Failed to get dependencies: ${error}` }),
+            { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } },
+          );
+        }
+      }
+
+      // Tech-spec: POST /api/capabilities/:id/dependencies - Create dependency
+      if (capDepMatch && req.method === "POST") {
+        try {
+          if (!this.capabilityStore) {
+            return new Response(
+              JSON.stringify({ error: "Capability store not initialized" }),
+              { status: 503, headers: { "Content-Type": "application/json", ...corsHeaders } },
+            );
+          }
+
+          const fromCapabilityId = capDepMatch[1];
+          const body = await req.json();
+
+          // Validate required fields
+          if (!body.to_capability_id || !body.edge_type) {
+            return new Response(
+              JSON.stringify({ error: "Missing required fields: to_capability_id, edge_type" }),
+              { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } },
+            );
+          }
+
+          // Validate edge_type
+          const validEdgeTypes = ["contains", "sequence", "dependency", "alternative"];
+          if (!validEdgeTypes.includes(body.edge_type)) {
+            return new Response(
+              JSON.stringify({
+                error: `Invalid edge_type. Must be one of: ${validEdgeTypes.join(", ")}`,
+              }),
+              { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } },
+            );
+          }
+
+          const dep = await this.capabilityStore.addDependency({
+            fromCapabilityId,
+            toCapabilityId: body.to_capability_id,
+            edgeType: body.edge_type,
+            edgeSource: body.edge_source || "template",
+          });
+
+          const response = {
+            created: true,
+            dependency: {
+              from_capability_id: dep.fromCapabilityId,
+              to_capability_id: dep.toCapabilityId,
+              observed_count: dep.observedCount,
+              confidence_score: dep.confidenceScore,
+              edge_type: dep.edgeType,
+              edge_source: dep.edgeSource,
+              created_at: dep.createdAt.toISOString(),
+              last_observed: dep.lastObserved.toISOString(),
+            },
+          };
+
+          return new Response(JSON.stringify(response), {
+            status: 201,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          });
+        } catch (error) {
+          return new Response(
+            JSON.stringify({ error: `Failed to create dependency: ${error}` }),
+            { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } },
+          );
+        }
+      }
+
+      // Tech-spec: DELETE /api/capabilities/:from/dependencies/:to - Remove dependency
+      const capDepDeleteMatch = url.pathname.match(
+        /^\/api\/capabilities\/([\w-]+)\/dependencies\/([\w-]+)$/,
+      );
+      if (capDepDeleteMatch && req.method === "DELETE") {
+        try {
+          if (!this.capabilityStore) {
+            return new Response(
+              JSON.stringify({ error: "Capability store not initialized" }),
+              { status: 503, headers: { "Content-Type": "application/json", ...corsHeaders } },
+            );
+          }
+
+          const fromCapabilityId = capDepDeleteMatch[1];
+          const toCapabilityId = capDepDeleteMatch[2];
+
+          await this.capabilityStore.removeDependency(fromCapabilityId, toCapabilityId);
+
+          return new Response(JSON.stringify({ deleted: true }), {
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          });
+        } catch (error) {
+          return new Response(
+            JSON.stringify({ error: `Failed to delete dependency: ${error}` }),
             { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } },
           );
         }
