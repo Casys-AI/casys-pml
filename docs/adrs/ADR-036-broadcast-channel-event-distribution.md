@@ -40,7 +40,7 @@ Adopter BroadcastChannel comme bus d'événements interne pour découpler les é
 
 ```typescript
 // Création d'un canal (même nom = même canal)
-const channel = new BroadcastChannel("cai-events");
+const channel = new BroadcastChannel("pml-events");
 
 // Émission (broadcast à tous les listeners)
 channel.postMessage({ type: "task_completed", payload: {...} });
@@ -58,7 +58,7 @@ channel.close();
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                    BroadcastChannel: "cai-events"            │
+│                    BroadcastChannel: "pml-events"            │
 └───────────────────────────────┬─────────────────────────────────────┘
                                 │
         ┌───────────────────────┼───────────────────────┐
@@ -75,7 +75,7 @@ channel.close();
                                 │
                                 ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                    BroadcastChannel: "cai-events"            │
+│                    BroadcastChannel: "pml-events"            │
 └───────────────────────────────┬─────────────────────────────────────┘
                                 │
         ┌───────────────────────┼───────────────────────┐
@@ -127,7 +127,7 @@ type EventType =
 
 ```typescript
 // src/events/event-bus.ts
-const CHANNEL_NAME = "cai-events";
+const CHANNEL_NAME = "pml-events";
 
 class EventBus {
   private channel: BroadcastChannel;
@@ -251,7 +251,7 @@ class DAGExecutor {
 // src/sandbox/sandbox-worker.ts - Updated
 // Note: BroadcastChannel works across workers!
 
-const eventChannel = new BroadcastChannel("cai-events");
+const eventChannel = new BroadcastChannel("pml-events");
 
 function emitEvent(type: string, payload: unknown): void {
   eventChannel.postMessage({
@@ -344,7 +344,7 @@ eventBus.on("capability.learned", (event) => {
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                    BroadcastChannel: "cai-events"                      │
+│                    BroadcastChannel: "pml-events"                      │
 │                                                                              │
 │  PRODUCERS (émettent des événements)                                         │
 │  ════════════════════════════════════                                        │
@@ -388,7 +388,7 @@ eventBus.on("capability.learned", (event) => {
 
 ```typescript
 // src/sandbox/sandbox-worker.ts
-const traceChannel = new BroadcastChannel("cai-traces");
+const traceChannel = new BroadcastChannel("pml-traces");
 
 function __trace(event: Partial<TraceEvent>): void {
   traceChannel.postMessage({ ...event, ts: Date.now() });

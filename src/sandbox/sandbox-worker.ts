@@ -34,8 +34,9 @@ declare const self: DedicatedWorkerGlobalScope;
 /**
  * BroadcastChannel for real-time trace emission
  * Bridge subscribes to this channel to receive capability traces
+ * Channel name: PML_TRACES_CHANNEL from src/events/event-bus.ts
  */
-const traceChannel = new BroadcastChannel("cai-traces");
+const traceChannel = new BroadcastChannel("pml-traces");
 
 // ADR-041: Context stack for hierarchical trace tracking
 // Tracks current trace context (traceId of active capability)

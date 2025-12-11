@@ -2,6 +2,7 @@
  * GraphExplorer Island - Search and explore graph with advanced features
  *
  * Story 6.4: Graph Explorer & Search Interface
+ * Story 8.3: Hypergraph View Mode with capability zones
  * Styled with Casys.ai design system
  */
 
@@ -517,7 +518,7 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
         </div>
       )}
 
-      {/* Graph Visualization (D3.js - supports hyperedges) */}
+      {/* Graph Visualization (D3.js - always shows tools + capability zones) */}
       <D3GraphVisualization
         apiBase={apiBase}
         onNodeSelect={handleNodeSelect}

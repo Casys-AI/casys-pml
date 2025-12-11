@@ -5,6 +5,7 @@
  * Uses d3-force for layout, d3-zoom for pan/zoom
  *
  * Story 6.4: Graph visualization with ADR-041 edge types
+ * Story 8.3: Hypergraph view mode with capability hull zones
  */
 
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
@@ -32,31 +33,67 @@ import {
 interface D3GraphVisualizationProps {
   apiBase: string;
   onNodeSelect?: (node: GraphNodeData | null) => void;
+  /** Callback when a capability is selected (Story 8.4 integration point) */
+  onCapabilitySelect?: (capability: CapabilityData | null) => void;
   highlightedNodeId?: string | null;
   pathNodes?: string[] | null;
 }
 
-interface GraphSnapshot {
+/** Capability data for hypergraph mode selection (Story 8.3) */
+interface CapabilityData {
+  id: string;
+  label: string;
+  successRate: number;
+  usageCount: number;
+  toolsCount: number;
+  codeSnippet?: string;
+}
+
+/** Hull zone from hypergraph API (Story 8.2/8.3) */
+interface CapabilityZone {
+  id: string;
+  label: string;
+  color: string;
+  opacity: number;
+  toolIds: string[];
+  padding: number;
+  minRadius: number;
+}
+
+/** Hypergraph API response (Story 8.1/8.3) */
+interface HypergraphResponse {
   nodes: Array<{
-    id: string;
-    label: string;
-    server: string;
-    pagerank: number;
-    degree: number;
+    data: {
+      id: string;
+      type: "capability" | "tool";
+      label: string;
+      server?: string;
+      pagerank?: number;
+      degree?: number;
+      parents?: string[];
+      successRate?: number;
+      usageCount?: number;
+      toolsCount?: number;
+      codeSnippet?: string;
+    };
   }>;
   edges: Array<{
-    source: string;
-    target: string;
-    confidence: number;
-    observed_count: number;
-    edge_type?: string;
-    edge_source?: string;
+    data: {
+      id: string;
+      source: string;
+      target: string;
+      edgeType: string;
+      edgeSource: string;
+      sharedTools?: number;
+      observedCount?: number;
+    };
   }>;
+  capability_zones?: CapabilityZone[];
+  capabilities_count: number;
+  tools_count: number;
   metadata: {
-    total_nodes: number;
-    total_edges: number;
-    density: number;
-    last_updated: string;
+    generated_at: string;
+    version: string;
   };
 }
 
@@ -68,6 +105,15 @@ interface SimNode extends GraphNodeData {
   vy?: number;
   fx?: number | null;
   fy?: number | null;
+  /** Node type for hypergraph mode */
+  nodeType?: "tool" | "capability";
+  /** Parent capability IDs (hypergraph mode) */
+  parents?: string[];
+  /** Capability-specific fields */
+  successRate?: number;
+  usageCount?: number;
+  toolsCount?: number;
+  codeSnippet?: string;
 }
 
 // D3 simulation link type
@@ -105,6 +151,7 @@ const MARKER_ID = "graph-arrow";
 export default function D3GraphVisualization({
   apiBase: apiBaseProp,
   onNodeSelect,
+  onCapabilitySelect,
   highlightedNodeId,
   pathNodes,
 }: D3GraphVisualizationProps) {
@@ -117,13 +164,64 @@ export default function D3GraphVisualization({
   const nodesRef = useRef<SimNode[]>([]);
   const linksRef = useRef<SimLink[]>([]);
 
+  // Story 8.3: Hypergraph mode refs
+  const capabilityZonesRef = useRef<CapabilityZone[]>([]);
+  const capabilityDataRef = useRef<Map<string, CapabilityData>>(new Map());
+  const hullUpdateTimerRef = useRef<number | null>(null);
+
   // State
   const [selectedNode, setSelectedNode] = useState<GraphNodeData | null>(null);
+  // Story 8.4: Will be used for capability panel integration
+  const [_selectedCapability, setSelectedCapability] = useState<CapabilityData | null>(null);
   const [servers, setServers] = useState<Set<string>>(new Set());
   const [hiddenServers, setHiddenServers] = useState<Set<string>>(new Set());
   const [showOrphanNodes, setShowOrphanNodes] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; data: GraphNodeData } | null>(
     null,
+  );
+  const [capabilityTooltip, setCapabilityTooltip] = useState<{
+    x: number;
+    y: number;
+    zone: CapabilityZone;
+  } | null>(null);
+
+  // Story 8.3: Hull interaction callbacks
+  const handleHullHover = useCallback(
+    (zone: CapabilityZone | null, x: number, y: number) => {
+      if (zone) {
+        setCapabilityTooltip({ zone, x, y });
+      } else {
+        setCapabilityTooltip(null);
+      }
+    },
+    [],
+  );
+
+  const handleHullClick = useCallback(
+    (zone: CapabilityZone) => {
+      const capData = capabilityDataRef.current.get(zone.id);
+      if (capData) {
+        setSelectedCapability(capData);
+        onCapabilitySelect?.(capData);
+        // Emit BroadcastChannel event for cross-tab sync
+        // Channel name: PML_EVENTS_CHANNEL from src/events/event-bus.ts
+        if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+          const channel = new BroadcastChannel("pml-events");
+          channel.postMessage({
+            type: "capability.selected",
+            payload: {
+              capabilityId: zone.id,
+              label: zone.label,
+              timestamp: Date.now(),
+            },
+          });
+          channel.close();
+        }
+      }
+    },
+    [onCapabilitySelect],
   );
 
   // Server colors (Neo4j "Color on Demand" pattern)
@@ -214,15 +312,18 @@ export default function D3GraphVisualization({
     // Main group for zoom/pan
     const g = svg.append("g").attr("class", "graph-container");
 
-    // Layers for edges and nodes (edges below nodes)
+    // Layers: edges → hulls → nodes (hulls between edges and nodes for proper z-order)
     const edgeLayer = g.append("g").attr("class", "edges");
+    const hullLayer = g.append("g").attr("class", "hulls"); // Story 8.3: Hull zones
     const nodeLayer = g.append("g").attr("class", "nodes");
 
     // Create force simulation
+    // @ts-ignore - D3 type generics from CDN
     const simulation = d3
       .forceSimulation<SimNode>()
       .force(
         "link",
+        // @ts-ignore - D3 type generics from CDN
         d3
           .forceLink<SimNode, SimLink>()
           .id((d: SimNode) => d.id)
@@ -251,6 +352,20 @@ export default function D3GraphVisualization({
 
       // Update node positions
       nodeLayer.selectAll(".node").attr("transform", (d: any) => `translate(${d.x},${d.y})`);
+
+      // Story 8.3: Debounced hull update with interactivity callbacks
+      if (capabilityZonesRef.current.length > 0) {
+        if (hullUpdateTimerRef.current) clearTimeout(hullUpdateTimerRef.current);
+        hullUpdateTimerRef.current = setTimeout(() => {
+          drawCapabilityHulls(
+            hullLayer,
+            capabilityZonesRef.current,
+            nodesRef.current,
+            handleHullHover,
+            handleHullClick,
+          );
+        }, 100) as unknown as number;
+      }
     }
 
     // Store references for updates
@@ -258,6 +373,7 @@ export default function D3GraphVisualization({
       svg,
       g,
       edgeLayer,
+      hullLayer,
       nodeLayer,
       simulation,
       zoom,
@@ -265,8 +381,8 @@ export default function D3GraphVisualization({
       height,
     };
 
-    // Load initial data
-    loadGraphData();
+    // Always load hypergraph data (tools + capability zones)
+    loadHypergraphData();
 
     // Setup SSE for real-time updates
     const eventSource = new EventSource(`${apiBase}/events/stream`);
@@ -280,6 +396,7 @@ export default function D3GraphVisualization({
       eventSource.close();
       simulation.stop();
       svg.remove();
+      if (hullUpdateTimerRef.current) clearTimeout(hullUpdateTimerRef.current);
       delete (window as any).__d3Graph;
     };
   }, [apiBase]);
@@ -288,40 +405,102 @@ export default function D3GraphVisualization({
   // Data Loading
   // ───────────────────────────────────────────────────────────────────────────
 
-  const loadGraphData = async () => {
+  // Load hypergraph data with tools + capability zones
+  const loadHypergraphData = async () => {
+    setIsLoading(true);
+    setError(null);
+
     try {
-      const response = await fetch(`${apiBase}/api/graph/snapshot`);
-      const data: GraphSnapshot = await response.json();
+      const response = await fetch(`${apiBase}/api/graph/hypergraph`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      const data: HypergraphResponse = await response.json();
 
-      // Convert to simulation nodes
-      const nodes: SimNode[] = data.nodes.map((node) => ({
-        ...node,
-        x: Math.random() * 800,
-        y: Math.random() * 600,
-      }));
+      // Convert to simulation nodes (tools only for force layout)
+      const nodes: SimNode[] = [];
+      const capMap = new Map<string, CapabilityData>();
 
-      // Convert to simulation links
-      const links: SimLink[] = data.edges.map((edge) => ({
-        source: edge.source,
-        target: edge.target,
-        data: {
-          id: `${edge.source}-${edge.target}`,
-          source: edge.source,
-          target: edge.target,
-          confidence: edge.confidence,
-          observed_count: edge.observed_count,
-          edge_type: (edge.edge_type || "sequence") as EdgeType,
-          edge_source: (edge.edge_source || "inferred") as EdgeSource,
-        },
-      }));
+      for (const node of data.nodes) {
+        const d = node.data;
+        if (d.type === "tool") {
+          // Tool node
+          nodes.push({
+            id: d.id,
+            label: d.label,
+            server: d.server || "unknown",
+            pagerank: d.pagerank || 0,
+            degree: d.degree || 0,
+            nodeType: "tool",
+            parents: d.parents || [],
+            x: Math.random() * 800,
+            y: Math.random() * 600,
+          });
+        } else if (d.type === "capability") {
+          // Store capability data for tooltips/selection
+          capMap.set(d.id, {
+            id: d.id,
+            label: d.label,
+            successRate: d.successRate || 0,
+            usageCount: d.usageCount || 0,
+            toolsCount: d.toolsCount || 0,
+            codeSnippet: d.codeSnippet,
+          });
+        }
+      }
+
+      // Convert edges (filter to tool-tool edges for force layout)
+      const links: SimLink[] = data.edges
+        .filter(
+          (edge) =>
+            edge.data.edgeType !== "hierarchy" && edge.data.edgeType !== "capability_link",
+        )
+        .map((edge) => ({
+          source: edge.data.source,
+          target: edge.data.target,
+          data: {
+            id: edge.data.id,
+            source: edge.data.source,
+            target: edge.data.target,
+            confidence: 0.5, // Default for capability edges
+            observed_count: edge.data.observedCount || 1,
+            edge_type: (edge.data.edgeType || "sequence") as EdgeType,
+            edge_source: (edge.data.edgeSource || "inferred") as EdgeSource,
+          },
+        }));
 
       nodesRef.current = nodes;
       linksRef.current = links;
+      capabilityZonesRef.current = data.capability_zones || [];
+      capabilityDataRef.current = capMap;
 
       updateGraph();
       updateServers();
+
+      // Initial hull draw after nodes are positioned
+      const graph = (window as any).__d3Graph;
+      if (graph && capabilityZonesRef.current.length > 0) {
+        setTimeout(() => {
+          drawCapabilityHulls(
+            graph.hullLayer,
+            capabilityZonesRef.current,
+            nodesRef.current,
+            handleHullHover,
+            handleHullClick,
+          );
+        }, 500);
+      }
+
+      // Clear any previous errors on successful load
+      // Note: No capabilities is fine - tools still display, hulls appear when capabilities exist
+      setError(null);
     } catch (error) {
-      console.error("Failed to load graph data:", error);
+      console.error("Failed to load hypergraph data:", error);
+      setError(
+        `Failed to load hypergraph: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -372,6 +551,7 @@ export default function D3GraphVisualization({
       .attr("class", "node")
       .style("cursor", "pointer")
       .call(
+        // @ts-ignore - D3 type generics from CDN
         d3
           .drag<SVGGElement, SimNode>()
           .on("start", dragStarted)
@@ -389,12 +569,37 @@ export default function D3GraphVisualization({
     // Node label
     nodeEnter
       .append("text")
+      .attr("class", "node-label")
       .attr("text-anchor", "middle")
       .attr("dominant-baseline", "middle")
       .attr("fill", "#fff")
       .attr("font-weight", 500)
       .style("pointer-events", "none")
       .style("user-select", "none");
+
+    // Story 8.3: Multi-parent badge (hypergraph mode)
+    // Badge shows number of capabilities containing this tool
+    const badgeGroup = nodeEnter
+      .append("g")
+      .attr("class", "parent-badge")
+      .style("opacity", 0); // Hidden by default
+
+    badgeGroup
+      .append("circle")
+      .attr("class", "badge-bg")
+      .attr("r", 8)
+      .attr("fill", "var(--accent, #FFB86F)")
+      .attr("stroke", "var(--bg, #0a0908)")
+      .attr("stroke-width", 1.5);
+
+    badgeGroup
+      .append("text")
+      .attr("class", "badge-text")
+      .attr("text-anchor", "middle")
+      .attr("dominant-baseline", "middle")
+      .attr("fill", "var(--bg, #0a0908)")
+      .attr("font-size", 9)
+      .attr("font-weight", 700);
 
     const nodeMerge = nodeEnter.merge(nodeSelection);
 
@@ -413,13 +618,36 @@ export default function D3GraphVisualization({
 
     // Update labels
     nodeMerge
-      .select("text")
+      .select(".node-label")
       .text((d: SimNode) => truncateLabel(d.label, getNodeRadius(d.pagerank)))
       .attr("font-size", (d: SimNode) => Math.max(8, Math.min(12, getNodeRadius(d.pagerank) * 0.6)))
       .attr("opacity", (d: SimNode) => {
         if (hiddenServers.has(d.server)) return 0;
         if (!showOrphanNodes && d.degree === 0) return 0;
         return 1;
+      });
+
+    // Story 8.3: Update multi-parent badges (hypergraph mode only)
+    const badgeSelection = nodeMerge.select(".parent-badge");
+    badgeSelection
+      .attr("transform", (d: SimNode) => {
+        const r = getNodeRadius(d.pagerank);
+        return `translate(${r * 0.7}, ${-r * 0.7})`; // Position at top-right of node
+      })
+      .style("opacity", (d: SimNode) => {
+        // Show badge only in hypergraph mode and if tool has multiple parents
+        const parentCount = d.parents?.length || 0;
+        if (parentCount <= 1) return 0;
+        if (hiddenServers.has(d.server)) return 0;
+        if (!showOrphanNodes && d.degree === 0) return 0;
+        return 1;
+      });
+
+    badgeSelection
+      .select(".badge-text")
+      .text((d: SimNode) => {
+        const count = d.parents?.length || 0;
+        return count > 9 ? "9+" : count.toString();
       });
 
     // Event handlers
@@ -726,16 +954,21 @@ export default function D3GraphVisualization({
 
   const exportGraph = (format: "json" | "png") => {
     if (format === "json") {
-      const data = {
+      const data: Record<string, unknown> = {
         nodes: nodesRef.current.map((n) => ({
           id: n.id,
           label: n.label,
           server: n.server,
           pagerank: n.pagerank,
           degree: n.degree,
+          parents: n.parents, // Story 8.3: Include parents for hypergraph
         })),
         edges: linksRef.current.map((l) => l.data),
       };
+      // Include capability zones if present
+      if (capabilityZonesRef.current.length > 0) {
+        data.capabilityZones = capabilityZonesRef.current;
+      }
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -791,6 +1024,39 @@ export default function D3GraphVisualization({
     <>
       <div ref={containerRef} class="w-full h-full absolute top-0 left-0" />
 
+      {/* Loading Spinner (Story 8.3) */}
+      {isLoading && (
+        <div
+          class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50"
+          style={{
+            color: "var(--accent, #FFB86F)",
+          }}
+        >
+          <div class="flex flex-col items-center gap-3">
+            <div
+              class="w-8 h-8 border-2 border-current border-t-transparent rounded-full animate-spin"
+            />
+            <span class="text-sm font-medium" style={{ color: "var(--text-muted)" }}>
+              Loading graph...
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Error/Empty State Message (Story 8.3) */}
+      {error && !isLoading && (
+        <div
+          class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 max-w-md text-center p-6 rounded-xl"
+          style={{
+            background: "var(--bg-elevated, #12110f)",
+            border: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
+          }}
+        >
+          <div class="text-4xl mb-3">📊</div>
+          <p style={{ color: "var(--text-muted, #d5c3b5)" }}>{error}</p>
+        </div>
+      )}
+
       {/* Legend Panel */}
       <GraphLegendPanel
         servers={servers}
@@ -824,6 +1090,34 @@ export default function D3GraphVisualization({
           serverColor={getServerColor(tooltip.data.server)}
         />
       )}
+
+      {/* Capability Tooltip on Hull Hover (Story 8.3) */}
+      {capabilityTooltip && (
+        <div
+          class="absolute z-50 pointer-events-none"
+          style={{
+            left: `${capabilityTooltip.x}px`,
+            top: `${capabilityTooltip.y - 10}px`,
+            transform: "translateX(-50%) translateY(-100%)",
+          }}
+        >
+          <div
+            class="px-3 py-2 rounded-lg shadow-lg text-sm"
+            style={{
+              background: "var(--bg-elevated, #12110f)",
+              border: `2px solid ${capabilityTooltip.zone.color}`,
+              color: "var(--text, #f5f0ea)",
+            }}
+          >
+            <div class="font-semibold mb-1" style={{ color: capabilityTooltip.zone.color }}>
+              {capabilityTooltip.zone.label}
+            </div>
+            <div class="text-xs" style={{ color: "var(--text-dim, #8a8078)" }}>
+              {capabilityTooltip.zone.toolIds.length} tools
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -839,4 +1133,191 @@ function truncateLabel(label: string, radius: number): string {
   const maxChars = Math.floor(maxWidth / avgCharWidth);
   if (label.length <= maxChars) return label;
   return label.slice(0, maxChars - 2) + "..";
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Story 8.3: Hull Zone Rendering
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Draw capability hull zones using D3 polygon hull
+ * Each capability is rendered as a convex hull around its tool nodes
+ *
+ * @param hullLayer D3 selection for hull container
+ * @param zones Capability zone metadata
+ * @param nodes Current node positions
+ * @param onHullHover Optional callback for hull hover (tooltip)
+ * @param onHullClick Optional callback for hull click (selection)
+ */
+function drawCapabilityHulls(
+  hullLayer: any,
+  zones: CapabilityZone[],
+  nodes: SimNode[],
+  onHullHover?: (zone: CapabilityZone | null, x: number, y: number) => void,
+  onHullClick?: (zone: CapabilityZone) => void,
+) {
+  // @ts-ignore - D3 loaded from CDN
+  const d3 = globalThis.d3;
+  if (!d3 || !hullLayer) return;
+
+  // Prepare hull data
+  const hullData = zones.map((zone) => {
+    // Get positions of tools in this capability
+    const toolNodes = nodes.filter((n) => zone.toolIds.includes(n.id));
+    const points: [number, number][] = toolNodes.map((n) => [n.x, n.y]);
+
+    // Calculate hull (need at least 3 points)
+    let hull: [number, number][] | null = null;
+    if (points.length >= 3) {
+      hull = d3.polygonHull(points);
+    }
+
+    return { zone, hull, points };
+  });
+
+  // Update hulls with D3 data join
+  const hulls = hullLayer.selectAll(".capability-hull").data(hullData, (d: any) => d.zone.id);
+
+  // Exit: remove old hulls
+  hulls.exit().remove();
+
+  // Enter: create new hull groups
+  const hullEnter = hulls
+    .enter()
+    .append("g")
+    .attr("class", "capability-hull")
+    .style("cursor", "pointer")
+    .on("mouseenter", function (this: SVGGElement, event: any, d: any) {
+      // Highlight hull on hover
+      d3.select(this).select(".hull-path").attr("fill-opacity", (d.zone.opacity || 0.2) + 0.15);
+      // Trigger tooltip callback
+      if (onHullHover) {
+        const [x, y] = d3.pointer(event, document.body);
+        onHullHover(d.zone, x, y);
+      }
+    })
+    .on("mouseleave", function (this: SVGGElement, _event: any, d: any) {
+      // Reset hull opacity
+      d3.select(this).select(".hull-path").attr("fill-opacity", d.zone.opacity || 0.2);
+      // Clear tooltip
+      if (onHullHover) onHullHover(null, 0, 0);
+    })
+    .on("click", function (_event: any, d: any) {
+      // Selection callback for Story 8.4 integration
+      if (onHullClick) onHullClick(d.zone);
+    });
+
+  // Hull polygon path
+  hullEnter
+    .append("path")
+    .attr("class", "hull-path")
+    .style("transition", "all 0.3s ease");
+
+  // Hull label text
+  hullEnter
+    .append("text")
+    .attr("class", "hull-label")
+    .attr("text-anchor", "middle")
+    .attr("font-family", "var(--font-sans)")
+    .attr("font-size", 11)
+    .attr("font-weight", 600)
+    .attr("pointer-events", "none");
+
+  // Merge: update all hulls
+  const hullMerge = hullEnter.merge(hulls);
+
+  // Update hull paths
+  hullMerge
+    .select(".hull-path")
+    .attr("d", (d: any) => {
+      if (d.hull) {
+        // Expand hull with padding
+        const paddedHull = expandHull(d.hull, d.zone.padding || 20);
+        return `M${paddedHull.map((p: [number, number]) => p.join(",")).join("L")}Z`;
+      }
+      // Fallback for < 3 points
+      if (d.points.length === 1) {
+        const [x, y] = d.points[0];
+        const r = d.zone.minRadius || 50;
+        return `M${x - r},${y}A${r},${r} 0 1,0 ${x + r},${y}A${r},${r} 0 1,0 ${x - r},${y}`;
+      }
+      if (d.points.length === 2) {
+        return createEllipsePath(d.points, d.zone.minRadius || 50);
+      }
+      return "";
+    })
+    .attr("fill", (d: any) => d.zone.color)
+    .attr("fill-opacity", (d: any) => d.zone.opacity || 0.2)
+    .attr("stroke", (d: any) => d.zone.color)
+    .attr("stroke-opacity", 0.6)
+    .attr("stroke-width", 2);
+
+  // Update hull labels
+  hullMerge
+    .select(".hull-label")
+    .attr("x", (d: any) => {
+      if (d.hull) {
+        const centroid = d3.polygonCentroid(d.hull);
+        return centroid[0];
+      }
+      if (d.points.length > 0) {
+        return d.points.reduce((sum: number, p: [number, number]) => sum + p[0], 0) /
+          d.points.length;
+      }
+      return 0;
+    })
+    .attr("y", (d: any) => {
+      if (d.hull) {
+        const centroid = d3.polygonCentroid(d.hull);
+        return centroid[1] - (d.zone.padding || 20) - 8;
+      }
+      if (d.points.length > 0) {
+        const avgY = d.points.reduce((sum: number, p: [number, number]) => sum + p[1], 0) /
+          d.points.length;
+        return avgY - (d.zone.minRadius || 50) - 8;
+      }
+      return 0;
+    })
+    .attr("fill", (d: any) => d.zone.color)
+    .text((d: any) => d.zone.label);
+}
+
+/**
+ * Expand a convex hull outward by padding amount
+ */
+function expandHull(hull: [number, number][], padding: number): [number, number][] {
+  // @ts-ignore
+  const d3 = globalThis.d3;
+  if (!d3 || !hull || hull.length < 3) return hull;
+
+  const centroid = d3.polygonCentroid(hull);
+  return hull.map(([x, y]: [number, number]) => {
+    const dx = x - centroid[0];
+    const dy = y - centroid[1];
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist === 0) return [x, y] as [number, number];
+    const scale = (dist + padding) / dist;
+    return [centroid[0] + dx * scale, centroid[1] + dy * scale] as [number, number];
+  });
+}
+
+/**
+ * Create an ellipse path for 2 points
+ */
+function createEllipsePath(points: [number, number][], minRadius: number): string {
+  if (points.length !== 2) return "";
+  const [p1, p2] = points;
+  const cx = (p1[0] + p2[0]) / 2;
+  const cy = (p1[1] + p2[1]) / 2;
+  const dx = p2[0] - p1[0];
+  const dy = p2[1] - p1[1];
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  const rx = Math.max(dist / 2 + minRadius / 2, minRadius);
+  const ry = minRadius;
+  const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+
+  // Create rotated ellipse as path
+  return `M${cx - rx},${cy}A${rx},${ry} ${angle} 1,0 ${cx + rx},${cy}A${rx},${ry} ${angle} 1,0 ${
+    cx - rx
+  },${cy}`;
 }

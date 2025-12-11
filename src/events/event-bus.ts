@@ -15,9 +15,14 @@ import { getLogger } from "../telemetry/logger.ts";
 const logger = getLogger("default");
 
 /**
- * BroadcastChannel name for all Casys PML events
+ * BroadcastChannel names for PML events
+ * Exported for use in web islands and workers
  */
-const CHANNEL_NAME = "cai-events";
+export const PML_EVENTS_CHANNEL = "pml-events";
+export const PML_TRACES_CHANNEL = "pml-traces";
+
+/** @deprecated Use PML_EVENTS_CHANNEL instead */
+const CHANNEL_NAME = PML_EVENTS_CHANNEL;
 
 /**
  * EventBus class - Singleton for unified event distribution

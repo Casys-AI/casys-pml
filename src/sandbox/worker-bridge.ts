@@ -115,7 +115,8 @@ export class WorkerBridge {
 
     // Story 7.3b: Setup BroadcastChannel for capability traces
     // Story 6.5: Bridge capability traces to unified EventBus (ADR-036)
-    this.traceChannel = new BroadcastChannel("cai-traces");
+    // Channel name: PML_TRACES_CHANNEL from src/events/event-bus.ts
+    this.traceChannel = new BroadcastChannel("pml-traces");
     this.traceChannel.onmessage = (e: MessageEvent<CapabilityTraceEvent>) => {
       // Add capability traces to unified trace array in real-time (backward compat)
       this.traces.push(e.data);

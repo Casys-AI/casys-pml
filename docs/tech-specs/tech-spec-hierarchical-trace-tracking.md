@@ -46,7 +46,7 @@ Implémenter la propagation de `parent_trace_id` à travers toute la stack d'ex�
 
 ### Codebase Patterns
 
-- **Event tracing:** Via `BroadcastChannel("cai-traces")` pour les capabilities
+- **Event tracing:** Via `BroadcastChannel("pml-traces")` pour les capabilities
 - **RPC protocol:** `postMessage` entre sandbox-worker et worker-bridge
 - **Graph storage:** Graphology in-memory + PGlite persistence
 - **Edge attributes:** `{ weight, count, source }` - ajouter `type`

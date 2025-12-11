@@ -6,7 +6,7 @@
  */
 
 // Core EventBus
-export { EventBus, eventBus } from "./event-bus.ts";
+export { EventBus, eventBus, PML_EVENTS_CHANNEL, PML_TRACES_CHANNEL } from "./event-bus.ts";
 
 // All event types and payloads
 export type {

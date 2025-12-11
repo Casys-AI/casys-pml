@@ -2732,6 +2732,7 @@ export class PMLGatewayServer {
                 data: {
                   id: node.data.id,
                   parent: node.data.parent,
+                  parents: node.data.parents, // Story 8.3: Multi-parent array for hypergraph
                   type: node.data.type,
                   server: node.data.server,
                   label: node.data.label,
@@ -2771,6 +2772,7 @@ export class PMLGatewayServer {
           const response = {
             nodes: result.nodes.map(mapNodeData),
             edges: result.edges.map(mapEdgeData),
+            capability_zones: result.capabilityZones || [], // Story 8.3: Hull zones for D3 visualization
             capabilities_count: result.capabilitiesCount,
             tools_count: result.toolsCount,
             metadata: {
