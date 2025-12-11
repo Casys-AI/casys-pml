@@ -200,11 +200,11 @@ Deno.test("CapabilityDataService - buildHypergraphData creates capability and to
     assertEquals(capNode.data.toolsCount, 1);
   }
 
-  // Find tool node
+  // Find tool node - Story 8.2: now uses parents[] array instead of single parent
   const toolNode = result.nodes.find((n) =>
     n.data.type === "tool" &&
     n.data.id === "filesystem:read" &&
-    n.data.parent === `cap-${capId}`
+    n.data.parents?.includes(`cap-${capId}`)
   );
   assertExists(toolNode);
 });
@@ -310,5 +310,50 @@ Deno.test("CapabilityDataService - listCapabilities supports sorting by success_
       result.capabilities[i].successRate <= result.capabilities[i + 1].successRate,
       true,
     );
+  }
+});
+
+// Story 8.2: Test capabilityZones in buildHypergraphData
+Deno.test("CapabilityDataService - buildHypergraphData includes capabilityZones", async () => {
+  const result = await service.buildHypergraphData({});
+
+  // capabilityZones should exist (even if empty)
+  assertExists(result.capabilityZones);
+  assertEquals(Array.isArray(result.capabilityZones), true);
+
+  // If we have capabilities, we should have zones
+  if (result.capabilitiesCount > 0) {
+    assertEquals(result.capabilityZones.length, result.capabilitiesCount);
+
+    // Verify zone structure
+    const zone = result.capabilityZones[0];
+    assertExists(zone.id);
+    assertExists(zone.label);
+    assertExists(zone.color);
+    assertEquals(typeof zone.opacity, "number");
+    assertEquals(Array.isArray(zone.toolIds), true);
+    assertEquals(typeof zone.padding, "number");
+    assertEquals(typeof zone.minRadius, "number");
+  }
+});
+
+// Story 8.2: Test backward compatibility - parent field set from parents[0]
+Deno.test("CapabilityDataService - buildHypergraphData sets legacy parent field", async () => {
+  const result = await service.buildHypergraphData({});
+
+  // Find tool nodes with parents
+  const toolNodes = result.nodes.filter((n) => n.data.type === "tool");
+
+  for (const toolNode of toolNodes) {
+    if (toolNode.data.type === "tool") {
+      // parents should always be defined (required field)
+      assertExists(toolNode.data.parents);
+      assertEquals(Array.isArray(toolNode.data.parents), true);
+
+      // If tool has parents, legacy parent field should be set to first
+      if (toolNode.data.parents.length > 0) {
+        assertEquals(toolNode.data.parent, toolNode.data.parents[0]);
+      }
+    }
   }
 });

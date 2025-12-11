@@ -16,11 +16,10 @@ import type {
   CapabilityFilters,
   CapabilityListResponseInternal,
   CapabilityResponseInternal,
-  CytoscapeEdge,
-  CytoscapeNode,
   HypergraphOptions,
   HypergraphResponseInternal,
 } from "./types.ts";
+import { HypergraphBuilder } from "./hypergraph-builder.ts";
 import { getLogger } from "../telemetry/logger.ts";
 
 const logger = getLogger("default");
@@ -221,11 +220,14 @@ export class CapabilityDataService {
    *
    * Creates a compound graph with:
    * - Capability nodes (parents)
-   * - Tool nodes (children or standalone)
+   * - Tool nodes (children or standalone) with `parents[]` array for multi-parent support
    * - Hierarchical edges (capability → tool)
    * - Capability links (shared tools)
+   * - Capability dependency edges
+   * - Hull zone metadata for D3.js hull rendering
    *
    * Note: Migrated from Cytoscape.js to D3.js for hyperedge support.
+   * Story 8.2: Refactored to use HypergraphBuilder for graph construction.
    *
    * @param options Hypergraph build options
    * @returns Graph-ready hypergraph data for D3.js force-directed layout
@@ -250,14 +252,8 @@ export class CapabilityDataService {
       });
 
       const capabilities = capabilityList.capabilities;
-      const nodes: CytoscapeNode[] = [];
-      const edges: CytoscapeEdge[] = [];
 
-      // Track tools for deduplication
-      const toolsInCapabilities = new Set<string>();
-      const capabilityToolsMap = new Map<string, Set<string>>(); // cap-id -> tool IDs
-
-      // Get graph snapshot ONCE before loops (Fix #24: Performance N+1)
+      // 2. Get graph snapshot ONCE (Fix #24: Performance N+1)
       let graphSnapshot = null;
       try {
         graphSnapshot = this.graphEngine.getGraphSnapshot();
@@ -265,133 +261,68 @@ export class CapabilityDataService {
         logger.warn("Failed to get graph snapshot, tool metrics unavailable", { error });
       }
 
-      // 2. Create capability nodes and hierarchical edges
-      for (const cap of capabilities) {
-        const capId = `cap-${cap.id}`;
+      // 3. Use HypergraphBuilder for graph construction (Story 8.2)
+      const builder = new HypergraphBuilder();
+      const hypergraphResult = builder.buildCompoundGraph(
+        capabilities,
+        graphSnapshot ?? undefined,
+      );
 
-        // Create capability node
-        nodes.push({
-          data: {
-            id: capId,
-            type: "capability",
-            label: cap.name || cap.intentPreview.substring(0, 50),
-            codeSnippet: cap.codeSnippet,
-            successRate: cap.successRate,
-            usageCount: cap.usageCount,
-            toolsCount: cap.toolsUsed.length,
-          },
-        });
+      // Track existing tool IDs for standalone tools
+      const existingToolIds = new Set(
+        hypergraphResult.nodes
+          .filter((n) => n.data.type === "tool")
+          .map((n) => n.data.id),
+      );
 
-        // Create tool nodes as children and hierarchical edges
-        const toolSet = new Set<string>();
-        for (const toolId of cap.toolsUsed) {
-          toolsInCapabilities.add(toolId);
-          toolSet.add(toolId);
+      // Track existing capability IDs for dependency edges
+      const existingCapIds = new Set(
+        hypergraphResult.nodes
+          .filter((n) => n.data.type === "capability")
+          .map((n) => n.data.id),
+      );
 
-          // Extract server and name from tool_id
-          const [server = "unknown", ...nameParts] = toolId.split(":");
-          const name = nameParts.join(":") || toolId;
+      // 4. Add capability-to-capability dependency edges from DB
+      try {
+        const capDeps = await this.db.query(`
+          SELECT from_capability_id, to_capability_id, observed_count, confidence_score, edge_type, edge_source
+          FROM capability_dependency
+          WHERE confidence_score > 0.3
+        `);
 
-          // Get PageRank and degree from graph snapshot (already fetched)
-          let pagerank = 0;
-          let degree = 0;
-          if (graphSnapshot) {
-            const toolNode = graphSnapshot.nodes.find((n) => n.id === toolId);
-            if (toolNode) {
-              pagerank = toolNode.pagerank || 0;
-              degree = toolNode.degree || 0;
-            }
-          }
-
-          // Add tool node as child of capability
-          nodes.push({
-            data: {
-              id: toolId,
-              parent: capId,
-              type: "tool",
-              server,
-              label: name,
-              pagerank,
-              degree,
-            },
-          });
-
-          // Add hierarchical edge (capability → tool)
-          edges.push({
-            data: {
-              id: `edge-${capId}-${toolId}`,
-              source: capId,
-              target: toolId,
-              edgeType: "hierarchy",
-              edgeSource: "observed",
-              observedCount: cap.usageCount, // Use capability usage as proxy
-            },
-          });
-        }
-
-        capabilityToolsMap.set(capId, toolSet);
+        builder.addCapabilityDependencyEdges(
+          hypergraphResult.edges,
+          capDeps as Array<{
+            from_capability_id: string;
+            to_capability_id: string;
+            observed_count: number;
+            edge_type: string;
+            edge_source: string;
+          }>,
+          existingCapIds,
+        );
+        logger.debug("Added capability dependency edges", { count: capDeps.length });
+      } catch (error) {
+        logger.warn("Failed to load capability dependencies for hypergraph", { error });
       }
 
-      // 3. Create capability link edges (shared tools)
-      const capIds = Array.from(capabilityToolsMap.keys());
-      for (let i = 0; i < capIds.length; i++) {
-        for (let j = i + 1; j < capIds.length; j++) {
-          const capId1 = capIds[i];
-          const capId2 = capIds[j];
-          const tools1 = capabilityToolsMap.get(capId1)!;
-          const tools2 = capabilityToolsMap.get(capId2)!;
-
-          // Count shared tools
-          const sharedTools = Array.from(tools1).filter((t) => tools2.has(t)).length;
-
-          if (sharedTools > 0) {
-            edges.push({
-              data: {
-                id: `edge-${capId1}-${capId2}`,
-                source: capId1,
-                target: capId2,
-                sharedTools,
-                edgeType: "capability_link",
-                edgeSource: "inferred",
-              },
-            });
-          }
-        }
+      // 5. Optionally include standalone tools
+      if (includeTools && graphSnapshot) {
+        builder.addStandaloneTools(
+          hypergraphResult.nodes,
+          graphSnapshot,
+          existingToolIds,
+        );
       }
 
-      // 4. Optionally include standalone tools
-      if (includeTools) {
-        try {
-          const graphSnapshot = this.graphEngine.getGraphSnapshot();
-
-          for (const toolNode of graphSnapshot.nodes) {
-            const toolId = toolNode.id;
-
-            // Skip tools already in capabilities
-            if (toolsInCapabilities.has(toolId)) continue;
-
-            // Add standalone tool node (no parent)
-            nodes.push({
-              data: {
-                id: toolId,
-                type: "tool",
-                server: toolNode.server,
-                label: toolNode.label,
-                pagerank: toolNode.pagerank,
-                degree: toolNode.degree,
-              },
-            });
-          }
-        } catch (error) {
-          logger.warn("Failed to include standalone tools", { error });
-        }
-      }
-
+      // 6. Build final response with backward compatibility
+      // Note: Tools with `parents[]` array also have `parent` set to first parent for legacy support
       const result: HypergraphResponseInternal = {
-        nodes,
-        edges,
-        capabilitiesCount: capabilities.length,
-        toolsCount: nodes.filter((n) => n.data.type === "tool").length,
+        nodes: hypergraphResult.nodes,
+        edges: hypergraphResult.edges,
+        capabilityZones: hypergraphResult.capabilityZones,
+        capabilitiesCount: hypergraphResult.capabilitiesCount,
+        toolsCount: hypergraphResult.nodes.filter((n) => n.data.type === "tool").length,
         metadata: {
           generatedAt: new Date().toISOString(),
           version: "1.0.0",
@@ -403,6 +334,7 @@ export class CapabilityDataService {
         toolsCount: result.toolsCount,
         nodesCount: result.nodes.length,
         edgesCount: result.edges.length,
+        zonesCount: result.capabilityZones?.length || 0,
       });
 
       return result;

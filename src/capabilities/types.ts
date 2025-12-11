@@ -125,6 +125,49 @@ export interface CapabilityMatch {
 // See rowToCapability() in capability-store.ts for the mapping logic.
 
 /**
+ * Edge types for capability dependencies
+ * Same vocabulary as tool_dependency for consistency
+ */
+export type CapabilityEdgeType =
+  | "contains" // Composition: capability A includes capability B
+  | "sequence" // Temporal order: A then B
+  | "dependency" // Explicit DAG dependency
+  | "alternative"; // Same intent, different implementation
+
+/**
+ * Edge sources for capability dependencies
+ */
+export type CapabilityEdgeSource =
+  | "template" // Bootstrap, not yet confirmed
+  | "inferred" // 1-2 observations
+  | "observed"; // 3+ observations (promoted from inferred)
+
+/**
+ * A capability-to-capability dependency relationship
+ * Stored in capability_dependency table with FKs to workflow_pattern
+ */
+export interface CapabilityDependency {
+  fromCapabilityId: string;
+  toCapabilityId: string;
+  observedCount: number;
+  confidenceScore: number;
+  edgeType: CapabilityEdgeType;
+  edgeSource: CapabilityEdgeSource;
+  createdAt: Date;
+  lastObserved: Date;
+}
+
+/**
+ * Input for creating a capability dependency
+ */
+export interface CreateCapabilityDependencyInput {
+  fromCapabilityId: string;
+  toCapabilityId: string;
+  edgeType: CapabilityEdgeType;
+  edgeSource?: CapabilityEdgeSource;
+}
+
+/**
  * API Types (Story 8.1)
  * INTERNAL types use camelCase. Mapping to snake_case happens in gateway-server.ts
  */
@@ -212,11 +255,17 @@ export interface CapabilityNode {
  * Graph node for tool (child of capability or standalone)
  * Internal camelCase - maps to snake_case at API boundary
  * Note: Previously named CytoscapeNode, renamed after D3.js migration
+ *
+ * Story 8.2: Changed from `parent?: string` to `parents: string[]`
+ * to support hyperedges (tool belonging to multiple capabilities).
  */
 export interface ToolNode {
   data: {
     id: string; // "filesystem:read"
-    parent?: string; // "cap-{uuid}" if part of capability
+    /** @deprecated Use `parents` instead. Kept for backward compatibility. */
+    parent?: string; // Single parent (legacy)
+    /** Parent capability IDs - supports hyperedges (multi-parent). Empty array for standalone tools. */
+    parents: string[]; // ["cap-uuid-1", "cap-uuid-2"] or [] for standalone
     type: "tool";
     server: string; // "filesystem"
     label: string; // "read"
@@ -257,6 +306,21 @@ export interface HierarchicalEdge {
 }
 
 /**
+ * Tech-spec: Capability-to-capability dependency edge (hyperedge)
+ * Represents relationships between capabilities in the hypergraph
+ */
+export interface CapabilityDependencyEdge {
+  data: {
+    id: string;
+    source: string; // "cap-{uuid1}"
+    target: string; // "cap-{uuid2}"
+    edgeType: "contains" | "sequence" | "dependency" | "alternative";
+    edgeSource: "template" | "inferred" | "observed";
+    observedCount: number;
+  };
+}
+
+/**
  * Union type for all graph nodes
  * @deprecated Use GraphNode instead. Kept for backward compatibility.
  */
@@ -266,7 +330,7 @@ export type CytoscapeNode = CapabilityNode | ToolNode;
  * Union type for all graph edges
  * @deprecated Use GraphEdge instead. Kept for backward compatibility.
  */
-export type CytoscapeEdge = CapabilityEdge | HierarchicalEdge;
+export type CytoscapeEdge = CapabilityEdge | HierarchicalEdge | CapabilityDependencyEdge;
 
 /**
  * Union type for all graph nodes (D3.js visualization)
@@ -276,7 +340,28 @@ export type GraphNode = CapabilityNode | ToolNode;
 /**
  * Union type for all graph edges (D3.js visualization)
  */
-export type GraphEdge = CapabilityEdge | HierarchicalEdge;
+export type GraphEdge = CapabilityEdge | HierarchicalEdge | CapabilityDependencyEdge;
+
+/**
+ * Hull zone metadata for capability visualization (Story 8.2)
+ * Each capability is rendered as a convex hull around its tools
+ */
+export interface CapabilityZone {
+  /** Capability ID (cap-{uuid}) */
+  id: string;
+  /** Display label */
+  label: string;
+  /** Zone color (hex) */
+  color: string;
+  /** Opacity (0-1) for overlapping zones */
+  opacity: number;
+  /** Tool IDs contained in this zone */
+  toolIds: string[];
+  /** Padding around tools in px */
+  padding: number;
+  /** Minimum hull radius */
+  minRadius: number;
+}
 
 /**
  * Response from buildHypergraphData (internal camelCase)
@@ -285,6 +370,8 @@ export type GraphEdge = CapabilityEdge | HierarchicalEdge;
 export interface HypergraphResponseInternal {
   nodes: CytoscapeNode[];
   edges: CytoscapeEdge[];
+  /** Hull zone metadata for D3.js hull rendering (Story 8.2) */
+  capabilityZones?: CapabilityZone[];
   capabilitiesCount: number;
   toolsCount: number;
   metadata: {
