@@ -11,6 +11,7 @@ import { DAGSuggester } from "../../../src/graphrag/dag-suggester.ts";
 import { GraphRAGEngine } from "../../../src/graphrag/graph-engine.ts";
 import { VectorSearch } from "../../../src/vector/search.ts";
 import { MockEmbeddingModel } from "../../fixtures/mock-embedding-model.ts";
+import type { EmbeddingModel } from "../../../src/vector/embeddings.ts";
 import { PGliteClient } from "../../../src/db/client.ts";
 import { getAllMigrations, MigrationRunner } from "../../../src/db/migrations.ts";
 
@@ -21,7 +22,7 @@ let sharedModel: MockEmbeddingModel;
 /**
  * Insert comprehensive test data
  */
-async function insertTestData(db: PGliteClient, model: EmbeddingModel): Promise<void> {
+async function insertTestData(db: PGliteClient, model: MockEmbeddingModel): Promise<void> {
   const tools = [
     {
       id: "filesystem:read",
@@ -113,7 +114,7 @@ Deno.test({
     const graphEngine = new GraphRAGEngine(sharedDb);
     await graphEngine.syncFromDatabase();
 
-    const vectorSearch = new VectorSearch(sharedDb, sharedModel);
+    const vectorSearch = new VectorSearch(sharedDb, sharedModel as unknown as EmbeddingModel);
     const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
     const suggestion = await suggester.suggestDAG({
@@ -137,7 +138,7 @@ Deno.test({
     const graphEngine = new GraphRAGEngine(sharedDb);
     await graphEngine.syncFromDatabase();
 
-    const vectorSearch = new VectorSearch(sharedDb, sharedModel);
+    const vectorSearch = new VectorSearch(sharedDb, sharedModel as unknown as EmbeddingModel);
     const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
     const suggestion = await suggester.suggestDAG({
@@ -178,7 +179,7 @@ Deno.test({
     const graphEngine = new GraphRAGEngine(sharedDb);
     await graphEngine.syncFromDatabase();
 
-    const vectorSearch = new VectorSearch(sharedDb, sharedModel);
+    const vectorSearch = new VectorSearch(sharedDb, sharedModel as unknown as EmbeddingModel);
     const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
     const suggestion = await suggester.suggestDAG({
@@ -208,7 +209,7 @@ Deno.test({
     const graphEngine = new GraphRAGEngine(sharedDb);
     await graphEngine.syncFromDatabase();
 
-    const vectorSearch = new VectorSearch(sharedDb, sharedModel);
+    const vectorSearch = new VectorSearch(sharedDb, sharedModel as unknown as EmbeddingModel);
     const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
     const suggestion = await suggester.suggestDAG({
@@ -245,7 +246,7 @@ Deno.test({
     const graphEngine = new GraphRAGEngine(sharedDb);
     await graphEngine.syncFromDatabase();
 
-    const vectorSearch = new VectorSearch(sharedDb, sharedModel);
+    const vectorSearch = new VectorSearch(sharedDb, sharedModel as unknown as EmbeddingModel);
     const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
     const suggestion = await suggester.suggestDAG({

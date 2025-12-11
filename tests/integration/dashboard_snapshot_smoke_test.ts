@@ -51,7 +51,7 @@ Deno.test("Smoke test - getGraphSnapshot retourne structure JSON valide", async 
 Deno.test("Smoke test - Fresh dashboard.tsx exists and contains required elements", async () => {
   // Story 6.2: Dashboard migrated from public/dashboard.html to Fresh
   const routeCode = await Deno.readTextFile("src/web/routes/dashboard.tsx");
-  const graphVizCode = await Deno.readTextFile("src/web/islands/GraphVisualization.tsx");
+  const graphVizCode = await Deno.readTextFile("src/web/islands/D3GraphVisualization.tsx");
   const metricsCode = await Deno.readTextFile("src/web/islands/MetricsPanel.tsx");
 
   // Vérifier dashboard route

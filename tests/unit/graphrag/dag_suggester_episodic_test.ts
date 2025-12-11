@@ -9,6 +9,7 @@ import { DAGSuggester } from "../../../src/graphrag/dag-suggester.ts";
 import { GraphRAGEngine } from "../../../src/graphrag/graph-engine.ts";
 import { VectorSearch } from "../../../src/vector/search.ts";
 import { MockEmbeddingModel } from "../../fixtures/mock-embedding-model.ts";
+import type { EmbeddingModel } from "../../../src/vector/embeddings.ts";
 import { EpisodicMemoryStore } from "../../../src/learning/episodic-memory-store.ts";
 import { PGliteClient } from "../../../src/db/client.ts";
 import { getAllMigrations, MigrationRunner } from "../../../src/db/migrations.ts";
@@ -86,7 +87,7 @@ Deno.test({
     const graphEngine = new GraphRAGEngine(db);
     await graphEngine.syncFromDatabase();
 
-    const vectorSearch = new VectorSearch(db, model);
+    const vectorSearch = new VectorSearch(db, model as unknown as EmbeddingModel);
     const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
     // No episodic memory set - should use base confidence only
@@ -133,7 +134,7 @@ Deno.test({
     const graphEngine = new GraphRAGEngine(db);
     await graphEngine.syncFromDatabase();
 
-    const vectorSearch = new VectorSearch(db, model);
+    const vectorSearch = new VectorSearch(db, model as unknown as EmbeddingModel);
     const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
     // Create episodic memory store and set it
@@ -204,7 +205,7 @@ Deno.test({
     const graphEngine = new GraphRAGEngine(db);
     await graphEngine.syncFromDatabase();
 
-    const vectorSearch = new VectorSearch(db, model);
+    const vectorSearch = new VectorSearch(db, model as unknown as EmbeddingModel);
     const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
     const episodicMemory = new EpisodicMemoryStore(db);
@@ -298,7 +299,7 @@ Deno.test({
     const graphEngine = new GraphRAGEngine(db);
     await graphEngine.syncFromDatabase();
 
-    const vectorSearch = new VectorSearch(db, model);
+    const vectorSearch = new VectorSearch(db, model as unknown as EmbeddingModel);
     const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
     const episodicMemory = new EpisodicMemoryStore(db);
@@ -387,7 +388,7 @@ Deno.test({
     const graphEngine = new GraphRAGEngine(db);
     await graphEngine.syncFromDatabase();
 
-    const vectorSearch = new VectorSearch(db, model);
+    const vectorSearch = new VectorSearch(db, model as unknown as EmbeddingModel);
     const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
     // Do NOT set episodic memory - should gracefully degrade to base predictions
@@ -431,7 +432,7 @@ Deno.test({
     const graphEngine = new GraphRAGEngine(db);
     await graphEngine.syncFromDatabase();
 
-    const vectorSearch = new VectorSearch(db, model);
+    const vectorSearch = new VectorSearch(db, model as unknown as EmbeddingModel);
     const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
     const episodicMemory = new EpisodicMemoryStore(db);
