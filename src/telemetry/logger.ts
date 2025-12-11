@@ -198,7 +198,7 @@ export async function setupLogger(config?: LoggerConfig): Promise<void> {
     },
   });
 
-  log.info("Casys Intelligence logging initialized", {
+  log.info("Casys PML logging initialized", {
     logFile: logFilePath,
     level: config?.level || "DEBUG",
   });

@@ -97,7 +97,7 @@ export class MCPServerDiscovery {
       return { servers };
     }
 
-    // Handle Casys Intelligence config.yaml format: { servers: [...] }
+    // Handle Casys PML config.yaml format: { servers: [...] }
     if (typeof raw === "object" && raw !== null && "servers" in raw) {
       const servers = (raw as Record<string, unknown>).servers;
       if (Array.isArray(servers)) {

@@ -9,7 +9,7 @@
 
 ### Current State
 
-Casys Intelligence est une gateway MCP qui orchestre plusieurs serveurs MCP (filesystem, playwright, tavily,
+Casys PML est une gateway MCP qui orchestre plusieurs serveurs MCP (filesystem, playwright, tavily,
 memory, exa) avec recherche sémantique, exécution de workflows DAG, et sandboxing de code.
 
 **Système de logging actuel:**
@@ -49,7 +49,7 @@ memory, exa) avec recherche sémantique, exécution de workflows DAG, et sandbox
 
 ## Decision
 
-**Nous adoptons Sentry comme solution d'observabilité pour Casys Intelligence.**
+**Nous adoptons Sentry comme solution d'observabilité pour Casys PML.**
 
 ### Ce que nous trackons
 
@@ -106,7 +106,7 @@ memory, exa) avec recherche sémantique, exécution de workflows DAG, et sandbox
 
 ```
 ┌─────────────────────────────────────────────────┐
-│          Casys Intelligence Gateway (main.ts)           │
+│          Casys PML Gateway (main.ts)           │
 │         ↓ Sentry.init() au démarrage            │
 └─────────────────────────────────────────────────┘
                        │
@@ -459,8 +459,8 @@ sampling rate selon volume
 - [Sentry Deno SDK Documentation](https://docs.sentry.io/platforms/javascript/guides/deno/)
 - [Sentry Performance Monitoring](https://docs.sentry.io/product/performance/)
 - [Best Practices for Error Tracking](https://docs.sentry.io/platforms/javascript/best-practices/)
-- Casys Intelligence ADR-010: Hybrid DAG Architecture
-- Casys Intelligence Epic 3: Code Execution & Sandbox
+- Casys PML ADR-010: Hybrid DAG Architecture
+- Casys PML Epic 3: Code Execution & Sandbox
 
 ---
 

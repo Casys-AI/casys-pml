@@ -17,7 +17,7 @@ Ce ADR est conservé comme référence si le besoin évolue (ex: scaling horizon
 
 ## Context
 
-Casys Intelligence utilise plusieurs mécanismes de cache custom:
+Casys PML utilise plusieurs mécanismes de cache custom:
 
 | Fichier | Type | Persistence | TTL |
 |---------|------|-------------|-----|

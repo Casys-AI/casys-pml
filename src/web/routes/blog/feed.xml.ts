@@ -1,9 +1,9 @@
 import { getPosts, type Post } from "../../utils/posts.ts";
 
 const SITE_URL = "https://intelligence.casys.ai";
-const FEED_TITLE = "CAI - Collective Agentic Intelligence Blog";
+const FEED_TITLE = "Casys PML - Procedural Memory Layer Blog";
 const FEED_DESCRIPTION =
-  "Engineering insights, technical deep-dives, and lessons learned building Collective Agentic Intelligence.";
+  "Engineering insights, technical deep-dives, and lessons learned building Casys PML - a Procedural Memory Layer for AI agents.";
 const FEED_AUTHOR = "Casys AI Team";
 
 function escapeXml(text: string): string {

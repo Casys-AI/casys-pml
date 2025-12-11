@@ -1,7 +1,7 @@
 /**
  * Init Command
  *
- * CLI command to migrate Claude Desktop MCP configuration to Casys Intelligence
+ * CLI command to migrate Claude Desktop MCP configuration to Casys PML
  *
  * @module cli/commands/init
  */
@@ -20,7 +20,7 @@ import { ConfigMigrator } from "../config-migrator.ts";
 export function createInitCommand() {
   return new Command()
     .name("init")
-    .description("Migrate existing MCP configuration to Casys Intelligence")
+    .description("Migrate existing MCP configuration to Casys PML")
     .option(
       "--dry-run",
       "Preview changes without applying them",

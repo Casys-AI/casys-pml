@@ -70,7 +70,7 @@ const code = `
 
 **3. execute_code MCP Tool** (`src/mcp/gateway-server.ts`) - Story 3.4 ⏳
 
-- MCP tool: `cai:execute_code`
+- MCP tool: `pml:execute_code`
 - Input: `{ code: string, intent?: string, context?: object, sandbox_config?: object }`
 - Output: `{ result: any, logs: string[], metrics: object, state?: object }`
 - Modes: Intent-based (vector search) or Explicit (provided context)

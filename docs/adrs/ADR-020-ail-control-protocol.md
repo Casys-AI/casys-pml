@@ -20,13 +20,13 @@ external MCP agents (Level 1) and internal native agents (Level 2).
 
 | Tool                           | Purpose                | Status                           |
 | ------------------------------ | ---------------------- | -------------------------------- |
-| `cai:execute`           | Execute workflow       | ✅ Exists (was execute_workflow) |
-| `cai:search_tools`      | Semantic tool search   | ✅ Exists                        |
-| `cai:execute_code`      | Deno sandbox execution | ✅ Exists                        |
-| `cai:continue`          | Continue to next layer | 🆕 Story 2.5-4                   |
-| `cai:abort`             | Abort workflow         | 🆕 Story 2.5-4                   |
-| `cai:replan`            | Replan via GraphRAG    | 🆕 Story 2.5-4                   |
-| `cai:approval_response` | HIL approval           | 🆕 Story 2.5-4                   |
+| `pml:execute`           | Execute workflow       | ✅ Exists (was execute_workflow) |
+| `pml:search_tools`      | Semantic tool search   | ✅ Exists                        |
+| `pml:execute_code`      | Deno sandbox execution | ✅ Exists                        |
+| `pml:continue`          | Continue to next layer | 🆕 Story 2.5-4                   |
+| `pml:abort`             | Abort workflow         | 🆕 Story 2.5-4                   |
+| `pml:replan`            | Replan via GraphRAG    | 🆕 Story 2.5-4                   |
+| `pml:approval_response` | HIL approval           | 🆕 Story 2.5-4                   |
 
 ---
 
@@ -64,10 +64,10 @@ During Epic 2.5 implementation, we discovered:
 
 | Command             | Purpose                | Level 1 (MCP)                  | Level 2 (Internal)                                 |
 | ------------------- | ---------------------- | ------------------------------ | -------------------------------------------------- |
-| `continue`          | Resume execution       | `cai:continue`          | `commandQueue.enqueue({type:"continue"})`          |
-| `abort`             | Stop workflow          | `cai:abort`             | `commandQueue.enqueue({type:"abort"})`             |
-| `replan`            | Add tasks via GraphRAG | `cai:replan`            | `commandQueue.enqueue({type:"replan"})`            |
-| `approval_response` | HIL approval           | `cai:approval_response` | `commandQueue.enqueue({type:"approval_response"})` |
+| `continue`          | Resume execution       | `pml:continue`          | `commandQueue.enqueue({type:"continue"})`          |
+| `abort`             | Stop workflow          | `pml:abort`             | `commandQueue.enqueue({type:"abort"})`             |
+| `replan`            | Add tasks via GraphRAG | `pml:replan`            | `commandQueue.enqueue({type:"replan"})`            |
+| `approval_response` | HIL approval           | `pml:approval_response` | `commandQueue.enqueue({type:"approval_response"})` |
 
 ### Command Definitions
 
@@ -89,23 +89,23 @@ export type Command =
 ```
 Claude Code                    Gateway
     │                            │
-    ├─ cai:execute() ────►│ Execute Layer 0
+    ├─ pml:execute() ────►│ Execute Layer 0
     │                            │
     │◄── {status: "layer_complete", results: [...]} ──┤
     │                            │
     │   [Agent analyzes results] │
     │                            │
-    ├─ cai:continue() ───►│ Execute Layer 1
+    ├─ pml:continue() ───►│ Execute Layer 1
     │                            │
     │◄── {status: "layer_complete", results: [...]} ──┤
     │                            │
     │   [Agent finds XML files]  │
     │                            │
-    ├─ cai:replan() ─────►│ GraphRAG adds XML parser
+    ├─ pml:replan() ─────►│ GraphRAG adds XML parser
     │                            │
     │◄── {status: "layer_complete", new_tasks: [...]} │
     │                            │
-    └─ cai:continue() ───►│ Complete
+    └─ pml:continue() ───►│ Complete
 ```
 
 ### MCP Meta-Tools
@@ -114,7 +114,7 @@ Claude Code                    Gateway
 // Implemented in gateway-server.ts (Story 2.5-4)
 const controlTools: MCPTool[] = [
   {
-    name: "cai:continue",
+    name: "pml:continue",
     description: "Continue workflow execution to next layer",
     inputSchema: {
       type: "object",
@@ -126,7 +126,7 @@ const controlTools: MCPTool[] = [
     },
   },
   {
-    name: "cai:abort",
+    name: "pml:abort",
     description: "Abort workflow execution",
     inputSchema: {
       type: "object",
@@ -138,7 +138,7 @@ const controlTools: MCPTool[] = [
     },
   },
   {
-    name: "cai:replan",
+    name: "pml:replan",
     description: "Replan workflow with new requirement (triggers GraphRAG)",
     inputSchema: {
       type: "object",
@@ -151,7 +151,7 @@ const controlTools: MCPTool[] = [
     },
   },
   {
-    name: "cai:approval_response",
+    name: "pml:approval_response",
     description: "Respond to HIL approval checkpoint",
     inputSchema: {
       type: "object",
@@ -307,14 +307,14 @@ Layer 2 → [PAUSE: "Delete 500 files?"] → Human approves → Layer 3
 
 Add 4 MCP meta-tools to `gateway-server.ts`:
 
-- `cai:continue`
-- `cai:abort`
-- `cai:replan`
-- `cai:approval_response`
+- `pml:continue`
+- `pml:abort`
+- `pml:replan`
+- `pml:approval_response`
 
 ### AC2: Per-Layer Validation Mode (2h)
 
-Modify `cai:execute` to support `per_layer_validation: true`:
+Modify `pml:execute` to support `per_layer_validation: true`:
 
 - Return after each layer with partial results
 - Store workflow state for continuation

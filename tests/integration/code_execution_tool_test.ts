@@ -10,7 +10,7 @@
  */
 
 import { assertEquals, assertExists } from "@std/assert";
-import { CasysIntelligenceGatewayServer } from "../../src/mcp/gateway-server.ts";
+import { PMLGatewayServer } from "../../src/mcp/gateway-server.ts";
 import { createDefaultClient } from "../../src/db/client.ts";
 import { getAllMigrations, MigrationRunner } from "../../src/db/migrations.ts";
 import { VectorSearch } from "../../src/vector/search.ts";
@@ -55,7 +55,7 @@ async function createTestGateway() {
   const dagSuggester = new DAGSuggester(graphEngine, vectorSearch);
   const executor = new ParallelExecutor(async () => ({}));
 
-  const gateway = new CasysIntelligenceGatewayServer(
+  const gateway = new PMLGatewayServer(
     sharedDb,
     vectorSearch,
     graphEngine,
@@ -79,7 +79,7 @@ Deno.test({
     const result = await listToolsMethod({});
 
     // Verify execute_code tool is registered
-    const executeCodeTool = result.tools.find((t: any) => t.name === "cai:execute_code");
+    const executeCodeTool = result.tools.find((t: any) => t.name === "pml:execute_code");
 
     assertExists(executeCodeTool, "execute_code tool should be registered");
     assertEquals(

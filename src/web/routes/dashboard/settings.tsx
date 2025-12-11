@@ -107,7 +107,7 @@ export default function SettingsPage({ data }: { data: SettingsData }) {
   return (
     <>
       <Head>
-        <title>Settings - CAI</title>
+        <title>Settings - Casys PML</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -214,7 +214,7 @@ export default function SettingsPage({ data }: { data: SettingsData }) {
               <p class="config-description">
                 {isCloudMode
                   ? "Add this configuration to your Claude Code or Windsurf setup:"
-                  : "Add this configuration to run CAI locally:"}
+                  : "Add this configuration to run Casys PML locally:"}
               </p>
 
               <div class="config-block">
@@ -267,7 +267,7 @@ export default function SettingsPage({ data }: { data: SettingsData }) {
                   <ol>
                     <li>Copy the configuration above</li>
                     <li>
-                      Update the <code>cwd</code> path to your CAI installation directory
+                      Update the <code>cwd</code> path to your Casys PML installation directory
                     </li>
                     <li>
                       Add it to <code>.mcp.json</code>

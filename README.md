@@ -1,14 +1,13 @@
-# Casys Intelligence
+# Casys PML
 
 [![CI](https://github.com/casys-ai/casys-intelligence/workflows/CI/badge.svg)](https://github.com/casys-ai/casys-intelligence/actions)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Deno Version](https://img.shields.io/badge/deno-2.x-blue.svg)](https://deno.land)
 
-**Collective Agentic Intelligence** — An intelligent MCP gateway with GraphRAG learning that
-consolidates all your MCP servers into a single entry point with semantic search, DAG workflow
-orchestration, and self-improving tool discovery.
+**Procedural Memory Layer** — An open-source PML for AI agents. Casys PML captures emergent
+workflows and crystallizes them into reusable skills. RAG gave agents knowledge. PML gives them skills.
 
-Casys Intelligence solves two critical problems with MCP ecosystems:
+Casys PML solves two critical problems with MCP ecosystems:
 
 1. **Context Saturation** — Tool schemas consume 30-50% of LLM context window → reduced to <5%
 2. **Sequential Latency** — Multi-tool workflows run serially → parallelized via DAG execution
@@ -19,7 +18,7 @@ Casys Intelligence solves two critical problems with MCP ecosystems:
 
 ### Intelligent Gateway
 
-- **Meta-Tools Only** — Exposes intelligent meta-tools (`cai:search_tools`, `cai:execute_dag`, etc.)
+- **Meta-Tools Only** — Exposes intelligent meta-tools (`pml:search_tools`, `pml:execute_dag`, etc.)
   instead of proxying all underlying tools
 - **Semantic Tool Search** — Find relevant tools via natural language intent, not just keywords
 - **DAG Workflow Execution** — Parallel execution of independent tasks with dependency resolution
@@ -104,7 +103,7 @@ Open http://localhost:8081/dashboard to see:
 
 ### Playground
 
-The Jupyter notebook playground provides interactive exploration of CAI features:
+The Jupyter notebook playground provides interactive exploration of PML features:
 
 ```bash
 # Open in GitHub Codespaces (recommended)
@@ -121,7 +120,7 @@ Notebooks cover:
 
 ### Optional: Error Tracking with Sentry
 
-Casys Intelligence supports [Sentry](https://sentry.io) for production error tracking and
+Casys PML supports [Sentry](https://sentry.io) for production error tracking and
 performance monitoring (see [ADR-011](docs/adrs/ADR-011-sentry-integration.md)).
 
 ```bash
@@ -140,15 +139,15 @@ SENTRY_ENVIRONMENT=production  # or development, staging
 SENTRY_TRACES_SAMPLE_RATE=0.1  # 10% sampling in production, 1.0 for dev
 ```
 
-If `SENTRY_DSN` is not set, Sentry is disabled and CAI will run normally.
+If `SENTRY_DSN` is not set, Sentry is disabled and PML will run normally.
 
 ---
 
 ## Usage with Claude Code
 
-Casys Intelligence integrates with Claude Code as an intelligent MCP gateway.
+Casys PML integrates with Claude Code as an intelligent MCP gateway.
 
-### Step 1: Initialize CAI
+### Step 1: Initialize PML
 
 ```bash
 # Run the CLI
@@ -167,7 +166,7 @@ This will:
 
 ### Step 2: Start the Gateway
 
-CAI runs as an HTTP server that you start **before** using Claude:
+PML runs as an HTTP server that you start **before** using Claude:
 
 ```bash
 # Terminal 1: Start the API gateway (port 3003)
@@ -198,25 +197,25 @@ That's it! The gateway reads MCP server configs from `config/.mcp-servers.json` 
 
 ### Step 4: Available MCP Tools
 
-Once configured, CAI exposes these meta-tools:
+Once configured, PML exposes these meta-tools:
 
 | Tool                      | Description                                |
 | ------------------------- | ------------------------------------------ |
-| `cai:search_tools`        | Semantic + graph hybrid tool search        |
-| `cai:execute_dag`         | Execute DAG workflows (intent or explicit) |
-| `cai:execute_code`        | Run TypeScript in sandbox with MCP tools   |
-| `cai:search_capabilities` | Find learned code patterns by intent       |
-| `cai:continue`            | Continue paused workflow execution         |
-| `cai:abort`               | Abort running workflow                     |
-| `cai:replan`              | Replan DAG with new requirements           |
-| `cai:approval_response`   | Respond to HIL approval checkpoints        |
+| `pml:search_tools`        | Semantic + graph hybrid tool search        |
+| `pml:execute_dag`         | Execute DAG workflows (intent or explicit) |
+| `pml:execute_code`        | Run TypeScript in sandbox with MCP tools   |
+| `pml:search_capabilities` | Find learned code patterns by intent       |
+| `pml:continue`            | Continue paused workflow execution         |
+| `pml:abort`               | Abort running workflow                     |
+| `pml:replan`              | Replan DAG with new requirements           |
+| `pml:approval_response`   | Respond to HIL approval checkpoints        |
 
 ### Example Usage
 
 **Search for relevant tools:**
 
 ```typescript
-await callTool("cai:search_tools", {
+await callTool("pml:search_tools", {
   query: "read and parse configuration files",
   include_related: true, // Include graph-recommended tools
 });
@@ -225,16 +224,16 @@ await callTool("cai:search_tools", {
 **Intent-based DAG execution:**
 
 ```typescript
-await callTool("cai:execute_dag", {
+await callTool("pml:execute_dag", {
   intent: "Read the config file and create a memory entity with its contents",
 });
-// CAI suggests DAG, executes if confidence > threshold
+// PML suggests DAG, executes if confidence > threshold
 ```
 
 **Explicit DAG with parallel tasks:**
 
 ```typescript
-await callTool("cai:execute_dag", {
+await callTool("pml:execute_dag", {
   workflow: {
     tasks: [
       { id: "t1", tool: "filesystem:read_file", arguments: { path: "config.json" } },
@@ -254,7 +253,7 @@ await callTool("cai:execute_dag", {
 **Sandbox code execution:**
 
 ```typescript
-await callTool("cai:execute_code", {
+await callTool("pml:execute_code", {
   intent: "Process filesystem data", // Discovers and injects relevant tools
   code: `
     const files = await filesystem.readDirectory({ path: "." });
@@ -265,24 +264,24 @@ await callTool("cai:execute_code", {
 
 ### How It Works
 
-1. **Semantic Tool Discovery**: CAI uses semantic search to return only relevant tools based on the
+1. **Semantic Tool Discovery**: PML uses semantic search to return only relevant tools based on the
    query context, preventing context saturation.
 
 2. **Meta-Tools Architecture**: Instead of proxying all underlying tools (which would saturate
-   context), CAI exposes intelligent meta-tools that orchestrate the underlying MCP servers.
+   context), PML exposes intelligent meta-tools that orchestrate the underlying MCP servers.
 
-3. **Workflow Orchestration**: The `cai:execute_dag` tool enables:
+3. **Workflow Orchestration**: The `pml:execute_dag` tool enables:
 
-   - **Intent-based**: Describe what you want → CAI suggests optimal DAG
+   - **Intent-based**: Describe what you want → PML suggests optimal DAG
    - **Explicit DAG**: Provide workflow structure → Automatic parallelization
    - **$OUTPUT resolution**: Reference previous task outputs
 
-4. **Context Optimization**: Instead of loading all 100+ tool schemas, CAI dynamically loads only
+4. **Context Optimization**: Instead of loading all 100+ tool schemas, PML dynamically loads only
    what's needed via semantic search.
 
 ### Code Execution Mode
 
-CAI integrates code execution into DAG workflows, enabling hybrid orchestration that combines MCP
+PML integrates code execution into DAG workflows, enabling hybrid orchestration that combines MCP
 tool calls with local data processing.
 
 #### When to Use Code Execution
@@ -380,7 +379,7 @@ deno task prod:logs        # View logs
 deno task deploy:all       # Pull, build, restart
 
 # CLI
-deno task cli init         # Initialize CAI (discover MCPs, generate embeddings)
+deno task cli init         # Initialize PML (discover MCPs, generate embeddings)
 deno task cli status       # Check health
 ```
 
@@ -403,7 +402,7 @@ deno task cli status       # Check health
 
 ## Security
 
-Casys Intelligence is designed for local-first, privacy-respecting operation:
+Casys PML is designed for local-first, privacy-respecting operation:
 
 **Data Privacy:**
 

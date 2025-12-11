@@ -1,5 +1,5 @@
 /**
- * Event Types for Casys Intelligence EventBus
+ * Event Types for Casys PML EventBus
  * Story 6.5: EventBus with BroadcastChannel (ADR-036)
  *
  * Comprehensive event type definitions for unified event distribution.
@@ -13,7 +13,7 @@
 // ══════════════════════════════════════════════════════════════════════════════
 
 /**
- * All possible event types in Casys Intelligence
+ * All possible event types in Casys PML
  */
 export type EventType =
   // ──────────────────────────────────────────────────────────────────────────
@@ -86,7 +86,7 @@ export type EventType =
 // ══════════════════════════════════════════════════════════════════════════════
 
 /**
- * Base event interface for all Casys Intelligence events
+ * Base event interface for all Casys PML events
  */
 export interface CaiEvent<T extends EventType = EventType, P = unknown> {
   /** Event type identifier */

@@ -214,7 +214,7 @@ The gateway runs on **http://localhost:3003**. You must start it manually - Clau
 **First run:** ~2-3 minutes (downloads BGE-M3 model - 2.2GB)
 **Subsequent runs:** ~5 seconds (cached)
 
-### Configuring Claude to use CAI
+### Configuring Claude to use PML
 
 Add to your MCP settings (`.mcp.json` or Claude Desktop config):
 

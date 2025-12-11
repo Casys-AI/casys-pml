@@ -81,7 +81,7 @@ function displayHealthStatus(
   summary: { total: number; healthy: number; degraded: number; down: number },
 ): void {
   console.log("╔════════════════════════════════════════════════╗");
-  console.log("║         Casys Intelligence Health Status              ║");
+  console.log("║         Casys PML Health Status              ║");
   console.log("╚════════════════════════════════════════════════╝\n");
 
   console.log(`📊 Summary: ${summary.healthy}/${summary.total} servers healthy\n`);

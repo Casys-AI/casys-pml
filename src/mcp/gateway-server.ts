@@ -1,7 +1,7 @@
 /**
  * MCP Gateway Server
  *
- * Exposes Casys Intelligence functionality via MCP protocol (stdio transport)
+ * Exposes Casys PML functionality via MCP protocol (stdio transport)
  * Compatible with Claude Code and other MCP clients.
  *
  * Implements MCP methods:
@@ -99,7 +99,7 @@ export interface GatewayServerConfig {
 /**
  * MCP Gateway Server
  *
- * Transparent gateway that exposes Casys Intelligence as a single MCP server.
+ * Transparent gateway that exposes Casys PML as a single MCP server.
  * Claude Code sees all tools from all MCP servers + workflow execution capability.
  */
 /**
@@ -119,7 +119,7 @@ interface ActiveWorkflow {
   latestCheckpointId: string | null;
 }
 
-export class CasysIntelligenceGatewayServer {
+export class PMLGatewayServer {
   private server: Server;
   private gatewayHandler: GatewayHandler;
   private healthChecker: HealthChecker;
@@ -269,7 +269,7 @@ export class CasysIntelligenceGatewayServer {
 
       // Add special DAG execution tool (renamed from execute_workflow - Story 2.5-4)
       const executeDagTool: MCPTool = {
-        name: "cai:execute_dag",
+        name: "pml:execute_dag",
         description:
           "Execute a multi-tool DAG (Directed Acyclic Graph) workflow. Supports intent-based suggestions or explicit DAG definitions. Provide EITHER 'intent' (for AI suggestion) OR 'workflow' (for explicit DAG), not both.",
         inputSchema: {
@@ -293,7 +293,7 @@ export class CasysIntelligenceGatewayServer {
 
       // Add search_tools (Spike: search-tools-graph-traversal)
       const searchToolsTool: MCPTool = {
-        name: "cai:search_tools",
+        name: "pml:search_tools",
         description:
           "Search for relevant tools using semantic search and graph-based recommendations. Returns tools matching your query with optional related tools from usage patterns.",
         inputSchema: {
@@ -323,7 +323,7 @@ export class CasysIntelligenceGatewayServer {
 
       // Add search_capabilities tool (Story 7.3a)
       const searchCapabilitiesTool: MCPTool = {
-        name: "cai:search_capabilities",
+        name: "pml:search_capabilities",
         description:
           "Search for existing learned capabilities (code patterns) matching your intent. Returns capabilities that can be executed directly to solve your problem.",
         inputSchema: {
@@ -344,7 +344,7 @@ export class CasysIntelligenceGatewayServer {
 
       // Add code execution tool (Story 3.4)
       const executeCodeTool: MCPTool = {
-        name: "cai:execute_code",
+        name: "pml:execute_code",
         description:
           "[INTERNAL] Execute TypeScript/JavaScript in Deno sandbox. Simple expressions auto-return, multi-statement code requires explicit return. See ADR-016 for details.",
         inputSchema: {
@@ -389,7 +389,7 @@ export class CasysIntelligenceGatewayServer {
 
       // Story 2.5-4: Control tools for per-layer validation (ADR-020)
       const continueTool: MCPTool = {
-        name: "cai:continue",
+        name: "pml:continue",
         description:
           "Continue DAG execution to next layer. Use after receiving layer_complete status from execute_dag with per_layer_validation enabled.",
         inputSchema: {
@@ -409,7 +409,7 @@ export class CasysIntelligenceGatewayServer {
       };
 
       const abortTool: MCPTool = {
-        name: "cai:abort",
+        name: "pml:abort",
         description:
           "Abort DAG execution. Use to stop a running workflow when issues are detected.",
         inputSchema: {
@@ -429,7 +429,7 @@ export class CasysIntelligenceGatewayServer {
       };
 
       const replanTool: MCPTool = {
-        name: "cai:replan",
+        name: "pml:replan",
         description:
           "Replan DAG with new requirement. Triggers GraphRAG to add new tasks based on discovered context (e.g., found XML files → add XML parser).",
         inputSchema: {
@@ -453,7 +453,7 @@ export class CasysIntelligenceGatewayServer {
       };
 
       const approvalResponseTool: MCPTool = {
-        name: "cai:approval_response",
+        name: "pml:approval_response",
         description:
           "Respond to HIL (Human-in-the-Loop) approval checkpoint. Use when workflow pauses for approval of critical operations.",
         inputSchema: {
@@ -520,7 +520,7 @@ export class CasysIntelligenceGatewayServer {
    *
    * Supports both single tool execution and workflow execution.
    * - Single tool: Proxies to underlying MCP server (e.g., "filesystem:read")
-   * - DAG execution: Executes via Casys Intelligence DAG engine ("cai:execute_dag")
+   * - DAG execution: Executes via Casys PML DAG engine ("pml:execute_dag")
    * - Control tools: continue, abort, replan_dag, approval_response (Story 2.5-4)
    *
    * @param request - MCP request with params.name and params.arguments
@@ -555,53 +555,53 @@ export class CasysIntelligenceGatewayServer {
       log.info(`call_tool: ${name}`);
 
       // Check if this is a DAG execution request (renamed from execute_workflow)
-      if (name === "cai:execute_dag") {
+      if (name === "pml:execute_dag") {
         const result = await this.handleWorkflowExecution(args, userId);
         transaction.finish();
         return result;
       }
 
       // Story 2.5-4: Control tools for per-layer validation
-      if (name === "cai:continue") {
+      if (name === "pml:continue") {
         const result = await this.handleContinue(args);
         transaction.finish();
         return result;
       }
 
-      if (name === "cai:abort") {
+      if (name === "pml:abort") {
         const result = await this.handleAbort(args);
         transaction.finish();
         return result;
       }
 
-      if (name === "cai:replan") {
+      if (name === "pml:replan") {
         const result = await this.handleReplan(args);
         transaction.finish();
         return result;
       }
 
-      if (name === "cai:approval_response") {
+      if (name === "pml:approval_response") {
         const result = await this.handleApprovalResponse(args);
         transaction.finish();
         return result;
       }
 
       // Check if this is a code execution request (Story 3.4)
-      if (name === "cai:execute_code") {
+      if (name === "pml:execute_code") {
         const result = await this.handleExecuteCode(args);
         transaction.finish();
         return result;
       }
 
       // Check if this is a search_tools request (Spike: search-tools-graph-traversal)
-      if (name === "cai:search_tools") {
+      if (name === "pml:search_tools") {
         const result = await this.handleSearchTools(args);
         transaction.finish();
         return result;
       }
 
       // Check if this is a search_capabilities request (Story 7.3a)
-      if (name === "cai:search_capabilities") {
+      if (name === "pml:search_capabilities") {
         const result = await this.handleSearchCapabilities(args);
         transaction.finish();
         return result;
@@ -2084,7 +2084,7 @@ export class CasysIntelligenceGatewayServer {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
 
-    log.info("✓ Casys Intelligence MCP gateway started (stdio mode)");
+    log.info("✓ Casys PML MCP gateway started (stdio mode)");
     log.info(`  Server: ${this.config.name} v${this.config.version}`);
     log.info(`  Connected MCP servers: ${this.mcpClients.size}`);
     log.info("  Claude Code can now connect to cai");
@@ -2683,7 +2683,7 @@ export class CasysIntelligenceGatewayServer {
       return new Response("Not Found", { status: 404 });
     });
 
-    log.info(`✓ Casys Intelligence MCP gateway started (HTTP mode on port ${port})`);
+    log.info(`✓ Casys PML MCP gateway started (HTTP mode on port ${port})`);
     log.info(`  Server: ${this.config.name} v${this.config.version}`);
     log.info(`  Connected MCP servers: ${this.mcpClients.size}`);
     log.info(
@@ -2758,7 +2758,7 @@ export class CasysIntelligenceGatewayServer {
    * Graceful shutdown
    */
   async stop(): Promise<void> {
-    log.info("Shutting down Casys Intelligence gateway...");
+    log.info("Shutting down Casys PML gateway...");
 
     // Stop health checks
     this.healthChecker.stopPeriodicChecks();

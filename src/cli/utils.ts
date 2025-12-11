@@ -49,7 +49,7 @@ export function detectMCPConfigPath(): string {
 }
 
 /**
- * Get the Casys Intelligence config directory path
+ * Get the Casys PML config directory path
  *
  * Returns ~/.cai on Unix-like systems
  * Returns %USERPROFILE%\.cai on Windows
@@ -66,7 +66,7 @@ export function getAgentCardsConfigDir(): string {
 }
 
 /**
- * Get the Casys Intelligence config file path (JSON format)
+ * Get the Casys PML config file path (JSON format)
  *
  * NOTE: Changed from config.yaml to config.json per ADR-009
  * for MCP ecosystem alignment
@@ -118,7 +118,7 @@ export async function findConfigFile(): Promise<{ path: string; format: "json" |
 }
 
 /**
- * Get the Casys Intelligence database path
+ * Get the Casys PML database path
  *
  * Supports custom path via AGENTCARDS_DB_PATH environment variable.
  * This is useful for:

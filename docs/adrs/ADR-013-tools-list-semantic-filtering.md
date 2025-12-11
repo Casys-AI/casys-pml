@@ -5,27 +5,27 @@
 
 ## Context
 
-Casys Intelligence was designed to optimize LLM context usage by providing semantic tool discovery instead
+Casys PML was designed to optimize LLM context usage by providing semantic tool discovery instead
 of exposing all MCP tools. However, the current implementation of `tools/list` returns **ALL tools**
 from underlying MCP servers (~44.5k tokens, 22% of context).
 
 ### Current Behavior
 
 ```
-Claude Code → Casys Intelligence Gateway → tools/list → Returns 100+ tools (44.5k tokens)
+Claude Code → Casys PML Gateway → tools/list → Returns 100+ tools (44.5k tokens)
 ```
 
 ### Expected Behavior (per PRD/concepts docs)
 
 ```
-Claude Code → Casys Intelligence Gateway → tools/list → Returns ~5 relevant tools (2% context)
+Claude Code → Casys PML Gateway → tools/list → Returns ~5 relevant tools (2% context)
 ```
 
 ### Evidence from Documentation
 
 From `docs/concepts/mcp-gateway-concepts.md`:
 
-> "Rather than exposing hundreds of individual tools [...] Casys Intelligence exposes a small, fixed set of
+> "Rather than exposing hundreds of individual tools [...] Casys PML exposes a small, fixed set of
 > meta-tools that provide intelligent access to the entire ecosystem"
 
 From `docs/prd.md`:
@@ -35,7 +35,7 @@ From `docs/prd.md`:
 ## Problem
 
 The gateway currently acts as a **transparent proxy**, exposing all underlying tools. This defeats
-the core value proposition of Casys Intelligence:
+the core value proposition of Casys PML:
 
 - 44.5k tokens consumed just for tool definitions
 - No semantic filtering applied
@@ -52,7 +52,7 @@ the core value proposition of Casys Intelligence:
 
 ### Option A: Meta-Tools Only (Recommended)
 
-Expose only Casys Intelligence meta-tools:
+Expose only Casys PML meta-tools:
 
 - `cai_execute_workflow` - Intent-based tool orchestration
 - `cai_execute_code` - Sandbox code execution
@@ -93,12 +93,12 @@ gateway:
 ### Implementation
 
 1. `tools/list` returns only 2 meta-tools:
-   - `cai:execute_workflow` - Intent-based workflow execution
-   - `cai:execute_code` - Sandbox code execution
+   - `pml:execute_workflow` - Intent-based workflow execution
+   - `pml:execute_code` - Sandbox code execution
 
 2. Tool discovery happens via intent:
    ```json
-   { "tool": "cai:execute_workflow", "params": { "intent": "search the web for AI news" } }
+   { "tool": "pml:execute_workflow", "params": { "intent": "search the web for AI news" } }
    ```
 
 3. DAGSuggester uses vector search (Story 1.5) to find relevant underlying tools internally.

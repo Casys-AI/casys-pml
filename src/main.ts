@@ -1,5 +1,5 @@
 /**
- * Casys Intelligence - MCP Server Context Optimization Engine
+ * Casys PML - MCP Server Context Optimization Engine
  *
  * Main entry point for the application.
  *

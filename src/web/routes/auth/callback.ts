@@ -187,7 +187,7 @@ async function fetchGitHubUser(accessToken: string): Promise<GitHubUser> {
     headers: {
       Authorization: `Bearer ${accessToken}`,
       Accept: "application/vnd.github+json",
-      "User-Agent": "CasysIntelligence-OAuth",
+      "User-Agent": "CasysPML-OAuth",
     },
   });
   if (!resp.ok) {
@@ -208,7 +208,7 @@ async function fetchGitHubPrimaryEmail(accessToken: string): Promise<string | nu
     headers: {
       Authorization: `Bearer ${accessToken}`,
       Accept: "application/vnd.github+json",
-      "User-Agent": "CasysIntelligence-OAuth",
+      "User-Agent": "CasysPML-OAuth",
     },
   });
   if (!resp.ok) {

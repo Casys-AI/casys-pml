@@ -21,7 +21,7 @@
 
 ### Current State
 
-Casys Intelligence implements a 3-loop learning architecture (ADR-007):
+Casys PML implements a 3-loop learning architecture (ADR-007):
 
 - **Loop 1 (Execution):** Event stream + command queue + state management
 - **Loop 2 (Adaptation):** Runtime DAG modification via AIL/HIL + DAGSuggester.replanDAG()

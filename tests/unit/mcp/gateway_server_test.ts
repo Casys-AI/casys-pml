@@ -12,7 +12,7 @@
  */
 
 import { assert, assertEquals, assertExists } from "@std/assert";
-import { CasysIntelligenceGatewayServer } from "../../../src/mcp/gateway-server.ts";
+import { PMLGatewayServer } from "../../../src/mcp/gateway-server.ts";
 import type { PGliteClient } from "../../../src/db/client.ts";
 import type { SearchResult, VectorSearch } from "../../../src/vector/search.ts";
 import type { GraphRAGEngine } from "../../../src/graphrag/graph-engine.ts";
@@ -121,7 +121,7 @@ function createMockMCPClient(_serverId: string): MCPClient {
 }
 
 Deno.test({
-  name: "CasysIntelligenceGatewayServer - Initialization",
+  name: "PMLGatewayServer - Initialization",
   sanitizeOps: false, // Async operations may overlap in parallel mode
   fn: () => {
   const db = createMockDB();
@@ -131,7 +131,7 @@ Deno.test({
   const executor = createMockExecutor();
   const mcpClients = new Map<string, MCPClient>();
 
-  const gateway = new CasysIntelligenceGatewayServer(
+  const gateway = new PMLGatewayServer(
     db,
     vectorSearch,
     graphEngine,
@@ -170,7 +170,7 @@ Deno.test({
  */
 
 Deno.test({
-  name: "CasysIntelligenceGatewayServer - list_tools without query",
+  name: "PMLGatewayServer - list_tools without query",
   sanitizeOps: false, // Async operations may overlap in parallel mode
   fn: async () => {
   const db = createMockDB();
@@ -180,7 +180,7 @@ Deno.test({
   const executor = createMockExecutor();
   const mcpClients = new Map<string, MCPClient>();
 
-  const gateway = new CasysIntelligenceGatewayServer(
+  const gateway = new PMLGatewayServer(
     db,
     vectorSearch,
     graphEngine,
@@ -199,12 +199,12 @@ Deno.test({
   // ADR-013: Verify presence of critical meta-tools (more robust than exact count)
   // This approach survives refactoring that adds/removes tools
   const criticalTools = [
-    "cai:execute_dag",
-    "cai:search_tools",
-    "cai:execute_code",
-    "cai:continue",
-    "cai:abort",
-    "cai:replan",
+    "pml:execute_dag",
+    "pml:search_tools",
+    "pml:execute_code",
+    "pml:continue",
+    "pml:abort",
+    "pml:replan",
   ];
 
   criticalTools.forEach((name) => {
@@ -219,14 +219,14 @@ Deno.test({
   );
 
   // Verify DAG execution tool is included (renamed from execute_workflow)
-  const dagTool = result.tools.find((t: MCPTool) => t.name === "cai:execute_dag");
+  const dagTool = result.tools.find((t: MCPTool) => t.name === "pml:execute_dag");
   assertExists(dagTool);
-  assertEquals(dagTool.name, "cai:execute_dag");
+  assertEquals(dagTool.name, "pml:execute_dag");
   },
 });
 
 Deno.test({
-  name: "CasysIntelligenceGatewayServer - list_tools with query",
+  name: "PMLGatewayServer - list_tools with query",
   sanitizeOps: false, // Async operations may overlap in parallel mode
   fn: async () => {
   const db = createMockDB();
@@ -236,7 +236,7 @@ Deno.test({
   const executor = createMockExecutor();
   const mcpClients = new Map<string, MCPClient>();
 
-  const gateway = new CasysIntelligenceGatewayServer(
+  const gateway = new PMLGatewayServer(
     db,
     vectorSearch,
     graphEngine,
@@ -252,12 +252,12 @@ Deno.test({
   assert(Array.isArray(result.tools));
 
   // Should include DAG execution tool + semantic search results (renamed from execute_workflow)
-  const dagTool = result.tools.find((t: MCPTool) => t.name === "cai:execute_dag");
+  const dagTool = result.tools.find((t: MCPTool) => t.name === "pml:execute_dag");
   assertExists(dagTool);
   },
 });
 
-Deno.test("CasysIntelligenceGatewayServer - call_tool single tool proxy", async () => {
+Deno.test("PMLGatewayServer - call_tool single tool proxy", async () => {
   const db = createMockDB();
   const vectorSearch = createMockVectorSearch();
   const graphEngine = createMockGraphEngine();
@@ -267,7 +267,7 @@ Deno.test("CasysIntelligenceGatewayServer - call_tool single tool proxy", async 
   const mcpClients = new Map<string, MCPClient>();
   mcpClients.set("filesystem", createMockMCPClient("filesystem"));
 
-  const gateway = new CasysIntelligenceGatewayServer(
+  const gateway = new PMLGatewayServer(
     db,
     vectorSearch,
     graphEngine,
@@ -289,7 +289,7 @@ Deno.test("CasysIntelligenceGatewayServer - call_tool single tool proxy", async 
   assertEquals(result.content[0].type, "text");
 });
 
-Deno.test("CasysIntelligenceGatewayServer - call_tool workflow execution", async () => {
+Deno.test("PMLGatewayServer - call_tool workflow execution", async () => {
   const db = createMockDB();
   const vectorSearch = createMockVectorSearch();
   const graphEngine = createMockGraphEngine();
@@ -297,7 +297,7 @@ Deno.test("CasysIntelligenceGatewayServer - call_tool workflow execution", async
   const executor = createMockExecutor();
   const mcpClients = new Map<string, MCPClient>();
 
-  const gateway = new CasysIntelligenceGatewayServer(
+  const gateway = new PMLGatewayServer(
     db,
     vectorSearch,
     graphEngine,
@@ -309,7 +309,7 @@ Deno.test("CasysIntelligenceGatewayServer - call_tool workflow execution", async
   const handleCallTool = (gateway as any).handleCallTool.bind(gateway);
   const result = await handleCallTool({
     params: {
-      name: "cai:execute_dag",
+      name: "pml:execute_dag",
       arguments: {
         workflow: {
           tasks: [
@@ -329,7 +329,7 @@ Deno.test("CasysIntelligenceGatewayServer - call_tool workflow execution", async
 });
 
 Deno.test({
-  name: "CasysIntelligenceGatewayServer - MCP error responses",
+  name: "PMLGatewayServer - MCP error responses",
   sanitizeOps: false, // Async operations may overlap in parallel mode
   fn: async () => {
   const db = createMockDB();
@@ -339,7 +339,7 @@ Deno.test({
   const executor = createMockExecutor();
   const mcpClients = new Map<string, MCPClient>();
 
-  const gateway = new CasysIntelligenceGatewayServer(
+  const gateway = new PMLGatewayServer(
     db,
     vectorSearch,
     graphEngine,
@@ -363,7 +363,7 @@ Deno.test({
 });
 
 Deno.test({
-  name: "CasysIntelligenceGatewayServer - Unknown MCP server error",
+  name: "PMLGatewayServer - Unknown MCP server error",
   sanitizeOps: false, // Async operations may overlap in parallel mode
   fn: async () => {
   const db = createMockDB();
@@ -373,7 +373,7 @@ Deno.test({
   const executor = createMockExecutor();
   const mcpClients = new Map<string, MCPClient>(); // Empty - no servers
 
-  const gateway = new CasysIntelligenceGatewayServer(
+  const gateway = new PMLGatewayServer(
     db,
     vectorSearch,
     graphEngine,

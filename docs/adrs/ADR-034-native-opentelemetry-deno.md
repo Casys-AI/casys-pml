@@ -5,7 +5,7 @@
 
 ## Context
 
-Casys Intelligence dispose actuellement d'une infrastructure de télémétrie custom:
+Casys PML dispose actuellement d'une infrastructure de télémétrie custom:
 
 - `src/telemetry/logger.ts` - Logging structuré avec niveaux
 - `src/telemetry/telemetry.ts` - Métriques et spans custom
@@ -50,7 +50,7 @@ OTEL_TRACES_SAMPLER_ARG=0.1  # 10% sampling en prod
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  Casys Intelligence (Deno --unstable-otel)                          │
+│  Casys PML (Deno --unstable-otel)                          │
 │                                                             │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
 │  │ MCP Gateway │  │ DAG Engine  │  │ Sandbox Executor    │  │

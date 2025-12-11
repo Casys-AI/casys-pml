@@ -4,17 +4,17 @@
 
 import { assert, assertEquals, assertInstanceOf } from "@std/assert";
 import {
-  CasysIntelligenceError,
   ConfigurationError,
   DAGExecutionError,
   DatabaseError,
   MCPServerError,
+  PMLError,
   TimeoutError,
   VectorSearchError,
 } from "../../../src/errors/error-types.ts";
 
-Deno.test("CasysIntelligenceError - base error class", () => {
-  const error = new CasysIntelligenceError(
+Deno.test("PMLError - base error class", () => {
+  const error = new PMLError(
     "Test error",
     "TEST_ERROR",
     true,
@@ -25,7 +25,7 @@ Deno.test("CasysIntelligenceError - base error class", () => {
   assertEquals(error.code, "TEST_ERROR");
   assertEquals(error.recoverable, true);
   assertEquals(error.suggestion, "Try this fix");
-  assertEquals(error.name, "CasysIntelligenceError");
+  assertEquals(error.name, "PMLError");
   assertInstanceOf(error, Error);
 });
 

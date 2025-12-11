@@ -7,7 +7,7 @@
 
 ## Context
 
-Casys Intelligence supports two deployment modes:
+Casys PML supports two deployment modes:
 - **Self-hosted (Local):** Single-user, offline, no authentication
 - **Cloud (SaaS):** Multi-tenant, GitHub OAuth, API keys
 
@@ -25,7 +25,7 @@ Key questions addressed:
 
 ### 1. MCP Configuration Model
 
-**Cloud mode uses a CAI-managed MCP catalog, not user-defined servers.**
+**Cloud mode uses a PML-managed MCP catalog, not user-defined servers.**
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -45,15 +45,15 @@ Key questions addressed:
 
 **Rationale:**
 - Users cannot add custom MCP servers via their local config file
-- All MCP management happens through the CAI Dashboard
-- CAI controls the catalog of available MCPs (security, quality)
+- All MCP management happens through the PML Dashboard
+- PML controls the catalog of available MCPs (security, quality)
 - Custom MCPs deferred to future iteration
 
 ### 2. MCP Categories
 
 | Category | Examples | API Key Source |
 |----------|----------|----------------|
-| **Managed** | filesystem, memory, fetch | None (CAI provides) |
+| **Managed** | filesystem, memory, fetch | None (PML provides) |
 | **OAuth** | github | User's GitHub login token |
 | **BYOK** | tavily, brave, openai, airtable | User provides their key |
 
@@ -112,7 +112,7 @@ user_secrets: {
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         CAI Platform                             │
+│                         PML Platform                             │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │  GLOBAL (shared across all users)                               │
@@ -231,7 +231,7 @@ github.com/casys-ai/cai/     # Public - MIT/Apache 2.0
 
 ### Custom MCPs (User-defined servers)
 
-**Deferred.** For MVP, users choose from CAI catalog only. Custom MCPs require:
+**Deferred.** For MVP, users choose from PML catalog only. Custom MCPs require:
 - Security review process
 - Sandboxed execution
 - Support complexity
@@ -254,9 +254,9 @@ Can be added in future iteration.
 - Flexibility: BYOK allows users to use their own quotas
 
 ### Negative
-- No custom MCPs in MVP (users limited to CAI catalog)
+- No custom MCPs in MVP (users limited to PML catalog)
 - Master key is single point of failure (mitigated by KMS in prod)
-- Users must trust CAI with encrypted keys
+- Users must trust PML with encrypted keys
 
 ### Risks
 - Master key compromise → all secrets exposed

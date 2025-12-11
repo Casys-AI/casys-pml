@@ -2,7 +2,7 @@
 
 ## Overview
 
-Casys Intelligence is designed as a **local-first** tool with no cloud dependencies for the MVP. The architecture nevertheless supports evolution toward edge/cloud deployments.
+Casys PML is designed as a **local-first** tool with no cloud dependencies for the MVP. The architecture nevertheless supports evolution toward edge/cloud deployments.
 
 ## Deployment Architecture
 
@@ -11,7 +11,7 @@ Casys Intelligence is designed as a **local-first** tool with no cloud dependenc
 │                     USER MACHINE (Local-First)                       │
 │                                                                     │
 │  ┌─────────────────┐     ┌─────────────────┐     ┌───────────────┐ │
-│  │  Claude Desktop │────►│   Casys Intelligence    │────►│  MCP Servers  │ │
+│  │  Claude Desktop │────►│   Casys PML    │────►│  MCP Servers  │ │
 │  │  (Claude Code)  │     │    Gateway      │     │  (15+ types)  │ │
 │  └─────────────────┘     └────────┬────────┘     └───────────────┘ │
 │                                   │                                 │
@@ -128,11 +128,11 @@ CMD ["deno", "run", "-A", "src/main.ts", "serve"]
 
 ## Inter-Process Communication
 
-### Claude Desktop ↔ Casys Intelligence
+### Claude Desktop ↔ Casys PML
 
 ```
 ┌──────────────────┐          ┌──────────────────┐
-│  Claude Desktop  │  stdio   │   Casys Intelligence     │
+│  Claude Desktop  │  stdio   │   Casys PML     │
 │                  │◄────────►│   Gateway        │
 │  (JSON-RPC)      │          │   (MCP Server)   │
 └──────────────────┘          └──────────────────┘
@@ -143,11 +143,11 @@ CMD ["deno", "run", "-A", "src/main.ts", "serve"]
 - Bidirectional synchronous communication
 - Timeout: 30s per request
 
-### Casys Intelligence ↔ MCP Servers
+### Casys PML ↔ MCP Servers
 
 ```
 ┌──────────────────┐          ┌──────────────────┐
-│   Casys Intelligence     │  stdio   │   MCP Server     │
+│   Casys PML     │  stdio   │   MCP Server     │
 │   Gateway        │◄────────►│   (filesystem)   │
 │                  │          │   (github)       │
 │                  │          │   (memory)       │
@@ -163,7 +163,7 @@ CMD ["deno", "run", "-A", "src/main.ts", "serve"]
 
 ```
 ┌──────────────────┐   SSE    ┌──────────────────┐
-│   Fresh Web      │◄─────────│   Casys Intelligence     │
+│   Fresh Web      │◄─────────│   Casys PML     │
 │   Dashboard      │   HTTP   │   Gateway        │
 │   :8080          │─────────►│   :3001          │
 └──────────────────┘          └──────────────────┘
@@ -217,7 +217,7 @@ SENTRY_TRACES_SAMPLE_RATE=0.1
 
 ### Horizontal Scaling (Out of Scope MVP)
 
-Casys Intelligence is single-instance by design (local state). For multi-instance:
+Casys PML is single-instance by design (local state). For multi-instance:
 
 ```
 Future: Shared PGlite via S3/GCS + PGlite-sync

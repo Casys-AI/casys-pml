@@ -1,5 +1,5 @@
 ---
-project_name: 'Casys Intelligence'
+project_name: 'Casys PML'
 user_name: 'Erwan'
 date: '2025-12-10'
 sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'code_quality', 'workflow_rules', 'critical_rules']
@@ -99,7 +99,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **Hooks identiques** — `useState`, `useEffect`, etc. fonctionnent comme React
 
 #### MCP Gateway (Meta-Tools Pattern)
-- **Meta-tools uniquement** — Exposer `cai:search_tools`, `cai:execute_dag`, etc.
+- **Meta-tools uniquement** — Exposer `pml:search_tools`, `pml:execute_dag`, etc.
 - **Pas de proxy direct** — Ne jamais exposer les outils MCP sous-jacents directement
 - **DAG workflows** — Orchestration parallèle avec résolution de dépendances
 - **Intent-based execution** — Support des workflows par intention naturelle

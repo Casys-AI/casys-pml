@@ -3,7 +3,7 @@
 /**
  * Real MCP Gateway HTTP Server
  *
- * Full Casys Intelligence MCP gateway with all features:
+ * Full Casys PML MCP gateway with all features:
  * - Code sandbox execution
  * - DAG workflow execution
  * - GraphRAG tool recommendations
@@ -23,9 +23,9 @@
  * - cai__cai_approval_response
  */
 
-// Import directly from source (playground is in Casys Intelligence repo)
+// Import directly from source (playground is in Casys PML repo)
 import {
-  Casys IntelligenceGatewayServer,
+  Casys PMLGatewayServer,
   ControlledExecutor,
   createDefaultClient,
   DAGSuggester,
@@ -41,7 +41,7 @@ import {
 
 const PORT = parseInt(Deno.env.get("PORT") || "3000");
 
-console.log("🚀 Initializing Casys Intelligence MCP Gateway...\n");
+console.log("🚀 Initializing Casys PML MCP Gateway...\n");
 
 try {
   // 1. Initialize database
@@ -75,7 +75,7 @@ try {
 
   const toolExecutor: ToolExecutor = async (toolName: string, args: Record<string, unknown>) => {
     // For standalone mode, we execute code directly in sandbox
-    if (toolName === "execute_code" || toolName === "cai:execute_code") {
+    if (toolName === "execute_code" || toolName === "pml:execute_code") {
       const code = args.code as string;
       const context = args.context;
       return await sandbox.execute(code, context);
@@ -98,7 +98,7 @@ try {
 
   // 4. Create gateway server (standalone mode without external MCP servers)
   console.log("Step 4/5: Creating gateway server...");
-  const gateway = new Casys IntelligenceGatewayServer(
+  const gateway = new Casys PMLGatewayServer(
     db,
     vectorSearch,
     graphEngine,

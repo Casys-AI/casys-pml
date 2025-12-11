@@ -7,7 +7,7 @@
 
 ## Context
 
-Casys Intelligence acts as an MCP (Model Context Protocol) gateway that consolidates multiple MCP servers.
+Casys PML acts as an MCP (Model Context Protocol) gateway that consolidates multiple MCP servers.
 The current implementation uses YAML for configuration files (`~/.cai/config.yaml`), while
 the entire MCP ecosystem standardizes on JSON:
 
@@ -19,7 +19,7 @@ the entire MCP ecosystem standardizes on JSON:
 - Official MCP documentation examples: JSON
 - MCP SDK types: JSON schemas
 
-**Current Casys Intelligence Format:**
+**Current Casys PML Format:**
 
 - Configuration: `~/.cai/config.yaml` (YAML)
 - Creates friction: users must convert between formats
@@ -28,7 +28,7 @@ the entire MCP ecosystem standardizes on JSON:
 **Problem Statement:** The YAML configuration format creates unnecessary friction for users who
 already have MCP servers configured in Claude Desktop (JSON format). Users must:
 
-1. Maintain two different config formats (JSON for Claude Desktop, YAML for Casys Intelligence)
+1. Maintain two different config formats (JSON for Claude Desktop, YAML for Casys PML)
 2. Manually convert MCP server definitions from JSON → YAML
 3. Learn YAML syntax when they're already familiar with JSON from MCP ecosystem
 
@@ -38,7 +38,7 @@ This violates the principle of least surprise and creates onboarding friction.
 
 ## Decision
 
-**Adopt JSON as the primary configuration format for Casys Intelligence**, with temporary backward
+**Adopt JSON as the primary configuration format for Casys PML**, with temporary backward
 compatibility for YAML during migration period.
 
 **Configuration file:** `~/.cai/config.json` (was: `config.yaml`)
@@ -156,7 +156,7 @@ MCP Protocol itself uses JSON-RPC:
 Using JSON for configuration maintains consistency across the entire stack:
 
 ```
-User Config (JSON) → Casys Intelligence (JSON) → MCP Protocol (JSON-RPC) → MCP Servers (JSON)
+User Config (JSON) → Casys PML (JSON) → MCP Protocol (JSON-RPC) → MCP Servers (JSON)
 ```
 
 ### 5. Ecosystem Familiarity
@@ -370,7 +370,7 @@ async function initConfig(mcpServers: MCPServer[]) {
 ```json
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Casys Intelligence Configuration",
+  "title": "Casys PML Configuration",
   "type": "object",
   "required": ["mcpServers"],
   "properties": {
@@ -491,12 +491,12 @@ async function initConfig(mcpServers: MCPServer[]) {
 **Step 1: Auto-migration on next run**
 
 ```bash
-# Casys Intelligence detects YAML and prompts
+# Casys PML detects YAML and prompts
 ./cai serve
 
 # Output:
 # ⚠️  YAML config detected: ~/.cai/config.yaml
-#     Casys Intelligence now uses JSON for MCP compatibility.
+#     Casys PML now uses JSON for MCP compatibility.
 #     Migrate now? (Y/n): y
 #
 # ✓ Config migrated to: ~/.cai/config.json
@@ -535,7 +535,7 @@ async function initConfig(mcpServers: MCPServer[]) {
 ## Success Metrics
 
 1. **User Friction Reduced**
-   - Measure: Time to configure Casys Intelligence (before/after)
+   - Measure: Time to configure Casys PML (before/after)
    - Target: <2 minutes (was: 5-10 minutes with YAML conversion)
 
 2. **Support Questions Reduced**
@@ -568,7 +568,7 @@ async function initConfig(mcpServers: MCPServer[]) {
 - **ADR-007:** DAG Adaptive Feedback Loops (uses JSON for checkpoint serialization)
 - **ADR-008:** Episodic Memory (uses JSON for telemetry logging)
 
-Pattern: Casys Intelligence consistently uses JSON for data serialization. Configuration should follow the
+Pattern: Casys PML consistently uses JSON for data serialization. Configuration should follow the
 same pattern.
 
 ---

@@ -1,5 +1,5 @@
 /**
- * Custom Error Types for Casys Intelligence
+ * Custom Error Types for Casys PML
  *
  * Provides a hierarchy of error classes with user-friendly messages,
  * error codes, recoverability flags, and suggestions for resolution.
@@ -8,14 +8,14 @@
  */
 
 /**
- * Base error class for Casys Intelligence
+ * Base error class for Casys PML
  *
  * All custom errors extend this class to provide:
  * - Unique error code for categorization
  * - Recoverable flag to indicate if the operation can continue
  * - User-friendly suggestion for how to resolve the error
  */
-export class CasysIntelligenceError extends Error {
+export class PMLError extends Error {
   constructor(
     message: string,
     public code: string,
@@ -39,7 +39,7 @@ export class CasysIntelligenceError extends Error {
  * - Communication with server fails
  * - Server returns invalid response
  */
-export class MCPServerError extends CasysIntelligenceError {
+export class MCPServerError extends PMLError {
   constructor(
     public serverId: string,
     message: string,
@@ -62,7 +62,7 @@ export class MCPServerError extends CasysIntelligenceError {
  * - Vector database query fails
  * - Search returns invalid results
  */
-export class VectorSearchError extends CasysIntelligenceError {
+export class VectorSearchError extends PMLError {
   constructor(message: string, public query?: string) {
     super(
       message,
@@ -81,7 +81,7 @@ export class VectorSearchError extends CasysIntelligenceError {
  * - Task execution fails
  * - Workflow cannot complete
  */
-export class DAGExecutionError extends CasysIntelligenceError {
+export class DAGExecutionError extends PMLError {
   constructor(
     message: string,
     public taskId?: string,
@@ -104,7 +104,7 @@ export class DAGExecutionError extends CasysIntelligenceError {
  * - Query execution fails
  * - Transaction fails
  */
-export class DatabaseError extends CasysIntelligenceError {
+export class DatabaseError extends PMLError {
   constructor(message: string, public operation: string) {
     super(
       message,
@@ -123,7 +123,7 @@ export class DatabaseError extends CasysIntelligenceError {
  * - Configuration is invalid
  * - Config file cannot be read
  */
-export class ConfigurationError extends CasysIntelligenceError {
+export class ConfigurationError extends PMLError {
   constructor(message: string, public configKey?: string) {
     super(
       message,
@@ -139,7 +139,7 @@ export class ConfigurationError extends CasysIntelligenceError {
  *
  * Thrown when an operation exceeds its timeout threshold
  */
-export class TimeoutError extends CasysIntelligenceError {
+export class TimeoutError extends PMLError {
   constructor(
     public operation: string,
     public timeoutMs: number,

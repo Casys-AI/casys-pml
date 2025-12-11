@@ -9,12 +9,12 @@
 
 ### Problem Statement
 
-Casys Intelligence has an **architectural inconsistency** between documented vision and implementation
+Casys PML has an **architectural inconsistency** between documented vision and implementation
 regarding how tools are exposed to Claude Code:
 
 **PRD Vision (docs/PRD.md, line 7):**
 
-> "Casys Intelligence acts as a **transparent MCP gateway** that consolidates all your MCP servers into a
+> "Casys PML acts as a **transparent MCP gateway** that consolidates all your MCP servers into a
 > single entry point"
 
 **ADR-013 Reality (Accepted 2025-11-14):**
@@ -51,7 +51,7 @@ await callTool("filesystem:read_file", { path: "/config.json" });
 **3. Competitive Positioning:**
 
 - AIRIS, Smithery, Context Forge: Transparent proxies
-- Casys Intelligence: Meta-tools only (different paradigm)
+- Casys PML: Meta-tools only (different paradigm)
 - May limit addressable market to "advanced users"
 
 ### Discovery Source
@@ -138,7 +138,7 @@ async handleListTools(request: unknown): Promise<ListToolsResult> {
 ````markdown
 # README.md (Updated)
 
-Casys Intelligence uses **semantic intent-based workflows** instead of direct tool calls.
+Casys PML uses **semantic intent-based workflows** instead of direct tool calls.
 
 ## ❌ OLD (Direct Tool Calls)
 
@@ -342,7 +342,7 @@ full_proxy:
 #### 4. Migration Path
 
 ````markdown
-## Migration Guide: Direct MCP → Casys Intelligence
+## Migration Guide: Direct MCP → Casys PML
 
 ### Phase 1: Full Proxy (Week 1-2)
 

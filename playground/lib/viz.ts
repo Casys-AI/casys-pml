@@ -1,5 +1,5 @@
 /**
- * Visualization Helpers for Casys Intelligence Playground
+ * Visualization Helpers for Casys PML Playground
  *
  * Mermaid diagram generators for DAGs, GraphRAG, and execution timelines.
  * Use in Jupyter notebooks to visualize workflow structures and execution.

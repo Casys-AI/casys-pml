@@ -16,7 +16,7 @@ User confirmation: "Ouai on peut essayer sans speculative mais on va pas se ment
 
 ## Rationale
 
-- **THE feature** - core differentiator of Casys Intelligence
+- **THE feature** - core differentiator of Casys PML
 - 0ms perceived latency (results ready when user confirms)
 - Even with Claude confirmation dialogs, provides instant results vs 2-5s wait
 - Context savings ($5-10/day) >> waste from occasional misspeculation ($0.50)

@@ -73,7 +73,7 @@ After=network.target
 [Service]
 Type=simple
 User=ubuntu
-WorkingDirectory=/home/ubuntu/CascadeProjects/Casys Intelligence
+WorkingDirectory=/home/ubuntu/CascadeProjects/Casys PML
 ExecStart=/home/ubuntu/.deno/bin/deno task fresh:start
 Restart=on-failure
 RestartSec=5
@@ -93,7 +93,7 @@ After=network.target
 [Service]
 Type=simple
 User=ubuntu
-WorkingDirectory=/home/ubuntu/CascadeProjects/Casys Intelligence
+WorkingDirectory=/home/ubuntu/CascadeProjects/Casys PML
 ExecStart=/home/ubuntu/.deno/bin/deno task serve:playground
 Restart=on-failure
 RestartSec=5

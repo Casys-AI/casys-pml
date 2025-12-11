@@ -11,9 +11,10 @@
  */
 
 // Gateway server
-export { CasysIntelligenceGatewayServer } from "./gateway-server.ts";
-// Legacy export for backward compatibility (deprecated)
-export { CasysIntelligenceGatewayServer as AgentCardsGatewayServer } from "./gateway-server.ts";
+export { PMLGatewayServer } from "./gateway-server.ts";
+// Legacy exports for backward compatibility (deprecated)
+export { PMLGatewayServer as CasysIntelligenceGatewayServer } from "./gateway-server.ts";
+export { PMLGatewayServer as AgentCardsGatewayServer } from "./gateway-server.ts";
 export type { GatewayServerConfig } from "./gateway-server.ts";
 
 // MCP Client

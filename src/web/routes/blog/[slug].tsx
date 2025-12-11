@@ -32,7 +32,7 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
   return (
     <>
       <Head>
-        <title>{post.title} - CAI Blog</title>
+        <title>{post.title} - Casys PML Blog</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta name="description" content={post.snippet} />
         <meta property="og:title" content={post.title} />
@@ -57,8 +57,8 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
         <header class="header">
           <div class="header-inner">
             <a href="/" class="logo">
-              <span class="logo-mark">CAI</span>
-              <span class="logo-text">Collective Agentic Intelligence</span>
+              <span class="logo-mark">Casys PML</span>
+              <span class="logo-text">Procedural Memory Layer</span>
             </a>
             <nav class="nav">
               <a href="/" class="nav-link">Home</a>
@@ -144,8 +144,8 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
         <footer class="footer">
           <div class="footer-inner">
             <div class="footer-brand">
-              <span class="logo-mark">CAI</span>
-              <span class="footer-tagline">Collective Agentic Intelligence</span>
+              <span class="logo-mark">Casys PML</span>
+              <span class="footer-tagline">Procedural Memory Layer</span>
             </div>
             <div class="footer-links">
               <a href="https://casys.ai" target="_blank" rel="noopener">Casys.ai</a>

@@ -1,8 +1,8 @@
-# Casys Intelligence API Reference
+# Casys PML API Reference
 
 ## Overview
 
-Casys Intelligence exposes its features via the MCP (Model Context Protocol). This reference
+Casys PML exposes its features via the MCP (Model Context Protocol). This reference
 documents all available tools.
 
 **Version:** 1.0.0
@@ -21,11 +21,11 @@ documents all available tools.
 
 ## Tool Architecture
 
-Casys Intelligence exposes two types of tools:
+Casys PML exposes two types of tools:
 
 | Type               | Pattern             | Description                                                  |
 | ------------------ | ------------------- | ------------------------------------------------------------ |
-| **Meta-tools**     | `cai:*`      | Casys Intelligence intelligent tools (search, DAG, sandbox)         |
+| **Meta-tools**     | `pml:*`      | Casys PML intelligent tools (search, DAG, sandbox)         |
 | **Proxied tools**  | `serverId:toolName` | Tools from underlying MCP servers (filesystem, github...)    |
 
 > **Note:** By default, only meta-tools are listed to minimize context usage
@@ -34,9 +34,9 @@ Casys Intelligence exposes two types of tools:
 
 ---
 
-## Casys Intelligence Meta-Tools
+## Casys PML Meta-Tools
 
-### cai:search_tools
+### pml:search_tools
 
 Semantic search and recommendations based on the usage graph.
 
@@ -52,7 +52,7 @@ Semantic search and recommendations based on the usage graph.
 **Request example:**
 
 ```typescript
-await callTool("cai:search_tools", {
+await callTool("pml:search_tools", {
   query: "read and parse JSON files",
   limit: 5,
   include_related: true,
@@ -72,13 +72,13 @@ await callTool("cai:search_tools", {
 
 ---
 
-### cai:execute_dag
+### pml:execute_dag
 
 Execute a multi-tool DAG (Directed Acyclic Graph) workflow.
 
 **Usage modes:**
 
-- **Intent:** Provide `intent` → Casys Intelligence suggests and executes the optimal DAG
+- **Intent:** Provide `intent` → Casys PML suggests and executes the optimal DAG
 - **Explicit:** Provide `workflow` → Executes the explicitly defined DAG
 
 > Provide **either** `intent` **or** `workflow`, not both.
@@ -113,7 +113,7 @@ Execute a multi-tool DAG (Directed Acyclic Graph) workflow.
 **Example - Intent Mode:**
 
 ```typescript
-await callTool("cai:execute_dag", {
+await callTool("pml:execute_dag", {
   intent: "Read config.json and create a memory entity with its content",
 });
 ```
@@ -121,7 +121,7 @@ await callTool("cai:execute_dag", {
 **Example - Explicit Mode with parallelization:**
 
 ```typescript
-await callTool("cai:execute_dag", {
+await callTool("pml:execute_dag", {
   workflow: {
     tasks: [
       { id: "t1", tool: "filesystem:read_file", arguments: { path: "config.json" } },
@@ -155,14 +155,14 @@ await callTool("cai:execute_dag", {
 {
   "content": [{
     "type": "text",
-    "text": "{\"status\":\"layer_complete\",\"workflow_id\":\"wf_abc123\",\"current_layer\":1,\"total_layers\":3,\"layer_results\":[...],\"next_action\":\"Use cai:continue to proceed\"}"
+    "text": "{\"status\":\"layer_complete\",\"workflow_id\":\"wf_abc123\",\"current_layer\":1,\"total_layers\":3,\"layer_results\":[...],\"next_action\":\"Use pml:continue to proceed\"}"
   }]
 }
 ```
 
 ---
 
-### cai:execute_code
+### pml:execute_code
 
 Execute TypeScript/JavaScript code in an isolated Deno sandbox.
 
@@ -191,7 +191,7 @@ Execute TypeScript/JavaScript code in an isolated Deno sandbox.
 **Example - Data processing:**
 
 ```typescript
-await callTool("cai:execute_code", {
+await callTool("pml:execute_code", {
   code: `
     const items = context.data;
     const filtered = items.filter(x => x.active);
@@ -207,7 +207,7 @@ await callTool("cai:execute_code", {
 **Example - With tool discovery:**
 
 ```typescript
-await callTool("cai:execute_code", {
+await callTool("pml:execute_code", {
   intent: "Analyze GitHub commits",
   code: `
     // 'github' injected automatically thanks to intent
@@ -230,7 +230,7 @@ await callTool("cai:execute_code", {
 
 ---
 
-### cai:continue
+### pml:continue
 
 Continue execution of a paused workflow (after per-layer validation).
 
@@ -244,7 +244,7 @@ Continue execution of a paused workflow (after per-layer validation).
 **Example:**
 
 ```typescript
-await callTool("cai:continue", {
+await callTool("pml:continue", {
   workflow_id: "wf_abc123",
   reason: "Layer 1 validated, continue",
 });
@@ -252,7 +252,7 @@ await callTool("cai:continue", {
 
 ---
 
-### cai:abort
+### pml:abort
 
 Stop a running workflow.
 
@@ -266,7 +266,7 @@ Stop a running workflow.
 **Example:**
 
 ```typescript
-await callTool("cai:abort", {
+await callTool("pml:abort", {
   workflow_id: "wf_abc123",
   reason: "Error detected in layer 1 results",
 });
@@ -274,7 +274,7 @@ await callTool("cai:abort", {
 
 ---
 
-### cai:replan
+### pml:replan
 
 Re-plan a DAG with new requirements (discovered during execution).
 
@@ -290,7 +290,7 @@ Re-plan a DAG with new requirements (discovered during execution).
 
 ```typescript
 // After discovering unexpected XML files
-await callTool("cai:replan", {
+await callTool("pml:replan", {
   workflow_id: "wf_abc123",
   new_requirement: "Parse discovered XML files",
   available_context: {
@@ -301,7 +301,7 @@ await callTool("cai:replan", {
 
 ---
 
-### cai:approval_response
+### pml:approval_response
 
 Respond to a Human-in-the-Loop (HIL) approval checkpoint.
 
@@ -317,7 +317,7 @@ Respond to a Human-in-the-Loop (HIL) approval checkpoint.
 **Example:**
 
 ```typescript
-await callTool("cai:approval_response", {
+await callTool("pml:approval_response", {
   workflow_id: "wf_abc123",
   checkpoint_id: "cp_xyz789",
   approved: true,
@@ -348,7 +348,7 @@ await callTool("github:create_issue", {
 await callTool("memory:search_nodes", { query: "configuration" });
 ```
 
-> **Discovery:** Use `cai:search_tools` to find available tools by intent.
+> **Discovery:** Use `pml:search_tools` to find available tools by intent.
 
 ---
 
@@ -412,7 +412,7 @@ type WorkflowStatus =
 | -32602 | INVALID_PARAMS   | Invalid parameters | Check required parameters                        |
 | -32603 | INTERNAL_ERROR   | Internal error     | Check logs, retry                                |
 
-**Casys Intelligence specific errors:**
+**Casys PML specific errors:**
 
 | Error                | Description                    | Resolution                                       |
 | -------------------- | ------------------------------ | ------------------------------------------------ |
@@ -443,18 +443,18 @@ type WorkflowStatus =
 
 ```typescript
 // 1. Discover relevant tools
-const tools = await callTool("cai:search_tools", {
+const tools = await callTool("pml:search_tools", {
   query: "read files and analyze project structure",
   include_related: true,
 });
 
 // 2. Execute a DAG workflow
-const result = await callTool("cai:execute_dag", {
+const result = await callTool("pml:execute_dag", {
   intent: "Read all TypeScript files in src/ and count lines",
 });
 
 // 3. Post-process with sandbox
-const analysis = await callTool("cai:execute_code", {
+const analysis = await callTool("pml:execute_code", {
   code: `
     const files = context.files;
     return {
@@ -471,7 +471,7 @@ const analysis = await callTool("cai:execute_code", {
 
 ```typescript
 // 1. Start with per-layer validation
-const workflow = await callTool("cai:execute_dag", {
+const workflow = await callTool("pml:execute_dag", {
   intent: "Deploy new version to production",
   per_layer_validation: true,
 });
@@ -480,7 +480,7 @@ const workflow = await callTool("cai:execute_dag", {
 console.log(workflow.layer_results);
 
 // 3. Approve and continue
-await callTool("cai:continue", {
+await callTool("pml:continue", {
   workflow_id: workflow.workflow_id,
   reason: "Tests passed, approved for deployment",
 });

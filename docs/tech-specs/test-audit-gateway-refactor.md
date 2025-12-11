@@ -32,7 +32,7 @@ assertEquals(result.tools.length, 8);
 // ✅ ROBUSTE
 assert(result.tools.length >= 8, "Should have at least core meta-tools");
 // Ou mieux: tester présence des tools critiques
-const criticalTools = ["cai:execute_dag", "cai:search_tools", "cai:execute_code"];
+const criticalTools = ["pml:execute_dag", "pml:search_tools", "pml:execute_code"];
 criticalTools.forEach(name => {
   assertExists(result.tools.find(t => t.name === name), `Missing critical tool: ${name}`);
 });
@@ -178,7 +178,7 @@ execute: async (dag: DAGStructure) => {
 
 **Code:**
 ```typescript
-const gateway = new CasysIntelligenceGatewayServer(...);
+const gateway = new PMLGatewayServer(...);
 assertExists(gateway);
 ```
 
@@ -237,8 +237,8 @@ assert(result.error.message.includes("Missing required parameter"));
 ```typescript
 // Remplacer ligne 173
 // assertEquals(result.tools.length, 8);
-const minTools = ["cai:execute_dag", "cai:search_tools", "cai:execute_code",
-                  "cai:continue", "cai:abort", "cai:replan"];
+const minTools = ["pml:execute_dag", "pml:search_tools", "pml:execute_code",
+                  "pml:continue", "pml:abort", "pml:replan"];
 minTools.forEach(name => {
   assertExists(result.tools.find(t => t.name === name),
                `Missing critical tool: ${name}`);

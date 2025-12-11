@@ -126,7 +126,7 @@ export class TelemetryService {
   async promptConsent(): Promise<void> {
     console.log("\n📊 Telemetry & Analytics");
     console.log("─────────────────────────");
-    console.log("Casys Intelligence can collect anonymous usage metrics to improve the product.");
+    console.log("Casys PML can collect anonymous usage metrics to improve the product.");
     console.log("Metrics include: context usage %, query latency, tool counts.");
     console.log("NO sensitive data (queries, schemas, outputs) is collected.\n");
 

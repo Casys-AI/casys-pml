@@ -4,7 +4,7 @@ _Updated: December 2025_
 
 ## Vision
 
-**Casys Intelligence** (CAI) is an **intelligent MCP gateway** that solves two critical problems
+**Casys PML** (PML) is an **intelligent MCP gateway** that solves two critical problems
 in MCP ecosystems:
 
 1. **LLM context saturation** — Tool schemas consume 30-50% of the context window
@@ -14,7 +14,7 @@ in MCP ecosystems:
 
 ## Key Differentiation
 
-| Problem                   | CAI Solution                                | Benefit               |
+| Problem                   | PML Solution                                | Benefit               |
 | ------------------------- | ------------------------------------------- | --------------------- |
 | 100+ tools = saturated context | Meta-tools only + semantic search on-demand | <5% context used      |
 | Sequential workflows      | DAG with automatic dependency detection     | 5x speedup            |
@@ -30,7 +30,7 @@ in MCP ecosystems:
 ┌─────────────────────────────────────────────────────────────┐
 │  LAYER 1: ORCHESTRATION (Claude / LLM)                      │
 │  • Receives user intent                                     │
-│  • Calls CAI meta-tools (cai:execute_dag, etc.)             │
+│  • Calls PML meta-tools (pml:execute_dag, etc.)             │
 │  • Sees only aggregated results                             │
 └─────────────────────────────────────────────────────────────┘
                               │

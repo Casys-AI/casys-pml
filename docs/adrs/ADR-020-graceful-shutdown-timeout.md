@@ -5,7 +5,7 @@
 
 ## Problem
 
-The Casys Intelligence gateway server's shutdown handler would hang indefinitely when receiving
+The Casys PML gateway server's shutdown handler would hang indefinitely when receiving
 SIGINT/SIGTERM signals, requiring force-kill (kill -9).
 
 **Observed behavior:**
@@ -43,7 +43,7 @@ const shutdown = () => {
   isShuttingDown = true;
 
   log.info("\n\nShutting down...");
-  log.info("Shutting down Casys Intelligence gateway...");
+  log.info("Shutting down Casys PML gateway...");
 
   // Force exit after 2 seconds if graceful shutdown hangs
   const forceExitTimer = setTimeout(() => {
@@ -98,7 +98,7 @@ deno run --allow-all src/main.ts serve --port 3001 --config playground/config/mc
 # Press Ctrl+C once
 ^C
 [INFO] Shutting down...
-[INFO] Shutting down Casys Intelligence gateway...
+[INFO] Shutting down Casys PML gateway...
 [INFO] ✓ Shutdown complete
 # Process exits cleanly
 ```

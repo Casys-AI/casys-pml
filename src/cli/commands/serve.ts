@@ -1,7 +1,7 @@
 /**
  * Serve Command
  *
- * CLI command to start Casys Intelligence as an MCP gateway server
+ * CLI command to start Casys PML as an MCP gateway server
  *
  * @module cli/commands/serve
  */
@@ -17,7 +17,7 @@ import { VectorSearch } from "../../vector/search.ts";
 import { GraphRAGEngine } from "../../graphrag/graph-engine.ts";
 import { DAGSuggester } from "../../graphrag/dag-suggester.ts";
 import { ParallelExecutor } from "../../dag/executor.ts";
-import { CasysIntelligenceGatewayServer } from "../../mcp/gateway-server.ts";
+import { PMLGatewayServer } from "../../mcp/gateway-server.ts";
 import { WorkflowSyncService } from "../../graphrag/workflow-sync.ts";
 import { getWorkflowTemplatesPath } from "../utils.ts";
 import { autoInitIfConfigChanged } from "../auto-init.ts";
@@ -142,7 +142,7 @@ function createToolExecutor(
 export function createServeCommand() {
   return new Command()
     .name("serve")
-    .description("Start Casys Intelligence MCP gateway server")
+    .description("Start Casys PML MCP gateway server")
     .option(
       "--config <path:string>",
       "Path to MCP servers config file (required)",
@@ -168,7 +168,7 @@ export function createServeCommand() {
     )
     .action(async (options) => {
       try {
-        log.info("🚀 Starting Casys Intelligence MCP Gateway...\n");
+        log.info("🚀 Starting Casys PML MCP Gateway...\n");
 
         // 1. Find and load config
         log.info("Step 1/6: Loading configuration...");
@@ -269,7 +269,7 @@ export function createServeCommand() {
 
         // 5. Create gateway server
         log.info("Step 5/6: Starting MCP gateway...");
-        const gateway = new CasysIntelligenceGatewayServer(
+        const gateway = new PMLGatewayServer(
           db,
           vectorSearch,
           graphEngine,
@@ -313,7 +313,7 @@ export function createServeCommand() {
           isShuttingDown = true;
 
           log.info("\n\nShutting down...");
-          log.info("Shutting down Casys Intelligence gateway...");
+          log.info("Shutting down Casys PML gateway...");
 
           // Force exit after 10 seconds if graceful shutdown hangs
           // PGlite needs time to flush WAL and close cleanly

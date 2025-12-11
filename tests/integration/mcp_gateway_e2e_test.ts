@@ -1,7 +1,7 @@
 /**
  * MCP Gateway E2E Integration Test
  *
- * End-to-end test simulating Claude Code client interacting with Casys Intelligence gateway.
+ * End-to-end test simulating Claude Code client interacting with Casys PML gateway.
  * Tests the complete flow: stdio transport, MCP protocol, tool execution.
  *
  * @module tests/integration/mcp_gateway_e2e_test
@@ -10,7 +10,7 @@
 import { assert, assertEquals, assertExists } from "@std/assert";
 import { createDefaultClient } from "../../src/db/client.ts";
 import { getAllMigrations, MigrationRunner } from "../../src/db/migrations.ts";
-import { CasysIntelligenceGatewayServer } from "../../src/mcp/gateway-server.ts";
+import { PMLGatewayServer } from "../../src/mcp/gateway-server.ts";
 import { EmbeddingModel } from "../../src/vector/embeddings.ts";
 import { VectorSearch } from "../../src/vector/search.ts";
 import { GraphRAGEngine } from "../../src/graphrag/graph-engine.ts";
@@ -113,7 +113,7 @@ Deno.test({
       mcpClients.set("mock-server", createMockMCPClient());
 
       // 3. Create gateway
-      const gateway = new CasysIntelligenceGatewayServer(
+      const gateway = new PMLGatewayServer(
         db,
         vectorSearch,
         graphEngine,
@@ -140,7 +140,7 @@ Deno.test({
 
       // Verify workflow tool is present (renamed in Story 2.5-4)
       const workflowTool = listResult.tools.find((t: MCPTool) =>
-        t.name === "cai:execute_dag"
+        t.name === "pml:execute_dag"
       );
       assertExists(workflowTool);
 
@@ -163,7 +163,7 @@ Deno.test({
       // 6. Test workflow execution (renamed in Story 2.5-4)
       const workflowResult = await handleCallTool({
         params: {
-          name: "cai:execute_dag",
+          name: "pml:execute_dag",
           arguments: {
             workflow: {
               tasks: [
@@ -222,7 +222,7 @@ Deno.test({
 
       const mcpClients = new Map();
 
-      const gateway = new CasysIntelligenceGatewayServer(
+      const gateway = new PMLGatewayServer(
         db,
         vectorSearch,
         graphEngine,
