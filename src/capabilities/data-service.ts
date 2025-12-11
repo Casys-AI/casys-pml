@@ -123,7 +123,7 @@ export class CapabilityDataService {
           name,
           description,
           code_snippet,
-          dag_structure->'toolsUsed' as tools_used,
+          dag_structure->'tools_used' as tools_used,
           success_rate,
           usage_count,
           avg_duration_ms,
