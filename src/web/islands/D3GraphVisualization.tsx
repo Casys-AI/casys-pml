@@ -353,18 +353,15 @@ export default function D3GraphVisualization({
       // Update node positions
       nodeLayer.selectAll(".node").attr("transform", (d: any) => `translate(${d.x},${d.y})`);
 
-      // Story 8.3: Debounced hull update with interactivity callbacks
+      // Story 8.3: Sync hull update with node positions (no debounce for smooth tracking)
       if (capabilityZonesRef.current.length > 0) {
-        if (hullUpdateTimerRef.current) clearTimeout(hullUpdateTimerRef.current);
-        hullUpdateTimerRef.current = setTimeout(() => {
-          drawCapabilityHulls(
-            hullLayer,
-            capabilityZonesRef.current,
-            nodesRef.current,
-            handleHullHover,
-            handleHullClick,
-          );
-        }, 100) as unknown as number;
+        drawCapabilityHulls(
+          hullLayer,
+          capabilityZonesRef.current,
+          nodesRef.current,
+          handleHullHover,
+          handleHullClick,
+        );
       }
     }
 
@@ -1208,7 +1205,9 @@ function drawCapabilityHulls(
       // Clear tooltip
       if (onHullHover) onHullHover(null, 0, 0);
     })
-    .on("click", function (_event: any, d: any) {
+    .on("click", function (event: any, d: any) {
+      // Stop propagation to prevent node click interference
+      event.stopPropagation();
       // Selection callback for Story 8.4 integration
       if (onHullClick) onHullClick(d.zone);
     });
