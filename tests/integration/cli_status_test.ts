@@ -21,7 +21,7 @@ Deno.test({
       ],
       stdout: "piped",
       stderr: "piped",
-      cwd: "/home/ubuntu/CascadeProjects/Casys PML",
+      cwd: "/home/ubuntu/CascadeProjects/AgentCards",
     });
 
     const { stdout, stderr, code } = await process.output();
@@ -82,7 +82,7 @@ Deno.test({
         ],
         stdout: "piped",
         stderr: "piped",
-        cwd: "/home/ubuntu/CascadeProjects/Casys PML",
+        cwd: "/home/ubuntu/CascadeProjects/AgentCards",
       });
 
       const { stderr, code } = await process.output();

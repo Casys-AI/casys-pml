@@ -16,7 +16,7 @@ Deno.test("getProjectRoot - finds project root via deno.json", () => {
   const root = getProjectRoot();
 
   assertExists(root, "Should return a path");
-  assertEquals(root.includes("Casys PML"), true, "Should contain project name");
+  assertEquals(root.includes("AgentCards"), true, "Should contain project name");
 
   // Verify deno.json exists at root
   const stat = Deno.statSync(`${root}/deno.json`);

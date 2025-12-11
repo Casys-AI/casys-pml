@@ -192,8 +192,9 @@ export interface HypergraphOptions {
 }
 
 /**
- * Cytoscape node for capability (parent node in compound graph)
+ * Graph node for capability (parent node in compound graph)
  * Internal camelCase - maps to snake_case at API boundary
+ * Note: Previously named CytoscapeNode, renamed after D3.js migration
  */
 export interface CapabilityNode {
   data: {
@@ -208,8 +209,9 @@ export interface CapabilityNode {
 }
 
 /**
- * Cytoscape node for tool (child of capability or standalone)
+ * Graph node for tool (child of capability or standalone)
  * Internal camelCase - maps to snake_case at API boundary
+ * Note: Previously named CytoscapeNode, renamed after D3.js migration
  */
 export interface ToolNode {
   data: {
@@ -224,8 +226,9 @@ export interface ToolNode {
 }
 
 /**
- * Cytoscape edge between capabilities that share tools
+ * Graph edge between capabilities that share tools
  * Internal camelCase - maps to snake_case at API boundary
+ * Note: Previously named CytoscapeEdge, renamed after D3.js migration
  */
 export interface CapabilityEdge {
   data: {
@@ -254,14 +257,26 @@ export interface HierarchicalEdge {
 }
 
 /**
- * Union type for all Cytoscape nodes
+ * Union type for all graph nodes
+ * @deprecated Use GraphNode instead. Kept for backward compatibility.
  */
 export type CytoscapeNode = CapabilityNode | ToolNode;
 
 /**
- * Union type for all Cytoscape edges
+ * Union type for all graph edges
+ * @deprecated Use GraphEdge instead. Kept for backward compatibility.
  */
 export type CytoscapeEdge = CapabilityEdge | HierarchicalEdge;
+
+/**
+ * Union type for all graph nodes (D3.js visualization)
+ */
+export type GraphNode = CapabilityNode | ToolNode;
+
+/**
+ * Union type for all graph edges (D3.js visualization)
+ */
+export type GraphEdge = CapabilityEdge | HierarchicalEdge;
 
 /**
  * Response from buildHypergraphData (internal camelCase)
