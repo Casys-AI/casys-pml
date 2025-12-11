@@ -138,7 +138,8 @@ export class PMLGatewayServer {
     private vectorSearch: VectorSearch,
     private graphEngine: GraphRAGEngine,
     private dagSuggester: DAGSuggester,
-    private executor: ParallelExecutor,
+    // @ts-ignore: executor kept for API backward compatibility
+    private _executor: ParallelExecutor,
     private mcpClients: Map<string, MCPClient>,
     // Optional for backward compatibility, but required for Story 7.3a features
     private capabilityStore?: CapabilityStore,
@@ -700,7 +701,26 @@ export class PMLGatewayServer {
       }
 
       // Standard execution (no validation pauses)
-      const result = await this.executor.execute(normalizedWorkflow);
+      // Use ControlledExecutor for task type routing (code_execution, capability tasks)
+      const controlledExecutor = new ControlledExecutor(
+        async (tool, args) => {
+          // Route to underlying MCP servers
+          const [serverId, ...toolNameParts] = tool.split(":");
+          const toolName = toolNameParts.join(":");
+          const client = this.mcpClients.get(serverId);
+          if (!client) {
+            throw new Error(`Unknown MCP server: ${serverId}`);
+          }
+          return await client.callTool(toolName, args);
+        },
+        { taskTimeout: 30000, userId: userId ?? "local" },
+      );
+
+      controlledExecutor.setDAGSuggester(this.dagSuggester);
+      // Wire learning dependencies (Task 3: for eager learning and trace collection)
+      controlledExecutor.setLearningDependencies(this.capabilityStore, this.graphEngine);
+
+      const result = await controlledExecutor.execute(normalizedWorkflow);
 
       // Update graph with execution data (learning loop)
       await this.graphEngine.updateFromExecution({
@@ -859,6 +879,8 @@ export class PMLGatewayServer {
     // Configure checkpointing
     controlledExecutor.setCheckpointManager(this.db, true);
     controlledExecutor.setDAGSuggester(this.dagSuggester);
+    // Wire learning dependencies (for eager learning and trace collection)
+    controlledExecutor.setLearningDependencies(this.capabilityStore, this.graphEngine);
 
     // Start streaming execution
     const generator = controlledExecutor.executeStream(dag, workflowId);
@@ -1465,6 +1487,8 @@ export class PMLGatewayServer {
 
     controlledExecutor.setCheckpointManager(this.db, true);
     controlledExecutor.setDAGSuggester(this.dagSuggester);
+    // Wire learning dependencies (for eager learning and trace collection)
+    controlledExecutor.setLearningDependencies(this.capabilityStore, this.graphEngine);
 
     // Resume from checkpoint
     const generator = controlledExecutor.resumeFromCheckpoint(dag, latestCheckpoint.id);

@@ -55,6 +55,18 @@ export interface SandboxConfig {
     /** Whether to persist cache to PGlite */
     persistence?: boolean;
   };
+
+  /**
+   * Optional CapabilityStore for eager learning (Story 7.2a)
+   * When provided, enables capability learning from execution traces.
+   */
+  capabilityStore?: import("../capabilities/capability-store.ts").CapabilityStore;
+
+  /**
+   * Optional GraphRAGEngine for trace learning (Story 7.3b - AC#5)
+   * When provided, enables graph updates from execution traces.
+   */
+  graphRAG?: import("../graphrag/graph-engine.ts").GraphRAGEngine;
 }
 
 /**

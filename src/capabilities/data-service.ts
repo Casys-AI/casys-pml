@@ -315,6 +315,32 @@ export class CapabilityDataService {
         );
       }
 
+      // 5b. Include tool-to-tool edges from graph snapshot
+      if (graphSnapshot && graphSnapshot.edges) {
+        for (const edge of graphSnapshot.edges) {
+          // Only add edges between tools that exist in our nodes
+          const sourceExists = hypergraphResult.nodes.some((n) => n.data.id === edge.source);
+          const targetExists = hypergraphResult.nodes.some((n) => n.data.id === edge.target);
+
+          if (sourceExists && targetExists) {
+            hypergraphResult.edges.push({
+              data: {
+                id: `tool-edge-${edge.source}-${edge.target}`,
+                source: edge.source,
+                target: edge.target,
+                edgeType: (edge.edge_type || "sequence") as "contains" | "sequence" | "dependency",
+                edgeSource: (edge.edge_source || "inferred") as "template" | "inferred" | "observed",
+                observedCount: edge.observed_count || 1,
+              },
+            });
+          }
+        }
+        logger.debug("Added tool-to-tool edges from snapshot", {
+          snapshotEdges: graphSnapshot.edges.length,
+          addedEdges: hypergraphResult.edges.filter((e) => e.data.id.startsWith("tool-edge-")).length,
+        });
+      }
+
       // 6. Build final response with backward compatibility
       // Note: Tools with `parents[]` array also have `parent` set to first parent for legacy support
       const result: HypergraphResponseInternal = {

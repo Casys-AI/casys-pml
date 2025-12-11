@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "cai": {
+    "pml": {
       "type": "http",
       "url": "http://localhost:3003/mcp"
     },

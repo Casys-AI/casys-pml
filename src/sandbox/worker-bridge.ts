@@ -265,7 +265,7 @@ export class WorkerBridge {
           await this.capabilityStore.saveCapability({
             code: this.lastExecutedCode,
             intent: this.lastIntent,
-            durationMs: result.executionTimeMs,
+            durationMs: Math.round(result.executionTimeMs),
             success: true,
             toolsUsed: this.getToolsCalled(),
           });

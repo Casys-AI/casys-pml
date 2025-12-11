@@ -391,6 +391,12 @@ export default function D3GraphVisualization({
     eventSource.addEventListener("graph.edge.created", handleEdgeCreated);
     eventSource.addEventListener("graph.edge.updated", handleEdgeUpdated);
 
+    // Story 7.2a: Reload hypergraph when new capability is learned
+    eventSource.addEventListener("capability.learned", () => {
+      console.log("[D3Graph] New capability learned, reloading hypergraph...");
+      loadHypergraphData();
+    });
+
     // Cleanup
     return () => {
       eventSource.close();

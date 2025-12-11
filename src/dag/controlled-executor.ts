@@ -27,9 +27,6 @@ import type { PGliteClient } from "../db/client.ts";
 import { getLogger } from "../telemetry/logger.ts";
 import type { DAGSuggester } from "../graphrag/dag-suggester.ts";
 import { DenoSandboxExecutor } from "../sandbox/executor.ts";
-import { ContextBuilder } from "../sandbox/context-builder.ts";
-import type { VectorSearch } from "../vector/search.ts";
-import type { MCPClient } from "../mcp/client.ts";
 import type { EpisodicMemoryStore } from "../learning/episodic-memory-store.ts";
 import { SpeculativeExecutor } from "../speculation/speculative-executor.ts";
 import {
@@ -80,8 +77,6 @@ export class ControlledExecutor extends ParallelExecutor {
   private dagSuggester: DAGSuggester | null = null;
   private replanCount: number = 0; // Rate limiting for replans (Story 2.5-3 Task 3)
   private readonly MAX_REPLANS = 3; // Maximum replans per workflow
-  private vectorSearch: VectorSearch | null = null; // Story 3.4
-  private contextBuilder: ContextBuilder | null = null; // Story 3.4
   private episodicMemory: EpisodicMemoryStore | null = null; // Story 4.1d - Episodic memory integration
 
   // Story 3.5-1: Speculative Execution
@@ -92,6 +87,10 @@ export class ControlledExecutor extends ParallelExecutor {
 
   // Story 9.5: Multi-tenant data isolation
   private userId: string = "local";
+
+  // Task 3: Dependencies for sandbox execution (eager learning, trace collection)
+  private capabilityStore?: import("../capabilities/capability-store.ts").CapabilityStore;
+  private graphRAG?: import("../graphrag/graph-engine.ts").GraphRAGEngine;
 
   /**
    * Create a new controlled executor
@@ -132,21 +131,24 @@ export class ControlledExecutor extends ParallelExecutor {
   }
 
   /**
-   * Set code execution support (Story 3.4)
+   * Set learning dependencies for sandbox execution (Task 3)
    *
-   * Required for executing code_execution tasks.
-   * Call this before executeStream() to enable code execution in DAG.
+   * Enables capability learning and trace collection during code execution.
+   * These are passed to DenoSandboxExecutor → WorkerBridge for eager learning.
    *
-   * @param vectorSearch - VectorSearch instance for intent-based tool discovery
-   * @param mcpClients - Map of MCP clients for tool injection
+   * @param capabilityStore - CapabilityStore for eager learning
+   * @param graphRAG - GraphRAGEngine for trace collection
    */
-  setCodeExecutionSupport(
-    vectorSearch: VectorSearch,
-    mcpClients: Map<string, MCPClient>,
+  setLearningDependencies(
+    capabilityStore?: import("../capabilities/capability-store.ts").CapabilityStore,
+    graphRAG?: import("../graphrag/graph-engine.ts").GraphRAGEngine,
   ): void {
-    this.vectorSearch = vectorSearch;
-    this.contextBuilder = new ContextBuilder(vectorSearch, mcpClients);
-    log.debug("Code execution support enabled");
+    this.capabilityStore = capabilityStore;
+    this.graphRAG = graphRAG;
+    log.debug("Learning dependencies set", {
+      hasCapabilityStore: !!capabilityStore,
+      hasGraphRAG: !!graphRAG,
+    });
   }
 
   /**
@@ -1754,10 +1756,27 @@ export class ControlledExecutor extends ParallelExecutor {
           `Capability task ${task.id} missing required 'capabilityId' field`,
         );
       }
-      if (!task.code) {
-        throw new Error(
-          `Capability task ${task.id} missing required 'code' field`,
-        );
+
+      // Resolve code: use task.code if provided, otherwise fetch from CapabilityStore (AC3)
+      let capabilityCode = task.code;
+      if (!capabilityCode) {
+        // Must fetch from CapabilityStore
+        if (!this.capabilityStore) {
+          throw new Error(
+            `Capability task ${task.id} has no code and CapabilityStore is not configured. ` +
+              `Call setLearningDependencies() before executing capability tasks.`,
+          );
+        }
+
+        const capability = await this.capabilityStore.findById(task.capabilityId);
+        if (!capability) {
+          throw new Error(
+            `Capability ${task.capabilityId} not found in CapabilityStore for task ${task.id}`,
+          );
+        }
+
+        capabilityCode = capability.codeSnippet;
+        log.debug(`Fetched capability code from store: ${task.capabilityId}`);
       }
 
       // Build execution context from dependencies
@@ -1765,6 +1784,12 @@ export class ControlledExecutor extends ParallelExecutor {
         ...task.arguments,
         capabilityId: task.capabilityId,
       };
+
+      // Pass intent to WorkerBridge for eager learning (Story 7.2a)
+      // Even for capability tasks, new variations might be worth capturing
+      if (task.intent) {
+        executionContext.intent = task.intent;
+      }
 
       // Resolve dependencies
       const deps: Record<string, TaskResult> = {};
@@ -1783,15 +1808,18 @@ export class ControlledExecutor extends ParallelExecutor {
       executionContext.deps = deps;
 
       // Configure sandbox (capabilities use default safe config)
+      // Task 3: Pass learning dependencies for eager learning and trace collection
       const sandboxConfig = task.sandboxConfig || {};
       const executor = new DenoSandboxExecutor({
         timeout: sandboxConfig.timeout ?? 30000,
         memoryLimit: sandboxConfig.memoryLimit ?? 512,
         allowedReadPaths: sandboxConfig.allowedReadPaths ?? [],
+        capabilityStore: this.capabilityStore,
+        graphRAG: this.graphRAG,
       });
 
       // Execute capability code in sandbox
-      const result = await executor.execute(task.code, executionContext);
+      const result = await executor.execute(capabilityCode, executionContext);
 
       if (!result.success) {
         const error = result.error!;
@@ -1906,6 +1934,12 @@ export class ControlledExecutor extends ParallelExecutor {
         ...task.arguments, // Custom context from task
       };
 
+      // Pass intent to WorkerBridge for eager learning (Story 7.2a)
+      // Without this, capabilities won't be saved after successful execution
+      if (task.intent) {
+        executionContext.intent = task.intent;
+      }
+
       // Resolve dependencies: $OUTPUT[dep_id] → actual results
       // Story 3.5: Pass full TaskResult to enable resilient patterns
       const deps: Record<string, TaskResult> = {};
@@ -1926,27 +1960,19 @@ export class ControlledExecutor extends ParallelExecutor {
       }
       executionContext.deps = deps;
 
-      // Intent-based mode: inject tools via vector search
-      if (task.intent && this.contextBuilder && this.vectorSearch) {
-        log.debug(`Intent-based code execution: "${task.intent}"`);
-
-        const toolResults = await this.vectorSearch.searchTools(task.intent, 5, 0.6);
-
-        if (toolResults.length > 0) {
-          const toolContext = await this.contextBuilder.buildContextFromSearchResults(
-            toolResults,
-          );
-          Object.assign(executionContext, toolContext);
-          log.debug(`Injected ${Object.keys(toolContext).length} tool servers`);
-        }
-      }
+      // Note: Intent-based tool injection via contextBuilder is NOT used here.
+      // The sandbox has its own tool injection mechanism via DenoSandboxExecutor.executeWithTools().
+      // The task.intent is passed in executionContext ONLY for eager learning (WorkerBridge).
 
       // Configure sandbox
+      // Task 3: Pass learning dependencies for eager learning and trace collection
       const sandboxConfig = task.sandboxConfig || {};
       const executor = new DenoSandboxExecutor({
         timeout: sandboxConfig.timeout ?? 30000,
         memoryLimit: sandboxConfig.memoryLimit ?? 512,
         allowedReadPaths: sandboxConfig.allowedReadPaths ?? [],
+        capabilityStore: this.capabilityStore,
+        graphRAG: this.graphRAG,
       });
 
       // Execute code in sandbox with injected context (deps + custom context)

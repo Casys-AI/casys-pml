@@ -19,6 +19,16 @@ interface JSONRPCResponse {
 }
 
 /**
+ * Configuration options for MCPClient
+ */
+export interface MCPClientConfig {
+  /** Request timeout in milliseconds (default: 10000) */
+  timeoutMs?: number;
+  /** Use mutex for request serialization instead of multiplexer (default: false) */
+  useMutex?: boolean;
+}
+
+/**
  * MCP Client for stdio communication
  *
  * Implements basic MCP protocol:
@@ -37,9 +47,29 @@ export class MCPClient {
   private stderrReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
   private stderrRunning: boolean = false;
 
-  constructor(server: MCPServer, timeoutMs: number = 10000) {
+  // JSON-RPC multiplexer state (fixes race condition - pattern from WorkerBridge)
+  private pendingRequests: Map<number, {
+    resolve: (response: JSONRPCResponse) => void;
+    reject: (error: Error) => void;
+    timeoutId: ReturnType<typeof setTimeout>;
+  }> = new Map();
+  private readerLoopRunning: boolean = false;
+  private readBuffer: string = "";
+
+  // Mutex fallback for request serialization (optional safety mode)
+  private useMutex: boolean = false;
+  private mutexLock: Promise<void> = Promise.resolve();
+  private mutexRelease: (() => void) | null = null;
+
+  constructor(server: MCPServer, config?: MCPClientConfig | number) {
     this.server = server;
-    this.timeout = timeoutMs;
+    // Support both old signature (number) and new config object
+    if (typeof config === "number") {
+      this.timeout = config;
+    } else {
+      this.timeout = config?.timeoutMs ?? 10000;
+      this.useMutex = config?.useMutex ?? false;
+    }
   }
 
   /**
@@ -234,69 +264,210 @@ export class MCPClient {
   }
 
   /**
-   * Send a JSON-RPC request and wait for response
+   * Start the reader loop for multiplexed JSON-RPC responses
    *
-   * Implements timeout and error handling
+   * Runs continuously once started, dispatching responses to pending requests by ID.
+   * Pattern from WorkerBridge (src/sandbox/worker-bridge.ts:337-342)
    */
-  private async sendRequest(
+  private startReaderLoop(): void {
+    if (this.readerLoopRunning || !this.reader) return;
+    this.readerLoopRunning = true;
+
+    (async () => {
+      const decoder = new TextDecoder();
+
+      try {
+        while (this.readerLoopRunning && this.reader) {
+          const { done, value } = await this.reader.read();
+
+          if (done) {
+            // Stream closed - reject all pending requests
+            this.rejectAllPending(new Error("Stream closed unexpectedly"));
+            break;
+          }
+
+          this.readBuffer += decoder.decode(value, { stream: true });
+
+          // Process complete JSON lines
+          const lines = this.readBuffer.split("\n");
+          this.readBuffer = lines.pop() || ""; // Keep incomplete line in buffer
+
+          for (const line of lines) {
+            if (!line.trim()) continue;
+
+            try {
+              const response = JSON.parse(line) as JSONRPCResponse;
+              log.debug(
+                `[${this.server.id}:stdout] ← ${line.substring(0, 500)}${
+                  line.length > 500 ? "..." : ""
+                }`,
+              );
+
+              // Dispatch to pending request by ID
+              const pending = this.pendingRequests.get(response.id);
+              if (pending) {
+                clearTimeout(pending.timeoutId);
+                pending.resolve(response);
+                this.pendingRequests.delete(response.id);
+              } else {
+                log.debug(`[${this.server.id}] Received response for unknown request ID: ${response.id}`);
+              }
+            } catch {
+              // Not valid JSON, skip this line
+              log.debug(`[${this.server.id}] Invalid JSON line: ${line.substring(0, 100)}`);
+            }
+          }
+        }
+      } catch (error) {
+        // Connection error - reject all pending requests
+        if (this.readerLoopRunning) {
+          this.rejectAllPending(
+            error instanceof Error ? error : new Error(String(error)),
+          );
+        }
+      } finally {
+        this.readerLoopRunning = false;
+      }
+    })();
+  }
+
+  /**
+   * Reject all pending requests (pattern from WorkerBridge:527-531)
+   *
+   * Called when connection is lost or closed
+   */
+  private rejectAllPending(error: Error): void {
+    for (const [id, pending] of this.pendingRequests) {
+      clearTimeout(pending.timeoutId);
+      pending.reject(error);
+      this.pendingRequests.delete(id);
+    }
+  }
+
+  /**
+   * Acquire mutex lock for serialized request mode
+   */
+  private async acquireMutex(): Promise<void> {
+    const currentLock = this.mutexLock;
+    let release: () => void;
+    this.mutexLock = new Promise((resolve) => {
+      release = resolve;
+    });
+    this.mutexRelease = release!;
+    await currentLock;
+  }
+
+  /**
+   * Release mutex lock
+   */
+  private releaseMutex(): void {
+    if (this.mutexRelease) {
+      this.mutexRelease();
+      this.mutexRelease = null;
+    }
+  }
+
+  /**
+   * Send a JSON-RPC request and wait for response (mutex mode)
+   *
+   * Serializes all requests - only one request at a time.
+   * Used as fallback when multiplexer has issues.
+   */
+  private async sendRequestWithMutex(
     request: Record<string, unknown>,
   ): Promise<JSONRPCResponse> {
     if (!this.writer || !this.reader) {
       throw new Error("Streams not initialized");
     }
 
-    return new Promise(async (resolve, reject) => {
-      // Set timeout
-      const timeoutId = setTimeout(() => {
-        reject(new Error(`Request timeout (${this.timeout}ms)`));
-      }, this.timeout);
+    await this.acquireMutex();
 
-      try {
-        // Send request
-        const encoder = new TextEncoder();
-        const message = JSON.stringify(request) + "\n";
-        log.debug(`[${this.server.id}:stdout] → ${JSON.stringify(request)}`);
-        await this.writer!.write(encoder.encode(message));
+    try {
+      // Send request
+      const encoder = new TextEncoder();
+      const decoder = new TextDecoder();
+      const message = JSON.stringify(request) + "\n";
+      log.debug(`[${this.server.id}:stdout] → ${JSON.stringify(request)}`);
+      await this.writer.write(encoder.encode(message));
 
-        // Read response
-        const decoder = new TextDecoder();
-        let buffer = "";
+      // Read response with timeout
+      let buffer = "";
+      const startTime = Date.now();
 
-        while (true) {
-          const { done, value } = await this.reader!.read();
+      while (true) {
+        if (Date.now() - startTime > this.timeout) {
+          throw new TimeoutError(this.server.id, this.timeout);
+        }
 
-          if (done) {
-            reject(new Error("Stream closed unexpectedly"));
-            return;
-          }
+        const { done, value } = await this.reader.read();
 
-          buffer += decoder.decode(value, { stream: true });
+        if (done) {
+          throw new Error("Stream closed unexpectedly");
+        }
 
-          // Check if we have a complete JSON object
-          const lines = buffer.split("\n");
-          for (const line of lines.slice(0, -1)) {
-            if (line.trim()) {
-              try {
-                const response = JSON.parse(line) as JSONRPCResponse;
-                log.debug(
-                  `[${this.server.id}:stdout] ← ${line.substring(0, 500)}${
-                    line.length > 500 ? "..." : ""
-                  }`,
-                );
-                clearTimeout(timeoutId);
-                resolve(response);
-                return;
-              } catch {
-                // Not valid JSON yet, continue reading
-              }
+        buffer += decoder.decode(value, { stream: true });
+
+        // Check if we have a complete JSON object
+        const lines = buffer.split("\n");
+        for (const line of lines.slice(0, -1)) {
+          if (line.trim()) {
+            try {
+              const response = JSON.parse(line) as JSONRPCResponse;
+              log.debug(
+                `[${this.server.id}:stdout] ← ${line.substring(0, 500)}${
+                  line.length > 500 ? "..." : ""
+                }`,
+              );
+              return response;
+            } catch {
+              // Not valid JSON yet, continue reading
             }
           }
-          buffer = lines[lines.length - 1];
         }
-      } catch (error) {
-        clearTimeout(timeoutId);
-        reject(error);
+        buffer = lines[lines.length - 1];
       }
+    } finally {
+      this.releaseMutex();
+    }
+  }
+
+  /**
+   * Send a JSON-RPC request and wait for response
+   *
+   * Uses multiplexed reader loop by default - multiple concurrent requests supported.
+   * Falls back to mutex mode if configured (useMutex: true).
+   */
+  private async sendRequest(
+    request: Record<string, unknown>,
+  ): Promise<JSONRPCResponse> {
+    // Use mutex mode if configured
+    if (this.useMutex) {
+      return this.sendRequestWithMutex(request);
+    }
+
+    if (!this.writer || !this.reader) {
+      throw new Error("Streams not initialized");
+    }
+
+    const requestId = request.id as number;
+
+    // Ensure reader loop is running (fire and forget)
+    this.startReaderLoop();
+
+    // Send request
+    const encoder = new TextEncoder();
+    const message = JSON.stringify(request) + "\n";
+    log.debug(`[${this.server.id}:stdout] → ${JSON.stringify(request)}`);
+    await this.writer.write(encoder.encode(message));
+
+    // Register pending request and return promise
+    return new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        this.pendingRequests.delete(requestId);
+        reject(new TimeoutError(this.server.id, this.timeout));
+      }, this.timeout);
+
+      this.pendingRequests.set(requestId, { resolve, reject, timeoutId });
     });
   }
 
@@ -380,6 +551,10 @@ export class MCPClient {
    * Close the connection
    */
   async close(): Promise<void> {
+    // Stop reader loop and reject pending requests
+    this.readerLoopRunning = false;
+    this.rejectAllPending(new Error("Connection closed"));
+
     // Release streams
     if (this.reader) {
       try {
@@ -420,6 +595,9 @@ export class MCPClient {
       }
       this.process = null;
     }
+
+    // Clear buffer
+    this.readBuffer = "";
 
     log.debug(`Closed connection to ${this.server.id}`);
   }

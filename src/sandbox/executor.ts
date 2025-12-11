@@ -91,7 +91,7 @@ export interface ExecutionResultWithTraces extends ExecutionResult {
 }
 
 export class DenoSandboxExecutor {
-  private config: Required<SandboxConfig>;
+  private config: Required<Omit<SandboxConfig, "capabilityStore" | "graphRAG">>;
   private cache: CodeExecutionCache | null = null;
   private toolVersions: Record<string, string> = {};
   private securityValidator: SecurityValidator;
@@ -100,6 +100,10 @@ export class DenoSandboxExecutor {
   private executionMode: ExecutionMode = "worker";
   /** Last WorkerBridge instance for trace access (Story 7.1b) */
   private lastBridge: WorkerBridge | null = null;
+  /** Optional CapabilityStore for eager learning (Task 2) */
+  private capabilityStore?: import("../capabilities/capability-store.ts").CapabilityStore;
+  /** Optional GraphRAGEngine for trace learning (Task 2) */
+  private graphRAG?: import("../graphrag/graph-engine.ts").GraphRAGEngine;
 
   /**
    * Create a new sandbox executor
@@ -151,6 +155,10 @@ export class DenoSandboxExecutor {
       memoryPressureThresholdPercent: 80,
     });
 
+    // Store optional dependencies for WorkerBridge (Task 2)
+    this.capabilityStore = config?.capabilityStore;
+    this.graphRAG = config?.graphRAG;
+
     logger.debug("Sandbox executor initialized", {
       timeout: this.config.timeout,
       memoryLimit: this.config.memoryLimit,
@@ -158,6 +166,8 @@ export class DenoSandboxExecutor {
       cacheEnabled: this.config.cacheConfig.enabled,
       securityValidation: true,
       resourceLimiting: true,
+      capabilityStoreEnabled: !!this.capabilityStore,
+      graphRAGEnabled: !!this.graphRAG,
     });
   }
 
@@ -280,7 +290,30 @@ export class DenoSandboxExecutor {
         memoryUsedMb: result.memoryUsedMb,
       });
 
-      // 5. Store result in cache
+      // 5. Eager Learning: Save capability after successful execution (Story 7.2a)
+      // Mirror of WorkerBridge logic (worker-bridge.ts:263-282)
+      const intent = context?.intent as string | undefined;
+      if (this.capabilityStore && intent) {
+        try {
+          await this.capabilityStore.saveCapability({
+            code,
+            intent,
+            durationMs: Math.round(executionTimeMs),
+            success: true,
+            toolsUsed: [], // No tools in basic execute()
+          });
+          logger.debug("Capability saved via eager learning (execute)", {
+            intent: intent.substring(0, 50),
+          });
+        } catch (capError) {
+          // Don't fail execution if capability storage fails
+          logger.warn("Failed to save capability in execute()", {
+            error: capError instanceof Error ? capError.message : String(capError),
+          });
+        }
+      }
+
+      // 6. Store result in cache
       if (this.cache) {
         const cacheKey = generateCacheKey(
           code,
@@ -905,9 +938,11 @@ export class DenoSandboxExecutor {
         contextKeys: context ? Object.keys(context) : [],
       });
 
-      // Create WorkerBridge and execute
+      // Create WorkerBridge and execute (Task 2: pass optional dependencies)
       const bridge = new WorkerBridge(workerConfig.mcpClients, {
         timeout: this.config.timeout,
+        capabilityStore: this.capabilityStore,
+        graphRAG: this.graphRAG,
       });
       this.lastBridge = bridge;
 
