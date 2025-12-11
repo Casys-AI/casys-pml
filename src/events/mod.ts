@@ -10,8 +10,6 @@ export { EventBus, eventBus, PML_EVENTS_CHANNEL, PML_TRACES_CHANNEL } from "./ev
 
 // All event types and payloads
 export type {
-  // Core types
-  AgentCardsEvent,
   // Algorithm event payloads (Story 7.6 preparation)
   AlgorithmAnomalyPayload,
   AlgorithmFeedbackPayload,
@@ -19,7 +17,7 @@ export type {
   AlgorithmScoredEvent,
   AlgorithmScoredPayload,
   AlgorithmSuggestedPayload,
-  CaiEvent,
+  PmlEvent,
   CapabilityEndEvent,
   // Capability event payloads
   CapabilityEndPayload,

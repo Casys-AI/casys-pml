@@ -9,7 +9,7 @@
  * @module events/event-bus
  */
 
-import type { CaiEvent, EventHandler, EventType, WildcardEventHandler } from "./types.ts";
+import type { PmlEvent, EventHandler, EventType, WildcardEventHandler } from "./types.ts";
 import { getLogger } from "../telemetry/logger.ts";
 
 const logger = getLogger("default");
@@ -75,7 +75,7 @@ export class EventBus {
   private initChannel(): void {
     try {
       this.channel = new BroadcastChannel(CHANNEL_NAME);
-      this.channel.onmessage = (e: MessageEvent<CaiEvent>) => {
+      this.channel.onmessage = (e: MessageEvent<PmlEvent>) => {
         // Dispatch received events to local handlers
         // Note: We don't emit back to channel (would cause loop)
         this.dispatchLocal(e.data, false);
@@ -98,17 +98,17 @@ export class EventBus {
    *
    * @param event - Event to emit (timestamp will be auto-added if not present)
    */
-  emit<T extends EventType>(event: Omit<CaiEvent<T>, "timestamp"> & { timestamp?: number }): void {
+  emit<T extends EventType>(event: Omit<PmlEvent<T>, "timestamp"> & { timestamp?: number }): void {
     if (this.closed) {
       logger.warn("EventBus.emit called after close()");
       return;
     }
 
     // Add timestamp if not present
-    const fullEvent: CaiEvent<T> = {
+    const fullEvent: PmlEvent<T> = {
       ...event,
       timestamp: event.timestamp ?? Date.now(),
-    } as CaiEvent<T>;
+    } as PmlEvent<T>;
 
     this.emitCount++;
 
@@ -185,7 +185,7 @@ export class EventBus {
   once<T extends EventType>(type: T, handler: EventHandler<T>): () => void {
     const unsubscribe = this.on(
       type,
-      ((event: CaiEvent<T>) => {
+      ((event: PmlEvent<T>) => {
         unsubscribe();
         handler(event);
       }) as EventHandler<T>,
@@ -199,7 +199,7 @@ export class EventBus {
    * @param event - Event to dispatch
    * @param isLocal - Whether this is a locally emitted event (vs received from channel)
    */
-  private dispatchLocal(event: CaiEvent, _isLocal: boolean): void {
+  private dispatchLocal(event: PmlEvent, _isLocal: boolean): void {
     // Dispatch to specific type handlers
     const typeHandlers = this.handlers.get(event.type);
     if (typeHandlers) {

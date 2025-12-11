@@ -74,9 +74,9 @@ Deno.test("Smoke test - Fresh dashboard.tsx exists and contains required element
 
   // Vérifier GraphVisualization island (composant avec API/SSE)
   assertEquals(
-    graphVizCode.includes("/api/graph/snapshot"),
+    graphVizCode.includes("/api/graph/hypergraph"),
     true,
-    "Island doit appeler l'API snapshot",
+    "Island doit appeler l'API hypergraph",
   );
   assertEquals(graphVizCode.includes("/events/stream"), true, "Island doit se connecter au SSE");
   assertEquals(

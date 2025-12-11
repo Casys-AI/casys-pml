@@ -13,7 +13,7 @@
 
 import { assertEquals, assertExists } from "@std/assert";
 import { EventBus } from "../../../src/events/event-bus.ts";
-import type { CaiEvent, EventType, ToolEndPayload, ToolStartPayload } from "../../../src/events/types.ts";
+import type { PmlEvent, EventType, ToolEndPayload, ToolStartPayload } from "../../../src/events/types.ts";
 
 Deno.test("EventBus", async (t) => {
   await t.step("creates instance with BroadcastChannel", () => {
@@ -25,7 +25,7 @@ Deno.test("EventBus", async (t) => {
 
   await t.step("emits and receives events via on()", async () => {
     const bus = new EventBus();
-    const received: CaiEvent[] = [];
+    const received: PmlEvent[] = [];
 
     const unsubscribe = bus.on("tool.start", (event) => {
       received.push(event);
@@ -78,7 +78,7 @@ Deno.test("EventBus", async (t) => {
 
   await t.step("unsubscribe function removes handler", async () => {
     const bus = new EventBus();
-    const received: CaiEvent[] = [];
+    const received: PmlEvent[] = [];
 
     const unsubscribe = bus.on("tool.start", (event) => {
       received.push(event);
@@ -100,9 +100,9 @@ Deno.test("EventBus", async (t) => {
 
   await t.step("off() method removes handler", async () => {
     const bus = new EventBus();
-    const received: CaiEvent[] = [];
+    const received: PmlEvent[] = [];
 
-    const handler = (event: CaiEvent) => {
+    const handler = (event: PmlEvent) => {
       received.push(event);
     };
 
@@ -123,7 +123,7 @@ Deno.test("EventBus", async (t) => {
 
   await t.step("once() subscribes for single event only", async () => {
     const bus = new EventBus();
-    const received: CaiEvent[] = [];
+    const received: PmlEvent[] = [];
 
     bus.once("tool.start", (event) => {
       received.push(event);
@@ -184,7 +184,7 @@ Deno.test("EventBus", async (t) => {
 
   await t.step("adds timestamp automatically if not provided", async () => {
     const bus = new EventBus();
-    const received: CaiEvent[] = [];
+    const received: PmlEvent[] = [];
 
     bus.on("tool.start", (event) => {
       received.push(event);
@@ -206,7 +206,7 @@ Deno.test("EventBus", async (t) => {
 
   await t.step("preserves provided timestamp", async () => {
     const bus = new EventBus();
-    const received: CaiEvent[] = [];
+    const received: PmlEvent[] = [];
 
     bus.on("tool.start", (event) => {
       received.push(event);
@@ -291,7 +291,7 @@ Deno.test("EventBus", async (t) => {
 
   await t.step("close() prevents further operations", async () => {
     const bus = new EventBus();
-    const received: CaiEvent[] = [];
+    const received: PmlEvent[] = [];
 
     bus.on("tool.start", (event) => {
       received.push(event);

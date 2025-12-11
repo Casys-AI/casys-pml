@@ -8,7 +8,7 @@
  * @module telemetry/metrics-collector
  */
 
-import type { CaiEvent, EventType } from "../events/types.ts";
+import type { PmlEvent, EventType } from "../events/types.ts";
 import { eventBus } from "../events/mod.ts";
 import { getLogger } from "./logger.ts";
 
@@ -156,7 +156,7 @@ export class MetricsCollector {
   /**
    * Handle incoming event and update metrics
    */
-  private handleEvent(event: CaiEvent): void {
+  private handleEvent(event: PmlEvent): void {
     const eventType = event.type as EventType;
     const payload = event.payload as Record<string, unknown>;
 

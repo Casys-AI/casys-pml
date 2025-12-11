@@ -12,7 +12,7 @@
 import { assertEquals, assertExists } from "@std/assert";
 import { eventBus } from "../../src/events/mod.ts";
 import { EventsStreamManager } from "../../src/server/events-stream.ts";
-import type { CaiEvent } from "../../src/events/types.ts";
+import type { PmlEvent } from "../../src/events/types.ts";
 
 Deno.test("Event Flow Integration", async (t) => {
   await t.step("tool events flow through EventBus to SSE", async () => {
@@ -22,7 +22,7 @@ Deno.test("Event Flow Integration", async (t) => {
       corsOrigins: ["*"],
     });
 
-    const receivedEvents: CaiEvent[] = [];
+    const receivedEvents: PmlEvent[] = [];
     const unsubscribe = eventBus.on("*", (event) => {
       if (event.type.startsWith("tool.")) {
         receivedEvents.push(event);
@@ -65,7 +65,7 @@ Deno.test("Event Flow Integration", async (t) => {
   });
 
   await t.step("DAG events flow through EventBus", async () => {
-    const receivedEvents: CaiEvent[] = [];
+    const receivedEvents: PmlEvent[] = [];
     const unsubscribe = eventBus.on("*", (event) => {
       if (event.type.startsWith("dag.")) {
         receivedEvents.push(event);
@@ -147,7 +147,7 @@ Deno.test("Event Flow Integration", async (t) => {
   });
 
   await t.step("capability events flow through EventBus", async () => {
-    const receivedEvents: CaiEvent[] = [];
+    const receivedEvents: PmlEvent[] = [];
     const unsubscribe = eventBus.on("*", (event) => {
       if (event.type.startsWith("capability.")) {
         receivedEvents.push(event);
@@ -217,7 +217,7 @@ Deno.test("Event Flow Integration", async (t) => {
   });
 
   await t.step("graph events flow through EventBus", async () => {
-    const receivedEvents: CaiEvent[] = [];
+    const receivedEvents: PmlEvent[] = [];
     const unsubscribe = eventBus.on("*", (event) => {
       if (event.type.startsWith("graph.")) {
         receivedEvents.push(event);
@@ -314,7 +314,7 @@ Deno.test("Event Flow Integration", async (t) => {
   });
 
   await t.step("heartbeat events propagate through EventBus", async () => {
-    const receivedEvents: CaiEvent[] = [];
+    const receivedEvents: PmlEvent[] = [];
     const unsubscribe = eventBus.on("heartbeat", (event) => {
       receivedEvents.push(event);
     });
@@ -339,8 +339,8 @@ Deno.test("Event Flow Integration", async (t) => {
   });
 
   await t.step("multiple subscribers receive same event", async () => {
-    const subscriber1Events: CaiEvent[] = [];
-    const subscriber2Events: CaiEvent[] = [];
+    const subscriber1Events: PmlEvent[] = [];
+    const subscriber2Events: PmlEvent[] = [];
 
     const unsub1 = eventBus.on("tool.start", (event) => {
       subscriber1Events.push(event);
@@ -389,7 +389,7 @@ Deno.test("Event Flow Integration", async (t) => {
   });
 
   await t.step("event timestamps are auto-generated", async () => {
-    const receivedEvent: CaiEvent[] = [];
+    const receivedEvent: PmlEvent[] = [];
     const unsubscribe = eventBus.on("tool.start", (event) => {
       receivedEvent.push(event);
     });

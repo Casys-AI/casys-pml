@@ -7,7 +7,7 @@
  * Broadcasts all events from unified EventBus to connected clients with heartbeat support.
  */
 
-import type { CaiEvent, EventType } from "../events/types.ts";
+import type { PmlEvent, EventType } from "../events/types.ts";
 import { eventBus } from "../events/mod.ts";
 import * as log from "@std/log";
 
@@ -128,7 +128,7 @@ export class EventsStreamManager {
     });
 
     // Send initial connected event
-    const connectedEvent: CaiEvent<"system.startup"> = {
+    const connectedEvent: PmlEvent<"system.startup"> = {
       type: "system.startup",
       timestamp: Date.now(),
       source: "events-stream",
@@ -183,11 +183,11 @@ export class EventsStreamManager {
 
   /**
    * Broadcast event to all connected clients
-   * Story 6.5: Broadcasts CaiEvent from EventBus
+   * Story 6.5: Broadcasts PmlEvent from EventBus
    *
    * @param event - Event to broadcast
    */
-  private async broadcastEvent(event: CaiEvent): Promise<void> {
+  private async broadcastEvent(event: PmlEvent): Promise<void> {
     const deadClients: string[] = [];
 
     // Send to all clients (with filter check)
@@ -233,7 +233,7 @@ export class EventsStreamManager {
    */
   private async sendToClient(
     writer: WritableStreamDefaultWriter<Uint8Array>,
-    event: CaiEvent,
+    event: PmlEvent,
   ): Promise<void> {
     // SSE format: event: {type}\ndata: {JSON}\n\n
     const sseData = `event: ${event.type}\ndata: ${JSON.stringify(event.payload)}\n\n`;

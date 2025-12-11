@@ -39,14 +39,22 @@ interface D3GraphVisualizationProps {
   pathNodes?: string[] | null;
 }
 
-/** Capability data for hypergraph mode selection (Story 8.3) */
-interface CapabilityData {
+/** Capability data for hypergraph mode selection (Story 8.3, 8.4) */
+export interface CapabilityData {
   id: string;
   label: string;
   successRate: number;
   usageCount: number;
   toolsCount: number;
   codeSnippet?: string;
+  /** Tool IDs used by this capability (Story 8.4) */
+  toolIds?: string[];
+  /** Creation timestamp */
+  createdAt?: number;
+  /** Last used timestamp */
+  lastUsedAt?: number;
+  /** Louvain community ID */
+  communityId?: number;
 }
 
 /** Hull zone from hypergraph API (Story 8.2/8.3) */
@@ -142,6 +150,18 @@ const COLOR_PALETTE = [
   "#00CEC9", // cyan
 ];
 
+// Story 8.3: Zone colors for capability hulls (same as hypergraph-builder.ts)
+const ZONE_COLORS = [
+  "#8b5cf6", // violet
+  "#3b82f6", // blue
+  "#10b981", // emerald
+  "#f59e0b", // amber
+  "#ef4444", // red
+  "#ec4899", // pink
+  "#06b6d4", // cyan
+  "#84cc16", // lime
+];
+
 const MARKER_ID = "graph-arrow";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -168,6 +188,7 @@ export default function D3GraphVisualization({
   const capabilityZonesRef = useRef<CapabilityZone[]>([]);
   const capabilityDataRef = useRef<Map<string, CapabilityData>>(new Map());
   const hullUpdateTimerRef = useRef<number | null>(null);
+  const zoneColorIndexRef = useRef<number>(0); // Track next color for new zones
 
   // State
   const [selectedNode, setSelectedNode] = useState<GraphNodeData | null>(null);
@@ -391,11 +412,9 @@ export default function D3GraphVisualization({
     eventSource.addEventListener("graph.edge.created", handleEdgeCreated);
     eventSource.addEventListener("graph.edge.updated", handleEdgeUpdated);
 
-    // Story 7.2a: Reload hypergraph when new capability is learned
-    eventSource.addEventListener("capability.learned", () => {
-      console.log("[D3Graph] New capability learned, reloading hypergraph...");
-      loadHypergraphData();
-    });
+    // Story 8.3: Incremental hull updates via zone events
+    eventSource.addEventListener("capability.zone.created", handleZoneCreated);
+    eventSource.addEventListener("capability.zone.updated", handleZoneUpdated);
 
     // Cleanup
     return () => {
@@ -478,7 +497,18 @@ export default function D3GraphVisualization({
       nodesRef.current = nodes;
       linksRef.current = links;
       capabilityZonesRef.current = data.capability_zones || [];
+
+      // Story 8.4: Enrich capability data with toolIds from zones
+      for (const zone of capabilityZonesRef.current) {
+        const capData = capMap.get(zone.id);
+        if (capData) {
+          capData.toolIds = zone.toolIds;
+        }
+      }
+
       capabilityDataRef.current = capMap;
+      // Initialize color index for incremental zone additions
+      zoneColorIndexRef.current = capabilityZonesRef.current.length;
 
       updateGraph();
       updateServers();
@@ -774,6 +804,141 @@ export default function D3GraphVisualization({
       updateGraph();
       highlightEdge(edgeId, 2000);
     }
+  };
+
+  // Story 8.3: Handle capability.zone.created - incremental hull update
+  const handleZoneCreated = (event: any) => {
+    const data = JSON.parse(event.data);
+    console.log("[D3Graph] Zone created:", data.capabilityId);
+
+    // Check if zone already exists (idempotency)
+    const existingZone = capabilityZonesRef.current.find((z) => z.id === data.capabilityId);
+    if (existingZone) {
+      console.log("[D3Graph] Zone already exists, skipping:", data.capabilityId);
+      return;
+    }
+
+    // Create new zone with next color from palette
+    const colorIndex = zoneColorIndexRef.current % ZONE_COLORS.length;
+    zoneColorIndexRef.current++;
+
+    const newZone: CapabilityZone = {
+      id: data.capabilityId,
+      label: data.label,
+      color: data.color || ZONE_COLORS[colorIndex],
+      opacity: 0.3,
+      toolIds: data.toolIds || [],
+      padding: 20,
+      minRadius: 50,
+    };
+
+    capabilityZonesRef.current = [...capabilityZonesRef.current, newZone];
+
+    // Update capability data map for tooltips
+    capabilityDataRef.current.set(data.capabilityId, {
+      id: data.capabilityId,
+      label: data.label,
+      successRate: data.successRate || 0,
+      usageCount: data.usageCount || 0,
+      toolsCount: data.toolIds?.length || 0,
+    });
+
+    // Update tool nodes with new parent
+    for (const toolId of data.toolIds || []) {
+      const node = nodesRef.current.find((n) => n.id === toolId);
+      if (node) {
+        if (!node.parents) node.parents = [];
+        if (!node.parents.includes(data.capabilityId)) {
+          node.parents.push(data.capabilityId);
+        }
+      }
+    }
+
+    // Redraw hulls
+    const graph = (window as any).__d3Graph;
+    if (graph) {
+      drawCapabilityHulls(
+        graph.hullLayer,
+        capabilityZonesRef.current,
+        nodesRef.current,
+        handleHullHover,
+        handleHullClick,
+      );
+    }
+
+    // Also update the main graph to refresh badges
+    updateGraph();
+  };
+
+  // Story 8.3: Handle capability.zone.updated - incremental hull update
+  const handleZoneUpdated = (event: any) => {
+    const data = JSON.parse(event.data);
+    console.log("[D3Graph] Zone updated:", data.capabilityId);
+
+    // Find existing zone
+    const zoneIndex = capabilityZonesRef.current.findIndex((z) => z.id === data.capabilityId);
+    if (zoneIndex === -1) {
+      console.log("[D3Graph] Zone not found for update, ignoring:", data.capabilityId);
+      return;
+    }
+
+    // Update zone metadata
+    const zone = capabilityZonesRef.current[zoneIndex];
+    if (data.label) zone.label = data.label;
+    if (data.toolIds) {
+      // Update tool membership if changed
+      const oldToolIds = new Set(zone.toolIds);
+      const newToolIds = new Set(data.toolIds);
+
+      // Remove capability from old tools that are no longer in the zone
+      for (const toolId of zone.toolIds) {
+        if (!newToolIds.has(toolId)) {
+          const node = nodesRef.current.find((n) => n.id === toolId);
+          if (node?.parents) {
+            node.parents = node.parents.filter((p) => p !== data.capabilityId);
+          }
+        }
+      }
+
+      // Add capability to new tools
+      for (const toolId of data.toolIds) {
+        if (!oldToolIds.has(toolId)) {
+          const node = nodesRef.current.find((n) => n.id === toolId);
+          if (node) {
+            if (!node.parents) node.parents = [];
+            if (!node.parents.includes(data.capabilityId)) {
+              node.parents.push(data.capabilityId);
+            }
+          }
+        }
+      }
+
+      zone.toolIds = data.toolIds;
+    }
+
+    // Update capability data map
+    const capData = capabilityDataRef.current.get(data.capabilityId);
+    if (capData) {
+      if (data.label) capData.label = data.label;
+      capData.successRate = data.successRate ?? capData.successRate;
+      capData.usageCount = data.usageCount ?? capData.usageCount;
+      if (data.toolIds) capData.toolsCount = data.toolIds.length;
+    }
+
+    // Redraw hulls
+    const graph = (window as any).__d3Graph;
+    if (graph) {
+      drawCapabilityHulls(
+        graph.hullLayer,
+        capabilityZonesRef.current,
+        nodesRef.current,
+        handleHullHover,
+        handleHullClick,
+      );
+    }
+
+    // Also update the main graph to refresh badges
+    updateGraph();
   };
 
   // ───────────────────────────────────────────────────────────────────────────

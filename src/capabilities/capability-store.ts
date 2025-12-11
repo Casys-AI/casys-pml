@@ -197,19 +197,52 @@ export class CapabilityStore {
     });
 
     // Story 6.5: Emit capability.learned event (ADR-036)
+    const isNew = capability.usageCount === 1;
+    const capabilityName = capability.name ?? this.generateName(intent);
+    const capabilityTools = toolsUsed ?? [];
+
     eventBus.emit({
       type: "capability.learned",
       source: "capability-store",
       payload: {
         capability_id: capability.id,
-        name: capability.name ?? this.generateName(intent),
+        name: capabilityName,
         intent: intent.substring(0, 100), // Truncate for event payload
-        tools_used: toolsUsed ?? [],
-        is_new: capability.usageCount === 1,
+        tools_used: capabilityTools,
+        is_new: isNew,
         usage_count: capability.usageCount,
         success_rate: capability.successRate,
       },
     });
+
+    // Story 8.3: Emit zone events for hypergraph incremental updates
+    if (isNew) {
+      // New capability = new zone
+      eventBus.emit({
+        type: "capability.zone.created",
+        source: "capability-store",
+        payload: {
+          capabilityId: `cap-${capability.id}`,
+          label: capabilityName,
+          toolIds: capabilityTools,
+          successRate: capability.successRate,
+          usageCount: capability.usageCount,
+        },
+      });
+    } else {
+      // Existing capability updated = zone metadata update
+      eventBus.emit({
+        type: "capability.zone.updated",
+        source: "capability-store",
+        payload: {
+          capabilityId: `cap-${capability.id}`,
+          label: capabilityName,
+          toolIds: capabilityTools,
+          successRate: capability.successRate,
+          usageCount: capability.usageCount,
+        },
+      });
+    }
 
     return capability;
   }

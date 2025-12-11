@@ -55,6 +55,8 @@ export type EventType =
   | "capability.pruned"
   | "capability.dependency.created"
   | "capability.dependency.removed"
+  | "capability.zone.created"
+  | "capability.zone.updated"
   | "learning.pattern.detected"
   | "learning.edge.strengthened"
   | "cache.hit"
@@ -90,7 +92,7 @@ export type EventType =
 /**
  * Base event interface for all Casys PML events
  */
-export interface CaiEvent<T extends EventType = EventType, P = unknown> {
+export interface PmlEvent<T extends EventType = EventType, P = unknown> {
   /** Event type identifier */
   type: T;
   /** Unix timestamp in milliseconds */
@@ -100,12 +102,6 @@ export interface CaiEvent<T extends EventType = EventType, P = unknown> {
   /** Event-specific payload */
   payload: P;
 }
-
-/**
- * Legacy alias for backward compatibility
- * @deprecated Use CaiEvent instead
- */
-export type AgentCardsEvent<T extends EventType = EventType, P = unknown> = CaiEvent<T, P>;
 
 // ══════════════════════════════════════════════════════════════════════════════
 // TOOL EVENT PAYLOADS
@@ -217,6 +213,42 @@ export interface CapabilityMatchedPayload {
   thresholdUsed: number;
   /** Whether capability was selected for execution */
   selected: boolean;
+}
+
+/**
+ * Payload for capability.zone.created events
+ * Emitted when a new capability zone is created for hypergraph visualization
+ */
+export interface CapabilityZoneCreatedPayload {
+  /** Capability identifier (cap-{uuid}) */
+  capabilityId: string;
+  /** Display label for the zone */
+  label: string;
+  /** Tool IDs contained in this zone */
+  toolIds: string[];
+  /** Zone color (hex) - assigned by frontend if not provided */
+  color?: string;
+  /** Success rate for display */
+  successRate: number;
+  /** Usage count */
+  usageCount: number;
+}
+
+/**
+ * Payload for capability.zone.updated events
+ * Emitted when a capability zone's metadata or tools change
+ */
+export interface CapabilityZoneUpdatedPayload {
+  /** Capability identifier (cap-{uuid}) */
+  capabilityId: string;
+  /** Updated display label (optional) */
+  label?: string;
+  /** Updated tool IDs (optional - if tools changed) */
+  toolIds?: string[];
+  /** Updated success rate */
+  successRate: number;
+  /** Updated usage count */
+  usageCount: number;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -521,61 +553,77 @@ export interface MetricsSnapshotPayload {
 /**
  * Typed event for tool.start
  */
-export type ToolStartEvent = CaiEvent<"tool.start", ToolStartPayload>;
+export type ToolStartEvent = PmlEvent<"tool.start", ToolStartPayload>;
 
 /**
  * Typed event for tool.end
  */
-export type ToolEndEvent = CaiEvent<"tool.end", ToolEndPayload>;
+export type ToolEndEvent = PmlEvent<"tool.end", ToolEndPayload>;
 
 /**
  * Typed event for capability.start
  */
-export type CapabilityStartEvent = CaiEvent<"capability.start", CapabilityStartPayload>;
+export type CapabilityStartEvent = PmlEvent<"capability.start", CapabilityStartPayload>;
 
 /**
  * Typed event for capability.end
  */
-export type CapabilityEndEvent = CaiEvent<"capability.end", CapabilityEndPayload>;
+export type CapabilityEndEvent = PmlEvent<"capability.end", CapabilityEndPayload>;
 
 /**
  * Typed event for capability.learned
  */
-export type CapabilityLearnedEvent = CaiEvent<"capability.learned", CapabilityLearnedPayload>;
+export type CapabilityLearnedEvent = PmlEvent<"capability.learned", CapabilityLearnedPayload>;
 
 /**
  * Typed event for capability.matched
  */
-export type CapabilityMatchedEvent = CaiEvent<"capability.matched", CapabilityMatchedPayload>;
+export type CapabilityMatchedEvent = PmlEvent<"capability.matched", CapabilityMatchedPayload>;
+
+/**
+ * Typed event for capability.zone.created
+ */
+export type CapabilityZoneCreatedEvent = PmlEvent<
+  "capability.zone.created",
+  CapabilityZoneCreatedPayload
+>;
+
+/**
+ * Typed event for capability.zone.updated
+ */
+export type CapabilityZoneUpdatedEvent = PmlEvent<
+  "capability.zone.updated",
+  CapabilityZoneUpdatedPayload
+>;
 
 /**
  * Typed event for dag.started
  */
-export type DagStartedEvent = CaiEvent<"dag.started", DagStartedPayload>;
+export type DagStartedEvent = PmlEvent<"dag.started", DagStartedPayload>;
 
 /**
  * Typed event for dag.completed
  */
-export type DagCompletedEvent = CaiEvent<"dag.completed", DagCompletedPayload>;
+export type DagCompletedEvent = PmlEvent<"dag.completed", DagCompletedPayload>;
 
 /**
  * Typed event for graph.synced
  */
-export type GraphSyncedEvent = CaiEvent<"graph.synced", GraphSyncedPayload>;
+export type GraphSyncedEvent = PmlEvent<"graph.synced", GraphSyncedPayload>;
 
 /**
  * Typed event for algorithm.scored
  */
-export type AlgorithmScoredEvent = CaiEvent<"algorithm.scored", AlgorithmScoredPayload>;
+export type AlgorithmScoredEvent = PmlEvent<"algorithm.scored", AlgorithmScoredPayload>;
 
 /**
  * Event handler function type
  */
 export type EventHandler<T extends EventType = EventType> = (
-  event: CaiEvent<T>,
+  event: PmlEvent<T>,
 ) => void | Promise<void>;
 
 /**
  * Wildcard event handler that receives all events
  */
-export type WildcardEventHandler = (event: CaiEvent) => void | Promise<void>;
+export type WildcardEventHandler = (event: PmlEvent) => void | Promise<void>;
