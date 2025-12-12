@@ -1047,7 +1047,7 @@ export default function D3GraphVisualization({
       const bundler = new FDEBBundler({
         K: 0.1, // Spring constant
         S0: 0.1, // Step size (ref: 0.1 default)
-        I0: 60, // Iterations per cycle (ref: 60 default)
+        I0: 90, // Iterations per cycle (ref: 90 default)
         cycles: 6, // Full 6 cycles for proper bundling
         compatibilityThreshold: 0.6, // Only bundle edges with >= 60% compatibility (ref: 0.6 default)
         useQuadratic: true, // Inverse-quadratic for localized bundling (Fig 7d)

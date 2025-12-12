@@ -54,7 +54,7 @@ interface InternalEdge {
 const DEFAULT_CONFIG: FDEBConfig = {
   K: 0.1, // Spring constant (controls bundling stiffness)
   S0: 0.1, // Initial step size (ref: 0.1 default)
-  I0: 60, // Initial iterations per cycle (ref: 60 default)
+  I0: 90, // Initial iterations per cycle (ref: 90 default)
   cycles: 6, // Number of cycles (ref: 6 default)
   compatibilityThreshold: 0.6, // Minimum Ce to consider (ref: 0.6 default, 60%)
   useQuadratic: true, // TD-3: Inverse-quadratic for localized bundling (Holten Fig 7d)
@@ -66,7 +66,7 @@ const SCHEME = {
   // Cycle:     0      1       2       3        4         5
   P: [1, 2, 4, 8, 16, 32], // Doubles each cycle (rate: 2)
   S: [0.1, 0.05, 0.025, 0.0125, 0.00625, 0.003125], // Halves each cycle (ref: starts at 0.1)
-  I: [60, 40, 27, 18, 12, 8], // Reduces by ~2/3 each cycle (ref: starts at 60)
+  I: [90, 60, 40, 27, 18, 12], // Reduces by ~2/3 each cycle (ref: starts at 90)
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
