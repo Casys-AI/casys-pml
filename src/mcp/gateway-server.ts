@@ -29,8 +29,7 @@ import type { GraphRAGEngine } from "../graphrag/graph-engine.ts";
 import type { DAGSuggester } from "../graphrag/dag-suggester.ts";
 import type { ParallelExecutor } from "../dag/executor.ts";
 import { GatewayHandler } from "./gateway-handler.ts";
-import { MCPClient } from "./client.ts";
-import type { CodeExecutionRequest, CodeExecutionResponse, MCPTool } from "./types.ts";
+import type { CodeExecutionRequest, CodeExecutionResponse, MCPClientBase, MCPTool } from "./types.ts";
 import type { DAGStructure } from "../graphrag/types.ts";
 import { HealthChecker } from "../health/health-checker.ts";
 import { DenoSandboxExecutor, type WorkerExecutionConfig } from "../sandbox/executor.ts";
@@ -141,7 +140,7 @@ export class PMLGatewayServer {
     private dagSuggester: DAGSuggester,
     // @ts-ignore: executor kept for API backward compatibility
     private _executor: ParallelExecutor,
-    private mcpClients: Map<string, MCPClient>,
+    private mcpClients: Map<string, MCPClientBase>,
     // Optional for backward compatibility, but required for Story 7.3a features
     private capabilityStore?: CapabilityStore,
     private adaptiveThresholdManager?: AdaptiveThresholdManager,
@@ -170,7 +169,7 @@ export class PMLGatewayServer {
     this.server = new Server(
       {
         name: this.config.name,
-        title: "Multi-tool DAG orchestration, semantic tool search, sandboxed code execution",
+        title: "PML Gateway - Describe what you want, I find the tools and execute. Use execute_dag with 'intent' to get started.",
         version: this.config.version,
       },
       {
@@ -272,20 +271,26 @@ export class PMLGatewayServer {
       // Add special DAG execution tool (renamed from execute_workflow - Story 2.5-4)
       const executeDagTool: MCPTool = {
         name: "pml:execute_dag",
-        description:
-          "Execute a multi-tool DAG (Directed Acyclic Graph) workflow. Supports intent-based suggestions or explicit DAG definitions. Provide EITHER 'intent' (for AI suggestion) OR 'workflow' (for explicit DAG), not both.",
+        description: `Execute a multi-tool DAG workflow. TWO MODES:
+
+1. INTENT MODE (recommended): Just describe what you want → system auto-discovers tools, builds DAG, executes.
+   Example: intent="Read config.json, extract version, create GitHub issue with it"
+
+2. EXPLICIT MODE: Define exact workflow with tasks and dependencies.
+
+The system has access to ALL MCP tools (filesystem, github, fetch, databases, etc). Just ask!`,
         inputSchema: {
           type: "object",
           properties: {
             intent: {
               type: "string",
               description:
-                "Natural language description of what you want to accomplish (use this for AI-suggested workflows)",
+                "RECOMMENDED: Just describe your goal in natural language. System auto-discovers tools and builds the workflow. Example: 'Read package.json and list all dependencies'",
             },
             workflow: {
               type: "object",
               description:
-                "Explicit DAG workflow structure with tasks and dependencies (use this for explicit workflows)",
+                "ADVANCED: Explicit DAG with tasks array and dependencies. Use only if you need precise control.",
             },
           },
           // Note: Both fields optional, but at least one should be provided
@@ -296,27 +301,32 @@ export class PMLGatewayServer {
       // Add search_tools (Spike: search-tools-graph-traversal)
       const searchToolsTool: MCPTool = {
         name: "pml:search_tools",
-        description:
-          "Search for relevant tools using semantic search and graph-based recommendations. Returns tools matching your query with optional related tools from usage patterns.",
+        description: `Discover available MCP tools via semantic search. Use this to explore what's possible before using execute_dag.
+
+Returns tool names, descriptions, and input schemas. Useful for:
+- "What tools can read files?" → filesystem:read_file, filesystem:read_multiple_files...
+- "How do I interact with GitHub?" → github:create_issue, github:search_repositories...
+
+Tip: Set include_related=true to see tools often used together (from learned patterns).`,
         inputSchema: {
           type: "object",
           properties: {
             query: {
               type: "string",
-              description: "Natural language description of what you want to do",
+              description: "What do you want to do? Example: 'read JSON files', 'interact with GitHub', 'make HTTP requests'",
             },
             limit: {
               type: "number",
-              description: "Maximum number of tools to return (default: 5)",
+              description: "How many tools to return (default: 5)",
             },
             include_related: {
               type: "boolean",
-              description: "Include graph-related tools based on usage patterns (default: false)",
+              description: "Also show tools frequently used together with the matches (from usage patterns)",
             },
             context_tools: {
               type: "array",
               items: { type: "string" },
-              description: "Tools already in use - boosts related tools in results",
+              description: "Tools you're already using - boosts related tools in results",
             },
           },
           required: ["query"],
@@ -326,18 +336,22 @@ export class PMLGatewayServer {
       // Add search_capabilities tool (Story 7.3a)
       const searchCapabilitiesTool: MCPTool = {
         name: "pml:search_capabilities",
-        description:
-          "Search for existing learned capabilities (code patterns) matching your intent. Returns capabilities that can be executed directly to solve your problem.",
+        description: `Search for PROVEN code patterns that worked before. Capabilities are learned from successful executions.
+
+Returns reusable code snippets with success rates. Example:
+- intent="create GitHub issue from file" → Returns code that reads file + creates issue (95% success rate)
+
+Use this when you want to reuse existing patterns instead of building from scratch. The returned code can be executed directly via execute_code.`,
         inputSchema: {
           type: "object",
           properties: {
             intent: {
               type: "string",
-              description: "Natural language description of what you want to accomplish",
+              description: "What do you want to accomplish? System finds similar past successes.",
             },
             include_suggestions: {
               type: "boolean",
-              description: "Include related capability suggestions from the graph (default: false)",
+              description: "Also show related capabilities (similar tools or patterns)",
             },
           },
           required: ["intent"],
@@ -347,40 +361,50 @@ export class PMLGatewayServer {
       // Add code execution tool (Story 3.4)
       const executeCodeTool: MCPTool = {
         name: "pml:execute_code",
-        description:
-          "[INTERNAL] Execute TypeScript/JavaScript in Deno sandbox. Simple expressions auto-return, multi-statement code requires explicit return. See ADR-016 for details.",
+        description: `Execute TypeScript/JavaScript code in a secure Deno sandbox with MCP tools auto-injected.
+
+KEY FEATURE: If you provide 'intent', the system auto-discovers relevant MCP tools and injects them as 'mcp.serverName.toolName()' functions.
+
+Example:
+  intent: "read a file and parse JSON"
+  code: \`
+    const content = await mcp.filesystem.read_file({ path: "config.json" });
+    return JSON.parse(content);
+  \`
+
+The sandbox has access to: Deno APIs, fetch, all discovered MCP tools. Simple expressions auto-return; multi-statement code needs explicit 'return'.`,
         inputSchema: {
           type: "object",
           properties: {
             code: {
               type: "string",
-              description: "TypeScript code to execute in sandbox",
+              description: "TypeScript code to run. MCP tools available as mcp.server.tool(). Example: await mcp.filesystem.read_file({path: 'x.json'})",
             },
             intent: {
               type: "string",
               description:
-                "Natural language description of task (optional, triggers tool discovery)",
+                "RECOMMENDED: Describe what you're doing → system injects relevant MCP tools automatically. Example: 'read files and call GitHub API'",
             },
             context: {
               type: "object",
-              description: "Custom context/data to inject into sandbox (optional)",
+              description: "Custom data to inject into sandbox as 'context' variable",
             },
             sandbox_config: {
               type: "object",
-              description: "Sandbox configuration (timeout, memory, etc.)",
+              description: "Optional: timeout (ms), memoryLimit (MB), allowedReadPaths",
               properties: {
                 timeout: {
                   type: "number",
-                  description: "Maximum execution time in milliseconds (default: 30000)",
+                  description: "Max execution time in ms (default: 30000)",
                 },
                 memoryLimit: {
                   type: "number",
-                  description: "Maximum heap memory in megabytes (default: 512)",
+                  description: "Max heap memory in MB (default: 512)",
                 },
                 allowedReadPaths: {
                   type: "array",
                   items: { type: "string" },
-                  description: "Additional read paths to allow",
+                  description: "Extra file paths the sandbox can read",
                 },
               },
             },
@@ -393,17 +417,17 @@ export class PMLGatewayServer {
       const continueTool: MCPTool = {
         name: "pml:continue",
         description:
-          "Continue DAG execution to next layer. Use after receiving layer_complete status from execute_dag with per_layer_validation enabled.",
+          "Resume a paused DAG workflow. Used when execute_dag returns 'layer_complete' status (per-layer validation mode). Call this to proceed to the next layer after reviewing results.",
         inputSchema: {
           type: "object",
           properties: {
             workflow_id: {
               type: "string",
-              description: "Workflow ID from execute_dag response",
+              description: "The workflow_id returned by execute_dag",
             },
             reason: {
               type: "string",
-              description: "Optional reason for continuing",
+              description: "Why you're continuing (optional, for logging)",
             },
           },
           required: ["workflow_id"],
@@ -413,17 +437,17 @@ export class PMLGatewayServer {
       const abortTool: MCPTool = {
         name: "pml:abort",
         description:
-          "Abort DAG execution. Use to stop a running workflow when issues are detected.",
+          "Stop a running DAG workflow immediately. Use when you detect issues in intermediate results and want to cancel remaining tasks.",
         inputSchema: {
           type: "object",
           properties: {
             workflow_id: {
               type: "string",
-              description: "Workflow ID to abort",
+              description: "The workflow_id to stop",
             },
             reason: {
               type: "string",
-              description: "Reason for aborting the workflow",
+              description: "Why you're aborting (required for audit trail)",
             },
           },
           required: ["workflow_id", "reason"],
@@ -432,22 +456,25 @@ export class PMLGatewayServer {
 
       const replanTool: MCPTool = {
         name: "pml:replan",
-        description:
-          "Replan DAG with new requirement. Triggers GraphRAG to add new tasks based on discovered context (e.g., found XML files → add XML parser).",
+        description: `Modify a running DAG to add new tasks based on discovered context.
+
+Example: DAG finds XML files unexpectedly → replan to add XML parser task.
+
+The system uses GraphRAG to find appropriate tools for the new requirement and inserts them into the workflow.`,
         inputSchema: {
           type: "object",
           properties: {
             workflow_id: {
               type: "string",
-              description: "Workflow ID to replan",
+              description: "The workflow_id to modify",
             },
             new_requirement: {
               type: "string",
-              description: "Natural language description of what needs to be added",
+              description: "What new capability is needed? Example: 'parse the XML files we found'",
             },
             available_context: {
               type: "object",
-              description: "Context data for replanning (e.g., discovered files)",
+              description: "Data from previous tasks that informs the replan (e.g., {files: ['a.xml', 'b.xml']})",
             },
           },
           required: ["workflow_id", "new_requirement"],
@@ -457,25 +484,25 @@ export class PMLGatewayServer {
       const approvalResponseTool: MCPTool = {
         name: "pml:approval_response",
         description:
-          "Respond to HIL (Human-in-the-Loop) approval checkpoint. Use when workflow pauses for approval of critical operations.",
+          "Respond to a Human-in-the-Loop checkpoint. Some DAG tasks require explicit approval before execution (e.g., destructive operations, external API calls). Use this to approve or reject.",
         inputSchema: {
           type: "object",
           properties: {
             workflow_id: {
               type: "string",
-              description: "Workflow ID requiring approval",
+              description: "The workflow_id waiting for approval",
             },
             checkpoint_id: {
               type: "string",
-              description: "Checkpoint ID from the approval request",
+              description: "The specific checkpoint_id from the approval request",
             },
             approved: {
               type: "boolean",
-              description: "true to approve, false to reject",
+              description: "true = proceed with the operation, false = skip/cancel it",
             },
             feedback: {
               type: "string",
-              description: "Optional feedback or reason for decision",
+              description: "Optional message explaining your decision",
             },
           },
           required: ["workflow_id", "checkpoint_id", "approved"],
@@ -2973,7 +3000,7 @@ export class PMLGatewayServer {
             },
             serverInfo: {
               name: this.config.name || "mcp-gateway",
-              title: "Multi-tool DAG orchestration, semantic tool search, sandboxed code execution",
+              title: "PML Gateway - Describe what you want, I find the tools and execute. Use execute_dag with 'intent' to get started.",
               version: this.config.version || "1.0.0",
             },
           },
