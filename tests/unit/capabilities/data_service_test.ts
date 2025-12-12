@@ -65,7 +65,7 @@ Deno.test("CapabilityDataService - listCapabilities returns capabilities with co
       $1, 'const x = 1;', 'hash1', 'phash1', $2,
       0.9, 5, 100,
       NOW(), NOW(), 'emergent', 'Test Cap', 'Test description',
-      '{"toolsUsed": ["filesystem:read", "github:create_issue"]}'::jsonb
+      '{"tools_used": ["filesystem:read", "github:create_issue"]}'::jsonb
     )
     
   `,
@@ -176,7 +176,7 @@ Deno.test("CapabilityDataService - buildHypergraphData creates capability and to
     ) VALUES (
       $1, 'const x = 1;', 'hash-hyper-1', 'phash-hyper-1', $2,
       0.8, 10, 100, NOW(), NOW(), 'emergent', 'Test Capability',
-      '{"toolsUsed": ["filesystem:read"]}'::jsonb
+      '{"tools_used": ["filesystem:read"]}'::jsonb
     )
     
   `,
@@ -222,9 +222,9 @@ Deno.test("CapabilityDataService - buildHypergraphData creates capability links 
       dag_structure
     ) VALUES
     ($1, 'const a = 1;', 'hash-link-1', 'phash-link-1', $3, 0.8, 10, 100, NOW(), NOW(), 'emergent',
-     '{"toolsUsed": ["filesystem:read", "github:create_issue"]}'::jsonb),
+     '{"tools_used": ["filesystem:read", "github:create_issue"]}'::jsonb),
     ($2, 'const b = 2;', 'hash-link-2', 'phash-link-2', $4, 0.8, 10, 100, NOW(), NOW(), 'emergent',
-     '{"toolsUsed": ["filesystem:read", "slack:post_message"]}'::jsonb)
+     '{"tools_used": ["filesystem:read", "slack:post_message"]}'::jsonb)
     
   `,
     [cap1Id, cap2Id, generateEmbedding(), generateEmbedding()],

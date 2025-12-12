@@ -41,6 +41,7 @@ import type { CapabilityStore } from "../capabilities/capability-store.ts";
 import type { AdaptiveThresholdManager } from "./adaptive-threshold.ts";
 import { hashCode } from "../capabilities/hash.ts";
 import { CapabilityDataService } from "../capabilities/mod.ts";
+import { CapabilityCodeGenerator } from "../capabilities/code-generator.ts";
 // Story 2.5-4: MCP Control Tools & Per-Layer Validation
 import {
   deleteWorkflowDAG,
@@ -1254,21 +1255,71 @@ export class PMLGatewayServer {
       // Story 7.1b: Use Worker RPC Bridge for tool execution with native tracing
       let toolDefinitions: import("../sandbox/types.ts").ToolDefinition[] = [];
       let toolsCalled: string[] = [];
+      let matchedCapabilities: Array<{ capability: import("../capabilities/types.ts").Capability; semanticScore: number }> = [];
 
-      // Intent-based mode: Use vector search to discover tools
+      // Capability context for injection (Story 8.3: capability injection)
+      let capabilityContext: string | undefined;
+
+      // Intent-based mode: discover tools AND existing capabilities
       if (request.intent) {
-        log.debug("Intent-based mode: discovering relevant tools for Worker RPC bridge");
+        log.debug("Intent-based mode: discovering relevant tools and capabilities");
 
-        // Vector search for relevant tools (top 5)
-        const toolResults = await this.vectorSearch.searchTools(request.intent, 5, 0.6);
+        // 1. Search for existing capabilities (Story 8.3: capability reuse)
+        if (this.capabilityStore) {
+          try {
+            matchedCapabilities = await this.capabilityStore.searchByIntent(request.intent, 3, 0.7);
+            if (matchedCapabilities.length > 0) {
+              log.info(`Found ${matchedCapabilities.length} matching capabilities for intent`, {
+                topMatch: matchedCapabilities[0].capability.name,
+                topScore: matchedCapabilities[0].semanticScore.toFixed(2),
+              });
 
-        if (toolResults.length > 0) {
-          log.debug(`Found ${toolResults.length} relevant tools for intent`);
+              // Generate capability context for sandbox injection
+              const codeGenerator = new CapabilityCodeGenerator();
+              const capabilities = matchedCapabilities.map((mc) => mc.capability);
+              capabilityContext = codeGenerator.buildCapabilitiesObject(capabilities);
+
+              log.info("[execute_code] Capability context generated", {
+                capabilitiesInjected: matchedCapabilities.length,
+                capabilityNames: matchedCapabilities.map((c) => c.capability.name),
+                contextCodeLength: capabilityContext.length,
+              });
+            }
+          } catch (capError) {
+            log.warn(`Capability search failed: ${capError}`);
+          }
+        }
+
+        // 2. Use hybrid search for tools (ADR-022: consistent with search_tools)
+        // This handles cold-start gracefully with adaptive alpha
+        const hybridResults = await this.graphEngine.searchToolsHybrid(
+          this.vectorSearch,
+          request.intent,
+          10, // top-10 candidates
+          [], // no context tools
+          false, // no related tools needed
+        );
+
+        if (hybridResults.length > 0) {
+          log.debug(`Found ${hybridResults.length} relevant tools via hybrid search`);
+
+          // Convert HybridSearchResult to SearchResult format for buildToolDefinitions
+          const toolResults = hybridResults.map((hr) => ({
+            toolId: hr.toolId,
+            serverId: hr.serverId,
+            toolName: hr.toolName,
+            score: hr.finalScore,
+            schema: {
+              name: hr.toolName,
+              description: hr.description,
+              inputSchema: (hr.schema?.inputSchema || {}) as Record<string, unknown>,
+            },
+          }));
 
           // Build tool definitions for Worker RPC bridge (Story 7.1b)
           toolDefinitions = this.contextBuilder.buildToolDefinitions(toolResults);
         } else {
-          log.warn("No relevant tools found for intent (similarity threshold not met)");
+          log.warn("No relevant tools found for intent via hybrid search");
         }
       }
 
@@ -1283,6 +1334,7 @@ export class PMLGatewayServer {
         request.code,
         workerConfig,
         executionContext,
+        capabilityContext,
       );
       const executionTimeMs = performance.now() - startTime;
 
@@ -1391,12 +1443,24 @@ export class PMLGatewayServer {
           outputSizeBytes,
         },
         state: executionContext, // Return context for checkpoint compatibility
+        // Story 8.3: Include matched capabilities in response
+        matched_capabilities: matchedCapabilities.length > 0
+          ? matchedCapabilities.map((mc) => ({
+            id: mc.capability.id,
+            name: mc.capability.name ?? null, // Convert undefined to null for type compatibility
+            code_snippet: mc.capability.codeSnippet,
+            semantic_score: mc.semanticScore,
+            success_rate: mc.capability.successRate,
+            usage_count: mc.capability.usageCount,
+          }))
+          : undefined,
       };
 
       log.info("Code execution succeeded", {
         executionTimeMs: response.metrics.executionTimeMs.toFixed(2),
         outputSize: outputSizeBytes,
         trackedTools: trackedToolsCount, // Story 7.1b: native tracing
+        matchedCapabilities: matchedCapabilities.length, // Story 8.3: capability injection
       });
 
       return {

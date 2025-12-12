@@ -882,6 +882,7 @@ export class DenoSandboxExecutor {
     code: string,
     workerConfig: WorkerExecutionConfig,
     context?: Record<string, unknown>,
+    capabilityContext?: string,
   ): Promise<ExecutionResultWithTraces> {
     const startTime = performance.now();
     let resourceToken: ExecutionToken | null = null;
@@ -936,6 +937,8 @@ export class DenoSandboxExecutor {
         codeLength: code.length,
         toolCount: workerConfig.toolDefinitions.length,
         contextKeys: context ? Object.keys(context) : [],
+        hasCapabilityContext: !!capabilityContext,
+        capabilityContextLength: capabilityContext?.length ?? 0,
       });
 
       // Create WorkerBridge and execute (Task 2: pass optional dependencies)
@@ -950,6 +953,7 @@ export class DenoSandboxExecutor {
         code,
         workerConfig.toolDefinitions,
         context,
+        capabilityContext,
       );
 
       // Get native traces from bridge

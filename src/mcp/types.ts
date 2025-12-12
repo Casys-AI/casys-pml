@@ -114,4 +114,17 @@ export interface CodeExecutionResponse {
    * Optional state for checkpoint persistence
    */
   state?: Record<string, unknown>;
+
+  /**
+   * Matched capabilities from intent search (Story 8.3: capability reuse)
+   * Returned when intent parameter is provided
+   */
+  matched_capabilities?: Array<{
+    id: string;
+    name: string | null;
+    code_snippet: string;
+    semantic_score: number;
+    success_rate: number;
+    usage_count: number;
+  }>;
 }
