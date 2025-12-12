@@ -95,6 +95,8 @@ export default function D3GraphVisualization({
   // Layout refs (for re-rendering on tension change)
   const hierarchyRef = useRef<RootNodeData | null>(null);
   const capEdgesRef = useRef<CapabilityEdge[]>([]);
+  const toolEdgesRef = useRef<import("../utils/graph/index.ts").ToolEdge[]>([]);
+  const emptyCapabilitiesRef = useRef<import("../utils/graph/index.ts").CapabilityNodeData[]>([]);
   const layoutRef = useRef<RadialLayoutResult | null>(null);
   // Data refs for callbacks
   const capabilityDataRef = useRef<Map<string, CapabilityData>>(new Map());
@@ -262,12 +264,14 @@ export default function D3GraphVisualization({
     const { width, height } = graph;
 
     // 1. Build hierarchy from flat data
-    const { root, capabilityEdges, orphanTools, stats } = buildHierarchy(data);
+    const { root, capabilityEdges, toolEdges, orphanTools, emptyCapabilities, stats } = buildHierarchy(data);
 
     console.log("[RadialHEB] Built hierarchy:", stats);
 
     hierarchyRef.current = root;
     capEdgesRef.current = capabilityEdges;
+    toolEdgesRef.current = toolEdges;
+    emptyCapabilitiesRef.current = emptyCapabilities;
 
     // 2. Store capability/tool data for callbacks
     const capMap = new Map<string, CapabilityData>();
@@ -304,15 +308,28 @@ export default function D3GraphVisualization({
       });
     }
 
+    // Add empty capabilities to capMap
+    for (const cap of emptyCapabilitiesRef.current) {
+      capMap.set(cap.id, {
+        id: cap.id,
+        label: cap.name,
+        successRate: cap.successRate,
+        usageCount: cap.usageCount,
+        toolsCount: 0,
+        codeSnippet: cap.codeSnippet,
+        toolIds: [],
+      });
+    }
+
     capabilityDataRef.current = capMap;
     toolDataRef.current = toolMap;
 
-    // 3. Create radial layout
+    // 3. Create radial layout (with empty capabilities and tool edges)
     const layout = createRadialLayout(root, capabilityEdges, {
       width,
       height,
       tension,
-    });
+    }, emptyCapabilitiesRef.current, toolEdgesRef.current);
 
     layoutRef.current = layout;
 
@@ -631,7 +648,7 @@ export default function D3GraphVisualization({
           width: graph.width,
           height: graph.height,
           tension: newTension,
-        });
+        }, emptyCapabilitiesRef.current, toolEdgesRef.current);
 
         layoutRef.current = layout;
 

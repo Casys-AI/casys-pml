@@ -55,20 +55,35 @@ export interface CapabilityEdge {
   observedCount: number;
 }
 
+/** Edge between tools (sequence/dependency) */
+export interface ToolEdge {
+  source: string; // tool-id (server:name)
+  target: string; // tool-id (server:name)
+  edgeType: "sequence" | "dependency" | "contains";
+  edgeSource: "template" | "inferred" | "observed";
+  observedCount: number;
+}
+
 /** Result of hierarchy building */
 export interface HierarchyBuildResult {
   /** Hierarchical data for d3.hierarchy() */
   root: RootNodeData;
   /** Edges between capabilities (not in hierarchy) */
   capabilityEdges: CapabilityEdge[];
+  /** Edges between tools (sequence/dependency) */
+  toolEdges: ToolEdge[];
   /** Tools that were excluded (orphans) */
   orphanTools: ToolNodeData[];
+  /** Capabilities without tools (need separate positioning) */
+  emptyCapabilities: CapabilityNodeData[];
   /** Stats */
   stats: {
     totalCapabilities: number;
     totalTools: number;
     orphanCount: number;
     hyperedgeCount: number; // Tools with multiple parents
+    emptyCapabilityCount: number; // Capabilities without tools
+    toolEdgeCount: number; // Tool-to-tool edges
   };
 }
 
@@ -121,6 +136,7 @@ export function buildHierarchy(response: HypergraphApiResponse): HierarchyBuildR
   const capabilities = new Map<string, CapabilityNodeData>();
   const tools = new Map<string, ToolNodeData>();
   const capabilityEdges: CapabilityEdge[] = [];
+  const toolEdges: ToolEdge[] = [];
   const orphanTools: ToolNodeData[] = [];
 
   // 1. First pass: Create capability nodes
@@ -177,12 +193,12 @@ export function buildHierarchy(response: HypergraphApiResponse): HierarchyBuildR
     }
   }
 
-  // 3. Extract capability-to-capability edges
+  // 3. Extract edges (capability↔capability and tool↔tool)
   for (const edge of response.edges) {
     const sourceId = edge.data.source;
     const targetId = edge.data.target;
 
-    // Only include edges between capabilities (not cap→tool or tool→tool)
+    // Capability-to-capability edges
     if (capabilities.has(sourceId) && capabilities.has(targetId)) {
       capabilityEdges.push({
         source: sourceId,
@@ -191,14 +207,29 @@ export function buildHierarchy(response: HypergraphApiResponse): HierarchyBuildR
         observedCount: edge.data.observed_count ?? 1,
       });
     }
+    // Tool-to-tool edges (sequence, dependency, contains)
+    else if (tools.has(sourceId) && tools.has(targetId)) {
+      const edgeType = edge.data.edge_type as "sequence" | "dependency" | "contains";
+      // Only include sequence and dependency (contains is implicit in hierarchy)
+      if (edgeType === "sequence" || edgeType === "dependency") {
+        toolEdges.push({
+          source: sourceId,
+          target: targetId,
+          edgeType,
+          edgeSource: (edge.data as any).edge_source ?? "inferred",
+          observedCount: edge.data.observed_count ?? 1,
+        });
+      }
+    }
   }
 
-  // 4. Build root node (only include capabilities with children)
-  // D3.cluster requires leaf nodes to have proper positions
-  const capsWithChildren = Array.from(capabilities.values()).filter(
-    (cap) => cap.children.length > 0,
-  );
+  // 4. Separate capabilities with and without tools
+  const allCaps = Array.from(capabilities.values());
+  const capsWithChildren = allCaps.filter((cap) => cap.children.length > 0);
+  const emptyCapabilities = allCaps.filter((cap) => cap.children.length === 0);
 
+  // 5. Build root node with capabilities that have tools
+  // D3.cluster requires leaf nodes - empty caps will be positioned separately
   const root: RootNodeData = {
     id: "root",
     name: "Capabilities",
@@ -206,21 +237,25 @@ export function buildHierarchy(response: HypergraphApiResponse): HierarchyBuildR
     children: capsWithChildren,
   };
 
-  // Filter capabilityEdges to only include edges between capabilities in the tree
-  const capsInTree = new Set(capsWithChildren.map((c) => c.id));
+  // 6. Keep ALL capability edges (even for empty caps - they'll be positioned)
+  const allCapIds = new Set(allCaps.map((c) => c.id));
   const filteredCapEdges = capabilityEdges.filter(
-    (e) => capsInTree.has(e.source) && capsInTree.has(e.target),
+    (e) => allCapIds.has(e.source) && allCapIds.has(e.target),
   );
 
   return {
     root,
     capabilityEdges: filteredCapEdges,
+    toolEdges,
     orphanTools,
+    emptyCapabilities,
     stats: {
-      totalCapabilities: capsWithChildren.length,
+      totalCapabilities: allCaps.length,
       totalTools: tools.size - orphanTools.length,
       orphanCount: orphanTools.length,
       hyperedgeCount,
+      emptyCapabilityCount: emptyCapabilities.length,
+      toolEdgeCount: toolEdges.length,
     },
   };
 }

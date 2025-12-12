@@ -14,8 +14,10 @@ const d3 = (globalThis as any).d3;
 
 import type {
   CapabilityEdge,
+  CapabilityNodeData,
   HierarchyNodeData,
   RootNodeData,
+  ToolEdge,
   ToolNodeData,
 } from "./hierarchy-builder.ts";
 
@@ -66,7 +68,7 @@ export interface BundledPath {
   /** SVG path d attribute */
   pathD: string;
   /** Edge type for styling */
-  edgeType: "hierarchy" | "hyperedge" | "capability_link";
+  edgeType: "hierarchy" | "hyperedge" | "capability_link" | "tool_sequence";
 }
 
 /** Layout result */
@@ -98,12 +100,16 @@ export interface RadialLayoutResult {
  * @param root Hierarchy root from buildHierarchy()
  * @param capabilityEdges Edges between capabilities
  * @param config Layout configuration
+ * @param emptyCapabilities Capabilities without tools (positioned separately)
+ * @param toolEdges Edges between tools (sequence/dependency)
  * @returns Positioned nodes and bundled paths
  */
 export function createRadialLayout(
   root: RootNodeData,
   capabilityEdges: CapabilityEdge[],
   config: RadialLayoutConfig,
+  emptyCapabilities: CapabilityNodeData[] = [],
+  toolEdges: ToolEdge[] = [],
 ): RadialLayoutResult {
   const { width, height } = config;
   const centerX = width / 2;
@@ -171,6 +177,89 @@ export function createRadialLayout(
       tools.push(positioned);
     }
   });
+
+  // Position empty capabilities (those without tools)
+  // Distribute them evenly in remaining angular space
+  if (emptyCapabilities.length > 0) {
+    // Find used angles from capabilities with tools
+    const usedAngles = capabilities.map((c) => c.x).sort((a, b) => a - b);
+
+    // Calculate gaps between used angles
+    const gaps: Array<{ start: number; end: number; size: number }> = [];
+    if (usedAngles.length === 0) {
+      // No capabilities with tools - use full circle
+      gaps.push({ start: 0, end: 2 * Math.PI, size: 2 * Math.PI });
+    } else {
+      // Gaps between consecutive capabilities
+      for (let i = 0; i < usedAngles.length; i++) {
+        const current = usedAngles[i];
+        const next = usedAngles[(i + 1) % usedAngles.length];
+        const gapSize = next > current ? next - current : 2 * Math.PI - current + next;
+        // Only consider gaps larger than minimum threshold
+        if (gapSize > 0.1) {
+          gaps.push({ start: current, end: next, size: gapSize });
+        }
+      }
+    }
+
+    // Sort gaps by size (largest first) and distribute empty caps
+    gaps.sort((a, b) => b.size - a.size);
+
+    let emptyCapIndex = 0;
+    for (const gap of gaps) {
+      if (emptyCapIndex >= emptyCapabilities.length) break;
+
+      // How many empty caps can fit in this gap?
+      const capsForGap = Math.min(
+        Math.ceil(emptyCapabilities.length / gaps.length),
+        emptyCapabilities.length - emptyCapIndex,
+      );
+
+      // Position them evenly within the gap
+      const spacing = gap.size / (capsForGap + 1);
+      for (let i = 0; i < capsForGap && emptyCapIndex < emptyCapabilities.length; i++) {
+        const emptyCap = emptyCapabilities[emptyCapIndex];
+        const angle = gap.start + spacing * (i + 1);
+        const normalizedAngle = angle % (2 * Math.PI);
+
+        // Convert polar to cartesian
+        const cartAngle = normalizedAngle - Math.PI / 2;
+        const cartX = centerX + radiusCapabilities * Math.cos(cartAngle);
+        const cartY = centerY + radiusCapabilities * Math.sin(cartAngle);
+
+        // Create a pseudo d3Node for edge drawing compatibility
+        const pseudoD3Node = {
+          x: normalizedAngle,
+          y: radiusCapabilities,
+          data: emptyCap,
+          parent: { data: { id: "root" }, x: 0, y: 0 },
+          path: (target: any) => [
+            { x: normalizedAngle, y: radiusCapabilities },
+            { x: 0, y: 0 }, // through center
+            { x: target.x, y: target.y },
+          ],
+        };
+
+        const positioned: PositionedNode = {
+          id: emptyCap.id,
+          name: emptyCap.name,
+          type: "capability",
+          x: normalizedAngle,
+          y: radiusCapabilities,
+          cartX,
+          cartY,
+          data: emptyCap,
+          d3Node: pseudoD3Node,
+        };
+
+        nodes.push(positioned);
+        capabilities.push(positioned);
+        nodeMap.set(emptyCap.id, pseudoD3Node);
+
+        emptyCapIndex++;
+      }
+    }
+  }
 
   // Create bundled paths
   const paths: BundledPath[] = [];
@@ -252,6 +341,28 @@ export function createRadialLayout(
           targetId: edge.target,
           pathD,
           edgeType: "capability_link",
+        });
+      }
+    }
+  }
+
+  // 4. Tool-to-tool edges (sequence/dependency - bundled through common ancestor)
+  for (const edge of toolEdges) {
+    const sourceNode = nodeMap.get(edge.source);
+    const targetNode = nodeMap.get(edge.target);
+
+    if (sourceNode && targetNode) {
+      // Path through common ancestor (will bundle nicely)
+      const path = sourceNode.path(targetNode);
+      const pathD = lineRadial(path);
+
+      if (pathD) {
+        paths.push({
+          id: `tool-${edge.source}-${edge.target}`,
+          sourceId: edge.source,
+          targetId: edge.target,
+          pathD,
+          edgeType: "tool_sequence",
         });
       }
     }
@@ -398,6 +509,8 @@ export function getRadialEdgeColor(edgeType: BundledPath["edgeType"]): string {
       return "#f59e0b"; // Amber for multi-parent tools
     case "capability_link":
       return "#3b82f6"; // Blue for cap↔cap
+    case "tool_sequence":
+      return "#10b981"; // Emerald/Green for tool→tool sequence
     default:
       return "#888888";
   }
@@ -414,6 +527,8 @@ export function getRadialEdgeOpacity(edgeType: BundledPath["edgeType"]): number 
       return 0.6;
     case "capability_link":
       return 0.7;
+    case "tool_sequence":
+      return 0.8; // More visible for sequence edges
     default:
       return 0.4;
   }

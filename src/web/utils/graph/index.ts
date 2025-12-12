@@ -70,6 +70,7 @@ export {
   type CapabilityNodeData,
   type ToolNodeData,
   type CapabilityEdge,
+  type ToolEdge,
   type HierarchyBuildResult,
   type HypergraphApiResponse,
   buildHierarchy,
