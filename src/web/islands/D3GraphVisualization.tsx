@@ -413,59 +413,87 @@ export default function D3GraphVisualization({
         .attr("stroke-opacity", (d: BundledPath) => getRadialEdgeOpacity(d.edgeType))
         .style("pointer-events", "none");
 
-      // ─── Render Capability Nodes (inner circle) ───
+      // ─── Shared arc setup ───
+      const totalAngle = 2 * Math.PI;
+      // @ts-ignore - D3 loaded from CDN
+      const arcGenerator = d3.arc();
+
+      // ─── Render Capability Nodes (inner circle - ARC segments) ───
+      const capCount = validCaps.length;
+      const capPadding = 0.03; // Slightly larger gap for caps
+      const capArcAngle = (totalAngle - capPadding * capCount) / capCount;
+
+      // Sort caps by angle
+      const sortedCaps = [...validCaps].sort((a, b) => (a.x || 0) - (b.x || 0));
+
       const capNodes = nodeLayer
         .selectAll(".cap-node")
-        .data(validCaps, (d: PositionedNode | undefined) => d?.id ?? "")
+        .data(sortedCaps, (d: PositionedNode | undefined) => d?.id ?? "")
         .enter()
         .append("g")
         .attr("class", "cap-node")
-        .attr("transform", (d: PositionedNode) => d ? `translate(${d.cartX},${d.cartY})` : "")
+        .attr("transform", `translate(${center.x},${center.y})`)
         .style("cursor", "pointer");
 
       capNodes
-        .append("circle")
-        .attr("r", (d: PositionedNode) => {
-          if (!d) return 8;
+        .append("path")
+        .attr("d", (d: PositionedNode, i: number) => {
+          if (!d) return "";
           const cap = d.data as any;
-          // Combine pagerank and usage for sizing
           const pagerank = cap?.pagerank || 0;
           const usage = cap?.usageCount || 0;
-          // Base 8 + pagerank contribution (0-12) + usage contribution (0-5)
-          return 8 + Math.min(pagerank * 40, 12) + Math.min(usage * 0.3, 5);
+          // Arc thickness based on pagerank + usage (10-24px)
+          const thickness = 10 + Math.min(pagerank * 30, 8) + Math.min(usage * 0.3, 6);
+          const innerR = (d.y || 100) - thickness / 2;
+          const outerR = (d.y || 100) + thickness / 2;
+
+          const startAngle = i * (capArcAngle + capPadding) - Math.PI / 2;
+          const endAngle = startAngle + capArcAngle;
+
+          return arcGenerator({
+            innerRadius: innerR,
+            outerRadius: outerR,
+            startAngle: startAngle,
+            endAngle: endAngle,
+          });
         })
         .attr("fill", "#8b5cf6") // Purple for capabilities
-        .attr("stroke", "#fff")
-        .attr("stroke-width", 2);
+        .attr("stroke", "rgba(255,255,255,0.4)")
+        .attr("stroke-width", 1);
 
-      // Capability labels (inside circle, centered)
-      capNodes
-        .append("text")
-        .attr("class", "cap-label")
-        .attr("text-anchor", "middle")
-        .attr("dominant-baseline", "middle")
-        .attr("fill", "#fff")
-        .attr("font-size", "8px")
-        .attr("font-weight", "bold")
-        .text((d: PositionedNode) => {
-          if (!d) return "";
-          const label = d.name ?? "";
-          return label.length > 8 ? label.slice(0, 6) + ".." : label;
-        });
+      // Capability labels (on arc)
+      sortedCaps.forEach((d, i) => {
+        if (!d || d.y === undefined) return;
+        const capCenterAngle = i * (capArcAngle + capPadding) + capArcAngle / 2;
+        const labelRadius = d.y || 100;
+        const x = labelRadius * Math.cos(capCenterAngle - Math.PI / 2);
+        const y = labelRadius * Math.sin(capCenterAngle - Math.PI / 2);
+
+        let rotateDeg = (capCenterAngle * 180) / Math.PI - 90;
+        if (rotateDeg > 90 && rotateDeg < 270) rotateDeg += 180;
+
+        const label = d.name.length > 10 ? d.name.slice(0, 8) + ".." : d.name;
+
+        labelLayer
+          .append("text")
+          .attr("class", "cap-label")
+          .attr("transform", `translate(${center.x + x},${center.y + y}) rotate(${rotateDeg})`)
+          .attr("text-anchor", "middle")
+          .attr("dominant-baseline", "middle")
+          .attr("fill", "#fff")
+          .attr("font-size", "8px")
+          .attr("font-weight", "bold")
+          .text(label)
+          .style("pointer-events", "none");
+      });
 
       // ─── Render Tool Nodes (outer circle - ARC segments) ───
-      // Calculate angular padding between arcs
       const toolCount = validTools.length;
-      const totalAngle = 2 * Math.PI;
-      const padding = 0.02; // Gap between arcs in radians
-      const arcAngle = (totalAngle - padding * toolCount) / toolCount;
+      const toolPadding = 0.02; // Gap between arcs in radians
+      const toolArcAngle = (totalAngle - toolPadding * toolCount) / toolCount;
 
       // Sort tools by angle for consistent arc placement
       const sortedTools = [...validTools].sort((a, b) => (a.x || 0) - (b.x || 0));
-
-      // Create arc generator
-      // @ts-ignore - D3 loaded from CDN
-      const arcGenerator = d3.arc();
 
       const toolNodes = nodeLayer
         .selectAll(".tool-node")
@@ -488,8 +516,8 @@ export default function D3GraphVisualization({
           const outerR = (d.y || 200) + thickness / 2;
 
           // Calculate start/end angles for this arc
-          const startAngle = i * (arcAngle + padding) - Math.PI / 2;
-          const endAngle = startAngle + arcAngle;
+          const startAngle = i * (toolArcAngle + toolPadding) - Math.PI / 2;
+          const endAngle = startAngle + toolArcAngle;
 
           return arcGenerator({
             innerRadius: innerR,
@@ -510,7 +538,7 @@ export default function D3GraphVisualization({
       sortedTools.forEach((d, i) => {
         if (!d || d.y === undefined) return;
         // Calculate center angle of this arc
-        const arcCenterAngle = i * (arcAngle + padding) + arcAngle / 2;
+        const arcCenterAngle = i * (toolArcAngle + toolPadding) + toolArcAngle / 2;
         const labelRadius = (d.y || 200) + 14;
         const x = labelRadius * Math.cos(arcCenterAngle - Math.PI / 2);
         const y = labelRadius * Math.sin(arcCenterAngle - Math.PI / 2);
