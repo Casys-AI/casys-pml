@@ -73,7 +73,8 @@ export function getEdgeOpacity(edgeSource: EdgeSource): number {
 
 /** Calculate edge width based on confidence */
 export function getEdgeWidth(confidence: number): number {
-  return Math.max(1, confidence * 4);
+  // Minimum 2px for FDEB bundle visibility (Holten paper)
+  return Math.max(2, 2 + confidence * 3);
 }
 
 export default function GraphEdge({

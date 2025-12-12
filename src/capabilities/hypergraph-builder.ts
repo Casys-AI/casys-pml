@@ -327,6 +327,7 @@ export class HypergraphBuilder {
           label: snapshotNode.label,
           pagerank: snapshotNode.pagerank || 0,
           degree: snapshotNode.degree || 0,
+          communityId: snapshotNode.communityId,
           parents: [], // Empty array = standalone
         },
       };
@@ -354,11 +355,13 @@ export class HypergraphBuilder {
     // Get metrics from snapshot if available
     let pagerank = 0;
     let degree = 0;
+    let communityId: string | undefined;
     if (snapshot) {
       const snapshotNode = snapshot.nodes.find((n) => n.id === toolId);
       if (snapshotNode) {
         pagerank = snapshotNode.pagerank || 0;
         degree = snapshotNode.degree || 0;
+        communityId = snapshotNode.communityId;
       }
     }
 
@@ -370,6 +373,7 @@ export class HypergraphBuilder {
         label: name,
         pagerank,
         degree,
+        communityId,
         parents,
         // Backward compatibility: set legacy `parent` field to first parent
         ...(parents.length > 0 ? { parent: parents[0] } : {}),

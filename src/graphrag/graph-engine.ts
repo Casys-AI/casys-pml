@@ -1352,6 +1352,7 @@ export class GraphRAGEngine {
         server,
         pagerank: this.pageRanks[toolId] || 0,
         degree: this.graph.degree(toolId),
+        communityId: this.communities[toolId],
       };
     });
 
@@ -2151,6 +2152,8 @@ export interface GraphSnapshot {
     server: string;
     pagerank: number;
     degree: number;
+    /** Louvain community ID for clustering visualization */
+    communityId?: string;
   }>;
   edges: Array<{
     source: string;

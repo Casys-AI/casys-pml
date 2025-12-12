@@ -1,12 +1,14 @@
 /**
  * GraphLegendPanel Molecule - Legend panel for graph visualization
  * Story 6.4: MCP servers, edge types, confidence legend, orphan toggle, export
+ * Holten 2006: HEB tension control (beta parameter for curveBundle)
  */
 
 import type { JSX } from "preact";
 import Badge from "../atoms/Badge.tsx";
 import Button from "../atoms/Button.tsx";
 import Divider from "../atoms/Divider.tsx";
+import Slider from "../atoms/Slider.tsx";
 import LegendItem from "./LegendItem.tsx";
 
 interface GraphLegendPanelProps {
@@ -18,6 +20,17 @@ interface GraphLegendPanelProps {
   onToggleOrphans: () => void;
   onExportJson: () => void;
   onExportPng: () => void;
+  // HEB tension control (Holten 2006)
+  tension?: number;
+  onTensionChange?: (t: number) => void;
+  // Legacy FDEB controls (deprecated)
+  straightening?: number;
+  onStraighteningChange?: (s: number) => void;
+  smoothing?: number;
+  onSmoothingChange?: (s: number) => void;
+  showHeatmap?: boolean;
+  onToggleHeatmap?: () => void;
+  heatmapColors?: string[];
 }
 
 export default function GraphLegendPanel({
@@ -29,6 +42,18 @@ export default function GraphLegendPanel({
   onToggleOrphans,
   onExportJson,
   onExportPng,
+  // HEB tension
+  tension = 0.85,
+  onTensionChange,
+  // Legacy FDEB (deprecated)
+  straightening = 0,
+  onStraighteningChange,
+  smoothing = 0,
+  onSmoothingChange,
+  // Heatmap removed in HEB refactor
+  showHeatmap: _showHeatmap = false,
+  onToggleHeatmap: _onToggleHeatmap,
+  heatmapColors: _heatmapColors,
 }: GraphLegendPanelProps): JSX.Element {
   return (
     <div
@@ -99,6 +124,75 @@ export default function GraphLegendPanel({
       />
 
       <Divider />
+
+      {/* Bundle Controls - HEB Tension (Holten 2006) */}
+      {onTensionChange && (
+        <>
+          <h3
+            class="text-xs font-semibold uppercase tracking-widest mb-3"
+            style={{ color: "var(--text-dim)" }}
+          >
+            Bundle Tension
+          </h3>
+
+          <div class="mb-3">
+            <Slider
+              value={tension}
+              min={0}
+              max={1}
+              step={0.05}
+              label="Tension"
+              onChange={onTensionChange}
+            />
+            <div class="flex justify-between text-[10px] mt-1" style={{ color: "var(--text-dim)" }}>
+              <span>Bundled</span>
+              <span>Straight</span>
+            </div>
+          </div>
+
+          <Divider />
+        </>
+      )}
+
+      {/* Legacy FDEB controls (deprecated - hidden when HEB tension is used) */}
+      {!onTensionChange && (onStraighteningChange || onSmoothingChange) && (
+        <>
+          <h3
+            class="text-xs font-semibold uppercase tracking-widest mb-3"
+            style={{ color: "var(--text-dim)" }}
+          >
+            Bundle Controls
+          </h3>
+
+          {onStraighteningChange && (
+            <div class="mb-3">
+              <Slider
+                value={straightening}
+                min={0}
+                max={1}
+                step={0.01}
+                label="Straightening"
+                onChange={onStraighteningChange}
+              />
+            </div>
+          )}
+
+          {onSmoothingChange && (
+            <div class="mb-3">
+              <Slider
+                value={smoothing}
+                min={0}
+                max={1}
+                step={0.01}
+                label="Smoothing"
+                onChange={onSmoothingChange}
+              />
+            </div>
+          )}
+
+          <Divider />
+        </>
+      )}
 
       {/* Export buttons */}
       <div class="flex gap-2">

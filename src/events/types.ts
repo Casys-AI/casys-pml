@@ -409,6 +409,8 @@ export interface GraphEdgeUpdatedPayload {
 export interface AlgorithmScoredPayload {
   /** Item identifier (toolId or capabilityId) */
   itemId: string;
+  /** Human-readable item name for display */
+  itemName?: string;
   /** Type of item being scored */
   itemType: "tool" | "capability";
   /** Intent text (if applicable) */

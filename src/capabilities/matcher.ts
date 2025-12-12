@@ -216,6 +216,7 @@ export class CapabilityMatcher {
         source: "capability-matcher",
         payload: {
           itemId: candidate.capability.id,
+          itemName: candidate.capability.name ?? candidate.capability.id.slice(0, 8),
           itemType: "capability",
           intent: intent.substring(0, 100),
           signals: {

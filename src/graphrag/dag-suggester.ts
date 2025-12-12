@@ -239,11 +239,14 @@ export class DAGSuggester {
         });
 
         // Story 7.6: Emit algorithm.scored event for real-time tracing UI
+        // Extract tool name from toolId (format: server__tool_name)
+        const toolName = candidate.toolId.split("__").pop() ?? candidate.toolId;
         eventBus.emit({
           type: "algorithm.scored",
           source: "dag-suggester",
           payload: {
             itemId: candidate.toolId,
+            itemName: toolName,
             itemType: "tool",
             intent: intent.text.substring(0, 100),
             signals: {

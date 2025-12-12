@@ -9,12 +9,7 @@
  * - Run physics simulation to bundle compatible edges
  */
 
-import {
-  type Point,
-  type Edge,
-  edgeCompatibility,
-  isCompatible,
-} from "./edge-compatibility.ts";
+import { type Edge, edgeCompatibility, isCompatible, type Point } from "./edge-compatibility.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -31,6 +26,8 @@ export interface FDEBConfig {
   cycles: number;
   /** Minimum compatibility to consider bundling (default: 0.05) */
   compatibilityThreshold: number;
+  /** TD-3: Use inverse-quadratic force model (default: true, per Holten paper Fig 7d) */
+  useQuadratic: boolean;
 }
 
 export interface BundledEdge {
@@ -58,6 +55,7 @@ const DEFAULT_CONFIG: FDEBConfig = {
   I0: 50, // Initial iterations
   cycles: 6, // Number of cycles
   compatibilityThreshold: 0.05, // Minimum Ce to consider
+  useQuadratic: true, // TD-3: Inverse-quadratic for localized bundling (Holten Fig 7d)
 };
 
 // Iterative refinement scheme from paper
@@ -142,6 +140,114 @@ export class FDEBBundler {
       targetId: e.targetId,
       subdivisionPoints: e.points,
     }));
+  }
+
+  /**
+   * Apply straightening to bundled edges (Holten paper Section 4.3)
+   * s=0: fully bundled, s=1: straight lines
+   * Formula: p'_i = (1-s)*p_i + s*(P0 + (i+1)/(N+1)*(P1-P0))
+   */
+  static applyStraightening(edges: BundledEdge[], s: number): BundledEdge[] {
+    if (s <= 0) return edges;
+    if (s >= 1) {
+      // Full straightening - just source to target
+      return edges.map((e) => ({
+        ...e,
+        subdivisionPoints: [
+          e.subdivisionPoints[0],
+          e.subdivisionPoints[e.subdivisionPoints.length - 1],
+        ],
+      }));
+    }
+
+    return edges.map((e) => {
+      const points = e.subdivisionPoints;
+      if (points.length < 2) return e;
+
+      const P0 = points[0];
+      const P1 = points[points.length - 1];
+      const N = points.length - 2; // Number of internal points
+
+      const newPoints: Point[] = [P0]; // Keep source
+
+      for (let i = 1; i < points.length - 1; i++) {
+        const pi = points[i];
+        const t = i / (N + 1); // Proportional position along straight line
+        const straightX = P0.x + t * (P1.x - P0.x);
+        const straightY = P0.y + t * (P1.y - P0.y);
+
+        newPoints.push({
+          x: (1 - s) * pi.x + s * straightX,
+          y: (1 - s) * pi.y + s * straightY,
+        });
+      }
+
+      newPoints.push(P1); // Keep target
+
+      return {
+        ...e,
+        subdivisionPoints: newPoints,
+      };
+    });
+  }
+
+  /**
+   * Apply Gaussian smoothing to bundled edges (Holten paper Section 3.3)
+   * Reduces jaggedness by convolving subdivision points with a Gaussian kernel
+   * amount ∈ [0, 1] controls the kernel width (0 = no smoothing, 1 = maximum)
+   */
+  static applySmoothing(edges: BundledEdge[], amount: number): BundledEdge[] {
+    if (amount <= 0) return edges;
+
+    // Kernel size based on amount (3 to 7 points)
+    const kernelSize = Math.max(3, Math.min(7, Math.round(3 + amount * 4)));
+    const sigma = 0.5 + amount * 1.5; // Gaussian sigma
+
+    // Pre-compute Gaussian kernel
+    const kernel: number[] = [];
+    const half = Math.floor(kernelSize / 2);
+    let sum = 0;
+
+    for (let i = -half; i <= half; i++) {
+      const weight = Math.exp(-(i * i) / (2 * sigma * sigma));
+      kernel.push(weight);
+      sum += weight;
+    }
+
+    // Normalize kernel
+    for (let i = 0; i < kernel.length; i++) {
+      kernel[i] /= sum;
+    }
+
+    return edges.map((e) => {
+      const points = e.subdivisionPoints;
+      if (points.length < 3) return e;
+
+      const newPoints: Point[] = [points[0]]; // Keep source
+
+      // Apply convolution to internal points
+      for (let i = 1; i < points.length - 1; i++) {
+        let sumX = 0;
+        let sumY = 0;
+
+        for (let k = 0; k < kernel.length; k++) {
+          const j = i - half + k;
+          // Clamp to valid range
+          const idx = Math.max(0, Math.min(points.length - 1, j));
+          sumX += points[idx].x * kernel[k];
+          sumY += points[idx].y * kernel[k];
+        }
+
+        newPoints.push({ x: sumX, y: sumY });
+      }
+
+      newPoints.push(points[points.length - 1]); // Keep target
+
+      return {
+        ...e,
+        subdivisionPoints: newPoints,
+      };
+    });
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -235,7 +341,7 @@ export class FDEBBundler {
     edges: InternalEdge[],
     stepSize: number,
     iterations: number,
-    kP: number
+    kP: number,
   ): void {
     // Pre-calculate edge compatibilities as floats for force calculation
     const compatibilityCache = new Map<string, number>();
@@ -259,9 +365,7 @@ export class FDEBBundler {
     // Run iterations
     for (let iter = 0; iter < iterations; iter++) {
       // Calculate forces for all subdivision points
-      const forces: Point[][] = edges.map((e) =>
-        e.points.map(() => ({ x: 0, y: 0 }))
-      );
+      const forces: Point[][] = edges.map((e) => e.points.map(() => ({ x: 0, y: 0 })));
 
       for (let i = 0; i < edges.length; i++) {
         const edgeI = edges[i];
@@ -305,8 +409,11 @@ export class FDEBBundler {
             // Avoid division by zero and very strong forces
             if (dist < 1) continue;
 
-            // Attraction force weighted by compatibility
-            const force = Ce / dist;
+            // TD-3: Attraction force weighted by compatibility
+            // Inverse-quadratic (1/d²) gives more localized bundling, less "webbing"
+            const force = this.config.useQuadratic
+              ? Ce / (dist * dist) // Inverse-quadratic (Holten Fig 7d)
+              : Ce / dist; // Inverse-linear (original)
 
             forces[i][p].x += dx * force;
             forces[i][p].y += dy * force;
@@ -333,7 +440,7 @@ export class FDEBBundler {
 export function bundleEdges(
   nodes: Map<string, Point>,
   edges: Array<{ source: string; target: string }>,
-  config?: Partial<FDEBConfig>
+  config?: Partial<FDEBConfig>,
 ): BundledEdge[] {
   return new FDEBBundler(config).setNodes(nodes).setEdges(edges).bundle();
 }

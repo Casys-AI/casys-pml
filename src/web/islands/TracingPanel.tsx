@@ -14,6 +14,7 @@ interface AlgorithmScoredEvent {
   source: string;
   payload: {
     itemId: string;
+    itemName?: string;
     itemType: "tool" | "capability";
     intent?: string;
     signals: {
@@ -111,11 +112,6 @@ export default function TracingPanel({ apiBase: _apiBaseProp }: TracingPanelProp
     if (score >= 0.8) return "var(--success)";
     if (score >= 0.5) return "var(--warning)";
     return "var(--error)";
-  };
-
-  const formatScore = (score?: number) => {
-    if (score === undefined) return "—";
-    return score.toFixed(3);
   };
 
   const styles = {
@@ -331,7 +327,7 @@ export default function TracingPanel({ apiBase: _apiBaseProp }: TracingPanelProp
                   style={{ color: "var(--text)" }}
                   title={event.payload.itemId}
                 >
-                  {event.payload.itemId.split("__").pop()?.split(":").pop() || event.payload.itemId}
+                  {event.payload.itemName || event.payload.itemId.split("__").pop()?.split(":").pop() || event.payload.itemId}
                 </span>
                 <span
                   class="text-xs font-bold tabular-nums"

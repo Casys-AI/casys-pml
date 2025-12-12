@@ -4,6 +4,8 @@ export { default as Button } from "./Button.tsx";
 export { default as Kbd } from "./Kbd.tsx";
 export { default as Input } from "./Input.tsx";
 export { default as Divider } from "./Divider.tsx";
+export { default as Slider } from "./Slider.tsx";
+export { default as GradientBar } from "./GradientBar.tsx";
 
 // Metric atoms
 export { MetricCard } from "./MetricCard.tsx";

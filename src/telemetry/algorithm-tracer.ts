@@ -151,9 +151,39 @@ function escapeSql(str: string): string {
 export class AlgorithmTracer {
   private buffer: AlgorithmTraceRecord[] = [];
   private readonly BUFFER_SIZE = 100;
+  private readonly FLUSH_INTERVAL_MS = 5000; // Flush every 5 seconds
   private flushPromise: Promise<void> | null = null;
+  private flushIntervalId: ReturnType<typeof setInterval> | null = null;
 
-  constructor(private db: PGliteClient) {}
+  constructor(private db: PGliteClient) {
+    // Auto-start periodic flush
+    this.startPeriodicFlush();
+  }
+
+  /**
+   * Start periodic flush interval
+   */
+  private startPeriodicFlush(): void {
+    if (this.flushIntervalId) return;
+    this.flushIntervalId = setInterval(() => {
+      if (this.buffer.length > 0) {
+        this.scheduleFlush();
+      }
+    }, this.FLUSH_INTERVAL_MS);
+    // Note: Deno.unrefTimer() could be used if needed, but setInterval
+    // with unref behavior isn't critical for this use case
+  }
+
+  /**
+   * Stop periodic flush and flush remaining buffer
+   */
+  async stop(): Promise<void> {
+    if (this.flushIntervalId) {
+      clearInterval(this.flushIntervalId);
+      this.flushIntervalId = null;
+    }
+    await this.flush();
+  }
 
   /**
    * Log an algorithm trace (buffered)

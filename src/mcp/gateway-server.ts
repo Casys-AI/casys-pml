@@ -2862,6 +2862,7 @@ The system uses GraphRAG to find appropriate tools for the new requirement and i
                   label: node.data.label,
                   pagerank: node.data.pagerank,
                   degree: node.data.degree,
+                  community_id: node.data.communityId, // Louvain community for clustering
                 },
               };
             }

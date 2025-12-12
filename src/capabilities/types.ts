@@ -272,6 +272,8 @@ export interface ToolNode {
     label: string; // "read"
     pagerank: number; // From GraphSnapshot
     degree: number; // From GraphSnapshot
+    /** Louvain community ID for clustering visualization */
+    communityId?: string;
   };
 }
 

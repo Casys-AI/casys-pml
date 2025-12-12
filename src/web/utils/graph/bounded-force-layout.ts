@@ -35,6 +35,10 @@ export interface BoundedForceConfig {
   bipartiteMode: boolean;
   /** X-force strength for bipartite mode (default: 0.3) */
   bipartiteStrength: number;
+  /** Enable server-based clustering (groups tools by MCP server) */
+  serverClusterMode: boolean;
+  /** Strength of server clustering force (default: 0.15) */
+  serverClusterStrength: number;
 }
 
 // deno-lint-ignore no-explicit-any
@@ -48,6 +52,10 @@ export interface SimulationNode {
   fy?: number | null;
   nodeType?: "capability" | "tool";
   radius?: number;
+  /** MCP server name for clustering */
+  server?: string;
+  /** Louvain community ID for clustering */
+  community?: string;
 }
 
 // deno-lint-ignore no-explicit-any
@@ -69,6 +77,8 @@ const DEFAULT_CONFIG: BoundedForceConfig = {
   boundaryStrength: 0.5,
   bipartiteMode: true,
   bipartiteStrength: 0.3,
+  serverClusterMode: false,
+  serverClusterStrength: 0.15,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -138,6 +148,11 @@ export class BoundedForceLayout {
       this.simulation.force("bipartiteX", this.forceBipartiteX());
     }
 
+    // Add server clustering force if enabled
+    if (this.config.serverClusterMode) {
+      this.simulation.force("serverCluster", this.forceServerCluster());
+    }
+
     return this.simulation;
   }
 
@@ -198,6 +213,90 @@ export class BoundedForceLayout {
           node.nodeType === "capability" ? leftTarget : rightTarget;
         node.vx =
           (node.vx || 0) + (targetX - node.x) * bipartiteStrength * alpha;
+      }
+    };
+
+    return force;
+  }
+
+  /**
+   * Cluster force: groups nodes by Louvain community (preferred) or MCP server (fallback)
+   * Capabilities go to center, tools cluster around their community/server position
+   *
+   * FDEB Optimization: If a community has only 1 member (singleton), fallback to server
+   * to create meaningful clusters that enable edge bundling.
+   */
+  // deno-lint-ignore no-explicit-any
+  forceServerCluster(): any {
+    const { width, height, serverClusterStrength } = this.config;
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const clusterRadius = Math.min(width, height) * 0.35;
+
+    // Calculate cluster positions once (memoized)
+    let clusterPositions: Map<string, { x: number; y: number }> | null = null;
+    let nodeClusterMap: Map<string, string> | null = null;
+
+    const getClusterPositions = () => {
+      if (clusterPositions && nodeClusterMap) return { positions: clusterPositions, nodeMap: nodeClusterMap };
+
+      // Count members per community
+      const communityCount = new Map<string, number>();
+      for (const n of this.nodes) {
+        if (n.nodeType === "capability") continue;
+        const comm = n.community || "unknown";
+        communityCount.set(comm, (communityCount.get(comm) || 0) + 1);
+      }
+
+      // Map each node to its effective cluster
+      // If community is singleton, use server instead
+      nodeClusterMap = new Map();
+      for (const n of this.nodes) {
+        if (n.nodeType === "capability") {
+          nodeClusterMap.set(n.id, "capability");
+        } else {
+          const comm = n.community || "unknown";
+          const count = communityCount.get(comm) || 0;
+          // Use server if community is singleton (FDEB needs multi-member clusters)
+          const effectiveCluster = count <= 1 ? (n.server || "unknown") : comm;
+          nodeClusterMap.set(n.id, effectiveCluster);
+        }
+      }
+
+      // Get unique cluster keys
+      const clusterKeys = [...new Set(
+        [...nodeClusterMap.values()].filter(k => k !== "capability")
+      )];
+
+      clusterPositions = new Map();
+
+      // Capabilities cluster at center
+      clusterPositions.set("capability", { x: centerX, y: centerY });
+
+      // Arrange clusters in a circle
+      clusterKeys.forEach((key, i) => {
+        const angle = (2 * Math.PI * i) / clusterKeys.length - Math.PI / 2;
+        clusterPositions!.set(key, {
+          x: centerX + Math.cos(angle) * clusterRadius,
+          y: centerY + Math.sin(angle) * clusterRadius,
+        });
+      });
+
+      return { positions: clusterPositions, nodeMap: nodeClusterMap };
+    };
+
+    const force = (alpha: number) => {
+      const { positions, nodeMap } = getClusterPositions();
+
+      for (const node of this.nodes) {
+        const clusterKey = nodeMap.get(node.id) || "unknown";
+        const target = positions.get(clusterKey);
+        if (target) {
+          node.vx =
+            (node.vx || 0) + (target.x - node.x) * serverClusterStrength * alpha;
+          node.vy =
+            (node.vy || 0) + (target.y - node.y) * serverClusterStrength * alpha;
+        }
       }
     };
 
