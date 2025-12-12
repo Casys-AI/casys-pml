@@ -129,6 +129,7 @@ export default function D3GraphVisualization({
   const [hiddenEdgeTypes, setHiddenEdgeTypes] = useState<Set<EdgeType>>(new Set());
   const [toolGroupingMode, setToolGroupingMode] = useState<ToolGroupingMode>("server");
   const [visualizationMode, setVisualizationMode] = useState<VisualizationMode>("sunburst");
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
   // DAG mode refs
   const forceLayoutRef = useRef<BoundedForceLayout | null>(null);
@@ -938,7 +939,7 @@ export default function D3GraphVisualization({
       .attr("stroke-width", 1.5)
       .attr("stroke-opacity", 0.4);
 
-    // Event handlers
+    // Event handlers (unified with Sunburst mode)
     nodeGroups
       .on("click", (_event: any, d: SimulationNode) => {
         if (d.nodeType === "capability") {
@@ -946,12 +947,14 @@ export default function D3GraphVisualization({
           if (capData) {
             onCapabilitySelect?.(capData);
             onToolSelect?.(null);
+            highlightNode(d.id); // Unified highlight
           }
         } else {
           const toolData = toolDataRef.current.get(d.id);
           if (toolData) {
             onToolSelect?.(toolData);
             onCapabilitySelect?.(null);
+            highlightNode(d.id); // Unified highlight
           }
         }
       })
@@ -959,6 +962,7 @@ export default function D3GraphVisualization({
         const rect = containerRef.current?.getBoundingClientRect();
         if (!rect) return;
 
+        // Show tooltip
         if (d.nodeType === "capability") {
           const capData = capabilityDataRef.current.get(d.id);
           if (capData) {
@@ -986,29 +990,13 @@ export default function D3GraphVisualization({
           }
         }
 
-        // Highlight connected edges
-        edgePaths
-          .transition()
-          .duration(100)
-          .attr("stroke-opacity", (e: SimulationLink) => {
-            const srcId = typeof e.source === 'string' ? e.source : e.source.id;
-            const tgtId = typeof e.target === 'string' ? e.target : e.target.id;
-            return srcId === d.id || tgtId === d.id ? 0.9 : 0.1;
-          })
-          .attr("stroke-width", (e: SimulationLink) => {
-            const srcId = typeof e.source === 'string' ? e.source : e.source.id;
-            const tgtId = typeof e.target === 'string' ? e.target : e.target.id;
-            return srcId === d.id || tgtId === d.id ? 2.5 : 1;
-          });
+        // Unified highlight (dims nodes + edges)
+        highlightConnectedEdges(d.id);
       })
       .on("mouseleave", () => {
         setTooltip(null);
         setCapabilityTooltip(null);
-        edgePaths
-          .transition()
-          .duration(100)
-          .attr("stroke-opacity", 0.4)
-          .attr("stroke-width", 1.5);
+        resetEdgeHighlight(); // Unified reset (respects selection)
       });
 
     // Simulation tick
@@ -1094,58 +1082,61 @@ export default function D3GraphVisualization({
   }, [getServerColor, onCapabilitySelect, onToolSelect]);
 
   // ───────────────────────────────────────────────────────────────────────────
-  // Highlighting
+  // Highlighting (unified for both Sunburst and DAG modes)
   // ───────────────────────────────────────────────────────────────────────────
 
-  const highlightConnectedEdges = (nodeId: string) => {
-    const graph = (window as any).__radialGraph;
-    if (!graph) return;
-
-    graph.edgeLayer
-      .selectAll(".edge")
-      .transition()
-      .duration(100)
-      .attr("stroke-opacity", (d: BundledPath) => {
-        return d.sourceId === nodeId || d.targetId === nodeId ? 0.9 : 0.1;
-      })
-      .attr("stroke-width", (d: BundledPath) => {
-        return d.sourceId === nodeId || d.targetId === nodeId ? 2.5 : 1;
-      });
-  };
-
-  const resetEdgeHighlight = () => {
-    const graph = (window as any).__radialGraph;
-    if (!graph) return;
-
-    graph.edgeLayer
-      .selectAll(".edge")
-      .transition()
-      .duration(100)
-      .attr("stroke-opacity", (d: BundledPath) => getRadialEdgeOpacity(d.edgeType))
-      .attr("stroke-width", 1.5);
-  };
-
-  const highlightNode = (nodeId: string, layout: RadialLayoutResult, maxDepth: number = highlightDepth) => {
-    const graph = (window as any).__radialGraph;
-    if (!graph) return;
-
-    // Build adjacency map for transitive traversal
+  /**
+   * Build adjacency map from edges (works for both modes)
+   */
+  const buildAdjacencyMap = useCallback(() => {
     const adjacency = new Map<string, Set<string>>();
-    for (const path of layout.paths) {
-      if (!adjacency.has(path.sourceId)) adjacency.set(path.sourceId, new Set());
-      if (!adjacency.has(path.targetId)) adjacency.set(path.targetId, new Set());
-      adjacency.get(path.sourceId)!.add(path.targetId);
-      adjacency.get(path.targetId)!.add(path.sourceId);
-    }
 
-    // BFS with depth limit to find connected nodes up to maxDepth
+    if (visualizationMode === "sunburst" && layoutRef.current) {
+      for (const path of layoutRef.current.paths) {
+        if (!adjacency.has(path.sourceId)) adjacency.set(path.sourceId, new Set());
+        if (!adjacency.has(path.targetId)) adjacency.set(path.targetId, new Set());
+        adjacency.get(path.sourceId)!.add(path.targetId);
+        adjacency.get(path.targetId)!.add(path.sourceId);
+      }
+    } else {
+      // DAG mode - use capEdges + toolEdges
+      for (const edge of capEdgesRef.current) {
+        if (!adjacency.has(edge.source)) adjacency.set(edge.source, new Set());
+        if (!adjacency.has(edge.target)) adjacency.set(edge.target, new Set());
+        adjacency.get(edge.source)!.add(edge.target);
+        adjacency.get(edge.target)!.add(edge.source);
+      }
+      for (const edge of toolEdgesRef.current) {
+        if (!adjacency.has(edge.source)) adjacency.set(edge.source, new Set());
+        if (!adjacency.has(edge.target)) adjacency.set(edge.target, new Set());
+        adjacency.get(edge.source)!.add(edge.target);
+        adjacency.get(edge.target)!.add(edge.source);
+      }
+      // Also add cap->tool containment edges
+      if (hierarchyRef.current) {
+        for (const cap of hierarchyRef.current.children) {
+          for (const tool of cap.children) {
+            if (!adjacency.has(cap.id)) adjacency.set(cap.id, new Set());
+            if (!adjacency.has(tool.id)) adjacency.set(tool.id, new Set());
+            adjacency.get(cap.id)!.add(tool.id);
+            adjacency.get(tool.id)!.add(cap.id);
+          }
+        }
+      }
+    }
+    return adjacency;
+  }, [visualizationMode]);
+
+  /**
+   * Get connected nodes using BFS with depth limit
+   */
+  const getConnectedNodes = useCallback((nodeId: string, maxDepth: number = highlightDepth) => {
+    const adjacency = buildAdjacencyMap();
     const connected = new Set<string>([nodeId]);
     const queue: Array<{ id: string; depth: number }> = [{ id: nodeId, depth: 0 }];
 
     while (queue.length > 0) {
       const { id: current, depth } = queue.shift()!;
-
-      // Stop if we've reached max depth
       if (depth >= maxDepth) continue;
 
       const neighbors = adjacency.get(current);
@@ -1158,41 +1149,116 @@ export default function D3GraphVisualization({
         }
       }
     }
+    return connected;
+  }, [buildAdjacencyMap, highlightDepth]);
 
-    // Dim non-connected nodes
-    graph.nodeLayer
-      .selectAll(".cap-node, .tool-node")
-      .transition()
-      .duration(200)
-      .attr("opacity", (d: PositionedNode) => (connected.has(d.id) ? 1 : 0.2));
-
-    // Highlight edges that connect nodes in the stack
-    graph.edgeLayer
-      .selectAll(".edge")
-      .transition()
-      .duration(200)
-      .attr("stroke-opacity", (d: BundledPath) => {
-        const inStack = connected.has(d.sourceId) && connected.has(d.targetId);
-        return inStack ? 0.9 : 0.05;
-      })
-      .attr("stroke-width", (d: BundledPath) => {
-        const inStack = connected.has(d.sourceId) && connected.has(d.targetId);
-        return inStack ? 3 : 1;
-      });
-  };
-
-  const clearHighlight = () => {
+  /**
+   * Apply highlight to nodes and edges (works for both modes)
+   */
+  const applyHighlight = useCallback((nodeId: string | null, isHover: boolean = false) => {
     const graph = (window as any).__radialGraph;
     if (!graph) return;
 
-    graph.nodeLayer
-      .selectAll(".cap-node, .tool-node")
-      .transition()
-      .duration(200)
-      .attr("opacity", 1);
+    // @ts-ignore
+    const d3 = globalThis.d3;
+    const duration = isHover ? 100 : 200;
 
-    resetEdgeHighlight();
-  };
+    // Node and edge selectors depend on mode
+    const nodeSelector = visualizationMode === "sunburst"
+      ? ".cap-node, .tool-node"
+      : ".dag-node";
+    const edgeSelector = visualizationMode === "sunburst" ? ".edge" : ".dag-edge";
+
+    if (!nodeId) {
+      // Reset all to default
+      graph.nodeLayer.selectAll(nodeSelector)
+        .transition().duration(duration)
+        .attr("opacity", 1);
+
+      if (visualizationMode === "sunburst") {
+        graph.edgeLayer.selectAll(edgeSelector)
+          .transition().duration(duration)
+          .attr("stroke-opacity", (d: BundledPath) => getRadialEdgeOpacity(d.edgeType))
+          .attr("stroke-width", 1.5);
+      } else {
+        graph.edgeLayer.selectAll(edgeSelector)
+          .transition().duration(duration)
+          .attr("stroke-opacity", 0.4)
+          .attr("stroke-width", 1.5);
+      }
+      return;
+    }
+
+    const connected = getConnectedNodes(nodeId);
+
+    // Dim non-connected nodes
+    graph.nodeLayer.selectAll(nodeSelector)
+      .transition().duration(duration)
+      .attr("opacity", (d: any) => {
+        const id = d.id || d.data?.id;
+        return connected.has(id) ? 1 : 0.2;
+      });
+
+    // Highlight connected edges
+    if (visualizationMode === "sunburst") {
+      graph.edgeLayer.selectAll(edgeSelector)
+        .transition().duration(duration)
+        .attr("stroke-opacity", (d: BundledPath) => {
+          const inStack = connected.has(d.sourceId) && connected.has(d.targetId);
+          return inStack ? 0.9 : 0.05;
+        })
+        .attr("stroke-width", (d: BundledPath) => {
+          const inStack = connected.has(d.sourceId) && connected.has(d.targetId);
+          return inStack ? (isHover ? 2.5 : 3) : 1;
+        });
+    } else {
+      graph.edgeLayer.selectAll(edgeSelector)
+        .transition().duration(duration)
+        .attr("stroke-opacity", (d: SimulationLink) => {
+          const srcId = typeof d.source === 'string' ? d.source : (d.source as SimulationNode).id;
+          const tgtId = typeof d.target === 'string' ? d.target : (d.target as SimulationNode).id;
+          const inStack = connected.has(srcId) && connected.has(tgtId);
+          return inStack ? 0.9 : 0.05;
+        })
+        .attr("stroke-width", (d: SimulationLink) => {
+          const srcId = typeof d.source === 'string' ? d.source : (d.source as SimulationNode).id;
+          const tgtId = typeof d.target === 'string' ? d.target : (d.target as SimulationNode).id;
+          const inStack = connected.has(srcId) && connected.has(tgtId);
+          return inStack ? (isHover ? 2.5 : 3) : 1;
+        });
+    }
+  }, [visualizationMode, getConnectedNodes]);
+
+  /**
+   * Handle node selection (click)
+   */
+  const handleNodeSelect = useCallback((nodeId: string | null) => {
+    setSelectedNodeId(nodeId);
+    applyHighlight(nodeId, false);
+  }, [applyHighlight]);
+
+  /**
+   * Handle node hover (mouseenter/mouseleave)
+   */
+  const handleNodeHover = useCallback((nodeId: string | null) => {
+    // If there's a selection, don't override it on hover
+    if (selectedNodeId && !nodeId) {
+      // Mouse left, restore selection highlight
+      applyHighlight(selectedNodeId, false);
+    } else if (nodeId) {
+      // Mouse entered a node
+      applyHighlight(nodeId, true);
+    } else {
+      // No selection, no hover - reset all
+      applyHighlight(null);
+    }
+  }, [selectedNodeId, applyHighlight]);
+
+  // Legacy wrappers for backward compatibility
+  const highlightConnectedEdges = (nodeId: string) => handleNodeHover(nodeId);
+  const resetEdgeHighlight = () => handleNodeHover(null);
+  const highlightNode = (nodeId: string, _layout?: RadialLayoutResult) => handleNodeSelect(nodeId);
+  const clearHighlight = () => handleNodeSelect(null);
 
   // ───────────────────────────────────────────────────────────────────────────
   // Tension Control (re-render is automatic via useEffect)
