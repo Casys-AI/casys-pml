@@ -11,6 +11,9 @@ import Divider from "../atoms/Divider.tsx";
 import Slider from "../atoms/Slider.tsx";
 import LegendItem from "./LegendItem.tsx";
 
+/** Edge type identifiers matching radial-heb-layout.ts */
+export type EdgeType = "hierarchy" | "hyperedge" | "capability_link" | "tool_sequence";
+
 interface GraphLegendPanelProps {
   servers: Set<string>;
   hiddenServers: Set<string>;
@@ -26,6 +29,9 @@ interface GraphLegendPanelProps {
   // Highlight depth control
   highlightDepth?: number;
   onHighlightDepthChange?: (d: number) => void;
+  // Edge type visibility toggles
+  hiddenEdgeTypes?: Set<EdgeType>;
+  onToggleEdgeType?: (edgeType: EdgeType) => void;
   // Legacy FDEB controls (deprecated)
   straightening?: number;
   onStraighteningChange?: (s: number) => void;
@@ -51,6 +57,9 @@ export default function GraphLegendPanel({
   // Highlight depth
   highlightDepth = 1,
   onHighlightDepthChange,
+  // Edge type toggles
+  hiddenEdgeTypes = new Set(),
+  onToggleEdgeType,
   // Legacy FDEB (deprecated)
   straightening = 0,
   onStraighteningChange,
@@ -97,10 +106,34 @@ export default function GraphLegendPanel({
       >
         Edge Types
       </h3>
-      <LegendItem label="Contains (cap→tool)" color="#888888" lineStyle="solid" />
-      <LegendItem label="Hyperedge (multi-parent)" color="#f59e0b" lineStyle="solid" />
-      <LegendItem label="Capability link (cap↔cap)" color="#3b82f6" lineStyle="solid" />
-      <LegendItem label="Sequence (tool→tool)" color="#10b981" lineStyle="solid" />
+      <LegendItem
+        label="Contains (cap→tool)"
+        color="#888888"
+        lineStyle="solid"
+        active={!hiddenEdgeTypes.has("hierarchy")}
+        onClick={onToggleEdgeType ? () => onToggleEdgeType("hierarchy") : undefined}
+      />
+      <LegendItem
+        label="Hyperedge (multi-parent)"
+        color="#f59e0b"
+        lineStyle="solid"
+        active={!hiddenEdgeTypes.has("hyperedge")}
+        onClick={onToggleEdgeType ? () => onToggleEdgeType("hyperedge") : undefined}
+      />
+      <LegendItem
+        label="Capability link (cap↔cap)"
+        color="#3b82f6"
+        lineStyle="solid"
+        active={!hiddenEdgeTypes.has("capability_link")}
+        onClick={onToggleEdgeType ? () => onToggleEdgeType("capability_link") : undefined}
+      />
+      <LegendItem
+        label="Sequence (tool→tool)"
+        color="#10b981"
+        lineStyle="solid"
+        active={!hiddenEdgeTypes.has("tool_sequence")}
+        onClick={onToggleEdgeType ? () => onToggleEdgeType("tool_sequence") : undefined}
+      />
 
       <Divider />
 

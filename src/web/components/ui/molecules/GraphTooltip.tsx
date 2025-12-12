@@ -19,25 +19,68 @@ export default function GraphTooltip({
   y,
   serverColor,
 }: GraphTooltipProps): JSX.Element {
+  const parentCount = data.parents?.length ?? 0;
+  const isHyperedge = parentCount > 1;
+
   return (
     <div
-      class="absolute py-2 px-3 rounded-lg text-xs pointer-events-none z-[1000] whitespace-nowrap"
+      class="absolute py-2.5 px-3.5 rounded-lg text-xs pointer-events-none z-[1000]"
       style={{
         left: `${x}px`,
         top: `${y}px`,
         transform: "translate(-50%, -100%)",
-        background: "rgba(18, 17, 15, 0.95)",
-        border: "1px solid rgba(255, 184, 111, 0.2)",
-        backdropFilter: "blur(8px)",
+        background: "rgba(18, 17, 15, 0.97)",
+        border: "1px solid rgba(255, 184, 111, 0.25)",
+        backdropFilter: "blur(12px)",
+        boxShadow: "0 4px 20px rgba(0, 0, 0, 0.4)",
+        minWidth: "180px",
       }}
     >
-      <div class="font-semibold mb-1" style={{ color: serverColor }}>
-        {data.label}
+      {/* Header: Tool name + server badge */}
+      <div class="flex items-center gap-2 mb-2">
+        <span class="font-bold text-sm" style={{ color: "#fff" }}>
+          {data.label}
+        </span>
+        {isHyperedge && (
+          <span
+            class="px-1.5 py-0.5 rounded text-[9px] font-medium"
+            style={{ background: "#f59e0b", color: "#000" }}
+          >
+            HYPER
+          </span>
+        )}
       </div>
-      <div style={{ color: "#8a8078" }}>
-        <span class="mr-3">Server: {data.server}</span>
-        <span class="mr-3">PR: {data.pagerank.toFixed(3)}</span>
-        <span>Deg: {data.degree}</span>
+
+      {/* Server with color indicator */}
+      <div class="flex items-center gap-2 mb-1.5">
+        <div
+          class="w-2.5 h-2.5 rounded-full flex-shrink-0"
+          style={{ background: serverColor }}
+        />
+        <span style={{ color: "#d5c3b5" }}>{data.server}</span>
+      </div>
+
+      {/* Metrics grid */}
+      <div
+        class="grid grid-cols-2 gap-x-4 gap-y-1 pt-1.5 mt-1.5"
+        style={{ borderTop: "1px solid rgba(255, 255, 255, 0.1)" }}
+      >
+        <div class="flex justify-between">
+          <span style={{ color: "#6b6560" }}>PageRank</span>
+          <span style={{ color: "#ffb86f" }}>{data.pagerank.toFixed(3)}</span>
+        </div>
+        <div class="flex justify-between">
+          <span style={{ color: "#6b6560" }}>Degree</span>
+          <span style={{ color: "#d5c3b5" }}>{data.degree}</span>
+        </div>
+        {parentCount > 0 && (
+          <div class="flex justify-between col-span-2">
+            <span style={{ color: "#6b6560" }}>Capabilities</span>
+            <span style={{ color: isHyperedge ? "#f59e0b" : "#d5c3b5" }}>
+              {parentCount}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

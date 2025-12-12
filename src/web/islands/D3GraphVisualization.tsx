@@ -10,7 +10,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { type GraphNodeData } from "../components/ui/mod.ts";
-import { GraphLegendPanel, GraphTooltip } from "../components/ui/mod.ts";
+import { GraphLegendPanel, type EdgeType, GraphTooltip } from "../components/ui/mod.ts";
 import {
   buildHierarchy,
   type BundledPath,
@@ -118,6 +118,7 @@ export default function D3GraphVisualization({
   // HEB Controls
   const [tension, setTension] = useState(0.85); // Holten default
   const [highlightDepth, setHighlightDepth] = useState(1); // 1 = direct connections only, Infinity = full stack
+  const [hiddenEdgeTypes, setHiddenEdgeTypes] = useState<Set<EdgeType>>(new Set());
 
   // Server colors
   const serverColorsRef = useRef<Map<string, string>>(new Map());
@@ -393,7 +394,8 @@ export default function D3GraphVisualization({
       // Filter out any nodes with undefined positions
       const validCaps = layout.capabilities.filter((d) => d && d.x !== undefined && d.y !== undefined);
       const validTools = layout.tools.filter((d) => d && d.x !== undefined && d.y !== undefined);
-      const validPaths = layout.paths.filter((d) => d && d.pathD);
+      // Filter paths by edge type visibility
+      const validPaths = layout.paths.filter((d) => d && d.pathD && !hiddenEdgeTypes.has(d.edgeType as EdgeType));
 
       console.log("[RadialHEB] Rendering:", validCaps.length, "caps,", validTools.length, "tools,", validPaths.length, "paths");
 
@@ -426,7 +428,11 @@ export default function D3GraphVisualization({
         .attr("r", (d: PositionedNode) => {
           if (!d) return 8;
           const cap = d.data as any;
-          return 8 + (cap?.usageCount || 0) * 0.5; // Size by usage
+          // Combine pagerank and usage for sizing
+          const pagerank = cap?.pagerank || 0;
+          const usage = cap?.usageCount || 0;
+          // Base 8 + pagerank contribution (0-12) + usage contribution (0-5)
+          return 8 + Math.min(pagerank * 40, 12) + Math.min(usage * 0.3, 5);
         })
         .attr("fill", "#8b5cf6") // Purple for capabilities
         .attr("stroke", "#fff")
@@ -462,7 +468,12 @@ export default function D3GraphVisualization({
         .attr("r", (d: PositionedNode) => {
           if (!d || !d.data) return 4;
           const tool = d.data as any;
-          return 4 + (tool.pagerank || 0) * 20;
+          const pagerank = tool.pagerank || 0;
+          const parentCount = tool.parentCapabilities?.length || 0;
+          // Base 4 + pagerank (0-10) + hypergraph centrality bonus (0-6)
+          // Tools in multiple capabilities are more central in the hypergraph
+          const hypergraphBonus = Math.min(parentCount * 2, 6);
+          return 4 + Math.min(pagerank * 25, 10) + hypergraphBonus;
         })
         .attr("fill", (d: PositionedNode) => {
           if (!d || !d.data) return "#888";
@@ -543,6 +554,7 @@ export default function D3GraphVisualization({
                 server: tool.server || "unknown",
                 pagerank: tool.pagerank || 0,
                 degree: tool.degree || 0,
+                parents: tool.parentCapabilities || [],
               },
             });
           }
@@ -553,7 +565,7 @@ export default function D3GraphVisualization({
           resetEdgeHighlight();
         });
     },
-    [getServerColor, onCapabilitySelect, onToolSelect],
+    [getServerColor, onCapabilitySelect, onToolSelect, hiddenEdgeTypes],
   );
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -708,6 +720,18 @@ export default function D3GraphVisualization({
     // TODO: Filter and re-render
   };
 
+  const toggleEdgeType = useCallback((edgeType: EdgeType) => {
+    setHiddenEdgeTypes((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(edgeType)) {
+        newSet.delete(edgeType);
+      } else {
+        newSet.add(edgeType);
+      }
+      return newSet;
+    });
+  }, []);
+
   const toggleOrphanNodes = () => {
     setShowOrphanNodes(!showOrphanNodes);
     // TODO: Re-load with orphans included/excluded
@@ -745,6 +769,16 @@ export default function D3GraphVisualization({
       clearHighlight();
     }
   }, [highlightedNodeId]);
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Effect: Re-render on edge type visibility change
+  // ───────────────────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (layoutRef.current) {
+      renderGraph(layoutRef.current);
+    }
+  }, [hiddenEdgeTypes, renderGraph]);
 
   // ───────────────────────────────────────────────────────────────────────────
   // Render
@@ -799,6 +833,9 @@ export default function D3GraphVisualization({
         // Highlight depth control
         highlightDepth={highlightDepth === Infinity ? 10 : highlightDepth}
         onHighlightDepthChange={setHighlightDepth}
+        // Edge type visibility toggles
+        hiddenEdgeTypes={hiddenEdgeTypes}
+        onToggleEdgeType={toggleEdgeType}
       />
 
       {/* Tool Tooltip */}
