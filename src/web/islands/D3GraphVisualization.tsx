@@ -490,10 +490,38 @@ export default function D3GraphVisualization({
       // ─── Render Tool Nodes (outer circle - ARC segments) ───
       const toolCount = validTools.length;
       const toolPadding = 0.02; // Gap between arcs in radians
-      const toolArcAngle = (totalAngle - toolPadding * toolCount) / toolCount;
+      const serverGap = 0.06; // Larger gap between server groups
 
-      // Sort tools by angle for consistent arc placement
-      const sortedTools = [...validTools].sort((a, b) => (a.x || 0) - (b.x || 0));
+      // Group tools by server, then sort within each group
+      const toolsByServer = new Map<string, PositionedNode[]>();
+      for (const tool of validTools) {
+        const server = (tool.data as any)?.server || "unknown";
+        if (!toolsByServer.has(server)) toolsByServer.set(server, []);
+        toolsByServer.get(server)!.push(tool);
+      }
+
+      // Sort servers alphabetically, then flatten with server gaps
+      const serverNames = [...toolsByServer.keys()].sort();
+      const sortedTools: PositionedNode[] = [];
+      for (const server of serverNames) {
+        const tools = toolsByServer.get(server)!;
+        // Sort tools within server by name
+        tools.sort((a, b) => a.name.localeCompare(b.name));
+        sortedTools.push(...tools);
+      }
+
+      // Calculate arc angle accounting for server gaps
+      const numServerGaps = serverNames.length > 1 ? serverNames.length : 0;
+      const availableAngle = totalAngle - toolPadding * toolCount - serverGap * numServerGaps;
+      const toolArcAngle = availableAngle / toolCount;
+
+      // Build server start indices for gap insertion
+      const serverStartIdx = new Map<string, number>();
+      let idx = 0;
+      for (const server of serverNames) {
+        serverStartIdx.set(server, idx);
+        idx += toolsByServer.get(server)!.length;
+      }
 
       const toolNodes = nodeLayer
         .selectAll(".tool-node")
@@ -515,8 +543,12 @@ export default function D3GraphVisualization({
           const innerR = (d.y || 200) - thickness / 2;
           const outerR = (d.y || 200) + thickness / 2;
 
-          // Calculate start/end angles for this arc
-          const startAngle = i * (toolArcAngle + toolPadding) - Math.PI / 2;
+          // Calculate start/end angles for this arc (with server gaps)
+          const server = tool.server || "unknown";
+          const serverIdx = serverNames.indexOf(server);
+          const gapsBefore = serverIdx; // Number of server gaps before this tool's server
+          const baseAngle = i * (toolArcAngle + toolPadding) + gapsBefore * serverGap;
+          const startAngle = baseAngle - Math.PI / 2;
           const endAngle = startAngle + toolArcAngle;
 
           return arcGenerator({
@@ -537,8 +569,12 @@ export default function D3GraphVisualization({
       // ─── Render Labels (outer, radial - aligned with arc centers) ───
       sortedTools.forEach((d, i) => {
         if (!d || d.y === undefined) return;
-        // Calculate center angle of this arc
-        const arcCenterAngle = i * (toolArcAngle + toolPadding) + toolArcAngle / 2;
+        const tool = d.data as any;
+        const server = tool?.server || "unknown";
+        const serverIdx = serverNames.indexOf(server);
+        const gapsBefore = serverIdx;
+        // Calculate center angle of this arc (with server gaps)
+        const arcCenterAngle = i * (toolArcAngle + toolPadding) + gapsBefore * serverGap + toolArcAngle / 2;
         const labelRadius = (d.y || 200) + 14;
         const x = labelRadius * Math.cos(arcCenterAngle - Math.PI / 2);
         const y = labelRadius * Math.sin(arcCenterAngle - Math.PI / 2);
