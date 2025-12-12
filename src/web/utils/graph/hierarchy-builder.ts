@@ -32,6 +32,8 @@ export interface CapabilityNodeData extends HierarchyNodeData {
   successRate: number;
   usageCount: number;
   codeSnippet?: string;
+  /** Spectral/Louvain community cluster ID */
+  communityId?: number;
   children: ToolNodeData[];
 }
 
@@ -100,6 +102,8 @@ interface ApiNode {
     success_rate?: number;
     usage_count?: number;
     code_snippet?: string;
+    /** Spectral/Louvain community cluster ID */
+    community_id?: number;
   };
 }
 
@@ -149,6 +153,7 @@ export function buildHierarchy(response: HypergraphApiResponse): HierarchyBuildR
         successRate: node.data.success_rate ?? 0,
         usageCount: node.data.usage_count ?? 0,
         codeSnippet: node.data.code_snippet,
+        communityId: node.data.community_id,
         children: [],
       });
     }

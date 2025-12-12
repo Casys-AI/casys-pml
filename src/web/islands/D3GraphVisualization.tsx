@@ -47,6 +47,8 @@ export interface CapabilityData {
   toolsCount: number;
   codeSnippet?: string;
   toolIds?: string[];
+  /** Spectral/Louvain community cluster ID */
+  communityId?: number;
 }
 
 export interface ToolData {
@@ -288,6 +290,7 @@ export default function D3GraphVisualization({
         toolsCount: cap.children.length,
         codeSnippet: cap.codeSnippet,
         toolIds: cap.children.map((t) => t.id),
+        communityId: cap.communityId,
       });
 
       for (const tool of cap.children) {
@@ -320,6 +323,7 @@ export default function D3GraphVisualization({
         toolsCount: 0,
         codeSnippet: cap.codeSnippet,
         toolIds: [],
+        communityId: cap.communityId,
       });
     }
 
@@ -420,11 +424,45 @@ export default function D3GraphVisualization({
 
       // ─── Render Capability Nodes (inner circle - ARC segments) ───
       const capCount = validCaps.length;
-      const capPadding = 0.03; // Slightly larger gap for caps
-      const capArcAngle = (totalAngle - capPadding * capCount) / capCount;
+      const capPadding = 0.02; // Gap between caps in same cluster
+      const clusterGap = 0.08; // Larger gap between spectral clusters
 
-      // Sort caps by angle
-      const sortedCaps = [...validCaps].sort((a, b) => (a.x || 0) - (b.x || 0));
+      // Sort caps by: 1) communityId, 2) successRate (desc), 3) name (alpha)
+      const sortedCaps = [...validCaps].sort((a, b) => {
+        const capA = a.data as any;
+        const capB = b.data as any;
+        // 1. Group by communityId (nulls go last)
+        const commA = capA?.communityId ?? Infinity;
+        const commB = capB?.communityId ?? Infinity;
+        if (commA !== commB) return commA - commB;
+        // 2. Within cluster, sort by successRate descending
+        const srA = capA?.successRate ?? 0;
+        const srB = capB?.successRate ?? 0;
+        if (srA !== srB) return srB - srA;
+        // 3. Alphabetical by name
+        return a.name.localeCompare(b.name);
+      });
+
+      // Group by cluster to calculate gaps
+      const capsByCommunity = new Map<number, PositionedNode[]>();
+      for (const cap of sortedCaps) {
+        const comm = (cap.data as any)?.communityId ?? -1;
+        if (!capsByCommunity.has(comm)) capsByCommunity.set(comm, []);
+        capsByCommunity.get(comm)!.push(cap);
+      }
+
+      const communityIds = [...capsByCommunity.keys()].sort((a, b) => a - b);
+      const numClusterGaps = communityIds.length > 1 ? communityIds.length : 0;
+      const availableCapAngle = totalAngle - capPadding * capCount - clusterGap * numClusterGaps;
+      const capArcAngle = availableCapAngle / capCount;
+
+      // Build community start indices for gap insertion
+      const communityStartIdx = new Map<number, number>();
+      let capIdx = 0;
+      for (const comm of communityIds) {
+        communityStartIdx.set(comm, capIdx);
+        capIdx += capsByCommunity.get(comm)!.length;
+      }
 
       const capNodes = nodeLayer
         .selectAll(".cap-node")
@@ -447,7 +485,12 @@ export default function D3GraphVisualization({
           const innerR = (d.y || 100) - thickness / 2;
           const outerR = (d.y || 100) + thickness / 2;
 
-          const startAngle = i * (capArcAngle + capPadding) - Math.PI / 2;
+          // Calculate start/end angles with cluster gaps
+          const comm = cap?.communityId ?? -1;
+          const commIdx = communityIds.indexOf(comm);
+          const gapsBefore = commIdx >= 0 ? commIdx : communityIds.length;
+          const baseAngle = i * (capArcAngle + capPadding) + gapsBefore * clusterGap;
+          const startAngle = baseAngle - Math.PI / 2;
           const endAngle = startAngle + capArcAngle;
 
           return arcGenerator({
@@ -464,7 +507,11 @@ export default function D3GraphVisualization({
       // Capability labels (on arc)
       sortedCaps.forEach((d, i) => {
         if (!d || d.y === undefined) return;
-        const capCenterAngle = i * (capArcAngle + capPadding) + capArcAngle / 2;
+        const cap = d.data as any;
+        const comm = cap?.communityId ?? -1;
+        const commIdx = communityIds.indexOf(comm);
+        const gapsBefore = commIdx >= 0 ? commIdx : communityIds.length;
+        const capCenterAngle = i * (capArcAngle + capPadding) + gapsBefore * clusterGap + capArcAngle / 2;
         const labelRadius = d.y || 100;
         const x = labelRadius * Math.cos(capCenterAngle - Math.PI / 2);
         const y = labelRadius * Math.sin(capCenterAngle - Math.PI / 2);
@@ -962,6 +1009,9 @@ export default function D3GraphVisualization({
             <div class="text-xs text-gray-400">
               {capabilityTooltip.data.toolsCount} tools •{" "}
               {Math.round(capabilityTooltip.data.successRate * 100)}% success
+              {capabilityTooltip.data.communityId !== undefined && (
+                <> • C{capabilityTooltip.data.communityId}</>
+              )}
             </div>
           </div>
         </div>
