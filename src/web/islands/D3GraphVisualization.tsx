@@ -117,6 +117,7 @@ export default function D3GraphVisualization({
 
   // HEB Controls
   const [tension, setTension] = useState(0.85); // Holten default
+  const [highlightDepth, setHighlightDepth] = useState(1); // 1 = direct connections only, Infinity = full stack
 
   // Server colors
   const serverColorsRef = useRef<Map<string, string>>(new Map());
@@ -587,7 +588,7 @@ export default function D3GraphVisualization({
       .attr("stroke-width", 1.5);
   };
 
-  const highlightNode = (nodeId: string, layout: RadialLayoutResult) => {
+  const highlightNode = (nodeId: string, layout: RadialLayoutResult, maxDepth: number = highlightDepth) => {
     const graph = (window as any).__radialGraph;
     if (!graph) return;
 
@@ -600,17 +601,22 @@ export default function D3GraphVisualization({
       adjacency.get(path.targetId)!.add(path.sourceId);
     }
 
-    // BFS to find all transitively connected nodes (full stack)
+    // BFS with depth limit to find connected nodes up to maxDepth
     const connected = new Set<string>([nodeId]);
-    const queue = [nodeId];
+    const queue: Array<{ id: string; depth: number }> = [{ id: nodeId, depth: 0 }];
+
     while (queue.length > 0) {
-      const current = queue.shift()!;
+      const { id: current, depth } = queue.shift()!;
+
+      // Stop if we've reached max depth
+      if (depth >= maxDepth) continue;
+
       const neighbors = adjacency.get(current);
       if (neighbors) {
         for (const neighbor of neighbors) {
           if (!connected.has(neighbor)) {
             connected.add(neighbor);
-            queue.push(neighbor);
+            queue.push({ id: neighbor, depth: depth + 1 });
           }
         }
       }
@@ -790,6 +796,9 @@ export default function D3GraphVisualization({
         // HEB tension control (replaces straightening/smoothing)
         tension={tension}
         onTensionChange={handleTensionChange}
+        // Highlight depth control
+        highlightDepth={highlightDepth === Infinity ? 10 : highlightDepth}
+        onHighlightDepthChange={setHighlightDepth}
       />
 
       {/* Tool Tooltip */}

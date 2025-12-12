@@ -23,6 +23,9 @@ interface GraphLegendPanelProps {
   // HEB tension control (Holten 2006)
   tension?: number;
   onTensionChange?: (t: number) => void;
+  // Highlight depth control
+  highlightDepth?: number;
+  onHighlightDepthChange?: (d: number) => void;
   // Legacy FDEB controls (deprecated)
   straightening?: number;
   onStraighteningChange?: (s: number) => void;
@@ -45,6 +48,9 @@ export default function GraphLegendPanel({
   // HEB tension
   tension = 0.85,
   onTensionChange,
+  // Highlight depth
+  highlightDepth = 1,
+  onHighlightDepthChange,
   // Legacy FDEB (deprecated)
   straightening = 0,
   onStraighteningChange,
@@ -147,6 +153,35 @@ export default function GraphLegendPanel({
             <div class="flex justify-between text-[10px] mt-1" style={{ color: "var(--text-dim)" }}>
               <span>Bundled</span>
               <span>Straight</span>
+            </div>
+          </div>
+
+          <Divider />
+        </>
+      )}
+
+      {/* Highlight Depth Control */}
+      {onHighlightDepthChange && (
+        <>
+          <h3
+            class="text-xs font-semibold uppercase tracking-widest mb-3"
+            style={{ color: "var(--text-dim)" }}
+          >
+            Highlight Depth
+          </h3>
+
+          <div class="mb-3">
+            <Slider
+              value={highlightDepth}
+              min={1}
+              max={10}
+              step={1}
+              label={highlightDepth >= 10 ? "∞" : String(highlightDepth)}
+              onChange={(v) => onHighlightDepthChange(v >= 10 ? Infinity : v)}
+            />
+            <div class="flex justify-between text-[10px] mt-1" style={{ color: "var(--text-dim)" }}>
+              <span>Direct (1)</span>
+              <span>Full stack (∞)</span>
             </div>
           </div>
 
