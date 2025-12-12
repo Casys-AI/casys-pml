@@ -453,47 +453,79 @@ export default function D3GraphVisualization({
           return label.length > 8 ? label.slice(0, 6) + ".." : label;
         });
 
-      // ─── Render Tool Nodes (outer circle) ───
+      // ─── Render Tool Nodes (outer circle - ARC segments) ───
+      // Calculate angular padding between arcs
+      const toolCount = validTools.length;
+      const totalAngle = 2 * Math.PI;
+      const padding = 0.02; // Gap between arcs in radians
+      const arcAngle = (totalAngle - padding * toolCount) / toolCount;
+
+      // Sort tools by angle for consistent arc placement
+      const sortedTools = [...validTools].sort((a, b) => (a.x || 0) - (b.x || 0));
+
+      // Create arc generator
+      // @ts-ignore - D3 loaded from CDN
+      const arcGenerator = d3.arc();
+
       const toolNodes = nodeLayer
         .selectAll(".tool-node")
-        .data(validTools, (d: PositionedNode | undefined) => d?.id ?? "")
+        .data(sortedTools, (d: PositionedNode | undefined) => d?.id ?? "")
         .enter()
         .append("g")
         .attr("class", "tool-node")
-        .attr("transform", (d: PositionedNode) => d ? `translate(${d.cartX},${d.cartY})` : "")
+        .attr("transform", `translate(${center.x},${center.y})`)
         .style("cursor", "pointer");
 
       toolNodes
-        .append("circle")
-        .attr("r", (d: PositionedNode) => {
-          if (!d || !d.data) return 4;
+        .append("path")
+        .attr("d", (d: PositionedNode, i: number) => {
+          if (!d || !d.data) return "";
           const tool = d.data as any;
           const pagerank = tool.pagerank || 0;
-          // Base 4 + pagerank contribution (0-12)
-          return 4 + Math.min(pagerank * 30, 12);
+          // Arc thickness based on pagerank (6-16px)
+          const thickness = 6 + Math.min(pagerank * 25, 10);
+          const innerR = (d.y || 200) - thickness / 2;
+          const outerR = (d.y || 200) + thickness / 2;
+
+          // Calculate start/end angles for this arc
+          const startAngle = i * (arcAngle + padding) - Math.PI / 2;
+          const endAngle = startAngle + arcAngle;
+
+          return arcGenerator({
+            innerRadius: innerR,
+            outerRadius: outerR,
+            startAngle: startAngle,
+            endAngle: endAngle,
+          });
         })
         .attr("fill", (d: PositionedNode) => {
           if (!d || !d.data) return "#888";
           const tool = d.data as any;
           return getServerColor(tool.server || "unknown");
         })
-        .attr("stroke", "rgba(255,255,255,0.3)")
+        .attr("stroke", "rgba(0,0,0,0.3)")
         .attr("stroke-width", 1);
 
-      // ─── Render Labels (outer, radial) ───
-      validTools.forEach((d) => {
-        if (!d || d.x === undefined) return;
-        const { rotate, anchor } = getLabelRotation(d.x);
-        const labelRadius = d.y + 12;
-        const angle = d.x - Math.PI / 2;
-        const x = center.x + labelRadius * Math.cos(angle);
-        const y = center.y + labelRadius * Math.sin(angle);
-        const label = d.name.length > 15 ? d.name.slice(0, 13) + ".." : d.name;
+      // ─── Render Labels (outer, radial - aligned with arc centers) ───
+      sortedTools.forEach((d, i) => {
+        if (!d || d.y === undefined) return;
+        // Calculate center angle of this arc
+        const arcCenterAngle = i * (arcAngle + padding) + arcAngle / 2;
+        const labelRadius = (d.y || 200) + 14;
+        const x = labelRadius * Math.cos(arcCenterAngle - Math.PI / 2);
+        const y = labelRadius * Math.sin(arcCenterAngle - Math.PI / 2);
+
+        // Rotation for readability
+        let rotateDeg = (arcCenterAngle * 180) / Math.PI - 90;
+        const anchor = rotateDeg > 90 && rotateDeg < 270 ? "end" : "start";
+        if (rotateDeg > 90 && rotateDeg < 270) rotateDeg += 180;
+
+        const label = d.name.length > 12 ? d.name.slice(0, 10) + ".." : d.name;
 
         labelLayer
           .append("text")
           .attr("class", "tool-label")
-          .attr("transform", `translate(${x},${y}) rotate(${rotate})`)
+          .attr("transform", `translate(${center.x + x},${center.y + y}) rotate(${rotateDeg})`)
           .attr("text-anchor", anchor)
           .attr("dominant-baseline", "middle")
           .attr("fill", "#d5c3b5")
