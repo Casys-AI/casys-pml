@@ -27,6 +27,7 @@ import { CapabilityMatcher } from "../../capabilities/matcher.ts";
 import { CapabilityStore } from "../../capabilities/capability-store.ts";
 import { SchemaInferrer } from "../../capabilities/schema-inferrer.ts";
 import { AdaptiveThresholdManager } from "../../mcp/adaptive-threshold.ts";
+import { AlgorithmTracer } from "../../telemetry/algorithm-tracer.ts";
 
 /**
  * Find and validate config file
@@ -228,6 +229,12 @@ export function createServeCommand() {
         const capabilityMatcher = new CapabilityMatcher(capabilityStore, adaptiveThresholdManager);
 
         const dagSuggester = new DAGSuggester(graphEngine, vectorSearch, capabilityMatcher);
+
+        // Story 7.6: Wire AlgorithmTracer for observability (ADR-039)
+        const algorithmTracer = new AlgorithmTracer(db);
+        capabilityMatcher.setAlgorithmTracer(algorithmTracer);
+        dagSuggester.setAlgorithmTracer(algorithmTracer);
+        log.info("✓ Algorithm tracing enabled");
 
         // Create tool executor with tracking callback (Story 3.7)
         // Gateway reference will be set after gateway is created
