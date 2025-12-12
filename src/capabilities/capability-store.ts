@@ -218,16 +218,22 @@ export class CapabilityStore {
     // Story 8.3: Emit zone events for hypergraph incremental updates
     if (isNew) {
       // New capability = new zone
+      const zonePayload = {
+        capabilityId: `cap-${capability.id}`,
+        label: capabilityName,
+        toolIds: capabilityTools,
+        successRate: capability.successRate,
+        usageCount: capability.usageCount,
+      };
+      logger.info("[SSE-DEBUG] Emitting capability.zone.created", {
+        capabilityId: zonePayload.capabilityId,
+        label: zonePayload.label,
+        toolCount: zonePayload.toolIds.length,
+      });
       eventBus.emit({
         type: "capability.zone.created",
         source: "capability-store",
-        payload: {
-          capabilityId: `cap-${capability.id}`,
-          label: capabilityName,
-          toolIds: capabilityTools,
-          successRate: capability.successRate,
-          usageCount: capability.usageCount,
-        },
+        payload: zonePayload,
       });
     } else {
       // Existing capability updated = zone metadata update
@@ -282,6 +288,8 @@ export class CapabilityStore {
     durationMs: number,
   ): Promise<void> {
     // Use parameterized query to prevent SQL injection
+    // Round durationMs to integer for INTEGER column type
+    const durationMsInt = Math.round(durationMs);
     await this.db.query(
       `UPDATE workflow_pattern SET
         usage_count = usage_count + 1,
@@ -290,7 +298,7 @@ export class CapabilityStore {
         success_rate = (success_count + $1)::real / (usage_count + 1)::real,
         avg_duration_ms = ((avg_duration_ms * usage_count) + $2) / (usage_count + 1)
       WHERE code_hash = $3`,
-      [success ? 1 : 0, durationMs, codeHash],
+      [success ? 1 : 0, durationMsInt, codeHash],
     );
 
     logger.debug("Capability usage updated", { codeHash, success, durationMs });

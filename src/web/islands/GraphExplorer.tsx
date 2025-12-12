@@ -9,6 +9,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { createPortal } from "preact/compat";
 import D3GraphVisualization from "./D3GraphVisualization.tsx";
+import CodePanel, { type CapabilityData } from "./CodePanel.tsx";
 
 interface ToolSearchResult {
   tool_id: string;
@@ -58,6 +59,8 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
   const [pathFrom, setPathFrom] = useState("");
   const [pathTo, setPathTo] = useState("");
   const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null);
+  // Story 8.4: Selected capability for CodePanel
+  const [selectedCapability, setSelectedCapability] = useState<CapabilityData | null>(null);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchTimeoutRef = useRef<number | null>(null);
@@ -123,6 +126,11 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
       if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     };
   }, [searchQuery]);
+
+  // Story 8.4: Handle capability selection from hull click
+  const handleCapabilitySelect = (capability: CapabilityData | null) => {
+    setSelectedCapability(capability);
+  };
 
   const handleNodeSelect = async (node: { id: string; label: string; server: string } | null) => {
     if (!node) {
@@ -316,7 +324,10 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
   );
 
   return (
-    <div class="w-full h-full relative overflow-hidden">
+    <div
+      class="w-full h-full relative overflow-hidden"
+      style={{ display: "flex", flexDirection: "column" }}
+    >
       {/* SearchBar rendered in header via portal */}
       {headerSlot && createPortal(searchBarContent, headerSlot)}
 
@@ -519,12 +530,27 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
       )}
 
       {/* Graph Visualization (D3.js - always shows tools + capability zones) */}
-      <D3GraphVisualization
-        apiBase={apiBase}
-        onNodeSelect={handleNodeSelect}
-        highlightedNodeId={highlightedNode}
-        pathNodes={pathNodes}
-      />
+      <div style={{ flex: 1, position: "relative", minHeight: 0 }}>
+        <D3GraphVisualization
+          apiBase={apiBase}
+          onNodeSelect={handleNodeSelect}
+          onCapabilitySelect={handleCapabilitySelect}
+          highlightedNodeId={highlightedNode}
+          pathNodes={pathNodes}
+        />
+      </div>
+
+      {/* Story 8.4: Code Panel (bottom panel when capability selected) */}
+      {selectedCapability && (
+        <CodePanel
+          capability={selectedCapability}
+          onClose={() => setSelectedCapability(null)}
+          onToolClick={(toolId) => {
+            setHighlightedNode(toolId);
+            // Also clear capability selection to focus on tool
+          }}
+        />
+      )}
     </div>
   );
 }

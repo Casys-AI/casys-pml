@@ -368,7 +368,7 @@ interface DAGTask {
   tool: string; // "serverId:toolName"
   type?: "mcp_tool" | "code_execution";
   arguments: Record<string, unknown>;
-  depends_on?: string[]; // Dependency IDs
+  dependsOn?: string[]; // Dependency IDs (camelCase, not snake_case)
   code?: string; // For type: "code_execution"
 }
 ```

@@ -9,15 +9,20 @@
  * - AC13: Metrics tracking
  * - AC14: Unit tests for speculative execution
  * - AC15: Performance targets (<100ms mode decision)
+ *
+ * Note: sanitizeOps/sanitizeResources disabled due to EventBus singleton using BroadcastChannel
  */
 
-import { assertEquals, assertExists, assert } from "@std/assert";
+import { assert, assertEquals, assertExists } from "@std/assert";
 import { GatewayHandler } from "../../../src/mcp/gateway-handler.ts";
 import { GraphRAGEngine } from "../../../src/graphrag/graph-engine.ts";
 import { DAGSuggester } from "../../../src/graphrag/dag-suggester.ts";
 import { VectorSearch } from "../../../src/vector/search.ts";
 import { PGliteClient } from "../../../src/db/client.ts";
 import { getAllMigrations, MigrationRunner } from "../../../src/db/migrations.ts";
+
+// Test options to disable sanitizers (EventBus singleton uses BroadcastChannel)
+const testOpts = { sanitizeOps: false, sanitizeResources: false };
 
 /**
  * Mock embedding model for tests (no ONNX, no resource leaks)
@@ -67,10 +72,25 @@ async function createTestDb(): Promise<PGliteClient> {
  */
 async function insertTestData(db: PGliteClient, model: MockEmbeddingModel): Promise<void> {
   const tools = [
-    { id: "filesystem:read", server: "filesystem", name: "read_file", desc: "Read file contents from filesystem" },
+    {
+      id: "filesystem:read",
+      server: "filesystem",
+      name: "read_file",
+      desc: "Read file contents from filesystem",
+    },
     { id: "json:parse", server: "json", name: "parse", desc: "Parse JSON data from text" },
-    { id: "filesystem:write", server: "filesystem", name: "write_file", desc: "Write content to file" },
-    { id: "filesystem:delete", server: "filesystem", name: "delete_file", desc: "Delete file from filesystem" },
+    {
+      id: "filesystem:write",
+      server: "filesystem",
+      name: "write_file",
+      desc: "Write content to file",
+    },
+    {
+      id: "filesystem:delete",
+      server: "filesystem",
+      name: "delete_file",
+      desc: "Delete file from filesystem",
+    },
     { id: "shell:exec", server: "shell", name: "execute", desc: "Execute shell command" },
   ];
 
@@ -108,176 +128,193 @@ async function insertTestData(db: PGliteClient, model: MockEmbeddingModel): Prom
 // AC9: Three execution modes
 // ============================================
 
-Deno.test("GatewayHandler - explicit_required mode for low confidence", async () => {
-  const db = await createTestDb();
-  const model = new MockEmbeddingModel();
-  await model.load();
+Deno.test({
+  name: "GatewayHandler - explicit_required mode for low confidence",
+  ...testOpts,
+  fn: async () => {
+    const db = await createTestDb();
+    const model = new MockEmbeddingModel();
+    await model.load();
 
-  await insertTestData(db, model);
+    await insertTestData(db, model);
 
-  const graphEngine = new GraphRAGEngine(db);
-  await graphEngine.syncFromDatabase();
+    const graphEngine = new GraphRAGEngine(db);
+    await graphEngine.syncFromDatabase();
 
-  // deno-lint-ignore no-explicit-any
-  const vectorSearch = new VectorSearch(db, model as any);
-  const suggester = new DAGSuggester(graphEngine, vectorSearch);
+    // deno-lint-ignore no-explicit-any
+    const vectorSearch = new VectorSearch(db, model as any);
+    const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
-  // Set high thresholds to force explicit_required
-  const gateway = new GatewayHandler(graphEngine, suggester, new Map(), {
-    explicitThreshold: 0.80,
-    suggestionThreshold: 0.90,
-  });
+    // Set high thresholds to force explicit_required
+    const gateway = new GatewayHandler(graphEngine, suggester, new Map(), {
+      explicitThreshold: 0.8,
+      suggestionThreshold: 0.9,
+    });
 
-  const result = await gateway.processIntent({
-    text: "read file",
-  });
+    const result = await gateway.processIntent({
+      text: "read file",
+    });
 
-  assertEquals(result.mode, "explicit_required", "Should return explicit_required for low confidence");
-  assertExists(result.explanation);
-  assert(result.confidence >= 0);
+    assertEquals(result.mode, "explicit_required", "Should return explicit_required for low confidence");
+    assertExists(result.explanation);
+    assert(result.confidence >= 0);
 
-  await db.close();
+    await db.close();
+  },
 });
 
-Deno.test("GatewayHandler - suggestion mode for medium confidence", async () => {
-  const db = await createTestDb();
-  const model = new MockEmbeddingModel();
-  await model.load();
+Deno.test({
+  name: "GatewayHandler - suggestion mode for medium confidence",
+  ...testOpts,
+  fn: async () => {
+    const db = await createTestDb();
+    const model = new MockEmbeddingModel();
+    await model.load();
 
-  await insertTestData(db, model);
+    await insertTestData(db, model);
 
-  const graphEngine = new GraphRAGEngine(db);
-  await graphEngine.syncFromDatabase();
+    const graphEngine = new GraphRAGEngine(db);
+    await graphEngine.syncFromDatabase();
 
-  // deno-lint-ignore no-explicit-any
-  const vectorSearch = new VectorSearch(db, model as any);
-  const suggester = new DAGSuggester(graphEngine, vectorSearch);
+    // deno-lint-ignore no-explicit-any
+    const vectorSearch = new VectorSearch(db, model as any);
+    const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
-  // Set thresholds for suggestion mode
-  const gateway = new GatewayHandler(graphEngine, suggester, new Map(), {
-    explicitThreshold: 0.20,
-    suggestionThreshold: 0.60,
-  });
+    // Set thresholds for suggestion mode
+    const gateway = new GatewayHandler(graphEngine, suggester, new Map(), {
+      explicitThreshold: 0.2,
+      suggestionThreshold: 0.6,
+    });
 
-  const result = await gateway.processIntent({
-    text: "read file and parse JSON",
-  });
+    const result = await gateway.processIntent({
+      text: "read file and parse JSON",
+    });
 
-  // Verify the gateway returns a valid response (mode depends on actual confidence)
-  assert(["explicit_required", "suggestion", "speculative_execution"].includes(result.mode));
-  assertExists(result.explanation);
+    // Verify the gateway returns a valid response (mode depends on actual confidence)
+    assert(["explicit_required", "suggestion", "speculative_execution"].includes(result.mode));
+    assertExists(result.explanation);
 
-  // If confidence is high enough for suggestion, verify DAG exists
-  if (result.mode !== "explicit_required") {
-    assertExists(result.dagStructure);
-  }
+    // If confidence is high enough for suggestion, verify DAG exists
+    if (result.mode !== "explicit_required") {
+      assertExists(result.dagStructure);
+    }
 
-  await db.close();
+    await db.close();
+  },
 });
 
-Deno.test("GatewayHandler - speculative_execution mode for high confidence", async () => {
-  const db = await createTestDb();
-  const model = new MockEmbeddingModel();
-  await model.load();
+Deno.test({
+  name: "GatewayHandler - speculative_execution mode for high confidence",
+  ...testOpts,
+  fn: async () => {
+    const db = await createTestDb();
+    const model = new MockEmbeddingModel();
+    await model.load();
 
-  await insertTestData(db, model);
+    await insertTestData(db, model);
 
-  const graphEngine = new GraphRAGEngine(db);
-  await graphEngine.syncFromDatabase();
+    const graphEngine = new GraphRAGEngine(db);
+    await graphEngine.syncFromDatabase();
 
-  // deno-lint-ignore no-explicit-any
-  const vectorSearch = new VectorSearch(db, model as any);
-  const suggester = new DAGSuggester(graphEngine, vectorSearch);
+    // deno-lint-ignore no-explicit-any
+    const vectorSearch = new VectorSearch(db, model as any);
+    const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
-  // Set low thresholds for speculative execution
-  const gateway = new GatewayHandler(graphEngine, suggester, new Map(), {
-    explicitThreshold: 0.20,
-    suggestionThreshold: 0.35,
-    enableSpeculative: true,
-  });
+    // Set low thresholds for speculative execution
+    const gateway = new GatewayHandler(graphEngine, suggester, new Map(), {
+      explicitThreshold: 0.2,
+      suggestionThreshold: 0.35,
+      enableSpeculative: true,
+    });
 
-  const result = await gateway.processIntent({
-    text: "read file and parse JSON",
-  });
+    const result = await gateway.processIntent({
+      text: "read file and parse JSON",
+    });
 
-  // Verify the gateway returns a valid response (mode depends on actual confidence)
-  assert(["explicit_required", "suggestion", "speculative_execution"].includes(result.mode));
-  assertExists(result.explanation);
+    // Verify the gateway returns a valid response (mode depends on actual confidence)
+    assert(["explicit_required", "suggestion", "speculative_execution"].includes(result.mode));
+    assertExists(result.explanation);
 
-  // If speculative execution happened, verify results exist
-  if (result.mode === "speculative_execution") {
-    assertExists(result.results);
-    assertExists(result.executionTimeMs);
-    assert(Array.isArray(result.results), "Results should be an array");
-  }
+    // If speculative execution happened, verify results exist
+    if (result.mode === "speculative_execution") {
+      assertExists(result.results);
+      assertExists(result.executionTimeMs);
+      assert(Array.isArray(result.results), "Results should be an array");
+    }
 
-  await db.close();
+    await db.close();
+  },
 });
 
 // ============================================
 // AC10: Safety checks
 // ============================================
 
-Deno.test("GatewayHandler - blocks dangerous delete operations", async () => {
-  const db = await createTestDb();
-  const model = new MockEmbeddingModel();
-  await model.load();
+Deno.test({
+  name: "GatewayHandler - blocks dangerous delete operations",
+  ...testOpts,
+  fn: async () => {
+    const db = await createTestDb();
+    const model = new MockEmbeddingModel();
+    await model.load();
 
-  await insertTestData(db, model);
+    await insertTestData(db, model);
 
-  const graphEngine = new GraphRAGEngine(db);
-  await graphEngine.syncFromDatabase();
+    const graphEngine = new GraphRAGEngine(db);
+    await graphEngine.syncFromDatabase();
 
-  // deno-lint-ignore no-explicit-any
-  const vectorSearch = new VectorSearch(db, model as any);
-  const suggester = new DAGSuggester(graphEngine, vectorSearch);
+    // deno-lint-ignore no-explicit-any
+    const vectorSearch = new VectorSearch(db, model as any);
+    const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
-  const gateway = new GatewayHandler(graphEngine, suggester, new Map(), {
-    explicitThreshold: 0.30,
-    suggestionThreshold: 0.40,
-  });
+    const gateway = new GatewayHandler(graphEngine, suggester, new Map(), {
+      explicitThreshold: 0.3,
+      suggestionThreshold: 0.4,
+    });
 
-  const result = await gateway.processIntent({
-    text: "delete file",
-  });
+    const result = await gateway.processIntent({
+      text: "delete file",
+    });
 
-  assertEquals(result.mode, "explicit_required", "Should require explicit confirmation for delete");
-  assertExists(result.warning);
-  assert(result.warning?.includes("Destructive operation"), "Should warn about destructive operation");
+    assertEquals(result.mode, "explicit_required", "Should require explicit confirmation for delete");
+    assertExists(result.warning);
+    assert(result.warning?.includes("Destructive operation"), "Should warn about destructive operation");
 
-  await db.close();
+    await db.close();
+  },
 });
 
 Deno.test({
   name: "GatewayHandler - blocks shell execution",
   ignore: true, // TODO: Mock embeddings don't produce realistic semantic similarity
+  ...testOpts,
   fn: async () => {
-  const db = await createTestDb();
-  const model = new MockEmbeddingModel();
-  await model.load();
+    const db = await createTestDb();
+    const model = new MockEmbeddingModel();
+    await model.load();
 
-  await insertTestData(db, model);
+    await insertTestData(db, model);
 
-  const graphEngine = new GraphRAGEngine(db);
-  await graphEngine.syncFromDatabase();
+    const graphEngine = new GraphRAGEngine(db);
+    await graphEngine.syncFromDatabase();
 
-  // deno-lint-ignore no-explicit-any
-  const vectorSearch = new VectorSearch(db, model as any);
-  const suggester = new DAGSuggester(graphEngine, vectorSearch);
+    // deno-lint-ignore no-explicit-any
+    const vectorSearch = new VectorSearch(db, model as any);
+    const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
-  const gateway = new GatewayHandler(graphEngine, suggester, new Map(), {
-    explicitThreshold: 0.30,
-    suggestionThreshold: 0.40,
-  });
+    const gateway = new GatewayHandler(graphEngine, suggester, new Map(), {
+      explicitThreshold: 0.3,
+      suggestionThreshold: 0.4,
+    });
 
-  const result = await gateway.processIntent({
-    text: "execute shell command",
-  });
+    const result = await gateway.processIntent({
+      text: "execute shell command",
+    });
 
-  assertEquals(result.mode, "explicit_required", "Should require explicit confirmation for shell exec");
-  assertExists(result.warning);
+    assertEquals(result.mode, "explicit_required", "Should require explicit confirmation for shell exec");
+    assertExists(result.warning);
 
-  await db.close();
+    await db.close();
   },
 });
 
@@ -288,166 +325,183 @@ Deno.test({
 Deno.test({
   name: "GatewayHandler - graceful fallback when no DAG found",
   ignore: true, // TODO: Mock embeddings don't produce realistic semantic similarity
+  ...testOpts,
   fn: async () => {
-  const db = await createTestDb();
-  const model = new MockEmbeddingModel();
-  await model.load();
+    const db = await createTestDb();
+    const model = new MockEmbeddingModel();
+    await model.load();
 
-  await insertTestData(db, model);
+    await insertTestData(db, model);
 
-  const graphEngine = new GraphRAGEngine(db);
-  await graphEngine.syncFromDatabase();
+    const graphEngine = new GraphRAGEngine(db);
+    await graphEngine.syncFromDatabase();
 
-  // deno-lint-ignore no-explicit-any
-  const vectorSearch = new VectorSearch(db, model as any);
-  const suggester = new DAGSuggester(graphEngine, vectorSearch);
+    // deno-lint-ignore no-explicit-any
+    const vectorSearch = new VectorSearch(db, model as any);
+    const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
-  const gateway = new GatewayHandler(graphEngine, suggester, new Map());
+    const gateway = new GatewayHandler(graphEngine, suggester, new Map());
 
-  const result = await gateway.processIntent({
-    text: "quantum mechanics calculation",
-  });
+    const result = await gateway.processIntent({
+      text: "quantum mechanics calculation",
+    });
 
-  assertEquals(result.mode, "explicit_required");
-  assertExists(result.explanation);
-  assert(result.explanation.includes("Unable to understand intent"));
+    assertEquals(result.mode, "explicit_required");
+    assertExists(result.explanation);
+    assert(result.explanation.includes("Unable to understand intent"));
 
-  await db.close();
+    await db.close();
   },
 });
 
-Deno.test("GatewayHandler - falls back to suggestion when speculative disabled", async () => {
-  const db = await createTestDb();
-  const model = new MockEmbeddingModel();
-  await model.load();
+Deno.test({
+  name: "GatewayHandler - falls back to suggestion when speculative disabled",
+  ...testOpts,
+  fn: async () => {
+    const db = await createTestDb();
+    const model = new MockEmbeddingModel();
+    await model.load();
 
-  await insertTestData(db, model);
+    await insertTestData(db, model);
 
-  const graphEngine = new GraphRAGEngine(db);
-  await graphEngine.syncFromDatabase();
+    const graphEngine = new GraphRAGEngine(db);
+    await graphEngine.syncFromDatabase();
 
-  // deno-lint-ignore no-explicit-any
-  const vectorSearch = new VectorSearch(db, model as any);
-  const suggester = new DAGSuggester(graphEngine, vectorSearch);
+    // deno-lint-ignore no-explicit-any
+    const vectorSearch = new VectorSearch(db, model as any);
+    const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
-  const gateway = new GatewayHandler(graphEngine, suggester, new Map(), {
-    explicitThreshold: 0.20,
-    suggestionThreshold: 0.35,
-    enableSpeculative: false,
-  });
+    const gateway = new GatewayHandler(graphEngine, suggester, new Map(), {
+      explicitThreshold: 0.2,
+      suggestionThreshold: 0.35,
+      enableSpeculative: false,
+    });
 
-  const result = await gateway.processIntent({
-    text: "read file and parse JSON",
-  });
+    const result = await gateway.processIntent({
+      text: "read file and parse JSON",
+    });
 
-  // Verify the gateway does not execute speculatively when disabled
-  assert(result.mode !== "speculative_execution", "Should not execute speculatively when disabled");
-  assertExists(result.explanation);
+    // Verify the gateway does not execute speculatively when disabled
+    assert(result.mode !== "speculative_execution", "Should not execute speculatively when disabled");
+    assertExists(result.explanation);
 
-  await db.close();
+    await db.close();
+  },
 });
 
 // ============================================
 // AC12: Adaptive threshold learning
 // ============================================
 
-Deno.test("GatewayHandler - records user feedback for adaptive learning", async () => {
-  const db = await createTestDb();
-  const model = new MockEmbeddingModel();
-  await model.load();
+Deno.test({
+  name: "GatewayHandler - records user feedback for adaptive learning",
+  ...testOpts,
+  fn: async () => {
+    const db = await createTestDb();
+    const model = new MockEmbeddingModel();
+    await model.load();
 
-  await insertTestData(db, model);
+    await insertTestData(db, model);
 
-  const graphEngine = new GraphRAGEngine(db);
-  await graphEngine.syncFromDatabase();
+    const graphEngine = new GraphRAGEngine(db);
+    await graphEngine.syncFromDatabase();
 
-  // deno-lint-ignore no-explicit-any
-  const vectorSearch = new VectorSearch(db, model as any);
-  const suggester = new DAGSuggester(graphEngine, vectorSearch);
+    // deno-lint-ignore no-explicit-any
+    const vectorSearch = new VectorSearch(db, model as any);
+    const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
-  const gateway = new GatewayHandler(graphEngine, suggester, new Map());
+    const gateway = new GatewayHandler(graphEngine, suggester, new Map());
 
-  // Record user feedback
-  gateway.recordUserFeedback(0.75, true);
+    // Record user feedback
+    gateway.recordUserFeedback(0.75, true);
 
-  const thresholds = gateway.getAdaptiveThresholds();
-  assertExists(thresholds);
-  assert(thresholds.explicitThreshold !== undefined);
-  assert(thresholds.suggestionThreshold !== undefined);
+    const thresholds = gateway.getAdaptiveThresholds();
+    assertExists(thresholds);
+    assert(thresholds.explicitThreshold !== undefined);
+    assert(thresholds.suggestionThreshold !== undefined);
 
-  await db.close();
+    await db.close();
+  },
 });
 
 // ============================================
 // AC13: Metrics tracking
 // ============================================
 
-Deno.test("GatewayHandler - tracks speculative execution metrics", async () => {
-  const db = await createTestDb();
-  const model = new MockEmbeddingModel();
-  await model.load();
+Deno.test({
+  name: "GatewayHandler - tracks speculative execution metrics",
+  ...testOpts,
+  fn: async () => {
+    const db = await createTestDb();
+    const model = new MockEmbeddingModel();
+    await model.load();
 
-  await insertTestData(db, model);
+    await insertTestData(db, model);
 
-  const graphEngine = new GraphRAGEngine(db);
-  await graphEngine.syncFromDatabase();
+    const graphEngine = new GraphRAGEngine(db);
+    await graphEngine.syncFromDatabase();
 
-  // deno-lint-ignore no-explicit-any
-  const vectorSearch = new VectorSearch(db, model as any);
-  const suggester = new DAGSuggester(graphEngine, vectorSearch);
+    // deno-lint-ignore no-explicit-any
+    const vectorSearch = new VectorSearch(db, model as any);
+    const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
-  const gateway = new GatewayHandler(graphEngine, suggester, new Map(), {
-    explicitThreshold: 0.20,
-    suggestionThreshold: 0.35,
-    enableSpeculative: true,
-  });
+    const gateway = new GatewayHandler(graphEngine, suggester, new Map(), {
+      explicitThreshold: 0.2,
+      suggestionThreshold: 0.35,
+      enableSpeculative: true,
+    });
 
-  // Execute speculative workflow
-  const result = await gateway.processIntent({
-    text: "read file and parse JSON",
-  });
+    // Execute speculative workflow
+    const result = await gateway.processIntent({
+      text: "read file and parse JSON",
+    });
 
-  const metrics = gateway.getMetrics();
-  assertExists(metrics);
+    const metrics = gateway.getMetrics();
+    assertExists(metrics);
 
-  // Only assert if speculative execution actually occurred
-  if (result.mode === "speculative_execution") {
-    assertEquals(metrics.totalSpeculativeAttempts, 1);
-  }
-  assert(metrics.avgExecutionTime >= 0);
+    // Only assert if speculative execution actually occurred
+    if (result.mode === "speculative_execution") {
+      assertEquals(metrics.totalSpeculativeAttempts, 1);
+    }
+    assert(metrics.avgExecutionTime >= 0);
 
-  await db.close();
+    await db.close();
+  },
 });
 
 // ============================================
 // AC15: Performance targets
 // ============================================
 
-Deno.test("GatewayHandler - mode decision completes within 100ms", async () => {
-  const db = await createTestDb();
-  const model = new MockEmbeddingModel();
-  await model.load();
+Deno.test({
+  name: "GatewayHandler - mode decision completes within 100ms",
+  ...testOpts,
+  fn: async () => {
+    const db = await createTestDb();
+    const model = new MockEmbeddingModel();
+    await model.load();
 
-  await insertTestData(db, model);
+    await insertTestData(db, model);
 
-  const graphEngine = new GraphRAGEngine(db);
-  await graphEngine.syncFromDatabase();
+    const graphEngine = new GraphRAGEngine(db);
+    await graphEngine.syncFromDatabase();
 
-  // deno-lint-ignore no-explicit-any
-  const vectorSearch = new VectorSearch(db, model as any);
-  const suggester = new DAGSuggester(graphEngine, vectorSearch);
+    // deno-lint-ignore no-explicit-any
+    const vectorSearch = new VectorSearch(db, model as any);
+    const suggester = new DAGSuggester(graphEngine, vectorSearch);
 
-  const gateway = new GatewayHandler(graphEngine, suggester, new Map(), {
-    enableSpeculative: false, // Disable speculative to measure decision time only
-  });
+    const gateway = new GatewayHandler(graphEngine, suggester, new Map(), {
+      enableSpeculative: false, // Disable speculative to measure decision time only
+    });
 
-  const startTime = performance.now();
-  await gateway.processIntent({
-    text: "read file",
-  });
-  const decisionTime = performance.now() - startTime;
+    const startTime = performance.now();
+    await gateway.processIntent({
+      text: "read file",
+    });
+    const decisionTime = performance.now() - startTime;
 
-  assert(decisionTime < 100, `Mode decision took ${decisionTime.toFixed(2)}ms, should be <100ms`);
+    assert(decisionTime < 100, `Mode decision took ${decisionTime.toFixed(2)}ms, should be <100ms`);
 
-  await db.close();
+    await db.close();
+  },
 });

@@ -7,12 +7,17 @@
  * - AC10: searchToolsForAutocomplete() method
  * - Graph snapshot server/label extraction
  * - Search scoring logic
+ *
+ * Note: sanitizeOps/sanitizeResources disabled due to EventBus singleton using BroadcastChannel
  */
 
 import { assert, assertEquals, assertExists } from "@std/assert";
 import { GraphRAGEngine } from "../../../src/graphrag/graph-engine.ts";
 import { PGliteClient } from "../../../src/db/client.ts";
 import { getAllMigrations, MigrationRunner } from "../../../src/db/migrations.ts";
+
+// Test options to disable sanitizers (EventBus singleton uses BroadcastChannel)
+const testOpts = { sanitizeOps: false, sanitizeResources: false };
 
 /**
  * Create test database with schema
@@ -93,188 +98,232 @@ async function insertTestDependencies(db: PGliteClient): Promise<void> {
 // Story 6.4 AC10: searchToolsForAutocomplete
 // ============================================
 
-Deno.test("searchToolsForAutocomplete - returns empty for query < 2 chars", async () => {
-  const db = await createTestDb();
-  const engine = new GraphRAGEngine(db);
+Deno.test({
+  name: "searchToolsForAutocomplete - returns empty for query < 2 chars",
+  ...testOpts,
+  fn: async () => {
+    const db = await createTestDb();
+    const engine = new GraphRAGEngine(db);
 
-  await insertTestTools(db);
-  await engine.syncFromDatabase();
+    await insertTestTools(db);
+    await engine.syncFromDatabase();
 
-  const results = engine.searchToolsForAutocomplete("r", 10);
-  assertEquals(results.length, 0);
+    const results = engine.searchToolsForAutocomplete("r", 10);
+    assertEquals(results.length, 0);
 
-  await db.close();
+    await db.close();
+  },
 });
 
-Deno.test("searchToolsForAutocomplete - finds tools by name prefix", async () => {
-  const db = await createTestDb();
-  const engine = new GraphRAGEngine(db);
+Deno.test({
+  name: "searchToolsForAutocomplete - finds tools by name prefix",
+  ...testOpts,
+  fn: async () => {
+    const db = await createTestDb();
+    const engine = new GraphRAGEngine(db);
 
-  await insertTestTools(db);
-  await engine.syncFromDatabase();
+    await insertTestTools(db);
+    await engine.syncFromDatabase();
 
-  const results = engine.searchToolsForAutocomplete("read", 10);
+    const results = engine.searchToolsForAutocomplete("read", 10);
 
-  assert(results.length >= 2, "Should find at least 2 tools starting with 'read'");
-  assert(results.some((r) => r.tool_id === "filesystem:read_file"));
-  assert(results.some((r) => r.tool_id === "memory:read_graph"));
+    assert(results.length >= 2, "Should find at least 2 tools starting with 'read'");
+    assert(results.some((r) => r.tool_id === "filesystem:read_file"));
+    assert(results.some((r) => r.tool_id === "memory:read_graph"));
 
-  await db.close();
+    await db.close();
+  },
 });
 
-Deno.test("searchToolsForAutocomplete - extracts server and name correctly", async () => {
-  const db = await createTestDb();
-  const engine = new GraphRAGEngine(db);
+Deno.test({
+  name: "searchToolsForAutocomplete - extracts server and name correctly",
+  ...testOpts,
+  fn: async () => {
+    const db = await createTestDb();
+    const engine = new GraphRAGEngine(db);
 
-  await insertTestTools(db);
-  await engine.syncFromDatabase();
+    await insertTestTools(db);
+    await engine.syncFromDatabase();
 
-  const results = engine.searchToolsForAutocomplete("read_file", 10);
+    const results = engine.searchToolsForAutocomplete("read_file", 10);
 
-  assert(results.length >= 1);
-  const result = results.find((r) => r.tool_id === "filesystem:read_file");
-  assertExists(result);
-  assertEquals(result.server, "filesystem");
-  assertEquals(result.name, "read_file");
+    assert(results.length >= 1);
+    const result = results.find((r) => r.tool_id === "filesystem:read_file");
+    assertExists(result);
+    assertEquals(result.server, "filesystem");
+    assertEquals(result.name, "read_file");
 
-  await db.close();
+    await db.close();
+  },
 });
 
-Deno.test("searchToolsForAutocomplete - scores exact match higher", async () => {
-  const db = await createTestDb();
-  const engine = new GraphRAGEngine(db);
+Deno.test({
+  name: "searchToolsForAutocomplete - scores exact match higher",
+  ...testOpts,
+  fn: async () => {
+    const db = await createTestDb();
+    const engine = new GraphRAGEngine(db);
 
-  await insertTestTools(db);
-  await engine.syncFromDatabase();
+    await insertTestTools(db);
+    await engine.syncFromDatabase();
 
-  const results = engine.searchToolsForAutocomplete("read_file", 10);
+    const results = engine.searchToolsForAutocomplete("read_file", 10);
 
-  // Exact match should have score 1.0
-  const exactMatch = results.find((r) => r.name === "read_file");
-  assertExists(exactMatch);
-  assertEquals(exactMatch.score, 1.0);
+    // Exact match should have score 1.0
+    const exactMatch = results.find((r) => r.name === "read_file");
+    assertExists(exactMatch);
+    assertEquals(exactMatch.score, 1.0);
 
-  await db.close();
+    await db.close();
+  },
 });
 
-Deno.test("searchToolsForAutocomplete - finds tools by server name", async () => {
-  const db = await createTestDb();
-  const engine = new GraphRAGEngine(db);
+Deno.test({
+  name: "searchToolsForAutocomplete - finds tools by server name",
+  ...testOpts,
+  fn: async () => {
+    const db = await createTestDb();
+    const engine = new GraphRAGEngine(db);
 
-  await insertTestTools(db);
-  await engine.syncFromDatabase();
+    await insertTestTools(db);
+    await engine.syncFromDatabase();
 
-  const results = engine.searchToolsForAutocomplete("filesystem", 10);
+    const results = engine.searchToolsForAutocomplete("filesystem", 10);
 
-  assert(results.length >= 3, "Should find all filesystem tools");
-  assert(results.every((r) => r.server === "filesystem"));
+    assert(results.length >= 3, "Should find all filesystem tools");
+    assert(results.every((r) => r.server === "filesystem"));
 
-  await db.close();
+    await db.close();
+  },
 });
 
-Deno.test("searchToolsForAutocomplete - respects limit parameter", async () => {
-  const db = await createTestDb();
-  const engine = new GraphRAGEngine(db);
+Deno.test({
+  name: "searchToolsForAutocomplete - respects limit parameter",
+  ...testOpts,
+  fn: async () => {
+    const db = await createTestDb();
+    const engine = new GraphRAGEngine(db);
 
-  await insertTestTools(db);
-  await engine.syncFromDatabase();
+    await insertTestTools(db);
+    await engine.syncFromDatabase();
 
-  const results = engine.searchToolsForAutocomplete("browser", 1);
+    const results = engine.searchToolsForAutocomplete("browser", 1);
 
-  assertEquals(results.length, 1);
+    assertEquals(results.length, 1);
 
-  await db.close();
+    await db.close();
+  },
 });
 
-Deno.test("searchToolsForAutocomplete - includes pagerank in results", async () => {
-  const db = await createTestDb();
-  const engine = new GraphRAGEngine(db);
+Deno.test({
+  name: "searchToolsForAutocomplete - includes pagerank in results",
+  ...testOpts,
+  fn: async () => {
+    const db = await createTestDb();
+    const engine = new GraphRAGEngine(db);
 
-  await insertTestTools(db);
-  await insertTestDependencies(db);
-  await engine.syncFromDatabase();
+    await insertTestTools(db);
+    await insertTestDependencies(db);
+    await engine.syncFromDatabase();
 
-  const results = engine.searchToolsForAutocomplete("read", 10);
+    const results = engine.searchToolsForAutocomplete("read", 10);
 
-  assert(results.length > 0);
-  // All results should have pagerank defined (may be 0)
-  assert(results.every((r) => typeof r.pagerank === "number"));
+    assert(results.length > 0);
+    // All results should have pagerank defined (may be 0)
+    assert(results.every((r) => typeof r.pagerank === "number"));
 
-  await db.close();
+    await db.close();
+  },
 });
 
 // ============================================
 // Story 6.4: getGraphSnapshot server/label extraction
 // ============================================
 
-Deno.test("getGraphSnapshot - extracts server from colon format", async () => {
-  const db = await createTestDb();
-  const engine = new GraphRAGEngine(db);
+Deno.test({
+  name: "getGraphSnapshot - extracts server from colon format",
+  ...testOpts,
+  fn: async () => {
+    const db = await createTestDb();
+    const engine = new GraphRAGEngine(db);
 
-  await insertTestTools(db);
-  await engine.syncFromDatabase();
+    await insertTestTools(db);
+    await engine.syncFromDatabase();
 
-  const snapshot = engine.getGraphSnapshot();
+    const snapshot = engine.getGraphSnapshot();
 
-  // Find a filesystem tool
-  const fsNode = snapshot.nodes.find((n) => n.id === "filesystem:read_file");
-  assertExists(fsNode);
-  assertEquals(fsNode.server, "filesystem");
-  assertEquals(fsNode.label, "read_file");
+    // Find a filesystem tool
+    const fsNode = snapshot.nodes.find((n) => n.id === "filesystem:read_file");
+    assertExists(fsNode);
+    assertEquals(fsNode.server, "filesystem");
+    assertEquals(fsNode.label, "read_file");
 
-  await db.close();
+    await db.close();
+  },
 });
 
-Deno.test("getGraphSnapshot - handles all inserted servers", async () => {
-  const db = await createTestDb();
-  const engine = new GraphRAGEngine(db);
+Deno.test({
+  name: "getGraphSnapshot - handles all inserted servers",
+  ...testOpts,
+  fn: async () => {
+    const db = await createTestDb();
+    const engine = new GraphRAGEngine(db);
 
-  await insertTestTools(db);
-  await engine.syncFromDatabase();
+    await insertTestTools(db);
+    await engine.syncFromDatabase();
 
-  const snapshot = engine.getGraphSnapshot();
+    const snapshot = engine.getGraphSnapshot();
 
-  // Check all servers are extracted correctly
-  const servers = new Set(snapshot.nodes.map((n) => n.server));
-  assert(servers.has("filesystem"));
-  assert(servers.has("memory"));
-  assert(servers.has("playwright"));
+    // Check all servers are extracted correctly
+    const servers = new Set(snapshot.nodes.map((n) => n.server));
+    assert(servers.has("filesystem"));
+    assert(servers.has("memory"));
+    assert(servers.has("playwright"));
 
-  await db.close();
+    await db.close();
+  },
 });
 
-Deno.test("getGraphSnapshot - no 'unknown' servers when properly formatted", async () => {
-  const db = await createTestDb();
-  const engine = new GraphRAGEngine(db);
+Deno.test({
+  name: "getGraphSnapshot - no 'unknown' servers when properly formatted",
+  ...testOpts,
+  fn: async () => {
+    const db = await createTestDb();
+    const engine = new GraphRAGEngine(db);
 
-  await insertTestTools(db);
-  await engine.syncFromDatabase();
+    await insertTestTools(db);
+    await engine.syncFromDatabase();
 
-  const snapshot = engine.getGraphSnapshot();
+    const snapshot = engine.getGraphSnapshot();
 
-  // None of the test tools should have "unknown" server
-  const unknownNodes = snapshot.nodes.filter((n) => n.server === "unknown");
-  assertEquals(unknownNodes.length, 0, "All nodes should have extracted server names");
+    // None of the test tools should have "unknown" server
+    const unknownNodes = snapshot.nodes.filter((n) => n.server === "unknown");
+    assertEquals(unknownNodes.length, 0, "All nodes should have extracted server names");
 
-  await db.close();
+    await db.close();
+  },
 });
 
 // ============================================
 // Search performance test
 // ============================================
 
-Deno.test("searchToolsForAutocomplete - performance < 10ms", async () => {
-  const db = await createTestDb();
-  const engine = new GraphRAGEngine(db);
+Deno.test({
+  name: "searchToolsForAutocomplete - performance < 10ms",
+  ...testOpts,
+  fn: async () => {
+    const db = await createTestDb();
+    const engine = new GraphRAGEngine(db);
 
-  await insertTestTools(db);
-  await engine.syncFromDatabase();
+    await insertTestTools(db);
+    await engine.syncFromDatabase();
 
-  const start = performance.now();
-  engine.searchToolsForAutocomplete("read", 10);
-  const elapsed = performance.now() - start;
+    const start = performance.now();
+    engine.searchToolsForAutocomplete("read", 10);
+    const elapsed = performance.now() - start;
 
-  assert(elapsed < 10, `Search should complete in < 10ms, took ${elapsed.toFixed(2)}ms`);
+    assert(elapsed < 10, `Search should complete in < 10ms, took ${elapsed.toFixed(2)}ms`);
 
-  await db.close();
+    await db.close();
+  },
 });

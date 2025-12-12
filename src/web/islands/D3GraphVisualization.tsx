@@ -405,6 +405,24 @@ export default function D3GraphVisualization({
 
     // Setup SSE for real-time updates
     const eventSource = new EventSource(`${apiBase}/events/stream`);
+    let hadError = false; // Track if we had a disconnection
+
+    // SSE connection lifecycle handlers
+    eventSource.onopen = () => {
+      console.log("[D3Graph] SSE connection opened to", `${apiBase}/events/stream`);
+      // If reconnecting after error, reload data to catch up on missed events
+      if (hadError) {
+        console.log("[D3Graph] SSE reconnected after error - reloading data to sync");
+        loadHypergraphData();
+        hadError = false;
+      }
+    };
+    eventSource.onerror = (e) => {
+      console.error("[D3Graph] SSE connection error:", e);
+      console.log("[D3Graph] SSE readyState:", eventSource.readyState);
+      // readyState: 0=CONNECTING, 1=OPEN, 2=CLOSED
+      hadError = true; // Mark that we had an error, will reload on reconnect
+    };
 
     eventSource.addEventListener("node_created", handleNodeCreated);
     eventSource.addEventListener("graph.edge.created", handleEdgeCreated);
@@ -413,6 +431,11 @@ export default function D3GraphVisualization({
     // Story 8.3: Incremental hull updates via zone events
     eventSource.addEventListener("capability.zone.created", handleZoneCreated);
     eventSource.addEventListener("capability.zone.updated", handleZoneUpdated);
+
+    // Debug: Log all incoming SSE messages
+    eventSource.onmessage = (e) => {
+      console.log("[D3Graph] SSE generic message:", e.data?.substring(0, 100));
+    };
 
     // Cleanup
     return () => {
@@ -856,8 +879,10 @@ export default function D3GraphVisualization({
 
   // Story 8.3: Handle capability.zone.created - incremental hull update
   const handleZoneCreated = (event: any) => {
+    console.log("[D3Graph] handleZoneCreated RAW event:", event);
+    console.log("[D3Graph] handleZoneCreated event.data:", event.data);
     const data = JSON.parse(event.data);
-    console.log("[D3Graph] Zone created:", data.capabilityId);
+    console.log("[D3Graph] Zone created:", data.capabilityId, "- tools:", data.toolIds?.length || 0);
 
     // Check if zone already exists (idempotency)
     const existingZone = capabilityZonesRef.current.find((z) => z.id === data.capabilityId);

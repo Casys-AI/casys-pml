@@ -117,7 +117,13 @@
     "drizzle-kit": "npm:drizzle-kit@^0.30.4",
     "@ts-rex/argon2": "jsr:@ts-rex/argon2@^1.0.0",
     "@deno/kv-oauth": "jsr:@deno/kv-oauth@^0.11.0",
-    "ml-matrix": "npm:ml-matrix@^6.11.1"
+    "ml-matrix": "npm:ml-matrix@^6.11.1",
+    "refractor": "npm:refractor@^4.8.1",
+    "refractor/lang/tsx": "npm:refractor@^4.8.1/lang/tsx.js",
+    "refractor/lang/typescript": "npm:refractor@^4.8.1/lang/typescript.js",
+    "refractor/lang/javascript": "npm:refractor@^4.8.1/lang/javascript.js",
+    "refractor/lang/json": "npm:refractor@^4.8.1/lang/json.js",
+    "hast-util-to-jsx-runtime": "npm:hast-util-to-jsx-runtime@^2.3.0"
   },
   "compilerOptions": {
     "strict": true,

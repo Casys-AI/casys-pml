@@ -199,7 +199,7 @@ interface CapabilityStartPayload {
 
 ### Phase 1: Types & Infrastructure (Story 6.5) - DONE
 
-- [x] Add `parent_trace_id` to `CaiEvent` payloads (events/types.ts)
+- [x] Add `parent_trace_id` to `PmlEvent` payloads (events/types.ts)
 - [x] Add `parent_trace_id` and `args` to `BaseTraceEvent` (sandbox/types.ts)
 - [x] Propagate `args` in WorkerBridge tool traces
 - [x] Bridge capability traces to EventBus with parent_trace_id support
