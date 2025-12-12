@@ -107,18 +107,21 @@ export default function GraphLegendPanel({
         Edge Types
       </h3>
       <LegendItem
-        label="Contains (cap→tool)"
+        label="Contains"
         color="#888888"
         lineStyle="solid"
         active={!hiddenEdgeTypes.has("hierarchy")}
         onClick={onToggleEdgeType ? () => onToggleEdgeType("hierarchy") : undefined}
       />
       <LegendItem
-        label="Sequence (tool→tool)"
+        label="Sequence"
         color="#10b981"
         lineStyle="solid"
-        active={!hiddenEdgeTypes.has("tool_sequence")}
-        onClick={onToggleEdgeType ? () => onToggleEdgeType("tool_sequence") : undefined}
+        active={!hiddenEdgeTypes.has("tool_sequence") && !hiddenEdgeTypes.has("capability_link")}
+        onClick={onToggleEdgeType ? () => {
+          onToggleEdgeType("tool_sequence");
+          onToggleEdgeType("capability_link");
+        } : undefined}
       />
 
       <Divider />
