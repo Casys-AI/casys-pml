@@ -1061,12 +1061,21 @@ export default function D3GraphVisualization({
 
       console.log("[DAG] FDEB bundling complete:", bundledEdges.length, "edges");
 
+      // Build a map for quick lookup: "sourceId-targetId" -> bundledEdge
+      const bundledEdgeMap = new Map<string, BundledEdge>();
+      for (const bundled of bundledEdges) {
+        bundledEdgeMap.set(`${bundled.sourceId}-${bundled.targetId}`, bundled);
+      }
+
       // Update edge paths with bundled data
       edgePaths
         .transition()
         .duration(500)
-        .attr("d", (d: SimulationLink, i: number) => {
-          const bundled = bundledEdges[i];
+        .attr("d", (d: SimulationLink) => {
+          const srcId = typeof d.source === 'string' ? d.source : (d.source as SimulationNode).id;
+          const tgtId = typeof d.target === 'string' ? d.target : (d.target as SimulationNode).id;
+          const bundled = bundledEdgeMap.get(`${srcId}-${tgtId}`);
+
           if (bundled && bundled.subdivisionPoints.length > 0) {
             return line(bundled.subdivisionPoints);
           }
