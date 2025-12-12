@@ -12,6 +12,7 @@
 
 import type { PGliteClient } from "../db/client.ts";
 import type { GraphRAGEngine } from "../graphrag/graph-engine.ts";
+import type { DAGSuggester } from "../graphrag/dag-suggester.ts";
 import type {
   CapabilityFilters,
   CapabilityListResponseInternal,
@@ -47,11 +48,23 @@ const logger = getLogger("default");
  * ```
  */
 export class CapabilityDataService {
+  private dagSuggester: DAGSuggester | null = null;
+
   constructor(
     private db: PGliteClient,
     private graphEngine: GraphRAGEngine,
   ) {
     logger.debug("CapabilityDataService initialized");
+  }
+
+  /**
+   * Set DAGSuggester for capability PageRank access (Story 8.2)
+   *
+   * @param dagSuggester - DAGSuggester instance with SpectralClusteringManager
+   */
+  setDAGSuggester(dagSuggester: DAGSuggester): void {
+    this.dagSuggester = dagSuggester;
+    logger.debug("CapabilityDataService: DAGSuggester configured for PageRank access");
   }
 
   /**
@@ -261,11 +274,21 @@ export class CapabilityDataService {
         logger.warn("Failed to get graph snapshot, tool metrics unavailable", { error });
       }
 
+      // 2b. Get capability PageRanks from DAGSuggester (Story 8.2)
+      let capabilityPageranks: Map<string, number> | undefined;
+      if (this.dagSuggester) {
+        capabilityPageranks = this.dagSuggester.getCapabilityPageranks();
+        logger.debug("Got capability pageranks for hypergraph", {
+          count: capabilityPageranks.size,
+        });
+      }
+
       // 3. Use HypergraphBuilder for graph construction (Story 8.2)
       const builder = new HypergraphBuilder();
       const hypergraphResult = builder.buildCompoundGraph(
         capabilities,
         graphSnapshot ?? undefined,
+        capabilityPageranks,
       );
 
       // Track existing tool IDs for standalone tools

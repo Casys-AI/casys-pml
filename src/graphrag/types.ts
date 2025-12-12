@@ -346,6 +346,10 @@ export interface GraphMetricsResponse {
     adaptiveAlpha: number;
     communitiesCount: number;
     pagerankTop10: Array<{ toolId: string; score: number }>;
+    // Extended metrics
+    capabilitiesCount?: number;
+    embeddingsCount?: number;
+    dependenciesCount?: number;
   };
 
   /** Time series data for charts */
@@ -362,5 +366,21 @@ export interface GraphMetricsResponse {
     workflowsSuccessRate: number;
     newEdgesCreated: number;
     newNodesAdded: number;
+  };
+
+  /** Algorithm tracing statistics (Story 7.6) */
+  algorithm?: {
+    tracesCount: number;
+    acceptanceRate: number;
+    avgFinalScore: number;
+    avgSemanticScore: number;
+    avgGraphScore: number;
+    byDecision: { accepted: number; filtered: number; rejected: number };
+    byTargetType: { tool: number; capability: number };
+    timeseries?: {
+      acceptanceRate: TimeSeriesPoint[];
+      avgScore: TimeSeriesPoint[];
+      volume: TimeSeriesPoint[];
+    };
   };
 }

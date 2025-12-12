@@ -202,6 +202,8 @@ export class PMLGatewayServer {
 
     // Initialize CapabilityDataService for API endpoints (Story 8.1)
     this.capabilityDataService = new CapabilityDataService(this.db, this.graphEngine);
+    // Story 8.2: Wire DAGSuggester for capability PageRank access
+    this.capabilityDataService.setDAGSuggester(this.dagSuggester);
 
     this.setupHandlers();
   }

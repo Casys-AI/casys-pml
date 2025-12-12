@@ -1688,7 +1688,18 @@ export class GraphRAGEngine {
   async getMetrics(range: MetricsTimeRange): Promise<GraphMetricsResponse> {
     const startTime = performance.now();
 
-    // Current snapshot metrics
+    // Calculate interval for time range
+    const intervalHours = range === "1h" ? 1 : range === "24h" ? 24 : 168; // 7d = 168h
+    const intervalMs = intervalHours * 60 * 60 * 1000;
+    const startDate = new Date(Date.now() - intervalMs);
+
+    // Current snapshot metrics + extended counts
+    const [capCount, embCount, depCount] = await Promise.all([
+      this.db.query("SELECT COUNT(*) as cnt FROM workflow_pattern").then(r => Number(r[0]?.cnt) || 0).catch(() => 0),
+      this.db.query("SELECT COUNT(*) as cnt FROM tool_embedding").then(r => Number(r[0]?.cnt) || 0).catch(() => 0),
+      this.db.query("SELECT COUNT(*) as cnt FROM tool_dependency").then(r => Number(r[0]?.cnt) || 0).catch(() => 0),
+    ]);
+
     const current = {
       nodeCount: this.graph.order,
       edgeCount: this.graph.size,
@@ -1696,18 +1707,19 @@ export class GraphRAGEngine {
       adaptiveAlpha: this.getAdaptiveAlpha(),
       communitiesCount: this.getCommunitiesCount(),
       pagerankTop10: this.getTopPageRank(10),
+      capabilitiesCount: capCount,
+      embeddingsCount: embCount,
+      dependenciesCount: depCount,
     };
-
-    // Calculate interval for time range
-    const intervalHours = range === "1h" ? 1 : range === "24h" ? 24 : 168; // 7d = 168h
-    const intervalMs = intervalHours * 60 * 60 * 1000;
-    const startDate = new Date(Date.now() - intervalMs);
 
     // Fetch time series data
     const timeseries = await this.getMetricsTimeSeries(range, startDate);
 
     // Fetch period statistics
     const period = await this.getPeriodStats(range, startDate);
+
+    // Fetch algorithm tracing statistics
+    const algorithm = await this.getAlgorithmStats(startDate);
 
     const elapsed = performance.now() - startTime;
     log.debug(`[getMetrics] Collected metrics in ${elapsed.toFixed(1)}ms (range=${range})`);
@@ -1716,7 +1728,62 @@ export class GraphRAGEngine {
       current,
       timeseries,
       period,
+      algorithm,
     };
+  }
+
+  /**
+   * Get algorithm tracing statistics (Story 7.6)
+   */
+  private async getAlgorithmStats(startDate: Date): Promise<GraphMetricsResponse["algorithm"]> {
+    try {
+      // Aggregate stats from algorithm_traces
+      const statsResult = await this.db.query(`
+        SELECT
+          COUNT(*) as total,
+          COUNT(*) FILTER (WHERE decision = 'accepted') as accepted,
+          COUNT(*) FILTER (WHERE decision LIKE 'filtered%') as filtered,
+          COUNT(*) FILTER (WHERE decision LIKE 'rejected%') as rejected,
+          COUNT(*) FILTER (WHERE target_type = 'tool') as tools,
+          COUNT(*) FILTER (WHERE target_type = 'capability') as capabilities,
+          AVG(final_score) as avg_final,
+          AVG((signals->>'semanticScore')::float) as avg_semantic,
+          AVG((signals->>'graphScore')::float) as avg_graph
+        FROM algorithm_traces
+        WHERE timestamp >= $1
+      `, [startDate.toISOString()]);
+
+      const stats = statsResult[0] || {};
+      const total = Number(stats.total) || 0;
+
+      return {
+        tracesCount: total,
+        acceptanceRate: total > 0 ? (Number(stats.accepted) || 0) / total : 0,
+        avgFinalScore: Number(stats.avg_final) || 0,
+        avgSemanticScore: Number(stats.avg_semantic) || 0,
+        avgGraphScore: Number(stats.avg_graph) || 0,
+        byDecision: {
+          accepted: Number(stats.accepted) || 0,
+          filtered: Number(stats.filtered) || 0,
+          rejected: Number(stats.rejected) || 0,
+        },
+        byTargetType: {
+          tool: Number(stats.tools) || 0,
+          capability: Number(stats.capabilities) || 0,
+        },
+      };
+    } catch (error) {
+      log.warn(`[getAlgorithmStats] Query failed: ${error}`);
+      return {
+        tracesCount: 0,
+        acceptanceRate: 0,
+        avgFinalScore: 0,
+        avgSemanticScore: 0,
+        avgGraphScore: 0,
+        byDecision: { accepted: 0, filtered: 0, rejected: 0 },
+        byTargetType: { tool: 0, capability: 0 },
+      };
+    }
   }
 
   /**

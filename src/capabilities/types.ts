@@ -248,6 +248,7 @@ export interface CapabilityNode {
     successRate: number;
     usageCount: number;
     toolsCount: number; // Number of child tools
+    pagerank: number; // Hypergraph PageRank score (0-1)
   };
 }
 

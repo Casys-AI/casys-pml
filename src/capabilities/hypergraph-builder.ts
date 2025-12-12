@@ -100,11 +100,13 @@ export class HypergraphBuilder {
    *
    * @param capabilities List of capabilities to visualize
    * @param toolsSnapshot Optional GraphSnapshot for tool metrics (pagerank, degree)
+   * @param capabilityPageranks Optional map of capability ID to PageRank score
    * @returns HypergraphResult with nodes, edges, and zone metadata
    */
   buildCompoundGraph(
     capabilities: CapabilityResponseInternal[],
     toolsSnapshot?: GraphSnapshot,
+    capabilityPageranks?: Map<string, number>,
   ): HypergraphResult {
     logger.debug("Building compound graph", {
       capabilitiesCount: capabilities.length,
@@ -124,7 +126,7 @@ export class HypergraphBuilder {
       const cap = capabilities[i];
       const capId = `cap-${cap.id}`;
 
-      // Create capability node
+      // Create capability node (with pagerank from spectral clustering if available)
       const capNode: CapabilityNode = {
         data: {
           id: capId,
@@ -134,6 +136,7 @@ export class HypergraphBuilder {
           successRate: cap.successRate,
           usageCount: cap.usageCount,
           toolsCount: cap.toolsUsed.length,
+          pagerank: capabilityPageranks?.get(cap.id) ?? 0,
         },
       };
       nodes.push(capNode);

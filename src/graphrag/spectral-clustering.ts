@@ -712,6 +712,17 @@ export class SpectralClusteringManager {
   }
 
   /**
+   * Get all PageRank scores (Story 8.2)
+   *
+   * Used by HypergraphBuilder for capability node sizing.
+   *
+   * @returns Map of capability ID to PageRank score
+   */
+  getAllPageRanks(): Map<string, number> {
+    return new Map(this.pageRankScores);
+  }
+
+  /**
    * Get cluster assignment for a capability
    *
    * @param capabilityId - Capability ID
