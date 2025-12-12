@@ -395,6 +395,13 @@ export async function generateEmbeddings(
                 ],
               );
 
+              // Track metric for getPeriodStats().newNodesAdded
+              await tx.query(
+                `INSERT INTO metrics (metric_name, value, metadata, timestamp)
+                 VALUES ('tool_embedded', 1, $1, NOW())`,
+                [JSON.stringify({ tool_id: schema.tool_id })],
+              );
+
               newlyGenerated++;
               progress.increment();
             } catch (error) {
