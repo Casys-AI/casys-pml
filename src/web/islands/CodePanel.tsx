@@ -12,7 +12,7 @@
  * @module web/islands/CodePanel
  */
 
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useState, useRef, useCallback } from "preact/hooks";
 import { highlightCode, detectLanguage, syntaxHighlightStyles } from "../lib/syntax-highlight.ts";
 import type { CapabilityData, ToolData } from "./D3GraphVisualization.tsx";
 
@@ -67,6 +67,11 @@ function formatRelativeTime(timestamp: number | undefined): string {
  * Bottom panel that displays capability code and metadata.
  * Shows when a capability hull is clicked in the hypergraph view.
  */
+// Min/Max heights for the panel
+const MIN_PANEL_HEIGHT = 150;
+const MAX_PANEL_HEIGHT = window?.innerHeight ? window.innerHeight * 0.8 : 800;
+const DEFAULT_PANEL_HEIGHT = 300;
+
 export default function CodePanel({
   capability,
   tool,
@@ -76,6 +81,25 @@ export default function CodePanel({
 }: CodePanelProps) {
   const [copied, setCopied] = useState(false);
   const [showLineNumbers, setShowLineNumbers] = useState(true);
+
+  // Resizable panel state
+  const [panelHeight, setPanelHeight] = useState(() => {
+    // Try to restore from localStorage
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("codePanelHeight");
+      if (saved) {
+        const height = parseInt(saved, 10);
+        if (!isNaN(height) && height >= MIN_PANEL_HEIGHT && height <= MAX_PANEL_HEIGHT) {
+          return height;
+        }
+      }
+    }
+    return DEFAULT_PANEL_HEIGHT;
+  });
+  const [isResizing, setIsResizing] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const startYRef = useRef(0);
+  const startHeightRef = useRef(0);
 
   // Determine display mode
   const displayMode = tool ? "tool" : capability ? "capability" : null;
@@ -104,6 +128,61 @@ export default function CodePanel({
   useEffect(() => {
     setCopied(false);
   }, [capability?.id, tool?.id]);
+
+  // Save panel height to localStorage when it changes
+  useEffect(() => {
+    if (typeof window !== "undefined" && panelHeight !== DEFAULT_PANEL_HEIGHT) {
+      localStorage.setItem("codePanelHeight", String(panelHeight));
+    }
+  }, [panelHeight]);
+
+  // Resize handlers
+  const handleResizeStart = useCallback((e: MouseEvent | TouchEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    startYRef.current = "touches" in e ? e.touches[0].clientY : e.clientY;
+    startHeightRef.current = panelHeight;
+
+    // Add cursor style to body during resize
+    document.body.style.cursor = "ns-resize";
+    document.body.style.userSelect = "none";
+  }, [panelHeight]);
+
+  const handleResizeMove = useCallback((e: MouseEvent | TouchEvent) => {
+    if (!isResizing) return;
+
+    const currentY = "touches" in e ? e.touches[0].clientY : e.clientY;
+    const deltaY = startYRef.current - currentY; // Negative = dragging down, Positive = dragging up
+    const newHeight = Math.min(MAX_PANEL_HEIGHT, Math.max(MIN_PANEL_HEIGHT, startHeightRef.current + deltaY));
+
+    setPanelHeight(newHeight);
+  }, [isResizing]);
+
+  const handleResizeEnd = useCallback(() => {
+    setIsResizing(false);
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+  }, []);
+
+  // Global mouse/touch events for resize
+  useEffect(() => {
+    if (isResizing) {
+      const handleMove = (e: MouseEvent | TouchEvent) => handleResizeMove(e);
+      const handleEnd = () => handleResizeEnd();
+
+      document.addEventListener("mousemove", handleMove);
+      document.addEventListener("mouseup", handleEnd);
+      document.addEventListener("touchmove", handleMove);
+      document.addEventListener("touchend", handleEnd);
+
+      return () => {
+        document.removeEventListener("mousemove", handleMove);
+        document.removeEventListener("mouseup", handleEnd);
+        document.removeEventListener("touchmove", handleMove);
+        document.removeEventListener("touchend", handleEnd);
+      };
+    }
+  }, [isResizing, handleResizeMove, handleResizeEnd]);
 
   if (!capability && !tool) return null;
 
@@ -174,30 +253,73 @@ export default function CodePanel({
       `}</style>
 
       <div
+        ref={panelRef}
         class="code-panel"
         role="region"
         aria-labelledby="code-panel-title"
         tabIndex={0}
         style={{
           width: "100%",
-          height: "35vh",
-          minHeight: "200px",
-          maxHeight: "400px",
+          height: `${panelHeight}px`,
+          minHeight: `${MIN_PANEL_HEIGHT}px`,
+          maxHeight: `${MAX_PANEL_HEIGHT}px`,
           background: "var(--bg-elevated, #12110f)",
           borderTop: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
           display: "flex",
           flexDirection: "column",
-          animation: "slideUp 300ms ease-out",
+          animation: isResizing ? "none" : "slideUp 300ms ease-out",
           position: "relative",
           zIndex: 100,
           outline: "none",
         }}
       >
+        {/* Resize Handle */}
+        <div
+          onMouseDown={handleResizeStart as any}
+          onTouchStart={handleResizeStart as any}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: "8px",
+            cursor: "ns-resize",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 10,
+          }}
+          title="Drag to resize"
+        >
+          {/* Visual grip indicator */}
+          <div
+            style={{
+              width: "40px",
+              height: "4px",
+              borderRadius: "2px",
+              background: isResizing
+                ? "var(--accent, #FFB86F)"
+                : "var(--border, rgba(255, 184, 111, 0.2))",
+              transition: "background 0.15s ease",
+            }}
+            onMouseOver={(e) => {
+              if (!isResizing) {
+                e.currentTarget.style.background = "var(--accent, #FFB86F)";
+              }
+            }}
+            onMouseOut={(e) => {
+              if (!isResizing) {
+                e.currentTarget.style.background = "var(--border, rgba(255, 184, 111, 0.2))";
+              }
+            }}
+          />
+        </div>
         {/* Header */}
         <div
           class="panel-header"
           style={{
             padding: "12px 16px",
+            paddingTop: "16px", // Extra padding for resize handle
             borderBottom: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
             display: "flex",
             justifyContent: "space-between",
