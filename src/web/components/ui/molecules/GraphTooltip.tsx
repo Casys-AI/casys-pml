@@ -19,8 +19,8 @@ export default function GraphTooltip({
   y,
   serverColor,
 }: GraphTooltipProps): JSX.Element {
-  const parentCount = data.parents?.length ?? 0;
-  const isHyperedge = parentCount > 1;
+  const usedInCount = data.parents?.length ?? 0;
+  const isShared = usedInCount > 1;
 
   return (
     <div
@@ -36,17 +36,17 @@ export default function GraphTooltip({
         minWidth: "180px",
       }}
     >
-      {/* Header: Tool name + server badge */}
+      {/* Header: Tool name + shared badge */}
       <div class="flex items-center gap-2 mb-2">
         <span class="font-bold text-sm" style={{ color: "#fff" }}>
           {data.label}
         </span>
-        {isHyperedge && (
+        {isShared && (
           <span
             class="px-1.5 py-0.5 rounded text-[9px] font-medium"
-            style={{ background: "#f59e0b", color: "#000" }}
+            style={{ background: "#3b82f6", color: "#fff" }}
           >
-            HYPER
+            SHARED
           </span>
         )}
       </div>
@@ -73,11 +73,11 @@ export default function GraphTooltip({
           <span style={{ color: "#6b6560" }}>Degree</span>
           <span style={{ color: "#d5c3b5" }}>{data.degree}</span>
         </div>
-        {parentCount > 0 && (
+        {usedInCount > 0 && (
           <div class="flex justify-between col-span-2">
-            <span style={{ color: "#6b6560" }}>Capabilities</span>
-            <span style={{ color: isHyperedge ? "#f59e0b" : "#d5c3b5" }}>
-              {parentCount}
+            <span style={{ color: "#6b6560" }}>Used in</span>
+            <span style={{ color: isShared ? "#3b82f6" : "#d5c3b5" }}>
+              {usedInCount} cap{usedInCount > 1 ? "s" : ""}
             </span>
           </div>
         )}

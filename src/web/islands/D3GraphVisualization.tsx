@@ -469,11 +469,11 @@ export default function D3GraphVisualization({
           if (!d || !d.data) return 4;
           const tool = d.data as any;
           const pagerank = tool.pagerank || 0;
-          const parentCount = tool.parentCapabilities?.length || 0;
-          // Base 4 + pagerank (0-10) + hypergraph centrality bonus (0-6)
-          // Tools in multiple capabilities are more central in the hypergraph
-          const hypergraphBonus = Math.min(parentCount * 2, 6);
-          return 4 + Math.min(pagerank * 25, 10) + hypergraphBonus;
+          const usedInCaps = tool.parentCapabilities?.length || 0;
+          // Base 4 + pagerank (0-10) + shared tool bonus (0-6)
+          // Tools used by multiple capabilities appear larger (more reused = more important)
+          const sharedBonus = Math.min(usedInCaps * 2, 6);
+          return 4 + Math.min(pagerank * 25, 10) + sharedBonus;
         })
         .attr("fill", (d: PositionedNode) => {
           if (!d || !d.data) return "#888";

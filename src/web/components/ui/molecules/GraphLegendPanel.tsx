@@ -114,14 +114,14 @@ export default function GraphLegendPanel({
         onClick={onToggleEdgeType ? () => onToggleEdgeType("hierarchy") : undefined}
       />
       <LegendItem
-        label="Hyperedge (multi-parent)"
+        label="Shared tool (multi-cap)"
         color="#f59e0b"
         lineStyle="solid"
         active={!hiddenEdgeTypes.has("hyperedge")}
         onClick={onToggleEdgeType ? () => onToggleEdgeType("hyperedge") : undefined}
       />
       <LegendItem
-        label="Capability link (cap↔cap)"
+        label="Cap dependency (cap↔cap)"
         color="#3b82f6"
         lineStyle="solid"
         active={!hiddenEdgeTypes.has("capability_link")}
