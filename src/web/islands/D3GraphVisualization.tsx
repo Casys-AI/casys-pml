@@ -1042,20 +1042,23 @@ export default function D3GraphVisualization({
         edgesForBundler.push({ source: srcId, target: tgtId });
       }
 
-      // Run FDEB
+      // Run FDEB with default params from Holten 2009
       const bundler = new FDEBBundler({
         K: 0.1,
         S0: 0.04,
         I0: 50,
-        cycles: 4, // Fewer cycles for speed
-        compatibilityThreshold: 0.1,
-        useQuadratic: true,
+        cycles: 6, // Full 6 cycles for proper bundling
+        compatibilityThreshold: 0.05, // Lower = more edges considered compatible
+        useQuadratic: true, // Inverse-quadratic for localized bundling (Fig 7d)
       });
 
-      const bundledEdges = bundler
+      let bundledEdges = bundler
         .setNodes(nodePositions)
         .setEdges(edgesForBundler)
         .bundle();
+
+      // Apply Gaussian smoothing to reduce jaggedness (Holten Section 3.3)
+      bundledEdges = FDEBBundler.applySmoothing(bundledEdges, 0.5);
 
       bundledEdgesRef.current = bundledEdges;
 
