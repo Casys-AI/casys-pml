@@ -210,6 +210,24 @@ export class CapabilityMatcher {
         decision,
       });
 
+      // Story 7.6: Emit algorithm.scored event for real-time tracing UI
+      eventBus.emit({
+        type: "algorithm.scored",
+        source: "capability-matcher",
+        payload: {
+          itemId: candidate.capability.id,
+          itemType: "capability",
+          intent: intent.substring(0, 100),
+          signals: {
+            semanticScore: candidate.semanticScore,
+            successRate: candidate.capability.successRate,
+          },
+          finalScore: score,
+          threshold,
+          decision: decision === "accepted" ? "accepted" : "filtered",
+        },
+      });
+
       // 6. Check against Threshold
       if (score >= threshold) {
         // Keep the best one

@@ -26,6 +26,8 @@ import type {
 } from "./types.ts";
 // Story 7.6: Algorithm tracing (ADR-039)
 import type { AlgorithmTracer } from "../telemetry/algorithm-tracer.ts";
+// Story 7.6: EventBus for real-time tracing UI
+import { eventBus } from "../events/mod.ts";
 
 /**
  * DAG Suggester
@@ -113,6 +115,21 @@ export class DAGSuggester {
   }
 
   /**
+   * Get capability PageRanks from SpectralClusteringManager (Story 8.2)
+   *
+   * Used by HypergraphBuilder to size capability nodes by importance.
+   * Returns empty map if spectral clustering not initialized.
+   *
+   * @returns Map of capability ID to PageRank score (0-1)
+   */
+  getCapabilityPageranks(): Map<string, number> {
+    if (!this.spectralClustering) {
+      return new Map();
+    }
+    return this.spectralClustering.getAllPageRanks();
+  }
+
+  /**
    * Search for capabilities matching an intent (Active Search - Story 7.3a)
    *
    * Delegates to CapabilityMatcher helper for logic (Semantic * Reliability).
@@ -163,16 +180,25 @@ export class DAGSuggester {
 
       // 2. Rank by hybrid finalScore + PageRank boost
       const rankedCandidates = hybridCandidates
-        .map((c) => ({
-          toolId: c.toolId,
-          serverId: c.serverId,
-          toolName: c.toolName,
-          score: c.finalScore, // Use hybrid finalScore as base
-          semanticScore: c.semanticScore,
-          graphScore: c.graphScore,
-          pageRank: this.graphEngine.getPageRank(c.toolId),
-          schema: c.schema,
-        }))
+        .map((c) => {
+          // Compute max Adamic-Adar score vs context tools
+          let maxAdamicAdar = 0;
+          for (const ctxTool of contextTools) {
+            const aa = this.graphEngine.adamicAdarBetween(c.toolId, ctxTool);
+            if (aa > maxAdamicAdar) maxAdamicAdar = aa;
+          }
+          return {
+            toolId: c.toolId,
+            serverId: c.serverId,
+            toolName: c.toolName,
+            score: c.finalScore, // Use hybrid finalScore as base
+            semanticScore: c.semanticScore,
+            graphScore: c.graphScore,
+            pageRank: this.graphEngine.getPageRank(c.toolId),
+            adamicAdar: Math.min(maxAdamicAdar / 2, 1.0), // Normalize to 0-1
+            schema: c.schema,
+          };
+        })
         // Combine finalScore with PageRank: 80% finalScore + 20% PageRank
         .map((c) => ({
           ...c,
@@ -210,6 +236,26 @@ export class DAGSuggester {
           finalScore: candidate.combinedScore,
           thresholdUsed: 0.5, // ADR-026 threshold
           decision: "accepted", // All top-5 candidates are accepted
+        });
+
+        // Story 7.6: Emit algorithm.scored event for real-time tracing UI
+        eventBus.emit({
+          type: "algorithm.scored",
+          source: "dag-suggester",
+          payload: {
+            itemId: candidate.toolId,
+            itemType: "tool",
+            intent: intent.text.substring(0, 100),
+            signals: {
+              semanticScore: candidate.semanticScore,
+              graphScore: candidate.graphScore,
+              pagerank: candidate.pageRank,
+              adamicAdar: candidate.adamicAdar,
+            },
+            finalScore: candidate.combinedScore,
+            threshold: 0.5,
+            decision: "accepted",
+          },
         });
       }
 
