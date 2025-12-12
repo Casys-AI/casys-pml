@@ -1042,13 +1042,14 @@ export default function D3GraphVisualization({
         edgesForBundler.push({ source: srcId, target: tgtId });
       }
 
-      // Run FDEB with default params from Holten 2009
+      // Run FDEB with params from d3.ForceBundle reference implementation
+      // https://github.com/upphiminn/d3.ForceBundle
       const bundler = new FDEBBundler({
-        K: 0.1,
-        S0: 0.04,
-        I0: 50,
+        K: 0.1, // Spring constant
+        S0: 0.1, // Step size (ref: 0.1 default)
+        I0: 60, // Iterations per cycle (ref: 60 default)
         cycles: 6, // Full 6 cycles for proper bundling
-        compatibilityThreshold: 0.05, // Lower = more edges considered compatible
+        compatibilityThreshold: 0.6, // Only bundle edges with >= 60% compatibility (ref: 0.6 default)
         useQuadratic: true, // Inverse-quadratic for localized bundling (Fig 7d)
       });
 

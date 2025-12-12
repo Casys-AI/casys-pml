@@ -49,22 +49,24 @@ interface InternalEdge {
 // Default Configuration
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Default config from d3.ForceBundle reference implementation
+// https://github.com/upphiminn/d3.ForceBundle
 const DEFAULT_CONFIG: FDEBConfig = {
-  K: 0.1, // Spring constant
-  S0: 0.04, // Initial step size (as fraction of average edge length)
-  I0: 50, // Initial iterations
-  cycles: 6, // Number of cycles
-  compatibilityThreshold: 0.05, // Minimum Ce to consider
+  K: 0.1, // Spring constant (controls bundling stiffness)
+  S0: 0.1, // Initial step size (ref: 0.1 default)
+  I0: 60, // Initial iterations per cycle (ref: 60 default)
+  cycles: 6, // Number of cycles (ref: 6 default)
+  compatibilityThreshold: 0.6, // Minimum Ce to consider (ref: 0.6 default, 60%)
   useQuadratic: true, // TD-3: Inverse-quadratic for localized bundling (Holten Fig 7d)
 };
 
-// Iterative refinement scheme from paper
+// Iterative refinement scheme from d3.ForceBundle reference
 // P: subdivision points, S: step size, I: iterations
 const SCHEME = {
-  // Cycle:     0      1      2      3       4       5
-  P: [1, 2, 4, 8, 16, 32], // Doubles each cycle
-  S: [0.04, 0.02, 0.01, 0.005, 0.0025, 0.00125], // Halves each cycle
-  I: [50, 33, 22, 15, 9, 7], // Reduces by ~2/3 each cycle
+  // Cycle:     0      1       2       3        4         5
+  P: [1, 2, 4, 8, 16, 32], // Doubles each cycle (rate: 2)
+  S: [0.1, 0.05, 0.025, 0.0125, 0.00625, 0.003125], // Halves each cycle (ref: starts at 0.1)
+  I: [60, 40, 27, 18, 12, 8], // Reduces by ~2/3 each cycle (ref: starts at 60)
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
