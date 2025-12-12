@@ -46,8 +46,41 @@ interface GraphMetricsResponse {
     avgGraphScore: number;
     byDecision: { accepted: number; filtered: number; rejected: number };
     byTargetType: { tool: number; capability: number };
+    // ADR-039 extensions
+    byGraphType?: {
+      graph: {
+        count: number;
+        avgScore: number;
+        acceptanceRate: number;
+        topSignals: { pagerank: number; adamicAdar: number; cooccurrence: number };
+      };
+      hypergraph: {
+        count: number;
+        avgScore: number;
+        acceptanceRate: number;
+        spectralRelevance: {
+          withClusterMatch: { count: number; avgScore: number; selectedRate: number };
+          withoutClusterMatch: { count: number; avgScore: number; selectedRate: number };
+        };
+      };
+    };
+    thresholdEfficiency?: {
+      rejectedByThreshold: number;
+      totalEvaluated: number;
+      rejectionRate: number;
+    };
+    scoreDistribution?: {
+      graph: Array<{ bucket: string; count: number }>;
+      hypergraph: Array<{ bucket: string; count: number }>;
+    };
+    byMode?: {
+      activeSearch: { count: number; avgScore: number; acceptanceRate: number };
+      passiveSuggestion: { count: number; avgScore: number; acceptanceRate: number };
+    };
   };
 }
+
+type GraphTypeTab = "graph" | "hypergraph";
 
 export default function MetricsPanel({ apiBase: apiBaseProp }: MetricsPanelProps) {
   const apiBase = apiBaseProp || "http://localhost:3003";
@@ -62,6 +95,7 @@ export default function MetricsPanel({ apiBase: apiBaseProp }: MetricsPanelProps
     return (saved as ViewMode) || "collapsed";
   });
   const [activeChart, setActiveChart] = useState<"edges" | "confidence" | "workflows">("edges");
+  const [graphTypeTab, setGraphTypeTab] = useState<GraphTypeTab>("graph");
 
   const chartRefs = {
     edges: useRef<HTMLCanvasElement>(null),
@@ -69,6 +103,7 @@ export default function MetricsPanel({ apiBase: apiBaseProp }: MetricsPanelProps
     workflows: useRef<HTMLCanvasElement>(null),
     decisions: useRef<HTMLCanvasElement>(null),
     scores: useRef<HTMLCanvasElement>(null),
+    scoreDistribution: useRef<HTMLCanvasElement>(null),
   };
   const chartInstances = useRef<Record<string, any>>({});
 
@@ -242,6 +277,67 @@ export default function MetricsPanel({ apiBase: apiBaseProp }: MetricsPanelProps
       chartInstances.current = {};
     };
   }, [metrics, viewMode]);
+
+  // ADR-039: Score Distribution Chart (updates with graphTypeTab)
+  useEffect(() => {
+    if (viewMode !== "dashboard" || !metrics?.algorithm?.scoreDistribution) return;
+
+    const Chart = (globalThis as any).Chart;
+    if (!Chart || !chartRefs.scoreDistribution.current) return;
+
+    // Destroy previous instance
+    if (chartInstances.current.scoreDistribution) {
+      chartInstances.current.scoreDistribution.destroy();
+    }
+
+    const distribution = graphTypeTab === "graph"
+      ? metrics.algorithm.scoreDistribution.graph
+      : metrics.algorithm.scoreDistribution.hypergraph;
+
+    const color = graphTypeTab === "graph" ? "#ffb86f" : "#a78bfa";
+
+    chartInstances.current.scoreDistribution = new Chart(chartRefs.scoreDistribution.current.getContext("2d"), {
+      type: "bar",
+      data: {
+        labels: distribution.map((d) => d.bucket),
+        datasets: [{
+          label: `${graphTypeTab} Score Distribution`,
+          data: distribution.map((d) => d.count),
+          backgroundColor: `${color}cc`,
+          borderColor: color,
+          borderWidth: 1,
+          borderRadius: 4,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: "y" as const,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: "rgba(30, 27, 24, 0.95)",
+            titleColor: "#f5f0e8",
+            bodyColor: "#c9c2b8",
+            callbacks: {
+              label: (ctx: any) => ` ${ctx.raw} traces`,
+            },
+          },
+        },
+        scales: {
+          x: {
+            grid: { color: "rgba(255,184,111,0.08)" },
+            ticks: { color: "#8a8078" },
+            beginAtZero: true,
+          },
+          y: {
+            grid: { display: false },
+            ticks: { color: "#c9c2b8", font: { size: 11 } },
+          },
+        },
+      },
+    });
+  }, [metrics, viewMode, graphTypeTab]);
 
   // Sidebar mode: single chart
   const sidebarChartRef = useRef<HTMLCanvasElement>(null);
@@ -475,6 +571,115 @@ export default function MetricsPanel({ apiBase: apiBaseProp }: MetricsPanelProps
                       </div>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* ADR-039: Algorithm Insights - Compact inline with tabs */}
+              {metrics.algorithm && metrics.algorithm.tracesCount > 0 && metrics.algorithm.byGraphType && (
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-4">
+                  {/* Left: Graph/Hypergraph Stats with tabs */}
+                  <div class="rounded-xl p-4" style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+                    <div class="flex justify-between items-center mb-3">
+                      <h3 class="text-sm font-semibold" style={{ color: "var(--text)" }}>By Graph Type</h3>
+                      <div class="flex gap-0.5 p-0.5 rounded" style={{ background: "var(--bg)" }}>
+                        {(["graph", "hypergraph"] as GraphTypeTab[]).map((tab) => (
+                          <button
+                            key={tab}
+                            class="py-1 px-2 rounded text-[10px] font-semibold capitalize"
+                            style={graphTypeTab === tab
+                              ? { background: tab === "graph" ? "#ffb86f" : "#a78bfa", color: "var(--bg)" }
+                              : { color: "var(--text-muted)" }}
+                            onClick={() => setGraphTypeTab(tab)}
+                          >
+                            {tab}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {(() => {
+                      const stats = graphTypeTab === "graph"
+                        ? metrics.algorithm!.byGraphType!.graph
+                        : metrics.algorithm!.byGraphType!.hypergraph;
+                      const color = graphTypeTab === "graph" ? "#ffb86f" : "#a78bfa";
+                      return (
+                        <>
+                          <div class="grid grid-cols-3 gap-2 mb-3">
+                            <MetricCard label="Count" value={stats.count} color={color} compact />
+                            <MetricCard label="Avg" value={stats.avgScore.toFixed(2)} color={getScoreColor(stats.avgScore)} compact />
+                            <MetricCard label="Accept" value={`${(stats.acceptanceRate * 100).toFixed(0)}%`} color={getSuccessColor(stats.acceptanceRate * 100)} compact />
+                          </div>
+                          {/* Graph: Top Signals inline */}
+                          {graphTypeTab === "graph" && metrics.algorithm!.byGraphType!.graph.topSignals && (
+                            <div class="flex gap-2 text-[10px]" style={{ color: "var(--text-dim)" }}>
+                              <span>PR: <b style={{ color: "#ffb86f" }}>{metrics.algorithm!.byGraphType!.graph.topSignals.pagerank.toFixed(2)}</b></span>
+                              <span>AA: <b style={{ color: "#34d399" }}>{metrics.algorithm!.byGraphType!.graph.topSignals.adamicAdar.toFixed(2)}</b></span>
+                              <span>Co: <b style={{ color: "#60a5fa" }}>{metrics.algorithm!.byGraphType!.graph.topSignals.cooccurrence.toFixed(2)}</b></span>
+                            </div>
+                          )}
+                          {/* Hypergraph: Spectral compact */}
+                          {graphTypeTab === "hypergraph" && metrics.algorithm!.byGraphType!.hypergraph.spectralRelevance && (
+                            <div class="flex gap-3 text-[10px]" style={{ color: "var(--text-dim)" }}>
+                              <span>w/ cluster: <b style={{ color: "#4ade80" }}>{metrics.algorithm!.byGraphType!.hypergraph.spectralRelevance.withClusterMatch.avgScore.toFixed(2)}</b> ({(metrics.algorithm!.byGraphType!.hypergraph.spectralRelevance.withClusterMatch.selectedRate * 100).toFixed(0)}%)</span>
+                              <span>w/o: <b style={{ color: "#fbbf24" }}>{metrics.algorithm!.byGraphType!.hypergraph.spectralRelevance.withoutClusterMatch.avgScore.toFixed(2)}</b> ({(metrics.algorithm!.byGraphType!.hypergraph.spectralRelevance.withoutClusterMatch.selectedRate * 100).toFixed(0)}%)</span>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Right: Score Distribution mini chart */}
+                  <div class="rounded-xl p-4" style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+                    <div class="flex justify-between items-center mb-2">
+                      <h3 class="text-sm font-semibold" style={{ color: "var(--text)" }}>Score Dist.</h3>
+                      <span class="text-[10px] px-1.5 py-0.5 rounded capitalize" style={{
+                        background: graphTypeTab === "graph" ? "rgba(255, 184, 111, 0.15)" : "rgba(167, 139, 250, 0.15)",
+                        color: graphTypeTab === "graph" ? "#ffb86f" : "#a78bfa"
+                      }}>
+                        {graphTypeTab}
+                      </span>
+                    </div>
+                    <div class="h-24">
+                      <canvas ref={chartRefs.scoreDistribution} />
+                    </div>
+                  </div>
+
+                  {/* Bottom row: Threshold & Mode - spans full width */}
+                  <div class="lg:col-span-2 rounded-xl p-4" style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+                    <div class="flex flex-wrap gap-4 items-center">
+                      {/* Threshold */}
+                      {metrics.algorithm!.thresholdEfficiency && (
+                        <div class="flex-1 min-w-[150px]">
+                          <ProgressBar
+                            value={metrics.algorithm!.thresholdEfficiency.rejectionRate}
+                            label={`Reject: ${metrics.algorithm!.thresholdEfficiency.rejectedByThreshold}/${metrics.algorithm!.thresholdEfficiency.totalEvaluated}`}
+                            color="var(--warning)"
+                            height={6}
+                          />
+                        </div>
+                      )}
+                      {/* Mode stats inline */}
+                      {metrics.algorithm!.byMode && (
+                        <div class="flex gap-4 text-[11px]">
+                          <div class="text-center">
+                            <div class="font-bold" style={{ color: "#60a5fa" }}>{metrics.algorithm!.byMode.activeSearch.avgScore.toFixed(2)}</div>
+                            <div style={{ color: "var(--text-dim)" }}>Active ({metrics.algorithm!.byMode.activeSearch.count})</div>
+                          </div>
+                          <div class="text-center">
+                            <div class="font-bold" style={{ color: "#34d399" }}>{metrics.algorithm!.byMode.passiveSuggestion.avgScore.toFixed(2)}</div>
+                            <div style={{ color: "var(--text-dim)" }}>Passive ({metrics.algorithm!.byMode.passiveSuggestion.count})</div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Empty state for Algorithm Insights - compact */}
+              {metrics.algorithm && metrics.algorithm.tracesCount === 0 && (
+                <div class="mt-4 p-4 rounded-xl text-center" style={{ background: "var(--bg-surface)", border: "1px dashed var(--border)" }}>
+                  <div class="text-xs" style={{ color: "var(--text-muted)" }}>No algorithm traces for this period</div>
                 </div>
               )}
             </>

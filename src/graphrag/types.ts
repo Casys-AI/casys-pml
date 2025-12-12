@@ -368,7 +368,7 @@ export interface GraphMetricsResponse {
     newNodesAdded: number;
   };
 
-  /** Algorithm tracing statistics (Story 7.6) */
+  /** Algorithm tracing statistics (Story 7.6, ADR-039) */
   algorithm?: {
     tracesCount: number;
     acceptanceRate: number;
@@ -381,6 +381,53 @@ export interface GraphMetricsResponse {
       acceptanceRate: TimeSeriesPoint[];
       avgScore: TimeSeriesPoint[];
       volume: TimeSeriesPoint[];
+    };
+
+    /**
+     * ADR-039: Separation of Graph vs Hypergraph algorithm stats
+     *
+     * - graph: Simple algos (PageRank, Adamic-Adar, co-occurrence)
+     * - hypergraph: Advanced algos (Spectral Clustering, capability matching)
+     *
+     * Classification logic:
+     * - hypergraph if target_type = 'capability' OR signals.spectralClusterMatch IS NOT NULL
+     * - graph otherwise
+     */
+    byGraphType?: {
+      graph: {
+        count: number;
+        avgScore: number;
+        acceptanceRate: number;
+        topSignals: { pagerank: number; adamicAdar: number; cooccurrence: number };
+      };
+      hypergraph: {
+        count: number;
+        avgScore: number;
+        acceptanceRate: number;
+        spectralRelevance: {
+          withClusterMatch: { count: number; avgScore: number; selectedRate: number };
+          withoutClusterMatch: { count: number; avgScore: number; selectedRate: number };
+        };
+      };
+    };
+
+    /** ADR-039: Threshold efficiency metrics */
+    thresholdEfficiency?: {
+      rejectedByThreshold: number;
+      totalEvaluated: number;
+      rejectionRate: number;
+    };
+
+    /** ADR-039: Score distribution histograms by graph type */
+    scoreDistribution?: {
+      graph: Array<{ bucket: string; count: number }>;
+      hypergraph: Array<{ bucket: string; count: number }>;
+    };
+
+    /** ADR-039: Stats by algorithm mode */
+    byMode?: {
+      activeSearch: { count: number; avgScore: number; acceptanceRate: number };
+      passiveSuggestion: { count: number; avgScore: number; acceptanceRate: number };
     };
   };
 }

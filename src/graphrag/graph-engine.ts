@@ -1733,11 +1733,19 @@ export class GraphRAGEngine {
   }
 
   /**
-   * Get algorithm tracing statistics (Story 7.6)
+   * Get algorithm tracing statistics (Story 7.6, ADR-039)
+   *
+   * ADR-039 adds:
+   * - byGraphType: Separation of graph vs hypergraph algorithm stats
+   * - thresholdEfficiency: Rejection rate metrics
+   * - scoreDistribution: Score histograms by graph type
+   * - byMode: Stats by algorithm mode (active_search vs passive_suggestion)
    */
   private async getAlgorithmStats(startDate: Date): Promise<GraphMetricsResponse["algorithm"]> {
+    const isoDate = startDate.toISOString();
+
     try {
-      // Aggregate stats from algorithm_traces
+      // Base stats query (existing)
       const statsResult = await this.db.query(`
         SELECT
           COUNT(*) as total,
@@ -1751,10 +1759,153 @@ export class GraphRAGEngine {
           AVG((signals->>'graphScore')::float) as avg_graph
         FROM algorithm_traces
         WHERE timestamp >= $1
-      `, [startDate.toISOString()]);
+      `, [isoDate]);
 
       const stats = statsResult[0] || {};
       const total = Number(stats.total) || 0;
+
+      // ADR-039: Graph vs Hypergraph stats
+      // hypergraph if target_type = 'capability' OR signals.spectralClusterMatch IS NOT NULL
+      const graphTypeResult = await this.db.query(`
+        SELECT
+          CASE
+            WHEN target_type = 'capability' OR signals->>'spectralClusterMatch' IS NOT NULL
+            THEN 'hypergraph'
+            ELSE 'graph'
+          END as graph_type,
+          COUNT(*) as count,
+          AVG(final_score) as avg_score,
+          COUNT(*) FILTER (WHERE decision = 'accepted')::float / NULLIF(COUNT(*), 0) as acceptance_rate,
+          AVG((signals->>'pagerank')::float) as avg_pagerank,
+          AVG((signals->>'adamicAdar')::float) as avg_adamic_adar,
+          AVG((signals->>'cooccurrence')::float) as avg_cooccurrence
+        FROM algorithm_traces
+        WHERE timestamp >= $1
+        GROUP BY graph_type
+      `, [isoDate]);
+
+      // Parse graph type results
+      const graphStats = { count: 0, avgScore: 0, acceptanceRate: 0, topSignals: { pagerank: 0, adamicAdar: 0, cooccurrence: 0 } };
+      const hypergraphStats = { count: 0, avgScore: 0, acceptanceRate: 0 };
+
+      for (const row of graphTypeResult) {
+        if (row.graph_type === "graph") {
+          graphStats.count = Number(row.count) || 0;
+          graphStats.avgScore = Number(row.avg_score) || 0;
+          graphStats.acceptanceRate = Number(row.acceptance_rate) || 0;
+          graphStats.topSignals = {
+            pagerank: Number(row.avg_pagerank) || 0,
+            adamicAdar: Number(row.avg_adamic_adar) || 0,
+            cooccurrence: Number(row.avg_cooccurrence) || 0,
+          };
+        } else if (row.graph_type === "hypergraph") {
+          hypergraphStats.count = Number(row.count) || 0;
+          hypergraphStats.avgScore = Number(row.avg_score) || 0;
+          hypergraphStats.acceptanceRate = Number(row.acceptance_rate) || 0;
+        }
+      }
+
+      // ADR-039: Spectral relevance (hypergraph only)
+      const spectralResult = await this.db.query(`
+        SELECT
+          COALESCE((signals->>'spectralClusterMatch')::boolean, false) as cluster_match,
+          COUNT(*) as count,
+          AVG(final_score) as avg_score,
+          COUNT(*) FILTER (WHERE outcome->>'userAction' = 'selected')::float / NULLIF(COUNT(*), 0) as selected_rate
+        FROM algorithm_traces
+        WHERE timestamp >= $1
+          AND (target_type = 'capability' OR signals->>'spectralClusterMatch' IS NOT NULL)
+        GROUP BY cluster_match
+      `, [isoDate]);
+
+      const spectralRelevance = {
+        withClusterMatch: { count: 0, avgScore: 0, selectedRate: 0 },
+        withoutClusterMatch: { count: 0, avgScore: 0, selectedRate: 0 },
+      };
+
+      for (const row of spectralResult) {
+        const target = row.cluster_match ? spectralRelevance.withClusterMatch : spectralRelevance.withoutClusterMatch;
+        target.count = Number(row.count) || 0;
+        target.avgScore = Number(row.avg_score) || 0;
+        target.selectedRate = Number(row.selected_rate) || 0;
+      }
+
+      // ADR-039: Score distribution by graph type
+      const distributionResult = await this.db.query(`
+        SELECT
+          CASE
+            WHEN target_type = 'capability' OR signals->>'spectralClusterMatch' IS NOT NULL
+            THEN 'hypergraph'
+            ELSE 'graph'
+          END as graph_type,
+          CONCAT(FLOOR(final_score * 10)::int / 10.0, '-', (FLOOR(final_score * 10)::int + 1) / 10.0) as bucket,
+          COUNT(*) as count
+        FROM algorithm_traces
+        WHERE timestamp >= $1
+        GROUP BY graph_type, FLOOR(final_score * 10)
+        ORDER BY graph_type, FLOOR(final_score * 10)
+      `, [isoDate]);
+
+      const scoreDistribution: { graph: Array<{ bucket: string; count: number }>; hypergraph: Array<{ bucket: string; count: number }> } = {
+        graph: [],
+        hypergraph: [],
+      };
+
+      for (const row of distributionResult) {
+        const entry = { bucket: String(row.bucket), count: Number(row.count) || 0 };
+        if (row.graph_type === "graph") {
+          scoreDistribution.graph.push(entry);
+        } else {
+          scoreDistribution.hypergraph.push(entry);
+        }
+      }
+
+      // ADR-039: Stats by mode
+      const modeResult = await this.db.query(`
+        SELECT
+          algorithm_mode,
+          COUNT(*) as count,
+          AVG(final_score) as avg_score,
+          COUNT(*) FILTER (WHERE decision = 'accepted')::float / NULLIF(COUNT(*), 0) as acceptance_rate
+        FROM algorithm_traces
+        WHERE timestamp >= $1
+        GROUP BY algorithm_mode
+      `, [isoDate]);
+
+      const byMode = {
+        activeSearch: { count: 0, avgScore: 0, acceptanceRate: 0 },
+        passiveSuggestion: { count: 0, avgScore: 0, acceptanceRate: 0 },
+      };
+
+      for (const row of modeResult) {
+        const mode = String(row.algorithm_mode || "").toLowerCase();
+        if (mode === "active_search" || mode === "activesearch") {
+          byMode.activeSearch = {
+            count: Number(row.count) || 0,
+            avgScore: Number(row.avg_score) || 0,
+            acceptanceRate: Number(row.acceptance_rate) || 0,
+          };
+        } else if (mode === "passive_suggestion" || mode === "passivesuggestion") {
+          byMode.passiveSuggestion = {
+            count: Number(row.count) || 0,
+            avgScore: Number(row.avg_score) || 0,
+            acceptanceRate: Number(row.acceptance_rate) || 0,
+          };
+        }
+      }
+
+      // ADR-039: Threshold efficiency
+      const thresholdResult = await this.db.query(`
+        SELECT
+          COUNT(*) as total_evaluated,
+          COUNT(*) FILTER (WHERE decision LIKE 'rejected%' OR decision LIKE 'filtered%') as rejected_by_threshold
+        FROM algorithm_traces
+        WHERE timestamp >= $1
+      `, [isoDate]);
+
+      const thresholdStats = thresholdResult[0] || {};
+      const totalEvaluated = Number(thresholdStats.total_evaluated) || 0;
+      const rejectedByThreshold = Number(thresholdStats.rejected_by_threshold) || 0;
 
       return {
         tracesCount: total,
@@ -1771,6 +1922,21 @@ export class GraphRAGEngine {
           tool: Number(stats.tools) || 0,
           capability: Number(stats.capabilities) || 0,
         },
+        // ADR-039 extensions
+        byGraphType: {
+          graph: graphStats,
+          hypergraph: {
+            ...hypergraphStats,
+            spectralRelevance,
+          },
+        },
+        thresholdEfficiency: {
+          rejectedByThreshold,
+          totalEvaluated,
+          rejectionRate: totalEvaluated > 0 ? rejectedByThreshold / totalEvaluated : 0,
+        },
+        scoreDistribution,
+        byMode,
       };
     } catch (error) {
       log.warn(`[getAlgorithmStats] Query failed: ${error}`);
@@ -1782,6 +1948,24 @@ export class GraphRAGEngine {
         avgGraphScore: 0,
         byDecision: { accepted: 0, filtered: 0, rejected: 0 },
         byTargetType: { tool: 0, capability: 0 },
+        byGraphType: {
+          graph: { count: 0, avgScore: 0, acceptanceRate: 0, topSignals: { pagerank: 0, adamicAdar: 0, cooccurrence: 0 } },
+          hypergraph: {
+            count: 0,
+            avgScore: 0,
+            acceptanceRate: 0,
+            spectralRelevance: {
+              withClusterMatch: { count: 0, avgScore: 0, selectedRate: 0 },
+              withoutClusterMatch: { count: 0, avgScore: 0, selectedRate: 0 },
+            },
+          },
+        },
+        thresholdEfficiency: { rejectedByThreshold: 0, totalEvaluated: 0, rejectionRate: 0 },
+        scoreDistribution: { graph: [], hypergraph: [] },
+        byMode: {
+          activeSearch: { count: 0, avgScore: 0, acceptanceRate: 0 },
+          passiveSuggestion: { count: 0, avgScore: 0, acceptanceRate: 0 },
+        },
       };
     }
   }
