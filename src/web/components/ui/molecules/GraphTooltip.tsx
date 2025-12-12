@@ -19,9 +19,6 @@ export default function GraphTooltip({
   y,
   serverColor,
 }: GraphTooltipProps): JSX.Element {
-  const usedInCount = data.parents?.length ?? 0;
-  const isShared = usedInCount > 1;
-
   return (
     <div
       class="absolute py-2.5 px-3.5 rounded-lg text-xs pointer-events-none z-[1000]"
@@ -33,22 +30,12 @@ export default function GraphTooltip({
         border: "1px solid rgba(255, 184, 111, 0.25)",
         backdropFilter: "blur(12px)",
         boxShadow: "0 4px 20px rgba(0, 0, 0, 0.4)",
-        minWidth: "180px",
+        minWidth: "160px",
       }}
     >
-      {/* Header: Tool name + shared badge */}
-      <div class="flex items-center gap-2 mb-2">
-        <span class="font-bold text-sm" style={{ color: "#fff" }}>
-          {data.label}
-        </span>
-        {isShared && (
-          <span
-            class="px-1.5 py-0.5 rounded text-[9px] font-medium"
-            style={{ background: "#3b82f6", color: "#fff" }}
-          >
-            SHARED
-          </span>
-        )}
+      {/* Header: Tool name */}
+      <div class="font-bold text-sm mb-2" style={{ color: "#fff" }}>
+        {data.label}
       </div>
 
       {/* Server with color indicator */}
@@ -60,27 +47,19 @@ export default function GraphTooltip({
         <span style={{ color: "#d5c3b5" }}>{data.server}</span>
       </div>
 
-      {/* Metrics grid */}
+      {/* Metrics */}
       <div
-        class="grid grid-cols-2 gap-x-4 gap-y-1 pt-1.5 mt-1.5"
+        class="flex gap-4 pt-1.5 mt-1.5"
         style={{ borderTop: "1px solid rgba(255, 255, 255, 0.1)" }}
       >
-        <div class="flex justify-between">
-          <span style={{ color: "#6b6560" }}>PageRank</span>
+        <div>
+          <span style={{ color: "#6b6560" }}>PR </span>
           <span style={{ color: "#ffb86f" }}>{data.pagerank.toFixed(3)}</span>
         </div>
-        <div class="flex justify-between">
-          <span style={{ color: "#6b6560" }}>Degree</span>
+        <div>
+          <span style={{ color: "#6b6560" }}>Deg </span>
           <span style={{ color: "#d5c3b5" }}>{data.degree}</span>
         </div>
-        {usedInCount > 0 && (
-          <div class="flex justify-between col-span-2">
-            <span style={{ color: "#6b6560" }}>Used in</span>
-            <span style={{ color: isShared ? "#3b82f6" : "#d5c3b5" }}>
-              {usedInCount} cap{usedInCount > 1 ? "s" : ""}
-            </span>
-          </div>
-        )}
       </div>
     </div>
   );

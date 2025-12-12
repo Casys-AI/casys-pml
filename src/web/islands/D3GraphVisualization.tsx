@@ -469,11 +469,8 @@ export default function D3GraphVisualization({
           if (!d || !d.data) return 4;
           const tool = d.data as any;
           const pagerank = tool.pagerank || 0;
-          const usedInCaps = tool.parentCapabilities?.length || 0;
-          // Base 4 + pagerank (0-10) + shared tool bonus (0-6)
-          // Tools used by multiple capabilities appear larger (more reused = more important)
-          const sharedBonus = Math.min(usedInCaps * 2, 6);
-          return 4 + Math.min(pagerank * 25, 10) + sharedBonus;
+          // Base 4 + pagerank contribution (0-12)
+          return 4 + Math.min(pagerank * 30, 12);
         })
         .attr("fill", (d: PositionedNode) => {
           if (!d || !d.data) return "#888";
