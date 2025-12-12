@@ -326,6 +326,13 @@ export class WorkflowSyncService {
             ],
           );
 
+          // Track metric for getPeriodStats().newNodesAdded
+          await this.db.query(
+            `INSERT INTO metrics (metric_name, value, metadata, timestamp)
+             VALUES ('tool_embedded', 1, $1, NOW())`,
+            [JSON.stringify({ tool_id: toolId })],
+          );
+
           created++;
           log.debug(`[WorkflowSync] Generated embedding for: ${toolId}`);
         } catch (error) {
