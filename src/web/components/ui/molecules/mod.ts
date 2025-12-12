@@ -5,5 +5,5 @@ export { default as LegendItem } from "./LegendItem.tsx";
 
 // Graph molecules
 export { default as GraphTooltip } from "./GraphTooltip.tsx";
-export { default as GraphLegendPanel, type EdgeType, type ToolGroupingMode } from "./GraphLegendPanel.tsx";
+export { default as GraphLegendPanel, type EdgeType, type ToolGroupingMode, type VisualizationMode } from "./GraphLegendPanel.tsx";
 export { default as NodeDetailsPanel } from "./NodeDetailsPanel.tsx";

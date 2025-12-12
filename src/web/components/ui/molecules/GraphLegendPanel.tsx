@@ -17,6 +17,9 @@ export type EdgeType = "hierarchy" | "hyperedge" | "capability_link" | "tool_seq
 /** Tool grouping mode for the outer ring */
 export type ToolGroupingMode = "server" | "cluster";
 
+/** Visualization mode: HEB Sunburst (Holten 2006) vs FDEB DAG (Holten 2009) */
+export type VisualizationMode = "sunburst" | "dag";
+
 interface GraphLegendPanelProps {
   servers: Set<string>;
   hiddenServers: Set<string>;
@@ -38,6 +41,9 @@ interface GraphLegendPanelProps {
   // Tool grouping mode (server vs cluster)
   toolGroupingMode?: ToolGroupingMode;
   onToolGroupingModeChange?: (mode: ToolGroupingMode) => void;
+  // Visualization mode (sunburst vs dag)
+  visualizationMode?: VisualizationMode;
+  onVisualizationModeChange?: (mode: VisualizationMode) => void;
   // Legacy FDEB controls (deprecated)
   straightening?: number;
   onStraighteningChange?: (s: number) => void;
@@ -69,6 +75,9 @@ export default function GraphLegendPanel({
   // Tool grouping mode
   toolGroupingMode = "server",
   onToolGroupingModeChange,
+  // Visualization mode
+  visualizationMode = "sunburst",
+  onVisualizationModeChange,
   // Legacy FDEB (deprecated)
   straightening = 0,
   onStraighteningChange,
@@ -89,6 +98,33 @@ export default function GraphLegendPanel({
         minWidth: "200px",
       }}
     >
+      {/* Visualization Mode Toggle */}
+      {onVisualizationModeChange && (
+        <>
+          <h3
+            class="text-xs font-semibold uppercase tracking-widest mb-3"
+            style={{ color: "var(--text-dim)" }}
+          >
+            View Mode
+          </h3>
+          <div class="flex gap-2 mb-3">
+            <Badge
+              color={visualizationMode === "sunburst" ? "#8b5cf6" : "transparent"}
+              label="Sunburst"
+              active={visualizationMode === "sunburst"}
+              onClick={() => onVisualizationModeChange("sunburst")}
+            />
+            <Badge
+              color={visualizationMode === "dag" ? "#10b981" : "transparent"}
+              label="DAG"
+              active={visualizationMode === "dag"}
+              onClick={() => onVisualizationModeChange("dag")}
+            />
+          </div>
+          <Divider />
+        </>
+      )}
+
       {/* MCP Servers */}
       <h3
         class="text-xs font-semibold uppercase tracking-widest mb-3"

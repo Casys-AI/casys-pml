@@ -10,7 +10,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { type GraphNodeData } from "../components/ui/mod.ts";
-import { GraphLegendPanel, type EdgeType, type ToolGroupingMode, GraphTooltip } from "../components/ui/mod.ts";
+import { GraphLegendPanel, type EdgeType, type ToolGroupingMode, type VisualizationMode, GraphTooltip } from "../components/ui/mod.ts";
 import {
   buildHierarchy,
   type BundledPath,
@@ -23,6 +23,12 @@ import {
   type PositionedNode,
   type RadialLayoutResult,
   type RootNodeData,
+  // FDEB DAG mode (Holten 2009)
+  BoundedForceLayout,
+  type SimulationNode,
+  type SimulationLink,
+  FDEBBundler,
+  type BundledEdge,
 } from "../utils/graph/index.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -122,6 +128,12 @@ export default function D3GraphVisualization({
   const [highlightDepth, setHighlightDepth] = useState(1); // 1 = direct connections only, Infinity = full stack
   const [hiddenEdgeTypes, setHiddenEdgeTypes] = useState<Set<EdgeType>>(new Set());
   const [toolGroupingMode, setToolGroupingMode] = useState<ToolGroupingMode>("server");
+  const [visualizationMode, setVisualizationMode] = useState<VisualizationMode>("sunburst");
+
+  // DAG mode refs
+  const forceLayoutRef = useRef<BoundedForceLayout | null>(null);
+  const simulationNodesRef = useRef<SimulationNode[]>([]);
+  const bundledEdgesRef = useRef<BundledEdge[]>([]);
 
   // Server colors
   const serverColorsRef = useRef<Map<string, string>>(new Map());
@@ -768,6 +780,307 @@ export default function D3GraphVisualization({
   );
 
   // ───────────────────────────────────────────────────────────────────────────
+  // DAG Mode Rendering (FDEB - Holten 2009)
+  // ───────────────────────────────────────────────────────────────────────────
+
+  const renderDagGraph = useCallback(() => {
+    const graph = (window as any).__radialGraph;
+    if (!graph || !hierarchyRef.current) return;
+
+    // @ts-ignore
+    const d3 = globalThis.d3;
+    const { edgeLayer, nodeLayer, labelLayer, width, height } = graph;
+
+    // Clear existing
+    edgeLayer.selectAll("*").remove();
+    nodeLayer.selectAll("*").remove();
+    labelLayer.selectAll("*").remove();
+
+    // Reset edge layer transform (DAG uses cartesian coordinates)
+    edgeLayer.attr("transform", null);
+
+    // Build simulation nodes from hierarchy
+    const simNodes: SimulationNode[] = [];
+    const simLinks: SimulationLink[] = [];
+
+    // Add capabilities as nodes
+    for (const cap of hierarchyRef.current.children) {
+      simNodes.push({
+        id: cap.id,
+        x: width * 0.2,
+        y: 0,
+        nodeType: "capability",
+        radius: 15 + Math.min(cap.usageCount * 0.5, 10),
+        community: String(cap.communityId ?? "unknown"),
+      });
+
+      // Add tools as nodes
+      for (const tool of cap.children) {
+        if (!simNodes.find((n) => n.id === tool.id)) {
+          simNodes.push({
+            id: tool.id,
+            x: width * 0.8,
+            y: 0,
+            nodeType: "tool",
+            radius: 8 + Math.min(tool.pagerank * 20, 8),
+            server: tool.server,
+            community: tool.communityId ?? tool.server,
+          });
+        }
+
+        // Add cap->tool link
+        simLinks.push({
+          source: cap.id,
+          target: tool.id,
+        });
+      }
+    }
+
+    // Add empty capabilities
+    for (const cap of emptyCapabilitiesRef.current) {
+      if (!simNodes.find((n) => n.id === cap.id)) {
+        simNodes.push({
+          id: cap.id,
+          x: width * 0.2,
+          y: 0,
+          nodeType: "capability",
+          radius: 12,
+          community: String(cap.communityId ?? "unknown"),
+        });
+      }
+    }
+
+    // Add tool->tool edges (sequences)
+    for (const edge of toolEdgesRef.current) {
+      simLinks.push({
+        source: edge.source,
+        target: edge.target,
+      });
+    }
+
+    // Add cap->cap edges
+    for (const edge of capEdgesRef.current) {
+      simLinks.push({
+        source: edge.source,
+        target: edge.target,
+      });
+    }
+
+    simulationNodesRef.current = simNodes;
+
+    // Create force layout
+    const forceLayout = new BoundedForceLayout({
+      width,
+      height,
+      padding: 60,
+      chargeStrength: -200,
+      linkDistance: 120,
+      boundaryStrength: 0.6,
+      bipartiteMode: true,
+      bipartiteStrength: 0.2,
+      serverClusterMode: true,
+      serverClusterStrength: 0.12,
+    });
+
+    const simulation = forceLayout.createSimulation(simNodes, simLinks);
+    forceLayoutRef.current = forceLayout;
+
+    // Create line generator for bundled edges
+    const line = d3.line()
+      .x((d: { x: number }) => d.x)
+      .y((d: { y: number }) => d.y)
+      .curve(d3.curveBasis);
+
+    // Render nodes
+    const nodeGroups = nodeLayer
+      .selectAll(".dag-node")
+      .data(simNodes, (d: SimulationNode) => d.id)
+      .enter()
+      .append("g")
+      .attr("class", (d: SimulationNode) => `dag-node dag-${d.nodeType}`)
+      .style("cursor", "pointer");
+
+    // Node circles
+    nodeGroups
+      .append("circle")
+      .attr("r", (d: SimulationNode) => d.radius || 10)
+      .attr("fill", (d: SimulationNode) => {
+        if (d.nodeType === "capability") return "#8b5cf6";
+        return getServerColor(d.server || "unknown");
+      })
+      .attr("stroke", "rgba(255,255,255,0.3)")
+      .attr("stroke-width", 2);
+
+    // Node labels
+    nodeGroups
+      .append("text")
+      .attr("dy", (d: SimulationNode) => (d.radius || 10) + 12)
+      .attr("text-anchor", "middle")
+      .attr("fill", (d: SimulationNode) => d.nodeType === "capability" ? "#fff" : "#d5c3b5")
+      .attr("font-size", "9px")
+      .text((d: SimulationNode) => {
+        const data = d.nodeType === "capability"
+          ? capabilityDataRef.current.get(d.id)
+          : toolDataRef.current.get(d.id);
+        const label = data?.label || d.id;
+        return label.length > 12 ? label.slice(0, 10) + ".." : label;
+      });
+
+    // Render simple edges initially (will be bundled after simulation stabilizes)
+    const edgePaths = edgeLayer
+      .selectAll(".dag-edge")
+      .data(simLinks, (d: SimulationLink) => `${typeof d.source === 'string' ? d.source : d.source.id}-${typeof d.target === 'string' ? d.target : d.target.id}`)
+      .enter()
+      .append("path")
+      .attr("class", "dag-edge")
+      .attr("fill", "none")
+      .attr("stroke", "#888")
+      .attr("stroke-width", 1.5)
+      .attr("stroke-opacity", 0.4);
+
+    // Event handlers
+    nodeGroups
+      .on("click", (_event: any, d: SimulationNode) => {
+        if (d.nodeType === "capability") {
+          const capData = capabilityDataRef.current.get(d.id);
+          if (capData) {
+            onCapabilitySelect?.(capData);
+            onToolSelect?.(null);
+          }
+        } else {
+          const toolData = toolDataRef.current.get(d.id);
+          if (toolData) {
+            onToolSelect?.(toolData);
+            onCapabilitySelect?.(null);
+          }
+        }
+      })
+      .on("mouseenter", (event: MouseEvent, d: SimulationNode) => {
+        const rect = containerRef.current?.getBoundingClientRect();
+        if (!rect) return;
+
+        if (d.nodeType === "capability") {
+          const capData = capabilityDataRef.current.get(d.id);
+          if (capData) {
+            setCapabilityTooltip({
+              x: event.clientX - rect.left,
+              y: event.clientY - rect.top,
+              data: capData,
+            });
+          }
+        } else {
+          const toolData = toolDataRef.current.get(d.id);
+          if (toolData) {
+            setTooltip({
+              x: event.clientX - rect.left,
+              y: event.clientY - rect.top - 10,
+              data: {
+                id: d.id,
+                label: toolData.label,
+                server: toolData.server,
+                pagerank: 0,
+                degree: 0,
+                parents: toolData.parentCapabilities || [],
+              },
+            });
+          }
+        }
+
+        // Highlight connected edges
+        edgePaths
+          .transition()
+          .duration(100)
+          .attr("stroke-opacity", (e: SimulationLink) => {
+            const srcId = typeof e.source === 'string' ? e.source : e.source.id;
+            const tgtId = typeof e.target === 'string' ? e.target : e.target.id;
+            return srcId === d.id || tgtId === d.id ? 0.9 : 0.1;
+          })
+          .attr("stroke-width", (e: SimulationLink) => {
+            const srcId = typeof e.source === 'string' ? e.source : e.source.id;
+            const tgtId = typeof e.target === 'string' ? e.target : e.target.id;
+            return srcId === d.id || tgtId === d.id ? 2.5 : 1;
+          });
+      })
+      .on("mouseleave", () => {
+        setTooltip(null);
+        setCapabilityTooltip(null);
+        edgePaths
+          .transition()
+          .duration(100)
+          .attr("stroke-opacity", 0.4)
+          .attr("stroke-width", 1.5);
+      });
+
+    // Simulation tick
+    simulation.on("tick", () => {
+      nodeGroups.attr("transform", (d: SimulationNode) => `translate(${d.x},${d.y})`);
+
+      // Update edge positions
+      edgePaths.attr("d", (d: SimulationLink) => {
+        const src = typeof d.source === 'string' ? simNodes.find(n => n.id === d.source) : d.source;
+        const tgt = typeof d.target === 'string' ? simNodes.find(n => n.id === d.target) : d.target;
+        if (!src || !tgt) return "";
+        return line([{ x: src.x, y: src.y }, { x: tgt.x, y: tgt.y }]);
+      });
+    });
+
+    // Run FDEB bundling after simulation stabilizes
+    simulation.on("end", () => {
+      console.log("[DAG] Simulation stabilized, running FDEB bundling...");
+
+      // Build node positions map
+      const nodePositions = new Map<string, { x: number; y: number }>();
+      for (const node of simNodes) {
+        nodePositions.set(node.id, { x: node.x, y: node.y });
+      }
+
+      // Build edges for bundler
+      const edgesForBundler: Array<{ source: string; target: string }> = [];
+      for (const link of simLinks) {
+        const srcId = typeof link.source === 'string' ? link.source : (link.source as SimulationNode).id;
+        const tgtId = typeof link.target === 'string' ? link.target : (link.target as SimulationNode).id;
+        edgesForBundler.push({ source: srcId, target: tgtId });
+      }
+
+      // Run FDEB
+      const bundler = new FDEBBundler({
+        K: 0.1,
+        S0: 0.04,
+        I0: 50,
+        cycles: 4, // Fewer cycles for speed
+        compatibilityThreshold: 0.1,
+        useQuadratic: true,
+      });
+
+      const bundledEdges = bundler
+        .setNodes(nodePositions)
+        .setEdges(edgesForBundler)
+        .bundle();
+
+      bundledEdgesRef.current = bundledEdges;
+
+      console.log("[DAG] FDEB bundling complete:", bundledEdges.length, "edges");
+
+      // Update edge paths with bundled data
+      edgePaths
+        .transition()
+        .duration(500)
+        .attr("d", (d: SimulationLink, i: number) => {
+          const bundled = bundledEdges[i];
+          if (bundled && bundled.subdivisionPoints.length > 0) {
+            return line(bundled.subdivisionPoints);
+          }
+          // Fallback to straight line
+          const src = typeof d.source === 'string' ? simNodes.find(n => n.id === d.source) : d.source;
+          const tgt = typeof d.target === 'string' ? simNodes.find(n => n.id === d.target) : d.target;
+          if (!src || !tgt) return "";
+          return line([{ x: src.x, y: src.y }, { x: tgt.x, y: tgt.y }]);
+        });
+    });
+
+  }, [getServerColor, onCapabilitySelect, onToolSelect]);
+
+  // ───────────────────────────────────────────────────────────────────────────
   // Highlighting
   // ───────────────────────────────────────────────────────────────────────────
 
@@ -947,10 +1260,29 @@ export default function D3GraphVisualization({
   // ───────────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (layoutRef.current) {
+    if (visualizationMode === "sunburst" && layoutRef.current) {
       renderGraph(layoutRef.current);
     }
-  }, [hiddenEdgeTypes, toolGroupingMode, tension, renderGraph]);
+  }, [hiddenEdgeTypes, toolGroupingMode, tension, renderGraph, visualizationMode]);
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Effect: Switch visualization mode
+  // ───────────────────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    // Stop any existing simulation when switching modes
+    if (forceLayoutRef.current) {
+      forceLayoutRef.current.stop();
+    }
+
+    if (visualizationMode === "sunburst" && layoutRef.current) {
+      console.log("[GraphViz] Switching to Sunburst mode");
+      renderGraph(layoutRef.current);
+    } else if (visualizationMode === "dag" && hierarchyRef.current) {
+      console.log("[GraphViz] Switching to DAG mode");
+      renderDagGraph();
+    }
+  }, [visualizationMode, renderGraph, renderDagGraph]);
 
   // ───────────────────────────────────────────────────────────────────────────
   // Render
@@ -999,6 +1331,9 @@ export default function D3GraphVisualization({
         onToggleOrphans={toggleOrphanNodes}
         onExportJson={() => exportGraph("json")}
         onExportPng={() => exportGraph("png")}
+        // Visualization mode toggle
+        visualizationMode={visualizationMode}
+        onVisualizationModeChange={setVisualizationMode}
         // HEB tension control (replaces straightening/smoothing)
         tension={tension}
         onTensionChange={handleTensionChange}
