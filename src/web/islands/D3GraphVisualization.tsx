@@ -399,52 +399,39 @@ export default function D3GraphVisualization({
       // Filter out any nodes with undefined positions
       const validCaps = layout.capabilities.filter((d) => d && d.x !== undefined && d.y !== undefined);
       const validTools = layout.tools.filter((d) => d && d.x !== undefined && d.y !== undefined);
-      // Filter paths by edge type visibility
-      const validPaths = layout.paths.filter((d) => d && d.pathD && !hiddenEdgeTypes.has(d.edgeType as EdgeType));
 
-      console.log("[RadialHEB] Rendering:", validCaps.length, "caps,", validTools.length, "tools,", validPaths.length, "paths");
-
-      // ─── Render Edges ───
-      edgeLayer
-        .selectAll(".edge")
-        .data(validPaths, (d: BundledPath | undefined) => d?.id ?? "")
-        .enter()
-        .append("path")
-        .attr("class", "edge")
-        .attr("d", (d: BundledPath) => d.pathD)
-        .attr("fill", "none")
-        .attr("stroke", (d: BundledPath) => getRadialEdgeColor(d.edgeType))
-        .attr("stroke-width", 1.5)
-        .attr("stroke-opacity", (d: BundledPath) => getRadialEdgeOpacity(d.edgeType))
-        .style("pointer-events", "none");
+      console.log("[RadialHEB] Rendering:", validCaps.length, "caps,", validTools.length, "tools");
 
       // ─── Shared arc setup ───
       const totalAngle = 2 * Math.PI;
       // @ts-ignore - D3 loaded from CDN
       const arcGenerator = d3.arc();
 
-      // ─── Render Capability Nodes (inner circle - ARC segments) ───
-      const capCount = validCaps.length;
-      const capPadding = 0.02; // Gap between caps in same cluster
-      const clusterGap = 0.08; // Larger gap between spectral clusters
+      // ═══════════════════════════════════════════════════════════════════════════
+      // STEP 1: Calculate visual positions for ALL nodes (before rendering edges)
+      // ═══════════════════════════════════════════════════════════════════════════
 
-      // Sort caps by: 1) communityId, 2) successRate (desc), 3) name (alpha)
+      // Map to store visual angles: nodeId -> centerAngle (in radians, 0 = top)
+      const visualAngles = new Map<string, number>();
+      const visualRadii = new Map<string, number>();
+
+      // ─── Calculate Capability visual positions ───
+      const capCount = validCaps.length;
+      const capPadding = 0.02;
+      const clusterGap = 0.08;
+
       const sortedCaps = [...validCaps].sort((a, b) => {
         const capA = a.data as any;
         const capB = b.data as any;
-        // 1. Group by communityId (nulls go last)
         const commA = capA?.communityId ?? Infinity;
         const commB = capB?.communityId ?? Infinity;
         if (commA !== commB) return commA - commB;
-        // 2. Within cluster, sort by successRate descending
         const srA = capA?.successRate ?? 0;
         const srB = capB?.successRate ?? 0;
         if (srA !== srB) return srB - srA;
-        // 3. Alphabetical by name
         return a.name.localeCompare(b.name);
       });
 
-      // Group by cluster to calculate gaps
       const capsByCommunity = new Map<number, PositionedNode[]>();
       for (const cap of sortedCaps) {
         const comm = (cap.data as any)?.communityId ?? -1;
@@ -457,13 +444,114 @@ export default function D3GraphVisualization({
       const availableCapAngle = totalAngle - capPadding * capCount - clusterGap * numClusterGaps;
       const capArcAngle = availableCapAngle / capCount;
 
-      // Build community start indices for gap insertion
-      const communityStartIdx = new Map<number, number>();
-      let capIdx = 0;
-      for (const comm of communityIds) {
-        communityStartIdx.set(comm, capIdx);
-        capIdx += capsByCommunity.get(comm)!.length;
+      // Store visual angles for capabilities
+      sortedCaps.forEach((cap, i) => {
+        const capData = cap.data as any;
+        const comm = capData?.communityId ?? -1;
+        const commIdx = communityIds.indexOf(comm);
+        const gapsBefore = commIdx >= 0 ? commIdx : communityIds.length;
+        const centerAngle = i * (capArcAngle + capPadding) + gapsBefore * clusterGap + capArcAngle / 2;
+        visualAngles.set(cap.id, centerAngle);
+        visualRadii.set(cap.id, cap.y || layout.radii.capabilities);
+      });
+
+      // ─── Calculate Tool visual positions ───
+      const toolCount = validTools.length;
+      const toolPadding = 0.02;
+      const groupGap = 0.06;
+
+      const toolsByGroup = new Map<string, PositionedNode[]>();
+      for (const tool of validTools) {
+        const toolData = tool.data as any;
+        const groupKey = toolGroupingMode === "cluster"
+          ? (toolData?.communityId ?? "unknown")
+          : (toolData?.server || "unknown");
+        if (!toolsByGroup.has(groupKey)) toolsByGroup.set(groupKey, []);
+        toolsByGroup.get(groupKey)!.push(tool);
       }
+
+      const groupKeys = [...toolsByGroup.keys()].sort();
+      const sortedTools: PositionedNode[] = [];
+      for (const key of groupKeys) {
+        const tools = toolsByGroup.get(key)!;
+        tools.sort((a, b) => a.name.localeCompare(b.name));
+        sortedTools.push(...tools);
+      }
+
+      const numGroupGaps = groupKeys.length > 1 ? groupKeys.length : 0;
+      const availableAngle = totalAngle - toolPadding * toolCount - groupGap * numGroupGaps;
+      const toolArcAngle = availableAngle / toolCount;
+
+      // Store visual angles for tools
+      sortedTools.forEach((tool, i) => {
+        const toolData = tool.data as any;
+        const groupKey = toolGroupingMode === "cluster"
+          ? (toolData?.communityId ?? "unknown")
+          : (toolData?.server || "unknown");
+        const groupIdx = groupKeys.indexOf(groupKey);
+        const gapsBefore = groupIdx >= 0 ? groupIdx : groupKeys.length;
+        const centerAngle = i * (toolArcAngle + toolPadding) + gapsBefore * groupGap + toolArcAngle / 2;
+        visualAngles.set(tool.id, centerAngle);
+        visualRadii.set(tool.id, tool.y || layout.radii.tools);
+      });
+
+      // ═══════════════════════════════════════════════════════════════════════════
+      // STEP 2: Render edges using VISUAL positions (bundled through center)
+      // ═══════════════════════════════════════════════════════════════════════════
+
+      // Filter paths by edge type visibility
+      const visiblePaths = layout.paths.filter((d) => d && d.pathD && !hiddenEdgeTypes.has(d.edgeType as EdgeType));
+
+      // Create bundled line generator
+      const lineRadial = d3
+        .lineRadial()
+        .curve(d3.curveBundle.beta(tension))
+        .radius((d: any) => d.r)
+        .angle((d: any) => d.a);
+
+      // Render edges with corrected positions
+      edgeLayer
+        .selectAll(".edge")
+        .data(visiblePaths, (d: BundledPath | undefined) => d?.id ?? "")
+        .enter()
+        .append("path")
+        .attr("class", "edge")
+        .attr("d", (d: BundledPath) => {
+          const sourceAngle = visualAngles.get(d.sourceId);
+          const targetAngle = visualAngles.get(d.targetId);
+          const sourceRadius = visualRadii.get(d.sourceId);
+          const targetRadius = visualRadii.get(d.targetId);
+
+          // Skip if either node doesn't have a visual position
+          if (sourceAngle === undefined || targetAngle === undefined) {
+            return d.pathD; // Fallback to original path
+          }
+
+          // Create path through center for bundling
+          // Points: source -> inner control -> center -> inner control -> target
+          const sr = sourceRadius || layout.radii.tools;
+          const tr = targetRadius || layout.radii.tools;
+          const innerR = Math.min(sr, tr) * 0.3; // Control point radius
+
+          const points = [
+            { a: sourceAngle, r: sr },
+            { a: sourceAngle, r: innerR },
+            { a: (sourceAngle + targetAngle) / 2, r: 0 }, // Center
+            { a: targetAngle, r: innerR },
+            { a: targetAngle, r: tr },
+          ];
+
+          return lineRadial(points);
+        })
+        .attr("fill", "none")
+        .attr("stroke", (d: BundledPath) => getRadialEdgeColor(d.edgeType))
+        .attr("stroke-width", 1.5)
+        .attr("stroke-opacity", (d: BundledPath) => getRadialEdgeOpacity(d.edgeType))
+        .style("pointer-events", "none");
+
+      // ═══════════════════════════════════════════════════════════════════════════
+      // STEP 3: Render Capability Nodes (inner circle - ARC segments)
+      // ═══════════════════════════════════════════════════════════════════════════
 
       const capNodes = nodeLayer
         .selectAll(".cap-node")
@@ -481,12 +569,10 @@ export default function D3GraphVisualization({
           const cap = d.data as any;
           const pagerank = cap?.pagerank || 0;
           const usage = cap?.usageCount || 0;
-          // Arc thickness based on pagerank + usage (10-24px)
           const thickness = 10 + Math.min(pagerank * 30, 8) + Math.min(usage * 0.3, 6);
           const innerR = (d.y || 100) - thickness / 2;
           const outerR = (d.y || 100) + thickness / 2;
 
-          // Calculate start/end angles with cluster gaps
           const comm = cap?.communityId ?? -1;
           const commIdx = communityIds.indexOf(comm);
           const gapsBefore = commIdx >= 0 ? commIdx : communityIds.length;
@@ -501,7 +587,7 @@ export default function D3GraphVisualization({
             endAngle: endAngle,
           });
         })
-        .attr("fill", "#8b5cf6") // Purple for capabilities
+        .attr("fill", "#8b5cf6")
         .attr("stroke", "rgba(255,255,255,0.4)")
         .attr("stroke-width", 1);
 
@@ -535,44 +621,9 @@ export default function D3GraphVisualization({
           .style("pointer-events", "none");
       });
 
-      // ─── Render Tool Nodes (outer circle - ARC segments) ───
-      const toolCount = validTools.length;
-      const toolPadding = 0.02; // Gap between arcs in radians
-      const groupGap = 0.06; // Larger gap between groups
-
-      // Group tools based on current mode (server or cluster)
-      const toolsByGroup = new Map<string, PositionedNode[]>();
-      for (const tool of validTools) {
-        const toolData = tool.data as any;
-        const groupKey = toolGroupingMode === "cluster"
-          ? (toolData?.communityId ?? "unknown")
-          : (toolData?.server || "unknown");
-        if (!toolsByGroup.has(groupKey)) toolsByGroup.set(groupKey, []);
-        toolsByGroup.get(groupKey)!.push(tool);
-      }
-
-      // Sort groups, then flatten with gaps
-      const groupKeys = [...toolsByGroup.keys()].sort();
-      const sortedTools: PositionedNode[] = [];
-      for (const key of groupKeys) {
-        const tools = toolsByGroup.get(key)!;
-        // Sort tools within group by name
-        tools.sort((a, b) => a.name.localeCompare(b.name));
-        sortedTools.push(...tools);
-      }
-
-      // Calculate arc angle accounting for group gaps
-      const numGroupGaps = groupKeys.length > 1 ? groupKeys.length : 0;
-      const availableAngle = totalAngle - toolPadding * toolCount - groupGap * numGroupGaps;
-      const toolArcAngle = availableAngle / toolCount;
-
-      // Build group start indices for gap insertion
-      const groupStartIdx = new Map<string, number>();
-      let idx = 0;
-      for (const key of groupKeys) {
-        groupStartIdx.set(key, idx);
-        idx += toolsByGroup.get(key)!.length;
-      }
+      // ═══════════════════════════════════════════════════════════════════════════
+      // STEP 4: Render Tool Nodes (outer circle - ARC segments)
+      // ═══════════════════════════════════════════════════════════════════════════
 
       const toolNodes = nodeLayer
         .selectAll(".tool-node")
@@ -713,7 +764,7 @@ export default function D3GraphVisualization({
           resetEdgeHighlight();
         });
     },
-    [getServerColor, onCapabilitySelect, onToolSelect, hiddenEdgeTypes, toolGroupingMode],
+    [getServerColor, onCapabilitySelect, onToolSelect, hiddenEdgeTypes, toolGroupingMode, tension],
   );
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -818,40 +869,13 @@ export default function D3GraphVisualization({
   };
 
   // ───────────────────────────────────────────────────────────────────────────
-  // Tension Control
+  // Tension Control (re-render is automatic via useEffect)
   // ───────────────────────────────────────────────────────────────────────────
 
-  const handleTensionChange = useCallback(
-    (newTension: number) => {
-      setTension(newTension);
-
-      // Re-render with new tension
-      if (hierarchyRef.current && capEdgesRef.current) {
-        const graph = (window as any).__radialGraph;
-        if (!graph) return;
-
-        const layout = createRadialLayout(hierarchyRef.current, capEdgesRef.current, {
-          width: graph.width,
-          height: graph.height,
-          tension: newTension,
-        }, emptyCapabilitiesRef.current, toolEdgesRef.current);
-
-        layoutRef.current = layout;
-
-        // Update paths only (nodes stay in place)
-        // @ts-ignore
-        const d3 = globalThis.d3;
-
-        graph.edgeLayer
-          .selectAll(".edge")
-          .data(layout.paths, (d: BundledPath) => d.id)
-          .transition()
-          .duration(150)
-          .attr("d", (d: BundledPath) => d.pathD);
-      }
-    },
-    [],
-  );
+  const handleTensionChange = useCallback((newTension: number) => {
+    setTension(newTension);
+    // Re-render triggered by useEffect dependency on tension
+  }, []);
 
   // ───────────────────────────────────────────────────────────────────────────
   // Server Visibility
@@ -926,7 +950,7 @@ export default function D3GraphVisualization({
     if (layoutRef.current) {
       renderGraph(layoutRef.current);
     }
-  }, [hiddenEdgeTypes, toolGroupingMode, renderGraph]);
+  }, [hiddenEdgeTypes, toolGroupingMode, tension, renderGraph]);
 
   // ───────────────────────────────────────────────────────────────────────────
   // Render
