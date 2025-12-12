@@ -3,6 +3,7 @@ import type { FreshContext } from "fresh";
 import { Head } from "fresh/runtime";
 import GraphExplorer from "../islands/GraphExplorer.tsx";
 import MetricsPanel from "../islands/MetricsPanel.tsx";
+import TracingPanel from "../islands/TracingPanel.tsx";
 import { DashboardLayout } from "../components/layout/mod.ts";
 import type { AuthState } from "./_middleware.ts";
 
@@ -73,7 +74,12 @@ export default function Dashboard({ data }: { data: DashboardData }) {
       <DashboardLayout
         user={user}
         isCloudMode={isCloudMode}
-        rightPanel={<MetricsPanel apiBase={apiBase} position="sidebar" />}
+        rightPanel={
+          <>
+            <MetricsPanel apiBase={apiBase} position="sidebar" />
+            <TracingPanel apiBase={apiBase} />
+          </>
+        }
       >
         <GraphExplorer apiBase={apiBase} />
       </DashboardLayout>

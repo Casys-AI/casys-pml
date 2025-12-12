@@ -66,9 +66,8 @@ export default function GraphLegendPanel({
       >
         Edge Types
       </h3>
-      <LegendItem label="Contains (parent→child)" color="#22c55e" lineStyle="solid" />
-      <LegendItem label="Sequence (siblings)" color="#FFB86F" lineStyle="solid" />
-      <LegendItem label="Dependency (explicit)" color="#f5f0ea" lineStyle="solid" />
+      <LegendItem label="Contains (parent→child)" color="#ef4444" lineStyle="solid" />
+      <LegendItem label="Sequence (workflow)" color="#FFB86F" lineStyle="solid" />
 
       <Divider />
 

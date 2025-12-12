@@ -36,9 +36,9 @@ interface GraphEdgeProps {
 export function getEdgeColor(edgeType: EdgeType): string {
   switch (edgeType) {
     case "contains":
-      return "#22c55e"; // green
+      return "#ef4444"; // red (capability → tool)
     case "dependency":
-      return "#f5f0ea"; // white
+      return "#3b82f6"; // blue
     case "sequence":
     default:
       return "#FFB86F"; // orange

@@ -57,7 +57,7 @@ export default function DashboardLayout({
 
         {/* Right Panel */}
         {rightPanel && (
-          <div class="flex-shrink-0">
+          <div class="flex-shrink-0 h-full overflow-hidden">
             {rightPanel}
           </div>
         )}

@@ -13,6 +13,7 @@ export interface GraphNodeData {
   degree: number;
   x?: number;
   y?: number;
+  parents?: string[];
 }
 
 interface GraphNodeProps {

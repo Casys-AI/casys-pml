@@ -8,7 +8,7 @@
 
 import { useEffect, useRef, useState } from "preact/hooks";
 import { createPortal } from "preact/compat";
-import D3GraphVisualization from "./D3GraphVisualization.tsx";
+import D3GraphVisualization, { type ToolData } from "./D3GraphVisualization.tsx";
 import CodePanel, { type CapabilityData } from "./CodePanel.tsx";
 
 interface ToolSearchResult {
@@ -61,6 +61,8 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
   const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null);
   // Story 8.4: Selected capability for CodePanel
   const [selectedCapability, setSelectedCapability] = useState<CapabilityData | null>(null);
+  // Selected tool for CodePanel (tool info display)
+  const [selectedTool, setSelectedTool] = useState<ToolData | null>(null);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchTimeoutRef = useRef<number | null>(null);
@@ -130,6 +132,13 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
   // Story 8.4: Handle capability selection from hull click
   const handleCapabilitySelect = (capability: CapabilityData | null) => {
     setSelectedCapability(capability);
+    if (capability) setSelectedTool(null); // Clear tool when capability selected
+  };
+
+  // Handle tool selection from node click
+  const handleToolSelect = (tool: ToolData | null) => {
+    setSelectedTool(tool);
+    if (tool) setSelectedCapability(null); // Clear capability when tool selected
   };
 
   const handleNodeSelect = async (node: { id: string; label: string; server: string } | null) => {
@@ -535,19 +544,23 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
           apiBase={apiBase}
           onNodeSelect={handleNodeSelect}
           onCapabilitySelect={handleCapabilitySelect}
+          onToolSelect={handleToolSelect}
           highlightedNodeId={highlightedNode}
           pathNodes={pathNodes}
         />
       </div>
 
-      {/* Story 8.4: Code Panel (bottom panel when capability selected) */}
-      {selectedCapability && (
+      {/* Story 8.4: Code Panel (bottom panel when capability or tool selected) */}
+      {(selectedCapability || selectedTool) && (
         <CodePanel
           capability={selectedCapability}
-          onClose={() => setSelectedCapability(null)}
+          tool={selectedTool}
+          onClose={() => {
+            setSelectedCapability(null);
+            setSelectedTool(null);
+          }}
           onToolClick={(toolId) => {
             setHighlightedNode(toolId);
-            // Also clear capability selection to focus on tool
           }}
         />
       )}

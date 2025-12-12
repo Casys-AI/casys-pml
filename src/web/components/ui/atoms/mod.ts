@@ -5,6 +5,13 @@ export { default as Kbd } from "./Kbd.tsx";
 export { default as Input } from "./Input.tsx";
 export { default as Divider } from "./Divider.tsx";
 
+// Metric atoms
+export { MetricCard } from "./MetricCard.tsx";
+export { MetricRow } from "./MetricRow.tsx";
+export { ProgressBar } from "./ProgressBar.tsx";
+export { RankItem } from "./RankItem.tsx";
+export { SectionCard } from "./SectionCard.tsx";
+
 // Graph atoms
 export { default as GraphNode, getNodeRadius, type GraphNodeData } from "./GraphNode.tsx";
 export {

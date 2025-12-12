@@ -14,14 +14,16 @@
 
 import { useEffect, useState } from "preact/hooks";
 import { highlightCode, detectLanguage, syntaxHighlightStyles } from "../lib/syntax-highlight.ts";
-import type { CapabilityData } from "./D3GraphVisualization.tsx";
+import type { CapabilityData, ToolData } from "./D3GraphVisualization.tsx";
 
 // Re-export for convenience
-export type { CapabilityData };
+export type { CapabilityData, ToolData };
 
 interface CodePanelProps {
   /** Capability data to display (null hides panel) */
   capability: CapabilityData | null;
+  /** Tool data to display (null hides panel) */
+  tool?: ToolData | null;
   /** Callback when panel is closed */
   onClose: () => void;
   /** Callback when a tool is clicked (highlights in graph) */
@@ -67,12 +69,16 @@ function formatRelativeTime(timestamp: number | undefined): string {
  */
 export default function CodePanel({
   capability,
+  tool,
   onClose,
   onToolClick,
   getServerColor,
 }: CodePanelProps) {
   const [copied, setCopied] = useState(false);
   const [showLineNumbers, setShowLineNumbers] = useState(true);
+
+  // Determine display mode
+  const displayMode = tool ? "tool" : capability ? "capability" : null;
 
   // Close on Escape key
   useEffect(() => {
@@ -94,21 +100,29 @@ export default function CodePanel({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [onClose, capability]);
 
-  // Reset copied state when capability changes
+  // Reset copied state when capability/tool changes
   useEffect(() => {
     setCopied(false);
-  }, [capability?.id]);
+  }, [capability?.id, tool?.id]);
 
-  if (!capability) return null;
+  if (!capability && !tool) return null;
+
+  // Get content to display (schema for tools, code for capabilities)
+  const displayContent = tool
+    ? JSON.stringify(tool.inputSchema || {}, null, 2)
+    : capability?.codeSnippet || "";
+
+  // Detect language based on mode
+  const contentLanguage = tool ? "json" : detectLanguage(displayContent);
 
   /**
-   * Copy code to clipboard
+   * Copy content to clipboard
    */
   const handleCopy = async () => {
-    if (!capability.codeSnippet) return;
+    if (!displayContent) return;
 
     try {
-      await navigator.clipboard.writeText(capability.codeSnippet);
+      await navigator.clipboard.writeText(displayContent);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
@@ -137,11 +151,8 @@ export default function CodePanel({
     return { server: "unknown", name: toolId };
   };
 
-  // Detect language from code
-  const language = capability.codeSnippet ? detectLanguage(capability.codeSnippet) : "typescript";
-
-  // Split code into lines for line numbers
-  const codeLines = capability.codeSnippet?.split("\n") || [];
+  // Split content into lines for line numbers
+  const contentLines = displayContent?.split("\n") || [];
 
   return (
     <>
@@ -195,6 +206,25 @@ export default function CodePanel({
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1, minWidth: 0 }}>
+            {/* Title with type badge */}
+            <span
+              style={{
+                padding: "2px 8px",
+                borderRadius: "4px",
+                fontSize: "0.7rem",
+                fontWeight: 600,
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                background: displayMode === "tool"
+                  ? "var(--accent-dim, rgba(255, 184, 111, 0.1))"
+                  : "rgba(34, 197, 94, 0.15)",
+                color: displayMode === "tool"
+                  ? "var(--accent, #FFB86F)"
+                  : "var(--success, #22c55e)",
+              }}
+            >
+              {displayMode === "tool" ? "Tool" : "Capability"}
+            </span>
             <h3
               id="code-panel-title"
               style={{
@@ -206,12 +236,12 @@ export default function CodePanel({
                 overflow: "hidden",
                 textOverflow: "ellipsis",
               }}
-              title={capability.label}
+              title={tool?.label || capability?.label}
             >
-              {capability.label}
+              {tool?.label || capability?.label}
             </h3>
 
-            {/* Inline stats */}
+            {/* Inline stats - different for tool vs capability */}
             <div
               style={{
                 display: "flex",
@@ -220,38 +250,68 @@ export default function CodePanel({
                 flexShrink: 0,
               }}
             >
-              <span
-                style={{
-                  color: capability.successRate >= 0.8
-                    ? "var(--success, #22c55e)"
-                    : capability.successRate >= 0.5
-                    ? "var(--warning, #f59e0b)"
-                    : "var(--error, #ef4444)",
-                  fontWeight: 600,
-                }}
-                title="Success rate"
-              >
-                {(capability.successRate * 100).toFixed(0)}%
-              </span>
-              <span style={{ color: "var(--text-muted, #d5c3b5)" }} title="Usage count">
-                {capability.usageCount}x
-              </span>
-              <span style={{ color: "var(--text-dim, #8a8078)" }} title="Tools count">
-                {capability.toolsCount} tools
-              </span>
-              {capability.communityId !== undefined && (
-                <span
-                  style={{
-                    color: "var(--accent, #FFB86F)",
-                    fontSize: "0.75rem",
-                    padding: "2px 6px",
-                    background: "var(--accent-dim, rgba(255, 184, 111, 0.1))",
-                    borderRadius: "4px",
-                  }}
-                  title="Community cluster"
-                >
-                  C{capability.communityId}
-                </span>
+              {displayMode === "tool" && tool && (
+                <>
+                  <span
+                    style={{
+                      color: getColor(tool.server),
+                      fontWeight: 600,
+                      padding: "2px 8px",
+                      background: `${getColor(tool.server)}20`,
+                      borderRadius: "4px",
+                    }}
+                    title="MCP Server"
+                  >
+                    {tool.server}
+                  </span>
+                  {tool.observedCount !== undefined && tool.observedCount > 0 && (
+                    <span style={{ color: "var(--text-muted, #d5c3b5)" }} title="Observed usage">
+                      {tool.observedCount}x used
+                    </span>
+                  )}
+                  {tool.parentCapabilities && tool.parentCapabilities.length > 0 && (
+                    <span style={{ color: "var(--text-dim, #8a8078)" }} title="Parent capabilities">
+                      {tool.parentCapabilities.length} capabilities
+                    </span>
+                  )}
+                </>
+              )}
+              {displayMode === "capability" && capability && (
+                <>
+                  <span
+                    style={{
+                      color: capability.successRate >= 0.8
+                        ? "var(--success, #22c55e)"
+                        : capability.successRate >= 0.5
+                        ? "var(--warning, #f59e0b)"
+                        : "var(--error, #ef4444)",
+                      fontWeight: 600,
+                    }}
+                    title="Success rate"
+                  >
+                    {(capability.successRate * 100).toFixed(0)}%
+                  </span>
+                  <span style={{ color: "var(--text-muted, #d5c3b5)" }} title="Usage count">
+                    {capability.usageCount}x
+                  </span>
+                  <span style={{ color: "var(--text-dim, #8a8078)" }} title="Tools count">
+                    {capability.toolsCount} tools
+                  </span>
+                  {capability.communityId !== undefined && (
+                    <span
+                      style={{
+                        color: "var(--accent, #FFB86F)",
+                        fontSize: "0.75rem",
+                        padding: "2px 6px",
+                        background: "var(--accent-dim, rgba(255, 184, 111, 0.1))",
+                        borderRadius: "4px",
+                      }}
+                      title="Community cluster"
+                    >
+                      C{capability.communityId}
+                    </span>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -320,7 +380,7 @@ export default function CodePanel({
               }}
             >
               <span style={{ textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                {language}
+                {displayMode === "tool" ? "Input Schema (JSON)" : contentLanguage}
               </span>
               <label
                 style={{
@@ -348,7 +408,7 @@ export default function CodePanel({
                 padding: "12px",
               }}
             >
-              {capability.codeSnippet ? (
+              {displayContent ? (
                 <pre
                   class="code-block"
                   style={{
@@ -363,7 +423,7 @@ export default function CodePanel({
                   }}
                 >
                   <code style={{ display: "table", width: "100%" }}>
-                    {codeLines.map((line, index) => (
+                    {contentLines.map((line, index) => (
                       <div
                         key={index}
                         style={{
@@ -386,7 +446,7 @@ export default function CodePanel({
                           </span>
                         )}
                         <span style={{ display: "table-cell" }}>
-                          {highlightCode(line || " ", language)}
+                          {highlightCode(line || " ", contentLanguage)}
                         </span>
                       </div>
                     ))}
@@ -401,13 +461,13 @@ export default function CodePanel({
                     textAlign: "center",
                   }}
                 >
-                  No code snippet available
+                  {displayMode === "tool" ? "No input schema available" : "No code snippet available"}
                 </div>
               )}
             </div>
           </div>
 
-          {/* Actions + Tools Row */}
+          {/* Actions + Info Row */}
           <div
             style={{
               display: "flex",
@@ -421,7 +481,7 @@ export default function CodePanel({
             <div style={{ display: "flex", gap: "8px" }}>
               <button
                 onClick={handleCopy}
-                disabled={!capability.codeSnippet}
+                disabled={!displayContent}
                 style={{
                   padding: "8px 16px",
                   borderRadius: "8px",
@@ -432,8 +492,8 @@ export default function CodePanel({
                   color: "var(--bg, #0a0908)",
                   fontWeight: 600,
                   fontSize: "0.875rem",
-                  cursor: capability.codeSnippet ? "pointer" : "not-allowed",
-                  opacity: capability.codeSnippet ? 1 : 0.5,
+                  cursor: displayContent ? "pointer" : "not-allowed",
+                  opacity: displayContent ? 1 : 0.5,
                   transition: "all 0.15s ease",
                   display: "flex",
                   alignItems: "center",
@@ -446,32 +506,57 @@ export default function CodePanel({
                   </>
                 ) : (
                   <>
-                    <span>📋</span> Copy Code
+                    <span>📋</span> {displayMode === "tool" ? "Copy Schema" : "Copy Code"}
                   </>
                 )}
               </button>
 
+              {/* Run button - enabled for tools (future), disabled for capabilities */}
               <button
-                disabled
-                title="Coming soon - Story 8.5"
+                disabled={displayMode !== "tool"}
+                title={displayMode === "tool" ? "Run this tool (Coming soon)" : "Coming soon - Story 8.5"}
                 style={{
                   padding: "8px 16px",
                   borderRadius: "8px",
-                  border: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
-                  background: "var(--bg-surface, #1a1816)",
-                  color: "var(--text-dim, #8a8078)",
+                  border: displayMode === "tool"
+                    ? "1px solid var(--accent, #FFB86F)"
+                    : "1px solid var(--border, rgba(255, 184, 111, 0.1))",
+                  background: displayMode === "tool"
+                    ? "var(--accent-dim, rgba(255, 184, 111, 0.1))"
+                    : "var(--bg-surface, #1a1816)",
+                  color: displayMode === "tool"
+                    ? "var(--accent, #FFB86F)"
+                    : "var(--text-dim, #8a8078)",
                   fontWeight: 500,
                   fontSize: "0.875rem",
                   cursor: "not-allowed",
-                  opacity: 0.6,
+                  opacity: displayMode === "tool" ? 0.8 : 0.6,
                 }}
               >
-                ▶ Try This
+                ▶ {displayMode === "tool" ? "Run Tool" : "Try This"}
               </button>
             </div>
 
-            {/* Tools used */}
-            {capability.toolIds && capability.toolIds.length > 0 && (
+            {/* Tool description (for tool mode) */}
+            {displayMode === "tool" && tool?.description && (
+              <div
+                style={{
+                  flex: 1,
+                  minWidth: "200px",
+                  padding: "8px 12px",
+                  background: "var(--bg-surface, #1a1816)",
+                  borderRadius: "6px",
+                  fontSize: "0.8125rem",
+                  color: "var(--text-muted, #d5c3b5)",
+                  lineHeight: "1.4",
+                }}
+              >
+                {tool.description}
+              </div>
+            )}
+
+            {/* Tools used (for capability mode) */}
+            {displayMode === "capability" && capability?.toolIds && capability.toolIds.length > 0 && (
               <div
                 style={{
                   display: "flex",
@@ -540,8 +625,8 @@ export default function CodePanel({
             )}
           </div>
 
-          {/* Additional metadata (last used, created) */}
-          {(capability.lastUsedAt || capability.createdAt) && (
+          {/* Additional metadata */}
+          {displayMode === "capability" && capability && (capability.lastUsedAt || capability.createdAt) && (
             <div
               style={{
                 display: "flex",
@@ -557,6 +642,43 @@ export default function CodePanel({
               )}
               {capability.createdAt && (
                 <span>Created: {formatRelativeTime(capability.createdAt)}</span>
+              )}
+            </div>
+          )}
+          {displayMode === "tool" && tool?.parentCapabilities && tool.parentCapabilities.length > 0 && (
+            <div
+              style={{
+                display: "flex",
+                gap: "8px",
+                alignItems: "center",
+                fontSize: "0.75rem",
+                color: "var(--text-dim, #8a8078)",
+                paddingTop: "8px",
+                borderTop: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
+                flexWrap: "wrap",
+              }}
+            >
+              <span style={{ textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                Used by:
+              </span>
+              {tool.parentCapabilities.slice(0, 5).map((capId) => (
+                <span
+                  key={capId}
+                  style={{
+                    padding: "2px 6px",
+                    borderRadius: "4px",
+                    background: "rgba(34, 197, 94, 0.15)",
+                    color: "var(--success, #22c55e)",
+                    fontSize: "0.7rem",
+                  }}
+                >
+                  {capId.replace("cap:", "")}
+                </span>
+              ))}
+              {tool.parentCapabilities.length > 5 && (
+                <span style={{ color: "var(--text-dim, #8a8078)" }}>
+                  +{tool.parentCapabilities.length - 5} more
+                </span>
               )}
             </div>
           )}
