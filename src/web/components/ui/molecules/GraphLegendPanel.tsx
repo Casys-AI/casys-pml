@@ -97,8 +97,10 @@ export default function GraphLegendPanel({
       >
         Edge Types
       </h3>
-      <LegendItem label="Contains (parent→child)" color="#ef4444" lineStyle="solid" />
-      <LegendItem label="Sequence (workflow)" color="#FFB86F" lineStyle="solid" />
+      <LegendItem label="Contains (cap→tool)" color="#888888" lineStyle="solid" />
+      <LegendItem label="Hyperedge (multi-parent)" color="#f59e0b" lineStyle="solid" />
+      <LegendItem label="Capability link (cap↔cap)" color="#3b82f6" lineStyle="solid" />
+      <LegendItem label="Sequence (tool→tool)" color="#10b981" lineStyle="solid" />
 
       <Divider />
 
