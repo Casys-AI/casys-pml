@@ -591,11 +591,29 @@ export default function D3GraphVisualization({
     const graph = (window as any).__radialGraph;
     if (!graph) return;
 
-    // Find connected nodes
-    const connected = new Set<string>([nodeId]);
+    // Build adjacency map for transitive traversal
+    const adjacency = new Map<string, Set<string>>();
     for (const path of layout.paths) {
-      if (path.sourceId === nodeId) connected.add(path.targetId);
-      if (path.targetId === nodeId) connected.add(path.sourceId);
+      if (!adjacency.has(path.sourceId)) adjacency.set(path.sourceId, new Set());
+      if (!adjacency.has(path.targetId)) adjacency.set(path.targetId, new Set());
+      adjacency.get(path.sourceId)!.add(path.targetId);
+      adjacency.get(path.targetId)!.add(path.sourceId);
+    }
+
+    // BFS to find all transitively connected nodes (full stack)
+    const connected = new Set<string>([nodeId]);
+    const queue = [nodeId];
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      const neighbors = adjacency.get(current);
+      if (neighbors) {
+        for (const neighbor of neighbors) {
+          if (!connected.has(neighbor)) {
+            connected.add(neighbor);
+            queue.push(neighbor);
+          }
+        }
+      }
     }
 
     // Dim non-connected nodes
@@ -605,16 +623,18 @@ export default function D3GraphVisualization({
       .duration(200)
       .attr("opacity", (d: PositionedNode) => (connected.has(d.id) ? 1 : 0.2));
 
-    // Highlight edges
+    // Highlight edges that connect nodes in the stack
     graph.edgeLayer
       .selectAll(".edge")
       .transition()
       .duration(200)
       .attr("stroke-opacity", (d: BundledPath) => {
-        return d.sourceId === nodeId || d.targetId === nodeId ? 0.9 : 0.05;
+        const inStack = connected.has(d.sourceId) && connected.has(d.targetId);
+        return inStack ? 0.9 : 0.05;
       })
       .attr("stroke-width", (d: BundledPath) => {
-        return d.sourceId === nodeId || d.targetId === nodeId ? 3 : 1;
+        const inStack = connected.has(d.sourceId) && connected.has(d.targetId);
+        return inStack ? 3 : 1;
       });
   };
 
