@@ -15,7 +15,7 @@ import {
   type HealthStatus,
   type ServerHealth,
 } from "../../health/health-checker.ts";
-import type { MCPServer } from "../../mcp/types.ts";
+import type { MCPClientBase, MCPServer } from "../../mcp/types.ts";
 
 /**
  * Default MCP config path
@@ -57,8 +57,8 @@ async function findConfigFile(customPath?: string): Promise<string> {
  */
 async function connectToServers(
   servers: MCPServer[],
-): Promise<Map<string, MCPClient>> {
-  const clients = new Map<string, MCPClient>();
+): Promise<Map<string, MCPClientBase>> {
+  const clients = new Map<string, MCPClientBase>();
 
   for (const server of servers) {
     try {

@@ -7,7 +7,7 @@
  */
 
 import * as log from "@std/log";
-import { MCPServer, MCPTool, ServerDiscoveryResult } from "./types.ts";
+import type { MCPClientBase, MCPServer, MCPTool, ServerDiscoveryResult } from "./types.ts";
 import { MCPServerError, TimeoutError } from "../errors/error-types.ts";
 import { withTimeout } from "../utils/timeout.ts";
 
@@ -37,7 +37,7 @@ export interface MCPClientConfig {
  * - Parse tool schemas
  * - Handle errors and timeouts
  */
-export class MCPClient {
+export class MCPClient implements MCPClientBase {
   private server: MCPServer;
   private process: Deno.ChildProcess | null = null;
   private requestId: number = 1;

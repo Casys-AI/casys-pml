@@ -13,7 +13,43 @@ export interface MCPServer {
   command: string;
   args?: string[];
   env?: Record<string, string>;
-  protocol: "stdio" | "sse";
+  protocol: "stdio" | "http";
+}
+
+/**
+ * Smithery server configuration from registry API
+ */
+export interface SmitheryServerConfig {
+  /** Qualified name from Smithery registry (e.g., "@domdomegg/airtable-mcp-server") */
+  qualifiedName: string;
+  /** Display name for the server */
+  displayName: string;
+  /** Whether this is a remote server (always true for Smithery) */
+  remote: boolean;
+  /** Configuration values from user's Smithery profile */
+  config?: Record<string, unknown>;
+}
+
+/**
+ * Common interface for MCP clients (stdio and HTTP Streamable)
+ *
+ * Both MCPClient (stdio) and SmitheryMCPClient (HTTP) implement this interface.
+ */
+export interface MCPClientBase {
+  /** Server ID */
+  readonly serverId: string;
+  /** Server display name */
+  readonly serverName: string;
+  /** Connect to the server */
+  connect(): Promise<void>;
+  /** List available tools */
+  listTools(): Promise<MCPTool[]>;
+  /** Call a tool */
+  callTool(toolName: string, args: Record<string, unknown>): Promise<unknown>;
+  /** Disconnect from the server */
+  disconnect(): Promise<void>;
+  /** Close the connection (alias for disconnect) */
+  close(): Promise<void>;
 }
 
 /**

@@ -7,7 +7,7 @@
  */
 
 import * as log from "@std/log";
-import { MCPClient } from "../mcp/client.ts";
+import type { MCPClientBase } from "../mcp/types.ts";
 
 export type HealthStatus = "healthy" | "degraded" | "down";
 
@@ -39,7 +39,7 @@ export class HealthChecker {
   private readonly RETRY_DELAY_MS = 1000;
   private readonly DEGRADED_LATENCY_THRESHOLD = 1000; // 1 second
 
-  constructor(private mcpClients: Map<string, MCPClient>) {}
+  constructor(private mcpClients: Map<string, MCPClientBase>) {}
 
   /**
    * Perform initial health check at startup
@@ -143,7 +143,7 @@ export class HealthChecker {
    */
   private async checkServer(
     serverId: string,
-    client: MCPClient,
+    client: MCPClientBase,
   ): Promise<ServerHealth> {
     const serverName = client.serverName || serverId;
     let consecutiveFailures = 0;

@@ -12,6 +12,7 @@ import { createDefaultClient } from "../../db/client.ts";
 import { getAllMigrations, MigrationRunner } from "../../db/migrations.ts";
 import { MCPServerDiscovery } from "../../mcp/discovery.ts";
 import { MCPClient } from "../../mcp/client.ts";
+import { SmitheryMCPClient } from "../../mcp/smithery-client.ts";
 import { EmbeddingModel } from "../../vector/embeddings.ts";
 import { VectorSearch } from "../../vector/search.ts";
 import { GraphRAGEngine } from "../../graphrag/graph-engine.ts";
@@ -21,7 +22,7 @@ import { PMLGatewayServer } from "../../mcp/gateway-server.ts";
 import { WorkflowSyncService } from "../../graphrag/workflow-sync.ts";
 import { getWorkflowTemplatesPath } from "../utils.ts";
 import { autoInitIfConfigChanged } from "../auto-init.ts";
-import type { MCPServer } from "../../mcp/types.ts";
+import type { MCPClientBase, MCPServer } from "../../mcp/types.ts";
 import type { ToolExecutor } from "../../dag/types.ts";
 import { CapabilityMatcher } from "../../capabilities/matcher.ts";
 import { CapabilityStore } from "../../capabilities/capability-store.ts";
@@ -68,23 +69,60 @@ Please check that the file exists and the path is correct.`,
 
 /**
  * Discover and connect to MCP servers
+ *
+ * Handles both stdio (MCPClient) and HTTP Streamable (SmitheryMCPClient) protocols.
+ *
+ * @param servers - List of server configurations
+ * @param smitheryApiKey - Optional Smithery API key for HTTP servers
  */
 async function connectToMCPServers(
   servers: MCPServer[],
-): Promise<Map<string, MCPClient>> {
-  const clients = new Map<string, MCPClient>();
+  smitheryApiKey?: string,
+): Promise<Map<string, MCPClientBase>> {
+  const clients = new Map<string, MCPClientBase>();
 
-  log.info(`Connecting to ${servers.length} MCP server(s)...`);
+  const stdioServers = servers.filter((s) => s.protocol === "stdio");
+  const httpServers = servers.filter((s) => s.protocol === "http");
 
-  for (const server of servers) {
+  log.info(
+    `Connecting to ${servers.length} MCP server(s) ` +
+      `(${stdioServers.length} stdio, ${httpServers.length} HTTP)...`,
+  );
+
+  // Connect to stdio servers
+  for (const server of stdioServers) {
     try {
       const client = new MCPClient(server, 10000);
       await client.connect();
       clients.set(server.id, client);
-      log.info(`  ✓ Connected: ${server.id}`);
+      log.info(`  ✓ Connected (stdio): ${server.id}`);
     } catch (error) {
       log.error(`  ✗ Failed to connect to ${server.id}: ${error}`);
       // Continue with other servers (gateway is resilient to individual failures)
+    }
+  }
+
+  // Connect to HTTP Streamable (Smithery) servers
+  if (httpServers.length > 0) {
+    if (!smitheryApiKey) {
+      log.warn(
+        `  ⚠ ${httpServers.length} HTTP server(s) skipped: SMITHERY_API_KEY not set`,
+      );
+    } else {
+      for (const server of httpServers) {
+        try {
+          const client = new SmitheryMCPClient(server, {
+            apiKey: smitheryApiKey,
+            timeoutMs: 30000,
+          });
+          await client.connect();
+          clients.set(server.id, client);
+          log.info(`  ✓ Connected (HTTP): ${server.id}`);
+        } catch (error) {
+          log.error(`  ✗ Failed to connect to Smithery ${server.id}: ${error}`);
+          // Continue with other servers
+        }
+      }
     }
   }
 
@@ -104,13 +142,13 @@ type OnToolCallCallback = (toolKey: string) => void;
  * Create tool executor function for ParallelExecutor
  *
  * This function is called by the executor to execute individual tools.
- * It routes tool calls to the appropriate MCP client.
+ * It routes tool calls to the appropriate MCP client (stdio or HTTP).
  *
  * @param clients - Map of MCP clients by server ID
  * @param onToolCall - Optional callback for tracking tool usage (Story 3.7)
  */
 function createToolExecutor(
-  clients: Map<string, MCPClient>,
+  clients: Map<string, MCPClientBase>,
   onToolCall?: OnToolCallCallback,
 ): ToolExecutor {
   return async (toolName: string, args: Record<string, unknown>) => {
@@ -175,9 +213,19 @@ export function createServeCommand() {
         log.info("Step 1/6: Loading configuration...");
         const configPath = await findConfigFile(options.config);
         const discovery = new MCPServerDiscovery(configPath);
-        const config = await discovery.loadConfig();
+        await discovery.loadConfig();
 
-        if (config.servers.length === 0) {
+        // Load from Smithery if API key is set
+        const smitheryApiKey = Deno.env.get("SMITHERY_API_KEY");
+        if (smitheryApiKey) {
+          log.info("  → Loading servers from Smithery...");
+          await discovery.loadFromSmithery(smitheryApiKey);
+        }
+
+        // Get all servers (local + Smithery merged)
+        const allServers = await discovery.discoverServers();
+
+        if (allServers.length === 0) {
           throw new Error("No MCP servers configured");
         }
 
@@ -200,7 +248,7 @@ export function createServeCommand() {
 
         // 3. Connect to MCP servers
         log.info("Step 3/6: Connecting to MCP servers...");
-        const mcpClients = await connectToMCPServers(config.servers);
+        const mcpClients = await connectToMCPServers(allServers, smitheryApiKey);
 
         // 4. Initialize AI components
         log.info("Step 4/6: Loading AI models...");
@@ -228,7 +276,7 @@ export function createServeCommand() {
         const adaptiveThresholdManager = new AdaptiveThresholdManager({}, db);
         const capabilityMatcher = new CapabilityMatcher(capabilityStore, adaptiveThresholdManager);
 
-        const dagSuggester = new DAGSuggester(graphEngine, vectorSearch, capabilityMatcher);
+        const dagSuggester = new DAGSuggester(graphEngine, vectorSearch, capabilityMatcher, capabilityStore);
 
         // Story 7.6: Wire AlgorithmTracer for observability (ADR-039)
         const algorithmTracer = new AlgorithmTracer(db);

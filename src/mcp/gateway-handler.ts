@@ -20,7 +20,7 @@ import type {
   WorkflowIntent,
 } from "../graphrag/types.ts";
 import { AdaptiveThresholdManager } from "./adaptive-threshold.ts";
-import type { MCPClient } from "./client.ts";
+import type { MCPClientBase } from "./types.ts";
 
 /**
  * Safety check configuration
@@ -80,7 +80,7 @@ export class GatewayHandler {
   constructor(
     private graphEngine: GraphRAGEngine,
     private dagSuggester: DAGSuggester,
-    private mcpClients: Map<string, MCPClient>, // ADR-030: MCP clients for real execution
+    private mcpClients: Map<string, MCPClientBase>, // ADR-030: MCP clients for real execution
     config?: Partial<GatewayConfig>,
   ) {
     this.config = {
@@ -232,7 +232,8 @@ export class GatewayHandler {
   /**
    * Execute DAG speculatively
    *
-   * Simulates execution for now. In production, this would call the MCP server.
+   * Executes tasks via MCP clients (real mode) or simulates execution (dry_run mode).
+   * Respects dependency order and handles task failures gracefully.
    *
    * @param dag - DAG structure to execute
    * @returns Array of execution results

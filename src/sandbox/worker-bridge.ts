@@ -19,7 +19,7 @@
  * @module sandbox/worker-bridge
  */
 
-import type { MCPClient } from "../mcp/client.ts";
+import type { MCPClientBase } from "../mcp/types.ts";
 import type {
   CapabilityTraceEvent,
   ExecutionCompleteMessage,
@@ -103,7 +103,7 @@ export class WorkerBridge {
   private codeGenerator: CapabilityCodeGenerator;
 
   constructor(
-    private mcpClients: Map<string, MCPClient>,
+    private mcpClients: Map<string, MCPClientBase>,
     config?: WorkerBridgeConfig,
   ) {
     this.config = {

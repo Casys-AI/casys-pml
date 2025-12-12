@@ -29,6 +29,7 @@ import type {
   ToolDefinition,
   TraceEvent,
 } from "./types.ts";
+import type { MCPClientBase } from "../mcp/types.ts";
 import { getLogger } from "../telemetry/logger.ts";
 import { type CacheStats, CodeExecutionCache, generateCacheKey } from "./cache.ts";
 import { SecurityValidationError, SecurityValidator } from "./security-validator.ts";
@@ -39,7 +40,6 @@ import {
   type ResourceStats,
 } from "./resource-limiter.ts";
 import { WorkerBridge } from "./worker-bridge.ts";
-import type { MCPClient } from "../mcp/client.ts";
 
 const logger = getLogger("default");
 
@@ -77,7 +77,7 @@ export interface WorkerExecutionConfig {
   /** Tool definitions for RPC bridge */
   toolDefinitions: ToolDefinition[];
   /** MCP clients for tool execution */
-  mcpClients: Map<string, MCPClient>;
+  mcpClients: Map<string, MCPClientBase>;
 }
 
 /**

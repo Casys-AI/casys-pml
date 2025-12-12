@@ -15,7 +15,7 @@
  * @module sandbox/context-builder
  */
 
-import type { MCPClient } from "../mcp/client.ts";
+import type { MCPClientBase } from "../mcp/types.ts";
 import type { SearchResult, VectorSearch } from "../vector/search.ts";
 import type { ToolDefinition } from "./types.ts";
 import { getLogger } from "../telemetry/logger.ts";
@@ -59,12 +59,12 @@ interface ToolMetadata {
  */
 export class ContextBuilder {
   private vectorSearch: VectorSearch | null = null;
-  private mcpClients: Map<string, MCPClient> = new Map();
+  private mcpClients: Map<string, MCPClientBase> = new Map();
   private typeDefinitionCache: Map<string, string> = new Map();
 
   constructor(
     vectorSearch?: VectorSearch,
-    mcpClients?: Map<string, MCPClient>,
+    mcpClients?: Map<string, MCPClientBase>,
   ) {
     this.vectorSearch = vectorSearch || null;
     this.mcpClients = mcpClients || new Map();
@@ -78,7 +78,7 @@ export class ContextBuilder {
   /**
    * Set MCP clients manager
    */
-  setMCPClients(clients: Map<string, MCPClient>): void {
+  setMCPClients(clients: Map<string, MCPClientBase>): void {
     this.mcpClients = clients;
     this.typeDefinitionCache.clear();
   }
@@ -395,7 +395,7 @@ function validateToolName(toolName: string): void {
  * @throws InvalidToolNameError if any tool name is invalid
  */
 export function wrapMCPClient(
-  client: MCPClient,
+  client: MCPClientBase,
   specificTools?: ToolMetadata[],
 ): { [key: string]: ToolFunction } {
   const wrapped: { [key: string]: ToolFunction } = {};

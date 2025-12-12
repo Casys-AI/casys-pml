@@ -20,6 +20,12 @@ export type { GatewayServerConfig } from "./gateway-server.ts";
 // MCP Client
 export { MCPClient } from "./client.ts";
 
+// Smithery MCP Client (HTTP Streamable transport)
+export { SmitheryMCPClient } from "./smithery-client.ts";
+
+// Smithery registry loader
+export { SmitheryLoader } from "./smithery-loader.ts";
+
 // Server discovery
 export { MCPServerDiscovery } from "./discovery.ts";
 
@@ -48,7 +54,9 @@ export type { WorkflowDAGRecord } from "./workflow-dag-store.ts";
 export type {
   CodeExecutionRequest,
   CodeExecutionResponse,
+  MCPClientBase,
   MCPConfig,
   MCPServer,
   MCPTool,
+  SmitheryServerConfig,
 } from "./types.ts";
