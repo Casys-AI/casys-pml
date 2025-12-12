@@ -10,7 +10,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { type GraphNodeData } from "../components/ui/mod.ts";
-import { GraphLegendPanel, type EdgeType, GraphTooltip } from "../components/ui/mod.ts";
+import { GraphLegendPanel, type EdgeType, type ToolGroupingMode, GraphTooltip } from "../components/ui/mod.ts";
 import {
   buildHierarchy,
   type BundledPath,
@@ -121,6 +121,7 @@ export default function D3GraphVisualization({
   const [tension, setTension] = useState(0.85); // Holten default
   const [highlightDepth, setHighlightDepth] = useState(1); // 1 = direct connections only, Infinity = full stack
   const [hiddenEdgeTypes, setHiddenEdgeTypes] = useState<Set<EdgeType>>(new Set());
+  const [toolGroupingMode, setToolGroupingMode] = useState<ToolGroupingMode>("server");
 
   // Server colors
   const serverColorsRef = useRef<Map<string, string>>(new Map());
@@ -537,37 +538,40 @@ export default function D3GraphVisualization({
       // ─── Render Tool Nodes (outer circle - ARC segments) ───
       const toolCount = validTools.length;
       const toolPadding = 0.02; // Gap between arcs in radians
-      const serverGap = 0.06; // Larger gap between server groups
+      const groupGap = 0.06; // Larger gap between groups
 
-      // Group tools by server, then sort within each group
-      const toolsByServer = new Map<string, PositionedNode[]>();
+      // Group tools based on current mode (server or cluster)
+      const toolsByGroup = new Map<string, PositionedNode[]>();
       for (const tool of validTools) {
-        const server = (tool.data as any)?.server || "unknown";
-        if (!toolsByServer.has(server)) toolsByServer.set(server, []);
-        toolsByServer.get(server)!.push(tool);
+        const toolData = tool.data as any;
+        const groupKey = toolGroupingMode === "cluster"
+          ? (toolData?.communityId ?? "unknown")
+          : (toolData?.server || "unknown");
+        if (!toolsByGroup.has(groupKey)) toolsByGroup.set(groupKey, []);
+        toolsByGroup.get(groupKey)!.push(tool);
       }
 
-      // Sort servers alphabetically, then flatten with server gaps
-      const serverNames = [...toolsByServer.keys()].sort();
+      // Sort groups, then flatten with gaps
+      const groupKeys = [...toolsByGroup.keys()].sort();
       const sortedTools: PositionedNode[] = [];
-      for (const server of serverNames) {
-        const tools = toolsByServer.get(server)!;
-        // Sort tools within server by name
+      for (const key of groupKeys) {
+        const tools = toolsByGroup.get(key)!;
+        // Sort tools within group by name
         tools.sort((a, b) => a.name.localeCompare(b.name));
         sortedTools.push(...tools);
       }
 
-      // Calculate arc angle accounting for server gaps
-      const numServerGaps = serverNames.length > 1 ? serverNames.length : 0;
-      const availableAngle = totalAngle - toolPadding * toolCount - serverGap * numServerGaps;
+      // Calculate arc angle accounting for group gaps
+      const numGroupGaps = groupKeys.length > 1 ? groupKeys.length : 0;
+      const availableAngle = totalAngle - toolPadding * toolCount - groupGap * numGroupGaps;
       const toolArcAngle = availableAngle / toolCount;
 
-      // Build server start indices for gap insertion
-      const serverStartIdx = new Map<string, number>();
+      // Build group start indices for gap insertion
+      const groupStartIdx = new Map<string, number>();
       let idx = 0;
-      for (const server of serverNames) {
-        serverStartIdx.set(server, idx);
-        idx += toolsByServer.get(server)!.length;
+      for (const key of groupKeys) {
+        groupStartIdx.set(key, idx);
+        idx += toolsByGroup.get(key)!.length;
       }
 
       const toolNodes = nodeLayer
@@ -590,11 +594,13 @@ export default function D3GraphVisualization({
           const innerR = (d.y || 200) - thickness / 2;
           const outerR = (d.y || 200) + thickness / 2;
 
-          // Calculate start/end angles for this arc (with server gaps)
-          const server = tool.server || "unknown";
-          const serverIdx = serverNames.indexOf(server);
-          const gapsBefore = serverIdx; // Number of server gaps before this tool's server
-          const baseAngle = i * (toolArcAngle + toolPadding) + gapsBefore * serverGap;
+          // Calculate start/end angles for this arc (with group gaps)
+          const groupKey = toolGroupingMode === "cluster"
+            ? (tool.communityId ?? "unknown")
+            : (tool.server || "unknown");
+          const groupIdx = groupKeys.indexOf(groupKey);
+          const gapsBefore = groupIdx >= 0 ? groupIdx : groupKeys.length;
+          const baseAngle = i * (toolArcAngle + toolPadding) + gapsBefore * groupGap;
           const startAngle = baseAngle - Math.PI / 2;
           const endAngle = startAngle + toolArcAngle;
 
@@ -617,11 +623,13 @@ export default function D3GraphVisualization({
       sortedTools.forEach((d, i) => {
         if (!d || d.y === undefined) return;
         const tool = d.data as any;
-        const server = tool?.server || "unknown";
-        const serverIdx = serverNames.indexOf(server);
-        const gapsBefore = serverIdx;
-        // Calculate center angle of this arc (with server gaps)
-        const arcCenterAngle = i * (toolArcAngle + toolPadding) + gapsBefore * serverGap + toolArcAngle / 2;
+        const groupKey = toolGroupingMode === "cluster"
+          ? (tool?.communityId ?? "unknown")
+          : (tool?.server || "unknown");
+        const groupIdx = groupKeys.indexOf(groupKey);
+        const gapsBefore = groupIdx >= 0 ? groupIdx : groupKeys.length;
+        // Calculate center angle of this arc (with group gaps)
+        const arcCenterAngle = i * (toolArcAngle + toolPadding) + gapsBefore * groupGap + toolArcAngle / 2;
         const labelRadius = (d.y || 200) + 14;
         const x = labelRadius * Math.cos(arcCenterAngle - Math.PI / 2);
         const y = labelRadius * Math.sin(arcCenterAngle - Math.PI / 2);
@@ -705,7 +713,7 @@ export default function D3GraphVisualization({
           resetEdgeHighlight();
         });
     },
-    [getServerColor, onCapabilitySelect, onToolSelect, hiddenEdgeTypes],
+    [getServerColor, onCapabilitySelect, onToolSelect, hiddenEdgeTypes, toolGroupingMode],
   );
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -911,14 +919,14 @@ export default function D3GraphVisualization({
   }, [highlightedNodeId]);
 
   // ───────────────────────────────────────────────────────────────────────────
-  // Effect: Re-render on edge type visibility change
+  // Effect: Re-render on edge type visibility or tool grouping mode change
   // ───────────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (layoutRef.current) {
       renderGraph(layoutRef.current);
     }
-  }, [hiddenEdgeTypes, renderGraph]);
+  }, [hiddenEdgeTypes, toolGroupingMode, renderGraph]);
 
   // ───────────────────────────────────────────────────────────────────────────
   // Render
@@ -976,6 +984,9 @@ export default function D3GraphVisualization({
         // Edge type visibility toggles
         hiddenEdgeTypes={hiddenEdgeTypes}
         onToggleEdgeType={toggleEdgeType}
+        // Tool grouping mode
+        toolGroupingMode={toolGroupingMode}
+        onToolGroupingModeChange={setToolGroupingMode}
       />
 
       {/* Tool Tooltip */}

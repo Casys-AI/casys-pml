@@ -47,6 +47,8 @@ export interface ToolNodeData extends HierarchyNodeData {
   parentCapabilities: string[];
   /** Primary parent (first in parents array) */
   primaryParent: string;
+  /** Spectral/Louvain community cluster ID */
+  communityId?: string;
 }
 
 /** Edge between capabilities (for cap↔cap bundling) */
@@ -102,8 +104,9 @@ interface ApiNode {
     success_rate?: number;
     usage_count?: number;
     code_snippet?: string;
-    /** Spectral/Louvain community cluster ID */
+    /** Spectral/Louvain community cluster ID (for capabilities: number, for tools: string) */
     community_id?: number;
+    communityId?: string;
   };
 }
 
@@ -176,6 +179,7 @@ export function buildHierarchy(response: HypergraphApiResponse): HierarchyBuildR
         degree: node.data.degree ?? 0,
         parentCapabilities: validParents,
         primaryParent: validParents[0] ?? "",
+        communityId: node.data.communityId,
       };
 
       tools.set(node.data.id, toolNode);

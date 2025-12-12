@@ -14,6 +14,9 @@ import LegendItem from "./LegendItem.tsx";
 /** Edge type identifiers matching radial-heb-layout.ts */
 export type EdgeType = "hierarchy" | "hyperedge" | "capability_link" | "tool_sequence";
 
+/** Tool grouping mode for the outer ring */
+export type ToolGroupingMode = "server" | "cluster";
+
 interface GraphLegendPanelProps {
   servers: Set<string>;
   hiddenServers: Set<string>;
@@ -32,6 +35,9 @@ interface GraphLegendPanelProps {
   // Edge type visibility toggles
   hiddenEdgeTypes?: Set<EdgeType>;
   onToggleEdgeType?: (edgeType: EdgeType) => void;
+  // Tool grouping mode (server vs cluster)
+  toolGroupingMode?: ToolGroupingMode;
+  onToolGroupingModeChange?: (mode: ToolGroupingMode) => void;
   // Legacy FDEB controls (deprecated)
   straightening?: number;
   onStraighteningChange?: (s: number) => void;
@@ -60,6 +66,9 @@ export default function GraphLegendPanel({
   // Edge type toggles
   hiddenEdgeTypes = new Set(),
   onToggleEdgeType,
+  // Tool grouping mode
+  toolGroupingMode = "server",
+  onToolGroupingModeChange,
   // Legacy FDEB (deprecated)
   straightening = 0,
   onStraighteningChange,
@@ -154,6 +163,33 @@ export default function GraphLegendPanel({
       />
 
       <Divider />
+
+      {/* Tool Grouping Mode */}
+      {onToolGroupingModeChange && (
+        <>
+          <h3
+            class="text-xs font-semibold uppercase tracking-widest mb-3"
+            style={{ color: "var(--text-dim)" }}
+          >
+            Tool Grouping
+          </h3>
+          <div class="flex gap-2 mb-3">
+            <Badge
+              color={toolGroupingMode === "server" ? "#FFB86F" : "transparent"}
+              label="Server"
+              active={toolGroupingMode === "server"}
+              onClick={() => onToolGroupingModeChange("server")}
+            />
+            <Badge
+              color={toolGroupingMode === "cluster" ? "#8b5cf6" : "transparent"}
+              label="Cluster"
+              active={toolGroupingMode === "cluster"}
+              onClick={() => onToolGroupingModeChange("cluster")}
+            />
+          </div>
+          <Divider />
+        </>
+      )}
 
       {/* Bundle Controls - HEB Tension (Holten 2006) */}
       {onTensionChange && (
