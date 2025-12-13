@@ -33,12 +33,6 @@ interface GraphLegendPanelProps {
   // Layout direction
   layoutDirection?: LayoutDirection;
   onLayoutDirectionChange?: (dir: LayoutDirection) => void;
-  // Expand/Collapse controls
-  onExpandAll?: () => void;
-  onCollapseAll?: () => void;
-  // Stats for display
-  expandedCount?: number;
-  totalCapabilities?: number;
 }
 
 export default function GraphLegendPanel({
@@ -59,11 +53,6 @@ export default function GraphLegendPanel({
   // Layout direction
   layoutDirection = "TB",
   onLayoutDirectionChange,
-  // Expand/Collapse
-  onExpandAll,
-  onCollapseAll,
-  expandedCount = 0,
-  totalCapabilities = 0,
 }: GraphLegendPanelProps): JSX.Element {
   return (
     <div
@@ -119,51 +108,6 @@ export default function GraphLegendPanel({
             >
               Tools
             </button>
-          </div>
-          <Divider />
-        </>
-      )}
-
-      {/* Expand/Collapse Controls (only in capabilities mode) */}
-      {viewMode === "capabilities" && (onExpandAll || onCollapseAll) && (
-        <>
-          <h3
-            class="text-xs font-semibold uppercase tracking-widest mb-2"
-            style={{ color: "var(--text-dim)" }}
-          >
-            Hierarchy
-          </h3>
-          {totalCapabilities > 0 && (
-            <div
-              class="text-xs mb-2"
-              style={{ color: "var(--text-muted)" }}
-            >
-              {expandedCount}/{totalCapabilities} expanded
-            </div>
-          )}
-          <div class="flex gap-2 mb-3">
-            {onExpandAll && (
-              <Button
-                variant="default"
-                size="sm"
-                onClick={onExpandAll}
-                class="flex-1"
-                title="Expand all capabilities"
-              >
-                Expand All
-              </Button>
-            )}
-            {onCollapseAll && (
-              <Button
-                variant="default"
-                size="sm"
-                onClick={onCollapseAll}
-                class="flex-1"
-                title="Collapse all capabilities"
-              >
-                Collapse All
-              </Button>
-            )}
           </div>
           <Divider />
         </>

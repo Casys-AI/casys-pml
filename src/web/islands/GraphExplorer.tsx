@@ -80,8 +80,9 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
   const [servers, setServers] = useState<Set<string>>(new Set());
   const [hiddenServers, setHiddenServers] = useState<Set<string>>(new Set());
   const [showOrphanNodes, setShowOrphanNodes] = useState(true);
-  const [totalCapabilities, setTotalCapabilities] = useState(0);
-  const [allCapabilityIds, setAllCapabilityIds] = useState<string[]>([]);
+
+  // SSE refresh trigger for incremental graph updates
+  const [graphRefreshKey, setGraphRefreshKey] = useState(0);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchTimeoutRef = useRef<number | null>(null);
@@ -117,25 +118,16 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
         if (response.ok) {
           const data = await response.json();
           const serverSet = new Set<string>();
-          const capIds: string[] = [];
 
           // API returns nodes array with both capabilities and tools
           for (const node of data.nodes || []) {
             const d = node.data;
             if (d.type === "tool" && d.server) {
               serverSet.add(d.server);
-            } else if (d.type === "capability") {
-              // Only count capabilities with usage
-              const usageCount = d.usage_count ?? 0;
-              if (usageCount > 0) {
-                capIds.push(d.id);
-              }
             }
           }
 
           setServers(serverSet);
-          setAllCapabilityIds(capIds);
-          setTotalCapabilities(capIds.length);
         }
       } catch (error) {
         console.error("Failed to load servers:", error);
@@ -144,15 +136,28 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
     loadServers();
   }, [apiBase]);
 
-  // Expand all handler
-  const handleExpandAll = useCallback(() => {
-    setExpandedNodes(new Set(allCapabilityIds));
-  }, [allCapabilityIds]);
+  // SSE listener for incremental graph updates (Story 8.3)
+  useEffect(() => {
+    const eventSource = new EventSource(`${apiBase}/events/stream`);
 
-  // Collapse all handler
-  const handleCollapseAll = useCallback(() => {
-    setExpandedNodes(new Set());
-  }, []);
+    // Handle capability zone events - trigger graph refresh
+    const handleCapabilityEvent = () => {
+      console.log("[SSE] Capability event received, refreshing graph...");
+      setGraphRefreshKey((prev) => prev + 1);
+    };
+
+    eventSource.addEventListener("capability.zone.created", handleCapabilityEvent);
+    eventSource.addEventListener("capability.zone.updated", handleCapabilityEvent);
+    eventSource.addEventListener("capability.learned", handleCapabilityEvent);
+
+    eventSource.onerror = (err) => {
+      console.warn("[SSE] EventSource error:", err);
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [apiBase]);
 
   // Toggle server visibility
   const handleToggleServer = useCallback((server: string) => {
@@ -661,6 +666,7 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
           expandedNodes={expandedNodes}
           onExpandedNodesChange={setExpandedNodes}
           layoutDirection={layoutDirection}
+          refreshKey={graphRefreshKey}
         />
 
         {/* GraphLegendPanel with all controls */}
@@ -679,10 +685,6 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
           onViewModeChange={setViewMode}
           layoutDirection={layoutDirection}
           onLayoutDirectionChange={setLayoutDirection}
-          onExpandAll={handleExpandAll}
-          onCollapseAll={handleCollapseAll}
-          expandedCount={expandedNodes.size}
-          totalCapabilities={totalCapabilities}
         />
       </div>
 
