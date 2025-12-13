@@ -72,6 +72,25 @@ export interface Capability {
   source: "emergent" | "manual";
   /** Tools used by this capability (extracted from dag_structure) - Story 7.4 */
   toolsUsed?: string[];
+  /** Detailed tool invocations with timestamps for sequence visualization */
+  toolInvocations?: CapabilityToolInvocation[];
+}
+
+/**
+ * Tool invocation stored with capability (mirrors sandbox ToolInvocation)
+ * Enables sequence visualization and parallelism detection in graphs.
+ */
+export interface CapabilityToolInvocation {
+  /** Unique ID for this invocation (e.g., "filesystem:read_file#0") */
+  id: string;
+  /** Tool identifier (e.g., "filesystem:read_file") */
+  tool: string;
+  /** Timestamp when tool was called (ms since epoch) */
+  ts: number;
+  /** Execution duration in milliseconds */
+  durationMs: number;
+  /** Sequence index within the capability execution (0-based) */
+  sequenceIndex: number;
 }
 
 /**
@@ -90,8 +109,10 @@ export interface SaveCapabilityInput {
   name?: string;
   /** Optional description */
   description?: string;
-  /** Tool IDs used during execution (from traces) */
+  /** Tool IDs used during execution (from traces) - deduplicated list */
   toolsUsed?: string[];
+  /** Detailed tool invocations with timestamps for sequence visualization */
+  toolInvocations?: CapabilityToolInvocation[];
 }
 
 /**
@@ -202,6 +223,7 @@ export interface CapabilityResponseInternal {
   description: string | null; // Intent description
   codeSnippet: string; // TypeScript code
   toolsUsed: string[]; // ["filesystem:read", "github:create_issue"]
+  toolInvocations?: CapabilityToolInvocation[]; // Detailed invocations with timestamps
   successRate: number; // 0-1
   usageCount: number; // Total executions
   avgDurationMs: number; // Average execution time
@@ -278,6 +300,47 @@ export interface ToolNode {
 }
 
 /**
+ * Graph node for tool invocation (individual call within a capability)
+ * Unlike ToolNode which is deduplicated, this represents each call to a tool.
+ * Enables sequence visualization and parallelism detection.
+ */
+export interface ToolInvocationNode {
+  data: {
+    id: string; // "filesystem:read_file#0"
+    /** Parent capability ID */
+    parent: string; // "cap-uuid"
+    type: "tool_invocation";
+    /** The underlying tool ID */
+    tool: string; // "filesystem:read_file"
+    server: string; // "filesystem"
+    label: string; // "read_file #1"
+    /** Timestamp when invocation started (ms since epoch) */
+    ts: number;
+    /** Execution duration in milliseconds */
+    durationMs: number;
+    /** Sequence index within capability (0-based) */
+    sequenceIndex: number;
+  };
+}
+
+/**
+ * Edge connecting sequential tool invocations within a capability
+ * Shows execution order between invocations.
+ */
+export interface SequenceEdge {
+  data: {
+    id: string;
+    source: string; // "filesystem:read_file#0"
+    target: string; // "filesystem:read_file#1"
+    edgeType: "sequence";
+    /** Time delta between invocations in ms (negative = parallel) */
+    timeDeltaMs: number;
+    /** Whether invocations overlap in time (parallel execution) */
+    isParallel: boolean;
+  };
+}
+
+/**
  * Graph edge between capabilities that share tools
  * Internal camelCase - maps to snake_case at API boundary
  * Note: Previously named CytoscapeEdge, renamed after D3.js migration
@@ -327,23 +390,23 @@ export interface CapabilityDependencyEdge {
  * Union type for all graph nodes
  * @deprecated Use GraphNode instead. Kept for backward compatibility.
  */
-export type CytoscapeNode = CapabilityNode | ToolNode;
+export type CytoscapeNode = CapabilityNode | ToolNode | ToolInvocationNode;
 
 /**
  * Union type for all graph edges
  * @deprecated Use GraphEdge instead. Kept for backward compatibility.
  */
-export type CytoscapeEdge = CapabilityEdge | HierarchicalEdge | CapabilityDependencyEdge;
+export type CytoscapeEdge = CapabilityEdge | HierarchicalEdge | CapabilityDependencyEdge | SequenceEdge;
 
 /**
  * Union type for all graph nodes (D3.js visualization)
  */
-export type GraphNode = CapabilityNode | ToolNode;
+export type GraphNode = CapabilityNode | ToolNode | ToolInvocationNode;
 
 /**
  * Union type for all graph edges (D3.js visualization)
  */
-export type GraphEdge = CapabilityEdge | HierarchicalEdge | CapabilityDependencyEdge;
+export type GraphEdge = CapabilityEdge | HierarchicalEdge | CapabilityDependencyEdge | SequenceEdge;
 
 /**
  * Hull zone metadata for capability visualization (Story 8.2)

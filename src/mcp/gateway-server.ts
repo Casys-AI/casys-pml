@@ -1457,6 +1457,25 @@ The system uses GraphRAG to find appropriate tools for the new requirement and i
         log.debug(`[Story 7.1b] Captured ${result.traces.length} native trace events`);
       }
 
+      // ADR-043: Extract failed tools from traces to surface to agent
+      const toolFailures: Array<{ tool: string; error: string }> = [];
+      if (result.traces) {
+        for (const trace of result.traces) {
+          if (trace.type === "tool_end" && !trace.success && "tool" in trace) {
+            const toolTrace = trace as { tool: string; error?: string };
+            toolFailures.push({
+              tool: toolTrace.tool,
+              error: toolTrace.error ?? "Unknown error",
+            });
+          }
+        }
+        if (toolFailures.length > 0) {
+          log.warn(`[ADR-043] ${toolFailures.length} tool(s) failed during execution`, {
+            failedTools: toolFailures.map((f) => f.tool),
+          });
+        }
+      }
+
       // Calculate output size
       const outputSizeBytes = new TextEncoder().encode(
         JSON.stringify(result.result),
@@ -1483,6 +1502,8 @@ The system uses GraphRAG to find appropriate tools for the new requirement and i
             usage_count: mc.capability.usageCount,
           }))
           : undefined,
+        // ADR-043: Surface tool failures to agent even when code "succeeds" (try/catch)
+        tool_failures: toolFailures.length > 0 ? toolFailures : undefined,
       };
 
       log.info("Code execution succeeded", {
@@ -2851,7 +2872,24 @@ The system uses GraphRAG to find appropriate tools for the new requirement and i
                   tools_count: node.data.toolsCount,
                 },
               };
+            } else if (node.data.type === "tool_invocation") {
+              // Tool invocation nodes (individual calls with timestamps)
+              const invNode = node as import("../capabilities/types.ts").ToolInvocationNode;
+              return {
+                data: {
+                  id: invNode.data.id,
+                  parent: invNode.data.parent,
+                  type: invNode.data.type,
+                  tool: invNode.data.tool,
+                  server: invNode.data.server,
+                  label: invNode.data.label,
+                  ts: invNode.data.ts,
+                  duration_ms: invNode.data.durationMs,
+                  sequence_index: invNode.data.sequenceIndex,
+                },
+              };
             } else {
+              // Tool nodes
               return {
                 data: {
                   id: node.data.id,
@@ -2878,6 +2916,19 @@ The system uses GraphRAG to find appropriate tools for the new requirement and i
                   shared_tools: edge.data.sharedTools,
                   edge_type: edge.data.edgeType,
                   edge_source: edge.data.edgeSource,
+                },
+              };
+            } else if (edge.data.edgeType === "sequence") {
+              // Sequence edges (tool invocation order with parallelism detection)
+              const seqEdge = edge as import("../capabilities/types.ts").SequenceEdge;
+              return {
+                data: {
+                  id: seqEdge.data.id,
+                  source: seqEdge.data.source,
+                  target: seqEdge.data.target,
+                  edge_type: seqEdge.data.edgeType,
+                  time_delta_ms: seqEdge.data.timeDeltaMs,
+                  is_parallel: seqEdge.data.isParallel,
                 },
               };
             } else {

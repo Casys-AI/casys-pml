@@ -80,7 +80,7 @@ export class CapabilityStore {
    * @returns The saved/updated capability
    */
   async saveCapability(input: SaveCapabilityInput): Promise<Capability> {
-    const { code, intent, durationMs, success = true, name, description, toolsUsed } = input;
+    const { code, intent, durationMs, success = true, name, description, toolsUsed, toolInvocations } = input;
 
     // Generate code hash for deduplication
     const codeHash = await hashCode(code);
@@ -115,10 +115,11 @@ export class CapabilityStore {
       }
     }
 
-    // Build dag_structure with tools used (for graph analysis)
+    // Build dag_structure with tools used and invocations (for graph analysis)
     const dagStructure = {
       type: "code_execution",
       tools_used: toolsUsed || [],
+      tool_invocations: toolInvocations || [], // Detailed invocations with timestamps
       intent_text: intent,
     };
 
@@ -547,8 +548,9 @@ export class CapabilityStore {
       }
     }
 
-    // Story 7.4: Extract tools_used from dag_structure JSONB
+    // Story 7.4: Extract tools_used and tool_invocations from dag_structure JSONB
     let toolsUsed: string[] | undefined;
+    let toolInvocations: Capability["toolInvocations"];
     if (row.dag_structure) {
       try {
         const dagStruct = typeof row.dag_structure === "string"
@@ -557,8 +559,12 @@ export class CapabilityStore {
         if (Array.isArray(dagStruct?.tools_used)) {
           toolsUsed = dagStruct.tools_used;
         }
+        // Extract tool invocations for sequence visualization
+        if (Array.isArray(dagStruct?.tool_invocations)) {
+          toolInvocations = dagStruct.tool_invocations;
+        }
       } catch {
-        // Ignore parse errors, toolsUsed remains undefined
+        // Ignore parse errors, toolsUsed/toolInvocations remain undefined
       }
     }
 
@@ -579,6 +585,7 @@ export class CapabilityStore {
       lastUsed: new Date(row.last_used as string),
       source: ((row.source as string) as "emergent" | "manual") || "emergent",
       toolsUsed,
+      toolInvocations,
     };
   }
 

@@ -137,6 +137,7 @@ export class CapabilityDataService {
           description,
           code_snippet,
           dag_structure->'tools_used' as tools_used,
+          dag_structure->'tool_invocations' as tool_invocations,
           success_rate,
           usage_count,
           avg_duration_ms,
@@ -188,12 +189,27 @@ export class CapabilityDataService {
             }
           }
 
+          // Parse tool_invocations from JSONB (for sequence visualization)
+          let toolInvocations: CapabilityResponseInternal["toolInvocations"];
+          if (row.tool_invocations) {
+            try {
+              if (typeof row.tool_invocations === "string") {
+                toolInvocations = JSON.parse(row.tool_invocations);
+              } else if (Array.isArray(row.tool_invocations)) {
+                toolInvocations = row.tool_invocations;
+              }
+            } catch (error) {
+              logger.warn("Failed to parse tool_invocations", { error, row: row.id });
+            }
+          }
+
           return {
             id: String(row.id),
             name: row.name ? String(row.name) : null,
             description: row.description ? String(row.description) : null,
             codeSnippet: String(row.code_snippet || ""),
             toolsUsed,
+            toolInvocations,
             successRate: Number(row.success_rate || 0),
             usageCount: Number(row.usage_count || 0),
             avgDurationMs: Number(row.avg_duration_ms || 0),
@@ -290,6 +306,27 @@ export class CapabilityDataService {
         graphSnapshot ?? undefined,
         capabilityPageranks,
       );
+
+      // 3b. Add tool invocation nodes for capabilities that have them
+      // This creates individual nodes for each tool call with sequence edges
+      const zoneColors = [
+        "#8b5cf6", "#3b82f6", "#10b981", "#f59e0b",
+        "#ef4444", "#ec4899", "#06b6d4", "#84cc16",
+      ];
+      for (let i = 0; i < capabilities.length; i++) {
+        const cap = capabilities[i];
+        if (cap.toolInvocations && cap.toolInvocations.length > 0) {
+          const capId = `cap-${cap.id}`;
+          const zoneColor = zoneColors[i % zoneColors.length];
+          builder.addToolInvocationNodes(
+            hypergraphResult.nodes,
+            hypergraphResult.edges,
+            capId,
+            cap.toolInvocations,
+            zoneColor,
+          );
+        }
+      }
 
       // Track existing tool IDs for standalone tools
       const existingToolIds = new Set(

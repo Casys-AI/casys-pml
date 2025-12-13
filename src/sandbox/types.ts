@@ -300,3 +300,27 @@ export type TraceEvent = ToolTraceEvent | CapabilityTraceEvent;
  * - worker: Web Worker with RPC bridge (default)
  */
 export type ExecutionMode = "subprocess" | "worker";
+
+/**
+ * Individual tool invocation record
+ * Captures each call to a tool (not deduplicated like toolsUsed).
+ * Enables sequence visualization and parallelism detection in graphs.
+ */
+export interface ToolInvocation {
+  /** Unique ID for this invocation (e.g., "filesystem:read_file#0") */
+  id: string;
+  /** Tool identifier (e.g., "filesystem:read_file") */
+  tool: string;
+  /** Trace ID for correlation */
+  traceId: string;
+  /** Timestamp when tool was called (ms since epoch) */
+  ts: number;
+  /** Execution duration in milliseconds */
+  durationMs: number;
+  /** Whether the invocation succeeded */
+  success: boolean;
+  /** Sequence index within the capability execution (0-based) */
+  sequenceIndex: number;
+  /** Error message if failed */
+  error?: string;
+}

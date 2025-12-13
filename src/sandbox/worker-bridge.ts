@@ -260,18 +260,34 @@ export class WorkerBridge {
       });
 
       // Eager Learning: Save capability after successful execution (Story 7.2a)
-      if (result.success && this.capabilityStore && this.lastIntent) {
+      // Only save if ALL tools succeeded - partial failures create inconsistent capabilities
+      const hasToolFailures = this.hasAnyToolFailed();
+      if (result.success && this.capabilityStore && this.lastIntent && !hasToolFailures) {
         try {
+          // Get detailed invocations for sequence visualization
+          const invocations = this.getToolInvocations();
+          const toolInvocations = invocations
+            .filter((inv) => inv.success) // Only successful invocations
+            .map((inv) => ({
+              id: inv.id,
+              tool: inv.tool,
+              ts: inv.ts,
+              durationMs: inv.durationMs,
+              sequenceIndex: inv.sequenceIndex,
+            }));
+
           await this.capabilityStore.saveCapability({
             code: this.lastExecutedCode,
             intent: this.lastIntent,
             durationMs: Math.round(result.executionTimeMs),
             success: true,
             toolsUsed: this.getToolsCalled(),
+            toolInvocations,
           });
           logger.debug("Capability saved via eager learning", {
             intent: this.lastIntent.substring(0, 50),
             toolsUsed: this.getToolsCalled().length,
+            toolInvocations: toolInvocations.length,
           });
         } catch (capError) {
           // Don't fail execution if capability storage fails
@@ -279,6 +295,16 @@ export class WorkerBridge {
             error: capError instanceof Error ? capError.message : String(capError),
           });
         }
+      } else if (hasToolFailures) {
+        const failedTools = this.traces
+          .filter((t): t is TraceEvent & { tool: string } =>
+            t.type === "tool_end" && !t.success && "tool" in t
+          )
+          .map((t) => t.tool);
+        logger.info("Capability not saved due to tool failures", {
+          intent: this.lastIntent?.substring(0, 50),
+          failedTools,
+        });
       }
 
       // Story 7.3b (AC#5): Update GraphRAG with execution traces for dependency learning
@@ -388,36 +414,44 @@ export class WorkerBridge {
       const endTime = Date.now();
       const durationMs = endTime - startTime;
 
-      // TRACE END - success
+      // ADR-043: Check if MCP tool returned isError (soft failure)
+      const mcpResult = result as { isError?: boolean; content?: Array<{ text?: string }> };
+      const isToolError = mcpResult.isError === true;
+      const errorMessage = isToolError && mcpResult.content?.[0]?.text
+        ? mcpResult.content[0].text
+        : undefined;
+
+      // TRACE END - success or soft failure
       // ADR-041: Include parentTraceId for hierarchical tracking
       this.traces.push({
         type: "tool_end",
         tool: toolId,
         traceId: id,
         ts: endTime,
-        success: true,
+        success: !isToolError,
         durationMs: durationMs,
         parentTraceId: parentTraceId, // ADR-041
+        ...(isToolError && errorMessage ? { error: errorMessage } : {}),
       });
 
-      // Story 6.5: Emit tool.end event to EventBus (success)
+      // Story 6.5: Emit tool.end event to EventBus
       eventBus.emit({
         type: "tool.end",
         source: "worker-bridge",
         payload: {
           toolId: toolId,
           traceId: id,
-          success: true,
+          success: !isToolError,
           durationMs: durationMs,
           parentTraceId: parentTraceId, // ADR-041
         },
       });
 
-      // Send result back to Worker
+      // Send result back to Worker (still send the result, let user code handle it)
       const response: RPCResultMessage = {
         type: "rpc_result",
         id,
-        success: true,
+        success: true, // RPC succeeded, but tool may have returned isError
         result,
       };
       this.worker?.postMessage(response);
@@ -516,6 +550,50 @@ export class WorkerBridge {
     }
 
     return Array.from(toolsCalled);
+  }
+
+  /**
+   * Check if any tool call failed during execution
+   * Used to prevent saving capabilities with partial tool failures
+   */
+  hasAnyToolFailed(): boolean {
+    for (const trace of this.traces) {
+      if (trace.type === "tool_end" && !trace.success) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Get detailed tool invocations with timestamps for sequence visualization
+   * Unlike getToolsCalled() which deduplicates, this returns EVERY invocation.
+   * Enables graph visualization of execution order and parallelism detection.
+   */
+  getToolInvocations(): import("./types.ts").ToolInvocation[] {
+    const invocations: import("./types.ts").ToolInvocation[] = [];
+    let sequenceIndex = 0;
+
+    // Sort traces by timestamp to get execution order
+    const sortedTraces = [...this.traces].sort((a, b) => a.ts - b.ts);
+
+    for (const trace of sortedTraces) {
+      if (trace.type === "tool_end" && "tool" in trace) {
+        invocations.push({
+          id: `${trace.tool}#${sequenceIndex}`,
+          tool: trace.tool,
+          traceId: trace.traceId,
+          ts: trace.ts,
+          durationMs: trace.durationMs ?? 0,
+          success: trace.success ?? false,
+          sequenceIndex,
+          error: trace.error,
+        });
+        sequenceIndex++;
+      }
+    }
+
+    return invocations;
   }
 
   /**
