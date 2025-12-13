@@ -228,17 +228,28 @@ export function createRadialLayout(
         const cartY = centerY + radiusCapabilities * Math.sin(cartAngle);
 
         // Create a pseudo d3Node for edge drawing compatibility
-        const pseudoD3Node = {
+        // Must include ancestors() method for d3.path() compatibility
+        const pseudoRoot = { data: { id: "root" }, x: 0, y: 0, parent: null };
+        const pseudoD3Node: any = {
           x: normalizedAngle,
           y: radiusCapabilities,
           data: emptyCap,
-          parent: { data: { id: "root" }, x: 0, y: 0 },
-          path: (target: any) => [
-            { x: normalizedAngle, y: radiusCapabilities },
-            { x: 0, y: 0 }, // through center
-            { x: target.x, y: target.y },
-          ],
+          parent: pseudoRoot,
+          // d3.path() calls ancestors() on both source and target nodes
+          ancestors: function() {
+            return [this, pseudoRoot];
+          },
+          path: (target: any) => {
+            if (!target) return [{ x: normalizedAngle, y: radiusCapabilities }];
+            return [
+              { x: normalizedAngle, y: radiusCapabilities },
+              { x: 0, y: 0 }, // through center
+              { x: target.x ?? 0, y: target.y ?? 0 },
+            ];
+          },
         };
+        // Also add ancestors to pseudoRoot for completeness
+        (pseudoRoot as any).ancestors = function() { return [this]; };
 
         const positioned: PositionedNode = {
           id: emptyCap.id,
@@ -270,15 +281,16 @@ export function createRadialLayout(
     .lineRadial()
     .curve(d3.curveBundle.beta(tension))
     // deno-lint-ignore no-explicit-any
-    .radius((d: any) => d.y ?? 0)
+    .radius((d: any) => d?.y ?? 0)
     // deno-lint-ignore no-explicit-any
-    .angle((d: any) => d.x ?? 0);
+    .angle((d: any) => d?.x ?? 0);
 
   // 1. Hierarchy edges (capability → tool) using d3's path()
   // deno-lint-ignore no-explicit-any
   hierarchy.each((d: any) => {
     if (d.data.type === "tool" && d.parent) {
-      const path = d.path(d.parent);
+      const path = d.path(d.parent)?.filter((n: any) => n != null);
+      if (!path?.length) return;
       const pathD = lineRadial(path);
 
       if (pathD) {
@@ -306,7 +318,8 @@ export function createRadialLayout(
           if (capNode && d.parent) {
             // Path goes: tool → primary parent → root → secondary parent
             // Using d3's path() through common ancestor
-            const path = d.path(capNode);
+            const path = d.path(capNode)?.filter((n: any) => n != null);
+            if (!path?.length) continue;
             const pathD = lineRadial(path);
 
             if (pathD) {
@@ -331,7 +344,8 @@ export function createRadialLayout(
 
     if (sourceNode && targetNode) {
       // Path through root (center)
-      const path = sourceNode.path(targetNode);
+      const path = sourceNode.path(targetNode)?.filter((n: any) => n != null);
+      if (!path?.length) continue;
       const pathD = lineRadial(path);
 
       if (pathD) {
@@ -353,7 +367,8 @@ export function createRadialLayout(
 
     if (sourceNode && targetNode) {
       // Path through common ancestor (will bundle nicely)
-      const path = sourceNode.path(targetNode);
+      const path = sourceNode.path(targetNode)?.filter((n: any) => n != null);
+      if (!path?.length) continue;
       const pathD = lineRadial(path);
 
       if (pathD) {
@@ -405,16 +420,17 @@ export function updateBundleTension(
     .lineRadial()
     .curve(d3.curveBundle.beta(tension))
     // deno-lint-ignore no-explicit-any
-    .radius((d: any) => d.y ?? 0)
+    .radius((d: any) => d?.y ?? 0)
     // deno-lint-ignore no-explicit-any
-    .angle((d: any) => d.x ?? 0);
+    .angle((d: any) => d?.x ?? 0);
 
   // Rebuild all paths with new tension
   // deno-lint-ignore no-explicit-any
   hierarchy.each((d: any) => {
     // Hierarchy edges
     if (d.data.type === "tool" && d.parent) {
-      const path = d.path(d.parent);
+      const path = d.path(d.parent)?.filter((n: any) => n != null);
+      if (!path?.length) return;
       const pathD = lineRadial(path);
       if (pathD) {
         paths.push({
@@ -434,7 +450,8 @@ export function updateBundleTension(
         if (capId !== toolData.primaryParent) {
           const capNode = nodeMap.get(capId);
           if (capNode) {
-            const path = d.path(capNode);
+            const path = d.path(capNode)?.filter((n: any) => n != null);
+            if (!path?.length) continue;
             const pathD = lineRadial(path);
             if (pathD) {
               paths.push({
@@ -456,7 +473,8 @@ export function updateBundleTension(
     const sourceNode = nodeMap.get(edge.source);
     const targetNode = nodeMap.get(edge.target);
     if (sourceNode && targetNode) {
-      const path = sourceNode.path(targetNode);
+      const path = sourceNode.path(targetNode)?.filter((n: any) => n != null);
+      if (!path?.length) continue;
       const pathD = lineRadial(path);
       if (pathD) {
         paths.push({

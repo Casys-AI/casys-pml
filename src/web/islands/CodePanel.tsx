@@ -69,8 +69,12 @@ function formatRelativeTime(timestamp: number | undefined): string {
  */
 // Min/Max heights for the panel
 const MIN_PANEL_HEIGHT = 150;
-const MAX_PANEL_HEIGHT = window?.innerHeight ? window.innerHeight * 0.8 : 800;
+const DEFAULT_MAX_HEIGHT = 800;
 const DEFAULT_PANEL_HEIGHT = 300;
+
+// Get max height dynamically (SSR-safe)
+const getMaxPanelHeight = () =>
+  typeof window !== "undefined" ? window.innerHeight * 0.8 : DEFAULT_MAX_HEIGHT;
 
 export default function CodePanel({
   capability,
@@ -89,7 +93,7 @@ export default function CodePanel({
       const saved = localStorage.getItem("codePanelHeight");
       if (saved) {
         const height = parseInt(saved, 10);
-        if (!isNaN(height) && height >= MIN_PANEL_HEIGHT && height <= MAX_PANEL_HEIGHT) {
+        if (!isNaN(height) && height >= MIN_PANEL_HEIGHT && height <= getMaxPanelHeight()) {
           return height;
         }
       }
@@ -153,7 +157,7 @@ export default function CodePanel({
 
     const currentY = "touches" in e ? e.touches[0].clientY : e.clientY;
     const deltaY = startYRef.current - currentY; // Negative = dragging down, Positive = dragging up
-    const newHeight = Math.min(MAX_PANEL_HEIGHT, Math.max(MIN_PANEL_HEIGHT, startHeightRef.current + deltaY));
+    const newHeight = Math.min(getMaxPanelHeight(), Math.max(MIN_PANEL_HEIGHT, startHeightRef.current + deltaY));
 
     setPanelHeight(newHeight);
   }, [isResizing]);
@@ -262,7 +266,7 @@ export default function CodePanel({
           width: "100%",
           height: `${panelHeight}px`,
           minHeight: `${MIN_PANEL_HEIGHT}px`,
-          maxHeight: `${MAX_PANEL_HEIGHT}px`,
+          maxHeight: `${getMaxPanelHeight()}px`,
           background: "var(--bg-elevated, #12110f)",
           borderTop: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
           display: "flex",
