@@ -14,7 +14,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "preact/hooks";
 import { highlightCode, detectLanguage, syntaxHighlightStyles } from "../lib/syntax-highlight.ts";
-import type { CapabilityData, ToolData } from "./D3GraphVisualization.tsx";
+import type { CapabilityData, ToolData } from "./CytoscapeGraph.tsx";
 
 // Re-export for convenience
 export type { CapabilityData, ToolData };

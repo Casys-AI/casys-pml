@@ -3,13 +3,19 @@
  *
  * Story 6.4: Graph Explorer & Search Interface
  * Story 8.3: Hypergraph View Mode with capability zones
+ * Enhanced: Compound nodes, expand/collapse, view modes
  * Styled with Casys.ai design system
  */
 
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { createPortal } from "preact/compat";
-import D3GraphVisualization, { type ToolData } from "./D3GraphVisualization.tsx";
-import CodePanel, { type CapabilityData } from "./CodePanel.tsx";
+import CytoscapeGraph, {
+  type CapabilityData,
+  type ToolData,
+  type ViewMode,
+} from "./CytoscapeGraph.tsx";
+import CodePanel from "./CodePanel.tsx";
+import GraphLegendPanel from "../components/ui/molecules/GraphLegendPanel.tsx";
 
 interface ToolSearchResult {
   tool_id: string;
@@ -64,8 +70,111 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
   // Selected tool for CodePanel (tool info display)
   const [selectedTool, setSelectedTool] = useState<ToolData | null>(null);
 
+  // New: View mode and expand/collapse state
+  const [viewMode, setViewMode] = useState<ViewMode>("capabilities");
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  const [highlightDepth, setHighlightDepth] = useState(1);
+  const [layoutDirection, setLayoutDirection] = useState<"TB" | "LR">("TB");
+
+  // Server filtering state (for GraphLegendPanel)
+  const [servers, setServers] = useState<Set<string>>(new Set());
+  const [hiddenServers, setHiddenServers] = useState<Set<string>>(new Set());
+  const [showOrphanNodes, setShowOrphanNodes] = useState(true);
+  const [totalCapabilities, setTotalCapabilities] = useState(0);
+  const [allCapabilityIds, setAllCapabilityIds] = useState<string[]>([]);
+
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchTimeoutRef = useRef<number | null>(null);
+  const graphRef = useRef<HTMLDivElement>(null);
+
+  // Server color mapping
+  const serverColorsRef = useRef<Map<string, string>>(new Map());
+  const SERVER_COLORS = [
+    "#FFB86F",
+    "#FF6B6B",
+    "#4ECDC4",
+    "#FFE66D",
+    "#95E1D3",
+    "#F38181",
+    "#AA96DA",
+    "#FCBAD3",
+  ];
+
+  const getServerColor = useCallback((server: string): string => {
+    if (server === "unknown") return "#8a8078";
+    if (!serverColorsRef.current.has(server)) {
+      const index = serverColorsRef.current.size % SERVER_COLORS.length;
+      serverColorsRef.current.set(server, SERVER_COLORS[index]);
+    }
+    return serverColorsRef.current.get(server)!;
+  }, []);
+
+  // Load servers list from API
+  useEffect(() => {
+    const loadServers = async () => {
+      try {
+        const response = await fetch(`${apiBase}/api/graph/hypergraph`);
+        if (response.ok) {
+          const data = await response.json();
+          const serverSet = new Set<string>();
+          const capIds: string[] = [];
+
+          // API returns nodes array with both capabilities and tools
+          for (const node of data.nodes || []) {
+            const d = node.data;
+            if (d.type === "tool" && d.server) {
+              serverSet.add(d.server);
+            } else if (d.type === "capability") {
+              // Only count capabilities with usage
+              const usageCount = d.usage_count ?? 0;
+              if (usageCount > 0) {
+                capIds.push(d.id);
+              }
+            }
+          }
+
+          setServers(serverSet);
+          setAllCapabilityIds(capIds);
+          setTotalCapabilities(capIds.length);
+        }
+      } catch (error) {
+        console.error("Failed to load servers:", error);
+      }
+    };
+    loadServers();
+  }, [apiBase]);
+
+  // Expand all handler
+  const handleExpandAll = useCallback(() => {
+    setExpandedNodes(new Set(allCapabilityIds));
+  }, [allCapabilityIds]);
+
+  // Collapse all handler
+  const handleCollapseAll = useCallback(() => {
+    setExpandedNodes(new Set());
+  }, []);
+
+  // Toggle server visibility
+  const handleToggleServer = useCallback((server: string) => {
+    setHiddenServers((prev) => {
+      const next = new Set(prev);
+      if (next.has(server)) {
+        next.delete(server);
+      } else {
+        next.add(server);
+      }
+      return next;
+    });
+  }, []);
+
+  // Export handlers (placeholder)
+  const handleExportJson = useCallback(() => {
+    console.log("Export JSON not yet implemented");
+  }, []);
+
+  const handleExportPng = useCallback(() => {
+    console.log("Export PNG not yet implemented");
+  }, []);
 
   // Find header slot for portal
   useEffect(() => {
@@ -538,15 +647,42 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
         </div>
       )}
 
-      {/* Graph Visualization (D3.js - always shows tools + capability zones) */}
-      <div style={{ flex: 1, position: "relative", minHeight: 0 }}>
-        <D3GraphVisualization
+      {/* Graph Visualization (Cytoscape.js) */}
+      <div ref={graphRef} style={{ flex: 1, position: "relative", minHeight: 0 }}>
+        <CytoscapeGraph
           apiBase={apiBase}
           onNodeSelect={handleNodeSelect}
           onCapabilitySelect={handleCapabilitySelect}
           onToolSelect={handleToolSelect}
           highlightedNodeId={highlightedNode}
           pathNodes={pathNodes}
+          highlightDepth={highlightDepth}
+          viewMode={viewMode}
+          expandedNodes={expandedNodes}
+          onExpandedNodesChange={setExpandedNodes}
+          layoutDirection={layoutDirection}
+        />
+
+        {/* GraphLegendPanel with all controls */}
+        <GraphLegendPanel
+          servers={servers}
+          hiddenServers={hiddenServers}
+          showOrphanNodes={showOrphanNodes}
+          getServerColor={getServerColor}
+          onToggleServer={handleToggleServer}
+          onToggleOrphans={() => setShowOrphanNodes(!showOrphanNodes)}
+          onExportJson={handleExportJson}
+          onExportPng={handleExportPng}
+          highlightDepth={highlightDepth}
+          onHighlightDepthChange={setHighlightDepth}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          layoutDirection={layoutDirection}
+          onLayoutDirectionChange={setLayoutDirection}
+          onExpandAll={handleExpandAll}
+          onCollapseAll={handleCollapseAll}
+          expandedCount={expandedNodes.size}
+          totalCapabilities={totalCapabilities}
         />
       </div>
 

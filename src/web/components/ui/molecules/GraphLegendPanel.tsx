@@ -1,7 +1,6 @@
 /**
  * GraphLegendPanel Molecule - Legend panel for graph visualization
- * Story 6.4: MCP servers, edge types, confidence legend, orphan toggle, export
- * Holten 2006: HEB tension control (beta parameter for curveBundle)
+ * With view mode toggle, expand/collapse controls, and highlight depth
  */
 
 import type { JSX } from "preact";
@@ -9,16 +8,12 @@ import Badge from "../atoms/Badge.tsx";
 import Button from "../atoms/Button.tsx";
 import Divider from "../atoms/Divider.tsx";
 import Slider from "../atoms/Slider.tsx";
-import LegendItem from "./LegendItem.tsx";
 
-/** Edge type identifiers matching radial-heb-layout.ts */
-export type EdgeType = "hierarchy" | "hyperedge" | "capability_link" | "tool_sequence";
+/** View mode for the graph */
+export type ViewMode = "capabilities" | "tools";
 
-/** Tool grouping mode for the outer ring */
-export type ToolGroupingMode = "server" | "cluster";
-
-/** Visualization mode: HEB Sunburst (Holten 2006) vs FDEB DAG (Holten 2009) */
-export type VisualizationMode = "sunburst" | "dag";
+/** Layout direction */
+export type LayoutDirection = "TB" | "LR";
 
 interface GraphLegendPanelProps {
   servers: Set<string>;
@@ -29,29 +24,21 @@ interface GraphLegendPanelProps {
   onToggleOrphans: () => void;
   onExportJson: () => void;
   onExportPng: () => void;
-  // HEB tension control (Holten 2006)
-  tension?: number;
-  onTensionChange?: (t: number) => void;
   // Highlight depth control
   highlightDepth?: number;
   onHighlightDepthChange?: (d: number) => void;
-  // Edge type visibility toggles
-  hiddenEdgeTypes?: Set<EdgeType>;
-  onToggleEdgeType?: (edgeType: EdgeType) => void;
-  // Tool grouping mode (server vs cluster)
-  toolGroupingMode?: ToolGroupingMode;
-  onToolGroupingModeChange?: (mode: ToolGroupingMode) => void;
-  // Visualization mode (sunburst vs dag)
-  visualizationMode?: VisualizationMode;
-  onVisualizationModeChange?: (mode: VisualizationMode) => void;
-  // Legacy FDEB controls (deprecated)
-  straightening?: number;
-  onStraighteningChange?: (s: number) => void;
-  smoothing?: number;
-  onSmoothingChange?: (s: number) => void;
-  showHeatmap?: boolean;
-  onToggleHeatmap?: () => void;
-  heatmapColors?: string[];
+  // View mode control
+  viewMode?: ViewMode;
+  onViewModeChange?: (mode: ViewMode) => void;
+  // Layout direction
+  layoutDirection?: LayoutDirection;
+  onLayoutDirectionChange?: (dir: LayoutDirection) => void;
+  // Expand/Collapse controls
+  onExpandAll?: () => void;
+  onCollapseAll?: () => void;
+  // Stats for display
+  expandedCount?: number;
+  totalCapabilities?: number;
 }
 
 export default function GraphLegendPanel({
@@ -63,30 +50,20 @@ export default function GraphLegendPanel({
   onToggleOrphans,
   onExportJson,
   onExportPng,
-  // HEB tension
-  tension = 0.85,
-  onTensionChange,
   // Highlight depth
   highlightDepth = 1,
   onHighlightDepthChange,
-  // Edge type toggles
-  hiddenEdgeTypes = new Set(),
-  onToggleEdgeType,
-  // Tool grouping mode
-  toolGroupingMode = "server",
-  onToolGroupingModeChange,
-  // Visualization mode
-  visualizationMode = "sunburst",
-  onVisualizationModeChange,
-  // Legacy FDEB (deprecated)
-  straightening = 0,
-  onStraighteningChange,
-  smoothing = 0,
-  onSmoothingChange,
-  // Heatmap removed in HEB refactor
-  showHeatmap: _showHeatmap = false,
-  onToggleHeatmap: _onToggleHeatmap,
-  heatmapColors: _heatmapColors,
+  // View mode
+  viewMode = "capabilities",
+  onViewModeChange,
+  // Layout direction
+  layoutDirection = "TB",
+  onLayoutDirectionChange,
+  // Expand/Collapse
+  onExpandAll,
+  onCollapseAll,
+  expandedCount = 0,
+  totalCapabilities = 0,
 }: GraphLegendPanelProps): JSX.Element {
   return (
     <div
@@ -98,8 +75,8 @@ export default function GraphLegendPanel({
         minWidth: "200px",
       }}
     >
-      {/* Visualization Mode Toggle */}
-      {onVisualizationModeChange && (
+      {/* View Mode Toggle */}
+      {onViewModeChange && (
         <>
           <h3
             class="text-xs font-semibold uppercase tracking-widest mb-3"
@@ -107,19 +84,137 @@ export default function GraphLegendPanel({
           >
             View Mode
           </h3>
+          <div class="flex gap-1 mb-3">
+            <button
+              class="flex-1 px-3 py-2 rounded-lg text-xs font-semibold transition-all"
+              style={{
+                background: viewMode === "capabilities"
+                  ? "var(--accent, #FFB86F)"
+                  : "var(--bg-surface, #1a1816)",
+                color: viewMode === "capabilities"
+                  ? "var(--bg, #0a0908)"
+                  : "var(--text-muted, #d5c3b5)",
+                border: viewMode === "capabilities"
+                  ? "1px solid var(--accent, #FFB86F)"
+                  : "1px solid var(--border, rgba(255, 184, 111, 0.1))",
+              }}
+              onClick={() => onViewModeChange("capabilities")}
+              title="Hierarchical view with expand/collapse"
+            >
+              Capabilities
+            </button>
+            <button
+              class="flex-1 px-3 py-2 rounded-lg text-xs font-semibold transition-all"
+              style={{
+                background: viewMode === "tools"
+                  ? "var(--accent, #FFB86F)"
+                  : "var(--bg-surface, #1a1816)",
+                color: viewMode === "tools" ? "var(--bg, #0a0908)" : "var(--text-muted, #d5c3b5)",
+                border: viewMode === "tools"
+                  ? "1px solid var(--accent, #FFB86F)"
+                  : "1px solid var(--border, rgba(255, 184, 111, 0.1))",
+              }}
+              onClick={() => onViewModeChange("tools")}
+              title="Flat view of all tools"
+            >
+              Tools
+            </button>
+          </div>
+          <Divider />
+        </>
+      )}
+
+      {/* Expand/Collapse Controls (only in capabilities mode) */}
+      {viewMode === "capabilities" && (onExpandAll || onCollapseAll) && (
+        <>
+          <h3
+            class="text-xs font-semibold uppercase tracking-widest mb-2"
+            style={{ color: "var(--text-dim)" }}
+          >
+            Hierarchy
+          </h3>
+          {totalCapabilities > 0 && (
+            <div
+              class="text-xs mb-2"
+              style={{ color: "var(--text-muted)" }}
+            >
+              {expandedCount}/{totalCapabilities} expanded
+            </div>
+          )}
           <div class="flex gap-2 mb-3">
-            <Badge
-              color={visualizationMode === "sunburst" ? "#8b5cf6" : "transparent"}
-              label="Sunburst"
-              active={visualizationMode === "sunburst"}
-              onClick={() => onVisualizationModeChange("sunburst")}
-            />
-            <Badge
-              color={visualizationMode === "dag" ? "#10b981" : "transparent"}
-              label="DAG"
-              active={visualizationMode === "dag"}
-              onClick={() => onVisualizationModeChange("dag")}
-            />
+            {onExpandAll && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={onExpandAll}
+                class="flex-1"
+                title="Expand all capabilities"
+              >
+                Expand All
+              </Button>
+            )}
+            {onCollapseAll && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={onCollapseAll}
+                class="flex-1"
+                title="Collapse all capabilities"
+              >
+                Collapse All
+              </Button>
+            )}
+          </div>
+          <Divider />
+        </>
+      )}
+
+      {/* Layout Direction */}
+      {onLayoutDirectionChange && (
+        <>
+          <h3
+            class="text-xs font-semibold uppercase tracking-widest mb-2"
+            style={{ color: "var(--text-dim)" }}
+          >
+            Layout Direction
+          </h3>
+          <div class="flex gap-1 mb-3">
+            <button
+              class="flex-1 px-2 py-1.5 rounded text-xs font-medium transition-all"
+              style={{
+                background: layoutDirection === "TB"
+                  ? "var(--accent, #FFB86F)"
+                  : "var(--bg-surface, #1a1816)",
+                color: layoutDirection === "TB"
+                  ? "var(--bg, #0a0908)"
+                  : "var(--text-muted, #d5c3b5)",
+                border: layoutDirection === "TB"
+                  ? "1px solid var(--accent)"
+                  : "1px solid var(--border)",
+              }}
+              onClick={() => onLayoutDirectionChange("TB")}
+              title="Top to Bottom"
+            >
+              ↓ Vertical
+            </button>
+            <button
+              class="flex-1 px-2 py-1.5 rounded text-xs font-medium transition-all"
+              style={{
+                background: layoutDirection === "LR"
+                  ? "var(--accent, #FFB86F)"
+                  : "var(--bg-surface, #1a1816)",
+                color: layoutDirection === "LR"
+                  ? "var(--bg, #0a0908)"
+                  : "var(--text-muted, #d5c3b5)",
+                border: layoutDirection === "LR"
+                  ? "1px solid var(--accent)"
+                  : "1px solid var(--border)",
+              }}
+              onClick={() => onLayoutDirectionChange("LR")}
+              title="Left to Right"
+            >
+              → Horizontal
+            </button>
           </div>
           <Divider />
         </>
@@ -144,51 +239,6 @@ export default function GraphLegendPanel({
 
       <Divider />
 
-      {/* Edge Types */}
-      <h3
-        class="text-xs font-semibold uppercase tracking-widest mb-3"
-        style={{ color: "var(--text-dim)" }}
-      >
-        Edge Types
-      </h3>
-      <LegendItem
-        label="Contains"
-        color="#888888"
-        lineStyle="solid"
-        active={!hiddenEdgeTypes.has("hierarchy")}
-        onClick={onToggleEdgeType ? () => onToggleEdgeType("hierarchy") : undefined}
-      />
-      <LegendItem
-        label="Sequence"
-        color="#10b981"
-        lineStyle="solid"
-        active={!hiddenEdgeTypes.has("tool_sequence") && !hiddenEdgeTypes.has("capability_link")}
-        onClick={onToggleEdgeType ? () => {
-          onToggleEdgeType("tool_sequence");
-          onToggleEdgeType("capability_link");
-        } : undefined}
-      />
-
-      <Divider />
-
-      {/* Confidence */}
-      <h3
-        class="text-xs font-semibold uppercase tracking-widest mb-3"
-        style={{ color: "var(--text-dim)" }}
-      >
-        Confidence
-      </h3>
-      <LegendItem label="Observed (3+ runs)" color="var(--text-dim)" lineStyle="solid" />
-      <LegendItem label="Inferred (1-2 runs)" color="var(--text-dim)" lineStyle="dashed" />
-      <LegendItem
-        label="Template (bootstrap)"
-        color="var(--text-dim)"
-        lineStyle="dotted"
-        opacity={0.5}
-      />
-
-      <Divider />
-
       {/* Orphan toggle */}
       <Badge
         color="transparent"
@@ -199,62 +249,6 @@ export default function GraphLegendPanel({
       />
 
       <Divider />
-
-      {/* Tool Grouping Mode */}
-      {onToolGroupingModeChange && (
-        <>
-          <h3
-            class="text-xs font-semibold uppercase tracking-widest mb-3"
-            style={{ color: "var(--text-dim)" }}
-          >
-            Tool Grouping
-          </h3>
-          <div class="flex gap-2 mb-3">
-            <Badge
-              color={toolGroupingMode === "server" ? "#FFB86F" : "transparent"}
-              label="Server"
-              active={toolGroupingMode === "server"}
-              onClick={() => onToolGroupingModeChange("server")}
-            />
-            <Badge
-              color={toolGroupingMode === "cluster" ? "#8b5cf6" : "transparent"}
-              label="Cluster"
-              active={toolGroupingMode === "cluster"}
-              onClick={() => onToolGroupingModeChange("cluster")}
-            />
-          </div>
-          <Divider />
-        </>
-      )}
-
-      {/* Bundle Controls - HEB Tension (Holten 2006) */}
-      {onTensionChange && (
-        <>
-          <h3
-            class="text-xs font-semibold uppercase tracking-widest mb-3"
-            style={{ color: "var(--text-dim)" }}
-          >
-            Bundle Tension
-          </h3>
-
-          <div class="mb-3">
-            <Slider
-              value={tension}
-              min={0}
-              max={1}
-              step={0.05}
-              label="Tension"
-              onChange={onTensionChange}
-            />
-            <div class="flex justify-between text-[10px] mt-1" style={{ color: "var(--text-dim)" }}>
-              <span>Bundled</span>
-              <span>Straight</span>
-            </div>
-          </div>
-
-          <Divider />
-        </>
-      )}
 
       {/* Highlight Depth Control */}
       {onHighlightDepthChange && (
@@ -280,46 +274,6 @@ export default function GraphLegendPanel({
               <span>Full stack (∞)</span>
             </div>
           </div>
-
-          <Divider />
-        </>
-      )}
-
-      {/* Legacy FDEB controls (deprecated - hidden when HEB tension is used) */}
-      {!onTensionChange && (onStraighteningChange || onSmoothingChange) && (
-        <>
-          <h3
-            class="text-xs font-semibold uppercase tracking-widest mb-3"
-            style={{ color: "var(--text-dim)" }}
-          >
-            Bundle Controls
-          </h3>
-
-          {onStraighteningChange && (
-            <div class="mb-3">
-              <Slider
-                value={straightening}
-                min={0}
-                max={1}
-                step={0.01}
-                label="Straightening"
-                onChange={onStraighteningChange}
-              />
-            </div>
-          )}
-
-          {onSmoothingChange && (
-            <div class="mb-3">
-              <Slider
-                value={smoothing}
-                min={0}
-                max={1}
-                step={0.01}
-                label="Smoothing"
-                onChange={onSmoothingChange}
-              />
-            </div>
-          )}
 
           <Divider />
         </>

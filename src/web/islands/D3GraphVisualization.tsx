@@ -10,20 +10,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { type GraphNodeData } from "../components/ui/mod.ts";
-import { GraphLegendPanel, type EdgeType, type ToolGroupingMode, type VisualizationMode, GraphTooltip } from "../components/ui/mod.ts";
+import { GraphLegendPanel, GraphTooltip } from "../components/ui/mod.ts";
 import {
   buildHierarchy,
-  type BundledPath,
   type CapabilityEdge,
-  createRadialLayout,
-  getLabelRotation,
-  getRadialEdgeColor,
-  getRadialEdgeOpacity,
   type HypergraphApiResponse,
-  type PositionedNode,
-  type RadialLayoutResult,
   type RootNodeData,
-  // FDEB DAG mode (Holten 2009)
+  // DAG mode (Force-Directed with FDEB bundling)
   BoundedForceLayout,
   type SimulationNode,
   type SimulationLink,
@@ -100,12 +93,11 @@ export default function D3GraphVisualization({
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
 
-  // Layout refs (for re-rendering on tension change)
+  // Layout refs
   const hierarchyRef = useRef<RootNodeData | null>(null);
   const capEdgesRef = useRef<CapabilityEdge[]>([]);
   const toolEdgesRef = useRef<import("../utils/graph/index.ts").ToolEdge[]>([]);
   const emptyCapabilitiesRef = useRef<import("../utils/graph/index.ts").CapabilityNodeData[]>([]);
-  const layoutRef = useRef<RadialLayoutResult | null>(null);
   // Data refs for callbacks
   const capabilityDataRef = useRef<Map<string, CapabilityData>>(new Map());
   const toolDataRef = useRef<Map<string, ToolData>>(new Map());
@@ -123,12 +115,8 @@ export default function D3GraphVisualization({
     { x: number; y: number; data: CapabilityData } | null
   >(null);
 
-  // HEB Controls
-  const [tension, setTension] = useState(0.85); // Holten default
+  // DAG Controls
   const [highlightDepth, setHighlightDepth] = useState(1); // 1 = direct connections only, Infinity = full stack
-  const [hiddenEdgeTypes, setHiddenEdgeTypes] = useState<Set<EdgeType>>(new Set());
-  const [toolGroupingMode, setToolGroupingMode] = useState<ToolGroupingMode>("server");
-  const [visualizationMode, setVisualizationMode] = useState<VisualizationMode>("sunburst");
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
   // DAG mode refs
@@ -276,10 +264,9 @@ export default function D3GraphVisualization({
     }
 
     const data: HypergraphApiResponse = await response.json();
+    // deno-lint-ignore no-explicit-any
     const graph = (window as any).__radialGraph;
     if (!graph) return;
-
-    const { width, height } = graph;
 
     // 1. Build hierarchy from flat data
     const { root, capabilityEdges, toolEdges, orphanTools, emptyCapabilities, stats } = buildHierarchy(data);
@@ -344,444 +331,23 @@ export default function D3GraphVisualization({
     capabilityDataRef.current = capMap;
     toolDataRef.current = toolMap;
 
-    // 3. Create radial layout (with empty capabilities and tool edges)
-    const layout = createRadialLayout(root, capabilityEdges, {
-      width,
-      height,
-      tension,
-    }, emptyCapabilitiesRef.current, toolEdgesRef.current);
-
-    layoutRef.current = layout;
-
-    console.log(
-      "[RadialHEB] Layout created:",
-      layout.capabilities.length,
-      "caps,",
-      layout.tools.length,
-      "tools,",
-      layout.paths.length,
-      "paths",
-    );
-
-    // Debug: check for undefined x values
-    for (const tool of layout.tools) {
-      if (tool.x === undefined || tool.y === undefined) {
-        console.warn("[RadialHEB] Tool with undefined position:", tool.id, tool);
-      }
-    }
-    for (const cap of layout.capabilities) {
-      if (cap.x === undefined || cap.y === undefined) {
-        console.warn("[RadialHEB] Cap with undefined position:", cap.id, cap);
-      }
-    }
-
-    // 4. Update servers list
+    // 3. Update servers list from tools
     const serverSet = new Set<string>();
-    for (const tool of layout.tools) {
-      serverSet.add((tool.data as any).server || "unknown");
+    for (const cap of root.children) {
+      for (const tool of cap.children) {
+        serverSet.add(tool.server || "unknown");
+      }
     }
     setServers(serverSet);
 
-    // 5. Render
-    renderGraph(layout);
+    console.log("[DAG] Data loaded:", root.children.length, "capabilities,", serverSet.size, "servers");
+
+    // 4. Render DAG
+    renderDagGraph();
   };
 
   // ───────────────────────────────────────────────────────────────────────────
-  // Rendering
-  // ───────────────────────────────────────────────────────────────────────────
-
-  const renderGraph = useCallback(
-    (layout: RadialLayoutResult) => {
-      const graph = (window as any).__radialGraph;
-      if (!graph) return;
-
-      // @ts-ignore
-      const d3 = globalThis.d3;
-      const { edgeLayer, nodeLayer, labelLayer } = graph;
-      // Use center from layout, not from graph
-      const center = layout.center;
-
-      // Clear existing
-      edgeLayer.selectAll("*").remove();
-      nodeLayer.selectAll("*").remove();
-      labelLayer.selectAll("*").remove();
-
-      // Translate edge layer to center (lineRadial generates paths centered at 0,0)
-      edgeLayer.attr("transform", `translate(${center.x},${center.y})`);
-
-      // Filter out any nodes with undefined positions
-      const validCaps = layout.capabilities.filter((d) => d && d.x !== undefined && d.y !== undefined);
-      const validTools = layout.tools.filter((d) => d && d.x !== undefined && d.y !== undefined);
-
-      console.log("[RadialHEB] Rendering:", validCaps.length, "caps,", validTools.length, "tools");
-
-      // ─── Shared arc setup ───
-      const totalAngle = 2 * Math.PI;
-      // @ts-ignore - D3 loaded from CDN
-      const arcGenerator = d3.arc();
-
-      // ═══════════════════════════════════════════════════════════════════════════
-      // STEP 1: Calculate visual positions for ALL nodes (before rendering edges)
-      // ═══════════════════════════════════════════════════════════════════════════
-
-      // Map to store visual angles: nodeId -> centerAngle (in radians, 0 = top)
-      const visualAngles = new Map<string, number>();
-      const visualRadii = new Map<string, number>();
-
-      // ─── Calculate Capability visual positions ───
-      const capCount = validCaps.length;
-      const capPadding = 0.02;
-      const clusterGap = 0.08;
-
-      const sortedCaps = [...validCaps].sort((a, b) => {
-        const capA = a.data as any;
-        const capB = b.data as any;
-        const commA = capA?.communityId ?? Infinity;
-        const commB = capB?.communityId ?? Infinity;
-        if (commA !== commB) return commA - commB;
-        const srA = capA?.successRate ?? 0;
-        const srB = capB?.successRate ?? 0;
-        if (srA !== srB) return srB - srA;
-        return a.name.localeCompare(b.name);
-      });
-
-      const capsByCommunity = new Map<number, PositionedNode[]>();
-      for (const cap of sortedCaps) {
-        const comm = (cap.data as any)?.communityId ?? -1;
-        if (!capsByCommunity.has(comm)) capsByCommunity.set(comm, []);
-        capsByCommunity.get(comm)!.push(cap);
-      }
-
-      const communityIds = [...capsByCommunity.keys()].sort((a, b) => a - b);
-      const numClusterGaps = communityIds.length > 1 ? communityIds.length : 0;
-      const availableCapAngle = totalAngle - capPadding * capCount - clusterGap * numClusterGaps;
-      const capArcAngle = availableCapAngle / capCount;
-
-      // Store visual angles for capabilities
-      sortedCaps.forEach((cap, i) => {
-        const capData = cap.data as any;
-        const comm = capData?.communityId ?? -1;
-        const commIdx = communityIds.indexOf(comm);
-        const gapsBefore = commIdx >= 0 ? commIdx : communityIds.length;
-        const centerAngle = i * (capArcAngle + capPadding) + gapsBefore * clusterGap + capArcAngle / 2;
-        visualAngles.set(cap.id, centerAngle);
-        visualRadii.set(cap.id, cap.y || layout.radii.capabilities);
-      });
-
-      // ─── Calculate Tool visual positions ───
-      const toolCount = validTools.length;
-      const toolPadding = 0.02;
-      const groupGap = 0.06;
-
-      const toolsByGroup = new Map<string, PositionedNode[]>();
-      for (const tool of validTools) {
-        const toolData = tool.data as any;
-        const groupKey = toolGroupingMode === "cluster"
-          ? (toolData?.communityId ?? "unknown")
-          : (toolData?.server || "unknown");
-        if (!toolsByGroup.has(groupKey)) toolsByGroup.set(groupKey, []);
-        toolsByGroup.get(groupKey)!.push(tool);
-      }
-
-      const groupKeys = [...toolsByGroup.keys()].sort();
-      const sortedTools: PositionedNode[] = [];
-      for (const key of groupKeys) {
-        const tools = toolsByGroup.get(key)!;
-        tools.sort((a, b) => a.name.localeCompare(b.name));
-        sortedTools.push(...tools);
-      }
-
-      const numGroupGaps = groupKeys.length > 1 ? groupKeys.length : 0;
-      const availableAngle = totalAngle - toolPadding * toolCount - groupGap * numGroupGaps;
-      const toolArcAngle = availableAngle / toolCount;
-
-      // Store visual angles for tools
-      sortedTools.forEach((tool, i) => {
-        const toolData = tool.data as any;
-        const groupKey = toolGroupingMode === "cluster"
-          ? (toolData?.communityId ?? "unknown")
-          : (toolData?.server || "unknown");
-        const groupIdx = groupKeys.indexOf(groupKey);
-        const gapsBefore = groupIdx >= 0 ? groupIdx : groupKeys.length;
-        const centerAngle = i * (toolArcAngle + toolPadding) + gapsBefore * groupGap + toolArcAngle / 2;
-        visualAngles.set(tool.id, centerAngle);
-        visualRadii.set(tool.id, tool.y || layout.radii.tools);
-      });
-
-      // ═══════════════════════════════════════════════════════════════════════════
-      // STEP 2: Render edges using VISUAL positions (bundled through center)
-      // ═══════════════════════════════════════════════════════════════════════════
-
-      // Filter paths by edge type visibility
-      const visiblePaths = layout.paths.filter((d) => d && d.pathD && !hiddenEdgeTypes.has(d.edgeType as EdgeType));
-
-      // Create bundled line generator
-      const lineRadial = d3
-        .lineRadial()
-        .curve(d3.curveBundle.beta(tension))
-        .radius((d: any) => d.r)
-        .angle((d: any) => d.a);
-
-      // Render edges with corrected positions
-      edgeLayer
-        .selectAll(".edge")
-        .data(visiblePaths, (d: BundledPath | undefined) => d?.id ?? "")
-        .enter()
-        .append("path")
-        .attr("class", "edge")
-        .attr("d", (d: BundledPath) => {
-          const sourceAngle = visualAngles.get(d.sourceId);
-          const targetAngle = visualAngles.get(d.targetId);
-          const sourceRadius = visualRadii.get(d.sourceId);
-          const targetRadius = visualRadii.get(d.targetId);
-
-          // Skip if either node doesn't have a visual position
-          if (sourceAngle === undefined || targetAngle === undefined) {
-            return d.pathD; // Fallback to original path
-          }
-
-          // Create path through center for bundling
-          // Points: source -> inner control -> center -> inner control -> target
-          const sr = sourceRadius || layout.radii.tools;
-          const tr = targetRadius || layout.radii.tools;
-          const innerR = Math.min(sr, tr) * 0.3; // Control point radius
-
-          const points = [
-            { a: sourceAngle, r: sr },
-            { a: sourceAngle, r: innerR },
-            { a: (sourceAngle + targetAngle) / 2, r: 0 }, // Center
-            { a: targetAngle, r: innerR },
-            { a: targetAngle, r: tr },
-          ];
-
-          return lineRadial(points);
-        })
-        .attr("fill", "none")
-        .attr("stroke", (d: BundledPath) => getRadialEdgeColor(d.edgeType))
-        .attr("stroke-width", 1.5)
-        .attr("stroke-opacity", (d: BundledPath) => getRadialEdgeOpacity(d.edgeType))
-        .style("pointer-events", "none");
-
-      // ═══════════════════════════════════════════════════════════════════════════
-      // STEP 3: Render Capability Nodes (inner circle - ARC segments)
-      // ═══════════════════════════════════════════════════════════════════════════
-
-      const capNodes = nodeLayer
-        .selectAll(".cap-node")
-        .data(sortedCaps, (d: PositionedNode | undefined) => d?.id ?? "")
-        .enter()
-        .append("g")
-        .attr("class", "cap-node")
-        .attr("transform", `translate(${center.x},${center.y})`)
-        .style("cursor", "pointer");
-
-      capNodes
-        .append("path")
-        .attr("d", (d: PositionedNode, i: number) => {
-          if (!d) return "";
-          const cap = d.data as any;
-          const pagerank = cap?.pagerank || 0;
-          const usage = cap?.usageCount || 0;
-          const thickness = 10 + Math.min(pagerank * 30, 8) + Math.min(usage * 0.3, 6);
-          const innerR = (d.y || 100) - thickness / 2;
-          const outerR = (d.y || 100) + thickness / 2;
-
-          const comm = cap?.communityId ?? -1;
-          const commIdx = communityIds.indexOf(comm);
-          const gapsBefore = commIdx >= 0 ? commIdx : communityIds.length;
-          const baseAngle = i * (capArcAngle + capPadding) + gapsBefore * clusterGap;
-          const startAngle = baseAngle - Math.PI / 2;
-          const endAngle = startAngle + capArcAngle;
-
-          return arcGenerator({
-            innerRadius: innerR,
-            outerRadius: outerR,
-            startAngle: startAngle,
-            endAngle: endAngle,
-          });
-        })
-        .attr("fill", "#8b5cf6")
-        .attr("stroke", "rgba(255,255,255,0.4)")
-        .attr("stroke-width", 1);
-
-      // Capability labels (on arc)
-      sortedCaps.forEach((d, i) => {
-        if (!d || d.y === undefined) return;
-        const cap = d.data as any;
-        const comm = cap?.communityId ?? -1;
-        const commIdx = communityIds.indexOf(comm);
-        const gapsBefore = commIdx >= 0 ? commIdx : communityIds.length;
-        const capCenterAngle = i * (capArcAngle + capPadding) + gapsBefore * clusterGap + capArcAngle / 2;
-        const labelRadius = d.y || 100;
-        const x = labelRadius * Math.cos(capCenterAngle - Math.PI / 2);
-        const y = labelRadius * Math.sin(capCenterAngle - Math.PI / 2);
-
-        let rotateDeg = (capCenterAngle * 180) / Math.PI - 90;
-        if (rotateDeg > 90 && rotateDeg < 270) rotateDeg += 180;
-
-        const label = d.name.length > 10 ? d.name.slice(0, 8) + ".." : d.name;
-
-        labelLayer
-          .append("text")
-          .attr("class", "cap-label")
-          .attr("transform", `translate(${center.x + x},${center.y + y}) rotate(${rotateDeg})`)
-          .attr("text-anchor", "middle")
-          .attr("dominant-baseline", "middle")
-          .attr("fill", "#fff")
-          .attr("font-size", "8px")
-          .attr("font-weight", "bold")
-          .text(label)
-          .style("pointer-events", "none");
-      });
-
-      // ═══════════════════════════════════════════════════════════════════════════
-      // STEP 4: Render Tool Nodes (outer circle - ARC segments)
-      // ═══════════════════════════════════════════════════════════════════════════
-
-      const toolNodes = nodeLayer
-        .selectAll(".tool-node")
-        .data(sortedTools, (d: PositionedNode | undefined) => d?.id ?? "")
-        .enter()
-        .append("g")
-        .attr("class", "tool-node")
-        .attr("transform", `translate(${center.x},${center.y})`)
-        .style("cursor", "pointer");
-
-      toolNodes
-        .append("path")
-        .attr("d", (d: PositionedNode, i: number) => {
-          if (!d || !d.data) return "";
-          const tool = d.data as any;
-          const pagerank = tool.pagerank || 0;
-          // Arc thickness based on pagerank (6-16px)
-          const thickness = 6 + Math.min(pagerank * 25, 10);
-          const innerR = (d.y || 200) - thickness / 2;
-          const outerR = (d.y || 200) + thickness / 2;
-
-          // Calculate start/end angles for this arc (with group gaps)
-          const groupKey = toolGroupingMode === "cluster"
-            ? (tool.communityId ?? "unknown")
-            : (tool.server || "unknown");
-          const groupIdx = groupKeys.indexOf(groupKey);
-          const gapsBefore = groupIdx >= 0 ? groupIdx : groupKeys.length;
-          const baseAngle = i * (toolArcAngle + toolPadding) + gapsBefore * groupGap;
-          const startAngle = baseAngle - Math.PI / 2;
-          const endAngle = startAngle + toolArcAngle;
-
-          return arcGenerator({
-            innerRadius: innerR,
-            outerRadius: outerR,
-            startAngle: startAngle,
-            endAngle: endAngle,
-          });
-        })
-        .attr("fill", (d: PositionedNode) => {
-          if (!d || !d.data) return "#888";
-          const tool = d.data as any;
-          return getServerColor(tool.server || "unknown");
-        })
-        .attr("stroke", "rgba(0,0,0,0.3)")
-        .attr("stroke-width", 1);
-
-      // ─── Render Labels (outer, radial - aligned with arc centers) ───
-      sortedTools.forEach((d, i) => {
-        if (!d || d.y === undefined) return;
-        const tool = d.data as any;
-        const groupKey = toolGroupingMode === "cluster"
-          ? (tool?.communityId ?? "unknown")
-          : (tool?.server || "unknown");
-        const groupIdx = groupKeys.indexOf(groupKey);
-        const gapsBefore = groupIdx >= 0 ? groupIdx : groupKeys.length;
-        // Calculate center angle of this arc (with group gaps)
-        const arcCenterAngle = i * (toolArcAngle + toolPadding) + gapsBefore * groupGap + toolArcAngle / 2;
-        const labelRadius = (d.y || 200) + 14;
-        const x = labelRadius * Math.cos(arcCenterAngle - Math.PI / 2);
-        const y = labelRadius * Math.sin(arcCenterAngle - Math.PI / 2);
-
-        // Rotation for readability
-        let rotateDeg = (arcCenterAngle * 180) / Math.PI - 90;
-        const anchor = rotateDeg > 90 && rotateDeg < 270 ? "end" : "start";
-        if (rotateDeg > 90 && rotateDeg < 270) rotateDeg += 180;
-
-        const label = d.name.length > 12 ? d.name.slice(0, 10) + ".." : d.name;
-
-        labelLayer
-          .append("text")
-          .attr("class", "tool-label")
-          .attr("transform", `translate(${center.x + x},${center.y + y}) rotate(${rotateDeg})`)
-          .attr("text-anchor", anchor)
-          .attr("dominant-baseline", "middle")
-          .attr("fill", "#d5c3b5")
-          .attr("font-size", "9px")
-          .text(label)
-          .style("pointer-events", "none");
-      });
-
-      // ─── Event Handlers ───
-      capNodes
-        .on("click", (_event: any, d: PositionedNode) => {
-          const capData = capabilityDataRef.current.get(d.id);
-          if (capData) {
-            onCapabilitySelect?.(capData);
-            onToolSelect?.(null);
-            highlightNode(d.id, layout);
-          }
-        })
-        .on("mouseenter", (event: MouseEvent, d: PositionedNode) => {
-          const rect = containerRef.current?.getBoundingClientRect();
-          const capData = capabilityDataRef.current.get(d.id);
-          if (rect && capData) {
-            setCapabilityTooltip({
-              x: event.clientX - rect.left,
-              y: event.clientY - rect.top,
-              data: capData,
-            });
-          }
-          highlightConnectedEdges(d.id);
-        })
-        .on("mouseleave", () => {
-          setCapabilityTooltip(null);
-          resetEdgeHighlight();
-        });
-
-      toolNodes
-        .on("click", (_event: any, d: PositionedNode) => {
-          const toolData = toolDataRef.current.get(d.id);
-          if (toolData) {
-            onToolSelect?.(toolData);
-            onCapabilitySelect?.(null);
-            highlightNode(d.id, layout);
-          }
-        })
-        .on("mouseenter", (event: MouseEvent, d: PositionedNode) => {
-          const rect = containerRef.current?.getBoundingClientRect();
-          const tool = d.data as any;
-          if (rect) {
-            setTooltip({
-              x: event.clientX - rect.left,
-              y: event.clientY - rect.top - 10,
-              data: {
-                id: d.id,
-                label: d.name,
-                server: tool.server || "unknown",
-                pagerank: tool.pagerank || 0,
-                degree: tool.degree || 0,
-                parents: tool.parentCapabilities || [],
-              },
-            });
-          }
-          highlightConnectedEdges(d.id);
-        })
-        .on("mouseleave", () => {
-          setTooltip(null);
-          resetEdgeHighlight();
-        });
-    },
-    [getServerColor, onCapabilitySelect, onToolSelect, hiddenEdgeTypes, toolGroupingMode, tension],
-  );
-
-  // ───────────────────────────────────────────────────────────────────────────
-  // DAG Mode Rendering (FDEB - Holten 2009)
+  // DAG Mode Rendering (Force-Directed with FDEB bundling)
   // ───────────────────────────────────────────────────────────────────────────
 
   const renderDagGraph = useCallback(() => {
@@ -851,20 +417,27 @@ export default function D3GraphVisualization({
       }
     }
 
-    // Add tool->tool edges (sequences)
+    // Build set of existing node IDs for edge validation
+    const nodeIds = new Set(simNodes.map(n => n.id));
+
+    // Add tool->tool edges (sequences) - only if both nodes exist
     for (const edge of toolEdgesRef.current) {
-      simLinks.push({
-        source: edge.source,
-        target: edge.target,
-      });
+      if (nodeIds.has(edge.source) && nodeIds.has(edge.target)) {
+        simLinks.push({
+          source: edge.source,
+          target: edge.target,
+        });
+      }
     }
 
-    // Add cap->cap edges
+    // Add cap->cap edges - only if both nodes exist
     for (const edge of capEdgesRef.current) {
-      simLinks.push({
-        source: edge.source,
-        target: edge.target,
-      });
+      if (nodeIds.has(edge.source) && nodeIds.has(edge.target)) {
+        simLinks.push({
+          source: edge.source,
+          target: edge.target,
+        });
+      }
     }
 
     simulationNodesRef.current = simNodes;
@@ -1086,46 +659,38 @@ export default function D3GraphVisualization({
   // ───────────────────────────────────────────────────────────────────────────
 
   /**
-   * Build adjacency map from edges (works for both modes)
+   * Build adjacency map from edges for DAG mode
    */
   const buildAdjacencyMap = useCallback(() => {
     const adjacency = new Map<string, Set<string>>();
 
-    if (visualizationMode === "sunburst" && layoutRef.current) {
-      for (const path of layoutRef.current.paths) {
-        if (!adjacency.has(path.sourceId)) adjacency.set(path.sourceId, new Set());
-        if (!adjacency.has(path.targetId)) adjacency.set(path.targetId, new Set());
-        adjacency.get(path.sourceId)!.add(path.targetId);
-        adjacency.get(path.targetId)!.add(path.sourceId);
-      }
-    } else {
-      // DAG mode - use capEdges + toolEdges
-      for (const edge of capEdgesRef.current) {
-        if (!adjacency.has(edge.source)) adjacency.set(edge.source, new Set());
-        if (!adjacency.has(edge.target)) adjacency.set(edge.target, new Set());
-        adjacency.get(edge.source)!.add(edge.target);
-        adjacency.get(edge.target)!.add(edge.source);
-      }
-      for (const edge of toolEdgesRef.current) {
-        if (!adjacency.has(edge.source)) adjacency.set(edge.source, new Set());
-        if (!adjacency.has(edge.target)) adjacency.set(edge.target, new Set());
-        adjacency.get(edge.source)!.add(edge.target);
-        adjacency.get(edge.target)!.add(edge.source);
-      }
-      // Also add cap->tool containment edges
-      if (hierarchyRef.current) {
-        for (const cap of hierarchyRef.current.children) {
-          for (const tool of cap.children) {
-            if (!adjacency.has(cap.id)) adjacency.set(cap.id, new Set());
-            if (!adjacency.has(tool.id)) adjacency.set(tool.id, new Set());
-            adjacency.get(cap.id)!.add(tool.id);
-            adjacency.get(tool.id)!.add(cap.id);
-          }
+    // DAG mode - use capEdges + toolEdges
+    for (const edge of capEdgesRef.current) {
+      if (!adjacency.has(edge.source)) adjacency.set(edge.source, new Set());
+      if (!adjacency.has(edge.target)) adjacency.set(edge.target, new Set());
+      adjacency.get(edge.source)!.add(edge.target);
+      adjacency.get(edge.target)!.add(edge.source);
+    }
+    for (const edge of toolEdgesRef.current) {
+      if (!adjacency.has(edge.source)) adjacency.set(edge.source, new Set());
+      if (!adjacency.has(edge.target)) adjacency.set(edge.target, new Set());
+      adjacency.get(edge.source)!.add(edge.target);
+      adjacency.get(edge.target)!.add(edge.source);
+    }
+    // Also add cap->tool containment edges
+    if (hierarchyRef.current) {
+      for (const cap of hierarchyRef.current.children) {
+        for (const tool of cap.children) {
+          if (!adjacency.has(cap.id)) adjacency.set(cap.id, new Set());
+          if (!adjacency.has(tool.id)) adjacency.set(tool.id, new Set());
+          adjacency.get(cap.id)!.add(tool.id);
+          adjacency.get(tool.id)!.add(cap.id);
         }
       }
     }
+
     return adjacency;
-  }, [visualizationMode]);
+  }, []);
 
   /**
    * Get connected nodes using BFS with depth limit
@@ -1153,21 +718,16 @@ export default function D3GraphVisualization({
   }, [buildAdjacencyMap, highlightDepth]);
 
   /**
-   * Apply highlight to nodes and edges (works for both modes)
+   * Apply highlight to nodes and edges (DAG mode)
    */
   const applyHighlight = useCallback((nodeId: string | null, isHover: boolean = false) => {
+    // deno-lint-ignore no-explicit-any
     const graph = (window as any).__radialGraph;
     if (!graph) return;
 
-    // @ts-ignore
-    const d3 = globalThis.d3;
     const duration = isHover ? 100 : 200;
-
-    // Node and edge selectors depend on mode
-    const nodeSelector = visualizationMode === "sunburst"
-      ? ".cap-node, .tool-node"
-      : ".dag-node";
-    const edgeSelector = visualizationMode === "sunburst" ? ".edge" : ".dag-edge";
+    const nodeSelector = ".dag-node";
+    const edgeSelector = ".dag-edge";
 
     if (!nodeId) {
       // Reset all to default
@@ -1175,17 +735,10 @@ export default function D3GraphVisualization({
         .transition().duration(duration)
         .attr("opacity", 1);
 
-      if (visualizationMode === "sunburst") {
-        graph.edgeLayer.selectAll(edgeSelector)
-          .transition().duration(duration)
-          .attr("stroke-opacity", (d: BundledPath) => getRadialEdgeOpacity(d.edgeType))
-          .attr("stroke-width", 1.5);
-      } else {
-        graph.edgeLayer.selectAll(edgeSelector)
-          .transition().duration(duration)
-          .attr("stroke-opacity", 0.4)
-          .attr("stroke-width", 1.5);
-      }
+      graph.edgeLayer.selectAll(edgeSelector)
+        .transition().duration(duration)
+        .attr("stroke-opacity", 0.4)
+        .attr("stroke-width", 1.5);
       return;
     }
 
@@ -1194,40 +747,28 @@ export default function D3GraphVisualization({
     // Dim non-connected nodes
     graph.nodeLayer.selectAll(nodeSelector)
       .transition().duration(duration)
+      // deno-lint-ignore no-explicit-any
       .attr("opacity", (d: any) => {
         const id = d.id || d.data?.id;
         return connected.has(id) ? 1 : 0.2;
       });
 
     // Highlight connected edges
-    if (visualizationMode === "sunburst") {
-      graph.edgeLayer.selectAll(edgeSelector)
-        .transition().duration(duration)
-        .attr("stroke-opacity", (d: BundledPath) => {
-          const inStack = connected.has(d.sourceId) && connected.has(d.targetId);
-          return inStack ? 0.9 : 0.05;
-        })
-        .attr("stroke-width", (d: BundledPath) => {
-          const inStack = connected.has(d.sourceId) && connected.has(d.targetId);
-          return inStack ? (isHover ? 2.5 : 3) : 1;
-        });
-    } else {
-      graph.edgeLayer.selectAll(edgeSelector)
-        .transition().duration(duration)
-        .attr("stroke-opacity", (d: SimulationLink) => {
-          const srcId = typeof d.source === 'string' ? d.source : (d.source as SimulationNode).id;
-          const tgtId = typeof d.target === 'string' ? d.target : (d.target as SimulationNode).id;
-          const inStack = connected.has(srcId) && connected.has(tgtId);
-          return inStack ? 0.9 : 0.05;
-        })
-        .attr("stroke-width", (d: SimulationLink) => {
-          const srcId = typeof d.source === 'string' ? d.source : (d.source as SimulationNode).id;
-          const tgtId = typeof d.target === 'string' ? d.target : (d.target as SimulationNode).id;
-          const inStack = connected.has(srcId) && connected.has(tgtId);
-          return inStack ? (isHover ? 2.5 : 3) : 1;
-        });
-    }
-  }, [visualizationMode, getConnectedNodes]);
+    graph.edgeLayer.selectAll(edgeSelector)
+      .transition().duration(duration)
+      .attr("stroke-opacity", (d: SimulationLink) => {
+        const srcId = typeof d.source === 'string' ? d.source : (d.source as SimulationNode).id;
+        const tgtId = typeof d.target === 'string' ? d.target : (d.target as SimulationNode).id;
+        const inStack = connected.has(srcId) && connected.has(tgtId);
+        return inStack ? 0.9 : 0.05;
+      })
+      .attr("stroke-width", (d: SimulationLink) => {
+        const srcId = typeof d.source === 'string' ? d.source : (d.source as SimulationNode).id;
+        const tgtId = typeof d.target === 'string' ? d.target : (d.target as SimulationNode).id;
+        const inStack = connected.has(srcId) && connected.has(tgtId);
+        return inStack ? (isHover ? 2.5 : 3) : 1;
+      });
+  }, [getConnectedNodes]);
 
   /**
    * Handle node selection (click)
@@ -1257,17 +798,8 @@ export default function D3GraphVisualization({
   // Legacy wrappers for backward compatibility
   const highlightConnectedEdges = (nodeId: string) => handleNodeHover(nodeId);
   const resetEdgeHighlight = () => handleNodeHover(null);
-  const highlightNode = (nodeId: string, _layout?: RadialLayoutResult) => handleNodeSelect(nodeId);
+  const highlightNode = (nodeId: string) => handleNodeSelect(nodeId);
   const clearHighlight = () => handleNodeSelect(null);
-
-  // ───────────────────────────────────────────────────────────────────────────
-  // Tension Control (re-render is automatic via useEffect)
-  // ───────────────────────────────────────────────────────────────────────────
-
-  const handleTensionChange = useCallback((newTension: number) => {
-    setTension(newTension);
-    // Re-render triggered by useEffect dependency on tension
-  }, []);
 
   // ───────────────────────────────────────────────────────────────────────────
   // Server Visibility
@@ -1283,18 +815,6 @@ export default function D3GraphVisualization({
     setHiddenServers(newHidden);
     // TODO: Filter and re-render
   };
-
-  const toggleEdgeType = useCallback((edgeType: EdgeType) => {
-    setHiddenEdgeTypes((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(edgeType)) {
-        newSet.delete(edgeType);
-      } else {
-        newSet.add(edgeType);
-      }
-      return newSet;
-    });
-  }, []);
 
   const toggleOrphanNodes = () => {
     setShowOrphanNodes(!showOrphanNodes);
@@ -1327,41 +847,13 @@ export default function D3GraphVisualization({
   // ───────────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (highlightedNodeId && layoutRef.current) {
-      highlightNode(highlightedNodeId, layoutRef.current);
+    if (highlightedNodeId) {
+      highlightNode(highlightedNodeId);
     } else {
       clearHighlight();
     }
   }, [highlightedNodeId]);
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Effect: Re-render on edge type visibility or tool grouping mode change
-  // ───────────────────────────────────────────────────────────────────────────
-
-  useEffect(() => {
-    if (visualizationMode === "sunburst" && layoutRef.current) {
-      renderGraph(layoutRef.current);
-    }
-  }, [hiddenEdgeTypes, toolGroupingMode, tension, renderGraph, visualizationMode]);
-
-  // ───────────────────────────────────────────────────────────────────────────
-  // Effect: Switch visualization mode
-  // ───────────────────────────────────────────────────────────────────────────
-
-  useEffect(() => {
-    // Stop any existing simulation when switching modes
-    if (forceLayoutRef.current) {
-      forceLayoutRef.current.stop();
-    }
-
-    if (visualizationMode === "sunburst" && layoutRef.current) {
-      console.log("[GraphViz] Switching to Sunburst mode");
-      renderGraph(layoutRef.current);
-    } else if (visualizationMode === "dag" && hierarchyRef.current) {
-      console.log("[GraphViz] Switching to DAG mode");
-      renderDagGraph();
-    }
-  }, [visualizationMode, renderGraph, renderDagGraph]);
 
   // ───────────────────────────────────────────────────────────────────────────
   // Render
@@ -1410,21 +902,9 @@ export default function D3GraphVisualization({
         onToggleOrphans={toggleOrphanNodes}
         onExportJson={() => exportGraph("json")}
         onExportPng={() => exportGraph("png")}
-        // Visualization mode toggle
-        visualizationMode={visualizationMode}
-        onVisualizationModeChange={setVisualizationMode}
-        // HEB tension control (replaces straightening/smoothing)
-        tension={tension}
-        onTensionChange={handleTensionChange}
         // Highlight depth control
         highlightDepth={highlightDepth === Infinity ? 10 : highlightDepth}
         onHighlightDepthChange={setHighlightDepth}
-        // Edge type visibility toggles
-        hiddenEdgeTypes={hiddenEdgeTypes}
-        onToggleEdgeType={toggleEdgeType}
-        // Tool grouping mode
-        toolGroupingMode={toolGroupingMode}
-        onToolGroupingModeChange={setToolGroupingMode}
       />
 
       {/* Tool Tooltip */}
