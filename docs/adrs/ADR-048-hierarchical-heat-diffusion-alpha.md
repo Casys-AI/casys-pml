@@ -583,11 +583,51 @@ interface AlgorithmSignals {
 
 ---
 
+## Integration: Replacing Global Density Weights (ADR-026)
+
+L'ancienne méthode `getAdaptiveWeights()` basée sur la densité globale a été remplacée par le local alpha dans `suggestDAG()`:
+
+### Avant (ADR-026)
+
+```typescript
+// Global density → same weights for all candidates
+private getAdaptiveWeights(): { hybrid: number; pageRank: number; path: number } {
+  const density = this.graphEngine.getGraphDensity();  // GLOBAL
+  if (density < 0.01) return { hybrid: 0.85, pageRank: 0.05, path: 0.10 };
+  if (density < 0.10) return { hybrid: 0.65, pageRank: 0.20, path: 0.15 };
+  return { hybrid: 0.55, pageRank: 0.30, path: 0.15 };
+}
+```
+
+### Après (ADR-048)
+
+```typescript
+// Local alpha per candidate → averaged for confidence
+private getAdaptiveWeightsFromAlpha(avgAlpha: number): { hybrid: number; pageRank: number; path: number } {
+  const factor = (avgAlpha - 0.5) * 2;  // Normalize 0.5-1.0 → 0-1
+
+  // High alpha → trust semantic more, low alpha → trust graph more
+  return {
+    hybrid: 0.55 + factor * 0.30,     // [0.55, 0.85]
+    pageRank: 0.30 - factor * 0.25,   // [0.05, 0.30]
+    path: 0.15 - factor * 0.05,       // [0.10, 0.15]
+  };
+}
+```
+
+**Avantages:**
+- Cohérent: même alpha local pour Active Search et Passive Suggestions
+- Granulaire: chaque candidat contribue son alpha local à la moyenne
+- Interprétable: les traces incluent `localAlpha` et `alphaAlgorithm`
+
+---
+
 ## Consequences
 
 ### Positives
 
 - **Cohérent avec ADR-038** : Même pattern (algo par mode/type)
+- **Harmonisé avec suggestDAG()** : Remplace l'ancienne densité globale (ADR-026)
 - **Chaque algo optimisé pour son cas** : Pas de compromis one-size-fits-all
 - **Cold start géré explicitement** : Bayésien évite les faux positifs
 - **Interprétable** : On sait quel algo est utilisé et pourquoi

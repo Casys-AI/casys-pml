@@ -237,9 +237,47 @@ export class DAGSuggester {
         }`,
       );
 
-      // Story 7.6: Log trace for each candidate in suggestDAG (fire-and-forget)
+      // ADR-048: Calculate local alpha for each candidate
       const graphDensity = this.graphEngine.getGraphDensity();
+      const candidateAlphas: Array<{ toolId: string; alpha: number; algorithm: string; coldStart: boolean }> = [];
+
       for (const candidate of rankedCandidates) {
+        if (this.localAlphaCalculator) {
+          const alphaResult = this.localAlphaCalculator.getLocalAlphaWithBreakdown(
+            "active",
+            candidate.toolId,
+            "tool",
+            contextTools,
+          );
+          candidateAlphas.push({
+            toolId: candidate.toolId,
+            alpha: alphaResult.alpha,
+            algorithm: alphaResult.algorithm,
+            coldStart: alphaResult.coldStart,
+          });
+        } else {
+          // Fallback to default alpha if no calculator
+          candidateAlphas.push({
+            toolId: candidate.toolId,
+            alpha: 0.75,
+            algorithm: "none",
+            coldStart: false,
+          });
+        }
+      }
+
+      // Calculate average alpha for confidence calculation
+      const avgAlpha = candidateAlphas.length > 0
+        ? candidateAlphas.reduce((sum, c) => sum + c.alpha, 0) / candidateAlphas.length
+        : 0.75;
+
+      log.debug(`[suggestDAG] Average local alpha: ${avgAlpha.toFixed(2)} across ${candidateAlphas.length} candidates`);
+
+      // Story 7.6: Log trace for each candidate in suggestDAG (fire-and-forget)
+      for (let i = 0; i < rankedCandidates.length; i++) {
+        const candidate = rankedCandidates[i];
+        const alphaInfo = candidateAlphas[i];
+
         this.algorithmTracer?.logTrace({
           algorithmMode: "active_search",
           targetType: "tool",
@@ -249,9 +287,13 @@ export class DAGSuggester {
             pagerank: candidate.pageRank,
             graphDensity,
             spectralClusterMatch: false, // N/A for tool selection
+            // ADR-048: Local alpha signals
+            localAlpha: alphaInfo.alpha,
+            alphaAlgorithm: alphaInfo.algorithm as "embeddings_hybrides" | "heat_diffusion" | "heat_hierarchical" | "bayesian" | "none",
+            coldStart: alphaInfo.coldStart,
           },
           params: {
-            alpha: 0.8, // Hybrid: 80% finalScore
+            alpha: alphaInfo.alpha, // ADR-048: Use local alpha
             reliabilityFactor: 1.0, // No reliability filter for tools
             structuralBoost: 0.2, // PageRank contribution
           },
@@ -276,6 +318,7 @@ export class DAGSuggester {
               graphScore: candidate.graphScore,
               pagerank: candidate.pageRank,
               adamicAdar: candidate.adamicAdar,
+              localAlpha: alphaInfo.alpha,
             },
             finalScore: candidate.combinedScore,
             threshold: 0.5,
@@ -295,17 +338,18 @@ export class DAGSuggester {
       // 4. Extract dependency paths for explainability
       const dependencyPaths = this.extractDependencyPaths(rankedCandidates.map((c) => c.toolId));
 
-      // 5. Calculate confidence (adjusted for hybrid search)
+      // 5. Calculate confidence (adjusted for hybrid search with local alpha - ADR-048)
       const { confidence, semanticScore, pageRankScore, pathStrength } = this
         .calculateConfidenceHybrid(
           rankedCandidates,
           dependencyPaths,
+          avgAlpha,
         );
 
       log.info(
         `Confidence: ${confidence.toFixed(2)} (semantic: ${semanticScore.toFixed(2)}, pageRank: ${
           pageRankScore.toFixed(2)
-        }, pathStrength: ${pathStrength.toFixed(2)}) for intent: "${intent.text}"`,
+        }, pathStrength: ${pathStrength.toFixed(2)}, avgAlpha: ${avgAlpha.toFixed(2)}) for intent: "${intent.text}"`,
       );
 
       // 6. Find alternatives from same community (Graphology)
@@ -419,46 +463,47 @@ export class DAGSuggester {
   // Use calculateConfidenceHybrid() and generateRationaleHybrid() instead
 
   /**
-   * Get adaptive weights for confidence calculation based on graph density (ADR-026)
+   * Get adaptive weights for confidence calculation based on local alpha (ADR-048)
    *
-   * In cold start (sparse graph), semantic search is more reliable than graph metrics.
-   * As the graph matures with more edges, PageRank and paths become more meaningful.
+   * Replaces global density-based approach (ADR-026) with local adaptive alpha.
+   * Alpha indicates trust in graph signals:
+   * - alpha = 0.5 → high trust in graph → use more graph weight
+   * - alpha = 1.0 → low trust in graph → rely on semantic
    *
-   * Density thresholds:
-   * - <0.01 (cold start): Trust semantic heavily (85%)
-   * - <0.10 (growing): Balanced approach (65%)
-   * - >=0.10 (mature): Full graph integration (55%)
+   * Weight formula (linear interpolation based on alpha):
+   * - hybrid: 0.55 + (alpha - 0.5) * 0.60 → [0.55, 0.85]
+   * - pageRank: 0.30 - (alpha - 0.5) * 0.50 → [0.05, 0.30]
+   * - path: 0.15 - (alpha - 0.5) * 0.10 → [0.10, 0.15]
    *
+   * @param avgAlpha - Average local alpha across candidates (0.5-1.0)
    * @returns Weight configuration for confidence calculation
    */
-  private getAdaptiveWeights(): { hybrid: number; pageRank: number; path: number } {
-    const density = this.graphEngine.getGraphDensity();
+  private getAdaptiveWeightsFromAlpha(avgAlpha: number): { hybrid: number; pageRank: number; path: number } {
+    // Clamp alpha to valid range
+    const alpha = Math.max(0.5, Math.min(1.0, avgAlpha));
+    const factor = (alpha - 0.5) * 2; // Normalize to 0-1 range
 
-    if (density < 0.01) {
-      // Cold start: trust semantic heavily, minimal weight on empty graph metrics
-      log.debug(`[DAGSuggester] Cold start weights (density=${density.toFixed(4)})`);
-      return { hybrid: 0.85, pageRank: 0.05, path: 0.10 };
-    } else if (density < 0.10) {
-      // Growing graph: balanced approach
-      log.debug(`[DAGSuggester] Growing graph weights (density=${density.toFixed(4)})`);
-      return { hybrid: 0.65, pageRank: 0.20, path: 0.15 };
-    } else {
-      // Mature graph: current formula (original ADR-022)
-      log.debug(`[DAGSuggester] Mature graph weights (density=${density.toFixed(4)})`);
-      return { hybrid: 0.55, pageRank: 0.30, path: 0.15 };
-    }
+    // Linear interpolation: high alpha → trust semantic, low alpha → trust graph
+    const hybrid = 0.55 + factor * 0.30;     // [0.55, 0.85]
+    const pageRank = 0.30 - factor * 0.25;   // [0.05, 0.30]
+    const path = 0.15 - factor * 0.05;       // [0.10, 0.15]
+
+    log.debug(`[DAGSuggester] Adaptive weights from alpha=${alpha.toFixed(2)}: hybrid=${hybrid.toFixed(2)}, pageRank=${pageRank.toFixed(2)}, path=${path.toFixed(2)}`);
+
+    return { hybrid, pageRank, path };
   }
 
   /**
-   * Calculate confidence for hybrid search candidates (ADR-022, ADR-026)
+   * Calculate confidence for hybrid search candidates (ADR-022, ADR-048)
    *
    * Uses the already-computed hybrid finalScore which includes both semantic and graph scores.
    * This provides a more accurate confidence since graph context is already factored in.
    *
-   * ADR-026: Uses adaptive weights based on graph density to handle cold start better.
+   * ADR-048: Uses adaptive weights based on local alpha (replaces ADR-026 global density).
    *
    * @param candidates - Ranked candidates with hybrid scores
    * @param dependencyPaths - Extracted dependency paths
+   * @param avgAlpha - Average local alpha across candidates (0.5-1.0)
    * @returns Confidence breakdown
    */
   private calculateConfidenceHybrid(
@@ -470,6 +515,7 @@ export class DAGSuggester {
       combinedScore: number;
     }>,
     dependencyPaths: DependencyPath[],
+    avgAlpha: number = 0.75,
   ): { confidence: number; semanticScore: number; pageRankScore: number; pathStrength: number } {
     if (candidates.length === 0) {
       return { confidence: 0, semanticScore: 0, pageRankScore: 0, pathStrength: 0 };
@@ -488,8 +534,8 @@ export class DAGSuggester {
       ? dependencyPaths.reduce((sum, p) => sum + (p.confidence || 0.5), 0) / dependencyPaths.length
       : 0.5;
 
-    // ADR-026: Use adaptive weights based on graph density
-    const weights = this.getAdaptiveWeights();
+    // ADR-048: Use adaptive weights based on local alpha
+    const weights = this.getAdaptiveWeightsFromAlpha(avgAlpha);
     const confidence = hybridScore * weights.hybrid + pageRankScore * weights.pageRank +
       pathStrength * weights.path;
 
