@@ -1,0 +1,90 @@
+# Sync Core code to public repository
+# Triggered on push to main when core/shared/docs files change
+# Excludes cloud-only code and secrets
+
+name: Sync to Public Repo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'docs/user-docs/**'
+      - 'README.md'
+      - 'LICENSE'
+      - 'deno.json'
+      - 'deno.lock'
+      - 'tests/**'
+      - 'scripts/**'
+      - 'playground/**'
+
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout private repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup SSH for public repo
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.PUBLIC_REPO_DEPLOY_KEY }}
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+
+      - name: Clone public repo
+        run: |
+          git clone git@github.com:Casys-AI/casys-pml.git public-repo
+          cd public-repo
+          git checkout main || git checkout -b main
+
+      - name: Sync files (excluding cloud-only)
+        run: |
+          # Remove old files in public repo (except .git)
+          cd public-repo
+          find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+          cd ..
+
+          # Copy files, excluding cloud-only content
+          rsync -av --exclude='.git' \
+            --exclude='src/cloud/' \
+            --exclude='packages/mcp-connector/' \
+            --exclude='.github/workflows/sync-to-public.yml' \
+            --exclude='.github/SYNC_SETUP.md' \
+            --exclude='.env' \
+            --exclude='.env.local' \
+            --exclude='.env.production' \
+            --exclude='secrets/' \
+            --exclude='.dev.vars' \
+            --exclude='*.local' \
+            --exclude='node_modules/' \
+            --exclude='.wrangler/' \
+            --exclude='playground/.env' \
+            --include='docs/user-docs/**' \
+            --exclude='docs/**' \
+            ./ public-repo/
+
+      - name: Commit and push to public
+        run: |
+          cd public-repo
+          git add -A
+
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes to sync"
+            exit 0
+          fi
+
+          # Get the commit message from the triggering commit
+          COMMIT_MSG=$(git log -1 --format="%s" ${{ github.sha }} 2>/dev/null || echo "Sync from private repo")
+
+          git commit -m "$COMMIT_MSG" -m "Synced from casys-pml-cloud"
+          git push origin main

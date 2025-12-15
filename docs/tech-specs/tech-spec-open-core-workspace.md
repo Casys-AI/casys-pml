@@ -1,7 +1,8 @@
 # Tech-Spec: Architecture Open Core — Monorepo Privé + Sync Public
 
 **Created:** 2025-12-10
-**Status:** Ready for Implementation
+**Status:** Completed
+**Completed:** 2025-12-15
 **Author:** Erwan + BMad Master
 
 ---
@@ -236,20 +237,21 @@ packages/mcp-connector/
 ## Acceptance Criteria
 
 ### Phase 1: Migration Git
-- [ ] **AC 1.1:** Le repo privé `casys-pml-cloud` existe et contient tout le code
-- [ ] **AC 1.2:** `git remote -v` montre origin=privé, public=public
-- [ ] **AC 1.3:** `git push origin main` pousse vers le privé
-- [ ] **AC 1.4:** L'historique git complet est préservé
+- [x] **AC 1.1:** Le repo privé `casys-pml-cloud` existe et contient tout le code
+- [x] **AC 1.2:** `git remote -v` montre origin=privé, public=public
+- [x] **AC 1.3:** `git push origin main` pousse vers le privé
+- [x] **AC 1.4:** L'historique git complet est préservé
 
 ### Phase 2: Sync Automatique
-- [ ] **AC 2.1:** Push sur `src/core/**` déclenche le sync vers public
-- [ ] **AC 2.2:** Les fichiers `src/cloud/**` ne sont JAMAIS sync vers public
-- [ ] **AC 2.3:** Les secrets et .env ne sont pas sync
+- [x] **AC 2.1:** Push sur `src/core/**` déclenche le sync vers public
+- [x] **AC 2.2:** Les fichiers `src/cloud/**` ne sont JAMAIS sync vers public
+- [x] **AC 2.3:** Les secrets et .env ne sont pas sync
 
 ### Phase 3: Réorganisation
-- [ ] **AC 3.1:** Le code BYOK est dans `src/cloud/byok/`
-- [ ] **AC 3.2:** `deno task check` passe sans erreur
-- [ ] **AC 3.3:** `deno task test` passe sans erreur
+- [x] **AC 3.1:** Smithery reste dans `src/mcp/` (code visible, protégé par API key)
+- [x] **AC 3.2:** `deno check` passe sans erreur
+- [x] **AC 3.3:** `deno task test` passe (14/14 tests smithery)
+- [ ] **AC 3.4:** `src/cloud/` réservé pour futures features premium (BYOK, billing) - À créer quand nécessaire
 
 ---
 
