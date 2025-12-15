@@ -2,6 +2,50 @@
 
 > How PML tracks reliability of learned patterns
 
+## En bref
+
+La confiance dans PML, c'est comme la **réputation d'une recette de cuisine**. Une recette trouvée sur un post-it (template, 50%) n'inspire pas la même confiance qu'une recette testée 2-3 fois par vous (inferred, 70%), ou qu'une recette de famille transmise depuis des générations et validée des dizaines de fois (observed, 100%).
+
+**Pourquoi la confiance est importante ?**
+
+PML apprend des patterns, mais tous ne sont pas également fiables :
+- Un pattern vu **1 fois** peut être une coïncidence
+- Un pattern vu **100 fois** est probablement réel
+- Un pattern **défini manuellement** doit encore faire ses preuves
+
+**Les trois niveaux de confiance :**
+
+| Niveau | Confiance | Analogie | Signification |
+|--------|-----------|----------|---------------|
+| `template` | 50% | Recette sur post-it | Défini manuellement, pas encore testé |
+| `inferred` | 70% | Recette testée 1-2 fois | Observé quelques fois, prometteur |
+| `observed` | 100% | Recette de famille | Confirmé par 3+ exécutions |
+
+**Promotion automatique :**
+```
+template (50%) ─── 1ère exécution ──→ inferred (70%) ─── 3+ exécutions ──→ observed (100%)
+```
+
+**Impact concret sur votre expérience :**
+
+1. **Recherche** : Les outils avec haute confiance apparaissent en premier
+2. **DAG** : Seuls les liens avec confiance > 30% sont utilisés pour construire des workflows
+3. **Suggestions** : Les suggestions de faible confiance sont affichées en dernier
+
+**Exemple :**
+```
+Vous définissez: read_file → parse_json (template, 50%)
+
+Exécution 1: PML voit read_file puis parse_json
+  → Promu à "inferred" (70%)
+
+Exécutions 2 et 3: Même pattern observé
+  → Promu à "observed" (100%)
+
+Maintenant, quand vous utilisez read_file, parse_json est
+fortement suggéré car le pattern est validé.
+```
+
 ## Why Confidence Matters
 
 Not all learned patterns are equally reliable:

@@ -2,6 +2,64 @@
 
 > How PML learns from every execution
 
+## En bref
+
+La boucle de feedback de PML, c'est comme un **musicien qui s'améliore à chaque répétition**. Chaque fois que vous utilisez PML, il observe ce que vous faites, note ce qui marche, et devient meilleur pour anticiper vos besoins la prochaine fois.
+
+**Le cycle vertueux :**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                                                             │
+│   SUGGÉRER ──→ EXÉCUTER ──→ TRACER ──→ APPRENDRE           │
+│       ▲                                      │              │
+│       │                                      │              │
+│       └──── Meilleures suggestions ◀─────────┘              │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Plus vous utilisez PML, plus il devient intelligent.**
+
+**Trois sources d'apprentissage :**
+
+| Source | Ce qui est appris | Exemple |
+|--------|-------------------|---------|
+| **Exécutions DAG** | Séquences d'outils réussies | read → parse → write devient un pattern |
+| **Traces de code** | Relations parent-enfant | Capability X utilise les outils A, B, C |
+| **Templates utilisateur** | Workflows prédéfinis | Votre workflow personnalisé (confiance 50% au départ) |
+
+**Évolution temporelle :**
+
+| Période | Ce qui se passe | Exemple |
+|---------|-----------------|---------|
+| **Court terme** (session) | Patterns récents renforcés | Confiance 0.5 → 0.85 après 3 usages |
+| **Moyen terme** (semaines) | Patterns stabilisés, variations découvertes | Nouveau pattern: read → **validate** → parse |
+| **Long terme** (mois) | Patterns populaires deviennent core knowledge, inutilisés déclinent | Graph reflète l'usage réel |
+
+**Analogie du musicien :**
+
+```
+Semaine 1: Apprend une nouvelle chanson (template)
+  → Fait des erreurs, hésite sur les enchainements
+
+Semaine 2: Joue 10 fois (inferred → observed)
+  → Les doigts savent où aller automatiquement
+
+Mois 3: Découvre des variations, improvise (nouvelles capabilities)
+  → Adapte le style selon le contexte
+
+Après 1 an: Les morceaux non joués s'oublient (decay)
+  → Les favoris sont maîtrisés parfaitement
+```
+
+**Pourquoi c'est puissant ?**
+
+1. **Zéro configuration** : PML apprend de vos usages, pas de fichiers à écrire
+2. **Personnalisé** : Vos patterns, pas ceux des autres
+3. **Évolutif** : S'adapte quand vos pratiques changent
+4. **Observable** : Dashboard montre la croissance du graphe en temps réel
+
 ## The Learning Cycle
 
 PML continuously improves through a feedback loop:
