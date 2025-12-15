@@ -68,6 +68,31 @@ Modern storage is cheap. The cost of storing extra patterns is negligible compar
 
 ### Capture Phase
 
+Every successful execution is captured, with one important rule:
+
+**All-or-Nothing Rule**: A capability is saved only if **ALL tools called succeed**. If even one tool fails (server not connected, timeout, API error), the capability is not saved.
+
+```
+Scenario 1: All tools succeed
+  Tool 1: read_file     → Success ✓
+  Tool 2: parse_json    → Success ✓
+  Tool 3: write_file    → Success ✓
+  → Capability SAVED with all 3 tools
+
+Scenario 2: One tool fails
+  Tool 1: gmail:get     → Error (not connected) ✗
+  Tool 2: memory:search → Success ✓
+  Tool 3: notion:get    → Error (server undefined) ✗
+  → Capability NOT SAVED (incoherent)
+```
+
+**Pourquoi cette regle ?** Sans elle, le code sauvegarde contiendrait 3 appels tools, mais `tools_used` n'en listerait qu'un. Le graphe serait incoherent et les suggestions fausses.
+
+Quand des tools echouent, PML :
+- Log les echecs pour debugging
+- Retourne `tool_failures` dans la reponse
+- N'enregistre pas de capability incomplete
+
 Every successful execution is captured:
 
 ```

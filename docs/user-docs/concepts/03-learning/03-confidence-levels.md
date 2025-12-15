@@ -172,6 +172,53 @@ Unused patterns lose confidence over time:
 - This prevents stale patterns from dominating
 - Active patterns stay strong
 
+## Cold Start Behavior
+
+Quand PML demarre avec peu de donnees, les poids de confiance s'adaptent automatiquement.
+
+### Pourquoi c'est important ?
+
+En "cold start" (graphe vide ou presque), l'algorithme PageRank n'a rien a calculer. Si les poids restaient fixes, les suggestions seraient trop faibles pour etre utiles.
+
+### Adaptation automatique
+
+| Densite du graphe | Phase | Hybrid Search | PageRank | Path |
+|-------------------|-------|---------------|----------|------|
+| < 1% | Cold start | **85%** | 5% | 10% |
+| < 10% | Growing | **65%** | 20% | 15% |
+| >= 10% | Mature | **55%** | 30% | 15% |
+
+**En cold start :**
+- PML fait confiance principalement a la **recherche semantique** (85%)
+- Les algorithmes de graphe (PageRank, chemins) ont peu de poids
+- Les suggestions sont possibles des la premiere utilisation
+
+**Avec un graphe mature :**
+- Les algorithmes de graphe prennent plus de poids (30% + 15%)
+- Les patterns appris influencent davantage les suggestions
+- L'equilibre semantique/graphe optimise la pertinence
+
+### Exemple concret
+
+```
+Nouveau projet (density ~0%):
+  Intent: "Read config file"
+  Semantic score: 0.72
+  PageRank: 0 (pas de donnees)
+
+  Confidence (cold start weights):
+    0.72 × 0.85 + 0 × 0.05 + 0.5 × 0.10 = 0.66 ✓ Suggestion possible
+
+Projet mature (density 15%):
+  Intent: "Read config file"
+  Semantic score: 0.72
+  PageRank: 0.4 (outil populaire)
+  Path strength: 0.6 (souvent suivi de parse_json)
+
+  Confidence (mature weights):
+    0.72 × 0.55 + 0.4 × 0.30 + 0.6 × 0.15 = 0.61 ✓ Suggestion enrichie
+```
+
 ## Next
 
 - [Feedback Loop](./04-feedback-loop.md) - The complete learning cycle

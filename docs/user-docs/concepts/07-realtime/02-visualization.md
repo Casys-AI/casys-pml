@@ -153,6 +153,32 @@ Edges show relationships between nodes:
 | **Edge opacity** | Confidence level |
 | **Animation** | Recent activity |
 
+### Edge Colors by Type
+
+Les edges sont colores selon leur type de relation :
+
+| Type | Couleur | Signification |
+|------|---------|---------------|
+| `contains` | **Vert** (#22c55e) | Parent-child (capability contient tool) |
+| `sequence` | **Orange** (#FFB86F) | Ordre temporel entre siblings |
+| `dependency` | **Blanc** (#f5f0ea) | Dependance explicite du DAG |
+| `alternative` | **Bleu** (#60a5fa) | Outils interchangeables |
+
+### Edge Styles by Source
+
+Le style de ligne indique la fiabilite :
+
+| Source | Style | Opacite | Signification |
+|--------|-------|---------|---------------|
+| `observed` | Trait plein | 90% | Confirme 3+ fois |
+| `inferred` | Pointilles | 60% | Observe 1-2 fois |
+| `template` | Points | 40% | Defini manuellement |
+
+**Lecture rapide du graphe :**
+- Ligne verte pleine = relation parent-enfant confirmee (fiable)
+- Ligne orange pointillee = sequence observee quelques fois (prometteuse)
+- Ligne blanche en points = dependance definie mais pas encore validee
+
 ## Capability Zones
 
 Capabilities are visualized as **zones** that group their component tools:
