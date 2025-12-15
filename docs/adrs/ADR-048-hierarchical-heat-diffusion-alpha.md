@@ -1,6 +1,6 @@
 # ADR-048: Local Adaptive Alpha by Mode
 
-**Status:** Draft
+**Status:** Accepted (Implemented)
 **Date:** 2025-12-15
 **Related:** ADR-015 (Dynamic Alpha), ADR-026 (Cold Start), ADR-038 (Scoring Algorithms), ADR-042 (Capability Hyperedges)
 
@@ -478,6 +478,106 @@ interface LocalAlphaCalculator {
     inputs: Record<string, number>;
     coldStart: boolean;
   };
+}
+```
+
+---
+
+## API: Alpha Statistics Endpoint
+
+### GET /api/alpha-stats
+
+Returns statistics about local adaptive alpha usage for observability and algorithm tuning.
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `windowHours` | number | 24 | Query window (1-168 hours) |
+
+**Response Schema:**
+
+```json
+{
+  "success": true,
+  "windowHours": 24,
+  "stats": {
+    "avgAlphaByMode": {
+      "activeSearch": 0.75,
+      "passiveSuggestion": 0.82
+    },
+    "alphaDistribution": {
+      "bucket05_06": 15,
+      "bucket06_07": 25,
+      "bucket07_08": 30,
+      "bucket08_09": 20,
+      "bucket09_10": 10
+    },
+    "algorithmDistribution": {
+      "embeddingsHybrides": 40,
+      "heatDiffusion": 35,
+      "heatHierarchical": 10,
+      "bayesian": 15,
+      "none": 0
+    },
+    "coldStartStats": {
+      "total": 15,
+      "percentage": 15.0
+    },
+    "alphaImpact": {
+      "lowAlphaAvgScore": 0.72,
+      "highAlphaAvgScore": 0.58
+    }
+  }
+}
+```
+
+**Response Fields:**
+
+| Field | Description |
+|-------|-------------|
+| `avgAlphaByMode` | Average alpha values per algorithm mode |
+| `alphaDistribution` | Histogram of alpha values in 0.1 buckets |
+| `algorithmDistribution` | Count of traces per alpha algorithm |
+| `coldStartStats` | Cold start occurrences and percentage |
+| `alphaImpact` | Average scores for low (<0.7) vs high (≥0.7) alpha |
+
+**Example Usage:**
+
+```bash
+# Get last 24 hours stats
+curl -X GET "http://localhost:8000/api/alpha-stats"
+
+# Get last 48 hours stats
+curl -X GET "http://localhost:8000/api/alpha-stats?windowHours=48"
+```
+
+**Authentication:**
+- Local mode: No authentication required
+- Cloud mode: Requires authenticated user (returns 401 if not authenticated)
+
+---
+
+### Algorithm Trace Signals (Extended)
+
+The `algorithm_traces` table now includes alpha-related signals:
+
+```typescript
+interface AlgorithmSignals {
+  // Existing fields...
+  semanticScore?: number;
+  toolsOverlap?: number;
+  successRate?: number;
+  pagerank?: number;
+  cooccurrence?: number;
+  graphDensity: number;
+  spectralClusterMatch: boolean;
+  adamicAdar?: number;
+
+  // ADR-048: New alpha signals
+  localAlpha?: number;        // Alpha value used (0.5-1.0)
+  alphaAlgorithm?: string;    // Algorithm: "embeddings_hybrides" | "heat_diffusion" | "heat_hierarchical" | "bayesian" | "none"
+  coldStart?: boolean;        // True if in cold start mode
 }
 ```
 

@@ -85,6 +85,29 @@ export class LocalAlphaCalculator {
   }
 
   /**
+   * Update spectral clustering reference (ADR-048)
+   *
+   * Called when DAGSuggester initializes or updates its SpectralClusteringManager.
+   * This enables Embeddings Hybrides algorithm for Active Search mode.
+   *
+   * @param spectralClustering - SpectralClusteringManager instance or null
+   */
+  setSpectralClustering(spectralClustering: SpectralClusteringManager | null): void {
+    this.deps.spectralClustering = spectralClustering;
+    // Invalidate embedding cache since spectral data changed
+    this.heatCache.clear();
+    this.cacheTimestamp = 0;
+    log.debug("[LocalAlpha] Spectral clustering updated");
+  }
+
+  /**
+   * Check if spectral clustering is available
+   */
+  hasSpectralClustering(): boolean {
+    return this.deps.spectralClustering !== null;
+  }
+
+  /**
    * Main entry point: get local alpha for a node
    */
   getLocalAlpha(
