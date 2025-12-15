@@ -2,6 +2,16 @@
 
 > Automatically detecting capability parameters
 
+## En bref
+
+Imaginez preter votre voiture sans manuel d'utilisation. Votre ami observe les commandes et deduit le "mode d'emploi" : ou est le frein a main, comment regler les retroviseurs, etc.
+
+Le schema inference de PML fonctionne pareil : il analyse le code pour comprendre automatiquement les parametres necessaires (nom, type, role). Pas besoin de documenter manuellement.
+
+**Exemple :** Script qui lit un fichier JSON. PML detecte automatiquement qu'il faut un parametre "path" (texte) et peut-etre "encoding" (optionnel). La prochaine fois, PML sait quoi demander.
+
+**L'avantage :** Zero documentation manuelle. PML comprend automatiquement comment reutiliser vos solutions avec de nouveaux parametres.
+
 ## How it Works
 
 When PML captures a capability, it doesn't just store the code—it analyzes it to understand what **parameters** the capability accepts.
@@ -24,6 +34,8 @@ When PML captures a capability, it doesn't just store the code—it analyzes it 
 ```
 
 This makes capabilities **generalizable**—they can be reused with different inputs.
+
+**Analogie :** Comme une recette de crepes ou "250ml de lait" est un parametre variable (300ml, lait d'amande, lait de soja). PML identifie ce qui est variable vs fixe dans le code.
 
 ## Parameter Extraction
 
@@ -74,56 +86,16 @@ Tracing:
 PML infers parameter types from usage:
 
 ### String Detection
-
-```
-Indicators:
-  • Used in string operations
-  • Matches path/URL patterns
-  • Passed to string-expecting tools
-
-Example:
-  mcp.read_file({ path: value })
-  → value is string (path type)
-```
+String operations, path/URL patterns, string-expecting tools → `mcp.read_file({ path: value })` identifies value as string.
 
 ### Number Detection
-
-```
-Indicators:
-  • Used in arithmetic
-  • Passed to number-expecting parameters
-  • Looks like count/limit/offset
-
-Example:
-  mcp.search({ limit: value })
-  → value is number
-```
+Arithmetic operations, count/limit/offset patterns → `mcp.search({ limit: value })` identifies value as number.
 
 ### Boolean Detection
-
-```
-Indicators:
-  • Used in conditions
-  • Passed to boolean parameters
-  • true/false literals nearby
-
-Example:
-  mcp.list_files({ recursive: value })
-  → value is boolean
-```
+Conditions, boolean parameters, true/false literals → `mcp.list_files({ recursive: value })` identifies value as boolean.
 
 ### Object/Array Detection
-
-```
-Indicators:
-  • Destructured access
-  • Used with iteration
-  • Passed to structured parameters
-
-Example:
-  for (const item of value) { ... }
-  → value is array
-```
+Destructured access, iteration patterns → `for (const item of value)` identifies value as array.
 
 ## Inference Confidence
 
@@ -172,20 +144,7 @@ Inferred Schema:
 
 ## Schema Evolution
 
-Schemas improve over time:
-
-```
-Initial Execution:
-  path: "data.json" → Inferred as string
-
-Second Execution:
-  path: "config.json" → Confirmed as string
-
-Third Execution:
-  path: "/absolute/path/file.json" → Refined: file path pattern
-```
-
-Each execution adds evidence, making the schema more accurate.
+Schemas improve over time as PML observes more executions, refining type detection and patterns for greater accuracy.
 
 ## Using Inferred Schemas
 
@@ -235,6 +194,18 @@ Process a file and generate output.
 | path | string | Yes | Input file path |
 | output | string | Yes | Output file path |
 ```
+
+## Benefices concrets pour vous
+
+**Reutilisation intelligente :** Vous creez une solution une fois, PML la rend reutilisable automatiquement sans documentation manuelle.
+
+**Suggestions contextuelles :** Quand PML suggere une capability, il sait deja quoi demander ("cette solution a besoin d'un fichier d'entree et d'un nom de sortie").
+
+**Validation automatique :** PML detecte les erreurs avant execution ("vous avez fourni un nombre, ce parametre attend du texte").
+
+**Documentation auto-generee :** Chaque capability a sa documentation a jour automatiquement, utile pour revisiter un projet apres plusieurs mois.
+
+**Exemple vecu :** Script pour convertir PNG en JPG. Six mois plus tard, besoin de convertir WebP en PNG. PML adapte automatiquement en changeant les parametres sans que vous ayez a vous rappeler comment ca marche.
 
 ## Next
 

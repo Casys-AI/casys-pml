@@ -2,6 +2,16 @@
 
 > Store on first success, filter at suggestion time
 
+## En bref
+
+Imaginez un assistant personnel qui observe tout ce que vous faites et prend des notes. Au lieu de vous demander "Est-ce que cette information est importante ?" avant de noter, il note TOUT ce qui fonctionne. Plus tard, quand vous avez besoin de quelque chose, il fouille dans ses notes et vous propose uniquement ce qui est pertinent et efficace.
+
+C'est l'apprentissage eager (enthousiaste) de PML : tout capturer maintenant, filtrer au moment de suggerer.
+
+**Exemple concret :** Vous creez une fois un script pour renommer des photos de vacances. PML sauvegarde cette solution meme si vous pensez ne jamais le refaire. Six mois plus tard, vous devez renommer des documents de travail - PML se souvient et adapte automatiquement la solution des photos.
+
+**Pourquoi c'est utile pour vous :** Vous ne perdez jamais une solution qui a fonctionne. Meme les taches que vous faites "juste une fois" restent disponibles au cas ou.
+
 ## Philosophy
 
 PML follows an **eager learning** philosophy: capture everything that works, then let usage patterns determine what's valuable.
@@ -47,6 +57,8 @@ With eager learning:
   • Suggestions immediately relevant
   • No cold start problem
 ```
+
+**Analogie du quotidien :** C'est comme garder les recettes de tous les plats que vous avez reussis, meme ceux que vous faites rarement. Quand des invites arrivent a l'improviste, vous avez deja un repertoire complet au lieu de devoir improviser.
 
 ### 3. Low Storage Cost
 
@@ -166,6 +178,20 @@ Not everything is kept forever:
 | **Natural selection** | Best patterns rise through usage |
 | **Fast learning** | No deliberation, just capture |
 | **User-driven curation** | Usage determines value |
+
+## Ce que ca change pour vous
+
+Avec l'eager learning, vous beneficiez de :
+
+1. **Memoire parfaite** : PML se souvient de chaque solution qui a fonctionne, meme celles que vous avez utilisees une seule fois il y a des mois.
+
+2. **Pas de "demarrage a froid"** : Des la premiere semaine, PML commence a accumuler des solutions. Pas besoin d'attendre des mois pour avoir un assistant intelligent.
+
+3. **Apprentissage passif** : Vous n'avez rien a faire. Travaillez normalement, PML apprend en arriere-plan.
+
+4. **Selection naturelle** : Les meilleures solutions remontent naturellement au sommet grace a l'usage. Vous n'avez pas a juger manuellement ce qui est "important".
+
+**Exemple concret :** Imaginez que vous travaillez sur plusieurs projets differents. Avec l'eager learning, PML capture les patterns de TOUS vos projets. Quand vous commencez un nouveau projet qui combine des elements de projets precedents, PML a deja toutes les pieces du puzzle.
 
 ## Next
 

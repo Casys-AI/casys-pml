@@ -2,6 +2,18 @@
 
 > Automatic workflow construction from intent
 
+## En bref
+
+Le DAG Suggester est comme un GPS intelligent pour vos workflows : vous lui donnez votre destination ("je veux lire un fichier et creer une issue GitHub"), et il construit automatiquement l'itineraire complet avec toutes les etapes necessaires. Il utilise l'apprentissage de PML pour savoir quels outils utiliser, dans quel ordre, et comment les connecter.
+
+**Points cles :**
+- Transformation automatique d'intentions en workflows
+- Utilise la connaissance apprise des dependances entre outils
+- Suggere l'ordre optimal des taches
+- Gere les ambiguites avec le contexte
+
+**Analogie :** GPS intelligent - Vous donnez la destination, il calcule le meilleur itineraire en tenant compte du traffic, des routes et de votre historique de trajets.
+
 ## How it Works
 
 The **DAG Suggester** transforms natural language intent into executable workflows. It uses PML's learned knowledge to build DAGs automatically.
@@ -124,148 +136,76 @@ The suggester produces a complete DAG ready for execution:
 
 ## Using Learned Dependencies
 
-The suggester leverages PML's knowledge graph for intelligent ordering.
-
-### From tool_dependency Table
+The suggester leverages PML's knowledge graph for intelligent ordering:
 
 ```
 Query: What typically follows read_file?
+  → parse_json (80% confidence, 50 observations) ✓ Selected
+  → write_file (65% confidence, 30 observations)
+  → validate (45% confidence, 15 observations)
 
-Graph knowledge:
-  read_file → parse_json (80% confidence, 50 observations)
-  read_file → write_file (65% confidence, 30 observations)
-  read_file → validate (45% confidence, 15 observations)
-
-Suggestion: parse_json is most likely next step
-```
-
-### From capability_dependency Table
-
-```
-Intent matches capability: "file_processing"
-
-Capability contains:
-  read_file → transform → write_file
-
-Suggester uses this pattern as template
-```
-
-### Confidence-Based Selection
-
-When multiple paths exist, confidence determines the suggestion:
-
-```
 Intent: "Process the data file"
-
-Possible paths:
-  Path A: read → parse → transform → write (confidence: 0.85)
-  Path B: read → validate → transform → write (confidence: 0.72)
-  Path C: read → transform → write (confidence: 0.60)
-
-Selected: Path A (highest confidence)
+Paths evaluated:
+  Path A: read → parse → transform → write (0.85) ✓ Selected
+  Path B: read → validate → transform → write (0.72)
+  Path C: read → transform → write (0.60)
 ```
 
 ## Suggestion Process
 
-### Step 1: Intent Analysis
-
-Break down the intent into components:
+Four-step process to transform intent into DAG:
 
 ```
 Intent: "Read config.json and create an issue if invalid"
 
-Components:
-  • Action: "read" → tool category: file reading
-  • Target: "config.json" → parameter: path
-  • Action: "create issue" → tool category: GitHub
-  • Condition: "if invalid" → conditional execution
-```
-
-### Step 2: Tool Matching
-
-Find tools that match each component:
-
-```
-"read" + "config.json" → filesystem:read_file
-"create issue" → github:create_issue
-"invalid" → implies validation step → json:validate
-```
-
-### Step 3: Dependency Resolution
-
-Use the knowledge graph to order tools:
-
-```
-Graph query: What connects read_file to create_issue?
-
-Found path: read_file → validate → create_issue
-
-Dependencies:
-  validate depends on read_file
-  create_issue depends on validate
-```
-
-### Step 4: DAG Assembly
-
-Combine everything into a DAG:
-
-```
-Final DAG:
-  ┌──────────────┐
-  │ read_file    │
-  │ path: config │
-  └──────┬───────┘
-         │
-         ▼
-  ┌──────────────┐
-  │ validate     │
-  └──────┬───────┘
-         │
-         ▼ (if invalid)
-  ┌──────────────┐
-  │ create_issue │
-  └──────────────┘
+1. Analyze: read + config.json + create issue + if invalid
+2. Match: read_file + json:validate + github:create_issue
+3. Resolve: read_file → validate → create_issue
+4. Assemble:
+   read_file → validate → create_issue (conditional)
 ```
 
 ## Handling Ambiguity
 
-When intent is unclear, the suggester can:
-
-### Ask for Clarification
-
 ```
-Intent: "Send the data"
+Ambiguous: "Send the data"
+  → Ask: "Write file? POST API? Email?"
 
-Ambiguous: Send where? How?
+Context-aware: "Update it"
+  Recent: github:get_issue, github:add_comment
+  → Suggests: github:update_issue
 
-Options:
-  1. Write to file
-  2. POST to API
-  3. Send via email
-
-Suggester: "How would you like to send the data?"
-```
-
-### Use Context
-
-```
-Recent tools: github:get_issue, github:add_comment
-
-Intent: "Update it"
-
-Context suggests: github:update_issue
-(Not filesystem:write_file)
-```
-
-### Provide Alternatives
-
-```
-Intent: "Store the results"
-
-Suggestions:
+Multiple options: "Store results"
   1. filesystem:write_file (most common)
-  2. database:insert (if DB tools available)
+  2. database:insert (if available)
   3. github:create_gist (for sharing)
+```
+
+## Exemple concret : Pipeline CI/CD automatique
+
+Intention : "Tester mon code, le builder et deployer en staging"
+
+```
+DAG GENERE :
+  Layer 0: Lint + Test + Security scan (parallele)
+  Layer 1: Build app (si Layer 0 OK)
+  Layer 2: Deploy to staging
+  Layer 3: Health check + Notify team
+
+COMME UN GPS :
+  Input: "Je veux aller au travail"
+  Output: Itineraire optimal base sur traffic, historique, preferences
+
+DAG SUGGESTER :
+  Input: "Je veux deployer mon code"
+  Output: Workflow optimal base sur outils, dependances apprises, contexte
+```
+
+**Apprentissage continu :**
+```
+Usage 1:   "Build and deploy" → build → deploy
+Usage 10:  "Build and deploy" → test → build → deploy
+Usage 50:  "Build and deploy" → test → build → deploy → healthcheck
 ```
 
 ## Next

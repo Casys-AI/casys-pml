@@ -2,6 +2,21 @@
 
 > RPC communication with the sandbox
 
+## En bref
+
+Le Worker Bridge est un canal de communication securise entre le code isole dans le sandbox et les outils MCP reel. Pensez-y comme un **interphone entre deux pieces isolees** : une personne dans une piece securisee (le sandbox) peut parler a travers l'interphone pour demander a quelqu'un dans l'autre piece (le processus principal) d'executer des actions pour elle. La personne isolee ne peut jamais quitter sa piece, mais elle peut faire des demandes precises via l'interphone.
+
+### Pourquoi c'est important
+
+Le Worker Bridge resout un probleme fondamental : comment permettre au code isole d'etre utile tout en maintenant la securite ?
+
+- **Isolation maintenue** : le code reste dans le sandbox, mais peut utiliser des outils puissants (filesystem, GitHub, etc.)
+- **Controle centralise** : toutes les actions passent par le bridge qui peut valider, auditer et tracer chaque appel
+- **API unifiee** : le code sandbox utilise simplement `mcp.tool()` sans se soucier de la complexite sous-jacente
+- **Debugging facilite** : chaque message RPC peut etre logue et inspecte
+
+Sans le bridge, il faudrait soit donner des permissions directes au sandbox (dangereux), soit ne rien pouvoir faire d'utile (inutile). Le bridge offre le meilleur des deux mondes.
+
 ## What is the Worker Bridge?
 
 The **Worker Bridge** is the communication layer between PML's main process and the sandboxed code execution environment. It enables isolated code to call MCP tools while maintaining security boundaries.

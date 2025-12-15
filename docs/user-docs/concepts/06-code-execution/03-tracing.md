@@ -2,6 +2,22 @@
 
 > Tracking the hierarchy of tool calls
 
+## En bref
+
+Le tracing enregistre chaque action qui se produit pendant l'execution du code : quels outils ont ete appeles, dans quel ordre, avec quels parametres, combien de temps chaque action a pris, et si elle a reussi ou echoue. Pensez-y comme une **camera de surveillance qui enregistre tout** : si quelque chose tourne mal, vous pouvez "rembobiner la bande" et voir exactement ce qui s'est passe. Mais contrairement a une simple camera, le tracing comprend aussi les relations entre les actions (X a appele Y qui a ensuite appele Z).
+
+### Pourquoi c'est important
+
+Le tracing est essentiel pour plusieurs raisons critiques :
+
+- **Debugging efficace** : quand une execution echoue, les traces montrent exactement ou et pourquoi. Sans traces, debugger du code genere dynamiquement est quasi impossible.
+- **Apprentissage automatique** : PML apprend de ses executions en analysant les traces. Il decouvre des patterns (lire un fichier est souvent suivi de parser le JSON) et construit son graphe de connaissances.
+- **Performance** : les traces revelent quels outils sont lents, permettant d'optimiser les sequences d'operations.
+- **Audit et conformite** : pour les systemes critiques, savoir exactement quelles actions ont ete effectuees et quand est indispensable.
+- **Transparence** : les utilisateurs peuvent comprendre ce que le systeme a fait, pas juste voir le resultat final.
+
+Sans tracing, PML serait une boite noire : impossible de comprendre, debugger ou ameliorer ses executions.
+
 ## What is Tracing?
 
 **Tracing** captures the complete history of what happens during code execution—every tool call, its timing, its results, and how calls relate to each other.

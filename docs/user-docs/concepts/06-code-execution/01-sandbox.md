@@ -2,6 +2,21 @@
 
 > Secure code execution with Deno
 
+## En bref
+
+Le sandbox est un environnement d'execution isole qui protege votre systeme contre du code potentiellement dangereux. Pensez-y comme une **aire de jeux securisee pour enfants** : les enfants (le code) peuvent jouer librement a l'interieur, mais ils ne peuvent pas sortir de l'espace delimite ni acceder aux zones dangereuses. Les parents (PML) controlent precisement quels equipements (outils MCP) sont accessibles et surveillent toutes les activites.
+
+### Pourquoi c'est important
+
+La securite est critique dans PML car le systeme execute du code genere dynamiquement. Sans sandbox :
+
+- **Risque de fuite de donnees** : du code malveillant pourrait lire vos fichiers sensibles (`/etc/passwd`, cles SSH, tokens)
+- **Compromission du systeme** : du code pourrait modifier des fichiers systeme critiques ou executer des commandes dangereuses
+- **Attaques reseau** : du code pourrait envoyer vos donnees vers des serveurs externes
+- **Epuisement des ressources** : du code mal ecrit pourrait consommer toute la memoire ou le CPU
+
+Le sandbox transforme ces risques en garanties : meme si du code tente une action malveillante, il est bloque par les multiples couches de protection.
+
 ## What is the Sandbox?
 
 PML executes code in a **sandboxed environment**—an isolated container that prevents untrusted code from accessing sensitive resources or affecting the host system.
