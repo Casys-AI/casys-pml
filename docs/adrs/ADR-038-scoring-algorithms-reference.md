@@ -3,6 +3,7 @@
 **Status:** 📝 Draft
 **Date:** 2025-12-08
 **Related Epics:** Epic 5 (Tools), Epic 7 (Capabilities)
+**Related ADRs:** ADR-048 (Local Adaptive Alpha)
 
 ## Context
 
@@ -44,11 +45,14 @@ Combine recherche sémantique et pertinence contextuelle.
 const finalScore = alpha * semanticScore + (1 - alpha) * graphScore;
 ```
 
-- **Alpha Adaptatif :**
+- **Alpha Adaptatif (voir ADR-048 pour alpha local) :**
 
-  - `density < 0.01` (Cold Start) → `alpha = 1.0` (100% Sémantique)
-  - `density > 0.25` (Mature) → `alpha = 0.5` (Equilibré)
-  - _Rationale :_ On ne fait pas confiance au graphe quand il est vide.
+  - ~~Global (legacy) : `density < 0.01` → `alpha = 1.0`, `density > 0.25` → `alpha = 0.5`~~
+  - **Local (ADR-048) :** Alpha calculé par nœud selon le mode et le type :
+    - Active Search : Embeddings Hybrides (cohérence sémantique/structurelle)
+    - Passive Suggestion : Heat Diffusion (propagation de chaleur depuis le contexte)
+    - Cold Start (<5 obs.) : Bayésien (prior alpha=1.0)
+  - _Rationale :_ L'alpha global ne capture pas l'hétérogénéité locale du graphe.
 
 - **Graph Score (Weighted Adamic-Adar - ADR-041):**
   - `AA(u,v) = Σ (edge_weight × 1/log(|N(w)|))`
