@@ -1,10 +1,10 @@
 /**
  * MCP Mini-Tools Library
  *
- * A collection of 65+ lightweight utility tools implementing MCPClientBase.
+ * A collection of 94 lightweight utility tools implementing MCPClientBase.
  * Designed for playground demos and educational use - no external dependencies.
  *
- * Categories (14 total):
+ * Categories (15 total, 94 tools):
  * - text (8):       String manipulation (split, join, template, regex, case, trim, count, pad)
  * - json (5):       JSON operations (parse, stringify, query, merge, keys)
  * - math (5):       Calculations (eval, stats, round, random, percentage)
@@ -19,6 +19,7 @@
  * - transform (6):  CSV parse/stringify, XML, markdown strip, object pick/omit
  * - state (6):      Key-value store with TTL, counters, arrays
  * - compare (5):    Diff, Levenshtein, similarity, fuzzy match, schema inference
+ * - algo (19):      Algorithms (search, set ops, aggregation, sequences, numeric)
  *
  * @module playground/lib/mcp-tools
  */
@@ -43,7 +44,8 @@ export type ToolCategory =
   | "format"
   | "transform"
   | "state"
-  | "compare";
+  | "compare"
+  | "algo";
 
 export interface MiniTool {
   name: string;
@@ -2192,6 +2194,617 @@ const MINI_TOOLS: MiniTool[] = [
 
       const schema = inferType(data, 0);
       return { schema, dataType: Array.isArray(data) ? "array" : typeof data };
+    },
+  },
+
+  // -------------------------------------------------------------------------
+  // ALGO TOOLS (algorithms, data processing, search, aggregation)
+  // -------------------------------------------------------------------------
+
+  // === Search ===
+  {
+    name: "algo_binary_search",
+    description: "Binary search in a sorted array. Returns index or -1 if not found",
+    category: "algo",
+    inputSchema: {
+      type: "object",
+      properties: {
+        items: { type: "array", description: "Sorted array to search" },
+        target: { description: "Value to find" },
+        key: { type: "string", description: "Key to compare (for objects)" },
+      },
+      required: ["items", "target"],
+    },
+    handler: ({ items, target, key }) => {
+      const arr = items as unknown[];
+      let left = 0;
+      let right = arr.length - 1;
+
+      const getValue = (item: unknown) =>
+        key ? (item as Record<string, unknown>)[key as string] : item;
+
+      while (left <= right) {
+        const mid = Math.floor((left + right) / 2);
+        const midVal = getValue(arr[mid]);
+
+        if (midVal === target) return { found: true, index: mid, value: arr[mid] };
+        if (midVal < (target as unknown)) left = mid + 1;
+        else right = mid - 1;
+      }
+
+      return { found: false, index: -1, insertionPoint: left };
+    },
+  },
+  {
+    name: "algo_find_index",
+    description: "Find first index where condition is true (like Array.findIndex but with expression)",
+    category: "algo",
+    inputSchema: {
+      type: "object",
+      properties: {
+        items: { type: "array", description: "Array to search" },
+        condition: { type: "string", description: "Condition expression using 'x' and 'i' (index)" },
+        fromIndex: { type: "number", description: "Start index (default: 0)" },
+      },
+      required: ["items", "condition"],
+    },
+    handler: ({ items, condition, fromIndex = 0 }) => {
+      const arr = items as unknown[];
+      const fn = new Function("x", "i", `return ${condition}`);
+      for (let i = fromIndex as number; i < arr.length; i++) {
+        if (fn(arr[i], i)) return { found: true, index: i, value: arr[i] };
+      }
+      return { found: false, index: -1 };
+    },
+  },
+  {
+    name: "algo_find_all",
+    description: "Find all items and indices matching a condition",
+    category: "algo",
+    inputSchema: {
+      type: "object",
+      properties: {
+        items: { type: "array", description: "Array to search" },
+        condition: { type: "string", description: "Condition expression using 'x' and 'i' (index)" },
+      },
+      required: ["items", "condition"],
+    },
+    handler: ({ items, condition }) => {
+      const arr = items as unknown[];
+      const fn = new Function("x", "i", `return ${condition}`);
+      const results: Array<{ index: number; value: unknown }> = [];
+      for (let i = 0; i < arr.length; i++) {
+        if (fn(arr[i], i)) results.push({ index: i, value: arr[i] });
+      }
+      return { count: results.length, matches: results };
+    },
+  },
+
+  // === Set Operations ===
+  {
+    name: "algo_union",
+    description: "Union of multiple arrays (all unique elements)",
+    category: "algo",
+    inputSchema: {
+      type: "object",
+      properties: {
+        arrays: { type: "array", items: { type: "array" }, description: "Arrays to union" },
+        key: { type: "string", description: "Key for uniqueness (for objects)" },
+      },
+      required: ["arrays"],
+    },
+    handler: ({ arrays, key }) => {
+      const arrs = arrays as unknown[][];
+      if (!key) {
+        const set = new Set<unknown>();
+        for (const arr of arrs) {
+          for (const item of arr) set.add(item);
+        }
+        return Array.from(set);
+      }
+      // Object uniqueness by key
+      const seen = new Map<unknown, unknown>();
+      for (const arr of arrs) {
+        for (const item of arr) {
+          const k = (item as Record<string, unknown>)[key as string];
+          if (!seen.has(k)) seen.set(k, item);
+        }
+      }
+      return Array.from(seen.values());
+    },
+  },
+  {
+    name: "algo_intersect",
+    description: "Intersection of multiple arrays (elements in all arrays)",
+    category: "algo",
+    inputSchema: {
+      type: "object",
+      properties: {
+        arrays: { type: "array", items: { type: "array" }, description: "Arrays to intersect" },
+        key: { type: "string", description: "Key for comparison (for objects)" },
+      },
+      required: ["arrays"],
+    },
+    handler: ({ arrays, key }) => {
+      const arrs = arrays as unknown[][];
+      if (arrs.length === 0) return [];
+      if (arrs.length === 1) return arrs[0];
+
+      const getKey = (item: unknown) =>
+        key ? (item as Record<string, unknown>)[key as string] : item;
+
+      // Count occurrences across arrays
+      const counts = new Map<unknown, number>();
+      for (const arr of arrs) {
+        const seen = new Set<unknown>();
+        for (const item of arr) {
+          const k = getKey(item);
+          if (!seen.has(k)) {
+            seen.add(k);
+            counts.set(k, (counts.get(k) || 0) + 1);
+          }
+        }
+      }
+
+      // Keep items that appear in all arrays
+      const result: unknown[] = [];
+      const added = new Set<unknown>();
+      for (const item of arrs[0]) {
+        const k = getKey(item);
+        if (counts.get(k) === arrs.length && !added.has(k)) {
+          result.push(item);
+          added.add(k);
+        }
+      }
+      return result;
+    },
+  },
+  {
+    name: "algo_difference",
+    description: "Difference between arrays (elements in first but not in others)",
+    category: "algo",
+    inputSchema: {
+      type: "object",
+      properties: {
+        base: { type: "array", description: "Base array" },
+        subtract: { type: "array", items: { type: "array" }, description: "Arrays to subtract" },
+        key: { type: "string", description: "Key for comparison (for objects)" },
+      },
+      required: ["base", "subtract"],
+    },
+    handler: ({ base, subtract, key }) => {
+      const baseArr = base as unknown[];
+      const subtractArrs = subtract as unknown[][];
+
+      const getKey = (item: unknown) =>
+        key ? (item as Record<string, unknown>)[key as string] : item;
+
+      const excludeSet = new Set<unknown>();
+      for (const arr of subtractArrs) {
+        for (const item of arr) {
+          excludeSet.add(getKey(item));
+        }
+      }
+
+      return baseArr.filter((item) => !excludeSet.has(getKey(item)));
+    },
+  },
+  {
+    name: "algo_is_subset",
+    description: "Check if array A is a subset of array B",
+    category: "algo",
+    inputSchema: {
+      type: "object",
+      properties: {
+        subset: { type: "array", description: "Potential subset array" },
+        superset: { type: "array", description: "Potential superset array" },
+        key: { type: "string", description: "Key for comparison (for objects)" },
+      },
+      required: ["subset", "superset"],
+    },
+    handler: ({ subset, superset, key }) => {
+      const subArr = subset as unknown[];
+      const superArr = superset as unknown[];
+
+      const getKey = (item: unknown) =>
+        key ? (item as Record<string, unknown>)[key as string] : item;
+
+      const superSet = new Set(superArr.map(getKey));
+      const isSubset = subArr.every((item) => superSet.has(getKey(item)));
+
+      return {
+        isSubset,
+        subsetSize: subArr.length,
+        supersetSize: superArr.length,
+        missing: isSubset ? [] : subArr.filter((item) => !superSet.has(getKey(item))),
+      };
+    },
+  },
+
+  // === Aggregation ===
+  {
+    name: "algo_group_aggregate",
+    description: "Group by key and apply aggregation (sum, count, avg, min, max)",
+    category: "algo",
+    inputSchema: {
+      type: "object",
+      properties: {
+        items: { type: "array", description: "Array of objects" },
+        groupBy: { type: "string", description: "Key to group by" },
+        aggregate: {
+          type: "object",
+          description: "Aggregations: { outputKey: { field: 'fieldName', op: 'sum'|'count'|'avg'|'min'|'max' } }",
+        },
+      },
+      required: ["items", "groupBy", "aggregate"],
+    },
+    handler: ({ items, groupBy, aggregate }) => {
+      const arr = items as Record<string, unknown>[];
+      const agg = aggregate as Record<string, { field: string; op: string }>;
+
+      const groups = new Map<unknown, Record<string, unknown>[]>();
+      for (const item of arr) {
+        const key = item[groupBy as string];
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key)!.push(item);
+      }
+
+      const result: Record<string, unknown>[] = [];
+      for (const [key, groupItems] of groups) {
+        const row: Record<string, unknown> = { [groupBy as string]: key };
+
+        for (const [outKey, { field, op }] of Object.entries(agg)) {
+          const values = groupItems.map((item) => item[field] as number).filter((v) => typeof v === "number");
+
+          switch (op) {
+            case "sum":
+              row[outKey] = values.reduce((a, b) => a + b, 0);
+              break;
+            case "count":
+              row[outKey] = groupItems.length;
+              break;
+            case "avg":
+              row[outKey] = values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+              break;
+            case "min":
+              row[outKey] = values.length ? Math.min(...values) : null;
+              break;
+            case "max":
+              row[outKey] = values.length ? Math.max(...values) : null;
+              break;
+          }
+        }
+        result.push(row);
+      }
+
+      return result;
+    },
+  },
+  {
+    name: "algo_running_total",
+    description: "Calculate running total (cumulative sum) of values",
+    category: "algo",
+    inputSchema: {
+      type: "object",
+      properties: {
+        items: { type: "array", description: "Array of numbers or objects" },
+        key: { type: "string", description: "Key to sum (for objects)" },
+        outputKey: { type: "string", description: "Key for running total in output (default: '_runningTotal')" },
+      },
+      required: ["items"],
+    },
+    handler: ({ items, key, outputKey = "_runningTotal" }) => {
+      const arr = items as unknown[];
+      let total = 0;
+
+      return arr.map((item) => {
+        const value = key ? (item as Record<string, unknown>)[key as string] as number : item as number;
+        total += typeof value === "number" ? value : 0;
+
+        if (typeof item === "object" && item !== null) {
+          return { ...(item as Record<string, unknown>), [outputKey as string]: total };
+        }
+        return { value: item, [outputKey as string]: total };
+      });
+    },
+  },
+  {
+    name: "algo_moving_average",
+    description: "Calculate moving average with a sliding window",
+    category: "algo",
+    inputSchema: {
+      type: "object",
+      properties: {
+        items: { type: "array", description: "Array of numbers or objects" },
+        windowSize: { type: "number", description: "Size of sliding window" },
+        key: { type: "string", description: "Key to average (for objects)" },
+      },
+      required: ["items", "windowSize"],
+    },
+    handler: ({ items, windowSize, key }) => {
+      const arr = items as unknown[];
+      const size = windowSize as number;
+      const result: Array<{ value: unknown; movingAvg: number | null; windowValues: number[] }> = [];
+
+      for (let i = 0; i < arr.length; i++) {
+        const windowStart = Math.max(0, i - size + 1);
+        const windowValues: number[] = [];
+
+        for (let j = windowStart; j <= i; j++) {
+          const val = key
+            ? (arr[j] as Record<string, unknown>)[key as string] as number
+            : arr[j] as number;
+          if (typeof val === "number") windowValues.push(val);
+        }
+
+        const movingAvg = windowValues.length >= size
+          ? windowValues.reduce((a, b) => a + b, 0) / windowValues.length
+          : null;
+
+        result.push({
+          value: arr[i],
+          movingAvg: movingAvg !== null ? Math.round(movingAvg * 1000) / 1000 : null,
+          windowValues,
+        });
+      }
+
+      return result;
+    },
+  },
+  {
+    name: "algo_top_n",
+    description: "Get top N items by a numeric field",
+    category: "algo",
+    inputSchema: {
+      type: "object",
+      properties: {
+        items: { type: "array", description: "Array to search" },
+        n: { type: "number", description: "Number of items to return" },
+        key: { type: "string", description: "Key to sort by (for objects)" },
+        order: { type: "string", enum: ["desc", "asc"], description: "Sort order (default: desc for top)" },
+      },
+      required: ["items", "n"],
+    },
+    handler: ({ items, n, key, order = "desc" }) => {
+      const arr = [...(items as unknown[])];
+
+      arr.sort((a, b) => {
+        const aVal = key ? (a as Record<string, unknown>)[key as string] : a;
+        const bVal = key ? (b as Record<string, unknown>)[key as string] : b;
+        const cmp = (aVal as number) - (bVal as number);
+        return order === "desc" ? -cmp : cmp;
+      });
+
+      return arr.slice(0, n as number);
+    },
+  },
+
+  // === Sequences ===
+  {
+    name: "algo_zip",
+    description: "Zip multiple arrays together into array of tuples",
+    category: "algo",
+    inputSchema: {
+      type: "object",
+      properties: {
+        arrays: { type: "array", items: { type: "array" }, description: "Arrays to zip" },
+        fill: { description: "Value to fill for shorter arrays (default: undefined)" },
+      },
+      required: ["arrays"],
+    },
+    handler: ({ arrays, fill }) => {
+      const arrs = arrays as unknown[][];
+      if (arrs.length === 0) return [];
+
+      const maxLen = Math.max(...arrs.map((a) => a.length));
+      const result: unknown[][] = [];
+
+      for (let i = 0; i < maxLen; i++) {
+        result.push(arrs.map((arr) => (i < arr.length ? arr[i] : fill)));
+      }
+
+      return result;
+    },
+  },
+  {
+    name: "algo_partition",
+    description: "Partition array into two arrays based on a condition",
+    category: "algo",
+    inputSchema: {
+      type: "object",
+      properties: {
+        items: { type: "array", description: "Array to partition" },
+        condition: { type: "string", description: "Condition expression using 'x' and 'i'" },
+      },
+      required: ["items", "condition"],
+    },
+    handler: ({ items, condition }) => {
+      const arr = items as unknown[];
+      const fn = new Function("x", "i", `return ${condition}`);
+      const pass: unknown[] = [];
+      const fail: unknown[] = [];
+
+      arr.forEach((item, i) => {
+        if (fn(item, i)) pass.push(item);
+        else fail.push(item);
+      });
+
+      return { pass, fail, passCount: pass.length, failCount: fail.length };
+    },
+  },
+  {
+    name: "algo_interleave",
+    description: "Interleave multiple arrays (a1, b1, c1, a2, b2, c2, ...)",
+    category: "algo",
+    inputSchema: {
+      type: "object",
+      properties: {
+        arrays: { type: "array", items: { type: "array" }, description: "Arrays to interleave" },
+      },
+      required: ["arrays"],
+    },
+    handler: ({ arrays }) => {
+      const arrs = arrays as unknown[][];
+      if (arrs.length === 0) return [];
+
+      const maxLen = Math.max(...arrs.map((a) => a.length));
+      const result: unknown[] = [];
+
+      for (let i = 0; i < maxLen; i++) {
+        for (const arr of arrs) {
+          if (i < arr.length) result.push(arr[i]);
+        }
+      }
+
+      return result;
+    },
+  },
+  {
+    name: "algo_transpose",
+    description: "Transpose a 2D array (rows become columns)",
+    category: "algo",
+    inputSchema: {
+      type: "object",
+      properties: {
+        matrix: { type: "array", items: { type: "array" }, description: "2D array to transpose" },
+      },
+      required: ["matrix"],
+    },
+    handler: ({ matrix }) => {
+      const mat = matrix as unknown[][];
+      if (mat.length === 0) return [];
+      if (mat[0].length === 0) return [];
+
+      const rows = mat.length;
+      const cols = Math.max(...mat.map((r) => r.length));
+      const result: unknown[][] = [];
+
+      for (let c = 0; c < cols; c++) {
+        const row: unknown[] = [];
+        for (let r = 0; r < rows; r++) {
+          row.push(mat[r][c]);
+        }
+        result.push(row);
+      }
+
+      return result;
+    },
+  },
+
+  // === Numeric ===
+  {
+    name: "algo_clamp",
+    description: "Clamp value(s) between min and max",
+    category: "algo",
+    inputSchema: {
+      type: "object",
+      properties: {
+        value: { description: "Single number or array of numbers" },
+        min: { type: "number", description: "Minimum value" },
+        max: { type: "number", description: "Maximum value" },
+      },
+      required: ["value", "min", "max"],
+    },
+    handler: ({ value, min, max }) => {
+      const clamp = (n: number) => Math.min(Math.max(n, min as number), max as number);
+
+      if (Array.isArray(value)) {
+        return (value as number[]).map(clamp);
+      }
+      return clamp(value as number);
+    },
+  },
+  {
+    name: "algo_normalize",
+    description: "Normalize array values to 0-1 range (min-max normalization)",
+    category: "algo",
+    inputSchema: {
+      type: "object",
+      properties: {
+        items: { type: "array", items: { type: "number" }, description: "Array of numbers" },
+        targetMin: { type: "number", description: "Target range min (default: 0)" },
+        targetMax: { type: "number", description: "Target range max (default: 1)" },
+      },
+      required: ["items"],
+    },
+    handler: ({ items, targetMin = 0, targetMax = 1 }) => {
+      const arr = items as number[];
+      if (arr.length === 0) return [];
+
+      const min = Math.min(...arr);
+      const max = Math.max(...arr);
+      const range = max - min;
+
+      if (range === 0) {
+        return arr.map(() => (targetMin as number + targetMax as number) / 2);
+      }
+
+      const tMin = targetMin as number;
+      const tMax = targetMax as number;
+      const tRange = tMax - tMin;
+
+      return arr.map((v) => {
+        const normalized = (v - min) / range;
+        return Math.round((tMin + normalized * tRange) * 1000) / 1000;
+      });
+    },
+  },
+  {
+    name: "algo_interpolate",
+    description: "Linear interpolation between two values",
+    category: "algo",
+    inputSchema: {
+      type: "object",
+      properties: {
+        from: { type: "number", description: "Start value" },
+        to: { type: "number", description: "End value" },
+        t: { type: "number", description: "Interpolation factor (0-1) or array of factors" },
+      },
+      required: ["from", "to", "t"],
+    },
+    handler: ({ from, to, t }) => {
+      const a = from as number;
+      const b = to as number;
+
+      const lerp = (factor: number) => a + (b - a) * factor;
+
+      if (Array.isArray(t)) {
+        return (t as number[]).map((factor) => Math.round(lerp(factor) * 1000) / 1000);
+      }
+      return Math.round(lerp(t as number) * 1000) / 1000;
+    },
+  },
+  {
+    name: "algo_round_to",
+    description: "Round number(s) to nearest multiple",
+    category: "algo",
+    inputSchema: {
+      type: "object",
+      properties: {
+        value: { description: "Single number or array of numbers" },
+        multiple: { type: "number", description: "Round to nearest multiple of this (e.g., 5, 10, 0.25)" },
+        mode: { type: "string", enum: ["round", "floor", "ceil"], description: "Rounding mode" },
+      },
+      required: ["value", "multiple"],
+    },
+    handler: ({ value, multiple, mode = "round" }) => {
+      const m = multiple as number;
+
+      const roundTo = (n: number) => {
+        switch (mode) {
+          case "floor":
+            return Math.floor(n / m) * m;
+          case "ceil":
+            return Math.ceil(n / m) * m;
+          default:
+            return Math.round(n / m) * m;
+        }
+      };
+
+      if (Array.isArray(value)) {
+        return (value as number[]).map(roundTo);
+      }
+      return roundTo(value as number);
     },
   },
 ];
