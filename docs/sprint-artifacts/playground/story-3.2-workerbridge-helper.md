@@ -1,38 +1,40 @@
-# Story 3.2: WorkerBridge Helper pour Notebooks
+# Story 3.2: WorkerBridge Helper avec Mini-Tools Library
 
 **Status:** ready-for-dev
 
 ## Story
 
 As a **notebook author**,
-I want **a helper that exposes the real WorkerBridge with MCP client mocks**,
-So that **notebooks can execute code in the real sandbox with tool tracing**.
+I want **a helper that exposes the real WorkerBridge with a rich library of MCP tools**,
+So that **notebooks can execute code in the real sandbox with 60+ useful tools for demos**.
 
 ## Acceptance Criteria
 
 1. `playground/lib/capabilities.ts` exporte `getWorkerBridge(mcpClients?)`
-2. Crée des mock MCP clients minimaux pour filesystem et memory (pas besoin de vrais serveurs)
+2. Utilise `MiniToolsClient` de `playground/lib/mcp-tools.ts` (60+ outils utiles en 13 catégories)
 3. Le WorkerBridge utilise le vrai sandbox Deno Worker
 4. Les traces sont de vraies TraceEvent du système
-5. Fonction `getDefaultMCPClients()` pour les démos sans configuration
-6. Ajout au `resetPlaygroundState()` pour cleanup du bridge
+5. Fonction `getDefaultMCPClients()` retourne le MiniToolsClient prêt à l'emploi
+6. Ajout au `resetPlaygroundState()` pour cleanup du bridge + reset des states
 7. Helper `requireApiKey()` qui vérifie la présence d'une clé API et guide vers setup-api-key.ts si absente
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Create minimal MCP client mocks (AC: 2, 5)
-  - [ ] 1.1: Create `MockFilesystemClient` with read_file, write_file, list_directory
-  - [ ] 1.2: Create `MockMemoryClient` with store_entity, retrieve_entity
-  - [ ] 1.3: Both implement MCPClientBase interface
-  - [ ] 1.4: Export `getDefaultMCPClients()` returning Map of mocks
+- [x] Task 1: MCP Mini-Tools Library (AC: 2, 5) ✅ DONE
+  - [x] 1.1: Created `playground/lib/mcp-tools.ts` with 60+ tools in 13 categories
+  - [x] 1.2: Categories: text, json, math, datetime, crypto, collections, fs, data, http, validation, format, transform, state
+  - [x] 1.3: `MiniToolsClient` implements MCPClientBase interface
+  - [x] 1.4: Export `getDefaultMCPClients()` returning Map with MiniToolsClient
+  - [x] 1.5: Virtual filesystem and state store with reset functions
 - [ ] Task 2: Add WorkerBridge helper (AC: 1, 3, 4)
   - [ ] 2.1: Import real WorkerBridge from src/sandbox/worker-bridge.ts
   - [ ] 2.2: Create `getWorkerBridge(mcpClients?)` with lazy singleton
-  - [ ] 2.3: Default to mock MCP clients if none provided
+  - [ ] 2.3: Default to MiniToolsClient if no clients provided
   - [ ] 2.4: Configure with capabilityStore from getCapabilityStore()
 - [ ] Task 3: Update reset function (AC: 6)
   - [ ] 3.1: Add bridge cleanup to resetPlaygroundState()
   - [ ] 3.2: Call bridge.terminate() and bridge.cleanup() on reset
+  - [ ] 3.3: Call resetVirtualFs() and resetStateStore() from mcp-tools
 - [ ] Task 4: Add API key requirement helper (AC: 7)
   - [ ] 4.1: Create `requireApiKey()` that checks ANTHROPIC_API_KEY or OPENAI_API_KEY
   - [ ] 4.2: If missing, show clear message with instructions to run setup-api-key.ts
@@ -40,8 +42,8 @@ So that **notebooks can execute code in the real sandbox with tool tracing**.
 - [ ] Task 5: Test the helper
   - [ ] 5.1: Verify WorkerBridge executes code in real Worker
   - [ ] 5.2: Verify traces are captured correctly
-  - [ ] 5.3: Verify mock MCP clients respond to tool calls
-  - [ ] 5.4: Verify reset clears bridge state
+  - [ ] 5.3: Verify MiniToolsClient responds to tool calls (all 60+ tools)
+  - [ ] 5.4: Verify reset clears bridge state, virtual fs, and state store
 
 ## Dev Notes
 
@@ -70,44 +72,34 @@ class WorkerBridge {
 }
 ```
 
-### Mock MCP Client Interface
+### MCP Mini-Tools Library
+
+Instead of boring mocks, we created a full library of **60+ useful tools** in `playground/lib/mcp-tools.ts`:
 
 ```typescript
-// From src/mcp/types.ts
-interface MCPClientBase {
-  listTools(): Promise<Tool[]>;
-  callTool(name: string, args: Record<string, unknown>): Promise<unknown>;
-  close(): Promise<void>;
-}
+// 13 Categories, 60+ tools:
+// text (8):       split, join, template, case, regex, trim, count, pad
+// json (5):       parse, stringify, query, merge, keys
+// math (5):       eval, stats, round, random, percentage
+// datetime (5):   now, format, diff, add, parse
+// crypto (5):     hash, uuid, base64, hex, random_bytes
+// collections (7): map, filter, sort, unique, group, flatten, chunk
+// fs (5):         read, write, list, delete, exists (virtual filesystem)
+// data (5):       fake_name, fake_email, lorem, fake_address, fake_user
+// http (4):       build_url, parse_url, headers, mock_response
+// validation (4): email, url, json_schema, pattern
+// format (5):     number, bytes, duration, pluralize, slugify
+// transform (6):  csv_parse, csv_stringify, xml_simple, markdown_strip, object_pick, object_omit
+// state (6):      set, get, delete, list, counter, push (key-value store with TTL)
 
-// Minimal mock implementation
-class MockFilesystemClient implements MCPClientBase {
-  private files = new Map<string, string>();
+import { MiniToolsClient, getDefaultMCPClients } from "../lib/mcp-tools.ts";
 
-  async listTools(): Promise<Tool[]> {
-    return [
-      { name: "read_file", description: "Read file contents", inputSchema: {...} },
-      { name: "write_file", description: "Write file contents", inputSchema: {...} },
-      { name: "list_directory", description: "List directory contents", inputSchema: {...} }
-    ];
-  }
+// Usage with WorkerBridge:
+const clients = getDefaultMCPClients(); // Returns Map with MiniToolsClient
+const bridge = new WorkerBridge(clients);
 
-  async callTool(name: string, args: Record<string, unknown>): Promise<unknown> {
-    switch (name) {
-      case "read_file":
-        return { content: this.files.get(args.path as string) ?? "mock content" };
-      case "write_file":
-        this.files.set(args.path as string, args.content as string);
-        return { success: true };
-      case "list_directory":
-        return { entries: ["file1.txt", "file2.txt"] };
-      default:
-        throw new Error(`Unknown tool: ${name}`);
-    }
-  }
-
-  async close(): Promise<void> {}
-}
+// Or create filtered client:
+const mathOnly = new MiniToolsClient(["math", "collections"]);
 ```
 
 ### API Key Requirement Helper
@@ -160,22 +152,26 @@ export { getWorkerBridge, getDefaultMCPClients };
 export { requireApiKey };
 ```
 
-### Why Mock MCP Clients?
+### Why Mini-Tools Library Instead of Real MCP Servers?
 
 Real MCP servers require:
 - npx processes running
 - Network connections
 - Configuration files
 
-For notebook demos, mocks are sufficient because:
-1. We're demonstrating the **WorkerBridge** behavior, not MCP server behavior
-2. Traces show real tool_start/tool_end events
+The Mini-Tools Library is **better than both mocks and real servers** because:
+1. **60+ useful tools** that can actually DO things (not just fake responses)
+2. Traces show real tool_start/tool_end events with actual work
 3. The sandbox security is real (Worker isolation)
-4. Timing measurements are accurate
+4. Tools are pedagogically interesting (text, math, crypto, data generation)
+5. Virtual filesystem and state store for realistic multi-step workflows
+6. No external dependencies or server processes needed
+7. Perfect for demonstrating capability learning on real tool compositions
 
-### Files to Modify
+### Files Modified/Created
 
-- `playground/lib/capabilities.ts` - Add WorkerBridge helper and mocks
+- `playground/lib/mcp-tools.ts` - ✅ CREATED: 60+ mini-tools library
+- `playground/lib/capabilities.ts` - TO DO: Add WorkerBridge helper using MiniToolsClient
 
 ### References
 
@@ -199,9 +195,14 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 - Created to address dependency gap identified in SM review
 - Includes API key requirement for Wow Moment demo
-- Mock MCP clients avoid complex server setup
+- **Mini-Tools Library created** with 60+ real utility tools instead of boring mocks
+- Tool categories: text, json, math, datetime, crypto, collections, fs, data, http, validation, format, transform, state
+- Virtual filesystem and state store enable realistic multi-step workflow demos
 
 ### File List
 
+Files created:
+- `playground/lib/mcp-tools.ts` (NEW: 60+ mini-tools library)
+
 Files to modify:
-- `playground/lib/capabilities.ts` (ADD WorkerBridge, mocks, requireApiKey)
+- `playground/lib/capabilities.ts` (ADD WorkerBridge helper using MiniToolsClient, requireApiKey)
