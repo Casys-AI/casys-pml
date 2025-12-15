@@ -69,8 +69,8 @@ memory:
 # Monitoring data (Docker volumes)
 monitoring/data/
 
-# Claude Code personal config
-.claude/
+# Claude Code personal config (versioned in private repo)
+# .claude/  # Now tracked for team sharing
 .agentvibes/
 
 # Serena MCP project data (local cache and memories)
@@ -82,28 +82,28 @@ monitoring/data/
 # Deployment scripts (contain server-specific info)
 scripts/deploy.sh
 
-# BMAD methodology framework (proprietary)
-.bmad/
+# BMAD methodology framework (now versioned in private repo)
+# .bmad/  # Now tracked
 
-
-# Internal documentation (not for open source)
-docs/research/
-docs/spikes/
-docs/retrospectives/
-docs/security/
-docs/sprint-artifacts/
-docs/archive/
-docs/stories/
-docs/blog/
-docs/legacy/
-docs/*backlog*
-docs/*sprint*
-docs/*workflow-plan*
-docs/bmm-*
-docs/*-playground.*
-docs/index.md
-docs/PRD.md
-docs/epics.md
-docs/ux-design-*
-docs/wireframes-*
-docs/mockups-*
+# Internal documentation (now versioned in private repo)
+# These were excluded for open source, but tracked in private repo
+# docs/research/
+# docs/spikes/
+# docs/retrospectives/
+# docs/security/
+# docs/sprint-artifacts/
+# docs/archive/
+# docs/stories/
+# docs/blog/
+# docs/legacy/
+# docs/*backlog*
+# docs/*sprint*
+# docs/*workflow-plan*
+# docs/bmm-*
+# docs/*-playground.*
+# docs/index.md
+# docs/PRD.md
+# docs/epics.md
+# docs/ux-design-*
+# docs/wireframes-*
+# docs/mockups-*
