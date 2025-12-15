@@ -156,6 +156,40 @@ Si `slack_notify` echoue (serveur Slack indisponible), PML vous suggere automati
 
 Useful for suggesting alternatives when one tool fails.
 
+## Poids des relations (Edge Weights)
+
+Chaque type de relation a un **poids** qui reflète sa fiabilité. Ces poids influencent directement le score de confiance des suggestions.
+
+### Poids par type d'edge
+
+| Type | Poids | Rationale |
+|------|-------|-----------|
+| `dependency` | **1.0** | Explicite, la plus forte (B ne peut pas fonctionner sans A) |
+| `contains` | **0.8** | Structurelle, fiable (capability contient ces outils) |
+| `alternative` | **0.6** | Interchangeable (l'un ou l'autre fonctionne) |
+| `sequence` | **0.5** | Temporelle, peut varier (ordre observé, pas obligatoire) |
+
+### Modificateurs par source
+
+| Source | Multiplicateur | Signification |
+|--------|----------------|---------------|
+| `observed` | **×1.0** | Confirmé 3+ fois, totalement fiable |
+| `inferred` | **×0.7** | Observé 1-2 fois, prometteur |
+| `template` | **×0.5** | Défini manuellement, pas encore validé |
+
+### Calcul du score final
+
+```
+Score = Poids du type × Modificateur de source
+
+Exemples:
+  dependency + observed = 1.0 × 1.0 = 1.0  (confiance maximale)
+  sequence + inferred   = 0.5 × 0.7 = 0.35 (confiance moyenne)
+  sequence + template   = 0.5 × 0.5 = 0.25 (confiance faible)
+```
+
+**Impact pratique :** Une relation `dependency/observed` sera toujours priorisée sur une relation `sequence/template`. C'est logique : une dépendance confirmée 10 fois est plus fiable qu'une séquence définie manuellement.
+
 ## How Dependencies Are Created
 
 ### 1. From DAG Execution

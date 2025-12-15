@@ -115,14 +115,45 @@ Tools that are used more often get a small boost:
 The final score combines both components:
 
 ```
-Final Score = (α × Semantic Score) + (β × Graph Score)
-
-Where:
-  α = 0.7 (semantic weight)
-  β = 0.3 (graph weight)
+Final Score = α × Semantic Score + (1-α) × Graph Score
 ```
 
-This means semantic similarity matters most, but graph signals can boost or demote results.
+### Adaptive Alpha (α) - Le secret de l'intelligence
+
+Le paramètre **α** (alpha) n'est pas fixe ! PML l'ajuste automatiquement selon la **densité du graphe** :
+
+```
+α = max(0.5, 1.0 - density × 2)
+
+Où: density = edgeCount / (nodeCount × (nodeCount - 1))
+```
+
+**Pourquoi ?** En "cold start" (nouveau système, peu de données), le graphe est vide et non fiable. PML fait donc confiance à la sémantique. Au fil du temps, le graphe s'enrichit et devient plus utile.
+
+| Phase | Densité | Alpha (α) | Comportement |
+|-------|---------|-----------|--------------|
+| **Cold start** | ~0% | 1.0 | 100% sémantique (graphe ignoré) |
+| **Démarrage** | 2% | 0.96 | Sémantique domine encore |
+| **Croissance** | 10% | 0.80 | Graphe commence à influencer |
+| **Mature** | 20% | 0.60 | Équilibre sémantique/graphe |
+| **Dense** | 25%+ | 0.50 | Minimum 50% sémantique toujours |
+
+**Exemple concret :**
+```
+Jour 1 (cold start, α = 1.0):
+  Query: "lire fichier"
+  → Résultat basé uniquement sur la similarité sémantique
+
+Mois 3 (mature, α = 0.6):
+  Query: "lire fichier"
+  → 60% sémantique + 40% graphe (historique d'usage, PageRank)
+  → Les outils prouvés sont privilégiés
+```
+
+**Propriétés clés :**
+- **Transition fluide** : Pas de saut brutal, évolution graduelle
+- **Invariant à l'échelle** : Fonctionne que vous ayez 50 ou 500 outils
+- **Sécurisé** : α ne descend jamais sous 0.5 (sémantique toujours majoritaire)
 
 ### Example
 

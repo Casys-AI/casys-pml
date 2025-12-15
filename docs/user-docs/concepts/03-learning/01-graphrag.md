@@ -76,7 +76,19 @@ Each edge has:
 
 ## Algorithms
 
-PML uses graph algorithms to extract intelligence:
+PML uses graph algorithms to extract intelligence. Voici la **matrice des algorithmes** selon le contexte :
+
+### Vue d'ensemble : Quand utiliser quel algorithme
+
+| Objet | Recherche active (intent) | Suggestion passive (contexte) |
+|-------|---------------------------|-------------------------------|
+| **Outil simple** | **Hybrid Search** | **Next Step Prediction** |
+| | `α × semantic + (1-α) × graph` | `co-occurrence + Louvain + recency` |
+| **Capability** | **Capability Match** | **Strategic Discovery** |
+| | `semantic × successRate` | `toolsOverlap × spectralBoost` |
+
+**Approche additive** (outils) : Plus permissive, combine les signaux
+**Approche multiplicative** (capabilities) : Plus stricte, un mauvais signal disqualifie
 
 ### PageRank
 
@@ -123,7 +135,44 @@ Answer: read_file → parse → extract_error → create_issue
         (shortest path weighted by edge confidence)
 ```
 
+**Pondération des chemins :**
+Le coût d'un edge est inversement proportionnel à sa qualité :
+```
+cost = 1 / (edge_type_weight × source_modifier)
+
+Exemple:
+  dependency/observed → cost = 1/(1.0×1.0) = 1.0  (chemin préféré)
+  sequence/template   → cost = 1/(0.5×0.5) = 4.0  (chemin évité)
+```
+
 Use: Build optimal workflows between start and end tools.
+
+### Adamic-Adar (Similarité par voisins communs)
+
+**Adamic-Adar** mesure si deux outils partagent des "amis communs" dans le graphe.
+
+```
+AA(A, B) = Σ (edge_weight / log(|voisins(N)|))
+           pour chaque voisin commun N
+
+Plus deux outils ont de voisins communs spécifiques (peu connectés),
+plus ils sont considérés comme similaires.
+```
+
+Use: Dans Hybrid Search, pour calculer le graph score.
+
+### Next Step Prediction (Formule complète)
+
+Pour prédire le prochain outil après une action :
+
+```
+score = co-occurrence × 0.6   // Historique direct A→B
+      + communityBoost × 0.3  // Même cluster Louvain
+      + recencyBoost × 0.1    // Utilisé récemment
+      + pageRank × 0.1        // Importance globale
+```
+
+Use: Suggestions passives ("Vous pourriez aussi avoir besoin de...")
 
 ## Graph Updates
 
