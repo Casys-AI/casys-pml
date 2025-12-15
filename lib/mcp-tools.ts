@@ -24,11 +24,26 @@
  * @module lib/mcp-tools
  */
 
-import type { MCPClientBase, MCPTool } from "../src/mcp/types.ts";
+// ============================================================================
+// Types (standalone - no external dependencies)
+// ============================================================================
 
-// ============================================================================
-// Types
-// ============================================================================
+/** MCP Tool definition */
+export interface MCPTool {
+  name: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+}
+
+/** MCP Client interface */
+export interface MCPClientBase {
+  readonly serverId: string;
+  readonly serverName: string;
+  connect(): Promise<void>;
+  listTools(): Promise<MCPTool[]>;
+  callTool(name: string, args: Record<string, unknown>): Promise<unknown>;
+  disconnect(): Promise<void>;
+}
 
 export type ToolCategory =
   | "text"
