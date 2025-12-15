@@ -1758,16 +1758,20 @@ export class GraphRAGEngine {
       this.db.query("SELECT COUNT(*) as cnt FROM tool_dependency").then(r => Number(r[0]?.cnt) || 0).catch(() => 0),
     ]);
 
+    // ADR-048: Fetch local alpha stats from recent traces
+    const localAlphaStats = await this.getLocalAlphaStats(startDate);
+
     const current = {
       nodeCount: this.graph.order,
       edgeCount: this.graph.size,
       density: this.getDensity(),
-      adaptiveAlpha: this.getAdaptiveAlpha(),
+      adaptiveAlpha: this.getAdaptiveAlpha(), // @deprecated - kept for backward compatibility
       communitiesCount: this.getCommunitiesCount(),
       pagerankTop10: this.getTopPageRank(10),
       capabilitiesCount: capCount,
       embeddingsCount: embCount,
       dependenciesCount: depCount,
+      localAlpha: localAlphaStats, // ADR-048
     };
 
     // Fetch time series data
@@ -1788,6 +1792,68 @@ export class GraphRAGEngine {
       period,
       algorithm,
     };
+  }
+
+  /**
+   * Get local alpha statistics from recent traces (ADR-048)
+   *
+   * Queries algorithm_traces to compute:
+   * - Average alpha across all traces
+   * - Average alpha by mode (active_search vs passive_suggestion)
+   * - Algorithm distribution (which alpha algorithm was used)
+   * - Cold start percentage
+   *
+   * @param startDate - Start date for the query window
+   * @returns Local alpha statistics or undefined if no data
+   */
+  private async getLocalAlphaStats(startDate: Date): Promise<GraphMetricsResponse["current"]["localAlpha"]> {
+    const isoDate = startDate.toISOString();
+
+    try {
+      // Query alpha stats from algorithm_traces
+      const result = await this.db.query(`
+        SELECT
+          AVG((params->>'alpha')::float) as avg_alpha,
+          AVG((params->>'alpha')::float) FILTER (WHERE algorithm_mode = 'active_search') as avg_alpha_active,
+          AVG((params->>'alpha')::float) FILTER (WHERE algorithm_mode = 'passive_suggestion') as avg_alpha_passive,
+          COUNT(*) as total,
+          COUNT(*) FILTER (WHERE (signals->>'coldStart')::boolean = true) as cold_start_count,
+          COUNT(*) FILTER (WHERE signals->>'alphaAlgorithm' = 'embeddings_hybrides') as emb_hybrides,
+          COUNT(*) FILTER (WHERE signals->>'alphaAlgorithm' = 'heat_diffusion') as heat_diff,
+          COUNT(*) FILTER (WHERE signals->>'alphaAlgorithm' = 'heat_hierarchical') as heat_hier,
+          COUNT(*) FILTER (WHERE signals->>'alphaAlgorithm' = 'bayesian') as bayesian,
+          COUNT(*) FILTER (WHERE signals->>'alphaAlgorithm' = 'none' OR signals->>'alphaAlgorithm' IS NULL) as none_algo
+        FROM algorithm_traces
+        WHERE timestamp >= $1
+        AND params->>'alpha' IS NOT NULL
+      `, [isoDate]);
+
+      const row = result[0];
+      if (!row || Number(row.total) === 0) {
+        return undefined; // No data
+      }
+
+      const total = Number(row.total) || 1;
+
+      return {
+        avgAlpha: Number(row.avg_alpha) || 0.75,
+        byMode: {
+          activeSearch: Number(row.avg_alpha_active) || 0,
+          passiveSuggestion: Number(row.avg_alpha_passive) || 0,
+        },
+        algorithmDistribution: {
+          embeddingsHybrides: Number(row.emb_hybrides) || 0,
+          heatDiffusion: Number(row.heat_diff) || 0,
+          heatHierarchical: Number(row.heat_hier) || 0,
+          bayesian: Number(row.bayesian) || 0,
+          none: Number(row.none_algo) || 0,
+        },
+        coldStartPercentage: (Number(row.cold_start_count) / total) * 100,
+      };
+    } catch (error) {
+      log.error(`[getLocalAlphaStats] Failed: ${error}`);
+      return undefined;
+    }
   }
 
   /**
