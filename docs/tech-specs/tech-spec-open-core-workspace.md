@@ -68,6 +68,7 @@ Code "cloud" déjà implémenté dans le repo actuel :
 | `src/server/auth/oauth.ts` | ✅ Existe | Core (GitHub OAuth) |
 | `src/lib/api-key.ts` | ✅ Existe | Core |
 | `src/web/routes/api/user/*` | ✅ Existe | Core |
+| `src/mcp/smithery-client.ts` | 🚧 WIP | Cloud (`src/cloud/smithery/`) |
 
 ### Feature Separation
 
@@ -87,6 +88,7 @@ Code "cloud" déjà implémenté dans le repo actuel :
 | **Billing / Subscriptions** | ❌ | ✅ |
 | **Advanced Rate Limiting** | ❌ | ✅ |
 | **SSO Enterprise** | ❌ | ✅ |
+| **Smithery MCP Gateway** | ❌ | ✅ |
 
 ### Codebase Patterns
 
@@ -194,6 +196,9 @@ src/cloud/
 ├── analytics/      ← User tracking
 │   ├── events.ts
 │   └── metrics.ts
+├── smithery/       ← Smithery MCP Gateway (HTTP)
+│   ├── client.ts   ← (migré depuis src/mcp/smithery-client.ts)
+│   └── types.ts
 ├── billing/        ← Subscriptions (futur)
 └── enterprise/     ← SSO, etc. (futur)
 ```

@@ -15,7 +15,7 @@ import { withTimeout } from "../utils/timeout.ts";
 // SDK modules (lazy loaded)
 // deno-lint-ignore no-explicit-any
 let MCPClientClass: any;
-let StreamableHTTPClientTransportClass: new (url: URL) => unknown;
+let StreamableHTTPClientTransportClass: new (url: URL, options?: { requestInit?: RequestInit }) => unknown;
 let createSmitheryUrlFn: (serverUrl: string, options: { config: Record<string, unknown>; apiKey: string }) => URL;
 let sdkInitialized = false;
 
@@ -135,14 +135,37 @@ export class SmitheryMCPClient implements MCPClientBase {
       await initSDK();
 
       // Build Smithery URL with config and API key
-      // server.command contains the base URL (e.g., https://server.smithery.ai/@foo/bar)
-      const serverUrl = createSmitheryUrlFn(this.server.command, {
+      // server.url (new format) or server.command (legacy) contains the base URL
+      const baseUrl = this.server.url || this.server.command;
+      if (!baseUrl) {
+        throw new Error(`No URL or command specified for HTTP server ${this.server.id}`);
+      }
+
+      // Build headers from server config if present
+      const headers: Record<string, string> = this.server.headers
+        ? { ...this.server.headers }
+        : {};
+
+      // Normalize URL: createSmitheryUrl expects base URL WITHOUT /mcp suffix
+      // It adds /mcp + query params (config & api_key) automatically
+      // See: https://smithery.ai/docs/use/connect
+      let normalizedUrl = baseUrl;
+      if (normalizedUrl.endsWith("/mcp")) {
+        normalizedUrl = normalizedUrl.slice(0, -4); // Remove /mcp suffix
+      }
+
+      // Use SDK to build proper URL with config and auth
+      const serverUrl = createSmitheryUrlFn(normalizedUrl, {
         config: this.serverConfig,
         apiKey: this.apiKey,
       });
 
-      // Create HTTP Streamable transport
-      this.transport = new StreamableHTTPClientTransportClass(serverUrl);
+      log.debug(`Smithery URL for ${this.server.id}: ${serverUrl.toString()}`);
+
+      // Create HTTP Streamable transport with headers
+      this.transport = new StreamableHTTPClientTransportClass(serverUrl, {
+        requestInit: Object.keys(headers).length > 0 ? { headers } : undefined,
+      });
 
       // Create MCP client
       this.client = new MCPClientClass({

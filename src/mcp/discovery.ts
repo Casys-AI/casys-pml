@@ -70,6 +70,11 @@ export class MCPServerDiscovery {
 
   /**
    * Normalize various config formats to MCPConfig
+   *
+   * Supports:
+   * - Claude Code mcp.json format: { mcpServers: { "name": { command, args } } }
+   * - Smithery HTTP format: { mcpServers: { "name": { type: "http", url: "..." } } }
+   * - Casys PML format: { servers: [...] }
    */
   private normalizeConfig(raw: unknown): MCPConfig {
     // Handle Claude Code mcp.json format: { mcpServers: { "name": { command, args, ... } } }
@@ -88,13 +93,21 @@ export class MCPServerDiscovery {
       for (const [id, config] of Object.entries(mcpServers)) {
         if (typeof config === "object" && config !== null) {
           const cfg = config as Record<string, unknown>;
+
+          // Detect protocol from type field or presence of url
+          const configType = cfg.type as string | undefined;
+          const isHttp = configType === "http" || (cfg.url && !cfg.command);
+          const protocol = isHttp ? "http" : "stdio";
+
           servers.push({
             id,
             name: id,
-            command: String(cfg.command || ""),
+            command: cfg.command ? String(cfg.command) : undefined,
             args: Array.isArray(cfg.args) ? cfg.args.map(String) : undefined,
             env: typeof cfg.env === "object" ? cfg.env as Record<string, string> : undefined,
-            protocol: String(cfg.protocol || "stdio") as "stdio" | "http",
+            protocol: protocol as "stdio" | "http",
+            url: cfg.url ? String(cfg.url) : undefined,
+            headers: typeof cfg.headers === "object" ? cfg.headers as Record<string, string> : undefined,
           });
         }
       }
@@ -133,10 +146,26 @@ export class MCPServerDiscovery {
     }
 
     for (const server of config.servers) {
-      if (!server.id || !server.name || !server.command) {
+      if (!server.id || !server.name) {
         throw new Error(
-          `Invalid server config: missing id, name, or command`,
+          `Invalid server config: missing id or name`,
         );
+      }
+
+      // Validate based on protocol
+      if (server.protocol === "http") {
+        if (!server.url) {
+          throw new Error(
+            `Invalid HTTP server config for ${server.id}: missing url`,
+          );
+        }
+      } else {
+        // stdio protocol requires command
+        if (!server.command) {
+          throw new Error(
+            `Invalid stdio server config for ${server.id}: missing command`,
+          );
+        }
       }
 
       if (server.protocol && !["stdio", "http"].includes(server.protocol)) {

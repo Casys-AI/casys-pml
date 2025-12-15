@@ -6,14 +6,23 @@
 
 /**
  * MCP Server configuration
+ *
+ * Supports two modes:
+ * - stdio: Local process with command/args
+ * - http: Remote server with URL (Smithery format)
  */
 export interface MCPServer {
   id: string;
   name: string;
-  command: string;
+  /** Command for stdio servers */
+  command?: string;
   args?: string[];
   env?: Record<string, string>;
   protocol: "stdio" | "http";
+  /** URL for HTTP servers (Smithery format) */
+  url?: string;
+  /** HTTP headers for authentication */
+  headers?: Record<string, string>;
 }
 
 /**
@@ -162,5 +171,15 @@ export interface CodeExecutionResponse {
     semantic_score: number;
     success_rate: number;
     usage_count: number;
+  }>;
+
+  /**
+   * Tool failures during execution (ADR-043)
+   * Surfaced even when code "succeeds" due to try/catch handling
+   * Helps agent understand partial execution failures
+   */
+  tool_failures?: Array<{
+    tool: string;
+    error: string;
   }>;
 }
