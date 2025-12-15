@@ -71,14 +71,19 @@ Index des décisions d'architecture du projet Casys PML.
 | 039  | [Algorithm Observability & Adaptive Weights](./ADR-039-algorithm-observability-tracking.md) | proposed   | not_started    | Observabilité des algos & préparation des poids |
 | 040  | [Multi-tenant MCP & Secrets](./ADR-040-multi-tenant-mcp-secrets-management.md)              | accepted   | not_started    | Gestion secrets multi-tenant cloud              |
 | 041  | [Hierarchical Trace Tracking](./ADR-041-hierarchical-trace-tracking.md)                     | accepted   | done           | parent_trace_id pour hiérarchie traces          |
+| 042  | [Capability Hyperedges](./ADR-042-capability-hyperedges.md)                                 | accepted   | done           | Hyperedges pour capabilities dans le graph      |
+| 043  | [All Tools Must Succeed](./ADR-043-all-tools-must-succeed-capability-save.md)              | accepted   | done           | Condition de sauvegarde capabilities            |
+| 044  | [JSON-RPC Multiplexer MCP Client](./ADR-044-json-rpc-multiplexer-mcp-client.md)            | accepted   | done           | Pattern multiplexer pour requêtes MCP parallèles|
+| 045  | [Capability-to-Capability Dependencies](./ADR-045-capability-to-capability-dependencies.md)| accepted   | done           | Table dédiée + edge type `alternative`          |
+| 046  | [Fresh BFF Pattern](./ADR-046-fresh-bff-pattern.md)                                         | accepted   | not_started    | Pattern BFF: Fresh → Gateway pour DB            |
 
 ---
 
 ## By Status
 
-### Accepted (30)
+### Accepted (35)
 
-ADR-001, 002, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 020, 020b, 021, 021b, 022, 023, 024, 025, 026, 028, 030, 032, 036, 038, 040, 041
+ADR-001, 002, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 020, 020b, 021, 021b, 022, 023, 024, 025, 026, 028, 030, 032, 036, 038, 040, 041, 042, 043, 044, 045, 046
 
 ### Draft (3)
 
@@ -102,9 +107,9 @@ ADR-033, ADR-034, ADR-035, ADR-039
 
 ## By Implementation Status
 
-### Done (27)
+### Done (31)
 
-ADR-001, 002, 003, 004, 005, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 018, 019, 020, 020b, 021, 021b, 022, 023, 024, 025, 026, 030, 036, 041
+ADR-001, 002, 003, 004, 005, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 018, 019, 020, 020b, 021, 021b, 022, 023, 024, 025, 026, 030, 036, 041, 042, 043, 044, 045
 
 ### In Progress (2)
 
@@ -114,9 +119,9 @@ ADR-028, ADR-032
 
 ADR-006, ADR-017, ADR-038
 
-### Not Started (9)
+### Not Started (10)
 
-ADR-027, 029, 031, 033, 034, 035, 037, 039, 040
+ADR-027, 029, 031, 033, 034, 035, 037, 039, 040, 046
 
 ---
 
@@ -125,4 +130,4 @@ ADR-027, 029, 031, 033, 034, 035, 037, 039, 040
 - **ADRs 001-006** : ADRs fondamentaux dans [architecture-decision-records-adrs.md](../architecture/architecture-decision-records-adrs.md)
 - **Numérotation dupliquée** : ADR-020 et ADR-021 ont des doublons (020b, 021b) - à renommer
 - Pour changer un status, éditer ce fichier ET ajouter frontmatter YAML dans l'ADR
-- **Couverture implémentation** : 27/41 (66%) done, 32/41 (78%) avec travail commencé ou terminé
+- **Couverture implémentation** : 31/46 (67%) done, 36/46 (78%) avec travail commencé ou terminé
