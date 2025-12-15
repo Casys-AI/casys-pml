@@ -63,13 +63,14 @@ development_status:
   2-8-cleanup-old-notebooks: done                          # Cleanup completed 2025-12-15
   epic-2-retrospective: done                               # Retrospective completed 2025-12-15
 
-  # Epic 3: Connexion au Vrai Système ⬜ BACKLOG
+  # Epic 3: Connexion au Vrai Système 🟡 IN PROGRESS
   # Created 2025-12-15: Issue discovered during Epic 2 retrospective
   # Notebooks use simulations instead of real system code
-  epic-3: backlog
-  3-1-helper-capabilities: backlog                         # lib/capabilities.ts - expose real system
-  3-2-notebook-04-real-workerbridge: backlog               # Replace SimulatedWorkerBridge
-  3-3-notebook-05-real-capabilitystore: backlog            # Replace SimulatedCapabilityStore
-  3-4-notebook-06-real-matcher-thresholds: backlog         # Replace all Simulated* classes
-  3-5-integration-tests-notebooks: backlog                 # test-notebooks.ts script
+  # Stories drafted 2025-12-15 with comprehensive dev context
+  epic-3: in-progress
+  3-1-helper-capabilities: ready-for-dev                   # lib/capabilities.ts - expose real system
+  3-2-notebook-04-real-workerbridge: ready-for-dev         # Replace SimulatedWorkerBridge
+  3-3-notebook-05-real-capabilitystore: ready-for-dev      # Replace SimulatedCapabilityStore
+  3-4-notebook-06-real-matcher-thresholds: ready-for-dev   # Replace all Simulated* classes
+  3-5-integration-tests-notebooks: ready-for-dev           # test-notebooks.ts script
   epic-3-retrospective: optional
