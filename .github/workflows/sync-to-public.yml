@@ -30,11 +30,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup SSH for public repo
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.PUBLIC_REPO_DEPLOY_KEY }}
-
       - name: Configure Git
         run: |
           git config --global user.name "GitHub Action"
@@ -42,7 +37,7 @@ jobs:
 
       - name: Clone public repo
         run: |
-          git clone git@github.com:Casys-AI/casys-pml.git public-repo
+          git clone https://x-access-token:${{ secrets.PUBLIC_REPO_PAT }}@github.com/Casys-AI/casys-pml.git public-repo
           cd public-repo
           git checkout main || git checkout -b main
 
