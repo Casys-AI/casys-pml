@@ -1,0 +1,75 @@
+# Sprint Status - Casys MCP Gateway Playground
+# This tracks development progress through Phase 4 implementation
+
+# generated: 2025-12-01
+# project: Casys-MCP-Gateway-Playground
+# project_key: Casys-MCP-Gateway-Playground
+# tracking_system: file-system
+# story_location: {project-root}/docs/stories
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic exists in epic file but not contexted
+#   - contexted: Next epic tech context created by *epic-tech-context (required)
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - drafted: Story file created in stories folder by *create-story
+#   - ready-for-dev: Draft approved and story context created by *story-ready
+#   - in-progress: Developer actively working on implementation by *dev-story
+#   - review: Implementation complete, ready for review by *code-review
+#   - done: Story completed by *story-done
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - completed: Retrospective has been done by *retrospective
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epics should be 'contexted' before stories can be 'drafted'
+# - SM typically drafts next story ONLY after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', dev reviews, then Dev moves to 'done'
+
+generated: 2025-12-01
+project: Casys-MCP-Gateway-Playground
+project_key: Casys-MCP-Gateway-Playground
+tracking_system: file-system
+story_location: "{project-root}/docs/stories"
+
+development_status:
+  # Epic 1: Infrastructure Playground ✅ COMPLETE
+  epic-1: done
+  1-1-devcontainer-configuration: done
+  1-2-mcp-servers-configuration: done
+  1-3-workflow-templates-configuration: done
+  1-4-llm-api-key-setup-script: done
+  1-5-idempotent-init-helper: done
+  1-6-mermaid-rendering-helper: done
+  1-7-metrics-visualization-helper: done
+  1-8-playground-readme: done
+  epic-1-retrospective: optional
+
+  # Epic 2: Notebooks Pédagogiques ✅ COMPLETE
+  # Updated per Sprint Change Proposal 2025-12-06 (align with Epic 7 capabilities)
+  epic-2: done
+  2-1-notebook-00-introduction: done
+  2-2-notebook-01-the-problem: done
+  2-3-notebook-02-context-optimization: done
+  2-4-notebook-03-dag-execution: done
+  2-5-notebook-04-code-execution-worker-rpc: done       # Code review passed 2025-12-15
+  2-6-notebook-05-capability-learning: done                  # Code review passed 2025-12-15
+  2-7-notebook-06-emergent-reuse: done                     # Code review passed 2025-12-15
+  2-8-cleanup-old-notebooks: done                          # Cleanup completed 2025-12-15
+  epic-2-retrospective: done                               # Retrospective completed 2025-12-15
+
+  # Epic 3: Connexion au Vrai Système ⬜ BACKLOG
+  # Created 2025-12-15: Issue discovered during Epic 2 retrospective
+  # Notebooks use simulations instead of real system code
+  epic-3: backlog
+  3-1-helper-capabilities: backlog                         # lib/capabilities.ts - expose real system
+  3-2-notebook-04-real-workerbridge: backlog               # Replace SimulatedWorkerBridge
+  3-3-notebook-05-real-capabilitystore: backlog            # Replace SimulatedCapabilityStore
+  3-4-notebook-06-real-matcher-thresholds: backlog         # Replace all Simulated* classes
+  3-5-integration-tests-notebooks: backlog                 # test-notebooks.ts script
+  epic-3-retrospective: optional
