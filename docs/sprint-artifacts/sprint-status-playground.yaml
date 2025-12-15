@@ -54,9 +54,9 @@ development_status:
   # Updated per Sprint Change Proposal 2025-12-06 (align with Epic 7 capabilities)
   epic-2: contexted
   2-1-notebook-00-introduction: done
-  2-2-notebook-01-the-problem: ready-for-dev
-  2-3-notebook-02-context-optimization: backlog
-  2-4-notebook-03-dag-execution: backlog
+  2-2-notebook-01-the-problem: done
+  2-3-notebook-02-context-optimization: done
+  2-4-notebook-03-dag-execution: done
   2-5-notebook-04-code-execution-worker-rpc: backlog    # was: sandbox-security
   2-6-notebook-05-capability-learning: backlog           # was: graphrag-learning
   2-7-notebook-06-emergent-reuse: backlog                # was: workflow-templates

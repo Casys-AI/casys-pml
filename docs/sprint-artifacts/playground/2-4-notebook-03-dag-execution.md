@@ -1,6 +1,6 @@
 # Story 2.4: Notebook 03 - DAG Execution
 
-Status: Ready for Review
+Status: Done
 
 ## Story
 
@@ -340,3 +340,4 @@ N/A - No issues encountered during implementation.
 |------|--------|--------|
 | 2025-12-15 | Story created with comprehensive dev context for DAG execution notebook | Claude Opus 4.5 |
 | 2025-12-15 | Implemented complete notebook with DAG concepts, live demo, 3 interactive workflows, and checkpoint quiz | Claude Opus 4.5 |
+| 2025-12-15 | Code review: Fixed Kroki 400 error (end→merge), added topologicalSort to lib/viz.ts, updated notebook 04 link | Claude Opus 4.5 |
