@@ -86,12 +86,12 @@ Scenario 2: One tool fails
   → Capability NOT SAVED (incoherent)
 ```
 
-**Pourquoi cette regle ?** Sans elle, le code sauvegarde contiendrait 3 appels tools, mais `tools_used` n'en listerait qu'un. Le graphe serait incoherent et les suggestions fausses.
+**Why this rule?** Without it, the saved code would contain 3 tool calls, but `tools_used` would only list 1. The graph would be incoherent and suggestions would be wrong.
 
-Quand des tools echouent, PML :
-- Log les echecs pour debugging
-- Retourne `tool_failures` dans la reponse
-- N'enregistre pas de capability incomplete
+When tools fail, PML:
+- Logs failures for debugging
+- Returns `tool_failures` in the response
+- Does not save incomplete capabilities
 
 Every successful execution is captured:
 

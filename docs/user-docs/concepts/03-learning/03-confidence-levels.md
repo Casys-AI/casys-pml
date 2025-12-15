@@ -174,49 +174,49 @@ Unused patterns lose confidence over time:
 
 ## Cold Start Behavior
 
-Quand PML demarre avec peu de donnees, les poids de confiance s'adaptent automatiquement.
+When PML starts with little data, confidence weights adapt automatically.
 
-### Pourquoi c'est important ?
+### Why This Matters
 
-En "cold start" (graphe vide ou presque), l'algorithme PageRank n'a rien a calculer. Si les poids restaient fixes, les suggestions seraient trop faibles pour etre utiles.
+In "cold start" (empty or sparse graph), PageRank has nothing to compute. With fixed weights, suggestions would be too weak to be useful.
 
-### Adaptation automatique
+### Adaptive Weights
 
-| Densite du graphe | Phase | Hybrid Search | PageRank | Path |
-|-------------------|-------|---------------|----------|------|
+| Graph Density | Phase | Hybrid Search | PageRank | Path |
+|---------------|-------|---------------|----------|------|
 | < 1% | Cold start | **85%** | 5% | 10% |
 | < 10% | Growing | **65%** | 20% | 15% |
 | >= 10% | Mature | **55%** | 30% | 15% |
 
-**En cold start :**
-- PML fait confiance principalement a la **recherche semantique** (85%)
-- Les algorithmes de graphe (PageRank, chemins) ont peu de poids
-- Les suggestions sont possibles des la premiere utilisation
+**In cold start:**
+- PML relies primarily on **semantic search** (85%)
+- Graph algorithms (PageRank, paths) have minimal weight
+- Suggestions work from the very first use
 
-**Avec un graphe mature :**
-- Les algorithmes de graphe prennent plus de poids (30% + 15%)
-- Les patterns appris influencent davantage les suggestions
-- L'equilibre semantique/graphe optimise la pertinence
+**With a mature graph:**
+- Graph algorithms gain more weight (30% + 15%)
+- Learned patterns influence suggestions more
+- Semantic/graph balance optimizes relevance
 
-### Exemple concret
+### Example
 
 ```
-Nouveau projet (density ~0%):
+New project (density ~0%):
   Intent: "Read config file"
   Semantic score: 0.72
-  PageRank: 0 (pas de donnees)
+  PageRank: 0 (no data)
 
   Confidence (cold start weights):
-    0.72 × 0.85 + 0 × 0.05 + 0.5 × 0.10 = 0.66 ✓ Suggestion possible
+    0.72 × 0.85 + 0 × 0.05 + 0.5 × 0.10 = 0.66 ✓ Suggestion works
 
-Projet mature (density 15%):
+Mature project (density 15%):
   Intent: "Read config file"
   Semantic score: 0.72
-  PageRank: 0.4 (outil populaire)
-  Path strength: 0.6 (souvent suivi de parse_json)
+  PageRank: 0.4 (popular tool)
+  Path strength: 0.6 (often followed by parse_json)
 
   Confidence (mature weights):
-    0.72 × 0.55 + 0.4 × 0.30 + 0.6 × 0.15 = 0.61 ✓ Suggestion enrichie
+    0.72 × 0.55 + 0.4 × 0.30 + 0.6 × 0.15 = 0.61 ✓ Enriched suggestion
 ```
 
 ## Next

@@ -153,31 +153,46 @@ Edges show relationships between nodes:
 | **Edge opacity** | Confidence level |
 | **Animation** | Recent activity |
 
-### Edge Colors by Type
+### Current Implementation
 
-Les edges sont colores selon leur type de relation :
+The visualization uses two main structures:
 
-| Type | Couleur | Signification |
-|------|---------|---------------|
-| `contains` | **Vert** (#22c55e) | Parent-child (capability contient tool) |
-| `sequence` | **Orange** (#FFB86F) | Ordre temporel entre siblings |
-| `dependency` | **Blanc** (#f5f0ea) | Dependance explicite du DAG |
-| `alternative` | **Bleu** (#60a5fa) | Outils interchangeables |
+**Compound Nodes (Contains)**
+Capabilities are rendered as compound nodes that visually contain their tools. This shows the "contains" relationship without explicit edges.
+
+```
+╔═══════════════════════════════════════╗
+║  Capability: file_to_issue            ║
+║  ┌──────────┐  ┌──────────┐          ║
+║  │read_file │  │create_   │          ║
+║  └──────────┘  │issue     │          ║
+║                └──────────┘          ║
+╚═══════════════════════════════════════╝
+```
+
+**Sequence Edges**
+Edges between tools show temporal sequences (tool A followed by tool B):
+
+| Visual | Meaning |
+|--------|---------|
+| **Thickness** | Frequency (thicker = more observed) |
+| **Opacity** | Confidence level |
+| **Direction** | Arrow shows execution order |
 
 ### Edge Styles by Source
 
-Le style de ligne indique la fiabilite :
+Line style indicates how the relationship was learned:
 
-| Source | Style | Opacite | Signification |
-|--------|-------|---------|---------------|
-| `observed` | Trait plein | 90% | Confirme 3+ fois |
-| `inferred` | Pointilles | 60% | Observe 1-2 fois |
-| `template` | Points | 40% | Defini manuellement |
+| Source | Style | Opacity | Meaning |
+|--------|-------|---------|---------|
+| `observed` | Solid | 90% | Confirmed 3+ times |
+| `inferred` | Dashed | 60% | Observed 1-2 times |
+| `template` | Dotted | 40% | User-defined, not yet validated |
 
-**Lecture rapide du graphe :**
-- Ligne verte pleine = relation parent-enfant confirmee (fiable)
-- Ligne orange pointillee = sequence observee quelques fois (prometteuse)
-- Ligne blanche en points = dependance definie mais pas encore validee
+**Quick reading guide:**
+- Solid thick line = frequently observed sequence (reliable)
+- Dashed line = sequence seen a few times (promising)
+- Dotted line = defined but not yet validated in practice
 
 ## Capability Zones
 
