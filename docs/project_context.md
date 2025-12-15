@@ -1,9 +1,10 @@
 ---
 project_name: 'Casys PML'
 user_name: 'Erwan'
-date: '2025-12-10'
-sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'code_quality', 'workflow_rules', 'critical_rules']
+date: '2025-12-15'
+sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'code_quality', 'workflow_rules', 'critical_rules', 'hypergraph_algorithms']
 status: complete
+last_scan: 'exhaustive'
 ---
 
 # Project Context for AI Agents
@@ -33,9 +34,25 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **Architecture Open Core** — Version cloud en préparation (multi-tenant ready)
 
 ### MCP & Graphes
-- **@modelcontextprotocol/sdk ^1.0.4** — Protocole MCP
+- **@modelcontextprotocol/sdk ^1.15.1** — Protocole MCP (Anthropic)
+- **@smithery/sdk ^2.1.0** — Registry MCP servers
 - **Graphology ^0.25.4** — Structure de graphe
-- **graphology-metrics, shortest-path, louvain** — Algorithmes de graphe
+- **ml-matrix ^6.11.1** — Opérations matricielles (eigendecomposition)
+
+### Hypergraph Algorithms (Custom Implementation)
+- **Spectral Clustering** — `src/graphrag/spectral-clustering.ts` — Clustering biparti tools↔capabilities
+- **Hypergraph PageRank** — Ranking d'importance des capabilities (hyperedges)
+- **PageRank** — `src/graphrag/graph-engine.ts` — Centralité des nœuds
+- **Adamic-Adar** — Similarité via voisins communs
+- **K-means++** — Clustering sur vecteurs propres
+- **Eigengap Heuristic** — Auto-détection nombre optimal de clusters
+- **Dijkstra** — via graphology-shortest-path
+- **Louvain** — via graphology-communities-louvain
+
+### Compilation & Communication
+- **SWC** — via Deno, compilation TS + parsing AST (remplace ts-morph)
+- **Broadcast Channel** — Communication inter-workers (sandbox ↔ main)
+- **SSE** — Server-Sent Events pour dashboard temps réel
 
 ### CLI & Utils
 - **@cliffy/command 1.0.0-rc.8** — CLI framework

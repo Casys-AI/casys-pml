@@ -1,0 +1,30 @@
+{
+  "workflow_version": "1.2.0",
+  "timestamps": {
+    "started": "2025-12-15T10:30:00Z",
+    "last_updated": "2025-12-15T14:30:00Z",
+    "completed": "2025-12-15T14:30:00Z"
+  },
+  "mode": "full_rescan",
+  "scan_level": "exhaustive",
+  "project_root": "/home/ubuntu/CascadeProjects/AgentCards",
+  "output_folder": "/home/ubuntu/CascadeProjects/AgentCards/docs",
+  "completed_steps": [
+    {"step": "step_1", "status": "completed", "summary": "Classified as monolith (backend+web+library+cli), 19 modules"},
+    {"step": "step_2", "status": "completed", "summary": "Found 100+ existing docs: PRD, epics, 15 architecture files, 46 ADRs"},
+    {"step": "step_3", "status": "completed", "summary": "Tech stack: Deno 2.x, Fresh+Preact, PGlite+KV, Hypergraph algorithms"},
+    {"step": "step_4", "status": "completed", "summary": "8 MCP tools, 16 DB migrations, 10 islands, 28 components, BFF"},
+    {"step": "step_5", "status": "completed", "summary": "Generated annotated source tree with 19 src modules"},
+    {"step": "step_6", "status": "completed", "summary": "Dev tasks, env vars, systemd deployment, monitoring stack"},
+    {"step": "step_7", "status": "completed", "summary": "Internal integration map: BFF, MCP, SSE, Broadcast Channel"},
+    {"step": "step_8", "status": "completed", "summary": "Generated project-overview.md"},
+    {"step": "step_9", "status": "completed", "summary": "Generated procedural-memory-architecture.md - Learning system documentation"}
+  ],
+  "current_step": "completed",
+  "outputs_generated": [
+    "project-scan-report.json",
+    "project-overview.md",
+    "user-docs/procedural-memory-architecture.md"
+  ],
+  "resume_instructions": "Workflow complete"
+}
