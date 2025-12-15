@@ -1,10 +1,8 @@
-# Casys PML User Guide
+# PML User Guide
 
 ## Overview
 
-Casys PML is an intelligent MCP gateway designed for coding agents (Claude Code, Cursor,
-etc.). It acts as a single entry point to all your MCP servers, optimizing LLM context usage
-and parallelizing workflow execution.
+PML (Procedural Memory Layer) is an intelligent MCP gateway designed for coding agents (Claude Code, Cursor, etc.). It acts as a single entry point to all your MCP servers, optimizing LLM context usage and parallelizing workflow execution.
 
 **Key benefits:**
 
@@ -36,7 +34,7 @@ Find relevant tools by natural intent, not by exact name.
 **How to use:**
 
 1. Describe what you want to accomplish in natural language
-2. Casys PML uses embeddings (BGE-Large-EN-v1.5) to find similar tools
+2. PML uses embeddings (BGE-Large-EN-v1.5) to find similar tools
 3. GraphRAG boosts tools frequently used together
 
 **Example:**
@@ -72,9 +70,9 @@ Orchestrate multi-tool workflows with automatic parallelization.
 
 **How to use:**
 
-1. **Intent mode:** Describe your goal, Casys PML suggests the optimal DAG
+1. **Intent mode:** Describe your goal, PML suggests the optimal DAG
 2. **Explicit mode:** Define the workflow structure yourself
-3. Casys PML detects dependencies and parallelizes independent tasks
+3. PML detects dependencies and parallelizes independent tasks
 
 **Example - Intent Mode:**
 
@@ -83,7 +81,7 @@ await callTool("pml:execute_dag", {
   intent: "Read the 3 files config.json, package.json, README.md and summarize their content",
 });
 
-// Casys PML:
+// PML:
 // 1. Identifies the 3 reads as independent
 // 2. Executes them in parallel (Promise.all)
 // 3. Aggregates results
@@ -231,10 +229,10 @@ await callTool("pml:approval_response", {
 
 | Variable                       | Description                                      |
 | ------------------------------ | ------------------------------------------------ |
-| `CAI_DB_PATH`           | Custom path for PGlite database                  |
-| `CAI_WORKFLOW_PATH`     | Path to workflow templates                       |
-| `CAI_NO_PII_PROTECTION` | `1` to disable PII protection                    |
-| `CAI_NO_CACHE`          | `1` to disable cache                             |
+| `PML_DB_PATH`           | Custom path for PGlite database                  |
+| `PML_WORKFLOW_PATH`     | Path to workflow templates                       |
+| `PML_NO_PII_PROTECTION` | `1` to disable PII protection                    |
+| `PML_NO_CACHE`          | `1` to disable cache                             |
 | `SENTRY_DSN`                   | Sentry DSN for error tracking (optional)         |
 | `LOG_LEVEL`                    | Log level: `debug`, `info`, `warn`, `error`      |
 
@@ -374,7 +372,7 @@ await callTool("pml:execute_dag", {
 
 ## Observability
 
-Casys PML offers several monitoring options:
+PML offers several monitoring options:
 
 | Tool                 | stdio | Streamable HTTP | Description                          |
 | -------------------- | :---: | :-------------: | ------------------------------------ |
@@ -397,8 +395,8 @@ open http://localhost:3000  # admin/admin
 
 **Aggregated logs:**
 
-- `~/.cai/logs/cai.log` (structured JSON)
-- LogQL queries: `{job="cai"}`, `{job="cai", level="ERROR"}`
+- `~/.pml/logs/pml.log` (structured JSON)
+- LogQL queries: `{job="pml"}`, `{job="pml", level="ERROR"}`
 
 ### Sentry (Error Tracking)
 
@@ -414,12 +412,12 @@ SENTRY_ENVIRONMENT=production
 
 ## Transport Modes
 
-Casys PML supports two MCP transport modes:
+PML supports two MCP transport modes:
 
 | Mode                | Command                                     | Dashboard | Use Case                            |
 | ------------------- | ------------------------------------------- | --------- | ----------------------------------- |
-| **stdio**           | `cai serve --config ...`             | No        | Claude Code, direct integration     |
-| **Streamable HTTP** | `cai serve --config ... --port 3001` | Yes       | Development, debugging, dashboard   |
+| **stdio**           | `pml serve --config ...`             | No        | Claude Code, direct integration     |
+| **Streamable HTTP** | `pml serve --config ... --port 3001` | Yes       | Development, debugging, dashboard   |
 
 **stdio (default):**
 
@@ -452,11 +450,7 @@ Casys PML supports two MCP transport modes:
 
 ## See Also
 
-- [Getting Started](./getting-started.md) - Installation and first workflow
-- [API Reference](./api-reference.md) - Technical MCP tools documentation
-- [FAQ](./faq.md) - Frequently asked questions
-- [Troubleshooting](./troubleshooting.md) - Problem resolution
-
----
-
-_Generated on 2025-12-03 by BMAD user-docs workflow_
+- [Installation](../getting-started/01-installation.md) - Installation and setup
+- [Quickstart](../getting-started/02-quickstart.md) - Your first workflow
+- [Concepts](../concepts/index.md) - Deep dive into PML architecture
+- [MCP Tools Reference](../reference/01-mcp-tools.md) - Technical API documentation

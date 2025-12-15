@@ -1,11 +1,10 @@
-# Getting Started with Casys PML
+# Installation
 
 > **Estimated time:** ~10 minutes
 
-## What is Casys PML?
+## What is PML?
 
-Casys PML is an intelligent MCP gateway that consolidates all your MCP servers into a single
-entry point with semantic search, DAG workflow orchestration, and self-improving tool discovery.
+PML (Procedural Memory Layer) is an intelligent MCP gateway that consolidates all your MCP servers into a single entry point with semantic search, DAG workflow orchestration, and self-improving tool discovery.
 
 **Problems solved:**
 
@@ -50,29 +49,29 @@ deno task build
 You should see:
 
 ```
-Compile file:///.../src/main.ts to cai
+Compile file:///.../src/main.ts to pml
 ```
 
 ### Step 3: Verify installation
 
 ```bash
-./cai --help
+./pml --help
 ```
 
 Expected output:
 
 ```
-Usage: cai [options] [command]
+Usage: pml [options] [command]
 
 Commands:
-  init    Initialize Casys PML from MCP config
-  serve   Start Casys PML MCP gateway server
+  init    Initialize PML from MCP config
+  serve   Start PML MCP gateway server
   status  Show gateway status and health
 ```
 
 ## Tutorial: Your First Workflow with Claude Code
 
-Let's configure Casys PML as an MCP gateway for Claude Code in a few steps.
+Let's configure PML as an MCP gateway for Claude Code in a few steps.
 
 ### 1. Prepare your MCP configuration
 
@@ -97,12 +96,12 @@ EOF
 ```
 
 > **Tip:** You can also migrate your existing Claude Desktop config with
-> `./cai init --config ~/.config/Claude/claude_desktop_config.json`
+> `./pml init --config ~/.config/Claude/claude_desktop_config.json`
 
-### 2. Initialize Casys PML
+### 2. Initialize PML
 
 ```bash
-./cai init --config config/mcp-servers.json
+./pml init --config config/mcp-servers.json
 ```
 
 This command:
@@ -110,23 +109,23 @@ This command:
 - Discovers all your configured MCP servers
 - Extracts tool schemas via MCP protocol
 - Generates embeddings for semantic search
-- Stores everything in a local PGlite database (`~/.cai/db`)
+- Stores everything in a local PGlite database (`~/.pml/db`)
 
 Expected output:
 
 ```
-🚀 Initializing Casys PML...
+🚀 Initializing PML...
 ✓ Found 2 MCP server(s)
 ✓ Extracted 15 tool schemas
 ✓ Generated embeddings (BGE-Large-EN-v1.5)
-✓ Stored in ~/.cai/db
+✓ Stored in ~/.pml/db
 
-Casys PML is ready!
+PML is ready!
 ```
 
 ### 3. Configure Claude Code
 
-Add Casys PML to your Claude Code MCP configuration:
+Add PML to your Claude Code MCP configuration:
 
 **Linux/macOS:** `~/.config/Claude/claude_desktop_config.json` **Windows:**
 `%APPDATA%\Claude\claude_desktop_config.json`
@@ -134,8 +133,8 @@ Add Casys PML to your Claude Code MCP configuration:
 ```json
 {
   "mcpServers": {
-    "cai": {
-      "command": "/absolute/path/to/cai",
+    "pml": {
+      "command": "/absolute/path/to/pml",
       "args": ["serve", "--config", "/absolute/path/to/config/mcp-servers.json"]
     }
   }
@@ -153,13 +152,13 @@ To test manually:
 **stdio mode (default - recommended for Claude Code):**
 
 ```bash
-./cai serve --config config/mcp-servers.json
+./pml serve --config config/mcp-servers.json
 ```
 
 **HTTP mode (with Fresh dashboard):**
 
 ```bash
-./cai serve --config config/mcp-servers.json --port 3001
+./pml serve --config config/mcp-servers.json --port 3001
 ```
 
 > **Note:** The Fresh dashboard (`deno task dev:fresh`) requires HTTP mode (`--port`). In stdio
@@ -168,7 +167,7 @@ To test manually:
 You should see:
 
 ```
-🚀 Starting Casys PML MCP Gateway...
+🚀 Starting PML MCP Gateway...
 
 Step 1/6: Loading configuration...
 ✓ Found MCP config: config/mcp-servers.json
@@ -180,10 +179,10 @@ Step 4/6: Loading AI models...
 Step 5/6: Starting MCP gateway...
 Step 6/6: Listening for MCP requests...
 
-Casys PML gateway running on port 3001
+PML gateway running on port 3001
 ```
 
-**Congratulations!** You have configured Casys PML as an intelligent MCP gateway.
+**Congratulations!** You have configured PML as an intelligent MCP gateway.
 
 ## First Steps with Meta-Tools
 
@@ -209,7 +208,7 @@ Use pml:execute_code to filter and aggregate data locally
 
 ## Monitoring (optional)
 
-Casys PML includes a Grafana/Loki/Promtail stack for log monitoring:
+PML includes a Grafana/Loki/Promtail stack for log monitoring:
 
 ```bash
 # Start the monitoring stack
@@ -220,7 +219,7 @@ open http://localhost:3000
 ```
 
 > **Note:** Monitoring works in both stdio AND Streamable HTTP modes because Promtail reads log
-> files (`~/.cai/logs/`).
+> files (`~/.pml/logs/`).
 
 ---
 
@@ -228,14 +227,6 @@ open http://localhost:3000
 
 Now that you're up and running:
 
-- **[User Guide](./user-guide.md)** - Discover all features
-- **[API Reference](./api-reference.md)** - Technical MCP tools documentation
-
-## Need Help?
-
-- **GitHub Issues:** [casys-ai/casys-pml/issues](https://github.com/casys-ai/casys-pml/issues)
-- **Documentation:** [docs/](https://github.com/casys-ai/casys-pml/tree/main/docs)
-
----
-
-_Generated on 2025-12-03 by BMAD user-docs workflow_
+- **[Quickstart](./02-quickstart.md)** - Your first workflow in 5 minutes
+- **[Concepts](../concepts/index.md)** - Understand how PML works
+- **[MCP Tools Reference](../reference/01-mcp-tools.md)** - Technical API documentation

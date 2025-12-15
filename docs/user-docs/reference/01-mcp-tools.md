@@ -1,9 +1,8 @@
-# Casys PML API Reference
+# MCP Tools Reference
 
 ## Overview
 
-Casys PML exposes its features via the MCP (Model Context Protocol). This reference
-documents all available tools.
+PML (Procedural Memory Layer) exposes its features via the MCP (Model Context Protocol). This reference documents all available tools.
 
 **Version:** 1.0.0
 
@@ -11,8 +10,8 @@ documents all available tools.
 
 | Transport           | Command                                     | Features                                |
 | ------------------- | ------------------------------------------- | --------------------------------------- |
-| **stdio**           | `cai serve --config ...`             | MCP protocol, console logs              |
-| **Streamable HTTP** | `cai serve --config ... --port 3001` | MCP on `/mcp` + Dashboard + Events SSE  |
+| **stdio**           | `pml serve --config ...`             | MCP protocol, console logs              |
+| **Streamable HTTP** | `pml serve --config ... --port 3001` | MCP on `/mcp` + Dashboard + Events SSE  |
 
 > **Note:** stdio mode is recommended for Claude Code. Streamable HTTP mode (MCP spec
 > 2025-03-26) enables the Fresh dashboard and real-time events.
@@ -21,11 +20,11 @@ documents all available tools.
 
 ## Tool Architecture
 
-Casys PML exposes two types of tools:
+PML exposes two types of tools:
 
 | Type               | Pattern             | Description                                                  |
 | ------------------ | ------------------- | ------------------------------------------------------------ |
-| **Meta-tools**     | `pml:*`      | Casys PML intelligent tools (search, DAG, sandbox)         |
+| **Meta-tools**     | `pml:*`      | PML intelligent tools (search, capabilities, DAG, sandbox) |
 | **Proxied tools**  | `serverId:toolName` | Tools from underlying MCP servers (filesystem, github...)    |
 
 > **Note:** By default, only meta-tools are listed to minimize context usage
@@ -34,7 +33,7 @@ Casys PML exposes two types of tools:
 
 ---
 
-## Casys PML Meta-Tools
+## PML Meta-Tools
 
 ### pml:search_tools
 
@@ -72,13 +71,55 @@ await callTool("pml:search_tools", {
 
 ---
 
+### pml:search_capabilities
+
+Search for proven code patterns learned from successful executions.
+
+**Parameters:**
+
+| Name                 | Type    | Required | Description                                              |
+| -------------------- | ------- | -------- | -------------------------------------------------------- |
+| `intent`             | string  | Yes      | What you want to accomplish - finds similar past successes |
+| `include_suggestions`| boolean | No       | Also show related capabilities (default: false)          |
+
+**Request example:**
+
+```typescript
+await callTool("pml:search_capabilities", {
+  intent: "parse JSON from API and store in database",
+  include_suggestions: true,
+});
+```
+
+**Response example:**
+
+```json
+{
+  "content": [{
+    "type": "text",
+    "text": "{\"capabilities\":[{\"id\":\"cap_abc123\",\"intent\":\"fetch API data and insert to DB\",\"match_score\":0.94,\"success_rate\":0.95,\"reuse_count\":12,\"tools_used\":[\"fetch:get\",\"json:parse\",\"db:insert\"],\"code\":\"const data = await fetch...\"}]}"
+  }]
+}
+```
+
+**When to use:**
+
+| Tool | Purpose |
+|------|---------|
+| `search_tools` | Find MCP tools by capability description |
+| `search_capabilities` | Find proven code patterns that worked before |
+
+> **Tip:** Use `search_capabilities` when you want to reuse existing patterns instead of building from scratch. The returned code can be executed directly via `execute_code`.
+
+---
+
 ### pml:execute_dag
 
 Execute a multi-tool DAG (Directed Acyclic Graph) workflow.
 
 **Usage modes:**
 
-- **Intent:** Provide `intent` → Casys PML suggests and executes the optimal DAG
+- **Intent:** Provide `intent` → PML suggests and executes the optimal DAG
 - **Explicit:** Provide `workflow` → Executes the explicitly defined DAG
 
 > Provide **either** `intent` **or** `workflow`, not both.
@@ -412,7 +453,7 @@ type WorkflowStatus =
 | -32602 | INVALID_PARAMS   | Invalid parameters | Check required parameters                        |
 | -32603 | INTERNAL_ERROR   | Internal error     | Check logs, retry                                |
 
-**Casys PML specific errors:**
+**PML specific errors:**
 
 | Error                | Description                    | Resolution                                       |
 | -------------------- | ------------------------------ | ------------------------------------------------ |
@@ -490,10 +531,8 @@ await callTool("pml:continue", {
 
 ## See Also
 
-- [Getting Started](./getting-started.md) - Installation and configuration
-- [User Guide](./user-guide.md) - Detailed usage
-- [FAQ](./faq.md) - Frequently asked questions
-
----
-
-_Generated on 2025-12-03 by BMAD user-docs workflow_
+- [Installation](../getting-started/01-installation.md) - Installation and setup
+- [User Guide](../guides/overview.md) - Detailed usage
+- [Concepts](../concepts/index.md) - How PML works
+- [Configuration](./02-configuration.md) - Configuration files
+- [CLI Reference](./03-cli.md) - Command-line interface
