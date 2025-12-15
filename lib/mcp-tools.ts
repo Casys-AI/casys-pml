@@ -21,10 +21,10 @@
  * - compare (5):    Diff, Levenshtein, similarity, fuzzy match, schema inference
  * - algo (19):      Algorithms (search, set ops, aggregation, sequences, numeric)
  *
- * @module playground/lib/mcp-tools
+ * @module lib/mcp-tools
  */
 
-import type { MCPClientBase, MCPTool } from "../../src/mcp/types.ts";
+import type { MCPClientBase, MCPTool } from "../src/mcp/types.ts";
 
 // ============================================================================
 // Types
