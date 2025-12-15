@@ -48,21 +48,31 @@ jobs:
           find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
           cd ..
 
-          # Copy files, excluding cloud-only content
+          # Copy files, excluding private/cloud-only content
           rsync -av --exclude='.git' \
             --exclude='src/cloud/' \
-            --exclude='packages/mcp-connector/' \
+            --exclude='packages/' \
             --exclude='.github/workflows/sync-to-public.yml' \
             --exclude='.github/SYNC_SETUP.md' \
             --exclude='.env' \
             --exclude='.env.local' \
             --exclude='.env.production' \
+            --exclude='.env.example' \
             --exclude='secrets/' \
             --exclude='.dev.vars' \
             --exclude='*.local' \
             --exclude='node_modules/' \
             --exclude='.wrangler/' \
             --exclude='playground/.env' \
+            --exclude='.bmad-user-memory/' \
+            --exclude='.claude/' \
+            --exclude='.agent/' \
+            --exclude='.windsurf/' \
+            --exclude='bmad-custom-src/' \
+            --exclude='config/' \
+            --exclude='.devcontainer/' \
+            --exclude='monitoring/' \
+            --exclude='drizzle/' \
             --include='docs/user-docs/**' \
             --exclude='docs/**' \
             ./ public-repo/
