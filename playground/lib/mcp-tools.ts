@@ -1,10 +1,10 @@
 /**
  * MCP Mini-Tools Library
  *
- * A collection of 60+ lightweight utility tools implementing MCPClientBase.
+ * A collection of 65+ lightweight utility tools implementing MCPClientBase.
  * Designed for playground demos and educational use - no external dependencies.
  *
- * Categories (13 total):
+ * Categories (14 total):
  * - text (8):       String manipulation (split, join, template, regex, case, trim, count, pad)
  * - json (5):       JSON operations (parse, stringify, query, merge, keys)
  * - math (5):       Calculations (eval, stats, round, random, percentage)
@@ -18,6 +18,7 @@
  * - format (5):     Number formatting, bytes, duration, pluralize, slugify
  * - transform (6):  CSV parse/stringify, XML, markdown strip, object pick/omit
  * - state (6):      Key-value store with TTL, counters, arrays
+ * - compare (5):    Diff, Levenshtein, similarity, fuzzy match, schema inference
  *
  * @module playground/lib/mcp-tools
  */
@@ -41,7 +42,8 @@ export type ToolCategory =
   | "validation"
   | "format"
   | "transform"
-  | "state";
+  | "state"
+  | "compare";
 
 export interface MiniTool {
   name: string;
@@ -1841,6 +1843,355 @@ const MINI_TOOLS: MiniTool[] = [
       }
       stateStore.set(k, { value: arr, createdAt: Date.now() });
       return { key: k, length: arr.length };
+    },
+  },
+
+  // -------------------------------------------------------------------------
+  // COMPARE TOOLS (reasoning about data - diff, similarity, fuzzy matching)
+  // -------------------------------------------------------------------------
+  {
+    name: "compare_diff",
+    description: "Compare two values and return differences (works with strings, arrays, objects)",
+    category: "compare",
+    inputSchema: {
+      type: "object",
+      properties: {
+        a: { description: "First value" },
+        b: { description: "Second value" },
+        mode: {
+          type: "string",
+          enum: ["simple", "detailed"],
+          description: "Output mode (default: simple)",
+        },
+      },
+      required: ["a", "b"],
+    },
+    handler: ({ a, b, mode = "simple" }) => {
+      // String diff
+      if (typeof a === "string" && typeof b === "string") {
+        const linesA = (a as string).split("\n");
+        const linesB = (b as string).split("\n");
+        const added: string[] = [];
+        const removed: string[] = [];
+        const unchanged: string[] = [];
+
+        const setA = new Set(linesA);
+        const setB = new Set(linesB);
+
+        for (const line of linesA) {
+          if (!setB.has(line)) removed.push(line);
+          else unchanged.push(line);
+        }
+        for (const line of linesB) {
+          if (!setA.has(line)) added.push(line);
+        }
+
+        return mode === "detailed"
+          ? { added, removed, unchanged, totalChanges: added.length + removed.length }
+          : { added: added.length, removed: removed.length, unchanged: unchanged.length };
+      }
+
+      // Array diff
+      if (Array.isArray(a) && Array.isArray(b)) {
+        const setA = new Set((a as unknown[]).map((x) => JSON.stringify(x)));
+        const setB = new Set((b as unknown[]).map((x) => JSON.stringify(x)));
+
+        const added = (b as unknown[]).filter((x) => !setA.has(JSON.stringify(x)));
+        const removed = (a as unknown[]).filter((x) => !setB.has(JSON.stringify(x)));
+
+        return mode === "detailed"
+          ? { added, removed, totalChanges: added.length + removed.length }
+          : { added: added.length, removed: removed.length };
+      }
+
+      // Object diff
+      if (typeof a === "object" && typeof b === "object" && a !== null && b !== null) {
+        const objA = a as Record<string, unknown>;
+        const objB = b as Record<string, unknown>;
+        const allKeys = new Set([...Object.keys(objA), ...Object.keys(objB)]);
+
+        const added: Record<string, unknown> = {};
+        const removed: Record<string, unknown> = {};
+        const changed: Record<string, { from: unknown; to: unknown }> = {};
+        const unchanged: string[] = [];
+
+        for (const key of allKeys) {
+          const inA = key in objA;
+          const inB = key in objB;
+
+          if (!inA && inB) {
+            added[key] = objB[key];
+          } else if (inA && !inB) {
+            removed[key] = objA[key];
+          } else if (JSON.stringify(objA[key]) !== JSON.stringify(objB[key])) {
+            changed[key] = { from: objA[key], to: objB[key] };
+          } else {
+            unchanged.push(key);
+          }
+        }
+
+        return mode === "detailed"
+          ? { added, removed, changed, unchanged }
+          : {
+              added: Object.keys(added).length,
+              removed: Object.keys(removed).length,
+              changed: Object.keys(changed).length,
+              unchanged: unchanged.length,
+            };
+      }
+
+      // Primitive comparison
+      return { equal: a === b, a, b };
+    },
+  },
+  {
+    name: "compare_levenshtein",
+    description: "Calculate Levenshtein edit distance between two strings",
+    category: "compare",
+    inputSchema: {
+      type: "object",
+      properties: {
+        a: { type: "string", description: "First string" },
+        b: { type: "string", description: "Second string" },
+        normalize: { type: "boolean", description: "Return normalized similarity (0-1) instead of distance" },
+      },
+      required: ["a", "b"],
+    },
+    handler: ({ a, b, normalize = false }) => {
+      const strA = a as string;
+      const strB = b as string;
+
+      if (strA === strB) return normalize ? { similarity: 1, distance: 0 } : { distance: 0 };
+      if (strA.length === 0) return normalize ? { similarity: 0, distance: strB.length } : { distance: strB.length };
+      if (strB.length === 0) return normalize ? { similarity: 0, distance: strA.length } : { distance: strA.length };
+
+      // Wagner-Fischer algorithm
+      const matrix: number[][] = [];
+
+      for (let i = 0; i <= strA.length; i++) {
+        matrix[i] = [i];
+      }
+      for (let j = 0; j <= strB.length; j++) {
+        matrix[0][j] = j;
+      }
+
+      for (let i = 1; i <= strA.length; i++) {
+        for (let j = 1; j <= strB.length; j++) {
+          const cost = strA[i - 1] === strB[j - 1] ? 0 : 1;
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j] + 1, // deletion
+            matrix[i][j - 1] + 1, // insertion
+            matrix[i - 1][j - 1] + cost // substitution
+          );
+        }
+      }
+
+      const distance = matrix[strA.length][strB.length];
+      const maxLen = Math.max(strA.length, strB.length);
+      const similarity = 1 - distance / maxLen;
+
+      return normalize ? { similarity: Math.round(similarity * 1000) / 1000, distance } : { distance };
+    },
+  },
+  {
+    name: "compare_similarity",
+    description: "Calculate similarity between two strings using multiple algorithms",
+    category: "compare",
+    inputSchema: {
+      type: "object",
+      properties: {
+        a: { type: "string", description: "First string" },
+        b: { type: "string", description: "Second string" },
+        algorithm: {
+          type: "string",
+          enum: ["jaccard", "dice", "cosine", "overlap"],
+          description: "Similarity algorithm (default: jaccard)",
+        },
+        tokenize: {
+          type: "string",
+          enum: ["chars", "words", "ngrams"],
+          description: "How to tokenize (default: words)",
+        },
+        ngramSize: { type: "number", description: "N-gram size if tokenize=ngrams (default: 2)" },
+      },
+      required: ["a", "b"],
+    },
+    handler: ({ a, b, algorithm = "jaccard", tokenize = "words", ngramSize = 2 }) => {
+      const strA = (a as string).toLowerCase();
+      const strB = (b as string).toLowerCase();
+
+      // Tokenize
+      let tokensA: string[];
+      let tokensB: string[];
+
+      switch (tokenize) {
+        case "chars":
+          tokensA = strA.split("");
+          tokensB = strB.split("");
+          break;
+        case "ngrams": {
+          const n = ngramSize as number;
+          tokensA = [];
+          tokensB = [];
+          for (let i = 0; i <= strA.length - n; i++) tokensA.push(strA.slice(i, i + n));
+          for (let i = 0; i <= strB.length - n; i++) tokensB.push(strB.slice(i, i + n));
+          break;
+        }
+        default: // words
+          tokensA = strA.split(/\s+/).filter(Boolean);
+          tokensB = strB.split(/\s+/).filter(Boolean);
+      }
+
+      const setA = new Set(tokensA);
+      const setB = new Set(tokensB);
+      const intersection = new Set([...setA].filter((x) => setB.has(x)));
+      const union = new Set([...setA, ...setB]);
+
+      let similarity: number;
+
+      switch (algorithm) {
+        case "dice":
+          similarity = (2 * intersection.size) / (setA.size + setB.size);
+          break;
+        case "overlap":
+          similarity = intersection.size / Math.min(setA.size, setB.size);
+          break;
+        case "cosine": {
+          // Simple cosine using term frequency
+          const allTerms = [...union];
+          const vecA = allTerms.map((t) => tokensA.filter((x) => x === t).length);
+          const vecB = allTerms.map((t) => tokensB.filter((x) => x === t).length);
+          const dot = vecA.reduce((sum, val, i) => sum + val * vecB[i], 0);
+          const magA = Math.sqrt(vecA.reduce((sum, val) => sum + val * val, 0));
+          const magB = Math.sqrt(vecB.reduce((sum, val) => sum + val * val, 0));
+          similarity = magA && magB ? dot / (magA * magB) : 0;
+          break;
+        }
+        default: // jaccard
+          similarity = union.size ? intersection.size / union.size : 0;
+      }
+
+      return {
+        similarity: Math.round(similarity * 1000) / 1000,
+        algorithm,
+        tokenize,
+        tokensA: tokensA.length,
+        tokensB: tokensB.length,
+      };
+    },
+  },
+  {
+    name: "compare_fuzzy_match",
+    description: "Find best fuzzy matches for a query in a list of candidates",
+    category: "compare",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Search query" },
+        candidates: { type: "array", items: { type: "string" }, description: "List of candidates to match against" },
+        limit: { type: "number", description: "Max results (default: 5)" },
+        threshold: { type: "number", description: "Min similarity 0-1 (default: 0.3)" },
+        key: { type: "string", description: "If candidates are objects, key to match on" },
+      },
+      required: ["query", "candidates"],
+    },
+    handler: ({ query, candidates, limit = 5, threshold = 0.3, key }) => {
+      const q = (query as string).toLowerCase();
+      const items = candidates as Array<string | Record<string, unknown>>;
+
+      const scored = items.map((item, index) => {
+        const text = key
+          ? String((item as Record<string, unknown>)[key as string] ?? "")
+          : String(item);
+        const t = text.toLowerCase();
+
+        // Combined scoring: substring bonus + Levenshtein-based similarity
+        let score = 0;
+
+        // Exact match bonus
+        if (t === q) score = 1;
+        // Contains query bonus
+        else if (t.includes(q)) score = 0.8 + (q.length / t.length) * 0.2;
+        // Starts with query bonus
+        else if (t.startsWith(q)) score = 0.9;
+        else {
+          // Levenshtein similarity
+          const maxLen = Math.max(q.length, t.length);
+          if (maxLen > 0) {
+            // Simplified Levenshtein for performance
+            let distance = 0;
+            const len = Math.min(q.length, t.length);
+            for (let i = 0; i < len; i++) {
+              if (q[i] !== t[i]) distance++;
+            }
+            distance += Math.abs(q.length - t.length);
+            score = 1 - distance / maxLen;
+          }
+        }
+
+        return { item, text, score, index };
+      });
+
+      return scored
+        .filter((s) => s.score >= (threshold as number))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, limit as number)
+        .map((s) => ({
+          match: s.item,
+          text: s.text,
+          score: Math.round(s.score * 1000) / 1000,
+          index: s.index,
+        }));
+    },
+  },
+  {
+    name: "compare_schema_infer",
+    description: "Infer JSON schema from sample data",
+    category: "compare",
+    inputSchema: {
+      type: "object",
+      properties: {
+        data: { description: "Sample data to analyze" },
+        deep: { type: "boolean", description: "Analyze nested objects (default: true)" },
+      },
+      required: ["data"],
+    },
+    handler: ({ data, deep = true }) => {
+      const inferType = (value: unknown, depth: number): Record<string, unknown> => {
+        if (value === null) return { type: "null" };
+        if (value === undefined) return { type: "undefined" };
+
+        const type = typeof value;
+
+        if (type === "string") return { type: "string", example: (value as string).slice(0, 50) };
+        if (type === "number") return { type: Number.isInteger(value) ? "integer" : "number", example: value };
+        if (type === "boolean") return { type: "boolean", example: value };
+
+        if (Array.isArray(value)) {
+          if (value.length === 0) return { type: "array", items: { type: "unknown" } };
+          // Infer from first item
+          const itemSchema = deep && depth < 5 ? inferType(value[0], depth + 1) : { type: typeof value[0] };
+          return { type: "array", items: itemSchema, length: value.length };
+        }
+
+        if (type === "object") {
+          const obj = value as Record<string, unknown>;
+          const properties: Record<string, unknown> = {};
+          const required: string[] = [];
+
+          for (const [k, v] of Object.entries(obj)) {
+            properties[k] = deep && depth < 5 ? inferType(v, depth + 1) : { type: typeof v };
+            if (v !== null && v !== undefined) required.push(k);
+          }
+
+          return { type: "object", properties, required };
+        }
+
+        return { type };
+      };
+
+      const schema = inferType(data, 0);
+      return { schema, dataType: Array.isArray(data) ? "array" : typeof data };
     },
   },
 ];
