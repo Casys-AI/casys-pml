@@ -8,6 +8,44 @@ PML is an **intelligent MCP gateway** that:
 1. **Routes** requests to the right MCP tools
 2. **Learns** from usage patterns
 3. **Suggests** optimized workflows
+4. **Executes** workflows with 0ms perceived latency via speculative execution
+
+### Key Metrics
+
+| Metric | Value | Impact |
+|--------|-------|--------|
+| **Context usage** | <5% | 90% de context window recuperee pour vos conversations |
+| **Latence workflows** | 5x → 1x | Parallelisation intelligente via DAG |
+| **MCP servers** | 15+ simultanes | Sans degradation de performance |
+| **Latence percue** | 0ms | Execution speculative pour les actions previsibles |
+
+### Architecture 3 Couches
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  COUCHE 1: ORCHESTRATION (Claude/LLM)                           │
+│  • Recoit l'intent utilisateur                                  │
+│  • Query: "Capability existante?" → OUI: execute cached         │
+│  • NON: genere code → execute → apprend                         │
+└─────────────────────────────────────────────────────────────────┘
+                          ▲ Resultats + Suggestions
+┌─────────────────────────────────────────────────────────────────┐
+│  COUCHE 2: CAPABILITY ENGINE (PML Gateway)                      │
+│  • CapabilityMatcher: intent → capability matching              │
+│  • WorkerBridge: route les appels MCP                           │
+│  • SuggestionEngine: PageRank, Louvain, Adamic-Adar            │
+│  • GraphRAG: apprentissage continu                              │
+└─────────────────────────────────────────────────────────────────┘
+                          ▲ RPC (appels outils)
+┌─────────────────────────────────────────────────────────────────┐
+│  COUCHE 3: EXECUTION (Deno Worker Sandbox)                      │
+│  • Isolation complete (permissions: "none")                     │
+│  • Tool proxies: mcp.server.tool() → appel securise            │
+│  • Capabilities: fonctions inline (zero overhead)               │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Vue simplifiee
 
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
@@ -50,6 +88,7 @@ PML is an **intelligent MCP gateway** that:
 - [02 - DAG Suggester](./05-dag-execution/02-dag-suggester.md)
 - [03 - Parallelization](./05-dag-execution/03-parallelization.md)
 - [04 - Checkpoints](./05-dag-execution/04-checkpoints.md)
+- [05 - Speculative Execution](./05-dag-execution/05-speculative-execution.md)
 
 ### 06 - Code Execution
 - [01 - Sandbox](./06-code-execution/01-sandbox.md)

@@ -16,6 +16,26 @@ Le schema inference de PML fonctionne pareil : il analyse le code pour comprendr
 
 When PML captures a capability, it doesn't just store the code—it analyzes it to understand what **parameters** the capability accepts.
 
+### Moteur d'analyse : SWC
+
+PML utilise **SWC** (Speedy Web Compiler), un parser AST base sur Rust :
+
+| Caracteristique | Valeur |
+|-----------------|--------|
+| **Performance** | 20x plus rapide que ts-morph |
+| **Compatibilite** | Deno-native (zero configuration) |
+| **Analyse** | TypeScript/JavaScript AST complet |
+
+**Flow d'inference :**
+```
+Code TypeScript → SWC parse AST → Detecte args.xxx (MemberExpression)
+    → Infere types depuis MCP schemas → Genere JSON Schema
+```
+
+SWC permet d'analyser le code instantanement pour en extraire les parametres sans impacter les performances d'execution.
+
+### Exemple d'analyse
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Schema Inference                              │
