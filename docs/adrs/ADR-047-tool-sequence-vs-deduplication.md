@@ -55,6 +55,31 @@ if (fromId === toId) continue;  // Self-loops IGNORÉS!
 - Faut-il stocker la fréquence d'appel par exécution dans `tool_dependency`?
 - Ou est-ce du bruit (boucles) qu'on peut ignorer?
 
+### Execution Traces: GAP IDENTIFIÉ ⚠️
+
+Les traces d'exécution brutes (hors capabilities) **ne sont pas persistées en DB**.
+
+| Table | Contenu | Séquence d'exécution réelle? |
+|-------|---------|------------------------------|
+| `workflow_pattern` | `dag_structure.tool_invocations` | ✅ Pour capabilities uniquement |
+| `workflow_execution` | DAG template (tasks + dependsOn) | ❌ Juste la structure, pas les traces |
+| `tool_dependency` | Paires agrégées (A→B, observed_count) | ❌ Pas de séquence par exécution |
+| `episodic_events` | Events haut niveau (workflow_start, etc.) | ❌ Pas les tool calls individuels |
+
+**Flux actuel:**
+```
+Exécution → traces[] → updateFromCodeExecution() → edges agrégées → traces PERDUES
+                                                 ↓
+                                          (sauf si capability créée)
+```
+
+**Conséquence frontend:** Impossible d'afficher les séquences d'exécution Tool→Tool brutes qui ne sont pas des capabilities.
+
+**TODO (Epic futur):** Si on veut visualiser les exécutions brutes:
+- Option A: Nouvelle table `execution_trace` pour stocker les traces complètes
+- Option B: Enrichir `workflow_execution.dag_structure` avec les traces réelles
+- Option C: Accepter la limitation (seules les capabilities ont des séquences visualisables)
+
 ---
 
 ## Context (Original)

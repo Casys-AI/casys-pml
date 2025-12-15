@@ -219,27 +219,102 @@ Le score effectif de A devrait être pénalisé par B:
 
 **Claim**: Les seuils s'adaptent au contexte d'utilisation.
 
-### Étapes
+### Algorithme (référence `adaptive-threshold.ts`)
+
+```typescript
+// Config par défaut
+initialSuggestionThreshold: 0.70
+learningRate: 0.05
+windowSize: 50  // sliding window
+minThreshold: 0.40
+maxThreshold: 0.90
+
+// Trigger: ajustement tous les 10 exécutions (si >= 20 dans l'historique)
+// Logique:
+if (falsePositiveRate > 0.2) {
+  threshold += learningRate * FP_rate  // Trop d'échecs spéculatifs → Augmente
+} else if (falseNegativeRate > 0.3) {
+  threshold -= learningRate * FN_rate  // Trop de confirmations manuelles → Diminue
+}
+```
+
+### Test 7.1: Ajustement sur False Positives (échecs spéculatifs)
+
+**Scénario**: Simuler des exécutions spéculatives qui échouent
 
 ```
-1. Noter le threshold initial
-   → Vérifier logs ou API /api/speculation/config
+1. Reset: Vérifier threshold initial = 0.70
+   → GET /api/speculation/config ou logs
 
-2. Exécuter plusieurs matchs réussis (capability utilisée)
-   → Répéter 5x avec des intents qui matchent bien
+2. Simuler 20 exécutions avec mode="speculative"
+   → 5 succès (success=true)
+   → 15 échecs (success=false)
+   → FP rate = 15/20 = 75% > 20%
 
-3. Exécuter plusieurs matchs échoués (pas de capability)
-   → Répéter 5x avec des intents très différents
+3. Vérifier ajustement
+   → threshold devrait augmenter de ~0.05 * 0.75 = +0.0375
+   → Nouveau threshold ≈ 0.7375
+```
 
-4. Vérifier l'évolution du threshold
-   → Le seuil devrait s'être ajusté via EMA
+### Test 7.2: Ajustement sur False Negatives (confirmations manuelles)
+
+**Scénario**: Simuler des suggestions que l'utilisateur accepte toujours
+
+```
+1. Reset: threshold = 0.70
+
+2. Simuler 20 exécutions avec mode="suggestion"
+   → Toutes avec userAccepted=true et confidence >= 0.60
+   → FN rate = 100% > 30%
+
+3. Vérifier ajustement
+   → threshold devrait diminuer de ~0.05 * 1.0 = -0.05
+   → Nouveau threshold ≈ 0.65
+```
+
+### Test 7.3: Bornes min/max respectées
+
+```
+1. Simuler beaucoup d'échecs pour pousser threshold vers le max
+   → Vérifier que threshold ne dépasse pas 0.90
+
+2. Simuler beaucoup de succès manuels pour pousser vers le min
+   → Vérifier que threshold ne descend pas sous 0.40
+```
+
+### Test 7.4: Persistence en DB
+
+```sql
+-- Vérifier que les thresholds sont persistés
+SELECT context_hash, suggestion_threshold, explicit_threshold,
+       success_rate, sample_count, updated_at
+FROM adaptive_thresholds;
+
+-- Après restart du serveur, les thresholds doivent être rechargés
+```
+
+### Test 7.5: Context-based thresholds
+
+```
+1. Exécuter avec context { workflowType: "dag", domain: "github" }
+   → Créer un threshold spécifique
+
+2. Exécuter avec context { workflowType: "code", domain: "filesystem" }
+   → Créer un autre threshold
+
+3. Vérifier que les deux contextes ont des thresholds indépendants
+   → context_hash différent en DB
 ```
 
 ### Critères de validation
 
-- [ ] `suggestionThreshold` a changé après les exécutions
-- [ ] Le seuil reste dans [0.5, 0.9]
-- [ ] Adaptation visible dans les logs
+- [ ] `suggestionThreshold` augmente quand FP rate > 20%
+- [ ] `suggestionThreshold` diminue quand FN rate > 30%
+- [ ] Le seuil reste dans [0.40, 0.90]
+- [ ] Thresholds persistés dans `adaptive_thresholds` table
+- [ ] Thresholds rechargés après restart
+- [ ] Contextes différents = thresholds indépendants
+- [ ] Logs montrent "Adaptive threshold adjustment: ..."
 
 ---
 
