@@ -414,16 +414,38 @@ function computeAlphaBayesian(nodeId: string, observations: number): number {
 
 ## Implementation Plan
 
-### Fichiers à créer/modifier
+### Fichiers à CRÉER
 
-| Fichier | Changement |
-|---------|------------|
-| `src/graphrag/local-alpha.ts` | **Nouveau** - Classe `LocalAlphaCalculator` avec les 4 algorithmes |
-| `src/graphrag/types.ts` | Types `AlphaMode`, `HeatWeights`, `LocalAlphaResult` |
-| `src/graphrag/graph-engine.ts` | Remplacer `getAdaptiveAlpha()` par `getLocalAlpha(mode, nodeId, context)` |
-| `src/graphrag/dag-suggester.ts` | Utiliser `getLocalAlpha('passive', ...)` |
-| `src/graphrag/spectral-clustering.ts` | Exposer `getEmbeddingRow()` pour Embeddings Hybrides |
-| `tests/unit/graphrag/local_alpha_test.ts` | Tests unitaires |
+| Fichier | Lignes | Description |
+|---------|--------|-------------|
+| `src/graphrag/local-alpha.ts` | ~200 | Classe `LocalAlphaCalculator` avec les 4 algorithmes |
+| `tests/unit/graphrag/local_alpha_test.ts` | ~150 | Tests unitaires pour les 4 algos |
+
+### Fichiers à MODIFIER
+
+| Fichier | Impact | Changements |
+|---------|--------|-------------|
+| `src/graphrag/graph-engine.ts` | Moyen | `searchToolsHybrid()` : remplacer calcul alpha global par `LocalAlphaCalculator` |
+| `src/graphrag/dag-suggester.ts` | Moyen | `getAdaptiveWeights()` : utiliser alpha local au lieu de densité globale |
+| `src/graphrag/spectral-clustering.ts` | Faible | Exposer `getEmbeddingRow(nodeIndex)` pour Embeddings Hybrides |
+| `src/graphrag/types.ts` | Faible | Ajouter `AlphaMode`, `NodeType`, `LocalAlphaResult` |
+
+### Tests à ADAPTER
+
+| Fichier | Changements |
+|---------|-------------|
+| `tests/unit/graphrag/graph_engine_metrics_test.ts` | Adapter tests `getAdaptiveAlpha` → `getLocalAlpha` |
+| `tests/integration/dashboard_metrics_test.ts` | Adapter tests `adaptiveAlpha` dans metrics |
+
+### Estimation
+
+```
+Créer:    2 fichiers  (~350 lignes)
+Modifier: 4 fichiers  (~100 lignes de changements)
+Tests:    2 à adapter
+
+Total: ~450 lignes de code
+```
 
 ### Interface principale
 

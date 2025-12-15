@@ -32,6 +32,8 @@ import type { GraphEvent } from "./events.ts";
 import type { TraceEvent } from "../sandbox/types.ts";
 // Story 6.5: EventBus integration (ADR-036)
 import { eventBus } from "../events/mod.ts";
+// ADR-048: Local adaptive alpha
+import { LocalAlphaCalculator, type AlphaMode, type NodeType } from "./local-alpha.ts";
 
 // Extract exports from Graphology packages
 const { DirectedGraph } = graphologyPkg as any;
@@ -51,10 +53,39 @@ export class GraphRAGEngine {
   private communities: Record<string, string> = {};
   private eventTarget: EventTarget;
   private listenerMap: Map<(event: GraphEvent) => void, EventListener> = new Map();
+  private localAlphaCalculator: LocalAlphaCalculator | null = null; // ADR-048
 
   constructor(private db: PGliteClient) {
     this.graph = new DirectedGraph({ allowSelfLoops: false });
     this.eventTarget = new EventTarget();
+    this.initLocalAlphaCalculator(); // ADR-048
+  }
+
+  /**
+   * Initialize LocalAlphaCalculator with dependencies (ADR-048)
+   */
+  private initLocalAlphaCalculator(): void {
+    this.localAlphaCalculator = new LocalAlphaCalculator({
+      graph: this.graph,
+      spectralClustering: null, // Will be set by DAGSuggester if available
+      getSemanticEmbedding: (_nodeId: string) => null, // Requires VectorSearch, set externally
+      getObservationCount: (nodeId: string) => this.getNodeObservationCount(nodeId),
+      getParent: (_nodeId: string, _parentType: NodeType) => null, // Set by DAGSuggester
+      getChildren: (_nodeId: string, _childType: NodeType) => [], // Set by DAGSuggester
+    });
+  }
+
+  /**
+   * Get observation count for a node (ADR-048)
+   * Uses edge weight sum as proxy for observations
+   */
+  private getNodeObservationCount(nodeId: string): number {
+    if (!this.graph.hasNode(nodeId)) return 0;
+    let totalWeight = 0;
+    this.graph.forEachEdge(nodeId, (_edge: string, attrs: any) => {
+      totalWeight += attrs.weight || 1;
+    });
+    return Math.floor(totalWeight);
   }
 
   /**
@@ -1541,20 +1572,26 @@ export class GraphRAGEngine {
         return [];
       }
 
-      // 3. Calculate adaptive alpha based on graph density (ADR-015)
-      // More semantic weight when graph is sparse (cold start)
-      const alpha = Math.max(0.5, 1.0 - density * 2);
+      // 3. Calculate adaptive alpha (ADR-048: local per tool, fallback to global)
+      // Global alpha for logging and fallback
+      const globalAlpha = Math.max(0.5, 1.0 - density * 2);
 
       log.debug(
-        `[searchToolsHybrid] alpha=${
-          alpha.toFixed(2)
+        `[searchToolsHybrid] globalAlpha=${
+          globalAlpha.toFixed(2)
         }, expansion=${expansionMultiplier}x (density=${density.toFixed(4)}, edges=${edgeCount})`,
       );
 
-      // 3. Compute hybrid scores for each candidate
+      // 4. Compute hybrid scores for each candidate with local alpha (ADR-048)
       const results: HybridSearchResult[] = semanticResults.map((result) => {
         const graphScore = this.computeGraphRelatedness(result.toolId, contextTools);
-        const finalScore = alpha * result.score + (1 - alpha) * graphScore;
+
+        // ADR-048: Use local alpha per tool (Active Search mode)
+        const localAlpha = this.localAlphaCalculator
+          ? this.localAlphaCalculator.getLocalAlpha("active", result.toolId, "tool", contextTools)
+          : globalAlpha;
+
+        const finalScore = localAlpha * result.score + (1 - localAlpha) * graphScore;
 
         const hybridResult: HybridSearchResult = {
           toolId: result.toolId,
@@ -1570,11 +1607,11 @@ export class GraphRAGEngine {
         return hybridResult;
       });
 
-      // 4. Sort by final score (descending) and limit
+      // 5. Sort by final score (descending) and limit
       results.sort((a, b) => b.finalScore - a.finalScore);
       const topResults = results.slice(0, limit);
 
-      // 5. Add related tools if requested
+      // 6. Add related tools if requested
       if (includeRelated) {
         for (const result of topResults) {
           result.relatedTools = [];
@@ -1662,6 +1699,26 @@ export class GraphRAGEngine {
    */
   getGraphDensity(): number {
     return this.getDensity();
+  }
+
+  /**
+   * Get the underlying Graphology graph instance (ADR-048)
+   *
+   * Used by LocalAlphaCalculator and other components that need
+   * direct access to graph structure.
+   */
+  getGraph(): any {
+    return this.graph;
+  }
+
+  /**
+   * Get the LocalAlphaCalculator instance (ADR-048)
+   *
+   * Returns the calculator for components that need to compute local alpha
+   * (e.g., DAGSuggester for passive suggestions).
+   */
+  getLocalAlphaCalculator(): LocalAlphaCalculator | null {
+    return this.localAlphaCalculator;
   }
 
   /**
