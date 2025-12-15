@@ -1,4 +1,4 @@
-# ADR-048: Hierarchical Heat Diffusion for Local Adaptive Alpha
+# ADR-048: Local Adaptive Alpha by Mode
 
 **Status:** Draft
 **Date:** 2025-12-15
@@ -61,132 +61,148 @@ Les MetaCapabilities sont **infinies** et **émergentes** - elles se créent dyn
 
 ## Decision
 
-Implémenter un **Hierarchical Heat Diffusion** pour calculer un alpha adaptatif **local** pour chaque nœud.
+Comme pour les algorithmes de scoring (ADR-038), utiliser **différents algorithmes d'alpha selon le mode et le type d'objet**.
 
-### Principe
+### Matrice des Algorithmes Alpha
 
-La "chaleur" représente la **confiance structurelle** - combien on peut faire confiance aux signaux du graphe pour un nœud donné.
+| Mode | Type | Algorithme | Rationale |
+|------|------|------------|-----------|
+| **Active Search** | Tool | Embeddings Hybrides | Query explicite → comparer semantic vs structure |
+| **Active Search** | Capability | Embeddings Hybrides | Idem |
+| **Passive Suggestion** | Tool | Heat Diffusion | Propagation depuis le contexte |
+| **Passive Suggestion** | Capability | Heat Diffusion Hiérarchique | Respecte Tool→Cap→Meta |
+| **Cold Start** | Tous | Bayésien (prior) | Observations insuffisantes → incertitude haute |
 
-- **Zone dense** → Chaleur haute → Alpha bas → Utiliser le graphe
-- **Zone sparse** → Chaleur basse → Alpha haut → Utiliser le semantic
+### Alignement avec ADR-038
 
-### 1. Sources de Chaleur
+```
+ADR-038 (Scoring Algorithms):
+┌─────────────────┬────────────────────┬─────────────────────┐
+│                 │ Active Search      │ Passive Suggestion  │
+├─────────────────┼────────────────────┼─────────────────────┤
+│ Tool            │ Hybrid Search      │ Next Step Predict   │
+│ Capability      │ Capability Match   │ Strategic Discovery │
+└─────────────────┴────────────────────┴─────────────────────┘
+
+ADR-048 (Alpha Algorithms):
+┌─────────────────┬────────────────────┬─────────────────────┐
+│                 │ Active Search      │ Passive Suggestion  │
+├─────────────────┼────────────────────┼─────────────────────┤
+│ Tool            │ Emb. Hybrides      │ Heat Diffusion      │
+│ Capability      │ Emb. Hybrides      │ Heat Diffusion Hier.│
+└─────────────────┴────────────────────┴─────────────────────┘
+
++ Fallback Bayésien si observations < seuil (Cold Start)
+```
+
+---
+
+## 1. Embeddings Hybrides (Active Search)
+
+**Utilisé pour :** Active Search (Tool & Capability)
+
+**Principe :** Comparer l'embedding sémantique (BGE-M3) avec l'embedding structurel (vecteurs propres du Laplacien) pour mesurer la **cohérence** entre ce que dit le texte et ce que dit la structure.
+
+### Rationale
+
+En mode Active Search, on a une **query explicite**. La question est : "Le graphe confirme-t-il ce que la sémantique suggère ?"
+
+- Si les deux embeddings sont proches → le graphe renforce la sémantique → alpha bas
+- Si les deux embeddings divergent → incohérence → faire confiance au semantic seul → alpha haut
+
+### Implémentation
 
 ```typescript
-interface HeatSources {
-  intrinsic: number;   // Degré du nœud (liens directs)
-  neighbor: number;    // Chaleur propagée des voisins
-  hierarchy: number;   // Chaleur propagée dans la hiérarchie
-}
-```
+/**
+ * Calcule l'alpha local via cohérence des embeddings (Active Search)
+ *
+ * @param nodeId - ID du nœud cible
+ * @returns Alpha entre 0.5 et 1.0
+ */
+function computeAlphaEmbeddingsHybrides(nodeId: string): number {
+  // Embedding sémantique (BGE-M3) - déjà calculé
+  const semanticEmb = getSemanticEmbedding(nodeId);
 
-### 2. Propagation Hiérarchique
+  // Embedding structurel (vecteurs propres du Laplacien)
+  // Réutilise le calcul de SpectralClusteringManager.computeClusters()
+  const structuralEmb = getStructuralEmbedding(nodeId);
 
-```
-Direction de propagation :
-
-Tools ──────► Capabilities ──────► MetaCapabilities
-       agrège              agrège
-
-MetaCapabilities ──────► Capabilities ──────► Tools
-                 hérite              hérite (atténué)
-```
-
-- **Bottom-up (agrégation)** : Une MetaCapability "chaude" si ses Capabilities enfants sont chaudes
-- **Top-down (héritage)** : Un Tool isolé peut hériter de la chaleur de sa Capability parente
-
-### 3. Formules
-
-#### 3.1 Chaleur Intrinsèque
-
-```typescript
-function intrinsicHeat(nodeId: string, nodeType: NodeType): number {
-  const degree = graph.degree(nodeId);
-  const maxDegree = getMaxDegree(nodeType);
-  return degree / maxDegree;
-}
-```
-
-#### 3.2 Chaleur des Voisins (Diffusion)
-
-```typescript
-function neighborHeat(nodeId: string): number {
-  const neighbors = getNeighbors(nodeId);
-  if (neighbors.length === 0) return 0;
-
-  // Moyenne pondérée par le poids des edges
-  return neighbors.reduce((sum, n) => {
-    const edgeWeight = getEdgeWeight(nodeId, n.id);
-    return sum + computeLocalHeat(n.id, n.type) * edgeWeight;
-  }, 0) / neighbors.length;
-}
-```
-
-#### 3.3 Chaleur Hiérarchique
-
-```typescript
-function hierarchyHeat(nodeId: string, nodeType: NodeType): number {
-  switch (nodeType) {
-    case 'meta':
-      // Agrégation bottom-up des capabilities enfants
-      const children = getChildren(nodeId);
-      if (children.length === 0) return 0;
-      return children.reduce((sum, c) =>
-        sum + computeLocalHeat(c, 'capability'), 0) / children.length;
-
-    case 'capability':
-      // Héritage de la meta-capability parente (si existe)
-      const metaParent = getParent(nodeId, 'meta');
-      if (!metaParent) return 0;
-      return computeLocalHeat(metaParent, 'meta') * 0.7; // Atténuation
-
-    case 'tool':
-      // Héritage de la capability parente
-      const capParent = getParent(nodeId, 'capability');
-      if (!capParent) return 0;
-      return computeLocalHeat(capParent, 'capability') * 0.5; // Plus d'atténuation
+  if (!semanticEmb || !structuralEmb) {
+    return 1.0; // Fallback: semantic only
   }
+
+  // Cohérence = similarité cosinus entre les deux embeddings
+  const coherence = cosineSimilarity(
+    normalizeEmbedding(semanticEmb),
+    normalizeEmbedding(structuralEmb)
+  );
+
+  // Cohérence haute → graphe fiable → alpha bas
+  // Cohérence basse → incohérence → alpha haut
+  return Math.max(0.5, 1.0 - coherence * 0.5);
+}
+
+/**
+ * Récupère l'embedding structurel depuis le Spectral Clustering
+ */
+function getStructuralEmbedding(nodeId: string): number[] | null {
+  const spectral = getSpectralClusteringManager();
+  if (!spectral.hasComputedClusters()) return null;
+
+  const nodeIndex = spectral.getNodeIndex(nodeId);
+  if (nodeIndex === -1) return null;
+
+  // Les k premiers vecteurs propres forment l'embedding structurel
+  return spectral.getEmbeddingRow(nodeIndex);
 }
 ```
 
-#### 3.4 Chaleur Combinée
+### Briques existantes
+
+| Composant | Statut | Location |
+|-----------|--------|----------|
+| Embedding sémantique (BGE-M3) | ✅ Existe | `src/vector/embeddings.ts` |
+| Embedding structurel | ✅ Existe | `SpectralClusteringManager.computeClusters()` ligne 312-318 |
+| Cosine similarity | ✅ Existe | Utilitaire standard |
+
+---
+
+## 2. Heat Diffusion (Passive Suggestion - Tools)
+
+**Utilisé pour :** Passive Suggestion de Tools
+
+**Principe :** La "chaleur" représente la **confiance structurelle** locale. Elle se propage depuis les zones denses vers les zones sparse.
+
+### Rationale
+
+En mode Passive Suggestion, on n'a **pas de query** - juste un contexte (outils déjà utilisés). La question est : "Y a-t-il de la structure utile autour du nœud cible, depuis là où on est ?"
+
+- Zone dense et bien connectée au contexte → chaleur haute → alpha bas
+- Zone sparse ou déconnectée du contexte → chaleur basse → alpha haut
+
+### Implémentation
 
 ```typescript
-function computeLocalHeat(nodeId: string, nodeType: NodeType): number {
-  const weights = getWeights(nodeType);
-
-  return weights.intrinsic * intrinsicHeat(nodeId, nodeType)
-       + weights.neighbor * neighborHeat(nodeId)
-       + weights.hierarchy * hierarchyHeat(nodeId, nodeType);
-}
-
-function getWeights(nodeType: NodeType): HeatWeights {
-  // Tools : plus de poids sur les liens directs
-  // Meta : plus de poids sur l'agrégation hiérarchique
-  switch (nodeType) {
-    case 'tool':       return { intrinsic: 0.5, neighbor: 0.3, hierarchy: 0.2 };
-    case 'capability': return { intrinsic: 0.3, neighbor: 0.4, hierarchy: 0.3 };
-    case 'meta':       return { intrinsic: 0.2, neighbor: 0.2, hierarchy: 0.6 };
-  }
-}
-```
-
-### 4. Alpha Local Final
-
-```typescript
-function getLocalAlpha(
+/**
+ * Calcule l'alpha local via Heat Diffusion (Passive Suggestion Tools)
+ *
+ * @param targetNodeId - ID du nœud cible
+ * @param contextNodes - Tools déjà utilisés dans le workflow
+ * @returns Alpha entre 0.5 et 1.0
+ */
+function computeAlphaHeatDiffusion(
   targetNodeId: string,
-  contextNodes: string[]  // Tools déjà utilisés dans le workflow
+  contextNodes: string[]
 ): number {
-  const targetHeat = computeLocalHeat(targetNodeId, getNodeType(targetNodeId));
+  // Chaleur intrinsèque du nœud (basée sur son degré)
+  const targetHeat = computeLocalHeat(targetNodeId);
 
   // Chaleur du contexte (d'où on vient)
   const contextHeat = contextNodes.length > 0
-    ? contextNodes.reduce((sum, n) =>
-        sum + computeLocalHeat(n, getNodeType(n)), 0) / contextNodes.length
+    ? contextNodes.reduce((sum, n) => sum + computeLocalHeat(n), 0) / contextNodes.length
     : 0;
 
-  // Chaleur du "chemin" entre contexte et cible
+  // Chaleur du chemin (connectivité entre contexte et cible)
   const pathHeat = computePathHeat(contextNodes, targetNodeId);
 
   // Score de confiance structurelle [0, 1]
@@ -195,129 +211,288 @@ function getLocalAlpha(
     0.3 * contextHeat +
     0.3 * pathHeat;
 
-  // Alpha inversement proportionnel à la confiance
   return Math.max(0.5, 1.0 - structuralConfidence * 0.5);
 }
+
+/**
+ * Chaleur locale d'un nœud (degré normalisé + voisinage)
+ */
+function computeLocalHeat(nodeId: string): number {
+  const degree = graph.degree(nodeId);
+  const maxDegree = getMaxDegreeForType('tool');
+
+  // Chaleur intrinsèque
+  const intrinsicHeat = degree / maxDegree;
+
+  // Chaleur des voisins (propagation)
+  const neighbors = graph.neighbors(nodeId);
+  const neighborHeat = neighbors.length > 0
+    ? neighbors.reduce((sum, n) => sum + graph.degree(n), 0) / (neighbors.length * maxDegree)
+    : 0;
+
+  return 0.6 * intrinsicHeat + 0.4 * neighborHeat;
+}
+
+/**
+ * Chaleur du chemin entre contexte et cible
+ */
+function computePathHeat(contextNodes: string[], targetId: string): number {
+  if (contextNodes.length === 0) return 0;
+
+  // Moyenne des scores de connectivité
+  let totalConnectivity = 0;
+  for (const ctx of contextNodes) {
+    // Edge direct ?
+    if (graph.hasEdge(ctx, targetId)) {
+      totalConnectivity += graph.getEdgeAttribute(ctx, targetId, 'weight') || 1.0;
+    } else {
+      // Adamic-Adar pour connexion indirecte
+      totalConnectivity += computeAdamicAdar(ctx, targetId);
+    }
+  }
+
+  return Math.min(1.0, totalConnectivity / contextNodes.length);
+}
 ```
 
-### 5. Intégration avec le Cache Spectral
+---
 
-Le Heat Diffusion peut réutiliser les structures du `SpectralClusteringManager` :
+## 3. Heat Diffusion Hiérarchique (Passive Suggestion - Capabilities)
+
+**Utilisé pour :** Passive Suggestion de Capabilities
+
+**Principe :** Comme Heat Diffusion, mais avec **propagation hiérarchique** à travers Tool → Capability → MetaCapability.
+
+### Rationale
+
+Les Capabilities ont une structure hiérarchique. Un Tool isolé peut appartenir à une Capability bien connectée. La chaleur doit se propager dans les deux sens :
+
+- **Bottom-up** : MetaCapability chaude si ses Capabilities enfants sont chaudes
+- **Top-down** : Tool isolé hérite de la chaleur de sa Capability parente
+
+### Implémentation
 
 ```typescript
-class HierarchicalHeatDiffusion {
-  private spectralClustering: SpectralClusteringManager;
-  private heatCache: Map<string, number>;  // Cache TTL
+/**
+ * Calcule l'alpha local via Heat Diffusion Hiérarchique (Passive Suggestion Capabilities)
+ */
+function computeAlphaHeatDiffusionHierarchical(
+  targetNodeId: string,
+  targetType: 'tool' | 'capability' | 'meta',
+  contextNodes: string[]
+): number {
+  const heat = computeHierarchicalHeat(targetNodeId, targetType);
+  const contextHeat = computeContextHeat(contextNodes);
+  const pathHeat = computeHierarchicalPathHeat(contextNodes, targetNodeId);
 
-  constructor(spectralClustering: SpectralClusteringManager) {
-    this.spectralClustering = spectralClustering;
-    this.heatCache = new Map();
+  const structuralConfidence =
+    0.4 * heat +
+    0.3 * contextHeat +
+    0.3 * pathHeat;
+
+  return Math.max(0.5, 1.0 - structuralConfidence * 0.5);
+}
+
+/**
+ * Chaleur hiérarchique avec propagation bidirectionnelle
+ */
+function computeHierarchicalHeat(nodeId: string, nodeType: NodeType): number {
+  const weights = getHierarchyWeights(nodeType);
+
+  const intrinsicHeat = computeIntrinsicHeat(nodeId, nodeType);
+  const neighborHeat = computeNeighborHeat(nodeId);
+  const hierarchyHeat = computeHierarchyPropagation(nodeId, nodeType);
+
+  return weights.intrinsic * intrinsicHeat
+       + weights.neighbor * neighborHeat
+       + weights.hierarchy * hierarchyHeat;
+}
+
+/**
+ * Propagation dans la hiérarchie
+ */
+function computeHierarchyPropagation(nodeId: string, nodeType: NodeType): number {
+  switch (nodeType) {
+    case 'meta':
+      // Agrégation bottom-up des capabilities enfants
+      const children = getChildren(nodeId, 'capability');
+      if (children.length === 0) return 0;
+      return children.reduce((sum, c) =>
+        sum + computeHierarchicalHeat(c, 'capability'), 0) / children.length;
+
+    case 'capability':
+      // Héritage de la meta-capability parente
+      const metaParent = getParent(nodeId, 'meta');
+      if (!metaParent) return 0;
+      return computeHierarchicalHeat(metaParent, 'meta') * 0.7;
+
+    case 'tool':
+      // Héritage de la capability parente
+      const capParent = getParent(nodeId, 'capability');
+      if (!capParent) return 0;
+      return computeHierarchicalHeat(capParent, 'capability') * 0.5;
   }
+}
 
-  // Utilise la matrice d'adjacence déjà calculée
-  private getNeighbors(nodeId: string): string[] {
-    return this.spectralClustering.getAdjacencyRow(nodeId)
-      .filter(weight => weight > 0);
-  }
-
-  // Utilise les clusters pour identifier les zones denses
-  private getClusterDensity(nodeId: string): number {
-    const cluster = this.spectralClustering.getCluster(nodeId);
-    return this.spectralClustering.getClusterDensity(cluster);
+/**
+ * Poids selon le niveau hiérarchique
+ */
+function getHierarchyWeights(nodeType: NodeType): HeatWeights {
+  switch (nodeType) {
+    case 'tool':       return { intrinsic: 0.5, neighbor: 0.3, hierarchy: 0.2 };
+    case 'capability': return { intrinsic: 0.3, neighbor: 0.4, hierarchy: 0.3 };
+    case 'meta':       return { intrinsic: 0.2, neighbor: 0.2, hierarchy: 0.6 };
   }
 }
 ```
 
-## Alternatives Considérées
+---
 
-### A. Fiedler Vector (2ème vecteur propre)
+## 4. Bayésien - Cold Start Fallback
 
-```typescript
-// Position dans le spectre du Laplacien
-const fiedlerValue = eigenvectors.getColumn(1)[nodeIndex];
-const isIsolated = Math.abs(fiedlerValue) > threshold;
-```
+**Utilisé pour :** Tous les modes quand observations < seuil
 
-**Rejeté car :** Mesure seulement la position globale, pas la densité locale.
+**Principe :** Modéliser l'**incertitude** explicitement. Un nœud avec peu d'observations a une variance haute → on ne fait pas confiance au graphe.
 
-### B. Effective Resistance (Distance électrique)
+### Rationale
 
-```typescript
-// R_eff(i,j) = L⁺[i,i] + L⁺[j,j] - 2*L⁺[i,j]
-const resistance = computeEffectiveResistance(laplacian, i, j);
-```
+Pour les nouveaux nœuds (MetaCapabilities émergentes notamment), on n'a pas assez de données pour que les autres algorithmes soient fiables. Le fallback Bayésien garantit qu'on ne fait pas confiance au graphe prématurément.
 
-**Rejeté car :** Coût O(n³) pour le pseudo-inverse. Pourrait être combiné en v2.
-
-### C. Node Degree Simple
+### Implémentation
 
 ```typescript
-const degree = graph.degree(nodeId);
-const localAlpha = degree < 3 ? 1.0 : globalAlpha;
+const COLD_START_THRESHOLD = 5; // Minimum observations
+
+/**
+ * Vérifie si on est en cold start et calcule l'alpha Bayésien si nécessaire
+ */
+function computeAlphaWithColdStartCheck(
+  nodeId: string,
+  mode: 'active' | 'passive',
+  nodeType: NodeType,
+  contextNodes: string[]
+): number {
+  const observations = getObservationCount(nodeId);
+
+  // Cold start: pas assez d'observations
+  if (observations < COLD_START_THRESHOLD) {
+    return computeAlphaBayesian(nodeId, observations);
+  }
+
+  // Sinon, utiliser l'algorithme approprié au mode
+  if (mode === 'active') {
+    return computeAlphaEmbeddingsHybrides(nodeId);
+  } else {
+    if (nodeType === 'tool') {
+      return computeAlphaHeatDiffusion(nodeId, contextNodes);
+    } else {
+      return computeAlphaHeatDiffusionHierarchical(nodeId, nodeType, contextNodes);
+    }
+  }
+}
+
+/**
+ * Alpha Bayésien basé sur l'incertitude
+ *
+ * Prior: alpha = 1.0 (semantic only)
+ * Posterior: converge vers l'algo principal avec plus d'observations
+ */
+function computeAlphaBayesian(nodeId: string, observations: number): number {
+  // Prior: on ne fait pas confiance au graphe
+  const priorAlpha = 1.0;
+
+  // Avec plus d'observations, on fait de plus en plus confiance
+  // Formule: alpha = prior * (1 - observations/threshold) + target * (observations/threshold)
+  const confidence = observations / COLD_START_THRESHOLD;
+  const targetAlpha = 0.7; // Valeur cible intermédiaire
+
+  return priorAlpha * (1 - confidence) + targetAlpha * confidence;
+}
 ```
 
-**Rejeté car :** Trop simpliste, ne capture pas la hiérarchie ni la propagation.
-
-### D. Graph Wavelets (Multi-échelle)
-
-**Considéré pour v2 :** Permettrait d'analyser la structure à différentes échelles.
+---
 
 ## Implementation Plan
 
-### Phase 1 : Core Heat Diffusion
+### Fichiers à créer/modifier
 
 | Fichier | Changement |
 |---------|------------|
-| `src/graphrag/heat-diffusion.ts` | Nouvelle classe `HierarchicalHeatDiffusion` |
-| `src/graphrag/types.ts` | Types `HeatSources`, `HeatWeights`, `LocalAlpha` |
-| `tests/unit/graphrag/heat_diffusion_test.ts` | Tests unitaires |
+| `src/graphrag/local-alpha.ts` | **Nouveau** - Classe `LocalAlphaCalculator` avec les 4 algorithmes |
+| `src/graphrag/types.ts` | Types `AlphaMode`, `HeatWeights`, `LocalAlphaResult` |
+| `src/graphrag/graph-engine.ts` | Remplacer `getAdaptiveAlpha()` par `getLocalAlpha(mode, nodeId, context)` |
+| `src/graphrag/dag-suggester.ts` | Utiliser `getLocalAlpha('passive', ...)` |
+| `src/graphrag/spectral-clustering.ts` | Exposer `getEmbeddingRow()` pour Embeddings Hybrides |
+| `tests/unit/graphrag/local_alpha_test.ts` | Tests unitaires |
 
-### Phase 2 : Intégration
+### Interface principale
 
-| Fichier | Changement |
-|---------|------------|
-| `src/graphrag/graph-engine.ts` | `getLocalAlpha()` remplace `getAdaptiveAlpha()` |
-| `src/graphrag/dag-suggester.ts` | Utiliser alpha local dans `calculateConfidenceHybrid()` |
-| `src/graphrag/spectral-clustering.ts` | Exposer méthodes pour Heat Diffusion |
+```typescript
+type AlphaMode = 'active' | 'passive';
+type NodeType = 'tool' | 'capability' | 'meta';
 
-### Phase 3 : Observabilité
+interface LocalAlphaCalculator {
+  /**
+   * Point d'entrée principal
+   */
+  getLocalAlpha(
+    mode: AlphaMode,
+    nodeId: string,
+    nodeType: NodeType,
+    contextNodes?: string[]
+  ): number;
 
-| Fichier | Changement |
-|---------|------------|
-| `src/graphrag/types.ts` | Ajouter `localAlpha` à `GraphMetrics` |
-| `src/telemetry/algorithm-tracer.ts` | Tracer les calculs de heat |
-| API `/api/metrics` | Exposer distribution des alphas locaux |
+  /**
+   * Pour debug/observabilité
+   */
+  getAlphaBreakdown(
+    mode: AlphaMode,
+    nodeId: string,
+    nodeType: NodeType,
+    contextNodes?: string[]
+  ): {
+    algorithm: 'embeddings_hybrides' | 'heat_diffusion' | 'heat_hierarchical' | 'bayesian';
+    alpha: number;
+    inputs: Record<string, number>;
+    coldStart: boolean;
+  };
+}
+```
+
+---
 
 ## Consequences
 
 ### Positives
 
-- **Précision** : Alpha adapté à chaque zone du graphe
-- **Hiérarchie** : Respecte la structure Tool → Cap → Meta
-- **Émergent** : Les MetaCapabilities héritent naturellement
-- **Graceful degradation** : Zone sparse → semantic, zone dense → graphe
-- **Compatible** : Réutilise l'infrastructure SpectralClustering
+- **Cohérent avec ADR-038** : Même pattern (algo par mode/type)
+- **Chaque algo optimisé pour son cas** : Pas de compromis one-size-fits-all
+- **Cold start géré explicitement** : Bayésien évite les faux positifs
+- **Interprétable** : On sait quel algo est utilisé et pourquoi
 
 ### Négatives
 
-- **Complexité** : Plus de calculs qu'un alpha global
-- **Cache** : Nécessite invalidation quand le graphe change
-- **Tuning** : Poids à ajuster (intrinsic, neighbor, hierarchy)
+- **4 algorithmes à maintenir** : Plus complexe qu'un algo unique
+- **Transitions** : Passage cold start → normal peut créer des discontinuités
 
 ### Risques
 
-- **Performance** : Récursion dans la hiérarchie → Mitigé par cache + memoization
-- **Cycles** : Capabilities avec dépendances circulaires → Détection + limite de profondeur
-- **Cold start local** : Nœud nouveau dans zone dense → Héritage hiérarchique aide
+- **Performance** : Embeddings Hybrides requiert 2 embeddings → Mitigé par cache
+- **Tuning** : Poids dans Heat Diffusion à ajuster → Valeurs par défaut raisonnables
+
+---
 
 ## Métriques de Succès
 
 | Métrique | Avant | Après (cible) |
 |----------|-------|---------------|
 | Variance des alphas | 0 (global) | > 0.1 (distribution) |
-| Précision suggestions zone dense | ~70% | > 85% |
-| Précision suggestions zone sparse | ~60% | > 75% (via semantic) |
-| Latence calcul alpha | < 1ms | < 5ms (avec cache) |
+| Précision Active Search | ~70% | > 85% |
+| Précision Passive Suggestion zone dense | ~70% | > 85% |
+| Précision Passive Suggestion zone sparse | ~60% | > 75% |
+| Cold start false positives | N/A | < 5% |
+
+---
 
 ## References
 
