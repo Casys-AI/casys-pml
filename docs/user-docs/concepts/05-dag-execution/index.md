@@ -12,6 +12,7 @@ Orchestrating multi-tool workflows.
 | [DAG Suggester](./02-dag-suggester.md) | Automatic workflow construction |
 | [Parallelization](./03-parallelization.md) | Topological sort and layer execution |
 | [Checkpoints](./04-checkpoints.md) | HIL/AIL and human validation |
+| [Speculative Execution](./05-speculative-execution.md) | Pre-execution for instant results |
 
 ---
 
@@ -23,3 +24,4 @@ PML executes workflows as Directed Acyclic Graphs (DAGs):
 2. **Suggestion** - Can automatically build DAGs from intent
 3. **Parallelization** - Independent tasks run concurrently
 4. **Checkpoints** - Human-in-the-loop validation at critical points
+5. **Speculation** - Pre-execute high-confidence workflows for instant results

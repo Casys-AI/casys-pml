@@ -130,31 +130,74 @@ Capabilities are stored in the `workflow_pattern` table:
 | `success_count` | Times executed successfully |
 | `last_used` | Recency for ranking |
 
-## Capability Relationships
+## Capability Relationships (Hyperedges)
 
-Capabilities connect to other nodes in the knowledge graph:
+### Pourquoi "hyperedge" ?
+
+Dans un graphe classique, une relation connecte **2** elements (A → B). Mais une capability connecte **N** outils simultanement. C'est ce qu'on appelle un **hyperedge** en theorie des graphes.
 
 ```
-              ┌───────────────┐
-              │  Capability   │
-              │ file_to_issue │
-              └───────────────┘
-                     │
-         ┌──────────┼──────────┐
-         │          │          │
-    contains    contains    contains
-         │          │          │
-         ▼          ▼          ▼
-    ┌────────┐ ┌────────┐ ┌────────┐
-    │read_   │ │parse_  │ │create_ │
-    │file    │ │error   │ │issue   │
-    └────────┘ └────────┘ └────────┘
+Relation classique (edge):        Capability (hyperedge):
+─────────────────────────        ────────────────────────
+    A ──────▶ B                  ┌─────────────────────────────┐
+                                 │  Capability "file_to_issue" │
+                                 │                             │
+                                 │  read  parse  create_issue  │
+                                 │   │      │         │        │
+                                 └───┴──────┴─────────┴────────┘
+                                     Tous connectes ensemble
 ```
 
-These relationships enable:
-- Finding capabilities by their component tools
-- Suggesting tools based on capability context
-- Building new capabilities from existing ones
+### Outils partages entre capabilities
+
+Un outil peut appartenir a **plusieurs** capabilities :
+
+```
+┌─────────────────────┐          ┌─────────────────────┐
+│ Cap: File Analysis  │          │ Cap: Error Triage   │
+│                     │          │                     │
+│ read_file  parse    │          │ read_file  classify │
+└─────────────────────┘          └─────────────────────┘
+      │                                │
+      └────────────┬───────────────────┘
+                   │
+              ┌────────┐
+              │read_   │  ← Appartient aux deux capabilities
+              │file    │
+              └────────┘
+```
+
+Cette structure permet de decouvrir des connexions inattendues entre capabilities qui partagent des outils communs.
+
+### Visualisation dans le dashboard
+
+Le dashboard offre deux modes de visualisation :
+
+| Mode | Affichage | Utilisation |
+|------|-----------|-------------|
+| **Tools** | Graphe classique des outils | Vue d'ensemble des connexions |
+| **Hypergraph** | Capabilities comme groupes | Voir les patterns appris |
+
+En mode hypergraph, cliquer sur une capability affiche :
+- Le code source reutilisable
+- Les outils utilises
+- Le taux de succes et l'historique d'usage
+
+### Capability Chains
+
+Les capabilities peuvent s'enchainer pour former des workflows plus complexes :
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│ Cap: Read Data  │ ──▶ │ Cap: Transform  │ ──▶ │ Cap: Export     │
+│                 │     │                 │     │                 │
+│ read  validate  │     │ map  filter     │     │ format  write   │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+
+Workflow complet : capability → capability → capability
+```
+
+Ces chaines emergent naturellement de l'usage. PML detecte quand une capability en appelle regulierement une autre et renforce cette connexion.
 
 ## Next
 

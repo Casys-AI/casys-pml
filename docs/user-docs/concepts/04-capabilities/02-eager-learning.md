@@ -89,21 +89,36 @@ Every successful execution is captured:
 
 ### Storage Phase
 
-Captured patterns go directly to the database:
+Captured patterns go directly to the database with **ON CONFLICT** deduplication:
 
 ```
 workflow_pattern:
   id: abc123
   intent: "Process CSV file"
   code: "const data = await mcp.read_file(...)..."
+  code_hash: "sha256:a1b2c3..."  ← Deduplication key
   tools_used: ["read_file", "parse_csv", "write_file"]
   success_count: 1
   embedding: [0.12, -0.34, 0.56, ...]
 ```
 
-### Filter Phase (at suggestion time)
+**Fonctionnement interne :**
 
-When suggesting capabilities, PML applies filters:
+```sql
+INSERT INTO workflow_pattern (code_hash, code, intent, ...)
+ON CONFLICT (code_hash) DO UPDATE SET
+  usage_count = usage_count + 1,
+  last_used = NOW()
+```
+
+Cela signifie :
+- **1ere execution** : Le pattern est sauvegarde integralement
+- **Executions suivantes** : Seul le compteur d'usage est incremente
+- **Resultat** : Pas de doublons, mais l'historique d'usage est preserve
+
+### Filter Phase (Lazy Suggestions)
+
+When suggesting capabilities, PML applies **lazy filtering** - the intelligence is at suggestion time, not storage time:
 
 ```
 Query: "Process spreadsheet"
@@ -118,6 +133,23 @@ After filtering:
   2. parse_excel ← Decent match, decent success
   (old_csv_hack filtered out - low success rate)
 ```
+
+**Pourquoi "lazy" (paresseux) ?**
+
+```
+Eager Storage + Lazy Filtering = Best of Both Worlds
+
+┌─────────────────────────────────────────────────────────────────┐
+│  STOCKAGE (Eager)           SUGGESTION (Lazy)                   │
+│  ─────────────────          ─────────────────                   │
+│  • Aucun filtrage           • Filtre par pertinence semantique  │
+│  • Tout est garde           • Filtre par taux de succes         │
+│  • Rapide, sans jugement    • Filtre par contexte actuel        │
+│                              • Adapte au moment present          │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+L'avantage : ce qui n'est pas pertinent aujourd'hui pourrait l'etre demain. En stockant tout et en filtrant au moment de la suggestion, PML peut s'adapter aux changements de contexte.
 
 ## Deduplication
 
