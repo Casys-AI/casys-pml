@@ -1,4 +1,4 @@
-# Story 3.3: Refaire Notebook 05 avec Vrai CapabilityStore
+# Story 3.4: Refaire Notebook 05 avec Vrai CapabilityStore
 
 **Status:** ready-for-dev
 

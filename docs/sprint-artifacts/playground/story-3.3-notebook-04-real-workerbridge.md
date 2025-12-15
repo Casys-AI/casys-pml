@@ -1,4 +1,4 @@
-# Story 3.2: Refaire Notebook 04 avec Vrai WorkerBridge
+# Story 3.3: Refaire Notebook 04 avec Vrai WorkerBridge
 
 **Status:** ready-for-dev
 
@@ -19,12 +19,8 @@ So that **I see the actual production code in action**.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Add WorkerBridge helper to playground/lib/capabilities.ts (AC: 1, 2)
-  - [ ] 1.1: Import real WorkerBridge from src/sandbox/worker-bridge.ts
-  - [ ] 1.2: Create `getWorkerBridge(mcpClients?)` with lazy init
-  - [ ] 1.3: Create minimal mock MCP clients for demos (filesystem, memory)
-  - [ ] 1.4: Add to resetPlaygroundState() cleanup
-- [ ] Task 2: Refactor notebook 04 cells (AC: 1, 3, 5)
+- [ ] Task 1: Refactor notebook 04 cells (AC: 1, 3, 5)
+  - [ ] NOTE: WorkerBridge helper already available from Story 3.2
   - [ ] 2.1: Replace SimulatedWorkerBridge class with import from helper
   - [ ] 2.2: Update "Mock MCP Client" cell to use real or minimal mock
   - [ ] 2.3: Verify trace output format matches real TraceEvent type
@@ -163,7 +159,7 @@ type TraceEvent =
 ### Context Reference
 
 Story created from Epic 3 definition in `docs/epics-playground.md`
-Depends on Story 3.1 for helper infrastructure
+Depends on Story 3.1 (CapabilityStore helpers) and Story 3.2 (WorkerBridge helper)
 
 ### Agent Model Used
 

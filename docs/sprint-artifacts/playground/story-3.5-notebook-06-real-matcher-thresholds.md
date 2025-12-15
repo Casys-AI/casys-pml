@@ -1,4 +1,4 @@
-# Story 3.4: Refaire Notebook 06 avec Vrai Matcher et Thresholds
+# Story 3.5: Refaire Notebook 06 avec Vrai Matcher et Thresholds
 
 **Status:** ready-for-dev
 

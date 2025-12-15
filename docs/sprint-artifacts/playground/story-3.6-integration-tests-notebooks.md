@@ -1,4 +1,4 @@
-# Story 3.5: Tests d'Intégration Notebooks
+# Story 3.6: Tests d'Intégration Notebooks
 
 **Status:** ready-for-dev
 
