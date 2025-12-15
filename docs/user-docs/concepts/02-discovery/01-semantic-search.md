@@ -53,8 +53,8 @@ Similar meanings → similar numbers → found together.
 
 ### Embedding Model
 
-PML uses a compact embedding model that runs locally:
-- **384 dimensions** per vector
+PML uses the BGE-M3 embedding model that runs locally:
+- **1024 dimensions** per vector
 - **Fast** - milliseconds per embedding
 - **No API calls** - works offline
 

@@ -117,7 +117,7 @@ Expected output:
 🚀 Initializing PML...
 ✓ Found 2 MCP server(s)
 ✓ Extracted 15 tool schemas
-✓ Generated embeddings (BGE-Large-EN-v1.5)
+✓ Generated embeddings (BGE-M3)
 ✓ Stored in ~/.pml/db
 
 PML is ready!

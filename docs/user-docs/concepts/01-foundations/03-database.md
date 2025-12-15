@@ -54,7 +54,7 @@ PML generates **vector embeddings** for semantic search. Each tool and capabilit
 
 ### How Embeddings Work
 
-1. Tool description → Embedding model → 384-dimension vector
+1. Tool description → Embedding model → 1024-dimension vector
 2. Vector stored in `tool_embedding` table
 3. Search query → Same embedding model → Query vector
 4. PostgreSQL pgvector finds nearest neighbors
@@ -66,7 +66,7 @@ Tool: "Read contents of a file from the filesystem"
         ↓
    Embedding Model
         ↓
-Vector: [0.023, -0.156, 0.089, ..., 0.012]  (384 dims)
+Vector: [0.023, -0.156, 0.089, ..., 0.012]  (1024 dims)
 ```
 
 When you search "get file contents", the query is also embedded and compared to all tool vectors.
