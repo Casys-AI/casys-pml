@@ -11,6 +11,17 @@
 
 Cette tech spec adresse plusieurs questions architecturales interconnectées autour de l'apprentissage depuis les DAGs et le code, la création de capabilities, et la cohérence du modèle de données.
 
+### Décision clé : Unification des APIs
+
+**On unifie les tools MCP en deux points d'entrée principaux :**
+
+| Avant (fragmenté) | Après (unifié) |
+|-------------------|----------------|
+| `pml_search_tools` | `pml_search` |
+| `pml_search_capabilities` | `pml_search` |
+| `pml_execute_dag` | `pml_execute` |
+| `pml_execute_code` | `pml_execute` |
+
 ### Problèmes identifiés
 
 1. **Parallel tracking** : Les tools exécutés en parallèle ne créent pas d'edges
@@ -18,7 +29,8 @@ Cette tech spec adresse plusieurs questions architecturales interconnectées aut
 3. **Edge types confus** : `sequence` vs `dependency` - quelle différence ?
 4. **Co-occurrence manquant** : Pas d'edge type pour "utilisés ensemble"
 5. **Code vs DAG** : Tension entre les deux modèles d'exécution
-6. **Mode definition vs invocation** : Pas de distinction dans le data model
+6. **APIs fragmentées** : Trop de tools séparés, l'IA peut bypass le système
+7. **Mode definition vs invocation** : Pas de distinction dans le data model
 
 ---
 
@@ -258,55 +270,126 @@ return t2;
 
 ---
 
-## 5. DAG Suggester & Speculation en mode Code-First
+## 5. Architecture unifiée : `pml_search` et `pml_execute`
 
-### 5.1 Le problème
+### 5.1 Le problème des APIs fragmentées
 
-Si l'IA utilise principalement `execute_code`, le DAG Suggester devient moins utile :
-- Il ne peut pas suggérer du code (trop variable)
-- Les capabilities code ne sont pas structurées comme des DAGs
+Actuellement, l'IA peut "bypass" le système GraphRAG en utilisant `execute_code` directement :
 
-### 5.2 Solutions possibles
+```
+execute_dag:  Intent → Recherche → Suggestion → Exécution → Learning ✅
+execute_code: Code → Exécution → (traces mal exploitées) ❌
+```
 
-**Solution A : DAG Suggester suggère des capabilities**
+On veut que **tout** passe par le même système d'apprentissage.
 
-Au lieu de construire un DAG depuis le graphe, le suggester :
-1. Cherche des capabilities qui matchent l'intent
-2. Retourne la capability avec son code/DAG
-3. L'IA peut l'exécuter via `execute_capability`
+### 5.2 Solution : Deux APIs unifiées
+
+#### `pml_search` - Recherche unifiée
 
 ```typescript
-// Nouveau flow
-suggestCapability(intent: string): SuggestedCapability {
-  // 1. Semantic search sur capabilities
-  // 2. Graph-based ranking
-  // 3. Retourne la meilleure capability
+pml_search({
+  intent: "lire et parser un fichier JSON",
+
+  // Filtres optionnels
+  filter?: {
+    type?: "tool" | "capability" | "all",  // default: "all"
+    minScore?: number,
+  },
+
+  limit?: number,  // default: 10
+})
+
+// Retourne
+{
+  results: [
+    { type: "capability", id: "cap_123", intent: "...", score: 0.92,
+      source: { type: "code", code: "..." } },
+    { type: "tool", id: "fs:read", description: "...", score: 0.85 },
+    { type: "capability", id: "cap_456", intent: "...", score: 0.78,
+      source: { type: "dag", dagStructure: {...} } },
+  ]
 }
 ```
 
-**Solution B : Garder les deux en parallèle**
+#### `pml_execute` - Exécution unifiée
 
-- `suggestDAG()` - Pour quand l'IA veut un workflow structuré
-- `suggestCapability()` - Pour quand l'IA veut du code
+```typescript
+pml_execute({
+  intent: "analyser ce fichier JSON et extraire les utilisateurs actifs",
 
-L'IA choisit selon le contexte.
+  // Optionnel - si l'IA veut forcer une implémentation
+  implementation?: {
+    type: "code" | "dag",
+    code?: string,
+    dagStructure?: DAGStructure,
+  }
+})
+```
 
-**Solution C : Unifier via le tool `pml_find_capabilities`**
+### 5.3 Flow de `pml_execute`
 
-Le tool existant `pml_find_capabilities` retourne déjà des capabilities.
-On pourrait l'enrichir pour inclure :
-- Le code de la capability
-- Ou le DAG équivalent
+```
+┌─────────────────────────────────────────────────────┐
+│                    INTENT                           │
+└─────────────────────┬───────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────┐
+│  Implementation fournie ?                           │
+└─────────────────────┬───────────────────────────────┘
+                      │
+         ┌────────────┴────────────┐
+         ▼                         ▼
+       OUI                        NON
+         │                         │
+         ▼                         ▼
+   Exécute le code/dag      Recherche dans graphe :
+   fourni par l'IA          - Tools qui matchent
+         │                  - Capabilities (code/dag)
+         │                         │
+         │            ┌────────────┴────────────┐
+         │            ▼                         ▼
+         │      Confiance haute           Confiance basse
+         │      (> seuil)                 (< seuil)
+         │            │                         │
+         │            ▼                         ▼
+         │      EXÉCUTE                   RETOURNE
+         │      (speculation)             suggestions
+         │            │                         │
+         └────────────┴────────────┬────────────┘
+                                   ▼
+                           Après succès :
+                           - Crée/update capability
+                           - Update edges (graphe)
+                           - Trace structure (parallel, etc.)
+```
 
-### 5.3 Speculation
+### 5.4 Mapping avec les anciens tools
 
-La speculation actuelle prédit le "next tool" basé sur le workflow en cours.
+| Ancien tool | Nouveau | Notes |
+|-------------|---------|-------|
+| `pml_search_tools` | `pml_search({ filter: { type: "tool" } })` | Filtre sur tools |
+| `pml_search_capabilities` | `pml_search({ filter: { type: "capability" } })` | Filtre sur capabilities |
+| `pml_find_capabilities` | `pml_search` | Même chose |
+| `pml_execute_dag` | `pml_execute({ implementation: { type: "dag", ... } })` | DAG explicite |
+| `pml_execute_code` | `pml_execute({ implementation: { type: "code", ... } })` | Code explicite |
+| (nouveau) | `pml_execute({ intent: "..." })` | Laisse le système choisir |
 
-En mode code, on pourrait :
-1. **Spéculer sur les capabilities** - "Après cette capability, l'utilisateur voudra probablement X"
-2. **Spéculer sur les tools** - Même logique, basé sur les traces
+### 5.5 Avantages
 
-La speculation peut fonctionner si on trace correctement les `co-occurrence` et `sequence`.
+1. **Pas de bypass** : Tout passe par le même système
+2. **Apprentissage unifié** : Code ou DAG, on apprend pareil
+3. **Suggestion intelligente** : Le système propose tools ET capabilities
+4. **Simplicité pour l'IA** : Deux tools au lieu de cinq
+
+### 5.6 Speculation
+
+Avec l'architecture unifiée, la speculation fonctionne pour les deux :
+
+- Si le système connaît une capability pour l'intent → exécute en speculation
+- Si le système construit un DAG depuis le graphe → même logique qu'avant
+- Si confiance basse → retourne suggestions, l'IA choisit
 
 ---
 
@@ -377,65 +460,185 @@ interface CapabilityInvocation {
 
 ---
 
-## 8. Plan d'implémentation
+## 8. Apprentissage depuis le code (style Temporal)
+
+### 8.1 Philosophie
+
+Inspiré de [Temporal](https://temporal.io/) : le code s'exécute, on trace, on reconstruit la structure après.
+
+> "Il est impossible de visualiser le DAG avant l'exécution car le code est dynamique.
+> Mais on peut reconstruire la structure depuis les traces."
+
+### 8.2 Flow d'apprentissage
+
+```
+┌─────────────────────────────────────────────────────┐
+│  L'IA écrit du code naturel                         │
+│  (Promise.all, await, loops, etc.)                  │
+└─────────────────────┬───────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────┐
+│  Le code S'EXÉCUTE                                  │
+│  Worker trace chaque tool call avec :               │
+│  - ts (timestamp start)                             │
+│  - durationMs                                       │
+│  - parentTraceId (hiérarchie)                       │
+└─────────────────────┬───────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────┐
+│  RECONSTRUCTION de la structure                     │
+│  - Timestamps overlap → co-occurrence (parallel)    │
+│  - Timestamps séquentiels → sequence                │
+│  - parentTraceId → contains (hierarchy)             │
+└─────────────────────┬───────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────┐
+│  Stocker comme CAPABILITY                           │
+│  - code original                                    │
+│  - inferredStructure (le "DAG implicite")           │
+│  - edges dans le graphe                             │
+└─────────────────────────────────────────────────────┘
+```
+
+### 8.3 Structure de la Capability unifiée
+
+```typescript
+interface Capability {
+  id: string;
+  intent: string;
+
+  // Source originale (ce que l'IA a écrit)
+  source:
+    | { type: "code"; code: string }
+    | { type: "dag"; dagStructure: DAGStructure };
+
+  // Structure RECONSTRUITE depuis l'exécution
+  // Permet au suggester de travailler même avec du code
+  inferredStructure: {
+    tools: string[];
+    edges: Array<{
+      from: string;
+      to: string;
+      type: "sequence" | "co-occurrence" | "contains";
+    }>;
+  };
+
+  // Metadata
+  toolsUsed: string[];
+  executionCount: number;
+  avgDurationMs: number;
+  successRate: number;
+}
+```
+
+### 8.4 Ce que ça change pour le DAG Suggester
+
+Le suggester peut maintenant travailler avec les deux :
+
+1. **Capabilities avec DAG explicite** : Utilise le `dagStructure` directement
+2. **Capabilities avec code** : Utilise l'`inferredStructure` pour comprendre les relations
+
+Dans les deux cas, il a accès aux edges et peut construire des suggestions.
+
+---
+
+## 9. Plan d'implémentation
 
 ### Phase 1 : Parallel Tracking (Quick Win)
 
-1. Modifier `execution-learning.ts` pour utiliser les timestamps
-2. Ajouter edge type `co-occurrence`
-3. Modifier `graph-engine.ts:updateFromExecution()` pour créer des edges même sans `dependsOn`
+1. Modifier `execution-learning.ts` pour utiliser les timestamps (`ts`, `durationMs`)
+2. Ajouter edge type `co-occurrence` dans `edge-weights.ts`
+3. Détecter overlap temporel pour créer les bons edges
 
+**Fichiers :** `execution-learning.ts`, `edge-weights.ts`, `types.ts`
 **Effort estimé :** 1-2 jours
 
-### Phase 2 : DAG → Capability
+### Phase 2 : Capability unifiée
 
-1. Ajouter `dagStructure` optionnel dans `Capability`
-2. Créer une capability après un DAG réussi (opt-in ou auto ?)
-3. Adapter le matcher pour supporter les deux formats
+1. Ajouter `source` (code OU dag) dans `Capability`
+2. Ajouter `inferredStructure` pour stocker la structure reconstruite
+3. Créer capability après TOUT succès (code ou DAG)
 
+**Fichiers :** `capability-store.ts`, `types.ts`, migrations
 **Effort estimé :** 2-3 jours
 
-### Phase 3 : Suggester Unification
+### Phase 3 : API unifiée `pml_search`
 
-1. Enrichir `pml_find_capabilities` pour retourner code/DAG
-2. Adapter DAG Suggester pour suggérer des capabilities
-3. Tester la speculation avec le nouveau modèle
+1. Créer nouveau handler `pml_search` qui cherche tools ET capabilities
+2. Retourner résultats unifiés avec scores
+3. Déprécier `pml_search_tools` et `pml_search_capabilities`
 
+**Fichiers :** `gateway-server.ts`, handlers
+**Effort estimé :** 2-3 jours
+
+### Phase 4 : API unifiée `pml_execute`
+
+1. Créer nouveau handler `pml_execute`
+2. Implémenter le flow : intent → recherche → suggestion/exécution
+3. Déprécier `pml_execute_dag` et `pml_execute_code`
+4. Assurer l'apprentissage unifié après succès
+
+**Fichiers :** `gateway-server.ts`, `controlled-executor.ts`, handlers
 **Effort estimé :** 3-5 jours
 
-### Phase 4 : Definition vs Invocation
+### Phase 5 : Definition vs Invocation
 
 1. Ajouter table `capability_invocations`
-2. Logger chaque exécution de capability
-3. Adapter l'API et Fresh UI
+2. Logger chaque exécution avec args et résultats
+3. Adapter l'API pour Fresh UI
 
+**Fichiers :** `capability-store.ts`, migrations, API
 **Effort estimé :** 2-3 jours
 
----
+### Ordre recommandé
 
-## 9. Questions ouvertes (À discuter)
+```
+Phase 1 (timestamps) → Phase 2 (capability) → Phase 3 (search) → Phase 4 (execute) → Phase 5 (invocations)
+```
 
-### Fondamentales
-
-1. **Option A vs B vs C pour DAG → Capability ?**
-2. **Fusionner sequence/dependency ou garder les deux ?**
-3. **Co-occurrence bidirectionnel ou directionnel ?**
-
-### UX/Comportement
-
-4. **Créer une capability automatiquement après DAG réussi ou opt-in ?**
-5. **Seuil de confiance pour suggestion capability vs DAG ?**
-6. **Comment l'IA choisit entre code et DAG ?**
-
-### Technique
-
-7. **Rétention des invocations (combien garder) ?**
-8. **Migration des capabilities existantes ?**
-9. **Impact sur les tests existants ?**
+Les phases 1-2 sont des quick wins indépendants.
+Les phases 3-4 sont le cœur de l'unification.
+La phase 5 est pour l'UX Fresh.
 
 ---
 
-## 10. Références
+## 10. Questions ouvertes (À discuter)
+
+### Résolues ✅
+
+1. ~~Option A vs B vs C pour DAG → Capability ?~~ → **Option A** : Capability = code OU dag
+2. ~~Fusionner sequence/dependency ou garder les deux ?~~ → **Garder les deux** (sémantique différente)
+3. ~~Comment l'IA choisit entre code et DAG ?~~ → **Elle ne choisit plus** : `pml_execute` unifié
+4. ~~APIs fragmentées ?~~ → **Unification** : `pml_search` + `pml_execute`
+
+### Ouvertes
+
+5. **Co-occurrence bidirectionnel ou directionnel ?**
+   - Option A : Deux edges A→B et B→A
+   - Option B : Un edge bidirectionnel A↔B
+
+6. **Seuil de confiance pour speculation ?**
+   - Même seuil pour code et DAG ?
+   - Adapter selon le type ?
+
+7. **Rétention des invocations** (pour mode definition/invocation)
+   - Combien garder par capability ?
+   - TTL ?
+
+8. **Migration des capabilities existantes**
+   - Ajouter `source: { type: "code" }` aux existantes ?
+   - Recalculer `inferredStructure` depuis les traces ?
+
+9. **Backward compatibility**
+   - Garder les anciens tools en mode déprécié ?
+   - Période de transition ?
+
+---
+
+## 11. Références
 
 - `docs/sprint-artifacts/bug-parallel-execution-tracking.md` - Bug original
 - `docs/adrs/ADR-041-hierarchical-trace-tracking.md` - Trace hierarchy
