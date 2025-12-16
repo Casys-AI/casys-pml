@@ -541,7 +541,7 @@ recommandations basées sur les patterns d'usage réels via graph traversal
 
 - **Story 5.1:** `search_tools` MCP tool - Hybrid semantic + graph search with Adamic-Adar
   relatedness
-  - Dynamic alpha balancing (ADR-015): `α = max(0.5, 1.0 - density × 2)`
+  - ~~Dynamic alpha balancing (ADR-015): `α = max(0.5, 1.0 - density × 2)`~~ → **Superseded by ADR-048: Local Adaptive Alpha** (per-tool alpha via Heat Diffusion / Embeddings Hybrides)
   - Graph methods: `getNeighbors()`, `computeAdamicAdar()`, `computeGraphRelatedness()`
   - No strict confidence threshold (returns top-K results, letting agent decide)
   - **Complementary to Story 4.2:** Improves search quality (confidence boost) vs threshold
@@ -558,11 +558,12 @@ recommandations basées sur les patterns d'usage réels via graph traversal
 - **Cold start solution** via workflow templates (works even without historical data)
 - **Adaptive weighting** based on graph density (more semantic when sparse, more graph when dense)
 
-**Architectural Insight (ADR-015):**
+**Architectural Insight (ADR-015 → ADR-048):**
 
 - Increases search scores via graph boost (0.48 → 0.64), reducing threshold failures
 - Works alongside Story 4.2: Better scores (5.1) + Adaptive thresholds (4.2) = Fewer manual
   confirmations
+- **Evolution:** ADR-048 replaced global alpha with per-tool Local Alpha for more precise weighting
 
 **Prerequisites:** Epic 3 (Sandbox for safe speculation context)
 

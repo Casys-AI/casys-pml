@@ -2,9 +2,32 @@
 
 **Status:** Proposed
 **Date:** 2025-12-16
-**Related:** ADR-008 (Episodic Memory), ADR-042 (Capability Hyperedges), ADR-048 (Local Alpha), ADR-041 (Edge Tracking)
+**Related:** ADR-008 (Episodic Memory), ADR-035 (Permission Sets), ADR-041 (Edge Tracking), ADR-042 (Capability Hyperedges), ADR-048 (Local Alpha)
+**Supersedes:** `config/speculation_config.yaml` (configuration actuelle simplifiée)
 
 ## Context
+
+### Configuration Actuelle: speculation_config.yaml
+
+Le fichier `config/speculation_config.yaml` définit la configuration de spéculation actuelle (Story 3.5-2):
+
+```yaml
+enabled: true
+confidence_threshold: 0.70        # Seuil global unique
+max_concurrent_speculations: 3
+speculation_timeout: 10000
+adaptive:
+  enabled: true
+  min_threshold: 0.40
+  max_threshold: 0.90
+```
+
+**Limitations de cette approche:**
+- Un seul `confidence_threshold` global pour tous les tools
+- Pas de distinction par niveau de risque (read vs delete)
+- Ajustement adaptatif simple (EMA) sans apprentissage per-tool
+
+Cette ADR propose de remplacer cette configuration par un système intelligent à 3 niveaux.
 
 ### Problème Identifié
 
@@ -286,7 +309,7 @@ Tous les tools ont le même threshold de base.
 
 ---
 
-#### Option 3B: Catégories de risque fixes ⭐ RECOMMENDED
+#### Option 3B: Catégories de risque fixes (pattern matching)
 
 ```typescript
 const riskThresholds = {
@@ -296,25 +319,18 @@ const riskThresholds = {
 };
 ```
 
-**Score: 80/100**
+**Score: 65/100**
 
 | Critère | Score | Commentaire |
 |---------|-------|-------------|
 | Simplicité | 🟢 9/10 | 3 catégories |
 | Sécurité | 🟢 8/10 | Dangerous = threshold haut |
-| Flexibilité | 🟡 6/10 | Override possible |
-| Maintenance | 🟢 7/10 | Pattern matching |
-
-**Pros:**
-- 🟢 Simple et intuitif
-- 🟢 Sécurité par défaut
-- 🟢 Override table pour cas spéciaux
+| Flexibilité | 🟡 5/10 | Pattern matching fragile |
+| Maintenance | 🟡 5/10 | `delete_draft` mal classé |
 
 **Cons:**
-- 🟡 Classification manuelle initiale
-- 🟡 Nouveaux tools → catégorie par défaut
-
-**Verdict:** ⭐ **Option 3B - Catégories de risque fixes**
+- 🟡 Pattern matching fragile (`soft_delete`, `remove_cache` mal classés)
+- 🟡 Ne prend pas en compte le contexte du server
 
 ---
 
@@ -325,18 +341,125 @@ const riskThresholds = {
 risk = learnRiskFromHistory(toolId, outcomes);
 ```
 
-**Score: 68/100**
+**Score: 50/100**
 
 | Critère | Score | Commentaire |
 |---------|-------|-------------|
 | Simplicité | 🔴 4/10 | ML supplémentaire |
-| Sécurité | 🟡 5/10 | Cold start dangereux |
+| Sécurité | 🔴 3/10 | Cold start dangereux |
 | Flexibilité | 🟢 9/10 | S'adapte |
 | Maintenance | 🟢 8/10 | Automatique |
 
 **Cons:**
-- 🔴 Un tool dangereux peut causer des dégâts avant qu'on apprenne
+- 🔴 Un tool dangereux peut causer des dégâts AVANT qu'on apprenne
 - 🔴 Complexité supplémentaire
+
+---
+
+#### Option 3D: Intégration avec mcp-permissions.yaml (ADR-035) ⭐ RECOMMENDED
+
+Utilise les permissions MCP comme **source de vérité** pour le niveau server, puis affine avec le nom du tool.
+
+```typescript
+/**
+ * Risk classification using mcp-permissions.yaml (ADR-035) + tool patterns
+ *
+ * Flow:
+ * 1. Server isReadOnly? → safe
+ * 2. Tool name has irreversible pattern? → dangerous
+ * 3. Tool name has write pattern? → moderate
+ * 4. Fallback based on permissionSet
+ */
+
+const IRREVERSIBLE_PATTERNS = [
+  'delete', 'remove', 'drop', 'truncate',
+  'reset_hard', 'force_push', 'format', 'destroy', 'wipe'
+];
+
+const WRITE_PATTERNS = [
+  'write', 'create', 'update', 'insert', 'push', 'commit', 'set'
+];
+
+function getBaseRisk(server: string, toolName: string): 'safe' | 'moderate' | 'dangerous' {
+  const serverConfig = loadMcpPermissions()[server];
+  const lowerToolName = toolName.toLowerCase();
+
+  // 1. Server explicitly readonly → always safe
+  if (serverConfig?.isReadOnly) {
+    return 'safe';
+  }
+
+  // 2. Irreversible action pattern → dangerous
+  if (IRREVERSIBLE_PATTERNS.some(p => lowerToolName.includes(p))) {
+    return 'dangerous';
+  }
+
+  // 3. Write action pattern → moderate
+  if (WRITE_PATTERNS.some(p => lowerToolName.includes(p))) {
+    return 'moderate';
+  }
+
+  // 4. Fallback based on permissionSet
+  switch (serverConfig?.permissionSet) {
+    case 'minimal': return 'safe';
+    case 'readonly': return 'safe';
+    case 'trusted': return 'dangerous';  // Manual verification only
+    case 'network-api': return 'moderate';
+    case 'filesystem': return 'moderate';
+    case 'mcp-standard': return 'moderate';
+    default: return 'moderate';  // Conservative default
+  }
+}
+```
+
+**Score: 82/100**
+
+| Critère | Score | Commentaire |
+|---------|-------|-------------|
+| Simplicité | 🟢 7/10 | Layered approach |
+| Sécurité | 🟢 9/10 | isReadOnly = guaranteed safe |
+| Flexibilité | 🟢 8/10 | Server-level + tool-level |
+| Maintenance | 🟢 8/10 | Centralized in mcp-permissions.yaml |
+| Cohérence | 🟢 9/10 | Réutilise ADR-035 |
+
+**Pros:**
+- 🟢 `isReadOnly: true` servers are **guaranteed safe** (memory, context7)
+- 🟢 Leverages existing `mcp-permissions.yaml` (ADR-035)
+- 🟢 Layered: server config → tool pattern → default
+- 🟢 Single source of truth for MCP server capabilities
+- 🟢 Easy to extend with `toolOverrides` if needed
+
+**Cons:**
+- 🟡 Still relies on pattern matching for tool names
+- 🟡 Requires mcp-permissions.yaml to be kept up-to-date
+
+**Example classifications:**
+
+| Server | Tool | isReadOnly | Pattern | → Risk |
+|--------|------|------------|---------|--------|
+| `memory` | `store` | ✅ true | - | **safe** |
+| `context7` | `query` | ✅ true | - | **safe** |
+| `filesystem` | `read_file` | ❌ false | read | **safe** |
+| `filesystem` | `write_file` | ❌ false | write | **moderate** |
+| `filesystem` | `delete_file` | ❌ false | delete | **dangerous** |
+| `postgres` | `query` | ❌ false | query | **safe** |
+| `postgres` | `drop_table` | ❌ false | drop | **dangerous** |
+| `github` | `create_pr` | ❌ false | create | **moderate** |
+| `docker` | `remove_container` | ❌ false | remove | **dangerous** |
+
+**Optional extension - toolOverrides in mcp-permissions.yaml:**
+
+```yaml
+filesystem:
+  permissionSet: filesystem
+  isReadOnly: false
+  toolOverrides:  # Explicit overrides for edge cases
+    read_file: safe
+    delete_file: dangerous
+    soft_delete: moderate  # Override pattern match
+```
+
+**Verdict:** ⭐ **Option 3D - Integration with mcp-permissions.yaml (ADR-035)**
 
 ---
 
@@ -598,12 +721,12 @@ function getThreshold(mode: Mode, toolId: string, localAlpha: number): number {
 |----------|----------------|-------|--------------|
 | **D1: Algo apprentissage** | Thompson Sampling | 82/100 | EMA (45), UCB (62), LinUCB (75) |
 | **D2: Intégration Alpha** | Terme additif | 78/100 | Aucune (30), Multiplicateur (65) |
-| **D3: Gestion risque** | Catégories fixes | 80/100 | Aucune (35), Appris (68) |
+| **D3: Gestion risque** | mcp-permissions.yaml + patterns (ADR-035) | 82/100 | Aucune (35), Pattern seul (65), Appris (50) |
 | **D4: Mémoire épisodique** | Situations similaires | 76/100 | Global (40), Embeddings (70) |
 | **D5: Edge threshold** | Dynamique alpha | 75/100 | Fixe (50) |
 | **D6: Stratégie par mode** | Hybride Thompson+UCB | 85/100 | Thompson tuné (80), Algo par mode (75) |
 
-**Score moyen solution proposée: 79/100**
+**Score moyen solution proposée: 80/100**
 
 ---
 
@@ -1125,57 +1248,118 @@ class IntelligentThresholdManager {
 
 ## Tool Risk Registry
 
+Uses `config/mcp-permissions.yaml` (ADR-035) as the source of truth for server capabilities, combined with tool name pattern matching.
+
 ```typescript
+import { parse } from 'yaml';
+import { readFileSync } from 'fs';
+
 /**
- * Registry of tool risk categories
+ * Registry of tool risk categories using mcp-permissions.yaml (ADR-035)
  *
  * Risk determines base threshold:
  * - safe: Low impact, reversible (read_file, list_dir)
  * - moderate: Medium impact (write_file, git_commit)
  * - dangerous: High impact, irreversible (delete_file, rm, DROP TABLE)
+ *
+ * Classification flow:
+ * 1. Server isReadOnly? → safe
+ * 2. Tool name has irreversible pattern? → dangerous
+ * 3. Tool name has write pattern? → moderate
+ * 4. Fallback based on permissionSet
  */
-interface ToolRiskRegistry {
-  getRiskCategory(toolId: string): 'safe' | 'moderate' | 'dangerous';
+
+interface McpServerConfig {
+  permissionSet: 'minimal' | 'readonly' | 'filesystem' | 'network-api' | 'mcp-standard' | 'trusted';
+  isReadOnly: boolean;
+  toolOverrides?: Record<string, 'safe' | 'moderate' | 'dangerous'>;
 }
 
-const RISK_PATTERNS: Record<string, 'safe' | 'moderate' | 'dangerous'> = {
-  // Safe operations (read-only, reversible)
-  'read': 'safe',
-  'list': 'safe',
-  'search': 'safe',
-  'get': 'safe',
-  'fetch': 'safe',
-  'query': 'safe',
+type McpPermissions = Record<string, McpServerConfig>;
 
-  // Moderate operations (writes, but recoverable)
-  'write': 'moderate',
-  'create': 'moderate',
-  'update': 'moderate',
-  'commit': 'moderate',
-  'push': 'moderate',
-  'insert': 'moderate',
+// Cached config
+let mcpPermissionsCache: McpPermissions | null = null;
 
-  // Dangerous operations (destructive, irreversible)
-  'delete': 'dangerous',
-  'remove': 'dangerous',
-  'drop': 'dangerous',
-  'truncate': 'dangerous',
-  'format': 'dangerous',
-  'reset': 'dangerous',
-};
+function loadMcpPermissions(): McpPermissions {
+  if (mcpPermissionsCache) return mcpPermissionsCache;
 
-function classifyToolRisk(toolId: string): 'safe' | 'moderate' | 'dangerous' {
-  const lowerToolId = toolId.toLowerCase();
+  const configPath = 'config/mcp-permissions.yaml';
+  const content = readFileSync(configPath, 'utf-8');
+  mcpPermissionsCache = parse(content) as McpPermissions;
+  return mcpPermissionsCache;
+}
 
-  for (const [pattern, risk] of Object.entries(RISK_PATTERNS)) {
-    if (lowerToolId.includes(pattern)) {
-      return risk;
-    }
+const IRREVERSIBLE_PATTERNS = [
+  'delete', 'remove', 'drop', 'truncate',
+  'reset_hard', 'force_push', 'format', 'destroy', 'wipe'
+];
+
+const WRITE_PATTERNS = [
+  'write', 'create', 'update', 'insert', 'push', 'commit', 'set'
+];
+
+const READ_PATTERNS = [
+  'read', 'get', 'list', 'search', 'fetch', 'query', 'find'
+];
+
+function classifyToolRisk(
+  server: string,
+  toolName: string
+): 'safe' | 'moderate' | 'dangerous' {
+  const permissions = loadMcpPermissions();
+  const serverConfig = permissions[server];
+  const lowerToolName = toolName.toLowerCase();
+
+  // 1. Check for explicit tool override
+  if (serverConfig?.toolOverrides?.[toolName]) {
+    return serverConfig.toolOverrides[toolName];
   }
 
-  // Default: moderate (cautious)
-  return 'moderate';
+  // 2. Server explicitly readonly → always safe
+  if (serverConfig?.isReadOnly) {
+    return 'safe';
+  }
+
+  // 3. Irreversible action pattern → dangerous
+  if (IRREVERSIBLE_PATTERNS.some(p => lowerToolName.includes(p))) {
+    return 'dangerous';
+  }
+
+  // 4. Read action pattern → safe (even on write-capable servers)
+  if (READ_PATTERNS.some(p => lowerToolName.includes(p))) {
+    return 'safe';
+  }
+
+  // 5. Write action pattern → moderate
+  if (WRITE_PATTERNS.some(p => lowerToolName.includes(p))) {
+    return 'moderate';
+  }
+
+  // 6. Fallback based on permissionSet
+  switch (serverConfig?.permissionSet) {
+    case 'minimal': return 'safe';
+    case 'readonly': return 'safe';
+    case 'trusted': return 'dangerous';  // Manual verification only
+    default: return 'moderate';  // Conservative default
+  }
 }
+
+// Convenience function for full tool ID (server:tool format)
+function classifyToolRiskById(toolId: string): 'safe' | 'moderate' | 'dangerous' {
+  const [server, ...toolParts] = toolId.split(':');
+  const toolName = toolParts.join(':') || server;  // Handle tools without server prefix
+  return classifyToolRisk(server, toolName);
+}
+```
+
+### Risk Thresholds
+
+```typescript
+const RISK_BASE_THRESHOLDS = {
+  safe: 0.55,       // read_file, list_dir, query
+  moderate: 0.70,   // write_file, git_commit, create_pr
+  dangerous: 0.85,  // delete_file, drop_table, force_push
+};
 ```
 
 ---
@@ -1421,6 +1605,7 @@ Total:                20.0h (~3 days)
 ### Internal ADRs
 
 - ADR-008: Episodic Memory & Adaptive Thresholds
+- ADR-035: Permission Sets & Sandbox Security (mcp-permissions.yaml)
 - ADR-041: Hierarchical Trace Tracking
 - ADR-048: Local Adaptive Alpha
 

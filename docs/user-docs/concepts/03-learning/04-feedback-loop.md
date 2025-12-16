@@ -243,16 +243,18 @@ Les seuils s'adaptent **par type de workflow**, pas globalement :
 
 | Contexte | Seuil initial | Après apprentissage | Pourquoi |
 |----------|---------------|---------------------|----------|
-| `data_analysis` | 0.92 | ~0.78 | Workflows simples, faible risque |
-| `production_deploy` | 0.92 | ~0.88 | Risque élevé, rester prudent |
-| `file_operations` | 0.92 | ~0.72 | Très prévisible, être audacieux |
+| `data_analysis` | 0.70 | ~0.55 | Workflows simples, faible risque |
+| `production_deploy` | 0.70 | ~0.85 | Risque élevé, rester prudent |
+| `file_operations` | 0.70 | ~0.50 | Très prévisible, être audacieux |
 
 ### Bornes de sécurité
 
-Le seuil ne sort jamais de l'intervalle **[0.70, 0.95]** :
-- **Minimum 0.70** : Évite les spéculations trop risquées
-- **Maximum 0.95** : Permet toujours quelques spéculations
-- **Départ à 0.92** : Conservateur au début, minimise les erreurs
+Le seuil ne sort jamais de l'intervalle **[0.40, 0.90]** :
+- **Minimum 0.40** : Permet des spéculations audacieuses pour workflows éprouvés
+- **Maximum 0.90** : Reste prudent même avec beaucoup d'échecs
+- **Départ à 0.70** : Équilibré, ni trop conservateur ni trop risqué
+
+**Configuration:** Voir `config/speculation_config.yaml` ([Configuration Reference](../../reference/02-configuration.md#speculation-configuration))
 
 ### Convergence
 

@@ -174,50 +174,55 @@ Unused patterns lose confidence over time:
 
 ## Cold Start Behavior
 
-When PML starts with little data, confidence weights adapt automatically.
+When PML starts with little data, confidence weights adapt automatically via **Local Alpha** (ADR-048).
 
 ### Why This Matters
 
-In "cold start" (empty or sparse graph), PageRank has nothing to compute. With fixed weights, suggestions would be too weak to be useful.
+In "cold start" (empty or sparse graph), PageRank has nothing to compute. PML uses a **per-tool adaptive alpha** to balance semantic vs graph signals intelligently.
 
-### Adaptive Weights
+### Local Alpha by Situation
 
-| Graph Density | Phase | Hybrid Search | PageRank | Path |
-|---------------|-------|---------------|----------|------|
-| < 1% | Cold start | **85%** | 5% | 10% |
-| < 10% | Growing | **65%** | 20% | 15% |
-| >= 10% | Mature | **55%** | 30% | 15% |
+| Situation | Alpha (α) | Semantic Weight | Graph Weight |
+|-----------|-----------|-----------------|--------------|
+| **Cold start** (< 5 observations) | 0.85-1.0 | 85-100% | 0-15% |
+| **Sparse zone** (isolated tool) | ~0.80 | 80% | 20% |
+| **Dense zone** (well-connected) | ~0.55 | 55% | 45% |
+| **Mature** (many observations) | 0.50-0.60 | 50-60% | 40-50% |
+
+**Key difference from before:** Alpha is now calculated **per tool**, not globally. A new tool in a mature graph still gets high alpha (cautious), while established tools get low alpha (trust graph).
 
 **In cold start:**
-- PML relies primarily on **semantic search** (85%)
-- Graph algorithms (PageRank, paths) have minimal weight
+- PML uses **Bayesian fallback** algorithm
+- New tools start at α ≈ 1.0 (semantic only)
+- Alpha decreases as observations accumulate
 - Suggestions work from the very first use
 
-**With a mature graph:**
-- Graph algorithms gain more weight (30% + 15%)
-- Learned patterns influence suggestions more
-- Semantic/graph balance optimizes relevance
+**With established tools:**
+- PML uses **Heat Diffusion** to calculate local alpha
+- Well-connected tools get lower alpha (trust graph more)
+- Isolated tools keep higher alpha (rely on semantic)
 
 ### Example
 
 ```
-New project (density ~0%):
+New tool in any project (cold start, α = 0.92):
   Intent: "Read config file"
+  Tool: new_config_reader (2 observations)
   Semantic score: 0.72
-  PageRank: 0 (no data)
+  Graph score: 0.30 (few connections)
 
-  Confidence (cold start weights):
-    0.72 × 0.85 + 0 × 0.05 + 0.5 × 0.10 = 0.66 ✓ Suggestion works
+  Final score = 0.72 × 0.92 + 0.30 × 0.08 = 0.69 ✓ Semantic dominates
 
-Mature project (density 15%):
+Established tool (mature, α = 0.55):
   Intent: "Read config file"
+  Tool: filesystem:read_file (50+ observations, dense neighborhood)
   Semantic score: 0.72
-  PageRank: 0.4 (popular tool)
-  Path strength: 0.6 (often followed by parse_json)
+  Graph score: 0.85 (central tool, high PageRank)
 
-  Confidence (mature weights):
-    0.72 × 0.55 + 0.4 × 0.30 + 0.6 × 0.15 = 0.61 ✓ Enriched suggestion
+  Final score = 0.72 × 0.55 + 0.85 × 0.45 = 0.78 ✓ Graph boosts score
 ```
+
+**See also:** [Hybrid Search - Local Adaptive Alpha](../02-discovery/02-hybrid-search.md#local-adaptive-alpha-α---intelligence-contextuelle)
 
 ## Next
 

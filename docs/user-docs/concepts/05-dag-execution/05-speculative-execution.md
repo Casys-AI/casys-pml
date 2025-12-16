@@ -61,11 +61,11 @@ Not every action is speculated. PML uses confidence scores to decide:
 ```
 Confidence Score = GraphRAG prediction × Recent success rate
 
-Threshold: 0.85 minimum (starts at 0.92 for new users)
+Default threshold: 0.70 (configurable)
 
-  0.70  │ Too risky - Wait for confirmation
-  0.85  │ ────────── Speculation threshold ──────────
-  0.92  │ Safe to speculate
+  0.50  │ Too risky - Wait for confirmation
+  0.70  │ ────────── Default speculation threshold ──────────
+  0.85  │ High confidence - Safe to speculate
   1.00  │ Almost certain
 ```
 
@@ -81,8 +81,10 @@ Reject speculation → Threshold increases (more conservative)
 Modify then accept → Threshold stays stable
 
 Target: 85% acceptance rate
-Bounds: [0.70, 0.95] - Never too risky, never too conservative
+Bounds: [0.40, 0.90] - Never too risky, never too conservative
 ```
+
+**Configuration:** See `config/speculation_config.yaml` ([Configuration Reference](../../reference/02-configuration.md#speculation-configuration))
 
 ## Safety Measures
 

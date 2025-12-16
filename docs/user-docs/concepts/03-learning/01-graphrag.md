@@ -87,6 +87,8 @@ PML uses graph algorithms to extract intelligence. Voici la **matrice des algori
 | **Capability** | **Capability Match** | **Strategic Discovery** |
 | | `semantic × successRate` | `toolsOverlap × spectralBoost` |
 
+> **Note:** Le paramètre **α** (alpha) est calculé localement pour chaque outil via [Local Adaptive Alpha](../02-discovery/02-hybrid-search.md#local-adaptive-alpha-α---intelligence-contextuelle). Les outils bien connectés ont un alpha bas (graphe fiable), les outils isolés ont un alpha haut (sémantique domine).
+
 **Approche additive** (outils) : Plus permissive, combine les signaux
 **Approche multiplicative** (capabilities) : Plus stricte, un mauvais signal disqualifie
 

@@ -118,42 +118,60 @@ The final score combines both components:
 Final Score = α × Semantic Score + (1-α) × Graph Score
 ```
 
-### Adaptive Alpha (α) - Le secret de l'intelligence
+### Local Adaptive Alpha (α) - Intelligence contextuelle
 
-Le paramètre **α** (alpha) n'est pas fixe ! PML l'ajuste automatiquement selon la **densité du graphe** :
+Le paramètre **α** (alpha) n'est pas fixe et n'est plus global ! PML calcule un **alpha local** pour chaque outil, adapté au contexte :
 
 ```
-α = max(0.5, 1.0 - density × 2)
-
-Où: density = edgeCount / (nodeCount × (nodeCount - 1))
+┌─────────────────────────────────────────────────────────────┐
+│                    LOCAL ALPHA PAR MODE                      │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  Mode               │ Algorithme          │ Quand ?          │
+│  ───────────────────┼─────────────────────┼─────────────────│
+│  Active Search      │ Embeddings Hybrides │ Vous cherchez    │
+│  Passive Suggestion │ Heat Diffusion      │ PML suggère      │
+│  Cold Start         │ Bayésien (fallback) │ < 5 observations │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-**Pourquoi ?** En "cold start" (nouveau système, peu de données), le graphe est vide et non fiable. PML fait donc confiance à la sémantique. Au fil du temps, le graphe s'enrichit et devient plus utile.
+**Pourquoi local ?** Un outil au cœur d'un cluster dense (ex: `read_file`) a un voisinage fiable. Un outil isolé (ex: un nouvel outil ML) n'a pas encore de connexions fiables. PML adapte la confiance **par outil**, pas globalement.
 
-| Phase | Densité | Alpha (α) | Comportement |
-|-------|---------|-----------|--------------|
-| **Cold start** | ~0% | 1.0 | 100% sémantique (graphe ignoré) |
-| **Démarrage** | 2% | 0.96 | Sémantique domine encore |
-| **Croissance** | 10% | 0.80 | Graphe commence à influencer |
-| **Mature** | 20% | 0.60 | Équilibre sémantique/graphe |
-| **Dense** | 25%+ | 0.50 | Minimum 50% sémantique toujours |
+| Situation | Alpha (α) | Comportement |
+|-----------|-----------|--------------|
+| **Zone dense** (bien connecté) | ~0.5 | Graphe fiable → influence forte |
+| **Zone sparse** (peu connecté) | ~0.8 | Graphe moins utile → sémantique domine |
+| **Cold start** (< 5 observations) | 0.85-1.0 | Bayésien → sémantique presque seul |
+| **Incohérence** (semantic ≠ structure) | ~0.9 | Semantic et graphe divergent → prudence |
 
 **Exemple concret :**
 ```
-Jour 1 (cold start, α = 1.0):
-  Query: "lire fichier"
-  → Résultat basé uniquement sur la similarité sémantique
+Requête: "lire fichier"
 
-Mois 3 (mature, α = 0.6):
-  Query: "lire fichier"
-  → 60% sémantique + 40% graphe (historique d'usage, PageRank)
-  → Les outils prouvés sont privilégiés
+Tool 1: read_file (zone dense, beaucoup de voisins)
+  → α = 0.55 (graphe très fiable ici)
+  → Score = 55% semantic + 45% graph
+
+Tool 2: new_ml_reader (isolé, peu d'historique)
+  → α = 0.90 (cold start, peu de données)
+  → Score = 90% semantic + 10% graph
 ```
 
+**Algorithmes utilisés :**
+
+| Mode | Comment ça marche |
+|------|-------------------|
+| **Embeddings Hybrides** | Compare l'embedding sémantique (BGE-M3) avec l'embedding structurel (Laplacien). Si les deux concordent → graphe fiable. |
+| **Heat Diffusion** | La "chaleur" se propage depuis vos outils récents. Un outil proche de votre contexte reçoit plus de chaleur → plus fiable. |
+| **Bayésien** | Pour les nouveaux outils : commence à α=1.0 (sémantique seul) puis converge vers la normale avec plus d'observations. |
+
 **Propriétés clés :**
-- **Transition fluide** : Pas de saut brutal, évolution graduelle
-- **Invariant à l'échelle** : Fonctionne que vous ayez 50 ou 500 outils
-- **Sécurisé** : α ne descend jamais sous 0.5 (sémantique toujours majoritaire)
+- **Granulaire** : Chaque outil a son propre alpha, pas de moyenne globale
+- **Contextuel** : L'alpha dépend de votre workflow actuel
+- **Cold start intelligent** : Les nouveaux outils sont traités avec prudence
+- **Sécurisé** : α ne descend jamais sous 0.5 (sémantique toujours au moins 50%)
+- **Configurable** : Paramètres ajustables via `config/local-alpha.yaml` ([voir Configuration](../../reference/02-configuration.md#local-alpha-configuration))
 
 ### Example
 
