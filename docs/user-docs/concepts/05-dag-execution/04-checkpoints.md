@@ -2,6 +2,18 @@
 
 > Human and Agent decision points in workflows
 
+## En bref
+
+Les checkpoints sont comme les points de sauvegarde dans un jeu video : le workflow met en pause l'execution a des moments strategiques pour vous permettre de verifier ce qui s'est passe et de decider si vous voulez continuer. Vous pouvez approuver, rejeter, ou modifier les parametres avant que l'action critique ne soit executee. C'est votre filet de securite.
+
+**Points cles :**
+- Points de pause pour revision humaine (HIL) ou par agent (AIL)
+- Controle des actions critiques ou irreversibles
+- Prevention des erreurs couteuses
+- Flexibilite d'ajuster le workflow en cours d'execution
+
+**Analogie :** Sauvegarde de jeu video - Avant un boss difficile, le jeu sauvegarde. Si vous echouez, vous revenez au checkpoint au lieu de tout recommencer.
+
 ## What Are Checkpoints?
 
 **Checkpoints** are points in a workflow where execution pauses for review or decision-making. They provide control over automated workflows, ensuring critical actions are verified before proceeding.
@@ -147,34 +159,11 @@ Complex workflows can use both:
 
 ## When to Use
 
-### Use HIL When:
+**HIL:** Irreversible actions, external impact, compliance, sensitive data, high stakes.
 
-```
-✓ Action is irreversible
-✓ Action has external impact
-✓ Compliance requires human approval
-✓ Action involves sensitive data
-✓ Stakes are high (cost, security, reputation)
-```
+**AIL:** Routine context-dependent decisions, speed important, recoverable errors, objective criteria.
 
-### Use AIL When:
-
-```
-✓ Decision is routine but context-dependent
-✓ Speed is important
-✓ Human oversight is not required
-✓ Decision can be made from available data
-✓ Errors are recoverable
-```
-
-### Skip Checkpoints When:
-
-```
-✓ Action is read-only
-✓ Action is easily reversible
-✓ Workflow is fully tested and trusted
-✓ Speed is critical and risk is low
-```
+**None:** Read-only, easily reversible, tested workflow, low risk.
 
 ## Checkpoint Configuration
 
@@ -193,6 +182,66 @@ Task: validate_output
     type: AIL
     prompt: "Is this output acceptable?"
     fallback: reject  (if agent fails)
+```
+
+## Exemple concret : Publication de contenu
+
+```
+Workflow: Publish Blog Post
+
+Layer 0: Fetch draft + Check images + Spell check
+Layer 1: Generate HTML, optimize images
+
+🤖 AIL: Quality check (alt text, SEO, links)
+
+Layer 2: Generate preview
+
+⏸️ HIL: Editorial Review
+  Preview URL + Post details
+  Options: ✓ Approve  ✗ Reject  ✏️ Edit
+  Decision: Approved (changed publish time)
+
+Layer 3: Publish to CMS + RSS + Tweet + Sitemap
+
+🤖 AIL: Post-publish verification
+  Checks: Post live? RSS ok? Tweet sent?
+  If fail → Rollback + Alert ops
+
+Layer 4: Send notifications, update dashboard
+
+ANALOGIE JEU VIDEO (Dark Souls) :
+
+AIL Checkpoint (auto):
+  Avant donjon: "Assez de potions? Arme reparee?"
+
+HIL Checkpoint (humain):
+  Porte du boss: SAUVEGARDE
+  Vous decidez: Continuer? Revenir plus tard?
+  Si mort → Retour au checkpoint
+
+AIL Checkpoint (verif):
+  Apres boss: Butin obtenu?
+```
+
+**Cas reels :**
+
+```
+E-commerce: Mise a jour prix (500 produits, -20%)
+  🤖 AIL: Verif calculs
+  ⏸️ HIL: Impact -$45k → Approuver?
+  Update DB + Clear cache
+
+Database Migration:
+  🤖 AIL: Backup integrity
+  Test sur staging
+  🤖 AIL: Staging validation
+  ⏸️ HIL: Migrate prod? (Risque HIGH, 15min downtime)
+  🤖 AIL: Post-migration checks → Auto-rollback si fail
+
+Regles:
+  HIL: Irreversible, impact financier, jugement humain
+  AIL: Criteres objectifs, technique, rapide
+  Aucun: Lecture seule, reversible, risque faible
 ```
 
 ## Next

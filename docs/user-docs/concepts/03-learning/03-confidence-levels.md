@@ -2,6 +2,50 @@
 
 > How PML tracks reliability of learned patterns
 
+## En bref
+
+La confiance dans PML, c'est comme la **réputation d'une recette de cuisine**. Une recette trouvée sur un post-it (template, 50%) n'inspire pas la même confiance qu'une recette testée 2-3 fois par vous (inferred, 70%), ou qu'une recette de famille transmise depuis des générations et validée des dizaines de fois (observed, 100%).
+
+**Pourquoi la confiance est importante ?**
+
+PML apprend des patterns, mais tous ne sont pas également fiables :
+- Un pattern vu **1 fois** peut être une coïncidence
+- Un pattern vu **100 fois** est probablement réel
+- Un pattern **défini manuellement** doit encore faire ses preuves
+
+**Les trois niveaux de confiance :**
+
+| Niveau | Confiance | Analogie | Signification |
+|--------|-----------|----------|---------------|
+| `template` | 50% | Recette sur post-it | Défini manuellement, pas encore testé |
+| `inferred` | 70% | Recette testée 1-2 fois | Observé quelques fois, prometteur |
+| `observed` | 100% | Recette de famille | Confirmé par 3+ exécutions |
+
+**Promotion automatique :**
+```
+template (50%) ─── 1ère exécution ──→ inferred (70%) ─── 3+ exécutions ──→ observed (100%)
+```
+
+**Impact concret sur votre expérience :**
+
+1. **Recherche** : Les outils avec haute confiance apparaissent en premier
+2. **DAG** : Seuls les liens avec confiance > 30% sont utilisés pour construire des workflows
+3. **Suggestions** : Les suggestions de faible confiance sont affichées en dernier
+
+**Exemple :**
+```
+Vous définissez: read_file → parse_json (template, 50%)
+
+Exécution 1: PML voit read_file puis parse_json
+  → Promu à "inferred" (70%)
+
+Exécutions 2 et 3: Même pattern observé
+  → Promu à "observed" (100%)
+
+Maintenant, quand vous utilisez read_file, parse_json est
+fortement suggéré car le pattern est validé.
+```
+
 ## Why Confidence Matters
 
 Not all learned patterns are equally reliable:
@@ -127,6 +171,53 @@ Unused patterns lose confidence over time:
 - If an edge isn't observed for a long period, confidence decreases
 - This prevents stale patterns from dominating
 - Active patterns stay strong
+
+## Cold Start Behavior
+
+When PML starts with little data, confidence weights adapt automatically.
+
+### Why This Matters
+
+In "cold start" (empty or sparse graph), PageRank has nothing to compute. With fixed weights, suggestions would be too weak to be useful.
+
+### Adaptive Weights
+
+| Graph Density | Phase | Hybrid Search | PageRank | Path |
+|---------------|-------|---------------|----------|------|
+| < 1% | Cold start | **85%** | 5% | 10% |
+| < 10% | Growing | **65%** | 20% | 15% |
+| >= 10% | Mature | **55%** | 30% | 15% |
+
+**In cold start:**
+- PML relies primarily on **semantic search** (85%)
+- Graph algorithms (PageRank, paths) have minimal weight
+- Suggestions work from the very first use
+
+**With a mature graph:**
+- Graph algorithms gain more weight (30% + 15%)
+- Learned patterns influence suggestions more
+- Semantic/graph balance optimizes relevance
+
+### Example
+
+```
+New project (density ~0%):
+  Intent: "Read config file"
+  Semantic score: 0.72
+  PageRank: 0 (no data)
+
+  Confidence (cold start weights):
+    0.72 × 0.85 + 0 × 0.05 + 0.5 × 0.10 = 0.66 ✓ Suggestion works
+
+Mature project (density 15%):
+  Intent: "Read config file"
+  Semantic score: 0.72
+  PageRank: 0.4 (popular tool)
+  Path strength: 0.6 (often followed by parse_json)
+
+  Confidence (mature weights):
+    0.72 × 0.55 + 0.4 × 0.30 + 0.6 × 0.15 = 0.61 ✓ Enriched suggestion
+```
 
 ## Next
 

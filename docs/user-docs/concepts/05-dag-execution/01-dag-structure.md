@@ -2,6 +2,18 @@
 
 > Directed Acyclic Graphs for workflow orchestration
 
+## En bref
+
+Un DAG (Directed Acyclic Graph) est la structure qui orchestre l'execution de vos workflows dans PML. Imaginez un plan de montage IKEA : chaque etape doit etre executee dans un ordre precis, certaines etapes peuvent etre faites en parallele (visser les pieds pendant que quelqu'un assemble le dos), et vous ne pouvez jamais revenir en arriere pour creer une boucle infinie. C'est exactement ce qu'est un DAG.
+
+**Points cles :**
+- Structure de workflow avec dependances explicites
+- Execution dans un ordre logique (pas de boucles)
+- Parallelisation automatique des taches independantes
+- Gestion d'erreurs avec etats de taches
+
+**Analogie :** Plan de montage IKEA - Chaque etape numrotee, certaines peuvent etre faites en parallele, impossible de creer une boucle.
+
 ## What is a DAG?
 
 A **DAG** (Directed Acyclic Graph) is a structure that represents a workflow where:
@@ -74,30 +86,14 @@ The `dependsOn` array specifies which tasks must complete before a task can star
 
 ```
 Task D depends on [Task B, Task C]
+  → Waits for BOTH B and C to complete
+  → If either fails, D may be skipped
 
-Meaning:
-  • Task D waits for BOTH B and C to complete
-  • If B finishes first, D still waits for C
-  • If either fails, D may be skipped
-```
+dependsOn: [] → Runs immediately
+dependsOn: ["A"] → Waits for A
+dependsOn: ["A", "B"] → Waits for BOTH
 
-### Dependency Types
-
-| Pattern | Behavior |
-|---------|----------|
-| `dependsOn: []` | Runs immediately (no dependencies) |
-| `dependsOn: ["A"]` | Waits for A to complete |
-| `dependsOn: ["A", "B"]` | Waits for BOTH A and B |
-
-### Data Flow
-
-Tasks can use outputs from their dependencies:
-
-```
-Task A: Read file → outputs content
-Task B: dependsOn [A], uses A's output to parse
-
-Data flows: A.output → B.input
+Data flow: Task A output → Task B input
 ```
 
 ## Building DAGs
@@ -138,14 +134,7 @@ PML automatically creates:
 
 ## Validation
 
-Before execution, PML validates DAGs:
-
-| Check | Description |
-|-------|-------------|
-| **No cycles** | A → B → A is invalid |
-| **Valid references** | dependsOn references existing tasks |
-| **Tool exists** | toolName maps to real MCP tool |
-| **Parameters valid** | Required parameters are provided |
+Before execution, PML validates: No cycles (A → B → A invalid), valid task references, existing tools, required parameters.
 
 ## Example
 
@@ -186,6 +175,65 @@ A complete DAG for processing a file:
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+## Exemple concret : Deploiement d'application
+
+Voici un workflow reel de deploiement d'application web :
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Workflow: Deploy Web Application                               │
+│                                                                  │
+│  Layer 0: Preparation                                           │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
+│  │ Run tests    │  │ Build assets │  │ Lint code    │          │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘          │
+│         │                 │                 │                   │
+│         └─────────────────┼─────────────────┘                   │
+│                           │                                      │
+│  Layer 1: Build                                                 │
+│                           ▼                                      │
+│                  ┌──────────────┐                               │
+│                  │ Create bundle│                               │
+│                  └──────┬───────┘                               │
+│                         │                                        │
+│  Layer 2: Deploy                                                │
+│         ┌───────────────┼───────────────┐                       │
+│         │               │               │                       │
+│         ▼               ▼               ▼                       │
+│  ┌──────────┐    ┌──────────┐    ┌──────────┐                  │
+│  │ Deploy   │    │ Upload   │    │ Update   │                  │
+│  │ API      │    │ CDN      │    │ Database │                  │
+│  └────┬─────┘    └────┬─────┘    └────┬─────┘                  │
+│       │               │               │                         │
+│       └───────────────┼───────────────┘                         │
+│                       │                                          │
+│  Layer 3: Verification                                          │
+│                       ▼                                          │
+│              ┌──────────────┐                                   │
+│              │ Health check │                                   │
+│              └──────┬───────┘                                   │
+│                     │                                            │
+│                     ▼                                            │
+│              ┌──────────────┐                                   │
+│              │ Send notif   │                                   │
+│              └──────────────┘                                   │
+│                                                                  │
+│  Comme un plan IKEA :                                           │
+│  1. Preparez toutes les pieces (tests, build, lint)            │
+│  2. Assemblez le meuble (create bundle)                        │
+│  3. Ajoutez les accessoires (deploy API, CDN, DB)              │
+│  4. Verifiez la stabilite (health check)                       │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Pourquoi cette structure ?**
+- Tests, build et lint peuvent s'executer en parallele (independants)
+- Le bundle necessite que tout soit valide (depend du Layer 0)
+- Les deployments peuvent etre paralleles (independants entre eux)
+- Le health check attend que tout soit deploye
+- Si les tests echouent, tout s'arrete (pas de deploiement defectueux)
 
 ## Next
 

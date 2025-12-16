@@ -2,6 +2,12 @@
 
 > Combining semantic and graph-based search
 
+## En bref
+
+La recherche hybride améliore la recherche sémantique en tenant compte de l'expérience collective : quels outils sont souvent utilisés ensemble, lesquels réussissent le mieux, et lesquels sont au coeur des workflows courants. C'est comme demander conseil à la fois à un dictionnaire (sens des mots) et à un expert (expérience pratique).
+
+**Résultat :** Vous trouvez non seulement les outils qui correspondent à votre requête, mais aussi ceux qui ont fait leurs preuves dans des situations similaires.
+
 ## Why Hybrid?
 
 Semantic search finds tools by meaning. But meaning alone misses important signals:
@@ -28,6 +34,24 @@ Semantic search finds tools by meaning. But meaning alone misses important signa
            │ (weighted)   │
            └──────────────┘
 ```
+
+### Analogie : Choisir un restaurant
+
+Imaginez que vous cherchez "un bon restaurant italien" :
+
+**Approche sémantique seule** (comme Google)
+- Trouve tous les restaurants dont la description mentionne "italien"
+- Ne sait pas lesquels sont réellement bons
+- Résultat : beaucoup de choix, qualité variable
+
+**Approche hybride** (comme Google + TripAdvisor + vos amis)
+- Trouve les restaurants italiens (sémantique)
+- Privilégie ceux avec de bonnes notes (graph : PageRank)
+- Booste ceux que vos amis ont aimés (graph : usage)
+- Suggère ceux du même quartier que votre dernier choix (graph : communauté)
+- Résultat : les meilleurs restaurants italiens pour VOUS
+
+C'est exactement ce que fait la recherche hybride : elle combine le sens de votre requête avec l'intelligence collective.
 
 ## Semantic Component
 
@@ -91,14 +115,45 @@ Tools that are used more often get a small boost:
 The final score combines both components:
 
 ```
-Final Score = (α × Semantic Score) + (β × Graph Score)
-
-Where:
-  α = 0.7 (semantic weight)
-  β = 0.3 (graph weight)
+Final Score = α × Semantic Score + (1-α) × Graph Score
 ```
 
-This means semantic similarity matters most, but graph signals can boost or demote results.
+### Adaptive Alpha (α) - Le secret de l'intelligence
+
+Le paramètre **α** (alpha) n'est pas fixe ! PML l'ajuste automatiquement selon la **densité du graphe** :
+
+```
+α = max(0.5, 1.0 - density × 2)
+
+Où: density = edgeCount / (nodeCount × (nodeCount - 1))
+```
+
+**Pourquoi ?** En "cold start" (nouveau système, peu de données), le graphe est vide et non fiable. PML fait donc confiance à la sémantique. Au fil du temps, le graphe s'enrichit et devient plus utile.
+
+| Phase | Densité | Alpha (α) | Comportement |
+|-------|---------|-----------|--------------|
+| **Cold start** | ~0% | 1.0 | 100% sémantique (graphe ignoré) |
+| **Démarrage** | 2% | 0.96 | Sémantique domine encore |
+| **Croissance** | 10% | 0.80 | Graphe commence à influencer |
+| **Mature** | 20% | 0.60 | Équilibre sémantique/graphe |
+| **Dense** | 25%+ | 0.50 | Minimum 50% sémantique toujours |
+
+**Exemple concret :**
+```
+Jour 1 (cold start, α = 1.0):
+  Query: "lire fichier"
+  → Résultat basé uniquement sur la similarité sémantique
+
+Mois 3 (mature, α = 0.6):
+  Query: "lire fichier"
+  → 60% sémantique + 40% graphe (historique d'usage, PageRank)
+  → Les outils prouvés sont privilégiés
+```
+
+**Propriétés clés :**
+- **Transition fluide** : Pas de saut brutal, évolution graduelle
+- **Invariant à l'échelle** : Fonctionne que vous ayez 50 ou 500 outils
+- **Sécurisé** : α ne descend jamais sous 0.5 (sémantique toujours majoritaire)
 
 ### Example
 
@@ -112,6 +167,33 @@ Query: "save data"
 
 `write_file` wins because it's both semantically relevant AND important in the graph.
 
+### Exemples concrets : L'impact du graph
+
+**Exemple 1 : Popularité et fiabilité**
+```
+Requête : "créer un projet"
+Sémantique seul : project:create (0.89) - nouveau, peu testé
+Hybride : project:initialize (0.91) - éprouvé, très utilisé
+```
+Le graph booste l'outil que la communauté utilise avec succès.
+
+**Exemple 2 : Cohérence de workflow**
+```
+Contexte : Vous venez d'utiliser git:commit
+Requête : "partager le code"
+Sémantique seul : share:send_link (0.82)
+Hybride : github:push (0.92) - même communauté Git
+```
+Le graph privilégie les outils cohérents avec votre contexte actuel.
+
+**Exemple 3 : Centralité dans l'écosystème**
+```
+Requête : "lire des données"
+Sémantique seul : data:read_custom (0.85) - spécialisé
+Hybride : filesystem:read_file (0.94) - central, fondamental
+```
+Le graph met en avant les outils sur lesquels d'autres s'appuient (PageRank élevé).
+
 ## Benefits
 
 | Pure Semantic | Hybrid |
@@ -119,6 +201,18 @@ Query: "save data"
 | Finds relevant tools | Finds relevant AND proven tools |
 | No learning | Improves with usage |
 | Static results | Dynamic, personalized |
+
+## Pourquoi c'est utile en pratique
+
+**Recommandations intelligentes** : PML suggère les outils qui ont fait leurs preuves, évite les solutions obsolètes, et privilégie ce qui fonctionne dans la communauté.
+
+**Apprentissage continu** : Plus vous utilisez PML, meilleurs deviennent les résultats. Le système apprend quels outils fonctionnent bien ensemble et adapte les suggestions.
+
+**Cohérence contextuelle** : Les suggestions s'adaptent à votre workflow actuel. Si vous travaillez avec Git, PML privilégie les outils Git. Moins de bruit, plus de pertinence.
+
+**Découverte guidée** : Trouvez des outils complémentaires et des workflows optimaux que vous n'auriez pas cherchés. Apprenez les meilleures pratiques naturellement.
+
+**Cas d'usage réel :** Vous cherchez "déployer mon app". La recherche sémantique seule trouverait 10 outils similaires. La recherche hybride met en avant `deploy:kubernetes` car c'est l'outil le plus utilisé dans votre équipe, avec le meilleur taux de succès, qui s'intègre avec vos outils Docker. Gain de temps immédiat.
 
 ## Next
 

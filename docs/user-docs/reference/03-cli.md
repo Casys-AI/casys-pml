@@ -7,7 +7,7 @@
 PML provides three main commands:
 
 ```
-pml<command> [options]
+pml <command> [options]
 
 Commands:
   init    Initialize PML from MCP configuration
@@ -17,12 +17,12 @@ Commands:
 
 ---
 
-## pmlinit
+## pml init
 
 Initialize PML by discovering MCP servers and indexing their tools.
 
 ```bash
-pmlinit --config <path>
+pml init --config <path>
 ```
 
 ### Options
@@ -56,7 +56,7 @@ pmlinit --config <path>
 🚀 Initializing PML...
 ✓ Found 3 MCP server(s)
 ✓ Extracted 42 tool schemas
-✓ Generated embeddings (BGE-Large-EN-v1.5)
+✓ Generated embeddings (BGE-M3)
 ✓ Stored in ~/.pml/db
 
 PML is ready!
@@ -64,12 +64,12 @@ PML is ready!
 
 ---
 
-## pmlserve
+## pml serve
 
 Start the PML MCP gateway server.
 
 ```bash
-pmlserve --config <path> [options]
+pml serve --config <path> [options]
 ```
 
 ### Options
@@ -135,12 +135,12 @@ PML gateway running on port 3001
 
 ---
 
-## pmlstatus
+## pml status
 
 Show the current status of the PML gateway.
 
 ```bash
-pmlstatus
+pml status
 ```
 
 ### Output

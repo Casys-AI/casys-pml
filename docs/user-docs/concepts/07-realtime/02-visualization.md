@@ -2,6 +2,26 @@
 
 > Hypergraph rendering with D3.js
 
+## En bref
+
+La visualisation dans PML, c'est comme le **tableau de bord de votre voiture** : un coup d'œil suffit pour comprendre ce qui se passe sans lire des pages de logs.
+
+**Pourquoi c'est important ?**
+
+- **Compréhension immédiate** : Voyez d'un coup d'œil comment les outils s'organisent et communiquent
+- **Exploration intuitive** : Découvrez des capacités que vous ne soupçonniez pas
+- **Debugging visuel** : Tracez le chemin d'exécution, identifiez les blocages
+- **Apprentissage facilité** : Observez en temps réel comment PML apprend et crée des connections
+
+**L'analogie du tableau de bord :**
+
+- Les **jauges** (vitesse, carburant, température) = les métriques de vos outils (fréquence d'usage, taux de succès)
+- Les **voyants lumineux** = les animations qui montrent l'activité en cours
+- La **disposition** = le layout intelligent qui place les éléments liés ensemble
+- Les **alertes** = les changements visuels quand quelque chose nécessite votre attention
+
+Tout comme vous conduisez en regardant le tableau de bord plutôt qu'en ouvrant le capot, vous pilotez PML en regardant sa visualisation plutôt qu'en lisant les logs bruts.
+
 ## The Hypergraph View
 
 PML provides a visual representation of its knowledge graph—a **hypergraph** showing tools, capabilities, and their relationships.
@@ -43,6 +63,28 @@ The visualization helps users:
 | **Debug** | Trace execution paths visually |
 | **Monitor** | Watch learning happen in real-time |
 | **Optimize** | Identify frequently used patterns |
+
+### Cas d'usage concrets par profil
+
+**Développeur débutant avec PML :**
+> "J'ai configuré 3 serveurs MCP, mais je ne sais pas vraiment quels outils sont disponibles."
+
+La visualisation vous montre tous les outils organisés par serveur. En cliquant sur un nœud, vous voyez immédiatement sa description, ses paramètres, et les outils avec lesquels il est souvent utilisé.
+
+**Data scientist qui optimise un workflow :**
+> "Mon pipeline de traitement de données est lent, je ne sais pas où est le goulot."
+
+En regardant les edges (liens), vous identifiez visuellement quels outils sont appelés en séquence. Les nodes plus gros indiquent les outils fréquemment utilisés. Vous repérez facilement qu'un outil de parsing est appelé 10 fois alors qu'une fois suffirait.
+
+**Architecte qui explore les capacités :**
+> "Je veux savoir si PML a déjà appris à faire ce type de tâche."
+
+Les capability zones vous montrent les patterns appris. Au lieu de fouiller dans les logs, vous voyez visuellement qu'une capability "file_to_github_issue" existe déjà avec un taux de succès de 94%.
+
+**DevOps qui monitore la production :**
+> "Je veux surveiller que le système fonctionne normalement."
+
+Les animations en temps réel vous alertent : un nœud qui pulse montre une exécution en cours, une edge qui s'épaissit montre un pattern qui se renforce. Si quelque chose cloche, vous le voyez immédiatement.
 
 ## Nodes and Edges
 
@@ -110,6 +152,47 @@ Edges show relationships between nodes:
 | **Edge thickness** | Relationship strength |
 | **Edge opacity** | Confidence level |
 | **Animation** | Recent activity |
+
+### Current Implementation
+
+The visualization uses two main structures:
+
+**Compound Nodes (Contains)**
+Capabilities are rendered as compound nodes that visually contain their tools. This shows the "contains" relationship without explicit edges.
+
+```
+╔═══════════════════════════════════════╗
+║  Capability: file_to_issue            ║
+║  ┌──────────┐  ┌──────────┐          ║
+║  │read_file │  │create_   │          ║
+║  └──────────┘  │issue     │          ║
+║                └──────────┘          ║
+╚═══════════════════════════════════════╝
+```
+
+**Sequence Edges**
+Edges between tools show temporal sequences (tool A followed by tool B):
+
+| Visual | Meaning |
+|--------|---------|
+| **Thickness** | Frequency (thicker = more observed) |
+| **Opacity** | Confidence level |
+| **Direction** | Arrow shows execution order |
+
+### Edge Styles by Source
+
+Line style indicates how the relationship was learned:
+
+| Source | Style | Opacity | Meaning |
+|--------|-------|---------|---------|
+| `observed` | Solid | 90% | Confirmed 3+ times |
+| `inferred` | Dashed | 60% | Observed 1-2 times |
+| `template` | Dotted | 40% | User-defined, not yet validated |
+
+**Quick reading guide:**
+- Solid thick line = frequently observed sequence (reliable)
+- Dashed line = sequence seen a few times (promising)
+- Dotted line = defined but not yet validated in practice
 
 ## Capability Zones
 
@@ -201,6 +284,36 @@ Click on Edge:
   • Option to manually adjust
 ```
 
+## Comment lire la visualisation : guide pratique
+
+### Première visite du graphe
+
+**Étape 1 : Vue d'ensemble**
+- Zoomez pour voir tout le graphe
+- Identifiez les clusters (groupes de nœuds proches) : ce sont les outils qui travaillent souvent ensemble
+- Repérez les nœuds isolés : ce sont des outils peu utilisés ou récemment découverts
+
+**Étape 2 : Identifier les hubs**
+- Les gros nœuds = outils très utilisés, probablement critiques pour votre système
+- Beaucoup de connections = outils polyvalents qui s'intègrent dans plusieurs workflows
+
+**Étape 3 : Tracer un workflow**
+- Suivez les flèches d'un nœud à l'autre
+- Les liens épais = séquences fréquentes, patterns fiables
+- Les capability zones montrent les workflows complets déjà appris
+
+### Signaux à surveiller
+
+**Bon signe :**
+- Clusters bien formés : les outils sont organisés logiquement
+- Edges épaisses entre outils liés : PML a confiance dans ces patterns
+- Capability zones nombreuses : le système a beaucoup appris
+
+**Attention :**
+- Nœud isolé mais souvent utilisé : peut indiquer un outil qui échoue à se connecter
+- Trop de connections sur un seul nœud : possible goulot d'étranglement
+- Edge fine malgré usage répété : faible confiance, peut nécessiter investigation
+
 ## Real-Time Updates
 
 The visualization updates live as PML learns:
@@ -238,60 +351,26 @@ During DAG execution:
 
 ## Layout Algorithms
 
-The graph uses force-directed layout:
+The graph uses **force-directed layout** with multiple forces applied simultaneously:
+- **Repulsion**: Nodes push away from each other
+- **Attraction**: Connected nodes pull together
+- **Centering**: Graph stays centered in view
+- **Collision**: Nodes don't overlap
+- **Clustering**: Same-server tools group together
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  Force Simulation                                                │
-│                                                                  │
-│  Forces applied:                                                │
-│    • Repulsion: Nodes push away from each other                │
-│    • Attraction: Connected nodes pull together                  │
-│    • Centering: Graph stays centered in view                   │
-│    • Collision: Nodes don't overlap                            │
-│    • Clustering: Same-server tools group together              │
-│                                                                  │
-│  Result: Natural, readable layout that reflects structure       │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
+Result: Natural, readable layout that reflects the actual structure of relationships.
 
 ## Filtering and Search
 
-### Filter by Server
-
 ```
-Show only: [x] filesystem  [x] github  [ ] fetch  [ ] database
-```
-
-### Filter by Activity
-
-```
-Show: [x] Recently used  [ ] All tools  [ ] Orphaned only
-Time: [Last hour ▼]
-```
-
-### Search
-
-```
-Search: "file"
-
-Highlights:
-  • read_file ✓
-  • write_file ✓
-  • list_files ✓
-  • file_to_issue ✓ (capability)
+Filter by Server: [x] filesystem  [x] github  [ ] fetch  [ ] database
+Filter by Activity: [x] Recently used  [ ] All tools  [ ] Orphaned only
+Search: "file" → Highlights: read_file, write_file, list_files, file_to_issue
 ```
 
 ## Export
 
-The visualization can be exported:
-
-| Format | Use Case |
-|--------|----------|
-| **PNG** | Documentation, presentations |
-| **SVG** | Scalable graphics, editing |
-| **JSON** | Data backup, analysis |
+Export formats: **PNG** (documentation), **SVG** (scalable graphics), **JSON** (data backup).
 
 ## Next
 

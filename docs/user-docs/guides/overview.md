@@ -34,7 +34,7 @@ Find relevant tools by natural intent, not by exact name.
 **How to use:**
 
 1. Describe what you want to accomplish in natural language
-2. PML uses embeddings (BGE-Large-EN-v1.5) to find similar tools
+2. PML uses embeddings (BGE-M3) to find similar tools
 3. GraphRAG boosts tools frequently used together
 
 **Example:**
@@ -100,7 +100,7 @@ await callTool("pml:execute_dag", {
         id: "t3",
         tool: "memory:create_entities",
         arguments: { entities: [{ name: "config", content: "$t1.result" }] },
-        depends_on: ["t1"],
+        dependsOn: ["t1"],
       }, // Waits for t1, but t1 and t2 are parallel
     ],
   },
@@ -330,14 +330,14 @@ await callTool("pml:execute_dag", {
         id: "transform",
         type: "code_execution",
         code: `return [...deps.read1, ...deps.read2].filter(x => x.active)`,
-        depends_on: ["read1", "read2"],
+        dependsOn: ["read1", "read2"],
       },
       // Writing
       {
         id: "write",
         tool: "filesystem:write_file",
         arguments: { path: "output.json", content: "$transform.result" },
-        depends_on: ["transform"],
+        dependsOn: ["transform"],
       },
     ],
   },

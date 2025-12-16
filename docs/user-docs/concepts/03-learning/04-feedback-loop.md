@@ -2,6 +2,64 @@
 
 > How PML learns from every execution
 
+## En bref
+
+La boucle de feedback de PML, c'est comme un **musicien qui s'améliore à chaque répétition**. Chaque fois que vous utilisez PML, il observe ce que vous faites, note ce qui marche, et devient meilleur pour anticiper vos besoins la prochaine fois.
+
+**Le cycle vertueux :**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                                                             │
+│   SUGGÉRER ──→ EXÉCUTER ──→ TRACER ──→ APPRENDRE           │
+│       ▲                                      │              │
+│       │                                      │              │
+│       └──── Meilleures suggestions ◀─────────┘              │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Plus vous utilisez PML, plus il devient intelligent.**
+
+**Trois sources d'apprentissage :**
+
+| Source | Ce qui est appris | Exemple |
+|--------|-------------------|---------|
+| **Exécutions DAG** | Séquences d'outils réussies | read → parse → write devient un pattern |
+| **Traces de code** | Relations parent-enfant | Capability X utilise les outils A, B, C |
+| **Templates utilisateur** | Workflows prédéfinis | Votre workflow personnalisé (confiance 50% au départ) |
+
+**Évolution temporelle :**
+
+| Période | Ce qui se passe | Exemple |
+|---------|-----------------|---------|
+| **Court terme** (session) | Patterns récents renforcés | Confiance 0.5 → 0.85 après 3 usages |
+| **Moyen terme** (semaines) | Patterns stabilisés, variations découvertes | Nouveau pattern: read → **validate** → parse |
+| **Long terme** (mois) | Patterns populaires deviennent core knowledge, inutilisés déclinent | Graph reflète l'usage réel |
+
+**Analogie du musicien :**
+
+```
+Semaine 1: Apprend une nouvelle chanson (template)
+  → Fait des erreurs, hésite sur les enchainements
+
+Semaine 2: Joue 10 fois (inferred → observed)
+  → Les doigts savent où aller automatiquement
+
+Mois 3: Découvre des variations, improvise (nouvelles capabilities)
+  → Adapte le style selon le contexte
+
+Après 1 an: Les morceaux non joués s'oublient (decay)
+  → Les favoris sont maîtrisés parfaitement
+```
+
+**Pourquoi c'est puissant ?**
+
+1. **Zéro configuration** : PML apprend de vos usages, pas de fichiers à écrire
+2. **Personnalisé** : Vos patterns, pas ceux des autres
+3. **Évolutif** : S'adapte quand vos pratiques changent
+4. **Observable** : Dashboard montre la croissance du graphe en temps réel
+
 ## The Learning Cycle
 
 PML continuously improves through a feedback loop:
@@ -147,6 +205,59 @@ This creates a **virtuous cycle**:
 3. More data → Better pattern recognition
 4. Better patterns → Even better suggestions
 
+## Adaptive Thresholds - L'auto-calibration
+
+PML ne se contente pas d'apprendre les patterns, il ajuste aussi ses **seuils de confiance** automatiquement pour optimiser le ratio risque/bénéfice.
+
+### Le problème des seuils fixes
+
+Avec un seuil fixe de 0.7 pour les exécutions spéculatives :
+- **Trop conservateur ?** Si 95% des spéculations réussissent → On rate des opportunités
+- **Trop agressif ?** Si seulement 60% réussissent → On gaspille des ressources
+
+### L'algorithme EMA (Exponential Moving Average)
+
+PML utilise un algorithme d'apprentissage qui ajuste les seuils selon le taux de succès observé :
+
+```
+Si succès > 90%:
+  → Baisser le seuil (être plus audacieux)
+
+Si succès < 80%:
+  → Augmenter le seuil (être plus prudent)
+
+Sinon (80-90%):
+  → Zone optimale, ne rien changer
+```
+
+**Formule EMA :**
+```
+nouveau_seuil = ancien_seuil × 0.95 + optimal × 0.05
+
+Où optimal est calculé selon l'écart au taux de succès cible (85%)
+```
+
+### Seuils par contexte
+
+Les seuils s'adaptent **par type de workflow**, pas globalement :
+
+| Contexte | Seuil initial | Après apprentissage | Pourquoi |
+|----------|---------------|---------------------|----------|
+| `data_analysis` | 0.92 | ~0.78 | Workflows simples, faible risque |
+| `production_deploy` | 0.92 | ~0.88 | Risque élevé, rester prudent |
+| `file_operations` | 0.92 | ~0.72 | Très prévisible, être audacieux |
+
+### Bornes de sécurité
+
+Le seuil ne sort jamais de l'intervalle **[0.70, 0.95]** :
+- **Minimum 0.70** : Évite les spéculations trop risquées
+- **Maximum 0.95** : Permet toujours quelques spéculations
+- **Départ à 0.92** : Conservateur au début, minimise les erreurs
+
+### Convergence
+
+Après environ **50-100 exécutions** par type de workflow, les seuils convergent vers leur valeur optimale. C'est le système qui apprend ce qui fonctionne dans votre contexte spécifique.
+
 ## Observing Learning
 
 You can see PML's learning in action:
@@ -154,6 +265,7 @@ You can see PML's learning in action:
 - **Metrics** track pattern discovery
 - **Confidence scores** increase over time
 - **Suggestion quality** improves
+- **Adaptive thresholds** visible dans les métriques (seuil actuel par workflow)
 
 ## Next
 

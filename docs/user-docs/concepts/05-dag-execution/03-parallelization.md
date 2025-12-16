@@ -2,6 +2,18 @@
 
 > Running independent tasks simultaneously
 
+## En bref
+
+La parallelisation permet d'executer plusieurs taches independantes en meme temps, comme plusieurs chefs dans une cuisine qui preparent differents plats simultanement. Pendant qu'un chef prepare la salade, un autre cuit la viande, et un troisieme prepare le dessert. Le service est beaucoup plus rapide que si un seul chef faisait tout sequentiellement.
+
+**Points cles :**
+- Execution simultanee de taches independantes
+- Organisation en couches (layers) basee sur les dependances
+- Reduction significative du temps d'execution total
+- Optimisation automatique de l'ordre d'execution
+
+**Analogie :** Brigade de cuisine - Plusieurs chefs travaillent en parallele sur differents plats, mais respectent l'ordre (entree avant plat, plat avant dessert).
+
 ## Why Parallelize?
 
 Tasks that don't depend on each other can run at the same time, dramatically reducing total execution time.
@@ -18,27 +30,15 @@ Total: 4 time units              └──▶ C ──┘
 
 ## Topological Sort
 
-Before execution, PML performs a **topological sort** to determine valid execution orders that respect dependencies.
+PML performs a **topological sort** to determine valid execution orders:
 
 ```
-DAG:
-     A
-    / \
-   B   C
-    \ /
-     D
+DAG: A → B,C → D
+Valid: [A, B, C, D] or [A, C, B, D]
+Rule: A before B,C; B,C before D
 
-Topological Sort:
-  Valid orders: [A, B, C, D] or [A, C, B, D]
-
-  Key rule: A must come before B, C
-            B and C must come before D
+Identifies: First tasks, waiting tasks, parallel tasks
 ```
-
-The sort identifies:
-- Which tasks can run first (no dependencies)
-- Which tasks must wait
-- Which tasks can run in parallel
 
 ## Layers
 
@@ -64,25 +64,11 @@ PML organizes tasks into **layers** based on their dependencies:
 
 ### Layer Rules
 
-| Rule | Description |
-|------|-------------|
-| Tasks in the same layer have no dependencies on each other |
-| A task's layer = max(dependency layers) + 1 |
-| Layer 0 contains tasks with no dependencies |
-| Execution proceeds layer by layer |
-
-### Layer Calculation
+Same layer tasks have no inter-dependencies. Task layer = max(dependency layers) + 1. Layer 0 = no dependencies.
 
 ```
-Given DAG:
-  A → B → D
-  A → C → D
-
-Layer assignment:
-  A: Layer 0 (no dependencies)
-  B: Layer 1 (depends on A in Layer 0)
-  C: Layer 1 (depends on A in Layer 0)
-  D: Layer 2 (depends on B, C in Layer 1)
+DAG: A → B,C → D
+Layers: A(0), B(1), C(1), D(2)
 ```
 
 ## Parallel vs Sequential
@@ -206,6 +192,42 @@ A workflow to process multiple files:
 | **Resource usage** | More parallel = more memory/CPU |
 | **Error handling** | Must handle partial failures |
 | **Data dependencies** | Can't parallelize dependent tasks |
+
+## Exemple concret : Traitement batch de donnees
+
+Traitement de 1000 utilisateurs :
+
+```
+SEQUENTIEL: User 1 → User 2 → ... → User 1000
+  Temps: 1000 × 2s = 2000s (33 min)
+
+PARALLELE:
+  Layer 0: Fetch all users (5s)
+  Layer 1: Split into 10 chunks (1s)
+  Layer 2: Process 10 chunks en parallele (200s max)
+  Layer 3: Merge results (2s)
+  Layer 4: Write output (3s)
+  Temps total: 211s (3.5 min)
+
+GAIN: 9.5x plus rapide!
+
+ANALOGIE CUISINE :
+  Sequentiel: 1 chef fait tout pour chaque table
+  Parallele: Chef entrees + Chef plats + Chef desserts
+    → Service simultane, meme ordre respecte
+```
+
+**Cas pratique : Validation 500 URLs**
+```
+Sans parallelisation: 500 × 1s = 500s (8.3 min)
+Avec 10 batches paralleles: 13s
+GAIN: 38x plus rapide!
+
+Limitations:
+  - GitHub API: 5000 req/hour → max 80/min
+  - RAM 8GB, 100MB/tache → max 80 paralleles
+  - Solution: config max_parallel: 50
+```
 
 ## Next
 

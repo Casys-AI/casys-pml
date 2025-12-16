@@ -2,6 +2,49 @@
 
 > Automatic tool recommendations without explicit search
 
+## En bref
+
+Les suggestions proactives de PML, c'est comme un **collègue expérimenté qui anticipe vos besoins**. Vous venez de lire un fichier JSON ? Il vous tend déjà le parseur avant que vous le demandiez. C'est la différence entre un assistant qui attend vos ordres et un partenaire qui comprend le contexte.
+
+**Pourquoi c'est utile ?**
+
+- **Découverte naturelle** : Vous découvrez des outils que vous ne connaissiez pas
+- **Gain de temps** : Pas besoin de chercher l'outil suivant, il est suggéré
+- **Apprentissage contextuel** : Les suggestions s'améliorent avec l'usage
+- **Workflows fluides** : Les enchaînements d'outils deviennent évidents
+
+**Analogie simple :**
+
+Pensez à **l'autocomplétion de votre téléphone**, mais pour les outils :
+- Vous tapez souvent "Bonjour" puis "ça va ?" → Le téléphone suggère "ça va ?" après "Bonjour"
+- Vous utilisez souvent `read_file` puis `parse_json` → PML suggère `parse_json` après `read_file`
+
+La différence : PML comprend aussi le **sens** de ce que vous faites, pas juste la séquence mécanique.
+
+**Trois types de contexte utilisés :**
+
+| Contexte | Comment ça fonctionne | Exemple |
+|----------|----------------------|---------|
+| **Relations d'outils** | A souvent suivi par B | `read_file` → suggère `write_file` |
+| **Capabilities** | Intent similaire à un pattern connu | "traiter erreurs" → suggère workflow complet |
+| **Communauté** | Outils du même serveur | Utilise `postgres:query` → suggère `postgres:insert` |
+
+**Exemple concret :**
+```
+Situation: Vous utilisez github:get_issue + filesystem:read_file
+Intent: "Créer un rapport de bug"
+
+PML analyse:
+  → get_issue souvent suivi de add_comment (72%)
+  → read_file souvent suivi de write_file (85%)
+  → Intent matche la capability "bug_report_workflow"
+
+Suggestions:
+  1. github:add_comment (contexte issue)
+  2. filesystem:write_file (contexte fichier)
+  3. Capability complète "bug_report_workflow" (contexte intent)
+```
+
 ## What Are Proactive Suggestions?
 
 Instead of waiting for you to search, PML can **suggest tools automatically** based on:

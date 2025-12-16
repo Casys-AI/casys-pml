@@ -30,7 +30,7 @@ PML_DB_PATH=./my-project.db deno task mcp
 
 ### Available MCP Tools
 
-- `pml_execute_dag` - Execute multi-tool workflows
-- `pml_search_tools` - Discover available tools
-- `pml_search_capabilities` - Find learned patterns
-- `pml_execute_code` - Run code in sandbox
+- `pml:execute_dag` - Execute multi-tool workflows
+- `pml:search_tools` - Discover available tools
+- `pml:search_capabilities` - Find learned patterns
+- `pml:execute_code` - Run code in sandbox

@@ -144,7 +144,7 @@ Execute a multi-tool DAG (Directed Acyclic Graph) workflow.
         id: string,           // Unique task identifier
         tool: string,         // Tool name (serverId:toolName)
         arguments: object,    // Tool arguments
-        depends_on?: string[] // IDs of dependent tasks
+        dependsOn?: string[] // IDs of dependent tasks
       }
     ]
   }
@@ -171,7 +171,7 @@ await callTool("pml:execute_dag", {
         id: "t3",
         tool: "memory:create_entities",
         arguments: { entities: [{ name: "config", content: "$t1.result" }] },
-        depends_on: ["t1"],
+        dependsOn: ["t1"],
       },
     ],
   },
