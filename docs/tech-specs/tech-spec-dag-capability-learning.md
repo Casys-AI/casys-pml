@@ -537,38 +537,126 @@ interface Capability {
 }
 ```
 
-### 8.4 Ce que ça change pour le DAG Suggester
+### 8.4 Reconstruction des dépendances data (vrai `dependsOn`)
+
+Pour reconstruire un DAG **ré-exécutable** depuis le code, on doit détecter les **dépendances data** :
+si le résultat de tool A est utilisé dans les arguments de tool B, alors B dépend de A.
+
+#### Ce qu'il faut tracer
+
+Actuellement on trace `args` mais **pas `result`**. Il faut ajouter le result dans `tool_end` :
+
+```typescript
+// worker-bridge.ts ligne ~426
+this.traces.push({
+  type: "tool_end",
+  tool: toolId,
+  traceId: id,
+  ts: endTime,
+  success: !isToolError,
+  durationMs: durationMs,
+  parentTraceId: parentTraceId,
+  result: result,  // ← AJOUTER
+});
+```
+
+#### Algorithme de détection
+
+```typescript
+function detectDataDependencies(traces: TraceEvent[]): string[] {
+  const dependsOn: string[] = [];
+
+  for (const prevTrace of traces) {
+    if (prevTrace.traceId === currentTrace.traceId) continue;
+    if (prevTrace.ts >= currentTrace.ts) continue;
+
+    // Si le result de prevTrace est dans les args de currentTrace
+    if (containsValue(currentTrace.args, prevTrace.result)) {
+      dependsOn.push(prevTrace.traceId);
+    }
+  }
+
+  return dependsOn;
+}
+
+function containsValue(args: unknown, result: unknown): boolean {
+  const argsStr = JSON.stringify(args);
+  const resultStr = JSON.stringify(result);
+
+  // Match exact
+  if (argsStr.includes(resultStr)) return true;
+
+  // Match partiel (pour les champs extraits d'un objet)
+  if (typeof result === 'object' && result !== null) {
+    for (const val of Object.values(result)) {
+      if (argsStr.includes(JSON.stringify(val))) return true;
+    }
+  }
+
+  return false;
+}
+```
+
+#### Exemple
+
+```typescript
+// Traces
+t1: { tool: "fs:read", args: { path: "config.json" }, result: { content: '{"url":"..."}' } }
+t2: { tool: "json:parse", args: { json: '{"url":"..."}' }, result: { url: "..." } }
+t3: { tool: "http:fetch", args: { url: "..." }, result: { data: [...] } }
+
+// DAG reconstruit avec vraies dépendances
+{
+  tasks: [
+    { id: "t1", tool: "fs:read", dependsOn: [] },
+    { id: "t2", tool: "json:parse", dependsOn: ["t1"] },     // t2.args contient t1.result
+    { id: "t3", tool: "http:fetch", dependsOn: ["t2"] },     // t3.args contient t2.result
+  ]
+}
+```
+
+### 8.5 Ce que ça change pour le DAG Suggester
 
 Le suggester peut maintenant travailler avec les deux :
 
 1. **Capabilities avec DAG explicite** : Utilise le `dagStructure` directement
-2. **Capabilities avec code** : Utilise l'`inferredStructure` pour comprendre les relations
+2. **Capabilities avec code** : Utilise le `reconstructedDAG` avec les vraies dépendances data
 
-Dans les deux cas, il a accès aux edges et peut construire des suggestions.
+Dans les deux cas, il a un DAG complet qu'il peut suggérer ou ré-exécuter.
 
 ---
 
 ## 9. Plan d'implémentation
 
-### Phase 1 : Parallel Tracking (Quick Win)
+### Phase 1 : Enrichir le tracing (Quick Win)
 
-1. Modifier `execution-learning.ts` pour utiliser les timestamps (`ts`, `durationMs`)
-2. Ajouter edge type `co-occurrence` dans `edge-weights.ts`
-3. Détecter overlap temporel pour créer les bons edges
+1. **Ajouter `result` dans les traces `tool_end`** (`worker-bridge.ts` ligne ~426)
+2. Modifier `execution-learning.ts` pour utiliser les timestamps (`ts`, `durationMs`)
+3. Ajouter edge type `co-occurrence` dans `edge-weights.ts`
+4. Détecter overlap temporel pour créer les bons edges
 
-**Fichiers :** `execution-learning.ts`, `edge-weights.ts`, `types.ts`
+**Fichiers :** `worker-bridge.ts`, `execution-learning.ts`, `edge-weights.ts`, `types.ts`
 **Effort estimé :** 1-2 jours
 
-### Phase 2 : Capability unifiée
+### Phase 2 : Reconstruction DAG depuis traces
+
+1. Implémenter `detectDataDependencies()` - analyser args/result pour trouver les dépendances
+2. Implémenter `reconstructDAG()` - construire un DAGStructure complet depuis les traces
+3. Combiner avec timestamps pour parallel vs sequence
+
+**Fichiers :** `execution-learning.ts` (nouveau module `dag-reconstruction.ts`)
+**Effort estimé :** 2-3 jours
+
+### Phase 3 : Capability unifiée
 
 1. Ajouter `source` (code OU dag) dans `Capability`
-2. Ajouter `inferredStructure` pour stocker la structure reconstruite
+2. Ajouter `reconstructedDAG` pour les capabilities code
 3. Créer capability après TOUT succès (code ou DAG)
 
 **Fichiers :** `capability-store.ts`, `types.ts`, migrations
 **Effort estimé :** 2-3 jours
 
-### Phase 3 : API unifiée `pml_discover`
+### Phase 4 : API unifiée `pml_discover`
 
 1. Créer nouveau handler `pml_discover` qui explore tools ET capabilities
 2. Retourner résultats unifiés avec scores
@@ -577,7 +665,7 @@ Dans les deux cas, il a accès aux edges et peut construire des suggestions.
 **Fichiers :** `gateway-server.ts`, handlers
 **Effort estimé :** 2-3 jours
 
-### Phase 4 : API unifiée `pml_execute`
+### Phase 5 : API unifiée `pml_execute`
 
 1. Créer nouveau handler `pml_execute`
 2. Implémenter le flow : intent → recherche → suggestion/exécution
@@ -587,7 +675,7 @@ Dans les deux cas, il a accès aux edges et peut construire des suggestions.
 **Fichiers :** `gateway-server.ts`, `controlled-executor.ts`, handlers
 **Effort estimé :** 3-5 jours
 
-### Phase 5 : Definition vs Invocation
+### Phase 6 : Definition vs Invocation
 
 1. Ajouter table `capability_invocations`
 2. Logger chaque exécution avec args et résultats
@@ -599,12 +687,12 @@ Dans les deux cas, il a accès aux edges et peut construire des suggestions.
 ### Ordre recommandé
 
 ```
-Phase 1 (timestamps) → Phase 2 (capability) → Phase 3 (discover) → Phase 4 (execute) → Phase 5 (invocations)
+Phase 1 (tracing) → Phase 2 (reconstruction) → Phase 3 (capability) → Phase 4 (discover) → Phase 5 (execute) → Phase 6 (invocations)
 ```
 
-Les phases 1-2 sont des quick wins indépendants.
-Les phases 3-4 sont le cœur de l'unification.
-La phase 5 est pour l'UX Fresh.
+Les phases 1-3 sont le cœur du système d'apprentissage.
+Les phases 4-5 sont l'unification des APIs.
+La phase 6 est pour l'UX Fresh.
 
 ---
 
