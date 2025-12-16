@@ -544,7 +544,11 @@ si le résultat de tool A est utilisé dans les arguments de tool B, alors B dé
 
 #### Ce qu'il faut tracer
 
-Actuellement on trace `args` mais **pas `result`**. Il faut ajouter le result dans `tool_end` :
+Actuellement on trace `args` mais **pas `result`**. Il faut ajouter le result dans `tool_end`.
+
+> **Note (2025-12-16):** Story 7.6 (Algorithm Observability) ne couvre PAS ceci.
+> Story 7.6 trace les décisions algorithmiques (scores de CapabilityMatcher, DAGSuggester),
+> pas les résultats d'exécution d'outils. Le traçage de `result` est **nouveau travail**.
 
 ```typescript
 // worker-bridge.ts ligne ~426
