@@ -2,7 +2,7 @@
 
 **Status:** Proposed
 **Date:** 2025-12-16
-**Related:** ADR-008 (Episodic Memory), ADR-048 (Local Alpha), ADR-041 (Edge Tracking)
+**Related:** ADR-008 (Episodic Memory), ADR-042 (Capability Hyperedges), ADR-048 (Local Alpha), ADR-041 (Edge Tracking)
 
 ## Context
 
@@ -1177,6 +1177,88 @@ function classifyToolRisk(toolId: string): 'safe' | 'moderate' | 'dangerous' {
   return 'moderate';
 }
 ```
+
+---
+
+## Extension: Capability Thresholds (Hypergraph Integration)
+
+Le système de thresholds s'étend aux **Capabilities** en utilisant les relations Cap→Cap (ADR-042).
+
+### Capability vs Tool Thresholds
+
+| Aspect | Tools | Capabilities |
+|--------|-------|--------------|
+| **Thompson State** | Per-tool `Beta(α,β)` | Per-capability `Beta(α,β)` |
+| **Risk Category** | Pattern matching sur nom | **Transitive Reliability** (ADR-042) + max tool risk |
+| **Local Alpha** | Heat Diffusion | Heat Diffusion Hiérarchique + Cap→Cap edges |
+| **Episodic Boost** | `algorithm_traces` par tool | `algorithm_traces` par capability |
+
+### Capability Risk Calculation
+
+```typescript
+/**
+ * Risk category for Capabilities using hypergraph structure (ADR-042)
+ *
+ * Risk is determined by:
+ * 1. Transitive reliability through dependency chain
+ * 2. Maximum risk of contained tools
+ */
+async function getCapabilityRiskCategory(
+  capId: string,
+  capabilityStore: CapabilityStore,
+  toolRiskRegistry: ToolRiskRegistry
+): Promise<'safe' | 'moderate' | 'dangerous'> {
+  // 1. Transitive reliability from ADR-042 §3
+  const transitiveReliability = await computeTransitiveReliability(capId);
+
+  // 2. Aggregate risk from contained tools
+  const tools = await capabilityStore.getTools(capId);
+  const toolRisks = tools.map(t => toolRiskRegistry.getRiskCategory(t.id));
+  const maxToolRisk = toolRisks.reduce(
+    (max, r) => RISK_LEVELS[r] > RISK_LEVELS[max] ? r : max,
+    'safe' as const
+  );
+
+  // Decision matrix
+  if (maxToolRisk === 'dangerous' || transitiveReliability < 0.5) {
+    return 'dangerous';  // Contains dangerous tool OR unreliable chain
+  }
+  if (maxToolRisk === 'moderate' || transitiveReliability < 0.8) {
+    return 'moderate';
+  }
+  return 'safe';
+}
+
+const RISK_LEVELS = { safe: 0, moderate: 1, dangerous: 2 };
+```
+
+### Capability Alpha (Heat Diffusion with Cap→Cap)
+
+ADR-048's Heat Diffusion Hiérarchique is enhanced for Capabilities:
+
+```typescript
+// computeHierarchyPropagation() enhanced for Cap→Cap edges
+case 'capability':
+  // 1. Standard: meta-capability parent heat
+  const metaParent = getParent(nodeId, 'meta');
+  const metaHeat = metaParent
+    ? computeHierarchicalHeat(metaParent, 'meta') * 0.7
+    : 0;
+
+  // 2. NEW: Dependency edges heat (ADR-042)
+  const deps = await capabilityStore.getDependencies(nodeId, 'to');
+  const depHeat = deps
+    .filter(d => d.edgeType === 'dependency' || d.edgeType === 'contains')
+    .reduce((sum, d) =>
+      sum + computeHierarchicalHeat(d.fromCapabilityId, 'capability') * d.confidenceScore,
+      0
+    ) / Math.max(1, deps.length);
+
+  // Combine: hierarchy (40%) + dependencies (30%) + intrinsic (30%)
+  return 0.4 * metaHeat + 0.3 * depHeat + 0.3 * intrinsicHeat;
+```
+
+**Impact:** Capabilities with many dependency edges receive more structural confidence → lower alpha → graph is more trusted for decisions.
 
 ---
 

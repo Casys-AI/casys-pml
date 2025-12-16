@@ -292,14 +292,15 @@ function computePathHeat(contextNodes: string[], targetId: string): number {
 
 **Utilisé pour :** Passive Suggestion de Capabilities
 
-**Principe :** Comme Heat Diffusion, mais avec **propagation hiérarchique** à travers Tool → Capability → MetaCapability.
+**Principe :** Comme Heat Diffusion, mais avec **propagation hiérarchique** à travers Tool → Capability → MetaCapability, **enrichie par les Cap→Cap edges** (ADR-042).
 
 ### Rationale
 
-Les Capabilities ont une structure hiérarchique. Un Tool isolé peut appartenir à une Capability bien connectée. La chaleur doit se propager dans les deux sens :
+Les Capabilities ont une structure hiérarchique ET des relations horizontales (dependency, contains, alternative, sequence). La chaleur se propage :
 
 - **Bottom-up** : MetaCapability chaude si ses Capabilities enfants sont chaudes
 - **Top-down** : Tool isolé hérite de la chaleur de sa Capability parente
+- **Horizontal (ADR-042)** : Capability reçoit de la chaleur via ses dependency/contains edges
 
 ### Implémentation
 
@@ -340,7 +341,7 @@ function computeHierarchicalHeat(nodeId: string, nodeType: NodeType): number {
 }
 
 /**
- * Propagation dans la hiérarchie
+ * Propagation dans la hiérarchie + Cap→Cap edges (ADR-042)
  */
 function computeHierarchyPropagation(nodeId: string, nodeType: NodeType): number {
   switch (nodeType) {
@@ -352,10 +353,23 @@ function computeHierarchyPropagation(nodeId: string, nodeType: NodeType): number
         sum + computeHierarchicalHeat(c, 'capability'), 0) / children.length;
 
     case 'capability':
-      // Héritage de la meta-capability parente
+      // 1. Héritage de la meta-capability parente
       const metaParent = getParent(nodeId, 'meta');
-      if (!metaParent) return 0;
-      return computeHierarchicalHeat(metaParent, 'meta') * 0.7;
+      const metaHeat = metaParent
+        ? computeHierarchicalHeat(metaParent, 'meta') * 0.5
+        : 0;
+
+      // 2. NEW (ADR-042): Chaleur des capabilities liées via dependency/contains
+      const deps = capabilityStore.getDependencies(nodeId, 'to');
+      const depHeat = deps
+        .filter(d => d.edgeType === 'dependency' || d.edgeType === 'contains')
+        .reduce((sum, d) =>
+          sum + computeHierarchicalHeat(d.fromCapabilityId, 'capability') * d.confidenceScore,
+          0
+        ) / Math.max(1, deps.length);
+
+      // Combine: vertical (50%) + horizontal (50%)
+      return metaHeat + depHeat * 0.5;
 
     case 'tool':
       // Héritage de la capability parente

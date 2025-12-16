@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2025-12-11
-**Related:** ADR-038 (Scoring Algorithms), ADR-041 (Hierarchical Traces), Story 7.4
+**Related:** ADR-038 (Scoring Algorithms), ADR-041 (Hierarchical Traces), ADR-048 (Local Alpha), ADR-049 (Intelligent Thresholds), Story 7.4
 
 ## Context
 
@@ -177,8 +177,67 @@ if (matchedCapability) {
 - **Cycles dans `contains`:** A contains B contains A → Paradoxe détecté mais toléré (warning)
 - **Performance:** Matrice plus grande → O(n³) pour eigendecomposition. Mitigé par cache TTL.
 
+## Integration with ADR-048 & ADR-049
+
+### ADR-048: Local Alpha for Capabilities
+
+Le Heat Diffusion Hiérarchique (ADR-048) pour Capabilities utilise les relations Cap→Cap :
+
+```typescript
+// Dans computeHierarchyPropagation() pour Capabilities
+case 'capability':
+  // 1. Héritage de la meta-capability parente (contient)
+  const metaParent = getParent(nodeId, 'meta');
+
+  // 2. NOUVEAU: Propagation via dependency edges (ADR-042)
+  const deps = await capabilityStore.getDependencies(nodeId, 'to');
+  const depHeat = deps
+    .filter(d => d.edgeType === 'dependency')
+    .reduce((sum, d) => sum + computeHierarchicalHeat(d.fromCapabilityId, 'capability'), 0);
+
+  return metaParent
+    ? computeHierarchicalHeat(metaParent, 'meta') * 0.7 + depHeat * 0.3
+    : depHeat;
+```
+
+**Impact:** Une capability avec beaucoup de dépendances entrantes a une chaleur plus élevée → alpha plus bas → graphe plus fiable pour cette capability.
+
+### ADR-049: Intelligent Thresholds for Capabilities
+
+Le système de thresholds (ADR-049) s'applique aussi aux Capabilities :
+
+| Aspect | Tools | Capabilities |
+|--------|-------|--------------|
+| **Thompson State** | Per-tool Beta(α,β) | Per-capability Beta(α,β) |
+| **Risk Category** | Pattern matching (delete→dangerous) | Transitive reliability (ADR-042 §3) |
+| **Episodic Boost** | algorithm_traces par tool | algorithm_traces par capability |
+
+```typescript
+// Extension pour Capabilities
+function getCapabilityRiskCategory(capId: string): 'safe' | 'moderate' | 'dangerous' {
+  // 1. Transitive reliability from ADR-042
+  const transitiveReliability = await computeTransitiveReliability(capId);
+
+  // 2. Agrégation des risques des tools contenus
+  const tools = await capabilityStore.getTools(capId);
+  const maxToolRisk = tools.map(t => getToolRiskCategory(t.id))
+    .reduce((max, r) => riskLevel(r) > riskLevel(max) ? r : max, 'safe');
+
+  // Si un tool est dangerous OU reliability < 0.5 → dangerous
+  if (maxToolRisk === 'dangerous' || transitiveReliability < 0.5) {
+    return 'dangerous';
+  }
+  if (maxToolRisk === 'moderate' || transitiveReliability < 0.8) {
+    return 'moderate';
+  }
+  return 'safe';
+}
+```
+
 ## References
 
 - ADR-038: Scoring Algorithms Reference
 - ADR-041: Hierarchical Trace Tracking
+- ADR-048: Local Alpha (Heat Diffusion utilise Cap→Cap pour propagation)
+- ADR-049: Intelligent Thresholds (Risk category hérite des tools contenus + transitive reliability)
 - Tech-spec: capability-dependency (implémentation table + API)
