@@ -36,6 +36,7 @@ import { eventBus } from "../events/mod.ts";
 
 // Extracted modules
 import {
+  calculateAverageAlpha,
   calculateConfidenceHybrid,
   extractDependencyPaths,
   generateRationaleHybrid,
@@ -183,7 +184,7 @@ export class DAGSuggester {
 
       // Calculate local alpha for each candidate
       const candidateAlphas = this.calculateCandidateAlphas(rankedCandidates, contextTools);
-      const avgAlpha = this.calculateAverageAlpha(candidateAlphas);
+      const avgAlpha = calculateAverageAlpha(candidateAlphas, this.scoringConfig.defaults.alpha);
 
       log.debug(
         `[suggestDAG] Average local alpha: ${avgAlpha.toFixed(2)} across ${candidateAlphas.length} candidates`,
@@ -424,11 +425,6 @@ export class DAGSuggester {
       }
       return { toolId: candidate.toolId, alpha: this.scoringConfig.defaults.alpha, algorithm: "none", coldStart: false };
     });
-  }
-
-  private calculateAverageAlpha(candidateAlphas: CandidateAlpha[]): number {
-    if (candidateAlphas.length === 0) return this.scoringConfig.defaults.alpha;
-    return candidateAlphas.reduce((sum, c) => sum + c.alpha, 0) / candidateAlphas.length;
   }
 
   private logCandidateTraces(

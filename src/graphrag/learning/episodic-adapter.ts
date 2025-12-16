@@ -12,10 +12,26 @@ import type { DagScoringConfig } from "../dag-scoring-config.ts";
 import type { WorkflowPredictionState } from "../types.ts";
 import type { EpisodicMemoryStore } from "../../learning/episodic-memory-store.ts";
 import type { EpisodeStatsMap, EpisodeStats } from "../prediction/types.ts";
-import type { EpisodicEvent } from "../../learning/types.ts";
+import type { EpisodicEvent, PredictionData } from "../../learning/types.ts";
 
 // Re-export EpisodicEvent from canonical source (snake_case external convention)
 export type { EpisodicEvent } from "../../learning/types.ts";
+
+/**
+ * Type guard for PredictionData in episodic events
+ */
+function hasPredictionData(
+  data: unknown,
+): data is { prediction: PredictionData } {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    "prediction" in data &&
+    typeof (data as { prediction: unknown }).prediction === "object" &&
+    (data as { prediction: { toolId: unknown } }).prediction !== null &&
+    typeof (data as { prediction: { toolId: unknown } }).prediction.toolId === "string"
+  );
+}
 
 /**
  * Generate context hash for episodic memory retrieval (Story 4.1e)
@@ -100,7 +116,7 @@ export function parseEpisodeStatistics(episodes: EpisodicEvent[]): EpisodeStatsM
     let success = false;
 
     // Extract toolId and outcome from different event types
-    if (episode.event_type === "speculation_start" && episode.data.prediction) {
+    if (episode.event_type === "speculation_start" && hasPredictionData(episode.data)) {
       toolId = episode.data.prediction.toolId;
       success = episode.data.prediction.wasCorrect === true;
     } else if (episode.event_type === "task_complete" && episode.data.result) {

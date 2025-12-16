@@ -59,7 +59,7 @@ export async function registerAgentHint(
   const effectiveConfidence = confidence ?? config.caps.defaultNodeConfidence;
 
   try {
-    log.info(
+    log.debug(
       `[pattern-io] Registering agent hint: ${fromToolId} -> ${toToolId} (confidence: ${effectiveConfidence})`,
     );
 

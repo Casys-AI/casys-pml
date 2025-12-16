@@ -163,14 +163,14 @@ export function calculateCommunityConfidence(
   adamicAdarScore: number,
   config: DagScoringConfig,
 ): number {
-  const { baseConfidence, pagerankBoostCap, edgeWeightBoostCap, adamicAdarBoostCap } =
+  const { baseConfidence, pagerankMultiplier, pagerankBoostCap, edgeWeightBoostCap, adamicAdarBoostCap } =
     config.community;
 
   // Base confidence for community membership
   let confidence = baseConfidence;
 
   // Boost by PageRank (up to configured cap)
-  confidence += Math.min(pageRank * 2, pagerankBoostCap);
+  confidence += Math.min(pageRank * pagerankMultiplier, pagerankBoostCap);
 
   // Boost if direct edge exists (historical pattern)
   if (edgeWeight !== null) {
