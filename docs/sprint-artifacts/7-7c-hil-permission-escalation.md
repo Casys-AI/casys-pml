@@ -460,3 +460,112 @@ Approving will permanently upgrade the capability's permission set.
 - [x] `tests/unit/capabilities/permission_escalation_test.ts` - NEW (28 tests, ~230 LOC)
 - [x] `tests/integration/capabilities/permission_escalation_integration_test.ts` - NEW (12 tests, ~540 LOC)
 - [x] `tests/e2e/permission_escalation_e2e_test.ts` - NEW (8 tests, ~420 LOC)
+- [x] `src/graphrag/types.ts` - MODIFIED (add permissionSet to Task.sandboxConfig) - 2025-12-16
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| 2024-12-16 | Initial implementation - 48 tests passing | Claude |
+| 2025-12-16 | Extended HIL escalation to `code_execution` tasks in DAGs | Claude Opus 4.5 |
+
+---
+
+## Extension: code_execution Task Support (2025-12-16)
+
+### Problem
+
+The original 7.7c implementation only supported permission escalation for **capability** tasks (tasks with `capabilityId`). When `code_execution` tasks in DAGs failed with `PermissionDenied` errors, they would fail without any HIL escalation opportunity.
+
+**Gap identified:**
+- `code_execution` tasks don't have `capabilityId`
+- The existing HIL check required `task.capabilityId` to trigger escalation
+- Result: `fetch()` in code execution tasks would fail silently with no recovery path
+
+### Solution
+
+Extended `executeCodeTask()` in `controlled-executor.ts` to:
+
+1. **Accept `permissionSet` parameter**: Either from `task.sandboxConfig.permissionSet`, explicit parameter, or default to "minimal"
+2. **Pass `permissionSet` to `executor.execute()`**: Sandbox now respects permission configuration
+3. **Detect permission errors**: Catch `PermissionError`, `PermissionDenied`, `NotCapable` in error messages
+4. **Trigger HIL escalation**: Use existing `suggestEscalation()` to parse error and `waitForDecisionCommand()` for approval
+5. **Retry on approval**: If approved, recursively call `executeCodeTask()` with the escalated permission set
+
+### Key Differences from Capability Escalation
+
+| Aspect | Capability Tasks | Code Execution Tasks |
+|--------|-----------------|---------------------|
+| ID used | `task.capabilityId` | `task.id` (placeholder) |
+| DB persistence | Yes - updates `workflow_pattern.permission_set` | No - ephemeral for this execution only |
+| Audit log | Yes - via `PermissionAuditStore` | No - only logged, not persisted |
+| Retry | Uses same capability | Passes new permissionSet parameter |
+
+### Type Changes
+
+Added `permissionSet` to `Task.sandboxConfig` in `src/graphrag/types.ts`:
+
+```typescript
+sandboxConfig?: {
+  timeout?: number;
+  memoryLimit?: number;
+  allowedReadPaths?: string[];
+  /** Permission set for sandbox execution (Story 7.7c). Default: "minimal" */
+  permissionSet?: PermissionSet;
+};
+```
+
+### Usage Example
+
+```typescript
+// DAG with code_execution task that needs network access
+const dag = {
+  tasks: [{
+    id: "fetch_data",
+    type: "code_execution",
+    code: `
+      const response = await fetch('https://api.example.com/data');
+      return await response.json();
+    `,
+    dependsOn: [],
+    sandboxConfig: {
+      permissionSet: "network-api"  // Pre-configure, or let HIL escalate
+    }
+  }]
+};
+```
+
+### Flow Diagram
+
+```
+code_execution task starts
+         |
+         v
+executor.execute(code, context, "minimal")
+         |
+         v
+    PermissionDenied?
+    /           \
+   No            Yes
+   |              |
+   v              v
+ Success    suggestEscalation(error)
+   |              |
+   v              v
+ Return      Suggestion found?
+             /           \
+            No            Yes
+            |              |
+            v              v
+          Throw     Emit decision_required
+                          |
+                          v
+                   waitForDecisionCommand()
+                          |
+                    Approved?
+                   /         \
+                  No          Yes
+                  |            |
+                  v            v
+               Throw    Retry with new permissionSet
+```
