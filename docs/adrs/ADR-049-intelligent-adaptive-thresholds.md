@@ -448,6 +448,150 @@ threshold = 2 + ceil((avgAlpha - 0.5) * 6)  // [2, 5]
 
 ---
 
+### Decision 6: Stratégie algorithmique par mode (Pattern ADR-038)
+
+#### Contexte des modes
+
+| Mode | Caractéristique | Coût False Positive | Exploration utile ? |
+|------|-----------------|---------------------|---------------------|
+| **Active Search** | On cherche, user confirme | Faible (user filtre) | Oui, découvrir |
+| **Passive Suggestion** | On suggère, user confirme | Moyen | Modéré |
+| **Speculation** | On exécute directement | Élevé (compute perdu) | Non, exploiter |
+
+---
+
+#### Option 6A: Thompson partout (tuning par mode)
+
+```typescript
+const THOMPSON_CONFIG = {
+  active_search: { prior: Beta(1,1), useSampling: true, decay: 0.99 },
+  passive_suggestion: { prior: Beta(2,2), useSampling: true, decay: 0.98 },
+  speculation: { prior: Beta(3,1), useSampling: false, decay: 0.97 },
+};
+```
+
+**Score: 80/100**
+
+| Critère | Score | Commentaire |
+|---------|-------|-------------|
+| Cohérence | 🟢 9/10 | Un seul algo à maintenir |
+| Flexibilité | 🟢 8/10 | Tuning par mode |
+| Complexité | 🟢 8/10 | Paramètres différents, même code |
+
+**Pros:**
+- 🟢 Code unique, paramètres différents
+- 🟢 Facile à maintenir
+
+**Cons:**
+- 🟡 Pas d'exploration UCB en Active Search
+- 🟡 Prior conservateur en Speculation peut être trop strict
+
+---
+
+#### Option 6B: Algorithme différent par mode
+
+```
+Active Search    → UCB (exploration bonus)
+Passive Suggest  → Thompson Sampling
+Speculation      → Thompson (mean only) + Risk penalty
+```
+
+**Score: 75/100**
+
+| Critère | Score | Commentaire |
+|---------|-------|-------------|
+| Cohérence ADR-038 | 🟢 9/10 | Pattern identique |
+| Flexibilité | 🟢 9/10 | Algo optimal par mode |
+| Complexité | 🔴 5/10 | 3 algos à maintenir |
+
+**Cons:**
+- 🔴 3 algorithmes différents à implémenter
+- 🔴 Comportements cold start différents
+
+---
+
+#### Option 6C: Hybride Thompson + UCB Bonus ⭐ RECOMMENDED
+
+```typescript
+function getThreshold(mode: Mode, toolId: string, localAlpha: number): number {
+  const thompson = getThompsonState(toolId);
+  const risk = getRiskCategory(toolId);
+  const thompsonMean = thompson.alpha / (thompson.alpha + thompson.beta);
+
+  switch (mode) {
+    case 'active_search':
+      // UCB bonus pour exploration des nouveaux tools
+      const ucbBonus = Math.sqrt(2 * Math.log(totalExec) / thompson.total);
+      return clamp(riskBase[risk] - 0.10 - ucbBonus * 0.05 + alphaAdj, 0.40, 0.85);
+
+    case 'passive_suggestion':
+      // Thompson sampling standard
+      const sampled = sampleBeta(thompson.alpha, thompson.beta);
+      return clamp(riskBase[risk] + (0.75 - sampled) * 0.10 + alphaAdj, 0.50, 0.90);
+
+    case 'speculation':
+      // Thompson mean (pas de sampling) + conservative
+      return clamp(riskBase[risk] + 0.05 + (0.75 - thompsonMean) * 0.15 + alphaAdj, 0.60, 0.95);
+  }
+}
+```
+
+**Score: 85/100**
+
+| Critère | Score | Commentaire |
+|---------|-------|-------------|
+| Cohérence | 🟢 8/10 | Thompson comme colonne vertébrale |
+| Flexibilité | 🟢 9/10 | Comportement optimal par mode |
+| Complexité | 🟢 7/10 | Un algo + ajustements |
+| Cold start | 🟢 8/10 | UCB bonus aide en Active Search |
+
+**Pros:**
+- 🟢 Thompson reste la base (per-tool learning, convergence rapide)
+- 🟢 UCB bonus en Active Search (exploration nouveaux tools)
+- 🟢 Mean (pas sampling) en Speculation (stabilité, pas de variance)
+- 🟢 Poids différents par mode (cohérent avec ADR-038)
+
+**Cons:**
+- 🟡 Légèrement plus complexe que Thompson pur
+
+**Verdict:** ⭐ **Option 6C - Hybride Thompson + UCB Bonus**
+
+---
+
+### Matrice finale des algorithmes par mode (Pattern ADR-038)
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│              THRESHOLD ALGORITHMS PAR MODE                               │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌──────────────────┬────────────────────┬────────────────────┐         │
+│  │                  │ Active Search      │ Passive/Speculation│         │
+│  ├──────────────────┼────────────────────┼────────────────────┤         │
+│  │ Algo Base        │ Thompson + UCB     │ Thompson           │         │
+│  │                  │ bonus exploration  │ (mean or sample)   │         │
+│  ├──────────────────┼────────────────────┼────────────────────┤         │
+│  │ Mode Adjust      │ risk - 0.10        │ Passive: 0         │         │
+│  │                  │ (plus permissif)   │ Specul: +0.05      │         │
+│  ├──────────────────┼────────────────────┼────────────────────┤         │
+│  │ Thompson Usage   │ Mean + UCB bonus   │ Passive: Sampling  │         │
+│  │                  │                    │ Specul: Mean only  │         │
+│  ├──────────────────┼────────────────────┼────────────────────┤         │
+│  │ Alpha Weight     │ 0.05× (faible)     │ 0.10× / 0.15×      │         │
+│  ├──────────────────┼────────────────────┼────────────────────┤         │
+│  │ Bounds           │ [0.40, 0.85]       │ [0.50, 0.95]       │         │
+│  └──────────────────┴────────────────────┴────────────────────┘         │
+│                                                                          │
+│  Rationale:                                                             │
+│  - Active Search: on CHERCHE → exploration, user confirme               │
+│  - Passive: on SUGGÈRE → balance, user confirme                         │
+│  - Speculation: on EXÉCUTE → exploitation, pas de variance              │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## Récapitulatif des Scores
 
 | Decision | Option Choisie | Score | Alternatives |
@@ -457,8 +601,9 @@ threshold = 2 + ceil((avgAlpha - 0.5) * 6)  // [2, 5]
 | **D3: Gestion risque** | Catégories fixes | 80/100 | Aucune (35), Appris (68) |
 | **D4: Mémoire épisodique** | Situations similaires | 76/100 | Global (40), Embeddings (70) |
 | **D5: Edge threshold** | Dynamique alpha | 75/100 | Fixe (50) |
+| **D6: Stratégie par mode** | Hybride Thompson+UCB | 85/100 | Thompson tuné (80), Algo par mode (75) |
 
-**Score moyen solution proposée: 78/100**
+**Score moyen solution proposée: 79/100**
 
 ---
 
