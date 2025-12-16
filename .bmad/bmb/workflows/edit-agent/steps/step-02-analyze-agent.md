@@ -3,7 +3,7 @@ name: 'step-02-analyze-agent'
 description: 'Load agent and relevant documentation for analysis'
 
 # Path Definitions
-workflow_path: '{project-root}/src/modules/bmb/workflows/edit-agent'
+workflow_path: '{project-root}/bmb/workflows/create-agent/edit-agent'
 
 # File References
 thisStepFile: '{workflow_path}/steps/step-02-analyze-agent.md'

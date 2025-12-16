@@ -196,7 +196,7 @@ critical_actions:
 - **Memory integration** - Past context becomes part of current session
 - **Protocol adherence** - Ensures consistent behavior
 
-### {project-root}/.bmad-user-memory Variable
+### {agent_sidecar_folder} Variable
 
 Special variable resolved during installation:
 
@@ -223,7 +223,7 @@ Same as simple agents, PLUS:
 
 ## Reference Example
 
-See: `src/modules/bmb/reference/agents/expert-examples/journal-keeper/`
+See: `bmb/reference/agents/expert-examples/journal-keeper/`
 
 Features demonstrated:
 
@@ -313,7 +313,7 @@ critical_actions:
 
 1. **Load sidecar files in critical_actions** - Must be explicit and MANDATORY
 2. **Enforce domain restrictions** - Clear boundaries prevent scope creep
-3. **Use {project-root}/.bmad-user-memory paths** - Portable across installations
+3. **Use {agent_sidecar_folder} paths** - Portable across installations
 4. **Design for memory growth** - Structure sidecar files for accumulation
 5. **Reference past naturally** - Don't dump memory, weave it into conversation
 6. **Separate concerns** - Memories, instructions, knowledge in distinct files
@@ -356,8 +356,8 @@ identity: |
 - [ ] Sidecar folder structure created and populated
 - [ ] memories.md has clear section structure
 - [ ] instructions.md contains core directives
-- [ ] Menu actions reference {project-root}/.bmad-user-memory correctly
-- [ ] File paths use {project-root}/.bmad-user-memory variable
+- [ ] Menu actions reference {agent_sidecar_folder} correctly
+- [ ] File paths use {agent_sidecar_folder} variable
 - [ ] Install config personalizes sidecar references
 - [ ] Agent folder named consistently: `{agent-name}/`
 - [ ] YAML file named: `{agent-name}.agent.yaml`

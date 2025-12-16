@@ -109,7 +109,7 @@ Create the workflow folder structure in the target location:
 ```
 
 For bmb module, this will be: `.bmad/custom/src/workflows/{workflow_name}/`
-For other modules, check their install-config.yaml for custom_workflow_location
+For other modules, check their module.yaml for custom_workflow_location
 
 ### 3. Generate workflow.md
 
@@ -117,7 +117,7 @@ Load and follow {workflowTemplate}:
 
 - Create workflow.md using template structure
 - Insert workflow name and description
-- Configure all path variables ({project-root}, {_bmad_folder_}, {workflow_path})
+- Configure all path variables ({project-root}, .bmad, {workflow_path})
 - Set web_bundle flag to true unless user has indicated otherwise
 - Define role and goal
 - Include initialization path to step-01
