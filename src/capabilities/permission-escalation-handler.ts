@@ -3,14 +3,24 @@
  *
  * Handles the full escalation flow when a capability fails with PermissionDenied:
  * 1. Detect permission error and suggest escalation
- * 2. Request human approval via HIL mechanism
- * 3. Update capability's permission_set in DB if approved
- * 4. Support retry execution with new permissions
+ * 2. Check approvalMode - if 'auto', skip HIL and auto-approve
+ * 3. Request human approval via HIL mechanism (if approvalMode === 'hil')
+ * 4. Update capability's permission_set in DB if approved
+ * 5. Support retry execution with new permissions
+ *
+ * Refactored for 3-axis permission model:
+ * - ApprovalMode determines if HIL is needed or auto-approve
+ * - FFI/run are now allowed via PermissionConfig (no longer hardcoded blocked)
  *
  * @module capabilities/permission-escalation-handler
  */
 
-import type { PermissionEscalationRequest, PermissionSet } from "./types.ts";
+import type {
+  ApprovalMode,
+  PermissionConfig,
+  PermissionEscalationRequest,
+  PermissionSet,
+} from "./types.ts";
 import type { CapabilityStore } from "./capability-store.ts";
 import type { PermissionAuditStore } from "./permission-audit-store.ts";
 import { suggestEscalation } from "./permission-escalation.ts";
@@ -110,16 +120,18 @@ export class PermissionEscalationHandler {
    *
    * Full flow:
    * 1. Parse error and create escalation suggestion
-   * 2. Check if escalation is allowed (not security-critical, valid path)
-   * 3. Request human approval via HIL callback
-   * 4. If approved: update capability's permission_set in DB
-   * 5. Log decision to audit store
-   * 6. Return result for retry decision
+   * 2. Check if escalation is allowed (valid path)
+   * 3. Check approvalMode - if 'auto', skip HIL and auto-approve
+   * 4. Request human approval via HIL callback (if approvalMode === 'hil')
+   * 5. If approved: update capability's permission_set in DB
+   * 6. Log decision to audit store
+   * 7. Return result for retry decision
    *
    * @param capabilityId - UUID of the capability that failed
    * @param currentPermissionSet - Current permission set of the capability
    * @param error - Error message from sandbox execution
    * @param executionId - Optional execution ID for tracking attempts
+   * @param toolConfig - Optional PermissionConfig for the tool (enables auto-approve and ffi/run)
    * @returns Escalation result with approval status and new permission set
    */
   async handlePermissionError(
@@ -127,6 +139,7 @@ export class PermissionEscalationHandler {
     currentPermissionSet: PermissionSet,
     error: string,
     executionId?: string,
+    toolConfig?: PermissionConfig,
   ): Promise<EscalationResult> {
     const trackingKey = executionId ?? capabilityId;
 
@@ -148,8 +161,8 @@ export class PermissionEscalationHandler {
     // Track this attempt
     this.escalationAttempts.set(trackingKey, attempts + 1);
 
-    // Step 1: Suggest escalation based on error
-    const suggestion = suggestEscalation(error, capabilityId, currentPermissionSet);
+    // Step 1: Suggest escalation based on error (pass toolConfig for ffi/run handling)
+    const suggestion = suggestEscalation(error, capabilityId, currentPermissionSet, toolConfig);
 
     if (!suggestion) {
       logger.debug("No escalation suggestion for error", {
@@ -159,7 +172,7 @@ export class PermissionEscalationHandler {
       return {
         handled: false,
         approved: false,
-        error: "Cannot suggest escalation for this error (may be security-critical or unsupported)",
+        error: "Cannot suggest escalation for this error (unsupported permission type)",
       };
     }
 
@@ -169,9 +182,58 @@ export class PermissionEscalationHandler {
       requestedSet: suggestion.requestedSet,
       detectedOperation: suggestion.detectedOperation,
       confidence: suggestion.confidence,
+      hasToolConfig: !!toolConfig,
     });
 
-    // Step 2: Request human approval via HIL callback
+    // Determine approval mode
+    const approvalMode: ApprovalMode = toolConfig?.approvalMode ?? "hil";
+
+    // Step 2: Check approvalMode - if 'auto', skip HIL and auto-approve
+    if (approvalMode === "auto") {
+      logger.info("Auto-approving permission escalation (approvalMode: auto)", {
+        capabilityId,
+        currentSet: currentPermissionSet,
+        requestedSet: suggestion.requestedSet,
+        detectedOperation: suggestion.detectedOperation,
+      });
+
+      // Log the auto-approval decision
+      await this.auditStore.logEscalation({
+        capabilityId,
+        fromSet: currentPermissionSet,
+        toSet: suggestion.requestedSet,
+        approved: true,
+        approvedBy: "system:auto",
+        reason: error,
+        detectedOperation: suggestion.detectedOperation,
+      });
+
+      // Update capability's permission_set in DB (if scope changed)
+      if (suggestion.requestedSet !== currentPermissionSet) {
+        try {
+          await this.capabilityStore.updatePermissionSet(
+            capabilityId,
+            suggestion.requestedSet,
+          );
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          logger.error("Failed to update permission set in DB", {
+            capabilityId,
+            error: errorMsg,
+          });
+          // Continue anyway - auto-approve should succeed
+        }
+      }
+
+      return {
+        handled: true,
+        approved: true,
+        newPermissionSet: suggestion.requestedSet,
+        feedback: "auto-approved via PermissionConfig.approvalMode",
+      };
+    }
+
+    // Step 3: Request human approval via HIL callback (approvalMode === 'hil')
     let hilResult: { approved: boolean; feedback?: string };
     try {
       hilResult = await this.hilCallback(suggestion);
@@ -200,7 +262,7 @@ export class PermissionEscalationHandler {
       };
     }
 
-    // Step 3: Log decision to audit store (always, for both approved and rejected)
+    // Step 4: Log decision to audit store (always, for both approved and rejected)
     await this.auditStore.logEscalation({
       capabilityId,
       fromSet: currentPermissionSet,
@@ -211,7 +273,7 @@ export class PermissionEscalationHandler {
       detectedOperation: suggestion.detectedOperation,
     });
 
-    // Step 4: If approved, update capability's permission_set in DB
+    // Step 5: If approved, update capability's permission_set in DB
     if (hilResult.approved) {
       try {
         await this.capabilityStore.updatePermissionSet(
@@ -246,7 +308,7 @@ export class PermissionEscalationHandler {
       }
     }
 
-    // Step 5: Escalation was rejected
+    // Step 6: Escalation was rejected
     logger.info("Permission escalation rejected", {
       capabilityId,
       requestedSet: suggestion.requestedSet,

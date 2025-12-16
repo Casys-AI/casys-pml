@@ -34,7 +34,58 @@ export interface CacheConfig {
 }
 
 /**
+ * Permission scope profiles defining resource access levels
+ * (Refactored from PermissionSet - now represents only the scope axis)
+ *
+ * Note: 'trusted' is deprecated - use explicit PermissionConfig with approvalMode: 'auto'
+ */
+export type PermissionScope =
+  | "minimal"
+  | "readonly"
+  | "filesystem"
+  | "network-api"
+  | "mcp-standard";
+
+/**
+ * Approval mode for permission escalation
+ * - hil: Human-in-the-loop approval required (default)
+ * - auto: Automatically approve (trusted tools)
+ */
+export type ApprovalMode = "hil" | "auto";
+
+/**
+ * 3-axis permission configuration matrix
+ *
+ * Separates concerns:
+ * - scope: What resources can be accessed (files, network, etc.)
+ * - ffi: Independent flag for FFI (native calls via Deno.dlopen)
+ * - run: Independent flag for subprocess execution (Deno.Command)
+ * - approvalMode: How to handle permission escalation requests
+ *
+ * @example
+ * ```yaml
+ * # Fermat MCP - needs FFI for NumPy but no other elevated permissions
+ * fermat:
+ *   scope: minimal
+ *   ffi: true
+ *   run: false
+ *   approvalMode: auto
+ * ```
+ */
+export interface PermissionConfig {
+  /** Resource scope level */
+  scope: PermissionScope;
+  /** Allow FFI (native calls via Deno.dlopen) - independent of scope */
+  ffi: boolean;
+  /** Allow subprocess execution (Deno.Command) - independent of scope */
+  run: boolean;
+  /** Approval mode for escalation requests */
+  approvalMode: ApprovalMode;
+}
+
+/**
  * Permission set profiles as defined in ADR-035 (Story 7.7a)
+ * @deprecated Use PermissionConfig for new code. This type is kept for backward compatibility.
  */
 export type PermissionSet =
   | "minimal"
@@ -43,6 +94,29 @@ export type PermissionSet =
   | "network-api"
   | "mcp-standard"
   | "trusted";
+
+/**
+ * Convert legacy PermissionSet to PermissionConfig
+ * @param set - Legacy permission set string
+ * @returns Full PermissionConfig with defaults (ffi=false, run=false, approvalMode=hil)
+ */
+export function permissionSetToConfig(set: PermissionSet): PermissionConfig {
+  // 'trusted' maps to mcp-standard with auto approval
+  if (set === "trusted") {
+    return {
+      scope: "mcp-standard",
+      ffi: false,
+      run: false,
+      approvalMode: "auto",
+    };
+  }
+  return {
+    scope: set,
+    ffi: false,
+    run: false,
+    approvalMode: "hil",
+  };
+}
 
 /**
  * A learned capability - executable code pattern with metadata

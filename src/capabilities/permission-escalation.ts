@@ -4,13 +4,20 @@
  * Parses Deno PermissionDenied errors and suggests appropriate permission
  * escalations for human approval.
  *
- * Security-critical permissions (run, ffi) are NEVER allowed for escalation.
- * These are hardcoded rejections with no HIL override possible.
+ * Refactored to 3-axis matrix model (scope, ffi, run, approvalMode):
+ * - FFI and run are now independent flags, not blocked by default
+ * - Tools can declare ffi/run needs in their PermissionConfig
+ * - ApprovalMode determines if HIL is needed or auto-approve
  *
  * @module capabilities/permission-escalation
  */
 
-import type { PermissionEscalationRequest, PermissionSet } from "./types.ts";
+import type {
+  PermissionConfig,
+  PermissionEscalationRequest,
+  PermissionScope,
+  PermissionSet,
+} from "./types.ts";
 import { getLogger } from "../telemetry/logger.ts";
 
 const logger = getLogger("default");
@@ -31,66 +38,85 @@ const PERMISSION_PATTERNS = {
 };
 
 /**
- * Security-critical permissions that cannot be escalated
- * These could allow sandbox escape and are hardcoded rejections
+ * Sandbox-escape permissions (ffi, run)
+ * These are NOT hardcoded blocked anymore - they can be allowed via PermissionConfig.
+ * This set is kept for detection purposes only.
+ *
+ * @deprecated No longer used for blocking. FFI/run now controlled via PermissionConfig.
  */
-const SECURITY_CRITICAL_PERMISSIONS = new Set(["run", "ffi"]);
+const SANDBOX_ESCAPE_PERMISSIONS = new Set(["run", "ffi"]);
 
 /**
- * Valid escalation paths between permission sets
+ * Valid escalation paths between permission scopes
  *
- * Key: current set -> Value: allowed escalation targets
- * Note: "trusted" is not allowed via escalation (manual override only)
+ * Key: current scope -> Value: allowed escalation targets
+ * Note: mcp-standard is the highest auto-escalatable scope
  */
-const ESCALATION_PATHS: Record<PermissionSet, PermissionSet[]> = {
+const ESCALATION_PATHS: Record<PermissionScope, PermissionScope[]> = {
   minimal: ["readonly", "filesystem", "network-api", "mcp-standard"],
   readonly: ["filesystem", "mcp-standard"],
   filesystem: ["mcp-standard"],
   "network-api": ["mcp-standard"],
-  "mcp-standard": [], // Cannot escalate from mcp-standard (already highest auto-escalatable)
-  trusted: [], // trusted is manual-only, no escalation
+  "mcp-standard": [], // Cannot escalate from mcp-standard (already highest)
 };
 
+// Legacy escalation paths including 'trusted' - kept as comment for documentation
+// const ESCALATION_PATHS_LEGACY: Record<PermissionSet, PermissionSet[]> = {
+//   ...ESCALATION_PATHS,
+//   trusted: [], // trusted is deprecated, use PermissionConfig with approvalMode: auto
+// };
+
 /**
- * Maps detected operations to suggested permission sets
+ * Maps detected operations to suggested permission scopes
  */
-const OPERATION_TO_PERMISSION: Record<string, PermissionSet> = {
+const OPERATION_TO_SCOPE: Record<string, PermissionScope> = {
   read: "readonly",
   write: "filesystem",
   net: "network-api",
   env: "mcp-standard",
 };
 
+// Maps detected operations to suggested permission sets (legacy) - kept as comment
+// const OPERATION_TO_PERMISSION: Record<string, PermissionSet> = OPERATION_TO_SCOPE;
+
 /**
  * Suggests an appropriate permission escalation for a Deno PermissionDenied error
  *
+ * Refactored to support 3-axis permission model:
+ * - Scope escalation (minimal → readonly → filesystem → mcp-standard)
+ * - FFI/run are now independent flags, handled separately
+ *
  * @param error - Error message from Deno sandbox (e.g., "PermissionDenied: Requires read access to /etc/passwd")
  * @param capabilityId - UUID of the capability that failed
- * @param currentSet - Current permission set of the capability
+ * @param currentSet - Current permission set of the capability (legacy) or scope
+ * @param toolConfig - Optional PermissionConfig for the tool (allows ffi/run if declared)
  * @returns PermissionEscalationRequest if escalation is possible, null otherwise
  *
  * @example
  * ```typescript
+ * // Scope escalation
  * const suggestion = suggestEscalation(
  *   "PermissionDenied: Requires net access to api.example.com:443",
  *   "cap-uuid",
  *   "minimal"
  * );
- * // Returns: { requestedSet: "network-api", detectedOperation: "net", confidence: 0.9, ... }
+ * // Returns: { requestedSet: "network-api", detectedOperation: "net", ... }
  *
- * // Security-critical permissions return null
- * const blocked = suggestEscalation(
- *   "PermissionDenied: Requires run access to /bin/sh",
+ * // FFI escalation (now allowed if tool declares it)
+ * const ffiSuggestion = suggestEscalation(
+ *   "PermissionDenied: Requires ffi access",
  *   "cap-uuid",
- *   "minimal"
+ *   "minimal",
+ *   { scope: "minimal", ffi: true, run: false, approvalMode: "auto" }
  * );
- * // Returns: null (run is security-critical)
+ * // Returns: escalation request (not blocked anymore!)
  * ```
  */
 export function suggestEscalation(
   error: string,
   capabilityId: string,
   currentSet: PermissionSet,
+  toolConfig?: PermissionConfig,
 ): PermissionEscalationRequest | null {
   // Check if this is a permission error at all
   if (!error.includes("PermissionDenied") && !error.includes("Requires")) {
@@ -120,34 +146,78 @@ export function suggestEscalation(
     return null;
   }
 
-  // SECURITY: Reject security-critical permissions immediately
-  if (SECURITY_CRITICAL_PERMISSIONS.has(detectedOperation)) {
-    logger.warn("Security-critical permission escalation blocked", {
+  // Handle sandbox-escape permissions (ffi, run) - now configurable!
+  if (SANDBOX_ESCAPE_PERMISSIONS.has(detectedOperation)) {
+    // Check if tool's config explicitly allows this permission
+    if (toolConfig) {
+      const isAllowed =
+        (detectedOperation === "ffi" && toolConfig.ffi) ||
+        (detectedOperation === "run" && toolConfig.run);
+
+      if (isAllowed) {
+        // Tool declares it needs this permission - allow escalation
+        logger.info("Sandbox-escape permission allowed via tool config", {
+          capabilityId,
+          detectedOperation,
+          toolConfig,
+        });
+
+        // For ffi/run, we don't change scope - just flag the permission
+        const request: PermissionEscalationRequest = {
+          capabilityId,
+          currentSet,
+          requestedSet: currentSet, // Keep same scope
+          reason: error,
+          detectedOperation,
+          confidence: 0.95, // High confidence - explicitly declared
+        };
+        return request;
+      }
+    }
+
+    // No tool config or permission not declared - warn but don't hard-block
+    // The HIL handler will still ask for human approval
+    logger.warn("Sandbox-escape permission needs explicit approval", {
       capabilityId,
       detectedOperation,
       error: error.substring(0, 100),
+      hasToolConfig: !!toolConfig,
     });
-    return null;
+
+    // Return escalation request for HIL to handle
+    const request: PermissionEscalationRequest = {
+      capabilityId,
+      currentSet,
+      requestedSet: currentSet, // Keep same scope
+      reason: error,
+      detectedOperation,
+      confidence: 0.5, // Lower confidence - not explicitly declared
+    };
+    return request;
   }
 
-  // Determine suggested permission set
-  const suggestedSet = OPERATION_TO_PERMISSION[detectedOperation];
-  if (!suggestedSet) {
-    logger.debug("No permission set mapping for operation", {
+  // Determine suggested permission scope
+  const suggestedScope = OPERATION_TO_SCOPE[detectedOperation];
+  if (!suggestedScope) {
+    logger.debug("No permission scope mapping for operation", {
       detectedOperation,
     });
     return null;
   }
 
+  // Get current scope (handle legacy 'trusted' value)
+  const currentScope: PermissionScope = currentSet === "trusted" ? "mcp-standard" : currentSet;
+
   // Check if escalation path is valid
-  const allowedTargets = ESCALATION_PATHS[currentSet];
-  if (!allowedTargets.includes(suggestedSet)) {
+  const allowedTargets = ESCALATION_PATHS[currentScope];
+  if (!allowedTargets?.includes(suggestedScope)) {
     // Try to find the minimal valid escalation that includes this capability
-    const validEscalation = findValidEscalation(currentSet, detectedOperation);
+    const validEscalation = findValidEscalation(currentScope, detectedOperation);
     if (!validEscalation) {
       logger.debug("No valid escalation path found", {
         currentSet,
-        suggestedSet,
+        currentScope,
+        suggestedScope,
         detectedOperation,
       });
       return null;
@@ -178,7 +248,7 @@ export function suggestEscalation(
   const request: PermissionEscalationRequest = {
     capabilityId,
     currentSet,
-    requestedSet: suggestedSet,
+    requestedSet: suggestedScope,
     reason: error,
     detectedOperation,
     confidence: calculateConfidence(detectedOperation, resource),
@@ -187,7 +257,7 @@ export function suggestEscalation(
   logger.info("Permission escalation suggested", {
     capabilityId,
     currentSet,
-    requestedSet: suggestedSet,
+    requestedSet: suggestedScope,
     detectedOperation,
     confidence: request.confidence,
   });
@@ -196,28 +266,29 @@ export function suggestEscalation(
 }
 
 /**
- * Finds a valid escalation target given current set and required operation
+ * Finds a valid escalation target given current scope and required operation
  *
  * Example: if current="readonly" and we need "net", we escalate to "mcp-standard"
  * which includes both filesystem (from readonly) and network capabilities.
  */
 function findValidEscalation(
-  currentSet: PermissionSet,
+  currentScope: PermissionScope,
   detectedOperation: string,
-): PermissionSet | null {
-  const requiredSet = OPERATION_TO_PERMISSION[detectedOperation];
-  if (!requiredSet) return null;
+): PermissionScope | null {
+  const requiredScope = OPERATION_TO_SCOPE[detectedOperation];
+  if (!requiredScope) return null;
 
-  const allowedTargets = ESCALATION_PATHS[currentSet];
+  const allowedTargets = ESCALATION_PATHS[currentScope];
+  if (!allowedTargets) return null;
 
   // First try direct escalation
-  if (allowedTargets.includes(requiredSet)) {
-    return requiredSet;
+  if (allowedTargets.includes(requiredScope)) {
+    return requiredScope;
   }
 
-  // If direct escalation not available, find a set that includes the capability
+  // If direct escalation not available, find a scope that includes the capability
   // Priority: prefer minimal escalation that includes the required capability
-  const escalationOrder: PermissionSet[] = [
+  const escalationOrder: PermissionScope[] = [
     "readonly",
     "filesystem",
     "network-api",
@@ -237,10 +308,13 @@ function findValidEscalation(
 }
 
 /**
- * Checks if a permission set provides a specific capability
+ * Checks if a permission scope provides a specific capability
+ *
+ * Note: 'trusted' is deprecated but still handled for backward compatibility.
+ * In the new model, 'trusted' maps to 'mcp-standard' + approvalMode: 'auto'.
  */
 function targetProvidesCapability(
-  target: PermissionSet,
+  target: PermissionScope | PermissionSet,
   operation: string,
 ): boolean {
   switch (operation) {
@@ -252,6 +326,12 @@ function targetProvidesCapability(
       return ["network-api", "mcp-standard", "trusted"].includes(target);
     case "env":
       return ["mcp-standard", "trusted"].includes(target);
+    // FFI and run are now independent flags - not tied to scope
+    case "ffi":
+    case "run":
+      // These depend on PermissionConfig.ffi/run, not scope
+      // Always return false here - handled separately in suggestEscalation
+      return false;
     default:
       return false;
   }
@@ -297,32 +377,60 @@ function calculateConfidence(
 }
 
 /**
- * Checks if an escalation from one permission set to another is valid
+ * Checks if an escalation from one permission scope to another is valid
  *
- * @param from - Current permission set
- * @param to - Target permission set
+ * @param from - Current permission scope
+ * @param to - Target permission scope
  * @returns true if escalation is allowed
  */
-export function isValidEscalation(from: PermissionSet, to: PermissionSet): boolean {
-  return ESCALATION_PATHS[from]?.includes(to) ?? false;
+export function isValidEscalation(from: PermissionScope | PermissionSet, to: PermissionScope | PermissionSet): boolean {
+  // 'trusted' cannot be escalated TO (it's manual-only / deprecated)
+  if (to === "trusted") {
+    return false;
+  }
+  // Handle legacy 'trusted' value for 'from'
+  const fromScope: PermissionScope = from === "trusted" ? "mcp-standard" : from as PermissionScope;
+  const toScope: PermissionScope = to as PermissionScope;
+  return ESCALATION_PATHS[fromScope]?.includes(toScope) ?? false;
 }
 
 /**
- * Gets all valid escalation targets for a permission set
+ * Gets all valid escalation targets for a permission scope
  *
- * @param currentSet - Current permission set
- * @returns Array of valid target permission sets
+ * @param currentSet - Current permission scope
+ * @returns Array of valid target permission scopes
  */
-export function getValidEscalationTargets(currentSet: PermissionSet): PermissionSet[] {
-  return [...(ESCALATION_PATHS[currentSet] || [])];
+export function getValidEscalationTargets(currentSet: PermissionScope | PermissionSet): PermissionScope[] {
+  // Handle legacy 'trusted' value
+  const scope: PermissionScope = currentSet === "trusted" ? "mcp-standard" : currentSet as PermissionScope;
+  return [...(ESCALATION_PATHS[scope] || [])];
 }
 
 /**
- * Checks if an operation type is security-critical (cannot be escalated)
+ * Checks if an operation type is a sandbox-escape permission (ffi, run)
+ *
+ * Note: This no longer means "cannot be escalated". These operations CAN be
+ * allowed if the tool's PermissionConfig declares them. This function is
+ * for detection purposes only.
  *
  * @param operation - Operation type (e.g., "run", "ffi")
- * @returns true if operation is security-critical
+ * @returns true if operation is a sandbox-escape permission
+ *
+ * @deprecated Use `isSandboxEscapePermission` for clarity
  */
 export function isSecurityCritical(operation: string): boolean {
-  return SECURITY_CRITICAL_PERMISSIONS.has(operation);
+  return SANDBOX_ESCAPE_PERMISSIONS.has(operation);
+}
+
+/**
+ * Checks if an operation type is a sandbox-escape permission (ffi, run)
+ *
+ * These operations CAN be allowed if the tool's PermissionConfig declares them.
+ * This function is for detection purposes only.
+ *
+ * @param operation - Operation type (e.g., "run", "ffi")
+ * @returns true if operation is a sandbox-escape permission
+ */
+export function isSandboxEscapePermission(operation: string): boolean {
+  return SANDBOX_ESCAPE_PERMISSIONS.has(operation);
 }
