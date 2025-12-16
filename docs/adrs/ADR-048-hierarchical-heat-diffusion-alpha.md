@@ -628,6 +628,75 @@ interface AlgorithmSignals {
 
 ---
 
+## Observability: Algorithm Tracing Integration (Story 7.6)
+
+Le local alpha est tracé via `AlgorithmTracer` pour l'observabilité et le tuning. Deux points d'intégration :
+
+### 1. DAGSuggester (Existant)
+
+Les méthodes `selectNextTools()`, `predictFromCommunity()`, `suggestCapabilities()` tracent déjà les décisions avec les signaux local alpha.
+
+### 2. GraphRAGEngine.searchToolsHybrid (Nouveau)
+
+Ajout du traçage pour couvrir les appels directs via l'API `/api/search` :
+
+```typescript
+// src/graphrag/graph-engine.ts
+
+// Nouveau setter pour injecter le tracer
+setAlgorithmTracer(tracer: AlgorithmTracer): void {
+  this.algorithmTracer = tracer;
+}
+
+// Dans searchToolsHybrid(), après sélection des topResults :
+if (this.algorithmTracer) {
+  for (const result of topResults) {
+    this.algorithmTracer.logTrace({
+      algorithmMode: "active_search",
+      targetType: "tool",
+      intent: query.substring(0, 200),
+      signals: {
+        semanticScore: result.semanticScore,
+        graphScore: result.graphScore,        // Nouveau signal
+        graphDensity: density,
+        spectralClusterMatch: false,
+        localAlpha: breakdown.alpha,
+        alphaAlgorithm: breakdown.algorithm,  // ADR-048
+        coldStart: breakdown.coldStart,       // ADR-048
+      },
+      params: { alpha: breakdown.alpha, reliabilityFactor: 1.0, structuralBoost: 0 },
+      finalScore: result.finalScore,
+      thresholdUsed: 0.5,
+      decision: "accepted",
+    });
+  }
+}
+```
+
+### Signal `graphScore` ajouté
+
+Le signal `graphScore` a été ajouté à `AlgorithmSignals` pour tracer le score de proximité graphe (Adamic-Adar / edges directs) :
+
+```typescript
+// src/telemetry/algorithm-tracer.ts
+export interface AlgorithmSignals {
+  // ... existing fields
+  graphScore?: number;  // Graph relatedness score (Adamic-Adar / direct edges)
+}
+```
+
+### Couverture de traçage
+
+| Composant | Trace local alpha ? |
+|-----------|---------------------|
+| DAGSuggester.selectNextTools | ✅ |
+| DAGSuggester.predictFromCommunity | ✅ |
+| DAGSuggester.suggestCapabilities | ✅ |
+| GraphRAGEngine.searchToolsHybrid | ✅ (Nouveau) |
+| GatewayServer /api/search | ✅ (via searchToolsHybrid) |
+
+---
+
 ## Integration: Replacing Global Density Weights (ADR-026)
 
 L'ancienne méthode `getAdaptiveWeights()` basée sur la densité globale a été remplacée par le local alpha dans `suggestDAG()`:
