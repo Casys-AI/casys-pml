@@ -455,27 +455,46 @@ notebooks can use the production code instead of simulations.
 
 ---
 
-### Story 3.2: Refaire Notebook 04 avec Vrai WorkerBridge
+### Story 3.2: WorkerBridge Helper pour Notebooks
+
+**As a** notebook author, **I want** a helper that exposes the real WorkerBridge with MCP client mocks,
+**So that** notebooks can execute code in the real sandbox with tool tracing.
+
+**Acceptance Criteria:**
+
+1. `playground/lib/capabilities.ts` exporte `getWorkerBridge(mcpClients?)`
+2. Crée des mock MCP clients minimaux pour filesystem et memory
+3. Le WorkerBridge utilise le vrai sandbox Deno Worker
+4. Les traces sont de vraies TraceEvent du système
+5. Helper `requireApiKey()` qui vérifie la présence d'une clé API (obligatoire pour Wow Moment)
+6. Ajout au `resetPlaygroundState()` pour cleanup
+
+**Prerequisites:** Story 3.1
+
+**Files:** `playground/lib/capabilities.ts`
+
+---
+
+### Story 3.3: Refaire Notebook 04 avec Vrai WorkerBridge
 
 **As a** user, **I want** notebook 04 to use the real Worker RPC Bridge, **So that** I see the
 actual production code in action.
 
 **Acceptance Criteria:**
 
-1. Remplacer `SimulatedWorkerBridge` par import du vrai `WorkerBridge` ou `CodeExecutor`
-2. Remplacer `MockMCPClient` par connexion au vrai gateway (si disponible) ou mock minimal
+1. Remplacer `SimulatedWorkerBridge` par import du helper 3.2
+2. Utiliser les mock MCP clients du helper (pas besoin de vrais serveurs)
 3. Les traces capturées sont de vraies traces du système
-4. La démo de sécurité utilise le vrai sandbox Deno
+4. La démo de sécurité utilise le vrai sandbox Deno Worker
 5. Tous les outputs restent pédagogiques et clairs
-6. Fallback gracieux si le gateway n'est pas disponible
 
-**Prerequisites:** Story 3.1
+**Prerequisites:** Stories 3.1, 3.2
 
 **Files:** `playground/notebooks/04-code-execution.ipynb`
 
 ---
 
-### Story 3.3: Refaire Notebook 05 avec Vrai CapabilityStore
+### Story 3.4: Refaire Notebook 05 avec Vrai CapabilityStore
 
 **As a** user, **I want** notebook 05 to use the real CapabilityStore, **So that** I see
 capabilities vraiment persistées et recherchées.
@@ -495,7 +514,7 @@ capabilities vraiment persistées et recherchées.
 
 ---
 
-### Story 3.4: Refaire Notebook 06 avec Vrai Matcher et Thresholds
+### Story 3.5: Refaire Notebook 06 avec Vrai Matcher et Thresholds
 
 **As a** user, **I want** notebook 06 to use the real Matcher and AdaptiveThresholdManager,
 **So that** I see le vrai système de matching et d'adaptation.
@@ -509,15 +528,15 @@ capabilities vraiment persistées et recherchées.
 5. Le scoring utilise le vrai algorithme (semantic + reliability + transitive)
 6. Les thresholds adaptatifs montrent le vrai EMA
 7. Les métriques benchmark reflètent de vraies exécutions
-8. Conserver le "Wow Moment" ajouté en post-rétro
+8. Conserver le "Wow Moment" avec timing réel (API key requise)
 
-**Prerequisites:** Stories 3.1, 3.3
+**Prerequisites:** Stories 3.1, 3.2 (WorkerBridge pour Wow Moment), 3.4
 
 **Files:** `playground/notebooks/06-emergent-reuse.ipynb`
 
 ---
 
-### Story 3.5: Tests d'Intégration Notebooks
+### Story 3.6: Tests d'Intégration Notebooks
 
 **As a** maintainer, **I want** integration tests for notebooks, **So that** we catch regressions
 when the real system changes.
@@ -529,8 +548,9 @@ when the real system changes.
 3. Vérifie que les outputs attendus sont présents
 4. Peut être lancé via `deno task test:notebooks`
 5. Intégré dans CI (optionnel mais recommandé)
+6. Gère le contexte partagé entre cellules (sans friction pour utilisateurs)
 
-**Prerequisites:** Stories 3.2, 3.3, 3.4
+**Prerequisites:** Stories 3.3, 3.4, 3.5
 
 **Files:** `playground/scripts/test-notebooks.ts`, `deno.json`
 
