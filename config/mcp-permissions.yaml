@@ -1,0 +1,81 @@
+# MCP Tool Permission Mappings (Story 7.7a, ADR-035)
+#
+# Defines which permission set each MCP tool prefix maps to.
+# Used by PermissionInferrer to automatically assign permissions
+# to capabilities based on detected MCP tool usage patterns.
+#
+# Permission Sets (from ADR-035):
+#   - minimal: No permissions (pure computation)
+#   - readonly: Read files only (./data)
+#   - filesystem: Read + write to /tmp
+#   - network-api: Network access only
+#   - mcp-standard: Standard MCP permissions (read, /tmp write, network)
+#   - trusted: Full permissions (manual verification only, never inferred)
+#
+# Unknown tools default to: mcp-standard (secure fallback)
+
+# Filesystem tools - local file operations
+filesystem:
+  permissionSet: filesystem
+  isReadOnly: false
+
+fs:
+  permissionSet: filesystem
+  isReadOnly: false
+
+# Network API tools - external service calls
+github:
+  permissionSet: network-api
+  isReadOnly: false
+
+slack:
+  permissionSet: network-api
+  isReadOnly: false
+
+tavily:
+  permissionSet: network-api
+  isReadOnly: false
+
+api:
+  permissionSet: network-api
+  isReadOnly: false
+
+# Mixed/container tools - need broader permissions
+kubernetes:
+  permissionSet: mcp-standard
+  isReadOnly: false
+
+docker:
+  permissionSet: mcp-standard
+  isReadOnly: false
+
+# Database tools
+postgres:
+  permissionSet: network-api
+  isReadOnly: false
+
+sqlite:
+  permissionSet: filesystem
+  isReadOnly: false
+
+# Search/AI tools
+# Note: brave-search requires bracket notation mcp["brave-search"]
+# which AST parser handles differently - use underscore version
+brave_search:
+  permissionSet: network-api
+  isReadOnly: false
+
+# Memory/context tools
+# Note: Even local memory tools need mcp-standard since they're MCP calls
+memory:
+  permissionSet: mcp-standard
+  isReadOnly: true
+
+context7:
+  permissionSet: network-api
+  isReadOnly: true
+
+# Playwright/browser automation
+playwright:
+  permissionSet: mcp-standard
+  isReadOnly: false

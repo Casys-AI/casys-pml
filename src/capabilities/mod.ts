@@ -9,6 +9,8 @@
 export { CapabilityStore } from "./capability-store.ts";
 export { CapabilityMatcher } from "./matcher.ts";
 export { SchemaInferrer } from "./schema-inferrer.ts";
+export { PermissionInferrer } from "./permission-inferrer.ts";
+export type { InferredPermissions, DetectedPattern, PatternCategory } from "./permission-inferrer.ts";
 export { CapabilityCodeGenerator } from "./code-generator.ts";
 export { CapabilityExecutor } from "./executor.ts";
 export { CapabilityDataService } from "./data-service.ts";
@@ -33,5 +35,6 @@ export type {
   HypergraphOptions,
   HypergraphResponseInternal,
   JSONSchema,
+  PermissionSet, // Story 7.7a - Permission set profiles
   SaveCapabilityInput,
 } from "./types.ts";

@@ -34,6 +34,17 @@ export interface CacheConfig {
 }
 
 /**
+ * Permission set profiles as defined in ADR-035 (Story 7.7a)
+ */
+export type PermissionSet =
+  | "minimal"
+  | "readonly"
+  | "filesystem"
+  | "network-api"
+  | "mcp-standard"
+  | "trusted";
+
+/**
  * A learned capability - executable code pattern with metadata
  *
  * Capabilities are stored on first successful execution (eager learning).
@@ -74,6 +85,10 @@ export interface Capability {
   toolsUsed?: string[];
   /** Detailed tool invocations with timestamps for sequence visualization */
   toolInvocations?: CapabilityToolInvocation[];
+  /** Permission set for sandbox execution (Story 7.7a, ADR-035) */
+  permissionSet?: PermissionSet;
+  /** Confidence score of the permission inference (0-1) */
+  permissionConfidence?: number;
 }
 
 /**

@@ -19,11 +19,13 @@ import type {
   CapabilityEdgeSource,
   CapabilityEdgeType,
   CreateCapabilityDependencyInput,
+  PermissionSet,
   SaveCapabilityInput,
 } from "./types.ts";
 import { hashCode } from "./hash.ts";
 import { getLogger } from "../telemetry/logger.ts";
 import type { SchemaInferrer } from "./schema-inferrer.ts";
+import type { PermissionInferrer } from "./permission-inferrer.ts";
 // Story 6.5: EventBus integration (ADR-036)
 import { eventBus } from "../events/mod.ts";
 
@@ -63,9 +65,11 @@ export class CapabilityStore {
     private db: PGliteClient,
     private embeddingModel: EmbeddingModel,
     private schemaInferrer?: SchemaInferrer,
+    private permissionInferrer?: PermissionInferrer,
   ) {
     logger.debug("CapabilityStore initialized", {
       schemaInferrerEnabled: !!schemaInferrer,
+      permissionInferrerEnabled: !!permissionInferrer,
     });
   }
 
@@ -115,6 +119,27 @@ export class CapabilityStore {
       }
     }
 
+    // Infer permissions from code (Story 7.7a, ADR-035)
+    let permissionSet: PermissionSet = "minimal";
+    let permissionConfidence = 0.0;
+    if (this.permissionInferrer) {
+      try {
+        const permissions = await this.permissionInferrer.inferPermissions(code);
+        permissionSet = permissions.permissionSet;
+        permissionConfidence = permissions.confidence;
+        logger.debug("Permissions inferred for capability", {
+          codeHash,
+          permissionSet,
+          permissionConfidence,
+          detectedPatterns: permissions.detectedPatterns,
+        });
+      } catch (error) {
+        logger.warn("Permission inference failed, using minimal", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
     // Build dag_structure with tools used and invocations (for graph analysis)
     const dagStructure = {
       type: "code_execution",
@@ -151,10 +176,12 @@ export class CapabilityStore {
         success_rate,
         avg_duration_ms,
         parameters_schema,
+        permission_set,
+        permission_confidence,
         created_at,
         source
       ) VALUES (
-        $1, $2, $3, 1, $4, NOW(), $5, $6, $7, $8, $9, $10, $11, $12, NOW(), 'emergent'
+        $1, $2, $3, 1, $4, NOW(), $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), 'emergent'
       )
       ON CONFLICT (code_hash) WHERE code_hash IS NOT NULL DO UPDATE SET
         usage_count = workflow_pattern.usage_count + 1,
@@ -166,6 +193,8 @@ export class CapabilityStore {
           (workflow_pattern.avg_duration_ms * workflow_pattern.usage_count) + $11
         ) / (workflow_pattern.usage_count + 1),
         parameters_schema = $12,
+        permission_set = $13,
+        permission_confidence = $14,
         dag_structure = $2
       RETURNING *`,
       [
@@ -181,6 +210,8 @@ export class CapabilityStore {
         success ? 1.0 : 0.0,
         durationMs,
         parametersSchema ? JSON.stringify(parametersSchema) : null,
+        permissionSet,
+        permissionConfidence,
       ],
     );
 
@@ -587,6 +618,9 @@ export class CapabilityStore {
       source: ((row.source as string) as "emergent" | "manual") || "emergent",
       toolsUsed,
       toolInvocations,
+      // Story 7.7a: Permission inference fields
+      permissionSet: (row.permission_set as PermissionSet) || "minimal",
+      permissionConfidence: (row.permission_confidence as number) ?? 0.0,
     };
   }
 

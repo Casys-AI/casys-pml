@@ -1,7 +1,7 @@
 # ADR-035: Permission Sets for Sandbox Security (Deno 2.5+)
 
-**Status:** 📝 Draft
-**Date:** 2025-12-05 | **Deciders:** Architecture Team
+**Status:** ✅ Accepted (Stories Created: 7.7a, 7.7b, 7.7c)
+**Date:** 2025-12-05 | **Updated:** 2025-12-16 | **Deciders:** Architecture Team
 
 ## Context
 
@@ -197,10 +197,10 @@ async saveCapability(input: SaveCapabilityInput): Promise<Capability> {
 ### Migration DB
 
 ```sql
--- Migration 012: Add permission columns
+-- Migration 017: Add permission columns (Story 7.7a)
 ALTER TABLE workflow_pattern
 ADD COLUMN IF NOT EXISTS permission_set VARCHAR(50) DEFAULT 'minimal',
-ADD COLUMN IF NOT EXISTS permission_confidence FLOAT DEFAULT 0.0;
+ADD COLUMN IF NOT EXISTS permission_confidence REAL DEFAULT 0.0;
 
 -- Index for permission-based queries
 CREATE INDEX IF NOT EXISTS idx_workflow_pattern_permission
@@ -336,30 +336,21 @@ if (result.error?.includes("PermissionDenied")) {
 
 ## Implementation
 
-### Stories Proposées
+### Stories Créées (Epic 7)
 
-**Story 1: Permission Inference (après 7.2b)**
-- Créer `src/capabilities/permission-inferrer.ts`
-- Réutiliser le parsing SWC de Story 7.2b
-- Ajouter colonnes `permission_set`, `permission_confidence` à la migration
-- Tests unitaires pour chaque pattern
+> **Référence:** Voir `docs/epics.md` - Stories 7.7a, 7.7b, 7.7c
 
-**Story 2: Sandbox Permission Integration**
-- Modifier `src/sandbox/executor.ts` pour accepter permission set
-- Implémenter fallback pour Deno < 2.5
-- Ajouter `--permission-set` au deno.json
-- Tests e2e avec différents profils
+| Story | Titre | Estimation | Prérequis |
+|-------|-------|------------|-----------|
+| **7.7a** | Permission Inference - Analyse Automatique des Permissions | 1-2j | Story 7.2b (SWC) |
+| **7.7b** | Sandbox Permission Integration - Exécution avec Permissions Granulaires | 1-2j | Story 7.7a |
+| **7.7c** | HIL Permission Escalation - Escalade avec Approbation Humaine | 1-1.5j | Story 7.7b |
 
-**Story 3: HIL Permission Escalation**
-- Intégrer avec le système HIL existant (DAG executor)
-- UI pour approuver/refuser les escalations
-- Logging des décisions pour audit
-
-**Estimation totale:** 3-4 jours (après Story 7.2b)
+**Estimation totale:** 3.5-5.5 jours (après Story 7.2b)
 
 **Prerequisites:**
 - Story 7.2b (SWC parsing disponible)
-- Deno 2.5 release (ou fallback implémenté)
+- Deno 2.5 release (ou fallback implémenté via 7.7b)
 
 ## References
 
