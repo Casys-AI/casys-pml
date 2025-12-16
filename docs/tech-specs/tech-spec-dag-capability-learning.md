@@ -17,10 +17,13 @@ Cette tech spec adresse plusieurs questions architecturales interconnectées aut
 
 | Avant (fragmenté) | Après (unifié) |
 |-------------------|----------------|
-| `pml_search_tools` | `pml_search` |
-| `pml_search_capabilities` | `pml_search` |
+| `pml_search_tools` | `pml_discover` |
+| `pml_search_capabilities` | `pml_discover` |
+| `pml_find_capabilities` | `pml_discover` |
 | `pml_execute_dag` | `pml_execute` |
 | `pml_execute_code` | `pml_execute` |
+
+> **Pourquoi `discover` ?** Le système explore intelligemment le graphe, pas juste une recherche textuelle.
 
 ### Problèmes identifiés
 
@@ -270,7 +273,7 @@ return t2;
 
 ---
 
-## 5. Architecture unifiée : `pml_search` et `pml_execute`
+## 5. Architecture unifiée : `pml_discover` et `pml_execute`
 
 ### 5.1 Le problème des APIs fragmentées
 
@@ -285,10 +288,10 @@ On veut que **tout** passe par le même système d'apprentissage.
 
 ### 5.2 Solution : Deux APIs unifiées
 
-#### `pml_search` - Recherche unifiée
+#### `pml_discover` - Découverte unifiée
 
 ```typescript
-pml_search({
+pml_discover({
   intent: "lire et parser un fichier JSON",
 
   // Filtres optionnels
@@ -369,9 +372,9 @@ pml_execute({
 
 | Ancien tool | Nouveau | Notes |
 |-------------|---------|-------|
-| `pml_search_tools` | `pml_search({ filter: { type: "tool" } })` | Filtre sur tools |
-| `pml_search_capabilities` | `pml_search({ filter: { type: "capability" } })` | Filtre sur capabilities |
-| `pml_find_capabilities` | `pml_search` | Même chose |
+| `pml_search_tools` | `pml_discover({ filter: { type: "tool" } })` | Filtre sur tools |
+| `pml_search_capabilities` | `pml_discover({ filter: { type: "capability" } })` | Filtre sur capabilities |
+| `pml_find_capabilities` | `pml_discover` | Même chose |
 | `pml_execute_dag` | `pml_execute({ implementation: { type: "dag", ... } })` | DAG explicite |
 | `pml_execute_code` | `pml_execute({ implementation: { type: "code", ... } })` | Code explicite |
 | (nouveau) | `pml_execute({ intent: "..." })` | Laisse le système choisir |
@@ -565,11 +568,11 @@ Dans les deux cas, il a accès aux edges et peut construire des suggestions.
 **Fichiers :** `capability-store.ts`, `types.ts`, migrations
 **Effort estimé :** 2-3 jours
 
-### Phase 3 : API unifiée `pml_search`
+### Phase 3 : API unifiée `pml_discover`
 
-1. Créer nouveau handler `pml_search` qui cherche tools ET capabilities
+1. Créer nouveau handler `pml_discover` qui explore tools ET capabilities
 2. Retourner résultats unifiés avec scores
-3. Déprécier `pml_search_tools` et `pml_search_capabilities`
+3. Déprécier `pml_search_tools`, `pml_search_capabilities`, `pml_find_capabilities`
 
 **Fichiers :** `gateway-server.ts`, handlers
 **Effort estimé :** 2-3 jours
@@ -596,7 +599,7 @@ Dans les deux cas, il a accès aux edges et peut construire des suggestions.
 ### Ordre recommandé
 
 ```
-Phase 1 (timestamps) → Phase 2 (capability) → Phase 3 (search) → Phase 4 (execute) → Phase 5 (invocations)
+Phase 1 (timestamps) → Phase 2 (capability) → Phase 3 (discover) → Phase 4 (execute) → Phase 5 (invocations)
 ```
 
 Les phases 1-2 sont des quick wins indépendants.
@@ -612,7 +615,7 @@ La phase 5 est pour l'UX Fresh.
 1. ~~Option A vs B vs C pour DAG → Capability ?~~ → **Option A** : Capability = code OU dag
 2. ~~Fusionner sequence/dependency ou garder les deux ?~~ → **Garder les deux** (sémantique différente)
 3. ~~Comment l'IA choisit entre code et DAG ?~~ → **Elle ne choisit plus** : `pml_execute` unifié
-4. ~~APIs fragmentées ?~~ → **Unification** : `pml_search` + `pml_execute`
+4. ~~APIs fragmentées ?~~ → **Unification** : `pml_discover` + `pml_execute`
 
 ### Ouvertes
 
