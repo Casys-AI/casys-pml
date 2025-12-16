@@ -138,25 +138,34 @@ const discoveryScore = ToolsOverlap * (1 + StructuralBoost);
 
 ## 4. Decision & Adaptation
 
-### 4.1 Interaction avec Adaptive Thresholds (ADR-008)
+### 4.1 Interaction avec Intelligent Adaptive Thresholds (ADR-049)
 
-Le score calculé par les algorithmes ci-dessus (`finalScore`, `matchScore`, etc.) est une valeur brute. La décision finale passe par l'`AdaptiveThresholdManager`.
+Le score calculé par les algorithmes ci-dessus (`finalScore`, `matchScore`, etc.) est une valeur brute. La décision finale passe par l'`IntelligentThresholdManager` (ADR-049).
 
 ```typescript
 // 1. Calcul du Score Brut (ADR-038)
 const score = calculateScore(...); // ex: 0.82
 
-// 2. Récupération du Seuil de Risque (ADR-008)
-// Le seuil s'adapte selon le type de workflow et l'historique de succès
-const threshold = await adaptiveThresholdManager.getThreshold(context); // ex: 0.85
+// 2. Récupération du Seuil Intelligent (ADR-049)
+// Intègre: Thompson Sampling per-tool + Local Alpha (ADR-048) + Risk Category + Episodic Boost
+const { threshold, breakdown } = await intelligentThresholdManager.getThreshold(
+  toolId,
+  contextTools,
+  workflowContext
+); // ex: 0.68 pour tool safe avec bon historique
 
-// 3. Décision
+// 3. Décision selon le mode (ADR-049 Decision 6)
+// - Active Search: threshold bas, UCB bonus exploration
+// - Passive Suggestion: Thompson sampling standard
+// - Speculation: threshold haut, pas de variance
 if (score >= threshold) {
   return suggestion;
 } else {
   return null; // Rejeté (trop risqué pour ce contexte)
 }
 ```
+
+**Note:** ADR-049 remplace l'ancien système EMA global (ADR-008) par un système intelligent à 3 niveaux avec apprentissage per-tool.
 
 ### 4.2 Magic Numbers Inventory
 
@@ -189,3 +198,5 @@ Les valeurs utilisées dans les formules doivent être monitorées et ajustées.
 
 - **ADR-041:** Hierarchical Trace Tracking (edge_type, edge_source)
 - **ADR-042:** Capability-to-Capability Hyperedges (enrichissement des algorithmes avec les relations cap→cap)
+- **ADR-048:** Local Adaptive Alpha (pondération semantic vs graph par mode/type)
+- **ADR-049:** Intelligent Adaptive Thresholds (Thompson Sampling, Risk Categories, décision d'exécution)

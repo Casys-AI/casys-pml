@@ -2,7 +2,7 @@
 
 **Status:** Accepted (Implemented)
 **Date:** 2025-12-15
-**Related:** ADR-015 (Dynamic Alpha), ADR-026 (Cold Start), ADR-038 (Scoring Algorithms), ADR-042 (Capability Hyperedges)
+**Related:** ADR-015 (Dynamic Alpha), ADR-026 (Cold Start), ADR-038 (Scoring Algorithms), ADR-042 (Capability Hyperedges), ADR-049 (Intelligent Adaptive Thresholds)
 
 ## Context
 
@@ -94,6 +94,37 @@ ADR-048 (Alpha Algorithms):
 
 + Fallback Bayésien si observations < seuil (Cold Start)
 ```
+
+### Clarification: Modes vs États
+
+ADR-049 introduit un troisième mode d'exécution (**Speculation**) pour les thresholds. Voici comment Alpha et Threshold s'articulent :
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    MODES ET ÉTATS                                        │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ADR-048 (ALPHA): Modes de calcul alpha                                 │
+│  ├── Active Search     → Embeddings Hybrides                            │
+│  └── Passive Suggestion → Heat Diffusion                                │
+│                                                                          │
+│  ADR-049 (THRESHOLD): Modes d'exécution                                 │
+│  ├── Active Search      → threshold bas, UCB bonus, user confirme       │
+│  ├── Passive Suggestion → threshold moyen, Thompson sampling            │
+│  └── Speculation        → threshold haut, mean only, exécution auto     │
+│                                                                          │
+│  ÉTAT (transversal):                                                    │
+│  └── Cold Start (<5 obs) → Bayesian fallback (alpha) + Thompson prior   │
+│                                                                          │
+│  MAPPING Alpha → Threshold:                                             │
+│  ├── Active Search      uses Alpha from: Embeddings Hybrides            │
+│  ├── Passive Suggestion uses Alpha from: Heat Diffusion                 │
+│  └── Speculation        uses Alpha from: Heat Diffusion (same as Passive)│
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**Note:** Speculation est un sous-mode de Passive où le système décide d'exécuter sans confirmation. L'alpha utilisé est le même que Passive (Heat Diffusion), mais le threshold est calculé différemment (plus conservateur, pas de sampling).
 
 ---
 
@@ -663,3 +694,4 @@ private getAdaptiveWeightsFromAlpha(avgAlpha: number): { hybrid: number; pageRan
 - [Spectral Graph Theory](https://mathweb.ucsd.edu/~fan/research/revised.html)
 - ADR-038: Scoring Algorithms Reference
 - ADR-042: Capability-to-Capability Hyperedges
+- ADR-049: Intelligent Adaptive Thresholds (utilise local alpha pour ajuster les thresholds d'exécution)
