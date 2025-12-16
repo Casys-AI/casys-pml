@@ -3,9 +3,10 @@
  *
  * Tests:
  * 1. suggestEscalation() parses PermissionDenied errors correctly
- * 2. Security-critical permissions (run, ffi) are blocked
+ * 2. Sandbox-escape permissions (run, ffi) are handled via PermissionConfig
  * 3. Valid escalation paths are enforced
  * 4. Confidence scoring works correctly
+ * 5. NEW: 3-axis permission model (scope, ffi, run, approvalMode)
  *
  * @module tests/unit/capabilities/permission_escalation_test
  */
@@ -16,7 +17,9 @@ import {
   isValidEscalation,
   getValidEscalationTargets,
   isSecurityCritical,
+  isSandboxEscapePermission,
 } from "../../../src/capabilities/permission-escalation.ts";
+import type { PermissionConfig } from "../../../src/capabilities/types.ts";
 
 // ===================================================================
 // PERMISSION DENIED ERROR PARSING
@@ -62,30 +65,84 @@ Deno.test("suggestEscalation - parses env permission denied error", () => {
 });
 
 // ===================================================================
-// SECURITY-CRITICAL PERMISSION BLOCKING (AC#2)
+// SANDBOX-ESCAPE PERMISSIONS (FFI, RUN) - NEW 3-AXIS MODEL
 // ===================================================================
 
-Deno.test("suggestEscalation - blocks run permission (security-critical)", () => {
-  const error = "PermissionDenied: Requires run access to /bin/sh";
-  const result = suggestEscalation(error, "cap-malicious", "minimal");
-
-  // Should return null - run is security-critical
-  assertStrictEquals(result, null);
-});
-
-Deno.test("suggestEscalation - blocks ffi permission (security-critical)", () => {
+Deno.test("suggestEscalation - allows ffi when tool config declares it", () => {
   const error = "PermissionDenied: Requires ffi access";
-  const result = suggestEscalation(error, "cap-ffi", "minimal");
+  const toolConfig: PermissionConfig = {
+    scope: "minimal",
+    ffi: true,
+    run: false,
+    approvalMode: "auto",
+  };
+  const result = suggestEscalation(error, "cap-fermat", "minimal", toolConfig);
 
-  // Should return null - ffi is security-critical
-  assertStrictEquals(result, null);
+  // Should NOT return null anymore - ffi is allowed via config
+  assertNotEquals(result, null);
+  assertEquals(result?.detectedOperation, "ffi");
+  assertEquals(result?.confidence, 0.95); // High confidence when explicitly declared
 });
 
-Deno.test("isSecurityCritical - identifies run as security-critical", () => {
+Deno.test("suggestEscalation - allows run when tool config declares it", () => {
+  const error = "PermissionDenied: Requires run access to /bin/python";
+  const toolConfig: PermissionConfig = {
+    scope: "minimal",
+    ffi: false,
+    run: true,
+    approvalMode: "hil",
+  };
+  const result = suggestEscalation(error, "cap-runner", "minimal", toolConfig);
+
+  // Should NOT return null - run is allowed via config
+  assertNotEquals(result, null);
+  assertEquals(result?.detectedOperation, "run");
+});
+
+Deno.test("suggestEscalation - returns escalation request for ffi without config", () => {
+  const error = "PermissionDenied: Requires ffi access";
+  // No toolConfig provided
+  const result = suggestEscalation(error, "cap-unknown", "minimal");
+
+  // Should return request (not null) but with lower confidence
+  assertNotEquals(result, null);
+  assertEquals(result?.detectedOperation, "ffi");
+  assertEquals(result?.confidence, 0.5); // Lower confidence - not explicitly declared
+});
+
+Deno.test("suggestEscalation - returns escalation request for run without config", () => {
+  const error = "PermissionDenied: Requires run access to /bin/sh";
+  // No toolConfig provided
+  const result = suggestEscalation(error, "cap-unknown", "minimal");
+
+  // Should return request (not null) for HIL to handle
+  assertNotEquals(result, null);
+  assertEquals(result?.detectedOperation, "run");
+  assertEquals(result?.confidence, 0.5);
+});
+
+Deno.test("isSandboxEscapePermission - identifies run", () => {
+  assertEquals(isSandboxEscapePermission("run"), true);
+});
+
+Deno.test("isSandboxEscapePermission - identifies ffi", () => {
+  assertEquals(isSandboxEscapePermission("ffi"), true);
+});
+
+Deno.test("isSandboxEscapePermission - net is not sandbox-escape", () => {
+  assertEquals(isSandboxEscapePermission("net"), false);
+});
+
+Deno.test("isSandboxEscapePermission - read is not sandbox-escape", () => {
+  assertEquals(isSandboxEscapePermission("read"), false);
+});
+
+// Legacy function (deprecated but still works)
+Deno.test("isSecurityCritical - identifies run (legacy API)", () => {
   assertEquals(isSecurityCritical("run"), true);
 });
 
-Deno.test("isSecurityCritical - identifies ffi as security-critical", () => {
+Deno.test("isSecurityCritical - identifies ffi (legacy API)", () => {
   assertEquals(isSecurityCritical("ffi"), true);
 });
 
@@ -224,4 +281,60 @@ Deno.test("suggestEscalation - returns null when no valid escalation exists", ()
 
   // Already at highest auto-escalatable level
   assertStrictEquals(result, null);
+});
+
+// ===================================================================
+// 3-AXIS PERMISSION MODEL TESTS (NEW)
+// ===================================================================
+
+Deno.test("suggestEscalation - ffi request keeps same scope", () => {
+  const error = "PermissionDenied: Requires ffi access";
+  const toolConfig: PermissionConfig = {
+    scope: "network-api",
+    ffi: true,
+    run: false,
+    approvalMode: "auto",
+  };
+  const result = suggestEscalation(error, "cap-ffi", "network-api", toolConfig);
+
+  assertNotEquals(result, null);
+  // For ffi, we keep the same scope - just enable the ffi flag
+  assertEquals(result?.requestedSet, "network-api");
+  assertEquals(result?.detectedOperation, "ffi");
+});
+
+Deno.test("suggestEscalation - run request keeps same scope", () => {
+  const error = "PermissionDenied: Requires run access to /bin/node";
+  const toolConfig: PermissionConfig = {
+    scope: "filesystem",
+    ffi: false,
+    run: true,
+    approvalMode: "hil",
+  };
+  const result = suggestEscalation(error, "cap-run", "filesystem", toolConfig);
+
+  assertNotEquals(result, null);
+  // For run, we keep the same scope - just enable the run flag
+  assertEquals(result?.requestedSet, "filesystem");
+  assertEquals(result?.detectedOperation, "run");
+});
+
+Deno.test("suggestEscalation - handles legacy trusted value", () => {
+  const error = "PermissionDenied: Requires net access to api.test.com";
+  // trusted should map to mcp-standard internally
+  const result = suggestEscalation(error, "cap-trusted", "trusted");
+
+  // Should return null because trusted (mcp-standard) has no valid escalation for net
+  assertStrictEquals(result, null);
+});
+
+Deno.test("getValidEscalationTargets - handles legacy trusted value", () => {
+  const targets = getValidEscalationTargets("trusted");
+  // trusted maps to mcp-standard which has 0 targets
+  assertEquals(targets.length, 0);
+});
+
+Deno.test("isValidEscalation - handles legacy trusted value", () => {
+  // trusted maps to mcp-standard, which cannot escalate
+  assertEquals(isValidEscalation("trusted", "mcp-standard"), false);
 });
