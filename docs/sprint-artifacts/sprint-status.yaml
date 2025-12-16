@@ -155,7 +155,7 @@ development_status:
   7-5b-capability-pruning: optional
   7-6-algorithm-observability-implementation: done # Code Review APPROVED 2025-12-10, 14 tests passing (9 unit + 5 integration), ADR-039 implemented, Auth protection added
   7-7a-permission-inference-automatic-analysis: done # Code Review APPROVED 2025-12-16, 25 tests passing, ADR-035 Permission Sets
-  7-7b-sandbox-permission-integration: backlog # Depends on 7.7a - Execute with permission sets
+  7-7b-sandbox-permission-integration: done # Code Review APPROVED 2025-12-16, 37 tests (24 unit + 13 E2E), ADR-035 Permission Sets, 2 issues fixed
   7-7c-hil-permission-escalation: backlog # Depends on 7.7b - Human approval for escalation
   epic-7-retrospective: optional
 

@@ -134,5 +134,56 @@
     "noUnusedParameters": true,
     "jsx": "react-jsx",
     "jsxImportSource": "preact"
+  },
+  "_sandboxPermissions": {
+    "_comment": "Sandbox permission set definitions (Story 7.7b, ADR-035). These profiles are enforced by DenoSandboxExecutor via explicit flags. Deno 2.5+ permission sets (--permission-set) not yet available, using flag fallback.",
+    "minimal": {
+      "read": false,
+      "write": false,
+      "net": false,
+      "env": false,
+      "run": false,
+      "ffi": false
+    },
+    "readonly": {
+      "read": ["./data", "/tmp"],
+      "write": false,
+      "net": false,
+      "env": false,
+      "run": false,
+      "ffi": false
+    },
+    "network-api": {
+      "read": false,
+      "write": false,
+      "net": true,
+      "env": false,
+      "run": false,
+      "ffi": false
+    },
+    "filesystem": {
+      "read": true,
+      "write": ["/tmp"],
+      "net": false,
+      "env": false,
+      "run": false,
+      "ffi": false
+    },
+    "mcp-standard": {
+      "read": true,
+      "write": ["/tmp", "./output"],
+      "net": true,
+      "env": ["HOME", "PATH"],
+      "run": false,
+      "ffi": false
+    },
+    "trusted": {
+      "read": true,
+      "write": true,
+      "net": true,
+      "env": true,
+      "run": false,
+      "ffi": false
+    }
   }
 }
