@@ -540,18 +540,34 @@ interface Capability {
 ### 8.4 Reconstruction des dépendances data (vrai `dependsOn`)
 
 Pour reconstruire un DAG **ré-exécutable** depuis le code, on doit détecter les **dépendances data** :
-si le résultat de tool A est utilisé dans les arguments de tool B, alors B dépend de A.
+si le résultat du nœud A est utilisé dans les arguments du nœud B, alors B dépend de A.
+
+#### Types de dépendances data
+
+Les nœuds peuvent être des **tools** OU des **capabilities**. La détection s'applique à tous :
+
+| From | To | Exemple |
+|------|----|---------|
+| Tool → Tool | `json:parse` utilise le result de `fs:read` |
+| Tool → Capability | `cap:analyze` utilise le result de `fs:read` |
+| Capability → Tool | `http:post` utilise le result de `cap:transform` |
+| Capability → Capability | `cap:summarize` utilise le result de `cap:extract` |
+
+> **Note:** L'edge `contains` (existant) capture la **hiérarchie d'appel** (qui appelle qui).
+> Les dépendances data capturent le **flux de données** (qui utilise le résultat de qui).
+> Ce sont deux informations complémentaires.
 
 #### Ce qu'il faut tracer
 
-Actuellement on trace `args` mais **pas `result`**. Il faut ajouter le result dans `tool_end`.
+Actuellement on trace `args` mais **pas `result`**. Il faut ajouter le result dans les deux types d'événements :
 
 > **Note (2025-12-16):** Story 7.6 (Algorithm Observability) ne couvre PAS ceci.
 > Story 7.6 trace les décisions algorithmiques (scores de CapabilityMatcher, DAGSuggester),
-> pas les résultats d'exécution d'outils. Le traçage de `result` est **nouveau travail**.
+> pas les résultats d'exécution. Le traçage de `result` est **nouveau travail**.
+
+**1. Pour `tool_end` (worker-bridge.ts ligne ~426) :**
 
 ```typescript
-// worker-bridge.ts ligne ~426
 this.traces.push({
   type: "tool_end",
   tool: toolId,
@@ -561,6 +577,20 @@ this.traces.push({
   durationMs: durationMs,
   parentTraceId: parentTraceId,
   result: result,  // ← AJOUTER
+});
+```
+
+**2. Pour `capability_end` (code-generator.ts ligne ~104) :**
+
+```typescript
+// Dans le code généré pour les capabilities
+__trace({
+  type: "capability_end",
+  capability: "${name}",
+  capabilityId: "${capability.id}",
+  success: __capSuccess,
+  error: __capError?.message,
+  result: __capResult,  // ← AJOUTER (le retour de la capability)
 });
 ```
 
@@ -634,12 +664,14 @@ Dans les deux cas, il a un DAG complet qu'il peut suggérer ou ré-exécuter.
 
 ### Phase 1 : Enrichir le tracing (Quick Win)
 
-1. **Ajouter `result` dans les traces `tool_end`** (`worker-bridge.ts` ligne ~426)
+1. **Ajouter `result` dans les traces :**
+   - `tool_end` dans `worker-bridge.ts` ligne ~426
+   - `capability_end` dans `code-generator.ts` ligne ~104
 2. Modifier `execution-learning.ts` pour utiliser les timestamps (`ts`, `durationMs`)
 3. Ajouter edge type `co-occurrence` dans `edge-weights.ts`
 4. Détecter overlap temporel pour créer les bons edges
 
-**Fichiers :** `worker-bridge.ts`, `execution-learning.ts`, `edge-weights.ts`, `types.ts`
+**Fichiers :** `worker-bridge.ts`, `code-generator.ts`, `execution-learning.ts`, `edge-weights.ts`, `types.ts`
 **Effort estimé :** 1-2 jours
 
 ### Phase 2 : Reconstruction DAG depuis traces
