@@ -24,6 +24,7 @@ import { createAlgorithmTracesMigration } from "./migrations/014_algorithm_trace
 import { createCapabilityCommunityIdMigration } from "./migrations/015_capability_community_id.ts";
 import { createCapabilityDependencyMigration } from "./migrations/016_capability_dependency.ts";
 import { createPermissionInferenceMigration } from "./migrations/017_permission_inference.ts";
+import { createPermissionAuditLogMigration } from "./migrations/018_permission_audit_log.ts";
 
 /**
  * Migration definition
@@ -401,5 +402,6 @@ export function getAllMigrations(): Migration[] {
     createCapabilityCommunityIdMigration(), // Story 8.1: Capability community clustering
     createCapabilityDependencyMigration(), // Tech-spec: Capability-to-capability dependencies
     createPermissionInferenceMigration(), // Story 7.7a: Permission inference (ADR-035)
+    createPermissionAuditLogMigration(), // Story 7.7c: HIL permission escalation audit log
   ];
 }

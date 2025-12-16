@@ -296,4 +296,10 @@ export type Command =
     checkpointId: string; // References the checkpoint being approved/rejected
     approved: boolean; // true = continue, false = abort
     feedback?: string; // Optional human feedback
+  }
+  | {
+    type: "permission_escalation_response";
+    capabilityId: string; // UUID of capability requesting escalation
+    approved: boolean; // true = approve escalation, false = reject
+    feedback?: string; // Optional human feedback
   };

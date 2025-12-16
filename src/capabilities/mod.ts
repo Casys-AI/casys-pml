@@ -16,6 +16,20 @@ export { CapabilityExecutor } from "./executor.ts";
 export { CapabilityDataService } from "./data-service.ts";
 export { HypergraphBuilder } from "./hypergraph-builder.ts";
 export type { HypergraphResult } from "./hypergraph-builder.ts";
+// Story 7.7c: Permission escalation
+export {
+  suggestEscalation,
+  isValidEscalation,
+  getValidEscalationTargets,
+  isSecurityCritical,
+} from "./permission-escalation.ts";
+export { PermissionAuditStore } from "./permission-audit-store.ts";
+export type { LogEscalationInput, AuditLogFilters } from "./permission-audit-store.ts";
+export {
+  PermissionEscalationHandler,
+  formatEscalationRequest,
+} from "./permission-escalation-handler.ts";
+export type { EscalationResult, HILApprovalCallback } from "./permission-escalation-handler.ts";
 // Note: hashCodeSync is intentionally not exported - it uses djb2 (32-bit)
 // which has higher collision probability. Use hashCode (SHA-256) for production.
 export { hashCode, normalizeCode } from "./hash.ts";
@@ -35,6 +49,8 @@ export type {
   HypergraphOptions,
   HypergraphResponseInternal,
   JSONSchema,
+  PermissionAuditLogEntry, // Story 7.7c - Permission escalation audit
+  PermissionEscalationRequest, // Story 7.7c - HIL permission escalation
   PermissionSet, // Story 7.7a - Permission set profiles
   SaveCapabilityInput,
 } from "./types.ts";

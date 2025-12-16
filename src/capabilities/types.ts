@@ -161,6 +161,61 @@ export interface CapabilityMatch {
 // See rowToCapability() in capability-store.ts for the mapping logic.
 
 /**
+ * Permission escalation request (Story 7.7c - HIL Permission Escalation)
+ *
+ * When a capability fails with PermissionDenied, the system creates this request
+ * to ask for human approval before upgrading the capability's permission set.
+ *
+ * Flow:
+ * 1. Execution fails with PermissionDenied
+ * 2. suggestEscalation() parses error and creates PermissionEscalationRequest
+ * 3. ControlledExecutor emits decision_required event
+ * 4. Human approves/rejects via CommandQueue
+ * 5. If approved: update capability's permission_set in DB, retry execution
+ */
+export interface PermissionEscalationRequest {
+  /** UUID of the capability requesting escalation */
+  capabilityId: string;
+  /** Current permission set (e.g., "minimal") */
+  currentSet: PermissionSet;
+  /** Requested permission set after escalation (e.g., "network-api") */
+  requestedSet: PermissionSet;
+  /** Reason for escalation (e.g., "PermissionDenied: net access to api.example.com") */
+  reason: string;
+  /** Detected operation that requires elevated permissions (e.g., "fetch", "read", "write") */
+  detectedOperation: string;
+  /** Confidence score (0-1) for the escalation suggestion */
+  confidence: number;
+}
+
+/**
+ * Audit log entry for permission escalation decisions (Story 7.7c)
+ *
+ * Every escalation request (approved or rejected) is logged for audit purposes.
+ * Stored in permission_audit_log table (migration 018).
+ */
+export interface PermissionAuditLogEntry {
+  /** Unique ID for the audit entry */
+  id: string;
+  /** Timestamp when the escalation was requested */
+  timestamp: Date;
+  /** UUID of the capability requesting escalation */
+  capabilityId: string;
+  /** Permission set before escalation */
+  fromSet: PermissionSet;
+  /** Permission set requested/granted */
+  toSet: PermissionSet;
+  /** Whether the escalation was approved */
+  approved: boolean;
+  /** Who approved (user_id or "system") */
+  approvedBy?: string;
+  /** Original error message that triggered escalation */
+  reason?: string;
+  /** Detected operation (e.g., "fetch", "read", "write") */
+  detectedOperation?: string;
+}
+
+/**
  * Edge types for capability dependencies
  * Same vocabulary as tool_dependency for consistency
  */

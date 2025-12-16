@@ -954,4 +954,99 @@ export class CapabilityStore {
       lastObserved: new Date(row.last_observed as string),
     };
   }
+
+  // ============================================
+  // Permission Escalation Methods (Story 7.7c)
+  // ============================================
+
+  /**
+   * Valid permission set transitions for escalation
+   *
+   * Used to validate that escalation requests follow allowed paths.
+   * "trusted" is not allowed via escalation (manual override only).
+   */
+  private static readonly VALID_ESCALATIONS: Record<PermissionSet, PermissionSet[]> = {
+    minimal: ["readonly", "filesystem", "network-api", "mcp-standard"],
+    readonly: ["filesystem", "mcp-standard"],
+    filesystem: ["mcp-standard"],
+    "network-api": ["mcp-standard"],
+    "mcp-standard": [],
+    trusted: [],
+  };
+
+  /**
+   * Update a capability's permission set after HIL approval (Story 7.7c - AC4)
+   *
+   * This method is called when a permission escalation request is approved.
+   * It validates the transition and updates the capability's permission_set in the database.
+   *
+   * @param capabilityId - UUID of the capability to update
+   * @param newPermissionSet - New permission set to apply
+   * @throws Error if capability not found or transition is invalid
+   *
+   * @example
+   * ```typescript
+   * // After HIL approval for escalation from "minimal" to "network-api"
+   * await capabilityStore.updatePermissionSet("cap-uuid", "network-api");
+   * ```
+   */
+  async updatePermissionSet(
+    capabilityId: string,
+    newPermissionSet: PermissionSet,
+  ): Promise<void> {
+    // First, get current capability to validate transition
+    const capability = await this.findById(capabilityId);
+    if (!capability) {
+      throw new Error(`Capability ${capabilityId} not found`);
+    }
+
+    const currentSet = capability.permissionSet ?? "minimal";
+
+    // Validate that the transition is allowed
+    const allowedTargets = CapabilityStore.VALID_ESCALATIONS[currentSet];
+    if (!allowedTargets.includes(newPermissionSet)) {
+      throw new Error(
+        `Invalid permission escalation: ${currentSet} -> ${newPermissionSet}. ` +
+          `Allowed targets: ${allowedTargets.join(", ") || "none"}`,
+      );
+    }
+
+    // Update the permission set in the database
+    await this.db.query(
+      `UPDATE workflow_pattern
+       SET permission_set = $1,
+           permission_confidence = 1.0
+       WHERE pattern_id = $2`,
+      [newPermissionSet, capabilityId],
+    );
+
+    logger.info("Capability permission set updated", {
+      capabilityId,
+      fromSet: currentSet,
+      toSet: newPermissionSet,
+    });
+
+    // Emit event for observability
+    eventBus.emit({
+      type: "capability.permission.updated",
+      source: "capability-store",
+      payload: {
+        capability_id: capabilityId,
+        from_set: currentSet,
+        to_set: newPermissionSet,
+        via: "hil_escalation",
+      },
+    });
+  }
+
+  /**
+   * Check if a permission escalation is valid
+   *
+   * @param fromSet - Current permission set
+   * @param toSet - Target permission set
+   * @returns true if escalation is allowed
+   */
+  isValidEscalation(fromSet: PermissionSet, toSet: PermissionSet): boolean {
+    return CapabilityStore.VALID_ESCALATIONS[fromSet]?.includes(toSet) ?? false;
+  }
 }

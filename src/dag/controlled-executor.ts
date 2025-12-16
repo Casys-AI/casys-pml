@@ -39,6 +39,13 @@ import type {
   SpeculationConfig,
   SpeculationMetrics,
 } from "../graphrag/types.ts";
+// Story 7.7c: Permission escalation imports
+import type { PermissionEscalationRequest, PermissionSet } from "../capabilities/types.ts";
+import type { PermissionAuditStore } from "../capabilities/permission-audit-store.ts";
+import {
+  PermissionEscalationHandler,
+  formatEscalationRequest,
+} from "../capabilities/permission-escalation-handler.ts";
 
 const log = getLogger("controlled-executor");
 
@@ -91,6 +98,10 @@ export class ControlledExecutor extends ParallelExecutor {
   // Task 3: Dependencies for sandbox execution (eager learning, trace collection)
   private capabilityStore?: import("../capabilities/capability-store.ts").CapabilityStore;
   private graphRAG?: import("../graphrag/graph-engine.ts").GraphRAGEngine;
+
+  // Story 7.7c: Permission escalation for HIL approval
+  private permissionEscalationHandler: PermissionEscalationHandler | null = null;
+  private _permissionAuditStore: PermissionAuditStore | null = null;
 
   /**
    * Create a new controlled executor
@@ -149,6 +160,115 @@ export class ControlledExecutor extends ParallelExecutor {
       hasCapabilityStore: !!capabilityStore,
       hasGraphRAG: !!graphRAG,
     });
+  }
+
+  /**
+   * Set permission escalation dependencies (Story 7.7c - AC3, AC4, AC5)
+   *
+   * Enables HIL permission escalation when a capability fails with PermissionDenied.
+   * The handler coordinates between suggestEscalation(), HIL approval, and DB updates.
+   *
+   * @param auditStore - PermissionAuditStore for logging decisions
+   */
+  setPermissionEscalationDependencies(auditStore: PermissionAuditStore): void {
+    this._permissionAuditStore = auditStore;
+
+    // Create the handler with HIL callback that uses existing infrastructure
+    if (this.capabilityStore && auditStore) {
+      this.permissionEscalationHandler = new PermissionEscalationHandler(
+        this.capabilityStore,
+        auditStore,
+        async (request: PermissionEscalationRequest) => {
+          return await this.requestPermissionEscalation(request);
+        },
+        this.userId, // Pass the userId for audit logging (Story 7.7c L1 fix)
+      );
+      log.debug("Permission escalation handler configured", { userId: this.userId });
+    }
+  }
+
+  /**
+   * Request human approval for permission escalation (Story 7.7c - AC3)
+   *
+   * Follows existing HIL pattern:
+   * 1. Emit decision_required event with escalation details
+   * 2. Wait for permission_escalation_response command
+   * 3. Return approval decision
+   *
+   * @param request - Permission escalation request
+   * @returns Approval result
+   */
+  async requestPermissionEscalation(
+    request: PermissionEscalationRequest,
+  ): Promise<{ approved: boolean; feedback?: string }> {
+    const workflowId = this.state?.workflowId ?? "unknown";
+
+    // Format the escalation request for human display
+    const description = formatEscalationRequest(request);
+
+    // Emit decision_required event
+    const escalationEvent: ExecutionEvent = {
+      type: "decision_required",
+      timestamp: Date.now(),
+      workflowId,
+      decisionType: "HIL",
+      description,
+    };
+
+    await this.eventStream.emit(escalationEvent);
+
+    log.info("Permission escalation requested, waiting for HIL approval", {
+      capabilityId: request.capabilityId,
+      currentSet: request.currentSet,
+      requestedSet: request.requestedSet,
+    });
+
+    // Wait for human decision (5 minute timeout, same as regular HIL)
+    const command = await this.waitForDecisionCommand("HIL", 300000);
+
+    if (!command) {
+      // Timeout: Default to reject (safer for permission escalation)
+      log.warn("Permission escalation timeout - rejecting");
+      return { approved: false, feedback: "Escalation request timed out" };
+    }
+
+    // Handle permission_escalation_response command
+    if (command.type === "permission_escalation_response") {
+      const approved = command.approved === true;
+      log.info(`Permission escalation ${approved ? "approved" : "rejected"}`, {
+        capabilityId: request.capabilityId,
+        feedback: command.feedback,
+      });
+
+      // Capture decision in episodic memory
+      this.captureHILDecision(
+        workflowId,
+        approved,
+        `perm-esc-${request.capabilityId}`,
+        command.feedback ?? `Escalation ${request.currentSet} -> ${request.requestedSet}`,
+      );
+
+      return { approved, feedback: command.feedback };
+    }
+
+    // Handle legacy approval_response as fallback
+    if (command.type === "approval_response") {
+      const approved = command.approved === true;
+      log.info(`Permission escalation via approval_response: ${approved ? "approved" : "rejected"}`);
+
+      this.captureHILDecision(
+        workflowId,
+        approved,
+        `perm-esc-${request.capabilityId}`,
+        command.feedback,
+      );
+
+      return { approved, feedback: command.feedback };
+    }
+
+    // Unknown command type
+    log.warn(`Unexpected command type for permission escalation: ${command.type}`);
+    return { approved: false, feedback: `Unexpected response: ${command.type}` };
   }
 
   /**
@@ -1692,6 +1812,15 @@ export class ControlledExecutor extends ParallelExecutor {
   }
 
   /**
+   * Get permission audit store for external audit log access (Story 7.7c)
+   *
+   * @returns PermissionAuditStore or null if not configured
+   */
+  getPermissionAuditStore(): PermissionAuditStore | null {
+    return this._permissionAuditStore;
+  }
+
+  /**
    * Override: Execute task with support for code_execution and capability types (Story 3.4, Story 7.4)
    *
    * Routes tasks based on type:
@@ -1845,9 +1974,61 @@ export class ControlledExecutor extends ParallelExecutor {
       };
     } catch (error) {
       const executionTimeMs = performance.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      // Story 7.7c: Handle PermissionDenied errors with HIL escalation
+      if (
+        errorMessage.includes("PermissionDenied") &&
+        this.permissionEscalationHandler &&
+        this.capabilityStore &&
+        task.capabilityId
+      ) {
+        log.info(`Permission denied for capability ${task.capabilityId}, attempting escalation`);
+
+        // Get current permission set from capability
+        const capability = await this.capabilityStore.findById(task.capabilityId);
+        const currentPermissionSet = (capability?.permissionSet ?? "minimal") as PermissionSet;
+
+        // Create execution ID for retry tracking
+        const executionId = `${this.state?.workflowId ?? "unknown"}-${task.id}`;
+
+        // Handle the permission error (includes HIL approval request)
+        const escalationResult = await this.permissionEscalationHandler.handlePermissionError(
+          task.capabilityId,
+          currentPermissionSet,
+          errorMessage,
+          executionId,
+        );
+
+        if (escalationResult.handled && escalationResult.approved) {
+          log.info(
+            `Permission escalation approved for ${task.capabilityId}, ` +
+              `retrying with permission_set: ${escalationResult.newPermissionSet}`,
+          );
+
+          // Retry execution with updated permissions (AC5)
+          // The capability's permission_set has been updated in DB by the handler
+          return await this.executeCapabilityTask(task, previousResults);
+        } else if (escalationResult.handled) {
+          // Escalation was handled but rejected
+          log.warn(
+            `Permission escalation rejected for ${task.capabilityId}: ${escalationResult.feedback ?? escalationResult.error}`,
+          );
+          throw new Error(
+            `Permission escalation rejected for capability ${task.capabilityId}: ` +
+              `${escalationResult.feedback ?? escalationResult.error ?? "No feedback provided"}`,
+          );
+        } else {
+          // Escalation not handled (security-critical, no valid path, etc.)
+          log.warn(
+            `Permission escalation not available for ${task.capabilityId}: ${escalationResult.error}`,
+          );
+        }
+      }
+
       log.error(`Capability task ${task.id} failed`, {
         capabilityId: task.capabilityId,
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage,
         executionTimeMs,
       });
       throw error;
