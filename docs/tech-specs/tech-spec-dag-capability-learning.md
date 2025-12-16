@@ -711,6 +711,127 @@ Le suggester peut maintenant travailler avec les deux :
 
 Dans les deux cas, il a un DAG complet avec `effectiveDependsOn` qu'il peut suggérer ou ré-exécuter.
 
+### 8.7 Limites de la reconstruction et mitigations
+
+#### Limites identifiées
+
+| Limite | Description | Impact |
+|--------|-------------|--------|
+| **Dynamique** | Chaque exécution = un chemin. Les branches non explorées ne sont pas tracées | DAG incomplet pour code avec `if/else` |
+| **Matching partiel** | Si on utilise `result.data.items[0].id`, le match JSON peut rater | Faux négatifs sur dépendances |
+| **Side effects externes** | "Write file A puis read file B" sans lien data | Dépendances invisibles |
+| **Closures/État** | Variables capturées hors du flow tracé | Dépendances implicites manquées |
+| **Loops** | Boucles dynamiques avec nombre variable d'itérations | Structure non-DAG |
+
+#### Pistes de mitigation
+
+##### 1. Dry Run (Safe-to-Fail Execution)
+
+Exécuter le code en mode "exploration" pour découvrir les branches :
+
+```typescript
+interface DryRunConfig {
+  mode: "explore";           // Explorer toutes les branches
+  maxBranches: number;       // Limite de branches à explorer
+  failSafe: true;            // Les erreurs ne cassent pas l'exploration
+  collectTraces: true;       // Collecter les traces de toutes les branches
+}
+
+// Résultat : traces de TOUTES les branches explorées
+const branches = await dryRun(code, config);
+// branches[0] = traces si condition A vraie
+// branches[1] = traces si condition A fausse
+```
+
+**Avantages :**
+- Découvre les chemins alternatifs
+- Permet de construire un DAG plus complet
+- Identifie les branches non couvertes
+
+##### 2. Mock d'arguments
+
+Injecter des arguments fictifs pour explorer des chemins spécifiques :
+
+```typescript
+interface MockConfig {
+  argMocks: Record<string, unknown>;  // Forcer certains args
+  // Exemple: { "config.env": "production" } → explore la branche prod
+}
+
+const traces = await executeWithMocks(code, mockConfig);
+```
+
+**Use cases :**
+- Tester le comportement avec différentes configs
+- Explorer les branches error handling
+- Valider les chemins edge cases
+
+##### 3. Mock de résultats
+
+Simuler les résultats de tools pour éviter les side effects :
+
+```typescript
+interface ResultMockConfig {
+  toolMocks: Record<string, unknown>;  // Simuler les résultats
+  // Exemple: { "http:post": { status: 500 } } → explore la branche erreur
+}
+
+const traces = await executeWithResultMocks(code, resultMockConfig);
+```
+
+**Use cases :**
+- Tester error handling sans vraies erreurs
+- Explorer les branches de retry/fallback
+- Éviter les side effects réels (DB writes, API calls)
+
+##### 4. Combinaison : Exploration complète
+
+```typescript
+// Découvrir le DAG complet d'une capability
+async function exploreCapability(capabilityId: string): Promise<CompleteDAG> {
+  const capability = await getCapability(capabilityId);
+
+  // 1. Exécution normale → chemin principal
+  const mainPath = await execute(capability);
+
+  // 2. Dry run avec mocks → branches alternatives
+  const altPaths = await Promise.all([
+    executeWithMocks(capability, { "config.env": "staging" }),
+    executeWithResultMocks(capability, { "http:get": { error: true } }),
+    // ... autres scénarios
+  ]);
+
+  // 3. Fusionner tous les chemins en un DAG complet
+  return mergePathsToDAG([mainPath, ...altPaths]);
+}
+```
+
+##### 5. Annotations explicites (fallback)
+
+Pour les cas vraiment complexes, permettre des annotations :
+
+```typescript
+// Dans le code de la capability
+// @pml-depends: ["fs:read", "config:load"]
+// @pml-branches: ["success", "error", "retry"]
+const result = await complexOperation();
+```
+
+Ces annotations seraient lues par le système pour enrichir le DAG inféré.
+
+#### Priorité des mitigations
+
+| Mitigation | Complexité | Valeur | Priorité |
+|------------|------------|--------|----------|
+| Dry run safe-to-fail | Moyenne | Haute | P1 - Phase future |
+| Mock de résultats | Faible | Haute | P1 - Facile à implémenter |
+| Mock d'arguments | Faible | Moyenne | P2 |
+| Exploration complète | Haute | Très haute | P3 - Long terme |
+| Annotations | Faible | Basse | P4 - Fallback |
+
+> **Note :** Ces mitigations sont pour une phase future. La Phase 1-2 du plan actuel
+> couvre 80-90% des cas d'usage avec la reconstruction basique depuis traces.
+
 ---
 
 ## 9. Plan d'implémentation
