@@ -50,31 +50,53 @@ This tech spec outlines the refactoring strategy for 6 oversized TypeScript file
 7. Metrics collection
 8. Health checks
 
-### Target Structure
+### Target Structure (Updated 2024-12-16)
 
 ```
 src/mcp/
 ├── gateway-server.ts           # ~200 lines - Orchestration only
 ├── server/
-│   ├── lifecycle.ts            # Start/stop/restart logic
-│   └── health.ts               # Health checks, readiness probes
+│   ├── lifecycle.ts            # Start/stop/restart logic ✅
+│   ├── health.ts               # Health checks, readiness probes ✅
+│   ├── http.ts                 # HTTP server implementation ✅ NEW
+│   ├── types.ts                # Server types ✅
+│   ├── constants.ts            # Server constants ✅
+│   ├── responses.ts            # Response formatters ✅
+│   └── mod.ts                  # Module exports ✅
 ├── connections/
-│   ├── manager.ts              # Connection lifecycle
-│   ├── pool.ts                 # Connection pooling
-│   └── types.ts                # Connection-related types
+│   ├── manager.ts              # Connection lifecycle ✅
+│   ├── pool.ts                 # Connection pooling ✅
+│   ├── types.ts                # Connection-related types ✅
+│   └── mod.ts                  # Module exports ✅
 ├── routing/
-│   ├── router.ts               # Request routing logic
-│   ├── dispatcher.ts           # Request dispatching
-│   └── middleware.ts           # Request/response middleware
+│   ├── router.ts               # Request routing logic ✅
+│   ├── dispatcher.ts           # Request dispatching ✅
+│   ├── middleware.ts           # Request/response middleware ✅
+│   ├── types.ts                # Routing types ✅
+│   ├── handlers/               # HTTP route handlers ✅ NEW
+│   │   ├── graph.ts            # /api/graph/* handlers
+│   │   ├── capabilities.ts     # /api/capabilities/* handlers
+│   │   ├── metrics.ts          # /api/metrics handler
+│   │   ├── tools.ts            # /api/tools/* handlers
+│   │   ├── health.ts           # /health, /events/stream handlers
+│   │   └── mod.ts              # Handler exports
+│   └── mod.ts                  # Module exports ✅
 ├── registry/
-│   ├── tool-registry.ts        # Tool registration & lookup
-│   └── discovery.ts            # Tool discovery mechanisms
+│   ├── tool-registry.ts        # Tool registration & lookup ✅
+│   ├── discovery.ts            # Tool discovery mechanisms ✅
+│   └── mod.ts                  # Module exports ✅
 ├── responses/
-│   ├── formatter.ts            # Response formatting
-│   └── errors.ts               # Error response handling
+│   ├── formatter.ts            # Response formatting ✅
+│   ├── errors.ts               # Error response handling ✅
+│   └── mod.ts                  # Module exports ✅
 └── metrics/
-    └── collector.ts            # Metrics collection
+    ├── collector.ts            # Metrics collection ✅
+    └── mod.ts                  # Module exports ✅
 ```
+
+**Note**: The `routing/handlers/` directory was added to hold HTTP route handlers
+that were previously in a separate `routes/` directory. This keeps all routing
+logic together in one module.
 
 ### Migration Strategy
 
@@ -142,6 +164,18 @@ src/graphrag/
 3. ✅ **Extract Events**: Event emission as independent module
 4. ✅ **Extract DAG Building**: buildDAG() and execution learning extracted
 5. ✅ **Create Facade**: GraphRAGEngine is now a thin orchestrator (336 lines)
+
+### Test Coverage (103 tests total)
+
+**Unit Tests (95 tests):**
+- `tests/unit/graphrag/algorithms/edge_weights_test.ts` - 27 tests
+- `tests/unit/graphrag/algorithms/pathfinding_test.ts` - 29 tests
+- `tests/unit/graphrag/algorithms/pagerank_test.ts` - 19 tests
+- `tests/unit/graphrag/dag/execution_learning_test.ts` - 20 tests
+
+**Integration Tests (8 tests):**
+- `tests/integration/graphrag/graph_engine_workflows_test.ts` - 8 tests
+  - Concurrent operations, execution learning → DAG, edge weight consistency, persistence round-trip
 
 ---
 
