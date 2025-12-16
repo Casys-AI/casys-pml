@@ -93,7 +93,7 @@ concurrentes (Docker Dynamic MCP, Anthropic Programmatic Tool Calling).
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Estimation:** 5 stories, ~2-3 semaines
+**Estimation:** 13 stories (7.1-7.7c), ~3-4 semaines
 
 ---
 
@@ -602,6 +602,195 @@ ADR-039 defines a logging structure for scoring algorithms. This story implement
 **Prerequisites:** Story 7.4 (Scoring implemented)
 
 **Estimation:** 1-2 jours
+
+---
+
+**Story 7.7a: Permission Inference - Analyse Automatique des Permissions (ADR-035)**
+
+As a system executing capabilities in sandbox, I want automatic permission inference from code analysis,
+So that capabilities run with minimal required permissions (principle of least privilege).
+
+**Context:**
+Deno demande actuellement des permissions globales pour tout le sandbox. Avec Deno 2.5+ Permission Sets,
+on peut définir des profils de permissions granulaires. Cette story infère automatiquement le profil
+approprié en analysant le code via SWC (réutilisation de Story 7.2b).
+
+**Permission Profiles Définis:**
+
+| Profile | Read | Write | Net | Env | Use Case |
+|---------|------|-------|-----|-----|----------|
+| `minimal` | ❌ | ❌ | ❌ | ❌ | Pure computation, math |
+| `readonly` | `["./data"]` | ❌ | ❌ | ❌ | Data analysis |
+| `filesystem` | `["./"]` | `["/tmp"]` | ❌ | ❌ | File processing |
+| `network-api` | ❌ | ❌ | `["api.*"]` | ❌ | API calls (fetch) |
+| `mcp-standard` | ✅ | `["/tmp"]` | ✅ | Limited | Standard MCP tools |
+| `trusted` | ✅ | ✅ | ✅ | ✅ | Manual/verified capabilities |
+
+**Acceptance Criteria:**
+
+1. `PermissionInferrer` class créée (`src/capabilities/permission-inferrer.ts`)
+2. Réutilise SWC parsing de Story 7.2b pour analyser l'AST
+3. Détection des patterns:
+   - `fetch(`, `Deno.connect` → network-api
+   - `mcp.filesystem`, `mcp.fs`, `Deno.readFile` → filesystem
+   - `Deno.env`, `process.env` → env access
+4. Method `inferPermissions(code: string)` retourne:
+   ```typescript
+   interface InferredPermissions {
+     permissionSet: string;       // "minimal" | "readonly" | "network-api" | etc.
+     confidence: number;          // 0-1
+     detectedPatterns: string[];  // ["fetch", "mcp.filesystem"]
+   }
+   ```
+5. Migration DB ajoutée (012):
+   ```sql
+   ALTER TABLE workflow_pattern
+   ADD COLUMN permission_set VARCHAR(50) DEFAULT 'minimal',
+   ADD COLUMN permission_confidence FLOAT DEFAULT 0.0;
+   CREATE INDEX idx_workflow_pattern_permission ON workflow_pattern(permission_set);
+   ```
+6. Integration avec `saveCapability()` - permission inférée automatiquement au stockage
+7. Tests: code avec `fetch()` → permission_set = "network-api"
+8. Tests: code avec `mcp.fs.read()` → permission_set = "filesystem"
+9. Tests: code sans I/O → permission_set = "minimal", confidence = 0.95
+
+**Files to Create:**
+- `src/capabilities/permission-inferrer.ts` (~120 LOC)
+
+**Files to Modify:**
+- `src/capabilities/capability-store.ts` - Appeler inferPermissions au save (~15 LOC)
+- `drizzle/migrations/` - Migration 012 (~20 LOC)
+
+**Prerequisites:** Story 7.2b (SWC parsing disponible)
+
+**Estimation:** 1-2 jours
+
+---
+
+**Story 7.7b: Sandbox Permission Integration - Exécution avec Permissions Granulaires (ADR-035)**
+
+As a sandbox executor, I want to run capabilities with their inferred permission set,
+So that each capability has only the minimum permissions required.
+
+**Context:**
+Cette story modifie `SandboxExecutor` pour utiliser les permission sets stockés en DB.
+Inclut un fallback pour Deno < 2.5 avec les flags explicites.
+
+**Architecture:**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Capability Execution Flow                                       │
+│                                                                  │
+│  1. Load capability from DB (includes permission_set)            │
+│  2. Determine final permissions:                                 │
+│     - source="manual" → use stored permission_set                │
+│     - confidence < 0.7 → use "minimal" (safety)                  │
+│     - else → use inferred permission_set                         │
+│  3. Execute with determined permissions                          │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Acceptance Criteria:**
+
+1. `SandboxExecutor.execute()` accepte paramètre `permissionSet?: string`
+2. Ajout des permission sets dans `deno.json`:
+   ```json
+   {
+     "permissions": {
+       "minimal": { "read": false, "write": false, "net": false, "env": false },
+       "readonly": { "read": ["./data", "/tmp"], "write": false, "net": false },
+       "network-api": { "read": false, "write": false, "net": true },
+       "filesystem": { "read": ["./"], "write": ["/tmp"], "net": false },
+       "mcp-standard": { "read": true, "write": ["/tmp", "./output"], "net": true, "env": ["HOME", "PATH"] },
+       "trusted": { "read": true, "write": true, "net": true, "env": true }
+     }
+   }
+   ```
+3. Deno 2.5+ : utilise `--permission-set=${permissionSet}`
+4. Deno < 2.5 : fallback avec `permissionSetToFlags()` mapping
+5. Method `supportsPermissionSets()` détecte version Deno
+6. `--no-prompt` toujours ajouté (jamais d'interaction)
+7. Tests e2e: capability "minimal" → PermissionDenied si tente fetch
+8. Tests e2e: capability "network-api" → fetch fonctionne
+9. Tests: fallback flags pour Deno 2.4
+
+**Files to Modify:**
+- `src/sandbox/executor.ts` - Ajout permission set support (~60 LOC)
+- `deno.json` - Permission sets configuration (~30 LOC)
+
+**Prerequisites:** Story 7.7a (Permission Inference)
+
+**Estimation:** 1-2 jours
+
+---
+
+**Story 7.7c: HIL Permission Escalation - Escalade avec Approbation Humaine (ADR-035)**
+
+As a user, I want to approve permission escalations when a capability needs more access,
+So that security is maintained while allowing legitimate operations.
+
+**Context:**
+Quand une capability échoue avec PermissionDenied, le système peut demander à l'utilisateur
+d'approuver une escalade de permissions. Intégration avec le système HIL existant (DAG executor).
+
+**Flow:**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Execution fails: PermissionDenied                               │
+│                                                                  │
+│  → Detect error type (read, write, net, env)                     │
+│  → Suggest escalation (minimal → network-api)                    │
+│  → Request HIL approval via existing ControlledExecutor          │
+│  → If approved: update capability.permission_set in DB           │
+│  → Retry execution with new permissions                          │
+│  → Log decision for audit trail                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Acceptance Criteria:**
+
+1. Interface `PermissionEscalationRequest` définie:
+   ```typescript
+   interface PermissionEscalationRequest {
+     capabilityId: string;
+     currentSet: string;          // "minimal"
+     requestedSet: string;        // "network-api"
+     reason: string;              // "PermissionDenied: net access to api.example.com"
+     detectedOperation: string;   // "fetch"
+   }
+   ```
+2. `suggestEscalation(error: string)` analyse l'erreur et suggère le profil approprié
+3. Integration avec `ControlledExecutor.requestHILApproval()` existant
+4. Si approuvé: UPDATE capability permission_set en DB
+5. Si refusé: log et retourne erreur propre à l'utilisateur
+6. Audit logging: toutes les décisions d'escalation loggées
+   ```typescript
+   interface PermissionAuditLog {
+     timestamp: Date;
+     capabilityId: string;
+     from: string;
+     to: string;
+     approved: boolean;
+     approvedBy?: string;
+   }
+   ```
+7. Table `permission_audit_log` créée (migration 013)
+8. Tests: capability échoue → HIL request → approve → retry succeeds
+9. Tests: capability échoue → HIL request → deny → error propagée
+10. Tests: audit log contient toutes les décisions
+
+**Files to Create:**
+- `src/capabilities/permission-escalation.ts` (~100 LOC)
+
+**Files to Modify:**
+- `src/dag/controlled-executor.ts` - Ajout type "permission_escalation" (~30 LOC)
+- `drizzle/migrations/` - Migration 013 permission_audit_log (~15 LOC)
+
+**Prerequisites:** Story 7.7b (Sandbox Permission Integration), HIL system (Story 2.5)
+
+**Estimation:** 1-1.5 jours
 
 ---
 

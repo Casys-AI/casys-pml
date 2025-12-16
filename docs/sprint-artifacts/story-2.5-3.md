@@ -1185,3 +1185,147 @@ bmad/bmm/workflows/4-implementation/code-review/workflow.yaml
 ---
 
 _End of Code Review Record_
+
+---
+
+## Bug Fix: HIL decision_required Event Not Returned to Client (2025-12-16)
+
+### Problem Discovered
+
+During Story 7.7c implementation (HIL Permission Escalation), it was discovered that the HIL mechanism from Story 2.5-3 was **never fully wired up** in `gateway-server.ts`.
+
+**Symptoms:**
+- `decision_required` events are emitted by ControlledExecutor
+- Executor blocks waiting for `approval_response` command via `waitForDecisionCommand()`
+- But `gateway-server.ts` **ignores** `decision_required` events in its event loops
+- Result: HIL blocks indefinitely (5 min timeout) with no way for user to respond
+
+**Root Cause:**
+
+In `gateway-server.ts`, the `for await (const event of generator)` loops in:
+- `executeWithPerLayerValidation()` (line ~924)
+- `continueNextLayer()` (line ~1673)
+
+Only handle these event types:
+- `workflow_start`
+- `task_complete` / `task_error`
+- `checkpoint`
+- `workflow_complete`
+
+**Missing:** `decision_required` handler that would return the event to the client.
+
+### Design vs Implementation Gap
+
+The **design in Story 2.5-3** (lines 670-682) specified:
+```typescript
+yield {
+  type: "decision_required",
+  decision_type: "hil",
+  ...
+};
+// Wait for checkpoint_response command
+const response = await this.waitForCheckpointResponse();
+```
+
+The executor correctly yields the event and waits. But gateway-server.ts never returns it to the client, so `pml:approval_response` is never called.
+
+### Fix Plan
+
+1. **Update `ExecutionEvent` type** (DONE)
+   - Add optional `checkpointId` and `context` fields to `decision_required` event
+   - File: `src/dag/types.ts`
+
+2. **Update event emission** (DONE for Story 7.7c)
+   - Include `checkpointId` and `context` in emitted events
+   - File: `src/dag/controlled-executor.ts:executeCodeTask()`
+
+3. **Add `decision_required` handler in gateway-server.ts** (TODO)
+   - In both `executeWithPerLayerValidation()` and `continueNextLayer()`
+   - Store workflow in `activeWorkflows` map
+   - Return `approval_required` status with:
+     - `workflow_id`
+     - `checkpoint_id`
+     - `decision_type` (AIL/HIL)
+     - `description`
+     - `context` (escalation details)
+     - `options` (approve/reject)
+
+4. **Client flow**
+   - Claude receives `approval_required` status
+   - Claude presents decision to user or decides (AIL)
+   - Claude calls `pml:approval_response` with workflow_id, checkpoint_id, approved
+
+### Code Changes Required
+
+**File: `src/mcp/gateway-server.ts`**
+
+Add in both event loops (after `task_error` handler):
+```typescript
+if (event.type === "decision_required") {
+  // Store workflow for approval_response
+  const activeWorkflow: ActiveWorkflow = {
+    workflowId,
+    executor: controlledExecutor,
+    generator,
+    dag,
+    currentLayer,
+    totalLayers,
+    layerResults: [...layerResults],
+    status: "awaiting_approval",
+    createdAt: new Date(),
+    lastActivityAt: new Date(),
+    latestCheckpointId: event.checkpointId ?? null,
+  };
+  this.activeWorkflows.set(workflowId, activeWorkflow);
+
+  // Return approval_required status to client
+  return {
+    content: [{
+      type: "text",
+      text: JSON.stringify({
+        status: "approval_required",
+        workflow_id: workflowId,
+        checkpoint_id: event.checkpointId,
+        decision_type: event.decisionType,
+        description: event.description,
+        context: event.context,
+        options: ["approve", "reject"],
+      }, null, 2),
+    }],
+  };
+}
+```
+
+### Testing
+
+After fix, test with:
+```typescript
+// 1. Execute DAG with code_execution task that needs network
+await pml.execute_dag({
+  tasks: [{
+    id: "fetch_test",
+    type: "code_execution",
+    code: "const r = await fetch('https://api.example.com'); return r.json();",
+    dependsOn: []
+  }]
+});
+// Should return: { status: "approval_required", workflow_id: "...", checkpoint_id: "perm-esc-fetch_test", ... }
+
+// 2. Approve the permission
+await pml.approval_response({
+  workflow_id: "...",
+  checkpoint_id: "perm-esc-fetch_test",
+  approved: true
+});
+// Should continue execution with escalated permissions
+```
+
+### Related Stories
+
+- **Story 2.5-3**: Original HIL design (this bug)
+- **Story 7.7c**: Permission escalation HIL (discovered this bug)
+- **ADR-020**: AIL Control Protocol
+
+### Author
+
+Claude Opus 4.5 (2025-12-16)

@@ -193,6 +193,10 @@ export type ExecutionEvent =
     workflowId: string;
     decisionType: "AIL" | "HIL";
     description: string;
+    /** Checkpoint ID for approval_response (Story 2.5-3 HIL fix) */
+    checkpointId?: string;
+    /** Additional context for the decision (e.g., permission escalation details) */
+    context?: Record<string, unknown>;
   }
   | {
     type: "workflow_complete";

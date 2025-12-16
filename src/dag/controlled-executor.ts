@@ -46,6 +46,7 @@ import {
   PermissionEscalationHandler,
   formatEscalationRequest,
 } from "../capabilities/permission-escalation-handler.ts";
+import { suggestEscalation } from "../capabilities/permission-escalation.ts";
 
 const log = getLogger("controlled-executor");
 
@@ -2082,26 +2083,32 @@ export class ControlledExecutor extends ParallelExecutor {
   }
 
   /**
-   * Execute code_execution task (Story 3.4)
+   * Execute code_execution task (Story 3.4, Story 7.7c HIL extension)
    *
    * Process:
    * 1. Resolve dependencies from previousResults
    * 2. Intent-based mode: vector search → inject tools
-   * 3. Execute code in sandbox with context
-   * 4. Return result for checkpoint persistence
+   * 3. Execute code in sandbox with context and permissionSet
+   * 4. On PermissionError: HIL escalation for approval (Story 7.7c)
+   * 5. Return result for checkpoint persistence
    *
    * @param task - Code execution task
    * @param previousResults - Results from previous tasks
+   * @param permissionSet - Permission set to use (default: from task.sandboxConfig or "minimal")
    * @returns Execution result
    */
   private async executeCodeTask(
     task: Task,
     previousResults: Map<string, TaskResult>,
+    permissionSet?: PermissionSet,
   ): Promise<{ output: unknown; executionTimeMs: number }> {
     const startTime = performance.now();
+    // Story 7.7c: Get permission set from parameter, sandboxConfig, or default to "minimal"
+    const currentPermissionSet: PermissionSet =
+      permissionSet ?? (task.sandboxConfig?.permissionSet as PermissionSet) ?? "minimal";
 
     try {
-      log.debug(`Executing code task: ${task.id}`);
+      log.debug(`Executing code task: ${task.id}`, { permissionSet: currentPermissionSet });
 
       // Validate task structure
       if (!task.code) {
@@ -2156,8 +2163,8 @@ export class ControlledExecutor extends ParallelExecutor {
         graphRAG: this.graphRAG,
       });
 
-      // Execute code in sandbox with injected context (deps + custom context)
-      const result = await executor.execute(task.code, executionContext);
+      // Story 7.7c: Execute code in sandbox with permissionSet
+      const result = await executor.execute(task.code, executionContext, currentPermissionSet);
 
       if (!result.success) {
         const error = result.error!;
@@ -2169,6 +2176,7 @@ export class ControlledExecutor extends ParallelExecutor {
       log.info(`Code task ${task.id} succeeded`, {
         executionTimeMs: executionTimeMs.toFixed(2),
         resultType: typeof result.result,
+        permissionSet: currentPermissionSet,
       });
 
       // Return result for checkpoint persistence (AC #10, #11)
@@ -2182,9 +2190,122 @@ export class ControlledExecutor extends ParallelExecutor {
       };
     } catch (error) {
       const executionTimeMs = performance.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      // Story 7.7c: Handle PermissionError with HIL escalation for code_execution tasks
+      if (
+        (errorMessage.includes("PermissionError") ||
+          errorMessage.includes("PermissionDenied") ||
+          errorMessage.includes("NotCapable")) &&
+        this.eventStream
+      ) {
+        log.info(`Permission error in code task ${task.id}, attempting HIL escalation`, {
+          error: errorMessage.substring(0, 200),
+          currentPermissionSet,
+        });
+
+        // Use suggestEscalation to parse the error and determine the needed permission
+        // Note: We use task.id as a placeholder for capabilityId since code_execution
+        // tasks don't have capabilities. The escalation won't persist to DB.
+        const escalationSuggestion = suggestEscalation(
+          errorMessage,
+          task.id, // Use task.id as placeholder (no DB persistence for code_execution)
+          currentPermissionSet,
+        );
+
+        if (escalationSuggestion) {
+          log.info(`Escalation suggested for code task ${task.id}`, {
+            currentSet: currentPermissionSet,
+            requestedSet: escalationSuggestion.requestedSet,
+            detectedOperation: escalationSuggestion.detectedOperation,
+          });
+
+          // Create HIL checkpoint for permission approval
+          // Format the request for human-readable display
+          const description = formatEscalationRequest(escalationSuggestion);
+
+          // Generate checkpoint ID for approval_response matching
+          const checkpointId = `perm-esc-${task.id}`;
+
+          // Emit decision_required event for HIL approval (same pattern as requestHILApproval)
+          // Story 2.5-3 HIL fix: include checkpointId and context for proper approval routing
+          const escalationEvent: ExecutionEvent = {
+            type: "decision_required",
+            timestamp: Date.now(),
+            workflowId: this.state?.workflowId ?? "unknown",
+            decisionType: "HIL",
+            description: `[Code Task: ${task.id}] ${description}`,
+            checkpointId,
+            context: {
+              taskId: task.id,
+              taskType: "code_execution",
+              currentPermissionSet,
+              requestedPermissionSet: escalationSuggestion.requestedSet,
+              detectedOperation: escalationSuggestion.detectedOperation,
+            },
+          };
+          await this.eventStream.emit(escalationEvent);
+
+          log.info("Code task permission escalation requested, waiting for HIL approval", {
+            taskId: task.id,
+            currentSet: currentPermissionSet,
+            requestedSet: escalationSuggestion.requestedSet,
+          });
+
+          // Wait for human decision (5 minute timeout, same as regular HIL)
+          const command = await this.waitForDecisionCommand("HIL", 300000);
+
+          if (!command) {
+            // Timeout: Default to reject (safer for permission escalation)
+            log.warn(`Permission escalation timeout for code task ${task.id} - rejecting`);
+            throw new Error(
+              `Permission escalation timeout for code task ${task.id}: ` +
+                `Request to escalate ${currentPermissionSet} -> ${escalationSuggestion.requestedSet} timed out`,
+            );
+          }
+
+          // Handle permission_escalation_response or approval_response command
+          if (
+            command.type === "permission_escalation_response" ||
+            command.type === "approval_response"
+          ) {
+            const approved = command.approved === true;
+            log.info(`Permission escalation ${approved ? "approved" : "rejected"} for code task ${task.id}`, {
+              feedback: command.feedback,
+            });
+
+            if (approved) {
+              log.info(
+                `Permission escalation approved for code task ${task.id}, ` +
+                  `retrying with permission_set: ${escalationSuggestion.requestedSet}`,
+              );
+
+              // Retry execution with escalated permissions
+              // Note: Unlike capabilities, code_execution tasks don't persist permission changes
+              return await this.executeCodeTask(
+                task,
+                previousResults,
+                escalationSuggestion.requestedSet,
+              );
+            } else {
+              // Escalation rejected
+              throw new Error(
+                `Permission escalation rejected for code task ${task.id}: ` +
+                  `${command.feedback ?? "User rejected the permission request"}`,
+              );
+            }
+          }
+        } else {
+          log.warn(`Could not suggest escalation for code task ${task.id}`, {
+            error: errorMessage.substring(0, 200),
+          });
+        }
+      }
+
       log.error(`Code task ${task.id} failed`, {
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage,
         executionTimeMs,
+        permissionSet: currentPermissionSet,
       });
       throw error;
     }
