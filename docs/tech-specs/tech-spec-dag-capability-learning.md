@@ -649,14 +649,67 @@ t3: { tool: "http:fetch", args: { url: "..." }, result: { data: [...] } }
 }
 ```
 
-### 8.5 Ce que ça change pour le DAG Suggester
+### 8.5 Explicit vs Inferred `dependsOn`
+
+Il y a deux types de dépendances, qui ne sont pas équivalentes :
+
+| Type | Source | Sémantique | Exemple |
+|------|--------|------------|---------|
+| **Explicit** | DAG `dependsOn` | Intent de contrôle : "B attend A" | Side effects, ordering |
+| **Inferred** | Traces args/result | Data flow : "B utilise result de A" | Vraies dépendances data |
+
+#### Pourquoi les deux ?
+
+```typescript
+// DAG explicite
+tasks: [
+  { id: "A", tool: "fs:read", dependsOn: [] },
+  { id: "B", tool: "log:write", dependsOn: ["A"] },   // Explicit: attend A (pour logging)
+  { id: "C", tool: "json:parse", dependsOn: ["A"] },  // Explicit: attend A
+]
+
+// Après exécution, on infère :
+// - C.args contient A.result → inferredDependsOn: ["A"] ✅
+// - B.args ne contient PAS A.result → inferredDependsOn: [] (juste ordering)
+```
+
+| Situation | Explicit | Inferred |
+|-----------|----------|----------|
+| B utilise le result de A | `["A"]` | `["A"]` ✅ |
+| B doit juste attendre A (side effect) | `["A"]` | `[]` |
+| B utilise A mais dev a oublié | `[]` | `["A"]` 🔍 |
+
+#### Modèle de données
+
+```typescript
+interface TaskDependencies {
+  // Déclaré par l'utilisateur/IA (DAG original)
+  explicitDependsOn?: string[];
+
+  // Calculé depuis les traces (args contient result)
+  inferredDependsOn: string[];
+
+  // Pour ré-exécution : union des deux
+  // effectiveDependsOn = explicitDependsOn ∪ inferredDependsOn
+  effectiveDependsOn: string[];
+}
+```
+
+#### Règles de fusion
+
+1. **DAG → Capability** : On garde `explicitDependsOn`, on calcule `inferredDependsOn` depuis traces
+2. **Code → Capability** : Pas d'explicit, tout est `inferredDependsOn`
+3. **Ré-exécution** : Utilise `effectiveDependsOn` = union des deux
+4. **Validation** : Si `inferred ⊄ explicit`, warning potentiel (dépendance manquante déclarée)
+
+### 8.6 Ce que ça change pour le DAG Suggester
 
 Le suggester peut maintenant travailler avec les deux :
 
-1. **Capabilities avec DAG explicite** : Utilise le `dagStructure` directement
-2. **Capabilities avec code** : Utilise le `reconstructedDAG` avec les vraies dépendances data
+1. **Capabilities avec DAG explicite** : Utilise le `dagStructure` + enrichit avec `inferredDependsOn`
+2. **Capabilities avec code** : Utilise le `reconstructedDAG` avec `inferredDependsOn`
 
-Dans les deux cas, il a un DAG complet qu'il peut suggérer ou ré-exécuter.
+Dans les deux cas, il a un DAG complet avec `effectiveDependsOn` qu'il peut suggérer ou ré-exécuter.
 
 ---
 
