@@ -80,6 +80,388 @@ Le système actuel d'**AdaptiveThresholdManager** (ADR-008) présente plusieurs 
 
 ---
 
+## Options Considered
+
+### Decision 1: Algorithme d'apprentissage pour Execution Threshold
+
+#### Option 1A: EMA Global (Actuel)
+
+```typescript
+// Threshold unique pour tous les tools
+if (falsePositiveRate > 0.2) {
+  threshold += learningRate;  // +0.05
+}
+```
+
+**Score: 45/100**
+
+| Critère | Score | Commentaire |
+|---------|-------|-------------|
+| Simplicité | 🟢 9/10 | Très simple à implémenter |
+| Convergence | 🟡 5/10 | Lente, peut osciller |
+| Granularité | 🔴 2/10 | Global, pas per-tool |
+| Cold start | 🔴 3/10 | Pas de gestion spécifique |
+| Adaptabilité | 🟡 4/10 | Réactif mais lent |
+
+**Pros:**
+- 🟢 Implémenté, fonctionne
+- 🟢 Facile à débugger
+
+**Cons:**
+- 🔴 Pas de distinction par tool
+- 🔴 `delete_file` et `read_file` ont le même threshold
+- 🔴 Convergence lente (50+ samples)
+
+---
+
+#### Option 1B: UCB (Upper Confidence Bound)
+
+```typescript
+// Threshold = mean - exploration_bonus
+threshold = mean_success_rate - sqrt(2 * ln(total) / n_tool)
+```
+
+**Score: 62/100**
+
+| Critère | Score | Commentaire |
+|---------|-------|-------------|
+| Simplicité | 🟡 6/10 | Formule mathématique |
+| Convergence | 🟢 7/10 | Garanties théoriques |
+| Granularité | 🟢 7/10 | Per-tool possible |
+| Cold start | 🟢 8/10 | Bonus exploration naturel |
+| Adaptabilité | 🟡 5/10 | Assume stationnarité |
+
+**Pros:**
+- 🟢 Exploration automatique des nouveaux tools
+- 🟢 Convergence prouvée mathématiquement
+- 🟢 Pas d'hyperparamètre de learning rate
+
+**Cons:**
+- 🔴 Assume environnement stationnaire
+- 🔴 Pas de prise en compte du risque du tool
+- 🟡 Peut sur-explorer
+
+---
+
+#### Option 1C: Thompson Sampling ⭐ RECOMMENDED
+
+```typescript
+// Distribution Beta par tool
+tool.alpha += success ? 1 : 0;
+tool.beta += success ? 0 : 1;
+threshold = 1 - sampleBeta(alpha, beta);
+```
+
+**Score: 82/100**
+
+| Critère | Score | Commentaire |
+|---------|-------|-------------|
+| Simplicité | 🟡 6/10 | Distribution Beta |
+| Convergence | 🟢 8/10 | Rapide (10-20 samples) |
+| Granularité | 🟢 9/10 | Per-tool natif |
+| Cold start | 🟢 8/10 | Prior uniforme Beta(1,1) |
+| Adaptabilité | 🟢 8/10 | Decay factor possible |
+
+**Pros:**
+- 🟢 Chaque tool a sa propre distribution
+- 🟢 Balance exploration/exploitation naturellement
+- 🟢 Convergence rapide avec peu de données
+- 🟢 Decay factor pour non-stationnarité
+- 🟢 Interprétable (succès/échecs)
+
+**Cons:**
+- 🟡 Sampling stochastique (légère variance)
+- 🟡 Nécessite stockage per-tool
+
+**Verdict:** ⭐ **Option 1C - Thompson Sampling**
+
+---
+
+#### Option 1D: Contextual Bandits (LinUCB)
+
+```typescript
+// Features contextuelles → threshold
+const features = [workflowType, localAlpha, toolRisk, ...];
+threshold = linUCB.predict(features);
+```
+
+**Score: 75/100**
+
+| Critère | Score | Commentaire |
+|---------|-------|-------------|
+| Simplicité | 🔴 3/10 | Modèle linéaire, features |
+| Convergence | 🟢 7/10 | Dépend des features |
+| Granularité | 🟢 9/10 | Contextuel complet |
+| Cold start | 🟢 8/10 | Généralisation features |
+| Adaptabilité | 🟢 8/10 | Contextuel par nature |
+
+**Pros:**
+- 🟢 Prend en compte le contexte complet
+- 🟢 Peut généraliser à de nouveaux tools similaires
+- 🟢 State-of-the-art en recommendation
+
+**Cons:**
+- 🔴 Complexité d'implémentation
+- 🔴 Feature engineering requis
+- 🔴 Difficile à débugger
+
+---
+
+### Decision 2: Intégration du Local Alpha
+
+#### Option 2A: Pas d'intégration (Actuel)
+
+**Score: 30/100**
+
+Le threshold ignore complètement le local alpha.
+
+**Cons:**
+- 🔴 Graph reliability ignorée
+- 🔴 Incohérence avec ADR-048
+
+---
+
+#### Option 2B: Alpha comme multiplicateur
+
+```typescript
+threshold = baseThreshold * (1 + (localAlpha - 0.75) * 0.2)
+```
+
+**Score: 65/100**
+
+| Critère | Score | Commentaire |
+|---------|-------|-------------|
+| Simplicité | 🟢 8/10 | Une multiplication |
+| Impact | 🟡 6/10 | ±10% variation |
+| Cohérence | 🟢 7/10 | Utilise ADR-048 |
+
+**Pros:**
+- 🟢 Simple à implémenter
+- 🟢 Effet modéré, pas de risque
+
+**Cons:**
+- 🟡 Effet peut-être trop faible
+- 🟡 Pas de distinction par type d'alpha algo
+
+---
+
+#### Option 2C: Alpha comme terme additif ⭐ RECOMMENDED
+
+```typescript
+threshold = baseThreshold + thompsonAdj + (localAlpha - 0.75) * 0.10
+```
+
+**Score: 78/100**
+
+| Critère | Score | Commentaire |
+|---------|-------|-------------|
+| Simplicité | 🟢 8/10 | Addition linéaire |
+| Impact | 🟢 7/10 | ±2.5% (raisonnable) |
+| Cohérence | 🟢 8/10 | Composable avec autres facteurs |
+| Interprétabilité | 🟢 8/10 | Breakdown clair |
+
+**Pros:**
+- 🟢 Composable avec Thompson et episodic boost
+- 🟢 Chaque facteur visible dans breakdown
+- 🟢 Facile à tuner indépendamment
+
+**Cons:**
+- 🟡 Poids (0.10) à calibrer
+
+**Verdict:** ⭐ **Option 2C - Alpha comme terme additif**
+
+---
+
+### Decision 3: Gestion du risque par tool
+
+#### Option 3A: Pas de différenciation (Actuel)
+
+**Score: 35/100**
+
+Tous les tools ont le même threshold de base.
+
+**Cons:**
+- 🔴 `delete_file` traité comme `read_file`
+- 🔴 Risque de dommages irréversibles
+
+---
+
+#### Option 3B: Catégories de risque fixes ⭐ RECOMMENDED
+
+```typescript
+const riskThresholds = {
+  safe: 0.55,       // read_file, list_dir
+  moderate: 0.70,   // write_file, git_commit
+  dangerous: 0.85,  // delete_file, drop_table
+};
+```
+
+**Score: 80/100**
+
+| Critère | Score | Commentaire |
+|---------|-------|-------------|
+| Simplicité | 🟢 9/10 | 3 catégories |
+| Sécurité | 🟢 8/10 | Dangerous = threshold haut |
+| Flexibilité | 🟡 6/10 | Override possible |
+| Maintenance | 🟢 7/10 | Pattern matching |
+
+**Pros:**
+- 🟢 Simple et intuitif
+- 🟢 Sécurité par défaut
+- 🟢 Override table pour cas spéciaux
+
+**Cons:**
+- 🟡 Classification manuelle initiale
+- 🟡 Nouveaux tools → catégorie par défaut
+
+**Verdict:** ⭐ **Option 3B - Catégories de risque fixes**
+
+---
+
+#### Option 3C: Risque appris automatiquement
+
+```typescript
+// Apprendre le risque depuis les outcomes
+risk = learnRiskFromHistory(toolId, outcomes);
+```
+
+**Score: 68/100**
+
+| Critère | Score | Commentaire |
+|---------|-------|-------------|
+| Simplicité | 🔴 4/10 | ML supplémentaire |
+| Sécurité | 🟡 5/10 | Cold start dangereux |
+| Flexibilité | 🟢 9/10 | S'adapte |
+| Maintenance | 🟢 8/10 | Automatique |
+
+**Cons:**
+- 🔴 Un tool dangereux peut causer des dégâts avant qu'on apprenne
+- 🔴 Complexité supplémentaire
+
+---
+
+### Decision 4: Utilisation de la mémoire épisodique
+
+#### Option 4A: Taux global seulement (Actuel)
+
+**Score: 40/100**
+
+Calcule le success rate global, ignore les situations similaires.
+
+---
+
+#### Option 4B: Boost par situations similaires ⭐ RECOMMENDED
+
+```typescript
+// Chercher situations similaires dans algorithm_traces
+const similar = findSimilarTraces(toolId, localAlpha, workflowType);
+const boost = calculateBoostFromHistory(similar);
+```
+
+**Score: 76/100**
+
+| Critère | Score | Commentaire |
+|---------|-------|-------------|
+| Simplicité | 🟡 6/10 | Query SQL multi-critères |
+| Valeur | 🟢 8/10 | Contexte historique |
+| Performance | 🟡 6/10 | Index requis |
+| Interprétabilité | 🟢 7/10 | "X situations similaires" |
+
+**Pros:**
+- 🟢 Utilise les données déjà collectées (algorithm_traces)
+- 🟢 Boost conditionnel (seulement si historique pertinent)
+- 🟢 Multi-dimensionnel (tool, alpha, workflow)
+
+**Cons:**
+- 🟡 Query peut être lente sans index
+- 🟡 Définition de "similaire" à calibrer
+
+**Verdict:** ⭐ **Option 4B - Boost par situations similaires**
+
+---
+
+#### Option 4C: Embedding similarity search
+
+```typescript
+// Vector search sur les contexts
+const embedding = embedContext(currentContext);
+const similar = vectorSearch(embedding, threshold: 0.8);
+```
+
+**Score: 70/100**
+
+| Critère | Score | Commentaire |
+|---------|-------|-------------|
+| Simplicité | 🔴 3/10 | Embeddings, pgvector |
+| Valeur | 🟢 8/10 | Similarité sémantique |
+| Performance | 🟡 5/10 | 50-100ms embedding |
+| Interprétabilité | 🔴 4/10 | "Black box" |
+
+**Cons:**
+- 🔴 Overhead d'embedding (50-100ms)
+- 🔴 Complexité d'infrastructure
+- 🟡 Overkill pour notre cas
+
+---
+
+### Decision 5: Seuil d'observation pour edges
+
+#### Option 5A: Fixe (Actuel)
+
+```typescript
+private static readonly OBSERVED_THRESHOLD = 3;
+```
+
+**Score: 50/100**
+
+| Critère | Score | Commentaire |
+|---------|-------|-------------|
+| Simplicité | 🟢 10/10 | Constante |
+| Adaptabilité | 🔴 2/10 | Aucune |
+| Cohérence | 🔴 3/10 | Ignore local alpha |
+
+---
+
+#### Option 5B: Dynamique basé sur Local Alpha ⭐ RECOMMENDED
+
+```typescript
+threshold = 2 + ceil((avgAlpha - 0.5) * 6)  // [2, 5]
+```
+
+**Score: 75/100**
+
+| Critère | Score | Commentaire |
+|---------|-------|-------------|
+| Simplicité | 🟢 8/10 | Formule simple |
+| Adaptabilité | 🟢 8/10 | Selon contexte local |
+| Cohérence | 🟢 8/10 | Utilise ADR-048 |
+
+**Pros:**
+- 🟢 Zone dense → 2 observations suffisent
+- 🟢 Cold start → 5 observations requises
+- 🟢 Cohérent avec la philosophie local alpha
+
+**Cons:**
+- 🟡 Calcul alpha à chaque edge update
+
+**Verdict:** ⭐ **Option 5B - Dynamique basé sur Local Alpha**
+
+---
+
+## Récapitulatif des Scores
+
+| Decision | Option Choisie | Score | Alternatives |
+|----------|----------------|-------|--------------|
+| **D1: Algo apprentissage** | Thompson Sampling | 82/100 | EMA (45), UCB (62), LinUCB (75) |
+| **D2: Intégration Alpha** | Terme additif | 78/100 | Aucune (30), Multiplicateur (65) |
+| **D3: Gestion risque** | Catégories fixes | 80/100 | Aucune (35), Appris (68) |
+| **D4: Mémoire épisodique** | Situations similaires | 76/100 | Global (40), Embeddings (70) |
+| **D5: Edge threshold** | Dynamique alpha | 75/100 | Fixe (50) |
+
+**Score moyen solution proposée: 78/100**
+
+---
+
 ## Decision
 
 Implémenter un système de thresholds intelligent à **3 niveaux** :
