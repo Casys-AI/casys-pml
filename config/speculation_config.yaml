@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=speculation_config.schema.json
 # Speculation Configuration (Story 3.5-2)
 #
 # Controls for speculative execution behavior.
