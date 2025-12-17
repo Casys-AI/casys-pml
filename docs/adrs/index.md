@@ -76,22 +76,25 @@ Index des décisions d'architecture du projet Casys PML.
 | 044  | [JSON-RPC Multiplexer MCP Client](./ADR-044-json-rpc-multiplexer-mcp-client.md)            | accepted   | done           | Pattern multiplexer pour requêtes MCP parallèles|
 | 045  | [Capability-to-Capability Dependencies](./ADR-045-capability-to-capability-dependencies.md)| accepted   | done           | Table dédiée + edge type `alternative`          |
 | 046  | [Fresh BFF Pattern](./ADR-046-fresh-bff-pattern.md)                                         | accepted   | not_started    | Pattern BFF: Fresh → Gateway pour DB            |
+| 047  | [Tool Sequence vs Deduplication](./ADR-047-tool-sequence-vs-deduplication.md)               | accepted   | done           | tool_invocations pour séquence, tools_used dédupliqué |
+| 048  | [Local Adaptive Alpha](./ADR-048-hierarchical-heat-diffusion-alpha.md)                      | accepted   | done           | Alpha local par mode (tool/capability/meta)     |
+| 049  | [Intelligent Adaptive Thresholds](./ADR-049-intelligent-adaptive-thresholds.md)             | proposed   | not_started    | Seuils adaptatifs intelligents par contexte     |
 
 ---
 
 ## By Status
 
-### Accepted (35)
+### Accepted (37)
 
-ADR-001, 002, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 020, 020b, 021, 021b, 022, 023, 024, 025, 026, 028, 030, 032, 036, 038, 040, 041, 042, 043, 044, 045, 046
+ADR-001, 002, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 020, 020b, 021, 021b, 022, 023, 024, 025, 026, 028, 030, 032, 036, 038, 040, 041, 042, 043, 044, 045, 046, 047, 048
 
 ### Draft (3)
 
 ADR-017, ADR-029, ADR-031
 
-### Proposed (4)
+### Proposed (5)
 
-ADR-033, ADR-034, ADR-035, ADR-039
+ADR-033, ADR-034, ADR-035, ADR-039, ADR-049
 
 ### Superseded (3)
 
@@ -107,9 +110,9 @@ ADR-033, ADR-034, ADR-035, ADR-039
 
 ## By Implementation Status
 
-### Done (31)
+### Done (33)
 
-ADR-001, 002, 003, 004, 005, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 018, 019, 020, 020b, 021, 021b, 022, 023, 024, 025, 026, 030, 036, 041, 042, 043, 044, 045
+ADR-001, 002, 003, 004, 005, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 018, 019, 020, 020b, 021, 021b, 022, 023, 024, 025, 026, 030, 036, 041, 042, 043, 044, 045, 047, 048
 
 ### In Progress (2)
 
@@ -119,9 +122,9 @@ ADR-028, ADR-032
 
 ADR-006, ADR-017, ADR-038
 
-### Not Started (10)
+### Not Started (11)
 
-ADR-027, 029, 031, 033, 034, 035, 037, 039, 040, 046
+ADR-027, 029, 031, 033, 034, 035, 037, 039, 040, 046, 049
 
 ---
 
@@ -130,4 +133,4 @@ ADR-027, 029, 031, 033, 034, 035, 037, 039, 040, 046
 - **ADRs 001-006** : ADRs fondamentaux dans [architecture-decision-records-adrs.md](../architecture/architecture-decision-records-adrs.md)
 - **Numérotation dupliquée** : ADR-020 et ADR-021 ont des doublons (020b, 021b) - à renommer
 - Pour changer un status, éditer ce fichier ET ajouter frontmatter YAML dans l'ADR
-- **Couverture implémentation** : 31/46 (67%) done, 36/46 (78%) avec travail commencé ou terminé
+- **Couverture implémentation** : 33/49 (67%) done, 38/49 (78%) avec travail commencé ou terminé

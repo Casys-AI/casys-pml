@@ -866,3 +866,123 @@ distinction between knowledge graph (permanent learning) and workflow graph (eph
 critical for understanding the architecture.
 
 ---
+
+## Pattern 5: Scoring Algorithms & Adaptive Alpha
+
+> **ADRs:** ADR-015 (Dynamic Alpha), ADR-023 (Candidate Expansion), ADR-024 (Adjacency Matrix),
+> ADR-026 (Cold Start), ADR-038 (Scoring Reference), ADR-048 (Local Adaptive Alpha)
+
+**Problem:** Le scoring des outils et capabilities nécessite différents algorithmes selon le mode
+(recherche active vs suggestion passive) et le type d'objet (Tool vs Capability).
+
+**Solution Architecture:**
+
+### Algorithms Matrix
+
+| Object Type     | Active Search (User Intent)                      | Passive Suggestion (Workflow Context)              |
+| :-------------- | :----------------------------------------------- | :------------------------------------------------- |
+| **Simple Tool** | Hybrid Search: `Semantic * α + Graph * (1-α)`    | Next Step: `Co-occurrence + Louvain + Recency`     |
+| **Capability**  | Capability Match: `Semantic * SuccessRate`       | Strategic Discovery: `ToolsOverlap * ClusterBoost` |
+
+### Alpha Matrix (ADR-048)
+
+| Mode                | Type       | Algorithm              | Rationale                           |
+| :------------------ | :--------- | :--------------------- | :---------------------------------- |
+| Active Search       | Tool/Cap   | Embeddings Hybrides    | Compare semantic vs structure       |
+| Passive Suggestion  | Tool       | Heat Diffusion         | Propagation depuis le contexte      |
+| Passive Suggestion  | Capability | Heat Diffusion Hiérarch| Respecte Tool→Cap→Meta hierarchy    |
+| Cold Start (<5 obs) | All        | Bayesian Prior         | alpha=1.0 (semantic only)           |
+
+### Key Formulas
+
+**1. Hybrid Search (Tools):**
+```typescript
+const finalScore = alpha * semanticScore + (1 - alpha) * graphScore;
+
+// Alpha local (ADR-048) remplace alpha global (ADR-015)
+// - Dense cluster: alpha ≈ 0.5 (graph useful)
+// - Isolated node: alpha ≈ 1.0 (semantic only)
+```
+
+**2. Next Step Prediction:**
+```typescript
+const toolScore =
+  cooccurrenceConfidence * 0.6 +  // Historique direct (A -> B)
+  communityBoost * 0.3 +           // Louvain (même cluster)
+  recencyBoost * 0.1 +             // Utilisé récemment
+  pageRank * 0.1;                  // Importance globale
+```
+
+**3. Cold Start (ADR-026):**
+```typescript
+// Bayesian approach quand observations < seuil
+const confidence = observations >= MIN_OBS
+  ? empiricalConfidence
+  : bayesianPrior(observations, alpha=1.0);
+```
+
+**4. Candidate Expansion (ADR-023):**
+```typescript
+// Expansion 1.5-3x selon la densité
+const expandedK = Math.min(k * expansionFactor, maxCandidates);
+const expansionFactor = 1.5 + (1 - density) * 1.5; // 1.5x dense → 3x sparse
+```
+
+### Hierarchical Heat Diffusion (ADR-048)
+
+Pour les suggestions passives de capabilities, la chaleur se propage en respectant la hiérarchie :
+
+```
+MetaCapabilities (émergentes, ∞)
+       │ contains
+       ▼
+Capabilities (dependency, sequence, alternative)
+       │ contains
+       ▼
+Tools (co-occurrence, edges directs)
+```
+
+**Heat Diffusion Formula:**
+```typescript
+// Propagation depuis le contexte actuel
+heat[node] = Σ (neighbor_heat × edge_weight × decay_factor)
+
+// Decay selon la distance hiérarchique
+decay_factor = {
+  same_level: 0.9,      // Tool → Tool
+  up_hierarchy: 0.7,    // Tool → Capability
+  down_hierarchy: 0.5,  // Capability → Tool
+}
+```
+
+### Graph Structure (ADR-024)
+
+**Full Adjacency Matrix N×N:**
+- Stocke toutes les paires de tools observées
+- Cycle breaking automatique (DAG constraint)
+- Edge weights par type et source
+
+**Edge Types & Weights:**
+```typescript
+const EDGE_TYPE_WEIGHTS = {
+  dependency: 1.0,   // A dépend de B
+  contains: 0.8,     // Capability contient Tool
+  sequence: 0.5,     // A suivi de B (observé)
+  alternative: 0.3,  // A ou B (interchangeable)
+};
+
+const EDGE_SOURCE_WEIGHTS = {
+  observed: 1.0,     // Vu en production
+  inferred: 0.7,     // Déduit par algo
+  template: 0.5,     // Bootstrap initial
+};
+```
+
+**Affects Epics:** Epic 5 (Tools Scoring), Epic 7 (Capabilities Matching)
+
+**References:**
+- ADR-038: `docs/adrs/ADR-038-scoring-algorithms-reference.md`
+- ADR-048: `docs/adrs/ADR-048-hierarchical-heat-diffusion-alpha.md`
+- ADR-015: `docs/adrs/ADR-015-dynamic-alpha-graph-density.md`
+
+---

@@ -15,19 +15,20 @@
 
 ## Patterns
 
-### Novel Patterns (1-4)
+### Novel Patterns (1-5)
 
 - [Novel Pattern Designs](./novel-pattern-designs.md)
   - Pattern 1: DAG Builder with JSON Schema Dependency Detection
   - Pattern 2: Context Budget Management
   - Pattern 3: Speculative Execution with GraphRAG
   - Pattern 4: 3-Loop Learning Architecture
+  - Pattern 5: Scoring Algorithms & Adaptive Alpha (ADR-015, 023, 024, 026, 038, 048)
 
-### Epic-Specific Patterns (5-7)
+### Epic-Specific Patterns
 
-- [Pattern 5: Agent Code Execution](./pattern-5-agent-code-execution-local-processing-epic-3.md) - Sandbox, safe-to-fail
-- [Pattern 6: Worker RPC Bridge](./pattern-6-worker-rpc-bridge-emergent-capabilities-epic-7.md) - Capabilities learning
-- [Pattern 7: Hypergraph Visualization](./pattern-7-hypergraph-capabilities-visualization-epic-8.md) - Compound graphs
+- [Agent Code Execution (Epic 3)](./pattern-5-agent-code-execution-local-processing-epic-3.md) - Sandbox, safe-to-fail
+- [Worker RPC Bridge (Epic 7)](./pattern-6-worker-rpc-bridge-emergent-capabilities-epic-7.md) - Capabilities learning
+- [Hypergraph Visualization (Epic 8)](./pattern-7-hypergraph-capabilities-visualization-epic-8.md) - Compound graphs
 
 ## Implementation
 
@@ -53,4 +54,4 @@
 
 ---
 
-_Updated: 2025-12-10_
+_Updated: 2025-12-17_
