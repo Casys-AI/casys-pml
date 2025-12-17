@@ -68,7 +68,7 @@ interface SuperHyperGraph {
 | SuperHyperEdge | `contains` + `dependency` | `spectral-clustering.ts` |
 | n-SuperHyperGraph | Hypergraph bipartite récursif | ADR-038 Strategic Layer |
 
-**Conclusion:** Casys PML implémente déjà un 2-SuperHyperGraph (Tools → Capabilities → Meta-Capabilities).
+**Conclusion:** Casys PML implémente un **n-SuperHyperGraph non-borné** (Tools → Capabilities → Meta-Caps → Meta-Meta-Caps → ...). La profondeur n'est pas limitée, elle émerge selon les patterns d'usage.
 
 ---
 
@@ -540,11 +540,11 @@ story:
 
 ## 9. Conclusion
 
-Casys PML implémente déjà un **2-SuperHyperGraph** via les meta-capabilities (ADR-042 `contains`). La théorie DASH de 2025 formalise exactement cette structure avec des preuves de propriétés (topological ordering, sources, ordre partiel).
+Casys PML implémente un **n-SuperHyperGraph non-borné** via les meta-capabilities récursives (ADR-042 `contains`). La théorie DASH de 2025 formalise exactement cette structure avec des preuves de propriétés (topological ordering, sources, ordre partiel).
 
 **Actions immédiates:**
 1. Valider que notre implémentation respecte DASH (acyclicité garantie)
 2. Implémenter SHGAT pour attention récursive sur meta-capabilities
-3. Documenter notre système comme un "Directed Acyclic 2-SuperHyperGraph"
+3. Documenter notre système comme un "Directed Acyclic n-SuperHyperGraph"
 
 **Positionnement:** Nous sommes parmi les premiers à appliquer SuperHyperGraph + Attention à un système de production (vs théorie pure des papiers).
