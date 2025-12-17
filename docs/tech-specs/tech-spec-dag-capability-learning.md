@@ -32,8 +32,31 @@ Cette tech spec adresse plusieurs questions architecturales interconnectées aut
 3. **Edge types confus** : `sequence` vs `dependency` - quelle différence ?
 4. **Co-occurrence manquant** : Pas d'edge type pour "utilisés ensemble"
 5. **Code vs DAG** : Tension entre les deux modèles d'exécution
-6. **APIs fragmentées** : Trop de tools séparés, l'IA peut bypass le système
+6. **APIs fragmentées** : Trop de tools séparés pour la recherche
 7. **Mode definition vs invocation** : Pas de distinction dans le data model
+
+### Ce qui existe DÉJÀ ✅
+
+| Fonctionnalité | Implémentation | Fichier |
+|----------------|----------------|---------|
+| Intent → DAG suggestion | `processIntent()` | `workflow-execution-handler.ts` |
+| Dependency paths | `SuggestedDAG.dependencyPaths` | `types.ts` |
+| Confidence + rationale | `SuggestedDAG` | `dag-suggester.ts` |
+| Speculative execution | `mode: "speculative_execution"` | `workflow-execution-handler.ts` |
+| Alternatives | `SuggestedDAG.alternatives` | `types.ts` |
+| Timestamps dans traces | `ts`, `durationMs` | `worker-bridge.ts` |
+| Parent trace ID | `parentTraceId` | ADR-041 |
+
+### Ce qui est NOUVEAU 🆕
+
+| Fonctionnalité | Pourquoi | Section |
+|----------------|----------|---------|
+| Tracer `result` | Détecter dépendances data (args/result) | §8.4 |
+| Reconstruire DAG depuis code | Rendre le code ré-exécutable | §8 |
+| `co-occurrence` edge type | Tracker le parallélisme | §2.3 |
+| Explicit vs Inferred `dependsOn` | Distinguer control vs data flow | §8.5 |
+| Schemas dans DAG suggestion | Aider l'IA à remplir les args | §2.5 |
+| `pml_discover` unifié | Simplifier APIs recherche (spec séparée) | §9 Phase 4 |
 
 ---
 
@@ -160,6 +183,128 @@ export const EDGE_TYPE_WEIGHTS: Record<EdgeType, number> = {
 - [ ] `co-occurrence` devrait-il être bidirectionnel (A↔B) ou deux edges (A→B, B→A) ?
 - [ ] Weight de 0.4 est-il approprié ?
 - [ ] Faut-il un seuil de chevauchement minimum (ex: 50% overlap) ?
+
+### 2.5 Schemas dans la suggestion DAG (NOUVEAU)
+
+Quand le DAG Suggester propose un workflow, il doit inclure les **schemas des tools** pour que l'IA puisse remplir les arguments correctement.
+
+#### Structure actuelle de `SuggestedDAG`
+
+```typescript
+interface SuggestedDAG {
+  dagStructure: DAGStructure;
+  confidence: number;
+  rationale: string;
+  dependencyPaths?: DependencyPath[];
+  alternatives?: string[];
+  warning?: string;
+}
+```
+
+#### Ajout proposé : `toolSchemas`
+
+```typescript
+interface SuggestedDAG {
+  // ... existant ...
+
+  // NOUVEAU : Schemas des tools utilisés
+  toolSchemas?: Record<string, ToolSchema>;
+}
+
+interface ToolSchema {
+  description: string;
+  inputSchema: JSONSchema;        // Schema des arguments
+  requiredInputs: string[];       // Champs obligatoires
+  optionalInputs?: string[];      // Champs optionnels
+  outputSchema?: JSONSchema;      // Schema du résultat (pour chaînage)
+  examples?: ToolExample[];       // Exemples d'utilisation
+}
+
+interface ToolExample {
+  description: string;
+  input: Record<string, unknown>;
+  output?: unknown;
+}
+```
+
+#### Exemple de réponse enrichie
+
+```json
+{
+  "dagStructure": {
+    "tasks": [
+      { "id": "t1", "tool": "db:query", "arguments": {}, "dependsOn": [] },
+      { "id": "t2", "tool": "json:transform", "arguments": {}, "dependsOn": ["t1"] }
+    ]
+  },
+  "confidence": 0.85,
+  "rationale": "Query puis transform est un pattern commun",
+  "dependencyPaths": [
+    { "from": "db:query", "to": "json:transform", "explanation": "query result → transform input" }
+  ],
+  "toolSchemas": {
+    "db:query": {
+      "description": "Execute SQL query",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": { "type": "string", "description": "SQL query" },
+          "params": { "type": "array", "description": "Query parameters" }
+        },
+        "required": ["query"]
+      },
+      "requiredInputs": ["query"],
+      "outputSchema": { "type": "array", "items": { "type": "object" } }
+    },
+    "json:transform": {
+      "description": "Transform JSON data",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "data": { "description": "Input data (from previous task)" },
+          "template": { "type": "string", "description": "JMESPath expression" }
+        },
+        "required": ["data", "template"]
+      },
+      "requiredInputs": ["data", "template"]
+    }
+  }
+}
+```
+
+#### Avantages
+
+1. **L'IA sait quoi remplir** : Les `requiredInputs` indiquent ce qui est obligatoire
+2. **Chaînage clair** : `outputSchema` de t1 → `inputSchema.data` de t2
+3. **Exemples** : L'IA peut s'inspirer des exemples
+4. **Validation possible** : On peut valider les args AVANT exécution
+
+#### Implémentation
+
+Le DAG Suggester récupère les schemas depuis les MCP servers :
+
+```typescript
+async function enrichWithSchemas(dag: SuggestedDAG): Promise<SuggestedDAG> {
+  const toolIds = dag.dagStructure.tasks.map(t => t.tool);
+  const schemas: Record<string, ToolSchema> = {};
+
+  for (const toolId of new Set(toolIds)) {
+    const [serverId, toolName] = toolId.split(":");
+    const client = mcpClients.get(serverId);
+    if (client) {
+      const toolDef = await client.getToolDefinition(toolName);
+      schemas[toolId] = {
+        description: toolDef.description,
+        inputSchema: toolDef.inputSchema,
+        requiredInputs: toolDef.inputSchema.required || [],
+        // outputSchema si disponible
+      };
+    }
+  }
+
+  return { ...dag, toolSchemas: schemas };
+}
+```
 
 ---
 
