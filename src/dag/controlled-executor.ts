@@ -385,15 +385,21 @@ export class ControlledExecutor extends ParallelExecutor {
       const checkpointEvent = await this.saveCheckpoint(workflowId, layerIdx);
       if (checkpointEvent) yield checkpointEvent;
 
-      // AIL Decision Point
-      const ailEvents = await this.handleAILDecisionPoint(workflowId, layerIdx, failedTasks > 0, dag, layers);
-      for (const event of ailEvents.events) yield event;
-      if (ailEvents.newLayers) layers = ailEvents.newLayers;
-      if (ailEvents.newDag) dag = ailEvents.newDag;
+      // AIL Decision Point (Deferred Pattern: yield event BEFORE waiting for response)
+      const ailPrep = await this.prepareAILDecision(workflowId, layerIdx, failedTasks > 0);
+      if (ailPrep.event) yield ailPrep.event;
+      if (ailPrep.needsResponse) {
+        const ailResult = await this.waitForAILResponse(workflowId, dag);
+        if (ailResult.newLayers) layers = ailResult.newLayers;
+        if (ailResult.newDag) dag = ailResult.newDag;
+      }
 
-      // HIL Approval
-      const hilEvents = await this.handleHILApproval(workflowId, layerIdx, layer, layers);
-      for (const event of hilEvents) yield event;
+      // HIL Approval (Deferred Pattern: yield event BEFORE waiting for response)
+      const hilPrep = await this.prepareHILApproval(workflowId, layerIdx, layer, layers);
+      if (hilPrep.event) yield hilPrep.event;
+      if (hilPrep.needsResponse) {
+        await this.waitForHILResponse(workflowId, layerIdx);
+      }
     }
 
     // Workflow complete
@@ -516,14 +522,22 @@ export class ControlledExecutor extends ParallelExecutor {
       if (checkpointEvent) yield checkpointEvent;
 
       // AIL Decision Point (SECURITY: Must include on resume to prevent bypass)
-      const ailEvents = await this.handleAILDecisionPoint(workflowId, actualLayerIdx, layerFailed > 0, dag, layers);
-      for (const event of ailEvents.events) yield event;
-      if (ailEvents.newLayers) layers = ailEvents.newLayers;
-      if (ailEvents.newDag) dag = ailEvents.newDag;
+      // Deferred Pattern: yield event BEFORE waiting for response
+      const ailPrep = await this.prepareAILDecision(workflowId, actualLayerIdx, layerFailed > 0);
+      if (ailPrep.event) yield ailPrep.event;
+      if (ailPrep.needsResponse) {
+        const ailResult = await this.waitForAILResponse(workflowId, dag);
+        if (ailResult.newLayers) layers = ailResult.newLayers;
+        if (ailResult.newDag) dag = ailResult.newDag;
+      }
 
       // HIL Approval (SECURITY: Must include on resume to prevent bypass)
-      const hilEvents = await this.handleHILApproval(workflowId, actualLayerIdx, layer, layers);
-      for (const event of hilEvents) yield event;
+      // Deferred Pattern: yield event BEFORE waiting for response
+      const hilPrep = await this.prepareHILApproval(workflowId, actualLayerIdx, layer, layers);
+      if (hilPrep.event) yield hilPrep.event;
+      if (hilPrep.needsResponse) {
+        await this.waitForHILResponse(workflowId, actualLayerIdx);
+      }
     }
 
     const totalTime = performance.now() - startTime;
@@ -898,18 +912,20 @@ export class ControlledExecutor extends ParallelExecutor {
     return checkpointEvent;
   }
 
-  private async handleAILDecisionPoint(
+  /**
+   * Prepare AIL decision event (non-blocking).
+   * Returns the event to yield; caller must then call waitForAILResponse.
+   *
+   * Deferred AIL Pattern: Separate event creation from blocking wait
+   * so the generator can yield the event before waiting for response.
+   */
+  private async prepareAILDecision(
     workflowId: string,
     layerIdx: number,
     hasErrors: boolean,
-    dag: DAGStructure,
-    _layers: Task[][],
-  ): Promise<{ events: ExecutionEvent[]; newLayers?: Task[][]; newDag?: DAGStructure }> {
-    const events: ExecutionEvent[] = [];
-    const ctx = this.getCaptureContext();
-
+  ): Promise<{ event: ExecutionEvent | null; needsResponse: boolean }> {
     if (!shouldTriggerAIL(this.config, layerIdx, hasErrors)) {
-      return { events };
+      return { event: null, needsResponse: false };
     }
 
     const ailEvent: ExecutionEvent = {
@@ -920,13 +936,24 @@ export class ControlledExecutor extends ParallelExecutor {
       description: `Layer ${layerIdx} completed. Agent decision required.`,
     };
     await this.eventStream.emit(ailEvent);
-    events.push(ailEvent);
 
+    return { event: ailEvent, needsResponse: true };
+  }
+
+  /**
+   * Wait for AIL response after event has been yielded.
+   * Returns new layers/dag if replan occurred, throws if aborted.
+   */
+  private async waitForAILResponse(
+    workflowId: string,
+    dag: DAGStructure,
+  ): Promise<{ newLayers?: Task[][]; newDag?: DAGStructure }> {
+    const ctx = this.getCaptureContext();
     const command = await waitForDecisionCommand(this.commandQueue, "AIL", this.getTimeout("ail"));
 
     if (!command || command.type === "continue") {
       captureAILDecision(ctx, workflowId, "continue", "Agent decision: continue", { reason: command?.reason || "default" });
-      return { events };
+      return {};
     }
 
     if (command.type === "abort") {
@@ -937,7 +964,7 @@ export class ControlledExecutor extends ParallelExecutor {
     if (command.type === "replan_dag" && this.dagSuggester) {
       if (this.replanCount >= MAX_REPLANS) {
         captureAILDecision(ctx, workflowId, "replan_rejected", "Rate limit reached", { max_replans: MAX_REPLANS });
-        return { events };
+        return {};
       }
 
       try {
@@ -951,27 +978,31 @@ export class ControlledExecutor extends ParallelExecutor {
           const newLayers = this.topologicalSort(augmentedDAG);
           this.replanCount++;
           captureAILDecision(ctx, workflowId, "replan_success", "DAG replanned", { replan_count: this.replanCount });
-          return { events, newLayers, newDag: augmentedDAG };
+          return { newLayers, newDag: augmentedDAG };
         }
       } catch (error) {
         captureAILDecision(ctx, workflowId, "replan_failed", "Replan failed", { error: String(error) });
       }
     }
 
-    return { events };
+    return {};
   }
 
-  private async handleHILApproval(
+  /**
+   * Prepare HIL approval event (non-blocking).
+   * Returns the event to yield; caller must then call waitForHILResponse.
+   *
+   * Deferred HIL Pattern: Separate event creation from blocking wait
+   * so the generator can yield the event before waiting for response.
+   */
+  private async prepareHILApproval(
     workflowId: string,
     layerIdx: number,
     layer: Task[],
     layers: Array<Array<{ id: string; tool: string; depends_on?: string[] }>>,
-  ): Promise<ExecutionEvent[]> {
-    const events: ExecutionEvent[] = [];
-    const ctx = this.getCaptureContext();
-
+  ): Promise<{ event: ExecutionEvent | null; needsResponse: boolean }> {
     if (!shouldRequireApproval(this.config, layerIdx, layer)) {
-      return events;
+      return { event: null, needsResponse: false };
     }
 
     const summary = generateHILSummary(this.state, layerIdx, layers);
@@ -983,8 +1014,16 @@ export class ControlledExecutor extends ParallelExecutor {
       description: summary,
     };
     await this.eventStream.emit(hilEvent);
-    events.push(hilEvent);
 
+    return { event: hilEvent, needsResponse: true };
+  }
+
+  /**
+   * Wait for HIL response after event has been yielded.
+   * Throws if timeout or rejected.
+   */
+  private async waitForHILResponse(workflowId: string, layerIdx: number): Promise<void> {
+    const ctx = this.getCaptureContext();
     const command = await waitForDecisionCommand(this.commandQueue, "HIL", this.getTimeout("hil"));
 
     if (!command) {
@@ -1000,8 +1039,6 @@ export class ControlledExecutor extends ParallelExecutor {
         throw new Error(`Workflow aborted by human: ${command.feedback || "no reason provided"}`);
       }
     }
-
-    return events;
   }
 
   private updateGraphRAG(workflowId: string, dag: DAGStructure, totalTime: number, failedTasks: number): void {
