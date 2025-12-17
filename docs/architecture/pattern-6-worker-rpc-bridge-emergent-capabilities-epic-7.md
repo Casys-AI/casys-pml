@@ -136,6 +136,85 @@ CREATE TABLE capability_cache (
 - Schema inference (SWC): <50ms
 - Suggestion generation: <100ms
 
+---
+
+## Capability Data Model Extensions
+
+### Hierarchical Tracing (ADR-041)
+
+Les traces d'exécution supportent une hiérarchie parent/child pour le debugging :
+
+```typescript
+interface TraceEntry {
+  trace_id: string;
+  parent_trace_id?: string;  // NEW - Lien vers trace parente
+  tool_id: string;
+  started_at: Date;
+  completed_at: Date;
+  success: boolean;
+}
+
+// Permet de reconstruire l'arbre d'exécution
+// Capability → Tool 1 → SubTool A
+//            → Tool 2 → SubTool B
+```
+
+### Tool Sequence vs Deduplication (ADR-047)
+
+Deux représentations complémentaires dans `dag_structure` :
+
+```typescript
+interface DAGStructure {
+  // Pour les algorithmes (scoring, matching) - DÉDUPLIQUÉ
+  tools_used: string[];  // ["read_file", "list_directory"]
+
+  // Pour la visualisation et replay - SÉQUENCE COMPLÈTE
+  tool_invocations: ToolInvocation[];  // Avec timestamps et ordre
+}
+
+interface ToolInvocation {
+  id: string;           // "read_file#0", "read_file#1"
+  tool: string;         // "read_file"
+  ts: number;           // Timestamp
+  sequenceIndex: number; // 0, 1, 2...
+}
+```
+
+### All Tools Must Succeed (ADR-043)
+
+Condition de sauvegarde d'une capability :
+
+```typescript
+// Une capability n'est sauvegardée QUE si tous les tools ont réussi
+const canSaveCapability = execution.traces.every(t => t.success);
+
+if (!canSaveCapability) {
+  // Log mais ne pas sauvegarder - évite les capabilities cassées
+  logger.warn("Capability not saved: partial failure");
+}
+```
+
+### Capability-to-Capability Dependencies (ADR-045)
+
+Table dédiée pour les relations entre capabilities :
+
+```sql
+CREATE TABLE capability_dependency (
+  from_capability_id UUID REFERENCES workflow_pattern(id),
+  to_capability_id UUID REFERENCES workflow_pattern(id),
+  edge_type TEXT CHECK (edge_type IN ('dependency', 'sequence', 'alternative')),
+  weight REAL DEFAULT 1.0,
+  PRIMARY KEY (from_capability_id, to_capability_id)
+);
+```
+
+**Edge Types:**
+- `dependency`: A requiert B pour fonctionner
+- `sequence`: A est généralement suivi de B
+- `alternative`: A et B sont interchangeables
+
+---
+
 **Affects Epics:** Epic 7 (Stories 7.1b-7.5)
 
 **References:**
@@ -143,6 +222,10 @@ CREATE TABLE capability_cache (
 - ADR-027: Execute Code Graph Learning
 - ADR-028: Emergent Capabilities System
 - ADR-032: Sandbox Worker RPC Bridge
+- ADR-041: Hierarchical Trace Tracking
+- ADR-043: All Tools Must Succeed
+- ADR-045: Capability-to-Capability Dependencies
+- ADR-047: Tool Sequence vs Deduplication
 - Research: `docs/research/research-technical-2025-12-03.md`
 
 **Design Philosophy:** Capabilities emerge from usage rather than being pre-defined. The system learns continuously from execution patterns to crystallize reusable capabilities, offering unique differentiation versus competitors.
