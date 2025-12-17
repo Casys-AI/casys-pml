@@ -10,68 +10,13 @@
 
 ## Executive Summary
 
-Ce spike documente les recherches sur les **Systèmes Complexes Adaptatifs (CAS)** et identifie des mécanismes avancés d'apprentissage qui pourraient améliorer Casys PML. Il complète le spike CoALA existant avec des concepts issus du **Reinforcement Learning**, des **Graph Neural Networks**, et de la **théorie des systèmes complexes**.
-
-**Conclusion Clé:** Casys PML EST un Système Complexe Adaptatif. Cette reconnaissance ouvre des opportunités d'amélioration via des techniques éprouvées dans d'autres domaines (PER, TD Learning, GAT).
+Ce spike documente les recherches sur les **mécanismes avancés d'apprentissage** issus de la littérature académique (Reinforcement Learning, Graph Neural Networks, théorie des systèmes complexes). Il complète le spike CoALA existant avec des techniques concrètes applicables à Casys PML.
 
 ---
 
-## 1. Casys PML comme Système Complexe Adaptatif
+## 1. Papiers de Recherche Analysés
 
-### 1.1 Validation CAS
-
-| Propriété CAS | Présence | Implémentation |
-|---------------|----------|----------------|
-| **Agents hétérogènes** | ✅ | DAG executor, GraphRAG, speculation manager, capability learner, episodic memory |
-| **Décisions autonomes** | ✅ | AIL, seuils de spéculation, confidence scores |
-| **Boucles de feedback** | ✅ | 5 boucles explicites (voir section 1.2) |
-| **Interactions non-linéaires** | ✅ | Propagation de poids dans le graphe, boosting par clusters |
-| **Auto-organisation** | ✅ | Parallélisme DAG, topologie graphe, émergence capabilities |
-| **Émergence** | ✅ | Capabilities, clusters, patterns, seuils - rien n'est pré-défini |
-| **Adaptation temporelle** | ✅ | EMA sur les seuils, GraphRAG qui évolue, capabilities qui s'accumulent |
-| **Multi-échelles** | ✅ | <1ms (events) → semaines (apprentissage de capabilities) |
-| **Loin de l'équilibre** | ✅ | Exécution continue, jamais d'état statique |
-| **Dépendant de l'historique** | ✅ | Episodic memory, PageRank basé sur l'historique |
-
-### 1.2 Les 5 Boucles de Feedback
-
-```
-┌─ Loop 1: Execution → Episodic Memory (immédiat, <1ms)
-│   Task Execution → Event Emission → Episodic Buffer → Async PGlite Write
-│
-├─ Loop 2: Workflow → GraphRAG Updates (par workflow)
-│   Workflow Complete → Extract Patterns → Update Graph → Recompute PageRank
-│
-├─ Loop 3: Speculation → Adaptive Thresholds (par batch de 50)
-│   50 Speculations → Calculate Success Rate → EMA Adjust → Persist
-│
-├─ Loop 4: Code Success → Emergent Capabilities (eager learning)
-│   Sandbox Execution → Success → Extract Pattern → Store Capability
-│
-└─ Loop 5: AIL/HIL → DAG Replanning (à la demande)
-    Decision Point → New Intent → GraphRAG Re-query → Inject Tasks
-```
-
-### 1.3 Positionnement Marché
-
-**Analyse compétitive (Décembre 2025):**
-
-| Solution | Type | Learning | Émergence |
-|----------|------|----------|-----------|
-| IBM ContextForge | MCP Gateway | ❌ Aucun | ❌ |
-| Tray.ai Agent Gateway | MCP Gateway | ❌ Aucun | ❌ |
-| mcp-agent | MCP Orchestrator | ❌ Aucun | ❌ |
-| LangGraph | Agent Framework | ⚠️ Mémoire stateful | ❌ |
-| CrewAI | Agent Framework | ⚠️ Collaboration | ❌ |
-| **Casys PML** | **CAS Gateway** | **✅ 5 loops** | **✅ Capabilities, clusters, thresholds** |
-
-**Conclusion:** Casys PML est unique dans l'écosystème MCP en tant que système véritablement adaptatif.
-
----
-
-## 2. Papiers de Recherche Analysés
-
-### 2.1 Sources Académiques
+### 1.1 Sources Académiques
 
 | Référence | Domaine | Pertinence |
 |-----------|---------|------------|
@@ -82,7 +27,7 @@ Ce spike documente les recherches sur les **Systèmes Complexes Adaptatifs (CAS)
 | [GNN for Recommendations](https://aman.ai/recsys/gnn/) | Graph Neural Networks | ⭐⭐ Nouveau |
 | [ACM TAAS CAS Model](https://dl.acm.org/doi/10.1145/3686802) | Complex Systems | ⭐ Contexte théorique |
 
-### 2.2 Gap Analysis vs CoALA Spike
+### 1.2 Gap Analysis vs CoALA Spike
 
 Le spike CoALA existant couvre :
 - ✅ Architecture mémoire (Working, Episodic, Semantic, Procedural)
@@ -98,9 +43,9 @@ Le spike CoALA existant couvre :
 
 ---
 
-## 3. Prioritized Experience Replay (PER)
+## 2. Prioritized Experience Replay (PER)
 
-### 3.1 Concept
+### 2.1 Concept
 
 **Source:** [Schaul et al. 2015 - arxiv:1511.05952](https://arxiv.org/abs/1511.05952)
 
@@ -111,7 +56,7 @@ Uniform Replay:    P(sample_i) = 1/N  (tous égaux)
 Prioritized Replay: P(sample_i) ∝ |δ_i|^α  (δ = TD error)
 ```
 
-### 3.2 Application à Casys PML
+### 2.2 Application à Casys PML
 
 **État actuel (episodic-memory-store.ts):**
 ```typescript
@@ -156,7 +101,7 @@ async updateFromEpisode(event: PrioritizedEpisodicEvent): Promise<void> {
 }
 ```
 
-### 3.3 Algorithme PER
+### 2.3 Algorithme PER
 
 ```typescript
 class PrioritizedReplayBuffer {
@@ -211,7 +156,7 @@ class PrioritizedReplayBuffer {
 }
 ```
 
-### 3.4 Bénéfices Attendus
+### 2.4 Bénéfices Attendus
 
 | Métrique | Sans PER | Avec PER | Source |
 |----------|----------|----------|--------|
@@ -219,7 +164,7 @@ class PrioritizedReplayBuffer {
 | Sample efficiency | 100% | **50%** (même résultat avec moins de samples) | Atari benchmarks |
 | Convergence stability | Variable | **Plus stable** (importance sampling) | Theoretical |
 
-### 3.5 Implémentation Recommandée
+### 2.5 Implémentation Recommandée
 
 **Effort:** ~4h
 **Fichiers à modifier:**
@@ -230,9 +175,9 @@ class PrioritizedReplayBuffer {
 
 ---
 
-## 4. Temporal Difference Learning pour Seuils
+## 3. Temporal Difference Learning pour Seuils
 
-### 4.1 Concept
+### 3.1 Concept
 
 **Source:** [Sutton 1988 - Learning to predict by temporal differences](https://link.springer.com/article/10.1007/BF00115009)
 
@@ -243,7 +188,7 @@ Monte Carlo (actuel):  Update après workflow complet
 TD Learning:           Update après chaque step
 ```
 
-### 4.2 État Actuel vs TD Learning
+### 3.2 État Actuel vs TD Learning
 
 **EMA actuel (ADR-008):**
 ```typescript
@@ -287,7 +232,7 @@ class TDThresholdLearner {
 }
 ```
 
-### 4.3 TD(λ) - Eligibility Traces
+### 3.3 TD(λ) - Eligibility Traces
 
 Pour un apprentissage encore plus efficace, on peut utiliser TD(λ) qui combine TD(0) et Monte Carlo:
 
@@ -314,7 +259,7 @@ class TDLambdaThresholdLearner {
 }
 ```
 
-### 4.4 Comparaison des Approches
+### 3.4 Comparaison des Approches
 
 | Approche | Update Frequency | Variance | Bias | Latence d'adaptation |
 |----------|-----------------|----------|------|---------------------|
@@ -323,7 +268,7 @@ class TDLambdaThresholdLearner {
 | TD(0) | 1 par step | Low | Some | **~10 steps** |
 | TD(λ) | 1 par step | Low-Medium | Low | **~10 steps** |
 
-### 4.5 Implémentation Recommandée
+### 3.5 Implémentation Recommandée
 
 **Effort:** ~3h
 **Fichiers à modifier:**
@@ -333,9 +278,9 @@ class TDLambdaThresholdLearner {
 
 ---
 
-## 5. Graph Attention Networks (GAT) → HyperGAT
+## 4. Graph Attention Networks (GAT) → HyperGAT
 
-### 5.1 État Actuel : Hypergraph PageRank + Spectral Clustering
+### 4.1 État Actuel : Hypergraph PageRank + Spectral Clustering
 
 **Casys PML a déjà une stack avancée** (ADR-038, `src/graphrag/spectral-clustering.ts`) :
 
@@ -348,7 +293,7 @@ class TDLambdaThresholdLearner {
 
 **Ce qui est statique :** Le PageRank calcule l'importance **globale** d'une capability. Ce score est le **même** quelle que soit la query utilisateur.
 
-### 5.2 Concept GAT vs HyperGAT
+### 4.2 Concept GAT vs HyperGAT
 
 **Source:** [Veličković et al. 2017 - Graph Attention Networks](https://arxiv.org/abs/1710.10903)
 
@@ -360,7 +305,7 @@ HyperGAT (hypergraphe): importance(cap) = Σ attention(query, hyperedge) * featu
 
 **HyperGAT** est l'extension naturelle pour Casys PML car on a déjà un **hypergraphe bipartite** (tools ↔ capabilities).
 
-### 5.3 HyperGAT : Attention sur Hyperedges
+### 4.3 HyperGAT : Attention sur Hyperedges
 
 L'idée est d'ajouter une couche d'attention **conditionnée sur la query** au-dessus du Hypergraph PageRank existant.
 
@@ -429,7 +374,7 @@ class HypergraphAttention {
 }
 ```
 
-### 5.4 Comparaison : Avant / Après HyperGAT
+### 4.4 Comparaison : Avant / Après HyperGAT
 
 ```
 Query: "Je veux déployer sur AWS"
@@ -445,7 +390,7 @@ APRÈS (HyperGAT):
   → "deploy-aws" clairement favorisé par l'attention contextuelle
 ```
 
-### 5.5 Architecture GAT Classique (pour référence)
+### 4.5 Architecture GAT Classique (pour référence)
 
 ```typescript
 interface GATLayer {
@@ -500,7 +445,7 @@ class GraphAttentionToolSelector {
 }
 ```
 
-### 5.3 Attention Mechanism Detail
+### 4.6 Attention Mechanism Detail
 
 ```typescript
 // Single GAT attention head
@@ -546,7 +491,7 @@ function multiHeadAttention(
 }
 ```
 
-### 5.6 Avantages HyperGAT vs Stack Actuelle
+### 4.7 Avantages HyperGAT vs Stack Actuelle
 
 | Aspect | Actuel (PageRank + Spectral) | HyperGAT |
 |--------|------------------------------|----------|
@@ -556,7 +501,7 @@ function multiHeadAttention(
 | Contexte query | ❌ Ignoré | **✅ Conditionné** |
 | Explainability | Centrality + cluster | **Attention weights** |
 
-### 5.7 Options d'Implémentation HyperGAT
+### 4.8 Options d'Implémentation HyperGAT
 
 **Option A: HyperGAT Simplifié (recommandé)**
 - Réutilise `SpectralClusteringManager` existant
@@ -575,7 +520,7 @@ function multiHeadAttention(
 - Phase 2: Si métriques insuffisantes → Option B
 - Effort: 3-4 jours + 2 semaines si nécessaire
 
-### 5.8 Recommandation
+### 4.9 Recommandation
 
 **Approche recommandée:** Option C (Hybrid progressif)
 
@@ -597,7 +542,7 @@ const hyperGATScore = await hypergraphAttention.computeContextualScores(query, c
 const discoveryScore = ToolsOverlap * (1 + StructuralBoost) * (1 + hyperGATScore);
 ```
 
-### 5.9 Note : Support des Hypergraphes Hiérarchiques (Meta-Capabilities)
+### 4.10 Note : Support des Hypergraphes Hiérarchiques (Meta-Capabilities)
 
 HyperGAT fonctionne **aussi bien sur un hypergraphe flat que hiérarchique**. Si des meta-capabilities émergent (capabilities composées d'autres capabilities via l'edge type `contains` de ADR-042), l'attention devient récursive :
 
@@ -642,13 +587,13 @@ async computeNestedScore(query: string, cap: NestedCapability): Promise<number> 
 
 ---
 
-## 6. Semantic Memory Layer
+## 5. Semantic Memory Layer
 
-### 6.1 Concept (Extension CoALA)
+### 5.1 Concept (Extension CoALA)
 
 Le spike CoALA a identifié que notre **Semantic Memory est partielle** (GraphRAG edges = co-occurrence, pas connaissances). Une vraie Semantic Memory contient des **faits inférés**.
 
-### 6.2 Types de Faits à Capturer
+### 5.2 Types de Faits à Capturer
 
 ```typescript
 interface SemanticFact {
@@ -698,7 +643,7 @@ const facts: SemanticFact[] = [
 ];
 ```
 
-### 6.3 Inférence de Faits
+### 5.3 Inférence de Faits
 
 ```typescript
 class SemanticMemoryInferrer {
@@ -765,7 +710,7 @@ class SemanticMemoryInferrer {
 }
 ```
 
-### 6.4 Utilisation dans DAGSuggester
+### 5.4 Utilisation dans DAGSuggester
 
 ```typescript
 class EnhancedDAGSuggester {
@@ -797,7 +742,7 @@ class EnhancedDAGSuggester {
 }
 ```
 
-### 6.5 Schema PGlite
+### 5.5 Schema PGlite
 
 ```sql
 CREATE TABLE semantic_facts (
@@ -817,7 +762,7 @@ CREATE INDEX idx_semantic_type ON semantic_facts(type);
 CREATE INDEX idx_semantic_confidence ON semantic_facts(confidence DESC);
 ```
 
-### 6.6 Recommandation
+### 5.6 Recommandation
 
 **Effort:** ~1 semaine
 **Impact:** Medium-High (meilleure généralisation, moins d'erreurs)
@@ -826,9 +771,9 @@ CREATE INDEX idx_semantic_confidence ON semantic_facts(confidence DESC);
 
 ---
 
-## 7. SYMBIOSIS / ODI Framework Insights
+## 6. SYMBIOSIS / ODI Framework Insights
 
-### 7.1 Concepts Clés
+### 6.1 Concepts Clés
 
 **Source:** [arxiv:2503.13754 - Orchestrated Distributed Intelligence](https://arxiv.org/html/2503.13754v1)
 
@@ -837,7 +782,7 @@ Le framework ODI propose de voir les systèmes multi-agents comme des **système
 - Comportements émergents mesurables
 - Analyse holistique (pas juste performance individuelle)
 
-### 7.2 Métriques d'Émergence
+### 6.2 Métriques d'Émergence
 
 ```typescript
 interface EmergenceMetrics {
@@ -892,7 +837,7 @@ class EmergenceObserver {
 }
 ```
 
-### 7.3 Dashboard Émergence
+### 6.3 Dashboard Émergence
 
 Ajouter au monitoring existant:
 
@@ -921,7 +866,7 @@ Ajouter au monitoring existant:
 }
 ```
 
-### 7.4 Recommandation
+### 6.4 Recommandation
 
 **Effort:** ~2-3h (métriques de base), ~1 jour (dashboard complet)
 **Impact:** Low-Medium (observabilité, pas fonctionnel)
@@ -930,9 +875,9 @@ Ajouter au monitoring existant:
 
 ---
 
-## 8. Roadmap d'Implémentation
+## 7. Roadmap d'Implémentation
 
-### 8.1 Priorités
+### 7.1 Priorités
 
 | Priorité | Feature | Source | Effort | Impact | Dépendances |
 |----------|---------|--------|--------|--------|-------------|
@@ -943,7 +888,7 @@ Ajouter au monitoring existant:
 | 🟢 P3 | **Emergence metrics** | ODI/SYMBIOSIS | 2-3h | Observabilité | Monitoring existant |
 | 🟢 P3 | **Full HyperGAT learnable** | HyperGAT paper | 2 semaines | Attention apprise | ML runtime + ALM-4 |
 
-### 8.2 Stories Candidates
+### 7.2 Stories Candidates
 
 ```yaml
 # Epic: Advanced Learning Mechanisms
@@ -1034,7 +979,7 @@ stories:
     priority: P3
 ```
 
-### 8.3 Dépendances
+### 7.3 Dépendances
 
 ```
                     ┌─────────────────┐
@@ -1058,9 +1003,9 @@ stories:
 
 ---
 
-## 9. Conclusion
+## 8. Conclusion
 
-### 9.1 Résumé
+### 8.1 Résumé
 
 Casys PML est un **Système Complexe Adaptatif** avec 5 boucles de feedback et des propriétés émergentes. Cette reconnaissance ouvre des opportunités d'amélioration via des techniques éprouvées:
 
@@ -1072,14 +1017,14 @@ Casys PML est un **Système Complexe Adaptatif** avec 5 boucles de feedback et d
 | Graph Attention | Prédictions contextuelles | 1 semaine |
 | Emergence Metrics | Observabilité | 3h |
 
-### 9.2 Positionnement Unique
+### 8.2 Positionnement Unique
 
 Casys PML combine de manière unique:
 - **CAS theory** + **MCP protocol** + **GraphRAG** + **Adaptive learning** + **Emergent capabilities**
 
 Aucun concurrent identifié ne fait cette combinaison (Décembre 2025).
 
-### 9.3 Next Steps
+### 8.3 Next Steps
 
 1. **Immédiat (Sprint actuel):** ALM-1 (PER) + ALM-2 (TD Learning)
 2. **Court terme (2-4 semaines):** ALM-3 (Semantic) + ALM-4 (Attention)
@@ -1087,7 +1032,7 @@ Aucun concurrent identifié ne fait cette combinaison (Décembre 2025).
 
 ---
 
-## 10. Références
+## 9. Références
 
 ### Papiers Académiques
 - [CoALA - arxiv:2309.02427](https://arxiv.org/abs/2309.02427) - Cognitive Architectures for Language Agents
