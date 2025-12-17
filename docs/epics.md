@@ -2028,13 +2028,22 @@ type ProvidesCoverage =
 
 1. `provides` ajouté à `EdgeType` dans `edge-weights.ts` ligne 18
 2. Weight configuré: `provides: 0.7` dans `EDGE_TYPE_WEIGHTS`
-3. Interface `ProvidesEdge` définie:
+3. Interface `ProvidesEdge` définie avec **schemas exposés**:
    ```typescript
    interface ProvidesEdge {
      from: string;              // Tool/capability provider
      to: string;                // Tool/capability consumer
      type: "provides";
      coverage: ProvidesCoverage;
+
+     // Schemas exposés pour que l'IA sache remplir les args
+     providerOutputSchema: JSONSchema;   // Ce que A produit
+     consumerInputSchema: JSONSchema;    // Ce que B attend (required + optional)
+     fieldMapping: Array<{               // Correspondances champ par champ
+       fromField: string;       // e.g., "content"
+       toField: string;         // e.g., "json"
+       typeCompatible: boolean; // Types compatibles ?
+     }>;
    }
    ```
 4. `computeCoverage()` function implémentée:
