@@ -176,9 +176,9 @@ Le dashboard offre deux modes de visualisation :
 | Mode | Affichage | Utilisation |
 |------|-----------|-------------|
 | **Tools** | Graphe classique des outils | Vue d'ensemble des connexions |
-| **Hypergraph** | Capabilities comme groupes | Voir les patterns appris |
+| **SuperHyperGraph** | Capabilities et meta-capabilities | Voir les patterns appris (structure récursive) |
 
-En mode hypergraph, cliquer sur une capability affiche :
+En mode SuperHyperGraph, cliquer sur une capability affiche :
 - Le code source reutilisable
 - Les outils utilises
 - Le taux de succes et l'historique d'usage

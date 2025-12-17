@@ -19,6 +19,6 @@ How PML learns from agent workflows.
 
 PML learns in three ways:
 
-1. **GraphRAG** - Stores relationships between tools, patterns, and capabilities in a hypergraph
+1. **GraphRAG** - Stores relationships between tools, patterns, and capabilities in a SuperHyperGraph (recursive structure supporting meta-capabilities)
 2. **Dependency Tracking** - Learns which tools work well together
 3. **Confidence Evolution** - Patterns gain confidence as they're validated through execution

@@ -67,11 +67,11 @@
 | @huggingface/transformers | 3.7.x | Local embeddings (BGE-M3, 1024 dim) |
 | ml-matrix | 6.x | Matrix operations for spectral clustering |
 
-### Hypergraph Algorithms (Custom)
+### SuperHyperGraph Algorithms (Custom)
 | Algorithm | Module | Description |
 |-----------|--------|-------------|
 | Spectral Clustering | spectral-clustering.ts | Bipartite graph clustering |
-| Hypergraph PageRank | spectral-clustering.ts | Capability importance ranking |
+| SuperHyperGraph PageRank | spectral-clustering.ts | Capability importance ranking (recursive) |
 | PageRank | graph-engine.ts | Node centrality |
 | Adamic-Adar | graph-engine.ts | Similarity via common neighbors |
 | Dijkstra | graphology | Shortest paths |
@@ -110,7 +110,7 @@ src/
 ├── main.ts              # Entry point
 ├── mcp/                 # MCP Gateway (8 meta-tools)
 ├── dag/                 # DAG execution engine
-├── graphrag/            # Hypergraph algorithms
+├── graphrag/            # SuperHyperGraph algorithms
 ├── sandbox/             # Secure code execution
 ├── capabilities/        # Learned capabilities system
 ├── vector/              # BGE-M3 embeddings
@@ -215,7 +215,7 @@ deno task deploy:all       # Pull + build + restart
 | **Islands Architecture** | Interactive islands + static components |
 | **Atomic Design** | atoms → molecules → organisms |
 | **MCP Gateway** | Unified entry point for all MCP tools |
-| **Hypergraph** | Capabilities as hyperedges connecting tools |
+| **SuperHyperGraph** | Capabilities as recursive hyperedges (meta-capabilities supported) |
 | **Worker Isolation** | Sandbox execution via Broadcast Channel |
 
 ---

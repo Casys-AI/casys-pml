@@ -1,6 +1,6 @@
 # Visualization
 
-> Hypergraph rendering with D3.js
+> SuperHyperGraph rendering with D3.js
 
 ## En bref
 
@@ -22,9 +22,9 @@ La visualisation dans PML, c'est comme le **tableau de bord de votre voiture** :
 
 Tout comme vous conduisez en regardant le tableau de bord plutôt qu'en ouvrant le capot, vous pilotez PML en regardant sa visualisation plutôt qu'en lisant les logs bruts.
 
-## The Hypergraph View
+## The SuperHyperGraph View
 
-PML provides a visual representation of its knowledge graph—a **hypergraph** showing tools, capabilities, and their relationships.
+PML provides a visual representation of its knowledge graph—a **SuperHyperGraph** showing tools, capabilities, meta-capabilities, and their recursive relationships.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐

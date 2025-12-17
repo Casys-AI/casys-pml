@@ -9,7 +9,7 @@ Live updates and visualization.
 | Document | Description |
 |----------|-------------|
 | [Events](./01-events.md) | SSE and EventBus architecture |
-| [Visualization](./02-visualization.md) | Hypergraph and D3.js rendering |
+| [Visualization](./02-visualization.md) | SuperHyperGraph and D3.js rendering |
 
 ---
 
@@ -18,6 +18,6 @@ Live updates and visualization.
 PML provides real-time visibility into system activity:
 
 - **Events** - Server-Sent Events stream for live updates
-- **Visualization** - Interactive hypergraph showing tool relationships
+- **Visualization** - Interactive SuperHyperGraph showing tool and capability relationships
 
 The dashboard uses these capabilities to show workflow execution in real-time.
