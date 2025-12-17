@@ -1,7 +1,7 @@
 # Casys PML - Epic Breakdown
 
 **Author:** BMad **Date:** 2025-11-03 (Updated: 2025-12-17) **Project Level:** 3 **Target Scale:**
-10 epics, 63+ stories total (Epics 1-8 + Epic 9: Auth + Epic 10: DAG Learning)
+10 epics, 64+ stories total (Epics 1-8 + Epic 9: Auth + Epic 10: DAG Learning)
 
 ---
 
@@ -1767,7 +1767,7 @@ Unifier les deux modèles d'exécution (DAG explicite et Code libre) en un syst�
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Estimation:** 6 stories, ~2-3 semaines
+**Estimation:** 9 stories, ~3-4 semaines
 
 ---
 
@@ -1880,7 +1880,149 @@ type ProvidesCoverage =
 
 ---
 
-**Story 10.3: DAG Reconstruction from Traces**
+**Story 10.2b: Static Code Analysis - DAG Preview (PRE-EXECUTION)**
+
+As an execution system, I want to parse code statically to generate a DAG preview BEFORE execution,
+So that I can validate permissions, detect tools, and enable proper HIL/AIL approval flows.
+
+**Context:**
+C'est le **chaînon manquant** entre le code et la validation par layer. Sans parsing statique :
+- On ne peut pas savoir quels tools seront appelés avant d'exécuter
+- L'AIL/HIL doit attendre l'échec au lieu de prévenir
+- `per_layer_validation` ne peut pas calculer `requiresValidation()` correctement
+
+**Différence avec Story 10.3 (Reconstruction):**
+
+| Aspect | 10.2b Static (PRE) | 10.3 Traces (POST) |
+|--------|--------------------|--------------------|
+| **Quand** | Avant exécution | Après exécution |
+| **Input** | Code source (AST) | Traces d'exécution |
+| **Précision** | Approximatif (code dynamique) | Exact (ce qui s'est passé) |
+| **Use case** | Validation, HIL preview | Learning, replay |
+
+**Architecture:**
+```
+Code TypeScript
+      │
+      ▼
+┌─────────────────────────────────────────┐
+│  SWC AST Parser (réutilise Story 7.2b)  │
+│  - Parse code en AST                     │
+│  - Traverse pour trouver les appels      │
+└─────────────────────────────────────────┘
+      │
+      ▼
+┌─────────────────────────────────────────┐
+│  MCP Call Detector                       │
+│  - `mcp.server.tool()` → tool call      │
+│  - `await` → dépendance séquentielle    │
+│  - `Promise.all()` → parallélisme       │
+└─────────────────────────────────────────┘
+      │
+      ▼
+┌─────────────────────────────────────────┐
+│  DAG Preview Generator                   │
+│  - Tasks avec tools détectés            │
+│  - dependsOn inféré depuis await/vars   │
+│  - Flag: preview: true (peut être       │
+│    incomplet si code dynamique)         │
+└─────────────────────────────────────────┘
+      │
+      ▼
+Validation permissions → HIL si nécessaire → Exécution
+```
+
+**Patterns à détecter:**
+
+```typescript
+// Pattern 1: Appel simple → 1 task
+const result = await mcp.fs.read({ path: "config.json" });
+// → Task { tool: "fs:read", dependsOn: [] }
+
+// Pattern 2: Séquence → dépendance
+const config = await mcp.fs.read({ path: "config.json" });
+const data = await mcp.json.parse({ json: config });
+// → Task fs:read, Task json:parse dependsOn: [fs:read]
+
+// Pattern 3: Parallèle → pas de dépendance entre eux
+const [a, b] = await Promise.all([
+  mcp.api.fetch({ url: urlA }),
+  mcp.api.fetch({ url: urlB }),
+]);
+// → Task api:fetch_1, Task api:fetch_2, pas de dependsOn entre eux
+
+// Pattern 4: Conditionnel → marquer comme "maybe"
+if (condition) {
+  await mcp.db.write({ data });
+}
+// → Task { tool: "db:write", certainty: "conditional" }
+
+// Pattern 5: Loop → marquer comme "dynamic"
+for (const item of items) {
+  await mcp.process.run({ item });
+}
+// → Task { tool: "process:run", certainty: "loop", estimatedCount: "unknown" }
+```
+
+**Acceptance Criteria:**
+
+1. `CodeToDAGParser` class créée (`src/capabilities/code-to-dag-parser.ts`)
+2. Réutilise SWC de Story 7.2b pour parser l'AST
+3. Method `parseToDAGPreview(code: string)` → `DAGPreview`:
+   ```typescript
+   interface DAGPreview {
+     tasks: PreviewTask[];
+     isComplete: boolean;        // false si code dynamique détecté
+     dynamicSections: string[];  // ["line 15: conditional", "line 23: loop"]
+     detectedTools: string[];    // Liste unique des tools
+   }
+
+   interface PreviewTask {
+     id: string;
+     tool: string;
+     dependsOn: string[];
+     certainty: "definite" | "conditional" | "loop";
+     sourceLocation: { line: number; column: number };
+   }
+   ```
+4. Détection des patterns:
+   - `mcp.*.*()` calls → tool identification
+   - `await` keyword → séquence
+   - `Promise.all/allSettled` → parallélisme
+   - `if/else` blocks → conditional certainty
+   - `for/while/map` → loop certainty
+5. **Intégration avec `requiresValidation()`:**
+   - Avant exécution, parse le code
+   - Extraire `detectedTools`
+   - Vérifier permissions via `getToolPermissionConfig()`
+   - Trigger `per_layer_validation` si nécessaire
+6. **Intégration avec HIL:**
+   - Si tool avec `approvalMode: "hil"` détecté → preview disponible AVANT exécution
+   - User voit "Ce code va appeler: fs:write, db:delete. Approuver?"
+7. Tests: code séquentiel simple → DAG preview correct
+8. Tests: code avec Promise.all → parallélisme détecté
+9. Tests: code avec if/else → tasks marquées "conditional"
+10. Tests: code avec loop → tasks marquées "loop", isComplete: false
+11. Tests: intégration requiresValidation() avec code preview
+
+**Files to Create:**
+- `src/capabilities/code-to-dag-parser.ts` (~250 LOC)
+
+**Files to Modify:**
+- `src/mcp/handlers/workflow-execution-handler.ts` - Intégrer preview avant exécution (~30 LOC)
+- `src/mcp/handlers/code-execution-handler.ts` - Même intégration (~30 LOC)
+
+**Prerequisites:** Story 7.2b (SWC parsing), Story 10.2 (provides edge for validation)
+
+**Estimation:** 2-3 jours
+
+**Lien avec HIL Phase 4:**
+Cette story est le **enabler** pour le vrai HIL per-task (Option B de la tech spec HIL).
+Avec le DAG preview, on peut demander l'approbation AVANT d'exécuter, pas après l'échec.
+
+---
+
+**Story 10.3: DAG Reconstruction from Traces (POST-EXECUTION)**
 
 As a learning system, I want to reconstruct a DAGStructure from code execution traces,
 So that code-based workflows can be replayed as DAGs.
@@ -2292,7 +2434,11 @@ Story 10.1 (result tracing)
     │
     ├──▶ Story 10.2 (provides edge)
     │        │
-    └────────┼──▶ Story 10.3 (DAG reconstruction)
+    │        ├──▶ Story 10.2b (static code analysis - DAG PREVIEW) ★ KEY STORY
+    │        │        │
+    │        │        └──▶ Enables HIL Phase 4 (pre-execution approval)
+    │        │
+    └────────┼──▶ Story 10.3 (DAG reconstruction - POST execution)
              │        │
              │        ▼
              │   Story 10.4 (unified capability)
@@ -2301,7 +2447,7 @@ Story 10.1 (result tracing)
              │   Story 10.5 (pml_discover)
              │        │
              │        ▼
-             │   Story 10.6 (pml_execute)
+             │   Story 10.6 (pml_execute) ←── Uses 10.2b for preview!
              │        │
              │        ▼
              │   Story 10.7 (pml_get_task_result)
@@ -2323,6 +2469,8 @@ Story 10.1 (result tracing)
 |----|-------------|-------|
 | FR1 | Tracer `result` des tools et capabilities | 10.1 |
 | FR2 | Edge type `provides` avec coverage | 10.2 |
+| **FR2b** | **DAG Preview pré-exécution (parsing statique)** | **10.2b** |
+| **FR2c** | **Validation permissions avant exécution** | **10.2b** |
 | FR3 | Reconstruction DAG depuis traces code | 10.3 |
 | FR4 | Capability unifiée (code OU dag) | 10.4 |
 | FR5 | API `pml_discover` unifiée | 10.5 |
@@ -2331,6 +2479,7 @@ Story 10.1 (result tracing)
 | FR8 | Vue Definition vs Invocation | 10.8 |
 | FR9 | Dépréciation anciennes APIs | 10.5, 10.6 |
 | FR10 | Learning automatique après succès | 10.6 |
+| **FR11** | **HIL pre-execution approval flow** | **10.2b** |
 
 ---
 
@@ -2340,11 +2489,14 @@ Story 10.1 (result tracing)
 |-------|--------|------------|
 | 10.1 Result Tracing | 0.5-1j | 1j |
 | 10.2 Provides Edge | 1-2j | 3j |
-| 10.3 DAG Reconstruction | 2-3j | 6j |
-| 10.4 Unified Capability | 2-3j | 9j |
-| 10.5 pml_discover | 2-3j | 12j |
-| 10.6 pml_execute | 3-5j | 16j |
-| 10.7 pml_get_task_result | 1-2j | 18j |
-| 10.8 Definition/Invocation | 2-3j | 21j |
+| **10.2b Static Code Analysis (DAG Preview)** | **2-3j** | **6j** |
+| 10.3 DAG Reconstruction (Post-exec) | 2-3j | 9j |
+| 10.4 Unified Capability | 2-3j | 12j |
+| 10.5 pml_discover | 2-3j | 15j |
+| 10.6 pml_execute | 3-5j | 19j |
+| 10.7 pml_get_task_result | 1-2j | 21j |
+| 10.8 Definition/Invocation | 2-3j | 24j |
 
-**Total: ~3 semaines**
+**Total: ~3-4 semaines**
+
+**Note:** Story 10.2b est critique car elle enable le HIL Phase 4 (pre-execution approval).
