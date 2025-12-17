@@ -2,6 +2,8 @@
 
 ## Pattern 1: DAG Builder with JSON Schema Dependency Detection
 
+> **ADRs:** ADR-002 (Custom DAG), ADR-022 (Hybrid Search Integration)
+
 **Problem:** Automatically detect dependencies between MCP tools to enable parallel execution
 without manual dependency specification.
 
@@ -76,17 +78,73 @@ function buildDAG(tools: Tool[]): { nodes: DAGNode[]; edges: DAGEdge[] } {
 - Circular dependencies → Reject workflow, return error
 - Ambiguous matches → Conservative (assume dependency)
 
-**Affects Epics:** Epic 2 (Story 2.1, 2.2)
+### Hybrid Search Integration (ADR-022)
+
+The DAGSuggester uses Hybrid Search (Semantic + Graph) to find relevant tools:
+
+```typescript
+async searchToolsHybrid(
+  query: string,
+  limit: number = 10,
+  contextTools: string[] = []
+): Promise<HybridSearchResult[]> {
+  // 1. Semantic Search (Base) - finds textually relevant tools
+  const semanticResults = await this.vectorSearch.searchTools(query, limit * 2);
+
+  // 2. Adaptive Alpha Calculation (graph density)
+  const alpha = this.calculateAdaptiveAlpha();
+
+  // 3. Graph Scoring (Adamic-Adar + Neighbors)
+  return semanticResults.map(tool => {
+    const graphScore = this.computeGraphRelatedness(tool.id, contextTools);
+    // Hub tools (high PageRank) get boosted
+    const finalScore = (alpha * tool.score) + ((1 - alpha) * graphScore);
+    return { ...tool, score: finalScore };
+  });
+}
+```
+
+**Benefits:**
+- Finds implicit dependencies (e.g., `npm_install` between `git_clone` and `deploy`)
+- Graph intelligence bubbles related tools into candidates
+- Reduces "fragile DAGs" for complex intents
+
+**Affects Epics:** Epic 2 (Story 2.1, 2.2), Epic 5 (Story 5.1)
 
 ---
 
 ## Pattern 2: Context Budget Management
 
+> **ADRs:** ADR-013 (Semantic Filtering)
+
 **Problem:** Maintain <5% context consumption while supporting 15+ MCP servers dynamically.
 
-**Solution:**
+**Solution Architecture:**
 
-**Context Budget Tracker:**
+### Meta-Tools Only Exposure (ADR-013)
+
+Instead of exposing all MCP tools (~44.5k tokens), the gateway returns only meta-tools:
+
+```typescript
+// Before ADR-013: 100+ tools exposed (44.5k tokens)
+// After ADR-013: 2 meta-tools exposed (~500 tokens)
+
+const META_TOOLS = [
+  "pml:execute_workflow",  // Intent-based workflow execution
+  "pml:execute_code",      // Sandbox code execution
+];
+
+// Tool discovery via intent, not enumeration
+{ "tool": "pml:execute_workflow", "params": { "intent": "search the web for AI news" } }
+// DAGSuggester uses vector search internally to find relevant tools
+```
+
+**Impact:**
+- Context reduced from 44.5k to ~500 tokens (99% reduction)
+- Forces intent-driven tool usage (better UX)
+- Tool schemas loaded dynamically only when needed
+
+### Context Budget Tracker:
 
 ```typescript
 interface ContextBudget {
