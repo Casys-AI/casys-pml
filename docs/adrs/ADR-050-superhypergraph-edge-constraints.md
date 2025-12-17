@@ -241,6 +241,80 @@ C'est un pattern d'usage, pas une contrainte d'exécution.
 
 ---
 
+## Utility Functions (DASH Theorems)
+
+### Find Root Capabilities (Theorem 2.5)
+
+Tout DASH a au moins une "source" (vertex sans edges entrants). Utile pour trouver les points d'entrée.
+
+```typescript
+/**
+ * DASH Theorem 2.5: Il existe toujours au moins une source
+ * Retourne les capabilities qui ne dépendent de rien
+ */
+function findRootCapabilities(
+  capabilities: Capability[],
+  edgeType: 'contains' | 'dependency' = 'dependency'
+): Capability[] {
+  return capabilities.filter(cap =>
+    !hasIncomingEdges(cap.id, edgeType)
+  );
+}
+
+// Usage: points d'entrée pour exécution ou navigation UI
+const entryPoints = findRootCapabilities(allCaps, 'dependency');
+```
+
+### Ancestry Queries (Theorem 2.8)
+
+La relation de reachability forme un ordre partiel. Utile pour requêtes "qui utilise X" / "X utilise quoi".
+
+```typescript
+/**
+ * DASH Theorem 2.8: Reachability = ordre partiel strict
+ */
+function getDescendants(capId: string, edgeType: EdgeType): string[] {
+  const descendants: string[] = [];
+  const stack = [capId];
+  const visited = new Set<string>();
+
+  while (stack.length > 0) {
+    const current = stack.pop()!;
+    if (visited.has(current)) continue;
+    visited.add(current);
+
+    const children = getOutgoingNeighbors(current, edgeType);
+    descendants.push(...children);
+    stack.push(...children);
+  }
+
+  return descendants;
+}
+
+function getAncestors(capId: string, edgeType: EdgeType): string[] {
+  const ancestors: string[] = [];
+  const stack = [capId];
+  const visited = new Set<string>();
+
+  while (stack.length > 0) {
+    const current = stack.pop()!;
+    if (visited.has(current)) continue;
+    visited.add(current);
+
+    const parents = getIncomingNeighbors(current, edgeType);
+    ancestors.push(...parents);
+    stack.push(...parents);
+  }
+
+  return ancestors;
+}
+
+// Usage: UI "Show all capabilities that use tool X"
+const usedBy = getAncestors(toolId, 'contains');
+```
+
+---
+
 ## Implementation Notes
 
 ### Fichiers à modifier
