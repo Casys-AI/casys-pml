@@ -953,17 +953,41 @@ t3: { tool: "http:fetch", args: { url: "..." }, result: { data: [...] } }
 
 ### 8.5 Ce que ça change pour le DAG Suggester
 
-Le suggester utilise les **`provides` edges** (basés sur schemas) pour construire le `dependsOn` :
+#### Changement clé : `dependsOn` inféré depuis schemas
+
+**Avant :** L'IA devait écrire manuellement les `dependsOn` dans le DAG.
+
+**Maintenant :** Le suggester **infère** les `dependsOn` depuis les `provides` edges (basés sur schemas).
 
 ```
-Schemas (outputA ∩ inputB) → provides edge → DAG Suggester → dependsOn
+Schemas (outputA ∩ inputB) → provides edge → DAG Suggester → dependsOn (inféré)
 ```
 
-**Pas besoin de distinguer explicit vs inferred** :
+L'IA reçoit un DAG avec `dependsOn` **pré-rempli**, elle n'a plus qu'à compléter les arguments.
+
+#### Multiple dependsOn (fan-in)
+
+Un task peut dépendre de **plusieurs** tasks - c'est le pattern fan-in :
+
+```
+┌─────────┐
+│ fs:read │──────┐
+└─────────┘      │ provides
+                 ▼
+┌─────────┐    ┌─────────────┐
+│ db:query│───▶│ merge:data  │  dependsOn: ["t1", "t2"]
+└─────────┘    └─────────────┘
+  provides
+```
+
+Le suggester détecte tous les `provides` entrants et les traduit en `dependsOn[]`.
+
+#### Pas de distinction explicit/inferred
+
 - `provides` = relation entre **types de tools** (dans le graphe)
 - `dependsOn` = relation entre **instances de tasks** (dans le DAG)
 
-Le suggester traduit simplement les `provides` en `dependsOn` quand il construit un DAG.
+On ne marque pas si le `dependsOn` vient du suggester ou de l'IA - c'est juste du `dependsOn`.
 
 ### 8.6 Limites de la reconstruction et mitigations
 
