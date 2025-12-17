@@ -872,6 +872,10 @@ Ces annotations seraient lues par le système pour enrichir le DAG inféré.
 2. Retourner résultats unifiés avec scores
 3. Déprécier `pml_search_tools`, `pml_search_capabilities`, `pml_find_capabilities`
 
+> **Spec séparée requise :** La gestion du contexte (verbosity levels, progressive disclosure,
+> résumés de capabilities multi-parties) sera traitée dans une tech spec dédiée à `pml_discover`.
+> Voir les handlers existants : `search-tools.ts`, `search-capabilities.ts`.
+
 **Fichiers :** `gateway-server.ts`, handlers
 **Effort estimé :** 2-3 jours
 
