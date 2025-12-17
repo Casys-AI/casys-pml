@@ -683,12 +683,19 @@ export class ControlledExecutor extends ParallelExecutor {
     previousResults: Map<string, TaskResult>,
   ): Promise<PromiseSettledResult<{ output: unknown; executionTimeMs: number }>[]> {
     // Find all escalation rejections
+    // Note: Use name check instead of instanceof to avoid Deno module resolution issues
     const escalations: { index: number; error: PermissionEscalationNeeded }[] = [];
 
     for (let i = 0; i < layerResults.length; i++) {
       const result = layerResults[i];
-      if (result.status === "rejected" && result.reason instanceof PermissionEscalationNeeded) {
-        escalations.push({ index: i, error: result.reason });
+      if (result.status === "rejected") {
+        const reason = result.reason;
+        // Check by name property (more robust than instanceof with ES modules)
+        if (reason?.name === "PermissionEscalationNeeded") {
+          escalations.push({ index: i, error: reason as PermissionEscalationNeeded });
+        } else {
+          log.debug(`Task ${layer[i]?.id} rejected with: ${reason?.name || reason?.constructor?.name || typeof reason}`);
+        }
       }
     }
 
