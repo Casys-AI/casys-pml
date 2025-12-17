@@ -1767,7 +1767,7 @@ Unifier les deux modèles d'exécution (DAG explicite et Code libre) en un syst�
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Estimation:** 9 stories, ~3-4 semaines
+**Estimation:** 10 stories (9 MVP + 1 optional), ~3-4 semaines MVP
 
 ---
 
@@ -1793,33 +1793,51 @@ C'est le **chaînon manquant** entre le code et la validation par layer. Sans pa
 | **Précision** | Approximatif (code dynamique) | Exact (ce qui s'est passé) |
 | **Use case** | Validation, HIL preview | Learning, replay |
 
+**Réutilisation de l'existant (pas une réécriture !):**
+
+On a DÉJÀ tout le pipeline SWC :
+- `SchemaInferrer` (726 LOC, 19 tests) → parse AST, trouve `args.xxx`, infère types
+- `PermissionInferrer` (510 LOC) → parse AST, détecte patterns dangereux
+- `tool_schema` table → schemas input/output des MCP tools
+- `workflow_pattern` table → schemas des capabilities
+
+**Story 10.1 = Extension de ~100-150 LOC**, pas 250 LOC from scratch.
+
 **Architecture:**
 ```
 Code TypeScript
       │
       ▼
-┌─────────────────────────────────────────┐
-│  SWC AST Parser (réutilise Story 7.2b)  │
-│  - Parse code en AST                     │
-│  - Traverse pour trouver les appels      │
-└─────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│  SWC AST Parser (RÉUTILISE SchemaInferrer/PermissionInferrer)│
+│  - Même parse(), même traversée AST                          │
+│  - Extension: chercher `mcp.*.*()` ET `capabilities.*()`    │
+└─────────────────────────────────────────────────────────────┘
       │
       ▼
-┌─────────────────────────────────────────┐
-│  MCP Call Detector                       │
-│  - `mcp.server.tool()` → tool call      │
-│  - `await` → dépendance séquentielle    │
-│  - `Promise.all()` → parallélisme       │
-└─────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│  Call Detector (Tools + Capabilities)                        │
+│  - `mcp.server.tool()` → lookup tool_schema                 │
+│  - `capabilities.name()` → lookup workflow_pattern           │
+│  - `await` → dépendance séquentielle                        │
+│  - `Promise.all()` → parallélisme                           │
+└─────────────────────────────────────────────────────────────┘
       │
       ▼
-┌─────────────────────────────────────────┐
-│  DAG Preview Generator                   │
-│  - Tasks avec tools détectés            │
-│  - dependsOn inféré depuis await/vars   │
-│  - Flag: preview: true (peut être       │
-│    incomplet si code dynamique)         │
-└─────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│  Schema Validation (provides edges)                          │
+│  - tool A output → tool B input : types compatibles ?       │
+│  - capability output → tool input : chaînage valide ?       │
+│  - Utilise les schemas qu'on a DÉJÀ en DB                   │
+└─────────────────────────────────────────────────────────────┘
+      │
+      ▼
+┌─────────────────────────────────────────────────────────────┐
+│  DAG Preview Generator                                       │
+│  - Tasks: tools ET capabilities détectés                    │
+│  - dependsOn inféré depuis variables + schemas              │
+│  - Flag: preview: true (peut être incomplet si dynamique)   │
+└─────────────────────────────────────────────────────────────┘
       │
       ▼
 Validation permissions → HIL si nécessaire → Exécution
@@ -1828,84 +1846,105 @@ Validation permissions → HIL si nécessaire → Exécution
 **Patterns à détecter:**
 
 ```typescript
-// Pattern 1: Appel simple → 1 task
+// Pattern 1: Appel MCP tool simple
 const result = await mcp.fs.read({ path: "config.json" });
-// → Task { tool: "fs:read", dependsOn: [] }
+// → Task { type: "tool", tool: "fs:read", dependsOn: [] }
 
-// Pattern 2: Séquence → dépendance
+// Pattern 2: Appel capability
+const summary = await capabilities.summarize({ text: content });
+// → Task { type: "capability", capability: "summarize", dependsOn: [] }
+
+// Pattern 3: Séquence avec validation schema
 const config = await mcp.fs.read({ path: "config.json" });
 const data = await mcp.json.parse({ json: config });
-// → Task fs:read, Task json:parse dependsOn: [fs:read]
+// → fs:read.output.content → json:parse.input.json ✓ (via schemas)
+// → Task json:parse dependsOn: [fs:read]
 
-// Pattern 3: Parallèle → pas de dépendance entre eux
+// Pattern 4: Chaînage capability → tool
+const summary = await capabilities.summarize({ text: args.input });
+const translated = await mcp.translate.text({ content: summary });
+// → summarize.output → translate.input ✓ (via workflow_pattern + tool_schema)
+
+// Pattern 5: Parallèle
 const [a, b] = await Promise.all([
   mcp.api.fetch({ url: urlA }),
   mcp.api.fetch({ url: urlB }),
 ]);
 // → Task api:fetch_1, Task api:fetch_2, pas de dependsOn entre eux
 
-// Pattern 4: Conditionnel → marquer comme "maybe"
+// Pattern 6: Conditionnel → certainty: "conditional"
 if (condition) {
   await mcp.db.write({ data });
 }
-// → Task { tool: "db:write", certainty: "conditional" }
 
-// Pattern 5: Loop → marquer comme "dynamic"
+// Pattern 7: Loop → certainty: "loop"
 for (const item of items) {
   await mcp.process.run({ item });
 }
-// → Task { tool: "process:run", certainty: "loop", estimatedCount: "unknown" }
 ```
 
 **Acceptance Criteria:**
 
-1. `CodeToDAGParser` class créée (`src/capabilities/code-to-dag-parser.ts`)
-2. Réutilise SWC de Story 7.2b pour parser l'AST
-3. Method `parseToDAGPreview(code: string)` → `DAGPreview`:
+1. `CodeToDAGParser` class créée, **étend les patterns de SchemaInferrer**
+2. Réutilise le même `parse()` SWC et la même traversée AST que SchemaInferrer/PermissionInferrer
+3. Method `parseToDAGPreview(code: string, db: PGliteClient)` → `DAGPreview`:
    ```typescript
    interface DAGPreview {
      tasks: PreviewTask[];
      isComplete: boolean;        // false si code dynamique détecté
      dynamicSections: string[];  // ["line 15: conditional", "line 23: loop"]
      detectedTools: string[];    // Liste unique des tools
+     detectedCapabilities: string[];  // Liste des capabilities appelées
+     schemaValidation: SchemaValidationResult[];  // Chaînages validés
    }
 
    interface PreviewTask {
      id: string;
-     tool: string;
+     type: "tool" | "capability";
+     name: string;               // tool_id ou capability name
      dependsOn: string[];
      certainty: "definite" | "conditional" | "loop";
      sourceLocation: { line: number; column: number };
    }
+
+   interface SchemaValidationResult {
+     from: string;
+     to: string;
+     valid: boolean;
+     matchedFields: string[];    // Quels champs output→input matchent
+   }
    ```
-4. Détection des patterns:
-   - `mcp.*.*()` calls → tool identification
-   - `await` keyword → séquence
+4. Détection des appels:
+   - `mcp.*.*()` → lookup `tool_schema` pour validation
+   - `capabilities.*()` → lookup `workflow_pattern` pour validation
+5. Validation des chaînages via schemas:
+   - Variable assignment tracking (comme SchemaInferrer fait déjà)
+   - Lookup schemas en DB pour valider output→input compatibility
+6. Détection control flow:
+   - `await` → séquence
    - `Promise.all/allSettled` → parallélisme
-   - `if/else` blocks → conditional certainty
-   - `for/while/map` → loop certainty
-5. **Intégration avec `requiresValidation()`:**
+   - `if/else` → conditional
+   - `for/while/map` → loop
+7. **Intégration avec `requiresValidation()`:**
    - Avant exécution, parse le code
-   - Extraire `detectedTools`
+   - Extraire `detectedTools` + `detectedCapabilities`
    - Vérifier permissions via `getToolPermissionConfig()`
-   - Trigger `per_layer_validation` si nécessaire
-6. **Intégration avec HIL:**
-   - Si tool avec `approvalMode: "hil"` détecté → preview disponible AVANT exécution
-   - User voit "Ce code va appeler: fs:write, db:delete. Approuver?"
-7. Tests: code séquentiel simple → DAG preview correct
-8. Tests: code avec Promise.all → parallélisme détecté
-9. Tests: code avec if/else → tasks marquées "conditional"
-10. Tests: code avec loop → tasks marquées "loop", isComplete: false
-11. Tests: intégration requiresValidation() avec code preview
+8. **Intégration avec HIL:**
+   - Si tool avec `approvalMode: "hil"` détecté → preview AVANT exécution
+9. Tests: code avec tools → détection correcte
+10. Tests: code avec capabilities → détection correcte
+11. Tests: chaînage tool→tool → validation schema
+12. Tests: chaînage capability→tool → validation schema
+13. Tests: code dynamique → flags appropriés
 
 **Files to Create:**
-- `src/capabilities/code-to-dag-parser.ts` (~250 LOC)
+- `src/capabilities/code-to-dag-parser.ts` (~100-150 LOC, étend patterns existants)
 
 **Files to Modify:**
-- `src/mcp/handlers/workflow-execution-handler.ts` - Intégrer preview avant exécution (~30 LOC)
-- `src/mcp/handlers/code-execution-handler.ts` - Même intégration (~30 LOC)
+- `src/capabilities/schema-inferrer.ts` - Extraire méthodes communes si besoin (~20 LOC)
+- `src/mcp/handlers/code-execution-handler.ts` - Intégrer preview (~30 LOC)
 
-**Prerequisites:** Story 7.2b (SWC parsing)
+**Prerequisites:** Story 7.2b (SWC parsing - DONE)
 
 **Estimation:** 2-3 jours
 
@@ -2412,6 +2451,137 @@ la vue Invocation montre chaque appel réel avec timestamps.
 
 ---
 
+**Story 10.10: Dry Run Mode with Mocks (Connector Debugging)**
+
+As a workflow developer, I want to dry-run code with mocked MCP responses,
+So that I can debug and validate complex workflows without real side effects, especially for connector MCPs.
+
+**Context:**
+Le parsing statique (Story 10.1) suffit pour HIL/permissions, mais pour le **debugging** de workflows
+complexes utilisant des MCP connecteurs (APIs externes, bases de données), on veut pouvoir :
+- Voir exactement ce qui VA se passer avant de le faire
+- Tester sans appeler les vraies APIs (coût, rate limits, effets de bord)
+- Valider les données intermédiaires
+
+**Use Cases spécifiques:**
+
+| Use Case | Parsing Statique | Dry Run |
+|----------|------------------|---------|
+| HIL permissions | ✅ Suffit | Overkill |
+| Estimation coût API | ❌ Approximatif | ✅ Exact (N appels) |
+| Debug data flow | ❌ Types only | ✅ Vraies valeurs mockées |
+| Test workflow sans side effects | ❌ Impossible | ✅ Full simulation |
+| Validation avant prod | ❌ Statique | ✅ Comportement réel |
+
+**Quand utiliser Dry Run vs Parsing:**
+- **Parsing (10.1)** : Validation rapide, HIL, permissions → **toujours**
+- **Dry Run (10.10)** : Debugging, estimation, test connecteurs → **opt-in depuis dashboard**
+
+**Architecture:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Dashboard: "Test Workflow" button                          │
+└─────────────────────────────────────────────────────────────┘
+      │
+      ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Mock MCP Proxy                                              │
+│  - Intercepte tous les appels mcp.*.*()                     │
+│  - Retourne mock responses basées sur output schemas        │
+│  - Log chaque appel avec timestamp, args, mock result       │
+└─────────────────────────────────────────────────────────────┘
+      │
+      ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Sandbox Execution (mode: dry_run)                          │
+│  - Exécute le vrai code                                     │
+│  - Mais avec mcp = mockMcpProxy                             │
+│  - Capture le flow réel d'exécution                         │
+└─────────────────────────────────────────────────────────────┘
+      │
+      ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Dry Run Report                                              │
+│  - Liste exacte des appels qui seraient faits              │
+│  - Données mockées à chaque étape                          │
+│  - Warnings si comportement dépend des données réelles     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Mock Response Generation:**
+```typescript
+// Génère mock response depuis le schema MCP
+function generateMockResponse(toolSchema: ToolSchema): unknown {
+  // Utilise le output_schema pour générer des données réalistes
+  // Ex: { type: "string" } → "mock_string_value"
+  // Ex: { type: "object", properties: { id: { type: "number" } } } → { id: 12345 }
+}
+
+// Pour les connecteurs connus, on peut avoir des mocks plus intelligents
+const CONNECTOR_MOCKS: Record<string, MockGenerator> = {
+  "github:api": generateGitHubMock,      // Retourne des PRs, issues mockés
+  "slack:post": generateSlackMock,       // Retourne { ok: true, ts: "..." }
+  "postgres:query": generatePostgresMock, // Retourne rows mockées
+};
+```
+
+**Acceptance Criteria:**
+
+1. `MockMcpProxy` class créée:
+   ```typescript
+   interface MockMcpProxy {
+     onToolCall(server: string, tool: string, args: unknown): Promise<unknown>;
+     getCapturedCalls(): CapturedCall[];
+     reset(): void;
+   }
+
+   interface CapturedCall {
+     server: string;
+     tool: string;
+     args: unknown;
+     mockResponse: unknown;
+     timestamp: number;
+     durationMs: number;
+   }
+   ```
+2. Génération de mock responses depuis `tool_schema.output_schema`
+3. Support pour mocks custom par connecteur (GitHub, Slack, DB, etc.)
+4. Intégration sandbox: `execute(code, { mode: "dry_run" })`
+5. `DryRunReport` généré après exécution:
+   ```typescript
+   interface DryRunReport {
+     capturedCalls: CapturedCall[];
+     executionTimeMs: number;
+     warnings: string[];           // "Response depends on real data"
+     estimatedApiCalls: number;
+     estimatedCost?: number;       // Si on a des infos de pricing
+   }
+   ```
+6. UI Dashboard: bouton "Test Workflow" sur les capabilities
+7. UI Dashboard: affichage du DryRunReport (timeline des appels)
+8. Tests: dry run avec 3 tools séquentiels
+9. Tests: dry run avec boucle → capture tous les appels
+10. Tests: mock custom pour connecteur GitHub
+
+**Files to Create:**
+- `src/sandbox/mock-mcp-proxy.ts` (~150 LOC)
+- `src/sandbox/mock-generators.ts` (~100 LOC)
+- `src/web/islands/DryRunReport.tsx` (~120 LOC)
+
+**Files to Modify:**
+- `src/sandbox/worker-bridge.ts` - Support mode dry_run (~30 LOC)
+- `src/web/routes/dashboard.tsx` - Add "Test Workflow" button (~20 LOC)
+
+**Prerequisites:** Story 10.7 (pml_execute), Epic 8 (Dashboard)
+
+**Estimation:** 3-4 jours
+
+**Note:** Cette story est **optionnelle pour le MVP**. Le parsing statique (10.1) suffit
+pour le HIL. Le dry run est un nice-to-have pour le debugging avancé de workflows
+avec des MCP connecteurs externes.
+
+---
+
 ### Epic 10 Breaking Changes Summary
 
 | Phase | Change | Breaking? | Impact |
@@ -2453,6 +2623,9 @@ la vue Invocation montre chaque appel réel avec timestamps.
               │
               ▼
          Story 10.9 (Definition/Invocation views)
+              │
+              ▼
+         Story 10.10 (Dry Run + Mocks) ← Optional, pour debug connecteurs
 ```
 
 **External Dependencies:**
@@ -2479,6 +2652,7 @@ la vue Invocation montre chaque appel réel avec timestamps.
 | FR9 | Vue Definition vs Invocation | 10.9 |
 | FR10 | Dépréciation anciennes APIs | 10.6, 10.7 |
 | FR11 | Learning automatique après succès | 10.7 |
+| FR12 | Dry Run avec Mocks pour connecteurs (optional) | 10.10 |
 
 ---
 
@@ -2486,7 +2660,7 @@ la vue Invocation montre chaque appel réel avec timestamps.
 
 | Story | Description | Effort | Cumulative |
 |-------|-------------|--------|------------|
-| **10.1** | **DAG Preview (SWC)** ⭐ | **2-3j** | **3j** |
+| **10.1** | **DAG Preview (SWC)** ⭐ ~100-150 LOC | **2-3j** | **3j** |
 | 10.2 | Result Tracing | 0.5-1j | 4j |
 | 10.3 | Provides Edge | 1-2j | 6j |
 | 10.4 | DAG Reconstruction | 2-3j | 9j |
@@ -2495,11 +2669,19 @@ la vue Invocation montre chaque appel réel avec timestamps.
 | 10.7 | pml_execute | 3-5j | 19j |
 | 10.8 | pml_get_task_result | 1-2j | 21j |
 | 10.9 | Definition/Invocation | 2-3j | 24j |
+| 10.10 | Dry Run + Mocks (optional) | 3-4j | 28j |
 
-**Total: ~3-4 semaines**
+**Total MVP (10.1-10.9): ~3-4 semaines**
+**Total avec 10.10: ~4-5 semaines**
 
 **🎯 Story 10.1 (DAG Preview) est critique car:**
-1. Valide l'approche SWC pour la détection des appels MCP
+1. Valide l'approche SWC pour la détection des appels MCP + capabilities
 2. Débloque HIL Phase 4 (pre-execution approval)
-3. Base SWC déjà validée (SchemaInferrer: 726 LOC, 19 tests)
-4. Unifie le flow d'exécution (preview avant execute)
+3. **Réutilise l'existant** : SchemaInferrer (726 LOC), PermissionInferrer (510 LOC)
+4. **Valide schemas** : tool_schema + workflow_pattern tables
+5. Unifie le flow d'exécution (preview avant execute)
+
+**📋 Story 10.10 (Dry Run) est optionnelle car:**
+- Le parsing statique (10.1) suffit pour HIL/permissions
+- Dry run = nice-to-have pour debugging de workflows avec connecteurs
+- Utile quand on a des MCP APIs externes (GitHub, Slack, DB, etc.)
