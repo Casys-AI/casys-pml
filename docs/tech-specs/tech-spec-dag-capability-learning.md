@@ -984,10 +984,35 @@ Le suggester détecte tous les `provides` entrants et les traduit en `dependsOn[
 
 #### Pas de distinction explicit/inferred
 
-- `provides` = relation entre **types de tools** (dans le graphe)
-- `dependsOn` = relation entre **instances de tasks** (dans le DAG)
-
 On ne marque pas si le `dependsOn` vient du suggester ou de l'IA - c'est juste du `dependsOn`.
+
+#### `provides` ≠ `dependsOn` - Concepts complémentaires
+
+| Concept | Niveau | Relation | Vue |
+|---------|--------|----------|-----|
+| `provides` | **Types** d'outils | `toolA.outputs → toolB.inputs` | Definition (graphe) |
+| `dependsOn` | **Instances** de tasks | `task_2 attend task_1` | DAG (exécution) |
+
+**Pourquoi les deux sont nécessaires :**
+
+1. **`provides`** capture la **potentialité** de dépendance basée sur les **types de données**.
+   - Existe dans le **graphe** entre les définitions de tools
+   - Calculé depuis les schemas : `outputSchema(A) ∩ inputSchema(B)`
+   - Ne change pas entre exécutions
+
+2. **`dependsOn`** capture la **dépendance réelle** dans une exécution **spécifique**.
+   - Existe dans le **DAG** entre les instances de tasks
+   - Inféré par le suggester depuis les `provides` edges
+   - Peut varier selon l'intent et le contexte
+
+**Flux :**
+```
+Schemas → provides (graph) → DAG Suggester → dependsOn (DAG)
+                                    ↑
+                              Intent + context
+```
+
+Le suggester lit les `provides` edges et, en fonction de l'intent, crée les `dependsOn` appropriés dans le DAG proposé.
 
 ### 8.6 Limites de la reconstruction et mitigations
 
@@ -1120,7 +1145,10 @@ Ces annotations seraient lues par le système pour enrichir le DAG inféré.
    - `tool_end` dans `worker-bridge.ts` ligne ~426
    - `capability_end` dans `code-generator.ts` ligne ~104
 2. Modifier `execution-learning.ts` pour utiliser les timestamps (`ts`, `durationMs`)
-3. Ajouter edge type `provides` dans `edge-weights.ts` (vue Definition)
+3. **Ajouter edge type `provides` :**
+   - Dans `edge-weights.ts` ligne 18 : ajouter `"provides"` à `EdgeType`
+   - Dans `edge-weights.ts` ligne 34-39 : ajouter `provides: 0.7` à `EDGE_TYPE_WEIGHTS`
+   - Dans `012_edge_types_migration.ts` : pas de changement (column est TEXT)
 4. Garder `sequence` pour la vue Invocation (ordre temporel)
 
 **Fichiers :** `worker-bridge.ts`, `code-generator.ts`, `execution-learning.ts`, `edge-weights.ts`, `types.ts`
