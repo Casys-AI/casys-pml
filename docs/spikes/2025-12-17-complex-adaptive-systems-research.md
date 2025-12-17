@@ -597,6 +597,49 @@ const hyperGATScore = await hypergraphAttention.computeContextualScores(query, c
 const discoveryScore = ToolsOverlap * (1 + StructuralBoost) * (1 + hyperGATScore);
 ```
 
+### 5.9 Note : Support des Hypergraphes Hiérarchiques (Meta-Capabilities)
+
+HyperGAT fonctionne **aussi bien sur un hypergraphe flat que hiérarchique**. Si des meta-capabilities émergent (capabilities composées d'autres capabilities via l'edge type `contains` de ADR-042), l'attention devient récursive :
+
+```
+FLAT (actuel):
+  Query → Capability → Tools
+  (2 niveaux d'attention)
+
+HIERARCHICAL (avec meta-caps):
+  Query → Meta-Cap → Capabilities → Tools
+  (3+ niveaux d'attention récursive)
+```
+
+**Implémentation récursive :**
+```typescript
+async computeNestedScore(query: string, cap: NestedCapability): Promise<number> {
+  const queryEmbed = await this.embedder.embed(query);
+
+  if (cap.childCapabilities.length === 0) {
+    // Leaf capability → attention sur tools (comme avant)
+    return this.computeToolsAttention(queryEmbed, cap.toolsUsed);
+  }
+
+  // Meta-capability → attention récursive sur enfants
+  const childScores = await Promise.all(
+    cap.childCapabilities.map(async childId => {
+      const child = await this.getCapability(childId);
+      const childScore = await this.computeNestedScore(query, child);  // Récursif
+      const childEmbed = await this.getCapabilityEmbedding(child);
+      const attention = cosineSimilarity(queryEmbed, childEmbed);
+      return childScore * attention;  // Pondéré par attention
+    })
+  );
+
+  return childScores.reduce((a, b) => a + b, 0) / childScores.length;
+}
+```
+
+**Avantage :** L'attention peut "descendre" dans la hiérarchie et focus sur les sous-capabilities pertinentes même au sein d'une meta-capability large.
+
+**Prérequis :** La structure `contains` (ADR-042) doit être utilisée pour créer des meta-capabilities. Le PageRank actuel gère déjà ces edges, HyperGAT les exploiterait pour l'attention contextuelle.
+
 ---
 
 ## 6. Semantic Memory Layer
