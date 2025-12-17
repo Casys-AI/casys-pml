@@ -282,6 +282,46 @@ class TDLambdaThresholdLearner {
 
 > **Note:** Pour une analyse approfondie des SuperHyperGraphs et structures hiérarchiques récursives, voir le spike dédié : `2025-12-17-superhypergraph-hierarchical-structures.md`
 
+### 4.0 État du Papier Original : Purement Théorique
+
+**Important:** Le papier de Fujita sur SHGAT ([engrxiv.org/preprint/view/4994](https://engrxiv.org/preprint/view/4994)) est **purement théorique** :
+
+> *"This investigation is purely theoretical; empirical validation via computational experiments is left for future study."*
+
+**Ce que ça signifie :**
+- ❌ Pas d'implémentation existante
+- ❌ Pas d'expériences ou benchmarks
+- ❌ Pas de code disponible
+- ✅ Formalisation mathématique solide
+- ✅ Extension naturelle de GAT → HyperGAT → SHGAT
+
+**Comparaison avec HyperGAT :**
+
+| Aspect | HyperGAT (Ding et al., EMNLP 2020) | SHGAT (Fujita, 2025) |
+|--------|-----------------------------------|----------------------|
+| Publication | EMNLP (peer-reviewed, top venue) | Preprint (engrxiv) |
+| Code | [GitHub](https://github.com/kaize0409/HyperGAT_TextClassification) | ❌ Aucun |
+| Expériences | ✅ Text classification benchmarks | ❌ "Left for future study" |
+| Structure | Hypergraph plat | **SuperHyperGraph récursif** |
+| Notre cas | ⚠️ Limité (pas récursif) | ✅ Adapté (meta-capabilities) |
+
+### 4.0.1 Opportunité Business : Première Implémentation Production
+
+**Casys PML pourrait être la première implémentation production de SHGAT.**
+
+Stratégie proposée :
+1. Implémenter SHGAT Simplifié (Option A, section 4.8)
+2. Valider avec métriques réelles sur Casys PML
+3. Contacter Takaaki Fujita avec résultats
+4. Potentiel : co-publication, citation, visibilité académique
+
+**Valeur ajoutée :**
+- Fujita a les maths, on aurait le code + les expériences
+- Win-win : validation de son travail, visibilité pour nous
+- Positionne Casys PML comme référence pour SHGAT en production
+
+**Contact :** Fujita est actif sur [ResearchGate](https://www.researchgate.net/profile/Takaaki-Fujita) et [Academia.edu](https://independent.academia.edu/TakaakiFujita)
+
 ### 4.1 État Actuel : Hypergraph PageRank + Spectral Clustering
 
 **Casys PML a déjà une stack avancée** (ADR-038, `src/graphrag/spectral-clustering.ts`) :
