@@ -333,20 +333,119 @@ class TDLambdaThresholdLearner {
 
 ---
 
-## 5. Graph Attention Networks (GAT)
+## 5. Graph Attention Networks (GAT) → HyperGAT
 
-### 5.1 Concept
+### 5.1 État Actuel : Hypergraph PageRank + Spectral Clustering
+
+**Casys PML a déjà une stack avancée** (ADR-038, `src/graphrag/spectral-clustering.ts`) :
+
+| Algo existant | Fonction | Location |
+|---------------|----------|----------|
+| **Spectral Clustering** | Clustering sur Laplacienne normalisée | `computeClusters()` |
+| **Hypergraph PageRank** | Importance des capabilities sur bipartite | `computeHypergraphPageRank()` |
+| **K-means++** | Clustering sur eigenvectors | `kMeans()` |
+| **Cap→Cap Edges** | ADR-042, edges dirigés dependency/contains | Intégré au PageRank |
+
+**Ce qui est statique :** Le PageRank calcule l'importance **globale** d'une capability. Ce score est le **même** quelle que soit la query utilisateur.
+
+### 5.2 Concept GAT vs HyperGAT
 
 **Source:** [Veličković et al. 2017 - Graph Attention Networks](https://arxiv.org/abs/1710.10903)
 
-Le GraphRAG actuel utilise **PageRank** (poids statiques basés sur la structure). **GAT apprend dynamiquement** quels voisins sont importants selon le contexte.
+```
+PageRank (actuel):  importance(cap) = f(structure)           → statique
+GAT (graphe simple): importance(node) = Σ attention(query, edge) * features(neighbor)
+HyperGAT (hypergraphe): importance(cap) = Σ attention(query, hyperedge) * features(tools in hyperedge)
+```
+
+**HyperGAT** est l'extension naturelle pour Casys PML car on a déjà un **hypergraphe bipartite** (tools ↔ capabilities).
+
+### 5.3 HyperGAT : Attention sur Hyperedges
+
+L'idée est d'ajouter une couche d'attention **conditionnée sur la query** au-dessus du Hypergraph PageRank existant.
+
+```typescript
+/**
+ * HyperGAT pour Casys PML
+ *
+ * Deux niveaux d'attention :
+ * 1. Node → Hyperedge : quelle capability (hyperedge) est pertinente ?
+ * 2. Hyperedge → Nodes : quels tools dans cette capability sont pertinents ?
+ */
+class HypergraphAttention {
+  constructor(
+    private spectralClustering: SpectralClusteringManager,
+    private embedder: Embedder
+  ) {}
+
+  async computeContextualScores(
+    query: string,
+    capabilities: ClusterableCapability[]
+  ): Promise<Map<string, number>> {
+    const queryEmbedding = await this.embedder.embed(query);
+    const scores = new Map<string, number>();
+
+    // Récupérer le PageRank existant (importance structurelle)
+    const pageRanks = this.spectralClustering.getAllPageRanks();
+
+    for (const cap of capabilities) {
+      // 1. Attention niveau hyperedge : similarité query ↔ capability
+      const capEmbedding = await this.getCapabilityEmbedding(cap);
+      const hyperedgeAttention = cosineSimilarity(queryEmbedding, capEmbedding);
+
+      // 2. Attention niveau nodes : moyenne pondérée des tools
+      const toolAttentions = await Promise.all(
+        cap.toolsUsed.map(async (toolId) => {
+          const toolEmbed = await this.embedder.embed(toolId);
+          return cosineSimilarity(queryEmbedding, toolEmbed);
+        })
+      );
+      const avgToolAttention = toolAttentions.reduce((a, b) => a + b, 0) / toolAttentions.length;
+
+      // 3. Score final : combine PageRank (structure) + Attention (contexte)
+      const structuralScore = pageRanks.get(cap.id) ?? 0;
+      const contextualScore = hyperedgeAttention * 0.6 + avgToolAttention * 0.4;
+
+      // Pondération : 40% structure, 60% contexte (ajustable)
+      scores.set(cap.id, structuralScore * 0.4 + contextualScore * 0.6);
+    }
+
+    return scores;
+  }
+
+  private async getCapabilityEmbedding(cap: ClusterableCapability): Promise<Float32Array> {
+    // Option 1: Embedding de l'intent
+    // Option 2: Moyenne des embeddings des tools (plus robuste)
+    // Option 3: Spectral embedding existant (gratuit, déjà calculé)
+    const spectralEmbed = this.spectralClustering.getEmbeddingRow(cap.id);
+    if (spectralEmbed) return new Float32Array(spectralEmbed);
+
+    // Fallback: moyenne des tools
+    const toolEmbeds = await Promise.all(
+      cap.toolsUsed.map(t => this.embedder.embed(t))
+    );
+    return averageEmbeddings(toolEmbeds);
+  }
+}
+```
+
+### 5.4 Comparaison : Avant / Après HyperGAT
 
 ```
-PageRank:  importance(node) = Σ static_weight(edge) * importance(neighbor)
-GAT:       importance(node) = Σ attention(context, edge) * features(neighbor)
+Query: "Je veux déployer sur AWS"
+
+AVANT (PageRank + Cluster Boost):
+  Capability "deploy-aws":     PageRank=0.15, ClusterBoost=0.3 → Score: 0.45
+  Capability "run-tests":      PageRank=0.18, ClusterBoost=0.0 → Score: 0.18
+  → "run-tests" peut être suggéré si PageRank élevé
+
+APRÈS (HyperGAT):
+  Capability "deploy-aws":     PageRank=0.15, Attention=0.85 → Score: 0.57
+  Capability "run-tests":      PageRank=0.18, Attention=0.12 → Score: 0.14
+  → "deploy-aws" clairement favorisé par l'attention contextuelle
 ```
 
-### 5.2 Architecture Proposée
+### 5.5 Architecture GAT Classique (pour référence)
 
 ```typescript
 interface GATLayer {
@@ -447,68 +546,56 @@ function multiHeadAttention(
 }
 ```
 
-### 5.4 Avantages vs PageRank
+### 5.6 Avantages HyperGAT vs Stack Actuelle
 
-| Aspect | PageRank | GAT |
-|--------|----------|-----|
-| Poids | Statiques (structure) | **Dynamiques (contexte)** |
-| Apprentissage | Aucun | **End-to-end gradient** |
-| Contexte | Ignoré | **Conditionné sur query** |
-| Explainability | Centrality scores | **Attention weights** |
-| Cold start | Problématique | **Transfer learning possible** |
+| Aspect | Actuel (PageRank + Spectral) | HyperGAT |
+|--------|------------------------------|----------|
+| Structure | ✅ Hypergraphe bipartite | ✅ Même structure |
+| Importance | Statique (PageRank) | **Dynamique (attention)** |
+| Clustering | ✅ Spectral (eigenvectors) | ✅ Réutilise embeddings |
+| Contexte query | ❌ Ignoré | **✅ Conditionné** |
+| Explainability | Centrality + cluster | **Attention weights** |
 
-### 5.5 Implémentation
+### 5.7 Options d'Implémentation HyperGAT
 
-**Option A: Full GAT (complexe)**
-- Librairie: `@xenova/transformers` (Deno compatible) ou ONNX runtime
+**Option A: HyperGAT Simplifié (recommandé)**
+- Réutilise `SpectralClusteringManager` existant
+- Attention = cosine similarity sur spectral embeddings
+- Effort: ~3-4 jours
+- Avantage: Pas de nouvelle dépendance, réutilise `getEmbeddingRow()`
+
+**Option B: Full HyperGAT avec ML**
+- Librairie: `@xenova/transformers` ou ONNX runtime
+- Multi-head attention learnable
 - Effort: ~2 semaines
-- Avantage: Expressivité maximale
+- Avantage: Expressivité maximale, attention apprise
 
-**Option B: Simplified Attention (recommandé)**
-- Pas de ML framework, attention manuelle
-- Effort: ~1 semaine
-- Avantage: Pas de dépendance lourde
+**Option C: Hybrid (progressif)**
+- Phase 1: Option A (attention cosine)
+- Phase 2: Si métriques insuffisantes → Option B
+- Effort: 3-4 jours + 2 semaines si nécessaire
 
+### 5.8 Recommandation
+
+**Approche recommandée:** Option C (Hybrid progressif)
+
+1. Implémenter `HypergraphAttention` simple qui combine :
+   - PageRank existant (40% - importance structurelle)
+   - Attention cosine sur query (60% - pertinence contextuelle)
+2. Mesurer impact sur suggestions avec A/B test
+3. Évaluer besoin de full HyperGAT learnable
+
+**Story candidate:** "ALM-4b: Add HyperGAT contextual attention to capability suggestions"
+
+**Intégration avec code existant:**
 ```typescript
-// Simplified attention sans ML framework
-class SimpleGraphAttention {
-  async computeContextualScores(
-    context: string,
-    tools: Tool[]
-  ): Promise<Map<string, number>> {
-    const contextEmbedding = await this.embedder.embed(context);
-    const scores = new Map<string, number>();
+// Dans dag-suggester.ts, Strategic Discovery (ADR-038 §3.2)
+const discoveryScore = ToolsOverlap * (1 + StructuralBoost);
 
-    for (const tool of tools) {
-      // Cosine similarity as attention proxy
-      const toolEmbedding = await this.embedder.embed(tool.description);
-      const directScore = cosineSimilarity(contextEmbedding, toolEmbedding);
-
-      // Neighbor attention: average similarity to neighbors
-      const neighbors = this.graphRAG.getNeighbors(tool.id);
-      const neighborScores = await Promise.all(
-        neighbors.map(async n => {
-          const nEmbed = await this.embedder.embed(n.description);
-          return cosineSimilarity(contextEmbedding, nEmbed) * n.edgeWeight;
-        })
-      );
-      const neighborScore = neighborScores.reduce((a, b) => a + b, 0) / neighbors.length;
-
-      // Combined score
-      scores.set(tool.id, directScore * 0.7 + neighborScore * 0.3);
-    }
-
-    return scores;
-  }
-}
+// Devient :
+const hyperGATScore = await hypergraphAttention.computeContextualScores(query, caps);
+const discoveryScore = ToolsOverlap * (1 + StructuralBoost) * (1 + hyperGATScore);
 ```
-
-### 5.6 Recommandation
-
-**Court terme:** Implémenter SimpleGraphAttention (Option B)
-**Long terme:** Évaluer besoin de full GAT basé sur métriques
-
-**Story candidate:** "Add context-aware attention to GraphRAG tool suggestions"
 
 ---
 
@@ -809,9 +896,9 @@ Ajouter au monitoring existant:
 | 🔴 P1 | **Prioritized Experience Replay** | PER paper | 4h | 2x learning speed | Episodic memory existante |
 | 🔴 P1 | **TD Learning pour seuils** | Sutton 1988 | 3h | Adaptation 5x plus rapide | ADR-008 existant |
 | 🟡 P2 | **Semantic Memory layer** | CoALA extended | 1 semaine | Meilleure généralisation | GraphRAG |
-| 🟡 P2 | **Simple Graph Attention** | GAT simplified | 1 semaine | Prédictions contextuelles | Embeddings existants |
+| 🟡 P2 | **HyperGAT Simplifié** | GAT + Hypergraph | 3-4 jours | Suggestions contextuelles | SpectralClusteringManager existant |
 | 🟢 P3 | **Emergence metrics** | ODI/SYMBIOSIS | 2-3h | Observabilité | Monitoring existant |
-| 🟢 P3 | **Full GAT** | GAT paper | 2 semaines | Expressivité maximale | ML runtime |
+| 🟢 P3 | **Full HyperGAT learnable** | HyperGAT paper | 2 semaines | Attention apprise | ML runtime + ALM-4 |
 
 ### 8.2 Stories Candidates
 
@@ -861,18 +948,34 @@ stories:
     priority: P2
 
   - id: ALM-4
-    title: "Implement Simple Graph Attention"
+    title: "Implement HyperGAT Simplifié for Capability Suggestions"
     description: |
-      Add context-aware attention to GraphRAG tool suggestions without
-      heavy ML framework dependency.
+      Add context-aware attention to capability suggestions on top of existing
+      Hypergraph PageRank + Spectral Clustering stack (ADR-038).
+      Leverages existing SpectralClusteringManager and getEmbeddingRow().
     acceptance_criteria:
-      - SimpleGraphAttention class
-      - Cosine similarity as attention proxy
-      - Neighbor aggregation with edge weights
-      - Context embedding from BGE-M3
-      - A/B test vs pure PageRank
-    effort: 1 week
+      - HypergraphAttention class created
+      - Reuses spectral embeddings from SpectralClusteringManager
+      - 2-level attention: hyperedge (capability) + node (tools)
+      - Combines PageRank (40%) + contextual attention (60%)
+      - Integrated with Strategic Discovery (dag-suggester.ts)
+      - A/B test vs pure PageRank + ClusterBoost
+    effort: 3-4 days
     priority: P2
+
+  - id: ALM-4b
+    title: "Full HyperGAT with Learnable Attention"
+    description: |
+      If ALM-4 shows promise but needs more expressivity, implement
+      full HyperGAT with multi-head learnable attention.
+    acceptance_criteria:
+      - Multi-head attention mechanism
+      - Learnable weight matrices
+      - Training loop on workflow outcomes
+      - ONNX or @xenova/transformers integration
+    effort: 2 weeks
+    priority: P3
+    depends_on: ALM-4
 
   - id: ALM-5
     title: "Add emergence metrics to observability"
