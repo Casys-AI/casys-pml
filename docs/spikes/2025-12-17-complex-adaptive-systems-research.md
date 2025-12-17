@@ -278,7 +278,9 @@ class TDLambdaThresholdLearner {
 
 ---
 
-## 4. Graph Attention Networks (GAT) → HyperGAT
+## 4. SuperHyperGraph Attention Networks (SHGAT)
+
+> **Note:** Pour une analyse approfondie des SuperHyperGraphs et structures hiérarchiques récursives, voir le spike dédié : `2025-12-17-superhypergraph-hierarchical-structures.md`
 
 ### 4.1 État Actuel : Hypergraph PageRank + Spectral Clustering
 
@@ -293,31 +295,35 @@ class TDLambdaThresholdLearner {
 
 **Ce qui est statique :** Le PageRank calcule l'importance **globale** d'une capability. Ce score est le **même** quelle que soit la query utilisateur.
 
-### 4.2 Concept GAT vs HyperGAT
+### 4.2 Concept GAT → HyperGAT → SHGAT
 
-**Source:** [Veličković et al. 2017 - Graph Attention Networks](https://arxiv.org/abs/1710.10903)
+**Sources:**
+- [Veličković et al. 2017 - Graph Attention Networks](https://arxiv.org/abs/1710.10903)
+- [Fujita 2025 - SuperHyperGraph Attention Networks](https://engrxiv.org/preprint/download/4994/8515)
 
 ```
-PageRank (actuel):  importance(cap) = f(structure)           → statique
+PageRank (actuel):   importance(cap) = f(structure)           → statique
 GAT (graphe simple): importance(node) = Σ attention(query, edge) * features(neighbor)
-HyperGAT (hypergraphe): importance(cap) = Σ attention(query, hyperedge) * features(tools in hyperedge)
+HyperGAT (flat):     importance(cap) = Σ attention(query, hyperedge) * features(tools)
+SHGAT (récursif):    importance(cap) = Σ attention(query, superhyperedge) * recursive(children)
 ```
 
-**HyperGAT** est l'extension naturelle pour Casys PML car on a déjà un **hypergraphe bipartite** (tools ↔ capabilities).
+**SHGAT** est l'extension naturelle pour Casys PML car on a un **SuperHyperGraph récursif** (tools → capabilities → meta-capabilities via `contains`).
 
-### 4.3 HyperGAT : Attention sur Hyperedges
+### 4.3 SHGAT : Attention Récursive sur SuperHyperedges
 
-L'idée est d'ajouter une couche d'attention **conditionnée sur la query** au-dessus du Hypergraph PageRank existant.
+L'idée est d'ajouter une couche d'attention **conditionnée sur la query** avec **récursion** pour les meta-capabilities.
 
 ```typescript
 /**
- * HyperGAT pour Casys PML
+ * SHGAT pour Casys PML
  *
- * Deux niveaux d'attention :
- * 1. Node → Hyperedge : quelle capability (hyperedge) est pertinente ?
- * 2. Hyperedge → Nodes : quels tools dans cette capability sont pertinents ?
+ * Trois niveaux d'attention (récursif) :
+ * 1. Query → Capability : quelle capability est pertinente ?
+ * 2. Capability → Tools : quels tools dans cette capability sont pertinents ?
+ * 3. Capability → Children : quelles sub-capabilities (si meta-capability) ?
  */
-class HypergraphAttention {
+class SuperHypergraphAttention {
   constructor(
     private spectralClustering: SpectralClusteringManager,
     private embedder: Embedder
@@ -374,7 +380,7 @@ class HypergraphAttention {
 }
 ```
 
-### 4.4 Comparaison : Avant / Après HyperGAT
+### 4.4 Comparaison : Avant / Après SHGAT
 
 ```
 Query: "Je veux déployer sur AWS"
@@ -384,7 +390,7 @@ AVANT (PageRank + Cluster Boost):
   Capability "run-tests":      PageRank=0.18, ClusterBoost=0.0 → Score: 0.18
   → "run-tests" peut être suggéré si PageRank élevé
 
-APRÈS (HyperGAT):
+APRÈS (SHGAT):
   Capability "deploy-aws":     PageRank=0.15, Attention=0.85 → Score: 0.57
   Capability "run-tests":      PageRank=0.18, Attention=0.12 → Score: 0.14
   → "deploy-aws" clairement favorisé par l'attention contextuelle
@@ -491,9 +497,9 @@ function multiHeadAttention(
 }
 ```
 
-### 4.7 Avantages HyperGAT vs Stack Actuelle
+### 4.7 Avantages SHGAT vs Stack Actuelle
 
-| Aspect | Actuel (PageRank + Spectral) | HyperGAT |
+| Aspect | Actuel (PageRank + Spectral) | SHGAT |
 |--------|------------------------------|----------|
 | Structure | ✅ Hypergraphe bipartite | ✅ Même structure |
 | Importance | Statique (PageRank) | **Dynamique (attention)** |
@@ -501,15 +507,15 @@ function multiHeadAttention(
 | Contexte query | ❌ Ignoré | **✅ Conditionné** |
 | Explainability | Centrality + cluster | **Attention weights** |
 
-### 4.8 Options d'Implémentation HyperGAT
+### 4.8 Options d'Implémentation SHGAT
 
-**Option A: HyperGAT Simplifié (recommandé)**
+**Option A: SHGAT Simplifié (recommandé)**
 - Réutilise `SpectralClusteringManager` existant
 - Attention = cosine similarity sur spectral embeddings
 - Effort: ~3-4 jours
 - Avantage: Pas de nouvelle dépendance, réutilise `getEmbeddingRow()`
 
-**Option B: Full HyperGAT avec ML**
+**Option B: Full SHGAT avec ML**
 - Librairie: `@xenova/transformers` ou ONNX runtime
 - Multi-head attention learnable
 - Effort: ~2 semaines
@@ -528,9 +534,9 @@ function multiHeadAttention(
    - PageRank existant (40% - importance structurelle)
    - Attention cosine sur query (60% - pertinence contextuelle)
 2. Mesurer impact sur suggestions avec A/B test
-3. Évaluer besoin de full HyperGAT learnable
+3. Évaluer besoin de full SHGAT learnable
 
-**Story candidate:** "ALM-4b: Add HyperGAT contextual attention to capability suggestions"
+**Story candidate:** "ALM-4: Add SHGAT contextual attention to capability suggestions"
 
 **Intégration avec code existant:**
 ```typescript
@@ -544,7 +550,7 @@ const discoveryScore = ToolsOverlap * (1 + StructuralBoost) * (1 + hyperGATScore
 
 ### 4.10 Note : Support des Hypergraphes Hiérarchiques (Meta-Capabilities)
 
-HyperGAT fonctionne **aussi bien sur un hypergraphe flat que hiérarchique**. Si des meta-capabilities émergent (capabilities composées d'autres capabilities via l'edge type `contains` de ADR-042), l'attention devient récursive :
+SHGAT fonctionne **nativement sur des SuperHyperGraphes hiérarchiques**. Pour les meta-capabilities (capabilities composées d'autres capabilities via l'edge type `contains` de ADR-042), l'attention est récursive :
 
 ```
 FLAT (actuel):
@@ -583,7 +589,9 @@ async computeNestedScore(query: string, cap: NestedCapability): Promise<number> 
 
 **Avantage :** L'attention peut "descendre" dans la hiérarchie et focus sur les sous-capabilities pertinentes même au sein d'une meta-capability large.
 
-**Prérequis :** La structure `contains` (ADR-042) doit être utilisée pour créer des meta-capabilities. Le PageRank actuel gère déjà ces edges, HyperGAT les exploiterait pour l'attention contextuelle.
+**Prérequis :** La structure `contains` (ADR-042) doit être utilisée pour créer des meta-capabilities. Le PageRank actuel gère déjà ces edges, SHGAT les exploite pour l'attention contextuelle récursive.
+
+**Voir aussi:** `2025-12-17-superhypergraph-hierarchical-structures.md` pour la théorie DASH et SHGAT complète.
 
 ---
 
@@ -884,9 +892,9 @@ Ajouter au monitoring existant:
 | 🔴 P1 | **Prioritized Experience Replay** | PER paper | 4h | 2x learning speed | Episodic memory existante |
 | 🔴 P1 | **TD Learning pour seuils** | Sutton 1988 | 3h | Adaptation 5x plus rapide | ADR-008 existant |
 | 🟡 P2 | **Semantic Memory layer** | CoALA extended | 1 semaine | Meilleure généralisation | GraphRAG |
-| 🟡 P2 | **HyperGAT Simplifié** | GAT + Hypergraph | 3-4 jours | Suggestions contextuelles | SpectralClusteringManager existant |
+| 🟡 P2 | **SHGAT Simplifié** | SuperHyperGraph Attention | 3-4 jours | Suggestions contextuelles récursives | SpectralClusteringManager existant |
 | 🟢 P3 | **Emergence metrics** | ODI/SYMBIOSIS | 2-3h | Observabilité | Monitoring existant |
-| 🟢 P3 | **Full HyperGAT learnable** | HyperGAT paper | 2 semaines | Attention apprise | ML runtime + ALM-4 |
+| 🟢 P3 | **Full SHGAT learnable** | Fujita SHGAT | 2 semaines | Attention apprise | ML runtime + ALM-4 |
 
 ### 7.2 Stories Candidates
 
@@ -936,7 +944,7 @@ stories:
     priority: P2
 
   - id: ALM-4
-    title: "Implement HyperGAT Simplifié for Capability Suggestions"
+    title: "Implement SHGAT Simplifié for Capability Suggestions"
     description: |
       Add context-aware attention to capability suggestions on top of existing
       Hypergraph PageRank + Spectral Clustering stack (ADR-038).
@@ -952,10 +960,10 @@ stories:
     priority: P2
 
   - id: ALM-4b
-    title: "Full HyperGAT with Learnable Attention"
+    title: "Full SHGAT with Learnable Attention"
     description: |
       If ALM-4 shows promise but needs more expressivity, implement
-      full HyperGAT with multi-head learnable attention.
+      full SHGAT with multi-head learnable attention for recursive structures.
     acceptance_criteria:
       - Multi-head attention mechanism
       - Learnable weight matrices
