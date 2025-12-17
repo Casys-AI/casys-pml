@@ -71,10 +71,11 @@ See `docs/architecture/data-architecture.md` for the exhaustive schema.
 | Area                   | Details                                                                              |
 | ---------------------- | ------------------------------------------------------------------------------------ |
 | **MCP SDK**            | `@modelcontextprotocol/sdk@1.0.4` official implementation                            |
-| **Transports**         | stdio (local mode), HTTP with API key (cloud mode), SSE output to clients            |
+| **Transports**         | stdio (local mode), HTTP Streamable (cloud mode, ADR-025), SSE output to clients     |
 | **Hosted MCP Servers** | >15 servers launched via `Deno.Command` (GitHub, Filesystem, Memory, Tavily, etc.)   |
 | **Config**             | `config/.mcp-servers.json` (gateway) + future per-user configs (`user_mcp_configs`)  |
 | **Meta-Tools**         | `pml:search_tools`, `pml:execute_dag`, `pml:execute_code`, `pml:search_capabilities` |
+| **Real Execution**     | Gateway executes DAGs via MCP (ADR-030), not just suggestions                        |
 
 ### JSON-RPC Multiplexer Pattern (ADR-044)
 
@@ -159,6 +160,8 @@ class MCPMultiplexer {
 - `deno.json` (tasks + imports)
 - `src/db/migrations.ts`, `src/db/schema/*`
 - `docs/architecture/data-architecture.md`
+- `docs/adrs/ADR-025-mcp-streamable-http-transport.md`
+- `docs/adrs/ADR-030-gateway-real-execution.md`
 - `docs/adrs/ADR-036-broadcast-channel-event-distribution.md`
 - `docs/adrs/ADR-038-scoring-algorithms-reference.md`
 - `docs/adrs/ADR-044-json-rpc-multiplexer-mcp-client.md`

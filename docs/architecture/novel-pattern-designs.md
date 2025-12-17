@@ -2,7 +2,7 @@
 
 ## Pattern 1: DAG Builder with JSON Schema Dependency Detection
 
-> **ADRs:** ADR-002 (Custom DAG), ADR-022 (Hybrid Search Integration)
+> **ADRs:** ADR-002 (Custom DAG), ADR-010 (Hybrid DAG Architecture), ADR-022 (Hybrid Search Integration)
 
 **Problem:** Automatically detect dependencies between MCP tools to enable parallel execution
 without manual dependency specification.
@@ -181,6 +181,8 @@ function loadTools(query: string, budget: ContextBudget): Tool[] {
 
 ## Pattern 3: Speculative Execution with GraphRAG (THE Feature)
 
+> **ADRs:** ADR-005 (Graphology), ADR-006 (Speculative Execution), ADR-010 (Hybrid DAG), ADR-030 (Gateway Real Execution)
+
 **Problem:** Reduce latency by executing workflows optimistically before Claude responds, when
 confidence is high enough.
 
@@ -338,9 +340,10 @@ not opt-in. Default mode with smart safeguards.
 
 ## Pattern 4: 3-Loop Learning Architecture (Adaptive DAG Feedback Loops)
 
-> **⚠️ UPDATE 2025-11-24:** AIL/HIL implementation details updated. See **ADR-019: Two-Level AIL
-> Architecture** for MCP-compatible approach using HTTP response pattern (not SSE streaming). Story
-> 2.5-3 SSE pattern incompatible with MCP one-shot protocol.
+> **ADRs:** ADR-007 (Adaptive Feedback Loops), ADR-008 (Episodic Memory), ADR-020 (AIL Control Protocol)
+>
+> **⚠️ UPDATE 2025-11-24:** AIL/HIL implementation uses ADR-020 unified command architecture (L1-L2).
+> ADR-019 superseded. HTTP response pattern (not SSE streaming) for MCP compatibility.
 
 **Problem:** Enable truly adaptive workflows that learn and improve over time through
 agent-in-the-loop (AIL) and human-in-the-loop (HIL) decision points, with dynamic re-planning and
