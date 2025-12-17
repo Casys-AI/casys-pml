@@ -1769,127 +1769,11 @@ Unifier les deux modèles d'exécution (DAG explicite et Code libre) en un syst�
 
 **Estimation:** 9 stories, ~3-4 semaines
 
-**⚠️ ORDRE D'EXÉCUTION RECOMMANDÉ:**
-```
-1. Story 10.2b (DAG Preview)      ← PREMIER ! Valide SWC, débloque HIL Phase 4
-2. Story 10.1 (Result Tracing)    ← Enrichit les traces
-3. Story 10.2 (Provides Edge)     ← Data flow relationships
-4. Story 10.3 (DAG Reconstruction)← Post-execution learning
-5. Story 10.4-10.8               ← APIs unifiées + UI
-```
-
 ---
 
 ### Story Breakdown - Epic 10
 
-**Story 10.1: Result Tracing - Capture des Résultats d'Exécution**
-
-As a learning system, I want to capture the `result` of each tool and capability execution,
-So that I can reconstruct data dependencies and create `provides` edges.
-
-**Context:**
-Phase 1 de la tech spec. Actuellement on trace `args` mais pas `result`. Sans le result,
-impossible de détecter si "le résultat de A est utilisé dans les args de B".
-
-**Acceptance Criteria:**
-
-1. `tool_end` event inclut `result` dans `worker-bridge.ts` (~ligne 426):
-   ```typescript
-   this.traces.push({
-     type: "tool_end",
-     tool: toolId,
-     traceId: id,
-     ts: endTime,
-     success: !isToolError,
-     durationMs: durationMs,
-     parentTraceId: parentTraceId,
-     result: result,  // ← NOUVEAU
-   });
-   ```
-2. `capability_end` event inclut `result` dans `code-generator.ts` (~ligne 104):
-   ```typescript
-   __trace({
-     type: "capability_end",
-     capability: "${name}",
-     capabilityId: "${capability.id}",
-     success: __capSuccess,
-     error: __capError?.message,
-     result: __capResult,  // ← NOUVEAU
-   });
-   ```
-3. Types mis à jour dans `src/dag/types.ts`:
-   - `TraceEvent.tool_end.result?: unknown`
-   - `TraceEvent.capability_end.result?: unknown`
-4. `resultPreview` déjà implémenté (task_complete) - vérifier cohérence
-5. Tests: exécuter code avec 2 tools → vérifier result présent dans les deux traces
-6. Tests: result tronqué si > 10KB (éviter explosion mémoire)
-
-**Files to Modify:**
-- `src/sandbox/worker-bridge.ts` (~5 LOC)
-- `src/capabilities/code-generator.ts` (~3 LOC)
-- `src/dag/types.ts` (~4 LOC)
-
-**Prerequisites:** Story 7.1b (Worker RPC Bridge)
-
-**Estimation:** 0.5-1 jour
-
----
-
-**Story 10.2: Provides Edge Type - Data Flow Relationships**
-
-As a graph learning system, I want a `provides` edge type that captures data flow between tools,
-So that I can understand which tools can feed data to which other tools.
-
-**Context:**
-Le `provides` edge est pour la vue **Definition** (structure abstraite). Il indique que
-les outputs de A peuvent alimenter les inputs de B, basé sur les schemas.
-
-**Edge Coverage Types:**
-```typescript
-type ProvidesCoverage =
-  | "strict"     // R ⊆ O (tous les required inputs couverts)
-  | "partial"    // R ∩ O ≠ ∅ (intersection non-vide)
-  | "optional";  // Que des inputs optionnels couverts
-```
-
-**Acceptance Criteria:**
-
-1. `provides` ajouté à `EdgeType` dans `edge-weights.ts` ligne 18
-2. Weight configuré: `provides: 0.7` dans `EDGE_TYPE_WEIGHTS`
-3. Interface `ProvidesEdge` définie:
-   ```typescript
-   interface ProvidesEdge {
-     from: string;              // Tool/capability provider
-     to: string;                // Tool/capability consumer
-     type: "provides";
-     coverage: ProvidesCoverage;
-   }
-   ```
-4. `computeCoverage()` function implémentée:
-   - Input: `providerOutputs: Set<string>`, `consumerInputs: { required, optional }`
-   - Output: `ProvidesCoverage | null`
-   - Retourne `null` si aucune intersection
-5. `createProvidesEdges()` calculé depuis les MCP tool schemas:
-   - Pour chaque paire de tools, calculer coverage
-   - Créer edge si coverage !== null
-6. Stockage en DB: column `edge_type` déjà TEXT, pas de migration
-7. Tests: fs:read (output: content) → json:parse (input: json) → coverage = "strict"
-8. Tests: json:parse → http:post (need url, body) → coverage = "partial"
-
-**Files to Create:**
-- `src/graphrag/provides-edge-calculator.ts` (~100 LOC)
-
-**Files to Modify:**
-- `src/graphrag/edge-weights.ts` (~5 LOC)
-- `src/graphrag/types.ts` (~15 LOC)
-
-**Prerequisites:** Story 10.1 (result tracing)
-
-**Estimation:** 1-2 jours
-
----
-
-**Story 10.2b: Static Code Analysis - DAG Preview (PRE-EXECUTION)**
+**Story 10.1: Static Code Analysis - DAG Preview (PRE-EXECUTION)** ⭐ FIRST
 
 As an execution system, I want to parse code statically to generate a DAG preview BEFORE execution,
 So that I can validate permissions, detect tools, and enable proper HIL/AIL approval flows.
@@ -1900,9 +1784,9 @@ C'est le **chaînon manquant** entre le code et la validation par layer. Sans pa
 - L'AIL/HIL doit attendre l'échec au lieu de prévenir
 - `per_layer_validation` ne peut pas calculer `requiresValidation()` correctement
 
-**Différence avec Story 10.3 (Reconstruction):**
+**Différence avec Story 10.4 (Reconstruction POST-exec):**
 
-| Aspect | 10.2b Static (PRE) | 10.3 Traces (POST) |
+| Aspect | 10.1 Static (PRE) | 10.4 Traces (POST) |
 |--------|--------------------|--------------------|
 | **Quand** | Avant exécution | Après exécution |
 | **Input** | Code source (AST) | Traces d'exécution |
@@ -2021,7 +1905,7 @@ for (const item of items) {
 - `src/mcp/handlers/workflow-execution-handler.ts` - Intégrer preview avant exécution (~30 LOC)
 - `src/mcp/handlers/code-execution-handler.ts` - Même intégration (~30 LOC)
 
-**Prerequisites:** Story 7.2b (SWC parsing), Story 10.2 (provides edge for validation)
+**Prerequisites:** Story 7.2b (SWC parsing)
 
 **Estimation:** 2-3 jours
 
@@ -2031,7 +1915,114 @@ Avec le DAG preview, on peut demander l'approbation AVANT d'exécuter, pas aprè
 
 ---
 
-**Story 10.3: DAG Reconstruction from Traces (POST-EXECUTION)**
+**Story 10.2: Result Tracing - Capture des Résultats d'Exécution**
+
+As a learning system, I want to capture the `result` of each tool and capability execution,
+So that I can reconstruct data dependencies and create `provides` edges.
+
+**Context:**
+Actuellement on trace `args` mais pas `result`. Sans le result,
+impossible de détecter si "le résultat de A est utilisé dans les args de B".
+
+**Acceptance Criteria:**
+
+1. `tool_end` event inclut `result` dans `worker-bridge.ts` (~ligne 426):
+   ```typescript
+   this.traces.push({
+     type: "tool_end",
+     tool: toolId,
+     traceId: id,
+     ts: endTime,
+     success: !isToolError,
+     durationMs: durationMs,
+     parentTraceId: parentTraceId,
+     result: result,  // ← NOUVEAU
+   });
+   ```
+2. `capability_end` event inclut `result` dans `code-generator.ts` (~ligne 104):
+   ```typescript
+   __trace({
+     type: "capability_end",
+     capability: "${name}",
+     capabilityId: "${capability.id}",
+     success: __capSuccess,
+     error: __capError?.message,
+     result: __capResult,  // ← NOUVEAU
+   });
+   ```
+3. Types mis à jour dans `src/dag/types.ts`:
+   - `TraceEvent.tool_end.result?: unknown`
+   - `TraceEvent.capability_end.result?: unknown`
+4. `resultPreview` déjà implémenté (task_complete) - vérifier cohérence
+5. Tests: exécuter code avec 2 tools → vérifier result présent dans les deux traces
+6. Tests: result tronqué si > 10KB (éviter explosion mémoire)
+
+**Files to Modify:**
+- `src/sandbox/worker-bridge.ts` (~5 LOC)
+- `src/capabilities/code-generator.ts` (~3 LOC)
+- `src/dag/types.ts` (~4 LOC)
+
+**Prerequisites:** Story 7.1b (Worker RPC Bridge)
+
+**Estimation:** 0.5-1 jour
+
+---
+
+**Story 10.3: Provides Edge Type - Data Flow Relationships**
+
+As a graph learning system, I want a `provides` edge type that captures data flow between tools,
+So that I can understand which tools can feed data to which other tools.
+
+**Context:**
+Le `provides` edge est pour la vue **Definition** (structure abstraite). Il indique que
+les outputs de A peuvent alimenter les inputs de B, basé sur les schemas.
+
+**Edge Coverage Types:**
+```typescript
+type ProvidesCoverage =
+  | "strict"     // R ⊆ O (tous les required inputs couverts)
+  | "partial"    // R ∩ O ≠ ∅ (intersection non-vide)
+  | "optional";  // Que des inputs optionnels couverts
+```
+
+**Acceptance Criteria:**
+
+1. `provides` ajouté à `EdgeType` dans `edge-weights.ts` ligne 18
+2. Weight configuré: `provides: 0.7` dans `EDGE_TYPE_WEIGHTS`
+3. Interface `ProvidesEdge` définie:
+   ```typescript
+   interface ProvidesEdge {
+     from: string;              // Tool/capability provider
+     to: string;                // Tool/capability consumer
+     type: "provides";
+     coverage: ProvidesCoverage;
+   }
+   ```
+4. `computeCoverage()` function implémentée:
+   - Input: `providerOutputs: Set<string>`, `consumerInputs: { required, optional }`
+   - Output: `ProvidesCoverage | null`
+   - Retourne `null` si aucune intersection
+5. `createProvidesEdges()` calculé depuis les MCP tool schemas:
+   - Pour chaque paire de tools, calculer coverage
+   - Créer edge si coverage !== null
+6. Stockage en DB: column `edge_type` déjà TEXT, pas de migration
+7. Tests: fs:read (output: content) → json:parse (input: json) → coverage = "strict"
+8. Tests: json:parse → http:post (need url, body) → coverage = "partial"
+
+**Files to Create:**
+- `src/graphrag/provides-edge-calculator.ts` (~100 LOC)
+
+**Files to Modify:**
+- `src/graphrag/edge-weights.ts` (~5 LOC)
+- `src/graphrag/types.ts` (~15 LOC)
+
+**Prerequisites:** Story 10.2 (result tracing)
+
+**Estimation:** 1-2 jours
+
+---
+
+**Story 10.4: DAG Reconstruction from Traces (POST-EXECUTION)**
 
 As a learning system, I want to reconstruct a DAGStructure from code execution traces,
 So that code-based workflows can be replayed as DAGs.
@@ -2082,13 +2073,13 @@ function containsValue(args, result): boolean {
 **Files to Modify:**
 - `src/capabilities/types.ts` (~20 LOC)
 
-**Prerequisites:** Story 10.1, Story 10.2
+**Prerequisites:** Story 10.2, Story 10.3
 
 **Estimation:** 2-3 jours
 
 ---
 
-**Story 10.4: Unified Capability Model (Code OR DAG)**
+**Story 10.5: Unified Capability Model (Code OR DAG)**
 
 As a capability storage system, I want capabilities to support both code and DAG sources,
 So that any successful execution becomes a reusable capability.
@@ -2120,7 +2111,7 @@ interface Capability {
      | { type: "code"; code: string }
      | { type: "dag"; dagStructure: DAGStructure };
    ```
-2. `Capability.inferredStructure` ajouté (from Story 10.3)
+2. `Capability.inferredStructure` ajouté (from Story 10.4)
 3. Migration DB: transformer `code` → `source` JSON column
 4. `CapabilityStore.saveCapability()` updated:
    - Accepte `source` au lieu de `code`
@@ -2146,13 +2137,13 @@ interface Capability {
 - `src/db/migrations/` - New migration (~40 LOC)
 - All files using `capability.code` (grep and update)
 
-**Prerequisites:** Story 10.3 (DAG reconstruction)
+**Prerequisites:** Story 10.4 (DAG reconstruction)
 
 **Estimation:** 2-3 jours
 
 ---
 
-**Story 10.5: pml_discover - Unified Discovery API**
+**Story 10.6: pml_discover - Unified Discovery API**
 
 As an AI agent, I want a single `pml_discover` tool to search both tools and capabilities,
 So that I have a simplified API for finding what I need.
@@ -2213,13 +2204,13 @@ pml_discover({
 - `src/mcp/gateway-server.ts` - Register new handler
 - `src/mcp/handlers/search-handler.ts` - Add deprecation notice
 
-**Prerequisites:** Story 10.4 (unified capability model)
+**Prerequisites:** Story 10.5 (unified capability model)
 
 **Estimation:** 2-3 jours
 
 ---
 
-**Story 10.6: pml_execute - Unified Execution API**
+**Story 10.7: pml_execute - Unified Execution API**
 
 As an AI agent, I want a single `pml_execute` tool that handles both DAG and code execution,
 So that I have a simplified API and the system always learns from my executions.
@@ -2304,13 +2295,13 @@ Intent → Implementation fournie?
 - `src/mcp/gateway-server.ts` - Register new handler
 - `src/mcp/handlers/workflow-execution-handler.ts` - Add deprecation
 
-**Prerequisites:** Story 10.5 (pml_discover)
+**Prerequisites:** Story 10.6 (pml_discover)
 
 **Estimation:** 3-5 jours
 
 ---
 
-**Story 10.7: pml_get_task_result - Result Fetching Meta-Tool**
+**Story 10.8: pml_get_task_result - Result Fetching Meta-Tool**
 
 As an AI agent reviewing DAG execution results, I want to fetch the full result of a specific task,
 So that I can make informed decisions when the preview isn't sufficient.
@@ -2354,13 +2345,13 @@ pml_get_task_result({
 - `src/mcp/gateway-server.ts` - Register handler
 - `src/dag/controlled-executor.ts` - Store full results
 
-**Prerequisites:** Story 10.6 (pml_execute)
+**Prerequisites:** Story 10.7 (pml_execute)
 
 **Estimation:** 1-2 jours
 
 ---
 
-**Story 10.8: Definition vs Invocation Views (Cytoscape)**
+**Story 10.9: Definition vs Invocation Views (Cytoscape)**
 
 As a dashboard user, I want to toggle between Definition and Invocation views,
 So that I can see either the abstract workflow structure or the actual execution.
@@ -2415,7 +2406,7 @@ la vue Invocation montre chaque appel réel avec timestamps.
 - `src/web/routes/dashboard.tsx` - Add toggle
 - `src/visualization/hypergraph-builder.ts` - Support both views
 
-**Prerequisites:** Story 10.7, Epic 8 (Hypergraph visualization)
+**Prerequisites:** Story 10.8, Epic 8 (Hypergraph visualization)
 
 **Estimation:** 2-3 jours
 
@@ -2439,29 +2430,29 @@ la vue Invocation montre chaque appel réel avec timestamps.
 ### Epic 10 Dependencies
 
 ```
-★ Story 10.2b (DAG Preview) ← FIRST! Valide SWC, débloque HIL Phase 4
+★ Story 10.1 (DAG Preview) ← FIRST! Valide SWC, débloque HIL Phase 4
     │
-    │   (peut démarrer en parallèle)
+    │   (peut démarrer en parallèle avec 10.2-10.4)
     │
-    ├──▶ Story 10.1 (result tracing)
+    ├──▶ Story 10.2 (result tracing)
     │        │
-    │        └──▶ Story 10.2 (provides edge)
+    │        └──▶ Story 10.3 (provides edge)
     │                  │
-    │                  └──▶ Story 10.3 (DAG reconstruction POST-exec)
+    │                  └──▶ Story 10.4 (DAG reconstruction POST-exec)
     │
-    └──▶ Story 10.4 (unified capability) ← Utilise 10.2b + 10.3
+    └──▶ Story 10.5 (unified capability) ← Utilise 10.1 + 10.4
               │
               ▼
-         Story 10.5 (pml_discover)
+         Story 10.6 (pml_discover)
               │
               ▼
-         Story 10.6 (pml_execute) ←── Intègre 10.2b pour preview!
+         Story 10.7 (pml_execute) ←── Intègre 10.1 pour preview!
               │
               ▼
-         Story 10.7 (pml_get_task_result)
+         Story 10.8 (pml_get_task_result)
               │
               ▼
-         Story 10.8 (Definition/Invocation views)
+         Story 10.9 (Definition/Invocation views)
 ```
 
 **External Dependencies:**
@@ -2475,39 +2466,39 @@ la vue Invocation montre chaque appel réel avec timestamps.
 
 | FR | Description | Story |
 |----|-------------|-------|
-| FR1 | Tracer `result` des tools et capabilities | 10.1 |
-| FR2 | Edge type `provides` avec coverage | 10.2 |
-| **FR2b** | **DAG Preview pré-exécution (parsing statique)** | **10.2b** |
-| **FR2c** | **Validation permissions avant exécution** | **10.2b** |
-| FR3 | Reconstruction DAG depuis traces code | 10.3 |
-| FR4 | Capability unifiée (code OU dag) | 10.4 |
-| FR5 | API `pml_discover` unifiée | 10.5 |
-| FR6 | API `pml_execute` unifiée | 10.6 |
-| FR7 | `pml_get_task_result` pour résultats complets | 10.7 |
-| FR8 | Vue Definition vs Invocation | 10.8 |
-| FR9 | Dépréciation anciennes APIs | 10.5, 10.6 |
-| FR10 | Learning automatique après succès | 10.6 |
-| **FR11** | **HIL pre-execution approval flow** | **10.2b** |
+| **FR1** | **DAG Preview pré-exécution (parsing statique)** | **10.1** |
+| **FR1b** | **Validation permissions avant exécution** | **10.1** |
+| **FR1c** | **HIL pre-execution approval flow** | **10.1** |
+| FR2 | Tracer `result` des tools et capabilities | 10.2 |
+| FR3 | Edge type `provides` avec coverage | 10.3 |
+| FR4 | Reconstruction DAG depuis traces code | 10.4 |
+| FR5 | Capability unifiée (code OU dag) | 10.5 |
+| FR6 | API `pml_discover` unifiée | 10.6 |
+| FR7 | API `pml_execute` unifiée | 10.7 |
+| FR8 | `pml_get_task_result` pour résultats complets | 10.8 |
+| FR9 | Vue Definition vs Invocation | 10.9 |
+| FR10 | Dépréciation anciennes APIs | 10.6, 10.7 |
+| FR11 | Learning automatique après succès | 10.7 |
 
 ---
 
-### Epic 10 Estimation Summary (ORDRE D'EXÉCUTION)
+### Epic 10 Estimation Summary
 
-| # | Story | Effort | Cumulative |
-|---|-------|--------|------------|
-| **1** | **10.2b DAG Preview (SWC)** | **2-3j** | **3j** |
-| 2 | 10.1 Result Tracing | 0.5-1j | 4j |
-| 3 | 10.2 Provides Edge | 1-2j | 6j |
-| 4 | 10.3 DAG Reconstruction | 2-3j | 9j |
-| 5 | 10.4 Unified Capability | 2-3j | 12j |
-| 6 | 10.5 pml_discover | 2-3j | 15j |
-| 7 | 10.6 pml_execute | 3-5j | 19j |
-| 8 | 10.7 pml_get_task_result | 1-2j | 21j |
-| 9 | 10.8 Definition/Invocation | 2-3j | 24j |
+| Story | Description | Effort | Cumulative |
+|-------|-------------|--------|------------|
+| **10.1** | **DAG Preview (SWC)** ⭐ | **2-3j** | **3j** |
+| 10.2 | Result Tracing | 0.5-1j | 4j |
+| 10.3 | Provides Edge | 1-2j | 6j |
+| 10.4 | DAG Reconstruction | 2-3j | 9j |
+| 10.5 | Unified Capability | 2-3j | 12j |
+| 10.6 | pml_discover | 2-3j | 15j |
+| 10.7 | pml_execute | 3-5j | 19j |
+| 10.8 | pml_get_task_result | 1-2j | 21j |
+| 10.9 | Definition/Invocation | 2-3j | 24j |
 
 **Total: ~3-4 semaines**
 
-**🎯 Story 10.2b est PREMIÈRE car:**
+**🎯 Story 10.1 (DAG Preview) est critique car:**
 1. Valide l'approche SWC pour la détection des appels MCP
 2. Débloque HIL Phase 4 (pre-execution approval)
 3. Base SWC déjà validée (SchemaInferrer: 726 LOC, 19 tests)
