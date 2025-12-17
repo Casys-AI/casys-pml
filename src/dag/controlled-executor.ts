@@ -12,7 +12,7 @@
 
 import { ParallelExecutor } from "./executor.ts";
 import type { DAGStructure, Task } from "../graphrag/types.ts";
-import type { ExecutionEvent, ExecutorConfig, TaskResult, ToolExecutor } from "./types.ts";
+import { PermissionEscalationNeeded, type ExecutionEvent, type ExecutorConfig, type TaskResult, type ToolExecutor } from "./types.ts";
 import { EventStream, type EventStreamStats } from "./event-stream.ts";
 import { CommandQueue, type CommandQueueStats } from "./command-queue.ts";
 import {
@@ -91,6 +91,8 @@ export class ControlledExecutor extends ParallelExecutor {
   private graphRAG?: GraphRAGEngine;
   private permissionEscalationHandler: PermissionEscalationHandler | null = null;
   private _permissionAuditStore: PermissionAuditStore | null = null;
+  /** Events generated during deferred escalation handling, to be yielded by generator */
+  private pendingEscalationEvents: ExecutionEvent[] = [];
 
   constructor(toolExecutor: ToolExecutor, config: ExecutorConfig = {}) {
     super(toolExecutor, config);
@@ -337,9 +339,22 @@ export class ControlledExecutor extends ParallelExecutor {
       // Execute layer
       for (const task of layer) yield* this.emitTaskStart(workflowId, task);
 
-      const layerResults = await Promise.allSettled(
+      let layerResults = await Promise.allSettled(
         layer.map((task) => this.executeTask(task, results)),
       );
+
+      // Handle deferred permission escalations (Deferred Escalation Pattern)
+      // Tasks that need permission escalation throw PermissionEscalationNeeded
+      // which is caught here at the layer boundary where we CAN yield events
+      layerResults = await this.handleDeferredEscalations(
+        workflowId,
+        layer,
+        layerResults,
+        results,
+      );
+      // Yield any escalation events that were generated
+      for (const event of this.pendingEscalationEvents) yield event;
+      this.pendingEscalationEvents = [];
 
       // Collect results
       const { layerTaskResults, layerSuccess, layerFailed } = await this.collectLayerResults(
@@ -460,9 +475,19 @@ export class ControlledExecutor extends ParallelExecutor {
 
       for (const task of layer) yield* this.emitTaskStart(workflowId, task);
 
-      const layerResults = await Promise.allSettled(
+      let layerResults = await Promise.allSettled(
         layer.map((task) => this.executeTask(task, results)),
       );
+
+      // Handle deferred permission escalations (Deferred Escalation Pattern)
+      layerResults = await this.handleDeferredEscalations(
+        workflowId,
+        layer,
+        layerResults,
+        results,
+      );
+      for (const event of this.pendingEscalationEvents) yield event;
+      this.pendingEscalationEvents = [];
 
       const { layerTaskResults, layerSuccess, layerFailed } = await this.collectLayerResults(
         workflowId,
@@ -552,8 +577,9 @@ export class ControlledExecutor extends ParallelExecutor {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (isPermissionError(errorMessage)) {
-        const result = await this.handleCodeTaskPermissionEscalation(task, previousResults, deps, errorMessage);
-        if (result) return result;
+        // This throws PermissionEscalationNeeded if escalation is possible,
+        // which will be caught at layer boundary (Deferred Escalation Pattern)
+        this.handleCodeTaskPermissionEscalation(task, errorMessage);
       }
       throw error;
     }
@@ -594,42 +620,153 @@ export class ControlledExecutor extends ParallelExecutor {
     }
   }
 
-  private async handleCodeTaskPermissionEscalation(
+  /**
+   * Handle permission escalation for code tasks using Deferred Escalation Pattern.
+   *
+   * Instead of blocking with waitForDecisionCommand (which causes deadlock inside
+   * Promise.allSettled), we throw PermissionEscalationNeeded which is caught at
+   * the layer boundary where the generator can properly yield.
+   *
+   * @throws PermissionEscalationNeeded if escalation is possible
+   * @returns null if no escalation suggestion (error should be re-thrown by caller)
+   */
+  private handleCodeTaskPermissionEscalation(
     task: Task,
-    previousResults: Map<string, TaskResult>,
-    deps: CodeExecutorDeps,
     errorMessage: string,
-  ): Promise<{ output: unknown; executionTimeMs: number } | null> {
+  ): null {
     const currentPermissionSet: PermissionSet =
       (task.sandboxConfig?.permissionSet as PermissionSet) ?? "minimal";
     const suggestion = suggestEscalation(errorMessage, task.id, currentPermissionSet);
 
     if (!suggestion) return null;
 
-    const description = formatEscalationRequest(suggestion);
-    const escalationEvent: ExecutionEvent = {
-      type: "decision_required",
-      timestamp: Date.now(),
-      workflowId: this.state?.workflowId ?? "unknown",
-      decisionType: "HIL",
-      description: `[Code Task: ${task.id}] ${description}`,
-      checkpointId: `perm-esc-${task.id}`,
-    };
-    await this.eventStream.emit(escalationEvent);
+    // Throw instead of blocking - will be caught at layer boundary
+    throw new PermissionEscalationNeeded(
+      task.id,
+      -1, // Index will be determined at layer boundary
+      suggestion.currentSet,
+      suggestion.requestedSet,
+      suggestion.detectedOperation,
+      errorMessage,
+      "code",
+    );
+  }
 
-    const command = await waitForDecisionCommand(this.commandQueue, "HIL", this.getTimeout("hil"));
-    if (!command) {
-      throw new Error(`Permission escalation timeout for code task ${task.id}`);
+  /**
+   * Handle deferred permission escalations at the layer boundary.
+   *
+   * This is the key to the Deferred Escalation Pattern:
+   * - Tasks threw PermissionEscalationNeeded instead of blocking
+   * - Promise.allSettled caught them as rejections
+   * - NOW we can properly yield decision_required events (generator has control)
+   * - If approved, re-execute the task with escalated permissions
+   * - Return updated layerResults
+   */
+  private async handleDeferredEscalations(
+    workflowId: string,
+    layer: Task[],
+    layerResults: PromiseSettledResult<{ output: unknown; executionTimeMs: number }>[],
+    previousResults: Map<string, TaskResult>,
+  ): Promise<PromiseSettledResult<{ output: unknown; executionTimeMs: number }>[]> {
+    // Find all escalation rejections
+    const escalations: { index: number; error: PermissionEscalationNeeded }[] = [];
+
+    for (let i = 0; i < layerResults.length; i++) {
+      const result = layerResults[i];
+      if (result.status === "rejected" && result.reason instanceof PermissionEscalationNeeded) {
+        escalations.push({ index: i, error: result.reason });
+      }
     }
 
-    if (
-      (command.type === "permission_escalation_response" || command.type === "approval_response") &&
-      command.approved
-    ) {
-      return await executeCodeTask(task, previousResults, deps, suggestion.requestedSet);
+    if (escalations.length === 0) {
+      return layerResults;
     }
 
-    throw new Error(`Permission escalation rejected for code task ${task.id}: ${command.feedback ?? "User rejected"}`);
+    log.info(`Found ${escalations.length} permission escalation(s) to handle at layer boundary`);
+
+    // Create mutable copy of results
+    const updatedResults = [...layerResults];
+
+    // Handle each escalation
+    for (const { index, error } of escalations) {
+      const task = layer[index];
+
+      // Create and emit decision_required event
+      const escalationEvent: ExecutionEvent = {
+        type: "decision_required",
+        timestamp: Date.now(),
+        workflowId,
+        decisionType: "HIL",
+        description: `[Task: ${task.id}] Permission escalation: ${error.currentSet} → ${error.requestedSet} (${error.detectedOperation})`,
+        checkpointId: `perm-esc-${task.id}`,
+        context: {
+          taskId: task.id,
+          currentSet: error.currentSet,
+          requestedSet: error.requestedSet,
+          detectedOperation: error.detectedOperation,
+          originalError: error.originalError,
+        },
+      };
+      await this.eventStream.emit(escalationEvent);
+      this.pendingEscalationEvents.push(escalationEvent);
+
+      log.info(`Waiting for HIL approval for task ${task.id} permission escalation`);
+
+      // Wait for approval (NOW this works because generator can yield!)
+      const command = await waitForDecisionCommand(this.commandQueue, "HIL", this.getTimeout("hil"));
+
+      if (!command) {
+        log.warn(`Permission escalation timeout for task ${task.id}`);
+        // Leave as rejected with a clearer error
+        updatedResults[index] = {
+          status: "rejected",
+          reason: new Error(`Permission escalation timeout for task ${task.id}`),
+        };
+        continue;
+      }
+
+      if (
+        (command.type === "permission_escalation_response" || command.type === "approval_response") &&
+        command.approved
+      ) {
+        log.info(`Permission escalation approved for task ${task.id}, re-executing with ${error.requestedSet}`);
+
+        try {
+          // Re-execute with escalated permissions
+          const deps: CodeExecutorDeps = {
+            capabilityStore: this.capabilityStore,
+            graphRAG: this.graphRAG,
+          };
+
+          // Update task's permission set for re-execution
+          const updatedTask = {
+            ...task,
+            sandboxConfig: {
+              ...task.sandboxConfig,
+              permissionSet: error.requestedSet as PermissionSet,
+            },
+          };
+
+          const result = await executeCodeTask(updatedTask, previousResults, deps, error.requestedSet as PermissionSet);
+          updatedResults[index] = { status: "fulfilled", value: result };
+          log.info(`Task ${task.id} re-execution successful after escalation`);
+        } catch (retryError) {
+          log.error(`Task ${task.id} re-execution failed after escalation: ${retryError}`);
+          updatedResults[index] = {
+            status: "rejected",
+            reason: retryError,
+          };
+        }
+      } else {
+        log.info(`Permission escalation rejected for task ${task.id}`);
+        updatedResults[index] = {
+          status: "rejected",
+          reason: new Error(`Permission escalation rejected for task ${task.id}: ${command.feedback ?? "User rejected"}`),
+        };
+      }
+    }
+
+    return updatedResults;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
