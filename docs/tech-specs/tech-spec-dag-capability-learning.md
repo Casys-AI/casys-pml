@@ -51,11 +51,10 @@ Cette tech spec adresse plusieurs questions architecturales interconnectées aut
 
 | Fonctionnalité | Pourquoi | Section |
 |----------------|----------|---------|
-| Tracer `result` | Détecter dépendances data (args/result) | §8.4 |
+| Tracer `result` | Valider les `provides` edges | §8.4 |
 | Reconstruire DAG depuis code | Rendre le code ré-exécutable | §8 |
 | `provides` edge type | Définir la couverture inputs/outputs (Definition view) | §2.3 |
 | Séparation Definition/Invocation views | Clarifier ce qu'on affiche dans Cytoscape | §7.5 |
-| Explicit vs Inferred `dependsOn` | Distinguer control vs data flow | §8.5 |
 | Schemas dans DAG suggestion | Aider l'IA à remplir les args | §2.5 |
 | `pml_discover` unifié | Simplifier APIs recherche (spec séparée) | §9 Phase 4 |
 
@@ -952,69 +951,21 @@ t3: { tool: "http:fetch", args: { url: "..." }, result: { data: [...] } }
 }
 ```
 
-### 8.5 Explicit vs Inferred `dependsOn`
+### 8.5 Ce que ça change pour le DAG Suggester
 
-Il y a deux types de dépendances, qui ne sont pas équivalentes :
+Le suggester utilise les **`provides` edges** (basés sur schemas) pour construire le `dependsOn` :
 
-| Type | Source | Sémantique | Exemple |
-|------|--------|------------|---------|
-| **Explicit** | DAG `dependsOn` | Intent de contrôle : "B attend A" | Side effects, ordering |
-| **Inferred** | Traces args/result | Data flow : "B utilise result de A" | Vraies dépendances data |
-
-#### Pourquoi les deux ?
-
-```typescript
-// DAG explicite
-tasks: [
-  { id: "A", tool: "fs:read", dependsOn: [] },
-  { id: "B", tool: "log:write", dependsOn: ["A"] },   // Explicit: attend A (pour logging)
-  { id: "C", tool: "json:parse", dependsOn: ["A"] },  // Explicit: attend A
-]
-
-// Après exécution, on infère :
-// - C.args contient A.result → inferredDependsOn: ["A"] ✅
-// - B.args ne contient PAS A.result → inferredDependsOn: [] (juste ordering)
+```
+Schemas (outputA ∩ inputB) → provides edge → DAG Suggester → dependsOn
 ```
 
-| Situation | Explicit | Inferred |
-|-----------|----------|----------|
-| B utilise le result de A | `["A"]` | `["A"]` ✅ |
-| B doit juste attendre A (side effect) | `["A"]` | `[]` |
-| B utilise A mais dev a oublié | `[]` | `["A"]` 🔍 |
+**Pas besoin de distinguer explicit vs inferred** :
+- `provides` = relation entre **types de tools** (dans le graphe)
+- `dependsOn` = relation entre **instances de tasks** (dans le DAG)
 
-#### Modèle de données
+Le suggester traduit simplement les `provides` en `dependsOn` quand il construit un DAG.
 
-```typescript
-interface TaskDependencies {
-  // Déclaré par l'utilisateur/IA (DAG original)
-  explicitDependsOn?: string[];
-
-  // Calculé depuis les traces (args contient result)
-  inferredDependsOn: string[];
-
-  // Pour ré-exécution : union des deux
-  // effectiveDependsOn = explicitDependsOn ∪ inferredDependsOn
-  effectiveDependsOn: string[];
-}
-```
-
-#### Règles de fusion
-
-1. **DAG → Capability** : On garde `explicitDependsOn`, on calcule `inferredDependsOn` depuis traces
-2. **Code → Capability** : Pas d'explicit, tout est `inferredDependsOn`
-3. **Ré-exécution** : Utilise `effectiveDependsOn` = union des deux
-4. **Validation** : Si `inferred ⊄ explicit`, warning potentiel (dépendance manquante déclarée)
-
-### 8.6 Ce que ça change pour le DAG Suggester
-
-Le suggester peut maintenant travailler avec les deux :
-
-1. **Capabilities avec DAG explicite** : Utilise le `dagStructure` + enrichit avec `inferredDependsOn`
-2. **Capabilities avec code** : Utilise le `reconstructedDAG` avec `inferredDependsOn`
-
-Dans les deux cas, il a un DAG complet avec `effectiveDependsOn` qu'il peut suggérer ou ré-exécuter.
-
-### 8.7 Limites de la reconstruction et mitigations
+### 8.6 Limites de la reconstruction et mitigations
 
 #### Limites identifiées
 
@@ -1223,22 +1174,22 @@ La phase 6 est pour l'UX Fresh.
 4. ~~APIs fragmentées ?~~ → **Unification** : `pml_discover` + `pml_execute`
 5. ~~Co-occurrence edge type ?~~ → **Non nécessaire** : parallélisme = absence d'edge entre nœuds
 6. ~~Edges par vue Cytoscape ?~~ → **Definition** (dependency, provides, contains) vs **Invocation** (sequence)
+7. ~~Explicit vs Inferred dependsOn ?~~ → **Simplifié** : `provides` (schemas) → `dependsOn` (DAG), pas de distinction
 
 ### Ouvertes
 
-7. **Seuil de confiance pour speculation ?**
+8. **Seuil de confiance pour speculation ?**
    - Même seuil pour code et DAG ?
    - Adapter selon le type ?
 
-8. **Rétention des invocations** (pour mode definition/invocation)
+9. **Rétention des invocations** (pour mode definition/invocation)
    - Combien garder par capability ?
    - TTL ?
 
-9. **Migration des capabilities existantes**
-   - Ajouter `source: { type: "code" }` aux existantes ?
-   - Recalculer `inferredStructure` depuis les traces ?
+10. **Migration des capabilities existantes**
+    - Ajouter `source: { type: "code" }` aux existantes ?
 
-10. **Backward compatibility**
+11. **Backward compatibility**
     - Garder les anciens tools en mode déprécié ?
     - Période de transition ?
 
