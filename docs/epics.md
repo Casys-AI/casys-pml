@@ -1769,6 +1769,15 @@ Unifier les deux modèles d'exécution (DAG explicite et Code libre) en un syst�
 
 **Estimation:** 9 stories, ~3-4 semaines
 
+**⚠️ ORDRE D'EXÉCUTION RECOMMANDÉ:**
+```
+1. Story 10.2b (DAG Preview)      ← PREMIER ! Valide SWC, débloque HIL Phase 4
+2. Story 10.1 (Result Tracing)    ← Enrichit les traces
+3. Story 10.2 (Provides Edge)     ← Data flow relationships
+4. Story 10.3 (DAG Reconstruction)← Post-execution learning
+5. Story 10.4-10.8               ← APIs unifiées + UI
+```
+
 ---
 
 ### Story Breakdown - Epic 10
@@ -2430,30 +2439,29 @@ la vue Invocation montre chaque appel réel avec timestamps.
 ### Epic 10 Dependencies
 
 ```
-Story 10.1 (result tracing)
+★ Story 10.2b (DAG Preview) ← FIRST! Valide SWC, débloque HIL Phase 4
     │
-    ├──▶ Story 10.2 (provides edge)
+    │   (peut démarrer en parallèle)
+    │
+    ├──▶ Story 10.1 (result tracing)
     │        │
-    │        ├──▶ Story 10.2b (static code analysis - DAG PREVIEW) ★ KEY STORY
-    │        │        │
-    │        │        └──▶ Enables HIL Phase 4 (pre-execution approval)
-    │        │
-    └────────┼──▶ Story 10.3 (DAG reconstruction - POST execution)
-             │        │
-             │        ▼
-             │   Story 10.4 (unified capability)
-             │        │
-             │        ▼
-             │   Story 10.5 (pml_discover)
-             │        │
-             │        ▼
-             │   Story 10.6 (pml_execute) ←── Uses 10.2b for preview!
-             │        │
-             │        ▼
-             │   Story 10.7 (pml_get_task_result)
-             │        │
-             │        ▼
-             └──▶ Story 10.8 (Definition/Invocation views)
+    │        └──▶ Story 10.2 (provides edge)
+    │                  │
+    │                  └──▶ Story 10.3 (DAG reconstruction POST-exec)
+    │
+    └──▶ Story 10.4 (unified capability) ← Utilise 10.2b + 10.3
+              │
+              ▼
+         Story 10.5 (pml_discover)
+              │
+              ▼
+         Story 10.6 (pml_execute) ←── Intègre 10.2b pour preview!
+              │
+              ▼
+         Story 10.7 (pml_get_task_result)
+              │
+              ▼
+         Story 10.8 (Definition/Invocation views)
 ```
 
 **External Dependencies:**
@@ -2483,20 +2491,24 @@ Story 10.1 (result tracing)
 
 ---
 
-### Epic 10 Estimation Summary
+### Epic 10 Estimation Summary (ORDRE D'EXÉCUTION)
 
-| Story | Effort | Cumulative |
-|-------|--------|------------|
-| 10.1 Result Tracing | 0.5-1j | 1j |
-| 10.2 Provides Edge | 1-2j | 3j |
-| **10.2b Static Code Analysis (DAG Preview)** | **2-3j** | **6j** |
-| 10.3 DAG Reconstruction (Post-exec) | 2-3j | 9j |
-| 10.4 Unified Capability | 2-3j | 12j |
-| 10.5 pml_discover | 2-3j | 15j |
-| 10.6 pml_execute | 3-5j | 19j |
-| 10.7 pml_get_task_result | 1-2j | 21j |
-| 10.8 Definition/Invocation | 2-3j | 24j |
+| # | Story | Effort | Cumulative |
+|---|-------|--------|------------|
+| **1** | **10.2b DAG Preview (SWC)** | **2-3j** | **3j** |
+| 2 | 10.1 Result Tracing | 0.5-1j | 4j |
+| 3 | 10.2 Provides Edge | 1-2j | 6j |
+| 4 | 10.3 DAG Reconstruction | 2-3j | 9j |
+| 5 | 10.4 Unified Capability | 2-3j | 12j |
+| 6 | 10.5 pml_discover | 2-3j | 15j |
+| 7 | 10.6 pml_execute | 3-5j | 19j |
+| 8 | 10.7 pml_get_task_result | 1-2j | 21j |
+| 9 | 10.8 Definition/Invocation | 2-3j | 24j |
 
 **Total: ~3-4 semaines**
 
-**Note:** Story 10.2b est critique car elle enable le HIL Phase 4 (pre-execution approval).
+**🎯 Story 10.2b est PREMIÈRE car:**
+1. Valide l'approche SWC pour la détection des appels MCP
+2. Débloque HIL Phase 4 (pre-execution approval)
+3. Base SWC déjà validée (SchemaInferrer: 726 LOC, 19 tests)
+4. Unifie le flow d'exécution (preview avant execute)
