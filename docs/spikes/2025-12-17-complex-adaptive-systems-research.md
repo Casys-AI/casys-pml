@@ -538,17 +538,54 @@ function multiHeadAttention(
 
 **Story candidate:** "ALM-4: Add SHGAT contextual attention to capability suggestions"
 
-**Intégration avec code existant:**
-```typescript
-// Dans dag-suggester.ts, Strategic Discovery (ADR-038 §3.2)
-const discoveryScore = ToolsOverlap * (1 + StructuralBoost);
+### 4.10 Scope : Strategic Layer Only + Activation Progressive
 
-// Devient :
-const hyperGATScore = await hypergraphAttention.computeContextualScores(query, caps);
-const discoveryScore = ToolsOverlap * (1 + StructuralBoost) * (1 + hyperGATScore);
+**IMPORTANT:** SHGAT concerne uniquement le **Strategic Layer** (ADR-038) :
+
+| Layer | Structure | Algo | SHGAT ? |
+|-------|-----------|------|---------|
+| **Tactical** (Tools) | Graph simple | Semantic + Alpha + Louvain + Adamic-Adar | ❌ Déjà couvert |
+| **Strategic** (Capabilities) | SuperHypergraph | PageRank + Spectral | ✅ Quand assez gros |
+
+**Seuil d'activation recommandé :**
+
+```typescript
+// Dans dag-suggester.ts, Strategic Discovery
+async suggestCapabilities(query: string): Promise<ScoredCapability[]> {
+  const caps = await this.capabilityStore.getAll();
+
+  // SHGAT activé seulement quand le graphe est assez riche
+  const SHGAT_ACTIVATION_THRESHOLD = 30;  // À tuner empiriquement
+
+  if (caps.length < SHGAT_ACTIVATION_THRESHOLD) {
+    // PageRank + Spectral Clustering suffit
+    // Peu de capabilities = peu de choix = SHGAT marginal
+    return this.classicStrategicDiscovery(query, caps);
+  }
+
+  // SHGAT pour attention contextuelle récursive
+  const shgat = new SuperHypergraphAttention(this.spectralClustering, this.embedder);
+  return this.shgatStrategicDiscovery(query, caps, shgat);
+}
 ```
 
-### 4.10 Note : Support des Hypergraphes Hiérarchiques (Meta-Capabilities)
+**Pourquoi ce seuil :**
+- < 30 capabilities : PageRank + Spectral donne des résultats suffisants
+- 30-50 : SHGAT commence à discriminer entre capabilities similaires
+- 50+ : SHGAT devient vraiment utile, surtout avec meta-capabilities
+- Le seuil peut être configuré via `adaptive-config.yaml`
+
+**Intégration avec code existant (quand activé) :**
+```typescript
+// Strategic Discovery (ADR-038 §3.2)
+const discoveryScore = ToolsOverlap * (1 + StructuralBoost);
+
+// Devient avec SHGAT :
+const shgatScore = await shgat.computeContextualScores(query, caps);
+const discoveryScore = ToolsOverlap * (1 + StructuralBoost) * (1 + shgatScore);
+```
+
+### 4.11 Note : Support des Hypergraphes Hiérarchiques (Meta-Capabilities)
 
 SHGAT fonctionne **nativement sur des SuperHyperGraphes hiérarchiques**. Pour les meta-capabilities (capabilities composées d'autres capabilities via l'edge type `contains` de ADR-042), l'attention est récursive :
 
