@@ -1228,22 +1228,90 @@ La phase 6 est pour l'UX Fresh.
 6. ~~Edges par vue Cytoscape ?~~ → **Definition** (dependency, provides, contains) vs **Invocation** (sequence)
 7. ~~Explicit vs Inferred dependsOn ?~~ → **Simplifié** : `provides` (schemas) → `dependsOn` (DAG), pas de distinction
 
-### Ouvertes
+8. ~~Seuil de confiance pour speculation ?~~ → **Configurable** via fichier de config existant
+9. ~~Rétention des invocations ?~~ → **Tout stocker**, archivage optionnel plus tard
+10. ~~Migration des capabilities existantes ?~~ → **Breaking change** - pas de migration
+11. ~~Backward compatibility ?~~ → **Breaking change** - pas de période de transition
 
-8. **Seuil de confiance pour speculation ?**
-   - Même seuil pour code et DAG ?
-   - Adapter selon le type ?
+---
 
-9. **Rétention des invocations** (pour mode definition/invocation)
-   - Combien garder par capability ?
-   - TTL ?
+## 10.1 Analyse d'impact (Breaking Changes)
 
-10. **Migration des capabilities existantes**
-    - Ajouter `source: { type: "code" }` aux existantes ?
+### Vue d'ensemble par phase
 
-11. **Backward compatibility**
-    - Garder les anciens tools en mode déprécié ?
-    - Période de transition ?
+| Phase | Changement | Breaking ? | Impact |
+|-------|------------|------------|--------|
+| **1** | `result` dans traces | ❌ Non | Interne, additif |
+| **1** | `provides` EdgeType | ❌ Non | Nouveau type, additif |
+| **2** | `detectDataDependencies()` | ❌ Non | Nouveau module |
+| **3** | Capability `source: code \| dag` | ⚠️ **Oui** | Schema change |
+| **4** | Suppression `pml_search_*` | ⚠️ **Oui** | APIs MCP |
+| **5** | Suppression `pml_execute_*` | ⚠️ **Oui** | APIs MCP |
+| **6** | Table `capability_invocations` | ❌ Non | Nouvelle table |
+
+### Phase 3 : Impact sur Capability schema
+
+```typescript
+// AVANT
+interface Capability {
+  id: string;
+  intent: string;
+  code: string;  // ← Toujours du code
+}
+
+// APRÈS
+interface Capability {
+  id: string;
+  intent: string;
+  source:  // ← BREAKING: nouveau champ obligatoire
+    | { type: "code"; code: string }
+    | { type: "dag"; dagStructure: DAGStructure };
+}
+```
+
+**Ce qui casse :**
+- Code qui lit `capability.code` directement → doit lire `capability.source.code`
+- Sérialisation/désérialisation
+- Tests unitaires sur Capability
+
+**Action requise :**
+- Rechercher tous les usages de `capability.code` dans le codebase
+- Mettre à jour vers `capability.source.type === "code" ? capability.source.code : null`
+
+### Phases 4-5 : Impact sur APIs MCP
+
+```
+SUPPRIMÉ                        REMPLACÉ PAR
+────────                        ────────────
+pml_search_tools         →      pml_discover({ filter: { type: "tool" } })
+pml_search_capabilities  →      pml_discover({ filter: { type: "capability" } })
+pml_find_capabilities    →      pml_discover()
+pml_execute_dag          →      pml_execute({ implementation: { type: "dag", ... } })
+pml_execute_code         →      pml_execute({ implementation: { type: "code", ... } })
+```
+
+**Ce qui casse :**
+1. **System prompts MCP** - Doivent référencer les nouveaux tools
+2. **Tests d'intégration** - Tous les tests appelant les anciens tools
+3. **Documentation utilisateur** - Guides d'utilisation à réécrire
+4. **Clients externes** (si existants) - Doivent migrer
+
+**Actions requises :**
+
+| Fichier/Zone | Action |
+|--------------|--------|
+| `gateway-server.ts` | Supprimer handlers des anciens tools |
+| `system-prompts/` | Mettre à jour avec `pml_discover` et `pml_execute` |
+| `tests/` | Migrer tous les tests vers nouvelles APIs |
+| `docs/` | Réécrire la documentation MCP |
+
+### Checklist pré-déploiement
+
+- [ ] Tous les usages de `capability.code` migrés
+- [ ] System prompts mis à jour
+- [ ] Tests migrés et passent
+- [ ] Documentation à jour
+- [ ] Anciens handlers supprimés (pas de mode déprécié)
 
 ---
 
