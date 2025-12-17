@@ -1,7 +1,7 @@
 # Tech-Spec: HIL Permission Escalation Architecture Fix
 
 **Created:** 2025-12-16
-**Status:** ✅ Implemented
+**Status:** ✅ Phase 1-2 Complete, Phase 3-4 Pending
 **Updated:** 2025-12-17
 **Related Stories:** 2.5-3, 7.7a, 7.7b, 7.7c
 
@@ -9,24 +9,37 @@
 
 ### Problem Statement
 
-The Human-in-the-Loop (HIL) mechanism for permission escalation in DAG execution is broken due to an architectural deadlock. When a `code_execution` or `capability` task encounters a permission error in the Deno sandbox, it emits a `decision_required` event and waits for approval. However, the event can never reach the client because:
+The Human-in-the-Loop (HIL) mechanism for permission escalation in DAG execution had multiple architectural issues:
 
-1. Tasks execute inside `Promise.allSettled()` in the main generator
-2. The generator cannot `yield` events while waiting for `Promise.allSettled` to resolve
-3. `waitForDecisionCommand()` blocks indefinitely waiting for a response that can never arrive
-4. Result: **Deadlock**
+1. **Deadlock Bug**: Tasks execute inside `Promise.allSettled()`, so the generator cannot `yield` events while waiting. `waitForDecisionCommand()` blocks indefinitely waiting for a response that can never arrive.
 
-Additionally, the legacy `sideEffects: true` HIL mechanism from Story 2.5-3 is redundant with the new permission system from Story 7.7 and should be removed.
+2. **Dual Execution Paths**: `execute()` (non-interactive) and `executeStream()` (generator) had separate implementations, causing HIL to only work with `executeStream()`.
 
-### Solution
+3. **Client-Controlled Security**: `per_layer_validation` was controlled by the client, allowing potential bypass of security checks.
 
-Implement the **Deferred Escalation Pattern**:
+4. **Invisible Errors**: MCP tool errors used JSON-RPC format `{ error: {...} }` instead of MCP tool format `{ isError: true, content: [...] }`, making errors invisible to LLM clients.
 
-1. Tasks throw a special `PermissionEscalationNeeded` error instead of blocking
-2. `Promise.allSettled` catches these as rejections
-3. After the layer completes, process escalation requests at the layer boundary
-4. Yield `decision_required` events, wait for approval, re-execute approved tasks
-5. Remove legacy `sideEffects` mechanism entirely
+### Solution Implemented
+
+**Phase 1: Unified Execution (Completed)**
+- `execute()` now wraps `executeStream()` - single code path
+- Non-interactive mode returns errors in result instead of deadlocking
+- Permission errors provide helpful suggestions (use `primitives:http_get`)
+
+**Phase 2: Server-Side Validation Detection (Completed)**
+- Server auto-detects if DAG requires validation based on:
+  - `code_execution` with `permissionSet !== "minimal"`
+  - `capability` with non-minimal permissions
+  - MCP tools with elevated permissions in `mcp-permissions.yaml`
+- Client cannot bypass validation - server decides
+- MCP tool errors now use correct format and are logged for observability
+
+**Phase 3: Legacy Cleanup (Pending)**
+- Remove deprecated `sideEffects` mechanism
+- Clean up unused HIL config
+
+**Phase 4: Per-Task HIL (Future)**
+- True HIL with pause BEFORE executing specific tasks marked `approvalMode: "hil"`
 
 ### Scope
 
@@ -262,55 +275,191 @@ for (const task of riskyTasks) {
 
 ### Decision
 
-**TBD** - Options A and B are both viable:
-- **Option A** if prioritizing low risk and quick delivery
-- **Option B** if prioritizing clean architecture and UX
+**✅ Option A Selected** - Deferred Escalation Pattern
+
+Rationale:
+- Low risk, fits existing architecture
+- Single execution path: `execute()` wraps `executeStream()`
+- Clear error messages guide users to authorized tools
+- Server-side validation detection prevents client bypass
 
 ---
 
 ## Implementation Plan
 
-### Tasks
+### Phase 1: Unified Execution ✅ Complete
 
-- [ ] **Task 1**: Create `PermissionEscalationNeeded` error class
-  - File: `src/dag/types.ts` or new `src/dag/errors.ts`
-  - Properties: taskId, taskType, currentSet, requestedSet, detectedOperation, originalError, context
+- [x] **Task 1.1**: Override `execute()` in ControlledExecutor to wrap `executeStream()`
+  - Single code path for all execution modes
+  - File: `src/dag/controlled-executor.ts`
 
-- [ ] **Task 2**: Modify `executeCodeTask()` to throw instead of block
-  - Remove `waitForDecisionCommand()` call
-  - Remove direct event emission for escalation
-  - Throw `PermissionEscalationNeeded` with full context
+- [x] **Task 1.2**: Non-interactive mode throws on `decision_required`
+  - `execute()` throws clear error instead of blocking
+  - Error message guides to use `executeStream()` or `per_layer_validation`
 
-- [ ] **Task 3**: Modify `executeCapabilityTask()` to throw instead of block
-  - Update `PermissionEscalationHandler.hilCallback` to throw
-  - Or refactor to not use callback pattern
+- [x] **Task 1.3**: Add `getPermissionSuggestion()` helper
+  - Maps permission errors to authorized tool suggestions
+  - Example: "Permission denied: --allow-net → Use primitives:http_get"
 
-- [ ] **Task 4**: Add escalation handling in `executeStream()` layer loop
-  - After `Promise.allSettled`, filter for `PermissionEscalationNeeded` rejections
-  - For each: yield `decision_required`, wait for command, re-execute if approved
-  - Track re-executed tasks to update layer results
+### Phase 2: Server-Side Validation Detection ✅ Complete
 
-- [ ] **Task 5**: Same escalation handling in `resumeFromCheckpoint()` layer loop
-  - Mirror the logic from Task 4
+- [x] **Task 2.1**: Create `requiresValidation()` function
+  - File: `src/mcp/handlers/workflow-execution-handler.ts`
+  - Analyzes DAG to determine if validation needed
+  - Server decides, client cannot bypass
 
-- [ ] **Task 6**: Remove legacy `sideEffects` HIL mechanism
-  - Delete `shouldRequireApproval()` method
-  - Delete `generateHILSummary()` method
-  - Remove HIL config block (lines 1374-1450 approximately)
+- [x] **Task 2.2**: Detection rules implemented
+  - `code_execution` with `permissionSet !== "minimal"` → needs validation
+  - `capability` with non-minimal permissions → needs validation
+
+- [x] **Task 2.3**: Integrate MCP tool permissions
+  - Read from `config/mcp-permissions.yaml` via `getToolPermissionConfig()`
+  - Validation triggers: `scope !== "minimal"`, `approvalMode === "hil"`, `ffi`, `run`
+  - Integrated in `requiresValidation()` for all MCP tool tasks
+
+- [x] **Task 2.4**: Auto-enable validation in `handleWorkflowExecution()`
+  - Server-side detection: `serverRequiresValidation || perLayerValidation`
+  - Client can request validation but cannot bypass server requirement
+  - Integrated in both explicit workflow and intent-based flows
+
+- [x] **Task 2.5**: Fix MCP tool error format
+  - Created `formatMCPToolError()` in `src/mcp/server/responses.ts`
+  - Returns `{ isError: true, content: [...] }` format per MCP spec
+  - Errors now visible to LLM clients (Claude Code)
+  - Added server-side logging with `[MCP_TOOL_ERROR]` prefix for Promtail/Loki
+
+- [x] **Task 2.6**: Convert all handlers to new error format
+  - `control-commands-handler.ts` - all validation errors
+  - `workflow-execution-handler.ts` - parameter errors
+  - `search-handler.ts` - search failures
+  - `code-execution-handler.ts` - execution failures
+  - `gateway-server.ts` - tool call errors (except `tools/list` which stays JSON-RPC)
+
+### Phase 3: Legacy Cleanup (Pending)
+
+> **Note:** On garde le code HIL existant (`shouldRequireApproval`, `generateHILSummary`, `hil` config)
+> car il sera réutilisé/adapté pour Phase 4 (per-task HIL). On nettoie seulement `sideEffects`.
+
+- [ ] **Task 3.1**: Remove legacy `sideEffects` mechanism only
   - Remove `sideEffects` from Task type in `src/graphrag/types.ts`
+  - Remove `sideEffects` checks in `shouldRequireApproval()` (but keep the function)
+  - Keep `generateHILSummary()` for Phase 4
 
-- [ ] **Task 7**: Clean up ExecutorConfig
-  - Remove `hil` field from `ExecutorConfig` in `src/dag/types.ts`
-  - Update gateway-server.ts to remove HIL config from ControlledExecutor instantiation
+- [ ] **Task 3.2**: Keep HIL infrastructure for Phase 4
+  - ~~Remove `hil` field from `ExecutorConfig`~~ → **KEEP** for Phase 4
+  - ~~Update gateway-server.ts to remove HIL config~~ → Already not passing config, code stays
+  - Document that HIL is disabled by not passing config (not by removing code)
 
-- [ ] **Task 8**: Update tests
-  - Add unit tests for `PermissionEscalationNeeded` error handling
-  - Add integration test for full HIL flow via DAG
-  - Remove/update tests for `sideEffects` mechanism
+- [ ] **Task 3.3**: Update security tests
+  - `tests/dag/checkpoint-resume-security.test.ts` - mark HIL/AIL tests as `.skip()` until Phase 4
+  - Add test for server-side validation detection (`requiresValidation()`)
 
-- [ ] **Task 9**: Documentation
-  - Update Story 2.5-3 to mark sideEffects as removed
-  - Update Story 7.7c with the new architecture
+### Phase 4: Per-Task HIL (Future)
+
+- [ ] **Task 4.1**: Implement task-level HIL detection
+  - Before executing a task with `task.tool`, check `getToolPermissionConfig(toolPrefix).approvalMode === "hil"`
+  - If true, yield `decision_required` event and wait for approval
+  - Different from per-layer validation: pauses BEFORE task execution, not after layer
+
+- [ ] **Task 4.2**: Update ControlledExecutor for mid-layer HIL
+  - Challenge: Cannot yield from inside `Promise.allSettled()`
+  - Options: Sequential execution for HIL tasks, or custom concurrent executor
+  - See ADR Options B and D for architectural approaches
+
+- [ ] **Task 4.3**: Wire up approval flow
+  - `approval_response` with `approved: true` → execute task
+  - `approval_response` with `approved: false` → skip task, continue workflow
+
+---
+
+## Server-Side Validation Detection
+
+### `requiresValidation()` Function
+
+**Location:** `src/mcp/handlers/workflow-execution-handler.ts`
+
+```typescript
+async function requiresValidation(
+  dag: DAGStructure,
+  capabilityStore?: CapabilityStore,
+): Promise<boolean> {
+  for (const task of dag.tasks) {
+    const taskType = getTaskType(task);
+
+    // Code execution with elevated permissions → needs validation
+    if (taskType === "code_execution") {
+      const permSet = task.sandboxConfig?.permissionSet ?? "minimal";
+      if (permSet !== "minimal") {
+        return true;
+      }
+    }
+
+    // Capability with non-minimal permissions → needs validation
+    if (taskType === "capability" && task.capabilityId && capabilityStore) {
+      const cap = await capabilityStore.findById(task.capabilityId);
+      if (cap?.permissionSet && cap.permissionSet !== "minimal") {
+        return true;
+      }
+    }
+
+    // MCP tool with elevated permissions or human approval required → needs validation
+    if (taskType === "mcp_tool" && task.tool) {
+      const toolPrefix = task.tool.split(":")[0];
+      const permConfig = getToolPermissionConfig(toolPrefix);
+      if (permConfig) {
+        if (permConfig.scope !== "minimal") return true;
+        if (permConfig.approvalMode === "hil") return true;
+        if (permConfig.ffi || permConfig.run) return true;
+      }
+    }
+  }
+  return false;
+}
+```
+
+### Detection Rules
+
+| Task Type | Condition | Validation Required |
+|-----------|-----------|---------------------|
+| `code_execution` | `permissionSet === "minimal"` | ❌ No |
+| `code_execution` | `permissionSet !== "minimal"` | ✅ Yes |
+| `capability` | Stored `permissionSet === "minimal"` | ❌ No |
+| `capability` | Stored `permissionSet !== "minimal"` | ✅ Yes |
+| `mcp_tool` | `approvalMode: "auto"` in yaml | ❌ No |
+| `mcp_tool` | `approvalMode: "hil"` in yaml | ✅ Yes |
+
+### Permission Sets
+
+From `src/capabilities/types.ts`:
+- `"minimal"` - No special permissions (safe to run)
+- `"readonly"` - Read-only filesystem access
+- `"filesystem"` - Read/write filesystem access
+- `"network-api"` - HTTP/HTTPS network access
+- `"mcp-standard"` - MCP tool usage
+- `"trusted"` - Full permissions (dangerous)
+
+### MCP Permissions Configuration
+
+**Location:** `config/mcp-permissions.yaml`
+
+```yaml
+servers:
+  filesystem:
+    tools:
+      read_file:
+        permissions:
+          scope: read
+        approvalMode: auto
+      write_file:
+        permissions:
+          scope: full
+        approvalMode: hil  # Requires human approval
+```
+
+The 3-axis permission model:
+- `scope`: `read` | `full` | `none`
+- `ffi`: `true` | `false` - Foreign Function Interface
+- `run`: `true` | `false` - Subprocess execution
 
 ### Acceptance Criteria
 
@@ -457,3 +606,120 @@ Minimal. The extra error handling and re-execution only happens on permission er
 
 **Migration:**
 No migration needed. The `sideEffects` field was never widely used. Capabilities continue to work with their stored `permissionSet`.
+
+---
+
+## Phase 2 Implementation Details
+
+### MCP Tool Error Format Fix
+
+**Problem:** Errors returned by MCP tools used JSON-RPC format which was invisible to LLM clients.
+
+**Solution:** Created `formatMCPToolError()` function that returns MCP-compliant error format.
+
+**Files Modified:**
+
+| File | Changes |
+|------|---------|
+| `src/mcp/server/responses.ts` | Added `formatMCPToolError()` with logging |
+| `src/mcp/server/mod.ts` | Export `formatMCPToolError` |
+| `src/mcp/handlers/control-commands-handler.ts` | Converted all errors to new format |
+| `src/mcp/handlers/workflow-execution-handler.ts` | Converted parameter errors |
+| `src/mcp/handlers/search-handler.ts` | Converted search failures |
+| `src/mcp/handlers/code-execution-handler.ts` | Converted execution failures |
+| `src/mcp/gateway-server.ts` | Converted tool call errors |
+
+**Error Format Comparison:**
+
+```typescript
+// OLD - JSON-RPC format (invisible to LLM)
+formatMCPError(MCPErrorCodes.INVALID_PARAMS, "Workflow not found", { workflow_id });
+// Returns: { error: { code: -32602, message: "Workflow not found", data: {...} } }
+
+// NEW - MCP tool format (visible to LLM)
+formatMCPToolError("Workflow not found", { workflow_id });
+// Returns: { isError: true, content: [{ type: "text", text: "{\"error\": \"...\", ...}" }] }
+```
+
+**Logging:**
+
+All tool errors are now logged server-side for observability:
+```
+ERROR [MCP_TOOL_ERROR] Workflow xyz not found or expired { data: { workflow_id: "xyz" } }
+```
+
+Filter in Loki: `{job="pml-server"} |= "MCP_TOOL_ERROR"`
+
+### MCP Tool Permission Detection
+
+**Implementation in `requiresValidation()`:**
+
+```typescript
+// MCP tool with elevated permissions → needs validation
+if (taskType === "mcp_tool" && task.tool) {
+  const toolPrefix = task.tool.split(":")[0];  // "github:create_issue" → "github"
+  const permConfig = getToolPermissionConfig(toolPrefix);
+
+  if (permConfig) {
+    if (permConfig.scope !== "minimal") return true;      // elevated scope
+    if (permConfig.approvalMode === "hil") return true;   // human approval required
+    if (permConfig.ffi || permConfig.run) return true;    // dangerous permissions
+  }
+}
+```
+
+**Validation Triggers:**
+
+| Condition | Validation Required | Reason |
+|-----------|---------------------|--------|
+| `scope: "minimal"` | No | Safe by default |
+| `scope: "filesystem"` | Yes | File system access |
+| `scope: "network-api"` | Yes | Network access |
+| `approvalMode: "hil"` | Yes | Human approval required |
+| `ffi: true` | Yes | Foreign function interface |
+| `run: true` | Yes | Subprocess execution |
+| Tool not in YAML | No | Permissive default |
+
+### AIL Implicite via Layer Results
+
+**Pattern actuel (recommandé):**
+1. Workflow s'exécute et retourne `layer_complete` avec `resultPreview`
+2. Claude (l'agent) voit les résultats et décide
+3. Claude fait un appel séparé : `pml_continue`, `pml_abort`, ou `pml_replan`
+
+**Avantages:**
+- Pas de deadlock (pas de `waitForDecisionCommand` bloquant)
+- Claude a le contexte pour décider (preview des résultats)
+- Architecture simple et robuste
+
+**Layer Results Format:**
+```json
+{
+  "layer_results": [
+    {
+      "taskId": "read_file",
+      "status": "success",
+      "output": {
+        "executionTimeMs": 5.27,
+        "resultPreview": "{\"content\":[{\"type\":\"text\",\"text\":\"...",
+        "resultSize": 10247
+      }
+    }
+  ],
+  "options": ["continue", "replan", "abort"]
+}
+```
+
+**Future:** Tool `pml_get_task_result` pour récupérer le résultat complet si le preview ne suffit pas.
+
+### Current vs Future HIL Behavior
+
+**Current (Phase 2):** Per-layer validation + AIL implicite
+- Tools avec permissions élevées triggent `per_layer_validation` mode
+- Workflow pause APRÈS chaque layer avec `resultPreview`
+- Claude review les résultats et décide via appel séparé
+
+**Future (Phase 4):** Per-task HIL
+- Tools with `approvalMode: "hil"` trigger pause BEFORE execution
+- User explicitly approves each sensitive operation
+- Requires architectural changes to handle mid-layer yields

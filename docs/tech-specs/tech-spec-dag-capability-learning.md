@@ -839,7 +839,49 @@ interface Capability {
 }
 ```
 
-### 8.4 Reconstruction des dépendances data (vrai `dependsOn`)
+### 8.4 Result Preview dans Layer Results (IMPLÉMENTÉ)
+
+> **Note (2025-12-17):** Cette fonctionnalité est déjà implémentée pour supporter l'AIL implicite.
+
+**Fichiers modifiés :**
+- `src/dag/types.ts` : Ajout `result`, `resultPreview`, `resultSize` dans `ExecutionEvent.task_complete`
+- `src/dag/controlled-executor.ts` : Génération du preview (240 chars) lors de `task_complete`
+- `src/mcp/handlers/workflow-execution-handler.ts` : Propagation dans `layer_results`
+
+**Format actuel :**
+```json
+{
+  "layer_results": [{
+    "taskId": "read_file",
+    "status": "success",
+    "output": {
+      "executionTimeMs": 5.27,
+      "resultPreview": "{\"content\":[{\"type\":\"text\"...",  // 240 chars max
+      "resultSize": 10247  // taille totale en bytes
+    }
+  }]
+}
+```
+
+**À implémenter (futur) : `pml_get_task_result`**
+
+Tool pour récupérer le résultat complet si le preview ne suffit pas :
+
+```typescript
+pml_get_task_result({
+  workflow_id: string;
+  task_id: string;
+  // Params optionnels pour l'IA
+  offset?: number;      // Début (pour pagination)
+  limit?: number;       // Longueur max à retourner
+  format?: "raw" | "pretty";  // Formatage JSON
+})
+```
+
+> **À vérifier lors de l'implémentation :** S'assurer que le stockage des résultats complets
+> est cohérent avec `CapabilityInvocation.results` (section 7.3) pour éviter la duplication.
+
+### 8.5 Reconstruction des dépendances data (vrai `dependsOn`)
 
 Pour reconstruire un DAG **ré-exécutable** depuis le code, on doit détecter les **dépendances data** :
 si le résultat du nœud A est utilisé dans les arguments du nœud B, alors B dépend de A.
@@ -951,7 +993,7 @@ t3: { tool: "http:fetch", args: { url: "..." }, result: { data: [...] } }
 }
 ```
 
-### 8.5 Ce que ça change pour le DAG Suggester
+### 8.6 Ce que ça change pour le DAG Suggester
 
 #### Changement clé : `dependsOn` inféré depuis schemas
 
@@ -1014,7 +1056,7 @@ Schemas → provides (graph) → DAG Suggester → dependsOn (DAG)
 
 Le suggester lit les `provides` edges et, en fonction de l'intent, crée les `dependsOn` appropriés dans le DAG proposé.
 
-### 8.6 Limites de la reconstruction et mitigations
+### 8.7 Limites de la reconstruction et mitigations
 
 #### Limites identifiées
 
