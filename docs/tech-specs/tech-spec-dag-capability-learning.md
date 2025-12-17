@@ -30,7 +30,7 @@ Cette tech spec adresse plusieurs questions architecturales interconnectées aut
 1. **Parallel tracking** : Les tools exécutés en parallèle ne créent pas d'edges
 2. **DAG → Capability** : Un DAG exécuté avec succès ne génère pas de capability
 3. **Edge types confus** : `sequence` vs `dependency` - quelle différence ?
-4. **Co-occurrence manquant** : Pas d'edge type pour "utilisés ensemble"
+4. **Manque de `provides`** : Pas d'edge pour montrer qu'un tool/capability fournit les inputs d'un autre
 5. **Code vs DAG** : Tension entre les deux modèles d'exécution
 6. **APIs fragmentées** : Trop de tools séparés pour la recherche
 7. **Mode definition vs invocation** : Pas de distinction dans le data model
@@ -53,7 +53,8 @@ Cette tech spec adresse plusieurs questions architecturales interconnectées aut
 |----------------|----------|---------|
 | Tracer `result` | Détecter dépendances data (args/result) | §8.4 |
 | Reconstruire DAG depuis code | Rendre le code ré-exécutable | §8 |
-| `co-occurrence` edge type | Tracker le parallélisme | §2.3 |
+| `provides` edge type | Définir la couverture inputs/outputs (Definition view) | §2.3 |
+| Séparation Definition/Invocation views | Clarifier ce qu'on affiche dans Cytoscape | §7.5 |
 | Explicit vs Inferred `dependsOn` | Distinguer control vs data flow | §8.5 |
 | Schemas dans DAG suggestion | Aider l'IA à remplir les args | §2.5 |
 | `pml_discover` unifié | Simplifier APIs recherche (spec séparée) | §9 Phase 4 |
@@ -150,39 +151,126 @@ for (let i = 0; i < children.length - 1; i++) {
 }
 ```
 
-**Algorithme de détection :**
+**Algorithme de détection (vue Invocation) :**
 ```typescript
-function detectParallelism(traces: TraceEvent[]): EdgeType {
+function detectSequence(traces: TraceEvent[]): Edge[] {
   // Calculer endTs = ts + durationMs pour chaque trace
-  // Si overlap (startA < endB && startB < endA) → "co-occurrence"
-  // Sinon si A finit avant B commence → "sequence"
+  // Si timestamps overlap → pas d'edge (parallel)
+  // Si A finit avant B commence → edge "sequence" A→B
+  // Note: le parallélisme est implicite = absence de lien
 }
 ```
 
-### 2.3 Nouveau edge type : `co-occurrence`
+### 2.3 Nouveau edge type : `provides` (Definition view)
+
+L'edge `provides` capture la relation "A fournit des données pour B" dans la vue **Definition**.
+
+> **Note importante :** Le parallélisme n'a pas besoin d'edge dédié.
+> Deux tasks parallèles = deux tasks sans lien de dépendance entre elles.
+> Ce qui compte c'est le **fan-in/fan-out**, pas une relation "co-occurrence".
+
+#### Types d'edges par vue
 
 ```typescript
 export type EdgeType =
+  // Definition view (structure abstraite)
   | "dependency"      // A doit finir avant B (DAG explicit)
+  | "provides"        // A fournit des données utilisables par B (NEW)
   | "contains"        // A contient B (hierarchy)
-  | "sequence"        // A observé avant B (temporal)
-  | "co-occurrence"   // A et B utilisés ensemble (parallel)
-  | "alternative";    // A ou B pour même intent
-
-export const EDGE_TYPE_WEIGHTS: Record<EdgeType, number> = {
-  dependency: 1.0,
-  contains: 0.8,
-  alternative: 0.6,
-  sequence: 0.5,
-  "co-occurrence": 0.4,  // NOUVEAU
-};
+  | "alternative"     // A ou B pour même intent
+  // Invocation view (exécution réelle)
+  | "sequence";       // A observé avant B (temporal order)
 ```
 
-### 2.4 Questions ouvertes
+#### Formalisation mathématique de `provides`
 
-- [ ] `co-occurrence` devrait-il être bidirectionnel (A↔B) ou deux edges (A→B, B→A) ?
-- [ ] Weight de 0.4 est-il approprié ?
-- [ ] Faut-il un seuil de chevauchement minimum (ex: 50% overlap) ?
+L'edge `provides` indique que les **outputs** de A peuvent alimenter les **inputs** de B.
+
+On utilise des concepts mathématiques de relation entre ensembles :
+
+```typescript
+interface ProvidesEdge {
+  from: string;              // Nœud source (provider)
+  to: string;                // Nœud cible (consumer)
+  type: "provides";
+  coverage: ProvidesCoverage;
+}
+
+type ProvidesCoverage =
+  | "strict"     // Surjection : outputs couvrent TOUS les required inputs
+  | "partial"    // Intersection non-vide avec required inputs
+  | "optional";  // Couvre uniquement des inputs optionnels
+
+// Formalisation
+// Soit R = ensemble des required inputs de B
+// Soit O = ensemble des outputs de A
+//
+// strict:   R ⊆ O  (surjection - tout required est couvert)
+// partial:  R ∩ O ≠ ∅ et R ⊄ O (intersection non-vide, mais incomplet)
+// optional: R ∩ O = ∅ et optionalInputs(B) ∩ O ≠ ∅ (que des optionnels)
+```
+
+#### Exemple visuel
+
+```
+┌─────────────┐
+│  fs:read    │ outputs: { content: string }
+└──────┬──────┘
+       │ provides (strict)
+       ▼
+┌─────────────┐
+│ json:parse  │ required: { json: string }  ← content → json
+└──────┬──────┘
+       │ provides (partial)
+       ▼
+┌─────────────┐
+│ http:post   │ required: { url, body, headers }  ← json → body (manque url, headers)
+└─────────────┘
+```
+
+#### Calcul de coverage
+
+```typescript
+function computeCoverage(
+  providerOutputs: Set<string>,
+  consumerInputs: { required: Set<string>; optional: Set<string> }
+): ProvidesCoverage | null {
+  const requiredCovered = intersection(consumerInputs.required, providerOutputs);
+  const optionalCovered = intersection(consumerInputs.optional, providerOutputs);
+
+  // Aucune intersection = pas d'edge provides
+  if (requiredCovered.size === 0 && optionalCovered.size === 0) {
+    return null;
+  }
+
+  // Tous les required sont couverts
+  if (isSubset(consumerInputs.required, providerOutputs)) {
+    return "strict";
+  }
+
+  // Quelques required couverts
+  if (requiredCovered.size > 0) {
+    return "partial";
+  }
+
+  // Que des optionnels
+  return "optional";
+}
+```
+
+#### Weights par type d'edge
+
+```typescript
+export const EDGE_TYPE_WEIGHTS: Record<EdgeType, number> = {
+  // Definition view
+  dependency: 1.0,      // Causalité explicite
+  provides: 0.7,        // Relation data flow
+  contains: 0.8,        // Hiérarchie
+  alternative: 0.6,     // Options
+  // Invocation view
+  sequence: 0.5,        // Ordre observé
+};
+```
 
 ### 2.5 Schemas dans la suggestion DAG (NOUVEAU)
 
@@ -606,6 +694,75 @@ interface CapabilityInvocation {
 - [ ] Combien d'invocations garder ? (limite de rétention)
 - [ ] L'UI Fresh a-t-elle besoin de plus de détails ?
 
+### 7.5 Clarification des edges par vue Cytoscape (NOUVEAU)
+
+Les vues Definition et Invocation existent déjà dans Cytoscape. La différence principale :
+
+| Vue | Nœuds | Exemple |
+|-----|-------|---------|
+| **Definition** | Dédupliqués - chaque tool/capability apparaît **une fois** | `fs:read` (1 nœud même si appelé 3 fois) |
+| **Invocation** | Un nœud **par appel** | `fs:read_1`, `fs:read_2`, `fs:read_3` |
+
+#### Edges par vue
+
+Les types d'edges devraient être différents selon la vue :
+
+| Vue | Edge types | Rationale |
+|-----|------------|-----------|
+| **Definition** | `dependency`, `provides`, `contains`, `alternative` | Relations **structurelles** entre types de nœuds |
+| **Invocation** | `sequence`, `contains` | Relations **temporelles** entre instances d'exécution |
+
+#### Vue Definition : edges structurels
+
+```
+┌─────────────────────────────────────────┐
+│         DEFINITION VIEW                  │
+│    (nœuds dédupliqués par type)          │
+├─────────────────────────────────────────┤
+│                                         │
+│   ┌─────────┐  provides   ┌─────────┐   │
+│   │ fs:read │ ──────────▶ │json:parse│  │
+│   └─────────┘   (strict)  └────┬────┘   │
+│                           dependency    │
+│                                │        │
+│   ┌─────────┐              ▼        │
+│   │http:post│ ◀────────────────────────│
+│   └─────────┘  provides (partial)       │
+│                                         │
+│   Pas d'edge = potentiellement parallel │
+└─────────────────────────────────────────┘
+```
+
+#### Vue Invocation : edges temporels
+
+```
+┌─────────────────────────────────────────┐
+│         INVOCATION VIEW                  │
+│    (un nœud par appel réel)              │
+├─────────────────────────────────────────┤
+│                                         │
+│   ┌──────────┐ seq ┌──────────┐ seq    │
+│   │fs:read_1 │────▶│json:parse│────────▶│
+│   │  @0ms    │     │  @50ms   │         │
+│   └──────────┘     └──────────┘         │
+│                                         │
+│   ┌──────────┐              │          │
+│   │fs:read_2 │  (parallel)  │ seq      │
+│   │  @10ms   │              │          │
+│   └──────────┘              ▼          │
+│                        ┌──────────┐    │
+│                        │http:post │    │
+│                        │  @120ms  │    │
+│                        └──────────┘    │
+│                                         │
+│   Timestamps sur les nœuds              │
+│   Parallel = timestamps qui overlap     │
+└─────────────────────────────────────────┘
+```
+
+> **Note :** Le parallélisme en vue Invocation n'a pas besoin d'edge.
+> C'est visible par les timestamps qui se chevauchent.
+
 ---
 
 ## 8. Apprentissage depuis le code (style Temporal)
@@ -637,9 +794,10 @@ Inspiré de [Temporal](https://temporal.io/) : le code s'exécute, on trace, on 
                       ▼
 ┌─────────────────────────────────────────────────────┐
 │  RECONSTRUCTION de la structure                     │
-│  - Timestamps overlap → co-occurrence (parallel)    │
-│  - Timestamps séquentiels → sequence                │
+│  - Timestamps séquentiels → sequence (Invocation)   │
+│  - Timestamps overlap → parallel (pas d'edge)       │
 │  - parentTraceId → contains (hierarchy)             │
+│  - args/result match → dependency (Definition)      │
 └─────────────────────┬───────────────────────────────┘
                       │
                       ▼
@@ -670,7 +828,7 @@ interface Capability {
     edges: Array<{
       from: string;
       to: string;
-      type: "sequence" | "co-occurrence" | "contains";
+      type: "sequence" | "dependency" | "contains";  // sequence=invoc, dependency=definition
     }>;
   };
 
@@ -987,8 +1145,8 @@ Ces annotations seraient lues par le système pour enrichir le DAG inféré.
    - `tool_end` dans `worker-bridge.ts` ligne ~426
    - `capability_end` dans `code-generator.ts` ligne ~104
 2. Modifier `execution-learning.ts` pour utiliser les timestamps (`ts`, `durationMs`)
-3. Ajouter edge type `co-occurrence` dans `edge-weights.ts`
-4. Détecter overlap temporel pour créer les bons edges
+3. Ajouter edge type `provides` dans `edge-weights.ts` (vue Definition)
+4. Garder `sequence` pour la vue Invocation (ordre temporel)
 
 **Fichiers :** `worker-bridge.ts`, `code-generator.ts`, `execution-learning.ts`, `edge-weights.ts`, `types.ts`
 **Effort estimé :** 1-2 jours
@@ -1063,28 +1221,26 @@ La phase 6 est pour l'UX Fresh.
 2. ~~Fusionner sequence/dependency ou garder les deux ?~~ → **Garder les deux** (sémantique différente)
 3. ~~Comment l'IA choisit entre code et DAG ?~~ → **Elle ne choisit plus** : `pml_execute` unifié
 4. ~~APIs fragmentées ?~~ → **Unification** : `pml_discover` + `pml_execute`
+5. ~~Co-occurrence edge type ?~~ → **Non nécessaire** : parallélisme = absence d'edge entre nœuds
+6. ~~Edges par vue Cytoscape ?~~ → **Definition** (dependency, provides, contains) vs **Invocation** (sequence)
 
 ### Ouvertes
 
-5. **Co-occurrence bidirectionnel ou directionnel ?**
-   - Option A : Deux edges A→B et B→A
-   - Option B : Un edge bidirectionnel A↔B
-
-6. **Seuil de confiance pour speculation ?**
+7. **Seuil de confiance pour speculation ?**
    - Même seuil pour code et DAG ?
    - Adapter selon le type ?
 
-7. **Rétention des invocations** (pour mode definition/invocation)
+8. **Rétention des invocations** (pour mode definition/invocation)
    - Combien garder par capability ?
    - TTL ?
 
-8. **Migration des capabilities existantes**
+9. **Migration des capabilities existantes**
    - Ajouter `source: { type: "code" }` aux existantes ?
    - Recalculer `inferredStructure` depuis les traces ?
 
-9. **Backward compatibility**
-   - Garder les anciens tools en mode déprécié ?
-   - Période de transition ?
+10. **Backward compatibility**
+    - Garder les anciens tools en mode déprécié ?
+    - Période de transition ?
 
 ---
 
