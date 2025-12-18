@@ -109,49 +109,40 @@ graph TB
 
 ## Learning Mechanisms
 
-### Prioritized Experience Replay
+### Episodic Memory
 
-Not all experiences are equal. We prioritize **surprising outcomes**:
+Workflow outcomes are captured as episodic events:
 
-```
-Uniform sampling:     P(experience) = 1/N
-Prioritized sampling: P(experience) ∝ |prediction_error|^α
-```
+| Event Type | What It Captures |
+|------------|------------------|
+| `tool_execution` | Tool used, success/failure |
+| `workflow_complete` | Full workflow pattern + outcome |
+| `user_feedback` | Explicit corrections |
 
-Surprising failures teach more than predictable successes. Result: **2x faster learning**.
+Events are buffered and written asynchronously (<1ms overhead).
 
-### Temporal Difference Learning
+**Future direction:** We're exploring prioritized sampling based on prediction error—surprising failures teach more than predictable successes.
 
-Instead of waiting for complete workflows, we learn **step by step**:
+### Incremental Graph Updates
+
+Instead of waiting for batch updates, the graph learns at each step:
 
 ```mermaid
 graph LR
-    subgraph "Traditional (Monte Carlo)"
-        T1[Wait for<br/>workflow end] --> T2[Update once]
-    end
-
-    subgraph "TD Learning"
-        S1[Step 1] --> U1[Update]
-        S2[Step 2] --> U2[Update]
-        S3[Step 3] --> U3[Update]
-    end
+    E[Execute Tool] --> U[Update Edge Weight]
+    U --> N[Next Tool]
+    N --> E
 ```
 
-The key insight: each step's outcome gives information about the next step's value.
-
-```
-TD Update: V(state) ← V(state) + α × [reward + γ×V(next) - V(state)]
-```
-
-Result: **5x faster adaptation**.
+Each step's outcome immediately influences the next suggestion.
 
 ### Adaptive Thresholds
 
-Confidence thresholds self-adjust:
-- High error → Be more conservative (raise threshold)
-- Low error → Be more aggressive (lower threshold)
+Confidence thresholds self-adjust based on recent accuracy:
+- High error rate → Be more conservative (raise threshold)
+- Low error rate → Be more aggressive (lower threshold)
 
-The system finds its own optimal operating point.
+The system finds its own optimal operating point over time.
 
 ## System-Wide Meta-Learning
 
@@ -174,14 +165,14 @@ graph TD
 
 When one user discovers a pattern, **everyone benefits**.
 
-## Practical Impact
+## What This Enables
 
-| Metric | Before | After |
-|--------|--------|-------|
-| Suggestion accuracy | 68% | 89% |
-| Learning speed | ~50 workflows | ~10 steps |
-| Capability discovery | Manual | Automatic |
-| Cross-user learning | None | Full |
+| Feature | How It Works |
+|---------|--------------|
+| **Personalized suggestions** | Graph learns your patterns |
+| **Automatic capability discovery** | Clustering finds natural groupings |
+| **Cross-user learning** | Shared graph means everyone benefits |
+| **Graceful cold start** | Templates + priors until enough data |
 
 ---
 

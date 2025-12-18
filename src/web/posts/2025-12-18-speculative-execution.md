@@ -137,15 +137,15 @@ Wrong predictions aren't just discarded—they're feedback:
 - The graph gets smarter over time
 - Fewer wasted speculations in the future
 
-## Performance Impact
+## Performance Trade-offs
 
-The trade-off is compute vs latency.
+The fundamental trade-off: **compute for latency**.
 
-| Metric | Without Speculation | With Speculation |
-|--------|--------------------|--------------------|
-| Workflow latency | Baseline | -40% to -70% |
-| Compute cost | Baseline | +10% to +25% |
-| Hit rate (typical) | N/A | 75-90% |
+| Factor | Impact |
+|--------|--------|
+| Successful speculation | Latency saved = task duration |
+| Failed speculation | Compute wasted = task cost |
+| Hit rate | Determines if trade-off is worth it |
 
 ```mermaid
 graph LR
@@ -153,6 +153,8 @@ graph LR
         L[Lower Latency] <-->|costs| C[More Compute]
     end
 ```
+
+The break-even point depends on your hit rate and cost ratio. Current configuration (ADR-006) uses a 70% confidence threshold with adaptive adjustment.
 
 **When it's worth it:**
 - Interactive workflows where user waits

@@ -142,20 +142,21 @@ sequenceDiagram
     G->>R: Ordered, scored results
 ```
 
-### Scoring Formula
+### Scoring Formulas
 
-Our final score combines both signals:
+We use different formulas for different modes (see ADR-038):
 
+**Active Search (user query):**
 ```
-Score = α × SemanticSimilarity + β × GraphConfidence + γ × PageRank
+Score = α × SemanticScore + (1-α) × GraphScore
 ```
+Where α adapts based on graph density—sparse graphs rely more on semantics.
 
-Where:
-- **SemanticSimilarity**: Cosine distance from vector search
-- **GraphConfidence**: Edge weight from co-occurrence
-- **PageRank**: Structural importance in the graph
-
-The weights (α, β, γ) adapt based on context—new tools rely more on vectors, established patterns rely more on graph.
+**Passive Suggestion (next tool):**
+```
+Score = 0.6 × CoOccurrence + 0.3 × CommunityBoost + 0.1 × Recency
+```
+Favors recent patterns within the same tool cluster.
 
 ## When To Use What
 

@@ -199,18 +199,18 @@ graph LR
     S2 -->|constrains| T2
 ```
 
-## The Scaling Result
+## The Scaling Benefit
 
-| Metric | Single Layer | Two Layers |
-|--------|-------------|------------|
-| Query time (10 tools) | 5ms | 6ms |
-| Query time (100 tools) | 50ms | 12ms |
-| Query time (1000 tools) | 800ms | 45ms |
-| Memory usage | O(n²) | O(n) + O(k²) |
+The key insight: capabilities compress the search space.
 
-Where n = tools, k = capabilities (k << n).
+| Approach | Search Complexity |
+|----------|-------------------|
+| Single Layer | O(n²) where n = all tools |
+| Two Layers | O(n) + O(k²) where k = capabilities |
 
-The strategic layer acts as a **compression layer**—reducing the search space before tactical execution.
+Since k << n (typically 10-20 capabilities vs 100+ tools), the strategic layer acts as a **compression layer**—reducing the problem size before tactical execution.
+
+As tool count grows, the two-layer approach pays off increasingly.
 
 ## When To Use Each
 
