@@ -1,7 +1,7 @@
 # ADR-008: Episodic Memory & Adaptive Thresholds for Meta-Learning
 
 **Status:** ✅ Implemented
-**Date:** 2025-11-13 | **Updated:** 2025-12-05 | **Deciders:** BMad
+**Date:** 2025-11-13 | **Updated:** 2025-12-18 | **Deciders:** BMad
 **Prerequisite:** ADR-007 + Epic 3 (Sandbox)
 
 **Implementation Status (2025-12-05):**
@@ -14,6 +14,12 @@
 - ✅ **Phase 2 (Loop Integrations):** DONE
   - ControlledExecutor integration (auto-capture events) - `src/dag/controlled-executor.ts`
   - DAGSuggester context boost (episodic memory queries) - `src/graphrag/dag-suggester.ts`
+
+**Évolutions Epic 11 (2025-12-18):**
+
+- **TD Learning:** Remplace EMA pour les mises à jour de poids (plus réactif, incrémental)
+- **PER:** Prioritized Experience Replay pour prioriser les traces surprenantes
+- **Référence:** `docs/epics/epic-11-learning-from-traces.md` (Stories 11.2, 11.3)
 
 ---
 
@@ -1296,6 +1302,11 @@ class SpeculativeExecutor {
 - EMA learning algorithm
 - Per-workflow-type context granularity
 - Status: Accepted
+
+### v1.1 (2025-12-18)
+
+- Référence Epic 11 évolutions (TD Learning, PER)
+- Clarification mémoire sémantique (GraphRAG = hybride, Capabilities+Intent = pur)
 
 ---
 
