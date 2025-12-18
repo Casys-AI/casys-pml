@@ -583,6 +583,72 @@ type ProvidesCoverage =
 
 ---
 
+**Story 10.3b: DB Schema Cleanup & KV Migration** — NOUVEAU
+
+As a developer, I want a cleaner database schema with proper separation of concerns,
+So that temporary runtime state uses KV and permanent data uses PostgreSQL.
+
+**Context:**
+
+Audit du schéma DB révèle plusieurs problèmes :
+1. `workflow_dags` : état runtime temporaire stocké en PostgreSQL (overkill)
+2. `workflow_execution` : sera remplacé par `execution_trace` (Story 10.4)
+3. FKs manquantes sur plusieurs tables
+4. Naming confus (`workflow_pattern` = capability)
+
+**Changements proposés:**
+
+**1. Migrer `workflow_dags` → Deno KV (réactiver partiellement ADR-037)**
+
+```typescript
+// AVANT (PostgreSQL - overkill pour état temporaire)
+await db.query(`INSERT INTO workflow_dags (workflow_id, dag, intent) VALUES ($1, $2, $3)`, [...]);
+await db.query(`SELECT dag FROM workflow_dags WHERE workflow_id = $1 AND expires_at > NOW()`, [id]);
+
+// APRÈS (Deno KV - parfait pour TTL)
+const kv = await Deno.openKv();
+await kv.set(["workflow", workflowId], { dag, intent }, { expireIn: TTL_MS });
+const result = await kv.get(["workflow", workflowId]);
+```
+
+**2. Supprimer `workflow_execution` (pas de données à migrer)**
+
+```sql
+-- Pas de migration de données nécessaire (base de test vide)
+DROP TABLE IF EXISTS workflow_execution CASCADE;
+-- execution_trace sera créée dans Story 10.4
+```
+
+**3. (Optionnel) Renommer `workflow_pattern` → `capability`**
+
+Report possible à plus tard car breaking change significatif.
+
+**Acceptance Criteria:**
+
+1. `workflow_dags` supprimée de PostgreSQL
+2. `src/mcp/workflow-dag-store.ts` utilise Deno KV
+3. TTL automatique via `expireIn` (plus de cleanup job)
+4. `workflow_execution` supprimée (prépare 10.4)
+5. Tests: store/retrieve workflow state via KV
+6. Tests: TTL expiration fonctionne
+
+**Files to Create:**
+- `src/cache/kv.ts` (~30 LOC) - Singleton KV
+- `src/cache/workflow-state-cache.ts` (~60 LOC) - Remplace workflow-dag-store
+
+**Files to Modify:**
+- `src/mcp/workflow-dag-store.ts` → utiliser KV au lieu de PostgreSQL
+- `src/db/migrations/` - Migration pour DROP tables
+
+**Files to Delete:**
+- Migration 008 devient no-op (table plus créée)
+
+**Prerequisites:** Aucun
+
+**Estimation:** 1-2 jours
+
+---
+
 **Story 10.4: Execution Trace Consolidation & Learning** — RÉVISÉE ⭐ DB FONDATION
 
 As a learning system, I want a unified `execution_trace` table that consolidates workflow executions,
@@ -659,29 +725,14 @@ CREATE INDEX idx_exec_trace_path ON execution_trace USING GIN(executed_path);
 CREATE INDEX idx_exec_trace_priority ON execution_trace(capability_id, priority DESC);
 ```
 
-**Migration des données existantes:**
+**Pas de migration de données nécessaire:**
+
+Story 10.3b aura déjà supprimé `workflow_execution`. On crée `execution_trace` fresh.
 
 ```sql
--- Étape 1: Créer execution_trace (avec nouvelles colonnes)
--- Étape 2: Migrer workflow_execution → execution_trace
-INSERT INTO execution_trace (
-  id, intent_text, executed_at, success, duration_ms, error_message,
-  user_id, created_by, updated_by
-)
-SELECT
-  execution_id,
-  intent_text,
-  executed_at,
-  success,
-  execution_time_ms,
-  error_message,
-  COALESCE(user_id, 'local'),
-  COALESCE(created_by, 'local'),
-  updated_by
-FROM workflow_execution;
-
--- Étape 3: Supprimer workflow_execution (ou garder comme archive)
--- DROP TABLE workflow_execution; -- Optionnel
+-- workflow_execution déjà supprimée par Story 10.3b
+-- Créer execution_trace directement
+CREATE TABLE execution_trace (...);
 ```
 
 **Fichiers à mettre à jour lors de la migration:**
@@ -964,14 +1015,13 @@ async function storeTraceAndUpdateLearning(
 9. **Intégration dans le flow d'exécution:**
    - Après exécution sandbox → appeler `storeTraceAndUpdateLearning`
    - Calculer priority AVANT insert
-10. Tests: migration workflow_execution → execution_trace OK
-11. Tests: exécution réussie → trace insérée + learning updated via TD
-12. Tests: exécution échouée → trace insérée avec success=false, priority élevée si chemin dominant
-13. Tests: 3 exécutions même chemin → count=3, dominantPath correct
-14. Tests: 2 chemins différents → paths[] contient les 2
-15. Tests PER: échec sur chemin dominant (95% success) → priority ≈ 0.95
-16. Tests PER: succès sur chemin dominant → priority ≈ 0.05
-17. Tests PER: nouveau chemin → priority = 1.0
+10. Tests: exécution réussie → trace insérée + learning updated via TD
+11. Tests: exécution échouée → trace insérée avec success=false, priority élevée si chemin dominant
+12. Tests: 3 exécutions même chemin → count=3, dominantPath correct
+13. Tests: 2 chemins différents → paths[] contient les 2
+14. Tests PER: échec sur chemin dominant (95% success) → priority ≈ 0.95
+15. Tests PER: succès sur chemin dominant → priority ≈ 0.05
+16. Tests PER: nouveau chemin → priority = 1.0
 
 **Files to Create:**
 - `src/db/migrations/XXX_execution_trace.ts` (~80 LOC, inclut migration)
@@ -1489,13 +1539,14 @@ avec des MCP connecteurs externes.
 | 1 | `static_structure` in dag_structure | ❌ No | Additive |
 | 2 | `result` in traces | ❌ No | Additive |
 | 3 | `provides` EdgeType | ❌ No | Additive |
-| 4 | Refactor `workflow_execution` → `execution_trace` | ⚠️ **Yes** | Schema change (migration fournie) |
+| 3b | `workflow_dags` → KV, DROP `workflow_execution` | ⚠️ **Yes** | Schema change (pas de données) |
+| 4 | Nouvelle table `execution_trace` | ❌ No | Additive |
 | 5 | Capability `source: code \| dag` | ⚠️ **Yes** | Schema change |
 | 6 | Deprecate `pml_search_*` | ⚠️ **Yes** | MCP APIs |
 | 7 | Deprecate `pml_execute_*` | ⚠️ **Yes** | MCP APIs |
 
 **Migration Strategy:**
-- Phase 4: Migration automatique des données `workflow_execution` → `execution_trace`
+- Phase 3b: DROP tables (pas de données à migrer en dev/test)
 - Phase 5-7: Breaking changes. No transition period - clean cut.
 
 ---
@@ -1637,13 +1688,14 @@ avec des MCP connecteurs externes.
 | 1 | **10.1** | **Static Analysis → Capability** ⭐ FONDATION | **3-4j** | **4j** |
 | 2 | 10.2 | Result Tracing (quick win) | 0.5-1j | 5j |
 | 3 | 10.3 | Provides Edge | 1-2j | 7j |
-| 4 | **10.4** | **execution_trace + PER/TD** ⭐ DB FONDATION | **3-4j** | **11j** |
-| 5 | 10.5 | Unified Capability | 2-3j | 14j |
-| 6 | 10.6 | pml_discover | 2-3j | 17j |
-| 7 | 10.7 | pml_execute | 3-5j | 21j |
-| 8 | 10.8 | pml_get_task_result | 1-2j | 23j |
-| 9 | 10.9 | Definition/Invocation | 2-3j | 26j |
-| 10 | 10.10 | Dry Run + Mocks (optional) | 3-4j | 30j |
+| 3b | **10.3b** | **DB Cleanup + KV Migration** | **1-2j** | **9j** |
+| 4 | **10.4** | **execution_trace + PER/TD** ⭐ DB FONDATION | **3-4j** | **13j** |
+| 5 | 10.5 | Unified Capability | 2-3j | 16j |
+| 6 | 10.6 | pml_discover | 2-3j | 19j |
+| 7 | 10.7 | pml_execute | 3-5j | 23j |
+| 8 | 10.8 | pml_get_task_result | 1-2j | 25j |
+| 9 | 10.9 | Definition/Invocation | 2-3j | 28j |
+| 10 | 10.10 | Dry Run + Mocks (optional) | 3-4j | 32j |
 
 **Total MVP (10.1-10.9): ~4-5 semaines**
 **Total avec 10.10: ~5-6 semaines**
