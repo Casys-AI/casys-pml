@@ -680,88 +680,127 @@ pml_discover({
 
 **Story 10.7: pml_execute - Unified Execution API**
 
-As an AI agent, I want a single `pml_execute` tool that handles both DAG and code execution,
-So that I have a simplified API and the system always learns from my executions.
+As an AI agent, I want a single `pml_execute` tool that handles code execution with automatic learning,
+So that I have a simplified API and the system learns from my executions.
 
 **Context:**
 Phase 5 de la tech spec. Remplace `pml_execute_dag` et `pml_execute_code`.
 
+**Design Principles:**
+- **Code-first**: Tout est du code TypeScript. Le DAG est inféré via analyse statique (Story 10.1)
+- **Procedural Memory**: Le PML ne génère pas de code, il **réutilise** des capabilities apprises
+- **3 modes simples**: Suggestion, Speculation, Direct
+
 **API Design:**
 ```typescript
 pml_execute({
-  intent: "analyser ce fichier JSON",
+  intent: "lire et parser ce fichier JSON",
 
-  // Optionnel - si l'IA veut forcer une implémentation
-  implementation?: {
-    type: "code" | "dag",
-    code?: string,
-    dagStructure?: DAGStructure,
-  }
+  // Arguments pour les tools (optionnel) - active le mode Speculation
+  context?: Record<string, unknown>,  // ex: { path: "config.json" }
+
+  // Code TypeScript (optionnel) - active le mode Direct
+  code?: string,
 })
 ```
 
+**Les 3 Modes d'Exécution:**
+
+| Input | Mode | Ce qui se passe |
+|-------|------|-----------------|
+| `intent` seul | **Suggestion** | Retourne tools + schemas + capabilities matchées |
+| `intent` + `context` | **Speculation** | Cherche capability existante → exécute avec context |
+| `intent` + `code` | **Direct** | Exécute le code → apprend nouvelle capability |
+
 **Execution Flow:**
 ```
-Intent → Implementation fournie?
-           │
-    ┌──────┴──────┐
-    YES           NO
-    │              │
-    ▼              ▼
-  Execute    Search graphe
-  provided   (tools + caps)
-    │              │
-    │      ┌───────┴───────┐
-    │      Confiance       Confiance
-    │      haute           basse
-    │      │               │
-    │      ▼               ▼
-    │    EXECUTE        RETURN
-    │    (speculation)  suggestions
-    │              │
-    └──────────────┴──────────────┐
-                                   ▼
-                            After success:
-                            - Create/update capability
-                            - Update graph edges
+┌─────────────────────────────────────────────────────────────────┐
+│  pml_execute({ intent, context?, code? })                       │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+              ┌───────────────┼───────────────┐
+              ▼               ▼               ▼
+         code fourni?    context fourni?   intent seul?
+              │               │               │
+              ▼               ▼               ▼
+         MODE DIRECT    MODE SPECULATION  MODE SUGGESTION
+              │               │               │
+              ▼               ▼               ▼
+         Analyse        pml_discover      pml_discover
+         statique       (capabilities)    (tools + caps)
+              │               │               │
+              ▼               │               ▼
+         Execute        Capability      RETURN {
+         code           trouvée?        status: "suggestions",
+              │          │    │         tools: [...],
+              │         OUI  NON        capabilities: [...]
+              │          │    │         }
+              │          ▼    ▼
+              │       Execute  RETURN suggestions
+              │       cap.code (confidence < seuil)
+              │       + context
+              │          │
+              └────┬─────┘
+                   ▼
+            After success:
+            - Analyse statique → static_structure (DAG)
+            - Create/update capability
+            - Update graph edges
 ```
+
+**Cycle d'Apprentissage (Procedural Memory):**
+1. **Jour 1:** Claude écrit du code → PML apprend → capability créée
+2. **Jour 2:** Intent similaire + context → PML trouve capability → exécute avec nouveau context
+3. **Amélioration continue:** success_rate, usage_count mis à jour
 
 **Acceptance Criteria:**
 
 1. Handler `pml_execute` créé dans `src/mcp/handlers/`
-2. Si `implementation` fournie → exécute directement (code ou dag)
-3. Si pas d'implementation:
-   - Appelle `pml_discover` en interne
-   - Si confidence > seuil → exécute en speculation
+2. **Mode Direct** (`code` fourni):
+   - Analyse statique du code (Story 10.1)
+   - Exécute dans sandbox
+   - Crée/update capability avec `static_structure`
+3. **Mode Speculation** (`context` fourni, pas de `code`):
+   - Appelle `pml_discover` pour trouver capabilities
+   - Si capability trouvée avec confidence > seuil → exécute `capability.code_snippet` avec `context`
    - Si confidence < seuil → retourne suggestions
-4. Après succès (code ou dag):
+4. **Mode Suggestion** (ni `code` ni `context`):
+   - Appelle `pml_discover`
+   - Retourne tools (avec `input_schema`) + capabilities matchées
+   - L'IA doit écrire le code
+5. Après succès:
    - Crée/update capability via `CapabilityStore`
    - Update graph edges
    - Trace structure (parallel, séquence)
-5. Support `per_layer_validation` pour DAGs avec tools élevés
-6. **Dépréciation** des anciens tools:
+6. Support `per_layer_validation` pour tools avec permissions élevées
+7. **Dépréciation** des anciens tools:
    - `pml_execute_dag` → deprecated
    - `pml_execute_code` → deprecated
-7. Response unifiée:
+8. Response unifiée:
    ```typescript
    {
      status: "success" | "approval_required" | "suggestions",
      result?: unknown,
-     suggestions?: DiscoverResult[],
+     suggestions?: {
+       tools: ToolWithSchema[],
+       capabilities: CapabilityMatch[],
+     },
      capabilityId?: string,  // Si capability créée/updated
    }
    ```
-8. Tests: execute avec intent seul → recherche + suggestion/execution
-9. Tests: execute avec implementation code → exécute le code
-10. Tests: execute avec implementation dag → exécute le dag
-11. Tests: succès → capability créée avec inferredStructure
+9. Tests: execute avec intent seul → mode suggestion
+10. Tests: execute avec intent + context → mode speculation (trouve capability)
+11. Tests: execute avec intent + context → mode suggestion (pas de capability)
+12. Tests: execute avec code → mode direct + capability créée
+13. Tests: succès → capability avec `static_structure` inféré
 
 **Files to Create:**
-- `src/mcp/handlers/execute-handler.ts` (~200 LOC)
+- `src/mcp/handlers/execute-handler.ts` (~250 LOC)
 
 **Files to Modify:**
 - `src/mcp/gateway-server.ts` - Register new handler
 - `src/mcp/handlers/workflow-execution-handler.ts` - Add deprecation
+- `src/mcp/handlers/code-execution-handler.ts` - Add deprecation
 
 **Prerequisites:** Story 10.6 (pml_discover)
 

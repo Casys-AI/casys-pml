@@ -61,7 +61,8 @@ weights:
 
 thresholds:
   # Suggestion acceptance
-  suggestion_floor: 0.50          # Below this: add warning to suggestion
+  suggestion_reject: 0.60         # Below this: reject completely (no matching tools)
+  suggestion_floor: 0.65          # Below this but above reject: return with warning
   dependency_threshold: 0.50      # For dependency inference (ADR-026)
   replan_threshold: 0.50          # Min confidence for replanning candidates
 
