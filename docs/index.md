@@ -46,7 +46,7 @@ _Updated: 2025-12-10_
 - [Novel Patterns (1-4)](./architecture/novel-pattern-designs.md) - DAG, Context, Speculation, 3-Loop
 - [Pattern 5: Code Execution](./architecture/pattern-5-agent-code-execution-local-processing-epic-3.md)
 - [Pattern 6: Worker RPC](./architecture/pattern-6-worker-rpc-bridge-emergent-capabilities-epic-7.md)
-- [Pattern 7: Hypergraph](./architecture/pattern-7-hypergraph-capabilities-visualization-epic-8.md)
+- [Pattern 7: SuperHyperGraph](./architecture/pattern-7-hypergraph-capabilities-visualization-epic-8.md)
 
 ### Decisions
 - [ADR Index](./adrs/index.md) - All Architecture Decision Records (41 ADRs)

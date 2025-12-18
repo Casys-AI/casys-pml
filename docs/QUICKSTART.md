@@ -105,7 +105,7 @@ src/
 ├── main.ts          # Entry point
 ├── mcp/             # MCP Gateway (start here for protocol work)
 ├── dag/             # DAG execution engine
-├── graphrag/        # Hypergraph algorithms
+├── graphrag/        # SuperHyperGraph algorithms
 ├── sandbox/         # Secure code execution
 ├── web/             # Fresh dashboard
 │   ├── routes/      # BFF routes

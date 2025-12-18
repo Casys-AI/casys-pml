@@ -72,7 +72,7 @@ Understand how PML works. → [Concepts Overview](./concepts/index.md)
 | # | Concept | Description |
 |---|---------|-------------|
 | 1 | [Events](./concepts/07-realtime/01-events.md) | SSE, EventBus |
-| 2 | [Visualization](./concepts/07-realtime/02-visualization.md) | Hypergraph, D3.js |
+| 2 | [Visualization](./concepts/07-realtime/02-visualization.md) | SuperHyperGraph, D3.js |
 
 ---
 
