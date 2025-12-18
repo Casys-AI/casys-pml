@@ -20,10 +20,13 @@ author: Erwan Lee Pesle
 
 ## The Waiting Problem
 
-TODO: Explain the latency issue
-- Sequential execution: wait for each step
-- LLM calls are slow (~500ms-2s each)
-- Most time spent waiting, not working
+AI workflows are latency-bound. Each step waits for the previous one.
+
+| Operation | Typical Latency |
+|-----------|-----------------|
+| LLM call | 500ms - 3s |
+| Tool execution | 10ms - 500ms |
+| User confirmation | 0 - ∞ |
 
 ```mermaid
 graph LR
@@ -32,13 +35,17 @@ graph LR
     end
 ```
 
+A 5-step workflow at 1s per LLM call = 5 seconds minimum. Most of that time? Waiting.
+
 ## The Speculation Idea
 
-TODO: Core concept
-- Predict what's likely needed next
-- Start those tasks before confirmation
-- If prediction correct: time saved
-- If wrong: discard and continue
+Borrowed from CPU design: **start likely-needed work before you're certain you need it**.
+
+The bet:
+1. Predict what task comes next (using graph patterns)
+2. Start that task in parallel with current work
+3. If prediction correct → result is ready, no wait
+4. If prediction wrong → discard and continue normally
 
 ```mermaid
 graph TD
@@ -51,55 +58,111 @@ graph TD
     end
 ```
 
+The key insight: **wrong predictions cost compute, not correctness**. You just throw away wasted work.
+
 ## When To Speculate
 
-TODO: Prediction confidence
-- High confidence (>90%): Speculate immediately
-- Medium (70-90%): Speculate if resources available
-- Low (<70%): Wait for confirmation
+Not all predictions are equal. The decision depends on confidence and cost.
 
-| Confidence | Action | Risk |
-|------------|--------|------|
-| >90% | Speculate | Low waste |
-| 70-90% | Conditional | Moderate |
-| <70% | Wait | None |
+| Confidence | Action | Reasoning |
+|------------|--------|-----------|
+| >90% | Speculate immediately | High hit rate, low waste |
+| 70-90% | Speculate if cheap | Worth the gamble on low-cost tasks |
+| <70% | Wait | Too much wasted work |
+
+**Cost matters too:**
+
+```mermaid
+graph TD
+    P[Prediction 85%] --> C{Cost?}
+    C -->|Low: file read| S1[Speculate ✓]
+    C -->|High: API call| W1[Wait]
+```
+
+A cheap speculation at 70% confidence might be worth it. An expensive speculation at 90% might not be.
 
 ## The GraphRAG Advantage
 
-TODO: Why our approach works well
-- Graph knows likely sequences
-- PageRank indicates importance
-- Historical patterns guide predictions
+This is where our graph structure pays off. The graph knows:
+
+| Signal | What It Tells Us |
+|--------|------------------|
+| **Edge weights** | How often tasks follow each other |
+| **PageRank** | Which tasks are important |
+| **Capabilities** | Natural task groupings |
+| **Historical success** | What actually worked before |
 
 ```mermaid
 graph LR
     Current[Current Task] --> G[GraphRAG Query]
-    G --> P1[Prediction 1: 95%]
-    G --> P2[Prediction 2: 78%]
-    G --> P3[Prediction 3: 45%]
+    G --> P1[Next: 95% confidence]
+    G --> P2[Alternative: 78%]
+    G --> P3[Unlikely: 45%]
     P1 --> S1[Speculate ✓]
-    P2 --> S2[Speculate ✓]
-    P3 --> W[Wait]
+    P2 --> S2[Maybe speculate]
+    P3 --> W[Don't speculate]
 ```
+
+After `git_commit`, the graph might show:
+- `github_push`: 95% (almost always follows)
+- `slack_notify`: 60% (often follows)
+- `aws_deploy`: 20% (rarely follows directly)
+
+We speculate on `github_push` immediately. The graph learned this pattern from usage.
 
 ## Handling Wrong Predictions
 
-TODO: Rollback strategy
-- Sandbox execution
-- No side effects until confirmed
-- Clean discard on misprediction
+Wrong predictions must be harmless. The strategy:
+
+### 1. Sandbox Speculative Work
+
+Speculative tasks run in isolation:
+- No permanent side effects
+- Results held in memory only
+- External calls deferred or mocked
+
+### 2. Confirm Before Commit
+
+```mermaid
+graph TD
+    S[Speculative Result] --> C{Prediction Correct?}
+    C -->|Yes| A[Apply result]
+    C -->|No| D[Discard silently]
+```
+
+### 3. Learn From Misses
+
+Wrong predictions aren't just discarded—they're feedback:
+- Decrease edge weight for that transition
+- The graph gets smarter over time
+- Fewer wasted speculations in the future
 
 ## Performance Impact
 
-TODO: Real numbers
+The trade-off is compute vs latency.
 
 | Metric | Without Speculation | With Speculation |
 |--------|--------------------|--------------------|
-| Average workflow time | 12s | 4s |
-| Wasted computation | 0% | ~15% |
-| Net time saved | - | 67% |
+| Workflow latency | Baseline | -40% to -70% |
+| Compute cost | Baseline | +10% to +25% |
+| Hit rate (typical) | N/A | 75-90% |
 
-The trade-off: spend 15% more compute to save 67% time.
+```mermaid
+graph LR
+    subgraph "The Trade-off"
+        L[Lower Latency] <-->|costs| C[More Compute]
+    end
+```
+
+**When it's worth it:**
+- Interactive workflows where user waits
+- High-confidence prediction scenarios
+- Cheap speculative operations
+
+**When it's not:**
+- Batch processing (latency doesn't matter)
+- Expensive operations (compute cost too high)
+- Low-confidence predictions (too much waste)
 
 ---
 

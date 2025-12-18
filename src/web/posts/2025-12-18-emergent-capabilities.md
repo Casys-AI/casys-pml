@@ -173,22 +173,27 @@ Capabilities aren't static. As workflows change, capabilities evolve:
 
 - New tools get added to existing capabilities
 - Unused patterns fade (confidence decay)
-- Capabilities merge or split based on usage
+
+**Future directions** we're exploring:
+- Capability merge (when two capabilities consistently co-occur)
+- Capability split (when a capability develops distinct sub-patterns)
 
 ```mermaid
 graph LR
     subgraph "Week 1"
-        A1[Cap A] --> A2[Cap B]
+        A1[Cap A: 0.9]
+        A2[Cap B: 0.8]
     end
 
     subgraph "Week 4"
-        B1[Cap A] --> B2[Cap B]
-        B2 --> B3[Cap C - New!]
+        B1[Cap A: 0.95]
+        B2[Cap B: 0.6 - decaying]
+        B3[Cap C: 0.85 - new!]
     end
 
     subgraph "Week 8"
-        C1[Cap A+B - Merged]
-        C2[Cap C]
+        C1[Cap A: 0.92]
+        C2[Cap C: 0.88]
     end
 ```
 
