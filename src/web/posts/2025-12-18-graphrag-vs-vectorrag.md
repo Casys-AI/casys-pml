@@ -83,11 +83,7 @@ That's **recursive nesting**—a capability containing capabilities containing t
 
 Think of it like Russian nesting dolls for your workflow structure:
 
-```
-Standard Graph     →  Hypergraph           →  SuperHyperGraph
-(pairs only)          (N nodes per edge)      (recursive nesting)
-  A ── B               {A, B, C, D, E}         {{A,B}, {C, {D,E}}}
-```
+![Graph Evolution](excalidraw:src/web/assets/diagrams/rag-graph-evolution.excalidraw)
 
 In PML, we use an **unbounded SuperHyperGraph** with natural hierarchy levels:
 

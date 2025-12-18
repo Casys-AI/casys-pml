@@ -1,0 +1,22 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "Casys PML Blog",
+  "elements": [
+    {"id": "input", "type": "rectangle", "x": 20, "y": 30, "width": 55, "height": 30, "strokeColor": "#60a5fa", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 6}},
+    {"id": "input-text", "type": "text", "x": 30, "y": 38, "width": 35, "height": 14, "text": "Input", "fontSize": 11, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#60a5fa"},
+    {"id": "arr1", "type": "arrow", "x": 80, "y": 45, "width": 25, "height": 0, "strokeColor": "#666666", "strokeWidth": 2, "roughness": 0, "points": [[0, 0], [25, 0]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "llm", "type": "rectangle", "x": 110, "y": 30, "width": 45, "height": 30, "strokeColor": "#a78bfa", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 6}},
+    {"id": "llm-text", "type": "text", "x": 120, "y": 38, "width": 25, "height": 14, "text": "LLM", "fontSize": 11, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#a78bfa"},
+    {"id": "arr2", "type": "arrow", "x": 160, "y": 45, "width": 25, "height": 0, "strokeColor": "#666666", "strokeWidth": 2, "roughness": 0, "points": [[0, 0], [25, 0]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "tools", "type": "rectangle", "x": 190, "y": 30, "width": 50, "height": 30, "strokeColor": "#fbbf24", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 6}},
+    {"id": "tools-text", "type": "text", "x": 198, "y": 38, "width": 35, "height": 14, "text": "Tools", "fontSize": 11, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#fbbf24"},
+    {"id": "arr3", "type": "arrow", "x": 245, "y": 45, "width": 25, "height": 0, "strokeColor": "#666666", "strokeWidth": 2, "roughness": 0, "points": [[0, 0], [25, 0]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "output", "type": "rectangle", "x": 275, "y": 30, "width": 55, "height": 30, "strokeColor": "#4ade80", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 6}},
+    {"id": "output-text", "type": "text", "x": 282, "y": 38, "width": 40, "height": 14, "text": "Output", "fontSize": 11, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#4ade80"},
+    {"id": "arr4", "type": "arrow", "x": 335, "y": 45, "width": 25, "height": 0, "strokeColor": "#666666", "strokeWidth": 2, "roughness": 0, "points": [[0, 0], [25, 0]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "done", "type": "rectangle", "x": 365, "y": 30, "width": 50, "height": 30, "strokeColor": "#ef4444", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 6}},
+    {"id": "done-text", "type": "text", "x": 375, "y": 38, "width": 30, "height": 14, "text": "Done", "fontSize": 11, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#ef4444"}
+  ],
+  "appState": {"viewBackgroundColor": "#08080a", "gridSize": 20}
+}

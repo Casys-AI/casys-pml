@@ -41,10 +41,7 @@ We needed a data structure that could represent:
 
 A **hypergraph** solves the first problem by allowing edges to connect *any number* of nodes:
 
-```
-Graph edge:       A ── B           (connects 2 nodes)
-Hyperedge:        {A, B, C, D, E}  (connects N nodes)
-```
+![Graph Edge vs Hyperedge](excalidraw:src/web/assets/diagrams/shg-graph-vs-hyperedge.excalidraw)
 
 Now we can represent "Deploy" as a hyperedge containing all its tools. Progress.
 

@@ -22,9 +22,7 @@ author: Erwan Lee Pesle
 
 Most AI agents work like assembly lines:
 
-```
-Input → LLM → Tools → Output → Done
-```
+![Static Pipeline](excalidraw:src/web/assets/diagrams/cas-static-pipeline.excalidraw)
 
 Every interaction starts from scratch. They don't learn from execution. They don't adapt to your patterns. They're **stateless by design**.
 
