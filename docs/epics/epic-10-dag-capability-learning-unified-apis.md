@@ -459,7 +459,7 @@ viennent ensuite enrichir le `learning` avec les chemins réellement empruntés.
 
 ---
 
-**Story 10.2: Result Tracing - Capture des Résultats d'Exécution** ⭐ FONDATION - START HERE
+**Story 10.2: Result Tracing - Capture des Résultats d'Exécution**
 
 As a learning system, I want to capture the `result` of each tool and capability execution,
 So that I can reconstruct data dependencies and create `provides` edges.
@@ -611,6 +611,12 @@ Les `executed_path` référencent les `nodeIds` de `static_structure`.
 
 **Nouvelle table `capability_trace`:**
 
+> **Pourquoi une nouvelle table et pas une extension ?**
+> - `workflow_execution` : pas de FK vers capability, stocke dag_structure complet (trop générique)
+> - `algorithm_traces` : pour scoring/threshold decisions (ADR-039), autre périmètre
+> - `workflow_pattern` : c'est la capability elle-même, pas ses traces
+> - Besoin de champs spécifiques : `executed_path`, `decisions`, `priority` (PER)
+
 ```sql
 CREATE TABLE capability_trace (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
@@ -713,13 +719,14 @@ Inspiré du spike sur les systèmes adaptatifs complexes.
 ```typescript
 /**
  * TD Learning: mise à jour incrémentale après chaque trace
- * γ = discount factor (0.9 typique)
  * α = learning rate (0.1 typique)
+ *
+ * Note: pas de γ (discount factor) car on a des résultats terminaux,
+ * pas de "prochain état" à discounter. C'est du TD(0) simplifié.
  */
 function updateLearningTD(
   learning: CapabilityLearning,
   trace: CapabilityTrace,
-  gamma: number = 0.9,
   alpha: number = 0.1
 ): CapabilityLearning {
   const pathKey = JSON.stringify(trace.executedPath);
@@ -745,6 +752,22 @@ function updateLearningTD(
   pathStats.avgDurationMs += alpha * (trace.durationMs - pathStats.avgDurationMs);
 
   pathStats.count++;
+
+  // Update decisionStats si trace contient des décisions
+  if (trace.decisions?.length) {
+    for (const decision of trace.decisions) {
+      let stats = learning.decisionStats?.find(d => d.nodeId === decision.nodeId);
+      if (!stats) {
+        stats = { nodeId: decision.nodeId, condition: decision.condition, outcomes: {} };
+        learning.decisionStats = learning.decisionStats || [];
+        learning.decisionStats.push(stats);
+      }
+      const outcome = stats.outcomes[decision.outcome] || { count: 0, successRate: 0.5 };
+      outcome.count++;
+      outcome.successRate += alpha * ((trace.success ? 1.0 : 0.0) - outcome.successRate);
+      stats.outcomes[decision.outcome] = outcome;
+    }
+  }
 
   // Recalculer dominantPath
   learning.dominantPath = learning.paths
@@ -973,11 +996,11 @@ interface Capability {
      | { type: "dag"; dagStructure: DAGStructure }
      | { type: "tool"; toolId: string; defaultArgs?: Record<string, unknown> };
    ```
-2. `Capability.inferredStructure` ajouté (from Story 10.4)
+2. `Capability.dag_structure.static_structure` existe déjà (from Story 10.1)
 3. Migration DB: transformer `code` → `source` JSON column
 4. `CapabilityStore.saveCapability()` updated:
    - Accepte `source` au lieu de `code`
-   - Appelle `DAGReconstructor` si type=code pour générer `inferredStructure`
+   - `static_structure` est générée par Story 10.1 à l'analyse statique
 5. `CapabilityStore.findById()` retourne le nouveau format
 6. **DAG execution creates capability:**
    - Après succès `execute_dag` → créer capability `{ type: "dag" }`
@@ -1001,7 +1024,7 @@ interface Capability {
 - `src/db/migrations/` - New migration (~40 LOC)
 - All files using `capability.code` (grep and update)
 
-**Prerequisites:** Story 10.4 (DAG reconstruction)
+**Prerequisites:** Story 10.4 (Trace Storage)
 
 **Estimation:** 2-3 jours
 
@@ -1236,34 +1259,25 @@ la vue Invocation montre chaque appel réel avec timestamps.
 1. Toggle button dans dashboard: `[Definition] [Invocation]`
 2. **Vue Definition:**
    - Nœuds dédupliqués par tool/capability type
-   - Edges: `dependency`, `provides`, `contains`, `alternative`
+   - Edges: `dependency`, `provides`, `contains`
    - Layout optimisé pour structure
 3. **Vue Invocation:**
    - Un nœud par appel réel (suffixe `_1`, `_2`, etc.)
    - Timestamps affichés sur les nœuds
    - Edges: `sequence` (basé sur ordre temporel)
    - Parallel visible par timestamps qui overlap
-4. Table `capability_invocations` créée:
-   ```typescript
-   {
-     id: string;
-     capabilityId: string;
-     timestamp: Date;
-     arguments: Record<string, unknown>;
-     results: TaskResult[];
-     success: boolean;
-     durationMs: number;
-   }
-   ```
-5. API endpoint `/api/invocations/:capabilityId`
+4. **Réutilise `capability_trace`** (Story 10.4) — pas de nouvelle table:
+   - La table `capability_trace` contient déjà : executed_path, task_results, success, duration_ms
+   - Ajouter colonne `arguments JSONB` si nécessaire pour stocker les args d'entrée
+   - Vue Invocation = query `capability_trace` avec task_results détaillés
+5. API endpoint `/api/traces/:capabilityId` (renommé de invocations)
 6. Cytoscape layout adapté par vue:
-   - Definition: dagre/hierarchical
-   - Invocation: timeline/temporal
+   - Definition: dagre/hierarchical (depuis `static_structure`)
+   - Invocation: timeline/temporal (depuis `capability_trace`)
 7. Tests: même capability, 3 exécutions → Definition (1 nœud) vs Invocation (3 nœuds)
 8. Tests: exécution avec parallélisme visible en Invocation view
 
 **Files to Create:**
-- `src/db/migrations/XXX_capability_invocations.ts` (~40 LOC)
 - `src/web/islands/DefinitionInvocationToggle.tsx` (~80 LOC)
 
 **Files to Modify:**
@@ -1426,14 +1440,15 @@ avec des MCP connecteurs externes.
 
 | Phase | Change | Breaking? | Impact |
 |-------|--------|-----------|--------|
-| 1 | `result` in traces | ❌ No | Additive |
-| 2 | `provides` EdgeType | ❌ No | Additive |
-| 3 | Capability `source: code \| dag` | ⚠️ **Yes** | Schema change |
-| 4 | Deprecate `pml_search_*` | ⚠️ **Yes** | MCP APIs |
-| 5 | Deprecate `pml_execute_*` | ⚠️ **Yes** | MCP APIs |
-| 6 | New table `capability_invocations` | ❌ No | Additive |
+| 1 | `static_structure` in dag_structure | ❌ No | Additive |
+| 2 | `result` in traces | ❌ No | Additive |
+| 3 | `provides` EdgeType | ❌ No | Additive |
+| 4 | New table `capability_trace` | ❌ No | Additive |
+| 5 | Capability `source: code \| dag` | ⚠️ **Yes** | Schema change |
+| 6 | Deprecate `pml_search_*` | ⚠️ **Yes** | MCP APIs |
+| 7 | Deprecate `pml_execute_*` | ⚠️ **Yes** | MCP APIs |
 
-**Migration Strategy:** Breaking changes in Phase 3-5. No transition period - clean cut.
+**Migration Strategy:** Breaking changes in Phase 5-7. No transition period - clean cut.
 
 ---
 
@@ -1571,29 +1586,30 @@ avec des MCP connecteurs externes.
 
 | Ordre | Story | Description | Effort | Cumulative |
 |-------|-------|-------------|--------|------------|
-| 1 | **10.2** | **Result Tracing** ⭐ FONDATION | **0.5-1j** | **1j** |
-| 2 | 10.3 | Provides Edge | 1-2j | 3j |
-| 3 | 10.4 | DAG Reconstruction (POST-exec) | 2-3j | 6j |
-| ∥ | 10.1 | Static Analysis (PRE-exec) ~100-150 LOC | 2-3j | ∥ |
-| 4 | 10.5 | Unified Capability | 2-3j | 9j |
-| 5 | 10.6 | pml_discover | 2-3j | 12j |
-| 6 | 10.7 | pml_execute | 3-5j | 16j |
-| 7 | 10.8 | pml_get_task_result | 1-2j | 18j |
-| 8 | 10.9 | Definition/Invocation | 2-3j | 21j |
-| 9 | 10.10 | Dry Run + Mocks (optional) | 3-4j | 25j |
+| 1 | **10.1** | **Static Analysis → Capability** ⭐ FONDATION | **3-4j** | **4j** |
+| 2 | 10.2 | Result Tracing (quick win) | 0.5-1j | 5j |
+| 3 | 10.3 | Provides Edge | 1-2j | 7j |
+| 4 | 10.4 | Trace Storage + PER/TD Learning | 3-4j | 11j |
+| 5 | 10.5 | Unified Capability | 2-3j | 14j |
+| 6 | 10.6 | pml_discover | 2-3j | 17j |
+| 7 | 10.7 | pml_execute | 3-5j | 21j |
+| 8 | 10.8 | pml_get_task_result | 1-2j | 23j |
+| 9 | 10.9 | Definition/Invocation | 2-3j | 26j |
+| 10 | 10.10 | Dry Run + Mocks (optional) | 3-4j | 30j |
 
-**Total MVP (10.1-10.9): ~3-4 semaines**
-**Total avec 10.10: ~4-5 semaines**
+**Total MVP (10.1-10.9): ~4-5 semaines**
+**Total avec 10.10: ~5-6 semaines**
 
-**🎯 Story 10.2 (Result Tracing) est la vraie fondation car:**
-1. Sans `result` dans les traces, impossible de détecter les dépendances data
-2. Débloque 10.3 (provides edges) et 10.4 (DAG reconstruction)
-3. Quick win : ~5-10 LOC à modifier dans worker-bridge.ts et code-generator.ts
+**🎯 Story 10.1 (Static Analysis) est la vraie fondation car:**
+1. Crée la Capability avec `static_structure` AVANT exécution
+2. Les traces (10.4) référencent les nodeIds de static_structure
+3. L'HIL fonctionne immédiatement (on connaît les tools avant exécution)
+4. Les conditions/branches sont visibles dans la structure, pas perdues
 
-**📝 Story 10.1 (Static Analysis) est importante mais pas bloquante:**
-1. Peut être faite en parallèle avec Track A (10.2 → 10.3 → 10.4)
-2. Réutilise l'existant : SchemaInferrer (726 LOC), PermissionInferrer (510 LOC)
-3. Devient nécessaire pour 10.5 (unified capability) et 10.7 (HIL pre-execution)
+**📝 Story 10.2 (Result Tracing) est un quick win:**
+1. ~5-10 LOC à modifier dans worker-bridge.ts et code-generator.ts
+2. Débloque 10.3 (provides edges calculated from results)
+3. Peut être faite rapidement après 10.1
 
 **📋 Story 10.10 (Dry Run) est optionnelle car:**
 - Le parsing statique (10.1) suffit pour HIL/permissions
