@@ -8,6 +8,41 @@
 
 During review of speculative execution mode, we discovered that arguments weren't being considered. This spike documents our findings and the path forward.
 
+## Key Clarification: Speculation vs Capability Creation
+
+**Important distinction**: Speculative execution and capability creation are **separate concerns**.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  SPECULATION = Optimization WITHIN a workflow                   │
+│                                                                 │
+│  Intent → Code → Execute A → [Speculate B] → Execute B → Done  │
+│                                    ↓                            │
+│                         Pre-execute B while                     │
+│                         A is still running                      │
+│                                    ↓                            │
+│                         Cache hit if correct                    │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│  CAPABILITY CREATION = Already handled by saveCapability()      │
+│                                                                 │
+│  Workflow execution complete                                    │
+│           ↓                                                     │
+│  saveCapability(code, intent, toolsUsed)                       │
+│           ↓                                                     │
+│  Stored in workflow_pattern (Eager Learning - ADR-028)         │
+│           ↓                                                     │
+│  Next similar intent → capability matched & reused             │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Why this matters**:
+- We do NOT need a separate "pattern detection → capability promotion" mechanism
+- The workflow itself IS the capability (created after successful execution)
+- Speculation optimizes execution speed, not capability discovery
+- The real question is: **how to pre-execute the next node with correct arguments**
+
 ## Current State
 
 ### What Works
