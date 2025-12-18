@@ -46,6 +46,30 @@ We needed a data structure that could represent:
 2. **Nested groups** (capabilities containing capabilities)
 3. **Infinite depth** (meta-meta-meta-capabilities)
 
+## The Evolution: Graph → Hypergraph → SuperHyperGraph
+
+```mermaid
+graph LR
+    subgraph "Standard Graph"
+        A1[Tool A] --- A2[Tool B]
+        A2 --- A3[Tool C]
+    end
+
+    subgraph "Hypergraph"
+        B1[Tool A] -.-> H1{Hyperedge}
+        B2[Tool B] -.-> H1
+        B3[Tool C] -.-> H1
+    end
+
+    subgraph "n-SuperHyperGraph"
+        C1[Tool A] --> S1[Capability]
+        C2[Tool B] --> S1
+        S1 --> M1[Meta-Cap]
+        S2[Capability 2] --> M1
+        M1 --> M2[Meta-Meta...]
+    end
+```
+
 ## Enter the Hypergraph
 
 A **hypergraph** extends graphs by allowing edges to connect *any number* of nodes, not just two.
@@ -86,6 +110,30 @@ With n-SuperHyperGraphs:
 2. **Retrieval is contextual**: Asking "how do I deploy?" retrieves the whole skill tree, not just related tools
 3. **Emergence is natural**: Complex behaviors arise from combining simpler ones
 
+```mermaid
+graph TD
+    subgraph META["Meta-Capability: Release Process"]
+        subgraph CAP1["Capability: Git Workflow"]
+            T1[git_commit]
+            T2[github_push]
+        end
+        subgraph CAP2["Capability: Test Suite"]
+            T3[jest_run]
+            T4[coverage_report]
+        end
+        subgraph CAP3["Capability: Deploy AWS"]
+            subgraph CAP3a["Sub-Cap: Docker Build"]
+                T5[docker_build]
+                T6[docker_push]
+            end
+            T7[aws_ecs_update]
+        end
+    end
+
+    CAP1 --> CAP3
+    CAP2 --> CAP3
+```
+
 ```typescript
 // What our graph can now express
 const releaseProcess: SuperHyperEdge = {
@@ -116,6 +164,21 @@ What we *did* do is apply it to AI agent learning—something the papers describ
 ### Edge Constraints
 
 Not all edges are equal. Our SuperHyperGraph uses four edge types with different cycle rules:
+
+```mermaid
+graph LR
+    subgraph "DAG Strict (No Cycles)"
+        A1[Parent Cap] -->|contains| A2[Child Cap]
+        B1[Cap A] -->|dependency| B2[Cap B]
+    end
+
+    subgraph "Cycles Allowed"
+        C1[Cap X] <-->|provides| C2[Cap Y]
+        D1[Step 1] -->|sequence| D2[Step 2]
+        D2 -->|sequence| D3[Step 3]
+        D3 -.->|sequence| D1
+    end
+```
 
 | Edge Type | Allows Cycles? | Why |
 |-----------|---------------|-----|
