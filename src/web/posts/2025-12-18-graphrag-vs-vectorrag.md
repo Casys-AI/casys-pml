@@ -1,5 +1,5 @@
 ---
-title: "GraphRAG vs VectorRAG: Why Relationships Matter More Than Similarity"
+title: "GraphRAG + VectorRAG: Why You Need Both"
 slug: graphrag-vs-vectorrag
 date: 2025-12-18
 category: architecture
@@ -8,84 +8,183 @@ tags:
   - rag
   - knowledge-graph
   - embeddings
-snippet: "Vector databases find similar documents. Graph databases find related concepts. For AI agents that need to understand tool relationships, that difference is everything."
+snippet: "Vector databases find similar content. Graph databases find related concepts. For AI agents, you need both—similarity for discovery, structure for orchestration."
 format: article
 language: en
 author: Erwan Lee Pesle
 ---
 
-# GraphRAG vs VectorRAG: Why Relationships Matter More Than Similarity
+# GraphRAG + VectorRAG: Why You Need Both
 
-> Finding similar isn't the same as finding related
+> It's not either/or. It's both/and.
 
-## The VectorRAG Approach
+## The False Dichotomy
 
-TODO: Explain traditional vector RAG
-- Embed documents/chunks
-- Query by similarity
-- Return top-k matches
+The internet loves a good "X vs Y" debate. GraphRAG vs VectorRAG is no exception.
+
+But here's the thing: **they solve different problems**.
+
+| Approach | Question It Answers |
+|----------|-------------------|
+| VectorRAG | "What's *similar* to this?" |
+| GraphRAG | "What's *related* to this?" |
+
+Similar ≠ Related. And for AI agents, you need both.
+
+## VectorRAG: The Similarity Engine
+
+Vector embeddings capture **semantic similarity**. Two pieces of text that mean similar things will have similar vectors.
 
 ```mermaid
 graph LR
-    Q[Query] --> E[Embed]
+    Q[Query: Deploy to AWS] --> E[Embedding]
     E --> S[Similarity Search]
-    S --> R[Top-K Results]
+    S --> R1[aws_deploy: 0.92]
+    S --> R2[aws_config: 0.87]
+    S --> R3[docker_push: 0.71]
 ```
 
-## The Problem for AI Agents
+**Great for:**
+- Finding relevant tools by intent
+- Matching user queries to capabilities
+- Discovering semantically similar patterns
 
-TODO: Why similarity isn't enough
-- Tools have relationships, not just content
-- "Similar" tools aren't necessarily "compatible" tools
-- Execution order matters
+**Blind to:**
+- Execution order ("X must come before Y")
+- Structural relationships ("X contains Y")
+- Co-occurrence patterns ("X and Y often together")
 
-## Enter GraphRAG
+## GraphRAG: The Relationship Engine
 
-TODO: How graph-based retrieval works
-- Nodes = tools/capabilities
-- Edges = relationships (co-occurrence, dependency, provides)
-- Query = graph traversal, not vector search
+Graphs capture **structural relationships**. Nodes are entities, edges are how they relate.
 
 ```mermaid
 graph TD
-    subgraph "VectorRAG"
-        V1[Tool A] -.->|0.92| Q1[Query]
-        V2[Tool B] -.->|0.87| Q1
-        V3[Tool C] -.->|0.85| Q1
+    A[git_commit] -->|followed_by| B[github_push]
+    B -->|followed_by| C[slack_notify]
+    A -->|co_occurs| C
+    D[Capability: Git Release] -->|contains| A
+    D -->|contains| B
+    D -->|contains| C
+```
+
+**Great for:**
+- Understanding tool dependencies
+- Finding execution sequences
+- Detecting capability clusters
+- Importance ranking (PageRank)
+
+**Blind to:**
+- Semantic meaning of new tools
+- Intent matching
+- Fuzzy similarity
+
+## Why AI Agents Need Both
+
+Consider this query: *"I want to ship my code to production"*
+
+**VectorRAG alone:**
+- Finds tools with similar descriptions
+- Returns: `deploy`, `release`, `ship`, `publish`
+- Doesn't know which order to use them
+
+**GraphRAG alone:**
+- Knows `build` → `test` → `deploy` sequence
+- But can't match "ship to production" to `deploy`
+- User said "ship", not "deploy"
+
+**Both together:**
+1. VectorRAG matches intent → finds `deploy` capability
+2. GraphRAG retrieves structure → gets full sequence with dependencies
+
+```mermaid
+graph TD
+    subgraph "Step 1: Vector (Intent)"
+        Q[Query] --> V[Vector Search]
+        V --> M[Match: deploy capability]
     end
 
-    subgraph "GraphRAG"
-        G1[Tool A] -->|depends| G2[Tool B]
-        G2 -->|provides| G3[Tool C]
-        G1 -->|co-occurs| G3
+    subgraph "Step 2: Graph (Structure)"
+        M --> G[Graph Lookup]
+        G --> S[Full Sequence]
+        G --> D[Dependencies]
+        G --> C[Confidence scores]
     end
 ```
 
-## Why Not Both?
+## Our Hybrid Architecture
 
-TODO: Our hybrid approach
-- Semantic similarity for initial matching
-- Graph structure for relationship understanding
-- PageRank for importance weighting
+In Casys PML, we use both at different stages:
 
-## Practical Comparison
+| Stage | Method | Why |
+|-------|--------|-----|
+| **Discovery** | Vector similarity | Match intent to tools/capabilities |
+| **Ranking** | Graph PageRank | Importance based on usage |
+| **Sequencing** | Graph traversal | Find execution order |
+| **Clustering** | Graph spectral | Detect capability boundaries |
+| **Boosting** | Graph co-occurrence | Prefer tools that work together |
 
-| Aspect | VectorRAG | GraphRAG |
-|--------|-----------|----------|
-| Query type | "Find similar" | "Find related" |
-| Captures | Content similarity | Structural relationships |
-| Good for | Document retrieval | Tool orchestration |
-| Misses | Execution order | Semantic nuance |
+### The Flow
 
-## Our Implementation
+```mermaid
+sequenceDiagram
+    participant U as User Query
+    participant V as Vector Index
+    participant G as Graph
+    participant R as Results
 
-TODO: Link to ADR, code examples
+    U->>V: "Deploy my app"
+    V->>V: Embed query
+    V->>G: Top candidates
+    G->>G: PageRank filter
+    G->>G: Add related tools
+    G->>G: Check dependencies
+    G->>R: Ordered, scored results
+```
+
+### Scoring Formula
+
+Our final score combines both signals:
+
+```
+Score = α × SemanticSimilarity + β × GraphConfidence + γ × PageRank
+```
+
+Where:
+- **SemanticSimilarity**: Cosine distance from vector search
+- **GraphConfidence**: Edge weight from co-occurrence
+- **PageRank**: Structural importance in the graph
+
+The weights (α, β, γ) adapt based on context—new tools rely more on vectors, established patterns rely more on graph.
+
+## When To Use What
+
+| Situation | Primary | Secondary |
+|-----------|---------|-----------|
+| New tool, never seen before | Vector | — |
+| Known tool, finding sequence | Graph | Vector (fallback) |
+| Ambiguous query | Vector | Graph (structure) |
+| Execution planning | Graph | Vector (alternatives) |
+| Capability discovery | Both equally | — |
+
+## The Bottom Line
+
+Don't pick sides. Use both:
+
+- **Vectors** give you semantic understanding
+- **Graphs** give you structural knowledge
+- **Together** they give you intelligent orchestration
+
+The question isn't "GraphRAG or VectorRAG?"
+
+It's "How do I combine them effectively?"
 
 ---
 
 ## References
 
-- TODO: Add academic references
+- Lewis, P. et al. (2020). "Retrieval-Augmented Generation." NeurIPS.
+- Microsoft Research. (2024). "GraphRAG: Unlocking LLM discovery on narrative private data."
 - Internal: ADR-038 - Two-Layer Discovery Architecture
 
-#GraphRAG #VectorRAG #KnowledgeGraph #AIArchitecture
+#GraphRAG #VectorRAG #Hybrid #AIArchitecture
