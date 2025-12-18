@@ -85,7 +85,7 @@ Unifier les deux modèles d'exécution (DAG explicite et Code libre) en un syst�
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  5. STOCKAGE TRACE (Story 10.4 révisée)                                  │
+│  5. STOCKAGE TRACE (Epic 11 - Learning from Traces)                      │
 │     → INSERT INTO execution_trace                                       │
 │     - executed_path: ["n1", "d1", "n2"] (nodeIds de static_structure)   │
 │     - decisions: [{ nodeId: "d1", outcome: "true" }]                    │
@@ -94,7 +94,7 @@ Unifier les deux modèles d'exécution (DAG explicite et Code libre) en un syst�
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  6. MISE À JOUR LEARNING (Agrégation)                                    │
+│  6. MISE À JOUR LEARNING (Epic 11 - Agrégation)                          │
 │     → UPDATE workflow_pattern.dag_structure.learning                    │
 │     - Incrémente path.count pour le chemin emprunté                     │
 │     - Recalcule dominantPath                                            │
@@ -194,7 +194,7 @@ Une Capability n'est pas forcément un DAG interne. Elle peut être:
 **Implications pour l'implémentation:**
 
 1. **Story 10.1** devient la **vraie fondation** - crée la Capability avec static_structure
-2. **Story 10.4** stocke les **Traces** dans `execution_trace`, pas la structure
+2. **Epic 11** stocke les **Traces** dans `execution_trace`, pas la structure
 3. **Capability.source** reste mais s'enrichit de `static_structure` et `learning`
 4. **Les CapabilityDependency** (capability → capability) sont créées à l'analyse statique
 
@@ -230,7 +230,7 @@ Une Capability n'est pas forcément un DAG interne. Elle peut être:
 │                            │                                     │
 │                            ▼                                     │
 │  ┌─────────────────────────────────────────────────────┐        │
-│  │  TRACE STORAGE (Story 10.4)                          │        │
+│  │  TRACE STORAGE (Epic 11)                             │        │
 │  │  - INSERT execution_trace (executed_path, results)  │        │
 │  │  - UPDATE Capability.learning (aggregate stats)      │        │
 │  └─────────────────────────────────────────────────────┘        │
@@ -251,7 +251,7 @@ So that I can **create the Capability immediately** with full branch/condition v
 
 **Position dans l'Epic (RÉVISÉE):**
 - **VRAIE FONDATION** - crée la Capability avec `static_structure` avant exécution
-- Débloque 10.4 (traces) car les traces référencent les nodeIds de static_structure
+- Débloque Epic 11 (traces) car les traces référencent les nodeIds de static_structure
 - Débloque HIL car on connaît tous les tools potentiels avant exécution
 
 **Context (RÉVISÉ):**
@@ -266,10 +266,10 @@ Pourquoi ? L'analyse statique EST suffisante grâce à :
 - Les schémas MCP → provides edges calculables statiquement
 - La détection des conditions → branches visibles dans la structure
 
-**Différence avec Story 10.4 (CLARIFIÉE):**
+**Différence avec Epic 11 (CLARIFIÉE):**
 
-| Aspect | 10.1 Static (PRE) | 10.4 Traces (POST) |
-|--------|--------------------|--------------------|
+| Aspect | 10.1 Static (PRE) | Epic 11 Traces (POST) |
+|--------|--------------------|-----------------------|
 | **Quand** | Avant exécution | Après exécution |
 | **Output** | **Capability** avec `static_structure` | **Trace** avec `executed_path` |
 | **Contenu** | Structure COMPLÈTE (toutes branches) | Chemin EMPRUNTÉ (une branche) |
@@ -323,7 +323,7 @@ Code TypeScript
 └─────────────────────────────────────────────────────────────┘
       │
       ▼
-Validation HIL → Exécution → Trace (Story 10.4)
+Validation HIL → Exécution → Trace (Epic 11)
 ```
 
 **Patterns à détecter et STRUCTURE générée:**
@@ -454,66 +454,8 @@ if (condition) {
 **Estimation:** 3-4 jours (augmenté car scope élargi)
 
 **Changement clé:**
-Cette story **crée la Capability** avec sa structure complète. Les traces (Story 10.4)
+Cette story **crée la Capability** avec sa structure complète. Les traces (Epic 11)
 viennent ensuite enrichir le `learning` avec les chemins réellement empruntés.
-
----
-
-**Story 10.2: Result Tracing - Capture des Résultats d'Exécution**
-
-As a learning system, I want to capture the `result` of each tool and capability execution,
-So that I can reconstruct data dependencies and create `provides` edges.
-
-**Position dans l'Epic:**
-- **VRAIE FONDATION** du Track A (Learning)
-- Doit être faite EN PREMIER (quick win : ~5-10 LOC)
-- Débloque 10.3 (provides edges) et 10.4 (DAG reconstruction)
-
-**Context:**
-Actuellement on trace `args` mais pas `result`. Sans le result,
-impossible de détecter si "le résultat de A est utilisé dans les args de B".
-
-**Acceptance Criteria:**
-
-1. `tool_end` event inclut `result` dans `worker-bridge.ts` (~ligne 426):
-   ```typescript
-   this.traces.push({
-     type: "tool_end",
-     tool: toolId,
-     traceId: id,
-     ts: endTime,
-     success: !isToolError,
-     durationMs: durationMs,
-     parentTraceId: parentTraceId,
-     result: result,  // ← NOUVEAU
-   });
-   ```
-2. `capability_end` event inclut `result` dans `code-generator.ts` (~ligne 104):
-   ```typescript
-   __trace({
-     type: "capability_end",
-     capability: "${name}",
-     capabilityId: "${capability.id}",
-     success: __capSuccess,
-     error: __capError?.message,
-     result: __capResult,  // ← NOUVEAU
-   });
-   ```
-3. Types mis à jour dans `src/dag/types.ts`:
-   - `TraceEvent.tool_end.result?: unknown`
-   - `TraceEvent.capability_end.result?: unknown`
-4. `resultPreview` déjà implémenté (task_complete) - vérifier cohérence
-5. Tests: exécuter code avec 2 tools → vérifier result présent dans les deux traces
-6. Tests: result tronqué si > 10KB (éviter explosion mémoire)
-
-**Files to Modify:**
-- `src/sandbox/worker-bridge.ts` (~5 LOC)
-- `src/capabilities/code-generator.ts` (~3 LOC)
-- `src/dag/types.ts` (~4 LOC)
-
-**Prerequisites:** Story 7.1b (Worker RPC Bridge)
-
-**Estimation:** 0.5-1 jour
 
 ---
 
@@ -577,7 +519,10 @@ type ProvidesCoverage =
 - `src/graphrag/edge-weights.ts` (~5 LOC)
 - `src/graphrag/types.ts` (~15 LOC)
 
-**Prerequisites:** Story 10.2 (result tracing)
+**Prerequisites:** Story 10.1 (static_structure with provides edges)
+
+**Note:** Les provides edges sont calculés à l'analyse statique via les schémas MCP,
+pas depuis les résultats d'exécution. Voir Story 10.1.
 
 **Estimation:** 1-2 jours
 
@@ -592,9 +537,10 @@ So that temporary runtime state uses KV and permanent data uses PostgreSQL.
 
 Audit du schéma DB révèle plusieurs problèmes :
 1. `workflow_dags` : état runtime temporaire stocké en PostgreSQL (overkill)
-2. `workflow_execution` : sera remplacé par `execution_trace` (Story 10.4)
-3. FKs manquantes sur plusieurs tables
-4. Naming confus (`workflow_pattern` = capability)
+2. FKs manquantes sur plusieurs tables
+3. Naming confus (`workflow_pattern` = capability)
+
+> **Note:** `workflow_execution` → `execution_trace` est reporté à Epic 11 (Learning from Traces).
 
 **Changements proposés:**
 
@@ -611,15 +557,7 @@ await kv.set(["workflow", workflowId], { dag, intent }, { expireIn: TTL_MS });
 const result = await kv.get(["workflow", workflowId]);
 ```
 
-**2. Supprimer `workflow_execution` (pas de données à migrer)**
-
-```sql
--- Pas de migration de données nécessaire (base de test vide)
-DROP TABLE IF EXISTS workflow_execution CASCADE;
--- execution_trace sera créée dans Story 10.4
-```
-
-**3. (Optionnel) Renommer `workflow_pattern` → `capability`**
+**2. (Optionnel) Renommer `workflow_pattern` → `capability`**
 
 Report possible à plus tard car breaking change significatif.
 
@@ -628,9 +566,8 @@ Report possible à plus tard car breaking change significatif.
 1. `workflow_dags` supprimée de PostgreSQL
 2. `src/mcp/workflow-dag-store.ts` utilise Deno KV
 3. TTL automatique via `expireIn` (plus de cleanup job)
-4. `workflow_execution` supprimée (prépare 10.4)
-5. Tests: store/retrieve workflow state via KV
-6. Tests: TTL expiration fonctionne
+4. Tests: store/retrieve workflow state via KV
+5. Tests: TTL expiration fonctionne
 
 **Files to Create:**
 - `src/cache/kv.ts` (~30 LOC) - Singleton KV
@@ -646,401 +583,6 @@ Report possible à plus tard car breaking change significatif.
 **Prerequisites:** Aucun
 
 **Estimation:** 1-2 jours
-
----
-
-**Story 10.4: Execution Trace Consolidation & Learning** — RÉVISÉE ⭐ DB FONDATION
-
-As a learning system, I want a unified `execution_trace` table that consolidates workflow executions,
-So that I can track execution patterns with proper FK to capabilities and learning-specific fields.
-
-**Context (RÉVISÉ):**
-
-**Consolidation du schéma DB :**
-- **AVANT :** `workflow_execution` stockait `dag_structure` en dur (pas de FK, redondant)
-- **MAINTENANT :** `execution_trace` avec FK vers `workflow_pattern` + champs learning
-
-La **Capability** existe déjà (créée par Story 10.1 à l'analyse statique).
-Cette story **refactore** `workflow_execution` et ajoute les champs pour le learning.
-
-**Relation avec static_structure:**
-
-```
-static_structure (Story 10.1)        execution_trace (Story 10.4)
-────────────────────────────         ────────────────────────────
-nodes: [n1, d1, n2, n3, n4]          executed_path: [n1, d1, n2]  ← Chemin pris
-edges: [sequence, conditional...]    decisions: [{nodeId: d1, outcome: "true"}]
-                                     task_results: [...]
-```
-
-Les `executed_path` référencent les `nodeIds` de `static_structure`.
-
-**Refactoring `workflow_execution` → `execution_trace`:**
-
-> **Pourquoi refactorer plutôt que créer une nouvelle table ?**
-> - `workflow_execution` existe mais stocke `dag_structure` en dur (redondant)
-> - Pas de FK vers `workflow_pattern` (capabilities)
-> - Évite les tables "bric et de broc" avec des périmètres qui se chevauchent
-> - Une seule table pour TOUTES les traces d'exécution
-
-```sql
--- Refactoring: workflow_execution → execution_trace
-CREATE TABLE execution_trace (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-  -- FK vers capability (nullable pour exécutions legacy/ad-hoc)
-  capability_id UUID REFERENCES workflow_pattern(pattern_id),
-
-  -- Contexte (migré de workflow_execution)
-  intent_text TEXT,
-  executed_at TIMESTAMPTZ DEFAULT NOW(),
-
-  -- Résultats (migré de workflow_execution)
-  success BOOLEAN NOT NULL,
-  duration_ms INTEGER NOT NULL,
-  error_message TEXT,
-
-  -- Multi-tenancy (migré de migration 013)
-  user_id TEXT DEFAULT 'local',
-  created_by TEXT DEFAULT 'local',
-  updated_by TEXT,
-
-  -- Learning (NOUVEAU)
-  executed_path TEXT[],             -- Chemin pris dans static_structure
-  decisions JSONB DEFAULT '[]',     -- Décisions aux DecisionNodes
-  task_results JSONB DEFAULT '[]',   -- Résultats par tâche
-
-  -- PER (Prioritized Experience Replay)
-  priority FLOAT DEFAULT 0.5,       -- 0.0=attendu, 1.0=surprenant
-
-  -- Hiérarchie (ADR-041)
-  parent_trace_id UUID REFERENCES execution_trace(id)
-);
-
--- Index pour queries fréquentes
-CREATE INDEX idx_exec_trace_capability ON execution_trace(capability_id);
-CREATE INDEX idx_exec_trace_timestamp ON execution_trace(executed_at DESC);
-CREATE INDEX idx_exec_trace_user ON execution_trace(user_id);  -- Multi-tenancy
-CREATE INDEX idx_exec_trace_path ON execution_trace USING GIN(executed_path);
-CREATE INDEX idx_exec_trace_priority ON execution_trace(capability_id, priority DESC);
-```
-
-**Pas de migration de données nécessaire:**
-
-Story 10.3b aura déjà supprimé `workflow_execution`. On crée `execution_trace` fresh.
-
-```sql
--- workflow_execution déjà supprimée par Story 10.3b
--- Créer execution_trace directement
-CREATE TABLE execution_trace (...);
-```
-
-**Fichiers à mettre à jour lors de la migration:**
-
-| Fichier | Changement |
-|---------|------------|
-| `src/graphrag/sync/db-sync.ts` | `recordWorkflowExecution()` → INSERT into execution_trace |
-| `src/graphrag/metrics/collector.ts` | Queries SELECT from execution_trace |
-| `src/web/routes/api/user/delete.ts` | UPDATE execution_trace for anonymization |
-
-**PER (Prioritized Experience Replay) — Inspiré du spike 2025-12-17:**
-
-L'idée : prioriser les traces **surprenantes** pour l'apprentissage. Une trace est surprenante si
-son résultat (success/failure) diverge de ce qu'on attendait basé sur le learning actuel.
-
-```typescript
-/**
- * Calcule la priorité PER d'une trace
- * @returns 0.0 (attendu) à 1.0 (très surprenant)
- */
-function calculateTracePriority(
-  trace: { executedPath: string[]; success: boolean; durationMs: number },
-  learning: CapabilityLearning
-): number {
-  // Trouver les stats pour ce chemin
-  const pathStats = learning.paths.find(
-    p => JSON.stringify(p.path) === JSON.stringify(trace.executedPath)
-  );
-
-  if (!pathStats) {
-    // Nouveau chemin jamais vu = priorité maximale
-    return 1.0;
-  }
-
-  // TD Error: |predicted - actual|
-  const predicted = pathStats.successRate;
-  const actual = trace.success ? 1.0 : 0.0;
-  const tdError = Math.abs(predicted - actual);
-
-  // Facteurs additionnels
-  let priority = tdError;
-
-  // Bonus: anomalie de durée (> 2 écarts-types)
-  if (pathStats.count > 5) {
-    const durationRatio = trace.durationMs / pathStats.avgDurationMs;
-    if (durationRatio > 2.0 || durationRatio < 0.5) {
-      priority = Math.min(1.0, priority + 0.2);
-    }
-  }
-
-  // Bonus: chemin rare (< 10% des exécutions)
-  const totalCount = learning.paths.reduce((sum, p) => sum + p.count, 0);
-  if (pathStats.count / totalCount < 0.1) {
-    priority = Math.min(1.0, priority + 0.1);
-  }
-
-  return priority;
-}
-```
-
-**Exemples de priorités:**
-
-| Situation | predicted | actual | Priority | Explication |
-|-----------|-----------|--------|----------|-------------|
-| Chemin dominant réussit | 0.95 | 1.0 | **0.05** | Attendu |
-| Chemin dominant échoue | 0.95 | 0.0 | **0.95** | Très surprenant ! |
-| Chemin rare réussit | 0.50 | 1.0 | **0.60** | Intéressant (0.5 + 0.1 rare) |
-| Nouveau chemin | - | - | **1.00** | Découverte |
-
-**TD Learning — Mise à jour incrémentale:**
-
-Au lieu d'une EMA globale en fin de workflow, on met à jour le learning **par étape**.
-Inspiré du spike sur les systèmes adaptatifs complexes.
-
-```typescript
-/**
- * TD Learning: mise à jour incrémentale après chaque trace
- * α = learning rate (0.1 typique)
- *
- * Note: pas de γ (discount factor) car on a des résultats terminaux,
- * pas de "prochain état" à discounter. C'est du TD(0) simplifié.
- */
-function updateLearningTD(
-  learning: CapabilityLearning,
-  trace: ExecutionTrace,
-  alpha: number = 0.1
-): CapabilityLearning {
-  const pathKey = JSON.stringify(trace.executedPath);
-  let pathStats = learning.paths.find(p => JSON.stringify(p.path) === pathKey);
-
-  if (!pathStats) {
-    // Nouveau chemin
-    pathStats = {
-      path: trace.executedPath,
-      count: 0,
-      successRate: 0.5,  // Prior neutre
-      avgDurationMs: trace.durationMs
-    };
-    learning.paths.push(pathStats);
-  }
-
-  // TD Update pour successRate
-  const actual = trace.success ? 1.0 : 0.0;
-  const tdError = actual - pathStats.successRate;
-  pathStats.successRate += alpha * tdError;
-
-  // TD Update pour duration (weighted average)
-  pathStats.avgDurationMs += alpha * (trace.durationMs - pathStats.avgDurationMs);
-
-  pathStats.count++;
-
-  // Update decisionStats si trace contient des décisions
-  if (trace.decisions?.length) {
-    for (const decision of trace.decisions) {
-      let stats = learning.decisionStats?.find(d => d.nodeId === decision.nodeId);
-      if (!stats) {
-        stats = { nodeId: decision.nodeId, condition: decision.condition, outcomes: {} };
-        learning.decisionStats = learning.decisionStats || [];
-        learning.decisionStats.push(stats);
-      }
-      const outcome = stats.outcomes[decision.outcome] || { count: 0, successRate: 0.5 };
-      outcome.count++;
-      outcome.successRate += alpha * ((trace.success ? 1.0 : 0.0) - outcome.successRate);
-      stats.outcomes[decision.outcome] = outcome;
-    }
-  }
-
-  // Recalculer dominantPath
-  learning.dominantPath = learning.paths
-    .filter(p => p.count >= 3)  // Min 3 exécutions
-    .sort((a, b) => (b.successRate * b.count) - (a.successRate * a.count))[0]?.path
-    || learning.paths[0]?.path
-    || [];
-
-  return learning;
-}
-```
-
-**Différence avec ADR-049 (Adaptive Thresholds):**
-
-| Aspect | ADR-049 | Story 10.4 (PER/TD) |
-|--------|---------|---------------------|
-| Granularité | Tool | Capability |
-| Table | algorithm_traces | execution_trace |
-| But | Seuils de spéculation | Apprentissage de structure |
-| Output | Threshold α (Thompson) | dominantPath, pathStats |
-
-Pas de chevauchement : ADR-049 optimise **quand** exécuter un tool,
-Story 10.4 apprend **comment** une capability se comporte.
-
-**Learning structure (dans dag_structure):**
-
-```typescript
-interface CapabilityLearning {
-  // Stats par chemin emprunté
-  paths: Array<{
-    path: string[];           // ["n1", "d1", "n2"]
-    count: number;            // 150
-    successRate: number;      // 0.95
-    avgDurationMs: number;    // 234
-  }>;
-
-  // Chemin le plus fréquent avec succès
-  dominantPath: string[];     // ["n1", "d1", "n2"]
-
-  // Stats par nœud de décision
-  decisionStats: Array<{
-    nodeId: string;           // "d1"
-    condition: string;        // "file.exists"
-    outcomes: {
-      [outcome: string]: {    // "true" | "false"
-        count: number;
-        successRate: number;
-      }
-    }
-  }>;
-}
-```
-
-**Algorithm:**
-
-```typescript
-async function storeTraceAndUpdateLearning(
-  capabilityId: string,
-  traces: TraceEvent[],
-  success: boolean
-): Promise<void> {
-  // 1. Mapper les traces aux nodeIds de static_structure
-  const capability = await capabilityStore.findById(capabilityId);
-  const staticStructure = capability.dag_structure.static_structure;
-
-  const executedPath = mapTracesToNodeIds(traces, staticStructure);
-  const decisions = extractBranchDecisions(traces);
-  const taskResults = extractTaskResults(traces);
-
-  // 2. Calculer la priorité PER AVANT insert
-  const learning = capability.dag_structure.learning || { paths: [], dominantPath: [] };
-  const priority = calculateTracePriority(
-    { executedPath, success, durationMs: totalDurationMs },
-    learning
-  );
-
-  // 3. Insérer la trace avec priorité
-  await db.query(`
-    INSERT INTO execution_trace
-    (capability_id, executed_path, decisions, task_results, success, duration_ms, priority, executed_at)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-  `, [capabilityId, executedPath, decisions, taskResults, success, totalDurationMs, priority]);
-
-  // 4. Mettre à jour le learning via TD Learning
-  const updatedLearning = updateLearningTD(learning, {
-    executedPath,
-    success,
-    durationMs: totalDurationMs
-  });
-
-  // 5. Sauvegarder le learning mis à jour
-  await capabilityStore.updateLearning(capabilityId, updatedLearning);
-}
-```
-
-**Acceptance Criteria (RÉVISÉS):**
-
-1. **Table `execution_trace` créée** via migration (refactoring de `workflow_execution`)
-2. **Migration des données** depuis `workflow_execution` vers `execution_trace`
-3. **Types TypeScript définis:**
-   ```typescript
-   interface ExecutionTrace {
-     id: string;
-     capabilityId?: string;    // Nullable pour legacy/ad-hoc
-     intentText?: string;
-     executedAt: Date;
-     success: boolean;
-     durationMs: number;
-     errorMessage?: string;
-     // Learning fields
-     executedPath?: string[];  // Node IDs from static_structure
-     decisions: BranchDecision[];
-     taskResults: TraceTaskResult[];
-     priority: number;         // PER: 0.0 (attendu) à 1.0 (surprenant)
-     parentTraceId?: string;
-   }
-
-   interface BranchDecision {
-     nodeId: string;
-     condition: string;
-     evaluatedValue: unknown;
-     outcome: string;
-   }
-
-   interface TraceTaskResult {
-     nodeId: string;
-     tool: string;
-     args: Record<string, unknown>;
-     result: unknown;
-     success: boolean;
-     durationMs: number;
-   }
-   ```
-4. **`ExecutionTraceStore` class créée** avec:
-   - `saveTrace(capabilityId, traces, success)` → insère dans `execution_trace`
-   - `getTraces(capabilityId, limit?)` → liste les traces d'une capability
-   - `getTraceById(traceId)` → une trace spécifique
-   - `getAllTraces(limit?)` → toutes les traces (y compris legacy sans capability_id)
-5. **Mapping traces → nodeIds:**
-   - Fonction `mapTracesToNodeIds(traces, staticStructure)`
-   - Match par tool/capabilityId
-6. **Extraction des décisions de branches:**
-   - Détecter quand un DecisionNode a été traversé
-   - Enregistrer l'outcome choisi
-7. **Mise à jour du learning (TD Learning):**
-   - `updateLearningTD()` avec α = 0.1 (learning rate)
-   - TD Update: `successRate += α * (actual - successRate)`
-   - Recalculer `dominantPath` (chemin avec le plus de count * successRate)
-8. **PER (Prioritized Experience Replay):**
-   - `calculateTracePriority()` → 0.0 (attendu) à 1.0 (surprenant)
-   - Priority = |predicted - actual| + bonus (durée anormale, chemin rare)
-   - Nouveau chemin = priorité maximale (1.0)
-   - `getHighPriorityTraces(capabilityId, limit)` → traces triées par priority DESC
-9. **Intégration dans le flow d'exécution:**
-   - Après exécution sandbox → appeler `storeTraceAndUpdateLearning`
-   - Calculer priority AVANT insert
-10. Tests: exécution réussie → trace insérée + learning updated via TD
-11. Tests: exécution échouée → trace insérée avec success=false, priority élevée si chemin dominant
-12. Tests: 3 exécutions même chemin → count=3, dominantPath correct
-13. Tests: 2 chemins différents → paths[] contient les 2
-14. Tests PER: échec sur chemin dominant (95% success) → priority ≈ 0.95
-15. Tests PER: succès sur chemin dominant → priority ≈ 0.05
-16. Tests PER: nouveau chemin → priority = 1.0
-
-**Files to Create:**
-- `src/db/migrations/XXX_execution_trace.ts` (~80 LOC, inclut migration)
-- `src/capabilities/execution-trace-store.ts` (~200 LOC, inclut PER/TD)
-- `src/capabilities/learning-updater.ts` (~80 LOC, TD Learning + PER priority)
-
-**Files to Modify:**
-- `src/capabilities/types.ts` - Ajouter `ExecutionTrace`, `CapabilityLearning` (~60 LOC)
-- `src/capabilities/capability-store.ts` - Ajouter `updateLearning()` (~30 LOC)
-- `src/sandbox/worker-bridge.ts` - Appeler ExecutionTraceStore après exécution (~20 LOC)
-- Tous les fichiers qui utilisent `workflow_execution` (grep and update)
-
-**Prerequisites:** Story 10.1 (static_structure must exist), Story 10.2 (result in traces)
-
-**Estimation:** 3-4 jours (inclut PER et TD Learning)
-
-**Note importante:**
-Cette story ne **reconstruit** plus un DAG. La structure existe déjà (Story 10.1).
-Elle **enregistre** le chemin emprunté et **enrichit** les statistiques d'apprentissage.
 
 ---
 
@@ -1121,7 +663,7 @@ interface Capability {
 - `src/db/migrations/` - New migration (~40 LOC)
 - All files using `capability.code` (grep and update)
 
-**Prerequisites:** Story 10.4 (Trace Storage)
+**Prerequisites:** Story 10.1 (static_structure)
 
 **Estimation:** 2-3 jours
 
@@ -1335,212 +877,13 @@ pml_get_task_result({
 
 ---
 
-**Story 10.9: Definition vs Invocation Views (Cytoscape)**
-
-As a dashboard user, I want to toggle between Definition and Invocation views,
-So that I can see either the abstract workflow structure or the actual execution.
-
-**Context:**
-Phase 6 de la tech spec. La vue Definition montre les nœuds dédupliqués (chaque tool une fois),
-la vue Invocation montre chaque appel réel avec timestamps.
-
-**View Differences:**
-
-| Vue | Nœuds | Edges | Exemple |
-|-----|-------|-------|---------|
-| **Definition** | Dédupliqués | dependency, provides, contains | `fs:read` (1 nœud) |
-| **Invocation** | Par appel | sequence, contains | `fs:read_1`, `fs:read_2` |
-
-**Acceptance Criteria:**
-
-1. Toggle button dans dashboard: `[Definition] [Invocation]`
-2. **Vue Definition:**
-   - Nœuds dédupliqués par tool/capability type
-   - Edges: `dependency`, `provides`, `contains`
-   - Layout optimisé pour structure
-3. **Vue Invocation:**
-   - Un nœud par appel réel (suffixe `_1`, `_2`, etc.)
-   - Timestamps affichés sur les nœuds
-   - Edges: `sequence` (basé sur ordre temporel)
-   - Parallel visible par timestamps qui overlap
-4. **Réutilise `execution_trace`** (Story 10.4) — pas de nouvelle table:
-   - La table `execution_trace` contient déjà : executed_path, task_results, success, duration_ms
-   - Vue Invocation = query `execution_trace` avec task_results détaillés
-5. API endpoint `/api/traces/:capabilityId`
-6. Cytoscape layout adapté par vue:
-   - Definition: dagre/hierarchical (depuis `static_structure`)
-   - Invocation: timeline/temporal (depuis `execution_trace`)
-7. Tests: même capability, 3 exécutions → Definition (1 nœud) vs Invocation (3 nœuds)
-8. Tests: exécution avec parallélisme visible en Invocation view
-
-**Files to Create:**
-- `src/web/islands/DefinitionInvocationToggle.tsx` (~80 LOC)
-
-**Files to Modify:**
-- `src/web/routes/dashboard.tsx` - Add toggle
-- `src/visualization/hypergraph-builder.ts` - Support both views
-
-**Prerequisites:** Story 10.8, Epic 8 (Hypergraph visualization)
-
-**Estimation:** 2-3 jours
-
----
-
-**Story 10.10: Dry Run Mode with Mocks (Connector Debugging)** 🔮 FUTURE - Post-MVP
-
-As a workflow developer, I want to dry-run code with mocked MCP responses,
-So that I can debug and validate complex workflows without real side effects, especially for connector MCPs.
-
-**Position dans l'Epic:**
-- **NON NÉCESSAIRE pour le MVP** - Le parsing statique (10.1) suffit pour HIL/permissions
-- Utile uniquement pour des cas avancés : estimation coût API, debug complexe, test connecteurs
-- À implémenter SI et QUAND le besoin se présente
-
-**Pourquoi le parsing statique suffit pour HIL:**
-| Question HIL | Parsing statique | Dry run |
-|--------------|------------------|---------|
-| "Quels tools PEUVENT être appelés ?" | ✅ Détecté | Idem |
-| "Quelles permissions nécessaires ?" | ✅ Détecté | Idem |
-| "Y a-t-il des side effects ?" | ✅ Détecté | Idem |
-| "Combien de fois exactement ?" | ❌ Inconnu | ✅ Avec mocks |
-
-→ Les 3 premières questions suffisent pour HIL. La 4ème est un nice-to-have.
-
-**Context:**
-Le parsing statique (Story 10.1) suffit pour HIL/permissions, mais pour le **debugging** de workflows
-complexes utilisant des MCP connecteurs (APIs externes, bases de données), on veut pouvoir :
-- Voir exactement ce qui VA se passer avant de le faire
-- Tester sans appeler les vraies APIs (coût, rate limits, effets de bord)
-- Valider les données intermédiaires
-
-**Use Cases spécifiques:**
-
-| Use Case | Parsing Statique | Dry Run |
-|----------|------------------|---------|
-| HIL permissions | ✅ Suffit | Overkill |
-| Estimation coût API | ❌ Approximatif | ✅ Exact (N appels) |
-| Debug data flow | ❌ Types only | ✅ Vraies valeurs mockées |
-| Test workflow sans side effects | ❌ Impossible | ✅ Full simulation |
-| Validation avant prod | ❌ Statique | ✅ Comportement réel |
-
-**Quand utiliser Dry Run vs Parsing:**
-- **Parsing (10.1)** : Validation rapide, HIL, permissions → **toujours**
-- **Dry Run (10.10)** : Debugging, estimation, test connecteurs → **opt-in depuis dashboard**
-
-**Architecture:**
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Dashboard: "Test Workflow" button                          │
-└─────────────────────────────────────────────────────────────┘
-      │
-      ▼
-┌─────────────────────────────────────────────────────────────┐
-│  Mock MCP Proxy                                              │
-│  - Intercepte tous les appels mcp.*.*()                     │
-│  - Retourne mock responses basées sur output schemas        │
-│  - Log chaque appel avec timestamp, args, mock result       │
-└─────────────────────────────────────────────────────────────┘
-      │
-      ▼
-┌─────────────────────────────────────────────────────────────┐
-│  Sandbox Execution (mode: dry_run)                          │
-│  - Exécute le vrai code                                     │
-│  - Mais avec mcp = mockMcpProxy                             │
-│  - Capture le flow réel d'exécution                         │
-└─────────────────────────────────────────────────────────────┘
-      │
-      ▼
-┌─────────────────────────────────────────────────────────────┐
-│  Dry Run Report                                              │
-│  - Liste exacte des appels qui seraient faits              │
-│  - Données mockées à chaque étape                          │
-│  - Warnings si comportement dépend des données réelles     │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**Mock Response Generation:**
-```typescript
-// Génère mock response depuis le schema MCP
-function generateMockResponse(toolSchema: ToolSchema): unknown {
-  // Utilise le output_schema pour générer des données réalistes
-  // Ex: { type: "string" } → "mock_string_value"
-  // Ex: { type: "object", properties: { id: { type: "number" } } } → { id: 12345 }
-}
-
-// Pour les connecteurs connus, on peut avoir des mocks plus intelligents
-const CONNECTOR_MOCKS: Record<string, MockGenerator> = {
-  "github:api": generateGitHubMock,      // Retourne des PRs, issues mockés
-  "slack:post": generateSlackMock,       // Retourne { ok: true, ts: "..." }
-  "postgres:query": generatePostgresMock, // Retourne rows mockées
-};
-```
-
-**Acceptance Criteria:**
-
-1. `MockMcpProxy` class créée:
-   ```typescript
-   interface MockMcpProxy {
-     onToolCall(server: string, tool: string, args: unknown): Promise<unknown>;
-     getCapturedCalls(): CapturedCall[];
-     reset(): void;
-   }
-
-   interface CapturedCall {
-     server: string;
-     tool: string;
-     args: unknown;
-     mockResponse: unknown;
-     timestamp: number;
-     durationMs: number;
-   }
-   ```
-2. Génération de mock responses depuis `tool_schema.output_schema`
-3. Support pour mocks custom par connecteur (GitHub, Slack, DB, etc.)
-4. Intégration sandbox: `execute(code, { mode: "dry_run" })`
-5. `DryRunReport` généré après exécution:
-   ```typescript
-   interface DryRunReport {
-     capturedCalls: CapturedCall[];
-     executionTimeMs: number;
-     warnings: string[];           // "Response depends on real data"
-     estimatedApiCalls: number;
-     estimatedCost?: number;       // Si on a des infos de pricing
-   }
-   ```
-6. UI Dashboard: bouton "Test Workflow" sur les capabilities
-7. UI Dashboard: affichage du DryRunReport (timeline des appels)
-8. Tests: dry run avec 3 tools séquentiels
-9. Tests: dry run avec boucle → capture tous les appels
-10. Tests: mock custom pour connecteur GitHub
-
-**Files to Create:**
-- `src/sandbox/mock-mcp-proxy.ts` (~150 LOC)
-- `src/sandbox/mock-generators.ts` (~100 LOC)
-- `src/web/islands/DryRunReport.tsx` (~120 LOC)
-
-**Files to Modify:**
-- `src/sandbox/worker-bridge.ts` - Support mode dry_run (~30 LOC)
-- `src/web/routes/dashboard.tsx` - Add "Test Workflow" button (~20 LOC)
-
-**Prerequisites:** Story 10.7 (pml_execute), Epic 8 (Dashboard)
-
-**Estimation:** 3-4 jours
-
-**Note:** Cette story est **optionnelle pour le MVP**. Le parsing statique (10.1) suffit
-pour le HIL. Le dry run est un nice-to-have pour le debugging avancé de workflows
-avec des MCP connecteurs externes.
-
----
-
 ### Epic 10 Breaking Changes Summary
 
 | Phase | Change | Breaking? | Impact |
 |-------|--------|-----------|--------|
 | 1 | `static_structure` in dag_structure | ❌ No | Additive |
-| 2 | `result` in traces | ❌ No | Additive |
 | 3 | `provides` EdgeType | ❌ No | Additive |
-| 3b | `workflow_dags` → KV, DROP `workflow_execution` | ⚠️ **Yes** | Schema change (pas de données) |
-| 4 | Nouvelle table `execution_trace` | ❌ No | Additive |
+| 3b | `workflow_dags` → KV | ⚠️ **Yes** | Schema change (pas de données) |
 | 5 | Capability `source: code \| dag` | ⚠️ **Yes** | Schema change |
 | 6 | Deprecate `pml_search_*` | ⚠️ **Yes** | MCP APIs |
 | 7 | Deprecate `pml_execute_*` | ⚠️ **Yes** | MCP APIs |
@@ -1549,46 +892,43 @@ avec des MCP connecteurs externes.
 - Phase 3b: DROP tables (pas de données à migrer en dev/test)
 - Phase 5-7: Breaking changes. No transition period - clean cut.
 
+> **Note:** Stories liées au learning (result tracing, execution_trace, views) déplacées vers Epic 11.
+
 ---
 
 ### Epic 10 Dependencies — RÉVISÉES
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  FLOW SÉQUENTIEL (Capability d'abord, Traces ensuite)            │
+│  FLOW SÉQUENTIEL (Capability Creation & APIs)                    │
 │                                                                  │
 │  ★ Story 10.1 (Static Analysis → Capability Creation)           │
 │        │  ← VRAIE FONDATION : crée la Capability avec           │
 │        │     static_structure, provides edges, HIL               │
 │        │                                                         │
-│        ├──────────────────┐                                      │
-│        │                  │                                      │
-│        ▼                  ▼                                      │
-│  Story 10.2          Story 10.3                                  │
-│  (result tracing)    (provides edge types)                       │
-│        │                  │                                      │
-│        └────────┬─────────┘                                      │
-│                 ▼                                                │
-│          Story 10.4 (Trace Storage & Learning)                   │
-│                 │  ← Stocke traces dans execution_trace        │
-│                 │     Met à jour dag_structure.learning          │
-│                 ▼                                                │
-│          Story 10.5 (Unified Capability Model)                   │
-│                 │  ← source: code | dag | tool                  │
-│                 ▼                                                │
-│          Story 10.6 (pml_discover)                               │
-│                 │                                                │
-│                 ▼                                                │
-│          Story 10.7 (pml_execute)                                │
-│                 │                                                │
-│                 ▼                                                │
-│          Story 10.8 (pml_get_task_result)                        │
-│                 │                                                │
-│                 ▼                                                │
-│          Story 10.9 (Definition/Invocation views)                │
-│                 │                                                │
-│                 ▼                                                │
-│          Story 10.10 (Dry Run) ← Optional                        │
+│        ├──────────────────┬──────────────────┐                   │
+│        │                  │                  │                   │
+│        ▼                  ▼                  ▼                   │
+│  Story 10.3          Story 10.3b       Story 10.5                │
+│  (provides edges)    (KV migration)    (Unified Model)           │
+│        │                  │                  │                   │
+│        └──────────────────┴──────────────────┘                   │
+│                           │                                      │
+│                           ▼                                      │
+│                    Story 10.6 (pml_discover)                     │
+│                           │                                      │
+│                           ▼                                      │
+│                    Story 10.7 (pml_execute)                      │
+│                           │                                      │
+│                           ▼                                      │
+│                    Story 10.8 (pml_get_task_result)              │
+│                                                                  │
+│  ────────────────────────────────────────────────────────────    │
+│  Stories déplacées vers Epic 11 (Learning from Traces):          │
+│  - 11.1 Result Tracing (ex-10.2)                                 │
+│  - 11.2/11.3 execution_trace + PER/TD (ex-10.4)                  │
+│  - 11.4 Definition/Invocation Views (ex-10.9)                    │
+│  - 11.5 Dry Run (ex-10.10)                                       │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -1597,31 +937,25 @@ avec des MCP connecteurs externes.
 | Ordre | Story | Justification |
 |-------|-------|---------------|
 | 1 | **10.1** Static Analysis | **VRAIE FONDATION** - crée la Capability avec static_structure |
-| 2 | **10.2** Result Tracing | Quick win - ajoute `result` aux traces |
-| 3 | **10.3** Provides Edge | Types d'edges pour data flow |
-| 4 | **10.4** Trace Storage | Stocke traces + update learning (dépend de 10.1 et 10.2) |
-| 5 | **10.5** Unified Capability | source: code \| dag \| tool |
-| 6 | **10.6** pml_discover | API unifiée de découverte |
-| 7 | **10.7** pml_execute | API unifiée d'exécution |
-| 8 | **10.8** pml_get_task_result | Complément pour AIL |
-| 9 | **10.9** Views | UI Definition/Invocation |
-| 10 | **10.10** Dry Run | Optional, pour debug connecteurs |
+| 2 | **10.3** Provides Edge | Types d'edges pour data flow |
+| 3 | **10.3b** KV Migration | Migre workflow_dags vers Deno KV |
+| 4 | **10.5** Unified Capability | source: code \| dag \| tool |
+| 5 | **10.6** pml_discover | API unifiée de découverte |
+| 6 | **10.7** pml_execute | API unifiée d'exécution |
+| 7 | **10.8** pml_get_task_result | Complément pour AIL |
 
-**Changement clé par rapport à avant:**
-- **AVANT:** 10.2 était la fondation, 10.1 était optionnel
-- **MAINTENANT:** 10.1 est la fondation, crée la Capability avec structure complète
-- 10.4 stocke les Traces (pas reconstruction), dépend de 10.1
+**Changement clé:**
+- Stories de learning (result tracing, traces DB, views) déplacées vers Epic 11
+- Epic 10 se concentre sur **création de capability** et **APIs unifiées**
 
 **Pourquoi 10.1 d'abord?**
 1. La Capability est créée à l'analyse statique (structure complète avec conditions)
-2. Les traces référencent les nodeIds de static_structure
-3. L'HIL fonctionne immédiatement (on connaît les tools avant exécution)
-4. L'apprentissage agrège les traces par chemin
+2. L'HIL fonctionne immédiatement (on connaît les tools avant exécution)
+3. Les APIs unifiées peuvent être construites directement sur cette base
 
 **External Dependencies:**
 - Epic 7 Story 7.1b (Worker RPC Bridge)
 - HIL Phase 2 (per_layer_validation, resultPreview)
-- Epic 8 (Hypergraph visualization for Story 10.9)
 
 ---
 
@@ -1633,17 +967,16 @@ avec des MCP connecteurs externes.
 | **FR1b** | **Validation permissions avant exécution** | **10.1** |
 | **FR1c** | **HIL pre-execution approval flow** | **10.1** |
 | **FR1d** | **Détection conditions/branches dans static_structure** | **10.1** |
-| FR2 | Tracer `result` des tools et capabilities | 10.2 |
 | FR3 | Edge type `provides` avec coverage | 10.3 |
-| FR4 | **Stockage traces + agrégation learning** (execution_trace) | 10.4 |
+| FR3b | Migration workflow_dags → Deno KV | 10.3b |
 | FR5 | Capability unifiée (code OU dag) | 10.5 |
 | FR6 | API `pml_discover` unifiée | 10.6 |
 | FR7 | API `pml_execute` unifiée | 10.7 |
 | FR8 | `pml_get_task_result` pour résultats complets | 10.8 |
-| FR9 | Vue Definition vs Invocation | 10.9 |
 | FR10 | Dépréciation anciennes APIs | 10.6, 10.7 |
 | FR11 | Learning automatique après succès | 10.7 |
-| FR12 | Dry Run avec Mocks pour connecteurs (optional) | 10.10 |
+
+> **Note:** FRs liés au learning (result tracing, execution_trace, views, dry run) déplacés vers Epic 11.
 
 ### Epic 10 → PRD FR Traceability Matrix
 
@@ -1655,11 +988,8 @@ avec des MCP connecteurs externes.
 | FR1 | FR006 | Identifier automatiquement tools parallèles vs séquentiels | **Implements** |
 | FR1b | FR017 | Exécution TypeScript dans Deno sandbox isolé | **Extends** |
 | FR1c | FR018 | Branches DAG safe-to-fail (resilient workflows) | **Extends** |
-| FR2 | FR014 | Tracker métriques contexte et latence (opt-in) | **Extends** |
-| FR2 | FR015 | Générer logs structurés pour debugging | **Extends** |
 | FR3 | FR005 | Analyser dépendances input/output pour construire graphe DAG | **Extends** |
-| FR4 | FR005 | Analyser dépendances input/output pour construire graphe DAG | **Implements** |
-| FR4 | FR006 | Identifier automatiquement tools parallèles vs séquentiels | **Implements** |
+| FR3b | - | N/A (DB cleanup) | **Internal** |
 | FR5 | FR017 | Exécution TypeScript dans Deno sandbox isolé | **Extends** |
 | FR5 | FR019 | Injecter MCP tools dans contexte sandbox via vector search | **Extends** |
 | FR6 | FR002 | Recherche sémantique pour identifier top-k tools pertinents | **Unifies** |
@@ -1667,17 +997,16 @@ avec des MCP connecteurs externes.
 | FR7 | FR007 | Exécuter simultanément branches indépendantes du DAG | **Unifies** |
 | FR7 | FR017 | Exécution TypeScript dans Deno sandbox isolé | **Unifies** |
 | FR8 | FR008 | Streamer résultats via SSE pour feedback progressif | **Extends** |
-| FR9 | FR014 | Tracker métriques contexte et latence (opt-in) | **Extends** |
 | FR10 | - | N/A (internal cleanup) | **Internal** |
 | FR11 | - | N/A (Epic 7 extension) | **Epic 7** |
-| FR12 | FR017 | Exécution TypeScript dans Deno sandbox isolé | **Optional** |
+
+> **Note:** FRs FR2 (result tracing), FR4 (execution_trace), FR9 (views), FR12 (dry run) déplacés vers Epic 11.
 
 **Legend:**
 - **Implements**: Implémentation directe du FR PRD
 - **Extends**: Étend/améliore un FR PRD existant
 - **Unifies**: Unifie plusieurs FRs PRD en une seule API
 - **Internal**: Nettoyage interne sans FR PRD correspondant
-- **Optional**: Feature optionnelle
 
 ---
 
@@ -1686,32 +1015,23 @@ avec des MCP connecteurs externes.
 | Ordre | Story | Description | Effort | Cumulative |
 |-------|-------|-------------|--------|------------|
 | 1 | **10.1** | **Static Analysis → Capability** ⭐ FONDATION | **3-4j** | **4j** |
-| 2 | 10.2 | Result Tracing (quick win) | 0.5-1j | 5j |
-| 3 | 10.3 | Provides Edge | 1-2j | 7j |
-| 3b | **10.3b** | **DB Cleanup + KV Migration** | **1-2j** | **9j** |
-| 4 | **10.4** | **execution_trace + PER/TD** ⭐ DB FONDATION | **3-4j** | **13j** |
-| 5 | 10.5 | Unified Capability | 2-3j | 16j |
-| 6 | 10.6 | pml_discover | 2-3j | 19j |
-| 7 | 10.7 | pml_execute | 3-5j | 23j |
-| 8 | 10.8 | pml_get_task_result | 1-2j | 25j |
-| 9 | 10.9 | Definition/Invocation | 2-3j | 28j |
-| 10 | 10.10 | Dry Run + Mocks (optional) | 3-4j | 32j |
+| 2 | 10.3 | Provides Edge | 1-2j | 6j |
+| 3 | 10.3b | DB Cleanup + KV Migration | 1-2j | 8j |
+| 4 | 10.5 | Unified Capability | 2-3j | 11j |
+| 5 | 10.6 | pml_discover | 2-3j | 14j |
+| 6 | 10.7 | pml_execute | 3-5j | 18j |
+| 7 | 10.8 | pml_get_task_result | 1-2j | 20j |
 
-**Total MVP (10.1-10.9): ~4-5 semaines**
-**Total avec 10.10: ~5-6 semaines**
+**Total Epic 10: ~3-4 semaines**
+
+> **Note:** Stories learning déplacées vers Epic 11 :
+> - 11.1 Result Tracing (0.5-1j)
+> - 11.2 execution_trace table (2-3j)
+> - 11.3 PER + TD Learning (2-3j)
+> - 11.4 Definition/Invocation Views (2-3j)
+> - 11.5 Dry Run (3-4j, optional)
 
 **🎯 Story 10.1 (Static Analysis) est la vraie fondation car:**
 1. Crée la Capability avec `static_structure` AVANT exécution
-2. Les traces (10.4) référencent les nodeIds de static_structure
-3. L'HIL fonctionne immédiatement (on connaît les tools avant exécution)
-4. Les conditions/branches sont visibles dans la structure, pas perdues
-
-**📝 Story 10.2 (Result Tracing) est un quick win:**
-1. ~5-10 LOC à modifier dans worker-bridge.ts et code-generator.ts
-2. Débloque 10.3 (provides edges calculated from results)
-3. Peut être faite rapidement après 10.1
-
-**📋 Story 10.10 (Dry Run) est optionnelle car:**
-- Le parsing statique (10.1) suffit pour HIL/permissions
-- Dry run = nice-to-have pour debugging de workflows avec connecteurs
-- Utile quand on a des MCP APIs externes (GitHub, Slack, DB, etc.)
+2. L'HIL fonctionne immédiatement (on connaît les tools avant exécution)
+3. Les conditions/branches sont visibles dans la structure, pas perdues
