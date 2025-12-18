@@ -634,6 +634,11 @@ CREATE TABLE execution_trace (
   duration_ms INTEGER NOT NULL,
   error_message TEXT,
 
+  -- Multi-tenancy (migré de migration 013)
+  user_id TEXT DEFAULT 'local',
+  created_by TEXT DEFAULT 'local',
+  updated_by TEXT,
+
   -- Learning (NOUVEAU)
   executed_path TEXT[],             -- Chemin pris dans static_structure
   decisions JSONB DEFAULT '[]',     -- Décisions aux DecisionNodes
@@ -649,6 +654,7 @@ CREATE TABLE execution_trace (
 -- Index pour queries fréquentes
 CREATE INDEX idx_exec_trace_capability ON execution_trace(capability_id);
 CREATE INDEX idx_exec_trace_timestamp ON execution_trace(executed_at DESC);
+CREATE INDEX idx_exec_trace_user ON execution_trace(user_id);  -- Multi-tenancy
 CREATE INDEX idx_exec_trace_path ON execution_trace USING GIN(executed_path);
 CREATE INDEX idx_exec_trace_priority ON execution_trace(capability_id, priority DESC);
 ```
@@ -656,10 +662,11 @@ CREATE INDEX idx_exec_trace_priority ON execution_trace(capability_id, priority 
 **Migration des données existantes:**
 
 ```sql
--- Étape 1: Créer execution_trace
+-- Étape 1: Créer execution_trace (avec nouvelles colonnes)
 -- Étape 2: Migrer workflow_execution → execution_trace
 INSERT INTO execution_trace (
-  id, intent_text, executed_at, success, duration_ms, error_message
+  id, intent_text, executed_at, success, duration_ms, error_message,
+  user_id, created_by, updated_by
 )
 SELECT
   execution_id,
@@ -667,12 +674,23 @@ SELECT
   executed_at,
   success,
   execution_time_ms,
-  error_message
+  error_message,
+  COALESCE(user_id, 'local'),
+  COALESCE(created_by, 'local'),
+  updated_by
 FROM workflow_execution;
 
 -- Étape 3: Supprimer workflow_execution (ou garder comme archive)
 -- DROP TABLE workflow_execution; -- Optionnel
 ```
+
+**Fichiers à mettre à jour lors de la migration:**
+
+| Fichier | Changement |
+|---------|------------|
+| `src/graphrag/sync/db-sync.ts` | `recordWorkflowExecution()` → INSERT into execution_trace |
+| `src/graphrag/metrics/collector.ts` | Queries SELECT from execution_trace |
+| `src/web/routes/api/user/delete.ts` | UPDATE execution_trace for anonymization |
 
 **PER (Prioritized Experience Replay) — Inspiré du spike 2025-12-17:**
 
