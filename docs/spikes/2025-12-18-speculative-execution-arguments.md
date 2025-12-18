@@ -1,0 +1,207 @@
+# Spike: Speculative Execution with Arguments
+
+**Date**: 2025-12-18
+**Status**: Investigation
+**Related Stories**: 10.2, 10.3, 3.5-1, 3.5-2
+
+## Context
+
+During review of speculative execution mode, we discovered that arguments weren't being considered. This spike documents our findings and the path forward.
+
+## Current State
+
+### What Works
+- `predictNextNodes()` predicts next tools based on:
+  - Community membership (graph)
+  - Co-occurrence (historical patterns)
+  - Capability matching
+- `SpeculativeExecutor` runs predictions in sandboxes
+- Results are cached for instant retrieval on cache hit
+
+### What's Missing
+- **Arguments are not populated** in `PredictedNode`
+- **`generateSpeculationCode()` is a placeholder** - returns preparation metadata, not real execution
+- **`CompletedTask` has no `result` field** - can't chain outputs to inputs
+
+## Key Findings
+
+### 1. PredictedNode Structure
+
+```typescript
+interface PredictedNode {
+  toolId: string;
+  confidence: number;
+  reasoning: string;
+  source: "community" | "co-occurrence" | "capability" | "hint" | "learned";
+  capabilityId?: string;      // Set when source === "capability"
+  arguments?: Record<string, unknown>;  // Added, but never populated
+}
+```
+
+### 2. Placeholder in generateSpeculationCode
+
+Location: `src/speculation/speculative-executor.ts:245-266`
+
+```typescript
+private generateSpeculationCode(
+  prediction: PredictedNode,
+  _context: Record<string, unknown>,  // IGNORED
+): string {
+  // Just returns preparation metadata, not real tool execution
+  return `
+    const preparation = {
+      toolId: "${prediction.toolId}",
+      prepared: true,
+      timestamp: Date.now(),
+    };
+    return preparation;
+  `;
+}
+```
+
+### 3. WorkflowPredictionState Has Context
+
+```typescript
+interface WorkflowPredictionState {
+  workflowId: string;
+  currentLayer: number;
+  completedTasks: CompletedTask[];
+  context?: Record<string, unknown>;  // Could hold task results
+}
+```
+
+But `CompletedTask` doesn't include results:
+
+```typescript
+interface CompletedTask {
+  taskId: string;
+  tool: string;
+  status: "success" | "error" | "failed_safe";
+  executionTimeMs?: number;
+  // NO result field!
+}
+```
+
+### 4. Capability Predictions
+
+When `source === "capability"`:
+- We have `capabilityId` to load the capability
+- Capability has `dag_structure.static_structure` (Story 10.1)
+- With Story 10.2: nodes will have `.arguments`
+- Currently `createCapabilityTask()` returns `arguments: {}` (hardcoded empty)
+
+## Data Flow for Real Speculative Execution
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  1. Story 10.2: Static Argument Extraction                      │
+│     Parse AST → Extract arguments per tool call                 │
+│     Store in: dag_structure.static_structure.nodes[].arguments  │
+│                                                                 │
+│     { path: { type: "literal", value: "config.json" } }        │
+│     { input: { type: "reference", expression: "task0.result" } }│
+│     { filePath: { type: "parameter", parameterName: "path" } }  │
+├─────────────────────────────────────────────────────────────────┤
+│  2. Story 10.3: ProvidesEdge (already done)                     │
+│     Maps tool outputs to inputs via fieldMapping                │
+│     { from: "read_file", to: "parse_json", field: "content" }  │
+├─────────────────────────────────────────────────────────────────┤
+│  3. At Prediction Time (predictNextNodes)                       │
+│     - Load static_structure for predicted tool/capability       │
+│     - Resolve argument values:                                  │
+│       • literal → use value directly                           │
+│       • reference → lookup in context (previous results)       │
+│       • parameter → skip (user must provide)                   │
+│     - Populate PredictedNode.arguments                         │
+├─────────────────────────────────────────────────────────────────┤
+│  4. In generateSpeculationCode (to implement)                   │
+│     - Use prediction.arguments                                  │
+│     - Generate real MCP tool call code                         │
+│     - Execute speculatively in sandbox                         │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Open Questions
+
+### Q1: How to populate context with task results?
+
+Options:
+- A) Extend `CompletedTask` with `result?: unknown`
+- B) Use `WorkflowPredictionState.context` (already exists)
+- C) Separate result store keyed by taskId
+
+**Recommendation**: Option B - context already exists, just need to populate it.
+
+### Q2: What if a reference points to a task not yet executed?
+
+Scenarios:
+- Speculation for node N+2 when only N is done (N+1 not yet executed)
+- Reference to parallel branch not yet complete
+
+**Options**:
+- Skip speculation if any reference unresolved
+- Speculate only for nodes with all refs resolvable
+- Use placeholder/mock values (risky)
+
+**Recommendation**: Skip speculation if references unresolved.
+
+### Q3: How to generate real MCP tool calls?
+
+Current placeholder doesn't actually call tools. Need:
+- Tool ID → MCP server + method mapping
+- Arguments → properly formatted call
+- Result capture → for chaining
+
+**Consideration**: May need tool registry or MCP client integration.
+
+### Q4: Capability vs Tool prediction differences?
+
+| Aspect | Tool | Capability |
+|--------|------|------------|
+| Arguments source | Need to infer from context | Has static_structure |
+| Execution | Single MCP call | Multi-step code |
+| Result | Direct tool result | Capability output |
+
+### Q5: How to handle parameter-type arguments?
+
+Parameters come from user intent, not previous tasks. Options:
+- Don't speculate if parameters required
+- Extract from original workflow intent (NLP)
+- Only speculate for chains with no parameters
+
+**Recommendation**: For next-node speculation, chaining should suffice (no NLP needed).
+
+## Implementation Path
+
+### Phase 1: Story 10.2 (Current Sprint)
+- Extract arguments from AST
+- Store in `static_structure.nodes[].arguments`
+- Simple, focused scope
+
+### Phase 2: Argument Resolution (Future)
+- Add logic to `predictNextNodes` to resolve arguments
+- Use `context` for task results
+- Populate `PredictedNode.arguments`
+
+### Phase 3: Real Speculative Execution (Future)
+- Replace `generateSpeculationCode` placeholder
+- Generate real MCP calls
+- Handle result capture and validation
+
+## Files to Modify (Future Phases)
+
+| File | Change |
+|------|--------|
+| `src/graphrag/types.ts` | Extend `CompletedTask` with result? |
+| `src/graphrag/dag-suggester.ts` | Add argument resolution in `predictNextNodes` |
+| `src/speculation/speculative-executor.ts` | Replace placeholder in `generateSpeculationCode` |
+| `src/graphrag/prediction/capabilities.ts` | Use static_structure arguments in `createCapabilityTask` |
+
+## References
+
+- ADR-006: Speculative Execution
+- Story 3.5-1: DAG Suggester & Speculative Execution
+- Story 3.5-2: Confidence-Based Speculation & Rollback
+- Story 10.1: Static DAG Parsing
+- Story 10.2: Static Argument Extraction
+- Story 10.3: ProvidesEdge for Data Flow
