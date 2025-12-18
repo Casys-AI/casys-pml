@@ -583,24 +583,24 @@ type ProvidesCoverage =
 
 ---
 
-**Story 10.4: Trace Storage & Learning Aggregation (POST-EXECUTION)** — RÉVISÉE
+**Story 10.4: Execution Trace Consolidation & Learning** — RÉVISÉE ⭐ DB FONDATION
 
-As a learning system, I want to store execution traces in `capability_trace` and update learning stats,
-So that I can track execution patterns and identify the dominant path over time.
+As a learning system, I want a unified `execution_trace` table that consolidates workflow executions,
+So that I can track execution patterns with proper FK to capabilities and learning-specific fields.
 
 **Context (RÉVISÉ):**
 
-Changement de rôle :
-- **AVANT :** Reconstruire un DAG depuis les traces (créer la structure)
-- **MAINTENANT :** Stocker les traces et mettre à jour le `learning` (agrégation)
+**Consolidation du schéma DB :**
+- **AVANT :** `workflow_execution` stockait `dag_structure` en dur (pas de FK, redondant)
+- **MAINTENANT :** `execution_trace` avec FK vers `workflow_pattern` + champs learning
 
 La **Capability** existe déjà (créée par Story 10.1 à l'analyse statique).
-Cette story stocke les **Traces** qui sont des instances d'exécution de cette Capability.
+Cette story **refactore** `workflow_execution` et ajoute les champs pour le learning.
 
 **Relation avec static_structure:**
 
 ```
-static_structure (Story 10.1)        capability_trace (Story 10.4)
+static_structure (Story 10.1)        execution_trace (Story 10.4)
 ────────────────────────────         ────────────────────────────
 nodes: [n1, d1, n2, n3, n4]          executed_path: [n1, d1, n2]  ← Chemin pris
 edges: [sequence, conditional...]    decisions: [{nodeId: d1, outcome: "true"}]
@@ -609,47 +609,69 @@ edges: [sequence, conditional...]    decisions: [{nodeId: d1, outcome: "true"}]
 
 Les `executed_path` référencent les `nodeIds` de `static_structure`.
 
-**Nouvelle table `capability_trace`:**
+**Refactoring `workflow_execution` → `execution_trace`:**
 
-> **Pourquoi une nouvelle table et pas une extension ?**
-> - `workflow_execution` : pas de FK vers capability, stocke dag_structure complet (trop générique)
-> - `algorithm_traces` : pour scoring/threshold decisions (ADR-039), autre périmètre
-> - `workflow_pattern` : c'est la capability elle-même, pas ses traces
-> - Besoin de champs spécifiques : `executed_path`, `decisions`, `priority` (PER)
+> **Pourquoi refactorer plutôt que créer une nouvelle table ?**
+> - `workflow_execution` existe mais stocke `dag_structure` en dur (redondant)
+> - Pas de FK vers `workflow_pattern` (capabilities)
+> - Évite les tables "bric et de broc" avec des périmètres qui se chevauchent
+> - Une seule table pour TOUTES les traces d'exécution
 
 ```sql
-CREATE TABLE capability_trace (
-  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  capability_id TEXT NOT NULL REFERENCES workflow_pattern(pattern_id),
+-- Refactoring: workflow_execution → execution_trace
+CREATE TABLE execution_trace (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
-  -- Chemin emprunté (nodeIds de static_structure)
-  executed_path TEXT[] NOT NULL,
+  -- FK vers capability (nullable pour exécutions legacy/ad-hoc)
+  capability_id UUID REFERENCES workflow_pattern(pattern_id),
 
-  -- Décisions prises aux DecisionNodes
-  decisions JSONB NOT NULL DEFAULT '[]',
-  -- Format: [{ "nodeId": "d1", "condition": "file.exists", "value": true, "outcome": "true" }]
+  -- Contexte (migré de workflow_execution)
+  intent_text TEXT,
+  executed_at TIMESTAMPTZ DEFAULT NOW(),
 
-  -- Résultats détaillés par tâche
-  task_results JSONB NOT NULL DEFAULT '[]',
-  -- Format: [{ "nodeId": "n1", "tool": "fs:stat", "result": {...}, "durationMs": 50 }]
-
+  -- Résultats (migré de workflow_execution)
   success BOOLEAN NOT NULL,
   duration_ms INTEGER NOT NULL,
+  error_message TEXT,
 
-  -- ADR-041: Lien avec le contexte parent
-  parent_trace_id TEXT,
+  -- Learning (NOUVEAU)
+  executed_path TEXT[],             -- Chemin pris dans static_structure
+  decisions JSONB DEFAULT '[]',     -- Décisions aux DecisionNodes
+  task_results JSONB DEFAULT '[]',   -- Résultats par tâche
 
-  -- PER (Prioritized Experience Replay): traces surprenantes = haute priorité
-  priority FLOAT NOT NULL DEFAULT 0.5,
-  -- 0.0 = attendu, 1.0 = très surprenant (échec sur chemin dominant, succès sur chemin rare)
+  -- PER (Prioritized Experience Replay)
+  priority FLOAT DEFAULT 0.5,       -- 0.0=attendu, 1.0=surprenant
 
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  -- Hiérarchie (ADR-041)
+  parent_trace_id UUID REFERENCES execution_trace(id)
 );
 
-CREATE INDEX idx_trace_capability ON capability_trace(capability_id);
-CREATE INDEX idx_trace_path ON capability_trace USING GIN(executed_path);
-CREATE INDEX idx_trace_success ON capability_trace(capability_id, success);
-CREATE INDEX idx_trace_priority ON capability_trace(capability_id, priority DESC);
+-- Index pour queries fréquentes
+CREATE INDEX idx_exec_trace_capability ON execution_trace(capability_id);
+CREATE INDEX idx_exec_trace_timestamp ON execution_trace(executed_at DESC);
+CREATE INDEX idx_exec_trace_path ON execution_trace USING GIN(executed_path);
+CREATE INDEX idx_exec_trace_priority ON execution_trace(capability_id, priority DESC);
+```
+
+**Migration des données existantes:**
+
+```sql
+-- Étape 1: Créer execution_trace
+-- Étape 2: Migrer workflow_execution → execution_trace
+INSERT INTO execution_trace (
+  id, intent_text, executed_at, success, duration_ms, error_message
+)
+SELECT
+  execution_id,
+  intent_text,
+  executed_at,
+  success,
+  execution_time_ms,
+  error_message
+FROM workflow_execution;
+
+-- Étape 3: Supprimer workflow_execution (ou garder comme archive)
+-- DROP TABLE workflow_execution; -- Optionnel
 ```
 
 **PER (Prioritized Experience Replay) — Inspiré du spike 2025-12-17:**
@@ -846,9 +868,9 @@ async function storeTraceAndUpdateLearning(
 
   // 3. Insérer la trace avec priorité
   await db.query(`
-    INSERT INTO capability_trace
-    (capability_id, executed_path, decisions, task_results, success, duration_ms, priority)
-    VALUES ($1, $2, $3, $4, $5, $6, $7)
+    INSERT INTO execution_trace
+    (capability_id, executed_path, decisions, task_results, success, duration_ms, priority, executed_at)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
   `, [capabilityId, executedPath, decisions, taskResults, success, totalDurationMs, priority]);
 
   // 4. Mettre à jour le learning via TD Learning
@@ -865,20 +887,24 @@ async function storeTraceAndUpdateLearning(
 
 **Acceptance Criteria (RÉVISÉS):**
 
-1. **Table `capability_trace` créée** via migration
-2. **Types TypeScript définis:**
+1. **Table `execution_trace` créée** via migration (refactoring de `workflow_execution`)
+2. **Migration des données** depuis `workflow_execution` vers `execution_trace`
+3. **Types TypeScript définis:**
    ```typescript
-   interface CapabilityTrace {
+   interface ExecutionTrace {
      id: string;
-     capabilityId: string;
-     executedPath: string[];  // Node IDs from static_structure
-     decisions: BranchDecision[];
-     taskResults: TraceTaskResult[];
+     capabilityId?: string;    // Nullable pour legacy/ad-hoc
+     intentText?: string;
+     executedAt: Date;
      success: boolean;
      durationMs: number;
-     priority: number;        // PER: 0.0 (attendu) à 1.0 (surprenant)
+     errorMessage?: string;
+     // Learning fields
+     executedPath?: string[];  // Node IDs from static_structure
+     decisions: BranchDecision[];
+     taskResults: TraceTaskResult[];
+     priority: number;         // PER: 0.0 (attendu) à 1.0 (surprenant)
      parentTraceId?: string;
-     createdAt: Date;
    }
 
    interface BranchDecision {
@@ -897,45 +923,48 @@ async function storeTraceAndUpdateLearning(
      durationMs: number;
    }
    ```
-3. **`TraceStore` class créée** avec:
-   - `saveTrace(capabilityId, traces, success)` → insère dans `capability_trace`
-   - `getTraces(capabilityId, limit?)` → liste les traces
+4. **`ExecutionTraceStore` class créée** avec:
+   - `saveTrace(capabilityId, traces, success)` → insère dans `execution_trace`
+   - `getTraces(capabilityId, limit?)` → liste les traces d'une capability
    - `getTraceById(traceId)` → une trace spécifique
-4. **Mapping traces → nodeIds:**
+   - `getAllTraces(limit?)` → toutes les traces (y compris legacy sans capability_id)
+5. **Mapping traces → nodeIds:**
    - Fonction `mapTracesToNodeIds(traces, staticStructure)`
    - Match par tool/capabilityId
-5. **Extraction des décisions de branches:**
+6. **Extraction des décisions de branches:**
    - Détecter quand un DecisionNode a été traversé
    - Enregistrer l'outcome choisi
-6. **Mise à jour du learning (TD Learning):**
+7. **Mise à jour du learning (TD Learning):**
    - `updateLearningTD()` avec α = 0.1 (learning rate)
    - TD Update: `successRate += α * (actual - successRate)`
    - Recalculer `dominantPath` (chemin avec le plus de count * successRate)
-7. **PER (Prioritized Experience Replay):**
+8. **PER (Prioritized Experience Replay):**
    - `calculateTracePriority()` → 0.0 (attendu) à 1.0 (surprenant)
    - Priority = |predicted - actual| + bonus (durée anormale, chemin rare)
    - Nouveau chemin = priorité maximale (1.0)
    - `getHighPriorityTraces(capabilityId, limit)` → traces triées par priority DESC
-8. **Intégration dans le flow d'exécution:**
+9. **Intégration dans le flow d'exécution:**
    - Après exécution sandbox → appeler `storeTraceAndUpdateLearning`
    - Calculer priority AVANT insert
-9. Tests: exécution réussie → trace insérée + learning updated via TD
-10. Tests: exécution échouée → trace insérée avec success=false, priority élevée si chemin dominant
-11. Tests: 3 exécutions même chemin → count=3, dominantPath correct
-12. Tests: 2 chemins différents → paths[] contient les 2
-13. Tests PER: échec sur chemin dominant (95% success) → priority ≈ 0.95
-14. Tests PER: succès sur chemin dominant → priority ≈ 0.05
-15. Tests PER: nouveau chemin → priority = 1.0
+10. Tests: migration workflow_execution → execution_trace OK
+11. Tests: exécution réussie → trace insérée + learning updated via TD
+12. Tests: exécution échouée → trace insérée avec success=false, priority élevée si chemin dominant
+13. Tests: 3 exécutions même chemin → count=3, dominantPath correct
+14. Tests: 2 chemins différents → paths[] contient les 2
+15. Tests PER: échec sur chemin dominant (95% success) → priority ≈ 0.95
+16. Tests PER: succès sur chemin dominant → priority ≈ 0.05
+17. Tests PER: nouveau chemin → priority = 1.0
 
 **Files to Create:**
-- `src/db/migrations/XXX_capability_trace.ts` (~50 LOC)
-- `src/capabilities/trace-store.ts` (~180 LOC, inclut PER/TD)
+- `src/db/migrations/XXX_execution_trace.ts` (~80 LOC, inclut migration)
+- `src/capabilities/execution-trace-store.ts` (~200 LOC, inclut PER/TD)
 - `src/capabilities/learning-updater.ts` (~80 LOC, TD Learning + PER priority)
 
 **Files to Modify:**
-- `src/capabilities/types.ts` - Ajouter `CapabilityTrace`, `CapabilityLearning` (~60 LOC)
+- `src/capabilities/types.ts` - Ajouter `ExecutionTrace`, `CapabilityLearning` (~60 LOC)
 - `src/capabilities/capability-store.ts` - Ajouter `updateLearning()` (~30 LOC)
-- `src/sandbox/worker-bridge.ts` - Appeler TraceStore après exécution (~20 LOC)
+- `src/sandbox/worker-bridge.ts` - Appeler ExecutionTraceStore après exécution (~20 LOC)
+- Tous les fichiers qui utilisent `workflow_execution` (grep and update)
 
 **Prerequisites:** Story 10.1 (static_structure must exist), Story 10.2 (result in traces)
 
@@ -1266,14 +1295,13 @@ la vue Invocation montre chaque appel réel avec timestamps.
    - Timestamps affichés sur les nœuds
    - Edges: `sequence` (basé sur ordre temporel)
    - Parallel visible par timestamps qui overlap
-4. **Réutilise `capability_trace`** (Story 10.4) — pas de nouvelle table:
-   - La table `capability_trace` contient déjà : executed_path, task_results, success, duration_ms
-   - Ajouter colonne `arguments JSONB` si nécessaire pour stocker les args d'entrée
-   - Vue Invocation = query `capability_trace` avec task_results détaillés
-5. API endpoint `/api/traces/:capabilityId` (renommé de invocations)
+4. **Réutilise `execution_trace`** (Story 10.4) — pas de nouvelle table:
+   - La table `execution_trace` contient déjà : executed_path, task_results, success, duration_ms
+   - Vue Invocation = query `execution_trace` avec task_results détaillés
+5. API endpoint `/api/traces/:capabilityId`
 6. Cytoscape layout adapté par vue:
    - Definition: dagre/hierarchical (depuis `static_structure`)
-   - Invocation: timeline/temporal (depuis `capability_trace`)
+   - Invocation: timeline/temporal (depuis `execution_trace`)
 7. Tests: même capability, 3 exécutions → Definition (1 nœud) vs Invocation (3 nœuds)
 8. Tests: exécution avec parallélisme visible en Invocation view
 
@@ -1443,12 +1471,14 @@ avec des MCP connecteurs externes.
 | 1 | `static_structure` in dag_structure | ❌ No | Additive |
 | 2 | `result` in traces | ❌ No | Additive |
 | 3 | `provides` EdgeType | ❌ No | Additive |
-| 4 | New table `capability_trace` | ❌ No | Additive |
+| 4 | Refactor `workflow_execution` → `execution_trace` | ⚠️ **Yes** | Schema change (migration fournie) |
 | 5 | Capability `source: code \| dag` | ⚠️ **Yes** | Schema change |
 | 6 | Deprecate `pml_search_*` | ⚠️ **Yes** | MCP APIs |
 | 7 | Deprecate `pml_execute_*` | ⚠️ **Yes** | MCP APIs |
 
-**Migration Strategy:** Breaking changes in Phase 5-7. No transition period - clean cut.
+**Migration Strategy:**
+- Phase 4: Migration automatique des données `workflow_execution` → `execution_trace`
+- Phase 5-7: Breaking changes. No transition period - clean cut.
 
 ---
 
@@ -1589,7 +1619,7 @@ avec des MCP connecteurs externes.
 | 1 | **10.1** | **Static Analysis → Capability** ⭐ FONDATION | **3-4j** | **4j** |
 | 2 | 10.2 | Result Tracing (quick win) | 0.5-1j | 5j |
 | 3 | 10.3 | Provides Edge | 1-2j | 7j |
-| 4 | 10.4 | Trace Storage + PER/TD Learning | 3-4j | 11j |
+| 4 | **10.4** | **execution_trace + PER/TD** ⭐ DB FONDATION | **3-4j** | **11j** |
 | 5 | 10.5 | Unified Capability | 2-3j | 14j |
 | 6 | 10.6 | pml_discover | 2-3j | 17j |
 | 7 | 10.7 | pml_execute | 3-5j | 21j |
