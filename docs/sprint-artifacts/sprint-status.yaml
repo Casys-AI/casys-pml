@@ -186,3 +186,33 @@ development_status:
   9-6-mcp-config-secrets-management: backlog # ADR-040 - DEFERRED: Requires workspace refacto (open-core + SaaS repos) first
   9-7-user-analytics-metrics: backlog # Track user activity and usage metrics for dashboard analytics
   epic-9-retrospective: optional
+
+  # Epic 10: DAG Capability Learning & Unified APIs
+  # Tech-Spec: tech-spec-dag-capability-learning.md
+  # 6 stories, ~3 semaines
+  # Unified learning model: Code & DAG create capabilities via static analysis
+  # Simplified APIs: pml_discover + pml_execute
+  # Depends on: Epic 7 (Emergent Capabilities)
+  epic-10: in-progress
+  10-1-static-analysis-capability-creation: done # Code Review APPROVED 2025-12-18, 11 tests passing, StaticStructureBuilder implemented
+  10-3-provides-edge-type: ready-for-dev
+  10-5-unified-capability-model: backlog
+  10-6-pml-discover-api: backlog
+  10-7-pml-execute-api: backlog
+  10-8-pml-get-task-result: backlog
+  epic-10-retrospective: optional
+
+  # Epic 11: Learning from Execution Traces
+  # Epic: epic-11-learning-from-traces.md
+  # 5 stories (+1 optional), ~2-3 semaines
+  # Episodic memory: Traces stored separately from capabilities
+  # Learning: PER (Prioritized Experience Replay) + TD Learning
+  # Depends on: Epic 10
+  epic-11: backlog
+  11-0-db-schema-cleanup: backlog
+  11-1-result-tracing: backlog
+  11-2-execution-trace-table: backlog
+  11-3-per-td-learning: backlog
+  11-4-definition-invocation-views: backlog
+  11-5-dry-run-mode: backlog
+  epic-11-retrospective: optional
