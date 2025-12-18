@@ -118,36 +118,68 @@ ALTER TABLE permission_audit_log
 ALTER TABLE tool_dependency DROP COLUMN IF EXISTS source;
 ```
 
-**5. DROP `workflow_dags` table**
+**Stratégie de Migration (IMPORTANT):**
+
+On utilise une **migration additive idempotente** pour ne pas casser l'historique :
 
 ```sql
--- Table remplacée par Deno KV
+-- src/db/migrations/019_db_schema_cleanup.sql
+
+-- 1. Drop workflow_dags (remplacé par Deno KV)
 DROP TABLE IF EXISTS workflow_dags CASCADE;
+
+-- 2. Drop mcp_tool (merged into tool_schema)
+DROP TABLE IF EXISTS mcp_tool CASCADE;
+
+-- 3. Remove redundant column from tool_dependency
+ALTER TABLE tool_dependency DROP COLUMN IF EXISTS source;
+
+-- 4. Add missing FK on permission_audit_log (idempotent)
+DO $$ BEGIN
+  -- First ensure capability_id is UUID type
+  ALTER TABLE permission_audit_log
+    ALTER COLUMN capability_id TYPE UUID USING capability_id::uuid;
+EXCEPTION
+  WHEN others THEN NULL; -- Already UUID or doesn't exist
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE permission_audit_log
+    ADD CONSTRAINT fk_permission_audit_capability
+    FOREIGN KEY (capability_id) REFERENCES workflow_pattern(pattern_id);
+EXCEPTION
+  WHEN duplicate_object THEN NULL; -- FK already exists
+END $$;
 ```
+
+**Pourquoi cette approche ?**
+- ✅ Fonctionne avec ou sans données existantes
+- ✅ Ne modifie pas les anciennes migrations (historique intact)
+- ✅ Idempotente (peut être rejouée sans erreur)
+- ✅ Les migrations 004, 008, 009 continuent de fonctionner, puis 019 nettoie
 
 **Acceptance Criteria:**
 
-1. `workflow_dags` supprimée de PostgreSQL
-2. `src/mcp/workflow-dag-store.ts` utilise Deno KV avec TTL
-3. `mcp_tool` table supprimée, E2E tests adaptés
-4. FK ajoutée sur `permission_audit_log.capability_id`
-5. Colonne `source` supprimée de `tool_dependency`
-6. Tests: store/retrieve workflow state via KV
-7. Tests: TTL expiration fonctionne
-8. Tests E2E: utilisent `tool_schema` au lieu de `mcp_tool`
+1. Migration 019 créée avec `IF EXISTS` / `IF NOT EXISTS`
+2. `workflow_dags` supprimée de PostgreSQL
+3. `src/mcp/workflow-dag-store.ts` utilise Deno KV avec TTL
+4. `mcp_tool` table supprimée, E2E tests adaptés
+5. FK ajoutée sur `permission_audit_log.capability_id`
+6. Colonne `source` supprimée de `tool_dependency`
+7. Tests: store/retrieve workflow state via KV
+8. Tests: TTL expiration fonctionne
+9. Tests E2E: utilisent `tool_schema` au lieu de `mcp_tool`
+10. Migration rejouable sans erreur (idempotente)
 
 **Files to Create:**
+- `src/db/migrations/019_db_schema_cleanup.sql` (~40 LOC)
 - `src/cache/kv.ts` (~30 LOC) - Singleton KV
 - `src/cache/workflow-state-cache.ts` (~60 LOC) - Remplace workflow-dag-store
 
 **Files to Modify:**
 - `src/mcp/workflow-dag-store.ts` → utiliser KV
-- `src/db/migrations/` - Migration pour cleanup
-- E2E tests utilisant `mcp_tool`
-- Code utilisant `tool_dependency.source`
-
-**Files to Delete:**
-- Migration 008 devient no-op (workflow_dags plus créée)
+- E2E tests utilisant `mcp_tool` → utiliser `tool_schema`
+- Code utilisant `tool_dependency.source` → utiliser `edge_source`
 
 **Prerequisites:** Aucun (peut commencer immédiatement)
 
