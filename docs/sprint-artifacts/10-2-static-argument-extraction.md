@@ -29,7 +29,7 @@ const file = await mcp.fs.read({ path: "config.json" });
 { id: "n1", type: "task", tool: "fs:read" }  // <- PAS d'arguments !
 
 // Structure souhaitee (Story 10.2) :
-{ id: "n1", type: "task", tool: "fs:read", arguments: { path: "config.json" } }
+{ id: "n1", type: "task", tool: "fs:read", arguments: { path: { type: "literal", value: "config.json" } } }
 ```
 
 **Pourquoi c'est important pour la speculation:**
@@ -37,13 +37,67 @@ const file = await mcp.fs.read({ path: "config.json" });
 - Les arguments peuvent etre: litteraux, variables resolues via chainage, ou parametres de la capability
 - Sans arguments, on ne peut que "preparer" l'execution, pas l'executer
 
+---
+
+## Distinction importante : parametersSchema vs Arguments
+
+**Ce qui existe deja (Story 7.2b - SchemaInferrer):**
+
+`parametersSchema` decrit les INPUTS de la capability (comme une signature de fonction):
+
+```typescript
+// Code analyse :
+const file = await mcp.fs.read({ path: args.filePath });
+if (args.debug) console.log(file);
+
+// parametersSchema produit (deja implemente) :
+{
+  type: "object",
+  properties: {
+    filePath: { type: "string" },
+    debug: { type: "boolean" }
+  }
+}
+// → Dit "la capability attend un param filePath de type string et debug de type boolean"
+```
+
+**Ce que Story 10.2 ajoute:**
+
+`arguments` de chaque node decrit COMMENT les params sont utilises dans chaque appel tool:
+
+```typescript
+// Code analyse :
+const file = await mcp.fs.read({ path: args.filePath });
+const parsed = await mcp.json.parse({ input: file.content });
+
+// static_structure.nodes[0].arguments (Story 10.2) :
+{
+  path: { type: "parameter", parameterName: "filePath" }
+}
+// → Dit "le tool fs:read recoit path qui vient du param filePath de la capability"
+
+// static_structure.nodes[1].arguments (Story 10.2) :
+{
+  input: { type: "reference", expression: "file.content" }
+}
+// → Dit "le tool json:parse recoit input qui vient du resultat de file"
+```
+
+**Le lien entre les deux:**
+Story 10.2 utilise `parametersSchema` pour classifier les Identifiers :
+- Si `filePath` est dans `parametersSchema.properties` → c'est un `parameter`
+- Si c'est une MemberExpression (`file.content`) → c'est une `reference`
+- Si c'est un literal (`"config.json"`) → c'est un `literal`
+
+---
+
 **Types d'arguments a gerer:**
 
 | Type | Exemple | Stockage | Resolution |
 |------|---------|----------|------------|
 | **Litteral** | `{ path: "config.json" }` | Valeur directe | Immediat |
 | **Reference interne** | `{ input: file.content }` | Expression AST | Via ProvidesEdge a l'execution |
-| **Parametre externe** | `{ path: userPath }` | Nom du parametre | Via input_schema de la capability |
+| **Parametre externe** | `{ path: args.filePath }` | Nom du parametre | Via parametersSchema de la capability |
 
 ---
 
