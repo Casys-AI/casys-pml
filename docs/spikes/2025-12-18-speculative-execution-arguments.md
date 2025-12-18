@@ -325,6 +325,27 @@ Speculation is most useful during **pause windows** between layers:
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+### Current State: Functional but Redundant
+
+With `per_layer_validation: true` alone, Claude can already:
+- **continue** → call `pml_continue(workflow_id)` to resume
+- **abort** → simply don't call continue (workflow times out or is abandoned)
+
+AIL adds:
+- **replan_dag** → modify the DAG mid-execution based on new context
+
+**Cleanup opportunity**: The two mechanisms could potentially be consolidated:
+- `per_layer_validation` handles checkpointing + basic continue/abort
+- AIL handles advanced decisions (replan)
+- Currently they're independent, which is confusing but functional
+
+**TODO**: Study if we should:
+1. Keep them separate (current state - works)
+2. Make `per_layer_validation` auto-enable basic AIL
+3. Merge into a single unified pause mechanism
+
+For now, the current state works - this is a future cleanup task.
+
 ### Recommendation for Real Speculation
 
 For speculation with arguments to work well:
