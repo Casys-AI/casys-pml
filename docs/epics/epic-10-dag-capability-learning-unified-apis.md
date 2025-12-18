@@ -633,13 +633,141 @@ CREATE TABLE capability_trace (
   -- ADR-041: Lien avec le contexte parent
   parent_trace_id TEXT,
 
+  -- PER (Prioritized Experience Replay): traces surprenantes = haute priorité
+  priority FLOAT NOT NULL DEFAULT 0.5,
+  -- 0.0 = attendu, 1.0 = très surprenant (échec sur chemin dominant, succès sur chemin rare)
+
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX idx_trace_capability ON capability_trace(capability_id);
 CREATE INDEX idx_trace_path ON capability_trace USING GIN(executed_path);
 CREATE INDEX idx_trace_success ON capability_trace(capability_id, success);
+CREATE INDEX idx_trace_priority ON capability_trace(capability_id, priority DESC);
 ```
+
+**PER (Prioritized Experience Replay) — Inspiré du spike 2025-12-17:**
+
+L'idée : prioriser les traces **surprenantes** pour l'apprentissage. Une trace est surprenante si
+son résultat (success/failure) diverge de ce qu'on attendait basé sur le learning actuel.
+
+```typescript
+/**
+ * Calcule la priorité PER d'une trace
+ * @returns 0.0 (attendu) à 1.0 (très surprenant)
+ */
+function calculateTracePriority(
+  trace: { executedPath: string[]; success: boolean; durationMs: number },
+  learning: CapabilityLearning
+): number {
+  // Trouver les stats pour ce chemin
+  const pathStats = learning.paths.find(
+    p => JSON.stringify(p.path) === JSON.stringify(trace.executedPath)
+  );
+
+  if (!pathStats) {
+    // Nouveau chemin jamais vu = priorité maximale
+    return 1.0;
+  }
+
+  // TD Error: |predicted - actual|
+  const predicted = pathStats.successRate;
+  const actual = trace.success ? 1.0 : 0.0;
+  const tdError = Math.abs(predicted - actual);
+
+  // Facteurs additionnels
+  let priority = tdError;
+
+  // Bonus: anomalie de durée (> 2 écarts-types)
+  if (pathStats.count > 5) {
+    const durationRatio = trace.durationMs / pathStats.avgDurationMs;
+    if (durationRatio > 2.0 || durationRatio < 0.5) {
+      priority = Math.min(1.0, priority + 0.2);
+    }
+  }
+
+  // Bonus: chemin rare (< 10% des exécutions)
+  const totalCount = learning.paths.reduce((sum, p) => sum + p.count, 0);
+  if (pathStats.count / totalCount < 0.1) {
+    priority = Math.min(1.0, priority + 0.1);
+  }
+
+  return priority;
+}
+```
+
+**Exemples de priorités:**
+
+| Situation | predicted | actual | Priority | Explication |
+|-----------|-----------|--------|----------|-------------|
+| Chemin dominant réussit | 0.95 | 1.0 | **0.05** | Attendu |
+| Chemin dominant échoue | 0.95 | 0.0 | **0.95** | Très surprenant ! |
+| Chemin rare réussit | 0.50 | 1.0 | **0.60** | Intéressant (0.5 + 0.1 rare) |
+| Nouveau chemin | - | - | **1.00** | Découverte |
+
+**TD Learning — Mise à jour incrémentale:**
+
+Au lieu d'une EMA globale en fin de workflow, on met à jour le learning **par étape**.
+Inspiré du spike sur les systèmes adaptatifs complexes.
+
+```typescript
+/**
+ * TD Learning: mise à jour incrémentale après chaque trace
+ * γ = discount factor (0.9 typique)
+ * α = learning rate (0.1 typique)
+ */
+function updateLearningTD(
+  learning: CapabilityLearning,
+  trace: CapabilityTrace,
+  gamma: number = 0.9,
+  alpha: number = 0.1
+): CapabilityLearning {
+  const pathKey = JSON.stringify(trace.executedPath);
+  let pathStats = learning.paths.find(p => JSON.stringify(p.path) === pathKey);
+
+  if (!pathStats) {
+    // Nouveau chemin
+    pathStats = {
+      path: trace.executedPath,
+      count: 0,
+      successRate: 0.5,  // Prior neutre
+      avgDurationMs: trace.durationMs
+    };
+    learning.paths.push(pathStats);
+  }
+
+  // TD Update pour successRate
+  const actual = trace.success ? 1.0 : 0.0;
+  const tdError = actual - pathStats.successRate;
+  pathStats.successRate += alpha * tdError;
+
+  // TD Update pour duration (weighted average)
+  pathStats.avgDurationMs += alpha * (trace.durationMs - pathStats.avgDurationMs);
+
+  pathStats.count++;
+
+  // Recalculer dominantPath
+  learning.dominantPath = learning.paths
+    .filter(p => p.count >= 3)  // Min 3 exécutions
+    .sort((a, b) => (b.successRate * b.count) - (a.successRate * a.count))[0]?.path
+    || learning.paths[0]?.path
+    || [];
+
+  return learning;
+}
+```
+
+**Différence avec ADR-049 (Adaptive Thresholds):**
+
+| Aspect | ADR-049 | Story 10.4 (PER/TD) |
+|--------|---------|---------------------|
+| Granularité | Tool | Capability |
+| Table | algorithm_traces | capability_trace |
+| But | Seuils de spéculation | Apprentissage de structure |
+| Output | Threshold α (Thompson) | dominantPath, pathStats |
+
+Pas de chevauchement : ADR-049 optimise **quand** exécuter un tool,
+Story 10.4 apprend **comment** une capability se comporte.
 
 **Learning structure (dans dag_structure):**
 
@@ -686,32 +814,29 @@ async function storeTraceAndUpdateLearning(
   const decisions = extractBranchDecisions(traces);
   const taskResults = extractTaskResults(traces);
 
-  // 2. Insérer la trace
+  // 2. Calculer la priorité PER AVANT insert
+  const learning = capability.dag_structure.learning || { paths: [], dominantPath: [] };
+  const priority = calculateTracePriority(
+    { executedPath, success, durationMs: totalDurationMs },
+    learning
+  );
+
+  // 3. Insérer la trace avec priorité
   await db.query(`
     INSERT INTO capability_trace
-    (capability_id, executed_path, decisions, task_results, success, duration_ms)
-    VALUES ($1, $2, $3, $4, $5, $6)
-  `, [capabilityId, executedPath, decisions, taskResults, success, totalDurationMs]);
+    (capability_id, executed_path, decisions, task_results, success, duration_ms, priority)
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
+  `, [capabilityId, executedPath, decisions, taskResults, success, totalDurationMs, priority]);
 
-  // 3. Mettre à jour le learning (agrégation)
-  const learning = capability.dag_structure.learning || { paths: [], dominantPath: [] };
+  // 4. Mettre à jour le learning via TD Learning
+  const updatedLearning = updateLearningTD(learning, {
+    executedPath,
+    success,
+    durationMs: totalDurationMs
+  });
 
-  // Incrémenter le compteur pour ce chemin
-  const pathKey = JSON.stringify(executedPath);
-  let pathStats = learning.paths.find(p => JSON.stringify(p.path) === pathKey);
-  if (!pathStats) {
-    pathStats = { path: executedPath, count: 0, successRate: 0, avgDurationMs: 0 };
-    learning.paths.push(pathStats);
-  }
-  pathStats.count++;
-  pathStats.successRate = recalculateSuccessRate(pathStats, success);
-  pathStats.avgDurationMs = recalculateAvgDuration(pathStats, totalDurationMs);
-
-  // Recalculer le dominantPath
-  learning.dominantPath = findDominantPath(learning.paths);
-
-  // 4. Sauvegarder le learning mis à jour
-  await capabilityStore.updateLearning(capabilityId, learning);
+  // 5. Sauvegarder le learning mis à jour
+  await capabilityStore.updateLearning(capabilityId, updatedLearning);
 }
 ```
 
@@ -728,6 +853,7 @@ async function storeTraceAndUpdateLearning(
      taskResults: TraceTaskResult[];
      success: boolean;
      durationMs: number;
+     priority: number;        // PER: 0.0 (attendu) à 1.0 (surprenant)
      parentTraceId?: string;
      createdAt: Date;
    }
@@ -758,29 +884,39 @@ async function storeTraceAndUpdateLearning(
 5. **Extraction des décisions de branches:**
    - Détecter quand un DecisionNode a été traversé
    - Enregistrer l'outcome choisi
-6. **Mise à jour du learning:**
-   - Incrémenter `paths[].count` pour le chemin emprunté
-   - Recalculer `successRate` (moyenne pondérée)
+6. **Mise à jour du learning (TD Learning):**
+   - `updateLearningTD()` avec α = 0.1 (learning rate)
+   - TD Update: `successRate += α * (actual - successRate)`
    - Recalculer `dominantPath` (chemin avec le plus de count * successRate)
-7. **Intégration dans le flow d'exécution:**
-   - Après exécution sandbox réussie → appeler `storeTraceAndUpdateLearning`
-8. Tests: exécution réussie → trace insérée + learning updated
-9. Tests: exécution échouée → trace insérée avec success=false
-10. Tests: 3 exécutions même chemin → count=3, dominantPath correct
-11. Tests: 2 chemins différents → paths[] contient les 2
+7. **PER (Prioritized Experience Replay):**
+   - `calculateTracePriority()` → 0.0 (attendu) à 1.0 (surprenant)
+   - Priority = |predicted - actual| + bonus (durée anormale, chemin rare)
+   - Nouveau chemin = priorité maximale (1.0)
+   - `getHighPriorityTraces(capabilityId, limit)` → traces triées par priority DESC
+8. **Intégration dans le flow d'exécution:**
+   - Après exécution sandbox → appeler `storeTraceAndUpdateLearning`
+   - Calculer priority AVANT insert
+9. Tests: exécution réussie → trace insérée + learning updated via TD
+10. Tests: exécution échouée → trace insérée avec success=false, priority élevée si chemin dominant
+11. Tests: 3 exécutions même chemin → count=3, dominantPath correct
+12. Tests: 2 chemins différents → paths[] contient les 2
+13. Tests PER: échec sur chemin dominant (95% success) → priority ≈ 0.95
+14. Tests PER: succès sur chemin dominant → priority ≈ 0.05
+15. Tests PER: nouveau chemin → priority = 1.0
 
 **Files to Create:**
 - `src/db/migrations/XXX_capability_trace.ts` (~50 LOC)
-- `src/capabilities/trace-store.ts` (~150 LOC)
+- `src/capabilities/trace-store.ts` (~180 LOC, inclut PER/TD)
+- `src/capabilities/learning-updater.ts` (~80 LOC, TD Learning + PER priority)
 
 **Files to Modify:**
-- `src/capabilities/types.ts` - Ajouter `CapabilityTrace`, `CapabilityLearning` (~50 LOC)
+- `src/capabilities/types.ts` - Ajouter `CapabilityTrace`, `CapabilityLearning` (~60 LOC)
 - `src/capabilities/capability-store.ts` - Ajouter `updateLearning()` (~30 LOC)
 - `src/sandbox/worker-bridge.ts` - Appeler TraceStore après exécution (~20 LOC)
 
 **Prerequisites:** Story 10.1 (static_structure must exist), Story 10.2 (result in traces)
 
-**Estimation:** 2-3 jours
+**Estimation:** 3-4 jours (inclut PER et TD Learning)
 
 **Note importante:**
 Cette story ne **reconstruit** plus un DAG. La structure existe déjà (Story 10.1).
