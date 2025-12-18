@@ -713,10 +713,12 @@ export class CapabilityStore {
 
   /**
    * Edge type weights for confidence score calculation
+   * Story 10.3: Added "provides" for data flow relationships
    */
   private static readonly EDGE_TYPE_WEIGHTS: Record<CapabilityEdgeType, number> = {
     dependency: 1.0,
     contains: 0.8,
+    provides: 0.7, // Data flow (A's output feeds B's input)
     alternative: 0.6,
     sequence: 0.5,
   };

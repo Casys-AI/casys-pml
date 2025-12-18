@@ -292,12 +292,16 @@ export interface PermissionAuditLogEntry {
 /**
  * Edge types for capability dependencies
  * Same vocabulary as tool_dependency for consistency
+ *
+ * Story 10.3: Added "provides" for data flow relationships.
+ * Note: "alternative" kept for backward compatibility with existing data.
  */
 export type CapabilityEdgeType =
   | "contains" // Composition: capability A includes capability B
   | "sequence" // Temporal order: A then B
   | "dependency" // Explicit DAG dependency
-  | "alternative"; // Same intent, different implementation
+  | "alternative" // Same intent, different implementation (deprecated)
+  | "provides"; // Data flow: A's output feeds B's input (Story 10.3)
 
 /**
  * Edge sources for capability dependencies
@@ -581,13 +585,14 @@ export interface HierarchicalEdge {
 /**
  * Tech-spec: Capability-to-capability dependency edge (hyperedge)
  * Represents relationships between capabilities in the hypergraph
+ * Story 10.3: Added "provides" for data flow relationships
  */
 export interface CapabilityDependencyEdge {
   data: {
     id: string;
     source: string; // "cap-{uuid1}"
     target: string; // "cap-{uuid2}"
-    edgeType: "contains" | "sequence" | "dependency" | "alternative";
+    edgeType: "contains" | "sequence" | "dependency" | "alternative" | "provides";
     edgeSource: "template" | "inferred" | "observed";
     observedCount: number;
   };

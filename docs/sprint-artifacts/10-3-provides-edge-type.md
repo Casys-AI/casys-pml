@@ -1,6 +1,6 @@
 # Story 10.3: Provides Edge Type - Data Flow Relationships
 
-Status: ready-for-dev
+Status: done
 
 > **Epic:** 10 - DAG Capability Learning & Unified APIs
 > **Tech-Spec:** [tech-spec-dag-capability-learning.md](../tech-specs/tech-spec-dag-capability-learning.md)
@@ -47,17 +47,17 @@ type ProvidesCoverage =
 ## Acceptance Criteria
 
 ### AC1: Cleanup EdgeType in edge-weights.ts
-- [ ] Add `provides` to `EdgeType` union
-- [ ] Remove `alternative` (not used, not in ADR-050)
-- [ ] Final `EdgeType`: `"dependency" | "contains" | "sequence" | "provides"`
+- [x] Add `provides` to `EdgeType` union
+- [x] Remove `alternative` (not used, not in ADR-050)
+- [x] Final `EdgeType`: `"dependency" | "contains" | "sequence" | "provides"`
 
 ### AC2: Configure provides Weight
-- [ ] Add `provides: 0.7` to `EDGE_TYPE_WEIGHTS`
-- [ ] Position: stronger than sequence (0.5), weaker than contains (0.8)
-- [ ] Rationale: Data flow is meaningful but less certain than explicit hierarchy
+- [x] Add `provides: 0.7` to `EDGE_TYPE_WEIGHTS`
+- [x] Position: stronger than sequence (0.5), weaker than contains (0.8)
+- [x] Rationale: Data flow is meaningful but less certain than explicit hierarchy
 
 ### AC3: Define ProvidesEdge Interface
-- [ ] Create interface in `src/graphrag/types.ts`:
+- [x] Create interface in `src/graphrag/types.ts`:
 ```typescript
 interface ProvidesEdge {
   from: string;              // Tool/capability provider
@@ -77,95 +77,114 @@ interface ProvidesEdge {
 ```
 
 ### AC4: Implement computeCoverage Function
-- [ ] Create `src/graphrag/provides-edge-calculator.ts`
-- [ ] Function signature:
+- [x] Create `src/graphrag/provides-edge-calculator.ts`
+- [x] Function signature:
 ```typescript
 function computeCoverage(
   providerOutputs: Set<string>,
   consumerInputs: { required: Set<string>; optional: Set<string> }
 ): ProvidesCoverage | null
 ```
-- [ ] Returns `null` if no intersection (no edge)
-- [ ] Returns `"strict"` if all required inputs covered
-- [ ] Returns `"partial"` if some required inputs covered
-- [ ] Returns `"optional"` if only optional inputs covered
+- [x] Returns `null` if no intersection (no edge)
+- [x] Returns `"strict"` if all required inputs covered
+- [x] Returns `"partial"` if some required inputs covered
+- [x] Returns `"optional"` if only optional inputs covered
 
 ### AC5: Implement createProvidesEdges Function
-- [ ] Function to calculate provides edges from MCP tool schemas
-- [ ] Signature:
+- [x] Function to calculate provides edges from MCP tool schemas
+- [x] Signature:
 ```typescript
 async function createProvidesEdges(
   db: PGliteClient,
   toolIds?: string[]  // Optional filter, all tools if not provided
 ): Promise<ProvidesEdge[]>
 ```
-- [ ] Query `tool_schema.input_schema` and `tool_schema.output_schema`
-- [ ] For each pair (A, B), calculate coverage
-- [ ] Create edge if coverage !== null
-- [ ] Include field mapping for each matched field
+- [x] Query `tool_schema.input_schema` and `tool_schema.output_schema`
+- [x] For each pair (A, B), calculate coverage
+- [x] Create edge if coverage !== null
+- [x] Include field mapping for each matched field
 
 ### AC6: Type Compatibility Check
-- [ ] Implement `areTypesCompatible(fromType: string, toType: string): boolean`
-- [ ] Basic rules:
+- [x] Implement `areTypesCompatible(fromType: string, toType: string): boolean`
+- [x] Basic rules:
   - Same type = compatible
   - `string` -> `any` = compatible
   - `object` -> `any` = compatible
   - `number` -> `string` = compatible (can stringify)
-- [ ] Strictness configurable via parameter
+- [x] Strictness configurable via parameter
 
 ### AC7: Database Storage
-- [ ] No migration needed - `edge_type` column is already TEXT
-- [ ] Ensure `tool_dependency` table can store `provides` edges
-- [ ] Include `provides_metadata` JSONB for schema details (optional)
+- [x] No migration needed - `edge_type` column is already TEXT
+- [x] Ensure `tool_dependency` table can store `provides` edges
+- [x] Include `provides_metadata` JSONB for schema details (optional - not needed, full schema in ProvidesEdge)
 
 ### AC8: Integration with GraphStore
-- [ ] `GraphStore.addEdge()` accepts `provides` edge type
-- [ ] `GraphStore.getEdges()` can filter by `provides` type
-- [ ] Edge weight calculation uses `EDGE_TYPE_WEIGHTS.provides`
+- [x] `GraphStore.addEdge()` accepts `provides` edge type
+- [x] `GraphStore.getEdges()` can filter by `provides` type (added `getEdgesByType()`)
+- [x] Edge weight calculation uses `EDGE_TYPE_WEIGHTS.provides`
 
 ### AC9: Tests
-- [ ] Test: `fs:read` (output: content) -> `json:parse` (input: json) -> coverage = "partial" or "strict"
-- [ ] Test: `json:parse` -> `http:post` (needs url, body) -> coverage = "partial"
-- [ ] Test: No overlap between schemas -> null (no edge)
-- [ ] Test: Provider has no output_schema -> null (no edge)
-- [ ] Test: Field mapping correctly identifies compatible fields
+- [x] Test: `fs:read` (output: content) -> `json:parse` (input: json) -> coverage = "partial" or "strict"
+- [x] Test: `json:parse` -> `http:post` (needs url, body) -> coverage = "partial"
+- [x] Test: No overlap between schemas -> null (no edge)
+- [x] Test: Provider has no output_schema -> null (no edge)
+- [x] Test: Field mapping correctly identifies compatible fields
+
+### AC10: Scalable DB Persistence (Performance Optimization)
+- [x] Persist provides edges to `tool_dependency` table for O(1) queries
+- [x] Implement `persistProvidesEdges()` to store calculated edges in DB
+- [x] Implement `syncProvidesEdgesForTool()` for incremental updates when a tool schema changes
+- [x] Modify `getToolProvidesEdges()` to query DB directly instead of recalculating O(n²)
+- [x] Store coverage in `confidence_score` column (strict=1.0, partial=0.7, optional=0.4)
+- [x] Implement `syncAllProvidesEdges()` for full refresh
+- [x] Implement `getToolProvidesEdgesFull()` for complete data with schema join
+- [x] Rationale: With 1000+ tools, O(n²) calculation per query is not viable
 
 ---
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Update EdgeType** (AC: 1, 2)
-  - [ ] Edit `src/graphrag/algorithms/edge-weights.ts`
-  - [ ] Add `provides` to EdgeType union
-  - [ ] Remove `alternative` from EdgeType
-  - [ ] Add `provides: 0.7` to EDGE_TYPE_WEIGHTS
-  - [ ] Update JSDoc comments
+- [x] **Task 1: Update EdgeType** (AC: 1, 2)
+  - [x] Edit `src/graphrag/algorithms/edge-weights.ts`
+  - [x] Add `provides` to EdgeType union
+  - [x] Remove `alternative` from EdgeType
+  - [x] Add `provides: 0.7` to EDGE_TYPE_WEIGHTS
+  - [x] Update JSDoc comments
 
-- [ ] **Task 2: Define Types** (AC: 3)
-  - [ ] Add `ProvidesCoverage` type to `src/graphrag/types.ts`
-  - [ ] Add `ProvidesEdge` interface to `src/graphrag/types.ts`
-  - [ ] Add `FieldMapping` interface
-  - [ ] Export from module
+- [x] **Task 2: Define Types** (AC: 3)
+  - [x] Add `ProvidesCoverage` type to `src/graphrag/types.ts` (re-exported from capabilities/types.ts)
+  - [x] Add `ProvidesEdge` interface to `src/graphrag/types.ts`
+  - [x] Add `FieldMapping` interface
+  - [x] Export from module
 
-- [ ] **Task 3: Create Provides Edge Calculator** (AC: 4, 5, 6)
-  - [ ] Create `src/graphrag/provides-edge-calculator.ts`
-  - [ ] Implement `computeCoverage()` function
-  - [ ] Implement `areTypesCompatible()` helper
-  - [ ] Implement `createFieldMapping()` helper
-  - [ ] Implement `createProvidesEdges()` main function
-  - [ ] Export from `src/graphrag/algorithms/mod.ts`
+- [x] **Task 3: Create Provides Edge Calculator** (AC: 4, 5, 6)
+  - [x] Create `src/graphrag/provides-edge-calculator.ts`
+  - [x] Implement `computeCoverage()` function
+  - [x] Implement `areTypesCompatible()` helper
+  - [x] Implement `createFieldMapping()` helper
+  - [x] Implement `createProvidesEdges()` main function
+  - [x] Export from `src/graphrag/mod.ts`
 
-- [ ] **Task 4: Integrate with GraphStore** (AC: 7, 8)
-  - [ ] Verify `GraphStore.addEdge()` handles provides type
-  - [ ] Add `getProvideEdges()` method if needed
-  - [ ] Ensure edge weight calculation works
+- [x] **Task 4: Integrate with GraphStore** (AC: 7, 8)
+  - [x] Verify `GraphStore.addEdge()` handles provides type
+  - [x] Add `getEdgesByType()` method
+  - [x] Ensure edge weight calculation works
 
-- [ ] **Task 5: Write Tests** (AC: 9)
-  - [ ] Create `tests/unit/graphrag/provides_edge_calculator_test.ts`
-  - [ ] Test computeCoverage() with various schemas
-  - [ ] Test createProvidesEdges() with mock tool schemas
-  - [ ] Test field mapping generation
-  - [ ] Test type compatibility rules
+- [x] **Task 5: Write Tests** (AC: 9)
+  - [x] Create `tests/unit/graphrag/provides_edge_calculator_test.ts`
+  - [x] Test computeCoverage() with various schemas
+  - [x] Test createProvidesEdges() with mock tool schemas (semantic matching tests)
+  - [x] Test field mapping generation
+  - [x] Test type compatibility rules
+
+- [x] **Task 6: DB Persistence for Scalability** (AC: 10)
+  - [x] Implement `persistProvidesEdges(db, edges)` - bulk insert/upsert to tool_dependency
+  - [x] Implement `syncProvidesEdgesForTool(db, toolId)` - recalculate edges for one tool
+  - [x] Implement `syncAllProvidesEdges(db)` - full refresh of all provides edges
+  - [x] Modify `getToolProvidesEdges()` to query tool_dependency table directly (O(1))
+  - [x] Modify `findDirectProvidesEdge()` to query DB directly (O(1))
+  - [x] Add `getToolProvidesEdgesFull()` for complete data with schema join
+  - [x] Add 6 integration tests with PGlite in-memory DB
 
 ---
 
@@ -332,20 +351,40 @@ The field mapping needs intelligent matching beyond exact name match:
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Debug Log References
 
+N/A - No debug issues encountered.
+
 ### Completion Notes List
+
+- **Task 1:** Updated EdgeType in `edge-weights.ts` - Added `provides: 0.7`, removed `alternative` from weights. Updated JSDoc. Also updated related types in `graph-store.ts`, `capabilities/types.ts`, `hypergraph-builder.ts`, `capabilities.ts` handler, `spectral-clustering-config.ts`, and `capability-store.ts`.
+- **Task 2:** Defined `ProvidesEdge`, `FieldMapping`, and `JSONSchema` interfaces in `src/graphrag/types.ts`. Re-exported `ProvidesCoverage` from `capabilities/types.ts`.
+- **Task 3:** Created `provides-edge-calculator.ts` with `computeCoverage()`, `areTypesCompatible()`, `createFieldMapping()`, and `createProvidesEdges()` functions. ~350 LOC including semantic field matching via aliases.
+- **Task 4:** Added `getEdgesByType()` method to `GraphStore`. Verified `edge_type TEXT` column accepts any value (no migration needed).
+- **Task 5:** Created 31 unit tests covering all functions and edge cases. Also updated 4 existing tests that used deprecated `alternative` edge type.
+- **Task 6:** Added DB persistence for scalability (AC10). Implemented `persistProvidesEdges()`, `syncProvidesEdgesForTool()`, `syncAllProvidesEdges()`. Modified `getToolProvidesEdges()` and `findDirectProvidesEdge()` to query DB directly for O(1) lookups. Added `getToolProvidesEdgesFull()` for complete data with schema join. Coverage stored in `confidence_score` column (strict=1.0, partial=0.7, optional=0.4). Added 6 integration tests.
 
 ### Change Log
 
 - 2025-12-18: Story context created by BMM create-story workflow
+- 2025-12-18: Implementation complete - 31 new tests passing, 78 total tests in affected files
+- 2025-12-18: Added AC10 + Task 6 for DB persistence (scalability optimization). 37 tests now passing.
 
 ### File List
 
-- [ ] `src/graphrag/algorithms/edge-weights.ts` - MODIFY (add provides, remove alternative)
-- [ ] `src/graphrag/types.ts` - MODIFY (add ProvidesEdge, FieldMapping)
-- [ ] `src/graphrag/provides-edge-calculator.ts` - NEW (~100-150 LOC)
-- [ ] `src/graphrag/algorithms/mod.ts` - MODIFY (export new calculator)
-- [ ] `tests/unit/graphrag/provides_edge_calculator_test.ts` - NEW
+- [x] `src/graphrag/algorithms/edge-weights.ts` - MODIFY (add provides: 0.7, remove alternative from EdgeType)
+- [x] `src/graphrag/types.ts` - MODIFY (add ProvidesEdge, FieldMapping, JSONSchema interfaces)
+- [x] `src/graphrag/provides-edge-calculator.ts` - NEW (~350 LOC with semantic matching)
+- [x] `src/graphrag/mod.ts` - MODIFY (export new calculator and types)
+- [x] `src/graphrag/core/graph-store.ts` - MODIFY (add provides to EdgeAttributes, add getEdgesByType())
+- [x] `src/capabilities/types.ts` - MODIFY (add provides to CapabilityEdgeType)
+- [x] `src/capabilities/capability-store.ts` - MODIFY (add provides to EDGE_TYPE_WEIGHTS)
+- [x] `src/capabilities/hypergraph-builder.ts` - MODIFY (add provides to edge type validation)
+- [x] `src/mcp/routing/handlers/capabilities.ts` - MODIFY (add provides to validEdgeTypes)
+- [x] `src/graphrag/spectral-clustering-config.ts` - MODIFY (add provides to SpectralEdgeWeights)
+- [x] `config/spectral-clustering.schema.json` - MODIFY (add provides to JSON schema)
+- [x] `tests/unit/graphrag/provides_edge_calculator_test.ts` - NEW (31 tests)
+- [x] `tests/unit/graphrag/algorithms/edge_weights_test.ts` - MODIFY (update tests for provides)
+- [x] `tests/unit/graphrag/dag/execution_learning_test.ts` - MODIFY (update tests for provides)

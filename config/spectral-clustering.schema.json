@@ -30,6 +30,13 @@
           "default": 0.6,
           "description": "Weight for alternative capability edges"
         },
+        "provides": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2,
+          "default": 0.7,
+          "description": "Weight for data flow edges (A's output feeds B's input) - Story 10.3"
+        },
         "sequence": {
           "type": "number",
           "minimum": 0,
@@ -38,7 +45,7 @@
           "description": "Weight for sequential workflow edges"
         }
       },
-      "required": ["dependency", "contains", "alternative", "sequence"],
+      "required": ["dependency", "contains", "alternative", "provides", "sequence"],
       "additionalProperties": false
     },
     "cache": {
