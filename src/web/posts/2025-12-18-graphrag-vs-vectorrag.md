@@ -144,19 +144,21 @@ sequenceDiagram
 
 ### Scoring Formulas
 
-We use different formulas for different modes (see ADR-038):
+We use different formulas for different modes (see ADR-038, ADR-048):
 
 **Active Search (user query):**
 ```
 Score = α × SemanticScore + (1-α) × GraphScore
 ```
-Where α adapts based on graph density—sparse graphs rely more on semantics.
+Where α is computed **per node** using embedding coherence—comparing semantic (BGE-M3) vs structural (spectral) embeddings.
 
 **Passive Suggestion (next tool):**
 ```
 Score = 0.6 × CoOccurrence + 0.3 × CommunityBoost + 0.1 × Recency
 ```
-Favors recent patterns within the same tool cluster.
+Uses **heat diffusion** to propagate confidence from context to candidates.
+
+**Cold start (<5 observations):** Bayesian fallback with high α (trust semantics only until we have enough graph data).
 
 ## When To Use What
 
