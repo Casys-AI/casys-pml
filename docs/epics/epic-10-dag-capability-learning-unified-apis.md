@@ -29,66 +29,156 @@ Unifier les deux modèles d'exécution (DAG explicite et Code libre) en un syst�
 
 ---
 
-### Unified Learning Model (Philosophy)
+### Unified Learning Model (Philosophy) — REVISED
 
-> **Principe fondamental:** Le CODE est le chemin principal. Les DAGs émergent de l'exécution,
-> ils ne sont pas définis à priori. Une Capability est un workflow validé par l'usage.
+> **Principe fondamental révisé:** La **Capability** est créée à l'**analyse statique** (structure complète).
+> Les **Traces** sont des instances d'exécution stockées séparément. L'apprentissage agrège les traces.
 
-**Le flow d'apprentissage:**
+**Distinction clé : Capability vs Trace**
+
+| Concept | Quand créé | Ce qu'il contient | Stockage |
+|---------|------------|-------------------|----------|
+| **Capability** | Analyse statique (PRE-exec) | Structure complète avec branches/conditions | `workflow_pattern.dag_structure.static_structure` |
+| **Trace** | Après exécution (POST-exec) | Chemin emprunté + résultats concrets | `capability_trace` (nouvelle table) |
+| **Learning** | Agrégation des traces | Stats par chemin, dominant path | `workflow_pattern.dag_structure.learning` |
+
+**Pourquoi ce changement ?**
+
+1. **Les conditions sont visibles** dans la capability, pas perdues dans les traces
+2. **Mémoire épisodique** (traces) vs **mémoire sémantique** (capability) bien séparées
+3. **L'analyse statique EST suffisante** grâce aux schémas MCP et à l'inférence `provides`
+4. **On peut afficher** les branches divergentes dans l'UI
+
+**Le flow d'apprentissage révisé:**
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  1. INTENT                                                               │
-│     "Analyser ce fichier JSON et créer un ticket GitHub"                │
+│  1. CODE SOUMIS                                                          │
+│     TypeScript avec appels mcp.* et capabilities.*                      │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  2. CAPABILITY EXISTS?                                                   │
-│     Recherche GraphRAG: intent → capabilities existantes                │
-│     Match > 0.85 ? → Replay capability (skip to step 6)                 │
-└─────────────────────────────────────────────────────────────────────────┘
-                                    │ NO MATCH
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│  3. CODE GENERATION                                                      │
-│     L'IA génère du TypeScript qui appelle des MCP tools                 │
-│     ```typescript                                                        │
-│     const content = await mcp.fs.read({ path: "data.json" });           │
-│     const parsed = JSON.parse(content);                                 │
-│     await mcp.github.createIssue({ title: parsed.summary, ... });       │
-│     ```                                                                  │
+│  2. ANALYSE STATIQUE (Story 10.1) → CRÉE LA CAPABILITY                   │
+│     - Parse AST avec SWC (réutilise SchemaInferrer/PermissionInferrer)  │
+│     - Détecte: tools, capabilities imbriquées, if/else, loops           │
+│     - Génère static_structure { nodes, edges }                          │
+│     - Calcule provides edges via schémas input/output                   │
+│     - Crée CapabilityDependency si appel à d'autres capabilities        │
+│     → INSERT workflow_pattern avec dag_structure.static_structure       │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  4. CODE EXECUTION (Sandbox)                                             │
-│     - Traces capturées: tool_start, tool_end + result                   │
-│     - Timestamps pour détection parallélisme                            │
-│     - HIL si tools sensibles détectés                                   │
+│  3. VALIDATION HIL (si nécessaire)                                       │
+│     - Basée sur static_structure (on sait quels tools seront appelés)  │
+│     - Approbation AVANT exécution, pas après échec                      │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  5. DAG RECONSTRUCTION (POST-EXEC)                                       │
-│     Traces → DAGStructure:                                              │
-│     - Tasks: fs:read → json:parse → github:createIssue                  │
-│     - Dependencies: data flow détecté via result → args                 │
-│     - Parallel: timestamps overlapping = pas de dépendance              │
+│  4. EXÉCUTION (Sandbox)                                                  │
+│     - Capture traces via parentTraceId (ADR-041)                        │
+│     - Enregistre décisions aux DecisionNodes (branches prises)          │
+│     - Résultats par tâche avec timestamps                               │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  6. CAPABILITY CREATED/UPDATED                                           │
-│     Le DAG reconstruit devient une Capability réutilisable              │
-│     Stockée avec: intent_embedding, source (code ou dag), success_rate  │
+│  5. STOCKAGE TRACE (Story 10.4 révisée)                                  │
+│     → INSERT INTO capability_trace                                       │
+│     - executed_path: ["n1", "d1", "n2"] (nodeIds de static_structure)   │
+│     - decisions: [{ nodeId: "d1", outcome: "true" }]                    │
+│     - task_results: résultats détaillés par tâche                       │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  7. NEXT TIME: REPLAY                                                    │
-│     Intent similaire → Capability matchée → Exécution sans regénération │
+│  6. MISE À JOUR LEARNING (Agrégation)                                    │
+│     → UPDATE workflow_pattern.dag_structure.learning                    │
+│     - Incrémente path.count pour le chemin emprunté                     │
+│     - Recalcule dominantPath                                            │
+│     - Update success_rate, usage_count (existant)                       │
 └─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  7. NEXT TIME: REPLAY avec contexte enrichi                              │
+│     - Capability matchée par intent                                     │
+│     - On connaît le dominantPath ET les variantes                       │
+│     - L'IA peut choisir d'exécuter ou de modifier                       │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**Exemple concret avec conditions:**
+
+```typescript
+// Code source
+const file = await mcp.fs.stat({ path });
+if (file.exists) {
+  const content = await mcp.fs.read({ path });
+  return content;
+} else {
+  await mcp.fs.create({ path });
+  await mcp.fs.write({ path, content: "" });
+}
+```
+
+**Structure statique générée (dans la Capability):**
+
+```typescript
+static_structure: {
+  nodes: [
+    { id: "n1", type: "task", tool: "fs:stat" },
+    { id: "d1", type: "decision", condition: "file.exists" },
+    { id: "n2", type: "task", tool: "fs:read" },
+    { id: "n3", type: "task", tool: "fs:create" },
+    { id: "n4", type: "task", tool: "fs:write" },
+  ],
+  edges: [
+    { from: "n1", to: "d1", type: "sequence" },
+    { from: "d1", to: "n2", type: "conditional", outcome: "true" },
+    { from: "d1", to: "n3", type: "conditional", outcome: "false" },
+    { from: "n3", to: "n4", type: "sequence" },
+    { from: "n1", to: "n2", type: "provides" }  // Data flow inféré
+  ]
+}
+```
+
+**Traces stockées séparément (après 3 exécutions):**
+
+```sql
+-- Trace 1: file.exists = true
+INSERT INTO capability_trace (capability_id, executed_path, decisions, success)
+VALUES ('cap-xxx', ARRAY['n1', 'd1', 'n2'],
+        '[{"nodeId": "d1", "outcome": "true"}]', true);
+
+-- Trace 2: file.exists = false
+INSERT INTO capability_trace (capability_id, executed_path, decisions, success)
+VALUES ('cap-xxx', ARRAY['n1', 'd1', 'n3', 'n4'],
+        '[{"nodeId": "d1", "outcome": "false"}]', true);
+
+-- Trace 3: file.exists = true
+INSERT INTO capability_trace (capability_id, executed_path, decisions, success)
+VALUES ('cap-xxx', ARRAY['n1', 'd1', 'n2'],
+        '[{"nodeId": "d1", "outcome": "true"}]', true);
+```
+
+**Learning agrégé (dans la Capability):**
+
+```typescript
+learning: {
+  paths: [
+    { path: ["n1", "d1", "n2"], count: 2, successRate: 1.0 },
+    { path: ["n1", "d1", "n3", "n4"], count: 1, successRate: 1.0 }
+  ],
+  dominantPath: ["n1", "d1", "n2"],  // 66% des exécutions
+  decisionStats: [{
+    nodeId: "d1",
+    condition: "file.exists",
+    outcomes: { "true": { count: 2 }, "false": { count: 1 } }
+  }]
+}
 ```
 
 **Capabilities = Tools abstraits:**
@@ -101,53 +191,16 @@ Une Capability n'est pas forcément un DAG interne. Elle peut être:
 | **Code snippet** | TypeScript avec logique complexe | Sandbox PML |
 | **Tool externe** | Temporal workflow, Airflow DAG | Délégation à l'orchestrateur |
 
-**Exemple Temporal:**
-
-```typescript
-// Capability apprise: "deploy_to_production"
-// Au lieu de reconstruire le DAG, on délègue à Temporal
-{
-  type: "external_tool",
-  tool: "temporal:startWorkflow",
-  workflowId: "deploy-prod-v2",
-  args: { version: "{{input.version}}" }
-}
-```
-
-→ PML apprend que pour "deploy to production", le meilleur chemin est d'appeler Temporal,
-pas d'exécuter 15 tools MCP séquentiellement.
-
 **Implications pour l'implémentation:**
 
-1. **Story 10.7 `pml_execute`**: L'option `implementation.type = "dag"` est pour **replay**,
-   pas pour l'exécution normale. Le chemin par défaut = code → traces → learning.
-
-2. **Capability.source** peut être:
-   - `{ type: "code", code: string }` - Code TypeScript
-   - `{ type: "dag", dagStructure: DAGStructure }` - DAG interne reconstruit
-   - `{ type: "tool", toolId: string, args: Record }` - Délégation à un tool (ex: Temporal)
-
-3. **Learning continu**: Chaque exécution réussie améliore la capability
-   (success_rate++, structure raffinée).
-
-4. **Gestion des conditionnels (KISS):**
-   - On capture **ce qui s'est passé** (traces réelles), pas ce qui pourrait se passer
-   - La capability représente le **pattern dominant** (happy path)
-   - Si les arguments changent le chemin d'exécution → on trace la variante
-   - **Future:** Merge des branches si le besoin est prouvé (pas dans Epic 10)
-
-   ```
-   Exécution 1: args={exists:true}  → trace [fs:read]           → count++
-   Exécution 2: args={exists:false} → trace [fs:create,fs:write] → variant tracked
-   Exécution 3: args={exists:true}  → trace [fs:read]           → count++
-
-   → Capability.dominantPath = [fs:read] (66% des exécutions)
-   → Capability.variants = [{ path: [fs:create,fs:write], count: 1 }]
-   ```
+1. **Story 10.1** devient la **vraie fondation** - crée la Capability avec static_structure
+2. **Story 10.4** stocke les **Traces** dans `capability_trace`, pas la structure
+3. **Capability.source** reste mais s'enrichit de `static_structure` et `learning`
+4. **Les CapabilityDependency** (capability → capability) sont créées à l'analyse statique
 
 ---
 
-**Architecture Unifiée:**
+**Architecture Unifiée (révisée):**
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -162,17 +215,24 @@ pas d'exécuter 15 tools MCP séquentiellement.
 │            │ YES                        │                        │
 │            ▼                            ▼                        │
 │  ┌─────────────────────────────────────────────────────┐        │
-│  │  EXECUTION (Sandbox)                                 │        │
-│  │  - Traces: tool_start/end + result                  │        │
-│  │  - Timestamps pour parallel detection               │        │
+│  │  STATIC ANALYSIS (Story 10.1)                        │        │
+│  │  - Parse code → static_structure                     │        │
+│  │  - CREATE/UPDATE Capability                          │        │
+│  │  - HIL validation si tools sensibles                 │        │
 │  └─────────────────────────────────────────────────────┘        │
 │                            │                                     │
 │                            ▼                                     │
 │  ┌─────────────────────────────────────────────────────┐        │
-│  │  LEARNING                                            │        │
-│  │  - Reconstruction DAG depuis traces                  │        │
-│  │  - Création/update Capability                        │        │
-│  │  - Edges: provides (definition) + sequence (invoc)   │        │
+│  │  EXECUTION (Sandbox)                                 │        │
+│  │  - Traces: tool_start/end + result + parentTraceId  │        │
+│  │  - Branch decisions captured                         │        │
+│  └─────────────────────────────────────────────────────┘        │
+│                            │                                     │
+│                            ▼                                     │
+│  ┌─────────────────────────────────────────────────────┐        │
+│  │  TRACE STORAGE (Story 10.4)                          │        │
+│  │  - INSERT capability_trace (executed_path, results)  │        │
+│  │  - UPDATE Capability.learning (aggregate stats)      │        │
 │  └─────────────────────────────────────────────────────┘        │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
@@ -184,32 +244,38 @@ pas d'exécuter 15 tools MCP séquentiellement.
 
 ### Story Breakdown - Epic 10
 
-**Story 10.1: Static Code Analysis - DAG Preview (PRE-EXECUTION)** ∥ PARALLEL avec Track A
+**Story 10.1: Static Code Analysis → Capability Creation** ⭐ VRAIE FONDATION
 
-As an execution system, I want to parse code statically to generate a DAG preview BEFORE execution,
-So that I can validate permissions, detect tools, and enable proper HIL/AIL approval flows.
+As an execution system, I want to parse code statically to generate a complete `static_structure`,
+So that I can **create the Capability immediately** with full branch/condition visibility for HIL.
 
-**Position dans l'Epic:**
-- Peut être développée **en parallèle** avec Track A (10.2 → 10.3 → 10.4)
-- N'est PAS un prérequis pour 10.2-10.4 (contrairement à ce qui était indiqué avant)
-- Devient nécessaire pour 10.5 (unified capability) et 10.7 (pml_execute avec HIL)
+**Position dans l'Epic (RÉVISÉE):**
+- **VRAIE FONDATION** - crée la Capability avec `static_structure` avant exécution
+- Débloque 10.4 (traces) car les traces référencent les nodeIds de static_structure
+- Débloque HIL car on connaît tous les tools potentiels avant exécution
 
-**Context:**
-C'est le **chaînon manquant** entre le code et la validation par layer. Sans parsing statique :
-- On ne peut pas savoir quels tools seront appelés avant d'exécuter
-- L'AIL/HIL doit attendre l'échec au lieu de prévenir
-- `per_layer_validation` ne peut pas calculer `requiresValidation()` correctement
+**Context (RÉVISÉ):**
 
-**Différence avec Story 10.4 (Reconstruction POST-exec):**
+Changement de philosophie :
+- **AVANT :** La Capability était créée après exécution (validée par l'usage)
+- **MAINTENANT :** La Capability est créée à l'analyse statique (structure complète)
+
+Pourquoi ? L'analyse statique EST suffisante grâce à :
+- SchemaInferrer → infère les dépendances via schémas input/output
+- PermissionInferrer → détecte les patterns de permissions
+- Les schémas MCP → provides edges calculables statiquement
+- La détection des conditions → branches visibles dans la structure
+
+**Différence avec Story 10.4 (CLARIFIÉE):**
 
 | Aspect | 10.1 Static (PRE) | 10.4 Traces (POST) |
 |--------|--------------------|--------------------|
 | **Quand** | Avant exécution | Après exécution |
-| **Input** | Code source (AST) | Traces d'exécution |
-| **Précision** | Approximatif (code dynamique) | Exact (ce qui s'est passé) |
-| **Use case** | Validation, HIL preview | Learning, replay |
+| **Output** | **Capability** avec `static_structure` | **Trace** avec `executed_path` |
+| **Contenu** | Structure COMPLÈTE (toutes branches) | Chemin EMPRUNTÉ (une branche) |
+| **Stockage** | `workflow_pattern.dag_structure` | `capability_trace` table |
 
-**Réutilisation de l'existant (pas une réécriture !):**
+**Réutilisation de l'existant:**
 
 On a DÉJÀ tout le pipeline SWC :
 - `SchemaInferrer` (726 LOC, 19 tests) → parse AST, trouve `args.xxx`, infère types
@@ -217,9 +283,9 @@ On a DÉJÀ tout le pipeline SWC :
 - `tool_schema` table → schemas input/output des MCP tools
 - `workflow_pattern` table → schemas des capabilities
 
-**Story 10.1 = Extension de ~100-150 LOC**, pas 250 LOC from scratch.
+**Story 10.1 = Extension de ~200-250 LOC** pour générer `static_structure`.
 
-**Architecture:**
+**Architecture (RÉVISÉE):**
 ```
 Code TypeScript
       │
@@ -232,154 +298,164 @@ Code TypeScript
       │
       ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  Call Detector (Tools + Capabilities)                        │
-│  - `mcp.server.tool()` → lookup tool_schema                 │
-│  - `capabilities.name()` → lookup workflow_pattern           │
-│  - `await` → dépendance séquentielle                        │
-│  - `Promise.all()` → parallélisme                           │
+│  Structure Builder (NOUVEAU)                                 │
+│  - Génère des StaticStructureNodes pour chaque élément      │
+│  - type: "task" pour tools/capabilities                     │
+│  - type: "decision" pour if/switch/ternary                  │
+│  - type: "fork"/"join" pour Promise.all                     │
 └─────────────────────────────────────────────────────────────┘
       │
       ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  Schema Validation (provides edges)                          │
-│  - tool A output → tool B input : types compatibles ?       │
-│  - capability output → tool input : chaînage valide ?       │
-│  - Utilise les schemas qu'on a DÉJÀ en DB                   │
+│  Edge Generator                                              │
+│  - "sequence" : await séquentiel                            │
+│  - "conditional" : branches de if/switch avec outcome       │
+│  - "provides" : data flow via schémas (coverage calculé)    │
+│  - "contains" : capability imbriquée                        │
 └─────────────────────────────────────────────────────────────┘
       │
       ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  DAG Preview Generator                                       │
-│  - Tasks: tools ET capabilities détectés                    │
-│  - dependsOn inféré depuis variables + schemas              │
-│  - Flag: preview: true (peut être incomplet si dynamique)   │
+│  Capability Creation / Update                                │
+│  - INSERT/UPDATE workflow_pattern                           │
+│  - dag_structure.static_structure = { nodes, edges }        │
+│  - Crée CapabilityDependency si appels à capabilities       │
 └─────────────────────────────────────────────────────────────┘
       │
       ▼
-Validation permissions → HIL si nécessaire → Exécution
+Validation HIL → Exécution → Trace (Story 10.4)
 ```
 
-**Patterns à détecter:**
+**Patterns à détecter et STRUCTURE générée:**
+
+```typescript
+// Code source
+const file = await mcp.fs.stat({ path });
+if (file.exists) {
+  const content = await mcp.fs.read({ path });
+  return content;
+} else {
+  await mcp.fs.create({ path });
+  await mcp.fs.write({ path, content: "" });
+}
+
+// static_structure générée:
+{
+  nodes: [
+    { id: "n1", type: "task", tool: "fs:stat" },
+    { id: "d1", type: "decision", condition: "file.exists" },
+    { id: "n2", type: "task", tool: "fs:read" },
+    { id: "n3", type: "task", tool: "fs:create" },
+    { id: "n4", type: "task", tool: "fs:write" },
+  ],
+  edges: [
+    { from: "n1", to: "d1", type: "sequence" },
+    { from: "d1", to: "n2", type: "conditional", outcome: "true" },
+    { from: "d1", to: "n3", type: "conditional", outcome: "false" },
+    { from: "n3", to: "n4", type: "sequence" },
+    { from: "n1", to: "n2", type: "provides" }  // Data flow inféré via schémas
+  ]
+}
+```
+
+**Patterns détaillés:**
 
 ```typescript
 // Pattern 1: Appel MCP tool simple
 const result = await mcp.fs.read({ path: "config.json" });
-// → Task { type: "tool", tool: "fs:read", dependsOn: [] }
+// → Node { id: "n1", type: "task", tool: "fs:read" }
 
-// Pattern 2: Appel capability
+// Pattern 2: Appel capability (crée aussi CapabilityDependency)
 const summary = await capabilities.summarize({ text: content });
-// → Task { type: "capability", capability: "summarize", dependsOn: [] }
+// → Node { id: "n2", type: "capability", capabilityId: "cap-xxx" }
+// → CapabilityDependency { from: currentCap, to: "cap-xxx", edgeType: "contains" }
 
-// Pattern 3: Séquence avec validation schema
-const config = await mcp.fs.read({ path: "config.json" });
-const data = await mcp.json.parse({ json: config });
-// → fs:read.output.content → json:parse.input.json ✓ (via schemas)
-// → Task json:parse dependsOn: [fs:read]
-
-// Pattern 4: Chaînage capability → tool
-const summary = await capabilities.summarize({ text: args.input });
-const translated = await mcp.translate.text({ content: summary });
-// → summarize.output → translate.input ✓ (via workflow_pattern + tool_schema)
-
-// Pattern 5: Parallèle
+// Pattern 3: Parallélisme
 const [a, b] = await Promise.all([
   mcp.api.fetch({ url: urlA }),
   mcp.api.fetch({ url: urlB }),
 ]);
-// → Task api:fetch_1, Task api:fetch_2, pas de dependsOn entre eux
+// → Node { id: "f1", type: "fork" }
+// → Node { id: "n3", type: "task", tool: "api:fetch" }
+// → Node { id: "n4", type: "task", tool: "api:fetch" }
+// → Node { id: "j1", type: "join" }
+// → Edges: f1→n3, f1→n4, n3→j1, n4→j1
 
-// Pattern 6: Conditionnel → détecté comme appel potentiel
+// Pattern 4: Conditionnel
 if (condition) {
   await mcp.db.write({ data });
 }
-
-// Pattern 7: Loop → détecté comme appel potentiel
-for (const item of items) {
-  await mcp.process.run({ item });
-}
+// → Node { id: "d1", type: "decision", condition: "condition" }
+// → Node { id: "n5", type: "task", tool: "db:write" }
+// → Edge { from: "d1", to: "n5", type: "conditional", outcome: "true" }
 ```
 
-**Gestion des Loops et Conditions - Approche minimaliste:**
+**Acceptance Criteria (RÉVISÉS):**
 
-On ne stocke PAS si c'est loop/conditionnel. Pourquoi ?
-
-| Vue | Ce qu'on voit | Suffisant ? |
-|-----|---------------|-------------|
-| **HIL pre-approval** | "db:write peut être appelé" | ✅ Oui |
-| **Invocation** | Traces réelles (N appels si loop) | ✅ Oui |
-| **Definition** | Tool existe dans le graphe | ✅ Oui |
-
-**Conclusion** : Le parsing détecte TOUS les appels potentiels → HIL approuve → traces montrent la réalité.
-
-**Acceptance Criteria:**
-
-1. `CodeToDAGParser` class créée, **étend les patterns de SchemaInferrer**
-2. Réutilise le même `parse()` SWC et la même traversée AST que SchemaInferrer/PermissionInferrer
-3. Method `parseToDAGPreview(code: string, db: PGliteClient)` → `DAGPreview`:
+1. `StaticStructureBuilder` class créée, **étend les patterns de SchemaInferrer**
+2. Réutilise le même `parse()` SWC que SchemaInferrer/PermissionInferrer
+3. Types `StaticStructure` définis :
    ```typescript
-   interface DAGPreview {
-     tasks: PreviewTask[];
-     isComplete: boolean;        // false si code dynamique détecté
-     dynamicSections: string[];  // ["line 15: conditional", "line 23: loop"]
-     detectedTools: string[];    // Liste unique des tools
-     detectedCapabilities: string[];  // Liste des capabilities appelées
-     schemaValidation: SchemaValidationResult[];  // Chaînages validés
-   }
+   // Nœuds de la structure statique
+   type StaticStructureNode =
+     | { id: string; type: "task"; tool: string }
+     | { id: string; type: "decision"; condition: string }
+     | { id: string; type: "capability"; capabilityId: string }
+     | { id: string; type: "fork" }
+     | { id: string; type: "join" };
 
-   interface PreviewTask {
-     id: string;
-     type: "tool" | "capability";
-     name: string;               // tool_id ou capability name
-     dependsOn: string[];
-     sourceLocation: { line: number; column: number };
-   }
-
-   // Note: Pas de `certainty` - on détecte TOUS les appels potentiels.
-   // Les traces POST-exec montrent ce qui s'est vraiment passé.
-
-   interface SchemaValidationResult {
+   // Edges de la structure
+   interface StaticStructureEdge {
      from: string;
      to: string;
-     valid: boolean;
-     matchedFields: string[];    // Quels champs output→input matchent
+     type: "sequence" | "provides" | "conditional" | "contains";
+     outcome?: string;  // Pour conditional: "true", "false", "case1"
+     coverage?: "strict" | "partial" | "optional";  // Pour provides
+   }
+
+   interface StaticStructure {
+     nodes: StaticStructureNode[];
+     edges: StaticStructureEdge[];
    }
    ```
-4. Détection des appels:
-   - `mcp.*.*()` → lookup `tool_schema` pour validation
-   - `capabilities.*()` → lookup `workflow_pattern` pour validation
-5. Validation des chaînages via schemas:
-   - Variable assignment tracking (comme SchemaInferrer fait déjà)
-   - Lookup schemas en DB pour valider output→input compatibility
-6. Détection control flow (pour dependsOn):
-   - `await` séquentiel → dépendance
-   - `Promise.all/allSettled` → parallélisme (pas de dependsOn entre eux)
-   - Traverser `if/else`, `for/while/map` pour trouver les appels à l'intérieur
-7. **Intégration avec `requiresValidation()`:**
-   - Avant exécution, parse le code
-   - Extraire `detectedTools` + `detectedCapabilities`
-   - Vérifier permissions via `getToolPermissionConfig()`
+4. Method `buildStaticStructure(code: string, db: PGliteClient)` → `StaticStructure`
+5. **Détection des nœuds:**
+   - `mcp.*.*()` → Node type "task"
+   - `capabilities.*()` → Node type "capability"
+   - `if/switch/ternary` → Node type "decision"
+   - `Promise.all/allSettled` → Nodes "fork" + "join"
+6. **Génération des edges:**
+   - `await` séquentiel → edge "sequence"
+   - Branches de if → edges "conditional" avec outcome
+   - Data flow via schémas → edges "provides" avec coverage
+7. **Création de Capability:**
+   - INSERT/UPDATE `workflow_pattern` avec `dag_structure.static_structure`
+   - Crée `CapabilityDependency` pour chaque capability imbriquée
 8. **Intégration avec HIL:**
-   - Si tool avec `approvalMode: "hil"` détecté → preview AVANT exécution
-9. Tests: code avec tools → détection correcte
-10. Tests: code avec capabilities → détection correcte
-11. Tests: chaînage tool→tool → validation schema
-12. Tests: chaînage capability→tool → validation schema
-13. Tests: code avec if/loop → tous les appels internes détectés
+   - Extraire tous les tools de `static_structure.nodes`
+   - Vérifier permissions via `getToolPermissionConfig()`
+   - Si tool avec `approvalMode: "hil"` → demander approbation
+9. Tests: code avec tools → nodes "task" générés
+10. Tests: code avec if/else → node "decision" + edges "conditional"
+11. Tests: code avec Promise.all → nodes "fork"/"join"
+12. Tests: code avec capability → node "capability" + CapabilityDependency créée
+13. Tests: chaînage tool→tool → edge "provides" calculé
 
 **Files to Create:**
-- `src/capabilities/code-to-dag-parser.ts` (~100-150 LOC, étend patterns existants)
+- `src/capabilities/static-structure-builder.ts` (~200-250 LOC)
 
 **Files to Modify:**
-- `src/capabilities/schema-inferrer.ts` - Extraire méthodes communes si besoin (~20 LOC)
-- `src/mcp/handlers/code-execution-handler.ts` - Intégrer preview (~30 LOC)
+- `src/capabilities/types.ts` - Ajouter `StaticStructure` types (~40 LOC)
+- `src/capabilities/capability-store.ts` - Intégrer static_structure dans saveCapability (~30 LOC)
+- `src/mcp/handlers/code-execution-handler.ts` - Build structure avant exécution (~20 LOC)
 
 **Prerequisites:** Story 7.2b (SWC parsing - DONE)
 
-**Estimation:** 2-3 jours
+**Estimation:** 3-4 jours (augmenté car scope élargi)
 
-**Lien avec HIL Phase 4:**
-Cette story est le **enabler** pour le vrai HIL per-task (Option B de la tech spec HIL).
-Avec le DAG preview, on peut demander l'approbation AVANT d'exécuter, pas après l'échec.
+**Changement clé:**
+Cette story **crée la Capability** avec sa structure complète. Les traces (Story 10.4)
+viennent ensuite enrichir le `learning` avec les chemins réellement empruntés.
 
 ---
 
@@ -507,88 +583,208 @@ type ProvidesCoverage =
 
 ---
 
-**Story 10.4: DAG Reconstruction from Traces (POST-EXECUTION)**
+**Story 10.4: Trace Storage & Learning Aggregation (POST-EXECUTION)** — RÉVISÉE
 
-As a learning system, I want to reconstruct a DAGStructure from code execution traces,
-So that code-based workflows can be replayed as DAGs.
+As a learning system, I want to store execution traces in `capability_trace` and update learning stats,
+So that I can track execution patterns and identify the dominant path over time.
 
-**Context:**
-Phase 2 de la tech spec. Avec les traces enrichies (result), on peut détecter les
-dépendances data réelles: "si args de B contient result de A, alors B dépend de A".
+**Context (RÉVISÉ):**
 
-**Algorithm:**
+Changement de rôle :
+- **AVANT :** Reconstruire un DAG depuis les traces (créer la structure)
+- **MAINTENANT :** Stocker les traces et mettre à jour le `learning` (agrégation)
+
+La **Capability** existe déjà (créée par Story 10.1 à l'analyse statique).
+Cette story stocke les **Traces** qui sont des instances d'exécution de cette Capability.
+
+**Relation avec static_structure:**
+
+```
+static_structure (Story 10.1)        capability_trace (Story 10.4)
+────────────────────────────         ────────────────────────────
+nodes: [n1, d1, n2, n3, n4]          executed_path: [n1, d1, n2]  ← Chemin pris
+edges: [sequence, conditional...]    decisions: [{nodeId: d1, outcome: "true"}]
+                                     task_results: [...]
+```
+
+Les `executed_path` référencent les `nodeIds` de `static_structure`.
+
+**Nouvelle table `capability_trace`:**
+
+```sql
+CREATE TABLE capability_trace (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  capability_id TEXT NOT NULL REFERENCES workflow_pattern(pattern_id),
+
+  -- Chemin emprunté (nodeIds de static_structure)
+  executed_path TEXT[] NOT NULL,
+
+  -- Décisions prises aux DecisionNodes
+  decisions JSONB NOT NULL DEFAULT '[]',
+  -- Format: [{ "nodeId": "d1", "condition": "file.exists", "value": true, "outcome": "true" }]
+
+  -- Résultats détaillés par tâche
+  task_results JSONB NOT NULL DEFAULT '[]',
+  -- Format: [{ "nodeId": "n1", "tool": "fs:stat", "result": {...}, "durationMs": 50 }]
+
+  success BOOLEAN NOT NULL,
+  duration_ms INTEGER NOT NULL,
+
+  -- ADR-041: Lien avec le contexte parent
+  parent_trace_id TEXT,
+
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_trace_capability ON capability_trace(capability_id);
+CREATE INDEX idx_trace_path ON capability_trace USING GIN(executed_path);
+CREATE INDEX idx_trace_success ON capability_trace(capability_id, success);
+```
+
+**Learning structure (dans dag_structure):**
+
 ```typescript
-function detectDataDependencies(traces: TraceEvent[]): string[] {
-  for (const prevTrace of traces) {
-    if (containsValue(currentTrace.args, prevTrace.result)) {
-      dependsOn.push(prevTrace.traceId);
-    }
-  }
-}
+interface CapabilityLearning {
+  // Stats par chemin emprunté
+  paths: Array<{
+    path: string[];           // ["n1", "d1", "n2"]
+    count: number;            // 150
+    successRate: number;      // 0.95
+    avgDurationMs: number;    // 234
+  }>;
 
-function containsValue(args, result): boolean {
-  // Match exact ou partiel (champs extraits d'un objet)
+  // Chemin le plus fréquent avec succès
+  dominantPath: string[];     // ["n1", "d1", "n2"]
+
+  // Stats par nœud de décision
+  decisionStats: Array<{
+    nodeId: string;           // "d1"
+    condition: string;        // "file.exists"
+    outcomes: {
+      [outcome: string]: {    // "true" | "false"
+        count: number;
+        successRate: number;
+      }
+    }
+  }>;
 }
 ```
 
-**Acceptance Criteria:**
+**Algorithm:**
 
-1. `DAGReconstructor` class créée (`src/graphrag/dag-reconstruction.ts`)
-2. Method `reconstructFromTraces(traces: TraceEvent[])` → `DAGStructure`
-3. Détection dépendances data:
-   - Match exact: `JSON.stringify(args).includes(JSON.stringify(result))`
-   - Match partiel: champs individuels d'un objet result
-4. Détection parallélisme via timestamps:
-   - Si `endTime(A) < startTime(B)` → séquence
-   - Si timestamps overlap → parallel (pas d'edge)
+```typescript
+async function storeTraceAndUpdateLearning(
+  capabilityId: string,
+  traces: TraceEvent[],
+  success: boolean
+): Promise<void> {
+  // 1. Mapper les traces aux nodeIds de static_structure
+  const capability = await capabilityStore.findById(capabilityId);
+  const staticStructure = capability.dag_structure.static_structure;
 
-   > **BUG FIX:** Actuellement `execution-learning.ts` crée des edges `sequence`
-   > basés uniquement sur l'**ordre dans l'array**, ce qui est incorrect pour les
-   > exécutions parallèles. Le fix utilise **timestamps (ts + durationMs) EN DUO
-   > avec l'ordre array**:
-   > - `ts + durationMs` → détermine si overlap (parallel) ou séquence
-   > - `ordre array` → détermine la direction de l'edge quand séquence
-   >   (A avant B dans l'array ET pas d'overlap → edge A→B)
-5. `inferredStructure` ajouté à `Capability`:
+  const executedPath = mapTracesToNodeIds(traces, staticStructure);
+  const decisions = extractBranchDecisions(traces);
+  const taskResults = extractTaskResults(traces);
+
+  // 2. Insérer la trace
+  await db.query(`
+    INSERT INTO capability_trace
+    (capability_id, executed_path, decisions, task_results, success, duration_ms)
+    VALUES ($1, $2, $3, $4, $5, $6)
+  `, [capabilityId, executedPath, decisions, taskResults, success, totalDurationMs]);
+
+  // 3. Mettre à jour le learning (agrégation)
+  const learning = capability.dag_structure.learning || { paths: [], dominantPath: [] };
+
+  // Incrémenter le compteur pour ce chemin
+  const pathKey = JSON.stringify(executedPath);
+  let pathStats = learning.paths.find(p => JSON.stringify(p.path) === pathKey);
+  if (!pathStats) {
+    pathStats = { path: executedPath, count: 0, successRate: 0, avgDurationMs: 0 };
+    learning.paths.push(pathStats);
+  }
+  pathStats.count++;
+  pathStats.successRate = recalculateSuccessRate(pathStats, success);
+  pathStats.avgDurationMs = recalculateAvgDuration(pathStats, totalDurationMs);
+
+  // Recalculer le dominantPath
+  learning.dominantPath = findDominantPath(learning.paths);
+
+  // 4. Sauvegarder le learning mis à jour
+  await capabilityStore.updateLearning(capabilityId, learning);
+}
+```
+
+**Acceptance Criteria (RÉVISÉS):**
+
+1. **Table `capability_trace` créée** via migration
+2. **Types TypeScript définis:**
    ```typescript
-   inferredStructure: {
-     tools: string[];
-     edges: Array<{ from, to, type }>;
-     executionOrder: ExecutionOrder;  // ← NOUVEAU
+   interface CapabilityTrace {
+     id: string;
+     capabilityId: string;
+     executedPath: string[];  // Node IDs from static_structure
+     decisions: BranchDecision[];
+     taskResults: TraceTaskResult[];
+     success: boolean;
+     durationMs: number;
+     parentTraceId?: string;
+     createdAt: Date;
+   }
+
+   interface BranchDecision {
+     nodeId: string;
+     condition: string;
+     evaluatedValue: unknown;
+     outcome: string;
+   }
+
+   interface TraceTaskResult {
+     nodeId: string;
+     tool: string;
+     args: Record<string, unknown>;
+     result: unknown;
+     success: boolean;
+     durationMs: number;
    }
    ```
-6. **`executionOrder` structure** - Capture séquence ET parallélisme en une structure nested:
-   ```typescript
-   // Type: (string | ExecutionOrder[])[]
-   // Exemples:
-   ["A", "B", "C"]           // Séquence simple
-   ["A", ["B", "C"], "D"]    // A → (B || C) → D (fan-out/fan-in)
-   ["fs:read", ["fs:read", "http:get"], "json:parse"]  // Same tool 2x = position implicite
-   ```
-   - Calculé UNE fois à l'exécution (via ts + durationMs)
-   - Stocké dans `dag_structure.execution_order` (JSONB)
-   - Pas de recalcul à chaque lecture
-   - Same tool appelé 2x → position dans l'array = identifiant implicite, détails dans traces
-7. Method `buildExecutionOrder(traces: TraceEvent[])` → `ExecutionOrder`:
-   - Trier traces par `ts` (start time)
-   - Calculer `endTime = ts + durationMs` pour chaque trace
-   - Grouper les traces dont timestamps overlap → array nested
-   - Les autres → string simple dans l'ordre
-8. Tests: trace séquence A→B→C → `executionOrder: ["A", "B", "C"]`
-9. Tests: trace parallèle [A, B]→C → `executionOrder: ["A", ["B", "C"]]` + edges A→C, B→C
-10. Tests: trace avec result utilisé partiellement (result.data.id) → dépendance détectée
-11. Tests: same tool 2x séquentiel → `["fs:read", "fs:read"]`, distingués par position
+3. **`TraceStore` class créée** avec:
+   - `saveTrace(capabilityId, traces, success)` → insère dans `capability_trace`
+   - `getTraces(capabilityId, limit?)` → liste les traces
+   - `getTraceById(traceId)` → une trace spécifique
+4. **Mapping traces → nodeIds:**
+   - Fonction `mapTracesToNodeIds(traces, staticStructure)`
+   - Match par tool/capabilityId
+5. **Extraction des décisions de branches:**
+   - Détecter quand un DecisionNode a été traversé
+   - Enregistrer l'outcome choisi
+6. **Mise à jour du learning:**
+   - Incrémenter `paths[].count` pour le chemin emprunté
+   - Recalculer `successRate` (moyenne pondérée)
+   - Recalculer `dominantPath` (chemin avec le plus de count * successRate)
+7. **Intégration dans le flow d'exécution:**
+   - Après exécution sandbox réussie → appeler `storeTraceAndUpdateLearning`
+8. Tests: exécution réussie → trace insérée + learning updated
+9. Tests: exécution échouée → trace insérée avec success=false
+10. Tests: 3 exécutions même chemin → count=3, dominantPath correct
+11. Tests: 2 chemins différents → paths[] contient les 2
 
 **Files to Create:**
-- `src/graphrag/dag-reconstruction.ts` (~200 LOC, inclut `buildExecutionOrder`)
+- `src/db/migrations/XXX_capability_trace.ts` (~50 LOC)
+- `src/capabilities/trace-store.ts` (~150 LOC)
 
 **Files to Modify:**
-- `src/capabilities/types.ts` (~30 LOC, ajout `ExecutionOrder` type)
-- `src/capabilities/capability-store.ts` (~10 LOC, stockage `execution_order`)
+- `src/capabilities/types.ts` - Ajouter `CapabilityTrace`, `CapabilityLearning` (~50 LOC)
+- `src/capabilities/capability-store.ts` - Ajouter `updateLearning()` (~30 LOC)
+- `src/sandbox/worker-bridge.ts` - Appeler TraceStore après exécution (~20 LOC)
 
-**Prerequisites:** Story 10.2, Story 10.3
+**Prerequisites:** Story 10.1 (static_structure must exist), Story 10.2 (result in traces)
 
-**Estimation:** 2-3 jours (inchangé, `executionOrder` est ~0.5j inclus)
+**Estimation:** 2-3 jours
+
+**Note importante:**
+Cette story ne **reconstruit** plus un DAG. La structure existe déjà (Story 10.1).
+Elle **enregistre** le chemin emprunté et **enrichit** les statistiques d'apprentissage.
 
 ---
 
@@ -1105,64 +1301,72 @@ avec des MCP connecteurs externes.
 
 ---
 
-### Epic 10 Dependencies
+### Epic 10 Dependencies — RÉVISÉES
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  DEUX TRACKS PARALLÈLES                                          │
+│  FLOW SÉQUENTIEL (Capability d'abord, Traces ensuite)            │
 │                                                                  │
-│  Track A (Learning - POST-exec):    Track B (HIL - PRE-exec):   │
-│  ────────────────────────────────   ─────────────────────────   │
-│                                                                  │
-│  ★ Story 10.2 (result tracing)      Story 10.1 (static analysis)│
-│        │  ← VRAIE FONDATION              │                      │
-│        │                                 │  (indépendant)       │
-│        ▼                                 │                      │
-│  Story 10.3 (provides edge)              │                      │
-│        │                                 │                      │
-│        ▼                                 │                      │
-│  Story 10.4 (DAG reconstruction)         │                      │
-│        │                                 │                      │
-│        └────────────┬────────────────────┘                      │
-│                     ▼                                            │
-│              Story 10.5 (unified capability)                     │
-│                     │  ← Merge 10.1 + 10.4                      │
-│                     ▼                                            │
-│              Story 10.6 (pml_discover)                           │
-│                     │                                            │
-│                     ▼                                            │
-│              Story 10.7 (pml_execute) ← Intègre 10.1 pour HIL   │
-│                     │                                            │
-│                     ▼                                            │
-│              Story 10.8 (pml_get_task_result)                    │
-│                     │                                            │
-│                     ▼                                            │
-│              Story 10.9 (Definition/Invocation views)            │
-│                     │                                            │
-│                     ▼                                            │
-│              Story 10.10 (Dry Run) ← Optional                    │
+│  ★ Story 10.1 (Static Analysis → Capability Creation)           │
+│        │  ← VRAIE FONDATION : crée la Capability avec           │
+│        │     static_structure, provides edges, HIL               │
+│        │                                                         │
+│        ├──────────────────┐                                      │
+│        │                  │                                      │
+│        ▼                  ▼                                      │
+│  Story 10.2          Story 10.3                                  │
+│  (result tracing)    (provides edge types)                       │
+│        │                  │                                      │
+│        └────────┬─────────┘                                      │
+│                 ▼                                                │
+│          Story 10.4 (Trace Storage & Learning)                   │
+│                 │  ← Stocke traces dans capability_trace        │
+│                 │     Met à jour dag_structure.learning          │
+│                 ▼                                                │
+│          Story 10.5 (Unified Capability Model)                   │
+│                 │  ← source: code | dag | tool                  │
+│                 ▼                                                │
+│          Story 10.6 (pml_discover)                               │
+│                 │                                                │
+│                 ▼                                                │
+│          Story 10.7 (pml_execute)                                │
+│                 │                                                │
+│                 ▼                                                │
+│          Story 10.8 (pml_get_task_result)                        │
+│                 │                                                │
+│                 ▼                                                │
+│          Story 10.9 (Definition/Invocation views)                │
+│                 │                                                │
+│                 ▼                                                │
+│          Story 10.10 (Dry Run) ← Optional                        │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Ordre d'implémentation recommandé:**
+**Ordre d'implémentation recommandé (RÉVISÉ):**
 
 | Ordre | Story | Justification |
 |-------|-------|---------------|
-| 1 | **10.2** Result Tracing | Vraie fondation - sans `result` dans traces, rien ne marche |
-| 2 | **10.3** Provides Edge | Utilise les traces enrichies |
-| 3 | **10.4** DAG Reconstruction | Reconstruction POST-exec |
-| ∥ | **10.1** Static Analysis | **En parallèle** avec 10.2-10.4, ou après |
-| 4 | **10.5** Unified Capability | Merge 10.1 (PRE) + 10.4 (POST) |
-| 5 | **10.6** pml_discover | API unifiée de découverte |
-| 6 | **10.7** pml_execute | API unifiée d'exécution |
-| 7 | **10.8** pml_get_task_result | Complément pour AIL |
-| 8 | **10.9** Views | UI Cytoscape |
-| 9 | **10.10** Dry Run | Optional, pour debug connecteurs |
+| 1 | **10.1** Static Analysis | **VRAIE FONDATION** - crée la Capability avec static_structure |
+| 2 | **10.2** Result Tracing | Quick win - ajoute `result` aux traces |
+| 3 | **10.3** Provides Edge | Types d'edges pour data flow |
+| 4 | **10.4** Trace Storage | Stocke traces + update learning (dépend de 10.1 et 10.2) |
+| 5 | **10.5** Unified Capability | source: code \| dag \| tool |
+| 6 | **10.6** pml_discover | API unifiée de découverte |
+| 7 | **10.7** pml_execute | API unifiée d'exécution |
+| 8 | **10.8** pml_get_task_result | Complément pour AIL |
+| 9 | **10.9** Views | UI Definition/Invocation |
+| 10 | **10.10** Dry Run | Optional, pour debug connecteurs |
 
-**Note sur Story 10.1 (Static Analysis):**
-- N'est PAS un prérequis pour 10.2-10.4 (contrairement à ce qui était indiqué avant)
-- Peut être fait en parallèle ou après le Track A
-- Devient nécessaire pour 10.5 (unified capability) et 10.7 (pml_execute avec HIL)
+**Changement clé par rapport à avant:**
+- **AVANT:** 10.2 était la fondation, 10.1 était optionnel
+- **MAINTENANT:** 10.1 est la fondation, crée la Capability avec structure complète
+- 10.4 stocke les Traces (pas reconstruction), dépend de 10.1
+
+**Pourquoi 10.1 d'abord?**
+1. La Capability est créée à l'analyse statique (structure complète avec conditions)
+2. Les traces référencent les nodeIds de static_structure
+3. L'HIL fonctionne immédiatement (on connaît les tools avant exécution)
+4. L'apprentissage agrège les traces par chemin
 
 **External Dependencies:**
 - Epic 7 Story 7.1b (Worker RPC Bridge)
@@ -1175,12 +1379,13 @@ avec des MCP connecteurs externes.
 
 | FR | Description | Story |
 |----|-------------|-------|
-| **FR1** | **DAG Preview pré-exécution (parsing statique)** | **10.1** |
+| **FR1** | **Capability Creation à l'analyse statique (static_structure)** | **10.1** |
 | **FR1b** | **Validation permissions avant exécution** | **10.1** |
 | **FR1c** | **HIL pre-execution approval flow** | **10.1** |
+| **FR1d** | **Détection conditions/branches dans static_structure** | **10.1** |
 | FR2 | Tracer `result` des tools et capabilities | 10.2 |
 | FR3 | Edge type `provides` avec coverage | 10.3 |
-| FR4 | Reconstruction DAG depuis traces code | 10.4 |
+| FR4 | **Stockage traces + agrégation learning** (capability_trace) | 10.4 |
 | FR5 | Capability unifiée (code OU dag) | 10.5 |
 | FR6 | API `pml_discover` unifiée | 10.6 |
 | FR7 | API `pml_execute` unifiée | 10.7 |
