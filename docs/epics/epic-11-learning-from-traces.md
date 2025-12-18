@@ -10,13 +10,14 @@ Implémenter le système d'apprentissage basé sur les traces d'exécution. Capt
 
 **Problèmes Résolus:**
 
-| Problème | Solution |
-|----------|----------|
-| Pas de capture des résultats d'exécution | Result tracing dans les events |
-| Traces non persistées | Table `execution_trace` avec FK capability |
-| Apprentissage batch (pas incrémental) | TD Learning avec α = 0.1 |
-| Toutes les traces ont même importance | PER (Prioritized Experience Replay) |
-| Pas de vue sur les exécutions réelles | Definition vs Invocation views |
+| Problème | Solution | Story |
+|----------|----------|-------|
+| Schema DB avec dette technique | Cleanup complet (KV, FKs, duplications) | **11.0** |
+| Pas de capture des résultats d'exécution | Result tracing dans les events | 11.1 |
+| Traces non persistées | Table `execution_trace` avec FK capability | 11.2 |
+| Apprentissage batch (pas incrémental) | TD Learning avec α = 0.1 | 11.3 |
+| Toutes les traces ont même importance | PER (Prioritized Experience Replay) | 11.3 |
+| Pas de vue sur les exécutions réelles | Definition vs Invocation views | 11.4 |
 
 **Value Delivery:**
 
@@ -35,6 +36,8 @@ Implémenter le système d'apprentissage basé sur les traces d'exécution. Capt
 ```
 Epic 10 (Capability Creation)          Epic 11 (Learning from Traces)
 ─────────────────────────────          ─────────────────────────────────
+                                       11.0 DB Schema Cleanup ⭐ FIRST
+                                            ↓
 10.1 Static Analysis ──────────────▶   11.1 Result Tracing
      ↓                                      ↓
 10.3 Provides Edges                    11.2 execution_trace Table
@@ -51,6 +54,106 @@ Epic 10 (Capability Creation)          Epic 11 (Learning from Traces)
 ---
 
 ## Story Breakdown - Epic 11
+
+### Story 11.0: DB Schema Cleanup & Infrastructure ⭐ FOUNDATION
+
+As a developer, I want a clean database schema with proper separation of concerns,
+So that the learning system has solid infrastructure foundations.
+
+**Context:**
+
+Audit complet du schéma DB (spike 2025-12-18) révèle plusieurs problèmes à corriger
+AVANT d'implémenter le learning :
+
+1. **`workflow_dags`** : état runtime temporaire stocké en PostgreSQL (overkill)
+2. **`tool_schema` vs `mcp_tool`** : duplication partielle
+3. **FKs manquantes** : `permission_audit_log` → `workflow_pattern`
+4. **Colonnes redondantes** : `source` vs `edge_source` dans `tool_dependency`
+
+**Référence:** `docs/spikes/2025-12-18-database-schema-audit.md`
+
+**Changements proposés:**
+
+**1. Migrer `workflow_dags` → Deno KV (réactiver ADR-037)**
+
+```typescript
+// AVANT (PostgreSQL - overkill pour état temporaire)
+await db.query(`INSERT INTO workflow_dags (workflow_id, dag, intent) VALUES ($1, $2, $3)`, [...]);
+await db.query(`SELECT dag FROM workflow_dags WHERE workflow_id = $1 AND expires_at > NOW()`, [id]);
+
+// APRÈS (Deno KV - parfait pour TTL)
+const kv = await Deno.openKv();
+await kv.set(["workflow", workflowId], { dag, intent }, { expireIn: TTL_MS });
+const result = await kv.get(["workflow", workflowId]);
+```
+
+**2. Merger `mcp_tool` → `tool_schema`**
+
+```sql
+-- Vérifier que toutes les données de mcp_tool sont dans tool_schema
+-- (elles le sont normalement car tool_schema est la source principale)
+
+-- Drop mcp_tool (principalement utilisée par E2E tests)
+DROP TABLE IF EXISTS mcp_tool CASCADE;
+
+-- Adapter les E2E tests pour utiliser tool_schema
+```
+
+**3. Ajouter FK sur `permission_audit_log`**
+
+```sql
+ALTER TABLE permission_audit_log
+  ALTER COLUMN capability_id TYPE UUID USING capability_id::uuid;
+ALTER TABLE permission_audit_log
+  ADD CONSTRAINT fk_permission_audit_capability
+  FOREIGN KEY (capability_id) REFERENCES workflow_pattern(pattern_id);
+```
+
+**4. Supprimer colonne redondante `source` de `tool_dependency`**
+
+```sql
+-- Garder uniquement edge_source (plus précis)
+-- source: 'user' | 'learned' | 'hint'
+-- edge_source: 'template' | 'inferred' | 'observed' ← KEEP
+ALTER TABLE tool_dependency DROP COLUMN IF EXISTS source;
+```
+
+**5. DROP `workflow_dags` table**
+
+```sql
+-- Table remplacée par Deno KV
+DROP TABLE IF EXISTS workflow_dags CASCADE;
+```
+
+**Acceptance Criteria:**
+
+1. `workflow_dags` supprimée de PostgreSQL
+2. `src/mcp/workflow-dag-store.ts` utilise Deno KV avec TTL
+3. `mcp_tool` table supprimée, E2E tests adaptés
+4. FK ajoutée sur `permission_audit_log.capability_id`
+5. Colonne `source` supprimée de `tool_dependency`
+6. Tests: store/retrieve workflow state via KV
+7. Tests: TTL expiration fonctionne
+8. Tests E2E: utilisent `tool_schema` au lieu de `mcp_tool`
+
+**Files to Create:**
+- `src/cache/kv.ts` (~30 LOC) - Singleton KV
+- `src/cache/workflow-state-cache.ts` (~60 LOC) - Remplace workflow-dag-store
+
+**Files to Modify:**
+- `src/mcp/workflow-dag-store.ts` → utiliser KV
+- `src/db/migrations/` - Migration pour cleanup
+- E2E tests utilisant `mcp_tool`
+- Code utilisant `tool_dependency.source`
+
+**Files to Delete:**
+- Migration 008 devient no-op (workflow_dags plus créée)
+
+**Prerequisites:** Aucun (peut commencer immédiatement)
+
+**Estimation:** 2-3 jours
+
+---
 
 ### Story 11.1: Result Tracing - Capture des Résultats d'Exécution
 

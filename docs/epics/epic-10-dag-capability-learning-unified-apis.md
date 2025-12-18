@@ -528,64 +528,6 @@ pas depuis les résultats d'exécution. Voir Story 10.1.
 
 ---
 
-**Story 10.3b: DB Schema Cleanup & KV Migration** — NOUVEAU
-
-As a developer, I want a cleaner database schema with proper separation of concerns,
-So that temporary runtime state uses KV and permanent data uses PostgreSQL.
-
-**Context:**
-
-Audit du schéma DB révèle plusieurs problèmes :
-1. `workflow_dags` : état runtime temporaire stocké en PostgreSQL (overkill)
-2. FKs manquantes sur plusieurs tables
-3. Naming confus (`workflow_pattern` = capability)
-
-> **Note:** `workflow_execution` → `execution_trace` est reporté à Epic 11 (Learning from Traces).
-
-**Changements proposés:**
-
-**1. Migrer `workflow_dags` → Deno KV (réactiver partiellement ADR-037)**
-
-```typescript
-// AVANT (PostgreSQL - overkill pour état temporaire)
-await db.query(`INSERT INTO workflow_dags (workflow_id, dag, intent) VALUES ($1, $2, $3)`, [...]);
-await db.query(`SELECT dag FROM workflow_dags WHERE workflow_id = $1 AND expires_at > NOW()`, [id]);
-
-// APRÈS (Deno KV - parfait pour TTL)
-const kv = await Deno.openKv();
-await kv.set(["workflow", workflowId], { dag, intent }, { expireIn: TTL_MS });
-const result = await kv.get(["workflow", workflowId]);
-```
-
-**2. (Optionnel) Renommer `workflow_pattern` → `capability`**
-
-Report possible à plus tard car breaking change significatif.
-
-**Acceptance Criteria:**
-
-1. `workflow_dags` supprimée de PostgreSQL
-2. `src/mcp/workflow-dag-store.ts` utilise Deno KV
-3. TTL automatique via `expireIn` (plus de cleanup job)
-4. Tests: store/retrieve workflow state via KV
-5. Tests: TTL expiration fonctionne
-
-**Files to Create:**
-- `src/cache/kv.ts` (~30 LOC) - Singleton KV
-- `src/cache/workflow-state-cache.ts` (~60 LOC) - Remplace workflow-dag-store
-
-**Files to Modify:**
-- `src/mcp/workflow-dag-store.ts` → utiliser KV au lieu de PostgreSQL
-- `src/db/migrations/` - Migration pour DROP tables
-
-**Files to Delete:**
-- Migration 008 devient no-op (table plus créée)
-
-**Prerequisites:** Aucun
-
-**Estimation:** 1-2 jours
-
----
-
 **Story 10.5: Unified Capability Model (Code, DAG, or Tool)**
 
 As a capability storage system, I want capabilities to support code, DAG, and external tool sources,
@@ -883,16 +825,14 @@ pml_get_task_result({
 |-------|--------|-----------|--------|
 | 1 | `static_structure` in dag_structure | ❌ No | Additive |
 | 3 | `provides` EdgeType | ❌ No | Additive |
-| 3b | `workflow_dags` → KV | ⚠️ **Yes** | Schema change (pas de données) |
 | 5 | Capability `source: code \| dag` | ⚠️ **Yes** | Schema change |
 | 6 | Deprecate `pml_search_*` | ⚠️ **Yes** | MCP APIs |
 | 7 | Deprecate `pml_execute_*` | ⚠️ **Yes** | MCP APIs |
 
 **Migration Strategy:**
-- Phase 3b: DROP tables (pas de données à migrer en dev/test)
 - Phase 5-7: Breaking changes. No transition period - clean cut.
 
-> **Note:** Stories liées au learning (result tracing, execution_trace, views) déplacées vers Epic 11.
+> **Note:** Stories DB cleanup et learning déplacées vers Epic 11.
 
 ---
 
@@ -909,13 +849,10 @@ pml_get_task_result({
 │        ├──────────────────┬──────────────────┐                   │
 │        │                  │                  │                   │
 │        ▼                  ▼                  ▼                   │
-│  Story 10.3          Story 10.3b       Story 10.5                │
-│  (provides edges)    (KV migration)    (Unified Model)           │
+│  Story 10.3          Story 10.5       Story 10.6                 │
+│  (provides edges)    (Unified Model)  (pml_discover)             │
 │        │                  │                  │                   │
 │        └──────────────────┴──────────────────┘                   │
-│                           │                                      │
-│                           ▼                                      │
-│                    Story 10.6 (pml_discover)                     │
 │                           │                                      │
 │                           ▼                                      │
 │                    Story 10.7 (pml_execute)                      │
@@ -925,6 +862,7 @@ pml_get_task_result({
 │                                                                  │
 │  ────────────────────────────────────────────────────────────    │
 │  Stories déplacées vers Epic 11 (Learning from Traces):          │
+│  - 11.0 DB Schema Cleanup (ex-10.3b + spike recommandations)     │
 │  - 11.1 Result Tracing (ex-10.2)                                 │
 │  - 11.2/11.3 execution_trace + PER/TD (ex-10.4)                  │
 │  - 11.4 Definition/Invocation Views (ex-10.9)                    │
@@ -938,14 +876,13 @@ pml_get_task_result({
 |-------|-------|---------------|
 | 1 | **10.1** Static Analysis | **VRAIE FONDATION** - crée la Capability avec static_structure |
 | 2 | **10.3** Provides Edge | Types d'edges pour data flow |
-| 3 | **10.3b** KV Migration | Migre workflow_dags vers Deno KV |
-| 4 | **10.5** Unified Capability | source: code \| dag \| tool |
-| 5 | **10.6** pml_discover | API unifiée de découverte |
-| 6 | **10.7** pml_execute | API unifiée d'exécution |
-| 7 | **10.8** pml_get_task_result | Complément pour AIL |
+| 3 | **10.5** Unified Capability | source: code \| dag \| tool |
+| 4 | **10.6** pml_discover | API unifiée de découverte |
+| 5 | **10.7** pml_execute | API unifiée d'exécution |
+| 6 | **10.8** pml_get_task_result | Complément pour AIL |
 
 **Changement clé:**
-- Stories de learning (result tracing, traces DB, views) déplacées vers Epic 11
+- Stories de learning et DB cleanup déplacées vers Epic 11
 - Epic 10 se concentre sur **création de capability** et **APIs unifiées**
 
 **Pourquoi 10.1 d'abord?**
@@ -968,7 +905,6 @@ pml_get_task_result({
 | **FR1c** | **HIL pre-execution approval flow** | **10.1** |
 | **FR1d** | **Détection conditions/branches dans static_structure** | **10.1** |
 | FR3 | Edge type `provides` avec coverage | 10.3 |
-| FR3b | Migration workflow_dags → Deno KV | 10.3b |
 | FR5 | Capability unifiée (code OU dag) | 10.5 |
 | FR6 | API `pml_discover` unifiée | 10.6 |
 | FR7 | API `pml_execute` unifiée | 10.7 |
@@ -976,7 +912,7 @@ pml_get_task_result({
 | FR10 | Dépréciation anciennes APIs | 10.6, 10.7 |
 | FR11 | Learning automatique après succès | 10.7 |
 
-> **Note:** FRs liés au learning (result tracing, execution_trace, views, dry run) déplacés vers Epic 11.
+> **Note:** FRs liés au DB cleanup et learning déplacés vers Epic 11.
 
 ### Epic 10 → PRD FR Traceability Matrix
 
@@ -989,7 +925,6 @@ pml_get_task_result({
 | FR1b | FR017 | Exécution TypeScript dans Deno sandbox isolé | **Extends** |
 | FR1c | FR018 | Branches DAG safe-to-fail (resilient workflows) | **Extends** |
 | FR3 | FR005 | Analyser dépendances input/output pour construire graphe DAG | **Extends** |
-| FR3b | - | N/A (DB cleanup) | **Internal** |
 | FR5 | FR017 | Exécution TypeScript dans Deno sandbox isolé | **Extends** |
 | FR5 | FR019 | Injecter MCP tools dans contexte sandbox via vector search | **Extends** |
 | FR6 | FR002 | Recherche sémantique pour identifier top-k tools pertinents | **Unifies** |
@@ -1000,7 +935,7 @@ pml_get_task_result({
 | FR10 | - | N/A (internal cleanup) | **Internal** |
 | FR11 | - | N/A (Epic 7 extension) | **Epic 7** |
 
-> **Note:** FRs FR2 (result tracing), FR4 (execution_trace), FR9 (views), FR12 (dry run) déplacés vers Epic 11.
+> **Note:** FRs DB cleanup et learning déplacés vers Epic 11.
 
 **Legend:**
 - **Implements**: Implémentation directe du FR PRD
@@ -1016,15 +951,15 @@ pml_get_task_result({
 |-------|-------|-------------|--------|------------|
 | 1 | **10.1** | **Static Analysis → Capability** ⭐ FONDATION | **3-4j** | **4j** |
 | 2 | 10.3 | Provides Edge | 1-2j | 6j |
-| 3 | 10.3b | DB Cleanup + KV Migration | 1-2j | 8j |
-| 4 | 10.5 | Unified Capability | 2-3j | 11j |
-| 5 | 10.6 | pml_discover | 2-3j | 14j |
-| 6 | 10.7 | pml_execute | 3-5j | 18j |
-| 7 | 10.8 | pml_get_task_result | 1-2j | 20j |
+| 3 | 10.5 | Unified Capability | 2-3j | 9j |
+| 4 | 10.6 | pml_discover | 2-3j | 12j |
+| 5 | 10.7 | pml_execute | 3-5j | 16j |
+| 6 | 10.8 | pml_get_task_result | 1-2j | 18j |
 
-**Total Epic 10: ~3-4 semaines**
+**Total Epic 10: ~3 semaines**
 
-> **Note:** Stories learning déplacées vers Epic 11 :
+> **Note:** Stories déplacées vers Epic 11 :
+> - 11.0 DB Schema Cleanup complet (2-3j)
 > - 11.1 Result Tracing (0.5-1j)
 > - 11.2 execution_trace table (2-3j)
 > - 11.3 PER + TD Learning (2-3j)

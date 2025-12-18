@@ -12,14 +12,18 @@
 Audit complet du schéma PGlite de Casys PML. Identifie **20 tables** réparties sur **18 migrations**.
 Révèle des duplications, des FKs manquantes, et des clarifications nécessaires.
 
-**Actions immédiates (Epic 10):**
-- `workflow_dags` → Deno KV (Story 10.3b)
-- `workflow_execution` → remplacée par `execution_trace` (Story 10.4)
-
-**Actions futures (hors Epic 10):**
+**Actions immédiates (Epic 11 - Story 11.0):**
+- `workflow_dags` → Deno KV
 - Merger `tool_schema` et `mcp_tool`
-- Clarifier `adaptive_config` vs `adaptive_thresholds`
-- Ajouter FKs manquantes
+- Ajouter FK sur `permission_audit_log`
+- Supprimer colonne redondante `source` de `tool_dependency`
+
+**Actions Epic 11 (Stories 11.2+):**
+- `workflow_execution` → remplacée par `execution_trace` (Story 11.2)
+
+**Actions futures (hors Epic 11):**
+- Renommer `workflow_pattern` → `capability` (breaking change significatif)
+- Renommer `adaptive_config` → `default_thresholds`
 
 ---
 
@@ -274,12 +278,13 @@ ALTER TABLE mcp_tool
 | `adaptive_config` | `default_thresholds` | Non |
 | `tool_dependency` | `tool_edge` | Faible |
 
-### 2.4 Tables à Migrer (Epic 10)
+### 2.4 Tables à Migrer (Epic 11)
 
 | Table | Action | Story | Raison |
 |-------|--------|-------|--------|
-| `workflow_dags` | → Deno KV | 10.3b | État temporaire, TTL natif |
-| `workflow_execution` | → `execution_trace` | 10.4 | FK capability, champs learning |
+| `workflow_dags` | → Deno KV | 11.0 | État temporaire, TTL natif |
+| `mcp_tool` | DROP (merge tool_schema) | 11.0 | Duplication |
+| `workflow_execution` | → `execution_trace` | 11.2 | FK capability, champs learning |
 
 ---
 
@@ -345,25 +350,29 @@ src/cli/commands/serve.ts              -- CLI serve
 
 ## 4. Recommandations
 
-### 4.1 Actions Immédiates (Epic 10)
+### 4.1 Actions Immédiates (Epic 11 - Story 11.0)
 
 | Action | Story | Effort |
 |--------|-------|--------|
-| `workflow_dags` → Deno KV | 10.3b | 1-2j |
-| DROP `workflow_execution` | 10.3b | Inclus |
-| CREATE `execution_trace` avec FK | 10.4 | 3-4j |
+| `workflow_dags` → Deno KV | 11.0 | 1j |
+| DROP `mcp_tool` (merger vers tool_schema) | 11.0 | 0.5j |
+| FK sur `permission_audit_log` | 11.0 | 0.5j |
+| DROP colonne `source` de `tool_dependency` | 11.0 | 0.5j |
 
-### 4.2 Actions Futures (Post-Epic 10)
+### 4.2 Actions Epic 11 (Post-11.0)
+
+| Action | Story | Effort |
+|--------|-------|--------|
+| DROP `workflow_execution` + CREATE `execution_trace` | 11.2 | 2-3j |
+
+### 4.3 Actions Futures (Post-Epic 11)
 
 | Action | Effort | Breaking? |
 |--------|--------|-----------|
-| Merger `tool_schema` + `mcp_tool` | 1j | Tests E2E |
-| FK sur `permission_audit_log` | 0.5j | Non |
 | Renommer `workflow_pattern` → `capability` | 2-3j | **Oui** |
-| Supprimer `source` de `tool_dependency` | 0.5j | Non |
 | Renommer `adaptive_config` → `default_thresholds` | 0.5j | Non |
 
-### 4.3 Schema Cible (Post-Cleanup)
+### 4.4 Schema Cible (Post-Cleanup)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -471,12 +480,9 @@ DROP TABLE IF EXISTS mcp_tool CASCADE;
 ## 6. Conclusion
 
 Le schéma DB a évolué organiquement avec les epics, résultant en quelques incohérences.
-L'Epic 10 corrige les problèmes les plus critiques (`workflow_execution` → `execution_trace`, `workflow_dags` → KV).
-
-Les autres cleanups peuvent être faits progressivement sans impact majeur.
+L'Epic 11 corrige tous les problèmes dans Story 11.0 (cleanup) et Story 11.2 (execution_trace).
 
 **Priorités:**
-1. ✅ Epic 10.3b + 10.4 (en cours)
-2. FK `permission_audit_log` (quick win)
-3. Merger `mcp_tool` (tests E2E à adapter)
-4. Rename `workflow_pattern` (dernier, breaking change)
+1. **Story 11.0** - Cleanup complet : KV migration, merge mcp_tool, FK, drop source
+2. **Story 11.2** - `workflow_execution` → `execution_trace` avec FK capability
+3. **Post-Epic 11** - Rename `workflow_pattern` → `capability` (breaking change)
