@@ -232,6 +232,123 @@ Parameters come from user intent, not previous tasks. Options:
 | `src/speculation/speculative-executor.ts` | Replace placeholder in `generateSpeculationCode` |
 | `src/graphrag/prediction/capabilities.ts` | Use static_structure arguments in `createCapabilityTask` |
 
+## Execution Modes Analysis: per_layer_validation vs AIL
+
+### Two Independent Mechanisms
+
+There are TWO separate pause mechanisms in the executor, often confused:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  MECHANISM 1: per_layer_validation (Checkpoints)               │
+│                                                                 │
+│  Activation:                                                    │
+│    pml_execute({ config: { per_layer_validation: true } })     │
+│                                                                 │
+│  Code path:                                                     │
+│    workflow-execution-handler.ts:143                            │
+│    → executeWithPerLayerValidation()                           │
+│    → controlledExecutor.executeStream()                        │
+│    → saveCheckpoint() after each layer                         │
+│    → yield "checkpoint" event                                  │
+│                                                                 │
+│  Handler catches checkpoint → returns "layer_complete"         │
+│  Claude calls "continue" to resume                             │
+│                                                                 │
+│  Purpose: VALIDATION between layers                            │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│  MECHANISM 2: AIL (Agent-in-the-Loop)                          │
+│                                                                 │
+│  Activation:                                                    │
+│    ExecutorConfig.ail = {                                      │
+│      enabled: true,                                            │
+│      decision_points: "per_layer" | "on_error" | "manual"      │
+│    }                                                           │
+│                                                                 │
+│  Code path:                                                     │
+│    controlled-executor.ts:1069                                  │
+│    → shouldTriggerAIL(config, layerIdx, hasErrors)             │
+│    → yield "decision_required" event                           │
+│    → waitForAILResponse() blocks for continue/abort/replan     │
+│                                                                 │
+│  Purpose: AGENT DECISIONS (abort, replan workflow)             │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Key Discovery: They Are Independent!
+
+| Configuration | Checkpoints | Decision Points |
+|---------------|-------------|-----------------|
+| `per_layer_validation: true` only | ✅ Yes | ❌ No |
+| `ail.enabled + per_layer` only | ❌ No | ✅ Yes |
+| Both enabled | ✅ Yes | ✅ Yes |
+| Neither | ❌ No | ❌ No |
+
+**Important**: `per_layer_validation: true` does NOT automatically enable `ail.enabled`!
+
+The handler creates ControlledExecutor with **default config** (`ail.enabled: false`):
+
+```typescript
+// workflow-execution-handler.ts:312-318
+const controlledExecutor = new ControlledExecutor(
+  createToolExecutor(deps.mcpClients),
+  {
+    taskTimeout: ServerDefaults.taskTimeout,
+    userId: userId ?? "local",
+    // NOTE: No ail config passed! Uses default: { enabled: false }
+  },
+);
+```
+
+### Where Speculation Fits In
+
+Speculation is most useful during **pause windows** between layers:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  SPECULATION OPPORTUNITY WINDOWS                                │
+│                                                                 │
+│  1. During slow tool execution (Tool A running, speculate B)   │
+│     → Already implemented in startSpeculativeExecution()       │
+│                                                                 │
+│  2. During per_layer_validation pause                          │
+│     Layer complete → checkpoint → Claude thinking              │
+│                      ↑                                         │
+│                      Speculate here! (results available)       │
+│                                                                 │
+│  3. During AIL decision pause                                  │
+│     Layer complete → decision_required → Agent thinking        │
+│                      ↑                                         │
+│                      Speculate here! (has abort/replan option) │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Recommendation for Real Speculation
+
+For speculation with arguments to work well:
+
+1. **Enable both mechanisms** when speculation is wanted:
+   ```typescript
+   pml_execute({
+     config: {
+       per_layer_validation: true,
+       ail: { enabled: true, decision_points: "per_layer" }
+     }
+   })
+   ```
+
+2. **During checkpoint pause**:
+   - Previous layer results are available in context
+   - `predictNextNodes()` can resolve arguments from results
+   - Speculate the likely next tool with real arguments
+
+3. **On speculation miss (replan)**:
+   - AIL allows `replan_dag` command
+   - Discard speculated results
+   - Re-generate DAG based on new context
+
 ## References
 
 - ADR-006: Speculative Execution
