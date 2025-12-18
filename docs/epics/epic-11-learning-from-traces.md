@@ -33,6 +33,54 @@ Implémenter le système d'apprentissage basé sur les traces d'exécution. Capt
 **Epic 10** crée les Capabilities (analyse statique) et les APIs unifiées.
 **Epic 11** apprend des exécutions pour enrichir les Capabilities.
 
+### Décision Architecturale: DAG Complet vs Trace Exécutée
+
+| Couche | Stocke | Raison | Envoyé au LLM |
+|--------|--------|--------|---------------|
+| **Capability** (Epic 10) | DAG complet avec branches conditionnelles | Réutilisabilité, toutes les alternatives | ❌ Non (trop verbeux) |
+| **Trace** (Epic 11) | Chemin réellement exécuté | Learning, résultats concrets | ✅ Oui (minimal, pertinent) |
+
+**Pourquoi stocker le DAG complet dans Capability ?**
+- Les conditions (`file.exists`, `response.status === 200`) ne sont évaluables qu'au runtime
+- On ne peut pas savoir à l'avance quel chemin sera pris
+- Stocker toutes les branches permet de réutiliser la capability dans différents contextes
+
+**Pourquoi ne retourner que la trace au LLM ?**
+- Évite la pollution du contexte avec des branches non prises
+- Le LLM n'a besoin que de ce qui s'est passé, pas de ce qui aurait pu se passer
+- La trace inclut les `decisions` (quelle branche prise et pourquoi)
+
+**Flow d'exécution :**
+```
+┌─────────────────────────────────────────────────────────────┐
+│  1. Capability.static_structure (DAG complet)               │
+│     └── Stocké avec toutes les branches conditionnelles     │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            ▼ exécution runtime
+┌─────────────────────────────────────────────────────────────┐
+│  2. Évaluation des conditions au runtime                    │
+│     └── file.exists? → true → prend branche A               │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            ▼ après exécution
+┌─────────────────────────────────────────────────────────────┐
+│  3. ExecutionTrace (chemin réel)                            │
+│     └── executed_path: ["check_file", "read_file"]          │
+│     └── decisions: [{nodeId: "d1", outcome: "true"}]        │
+│     └── task_results: [...]                                 │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            ▼ retour au LLM
+┌─────────────────────────────────────────────────────────────┐
+│  4. Réponse minimale                                        │
+│     └── Seulement les résultats du chemin exécuté           │
+│     └── Pas les branches non prises                         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Flux Epic 10 → Epic 11
+
 ```
 Epic 10 (Capability Creation)          Epic 11 (Learning from Traces)
 ─────────────────────────────          ─────────────────────────────────
