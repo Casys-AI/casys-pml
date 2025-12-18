@@ -238,6 +238,5 @@ Same principle for AI agents.
 ## References
 
 - Kahneman, D. (2011). *Thinking, Fast and Slow*.
-- Internal: ADR-038 - Two-Layer Discovery Architecture
 
 #Architecture #TwoLayer #SystemDesign #Scaling

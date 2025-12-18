@@ -249,6 +249,5 @@ The result: a system that learns your skills by watching you work.
 
 - Von Luxburg, U. (2007). "A Tutorial on Spectral Clustering." *Statistics and Computing*.
 - Blondel, V. et al. (2008). "Fast unfolding of communities in large networks." (Louvain method)
-- Internal: ADR-029 - Capability Emergence
 
 #Emergence #Capabilities #MachineLearning #SelfOrganization

@@ -144,7 +144,7 @@ sequenceDiagram
 
 ### Scoring Formulas
 
-We use different formulas for different modes (see ADR-038, ADR-048):
+We use different formulas for different modes:
 
 **Active Search (user query):**
 ```
@@ -188,6 +188,5 @@ It's "How do I combine them effectively?"
 
 - Lewis, P. et al. (2020). "Retrieval-Augmented Generation." NeurIPS.
 - Microsoft Research. (2024). "GraphRAG: Unlocking LLM discovery on narrative private data."
-- Internal: ADR-038 - Two-Layer Discovery Architecture
 
 #GraphRAG #VectorRAG #Hybrid #AIArchitecture

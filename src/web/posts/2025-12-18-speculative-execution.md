@@ -154,7 +154,7 @@ graph LR
     end
 ```
 
-The break-even point depends on your hit rate and cost ratio. Current configuration (ADR-006) uses a 70% confidence threshold with adaptive adjustment.
+The break-even point depends on your hit rate and cost ratio. We use a 70% confidence threshold with adaptive adjustment.
 
 **When it's worth it:**
 - Interactive workflows where user waits
@@ -171,6 +171,5 @@ The break-even point depends on your hit rate and cost ratio. Current configurat
 ## References
 
 - CPU speculation (branch prediction) as inspiration
-- Internal: ADR on speculative execution
 
 #Performance #Speculation #Optimization #Parallelism

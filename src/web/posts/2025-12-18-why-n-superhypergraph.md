@@ -195,6 +195,5 @@ Casys PML might be the first.
 
 - Smarandache, F. (2019). "n-SuperHyperGraph." *Neutrosophic Sets and Systems*, 30, 11-18.
 - Fujita, T. & Smarandache, F. (2025). "Directed Acyclic SuperHypergraphs (DASH)." Engineering Archive.
-- Internal: [ADR-050 - SuperHyperGraph Edge Constraints](/docs/adrs/ADR-050-superhypergraph-edge-constraints)
 
 #GraphTheory #SuperHyperGraph #AIArchitecture #CasysPML

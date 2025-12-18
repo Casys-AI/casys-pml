@@ -216,6 +216,5 @@ The DAG integrates with our two-layer architecture:
 ## References
 
 - Airflow, Prefect, Dagster as DAG workflow examples
-- Internal: Workflow execution engine
 
 #DAG #Workflows #Parallelism #Architecture

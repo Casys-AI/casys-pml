@@ -185,6 +185,5 @@ As the AI landscape evolves, MCP-compatible tools remain relevant. New models ad
 ## References
 
 - [Model Context Protocol Specification](https://modelcontextprotocol.io)
-- Internal: Our MCP server implementation
 
 #MCP #Protocol #Interoperability #AITools
