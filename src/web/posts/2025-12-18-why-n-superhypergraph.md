@@ -134,21 +134,7 @@ graph TD
     CAP2 --> CAP3
 ```
 
-```typescript
-// What our graph can now express
-const releaseProcess: SuperHyperEdge = {
-  id: "release-v2",
-  type: "meta-capability",
-  contains: [
-    { id: "git-workflow", type: "capability", tools: ["git_commit", "github_push"] },
-    { id: "test-suite", type: "capability", tools: ["jest_run", "coverage_report"] },
-    { id: "deploy-aws", type: "capability", contains: [
-      { id: "docker-build", type: "capability", tools: ["docker_build", "docker_push"] },
-      { id: "ecs-deploy", type: "capability", tools: ["aws_ecs_update"] }
-    ]}
-  ]
-};
-```
+The structure is recursive: capabilities can contain tools *or other capabilities*, to any depth.
 
 ## The Academic Foundation
 
@@ -189,19 +175,13 @@ graph LR
 
 ### Query Examples
 
-```typescript
-// Find all capabilities that use a specific tool
-const usedIn = graph.getAncestors("github_push", "contains");
-// → ["git-workflow", "release-v2"]
+The structure enables powerful queries:
 
-// Find entry points for execution
-const roots = graph.findRootCapabilities("dependency");
-// → Capabilities with no unsatisfied dependencies
-
-// Get the full skill tree
-const skillTree = graph.getDescendants("release-v2", "contains");
-// → Complete nested structure
-```
+| Query | What It Returns |
+|-------|----------------|
+| "Who uses github_push?" | git-workflow → release-v2 (ancestors) |
+| "Entry points?" | Capabilities with no dependencies (roots) |
+| "What's in release-v2?" | Complete nested skill tree (descendants) |
 
 ## What's Next
 

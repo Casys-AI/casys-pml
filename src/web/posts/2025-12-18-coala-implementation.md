@@ -55,54 +55,12 @@ graph TD
     L --> P
 ```
 
-### Working Memory
-**What:** Current workflow state, active context, pending decisions.
-**Storage:** In-memory (ephemeral).
-**Access:** Every decision cycle.
-
-```typescript
-interface WorkflowState {
-  messages: Message[];
-  tasks: Task[];
-  decisions: Decision[];
-  context: ExecutionContext;
-}
-```
-
-### Episodic Memory
-**What:** Past experiences with outcomes.
-**Storage:** PGlite (persistent).
-**Access:** "Remember when this happened before?"
-
-```typescript
-interface EpisodicEvent {
-  id: string;
-  contextHash: string;
-  toolsUsed: string[];
-  outcome: 'success' | 'failure';
-  timestamp: Date;
-}
-```
-
-### Semantic Memory
-**What:** Inferred facts, constraints, causal relationships.
-**Storage:** PGlite (persistent).
-**Access:** "Tool X requires Tool Y first."
-
-```typescript
-interface SemanticFact {
-  type: 'constraint' | 'preference' | 'causal';
-  subject: string;
-  predicate: string;
-  object: string;
-  confidence: number;
-}
-```
-
-### Procedural Memory
-**What:** Learned skills (capabilities), tool patterns.
-**Storage:** GraphRAG (SuperHyperGraph).
-**Access:** "How do I deploy to production?"
+| Memory Type | What It Stores | Example Query |
+|-------------|---------------|---------------|
+| **Working** | Current state, pending tasks | "What's happening now?" |
+| **Episodic** | Past experiences + outcomes | "Did this work last time?" |
+| **Semantic** | Facts, constraints, rules | "Tool X requires Y first" |
+| **Procedural** | Skills, capabilities | "How do I deploy?" |
 
 ## The Five Feedback Loops
 
@@ -141,38 +99,13 @@ graph TB
     L4 --> L5
 ```
 
-### Loop 1: Execution (milliseconds)
-Real-time event-driven task execution.
-
-### Loop 2: Adaptation (seconds)
-Runtime DAG modification based on discoveries.
-
-```typescript
-// When a discovery happens mid-workflow
-async replanDAG(discovery: Discovery): Promise<void> {
-  const suggestions = await this.graphRAG.suggest(discovery.context);
-  const approved = await this.decisionEngine.evaluate(suggestions);
-  this.dag.injectNodes(approved);
-}
-```
-
-### Loop 3: Learning (minutes)
-Post-workflow graph updates.
-
-```typescript
-// After workflow completion
-async learn(workflow: CompletedWorkflow): Promise<void> {
-  const patterns = this.extractPatterns(workflow);
-  await this.graphRAG.updateEdges(patterns);
-  await this.pageRank.recompute();
-}
-```
-
-### Loop 4: Emergence (hours)
-Spectral clustering detects capability patterns.
-
-### Loop 5: Evolution (days)
-Meta-capabilities form from capability combinations.
+| Loop | Timescale | What Happens |
+|------|-----------|--------------|
+| **Execution** | Milliseconds | Task runs, event fires, state updates |
+| **Adaptation** | Seconds | Discovery triggers DAG replanning |
+| **Learning** | Minutes | Workflow patterns update the graph |
+| **Emergence** | Hours | Clustering detects new capabilities |
+| **Evolution** | Days | Meta-capabilities form hierarchies |
 
 ## Learning Mechanisms
 
@@ -180,15 +113,12 @@ Meta-capabilities form from capability combinations.
 
 Not all experiences are equal. We prioritize **surprising outcomes**:
 
-```typescript
-// Priority = prediction error
-const priority = Math.abs(predictedSuccess - actualSuccess);
-
-// Sample proportional to priority
-const samples = buffer.sampleByPriority(batchSize);
+```
+Uniform sampling:     P(experience) = 1/N
+Prioritized sampling: P(experience) ∝ |prediction_error|^α
 ```
 
-Learning from mistakes is 2x more valuable than reinforcing successes.
+Surprising failures teach more than predictable successes. Result: **2x faster learning**.
 
 ### Temporal Difference Learning
 
@@ -207,34 +137,44 @@ graph LR
     end
 ```
 
-Result: 5x faster adaptation.
+The key insight: each step's outcome gives information about the next step's value.
+
+```
+TD Update: V(state) ← V(state) + α × [reward + γ×V(next) - V(state)]
+```
+
+Result: **5x faster adaptation**.
 
 ### Adaptive Thresholds
 
-Confidence thresholds self-adjust based on outcomes:
+Confidence thresholds self-adjust:
+- High error → Be more conservative (raise threshold)
+- Low error → Be more aggressive (lower threshold)
 
-```typescript
-// After each workflow step
-const tdError = reward + gamma * nextValue - currentValue;
-threshold -= learningRate * tdError;
-threshold = clamp(threshold, 0.70, 0.95);
-```
+The system finds its own optimal operating point.
 
-## The Result: System-Wide Meta-Learning
+## System-Wide Meta-Learning
 
 Unlike CoALA's single-agent focus, our learning is **cross-workflow and cross-user**:
 
-| CoALA | Casys PML |
-|-------|-----------|
-| Agent learns from own experiences | System learns from all executions |
-| Individual memory | Shared knowledge graph |
-| Per-agent improvement | Global capability emergence |
+```mermaid
+graph TD
+    subgraph "CoALA (Single Agent)"
+        U1[User 1] --> A1[Agent 1]
+        A1 --> M1[Memory 1]
+    end
+
+    subgraph "Casys PML (Shared)"
+        U2[User 1] --> S[Shared System]
+        U3[User 2] --> S
+        U4[User 3] --> S
+        S --> G[Global Graph]
+    end
+```
 
 When one user discovers a pattern, **everyone benefits**.
 
 ## Practical Impact
-
-After implementing this architecture:
 
 | Metric | Before | After |
 |--------|--------|-------|
