@@ -156,6 +156,7 @@ export default function DocsPage({ data }: { data: DocsPageData }) {
             font-family: var(--font-sans);
             display: flex;
             flex-direction: column;
+            overflow-x: hidden;
           }
 
           /* Header */
