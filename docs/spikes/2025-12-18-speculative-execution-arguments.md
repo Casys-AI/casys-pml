@@ -334,6 +334,13 @@ With `per_layer_validation: true` alone, Claude can already:
 AIL adds:
 - **replan_dag** → modify the DAG mid-execution based on new context
 
+**Note on replan**: Don't underestimate this feature. In practice, it could be useful when:
+- Claude discovers unexpected files/formats during execution
+- Intermediate results suggest a different approach is needed
+- Error recovery requires adding diagnostic/fix tasks
+
+The key is to ensure it's accessible. Currently `pml:replan` tool exists but AIL isn't auto-enabled with `per_layer_validation`.
+
 **Cleanup opportunity**: The two mechanisms could potentially be consolidated:
 - `per_layer_validation` handles checkpointing + basic continue/abort
 - AIL handles advanced decisions (replan)
