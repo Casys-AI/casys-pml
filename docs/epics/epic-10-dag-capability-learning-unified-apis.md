@@ -27,6 +27,126 @@ Unifier les deux modèles d'exécution (DAG explicite et Code libre) en un syst�
 - ✅ **Preview intelligent** - `resultPreview` + `pml_get_task_result` pour AIL
 - ✅ **Provides edges** - Chaînage data explicite entre tools
 
+---
+
+### Unified Learning Model (Philosophy)
+
+> **Principe fondamental:** Le CODE est le chemin principal. Les DAGs émergent de l'exécution,
+> ils ne sont pas définis à priori. Une Capability est un workflow validé par l'usage.
+
+**Le flow d'apprentissage:**
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  1. INTENT                                                               │
+│     "Analyser ce fichier JSON et créer un ticket GitHub"                │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  2. CAPABILITY EXISTS?                                                   │
+│     Recherche GraphRAG: intent → capabilities existantes                │
+│     Match > 0.85 ? → Replay capability (skip to step 6)                 │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │ NO MATCH
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  3. CODE GENERATION                                                      │
+│     L'IA génère du TypeScript qui appelle des MCP tools                 │
+│     ```typescript                                                        │
+│     const content = await mcp.fs.read({ path: "data.json" });           │
+│     const parsed = JSON.parse(content);                                 │
+│     await mcp.github.createIssue({ title: parsed.summary, ... });       │
+│     ```                                                                  │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  4. CODE EXECUTION (Sandbox)                                             │
+│     - Traces capturées: tool_start, tool_end + result                   │
+│     - Timestamps pour détection parallélisme                            │
+│     - HIL si tools sensibles détectés                                   │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  5. DAG RECONSTRUCTION (POST-EXEC)                                       │
+│     Traces → DAGStructure:                                              │
+│     - Tasks: fs:read → json:parse → github:createIssue                  │
+│     - Dependencies: data flow détecté via result → args                 │
+│     - Parallel: timestamps overlapping = pas de dépendance              │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  6. CAPABILITY CREATED/UPDATED                                           │
+│     Le DAG reconstruit devient une Capability réutilisable              │
+│     Stockée avec: intent_embedding, source (code ou dag), success_rate  │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  7. NEXT TIME: REPLAY                                                    │
+│     Intent similaire → Capability matchée → Exécution sans regénération │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**Capabilities = Tools abstraits:**
+
+Une Capability n'est pas forcément un DAG interne. Elle peut être:
+
+| Type | Exemple | Exécution |
+|------|---------|-----------|
+| **DAG interne** | `fs:read → json:parse → github:createIssue` | PML exécute les tasks |
+| **Code snippet** | TypeScript avec logique complexe | Sandbox PML |
+| **Tool externe** | Temporal workflow, Airflow DAG | Délégation à l'orchestrateur |
+
+**Exemple Temporal:**
+
+```typescript
+// Capability apprise: "deploy_to_production"
+// Au lieu de reconstruire le DAG, on délègue à Temporal
+{
+  type: "external_tool",
+  tool: "temporal:startWorkflow",
+  workflowId: "deploy-prod-v2",
+  args: { version: "{{input.version}}" }
+}
+```
+
+→ PML apprend que pour "deploy to production", le meilleur chemin est d'appeler Temporal,
+pas d'exécuter 15 tools MCP séquentiellement.
+
+**Implications pour l'implémentation:**
+
+1. **Story 10.7 `pml_execute`**: L'option `implementation.type = "dag"` est pour **replay**,
+   pas pour l'exécution normale. Le chemin par défaut = code → traces → learning.
+
+2. **Capability.source** peut être:
+   - `{ type: "code", code: string }` - Code TypeScript
+   - `{ type: "dag", dagStructure: DAGStructure }` - DAG interne reconstruit
+   - `{ type: "tool", toolId: string, args: Record }` - Délégation à un tool (ex: Temporal)
+
+3. **Learning continu**: Chaque exécution réussie améliore la capability
+   (success_rate++, structure raffinée).
+
+4. **Gestion des conditionnels (KISS):**
+   - On capture **ce qui s'est passé** (traces réelles), pas ce qui pourrait se passer
+   - La capability représente le **pattern dominant** (happy path)
+   - Si les arguments changent le chemin d'exécution → on trace la variante
+   - **Future:** Merge des branches si le besoin est prouvé (pas dans Epic 10)
+
+   ```
+   Exécution 1: args={exists:true}  → trace [fs:read]           → count++
+   Exécution 2: args={exists:false} → trace [fs:create,fs:write] → variant tracked
+   Exécution 3: args={exists:true}  → trace [fs:read]           → count++
+
+   → Capability.dominantPath = [fs:read] (66% des exécutions)
+   → Capability.variants = [{ path: [fs:create,fs:write], count: 1 }]
+   ```
+
+---
+
 **Architecture Unifiée:**
 
 ```
@@ -64,10 +184,15 @@ Unifier les deux modèles d'exécution (DAG explicite et Code libre) en un syst�
 
 ### Story Breakdown - Epic 10
 
-**Story 10.1: Static Code Analysis - DAG Preview (PRE-EXECUTION)** ⭐ FIRST
+**Story 10.1: Static Code Analysis - DAG Preview (PRE-EXECUTION)** ∥ PARALLEL avec Track A
 
 As an execution system, I want to parse code statically to generate a DAG preview BEFORE execution,
 So that I can validate permissions, detect tools, and enable proper HIL/AIL approval flows.
+
+**Position dans l'Epic:**
+- Peut être développée **en parallèle** avec Track A (10.2 → 10.3 → 10.4)
+- N'est PAS un prérequis pour 10.2-10.4 (contrairement à ce qui était indiqué avant)
+- Devient nécessaire pour 10.5 (unified capability) et 10.7 (pml_execute avec HIL)
 
 **Context:**
 C'est le **chaînon manquant** entre le code et la validation par layer. Sans parsing statique :
@@ -163,16 +288,28 @@ const [a, b] = await Promise.all([
 ]);
 // → Task api:fetch_1, Task api:fetch_2, pas de dependsOn entre eux
 
-// Pattern 6: Conditionnel → certainty: "conditional"
+// Pattern 6: Conditionnel → détecté comme appel potentiel
 if (condition) {
   await mcp.db.write({ data });
 }
 
-// Pattern 7: Loop → certainty: "loop"
+// Pattern 7: Loop → détecté comme appel potentiel
 for (const item of items) {
   await mcp.process.run({ item });
 }
 ```
+
+**Gestion des Loops et Conditions - Approche minimaliste:**
+
+On ne stocke PAS si c'est loop/conditionnel. Pourquoi ?
+
+| Vue | Ce qu'on voit | Suffisant ? |
+|-----|---------------|-------------|
+| **HIL pre-approval** | "db:write peut être appelé" | ✅ Oui |
+| **Invocation** | Traces réelles (N appels si loop) | ✅ Oui |
+| **Definition** | Tool existe dans le graphe | ✅ Oui |
+
+**Conclusion** : Le parsing détecte TOUS les appels potentiels → HIL approuve → traces montrent la réalité.
 
 **Acceptance Criteria:**
 
@@ -194,9 +331,11 @@ for (const item of items) {
      type: "tool" | "capability";
      name: string;               // tool_id ou capability name
      dependsOn: string[];
-     certainty: "definite" | "conditional" | "loop";
      sourceLocation: { line: number; column: number };
    }
+
+   // Note: Pas de `certainty` - on détecte TOUS les appels potentiels.
+   // Les traces POST-exec montrent ce qui s'est vraiment passé.
 
    interface SchemaValidationResult {
      from: string;
@@ -211,11 +350,10 @@ for (const item of items) {
 5. Validation des chaînages via schemas:
    - Variable assignment tracking (comme SchemaInferrer fait déjà)
    - Lookup schemas en DB pour valider output→input compatibility
-6. Détection control flow:
-   - `await` → séquence
-   - `Promise.all/allSettled` → parallélisme
-   - `if/else` → conditional
-   - `for/while/map` → loop
+6. Détection control flow (pour dependsOn):
+   - `await` séquentiel → dépendance
+   - `Promise.all/allSettled` → parallélisme (pas de dependsOn entre eux)
+   - Traverser `if/else`, `for/while/map` pour trouver les appels à l'intérieur
 7. **Intégration avec `requiresValidation()`:**
    - Avant exécution, parse le code
    - Extraire `detectedTools` + `detectedCapabilities`
@@ -226,7 +364,7 @@ for (const item of items) {
 10. Tests: code avec capabilities → détection correcte
 11. Tests: chaînage tool→tool → validation schema
 12. Tests: chaînage capability→tool → validation schema
-13. Tests: code dynamique → flags appropriés
+13. Tests: code avec if/loop → tous les appels internes détectés
 
 **Files to Create:**
 - `src/capabilities/code-to-dag-parser.ts` (~100-150 LOC, étend patterns existants)
@@ -245,10 +383,15 @@ Avec le DAG preview, on peut demander l'approbation AVANT d'exécuter, pas aprè
 
 ---
 
-**Story 10.2: Result Tracing - Capture des Résultats d'Exécution**
+**Story 10.2: Result Tracing - Capture des Résultats d'Exécution** ⭐ FONDATION - START HERE
 
 As a learning system, I want to capture the `result` of each tool and capability execution,
 So that I can reconstruct data dependencies and create `provides` edges.
+
+**Position dans l'Epic:**
+- **VRAIE FONDATION** du Track A (Learning)
+- Doit être faite EN PREMIER (quick win : ~5-10 LOC)
+- Débloque 10.3 (provides edges) et 10.4 (DAG reconstruction)
 
 **Context:**
 Actuellement on trace `args` mais pas `result`. Sans le result,
@@ -317,7 +460,10 @@ type ProvidesCoverage =
 
 **Acceptance Criteria:**
 
-1. `provides` ajouté à `EdgeType` dans `edge-weights.ts` ligne 18
+1. **Cleanup EdgeType** dans `edge-weights.ts`:
+   - Ajouter `provides`
+   - Retirer `alternative` (non utilisé, pas dans ADR-050)
+   - `EdgeType` final : `"dependency" | "contains" | "sequence" | "provides"`
 2. Weight configuré: `provides: 0.7` dans `EDGE_TYPE_WEIGHTS`
 3. Interface `ProvidesEdge` définie avec **schemas exposés**:
    ```typescript
@@ -395,37 +541,65 @@ function containsValue(args, result): boolean {
 4. Détection parallélisme via timestamps:
    - Si `endTime(A) < startTime(B)` → séquence
    - Si timestamps overlap → parallel (pas d'edge)
+
+   > **BUG FIX:** Actuellement `execution-learning.ts` crée des edges `sequence`
+   > basés uniquement sur l'**ordre dans l'array**, ce qui est incorrect pour les
+   > exécutions parallèles. Le fix utilise **timestamps (ts + durationMs) EN DUO
+   > avec l'ordre array**:
+   > - `ts + durationMs` → détermine si overlap (parallel) ou séquence
+   > - `ordre array` → détermine la direction de l'edge quand séquence
+   >   (A avant B dans l'array ET pas d'overlap → edge A→B)
 5. `inferredStructure` ajouté à `Capability`:
    ```typescript
    inferredStructure: {
      tools: string[];
      edges: Array<{ from, to, type }>;
+     executionOrder: ExecutionOrder;  // ← NOUVEAU
    }
    ```
-6. Tests: trace séquence A→B→C → DAG avec dependsOn correct
-7. Tests: trace parallèle [A, B]→C → A et B sans edge entre eux, C dépend des deux
-8. Tests: trace avec result utilisé partiellement (result.data.id) → détecté
+6. **`executionOrder` structure** - Capture séquence ET parallélisme en une structure nested:
+   ```typescript
+   // Type: (string | ExecutionOrder[])[]
+   // Exemples:
+   ["A", "B", "C"]           // Séquence simple
+   ["A", ["B", "C"], "D"]    // A → (B || C) → D (fan-out/fan-in)
+   ["fs:read", ["fs:read", "http:get"], "json:parse"]  // Same tool 2x = position implicite
+   ```
+   - Calculé UNE fois à l'exécution (via ts + durationMs)
+   - Stocké dans `dag_structure.execution_order` (JSONB)
+   - Pas de recalcul à chaque lecture
+   - Same tool appelé 2x → position dans l'array = identifiant implicite, détails dans traces
+7. Method `buildExecutionOrder(traces: TraceEvent[])` → `ExecutionOrder`:
+   - Trier traces par `ts` (start time)
+   - Calculer `endTime = ts + durationMs` pour chaque trace
+   - Grouper les traces dont timestamps overlap → array nested
+   - Les autres → string simple dans l'ordre
+8. Tests: trace séquence A→B→C → `executionOrder: ["A", "B", "C"]`
+9. Tests: trace parallèle [A, B]→C → `executionOrder: ["A", ["B", "C"]]` + edges A→C, B→C
+10. Tests: trace avec result utilisé partiellement (result.data.id) → dépendance détectée
+11. Tests: same tool 2x séquentiel → `["fs:read", "fs:read"]`, distingués par position
 
 **Files to Create:**
-- `src/graphrag/dag-reconstruction.ts` (~150 LOC)
+- `src/graphrag/dag-reconstruction.ts` (~200 LOC, inclut `buildExecutionOrder`)
 
 **Files to Modify:**
-- `src/capabilities/types.ts` (~20 LOC)
+- `src/capabilities/types.ts` (~30 LOC, ajout `ExecutionOrder` type)
+- `src/capabilities/capability-store.ts` (~10 LOC, stockage `execution_order`)
 
 **Prerequisites:** Story 10.2, Story 10.3
 
-**Estimation:** 2-3 jours
+**Estimation:** 2-3 jours (inchangé, `executionOrder` est ~0.5j inclus)
 
 ---
 
-**Story 10.5: Unified Capability Model (Code OR DAG)**
+**Story 10.5: Unified Capability Model (Code, DAG, or Tool)**
 
-As a capability storage system, I want capabilities to support both code and DAG sources,
-So that any successful execution becomes a reusable capability.
+As a capability storage system, I want capabilities to support code, DAG, and external tool sources,
+So that any successful execution becomes a reusable capability, including delegation to orchestrators like Temporal.
 
 **Context:**
 Phase 3 de la tech spec. Actuellement les capabilities stockent uniquement du code.
-On veut pouvoir stocker aussi des DAGStructures.
+On veut pouvoir stocker aussi des DAGStructures ET des références à des tools externes.
 
 **Breaking Change:**
 ```typescript
@@ -438,7 +612,23 @@ interface Capability {
 interface Capability {
   source:
     | { type: "code"; code: string }
-    | { type: "dag"; dagStructure: DAGStructure };
+    | { type: "dag"; dagStructure: DAGStructure }
+    | { type: "tool"; toolId: string; defaultArgs?: Record<string, unknown> };
+}
+```
+
+**Exemple Tool Externe (Temporal):**
+```typescript
+// Capability apprise: pour "deploy to production", déléguer à Temporal
+{
+  id: "cap_deploy_prod",
+  intent: "deploy to production",
+  source: {
+    type: "tool",
+    toolId: "temporal:startWorkflow",
+    defaultArgs: { workflowId: "deploy-prod-v2" }
+  },
+  success_rate: 0.98
 }
 ```
 
@@ -448,7 +638,8 @@ interface Capability {
    ```typescript
    source:
      | { type: "code"; code: string }
-     | { type: "dag"; dagStructure: DAGStructure };
+     | { type: "dag"; dagStructure: DAGStructure }
+     | { type: "tool"; toolId: string; defaultArgs?: Record<string, unknown> };
    ```
 2. `Capability.inferredStructure` ajouté (from Story 10.4)
 3. Migration DB: transformer `code` → `source` JSON column
@@ -468,7 +659,9 @@ interface Capability {
 8. Tous les usages de `capability.code` migrés
 9. Tests: sauvegarder capability code → retrieve → source.type === "code"
 10. Tests: sauvegarder capability dag → retrieve → source.type === "dag"
-11. Tests: execute_dag success → capability créée avec type=dag
+11. Tests: sauvegarder capability tool → retrieve → source.type === "tool"
+12. Tests: execute_dag success → capability créée avec type=dag
+13. Tests: capability type=tool → exécution délègue au tool référencé
 
 **Files to Modify:**
 - `src/capabilities/types.ts` (~30 LOC)
@@ -751,10 +944,25 @@ la vue Invocation montre chaque appel réel avec timestamps.
 
 ---
 
-**Story 10.10: Dry Run Mode with Mocks (Connector Debugging)**
+**Story 10.10: Dry Run Mode with Mocks (Connector Debugging)** 🔮 FUTURE - Post-MVP
 
 As a workflow developer, I want to dry-run code with mocked MCP responses,
 So that I can debug and validate complex workflows without real side effects, especially for connector MCPs.
+
+**Position dans l'Epic:**
+- **NON NÉCESSAIRE pour le MVP** - Le parsing statique (10.1) suffit pour HIL/permissions
+- Utile uniquement pour des cas avancés : estimation coût API, debug complexe, test connecteurs
+- À implémenter SI et QUAND le besoin se présente
+
+**Pourquoi le parsing statique suffit pour HIL:**
+| Question HIL | Parsing statique | Dry run |
+|--------------|------------------|---------|
+| "Quels tools PEUVENT être appelés ?" | ✅ Détecté | Idem |
+| "Quelles permissions nécessaires ?" | ✅ Détecté | Idem |
+| "Y a-t-il des side effects ?" | ✅ Détecté | Idem |
+| "Combien de fois exactement ?" | ❌ Inconnu | ✅ Avec mocks |
+
+→ Les 3 premières questions suffisent pour HIL. La 4ème est un nice-to-have.
 
 **Context:**
 Le parsing statique (Story 10.1) suffit pour HIL/permissions, mais pour le **debugging** de workflows
@@ -900,38 +1108,66 @@ avec des MCP connecteurs externes.
 ### Epic 10 Dependencies
 
 ```
-★ Story 10.1 (DAG Preview) ← FIRST! Valide SWC, débloque HIL Phase 4
-    │
-    │   (peut démarrer en parallèle avec 10.2-10.4)
-    │
-    ├──▶ Story 10.2 (result tracing)
-    │        │
-    │        └──▶ Story 10.3 (provides edge)
-    │                  │
-    │                  └──▶ Story 10.4 (DAG reconstruction POST-exec)
-    │
-    └──▶ Story 10.5 (unified capability) ← Utilise 10.1 + 10.4
-              │
-              ▼
-         Story 10.6 (pml_discover)
-              │
-              ▼
-         Story 10.7 (pml_execute) ←── Intègre 10.1 pour preview!
-              │
-              ▼
-         Story 10.8 (pml_get_task_result)
-              │
-              ▼
-         Story 10.9 (Definition/Invocation views)
-              │
-              ▼
-         Story 10.10 (Dry Run + Mocks) ← Optional, pour debug connecteurs
+┌─────────────────────────────────────────────────────────────────┐
+│  DEUX TRACKS PARALLÈLES                                          │
+│                                                                  │
+│  Track A (Learning - POST-exec):    Track B (HIL - PRE-exec):   │
+│  ────────────────────────────────   ─────────────────────────   │
+│                                                                  │
+│  ★ Story 10.2 (result tracing)      Story 10.1 (static analysis)│
+│        │  ← VRAIE FONDATION              │                      │
+│        │                                 │  (indépendant)       │
+│        ▼                                 │                      │
+│  Story 10.3 (provides edge)              │                      │
+│        │                                 │                      │
+│        ▼                                 │                      │
+│  Story 10.4 (DAG reconstruction)         │                      │
+│        │                                 │                      │
+│        └────────────┬────────────────────┘                      │
+│                     ▼                                            │
+│              Story 10.5 (unified capability)                     │
+│                     │  ← Merge 10.1 + 10.4                      │
+│                     ▼                                            │
+│              Story 10.6 (pml_discover)                           │
+│                     │                                            │
+│                     ▼                                            │
+│              Story 10.7 (pml_execute) ← Intègre 10.1 pour HIL   │
+│                     │                                            │
+│                     ▼                                            │
+│              Story 10.8 (pml_get_task_result)                    │
+│                     │                                            │
+│                     ▼                                            │
+│              Story 10.9 (Definition/Invocation views)            │
+│                     │                                            │
+│                     ▼                                            │
+│              Story 10.10 (Dry Run) ← Optional                    │
+└─────────────────────────────────────────────────────────────────┘
 ```
+
+**Ordre d'implémentation recommandé:**
+
+| Ordre | Story | Justification |
+|-------|-------|---------------|
+| 1 | **10.2** Result Tracing | Vraie fondation - sans `result` dans traces, rien ne marche |
+| 2 | **10.3** Provides Edge | Utilise les traces enrichies |
+| 3 | **10.4** DAG Reconstruction | Reconstruction POST-exec |
+| ∥ | **10.1** Static Analysis | **En parallèle** avec 10.2-10.4, ou après |
+| 4 | **10.5** Unified Capability | Merge 10.1 (PRE) + 10.4 (POST) |
+| 5 | **10.6** pml_discover | API unifiée de découverte |
+| 6 | **10.7** pml_execute | API unifiée d'exécution |
+| 7 | **10.8** pml_get_task_result | Complément pour AIL |
+| 8 | **10.9** Views | UI Cytoscape |
+| 9 | **10.10** Dry Run | Optional, pour debug connecteurs |
+
+**Note sur Story 10.1 (Static Analysis):**
+- N'est PAS un prérequis pour 10.2-10.4 (contrairement à ce qui était indiqué avant)
+- Peut être fait en parallèle ou après le Track A
+- Devient nécessaire pour 10.5 (unified capability) et 10.7 (pml_execute avec HIL)
 
 **External Dependencies:**
 - Epic 7 Story 7.1b (Worker RPC Bridge)
 - HIL Phase 2 (per_layer_validation, resultPreview)
-- Epic 8 (Hypergraph visualization for Story 10.8)
+- Epic 8 (Hypergraph visualization for Story 10.9)
 
 ---
 
@@ -954,32 +1190,69 @@ avec des MCP connecteurs externes.
 | FR11 | Learning automatique après succès | 10.7 |
 | FR12 | Dry Run avec Mocks pour connecteurs (optional) | 10.10 |
 
+### Epic 10 → PRD FR Traceability Matrix
+
+> **Note:** Cette table lie les FRs locaux de l'Epic 10 aux FRs globaux du PRD pour assurer la traçabilité.
+
+| Epic 10 FR | PRD FR | PRD Requirement | Relation |
+|------------|--------|-----------------|----------|
+| FR1 | FR005 | Analyser dépendances input/output pour construire graphe DAG | **Implements** |
+| FR1 | FR006 | Identifier automatiquement tools parallèles vs séquentiels | **Implements** |
+| FR1b | FR017 | Exécution TypeScript dans Deno sandbox isolé | **Extends** |
+| FR1c | FR018 | Branches DAG safe-to-fail (resilient workflows) | **Extends** |
+| FR2 | FR014 | Tracker métriques contexte et latence (opt-in) | **Extends** |
+| FR2 | FR015 | Générer logs structurés pour debugging | **Extends** |
+| FR3 | FR005 | Analyser dépendances input/output pour construire graphe DAG | **Extends** |
+| FR4 | FR005 | Analyser dépendances input/output pour construire graphe DAG | **Implements** |
+| FR4 | FR006 | Identifier automatiquement tools parallèles vs séquentiels | **Implements** |
+| FR5 | FR017 | Exécution TypeScript dans Deno sandbox isolé | **Extends** |
+| FR5 | FR019 | Injecter MCP tools dans contexte sandbox via vector search | **Extends** |
+| FR6 | FR002 | Recherche sémantique pour identifier top-k tools pertinents | **Unifies** |
+| FR6 | FR003 | Charger tool schemas on-demand pour tools pertinents | **Unifies** |
+| FR7 | FR007 | Exécuter simultanément branches indépendantes du DAG | **Unifies** |
+| FR7 | FR017 | Exécution TypeScript dans Deno sandbox isolé | **Unifies** |
+| FR8 | FR008 | Streamer résultats via SSE pour feedback progressif | **Extends** |
+| FR9 | FR014 | Tracker métriques contexte et latence (opt-in) | **Extends** |
+| FR10 | - | N/A (internal cleanup) | **Internal** |
+| FR11 | - | N/A (Epic 7 extension) | **Epic 7** |
+| FR12 | FR017 | Exécution TypeScript dans Deno sandbox isolé | **Optional** |
+
+**Legend:**
+- **Implements**: Implémentation directe du FR PRD
+- **Extends**: Étend/améliore un FR PRD existant
+- **Unifies**: Unifie plusieurs FRs PRD en une seule API
+- **Internal**: Nettoyage interne sans FR PRD correspondant
+- **Optional**: Feature optionnelle
+
 ---
 
 ### Epic 10 Estimation Summary
 
-| Story | Description | Effort | Cumulative |
-|-------|-------------|--------|------------|
-| **10.1** | **DAG Preview (SWC)** ⭐ ~100-150 LOC | **2-3j** | **3j** |
-| 10.2 | Result Tracing | 0.5-1j | 4j |
-| 10.3 | Provides Edge | 1-2j | 6j |
-| 10.4 | DAG Reconstruction | 2-3j | 9j |
-| 10.5 | Unified Capability | 2-3j | 12j |
-| 10.6 | pml_discover | 2-3j | 15j |
-| 10.7 | pml_execute | 3-5j | 19j |
-| 10.8 | pml_get_task_result | 1-2j | 21j |
-| 10.9 | Definition/Invocation | 2-3j | 24j |
-| 10.10 | Dry Run + Mocks (optional) | 3-4j | 28j |
+| Ordre | Story | Description | Effort | Cumulative |
+|-------|-------|-------------|--------|------------|
+| 1 | **10.2** | **Result Tracing** ⭐ FONDATION | **0.5-1j** | **1j** |
+| 2 | 10.3 | Provides Edge | 1-2j | 3j |
+| 3 | 10.4 | DAG Reconstruction (POST-exec) | 2-3j | 6j |
+| ∥ | 10.1 | Static Analysis (PRE-exec) ~100-150 LOC | 2-3j | ∥ |
+| 4 | 10.5 | Unified Capability | 2-3j | 9j |
+| 5 | 10.6 | pml_discover | 2-3j | 12j |
+| 6 | 10.7 | pml_execute | 3-5j | 16j |
+| 7 | 10.8 | pml_get_task_result | 1-2j | 18j |
+| 8 | 10.9 | Definition/Invocation | 2-3j | 21j |
+| 9 | 10.10 | Dry Run + Mocks (optional) | 3-4j | 25j |
 
 **Total MVP (10.1-10.9): ~3-4 semaines**
 **Total avec 10.10: ~4-5 semaines**
 
-**🎯 Story 10.1 (DAG Preview) est critique car:**
-1. Valide l'approche SWC pour la détection des appels MCP + capabilities
-2. Débloque HIL Phase 4 (pre-execution approval)
-3. **Réutilise l'existant** : SchemaInferrer (726 LOC), PermissionInferrer (510 LOC)
-4. **Valide schemas** : tool_schema + workflow_pattern tables
-5. Unifie le flow d'exécution (preview avant execute)
+**🎯 Story 10.2 (Result Tracing) est la vraie fondation car:**
+1. Sans `result` dans les traces, impossible de détecter les dépendances data
+2. Débloque 10.3 (provides edges) et 10.4 (DAG reconstruction)
+3. Quick win : ~5-10 LOC à modifier dans worker-bridge.ts et code-generator.ts
+
+**📝 Story 10.1 (Static Analysis) est importante mais pas bloquante:**
+1. Peut être faite en parallèle avec Track A (10.2 → 10.3 → 10.4)
+2. Réutilise l'existant : SchemaInferrer (726 LOC), PermissionInferrer (510 LOC)
+3. Devient nécessaire pour 10.5 (unified capability) et 10.7 (HIL pre-execution)
 
 **📋 Story 10.10 (Dry Run) est optionnelle car:**
 - Le parsing statique (10.1) suffit pour HIL/permissions
