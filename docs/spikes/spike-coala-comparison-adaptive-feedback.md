@@ -15,6 +15,17 @@ d'amélioration.
 **meta-learning explicite** (GraphRAG), mais pourrait bénéficier des mécanismes CoALA pour:
 **confidence adaptative**, **memory structurée**, et **retrieval dynamique**.
 
+### Mise en Abyme Architecturale
+
+**Casys PML = "Procedural Memory Layer"** - ce nom révèle une dualité :
+
+| Niveau | Rôle de PML | Description |
+|--------|-------------|-------------|
+| **Macro (CoALA)** | PML **EST** une mémoire procédurale | Pour les agents LLM, PML stocke "comment faire" : capabilities, workflow patterns, DAGs |
+| **Micro (Interne)** | PML **A** ses propres mémoires | Working (WorkflowState), Episodic (Traces+PER), Semantic (Capabilities+GraphRAG), Procedural (DAGSuggester+TD) |
+
+**Implication:** Casys PML peut s'intégrer comme composant "Procedural Memory" d'un système CoALA plus large, tout en ayant sa propre architecture cognitive interne.
+
 ---
 
 ## 1. CoALA Framework - Résumé Architecture
@@ -802,3 +813,4 @@ function calculatePriority(predicted: number, actual: number): number {
 **Changelog:**
 - 2025-11-13: Spike initial - comparaison CoALA vs Casys PML
 - 2025-12-18: Ajout section 9 (TD Learning & PER), clarification mémoire sémantique (GraphRAG = hybride)
+- 2025-12-18: Ajout "Mise en Abyme Architecturale" - PML est ET a une mémoire procédurale
