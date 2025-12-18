@@ -459,6 +459,56 @@ viennent ensuite enrichir le `learning` avec les chemins réellement empruntés.
 
 ---
 
+**Story 10.2: Static Argument Extraction for Speculative Execution**
+
+As a speculative execution system, I want to extract and store tool arguments from static code analysis,
+So that I can execute capabilities speculatively without requiring runtime argument inference.
+
+**Context:**
+Story 10.1 extracts tool calls but NOT their arguments. For speculative execution to work,
+we need to know what arguments to pass. Arguments can be:
+- **Literals**: `{ path: "config.json" }` - can be stored and reused directly
+- **References**: `{ input: file.content }` - resolved via ProvidesEdge at runtime
+- **Parameters**: `{ path: userPath }` - capability input parameters from input_schema
+
+**Why this matters for speculation:**
+Without arguments, we can only "prepare" execution, not actually execute speculatively.
+By storing argument structure, we enable true speculative execution with 0ms latency.
+
+**Types:**
+```typescript
+interface ArgumentValue {
+  type: "literal" | "reference" | "parameter";
+  value?: unknown;           // For literal
+  expression?: string;       // For reference: "file.content"
+  parameterName?: string;    // For parameter: "userPath"
+}
+
+type StaticStructureNode =
+  | { id: string; type: "task"; tool: string; arguments?: Record<string, ArgumentValue> }
+  // ... other variants unchanged
+```
+
+**Acceptance Criteria:**
+1. [ ] `ArgumentValue` and `ArgumentsStructure` types defined in types.ts
+2. [ ] `StaticStructureNode` (task variant) extended with optional `arguments`
+3. [ ] Literal arguments extracted from ObjectExpression (strings, numbers, objects, arrays)
+4. [ ] Reference arguments detected from MemberExpression (e.g., `file.content`)
+5. [ ] Parameter arguments detected from Identifier referencing function params
+6. [ ] `PredictedNode.arguments` populated from capability's static_structure
+7. [ ] Tests for literal, reference, parameter, and mixed argument scenarios
+
+**Files to modify:**
+- `src/capabilities/types.ts` - Add ArgumentValue types
+- `src/capabilities/static-structure-builder.ts` - Add argument extraction
+- `src/graphrag/dag-suggester.ts` - Populate PredictedNode.arguments
+
+**Prerequisites:** Story 10.1 (static_structure builder - DONE)
+
+**Estimation:** 1-2 jours
+
+---
+
 **Story 10.3: Provides Edge Type - Data Flow Relationships**
 
 As a graph learning system, I want a `provides` edge type that captures data flow between tools,
