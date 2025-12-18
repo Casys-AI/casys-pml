@@ -39,7 +39,7 @@ Unifier les deux modèles d'exécution (DAG explicite et Code libre) en un syst�
 | Concept | Quand créé | Ce qu'il contient | Stockage |
 |---------|------------|-------------------|----------|
 | **Capability** | Analyse statique (PRE-exec) | Structure complète avec branches/conditions | `workflow_pattern.dag_structure.static_structure` |
-| **Trace** | Après exécution (POST-exec) | Chemin emprunté + résultats concrets | `capability_trace` (nouvelle table) |
+| **Trace** | Après exécution (POST-exec) | Chemin emprunté + résultats concrets | `execution_trace` (nouvelle table) |
 | **Learning** | Agrégation des traces | Stats par chemin, dominant path | `workflow_pattern.dag_structure.learning` |
 
 **Pourquoi ce changement ?**
@@ -86,7 +86,7 @@ Unifier les deux modèles d'exécution (DAG explicite et Code libre) en un syst�
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
 │  5. STOCKAGE TRACE (Story 10.4 révisée)                                  │
-│     → INSERT INTO capability_trace                                       │
+│     → INSERT INTO execution_trace                                       │
 │     - executed_path: ["n1", "d1", "n2"] (nodeIds de static_structure)   │
 │     - decisions: [{ nodeId: "d1", outcome: "true" }]                    │
 │     - task_results: résultats détaillés par tâche                       │
@@ -149,17 +149,17 @@ static_structure: {
 
 ```sql
 -- Trace 1: file.exists = true
-INSERT INTO capability_trace (capability_id, executed_path, decisions, success)
+INSERT INTO execution_trace (capability_id, executed_path, decisions, success)
 VALUES ('cap-xxx', ARRAY['n1', 'd1', 'n2'],
         '[{"nodeId": "d1", "outcome": "true"}]', true);
 
 -- Trace 2: file.exists = false
-INSERT INTO capability_trace (capability_id, executed_path, decisions, success)
+INSERT INTO execution_trace (capability_id, executed_path, decisions, success)
 VALUES ('cap-xxx', ARRAY['n1', 'd1', 'n3', 'n4'],
         '[{"nodeId": "d1", "outcome": "false"}]', true);
 
 -- Trace 3: file.exists = true
-INSERT INTO capability_trace (capability_id, executed_path, decisions, success)
+INSERT INTO execution_trace (capability_id, executed_path, decisions, success)
 VALUES ('cap-xxx', ARRAY['n1', 'd1', 'n2'],
         '[{"nodeId": "d1", "outcome": "true"}]', true);
 ```
@@ -194,7 +194,7 @@ Une Capability n'est pas forcément un DAG interne. Elle peut être:
 **Implications pour l'implémentation:**
 
 1. **Story 10.1** devient la **vraie fondation** - crée la Capability avec static_structure
-2. **Story 10.4** stocke les **Traces** dans `capability_trace`, pas la structure
+2. **Story 10.4** stocke les **Traces** dans `execution_trace`, pas la structure
 3. **Capability.source** reste mais s'enrichit de `static_structure` et `learning`
 4. **Les CapabilityDependency** (capability → capability) sont créées à l'analyse statique
 
@@ -231,7 +231,7 @@ Une Capability n'est pas forcément un DAG interne. Elle peut être:
 │                            ▼                                     │
 │  ┌─────────────────────────────────────────────────────┐        │
 │  │  TRACE STORAGE (Story 10.4)                          │        │
-│  │  - INSERT capability_trace (executed_path, results)  │        │
+│  │  - INSERT execution_trace (executed_path, results)  │        │
 │  │  - UPDATE Capability.learning (aggregate stats)      │        │
 │  └─────────────────────────────────────────────────────┘        │
 │                                                                  │
@@ -273,7 +273,7 @@ Pourquoi ? L'analyse statique EST suffisante grâce à :
 | **Quand** | Avant exécution | Après exécution |
 | **Output** | **Capability** avec `static_structure` | **Trace** avec `executed_path` |
 | **Contenu** | Structure COMPLÈTE (toutes branches) | Chemin EMPRUNTÉ (une branche) |
-| **Stockage** | `workflow_pattern.dag_structure` | `capability_trace` table |
+| **Stockage** | `workflow_pattern.dag_structure` | `execution_trace` table |
 
 **Réutilisation de l'existant:**
 
@@ -817,7 +817,7 @@ Inspiré du spike sur les systèmes adaptatifs complexes.
  */
 function updateLearningTD(
   learning: CapabilityLearning,
-  trace: CapabilityTrace,
+  trace: ExecutionTrace,
   alpha: number = 0.1
 ): CapabilityLearning {
   const pathKey = JSON.stringify(trace.executedPath);
@@ -876,7 +876,7 @@ function updateLearningTD(
 | Aspect | ADR-049 | Story 10.4 (PER/TD) |
 |--------|---------|---------------------|
 | Granularité | Tool | Capability |
-| Table | algorithm_traces | capability_trace |
+| Table | algorithm_traces | execution_trace |
 | But | Seuils de spéculation | Apprentissage de structure |
 | Output | Threshold α (Thompson) | dominantPath, pathStats |
 
@@ -1570,7 +1570,7 @@ avec des MCP connecteurs externes.
 │        └────────┬─────────┘                                      │
 │                 ▼                                                │
 │          Story 10.4 (Trace Storage & Learning)                   │
-│                 │  ← Stocke traces dans capability_trace        │
+│                 │  ← Stocke traces dans execution_trace        │
 │                 │     Met à jour dag_structure.learning          │
 │                 ▼                                                │
 │          Story 10.5 (Unified Capability Model)                   │
@@ -1635,7 +1635,7 @@ avec des MCP connecteurs externes.
 | **FR1d** | **Détection conditions/branches dans static_structure** | **10.1** |
 | FR2 | Tracer `result` des tools et capabilities | 10.2 |
 | FR3 | Edge type `provides` avec coverage | 10.3 |
-| FR4 | **Stockage traces + agrégation learning** (capability_trace) | 10.4 |
+| FR4 | **Stockage traces + agrégation learning** (execution_trace) | 10.4 |
 | FR5 | Capability unifiée (code OU dag) | 10.5 |
 | FR6 | API `pml_discover` unifiée | 10.6 |
 | FR7 | API `pml_execute` unifiée | 10.7 |
