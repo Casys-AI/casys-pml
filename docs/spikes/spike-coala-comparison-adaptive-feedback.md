@@ -111,8 +111,29 @@ Experience trajectories → Reflect → Write to Long-term Memory → Improve fu
 | -------------- | ----------------------------------------------------- | --------- | ---------------- |
 | **Working**    | `WorkflowState` (messages, tasks, decisions, context) | In-memory | Current workflow |
 | **Episodic**   | `state.tasks[]` + Checkpoints (PGlite)                | PGlite    | Current + resume |
-| **Semantic**   | GraphRAG edges + PageRank                             | PGlite    | All workflows    |
+| **Semantic**   | Capabilities + Intent (pur) + GraphRAG (hybride)      | PGlite    | All workflows    |
 | **Procedural** | DAGSuggester + GraphRAGEngine code                    | Code      | System-wide      |
+
+**Clarification Mémoire Sémantique:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    MÉMOIRE SÉMANTIQUE                       │
+├─────────────────────────────────────────────────────────────┤
+│  SÉMANTIQUE PURE                                            │
+│  └── Capabilities + Intent (workflow_pattern table)         │
+│      "Ce pattern sert à envoyer un email avec pièce jointe" │
+│      → Faits explicites sur ce que font les outils          │
+├─────────────────────────────────────────────────────────────┤
+│  HYBRIDE (Graph + Sémantique)                               │
+│  └── GraphRAG                                               │
+│      - Graph: tool_A →(0.8)→ tool_B (patterns appris)      │
+│      - RAG: retrieval par similarité sémantique             │
+│      → Mélange structure relationnelle + sens               │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Note:** GraphRAG n'est pas purement sémantique. La partie "Graph" (edges, PageRank) est plutôt procédurale/épisodique (patterns appris des exécutions). La partie "RAG" est sémantique (retrieval par sens).
 
 ### 2.3 Notre Action Space
 
@@ -172,15 +193,21 @@ Casys PML: Execute task 1 → Discover XML → Replan → Add parse_xml → Cont
 
 ### 3.3 Memory Architecture Comparison
 
-| Memory         | CoALA                        | Casys PML        | Gap/Opportunity                         |
-| -------------- | ---------------------------- | ----------------- | --------------------------------------- |
-| **Working**    | Symbolic variables, goals    | WorkflowState     | ⚠️ No explicit goals tracking           |
-| **Episodic**   | Training pairs, trajectories | Checkpoints       | ⚠️ Not optimized for learning retrieval |
-| **Semantic**   | Facts, inferences            | GraphRAG edges    | ✅ Similar!                             |
-| **Procedural** | LLM + code                   | DAGSuggester code | ⚠️ No LLM parameter learning            |
+| Memory         | CoALA                        | Casys PML                              | Gap/Opportunity                         |
+| -------------- | ---------------------------- | -------------------------------------- | --------------------------------------- |
+| **Working**    | Symbolic variables, goals    | WorkflowState                          | ⚠️ No explicit goals tracking           |
+| **Episodic**   | Training pairs, trajectories | Checkpoints + Execution Traces         | ✅ Epic 11 ajoute PER pour prioritization |
+| **Semantic**   | Facts, inferences            | Capabilities+Intent (pur) + GraphRAG (hybride) | ✅ Plus riche que CoALA!          |
+| **Procedural** | LLM + code                   | DAGSuggester + TD Learning             | ✅ Epic 11 ajoute TD Learning           |
+
+**Clarification importante:**
+- **Semantic pure** = Capabilities + Intent (faits explicites sur les outils)
+- **Semantic hybride** = GraphRAG (Graph = patterns appris, RAG = retrieval sémantique)
+- **Episodic amélioré** = PER (Prioritized Experience Replay) priorise les traces surprenantes (Epic 11)
+- **Procedural amélioré** = TD Learning met à jour les poids du graphe incrémentalement (Epic 11)
 
 **Key Insight:** Notre checkpoints sont pour **resume**, pas pour **learning retrieval**. CoALA
-utilise episodic memory activement pendant planning (retrieval).
+utilise episodic memory activement pendant planning (retrieval). **Epic 11 comble ce gap avec PER.**
 
 ---
 
@@ -681,6 +708,80 @@ identified as superior to CoALA's 2-loop model.
 
 ---
 
+## 9. Évolutions Post-Spike: TD Learning & PER (Epic 11)
+
+**Date mise à jour:** 2025-12-18
+
+Depuis la rédaction initiale de ce spike, l'architecture a évolué avec l'ajout de mécanismes d'apprentissage avancés dans **Epic 11 - Learning from Traces**.
+
+### 9.1 TD Learning (Temporal Difference Learning)
+
+**Problème initial:** Les poids du GraphRAG étaient mis à jour en batch, pas incrémentalement.
+
+**Solution Epic 11 (Story 11.2):**
+
+```typescript
+// TD Learning: mise à jour incrémentale des poids
+// V(s) ← V(s) + α * (reward + γ * V(s') - V(s))
+
+interface TDUpdate {
+  edge_id: string;
+  old_weight: number;
+  reward: number;        // 1.0 = succès, 0.0 = échec
+  learning_rate: number; // α = 0.1 par défaut
+}
+
+function updateWeight(current: number, reward: number, α = 0.1): number {
+  const prediction_error = reward - current;
+  return current + α * prediction_error;
+}
+```
+
+**Mapping CoALA:** Équivalent au "Learning Loop" mais **incrémental** (pas batch).
+
+### 9.2 PER (Prioritized Experience Replay)
+
+**Problème initial:** Toutes les traces d'exécution avaient la même importance.
+
+**Solution Epic 11 (Story 11.3):**
+
+```typescript
+// PER: priorité basée sur la "surprise" (|predicted - actual|)
+interface ExecutionTrace {
+  trace_id: string;
+  capability_id: string;
+  tool_sequence: string[];
+  outcome: 'success' | 'failure';
+  priority: number;  // Calculé par PER
+}
+
+function calculatePriority(predicted: number, actual: number): number {
+  // Plus la prédiction était fausse, plus la trace est prioritaire
+  return Math.abs(predicted - actual);
+}
+
+// Exemples:
+// - Nouveau chemin jamais vu → priority = 1.0 (max learning)
+// - Échec sur chemin dominant (95% success) → priority ≈ 0.95
+// - Succès sur chemin dominant → priority ≈ 0.05 (peu informatif)
+```
+
+**Mapping CoALA:** Améliore l'Episodic Memory avec **retrieval intelligent** basé sur l'importance.
+
+### 9.3 Impact sur l'Architecture CoALA Comparison
+
+| Aspect | Avant Epic 11 | Après Epic 11 | Comparaison CoALA |
+|--------|---------------|---------------|-------------------|
+| **Learning Loop** | Batch (GraphRAG.update) | Incrémental (TD Learning) | ✅ Plus réactif |
+| **Episodic Memory** | Checkpoints (resume only) | + PER (prioritized traces) | ✅ Retrieval actif |
+| **Procédural** | Code fixe | + TD weights adaptatifs | ✅ Auto-amélioration |
+
+**Conclusion:** Epic 11 comble les gaps identifiés dans ce spike (sections 5.1, 5.2) avec des mécanismes issus du Reinforcement Learning.
+
+**Référence:** `docs/epics/epic-11-learning-from-traces.md` (Stories 11.2, 11.3)
+
+---
+
 ## References
 
 - **CoALA Paper:** https://arxiv.org/html/2309.02427v3
@@ -690,7 +791,14 @@ identified as superior to CoALA's 2-loop model.
 - **Implementation Spikes:**
   - `docs/spikes/spike-agent-human-dag-feedback-loop.md`
   - `docs/spikes/spike-episodic-memory-adaptive-thresholds.md`
+- **Epic 11 (Learning):** `docs/epics/epic-11-learning-from-traces.md` (TD Learning, PER)
 
 ---
 
 **Next Action:** Review with team, decide on adaptive threshold implementation in Story 2.5-4.
+
+---
+
+**Changelog:**
+- 2025-11-13: Spike initial - comparaison CoALA vs Casys PML
+- 2025-12-18: Ajout section 9 (TD Learning & PER), clarification mémoire sémantique (GraphRAG = hybride)
