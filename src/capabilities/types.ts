@@ -332,6 +332,67 @@ export interface CreateCapabilityDependencyInput {
   edgeSource?: CapabilityEdgeSource;
 }
 
+// ============================================
+// Static Structure Types (Story 10.1)
+// ============================================
+
+/**
+ * Static structure node types for capability analysis
+ *
+ * Nodes represent elements discovered during static code analysis:
+ * - task: MCP tool call (e.g., mcp.filesystem.read_file)
+ * - decision: Control flow (if/else, switch, ternary)
+ * - capability: Nested capability call
+ * - fork: Parallel execution start (Promise.all/allSettled)
+ * - join: Parallel execution end
+ */
+export type StaticStructureNode =
+  | { id: string; type: "task"; tool: string }
+  | { id: string; type: "decision"; condition: string }
+  | { id: string; type: "capability"; capabilityId: string }
+  | { id: string; type: "fork" }
+  | { id: string; type: "join" };
+
+/**
+ * Coverage level for "provides" edges (data flow)
+ *
+ * Based on intersection of provider outputs and consumer inputs:
+ * - strict: Provider outputs cover ALL required inputs of consumer
+ * - partial: Provider outputs cover SOME required inputs
+ * - optional: Provider outputs only cover optional inputs
+ */
+export type ProvidesCoverage = "strict" | "partial" | "optional";
+
+/**
+ * Static structure edge types
+ *
+ * Edges represent relationships between nodes:
+ * - sequence: Temporal order (A awaited before B)
+ * - provides: Data flow (A's output feeds B's input)
+ * - conditional: Branch from decision node
+ * - contains: Hierarchy (capability contains tools)
+ */
+export interface StaticStructureEdge {
+  from: string;
+  to: string;
+  type: "sequence" | "provides" | "conditional" | "contains";
+  /** For conditional edges: branch outcome ("true", "false", "case:value") */
+  outcome?: string;
+  /** For provides edges: coverage level */
+  coverage?: ProvidesCoverage;
+}
+
+/**
+ * Complete static structure of a capability
+ *
+ * Represents the control flow and data flow graph extracted
+ * from static code analysis (before execution).
+ */
+export interface StaticStructure {
+  nodes: StaticStructureNode[];
+  edges: StaticStructureEdge[];
+}
+
 /**
  * API Types (Story 8.1)
  * INTERNAL types use camelCase. Mapping to snake_case happens in gateway-server.ts
