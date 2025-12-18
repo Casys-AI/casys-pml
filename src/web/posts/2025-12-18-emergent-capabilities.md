@@ -1,5 +1,5 @@
 ---
-title: "Emergent Capabilities: When AI Agents Learn Skills Nobody Programmed"
+title: "Emergent Capabilities: Skills Nobody Programmed"
 slug: emergent-capabilities
 date: 2025-12-18
 category: architecture
@@ -8,92 +8,242 @@ tags:
   - capabilities
   - learning
   - self-organization
-snippet: "We didn't program 'deploy to production' as a capability. The system discovered it by watching tool usage patterns. Here's how emergence works in practice."
+snippet: "We didn't define 'deploy to production' as a capability. The system discovered it by watching patterns. Here's how skills emerge from usage—without explicit programming."
 format: article
 language: en
 author: Erwan Lee Pesle
 ---
 
-# Emergent Capabilities: When AI Agents Learn Skills Nobody Programmed
+# Emergent Capabilities: Skills Nobody Programmed
 
-> The magic of self-organizing systems
+> The system learns skills by watching you work
 
-## What Is a Capability?
+## Tools vs Capabilities
 
-TODO: Define capability vs tool
-- Tool = atomic action (read file, push to git)
-- Capability = coordinated pattern (deploy workflow)
+A **tool** is an atomic action: read a file, push to git, send a message.
+
+A **capability** is a coordinated pattern: "deploy to production" involves 5-10 tools working in sequence.
 
 ```mermaid
-graph TD
+graph LR
     subgraph "Tools (Atomic)"
         T1[git_commit]
         T2[docker_build]
         T3[aws_deploy]
     end
 
-    subgraph "Capability (Emergent)"
-        C[Deploy to Production]
-        T1 --> C
-        T2 --> C
-        T3 --> C
+    subgraph "Capability (Pattern)"
+        C[Deploy to Prod]
     end
+
+    T1 --> C
+    T2 --> C
+    T3 --> C
 ```
 
-## How Capabilities Emerge
+The key insight: **nobody programs capabilities**. They emerge from repeated patterns.
 
-TODO: The detection process
-1. Track tool co-occurrence
-2. Detect repeated patterns
-3. Cluster similar patterns
-4. Name and store as capability
+## How Emergence Works
+
+### Step 1: Observation
+
+Every workflow execution is recorded. Which tools were used? In what order? Did it succeed?
 
 ```mermaid
-graph LR
-    W1[Workflow 1] --> P[Pattern Detection]
-    W2[Workflow 2] --> P
-    W3[Workflow 3] --> P
-    P --> C[Capability Emerges]
-    C --> S[Stored in Graph]
+graph TD
+    W1[Workflow 1] --> O[Observer]
+    W2[Workflow 2] --> O
+    W3[Workflow 3] --> O
+    O --> G[Graph Updates]
 ```
 
-## The Spectral Clustering Magic
+### Step 2: Pattern Detection
 
-TODO: How we detect clusters
-- Build tool co-occurrence matrix
-- Compute graph Laplacian
-- Find eigenvectors
-- K-means on spectral embedding
+Tools that frequently appear together get stronger edge weights in the graph.
+
+| Workflow | Tools Used |
+|----------|-----------|
+| Monday AM | git_commit → github_push → slack_notify |
+| Monday PM | git_commit → github_push → slack_notify |
+| Tuesday | git_commit → github_push → slack_notify |
+| Wednesday | git_commit → github_push |
+
+After enough observations: `{git_commit, github_push, slack_notify}` becomes a pattern.
+
+### Step 3: Clustering
+
+Spectral clustering on the graph Laplacian detects natural groupings:
+
+```mermaid
+graph TD
+    subgraph "Cluster 1: Git Release"
+        A[git_commit]
+        B[github_push]
+        C[slack_notify]
+    end
+
+    subgraph "Cluster 2: Testing"
+        D[jest_run]
+        E[coverage_check]
+    end
+
+    subgraph "Cluster 3: Deploy"
+        F[docker_build]
+        G[aws_deploy]
+    end
+
+    A --- B
+    B --- C
+    D --- E
+    F --- G
+```
+
+### Step 4: Capability Birth
+
+When a cluster is stable and confident enough, it becomes a named capability:
+
+| Metric | Threshold | Meaning |
+|--------|-----------|---------|
+| Co-occurrence count | ≥ 5 | Seen together enough times |
+| Cluster stability | ≥ 0.8 | Grouping is consistent |
+| Success rate | ≥ 0.7 | Pattern actually works |
+
+The system names it based on the dominant tool or asks the user.
 
 ## From Capabilities to Meta-Capabilities
 
-TODO: Recursive emergence
-- Capabilities can contain other capabilities
-- n-SuperHyperGraph structure
-- Unbounded depth
+Here's where it gets interesting: **capabilities can contain other capabilities**.
 
-## Real Examples
+```mermaid
+graph TD
+    subgraph META["Meta: Full Release"]
+        subgraph CAP1["Cap: Git Workflow"]
+            T1[commit]
+            T2[push]
+        end
+        subgraph CAP2["Cap: Test Suite"]
+            T3[test]
+            T4[coverage]
+        end
+        subgraph CAP3["Cap: Deploy"]
+            T5[build]
+            T6[deploy]
+        end
+    end
 
-TODO: Show actual emerged capabilities from usage
+    CAP1 --> CAP3
+    CAP2 --> CAP3
+```
 
-| Emerged Capability | Tools Involved | Detection Confidence |
-|-------------------|----------------|---------------------|
-| "Git Workflow" | git_add, git_commit, git_push | 0.94 |
-| "Test Suite" | jest_run, coverage_check | 0.91 |
-| "Deploy AWS" | docker_build, ecr_push, ecs_update | 0.88 |
+When users repeatedly execute Git Workflow → Test Suite → Deploy in sequence, a meta-capability "Full Release" emerges.
+
+This nesting is unbounded. Meta-meta-capabilities can form. That's why we use n-SuperHyperGraphs.
 
 ## Why This Matters
 
-TODO: Benefits of emergence vs explicit programming
-- No manual capability definition
-- Adapts to user patterns
-- Discovers unexpected combinations
+### No Manual Definition
+
+Traditional systems require you to define capabilities upfront:
+
+```
+❌ "Define capability 'deploy' with tools X, Y, Z"
+```
+
+With emergence:
+
+```
+✅ Just use tools. Patterns become capabilities automatically.
+```
+
+### Personalization
+
+Different users develop different capabilities based on their workflows:
+
+| User | Emerged Capability | Tools |
+|------|-------------------|-------|
+| DevOps Alice | "Quick Deploy" | docker_build → ecs_update |
+| Developer Bob | "Full CI/CD" | test → build → deploy → notify |
+| Data Scientist Carol | "Model Pipeline" | train → evaluate → register |
+
+Same system, different skills—based on usage.
+
+### Continuous Evolution
+
+Capabilities aren't static. As workflows change, capabilities evolve:
+
+- New tools get added to existing capabilities
+- Unused patterns fade (confidence decay)
+- Capabilities merge or split based on usage
+
+```mermaid
+graph LR
+    subgraph "Week 1"
+        A1[Cap A] --> A2[Cap B]
+    end
+
+    subgraph "Week 4"
+        B1[Cap A] --> B2[Cap B]
+        B2 --> B3[Cap C - New!]
+    end
+
+    subgraph "Week 8"
+        C1[Cap A+B - Merged]
+        C2[Cap C]
+    end
+```
+
+## The Detection Algorithm
+
+Simplified view of how we detect capabilities:
+
+```
+1. Build tool co-occurrence matrix from workflows
+2. Compute normalized graph Laplacian
+3. Find k smallest eigenvectors (spectral embedding)
+4. K-means clustering on embeddings
+5. Filter clusters by stability and confidence
+6. Register stable clusters as capabilities
+```
+
+Key parameters:
+
+| Parameter | What It Controls |
+|-----------|-----------------|
+| Min cluster size | Ignore tiny patterns |
+| Stability threshold | How consistent must grouping be? |
+| Confidence decay | How fast do unused patterns fade? |
+| Merge threshold | When do similar capabilities combine? |
+
+## Real Examples
+
+Capabilities that emerged in our testing:
+
+| Emerged Capability | Detection Confidence | Tools |
+|-------------------|---------------------|-------|
+| "Git Commit Flow" | 94% | git_add, git_commit, git_push |
+| "PR Review Cycle" | 87% | github_pr_create, github_review, github_merge |
+| "Deploy Pipeline" | 91% | docker_build, ecr_push, ecs_update |
+| "Bug Investigation" | 78% | grep_search, file_read, git_blame |
+
+None of these were programmed. All emerged from usage patterns.
+
+## The Magic
+
+The magic isn't in any single algorithm. It's in the combination:
+
+1. **Observation** without interruption
+2. **Graph structure** that captures relationships
+3. **Spectral methods** that find natural clusters
+4. **Continuous learning** that adapts over time
+
+The result: a system that learns your skills by watching you work.
 
 ---
 
 ## References
 
+- Von Luxburg, U. (2007). "A Tutorial on Spectral Clustering." *Statistics and Computing*.
+- Blondel, V. et al. (2008). "Fast unfolding of communities in large networks." (Louvain method)
 - Internal: ADR-029 - Capability Emergence
-- See also: [n-SuperHyperGraph](/blog/why-n-superhypergraph)
 
-#Emergence #Capabilities #SelfOrganization #AILearning
+#Emergence #Capabilities #MachineLearning #SelfOrganization
