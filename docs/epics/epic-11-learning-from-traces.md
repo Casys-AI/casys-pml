@@ -76,16 +76,24 @@ AVANT d'implémenter le learning :
 
 **1. Migrer `workflow_dags` → Deno KV (réactiver ADR-037)**
 
-```typescript
-// AVANT (PostgreSQL - overkill pour état temporaire)
-await db.query(`INSERT INTO workflow_dags (workflow_id, dag, intent) VALUES ($1, $2, $3)`, [...]);
-await db.query(`SELECT dag FROM workflow_dags WHERE workflow_id = $1 AND expires_at > NOW()`, [id]);
+**Infrastructure existante à réutiliser :**
+- `src/server/auth/kv.ts` - Singleton KV avec `getKv()` / `closeKv()`
+- Pattern déjà utilisé pour les sessions auth
 
-// APRÈS (Deno KV - parfait pour TTL)
-const kv = await Deno.openKv();
-await kv.set(["workflow", workflowId], { dag, intent }, { expireIn: TTL_MS });
-const result = await kv.get(["workflow", workflowId]);
+```typescript
+// AVANT (src/mcp/workflow-dag-store.ts - PostgreSQL)
+await db.query(`INSERT INTO workflow_dags ...`, [workflowId, dag, intent]);
+await db.query(`SELECT dag FROM workflow_dags WHERE expires_at > NOW()`, [workflowId]);
+
+// APRÈS (Deno KV avec singleton existant)
+import { getKv } from "../server/auth/kv.ts";  // Réutiliser le singleton
+
+const kv = await getKv();
+await kv.set(["workflow", workflowId], { dag, intent }, { expireIn: 3600_000 }); // 1h TTL
+const result = await kv.get<{ dag: DAGStructure; intent: string }>(["workflow", workflowId]);
 ```
+
+**Note:** Considérer déplacer `src/server/auth/kv.ts` → `src/cache/kv.ts` pour un meilleur naming.
 
 **2. Merger `mcp_tool` → `tool_schema`**
 
