@@ -2,6 +2,8 @@
 
 ## Pattern 1: DAG Builder with JSON Schema Dependency Detection
 
+> **ADRs:** ADR-002 (Custom DAG), ADR-010 (Hybrid DAG Architecture), ADR-022 (Hybrid Search Integration)
+
 **Problem:** Automatically detect dependencies between MCP tools to enable parallel execution
 without manual dependency specification.
 
@@ -76,17 +78,73 @@ function buildDAG(tools: Tool[]): { nodes: DAGNode[]; edges: DAGEdge[] } {
 - Circular dependencies → Reject workflow, return error
 - Ambiguous matches → Conservative (assume dependency)
 
-**Affects Epics:** Epic 2 (Story 2.1, 2.2)
+### Hybrid Search Integration (ADR-022)
+
+The DAGSuggester uses Hybrid Search (Semantic + Graph) to find relevant tools:
+
+```typescript
+async searchToolsHybrid(
+  query: string,
+  limit: number = 10,
+  contextTools: string[] = []
+): Promise<HybridSearchResult[]> {
+  // 1. Semantic Search (Base) - finds textually relevant tools
+  const semanticResults = await this.vectorSearch.searchTools(query, limit * 2);
+
+  // 2. Adaptive Alpha Calculation (graph density)
+  const alpha = this.calculateAdaptiveAlpha();
+
+  // 3. Graph Scoring (Adamic-Adar + Neighbors)
+  return semanticResults.map(tool => {
+    const graphScore = this.computeGraphRelatedness(tool.id, contextTools);
+    // Hub tools (high PageRank) get boosted
+    const finalScore = (alpha * tool.score) + ((1 - alpha) * graphScore);
+    return { ...tool, score: finalScore };
+  });
+}
+```
+
+**Benefits:**
+- Finds implicit dependencies (e.g., `npm_install` between `git_clone` and `deploy`)
+- Graph intelligence bubbles related tools into candidates
+- Reduces "fragile DAGs" for complex intents
+
+**Affects Epics:** Epic 2 (Story 2.1, 2.2), Epic 5 (Story 5.1)
 
 ---
 
 ## Pattern 2: Context Budget Management
 
+> **ADRs:** ADR-013 (Semantic Filtering)
+
 **Problem:** Maintain <5% context consumption while supporting 15+ MCP servers dynamically.
 
-**Solution:**
+**Solution Architecture:**
 
-**Context Budget Tracker:**
+### Meta-Tools Only Exposure (ADR-013)
+
+Instead of exposing all MCP tools (~44.5k tokens), the gateway returns only meta-tools:
+
+```typescript
+// Before ADR-013: 100+ tools exposed (44.5k tokens)
+// After ADR-013: 2 meta-tools exposed (~500 tokens)
+
+const META_TOOLS = [
+  "pml:execute_workflow",  // Intent-based workflow execution
+  "pml:execute_code",      // Sandbox code execution
+];
+
+// Tool discovery via intent, not enumeration
+{ "tool": "pml:execute_workflow", "params": { "intent": "search the web for AI news" } }
+// DAGSuggester uses vector search internally to find relevant tools
+```
+
+**Impact:**
+- Context reduced from 44.5k to ~500 tokens (99% reduction)
+- Forces intent-driven tool usage (better UX)
+- Tool schemas loaded dynamically only when needed
+
+### Context Budget Tracker:
 
 ```typescript
 interface ContextBudget {
@@ -122,6 +180,8 @@ function loadTools(query: string, budget: ContextBudget): Tool[] {
 ---
 
 ## Pattern 3: Speculative Execution with GraphRAG (THE Feature)
+
+> **ADRs:** ADR-005 (Graphology), ADR-006 (Speculative Execution), ADR-010 (Hybrid DAG), ADR-030 (Gateway Real Execution)
 
 **Problem:** Reduce latency by executing workflows optimistically before Claude responds, when
 confidence is high enough.
@@ -280,9 +340,10 @@ not opt-in. Default mode with smart safeguards.
 
 ## Pattern 4: 3-Loop Learning Architecture (Adaptive DAG Feedback Loops)
 
-> **⚠️ UPDATE 2025-11-24:** AIL/HIL implementation details updated. See **ADR-019: Two-Level AIL
-> Architecture** for MCP-compatible approach using HTTP response pattern (not SSE streaming). Story
-> 2.5-3 SSE pattern incompatible with MCP one-shot protocol.
+> **ADRs:** ADR-007 (Adaptive Feedback Loops), ADR-008 (Episodic Memory), ADR-020 (AIL Control Protocol)
+>
+> **⚠️ UPDATE 2025-11-24:** AIL/HIL implementation uses ADR-020 unified command architecture (L1-L2).
+> ADR-019 superseded. HTTP response pattern (not SSE streaming) for MCP compatibility.
 
 **Problem:** Enable truly adaptive workflows that learn and improve over time through
 agent-in-the-loop (AIL) and human-in-the-loop (HIL) decision points, with dynamic re-planning and
@@ -864,5 +925,125 @@ d'Epic 2.5.
 **Design Philosophy:** Feedback loops enable truly intelligent workflows that learn and adapt. The
 distinction between knowledge graph (permanent learning) and workflow graph (ephemeral execution) is
 critical for understanding the architecture.
+
+---
+
+## Pattern 5: Scoring Algorithms & Adaptive Alpha
+
+> **ADRs:** ADR-015 (Dynamic Alpha), ADR-023 (Candidate Expansion), ADR-024 (Adjacency Matrix),
+> ADR-026 (Cold Start), ADR-038 (Scoring Reference), ADR-048 (Local Adaptive Alpha)
+
+**Problem:** Le scoring des outils et capabilities nécessite différents algorithmes selon le mode
+(recherche active vs suggestion passive) et le type d'objet (Tool vs Capability).
+
+**Solution Architecture:**
+
+### Algorithms Matrix
+
+| Object Type     | Active Search (User Intent)                      | Passive Suggestion (Workflow Context)              |
+| :-------------- | :----------------------------------------------- | :------------------------------------------------- |
+| **Simple Tool** | Hybrid Search: `Semantic * α + Graph * (1-α)`    | Next Step: `Co-occurrence + Louvain + Recency`     |
+| **Capability**  | Capability Match: `Semantic * SuccessRate`       | Strategic Discovery: `ToolsOverlap * ClusterBoost` |
+
+### Alpha Matrix (ADR-048)
+
+| Mode                | Type       | Algorithm              | Rationale                           |
+| :------------------ | :--------- | :--------------------- | :---------------------------------- |
+| Active Search       | Tool/Cap   | Embeddings Hybrides    | Compare semantic vs structure       |
+| Passive Suggestion  | Tool       | Heat Diffusion         | Propagation depuis le contexte      |
+| Passive Suggestion  | Capability | Heat Diffusion Hiérarch| Respecte Tool→Cap→Meta hierarchy    |
+| Cold Start (<5 obs) | All        | Bayesian Prior         | alpha=1.0 (semantic only)           |
+
+### Key Formulas
+
+**1. Hybrid Search (Tools):**
+```typescript
+const finalScore = alpha * semanticScore + (1 - alpha) * graphScore;
+
+// Alpha local (ADR-048) remplace alpha global (ADR-015)
+// - Dense cluster: alpha ≈ 0.5 (graph useful)
+// - Isolated node: alpha ≈ 1.0 (semantic only)
+```
+
+**2. Next Step Prediction:**
+```typescript
+const toolScore =
+  cooccurrenceConfidence * 0.6 +  // Historique direct (A -> B)
+  communityBoost * 0.3 +           // Louvain (même cluster)
+  recencyBoost * 0.1 +             // Utilisé récemment
+  pageRank * 0.1;                  // Importance globale
+```
+
+**3. Cold Start (ADR-026):**
+```typescript
+// Bayesian approach quand observations < seuil
+const confidence = observations >= MIN_OBS
+  ? empiricalConfidence
+  : bayesianPrior(observations, alpha=1.0);
+```
+
+**4. Candidate Expansion (ADR-023):**
+```typescript
+// Expansion 1.5-3x selon la densité
+const expandedK = Math.min(k * expansionFactor, maxCandidates);
+const expansionFactor = 1.5 + (1 - density) * 1.5; // 1.5x dense → 3x sparse
+```
+
+### Hierarchical Heat Diffusion (ADR-048)
+
+Pour les suggestions passives de capabilities, la chaleur se propage en respectant la hiérarchie :
+
+```
+MetaCapabilities (émergentes, ∞)
+       │ contains
+       ▼
+Capabilities (dependency, sequence, alternative)
+       │ contains
+       ▼
+Tools (co-occurrence, edges directs)
+```
+
+**Heat Diffusion Formula:**
+```typescript
+// Propagation depuis le contexte actuel
+heat[node] = Σ (neighbor_heat × edge_weight × decay_factor)
+
+// Decay selon la distance hiérarchique
+decay_factor = {
+  same_level: 0.9,      // Tool → Tool
+  up_hierarchy: 0.7,    // Tool → Capability
+  down_hierarchy: 0.5,  // Capability → Tool
+}
+```
+
+### Graph Structure (ADR-024)
+
+**Full Adjacency Matrix N×N:**
+- Stocke toutes les paires de tools observées
+- Cycle breaking automatique (DAG constraint)
+- Edge weights par type et source
+
+**Edge Types & Weights:**
+```typescript
+const EDGE_TYPE_WEIGHTS = {
+  dependency: 1.0,   // A dépend de B
+  contains: 0.8,     // Capability contient Tool
+  sequence: 0.5,     // A suivi de B (observé)
+  alternative: 0.3,  // A ou B (interchangeable)
+};
+
+const EDGE_SOURCE_WEIGHTS = {
+  observed: 1.0,     // Vu en production
+  inferred: 0.7,     // Déduit par algo
+  template: 0.5,     // Bootstrap initial
+};
+```
+
+**Affects Epics:** Epic 5 (Tools Scoring), Epic 7 (Capabilities Matching)
+
+**References:**
+- ADR-038: `docs/adrs/ADR-038-scoring-algorithms-reference.md`
+- ADR-048: `docs/adrs/ADR-048-hierarchical-heat-diffusion-alpha.md`
+- ADR-015: `docs/adrs/ADR-015-dynamic-alpha-graph-density.md`
 
 ---

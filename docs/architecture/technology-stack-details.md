@@ -22,6 +22,28 @@ _Updated: December 2025_
 | **Auth Layer** (`src/server/auth/*`)       | GitHub OAuth + API keys                     | Sessions in Deno KV, users in Drizzle           |
 | **Dashboard** (`src/web/*`)                | Fresh 2 + Vite                              | Port 8081 (dev) / 8080 (prod)                   |
 
+### BroadcastChannel Event Distribution (ADR-036)
+
+Pour la communication inter-process (Gateway ↔ Workers ↔ Dashboard), le système utilise `BroadcastChannel` :
+
+```typescript
+// Event distribution via BroadcastChannel
+const channel = new BroadcastChannel("pml-events");
+
+// Publisher (Gateway)
+channel.postMessage({ type: "task_completed", taskId, result });
+
+// Subscriber (Dashboard SSE handler)
+channel.onmessage = (event) => {
+  sseController.enqueue(`data: ${JSON.stringify(event.data)}\n\n`);
+};
+```
+
+**Use Cases :**
+- Propagation des événements d'exécution vers le dashboard (real-time updates)
+- Synchronisation des caches entre workers
+- Notification des changements de configuration
+
 ## 3. Data & Storage
 
 | Component          | Technology                                  | Purpose                                             |
@@ -49,10 +71,34 @@ See `docs/architecture/data-architecture.md` for the exhaustive schema.
 | Area                   | Details                                                                              |
 | ---------------------- | ------------------------------------------------------------------------------------ |
 | **MCP SDK**            | `@modelcontextprotocol/sdk@1.0.4` official implementation                            |
-| **Transports**         | stdio (local mode), HTTP with API key (cloud mode), SSE output to clients            |
+| **Transports**         | stdio (local mode), HTTP Streamable (cloud mode, ADR-025), SSE output to clients     |
 | **Hosted MCP Servers** | >15 servers launched via `Deno.Command` (GitHub, Filesystem, Memory, Tavily, etc.)   |
 | **Config**             | `config/.mcp-servers.json` (gateway) + future per-user configs (`user_mcp_configs`)  |
 | **Meta-Tools**         | `pml:search_tools`, `pml:execute_dag`, `pml:execute_code`, `pml:search_capabilities` |
+| **Real Execution**     | Gateway executes DAGs via MCP (ADR-030), not just suggestions                        |
+
+### JSON-RPC Multiplexer Pattern (ADR-044)
+
+Pour les requêtes MCP parallèles, le système utilise un multiplexer au lieu de requêtes séquentielles :
+
+```typescript
+// Pattern: Multiplexer pour requêtes parallèles
+class MCPMultiplexer {
+  private pending: Map<string, PendingRequest> = new Map();
+
+  async callMany(requests: MCPRequest[]): Promise<MCPResponse[]> {
+    // 1. Assigne un ID unique à chaque requête
+    // 2. Envoie toutes les requêtes en parallèle
+    // 3. Démultiplexe les réponses par ID
+    return Promise.all(requests.map(r => this.callSingle(r)));
+  }
+}
+```
+
+**Bénéfices :**
+- Réduit la latence de N requêtes séquentielles à 1 round-trip
+- Respecte le protocole JSON-RPC 2.0 (batch requests)
+- Utilisé dans `pml:execute_dag` pour les tâches parallèles
 
 ## 6. Authentication (Epic 9)
 
@@ -114,5 +160,9 @@ See `docs/architecture/data-architecture.md` for the exhaustive schema.
 - `deno.json` (tasks + imports)
 - `src/db/migrations.ts`, `src/db/schema/*`
 - `docs/architecture/data-architecture.md`
+- `docs/adrs/ADR-025-mcp-streamable-http-transport.md`
+- `docs/adrs/ADR-030-gateway-real-execution.md`
+- `docs/adrs/ADR-036-broadcast-channel-event-distribution.md`
 - `docs/adrs/ADR-038-scoring-algorithms-reference.md`
+- `docs/adrs/ADR-044-json-rpc-multiplexer-mcp-client.md`
 - `docs/sprint-artifacts/tech-rename-to-casys-pml.md`

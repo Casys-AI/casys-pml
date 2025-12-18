@@ -85,11 +85,66 @@
 | Zoom/Pan | Built-in | d3-zoom |
 | Layout | cose, dagre | d3-force |
 
+---
+
+## Capability-to-Capability Hyperedges (ADR-042)
+
+Au-delà des relations Tool↔Capability, le système apprend des **relations entre capabilities** :
+
+### Edge Types
+
+| Edge Type | Signification | Exemple |
+|-----------|---------------|---------|
+| `contains` | A inclut B (composition) | "Deploy App" contains "Build App" |
+| `sequence` | A puis B (ordre temporel) | "Lint Code" → "Run Tests" |
+| `dependency` | A dépend de B (DAG) | "Create PR" depends on "Commit Changes" |
+| `alternative` | A et B interchangeables | "Use npm" alt "Use yarn" |
+
+### Impact sur les Algorithmes
+
+```typescript
+// Spectral Clustering enrichi avec Cap↔Cap edges
+const capDeps = await db.query(`
+  SELECT from_capability_id, to_capability_id, confidence_score, edge_type
+  FROM capability_dependency
+  WHERE confidence_score > 0.3
+`);
+
+// Capabilities fortement liées → même cluster spectral
+```
+
+### Visualisation des Hyperedges
+
+```javascript
+// Links array étendu avec Cap→Cap
+[
+  // Tool → Capability (hierarchy)
+  { source: 'cap-uuid-1', target: 'filesystem:read', edge_type: 'hierarchy' },
+
+  // Capability → Capability (learned relations)
+  { source: 'cap-uuid-1', target: 'cap-uuid-2', edge_type: 'sequence' },
+  { source: 'cap-uuid-3', target: 'cap-uuid-4', edge_type: 'alternative' }
+]
+```
+
+### Edge Type Visual Encoding
+
+| Edge Type | Color | Dash Pattern |
+|-----------|-------|--------------|
+| `hierarchy` (Tool→Cap) | Gray | Solid |
+| `dependency` | Red | Solid |
+| `sequence` | Blue | Dashed |
+| `alternative` | Green | Dotted |
+| `contains` | Purple | Solid thick |
+
+---
+
 **Affects Epics:** Epic 8 (Stories 8.1-8.5)
 
 **References:**
 
 - ADR-029: Hypergraph Capabilities Visualization (includes migration notes)
+- ADR-042: Capability-to-Capability Hyperedges
 - Epic 6: Real-time Graph Monitoring (base dashboard)
 
 **Design Philosophy:** Visualize the learned capabilities as first-class entities, enabling developers to explore, understand, and reuse the system's accumulated knowledge.
