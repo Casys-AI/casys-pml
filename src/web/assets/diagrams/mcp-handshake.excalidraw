@@ -1,0 +1,24 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "Casys PML Blog",
+  "elements": [
+    {"id": "c-line", "type": "rectangle", "x": 60, "y": 20, "width": 4, "height": 170, "strokeColor": "#60a5fa", "backgroundColor": "#60a5fa", "fillStyle": "solid", "strokeWidth": 0, "roughness": 0},
+    {"id": "c-label", "type": "text", "x": 45, "y": 5, "width": 35, "height": 12, "text": "Client", "fontSize": 10, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#60a5fa"},
+    {"id": "s-line", "type": "rectangle", "x": 260, "y": 20, "width": 4, "height": 170, "strokeColor": "#4ade80", "backgroundColor": "#4ade80", "fillStyle": "solid", "strokeWidth": 0, "roughness": 0},
+    {"id": "s-label", "type": "text", "x": 245, "y": 5, "width": 35, "height": 12, "text": "Server", "fontSize": 10, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#4ade80"},
+    {"id": "arr1", "type": "arrow", "x": 70, "y": 35, "width": 185, "height": 0, "strokeColor": "#fbbf24", "strokeWidth": 2, "roughness": 0, "points": [[0, 0], [185, 0]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "label1", "type": "text", "x": 85, "y": 22, "width": 140, "height": 10, "text": "initialize (protocol, capabilities)", "fontSize": 8, "fontFamily": 1, "textAlign": "left", "verticalAlign": "middle", "strokeColor": "#f0ede8"},
+    {"id": "arr2", "type": "arrow", "x": 255, "y": 60, "width": 185, "height": 0, "strokeColor": "#a78bfa", "strokeWidth": 2, "strokeStyle": "dashed", "roughness": 0, "points": [[0, 0], [-185, 0]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "label2", "type": "text", "x": 85, "y": 47, "width": 140, "height": 10, "text": "capabilities (tools, resources)", "fontSize": 8, "fontFamily": 1, "textAlign": "left", "verticalAlign": "middle", "strokeColor": "#a78bfa"},
+    {"id": "arr3", "type": "arrow", "x": 70, "y": 90, "width": 185, "height": 0, "strokeColor": "#fbbf24", "strokeWidth": 2, "roughness": 0, "points": [[0, 0], [185, 0]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "label3", "type": "text", "x": 130, "y": 77, "width": 50, "height": 10, "text": "tools/list", "fontSize": 8, "fontFamily": 1, "textAlign": "left", "verticalAlign": "middle", "strokeColor": "#f0ede8"},
+    {"id": "arr4", "type": "arrow", "x": 255, "y": 115, "width": 185, "height": 0, "strokeColor": "#a78bfa", "strokeWidth": 2, "strokeStyle": "dashed", "roughness": 0, "points": [[0, 0], [-185, 0]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "label4", "type": "text", "x": 85, "y": 102, "width": 130, "height": 10, "text": "[{name, description, schema}...]", "fontSize": 8, "fontFamily": 1, "textAlign": "left", "verticalAlign": "middle", "strokeColor": "#a78bfa"},
+    {"id": "arr5", "type": "arrow", "x": 70, "y": 145, "width": 185, "height": 0, "strokeColor": "#fbbf24", "strokeWidth": 2, "roughness": 0, "points": [[0, 0], [185, 0]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "label5", "type": "text", "x": 100, "y": 132, "width": 100, "height": 10, "text": "tools/call (name, args)", "fontSize": 8, "fontFamily": 1, "textAlign": "left", "verticalAlign": "middle", "strokeColor": "#f0ede8"},
+    {"id": "arr6", "type": "arrow", "x": 255, "y": 170, "width": 185, "height": 0, "strokeColor": "#a78bfa", "strokeWidth": 2, "strokeStyle": "dashed", "roughness": 0, "points": [[0, 0], [-185, 0]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "label6", "type": "text", "x": 115, "y": 157, "width": 80, "height": 10, "text": "{content: result}", "fontSize": 8, "fontFamily": 1, "textAlign": "left", "verticalAlign": "middle", "strokeColor": "#a78bfa"}
+  ],
+  "appState": {"viewBackgroundColor": "#08080a", "gridSize": 20}
+}

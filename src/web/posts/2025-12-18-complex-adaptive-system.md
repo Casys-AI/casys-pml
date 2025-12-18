@@ -41,18 +41,7 @@ A Complex Adaptive System (CAS) is a system where:
 
 Examples in nature: ecosystems, immune systems, economies, ant colonies.
 
-```mermaid
-graph LR
-    subgraph "Pipeline (Static)"
-        A[Input] --> B[Process] --> C[Output]
-    end
-
-    subgraph "CAS (Adaptive)"
-        D[Agents] <--> E[Environment]
-        E <--> F[Emergence]
-        F <--> D
-    end
-```
+![Pipeline vs CAS](excalidraw:src/web/assets/diagrams/cas-pipeline-vs-adaptive.excalidraw)
 
 The difference? A pipeline *produces*. A CAS *evolves*.
 
@@ -64,16 +53,7 @@ Complex behaviors arise from simple rules. No central controller designs them—
 
 In an AI agent context: capabilities emerge from repeated tool combinations, not from explicit programming.
 
-```mermaid
-graph TD
-    T1[Tool A] --> P[Pattern Detection]
-    T2[Tool B] --> P
-    T3[Tool C] --> P
-    P --> C[Emergent Capability]
-    C -.->|influences| T1
-    C -.->|influences| T2
-    C -.->|influences| T3
-```
+![Emergence](excalidraw:src/web/assets/diagrams/cas-emergence.excalidraw)
 
 ### 2. Feedback Loops
 
@@ -111,20 +91,7 @@ CAS thinking asks: *"How do I create conditions for this behavior to emerge?"*
 
 Instead of designing capabilities, you design **feedback loops**. Instead of coding rules, you create **environments where rules evolve**.
 
-```mermaid
-graph TD
-    subgraph "Traditional Design"
-        R1[Requirements] --> D1[Design] --> I1[Implement] --> T1[Test]
-    end
-
-    subgraph "CAS Design"
-        E[Environment] --> A[Agents]
-        A --> F[Feedback]
-        F --> L[Learning]
-        L --> E
-        L -.->|emergence| C[Capabilities]
-    end
-```
+![Design Comparison](excalidraw:src/web/assets/diagrams/cas-design-comparison.excalidraw)
 
 ## Measuring Emergence
 

@@ -1,0 +1,26 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "Casys PML Blog",
+  "elements": [
+    {"id": "a", "type": "rectangle", "x": 20, "y": 20, "width": 80, "height": 35, "strokeColor": "#4ade80", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 6}},
+    {"id": "a-text", "type": "text", "x": 30, "y": 30, "width": 60, "height": 14, "text": "git_commit", "fontSize": 10, "fontFamily": 3, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#f0ede8"},
+    {"id": "b", "type": "rectangle", "x": 160, "y": 20, "width": 90, "height": 35, "strokeColor": "#60a5fa", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 6}},
+    {"id": "b-text", "type": "text", "x": 170, "y": 30, "width": 70, "height": 14, "text": "github_push", "fontSize": 10, "fontFamily": 3, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#f0ede8"},
+    {"id": "c", "type": "rectangle", "x": 300, "y": 20, "width": 80, "height": 35, "strokeColor": "#a78bfa", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 6}},
+    {"id": "c-text", "type": "text", "x": 310, "y": 30, "width": 60, "height": 14, "text": "slack_notify", "fontSize": 10, "fontFamily": 3, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#f0ede8"},
+    {"id": "d", "type": "rectangle", "x": 120, "y": 100, "width": 150, "height": 45, "strokeColor": "#fbbf24", "backgroundColor": "#1f1f23", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 8}},
+    {"id": "d-text", "type": "text", "x": 130, "y": 112, "width": 130, "height": 20, "text": "Capability: Git Release", "fontSize": 11, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#fbbf24"},
+    {"id": "arrow-ab", "type": "arrow", "x": 105, "y": 37, "width": 50, "height": 0, "strokeColor": "#666666", "strokeWidth": 2, "roughness": 0, "points": [[0, 0], [50, 0]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "label-ab", "type": "text", "x": 110, "y": 20, "width": 50, "height": 12, "text": "followed_by", "fontSize": 8, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#666666"},
+    {"id": "arrow-bc", "type": "arrow", "x": 255, "y": 37, "width": 40, "height": 0, "strokeColor": "#666666", "strokeWidth": 2, "roughness": 0, "points": [[0, 0], [40, 0]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "label-bc", "type": "text", "x": 255, "y": 20, "width": 50, "height": 12, "text": "followed_by", "fontSize": 8, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#666666"},
+    {"id": "arrow-ac", "type": "arrow", "x": 60, "y": 60, "width": 280, "height": 20, "strokeColor": "#666666", "strokeWidth": 1, "strokeStyle": "dashed", "roughness": 0, "points": [[0, 0], [140, 20], [280, 0]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "label-ac", "type": "text", "x": 170, "y": 70, "width": 50, "height": 12, "text": "co_occurs", "fontSize": 8, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#666666"},
+    {"id": "arrow-da", "type": "arrow", "x": 145, "y": 100, "width": -70, "height": -40, "strokeColor": "#fbbf24", "strokeWidth": 1, "strokeStyle": "dotted", "roughness": 0, "points": [[0, 0], [-70, -40]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "arrow-db", "type": "arrow", "x": 195, "y": 100, "width": 10, "height": -40, "strokeColor": "#fbbf24", "strokeWidth": 1, "strokeStyle": "dotted", "roughness": 0, "points": [[0, 0], [10, -40]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "arrow-dc", "type": "arrow", "x": 245, "y": 100, "width": 90, "height": -40, "strokeColor": "#fbbf24", "strokeWidth": 1, "strokeStyle": "dotted", "roughness": 0, "points": [[0, 0], [90, -40]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "label-contains", "type": "text", "x": 280, "y": 80, "width": 50, "height": 12, "text": "contains", "fontSize": 8, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#fbbf24"}
+  ],
+  "appState": {"viewBackgroundColor": "#08080a", "gridSize": 20}
+}

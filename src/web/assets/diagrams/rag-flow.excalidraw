@@ -1,0 +1,28 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "Casys PML Blog",
+  "elements": [
+    {"id": "u", "type": "rectangle", "x": 20, "y": 40, "width": 80, "height": 200, "strokeColor": "#4ade80", "backgroundColor": "#1f1f23", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 8}},
+    {"id": "u-text", "type": "text", "x": 30, "y": 130, "width": 60, "height": 20, "text": "User\nQuery", "fontSize": 10, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#4ade80"},
+    {"id": "v", "type": "rectangle", "x": 130, "y": 40, "width": 80, "height": 200, "strokeColor": "#60a5fa", "backgroundColor": "#1f1f23", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 8}},
+    {"id": "v-text", "type": "text", "x": 140, "y": 130, "width": 60, "height": 20, "text": "Vector\nIndex", "fontSize": 10, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#60a5fa"},
+    {"id": "g", "type": "rectangle", "x": 240, "y": 40, "width": 100, "height": 200, "strokeColor": "#fbbf24", "backgroundColor": "#1f1f23", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 8}},
+    {"id": "g-text", "type": "text", "x": 250, "y": 130, "width": 80, "height": 20, "text": "SuperHyper\nGraph", "fontSize": 10, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#fbbf24"},
+    {"id": "r", "type": "rectangle", "x": 370, "y": 40, "width": 80, "height": 200, "strokeColor": "#a78bfa", "backgroundColor": "#1f1f23", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 8}},
+    {"id": "r-text", "type": "text", "x": 390, "y": 130, "width": 40, "height": 20, "text": "Results", "fontSize": 10, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#a78bfa"},
+    {"id": "arrow-1", "type": "arrow", "x": 60, "y": 60, "width": 65, "height": 0, "strokeColor": "#666666", "strokeWidth": 2, "roughness": 0, "points": [[0, 0], [65, 0]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "label-1", "type": "text", "x": 65, "y": 45, "width": 50, "height": 12, "text": "Deploy my app", "fontSize": 8, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#f0ede8"},
+    {"id": "tool-box", "type": "rectangle", "x": 125, "y": 85, "width": 220, "height": 50, "strokeColor": "#4ade80", "backgroundColor": "#0f1f1a", "fillStyle": "solid", "strokeWidth": 1, "roughness": 0, "roundness": {"type": 3, "value": 6}},
+    {"id": "tool-label", "type": "text", "x": 170, "y": 90, "width": 130, "height": 12, "text": "Tool Discovery (Additive)", "fontSize": 9, "fontFamily": 1, "textAlign": "center", "verticalAlign": "top", "strokeColor": "#4ade80"},
+    {"id": "arrow-t1", "type": "arrow", "x": 175, "y": 110, "width": 60, "height": 0, "strokeColor": "#4ade80", "strokeWidth": 1, "roughness": 0, "points": [[0, 0], [60, 0]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "arrow-t2", "type": "arrow", "x": 295, "y": 120, "width": 70, "height": 0, "strokeColor": "#4ade80", "strokeWidth": 1, "strokeStyle": "dashed", "roughness": 0, "points": [[0, 0], [70, 0]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "cap-box", "type": "rectangle", "x": 125, "y": 150, "width": 220, "height": 50, "strokeColor": "#fbbf24", "backgroundColor": "#1f1a0f", "fillStyle": "solid", "strokeWidth": 1, "roughness": 0, "roundness": {"type": 3, "value": 6}},
+    {"id": "cap-label", "type": "text", "x": 145, "y": 155, "width": 180, "height": 12, "text": "Capability Discovery (Multiplicative)", "fontSize": 9, "fontFamily": 1, "textAlign": "center", "verticalAlign": "top", "strokeColor": "#fbbf24"},
+    {"id": "arrow-c1", "type": "arrow", "x": 175, "y": 175, "width": 60, "height": 0, "strokeColor": "#fbbf24", "strokeWidth": 1, "roughness": 0, "points": [[0, 0], [60, 0]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "arrow-c2", "type": "arrow", "x": 295, "y": 185, "width": 70, "height": 0, "strokeColor": "#fbbf24", "strokeWidth": 1, "strokeStyle": "dashed", "roughness": 0, "points": [[0, 0], [70, 0]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "arrow-final", "type": "arrow", "x": 410, "y": 210, "width": -350, "height": 30, "strokeColor": "#a78bfa", "strokeWidth": 2, "roughness": 0, "points": [[0, 0], [0, 30], [-350, 30]], "startArrowhead": null, "endArrowhead": "arrow"},
+    {"id": "label-final", "type": "text", "x": 180, "y": 250, "width": 80, "height": 12, "text": "Ordered results", "fontSize": 9, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#a78bfa"}
+  ],
+  "appState": {"viewBackgroundColor": "#08080a", "gridSize": 20}
+}

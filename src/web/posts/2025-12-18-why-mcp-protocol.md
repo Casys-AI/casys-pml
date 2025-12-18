@@ -31,17 +31,7 @@ Every LLM provider invented their own tool interface:
 
 Same concept, different implementations. Want to support multiple models? Write adapters for each.
 
-```mermaid
-graph TD
-    subgraph "Without MCP: N adapters"
-        T1[Your Tool] --> A1[OpenAI Adapter]
-        T1 --> A2[Anthropic Adapter]
-        T1 --> A3[Google Adapter]
-        A1 --> M1[OpenAI]
-        A2 --> M2[Claude]
-        A3 --> M3[Gemini]
-    end
-```
+![Without MCP: N adapters](excalidraw:src/web/assets/diagrams/mcp-without.excalidraw)
 
 **The maintenance burden grows with each new model.**
 
@@ -56,15 +46,7 @@ graph TD
 | Primitives | Tools, Resources, Prompts |
 | License | MIT |
 
-```mermaid
-graph TD
-    subgraph "With MCP: 1 interface"
-        T1[Your Tool] --> MCP[MCP Protocol]
-        MCP --> M1[Any LLM]
-        MCP --> M2[Any Agent]
-        MCP --> M3[Any Client]
-    end
-```
+![With MCP: 1 interface](excalidraw:src/web/assets/diagrams/mcp-with.excalidraw)
 
 Write once, run everywhere. No more N×M adapter matrix.
 
@@ -106,40 +88,11 @@ Stdio transport means any language works. No HTTP server needed. Just read stdin
 
 Three layers, cleanly separated:
 
-```mermaid
-graph TD
-    subgraph "Client (Agent)"
-        C1[Discovery]
-        C2[Invocation]
-    end
-
-    subgraph "Protocol"
-        P[JSON-RPC 2.0]
-    end
-
-    subgraph "Server (Tool)"
-        S1[Tool Handlers]
-        S2[Resource Handlers]
-    end
-
-    C1 --> P --> S1
-    C2 --> P --> S2
-```
+![MCP Architecture](excalidraw:src/web/assets/diagrams/mcp-architecture.excalidraw)
 
 ### The Handshake
 
-```mermaid
-sequenceDiagram
-    participant C as Client
-    participant S as Server
-
-    C->>S: initialize (protocol version, capabilities)
-    S-->>C: capabilities (tools, resources, prompts)
-    C->>S: tools/list
-    S-->>C: [{name, description, inputSchema}...]
-    C->>S: tools/call (name, arguments)
-    S-->>C: {content: result}
-```
+![MCP Handshake](excalidraw:src/web/assets/diagrams/mcp-handshake.excalidraw)
 
 ### Primitives
 

@@ -22,10 +22,7 @@ author: Erwan Lee Pesle
 
 Most AI frameworks use chains: LangChain, CrewAI, AutoGPT. One step feeds into the next.
 
-```mermaid
-graph LR
-    A[Step 1] --> B[Step 2] --> C[Step 3] --> D[Step 4]
-```
+![Chain Model](excalidraw:src/web/assets/diagrams/dag-chain-model.excalidraw)
 
 | Strength | Weakness |
 |----------|----------|
@@ -41,15 +38,7 @@ Consider deploying an app: you need to build Docker images AND run tests. These 
 
 A **Directed Acyclic Graph** (DAG) models workflows as they really are: a network of dependencies.
 
-```mermaid
-graph TD
-    A[Read Config] --> B[Fetch Data]
-    A --> C[Load Template]
-    B --> D[Process]
-    C --> D
-    D --> E[Write Output]
-    D --> F[Notify]
-```
+![DAG Model](excalidraw:src/web/assets/diagrams/dag-dag-model.excalidraw)
 
 Key properties:
 - **Directed**: Edges have direction (A must complete before B)
@@ -64,20 +53,9 @@ Steps B and C can run **in parallel**—they only share a common ancestor, not a
 
 Independent tasks run simultaneously. Same work, less time.
 
-```mermaid
-graph LR
-    subgraph "Chain: 4 seconds"
-        C1[1s] --> C2[1s] --> C3[1s] --> C4[1s]
-    end
-```
+![Chain Time](excalidraw:src/web/assets/diagrams/dag-chain-time.excalidraw)
 
-```mermaid
-graph TD
-    subgraph "DAG: 2 seconds"
-        D1[1s] --> D3[1s]
-        D2[1s] --> D3
-    end
-```
+![DAG Time](excalidraw:src/web/assets/diagrams/dag-dag-time.excalidraw)
 
 Real example from deployment:
 
@@ -95,17 +73,7 @@ Real example from deployment:
 
 Mid-execution changes are inevitable. Something fails. New information arrives. The agent needs to adapt.
 
-```mermaid
-graph TD
-    subgraph "Before: Original Plan"
-        A1[Build] --> B1[Deploy]
-    end
-
-    subgraph "After: Inserted Security Scan"
-        A2[Build] --> S[Security Scan]
-        S --> B2[Deploy]
-    end
-```
+![Replanning](excalidraw:src/web/assets/diagrams/dag-replanning.excalidraw)
 
 | Operation | Chain | DAG |
 |-----------|-------|-----|
@@ -117,18 +85,7 @@ graph TD
 
 One failure doesn't have to stop everything.
 
-```mermaid
-graph TD
-    A[Start] --> B[Branch A]
-    A --> C[Branch B]
-    B --> D[A1]
-    B --> E[A2 - FAILED]
-    C --> F[B1]
-    C --> G[B2]
-    D --> H[Merge]
-    F --> H
-    G --> H
-```
+![Resilience](excalidraw:src/web/assets/diagrams/dag-resilience.excalidraw)
 
 When A2 fails:
 - **Chain:** Everything stops. Rollback needed.
@@ -147,14 +104,7 @@ DAGs are self-documenting. The structure reveals:
 | What's the bottleneck? | Node on critical path with longest duration |
 | What can run next? | Nodes whose predecessors just completed |
 
-```mermaid
-graph TD
-    A[✓ Complete] --> B[🔄 Running]
-    A --> C[🔄 Running]
-    B --> D[⏳ Waiting]
-    C --> D
-    D --> E[⏳ Waiting]
-```
+![Observability](excalidraw:src/web/assets/diagrams/dag-observability.excalidraw)
 
 Chains give you a position. DAGs give you a map.
 
@@ -184,18 +134,7 @@ Chains give you a position. DAGs give you a map.
 
 Casys PML uses DAGs for workflow execution:
 
-```mermaid
-graph TD
-    subgraph "Workflow DAG"
-        P[Parse Intent] --> G[Generate Plan]
-        G --> V[Validate Plan]
-        V --> E1[Execute Task 1]
-        V --> E2[Execute Task 2]
-        E1 --> M[Merge Results]
-        E2 --> M
-        M --> R[Return Response]
-    end
-```
+![Workflow DAG](excalidraw:src/web/assets/diagrams/dag-workflow.excalidraw)
 
 **Core operations:**
 

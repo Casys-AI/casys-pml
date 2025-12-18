@@ -28,12 +28,7 @@ AI workflows are latency-bound. Each step waits for the previous one.
 | Tool execution | 10ms - 500ms |
 | User confirmation | 0 - ∞ |
 
-```mermaid
-graph LR
-    subgraph "Sequential (Slow)"
-        A[Task A] --> W1[Wait] --> B[Task B] --> W2[Wait] --> C[Task C]
-    end
-```
+![Sequential Execution](excalidraw:src/web/assets/diagrams/spec-sequential.excalidraw)
 
 A 5-step workflow at 1s per LLM call = 5 seconds minimum. Most of that time? Waiting.
 
@@ -47,16 +42,7 @@ The bet:
 3. If prediction correct → result is ready, no wait
 4. If prediction wrong → discard and continue normally
 
-```mermaid
-graph TD
-    subgraph "Speculative (Fast)"
-        A[Task A] --> B[Task B]
-        A --> S1[Speculative C]
-        A --> S2[Speculative D]
-        B --> C[Confirm C ✓]
-        S1 -.->|discard if wrong| X[Discard]
-    end
-```
+![Speculative Execution](excalidraw:src/web/assets/diagrams/spec-speculative.excalidraw)
 
 The key insight: **wrong predictions cost compute, not correctness**. You just throw away wasted work.
 
@@ -72,12 +58,7 @@ Not all predictions are equal. The decision depends on confidence and cost.
 
 **Cost matters too:**
 
-```mermaid
-graph TD
-    P[Prediction 85%] --> C{Cost?}
-    C -->|Low: file read| S1[Speculate ✓]
-    C -->|High: API call| W1[Wait]
-```
+![Cost Decision](excalidraw:src/web/assets/diagrams/spec-cost-decision.excalidraw)
 
 A cheap speculation at 70% confidence might be worth it. An expensive speculation at 90% might not be.
 
@@ -92,16 +73,7 @@ This is where our graph structure pays off. The graph knows:
 | **Capabilities** | Natural task groupings |
 | **Historical success** | What actually worked before |
 
-```mermaid
-graph LR
-    Current[Current Task] --> G[GraphRAG Query]
-    G --> P1[Next: 95% confidence]
-    G --> P2[Alternative: 78%]
-    G --> P3[Unlikely: 45%]
-    P1 --> S1[Speculate ✓]
-    P2 --> S2[Maybe speculate]
-    P3 --> W[Don't speculate]
-```
+![GraphRAG Advantage](excalidraw:src/web/assets/diagrams/spec-graphrag-advantage.excalidraw)
 
 After `git_commit`, the graph might show:
 - `github_push`: 95% (almost always follows)
@@ -123,12 +95,7 @@ Speculative tasks run in isolation:
 
 ### 2. Confirm Before Commit
 
-```mermaid
-graph TD
-    S[Speculative Result] --> C{Prediction Correct?}
-    C -->|Yes| A[Apply result]
-    C -->|No| D[Discard silently]
-```
+![Confirm or Discard](excalidraw:src/web/assets/diagrams/spec-confirm.excalidraw)
 
 ### 3. Learn From Misses
 
@@ -147,12 +114,7 @@ The fundamental trade-off: **compute for latency**.
 | Failed speculation | Compute wasted = task cost |
 | Hit rate | Determines if trade-off is worth it |
 
-```mermaid
-graph LR
-    subgraph "The Trade-off"
-        L[Lower Latency] <-->|costs| C[More Compute]
-    end
-```
+![Performance Trade-off](excalidraw:src/web/assets/diagrams/spec-tradeoff.excalidraw)
 
 The break-even point depends on your hit rate and cost ratio. We use a 70% confidence threshold with adaptive adjustment.
 

@@ -36,14 +36,7 @@ Similar ≠ Related. And for AI agents, you need both.
 
 Vector embeddings capture **semantic similarity**. Two pieces of text that mean similar things will have similar vectors.
 
-```mermaid
-graph LR
-    Q[Query: Deploy to AWS] --> E[Embedding]
-    E --> S[Similarity Search]
-    S --> R1[aws_deploy: 0.92]
-    S --> R2[aws_config: 0.87]
-    S --> R3[docker_push: 0.71]
-```
+![Vector RAG Similarity Search](excalidraw:src/web/assets/diagrams/rag-vector.excalidraw)
 
 **Great for:**
 - Finding relevant tools by intent
@@ -59,15 +52,7 @@ graph LR
 
 Graphs capture **structural relationships**. Nodes are entities, edges are how they relate.
 
-```mermaid
-graph TD
-    A[git_commit] -->|followed_by| B[github_push]
-    B -->|followed_by| C[slack_notify]
-    A -->|co_occurs| C
-    D[Capability: Git Release] -->|contains| A
-    D -->|contains| B
-    D -->|contains| C
-```
+![Graph RAG Relationships](excalidraw:src/web/assets/diagrams/rag-graph.excalidraw)
 
 **Great for:**
 - Understanding tool dependencies
@@ -113,36 +98,7 @@ In PML, we use an **unbounded SuperHyperGraph** with natural hierarchy levels:
 | 2+ | **Meta-Capabilities** | "Deploy" = {Build, Test, Release} |
 | n | **Emergent compositions** | No depth limit |
 
-```mermaid
-graph TD
-    subgraph "Level 2: Meta-Capability"
-        Deploy[Deploy Full Stack]
-    end
-
-    subgraph "Level 1: Capabilities"
-        Build[Build]
-        Test[Test]
-        Release[Release]
-    end
-
-    subgraph "Level 0: Tools"
-        T1[npm_install]
-        T2[tsc_compile]
-        T3[jest_run]
-        T4[docker_build]
-        T5[aws_push]
-    end
-
-    Deploy -->|contains| Build
-    Deploy -->|contains| Test
-    Deploy -->|contains| Release
-
-    Build -->|contains| T1
-    Build -->|contains| T2
-    Test -->|contains| T3
-    Release -->|contains| T4
-    Release -->|contains| T5
-```
+![SuperHyperGraph Hierarchy Levels](excalidraw:src/web/assets/diagrams/rag-superhypergraph-levels.excalidraw)
 
 <details>
 <summary><strong>Technical Deep Dive: Edge Types & DAG Constraints</strong></summary>
@@ -269,34 +225,7 @@ Putting it all together:
 
 ### The Flow
 
-```mermaid
-sequenceDiagram
-    participant U as User Query
-    participant V as Vector Index
-    participant G as SuperHyperGraph
-    participant R as Results
-
-    U->>V: "Deploy my app"
-    V->>V: Embed query
-
-    rect rgb(240, 248, 255)
-        Note over V,G: Tool Discovery (Additive)
-        V->>G: Tool candidates
-        G->>G: PageRank + Community
-        G-->>R: Ranked tools
-    end
-
-    rect rgb(255, 248, 240)
-        Note over V,G: Capability Discovery (Multiplicative)
-        V->>G: Capability candidates
-        G->>G: Reliability filter (×)
-        G->>G: Spectral clustering
-        G-->>R: Qualified capabilities
-    end
-
-    R->>R: Merge & dedupe
-    R->>U: Ordered results
-```
+![Hybrid RAG Flow](excalidraw:src/web/assets/diagrams/rag-flow.excalidraw)
 
 ---
 

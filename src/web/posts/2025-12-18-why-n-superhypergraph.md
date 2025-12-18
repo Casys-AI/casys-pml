@@ -26,21 +26,7 @@ And sometimes, that orchestration is part of an even bigger one.
 
 Standard knowledge graphs can't represent this. They give you nodes and edges—pairs of connected things. But skills are *containers*. They hold tools, sequences, and sometimes *other skills*.
 
-```mermaid
-flowchart TD
-    subgraph BEFORE["❌ Standard Graph"]
-        G1[GitHub] --- F1[Filesystem] --- A1[AWS]
-    end
-
-    subgraph AFTER["✅ What We Need"]
-        subgraph DEPLOY["🚀 Deploy to Prod"]
-            subgraph TEST["🧪 Tests"]
-                J[Jest] --> C[Coverage]
-            end
-            G2[GitHub] --> D[Docker] --> A2[AWS]
-        end
-    end
-```
+![Standard Graph vs What We Need](excalidraw:src/web/assets/diagrams/shg-standard-vs-needed.excalidraw)
 
 We needed a data structure that could represent:
 1. **Groups of tools** (not just pairs)
@@ -49,21 +35,7 @@ We needed a data structure that could represent:
 
 ## The Evolution: Graph → Hypergraph → SuperHyperGraph
 
-```mermaid
-flowchart TD
-    subgraph G1["1️⃣ Graph"]
-        A[A] --- B[B] --- C[C]
-    end
-    subgraph G2["2️⃣ Hypergraph"]
-        D[A] & E[B] & F[C] -.-> H{Hyperedge}
-    end
-    subgraph G3["3️⃣ SuperHyperGraph"]
-        I[Tool] --> J[Cap]
-        K[Tool] --> J
-        J --> L[Meta]
-    end
-    G1 -->|"+N nodes"| G2 -->|"+nesting"| G3
-```
+![Evolution: Graph to SuperHyperGraph](excalidraw:src/web/assets/diagrams/shg-evolution.excalidraw)
 
 ## Step 1: The Hypergraph
 
@@ -107,26 +79,7 @@ With n-SuperHyperGraphs:
 2. **Retrieval is contextual**: Asking "how do I deploy?" retrieves the whole skill tree, not just related tools
 3. **Emergence is natural**: Complex behaviors arise from combining simpler ones
 
-```mermaid
-flowchart TD
-    subgraph META["🎯 Release Process"]
-        subgraph CAP1["📦 Git"]
-            T1[commit] --> T2[push]
-        end
-        subgraph CAP2["🧪 Tests"]
-            T3[jest] --> T4[coverage]
-        end
-        subgraph CAP3["☁️ Deploy"]
-            subgraph DOCKER["🐳 Docker"]
-                T5[build] --> T6[push]
-            end
-            T7[ecs_update]
-        end
-        CAP1 --> CAP3
-        CAP2 --> CAP3
-        DOCKER --> T7
-    end
-```
+![Recursive Skill Tree](excalidraw:src/web/assets/diagrams/shg-skill-tree.excalidraw)
 
 Notice the recursion: capabilities contain tools *or other capabilities*, to any depth. The "Docker Build" sub-capability lives inside "Deploy AWS," which lives inside "Release Process."
 
@@ -152,17 +105,7 @@ Not all edges are equal. Our SuperHyperGraph uses four edge types with different
 | `provides` | ✅ | Data can flow bidirectionally |
 | `sequence` | ✅ | Temporal patterns can loop (retry, poll) |
 
-```mermaid
-flowchart LR
-    subgraph DAG["🔒 No Cycles"]
-        A[Parent] -->|contains| B[Child]
-        C[A] -->|depends| D[B]
-    end
-    subgraph OK["🔄 Cycles OK"]
-        E[X] <-->|provides| F[Y]
-        G[1] --> H[2] --> I[3] -.->|retry| G
-    end
-```
+![Edge Constraints](excalidraw:src/web/assets/diagrams/shg-edge-constraints.excalidraw)
 
 ### Query Examples
 

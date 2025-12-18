@@ -1,0 +1,16 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "Casys PML Blog",
+  "elements": [
+    {"id": "box", "type": "rectangle", "x": 20, "y": 20, "width": 300, "height": 60, "strokeColor": "#a78bfa", "backgroundColor": "#1f1f23", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 12}},
+    {"id": "title", "type": "text", "x": 120, "y": 28, "width": 100, "height": 14, "text": "The Trade-off", "fontSize": 11, "fontFamily": 1, "textAlign": "center", "verticalAlign": "top", "strokeColor": "#a78bfa"},
+    {"id": "l", "type": "rectangle", "x": 40, "y": 48, "width": 100, "height": 25, "strokeColor": "#4ade80", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 6}},
+    {"id": "l-text", "type": "text", "x": 50, "y": 54, "width": 80, "height": 12, "text": "Lower Latency", "fontSize": 10, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#4ade80"},
+    {"id": "c", "type": "rectangle", "x": 200, "y": 48, "width": 100, "height": 25, "strokeColor": "#ef4444", "backgroundColor": "#2d2d35", "fillStyle": "solid", "strokeWidth": 2, "roughness": 0, "roundness": {"type": 3, "value": 6}},
+    {"id": "c-text", "type": "text", "x": 210, "y": 54, "width": 80, "height": 12, "text": "More Compute", "fontSize": 10, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#ef4444"},
+    {"id": "arr1", "type": "arrow", "x": 145, "y": 55, "width": 50, "height": 0, "strokeColor": "#fbbf24", "strokeWidth": 2, "roughness": 0, "points": [[0, 0], [50, 0]], "startArrowhead": "arrow", "endArrowhead": "arrow"},
+    {"id": "cost-label", "type": "text", "x": 152, "y": 68, "width": 40, "height": 10, "text": "costs", "fontSize": 8, "fontFamily": 1, "textAlign": "center", "verticalAlign": "middle", "strokeColor": "#fbbf24"}
+  ],
+  "appState": {"viewBackgroundColor": "#08080a", "gridSize": 20}
+}

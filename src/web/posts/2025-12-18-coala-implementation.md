@@ -32,28 +32,7 @@ We took this framework and built something more ambitious: **five feedback loops
 
 Like human cognition, Casys PML maintains four distinct memory systems:
 
-```mermaid
-graph TD
-    subgraph "Short-term"
-        W[Working Memory<br/>Current workflow state]
-    end
-
-    subgraph "Long-term"
-        E[Episodic Memory<br/>Past experiences]
-        S[Semantic Memory<br/>Facts & constraints]
-        P[Procedural Memory<br/>Skills & capabilities]
-    end
-
-    W --> D[Decision Engine]
-    E --> D
-    S --> D
-    P --> D
-    D --> A[Action]
-    A --> L[Learning]
-    L --> E
-    L --> S
-    L --> P
-```
+![Memory Types](excalidraw:src/web/assets/diagrams/coala-memory-types.excalidraw)
 
 | Memory Type | What It Stores | Example Query |
 |-------------|---------------|---------------|
@@ -66,38 +45,7 @@ graph TD
 
 Where CoALA has two loops, we have five—each operating at different timescales:
 
-```mermaid
-graph TB
-    subgraph L1["Loop 1: Execution (ms)"]
-        E1[Task] --> E2[Event] --> E3[State Update]
-        E3 --> E1
-    end
-
-    subgraph L2["Loop 2: Adaptation (sec)"]
-        A1[Discovery] --> A2[Decision] --> A3[DAG Replan]
-        A3 --> A1
-    end
-
-    subgraph L3["Loop 3: Learning (min)"]
-        M1[Workflow Complete] --> M2[Pattern Extract] --> M3[Graph Update]
-        M3 --> M1
-    end
-
-    subgraph L4["Loop 4: Emergence (hours)"]
-        C1[Patterns Accumulate] --> C2[Spectral Clustering] --> C3[Capabilities Form]
-        C3 --> C1
-    end
-
-    subgraph L5["Loop 5: Evolution (days)"]
-        V1[Capabilities] --> V2[Meta-Capabilities] --> V3[Hierarchy Deepens]
-        V3 --> V1
-    end
-
-    L1 --> L2
-    L2 --> L3
-    L3 --> L4
-    L4 --> L5
-```
+![Feedback Loops](excalidraw:src/web/assets/diagrams/coala-feedback-loops.excalidraw)
 
 | Loop | Timescale | What Happens |
 |------|-----------|--------------|
@@ -127,12 +75,7 @@ Events are buffered and written asynchronously (<1ms overhead).
 
 Instead of waiting for batch updates, the graph learns at each step:
 
-```mermaid
-graph LR
-    E[Execute Tool] --> U[Update Edge Weight]
-    U --> N[Next Tool]
-    N --> E
-```
+![Incremental Updates](excalidraw:src/web/assets/diagrams/coala-incremental-updates.excalidraw)
 
 Each step's outcome immediately influences the next suggestion.
 
@@ -148,20 +91,7 @@ The system finds its own optimal operating point over time.
 
 Unlike CoALA's single-agent focus, our learning is **cross-workflow and cross-user**:
 
-```mermaid
-graph TD
-    subgraph "CoALA (Single Agent)"
-        U1[User 1] --> A1[Agent 1]
-        A1 --> M1[Memory 1]
-    end
-
-    subgraph "Casys PML (Shared)"
-        U2[User 1] --> S[Shared System]
-        U3[User 2] --> S
-        U4[User 3] --> S
-        S --> G[Global Graph]
-    end
-```
+![System-Wide Learning](excalidraw:src/web/assets/diagrams/coala-meta-learning.excalidraw)
 
 When one user discovers a pattern, **everyone benefits**.
 

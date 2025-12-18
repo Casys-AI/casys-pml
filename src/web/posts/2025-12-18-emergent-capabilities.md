@@ -24,22 +24,7 @@ A **tool** is an atomic action: read a file, push to git, send a message.
 
 A **capability** is a coordinated pattern: "deploy to production" involves 5-10 tools working in sequence.
 
-```mermaid
-graph LR
-    subgraph "Tools (Atomic)"
-        T1[git_commit]
-        T2[docker_build]
-        T3[aws_deploy]
-    end
-
-    subgraph "Capability (Pattern)"
-        C[Deploy to Prod]
-    end
-
-    T1 --> C
-    T2 --> C
-    T3 --> C
-```
+![Tools vs Capability](excalidraw:src/web/assets/diagrams/emerge-tools-vs-capability.excalidraw)
 
 The key insight: **nobody programs capabilities**. They emerge from repeated patterns.
 
@@ -49,13 +34,7 @@ The key insight: **nobody programs capabilities**. They emerge from repeated pat
 
 Every workflow execution is recorded. Which tools were used? In what order? Did it succeed?
 
-```mermaid
-graph TD
-    W1[Workflow 1] --> O[Observer]
-    W2[Workflow 2] --> O
-    W3[Workflow 3] --> O
-    O --> G[Graph Updates]
-```
+![Observation](excalidraw:src/web/assets/diagrams/emerge-observation.excalidraw)
 
 ### Step 2: Pattern Detection
 
@@ -74,29 +53,7 @@ After enough observations: `{git_commit, github_push, slack_notify}` becomes a p
 
 Spectral clustering on the graph Laplacian detects natural groupings:
 
-```mermaid
-graph TD
-    subgraph "Cluster 1: Git Release"
-        A[git_commit]
-        B[github_push]
-        C[slack_notify]
-    end
-
-    subgraph "Cluster 2: Testing"
-        D[jest_run]
-        E[coverage_check]
-    end
-
-    subgraph "Cluster 3: Deploy"
-        F[docker_build]
-        G[aws_deploy]
-    end
-
-    A --- B
-    B --- C
-    D --- E
-    F --- G
-```
+![Clustering](excalidraw:src/web/assets/diagrams/emerge-clustering.excalidraw)
 
 ### Step 4: Capability Birth
 
@@ -114,26 +71,7 @@ The system names it based on the dominant tool or asks the user.
 
 Here's where it gets interesting: **capabilities can contain other capabilities**.
 
-```mermaid
-graph TD
-    subgraph META["Meta: Full Release"]
-        subgraph CAP1["Cap: Git Workflow"]
-            T1[commit]
-            T2[push]
-        end
-        subgraph CAP2["Cap: Test Suite"]
-            T3[test]
-            T4[coverage]
-        end
-        subgraph CAP3["Cap: Deploy"]
-            T5[build]
-            T6[deploy]
-        end
-    end
-
-    CAP1 --> CAP3
-    CAP2 --> CAP3
-```
+![Meta-Capabilities](excalidraw:src/web/assets/diagrams/emerge-meta-capabilities.excalidraw)
 
 When users repeatedly execute Git Workflow → Test Suite → Deploy in sequence, a meta-capability "Full Release" emerges.
 
@@ -178,24 +116,7 @@ Capabilities aren't static. As workflows change, capabilities evolve:
 - Capability merge (when two capabilities consistently co-occur)
 - Capability split (when a capability develops distinct sub-patterns)
 
-```mermaid
-graph LR
-    subgraph "Week 1"
-        A1[Cap A: 0.9]
-        A2[Cap B: 0.8]
-    end
-
-    subgraph "Week 4"
-        B1[Cap A: 0.95]
-        B2[Cap B: 0.6 - decaying]
-        B3[Cap C: 0.85 - new!]
-    end
-
-    subgraph "Week 8"
-        C1[Cap A: 0.92]
-        C2[Cap C: 0.88]
-    end
-```
+![Evolution](excalidraw:src/web/assets/diagrams/emerge-evolution.excalidraw)
 
 ## The Detection Algorithm
 
