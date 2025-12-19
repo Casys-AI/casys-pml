@@ -171,6 +171,7 @@ export class DAGSuggester {
         this.scoringConfig.limits.hybridSearchCandidates,
         contextTools,
         false,
+        this.scoringConfig.thresholds.toolSearch,
       );
 
       if (hybridCandidates.length === 0) {

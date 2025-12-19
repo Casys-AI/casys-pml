@@ -52,6 +52,7 @@ export interface DagScoringThresholds {
   suggestionFloor: number;
   dependencyThreshold: number;
   replanThreshold: number;
+  toolSearch: number;
   contextSearch: number;
   intentSearch: number;
   alternativeSuccessRate: number;
@@ -166,6 +167,7 @@ interface DagScoringFileConfig {
     suggestion_floor?: number;
     dependency_threshold?: number;
     replan_threshold?: number;
+    tool_search?: number;
     context_search?: number;
     intent_search?: number;
     alternative_success_rate?: number;
@@ -259,6 +261,7 @@ export const DEFAULT_DAG_SCORING_CONFIG: DagScoringConfig = {
     suggestionFloor: 0.65,
     dependencyThreshold: 0.50,
     replanThreshold: 0.50,
+    toolSearch: 0.50,
     contextSearch: 0.30,
     intentSearch: 0.65,
     alternativeSuccessRate: 0.70,
@@ -364,6 +367,7 @@ function validateDagScoringConfig(config: DagScoringConfig): void {
   // Thresholds
   checkRange01("thresholds.suggestionFloor", config.thresholds.suggestionFloor);
   checkRange01("thresholds.dependencyThreshold", config.thresholds.dependencyThreshold);
+  checkRange01("thresholds.toolSearch", config.thresholds.toolSearch);
   checkRange01("thresholds.contextSearch", config.thresholds.contextSearch);
   checkRange01("thresholds.intentSearch", config.thresholds.intentSearch);
   checkRange01("thresholds.alternativeSuccessRate", config.thresholds.alternativeSuccessRate);
@@ -445,6 +449,7 @@ function toDagScoringConfig(file: DagScoringFileConfig): DagScoringConfig {
       suggestionFloor: file.thresholds?.suggestion_floor ?? d.thresholds.suggestionFloor,
       dependencyThreshold: file.thresholds?.dependency_threshold ?? d.thresholds.dependencyThreshold,
       replanThreshold: file.thresholds?.replan_threshold ?? d.thresholds.replanThreshold,
+      toolSearch: file.thresholds?.tool_search ?? d.thresholds.toolSearch,
       contextSearch: file.thresholds?.context_search ?? d.thresholds.contextSearch,
       intentSearch: file.thresholds?.intent_search ?? d.thresholds.intentSearch,
       alternativeSuccessRate: file.thresholds?.alternative_success_rate ?? d.thresholds.alternativeSuccessRate,
