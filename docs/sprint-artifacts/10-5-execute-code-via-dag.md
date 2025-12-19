@@ -2,6 +2,15 @@
 
 Status: in-progress
 
+> **⚠️ REFACTORING NEEDED (2025-12-19)**
+>
+> L'implémentation actuelle a un problème architectural :
+> - `createToolExecutor()` appelle `client.callTool()` directement
+> - Cela bypasse le Worker RPC et perd 100% de traçabilité
+>
+> **Action requise:** Modifier les handlers pour utiliser `WorkerBridge`
+> au lieu d'appels MCP directs. Voir section "Architecture Unifiée".
+
 > **Epic:** 10 - DAG Capability Learning & Unified APIs
 > **Tech-Spec:** [tech-spec-dag-capability-learning.md](../tech-specs/tech-spec-dag-capability-learning.md)
 > **Prerequisites:** Story 10.1 (Static Structure Builder - DONE), Story 10.2 (Argument Extraction - DONE)
@@ -94,10 +103,14 @@ L'IA écrit du code TypeScript. Le système infère le DAG et l'exécute avec to
 - [x] HIL approval for tools with elevated permissions (via existing escalation handler)
 - [x] Reuse existing `requiresValidation()` logic via ControlledExecutor
 
-### AC7: Fallback to Direct Execution ✅
-- [x] If `static_structure` is empty or invalid → fallback to direct sandbox
-- [x] Log warning when fallback occurs
-- [x] Graceful degradation, no breaking change
+### AC7: ~~Fallback to Direct Execution~~ → Unified Execution ⚠️
+- [ ] ~~If `static_structure` is empty or invalid → fallback to direct sandbox~~
+- [ ] ~~Log warning when fallback occurs~~
+- [ ] ~~Graceful degradation, no breaking change~~
+
+> **⚠️ OBSOLÈTE (2025-12-19):** Le concept de "fallback" est supprimé.
+> ControlledExecutor utilise TOUJOURS WorkerBridge pour l'exécution.
+> Voir "Architecture Unifiée" ci-dessous.
 
 ### AC8: Unified Response Format ✅
 - [x] Response matches current `execute_code` format
@@ -120,7 +133,7 @@ L'IA écrit du code TypeScript. Le système infère le DAG et l'exécute avec to
 - [x] Test: parallel code (Promise.all) → parallel DAG execution
 - [x] Test: conditional code (if/else) → conditional branches
 - [x] Test: code with references → arguments resolved from previous results (11 tests)
-- [x] Test: empty static_structure → fallback to direct execution
+- [ ] ~~Test: empty static_structure → fallback to direct execution~~ (OBSOLÈTE)
 - [x] Total: 23 tests passing
 
 ---
@@ -328,97 +341,99 @@ N/A
 
 ## Compréhension Architecture (Code Review Discussion)
 
-### Le modèle "Transpilation"
+> **⚠️ SECTION OBSOLÈTE (2025-12-19)**
+>
+> Cette section décrivait un modèle avec "fallback sandbox" qui est **incorrect**.
+> Voir la section "Architecture Unifiée" ci-dessous pour le design actuel.
 
-Le design de Story 10.5 est une **transpilation** TypeScript → DAG :
+### ~~Le modèle "Transpilation"~~ (OBSOLÈTE)
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     TypeScript Code                          │
-│  const file = await mcp.fs.read_file({path: "x.json"});     │
-│  const issue = await mcp.github.create_issue({...});        │
-└─────────────────────────────────────────────────────────────┘
-                         │
-                         ▼ (Static Analysis - transpile)
-┌─────────────────────────────────────────────────────────────┐
-│                        DAG Structure                         │
-│  t1: fs:read_file → t2: github:create_issue                 │
-└─────────────────────────────────────────────────────────────┘
-                         │
-                         ▼ (ControlledExecutor)
-┌─────────────────────────────────────────────────────────────┐
-│                     MCP Calls Direct                         │
-│  client.callTool("read_file") → client.callTool("create_issue") │
-└─────────────────────────────────────────────────────────────┘
-```
+~~Le design de Story 10.5 est une **transpilation** TypeScript → DAG~~
 
-**Avantage DX** : L'utilisateur écrit du TypeScript naturel, le système transpile en DAG.
+**PROBLÈME IDENTIFIÉ :** Le mode DAG appelait `client.callTool()` directement,
+bypassant le Worker RPC et perdant 100% de traçabilité.
 
-### Pourquoi le DAG n'a pas besoin du Sandbox
+---
 
-Le Sandbox Deno (Worker avec `permissions: "none"`) protège contre :
-- Code faisant de l'I/O direct (`Deno.readFile()`, `fetch()`)
-- Code malicieux essayant d'échapper
-- Boucles infinies / explosion mémoire
+## Architecture Unifiée (2025-12-19)
 
-**Mais** en mode DAG "pure MCP" :
-- Le code ne fait que des appels `mcp.*`
-- Ces appels passent par RPC vers le main process → `client.callTool()`
-- L'exécution réelle se fait sur le serveur MCP (distant)
-- Les permissions Deno du sandbox n'affectent pas le serveur MCP
+### Principe fondamental
 
-**Conclusion** : Pour les tasks DAG `mcp_tool`, le sandbox n'apporte pas de sécurité supplémentaire. L'appel direct `client.callTool()` est équivalent.
-
-### Comparaison des deux modes
-
-| Feature | Mode DAG | Mode Sandbox |
-|---------|----------|--------------|
-| Tracing des tools | ✅ (ControlledExecutor) | ✅ (WorkerBridge RPC) |
-| Layers/checkpoints | ✅ | ❌ |
-| HIL approval | ✅ | ❌ |
-| Exécution parallèle | ✅ | ❌ |
-| JS arbitraire | ❌ | ✅ |
-| Portabilité (Jupyter, etc.) | ✅ | ✅ |
-
-### Le Fallback est une Feature
+**TOUT passe par le Worker Sandbox (permissions: "none") pour 100% traçabilité.**
 
 ```
-TypeScript Code
+Code TypeScript
       │
       ▼
- Static Analysis
+Static Analysis (SWC) → static_structure → Capability
       │
-   ┌──┴──────────┐
-   │             │
-   ▼             ▼
-  DAG OK      Échec (JS complexe)
-   │             │
-   ▼             ▼
-ControlledExecutor  Sandbox (fallback)
-(layers, HIL, //)   (exécute tout)
+      ▼
+ControlledExecutor (orchestration)
+├── Layers (parallel groups)
+├── Checkpoints
+├── HIL/per_layer_validation
+      │
+      ▼
+Pour chaque task:
+      │
+      ▼
+WorkerBridge.execute(taskCode)
+      │
+      ▼
+Worker (permissions: "none")
+      │
+      ▼
+RPC Proxy → client.callTool()
+      │
+      ▼
+100% traçabilité ✅
 ```
 
-**Trade-off transpilation :**
-- ✅ Quand ça marche : layers, checkpoints, HIL, parallélisme
-- ❌ Quand ça échoue : fallback vers sandbox (perd les features d'orchestration)
+### Rôles clarifiés
 
-### Options pour unifier (future story)
+| Composant | Rôle |
+|-----------|------|
+| `StaticStructureBuilder` | Parse le code → extrait le DAG statique |
+| `ControlledExecutor` | **Orchestration** : layers, checkpoints, HIL |
+| `WorkerBridge` | **Exécution** : sandbox isolée, RPC tracing |
 
-1. **Garder les deux modes** (actuel) - DAG pour pure MCP, sandbox pour JS complexe
+### ~~Fallback~~ → Plus de fallback
 
-2. **Hybrid checkpoints** - Sandbox trace les RPC calls, on crée des "soft checkpoints" après chaque tool call
+**AVANT (incorrect):**
+- Mode DAG = appels directs `client.callTool()` (pas de trace)
+- Mode Sandbox = fallback quand DAG échoue
 
-3. **Worker persistent pour DAG** - ControlledExecutor envoie du code généré au worker pour chaque task
-   ```typescript
-   const taskCode = `return await mcp.${server}.${tool}(${JSON.stringify(args)});`;
-   await workerBridge.execute(taskCode, toolDefs, context);
-   ```
+**APRÈS (correct):**
+- UN seul chemin d'exécution
+- ControlledExecutor orchestrate
+- WorkerBridge exécute chaque task
 
-### Questions ouvertes
+### Code à modifier
 
-- [ ] AC4 (conditional execution) : Est-ce que `task.condition` est utilisé dans les executors ?
-- [ ] Faut-il unifier les deux modes ou garder le fallback ?
-- [ ] Overhead de l'option 3 (worker persistent) à mesurer
+```typescript
+// workflow-execution-handler.ts - AVANT
+function createToolExecutor(mcpClients) {
+  return async (tool, args) => client.callTool(tool, args); // ❌ Direct
+}
+
+// workflow-execution-handler.ts - APRÈS
+function createToolExecutor(workerBridge, toolDefs) {
+  return async (tool, args) => {
+    const [server, toolName] = tool.split(":");
+    const code = `return await mcp.${server}.${toolName}(${JSON.stringify(args)});`;
+    const result = await workerBridge.execute(code, toolDefs, {});
+    return result.result;
+  }; // ✅ Via sandbox RPC
+}
+```
+
+### Fichiers à modifier
+
+| Fichier | Changement |
+|---------|------------|
+| `workflow-execution-handler.ts` | `createToolExecutor()` → utiliser `WorkerBridge` |
+| `code-execution-handler.ts` | `createMcpToolExecutor()` → utiliser `WorkerBridge` |
+| `control-commands-handler.ts` | `createToolExecutor()` → utiliser `WorkerBridge` |
 
 ### Décision Architecture : Worker permissions = "none" (2025-12-19)
 
