@@ -8,6 +8,40 @@
 
 During review of speculative execution mode, we discovered that arguments weren't being considered. This spike documents our findings and the path forward.
 
+## Unified Model: Capabilities, Workflows, and Speculation
+
+**Key insight**: Workflows ARE capabilities. A capability can contain other capabilities (nested). The execution model is unified:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  UNIFIED EXECUTION MODEL                                     │
+│                                                              │
+│  Capability = Workflow = DAG of tools/capabilities           │
+│                                                              │
+│  Standard execution (high confidence, args provided):        │
+│    → Execute entire DAG at once                             │
+│    → THIS IS ALREADY "SPECULATION" (trusting the plan)      │
+│                                                              │
+│  per_layer execution (requires validation):                  │
+│    → Checkpoints between layers                             │
+│    → Human/AI validation at each pause                      │
+│    → NOT speculative (explicit approval needed)             │
+│                                                              │
+│  Post-workflow prefetch (NEW):                               │
+│    → Workflow complete, full context available              │
+│    → Preload next likely capabilities/tools                 │
+│    → True speculative optimization                          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+| Mode | What Happens | Speculative? |
+|------|--------------|--------------|
+| Standard (high confidence) | Execute full DAG | ✅ Implicit |
+| per_layer | Pause between layers | ❌ No |
+| **Post-workflow prefetch** | Preload next caps | ✅ Explicit |
+
+**Conclusion**: The only NEW speculation to implement is **post-workflow capability prefetching**. Standard DAG execution is already speculative by nature (we trust the plan when confidence is high).
+
 ## Key Clarification: Speculation vs Capability Creation
 
 **Important distinction**: Speculative execution and capability creation are **separate concerns**.
