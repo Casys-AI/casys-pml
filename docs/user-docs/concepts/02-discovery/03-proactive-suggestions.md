@@ -66,33 +66,7 @@ In **Strategic Discovery Mode**, PML analyzes the current context and suggests r
 
 ### How It Works
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Current Context                          │
-│                                                             │
-│  Tools in use: [read_file, github:get_issue]               │
-│  Intent: "Process issue and update file"                    │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    PML Analysis                             │
-│                                                             │
-│  1. Find tools related to read_file in the graph           │
-│  2. Find tools related to github:get_issue                 │
-│  3. Match intent against capabilities                       │
-│  4. Rank by relevance and success rate                     │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Suggestions                              │
-│                                                             │
-│  → write_file (85% confidence)                             │
-│  → github:update_issue (72% confidence)                    │
-│  → github:add_comment (68% confidence)                     │
-└─────────────────────────────────────────────────────────────┘
-```
+![Proactive Suggestions Flow](excalidraw:src/web/assets/diagrams/proactive-suggestions.excalidraw)
 
 ## Context-Based Suggestions
 

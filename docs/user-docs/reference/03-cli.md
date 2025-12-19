@@ -2,6 +2,8 @@
 
 > PML command-line interface
 
+![CLI Workflow](excalidraw:src/web/assets/diagrams/cli-workflow.excalidraw)
+
 ## Commands
 
 PML provides three main commands:

@@ -2,6 +2,8 @@
 
 > PML configuration files and options
 
+![Configuration Overview](excalidraw:src/web/assets/diagrams/config-overview.excalidraw)
+
 ## Environment Variables
 
 PML behavior can be customized via environment variables:

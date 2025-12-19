@@ -21,44 +21,7 @@ PML is an **intelligent MCP gateway** that:
 
 ### Architecture 3 Couches
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  COUCHE 1: ORCHESTRATION (Claude/LLM)                           │
-│  • Recoit l'intent utilisateur                                  │
-│  • Query: "Capability existante?" → OUI: execute cached         │
-│  • NON: genere code → execute → apprend                         │
-└─────────────────────────────────────────────────────────────────┘
-                          ▲ Resultats + Suggestions
-┌─────────────────────────────────────────────────────────────────┐
-│  COUCHE 2: CAPABILITY ENGINE (PML Gateway)                      │
-│  • CapabilityMatcher: intent → capability matching              │
-│  • WorkerBridge: route les appels MCP                           │
-│  • SuggestionEngine: PageRank, Louvain, Adamic-Adar            │
-│  • GraphRAG: apprentissage continu                              │
-└─────────────────────────────────────────────────────────────────┘
-                          ▲ RPC (appels outils)
-┌─────────────────────────────────────────────────────────────────┐
-│  COUCHE 3: EXECUTION (Deno Worker Sandbox)                      │
-│  • Isolation complete (permissions: "none")                     │
-│  • Tool proxies: mcp.server.tool() → appel securise            │
-│  • Capabilities: fonctions inline (zero overhead)               │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### Vue simplifiee
-
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   Agent/LLM     │────▶│      PML        │────▶│  MCP Servers    │
-│                 │◀────│   (Gateway)     │◀────│                 │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-                              │
-                              ▼
-                        ┌───────────┐
-                        │  Memory   │
-                        │  GraphRAG │
-                        └───────────┘
-```
+![PML 3-Layer Architecture](excalidraw:src/web/assets/diagrams/pml-architecture.excalidraw)
 
 ## Reading Path
 

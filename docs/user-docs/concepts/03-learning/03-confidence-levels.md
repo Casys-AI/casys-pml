@@ -65,13 +65,7 @@ Every dependency edge has a **source** indicating how it was learned:
 | `inferred` | 70% | Observed 1-2 times |
 | `observed` | 100% | Confirmed by 3+ executions |
 
-```
-                    Promotion Path
-
-template (50%) ───▶ inferred (70%) ───▶ observed (100%)
-                         │                    │
-                    1-2 observations      3+ observations
-```
+![Confidence Levels and Promotion Path](excalidraw:src/web/assets/diagrams/confidence-levels.excalidraw)
 
 ## Promotion Rules
 
