@@ -18,6 +18,31 @@
 >
 > Voir: `docs/sprint-artifacts/10-5-execute-code-via-dag.md#architecture-unifiée-2025-12-19`
 
+> **⚠️ SÉPARATION CAPABILITY vs TRACE (2025-12-19)**
+>
+> **Problème actuel:** `saveCapability()` mélange deux concepts distincts :
+> ```typescript
+> // worker-bridge.ts - ACTUEL (mélange structure et trace)
+> await capabilityStore.saveCapability({
+>   code, intent,                    // ← Structure (OK)
+>   durationMs, success,             // ← Trace (MAUVAIS!)
+>   toolsUsed, toolInvocations,      // ← Trace (MAUVAIS!)
+> });
+> ```
+>
+> **Séparation correcte (Epic 11):**
+>
+> | Concept | Table | Contenu | Lifecycle |
+> |---------|-------|---------|-----------|
+> | **Capability** | `workflow_pattern` | `code`, `intent`, `static_structure`, `parameters_schema` | Immutable après création |
+> | **Trace** | `execution_trace` (Story 11.2) | `executed_path`, `task_results`, `decisions`, `durationMs` | Créée à chaque exécution |
+>
+> **Actions Epic 11:**
+> - Story 11.1: Capturer `result` dans les traces WorkerBridge
+> - Story 11.2: Créer `execution_trace` avec FK vers capability
+> - Refactor: `saveCapability()` ne stocke plus `toolsUsed`/`toolInvocations` (→ trace)
+> - Les stats agrégées (`avg_duration_ms`, `success_rate`) sont calculées depuis les traces
+
 **Expanded Goal (2-3 sentences):**
 
 Implémenter le système d'apprentissage basé sur les traces d'exécution. Capturer les résultats des tools/capabilities, stocker les traces avec priorité (PER), et mettre à jour les statistiques de learning via TD Learning. Fournir des vues pour visualiser les patterns d'exécution.
