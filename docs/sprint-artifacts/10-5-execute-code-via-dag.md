@@ -136,6 +136,32 @@ L'IA écrit du code TypeScript. Le système infère le DAG et l'exécute avec to
 - [ ] ~~Test: empty static_structure → fallback to direct execution~~ (OBSOLÈTE)
 - [x] Total: 23 tests passing
 
+### AC10: WorkerBridge Integration (Architecture Unifiée) ⬜ NEW
+> **Objectif:** Éliminer le bypass sandbox dans `createToolExecutor()` pour 100% traçabilité RPC.
+
+- [ ] `createToolExecutor()` utilise `WorkerBridge` au lieu de `client.callTool()` direct
+- [ ] Toute exécution de task MCP passe par le Worker sandbox (permissions: "none")
+- [ ] Les traces RPC sont capturées pour chaque appel tool
+- [ ] Les handlers suivants sont modifiés :
+  - [ ] `workflow-execution-handler.ts` : `createToolExecutor()` → WorkerBridge
+  - [ ] `code-execution-handler.ts` : `createMcpToolExecutor()` → WorkerBridge
+  - [ ] `control-commands-handler.ts` : `createToolExecutor()` → WorkerBridge
+
+### AC11: Signature createToolExecutor Refactorisée ⬜ NEW
+- [ ] Nouvelle signature : `createToolExecutor(workerBridge: WorkerBridge, toolDefs: ToolDefinition[])`
+- [ ] Génère du code TypeScript pour chaque appel tool :
+  ```typescript
+  const code = `return await mcp.${server}.${toolName}(${JSON.stringify(args)});`;
+  const result = await workerBridge.execute(code, toolDefs, {});
+  ```
+- [ ] Retourne le résultat via RPC (tracé)
+
+### AC12: Tests WorkerBridge Integration ⬜ NEW
+- [ ] Test: `createToolExecutor()` appelle WorkerBridge (pas client direct)
+- [ ] Test: Les traces contiennent `tool_start`/`tool_end` pour chaque appel
+- [ ] Test: Erreur si WorkerBridge non fourni
+- [ ] Test: Integration DAG → WorkerBridge → traces capturées
+
 ---
 
 ## Tasks / Subtasks
@@ -174,12 +200,29 @@ L'IA écrit du code TypeScript. Le système infère le DAG et l'exécute avec to
   - [x] Create `tests/dag/argument-resolver_test.ts` (11 tests)
   - [x] Total: 23 tests passing
 
+- [ ] **Task 7: Refactor createToolExecutor() to use WorkerBridge** (AC: 10, 11) ⬜ NEW
+  - [ ] Créer `createToolExecutorViaWorker(workerBridge, toolDefs)` dans un nouveau fichier
+  - [ ] Modifier `workflow-execution-handler.ts` pour utiliser le nouveau executor
+  - [ ] Modifier `code-execution-handler.ts` pour utiliser le nouveau executor
+  - [ ] Modifier `control-commands-handler.ts` pour utiliser le nouveau executor
+  - [ ] Supprimer l'ancien `createToolExecutor(mcpClients)` après migration
+
+- [ ] **Task 8: WorkerBridge Integration Tests** (AC: 12) ⬜ NEW
+  - [ ] Test: appel tool via WorkerBridge génère traces `tool_start`/`tool_end`
+  - [ ] Test: DAG execution complète avec traces capturées
+  - [ ] Test: erreur propagée si tool échoue
+  - [ ] Créer `tests/dag/workerbridge-executor_test.ts`
+
 ### Review Follow-ups (AI)
 
 **🔴 HIGH Priority:**
 - [x] ~~[AI-Review][HIGH] H1: AC3 broken - resolveDAGArguments() uses empty previousResults Map~~ → **FIXED**: Refactoré `executor.ts` pour supporter le format structuré avec `staticArguments`, résolution runtime via `resolveStructuredReference()`
 - [x] ~~[AI-Review][HIGH] H2: Arguments not propagated~~ → **FAUX POSITIF**: Les arguments SONT utilisés, juste via différents chemins selon le type de task
 - [ ] [AI-Review][HIGH] H3: Missing integration test - No test validates full flow: Code → StaticStructure → DAG → ControlledExecutor → Result
+- [ ] **[AI-Review][HIGH] H4: Sandbox Bypass - `createToolExecutor()` appelle `client.callTool()` directement** (2025-12-19)
+  - Perte de 100% traçabilité RPC
+  - Les appels MCP ne sont pas capturés dans les traces WorkerBridge
+  - **Fix:** AC10, AC11, AC12 (Task 7, Task 8)
 
 **🟡 MEDIUM Priority:**
 - [x] ~~[AI-Review][MEDIUM] M1: Argument resolution timing~~ → **FIXED**: Résolu par le refacto H1, résolution per-task avec `previousResults`
