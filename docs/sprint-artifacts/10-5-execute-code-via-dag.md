@@ -322,6 +322,7 @@ N/A
 - 2025-12-19: Code review - 4 HIGH, 3 MEDIUM, 3 LOW issues found, action items created (Claude Opus 4.5)
 - 2025-12-19: **DESIGN GAP DISCOVERED** - Sandbox/DAG execution unification needed
 - 2025-12-19: **CODE REVIEW CLARIFICATION** - Le fallback sandbox est une feature (pas un bug). DAG mode pour pure MCP, sandbox pour JS complexe. Documenté la compréhension architecture complète.
+- 2025-12-19: **FIX PERMISSIONS WORKER** - Implémenté le support des permissions granulaires Deno pour le Worker (était hardcodé `"none"`). Les PermissionSet sont maintenant correctement passés au Worker.
 
 ---
 
@@ -418,6 +419,39 @@ ControlledExecutor  Sandbox (fallback)
 - [ ] AC4 (conditional execution) : Est-ce que `task.condition` est utilisé dans les executors ?
 - [ ] Faut-il unifier les deux modes ou garder le fallback ?
 - [ ] Overhead de l'option 3 (worker persistent) à mesurer
+
+### Fix appliqué : Permissions granulaires pour Worker (2025-12-19)
+
+**Problème identifié :**
+Le `WorkerBridge` utilisait `permissions: "none"` en dur, ce qui ignorait le paramètre `permissionSet`.
+Les permissions granulaires ne fonctionnaient qu'en mode subprocess (deprecated), pas en mode Worker.
+
+**Solution implémentée :**
+- Ajout de `permissionSet` dans `WorkerBridgeConfig`
+- Nouvelle fonction `permissionSetToDenoPermissions()` qui convertit `PermissionSet` → options Deno Worker
+- Le Worker reçoit maintenant les permissions appropriées
+
+**Mapping des permissions :**
+
+| PermissionSet | Deno Worker Permissions |
+|---------------|------------------------|
+| `minimal` | `"none"` (aucun accès) |
+| `readonly` | `{ read: true }` |
+| `filesystem` | `{ read: true, write: true }` |
+| `network-api` | `{ net: true }` |
+| `mcp-standard` | `{ read, write, net, env: true }` |
+
+**Sécurité :** `run: false` et `ffi: false` sont toujours forcés, quel que soit le permission set.
+
+**Note importante :** Les permissions Deno contrôlent l'accès mais ne créent pas d'isolation filesystem.
+Le Worker accède au vrai système de fichiers de la machine, pas un FS virtuel isolé.
+Pour un vrai sandboxing de chemins, il faudrait utiliser des chemins granulaires (`read: ["/tmp/sandbox/"]`).
+
+**Fichiers modifiés :**
+- `src/sandbox/worker-bridge.ts` - Ajout config permissions + conversion
+- `src/sandbox/executor.ts` - Passage du permissionSet au bridge
+
+**Commit :** `feat(sandbox): enable granular permissions for Worker execution`
 
 ### File List
 
