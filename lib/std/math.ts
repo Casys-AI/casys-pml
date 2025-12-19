@@ -165,4 +165,75 @@ export const mathTools: MiniTool[] = [
       };
     },
   },
+  {
+    name: "math_mode",
+    description: "Find the most frequent value(s) in an array of numbers",
+    category: "math",
+    inputSchema: {
+      type: "object",
+      properties: {
+        numbers: { type: "array", items: { type: "number" }, description: "Array of numbers" },
+      },
+      required: ["numbers"],
+    },
+    handler: ({ numbers }) => {
+      const nums = numbers as number[];
+      if (nums.length === 0) return null;
+      return ss.mode(nums);
+    },
+  },
+  {
+    name: "math_convert",
+    description: "Convert between angle units (radians/degrees) or other common conversions",
+    category: "math",
+    inputSchema: {
+      type: "object",
+      properties: {
+        value: { type: "number", description: "Value to convert" },
+        from: {
+          type: "string",
+          enum: ["radians", "degrees", "celsius", "fahrenheit", "km", "miles"],
+          description: "Source unit",
+        },
+        to: {
+          type: "string",
+          enum: ["radians", "degrees", "celsius", "fahrenheit", "km", "miles"],
+          description: "Target unit",
+        },
+      },
+      required: ["value", "from", "to"],
+    },
+    handler: ({ value, from, to }) => {
+      const v = value as number;
+      const conversions: Record<string, Record<string, (n: number) => number>> = {
+        radians: {
+          degrees: (n) => n * (180 / Math.PI),
+          radians: (n) => n,
+        },
+        degrees: {
+          radians: (n) => n * (Math.PI / 180),
+          degrees: (n) => n,
+        },
+        celsius: {
+          fahrenheit: (n) => (n * 9) / 5 + 32,
+          celsius: (n) => n,
+        },
+        fahrenheit: {
+          celsius: (n) => ((n - 32) * 5) / 9,
+          fahrenheit: (n) => n,
+        },
+        km: {
+          miles: (n) => n * 0.621371,
+          km: (n) => n,
+        },
+        miles: {
+          km: (n) => n * 1.60934,
+          miles: (n) => n,
+        },
+      };
+      const fn = conversions[from as string]?.[to as string];
+      if (!fn) throw new Error(`Cannot convert from ${from} to ${to}`);
+      return fn(v);
+    },
+  },
 ];
