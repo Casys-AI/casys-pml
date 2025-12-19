@@ -4,6 +4,16 @@
  * Handles human approval checkpoints during workflow execution.
  * Provides summary generation and approval processing.
  *
+ * ⚠️ STATUS: NON UTILISÉ (2025-12-19)
+ *
+ * Ce module n'est pas activé en production. Le mécanisme de validation
+ * humaine est maintenant géré par `per_layer_validation` via:
+ * - `requiresValidation()` dans workflow-execution-handler.ts
+ * - Détection automatique des tools dangereux (mcp-permissions.yaml)
+ *
+ * Le code est conservé pour référence future si on veut réactiver
+ * un flow HIL interactif plus granulaire.
+ *
  * @module dag/loops/hil-handler
  */
 
