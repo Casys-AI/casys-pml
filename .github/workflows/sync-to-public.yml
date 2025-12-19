@@ -9,7 +9,7 @@ on:
     branches: [main]
     paths:
       - 'src/**'
-      - 'docs/user-docs/**'
+      - '!src/web/**'
       - 'README.md'
       - 'LICENSE'
       - 'deno.json'
@@ -73,17 +73,8 @@ jobs:
             --exclude='.devcontainer/' \
             --exclude='monitoring/' \
             --exclude='drizzle/' \
-            --exclude='src/web/routes/index.tsx' \
-            --exclude='src/web/routes/robots.txt.ts' \
-            --exclude='src/web/routes/sitemap.xml.ts' \
-            --exclude='src/web/routes/blog/' \
-            --exclude='src/web/posts/' \
-            --exclude='src/web/assets/diagrams/' \
-            --exclude='src/web/islands/HeroRepl.tsx' \
-            --exclude='src/web/islands/MobileMenu.tsx' \
-            --exclude='src/web/components/FeatureIllustrations.tsx' \
-            --include='docs/user-docs/**' \
-            --exclude='docs/**' \
+            --exclude='src/web/' \
+            --exclude='docs/' \
             ./ public-repo/
 
       - name: Commit and push to public
