@@ -75,27 +75,22 @@ async function requiresValidation(
       }
     }
 
-    // MCP tool with elevated permissions or human approval required → needs validation
+    // MCP tool with explicit HIL or special permissions → needs validation
+    // OAuth-like model: once configured in YAML, tool works without asking
     if (taskType === "mcp_tool" && task.tool) {
       const toolPrefix = task.tool.split(":")[0]; // "github:create_issue" → "github"
       const permConfig = getToolPermissionConfig(toolPrefix);
 
       if (permConfig) {
-        // Scope !== minimal → needs validation
-        if (permConfig.scope !== "minimal") {
-          log.info(`Validation required: MCP tool ${task.tool} has scope (${permConfig.scope})`);
-          return true;
-        }
-
-        // approvalMode: "hil" → needs human validation
+        // approvalMode: "hil" → explicit human validation required
         if (permConfig.approvalMode === "hil") {
-          log.info(`Validation required: MCP tool ${task.tool} requires human approval`);
+          log.info(`Validation required: MCP tool ${task.tool} explicitly requires human approval`);
           return true;
         }
 
-        // FFI or subprocess permissions → needs validation
+        // FFI or subprocess permissions → needs validation (sandbox escape)
         if (permConfig.ffi || permConfig.run) {
-          log.info(`Validation required: MCP tool ${task.tool} has special permissions (ffi: ${permConfig.ffi}, run: ${permConfig.run})`);
+          log.info(`Validation required: MCP tool ${task.tool} has sandbox escape permissions (ffi: ${permConfig.ffi}, run: ${permConfig.run})`);
           return true;
         }
       }

@@ -65,8 +65,8 @@ export type PermissionScope =
 
 /**
  * Approval mode for permission escalation
- * - hil: Human-in-the-loop approval required (default)
- * - auto: Automatically approve (trusted tools)
+ * - auto: Automatically approve (default - OAuth-like model)
+ * - hil: Human-in-the-loop approval required (explicit opt-in)
  */
 export type ApprovalMode = "hil" | "auto";
 
@@ -115,10 +115,10 @@ export type PermissionSet =
 /**
  * Convert legacy PermissionSet to PermissionConfig
  * @param set - Legacy permission set string
- * @returns Full PermissionConfig with defaults (ffi=false, run=false, approvalMode=hil)
+ * @returns Full PermissionConfig with defaults (ffi=false, run=false, approvalMode=auto)
  */
 export function permissionSetToConfig(set: PermissionSet): PermissionConfig {
-  // 'trusted' maps to mcp-standard with auto approval
+  // 'trusted' maps to mcp-standard with auto approval (same as default now)
   if (set === "trusted") {
     return {
       scope: "mcp-standard",
@@ -131,7 +131,7 @@ export function permissionSetToConfig(set: PermissionSet): PermissionConfig {
     scope: set,
     ffi: false,
     run: false,
-    approvalMode: "hil",
+    approvalMode: "auto",
   };
 }
 

@@ -14,7 +14,7 @@
 #      run: false            # Allow subprocess (Deno.Command)
 #      approvalMode: auto    # hil = ask human, auto = trust & auto-approve
 #
-# Shorthand defaults: scope=permissionSet, ffi=false, run=false, approvalMode=hil
+# Shorthand defaults: scope=permissionSet, ffi=false, run=false, approvalMode=auto
 #
 # Permission Scopes (from ADR-035):
 #   - minimal: No permissions (pure computation)
