@@ -187,7 +187,24 @@ Current placeholder doesn't actually call tools. Need:
 - Arguments → properly formatted call
 - Result capture → for chaining
 
-**Consideration**: May need tool registry or MCP client integration.
+**Answer**: `createToolExecutor(mcpClients)` already exists in `workflow-execution-handler.ts:112-122`:
+
+```typescript
+function createToolExecutor(mcpClients: Map<string, MCPClientBase>) {
+  return async (tool: string, args: Record<string, unknown>): Promise<unknown> => {
+    const [serverId, ...toolNameParts] = tool.split(":");
+    const toolName = toolNameParts.join(":");
+    const client = mcpClients.get(serverId);
+    if (!client) throw new Error(`Unknown MCP server: ${serverId}`);
+    return await client.callTool(toolName, args);
+  };
+}
+```
+
+For speculation, we need to:
+1. Pass `mcpClients` to `SpeculativeExecutor` (or the tool executor function)
+2. Use it in `generateSpeculationCode` to make real calls
+3. Capture results for validation on cache hit
 
 ### Q4: Capability vs Tool prediction differences?
 
