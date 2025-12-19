@@ -162,6 +162,22 @@ L'IA écrit du code TypeScript. Le système infère le DAG et l'exécute avec to
 - [ ] Test: Erreur si WorkerBridge non fourni
 - [ ] Test: Integration DAG → WorkerBridge → traces capturées
 
+### AC13: Unification execute() → Worker Only ⬜ NEW
+> **Objectif:** Supprimer le chemin subprocess pour 100% traçabilité, même pour code sans tools.
+
+- [ ] `DenoSandboxExecutor.execute()` utilise `WorkerBridge` (pas subprocess)
+- [ ] L'ancien code subprocess est supprimé (buildCommand, executeWithTimeout, etc.)
+- [ ] Si pas de tools : `WorkerBridge.execute(code, [], {})`
+- [ ] `executeWithTools()` devient un alias de `execute()` (backward compat)
+- [ ] Performance : Worker (~5ms) remplace subprocess (~50-100ms spawn)
+- [ ] Tests mis à jour pour refléter le changement
+
+**Avantages :**
+- ✅ 100% traçabilité même pour code pur (math, transformations)
+- ✅ Un seul chemin d'exécution (simplicité)
+- ✅ Plus rapide (Worker thread vs process spawn)
+- ✅ Permissions uniformes (`"none"` toujours)
+
 ---
 
 ## Tasks / Subtasks
@@ -212,6 +228,14 @@ L'IA écrit du code TypeScript. Le système infère le DAG et l'exécute avec to
   - [ ] Test: DAG execution complète avec traces capturées
   - [ ] Test: erreur propagée si tool échoue
   - [ ] Créer `tests/dag/workerbridge-executor_test.ts`
+
+- [ ] **Task 9: Unifier execute() vers Worker** (AC: 13) ⬜ NEW
+  - [ ] Refactoriser `DenoSandboxExecutor.execute()` pour utiliser `WorkerBridge`
+  - [ ] Supprimer le code subprocess : `buildCommand()`, `executeWithTimeout()`, `parseOutput()`, `wrapCode()`
+  - [ ] `execute(code, context?)` → `WorkerBridge.execute(code, [], context)`
+  - [ ] `executeWithTools()` devient alias → `execute(code, context, toolDefs)`
+  - [ ] Mettre à jour tous les appelants de `execute()` (tests, handlers)
+  - [ ] Benchmark: vérifier Worker < subprocess en latence
 
 ### Review Follow-ups (AI)
 
@@ -526,8 +550,8 @@ Le fichier YAML est utilisé pour **metadata uniquement** :
 
 | Fichier | Méthode | Rôle | Action |
 |---------|---------|------|--------|
-| `sandbox/executor.ts:191` | `DenoSandboxExecutor.execute()` | Subprocess Deno direct (sans tools) | **GARDER** - code pur sans MCP |
-| `sandbox/executor.ts:1009` | `DenoSandboxExecutor.executeWithTools()` | Wrapper → WorkerBridge | **OK** - utilise WorkerBridge |
+| `sandbox/executor.ts:191` | `DenoSandboxExecutor.execute()` | Subprocess Deno direct (sans tools) | **SUPPRIMER** (AC13) - remplacé par Worker |
+| `sandbox/executor.ts:1009` | `DenoSandboxExecutor.executeWithTools()` | Wrapper → WorkerBridge | **RENOMMER** → `execute()` (AC13) |
 | `sandbox/worker-bridge.ts:208` | `WorkerBridge.execute()` | RPC Bridge Worker (canonical) | **GARDER** - chemin principal ✅ |
 | `dag/executor.ts:72` | `ParallelExecutor.execute()` | DAG avec topological sort | **GARDER** - classe de base |
 | `dag/controlled-executor.ts:273` | `ControlledExecutor.executeStream()` | DAG avec events/checkpoints | **GARDER** - chemin principal ✅ |
@@ -536,41 +560,38 @@ Le fichier YAML est utilisé pour **metadata uniquement** :
 | `mcp/handlers/workflow-execution-handler.ts` | `createToolExecutor()` | **BUG** - bypass WorkerBridge! | **FIX** (AC10) |
 | `mcp/handlers/control-commands-handler.ts` | `createToolExecutor()` | **BUG** - bypass WorkerBridge! | **FIX** (AC10) |
 
-### Verdict : Pas de Méthodes à Supprimer
+### Verdict : Unification vers Worker (AC13)
 
-Les méthodes `execute()` ne sont **pas dupliquées**, elles servent des rôles différents :
+**Avant (2 chemins) :**
 
 ```
-Hiérarchie d'exécution :
-┌─────────────────────────────────────────────────────────────┐
-│ ControlledExecutor.executeStream()                          │
-│   └── Orchestration (layers, checkpoints, HIL)              │
-│       ├── executeTask() pour chaque task du DAG             │
-│       │     │                                               │
-│       │     ▼                                               │
-│       │   createToolExecutor() ← PROBLÈME ICI               │
-│       │     │                                               │
-│       │     └── client.callTool() ← BYPASS!                 │
-│       │                                                     │
-│       └── Devrait être :                                    │
-│             createToolExecutor(workerBridge)                │
-│               │                                             │
-│               └── workerBridge.execute() ← CORRECT          │
-└─────────────────────────────────────────────────────────────┘
-
 ┌─────────────────────────────────────────────────────────────┐
 │ DenoSandboxExecutor                                         │
-│   ├── execute()        → Code simple sans tools (legacy)    │
-│   └── executeWithTools() → Crée WorkerBridge → execute()    │
+│   ├── execute()        → Subprocess (❌ pas tracé)          │
+│   └── executeWithTools() → Worker (✅ tracé)                │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Après (1 seul chemin - AC13) :**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ DenoSandboxExecutor                                         │
+│   └── execute(code, context?, toolDefs?)                    │
+│         │                                                   │
+│         └── WorkerBridge.execute(code, toolDefs ?? [], ctx) │
+│               │                                             │
+│               └── Worker (permissions: "none")              │
+│                     │                                       │
+│                     └── 100% traçabilité ✅                 │
 └─────────────────────────────────────────────────────────────┘
 
-┌─────────────────────────────────────────────────────────────┐
-│ WorkerBridge.execute()                                      │
-│   └── LE chemin d'exécution canonical                       │
-│       ├── Worker permissions: "none"                        │
-│       ├── RPC pour tous les appels MCP                      │
-│       └── 100% traçabilité                                  │
-└─────────────────────────────────────────────────────────────┘
+Code subprocess supprimé :
+  - buildCommand()
+  - executeWithTimeout()
+  - parseOutput()
+  - wrapCode()
+  - RESULT_MARKER parsing
 ```
 
 ### Le Vrai Problème
@@ -614,7 +635,12 @@ export function createToolExecutorViaWorker(
 
 ### Ce qui NE change PAS
 
-- `DenoSandboxExecutor.execute()` - gardé pour code simple sans MCP
-- `DenoSandboxExecutor.executeWithTools()` - OK, utilise déjà WorkerBridge
 - `ParallelExecutor/ControlledExecutor` - OK, juste l'orchestration
 - `WorkerBridge.execute()` - LE chemin canonical, inchangé
+
+### Ce qui CHANGE (AC13)
+
+- `DenoSandboxExecutor.execute()` - **SUPPRIMÉ** (subprocess → Worker)
+- `DenoSandboxExecutor.executeWithTools()` - **RENOMMÉ** → `execute()`
+- Signature unifiée : `execute(code, context?, toolDefs?)`
+- Si pas de tools : `toolDefs = []` → Worker quand même
