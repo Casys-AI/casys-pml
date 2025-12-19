@@ -301,6 +301,59 @@ Speculation only makes sense during:
 - Generate real MCP calls
 - Handle result capture and validation
 
+### Phase 4: Post-Workflow Capability Prefetching (Future)
+
+**Idea**: When a workflow/capability completes, speculatively execute likely NEXT capabilities.
+
+```
+Workflow A completes → full context available
+       ↓
+Predict: "After A, users often run B, C..."
+       ↓
+Speculatively execute B, C with A's results
+       ↓
+Agent sends new intent
+       ├── Matches B → Cache HIT! Instant result
+       └── No match → Normal execution
+```
+
+**Why this is cleaner than intra-workflow speculation:**
+
+| Aspect | Intra-workflow | Post-workflow Prefetch |
+|--------|---------------|------------------------|
+| Context | Partial (mid-execution) | Complete (workflow done) |
+| References | May be unresolved | All resolved |
+| Security | Complex (mid-flow) | Cleaner (new session boundary) |
+| Validation | Interrupts flow | Between intents |
+
+**Implementation sketch:**
+
+```typescript
+// In workflow completion handler
+async function onWorkflowComplete(
+  workflowResult: WorkflowResult,
+  dagSuggester: DAGSuggester,
+  speculativeExecutor: SpeculativeExecutor,
+) {
+  // Predict next likely capabilities based on what just completed
+  const predictions = await dagSuggester.predictNextCapabilities(
+    workflowResult.toolsUsed,
+    workflowResult.context,
+  );
+
+  // Filter to safe-to-speculate only
+  const safeToSpeculate = predictions.filter(p => canSpeculate(p.toolId));
+
+  // Speculatively execute with full workflow results as context
+  await speculativeExecutor.startSpeculations(
+    safeToSpeculate,
+    workflowResult.context,  // Rich context from completed workflow
+  );
+}
+```
+
+**Benefit**: If user's next intent matches a predicted capability, result is instant.
+
 ## Files to Modify (Future Phases)
 
 | File | Change |
