@@ -223,6 +223,67 @@ Parameters come from user intent, not previous tasks. Options:
 
 **Recommendation**: For next-node speculation, chaining should suffice (no NLP needed).
 
+## Security: What Can Be Speculated?
+
+### Current State: Safe (No Real Execution)
+
+Currently, `generateSpeculationCode()` returns a **placeholder** that does NOT execute real tools:
+
+```typescript
+// Just returns metadata, no actual tool call
+return `
+  const preparation = {
+    toolId: "${prediction.toolId}",
+    prepared: true,
+    timestamp: Date.now(),
+  };
+  return preparation;
+`;
+```
+
+The sandbox (`DenoSandboxExecutor`) has no MCP clients, no network access - it's completely isolated.
+
+### Future Requirement: Permission-Based Speculation Guard
+
+When implementing real speculative execution with `createToolExecutor()`, we MUST add guards:
+
+```typescript
+function canSpeculate(toolId: string): boolean {
+  const permConfig = getToolPermissionConfig(toolId);
+
+  // Same criteria as requiresValidation() - if it needs validation, NO speculation
+  if (permConfig?.scope !== "minimal") return false;
+  if (permConfig?.approvalMode === "hil") return false;
+  if (permConfig?.ffi || permConfig?.run) return false;
+
+  // Only speculate on safe, read-only tools
+  return true;
+}
+```
+
+| Tool Category | Can Speculate? | Reason |
+|---------------|---------------|--------|
+| `read_file`, `list_dir`, `search` | ✅ Yes | Read-only, no side effects |
+| `github:push`, `create_issue` | ❌ **NO** | Modifies external state |
+| `write_file`, `delete_file` | ❌ **NO** | Modifies filesystem |
+| `http_request` (POST/PUT/DELETE) | ❌ **NO** | External side effects |
+| `http_request` (GET) | ⚠️ Maybe | Read-only but network cost |
+| `code_execution` (elevated) | ❌ **NO** | Security risk |
+
+**Rule**: If `requiresValidation()` returns true → NO speculation allowed.
+
+### Direct Execution Mode: No Prediction
+
+In `executeStandardWorkflow()` (no per_layer_validation):
+- DAG runs to completion without pauses
+- **No next-node prediction occurs** - entire plan is already known
+- Speculative execution is only relevant when we DON'T know what's next
+
+Speculation only makes sense during:
+1. Intent-based suggestions (before DAG exists)
+2. Interactive/per_layer mode (between checkpoints)
+3. Capability discovery (matching tools to intent)
+
 ## Implementation Path
 
 ### Phase 1: Story 10.2 (Current Sprint)
