@@ -66,12 +66,10 @@ interface McpPermissionConfigLegacy {
 }
 
 /**
- * Explicit permission config (new 3-axis model)
+ * Explicit permission config (simplified model)
  */
 interface McpPermissionConfigExplicit {
   scope: PermissionScope;
-  ffi?: boolean;
-  run?: boolean;
   approvalMode?: ApprovalMode;
   isReadOnly?: boolean;
 }
@@ -95,8 +93,6 @@ function toPermissionConfig(config: McpPermissionConfigYaml): PermissionConfig {
   if (isExplicitConfig(config)) {
     return {
       scope: config.scope,
-      ffi: config.ffi ?? false,
-      run: config.run ?? false,
       approvalMode: config.approvalMode ?? "auto",
     };
   }
@@ -106,8 +102,6 @@ function toPermissionConfig(config: McpPermissionConfigYaml): PermissionConfig {
     : config.permissionSet;
   return {
     scope,
-    ffi: false,
-    run: false,
     approvalMode: "auto",
   };
 }
@@ -132,35 +126,35 @@ let MCP_TOOL_PERMISSIONS: Record<string, McpPermissionCacheEntry> | null = null;
 const DEFAULT_MCP_PERMISSIONS: Record<string, McpPermissionCacheEntry> = {
   "filesystem": {
     legacy: { permissionSet: "filesystem", isReadOnly: false },
-    config: { scope: "filesystem", ffi: false, run: false, approvalMode: "auto" },
+    config: { scope: "filesystem", approvalMode: "auto" },
   },
   "fs": {
     legacy: { permissionSet: "filesystem", isReadOnly: false },
-    config: { scope: "filesystem", ffi: false, run: false, approvalMode: "auto" },
+    config: { scope: "filesystem", approvalMode: "auto" },
   },
   "github": {
     legacy: { permissionSet: "network-api", isReadOnly: false },
-    config: { scope: "network-api", ffi: false, run: false, approvalMode: "auto" },
+    config: { scope: "network-api", approvalMode: "auto" },
   },
   "slack": {
     legacy: { permissionSet: "network-api", isReadOnly: false },
-    config: { scope: "network-api", ffi: false, run: false, approvalMode: "auto" },
+    config: { scope: "network-api", approvalMode: "auto" },
   },
   "tavily": {
     legacy: { permissionSet: "network-api", isReadOnly: false },
-    config: { scope: "network-api", ffi: false, run: false, approvalMode: "auto" },
+    config: { scope: "network-api", approvalMode: "auto" },
   },
   "api": {
     legacy: { permissionSet: "network-api", isReadOnly: false },
-    config: { scope: "network-api", ffi: false, run: false, approvalMode: "auto" },
+    config: { scope: "network-api", approvalMode: "auto" },
   },
   "kubernetes": {
     legacy: { permissionSet: "mcp-standard", isReadOnly: false },
-    config: { scope: "mcp-standard", ffi: false, run: false, approvalMode: "auto" },
+    config: { scope: "mcp-standard", approvalMode: "auto" },
   },
   "docker": {
     legacy: { permissionSet: "mcp-standard", isReadOnly: false },
-    config: { scope: "mcp-standard", ffi: false, run: false, approvalMode: "auto" },
+    config: { scope: "mcp-standard", approvalMode: "auto" },
   },
 };
 

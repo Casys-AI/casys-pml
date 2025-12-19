@@ -3,11 +3,11 @@
 # IMPORTANT: These are NOT sandbox permissions!
 # The Deno Worker sandbox ALWAYS runs with permissions: "none" (most restrictive).
 # All I/O goes through MCP RPC proxy for 100% traceability.
+# MCP servers run as separate processes with their own permissions.
 #
 # This file defines METADATA used for:
 #   1. Validation detection - Does this DAG need per-layer human approval?
 #   2. Audit logging - What scope does this tool claim to use?
-#   3. Permission inference - What permissions would this tool need?
 #
 # =============================================================================
 # Configuration Format
@@ -21,16 +21,14 @@
 #      isReadOnly: false
 #
 # 2. Explicit (recommended for new entries):
-#    numpy:
-#      scope: minimal        # minimal|readonly|filesystem|network-api|mcp-standard
-#      ffi: true             # FFI required (triggers validation)
-#      run: false            # Subprocess required (triggers validation)
-#      approvalMode: auto    # auto = works freely, hil = requires approval
+#    github:
+#      scope: network-api    # minimal|readonly|filesystem|network-api|mcp-standard
+#      approvalMode: auto    # auto = works freely, hil = requires human approval
 #
-# Shorthand defaults: scope=permissionSet, ffi=false, run=false, approvalMode=auto
+# Shorthand defaults: scope=permissionSet, approvalMode=auto
 #
 # =============================================================================
-# Scope Levels (metadata only - not enforced in sandbox)
+# Scope Levels (metadata only - for documentation/audit)
 # =============================================================================
 #   - minimal: Pure computation, no I/O
 #   - readonly: Read files only
@@ -42,10 +40,8 @@
 # Validation Rules (requiresValidation in workflow-execution-handler.ts)
 # =============================================================================
 # Per-layer validation is triggered when:
-#   - approvalMode: hil (explicit human approval)
-#   - ffi: true (FFI sandbox escape)
-#   - run: true (subprocess sandbox escape)
-#   - code_execution with non-minimal permissions
+#   - approvalMode: hil (explicit human approval required)
+#   - code_execution task with non-minimal permissions
 #
 # Note: 'trusted' is deprecated - use explicit format with approvalMode: auto
 # Unknown tools default to: mcp-standard scope, approvalMode: auto
@@ -219,13 +215,11 @@ vfs:
 # The real filesystem MCP server is defined above as 'filesystem'
 
 # =============================================================================
-# FFI-ENABLED TOOLS (explicit format with sandbox escape permissions)
+# EXTERNAL PROCESS TOOLS (run as separate processes, not in Worker sandbox)
 # =============================================================================
 
 # Plots MCP (mcp-plots) - Generate visualizations (line, bar, scatter, etc.)
-# Requires Python + uvx to be installed on the host
+# Runs as separate Python process via uvx
 plots:
   scope: filesystem
-  ffi: true
-  run: false
   approvalMode: auto

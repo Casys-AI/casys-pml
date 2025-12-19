@@ -71,32 +71,23 @@ export type PermissionScope =
 export type ApprovalMode = "hil" | "auto";
 
 /**
- * 3-axis permission configuration matrix
+ * Permission configuration for MCP tools
  *
- * Separates concerns:
- * - scope: What resources can be accessed (files, network, etc.)
- * - ffi: Independent flag for FFI (native calls via Deno.dlopen)
- * - run: Independent flag for subprocess execution (Deno.Command)
- * - approvalMode: How to handle permission escalation requests
+ * This is METADATA only - not enforced in sandbox.
+ * Worker sandbox always runs with permissions: "none".
+ * MCP servers run as separate processes with their own permissions.
  *
  * @example
  * ```yaml
- * # Fermat MCP - needs FFI for NumPy but no other elevated permissions
- * fermat:
- *   scope: minimal
- *   ffi: true
- *   run: false
- *   approvalMode: auto
+ * github:
+ *   scope: network-api    # Metadata for audit
+ *   approvalMode: auto    # Controls per-layer validation
  * ```
  */
 export interface PermissionConfig {
-  /** Resource scope level */
+  /** Resource scope level (metadata for audit/documentation) */
   scope: PermissionScope;
-  /** Allow FFI (native calls via Deno.dlopen) - independent of scope */
-  ffi: boolean;
-  /** Allow subprocess execution (Deno.Command) - independent of scope */
-  run: boolean;
-  /** Approval mode for escalation requests */
+  /** Approval mode: auto = works freely, hil = requires human approval */
   approvalMode: ApprovalMode;
 }
 
@@ -115,22 +106,13 @@ export type PermissionSet =
 /**
  * Convert legacy PermissionSet to PermissionConfig
  * @param set - Legacy permission set string
- * @returns Full PermissionConfig with defaults (ffi=false, run=false, approvalMode=auto)
+ * @returns PermissionConfig with defaults (approvalMode=auto)
  */
 export function permissionSetToConfig(set: PermissionSet): PermissionConfig {
-  // 'trusted' maps to mcp-standard with auto approval (same as default now)
-  if (set === "trusted") {
-    return {
-      scope: "mcp-standard",
-      ffi: false,
-      run: false,
-      approvalMode: "auto",
-    };
-  }
+  // 'trusted' maps to mcp-standard with auto approval
+  const scope: PermissionScope = set === "trusted" ? "mcp-standard" : set;
   return {
-    scope: set,
-    ffi: false,
-    run: false,
+    scope,
     approvalMode: "auto",
   };
 }
