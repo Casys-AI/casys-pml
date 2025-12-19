@@ -3,6 +3,10 @@
  *
  * Uses mathjs for safe expression evaluation and simple-statistics for stats.
  *
+ * Inspired by:
+ * - IT-Tools MCP: https://github.com/wrenchpilot/it-tools-mcp
+ * - Math MCP: https://github.com/EthanHenrickson/math-mcp
+ *
  * @module lib/std/math
  */
 
@@ -234,6 +238,86 @@ export const mathTools: MiniTool[] = [
       const fn = conversions[from as string]?.[to as string];
       if (!fn) throw new Error(`Cannot convert from ${from} to ${to}`);
       return fn(v);
+    },
+  },
+  // Inspired by IT-Tools MCP: https://github.com/wrenchpilot/it-tools-mcp
+  {
+    name: "math_base_convert",
+    description: "Convert number between bases (binary, octal, decimal, hex)",
+    category: "math",
+    inputSchema: {
+      type: "object",
+      properties: {
+        value: { type: "string", description: "Number to convert (as string)" },
+        from: {
+          type: "number",
+          enum: [2, 8, 10, 16],
+          description: "Source base (2=binary, 8=octal, 10=decimal, 16=hex)",
+        },
+        to: {
+          type: "number",
+          enum: [2, 8, 10, 16],
+          description: "Target base",
+        },
+      },
+      required: ["value", "from", "to"],
+    },
+    handler: ({ value, from, to }) => {
+      const num = parseInt(value as string, from as number);
+      if (isNaN(num)) throw new Error(`Invalid number for base ${from}: ${value}`);
+      return num.toString(to as number).toUpperCase();
+    },
+  },
+  {
+    name: "math_roman",
+    description: "Convert between Roman numerals and Arabic numbers",
+    category: "math",
+    inputSchema: {
+      type: "object",
+      properties: {
+        value: {
+          type: ["string", "number"],
+          description: "Roman numeral (string) or Arabic number",
+        },
+        action: {
+          type: "string",
+          enum: ["to_roman", "from_roman"],
+          description: "Conversion direction",
+        },
+      },
+      required: ["value", "action"],
+    },
+    handler: ({ value, action }) => {
+      const romanMap: [string, number][] = [
+        ["M", 1000], ["CM", 900], ["D", 500], ["CD", 400],
+        ["C", 100], ["XC", 90], ["L", 50], ["XL", 40],
+        ["X", 10], ["IX", 9], ["V", 5], ["IV", 4], ["I", 1],
+      ];
+
+      if (action === "to_roman") {
+        let num = typeof value === "string" ? parseInt(value, 10) : (value as number);
+        if (num < 1 || num > 3999) throw new Error("Number must be between 1 and 3999");
+        let result = "";
+        for (const [roman, arabic] of romanMap) {
+          while (num >= arabic) {
+            result += roman;
+            num -= arabic;
+          }
+        }
+        return result;
+      }
+
+      // from_roman
+      const roman = (value as string).toUpperCase();
+      let result = 0;
+      let i = 0;
+      for (const [r, arabic] of romanMap) {
+        while (roman.slice(i, i + r.length) === r) {
+          result += arabic;
+          i += r.length;
+        }
+      }
+      return result;
     },
   },
 ];

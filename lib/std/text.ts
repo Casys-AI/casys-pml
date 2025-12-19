@@ -1,6 +1,10 @@
 /**
  * Text manipulation tools
  *
+ * Inspired by:
+ * - TextToolkit MCP: https://github.com/Cicatriiz/text-toolkit
+ * - IT-Tools MCP: https://github.com/wrenchpilot/it-tools-mcp
+ *
  * @module lib/std/text
  */
 
@@ -213,6 +217,120 @@ export const textTools: MiniTool[] = [
         }
         default:
           return s.padEnd(len, c);
+      }
+    },
+  },
+  // Inspired by TextToolkit MCP: https://github.com/Cicatriiz/text-toolkit
+  {
+    name: "text_regex_test",
+    description: "Test if a regex pattern matches the text (returns boolean)",
+    category: "text",
+    inputSchema: {
+      type: "object",
+      properties: {
+        text: { type: "string", description: "Input text" },
+        pattern: { type: "string", description: "Regex pattern" },
+        flags: { type: "string", description: "Regex flags (default: '')" },
+      },
+      required: ["text", "pattern"],
+    },
+    handler: ({ text, pattern, flags = "" }) => {
+      const regex = new RegExp(pattern as string, flags as string);
+      return regex.test(text as string);
+    },
+  },
+  {
+    name: "text_regex_extract",
+    description: "Extract all matches with capture groups from text",
+    category: "text",
+    inputSchema: {
+      type: "object",
+      properties: {
+        text: { type: "string", description: "Input text" },
+        pattern: { type: "string", description: "Regex pattern with groups" },
+        flags: { type: "string", description: "Regex flags (default: 'g')" },
+      },
+      required: ["text", "pattern"],
+    },
+    handler: ({ text, pattern, flags = "g" }) => {
+      const regex = new RegExp(pattern as string, flags as string);
+      const matches: Array<{ match: string; groups: string[]; index: number }> = [];
+      let match;
+      while ((match = regex.exec(text as string)) !== null) {
+        matches.push({
+          match: match[0],
+          groups: match.slice(1),
+          index: match.index,
+        });
+        if (!regex.global) break;
+      }
+      return matches;
+    },
+  },
+  {
+    name: "text_regex_split",
+    description: "Split text by regex pattern",
+    category: "text",
+    inputSchema: {
+      type: "object",
+      properties: {
+        text: { type: "string", description: "Input text" },
+        pattern: { type: "string", description: "Regex pattern to split by" },
+        limit: { type: "number", description: "Max number of splits" },
+      },
+      required: ["text", "pattern"],
+    },
+    handler: ({ text, pattern, limit }) => {
+      const regex = new RegExp(pattern as string);
+      return (text as string).split(regex, limit as number | undefined);
+    },
+  },
+  {
+    name: "text_lorem",
+    description: "Generate lorem ipsum placeholder text",
+    category: "text",
+    inputSchema: {
+      type: "object",
+      properties: {
+        count: { type: "number", description: "Number of units (default: 1)" },
+        unit: {
+          type: "string",
+          enum: ["words", "sentences", "paragraphs"],
+          description: "Unit type (default: paragraphs)",
+        },
+      },
+    },
+    handler: ({ count = 1, unit = "paragraphs" }) => {
+      const words = [
+        "lorem", "ipsum", "dolor", "sit", "amet", "consectetur", "adipiscing", "elit",
+        "sed", "do", "eiusmod", "tempor", "incididunt", "ut", "labore", "et", "dolore",
+        "magna", "aliqua", "enim", "ad", "minim", "veniam", "quis", "nostrud",
+        "exercitation", "ullamco", "laboris", "nisi", "aliquip", "ex", "ea", "commodo",
+        "consequat", "duis", "aute", "irure", "in", "reprehenderit", "voluptate",
+        "velit", "esse", "cillum", "fugiat", "nulla", "pariatur", "excepteur", "sint",
+        "occaecat", "cupidatat", "non", "proident", "sunt", "culpa", "qui", "officia",
+        "deserunt", "mollit", "anim", "id", "est", "laborum",
+      ];
+
+      const randomWord = () => words[Math.floor(Math.random() * words.length)];
+      const randomSentence = () => {
+        const len = 8 + Math.floor(Math.random() * 12);
+        const sentence = Array.from({ length: len }, randomWord).join(" ");
+        return sentence.charAt(0).toUpperCase() + sentence.slice(1) + ".";
+      };
+      const randomParagraph = () => {
+        const len = 3 + Math.floor(Math.random() * 5);
+        return Array.from({ length: len }, randomSentence).join(" ");
+      };
+
+      const cnt = count as number;
+      switch (unit) {
+        case "words":
+          return Array.from({ length: cnt }, randomWord).join(" ");
+        case "sentences":
+          return Array.from({ length: cnt }, randomSentence).join(" ");
+        default:
+          return Array.from({ length: cnt }, randomParagraph).join("\n\n");
       }
     },
   },

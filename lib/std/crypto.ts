@@ -3,6 +3,10 @@
  *
  * Uses Web Crypto API (built into Deno).
  *
+ * Inspired by:
+ * - IT-Tools MCP: https://github.com/wrenchpilot/it-tools-mcp
+ * - TextToolkit MCP: https://github.com/Cicatriiz/text-toolkit
+ *
  * @module lib/std/crypto
  */
 
@@ -109,6 +113,112 @@ export const cryptoTools: MiniTool[] = [
       return Array.from(bytes)
         .map((b) => b.toString(16).padStart(2, "0"))
         .join("");
+    },
+  },
+  // Inspired by IT-Tools MCP: https://github.com/wrenchpilot/it-tools-mcp
+  {
+    name: "crypto_url",
+    description: "Encode or decode URL (percent encoding)",
+    category: "crypto",
+    inputSchema: {
+      type: "object",
+      properties: {
+        text: { type: "string", description: "Text to encode/decode" },
+        action: { type: "string", enum: ["encode", "decode"], description: "Action" },
+        component: {
+          type: "boolean",
+          description: "Use component encoding (encodes more chars, default: true)",
+        },
+      },
+      required: ["text", "action"],
+    },
+    handler: ({ text, action, component = true }) => {
+      if (action === "encode") {
+        return component ? encodeURIComponent(text as string) : encodeURI(text as string);
+      }
+      return component ? decodeURIComponent(text as string) : decodeURI(text as string);
+    },
+  },
+  {
+    name: "crypto_html",
+    description: "Encode or decode HTML entities",
+    category: "crypto",
+    inputSchema: {
+      type: "object",
+      properties: {
+        text: { type: "string", description: "Text to encode/decode" },
+        action: { type: "string", enum: ["encode", "decode"], description: "Action" },
+      },
+      required: ["text", "action"],
+    },
+    handler: ({ text, action }) => {
+      const htmlEntities: Record<string, string> = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+        "/": "&#x2F;",
+        "`": "&#x60;",
+        "=": "&#x3D;",
+      };
+
+      if (action === "encode") {
+        return (text as string).replace(/[&<>"'`=/]/g, (c) => htmlEntities[c] || c);
+      }
+      // Decode: reverse the mapping
+      const reverseEntities: Record<string, string> = {};
+      for (const [char, entity] of Object.entries(htmlEntities)) {
+        reverseEntities[entity] = char;
+      }
+      return (text as string).replace(
+        /&(?:amp|lt|gt|quot|#39|#x2F|#x60|#x3D);/g,
+        (entity) => reverseEntities[entity] || entity,
+      );
+    },
+  },
+  {
+    name: "crypto_password",
+    description: "Generate a strong random password",
+    category: "crypto",
+    inputSchema: {
+      type: "object",
+      properties: {
+        length: { type: "number", description: "Password length (default: 16)" },
+        uppercase: { type: "boolean", description: "Include uppercase (default: true)" },
+        lowercase: { type: "boolean", description: "Include lowercase (default: true)" },
+        numbers: { type: "boolean", description: "Include numbers (default: true)" },
+        symbols: { type: "boolean", description: "Include symbols (default: true)" },
+        excludeSimilar: {
+          type: "boolean",
+          description: "Exclude similar chars (0O, 1lI) (default: false)",
+        },
+      },
+    },
+    handler: ({
+      length = 16,
+      uppercase = true,
+      lowercase = true,
+      numbers = true,
+      symbols = true,
+      excludeSimilar = false,
+    }) => {
+      let chars = "";
+      const upper = excludeSimilar ? "ABCDEFGHJKLMNPQRSTUVWXYZ" : "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      const lower = excludeSimilar ? "abcdefghjkmnpqrstuvwxyz" : "abcdefghijklmnopqrstuvwxyz";
+      const nums = excludeSimilar ? "23456789" : "0123456789";
+      const syms = "!@#$%^&*()_+-=[]{}|;:,.<>?";
+
+      if (uppercase) chars += upper;
+      if (lowercase) chars += lower;
+      if (numbers) chars += nums;
+      if (symbols) chars += syms;
+
+      if (!chars) chars = lower + nums; // Fallback
+
+      const len = length as number;
+      const randomValues = crypto.getRandomValues(new Uint8Array(len));
+      return Array.from(randomValues, (byte) => chars[byte % chars.length]).join("");
     },
   },
 ];
