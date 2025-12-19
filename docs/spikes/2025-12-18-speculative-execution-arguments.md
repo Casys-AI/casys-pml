@@ -1,7 +1,7 @@
 # Spike: Speculative Execution with Arguments
 
 **Date**: 2025-12-18
-**Status**: Investigation
+**Status**: Complete
 **Related Stories**: 10.2, 10.3, 3.5-1, 3.5-2
 
 ## Context
@@ -25,7 +25,7 @@ During review of speculative execution mode, we discovered that arguments weren'
 │  per_layer execution (requires validation):                  │
 │    → Checkpoints between layers                             │
 │    → Human/AI validation at each pause                      │
-│    → NOT speculative (explicit approval needed)             │
+│    → CAN speculate during pause if next layer is safe       │
 │                                                              │
 │  Post-workflow prefetch (NEW):                               │
 │    → Workflow complete, full context available              │
@@ -331,17 +331,17 @@ function canSpeculate(toolId: string): boolean {
 
 **Rule**: If `requiresValidation()` returns true → NO speculation allowed.
 
-### Direct Execution Mode: No Prediction
+### Standard Execution Mode: Implicit Speculation
 
 In `executeStandardWorkflow()` (no per_layer_validation):
 - DAG runs to completion without pauses
-- **No next-node prediction occurs** - entire plan is already known
-- Speculative execution is only relevant when we DON'T know what's next
+- This IS already "speculative" in the sense that we trust the entire plan
+- No explicit next-node prediction needed - the DAG is the prediction
 
-Speculation only makes sense during:
+**Explicit speculation** (predicting and pre-executing) makes sense during:
 1. Intent-based suggestions (before DAG exists)
-2. Interactive/per_layer mode (between checkpoints)
-3. Capability discovery (matching tools to intent)
+2. per_layer mode (during checkpoint pauses)
+3. Post-workflow prefetch (after workflow completion)
 
 ## Implementation Path
 
