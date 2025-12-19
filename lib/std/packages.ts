@@ -9,7 +9,7 @@ import { runCommand, type MiniTool } from "./common.ts";
 export const packagesTools: MiniTool[] = [
   {
     name: "npm_run",
-    description: "Run npm commands",
+    description: "Run npm commands for Node.js package management. Install dependencies, run scripts (test, build, start), check outdated packages, audit security. Essential for JavaScript/TypeScript project management. Keywords: npm install, npm run, package.json, node modules, npm test build, js dependencies.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -34,7 +34,7 @@ export const packagesTools: MiniTool[] = [
   },
   {
     name: "pip_run",
-    description: "Run pip commands",
+    description: "Run pip commands for Python package management. Install, uninstall, list, or freeze Python packages. Check installed versions, upgrade packages, or export requirements. Essential for Python project dependency management. Keywords: pip install, python packages, requirements.txt, pip freeze, python dependencies, pypi.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -62,7 +62,7 @@ export const packagesTools: MiniTool[] = [
   },
   {
     name: "apt_install",
-    description: "Install packages with apt (Debian/Ubuntu)",
+    description: "Install system packages on Debian/Ubuntu using apt package manager. Install software, libraries, development tools. Can optionally update package lists first. Use for system dependencies, build tools, or server software. Keywords: apt install, apt-get, debian packages, ubuntu install, system packages, linux software.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -86,7 +86,7 @@ export const packagesTools: MiniTool[] = [
   },
   {
     name: "apt_search",
-    description: "Search for packages with apt",
+    description: "Search for available packages in Debian/Ubuntu repositories. Find package names, discover what software is available, check package descriptions. Use before installing to find the right package name. Keywords: apt search, find package, debian search, ubuntu packages, available software, apt cache.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -102,7 +102,7 @@ export const packagesTools: MiniTool[] = [
   },
   {
     name: "brew_install",
-    description: "Install packages with Homebrew (macOS)",
+    description: "Install packages on macOS using Homebrew package manager. Install CLI tools, libraries, or full applications (casks). The standard way to install software on Mac. Keywords: brew install, homebrew, macos packages, mac software, cask install, brew formula.",
     category: "system",
     inputSchema: {
       type: "object",

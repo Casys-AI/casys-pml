@@ -9,7 +9,7 @@ import { runCommand, type MiniTool } from "./common.ts";
 export const databaseTools: MiniTool[] = [
   {
     name: "sqlite_query",
-    description: "Execute SQLite query",
+    description: "Execute SQL queries on SQLite database files. Run SELECT, INSERT, UPDATE, DELETE operations on local .db files. Output as JSON, CSV, or table format. Use for local data storage, testing, embedded databases, or data analysis. Keywords: sqlite query, SQL database, local db, select insert update, sqlite3 command, database query.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -40,7 +40,7 @@ export const databaseTools: MiniTool[] = [
   },
   {
     name: "psql_query",
-    description: "Execute PostgreSQL query",
+    description: "Execute SQL queries on PostgreSQL databases. Connect to remote or local Postgres servers, run queries, manage data. Use for production database operations, data analysis, schema management, or database administration. Keywords: postgresql query, psql, postgres SQL, database query, pg connection, SQL execute.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -67,7 +67,7 @@ export const databaseTools: MiniTool[] = [
   },
   {
     name: "redis_cli",
-    description: "Execute Redis command",
+    description: "Execute Redis commands for key-value operations, caching, and pub/sub. Run GET, SET, HGET, LPUSH, and other Redis operations. Use for cache management, session storage, message queues, or real-time data. Keywords: redis cli, redis command, key value store, cache operations, redis get set, NoSQL database.",
     category: "system",
     inputSchema: {
       type: "object",

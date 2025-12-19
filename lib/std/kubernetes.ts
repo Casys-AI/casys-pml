@@ -9,7 +9,7 @@ import { runCommand, type MiniTool } from "./common.ts";
 export const kubernetesTools: MiniTool[] = [
   {
     name: "kubectl_get",
-    description: "Get Kubernetes resources",
+    description: "List and retrieve Kubernetes resources (pods, services, deployments, configmaps, secrets, etc.). Query by name, namespace, or label selector. Get detailed resource status, configuration, and metadata. Use for cluster monitoring, debugging, or resource inspection. Keywords: kubectl get, kubernetes resources, list pods, get services, k8s objects, cluster state.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -48,7 +48,7 @@ export const kubernetesTools: MiniTool[] = [
   },
   {
     name: "kubectl_apply",
-    description: "Apply Kubernetes manifest",
+    description: "Apply Kubernetes manifests to create or update resources. Deploy applications, services, configmaps from YAML/JSON files. Supports dry-run for validation. Use for deployments, infrastructure-as-code, GitOps workflows. Keywords: kubectl apply, deploy kubernetes, k8s manifest, create resource, update deployment, kubernetes yaml.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -73,7 +73,7 @@ export const kubernetesTools: MiniTool[] = [
   },
   {
     name: "kubectl_logs",
-    description: "Get pod logs",
+    description: "Fetch logs from Kubernetes pods for debugging and monitoring. View container stdout/stderr, filter by time, tail recent lines, or stream live. Essential for troubleshooting pod issues, application debugging, and monitoring. Keywords: kubectl logs, pod logs, container output, k8s debugging, application logs, stream logs.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -101,7 +101,7 @@ export const kubernetesTools: MiniTool[] = [
   },
   {
     name: "kubectl_exec",
-    description: "Execute command in pod",
+    description: "Execute commands inside running Kubernetes pods. Run shell commands, debug containers, inspect filesystem, or troubleshoot applications directly. Essential for container debugging and interactive troubleshooting. Keywords: kubectl exec, pod shell, container exec, run command in pod, k8s debugging, interactive container.",
     category: "system",
     inputSchema: {
       type: "object",

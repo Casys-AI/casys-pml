@@ -9,7 +9,7 @@ import { runCommand, type MiniTool } from "./common.ts";
 export const mediaTools: MiniTool[] = [
   {
     name: "ffmpeg_convert",
-    description: "Convert media files with ffmpeg",
+    description: "Convert, transcode, and process video/audio files with FFmpeg. Change formats (MP4, WebM, MP3, AAC), resize, trim clips, adjust bitrate/quality. The universal media conversion tool. Keywords: ffmpeg convert, video transcode, audio convert, change format, compress video, trim clip, media processing.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -46,7 +46,7 @@ export const mediaTools: MiniTool[] = [
   },
   {
     name: "ffprobe_info",
-    description: "Get media file information",
+    description: "Analyze media files to get detailed metadata. Shows duration, resolution, codecs, bitrate, frame rate, audio channels, and stream information. Use for video analysis, format detection, or debugging media issues. Keywords: ffprobe, media info, video metadata, file analysis, codec info, duration resolution, stream details.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -72,7 +72,7 @@ export const mediaTools: MiniTool[] = [
   },
   {
     name: "imagemagick_convert",
-    description: "Convert/transform images with ImageMagick",
+    description: "Process and transform images with ImageMagick. Resize, crop, rotate, change format (PNG, JPG, WebP, GIF), adjust quality, and apply effects. Powerful image manipulation for batch processing or single files. Keywords: imagemagick, image convert, resize image, crop rotate, change format, image processing, convert png jpg.",
     category: "system",
     inputSchema: {
       type: "object",

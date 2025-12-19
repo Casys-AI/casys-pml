@@ -9,7 +9,7 @@ import { runCommand, type MiniTool } from "./common.ts";
 export const networkTools: MiniTool[] = [
   {
     name: "curl_fetch",
-    description: "Make HTTP request using curl",
+    description: "Make HTTP request using curl for API calls, web scraping, and testing endpoints. Supports all HTTP methods, custom headers, request bodies, and SSL options. Use for REST API interactions, webhook testing, file downloads, or HTTP debugging. Keywords: HTTP request, API call, REST client, web fetch, curl command, HTTP GET POST.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -61,7 +61,7 @@ export const networkTools: MiniTool[] = [
   },
   {
     name: "dig_lookup",
-    description: "DNS lookup using dig",
+    description: "Perform DNS lookup to resolve domain names to IP addresses. Query A, AAAA, MX, NS, TXT, CNAME, and SOA records from any DNS server. Use for DNS debugging, verifying records, checking propagation, or troubleshooting domain issues. Keywords: DNS query, domain lookup, name resolution, dig command, DNS records, MX lookup.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -93,7 +93,7 @@ export const networkTools: MiniTool[] = [
   },
   {
     name: "ping_host",
-    description: "Ping a host to check connectivity",
+    description: "Ping a host using ICMP to check network connectivity and measure latency. Returns round-trip time (RTT) statistics, packet loss percentage, and reachability status. Use for network diagnostics, uptime monitoring, troubleshooting connectivity, or testing host availability. Keywords: ping test, network connectivity, latency check, host reachable, ICMP echo, network diagnostics.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -145,7 +145,7 @@ export const networkTools: MiniTool[] = [
   },
   {
     name: "nslookup",
-    description: "DNS lookup using nslookup (simpler than dig)",
+    description: "Simple DNS lookup to resolve domain names to IP addresses. Easier alternative to dig for basic queries. Use for quick domain resolution, verifying DNS settings, or checking what IP a domain points to. Keywords: DNS lookup, nslookup, domain to IP, name server query, resolve hostname.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -180,7 +180,7 @@ export const networkTools: MiniTool[] = [
   },
   {
     name: "traceroute",
-    description: "Trace route to host",
+    description: "Trace the network path to a destination showing each hop and latency. Identifies routers between source and destination, useful for diagnosing network routing issues, finding bottlenecks, or understanding network topology. Keywords: traceroute, network path, hops, routing, network topology, packet path, latency by hop.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -199,7 +199,7 @@ export const networkTools: MiniTool[] = [
   },
   {
     name: "netcat",
-    description: "Network utility (nc) for port scanning and connections",
+    description: "Swiss army knife for TCP/UDP networking. Check if ports are open, scan port ranges, test network services. Use for port scanning, service availability checks, firewall testing, or verifying that services are listening. Keywords: netcat, nc, port scan, port check, TCP connection, service test, open ports.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -233,7 +233,7 @@ export const networkTools: MiniTool[] = [
   },
   {
     name: "wget_download",
-    description: "Download files with wget",
+    description: "Download files from URLs with wget. Supports resumable downloads, recursive website mirroring, and custom output paths. Use for downloading assets, mirroring sites, fetching remote files, or automated downloads with retry capability. Keywords: wget, file download, URL fetch, mirror website, resume download, recursive download.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -263,7 +263,7 @@ export const networkTools: MiniTool[] = [
   },
   {
     name: "ip_address",
-    description: "Get network interface information",
+    description: "Get network interface information including IP addresses, MAC addresses, and interface status. Shows all network adapters with IPv4/IPv6 addresses and subnet masks. Use to find your IP, check network configuration, or list available interfaces. Keywords: IP address, network interface, ifconfig, ip addr, local IP, network config, MAC address.",
     category: "system",
     inputSchema: {
       type: "object",

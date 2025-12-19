@@ -9,7 +9,7 @@ import { runCommand, type MiniTool } from "./common.ts";
 export const textTools: MiniTool[] = [
   {
     name: "sed",
-    description: "Stream editor for text transformation",
+    description: "Stream editor for find-and-replace text transformations. Use regex patterns like 's/old/new/g' to substitute text, delete lines, or transform content. Can modify files in-place or process input streams. Essential for text manipulation and batch editing. Keywords: sed, find replace, text substitution, regex replace, stream editor, pattern matching, text transform.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -49,7 +49,7 @@ export const textTools: MiniTool[] = [
   },
   {
     name: "awk",
-    description: "Pattern scanning and text processing",
+    description: "Powerful text processing tool for column extraction and data manipulation. Process fields in structured text, calculate sums, filter rows by patterns. Use custom field separators for CSV, TSV, or log files. Keywords: awk, column extraction, field processing, text columns, data manipulation, csv processing, log parsing.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -93,7 +93,7 @@ export const textTools: MiniTool[] = [
   },
   {
     name: "jq",
-    description: "JSON processor",
+    description: "Command-line JSON processor for querying, filtering, and transforming JSON data. Extract values with path expressions (.key, .[0]), filter arrays, reshape objects. Essential for working with APIs and JSON files. Keywords: jq, json query, json filter, json transform, json path, parse json, json extract.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -144,7 +144,7 @@ export const textTools: MiniTool[] = [
   },
   {
     name: "wc",
-    description: "Word, line, character count",
+    description: "Count lines, words, characters, or bytes in text or files. Get line count for files, word counts for documents, or byte sizes. Essential for text statistics and file analysis. Keywords: wc, word count, line count, character count, count lines, file statistics, text length.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -201,7 +201,7 @@ export const textTools: MiniTool[] = [
   },
   {
     name: "head",
-    description: "Get first N lines of text",
+    description: "Get the first N lines from a file or text. Preview file contents, check file headers, or limit output. Default shows first 10 lines. Use for quick file inspection or sampling. Keywords: head, first lines, file preview, top lines, file start, beginning of file.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -225,7 +225,7 @@ export const textTools: MiniTool[] = [
   },
   {
     name: "tail",
-    description: "Get last N lines of text",
+    description: "Get the last N lines from a file or text. View recent log entries, check file endings, or monitor growing files. Default shows last 10 lines. Essential for log file analysis. Keywords: tail, last lines, file end, recent lines, end of file, log tail.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -249,7 +249,7 @@ export const textTools: MiniTool[] = [
   },
   {
     name: "sort_lines",
-    description: "Sort lines of text",
+    description: "Sort lines of text alphabetically, numerically, or in reverse order. Remove duplicates with unique flag. Process text from input or files. Essential for ordering data, removing duplicates, or preparing for uniq. Keywords: sort, sort lines, alphabetical sort, numeric sort, remove duplicates, order text.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -290,7 +290,7 @@ export const textTools: MiniTool[] = [
   },
   {
     name: "uniq",
-    description: "Filter or count unique lines",
+    description: "Filter unique or duplicate lines from sorted input. Count occurrences, show only duplicates, or remove consecutive duplicates. Note: input should be sorted first. Use for deduplication or frequency analysis. Keywords: uniq, unique lines, remove duplicates, count occurrences, filter duplicates, deduplicate.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -329,7 +329,7 @@ export const textTools: MiniTool[] = [
   },
   {
     name: "cut",
-    description: "Extract columns/fields from text",
+    description: "Extract specific columns or character ranges from text. Select fields by delimiter (CSV, TSV) or character positions. Use for parsing structured text, extracting specific columns, or trimming output. Keywords: cut, extract columns, select fields, column extraction, csv columns, delimiter split.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -370,7 +370,7 @@ export const textTools: MiniTool[] = [
   },
   {
     name: "diff",
-    description: "Compare two files",
+    description: "Compare two files and show differences line by line. Output unified diff format showing additions, deletions, and context. Essential for code review, finding changes, or generating patches. Keywords: diff, compare files, file differences, unified diff, text comparison, show changes, patch format.",
     category: "system",
     inputSchema: {
       type: "object",

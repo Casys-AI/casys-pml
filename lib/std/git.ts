@@ -9,7 +9,7 @@ import { runCommand, type MiniTool } from "./common.ts";
 export const gitTools: MiniTool[] = [
   {
     name: "git_status",
-    description: "Get git repository status",
+    description: "Get git repository status showing working directory state. Shows current branch, tracked/untracked files, staged changes, and upstream tracking info. Use to check what files are modified, staged for commit, or need attention before committing. Keywords: git status, working tree, staged files, uncommitted changes, modified files.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -47,7 +47,7 @@ export const gitTools: MiniTool[] = [
   },
   {
     name: "git_log",
-    description: "Get git commit history",
+    description: "Get git commit history with author, date, and message details. View recent commits, filter by author or date range, track project evolution. Use to review changes, find specific commits, audit code history, or understand what was changed and when. Keywords: commit history, git log, revision history, changelog, commit messages, author commits.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -90,7 +90,7 @@ export const gitTools: MiniTool[] = [
   },
   {
     name: "git_diff",
-    description: "Show git diff",
+    description: "Show git diff between commits, branches, or working directory changes. View line-by-line differences, staged vs unstaged changes, or file-specific diffs. Use to review code changes before committing, compare versions, or understand what was modified. Keywords: git diff, code changes, line differences, compare files, staged changes, patch.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -116,7 +116,7 @@ export const gitTools: MiniTool[] = [
   },
   {
     name: "git_branch",
-    description: "List or manage git branches",
+    description: "List git branches showing local and remote branches. Shows current branch, upstream tracking, and all available branches. Use to see available branches, check current branch, find feature branches, or verify remote tracking. Keywords: git branch, branch list, current branch, remote branches, feature branches, branch management.",
     category: "system",
     inputSchema: {
       type: "object",

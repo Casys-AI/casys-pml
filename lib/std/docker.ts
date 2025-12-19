@@ -9,7 +9,7 @@ import { runCommand, type MiniTool } from "./common.ts";
 export const dockerTools: MiniTool[] = [
   {
     name: "docker_ps",
-    description: "List Docker containers (docker ps)",
+    description: "List running Docker containers. Shows container status, ports, names, images, and resource usage. Use to check what services are running, debug deployment issues, monitor container health, or find container IDs for other operations. Keywords: docker ps, container list, running services, container status.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -38,7 +38,7 @@ export const dockerTools: MiniTool[] = [
   },
   {
     name: "docker_images",
-    description: "List Docker images (docker images)",
+    description: "List available Docker images on the system. Shows image repository, tags, sizes, and creation dates. Use to check available images before running containers, find unused images for cleanup, or verify image pulls. Keywords: docker images, image list, repository tags, container images.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -67,7 +67,7 @@ export const dockerTools: MiniTool[] = [
   },
   {
     name: "docker_logs",
-    description: "Get logs from a Docker container",
+    description: "Fetch logs from a Docker container for debugging and monitoring. Retrieve stdout/stderr output, filter by time range, or tail recent lines. Essential for troubleshooting container issues, viewing application output, debugging crashes, and monitoring service behavior. Keywords: container logs, debug output, stderr stdout, application logs.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -92,7 +92,7 @@ export const dockerTools: MiniTool[] = [
   },
   {
     name: "docker_compose_ps",
-    description: "List Docker Compose services",
+    description: "List services defined in Docker Compose stack. Shows service status, ports, and health for multi-container applications. Use to monitor docker-compose deployments, check which services are running, verify orchestrated application state. Keywords: compose services, multi-container, stack status, docker-compose.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -121,7 +121,7 @@ export const dockerTools: MiniTool[] = [
   },
   {
     name: "docker_stats",
-    description: "Get Docker container resource usage statistics",
+    description: "Get real-time resource usage statistics for Docker containers. Shows CPU percentage, memory usage/limit, network I/O, and block I/O. Use for performance monitoring, identifying resource-hungry containers, capacity planning, and detecting memory leaks. Keywords: container metrics, CPU memory, resource usage, performance stats.",
     category: "system",
     inputSchema: {
       type: "object",

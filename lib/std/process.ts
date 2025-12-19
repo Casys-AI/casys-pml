@@ -9,7 +9,7 @@ import { runCommand, type MiniTool } from "./common.ts";
 export const processTools: MiniTool[] = [
   {
     name: "ps_list",
-    description: "List running processes",
+    description: "List running processes with detailed resource usage. Shows CPU%, memory%, PID, user, and command for each process. Filter by name or user, sort by resource consumption. Use for finding resource-hungry processes, debugging, or monitoring system load. Keywords: ps aux, process list, running programs, CPU usage, memory usage, task manager, top processes.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -62,7 +62,7 @@ export const processTools: MiniTool[] = [
   },
   {
     name: "which_command",
-    description: "Find the path of a command",
+    description: "Find the full path of an executable command. Checks if a command exists and returns its location in PATH. Use to verify command availability, find binary locations, or debug PATH issues. Keywords: which, command path, binary location, executable path, find command, PATH lookup.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -82,7 +82,7 @@ export const processTools: MiniTool[] = [
   },
   {
     name: "kill_process",
-    description: "Kill a process by PID or name",
+    description: "Terminate a process by PID or name using signals. Send SIGTERM for graceful shutdown or SIGKILL to force stop. Use to stop hung processes, restart services, or clean up runaway programs. Keywords: kill process, stop program, pkill, terminate, SIGTERM, SIGKILL, force quit, end task.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -112,7 +112,7 @@ export const processTools: MiniTool[] = [
   },
   {
     name: "lsof",
-    description: "List open files or network connections",
+    description: "List open files, network connections, and ports in use. Find which process is using a specific port, file, or show all connections for a PID. Essential for debugging port conflicts, finding file locks, or auditing network activity. Keywords: lsof, open files, port in use, file handles, network connections, who is using port, file locks.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -151,7 +151,7 @@ export const processTools: MiniTool[] = [
   },
   {
     name: "which",
-    description: "Find command location",
+    description: "Find the location of a command in PATH. Shows the full path to an executable, optionally listing all matches. Use to check if a tool is installed, find where binaries are located, or resolve command conflicts. Keywords: which command, find binary, command location, executable path, PATH search.",
     category: "system",
     inputSchema: {
       type: "object",

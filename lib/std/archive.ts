@@ -9,7 +9,7 @@ import { runCommand, type MiniTool } from "./common.ts";
 export const archiveTools: MiniTool[] = [
   {
     name: "tar_create",
-    description: "Create a tar archive",
+    description: "Create compressed tar archives (tar.gz, tar.bz2, tar.xz) from files and directories. Package multiple files for backup, distribution, or transfer. Supports gzip, bzip2, and xz compression. Keywords: tar create, archive files, compress folder, tar.gz, tarball, backup archive, package files.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -39,7 +39,7 @@ export const archiveTools: MiniTool[] = [
   },
   {
     name: "tar_extract",
-    description: "Extract a tar archive",
+    description: "Extract tar archives including compressed formats (tar.gz, tar.bz2, tar.xz). Unpack to specific directory or list contents without extracting. Auto-detects compression type. Keywords: tar extract, untar, decompress, extract tar.gz, unpack archive, list archive contents.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -69,7 +69,7 @@ export const archiveTools: MiniTool[] = [
   },
   {
     name: "zip_create",
-    description: "Create a zip archive",
+    description: "Create ZIP archives from files and directories. Widely compatible format for Windows, Mac, and Linux. Recursive directory compression supported. Use for file sharing, backups, or packaging for distribution. Keywords: zip create, compress to zip, zip folder, create archive, package zip, zip files.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -93,7 +93,7 @@ export const archiveTools: MiniTool[] = [
   },
   {
     name: "unzip",
-    description: "Extract a zip archive",
+    description: "Extract ZIP archives to specified directory or list contents without extracting. Handles standard ZIP format compatible with Windows, Mac, and Linux. Use for unpacking downloaded archives or viewing ZIP contents. Keywords: unzip, extract zip, decompress zip, list zip contents, unpack archive.",
     category: "system",
     inputSchema: {
       type: "object",

@@ -9,7 +9,7 @@ import { runCommand, type MiniTool } from "./common.ts";
 export const cloudTools: MiniTool[] = [
   {
     name: "aws_cli",
-    description: "Run AWS CLI commands",
+    description: "Execute AWS CLI commands for cloud infrastructure management. Access S3, EC2, Lambda, RDS, IAM and all AWS services. List resources, manage instances, deploy infrastructure. Use for cloud automation, DevOps, or AWS administration. Keywords: aws cli, amazon web services, s3 bucket, ec2 instance, lambda function, cloud management, aws command.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -42,7 +42,7 @@ export const cloudTools: MiniTool[] = [
   },
   {
     name: "gcloud_cli",
-    description: "Run Google Cloud CLI commands",
+    description: "Execute Google Cloud CLI commands for GCP infrastructure management. Access Compute Engine, Cloud Storage, Cloud Functions, BigQuery and all GCP services. Use for cloud automation, DevOps workflows, or GCP administration. Keywords: gcloud cli, google cloud, gcp command, compute engine, cloud storage, cloud functions, gcp management.",
     category: "system",
     inputSchema: {
       type: "object",
@@ -72,7 +72,7 @@ export const cloudTools: MiniTool[] = [
   },
   {
     name: "systemctl",
-    description: "Manage systemd services",
+    description: "Manage Linux systemd services and units. Start, stop, restart, enable, disable services. Check service status, list running units, manage system daemons. Essential for Linux server administration and service management. Keywords: systemctl, systemd service, start stop restart, service status, enable disable, linux daemon, unit management.",
     category: "system",
     inputSchema: {
       type: "object",
