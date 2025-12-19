@@ -37,10 +37,35 @@ During review of speculative execution mode, we discovered that arguments weren'
 | Mode | What Happens | Speculative? |
 |------|--------------|--------------|
 | Standard (high confidence) | Execute full DAG | ✅ Implicit |
-| per_layer | Pause between layers | ❌ No |
+| per_layer | Pause between layers | ✅ **If next layer is safe** |
 | **Post-workflow prefetch** | Preload next caps | ✅ Explicit |
 
-**Conclusion**: The only NEW speculation to implement is **post-workflow capability prefetching**. Standard DAG execution is already speculative by nature (we trust the plan when confidence is high).
+**Important**: per_layer and speculation are **orthogonal**:
+- per_layer = WHEN to pause (checkpoints)
+- speculation = CAN we pre-execute (security-based)
+
+During a checkpoint pause, we CAN speculate the next layer IF it's safe:
+
+```
+Layer 1: read_file (safe)
+     ↓
+[Speculate layer 2 while paused] ← YES if safe!
+     ↓
+Checkpoint pause (per_layer)
+     ↓
+Agent: "continue"
+     ↓
+Layer 2: parse_json → Cache HIT if speculated!
+```
+
+| Next tool | Can speculate during pause? |
+|-----------|---------------------------|
+| `read_file`, `search` | ✅ Yes (read-only) |
+| `parse_json`, `format` | ✅ Yes (pure transform) |
+| `github:push` | ❌ No (side effects) |
+| `write_file` | ❌ No (modifies FS) |
+
+**Conclusion**: Speculation can happen in ALL modes. The only constraint is security (`canSpeculate()`). Post-workflow prefetch extends this to AFTER workflow completion.
 
 ## Key Clarification: Speculation vs Capability Creation
 
