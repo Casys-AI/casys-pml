@@ -145,37 +145,12 @@ export function suggestEscalation(
     return null;
   }
 
-  // Handle sandbox-escape permissions (ffi, run) - now configurable!
+  // Handle sandbox-escape permissions (ffi, run)
+  // Note: With WorkerBridge architecture, MCP tools execute in main process,
+  // so sandbox-escape permissions are typically not needed. This code path
+  // exists for legacy compatibility and edge cases.
   if (SANDBOX_ESCAPE_PERMISSIONS.has(detectedOperation)) {
-    // Check if tool's config explicitly allows this permission
-    if (toolConfig) {
-      const isAllowed =
-        (detectedOperation === "ffi" && toolConfig.ffi) ||
-        (detectedOperation === "run" && toolConfig.run);
-
-      if (isAllowed) {
-        // Tool declares it needs this permission - allow escalation
-        logger.info("Sandbox-escape permission allowed via tool config", {
-          capabilityId,
-          detectedOperation,
-          toolConfig,
-        });
-
-        // For ffi/run, we don't change scope - just flag the permission
-        const request: PermissionEscalationRequest = {
-          capabilityId,
-          currentSet,
-          requestedSet: currentSet, // Keep same scope
-          reason: error,
-          detectedOperation,
-          confidence: 0.95, // High confidence - explicitly declared
-        };
-        return request;
-      }
-    }
-
-    // No tool config or permission not declared - warn but don't hard-block
-    // The HIL handler will still ask for human approval
+    // Sandbox-escape permission needs explicit approval via HIL
     logger.warn("Sandbox-escape permission needs explicit approval", {
       capabilityId,
       detectedOperation,
