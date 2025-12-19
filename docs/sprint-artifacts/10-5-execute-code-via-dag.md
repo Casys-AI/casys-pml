@@ -322,7 +322,7 @@ N/A
 - 2025-12-19: Code review - 4 HIGH, 3 MEDIUM, 3 LOW issues found, action items created (Claude Opus 4.5)
 - 2025-12-19: **DESIGN GAP DISCOVERED** - Sandbox/DAG execution unification needed
 - 2025-12-19: **CODE REVIEW CLARIFICATION** - Le fallback sandbox est une feature (pas un bug). DAG mode pour pure MCP, sandbox pour JS complexe. Documenté la compréhension architecture complète.
-- 2025-12-19: **FIX PERMISSIONS WORKER** - Implémenté le support des permissions granulaires Deno pour le Worker (était hardcodé `"none"`). Les PermissionSet sont maintenant correctement passés au Worker.
+- 2025-12-19: **DECISION WORKER PERMISSIONS = "none"** - Après analyse, les permissions granulaires Worker sont inutiles car tous les appels I/O passent par MCP RPC. Worker forcé à "none" pour 100% traçabilité. PermissionSet dans YAML = metadata uniquement (inférence, HIL, audit).
 
 ---
 
@@ -420,38 +420,36 @@ ControlledExecutor  Sandbox (fallback)
 - [ ] Faut-il unifier les deux modes ou garder le fallback ?
 - [ ] Overhead de l'option 3 (worker persistent) à mesurer
 
-### Fix appliqué : Permissions granulaires pour Worker (2025-12-19)
+### Décision Architecture : Worker permissions = "none" (2025-12-19)
 
-**Problème identifié :**
-Le `WorkerBridge` utilisait `permissions: "none"` en dur, ce qui ignorait le paramètre `permissionSet`.
-Les permissions granulaires ne fonctionnaient qu'en mode subprocess (deprecated), pas en mode Worker.
+**Contexte :**
+Le Worker utilise le pattern RPC : le code s'exécute dans le Worker, mais tous les appels MCP passent par le main process via `postMessage`. Le Worker ne fait pas d'appels directs au réseau ou au filesystem.
 
-**Solution implémentée :**
-- Ajout de `permissionSet` dans `WorkerBridgeConfig`
-- Nouvelle fonction `permissionSetToDenoPermissions()` qui convertit `PermissionSet` → options Deno Worker
-- Le Worker reçoit maintenant les permissions appropriées
+**Décision :**
+Worker permissions = `"none"` toujours. Cela force TOUT à passer par MCP RPC.
 
-**Mapping des permissions :**
+**Avantages :**
+1. **100% traçable** - Tous les appels passent par le proxy RPC
+2. **Contrôle centralisé** - Le main process contrôle les permissions
+3. **Pas de bypass** - Le code ne peut pas utiliser `Deno.readFile()` ou `fetch()` directement
 
-| PermissionSet | Deno Worker Permissions |
-|---------------|------------------------|
-| `minimal` | `"none"` (aucun accès) |
-| `readonly` | `{ read: true }` |
-| `filesystem` | `{ read: true, write: true }` |
-| `network-api` | `{ net: true }` |
-| `mcp-standard` | `{ read, write, net, env: true }` |
+**PermissionSet dans mcp-permissions.yaml :**
+Le fichier YAML est utilisé pour **metadata uniquement** :
+- Inférence de permissions pour les capabilities
+- Détection HIL (`requiresValidation()` côté serveur)
+- Audit/UI
 
-**Sécurité :** `run: false` et `ffi: false` sont toujours forcés, quel que soit le permission set.
-
-**Note importante :** Les permissions Deno contrôlent l'accès mais ne créent pas d'isolation filesystem.
-Le Worker accède au vrai système de fichiers de la machine, pas un FS virtuel isolé.
-Pour un vrai sandboxing de chemins, il faudrait utiliser des chemins granulaires (`read: ["/tmp/sandbox/"]`).
+**Ce n'est PAS de l'enforcement** - les vraies permissions sont :
+- Deno Worker = "none" (forcé)
+- MCP servers = gèrent leur propre auth (tokens, scopes)
 
 **Fichiers modifiés :**
-- `src/sandbox/worker-bridge.ts` - Ajout config permissions + conversion
-- `src/sandbox/executor.ts` - Passage du permissionSet au bridge
+- `src/sandbox/worker-bridge.ts` - Constante `WORKER_PERMISSIONS = "none"`
+- `src/sandbox/executor.ts` - Suppression du passage de permissionSet au bridge
 
-**Commit :** `feat(sandbox): enable granular permissions for Worker execution`
+**Références :**
+- `docs/spikes/2025-12-19-capability-vs-trace-clarification.md`
+- `docs/tech-specs/tech-spec-hil-permission-escalation-fix.md`
 
 ### File List
 

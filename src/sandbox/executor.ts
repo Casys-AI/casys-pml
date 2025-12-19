@@ -1078,12 +1078,11 @@ export class DenoSandboxExecutor {
       });
 
       // Create WorkerBridge and execute (Task 2: pass optional dependencies)
-      // Story 10.5: Pass permission set to Worker for granular permissions
+      // Note: Worker always uses "none" permissions - all I/O goes through MCP RPC
       const bridge = new WorkerBridge(workerConfig.mcpClients, {
         timeout: this.config.timeout,
         capabilityStore: this.capabilityStore,
         graphRAG: this.graphRAG,
-        permissionSet, // Story 10.5: Enable granular Worker permissions
       });
       this.lastBridge = bridge;
 
