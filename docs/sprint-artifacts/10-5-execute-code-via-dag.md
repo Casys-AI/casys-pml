@@ -178,6 +178,22 @@ L'IA écrit du code TypeScript. Le système infère le DAG et l'exécute avec to
 - ✅ Plus rapide (Worker thread vs process spawn)
 - ✅ Permissions uniformes (`"none"` toujours)
 
+**⚠️ Analyse des features subprocess à vérifier (2025-12-19) :**
+
+| Feature subprocess | Nécessaire pour Worker ? | Conclusion |
+|--------------------|-------------------------|------------|
+| **REPL auto-return** (`wrapCode()`) | ❌ Non | Code DAG est généré avec `return` explicite |
+| **Cache** (`this.cache.get/set`) | ❌ Non | MCP non-déterministe (fichiers changent) |
+| **V8 memory limit** (`--max-old-space-size`) | ❌ Non applicable | Workers Deno n'ont pas de limite mémoire individuelle ([issue #26202](https://github.com/denoland/deno/issues/26202)). Timeout suffit. |
+| Security validation | ✅ Déjà dans `executeWithTools()` | OK |
+| Resource limiting | ✅ Déjà dans `executeWithTools()` | OK |
+
+**À vérifier en profondeur avant implémentation :**
+- [ ] Vérifier que TOUS les tests `execute()` passent avec Worker
+- [ ] Benchmark latence Worker vs subprocess (confirmer ~5ms vs ~50ms)
+- [ ] Vérifier qu'aucun code externe n'utilise `execute()` pour du REPL
+- [ ] S'assurer que le timeout Worker est suffisant (pas de memory runaway)
+
 ---
 
 ## Tasks / Subtasks
@@ -230,12 +246,21 @@ L'IA écrit du code TypeScript. Le système infère le DAG et l'exécute avec to
   - [ ] Créer `tests/dag/workerbridge-executor_test.ts`
 
 - [ ] **Task 9: Unifier execute() vers Worker** (AC: 13) ⬜ NEW
-  - [ ] Refactoriser `DenoSandboxExecutor.execute()` pour utiliser `WorkerBridge`
-  - [ ] Supprimer le code subprocess : `buildCommand()`, `executeWithTimeout()`, `parseOutput()`, `wrapCode()`
-  - [ ] `execute(code, context?)` → `WorkerBridge.execute(code, [], context)`
-  - [ ] `executeWithTools()` devient alias → `execute(code, context, toolDefs)`
-  - [ ] Mettre à jour tous les appelants de `execute()` (tests, handlers)
-  - [ ] Benchmark: vérifier Worker < subprocess en latence
+  - [ ] **Phase 1: Vérification**
+    - [ ] Lister tous les appelants de `execute()` (grep usage)
+    - [ ] Vérifier qu'aucun n'utilise REPL-style (expressions sans return)
+    - [ ] Benchmark subprocess vs Worker latence
+  - [ ] **Phase 2: Refactorisation**
+    - [ ] Refactoriser `DenoSandboxExecutor.execute()` pour utiliser `WorkerBridge`
+    - [ ] `execute(code, context?)` → `WorkerBridge.execute(code, [], context)`
+    - [ ] `executeWithTools()` devient alias → `execute(code, context, toolDefs)`
+  - [ ] **Phase 3: Nettoyage**
+    - [ ] Supprimer le code subprocess : `buildCommand()`, `executeWithTimeout()`, `parseOutput()`, `wrapCode()`
+    - [ ] Supprimer `RESULT_MARKER`, `permissionSetToFlags()` si non utilisés ailleurs
+  - [ ] **Phase 4: Tests**
+    - [ ] Mettre à jour tous les tests `execute()` existants
+    - [ ] Ajouter tests de non-régression
+    - [ ] Vérifier timeout Worker fonctionne (pas de memory runaway)
 
 ### Review Follow-ups (AI)
 
