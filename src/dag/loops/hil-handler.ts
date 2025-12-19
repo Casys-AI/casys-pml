@@ -14,24 +14,30 @@ import type { WorkflowState } from "../state.ts";
 /**
  * Check if HIL approval checkpoint should be triggered (Story 2.5-3)
  *
+ * NOTE: This function is part of the legacy HIL mechanism.
+ * Server-side validation is now handled by requiresValidation() in workflow-execution-handler.
+ * Phase 4 will implement per-task HIL with approvalMode: "hil" in mcp-permissions.yaml.
+ *
  * @param config - Executor configuration
  * @param _layerIdx - Current layer index (unused, reserved for future)
- * @param layer - Tasks in current layer
+ * @param _layer - Tasks in current layer (unused - sideEffects field removed)
  * @returns true if approval required
  */
 export function shouldRequireApproval(
   config: ExecutorConfig,
   _layerIdx: number,
-  layer: { sideEffects?: boolean }[],
+  _layer: unknown[],
 ): boolean {
   if (!config.hil?.enabled) return false;
 
   const mode = config.hil.approval_required;
   if (mode === "always") return true;
   if (mode === "never") return false;
+  // "critical_only" was based on deprecated sideEffects field
+  // Now handled by requiresValidation() server-side using mcp-permissions.yaml
+  // Returning false until Phase 4 per-task HIL is implemented
   if (mode === "critical_only") {
-    // Check if any task in layer has sideEffects flag
-    return layer.some((task) => task.sideEffects === true);
+    return false;
   }
 
   return false;
