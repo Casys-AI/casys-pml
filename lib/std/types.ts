@@ -37,7 +37,10 @@ export type ToolCategory =
   | "transform"
   | "state"
   | "compare"
-  | "algo";
+  | "algo"
+  | "color"
+  | "network"
+  | "util";
 
 /** Mini tool handler function type */
 export type MiniToolHandler = (args: Record<string, unknown>) => Promise<unknown> | unknown;

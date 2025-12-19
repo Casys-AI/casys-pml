@@ -334,4 +334,60 @@ export const textTools: MiniTool[] = [
       }
     },
   },
+  {
+    name: "text_slugify",
+    description: "Convert text to URL-friendly slug (lowercase, hyphens, no special chars)",
+    category: "text",
+    inputSchema: {
+      type: "object",
+      properties: {
+        text: { type: "string", description: "Text to slugify" },
+        separator: { type: "string", description: "Word separator (default: '-')" },
+        lowercase: { type: "boolean", description: "Convert to lowercase (default: true)" },
+      },
+      required: ["text"],
+    },
+    handler: ({ text, separator = "-", lowercase = true }) => {
+      let slug = (text as string)
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "") // Remove accents
+        .replace(/[^a-zA-Z0-9\s-]/g, "") // Remove special chars
+        .trim()
+        .replace(/\s+/g, separator as string) // Replace spaces
+        .replace(new RegExp(`${separator}+`, "g"), separator as string); // Remove duplicate separators
+
+      if (lowercase) slug = slug.toLowerCase();
+      return slug;
+    },
+  },
+  {
+    name: "text_nato",
+    description: "Convert text to NATO phonetic alphabet",
+    category: "text",
+    inputSchema: {
+      type: "object",
+      properties: {
+        text: { type: "string", description: "Text to convert" },
+        separator: { type: "string", description: "Word separator (default: ' ')" },
+      },
+      required: ["text"],
+    },
+    handler: ({ text, separator = " " }) => {
+      const nato: Record<string, string> = {
+        A: "Alpha", B: "Bravo", C: "Charlie", D: "Delta", E: "Echo",
+        F: "Foxtrot", G: "Golf", H: "Hotel", I: "India", J: "Juliet",
+        K: "Kilo", L: "Lima", M: "Mike", N: "November", O: "Oscar",
+        P: "Papa", Q: "Quebec", R: "Romeo", S: "Sierra", T: "Tango",
+        U: "Uniform", V: "Victor", W: "Whiskey", X: "X-ray", Y: "Yankee",
+        Z: "Zulu", "0": "Zero", "1": "One", "2": "Two", "3": "Three",
+        "4": "Four", "5": "Five", "6": "Six", "7": "Seven", "8": "Eight",
+        "9": "Nine",
+      };
+      return (text as string)
+        .toUpperCase()
+        .split("")
+        .map((c) => nato[c] || c)
+        .join(separator as string);
+    },
+  },
 ];

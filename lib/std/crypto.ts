@@ -221,4 +221,97 @@ export const cryptoTools: MiniTool[] = [
       return Array.from(randomValues, (byte) => chars[byte % chars.length]).join("");
     },
   },
+  {
+    name: "crypto_jwt_decode",
+    description: "Decode a JWT token (without verification) to inspect its contents",
+    category: "crypto",
+    inputSchema: {
+      type: "object",
+      properties: {
+        token: { type: "string", description: "JWT token to decode" },
+      },
+      required: ["token"],
+    },
+    handler: ({ token }) => {
+      const parts = (token as string).split(".");
+      if (parts.length !== 3) {
+        throw new Error("Invalid JWT format: expected 3 parts separated by dots");
+      }
+
+      const decodeBase64Url = (str: string) => {
+        // Convert base64url to base64
+        let base64 = str.replace(/-/g, "+").replace(/_/g, "/");
+        // Add padding if needed
+        while (base64.length % 4) base64 += "=";
+        return JSON.parse(atob(base64));
+      };
+
+      try {
+        const header = decodeBase64Url(parts[0]);
+        const payload = decodeBase64Url(parts[1]);
+
+        // Check expiration
+        let expired = false;
+        let expiresAt = null;
+        if (payload.exp) {
+          expiresAt = new Date(payload.exp * 1000).toISOString();
+          expired = Date.now() > payload.exp * 1000;
+        }
+
+        return {
+          header,
+          payload,
+          signature: parts[2],
+          expired,
+          expiresAt,
+          issuedAt: payload.iat ? new Date(payload.iat * 1000).toISOString() : null,
+        };
+      } catch (e) {
+        throw new Error(`Failed to decode JWT: ${(e as Error).message}`);
+      }
+    },
+  },
+  {
+    name: "crypto_ulid",
+    description: "Generate ULID(s) - Universally Unique Lexicographically Sortable Identifier",
+    category: "crypto",
+    inputSchema: {
+      type: "object",
+      properties: {
+        count: { type: "number", description: "How many ULIDs (default: 1)" },
+      },
+    },
+    handler: ({ count = 1 }) => {
+      // ULID: 10 chars timestamp (48 bits) + 16 chars randomness (80 bits)
+      const ENCODING = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"; // Crockford's Base32
+
+      const encodeTime = (time: number, len: number) => {
+        let str = "";
+        for (let i = len; i > 0; i--) {
+          const mod = time % 32;
+          str = ENCODING[mod] + str;
+          time = Math.floor(time / 32);
+        }
+        return str;
+      };
+
+      const encodeRandom = (len: number) => {
+        const bytes = crypto.getRandomValues(new Uint8Array(len));
+        let str = "";
+        for (const byte of bytes) {
+          str += ENCODING[byte % 32];
+        }
+        return str;
+      };
+
+      const generateULID = () => {
+        const time = Date.now();
+        return encodeTime(time, 10) + encodeRandom(16);
+      };
+
+      const cnt = count as number;
+      const ulids = Array.from({ length: cnt }, generateULID);
+      return cnt === 1 ? ulids[0] : ulids;
+    },
+  },
 ];
