@@ -3,6 +3,16 @@
 **Created:** 2025-12-16
 **Status:** Completed
 
+> **⚠️ PARTIALLY OBSOLETE (2025-12-19)**
+>
+> The `ffi` and `run` fields described in this spec have been **removed**.
+> The permission model was simplified to 2 axes:
+> - `scope`: metadata for audit/documentation
+> - `approvalMode`: `auto` (default) or `hil`
+>
+> Worker sandbox always runs with `permissions: "none"`. MCP servers run as
+> separate processes. See `config/mcp-permissions.yaml` for current format.
+
 ## Overview
 
 ### Problem Statement

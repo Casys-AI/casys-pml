@@ -1,9 +1,20 @@
 # Tech-Spec: HIL Permission Escalation Architecture Fix
 
 **Created:** 2025-12-16
-**Status:** ✅ Phase 1-2 Complete, Phase 3-4 Pending
-**Updated:** 2025-12-17
+**Status:** ✅ Phase 1-2 Complete, Phase 3-4 Superseded
+**Updated:** 2025-12-19
 **Related Stories:** 2.5-3, 7.7a, 7.7b, 7.7c
+
+> **⚠️ PARTIALLY OBSOLETE (2025-12-19)**
+>
+> - **Phase 3 (sideEffects cleanup)**: ✅ Completed - `sideEffects` field removed
+> - **Phase 4 (per-task HIL)**: Superseded by `per_layer_validation` mechanism
+> - **ffi/run validation**: Removed - these fields no longer exist in config
+>
+> Current validation triggers (see `requiresValidation()` in workflow-execution-handler.ts):
+> - Unknown MCP tools (not in mcp-permissions.yaml)
+> - Tools with `approvalMode: "hil"`
+> - `code_execution` with non-minimal permissions
 
 ## Overview
 
