@@ -114,6 +114,17 @@ export class StaticStructureBuilder {
     join: 0,
   };
 
+  /**
+   * Maps variable names to node IDs (Story 10.5)
+   *
+   * When we see `const file = await mcp.fs.read(...)`, we track:
+   * - "file" → "n1" (the node ID created for this call)
+   *
+   * This allows us to convert references like `file.content` to `n1.content`
+   * in extracted arguments, making them resolvable at runtime.
+   */
+  private variableToNodeId = new Map<string, string>();
+
   constructor(private db: PGliteClient) {
     logger.debug("StaticStructureBuilder initialized");
   }
@@ -198,7 +209,7 @@ export class StaticStructureBuilder {
   }
 
   /**
-   * Reset node ID counters
+   * Reset node ID counters and variable mapping
    */
   private resetCounters(): void {
     this.nodeCounters = {
@@ -208,6 +219,7 @@ export class StaticStructureBuilder {
       fork: 0,
       join: 0,
     };
+    this.variableToNodeId.clear();
   }
 
   /**
@@ -254,6 +266,13 @@ export class StaticStructureBuilder {
     }
 
     const n = node as Record<string, unknown>;
+
+    // Story 10.5: Track variable declarations for reference resolution
+    // Pattern: const file = await mcp.fs.read(...) → track "file" → node ID
+    if (n.type === "VariableDeclarator") {
+      this.handleVariableDeclarator(n, nodes, position, parentScope);
+      return; // Handled, don't recurse normally
+    }
 
     // Check for MCP tool calls: mcp.server.tool()
     if (n.type === "CallExpression") {
@@ -353,6 +372,57 @@ export class StaticStructureBuilder {
     }
 
     return false;
+  }
+
+  /**
+   * Handle variable declarations to track variable → nodeId mapping (Story 10.5)
+   *
+   * Pattern: const file = await mcp.fs.read({ path: "config.json" });
+   * → Tracks "file" → "n1" so that references like file.content become n1.content
+   */
+  private handleVariableDeclarator(
+    n: Record<string, unknown>,
+    nodes: InternalNode[],
+    position: number,
+    parentScope?: string,
+  ): void {
+    // Extract variable name from id
+    const id = n.id as Record<string, unknown> | undefined;
+    let variableName: string | undefined;
+
+    if (id?.type === "Identifier") {
+      variableName = id.value as string;
+    } else if (id?.type === "ArrayPattern") {
+      // Destructuring: const [a, b] = await Promise.all([...])
+      // Track each element
+      const elements = id.elements as Array<Record<string, unknown>> | undefined;
+      if (elements) {
+        for (const elem of elements) {
+          if (elem?.type === "Identifier") {
+            // Will be tracked when we process the corresponding node
+            // For now, just mark as potential variable
+          }
+        }
+      }
+    }
+
+    // Track current node count before processing init
+    const nodeCountBefore = this.nodeCounters.task;
+
+    // Process the initializer (this may create nodes)
+    const init = n.init;
+    if (init) {
+      this.findNodes(init, nodes, position, parentScope);
+    }
+
+    // If a new task node was created, map the variable to it
+    const nodeCountAfter = this.nodeCounters.task;
+    if (variableName && nodeCountAfter > nodeCountBefore) {
+      // The most recently created node is the one assigned to this variable
+      const nodeId = `n${nodeCountAfter}`;
+      this.variableToNodeId.set(variableName, nodeId);
+      logger.debug("Tracked variable to node mapping", { variableName, nodeId });
+    }
   }
 
   /**
@@ -713,7 +783,18 @@ export class StaticStructureBuilder {
         return { type: "parameter", parameterName: chain[1] };
       }
 
-      // Otherwise it's a reference to previous result
+      // Story 10.5: Convert variable name to node ID if tracked
+      // e.g., "file.content" → "n1.content" if file was assigned from node n1
+      const variableName = chain[0];
+      const nodeId = this.variableToNodeId.get(variableName);
+      if (nodeId) {
+        // Replace variable name with node ID
+        const convertedChain = [nodeId, ...chain.slice(1)];
+        const expression = convertedChain.join(".");
+        return { type: "reference", expression };
+      }
+
+      // Otherwise keep as-is (may be external variable)
       const expression = chain.join(".");
       return { type: "reference", expression };
     }
@@ -728,7 +809,13 @@ export class StaticStructureBuilder {
         return { type: "parameter", parameterName: name };
       }
 
-      // Otherwise treat as a reference (local variable)
+      // Story 10.5: Convert variable name to node ID if tracked
+      const nodeId = this.variableToNodeId.get(name);
+      if (nodeId) {
+        return { type: "reference", expression: nodeId };
+      }
+
+      // Otherwise treat as a reference (local variable, untracked)
       return { type: "reference", expression: name };
     }
 

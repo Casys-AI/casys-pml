@@ -569,7 +569,9 @@ Deno.test("StaticStructureBuilder - detect reference argument (member expression
     assertExists(secondNode.arguments);
     assertExists(secondNode.arguments!.content);
     assertEquals(secondNode.arguments!.content.type, "reference");
-    assertEquals(secondNode.arguments!.content.expression, "file.content");
+    // Story 10.5: Variable names are converted to node IDs
+    // "file" was assigned from node n1, so "file.content" becomes "n1.content"
+    assertEquals(secondNode.arguments!.content.expression, "n1.content");
   }
 
   await db.close();
