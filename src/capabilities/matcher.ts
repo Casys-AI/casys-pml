@@ -27,6 +27,7 @@ import { getLogger } from "../telemetry/logger.ts";
 import { eventBus } from "../events/mod.ts";
 // Story 7.6: Algorithm tracing (ADR-039)
 import type { AlgorithmTracer, DecisionType } from "../telemetry/algorithm-tracer.ts";
+import type { DagScoringConfig } from "../graphrag/dag-scoring-config.ts";
 
 const logger = getLogger("default");
 
@@ -37,6 +38,7 @@ export class CapabilityMatcher {
   /** Cache TTL in milliseconds (1 minute) */
   private static readonly CACHE_TTL_MS = 60_000;
   private cacheTimestamp = 0;
+  private scoringConfig: DagScoringConfig | null = null;
 
   constructor(
     private capabilityStore: CapabilityStore,
@@ -44,6 +46,18 @@ export class CapabilityMatcher {
     algorithmTracer?: AlgorithmTracer,
   ) {
     this.algorithmTracer = algorithmTracer || null;
+  }
+
+  /**
+   * Set scoring config for intent search threshold
+   *
+   * @param config - DagScoringConfig instance
+   */
+  setScoringConfig(config: DagScoringConfig): void {
+    this.scoringConfig = config;
+    logger.debug("Scoring config set for CapabilityMatcher", {
+      intentSearchThreshold: config.thresholds.intentSearch,
+    });
   }
 
   /**
@@ -140,7 +154,9 @@ export class CapabilityMatcher {
 
     // 2. Semantic Search (Vector Similarity)
     // We fetch top 5 candidates to filter them
-    const candidates = await this.capabilityStore.searchByIntent(intent, 5);
+    // Use config threshold or fallback to 0.65
+    const minSemanticScore = this.scoringConfig?.thresholds.intentSearch ?? 0.65;
+    const candidates = await this.capabilityStore.searchByIntent(intent, 5, minSemanticScore);
 
     if (candidates.length === 0) {
       return null;
