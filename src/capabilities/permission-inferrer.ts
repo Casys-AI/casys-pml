@@ -5,11 +5,12 @@
  * Analyzes code patterns (fetch, mcp.*, Deno.* APIs) to determine minimal permission sets
  * following the principle of least privilege.
  *
- * Refactored to support 3-axis permission matrix:
- * - scope: Resource access level (minimal → readonly → filesystem → network-api → mcp-standard)
- * - ffi: Independent flag for FFI (native calls)
- * - run: Independent flag for subprocess execution
- * - approvalMode: hil (human approval) or auto (trusted)
+ * Permission model (simplified 2025-12-19):
+ * - scope: Resource access level (metadata for audit/documentation)
+ * - approvalMode: auto (works freely) or hil (requires human approval)
+ *
+ * Note: Worker sandbox always runs with permissions: "none".
+ * These are METADATA used for validation detection, not enforcement.
  *
  * @module capabilities/permission-inferrer
  */
@@ -58,7 +59,7 @@ export interface InferredPermissions {
  *
  * Supports two formats:
  * 1. Shorthand (legacy): { permissionSet: "network-api", isReadOnly: true }
- * 2. Explicit (new): { scope: "network-api", ffi: false, run: false, approvalMode: "hil" }
+ * 2. Explicit (new): { scope: "network-api", approvalMode: "auto" }
  */
 interface McpPermissionConfigLegacy {
   permissionSet: PermissionSet;
@@ -164,7 +165,7 @@ const DEFAULT_MCP_PERMISSIONS: Record<string, McpPermissionCacheEntry> = {
  *
  * Supports both formats:
  * - Shorthand: { permissionSet: "network-api", isReadOnly: true }
- * - Explicit: { scope: "network-api", ffi: false, run: false, approvalMode: "hil" }
+ * - Explicit: { scope: "network-api", approvalMode: "auto" }
  */
 async function loadMcpPermissions(): Promise<Record<string, McpPermissionCacheEntry>> {
   if (MCP_TOOL_PERMISSIONS !== null) {

@@ -4,10 +4,9 @@
  * Parses Deno PermissionDenied errors and suggests appropriate permission
  * escalations for human approval.
  *
- * Refactored to 3-axis matrix model (scope, ffi, run, approvalMode):
- * - FFI and run are now independent flags, not blocked by default
- * - Tools can declare ffi/run needs in their PermissionConfig
- * - ApprovalMode determines if HIL is needed or auto-approve
+ * Note: This module detects Deno permission errors (read, write, net, env, run, ffi)
+ * from error messages. The ffi/run patterns are for error DETECTION only - they're
+ * not used for configuration. Worker sandbox always runs with permissions: "none".
  *
  * @module capabilities/permission-escalation
  */

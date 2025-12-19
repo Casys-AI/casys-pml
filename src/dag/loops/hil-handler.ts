@@ -16,11 +16,11 @@ import type { WorkflowState } from "../state.ts";
  *
  * NOTE: This function is part of the legacy HIL mechanism.
  * Server-side validation is now handled by requiresValidation() in workflow-execution-handler.
- * Phase 4 will implement per-task HIL with approvalMode: "hil" in mcp-permissions.yaml.
+ * Per-layer validation triggers when approvalMode: "hil" or unknown tools are in DAG.
  *
  * @param config - Executor configuration
- * @param _layerIdx - Current layer index (unused, reserved for future)
- * @param _layer - Tasks in current layer (unused - sideEffects field removed)
+ * @param _layerIdx - Current layer index (unused)
+ * @param _layer - Tasks in current layer (unused)
  * @returns true if approval required
  */
 export function shouldRequireApproval(
