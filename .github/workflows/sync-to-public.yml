@@ -71,6 +71,9 @@ jobs:
             --exclude='.agent/' \
             --exclude='.windsurf/' \
             --exclude='bmad-custom-src/' \
+            --exclude='_bmad/' \
+            --exclude='bmad-custom/' \
+            --exclude='.bmad*' \
             --exclude='.devcontainer/' \
             --exclude='monitoring/' \
             --exclude='drizzle/' \
