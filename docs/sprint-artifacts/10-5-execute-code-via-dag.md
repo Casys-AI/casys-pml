@@ -164,19 +164,25 @@ L'IA écrit du code TypeScript. Le système infère le DAG et l'exécute avec to
 ### Review Follow-ups (AI)
 
 **🔴 HIGH Priority:**
-- [ ] [AI-Review][HIGH] H1: AC3 broken - resolveDAGArguments() uses empty previousResults Map, references between tasks never resolve [code-execution-handler.ts:292]
-- [ ] [AI-Review][HIGH] H2: Arguments not propagated - ControlledExecutor.executeTask() ignores task.arguments for code/capability types [controlled-executor.ts:667]
+- [x] ~~[AI-Review][HIGH] H1: AC3 broken - resolveDAGArguments() uses empty previousResults Map~~ → **FIXED**: Refactoré `executor.ts` pour supporter le format structuré avec `staticArguments`, résolution runtime via `resolveStructuredReference()`
+- [x] ~~[AI-Review][HIGH] H2: Arguments not propagated~~ → **FAUX POSITIF**: Les arguments SONT utilisés, juste via différents chemins selon le type de task
 - [ ] [AI-Review][HIGH] H3: Missing integration test - No test validates full flow: Code → StaticStructure → DAG → ControlledExecutor → Result
 
 **🟡 MEDIUM Priority:**
-- [ ] [AI-Review][MEDIUM] M1: Argument resolution timing - Should resolve per-task during executeTask(), not once before execution [code-execution-handler.ts:288-312]
-- [ ] [AI-Review][MEDIUM] M2: Silent fallback - DAG errors logged but not returned to caller, impossible to diagnose failures [code-execution-handler.ts:276-280]
-- [ ] [AI-Review][MEDIUM] M3: Type mismatch - ConditionalDAGStructure vs DAGStructure incompatibility masked by cast [code-execution-handler.ts:291]
+- [x] ~~[AI-Review][MEDIUM] M1: Argument resolution timing~~ → **FIXED**: Résolu par le refacto H1, résolution per-task avec `previousResults`
+- [ ] [AI-Review][MEDIUM] M2: Silent fallback - DAG errors logged but not returned to caller → **DESIGN DECISION**: Voir section "Compréhension Architecture" ci-dessous
+- [ ] [AI-Review][MEDIUM] M3: Type mismatch - ConditionalDAGStructure vs DAGStructure → À investiguer avec AC4
 
 **🟢 LOW Priority:**
 - [ ] [AI-Review][LOW] L1: Magic number - resultPreview truncation at 240 chars should be configurable constant [controlled-executor.ts:969]
 - [ ] [AI-Review][LOW] L2: Test comment unclear - "1 fork + 1 = 2 layers" logic is confusing [static-to-dag-converter_test.ts:206]
 - [ ] [AI-Review][LOW] L3: Missing JSDoc - resolveDAGArguments() lacks documentation [code-execution-handler.ts:288]
+
+### Corrections appliquées
+
+1. **Refacto `executor.ts`** : Support du format structuré `staticArguments` avec résolution runtime
+2. **Dépréciation `$OUTPUT[...]`** : Format legacy marqué deprecated, nouveau format `{ type: "reference", expression: "n1.content" }`
+3. **Mapping variable→nodeId** : `StaticStructureBuilder` convertit `file.content` → `n1.content` pour les références
 
 ---
 
@@ -314,6 +320,104 @@ N/A
 - 2025-12-19: Story redefined - focus on executing code via inferred DAG (Claude Opus 4.5)
 - 2025-12-19: Development complete - 23 tests passing (Claude Opus 4.5)
 - 2025-12-19: Code review - 4 HIGH, 3 MEDIUM, 3 LOW issues found, action items created (Claude Opus 4.5)
+- 2025-12-19: **DESIGN GAP DISCOVERED** - Sandbox/DAG execution unification needed
+- 2025-12-19: **CODE REVIEW CLARIFICATION** - Le fallback sandbox est une feature (pas un bug). DAG mode pour pure MCP, sandbox pour JS complexe. Documenté la compréhension architecture complète.
+
+---
+
+## Compréhension Architecture (Code Review Discussion)
+
+### Le modèle "Transpilation"
+
+Le design de Story 10.5 est une **transpilation** TypeScript → DAG :
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     TypeScript Code                          │
+│  const file = await mcp.fs.read_file({path: "x.json"});     │
+│  const issue = await mcp.github.create_issue({...});        │
+└─────────────────────────────────────────────────────────────┘
+                         │
+                         ▼ (Static Analysis - transpile)
+┌─────────────────────────────────────────────────────────────┐
+│                        DAG Structure                         │
+│  t1: fs:read_file → t2: github:create_issue                 │
+└─────────────────────────────────────────────────────────────┘
+                         │
+                         ▼ (ControlledExecutor)
+┌─────────────────────────────────────────────────────────────┐
+│                     MCP Calls Direct                         │
+│  client.callTool("read_file") → client.callTool("create_issue") │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Avantage DX** : L'utilisateur écrit du TypeScript naturel, le système transpile en DAG.
+
+### Pourquoi le DAG n'a pas besoin du Sandbox
+
+Le Sandbox Deno (Worker avec `permissions: "none"`) protège contre :
+- Code faisant de l'I/O direct (`Deno.readFile()`, `fetch()`)
+- Code malicieux essayant d'échapper
+- Boucles infinies / explosion mémoire
+
+**Mais** en mode DAG "pure MCP" :
+- Le code ne fait que des appels `mcp.*`
+- Ces appels passent par RPC vers le main process → `client.callTool()`
+- L'exécution réelle se fait sur le serveur MCP (distant)
+- Les permissions Deno du sandbox n'affectent pas le serveur MCP
+
+**Conclusion** : Pour les tasks DAG `mcp_tool`, le sandbox n'apporte pas de sécurité supplémentaire. L'appel direct `client.callTool()` est équivalent.
+
+### Comparaison des deux modes
+
+| Feature | Mode DAG | Mode Sandbox |
+|---------|----------|--------------|
+| Tracing des tools | ✅ (ControlledExecutor) | ✅ (WorkerBridge RPC) |
+| Layers/checkpoints | ✅ | ❌ |
+| HIL approval | ✅ | ❌ |
+| Exécution parallèle | ✅ | ❌ |
+| JS arbitraire | ❌ | ✅ |
+| Portabilité (Jupyter, etc.) | ✅ | ✅ |
+
+### Le Fallback est une Feature
+
+```
+TypeScript Code
+      │
+      ▼
+ Static Analysis
+      │
+   ┌──┴──────────┐
+   │             │
+   ▼             ▼
+  DAG OK      Échec (JS complexe)
+   │             │
+   ▼             ▼
+ControlledExecutor  Sandbox (fallback)
+(layers, HIL, //)   (exécute tout)
+```
+
+**Trade-off transpilation :**
+- ✅ Quand ça marche : layers, checkpoints, HIL, parallélisme
+- ❌ Quand ça échoue : fallback vers sandbox (perd les features d'orchestration)
+
+### Options pour unifier (future story)
+
+1. **Garder les deux modes** (actuel) - DAG pour pure MCP, sandbox pour JS complexe
+
+2. **Hybrid checkpoints** - Sandbox trace les RPC calls, on crée des "soft checkpoints" après chaque tool call
+
+3. **Worker persistent pour DAG** - ControlledExecutor envoie du code généré au worker pour chaque task
+   ```typescript
+   const taskCode = `return await mcp.${server}.${tool}(${JSON.stringify(args)});`;
+   await workerBridge.execute(taskCode, toolDefs, context);
+   ```
+
+### Questions ouvertes
+
+- [ ] AC4 (conditional execution) : Est-ce que `task.condition` est utilisé dans les executors ?
+- [ ] Faut-il unifier les deux modes ou garder le fallback ?
+- [ ] Overhead de l'option 3 (worker persistent) à mesurer
 
 ### File List
 
