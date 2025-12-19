@@ -27,7 +27,7 @@ FR7: Support post-workflow capability prefetching for likely next capabilities
 FR8: Enable speculation during per_layer validation pauses (when next layer is safe)
 FR9: Skip speculation only when argument cannot be resolved (reference to unexecuted task OR missing parameter)
 FR10: Validate speculated results against actual execution (cache hit/miss)
-FR11: Pass mcpClients (or toolExecutor) to SpeculativeExecutor for real calls
+FR11: Pass WorkerBridge to SpeculativeExecutor for real calls (via RPC, 100% traçabilité)
 
 ### NonFunctional Requirements
 
@@ -43,7 +43,7 @@ NFR5: Speculation results must be JSON-serializable for caching
 - **Story 10.2 (Static Argument Extraction) is prerequisite** - provides `static_structure.nodes[].arguments` with type info (literal/reference/parameter)
 - **Story 10.3 (ProvidesEdge)** provides field mappings for data flow between tools
 - `WorkflowPredictionState.context` already exists - just needs to be populated
-- `createToolExecutor(mcpClients)` already exists in `workflow-execution-handler.ts:112-122` for real MCP calls
+- ~~`createToolExecutor(mcpClients)` already exists in `workflow-execution-handler.ts:112-122`~~ **OBSOLÈTE:** Doit être modifié pour utiliser `WorkerBridge` (voir Story 10.5 Architecture Unifiée)
 
 **From Spike Security Analysis:**
 - Safe to speculate: `read_file`, `list_dir`, `search`, `parse_json`, `format`
@@ -93,6 +93,18 @@ NFR5: Speculation results must be JSON-serializable for caching
 ---
 
 ## Epic 12: Speculative Execution with Arguments
+
+> **⚠️ CLARIFICATION ARCHITECTURE (2025-12-19)**
+>
+> **Exécution spéculative:** Utilise le même chemin que l'exécution normale - **WorkerBridge RPC**.
+>
+> **Ce que cela signifie:**
+> - `toolExecutor` dans Story 12.4 doit utiliser `WorkerBridge`, pas `client.callTool()` direct
+> - Les résultats spéculatifs sont capturés via le même système de traces que Epic 11
+> - 100% traçabilité, même pour l'exécution spéculative
+>
+> **Prérequis:** Story 10.5 (Architecture Unifiée) complétée.
+> Voir: `docs/sprint-artifacts/10-5-execute-code-via-dag.md#architecture-unifiée-2025-12-19`
 
 Permettre au système de pré-exécuter les prochains tools/capabilities avec les vrais arguments, réduisant la latence à ~0ms sur cache hit tout en garantissant la sécurité (pas de side effects).
 
@@ -206,7 +218,7 @@ Permettre au système de pré-exécuter les prochains tools/capabilities avec le
 
 **Acceptance Criteria:**
 
-**Given** a tool with `scope: "minimal"` and no `ffi`/`run` permissions
+**Given** a tool with `scope: "minimal"` and `approvalMode: "auto"`
 **When** checking `canSpeculate(toolId)`
 **Then** returns `true` (safe to speculate)
 
@@ -214,9 +226,9 @@ Permettre au système de pré-exécuter les prochains tools/capabilities avec le
 **When** checking `canSpeculate(toolId)`
 **Then** returns `false` (not safe)
 
-**Given** a tool with `ffi: true` or `run: true` permissions
+**Given** an unknown tool (not in `mcp-permissions.yaml`)
 **When** checking `canSpeculate(toolId)`
-**Then** returns `false` (not safe)
+**Then** returns `false` (not safe - unknown tools require validation)
 
 **Given** a tool that modifies external state (`github:push`, `write_file`, `delete_file`)
 **When** checking `canSpeculate(toolId)`
@@ -261,18 +273,19 @@ Permettre au système de pré-exécuter les prochains tools/capabilities avec le
 
 **Given** a predicted tool with resolved arguments and `canSpeculate() = true`
 **When** speculation is triggered
-**Then** `toolExecutor(toolId, resolvedArgs)` is called with real MCP client
+**Then** `toolExecutor(toolId, resolvedArgs)` is called via **WorkerBridge RPC**
 **And** result is captured for caching
+**And** execution trace is captured (100% traçabilité)
 
 **Given** a predicted capability with resolved arguments and `canSpeculate() = true`
 **When** speculation is triggered
-**Then** capability code is executed in sandbox with resolved args
+**Then** capability code is executed in sandbox via **WorkerBridge** with resolved args
 **And** result is captured for caching
 
 **Given** `SpeculativeExecutor` is instantiated
 **When** initializing
-**Then** `toolExecutor` function (or `mcpClients` map) is injected
-**And** real MCP calls are possible (not placeholder)
+**Then** `WorkerBridge` instance is injected (NOT direct `mcpClients`)
+**And** real MCP calls go through Worker RPC proxy
 
 **Given** `generateSpeculationCode()` is called
 **When** generating execution code
@@ -307,9 +320,11 @@ Permettre au système de pré-exécuter les prochains tools/capabilities avec le
 **Then** both types are handled (tools via MCP, capabilities via sandbox)
 
 **Files to modify:**
-- `src/speculation/speculative-executor.ts` - Replace placeholder, add toolExecutor injection (~100 LOC)
+- `src/speculation/speculative-executor.ts` - Replace placeholder, inject **WorkerBridge** (not mcpClients) (~100 LOC)
 - `src/dag/controlled-executor.ts` - Add `onTaskComplete` trigger
 - `src/mcp/handlers/workflow-execution-handler.ts` - Add `onWorkflowComplete` trigger
+
+**Note:** Requires Story 10.5 "Architecture Unifiée" to be completed first (WorkerBridge integration in ControlledExecutor).
 
 **Estimation:** 3 jours
 
@@ -457,8 +472,10 @@ Permettre au système de pré-exécuter les prochains tools/capabilities avec le
 ```
 Epic 10.2 (Static Argument Extraction) ──┐
 Epic 10.3 (ProvidesEdge) ────────────────┼──→ 12.1 → 12.2 → 12.3 → 12.4 → 12.5
-Epic 11.2 (execution_trace) ─────────────┘                            ↓
-                                                                    12.6
+Epic 10.5 (Architecture Unifiée) ────────┤                            ↓
+Epic 11.2 (execution_trace) ─────────────┘                          12.6
+
+Note: Story 10.5 est CRITIQUE - sans WorkerBridge, pas de traçabilité des exécutions spéculatives.
 ```
 
 ---

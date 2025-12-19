@@ -4,6 +4,20 @@
 > **Author:** Erwan + Claude
 > **Depends on:** Epic 10 (Capability Creation & Unified APIs)
 
+> **⚠️ CLARIFICATION ARCHITECTURE (2025-12-19)**
+>
+> **Source des traces:** Les traces d'exécution proviennent du **WorkerBridge RPC**, pas d'appels MCP directs.
+>
+> **Pourquoi c'est important:**
+> - Le Worker exécute avec `permissions: "none"` (sandbox isolée)
+> - Tous les appels MCP passent par le proxy RPC (`postMessage`)
+> - Cela garantit **100% traçabilité** - aucun appel ne bypass le système
+>
+> **Prérequis architectural:** Story 10.5 (Architecture Unifiée) doit être complétée
+> pour que `ControlledExecutor` utilise `WorkerBridge` au lieu d'appels directs.
+>
+> Voir: `docs/sprint-artifacts/10-5-execute-code-via-dag.md#architecture-unifiée-2025-12-19`
+
 **Expanded Goal (2-3 sentences):**
 
 Implémenter le système d'apprentissage basé sur les traces d'exécution. Capturer les résultats des tools/capabilities, stocker les traces avec priorité (PER), et mettre à jour les statistiques de learning via TD Learning. Fournir des vues pour visualiser les patterns d'exécution.
