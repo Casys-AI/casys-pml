@@ -88,10 +88,13 @@ L'IA écrit du code TypeScript. Le système infère le DAG et l'exécute avec to
   - `ArgumentValue.type = "parameter"` → Extract from execution context
 - [x] Create `resolveArguments(args: ArgumentsStructure, context: ExecutionContext): Record<string, unknown>`
 
-### AC4: Conditional Execution Support ✅
+### AC4: Conditional Execution Support ✅ ⚠️
 - [x] Decision nodes create conditional branches in DAG
 - [x] At runtime, evaluate condition and skip/include tasks
 - [x] Support `outcome: "true" | "false"` for if/else branches
+
+> **⚠️ À vérifier (M3):** Validation manquante que `task.condition` est évalué runtime.
+> Test recommandé: créer un DAG conditionnel et vérifier les branches skip/include.
 
 ### AC5: Parallel Execution from Fork/Join ✅
 - [x] Fork nodes → tasks without dependencies (parallel)
@@ -164,6 +167,9 @@ L'IA écrit du code TypeScript. Le système infère le DAG et l'exécute avec to
 
 ### AC13: Unification execute() → Worker Only ⬜ NEW
 > **Objectif:** Supprimer le chemin subprocess pour 100% traçabilité, même pour code sans tools.
+>
+> **⚠️ PREREQUIS:** Benchmarks Worker vs subprocess requis avant implémentation.
+> Claims non vérifiés: "Worker (~5ms) vs subprocess (~50-100ms)"
 
 - [ ] `DenoSandboxExecutor.execute()` utilise `WorkerBridge` (pas subprocess)
 - [ ] L'ancien code subprocess est supprimé (buildCommand, executeWithTimeout, etc.)
@@ -232,20 +238,20 @@ L'IA écrit du code TypeScript. Le système infère le DAG et l'exécute avec to
   - [x] Create `tests/dag/argument-resolver_test.ts` (11 tests)
   - [x] Total: 23 tests passing
 
-- [ ] **Task 7: Refactor createToolExecutor() to use WorkerBridge** (AC: 10, 11) ⬜ NEW
+- [ ] **NEXT: Task 7: Refactor createToolExecutor() to use WorkerBridge** (AC: 10, 11) ⬜ CRITICAL
   - [ ] Créer `createToolExecutorViaWorker(workerBridge, toolDefs)` dans un nouveau fichier
   - [ ] Modifier `workflow-execution-handler.ts` pour utiliser le nouveau executor
   - [ ] Modifier `code-execution-handler.ts` pour utiliser le nouveau executor
   - [ ] Modifier `control-commands-handler.ts` pour utiliser le nouveau executor
   - [ ] Supprimer l'ancien `createToolExecutor(mcpClients)` après migration
 
-- [ ] **Task 8: WorkerBridge Integration Tests** (AC: 12) ⬜ NEW
+- [ ] **NEXT: Task 8: WorkerBridge Integration Tests** (AC: 12) ⬜ CRITICAL
   - [ ] Test: appel tool via WorkerBridge génère traces `tool_start`/`tool_end`
   - [ ] Test: DAG execution complète avec traces capturées
   - [ ] Test: erreur propagée si tool échoue
   - [ ] Créer `tests/dag/workerbridge-executor_test.ts`
 
-- [ ] **Task 9: Unifier execute() vers Worker** (AC: 13) ⬜ NEW
+- [ ] **Task 9: Unifier execute() vers Worker** (AC: 13) ⬜
   - [ ] **Phase 1: Vérification**
     - [ ] Lister tous les appelants de `execute()` (grep usage)
     - [ ] Vérifier qu'aucun n'utilise REPL-style (expressions sans return)
@@ -267,7 +273,9 @@ L'IA écrit du code TypeScript. Le système infère le DAG et l'exécute avec to
 **🔴 HIGH Priority:**
 - [x] ~~[AI-Review][HIGH] H1: AC3 broken - resolveDAGArguments() uses empty previousResults Map~~ → **FIXED**: Refactoré `executor.ts` pour supporter le format structuré avec `staticArguments`, résolution runtime via `resolveStructuredReference()`
 - [x] ~~[AI-Review][HIGH] H2: Arguments not propagated~~ → **FAUX POSITIF**: Les arguments SONT utilisés, juste via différents chemins selon le type de task
-- [ ] [AI-Review][HIGH] H3: Missing integration test - No test validates full flow: Code → StaticStructure → DAG → ControlledExecutor → Result
+- [ ] **[AI-Review][HIGH] H3: Missing integration test** - No test validates full flow: Code → StaticStructure → DAG → ControlledExecutor → Result
+  - **Action:** Créer `tests/integration/code-to-dag-execution_test.ts`
+  - **Scope:** Submit TS code → verify static structure → verify DAG → verify execution → verify result
 - [ ] **[AI-Review][HIGH] H4: Sandbox Bypass - `createToolExecutor()` appelle `client.callTool()` directement** (2025-12-19)
   - Perte de 100% traçabilité RPC
   - Les appels MCP ne sont pas capturés dans les traces WorkerBridge
@@ -382,10 +390,10 @@ const resolvedArgs = {
 
 ### Key Considerations
 
-1. **Backward compatibility:** Fallback ensures no breaking changes
-2. **Performance:** DAG overhead should be minimal for simple code
-3. **Debugging:** Log when DAG execution is used vs fallback
-4. **Error handling:** If DAG conversion fails, fallback gracefully
+1. **Architecture unifiée:** Tout passe par Worker → RPC pour 100% traçabilité (voir AC10-AC13)
+2. **Performance:** DAG overhead minimal, Worker plus rapide que subprocess (~5ms vs ~50ms)
+3. **Debugging:** Traces RPC capturées pour chaque appel tool
+4. **Error handling:** Erreurs propagées avec contexte complet via ControlledExecutor
 
 ### References
 
@@ -428,22 +436,7 @@ N/A
 - 2025-12-19: **DESIGN GAP DISCOVERED** - Sandbox/DAG execution unification needed
 - 2025-12-19: **CODE REVIEW CLARIFICATION** - Le fallback sandbox est une feature (pas un bug). DAG mode pour pure MCP, sandbox pour JS complexe. Documenté la compréhension architecture complète.
 - 2025-12-19: **DECISION WORKER PERMISSIONS = "none"** - Après analyse, les permissions granulaires Worker sont inutiles car tous les appels I/O passent par MCP RPC. Worker forcé à "none" pour 100% traçabilité. PermissionSet dans YAML = metadata uniquement (inférence, HIL, audit).
-
----
-
-## Compréhension Architecture (Code Review Discussion)
-
-> **⚠️ SECTION OBSOLÈTE (2025-12-19)**
->
-> Cette section décrivait un modèle avec "fallback sandbox" qui est **incorrect**.
-> Voir la section "Architecture Unifiée" ci-dessous pour le design actuel.
-
-### ~~Le modèle "Transpilation"~~ (OBSOLÈTE)
-
-~~Le design de Story 10.5 est une **transpilation** TypeScript → DAG~~
-
-**PROBLÈME IDENTIFIÉ :** Le mode DAG appelait `client.callTool()` directement,
-bypassant le Worker RPC et perdant 100% de traçabilité.
+- 2025-12-19: **SM VALIDATION** - 18/23 critères passés (78%). Améliorations appliquées: nettoyage fallback obsolète, priorisation Tasks 7-9, notes AC4/AC13, clarification H3.
 
 ---
 
