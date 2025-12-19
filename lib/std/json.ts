@@ -1,7 +1,7 @@
 /**
  * JSON manipulation tools
  *
- * @module lib/primitives/json
+ * @module lib/std/json
  */
 
 import jmespath from "jmespath";

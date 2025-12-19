@@ -3,7 +3,7 @@
  *
  * Uses date-fns for robust date handling.
  *
- * @module lib/primitives/datetime
+ * @module lib/std/datetime
  */
 
 import {

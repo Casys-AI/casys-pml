@@ -1,7 +1,7 @@
 /**
  * Shared types for MCP Mini-Tools Library
  *
- * @module lib/primitives/types
+ * @module lib/std/types
  */
 
 /** MCP Tool definition */

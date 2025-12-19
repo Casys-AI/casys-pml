@@ -1,10 +1,10 @@
 /**
- * Mini Tools Primitives Library
+ * Std (Standard Library) Tools
  *
  * A collection of lightweight, sandboxed tools for AI agents.
  * Organized by category for modular use.
  *
- * @module lib/primitives
+ * @module lib/std
  */
 
 // Re-export all tool modules

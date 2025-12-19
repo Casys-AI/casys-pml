@@ -3,7 +3,7 @@
  *
  * Uses mathjs for safe expression evaluation and simple-statistics for stats.
  *
- * @module lib/primitives/math
+ * @module lib/std/math
  */
 
 import { evaluate } from "mathjs";

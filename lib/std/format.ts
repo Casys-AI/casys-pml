@@ -3,7 +3,7 @@
  *
  * String and data formatting utilities.
  *
- * @module lib/primitives/format
+ * @module lib/std/format
  */
 
 import type { MiniTool } from "./types.ts";

@@ -1,7 +1,7 @@
 /**
  * Text manipulation tools
  *
- * @module lib/primitives/text
+ * @module lib/std/text
  */
 
 import * as changeCase from "change-case";

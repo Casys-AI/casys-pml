@@ -3,7 +3,7 @@
  *
  * Uses Web Crypto API (built into Deno).
  *
- * @module lib/primitives/crypto
+ * @module lib/std/crypto
  */
 
 import type { MiniTool } from "./types.ts";
