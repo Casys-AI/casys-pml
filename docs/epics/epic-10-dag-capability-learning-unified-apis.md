@@ -477,9 +477,10 @@ By storing argument structure, we enable true speculative execution with 0ms lat
 
 **Types:**
 ```typescript
+// JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
 interface ArgumentValue {
   type: "literal" | "reference" | "parameter";
-  value?: unknown;           // For literal
+  value?: JsonValue;         // For literal (JSON-serializable)
   expression?: string;       // For reference: "file.content"
   parameterName?: string;    // For parameter: "userPath"
 }
@@ -599,7 +600,7 @@ interface Capability {
   source:
     | { type: "code"; code: string }
     | { type: "dag"; dagStructure: DAGStructure }
-    | { type: "tool"; toolId: string; defaultArgs?: Record<string, unknown> };
+    | { type: "tool"; toolId: string; defaultArgs?: Record<string, JsonValue> };
 }
 ```
 
@@ -625,7 +626,7 @@ interface Capability {
    source:
      | { type: "code"; code: string }
      | { type: "dag"; dagStructure: DAGStructure }
-     | { type: "tool"; toolId: string; defaultArgs?: Record<string, unknown> };
+     | { type: "tool"; toolId: string; defaultArgs?: Record<string, JsonValue> };
    ```
 2. `Capability.dag_structure.static_structure` existe déjà (from Story 10.1)
 3. Migration DB: transformer `code` → `source` JSON column
@@ -747,7 +748,7 @@ pml_execute({
   intent: "lire et parser ce fichier JSON",
 
   // Arguments pour les tools (optionnel) - active le mode Speculation
-  context?: Record<string, unknown>,  // ex: { path: "config.json" }
+  context?: Record<string, JsonValue>,  // ex: { path: "config.json" }
 
   // Code TypeScript (optionnel) - active le mode Direct
   code?: string,
@@ -830,7 +831,7 @@ pml_execute({
    ```typescript
    {
      status: "success" | "approval_required" | "suggestions",
-     result?: unknown,
+     result?: JsonValue,
      suggestions?: {
        tools: ToolWithSchema[],
        capabilities: CapabilityMatch[],
@@ -935,6 +936,10 @@ pml_get_task_result({
 │        │  ← VRAIE FONDATION : crée la Capability avec           │
 │        │     static_structure, provides edges, HIL               │
 │        │                                                         │
+│        ▼                                                         │
+│  Story 10.2 (Static Argument Extraction)                         │
+│        │  ← Extraction des arguments pour exécution spéculative │
+│        │                                                         │
 │        ├──────────────────┬──────────────────┐                   │
 │        │                  │                  │                   │
 │        ▼                  ▼                  ▼                   │
@@ -964,11 +969,12 @@ pml_get_task_result({
 | Ordre | Story | Justification |
 |-------|-------|---------------|
 | 1 | **10.1** Static Analysis | **VRAIE FONDATION** - crée la Capability avec static_structure |
-| 2 | **10.3** Provides Edge | Types d'edges pour data flow |
-| 3 | **10.5** Unified Capability | source: code \| dag \| tool |
-| 4 | **10.6** pml_discover | API unifiée de découverte |
-| 5 | **10.7** pml_execute | API unifiée d'exécution |
-| 6 | **10.8** pml_get_task_result | Complément pour AIL |
+| 2 | **10.2** Static Argument Extraction | Extraction arguments pour exécution spéculative |
+| 3 | **10.3** Provides Edge | Types d'edges pour data flow |
+| 4 | **10.5** Unified Capability | source: code \| dag \| tool |
+| 5 | **10.6** pml_discover | API unifiée de découverte |
+| 6 | **10.7** pml_execute | API unifiée d'exécution |
+| 7 | **10.8** pml_get_task_result | Complément pour AIL |
 
 **Changement clé:**
 - Stories de learning et DB cleanup déplacées vers Epic 11
@@ -993,6 +999,7 @@ pml_get_task_result({
 | **FR1b** | **Validation permissions avant exécution** | **10.1** |
 | **FR1c** | **HIL pre-execution approval flow** | **10.1** |
 | **FR1d** | **Détection conditions/branches dans static_structure** | **10.1** |
+| **FR2** | **Extraction arguments (literal, reference, parameter) pour spéculation** | **10.2** |
 | FR3 | Edge type `provides` avec coverage | 10.3 |
 | FR5 | Capability unifiée (code OU dag) | 10.5 |
 | FR6 | API `pml_discover` unifiée | 10.6 |
@@ -1013,6 +1020,8 @@ pml_get_task_result({
 | FR1 | FR006 | Identifier automatiquement tools parallèles vs séquentiels | **Implements** |
 | FR1b | FR017 | Exécution TypeScript dans Deno sandbox isolé | **Extends** |
 | FR1c | FR018 | Branches DAG safe-to-fail (resilient workflows) | **Extends** |
+| FR2 | FR005 | Analyser dépendances input/output pour construire graphe DAG | **Extends** |
+| FR2 | FR007 | Exécuter simultanément branches indépendantes du DAG | **Enables** |
 | FR3 | FR005 | Analyser dépendances input/output pour construire graphe DAG | **Extends** |
 | FR5 | FR017 | Exécution TypeScript dans Deno sandbox isolé | **Extends** |
 | FR5 | FR019 | Injecter MCP tools dans contexte sandbox via vector search | **Extends** |
@@ -1039,13 +1048,14 @@ pml_get_task_result({
 | Ordre | Story | Description | Effort | Cumulative |
 |-------|-------|-------------|--------|------------|
 | 1 | **10.1** | **Static Analysis → Capability** ⭐ FONDATION | **3-4j** | **4j** |
-| 2 | 10.3 | Provides Edge | 1-2j | 6j |
-| 3 | 10.5 | Unified Capability | 2-3j | 9j |
-| 4 | 10.6 | pml_discover | 2-3j | 12j |
-| 5 | 10.7 | pml_execute | 3-5j | 16j |
-| 6 | 10.8 | pml_get_task_result | 1-2j | 18j |
+| 2 | **10.2** | Static Argument Extraction | 1-2j | 6j |
+| 3 | 10.3 | Provides Edge | 1-2j | 8j |
+| 4 | 10.5 | Unified Capability | 2-3j | 11j |
+| 5 | 10.6 | pml_discover | 2-3j | 14j |
+| 6 | 10.7 | pml_execute | 3-5j | 18j |
+| 7 | 10.8 | pml_get_task_result | 1-2j | 20j |
 
-**Total Epic 10: ~3 semaines**
+**Total Epic 10: ~4 semaines**
 
 > **Note:** Stories déplacées vers Epic 11 :
 > - 11.0 DB Schema Cleanup complet (2-3j)

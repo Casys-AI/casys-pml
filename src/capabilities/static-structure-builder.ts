@@ -16,6 +16,7 @@ import type { PGliteClient } from "../db/client.ts";
 import type {
   ArgumentsStructure,
   ArgumentValue,
+  JsonValue,
   ProvidesCoverage,
   StaticStructure,
   StaticStructureEdge,
@@ -755,8 +756,8 @@ export class StaticStructureBuilder {
    * @param node ObjectExpression AST node
    * @returns Plain object with extracted values
    */
-  private extractObjectLiteral(node: Record<string, unknown>): Record<string, unknown> {
-    const result: Record<string, unknown> = {};
+  private extractObjectLiteral(node: Record<string, unknown>): Record<string, JsonValue> {
+    const result: Record<string, JsonValue> = {};
     const properties = node.properties as Array<Record<string, unknown>> | undefined;
 
     if (!properties) {
@@ -776,7 +777,10 @@ export class StaticStructureBuilder {
         }
 
         if (keyName && valueNode) {
-          result[keyName] = this.extractLiteralValue(valueNode);
+          const extractedValue = this.extractLiteralValue(valueNode);
+          if (extractedValue !== undefined) {
+            result[keyName] = extractedValue;
+          }
         }
       }
     }
@@ -790,8 +794,8 @@ export class StaticStructureBuilder {
    * @param node ArrayExpression AST node
    * @returns Plain array with extracted values
    */
-  private extractArrayLiteral(node: Record<string, unknown>): unknown[] {
-    const result: unknown[] = [];
+  private extractArrayLiteral(node: Record<string, unknown>): JsonValue[] {
+    const result: JsonValue[] = [];
     const elements = node.elements as Array<Record<string, unknown>> | undefined;
 
     if (!elements) {
@@ -802,7 +806,10 @@ export class StaticStructureBuilder {
       // SWC wraps array elements in { spread, expression } structure
       const expr = (element?.expression as Record<string, unknown>) ?? element;
       if (expr) {
-        result.push(this.extractLiteralValue(expr));
+        const extractedValue = this.extractLiteralValue(expr);
+        if (extractedValue !== undefined) {
+          result.push(extractedValue);
+        }
       }
     }
 
@@ -815,7 +822,7 @@ export class StaticStructureBuilder {
    * @param node AST node
    * @returns The literal value, or undefined for non-literal nodes
    */
-  private extractLiteralValue(node: Record<string, unknown>): unknown {
+  private extractLiteralValue(node: Record<string, unknown>): JsonValue | undefined {
     if (!node || !node.type) {
       return undefined;
     }

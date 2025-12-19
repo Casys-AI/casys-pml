@@ -327,6 +327,7 @@ CREATE TABLE execution_trace (
 
   -- Contexte
   intent_text TEXT,
+  initial_context JSONB DEFAULT '{}',   -- Arguments initiaux du workflow (Epic 12 dependency)
   executed_at TIMESTAMPTZ DEFAULT NOW(),
 
   -- Résultats
@@ -377,10 +378,15 @@ DROP TABLE IF EXISTS workflow_execution CASCADE;
 2. `workflow_execution` migrée ou supprimée
 3. Types TypeScript définis:
    ```typescript
+   // JSON-serializable type (for JSONB storage)
+   type JsonPrimitive = string | number | boolean | null;
+   type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
+
    interface ExecutionTrace {
      id: string;
      capabilityId?: string;
      intentText?: string;
+     initialContext?: Record<string, JsonValue>;  // ← Epic 12 dependency
      executedAt: Date;
      success: boolean;
      durationMs: number;
@@ -390,6 +396,15 @@ DROP TABLE IF EXISTS workflow_execution CASCADE;
      taskResults: TraceTaskResult[];
      priority: number;
      parentTraceId?: string;
+   }
+
+   interface TraceTaskResult {
+     taskId: string;
+     tool: string;
+     args: Record<string, JsonValue>;  // ← Epic 12 dependency
+     result: JsonValue;
+     success: boolean;
+     durationMs: number;
    }
    ```
 4. `ExecutionTraceStore` class créée avec:
@@ -404,10 +419,14 @@ DROP TABLE IF EXISTS workflow_execution CASCADE;
 6. Tests: INSERT trace avec FK capability
 7. Tests: SELECT traces par capability_id
 8. Tests: migration depuis workflow_execution (si données)
+9. `initial_context` stocke les arguments initiaux du workflow (Epic 12 dependency)
+10. `task_results[].args` stocke les arguments de chaque tâche (Epic 12 dependency)
+11. Data sanitization appliquée avant stockage (redact sensitive, truncate large payloads)
 
 **Files to Create:**
 - `src/db/migrations/019_execution_trace.ts` (~100 LOC)
 - `src/capabilities/execution-trace-store.ts` (~150 LOC)
+- `src/utils/sanitize-for-storage.ts` (~50 LOC) - Shared with Epic 12
 
 **Files to Modify:**
 - `src/capabilities/types.ts` (~50 LOC)

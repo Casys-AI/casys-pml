@@ -8,6 +8,23 @@
  */
 
 /**
+ * JSON primitive types for JSON-serializable values
+ */
+export type JsonPrimitive = string | number | boolean | null;
+
+/**
+ * JSON-serializable value type
+ *
+ * Used for data that needs to be stored in JSONB columns (PostgreSQL)
+ * or serialized for caching/transmission.
+ *
+ * @example
+ * const literal: JsonValue = "hello";
+ * const object: JsonValue = { key: [1, 2, 3] };
+ */
+export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
+
+/**
  * JSON Schema type (simplified for capability parameters)
  *
  * Note: 'type' is optional to support unconstrained schemas ({})
@@ -20,7 +37,7 @@ export interface JSONSchema {
   required?: string[];
   items?: JSONSchema;
   description?: string;
-  default?: unknown;
+  default?: JsonValue;
 }
 
 /**
@@ -376,8 +393,9 @@ export interface ArgumentValue {
   type: "literal" | "reference" | "parameter";
   /**
    * For literal type: the actual value (string, number, boolean, object, array, null)
+   * Must be JSON-serializable for storage in JSONB columns.
    */
-  value?: unknown;
+  value?: JsonValue;
   /**
    * For reference type: the expression string representing the data source
    * @example "file.content", "result.items[0].value"
