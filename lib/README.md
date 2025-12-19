@@ -6,7 +6,7 @@ This folder contains MCP-compatible libraries and their server bootstraps.
 
 ```
 lib/
-├── std/                      # Standard library (~140 tools)
+├── std/                      # Standard library (~200 tools)
 │   ├── mod.ts                # Main entry point
 │   ├── text.ts, json.ts, ... # Tool modules by category
 │   └── bundle.js             # Pre-bundled for sandbox use
@@ -23,7 +23,7 @@ lib/
 
 ### std (Standard Library)
 
-**~140 utility tools across 18 categories**, inspired by popular MCP tool servers:
+**~200 utility tools across 18 categories**, inspired by popular MCP tool servers:
 
 #### Sources & Credits
 
@@ -40,24 +40,24 @@ This library is inspired by and includes tools from the following open-source MC
 
 | Category | Count | Examples |
 |----------|-------|----------|
-| text | 16 | split, join, regex, case, template, slugify, nato, lorem, diff, stats |
+| text | 21 | split, join, regex, case, template, slugify, nato, lorem, diff, stats, crontab, markdown_toc, ascii_art, numeronym, obfuscate |
 | json | 9 | parse, stringify, query, merge, flatten, unflatten, pick, omit |
-| math | 10 | eval, stats, round, random, mode, convert, base_convert, roman |
+| math | 13 | eval, stats, round, random, mode, convert, base_convert, roman, convert_angle, convert_energy, convert_power |
 | datetime | 7 | now, format, diff, add, parse, cron_parse, unix |
-| crypto | 12 | hash, uuid, ulid, base64, hex, url, html, password, jwt_decode, hmac, totp |
-| collections | 7 | map, filter, sort, unique, group, chunk, zip |
-| vfs | 5 | read, write, list (virtual filesystem, in-memory) |
-| data | 5 | fake_name, fake_email, lorem |
-| http | 4 | build_url, parse_url, headers |
+| crypto | 19 | hash, uuid, ulid, base64, hex, url, html, password, jwt_decode, hmac, totp, text_to_binary, generate_token, basic_auth |
+| collections | 20 | map, filter, sort, unique, group, chunk, zip, flatten, partition, sample |
+| vfs | 8 | read, write, list, mkdir, rm, stat, exists, copy |
+| data | 8 | fake_name, fake_email, lorem, fake_phone, fake_address, fake_company |
+| http | 6 | build_url, parse_url, headers, query_string |
 | validation | 9 | email, url, uuid, ip, phone, date, json, schema, credit_card |
-| format | 14 | number, bytes, duration, truncate, yaml_to_json, json_to_yaml, markdown_to_html, html_to_markdown |
-| transform | 6 | csv_parse, csv_stringify, xml |
-| state | 6 | set, get, delete (KV store with TTL) |
-| compare | 5 | diff, levenshtein, similarity, fuzzy, deep_equal |
-| algo | 19 | binary_search, group_aggregate, top_n, sort variants |
+| format | 17 | number, bytes, duration, truncate, yaml_to_json, json_to_yaml, markdown_to_html, html_to_markdown, json_to_csv, format_sql, format_phone |
+| transform | 8 | csv_parse, csv_stringify, xml_parse, xml_stringify |
+| state | 10 | set, get, delete, has, keys, values, clear, size, entries (KV store with TTL) |
+| compare | 6 | diff, levenshtein, similarity, fuzzy, deep_equal, array_diff |
+| algo | 20 | binary_search, group_aggregate, top_n, sort variants, quickselect |
 | color | 4 | hex_to_rgb, rgb_to_hex, rgb_to_hsl, hsl_to_rgb |
-| network | 5 | parse_url, build_url, ip_info, subnet_calc, mac_format |
-| util | 5 | http_status, http_status_list, mime_type, mime_reverse, rem_px |
+| network | 6 | parse_url, build_url, ip_info, subnet_calc, mac_format, fang_url |
+| util | 8 | http_status, http_status_list, mime_type, mime_reverse, rem_px, format_css, normalize_email, port_numbers |
 
 ## Usage
 

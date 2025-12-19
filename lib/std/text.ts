@@ -550,4 +550,284 @@ export const textTools: MiniTool[] = [
       };
     },
   },
+  {
+    name: "text_generate_crontab",
+    description: "Generate a cron expression from human-readable schedule description",
+    category: "text",
+    inputSchema: {
+      type: "object",
+      properties: {
+        schedule: {
+          type: "string",
+          description: "Human-readable schedule (e.g., 'every day at 5pm', 'every monday at 9am')",
+        },
+      },
+      required: ["schedule"],
+    },
+    handler: ({ schedule }) => {
+      const s = (schedule as string).toLowerCase().trim();
+
+      // Predefined patterns
+      if (s === "every minute") return { cron: "* * * * *", description: "Every minute" };
+      if (s === "every hour") return { cron: "0 * * * *", description: "Every hour at minute 0" };
+      if (s === "every day" || s === "daily") return { cron: "0 0 * * *", description: "Every day at midnight" };
+      if (s === "every week" || s === "weekly") return { cron: "0 0 * * 0", description: "Every Sunday at midnight" };
+      if (s === "every month" || s === "monthly") return { cron: "0 0 1 * *", description: "First day of every month at midnight" };
+      if (s === "every year" || s === "yearly" || s === "annually") return { cron: "0 0 1 1 *", description: "January 1st at midnight" };
+
+      // Parse "every X minutes/hours"
+      const everyNMatch = s.match(/every (\d+) (minute|hour|day)s?/);
+      if (everyNMatch) {
+        const n = parseInt(everyNMatch[1]);
+        const unit = everyNMatch[2];
+        if (unit === "minute") return { cron: `*/${n} * * * *`, description: `Every ${n} minutes` };
+        if (unit === "hour") return { cron: `0 */${n} * * *`, description: `Every ${n} hours` };
+        if (unit === "day") return { cron: `0 0 */${n} * *`, description: `Every ${n} days` };
+      }
+
+      // Parse "at HH:MM" or "at Ham/pm"
+      const timeMatch = s.match(/at (\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
+      let hour = 0, minute = 0;
+      if (timeMatch) {
+        hour = parseInt(timeMatch[1]);
+        minute = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
+        if (timeMatch[3]?.toLowerCase() === "pm" && hour < 12) hour += 12;
+        if (timeMatch[3]?.toLowerCase() === "am" && hour === 12) hour = 0;
+      }
+
+      // Parse day of week
+      const days: Record<string, number> = {
+        sunday: 0, sun: 0, monday: 1, mon: 1, tuesday: 2, tue: 2,
+        wednesday: 3, wed: 3, thursday: 4, thu: 4, friday: 5, fri: 5,
+        saturday: 6, sat: 6, weekday: -1, weekend: -2,
+      };
+      for (const [dayName, dayNum] of Object.entries(days)) {
+        if (s.includes(dayName)) {
+          if (dayNum === -1) {
+            return { cron: `${minute} ${hour} * * 1-5`, description: `Weekdays at ${hour}:${minute.toString().padStart(2, "0")}` };
+          }
+          if (dayNum === -2) {
+            return { cron: `${minute} ${hour} * * 0,6`, description: `Weekends at ${hour}:${minute.toString().padStart(2, "0")}` };
+          }
+          return {
+            cron: `${minute} ${hour} * * ${dayNum}`,
+            description: `Every ${dayName.charAt(0).toUpperCase() + dayName.slice(1)} at ${hour}:${minute.toString().padStart(2, "0")}`,
+          };
+        }
+      }
+
+      // Default: every day at specified time
+      if (timeMatch) {
+        return { cron: `${minute} ${hour} * * *`, description: `Every day at ${hour}:${minute.toString().padStart(2, "0")}` };
+      }
+
+      return { error: "Could not parse schedule", input: schedule };
+    },
+  },
+  {
+    name: "text_markdown_toc",
+    description: "Generate a table of contents from markdown headers",
+    category: "text",
+    inputSchema: {
+      type: "object",
+      properties: {
+        markdown: { type: "string", description: "Markdown content" },
+        maxDepth: { type: "number", description: "Maximum heading depth (default: 6)" },
+        minDepth: { type: "number", description: "Minimum heading depth (default: 1)" },
+      },
+      required: ["markdown"],
+    },
+    handler: ({ markdown, maxDepth = 6, minDepth = 1 }) => {
+      const lines = (markdown as string).split("\n");
+      const toc: Array<{ level: number; text: string; anchor: string }> = [];
+
+      for (const line of lines) {
+        const match = line.match(/^(#{1,6})\s+(.+)$/);
+        if (match) {
+          const level = match[1].length;
+          if (level >= (minDepth as number) && level <= (maxDepth as number)) {
+            const text = match[2].trim();
+            // Create anchor slug
+            const anchor = text
+              .toLowerCase()
+              .replace(/[^\w\s-]/g, "")
+              .replace(/\s+/g, "-");
+            toc.push({ level, text, anchor });
+          }
+        }
+      }
+
+      // Generate markdown TOC
+      const tocMarkdown = toc.map(({ level, text, anchor }) => {
+        const indent = "  ".repeat(level - (minDepth as number));
+        return `${indent}- [${text}](#${anchor})`;
+      }).join("\n");
+
+      return {
+        entries: toc,
+        markdown: tocMarkdown,
+        count: toc.length,
+      };
+    },
+  },
+  {
+    name: "text_ascii_art",
+    description: "Convert text to simple ASCII art using block letters",
+    category: "text",
+    inputSchema: {
+      type: "object",
+      properties: {
+        text: { type: "string", description: "Text to convert (A-Z, 0-9, space)" },
+        style: {
+          type: "string",
+          enum: ["block", "banner", "simple"],
+          description: "Art style (default: block)",
+        },
+      },
+      required: ["text"],
+    },
+    handler: ({ text, style = "block" }) => {
+      // Simple 3x5 ASCII art letters
+      const letters: Record<string, string[]> = {
+        A: ["###", "# #", "###", "# #", "# #"],
+        B: ["## ", "# #", "## ", "# #", "## "],
+        C: ["###", "#  ", "#  ", "#  ", "###"],
+        D: ["## ", "# #", "# #", "# #", "## "],
+        E: ["###", "#  ", "## ", "#  ", "###"],
+        F: ["###", "#  ", "## ", "#  ", "#  "],
+        G: ["###", "#  ", "# #", "# #", "###"],
+        H: ["# #", "# #", "###", "# #", "# #"],
+        I: ["###", " # ", " # ", " # ", "###"],
+        J: ["###", "  #", "  #", "# #", "###"],
+        K: ["# #", "# #", "## ", "# #", "# #"],
+        L: ["#  ", "#  ", "#  ", "#  ", "###"],
+        M: ["# #", "###", "# #", "# #", "# #"],
+        N: ["# #", "###", "###", "# #", "# #"],
+        O: ["###", "# #", "# #", "# #", "###"],
+        P: ["###", "# #", "###", "#  ", "#  "],
+        Q: ["###", "# #", "# #", "###", "  #"],
+        R: ["###", "# #", "## ", "# #", "# #"],
+        S: ["###", "#  ", "###", "  #", "###"],
+        T: ["###", " # ", " # ", " # ", " # "],
+        U: ["# #", "# #", "# #", "# #", "###"],
+        V: ["# #", "# #", "# #", "# #", " # "],
+        W: ["# #", "# #", "# #", "###", "# #"],
+        X: ["# #", "# #", " # ", "# #", "# #"],
+        Y: ["# #", "# #", " # ", " # ", " # "],
+        Z: ["###", "  #", " # ", "#  ", "###"],
+        "0": ["###", "# #", "# #", "# #", "###"],
+        "1": [" # ", "## ", " # ", " # ", "###"],
+        "2": ["###", "  #", "###", "#  ", "###"],
+        "3": ["###", "  #", "###", "  #", "###"],
+        "4": ["# #", "# #", "###", "  #", "  #"],
+        "5": ["###", "#  ", "###", "  #", "###"],
+        "6": ["###", "#  ", "###", "# #", "###"],
+        "7": ["###", "  #", "  #", "  #", "  #"],
+        "8": ["###", "# #", "###", "# #", "###"],
+        "9": ["###", "# #", "###", "  #", "###"],
+        " ": ["   ", "   ", "   ", "   ", "   "],
+      };
+
+      const chars = (text as string).toUpperCase().split("");
+      const lines: string[] = ["", "", "", "", ""];
+
+      for (const char of chars) {
+        const art = letters[char] || ["???", "???", "???", "???", "???"];
+        for (let i = 0; i < 5; i++) {
+          lines[i] += art[i] + " ";
+        }
+      }
+
+      const output = lines.join("\n");
+
+      if (style === "banner") {
+        const width = lines[0].length;
+        const border = "=" .repeat(width);
+        return `${border}\n${output}\n${border}`;
+      }
+
+      return output;
+    },
+  },
+  {
+    name: "text_numeronym",
+    description: "Create a numeronym from text (e.g., internationalization → i18n)",
+    category: "text",
+    inputSchema: {
+      type: "object",
+      properties: {
+        text: { type: "string", description: "Text to convert" },
+        preserveCase: { type: "boolean", description: "Preserve original case (default: true)" },
+      },
+      required: ["text"],
+    },
+    handler: ({ text, preserveCase = true }) => {
+      const words = (text as string).split(/\s+/);
+      const result = words.map((word) => {
+        if (word.length <= 3) return word;
+        const first = word[0];
+        const last = word[word.length - 1];
+        const middle = word.length - 2;
+        const numeronym = `${first}${middle}${last}`;
+        return preserveCase ? numeronym : numeronym.toLowerCase();
+      });
+      return {
+        original: text,
+        numeronym: result.join(" "),
+        words: words.map((word, i) => ({ original: word, numeronym: result[i] })),
+      };
+    },
+  },
+  {
+    name: "text_obfuscate",
+    description: "Obfuscate text by scrambling middle characters of words",
+    category: "text",
+    inputSchema: {
+      type: "object",
+      properties: {
+        text: { type: "string", description: "Text to obfuscate" },
+        mode: {
+          type: "string",
+          enum: ["scramble", "replace", "leetspeak"],
+          description: "Obfuscation mode (default: scramble)",
+        },
+      },
+      required: ["text"],
+    },
+    handler: ({ text, mode = "scramble" }) => {
+      const t = text as string;
+
+      if (mode === "leetspeak") {
+        const leet: Record<string, string> = {
+          a: "4", e: "3", i: "1", o: "0", s: "5", t: "7", b: "8", g: "9",
+          A: "4", E: "3", I: "1", O: "0", S: "5", T: "7", B: "8", G: "9",
+        };
+        return t.split("").map((c) => leet[c] || c).join("");
+      }
+
+      if (mode === "replace") {
+        // Replace with similar looking characters
+        const similar: Record<string, string> = {
+          a: "α", e: "є", i: "ι", o: "σ", u: "υ",
+          A: "Α", E: "Ε", I: "Ι", O: "Ο", U: "υ",
+        };
+        return t.split("").map((c) => similar[c] || c).join("");
+      }
+
+      // Default: scramble middle characters
+      return t.split(/(\s+)/).map((part) => {
+        if (/^\s+$/.test(part)) return part; // Keep whitespace
+        if (part.length <= 3) return part; // Too short to scramble
+        const first = part[0];
+        const last = part[part.length - 1];
+        const middle = part.slice(1, -1).split("");
+        // Fisher-Yates shuffle
+        for (let i = middle.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [middle[i], middle[j]] = [middle[j], middle[i]];
+        }
+        return first + middle.join("") + last;
+      }).join("");
+    },
+  },
 ];

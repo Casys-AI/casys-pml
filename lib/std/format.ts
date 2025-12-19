@@ -443,4 +443,185 @@ export const formatTools: MiniTool[] = [
       return minify ? JSON.stringify(parsed) : JSON.stringify(parsed, null, indent as number);
     },
   },
+  {
+    name: "format_json_to_csv",
+    description: "Convert JSON array to CSV format",
+    category: "format",
+    inputSchema: {
+      type: "object",
+      properties: {
+        json: { type: "string", description: "JSON array string" },
+        delimiter: { type: "string", description: "Column delimiter (default: ',')" },
+        includeHeaders: { type: "boolean", description: "Include header row (default: true)" },
+      },
+      required: ["json"],
+    },
+    handler: ({ json, delimiter = ",", includeHeaders = true }) => {
+      const data = JSON.parse(json as string);
+      if (!Array.isArray(data) || data.length === 0) {
+        throw new Error("Input must be a non-empty JSON array");
+      }
+
+      const delim = delimiter as string;
+      const escapeCell = (val: unknown): string => {
+        const str = val === null || val === undefined ? "" : String(val);
+        if (str.includes(delim) || str.includes('"') || str.includes("\n")) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      const headers = Object.keys(data[0]);
+      const rows: string[] = [];
+
+      if (includeHeaders) {
+        rows.push(headers.map(escapeCell).join(delim));
+      }
+
+      for (const item of data) {
+        const row = headers.map((h) => escapeCell((item as Record<string, unknown>)[h]));
+        rows.push(row.join(delim));
+      }
+
+      return rows.join("\n");
+    },
+  },
+  {
+    name: "format_sql",
+    description: "Format SQL query for readability",
+    category: "format",
+    inputSchema: {
+      type: "object",
+      properties: {
+        sql: { type: "string", description: "SQL query to format" },
+        uppercase: { type: "boolean", description: "Uppercase keywords (default: true)" },
+        indent: { type: "number", description: "Indentation spaces (default: 2)" },
+      },
+      required: ["sql"],
+    },
+    handler: ({ sql, uppercase = true, indent = 2 }) => {
+      const keywords = [
+        "SELECT", "FROM", "WHERE", "AND", "OR", "ORDER BY", "GROUP BY", "HAVING",
+        "JOIN", "LEFT JOIN", "RIGHT JOIN", "INNER JOIN", "OUTER JOIN", "FULL JOIN",
+        "ON", "AS", "INSERT INTO", "VALUES", "UPDATE", "SET", "DELETE FROM",
+        "CREATE TABLE", "ALTER TABLE", "DROP TABLE", "CREATE INDEX", "DROP INDEX",
+        "LIMIT", "OFFSET", "UNION", "UNION ALL", "DISTINCT", "COUNT", "SUM", "AVG",
+        "MIN", "MAX", "CASE", "WHEN", "THEN", "ELSE", "END", "NULL", "NOT NULL",
+        "PRIMARY KEY", "FOREIGN KEY", "REFERENCES", "IN", "LIKE", "BETWEEN", "IS",
+      ];
+
+      let formatted = sql as string;
+      const indentStr = " ".repeat(indent as number);
+
+      // Normalize whitespace
+      formatted = formatted.replace(/\s+/g, " ").trim();
+
+      // Add newlines before major keywords
+      const majorKeywords = [
+        "SELECT", "FROM", "WHERE", "ORDER BY", "GROUP BY", "HAVING",
+        "JOIN", "LEFT JOIN", "RIGHT JOIN", "INNER JOIN", "OUTER JOIN",
+        "LIMIT", "UNION", "INSERT INTO", "UPDATE", "DELETE FROM", "SET",
+      ];
+
+      for (const kw of majorKeywords) {
+        const regex = new RegExp(`\\b${kw}\\b`, "gi");
+        formatted = formatted.replace(regex, `\n${kw}`);
+      }
+
+      // Add newlines after commas in SELECT
+      formatted = formatted.replace(/,\s*/g, ",\n" + indentStr);
+
+      // Indent after major keywords
+      const lines = formatted.split("\n").map((line) => line.trim()).filter(Boolean);
+      const result: string[] = [];
+
+      for (const line of lines) {
+        const upperLine = line.toUpperCase();
+        if (upperLine.startsWith("SELECT") || upperLine.startsWith("FROM") ||
+            upperLine.startsWith("WHERE") || upperLine.startsWith("ORDER") ||
+            upperLine.startsWith("GROUP") || upperLine.startsWith("HAVING") ||
+            upperLine.startsWith("LIMIT")) {
+          result.push(line);
+        } else if (upperLine.includes("JOIN")) {
+          result.push(line);
+        } else {
+          result.push(indentStr + line);
+        }
+      }
+
+      formatted = result.join("\n");
+
+      // Uppercase keywords if requested
+      if (uppercase) {
+        for (const kw of keywords) {
+          const regex = new RegExp(`\\b${kw}\\b`, "gi");
+          formatted = formatted.replace(regex, kw);
+        }
+      }
+
+      return formatted.trim();
+    },
+  },
+  {
+    name: "format_phone",
+    description: "Format phone number to standard format",
+    category: "format",
+    inputSchema: {
+      type: "object",
+      properties: {
+        phone: { type: "string", description: "Phone number to format" },
+        format: {
+          type: "string",
+          enum: ["international", "national", "e164"],
+          description: "Output format (default: international)",
+        },
+        defaultCountry: { type: "string", description: "Default country code (default: US)" },
+      },
+      required: ["phone"],
+    },
+    handler: ({ phone, format = "international", defaultCountry = "US" }) => {
+      // Remove all non-digit characters except leading +
+      let cleaned = (phone as string).replace(/[^\d+]/g, "");
+
+      // Extract country code if present
+      let countryCode = "";
+      let nationalNumber = cleaned;
+
+      if (cleaned.startsWith("+")) {
+        // Has country code
+        if (cleaned.startsWith("+1")) {
+          countryCode = "+1";
+          nationalNumber = cleaned.slice(2);
+        } else if (cleaned.length > 10) {
+          // Assume 2-3 digit country code
+          const ccLength = cleaned.length > 12 ? 3 : 2;
+          countryCode = cleaned.slice(0, ccLength + 1);
+          nationalNumber = cleaned.slice(ccLength + 1);
+        }
+      } else if (defaultCountry === "US" && cleaned.length === 10) {
+        countryCode = "+1";
+        nationalNumber = cleaned;
+      } else if (cleaned.length === 11 && cleaned.startsWith("1")) {
+        countryCode = "+1";
+        nationalNumber = cleaned.slice(1);
+      }
+
+      // Format based on requested format
+      switch (format) {
+        case "e164":
+          return countryCode + nationalNumber;
+        case "national":
+          if (nationalNumber.length === 10) {
+            return `(${nationalNumber.slice(0, 3)}) ${nationalNumber.slice(3, 6)}-${nationalNumber.slice(6)}`;
+          }
+          return nationalNumber;
+        case "international":
+        default:
+          if (nationalNumber.length === 10 && countryCode) {
+            return `${countryCode} (${nationalNumber.slice(0, 3)}) ${nationalNumber.slice(3, 6)}-${nationalNumber.slice(6)}`;
+          }
+          return countryCode + " " + nationalNumber;
+      }
+    },
+  },
 ];

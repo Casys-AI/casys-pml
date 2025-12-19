@@ -284,4 +284,194 @@ export const utilTools: MiniTool[] = [
       return { px: val, rem, baseFontSize: base };
     },
   },
+  {
+    name: "util_format_css",
+    description: "Format or minify CSS code",
+    category: "util",
+    inputSchema: {
+      type: "object",
+      properties: {
+        css: { type: "string", description: "CSS code to format" },
+        mode: {
+          type: "string",
+          enum: ["beautify", "minify"],
+          description: "Format mode (default: beautify)",
+        },
+      },
+      required: ["css"],
+    },
+    handler: ({ css, mode = "beautify" }) => {
+      const input = css as string;
+
+      if (mode === "minify") {
+        // Simple CSS minification
+        return input
+          .replace(/\/\*[\s\S]*?\*\//g, "") // Remove comments
+          .replace(/\s+/g, " ") // Collapse whitespace
+          .replace(/\s*([{}:;,])\s*/g, "$1") // Remove space around punctuation
+          .replace(/;}/g, "}") // Remove trailing semicolons
+          .trim();
+      }
+
+      // Beautify CSS
+      let result = input
+        .replace(/\/\*[\s\S]*?\*\//g, (m) => `\n${m}\n`) // Preserve comments on own lines
+        .replace(/\s*{\s*/g, " {\n  ") // Opening brace
+        .replace(/\s*}\s*/g, "\n}\n\n") // Closing brace
+        .replace(/;\s*/g, ";\n  ") // Semicolons
+        .replace(/,\s*/g, ",\n") // Commas (selectors)
+        .replace(/\n\s*\n/g, "\n") // Remove blank lines inside blocks
+        .replace(/\n  }/g, "\n}") // Fix closing brace indentation
+        .trim();
+
+      // Clean up extra newlines
+      result = result.replace(/\n{3,}/g, "\n\n");
+
+      return result;
+    },
+  },
+  {
+    name: "util_normalize_email",
+    description: "Normalize email address (lowercase, remove dots in gmail, etc.)",
+    category: "util",
+    inputSchema: {
+      type: "object",
+      properties: {
+        email: { type: "string", description: "Email address to normalize" },
+        removePlusTags: {
+          type: "boolean",
+          description: "Remove +tag portion (default: true)",
+        },
+        removeGmailDots: {
+          type: "boolean",
+          description: "Remove dots in Gmail addresses (default: true)",
+        },
+      },
+      required: ["email"],
+    },
+    handler: ({ email, removePlusTags = true, removeGmailDots = true }) => {
+      const original = email as string;
+      const parts = original.toLowerCase().split("@");
+      if (parts.length !== 2) {
+        throw new Error(`Invalid email: ${email}`);
+      }
+
+      let [local, domain] = parts;
+
+      // Remove +tag portion
+      if (removePlusTags && local.includes("+")) {
+        local = local.split("+")[0];
+      }
+
+      // Remove dots for Gmail addresses
+      const gmailDomains = ["gmail.com", "googlemail.com"];
+      if (removeGmailDots && gmailDomains.includes(domain)) {
+        local = local.replace(/\./g, "");
+        domain = "gmail.com"; // Normalize googlemail to gmail
+      }
+
+      const normalized = `${local}@${domain}`;
+
+      return {
+        original,
+        normalized,
+        local,
+        domain,
+        isGmail: gmailDomains.includes(domain),
+      };
+    },
+  },
+  {
+    name: "util_port_numbers",
+    description: "Look up common port numbers or find port by service name",
+    category: "util",
+    inputSchema: {
+      type: "object",
+      properties: {
+        port: { type: "number", description: "Port number to look up" },
+        service: { type: "string", description: "Service name to look up" },
+        category: {
+          type: "string",
+          enum: ["web", "mail", "database", "file", "remote", "all"],
+          description: "Filter by category (default: all)",
+        },
+      },
+    },
+    handler: ({ port, service, category }) => {
+      // Common ports database
+      const ports: Record<number, { service: string; description: string; category: string }> = {
+        // Web
+        80: { service: "HTTP", description: "Hypertext Transfer Protocol", category: "web" },
+        443: { service: "HTTPS", description: "HTTP Secure", category: "web" },
+        8080: { service: "HTTP-ALT", description: "Alternative HTTP port", category: "web" },
+        8443: { service: "HTTPS-ALT", description: "Alternative HTTPS port", category: "web" },
+        // Mail
+        25: { service: "SMTP", description: "Simple Mail Transfer Protocol", category: "mail" },
+        465: { service: "SMTPS", description: "SMTP Secure", category: "mail" },
+        587: { service: "SMTP-SUBMIT", description: "SMTP Submission", category: "mail" },
+        110: { service: "POP3", description: "Post Office Protocol v3", category: "mail" },
+        995: { service: "POP3S", description: "POP3 Secure", category: "mail" },
+        143: { service: "IMAP", description: "Internet Message Access Protocol", category: "mail" },
+        993: { service: "IMAPS", description: "IMAP Secure", category: "mail" },
+        // Database
+        3306: { service: "MySQL", description: "MySQL Database", category: "database" },
+        5432: { service: "PostgreSQL", description: "PostgreSQL Database", category: "database" },
+        27017: { service: "MongoDB", description: "MongoDB Database", category: "database" },
+        6379: { service: "Redis", description: "Redis Cache", category: "database" },
+        1433: { service: "MSSQL", description: "Microsoft SQL Server", category: "database" },
+        1521: { service: "Oracle", description: "Oracle Database", category: "database" },
+        // File Transfer
+        20: { service: "FTP-DATA", description: "FTP Data Transfer", category: "file" },
+        21: { service: "FTP", description: "File Transfer Protocol", category: "file" },
+        22: { service: "SSH/SFTP", description: "Secure Shell / SFTP", category: "file" },
+        69: { service: "TFTP", description: "Trivial File Transfer Protocol", category: "file" },
+        // Remote Access
+        23: { service: "Telnet", description: "Telnet (insecure)", category: "remote" },
+        3389: { service: "RDP", description: "Remote Desktop Protocol", category: "remote" },
+        5900: { service: "VNC", description: "Virtual Network Computing", category: "remote" },
+        // Other common
+        53: { service: "DNS", description: "Domain Name System", category: "web" },
+        67: { service: "DHCP-S", description: "DHCP Server", category: "web" },
+        68: { service: "DHCP-C", description: "DHCP Client", category: "web" },
+        123: { service: "NTP", description: "Network Time Protocol", category: "web" },
+        161: { service: "SNMP", description: "Simple Network Management Protocol", category: "remote" },
+        389: { service: "LDAP", description: "Lightweight Directory Access Protocol", category: "remote" },
+        636: { service: "LDAPS", description: "LDAP Secure", category: "remote" },
+        9200: { service: "Elasticsearch", description: "Elasticsearch HTTP", category: "database" },
+        9300: { service: "Elasticsearch", description: "Elasticsearch Transport", category: "database" },
+        5672: { service: "RabbitMQ", description: "RabbitMQ AMQP", category: "database" },
+        15672: { service: "RabbitMQ", description: "RabbitMQ Management", category: "database" },
+        2181: { service: "Zookeeper", description: "Apache Zookeeper", category: "database" },
+        9092: { service: "Kafka", description: "Apache Kafka", category: "database" },
+      };
+
+      // Look up by port number
+      if (port !== undefined) {
+        const info = ports[port as number];
+        if (info) {
+          return { port, found: true, ...info };
+        }
+        return { port, found: false, service: "Unknown", description: "Port not in database" };
+      }
+
+      // Look up by service name
+      if (service) {
+        const svc = (service as string).toLowerCase();
+        const matches = Object.entries(ports)
+          .filter(([, info]) => info.service.toLowerCase().includes(svc))
+          .map(([p, info]) => ({ port: parseInt(p, 10), ...info }));
+
+        return { service, found: matches.length > 0, matches };
+      }
+
+      // List all or by category
+      const cat = category as string | undefined;
+      const entries = Object.entries(ports)
+        .filter(([, info]) => !cat || cat === "all" || info.category === cat)
+        .map(([p, info]) => ({ port: parseInt(p, 10), ...info }))
+        .sort((a, b) => a.port - b.port);
+
+      return { count: entries.length, ports: entries };
+    },
+  },
 ];

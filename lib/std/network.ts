@@ -241,4 +241,42 @@ export const networkTools: MiniTool[] = [
       };
     },
   },
+  {
+    name: "network_fang_url",
+    description: "Defang or refang URLs/IPs for safe sharing in threat intelligence",
+    category: "network",
+    inputSchema: {
+      type: "object",
+      properties: {
+        input: { type: "string", description: "URL, IP, or domain to defang/refang" },
+        mode: {
+          type: "string",
+          enum: ["defang", "refang"],
+          description: "Mode: defang (make safe) or refang (restore) (default: defang)",
+        },
+      },
+      required: ["input"],
+    },
+    handler: ({ input, mode = "defang" }) => {
+      const s = input as string;
+
+      if (mode === "refang") {
+        // Restore defanged URLs
+        return s
+          .replace(/\[:\]/g, ":")
+          .replace(/\[\.\]/g, ".")
+          .replace(/hxxp/gi, "http")
+          .replace(/hXXp/gi, "http")
+          .replace(/\[@\]/g, "@")
+          .replace(/\[\/\]/g, "/");
+      }
+
+      // Defang: make URLs safe to share
+      return s
+        .replace(/\./g, "[.]")
+        .replace(/:/g, "[:]")
+        .replace(/http/gi, "hxxp")
+        .replace(/@/g, "[@]");
+    },
+  },
 ];

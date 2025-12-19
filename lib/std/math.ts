@@ -320,4 +320,128 @@ export const mathTools: MiniTool[] = [
       return result;
     },
   },
+  {
+    name: "math_convert_angle",
+    description: "Convert between angle units (degrees, radians, gradians, turns, arcminutes, arcseconds)",
+    category: "math",
+    inputSchema: {
+      type: "object",
+      properties: {
+        value: { type: "number", description: "Value to convert" },
+        from: {
+          type: "string",
+          enum: ["degrees", "radians", "gradians", "turns", "arcminutes", "arcseconds"],
+          description: "Source unit",
+        },
+        to: {
+          type: "string",
+          enum: ["degrees", "radians", "gradians", "turns", "arcminutes", "arcseconds"],
+          description: "Target unit",
+        },
+      },
+      required: ["value", "from", "to"],
+    },
+    handler: ({ value, from, to }) => {
+      const v = value as number;
+      // First convert to degrees as base unit
+      const toDegrees: Record<string, (n: number) => number> = {
+        degrees: (n) => n,
+        radians: (n) => n * (180 / Math.PI),
+        gradians: (n) => n * 0.9,
+        turns: (n) => n * 360,
+        arcminutes: (n) => n / 60,
+        arcseconds: (n) => n / 3600,
+      };
+      // Then convert from degrees to target
+      const fromDegrees: Record<string, (n: number) => number> = {
+        degrees: (n) => n,
+        radians: (n) => n * (Math.PI / 180),
+        gradians: (n) => n / 0.9,
+        turns: (n) => n / 360,
+        arcminutes: (n) => n * 60,
+        arcseconds: (n) => n * 3600,
+      };
+      const degrees = toDegrees[from as string]?.(v);
+      if (degrees === undefined) throw new Error(`Unknown unit: ${from}`);
+      const result = fromDegrees[to as string]?.(degrees);
+      if (result === undefined) throw new Error(`Unknown unit: ${to}`);
+      return result;
+    },
+  },
+  {
+    name: "math_convert_energy",
+    description: "Convert between energy units (joules, calories, kWh, BTU, eV, etc.)",
+    category: "math",
+    inputSchema: {
+      type: "object",
+      properties: {
+        value: { type: "number", description: "Value to convert" },
+        from: {
+          type: "string",
+          enum: ["joules", "calories", "kilocalories", "kwh", "btu", "ev", "watt_hours", "foot_pounds"],
+          description: "Source unit",
+        },
+        to: {
+          type: "string",
+          enum: ["joules", "calories", "kilocalories", "kwh", "btu", "ev", "watt_hours", "foot_pounds"],
+          description: "Target unit",
+        },
+      },
+      required: ["value", "from", "to"],
+    },
+    handler: ({ value, from, to }) => {
+      const v = value as number;
+      // Convert to joules as base unit
+      const toJoules: Record<string, number> = {
+        joules: 1,
+        calories: 4.184,
+        kilocalories: 4184,
+        kwh: 3600000,
+        btu: 1055.06,
+        ev: 1.602176634e-19,
+        watt_hours: 3600,
+        foot_pounds: 1.35582,
+      };
+      const joules = v * (toJoules[from as string] ?? 1);
+      const result = joules / (toJoules[to as string] ?? 1);
+      return result;
+    },
+  },
+  {
+    name: "math_convert_power",
+    description: "Convert between power units (watts, horsepower, BTU/h, etc.)",
+    category: "math",
+    inputSchema: {
+      type: "object",
+      properties: {
+        value: { type: "number", description: "Value to convert" },
+        from: {
+          type: "string",
+          enum: ["watts", "kilowatts", "megawatts", "horsepower", "btu_per_hour", "foot_pounds_per_second"],
+          description: "Source unit",
+        },
+        to: {
+          type: "string",
+          enum: ["watts", "kilowatts", "megawatts", "horsepower", "btu_per_hour", "foot_pounds_per_second"],
+          description: "Target unit",
+        },
+      },
+      required: ["value", "from", "to"],
+    },
+    handler: ({ value, from, to }) => {
+      const v = value as number;
+      // Convert to watts as base unit
+      const toWatts: Record<string, number> = {
+        watts: 1,
+        kilowatts: 1000,
+        megawatts: 1000000,
+        horsepower: 745.7,
+        btu_per_hour: 0.293071,
+        foot_pounds_per_second: 1.35582,
+      };
+      const watts = v * (toWatts[from as string] ?? 1);
+      const result = watts / (toWatts[to as string] ?? 1);
+      return result;
+    },
+  },
 ];

@@ -436,4 +436,151 @@ export const cryptoTools: MiniTool[] = [
       };
     },
   },
+  {
+    name: "crypto_text_to_binary",
+    description: "Convert text to binary representation",
+    category: "crypto",
+    inputSchema: {
+      type: "object",
+      properties: {
+        text: { type: "string", description: "Text to convert" },
+        separator: { type: "string", description: "Separator between bytes (default: ' ')" },
+      },
+      required: ["text"],
+    },
+    handler: ({ text, separator = " " }) => {
+      const bytes = new TextEncoder().encode(text as string);
+      return Array.from(bytes)
+        .map((b) => b.toString(2).padStart(8, "0"))
+        .join(separator as string);
+    },
+  },
+  {
+    name: "crypto_binary_to_text",
+    description: "Convert binary representation back to text",
+    category: "crypto",
+    inputSchema: {
+      type: "object",
+      properties: {
+        binary: { type: "string", description: "Binary string (space or no separator)" },
+      },
+      required: ["binary"],
+    },
+    handler: ({ binary }) => {
+      const cleaned = (binary as string).replace(/\s/g, "");
+      if (!/^[01]+$/.test(cleaned) || cleaned.length % 8 !== 0) {
+        throw new Error("Invalid binary string");
+      }
+      const bytes = new Uint8Array(cleaned.length / 8);
+      for (let i = 0; i < cleaned.length; i += 8) {
+        bytes[i / 8] = parseInt(cleaned.slice(i, i + 8), 2);
+      }
+      return new TextDecoder().decode(bytes);
+    },
+  },
+  {
+    name: "crypto_text_to_unicode",
+    description: "Convert text to Unicode code points",
+    category: "crypto",
+    inputSchema: {
+      type: "object",
+      properties: {
+        text: { type: "string", description: "Text to convert" },
+        format: {
+          type: "string",
+          enum: ["decimal", "hex", "escaped"],
+          description: "Output format (default: hex)",
+        },
+      },
+      required: ["text"],
+    },
+    handler: ({ text, format = "hex" }) => {
+      const codePoints = [...(text as string)].map((c) => c.codePointAt(0)!);
+      switch (format) {
+        case "decimal":
+          return codePoints.join(" ");
+        case "escaped":
+          return codePoints.map((cp) => cp > 127 ? `\\u${cp.toString(16).padStart(4, "0")}` : String.fromCodePoint(cp)).join("");
+        case "hex":
+        default:
+          return codePoints.map((cp) => `U+${cp.toString(16).toUpperCase().padStart(4, "0")}`).join(" ");
+      }
+    },
+  },
+  {
+    name: "crypto_generate_token",
+    description: "Generate a secure random token",
+    category: "crypto",
+    inputSchema: {
+      type: "object",
+      properties: {
+        length: { type: "number", description: "Token length in bytes (default: 32)" },
+        format: {
+          type: "string",
+          enum: ["hex", "base64", "base64url"],
+          description: "Output format (default: hex)",
+        },
+      },
+    },
+    handler: ({ length = 32, format = "hex" }) => {
+      const bytes = crypto.getRandomValues(new Uint8Array(length as number));
+
+      switch (format) {
+        case "base64":
+          return btoa(String.fromCharCode(...bytes));
+        case "base64url":
+          return btoa(String.fromCharCode(...bytes))
+            .replace(/\+/g, "-")
+            .replace(/\//g, "_")
+            .replace(/=/g, "");
+        case "hex":
+        default:
+          return Array.from(bytes)
+            .map((b) => b.toString(16).padStart(2, "0"))
+            .join("");
+      }
+    },
+  },
+  {
+    name: "crypto_basic_auth",
+    description: "Generate or decode HTTP Basic Auth header",
+    category: "crypto",
+    inputSchema: {
+      type: "object",
+      properties: {
+        username: { type: "string", description: "Username (for encoding)" },
+        password: { type: "string", description: "Password (for encoding)" },
+        header: { type: "string", description: "Basic auth header to decode" },
+        action: {
+          type: "string",
+          enum: ["encode", "decode"],
+          description: "Action (default: encode)",
+        },
+      },
+    },
+    handler: ({ username, password, header, action = "encode" }) => {
+      if (action === "decode") {
+        if (!header) throw new Error("Header required for decode");
+        const h = (header as string).replace(/^Basic\s+/i, "");
+        const decoded = atob(h);
+        const colonIndex = decoded.indexOf(":");
+        if (colonIndex === -1) {
+          return { username: decoded, password: "" };
+        }
+        return {
+          username: decoded.slice(0, colonIndex),
+          password: decoded.slice(colonIndex + 1),
+        };
+      }
+
+      if (!username) throw new Error("Username required for encode");
+      const credentials = `${username}:${password || ""}`;
+      const encoded = btoa(credentials);
+      return {
+        header: `Basic ${encoded}`,
+        encoded,
+        credentials,
+      };
+    },
+  },
 ];
