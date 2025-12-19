@@ -10,6 +10,7 @@ on:
     paths:
       - 'src/**'
       - '!src/web/**'
+      - 'lib/**'
       - 'README.md'
       - 'LICENSE'
       - 'deno.json'
