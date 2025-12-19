@@ -377,6 +377,71 @@ For speculation with arguments to work well:
    - Discard speculated results
    - Re-generate DAG based on new context
 
+## Schema Exposure in DAG Suggestions
+
+### Current State
+
+**Q: Do suggestions include output schemas?**
+**A: NO.** The `DAGStructure` returned by `suggestDAG()` only contains:
+```typescript
+{ id: `task_${i}`, tool: toolId, arguments: {}, dependsOn }
+```
+
+Schemas (`input_schema`, `output_schema`) are stored in the `tool_schema` table and used by `ProvidesEdgeCalculator`, but they are **NOT included** in the suggestion itself.
+
+**Q: Do input schemas indicate dependencies on previous tool outputs?**
+**A: NO** in the suggestion. The `dependsOn` field indicates *which* task must execute first, but **NOT how data flows** (which output field maps to which input field).
+
+### Existing Data Flow Information
+
+This information **exists** in `ProvidesEdge`:
+
+```typescript
+interface ProvidesEdge {
+  from: string;           // "read_file"
+  to: string;             // "parse_json"
+  coverage: "strict" | "partial" | "optional";
+  fieldMapping: FieldMapping[];  // ← Precise field-to-field mapping!
+  providerOutputSchema: JSONSchema;
+  consumerInputSchema: JSONSchema;
+}
+
+interface FieldMapping {
+  fromField: string;      // "content"
+  toField: string;        // "text"
+  typeCompatible: boolean;
+  fromType?: string;      // "string"
+  toType?: string;        // "string"
+}
+```
+
+But this information is **not propagated** to the DAG suggestion - it stays in the `tool_dependency` table.
+
+### Gap: Field Mapping Not Exposed
+
+For speculative execution with arguments to work well:
+
+1. **Option A**: Enrich `Task` with optional `fieldMappings`:
+   ```typescript
+   interface Task {
+     id: string;
+     tool: string;
+     arguments: Record<string, unknown>;
+     dependsOn: string[];
+     fieldMappings?: Record<string, { fromTask: string; fromField: string }>;
+   }
+   ```
+
+2. **Option B**: Look up ProvidesEdge at speculation time:
+   ```typescript
+   const edge = await findDirectProvidesEdge(db, previousTool, currentTool);
+   if (edge?.fieldMapping) {
+     // Resolve arguments from previous task results
+   }
+   ```
+
+**Recommendation**: Option B is simpler - no schema changes, just use existing `ProvidesEdge` data at speculation time.
+
 ## References
 
 - ADR-006: Speculative Execution
