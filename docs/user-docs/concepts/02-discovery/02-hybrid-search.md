@@ -18,22 +18,7 @@ Semantic search finds tools by meaning. But meaning alone misses important signa
 
 **Hybrid search** combines semantic similarity with graph-based signals for better results.
 
-```
-┌─────────────────┐         ┌─────────────────┐
-│ Semantic Score  │         │  Graph Score    │
-│                 │         │                 │
-│ "How similar    │         │ "How important  │
-│  is the meaning │    +    │  is this tool   │
-│  to my query?"  │         │  in workflows?" │
-└────────┬────────┘         └────────┬────────┘
-         │                           │
-         └─────────┬─────────────────┘
-                   ▼
-           ┌──────────────┐
-           │ Final Score  │
-           │ (weighted)   │
-           └──────────────┘
-```
+![Hybrid Search Flow](excalidraw:src/web/assets/diagrams/rag-flow.excalidraw)
 
 ### Analogie : Choisir un restaurant
 

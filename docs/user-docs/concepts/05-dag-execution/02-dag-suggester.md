@@ -18,35 +18,7 @@ Le DAG Suggester est comme un GPS intelligent pour vos workflows : vous lui donn
 
 The **DAG Suggester** transforms natural language intent into executable workflows. It uses PML's learned knowledge to build DAGs automatically.
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                                                                  │
-│  INPUT                                                           │
-│  ─────                                                          │
-│  "Read config.json, validate it, and create a GitHub issue      │
-│   if validation fails"                                          │
-│                                                                  │
-│                           │                                      │
-│                           ▼                                      │
-│                                                                  │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │                    DAG SUGGESTER                           │  │
-│  │                                                            │  │
-│  │  1. Parse intent                                          │  │
-│  │  2. Match to known tools/capabilities                     │  │
-│  │  3. Determine dependencies from learned patterns          │  │
-│  │  4. Build DAG structure                                   │  │
-│  └───────────────────────────────────────────────────────────┘  │
-│                                                                  │
-│                           │                                      │
-│                           ▼                                      │
-│                                                                  │
-│  OUTPUT                                                          │
-│  ──────                                                         │
-│  DAG with tasks: read → validate → create_issue                 │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
+![DAG Replanning](excalidraw:src/web/assets/diagrams/dag-replanning.excalidraw)
 
 ## Input: User Intent
 

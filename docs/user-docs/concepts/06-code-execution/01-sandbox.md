@@ -21,30 +21,7 @@ Le sandbox transforme ces risques en garanties : meme si du code tente une actio
 
 PML executes code in a **sandboxed environment**—an isolated container that prevents untrusted code from accessing sensitive resources or affecting the host system.
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         Host System                              │
-│                                                                  │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │                       SANDBOX                              │  │
-│  │                                                            │  │
-│  │   Code executes here with:                                │  │
-│  │     • Limited permissions                                 │  │
-│  │     • No filesystem access (by default)                   │  │
-│  │     • No network access (by default)                      │  │
-│  │     • Controlled MCP tool access                          │  │
-│  │                                                            │  │
-│  │   ┌─────────────────────────────────────────────────┐     │  │
-│  │   │  User Code                                       │     │  │
-│  │   │  const data = await mcp.read_file(...)          │     │  │
-│  │   └─────────────────────────────────────────────────┘     │  │
-│  │                                                            │  │
-│  └───────────────────────────────────────────────────────────┘  │
-│                                                                  │
-│  Host resources are protected                                   │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
+![Sandbox Architecture](excalidraw:src/web/assets/diagrams/sandbox-architecture.excalidraw)
 
 ## Why Deno?
 

@@ -36,22 +36,7 @@ SWC permet d'analyser le code instantanement pour en extraire les parametres san
 
 ### Exemple d'analyse
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Schema Inference                              │
-│                                                                  │
-│  Input Code:                                                     │
-│    const content = await mcp.read_file({ path: "data.json" });  │
-│    const parsed = JSON.parse(content);                          │
-│    return parsed.users;                                          │
-│                                                                  │
-│  Inferred Schema:                                                │
-│    {                                                             │
-│      path: { type: "string", description: "File to read" }      │
-│    }                                                             │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
+![Schema Inference](excalidraw:src/web/assets/diagrams/schema-inference.excalidraw)
 
 This makes capabilities **generalizable**—they can be reused with different inputs.
 

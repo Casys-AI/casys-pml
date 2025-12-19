@@ -19,26 +19,7 @@ Les events dans PML, c'est comme les **notifications push sur votre téléphone*
 
 PML emits **events** for everything that happens—tool calls, DAG progress, learning updates, errors. These events power real-time dashboards and monitoring.
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                       Event Flow                                 │
-│                                                                  │
-│   PML System                              Clients                │
-│   ──────────                              ───────                │
-│                                                                  │
-│  ┌─────────────┐                      ┌─────────────────┐       │
-│  │ Tool Call   │──┐                   │ Dashboard       │       │
-│  └─────────────┘  │                   │  • Graph view   │       │
-│  ┌─────────────┐  │    Event Bus      │  • Metrics      │       │
-│  │ DAG Execute │──┼────────────────▶  │  • Logs         │       │
-│  └─────────────┘  │                   └─────────────────┘       │
-│  ┌─────────────┐  │                   ┌─────────────────┐       │
-│  │ Learning    │──┘                   │ CLI             │       │
-│  └─────────────┘                      │  • Progress     │       │
-│                                       └─────────────────┘       │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
+![Event Flow](excalidraw:src/web/assets/diagrams/realtime-events.excalidraw)
 
 ## Server-Sent Events (SSE)
 

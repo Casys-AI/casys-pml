@@ -18,18 +18,9 @@ Les checkpoints sont comme les points de sauvegarde dans un jeu video : le workf
 
 **Checkpoints** are points in a workflow where execution pauses for review or decision-making. They provide control over automated workflows, ensuring critical actions are verified before proceeding.
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Workflow with Checkpoints                     │
-│                                                                  │
-│  [Task A] ──▶ [Task B] ──▶ ⏸️ CHECKPOINT ──▶ [Task C] ──▶ [Task D]│
-│                                  │                               │
-│                                  │                               │
-│                           Review & Approve                       │
-│                           before continuing                      │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
+![DAG Observability](excalidraw:src/web/assets/diagrams/dag-observability.excalidraw)
+
+![DAG Resilience](excalidraw:src/web/assets/diagrams/dag-resilience.excalidraw)
 
 ## HIL (Human-in-the-Loop)
 

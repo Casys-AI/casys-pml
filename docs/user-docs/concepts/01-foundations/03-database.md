@@ -35,20 +35,7 @@ PML uses a hybrid storage approach combining:
 - **Vector storage** - Embeddings for semantic search
 - **Deno KV** - Fast key-value cache
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      PML Storage                            │
-│                                                             │
-│  ┌─────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
-│  │   PGlite    │  │  Vector Store   │  │    Deno KV      │ │
-│  │             │  │                 │  │                 │ │
-│  │ • Tools     │  │ • Tool          │  │ • Cache         │ │
-│  │ • Deps      │  │   embeddings    │  │ • Session       │ │
-│  │ • Caps      │  │ • Intent        │  │ • Config        │ │
-│  │ • Metrics   │  │   embeddings    │  │                 │ │
-│  └─────────────┘  └─────────────────┘  └─────────────────┘ │
-└─────────────────────────────────────────────────────────────┘
-```
+![Database Schema](excalidraw:src/web/assets/diagrams/database-schema.excalidraw)
 
 ## PGlite
 

@@ -17,42 +17,11 @@ C'est l'execution speculative de PML : quand le systeme est suffisamment confian
 
 Speculative execution is **THE** differentiating feature of PML. It transforms the user experience from:
 
-```
-Traditional:                    With Speculation:
-────────────────────           ────────────────────
-User confirms → Wait 2-5s →    User confirms → Instant result
-  Execute → Result               (already computed)
-```
+![Sequential vs Speculative](excalidraw:src/web/assets/diagrams/spec-sequential.excalidraw)
 
 ### How It Works
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                   Speculative Execution Flow                     │
-│                                                                  │
-│  1. User types intent                                           │
-│     "Create issue from this error log"                          │
-│                                                                  │
-│  2. PML predicts next action (confidence: 0.92)                 │
-│     ┌─────────────────────────────────────────┐                 │
-│     │ SPECULATE: github:create_issue          │                 │
-│     │ with parsed error data                  │                 │
-│     └─────────────────────────────────────────┘                 │
-│                                                                  │
-│  3. While user reviews suggestion...                            │
-│     ┌─────────────────────────────────────────┐                 │
-│     │ EXECUTING IN BACKGROUND                 │                 │
-│     │ (sandboxed, reversible)                 │                 │
-│     └─────────────────────────────────────────┘                 │
-│                                                                  │
-│  4. User confirms                                                │
-│     → Result already available (0ms wait)                       │
-│                                                                  │
-│  OR User rejects/modifies                                       │
-│     → Speculative result discarded                              │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
+![Speculative Execution Flow](excalidraw:src/web/assets/diagrams/spec-speculative.excalidraw)
 
 ## Confidence Threshold
 
@@ -92,19 +61,15 @@ Speculative execution has strict guardrails:
 
 ### Operations Never Speculated
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  🚫 NEVER SPECULATED                                            │
-│                                                                  │
-│  • delete_*     - File/resource deletion                        │
-│  • deploy_*     - Production deployments                        │
-│  • send_email   - External communication                        │
-│  • payment_*    - Financial transactions                        │
-│  • publish_*    - Public releases                               │
-│                                                                  │
-│  These operations ALWAYS require explicit confirmation          │
-└─────────────────────────────────────────────────────────────────┘
-```
+| Operation | Category | Reason |
+|-----------|----------|--------|
+| `delete_*` | File/resource deletion | Irreversible |
+| `deploy_*` | Production deployments | High impact |
+| `send_email` | External communication | Can't unsend |
+| `payment_*` | Financial transactions | Real money |
+| `publish_*` | Public releases | Public visibility |
+
+These operations **ALWAYS** require explicit confirmation.
 
 ### Resource Limits
 
@@ -120,42 +85,27 @@ Each speculative execution is constrained:
 
 Speculative executions run in isolated sandboxes:
 
-```
-┌─────────────────────────────────────────┐
-│           Main Environment              │
-│                                         │
-│  ┌───────────────────────────────────┐ │
-│  │     Speculative Sandbox           │ │
-│  │                                   │ │
-│  │  • Isolated file system           │ │
-│  │  • No external side effects       │ │
-│  │  • Automatic cleanup on reject    │ │
-│  │                                   │ │
-│  └───────────────────────────────────┘ │
-│                                         │
-│  On confirm: Merge results              │
-│  On reject:  Discard sandbox            │
-│                                         │
-└─────────────────────────────────────────┘
-```
+![Confirm Flow](excalidraw:src/web/assets/diagrams/spec-confirm.excalidraw)
+
+**Sandbox properties:**
+- Isolated file system
+- No external side effects
+- Automatic cleanup on reject
+
+**On confirm:** Merge results | **On reject:** Discard sandbox
 
 ## Cost-Benefit Analysis
 
 Why speculation is worth occasional waste:
 
-```
-Without Speculation:
-  • 100 operations × 3s average wait = 300s of waiting/day
-  • User context switches during wait
-  • Frustration accumulates
+![Cost Decision](excalidraw:src/web/assets/diagrams/spec-cost-decision.excalidraw)
 
-With Speculation:
-  • 90% correct → 90 instant results
-  • 10% wasted → ~$0.50/day in compute
-  • Net gain: 270s saved + better flow state
+| Scenario | Wait Time | Compute Waste |
+|----------|-----------|---------------|
+| Without Speculation | 300s/day | $0 |
+| With Speculation | 30s/day | ~$0.50/day |
 
-Context savings ($5-10/day) >> Speculation waste ($0.50/day)
-```
+**Net gain:** 270s saved + better flow state. Context savings ($5-10/day) >> Speculation waste ($0.50/day)
 
 ## When Speculation Happens
 

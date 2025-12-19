@@ -12,19 +12,7 @@ Le **Gateway** (passerelle) est le chef d'orchestre de PML. Il recoit les demand
 
 The **Gateway** is the central component of PML. It sits between AI agents and MCP servers, acting as an intelligent proxy.
 
-```
-                         ┌─────────────────────────────────┐
-                         │           PML Gateway           │
-                         │                                 │
-┌──────────┐             │  ┌───────────┐  ┌───────────┐  │             ┌──────────────┐
-│  Agent   │────────────▶│  │  Router   │  │  Memory   │  │────────────▶│  filesystem  │
-│          │             │  └───────────┘  └───────────┘  │────────────▶│  github      │
-│          │◀────────────│                                │────────────▶│  postgres    │
-└──────────┘             │  ┌───────────┐  ┌───────────┐  │◀────────────│  fetch       │
-                         │  │  Search   │  │  Learning │  │             └──────────────┘
-                         │  └───────────┘  └───────────┘  │
-                         └─────────────────────────────────┘
-```
+![Gateway Architecture](excalidraw:src/web/assets/diagrams/gateway-architecture.excalidraw)
 
 **Without PML**, an agent would need to:
 - Connect to each MCP server separately

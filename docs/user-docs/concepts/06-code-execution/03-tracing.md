@@ -22,27 +22,7 @@ Sans tracing, PML serait une boite noire : impossible de comprendre, debugger ou
 
 **Tracing** captures the complete history of what happens during code execution—every tool call, its timing, its results, and how calls relate to each other.
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      Execution Trace                             │
-│                                                                  │
-│  capability:process_file (id: cap_001)                          │
-│  ├── t=0ms   tool:read_file (id: tool_001)                      │
-│  │           params: { path: "data.json" }                      │
-│  │           result: success (250 bytes)                        │
-│  │                                                               │
-│  ├── t=15ms  tool:parse_json (id: tool_002)                     │
-│  │           parent: tool_001                                   │
-│  │           result: success (object with 5 keys)               │
-│  │                                                               │
-│  └── t=45ms  tool:write_file (id: tool_003)                     │
-│              params: { path: "output.json" }                    │
-│              result: success                                     │
-│                                                                  │
-│  Total duration: 67ms                                           │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
+![Execution Trace](excalidraw:src/web/assets/diagrams/tracing-flow.excalidraw)
 
 ## Why Trace?
 

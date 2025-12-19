@@ -26,31 +26,7 @@ Tout comme vous conduisez en regardant le tableau de bord plutôt qu'en ouvrant 
 
 PML provides a visual representation of its knowledge graph—a **SuperHyperGraph** showing tools, capabilities, meta-capabilities, and their recursive relationships.
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     Knowledge Graph Visualization                │
-│                                                                  │
-│           ┌─────────┐                                           │
-│           │ github  │ ← Server cluster                          │
-│           └────┬────┘                                           │
-│                │                                                 │
-│    ┌───────────┼───────────┐                                    │
-│    │           │           │                                    │
-│    ▼           ▼           ▼                                    │
-│  ┌───┐      ┌───┐      ┌───┐                                   │
-│  │ A │ ───▶ │ B │ ───▶ │ C │  ← Tool nodes                     │
-│  └───┘      └───┘      └───┘                                   │
-│    │                     │                                      │
-│    └─────────┬───────────┘                                      │
-│              │                                                   │
-│              ▼                                                   │
-│     ╔═══════════════╗                                           │
-│     ║  Capability   ║  ← Capability zone                        │
-│     ║  file_to_pr   ║                                           │
-│     ╚═══════════════╝                                           │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
+![Knowledge Graph Visualization](excalidraw:src/web/assets/diagrams/dashboard-visualization.excalidraw)
 
 ## Why Visualize?
 

@@ -21,32 +21,7 @@ A **DAG** (Directed Acyclic Graph) is a structure that represents a workflow whe
 - **Acyclic**: No loops—a task can't depend on itself directly or indirectly
 - **Graph**: Tasks are nodes, dependencies are edges
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      Example DAG                                 │
-│                                                                  │
-│         ┌──────────┐                                            │
-│         │  Task A  │                                            │
-│         │ (start)  │                                            │
-│         └────┬─────┘                                            │
-│              │                                                   │
-│       ┌──────┴──────┐                                           │
-│       │             │                                           │
-│       ▼             ▼                                           │
-│  ┌──────────┐  ┌──────────┐                                     │
-│  │  Task B  │  │  Task C  │   ← Can run in parallel             │
-│  └────┬─────┘  └────┬─────┘                                     │
-│       │             │                                           │
-│       └──────┬──────┘                                           │
-│              │                                                   │
-│              ▼                                                   │
-│         ┌──────────┐                                            │
-│         │  Task D  │   ← Waits for B and C                      │
-│         │  (end)   │                                            │
-│         └──────────┘                                            │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
+![DAG Model](excalidraw:src/web/assets/diagrams/dag-dag-model.excalidraw)
 
 DAGs are ideal for workflows because they:
 - Define clear execution order
@@ -72,13 +47,13 @@ A **task** is a unit of work in the DAG. Each task has:
 
 Tasks progress through states:
 
-```
-PENDING ──▶ RUNNING ──▶ COMPLETED
-                │
-                └──▶ FAILED
-                       │
-                       └──▶ SKIPPED (if dependency failed)
-```
+| State | Description |
+|-------|-------------|
+| `PENDING` | Waiting for dependencies |
+| `RUNNING` | Currently executing |
+| `COMPLETED` | Successfully finished |
+| `FAILED` | Execution error |
+| `SKIPPED` | Dependency failed |
 
 ## Dependencies (dependsOn)
 
@@ -140,93 +115,24 @@ Before execution, PML validates: No cycles (A → B → A invalid), valid task r
 
 A complete DAG for processing a file:
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  Workflow: Process JSON File                                     │
-│                                                                  │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │ Task: read_input                                          │   │
-│  │ Tool: filesystem:read_file                                │   │
-│  │ Params: { path: "input.json" }                           │   │
-│  │ DependsOn: []                                            │   │
-│  └────────────────────────┬─────────────────────────────────┘   │
-│                           │                                      │
-│                           ▼                                      │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │ Task: validate                                            │   │
-│  │ Tool: json:validate                                       │   │
-│  │ DependsOn: [read_input]                                  │   │
-│  └────────────────────────┬─────────────────────────────────┘   │
-│                           │                                      │
-│              ┌────────────┴────────────┐                        │
-│              │                         │                        │
-│              ▼                         ▼                        │
-│  ┌───────────────────┐    ┌───────────────────┐                │
-│  │ Task: transform   │    │ Task: backup      │                │
-│  │ DependsOn: [val]  │    │ DependsOn: [val]  │                │
-│  └─────────┬─────────┘    └───────────────────┘                │
-│            │                                                    │
-│            ▼                                                    │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │ Task: write_output                                        │   │
-│  │ Tool: filesystem:write_file                               │   │
-│  │ DependsOn: [transform]                                   │   │
-│  └──────────────────────────────────────────────────────────┘   │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
+![DAG Workflow](excalidraw:src/web/assets/diagrams/dag-workflow.excalidraw)
 
 ## Exemple concret : Deploiement d'application
 
 Voici un workflow reel de deploiement d'application web :
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  Workflow: Deploy Web Application                               │
-│                                                                  │
-│  Layer 0: Preparation                                           │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
-│  │ Run tests    │  │ Build assets │  │ Lint code    │          │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘          │
-│         │                 │                 │                   │
-│         └─────────────────┼─────────────────┘                   │
-│                           │                                      │
-│  Layer 1: Build                                                 │
-│                           ▼                                      │
-│                  ┌──────────────┐                               │
-│                  │ Create bundle│                               │
-│                  └──────┬───────┘                               │
-│                         │                                        │
-│  Layer 2: Deploy                                                │
-│         ┌───────────────┼───────────────┐                       │
-│         │               │               │                       │
-│         ▼               ▼               ▼                       │
-│  ┌──────────┐    ┌──────────┐    ┌──────────┐                  │
-│  │ Deploy   │    │ Upload   │    │ Update   │                  │
-│  │ API      │    │ CDN      │    │ Database │                  │
-│  └────┬─────┘    └────┬─────┘    └────┬─────┘                  │
-│       │               │               │                         │
-│       └───────────────┼───────────────┘                         │
-│                       │                                          │
-│  Layer 3: Verification                                          │
-│                       ▼                                          │
-│              ┌──────────────┐                                   │
-│              │ Health check │                                   │
-│              └──────┬───────┘                                   │
-│                     │                                            │
-│                     ▼                                            │
-│              ┌──────────────┐                                   │
-│              │ Send notif   │                                   │
-│              └──────────────┘                                   │
-│                                                                  │
-│  Comme un plan IKEA :                                           │
-│  1. Preparez toutes les pieces (tests, build, lint)            │
-│  2. Assemblez le meuble (create bundle)                        │
-│  3. Ajoutez les accessoires (deploy API, CDN, DB)              │
-│  4. Verifiez la stabilite (health check)                       │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
+| Layer | Tasks | Parallelism |
+|-------|-------|-------------|
+| **0: Preparation** | Run tests, Build assets, Lint code | ✅ Parallel |
+| **1: Build** | Create bundle | Sequential (waits for Layer 0) |
+| **2: Deploy** | Deploy API, Upload CDN, Update Database | ✅ Parallel |
+| **3: Verification** | Health check → Send notification | Sequential |
+
+**Comme un plan IKEA :**
+1. Préparez toutes les pièces (tests, build, lint)
+2. Assemblez le meuble (create bundle)
+3. Ajoutez les accessoires (deploy API, CDN, DB)
+4. Vérifiez la stabilité (health check)
 
 **Pourquoi cette structure ?**
 - Tests, build et lint peuvent s'executer en parallele (independants)

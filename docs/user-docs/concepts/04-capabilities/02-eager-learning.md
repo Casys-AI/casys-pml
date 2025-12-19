@@ -16,13 +16,7 @@ C'est l'apprentissage eager (enthousiaste) de PML : tout capturer maintenant, fi
 
 PML follows an **eager learning** philosophy: capture everything that works, then let usage patterns determine what's valuable.
 
-```
-Traditional Approach:          PML's Approach:
-─────────────────────         ─────────────────────
-Filter → Store                 Store → Filter (later)
-
-"Is this worth saving?"        "Save it, we'll see"
-```
+![Eager Learning - Observation](excalidraw:src/web/assets/diagrams/emerge-observation.excalidraw)
 
 This approach is based on a key insight: **it's impossible to know in advance which patterns will be useful**.
 

@@ -44,23 +44,7 @@ Identifies: First tasks, waiting tasks, parallel tasks
 
 PML organizes tasks into **layers** based on their dependencies:
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Layer Execution                           │
-│                                                                  │
-│  Layer 0: [A]        ← Tasks with no dependencies               │
-│           │                                                      │
-│           ▼                                                      │
-│  Layer 1: [B, C, E]  ← Can all run in PARALLEL                  │
-│           │                                                      │
-│           ▼                                                      │
-│  Layer 2: [D, F]     ← Wait for Layer 1, then run in PARALLEL   │
-│           │                                                      │
-│           ▼                                                      │
-│  Layer 3: [G]        ← Final task                               │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
+![DAG Parallelization](excalidraw:src/web/assets/diagrams/dag-parallelization.excalidraw)
 
 ### Layer Rules
 

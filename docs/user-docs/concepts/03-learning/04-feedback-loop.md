@@ -64,19 +64,7 @@ Après 1 an: Les morceaux non joués s'oublient (decay)
 
 PML continuously improves through a feedback loop:
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                                                                 │
-│    ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌────────┐ │
-│    │ SUGGEST  │───▶│ EXECUTE  │───▶│  TRACE   │───▶│ LEARN  │ │
-│    └──────────┘    └──────────┘    └──────────┘    └────────┘ │
-│          ▲                                              │       │
-│          │                                              │       │
-│          └──────────────────────────────────────────────┘       │
-│                        Improved suggestions                     │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+![Feedback Loop](excalidraw:src/web/assets/diagrams/coala-feedback-loops.excalidraw)
 
 **The more you use PML, the smarter it becomes.**
 

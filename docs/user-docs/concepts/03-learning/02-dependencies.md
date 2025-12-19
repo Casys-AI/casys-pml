@@ -20,6 +20,8 @@ PML tracks two types of dependencies:
 
 These dependencies form the edges in PML's knowledge graph.
 
+![Dependency Types](excalidraw:src/web/assets/diagrams/dependency-types.excalidraw)
+
 ## Tool Dependencies
 
 Stored in the `tool_dependency` table, these track relationships between individual tools.

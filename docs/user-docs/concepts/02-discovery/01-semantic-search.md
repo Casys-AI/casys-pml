@@ -22,24 +22,7 @@ Traditional search requires knowing exact names:
 
 ## How it Works
 
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│  "read a file"  │────▶│ Embedding Model │────▶│  Query Vector   │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-                                                        │
-                                                        ▼
-                                                ┌───────────────┐
-                                                │   Compare to  │
-                                                │  all tool     │
-                                                │  vectors      │
-                                                └───────────────┘
-                                                        │
-                                                        ▼
-                                                ┌───────────────┐
-                                                │ Ranked Results│
-                                                │ by similarity │
-                                                └───────────────┘
-```
+![Semantic Search Flow](excalidraw:src/web/assets/diagrams/rag-flow.excalidraw)
 
 1. Your query is converted to a vector (list of numbers)
 2. This vector is compared to all stored tool vectors

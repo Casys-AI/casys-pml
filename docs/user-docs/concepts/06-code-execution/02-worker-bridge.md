@@ -21,23 +21,7 @@ Sans le bridge, il faudrait soit donner des permissions directes au sandbox (dan
 
 The **Worker Bridge** is the communication layer between PML's main process and the sandboxed code execution environment. It enables isolated code to call MCP tools while maintaining security boundaries.
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                                                                  │
-│   Main Process                          Sandbox (Worker)         │
-│   ────────────                          ─────────────────       │
-│                                                                  │
-│  ┌─────────────┐                      ┌─────────────────┐       │
-│  │ PML Gateway │◀────── Bridge ──────▶│  User Code      │       │
-│  │             │                      │                 │       │
-│  │ MCP Servers │                      │  mcp.read_file()│       │
-│  └─────────────┘                      └─────────────────┘       │
-│                                                                  │
-│        Real tools                        Isolated code           │
-│        execute here                      runs here               │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
+![RPC Bridge Architecture](excalidraw:src/web/assets/diagrams/rpc-bridge-after.excalidraw)
 
 ## Architecture
 
@@ -45,41 +29,19 @@ The bridge connects two isolated environments:
 
 ### Main Process Side
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  Main Process                                                    │
-│                                                                  │
-│  ┌─────────────────┐    ┌─────────────────┐                     │
-│  │ Bridge Handler  │    │ MCP Gateway     │                     │
-│  │                 │───▶│                 │                     │
-│  │ • Receives RPC  │    │ • Routes calls  │                     │
-│  │ • Validates     │    │ • Executes tools│                     │
-│  │ • Returns result│    │ • Returns data  │                     │
-│  └─────────────────┘    └─────────────────┘                     │
-│           │                                                      │
-│           │ postMessage                                         │
-│           ▼                                                      │
-└─────────────────────────────────────────────────────────────────┘
-```
+| Component | Role |
+|-----------|------|
+| **Bridge Handler** | Receives RPC, validates requests, returns results |
+| **MCP Gateway** | Routes calls, executes tools, returns data |
 
 ### Worker Side
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  Sandbox Worker                                                  │
-│                                                                  │
-│  ┌─────────────────┐    ┌─────────────────┐                     │
-│  │ MCP Proxy       │    │ User Code       │                     │
-│  │                 │◀───│                 │                     │
-│  │ • mcp.server.*  │    │ await mcp.      │                     │
-│  │ • Serializes    │    │   read_file()   │                     │
-│  │ • Awaits reply  │    │                 │                     │
-│  └─────────────────┘    └─────────────────┘                     │
-│           │                                                      │
-│           │ postMessage                                         │
-│           ▼                                                      │
-└─────────────────────────────────────────────────────────────────┘
-```
+| Component | Role |
+|-----------|------|
+| **MCP Proxy** | Provides `mcp.server.*` API, serializes calls, awaits replies |
+| **User Code** | Calls `await mcp.read_file()` etc. |
+
+Communication via `postMessage` between both sides.
 
 ## Message Protocol
 
@@ -87,74 +49,48 @@ Communication uses a structured RPC protocol:
 
 ### Request Message
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  RPC Request                                                     │
-│                                                                  │
-│  {                                                               │
-│    type: "rpc_request",                                         │
-│    id: "req_123",           // Unique request ID                │
-│    method: "call_tool",     // What to do                       │
-│    payload: {                                                    │
-│      server: "filesystem",  // MCP server                       │
-│      tool: "read_file",     // Tool name                        │
-│      args: {                // Tool parameters                  │
-│        path: "data.json"                                        │
-│      }                                                           │
-│    }                                                             │
-│  }                                                               │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
+```json
+{
+  "type": "rpc_request",
+  "id": "req_123",
+  "method": "call_tool",
+  "payload": {
+    "server": "filesystem",
+    "tool": "read_file",
+    "args": { "path": "data.json" }
+  }
+}
 ```
 
 ### Response Message
 
+**Success:**
+```json
+{
+  "type": "rpc_response",
+  "id": "req_123",
+  "success": true,
+  "result": { "content": "{ ... }" }
+}
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  RPC Response                                                    │
-│                                                                  │
-│  {                                                               │
-│    type: "rpc_response",                                        │
-│    id: "req_123",           // Matches request ID               │
-│    success: true,           // Did it work?                     │
-│    result: {                // Tool output                      │
-│      content: "{ ... }"                                         │
-│    }                                                             │
-│  }                                                               │
-│                                                                  │
-│  OR on error:                                                   │
-│                                                                  │
-│  {                                                               │
-│    type: "rpc_response",                                        │
-│    id: "req_123",                                               │
-│    success: false,                                              │
-│    error: {                                                      │
-│      code: "TOOL_ERROR",                                        │
-│      message: "File not found"                                  │
-│    }                                                             │
-│  }                                                               │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
+
+**Error:**
+```json
+{
+  "type": "rpc_response",
+  "id": "req_123",
+  "success": false,
+  "error": { "code": "TOOL_ERROR", "message": "File not found" }
+}
 ```
 
 ### Message Flow
 
-```
-User Code                Bridge              Main Process
-─────────                ──────              ────────────
-    │                        │                    │
-    │ mcp.read_file()        │                    │
-    │───────────────────────▶│                    │
-    │                        │ RPC Request        │
-    │                        │───────────────────▶│
-    │                        │                    │ Execute tool
-    │                        │                    │
-    │                        │    RPC Response    │
-    │                        │◀───────────────────│
-    │   Return value         │                    │
-    │◀───────────────────────│                    │
-    │                        │                    │
-```
+1. **User Code** calls `mcp.read_file()`
+2. **Bridge** sends RPC Request to Main Process
+3. **Main Process** executes the tool
+4. **Main Process** returns RPC Response
+5. **Bridge** returns value to User Code
 
 ## MCP Injection
 
@@ -162,29 +98,21 @@ Before code runs, PML injects MCP tool functions into the sandbox:
 
 ### Injection Process
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  Before Execution                                                │
-│                                                                  │
-│  1. Discover available MCP tools from gateway                   │
-│                                                                  │
-│  2. Generate proxy functions:                                   │
-│                                                                  │
-│     mcp = {                                                      │
-│       filesystem: {                                              │
-│         read_file: (args) => bridge.call("filesystem", "read_file", args),
-│         write_file: (args) => bridge.call("filesystem", "write_file", args),
-│         list_files: (args) => bridge.call("filesystem", "list_files", args)
-│       },                                                         │
-│       github: {                                                  │
-│         create_issue: (args) => bridge.call("github", "create_issue", args),
-│         ...                                                      │
-│       }                                                          │
-│     }                                                            │
-│                                                                  │
-│  3. Inject `mcp` object into worker global scope                │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
+1. **Discover** available MCP tools from gateway
+2. **Generate** proxy functions for each tool
+3. **Inject** `mcp` object into worker global scope
+
+```javascript
+// Generated proxy object
+mcp = {
+  filesystem: {
+    read_file: (args) => bridge.call("filesystem", "read_file", args),
+    write_file: (args) => bridge.call("filesystem", "write_file", args),
+  },
+  github: {
+    create_issue: (args) => bridge.call("github", "create_issue", args),
+  }
+}
 ```
 
 ### Using Injected Tools

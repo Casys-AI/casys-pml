@@ -30,21 +30,7 @@ PML builds a **knowledge graph** of:
 - **Capabilities** (compound nodes) - Des motifs appris : "analyser un fichier JSON"
 - **Usage patterns** (edge weights) - La force des habitudes : combien de fois ce chemin a ete emprunte
 
-```
-                    ┌───────────────────────────────────────┐
-                    │          PML Knowledge Graph          │
-                    │                                       │
-                    │    [read_file] ──────▶ [parse_json]  │
-                    │         │                    │        │
-                    │         ▼                    ▼        │
-                    │    [write_file]       [validate]      │
-                    │         │                    │        │
-                    │         └────────┬───────────┘        │
-                    │                  ▼                    │
-                    │           [create_issue]              │
-                    │                                       │
-                    └───────────────────────────────────────┘
-```
+![Knowledge Graph](excalidraw:src/web/assets/diagrams/rag-graph.excalidraw)
 
 ## Nodes and Edges
 
@@ -96,17 +82,9 @@ PML uses graph algorithms to extract intelligence. Voici la **matrice des algori
 
 **PageRank** identifies the most important tools based on how many other tools connect to them.
 
-```
-High PageRank = Many tools depend on this one
+**High PageRank** = Many tools depend on this one. Tools A and D below have high PageRank (many incoming edges).
 
-         ┌────▶ [Tool A] ◀────┐
-         │                    │
-    [Tool B]              [Tool C]
-         │                    │
-         └────▶ [Tool D] ◀────┘
-
-Tool A and D have high PageRank (many incoming edges)
-```
+![Graph Evolution](excalidraw:src/web/assets/diagrams/rag-graph-evolution.excalidraw)
 
 Use: Boost important tools in search results.
 
@@ -114,15 +92,7 @@ Use: Boost important tools in search results.
 
 **Louvain** groups tools that frequently work together into communities.
 
-```
-┌─────────────────────┐     ┌─────────────────────┐
-│  Community: Files   │     │  Community: GitHub  │
-│                     │     │                     │
-│  read    write      │     │  issue    pr        │
-│     └──┬──┘         │     │     └──┬──┘         │
-│      list           │     │      comment        │
-└─────────────────────┘     └─────────────────────┘
-```
+![Community Clustering](excalidraw:src/web/assets/diagrams/emerge-clustering.excalidraw)
 
 Use: Suggest related tools from the same community.
 

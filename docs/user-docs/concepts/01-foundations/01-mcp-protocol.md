@@ -25,12 +25,7 @@ Think of MCP as a universal language that lets an AI agent:
 - **Understand** how to use each tool (ingredients, parameters)
 - **Send requests** and receive responses (order and get results)
 
-```
-┌──────────────┐      MCP Protocol      ┌──────────────┐
-│   AI Agent   │ ◀────────────────────▶ │  MCP Server  │
-│  (Claude)    │    JSON-RPC 2.0        │  (Tools)     │
-└──────────────┘                        └──────────────┘
-```
+![MCP Architecture](excalidraw:src/web/assets/diagrams/mcp-architecture.excalidraw)
 
 ## Key Components
 
@@ -58,13 +53,12 @@ A **Tool** is a single operation that an MCP server provides. Each tool has:
 
 **Analogie :** Si le serveur MCP est une boite a outils, un "tool" est un outil specifique dans cette boite. Le serveur "filesystem" contient plusieurs outils : `read_file`, `write_file`, `list_directory`, etc.
 
-```
-Server: filesystem
-├── Tool: read_file       (lire un fichier)
-├── Tool: write_file      (ecrire dans un fichier)
-├── Tool: list_directory  (lister les fichiers)
-└── Tool: delete_file     (supprimer un fichier)
-```
+| Server | Tool | Description |
+|--------|------|-------------|
+| filesystem | `read_file` | Lire un fichier |
+| filesystem | `write_file` | Écrire dans un fichier |
+| filesystem | `list_directory` | Lister les fichiers |
+| filesystem | `delete_file` | Supprimer un fichier |
 
 ### Schemas
 
@@ -86,15 +80,7 @@ Parameters:
 
 PML acts as an intelligent **MCP Gateway** between agents and servers:
 
-```
-┌──────────┐     ┌─────────────────────────────────────┐     ┌──────────────┐
-│  Agent   │────▶│              PML                    │────▶│ filesystem   │
-│          │     │                                     │────▶│ github       │
-│          │◀────│  • Discovers tools automatically    │────▶│ postgres     │
-│          │     │  • Routes to the right server       │◀────│ ...          │
-└──────────┘     │  • Learns from usage patterns       │     └──────────────┘
-                 └─────────────────────────────────────┘
-```
+![MCP with PML](excalidraw:src/web/assets/diagrams/mcp-with.excalidraw)
 
 Instead of the agent connecting directly to each MCP server, PML:
 
@@ -115,17 +101,14 @@ When PML starts, it connects to all configured MCP servers and:
 This happens automatically - the agent sees one unified list of all available tools.
 
 **Exemple de decouverte :**
-```
-PML demarre
-  ├─ Se connecte au serveur "filesystem"
-  │   └─ Recupere: read_file, write_file, list_directory...
-  ├─ Se connecte au serveur "github"
-  │   └─ Recupere: create_issue, list_repos, create_pr...
-  └─ Se connecte au serveur "postgres"
-      └─ Recupere: query, list_tables, describe_table...
 
-Agent voit: tous les outils dans une seule liste!
-```
+| Étape | Serveur | Outils récupérés |
+|-------|---------|------------------|
+| 1 | filesystem | `read_file`, `write_file`, `list_directory`... |
+| 2 | github | `create_issue`, `list_repos`, `create_pr`... |
+| 3 | postgres | `query`, `list_tables`, `describe_table`... |
+
+→ L'agent voit tous les outils dans une seule liste unifiée !
 
 ## Questions Courantes
 

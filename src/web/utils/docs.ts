@@ -55,6 +55,12 @@ function getDocsDir(): string {
     : join(cwd, "docs/user-docs");
 }
 
+// Helper to get project root directory
+function getProjectRoot(): string {
+  const cwd = Deno.cwd();
+  return cwd.endsWith("src/web") ? join(cwd, "../..") : cwd;
+}
+
 // Helper to create Kroki URL for diagrams
 function createKrokiUrl(type: string, source: string): string {
   const data = new TextEncoder().encode(source);
@@ -65,15 +71,54 @@ function createKrokiUrl(type: string, source: string): string {
   return `https://kroki.io/${type}/svg/${result}`;
 }
 
-// Pre-process markdown for mermaid diagrams
-function preprocessMarkdown(markdown: string): string {
-  // Match mermaid code blocks: ```mermaid\n...\n```
-  const mermaidRegex = /```mermaid\s*\n([\s\S]*?)```/g;
+// Cache for external excalidraw files
+const excalidrawCache = new Map<string, string>();
 
-  return markdown.replace(mermaidRegex, (_match, code) => {
+// Load external excalidraw file and create Kroki URL
+async function loadExcalidrawFile(filePath: string): Promise<string | null> {
+  try {
+    // Check cache first
+    if (excalidrawCache.has(filePath)) {
+      return excalidrawCache.get(filePath)!;
+    }
+
+    const root = getProjectRoot();
+    const fullPath = join(root, filePath);
+    const content = await Deno.readTextFile(fullPath);
+    const url = createKrokiUrl("excalidraw", content);
+
+    // Cache the result
+    excalidrawCache.set(filePath, url);
+    return url;
+  } catch (error) {
+    console.error(`[docs] Error loading excalidraw ${filePath}:`, error);
+    return null;
+  }
+}
+
+// Pre-process markdown for diagrams (mermaid and excalidraw)
+async function preprocessMarkdown(markdown: string): Promise<string> {
+  // Handle excalidraw references: ![alt](excalidraw:path/to/file.excalidraw)
+  const excalidrawRefRegex = /!\[([^\]]*)\]\(excalidraw:([^)]+)\)/g;
+  const matches = [...markdown.matchAll(excalidrawRefRegex)];
+
+  for (const match of matches) {
+    const [fullMatch, alt, filePath] = match;
+    const url = await loadExcalidrawFile(filePath);
+    if (url) {
+      const replacement = `![${alt || "Excalidraw Diagram"}](${url})`;
+      markdown = markdown.replace(fullMatch, replacement);
+    }
+  }
+
+  // Handle mermaid code blocks: ```mermaid\n...\n```
+  const mermaidRegex = /```mermaid\s*\n([\s\S]*?)```/g;
+  markdown = markdown.replace(mermaidRegex, (_match, code) => {
     const url = createKrokiUrl("mermaid", code.trim());
     return `![Mermaid Diagram](${url})`;
   });
+
+  return markdown;
 }
 
 // Extract title from markdown content (first # heading)
@@ -234,7 +279,7 @@ export async function getDocPage(slugParts: string[]): Promise<DocPage | null> {
   for (const filePath of possiblePaths) {
     try {
       const content = await Deno.readTextFile(filePath);
-      return parseDocContent(content, slugParts);
+      return await parseDocContent(content, slugParts);
     } catch {
       continue;
     }
@@ -299,7 +344,7 @@ async function resolveDocPath(baseDir: string, slugParts: string[]): Promise<str
 /**
  * Parse markdown content into a DocPage
  */
-function parseDocContent(content: string, slugParts: string[]): DocPage {
+async function parseDocContent(content: string, slugParts: string[]): Promise<DocPage> {
   let title: string;
   let description: string;
   let body: string;
@@ -320,8 +365,8 @@ function parseDocContent(content: string, slugParts: string[]): DocPage {
   // Extract table of contents before processing
   const toc = extractToc(body);
 
-  // Pre-process markdown (mermaid diagrams, etc.)
-  const processedBody = preprocessMarkdown(body);
+  // Pre-process markdown (mermaid and excalidraw diagrams)
+  const processedBody = await preprocessMarkdown(body);
 
   // Render markdown to HTML
   let html = render(processedBody);
