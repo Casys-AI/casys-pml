@@ -20,7 +20,7 @@
  */
 
 import type { MCPClientBase } from "../mcp/types.ts";
-import type { JsonValue } from "../capabilities/types.ts";
+import type { JsonValue, PermissionSet } from "../capabilities/types.ts";
 import type {
   CapabilityTraceEvent,
   ExecutionCompleteMessage,
@@ -54,6 +54,87 @@ export interface WorkerBridgeConfig {
   capabilityStore?: CapabilityStore;
   /** Optional GraphRAGEngine for trace learning (Story 7.3b - AC#5) */
   graphRAG?: GraphRAGEngine;
+  /** Permission set for Worker sandbox (Story 10.5 fix) - default: "minimal" (none) */
+  permissionSet?: PermissionSet;
+}
+
+/**
+ * Deno Worker permission options type
+ * @see https://deno.land/manual/runtime/workers
+ */
+type DenoPermissionOptions =
+  | "inherit"
+  | "none"
+  | {
+      env?: boolean | string[];
+      hrtime?: boolean;
+      net?: boolean | string[];
+      ffi?: boolean | string[];
+      read?: boolean | string[];
+      run?: boolean | string[];
+      write?: boolean | string[];
+    };
+
+/**
+ * Convert PermissionSet to Deno Worker permission options
+ *
+ * Maps our PermissionSet profiles to granular Deno Worker permissions.
+ * This enables the Worker to have appropriate permissions while maintaining security.
+ *
+ * @param set - Permission set profile
+ * @returns Deno permission options for Worker
+ */
+function permissionSetToDenoPermissions(set?: PermissionSet): DenoPermissionOptions {
+  if (!set || set === "minimal") {
+    return "none"; // Most restrictive - no permissions
+  }
+
+  switch (set) {
+    case "readonly":
+      return {
+        read: true, // Allow all reads
+        write: false,
+        net: false,
+        env: false,
+        run: false,
+        ffi: false,
+      };
+
+    case "filesystem":
+      return {
+        read: true,
+        write: true, // Allow writes
+        net: false,
+        env: false,
+        run: false,
+        ffi: false,
+      };
+
+    case "network-api":
+      return {
+        read: false,
+        write: false,
+        net: true, // Allow network
+        env: false,
+        run: false,
+        ffi: false,
+      };
+
+    case "mcp-standard":
+    case "trusted":
+      return {
+        read: true,
+        write: true,
+        net: true,
+        env: true, // Allow env for API keys etc.
+        run: false, // Never allow subprocess spawning
+        ffi: false, // Never allow FFI
+      };
+
+    default:
+      logger.warn("Unknown permission set, falling back to none", { set });
+      return "none";
+  }
 }
 
 /**
@@ -81,7 +162,9 @@ const DEFAULTS = {
  * ```
  */
 export class WorkerBridge {
-  private config: Omit<Required<WorkerBridgeConfig>, "capabilityStore" | "graphRAG">;
+  private config: Omit<Required<WorkerBridgeConfig>, "capabilityStore" | "graphRAG" | "permissionSet"> & {
+    permissionSet?: PermissionSet;
+  };
   private capabilityStore?: CapabilityStore;
   private graphRAG?: GraphRAGEngine;
   private worker: Worker | null = null;
@@ -110,6 +193,7 @@ export class WorkerBridge {
     this.config = {
       timeout: config?.timeout ?? DEFAULTS.TIMEOUT_MS,
       rpcTimeout: config?.rpcTimeout ?? DEFAULTS.RPC_TIMEOUT_MS,
+      permissionSet: config?.permissionSet, // Story 10.5: Pass permissions to Worker
     };
     this.capabilityStore = config?.capabilityStore;
     this.graphRAG = config?.graphRAG;
@@ -199,18 +283,23 @@ export class WorkerBridge {
     this.lastIntent = context?.intent as string | undefined;
 
     try {
+      // Story 10.5: Convert permission set to Deno Worker permissions
+      const denoPermissions = permissionSetToDenoPermissions(this.config.permissionSet);
+
       logger.debug("Starting Worker execution", {
         codeLength: code.length,
         toolCount: toolDefinitions.length,
         contextKeys: context ? Object.keys(context) : [],
+        permissionSet: this.config.permissionSet ?? "minimal",
+        denoPermissions: typeof denoPermissions === "string" ? denoPermissions : "granular",
       });
 
-      // 1. Spawn Worker with no permissions (sandboxed)
+      // 1. Spawn Worker with configured permissions (Story 10.5: granular permissions support)
       const workerUrl = new URL("./sandbox-worker.ts", import.meta.url).href;
       this.worker = new Worker(workerUrl, {
         type: "module",
         // @ts-ignore: Deno-specific Worker option for permissions
-        deno: { permissions: "none" },
+        deno: { permissions: denoPermissions },
       });
 
       // 2. Setup message handler
