@@ -1,4 +1,17 @@
-# MCP Tool Permission Mappings
+# MCP Tool Permission Metadata
+#
+# IMPORTANT: These are NOT sandbox permissions!
+# The Deno Worker sandbox ALWAYS runs with permissions: "none" (most restrictive).
+# All I/O goes through MCP RPC proxy for 100% traceability.
+#
+# This file defines METADATA used for:
+#   1. Validation detection - Does this DAG need per-layer human approval?
+#   2. Audit logging - What scope does this tool claim to use?
+#   3. Permission inference - What permissions would this tool need?
+#
+# =============================================================================
+# Configuration Format
+# =============================================================================
 #
 # Two formats supported:
 #
@@ -10,21 +23,32 @@
 # 2. Explicit (recommended for new entries):
 #    numpy:
 #      scope: minimal        # minimal|readonly|filesystem|network-api|mcp-standard
-#      ffi: true             # Allow FFI (native calls via Deno.dlopen)
-#      run: false            # Allow subprocess (Deno.Command)
-#      approvalMode: auto    # hil = ask human, auto = trust & auto-approve
+#      ffi: true             # FFI required (triggers validation)
+#      run: false            # Subprocess required (triggers validation)
+#      approvalMode: auto    # auto = works freely, hil = requires approval
 #
 # Shorthand defaults: scope=permissionSet, ffi=false, run=false, approvalMode=auto
 #
-# Permission Scopes (from ADR-035):
-#   - minimal: No permissions (pure computation)
-#   - readonly: Read files only (./data)
-#   - filesystem: Read + write to /tmp
-#   - network-api: Network access only
-#   - mcp-standard: Standard MCP permissions (read, /tmp write, network)
+# =============================================================================
+# Scope Levels (metadata only - not enforced in sandbox)
+# =============================================================================
+#   - minimal: Pure computation, no I/O
+#   - readonly: Read files only
+#   - filesystem: Read + write files
+#   - network-api: Network access
+#   - mcp-standard: Full MCP capabilities
+#
+# =============================================================================
+# Validation Rules (requiresValidation in workflow-execution-handler.ts)
+# =============================================================================
+# Per-layer validation is triggered when:
+#   - approvalMode: hil (explicit human approval)
+#   - ffi: true (FFI sandbox escape)
+#   - run: true (subprocess sandbox escape)
+#   - code_execution with non-minimal permissions
 #
 # Note: 'trusted' is deprecated - use explicit format with approvalMode: auto
-# Unknown tools default to: mcp-standard (secure fallback)
+# Unknown tools default to: mcp-standard scope, approvalMode: auto
 
 # Filesystem tools - local file operations
 filesystem:
