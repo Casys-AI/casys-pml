@@ -1,0 +1,76 @@
+{
+  "name": "PML Dark Theme",
+  "version": "1.0",
+  "description": "Dark theme for PML documentation diagrams",
+
+  "appState": {
+    "viewBackgroundColor": "#08080a",
+    "gridSize": 20
+  },
+
+  "colors": {
+    "primary": {
+      "blue": "#60a5fa",
+      "green": "#4ade80",
+      "orange": "#fbbf24",
+      "purple": "#a78bfa",
+      "red": "#f87171",
+      "cyan": "#22d3ee"
+    },
+    "secondary": {
+      "blue": "#3b82f6",
+      "green": "#22c55e",
+      "orange": "#f59e0b",
+      "purple": "#8b5cf6",
+      "red": "#ef4444",
+      "cyan": "#06b6d4"
+    },
+    "background": {
+      "container": "#1f1f23",
+      "inner": "#2d2d35",
+      "highlight": "#1e293b"
+    },
+    "text": {
+      "primary": "#f0ede8",
+      "secondary": "#888888",
+      "muted": "#666666"
+    },
+    "arrows": "#666666"
+  },
+
+  "elements": {
+    "container": {
+      "strokeWidth": 2,
+      "roughness": 0,
+      "roundness": { "type": 3, "value": 8 },
+      "fillStyle": "solid"
+    },
+    "inner": {
+      "strokeWidth": 1,
+      "roughness": 0,
+      "roundness": { "type": 3, "value": 4 },
+      "fillStyle": "solid"
+    },
+    "arrow": {
+      "strokeWidth": 2,
+      "roughness": 0
+    },
+    "text": {
+      "title": { "fontSize": 12, "fontFamily": 1 },
+      "label": { "fontSize": 10, "fontFamily": 1 },
+      "small": { "fontSize": 8, "fontFamily": 1 },
+      "code": { "fontSize": 8, "fontFamily": 3 }
+    }
+  },
+
+  "semantics": {
+    "agent": { "stroke": "#a78bfa", "bg": "#1f1f23" },
+    "gateway": { "stroke": "#60a5fa", "bg": "#1f1f23" },
+    "server": { "stroke": "#4ade80", "bg": "#1f1f23" },
+    "database": { "stroke": "#4ade80", "bg": "#2d2d35" },
+    "cache": { "stroke": "#fbbf24", "bg": "#2d2d35" },
+    "process": { "stroke": "#60a5fa", "bg": "#2d2d35" },
+    "external": { "stroke": "#a78bfa", "bg": "#1f1f23" },
+    "warning": { "stroke": "#f87171", "bg": "#2d2d35" }
+  }
+}

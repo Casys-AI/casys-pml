@@ -1,0 +1,746 @@
+{
+  "type": "excalidrawlib",
+  "version": 2,
+  "source": "https://github.com/Casys-AI/AgentCards",
+  "libraryItems": [
+    {
+      "id": "pml-agent",
+      "name": "Agent",
+      "status": "published",
+      "elements": [
+        {
+          "id": "agent-box",
+          "type": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 100,
+          "height": 80,
+          "strokeColor": "#a78bfa",
+          "backgroundColor": "#1f1f23",
+          "fillStyle": "solid",
+          "strokeWidth": 2,
+          "roughness": 0,
+          "roundness": { "type": 3, "value": 8 }
+        },
+        {
+          "id": "agent-text",
+          "type": "text",
+          "x": 30,
+          "y": 30,
+          "width": 40,
+          "height": 20,
+          "text": "Agent",
+          "fontSize": 14,
+          "fontFamily": 1,
+          "textAlign": "center",
+          "strokeColor": "#a78bfa"
+        }
+      ]
+    },
+    {
+      "id": "pml-gateway",
+      "name": "PML Gateway",
+      "status": "published",
+      "elements": [
+        {
+          "id": "gateway-box",
+          "type": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 200,
+          "height": 160,
+          "strokeColor": "#60a5fa",
+          "backgroundColor": "#1f1f23",
+          "fillStyle": "solid",
+          "strokeWidth": 2,
+          "roughness": 0,
+          "roundness": { "type": 3, "value": 8 }
+        },
+        {
+          "id": "gateway-title",
+          "type": "text",
+          "x": 50,
+          "y": 10,
+          "width": 100,
+          "height": 16,
+          "text": "PML Gateway",
+          "fontSize": 12,
+          "fontFamily": 1,
+          "textAlign": "center",
+          "strokeColor": "#60a5fa"
+        }
+      ]
+    },
+    {
+      "id": "pml-gateway-inner",
+      "name": "Gateway Inner Box",
+      "status": "published",
+      "elements": [
+        {
+          "id": "inner-box",
+          "type": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 100,
+          "height": 35,
+          "strokeColor": "#60a5fa",
+          "backgroundColor": "#2d2d35",
+          "fillStyle": "solid",
+          "strokeWidth": 1,
+          "roughness": 0,
+          "roundness": { "type": 3, "value": 4 }
+        },
+        {
+          "id": "inner-text",
+          "type": "text",
+          "x": 30,
+          "y": 10,
+          "width": 40,
+          "height": 14,
+          "text": "Label",
+          "fontSize": 10,
+          "fontFamily": 1,
+          "textAlign": "center",
+          "strokeColor": "#60a5fa"
+        }
+      ]
+    },
+    {
+      "id": "pml-mcp-server",
+      "name": "MCP Server",
+      "status": "published",
+      "elements": [
+        {
+          "id": "server-box",
+          "type": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 120,
+          "height": 160,
+          "strokeColor": "#4ade80",
+          "backgroundColor": "#1f1f23",
+          "fillStyle": "solid",
+          "strokeWidth": 2,
+          "roughness": 0,
+          "roundness": { "type": 3, "value": 8 }
+        },
+        {
+          "id": "server-title",
+          "type": "text",
+          "x": 20,
+          "y": 10,
+          "width": 80,
+          "height": 14,
+          "text": "MCP Servers",
+          "fontSize": 11,
+          "fontFamily": 1,
+          "textAlign": "center",
+          "strokeColor": "#4ade80"
+        }
+      ]
+    },
+    {
+      "id": "pml-server-item",
+      "name": "Server Item",
+      "status": "published",
+      "elements": [
+        {
+          "id": "item-box",
+          "type": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 100,
+          "height": 30,
+          "strokeColor": "#4ade80",
+          "backgroundColor": "#2d2d35",
+          "fillStyle": "solid",
+          "strokeWidth": 1,
+          "roughness": 0,
+          "roundness": { "type": 3, "value": 4 }
+        },
+        {
+          "id": "item-text",
+          "type": "text",
+          "x": 25,
+          "y": 8,
+          "width": 50,
+          "height": 12,
+          "text": "server",
+          "fontSize": 9,
+          "fontFamily": 1,
+          "textAlign": "center",
+          "strokeColor": "#4ade80"
+        }
+      ]
+    },
+    {
+      "id": "pml-database",
+      "name": "Database",
+      "status": "published",
+      "elements": [
+        {
+          "id": "db-box",
+          "type": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 140,
+          "height": 120,
+          "strokeColor": "#4ade80",
+          "backgroundColor": "#2d2d35",
+          "fillStyle": "solid",
+          "strokeWidth": 1,
+          "roughness": 0,
+          "roundness": { "type": 3, "value": 6 }
+        },
+        {
+          "id": "db-title",
+          "type": "text",
+          "x": 40,
+          "y": 10,
+          "width": 60,
+          "height": 12,
+          "text": "Database",
+          "fontSize": 10,
+          "fontFamily": 1,
+          "textAlign": "center",
+          "strokeColor": "#4ade80"
+        }
+      ]
+    },
+    {
+      "id": "pml-table",
+      "name": "Database Table",
+      "status": "published",
+      "elements": [
+        {
+          "id": "table-box",
+          "type": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 120,
+          "height": 24,
+          "strokeColor": "#3b82f6",
+          "backgroundColor": "#1e293b",
+          "fillStyle": "solid",
+          "strokeWidth": 1,
+          "roughness": 0,
+          "roundness": { "type": 3, "value": 3 }
+        },
+        {
+          "id": "table-text",
+          "type": "text",
+          "x": 25,
+          "y": 6,
+          "width": 70,
+          "height": 10,
+          "text": "table_name",
+          "fontSize": 8,
+          "fontFamily": 3,
+          "textAlign": "center",
+          "strokeColor": "#60a5fa"
+        }
+      ]
+    },
+    {
+      "id": "pml-cache",
+      "name": "Cache/KV Store",
+      "status": "published",
+      "elements": [
+        {
+          "id": "cache-box",
+          "type": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 140,
+          "height": 120,
+          "strokeColor": "#fbbf24",
+          "backgroundColor": "#2d2d35",
+          "fillStyle": "solid",
+          "strokeWidth": 1,
+          "roughness": 0,
+          "roundness": { "type": 3, "value": 6 }
+        },
+        {
+          "id": "cache-title",
+          "type": "text",
+          "x": 45,
+          "y": 10,
+          "width": 50,
+          "height": 12,
+          "text": "Deno KV",
+          "fontSize": 10,
+          "fontFamily": 1,
+          "textAlign": "center",
+          "strokeColor": "#fbbf24"
+        }
+      ]
+    },
+    {
+      "id": "pml-cache-item",
+      "name": "Cache Item",
+      "status": "published",
+      "elements": [
+        {
+          "id": "cache-item-box",
+          "type": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 120,
+          "height": 28,
+          "strokeColor": "#f59e0b",
+          "backgroundColor": "#1e293b",
+          "fillStyle": "solid",
+          "strokeWidth": 1,
+          "roughness": 0,
+          "roundness": { "type": 3, "value": 3 }
+        },
+        {
+          "id": "cache-item-text",
+          "type": "text",
+          "x": 40,
+          "y": 8,
+          "width": 40,
+          "height": 10,
+          "text": "Cache",
+          "fontSize": 9,
+          "fontFamily": 1,
+          "textAlign": "center",
+          "strokeColor": "#fbbf24"
+        }
+      ]
+    },
+    {
+      "id": "pml-vector-store",
+      "name": "Vector Store",
+      "status": "published",
+      "elements": [
+        {
+          "id": "vector-box",
+          "type": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 140,
+          "height": 120,
+          "strokeColor": "#4ade80",
+          "backgroundColor": "#2d2d35",
+          "fillStyle": "solid",
+          "strokeWidth": 1,
+          "roughness": 0,
+          "roundness": { "type": 3, "value": 6 }
+        },
+        {
+          "id": "vector-title",
+          "type": "text",
+          "x": 30,
+          "y": 10,
+          "width": 80,
+          "height": 12,
+          "text": "Vector Store",
+          "fontSize": 10,
+          "fontFamily": 1,
+          "textAlign": "center",
+          "strokeColor": "#4ade80"
+        },
+        {
+          "id": "vector-sub",
+          "type": "text",
+          "x": 40,
+          "y": 24,
+          "width": 60,
+          "height": 10,
+          "text": "(pgvector)",
+          "fontSize": 7,
+          "fontFamily": 1,
+          "textAlign": "center",
+          "strokeColor": "#666666"
+        }
+      ]
+    },
+    {
+      "id": "pml-embedding",
+      "name": "Embedding Box",
+      "status": "published",
+      "elements": [
+        {
+          "id": "embed-box",
+          "type": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 120,
+          "height": 40,
+          "strokeColor": "#22c55e",
+          "backgroundColor": "#1e293b",
+          "fillStyle": "solid",
+          "strokeWidth": 1,
+          "roughness": 0,
+          "roundness": { "type": 3, "value": 3 }
+        },
+        {
+          "id": "embed-text",
+          "type": "text",
+          "x": 15,
+          "y": 6,
+          "width": 90,
+          "height": 24,
+          "text": "Tool embeddings\n(1024 dims)",
+          "fontSize": 8,
+          "fontFamily": 1,
+          "textAlign": "center",
+          "strokeColor": "#4ade80"
+        }
+      ]
+    },
+    {
+      "id": "pml-process",
+      "name": "Process Box",
+      "status": "published",
+      "elements": [
+        {
+          "id": "process-box",
+          "type": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 80,
+          "height": 35,
+          "strokeColor": "#60a5fa",
+          "backgroundColor": "#2d2d35",
+          "fillStyle": "solid",
+          "strokeWidth": 1,
+          "roughness": 0,
+          "roundness": { "type": 3, "value": 4 }
+        },
+        {
+          "id": "process-text",
+          "type": "text",
+          "x": 15,
+          "y": 10,
+          "width": 50,
+          "height": 14,
+          "text": "Process",
+          "fontSize": 10,
+          "fontFamily": 1,
+          "textAlign": "center",
+          "strokeColor": "#60a5fa"
+        }
+      ]
+    },
+    {
+      "id": "pml-external",
+      "name": "External Entity",
+      "status": "published",
+      "elements": [
+        {
+          "id": "external-box",
+          "type": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 100,
+          "height": 60,
+          "strokeColor": "#a78bfa",
+          "backgroundColor": "#1f1f23",
+          "fillStyle": "solid",
+          "strokeWidth": 2,
+          "roughness": 0,
+          "roundness": { "type": 3, "value": 8 }
+        },
+        {
+          "id": "external-text",
+          "type": "text",
+          "x": 25,
+          "y": 22,
+          "width": 50,
+          "height": 14,
+          "text": "External",
+          "fontSize": 10,
+          "fontFamily": 1,
+          "textAlign": "center",
+          "strokeColor": "#a78bfa"
+        }
+      ]
+    },
+    {
+      "id": "pml-sandbox",
+      "name": "Sandbox Container",
+      "status": "published",
+      "elements": [
+        {
+          "id": "sandbox-outer",
+          "type": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 200,
+          "height": 120,
+          "strokeColor": "#f87171",
+          "backgroundColor": "#1f1f23",
+          "fillStyle": "solid",
+          "strokeWidth": 2,
+          "strokeStyle": "dashed",
+          "roughness": 0,
+          "roundness": { "type": 3, "value": 8 }
+        },
+        {
+          "id": "sandbox-title",
+          "type": "text",
+          "x": 70,
+          "y": 8,
+          "width": 60,
+          "height": 12,
+          "text": "SANDBOX",
+          "fontSize": 10,
+          "fontFamily": 1,
+          "textAlign": "center",
+          "strokeColor": "#f87171"
+        }
+      ]
+    },
+    {
+      "id": "pml-layer",
+      "name": "DAG Layer",
+      "status": "published",
+      "elements": [
+        {
+          "id": "layer-box",
+          "type": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 280,
+          "height": 60,
+          "strokeColor": "#60a5fa",
+          "backgroundColor": "#1f1f23",
+          "fillStyle": "solid",
+          "strokeWidth": 1,
+          "strokeStyle": "dashed",
+          "roughness": 0,
+          "roundness": { "type": 3, "value": 4 }
+        },
+        {
+          "id": "layer-text",
+          "type": "text",
+          "x": 10,
+          "y": 5,
+          "width": 50,
+          "height": 10,
+          "text": "Layer 0",
+          "fontSize": 8,
+          "fontFamily": 1,
+          "textAlign": "left",
+          "strokeColor": "#666666"
+        }
+      ]
+    },
+    {
+      "id": "pml-task",
+      "name": "DAG Task",
+      "status": "published",
+      "elements": [
+        {
+          "id": "task-box",
+          "type": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 80,
+          "height": 40,
+          "strokeColor": "#4ade80",
+          "backgroundColor": "#2d2d35",
+          "fillStyle": "solid",
+          "strokeWidth": 1,
+          "roughness": 0,
+          "roundness": { "type": 3, "value": 4 }
+        },
+        {
+          "id": "task-text",
+          "type": "text",
+          "x": 20,
+          "y": 12,
+          "width": 40,
+          "height": 14,
+          "text": "Task A",
+          "fontSize": 10,
+          "fontFamily": 1,
+          "textAlign": "center",
+          "strokeColor": "#4ade80"
+        }
+      ]
+    },
+    {
+      "id": "pml-arrow-flow",
+      "name": "Flow Arrow",
+      "status": "published",
+      "elements": [
+        {
+          "id": "arrow-flow",
+          "type": "arrow",
+          "x": 0,
+          "y": 0,
+          "width": 60,
+          "height": 0,
+          "strokeColor": "#666666",
+          "strokeWidth": 2,
+          "roughness": 0,
+          "points": [[0, 0], [60, 0]],
+          "startArrowhead": null,
+          "endArrowhead": "arrow"
+        }
+      ]
+    },
+    {
+      "id": "pml-arrow-return",
+      "name": "Return Arrow (dashed)",
+      "status": "published",
+      "elements": [
+        {
+          "id": "arrow-return",
+          "type": "arrow",
+          "x": 0,
+          "y": 0,
+          "width": 60,
+          "height": 0,
+          "strokeColor": "#666666",
+          "strokeWidth": 2,
+          "strokeStyle": "dashed",
+          "roughness": 0,
+          "points": [[0, 0], [60, 0]],
+          "startArrowhead": null,
+          "endArrowhead": "arrow"
+        }
+      ]
+    },
+    {
+      "id": "pml-arrow-dependency",
+      "name": "Dependency Arrow (thick)",
+      "status": "published",
+      "elements": [
+        {
+          "id": "arrow-dep",
+          "type": "arrow",
+          "x": 0,
+          "y": 0,
+          "width": 60,
+          "height": 0,
+          "strokeColor": "#fbbf24",
+          "strokeWidth": 3,
+          "roughness": 0,
+          "points": [[0, 0], [60, 0]],
+          "startArrowhead": null,
+          "endArrowhead": "arrow"
+        }
+      ]
+    },
+    {
+      "id": "pml-arrow-bidirectional",
+      "name": "Bidirectional Arrow",
+      "status": "published",
+      "elements": [
+        {
+          "id": "arrow-bi",
+          "type": "arrow",
+          "x": 0,
+          "y": 0,
+          "width": 60,
+          "height": 0,
+          "strokeColor": "#a78bfa",
+          "strokeWidth": 2,
+          "roughness": 0,
+          "points": [[0, 0], [60, 0]],
+          "startArrowhead": "arrow",
+          "endArrowhead": "arrow"
+        }
+      ]
+    },
+    {
+      "id": "pml-label",
+      "name": "Small Label",
+      "status": "published",
+      "elements": [
+        {
+          "id": "label-text",
+          "type": "text",
+          "x": 0,
+          "y": 0,
+          "width": 50,
+          "height": 10,
+          "text": "label",
+          "fontSize": 8,
+          "fontFamily": 1,
+          "textAlign": "center",
+          "strokeColor": "#666666"
+        }
+      ]
+    },
+    {
+      "id": "pml-title",
+      "name": "Section Title",
+      "status": "published",
+      "elements": [
+        {
+          "id": "title-text",
+          "type": "text",
+          "x": 0,
+          "y": 0,
+          "width": 120,
+          "height": 16,
+          "text": "Section Title",
+          "fontSize": 14,
+          "fontFamily": 1,
+          "textAlign": "center",
+          "strokeColor": "#60a5fa"
+        }
+      ]
+    },
+    {
+      "id": "pml-container-main",
+      "name": "Main Container",
+      "status": "published",
+      "elements": [
+        {
+          "id": "main-box",
+          "type": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 400,
+          "height": 200,
+          "strokeColor": "#60a5fa",
+          "backgroundColor": "#1f1f23",
+          "fillStyle": "solid",
+          "strokeWidth": 2,
+          "roughness": 0,
+          "roundness": { "type": 3, "value": 8 }
+        }
+      ]
+    },
+    {
+      "id": "pml-warning",
+      "name": "Warning Box",
+      "status": "published",
+      "elements": [
+        {
+          "id": "warning-box",
+          "type": "rectangle",
+          "x": 0,
+          "y": 0,
+          "width": 100,
+          "height": 40,
+          "strokeColor": "#f87171",
+          "backgroundColor": "#2d2d35",
+          "fillStyle": "solid",
+          "strokeWidth": 2,
+          "roughness": 0,
+          "roundness": { "type": 3, "value": 4 }
+        },
+        {
+          "id": "warning-text",
+          "type": "text",
+          "x": 25,
+          "y": 12,
+          "width": 50,
+          "height": 14,
+          "text": "Warning",
+          "fontSize": 10,
+          "fontFamily": 1,
+          "textAlign": "center",
+          "strokeColor": "#f87171"
+        }
+      ]
+    }
+  ]
+}
