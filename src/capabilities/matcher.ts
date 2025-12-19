@@ -164,13 +164,22 @@ export class CapabilityMatcher {
 
     let bestMatch: CapabilityMatch | null = null;
 
+    // Get reliability thresholds from config (ADR-038 §3.1)
+    const reliability = this.scoringConfig?.reliability ?? {
+      penaltyThreshold: 0.50,
+      penaltyFactor: 0.10,
+      boostThreshold: 0.90,
+      boostFactor: 1.20,
+      filterThreshold: 0.20,
+    };
+
     for (const candidate of candidates) {
       // 3. Calculate Reliability Factor (ADR-038)
       let baseReliabilityFactor = 1.0;
-      if (candidate.capability.successRate < 0.5) {
-        baseReliabilityFactor = 0.1; // Penalize unreliable
-      } else if (candidate.capability.successRate > 0.9) {
-        baseReliabilityFactor = 1.2; // Boost highly reliable
+      if (candidate.capability.successRate < reliability.penaltyThreshold) {
+        baseReliabilityFactor = reliability.penaltyFactor; // Penalize unreliable
+      } else if (candidate.capability.successRate > reliability.boostThreshold) {
+        baseReliabilityFactor = reliability.boostFactor; // Boost highly reliable
       }
 
       // ADR-042 §3: Apply transitive reliability
@@ -186,7 +195,7 @@ export class CapabilityMatcher {
 
       // 5. Determine decision for tracing
       let decision: DecisionType;
-      if (reliabilityFactor < 0.2 && score < threshold) {
+      if (reliabilityFactor < reliability.filterThreshold && score < threshold) {
         decision = "filtered_by_reliability";
       } else if (score >= threshold) {
         decision = "accepted";

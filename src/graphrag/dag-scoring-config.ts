@@ -77,8 +77,26 @@ export interface DagScoringCommunity {
   baseConfidence: number;
   pagerankMultiplier: number;
   pagerankBoostCap: number;
+  edgeWeightMultiplier: number;
   edgeWeightBoostCap: number;
+  adamicAdarMultiplier: number;
   adamicAdarBoostCap: number;
+}
+
+/**
+ * Reliability factor configuration for capability matching (ADR-038 §3.1)
+ */
+export interface DagScoringReliability {
+  /** Success rate below this triggers penalty (default: 0.5) */
+  penaltyThreshold: number;
+  /** Penalty factor applied when below threshold (default: 0.1) */
+  penaltyFactor: number;
+  /** Success rate above this triggers boost (default: 0.9) */
+  boostThreshold: number;
+  /** Boost factor applied when above threshold (default: 1.2) */
+  boostFactor: number;
+  /** Reliability below this marks as filtered_by_reliability (default: 0.2) */
+  filterThreshold: number;
 }
 
 export interface DagScoringCooccurrence {
@@ -125,6 +143,7 @@ export interface DagScoringConfig {
   episodic: DagScoringEpisodic;
   alternatives: DagScoringAlternatives;
   capability: DagScoringCapability;
+  reliability: DagScoringReliability;
   defaults: DagScoringDefaults;
 }
 
@@ -189,8 +208,17 @@ interface DagScoringFileConfig {
     base_confidence?: number;
     pagerank_multiplier?: number;
     pagerank_boost_cap?: number;
+    edge_weight_multiplier?: number;
     edge_weight_boost_cap?: number;
+    adamic_adar_multiplier?: number;
     adamic_adar_boost_cap?: number;
+  };
+  reliability?: {
+    penalty_threshold?: number;
+    penalty_factor?: number;
+    boost_threshold?: number;
+    boost_factor?: number;
+    filter_threshold?: number;
   };
   cooccurrence?: {
     count_boost_factor?: number;
@@ -283,8 +311,17 @@ export const DEFAULT_DAG_SCORING_CONFIG: DagScoringConfig = {
     baseConfidence: 0.40,
     pagerankMultiplier: 2.0,
     pagerankBoostCap: 0.20,
+    edgeWeightMultiplier: 0.25,
     edgeWeightBoostCap: 0.25,
+    adamicAdarMultiplier: 0.10,
     adamicAdarBoostCap: 0.10,
+  },
+  reliability: {
+    penaltyThreshold: 0.50,
+    penaltyFactor: 0.10,
+    boostThreshold: 0.90,
+    boostFactor: 1.20,
+    filterThreshold: 0.20,
   },
   cooccurrence: {
     countBoostFactor: 0.05,
@@ -398,6 +435,20 @@ function validateDagScoringConfig(config: DagScoringConfig): void {
     errors.push(`capability.confidenceFloor (${config.capability.confidenceFloor}) must be < confidenceCeiling (${config.capability.confidenceCeiling})`);
   }
 
+  // Reliability (ADR-038 §3.1)
+  checkRange01("reliability.penaltyThreshold", config.reliability.penaltyThreshold);
+  checkRange01("reliability.boostThreshold", config.reliability.boostThreshold);
+  checkRange01("reliability.filterThreshold", config.reliability.filterThreshold);
+  if (config.reliability.penaltyFactor < 0 || config.reliability.penaltyFactor > 1) {
+    errors.push(`reliability.penaltyFactor=${config.reliability.penaltyFactor} must be in [0, 1]`);
+  }
+  if (config.reliability.boostFactor < 1 || config.reliability.boostFactor > 2) {
+    errors.push(`reliability.boostFactor=${config.reliability.boostFactor} must be in [1, 2]`);
+  }
+  if (config.reliability.penaltyThreshold >= config.reliability.boostThreshold) {
+    errors.push(`reliability.penaltyThreshold (${config.reliability.penaltyThreshold}) must be < boostThreshold (${config.reliability.boostThreshold})`);
+  }
+
   // Defaults
   checkRange01("defaults.alpha", config.defaults.alpha);
   checkRange01("defaults.pathConfidence", config.defaults.pathConfidence);
@@ -471,8 +522,17 @@ function toDagScoringConfig(file: DagScoringFileConfig): DagScoringConfig {
       baseConfidence: file.community?.base_confidence ?? d.community.baseConfidence,
       pagerankMultiplier: file.community?.pagerank_multiplier ?? d.community.pagerankMultiplier,
       pagerankBoostCap: file.community?.pagerank_boost_cap ?? d.community.pagerankBoostCap,
+      edgeWeightMultiplier: file.community?.edge_weight_multiplier ?? d.community.edgeWeightMultiplier,
       edgeWeightBoostCap: file.community?.edge_weight_boost_cap ?? d.community.edgeWeightBoostCap,
+      adamicAdarMultiplier: file.community?.adamic_adar_multiplier ?? d.community.adamicAdarMultiplier,
       adamicAdarBoostCap: file.community?.adamic_adar_boost_cap ?? d.community.adamicAdarBoostCap,
+    },
+    reliability: {
+      penaltyThreshold: file.reliability?.penalty_threshold ?? d.reliability.penaltyThreshold,
+      penaltyFactor: file.reliability?.penalty_factor ?? d.reliability.penaltyFactor,
+      boostThreshold: file.reliability?.boost_threshold ?? d.reliability.boostThreshold,
+      boostFactor: file.reliability?.boost_factor ?? d.reliability.boostFactor,
+      filterThreshold: file.reliability?.filter_threshold ?? d.reliability.filterThreshold,
     },
     cooccurrence: {
       countBoostFactor: file.cooccurrence?.count_boost_factor ?? d.cooccurrence.countBoostFactor,
