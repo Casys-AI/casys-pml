@@ -75,20 +75,26 @@ async function requiresValidation(
       }
     }
 
-    // MCP tool with explicit HIL → needs validation
-    // OAuth-like model: once configured in YAML, tool works without asking
+    // MCP tool validation check
     if (taskType === "mcp_tool" && task.tool) {
       const toolPrefix = task.tool.split(":")[0]; // "github:create_issue" → "github"
       const permConfig = getToolPermissionConfig(toolPrefix);
 
-      if (permConfig?.approvalMode === "hil") {
+      // Unknown tool → requires validation (security: don't auto-approve unknown tools)
+      if (!permConfig) {
+        log.info(`Validation required: MCP tool ${task.tool} is unknown (not in mcp-permissions.yaml)`);
+        return true;
+      }
+
+      // Explicit HIL → requires validation
+      if (permConfig.approvalMode === "hil") {
         log.info(`Validation required: MCP tool ${task.tool} explicitly requires human approval`);
         return true;
       }
     }
   }
 
-  // Minimal permissions or unknown tools → no validation needed
+  // Known tools with auto approval → no validation needed
   return false;
 }
 

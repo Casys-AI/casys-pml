@@ -40,11 +40,12 @@
 # Validation Rules (requiresValidation in workflow-execution-handler.ts)
 # =============================================================================
 # Per-layer validation is triggered when:
+#   - Unknown tool (not in this file) → requires validation
 #   - approvalMode: hil (explicit human approval required)
 #   - code_execution task with non-minimal permissions
 #
 # Note: 'trusted' is deprecated - use explicit format with approvalMode: auto
-# Unknown tools default to: mcp-standard scope, approvalMode: auto
+# Add tools to this file with approvalMode: auto to skip validation
 
 # Filesystem tools - local file operations
 filesystem:
