@@ -14,6 +14,8 @@
 import { parse } from "https://deno.land/x/swc@0.2.1/mod.ts";
 import type { PGliteClient } from "../db/client.ts";
 import type {
+  ArgumentsStructure,
+  ArgumentValue,
   ProvidesCoverage,
   StaticStructure,
   StaticStructureEdge,
@@ -62,7 +64,7 @@ type InternalNode = {
   /** Parent scope for conditional/parallel containment (e.g., "d1:true", "f1") */
   parentScope?: string;
 } & (
-  | { type: "task"; tool: string }
+  | { type: "task"; tool: string; arguments?: ArgumentsStructure }
   | { type: "decision"; condition: string }
   | { type: "capability"; capabilityId: string }
   | { type: "fork" }
@@ -317,12 +319,19 @@ export class StaticStructureBuilder {
       if (chain[0] === "mcp" && chain.length >= 3) {
         const toolId = `${chain[1]}:${chain[2]}`;
         const id = this.generateNodeId("task");
+
+        // Story 10.2: Extract arguments from CallExpression
+        const args = n.arguments as Array<Record<string, unknown>> | undefined;
+        const extractedArgs = this.extractArguments(args);
+
         nodes.push({
           id,
           type: "task",
           tool: toolId,
           position,
           parentScope,
+          // Only include arguments if we extracted some (backward compatibility)
+          ...(Object.keys(extractedArgs).length > 0 ? { arguments: extractedArgs } : {}),
         });
         return false; // Continue recursing for nested expressions
       }
@@ -577,6 +586,291 @@ export class StaticStructureBuilder {
     }
 
     return "...";
+  }
+
+  // ===========================================================================
+  // Argument Extraction (Story 10.2)
+  // ===========================================================================
+
+  /**
+   * Extract arguments from a CallExpression's arguments array
+   *
+   * Story 10.2: Parses ObjectExpression arguments to extract ArgumentsStructure
+   *
+   * @param callExprArgs Array of CallExpression arguments (SWC format)
+   * @returns ArgumentsStructure mapping argument names to their resolution strategies
+   */
+  private extractArguments(
+    callExprArgs: Array<Record<string, unknown>> | undefined,
+  ): ArgumentsStructure {
+    if (!callExprArgs || callExprArgs.length === 0) {
+      return {};
+    }
+
+    // SWC wraps arguments in { spread, expression } structure
+    const firstArg = callExprArgs[0];
+    const argExpr = (firstArg?.expression as Record<string, unknown>) ?? firstArg;
+
+    // We expect first argument to be an ObjectExpression for MCP tool calls
+    if (argExpr?.type !== "ObjectExpression") {
+      return {};
+    }
+
+    const properties = argExpr.properties as Array<Record<string, unknown>> | undefined;
+    if (!properties) {
+      return {};
+    }
+
+    const result: ArgumentsStructure = {};
+
+    for (const prop of properties) {
+      // Handle KeyValueProperty (standard object property)
+      if (prop.type === "KeyValueProperty") {
+        const keyNode = prop.key as Record<string, unknown>;
+        const valueNode = prop.value as Record<string, unknown>;
+
+        // Extract key name
+        let keyName: string | undefined;
+        if (keyNode?.type === "Identifier") {
+          keyName = keyNode.value as string;
+        } else if (keyNode?.type === "StringLiteral") {
+          keyName = keyNode.value as string;
+        }
+
+        if (keyName && valueNode) {
+          const argValue = this.extractArgumentValue(valueNode);
+          if (argValue) {
+            result[keyName] = argValue;
+          }
+        }
+      }
+      // Handle spread operator: { ...obj } - skip with warning
+      else if (prop.type === "SpreadElement") {
+        logger.debug("Spread operator in arguments - skipping", {
+          expression: this.extractConditionText(prop.arguments as Record<string, unknown>),
+        });
+        // Don't add to result - we can't statically resolve spreads
+      }
+      // Handle shorthand property: { key } (same as { key: key })
+      else if (prop.type === "Identifier") {
+        const keyName = prop.value as string;
+        result[keyName] = { type: "reference", expression: keyName };
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Extract a single argument value from an AST node
+   *
+   * Story 10.2: Determines if argument is literal, reference, or parameter
+   *
+   * @param node AST node representing the argument value
+   * @returns ArgumentValue with resolution strategy, or undefined if unhandled
+   */
+  private extractArgumentValue(node: Record<string, unknown>): ArgumentValue | undefined {
+    if (!node || !node.type) {
+      return undefined;
+    }
+
+    // === Literal values ===
+    if (node.type === "StringLiteral") {
+      return { type: "literal", value: node.value as string };
+    }
+
+    if (node.type === "NumericLiteral") {
+      return { type: "literal", value: node.value as number };
+    }
+
+    if (node.type === "BooleanLiteral") {
+      return { type: "literal", value: node.value as boolean };
+    }
+
+    if (node.type === "NullLiteral") {
+      return { type: "literal", value: null };
+    }
+
+    // === Nested object literal ===
+    if (node.type === "ObjectExpression") {
+      const nestedValue = this.extractObjectLiteral(node);
+      return { type: "literal", value: nestedValue };
+    }
+
+    // === Array literal ===
+    if (node.type === "ArrayExpression") {
+      const arrayValue = this.extractArrayLiteral(node);
+      return { type: "literal", value: arrayValue };
+    }
+
+    // === Member Expression (reference or parameter) ===
+    if (node.type === "MemberExpression") {
+      const chain = this.extractMemberChain(node);
+
+      // Check for parameter patterns: args.X, params.X, input.X
+      if (chain.length >= 2 && ["args", "params", "input"].includes(chain[0])) {
+        return { type: "parameter", parameterName: chain[1] };
+      }
+
+      // Otherwise it's a reference to previous result
+      const expression = chain.join(".");
+      return { type: "reference", expression };
+    }
+
+    // === Simple Identifier (could be parameter or local variable) ===
+    if (node.type === "Identifier") {
+      const name = node.value as string;
+
+      // Check if it's a known parameter pattern root
+      if (["args", "params", "input"].includes(name)) {
+        // This shouldn't happen alone, but handle gracefully
+        return { type: "parameter", parameterName: name };
+      }
+
+      // Otherwise treat as a reference (local variable)
+      return { type: "reference", expression: name };
+    }
+
+    // === Template Literal (treat as literal with placeholder) ===
+    if (node.type === "TemplateLiteral") {
+      // For template literals, we extract a simplified representation
+      const expression = this.extractTemplateLiteralText(node);
+      return { type: "reference", expression };
+    }
+
+    // === Computed expressions (e.g., function calls) ===
+    if (node.type === "CallExpression") {
+      const calleeText = this.extractConditionText(node.callee as Record<string, unknown>);
+      return { type: "reference", expression: `${calleeText}()` };
+    }
+
+    // Fallback: unhandled node type
+    logger.debug("Unhandled argument node type", { type: node.type });
+    return undefined;
+  }
+
+  /**
+   * Extract object literal as a plain JavaScript object
+   *
+   * @param node ObjectExpression AST node
+   * @returns Plain object with extracted values
+   */
+  private extractObjectLiteral(node: Record<string, unknown>): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
+    const properties = node.properties as Array<Record<string, unknown>> | undefined;
+
+    if (!properties) {
+      return result;
+    }
+
+    for (const prop of properties) {
+      if (prop.type === "KeyValueProperty") {
+        const keyNode = prop.key as Record<string, unknown>;
+        const valueNode = prop.value as Record<string, unknown>;
+
+        let keyName: string | undefined;
+        if (keyNode?.type === "Identifier") {
+          keyName = keyNode.value as string;
+        } else if (keyNode?.type === "StringLiteral") {
+          keyName = keyNode.value as string;
+        }
+
+        if (keyName && valueNode) {
+          result[keyName] = this.extractLiteralValue(valueNode);
+        }
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Extract array literal as a plain JavaScript array
+   *
+   * @param node ArrayExpression AST node
+   * @returns Plain array with extracted values
+   */
+  private extractArrayLiteral(node: Record<string, unknown>): unknown[] {
+    const result: unknown[] = [];
+    const elements = node.elements as Array<Record<string, unknown>> | undefined;
+
+    if (!elements) {
+      return result;
+    }
+
+    for (const element of elements) {
+      // SWC wraps array elements in { spread, expression } structure
+      const expr = (element?.expression as Record<string, unknown>) ?? element;
+      if (expr) {
+        result.push(this.extractLiteralValue(expr));
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Extract a literal value from an AST node (recursive helper for objects/arrays)
+   *
+   * @param node AST node
+   * @returns The literal value, or undefined for non-literal nodes
+   */
+  private extractLiteralValue(node: Record<string, unknown>): unknown {
+    if (!node || !node.type) {
+      return undefined;
+    }
+
+    if (node.type === "StringLiteral") {
+      return node.value as string;
+    }
+    if (node.type === "NumericLiteral") {
+      return node.value as number;
+    }
+    if (node.type === "BooleanLiteral") {
+      return node.value as boolean;
+    }
+    if (node.type === "NullLiteral") {
+      return null;
+    }
+    if (node.type === "ObjectExpression") {
+      return this.extractObjectLiteral(node);
+    }
+    if (node.type === "ArrayExpression") {
+      return this.extractArrayLiteral(node);
+    }
+
+    // Non-literal values return undefined
+    return undefined;
+  }
+
+  /**
+   * Extract text representation of a template literal
+   *
+   * @param node TemplateLiteral AST node
+   * @returns String representation with ${...} placeholders
+   */
+  private extractTemplateLiteralText(node: Record<string, unknown>): string {
+    const quasis = node.quasis as Array<Record<string, unknown>> | undefined;
+    const expressions = node.expressions as Array<Record<string, unknown>> | undefined;
+
+    if (!quasis || quasis.length === 0) {
+      return "`...template...`";
+    }
+
+    let result = "`";
+    for (let i = 0; i < quasis.length; i++) {
+      const quasi = quasis[i];
+      const cooked = (quasi.cooked as Record<string, unknown>)?.value as string | undefined;
+      result += cooked ?? "";
+
+      if (expressions && i < expressions.length) {
+        const exprText = this.extractConditionText(expressions[i]);
+        result += `\${${exprText}}`;
+      }
+    }
+    result += "`";
+
+    return result;
   }
 
   /**
