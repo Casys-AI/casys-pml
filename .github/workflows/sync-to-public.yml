@@ -11,6 +11,7 @@ on:
       - 'src/**'
       - '!src/web/**'
       - 'lib/**'
+      - 'config/**'
       - 'README.md'
       - 'LICENSE'
       - 'deno.json'
@@ -70,7 +71,6 @@ jobs:
             --exclude='.agent/' \
             --exclude='.windsurf/' \
             --exclude='bmad-custom-src/' \
-            --exclude='config/' \
             --exclude='.devcontainer/' \
             --exclude='monitoring/' \
             --exclude='drizzle/' \
