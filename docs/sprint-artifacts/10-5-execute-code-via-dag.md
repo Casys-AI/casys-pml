@@ -517,3 +517,104 @@ Le fichier YAML est utilisé pour **metadata uniquement** :
 - [x] `src/mcp/handlers/code-execution-handler.ts` - MODIFY (~350 LOC changes)
 - [x] `tests/dag/static-to-dag-converter_test.ts` - NEW (12 tests)
 - [x] `tests/dag/argument-resolver_test.ts` - NEW (11 tests)
+
+---
+
+## Analyse Nettoyage de Code (2025-12-19)
+
+### Inventaire des Méthodes Execute
+
+| Fichier | Méthode | Rôle | Action |
+|---------|---------|------|--------|
+| `sandbox/executor.ts:191` | `DenoSandboxExecutor.execute()` | Subprocess Deno direct (sans tools) | **GARDER** - code pur sans MCP |
+| `sandbox/executor.ts:1009` | `DenoSandboxExecutor.executeWithTools()` | Wrapper → WorkerBridge | **OK** - utilise WorkerBridge |
+| `sandbox/worker-bridge.ts:208` | `WorkerBridge.execute()` | RPC Bridge Worker (canonical) | **GARDER** - chemin principal ✅ |
+| `dag/executor.ts:72` | `ParallelExecutor.execute()` | DAG avec topological sort | **GARDER** - classe de base |
+| `dag/controlled-executor.ts:273` | `ControlledExecutor.executeStream()` | DAG avec events/checkpoints | **GARDER** - chemin principal ✅ |
+| `dag/controlled-executor.ts:441` | `ControlledExecutor.execute()` | Override qui wrappe executeStream | **GARDER** |
+| `mcp/handlers/code-execution-handler.ts:317` | `createMcpToolExecutor()` | **BUG** - bypass WorkerBridge! | **FIX** (AC10) |
+| `mcp/handlers/workflow-execution-handler.ts` | `createToolExecutor()` | **BUG** - bypass WorkerBridge! | **FIX** (AC10) |
+| `mcp/handlers/control-commands-handler.ts` | `createToolExecutor()` | **BUG** - bypass WorkerBridge! | **FIX** (AC10) |
+
+### Verdict : Pas de Méthodes à Supprimer
+
+Les méthodes `execute()` ne sont **pas dupliquées**, elles servent des rôles différents :
+
+```
+Hiérarchie d'exécution :
+┌─────────────────────────────────────────────────────────────┐
+│ ControlledExecutor.executeStream()                          │
+│   └── Orchestration (layers, checkpoints, HIL)              │
+│       ├── executeTask() pour chaque task du DAG             │
+│       │     │                                               │
+│       │     ▼                                               │
+│       │   createToolExecutor() ← PROBLÈME ICI               │
+│       │     │                                               │
+│       │     └── client.callTool() ← BYPASS!                 │
+│       │                                                     │
+│       └── Devrait être :                                    │
+│             createToolExecutor(workerBridge)                │
+│               │                                             │
+│               └── workerBridge.execute() ← CORRECT          │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ DenoSandboxExecutor                                         │
+│   ├── execute()        → Code simple sans tools (legacy)    │
+│   └── executeWithTools() → Crée WorkerBridge → execute()    │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ WorkerBridge.execute()                                      │
+│   └── LE chemin d'exécution canonical                       │
+│       ├── Worker permissions: "none"                        │
+│       ├── RPC pour tous les appels MCP                      │
+│       └── 100% traçabilité                                  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Le Vrai Problème
+
+**Un seul bug** : `createToolExecutor()` (3 endroits) appelle `client.callTool()` directement.
+
+```typescript
+// code-execution-handler.ts:317 - MAUVAIS!
+function createMcpToolExecutor(mcpClients): ToolExecutor {
+  return async (tool, args) => {
+    const client = mcpClients.get(serverId);
+    return await client.callTool(toolName, args); // ← BYPASS!
+  };
+}
+```
+
+**Conséquences :**
+1. ❌ Permissions sandbox ignorées
+2. ❌ Traces RPC non capturées
+3. ❌ Exécution DAG bypass le Worker
+
+### Plan de Fix (Task 7)
+
+```typescript
+// NOUVEAU: src/dag/execution/workerbridge-executor.ts
+export function createToolExecutorViaWorker(
+  workerBridge: WorkerBridge,
+  toolDefs: ToolDefinition[],
+): ToolExecutor {
+  return async (tool: string, args: Record<string, unknown>): Promise<unknown> => {
+    const [server, toolName] = tool.split(":");
+    const code = `return await mcp.${server}.${toolName}(${JSON.stringify(args)});`;
+    const result = await workerBridge.execute(code, toolDefs, {});
+    if (!result.success) {
+      throw new Error(result.error?.message ?? "Tool execution failed");
+    }
+    return result.result;
+  };
+}
+```
+
+### Ce qui NE change PAS
+
+- `DenoSandboxExecutor.execute()` - gardé pour code simple sans MCP
+- `DenoSandboxExecutor.executeWithTools()` - OK, utilise déjà WorkerBridge
+- `ParallelExecutor/ControlledExecutor` - OK, juste l'orchestration
+- `WorkerBridge.execute()` - LE chemin canonical, inchangé
