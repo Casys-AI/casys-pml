@@ -279,6 +279,7 @@ export default function BlogIndex({ data }: { data: { posts: Post[] } }) {
             grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
             gap: 1.5rem;
             grid-auto-flow: dense;
+            align-items: start;
           }
 
           .no-posts {
@@ -342,38 +343,19 @@ export default function BlogIndex({ data }: { data: { posts: Post[] } }) {
             opacity: 1;
           }
 
-          /* Varied sizes for bento effect */
-          .post-card-1 {
-            grid-column: span 1;
-          }
-
-          .post-card-2 {
-            grid-column: span 1;
-          }
-
-          .post-card-3 {
-            grid-column: span 1;
-          }
-
           @media (min-width: 768px) {
             .posts-bento {
               grid-template-columns: repeat(3, 1fr);
             }
+            .post-card-1 { grid-column: span 2; }
+            .post-card-2 { grid-column: span 1; }
+            .post-card-3 { grid-column: span 1; }
+            .post-card-4 { grid-column: span 2; }
 
-            .post-card-1 {
-              grid-column: span 2;
-            }
-
-            .post-card-2 {
-              grid-column: span 1;
-            }
-
-            .post-card-3 {
-              grid-column: span 1;
-            }
-
-            .post-card-4 {
-              grid-column: span 2;
+            /* Hide tags on small cards */
+            .post-card-2 .post-tags,
+            .post-card-3 .post-tags {
+              display: none;
             }
           }
 
@@ -425,10 +407,13 @@ export default function BlogIndex({ data }: { data: { posts: Post[] } }) {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 0.75rem;
           }
 
           .post-tags {
             display: flex;
+            flex-wrap: wrap;
             gap: 0.5rem;
           }
 

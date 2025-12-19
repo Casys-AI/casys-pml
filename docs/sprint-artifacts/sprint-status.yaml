@@ -195,9 +195,9 @@ development_status:
   # Depends on: Epic 7 (Emergent Capabilities)
   epic-10: in-progress
   10-1-static-analysis-capability-creation: done # Code Review APPROVED 2025-12-18, 11 tests passing, StaticStructureBuilder implemented
-  10-2-static-argument-extraction: backlog # Extract tool arguments from static analysis for speculative execution
+  10-2-static-argument-extraction: done # Dev completed 2025-12-19, 22 tests passing, ArgumentsStructure types implemented
   10-3-provides-edge-type: done # Code Review APPROVED + AC10 added 2025-12-18, 37 tests passing, DB persistence for scalability
-  10-5-unified-capability-model: backlog
+  10-5-execute-code-via-dag: in-progress # Code Review 2025-12-19: 4 HIGH, 3 MEDIUM issues - action items created
   10-6-pml-discover-api: backlog
   10-7-pml-execute-api: backlog
   10-8-pml-get-task-result: backlog

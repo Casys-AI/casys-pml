@@ -579,84 +579,61 @@ pas depuis les résultats d'exécution. Voir Story 10.1.
 
 ---
 
-**Story 10.5: Unified Capability Model (Code, DAG, or Tool)**
+**Story 10.5: Execute Code via Inferred DAG**
 
-As a capability storage system, I want capabilities to support code, DAG, and external tool sources,
-So that any successful execution becomes a reusable capability, including delegation to orchestrators like Temporal.
+As an execution system, I want to execute code via its inferred DAG structure,
+So that code execution benefits from DAG features (per-layer validation, parallel execution, checkpoints, SSE streaming).
 
 **Context:**
-Phase 3 de la tech spec. Actuellement les capabilities stockent uniquement du code.
-On veut pouvoir stocker aussi des DAGStructures ET des références à des tools externes.
+Story 10.1 génère `static_structure` (le DAG inféré du code), mais `execute_code` ne l'utilise pas.
+Le code est exécuté directement dans la sandbox, sans bénéficier des features DAG.
 
-**Breaking Change:**
-```typescript
-// AVANT
-interface Capability {
-  code: string;
-}
+**Le gap actuel:**
+```
+ACTUEL:
+Code → DenoSandboxExecutor (exécution directe) → Result
+        ↓
+     static_structure stocké (juste pour learning/viz)
 
-// APRÈS
-interface Capability {
-  source:
-    | { type: "code"; code: string }
-    | { type: "dag"; dagStructure: DAGStructure }
-    | { type: "tool"; toolId: string; defaultArgs?: Record<string, JsonValue> };
-}
+SOUHAITÉ:
+Code → static_structure → DAGStructure → ControlledExecutor → Result
+                                              ↓
+                          per_layer, parallel, checkpoints, SSE
 ```
 
-**Exemple Tool Externe (Temporal):**
-```typescript
-// Capability apprise: pour "deploy to production", déléguer à Temporal
-{
-  id: "cap_deploy_prod",
-  intent: "deploy to production",
-  source: {
-    type: "tool",
-    toolId: "temporal:startWorkflow",
-    defaultArgs: { workflowId: "deploy-prod-v2" }
-  },
-  success_rate: 0.98
-}
-```
+**Code-first principle:**
+L'IA écrit du code TypeScript. Le système infère le DAG et l'exécute avec toutes les features.
+Pas besoin de "types" de capabilities différents - une capability = code + static_structure.
 
 **Acceptance Criteria:**
 
-1. `Capability.source` remplace `Capability.code`:
-   ```typescript
-   source:
-     | { type: "code"; code: string }
-     | { type: "dag"; dagStructure: DAGStructure }
-     | { type: "tool"; toolId: string; defaultArgs?: Record<string, JsonValue> };
-   ```
-2. `Capability.dag_structure.static_structure` existe déjà (from Story 10.1)
-3. Migration DB: transformer `code` → `source` JSON column
-4. `CapabilityStore.saveCapability()` updated:
-   - Accepte `source` au lieu de `code`
-   - `static_structure` est générée par Story 10.1 à l'analyse statique
-5. `CapabilityStore.findById()` retourne le nouveau format
-6. **DAG execution creates capability:**
-   - Après succès `execute_dag` → créer capability `{ type: "dag" }`
-   - Intent extrait du premier message ou paramètre
-7. Helper `getCapabilityCode()` pour backward compat:
-   ```typescript
-   function getCapabilityCode(cap: Capability): string | null {
-     return cap.source.type === "code" ? cap.source.code : null;
-   }
-   ```
-8. Tous les usages de `capability.code` migrés
-9. Tests: sauvegarder capability code → retrieve → source.type === "code"
-10. Tests: sauvegarder capability dag → retrieve → source.type === "dag"
-11. Tests: sauvegarder capability tool → retrieve → source.type === "tool"
-12. Tests: execute_dag success → capability créée avec type=dag
-13. Tests: capability type=tool → exécution délègue au tool référencé
+1. `staticStructureToDag(structure: StaticStructure): DAGStructure` converter:
+   - Map `StaticStructureNode` → `Task` (task→mcp_tool, capability→capability, fork/join→parallel)
+   - Map `StaticStructureEdge` → `Task.dependsOn`
+2. `handleExecuteCode()` modifié:
+   - Build `static_structure` via `StaticStructureBuilder`
+   - Convert to `DAGStructure` via `staticStructureToDag()`
+   - Execute via `ControlledExecutor` instead of `DenoSandboxExecutor`
+3. `resolveArguments(args, context, previousResults)`:
+   - literal → use value directly
+   - reference → resolve from previous task result
+   - parameter → extract from execution context
+4. Conditional execution support (decision nodes → conditional branches)
+5. Parallel execution from fork/join nodes
+6. Per-layer validation for code execution (reuse existing logic)
+7. Fallback to direct execution if `static_structure` is empty/invalid
+8. Response includes DAG execution metadata: `{ executedViaDAG, tasksExecuted, parallelGroups }`
+9. Tests: sequential, parallel, conditional, references, fallback
+
+**Files to Create:**
+- `src/dag/static-to-dag-converter.ts` (~150 LOC)
+- `src/dag/argument-resolver.ts` (~100 LOC)
 
 **Files to Modify:**
-- `src/capabilities/types.ts` (~30 LOC)
-- `src/capabilities/capability-store.ts` (~50 LOC)
-- `src/db/migrations/` - New migration (~40 LOC)
-- All files using `capability.code` (grep and update)
+- `src/mcp/handlers/code-execution-handler.ts` (~80 LOC)
+- `src/dag/mod.ts` (exports)
 
-**Prerequisites:** Story 10.1 (static_structure)
+**Prerequisites:** Story 10.1 (static_structure), Story 10.2 (argument extraction)
 
 **Estimation:** 2-3 jours
 

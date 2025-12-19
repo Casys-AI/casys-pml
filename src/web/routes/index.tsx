@@ -418,81 +418,6 @@ export default function LandingPage({ data }: { data: LandingPageData }) {
 
         {
           /* ═══════════════════════════════════════════════════════════════════
-            THE COLLECTIVE QUESTION
-        ═══════════════════════════════════════════════════════════════════ */
-        }
-        <section id="collective" class="section-moat">
-          <div class="container">
-            <div class="section-header">
-              <span class="section-label">The Collective</span>
-              <h2 class="section-title">Patterns that propagate</h2>
-              <p class="section-desc">
-                When one agent discovers a useful combination, it becomes available to all.
-              </p>
-            </div>
-
-            <div class="propagation-flow">
-              <div class="flow-step">
-                <div class="flow-icon">
-                  <svg viewBox="0 0 40 40" fill="none">
-                    <circle cx="20" cy="20" r="8" stroke="#FFB86F" stroke-width="2" />
-                    <path d="M20 8v6M20 26v6M8 20h6M26 20h6" stroke="#FFB86F" stroke-width="2" />
-                  </svg>
-                </div>
-                <h4>Discovery</h4>
-                <p>Agent A combines tools in a new way to solve a task</p>
-              </div>
-              <div class="flow-arrow">
-                <svg viewBox="0 0 40 20" fill="none">
-                  <path d="M5 10h25M25 5l5 5-5 5" stroke="#FFB86F" stroke-width="2" />
-                </svg>
-              </div>
-              <div class="flow-step">
-                <div class="flow-icon">
-                  <svg viewBox="0 0 40 40" fill="none">
-                    <rect
-                      x="8"
-                      y="12"
-                      width="24"
-                      height="16"
-                      rx="2"
-                      stroke="#FFB86F"
-                      stroke-width="2"
-                    />
-                    <path d="M12 8h16M14 4h12" stroke="#FFB86F" stroke-width="2" opacity="0.5" />
-                  </svg>
-                </div>
-                <h4>Capture</h4>
-                <p>The pattern is extracted and stored in the SuperHyperGraph</p>
-              </div>
-              <div class="flow-arrow">
-                <svg viewBox="0 0 40 20" fill="none">
-                  <path d="M5 10h25M25 5l5 5-5 5" stroke="#FFB86F" stroke-width="2" />
-                </svg>
-              </div>
-              <div class="flow-step flow-step-highlight">
-                <div class="flow-icon">
-                  <svg viewBox="0 0 40 40" fill="none">
-                    <circle cx="20" cy="14" r="6" stroke="#FFB86F" stroke-width="2" />
-                    <circle cx="12" cy="28" r="5" stroke="#FFB86F" stroke-width="2" />
-                    <circle cx="28" cy="28" r="5" stroke="#FFB86F" stroke-width="2" />
-                    <path
-                      d="M17 18l-3 6M23 18l3 6M15 28h10"
-                      stroke="#FFB86F"
-                      stroke-width="1.5"
-                      stroke-dasharray="2 2"
-                    />
-                  </svg>
-                </div>
-                <h4>Propagation</h4>
-                <p>Agent B, C, D... can now use this capability</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {
-          /* ═══════════════════════════════════════════════════════════════════
             TECHNICAL FOUNDATION
         ═══════════════════════════════════════════════════════════════════ */
         }
@@ -1354,80 +1279,6 @@ export default function LandingPage({ data }: { data: LandingPageData }) {
           }
 
           /* ═══════════════════════════════════════════════════════════════════
-             SECTION: MOAT
-          ═══════════════════════════════════════════════════════════════════ */
-          .section-moat {
-            position: relative;
-            z-index: 10;
-            padding: 8rem 2rem;
-            background: var(--bg);
-          }
-
-          /* Propagation Flow */
-          .propagation-flow {
-            display: flex;
-            align-items: flex-start;
-            justify-content: center;
-            gap: 1rem;
-            padding: 3rem 2rem;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-          }
-
-          .flow-step {
-            flex: 1;
-            max-width: 220px;
-            text-align: center;
-            padding: 1.5rem;
-          }
-
-          .flow-step-highlight {
-            background: var(--accent-dim);
-            border-radius: 12px;
-          }
-
-          .flow-icon {
-            width: 56px;
-            height: 56px;
-            margin: 0 auto 1rem;
-            padding: 8px;
-            background: var(--bg-elevated);
-            border-radius: 12px;
-            border: 1px solid var(--border);
-          }
-
-          .flow-icon svg {
-            width: 100%;
-            height: 100%;
-          }
-
-          .flow-step h4 {
-            font-family: var(--font-display);
-            font-size: 1.1rem;
-            font-weight: 400;
-            margin-bottom: 0.5rem;
-            color: var(--text);
-          }
-
-          .flow-step p {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            line-height: 1.5;
-          }
-
-          .flow-arrow {
-            display: flex;
-            align-items: center;
-            padding-top: 2rem;
-          }
-
-          .flow-arrow svg {
-            width: 40px;
-            height: 20px;
-          }
-
-          /* ═══════════════════════════════════════════════════════════════════
              SECTION: TECH
           ═══════════════════════════════════════════════════════════════════ */
           .section-tech {
@@ -1738,16 +1589,6 @@ export default function LandingPage({ data }: { data: LandingPageData }) {
             .learning-loop {
               grid-template-columns: 1fr;
               gap: 2rem;
-            }
-
-            .propagation-flow {
-              flex-direction: column;
-              align-items: center;
-            }
-
-            .flow-arrow {
-              transform: rotate(90deg);
-              padding: 0.5rem 0;
             }
 
             .tech-grid {
