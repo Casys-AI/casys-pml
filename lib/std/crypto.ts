@@ -314,4 +314,126 @@ export const cryptoTools: MiniTool[] = [
       return cnt === 1 ? ulids[0] : ulids;
     },
   },
+  {
+    name: "crypto_hmac",
+    description: "Generate HMAC (Hash-based Message Authentication Code)",
+    category: "crypto",
+    inputSchema: {
+      type: "object",
+      properties: {
+        message: { type: "string", description: "Message to authenticate" },
+        key: { type: "string", description: "Secret key" },
+        algorithm: {
+          type: "string",
+          enum: ["SHA-256", "SHA-384", "SHA-512"],
+          description: "Hash algorithm (default: SHA-256)",
+        },
+      },
+      required: ["message", "key"],
+    },
+    handler: async ({ message, key, algorithm = "SHA-256" }) => {
+      const encoder = new TextEncoder();
+      const keyData = encoder.encode(key as string);
+      const messageData = encoder.encode(message as string);
+
+      const cryptoKey = await crypto.subtle.importKey(
+        "raw",
+        keyData,
+        { name: "HMAC", hash: algorithm as string },
+        false,
+        ["sign"],
+      );
+
+      const signature = await crypto.subtle.sign("HMAC", cryptoKey, messageData);
+      const hashArray = Array.from(new Uint8Array(signature));
+      return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+    },
+  },
+  {
+    name: "crypto_totp",
+    description: "Generate TOTP (Time-based One-Time Password) code",
+    category: "crypto",
+    inputSchema: {
+      type: "object",
+      properties: {
+        secret: { type: "string", description: "Base32 encoded secret key" },
+        digits: { type: "number", description: "Number of digits (default: 6)" },
+        period: { type: "number", description: "Time step in seconds (default: 30)" },
+        algorithm: {
+          type: "string",
+          enum: ["SHA-1", "SHA-256", "SHA-512"],
+          description: "Hash algorithm (default: SHA-1)",
+        },
+      },
+      required: ["secret"],
+    },
+    handler: async ({ secret, digits = 6, period = 30, algorithm = "SHA-1" }) => {
+      // Base32 decode
+      const base32Decode = (encoded: string): Uint8Array => {
+        const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+        const cleanedInput = encoded.toUpperCase().replace(/[^A-Z2-7]/g, "");
+        const bits: number[] = [];
+
+        for (const char of cleanedInput) {
+          const val = alphabet.indexOf(char);
+          if (val === -1) continue;
+          for (let i = 4; i >= 0; i--) {
+            bits.push((val >> i) & 1);
+          }
+        }
+
+        const bytes: number[] = [];
+        for (let i = 0; i + 8 <= bits.length; i += 8) {
+          let byte = 0;
+          for (let j = 0; j < 8; j++) {
+            byte = (byte << 1) | bits[i + j];
+          }
+          bytes.push(byte);
+        }
+        return new Uint8Array(bytes);
+      };
+
+      const secretBytes = base32Decode(secret as string);
+      const counter = Math.floor(Date.now() / 1000 / (period as number));
+
+      // Convert counter to 8-byte big-endian
+      const counterBytes = new Uint8Array(8);
+      let temp = counter;
+      for (let i = 7; i >= 0; i--) {
+        counterBytes[i] = temp & 0xff;
+        temp = Math.floor(temp / 256);
+      }
+
+      // Generate HMAC
+      const cryptoKey = await crypto.subtle.importKey(
+        "raw",
+        secretBytes.buffer as ArrayBuffer,
+        { name: "HMAC", hash: algorithm as string },
+        false,
+        ["sign"],
+      );
+
+      const signature = await crypto.subtle.sign("HMAC", cryptoKey, counterBytes);
+      const hash = new Uint8Array(signature);
+
+      // Dynamic truncation
+      const offset = hash[hash.length - 1] & 0x0f;
+      const binary =
+        ((hash[offset] & 0x7f) << 24) |
+        ((hash[offset + 1] & 0xff) << 16) |
+        ((hash[offset + 2] & 0xff) << 8) |
+        (hash[offset + 3] & 0xff);
+
+      const otp = binary % Math.pow(10, digits as number);
+      const code = otp.toString().padStart(digits as number, "0");
+
+      const timeRemaining = (period as number) - (Math.floor(Date.now() / 1000) % (period as number));
+
+      return {
+        code,
+        expiresIn: timeRemaining,
+        period: period as number,
+      };
+    },
+  },
 ];

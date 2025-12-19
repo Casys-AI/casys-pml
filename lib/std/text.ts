@@ -390,4 +390,164 @@ export const textTools: MiniTool[] = [
         .join(separator as string);
     },
   },
+  {
+    name: "text_diff",
+    description: "Compare two texts and show differences",
+    category: "text",
+    inputSchema: {
+      type: "object",
+      properties: {
+        text1: { type: "string", description: "First text" },
+        text2: { type: "string", description: "Second text" },
+        mode: {
+          type: "string",
+          enum: ["lines", "words", "chars"],
+          description: "Comparison mode (default: lines)",
+        },
+      },
+      required: ["text1", "text2"],
+    },
+    handler: ({ text1, text2, mode = "lines" }) => {
+      const t1 = text1 as string;
+      const t2 = text2 as string;
+
+      // Split based on mode
+      let units1: string[], units2: string[];
+      switch (mode) {
+        case "chars":
+          units1 = t1.split("");
+          units2 = t2.split("");
+          break;
+        case "words":
+          units1 = t1.split(/\s+/);
+          units2 = t2.split(/\s+/);
+          break;
+        default: // lines
+          units1 = t1.split("\n");
+          units2 = t2.split("\n");
+      }
+
+      // Simple LCS-based diff
+      const lcs = (a: string[], b: string[]): string[] => {
+        const m = a.length, n = b.length;
+        const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+
+        for (let i = 1; i <= m; i++) {
+          for (let j = 1; j <= n; j++) {
+            if (a[i - 1] === b[j - 1]) {
+              dp[i][j] = dp[i - 1][j - 1] + 1;
+            } else {
+              dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+            }
+          }
+        }
+
+        // Backtrack to find LCS
+        const result: string[] = [];
+        let i = m, j = n;
+        while (i > 0 && j > 0) {
+          if (a[i - 1] === b[j - 1]) {
+            result.unshift(a[i - 1]);
+            i--; j--;
+          } else if (dp[i - 1][j] > dp[i][j - 1]) {
+            i--;
+          } else {
+            j--;
+          }
+        }
+        return result;
+      };
+
+      const common = new Set(lcs(units1, units2));
+      const removed = units1.filter((u) => !units2.includes(u) || units1.indexOf(u) !== units2.indexOf(u));
+      const added = units2.filter((u) => !units1.includes(u) || units1.indexOf(u) !== units2.indexOf(u));
+
+      return {
+        identical: t1 === t2,
+        commonCount: common.size,
+        removedCount: removed.length,
+        addedCount: added.length,
+        removed: removed.slice(0, 50), // Limit output
+        added: added.slice(0, 50),
+        similarity: units1.length === 0 && units2.length === 0
+          ? 100
+          : Math.round((common.size / Math.max(units1.length, units2.length)) * 100),
+      };
+    },
+  },
+  {
+    name: "text_stats",
+    description: "Analyze text and return statistics",
+    category: "text",
+    inputSchema: {
+      type: "object",
+      properties: {
+        text: { type: "string", description: "Text to analyze" },
+      },
+      required: ["text"],
+    },
+    handler: ({ text }) => {
+      const t = text as string;
+      const words = t.trim().split(/\s+/).filter(Boolean);
+      const sentences = t.split(/[.!?]+/).filter((s) => s.trim().length > 0);
+      const paragraphs = t.split(/\n\n+/).filter((p) => p.trim().length > 0);
+      const lines = t.split("\n");
+
+      // Character counts
+      const chars = t.length;
+      const charsNoSpaces = t.replace(/\s/g, "").length;
+      const letters = (t.match(/[a-zA-Z]/g) || []).length;
+      const digits = (t.match(/\d/g) || []).length;
+
+      // Word frequency
+      const wordFreq: Record<string, number> = {};
+      for (const word of words) {
+        const normalized = word.toLowerCase().replace(/[^a-z]/g, "");
+        if (normalized) {
+          wordFreq[normalized] = (wordFreq[normalized] || 0) + 1;
+        }
+      }
+      const topWords = Object.entries(wordFreq)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([word, count]) => ({ word, count }));
+
+      // Readability metrics
+      const avgWordLength = words.length > 0
+        ? words.reduce((sum, w) => sum + w.length, 0) / words.length
+        : 0;
+      const avgSentenceLength = sentences.length > 0
+        ? words.length / sentences.length
+        : 0;
+
+      // Flesch-Kincaid approximation (simplified)
+      const syllableCount = (word: string) => {
+        const w = word.toLowerCase().replace(/[^a-z]/g, "");
+        if (w.length <= 3) return 1;
+        return w.replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/, "")
+          .replace(/^y/, "")
+          .match(/[aeiouy]{1,2}/g)?.length || 1;
+      };
+      const totalSyllables = words.reduce((sum, w) => sum + syllableCount(w), 0);
+      const fleschKincaid = words.length > 0 && sentences.length > 0
+        ? 206.835 - 1.015 * (words.length / sentences.length) - 84.6 * (totalSyllables / words.length)
+        : 0;
+
+      return {
+        characters: chars,
+        charactersNoSpaces: charsNoSpaces,
+        letters,
+        digits,
+        words: words.length,
+        sentences: sentences.length,
+        paragraphs: paragraphs.length,
+        lines: lines.length,
+        avgWordLength: Math.round(avgWordLength * 10) / 10,
+        avgSentenceLength: Math.round(avgSentenceLength * 10) / 10,
+        readabilityScore: Math.round(Math.max(0, Math.min(100, fleschKincaid))),
+        topWords,
+        uniqueWords: Object.keys(wordFreq).length,
+      };
+    },
+  },
 ];

@@ -3,9 +3,13 @@
  *
  * String and data formatting utilities.
  *
+ * Inspired by:
+ * - IT-Tools MCP: https://github.com/wrenchpilot/it-tools-mcp
+ *
  * @module lib/std/format
  */
 
+import * as yaml from "npm:yaml@2.3.4";
 import type { MiniTool } from "./types.ts";
 
 export const formatTools: MiniTool[] = [
@@ -269,6 +273,174 @@ export const formatTools: MiniTool[] = [
       }
 
       return trimmed + e;
+    },
+  },
+  // Inspired by IT-Tools MCP: https://github.com/wrenchpilot/it-tools-mcp
+  {
+    name: "format_yaml_to_json",
+    description: "Convert YAML to JSON",
+    category: "format",
+    inputSchema: {
+      type: "object",
+      properties: {
+        yaml: { type: "string", description: "YAML string to convert" },
+        pretty: { type: "boolean", description: "Pretty print JSON (default: true)" },
+      },
+      required: ["yaml"],
+    },
+    handler: ({ yaml: yamlStr, pretty = true }) => {
+      const parsed = yaml.parse(yamlStr as string);
+      return pretty ? JSON.stringify(parsed, null, 2) : JSON.stringify(parsed);
+    },
+  },
+  {
+    name: "format_json_to_yaml",
+    description: "Convert JSON to YAML",
+    category: "format",
+    inputSchema: {
+      type: "object",
+      properties: {
+        json: { type: "string", description: "JSON string to convert" },
+        indent: { type: "number", description: "Indentation spaces (default: 2)" },
+      },
+      required: ["json"],
+    },
+    handler: ({ json, indent = 2 }) => {
+      const parsed = JSON.parse(json as string);
+      return yaml.stringify(parsed, { indent: indent as number });
+    },
+  },
+  {
+    name: "format_markdown_to_html",
+    description: "Convert Markdown to HTML (basic conversion)",
+    category: "format",
+    inputSchema: {
+      type: "object",
+      properties: {
+        markdown: { type: "string", description: "Markdown text" },
+      },
+      required: ["markdown"],
+    },
+    handler: ({ markdown }) => {
+      let html = markdown as string;
+
+      // Headers
+      html = html.replace(/^###### (.+)$/gm, "<h6>$1</h6>");
+      html = html.replace(/^##### (.+)$/gm, "<h5>$1</h5>");
+      html = html.replace(/^#### (.+)$/gm, "<h4>$1</h4>");
+      html = html.replace(/^### (.+)$/gm, "<h3>$1</h3>");
+      html = html.replace(/^## (.+)$/gm, "<h2>$1</h2>");
+      html = html.replace(/^# (.+)$/gm, "<h1>$1</h1>");
+
+      // Bold and italic
+      html = html.replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>");
+      html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+      html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
+      html = html.replace(/___(.+?)___/g, "<strong><em>$1</em></strong>");
+      html = html.replace(/__(.+?)__/g, "<strong>$1</strong>");
+      html = html.replace(/_(.+?)_/g, "<em>$1</em>");
+
+      // Code
+      html = html.replace(/```(\w*)\n([\s\S]*?)```/g, "<pre><code class=\"language-$1\">$2</code></pre>");
+      html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
+
+      // Links and images
+      html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1">');
+      html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+
+      // Lists
+      html = html.replace(/^\* (.+)$/gm, "<li>$1</li>");
+      html = html.replace(/^- (.+)$/gm, "<li>$1</li>");
+      html = html.replace(/^\d+\. (.+)$/gm, "<li>$1</li>");
+
+      // Horizontal rule
+      html = html.replace(/^---$/gm, "<hr>");
+      html = html.replace(/^\*\*\*$/gm, "<hr>");
+
+      // Blockquotes
+      html = html.replace(/^> (.+)$/gm, "<blockquote>$1</blockquote>");
+
+      // Paragraphs (simple: wrap non-tag lines)
+      html = html.replace(/^(?!<[a-z]|$)(.+)$/gm, "<p>$1</p>");
+
+      return html;
+    },
+  },
+  {
+    name: "format_html_to_markdown",
+    description: "Convert HTML to Markdown (basic conversion)",
+    category: "format",
+    inputSchema: {
+      type: "object",
+      properties: {
+        html: { type: "string", description: "HTML text" },
+      },
+      required: ["html"],
+    },
+    handler: ({ html }) => {
+      let md = html as string;
+
+      // Headers
+      md = md.replace(/<h1[^>]*>([^<]+)<\/h1>/gi, "# $1\n");
+      md = md.replace(/<h2[^>]*>([^<]+)<\/h2>/gi, "## $1\n");
+      md = md.replace(/<h3[^>]*>([^<]+)<\/h3>/gi, "### $1\n");
+      md = md.replace(/<h4[^>]*>([^<]+)<\/h4>/gi, "#### $1\n");
+      md = md.replace(/<h5[^>]*>([^<]+)<\/h5>/gi, "##### $1\n");
+      md = md.replace(/<h6[^>]*>([^<]+)<\/h6>/gi, "###### $1\n");
+
+      // Bold and italic
+      md = md.replace(/<strong>([^<]+)<\/strong>/gi, "**$1**");
+      md = md.replace(/<b>([^<]+)<\/b>/gi, "**$1**");
+      md = md.replace(/<em>([^<]+)<\/em>/gi, "*$1*");
+      md = md.replace(/<i>([^<]+)<\/i>/gi, "*$1*");
+
+      // Code
+      md = md.replace(/<pre><code[^>]*>([^<]+)<\/code><\/pre>/gi, "```\n$1```\n");
+      md = md.replace(/<code>([^<]+)<\/code>/gi, "`$1`");
+
+      // Links and images
+      md = md.replace(/<a[^>]+href="([^"]+)"[^>]*>([^<]+)<\/a>/gi, "[$2]($1)");
+      md = md.replace(/<img[^>]+src="([^"]+)"[^>]*alt="([^"]*)"[^>]*\/?>/gi, "![$2]($1)");
+      md = md.replace(/<img[^>]+alt="([^"]*)"[^>]*src="([^"]+)"[^>]*\/?>/gi, "![$1]($2)");
+
+      // Lists
+      md = md.replace(/<li>([^<]+)<\/li>/gi, "- $1\n");
+
+      // Horizontal rule
+      md = md.replace(/<hr\s*\/?>/gi, "---\n");
+
+      // Blockquotes
+      md = md.replace(/<blockquote>([^<]+)<\/blockquote>/gi, "> $1\n");
+
+      // Paragraphs and breaks
+      md = md.replace(/<p>([^<]+)<\/p>/gi, "$1\n\n");
+      md = md.replace(/<br\s*\/?>/gi, "\n");
+
+      // Remove remaining tags
+      md = md.replace(/<[^>]+>/g, "");
+
+      // Clean up whitespace
+      md = md.replace(/\n{3,}/g, "\n\n").trim();
+
+      return md;
+    },
+  },
+  {
+    name: "format_json_pretty",
+    description: "Pretty print or minify JSON",
+    category: "format",
+    inputSchema: {
+      type: "object",
+      properties: {
+        json: { type: "string", description: "JSON string" },
+        minify: { type: "boolean", description: "Minify instead of prettify" },
+        indent: { type: "number", description: "Indentation spaces (default: 2)" },
+      },
+      required: ["json"],
+    },
+    handler: ({ json, minify = false, indent = 2 }) => {
+      const parsed = JSON.parse(json as string);
+      return minify ? JSON.stringify(parsed) : JSON.stringify(parsed, null, indent as number);
     },
   },
 ];
