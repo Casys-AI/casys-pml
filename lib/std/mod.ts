@@ -44,6 +44,7 @@
  */
 
 export { runCommand, type MiniTool } from "./common.ts";
+export type { ToolCategory, MiniToolHandler, MiniToolResult } from "./types.ts";
 
 // System tools
 export { dockerTools } from "./docker.ts";
@@ -84,6 +85,11 @@ export { resilienceTools } from "./resilience.ts";
 export { schemaTools } from "./schema.ts";
 export { diffTools } from "./diff.ts";
 
+// Legacy tools (backward compat)
+export { dataTools } from "./data.ts";
+export { stateTools } from "./state.ts";
+export { compareTools } from "./compare.ts";
+
 // Imports for combined export
 import { dockerTools } from "./docker.ts";
 import { gitTools } from "./git.ts";
@@ -118,6 +124,11 @@ import { qrcodeTools } from "./qrcode.ts";
 import { resilienceTools } from "./resilience.ts";
 import { schemaTools } from "./schema.ts";
 import { diffTools } from "./diff.ts";
+// Legacy imports
+import { dataTools } from "./data.ts";
+import { stateTools } from "./state.ts";
+import { compareTools } from "./compare.ts";
+import type { MiniTool as MiniToolType } from "./types.ts";
 
 /** All system tools combined */
 export const systemTools = [
@@ -157,4 +168,139 @@ export const systemTools = [
   ...resilienceTools,
   ...schemaTools,
   ...diffTools,
+  // Legacy tools
+  ...dataTools,
+  ...stateTools,
+  ...compareTools,
 ];
+
+/** Alias for backward compatibility */
+export const allTools = systemTools;
+
+/** Tools organized by category */
+export const toolsByCategory: Record<string, MiniToolType[]> = {
+  text: textTools,
+  json: jsonTools,
+  math: mathTools,
+  datetime: datetimeTools,
+  crypto: cryptoTools,
+  collections: collectionsTools,
+  vfs: vfsTools,
+  data: dataTools,
+  http: httpTools,
+  validation: validationTools,
+  format: formatTools,
+  transform: transformTools,
+  state: stateTools,
+  compare: compareTools,
+  algo: algoTools,
+  color: colorTools,
+  network: networkTools,
+  string: stringTools,
+  path: pathTools,
+  faker: fakerTools,
+  geo: geoTools,
+  qrcode: qrcodeTools,
+  resilience: resilienceTools,
+  schema: schemaTools,
+  diff: diffTools,
+  // System tools
+  docker: dockerTools,
+  git: gitTools,
+  process: processTools,
+  archive: archiveTools,
+  ssh: sshTools,
+  kubernetes: kubernetesTools,
+  database: databaseTools,
+  media: mediaTools,
+  cloud: cloudTools,
+  sysinfo: sysinfoTools,
+  packages: packagesTools,
+};
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Get tools by category
+ */
+export function getToolsByCategory(category: string): MiniToolType[] {
+  return toolsByCategory[category] || [];
+}
+
+/**
+ * Get a specific tool by name
+ */
+export function getToolByName(name: string): MiniToolType | undefined {
+  return allTools.find((t) => t.name === name);
+}
+
+/**
+ * Get all available categories
+ */
+export function getCategories(): string[] {
+  return Object.keys(toolsByCategory);
+}
+
+// ============================================================================
+// MiniToolsClient Class
+// ============================================================================
+
+export interface MiniToolsClientOptions {
+  categories?: string[];
+}
+
+/**
+ * Client for executing mini-tools
+ */
+export class MiniToolsClient {
+  private tools: MiniToolType[];
+
+  constructor(options?: MiniToolsClientOptions) {
+    if (options?.categories) {
+      this.tools = options.categories.flatMap((cat) => getToolsByCategory(cat));
+    } else {
+      this.tools = allTools;
+    }
+  }
+
+  /**
+   * List available tools
+   */
+  listTools(): MiniToolType[] {
+    return this.tools;
+  }
+
+  /**
+   * Convert tools to MCP format
+   */
+  toMCPFormat(): Array<{ name: string; description: string; inputSchema: Record<string, unknown> }> {
+    return this.tools.map((t) => ({
+      name: t.name,
+      description: t.description,
+      inputSchema: t.inputSchema,
+    }));
+  }
+
+  /**
+   * Execute a tool by name
+   */
+  async execute(name: string, args: Record<string, unknown>): Promise<unknown> {
+    const tool = this.tools.find((t) => t.name === name);
+    if (!tool) {
+      throw new Error(`Tool not found: ${name}`);
+    }
+    return await tool.handler(args);
+  }
+
+  /**
+   * Get tool count
+   */
+  get count(): number {
+    return this.tools.length;
+  }
+}
+
+/** Default client instance with all tools */
+export const defaultClient = new MiniToolsClient();

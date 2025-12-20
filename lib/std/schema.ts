@@ -195,7 +195,6 @@ export const schemaTools: MiniTool[] = [
       }
 
       const indent = "  ";
-      const types: string[] = [];
 
       const schemaToTS = (s: JSONSchema, level: number = 0): string => {
         const pad = indent.repeat(level);
@@ -298,7 +297,7 @@ export const schemaTools: MiniTool[] = [
           const types = new Set([
             ...(Array.isArray(a.type) ? a.type : [a.type]),
             ...(Array.isArray(b.type) ? b.type : [b.type]),
-          ].filter(Boolean));
+          ].filter((t): t is string => typeof t === "string"));
           return { type: types.size === 1 ? [...types][0] : [...types] };
         }
 
@@ -551,7 +550,7 @@ export const schemaTools: MiniTool[] = [
       const generate = (s: JSONSchema): unknown => {
         if (s.const !== undefined) return s.const;
         if (s.enum) return s.enum[Math.floor(random() * s.enum.length)];
-        if (s.default !== undefined) return (s as { default?: unknown }).default;
+        if ("default" in s && s.default !== undefined) return s.default;
 
         if (s.anyOf) return generate(s.anyOf[Math.floor(random() * s.anyOf.length)]);
         if (s.oneOf) return generate(s.oneOf[Math.floor(random() * s.oneOf.length)]);

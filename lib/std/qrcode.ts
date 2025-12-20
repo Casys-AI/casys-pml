@@ -58,7 +58,6 @@ export const qrcodeTools: MiniTool[] = [
 
         // Simple pattern generation (not actual QR encoding)
         const quietZone = "  ".repeat(s);
-        const fullLine = (quietZone + "██".repeat(moduleCount * s) + quietZone);
         const emptyLine = (quietZone + "  ".repeat(moduleCount * s) + quietZone);
 
         // Add quiet zone

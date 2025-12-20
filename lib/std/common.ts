@@ -4,7 +4,7 @@
  * @module lib/std/tools/common
  */
 
-import type { MiniTool } from "../types.ts";
+import type { MiniTool } from "./types.ts";
 
 export type { MiniTool };
 

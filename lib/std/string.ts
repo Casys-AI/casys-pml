@@ -375,7 +375,7 @@ export const stringTools: MiniTool[] = [
       const regex = /#[a-zA-Z0-9_]+/g;
       const matches = (text as string).match(regex) || [];
 
-      let results = matches;
+      let results: string[] = [...matches];
       if (!withHash) {
         results = matches.map(h => h.slice(1));
       }
@@ -403,7 +403,7 @@ export const stringTools: MiniTool[] = [
       const regex = /@[a-zA-Z0-9_]+/g;
       const matches = (text as string).match(regex) || [];
 
-      let results = matches;
+      let results: string[] = [...matches];
       if (!withAt) {
         results = matches.map(m => m.slice(1));
       }

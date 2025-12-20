@@ -93,7 +93,9 @@ export interface ExecutionResultWithTraces extends ExecutionResult {
 }
 
 export class DenoSandboxExecutor {
-  private config: Required<Omit<SandboxConfig, "capabilityStore" | "graphRAG">>;
+  private config: Required<
+    Omit<SandboxConfig, "capabilityStore" | "graphRAG" | "useWorkerForExecute">
+  >;
   private cache: CodeExecutionCache | null = null;
   private toolVersions: Record<string, string> = {};
   private securityValidator: SecurityValidator;
@@ -108,6 +110,8 @@ export class DenoSandboxExecutor {
   private graphRAG?: import("../graphrag/graph-engine.ts").GraphRAGEngine;
   /** Cached result for Deno version permission set support (Story 7.7b) */
   private permissionSetSupportCached?: boolean;
+  /** Use Worker for execute() instead of subprocess (Story 10.5 AC13) */
+  private useWorkerForExecute: boolean;
 
   /**
    * Create a new sandbox executor
@@ -163,6 +167,9 @@ export class DenoSandboxExecutor {
     this.capabilityStore = config?.capabilityStore;
     this.graphRAG = config?.graphRAG;
 
+    // Story 10.5 AC13: Use Worker for execute() by default
+    this.useWorkerForExecute = config?.useWorkerForExecute ?? true;
+
     logger.debug("Sandbox executor initialized", {
       timeout: this.config.timeout,
       memoryLimit: this.config.memoryLimit,
@@ -172,6 +179,7 @@ export class DenoSandboxExecutor {
       resourceLimiting: true,
       capabilityStoreEnabled: !!this.capabilityStore,
       graphRAGEnabled: !!this.graphRAG,
+      useWorkerForExecute: this.useWorkerForExecute,
     });
   }
 
@@ -246,6 +254,73 @@ export class DenoSandboxExecutor {
         // Re-throw unexpected errors
         throw resourceError;
       }
+
+      // Story 10.5 AC13: Use Worker for execute() when enabled
+      // Worker path is faster (~5ms vs ~50ms subprocess) and provides 100% traceability
+      if (this.useWorkerForExecute) {
+        logger.debug("Using Worker path for execute()", {
+          codeLength: code.length,
+          contextKeys: context ? Object.keys(context) : [],
+        });
+
+        // Create WorkerBridge with empty MCP clients (no tools needed)
+        const bridge = new WorkerBridge(new Map(), {
+          timeout: this.config.timeout,
+          capabilityStore: this.capabilityStore,
+          graphRAG: this.graphRAG,
+        });
+        this.lastBridge = bridge;
+
+        // Execute via Worker with empty tool definitions
+        const result = await bridge.execute(code, [], context);
+
+        const executionTimeMs = performance.now() - startTime;
+
+        logger.info("Worker execution succeeded", {
+          success: result.success,
+          executionTimeMs: executionTimeMs.toFixed(2),
+        });
+
+        // Release resource token before returning
+        if (resourceToken) {
+          this.resourceLimiter.release(resourceToken);
+        }
+
+        // Return ExecutionResult (without traces for backward compat)
+        // Convert undefined to null for JSON serialization consistency (matches subprocess behavior)
+        // Classify error types to match subprocess behavior
+        let error = result.error;
+        if (error && error.type === "RuntimeError") {
+          const msg = error.message.toLowerCase();
+          // Detect permission errors from message patterns
+          if (
+            msg.includes("permission") ||
+            msg.includes("permissiondenied") ||
+            msg.includes("notcapable") ||
+            msg.includes("requires") && msg.includes("access")
+          ) {
+            error = { ...error, type: "PermissionError" };
+          }
+          // Detect syntax errors from message patterns
+          else if (
+            msg.includes("unexpected") ||
+            msg.includes("parse error") ||
+            msg.includes("syntax") ||
+            msg.includes("invalid or unexpected token")
+          ) {
+            error = { ...error, type: "SyntaxError" };
+          }
+        }
+
+        return {
+          success: result.success,
+          result: result.result === undefined ? null : result.result,
+          error,
+          executionTimeMs,
+        };
+      }
+
+      // === SUBPROCESS PATH (legacy, when useWorkerForExecute = false) ===
 
       // Check cache before execution
       if (this.cache) {
