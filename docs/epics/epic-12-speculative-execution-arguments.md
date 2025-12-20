@@ -89,6 +89,13 @@ NFR5: Speculation results must be JSON-serializable for caching
 **Dependencies:**
 - Story 10.2 (Static Argument Extraction) - prerequisite
 - Story 10.3 (ProvidesEdge) - prerequisite
+- Story 10.5 (Architecture Unifiée WorkerBridge) - prerequisite
+
+**Dependents (Stories qui utilisent Epic 12):**
+- Story 10.7 AC16-17 (Speculation Automatique avec Session Context) - utilise Epic 12 pour:
+  - Session Context Management (stockage résultats workflows précédents)
+  - canSpeculate() (Story 12.3)
+  - ProvidesEdge matching pour résolution automatique des arguments
 
 ---
 

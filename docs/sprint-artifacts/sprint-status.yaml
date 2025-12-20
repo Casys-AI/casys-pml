@@ -198,7 +198,7 @@ development_status:
   10-2-static-argument-extraction: done # Dev completed 2025-12-19, 22 tests passing, ArgumentsStructure types implemented
   10-3-provides-edge-type: done # Code Review APPROVED + AC10 added 2025-12-18, 37 tests passing, DB persistence for scalability
   10-5-execute-code-via-dag: in-progress # Code Review 2025-12-19: 4 HIGH, 3 MEDIUM issues - action items created
-  10-6-pml-discover-api: backlog
+  10-6-pml-discover-api: ready-for-dev # Story context created 2025-12-20, Unified discovery API (tools + capabilities)
   10-7-pml-execute-api: backlog
   10-8-pml-get-task-result: backlog
   epic-10-retrospective: optional

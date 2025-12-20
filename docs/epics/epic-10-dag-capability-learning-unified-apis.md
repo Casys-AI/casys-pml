@@ -1,9 +1,10 @@
 ## Epic 10: DAG Capability Learning & Unified APIs
 
 > **Tech-Spec:** [tech-spec-dag-capability-learning.md](./tech-specs/tech-spec-dag-capability-learning.md)
-> **Status:** Proposed (2025-12-17)
+> **Status:** In Progress (Stories 10.1-10.5 DONE)
 > **Author:** Erwan + Claude
 > **Depends on:** Epic 7 (Emergent Capabilities), HIL Phase 2 (Permission Escalation)
+> **Last Updated:** 2025-12-20 (Post-implementation review)
 
 **Expanded Goal (2-3 sentences):**
 
@@ -238,13 +239,72 @@ Une Capability n'est pas forcément un DAG interne. Elle peut être:
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Estimation:** 10 stories (9 MVP + 1 optional), ~3-4 semaines MVP
+**Estimation:** 7 stories, ~4 semaines MVP (révisé post-implémentation)
+
+---
+
+### Architecture Unifiée Worker-Only (Découverte 10.5)
+
+> **Décision Architecture (2025-12-20):** Suite à l'implémentation de Story 10.5, l'architecture
+> d'exécution a été unifiée. Cette section documente les changements par rapport à la vision initiale.
+
+**Principe Fondamental:**
+**TOUT passe par le Worker Sandbox (permissions: "none") pour 100% traçabilité.**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Code TypeScript                                                 │
+│       │                                                          │
+│       ▼                                                          │
+│  Static Analysis (SWC) → static_structure → Capability           │
+│       │                                                          │
+│       ▼                                                          │
+│  ControlledExecutor (orchestration)                              │
+│  ├── Layers (parallel groups)                                    │
+│  ├── Checkpoints                                                 │
+│  └── HIL/per_layer_validation                                    │
+│       │                                                          │
+│       ▼                                                          │
+│  Pour chaque task:                                               │
+│       │                                                          │
+│       ▼                                                          │
+│  WorkerBridge.execute(taskCode)                                  │
+│       │                                                          │
+│       ▼                                                          │
+│  Worker (permissions: "none")                                    │
+│       │                                                          │
+│       ▼                                                          │
+│  RPC Proxy → client.callTool()                                   │
+│       │                                                          │
+│       ▼                                                          │
+│  100% traçabilité ✅                                             │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Changements par rapport à la vision initiale:**
+
+| Aspect | Vision Epic (avant) | Réalité Implémentée |
+|--------|---------------------|---------------------|
+| **Fallback** | "Fallback gracieux vers sandbox direct" | ❌ Supprimé - UN seul chemin |
+| **DAG execution** | `client.callTool()` direct | WorkerBridge pour 100% trace |
+| **Subprocess** | Chemin alternatif | Conservé uniquement pour features spécifiques |
+| **Permissions** | Granulaires par tool | `"none"` toujours (force RPC) |
+
+**Performance Mesurée:**
+- Worker: ~31ms
+- Subprocess: ~53ms
+- **Speedup: 1.7x**
+
+**Fichiers Clés:**
+- `src/dag/execution/workerbridge-executor.ts` - `createToolExecutorViaWorker()`
+- `src/sandbox/executor.ts` - `useWorkerForExecute` option
+- `src/sandbox/worker-bridge.ts` - Constante `WORKER_PERMISSIONS = "none"`
 
 ---
 
 ### Story Breakdown - Epic 10
 
-**Story 10.1: Static Code Analysis → Capability Creation** ⭐ VRAIE FONDATION
+**Story 10.1: Static Code Analysis → Capability Creation** ⭐ VRAIE FONDATION ✅ DONE
 
 As an execution system, I want to parse code statically to generate a complete `static_structure`,
 So that I can **create the Capability immediately** with full branch/condition visibility for HIL.
@@ -459,7 +519,10 @@ viennent ensuite enrichir le `learning` avec les chemins réellement empruntés.
 
 ---
 
-**Story 10.2: Static Argument Extraction for Speculative Execution**
+**Story 10.2: Static Argument Extraction for Speculative Execution** ✅ DONE
+
+> **Status:** DONE (2025-12-19)
+> **Tech-Spec:** [10-2-static-argument-extraction.md](../sprint-artifacts/10-2-static-argument-extraction.md)
 
 As a speculative execution system, I want to extract and store tool arguments from static code analysis,
 So that I can execute capabilities speculatively without requiring runtime argument inference.
@@ -510,7 +573,10 @@ type StaticStructureNode =
 
 ---
 
-**Story 10.3: Provides Edge Type - Data Flow Relationships**
+**Story 10.3: Provides Edge Type - Data Flow Relationships** ✅ DONE
+
+> **Status:** DONE (2025-12-18)
+> **Tech-Spec:** [10-3-provides-edge-type.md](../sprint-artifacts/10-3-provides-edge-type.md)
 
 As a graph learning system, I want a `provides` edge type that captures data flow between tools,
 So that I can understand which tools can feed data to which other tools.
@@ -579,63 +645,75 @@ pas depuis les résultats d'exécution. Voir Story 10.1.
 
 ---
 
-**Story 10.5: Execute Code via Inferred DAG**
+**Story 10.5: Execute Code via Inferred DAG** ✅ DONE
+
+> **Status:** DONE (2025-12-20)
+> **Tech-Spec:** [10-5-execute-code-via-dag.md](../sprint-artifacts/10-5-execute-code-via-dag.md)
 
 As an execution system, I want to execute code via its inferred DAG structure,
 So that code execution benefits from DAG features (per-layer validation, parallel execution, checkpoints, SSE streaming).
 
 **Context:**
-Story 10.1 génère `static_structure` (le DAG inféré du code), mais `execute_code` ne l'utilise pas.
-Le code est exécuté directement dans la sandbox, sans bénéficier des features DAG.
+Story 10.1 génère `static_structure` (le DAG inféré du code), mais `execute_code` ne l'utilisait pas.
 
-**Le gap actuel:**
+**Architecture Unifiée (Découverte pendant l'implémentation):**
+
 ```
-ACTUEL:
-Code → DenoSandboxExecutor (exécution directe) → Result
-        ↓
-     static_structure stocké (juste pour learning/viz)
+AVANT (2 chemins - problématique):
+├── DAG mode → client.callTool() direct (❌ pas de trace)
+└── Sandbox mode → subprocess (❌ lent, pas unifié)
 
-SOUHAITÉ:
-Code → static_structure → DAGStructure → ControlledExecutor → Result
+APRÈS (1 seul chemin - implémenté):
+Code → static_structure → DAGStructure → ControlledExecutor
                                               ↓
-                          per_layer, parallel, checkpoints, SSE
+                                         WorkerBridge
+                                              ↓
+                                    Worker (permissions: "none")
+                                              ↓
+                                         RPC Proxy
+                                              ↓
+                                    100% traçabilité ✅
 ```
 
-**Code-first principle:**
-L'IA écrit du code TypeScript. Le système infère le DAG et l'exécute avec toutes les features.
-Pas besoin de "types" de capabilities différents - une capability = code + static_structure.
+**Décision Architecture Clé:**
+- **Worker permissions = "none" toujours** - Force TOUT à passer par MCP RPC
+- **Pas de fallback** - UN seul chemin d'exécution (Worker)
+- **Performance:** Worker ~31ms vs subprocess ~53ms (1.7x speedup)
 
-**Acceptance Criteria:**
+**Acceptance Criteria (Révisés post-implémentation):**
 
-1. `staticStructureToDag(structure: StaticStructure): DAGStructure` converter:
-   - Map `StaticStructureNode` → `Task` (task→mcp_tool, capability→capability, fork/join→parallel)
-   - Map `StaticStructureEdge` → `Task.dependsOn`
-2. `handleExecuteCode()` modifié:
-   - Build `static_structure` via `StaticStructureBuilder`
-   - Convert to `DAGStructure` via `staticStructureToDag()`
-   - Execute via `ControlledExecutor` instead of `DenoSandboxExecutor`
-3. `resolveArguments(args, context, previousResults)`:
-   - literal → use value directly
-   - reference → resolve from previous task result
-   - parameter → extract from execution context
-4. Conditional execution support (decision nodes → conditional branches)
-5. Parallel execution from fork/join nodes
-6. Per-layer validation for code execution (reuse existing logic)
-7. Fallback to direct execution if `static_structure` is empty/invalid
-8. Response includes DAG execution metadata: `{ executedViaDAG, tasksExecuted, parallelGroups }`
-9. Tests: sequential, parallel, conditional, references, fallback
+1. ✅ `staticStructureToDag(structure: StaticStructure): DAGStructure` converter
+2. ✅ `handleExecuteCode()` modifié pour utiliser ControlledExecutor
+3. ✅ `resolveArguments(args, context, previousResults)` implémenté
+4. ✅ Conditional execution support (decision nodes → conditional branches)
+5. ✅ Parallel execution from fork/join nodes
+6. ✅ Per-layer validation for code execution
+7. ~~Fallback to direct execution~~ → **SUPPRIMÉ** (Architecture unifiée)
+8. ✅ Response includes DAG execution metadata
+9. ✅ Tests: 23 tests (12 converter + 11 resolver)
 
-**Files to Create:**
-- `src/dag/static-to-dag-converter.ts` (~150 LOC)
-- `src/dag/argument-resolver.ts` (~100 LOC)
+**Nouveaux ACs (Découverts pendant l'implémentation):**
 
-**Files to Modify:**
-- `src/mcp/handlers/code-execution-handler.ts` (~80 LOC)
-- `src/dag/mod.ts` (exports)
+10. ✅ **WorkerBridge Integration** - `createToolExecutorViaWorker()` remplace les appels directs
+11. ✅ **Signature Refactorisée** - Génère code TypeScript pour chaque appel tool via Worker
+12. ✅ **Tests WorkerBridge** - 6 tests unitaires
+13. ✅ **Unification execute()** - `DenoSandboxExecutor.execute()` utilise Worker par défaut
+    - 268 tests sandbox passent
+    - `useWorkerForExecute: false` pour features subprocess-only (allowedReadPaths, memoryLimit)
 
-**Prerequisites:** Story 10.1 (static_structure), Story 10.2 (argument extraction)
+**Files Created:**
+- `src/dag/static-to-dag-converter.ts` (~220 LOC)
+- `src/dag/argument-resolver.ts` (~230 LOC)
+- `src/dag/execution/workerbridge-executor.ts` (WorkerBridge-based ToolExecutor)
+- `tests/integration/code-to-dag-execution_test.ts` (7 tests)
 
-**Estimation:** 2-3 jours
+**Files Modified:**
+- `src/mcp/handlers/code-execution-handler.ts` (~350 LOC changes)
+- `src/mcp/handlers/workflow-execution-handler.ts` (WorkerBridge)
+- `src/mcp/handlers/control-commands-handler.ts` (WorkerBridge)
+- `src/sandbox/executor.ts` (Worker unification)
+
+**Effort Réel:** 4-5 jours (vs 2-3 estimés) - Scope élargi avec architecture unifiée
 
 ---
 
@@ -716,8 +794,35 @@ Phase 5 de la tech spec. Remplace `pml_execute_dag` et `pml_execute_code`.
 
 **Design Principles:**
 - **Code-first**: Tout est du code TypeScript. Le DAG est inféré via analyse statique (Story 10.1)
+- **Le code EST le DAG**: Plus de format JSON spécial - l'IA écrit du code naturel
 - **Procedural Memory**: Le PML ne génère pas de code, il **réutilise** des capabilities apprises
 - **3 modes simples**: Suggestion, Speculation, Direct
+
+**Migration depuis l'ancien API:**
+
+```typescript
+// ❌ AVANT (deprecated) - DAG JSON explicite avec $OUTPUT
+pml_execute_dag({
+  workflow: {
+    tasks: [
+      { id: "read", tool: "fs:read", args: { path: "config.json" } },
+      { id: "parse", tool: "json:parse", args: { json: "$OUTPUT[read]" }, depends_on: ["read"] }
+    ]
+  }
+})
+
+// ✅ APRÈS - Code TypeScript naturel
+pml_execute({
+  intent: "lire et parser config.json",
+  code: `
+    const content = await mcp.fs.read({ path: "config.json" });
+    return JSON.parse(content);
+  `
+})
+```
+
+> **Le code EST le DAG.** Le système parse le code (SWC), génère la `static_structure`,
+> et exécute via ControlledExecutor avec toutes les features DAG (parallel, HIL, checkpoints, SSE).
 
 **API Design:**
 ```typescript
@@ -734,11 +839,55 @@ pml_execute({
 
 **Les 3 Modes d'Exécution:**
 
-| Input | Mode | Ce qui se passe |
-|-------|------|-----------------|
-| `intent` seul | **Suggestion** | Retourne tools + schemas + capabilities matchées |
-| `intent` + `context` | **Speculation** | Cherche capability existante → exécute avec context |
-| `intent` + `code` | **Direct** | Exécute le code → apprend nouvelle capability |
+| Input | Mode | Ce qui se passe | SWC Parsing ? | Capability créée ? |
+|-------|------|-----------------|---------------|-------------------|
+| `intent` seul | **Suggestion** ou **Speculation Auto** | Voir ci-dessous | ❌ Non | ❌ Non |
+| `intent` + `context` | **Speculation** | Trouve cap → exécute `cap.code_snippet` | ❌ Non (déjà fait) | ❌ Non (usage_count++) |
+| `intent` + `code` | **Direct** | Exécute code → crée capability | ✅ Oui | ✅ Oui |
+
+**Performance Note:** Le mode Speculation est plus rapide car il skip l'analyse statique SWC -
+la capability a déjà sa `static_structure` stockée.
+
+**Speculation Automatique (intent seul + session context) - Epic 12 Integration:**
+
+Quand Claude envoie juste `intent` (sans `context` ni `code`), le système vérifie s'il peut
+spéculer automatiquement en utilisant les résultats des workflows précédents:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  pml_execute({ intent: "valider les données" })                  │
+│                         │                                        │
+│                         ▼                                        │
+│  1. Cherche capability/tool qui match l'intent                   │
+│                         │                                        │
+│                         ▼                                        │
+│  2. Session Context a des résultats de workflow précédent?       │
+│            │                              │                      │
+│           OUI                            NON                     │
+│            │                              │                      │
+│            ▼                              ▼                      │
+│  3. ProvidesEdge match                 Mode SUGGESTION           │
+│     outputs A → inputs B?              (retourne suggestions)    │
+│            │                                                     │
+│           OUI + canSpeculate() ──→ Mode SPECULATION AUTO         │
+│                                   (exécute avec résultats préc.) │
+│                                                                  │
+│           NON ──→ Mode SUGGESTION                                │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+| Condition | Mode |
+|-----------|------|
+| `intent` seul + **pas de session context** | Suggestion |
+| `intent` seul + **session context** + **ProvidesEdge match** + **canSpeculate()** | Speculation Auto |
+| `intent` seul + **session context** + **pas de match** | Suggestion |
+
+**Session Context (Epic 12 dependency):**
+- Garde les résultats des N derniers workflows (configurable, default: 5)
+- TTL configurable (default: 5 minutes)
+- Nettoyé au début d'une nouvelle conversation
+- ProvidesEdge (Story 10.3) utilisé pour matcher outputs workflow A → inputs capability B
+- canSpeculate() (Story 12.3) vérifie que l'exécution est safe (read-only tools)
 
 **Execution Flow:**
 ```
@@ -768,11 +917,17 @@ pml_execute({
               │       cap.code (confidence < seuil)
               │       + context
               │          │
+              │          ▼
+              │       After speculation success:
+              │       - capability.usage_count++
+              │       - capability.success_rate updated
+              │       - NO new capability created
+              │          │
               └────┬─────┘
                    ▼
-            After success:
-            - Analyse statique → static_structure (DAG)
-            - Create/update capability
+            After DIRECT mode success:
+            - Analyse statique SWC → static_structure
+            - Create/update capability (code_hash dedup)
             - Update graph edges
 ```
 
@@ -789,17 +944,21 @@ pml_execute({
    - Exécute dans sandbox
    - Crée/update capability avec `static_structure`
 3. **Mode Speculation** (`context` fourni, pas de `code`):
-   - Appelle `pml_discover` pour trouver capabilities
-   - Si capability trouvée avec confidence > seuil → exécute `capability.code_snippet` avec `context`
-   - Si confidence < seuil → retourne suggestions
+   - Appelle `pml_discover` pour trouver capabilities par intent
+   - Si capability trouvée avec confidence > seuil:
+     - Exécute `capability.code_snippet` avec `context` injecté
+     - **Skip SWC parsing** (static_structure déjà stockée)
+     - Update `usage_count++` et `success_rate`
+     - **PAS de nouvelle capability créée** (réutilisation)
+   - Si confidence < seuil → retourne suggestions (fallback to Suggestion mode)
 4. **Mode Suggestion** (ni `code` ni `context`):
    - Appelle `pml_discover`
    - Retourne tools (avec `input_schema`) + capabilities matchées
-   - L'IA doit écrire le code
-5. Après succès:
-   - Crée/update capability via `CapabilityStore`
+   - L'IA doit décider: écrire du code (Direct) ou passer context (Speculation)
+5. **Après succès en mode DIRECT uniquement:**
+   - Analyse statique SWC → `static_structure`
+   - Crée/update capability via `CapabilityStore` (dedup par `code_hash`)
    - Update graph edges
-   - Trace structure (parallel, séquence)
 6. Support `per_layer_validation` pour tools avec permissions élevées
 7. **Dépréciation** des anciens tools:
    - `pml_execute_dag` → deprecated
@@ -816,11 +975,25 @@ pml_execute({
      capabilityId?: string,  // Si capability créée/updated
    }
    ```
-9. Tests: execute avec intent seul → mode suggestion
-10. Tests: execute avec intent + context → mode speculation (trouve capability)
-11. Tests: execute avec intent + context → mode suggestion (pas de capability)
+9. Tests: execute avec intent seul → mode suggestion (retourne tools + caps)
+10. Tests: execute avec intent + context → mode speculation (trouve capability, exécute)
+11. Tests: execute avec intent + context → fallback suggestion (pas de capability trouvée)
 12. Tests: execute avec code → mode direct + capability créée
-13. Tests: succès → capability avec `static_structure` inféré
+13. Tests: mode direct → capability avec `static_structure` inféré
+14. Tests: mode speculation → PAS de SWC parsing, juste usage_count++
+15. Tests: mode speculation → capability.success_rate mis à jour après exécution
+16. **Mode Speculation Automatique (Epic 12 integration):**
+    - `intent` seul + Session Context avec résultats workflow précédent
+    - ProvidesEdge (Story 10.3) match outputs A → inputs B
+    - canSpeculate() (Story 12.3) retourne true (safe tools)
+    - → Exécute automatiquement avec résultats précédents (pas besoin de `context` explicite)
+17. **Session Context Management:**
+    - Stocke résultats des N derniers workflows (configurable, default: 5)
+    - TTL configurable (default: 5 minutes)
+    - Nettoyé au début d'une nouvelle conversation
+18. Tests: intent seul + session context avec résultats → mode speculation auto
+19. Tests: intent seul + session context sans ProvidesEdge match → mode suggestion
+20. Tests: intent seul + pas de session context → mode suggestion
 
 **Files to Create:**
 - `src/mcp/handlers/execute-handler.ts` (~250 LOC)
@@ -1020,19 +1193,23 @@ pml_get_task_result({
 
 ---
 
-### Epic 10 Estimation Summary
+### Epic 10 Estimation Summary (Révisé 2025-12-20)
 
-| Ordre | Story | Description | Effort | Cumulative |
-|-------|-------|-------------|--------|------------|
-| 1 | **10.1** | **Static Analysis → Capability** ⭐ FONDATION | **3-4j** | **4j** |
-| 2 | **10.2** | Static Argument Extraction | 1-2j | 6j |
-| 3 | 10.3 | Provides Edge | 1-2j | 8j |
-| 4 | 10.5 | Unified Capability | 2-3j | 11j |
-| 5 | 10.6 | pml_discover | 2-3j | 14j |
-| 6 | 10.7 | pml_execute | 3-5j | 18j |
-| 7 | 10.8 | pml_get_task_result | 1-2j | 20j |
+| Ordre | Story | Description | Estimé | Réel | Status |
+|-------|-------|-------------|--------|------|--------|
+| 1 | **10.1** | **Static Analysis → Capability** ⭐ FONDATION | 3-4j | **4j** | ✅ DONE |
+| 2 | **10.2** | Static Argument Extraction | 1-2j | **2j** | ✅ DONE |
+| 3 | **10.3** | Provides Edge + DB Persistence | 1-2j | **2j** | ✅ DONE |
+| 4 | **10.5** | Execute via DAG + Worker Unification | 2-3j | **5j** | ✅ DONE |
+| 5 | 10.6 | pml_discover | 2-3j | - | ⬜ TODO |
+| 6 | 10.7 | pml_execute | 3-5j | - | ⬜ TODO |
+| 7 | 10.8 | pml_get_task_result | 1-2j | - | ⬜ TODO |
 
-**Total Epic 10: ~4 semaines**
+**Progression: 4/7 stories (57%)**
+
+**Effort réel vs estimé:**
+- Stories 10.1-10.5: **13 jours** (vs 7-11j estimés)
+- Raison principale: Story 10.5 a découvert le besoin d'architecture unifiée Worker-only (+2j)
 
 > **Note:** Stories déplacées vers Epic 11 :
 > - 11.0 DB Schema Cleanup complet (2-3j)
@@ -1042,7 +1219,8 @@ pml_get_task_result({
 > - 11.4 Definition/Invocation Views (2-3j)
 > - 11.5 Dry Run (3-4j, optional)
 
-**🎯 Story 10.1 (Static Analysis) est la vraie fondation car:**
-1. Crée la Capability avec `static_structure` AVANT exécution
-2. L'HIL fonctionne immédiatement (on connaît les tools avant exécution)
-3. Les conditions/branches sont visibles dans la structure, pas perdues
+**🎯 Découvertes clés pendant l'implémentation:**
+1. **Architecture unifiée Worker-only** - Tout passe par WorkerBridge (100% traçabilité)
+2. **Performance Worker** - 1.7x plus rapide que subprocess
+3. **Pas de fallback** - Un seul chemin d'exécution (simplicité)
+4. **Sandbox bypass bug** - Corrigé avec `createToolExecutorViaWorker()`

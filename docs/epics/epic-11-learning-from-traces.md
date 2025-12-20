@@ -461,6 +461,11 @@ DROP TABLE IF EXISTS workflow_execution CASCADE;
 9. `initial_context` stocke les arguments initiaux du workflow (Epic 12 dependency)
 10. `task_results[].args` stocke les arguments de chaque tâche (Epic 12 dependency)
 11. Data sanitization appliquée avant stockage (redact sensitive, truncate large payloads)
+12. **Refactor appels post-exécution (séparation Capability vs Trace):**
+   - `executor.ts:394` → utiliser `executionTraceStore.saveTrace()` au lieu de `saveCapability()`
+   - `worker-bridge.ts:300` → utiliser `executionTraceStore.saveTrace()` au lieu de `saveCapability()`
+   - `saveCapability()` signature nettoyée: retirer `durationMs`, `success`, `toolsUsed`, `toolInvocations`
+   - La Capability est créée via analyse statique (Story 10.1), la Trace est créée après exécution
 
 **Files to Create:**
 - `src/db/migrations/019_execution_trace.ts` (~100 LOC)
@@ -471,6 +476,9 @@ DROP TABLE IF EXISTS workflow_execution CASCADE;
 - `src/capabilities/types.ts` (~50 LOC)
 - `src/graphrag/sync/db-sync.ts` (~20 LOC)
 - `src/graphrag/metrics/collector.ts` (~15 LOC)
+- `src/sandbox/executor.ts` (~20 LOC) - AC12: refactor saveCapability → saveTrace
+- `src/sandbox/worker-bridge.ts` (~20 LOC) - AC12: refactor saveCapability → saveTrace
+- `src/capabilities/capability-store.ts` (~30 LOC) - AC12: nettoyer signature saveCapability
 
 **Prerequisites:** Story 11.1 (result in traces)
 
