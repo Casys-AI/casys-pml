@@ -90,6 +90,9 @@ export { dataTools } from "./data.ts";
 export { stateTools } from "./state.ts";
 export { compareTools } from "./compare.ts";
 
+// Utility tools
+export { utilTools } from "./util.ts";
+
 // Imports for combined export
 import { dockerTools } from "./docker.ts";
 import { gitTools } from "./git.ts";
@@ -128,6 +131,8 @@ import { diffTools } from "./diff.ts";
 import { dataTools } from "./data.ts";
 import { stateTools } from "./state.ts";
 import { compareTools } from "./compare.ts";
+// Utility imports
+import { utilTools } from "./util.ts";
 import type { MiniTool as MiniToolType } from "./types.ts";
 
 /** All system tools combined */
@@ -172,6 +177,8 @@ export const systemTools = [
   ...dataTools,
   ...stateTools,
   ...compareTools,
+  // Utility tools
+  ...utilTools,
 ];
 
 /** Alias for backward compatibility */
@@ -216,6 +223,8 @@ export const toolsByCategory: Record<string, MiniToolType[]> = {
   cloud: cloudTools,
   sysinfo: sysinfoTools,
   packages: packagesTools,
+  // Utility tools
+  util: utilTools,
 };
 
 // ============================================================================

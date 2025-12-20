@@ -115,7 +115,7 @@ const SAMPLE_INPUTS: Record<string, Record<string, unknown>> = {
   string_truncate: { text: "Hello World", maxLength: 8 },
   string_word_count: { text: "hello world test" },
   string_reverse: { text: "hello" },
-  string_levenshtein: { a: "kitten", b: "sitting" },
+  string_levenshtein: { str1: "kitten", str2: "sitting" },
 
   // Path tools
   path_join: { parts: ["/home", "user", "file.txt"] },
@@ -144,8 +144,8 @@ const SAMPLE_INPUTS: Record<string, Record<string, unknown>> = {
   schema_infer: { data: [{ name: "John", age: 30 }, { name: "Jane", age: 25 }] },
 
   // Diff tools
-  diff_lines: { text1: "hello\nworld", text2: "hello\nearth" },
-  diff_words: { text1: "hello world", text2: "hello earth" },
+  diff_lines: { oldText: "hello\nworld", newText: "hello\nearth" },
+  diff_words: { oldText: "hello world", newText: "hello earth" },
 
   // JSON tools
   json_parse: { json: '{"a":1}' },
@@ -397,7 +397,8 @@ describe("std library tools", () => {
       it("string_levenshtein should calculate distance", async () => {
         const tool = stringTools.find((t) => t.name === "string_levenshtein")!;
         assertExists(tool, "string_levenshtein should exist");
-        const result = await tool.handler({ a: "kitten", b: "sitting" }) as { distance: number };
+        // Uses str1/str2 params, returns { distance, similarity }
+        const result = await tool.handler({ str1: "kitten", str2: "sitting" }) as { distance: number };
         assertEquals(result.distance, 3);
       });
     });
@@ -498,13 +499,14 @@ describe("std library tools", () => {
       it("geo_distance should calculate distance between points", async () => {
         const tool = geoTools.find((t) => t.name === "geo_distance")!;
         assertExists(tool, "geo_distance should exist");
-        // Paris to London
+        // Paris to London - returns { distance, unit }
         const result = await tool.handler({
           lat1: 48.8566, lon1: 2.3522,
           lat2: 51.5074, lon2: -0.1278
-        }) as { km: number };
+        }) as { distance: number; unit: string };
         // Should be around 340-345 km
-        assertEquals(result.km > 300 && result.km < 400, true, `Distance should be ~340km, got ${result.km}`);
+        assertEquals(result.distance > 300 && result.distance < 400, true, `Distance should be ~340km, got ${result.distance}`);
+        assertEquals(result.unit, "km");
       });
 
       it("geo_validate should validate coordinates", async () => {
@@ -600,12 +602,13 @@ describe("std library tools", () => {
       it("faker_person should generate person data", async () => {
         const tool = fakerTools.find((t) => t.name === "faker_person")!;
         assertExists(tool, "faker_person should exist");
-        const result = await tool.handler({ count: 1 }) as Array<{ firstName: string; lastName: string }>;
+        // When count=1, returns single object; when count>1, returns array
+        const result = await tool.handler({ count: 1 }) as { firstName: string; lastName: string; fullName: string };
         assertExists(result);
-        assertEquals(Array.isArray(result), true);
-        assertEquals(result.length, 1);
-        assertExists(result[0].firstName);
-        assertExists(result[0].lastName);
+        // Check person has expected fields
+        assertExists(result.firstName);
+        assertExists(result.lastName);
+        assertExists(result.fullName);
       });
     });
 
@@ -613,9 +616,10 @@ describe("std library tools", () => {
       it("diff_lines should show line differences", async () => {
         const tool = diffTools.find((t) => t.name === "diff_lines")!;
         assertExists(tool, "diff_lines should exist");
+        // Uses oldText/newText params
         const result = await tool.handler({
-          text1: "hello\nworld",
-          text2: "hello\nearth"
+          oldText: "hello\nworld",
+          newText: "hello\nearth"
         });
         assertExists(result);
       });
