@@ -994,6 +994,12 @@ spéculer automatiquement en utilisant les résultats des workflows précédents
 18. Tests: intent seul + session context avec résultats → mode speculation auto
 19. Tests: intent seul + session context sans ProvidesEdge match → mode suggestion
 20. Tests: intent seul + pas de session context → mode suggestion
+21. **Fix ADR-038 Incohérence dans `suggestDAG`:**
+    - `injectMatchingCapabilities()` utilise `searchByContext()` (mode Passif)
+    - Devrait utiliser `findMatch(intent)` (mode Actif) car on a un intent
+    - Remplacer par `capabilityMatcher.findMatch(intent.text)` (formule: `semantic × reliability`)
+    - Garder `searchByContext()` uniquement dans `predictNextNodes()` (mode Passif correct)
+22. Tests: suggestDAG avec intent → capabilities trouvées par `findMatch` (semantic × reliability)
 
 **Files to Create:**
 - `src/mcp/handlers/execute-handler.ts` (~250 LOC)
@@ -1002,6 +1008,8 @@ spéculer automatiquement en utilisant les résultats des workflows précédents
 - `src/mcp/gateway-server.ts` - Register new handler
 - `src/mcp/handlers/workflow-execution-handler.ts` - Add deprecation
 - `src/mcp/handlers/code-execution-handler.ts` - Add deprecation
+- `src/graphrag/dag-suggester.ts` - Fix: use `findMatch(intent)` instead of `searchByContext()` for capabilities
+- `src/graphrag/prediction/capabilities.ts` - Fix: `injectMatchingCapabilities()` to use intent-based search
 
 **Prerequisites:** Story 10.6 (pml_discover)
 
