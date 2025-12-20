@@ -1,22 +1,26 @@
 /**
  * Deno Sandbox Executor - Production Implementation
  *
- * Provides secure code execution in an isolated Deno subprocess environment.
- * Features:
- * - Strict permission whitelisting (read-only access to temp file)
- * - Timeout enforcement (default 30s, configurable)
- * - Memory limits (default 512MB heap, configurable)
- * - Comprehensive error capturing and sanitization
- * - JSON-only result serialization
- * - Security event logging
- * - Performance metrics tracking
+ * Provides secure code execution via Worker (default) or subprocess.
  *
- * Security Model:
- * - Explicit deny flags for write, net, run, ffi, env
- * - Whitelist-only read access (temp file + optional paths)
- * - No prompt mode to prevent subprocess hangs
- * - Path sanitization in error messages
- * - Automatic temp file cleanup
+ * ## Architecture Decision (Story 10.5 AC13)
+ *
+ * **Worker Mode (default, recommended for MCP):**
+ * - Uses `WorkerBridge` with `permissions: "none"`
+ * - 100% traçabilité: all I/O goes through MCP RPC bridge
+ * - Faster execution (~33ms vs ~54ms subprocess)
+ * - No direct filesystem/network access (security by design)
+ *
+ * **Subprocess Mode (legacy, opt-in via `useWorkerForExecute: false`):**
+ * - Spawns Deno subprocess with explicit permission flags
+ * - Required for: allowedReadPaths, memoryLimit, elevated permission sets
+ * - Slower due to process spawn overhead
+ *
+ * ## Features NOT used in Worker mode (by design):
+ * - **Cache**: MCP calls are non-deterministic (files change)
+ * - **Memory limits**: Workers don't support per-Worker limits
+ * - **Permission sets**: Worker uses "none" always (all I/O via RPC)
+ * - **allowedReadPaths**: Worker can't read files directly
  *
  * @module sandbox/executor
  */
@@ -256,7 +260,7 @@ export class DenoSandboxExecutor {
       }
 
       // Story 10.5 AC13: Use Worker for execute() when enabled
-      // Worker path is faster (~5ms vs ~50ms subprocess) and provides 100% traceability
+      // Worker path provides 100% traceability (all I/O via MCP RPC)
       if (this.useWorkerForExecute) {
         logger.debug("Using Worker path for execute()", {
           codeLength: code.length,
@@ -281,9 +285,10 @@ export class DenoSandboxExecutor {
           executionTimeMs: executionTimeMs.toFixed(2),
         });
 
-        // Release resource token before returning
+        // Release resource token before returning (set to null to prevent double-release in finally)
         if (resourceToken) {
           this.resourceLimiter.release(resourceToken);
+          resourceToken = null;
         }
 
         // Return ExecutionResult (without traces for backward compat)
@@ -320,7 +325,14 @@ export class DenoSandboxExecutor {
         };
       }
 
-      // === SUBPROCESS PATH (legacy, when useWorkerForExecute = false) ===
+      // === SUBPROCESS PATH (legacy) ===
+      // Only reached when useWorkerForExecute = false
+      // Required for features not available in Worker mode:
+      // - allowedReadPaths (Worker has permissions: "none")
+      // - memoryLimit (Workers don't support per-Worker limits)
+      // - Permission sets (network-api, filesystem, etc.)
+      // - Cache (useful for deterministic code, not MCP)
+      // Consider removing in future if these features aren't needed.
 
       // Check cache before execution
       if (this.cache) {
