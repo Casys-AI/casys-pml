@@ -77,6 +77,42 @@ interface StaticStructureEdge {
 
 Ces edges `provides`/`sequence` dans `static_structure.edges` représentent les dépendances réelles entre tools au sein d'une capability.
 
+## Limitations connues
+
+### Dijkstra et Hypergraph
+
+**Dijkstra standard ne supporte PAS les hyperedges.** Il fonctionne sur un graphe classique (arêtes binaires).
+
+| Structure | Type | Compatible Dijkstra |
+|-----------|------|---------------------|
+| **Graphe Graphology** | Arêtes binaires Tool→Tool | ✅ Oui |
+| **Matrice Spectral Clustering** | Bipartite Tool↔Cap | ❌ Non (matrice séparée) |
+| **Hyperedges (ADR-042)** | N-aires Cap→{Tools} | ❌ Non |
+
+L'Option E ajoute des arêtes **Tool→Tool** (binaires depuis static_structure), donc compatible avec Dijkstra.
+
+### Proposition de Capabilities vs Tools
+
+**Problème** : L'Option E enrichit le graphe avec des arêtes Tool→Tool. Dijkstra trouve des chemins entre tools, pas des capabilities.
+
+**Exemple** : Si capability "backup_workflow" contient [read_file, compress, upload] :
+- Dijkstra trouve : `read_file → compress → upload`
+- On propose : 3 tasks individuelles, pas la capability
+
+**Solution** : Combiner Option E + Option C (post-processing)
+1. Option E : Dijkstra découvre les chemins via les arêtes `provides`
+2. Option C : Après buildDAG, détecter si une capability "couvre" le chemin trouvé et la proposer à la place
+
+```typescript
+// Post-processing après buildDAG
+const dag = buildDAG(graph, candidateTools);
+const coveredCapabilities = findCoveringCapabilities(dag.tasks, capabilityStore);
+if (coveredCapabilities.length > 0) {
+  // Proposer capability au lieu des tasks individuelles
+  return { ...dag, suggestedCapabilities: coveredCapabilities };
+}
+```
+
 ## Questions de recherche
 
 1. ~~**Sémantique** : Que signifie un chemin `tool → capability → tool` ?~~
