@@ -60,3 +60,25 @@ export {
   type EdgeType,
   type EdgeSource,
 } from "./edge-weights.ts";
+
+// DR-DSP (Hypergraph shortest path)
+export {
+  DRDSP,
+  capabilityToHyperedge,
+  buildDRDSPFromCapabilities,
+  type Hyperedge,
+  type HyperpathResult,
+  type DynamicUpdate,
+} from "./dr-dsp.ts";
+
+// SHGAT (SuperHyperGraph Attention Networks)
+export {
+  SHGAT,
+  createSHGATFromCapabilities,
+  trainSHGATOnEpisodes,
+  DEFAULT_SHGAT_CONFIG,
+  type SHGATConfig,
+  type TrainingExample,
+  type CapabilityNode,
+  type AttentionResult,
+} from "./shgat.ts";

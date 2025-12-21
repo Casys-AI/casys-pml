@@ -1,13 +1,8 @@
 /**
  * DR-DSP (Directed Relationship Dynamic Shortest Path) Benchmarks
  *
- * PLACEHOLDER: DR-DSP is not yet implemented.
- * This file provides the benchmark structure for when DR-DSP is ready.
- *
- * DR-DSP is designed for native hypergraph shortest path computation:
- * - Polynomial complexity for DAGs (our case)
- * - Incremental updates after each observation
- * - Optimized for changes that affect shortest paths
+ * Benchmarks for the DR-DSP hypergraph shortest path algorithm.
+ * Compares performance against Dijkstra for capability-aware pathfinding.
  *
  * See spike: 2025-12-21-capability-pathfinding-dijkstra.md
  *
@@ -17,6 +12,11 @@
  */
 
 import { findShortestPath } from "../../../src/graphrag/algorithms/pathfinding.ts";
+import {
+  DRDSP,
+  buildDRDSPFromCapabilities,
+  type Hyperedge,
+} from "../../../src/graphrag/algorithms/dr-dsp.ts";
 import {
   buildGraphFromScenario,
   generateStressGraph,
@@ -42,85 +42,30 @@ const stressScenario = generateStressGraph({
 });
 const stressGraph = buildGraphFromScenario(stressScenario);
 
-// Get node pairs for testing
-const mediumNodes = Array.from(mediumGraph.nodes()).filter((n) =>
+// Get tool nodes for testing
+const mediumTools = Array.from(mediumGraph.nodes()).filter((n) =>
   mediumGraph.getNodeAttribute(n, "type") === "tool"
 );
-const stressNodes = Array.from(stressGraph.nodes()).filter((n) =>
+const stressTools = Array.from(stressGraph.nodes()).filter((n) =>
   stressGraph.getNodeAttribute(n, "type") === "tool"
 );
 
-// ============================================================================
-// Placeholder Types (to be replaced with actual implementation)
-// ============================================================================
+// Build DR-DSP instances from capabilities
+const mediumDRDSP = buildDRDSPFromCapabilities(
+  mediumScenario.nodes.capabilities.map((c) => ({
+    id: c.id,
+    toolsUsed: c.toolsUsed,
+    successRate: c.successRate,
+  })),
+);
 
-interface Hyperedge {
-  id: string;
-  sources: string[];
-  targets: string[];
-  weight: number;
-}
-
-interface HyperpathResult {
-  path: Hyperedge[];
-  totalWeight: number;
-  nodeSequence: string[];
-}
-
-interface DRDSPConfig {
-  maxPathLength: number;
-  weightAttribute: string;
-  pruneThreshold: number;
-}
-
-// ============================================================================
-// Placeholder Functions (to be replaced with actual implementation)
-// ============================================================================
-
-function mockDRDSP(
-  _graph: unknown,
-  _fromNodeId: string,
-  _toNodeId: string,
-  _hyperedges: Hyperedge[],
-  _config: DRDSPConfig,
-): HyperpathResult | null {
-  // Placeholder: simulates hyperpath computation
-  // In reality, this would traverse hyperedges as atomic units
-  return {
-    path: [],
-    totalWeight: Math.random() * 5,
-    nodeSequence: [_fromNodeId, _toNodeId],
-  };
-}
-
-function mockDRDSPIncremental(
-  _previousResult: HyperpathResult,
-  _changedEdges: Hyperedge[],
-  _config: DRDSPConfig,
-): HyperpathResult | null {
-  // Placeholder: simulates incremental update
-  // DR-DSP is optimized for updates that affect shortest paths
-  return _previousResult;
-}
-
-// Create mock hyperedges from capabilities
-function createHyperedges(capabilities: CapabilityNode[]): Hyperedge[] {
-  return capabilities.map((cap, i) => ({
-    id: cap.id,
-    sources: cap.toolsUsed.slice(0, Math.ceil(cap.toolsUsed.length / 2)),
-    targets: cap.toolsUsed.slice(Math.ceil(cap.toolsUsed.length / 2)),
-    weight: cap.successRate,
-  }));
-}
-
-const mediumHyperedges = createHyperedges(mediumScenario.nodes.capabilities);
-const stressHyperedges = createHyperedges(stressScenario.nodes.capabilities);
-
-const defaultConfig: DRDSPConfig = {
-  maxPathLength: 5,
-  weightAttribute: "weight",
-  pruneThreshold: 0.1,
-};
+const stressDRDSP = buildDRDSPFromCapabilities(
+  stressScenario.nodes.capabilities.map((c) => ({
+    id: c.id,
+    toolsUsed: c.toolsUsed,
+    successRate: c.successRate,
+  })),
+);
 
 // ============================================================================
 // Benchmarks: DR-DSP vs Dijkstra (Single Pair)
@@ -131,19 +76,18 @@ Deno.bench({
   group: "drdsp-vs-dijkstra",
   baseline: true,
   fn: () => {
-    if (mediumNodes.length >= 2) {
-      findShortestPath(mediumGraph, mediumNodes[0], mediumNodes[10]);
+    if (mediumTools.length >= 2) {
+      findShortestPath(mediumGraph, mediumTools[0], mediumTools[10] || mediumTools[1]);
     }
   },
 });
 
 Deno.bench({
-  name: "DR-DSP: single hyperpath (medium) [PLACEHOLDER]",
+  name: "DR-DSP: single hyperpath (medium)",
   group: "drdsp-vs-dijkstra",
-  ignore: true, // Enable when DR-DSP is implemented
   fn: () => {
-    if (mediumNodes.length >= 2) {
-      mockDRDSP(mediumGraph, mediumNodes[0], mediumNodes[10], mediumHyperedges, defaultConfig);
+    if (mediumTools.length >= 2) {
+      mediumDRDSP.findShortestHyperpath(mediumTools[0], mediumTools[10] || mediumTools[1]);
     }
   },
 });
@@ -157,19 +101,18 @@ Deno.bench({
   group: "drdsp-stress",
   baseline: true,
   fn: () => {
-    if (stressNodes.length >= 2) {
-      findShortestPath(stressGraph, stressNodes[0], stressNodes[50]);
+    if (stressTools.length >= 2) {
+      findShortestPath(stressGraph, stressTools[0], stressTools[50] || stressTools[1]);
     }
   },
 });
 
 Deno.bench({
-  name: "DR-DSP: stress hyperpath [PLACEHOLDER]",
+  name: "DR-DSP: stress hyperpath",
   group: "drdsp-stress",
-  ignore: true,
   fn: () => {
-    if (stressNodes.length >= 2) {
-      mockDRDSP(stressGraph, stressNodes[0], stressNodes[50], stressHyperedges, defaultConfig);
+    if (stressTools.length >= 2) {
+      stressDRDSP.findShortestHyperpath(stressTools[0], stressTools[50] || stressTools[1]);
     }
   },
 });
@@ -183,7 +126,7 @@ Deno.bench({
   group: "drdsp-nxn",
   baseline: true,
   fn: () => {
-    const nodes = mediumNodes.slice(0, 10);
+    const nodes = mediumTools.slice(0, 10);
     for (const from of nodes) {
       for (const to of nodes) {
         if (from !== to) {
@@ -195,15 +138,14 @@ Deno.bench({
 });
 
 Deno.bench({
-  name: "DR-DSP: N×N hyperpaths (10 nodes) [PLACEHOLDER]",
+  name: "DR-DSP: N×N hyperpaths (10 nodes)",
   group: "drdsp-nxn",
-  ignore: true,
   fn: () => {
-    const nodes = mediumNodes.slice(0, 10);
+    const nodes = mediumTools.slice(0, 10);
     for (const from of nodes) {
       for (const to of nodes) {
         if (from !== to) {
-          mockDRDSP(mediumGraph, from, to, mediumHyperedges, defaultConfig);
+          mediumDRDSP.findShortestHyperpath(from, to);
         }
       }
     }
@@ -211,39 +153,60 @@ Deno.bench({
 });
 
 // ============================================================================
-// Benchmarks: Incremental Updates
+// Benchmarks: DR-DSP SSSP (Single Source Shortest Path)
 // ============================================================================
 
 Deno.bench({
-  name: "Dijkstra: recompute after edge change",
-  group: "drdsp-incremental",
+  name: "DR-DSP: SSSP from single source (medium)",
+  group: "drdsp-sssp",
   baseline: true,
   fn: () => {
-    // Dijkstra must recompute from scratch
-    if (mediumNodes.length >= 2) {
-      findShortestPath(mediumGraph, mediumNodes[0], mediumNodes[10]);
+    if (mediumTools.length >= 1) {
+      mediumDRDSP.findAllShortestPaths(mediumTools[0]);
     }
   },
 });
 
 Deno.bench({
-  name: "DR-DSP: incremental update [PLACEHOLDER]",
-  group: "drdsp-incremental",
-  ignore: true,
+  name: "DR-DSP: SSSP from single source (stress)",
+  group: "drdsp-sssp",
   fn: () => {
-    // DR-DSP should handle incremental updates efficiently
-    const previousResult: HyperpathResult = {
-      path: [],
-      totalWeight: 1.5,
-      nodeSequence: [mediumNodes[0], mediumNodes[10]],
-    };
-    const changedEdge: Hyperedge = {
-      id: "changed_cap",
-      sources: [mediumNodes[5]],
-      targets: [mediumNodes[6]],
-      weight: 0.9,
-    };
-    mockDRDSPIncremental(previousResult, [changedEdge], defaultConfig);
+    if (stressTools.length >= 1) {
+      stressDRDSP.findAllShortestPaths(stressTools[0]);
+    }
+  },
+});
+
+// ============================================================================
+// Benchmarks: Dynamic Updates
+// ============================================================================
+
+Deno.bench({
+  name: "Dijkstra: recompute after edge change (must recalc)",
+  group: "drdsp-dynamic",
+  baseline: true,
+  fn: () => {
+    // Dijkstra must recompute from scratch
+    if (mediumTools.length >= 2) {
+      findShortestPath(mediumGraph, mediumTools[0], mediumTools[10] || mediumTools[1]);
+    }
+  },
+});
+
+Deno.bench({
+  name: "DR-DSP: apply update + recompute",
+  group: "drdsp-dynamic",
+  fn: () => {
+    if (mediumTools.length >= 2) {
+      // Apply a weight update
+      mediumDRDSP.applyUpdate({
+        type: "weight_decrease",
+        hyperedgeId: mediumScenario.nodes.capabilities[0]?.id || "cap_0",
+        newWeight: 0.5,
+      });
+      // Recompute path
+      mediumDRDSP.findShortestHyperpath(mediumTools[0], mediumTools[10] || mediumTools[1]);
+    }
   },
 });
 
@@ -251,59 +214,75 @@ Deno.bench({
 // Benchmarks: Hyperedge Density
 // ============================================================================
 
+// Create DR-DSP with different hyperedge counts
+const sparseHyperedges: Hyperedge[] = mediumScenario.nodes.capabilities.slice(0, 3).map((c) => ({
+  id: c.id,
+  sources: c.toolsUsed.slice(0, 2),
+  targets: c.toolsUsed.slice(2),
+  weight: 1 / c.successRate,
+}));
+const sparseDRDSP = new DRDSP(sparseHyperedges);
+
+const denseHyperedges: Hyperedge[] = stressScenario.nodes.capabilities.map((c) => ({
+  id: c.id,
+  sources: c.toolsUsed.slice(0, Math.ceil(c.toolsUsed.length / 2)),
+  targets: c.toolsUsed.slice(Math.ceil(c.toolsUsed.length / 2)),
+  weight: 1 / c.successRate,
+}));
+const denseDRDSP = new DRDSP(denseHyperedges);
+
 Deno.bench({
-  name: "DR-DSP: 10 hyperedges [PLACEHOLDER]",
+  name: "DR-DSP: sparse hyperedges (3)",
   group: "drdsp-density",
   baseline: true,
-  ignore: true,
   fn: () => {
-    const sparseEdges = mediumHyperedges.slice(0, 10);
-    if (mediumNodes.length >= 2) {
-      mockDRDSP(mediumGraph, mediumNodes[0], mediumNodes[10], sparseEdges, defaultConfig);
+    if (mediumTools.length >= 2) {
+      sparseDRDSP.findShortestHyperpath(mediumTools[0], mediumTools[5] || mediumTools[1]);
     }
   },
 });
 
 Deno.bench({
-  name: "DR-DSP: 30 hyperedges [PLACEHOLDER]",
+  name: "DR-DSP: dense hyperedges (50)",
   group: "drdsp-density",
-  ignore: true,
   fn: () => {
-    const denseEdges = stressHyperedges.slice(0, 30);
-    if (stressNodes.length >= 2) {
-      mockDRDSP(stressGraph, stressNodes[0], stressNodes[50], denseEdges, defaultConfig);
-    }
-  },
-});
-
-Deno.bench({
-  name: "DR-DSP: 50 hyperedges [PLACEHOLDER]",
-  group: "drdsp-density",
-  ignore: true,
-  fn: () => {
-    if (stressNodes.length >= 2) {
-      mockDRDSP(stressGraph, stressNodes[0], stressNodes[50], stressHyperedges, defaultConfig);
+    if (stressTools.length >= 2) {
+      denseDRDSP.findShortestHyperpath(stressTools[0], stressTools[20] || stressTools[1]);
     }
   },
 });
 
 // ============================================================================
-// Notes
+// Benchmarks: Graph Statistics
+// ============================================================================
+
+Deno.bench({
+  name: "DR-DSP: get stats (medium)",
+  group: "drdsp-stats",
+  baseline: true,
+  fn: () => {
+    mediumDRDSP.getStats();
+  },
+});
+
+Deno.bench({
+  name: "DR-DSP: get stats (stress)",
+  group: "drdsp-stats",
+  fn: () => {
+    stressDRDSP.getStats();
+  },
+});
+
+// ============================================================================
+// Cleanup
 // ============================================================================
 
 globalThis.addEventListener("unload", () => {
+  const mediumStats = mediumDRDSP.getStats();
+  const stressStats = stressDRDSP.getStats();
+
   console.log("\nDR-DSP Benchmark Summary:");
-  console.log("STATUS: PLACEHOLDER - DR-DSP not yet implemented");
-  console.log("");
-  console.log("Expected characteristics:");
-  console.log("- Native hypergraph pathfinding (capabilities as hyperedges)");
-  console.log("- Polynomial complexity for DAG structures");
-  console.log("- Incremental updates when 'provides' edges change");
-  console.log("- Should outperform Dijkstra for sparse hypergraphs");
-  console.log("");
-  console.log("Reference:");
-  console.log("- Gallo et al. 1993: Directed hypergraphs and applications");
-  console.log("- Nielsen et al. 2005: Shortest paths in directed hypergraphs");
-  console.log("");
-  console.log("See: docs/spikes/2025-12-21-capability-pathfinding-dijkstra.md");
+  console.log(`- Medium graph: ${mediumStats.hyperedgeCount} hyperedges, ${mediumStats.nodeCount} nodes`);
+  console.log(`- Stress graph: ${stressStats.hyperedgeCount} hyperedges, ${stressStats.nodeCount} nodes`);
+  console.log(`- Avg hyperedge size: ${mediumStats.avgHyperedgeSize.toFixed(1)} (medium), ${stressStats.avgHyperedgeSize.toFixed(1)} (stress)`);
 });

@@ -1,13 +1,8 @@
 /**
  * SHGAT (SuperHyperGraph Attention Networks) Benchmarks
  *
- * PLACEHOLDER: SHGAT is not yet implemented.
- * This file provides the benchmark structure for when SHGAT is ready.
- *
- * SHGAT will replace static capability scoring with learned attention:
- * - Attention contextuelle conditionnee sur l'intent
- * - Multi-head attention avec poids appris
- * - Entraine sur les traces episodic_events
+ * Benchmarks for the SHGAT learned attention algorithm.
+ * Tests inference, training, and comparison with static scoring.
  *
  * See spike: 2025-12-17-superhypergraph-hierarchical-structures.md
  *
@@ -17,113 +12,115 @@
  */
 
 import {
-  buildGraphFromScenario,
-  generateStressGraph,
+  SHGAT,
+  createSHGATFromCapabilities,
+  trainSHGATOnEpisodes,
+  type TrainingExample,
+} from "../../../src/graphrag/algorithms/shgat.ts";
+import { SpectralClusteringManager } from "../../../src/graphrag/spectral-clustering.ts";
+import {
   loadScenario,
 } from "../fixtures/scenario-loader.ts";
 
 // ============================================================================
-// Setup (placeholder data)
+// Setup
 // ============================================================================
 
 const mediumScenario = await loadScenario("medium-graph");
 
-// Mock episodic events for training data
-interface MockEpisodicEvent {
-  intent: string;
-  contextTools: string[];
-  selectedCapability: string;
-  outcome: "success" | "failure";
+// Generate mock embeddings (1024-dim for BGE-M3)
+function generateMockEmbedding(seed: number = 0): number[] {
+  const embedding: number[] = [];
+  for (let i = 0; i < 1024; i++) {
+    // Deterministic pseudo-random based on seed and index
+    embedding.push(Math.sin(seed * 1000 + i) * 0.5);
+  }
+  return embedding;
 }
 
-const mockEpisodicEvents: MockEpisodicEvent[] = [
-  { intent: "read file and parse json", contextTools: ["fs__read"], selectedCapability: "cap__file_ops", outcome: "success" },
-  { intent: "query database", contextTools: ["db__query"], selectedCapability: "cap__db_crud", outcome: "success" },
-  { intent: "make api call", contextTools: ["http__get"], selectedCapability: "cap__rest_api", outcome: "success" },
-  { intent: "authenticate user", contextTools: ["auth__login"], selectedCapability: "cap__auth_flow", outcome: "success" },
-  { intent: "cache result", contextTools: ["cache__get"], selectedCapability: "cap__caching", outcome: "success" },
-];
+// Create capabilities with embeddings
+const mediumCapabilities = mediumScenario.nodes.capabilities.map((c, idx) => ({
+  id: c.id,
+  embedding: generateMockEmbedding(idx),
+  toolsUsed: c.toolsUsed,
+  successRate: c.successRate,
+  parents: [] as string[],
+  children: [] as string[],
+}));
 
-// ============================================================================
-// Placeholder Types (to be replaced with actual implementation)
-// ============================================================================
+// Create tool embeddings map
+const toolEmbeddings = new Map<string, number[]>();
+mediumScenario.nodes.tools.forEach((t, idx) => {
+  toolEmbeddings.set(t.id, generateMockEmbedding(100 + idx));
+});
 
-interface SHGATConfig {
-  numHeads: number;
-  hiddenDim: number;
-  depthDecay: number;
-  learningRate: number;
+// Generate mock episodic events for training
+const mockEpisodicEvents: TrainingExample[] = [];
+for (let i = 0; i < 100; i++) {
+  const cap = mediumCapabilities[i % mediumCapabilities.length];
+  const contextTools = cap.toolsUsed.slice(0, 2);
+
+  mockEpisodicEvents.push({
+    intentEmbedding: generateMockEmbedding(1000 + i),
+    contextTools,
+    candidateId: cap.id,
+    outcome: Math.random() > 0.3 ? 1 : 0, // 70% success rate
+  });
 }
 
-interface SHGATResult {
-  capabilityId: string;
-  score: number;
-  attentionWeights: Map<string, number>;
-}
+// Create SHGAT instance
+const shgat = createSHGATFromCapabilities(mediumCapabilities);
 
-// ============================================================================
-// Placeholder Functions (to be replaced with actual implementation)
-// ============================================================================
+// Pre-trained SHGAT (for inference benchmarks)
+const pretrainedShgat = createSHGATFromCapabilities(mediumCapabilities);
+// Quick pre-training
+await trainSHGATOnEpisodes(
+  pretrainedShgat,
+  mockEpisodicEvents.slice(0, 50),
+  (id) => toolEmbeddings.get(id) || null,
+  { epochs: 3, batchSize: 16 },
+);
 
-function mockSHGATScore(
-  _intent: string,
-  _contextTools: string[],
-  _capabilityId: string,
-  _config: SHGATConfig,
-): SHGATResult {
-  // Placeholder: simulate attention computation
-  return {
-    capabilityId: _capabilityId,
-    score: Math.random(),
-    attentionWeights: new Map(),
-  };
-}
-
-function mockSHGATTrainStep(
-  _events: MockEpisodicEvent[],
-  _config: SHGATConfig,
-): number {
-  // Placeholder: simulate training step
-  // Returns mock loss
-  return Math.random() * 0.5;
-}
+// Spectral clustering for comparison
+const spectralManager = new SpectralClusteringManager();
+spectralManager.buildBipartiteGraph(
+  mediumCapabilities.map((c) => ({ id: c.id, toolsUsed: c.toolsUsed })),
+);
+spectralManager.performClustering(5);
 
 // ============================================================================
 // Benchmarks: Inference (Scoring)
 // ============================================================================
 
-const defaultConfig: SHGATConfig = {
-  numHeads: 4,
-  hiddenDim: 64,
-  depthDecay: 0.8,
-  learningRate: 0.001,
-};
+const testIntent = generateMockEmbedding(9999);
+const testContext = [generateMockEmbedding(9998), generateMockEmbedding(9997)];
 
 Deno.bench({
-  name: "SHGAT: single score (1 head) [PLACEHOLDER]",
+  name: "SHGAT: single score (1 head)",
   group: "shgat-inference",
   baseline: true,
-  ignore: true, // Enable when SHGAT is implemented
   fn: () => {
-    mockSHGATScore("read file", ["fs__read"], "cap__file_ops", { ...defaultConfig, numHeads: 1 });
+    const singleHeadShgat = new SHGAT({ numHeads: 1 });
+    singleHeadShgat.registerCapability(mediumCapabilities[0]);
+    singleHeadShgat.computeAttention(testIntent, testContext, mediumCapabilities[0].id);
   },
 });
 
 Deno.bench({
-  name: "SHGAT: single score (4 heads) [PLACEHOLDER]",
+  name: "SHGAT: single score (4 heads)",
   group: "shgat-inference",
-  ignore: true,
   fn: () => {
-    mockSHGATScore("read file", ["fs__read"], "cap__file_ops", { ...defaultConfig, numHeads: 4 });
+    pretrainedShgat.computeAttention(testIntent, testContext, mediumCapabilities[0].id);
   },
 });
 
 Deno.bench({
-  name: "SHGAT: single score (8 heads) [PLACEHOLDER]",
+  name: "SHGAT: single score (8 heads)",
   group: "shgat-inference",
-  ignore: true,
   fn: () => {
-    mockSHGATScore("read file", ["fs__read"], "cap__file_ops", { ...defaultConfig, numHeads: 8 });
+    const multiHeadShgat = new SHGAT({ numHeads: 8 });
+    multiHeadShgat.registerCapability(mediumCapabilities[0]);
+    multiHeadShgat.computeAttention(testIntent, testContext, mediumCapabilities[0].id);
   },
 });
 
@@ -132,55 +129,85 @@ Deno.bench({
 // ============================================================================
 
 Deno.bench({
-  name: "SHGAT: context size 1 [PLACEHOLDER]",
+  name: "SHGAT: context size 0",
   group: "shgat-context",
   baseline: true,
-  ignore: true,
   fn: () => {
-    mockSHGATScore("read file", ["fs__read"], "cap__file_ops", defaultConfig);
+    pretrainedShgat.computeAttention(testIntent, [], mediumCapabilities[0].id);
   },
 });
 
 Deno.bench({
-  name: "SHGAT: context size 5 [PLACEHOLDER]",
+  name: "SHGAT: context size 3",
   group: "shgat-context",
-  ignore: true,
   fn: () => {
-    mockSHGATScore("read file", ["fs__read", "fs__write", "json__parse", "db__query", "cache__get"], "cap__file_ops", defaultConfig);
+    const ctx = [generateMockEmbedding(1), generateMockEmbedding(2), generateMockEmbedding(3)];
+    pretrainedShgat.computeAttention(testIntent, ctx, mediumCapabilities[0].id);
   },
 });
 
 Deno.bench({
-  name: "SHGAT: context size 10 [PLACEHOLDER]",
+  name: "SHGAT: context size 10",
   group: "shgat-context",
-  ignore: true,
   fn: () => {
-    const contextTools = mediumScenario.nodes.tools.slice(0, 10).map((t) => t.id);
-    mockSHGATScore("complex operation", contextTools, "cap__file_ops", defaultConfig);
+    const ctx = Array.from({ length: 10 }, (_, i) => generateMockEmbedding(i));
+    pretrainedShgat.computeAttention(testIntent, ctx, mediumCapabilities[0].id);
   },
 });
 
 // ============================================================================
-// Benchmarks: Training Step
+// Benchmarks: Score All Capabilities
 // ============================================================================
 
 Deno.bench({
-  name: "SHGAT: training step (5 events) [PLACEHOLDER]",
+  name: "SHGAT: score all (10 capabilities)",
+  group: "shgat-all",
+  baseline: true,
+  fn: () => {
+    pretrainedShgat.scoreAllCapabilities(testIntent, testContext);
+  },
+});
+
+// ============================================================================
+// Benchmarks: Training
+// ============================================================================
+
+Deno.bench({
+  name: "SHGAT: train batch (16 examples)",
   group: "shgat-training",
   baseline: true,
-  ignore: true,
   fn: () => {
-    mockSHGATTrainStep(mockEpisodicEvents, defaultConfig);
+    const freshShgat = createSHGATFromCapabilities(mediumCapabilities);
+    freshShgat.trainBatch(
+      mockEpisodicEvents.slice(0, 16),
+      (id) => toolEmbeddings.get(id) || null,
+    );
   },
 });
 
 Deno.bench({
-  name: "SHGAT: training step (50 events) [PLACEHOLDER]",
+  name: "SHGAT: train batch (32 examples)",
   group: "shgat-training",
-  ignore: true,
   fn: () => {
-    const events = Array(10).fill(mockEpisodicEvents).flat();
-    mockSHGATTrainStep(events, defaultConfig);
+    const freshShgat = createSHGATFromCapabilities(mediumCapabilities);
+    freshShgat.trainBatch(
+      mockEpisodicEvents.slice(0, 32),
+      (id) => toolEmbeddings.get(id) || null,
+    );
+  },
+});
+
+Deno.bench({
+  name: "SHGAT: train epoch (100 examples, batch=16)",
+  group: "shgat-training",
+  fn: async () => {
+    const freshShgat = createSHGATFromCapabilities(mediumCapabilities);
+    await trainSHGATOnEpisodes(
+      freshShgat,
+      mockEpisodicEvents,
+      (id) => toolEmbeddings.get(id) || null,
+      { epochs: 1, batchSize: 16 },
+    );
   },
 });
 
@@ -189,74 +216,104 @@ Deno.bench({
 // ============================================================================
 
 Deno.bench({
-  name: "SHGAT: hiddenDim=32 [PLACEHOLDER]",
+  name: "SHGAT: hiddenDim=32",
   group: "shgat-dim",
   baseline: true,
-  ignore: true,
   fn: () => {
-    mockSHGATScore("read file", ["fs__read"], "cap__file_ops", { ...defaultConfig, hiddenDim: 32 });
+    const smallShgat = new SHGAT({ hiddenDim: 32 });
+    smallShgat.registerCapability(mediumCapabilities[0]);
+    smallShgat.computeAttention(testIntent, testContext, mediumCapabilities[0].id);
   },
 });
 
 Deno.bench({
-  name: "SHGAT: hiddenDim=64 [PLACEHOLDER]",
+  name: "SHGAT: hiddenDim=64",
   group: "shgat-dim",
-  ignore: true,
   fn: () => {
-    mockSHGATScore("read file", ["fs__read"], "cap__file_ops", { ...defaultConfig, hiddenDim: 64 });
+    const medShgat = new SHGAT({ hiddenDim: 64 });
+    medShgat.registerCapability(mediumCapabilities[0]);
+    medShgat.computeAttention(testIntent, testContext, mediumCapabilities[0].id);
   },
 });
 
 Deno.bench({
-  name: "SHGAT: hiddenDim=128 [PLACEHOLDER]",
+  name: "SHGAT: hiddenDim=128",
   group: "shgat-dim",
-  ignore: true,
   fn: () => {
-    mockSHGATScore("read file", ["fs__read"], "cap__file_ops", { ...defaultConfig, hiddenDim: 128 });
+    const largeShgat = new SHGAT({ hiddenDim: 128 });
+    largeShgat.registerCapability(mediumCapabilities[0]);
+    largeShgat.computeAttention(testIntent, testContext, mediumCapabilities[0].id);
   },
 });
 
 // ============================================================================
-// Benchmarks: SHGAT vs Current (Spectral + PageRank)
+// Benchmarks: SHGAT vs Spectral (Static)
 // ============================================================================
 
+const contextToolIds = mediumScenario.nodes.tools.slice(0, 3).map((t) => t.id);
+
 Deno.bench({
-  name: "SHGAT vs Spectral: baseline (Spectral) [REAL]",
+  name: "Spectral: baseline cluster boost",
   group: "shgat-vs-spectral",
   baseline: true,
-  fn: async () => {
-    // Real spectral clustering for comparison
-    const { SpectralClusteringManager } = await import("../../../src/graphrag/spectral-clustering.ts");
-    const manager = new SpectralClusteringManager();
-    const caps = mediumScenario.nodes.capabilities.map((c) => ({ id: c.id, toolsUsed: c.toolsUsed }));
-    manager.buildBipartiteGraph(caps);
-    manager.performClustering(5);
-    manager.getClusterBoost(caps[0].id, ["fs__read", "db__query"]);
+  fn: () => {
+    spectralManager.getClusterBoost(mediumCapabilities[0].id, contextToolIds);
   },
 });
 
 Deno.bench({
-  name: "SHGAT vs Spectral: SHGAT [PLACEHOLDER]",
+  name: "SHGAT: learned attention score",
   group: "shgat-vs-spectral",
-  ignore: true,
   fn: () => {
-    mockSHGATScore("read and query", ["fs__read", "db__query"], "cap__file_ops", defaultConfig);
+    const contextEmbeddings = contextToolIds
+      .map((id) => toolEmbeddings.get(id))
+      .filter((e): e is number[] => e !== null);
+    pretrainedShgat.computeAttention(testIntent, contextEmbeddings, mediumCapabilities[0].id);
   },
 });
 
 // ============================================================================
-// Notes
+// Benchmarks: Model Stats & Serialization
+// ============================================================================
+
+Deno.bench({
+  name: "SHGAT: get stats",
+  group: "shgat-util",
+  baseline: true,
+  fn: () => {
+    pretrainedShgat.getStats();
+  },
+});
+
+Deno.bench({
+  name: "SHGAT: export params",
+  group: "shgat-util",
+  fn: () => {
+    pretrainedShgat.exportParams();
+  },
+});
+
+Deno.bench({
+  name: "SHGAT: import params",
+  group: "shgat-util",
+  fn: () => {
+    const params = pretrainedShgat.exportParams();
+    const freshShgat = new SHGAT();
+    freshShgat.importParams(params);
+  },
+});
+
+// ============================================================================
+// Cleanup
 // ============================================================================
 
 globalThis.addEventListener("unload", () => {
+  const stats = pretrainedShgat.getStats();
+
   console.log("\nSHGAT Benchmark Summary:");
-  console.log("STATUS: PLACEHOLDER - SHGAT not yet implemented");
-  console.log("");
-  console.log("Expected implementation:");
-  console.log("- SuperHyperGraphAttention class with multi-head attention");
-  console.log("- Learnable weight matrices (W_i, W_j, a)");
-  console.log("- Training loop on episodic_events outcomes");
-  console.log("- Recursive score computation with depth decay");
-  console.log("");
-  console.log("See: docs/spikes/2025-12-17-superhypergraph-hierarchical-structures.md");
+  console.log(`- Num heads: ${stats.numHeads}`);
+  console.log(`- Hidden dim: ${stats.hiddenDim}`);
+  console.log(`- Param count: ${stats.paramCount.toLocaleString()}`);
+  console.log(`- Registered capabilities: ${stats.registeredCapabilities}`);
+  console.log(`- Training examples: ${mockEpisodicEvents.length}`);
 });
