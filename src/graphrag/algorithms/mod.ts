@@ -82,3 +82,21 @@ export {
   type CapabilityNode,
   type AttentionResult,
 } from "./shgat.ts";
+
+// Thompson Sampling (ADR-049 Intelligent Adaptive Thresholds)
+export {
+  ThompsonSampler,
+  classifyToolRisk,
+  createThompsonFromHistory,
+  createThompsonForMode,
+  makeDecision,
+  makeBatchDecision,
+  DEFAULT_THOMPSON_CONFIG,
+  type ThompsonConfig,
+  type ToolThompsonState,
+  type RiskCategory,
+  type ThresholdMode,
+  type ThresholdResult,
+  type ThresholdBreakdown,
+} from "./thompson.ts";
+
