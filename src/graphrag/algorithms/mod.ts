@@ -72,6 +72,7 @@ export {
 } from "./dr-dsp.ts";
 
 // SHGAT (SuperHyperGraph Attention Networks)
+// Based on research paper with two-phase message passing
 export {
   SHGAT,
   createSHGATFromCapabilities,
@@ -80,6 +81,7 @@ export {
   DEFAULT_HYPERGRAPH_FEATURES,
   type SHGATConfig,
   type TrainingExample,
+  type ToolNode,
   type CapabilityNode,
   type AttentionResult,
   type HypergraphFeatures,
@@ -120,16 +122,4 @@ export {
   type ReliabilityConfig,
   type ScoreBreakdown,
 } from "./unified-search.ts";
-
-// n-SuHGAT (Proper SuperHyperGraph Attention Networks)
-// Based on research paper with two-phase message passing
-export {
-  NSuHGAT,
-  trainNSuHGAT,
-  DEFAULT_NSUHGAT_CONFIG,
-  type NSuHGATConfig,
-  type HypergraphVertex,
-  type HypergraphEdge,
-  type TrainingSample,
-} from "./n-suhgat.ts";
 

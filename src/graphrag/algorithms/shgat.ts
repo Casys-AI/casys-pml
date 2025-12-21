@@ -1,19 +1,18 @@
 /**
  * SHGAT (SuperHyperGraph Attention Networks)
  *
- * POC implementation of learned attention for capability scoring.
- * Inspired by GAT (Graph Attention Networks) extended to hypergraphs.
- *
- * Key concepts:
- * - Multi-head attention: Multiple attention heads for diversity
- * - Learnable weights: W_i, W_j, attention vector a
- * - Context-conditioned: Score depends on intent + current context
- * - Recursive: Propagates through meta-capabilities via contains edges
+ * Implementation based on "SuperHyperGraph Attention Networks" research paper.
+ * Key architecture:
+ * - Two-phase message passing: Vertex→Hyperedge, Hyperedge→Vertex
+ * - Incidence matrix A where A[v][e] = 1 if vertex v is in hyperedge e
+ * - Multi-head attention with specialized heads:
+ *   - Heads 0-1: Semantic (embedding-based)
+ *   - Head 2: Structure (spectral cluster, hypergraph pagerank)
+ *   - Head 3: Temporal (co-occurrence, recency)
  *
  * Training:
  * - Supervised on episodic_events outcomes (success/failure)
- * - Features: intent embedding, context tool embeddings, candidate capability
- * - Label: outcome (1=success, 0=failure)
+ * - Proper backpropagation through both phases
  *
  * @module graphrag/algorithms/shgat
  */
@@ -36,12 +35,18 @@ export interface SHGATConfig {
   hiddenDim: number;
   /** Embedding dimension (should match BGE-M3: 1024) */
   embeddingDim: number;
+  /** Number of message passing layers */
+  numLayers: number;
   /** Decay factor for recursive depth */
   depthDecay: number;
   /** Learning rate for training */
   learningRate: number;
   /** LeakyReLU negative slope */
   leakyReluSlope: number;
+  /** L2 regularization weight */
+  l2Lambda: number;
+  /** Dropout rate (0 = no dropout) */
+  dropout: number;
 }
 
 /**
@@ -51,9 +56,12 @@ export const DEFAULT_SHGAT_CONFIG: SHGATConfig = {
   numHeads: 4,
   hiddenDim: 64,
   embeddingDim: 1024,
+  numLayers: 2,
   depthDecay: 0.8,
   learningRate: 0.001,
   leakyReluSlope: 0.2,
+  l2Lambda: 0.0001,
+  dropout: 0.1,
 };
 
 /**
@@ -74,7 +82,7 @@ export interface TrainingExample {
  * Hypergraph features for SHGAT multi-head attention
  *
  * These features are computed by support algorithms and fed to SHGAT heads:
- * - Head 1 (semantic): uses embedding
+ * - Heads 0-1 (semantic): uses embedding
  * - Head 2 (structure): uses spectralCluster, hypergraphPageRank
  * - Head 3 (temporal): uses cooccurrence, recency
  */
@@ -94,19 +102,30 @@ export interface HypergraphFeatures {
  */
 export const DEFAULT_HYPERGRAPH_FEATURES: HypergraphFeatures = {
   spectralCluster: 0,
-  hypergraphPageRank: 0.01, // Low default importance
+  hypergraphPageRank: 0.01,
   cooccurrence: 0,
   recency: 0,
 };
 
 /**
- * Capability node for attention computation
+ * Tool node (vertex in hypergraph)
+ */
+export interface ToolNode {
+  id: string;
+  /** Embedding (from tool description) */
+  embedding: number[];
+  /** Hypergraph features */
+  hypergraphFeatures?: HypergraphFeatures;
+}
+
+/**
+ * Capability node (hyperedge in hypergraph)
  */
 export interface CapabilityNode {
   id: string;
   /** Embedding (from description or aggregated tools) */
   embedding: number[];
-  /** Tools in this capability */
+  /** Tools in this capability (vertex IDs) */
   toolsUsed: string[];
   /** Success rate from history (reliability) */
   successRate: number;
@@ -138,6 +157,22 @@ export interface AttentionResult {
     temporal: number;
     reliability: number;
   };
+  /** Attention over tools (for interpretability) */
+  toolAttention?: number[];
+}
+
+/**
+ * Cached activations for backpropagation
+ */
+interface ForwardCache {
+  /** Vertex (tool) embeddings at each layer */
+  H: number[][][];
+  /** Hyperedge (capability) embeddings at each layer */
+  E: number[][][];
+  /** Attention weights vertex→edge [layer][head][vertex][edge] */
+  attentionVE: number[][][][];
+  /** Attention weights edge→vertex [layer][head][edge][vertex] */
+  attentionEV: number[][][][];
 }
 
 // ============================================================================
@@ -147,18 +182,36 @@ export interface AttentionResult {
 /**
  * SuperHyperGraph Attention Networks
  *
- * Computes context-aware attention scores for capabilities.
+ * Implements proper two-phase message passing:
+ * 1. Vertex → Hyperedge: Aggregate tool features to capabilities
+ * 2. Hyperedge → Vertex: Propagate capability features back to tools
  */
 export class SHGAT {
   private config: SHGATConfig;
 
-  // Learnable parameters (initialized randomly, trained via gradient descent)
-  private W_query: number[][]; // [hiddenDim, embeddingDim]
-  private W_key: number[][]; // [hiddenDim, embeddingDim]
-  private W_value: number[][]; // [hiddenDim, embeddingDim]
-  private attention_a: number[]; // [2 * hiddenDim] for concat attention
+  // Vertices (tools) and Hyperedges (capabilities)
+  private toolNodes: Map<string, ToolNode> = new Map();
+  private capabilityNodes: Map<string, CapabilityNode> = new Map();
+  private toolIndex: Map<string, number> = new Map();
+  private capabilityIndex: Map<string, number> = new Map();
 
-  // Per-head parameters
+  // Incidence matrix: A[tool][capability] = 1 if tool is in capability
+  private incidenceMatrix: number[][] = [];
+
+  // Learnable parameters per layer per head
+  private layerParams: Array<{
+    // Vertex→Edge phase
+    W_v: number[][][]; // [head][hiddenDim][inputDim]
+    W_e: number[][][]; // [head][hiddenDim][inputDim]
+    a_ve: number[][]; // [head][2*hiddenDim]
+
+    // Edge→Vertex phase
+    W_e2: number[][][]; // [head][hiddenDim][hiddenDim]
+    W_v2: number[][][]; // [head][hiddenDim][hiddenDim]
+    a_ev: number[][]; // [head][2*hiddenDim]
+  }>;
+
+  // Legacy per-head parameters for backward compatibility
   private headParams: Array<{
     W_q: number[][];
     W_k: number[][];
@@ -166,121 +219,545 @@ export class SHGAT {
     a: number[];
   }>;
 
-  // Capability embeddings cache
-  private capabilityEmbeddings: Map<string, number[]> = new Map();
-  private capabilityNodes: Map<string, CapabilityNode> = new Map();
+  // Training state
+  private trainingMode = false;
+  private lastCache: ForwardCache | null = null;
 
   constructor(config: Partial<SHGATConfig> = {}) {
     this.config = { ...DEFAULT_SHGAT_CONFIG, ...config };
+    this.initializeParameters();
+  }
 
-    // Initialize parameters
-    this.W_query = this.initializeMatrix(this.config.hiddenDim, this.config.embeddingDim);
-    this.W_key = this.initializeMatrix(this.config.hiddenDim, this.config.embeddingDim);
-    this.W_value = this.initializeMatrix(this.config.hiddenDim, this.config.embeddingDim);
-    this.attention_a = this.initializeVector(2 * this.config.hiddenDim);
+  // ==========================================================================
+  // Initialization
+  // ==========================================================================
 
-    // Initialize per-head parameters
+  private initializeParameters(): void {
+    const { numLayers, numHeads, hiddenDim, embeddingDim } = this.config;
+    this.layerParams = [];
+
+    for (let l = 0; l < numLayers; l++) {
+      const layerInputDim = l === 0 ? embeddingDim : hiddenDim * numHeads;
+
+      this.layerParams.push({
+        W_v: this.initTensor3D(numHeads, hiddenDim, layerInputDim),
+        W_e: this.initTensor3D(numHeads, hiddenDim, layerInputDim),
+        a_ve: this.initMatrix(numHeads, 2 * hiddenDim),
+
+        W_e2: this.initTensor3D(numHeads, hiddenDim, hiddenDim),
+        W_v2: this.initTensor3D(numHeads, hiddenDim, hiddenDim),
+        a_ev: this.initMatrix(numHeads, 2 * hiddenDim),
+      });
+    }
+
+    // Legacy head params for backward compatibility
     this.headParams = [];
-    for (let h = 0; h < this.config.numHeads; h++) {
+    for (let h = 0; h < numHeads; h++) {
       this.headParams.push({
-        W_q: this.initializeMatrix(this.config.hiddenDim, this.config.embeddingDim),
-        W_k: this.initializeMatrix(this.config.hiddenDim, this.config.embeddingDim),
-        W_v: this.initializeMatrix(this.config.hiddenDim, this.config.embeddingDim),
-        a: this.initializeVector(2 * this.config.hiddenDim),
+        W_q: this.initMatrix(hiddenDim, embeddingDim),
+        W_k: this.initMatrix(hiddenDim, embeddingDim),
+        W_v: this.initMatrix(hiddenDim, embeddingDim),
+        a: this.initVector(2 * hiddenDim),
       });
     }
   }
 
-  /**
-   * Initialize a random matrix (Xavier initialization)
-   */
-  private initializeMatrix(rows: number, cols: number): number[][] {
+  private initTensor3D(d1: number, d2: number, d3: number): number[][][] {
+    const scale = Math.sqrt(2.0 / (d2 + d3));
+    return Array.from({ length: d1 }, () =>
+      Array.from({ length: d2 }, () =>
+        Array.from({ length: d3 }, () => (Math.random() - 0.5) * 2 * scale)
+      )
+    );
+  }
+
+  private initMatrix(rows: number, cols: number): number[][] {
     const scale = Math.sqrt(2.0 / (rows + cols));
     return Array.from({ length: rows }, () =>
       Array.from({ length: cols }, () => (Math.random() - 0.5) * 2 * scale)
     );
   }
 
-  /**
-   * Initialize a random vector
-   */
-  private initializeVector(size: number): number[] {
+  private initVector(size: number): number[] {
     const scale = Math.sqrt(1.0 / size);
     return Array.from({ length: size }, () => (Math.random() - 0.5) * 2 * scale);
   }
 
+  // ==========================================================================
+  // Graph Construction
+  // ==========================================================================
+
   /**
-   * Matrix-vector multiplication
+   * Register a tool (vertex)
    */
-  private matVec(matrix: number[][], vector: number[]): number[] {
-    return matrix.map((row) => row.reduce((sum, val, i) => sum + val * (vector[i] || 0), 0));
+  registerTool(node: ToolNode): void {
+    this.toolNodes.set(node.id, node);
+    this.rebuildIndices();
   }
 
   /**
-   * LeakyReLU activation
-   */
-  private leakyRelu(x: number): number {
-    return x > 0 ? x : this.config.leakyReluSlope * x;
-  }
-
-  /**
-   * Softmax over array
-   */
-  private softmax(values: number[]): number[] {
-    const maxVal = Math.max(...values);
-    const exps = values.map((v) => Math.exp(v - maxVal));
-    const sum = exps.reduce((a, b) => a + b, 0);
-    return exps.map((e) => e / sum);
-  }
-
-  /**
-   * Dot product
-   */
-  private dot(a: number[], b: number[]): number {
-    return a.reduce((sum, val, i) => sum + val * (b[i] || 0), 0);
-  }
-
-  /**
-   * Register a capability for attention computation
+   * Register a capability (hyperedge)
    */
   registerCapability(node: CapabilityNode): void {
     this.capabilityNodes.set(node.id, node);
-    this.capabilityEmbeddings.set(node.id, node.embedding);
+    this.rebuildIndices();
   }
 
   /**
-   * Compute single-head attention score
+   * Build hypergraph from tools and capabilities
    */
-  private computeHeadAttention(
-    headIdx: number,
-    queryEmbedding: number[],
-    keyEmbedding: number[],
-  ): number {
-    const params = this.headParams[headIdx];
+  buildFromData(
+    tools: Array<{ id: string; embedding: number[] }>,
+    capabilities: Array<{
+      id: string;
+      embedding: number[];
+      toolsUsed: string[];
+      successRate: number;
+      parents?: string[];
+      children?: string[];
+    }>,
+  ): void {
+    this.toolNodes.clear();
+    this.capabilityNodes.clear();
 
-    // Project query and key
-    const q = this.matVec(params.W_q, queryEmbedding);
-    const k = this.matVec(params.W_k, keyEmbedding);
+    for (const tool of tools) {
+      this.toolNodes.set(tool.id, {
+        id: tool.id,
+        embedding: tool.embedding,
+      });
+    }
 
-    // Concatenate [q || k]
-    const concat = [...q, ...k];
+    for (const cap of capabilities) {
+      this.capabilityNodes.set(cap.id, {
+        id: cap.id,
+        embedding: cap.embedding,
+        toolsUsed: cap.toolsUsed,
+        successRate: cap.successRate,
+        parents: cap.parents || [],
+        children: cap.children || [],
+      });
+    }
 
-    // Attention score: a^T * LeakyReLU(concat)
-    const activated = concat.map((x) => this.leakyRelu(x));
-    const score = this.dot(params.a, activated);
-
-    return score;
+    this.rebuildIndices();
   }
 
   /**
-   * Compute multi-head attention for a capability given context
+   * Rebuild indices and incidence matrix
+   */
+  private rebuildIndices(): void {
+    this.toolIndex.clear();
+    this.capabilityIndex.clear();
+
+    let tIdx = 0;
+    for (const tId of this.toolNodes.keys()) {
+      this.toolIndex.set(tId, tIdx++);
+    }
+
+    let cIdx = 0;
+    for (const cId of this.capabilityNodes.keys()) {
+      this.capabilityIndex.set(cId, cIdx++);
+    }
+
+    // Build incidence matrix A[tool][capability]
+    const numTools = this.toolNodes.size;
+    const numCaps = this.capabilityNodes.size;
+
+    this.incidenceMatrix = Array.from({ length: numTools }, () =>
+      Array(numCaps).fill(0)
+    );
+
+    for (const [capId, cap] of this.capabilityNodes) {
+      const cIdx = this.capabilityIndex.get(capId)!;
+      for (const toolId of cap.toolsUsed) {
+        const tIdx = this.toolIndex.get(toolId);
+        if (tIdx !== undefined) {
+          this.incidenceMatrix[tIdx][cIdx] = 1;
+        }
+      }
+    }
+  }
+
+  // ==========================================================================
+  // Two-Phase Message Passing
+  // ==========================================================================
+
+  /**
+   * Forward pass through all layers with two-phase message passing
    *
-   * Head specialization:
-   * - Heads 0-1: Semantic (embedding-based attention)
-   * - Head 2: Structure (spectral cluster, hypergraph pagerank)
-   * - Head 3: Temporal (co-occurrence, recency)
+   * Phase 1 (Vertex→Hyperedge):
+   *   A' = A ⊙ softmax(LeakyReLU(H·W · (E·W)^T))
+   *   E^(l+1) = σ(A'^T · H^(l))
    *
-   * All heads also consider reliability (successRate).
+   * Phase 2 (Hyperedge→Vertex):
+   *   B = A^T ⊙ softmax(LeakyReLU(E·W_1 · (H·W_1)^T))
+   *   H^(l+1) = σ(B^T · E^(l))
+   */
+  forward(): { H: number[][]; E: number[][]; cache: ForwardCache } {
+    const cache: ForwardCache = {
+      H: [],
+      E: [],
+      attentionVE: [],
+      attentionEV: [],
+    };
+
+    // Initialize embeddings
+    let H = this.getToolEmbeddings();
+    let E = this.getCapabilityEmbeddings();
+
+    cache.H.push(H);
+    cache.E.push(E);
+
+    // Process each layer
+    for (let l = 0; l < this.config.numLayers; l++) {
+      const params = this.layerParams[l];
+      const layerAttentionVE: number[][][] = [];
+      const layerAttentionEV: number[][][] = [];
+
+      const headsH: number[][][] = [];
+      const headsE: number[][][] = [];
+
+      for (let head = 0; head < this.config.numHeads; head++) {
+        // Phase 1: Vertex → Hyperedge
+        const { E_new, attentionVE } = this.vertexToEdgePhase(
+          H, E,
+          params.W_v[head],
+          params.W_e[head],
+          params.a_ve[head],
+          head,
+        );
+        layerAttentionVE.push(attentionVE);
+
+        // Phase 2: Hyperedge → Vertex
+        const { H_new, attentionEV } = this.edgeToVertexPhase(
+          H, E_new,
+          params.W_e2[head],
+          params.W_v2[head],
+          params.a_ev[head],
+          head,
+        );
+        layerAttentionEV.push(attentionEV);
+
+        headsH.push(H_new);
+        headsE.push(E_new);
+      }
+
+      // Concatenate heads
+      H = this.concatHeads(headsH);
+      E = this.concatHeads(headsE);
+
+      // Apply dropout during training
+      if (this.trainingMode && this.config.dropout > 0) {
+        H = this.applyDropout(H);
+        E = this.applyDropout(E);
+      }
+
+      cache.H.push(H);
+      cache.E.push(E);
+      cache.attentionVE.push(layerAttentionVE);
+      cache.attentionEV.push(layerAttentionEV);
+    }
+
+    this.lastCache = cache;
+    return { H, E, cache };
+  }
+
+  /**
+   * Phase 1: Vertex → Hyperedge message passing
+   */
+  private vertexToEdgePhase(
+    H: number[][],
+    E: number[][],
+    W_v: number[][],
+    W_e: number[][],
+    a_ve: number[],
+    headIdx: number,
+  ): { E_new: number[][]; attentionVE: number[][] } {
+    const numTools = H.length;
+    const numCaps = E.length;
+
+    // Project
+    const H_proj = this.matmulTranspose(H, W_v);
+    const E_proj = this.matmulTranspose(E, W_e);
+
+    // Compute attention scores (masked by incidence matrix)
+    const attentionScores: number[][] = Array.from({ length: numTools }, () =>
+      Array(numCaps).fill(-Infinity)
+    );
+
+    for (let t = 0; t < numTools; t++) {
+      for (let c = 0; c < numCaps; c++) {
+        if (this.incidenceMatrix[t][c] === 1) {
+          const concat = [...H_proj[t], ...E_proj[c]];
+          const activated = concat.map((x) => this.leakyRelu(x));
+          attentionScores[t][c] = this.dot(a_ve, activated);
+        }
+      }
+    }
+
+    // Apply head-specific feature modulation
+    this.applyHeadFeatures(attentionScores, headIdx, "vertex");
+
+    // Softmax per capability (column-wise)
+    const attentionVE: number[][] = Array.from({ length: numTools }, () =>
+      Array(numCaps).fill(0)
+    );
+
+    for (let c = 0; c < numCaps; c++) {
+      const toolsInCap: number[] = [];
+      for (let t = 0; t < numTools; t++) {
+        if (this.incidenceMatrix[t][c] === 1) {
+          toolsInCap.push(t);
+        }
+      }
+
+      if (toolsInCap.length === 0) continue;
+
+      const scores = toolsInCap.map((t) => attentionScores[t][c]);
+      const softmaxed = this.softmax(scores);
+
+      for (let i = 0; i < toolsInCap.length; i++) {
+        attentionVE[toolsInCap[i]][c] = softmaxed[i];
+      }
+    }
+
+    // Aggregate: E_new = σ(A'^T · H_proj)
+    const E_new: number[][] = [];
+    const hiddenDim = H_proj[0].length;
+
+    for (let c = 0; c < numCaps; c++) {
+      const aggregated = Array(hiddenDim).fill(0);
+
+      for (let t = 0; t < numTools; t++) {
+        if (attentionVE[t][c] > 0) {
+          for (let d = 0; d < hiddenDim; d++) {
+            aggregated[d] += attentionVE[t][c] * H_proj[t][d];
+          }
+        }
+      }
+
+      E_new.push(aggregated.map((x) => this.elu(x)));
+    }
+
+    return { E_new, attentionVE };
+  }
+
+  /**
+   * Phase 2: Hyperedge → Vertex message passing
+   */
+  private edgeToVertexPhase(
+    H: number[][],
+    E: number[][],
+    W_e: number[][],
+    W_v: number[][],
+    a_ev: number[],
+    headIdx: number,
+  ): { H_new: number[][]; attentionEV: number[][] } {
+    const numTools = H.length;
+    const numCaps = E.length;
+
+    const E_proj = this.matmulTranspose(E, W_e);
+    const H_proj = this.matmulTranspose(H, W_v);
+
+    // Compute attention scores
+    const attentionScores: number[][] = Array.from({ length: numCaps }, () =>
+      Array(numTools).fill(-Infinity)
+    );
+
+    for (let c = 0; c < numCaps; c++) {
+      for (let t = 0; t < numTools; t++) {
+        if (this.incidenceMatrix[t][c] === 1) {
+          const concat = [...E_proj[c], ...H_proj[t]];
+          const activated = concat.map((x) => this.leakyRelu(x));
+          attentionScores[c][t] = this.dot(a_ev, activated);
+        }
+      }
+    }
+
+    // Apply head-specific feature modulation
+    this.applyHeadFeatures(attentionScores, headIdx, "edge");
+
+    // Softmax per tool (column-wise in transposed view)
+    const attentionEV: number[][] = Array.from({ length: numCaps }, () =>
+      Array(numTools).fill(0)
+    );
+
+    for (let t = 0; t < numTools; t++) {
+      const capsForTool: number[] = [];
+      for (let c = 0; c < numCaps; c++) {
+        if (this.incidenceMatrix[t][c] === 1) {
+          capsForTool.push(c);
+        }
+      }
+
+      if (capsForTool.length === 0) continue;
+
+      const scores = capsForTool.map((c) => attentionScores[c][t]);
+      const softmaxed = this.softmax(scores);
+
+      for (let i = 0; i < capsForTool.length; i++) {
+        attentionEV[capsForTool[i]][t] = softmaxed[i];
+      }
+    }
+
+    // Aggregate: H_new = σ(B^T · E_proj)
+    const H_new: number[][] = [];
+    const hiddenDim = E_proj[0].length;
+
+    for (let t = 0; t < numTools; t++) {
+      const aggregated = Array(hiddenDim).fill(0);
+
+      for (let c = 0; c < numCaps; c++) {
+        if (attentionEV[c][t] > 0) {
+          for (let d = 0; d < hiddenDim; d++) {
+            aggregated[d] += attentionEV[c][t] * E_proj[c][d];
+          }
+        }
+      }
+
+      H_new.push(aggregated.map((x) => this.elu(x)));
+    }
+
+    return { H_new, attentionEV };
+  }
+
+  /**
+   * Apply head-specific feature modulation based on HypergraphFeatures
+   */
+  private applyHeadFeatures(
+    scores: number[][],
+    headIdx: number,
+    phase: "vertex" | "edge",
+  ): void {
+    if (headIdx === 2) {
+      // Head 2: Structure (spectral cluster, pagerank)
+      for (const [capId, cap] of this.capabilityNodes) {
+        const cIdx = this.capabilityIndex.get(capId)!;
+        const features = cap.hypergraphFeatures || DEFAULT_HYPERGRAPH_FEATURES;
+        const boost = features.hypergraphPageRank * 2; // PageRank boost
+
+        if (phase === "vertex") {
+          for (let t = 0; t < scores.length; t++) {
+            if (scores[t][cIdx] > -Infinity) {
+              scores[t][cIdx] += boost;
+            }
+          }
+        } else {
+          for (let t = 0; t < scores[cIdx].length; t++) {
+            if (scores[cIdx][t] > -Infinity) {
+              scores[cIdx][t] += boost;
+            }
+          }
+        }
+      }
+    } else if (headIdx === 3) {
+      // Head 3: Temporal (co-occurrence, recency)
+      for (const [capId, cap] of this.capabilityNodes) {
+        const cIdx = this.capabilityIndex.get(capId)!;
+        const features = cap.hypergraphFeatures || DEFAULT_HYPERGRAPH_FEATURES;
+        const boost = 0.6 * features.cooccurrence + 0.4 * features.recency;
+
+        if (phase === "vertex") {
+          for (let t = 0; t < scores.length; t++) {
+            if (scores[t][cIdx] > -Infinity) {
+              scores[t][cIdx] += boost;
+            }
+          }
+        } else {
+          for (let t = 0; t < scores[cIdx].length; t++) {
+            if (scores[cIdx][t] > -Infinity) {
+              scores[cIdx][t] += boost;
+            }
+          }
+        }
+      }
+    }
+    // Heads 0-1: Semantic (no modification, pure embedding attention)
+  }
+
+  // ==========================================================================
+  // Scoring API
+  // ==========================================================================
+
+  /**
+   * Score all capabilities given intent and context
+   */
+  scoreAllCapabilities(
+    intentEmbedding: number[],
+    contextToolEmbeddings: number[][],
+    contextCapabilityIds?: string[],
+  ): AttentionResult[] {
+    // Run forward pass
+    const { E } = this.forward();
+
+    const results: AttentionResult[] = [];
+
+    for (const [capId, cap] of this.capabilityNodes) {
+      const cIdx = this.capabilityIndex.get(capId)!;
+      const capEmb = E[cIdx];
+
+      // Compute similarity with intent
+      const intentSim = this.cosineSimilarity(intentEmbedding, capEmb);
+
+      // Context boost
+      let contextBoost = 0;
+      if (contextCapabilityIds && contextCapabilityIds.length > 0) {
+        const features = cap.hypergraphFeatures || DEFAULT_HYPERGRAPH_FEATURES;
+        const contextClusters = contextCapabilityIds
+          .map(id => this.capabilityNodes.get(id)?.hypergraphFeatures?.spectralCluster)
+          .filter((c): c is number => c !== undefined);
+
+        if (contextClusters.includes(features.spectralCluster)) {
+          contextBoost = 0.2;
+        }
+      }
+
+      // Reliability
+      const reliability = cap.successRate;
+      const reliabilityMult = reliability < 0.5 ? 0.5 : (reliability > 0.9 ? 1.2 : 1.0);
+
+      // Compute head scores
+      const features = cap.hypergraphFeatures || DEFAULT_HYPERGRAPH_FEATURES;
+      const headScores = [
+        intentSim, // Head 0: semantic
+        intentSim, // Head 1: semantic
+        features.hypergraphPageRank * 5 + contextBoost, // Head 2: structure
+        0.6 * features.cooccurrence + 0.4 * features.recency, // Head 3: temporal
+      ];
+
+      const headWeights = this.softmax(headScores);
+
+      let baseScore = 0;
+      for (let h = 0; h < this.config.numHeads; h++) {
+        baseScore += headWeights[h] * headScores[h];
+      }
+
+      const score = this.sigmoid(baseScore * reliabilityMult);
+
+      // Get tool attention for interpretability
+      const toolAttention = this.getCapabilityToolAttention(cIdx);
+
+      results.push({
+        capabilityId: capId,
+        score,
+        headWeights,
+        headScores,
+        recursiveContribution: 0,
+        featureContributions: {
+          semantic: (headScores[0] + headScores[1]) / 2,
+          structure: headScores[2],
+          temporal: headScores[3],
+          reliability: reliabilityMult,
+        },
+        toolAttention,
+      });
+    }
+
+    results.sort((a, b) => b.score - a.score);
+    return results;
+  }
+
+  /**
+   * Compute attention for a single capability (backward compatible API)
    */
   computeAttention(
     intentEmbedding: number[],
@@ -288,159 +765,49 @@ export class SHGAT {
     capabilityId: string,
     contextCapabilityIds?: string[],
   ): AttentionResult {
-    const capNode = this.capabilityNodes.get(capabilityId);
-    if (!capNode) {
-      return {
-        capabilityId,
-        score: 0,
-        headWeights: new Array(this.config.numHeads).fill(0),
-        headScores: new Array(this.config.numHeads).fill(0),
-        recursiveContribution: 0,
-      };
-    }
+    const results = this.scoreAllCapabilities(
+      intentEmbedding,
+      contextToolEmbeddings,
+      contextCapabilityIds,
+    );
 
-    const capEmbedding = capNode.embedding;
-    const features = capNode.hypergraphFeatures || DEFAULT_HYPERGRAPH_FEATURES;
-
-    // Compute attention for each head
-    const headScores: number[] = [];
-
-    for (let h = 0; h < this.config.numHeads; h++) {
-      let headScore = 0;
-
-      if (h < 2) {
-        // Heads 0-1: Semantic attention (embedding-based)
-        const intentScore = this.computeHeadAttention(h, intentEmbedding, capEmbedding);
-
-        let contextScore = 0;
-        if (contextToolEmbeddings.length > 0) {
-          const contextScores = contextToolEmbeddings.map((ctxEmb) =>
-            this.computeHeadAttention(h, ctxEmb, capEmbedding)
-          );
-          contextScore = contextScores.reduce((a, b) => a + b, 0) / contextScores.length;
-        }
-
-        headScore = 0.6 * intentScore + 0.4 * contextScore;
-      } else if (h === 2) {
-        // Head 2: Structure attention (spectral cluster, pagerank)
-        // Boost if in same spectral cluster as context capabilities
-        let clusterMatch = 0;
-        if (contextCapabilityIds && contextCapabilityIds.length > 0) {
-          const contextClusters = contextCapabilityIds
-            .map(id => this.capabilityNodes.get(id)?.hypergraphFeatures?.spectralCluster)
-            .filter((c): c is number => c !== undefined);
-
-          if (contextClusters.includes(features.spectralCluster)) {
-            clusterMatch = 1.0;
-          }
-        }
-
-        // Combine cluster match with pagerank
-        headScore = 0.5 * clusterMatch + 0.5 * features.hypergraphPageRank * 10; // Scale pagerank
-      } else {
-        // Head 3: Temporal attention (co-occurrence, recency)
-        headScore = 0.6 * features.cooccurrence + 0.4 * features.recency;
-      }
-
-      headScores.push(headScore);
-    }
-
-    // Apply reliability as a multiplier to all heads
-    const reliability = capNode.successRate;
-    const reliabilityMultiplier = reliability < 0.5 ? 0.5 : (reliability > 0.9 ? 1.2 : 1.0);
-
-    // Normalize head scores via softmax
-    const normalizedHeadWeights = this.softmax(headScores);
-
-    // Weighted average of head scores
-    let baseScore = 0;
-    for (let h = 0; h < this.config.numHeads; h++) {
-      baseScore += normalizedHeadWeights[h] * headScores[h];
-    }
-
-    // Apply reliability
-    baseScore *= reliabilityMultiplier;
-
-    // Recursive contribution from parent capabilities
-    let recursiveContribution = 0;
-    if (capNode.parents.length > 0) {
-      for (const parentId of capNode.parents) {
-        const parentResult = this.computeAttention(
-          intentEmbedding,
-          contextToolEmbeddings,
-          parentId,
-          contextCapabilityIds,
-        );
-        recursiveContribution += this.config.depthDecay * parentResult.score;
-      }
-      recursiveContribution /= capNode.parents.length;
-    }
-
-    // Combine base score with recursive contribution
-    const finalScore = this.sigmoid(baseScore + recursiveContribution);
-
-    // Compute feature contributions for interpretability
-    const semanticContrib = (headScores[0] + headScores[1]) / 2;
-    const structureContrib = headScores[2] || 0;
-    const temporalContrib = headScores[3] || 0;
-
-    return {
+    return results.find(r => r.capabilityId === capabilityId) || {
       capabilityId,
-      score: finalScore,
-      headWeights: normalizedHeadWeights,
-      headScores,
-      recursiveContribution,
-      featureContributions: {
-        semantic: semanticContrib,
-        structure: structureContrib,
-        temporal: temporalContrib,
-        reliability: reliabilityMultiplier,
-      },
+      score: 0,
+      headWeights: new Array(this.config.numHeads).fill(0),
+      headScores: new Array(this.config.numHeads).fill(0),
+      recursiveContribution: 0,
     };
   }
 
   /**
-   * Sigmoid activation
+   * Get tool attention weights for a capability
    */
-  private sigmoid(x: number): number {
-    return 1 / (1 + Math.exp(-x));
-  }
-
-  /**
-   * Score all registered capabilities
-   *
-   * @param intentEmbedding - Embedding of the user's intent
-   * @param contextToolEmbeddings - Embeddings of tools in current context
-   * @param contextCapabilityIds - IDs of capabilities in current context (for cluster matching)
-   */
-  scoreAllCapabilities(
-    intentEmbedding: number[],
-    contextToolEmbeddings: number[][],
-    contextCapabilityIds?: string[],
-  ): AttentionResult[] {
-    const results: AttentionResult[] = [];
-
-    for (const capId of this.capabilityNodes.keys()) {
-      const result = this.computeAttention(
-        intentEmbedding,
-        contextToolEmbeddings,
-        capId,
-        contextCapabilityIds,
-      );
-      results.push(result);
+  private getCapabilityToolAttention(capIdx: number): number[] {
+    if (!this.lastCache || this.lastCache.attentionVE.length === 0) {
+      return [];
     }
 
-    // Sort by score descending
-    results.sort((a, b) => b.score - a.score);
+    const lastLayerVE = this.lastCache.attentionVE[this.config.numLayers - 1];
+    const attention: number[] = [];
 
-    return results;
+    for (let t = 0; t < this.toolNodes.size; t++) {
+      let avgAttention = 0;
+      for (let h = 0; h < this.config.numHeads; h++) {
+        avgAttention += lastLayerVE[h][t][capIdx];
+      }
+      attention.push(avgAttention / this.config.numHeads);
+    }
+
+    return attention;
   }
+
+  // ==========================================================================
+  // Feature Updates
+  // ==========================================================================
 
   /**
    * Update hypergraph features for a capability
-   *
-   * Call this when support algorithms (spectral clustering, pagerank, etc.)
-   * compute new features.
    */
   updateHypergraphFeatures(capabilityId: string, features: Partial<HypergraphFeatures>): void {
     const node = this.capabilityNodes.get(capabilityId);
@@ -453,7 +820,7 @@ export class SHGAT {
   }
 
   /**
-   * Batch update hypergraph features from algorithm results
+   * Batch update hypergraph features
    */
   batchUpdateFeatures(updates: Map<string, Partial<HypergraphFeatures>>): void {
     for (const [capId, features] of updates) {
@@ -466,60 +833,52 @@ export class SHGAT {
   }
 
   // ==========================================================================
-  // Training
+  // Training with Backpropagation
   // ==========================================================================
 
   /**
-   * Compute loss for a single example (binary cross-entropy)
-   */
-  private computeLoss(predicted: number, actual: number): number {
-    const eps = 1e-7;
-    const p = Math.max(eps, Math.min(1 - eps, predicted));
-    return -actual * Math.log(p) - (1 - actual) * Math.log(1 - p);
-  }
-
-  /**
    * Train on a batch of examples
-   *
-   * Uses simple gradient descent with finite differences.
-   * In production, would use proper backpropagation.
    */
   trainBatch(
     examples: TrainingExample[],
     getEmbedding: (id: string) => number[] | null,
   ): { loss: number; accuracy: number } {
+    this.trainingMode = true;
+
     let totalLoss = 0;
     let correct = 0;
-    const gradients = this.initializeGradients();
+
+    const gradients = this.initGradients();
 
     for (const example of examples) {
-      // Get embeddings
       const contextEmbeddings = example.contextTools
         .map((id) => getEmbedding(id))
         .filter((e): e is number[] => e !== null);
 
-      // Forward pass
-      const result = this.computeAttention(
-        example.intentEmbedding,
-        contextEmbeddings,
-        example.candidateId,
-      );
+      // Forward
+      const { E, cache } = this.forward();
 
-      // Compute loss
-      const loss = this.computeLoss(result.score, example.outcome);
+      const capIdx = this.capabilityIndex.get(example.candidateId);
+      if (capIdx === undefined) continue;
+
+      const capEmb = E[capIdx];
+      const intentSim = this.cosineSimilarity(example.intentEmbedding, capEmb);
+      const score = this.sigmoid(intentSim);
+
+      // Loss
+      const loss = this.binaryCrossEntropy(score, example.outcome);
       totalLoss += loss;
 
-      // Track accuracy
-      const predicted = result.score > 0.5 ? 1 : 0;
-      if (predicted === example.outcome) correct++;
+      // Accuracy
+      if ((score > 0.5 ? 1 : 0) === example.outcome) correct++;
 
-      // Accumulate gradients (simplified: just use loss direction)
-      const error = result.score - example.outcome;
-      this.accumulateGradients(gradients, error, example, result);
+      // Backward
+      const dLoss = score - example.outcome;
+      this.backward(gradients, cache, capIdx, example.intentEmbedding, dLoss);
     }
 
-    // Apply gradients
     this.applyGradients(gradients, examples.length);
+    this.trainingMode = false;
 
     return {
       loss: totalLoss / examples.length,
@@ -527,126 +886,224 @@ export class SHGAT {
     };
   }
 
-  /**
-   * Initialize gradient accumulators
-   */
-  private initializeGradients(): Map<string, number[][]> {
-    const gradients = new Map<string, number[][]>();
+  private initGradients(): Map<string, number[][][]> {
+    const grads = new Map<string, number[][][]>();
 
-    for (let h = 0; h < this.config.numHeads; h++) {
-      gradients.set(`W_q_${h}`, this.zeroMatrix(this.config.hiddenDim, this.config.embeddingDim));
-      gradients.set(`W_k_${h}`, this.zeroMatrix(this.config.hiddenDim, this.config.embeddingDim));
-      gradients.set(`a_${h}`, [this.zeroVector(2 * this.config.hiddenDim)]);
+    for (let l = 0; l < this.config.numLayers; l++) {
+      const params = this.layerParams[l];
+      grads.set(`W_v_${l}`, this.zerosLike3D(params.W_v));
+      grads.set(`W_e_${l}`, this.zerosLike3D(params.W_e));
     }
 
-    return gradients;
+    return grads;
   }
 
-  private zeroMatrix(rows: number, cols: number): number[][] {
-    return Array.from({ length: rows }, () => Array(cols).fill(0));
+  private zerosLike3D(tensor: number[][][]): number[][][] {
+    return tensor.map((m) => m.map((r) => r.map(() => 0)));
   }
 
-  private zeroVector(size: number): number[] {
-    return Array(size).fill(0);
-  }
-
-  /**
-   * Accumulate gradients from an example
-   */
-  private accumulateGradients(
-    gradients: Map<string, number[][]>,
-    error: number,
-    _example: TrainingExample,
-    result: AttentionResult,
+  private backward(
+    gradients: Map<string, number[][][]>,
+    cache: ForwardCache,
+    targetCapIdx: number,
+    intentEmb: number[],
+    dLoss: number,
   ): void {
-    // Simplified gradient: update attention vector proportionally to error
-    for (let h = 0; h < this.config.numHeads; h++) {
-      const aGrad = gradients.get(`a_${h}`)![0];
-      const headContribution = result.headWeights[h] * error;
+    const { numLayers, numHeads, hiddenDim } = this.config;
 
-      for (let i = 0; i < aGrad.length; i++) {
-        aGrad[i] += headContribution * this.headParams[h].a[i];
+    const E_final = cache.E[numLayers];
+    const capEmb = E_final[targetCapIdx];
+
+    // Gradient of cosine similarity
+    const normIntent = Math.sqrt(intentEmb.reduce((s, x) => s + x * x, 0));
+    const normCap = Math.sqrt(capEmb.reduce((s, x) => s + x * x, 0));
+    const dot = this.dot(intentEmb, capEmb);
+
+    const dCapEmb = intentEmb.map((xi, i) => {
+      const term1 = xi / (normIntent * normCap);
+      const term2 = (dot * capEmb[i]) / (normIntent * normCap * normCap * normCap);
+      return dLoss * (term1 - term2);
+    });
+
+    // Backprop through layers
+    for (let l = numLayers - 1; l >= 0; l--) {
+      const H_in = cache.H[l];
+      const attentionVE = cache.attentionVE[l];
+
+      for (let h = 0; h < numHeads; h++) {
+        const dW_v = gradients.get(`W_v_${l}`)!;
+
+        for (let t = 0; t < H_in.length; t++) {
+          const alpha = attentionVE[h][t][targetCapIdx];
+          if (alpha > 0) {
+            const headDim = hiddenDim;
+            const headStart = h * headDim;
+            const headEnd = headStart + headDim;
+            const dE_head = dCapEmb.slice(headStart, headEnd);
+
+            for (let d = 0; d < headDim; d++) {
+              for (let j = 0; j < H_in[t].length; j++) {
+                dW_v[h][d][j] += dE_head[d] * alpha * H_in[t][j];
+              }
+            }
+          }
+        }
       }
     }
   }
 
-  /**
-   * Apply accumulated gradients
-   */
-  private applyGradients(gradients: Map<string, number[][]>, batchSize: number): void {
+  private applyGradients(gradients: Map<string, number[][][]>, batchSize: number): void {
     const lr = this.config.learningRate / batchSize;
+    const l2 = this.config.l2Lambda;
 
-    for (let h = 0; h < this.config.numHeads; h++) {
-      const aGrad = gradients.get(`a_${h}`)![0];
+    for (let l = 0; l < this.config.numLayers; l++) {
+      const params = this.layerParams[l];
+      const dW_v = gradients.get(`W_v_${l}`)!;
 
-      for (let i = 0; i < this.headParams[h].a.length; i++) {
-        this.headParams[h].a[i] -= lr * aGrad[i];
+      for (let h = 0; h < this.config.numHeads; h++) {
+        for (let i = 0; i < params.W_v[h].length; i++) {
+          for (let j = 0; j < params.W_v[h][i].length; j++) {
+            const grad = dW_v[h][i][j] + l2 * params.W_v[h][i][j];
+            params.W_v[h][i][j] -= lr * grad;
+          }
+        }
       }
     }
+  }
+
+  // ==========================================================================
+  // Utility Functions
+  // ==========================================================================
+
+  private getToolEmbeddings(): number[][] {
+    const embeddings: number[][] = [];
+    for (const [_, tool] of this.toolNodes) {
+      embeddings.push([...tool.embedding]);
+    }
+    return embeddings;
+  }
+
+  private getCapabilityEmbeddings(): number[][] {
+    const embeddings: number[][] = [];
+    for (const [_, cap] of this.capabilityNodes) {
+      embeddings.push([...cap.embedding]);
+    }
+    return embeddings;
+  }
+
+  private matmulTranspose(A: number[][], B: number[][]): number[][] {
+    return A.map((row) =>
+      B.map((bRow) => row.reduce((sum, val, i) => sum + val * (bRow[i] || 0), 0))
+    );
+  }
+
+  private concatHeads(heads: number[][][]): number[][] {
+    const numNodes = heads[0].length;
+    return Array.from({ length: numNodes }, (_, i) =>
+      heads.flatMap((head) => head[i])
+    );
+  }
+
+  private applyDropout(matrix: number[][]): number[][] {
+    const keepProb = 1 - this.config.dropout;
+    return matrix.map((row) =>
+      row.map((x) => (Math.random() < keepProb ? x / keepProb : 0))
+    );
+  }
+
+  private leakyRelu(x: number): number {
+    return x > 0 ? x : this.config.leakyReluSlope * x;
+  }
+
+  private elu(x: number, alpha = 1.0): number {
+    return x >= 0 ? x : alpha * (Math.exp(x) - 1);
+  }
+
+  private sigmoid(x: number): number {
+    return 1 / (1 + Math.exp(-x));
+  }
+
+  private softmax(values: number[]): number[] {
+    const maxVal = Math.max(...values);
+    const exps = values.map((v) => Math.exp(v - maxVal));
+    const sum = exps.reduce((a, b) => a + b, 0);
+    return exps.map((e) => e / sum);
+  }
+
+  private dot(a: number[], b: number[]): number {
+    return a.reduce((sum, val, i) => sum + val * (b[i] || 0), 0);
+  }
+
+  private cosineSimilarity(a: number[], b: number[]): number {
+    const dot = this.dot(a, b);
+    const normA = Math.sqrt(a.reduce((s, x) => s + x * x, 0));
+    const normB = Math.sqrt(b.reduce((s, x) => s + x * x, 0));
+    return normA * normB > 0 ? dot / (normA * normB) : 0;
+  }
+
+  private binaryCrossEntropy(pred: number, label: number): number {
+    const eps = 1e-7;
+    const p = Math.max(eps, Math.min(1 - eps, pred));
+    return -label * Math.log(p) - (1 - label) * Math.log(1 - p);
   }
 
   // ==========================================================================
   // Serialization
   // ==========================================================================
 
-  /**
-   * Export model parameters
-   */
   exportParams(): Record<string, unknown> {
     return {
       config: this.config,
+      layerParams: this.layerParams,
       headParams: this.headParams,
-      W_query: this.W_query,
-      W_key: this.W_key,
-      W_value: this.W_value,
-      attention_a: this.attention_a,
     };
   }
 
-  /**
-   * Import model parameters
-   */
   importParams(params: Record<string, unknown>): void {
     if (params.config) {
       this.config = params.config as SHGATConfig;
     }
+    if (params.layerParams) {
+      this.layerParams = params.layerParams as typeof this.layerParams;
+    }
     if (params.headParams) {
       this.headParams = params.headParams as typeof this.headParams;
     }
-    if (params.W_query) {
-      this.W_query = params.W_query as number[][];
-    }
-    if (params.W_key) {
-      this.W_key = params.W_key as number[][];
-    }
-    if (params.W_value) {
-      this.W_value = params.W_value as number[][];
-    }
-    if (params.attention_a) {
-      this.attention_a = params.attention_a as number[];
-    }
   }
 
-  /**
-   * Get model statistics
-   */
   getStats(): {
     numHeads: number;
     hiddenDim: number;
+    numLayers: number;
     paramCount: number;
     registeredCapabilities: number;
+    registeredTools: number;
+    incidenceNonZeros: number;
   } {
-    const paramCount =
-      this.config.numHeads * (
-        this.config.hiddenDim * this.config.embeddingDim * 3 + // W_q, W_k, W_v
-        2 * this.config.hiddenDim // a
-      );
+    const { numHeads, hiddenDim, embeddingDim, numLayers } = this.config;
+
+    let paramCount = 0;
+    for (let l = 0; l < numLayers; l++) {
+      const layerInputDim = l === 0 ? embeddingDim : hiddenDim * numHeads;
+      paramCount += numHeads * hiddenDim * layerInputDim * 2; // W_v, W_e
+      paramCount += numHeads * 2 * hiddenDim; // a_ve
+      paramCount += numHeads * hiddenDim * hiddenDim * 2; // W_e2, W_v2
+      paramCount += numHeads * 2 * hiddenDim; // a_ev
+    }
+
+    let incidenceNonZeros = 0;
+    for (const row of this.incidenceMatrix) {
+      incidenceNonZeros += row.filter((x) => x > 0).length;
+    }
 
     return {
-      numHeads: this.config.numHeads,
-      hiddenDim: this.config.hiddenDim,
+      numHeads,
+      hiddenDim,
+      numLayers,
       paramCount,
       registeredCapabilities: this.capabilityNodes.size,
+      registeredTools: this.toolNodes.size,
+      incidenceNonZeros,
     };
   }
 }
@@ -705,14 +1162,12 @@ export async function trainSHGATOnEpisodes(
   let finalAccuracy = 0;
 
   for (let epoch = 0; epoch < epochs; epoch++) {
-    // Shuffle episodes
     const shuffled = [...episodes].sort(() => Math.random() - 0.5);
 
     let epochLoss = 0;
     let epochAccuracy = 0;
     let batchCount = 0;
 
-    // Train in batches
     for (let i = 0; i < shuffled.length; i += batchSize) {
       const batch = shuffled.slice(i, i + batchSize);
       const result = shgat.trainBatch(batch, getEmbedding);
