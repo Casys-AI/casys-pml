@@ -1,10 +1,13 @@
 ---
-project_name: 'Casys PML'
+project_name: 'Procedural Memory Layer (PML)'
 user_name: 'Erwan'
-date: '2025-12-15'
-sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'code_quality', 'workflow_rules', 'critical_rules', 'hypergraph_algorithms']
+date: '2025-12-21'
+sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'code_quality', 'workflow_rules', 'critical_rules', 'hypergraph_algorithms', 'minitools', 'adaptive_learning']
 status: complete
 last_scan: 'exhaustive'
+last_update: '2025-12-21'
+rule_count: 185
+optimized_for_llm: true
 ---
 
 # Project Context for AI Agents
@@ -48,6 +51,16 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **Eigengap Heuristic** — Auto-détection nombre optimal de clusters
 - **Dijkstra** — via graphology-shortest-path
 - **Louvain** — via graphology-communities-louvain
+- **Heat Diffusion** — `src/graphrag/local-alpha.ts` — Propagation hiérarchique (ADR-048)
+- **Thompson Sampling** — `src/learning/thompson-threshold.ts` — Thresholds adaptatifs per-tool (ADR-049)
+- **Local Alpha** — Confiance adaptative par zone du graphe (cold start vs dense)
+
+### MiniTools Library (`lib/std/`)
+- **120+ outils internes** — Organisés en 30+ modules thématiques
+- **MiniToolsClient** — Classe d'accès unifiée aux mini-tools
+- **Catégories System** — docker, git, network, process, archive, ssh, kubernetes, database, media, cloud, sysinfo, packages, text
+- **Catégories Data** — algo, collections, crypto, datetime, format, http, json, math, transform, validation, vfs
+- **Nouveaux modules** — string, path, faker, color, geo, qrcode, resilience, schema, diff
 
 ### Compilation & Communication
 - **SWC** — via Deno, compilation TS + parsing AST (remplace ts-morph)
@@ -57,6 +70,14 @@ _This file contains critical rules and patterns that AI agents must follow when 
 ### CLI & Utils
 - **@cliffy/command 1.0.0-rc.8** — CLI framework
 - **@std/assert, @std/dotenv, @std/fs, @std/yaml** — Deno std lib
+
+### Configuration Files (`config/`)
+- **dag-scoring.yaml** — Scoring, thresholds, weights, reliability (ADR-022, 026, 038, 048)
+- **local-alpha.yaml** — Alpha adaptatif, cold start, heat diffusion (ADR-048)
+- **spectral-clustering.yaml** — Clustering biparti, edge weights, PageRank (Story 7.4, ADR-042)
+- **mcp-permissions.yaml** — Permissions et risk categories MCP servers (ADR-035)
+- **workflow-templates.yaml** — Templates de workflows DAG
+- **speculation_config.yaml** — Config spéculation legacy (supplanté par ADR-049)
 
 ### Version Constraints
 - **Preact, pas React** — JSX doit utiliser `jsxImportSource: "preact"`
@@ -133,6 +154,25 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **PII detection** — Tokenisation automatique des données sensibles
 - **MCP tool injection** — Outils injectés via intent discovery
 
+#### MiniTools Pattern (`lib/std/`)
+- **Import depuis lib/std/mod.ts** — `import { MiniToolsClient, getToolByName } from "../../lib/std/mod.ts"`
+- **Client par catégorie** — `new MiniToolsClient({ categories: ["json", "crypto"] })`
+- **Exécution typée** — `await client.execute("json_parse", { input: data })`
+- **Format MCP** — `client.toMCPFormat()` pour exposition via gateway
+- **Handler pattern** — Chaque tool a `name`, `description`, `inputSchema`, `handler`
+
+#### Externalized Configuration (`config/`)
+- **dag-scoring.yaml** — TOUTES les constantes de scoring externalisées
+- **Pas de magic numbers** — Utiliser `DagScoringConfig.load()` pour accéder aux valeurs
+- **Sections YAML** — `limits`, `weights`, `thresholds`, `caps`, `reliability`, `defaults`
+- **Hot reload supporté** — Config rechargeable sans restart
+
+#### Adaptive Learning (ADR-048, ADR-049)
+- **Local Alpha** — Confiance locale par zone du graphe (0.5 dense → 1.0 cold start)
+- **Thompson Sampling** — Distribution Beta(α,β) per-tool pour thresholds
+- **Risk Categories** — `safe` (0.55), `moderate` (0.70), `dangerous` (0.85)
+- **mcp-permissions.yaml** — Source de vérité pour classification risque
+
 ### Testing Rules
 
 #### Test Framework
@@ -184,6 +224,9 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **src/web/** — Dashboard Fresh/Preact
 - **src/db/** — Migrations et schémas Drizzle
 - **src/telemetry/** — Logging et métriques
+- **src/learning/** — Thompson Sampling, adaptive thresholds
+- **lib/std/** — MiniTools library (120+ outils)
+- **config/** — Configuration externalisée (YAML)
 
 #### Documentation
 - **JSDoc minimal** — Seulement pour exports publics complexes
@@ -238,6 +281,8 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **JAMAIS node_modules direct** — Préfixe `npm:` obligatoire
 - **JAMAIS snake_case** — camelCase pour propriétés (refactoring récent)
 - **JAMAIS proxy MCP direct** — Exposer meta-tools, pas les outils sous-jacents
+- **JAMAIS magic numbers** — Utiliser `config/*.yaml` et `DagScoringConfig.load()`
+- **JAMAIS hardcode thresholds** — Tous externalisés dans `dag-scoring.yaml` ou `local-alpha.yaml`
 
 #### 🔒 Sécurité
 - **Sandbox isolation** — Code utilisateur dans worker isolé
@@ -268,3 +313,42 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **HIL (Human-in-the-Loop)** — Checkpoints d'approbation pour opérations critiques
 - **Checkpoint/Resume** — Workflows interruptibles avec persistence d'état
 - **$OUTPUT resolution** — Référencer outputs des tasks précédentes
+
+#### 🛠️ MiniTools (`lib/std/`)
+- **Import centralisé** — `import { ... } from "../../lib/std/mod.ts"`
+- **MiniToolsClient** — Classe standard pour accès aux 120+ outils
+- **Handler pattern** — `{ name, description, inputSchema, handler }`
+- **Categories filtering** — `new MiniToolsClient({ categories: ["json", "crypto"] })`
+
+#### ⚙️ Configuration Externalisée
+- **DagScoringConfig** — `import { DagScoringConfig } from "./dag-scoring-config.ts"`
+- **LocalAlphaConfig** — `import { LocalAlphaConfig } from "./local-alpha-config.ts"`
+- **Sections YAML** — `limits`, `weights`, `thresholds`, `caps`, `reliability`, `defaults`
+- **Schémas JSON** — `*.schema.json` pour validation (yaml-language-server)
+
+#### 📈 Adaptive Learning (ADR-048, ADR-049)
+- **Local Alpha** — `alpha ∈ [0.5, 1.0]` — 0.5 = trust graph, 1.0 = semantic only
+- **Heat Diffusion** — Propagation de confiance par connectivité graphe
+- **Cold Start** — Bayesian prior `Beta(1,1)` → target après `threshold` observations
+- **Thompson Sampling** — Distribution `Beta(α,β)` per-tool pour thresholds adaptatifs
+- **Risk Categories** — `safe` (0.55), `moderate` (0.70), `dangerous` (0.85) via `mcp-permissions.yaml`
+
+---
+
+## Usage Guidelines
+
+**For AI Agents:**
+- Read this file before implementing any code
+- Follow ALL rules exactly as documented
+- When in doubt, prefer the more restrictive option
+- Reference ADRs for architectural decisions rationale
+
+**For Humans:**
+- Keep this file lean and focused on agent needs
+- Update when technology stack changes
+- Review after each epic completion
+- Remove rules that become obvious over time
+
+---
+
+_Last Updated: 2025-12-21_

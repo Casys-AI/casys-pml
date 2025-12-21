@@ -1,30 +1,92 @@
 {
   "workflow_version": "1.2.0",
   "timestamps": {
-    "started": "2025-12-15T10:30:00Z",
-    "last_updated": "2025-12-15T14:30:00Z",
-    "completed": "2025-12-15T14:30:00Z"
+    "started": "2025-12-21T10:00:00Z",
+    "last_updated": "2025-12-21T10:45:00Z",
+    "completed": "2025-12-21T10:45:00Z"
   },
   "mode": "full_rescan",
   "scan_level": "exhaustive",
+  "status": "completed",
   "project_root": "/home/ubuntu/CascadeProjects/AgentCards",
   "output_folder": "/home/ubuntu/CascadeProjects/AgentCards/docs",
   "completed_steps": [
-    {"step": "step_1", "status": "completed", "summary": "Classified as monolith (backend+web+library+cli), 19 modules"},
-    {"step": "step_2", "status": "completed", "summary": "Found 100+ existing docs: PRD, epics, 15 architecture files, 46 ADRs"},
-    {"step": "step_3", "status": "completed", "summary": "Tech stack: Deno 2.x, Fresh+Preact, PGlite+KV, Hypergraph algorithms"},
-    {"step": "step_4", "status": "completed", "summary": "8 MCP tools, 16 DB migrations, 10 islands, 28 components, BFF"},
-    {"step": "step_5", "status": "completed", "summary": "Generated annotated source tree with 19 src modules"},
-    {"step": "step_6", "status": "completed", "summary": "Dev tasks, env vars, systemd deployment, monitoring stack"},
-    {"step": "step_7", "status": "completed", "summary": "Internal integration map: BFF, MCP, SSE, Broadcast Channel"},
-    {"step": "step_8", "status": "completed", "summary": "Generated project-overview.md"},
-    {"step": "step_9", "status": "completed", "summary": "Generated procedural-memory-architecture.md - Learning system documentation"}
+    {"step": "step_1", "status": "completed", "summary": "Classified as monolith hybrid (backend+web+cli+library), 19 src modules"},
+    {"step": "step_2", "status": "completed", "summary": "Found ~260 existing docs: PRD, 50 ADRs, 15 architecture, 12 tech-specs, 31 spikes, 10 epics"},
+    {"step": "step_3", "status": "completed", "summary": "Tech stack: Deno 2.x, Fresh+Preact, PGlite+KV, GraphRAG, MCP SDK, Zero-permission sandbox with RPC tracing"},
+    {"step": "step_4", "status": "completed", "summary": "248 TS files, 56K LOC, 8 MCP meta-tools, 15 islands, 203 tests"},
+    {"step": "step_5", "status": "completed", "summary": "Generated annotated source tree with all 19 modules"},
+    {"step": "step_6", "status": "completed", "summary": "Dev workflow: deno tasks, GitHub Actions CI, systemd deployment, Grafana monitoring"},
+    {"step": "step_7", "status": "completed", "summary": "Integrations: GitHub OAuth, Smithery, HuggingFace BGE-M3, Sentry, 8 MCP servers configured"},
+    {"step": "step_8", "status": "completed", "summary": "Updated project-overview.md with comprehensive architecture documentation"},
+    {"step": "step_9", "status": "completed", "summary": "Finalized scan report and supporting docs"}
   ],
-  "current_step": "completed",
+  "findings": {
+    "project_classification": {
+      "name": "Casys PML (Procedural Memory Layer)",
+      "package_name": "@casys/mcp-gateway",
+      "repository_type": "monolith",
+      "primary_tech": "Deno 2.x + TypeScript",
+      "license": "AGPL-3.0",
+      "parts_count": 1,
+      "module_count": 19
+    },
+    "existing_docs": {
+      "total_files": 260,
+      "total_size_kb": 2800,
+      "categories": {
+        "prd": 2,
+        "architecture": 15,
+        "adrs": 50,
+        "epics": 10,
+        "tech_specs": 12,
+        "spikes": 31,
+        "sprint_artifacts": 113,
+        "user_docs": 20,
+        "research": 7
+      }
+    },
+    "technology_stack": {
+      "runtime": "Deno 2.x",
+      "language": "TypeScript (strict)",
+      "frontend": "Fresh 2.0 + Preact 10.27 + Vite 7.1 + TailwindCSS 4.1",
+      "backend": "MCP SDK 1.15 + Smithery SDK 2.1 + Cliffy CLI",
+      "database": "PGlite 0.3.14 + Deno KV + Drizzle ORM (18 migrations)",
+      "graphrag": "Graphology + HuggingFace Transformers (BGE-M3 1024-dim)",
+      "sandbox": "Zero-permission Deno subprocess + RPC Bridge for full tracing",
+      "observability": "Sentry + @std/log + Grafana Stack"
+    },
+    "codebase_metrics": {
+      "ts_files": 248,
+      "lines_of_code": 56694,
+      "test_files": 203,
+      "mcp_meta_tools": 8,
+      "preact_islands": 15,
+      "db_migrations": 18,
+      "adrs": 50
+    },
+    "integrations": {
+      "mcp_servers": ["std", "filesystem", "memory", "sequential-thinking", "playwright", "exa", "magic", "fetch", "plots"],
+      "external": ["GitHub OAuth", "Smithery Registry", "HuggingFace Hub", "Sentry"],
+      "monitoring": ["Grafana", "Prometheus", "Loki", "Promtail"]
+    },
+    "issues_found": [
+      {
+        "type": "naming",
+        "severity": "low",
+        "description": "CLI name 'cai' should be renamed to 'pml'",
+        "files": ["src/main.ts", "deno.json"]
+      }
+    ]
+  },
+  "project_types": [
+    {"part_id": "main", "project_type_id": "backend", "display_name": "MCP Gateway Server"},
+    {"part_id": "main", "project_type_id": "web", "display_name": "Fresh Dashboard"},
+    {"part_id": "main", "project_type_id": "cli", "display_name": "CLI Interface"},
+    {"part_id": "main", "project_type_id": "library", "display_name": "Exportable Modules"}
+  ],
   "outputs_generated": [
     "project-scan-report.json",
-    "project-overview.md",
-    "user-docs/procedural-memory-architecture.md"
-  ],
-  "resume_instructions": "Workflow complete"
+    "project-overview.md"
+  ]
 }

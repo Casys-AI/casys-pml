@@ -1,6 +1,10 @@
 # Casys PML - Project Overview
 
-> **Generated:** 2025-12-15 | **Scan Level:** Exhaustive | **Version:** 1.2.0
+> **Procedural Memory Layer** - An open-source PML for AI agents that captures emergent workflows and crystallizes them into reusable skills.
+
+**Last Updated:** 2025-12-21 | **Scan Level:** Exhaustive | **Version:** 0.1.0
+
+---
 
 ## Quick Reference
 
@@ -13,93 +17,142 @@
 | **Language** | TypeScript (strict mode) |
 | **Primary Port (API)** | 3003 (dev) / 3001 (prod) |
 | **Dashboard Port** | 8081 (dev) / 8080 (prod) |
+| **License** | AGPL-3.0 |
+
+---
+
+## Executive Summary
+
+Casys PML is an intelligent MCP (Model Context Protocol) gateway that solves two critical problems in AI agent ecosystems:
+
+1. **Context Saturation** - Tool schemas consume 30-50% of LLM context window → reduced to <5%
+2. **Sequential Latency** - Multi-tool workflows run serially → parallelized via DAG execution
+
+The system exposes 8 meta-tools that orchestrate underlying MCP servers, providing semantic tool discovery, DAG-based workflow execution, and sandboxed code execution with full tracing.
 
 ---
 
 ## Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                          CASYS PML MONOLITH                         │
-├─────────────────────────────────────────────────────────────────────┤
-│  Browser ◄──HTTP/SSE──► Fresh Dashboard (BFF) ◄──fetch──► MCP Gateway│
-│                              :8081                         :3003    │
-├─────────────────────────────────────────────────────────────────────┤
-│  Claude Code ◄──stdio/MCP──► MCP Gateway Server                     │
-├─────────────────────────────────────────────────────────────────────┤
-│         GraphRAG    │    Vector    │    DAG      │    Sandbox       │
-│         Engine      │    Search    │   Executor  │    Workers       │
-├─────────────────────────────────────────────────────────────────────┤
-│                   PGlite + Deno KV (Storage Layer)                  │
-└─────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           CLIENTS                                        │
+│         Claude Code / AI Agents / Dashboard / CLI                        │
+└─────────────────────────────┬───────────────────────────────────────────┘
+                              │ MCP Protocol (HTTP/SSE)
+                              ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      PML GATEWAY SERVER (:3003)                          │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │                     8 META-TOOLS EXPOSED                         │    │
+│  │  pml:execute_dag │ pml:search_tools │ pml:search_capabilities   │    │
+│  │  pml:execute_code │ pml:continue │ pml:abort │ pml:replan       │    │
+│  │  pml:approval_response                                           │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│                              │                                           │
+│  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐            │
+│  │  GraphRAG │  │    DAG    │  │  Sandbox  │  │  Events   │            │
+│  │  Engine   │  │ Executor  │  │   (RPC)   │  │    Bus    │            │
+│  │           │  │           │  │           │  │           │            │
+│  │ • Semantic│  │ • Parallel│  │ • Zero    │  │ • SSE     │            │
+│  │   Search  │  │   Exec    │  │   Perms   │  │ • Broad-  │            │
+│  │ • DAG     │  │ • Check-  │  │ • RPC     │  │   cast    │            │
+│  │   Suggest │  │   points  │  │   Trace   │  │   Channel │            │
+│  │ • Local α │  │ • HIL/AIL │  │ • PII     │  │           │            │
+│  └─────┬─────┘  └─────┬─────┘  └─────┬─────┘  └─────┬─────┘            │
+│        └──────────────┴──────────────┴──────────────┘                   │
+│                              │                                           │
+│  ┌───────────────────────────┴───────────────────────────────────────┐  │
+│  │                    DATA LAYER                                      │  │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                │  │
+│  │  │   PGlite    │  │  Deno KV    │  │  Embeddings │                │  │
+│  │  │ (PostgreSQL)│  │  (Sessions) │  │  (BGE-M3)   │                │  │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘                │  │
+│  └───────────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────┘
+                              │
+          ┌───────────────────┼───────────────────┐
+          ▼                   ▼                   ▼
+┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
+│   MCP Server    │ │   MCP Server    │ │   MCP Server    │
+│   (filesystem)  │ │    (memory)     │ │   (playwright)  │
+│                 │ │                 │ │                 │
+│   stdio/HTTP    │ │   stdio/HTTP    │ │   stdio/HTTP    │
+└─────────────────┘ └─────────────────┘ └─────────────────┘
 ```
 
 ---
 
 ## Technology Stack
 
-### Core
+### Core Runtime
+
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| Deno | 2.x | Runtime (TypeScript-first, secure by default) |
-| TypeScript | strict | Language with strict type checking |
-| SWC | via Deno | Fast compilation + AST parsing |
+| **Deno** | 2.x | Runtime with native TypeScript, security-first |
+| **TypeScript** | Strict | Type safety with noImplicitAny, noUnusedLocals |
 
 ### Frontend (Dashboard)
+
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| Fresh | 2.x | Deno web framework (SSR + Islands) |
-| Preact | 10.x | React-compatible UI library |
-| Vite | 7.x | Fast build tool + HMR |
-| TailwindCSS | 4.x | Utility-first CSS |
-| @preact/signals | 2.x | Reactive state management |
+| **Fresh** | 2.0.0 | Deno-native web framework, Islands architecture |
+| **Preact** | 10.27.0 | Lightweight React alternative (3KB) |
+| **@preact/signals** | 2.5.1 | Fine-grained reactivity |
+| **Vite** | 7.1.3 | Build tool with HMR |
+| **TailwindCSS** | 4.1.10 | Utility-first CSS |
 
-### Database & Storage
+### Backend & Protocol
+
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| PGlite | 0.3.x | PostgreSQL WASM (local-first) |
-| Drizzle ORM | 0.39.x | Type-safe TypeScript ORM |
-| Deno KV | built-in | Key-value store (cache, sessions) |
+| **MCP SDK** | 1.15.1 | Model Context Protocol implementation |
+| **Smithery SDK** | 2.1.0 | MCP server discovery & HTTP transport |
+| **Cliffy** | 1.0.0-rc.8 | CLI framework |
+| **Zod** | 3.23.0 | Schema validation |
 
-### ML & Vectors
+### Database & Persistence
+
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| @huggingface/transformers | 3.7.x | Local embeddings (BGE-M3, 1024 dim) |
-| ml-matrix | 6.x | Matrix operations for spectral clustering |
+| **PGlite** | 0.3.14 | Embedded PostgreSQL (WASM) |
+| **PGlite/vector** | 0.3.14 | Vector search extension |
+| **Deno KV** | unstable | Key-value store (sessions, cache) |
+| **Drizzle ORM** | 0.39.1 | Type-safe SQL & 18 migrations |
 
-### SuperHyperGraph Algorithms (Custom)
-| Algorithm | Module | Description |
-|-----------|--------|-------------|
-| Spectral Clustering | spectral-clustering.ts | Bipartite graph clustering |
-| SuperHyperGraph PageRank | spectral-clustering.ts | Capability importance ranking (recursive) |
-| PageRank | graph-engine.ts | Node centrality |
-| Adamic-Adar | graph-engine.ts | Similarity via common neighbors |
-| Dijkstra | graphology | Shortest paths |
-| Louvain | graphology | Community detection |
-| K-means++ | spectral-clustering.ts | Eigenvector clustering |
+### GraphRAG & ML
 
-### Protocol & Communication
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| @modelcontextprotocol/sdk | 1.15.x | MCP protocol (Anthropic) |
-| @smithery/sdk | 2.x | MCP server registry |
-| Broadcast Channel | built-in | Inter-worker communication |
-| SSE | native | Real-time events to dashboard |
-
-### Security
-| Technology | Purpose |
-|------------|---------|
-| @ts-rex/argon2 | Password hashing |
-| @deno/kv-oauth | GitHub OAuth |
-| validator | Input validation |
+| **Graphology** | 0.25.4 | Graph data structure |
+| **graphology-metrics** | 2.2.0 | PageRank, centrality algorithms |
+| **graphology-communities-louvain** | 2.0.1 | Community detection |
+| **@huggingface/transformers** | 3.7.6 | BGE-M3 embeddings (1024-dim, local) |
+| **ml-matrix** | 6.11.1 | Matrix operations |
+| **simple-statistics** | 7.8.0 | Statistical calculations |
 
 ### Observability
-| Technology | Purpose |
-|------------|---------|
-| @sentry/deno | Error tracking |
-| Grafana | Dashboards |
-| Prometheus | Metrics |
-| Loki | Log aggregation |
+
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| **Sentry** | 10.8.0 | Error tracking & performance |
+| **Grafana** | 12.3.0 | Dashboards |
+| **Prometheus** | 3.1.0 | Metrics collection |
+| **Loki** | 3.4.1 | Log aggregation |
+
+---
+
+## Codebase Metrics
+
+| Metric | Value |
+|--------|-------|
+| **TypeScript Files** | 248 |
+| **Lines of Code** | 56,694 |
+| **Test Files** | 203 |
+| **Source Modules** | 19 |
+| **Database Migrations** | 18 |
+| **Preact Islands** | 15 |
+| **ADRs** | 50 |
 
 ---
 
@@ -107,65 +160,89 @@
 
 ```
 src/
-├── main.ts              # Entry point
-├── mcp/                 # MCP Gateway (8 meta-tools)
-├── dag/                 # DAG execution engine
-├── graphrag/            # SuperHyperGraph algorithms
-├── sandbox/             # Secure code execution
-├── capabilities/        # Learned capabilities system
-├── vector/              # BGE-M3 embeddings
-├── db/                  # PGlite + Drizzle (16 migrations)
-├── cli/                 # CLI commands
-├── server/              # HTTP server + auth
-├── web/                 # Fresh dashboard (BFF)
-│   ├── routes/          # BFF routes
-│   ├── islands/         # Interactive components (10)
-│   └── components/      # Static components (28)
-├── telemetry/           # Logging + Sentry
-├── events/              # Event system
-├── learning/            # Episodic memory
-├── speculation/         # Speculative execution
-├── context/             # LLM context optimization
-├── health/              # Health checks
-├── errors/              # Error handling
-├── lib/                 # Shared utilities
-└── utils/               # Generic helpers
+├── main.ts              # Entry point (CLI)
+├── mcp/         (47)    # MCP Gateway, handlers, routing
+├── graphrag/    (43)    # Graph engine, DAG suggester, spectral clustering
+├── web/         (36)    # Fresh dashboard, 15 islands
+├── dag/         (25)    # DAG executor, checkpoints, streaming
+├── db/          (22)    # PGlite + Drizzle (18 migrations)
+├── capabilities/(15)    # Capability store, matcher, permissions
+├── sandbox/     (10)    # Zero-permission executor, RPC bridge, PII
+├── cli/         (9)     # Commands: init, serve, status, workflows
+├── telemetry/   (7)     # Sentry, logging, metrics
+├── server/      (6)     # HTTP server + auth
+├── lib/         (5)     # Shared utilities
+├── context/     (4)     # LLM context optimization
+├── speculation/ (4)     # Speculative execution
+├── events/      (3)     # Event system (BroadcastChannel)
+├── learning/    (3)     # Episodic memory
+├── vector/      (3)     # BGE-M3 embeddings
+├── errors/      (2)     # Error handling
+├── utils/       (2)     # Generic helpers
+└── health/      (1)     # Health checks
 ```
 
 ---
 
-## MCP Tools
+## MCP Meta-Tools
 
 | Tool | Description |
 |------|-------------|
-| `pml:execute_dag` | Execute DAG workflows (intent or explicit) |
-| `pml:search_tools` | Semantic + graph tool search |
-| `pml:search_capabilities` | Search learned capabilities |
-| `pml:execute_code` | Sandbox TypeScript execution |
-| `pml:continue` | Continue paused workflow |
-| `pml:abort` | Abort running workflow |
-| `pml:replan` | Replan DAG mid-execution |
-| `pml:approval_response` | HIL checkpoint response |
+| `pml:execute_dag` | Execute DAG workflows (intent or explicit mode) |
+| `pml:search_tools` | Semantic + graph hybrid tool discovery |
+| `pml:search_capabilities` | Find proven code patterns |
+| `pml:execute_code` | Sandboxed TypeScript with MCP injection |
+| `pml:continue` | Resume paused workflow |
+| `pml:abort` | Stop running workflow |
+| `pml:replan` | Modify DAG with new requirements |
+| `pml:approval_response` | Respond to HIL checkpoints |
 
 ---
 
-## Database Schema (16 migrations)
+## Key Architectural Patterns
 
-| Table | Purpose |
-|-------|---------|
-| tool_schema | MCP tool definitions cache |
-| tool_embedding | BGE embeddings (HNSW index) |
-| tool_dependency | Tool relationships |
-| metrics | Telemetry data |
-| error_log | Error tracking |
-| workflow_checkpoints | Checkpoint/resume state |
-| episodic_memory | Learning memory |
-| workflow_dags | Active DAG storage |
-| graphrag_tables | Graph data |
-| capability_storage | Learned capabilities |
-| algorithm_traces | Algorithm observability |
-| capability_dependency | Cap→Cap edges |
-| users | Multi-tenant (OAuth + API keys) |
+### 1. Zero-Permission Sandbox with RPC Tracing
+
+All user code executes in a Deno subprocess with **zero permissions**. Operations are proxied via RPC to the main process, enabling:
+- Complete isolation of untrusted code
+- Full audit trail of all operations
+- Fine-grained permission control at runtime
+
+### 2. GraphRAG Hybrid Search
+
+Combines semantic similarity (vector search) with graph-based relatedness:
+- Adamic-Adar algorithm for link prediction
+- Local adaptive alpha (ADR-048) for context-aware weighting
+- Louvain community detection for tool grouping
+
+### 3. DAG Execution with HIL/AIL
+
+Workflows execute as directed acyclic graphs with:
+- Automatic parallelization of independent tasks
+- Human-in-the-Loop (HIL) checkpoints for critical operations
+- Agent-in-the-Loop (AIL) for autonomous decisions with validation
+- Checkpoint/resume for long-running workflows
+
+### 4. Event-Driven Architecture
+
+BroadcastChannel-based event distribution (ADR-036):
+- Cross-process event propagation
+- SSE streaming to dashboard
+- Real-time graph updates and metrics
+
+---
+
+## CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| `pml init` | Initialize PML (discover MCPs, generate embeddings) |
+| `pml serve` | Start the MCP gateway server |
+| `pml status` | Check system health |
+| `pml workflows` | Manage workflow templates |
+| `pml speculation` | Manage speculative execution |
+
+> **Note:** CLI currently uses `cai` name - migration to `pml` pending.
 
 ---
 
@@ -178,7 +255,7 @@ deno task dev:fresh        # Dashboard (:8081)
 
 # Testing
 deno task test             # All tests
-deno task test:unit        # Unit tests
+deno task test:unit        # Unit tests (parallel + sequential)
 deno task test:integration # Integration tests
 
 # Quality
@@ -191,6 +268,8 @@ deno task db:generate      # Generate migrations
 deno task db:studio        # Drizzle Studio
 
 # Production
+deno task prod:start       # Start systemd services
+deno task prod:stop        # Stop services
 deno task deploy:all       # Pull + build + restart
 ```
 
@@ -198,25 +277,56 @@ deno task deploy:all       # Pull + build + restart
 
 ## Environment Variables
 
+### Core (Required)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PML_DB_PATH` | `.pml-dev.db` | PGlite database path |
+
+### Optional Services
+
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `FRESH_PORT` | 8081 | Dashboard port (dev) |
 | `PORT_API` | 3003 | API port (dev) |
-| `PML_DB_PATH` | .pml-dev.db | PGlite database path |
-| `SENTRY_DSN` | - | Sentry DSN (optional) |
+| `SENTRY_DSN` | - | Sentry error tracking (optional) |
+| `GITHUB_CLIENT_ID` | - | GitHub OAuth (prod only) |
+| `GITHUB_CLIENT_SECRET` | - | GitHub OAuth (prod only) |
+
+### MCP Server-Specific (Optional)
+
+> These are only needed if using the corresponding MCP servers via the gateway.
+
+| Variable | MCP Server | Description |
+|----------|------------|-------------|
+| `EXA_API_KEY` | exa | Exa search API key |
+| `API_KEY` | magic | Magic UI API key |
 
 ---
 
-## Architectural Patterns
+## External Integrations
 
-| Pattern | Implementation |
-|---------|---------------|
-| **BFF (Backend For Frontend)** | Fresh routes call API server-side |
-| **Islands Architecture** | Interactive islands + static components |
-| **Atomic Design** | atoms → molecules → organisms |
-| **MCP Gateway** | Unified entry point for all MCP tools |
-| **SuperHyperGraph** | Capabilities as recursive hyperedges (meta-capabilities supported) |
-| **Worker Isolation** | Sandbox execution via Broadcast Channel |
+| Integration | Purpose | Required |
+|-------------|---------|----------|
+| **GitHub OAuth** | User authentication | Prod only |
+| **Smithery** | MCP server discovery | Optional |
+| **HuggingFace** | BGE-M3 embeddings (local) | Auto-downloaded |
+| **Sentry** | Error tracking | Optional |
+| **Grafana Stack** | Monitoring | Optional |
+
+---
+
+## Documentation Structure
+
+| Category | Count | Location |
+|----------|-------|----------|
+| **Architecture** | 15 | docs/architecture/ |
+| **ADRs** | 50 | docs/adrs/ |
+| **Epics** | 10 | docs/epics/ |
+| **Tech Specs** | 12 | docs/tech-specs/ |
+| **Spikes** | 31 | docs/spikes/ |
+| **Sprint Artifacts** | 113 | docs/sprint-artifacts/ |
+| **User Docs** | ~20 | docs/user-docs/ |
 
 ---
 
@@ -230,37 +340,28 @@ deno task deploy:all       # Pull + build + restart
 | ADR-007 | DAG Adaptive Feedback Loops |
 | ADR-008 | Episodic Memory Adaptive Thresholds |
 | ADR-032 | Worker RPC Bridge |
-| ADR-038 | Strategic Discovery Mode |
-| ADR-042 | Capability Dependencies |
-| ADR-046 | Fresh BFF Pattern |
+| ADR-035 | Permission Sets Sandbox Security |
+| ADR-036 | Broadcast Channel Event Distribution |
+| ADR-037 | Deno KV Cache Layer |
+| ADR-048 | Hierarchical Heat Diffusion Alpha |
 
-See `docs/adrs/` for all 46 ADRs.
+See [docs/adrs/](adrs/index.md) for all 50 ADRs.
 
 ---
 
-## Documentation Structure
+## Known Issues
 
-```
-docs/
-├── index.md              # Documentation index
-├── PRD.md                # Product Requirements (42KB)
-├── epics.md              # Implementation epics (70KB)
-├── project_context.md    # AI context file
-├── architecture/         # 15 architecture docs
-├── adrs/                 # 46 Architecture Decision Records
-├── sprint-artifacts/     # Story implementations
-├── spikes/               # Technical spikes
-├── research/             # Market & technical research
-├── retrospectives/       # Epic retrospectives
-├── user-docs/            # User documentation
-└── blog/                 # Technical articles
-```
+| Issue | Description | Files Affected |
+|-------|-------------|----------------|
+| CLI naming | CLI uses `cai` instead of `pml` | src/main.ts, deno.json |
 
 ---
 
 ## Related Documents
 
-- [PRD.md](./PRD.md) - Full product requirements
-- [Architecture Index](./architecture/index.md) - Architecture documentation
-- [ADR Index](./adrs/index.md) - Decision records
-- [project_context.md](./project_context.md) - AI agent context
+- [Architecture Index](architecture/index.md)
+- [ADR Index](adrs/index.md)
+- [Epic Overview](epics/overview.md)
+- [User Documentation](user-docs/index.md)
+- [QUICKSTART](QUICKSTART.md)
+- [PRD](PRD.md)
