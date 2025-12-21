@@ -132,14 +132,26 @@ Quand un tool D dépend d'une capability X, il ne dépend pas juste du dernier t
 
 | Algorithme | Concept | Applicable |
 |------------|---------|------------|
-| **[Contraction Hierarchies](https://en.wikipedia.org/wiki/Contraction_hierarchies)** | Préprocessing → shortcuts entre nœuds importants. 7 ordres de magnitude plus rapide que Dijkstra. | ✅ Capabilities = nœuds contractés |
-| **[Dynamic Shortest Path for Hypergraphs](https://arxiv.org/abs/1202.0082)** | Premier algo pour shortest path sur hypergraphes dynamiques avec changements topologiques | ✅ Directement applicable |
-| **[HPA* / HSP](https://www.cs.ubc.ca/~mack/Publications/FICCDAT07.pdf)** | Partition en clusters, pathfinding à 2 niveaux (inter-cluster puis intra-cluster) | ✅ Capabilities = clusters |
+| **[Dynamic Shortest Path for Hypergraphs](https://arxiv.org/abs/1202.0082)** | Premier algo pour shortest path sur hypergraphes dynamiques. HE-DSP et DR-DSP. | ✅ **Recommandé** - natif hypergraph |
+| **[Higher-order shortest paths](https://arxiv.org/html/2502.03020)** | Paper 2025 sur les hyperpaths | ✅ Très récent |
+| ~~**Contraction Hierarchies**~~ | Préprocessing pour graphes routiers | ❌ Pas adapté aux hypergraphes |
+| **[HPA* / HSP](https://www.cs.ubc.ca/~mack/Publications/FICCDAT07.pdf)** | Partition en clusters, pathfinding à 2 niveaux | ⚠️ Graphes classiques |
 
-**Contraction Hierarchies** semble le plus prometteur :
-1. **Preprocessing** : Contracter les capabilities en super-nœuds avec shortcuts
-2. **Query** : Dijkstra bidirectionnel sur le graphe contracté (microseconds vs milliseconds)
-3. **Expansion** : Déplier les capabilities sélectionnées en tasks
+**Complexité du Shortest Hyperpath** :
+- **Général** : NP-hard à approximer
+- **DAG (acyclique)** : **Polynomial** ✅
+
+Nos capabilities forment un DAG → l'algo polynomial s'applique !
+
+**Concept clé : Hyperpath**
+> "A hyperpath between u and v is a sequence of hyperedges {e0, e1,...,em} such that u∈e0, v∈em, and ei∩ei+1 ≠∅"
+
+Traduction : Un hyperpath traverse des hyperedges consécutives qui partagent au moins un nœud.
+
+**Pourquoi l'algo natif hypergraph > Contraction Hierarchies** :
+- Contraction Hierarchies = optimisé pour graphes routiers (millions de nœuds)
+- Notre cas = hypergraphe de capabilities (centaines de nœuds)
+- L'algo natif comprend les hyperedges comme unités atomiques
 
 **Pistes à explorer** :
 
@@ -292,11 +304,12 @@ for (const cap of caps) {
 3. [ ] Ajouter tests unitaires pour le nouveau sync
 4. [ ] Benchmark performance avant/après (nombre d'edges, temps de sync)
 
-### Moyen terme (Algorithme adapté aux hypergraphes)
-5. [ ] Lire le paper [Dynamic Shortest Path for Hypergraphs](https://arxiv.org/abs/1202.0082)
-6. [ ] Évaluer [Contraction Hierarchies](https://en.wikipedia.org/wiki/Contraction_hierarchies) pour les capabilities
-7. [ ] Prototyper l'approche two-phase (Dijkstra sur super-nœuds → expansion)
-8. [ ] Définir comment détecter si un tool dépend d'une capability (pas juste du dernier tool)
+### Moyen terme (Algorithme natif hypergraph)
+5. [ ] Lire le paper [Dynamic Shortest Path for Hypergraphs](https://arxiv.org/abs/1202.0082) - HE-DSP et DR-DSP
+6. [ ] Lire le paper récent [Higher-order shortest paths](https://arxiv.org/html/2502.03020) (2025)
+7. [ ] Chercher si une lib JS/TS existe pour hypergraph pathfinding
+8. [ ] Sinon, implémenter l'algo polynomial pour DAG hypergraphs
+9. [ ] Définir comment détecter si un tool dépend d'une capability (pas juste du dernier tool)
 
 ## Références
 
