@@ -148,10 +148,83 @@ Nos capabilities forment un DAG → l'algo polynomial s'applique !
 
 Traduction : Un hyperpath traverse des hyperedges consécutives qui partagent au moins un nœud.
 
-**Pourquoi l'algo natif hypergraph > Contraction Hierarchies** :
+### Détails des algorithmes HE-DSP et DR-DSP
+
+**Sources** : [HAL Inria](https://inria.hal.science/hal-00763797), [IEEE Xplore](https://ieeexplore.ieee.org/document/6260461/)
+
+Ces deux algorithmes sont les **premiers à résoudre le problème du shortest path dynamique sur hypergraphes généraux**. Ils se complètent selon le type de dynamique du graphe.
+
+#### HE-DSP (HyperEdge-based Dynamic Shortest Path)
+
+Extension de l'algorithme de Gallo pour les hypergraphes.
+
+| Aspect | Description |
+|--------|-------------|
+| **Complexité** | O(\|δ\| log \|δ\| + \|δΦ\|) pour weight increase/decrease |
+| **Optimisé pour** | Hypergraphes **denses** avec hyperedges de **haute dimension** |
+| **Quand l'utiliser** | Changements fréquents sur des hyperedges qui ne sont **pas** sur les shortest paths courants |
+| **Cas d'usage** | Réseau avec changements aléatoires de topologie/poids |
+
+#### DR-DSP (Directed Relationship Dynamic Shortest Path)
+
+| Aspect | Description |
+|--------|-------------|
+| **Complexité** | Même complexité statique que Gallo, meilleure dynamique quand les paths changent souvent |
+| **Optimisé pour** | Réseaux où les changements d'hyperedges **impactent souvent** les shortest paths |
+| **Quand l'utiliser** | Hyperedges sur les shortest paths sont plus sujets aux changements (attaques, usage fréquent, maintenance) |
+| **Cas d'usage** | Réseau avec changements ciblés sur les chemins critiques |
+
+#### Application à Casys PML
+
+| Critère | HE-DSP | DR-DSP |
+|---------|--------|--------|
+| **Notre cas** | ⚠️ Nos capabilities sont relativement petites (2-10 tools) | ✅ Les edges `provides` changent quand on observe de nouvelles exécutions |
+| **Dynamique typique** | - | Les shortest paths changent quand on apprend de nouvelles dépendances |
+| **Recommandation** | - | **DR-DSP semble plus adapté** à notre cas |
+
+**Note** : Ces algos calculent le shortest path en temps **polynomial par rapport à la taille du changement**, pas du graphe entier. Idéal pour les mises à jour incrémentales après observation d'exécutions.
+
+### Pourquoi l'algo natif hypergraph > Contraction Hierarchies
+
 - Contraction Hierarchies = optimisé pour graphes routiers (millions de nœuds)
 - Notre cas = hypergraphe de capabilities (centaines de nœuds)
 - L'algo natif comprend les hyperedges comme unités atomiques
+
+### SHGAT vs Shortest Path : Deux usages distincts
+
+**Important** : SHGAT (SuperHyperGraph Attention Networks) et les algorithmes de shortest path (HE-DSP/DR-DSP) répondent à des besoins **différents**.
+
+| Aspect | SHGAT | Shortest Path (HE-DSP/DR-DSP) |
+|--------|-------|------------------------------|
+| **Question** | "Quelles capabilities sont **pertinentes** pour cette query ?" | "Quel est le **chemin** entre Tool A et Tool B ?" |
+| **Usage** | **Scoring/Ranking** des capabilities | **Découverte de dépendances** |
+| **Input** | Query (intent) + embeddings | Deux nœuds source/destination |
+| **Output** | Score de pertinence (0-1) | Séquence ordonnée de nœuds/hyperedges |
+| **Mécanisme** | Attention récursive sur structure hiérarchique | Traversée de graphe avec poids |
+| **Où dans Casys** | `suggestCapabilities()` - sélection des candidats | `buildDAG()` - construction des dépendances |
+
+**Flux complet** :
+```
+Intent → [SHGAT] → Capabilities pertinentes (top-k)
+                           ↓
+        Tools des capabilities + autres candidats
+                           ↓
+        [Shortest Path] → DAG avec dépendances ordonnées
+```
+
+**SHGAT** (voir `2025-12-17-superhypergraph-hierarchical-structures.md`) :
+- Attention récursive qui propage les scores à travers la hiérarchie Tools→Caps→MetaCaps
+- Utilise les embeddings pour scorer la pertinence sémantique
+- Decay par profondeur (0.8^depth)
+- **Purement théorique** (Fujita 2025) - pas d'implémentation existante
+
+**Shortest Path natif** (HE-DSP/DR-DSP) :
+- Comprend les hyperedges comme unités atomiques
+- Calcul polynomial pour les DAGs (notre cas)
+- Mise à jour incrémentale efficace
+- **Paper de référence** disponible avec pseudo-code
+
+**Recommandation** : Implémenter d'abord le shortest path natif (impact immédiat sur `buildDAG`), puis SHGAT pour améliorer le scoring des candidats.
 
 **Pistes à explorer** :
 

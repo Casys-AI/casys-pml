@@ -70,9 +70,31 @@ Pour les recommandations, utilise les hyperedges comme unités d'attention.
 
 **Conclusion** : Contraction Hierarchies est optimisé pour les graphes routiers (millions de nœuds, queries ultra-rapides). Pour notre cas (hypergraphe de capabilities, quelques centaines de nœuds), un algo natif hypergraph est plus approprié.
 
+## Détails des algorithmes
+
+### HE-DSP (HyperEdge-based Dynamic Shortest Path)
+- Extension de l'algo de Gallo pour hypergraphes
+- Complexité : O(|δ| log |δ| + |δΦ|) pour weight increase/decrease
+- Optimisé pour hypergraphes denses avec hyperedges de haute dimension
+- Meilleur quand les changements n'impactent pas les shortest paths courants
+
+### DR-DSP (Directed Relationship Dynamic Shortest Path)
+- Meilleur quand les hyperedges sur les shortest paths changent souvent
+- Adapté aux réseaux avec changements ciblés (usage fréquent, maintenance)
+- **Recommandé pour Casys PML** : nos edges `provides` changent quand on observe de nouvelles exécutions
+
+## SHGAT vs Shortest Path
+
+**Deux usages complémentaires** :
+- **SHGAT** : Scoring/ranking des capabilities par pertinence sémantique
+- **Shortest Path** : Découverte des dépendances entre nœuds
+
+Voir `docs/spikes/2025-12-21-capability-pathfinding-dijkstra.md` pour le tableau comparatif complet.
+
 ## Prochaines étapes
 
-1. [ ] Lire le paper arXiv 1202.0082 en détail
-2. [ ] Vérifier si une lib JS/TS existe pour hypergraph pathfinding
-3. [ ] Sinon, implémenter l'algo polynomial pour DAG hypergraphs
-4. [ ] Comparer avec l'approche actuelle (Dijkstra sur graphe projeté)
+1. [x] Rechercher les détails des algos HE-DSP et DR-DSP
+2. [ ] Télécharger manuellement le PDF depuis [HAL Inria](https://inria.hal.science/hal-00763797/document/)
+3. [ ] Vérifier si une lib JS/TS existe pour hypergraph pathfinding
+4. [ ] Sinon, implémenter l'algo polynomial pour DAG hypergraphs (DR-DSP)
+5. [ ] Comparer avec l'approche actuelle (Dijkstra sur graphe projeté)
