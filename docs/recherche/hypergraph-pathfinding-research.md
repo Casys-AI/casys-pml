@@ -83,14 +83,6 @@ Pour les recommandations, utilise les hyperedges comme unités d'attention.
 - Adapté aux réseaux avec changements ciblés (usage fréquent, maintenance)
 - **Recommandé pour Casys PML** : nos edges `provides` changent quand on observe de nouvelles exécutions
 
-## SHGAT vs Shortest Path
-
-**Deux usages complémentaires** :
-- **SHGAT** : Scoring/ranking des capabilities par pertinence sémantique
-- **Shortest Path** : Découverte des dépendances entre nœuds
-
-Voir `docs/spikes/2025-12-21-capability-pathfinding-dijkstra.md` pour le tableau comparatif complet.
-
 ## Prochaines étapes
 
 1. [x] Rechercher les détails des algos HE-DSP et DR-DSP

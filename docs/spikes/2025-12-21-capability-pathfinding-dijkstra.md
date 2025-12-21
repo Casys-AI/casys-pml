@@ -190,42 +190,6 @@ Extension de l'algorithme de Gallo pour les hypergraphes.
 - Notre cas = hypergraphe de capabilities (centaines de nœuds)
 - L'algo natif comprend les hyperedges comme unités atomiques
 
-### SHGAT vs Shortest Path : Deux usages distincts
-
-**Important** : SHGAT (SuperHyperGraph Attention Networks) et les algorithmes de shortest path (HE-DSP/DR-DSP) répondent à des besoins **différents**.
-
-| Aspect | SHGAT | Shortest Path (HE-DSP/DR-DSP) |
-|--------|-------|------------------------------|
-| **Question** | "Quelles capabilities sont **pertinentes** pour cette query ?" | "Quel est le **chemin** entre Tool A et Tool B ?" |
-| **Usage** | **Scoring/Ranking** des capabilities | **Découverte de dépendances** |
-| **Input** | Query (intent) + embeddings | Deux nœuds source/destination |
-| **Output** | Score de pertinence (0-1) | Séquence ordonnée de nœuds/hyperedges |
-| **Mécanisme** | Attention récursive sur structure hiérarchique | Traversée de graphe avec poids |
-| **Où dans Casys** | `suggestCapabilities()` - sélection des candidats | `buildDAG()` - construction des dépendances |
-
-**Flux complet** :
-```
-Intent → [SHGAT] → Capabilities pertinentes (top-k)
-                           ↓
-        Tools des capabilities + autres candidats
-                           ↓
-        [Shortest Path] → DAG avec dépendances ordonnées
-```
-
-**SHGAT** (voir `2025-12-17-superhypergraph-hierarchical-structures.md`) :
-- Attention récursive qui propage les scores à travers la hiérarchie Tools→Caps→MetaCaps
-- Utilise les embeddings pour scorer la pertinence sémantique
-- Decay par profondeur (0.8^depth)
-- **Purement théorique** (Fujita 2025) - pas d'implémentation existante
-
-**Shortest Path natif** (HE-DSP/DR-DSP) :
-- Comprend les hyperedges comme unités atomiques
-- Calcul polynomial pour les DAGs (notre cas)
-- Mise à jour incrémentale efficace
-- **Paper de référence** disponible avec pseudo-code
-
-**Recommandation** : Implémenter d'abord le shortest path natif (impact immédiat sur `buildDAG`), puis SHGAT pour améliorer le scoring des candidats.
-
 **Pistes à explorer** :
 
 1. **Contracted Graph / Hierarchical Pathfinding**
