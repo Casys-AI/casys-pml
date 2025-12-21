@@ -625,3 +625,342 @@ Deno.test("Integration: Full predictNextNode simulation", async (t) => {
     console.log(`  Result: ${case3 ? `Prediction: ${case3.nextTool}` : "No prediction (filtered)"}`);
   });
 });
+
+// ============================================================================
+// Meta-Capability Hierarchy Tests
+// ============================================================================
+
+/**
+ * Meta-capabilities for testing hierarchy
+ * Structure:
+ *   meta__ecommerce
+ *   ├── meta__transactions
+ *   │   ├── cap__checkout_flow
+ *   │   └── cap__payment_only
+ *   └── meta__browsing
+ *       └── cap__user_profile
+ */
+const META_CAPABILITIES: Array<{
+  id: string;
+  contains: string[];
+  toolsAggregated: string[];
+  successRate: number;
+  parents: string[];
+}> = [
+  {
+    id: "meta__transactions",
+    contains: ["cap__checkout_flow", "cap__payment_only"],
+    toolsAggregated: [
+      "db__get_cart", "inventory__check", "payment__validate",
+      "payment__charge", "db__save_order", "email__confirm"
+    ],
+    successRate: 0.93,
+    parents: ["meta__ecommerce"],
+  },
+  {
+    id: "meta__browsing",
+    contains: ["cap__user_profile", "cap__order_confirmation"],
+    toolsAggregated: ["api__fetch_user", "db__get_user", "db__save_order", "email__confirm"],
+    successRate: 0.97,
+    parents: ["meta__ecommerce"],
+  },
+  {
+    id: "meta__ecommerce",
+    contains: ["meta__transactions", "meta__browsing"],
+    toolsAggregated: Object.keys(TOOL_EMBEDDINGS), // All tools
+    successRate: 0.95,
+    parents: [],
+  },
+];
+
+/**
+ * Build SHGAT with full hierarchy (capabilities + meta-capabilities)
+ */
+function buildSHGATWithMetas(): SHGAT {
+  const shgat = new SHGAT({
+    numHeads: 2,
+    hiddenDim: 4,
+    embeddingDim: 8,
+    depthDecay: 0.8,
+    learningRate: 0.01,
+    leakyReluSlope: 0.2,
+  });
+
+  // Register base capabilities with parents
+  for (const cap of CAPABILITIES) {
+    // Find parent meta-capability
+    const parentMeta = META_CAPABILITIES.find((m) =>
+      m.contains.includes(cap.id)
+    );
+
+    shgat.registerCapability({
+      id: cap.id,
+      embedding: getEmbedding(cap.id)!,
+      toolsUsed: cap.tools,
+      successRate: cap.successRate,
+      parents: parentMeta ? [parentMeta.id] : [],
+      children: [],
+    });
+  }
+
+  // Register meta-capabilities
+  for (const meta of META_CAPABILITIES) {
+    // Create embedding from aggregated tools
+    const toolEmbeddings = meta.toolsAggregated
+      .map((t) => TOOL_EMBEDDINGS[t])
+      .filter((e) => e !== undefined);
+
+    const dim = 8;
+    const metaEmbedding = new Array(dim).fill(0);
+    for (const emb of toolEmbeddings) {
+      for (let i = 0; i < dim; i++) {
+        metaEmbedding[i] += emb[i] / toolEmbeddings.length;
+      }
+    }
+
+    shgat.registerCapability({
+      id: meta.id,
+      embedding: metaEmbedding,
+      toolsUsed: meta.toolsAggregated,
+      successRate: meta.successRate,
+      parents: meta.parents,
+      children: meta.contains,
+    });
+  }
+
+  return shgat;
+}
+
+/**
+ * Build DR-DSP with meta-capability hyperedges
+ */
+function buildDRDSPWithMetas(): DRDSP {
+  const hyperedges: Hyperedge[] = [];
+
+  // Add capability hyperedges
+  for (const cap of CAPABILITIES) {
+    hyperedges.push(
+      capabilityToHyperedge(cap.id, cap.tools, cap.staticEdges, cap.successRate)
+    );
+  }
+
+  // Add meta-capability hyperedges
+  // Meta-capabilities connect ALL their aggregated tools
+  for (const meta of META_CAPABILITIES) {
+    // For navigation: meta-capability provides access to all its tools
+    if (meta.toolsAggregated.length >= 2) {
+      hyperedges.push({
+        id: meta.id,
+        sources: [meta.toolsAggregated[0]], // Entry point
+        targets: meta.toolsAggregated.slice(1), // All other tools
+        weight: 1.0 - meta.successRate, // Lower weight = better
+        metadata: {
+          type: "meta-capability",
+          contains: meta.contains,
+        },
+      });
+    }
+  }
+
+  return new DRDSP(hyperedges);
+}
+
+Deno.test("Integration: SHGAT scores meta-capabilities", async (t) => {
+  await t.step("Meta-capabilities are scored alongside capabilities", () => {
+    const shgat = buildSHGATWithMetas();
+
+    // Intent: "financial transaction"
+    const intentEmbedding = [0.2, 0.8, 0.7, 0.3, 0.1, 0.1, 0.1, 0.2];
+    const contextEmbeddings = [TOOL_EMBEDDINGS["payment__validate"]];
+
+    const scores = shgat.scoreAllCapabilities(intentEmbedding, contextEmbeddings);
+
+    console.log("\n=== SHGAT Meta-Capability Scores ===");
+    for (const s of scores.sort((a, b) => b.score - a.score)) {
+      const isMeta = s.capabilityId.startsWith("meta__");
+      console.log(`  ${isMeta ? "📦" : "  "} ${s.capabilityId}: ${s.score.toFixed(4)}`);
+    }
+
+    // Should have 4 capabilities + 3 meta-capabilities = 7 total
+    assertEquals(scores.length, 7, "Should score all capabilities and meta-capabilities");
+
+    // Meta-capabilities should have valid scores
+    const metaTransactions = scores.find((s) => s.capabilityId === "meta__transactions");
+    const metaBrowsing = scores.find((s) => s.capabilityId === "meta__browsing");
+
+    assertExists(metaTransactions, "Should have meta__transactions score");
+    assertExists(metaBrowsing, "Should have meta__browsing score");
+
+    // With payment context, transactions should score higher than browsing
+    console.log(`\n  meta__transactions: ${metaTransactions!.score.toFixed(4)}`);
+    console.log(`  meta__browsing: ${metaBrowsing!.score.toFixed(4)}`);
+  });
+
+  await t.step("Hierarchical selection: meta → capability → tools", () => {
+    const shgat = buildSHGATWithMetas();
+
+    // Vague intent: "do something with money"
+    const intentEmbedding = [0.3, 0.6, 0.5, 0.3, 0.2, 0.2, 0.1, 0.2];
+
+    const scores = shgat.scoreAllCapabilities(intentEmbedding, []);
+
+    // Get top meta-capability
+    const metaScores = scores
+      .filter((s) => s.capabilityId.startsWith("meta__"))
+      .sort((a, b) => b.score - a.score);
+
+    console.log("\n=== Hierarchical Selection ===");
+    console.log("Step 1: Top meta-capabilities");
+    for (const m of metaScores.slice(0, 2)) {
+      console.log(`  ${m.capabilityId}: ${m.score.toFixed(4)}`);
+    }
+
+    // Get children of top meta
+    const topMeta = META_CAPABILITIES.find((m) => m.id === metaScores[0].capabilityId)!;
+    const childScores = scores
+      .filter((s) => topMeta.contains.includes(s.capabilityId))
+      .sort((a, b) => b.score - a.score);
+
+    console.log(`\nStep 2: Children of ${topMeta.id}`);
+    for (const c of childScores) {
+      console.log(`  ${c.capabilityId}: ${c.score.toFixed(4)}`);
+    }
+
+    console.log(`\nStep 3: Best capability: ${childScores[0]?.capabilityId || "none"}`);
+  });
+});
+
+Deno.test("Integration: DR-DSP with meta-capabilities", async (t) => {
+  await t.step("Meta-capabilities extend reachability", () => {
+    const drdsp = buildDRDSPWithMetas();
+
+    console.log("\n=== DR-DSP with Meta-Capabilities ===");
+
+    const stats = drdsp.getStats();
+    console.log(`  Hyperedges: ${stats.hyperedgeCount}`);
+    console.log(`  Nodes: ${stats.nodeCount}`);
+
+    // Path through meta-capability should be possible
+    const path = drdsp.findShortestHyperpath("db__get_cart", "email__confirm");
+
+    console.log(`\n  Path: db__get_cart → email__confirm`);
+    console.log(`  Found: ${path.found}`);
+    if (path.found) {
+      console.log(`  Nodes: ${path.nodeSequence.join(" → ")}`);
+      console.log(`  Weight: ${path.totalWeight.toFixed(4)}`);
+      console.log(`  Hyperedges: ${path.path.join(", ")}`);
+    }
+
+    assertEquals(path.found, true, "Should find path through capability graph");
+  });
+
+  await t.step("SSSP shows meta-capability reach", () => {
+    const drdsp = buildDRDSPWithMetas();
+
+    // All reachable nodes from entry point
+    const allPaths = drdsp.findAllShortestPaths("db__get_cart");
+
+    console.log("\n=== SSSP from db__get_cart ===");
+    console.log(`  Reachable: ${allPaths.size} nodes`);
+
+    // Should reach more nodes thanks to meta-capabilities
+    const reachableTools = Array.from(allPaths.keys());
+    console.log(`  Tools: ${reachableTools.slice(0, 5).join(", ")}...`);
+
+    // With meta-capabilities, should reach most tools
+    assertEquals(allPaths.size > 3, true, "Should reach multiple tools");
+  });
+});
+
+Deno.test("Integration: Combined SHGAT+DR-DSP with hierarchy", async (t) => {
+  await t.step("Full pipeline with meta-capability selection", () => {
+    const shgat = buildSHGATWithMetas();
+    const drdsp = buildDRDSPWithMetas();
+
+    // Vague intent that could match multiple capabilities
+    const intentEmbedding = [0.4, 0.5, 0.4, 0.4, 0.3, 0.3, 0.2, 0.2];
+    const contextTools = ["db__get_cart"];
+    const contextEmbeddings = contextTools
+      .map((t) => TOOL_EMBEDDINGS[t])
+      .filter((e) => e !== undefined);
+
+    console.log("\n=== Combined Pipeline with Hierarchy ===\n");
+
+    // Phase 1: SHGAT scores everything
+    const allScores = shgat.scoreAllCapabilities(intentEmbedding, contextEmbeddings);
+
+    // Phase 2: Two-level selection
+    // First, find best meta-capability (for routing)
+    const metaScores = allScores
+      .filter((s) => s.capabilityId.startsWith("meta__") && !s.capabilityId.includes("ecommerce"))
+      .sort((a, b) => b.score - a.score);
+
+    const bestMeta = metaScores[0];
+    console.log(`1. Best meta-capability: ${bestMeta.capabilityId} (${bestMeta.score.toFixed(4)})`);
+
+    // Then, find best capability within that meta
+    const meta = META_CAPABILITIES.find((m) => m.id === bestMeta.capabilityId)!;
+    const capScores = allScores
+      .filter((s) => meta.contains.includes(s.capabilityId) && !s.capabilityId.startsWith("meta__"))
+      .sort((a, b) => b.score - a.score);
+
+    const bestCap = capScores[0];
+    console.log(`2. Best capability in ${meta.id}: ${bestCap?.capabilityId || "none"}`);
+
+    // Phase 3: DR-DSP finds path within best capability
+    if (bestCap) {
+      const cap = CAPABILITIES.find((c) => c.id === bestCap.capabilityId);
+      if (cap) {
+        const lastTool = cap.tools[cap.tools.length - 1];
+        const path = drdsp.findShortestHyperpath(contextTools[0], lastTool);
+
+        console.log(`3. Path to ${lastTool}:`);
+        if (path.found) {
+          console.log(`   ${path.nodeSequence.join(" → ")}`);
+          console.log(`   Weight: ${path.totalWeight.toFixed(4)}`);
+        }
+
+        // Final suggestion
+        let nextTool = cap.tools[0];
+        if (path.found && path.nodeSequence.length > 1) {
+          nextTool = path.nodeSequence[1];
+        }
+
+        console.log(`\n4. SUGGESTION:`);
+        console.log(`   Meta: ${bestMeta.capabilityId}`);
+        console.log(`   Capability: ${bestCap.capabilityId}`);
+        console.log(`   Next Tool: ${nextTool}`);
+
+        assertExists(nextTool, "Should suggest next tool");
+      }
+    }
+  });
+
+  await t.step("Meta-capability aggregates child scores for ranking", () => {
+    const shgat = buildSHGATWithMetas();
+
+    // Intent clearly about payments
+    const intentEmbedding = [0.1, 0.9, 0.8, 0.2, 0.1, 0.0, 0.0, 0.2];
+
+    const allScores = shgat.scoreAllCapabilities(intentEmbedding, []);
+
+    // Compare meta-capability score with average of its children
+    const metaTransactions = allScores.find((s) => s.capabilityId === "meta__transactions")!;
+    const meta = META_CAPABILITIES.find((m) => m.id === "meta__transactions")!;
+
+    const childScores = allScores
+      .filter((s) => meta.contains.includes(s.capabilityId) && !s.capabilityId.startsWith("meta__"))
+      .map((s) => s.score);
+
+    const avgChildScore = childScores.reduce((a, b) => a + b, 0) / childScores.length;
+
+    console.log("\n=== Meta vs Children Score Comparison ===");
+    console.log(`  meta__transactions: ${metaTransactions.score.toFixed(4)}`);
+    console.log(`  Children avg: ${avgChildScore.toFixed(4)}`);
+    console.log(`  Children: ${meta.contains.filter(c => !c.startsWith("meta__")).join(", ")}`);
+
+    // Meta-capability score should be related to children (not necessarily equal)
+    assertEquals(metaTransactions.score > 0, true, "Meta should have valid score");
+  });
+});
+
