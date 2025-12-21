@@ -472,20 +472,35 @@ story:
   priority: P1
 ```
 
-### 7.2 Phase 2: SHGAT Simple (3-4 jours)
+### 7.2 Phase 2: Full SHGAT avec Attention Apprise (2 semaines)
+
+> **Décision 2025-12-21:** Implémenter le Full SHGAT dès le départ plutôt que la version simplifiée (cosine similarity).
+>
+> **Rationale:** Les traces épisodiques existantes fournissent déjà les données d'entraînement nécessaires :
+> - `episodic_events` : intent, context, tool choisi, outcome (success/failure)
+> - Signal supervisé : "quel next step mène au succès ?"
+> - Valeur cumulative : l'attention s'améliore avec chaque trace
+>
+> Investir 2 semaines maintenant évite de refaire le travail plus tard.
 
 ```yaml
 story:
   id: SHG-2
-  title: "Implement SuperHyperGraph Attention for recursive capabilities"
+  title: "Implement Full SHGAT with learned attention"
   acceptance_criteria:
-    - SuperHyperGraphAttention class
+    - SuperHyperGraphAttention class with multi-head attention
+    - Learnable weight matrices (W_i, W_j, a)
+    - Training loop on episodic_events outcomes
     - Recursive score computation with depth decay
     - Integration with dag-suggester Strategic Discovery
-    - A/B test vs flat HyperGAT
+    - ML runtime: @xenova/transformers ou ONNX
   depends_on: SHG-1
-  effort: 3-4 days
-  priority: P2
+  effort: 2 weeks
+  priority: P1
+  training_data:
+    source: episodic_events
+    features: [intent_embedding, context_tools, candidate_capability]
+    label: outcome (success=1, failure=0)
 ```
 
 ### 7.3 Phase 3: Hierarchical Clustering (1 semaine)
