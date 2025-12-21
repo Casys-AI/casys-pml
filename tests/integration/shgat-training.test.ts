@@ -172,7 +172,7 @@ Deno.test("SHGAT: builds hypergraph with incidence matrix", () => {
   assertEquals(stats.registeredTools, 15); // 15 tools
   assertGreater(stats.incidenceNonZeros, 0); // Has connections
   assertEquals(stats.incidenceNonZeros, 15); // Sum of toolsUsed counts
-  assertEquals(trainingExamples.length, 10); // 10 episodic events
+  assertEquals(trainingExamples.length, 12); // 12 episodic events
 });
 
 Deno.test("SHGAT: forward pass produces embeddings", () => {
