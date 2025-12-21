@@ -414,7 +414,9 @@ Remplacer Dijkstra par des algorithmes natifs hypergraph, avec une approche diff
 ### Prochaines étapes
 
 1. [ ] Implémenter DR-DSP pour `suggestDAG()` (remplace Dijkstra)
-2. [ ] Intégrer SHGAT simplifié pour `predictNextNode()` (réutilise spectral embeddings existants)
+2. [ ] Intégrer **Full SHGAT** pour `predictNextNode()` (attention apprise sur `episodic_events`)
+   - Décision 2025-12-21 : Full SHGAT dès le départ car on a déjà les traces d'entraînement
+   - Voir spike `2025-12-17-superhypergraph-hierarchical-structures.md` section 7.2
 3. [ ] Valider que la structure respecte DASH (acyclicité garantie)
 4. [ ] Benchmark DR-DSP vs Dijkstra sur les capabilities existantes
 

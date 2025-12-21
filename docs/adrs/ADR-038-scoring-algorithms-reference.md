@@ -85,13 +85,21 @@ const toolScore =
 
 Une fois les outils sélectionnés, il faut déterminer leur ordre d'exécution (dépendances).
 
-- **Dijkstra Weighted Shortest Path (ADR-041):**
+- **Dijkstra Weighted Shortest Path (ADR-041):** _(État actuel)_
   - Utilisé pour inférer les dépendances entre outils sélectionnés.
   - Si `PathLength(A, B) <= 3` (dans le graphe historique), on considère que B dépend de A.
   - **Pondération par qualité d'edge :** `cost = 1 / weight` (poids élevé = coût faible = préféré)
   - **Edge Types :** `dependency` (1.0) > `contains` (0.8) > `sequence` (0.5)
   - **Edge Sources :** `observed` (×1.0) > `inferred` (×0.7) > `template` (×0.5)
   - Permet de favoriser les chemins confirmés par l'historique vs les templates bootstrap.
+
+- **⏳ Évolution planifiée : DR-DSP (Shortest Hyperpath)**
+  - Voir spike `2025-12-21-capability-pathfinding-dijkstra.md`
+  - Dijkstra ne comprend pas les hyperedges (capabilities comme unités atomiques)
+  - **DR-DSP** (Directed Relationship Dynamic Shortest Path) :
+    - Natif hypergraph, polynomial pour DAG
+    - Updates incrémentaux après chaque observation
+    - Optimisé quand les edges `provides` changent (notre cas)
 
 ---
 
@@ -125,6 +133,7 @@ const matchScore = semanticScore * reliabilityFactor;
 Suggère des capabilities basées sur le comportement actuel de l'utilisateur.
 
 ```typescript
+// État actuel
 const discoveryScore = ToolsOverlap * (1 + StructuralBoost);
 ```
 
@@ -133,6 +142,19 @@ const discoveryScore = ToolsOverlap * (1 + StructuralBoost);
   - Utilise le **Spectral Clustering** sur l'hypergraphe Tools-Capabilities.
   - Si la capability est dans le même "Cluster Spectral" que les outils actifs → Boost significatif (ex: +50%).
   - _Pourquoi Spectral ?_ Mieux adapté que Louvain pour détecter les relations "soft" dans les hypergraphes bipartites.
+
+- **⏳ Évolution planifiée : Full SHGAT (Attention Apprise)**
+  - Voir spikes `2025-12-17-superhypergraph-hierarchical-structures.md` et `2025-12-21-capability-pathfinding-dijkstra.md`
+  - **Problème actuel :** Le scoring est "aveugle" à la query (PageRank = importance globale)
+  - **SHGAT** (SuperHyperGraph Attention Networks) :
+    - Attention contextuelle conditionnée sur l'intent
+    - Multi-head attention avec poids appris
+    - Entraîné sur les traces `episodic_events` (intent, context, outcome)
+    - Récursif sur les meta-capabilities (via edges `contains`)
+  - **Formule évoluée :**
+    ```typescript
+    const score = PageRank * 0.4 + LearnedAttention(intent, context, cap) * 0.6;
+    ```
 
 ---
 
@@ -191,8 +213,35 @@ Les valeurs utilisées dans les formules doivent être monitorées et ajustées.
 
 ## 5. Future Improvements
 
-1.  **Online Learning des Poids :** Remplacer les poids statiques (0.50, 0.25) par des poids appris via régression logistique sur les feedbacks utilisateurs.
+1.  ~~**Online Learning des Poids :**~~ **→ Full SHGAT** : Les poids statiques seront remplacés par une attention apprise sur les traces épisodiques. Voir section 3.2.
 2.  ~~**Unified Hypergraph :**~~ **→ ADR-042 (Capability Hyperedges)** : Les relations capability→capability (hyperedges) sont maintenant stockées dans `capability_dependency`. ADR-042 définit comment enrichir le Spectral Clustering, PageRank, et Capability Match avec ces relations.
+
+### 5.1 Architecture Cible (2025-12-21)
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│                      ARCHITECTURE CIBLE                            │
+├────────────────────────────────────────────────────────────────────┤
+│                                                                    │
+│  suggestDAG(intent)                                                │
+│  ┌──────────────┐                                                  │
+│  │   DR-DSP     │ → DAG complet (shortest hyperpath)               │
+│  └──────────────┘   Remplace Dijkstra (natif hypergraph)           │
+│                                                                    │
+│  predictNextNode(intent, context)                                  │
+│  ┌──────────────┐    ┌──────────────┐                              │
+│  │   DR-DSP     │ →  │  Full SHGAT  │ → Ranked candidates          │
+│  │ (candidats)  │    │  (scoring)   │                              │
+│  └──────────────┘    └──────────────┘                              │
+│                       Attention apprise sur episodic_events        │
+│                                                                    │
+│  Structure sous-jacente : DASH (Directed Acyclic SuperHyperGraph)  │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+**Spikes de référence :**
+- `2025-12-21-capability-pathfinding-dijkstra.md` : Conclusion DR-DSP + SHGAT
+- `2025-12-17-superhypergraph-hierarchical-structures.md` : Théorie DASH, implémentation SHGAT
 
 ## 6. Related ADRs
 
