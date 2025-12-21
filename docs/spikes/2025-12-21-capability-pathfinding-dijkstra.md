@@ -113,6 +113,62 @@ if (coveredCapabilities.length > 0) {
 }
 ```
 
+### Dijkstra n'est peut-être pas le bon algorithme
+
+**Problème fondamental** : Dijkstra ne comprend pas les "super edges" (capabilities) comme points d'arrivée.
+
+**Exemple** :
+```
+Capability X = [A → B → C]
+Tool D dépend de la Capability X (pas juste de C)
+
+Dijkstra voit : A → B → C → D (chemin linéaire)
+Sémantiquement : X → D (la capability entière est le prérequis)
+```
+
+Quand un tool D dépend d'une capability X, il ne dépend pas juste du dernier tool de X, mais de **l'exécution complète de X**.
+
+**Pistes à explorer** :
+
+1. **Contracted Graph / Hierarchical Pathfinding**
+   - Contracter les capabilities en "super-nœuds"
+   - Dijkstra trouve des chemins entre super-nœuds
+   - Expansion ensuite pour l'exécution
+
+2. **Hypergraph Traversal dédié**
+   - Algorithme qui comprend les hyperedges comme unités atomiques
+   - Peut "sauter" directement à une capability comme destination
+
+3. **Two-phase approach**
+   - Phase 1 : Dijkstra sur le graphe contracté (capabilities comme nœuds)
+   - Phase 2 : Expansion des capabilities sélectionnées en tasks
+
+```typescript
+// Contracted graph approach
+interface ContractedNode {
+  type: "tool" | "capability";
+  id: string;
+  // Si capability: tools contenus
+  containedTools?: string[];
+}
+
+function buildContractedGraph(tools: Tool[], capabilities: Capability[]): Graph {
+  // Ajouter capabilities comme super-nœuds
+  for (const cap of capabilities) {
+    graph.addNode(`cap:${cap.id}`, { type: "capability", containedTools: cap.toolsUsed });
+  }
+
+  // Edges: Tool → Capability (si tool est le dernier de la cap)
+  // Edges: Capability → Tool (si tool dépend de la cap entière)
+  // Edges: Capability → Capability (depuis capability_dependency)
+}
+```
+
+**Question ouverte** : Comment savoir si D dépend de C (le tool) ou de X (la capability) ?
+- Via `capability_dependency` table ?
+- Via analyse des `provides` dans static_structure ?
+- Via observation des exécutions passées ?
+
 ## Questions de recherche
 
 1. ~~**Sémantique** : Que signifie un chemin `tool → capability → tool` ?~~
@@ -217,10 +273,16 @@ for (const cap of caps) {
 
 ## Prochaines étapes
 
+### Court terme (Option E + C)
 1. [ ] Mesurer combien de capabilities ont des static_structure avec edges `provides`
 2. [ ] Implémenter Option E dans db-sync.ts
 3. [ ] Ajouter tests unitaires pour le nouveau sync
 4. [ ] Benchmark performance avant/après (nombre d'edges, temps de sync)
+
+### Moyen terme (Contracted Graph)
+5. [ ] Évaluer si Dijkstra est le bon algorithme ou si on a besoin d'un "contracted graph"
+6. [ ] Prototyper l'approche two-phase (Dijkstra sur super-nœuds → expansion)
+7. [ ] Définir comment détecter si un tool dépend d'une capability (pas juste du dernier tool)
 
 ## Références
 
