@@ -2,7 +2,7 @@
 
 ## Status
 
-**Draft** - Investigation en cours
+**Conclu** - Architecture finale définie
 
 ## Contexte
 
@@ -357,6 +357,69 @@ for (const cap of caps) {
 - `src/graphrag/sync/db-sync.ts` - chargement du graphe
 - `src/graphrag/prediction/capabilities.ts` - injectMatchingCapabilities
 
+## Conclusion - Architecture Finale
+
+### Décision
+
+Remplacer Dijkstra par des algorithmes natifs hypergraph, avec une approche différente selon le use case :
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│                      ARCHITECTURE FINALE                           │
+├────────────────────────────────────────────────────────────────────┤
+│                                                                    │
+│  suggestDAG(intent)                                                │
+│  ┌──────────────┐                                                  │
+│  │   DR-DSP     │ → DAG complet (shortest hyperpath)               │
+│  └──────────────┘                                                  │
+│                                                                    │
+│  predictNextNode(intent, context)                                  │
+│  ┌──────────────┐    ┌──────────────┐                              │
+│  │   DR-DSP     │ →  │    SHGAT     │ → Ranked candidates          │
+│  │ (candidats)  │    │  (scoring)   │                              │
+│  └──────────────┘    └──────────────┘                              │
+│                                                                    │
+│  Structure sous-jacente : DASH (Directed Acyclic SuperHyperGraph)  │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+### Algorithmes choisis
+
+| Use Case | Algorithme | Rôle | Justification |
+|----------|------------|------|---------------|
+| `suggestDAG(intent)` | **DR-DSP** | Pathfinding | Shortest hyperpath polynomial pour DAG, updates incrémentaux après chaque observation |
+| `predictNextNode(intent, context)` | **DR-DSP + SHGAT** | Pathfinding + Scoring | DR-DSP génère les candidats, SHGAT les score selon intent + context |
+
+### Pourquoi ces choix
+
+1. **DR-DSP** (Directed Relationship Dynamic Shortest Path)
+   - Natif hypergraph (comprend les capabilities comme hyperedges)
+   - Polynomial pour DAG (notre cas)
+   - Optimisé pour les changements qui impactent les shortest paths (notre cas : les edges `provides` changent à chaque observation)
+
+2. **SHGAT** (SuperHyperGraph Attention Networks)
+   - Attention contextuelle récursive sur meta-capabilities
+   - Score les candidats selon l'intent ET le context
+   - Complémentaire à DR-DSP (pathfinding vs scoring)
+
+3. **DASH** (Directed Acyclic SuperHyperGraph)
+   - Formalisation théorique de notre structure (Tools → Capabilities → Meta-Capabilities)
+   - Garantit topological ordering et propriétés d'ordre partiel
+
+### Relation avec les autres spikes
+
+- `2025-12-17-superhypergraph-hierarchical-structures.md` : Théorie DASH + SHGAT
+- `2025-12-17-complex-adaptive-systems-research.md` : Détails implémentation SHGAT (section 4)
+
+### Prochaines étapes
+
+1. [ ] Implémenter DR-DSP pour `suggestDAG()` (remplace Dijkstra)
+2. [ ] Intégrer SHGAT simplifié pour `predictNextNode()` (réutilise spectral embeddings existants)
+3. [ ] Valider que la structure respecte DASH (acyclicité garantie)
+4. [ ] Benchmark DR-DSP vs Dijkstra sur les capabilities existantes
+
+---
+
 ## Notes de discussion
 
 - 2025-12-21: Identifié lors de l'analyse du flux de suggestion DAG. Dijkstra ne traverse que les tools, les capabilities sont un layer séparé.
@@ -368,3 +431,4 @@ for (const cap of caps) {
   - `sequence` = ordre temporel observé dans une trace → pas une vraie dépendance
   - **Seul `provides` = data flow = vraie relation `dependsOn`**
   - Solution recommandée : extraire les edges `provides` depuis `static_structure.edges` des capabilities
+- 2025-12-21: **Conclusion finale** : DR-DSP (pathfinding) + SHGAT (scoring) sur structure DASH
