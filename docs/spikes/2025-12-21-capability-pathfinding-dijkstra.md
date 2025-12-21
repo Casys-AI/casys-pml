@@ -128,6 +128,19 @@ Sémantiquement : X → D (la capability entière est le prérequis)
 
 Quand un tool D dépend d'une capability X, il ne dépend pas juste du dernier tool de X, mais de **l'exécution complète de X**.
 
+### Algorithmes existants à explorer
+
+| Algorithme | Concept | Applicable |
+|------------|---------|------------|
+| **[Contraction Hierarchies](https://en.wikipedia.org/wiki/Contraction_hierarchies)** | Préprocessing → shortcuts entre nœuds importants. 7 ordres de magnitude plus rapide que Dijkstra. | ✅ Capabilities = nœuds contractés |
+| **[Dynamic Shortest Path for Hypergraphs](https://arxiv.org/abs/1202.0082)** | Premier algo pour shortest path sur hypergraphes dynamiques avec changements topologiques | ✅ Directement applicable |
+| **[HPA* / HSP](https://www.cs.ubc.ca/~mack/Publications/FICCDAT07.pdf)** | Partition en clusters, pathfinding à 2 niveaux (inter-cluster puis intra-cluster) | ✅ Capabilities = clusters |
+
+**Contraction Hierarchies** semble le plus prometteur :
+1. **Preprocessing** : Contracter les capabilities en super-nœuds avec shortcuts
+2. **Query** : Dijkstra bidirectionnel sur le graphe contracté (microseconds vs milliseconds)
+3. **Expansion** : Déplier les capabilities sélectionnées en tasks
+
 **Pistes à explorer** :
 
 1. **Contracted Graph / Hierarchical Pathfinding**
@@ -279,10 +292,11 @@ for (const cap of caps) {
 3. [ ] Ajouter tests unitaires pour le nouveau sync
 4. [ ] Benchmark performance avant/après (nombre d'edges, temps de sync)
 
-### Moyen terme (Contracted Graph)
-5. [ ] Évaluer si Dijkstra est le bon algorithme ou si on a besoin d'un "contracted graph"
-6. [ ] Prototyper l'approche two-phase (Dijkstra sur super-nœuds → expansion)
-7. [ ] Définir comment détecter si un tool dépend d'une capability (pas juste du dernier tool)
+### Moyen terme (Algorithme adapté aux hypergraphes)
+5. [ ] Lire le paper [Dynamic Shortest Path for Hypergraphs](https://arxiv.org/abs/1202.0082)
+6. [ ] Évaluer [Contraction Hierarchies](https://en.wikipedia.org/wiki/Contraction_hierarchies) pour les capabilities
+7. [ ] Prototyper l'approche two-phase (Dijkstra sur super-nœuds → expansion)
+8. [ ] Définir comment détecter si un tool dépend d'une capability (pas juste du dernier tool)
 
 ## Références
 
