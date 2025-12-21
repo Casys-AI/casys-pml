@@ -24,10 +24,24 @@ _Note: Cet ADR remplace et consolide les anciennes tentatives de définition d'a
 
 ## 1. Algorithms Matrix (Summary)
 
+### Architecture Unifiée (2025-12-21)
+
+L'architecture évolue vers une approche unifiée où **tout est capability** (tools = capabilities atomiques).
+
+| Mode | Fonction | Algorithme | Input |
+| :--- | :------- | :--------- | :---- |
+| **Search (Actif)** | `unifiedSearch()` | `(semantic × α + graph × (1-α)) × reliability` | intent |
+| **Prediction (Passif)** | `predictNextNode()` | DR-DSP → SHGAT | intent + context |
+| **Suggestion (DAG)** | `suggestDAG()` | DR-DSP seul | intent |
+
+### Matrice Legacy (pour référence)
+
 | Object Type     | Mode: Active Search (User Intent)                                                                      | Mode: Passive Suggestion (Workflow Context)                                                                           |
 | :-------------- | :----------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------- |
 | **Simple Tool** | **1. Hybrid Search** <br> `Semantic * Alpha + Graph * (1-Alpha)` <br> _Approche Additive (Permissive)_ | **2. Next Step Prediction** <br> `Co-occurrence + Louvain + Recency` <br> _Approche Additive (Probabiliste)_          |
 | **Capability**  | **3. Capability Match** <br> `Semantic * SuccessRate` <br> _Approche Multiplicative (Stricte)_         | **4. Strategic Discovery** <br> `Spectral Cluster Boost * ToolsOverlap` <br> _Approche Multiplicative (Contextuelle)_ |
+
+> **Note** : La matrice legacy sera remplacée par l'architecture unifiée. Voir spike `2025-12-21-capability-pathfinding-dijkstra.md`.
 
 ---
 
@@ -219,28 +233,70 @@ Les valeurs utilisées dans les formules doivent être monitorées et ajustées.
 ### 5.1 Architecture Cible (2025-12-21)
 
 ```
-┌────────────────────────────────────────────────────────────────────┐
-│                      ARCHITECTURE CIBLE                            │
-├────────────────────────────────────────────────────────────────────┤
-│                                                                    │
-│  suggestDAG(intent)                                                │
-│  ┌──────────────┐                                                  │
-│  │   DR-DSP     │ → DAG complet (shortest hyperpath)               │
-│  └──────────────┘   Remplace Dijkstra (natif hypergraph)           │
-│                                                                    │
-│  predictNextNode(intent, context)                                  │
-│  ┌──────────────┐    ┌──────────────┐                              │
-│  │   DR-DSP     │ →  │  Full SHGAT  │ → Ranked candidates          │
-│  │ (candidats)  │    │  (scoring)   │                              │
-│  └──────────────┘    └──────────────┘                              │
-│                       Attention apprise sur episodic_events        │
-│                                                                    │
-│  Structure sous-jacente : DASH (Directed Acyclic SuperHyperGraph)  │
-└────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         ARCHITECTURE CIBLE UNIFIÉE                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  1. SEARCH (Active) - unifiedSearch(intent)                                 │
+│  ┌──────────────────────────────────────────────────────────────────┐       │
+│  │   score = (semantic × α + graph × (1-α)) × reliability           │       │
+│  │   - Unified pour tools ET capabilities                           │       │
+│  │   - POC: src/graphrag/algorithms/unified-search.ts               │       │
+│  └──────────────────────────────────────────────────────────────────┘       │
+│                                                                             │
+│  2. PREDICTION (Passive) - predictNextNode(intent, context)                 │
+│  ┌──────────────┐    ┌──────────────┐                                       │
+│  │   DR-DSP     │ →  │    SHGAT     │ → Ranked candidates                   │
+│  │ (candidats)  │    │  (scoring)   │                                       │
+│  └──────────────┘    └──────────────┘                                       │
+│                       │                                                     │
+│                       ▼ Features hypergraph :                               │
+│                       - Spectral Cluster                                    │
+│                       - Hypergraph PageRank                                 │
+│                       - Co-occurrence (episodic)                            │
+│                       - Recency, Reliability                                │
+│                                                                             │
+│  3. SUGGESTION (DAG) - suggestDAG(intent)                                   │
+│  ┌──────────────┐                                                           │
+│  │   DR-DSP     │ → DAG complet (shortest hyperpath)                        │
+│  └──────────────┘   Remplace Dijkstra (natif hypergraph)                    │
+│                                                                             │
+│  Structure sous-jacente : DASH (Directed Acyclic SuperHyperGraph)           │
+│  Tout est capability (tools = capabilities atomiques)                       │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
+### 5.2 SHGAT - Architecture Multi-Head
+
+```
+                    ┌─────────────────────────────┐
+                    │         SHGAT               │
+                    │   (1 instance, multi-head)  │
+                    └─────────────────────────────┘
+                              │
+          ┌───────────────────┼───────────────────┐
+          ▼                   ▼                   ▼
+    ┌──────────┐       ┌──────────┐        ┌──────────┐
+    │  Head 1  │       │  Head 2  │        │  Head 3  │
+    │ semantic │       │ structure│        │ temporal │
+    │embedding │       │pagerank  │        │cooccur.  │
+    │          │       │spectral  │        │recency   │
+    └──────────┘       └──────────┘        └──────────┘
+          │                   │                   │
+          └───────────────────┼───────────────────┘
+                              ▼
+                    ┌─────────────────┐
+                    │  Learned Fusion │
+                    └─────────────────┘
+                              │
+                              ▼
+                        Final Score
+```
+
+**Note** : Les algos de support (Spectral Clustering, Hypergraph PageRank, Co-occurrence) ne sont plus utilisés directement pour le scoring. Ils fournissent des **features** que SHGAT apprend à pondérer.
+
 **Spikes de référence :**
-- `2025-12-21-capability-pathfinding-dijkstra.md` : Conclusion DR-DSP + SHGAT
+- `2025-12-21-capability-pathfinding-dijkstra.md` : Architecture unifiée, DR-DSP + SHGAT
 - `2025-12-17-superhypergraph-hierarchical-structures.md` : Théorie DASH, implémentation SHGAT
 
 ## 6. Related ADRs

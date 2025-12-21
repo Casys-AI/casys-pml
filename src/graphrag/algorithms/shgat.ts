@@ -71,6 +71,35 @@ export interface TrainingExample {
 }
 
 /**
+ * Hypergraph features for SHGAT multi-head attention
+ *
+ * These features are computed by support algorithms and fed to SHGAT heads:
+ * - Head 1 (semantic): uses embedding
+ * - Head 2 (structure): uses spectralCluster, hypergraphPageRank
+ * - Head 3 (temporal): uses cooccurrence, recency
+ */
+export interface HypergraphFeatures {
+  /** Spectral cluster ID on the hypergraph (0-based) */
+  spectralCluster: number;
+  /** Hypergraph PageRank score (0-1) */
+  hypergraphPageRank: number;
+  /** Co-occurrence frequency from episodic traces (0-1) */
+  cooccurrence: number;
+  /** Recency score - how recently used (0-1, 1 = very recent) */
+  recency: number;
+}
+
+/**
+ * Default hypergraph features (cold start)
+ */
+export const DEFAULT_HYPERGRAPH_FEATURES: HypergraphFeatures = {
+  spectralCluster: 0,
+  hypergraphPageRank: 0.01, // Low default importance
+  cooccurrence: 0,
+  recency: 0,
+};
+
+/**
  * Capability node for attention computation
  */
 export interface CapabilityNode {
@@ -79,12 +108,14 @@ export interface CapabilityNode {
   embedding: number[];
   /** Tools in this capability */
   toolsUsed: string[];
-  /** Success rate from history */
+  /** Success rate from history (reliability) */
   successRate: number;
   /** Parent capabilities (via contains) */
   parents: string[];
   /** Child capabilities (via contains) */
   children: string[];
+  /** Hypergraph features for multi-head attention */
+  hypergraphFeatures?: HypergraphFeatures;
 }
 
 /**
@@ -96,8 +127,17 @@ export interface AttentionResult {
   score: number;
   /** Per-head attention weights */
   headWeights: number[];
+  /** Per-head raw scores before fusion */
+  headScores: number[];
   /** Contribution from recursive parents */
   recursiveContribution: number;
+  /** Feature contributions for interpretability */
+  featureContributions?: {
+    semantic: number;
+    structure: number;
+    temporal: number;
+    reliability: number;
+  };
 }
 
 // ============================================================================
@@ -234,11 +274,19 @@ export class SHGAT {
 
   /**
    * Compute multi-head attention for a capability given context
+   *
+   * Head specialization:
+   * - Heads 0-1: Semantic (embedding-based attention)
+   * - Head 2: Structure (spectral cluster, hypergraph pagerank)
+   * - Head 3: Temporal (co-occurrence, recency)
+   *
+   * All heads also consider reliability (successRate).
    */
   computeAttention(
     intentEmbedding: number[],
     contextToolEmbeddings: number[][],
     capabilityId: string,
+    contextCapabilityIds?: string[],
   ): AttentionResult {
     const capNode = this.capabilityNodes.get(capabilityId);
     if (!capNode) {
@@ -246,32 +294,60 @@ export class SHGAT {
         capabilityId,
         score: 0,
         headWeights: new Array(this.config.numHeads).fill(0),
+        headScores: new Array(this.config.numHeads).fill(0),
         recursiveContribution: 0,
       };
     }
 
     const capEmbedding = capNode.embedding;
+    const features = capNode.hypergraphFeatures || DEFAULT_HYPERGRAPH_FEATURES;
 
     // Compute attention for each head
     const headScores: number[] = [];
 
     for (let h = 0; h < this.config.numHeads; h++) {
-      // Intent-to-capability attention
-      const intentScore = this.computeHeadAttention(h, intentEmbedding, capEmbedding);
+      let headScore = 0;
 
-      // Context-to-capability attention (average over context tools)
-      let contextScore = 0;
-      if (contextToolEmbeddings.length > 0) {
-        const contextScores = contextToolEmbeddings.map((ctxEmb) =>
-          this.computeHeadAttention(h, ctxEmb, capEmbedding)
-        );
-        contextScore = contextScores.reduce((a, b) => a + b, 0) / contextScores.length;
+      if (h < 2) {
+        // Heads 0-1: Semantic attention (embedding-based)
+        const intentScore = this.computeHeadAttention(h, intentEmbedding, capEmbedding);
+
+        let contextScore = 0;
+        if (contextToolEmbeddings.length > 0) {
+          const contextScores = contextToolEmbeddings.map((ctxEmb) =>
+            this.computeHeadAttention(h, ctxEmb, capEmbedding)
+          );
+          contextScore = contextScores.reduce((a, b) => a + b, 0) / contextScores.length;
+        }
+
+        headScore = 0.6 * intentScore + 0.4 * contextScore;
+      } else if (h === 2) {
+        // Head 2: Structure attention (spectral cluster, pagerank)
+        // Boost if in same spectral cluster as context capabilities
+        let clusterMatch = 0;
+        if (contextCapabilityIds && contextCapabilityIds.length > 0) {
+          const contextClusters = contextCapabilityIds
+            .map(id => this.capabilityNodes.get(id)?.hypergraphFeatures?.spectralCluster)
+            .filter((c): c is number => c !== undefined);
+
+          if (contextClusters.includes(features.spectralCluster)) {
+            clusterMatch = 1.0;
+          }
+        }
+
+        // Combine cluster match with pagerank
+        headScore = 0.5 * clusterMatch + 0.5 * features.hypergraphPageRank * 10; // Scale pagerank
+      } else {
+        // Head 3: Temporal attention (co-occurrence, recency)
+        headScore = 0.6 * features.cooccurrence + 0.4 * features.recency;
       }
 
-      // Combine intent and context scores
-      const headScore = 0.6 * intentScore + 0.4 * contextScore;
       headScores.push(headScore);
     }
+
+    // Apply reliability as a multiplier to all heads
+    const reliability = capNode.successRate;
+    const reliabilityMultiplier = reliability < 0.5 ? 0.5 : (reliability > 0.9 ? 1.2 : 1.0);
 
     // Normalize head scores via softmax
     const normalizedHeadWeights = this.softmax(headScores);
@@ -282,6 +358,9 @@ export class SHGAT {
       baseScore += normalizedHeadWeights[h] * headScores[h];
     }
 
+    // Apply reliability
+    baseScore *= reliabilityMultiplier;
+
     // Recursive contribution from parent capabilities
     let recursiveContribution = 0;
     if (capNode.parents.length > 0) {
@@ -290,6 +369,7 @@ export class SHGAT {
           intentEmbedding,
           contextToolEmbeddings,
           parentId,
+          contextCapabilityIds,
         );
         recursiveContribution += this.config.depthDecay * parentResult.score;
       }
@@ -299,11 +379,23 @@ export class SHGAT {
     // Combine base score with recursive contribution
     const finalScore = this.sigmoid(baseScore + recursiveContribution);
 
+    // Compute feature contributions for interpretability
+    const semanticContrib = (headScores[0] + headScores[1]) / 2;
+    const structureContrib = headScores[2] || 0;
+    const temporalContrib = headScores[3] || 0;
+
     return {
       capabilityId,
       score: finalScore,
       headWeights: normalizedHeadWeights,
+      headScores,
       recursiveContribution,
+      featureContributions: {
+        semantic: semanticContrib,
+        structure: structureContrib,
+        temporal: temporalContrib,
+        reliability: reliabilityMultiplier,
+      },
     };
   }
 
@@ -316,15 +408,25 @@ export class SHGAT {
 
   /**
    * Score all registered capabilities
+   *
+   * @param intentEmbedding - Embedding of the user's intent
+   * @param contextToolEmbeddings - Embeddings of tools in current context
+   * @param contextCapabilityIds - IDs of capabilities in current context (for cluster matching)
    */
   scoreAllCapabilities(
     intentEmbedding: number[],
     contextToolEmbeddings: number[][],
+    contextCapabilityIds?: string[],
   ): AttentionResult[] {
     const results: AttentionResult[] = [];
 
     for (const capId of this.capabilityNodes.keys()) {
-      const result = this.computeAttention(intentEmbedding, contextToolEmbeddings, capId);
+      const result = this.computeAttention(
+        intentEmbedding,
+        contextToolEmbeddings,
+        capId,
+        contextCapabilityIds,
+      );
       results.push(result);
     }
 
@@ -332,6 +434,35 @@ export class SHGAT {
     results.sort((a, b) => b.score - a.score);
 
     return results;
+  }
+
+  /**
+   * Update hypergraph features for a capability
+   *
+   * Call this when support algorithms (spectral clustering, pagerank, etc.)
+   * compute new features.
+   */
+  updateHypergraphFeatures(capabilityId: string, features: Partial<HypergraphFeatures>): void {
+    const node = this.capabilityNodes.get(capabilityId);
+    if (node) {
+      node.hypergraphFeatures = {
+        ...(node.hypergraphFeatures || DEFAULT_HYPERGRAPH_FEATURES),
+        ...features,
+      };
+    }
+  }
+
+  /**
+   * Batch update hypergraph features from algorithm results
+   */
+  batchUpdateFeatures(updates: Map<string, Partial<HypergraphFeatures>>): void {
+    for (const [capId, features] of updates) {
+      this.updateHypergraphFeatures(capId, features);
+    }
+
+    log.debug("[SHGAT] Updated hypergraph features", {
+      updatedCount: updates.size,
+    });
   }
 
   // ==========================================================================

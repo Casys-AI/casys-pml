@@ -361,50 +361,129 @@ for (const cap of caps) {
 
 ### Décision
 
-Remplacer Dijkstra par des algorithmes natifs hypergraph, avec une approche différente selon le use case :
+Remplacer Dijkstra par des algorithmes natifs hypergraph. Architecture unifiée où **tout est capability** (tools = capabilities atomiques).
 
 ```
-┌────────────────────────────────────────────────────────────────────┐
-│                      ARCHITECTURE FINALE                           │
-├────────────────────────────────────────────────────────────────────┤
-│                                                                    │
-│  suggestDAG(intent)                                                │
-│  ┌──────────────┐                                                  │
-│  │   DR-DSP     │ → DAG complet (shortest hyperpath)               │
-│  └──────────────┘                                                  │
-│                                                                    │
-│  predictNextNode(intent, context)                                  │
-│  ┌──────────────┐    ┌──────────────┐                              │
-│  │   DR-DSP     │ →  │    SHGAT     │ → Ranked candidates          │
-│  │ (candidats)  │    │  (scoring)   │                              │
-│  └──────────────┘    └──────────────┘                              │
-│                                                                    │
-│  Structure sous-jacente : DASH (Directed Acyclic SuperHyperGraph)  │
-└────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         ARCHITECTURE FINALE UNIFIÉE                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  1. SEARCH (Active) - unifiedSearch(intent)                                 │
+│  ┌──────────────────────────────────────────────────────────────────┐       │
+│  │   score = (semantic × α + graph × (1-α)) × reliability           │       │
+│  │   - Unified pour tools ET capabilities                           │       │
+│  │   - Adamic-Adar pour graph score                                 │       │
+│  │   - Reliability = successRate × transitiveReliability            │       │
+│  └──────────────────────────────────────────────────────────────────┘       │
+│                                                                             │
+│  2. PREDICTION (Passive) - predictNextNode(intent, context)                 │
+│  ┌──────────────┐    ┌──────────────┐                                       │
+│  │   DR-DSP     │ →  │    SHGAT     │ → Ranked candidates                   │
+│  │ (candidats)  │    │  (scoring)   │                                       │
+│  └──────────────┘    └──────────────┘                                       │
+│                       │                                                     │
+│                       ▼                                                     │
+│           ┌─────────────────────────────────────┐                           │
+│           │  SHGAT Features (multi-head):       │                           │
+│           │  - Spectral Cluster (hypergraph)    │                           │
+│           │  - Hypergraph PageRank              │                           │
+│           │  - Co-occurrence (episodic)         │                           │
+│           │  - Recency                          │                           │
+│           │  - Reliability                      │                           │
+│           └─────────────────────────────────────┘                           │
+│                                                                             │
+│  3. SUGGESTION (DAG) - suggestDAG(intent)                                   │
+│  ┌──────────────┐                                                           │
+│  │   DR-DSP     │ → DAG complet (shortest hyperpath)                        │
+│  └──────────────┘                                                           │
+│                                                                             │
+│  Structure sous-jacente : DASH (Directed Acyclic SuperHyperGraph)           │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
+
+### Les 3 modes clarifiés
+
+| Mode | Fonction | Input | Algo | Output |
+|------|----------|-------|------|--------|
+| **Search (actif)** | `unifiedSearch()` | intent | Hybrid (semantic + graph) × reliability | Ranked tools/capabilities |
+| **Prediction (passif)** | `predictNextNode()` | intent + context | DR-DSP → SHGAT | Prochain tool/capability |
+| **Suggestion (DAG)** | `suggestDAG()` | intent | DR-DSP seul | DAG complet |
+
+### Unification Tools ↔ Capabilities
+
+**Avant** (asymétrique) :
+- Tools : Hybrid Search élaboré (semantic + graph + alpha adaptatif)
+- Capabilities : Simple (semantic × reliability)
+
+**Après** (unifié) :
+- Tout est capability (tools = capabilities atomiques)
+- Même formule : `(semantic × α + graph × (1-α)) × reliability`
+- Même algorithme pour tous les nœuds de l'hypergraph
 
 ### Algorithmes choisis
 
 | Use Case | Algorithme | Rôle | Justification |
 |----------|------------|------|---------------|
-| `suggestDAG(intent)` | **DR-DSP** | Pathfinding | Shortest hyperpath polynomial pour DAG, updates incrémentaux après chaque observation |
-| `predictNextNode(intent, context)` | **DR-DSP + SHGAT** | Pathfinding + Scoring | DR-DSP génère les candidats, SHGAT les score selon intent + context |
+| `unifiedSearch(intent)` | **Hybrid Search unifié** | Recherche active | Même formule pour tools et capabilities |
+| `suggestDAG(intent)` | **DR-DSP** | Pathfinding | Shortest hyperpath polynomial pour DAG |
+| `predictNextNode(intent, context)` | **DR-DSP + SHGAT** | Pathfinding + Scoring | DR-DSP génère les candidats, SHGAT les score |
 
 ### Pourquoi ces choix
 
-1. **DR-DSP** (Directed Relationship Dynamic Shortest Path)
+1. **Unified Search** (nouveau)
+   - Formule : `(semantic × α + graph × (1-α)) × reliability`
+   - Unifie tools et capabilities (tout est capability)
+   - Reliability = successRate × transitiveReliability (chain as weak as its weakest link)
+
+2. **DR-DSP** (Directed Relationship Dynamic Shortest Path)
    - Natif hypergraph (comprend les capabilities comme hyperedges)
    - Polynomial pour DAG (notre cas)
    - Optimisé pour les changements qui impactent les shortest paths (notre cas : les edges `provides` changent à chaque observation)
 
-2. **SHGAT** (SuperHyperGraph Attention Networks)
-   - Attention contextuelle récursive sur meta-capabilities
+3. **SHGAT** (SuperHyperGraph Attention Networks)
+   - **1 seul modèle** avec multi-head attention
+   - Chaque tête apprend un aspect différent (sémantique, structure, temporel)
+   - Features d'entrée (hypergraph-specific) :
+     - `spectralCluster` : cluster spectral sur l'hypergraph
+     - `hypergraphPageRank` : importance sur les hyperedges
+     - `cooccurrence` : fréquence co-usage depuis traces épisodiques
+     - `recency` : utilisé récemment
+     - `reliability` : success rate
    - Score les candidats selon l'intent ET le context
-   - Complémentaire à DR-DSP (pathfinding vs scoring)
 
-3. **DASH** (Directed Acyclic SuperHyperGraph)
+4. **DASH** (Directed Acyclic SuperHyperGraph)
    - Formalisation théorique de notre structure (Tools → Capabilities → Meta-Capabilities)
    - Garantit topological ordering et propriétés d'ordre partiel
+
+### Architecture SHGAT détaillée
+
+```
+                    ┌─────────────────────────────┐
+                    │         SHGAT               │
+                    │   (1 instance, multi-head)  │
+                    └─────────────────────────────┘
+                              │
+          ┌───────────────────┼───────────────────┐
+          ▼                   ▼                   ▼
+    ┌──────────┐       ┌──────────┐        ┌──────────┐
+    │  Head 1  │       │  Head 2  │        │  Head 3  │
+    │ semantic │       │ structure│        │ temporal │
+    │embedding │       │pagerank  │        │cooccur.  │
+    │          │       │spectral  │        │recency   │
+    └──────────┘       └──────────┘        └──────────┘
+          │                   │                   │
+          └───────────────────┼───────────────────┘
+                              ▼
+                    ┌─────────────────┐
+                    │  Learned Fusion │
+                    │  (attention)    │
+                    └─────────────────┘
+                              │
+                              ▼
+                        Final Score
+```
+
+**Note** : Les algos de support (Spectral Clustering, Hypergraph PageRank, Co-occurrence) ne sont plus utilisés directement pour le scoring. Ils fournissent des **features** que SHGAT apprend à pondérer.
 
 ### Relation avec les autres spikes
 

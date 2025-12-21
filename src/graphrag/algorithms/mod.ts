@@ -77,10 +77,12 @@ export {
   createSHGATFromCapabilities,
   trainSHGATOnEpisodes,
   DEFAULT_SHGAT_CONFIG,
+  DEFAULT_HYPERGRAPH_FEATURES,
   type SHGATConfig,
   type TrainingExample,
   type CapabilityNode,
   type AttentionResult,
+  type HypergraphFeatures,
 } from "./shgat.ts";
 
 // Thompson Sampling (ADR-049 Intelligent Adaptive Thresholds)
