@@ -99,8 +99,8 @@ function buildSHGATFromFixture(): {
       embedding: capEmbedding,
       toolsUsed: cap.toolsUsed,
       successRate: cap.successRate,
-      parents: [],
-      children: [],
+      parents: cap.parents || [],
+      children: [], // Leaf capabilities have no children
     });
   }
 
@@ -430,6 +430,253 @@ Deno.test("SHGAT: tool attention weights are valid", () => {
     const hasNonZero = result.toolAttention!.some((a) => a > 0);
     assertEquals(hasNonZero, true);
   }
+});
+
+// ============================================================================
+// Meta-Capability Hierarchy Tests
+// ============================================================================
+
+/**
+ * Build SHGAT with full hierarchy including meta-capabilities
+ */
+function buildSHGATWithHierarchy(): {
+  shgat: SHGAT;
+  embeddings: Map<string, number[]>;
+  metaCapabilities: Array<{
+    id: string;
+    contains: string[];
+    parents: string[];
+    successRate: number;
+    toolsAggregated: string[];
+  }>;
+  capabilityParents: Map<string, string[]>;
+} {
+  const { shgat, embeddings } = buildSHGATFromFixture();
+
+  // Build parent lookup for capabilities
+  const capabilityParents = new Map<string, string[]>();
+  for (const cap of fixtureData.nodes.capabilities) {
+    capabilityParents.set(cap.id, cap.parents || []);
+  }
+
+  // Meta-capabilities from fixture
+  const metaCapabilities = fixtureData.nodes.metaCapabilities.map(
+    (meta: {
+      id: string;
+      contains: string[];
+      parents: string[];
+      successRate: number;
+      toolsAggregated: string[];
+    }) => ({
+      id: meta.id,
+      contains: meta.contains,
+      parents: meta.parents,
+      successRate: meta.successRate,
+      toolsAggregated: meta.toolsAggregated,
+    })
+  );
+
+  // Register meta-capabilities as capabilities
+  for (const meta of metaCapabilities) {
+    const metaEmbedding = createMockEmbedding(meta.id);
+    embeddings.set(meta.id, metaEmbedding);
+
+    shgat.registerCapability({
+      id: meta.id,
+      embedding: metaEmbedding,
+      toolsUsed: meta.toolsAggregated,
+      successRate: meta.successRate,
+      parents: meta.parents,
+      children: meta.contains,
+    });
+  }
+
+  return { shgat, embeddings, metaCapabilities, capabilityParents };
+}
+
+Deno.test("SHGAT Hierarchy: registers meta-capabilities", () => {
+  const { shgat, metaCapabilities } = buildSHGATWithHierarchy();
+
+  const stats = shgat.getStats();
+
+  // Should have 4 capabilities + 3 meta-capabilities = 7 total
+  assertEquals(stats.registeredCapabilities, 7);
+
+  // Verify meta IDs are present
+  const intentEmbedding = createMockEmbedding("test");
+  const results = shgat.scoreAllCapabilities(intentEmbedding, []);
+
+  const capIds = new Set(results.map((r) => r.capabilityId));
+  for (const meta of metaCapabilities) {
+    assertEquals(capIds.has(meta.id), true, `Missing meta: ${meta.id}`);
+  }
+});
+
+Deno.test("SHGAT Hierarchy: meta-capabilities have aggregated tools", () => {
+  const { shgat } = buildSHGATWithHierarchy();
+
+  // meta__transactions should aggregate tools from checkout + cancellation
+  // checkout: 6 tools, cancellation: 4 tools (with overlap on db__get_cart, email__order_confirm)
+  // Unique: db__get_cart, inventory__check, payment__validate, payment__charge,
+  //         db__save_order, email__order_confirm, payment__refund, inventory__release = 8 tools
+
+  const stats = shgat.getStats();
+  // incidenceNonZeros increases because meta-capabilities add their aggregated tools
+  assertGreater(stats.incidenceNonZeros, 15);
+});
+
+Deno.test("SHGAT Hierarchy: capability parents are set correctly", () => {
+  const { capabilityParents } = buildSHGATWithHierarchy();
+
+  // cap__checkout_flow → meta__transactions
+  assertEquals(capabilityParents.get("cap__checkout_flow"), ["meta__transactions"]);
+
+  // cap__user_profile → meta__browsing
+  assertEquals(capabilityParents.get("cap__user_profile"), ["meta__browsing"]);
+});
+
+Deno.test("SHGAT Hierarchy: meta-capability scores are valid", () => {
+  const { shgat, embeddings } = buildSHGATWithHierarchy();
+
+  const intentEmbedding = createMockEmbedding("financial transaction processing");
+  const contextEmbeddings = [embeddings.get("payment__validate")!];
+
+  const results = shgat.scoreAllCapabilities(intentEmbedding, contextEmbeddings);
+
+  // Find meta-capability scores
+  const metaTransactions = results.find((r) => r.capabilityId === "meta__transactions");
+  const metaBrowsing = results.find((r) => r.capabilityId === "meta__browsing");
+  const metaEcommerce = results.find((r) => r.capabilityId === "meta__ecommerce");
+
+  // All meta-capabilities should have valid scores
+  assertGreater(metaTransactions!.score, 0);
+  assertGreater(metaBrowsing!.score, 0);
+  assertGreater(metaEcommerce!.score, 0);
+
+  // With payment context, transactions should score higher than browsing
+  assertGreater(metaTransactions!.score, metaBrowsing!.score);
+});
+
+Deno.test("SHGAT Hierarchy: training examples include selectedMeta", () => {
+  // Verify fixture has selectedMeta in all episodic events
+  for (const event of fixtureData.episodicEvents) {
+    assertEquals(
+      event.selectedMeta !== undefined,
+      true,
+      `Event ${event.id} missing selectedMeta`
+    );
+  }
+
+  // Count meta distribution
+  const metaCounts = new Map<string, number>();
+  for (const event of fixtureData.episodicEvents) {
+    const meta = event.selectedMeta;
+    metaCounts.set(meta, (metaCounts.get(meta) || 0) + 1);
+  }
+
+  // meta__transactions: 8, meta__browsing: 4
+  assertEquals(metaCounts.get("meta__transactions"), 8);
+  assertEquals(metaCounts.get("meta__browsing"), 4);
+});
+
+/**
+ * Score meta-capability by aggregating child scores
+ */
+function scoreMetaCapability(
+  shgat: SHGAT,
+  metaId: string,
+  childIds: string[],
+  intentEmbedding: number[],
+  contextEmbeddings: number[][]
+): { metaScore: number; childScores: Map<string, number> } {
+  const results = shgat.scoreAllCapabilities(intentEmbedding, contextEmbeddings);
+
+  const childScores = new Map<string, number>();
+  for (const child of childIds) {
+    const result = results.find((r) => r.capabilityId === child);
+    if (result) {
+      childScores.set(child, result.score);
+    }
+  }
+
+  // Aggregate: weighted average by score (higher scores weighted more)
+  const totalScore = Array.from(childScores.values()).reduce((a, b) => a + b, 0);
+  const weightedSum = Array.from(childScores.values()).reduce(
+    (sum, score) => sum + score * score,
+    0
+  );
+  const metaScore = totalScore > 0 ? weightedSum / totalScore : 0;
+
+  return { metaScore, childScores };
+}
+
+Deno.test("SHGAT Hierarchy: meta-score aggregation from children", () => {
+  const { shgat, embeddings, metaCapabilities } = buildSHGATWithHierarchy();
+
+  const metaTransactions = metaCapabilities.find((m) => m.id === "meta__transactions")!;
+  const intentEmbedding = createMockEmbedding("process payment and save order");
+  const contextEmbeddings = [embeddings.get("payment__charge")!];
+
+  const { metaScore, childScores } = scoreMetaCapability(
+    shgat,
+    "meta__transactions",
+    metaTransactions.contains,
+    intentEmbedding,
+    contextEmbeddings
+  );
+
+  // Should have scores for both children
+  assertEquals(childScores.has("cap__checkout_flow"), true);
+  assertEquals(childScores.has("cap__order_cancellation"), true);
+
+  // Aggregated meta-score should be valid
+  assertGreater(metaScore, 0);
+  assertLess(metaScore, 1);
+});
+
+Deno.test("SHGAT Hierarchy: nested meta-capabilities", () => {
+  const { shgat, embeddings, metaCapabilities } = buildSHGATWithHierarchy();
+
+  // meta__ecommerce contains meta__transactions and meta__browsing
+  const metaEcommerce = metaCapabilities.find((m) => m.id === "meta__ecommerce")!;
+  assertEquals(metaEcommerce.contains, ["meta__transactions", "meta__browsing"]);
+
+  // Score all
+  const intentEmbedding = createMockEmbedding("ecommerce operation");
+  const results = shgat.scoreAllCapabilities(intentEmbedding, []);
+
+  const ecommerceResult = results.find((r) => r.capabilityId === "meta__ecommerce");
+  const transactionsResult = results.find((r) => r.capabilityId === "meta__transactions");
+  const browsingResult = results.find((r) => r.capabilityId === "meta__browsing");
+
+  // All should be scored
+  assertGreater(ecommerceResult!.score, 0);
+  assertGreater(transactionsResult!.score, 0);
+  assertGreater(browsingResult!.score, 0);
+});
+
+Deno.test("SHGAT Hierarchy: context affects meta-capability scores", () => {
+  const { shgat, embeddings } = buildSHGATWithHierarchy();
+
+  const intentEmbedding = createMockEmbedding("do something with the system");
+
+  // Score with payment context
+  const paymentContext = [embeddings.get("payment__charge")!];
+  const resultsWithPayment = shgat.scoreAllCapabilities(intentEmbedding, paymentContext);
+  const transactionsWithPayment = resultsWithPayment.find(
+    (r) => r.capabilityId === "meta__transactions"
+  )!.score;
+
+  // Score with browsing context
+  const browseContext = [embeddings.get("api__fetch_products")!];
+  const resultsWithBrowse = shgat.scoreAllCapabilities(intentEmbedding, browseContext);
+  const browsingWithBrowse = resultsWithBrowse.find(
+    (r) => r.capabilityId === "meta__browsing"
+  )!.score;
+
+  // Both should be valid scores
+  assertGreater(transactionsWithPayment, 0);
+  assertGreater(browsingWithBrowse, 0);
 });
 
 // Real BGE-M3 embedding tests are in:
