@@ -100,3 +100,22 @@ export {
   type ThresholdBreakdown,
 } from "./thompson.ts";
 
+// Unified Search (POC - unifies tool and capability search)
+export {
+  unifiedSearch,
+  calculateAdaptiveAlpha,
+  calculateReliabilityFactor,
+  computeUnifiedScore,
+  createMockVectorSearch,
+  createMockGraph,
+  DEFAULT_RELIABILITY_CONFIG,
+  type SearchableNode,
+  type UnifiedNodeType,
+  type UnifiedSearchGraph,
+  type UnifiedVectorSearch,
+  type UnifiedSearchOptions,
+  type UnifiedSearchResult,
+  type ReliabilityConfig,
+  type ScoreBreakdown,
+} from "./unified-search.ts";
+
