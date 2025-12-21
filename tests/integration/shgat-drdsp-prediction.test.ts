@@ -410,182 +410,70 @@ Deno.test("Integration: DR-DSP updates affect hyperpath finding", async (t) => {
 });
 
 // ============================================================================
-// Test: Intent-Only (No Context)
+// Test: DR-DSP Standalone (Intent determines target, no context needed)
 // ============================================================================
 
-Deno.test("Integration: Prediction with intent only (no context)", async (t) => {
+Deno.test("Integration: DR-DSP standalone pathfinding (replaces Dijkstra)", async (t) => {
   /**
-   * Tests prediction when we have no context tools - cold start scenario.
-   * SHGAT should still score capabilities based on intent embedding alone.
+   * DR-DSP is used standalone to find paths on the hypergraph.
+   * Intent determines the target capability/tool, then DR-DSP finds the path.
+   * No context embeddings needed - just source → target on hypergraph.
    */
 
-  await t.step("SHGAT scores capabilities with empty context", () => {
-    const shgat = new SHGAT({
-      numHeads: 2,
-      hiddenDim: 4,
-      embeddingDim: 8,
-      depthDecay: 0.8,
-      learningRate: 0.01,
-      leakyReluSlope: 0.2,
-    });
-
-    // Register capabilities
-    for (const cap of CAPABILITIES) {
-      shgat.registerCapability({
-        id: cap.id,
-        embedding: getEmbedding(cap.id)!,
-        toolsUsed: cap.tools,
-        successRate: cap.successRate,
-        parents: [],
-        children: [],
-      });
-    }
-
-    // Intent only - no context tools
-    const intentEmbedding = [0.3, 0.7, 0.6, 0.4, 0.2, 0.1, 0.1, 0.2]; // checkout-like
-    const emptyContext: number[][] = []; // No context!
-
-    const scores = shgat.scoreAllCapabilities(intentEmbedding, emptyContext);
-
-    console.log("\n=== Intent-Only Scoring (No Context) ===");
-    for (const s of scores.sort((a, b) => b.score - a.score)) {
-      console.log(`  ${s.capabilityId}: ${s.score.toFixed(4)}`);
-    }
-
-    // Should still get scores for all capabilities
-    assertEquals(scores.length, 4, "Should score all capabilities even without context");
-
-    // All scores should be valid (not NaN or undefined)
-    for (const s of scores) {
-      assertEquals(typeof s.score, "number", "Score should be a number");
-      assertEquals(isNaN(s.score), false, "Score should not be NaN");
-    }
-  });
-
-  await t.step("Full prediction pipeline with no context (cold start)", () => {
-    // Setup
-    const shgat = new SHGAT({
-      numHeads: 2,
-      hiddenDim: 4,
-      embeddingDim: 8,
-      depthDecay: 0.8,
-      learningRate: 0.01,
-      leakyReluSlope: 0.2,
-    });
-
-    for (const cap of CAPABILITIES) {
-      shgat.registerCapability({
-        id: cap.id,
-        embedding: getEmbedding(cap.id)!,
-        toolsUsed: cap.tools,
-        successRate: cap.successRate,
-        parents: [],
-        children: [],
-      });
-    }
-
+  await t.step("DR-DSP finds hyperpath from source to target", () => {
+    // Build hypergraph from capabilities
     const hyperedges: Hyperedge[] = CAPABILITIES.map((cap) =>
       capabilityToHyperedge(cap.id, cap.tools, cap.staticEdges, cap.successRate)
     );
     const drdsp = new DRDSP(hyperedges);
 
-    // Cold start prediction function
-    function predictColdStart(
-      intentEmbedding: number[],
-      thompsonThreshold: number = 0.3
-    ): {
-      capability: string;
-      firstTool: string;
-      confidence: number;
-      fullPath: string[];
-    } | null {
-      // No context - score based on intent only
-      const scores = shgat.scoreAllCapabilities(intentEmbedding, []);
+    console.log("\n=== DR-DSP Standalone Pathfinding ===\n");
 
-      // Filter by threshold
-      const validCaps = scores.filter((s) => s.score >= thompsonThreshold);
-      if (validCaps.length === 0) return null;
-
-      // Select best
-      const bestCap = validCaps.reduce((best, current) =>
-        current.score > best.score ? current : best
-      );
-
-      // Get capability structure
-      const cap = CAPABILITIES.find((c) => c.id === bestCap.capabilityId)!;
-
-      return {
-        capability: bestCap.capabilityId,
-        firstTool: cap.tools[0],
-        confidence: bestCap.score,
-        fullPath: cap.tools,
-      };
-    }
-
-    // Test cases
-    console.log("\n=== Cold Start Predictions ===\n");
-
-    // Case 1: Checkout intent
-    const checkout = predictColdStart([0.3, 0.7, 0.6, 0.4, 0.2, 0.1, 0.1, 0.2]);
-    console.log("Cold start - checkout intent:");
-    console.log(`  First tool: ${checkout?.firstTool}`);
-    console.log(`  Capability: ${checkout?.capability}`);
-    console.log(`  Confidence: ${checkout?.confidence.toFixed(4)}`);
-
-    assertExists(checkout, "Should get prediction for checkout intent");
-
-    // Case 2: User profile intent
-    const profile = predictColdStart([0.5, 0.1, 0.0, 0.2, 0.1, 0.8, 0.7, 0.2]);
-    console.log("\nCold start - profile intent:");
-    console.log(`  First tool: ${profile?.firstTool}`);
-    console.log(`  Capability: ${profile?.capability}`);
-
-    assertExists(profile, "Should get prediction for profile intent");
-
-    // Case 3: Ambiguous intent with high threshold
-    const ambiguous = predictColdStart(
-      [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
-      0.9 // Very high threshold
-    );
-    console.log("\nCold start - ambiguous intent, high threshold:");
-    console.log(`  Result: ${ambiguous ? `Prediction: ${ambiguous.firstTool}` : "No prediction (filtered)"}`);
-  });
-
-  await t.step("DR-DSP pathfinding without prior context", () => {
-    // DR-DSP works purely on graph structure - doesn't need context
-    const hyperedges: Hyperedge[] = CAPABILITIES.map((cap) =>
-      capabilityToHyperedge(cap.id, cap.tools, cap.staticEdges, cap.successRate)
-    );
-    const drdsp = new DRDSP(hyperedges);
-
-    // Find paths between arbitrary nodes
-    console.log("\n=== DR-DSP Pathfinding (No Context Needed) ===\n");
-
-    // Path 1: Start of checkout to end
+    // Path 1: Within checkout capability (intent: "checkout" → target: email__confirm)
     const path1 = drdsp.findShortestHyperpath("db__get_cart", "email__confirm");
-    console.log("Path: db__get_cart → email__confirm");
+    console.log("Intent: checkout → Path: db__get_cart → email__confirm");
     console.log(`  Found: ${path1.found}`);
     if (path1.found) {
       console.log(`  Nodes: ${path1.nodeSequence.join(" → ")}`);
       console.log(`  Weight: ${path1.totalWeight.toFixed(4)}`);
     }
 
-    // Path 2: User profile start to end
+    // Path 2: Within user profile capability
     const path2 = drdsp.findShortestHyperpath("api__fetch_user", "db__get_user");
-    console.log("\nPath: api__fetch_user → db__get_user");
+    console.log("\nIntent: get user → Path: api__fetch_user → db__get_user");
     console.log(`  Found: ${path2.found}`);
     if (path2.found) {
       console.log(`  Weight: ${path2.totalWeight.toFixed(4)}`);
     }
 
-    // Path 3: Cross-capability (might not exist)
+    // Path 3: Cross-capability (might not exist without bridge)
     const path3 = drdsp.findShortestHyperpath("api__fetch_user", "email__confirm");
-    console.log("\nPath: api__fetch_user → email__confirm (cross-capability)");
+    console.log("\nCross-capability: api__fetch_user → email__confirm");
     console.log(`  Found: ${path3.found}`);
+    if (!path3.found) {
+      console.log("  → No path (separate capability islands)");
+    }
 
     // Assertions
     assertEquals(path1.found || path1.totalWeight >= 0, true, "Path 1 should return valid result");
     assertEquals(path2.found || path2.totalWeight >= 0, true, "Path 2 should return valid result");
+  });
+
+  await t.step("DR-DSP SSSP (single source shortest paths)", () => {
+    const hyperedges: Hyperedge[] = CAPABILITIES.map((cap) =>
+      capabilityToHyperedge(cap.id, cap.tools, cap.staticEdges, cap.successRate)
+    );
+    const drdsp = new DRDSP(hyperedges);
+
+    // Find all reachable nodes from checkout entry
+    const allPaths = drdsp.findAllShortestPaths("db__get_cart");
+
+    console.log("\n=== DR-DSP SSSP from db__get_cart ===");
+    console.log(`  Reachable nodes: ${allPaths.size}`);
+
+    for (const [target, result] of allPaths) {
+      console.log(`  → ${target}: weight=${result.totalWeight.toFixed(4)}`);
+    }
   });
 });
 
