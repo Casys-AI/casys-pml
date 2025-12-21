@@ -418,7 +418,16 @@ Remplacer Dijkstra par des algorithmes natifs hypergraph, avec une approche diff
    - Décision 2025-12-21 : Full SHGAT dès le départ car on a déjà les traces d'entraînement
    - Voir spike `2025-12-17-superhypergraph-hierarchical-structures.md` section 7.2
 3. [ ] Valider que la structure respecte DASH (acyclicité garantie)
-4. [ ] Benchmark DR-DSP vs Dijkstra sur les capabilities existantes
+4. [ ] **Créer le framework de benchmark** pour comparer les algos :
+   ```
+   tests/benchmarks/
+   ├── fixtures/scenarios/     # JSON test data
+   ├── tactical/               # Tool-level algos (Louvain, PageRank...)
+   ├── strategic/              # Cap-level algos (SHGAT, Spectral...)
+   ├── pathfinding/            # DR-DSP vs Dijkstra
+   └── utils/                  # Metrics, comparison reports
+   ```
+5. [ ] Benchmark DR-DSP vs Dijkstra sur les capabilities existantes
 
 ---
 
