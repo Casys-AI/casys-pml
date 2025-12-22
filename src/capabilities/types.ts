@@ -162,6 +162,8 @@ export interface Capability {
   permissionSet?: PermissionSet;
   /** Confidence score of the permission inference (0-1) */
   permissionConfidence?: number;
+  /** Static structure for DAG execution (Story 10.7) */
+  staticStructure?: StaticStructure;
 }
 
 /**
@@ -664,6 +666,8 @@ export interface CapabilityListResponseInternal {
 export interface HypergraphOptions {
   /** Include standalone tools not in capabilities */
   includeTools?: boolean;
+  /** Include orphan tools (no parent capabilities). Default: true for backward compat */
+  includeOrphans?: boolean;
   /** Filter capabilities by minimum success rate */
   minSuccessRate?: number;
   /** Filter capabilities by minimum usage */

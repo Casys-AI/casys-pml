@@ -79,12 +79,15 @@ export interface TrainingExample {
 }
 
 /**
- * Hypergraph features for SHGAT multi-head attention
+ * Hypergraph features for SHGAT multi-head attention (CAPABILITIES)
  *
  * These features are computed by support algorithms and fed to SHGAT heads:
  * - Heads 0-1 (semantic): uses embedding
  * - Head 2 (structure): uses spectralCluster, hypergraphPageRank, adamicAdar
  * - Head 3 (temporal): uses cooccurrence, recency, heatDiffusion
+ *
+ * NOTE: For capabilities (hyperedges), these use HYPERGRAPH algorithms.
+ * For tools, use ToolGraphFeatures instead (simple graph algorithms).
  */
 export interface HypergraphFeatures {
   /** Spectral cluster ID on the hypergraph (0-based) */
@@ -138,14 +141,48 @@ export const DEFAULT_HYPERGRAPH_FEATURES: HypergraphFeatures = {
 };
 
 /**
+ * Tool graph features for SHGAT multi-head attention (TOOLS)
+ *
+ * These features use SIMPLE GRAPH algorithms (not hypergraph):
+ * - Head 2 (structure): pageRank, louvainCommunity, adamicAdar
+ * - Head 3 (temporal): cooccurrence, recency (from execution_trace)
+ *
+ * This is separate from HypergraphFeatures because tools exist in a
+ * simple directed graph (Graphology), not the superhypergraph.
+ */
+export interface ToolGraphFeatures {
+  /** Regular PageRank score from Graphology (0-1) */
+  pageRank: number;
+  /** Louvain community ID (0-based integer) */
+  louvainCommunity: number;
+  /** Adamic-Adar similarity with neighboring tools (0-1) */
+  adamicAdar: number;
+  /** Co-occurrence frequency from execution_trace (0-1) */
+  cooccurrence: number;
+  /** Recency score - exponential decay since last use (0-1, 1 = very recent) */
+  recency: number;
+}
+
+/**
+ * Default tool graph features (cold start)
+ */
+export const DEFAULT_TOOL_GRAPH_FEATURES: ToolGraphFeatures = {
+  pageRank: 0.01,
+  louvainCommunity: 0,
+  adamicAdar: 0,
+  cooccurrence: 0,
+  recency: 0,
+};
+
+/**
  * Tool node (vertex in hypergraph)
  */
 export interface ToolNode {
   id: string;
   /** Embedding (from tool description) */
   embedding: number[];
-  /** Hypergraph features */
-  hypergraphFeatures?: HypergraphFeatures;
+  /** Tool graph features (simple graph algorithms) */
+  toolFeatures?: ToolGraphFeatures;
 }
 
 /**
@@ -294,17 +331,21 @@ export class SHGAT {
 
   private initTensor3D(d1: number, d2: number, d3: number): number[][][] {
     const scale = Math.sqrt(2.0 / (d2 + d3));
-    return Array.from({ length: d1 }, () =>
-      Array.from({ length: d2 }, () =>
-        Array.from({ length: d3 }, () => (Math.random() - 0.5) * 2 * scale)
-      )
+    return Array.from(
+      { length: d1 },
+      () =>
+        Array.from(
+          { length: d2 },
+          () => Array.from({ length: d3 }, () => (Math.random() - 0.5) * 2 * scale),
+        ),
     );
   }
 
   private initMatrix(rows: number, cols: number): number[][] {
     const scale = Math.sqrt(2.0 / (rows + cols));
-    return Array.from({ length: rows }, () =>
-      Array.from({ length: cols }, () => (Math.random() - 0.5) * 2 * scale)
+    return Array.from(
+      { length: rows },
+      () => Array.from({ length: cols }, () => (Math.random() - 0.5) * 2 * scale),
     );
   }
 
@@ -331,6 +372,20 @@ export class SHGAT {
   registerCapability(node: CapabilityNode): void {
     this.capabilityNodes.set(node.id, node);
     this.rebuildIndices();
+  }
+
+  /**
+   * Check if a tool node exists
+   */
+  hasToolNode(toolId: string): boolean {
+    return this.toolNodes.has(toolId);
+  }
+
+  /**
+   * Check if a capability node exists
+   */
+  hasCapabilityNode(capabilityId: string): boolean {
+    return this.capabilityNodes.has(capabilityId);
   }
 
   /**
@@ -392,9 +447,7 @@ export class SHGAT {
     const numTools = this.toolNodes.size;
     const numCaps = this.capabilityNodes.size;
 
-    this.incidenceMatrix = Array.from({ length: numTools }, () =>
-      Array(numCaps).fill(0)
-    );
+    this.incidenceMatrix = Array.from({ length: numTools }, () => Array(numCaps).fill(0));
 
     for (const [capId, cap] of this.capabilityNodes) {
       const cIdx = this.capabilityIndex.get(capId)!;
@@ -449,7 +502,8 @@ export class SHGAT {
       for (let head = 0; head < this.config.numHeads; head++) {
         // Phase 1: Vertex → Hyperedge
         const { E_new, attentionVE } = this.vertexToEdgePhase(
-          H, E,
+          H,
+          E,
           params.W_v[head],
           params.W_e[head],
           params.a_ve[head],
@@ -459,7 +513,8 @@ export class SHGAT {
 
         // Phase 2: Hyperedge → Vertex
         const { H_new, attentionEV } = this.edgeToVertexPhase(
-          H, E_new,
+          H,
+          E_new,
           params.W_e2[head],
           params.W_v2[head],
           params.a_ev[head],
@@ -510,8 +565,9 @@ export class SHGAT {
     const E_proj = this.matmulTranspose(E, W_e);
 
     // Compute attention scores (masked by incidence matrix)
-    const attentionScores: number[][] = Array.from({ length: numTools }, () =>
-      Array(numCaps).fill(-Infinity)
+    const attentionScores: number[][] = Array.from(
+      { length: numTools },
+      () => Array(numCaps).fill(-Infinity),
     );
 
     for (let t = 0; t < numTools; t++) {
@@ -528,9 +584,7 @@ export class SHGAT {
     this.applyHeadFeatures(attentionScores, headIdx, "vertex");
 
     // Softmax per capability (column-wise)
-    const attentionVE: number[][] = Array.from({ length: numTools }, () =>
-      Array(numCaps).fill(0)
-    );
+    const attentionVE: number[][] = Array.from({ length: numTools }, () => Array(numCaps).fill(0));
 
     for (let c = 0; c < numCaps; c++) {
       const toolsInCap: number[] = [];
@@ -589,8 +643,9 @@ export class SHGAT {
     const H_proj = this.matmulTranspose(H, W_v);
 
     // Compute attention scores
-    const attentionScores: number[][] = Array.from({ length: numCaps }, () =>
-      Array(numTools).fill(-Infinity)
+    const attentionScores: number[][] = Array.from(
+      { length: numCaps },
+      () => Array(numTools).fill(-Infinity),
     );
 
     for (let c = 0; c < numCaps; c++) {
@@ -607,9 +662,7 @@ export class SHGAT {
     this.applyHeadFeatures(attentionScores, headIdx, "edge");
 
     // Softmax per tool (column-wise in transposed view)
-    const attentionEV: number[][] = Array.from({ length: numCaps }, () =>
-      Array(numTools).fill(0)
-    );
+    const attentionEV: number[][] = Array.from({ length: numCaps }, () => Array(numTools).fill(0));
 
     for (let t = 0; t < numTools; t++) {
       const capsForTool: number[] = [];
@@ -753,11 +806,9 @@ export class SHGAT {
       // - AdamicAdar: similarity with neighbors (0-1)
       const spectralBonus = 1 / (1 + features.spectralCluster);
       const adamicAdar = features.adamicAdar ?? 0;
-      const structureScore = (
-        0.4 * features.hypergraphPageRank +
+      const structureScore = 0.4 * features.hypergraphPageRank +
         0.3 * spectralBonus +
-        0.3 * adamicAdar
-      );
+        0.3 * adamicAdar;
 
       // Head 3: Temporal score combines usage patterns
       // Normalized to ~0-1 range
@@ -765,11 +816,9 @@ export class SHGAT {
       // - Recency: recently used (0-1)
       // - HeatDiffusion: influence from active context (0-1)
       const heatDiffusion = features.heatDiffusion ?? 0;
-      const temporalScore = (
-        0.4 * features.cooccurrence +
+      const temporalScore = 0.4 * features.cooccurrence +
         0.4 * features.recency +
-        0.2 * heatDiffusion
-      );
+        0.2 * heatDiffusion;
 
       const headScores = [
         intentSim, // Head 0: semantic
@@ -811,6 +860,87 @@ export class SHGAT {
   }
 
   /**
+   * Score all tools given intent embedding
+   *
+   * Multi-head attention scoring for tools (simple graph algorithms):
+   * - Heads 0-1 (Semantic): Cosine similarity with intent embedding
+   * - Head 2 (Structure): PageRank + Louvain community + AdamicAdar
+   * - Head 3 (Temporal): Cooccurrence + Recency (from execution traces)
+   *
+   * Note: Tools use ToolGraphFeatures (simple graph algorithms),
+   * while capabilities use HypergraphFeatures (spectral clustering, heat diffusion).
+   *
+   * @param intentEmbedding - The intent embedding (1024-dim BGE-M3)
+   * @returns Array of tool scores sorted by score descending
+   */
+  scoreAllTools(
+    intentEmbedding: number[],
+  ): Array<{ toolId: string; score: number; headWeights?: number[] }> {
+    // Run forward pass to warm up cache
+    this.forward();
+
+    const results: Array<{ toolId: string; score: number; headWeights?: number[] }> = [];
+
+    for (const [toolId, tool] of this.toolNodes) {
+      // === HEAD 0-1: SEMANTIC ===
+      const intentSim = this.cosineSimilarity(intentEmbedding, tool.embedding);
+
+      // Get tool features (may be undefined for tools without features)
+      const features = tool.toolFeatures;
+
+      if (!features) {
+        // Fallback: pure semantic similarity if no features
+        results.push({
+          toolId,
+          score: Math.max(0, Math.min(intentSim, 0.95)),
+        });
+        continue;
+      }
+
+      // === HEAD 2: STRUCTURE (simple graph algos) ===
+      // - pageRank: regular PageRank from Graphology
+      // - louvainCommunity: Louvain community ID
+      // - adamicAdar: similarity with neighboring tools
+      const louvainBonus = 1 / (1 + features.louvainCommunity); // Lower community ID = more central
+      const structureScore = 0.4 * features.pageRank +
+        0.3 * louvainBonus +
+        0.3 * features.adamicAdar;
+
+      // === HEAD 3: TEMPORAL (from execution_trace table) ===
+      // - cooccurrence: how often this tool appears with other tools in traces
+      // - recency: exponential decay since last use (1.0 = just used)
+      const temporalScore = 0.4 * features.cooccurrence +
+        0.6 * features.recency; // No heatDiffusion for tools
+
+      // === MULTI-HEAD FUSION ===
+      const headScores = [
+        intentSim, // Head 0: semantic
+        intentSim, // Head 1: semantic
+        structureScore, // Head 2: structure
+        temporalScore, // Head 3: temporal
+      ];
+
+      const headWeights = this.softmax(headScores);
+
+      let baseScore = 0;
+      for (let h = 0; h < this.config.numHeads; h++) {
+        baseScore += headWeights[h] * headScores[h];
+      }
+
+      const score = this.sigmoid(baseScore);
+
+      results.push({
+        toolId,
+        score: Math.max(0, Math.min(score, 0.95)), // Clamp to [0, 0.95]
+        headWeights,
+      });
+    }
+
+    results.sort((a, b) => b.score - a.score);
+    return results;
+  }
+
+  /**
    * Compute attention for a single capability
    */
   computeAttention(
@@ -821,7 +951,7 @@ export class SHGAT {
   ): AttentionResult {
     const results = this.scoreAllCapabilities(intentEmbedding);
 
-    return results.find(r => r.capabilityId === capabilityId) || {
+    return results.find((r) => r.capabilityId === capabilityId) || {
       capabilityId,
       score: 0,
       headWeights: new Array(this.config.numHeads).fill(0),
@@ -870,7 +1000,20 @@ export class SHGAT {
   }
 
   /**
-   * Batch update hypergraph features
+   * Update hypergraph features for a tool (multi-head attention)
+   */
+  updateToolFeatures(toolId: string, features: Partial<ToolGraphFeatures>): void {
+    const node = this.toolNodes.get(toolId);
+    if (node) {
+      node.toolFeatures = {
+        ...(node.toolFeatures || DEFAULT_TOOL_GRAPH_FEATURES),
+        ...features,
+      };
+    }
+  }
+
+  /**
+   * Batch update hypergraph features for capabilities
    */
   batchUpdateFeatures(updates: Map<string, Partial<HypergraphFeatures>>): void {
     for (const [capId, features] of updates) {
@@ -882,9 +1025,32 @@ export class SHGAT {
     });
   }
 
+  /**
+   * Batch update hypergraph features for tools (multi-head attention)
+   */
+  batchUpdateToolFeatures(updates: Map<string, Partial<ToolGraphFeatures>>): void {
+    for (const [toolId, features] of updates) {
+      this.updateToolFeatures(toolId, features);
+    }
+
+    log.debug("[SHGAT] Updated tool features for multi-head attention", {
+      updatedCount: updates.size,
+    });
+  }
+
   // ==========================================================================
   // Training with Backpropagation
   // ==========================================================================
+
+  /**
+   * Train on a single example (online learning)
+   *
+   * Used for incremental learning after each execution trace.
+   * Less efficient than batch training but enables real-time learning.
+   */
+  trainOnExample(example: TrainingExample): { loss: number; accuracy: number } {
+    return this.trainBatch([example]);
+  }
 
   /**
    * Train on a batch of examples
@@ -1051,16 +1217,12 @@ export class SHGAT {
 
   private concatHeads(heads: number[][][]): number[][] {
     const numNodes = heads[0].length;
-    return Array.from({ length: numNodes }, (_, i) =>
-      heads.flatMap((head) => head[i])
-    );
+    return Array.from({ length: numNodes }, (_, i) => heads.flatMap((head) => head[i]));
   }
 
   private applyDropout(matrix: number[][]): number[][] {
     const keepProb = 1 - this.config.dropout;
-    return matrix.map((row) =>
-      row.map((x) => (Math.random() < keepProb ? x / keepProb : 0))
-    );
+    return matrix.map((row) => row.map((x) => (Math.random() < keepProb ? x / keepProb : 0)));
   }
 
   private leakyRelu(x: number): number {
@@ -1093,7 +1255,6 @@ export class SHGAT {
     return normA * normB > 0 ? dot / (normA * normB) : 0;
   }
 
-
   private binaryCrossEntropy(pred: number, label: number): number {
     const eps = 1e-7;
     const p = Math.max(eps, Math.min(1 - eps, pred));
@@ -1122,6 +1283,20 @@ export class SHGAT {
     if (params.headParams) {
       this.headParams = params.headParams as typeof this.headParams;
     }
+  }
+
+  /**
+   * Get all registered tool IDs (for feature population)
+   */
+  getRegisteredToolIds(): string[] {
+    return Array.from(this.toolNodes.keys());
+  }
+
+  /**
+   * Get all registered capability IDs
+   */
+  getRegisteredCapabilityIds(): string[] {
+    return Array.from(this.capabilityNodes.keys());
   }
 
   getStats(): {

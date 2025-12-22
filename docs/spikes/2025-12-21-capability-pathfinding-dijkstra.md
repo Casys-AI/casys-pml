@@ -493,6 +493,25 @@ Remplacer Dijkstra par des algorithmes natifs hypergraph. Architecture unifiée 
 
 **Note** : Les algos de support (Spectral Clustering, Hypergraph PageRank, Co-occurrence) ne sont plus utilisés directement pour le scoring. Ils fournissent des **features** que SHGAT apprend à pondérer.
 
+### Distinction Tools vs Capabilities - Algorithmes différents (2025-12-22)
+
+**IMPORTANT:** Les tools et capabilities utilisent des algorithmes différents dans SHGAT:
+
+| Head | Tools (graph simple) | Capabilities (hypergraph) |
+|------|---------------------|--------------------------|
+| 0-1 (Semantic) | Cosine similarity | Cosine similarity |
+| 2 (Structure) | **PageRank + Louvain + AdamicAdar** | Spectral cluster + Hypergraph PageRank |
+| 3 (Temporal) | **Cooccurrence + Recency** (traces) | Cooccurrence + Recency + HeatDiffusion |
+
+**Raison:** Les tools existent dans un **graph simple** (Graphology), tandis que les
+capabilities sont des **hyperedges** dans le superhypergraph.
+
+**Implémentation (gateway-server.ts:populateToolFeaturesForSHGAT):**
+- PageRank: `graphEngine.getPageRank(toolId)`
+- Louvain community: `graphEngine.getCommunity(toolId)`
+- AdamicAdar: `graphEngine.computeAdamicAdar(toolId, 1)[0].score`
+- Cooccurrence/Recency: Query `execution_trace` table for temporal features
+
 ### Relation avec les autres spikes
 
 - `2025-12-17-superhypergraph-hierarchical-structures.md` : Théorie DASH + SHGAT
@@ -709,3 +728,48 @@ Métriques à mesurer :
 Si le transformer montre une amélioration significative (>5% accuracy), l'intégrer dans 10.7b avec :
 - Estimation révisée : 2-3j (au lieu de 1-2j)
 - Fallback cosine pour cold start
+
+---
+
+## Implementation Update (2025-12-22)
+
+### SHGAT Live Learning
+
+SHGAT apprend maintenant **en temps réel** après chaque exécution `pml_execute` (Mode Direct):
+
+```
+pml_execute({ intent, code })
+  → Exécute code via WorkerBridge
+  → saveCapability() (stocke en DB)
+  → updateDRDSP() (met à jour le graphe hyperedges)
+  → updateSHGAT() (enregistre + entraîne)
+    → Génère embedding de l'intent
+    → Enregistre nouveaux tools via registerTool()
+    → Enregistre capability via registerCapability()
+    → trainOnExample({ intent, tools, outcome })
+```
+
+**Méthodes ajoutées à SHGAT (shgat.ts):**
+- `hasToolNode(toolId)` - vérifie si un tool est déjà enregistré
+- `hasCapabilityNode(capabilityId)` - vérifie si une capability existe
+- `trainOnExample(example)` - training online sur un seul exemple
+
+**Flow complet:**
+1. **Démarrage serveur**: SHGAT initialisé avec capabilities existantes + training sur traces (≥20)
+2. **Chaque exécution réussie**: nouvelle capability enregistrée + training immédiat
+3. **Résultat**: SHGAT s'améliore continuellement sans redémarrage
+
+### SERVER_TITLE Update
+
+Description du serveur PML mise à jour dans `src/mcp/server/constants.ts`:
+```
+"PML - Orchestrate any MCP workflow. Use pml_execute with just an 'intent'
+(natural language) to auto-discover tools and execute. Or provide explicit
+'code' for custom TypeScript workflows. Learns from successful executions."
+```
+
+### Fichiers modifiés
+
+- `src/mcp/handlers/execute-handler.ts` - `updateSHGAT()` function
+- `src/graphrag/algorithms/shgat.ts` - `hasToolNode()`, `hasCapabilityNode()`, `trainOnExample()`
+- `src/mcp/server/constants.ts` - `SERVER_TITLE`

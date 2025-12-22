@@ -410,6 +410,97 @@ async function runBenchmark() {
     console.log(`    Ties:       ${suggestionTies}`);
 
     // ========================================================================
+    // TOOL SCORING: Cosine vs SHGAT Multi-Head Attention
+    // ========================================================================
+    console.log("\n" + "═".repeat(85));
+    console.log("📊 TOOL SCORING: Cosine Baseline vs SHGAT Multi-Head Attention");
+    console.log("═".repeat(85));
+    console.log("\n  SHGAT for tools uses ToolGraphFeatures (simple graph algorithms):");
+    console.log("  - Head 2 (Structure): PageRank + Louvain + AdamicAdar");
+    console.log("  - Head 3 (Temporal): Cooccurrence + Recency\n");
+
+    // Tool test queries - map intent to expected tool
+    const toolQueries = [
+      { intent: "read a file from disk", expectedTool: "fs__read" },
+      { intent: "write content to a file", expectedTool: "fs__write" },
+      { intent: "list directory contents", expectedTool: "fs__list" },
+      { intent: "delete a file", expectedTool: "fs__delete" },
+      { intent: "copy a file", expectedTool: "fs__copy" },
+      { intent: "execute a git command", expectedTool: "git__run" },
+      { intent: "commit changes to git", expectedTool: "git__commit" },
+      { intent: "run npm install", expectedTool: "npm__install" },
+      { intent: "execute shell command", expectedTool: "shell__exec" },
+      { intent: "search for text in files", expectedTool: "search__grep" },
+    ];
+
+    // Filter to tools that exist in fixture
+    const toolIds = (fixtureData.nodes.tools as ToolNode[]).map(t => t.id);
+    const validToolQueries = toolQueries.filter(q => toolIds.includes(q.expectedTool));
+
+    if (validToolQueries.length === 0) {
+      console.log("  ⚠️ No matching tool queries found in fixture - skipping tool benchmark");
+    } else {
+      // Populate tool features in SHGAT
+      for (const tool of fixtureData.nodes.tools as ToolNode[]) {
+        shgat.updateToolFeatures(tool.id, {
+          pageRank: tool.pageRank,
+          louvainCommunity: tool.community,
+          adamicAdar: 0.1,
+          cooccurrence: 0.2,
+          recency: 0.5,
+        });
+      }
+
+      let cosineCorrect = 0;
+      let shgatToolCorrect = 0;
+
+      console.log(`  ${"Query".padEnd(35)} | ${"Expected".padEnd(15)} | Cos | SHGAT`);
+      console.log("  " + "─".repeat(70));
+
+      for (const { intent, expectedTool } of validToolQueries) {
+        const queryEmb = await embedder.encode(intent);
+
+        // Cosine baseline
+        const cosineScores: Array<{ id: string; score: number }> = [];
+        for (const [toolId, toolEmb] of toolEmbeddings) {
+          let dot = 0, normQ = 0, normT = 0;
+          for (let i = 0; i < queryEmb.length; i++) {
+            dot += queryEmb[i] * toolEmb[i];
+            normQ += queryEmb[i] * queryEmb[i];
+            normT += toolEmb[i] * toolEmb[i];
+          }
+          cosineScores.push({ id: toolId, score: dot / (Math.sqrt(normQ) * Math.sqrt(normT) + 1e-8) });
+        }
+        cosineScores.sort((a, b) => b.score - a.score);
+        const cosineTop1 = cosineScores[0]?.id === expectedTool;
+        if (cosineTop1) cosineCorrect++;
+
+        // SHGAT multi-head
+        const shgatToolResults = shgat.scoreAllTools(queryEmb);
+        const shgatTop1 = shgatToolResults[0]?.toolId === expectedTool;
+        if (shgatTop1) shgatToolCorrect++;
+
+        const cosEmoji = cosineTop1 ? "✅" : "❌";
+        const shgatEmoji = shgatTop1 ? "✅" : "❌";
+        console.log(`  ${intent.padEnd(35)} | ${expectedTool.padEnd(15)} | ${cosEmoji}  | ${shgatEmoji}`);
+      }
+
+      console.log("  " + "─".repeat(70));
+      console.log(`\n  Tool Scoring Results (${validToolQueries.length} queries):`);
+      console.log(`    Cosine Baseline:    ${cosineCorrect}/${validToolQueries.length} (${(cosineCorrect/validToolQueries.length*100).toFixed(0)}%)`);
+      console.log(`    SHGAT Multi-Head:   ${shgatToolCorrect}/${validToolQueries.length} (${(shgatToolCorrect/validToolQueries.length*100).toFixed(0)}%)`);
+
+      const toolImprovement = shgatToolCorrect - cosineCorrect;
+      if (toolImprovement > 0) {
+        console.log(`    📈 SHGAT improvement: +${toolImprovement} queries`);
+      } else if (toolImprovement < 0) {
+        console.log(`    ⚠️ Cosine wins by: ${-toolImprovement} queries`);
+      } else {
+        console.log(`    🤝 Tie`);
+      }
+    }
+
+    // ========================================================================
     // Assessment
     // ========================================================================
     console.log("\n" + "═".repeat(85));

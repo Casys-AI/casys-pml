@@ -151,7 +151,7 @@ export async function handleDiscover(
     const intent = params.intent;
     const filterType = params.filter?.type ?? "all";
     const minScore = params.filter?.minScore ?? 0.0;
-    const limit = Math.min(params.limit ?? 10, 50); // Max 50
+    const limit = Math.min(params.limit ?? 1, 50); // Default 1, Max 50
     const includeRelated = params.include_related ?? false;
 
     transaction.setData("intent", intent);

@@ -87,6 +87,35 @@ Le papier original SHGAT (Fujita) ne traite pas du contexte externe. Les benchma
 de précision ont confirmé que le contextBoost (×0.3) n'apportait **aucune amélioration**
 (0% de différence en accuracy).
 
+### Clarification: Tools vs Capabilities - Algorithmes différents (2025-12-22)
+
+**IMPORTANT:** Les tools et capabilities utilisent des algorithmes différents dans SHGAT:
+
+| Head | Tools (graph simple) | Capabilities (hypergraph) |
+|------|---------------------|--------------------------|
+| 0-1 (Semantic) | Cosine similarity | Cosine similarity |
+| 2 (Structure) | **PageRank + Louvain + AdamicAdar** | Spectral cluster + Hypergraph PageRank |
+| 3 (Temporal) | **Cooccurrence + Recency** (traces) | Cooccurrence + Recency + HeatDiffusion |
+
+**Interfaces séparées:**
+- `ToolGraphFeatures` : pour tools (`pageRank`, `louvainCommunity`, `adamicAdar`, `cooccurrence`, `recency`)
+- `HypergraphFeatures` : pour capabilities (`spectralCluster`, `hypergraphPageRank`, `heatDiffusion`, etc.)
+
+**Pour les tools (gateway-server.ts:populateToolFeaturesForSHGAT):**
+```typescript
+// ToolGraphFeatures interface
+const features: ToolGraphFeatures = {
+  // HEAD 2: Structure (simple graph algorithms)
+  pageRank: graphEngine.getPageRank(toolId),
+  louvainCommunity: parseInt(graphEngine.getCommunity(toolId) ?? "0"),
+  adamicAdar: graphEngine.computeAdamicAdar(toolId, 1)[0]?.score / 2 ?? 0,
+
+  // HEAD 3: Temporal (from execution_trace table)
+  cooccurrence: traceCount / maxTraceCount,  // Normalized frequency
+  recency: exp(-timeSinceLastUse / oneDayMs), // Exponential decay
+};
+```
+
 **SHGAT scoring (context-free):**
 ```typescript
 // Multi-head attention (4 têtes) - All heads normalized to ~0-1 range
@@ -272,6 +301,42 @@ function calculateReliabilityFactor(successRate: number): number {
 1. **Implémenter SHGAT** pour Prediction (intent + context → ranked candidates)
 2. **Implémenter DR-DSP** pour DAG Suggestion (shortest hyperpath)
 3. **Retirer le code alpha** une fois SHGAT stable
+
+## Implementation Status (2025-12-22)
+
+### SHGAT Live Learning
+
+SHGAT apprend maintenant **en temps réel** après chaque exécution `pml_execute`:
+
+```
+Mode Direct réussi
+  → saveCapability() (stocke en DB)
+  → updateDRDSP() (met à jour le graphe hyperedges)
+  → updateSHGAT() (enregistre + entraîne)
+    → Génère embedding de l'intent
+    → Enregistre nouveaux tools (si pas déjà connus)
+    → Enregistre la capability
+    → trainOnExample({ intent, tools, outcome })
+```
+
+**Méthodes ajoutées à SHGAT:**
+- `hasToolNode(toolId)` - vérifie si un tool est déjà enregistré
+- `hasCapabilityNode(capabilityId)` - vérifie si une capability existe
+- `trainOnExample(example)` - training online sur un seul exemple
+
+**Flow complet:**
+1. Au démarrage: SHGAT initialisé avec capabilities existantes + training sur traces
+2. À chaque exécution: nouvelle capability enregistrée + training immédiat
+3. Plus besoin de redémarrer pour que SHGAT apprenne
+
+### SERVER_TITLE Update
+
+Description du serveur PML mise à jour:
+```
+"PML - Orchestrate any MCP workflow. Use pml_execute with just an 'intent'
+(natural language) to auto-discover tools and execute. Or provide explicit
+'code' for custom TypeScript workflows. Learns from successful executions."
+```
 
 ## References
 

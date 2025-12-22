@@ -692,9 +692,10 @@ export class CapabilityStore {
       }
     }
 
-    // Story 7.4: Extract tools_used and tool_invocations from dag_structure JSONB
+    // Story 7.4: Extract tools_used, tool_invocations, and static_structure from dag_structure JSONB
     let toolsUsed: string[] | undefined;
     let toolInvocations: Capability["toolInvocations"];
+    let staticStructure: Capability["staticStructure"];
     if (row.dag_structure) {
       try {
         const dagStruct = typeof row.dag_structure === "string"
@@ -707,8 +708,12 @@ export class CapabilityStore {
         if (Array.isArray(dagStruct?.tool_invocations)) {
           toolInvocations = dagStruct.tool_invocations;
         }
+        // Story 10.7: Extract static_structure for DAG execution
+        if (dagStruct?.static_structure) {
+          staticStructure = dagStruct.static_structure as Capability["staticStructure"];
+        }
       } catch {
-        // Ignore parse errors, toolsUsed/toolInvocations remain undefined
+        // Ignore parse errors, toolsUsed/toolInvocations/staticStructure remain undefined
       }
     }
 
@@ -733,6 +738,8 @@ export class CapabilityStore {
       // Story 7.7a: Permission inference fields
       permissionSet: (row.permission_set as PermissionSet) || "minimal",
       permissionConfidence: (row.permission_confidence as number) ?? 0.0,
+      // Story 10.7: Static structure for DAG execution
+      staticStructure,
     };
   }
 
