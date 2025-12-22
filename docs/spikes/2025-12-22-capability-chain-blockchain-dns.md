@@ -15,7 +15,30 @@ Suite à l'élaboration de la tech spec sur le Capability Naming & Curation Syst
 
 > "Plus le nom est explicite, plus la capability est bien faite, mieux ça devrait valoir cher"
 
-Cette corrélation entre **qualité du nommage** et **valeur économique** suggère un marché naturel pour les capabilities, similaire aux noms de domaine DNS.
+Cette corrélation entre **qualité du nommage** et **valeur économique** suggère un marché naturel pour les **noms** de capabilities, similaire aux noms de domaine DNS.
+
+### Scope Clarifié : Noms Only, Pas Usage
+
+**Ce qu'on veut résoudre :**
+- Qui a le droit de publier sous `stripe.*` ?
+- Comment gérer les conflits de noms ?
+- Comment transférer/vendre un namespace ?
+
+**Ce qu'on ne veut PAS faire :**
+- Monétiser chaque appel de capability (pay-per-call)
+- S'insérer dans le billing des MCP existants
+
+Les publishers (Stripe, Vercel, etc.) gèrent déjà leur propre monétisation via API keys. PML n'a pas à s'insérer là-dedans.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  Stripe MCP  →  Stripe gère ses API keys + billing                  │
+│  Vercel MCP  →  Vercel gère ses API keys + billing                  │
+│                                                                      │
+│  PML gère quoi ?                                                     │
+│  └── Les NOMS (comme DNS gère les domaines, pas le trafic)          │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -24,51 +47,63 @@ Cette corrélation entre **qualité du nommage** et **valeur économique** sugg�
 | Web3 | Capability DNS |
 |------|----------------|
 | ENS (`vitalik.eth`) | Namespace (`stripe.cap`) |
-| NFT | Capability ownership |
-| Smart Contract | Licensing & revenue split |
-| IPFS / Arweave | Code storage (immutable) |
-| Token ($ETH, $ENS) | $CAP pour transactions |
+| Domain ownership | Namespace ownership |
+| Transfer/sell | Transfer/sell namespace |
+| Expiration + renewal | Expiration + renewal |
+| Dispute (UDRP-like) | Dispute mechanism |
+
+**Note:** Contrairement à certains modèles web3, on ne tokenize PAS l'usage. Juste l'ownership des noms.
 
 ---
 
-## Architecture Proposée
+## Architecture Proposée (Simplifiée)
 
 ### Vue d'Ensemble
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                        Capability Chain                              │
+│                     ON-CHAIN (Blockchain)                            │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                      │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐             │
-│  │  Registry   │    │  Licensing  │    │  Revenue    │             │
-│  │  Contract   │    │  Contract   │    │  Splitter   │             │
-│  │             │    │             │    │             │             │
-│  │ - register  │    │ - grant     │    │ - auto-pay  │             │
-│  │ - transfer  │    │ - revoke    │    │ - royalties │             │
-│  │ - resolve   │    │ - terms     │    │ - deps      │             │
-│  └─────────────┘    └─────────────┘    └─────────────┘             │
-│         │                  │                  │                     │
-│         └──────────────────┼──────────────────┘                     │
-│                            │                                        │
-│                    ┌───────▼───────┐                                │
-│                    │  $CAP Token   │                                │
-│                    │               │                                │
-│                    │ - Pay calls   │                                │
-│                    │ - Stake rep   │                                │
-│                    │ - Governance  │                                │
-│                    └───────────────┘                                │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │              CapabilityNameRegistry.sol                      │    │
+│  │                                                              │    │
+│  │  - register(namespace)    → Acheter un namespace            │    │
+│  │  - renew(namespace)       → Renouveler                      │    │
+│  │  - transfer(namespace)    → Transférer/vendre               │    │
+│  │  - isOwner(namespace)     → Vérifier ownership              │    │
+│  │                                                              │    │
+│  │  Données: { owner: address, expiresAt: timestamp }          │    │
+│  └─────────────────────────────────────────────────────────────┘    │
 │                                                                      │
 └─────────────────────────────────────────────────────────────────────┘
                             │
+                            │ isOwner("stripe", 0x...) ?
                             ▼
-                 ┌─────────────────────┐
-                 │   IPFS / Arweave    │
-                 │                     │
-                 │  Code blobs         │
-                 │  (immutable)        │
-                 └─────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                     OFF-CHAIN (PML Infrastructure)                   │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐             │
+│  │  Gateway    │    │  Capability │    │  Execution  │             │
+│  │  Server     │    │  Store      │    │  (Workers)  │             │
+│  │             │    │             │    │             │             │
+│  │ - Verify    │    │ - Code      │    │ - Sandbox   │             │
+│  │   ownership │    │ - Metadata  │    │ - Run       │             │
+│  │ - Route     │    │ - Stats     │    │             │             │
+│  └─────────────┘    └─────────────┘    └─────────────┘             │
+│                                                                      │
+│  Pas de blockchain ici - ta DB PostgreSQL normale                   │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
 ```
+
+### Séparation Claire
+
+| Layer | Responsabilité | Tech |
+|-------|----------------|------|
+| **On-chain** | Ownership des noms uniquement | Smart contract |
+| **Off-chain** | Code, exécution, stats, tout le reste | PML (PostgreSQL) |
 
 ### Hiérarchie des Namespaces
 
@@ -93,491 +128,294 @@ Cette corrélation entre **qualité du nommage** et **valeur économique** sugg�
 
 ---
 
-## Smart Contracts
+## Smart Contract (Un Seul, Simple)
 
-### 1. CapabilityRegistry.sol
+### CapabilityNameRegistry.sol
 
 ```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-contract CapabilityRegistry {
-
-    struct Capability {
-        string fqdn;              // "stripe.billing.api.create_invoice"
-        address owner;
-        string codeHash;          // IPFS CID (Qm...)
-        uint256 pricePerCall;     // en $CAP (wei)
-        uint8 qualityScore;       // 0-100
-        address[] dependencies;   // Pour revenue split
-        uint256 totalCalls;
-        uint256 successfulCalls;
-        uint256 stakedAmount;     // Skin in the game
-        bool verified;
-        uint256 createdAt;
-        uint256 updatedAt;
-    }
+/**
+ * @title CapabilityNameRegistry
+ * @notice Simple registry for capability namespace ownership
+ * @dev Like ENS but for capability namespaces. Does NOT handle:
+ *      - Capability code storage (off-chain)
+ *      - Usage payments (publishers handle their own billing)
+ *      - Execution (off-chain PML infrastructure)
+ */
+contract CapabilityNameRegistry {
 
     struct Namespace {
         address owner;
         uint256 registeredAt;
-        uint256 expiresAt;        // Renewal required
-        bool verified;            // KYC/verified publisher
+        uint256 expiresAt;
     }
 
-    mapping(string => Capability) public capabilities;
     mapping(string => Namespace) public namespaces;
-    mapping(string => string[]) public namespaceCapabilities;  // ns => fqdns
 
     // Events
-    event NamespaceRegistered(string ns, address owner, uint256 price);
-    event CapabilityPublished(string fqdn, address owner, string codeHash);
-    event CapabilityUpdated(string fqdn, string newCodeHash, uint256 version);
-    event CapabilityCalled(string fqdn, address caller, bool success);
+    event NamespaceRegistered(string indexed ns, address indexed owner, uint256 price);
+    event NamespaceRenewed(string indexed ns, uint256 newExpiry);
+    event NamespaceTransferred(string indexed ns, address indexed from, address indexed to);
 
-    // === Namespace Management ===
+    // === Core Functions ===
 
-    function registerNamespace(string memory ns) external payable {
-        require(namespaces[ns].owner == address(0), "Already taken");
-        require(msg.value >= namespacePrice(ns), "Insufficient payment");
+    /**
+     * @notice Register a new namespace
+     * @param ns The namespace to register (e.g., "stripe", "vercel")
+     */
+    function register(string calldata ns) external payable {
+        require(
+            namespaces[ns].owner == address(0) ||
+            namespaces[ns].expiresAt < block.timestamp,
+            "Namespace taken"
+        );
+        require(msg.value >= price(ns), "Insufficient payment");
 
         namespaces[ns] = Namespace({
             owner: msg.sender,
             registeredAt: block.timestamp,
-            expiresAt: block.timestamp + 365 days,
-            verified: false
+            expiresAt: block.timestamp + 365 days
         });
 
         emit NamespaceRegistered(ns, msg.sender, msg.value);
     }
 
-    function namespacePrice(string memory ns) public pure returns (uint256) {
-        uint256 len = bytes(ns).length;
-
-        // Plus c'est court, plus c'est cher (comme ENS)
-        if (len <= 3) return 1000 ether;    // "aws", "gcp", "ibm"
-        if (len <= 5) return 100 ether;     // "stripe", "vercel"
-        if (len <= 8) return 10 ether;      // "acme-corp"
-        return 1 ether;                      // Longer names
-    }
-
-    function renewNamespace(string memory ns) external payable {
+    /**
+     * @notice Renew namespace for another year
+     * @param ns The namespace to renew
+     */
+    function renew(string calldata ns) external payable {
         require(namespaces[ns].owner == msg.sender, "Not owner");
-        require(msg.value >= 1 ether, "Renewal fee required");
+        require(msg.value >= renewalPrice(), "Insufficient payment");
 
         namespaces[ns].expiresAt += 365 days;
+
+        emit NamespaceRenewed(ns, namespaces[ns].expiresAt);
     }
 
-    function transferNamespace(string memory ns, address newOwner) external {
+    /**
+     * @notice Transfer namespace to new owner (for sales, use escrow)
+     * @param ns The namespace to transfer
+     * @param to The new owner address
+     */
+    function transfer(string calldata ns, address to) external {
         require(namespaces[ns].owner == msg.sender, "Not owner");
-        namespaces[ns].owner = newOwner;
+        require(to != address(0), "Invalid address");
+
+        address from = namespaces[ns].owner;
+        namespaces[ns].owner = to;
+
+        emit NamespaceTransferred(ns, from, to);
     }
 
-    // === Capability Management ===
+    // === View Functions (called by PML Gateway) ===
 
-    function publish(
-        string memory fqdn,
-        string memory codeHash,
-        uint256 pricePerCall,
-        address[] memory dependencies
-    ) external payable {
-        string memory ns = extractNamespace(fqdn);
-        require(namespaces[ns].owner == msg.sender, "Not namespace owner");
-        require(namespaces[ns].expiresAt > block.timestamp, "Namespace expired");
-        require(msg.value >= 1 ether, "Minimum stake required");
-
-        capabilities[fqdn] = Capability({
-            fqdn: fqdn,
-            owner: msg.sender,
-            codeHash: codeHash,
-            pricePerCall: pricePerCall,
-            qualityScore: 50,  // Start neutral
-            dependencies: dependencies,
-            totalCalls: 0,
-            successfulCalls: 0,
-            stakedAmount: msg.value,
-            verified: false,
-            createdAt: block.timestamp,
-            updatedAt: block.timestamp
-        });
-
-        namespaceCapabilities[ns].push(fqdn);
-
-        emit CapabilityPublished(fqdn, msg.sender, codeHash);
+    /**
+     * @notice Check if address owns a namespace
+     * @param ns The namespace to check
+     * @param addr The address to verify
+     * @return True if addr owns ns and it's not expired
+     */
+    function isOwner(string calldata ns, address addr) external view returns (bool) {
+        Namespace memory n = namespaces[ns];
+        return n.owner == addr && n.expiresAt > block.timestamp;
     }
 
-    function updateCapability(
-        string memory fqdn,
-        string memory newCodeHash
-    ) external {
-        require(capabilities[fqdn].owner == msg.sender, "Not owner");
-
-        capabilities[fqdn].codeHash = newCodeHash;
-        capabilities[fqdn].updatedAt = block.timestamp;
-
-        emit CapabilityUpdated(fqdn, newCodeHash, capabilities[fqdn].updatedAt);
+    /**
+     * @notice Get namespace owner
+     * @param ns The namespace to query
+     * @return owner The owner address (0x0 if not registered)
+     * @return expiresAt Expiration timestamp
+     */
+    function getOwner(string calldata ns) external view returns (address owner, uint256 expiresAt) {
+        Namespace memory n = namespaces[ns];
+        return (n.owner, n.expiresAt);
     }
 
-    // === Resolution (DNS Lookup) ===
-
-    function resolve(string memory fqdn) external view returns (
-        address owner,
-        string memory codeHash,
-        uint256 price,
-        uint8 qualityScore,
-        bool verified
-    ) {
-        Capability memory cap = capabilities[fqdn];
-        require(cap.owner != address(0), "Capability not found");
-
-        return (
-            cap.owner,
-            cap.codeHash,
-            cap.pricePerCall,
-            cap.qualityScore,
-            cap.verified
-        );
+    /**
+     * @notice Check if namespace is available
+     * @param ns The namespace to check
+     * @return True if available for registration
+     */
+    function isAvailable(string calldata ns) external view returns (bool) {
+        Namespace memory n = namespaces[ns];
+        return n.owner == address(0) || n.expiresAt < block.timestamp;
     }
 
-    function resolveWithDeps(string memory fqdn) external view returns (
-        Capability memory cap,
-        address[] memory depOwners
-    ) {
-        cap = capabilities[fqdn];
-        depOwners = new address[](cap.dependencies.length);
+    // === Pricing ===
 
-        for (uint i = 0; i < cap.dependencies.length; i++) {
-            depOwners[i] = capabilities[string(abi.encodePacked(cap.dependencies[i]))].owner;
-        }
+    /**
+     * @notice Get registration price based on length (shorter = more expensive)
+     * @param ns The namespace to price
+     * @return Price in wei
+     */
+    function price(string calldata ns) public pure returns (uint256) {
+        uint256 len = bytes(ns).length;
 
-        return (cap, depOwners);
+        // Premium pricing for short names (like ENS)
+        if (len <= 3) return 0.1 ether;    // "aws", "gcp", "ibm"
+        if (len <= 5) return 0.05 ether;   // "stripe", "vercel"
+        if (len <= 8) return 0.02 ether;   // "acme-corp"
+        return 0.01 ether;                  // "my-random-startup"
     }
 
-    // === Helpers ===
+    /**
+     * @notice Get renewal price (flat fee)
+     * @return Price in wei
+     */
+    function renewalPrice() public pure returns (uint256) {
+        return 0.005 ether;  // ~$15/year at current ETH prices
+    }
 
-    function extractNamespace(string memory fqdn) internal pure returns (string memory) {
-        bytes memory fqdnBytes = bytes(fqdn);
-        uint256 dotIndex = 0;
+    // === Admin (optional, for upgrades) ===
 
-        for (uint i = 0; i < fqdnBytes.length; i++) {
-            if (fqdnBytes[i] == '.') {
-                dotIndex = i;
-                break;
-            }
-        }
-
-        bytes memory ns = new bytes(dotIndex);
-        for (uint i = 0; i < dotIndex; i++) {
-            ns[i] = fqdnBytes[i];
-        }
-
-        return string(ns);
+    /**
+     * @notice Withdraw collected fees
+     * @dev Could be DAO-controlled in the future
+     */
+    function withdraw(address to) external {
+        // TODO: Add access control (owner, multisig, or DAO)
+        payable(to).transfer(address(this).balance);
     }
 }
 ```
 
-### 2. RevenueSplitter.sol
+### C'est Tout !
 
-```solidity
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
-
-import "./CapabilityRegistry.sol";
-
-contract RevenueSplitter {
-    CapabilityRegistry public registry;
-    address public platformTreasury;
-
-    // Revenue split percentages (basis points, 10000 = 100%)
-    uint256 public constant OWNER_SHARE = 7000;      // 70%
-    uint256 public constant PLATFORM_SHARE = 2500;   // 25%
-    uint256 public constant DEPS_SHARE = 500;        // 5%
-
-    event CallPaid(
-        string fqdn,
-        address caller,
-        uint256 amount,
-        uint256 ownerPaid,
-        uint256 platformPaid,
-        uint256 depsPaid
-    );
-
-    constructor(address _registry, address _treasury) {
-        registry = CapabilityRegistry(_registry);
-        platformTreasury = _treasury;
-    }
-
-    function payForCall(
-        string memory fqdn,
-        bool success
-    ) external payable {
-        (
-            address owner,
-            ,
-            uint256 price,
-            ,
-        ) = registry.resolve(fqdn);
-
-        require(msg.value >= price, "Insufficient payment");
-
-        // Calculate shares
-        uint256 ownerAmount = (msg.value * OWNER_SHARE) / 10000;
-        uint256 platformAmount = (msg.value * PLATFORM_SHARE) / 10000;
-        uint256 depsAmount = msg.value - ownerAmount - platformAmount;
-
-        // Pay owner
-        payable(owner).transfer(ownerAmount);
-
-        // Pay platform
-        payable(platformTreasury).transfer(platformAmount);
-
-        // Pay dependencies (if any)
-        // TODO: Implement dependency payment distribution
-
-        // Update stats in registry
-        registry.recordCall(fqdn, success);
-
-        emit CallPaid(fqdn, msg.sender, msg.value, ownerAmount, platformAmount, depsAmount);
-    }
-}
-```
-
-### 3. QualityOracle.sol
-
-```solidity
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
-
-contract QualityOracle {
-    CapabilityRegistry public registry;
-
-    // Quality factors weights (basis points)
-    uint256 public constant NAME_WEIGHT = 2500;      // 25%
-    uint256 public constant USAGE_WEIGHT = 2500;     // 25%
-    uint256 public constant SUCCESS_WEIGHT = 2500;   // 25%
-    uint256 public constant STAKE_WEIGHT = 2500;     // 25%
-
-    function calculateQualityScore(string memory fqdn) external view returns (uint8) {
-        (
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            uint256 totalCalls,
-            uint256 successfulCalls,
-            uint256 stakedAmount,
-            ,
-            ,
-        ) = registry.capabilities(fqdn);
-
-        uint256 score = 0;
-
-        // Name explicitness (simplified - would need oracle for full analysis)
-        uint256 nameScore = calculateNameScore(fqdn);
-        score += (nameScore * NAME_WEIGHT) / 10000;
-
-        // Usage score (log scale)
-        uint256 usageScore = totalCalls > 0 ? min(log2(totalCalls) * 10, 100) : 0;
-        score += (usageScore * USAGE_WEIGHT) / 10000;
-
-        // Success rate
-        uint256 successScore = totalCalls > 0
-            ? (successfulCalls * 100) / totalCalls
-            : 50;
-        score += (successScore * SUCCESS_WEIGHT) / 10000;
-
-        // Stake score (more stake = more skin in game)
-        uint256 stakeScore = min(stakedAmount / 1 ether * 10, 100);
-        score += (stakeScore * STAKE_WEIGHT) / 10000;
-
-        return uint8(min(score, 100));
-    }
-
-    function calculateNameScore(string memory fqdn) internal pure returns (uint256) {
-        bytes memory fqdnBytes = bytes(fqdn);
-        uint256 dots = 0;
-        uint256 underscores = 0;
-
-        for (uint i = 0; i < fqdnBytes.length; i++) {
-            if (fqdnBytes[i] == '.') dots++;
-            if (fqdnBytes[i] == '_') underscores++;
-        }
-
-        // More structure = better name
-        // stripe.billing.api.create_invoice_with_tax = excellent
-        // util.x = poor
-
-        uint256 score = 0;
-        score += min(dots * 20, 40);           // Max 40 for hierarchy depth
-        score += min(underscores * 10, 30);    // Max 30 for action clarity
-        score += min(fqdnBytes.length, 30);    // Max 30 for descriptiveness
-
-        return min(score, 100);
-    }
-
-    function min(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a < b ? a : b;
-    }
-
-    function log2(uint256 x) internal pure returns (uint256) {
-        uint256 result = 0;
-        while (x > 1) {
-            x >>= 1;
-            result++;
-        }
-        return result;
-    }
-}
-```
+Pas besoin de :
+- ~~RevenueSplitter.sol~~ → Les publishers gèrent leur billing
+- ~~QualityOracle.sol~~ → PML calcule ça off-chain
+- ~~$CAP Token~~ → On utilise ETH directement
 
 ---
 
-## Token Economics ($CAP)
+## Économie Simplifiée
 
-### Utility
+### Pas de Token Custom
+
+On utilise ETH (ou le native token du L2 choisi) directement. Pas besoin de créer un token.
+
+### Ce qui est Payant
+
+| Action | Prix | Fréquence |
+|--------|------|-----------|
+| Enregistrer namespace 3 chars | 0.1 ETH | Une fois |
+| Enregistrer namespace 4-5 chars | 0.05 ETH | Une fois |
+| Enregistrer namespace 6-8 chars | 0.02 ETH | Une fois |
+| Enregistrer namespace 9+ chars | 0.01 ETH | Une fois |
+| Renouvellement annuel | 0.005 ETH | /an |
+| Transfer (gas only) | ~$0.10 | Par transfer |
+
+### Ce qui est Gratuit
+
+| Action | Pourquoi gratuit |
+|--------|------------------|
+| Publier capability sous son namespace | Pas de friction |
+| Utiliser une capability | Publishers gèrent leur billing |
+| Discovery / resolution | Service de base |
+| Vérifier ownership (isOwner) | View function = free |
+
+### Revenue Model pour PML
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        $CAP Token Utility                            │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  1. PAYMENT                                                          │
-│     └── Payer les appels de capabilities                            │
-│     └── Micro-transactions natives (pas de fees Stripe)             │
-│                                                                      │
-│  2. STAKING                                                          │
-│     └── Stake requis pour publier (minimum 1 $CAP)                  │
-│     └── Plus de stake = plus de trust visible                       │
-│     └── Slashable si capability malveillante/buggy                  │
-│                                                                      │
-│  3. GOVERNANCE                                                       │
-│     └── Vote sur quality score algorithm                            │
-│     └── Vote sur platform fees (25% adjustable?)                    │
-│     └── Dispute resolution pour noms contestés                      │
-│                                                                      │
-│  4. REPUTATION                                                       │
-│     └── Stake history = track record                                │
-│     └── Never-slashed bonus sur quality score                       │
-│                                                                      │
-└─────────────────────────────────────────────────────────────────────┘
+Fees collectés par le smart contract
+          │
+          ▼
+    PML Treasury
+          │
+          ├── Couvrir infra (servers, etc.)
+          ├── Développement
+          └── Future: DAO governance
 ```
-
-### Distribution Initiale (Exemple)
-
-| Allocation | % | Vesting |
-|------------|---|---------|
-| Team & Advisors | 20% | 4 ans linear |
-| Early Publishers | 15% | Airdrop aux premiers |
-| Community Treasury | 30% | DAO controlled |
-| Public Sale | 25% | Immediate |
-| Ecosystem Fund | 10% | Grants, partnerships |
-
-### Pricing Examples
-
-| Capability | Quality | Tier | Prix/call |
-|------------|---------|------|-----------|
-| `stripe.billing.api.create_invoice_with_tax` | 95 | Premium | 0.003 $CAP |
-| `vercel.deploy.api.preview_with_env` | 88 | Premium | 0.002 $CAP |
-| `community.fs.read_json` | 45 | Free | 0 $CAP |
-| `acme.util.misc.do_thing` | 23 | Free | 0 $CAP |
 
 ---
 
 ## Flow d'Utilisation
 
-### 1. Publisher Flow
+### 1. Publisher Flow (Stripe veut publier)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│  1. Stripe veut publier des capabilities                             │
+│  ON-CHAIN (une seule fois)                                           │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                      │
-│  a) Acheter namespace "stripe"                                       │
-│     └── namespacePrice("stripe") = 100 $CAP (5 chars)               │
-│     └── Transaction on-chain                                         │
-│     └── stripe.cap owned by 0xStripe...                             │
+│  1. Stripe achète namespace "stripe"                                 │
+│     └── register("stripe") + 0.05 ETH                               │
+│     └── Transaction confirmée                                        │
+│     └── "stripe" owned by 0xStripe...                               │
 │                                                                      │
-│  b) Publier capability                                               │
-│     └── Upload code to IPFS → CID: QmXyz...                         │
-│     └── publish("stripe.billing.api.create_invoice", QmXyz, 0.003)  │
-│     └── Stake: 10 $CAP (slashable)                                  │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  OFF-CHAIN (illimité, gratuit)                                       │
+├─────────────────────────────────────────────────────────────────────┤
 │                                                                      │
-│  c) Recevoir revenus                                                 │
-│     └── Chaque appel: 70% de 0.003 $CAP = 0.0021 $CAP               │
-│     └── Auto-paid par smart contract                                │
+│  2. Stripe publie capabilities via PML API                           │
+│     └── PML Gateway appelle isOwner("stripe", 0xStripe...) ✓        │
+│     └── Autorisé à publier stripe.billing.api.*                     │
+│     └── Code stocké dans PML (pas blockchain)                       │
+│                                                                      │
+│  3. Stripe gère son propre billing                                   │
+│     └── API keys pour ses clients                                   │
+│     └── Stripe Billing pour facturer                                │
+│     └── PML n'intervient pas                                        │
 │                                                                      │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-### 2. Consumer Flow
+### 2. Consumer Flow (Agent utilise capability)
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│  2. Agent veut utiliser une capability                               │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  a) Discovery                                                        │
-│     └── Browse registry ou search by tags                           │
-│     └── Check quality score, usage stats, verified status           │
-│                                                                      │
-│  b) Resolution                                                       │
-│     └── Gateway.resolve("stripe.billing.api.create_invoice")        │
-│     └── Returns: owner, codeHash (IPFS CID), price, quality         │
-│                                                                      │
-│  c) Fetch & Execute                                                  │
-│     └── Fetch code from IPFS                                        │
-│     └── Execute in local sandbox                                    │
-│     └── Report success/failure                                      │
-│                                                                      │
-│  d) Payment                                                          │
-│     └── RevenueSplitter.payForCall(fqdn, success)                   │
-│     └── 0.003 $CAP débité                                           │
-│     └── Auto-split: 70% owner, 25% platform, 5% deps                │
-│                                                                      │
-└─────────────────────────────────────────────────────────────────────┘
+1. Agent découvre "stripe.billing.api.create_invoice"
+   └── Via pml_discover ou tools/list
+   └── Metadata: owner verified, quality score, etc.
+
+2. Agent appelle
+   └── mcp.call("cap:stripe.billing.api.create_invoice", args)
+   └── PML Gateway route vers Stripe MCP
+   └── Stripe MCP vérifie API key (son billing à lui)
+   └── Exécution + résultat
+
+3. Pas de paiement PML
+   └── PML a déjà été payé via le namespace registration
+   └── L'usage est gratuit côté PML
 ```
 
-### 3. Governance Flow
+### 3. Dispute Flow (Trademark claim)
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│  3. Dispute sur un nom                                               │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  Scenario: Quelqu'un a squatté "google" namespace                   │
-│                                                                      │
-│  a) Google (real) dépose dispute                                     │
-│     └── Stake 100 $CAP pour ouvrir dispute                          │
-│     └── Provide proof (trademark, domain ownership)                 │
-│                                                                      │
-│  b) DAO vote                                                         │
-│     └── Token holders votent                                        │
-│     └── Quorum: 10% of circulating supply                           │
-│     └── Duration: 7 days                                            │
-│                                                                      │
-│  c) Resolution                                                       │
-│     └── If Google wins: namespace transferred, squatter loses stake │
-│     └── If squatter wins: keeps namespace, Google loses dispute fee │
-│                                                                      │
-└─────────────────────────────────────────────────────────────────────┘
+Scenario: Quelqu'un a squatté "google" namespace
+
+Option A: Off-chain (simple)
+└── Google contacte PML support
+└── Proof of trademark
+└── PML force transfer via admin function
+└── Squatter perd namespace (pas de refund)
+
+Option B: On-chain DAO (future)
+└── Dispute contract avec voting
+└── Token holders votent
+└── Plus complexe, pour plus tard
 ```
+
+Pour le MVP, Option A suffit. La plupart des registrars DNS fonctionnent comme ça (UDRP process).
 
 ---
 
 ## Avantages vs Centralisé
 
-| Aspect | Centralisé (PML Cloud) | Blockchain (Capability Chain) |
-|--------|------------------------|-------------------------------|
+| Aspect | Centralisé (DB only) | Blockchain (Namespace Registry) |
+|--------|----------------------|--------------------------------|
 | **Propriété** | "Trust us" | Cryptographique, vérifiable |
-| **Paiements** | Stripe fees (~3%) | Micro-payments natifs (<0.1%) |
-| **Revenue split** | Manual, monthly | Automatique, instant |
+| **Transferts** | Manual process | Self-service, instant |
+| **Ventes** | Escrow complexe | Smart contract escrow natif |
 | **Historique** | DB modifiable | Immuable, auditable |
-| **Censorship** | Possible (ToS) | Résistant |
-| **Disputes** | Support ticket | DAO governance |
-| **Downtime** | Single point of failure | Décentralisé |
-| **Lock-in** | Data portability? | Open, forkable |
+| **Confiance** | Réputation PML | Trustless (code = law) |
+| **Disputes** | PML décide seul | Transparent, auditable |
+| **Portabilité** | Lock-in possible | Données on-chain = ouvertes |
 
 ---
 
@@ -585,12 +423,12 @@ contract QualityOracle {
 
 | Risque | Impact | Mitigation |
 |--------|--------|------------|
-| Gas fees élevés | UX dégradée | L2 (Arbitrum, Optimism, Base) |
-| Volatilité $CAP | Prix imprévisibles | Stablecoin option (USDC) |
-| Smart contract bugs | Perte de funds | Audits, bug bounty, upgradeable |
-| Low adoption | Network effect faible | Incentives early publishers |
-| Regulatory | Securities law | Utility token design, legal review |
-| Squatting | Namesquatting massif | Dispute mechanism, trademark priority |
+| Gas fees élevés | UX dégradée pour registration | L2 (Base, Arbitrum) - fees < $0.10 |
+| Volatilité ETH | Prix namespace imprévisible | Prix en USD, ajusté dynamiquement |
+| Smart contract bugs | Perte de namespaces | Audit, bug bounty, proxy upgradeable |
+| Squatting massif | Noms premium pris | Trademark priority period + disputes |
+| Low adoption | Overhead vs centralisé | Commencer hybride (optionnel) |
+| Complexité UX | Wallet requis | Custodial option pour onboarding |
 
 ---
 
@@ -608,69 +446,92 @@ contract QualityOracle {
 
 ---
 
-## MVP Scope
+## MVP Scope (Simplifié)
 
-### Phase 1: Core Registry (4-6 semaines)
+### Phase 1: Smart Contract (2 semaines)
 
-- [ ] CapabilityRegistry.sol (namespace + capability management)
-- [ ] Basic resolution (resolve by FQDN)
-- [ ] IPFS integration pour code storage
-- [ ] Simple frontend pour register/publish/browse
+- [ ] `CapabilityNameRegistry.sol` (register, renew, transfer, isOwner)
+- [ ] Deploy sur testnet (Base Sepolia ou Arbitrum Sepolia)
+- [ ] Tests unitaires (Foundry ou Hardhat)
+- [ ] Audit léger / review
 
-### Phase 2: Payments (2-3 semaines)
+### Phase 2: PML Integration (2 semaines)
 
-- [ ] RevenueSplitter.sol
-- [ ] $CAP token (ERC-20)
-- [ ] Pay-per-call flow
-- [ ] Publisher dashboard (earnings)
+- [ ] Ethers.js client dans PML Gateway
+- [ ] `isOwner()` check avant publication
+- [ ] Cache ownership (TTL 5 min, pas query à chaque call)
+- [ ] Wallet linking (user PML → wallet address)
 
-### Phase 3: Quality & Trust (3-4 semaines)
+### Phase 3: Frontend (2 semaines)
 
-- [ ] QualityOracle.sol
-- [ ] Success/failure reporting
-- [ ] Staking mechanism
-- [ ] Verified publisher badges
+- [ ] Page "Register Namespace" (connect wallet, pay, register)
+- [ ] Page "My Namespaces" (list, renew, transfer)
+- [ ] Integration dans dashboard PML existant
 
-### Phase 4: Governance (4-6 semaines)
+### Phase 4: Production (1 semaine)
 
-- [ ] Dispute mechanism
-- [ ] DAO voting
-- [ ] Parameter governance (fees, etc.)
+- [ ] Deploy mainnet (Base ou Arbitrum)
+- [ ] Monitoring (events, balances)
+- [ ] Documentation
+
+**Total MVP: ~7 semaines**
 
 ---
 
 ## Questions Ouvertes
 
-1. **Code execution**: Local sandbox (download + execute) ou remote FaaS ?
-   - Local: Plus rapide, privacy, mais trust issues
-   - Remote: Controlled, metered, mais latence + centralisation
+1. **Quelle L2 ?**
+   - Base (Coinbase ecosystem, growing fast)
+   - Arbitrum (plus mature, plus de TVL)
+   - Les deux ? (multi-chain à terme)
 
-2. **Versioning on-chain**: Stocker toutes les versions ou juste latest ?
-   - All versions: Immutabilité totale, mais storage cost
-   - Latest only: Cheaper, mais perd historique
+2. **Subdomain support ?**
+   - `stripe` owns → peut créer `billing.stripe`, `payments.stripe` ?
+   - Ou flat namespace only ?
 
-3. **L1 vs L2**: High-value namespaces sur L1, rest sur L2 ?
+3. **Grace period expiration ?**
+   - Namespace expire → immédiatement available ?
+   - Ou 30 jours grace period pour renewal ?
 
-4. **Hybrid model**: Registry on-chain, code execution off-chain (comme ENS + websites) ?
+4. **Custodial onboarding ?**
+   - Permettre registration sans wallet (PML custody) ?
+   - Claim later avec son propre wallet ?
 
-5. **Interop**: Bridge avec autres chains ? Multi-chain deployment ?
+5. **Trademark priority period ?**
+   - Période initiale où seuls les trademark holders peuvent register ?
+   - Comme les sunrise periods des TLDs
 
 ---
 
 ## Next Steps
 
-1. **Validate demand**: Survey potential publishers (Stripe, Vercel, etc.)
-2. **Legal review**: Token classification, securities law
-3. **Technical POC**: Deploy contracts on testnet
-4. **Tokenomics modeling**: Simulation of supply/demand dynamics
-5. **Community building**: Discord, early adopter program
+1. **Décider la L2** - Base vs Arbitrum (ou les deux)
+2. **POC smart contract** - Deploy sur testnet, tester les flows
+3. **Design UX** - Mockups registration flow avec wallet connect
+4. **Estimer gas costs** - Vérifier que les fees sont acceptables
+5. **Legal check** - Pas de token custom = moins de risque, mais vérifier quand même
 
 ---
 
 ## Références
 
-- [ENS (Ethereum Name Service)](https://ens.domains/)
-- [Arweave](https://www.arweave.org/) - Permanent storage
-- [The Graph](https://thegraph.com/) - Indexing protocol
-- [Uniswap Governance](https://gov.uniswap.org/) - DAO model
+- [ENS (Ethereum Name Service)](https://ens.domains/) - Le modèle à suivre
+- [Base](https://base.org/) - L2 Coinbase, low fees
+- [Arbitrum](https://arbitrum.io/) - L2 mature
+- [OpenZeppelin Contracts](https://www.openzeppelin.com/contracts) - Pour les patterns secure
 - tech-spec-capability-naming-curation.md (this repo)
+
+---
+
+## Conclusion
+
+Ce spike propose une approche **minimaliste** de blockchain pour les capabilities :
+
+- **On-chain** : Juste l'ownership des namespaces (comme ENS)
+- **Off-chain** : Tout le reste (code, exécution, billing)
+
+Pas de token custom, pas de pay-per-call, pas de revenue splitting automatique.
+
+Les publishers gèrent leur propre monétisation. PML gère les noms.
+
+C'est simple, c'est clean, c'est faisable en ~7 semaines.
