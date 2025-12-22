@@ -1,8 +1,17 @@
 /**
  * Local Alpha Calculator Benchmarks
  *
- * Benchmarks for Local Adaptive Alpha (ADR-048).
- * Tests different algorithms: Embeddings Hybrides, Heat Diffusion, Bayesian.
+ * @deprecated OBSOLETE - ADR-050 supersedes ADR-048
+ *
+ * These benchmarks test Local Adaptive Alpha (ADR-048) which has been replaced
+ * by SHGAT learned attention. The alpha formulas (Embeddings Hybrides, Heat
+ * Diffusion, Bayesian) are no longer used in production.
+ *
+ * See:
+ * - ADR-050: Unified Search Simplification (supersedes ADR-048)
+ * - shgat-drdsp-prediction.bench.ts for current prediction benchmarks
+ *
+ * Status: OBSOLETE - kept for historical reference only
  *
  * Run: deno bench --allow-all tests/benchmarks/tactical/local-alpha.bench.ts
  *

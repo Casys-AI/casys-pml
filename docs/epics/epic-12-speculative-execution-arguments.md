@@ -13,6 +13,17 @@ inputDocuments:
 
 This document provides the complete epic and story breakdown for Epic 12: Speculative Execution with Arguments, decomposing the requirements from the spike document into implementable stories.
 
+### Clarification Terminologique (2025-12-22)
+
+| Concept | Fonction | Quand | Algo | Ce que c'est |
+|---------|----------|-------|------|--------------|
+| **Speculation** | `speculateNextLayer()` | Intra-workflow | Aucun (DAG connu) | Pré-exécuter les tasks connues du DAG |
+| **Prediction** | `predictNextNode()` | Post-workflow | SHGAT + DR-DSP | Prédire la prochaine action de l'utilisateur |
+
+**Distinction clé:**
+- **Intra-workflow**: Le DAG est déjà défini (`static_structure`). On ne "prédit" rien, on pré-exécute les tasks connues pour gagner du temps.
+- **Post-workflow**: L'utilisateur a terminé un workflow. Que va-t-il faire ensuite? ICI on a besoin de vraie prédiction (SHGAT + DR-DSP).
+
 ## Requirements Inventory
 
 ### Functional Requirements
@@ -298,33 +309,39 @@ Permettre au système de pré-exécuter les prochains tools/capabilities avec le
 **When** generating execution code
 **Then** returns actual tool/capability invocation (not preparation metadata)
 
-**--- Trigger: Intra-Workflow (task complete) ---**
+**--- Trigger: Intra-Workflow (speculation sur DAG connu) ---**
 
 **Given** a task completes within a workflow
 **When** `onTaskComplete(task, result)` fires
-**Then** `predictNextNodes()` is called
-**And** safe predictions (tools + capabilities) are executed speculatively
+**Then** `speculateNextLayer()` is called (PAS de prédiction - DAG connu)
+**And** next layer tasks from `static_structure` are pre-executed if safe
 
-**--- Trigger: Post-Workflow (workflow complete) ---**
+**Note:** Intra-workflow = pré-exécution du DAG connu, pas de SHGAT/DR-DSP.
+
+**--- Trigger: Post-Workflow (vraie prédiction) ---**
 
 **Given** a workflow completes successfully
 **When** `onWorkflowComplete(workflowResult)` fires
-**Then** `predictNext()` is called for likely next tools/capabilities
-**And** safe predictions are executed speculatively with full workflow context
+**Then** `predictNextNode()` is called (SHGAT + DR-DSP - Story 10.7a/b)
+**And** predicted capabilities are speculatively executed with workflow context
+**And** results cached for instant response si l'utilisateur demande
 
-**--- Unified Mechanism ---**
+**Note:** Post-workflow = vraie prédiction. Utilise les algos de 10.7a/b.
 
-**Given** speculation is triggered (intra or post workflow)
+**--- Deux mécanismes distincts ---**
+
+| Trigger | Fonction | Input | Algo |
+|---------|----------|-------|------|
+| Task complete | `speculateNextLayer()` | DAG + context | Aucun (DAG connu) |
+| Workflow complete | `predictNextNode()` | Workflow result | SHGAT + DR-DSP |
+
+**Given** speculation/prediction returns candidates
 **When** executing speculatively
-**Then** same core logic handles both cases:
+**Then** same execution logic handles both:
   - Resolve arguments from context
   - Check `canSpeculate()`
-  - Execute via `toolExecutor`
+  - Execute via `WorkerBridge`
   - Cache result
-
-**Given** prediction includes both tools and capabilities
-**When** executing speculatively
-**Then** both types are handled (tools via MCP, capabilities via sandbox)
 
 **Files to modify:**
 - `src/speculation/speculative-executor.ts` - Replace placeholder, inject **WorkerBridge** (not mcpClients) (~100 LOC)
@@ -414,12 +431,15 @@ Permettre au système de pré-exécuter les prochains tools/capabilities avec le
 
 **FRs covered:** FR8
 
+**Note terminologique:** Cette story utilise `speculateNextLayer()` (pas `predictNextNode()`)
+car le DAG est connu - on pré-exécute, on ne prédit pas.
+
 **Acceptance Criteria:**
 
 **Given** workflow running with `per_layer_validation: true`
 **When** a layer completes and checkpoint pause begins
-**Then** `predictNextNodes()` is called for the next layer
-**And** safe nodes are executed speculatively during the pause
+**Then** `speculateNextLayer()` is called (DAG connu, pas de prédiction)
+**And** safe nodes from next layer are pre-executed during the pause
 
 **Given** checkpoint pause with next layer containing safe tools only
 **When** speculation runs

@@ -1,22 +1,23 @@
 # ADR-040: Multi-tenant MCP & Secrets Management
 
-**Status:** Accepted
-**Date:** 2025-12-09
-**Authors:** Erwan, Claude
-**Epic:** 9 (GitHub Authentication & Multi-Tenancy)
+**Status:** Accepted **Date:** 2025-12-09 **Authors:** Erwan, Claude **Epic:** 9 (GitHub
+Authentication & Multi-Tenancy)
 
 ## Context
 
 Casys PML supports two deployment modes:
+
 - **Self-hosted (Local):** Single-user, offline, no authentication
 - **Cloud (SaaS):** Multi-tenant, GitHub OAuth, API keys
 
 In cloud mode, users need to:
+
 1. Access MCP servers (filesystem, github, tavily, etc.)
 2. Configure their own API keys for third-party services (BYOK)
 3. Have their execution data isolated while sharing tool discovery
 
 Key questions addressed:
+
 - How do users configure MCPs in cloud mode?
 - Where are user API keys stored?
 - What is shared vs isolated between users?
@@ -36,7 +37,7 @@ Key questions addressed:
 │      "mcp-gateway": {                                           │
 │        "type": "http",                                          │
 │        "url": "https://pml.casys.ai/mcp",              │
-│        "headers": { "x-api-key": "${CAI_API_KEY}" }             │
+│        "headers": { "x-api-key": "${PML_API_KEY}" }             │
 │      }                                                          │
 │    }                                                            │
 │  }                                                              │
@@ -44,6 +45,7 @@ Key questions addressed:
 ```
 
 **Rationale:**
+
 - Users cannot add custom MCP servers via their local config file
 - All MCP management happens through the PML Dashboard
 - PML controls the catalog of available MCPs (security, quality)
@@ -51,11 +53,11 @@ Key questions addressed:
 
 ### 2. MCP Categories
 
-| Category | Examples | API Key Source |
-|----------|----------|----------------|
-| **Managed** | filesystem, memory, fetch | None (PML provides) |
-| **OAuth** | github | User's GitHub login token |
-| **BYOK** | tavily, brave, openai, airtable | User provides their key |
+| Category    | Examples                        | API Key Source            |
+| ----------- | ------------------------------- | ------------------------- |
+| **Managed** | filesystem, memory, fetch       | None (PML provides)       |
+| **OAuth**   | github                          | User's GitHub login token |
+| **BYOK**    | tavily, brave, openai, airtable | User provides their key   |
 
 ### 3. BYOK (Bring Your Own Key)
 
@@ -87,19 +89,23 @@ const iv = crypto.getRandomValues(new Uint8Array(12)); // Unique per secret
 const encrypted = await crypto.subtle.encrypt(
   { name: "AES-GCM", iv },
   masterKey,
-  new TextEncoder().encode(plaintext)
+  new TextEncoder().encode(plaintext),
 );
 
 // Storage
 user_secrets: {
-  id, user_id, secret_name,
-  ciphertext,  // AES-256-GCM encrypted
-  iv,          // Unique initialization vector
-  created_at, updated_at
+  id,
+    user_id,
+    secret_name,
+    ciphertext, // AES-256-GCM encrypted
+    iv, // Unique initialization vector
+    created_at,
+    updated_at;
 }
 ```
 
 **Security rules:**
+
 - `SECRETS_MASTER_KEY` stored in Deno Deploy secrets (never in code)
 - Unique IV per secret (via `crypto.getRandomValues`)
 - Decrypt only at MCP call time, discard immediately after
@@ -137,6 +143,7 @@ user_secrets: {
 ```
 
 **Rationale:**
+
 - Tool schemas are not sensitive - sharing enriches the graph for everyone
 - User A adding Airtable MCP → tools visible to all users
 - User B can see Airtable tools but cannot execute (no key configured)
@@ -149,9 +156,9 @@ user_secrets: {
 export const userMcpConfigs = sqliteTable("user_mcp_configs", {
   id: text("id").primaryKey(),
   userId: text("user_id").references(() => users.id).notNull(),
-  mcpName: text("mcp_name").notNull(),        // "tavily", "github", etc.
+  mcpName: text("mcp_name").notNull(), // "tavily", "github", etc.
   enabled: integer("enabled").default(1),
-  configJson: text("config_json"),             // MCP-specific options
+  configJson: text("config_json"), // MCP-specific options
   createdAt: integer("created_at"),
   updatedAt: integer("updated_at"),
 });
@@ -160,9 +167,9 @@ export const userMcpConfigs = sqliteTable("user_mcp_configs", {
 export const userSecrets = sqliteTable("user_secrets", {
   id: text("id").primaryKey(),
   userId: text("user_id").references(() => users.id).notNull(),
-  secretName: text("secret_name").notNull(),   // "TAVILY_API_KEY"
-  ciphertext: text("ciphertext").notNull(),    // AES-256-GCM encrypted
-  iv: text("iv").notNull(),                    // Initialization vector
+  secretName: text("secret_name").notNull(), // "TAVILY_API_KEY"
+  ciphertext: text("ciphertext").notNull(), // AES-256-GCM encrypted
+  iv: text("iv").notNull(), // Initialization vector
   createdAt: integer("created_at"),
   updatedAt: integer("updated_at"),
 });
@@ -218,6 +225,7 @@ github.com/casys-ai/cai/     # Public - MIT/Apache 2.0
 ```
 
 **Rationale:**
+
 - Simplicity for MVP - single codebase
 - Landing page in open source is acceptable (brand value is in the service)
 - True differentiation: managed infra, global GraphRAG, support
@@ -227,11 +235,13 @@ github.com/casys-ai/cai/     # Public - MIT/Apache 2.0
 
 ### Smithery Integration
 
-**Rejected.** Smithery does not provide a single API key for all MCPs. Each MCP has its own URL and OAuth flow. Integration would add complexity without simplifying user experience.
+**Rejected.** Smithery does not provide a single API key for all MCPs. Each MCP has its own URL and
+OAuth flow. Integration would add complexity without simplifying user experience.
 
 ### Custom MCPs (User-defined servers)
 
 **Deferred.** For MVP, users choose from PML catalog only. Custom MCPs require:
+
 - Security review process
 - Sandboxed execution
 - Support complexity
@@ -240,7 +250,9 @@ Can be added in future iteration.
 
 ### Envelope Encryption (KMS)
 
-**Deferred to production.** MVP uses AES-256-GCM with master key in environment. Production should use AWS KMS or GCP Cloud KMS for:
+**Deferred to production.** MVP uses AES-256-GCM with master key in environment. Production should
+use AWS KMS or GCP Cloud KMS for:
+
 - Master key never exposed
 - Automatic key rotation
 - Audit logs
@@ -248,17 +260,20 @@ Can be added in future iteration.
 ## Consequences
 
 ### Positive
+
 - Simple user experience: Dashboard-only MCP config
 - Security: Keys encrypted at rest, decrypted only at call time
 - Network effect: More users = more tools in global graph
 - Flexibility: BYOK allows users to use their own quotas
 
 ### Negative
+
 - No custom MCPs in MVP (users limited to PML catalog)
 - Master key is single point of failure (mitigated by KMS in prod)
 - Users must trust PML with encrypted keys
 
 ### Risks
+
 - Master key compromise → all secrets exposed
   - Mitigation: KMS in production, key rotation, monitoring
 - MCP catalog doesn't have tool user needs

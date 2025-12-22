@@ -550,3 +550,162 @@ Remplacer Dijkstra par des algorithmes natifs hypergraph. Architecture unifiée 
   - `speculateNextLayer()` = **intra-workflow** (pendant un workflow, pré-exécute le DAG connu)
   - Intra-workflow n'a pas besoin de prédiction car le DAG est déjà défini (static_structure)
   - Seul post-workflow utilise SHGAT + DR-DSP pour vraie prédiction
+- 2025-12-22: **SHGAT en mode Suggestion (backward) - Story 10.7** :
+  - Mode Suggestion = `pml_execute(intent)` sans code → construire un DAG
+  - Flow: `unifiedSearch(intent)` → TARGET node → DR-DSP backward → dépendances → DAG
+  - SHGAT peut scorer les chemins **SANS context** (`contextTools=[]`)
+  - Features utilisées: semantic (intent×cap), graph (PageRank, spectralCluster, cooccurrence, reliability)
+  - Le context n'est qu'un boost optionnel (×0.3), pas requis
+  - Après training sur `episodic_events`, SHGAT apprend aussi les patterns de suggestion
+  - **Conclusion**: SHGAT utile en forward (predict) ET backward (suggest)
+  - Voir ADR-050 section "Clarification: SHGAT avec et sans context"
+
+---
+
+## Proposition : Transformer Attention pour Semantic Heads (2025-12-22)
+
+### Contexte
+
+Actuellement, les semantic heads (0-1) de SHGAT utilisent **cosine similarity** :
+
+```typescript
+// shgat.ts:707
+const intentSim = this.cosineSimilarity(intentEmbedding, capOriginalEmb);
+headScores = [intentSim, intentSim, pagerank, temporal];
+```
+
+**Problème** : Cosine est une formule géométrique fixe qui ne capture pas les relations sémantiques spécifiques au domaine MCP/workflow.
+
+### Proposition : Scaled Dot-Product Attention
+
+Remplacer cosine par une attention apprise (comme dans les transformers) :
+
+```typescript
+// Actuel (fixe)
+score = cosine(intent, cap)  // angle entre vecteurs
+
+// Proposé (appris)
+Q = W_q × intent    // intent comme query
+K = W_k × cap       // capability comme key
+V = W_v × cap       // capability comme value
+score = softmax(Q·K^T / √d) × V  // attention apprise
+```
+
+### Avantages
+
+| Aspect | Cosine (actuel) | Transformer (proposé) |
+|--------|-----------------|----------------------|
+| **Similarité** | Géométrique fixe | Apprise sur les traces |
+| **Domaine** | Générique (BGE-M3) | Spécifique MCP/workflow |
+| **Relations** | "read" ≠ "write" | "read" → "write" (appris du contexte file) |
+| **Training** | Aucun | `episodic_events` (déjà disponible) |
+| **Cold start** | Fonctionne immédiatement | Besoin de données |
+
+### Architecture SHGAT révisée
+
+```
+┌───────────────────────────────────────────────────────────┐
+│                    SHGAT (avec Transformer)               │
+├───────────────────────────────────────────────────────────┤
+│                                                           │
+│  Semantic Heads (0-1) : TRANSFORMER ATTENTION             │
+│  ┌─────────────────────────────────────────────────────┐  │
+│  │  Q = W_q × intent         [hiddenDim × embeddingDim] │  │
+│  │  K = W_k × cap_embedding  [hiddenDim × embeddingDim] │  │
+│  │  V = W_v × cap_embedding  [hiddenDim × embeddingDim] │  │
+│  │                                                       │  │
+│  │  attn_score = (Q · K^T) / √hiddenDim                  │  │
+│  │  semantic_score = sigmoid(attn_score)                 │  │
+│  └─────────────────────────────────────────────────────┘  │
+│                                                           │
+│  Structure Head (2) : PageRank + Spectral (inchangé)      │
+│  Temporal Head (3) : Co-occurrence + Recency (inchangé)   │
+│                                                           │
+│  Fusion : Learned attention over heads (existant)         │
+│                                                           │
+└───────────────────────────────────────────────────────────┘
+```
+
+### Changements dans shgat.ts
+
+```typescript
+// 1. Nouveaux paramètres apprenables
+private semanticParams: {
+  W_q: number[][];  // [hiddenDim, embeddingDim] = [64, 1024]
+  W_k: number[][];  // [hiddenDim, embeddingDim]
+  W_v: number[][];  // [hiddenDim, embeddingDim]
+};
+
+// 2. Nouvelle méthode (remplace cosineSimilarity pour semantic)
+private transformerAttention(intent: number[], cap: number[]): number {
+  // Project to hidden dimension
+  const Q = this.matVec(this.semanticParams.W_q, intent);  // [64]
+  const K = this.matVec(this.semanticParams.W_k, cap);     // [64]
+
+  // Scaled dot-product attention
+  const d = Q.length;
+  const attnScore = this.dot(Q, K) / Math.sqrt(d);
+
+  return this.sigmoid(attnScore);  // [0, 1]
+}
+
+// 3. Dans scoreAllCapabilities (ligne 707)
+// Avant:
+const intentSim = this.cosineSimilarity(intentEmbedding, capOriginalEmb);
+// Après:
+const intentSim = this.transformerAttention(intentEmbedding, capOriginalEmb);
+```
+
+### Stratégie d'entraînement
+
+Les paramètres `W_q`, `W_k`, `W_v` s'entraînent avec le reste de SHGAT sur `episodic_events` :
+
+```typescript
+// Dans trainBatch(), ajouter les gradients pour semantic params
+const dW_q = gradients.get("W_q")!;
+const dW_k = gradients.get("W_k")!;
+
+// Backprop through attention
+// d(attn)/d(W_q) = cap · intent^T / √d
+// d(attn)/d(W_k) = intent · cap^T / √d
+```
+
+### Fallback Cosine (Cold Start)
+
+Pour le cold start (pas encore de données d'entraînement), on peut utiliser cosine comme fallback :
+
+```typescript
+private getSemanticScore(intent: number[], cap: number[]): number {
+  if (this.isTransformerTrained) {
+    return this.transformerAttention(intent, cap);
+  }
+  // Fallback to cosine for cold start
+  return this.cosineSimilarity(intent, cap);
+}
+```
+
+### Benchmark POC
+
+Créer un benchmark pour comparer cosine vs transformer :
+
+```
+tests/benchmarks/
+├── semantic-similarity.bench.ts   # NEW
+│   ├── cosine_baseline            # Current implementation
+│   ├── transformer_untrained      # Random weights
+│   ├── transformer_trained_10ep   # After 10 epochs
+│   └── transformer_trained_100ep  # After 100 epochs
+```
+
+Métriques à mesurer :
+- **Accuracy** : % de bonnes prédictions sur episodic_events holdout
+- **MRR** (Mean Reciprocal Rank) : position moyenne de la bonne réponse
+- **Latency** : temps d'inférence (cosine ~0.1ms, transformer ~1ms?)
+
+### Décision
+
+**À valider via benchmark POC** avant intégration dans 10.7b.
+
+Si le transformer montre une amélioration significative (>5% accuracy), l'intégrer dans 10.7b avec :
+- Estimation révisée : 2-3j (au lieu de 1-2j)
+- Fallback cosine pour cold start

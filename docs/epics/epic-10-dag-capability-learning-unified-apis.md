@@ -784,236 +784,231 @@ pml_discover({
 
 ---
 
-**Story 10.7: pml_execute - Unified Execution API**
+**Story 10.7: pml_execute - Unified Execution API** *(includes DR-DSP from 10.7a)*
 
 As an AI agent, I want a single `pml_execute` tool that handles code execution with automatic learning,
 So that I have a simplified API and the system learns from my executions.
 
 **Context:**
 Phase 5 de la tech spec. Remplace `pml_execute_dag` et `pml_execute_code`.
+**Inclut DR-DSP** (anciennement Story 10.7a) pour le pathfinding hypergraph.
 
 **Design Principles:**
 - **Code-first**: Tout est du code TypeScript. Le DAG est inféré via analyse statique (Story 10.1)
-- **Le code EST le DAG**: Plus de format JSON spécial - l'IA écrit du code naturel
-- **Procedural Memory**: Le PML ne génère pas de code, il **réutilise** des capabilities apprises
-- **3 modes simples**: Suggestion, Speculation, Direct
-
-**Migration depuis l'ancien API:**
-
-```typescript
-// ❌ AVANT (deprecated) - DAG JSON explicite avec $OUTPUT
-pml_execute_dag({
-  workflow: {
-    tasks: [
-      { id: "read", tool: "fs:read", args: { path: "config.json" } },
-      { id: "parse", tool: "json:parse", args: { json: "$OUTPUT[read]" }, depends_on: ["read"] }
-    ]
-  }
-})
-
-// ✅ APRÈS - Code TypeScript naturel
-pml_execute({
-  intent: "lire et parser config.json",
-  code: `
-    const content = await mcp.fs.read({ path: "config.json" });
-    return JSON.parse(content);
-  `
-})
-```
-
-> **Le code EST le DAG.** Le système parse le code (SWC), génère la `static_structure`,
-> et exécute via ControlledExecutor avec toutes les features DAG (parallel, HIL, checkpoints, SSE).
+- **Le code contient son context**: Les arguments sont des littéraux dans le code (pas de param `context` séparé)
+- **DR-DSP pour hypergraph**: Remplace Dijkstra, comprend les capabilities comme hyperedges
+- **2 modes simples**: Direct (code) vs Suggestion (intent seul)
 
 **API Design:**
 ```typescript
 pml_execute({
-  intent: "lire et parser ce fichier JSON",
-
-  // Arguments pour les tools (optionnel) - active le mode Speculation
-  context?: Record<string, JsonValue>,  // ex: { path: "config.json" }
-
-  // Code TypeScript (optionnel) - active le mode Direct
-  code?: string,
+  intent: string,     // REQUIRED - natural language description
+  code?: string,      // OPTIONAL - TypeScript code to execute
+  options?: {
+    timeout?: number;                // default: 30000ms
+    per_layer_validation?: boolean;  // default: false
+  }
 })
 ```
 
-**Les 3 Modes d'Exécution:**
+**Les 2 Modes d'Exécution:**
 
-| Input | Mode | Ce qui se passe | SWC Parsing ? | Capability créée ? |
-|-------|------|-----------------|---------------|-------------------|
-| `intent` seul | **Suggestion** ou **Speculation Auto** | Voir ci-dessous | ❌ Non | ❌ Non |
-| `intent` + `context` | **Speculation** | Trouve cap → exécute `cap.code_snippet` | ❌ Non (déjà fait) | ❌ Non (usage_count++) |
-| `intent` + `code` | **Direct** | Exécute code → crée capability | ✅ Oui | ✅ Oui |
-
-**Performance Note:** Le mode Speculation est plus rapide car il skip l'analyse statique SWC -
-la capability a déjà sa `static_structure` stockée.
-
-**Speculation Automatique (intent seul + session context) - Epic 12 Integration:**
-
-Quand Claude envoie juste `intent` (sans `context` ni `code`), le système vérifie s'il peut
-spéculer automatiquement en utilisant les résultats des workflows précédents:
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  pml_execute({ intent: "valider les données" })                  │
-│                         │                                        │
-│                         ▼                                        │
-│  1. Cherche capability/tool qui match l'intent                   │
-│                         │                                        │
-│                         ▼                                        │
-│  2. Session Context a des résultats de workflow précédent?       │
-│            │                              │                      │
-│           OUI                            NON                     │
-│            │                              │                      │
-│            ▼                              ▼                      │
-│  3. ProvidesEdge match                 Mode SUGGESTION           │
-│     outputs A → inputs B?              (retourne suggestions)    │
-│            │                                                     │
-│           OUI + canSpeculate() ──→ Mode SPECULATION AUTO         │
-│                                   (exécute avec résultats préc.) │
-│                                                                  │
-│           NON ──→ Mode SUGGESTION                                │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-| Condition | Mode |
-|-----------|------|
-| `intent` seul + **pas de session context** | Suggestion |
-| `intent` seul + **session context** + **ProvidesEdge match** + **canSpeculate()** | Speculation Auto |
-| `intent` seul + **session context** + **pas de match** | Suggestion |
-
-**Session Context (Epic 12 dependency):**
-- Garde les résultats des N derniers workflows (configurable, default: 5)
-- TTL configurable (default: 5 minutes)
-- Nettoyé au début d'une nouvelle conversation
-- ProvidesEdge (Story 10.3) utilisé pour matcher outputs workflow A → inputs capability B
-- canSpeculate() (Story 12.3) vérifie que l'exécution est safe (read-only tools)
+| Input | Mode | Algo | Ce qui se passe | SWC Parsing ? |
+|-------|------|------|-----------------|---------------|
+| `intent` + `code` | **Direct** | SWC | Exécute → Crée capability | ✅ OUI |
+| `intent` seul | **Suggestion** | DR-DSP | Trouve → Exécute si confiance haute, sinon suggestions | ❌ NON |
 
 **Execution Flow:**
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  pml_execute({ intent, context?, code? })                       │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│  pml_execute({ intent, code? })                                      │
+└─────────────────────────────────────────────────────────────────────┘
                               │
-              ┌───────────────┼───────────────┐
-              ▼               ▼               ▼
-         code fourni?    context fourni?   intent seul?
-              │               │               │
-              ▼               ▼               ▼
-         MODE DIRECT    MODE SPECULATION  MODE SUGGESTION
-              │               │               │
-              ▼               ▼               ▼
-         Analyse        pml_discover      pml_discover
-         statique       (capabilities)    (tools + caps)
-              │               │               │
-              ▼               │               ▼
-         Execute        Capability      RETURN {
-         code           trouvée?        status: "suggestions",
-              │          │    │         tools: [...],
-              │         OUI  NON        capabilities: [...]
-              │          │    │         }
-              │          ▼    ▼
-              │       Execute  RETURN suggestions
-              │       cap.code (confidence < seuil)
-              │       + context
-              │          │
-              │          ▼
-              │       After speculation success:
-              │       - capability.usage_count++
-              │       - capability.success_rate updated
-              │       - NO new capability created
-              │          │
-              └────┬─────┘
-                   ▼
-            After DIRECT mode success:
-            - Analyse statique SWC → static_structure
-            - Create/update capability (code_hash dedup)
-            - Update graph edges
+                    ┌─────────┴─────────┐
+                    │   code fourni?    │
+                    └─────────┬─────────┘
+                    ┌─────────┴─────────┐
+                   OUI                 NON
+                    │                   │
+                    ▼                   ▼
+         ┌──────────────────┐  ┌──────────────────┐
+         │   MODE DIRECT    │  │ MODE SUGGESTION  │
+         │ (exécute+apprend)│  │    (DR-DSP)      │
+         └────────┬─────────┘  └────────┬─────────┘
+                  │                     │
+                  ▼                     ▼
+         1. Analyse statique    1. DR-DSP.findShortestHyperpath()
+            (SWC)               2. Confiance haute + canSpeculate()?
+         2. Exécute code           │
+         3. Crée capability    ┌───┴───┐
+                  │           OUI     NON
+                  │            │       │
+                  │            ▼       ▼
+                  │         Exécute  RETURN
+                  │         capability suggestions
+                  │            │
+                  │            ▼
+                  │         Update usage_count++
+                  │            │
+                  └────────────┴────────┐
+                                        ▼
+                                  RETURN result
 ```
 
+**ATTENTION: Analyse statique selon le mode**
+
+| Mode | Analyse statique SWC | Pourquoi |
+|------|---------------------|----------|
+| **Direct** | ✅ OUI - AVANT exécution | Doit créer `static_structure` pour la capability |
+| **Suggestion** | ❌ NON - SKIP | Capability existante a déjà `static_structure` |
+
 **Cycle d'Apprentissage (Procedural Memory):**
-1. **Jour 1:** Claude écrit du code → PML apprend → capability créée
-2. **Jour 2:** Intent similaire + context → PML trouve capability → exécute avec nouveau context
+1. **Jour 1:** Claude écrit du code → `pml_execute({ intent, code })` → capability créée
+2. **Jour 2:** Intent similaire → `pml_execute({ intent })` → DR-DSP trouve → exécute
 3. **Amélioration continue:** success_rate, usage_count mis à jour
+
+**Évolution future (10.7b, Epic 12):**
+
+| Story | Ajout | Description |
+|-------|-------|-------------|
+| **10.7b** | SHGAT + cache session | Scoring avec attention apprise + contexte workflows précédents |
+| **10.7c** | Thompson Sampling | Seuils de confiance adaptatifs (exploration/exploitation) |
+| **Epic 12** | Speculation | Pré-exécution intra-workflow |
 
 **Acceptance Criteria:**
 
 1. Handler `pml_execute` créé dans `src/mcp/handlers/`
 2. **Mode Direct** (`code` fourni):
    - Analyse statique du code (Story 10.1)
-   - Exécute dans sandbox
+   - Exécute via WorkerBridge
    - Crée/update capability avec `static_structure`
-3. **Mode Speculation** (`context` fourni, pas de `code`):
-   - Appelle `pml_discover` pour trouver capabilities par intent
-   - Si capability trouvée avec confidence > seuil:
-     - Exécute `capability.code_snippet` avec `context` injecté
-     - **Skip SWC parsing** (static_structure déjà stockée)
-     - Update `usage_count++` et `success_rate`
-     - **PAS de nouvelle capability créée** (réutilisation)
-   - Si confidence < seuil → retourne suggestions (fallback to Suggestion mode)
-4. **Mode Suggestion** (ni `code` ni `context`):
-   - Appelle `pml_discover`
-   - Retourne tools (avec `input_schema`) + capabilities matchées
-   - L'IA doit décider: écrire du code (Direct) ou passer context (Speculation)
-5. **Après succès en mode DIRECT uniquement:**
-   - Analyse statique SWC → `static_structure`
-   - Crée/update capability via `CapabilityStore` (dedup par `code_hash`)
-   - Update graph edges
-6. Support `per_layer_validation` pour tools avec permissions élevées
-7. **Dépréciation** des anciens tools:
+   - **Exécute toujours** - pas de check confiance
+3. **Mode Suggestion** (`intent` seul) avec DR-DSP:
+   - Initialise `DRDSP` avec `buildDRDSPFromCapabilities()` au démarrage
+   - Appelle `DRDSP.findShortestHyperpath()` pour trouver capability
+   - Si confiance haute + canSpeculate() → exécute capability
+   - Sinon → retourne suggestions (tools + capabilities)
+   - **Skip SWC parsing** (capability déjà parsée)
+4. **DR-DSP Integration** (ex-10.7a):
+   - `DRDSP` instance créée au démarrage du gateway
+   - `applyUpdate()` appelé quand nouvelle capability apprise
+   - Benchmark: DR-DSP vs Dijkstra
+5. Support `per_layer_validation` pour tools avec permissions élevées
+6. **Dépréciation** des anciens tools:
    - `pml_execute_dag` → deprecated
    - `pml_execute_code` → deprecated
-8. Response unifiée:
-   ```typescript
-   {
-     status: "success" | "approval_required" | "suggestions",
-     result?: JsonValue,
-     suggestions?: {
-       tools: ToolWithSchema[],
-       capabilities: CapabilityMatch[],
-     },
-     capabilityId?: string,  // Si capability créée/updated
-   }
-   ```
-9. Tests: execute avec intent seul → mode suggestion (retourne tools + caps)
-10. Tests: execute avec intent + context → mode speculation (trouve capability, exécute)
-11. Tests: execute avec intent + context → fallback suggestion (pas de capability trouvée)
-12. Tests: execute avec code → mode direct + capability créée
-13. Tests: mode direct → capability avec `static_structure` inféré
-14. Tests: mode speculation → PAS de SWC parsing, juste usage_count++
-15. Tests: mode speculation → capability.success_rate mis à jour après exécution
-16. **Mode Speculation Automatique (Epic 12 integration):**
-    - `intent` seul + Session Context avec résultats workflow précédent
-    - ProvidesEdge (Story 10.3) match outputs A → inputs B
-    - canSpeculate() (Story 12.3) retourne true (safe tools)
-    - → Exécute automatiquement avec résultats précédents (pas besoin de `context` explicite)
-17. **Session Context Management:**
-    - Stocke résultats des N derniers workflows (configurable, default: 5)
-    - TTL configurable (default: 5 minutes)
-    - Nettoyé au début d'une nouvelle conversation
-18. Tests: intent seul + session context avec résultats → mode speculation auto
-19. Tests: intent seul + session context sans ProvidesEdge match → mode suggestion
-20. Tests: intent seul + pas de session context → mode suggestion
-21. **Fix ADR-038 Incohérence dans `suggestDAG`:**
-    - `injectMatchingCapabilities()` utilise `searchByContext()` (mode Passif)
-    - Devrait utiliser `findMatch(intent)` (mode Actif) car on a un intent
-    - Remplacer par `capabilityMatcher.findMatch(intent.text)` (formule: `semantic × reliability`)
-    - Garder `searchByContext()` uniquement dans `predictNextNodes()` (mode Passif correct)
-22. Tests: suggestDAG avec intent → capabilities trouvées par `findMatch` (semantic × reliability)
+7. Response unifiée avec `status: "success" | "approval_required" | "suggestions"`
+8. Tests: execute avec code → mode direct + capability créée
+9. Tests: execute avec intent seul + DR-DSP match → exécute
+10. Tests: execute avec intent seul + pas de match → suggestions
 
 **Files to Create:**
-- `src/mcp/handlers/execute-handler.ts` (~250 LOC)
+- `src/mcp/handlers/execute-handler.ts` (~300 LOC)
 
 **Files to Modify:**
-- `src/mcp/gateway-server.ts` - Register new handler
+- `src/mcp/gateway-server.ts` - Register handler + init DRDSP
 - `src/mcp/handlers/workflow-execution-handler.ts` - Add deprecation
 - `src/mcp/handlers/code-execution-handler.ts` - Add deprecation
-- `src/graphrag/dag-suggester.ts` - Fix: use `findMatch(intent)` instead of `searchByContext()` for capabilities
-- `src/graphrag/prediction/capabilities.ts` - Fix: `injectMatchingCapabilities()` to use intent-based search
 
 **Prerequisites:** Story 10.6 (pml_discover)
 
-**Estimation:** 3-5 jours
+**Estimation:** 4-6 jours (inclut DR-DSP integration)
+
+---
+
+**Story 10.7a: DR-DSP Integration for DAG Suggestion** ✅ MERGED INTO 10.7
+
+> **Note:** Cette story a été mergée dans Story 10.7. Le contenu ci-dessous est conservé pour référence.
+
+As a DAG suggestion system, I want to use DR-DSP for pathfinding,
+So that I find optimal hyperpaths through the capability graph instead of simple Dijkstra paths.
+
+**Context:**
+Le module `src/graphrag/algorithms/dr-dsp.ts` est déjà implémenté (POC).
+~~Cette story intègre DR-DSP dans `suggestDAG()` pour remplacer Dijkstra.~~
+**→ Maintenant intégré directement dans Story 10.7**
+
+**Ce qui existe déjà:
+- `DRDSP` class avec `findShortestHyperpath(source, target)`
+- `buildDRDSPFromCapabilities()` factory
+- `applyUpdate()` pour mise à jour dynamique
+- Support des hyperedges (N-ary relations)
+
+**Acceptance Criteria:**
+
+1. `suggestDAG()` utilise `DRDSP.findShortestHyperpath()` au lieu de Dijkstra
+2. `buildDRDSPFromCapabilities()` appelé au démarrage avec graph existant
+3. Hyperedges créés depuis les capabilities (tools groupés)
+4. `applyUpdate()` appelé quand une nouvelle capability est apprise
+5. Tests: hyperpath trouvé pour intent → DAG suggestion
+6. Benchmark: performance DR-DSP vs Dijkstra
+
+**Files to Modify:**
+- `src/graphrag/dag-suggester.ts` - Remplacer Dijkstra par DR-DSP
+- `src/mcp/handlers/execute-handler.ts` - Utiliser nouveau suggester
+
+**Prerequisites:** Story 10.7 (execute handler created)
+
+**Estimation:** 1-2 jours
+
+---
+
+**Story 10.7b: SHGAT Scoring Integration** ✅ MERGED INTO 10.7
+
+> **Note:** Cette story a été mergée dans Story 10.7 (2025-12-22).
+> Raison: SHGAT fonctionne en backward (suggestion) ET forward (prediction).
+> Voir ADR-050 section "Clarification: SHGAT avec et sans context".
+
+~~As a prediction system, I want to use SHGAT for scoring candidates,~~
+~~So that I leverage learned attention weights instead of manual scoring formulas.~~
+
+**Contenu mergé dans Story 10.7:**
+- SHGAT initialisé au démarrage gateway
+- Scoring backward (sans context) pour mode Suggestion
+- Scoring forward (avec context) pour predictNextNode()
+- Training pipeline sur `episodic_events`
+- Persistence params SHGAT
+- Fallback si <20 traces
+
+---
+
+**Story 10.7c: Thompson Sampling Integration**
+
+As a decision system, I want to use Thompson Sampling for execution decisions,
+So that I balance exploration (trying uncertain tools) and exploitation (using reliable tools).
+
+**Context:**
+Le module `src/graphrag/algorithms/thompson.ts` est déjà implémenté (POC).
+Cette story intègre Thompson Sampling dans le flow de décision AIL/HIL.
+
+**Ce qui existe déjà:**
+- `ThompsonSampler` class avec Beta distribution per tool
+- `getThreshold(toolId, riskCategory, mode)` - threshold adaptatif
+- `recordOutcome(toolId, success)` - mise à jour Bayésienne
+- `classifyToolRisk()` - classification safe/moderate/dangerous
+- UCB exploration bonus pour tools sous-explorés
+
+**Acceptance Criteria:**
+
+1. `AdaptiveThresholdManager` utilise `ThompsonSampler` en interne
+2. Seuils par tool calculés via `getThreshold()`:
+   - Mode `active_search` → seuil plus bas (exploration)
+   - Mode `passive_suggestion` → seuil standard
+   - Mode `speculation` → seuil plus haut (conservateur)
+3. `recordOutcome()` appelé après chaque exécution
+4. UCB bonus appliqué aux tools peu utilisés
+5. Risk classification automatique via `classifyToolRisk()`
+6. Migration: importer historique depuis `adaptive_thresholds` table
+7. Tests: Thompson converge vers seuil optimal après N exécutions
+8. Benchmark: variance des décisions réduite avec Thompson
+
+**Files to Modify:**
+- `src/mcp/adaptive-threshold.ts` - Intégrer ThompsonSampler
+- `src/dag/controlled-executor.ts` - Utiliser nouveaux seuils
+
+**Prerequisites:** Story 10.7 (pml_execute with DR-DSP + SHGAT)
+
+**Estimation:** 1-2 jours
 
 ---
 
@@ -1201,7 +1196,7 @@ pml_get_task_result({
 
 ---
 
-### Epic 10 Estimation Summary (Révisé 2025-12-20)
+### Epic 10 Estimation Summary (Révisé 2025-12-22)
 
 | Ordre | Story | Description | Estimé | Réel | Status |
 |-------|-------|-------------|--------|------|--------|
@@ -1209,11 +1204,21 @@ pml_get_task_result({
 | 2 | **10.2** | Static Argument Extraction | 1-2j | **2j** | ✅ DONE |
 | 3 | **10.3** | Provides Edge + DB Persistence | 1-2j | **2j** | ✅ DONE |
 | 4 | **10.5** | Execute via DAG + Worker Unification | 2-3j | **5j** | ✅ DONE |
-| 5 | 10.6 | pml_discover | 2-3j | - | ⬜ TODO |
-| 6 | 10.7 | pml_execute | 3-5j | - | ⬜ TODO |
-| 7 | 10.8 | pml_get_task_result | 1-2j | - | ⬜ TODO |
+| 5 | 10.6 | pml_discover + Unified Scoring Formula | 2.5-3.5j | **2j** | ✅ DONE |
+| 6 | **10.7** | **pml_execute + DR-DSP** (merged 10.7a) | 3-4j | - | ⬜ TODO |
+| - | ~~10.7a~~ | ~~DR-DSP Integration~~ | - | - | ✅ MERGED → 10.7 |
+| 7 | **10.7b** | SHGAT Scoring + Cache Session | 1-2j | - | ⬜ TODO |
+| 8 | **10.7c** | Thompson Sampling Integration | 0.5-1j | - | ⬜ TODO |
+| 9 | 10.8 | pml_get_task_result | 1-2j | - | ⬜ TODO |
 
-**Progression: 4/7 stories (57%)**
+**Progression: 5/9 stories (56%)** *(10.7a merged)*
+
+**Note (2025-12-22):**
+- Story 10.6a (Unified Search) mergée dans 10.6
+- **Story 10.7a (DR-DSP) mergée dans 10.7** - DR-DSP intégré directement
+- Stories 10.7b-c restent séparées pour SHGAT et Thompson Sampling
+- **Algorithmes déjà implémentés (POC):** DR-DSP (460 LOC), SHGAT (1284 LOC), Thompson (708 LOC)
+- **Stories 10.7-10.7c = INTÉGRATION, pas développement from scratch**
 
 **Effort réel vs estimé:**
 - Stories 10.1-10.5: **13 jours** (vs 7-11j estimés)

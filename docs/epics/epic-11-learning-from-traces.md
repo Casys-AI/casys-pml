@@ -45,7 +45,50 @@
 
 **Expanded Goal (2-3 sentences):**
 
-Implémenter le système d'apprentissage basé sur les traces d'exécution. Capturer les résultats des tools/capabilities, stocker les traces avec priorité (PER), et mettre à jour les statistiques de learning via TD Learning. Fournir des vues pour visualiser les patterns d'exécution.
+Implémenter le système d'apprentissage basé sur les traces d'exécution. Capturer les résultats des tools/capabilities, stocker les traces avec priorité (PER), et entraîner SHGAT directement sur les traces avec TD error comme signal. Fournir des vues pour visualiser les patterns d'exécution.
+
+**Architecture Learning Combinée (2025-12-22):**
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     TD + PER + SHGAT (style DQN/Rainbow)                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  1. EXÉCUTION → TRACE                                                       │
+│     workflow terminé → execution_trace stockée                              │
+│                                                                             │
+│  2. TD ERROR (signal d'apprentissage)                                       │
+│     td_error = actual_success - shgat.predict(path)                         │
+│     └── Si SHGAT prédit 0.9 et outcome = 0.0 → td_error = -0.9 (surprise!) │
+│                                                                             │
+│  3. PER (priorité de replay)                                                │
+│     priority = |td_error|                                                   │
+│     └── Traces surprenantes → haute priorité → échantillonnées plus souvent│
+│                                                                             │
+│  4. SHGAT (le modèle qui apprend)                                           │
+│     - Sample traces selon PER priority                                      │
+│     - Train attention weights sur ces traces                                │
+│     - Loss = td_error² (MSE sur prédiction vs actual)                      │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Rôle de chaque composant:**
+
+| Composant | Rôle | Ce qu'il produit |
+|-----------|------|------------------|
+| **TD Error** | Signal d'apprentissage | `|predicted - actual|` pour PER |
+| **PER** | Priorisation du replay | Traces pondérées par surprise |
+| **SHGAT** | Le modèle lui-même | Attention weights, scores de prédiction |
+
+**⚠️ DÉPRÉCIATIONS (2025-12-22):**
+
+| Déprécié | Remplacé par | Raison |
+|----------|--------------|--------|
+| `CapabilityLearning` structure | SHGAT weights | SHGAT apprend directement des traces |
+| `workflow_pattern.learning` column | `execution_trace.priority` + SHGAT | Plus de stats intermédiaires |
+| `updateLearningTD()` → stats | `updatePriority()` → PER only | TD error = signal pour PER, pas stats |
+| `pathSuccessRate` calculé | SHGAT prédit directement | Le réseau apprend les patterns |
 
 **Problèmes Résolus:**
 
@@ -54,8 +97,8 @@ Implémenter le système d'apprentissage basé sur les traces d'exécution. Capt
 | Schema DB avec dette technique | Cleanup complet (KV, FKs, duplications) | **11.0** |
 | Pas de capture des résultats d'exécution | Result tracing dans les events | 11.1 |
 | Traces non persistées | Table `execution_trace` avec FK capability | 11.2 |
-| Apprentissage batch (pas incrémental) | TD Learning avec α = 0.1 | 11.3 |
-| Toutes les traces ont même importance | PER (Prioritized Experience Replay) | 11.3 |
+| Toutes les traces ont même importance | PER avec TD error comme priority | 11.3 |
+| Apprentissage batch (pas incrémental) | SHGAT training incrémental avec PER sampling | 11.3 + 11.6 |
 | Pas de vue sur les exécutions réelles | Definition vs Invocation views | 11.4 |
 
 **Value Delivery:**
@@ -384,8 +427,11 @@ CREATE TABLE execution_trace (
   decisions JSONB DEFAULT '[]',     -- Décisions aux DecisionNodes
   task_results JSONB DEFAULT '[]',  -- Résultats par tâche
 
-  -- PER (Prioritized Experience Replay)
-  priority FLOAT DEFAULT 0.5,       -- 0.0=attendu, 1.0=surprenant
+  -- PER (Prioritized Experience Replay) - utilisé par 11.3 et 11.6
+  -- 0.5 = neutral (cold start, SHGAT pas encore entraîné)
+  -- 0.0 = attendu (trace non surprenante)
+  -- 1.0 = surprenant (td_error maximal)
+  priority FLOAT DEFAULT 0.5,
 
   -- Hiérarchie (ADR-041)
   parent_trace_id UUID REFERENCES execution_trace(id)
@@ -450,7 +496,9 @@ DROP TABLE IF EXISTS workflow_execution CASCADE;
    - `saveTrace(capabilityId, trace)` → INSERT
    - `getTraces(capabilityId, limit?)` → SELECT
    - `getTraceById(traceId)` → SELECT
-   - `getHighPriorityTraces(limit)` → SELECT ORDER BY priority DESC
+   - `getHighPriorityTraces(limit)` → SELECT ORDER BY priority DESC (pour PER sampling)
+   - `updatePriority(traceId, priority)` → UPDATE priority (pour 11.6 après training)
+   - `sampleByPriority(limit, minPriority?)` → SELECT avec weighted sampling
 5. Fichiers mis à jour pour utiliser `execution_trace`:
    - `src/graphrag/sync/db-sync.ts`
    - `src/graphrag/metrics/collector.ts`
@@ -486,141 +534,106 @@ DROP TABLE IF EXISTS workflow_execution CASCADE;
 
 ---
 
-### Story 11.3: PER + TD Learning
+### Story 11.3: TD Error + PER Priority (Refactoré 2025-12-22)
 
-As a learning system, I want to prioritize surprising traces and update learning incrementally,
-So that I can learn efficiently from execution patterns.
+As a learning system, I want to calculate TD error for PER priority,
+So that SHGAT can sample and learn from surprising traces efficiently.
 
-**Context:**
+**Context (Architecture Combinée TD+PER+SHGAT):**
 
-**PER (Prioritized Experience Replay):**
-Prioriser les traces **surprenantes** pour l'apprentissage. Une trace est surprenante si
-son résultat diverge de ce qu'on attendait.
+**AVANT (ancienne architecture - DÉPRÉCIÉE):**
+```
+trace → TD Learning → CapabilityLearning (stats) → utilisé pour scoring
+```
+
+**APRÈS (nouvelle architecture - style DQN/Rainbow):**
+```
+trace → TD Error → PER priority → SHGAT sample + train
+```
+
+**TD Error = signal pour PER, pas pour stats explicites:**
 
 ```typescript
-function calculateTracePriority(
-  trace: { executedPath: string[]; success: boolean; durationMs: number },
-  learning: CapabilityLearning
-): number {
-  const pathKey = JSON.stringify(trace.executedPath);
-  const pathStats = learning.paths.find(p => JSON.stringify(p.path) === pathKey);
+// Après exécution, calculer TD error via SHGAT
+async function storeTraceWithPriority(
+  shgat: SHGAT,
+  trace: ExecutionTrace
+): Promise<void> {
+  // 1. Get SHGAT prediction for this path
+  const predicted = await shgat.predictPathSuccess(trace.executedPath);
 
-  if (!pathStats) {
-    // Nouveau chemin = surprenant = priorité maximale
-    return 1.0;
-  }
-
-  // Priority = |predicted - actual|
-  const predicted = pathStats.successRate;
+  // 2. Compute TD error
   const actual = trace.success ? 1.0 : 0.0;
-  let priority = Math.abs(predicted - actual);
+  const tdError = actual - predicted;
 
-  // Bonus si durée anormale (> 2 std dev)
-  if (pathStats.avgDurationMs > 0) {
-    const durationDiff = Math.abs(trace.durationMs - pathStats.avgDurationMs);
-    if (durationDiff > pathStats.avgDurationMs * 0.5) {
-      priority = Math.min(1.0, priority + 0.2);
-    }
-  }
+  // 3. Priority = |TD error| (plus c'est surprenant, plus on apprend)
+  const priority = Math.abs(tdError);
 
-  return priority;
+  // 4. Store trace with PER priority
+  await traceStore.save({
+    ...trace,
+    priority,  // Utilisé par 11.6 pour PER sampling
+  });
 }
 ```
 
-**TD Learning (Temporal Difference):**
-Mise à jour incrémentale après chaque trace, pas de batch.
+**PER Sampling (utilisé par Story 11.6):**
 
 ```typescript
-function updateLearningTD(
-  learning: CapabilityLearning,
-  trace: ExecutionTrace,
-  alpha: number = 0.1
-): CapabilityLearning {
-  const pathKey = JSON.stringify(trace.executedPath);
-  let pathStats = learning.paths.find(p => JSON.stringify(p.path) === pathKey);
-
-  if (!pathStats) {
-    pathStats = { path: trace.executedPath, count: 0, successRate: 0.5, avgDurationMs: 0 };
-    learning.paths.push(pathStats);
-  }
-
-  // TD Update: V(s) ← V(s) + α(actual - V(s))
-  const actual = trace.success ? 1.0 : 0.0;
-  pathStats.successRate += alpha * (actual - pathStats.successRate);
-  pathStats.avgDurationMs += alpha * (trace.durationMs - pathStats.avgDurationMs);
-  pathStats.count++;
-
-  // Update decisionStats
-  if (trace.decisions?.length) {
-    for (const decision of trace.decisions) {
-      let stats = learning.decisionStats?.find(d => d.nodeId === decision.nodeId);
-      if (!stats) {
-        stats = { nodeId: decision.nodeId, condition: decision.condition, outcomes: {} };
-        learning.decisionStats = learning.decisionStats || [];
-        learning.decisionStats.push(stats);
-      }
-      const outcome = stats.outcomes[decision.outcome] || { count: 0, successRate: 0.5 };
-      outcome.count++;
-      outcome.successRate += alpha * (actual - outcome.successRate);
-      stats.outcomes[decision.outcome] = outcome;
-    }
-  }
-
-  // Recalculer dominantPath
-  learning.dominantPath = learning.paths
-    .filter(p => p.count >= 3)
-    .sort((a, b) => (b.successRate * b.count) - (a.successRate * a.count))[0]?.path
-    || learning.paths[0]?.path
-    || [];
-
-  return learning;
+// SHGAT sample traces weighted by PER priority
+async function sampleTracesForTraining(
+  traceStore: ExecutionTraceStore,
+  batchSize: number = 32
+): Promise<ExecutionTrace[]> {
+  // High priority first, with some randomness for exploration
+  return await traceStore.query(`
+    SELECT * FROM execution_trace
+    ORDER BY priority DESC, random()
+    LIMIT $1
+  `, [batchSize]);
 }
 ```
+
+**⚠️ DÉPRÉCIATIONS:**
+
+| Ancien | Nouveau | Raison |
+|--------|---------|--------|
+| `CapabilityLearning` type | ❌ Supprimé | SHGAT apprend directement |
+| `updateLearningTD()` → stats | `storeTraceWithPriority()` | TD = signal PER |
+| `workflow_pattern.learning` col | ❌ Pas créée | Plus de stats intermédiaires |
+| `capabilityStore.updateLearning()` | ❌ Pas créée | SHGAT = le modèle |
 
 **Acceptance Criteria:**
 
-1. `calculateTracePriority()` implémentée
-2. `updateLearningTD()` implémentée
-3. `CapabilityLearning` type défini:
+1. `calculateTDError(shgat, trace)` implémentée:
    ```typescript
-   interface CapabilityLearning {
-     paths: PathStats[];
-     dominantPath: string[];
-     decisionStats?: DecisionStats[];
-   }
-
-   interface PathStats {
-     path: string[];      // Node IDs
-     count: number;
-     successRate: number; // 0.0 - 1.0
-     avgDurationMs: number;
-   }
-
-   interface DecisionStats {
-     nodeId: string;
-     condition: string;
-     outcomes: Record<string, { count: number; successRate: number }>;
+   async function calculateTDError(
+     shgat: SHGAT,
+     trace: { executedPath: string[]; success: boolean }
+   ): Promise<number> {
+     const predicted = await shgat.predictPathSuccess(trace.executedPath);
+     const actual = trace.success ? 1.0 : 0.0;
+     return actual - predicted;
    }
    ```
-4. `capabilityStore.updateLearning(capabilityId, learning)` ajoutée
-5. Après exécution → priority calculée → trace insérée → learning mis à jour
-6. Tests PER: nouveau chemin → priority = 1.0
-7. Tests PER: échec sur chemin dominant (95% success) → priority ≈ 0.95
-8. Tests PER: succès sur chemin dominant → priority ≈ 0.05
-9. Tests TD: 3 exécutions même chemin → successRate converge
-10. Tests TD: decisionStats mis à jour pour chaque décision
+2. `storeTraceWithPriority()` sauvegarde trace avec `priority = |tdError|`
+3. **COLD START:** Si SHGAT pas encore entraîné, priority = 0.5 (neutre)
+4. `ExecutionTraceStore.getHighPriorityTraces(limit)` pour PER sampling
+5. Tests: nouveau chemin (SHGAT prédit 0.5) + success → priority = 0.5
+6. Tests: chemin avec SHGAT prédit 0.9 + failure → priority = 0.9
+7. Tests: chemin avec SHGAT prédit 0.9 + success → priority = 0.1
+8. Tests: cold start → priority = 0.5
 
 **Files to Create:**
-- `src/capabilities/learning-updater.ts` (~120 LOC)
+- `src/capabilities/per-priority.ts` (~60 LOC)
 
 **Files to Modify:**
-- `src/capabilities/types.ts` (~40 LOC)
-- `src/capabilities/capability-store.ts` (~30 LOC)
-- `src/capabilities/execution-trace-store.ts` (~30 LOC)
+- `src/capabilities/execution-trace-store.ts` (~20 LOC) - Add priority queries
+- `src/graphrag/algorithms/shgat.ts` (~10 LOC) - Add `predictPathSuccess()`
 
-**Prerequisites:** Story 11.2 (execution_trace table)
+**Prerequisites:** Story 11.2 (execution_trace table), Story 10.7b (SHGAT base)
 
-**Estimation:** 2-3 jours
+**Estimation:** 1-2 jours (simplifié car pas de CapabilityLearning)
 
 ---
 
@@ -700,13 +713,129 @@ Utile pour debugging de workflows avec MCP connecteurs externes.
 
 ---
 
-## Epic 11 Dependencies
+### Story 11.6: SHGAT Training avec PER Sampling (Refactoré 2025-12-22)
+
+As a learning system, I want to train SHGAT on path-level traces with PER sampling,
+So that SHGAT learns efficiently from surprising execution patterns.
+
+**Context (Architecture Combinée TD+PER+SHGAT):**
+
+Story 11.3 calcule `priority = |td_error|` pour chaque trace.
+Cette story utilise PER sampling pour entraîner SHGAT sur les traces prioritaires.
+
+**Différence avec 10.7b (tool-level):**
+
+| Aspect | 10.7b (episodic_events) | 11.6 (execution_trace + PER) |
+|--------|-------------------------|------------------------------|
+| **Sampling** | Random/récent | PER (priority-weighted) |
+| **Granularité** | Par tool | Par path (séquence) |
+| **Label** | `wasCorrect` | `success` |
+| **Signal** | Binary | TD error (continuous) |
+
+**SHGAT Path Encoder:**
+
+```typescript
+// SHGAT encode une séquence de nodes en un embedding
+interface SHGATPathEncoder {
+  // Encode path sequence → single embedding
+  encodePath(path: string[]): Float32Array;
+
+  // Predict success probability for a path
+  predictPathSuccess(path: string[]): number;
+
+  // Train on batch with PER weights
+  trainBatch(
+    traces: { path: string[]; success: boolean; priority: number }[]
+  ): TrainingResult;
+}
+```
+
+**Training pipeline enrichi:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  1. Récupérer traces récentes                                │
+│     SELECT * FROM execution_trace                            │
+│     WHERE capability_id = X                                  │
+│     ORDER BY executed_at DESC LIMIT 100                      │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  2. Extraire features path-level                             │
+│     - pathSuccessRate = count(success) / count(*)           │
+│     - decisionSuccessRate par decision node                 │
+│     - isDominantPath = path === capability.learning.dominantPath
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  3. Enrichir SHGAT features                                  │
+│     features = { ...toolLevelFeatures, ...pathLevelFeatures }│
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  4. Train SHGAT avec features enrichies                      │
+│     shgat.trainBatch(enrichedFeatures, pathSuccessLabels)   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Acceptance Criteria:**
+
+1. `extractPathLevelFeatures(traces: ExecutionTrace[])` implémentée
+2. Features path-level ajoutées:
+   - `pathSuccessRate` - succès du path spécifique
+   - `pathFrequency` - fréquence relative du path
+   - `decisionSuccessRate` - succès aux DecisionNodes
+   - `isDominantPath` - booléen
+3. `trainSHGATOnPathTraces()` créée, utilise `execution_trace`:
+   ```typescript
+   async function trainSHGATOnPathTraces(
+     shgat: SHGAT,
+     traceStore: ExecutionTraceStore,
+     capabilityId: string,
+     options?: { minTraces?: number; maxTraces?: number }
+   ): Promise<TrainingResult>
+   ```
+4. Pipeline de training:
+   - Au démarrage: charge traces récentes, train initial avec path features
+   - Après exécution: `trainBatch()` incrémental avec nouvelles traces
+5. Fallback vers 10.7b (tool-level) si pas assez de traces (<20)
+6. Params SHGAT mis à jour pour nouvelles dimensions de features
+7. Tests: path-level training améliore précision vs tool-level seul
+8. Tests: fallback vers tool-level si traces insuffisantes
+9. Benchmark: overhead du path-level training < 50ms
+
+**Files to Create:**
+- `src/graphrag/learning/path-level-features.ts` (~100 LOC)
+
+**Files to Modify:**
+- `src/graphrag/algorithms/shgat.ts` (~30 LOC) - Nouvelles dimensions features
+- `src/learning/episodic-adapter.ts` (~50 LOC) - Ajouter path-level training
+- `src/graphrag/dag-suggester.ts` (~20 LOC) - Utiliser training enrichi
+
+**Prerequisites:** Story 11.2 (execution_trace table), Story 10.7b (SHGAT base integration)
+
+**Estimation:** 2-3 jours
+
+---
+
+## Epic 11 Dependencies (Refactoré 2025-12-22)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  EPIC 10 (Prerequisite)                                          │
 │  - Capabilities exist with static_structure                      │
 │  - pml_execute generates traces                                  │
+│  - Story 10.7b: SHGAT tool-level training (episodic_events)     │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Story 11.0: DB Schema Cleanup                                   │
+│  - Migrate workflow_dags → Deno KV                              │
+│  - Drop mcp_tool, add FKs                                        │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -718,17 +847,25 @@ Utile pour debugging de workflows avec MCP connecteurs externes.
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  Story 11.2: Execution Trace Table                               │
-│  - CREATE TABLE execution_trace                                  │
+│  - CREATE TABLE execution_trace (avec priority column)          │
 │  - ExecutionTraceStore class                                     │
 │  - Migrate/DROP workflow_execution                               │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  Story 11.3: PER + TD Learning                                   │
-│  - calculateTracePriority()                                      │
-│  - updateLearningTD()                                            │
-│  - CapabilityLearning type                                       │
+│  Story 11.3: TD Error + PER Priority (REFACTORÉ)                │
+│  - calculateTDError(shgat, trace) → |predicted - actual|       │
+│  - storeTraceWithPriority() → priority = |td_error|             │
+│  - ❌ DÉPRÉCIÉ: CapabilityLearning, updateLearningTD()          │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Story 11.6: SHGAT Training avec PER Sampling (REFACTORÉ)       │
+│  - trainSHGATWithPER() → sample par priority, train batch      │
+│  - SHGATPathEncoder: encodePath(), predictPathSuccess()        │
+│  - Update priorities après training (TD error recalculé)        │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -746,20 +883,39 @@ Utile pour debugging de workflows avec MCP connecteurs externes.
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+**Note:** 11.3 et 11.6 sont maintenant SÉQUENTIELLES (11.3 → 11.6) car 11.6 utilise les priorities de 11.3.
+
 ---
 
-## Epic 11 Estimation Summary
+## Epic 11 Estimation Summary (Révisé 2025-12-22)
 
 | Ordre | Story | Description | Effort | Cumulative |
 |-------|-------|-------------|--------|------------|
-| 1 | 11.1 | Result Tracing | 0.5-1j | 1j |
-| 2 | 11.2 | execution_trace Table | 2-3j | 4j |
-| 3 | 11.3 | PER + TD Learning | 2-3j | 7j |
-| 4 | 11.4 | Definition/Invocation Views | 2-3j | 10j |
-| 5 | 11.5 | Dry Run (optional) | 3-4j | 14j |
+| 0 | 11.0 | DB Schema Cleanup | 2-3j | 3j |
+| 1 | 11.1 | Result Tracing | 0.5-1j | 4j |
+| 2 | 11.2 | execution_trace Table (avec priority) | 2-3j | 7j |
+| 3 | **11.3** | **TD Error + PER Priority** (simplifié) | 1-2j | 9j |
+| 4 | **11.6** | **SHGAT Training avec PER** | 2-3j | 12j |
+| 5 | 11.4 | Definition/Invocation Views | 2-3j | 15j |
+| 6 | 11.5 | Dry Run (optional) | 3-4j | 19j |
 
-**Total MVP (11.1-11.4): ~2 semaines**
-**Total avec 11.5: ~2.5-3 semaines**
+**Total MVP (11.0-11.4 + 11.6): ~2-2.5 semaines** (réduit car 11.3 simplifié)
+**Total avec 11.5: ~3 semaines**
+
+**Changements 2025-12-22 (Architecture TD+PER+SHGAT):**
+
+| Avant | Après | Impact |
+|-------|-------|--------|
+| 11.3 produisait `CapabilityLearning` | 11.3 produit `priority` pour PER | Simplifié |
+| 11.6 utilisait `CapabilityLearning` comme features | 11.6 utilise PER sampling + train SHGAT | Plus efficace |
+| 11.3 et 11.6 parallélisables | 11.3 → 11.6 séquentielles | 11.6 dépend de priority |
+| TD Learning → stats explicites | TD Error → signal pour PER | SHGAT apprend tout |
+
+**Dépréciations:**
+- `CapabilityLearning` type → supprimé
+- `workflow_pattern.learning` column → pas créée
+- `updateLearningTD()` → remplacé par `storeTraceWithPriority()`
+- `capabilityStore.updateLearning()` → pas créée
 
 ---
 

@@ -1,14 +1,13 @@
 # ADR-021: Configurable Database Path via Environment Variable
 
-**Status:** ✅ Implemented
-**Date:** 2025-12-01 | **Story:** 1.3 (Workflow Templates)
+**Status:** ✅ Implemented **Date:** 2025-12-01 | **Story:** 1.3 (Workflow Templates)
 
 ---
 
 ## Context and Problem Statement
 
-Casys PML stores its PGlite database in a hardcoded location: `~/.cai/.cai.db` (user
-home directory).
+Casys PML stores its PGlite database in a hardcoded location: `~/.cai/.cai.db` (user home
+directory).
 
 **Problem:** In ephemeral environments like **GitHub Codespaces**, the home directory
 (`/home/ubuntu/`) is **not persisted** between sessions. Only the workspace directory
@@ -39,7 +38,7 @@ This causes:
 
 ### Option 1: ✅ Environment Variable (CHOSEN)
 
-**Implementation:** Add `CAI_DB_PATH` env var support to `getCasys PMLDatabasePath()`
+**Implementation:** Add `PML_DB_PATH` env var support to `getCasys PMLDatabasePath()`
 
 **Pros:**
 
@@ -105,7 +104,7 @@ This causes:
 
 **Chosen Option:** **Option 1 - Environment Variable**
 
-Add support for `CAI_DB_PATH` environment variable to override the default database path.
+Add support for `PML_DB_PATH` environment variable to override the default database path.
 
 ### Implementation
 
@@ -114,7 +113,7 @@ Add support for `CAI_DB_PATH` environment variable to override the default datab
 ```typescript
 export function getCasys PMLDatabasePath(): string {
   // Allow custom DB path via environment variable (ADR-021)
-  const customPath = Deno.env.get("CAI_DB_PATH");
+  const customPath = Deno.env.get("PML_DB_PATH");
   if (customPath) {
     return customPath;
   }
@@ -143,14 +142,14 @@ export function getCasys PMLDatabasePath(): string {
 ```bash
 # In .devcontainer.json
 "remoteEnv": {
-  "CAI_DB_PATH": "/workspaces/Casys PML/.cai.db"
+  "PML_DB_PATH": "/workspaces/Casys PML/.cai.db"
 }
 ```
 
 ✅ **Test Isolation:** Parallel tests can use isolated databases
 
 ```bash
-CAI_DB_PATH=/tmp/test-db-${TEST_ID}.db deno test
+PML_DB_PATH=/tmp/test-db-${TEST_ID}.db deno test
 ```
 
 ✅ **Zero Breaking Changes:** Existing users unaffected (default unchanged)
@@ -159,7 +158,7 @@ CAI_DB_PATH=/tmp/test-db-${TEST_ID}.db deno test
 
 ```bash
 # Production server
-CAI_DB_PATH=/var/lib/cai/cai.db cai serve
+PML_DB_PATH=/var/lib/cai/cai.db cai serve
 ```
 
 ### Negative
@@ -195,7 +194,7 @@ deno task cli workflows sync --file playground/config/workflow-templates.yaml
 # → Uses ~/.cai/.cai.db ✅
 
 # Test 2: Custom path via env var
-CAI_DB_PATH=/workspaces/Casys PML/.cai.db \
+PML_DB_PATH=/workspaces/Casys PML/.cai.db \
   deno task cli workflows sync --file playground/config/workflow-templates.yaml
 # → Uses /workspaces/Casys PML/.cai.db ✅
 ```

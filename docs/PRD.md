@@ -114,12 +114,12 @@ sur l'exécution.
 
 **Authentication & Multi-Tenancy**
 
-- **FR020:** Le système doit supporter deux modes de déploiement : Local (zero-auth, user_id="local")
-  et Cloud (GitHub OAuth + API Key)
-- **FR021:** Le système doit permettre l'authentification via GitHub OAuth en mode Cloud avec session
-  management sécurisé (Deno KV, 7 jours expiry)
-- **FR022:** Le système doit générer des API Keys uniques (cai_sk_*) pour accès programmatique au MCP
-  Gateway en mode Cloud
+- **FR020:** Le système doit supporter deux modes de déploiement : Local (zero-auth,
+  user_id="local") et Cloud (GitHub OAuth + API Key)
+- **FR021:** Le système doit permettre l'authentification via GitHub OAuth en mode Cloud avec
+  session management sécurisé (Deno KV, 7 jours expiry)
+- **FR022:** Le système doit générer des API Keys uniques (cai_sk_*) pour accès programmatique au
+  MCP Gateway en mode Cloud
 - **FR023:** Le système doit permettre aux utilisateurs de configurer leurs propres clés API (BYOK)
   pour les MCPs tiers, stockées avec chiffrement AES-256-GCM
 - **FR024:** Le système doit isoler les données d'exécution par user_id tout en partageant les tool
@@ -541,7 +541,8 @@ recommandations basées sur les patterns d'usage réels via graph traversal
 
 - **Story 5.1:** `search_tools` MCP tool - Hybrid semantic + graph search with Adamic-Adar
   relatedness
-  - ~~Dynamic alpha balancing (ADR-015): `α = max(0.5, 1.0 - density × 2)`~~ → **Superseded by ADR-048: Local Adaptive Alpha** (per-tool alpha via Heat Diffusion / Embeddings Hybrides)
+  - ~~Dynamic alpha balancing (ADR-015): `α = max(0.5, 1.0 - density × 2)`~~ → **Superseded by
+    ADR-048: Local Adaptive Alpha** (per-tool alpha via Heat Diffusion / Embeddings Hybrides)
   - Graph methods: `getNeighbors()`, `computeAdamicAdar()`, `computeGraphRelatedness()`
   - No strict confidence threshold (returns top-K results, letting agent decide)
   - **Complementary to Story 4.2:** Improves search quality (confidence boost) vs threshold
@@ -703,7 +704,7 @@ Execute & Learn (exec 1) → Capability Matching → Lazy Suggestions → Option
 
 **Comparaison Marché:**
 
-| Critère     | Docker MCP | Anthropic PTC | **Casys PML Epic 7**      |
+| Critère     | Docker MCP | Anthropic PTC | **Casys PML Epic 7**       |
 | ----------- | ---------- | ------------- | -------------------------- |
 | Learning    | ❌         | ❌            | ✅ GraphRAG + Capabilities |
 | Suggestions | ❌         | ❌            | ✅ Louvain/Adamic-Adar     |
@@ -785,11 +786,11 @@ connectant plusieurs tools:
 
 ### Epic 9: GitHub Authentication & Multi-Tenancy
 
-> **ADRs:** ADR-040 (Multi-tenant MCP & Secrets Management)
-> **Tech-Spec:** tech-spec-github-auth-multitenancy.md
+> **ADRs:** ADR-040 (Multi-tenant MCP & Secrets Management) **Tech-Spec:**
+> tech-spec-github-auth-multitenancy.md
 
-**Objectif:** Implémenter un modèle d'authentification hybride permettant deux modes de déploiement :
-**Self-hosted (Local)** pour développeurs individuels (zero-auth) et **Cloud (SaaS)** pour la
+**Objectif:** Implémenter un modèle d'authentification hybride permettant deux modes de déploiement
+: **Self-hosted (Local)** pour développeurs individuels (zero-auth) et **Cloud (SaaS)** pour la
 plateforme publique (GitHub OAuth + API Key).
 
 **Architecture Dual-Mode:**
@@ -808,7 +809,7 @@ plateforme publique (GitHub OAuth + API Key).
 │  • GitHub OAuth for authentication                               │
 │  • API Key for programmatic access (MCP Gateway)                 │
 │  • BYOK (Bring Your Own Key) for third-party MCPs               │
-│  • CAI-managed MCP catalog (no custom servers MVP)               │
+│  • PML-managed MCP catalog (no custom servers MVP)               │
 │  • Secrets encrypted AES-256-GCM (master key in Deno Deploy)    │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -840,8 +841,8 @@ plateforme publique (GitHub OAuth + API Key).
 **MCP Categories (Cloud Mode):**
 
 | Category    | Examples                        | API Key Source          |
-|-------------|---------------------------------|-------------------------|
-| **Managed** | filesystem, memory, fetch       | None (CAI provides)     |
+| ----------- | ------------------------------- | ----------------------- |
+| **Managed** | filesystem, memory, fetch       | None (PML provides)     |
 | **OAuth**   | github                          | User's GitHub token     |
 | **BYOK**    | tavily, brave, openai, airtable | User provides their key |
 

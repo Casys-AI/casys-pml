@@ -132,69 +132,112 @@ ADR-049 introduit un troisième mode d'exécution (**Speculation**) pour les thr
 
 **Utilisé pour :** Active Search (Tool & Capability)
 
-**Principe :** Comparer l'embedding sémantique (BGE-M3) avec l'embedding structurel (vecteurs propres du Laplacien) pour mesurer la **cohérence** entre ce que dit le texte et ce que dit la structure.
+**Principe :** Mesurer si la structure du graphe reflète les relations sémantiques en comparant les **patterns de similarité** entre un nœud et ses voisins.
 
 ### Rationale
 
 En mode Active Search, on a une **query explicite**. La question est : "Le graphe confirme-t-il ce que la sémantique suggère ?"
 
-- Si les deux embeddings sont proches → le graphe renforce la sémantique → alpha bas
-- Si les deux embeddings divergent → incohérence → faire confiance au semantic seul → alpha haut
+L'idée originale était de comparer directement les embeddings sémantiques (BGE-M3, 1024d) avec les embeddings structurels (eigenvectors spectraux, ~4d). Cependant, la similarité cosinus n'est pas définie pour des vecteurs de dimensions différentes.
+
+**Solution : Corrélation des Patterns de Similarité**
+
+Au lieu de comparer les embeddings directement, on compare les **patterns de relations** :
+
+1. Pour chaque voisin du nœud cible :
+   - Calculer la similarité **sémantique** (cosine entre embeddings BGE-M3, même dimension)
+   - Récupérer la similarité **structurelle** (poids de l'edge normalisé)
+
+2. Calculer la **corrélation de Pearson** entre ces deux listes de similarités
+
+3. Interprétation :
+   - Corrélation haute (+1) → les voisins proches sémantiquement sont aussi proches structurellement → graphe fiable → **alpha bas**
+   - Corrélation basse (0) → pas de relation entre sémantique et structure → **alpha moyen**
+   - Corrélation négative (-1) → structure contredit la sémantique → **alpha haut**
+
+### Exemple concret
+
+```
+Nœud cible: fs:read
+Voisins dans le graphe: [fs:write, git:diff, db:query]
+
+Similarités sémantiques (cosine BGE-M3):
+  fs:read ↔ fs:write  = 0.85  (très similaire)
+  fs:read ↔ git:diff  = 0.42  (moyennement)
+  fs:read ↔ db:query  = 0.25  (peu similaire)
+
+Similarités structurelles (edge weights normalisés):
+  fs:read → fs:write  = 0.90  (souvent co-utilisés)
+  fs:read → git:diff  = 0.50  (parfois)
+  fs:read → db:query  = 0.20  (rarement)
+
+Pearson([0.85, 0.42, 0.25], [0.90, 0.50, 0.20]) ≈ 0.99
+
+→ Graphe très cohérent avec la sémantique → alpha bas (≈0.5)
+```
 
 ### Implémentation
 
 ```typescript
 /**
- * Calcule l'alpha local via cohérence des embeddings (Active Search)
+ * Calcule l'alpha local via corrélation des patterns de similarité
  *
  * @param nodeId - ID du nœud cible
  * @returns Alpha entre 0.5 et 1.0
  */
 function computeAlphaEmbeddingsHybrides(nodeId: string): number {
-  // Embedding sémantique (BGE-M3) - déjà calculé
-  const semanticEmb = getSemanticEmbedding(nodeId);
+  const neighbors = graph.neighbors(nodeId);
+  if (neighbors.length < 2) return 1.0; // Fallback
 
-  // Embedding structurel (vecteurs propres du Laplacien)
-  // Réutilise le calcul de SpectralClusteringManager.computeClusters()
-  const structuralEmb = getStructuralEmbedding(nodeId);
+  const targetEmb = getSemanticEmbedding(nodeId);
+  if (!targetEmb) return 1.0;
 
-  if (!semanticEmb || !structuralEmb) {
-    return 1.0; // Fallback: semantic only
+  const semanticSims: number[] = [];
+  const structuralSims: number[] = [];
+
+  // Normalisation des poids d'edges
+  const maxWeight = Math.max(...neighbors.map(n => getEdgeWeight(nodeId, n)));
+
+  for (const neighbor of neighbors) {
+    const neighborEmb = getSemanticEmbedding(neighbor);
+    if (!neighborEmb) continue;
+
+    // Similarité sémantique (1024d vs 1024d ✓)
+    semanticSims.push(cosineSimilarity(targetEmb, neighborEmb));
+
+    // Similarité structurelle (poids normalisé)
+    structuralSims.push(getEdgeWeight(nodeId, neighbor) / maxWeight);
   }
 
-  // Cohérence = similarité cosinus entre les deux embeddings
-  const coherence = cosineSimilarity(
-    normalizeEmbedding(semanticEmb),
-    normalizeEmbedding(structuralEmb)
-  );
+  if (semanticSims.length < 2) return 1.0;
 
-  // Cohérence haute → graphe fiable → alpha bas
-  // Cohérence basse → incohérence → alpha haut
-  return Math.max(0.5, 1.0 - coherence * 0.5);
-}
+  // Corrélation de Pearson entre les patterns
+  const correlation = pearsonCorrelation(semanticSims, structuralSims);
 
-/**
- * Récupère l'embedding structurel depuis le Spectral Clustering
- */
-function getStructuralEmbedding(nodeId: string): number[] | null {
-  const spectral = getSpectralClusteringManager();
-  if (!spectral.hasComputedClusters()) return null;
+  // Normalise [-1, 1] → [0, 1]
+  const normalizedCoherence = (correlation + 1) / 2;
 
-  const nodeIndex = spectral.getNodeIndex(nodeId);
-  if (nodeIndex === -1) return null;
-
-  // Les k premiers vecteurs propres forment l'embedding structurel
-  return spectral.getEmbeddingRow(nodeIndex);
+  // Cohérence haute → alpha bas
+  return Math.max(0.5, 1.0 - normalizedCoherence * 0.5);
 }
 ```
+
+### Avantages de cette approche
+
+| Aspect | Ancienne approche | Nouvelle approche |
+|--------|-------------------|-------------------|
+| **Dimensions** | ❌ Compare 1024d vs 4d (invalide) | ✅ Compare scalaires vs scalaires |
+| **Interprétabilité** | Opaque | Clair : "voisins proches sémantiquement = proches structurellement?" |
+| **Dépendances** | Nécessite spectral clustering | Utilise uniquement le graphe et les embeddings existants |
 
 ### Briques existantes
 
 | Composant | Statut | Location |
 |-----------|--------|----------|
 | Embedding sémantique (BGE-M3) | ✅ Existe | `src/vector/embeddings.ts` |
-| Embedding structurel | ✅ Existe | `SpectralClusteringManager.computeClusters()` ligne 312-318 |
-| Cosine similarity | ✅ Existe | Utilitaire standard |
+| Poids des edges | ✅ Existe | `graph.getEdgeAttribute(a, b, "weight")` |
+| Cosine similarity | ✅ Existe | `LocalAlphaCalculator.cosineSimilarity()` |
+| Pearson correlation | ✅ **Ajouté** | `LocalAlphaCalculator.pearsonCorrelation()` |
 
 ---
 

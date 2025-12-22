@@ -4,9 +4,8 @@ Status: done
 
 ## Story
 
-As a new user,
-I want a landing page with GitHub sign-in and a dashboard showing my API key,
-So that I can easily onboard and configure my MCP client.
+As a new user, I want a landing page with GitHub sign-in and a dashboard showing my API key, So that
+I can easily onboard and configure my MCP client.
 
 ## Acceptance Criteria
 
@@ -14,8 +13,9 @@ So that I can easily onboard and configure my MCP client.
 2. **AC2:** Landing page header shows "Local mode" badge when `!isCloudMode()`
 3. **AC3:** Dashboard header displays user avatar + username with link to Settings
 4. **AC4:** Settings page (`/dashboard/settings`) shows masked API key with Show/Copy buttons
-5. **AC5:** Settings page shows MCP configuration snippet (HTTP transport for cloud, stdio for local)
-6. **AC6:** MCP config uses `${CAI_API_KEY}` env var expansion (API key never in clear text in JSON)
+5. **AC5:** Settings page shows MCP configuration snippet (HTTP transport for cloud, stdio for
+   local)
+6. **AC6:** MCP config uses `${PML_API_KEY}` env var expansion (API key never in clear text in JSON)
 7. **AC7:** Settings page has "Regenerate API Key" button with confirmation modal
 8. **AC8:** Settings page has "Delete Account" button with double confirmation
 9. **AC9:** Delete flow anonymizes user data (`user_id` → `deleted-{uuid}`)
@@ -45,9 +45,9 @@ So that I can easily onboard and configure my MCP client.
   - [x] 3.3 Implement "Show" button (reveals flash key if available)
   - [x] 3.4 Implement "Copy" button with toast notification
   - [x] 3.5 Create MCP Gateway Configuration section:
-    - [x] 3.5.1 Cloud mode: HTTP transport config with `${CAI_API_KEY}` env var
+    - [x] 3.5.1 Cloud mode: HTTP transport config with `${PML_API_KEY}` env var
     - [x] 3.5.2 Local mode: stdio transport config (no API key)
-    - [x] 3.5.3 Add setup instructions (export CAI_API_KEY, copy to .mcp.json)
+    - [x] 3.5.3 Add setup instructions (export PML_API_KEY, copy to .mcp.json)
   - [x] 3.6 Implement "Copy Config" button
   - [x] 3.7 Create "Regenerate API Key" button with confirmation modal (cloud only)
   - [x] 3.8 Create "Delete Account" button with double confirmation (cloud only)
@@ -56,7 +56,8 @@ So that I can easily onboard and configure my MCP client.
 - [x] **Task 4: API Routes for Settings** (AC: #6, #7, #8)
 
   - [x] 4.1 Create `src/web/routes/api/user/api-key.ts` - GET current key prefix
-  - [x] 4.2 Modify `src/web/routes/auth/regenerate.ts` to store key in flash session (for Settings page display)
+  - [x] 4.2 Modify `src/web/routes/auth/regenerate.ts` to store key in flash session (for Settings
+        page display)
   - [x] 4.3 Create `src/web/routes/api/user/delete.ts` - DELETE account
 
 - [x] **Task 5: Tests** (AC: #11)
@@ -149,12 +150,12 @@ export default function Page({
 // src/server/auth/session.ts
 export async function consumeFlashApiKey(
   kv: Deno.Kv,
-  sessionId: string
+  sessionId: string,
 ): Promise<string | null>;
 export async function setFlashApiKey(
   kv: Deno.Kv,
   sessionId: string,
-  apiKey: string
+  apiKey: string,
 ): Promise<void>;
 ```
 
@@ -172,7 +173,7 @@ export async function setFlashApiKey(
 │   ├── Tab: "Claude Code / Windsurf" (default)
 │   │   ├── JSON code block: { "mcpServers": { "mcp-gateway": { ... } } }
 │   │   ├── [Copy Config] button
-│   │   └── Instructions: "1. Copier dans .mcp.json 2. export CAI_API_KEY=..."
+│   │   └── Instructions: "1. Copier dans .mcp.json 2. export PML_API_KEY=..."
 │   └── Tab: "Claude Desktop" (coming soon badge)
 │
 ├── Section: Danger Zone
@@ -192,7 +193,8 @@ export async function setFlashApiKey(
 
 ### MCP Gateway Configuration
 
-**IMPORTANT:** CAI utilise un transport **HTTP** en mode cloud (avec API key) et **stdio** en mode local.
+**IMPORTANT:** PML utilise un transport **HTTP** en mode cloud (avec API key) et **stdio** en mode
+local.
 
 #### Mode Cloud (HTTP Transport) - Settings Page Display
 
@@ -205,7 +207,7 @@ La clé API est passée via variable d'environnement pour la sécurité (jamais 
       "type": "http",
       "url": "https://pml.casys.ai/mcp",
       "headers": {
-        "x-api-key": "${CAI_API_KEY}"
+        "x-api-key": "${PML_API_KEY}"
       }
     }
   }
@@ -214,9 +216,11 @@ La clé API est passée via variable d'environnement pour la sécurité (jamais 
 
 **Instructions à afficher à l'utilisateur :**
 
-1. Copier la configuration ci-dessus dans `.mcp.json` (project scope) ou `~/.claude.json` (user scope)
-2. Définir la variable d'environnement : `export CAI_API_KEY="ac_xxx"`
-3. Ou ajouter via CLI : `claude mcp add --transport http mcp-gateway https://pml.casys.ai/mcp --header "x-api-key: ${CAI_API_KEY}"`
+1. Copier la configuration ci-dessus dans `.mcp.json` (project scope) ou `~/.claude.json` (user
+   scope)
+2. Définir la variable d'environnement : `export PML_API_KEY="ac_xxx"`
+3. Ou ajouter via CLI :
+   `claude mcp add --transport http mcp-gateway https://pml.casys.ai/mcp --header "x-api-key: ${PML_API_KEY}"`
 
 **Pourquoi HTTP et pas stdio en cloud ?**
 
@@ -249,10 +253,10 @@ claude mcp add --transport stdio mcp-gateway -- deno task mcp
 
 #### Sécurité API Key
 
-- **Ne JAMAIS hardcoder** la clé dans le JSON (utiliser `${CAI_API_KEY}`)
+- **Ne JAMAIS hardcoder** la clé dans le JSON (utiliser `${PML_API_KEY}`)
 - La variable d'environnement est expandue par Claude Code au runtime
 - `.mcp.json` peut être committé en git (pas de secrets)
-- L'utilisateur définit `CAI_API_KEY` dans son shell profile (`.bashrc`, `.zshrc`)
+- L'utilisateur définit `PML_API_KEY` dans son shell profile (`.bashrc`, `.zshrc`)
 
 ### Delete Account Flow
 
@@ -314,15 +318,18 @@ src/web/routes/
 
 ### References
 
-- **Tech-Spec:** [tech-spec-github-auth-multitenancy.md](tech-spec-github-auth-multitenancy.md#phase-4-ui-onboarding)
+- **Tech-Spec:**
+  [tech-spec-github-auth-multitenancy.md](tech-spec-github-auth-multitenancy.md#phase-4-ui-onboarding)
 - **Epic Definition:** [docs/epics.md#story-94](../epics.md) - Story 9.4
 - **Previous Story:** [9-3-auth-middleware-mode-detection.md](9-3-auth-middleware-mode-detection.md)
 - **Auth Module:** [src/lib/auth.ts](../../src/lib/auth.ts)
 - **Session Module:** [src/server/auth/session.ts](../../src/server/auth/session.ts)
 - **Landing Page:** [src/web/routes/index.tsx](../../src/web/routes/index.tsx)
 - **Dashboard:** [src/web/routes/dashboard.tsx](../../src/web/routes/dashboard.tsx)
-- **MCP Docs (Claude Code):** [code.claude.com/docs/en/mcp](https://code.claude.com/docs/en/mcp) - HTTP/SSE/stdio transports, env var expansion
-- **MCP Spec:** [modelcontextprotocol.io/docs](https://modelcontextprotocol.io/docs/learn/architecture)
+- **MCP Docs (Claude Code):** [code.claude.com/docs/en/mcp](https://code.claude.com/docs/en/mcp) -
+  HTTP/SSE/stdio transports, env var expansion
+- **MCP Spec:**
+  [modelcontextprotocol.io/docs](https://modelcontextprotocol.io/docs/learn/architecture)
 
 ### Git Intelligence (Recent Commits)
 
@@ -340,20 +347,20 @@ Story 9.3 completed 2025-12-08:
 ```tsx
 // In header nav, after existing links:
 {
-  data.isCloudMode ? (
-    <a href="/auth/signin" class="btn btn-primary btn-sm">
-      <GitHubIcon /> Sign in with GitHub
-    </a>
-  ) : (
-    <span class="badge badge-local">Local Mode</span>
-  );
+  data.isCloudMode
+    ? (
+      <a href="/auth/signin" class="btn btn-primary btn-sm">
+        <GitHubIcon /> Sign in with GitHub
+      </a>
+    )
+    : <span class="badge badge-local">Local Mode</span>;
 }
 ```
 
 **2. Dashboard Header (Task 2):**
 
 ```tsx
-// Add at top of dashboard, after "Back to CAI" link:
+// Add at top of dashboard, after "Back to PML" link:
 <div class="dashboard-header">
   <div class="user-info">
     <img src={user.avatarUrl || "/default-avatar.svg"} class="avatar" />
@@ -362,7 +369,7 @@ Story 9.3 completed 2025-12-08:
   <a href="/dashboard/settings" class="settings-link">
     <SettingsIcon />
   </a>
-</div>
+</div>;
 ```
 
 **3. Settings Page Handler (Task 3):**
@@ -371,11 +378,12 @@ Story 9.3 completed 2025-12-08:
 export const handler = {
   async GET(ctx: FreshContext<AuthState>) {
     const { user, isCloudMode } = ctx.state;
-    if (!user)
+    if (!user) {
       return new Response(null, {
         status: 302,
         headers: { Location: "/auth/signin" },
       });
+    }
 
     // Get API key prefix from DB (not full key)
     const db = await getDb();
@@ -391,9 +399,7 @@ export const handler = {
     const { getKv } = await import("../../../server/auth/kv.ts");
     const sessionId = await getSessionId(ctx.req);
     const kv = await getKv();
-    const flashApiKey = sessionId
-      ? await consumeFlashApiKey(kv, sessionId)
-      : null;
+    const flashApiKey = sessionId ? await consumeFlashApiKey(kv, sessionId) : null;
 
     return page({ user, isCloudMode, apiKeyPrefix, flashApiKey });
   },
@@ -410,7 +416,7 @@ export const handler = {
     if (!user || user.id === "local") {
       return new Response(
         JSON.stringify({ error: "Cannot delete local user" }),
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -456,7 +462,8 @@ N/A - No issues encountered.
 - ✅ Task 1: Added auth buttons to landing page header (Sign in with GitHub / Local mode badge)
 - ✅ Task 2: Added dashboard header bar with user info and settings link
 - ✅ Task 3: Created Settings page with API key management, MCP config display, danger zone
-- ✅ Task 4: Created API routes for user/api-key and user/delete, updated regenerate.ts with flash session
+- ✅ Task 4: Created API routes for user/api-key and user/delete, updated regenerate.ts with flash
+  session
 - ✅ Task 5: 23 tests passing (16 unit + 7 integration)
 - ⏭️ E2E tests marked optional, not implemented
 
@@ -481,12 +488,20 @@ N/A - No issues encountered.
 ## Change Log
 
 - 2025-12-08: Story 9.4 drafted with comprehensive context for auth UI additions
-- 2025-12-08: **Validated** - MCP config updated: HTTP transport for cloud (with `${CAI_API_KEY}` env var), stdio for local. Server name: `mcp-gateway`. URL: `https://pml.casys.ai/mcp`. Security: API key never in clear text in JSON.
-- 2025-12-08: **Adversarial Review** - Fixed: AC references in Tasks, replaced non-existent `dag_executions` with `workflow_execution` (note: user_id field deferred to Story 9.5), added missing imports for session/kv in Implementation Hints, clarified regenerate.ts needs flash session modification.
-- 2025-12-08: **Implementation Complete** - All 5 tasks completed. 23 tests passing (16 unit + 7 integration). AC #1-#10 validated. E2E tests (AC #11) optional, not implemented.
+- 2025-12-08: **Validated** - MCP config updated: HTTP transport for cloud (with `${PML_API_KEY}`
+  env var), stdio for local. Server name: `mcp-gateway`. URL: `https://pml.casys.ai/mcp`. Security:
+  API key never in clear text in JSON.
+- 2025-12-08: **Adversarial Review** - Fixed: AC references in Tasks, replaced non-existent
+  `dag_executions` with `workflow_execution` (note: user_id field deferred to Story 9.5), added
+  missing imports for session/kv in Implementation Hints, clarified regenerate.ts needs flash
+  session modification.
+- 2025-12-08: **Implementation Complete** - All 5 tasks completed. 23 tests passing (16 unit + 7
+  integration). AC #1-#10 validated. E2E tests (AC #11) optional, not implemented.
 - 2025-12-09: **Code Review (Adversarial)** - Found 9 issues (3 HIGH, 4 MEDIUM, 2 LOW). All fixed:
-  - **H1 FIXED:** Flash API key was consumed immediately on page visit (now uses `peekFlashApiKey` - key stays available for 5 min TTL)
-  - **H2 FIXED:** Delete account backend now validates `{ confirmation: "DELETE" }` in body (AC #8 double confirmation)
+  - **H1 FIXED:** Flash API key was consumed immediately on page visit (now uses `peekFlashApiKey` -
+    key stays available for 5 min TTL)
+  - **H2 FIXED:** Delete account backend now validates `{ confirmation: "DELETE" }` in body (AC #8
+    double confirmation)
   - **H3 FIXED:** ConfigCopyButton now has self-contained inline styles
   - **M3 FIXED:** Removed alert() for key display, now reloads page with flash session
   - **L1 FIXED:** crossorigin → crossOrigin (JSX camelCase)
