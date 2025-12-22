@@ -503,13 +503,107 @@ Pour le MVP, Option A suffit. La plupart des registrars DNS fonctionnent comme �
 
 ---
 
+## Décisions Prises
+
+### Blockchain : Base
+
+| Critère | Base | Arbitrum |
+|---------|------|----------|
+| Fees | ~$0.01 | ~$0.05 |
+| Backing | Coinbase | Offchain Labs |
+| Target | Consumer apps | DeFi heavy |
+
+**Base** choisi pour :
+- Fees ultra bas
+- Coinbase = crédibilité entreprises
+- Growing ecosystem
+
+### Intégration Deno : viem
+
+```typescript
+// deno.json
+{ "imports": { "viem": "npm:viem@2" } }
+
+// src/blockchain/registry-client.ts
+import { createPublicClient, http } from "viem";
+import { base } from "viem/chains";
+
+const client = createPublicClient({
+  chain: base,
+  transport: http(),
+});
+
+export async function isNamespaceOwner(ns: string, addr: `0x${string}`): Promise<boolean> {
+  return await client.readContract({
+    address: REGISTRY_ADDRESS,
+    abi: registryAbi,
+    functionName: "isOwner",
+    args: [ns, addr],
+  });
+}
+```
+
+### Wallet Linking avec GitHub OAuth
+
+Les users sont déjà dans PostgreSQL avec GitHub OAuth. On ajoute juste le wallet :
+
+```sql
+-- Migration: add wallet to users
+ALTER TABLE users ADD COLUMN wallet_address TEXT UNIQUE;
+ALTER TABLE users ADD COLUMN wallet_linked_at TIMESTAMP WITH TIME ZONE;
+```
+
+**Flow :**
+
+```
+1. User logged in via GitHub OAuth (existant)
+   └── user_id: "github:ermusic"
+
+2. User va dans Settings → "Link Wallet"
+   └── Connect Wallet (Metamask, Coinbase Wallet)
+   └── Sign message: "Link wallet 0x... to PML account"
+   └── PML stocke: { user_id, wallet_address }
+
+3. User veut publier sous "casys.*"
+   └── PML check: isOwner("casys", 0x...) on-chain
+   └── PML check: wallet 0x... linked to current user
+   └── ✓ Autorisé
+```
+
+**Backend (vérification signature) :**
+
+```typescript
+// POST /api/link-wallet
+import { verifyMessage } from "viem";
+
+async function linkWallet(req: Request) {
+  const { address, signature } = await req.json();
+  const userId = req.session.userId;  // From GitHub OAuth
+
+  const valid = await verifyMessage({
+    address,
+    message: `Link wallet ${address} to PML account`,
+    signature,
+  });
+
+  if (!valid) throw new Error("Invalid signature");
+
+  await db.update(users)
+    .set({ walletAddress: address, walletLinkedAt: new Date() })
+    .where(eq(users.id, userId));
+}
+```
+
+**Note :** L'utilisateur n'a pas besoin de wallet pour utiliser PML. Juste pour **posséder** des namespaces.
+
+---
+
 ## Next Steps
 
-1. **Décider la L2** - Base vs Arbitrum (ou les deux)
-2. **POC smart contract** - Deploy sur testnet, tester les flows
-3. **Design UX** - Mockups registration flow avec wallet connect
-4. **Estimer gas costs** - Vérifier que les fees sont acceptables
-5. **Legal check** - Pas de token custom = moins de risque, mais vérifier quand même
+1. **POC smart contract** - Deploy sur Base Sepolia testnet
+2. **Design UX** - Mockups wallet connect + registration
+3. **Estimer gas costs** - Vérifier fees sur Base
+4. **Legal check** - Pas de token = moins de risque
 
 ---
 
