@@ -198,22 +198,26 @@ development_status:
   10-2-static-argument-extraction: done # Dev completed 2025-12-19, 22 tests passing, ArgumentsStructure types implemented
   10-3-provides-edge-type: done # Code Review APPROVED + AC10 added 2025-12-18, 37 tests passing, DB persistence for scalability
   10-5-execute-code-via-dag: in-progress # Code Review 2025-12-19: 4 HIGH, 3 MEDIUM issues - action items created
-  10-6-pml-discover-api: ready-for-dev # Story context created 2025-12-20, Unified discovery API (tools + capabilities)
-  10-7-pml-execute-api: backlog
+  10-6-pml-discover-api: done # Code Review APPROVED 2025-12-22: 15 unit + 5 E2E tests passing, all ACs validated, benchmark simplified
+  10-7-pml-execute-api: ready-for-dev
+  10-7a-drdsp-integration: backlog # Integrate DR-DSP for suggestDAG (replaces Dijkstra)
+  10-7b-shgat-scoring-integration: backlog # Integrate SHGAT scoring + training pipeline on episodic_events
+  10-7c-thompson-sampling-integration: backlog # Integrate Thompson Sampling in decision flow
   10-8-pml-get-task-result: backlog
   epic-10-retrospective: optional
 
   # Epic 11: Learning from Execution Traces
   # Epic: epic-11-learning-from-traces.md
-  # 5 stories (+1 optional), ~2-3 semaines
-  # Episodic memory: Traces stored separately from capabilities
-  # Learning: PER (Prioritized Experience Replay) + TD Learning
+  # 5 stories (+1 optional), ~2-2.5 semaines (réduit car 11.3 simplifié)
+  # Architecture: TD Error + PER + SHGAT (style DQN/Rainbow) - 2025-12-22
+  # DÉPRÉCIATIONS: CapabilityLearning supprimé, SHGAT apprend directement
   # Depends on: Epic 10
   epic-11: backlog
   11-0-db-schema-cleanup: backlog
   11-1-result-tracing: backlog
   11-2-execution-trace-table: backlog
-  11-3-per-td-learning: backlog
+  11-3-td-error-per-priority: backlog # REFACTORÉ: TD Error → PER priority (pas CapabilityLearning)
   11-4-definition-invocation-views: backlog
   11-5-dry-run-mode: backlog
+  11-6-shgat-training-per-sampling: backlog # REFACTORÉ: PER sampling + SHGAT train
   epic-11-retrospective: optional

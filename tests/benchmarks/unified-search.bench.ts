@@ -1,12 +1,16 @@
 /**
  * Unified Search Precision Benchmark
  *
- * Benchmarks for the unified search algorithm (Active Search mode).
+ * Benchmarks for pml_discover (Story 10.6) - Active Search mode without context.
  * Uses REAL BGE-M3 embeddings for meaningful precision metrics.
  *
- * Formula: score = (semantic × α + graph × (1-α)) × reliability
+ * Formula for pml_discover: score = semantic × reliability
  *
- * See spike: 2025-12-21-capability-pathfinding-dijkstra.md
+ * NOTE: Alpha/graph is NOT used in pml_discover because there's no context.
+ * - pml_discover → This benchmark (semantic × reliability)
+ * - predictNextNode → Uses SHGAT + DR-DSP (stories 10.7a/b), NOT tested here
+ *
+ * See: Story 10.6 Dev Notes, ADR-050 Unified Search Simplification
  *
  * Run: deno run --allow-all tests/benchmarks/unified-search.bench.ts
  *
@@ -22,9 +26,10 @@ import {
   type UnifiedVectorSearch,
 } from "../../src/graphrag/algorithms/unified-search.ts";
 import { EmbeddingModel } from "../../src/vector/embeddings.ts";
-import { LocalAlphaCalculator } from "../../src/graphrag/local-alpha.ts";
-import { SpectralClusteringManager } from "../../src/graphrag/spectral-clustering.ts";
 import { computeDiscoverScore } from "../../src/mcp/handlers/discover-handler.ts";
+
+// NOTE: LocalAlphaCalculator and SpectralClusteringManager are NOT used by pml_discover
+// They are only relevant for predictNextNode (SHGAT+DR-DSP mode) - see stories 10.7a/b
 
 // ============================================================================
 // Test Data Setup - Realistic E-commerce Tools & Capabilities
@@ -169,8 +174,8 @@ const nodes = new Map<string, SearchableNode>([
   }],
 ]);
 
-// Graph connections - Dense graph to enable pattern correlation (ADR-048)
-// Each node should have 3+ neighbors for meaningful alpha calculation
+// Graph connections - Dense graph to enable pattern correlation
+// Each node should have 3+ neighbors for meaningful graph relationships
 const graph = createMockGraph([
   // ==========================================================================
   // File Operations Cluster (dense intra-cluster connections)
@@ -578,11 +583,15 @@ interface PrecisionResult {
   }>;
 }
 
+/**
+ * Measure precision for pml_discover scoring.
+ *
+ * Pure semantic matching - pml_discover doesn't use graph context.
+ * Formula: score = semantic × reliability (via computeDiscoverScore)
+ */
 async function measurePrecision(
   vectorSearch: UnifiedVectorSearch,
-  options: { alphaOverride?: number; localAlphaCalculator?: LocalAlphaCalculator | null } = {},
 ): Promise<PrecisionResult> {
-  const { alphaOverride, localAlphaCalculator } = options;
   let hit1 = 0;
   let hit3 = 0;
   let hit5 = 0;
@@ -595,6 +604,7 @@ async function measurePrecision(
   const queryResults: PrecisionResult["queryResults"] = [];
 
   for (const test of queryTests) {
+    // pml_discover: pure semantic matching
     const results = await unifiedSearch(
       vectorSearch,
       graph,
@@ -603,8 +613,6 @@ async function measurePrecision(
       {
         contextNodes: test.context || [],
         limit: 10,
-        alpha: alphaOverride,
-        localAlphaCalculator,
       },
     );
 
@@ -654,10 +662,19 @@ async function measurePrecision(
 // Main Benchmark
 // ============================================================================
 
+/**
+ * Main benchmark for pml_discover precision.
+ *
+ * Tests semantic search with reliability scoring (the actual formula used by pml_discover).
+ * Graph context is NOT used in pml_discover - it's only for predictNextNode (SHGAT+DR-DSP).
+ */
 async function runBenchmark() {
   console.log("\n╔════════════════════════════════════════════════════════════╗");
-  console.log("║     Unified Search Precision Benchmark (Real Embeddings)    ║");
+  console.log("║   pml_discover Precision Benchmark (Real BGE-M3 Embeddings) ║");
   console.log("╚════════════════════════════════════════════════════════════╝\n");
+
+  console.log("Formula: score = semantic × reliability (Story 10.6)");
+  console.log("NOTE: Alpha/graph NOT used in pml_discover (no context)\n");
 
   console.log("🔄 Loading BGE-M3 model (may take 60-90s first time)...");
   const startLoad = performance.now();
@@ -669,151 +686,51 @@ async function runBenchmark() {
 
   try {
     console.log("📊 Pre-computing embeddings for nodes...");
-    const { vectorSearch, nodeEmbeddings } = await createRealVectorSearch(embedder, nodes);
+    const { vectorSearch } = await createRealVectorSearch(embedder, nodes);
     console.log(`✓ ${nodes.size} node embeddings computed\n`);
 
-    // Create LocalAlphaCalculator (ADR-048)
-    console.log("🔧 Creating LocalAlphaCalculator with real embeddings...");
-
-    // Build parent/children maps for hierarchy
-    const parentMap = new Map<string, string>();
-    const childrenMap = new Map<string, string[]>();
-
-    // Meta → Capabilities
-    childrenMap.set("meta:devops", ["cap:code-deploy", "cap:data-migration", "cap:data-sync"]);
-    childrenMap.set("meta:data-ops", ["cap:file-backup", "cap:data-sync", "cap:data-migration"]);
-
-    // Capabilities → Tools
-    childrenMap.set("cap:file-backup", ["fs:read", "fs:write"]);
-    childrenMap.set("cap:data-sync", ["api:get", "db:insert"]);
-    childrenMap.set("cap:code-deploy", ["git:commit", "git:push"]);
-    childrenMap.set("cap:data-migration", ["db:query", "api:post"]);
-
-    // Reverse: set parents
-    for (const [parent, children] of childrenMap) {
-      for (const child of children) {
-        parentMap.set(child, parent);
-      }
-    }
-
-    // Build SpectralClusteringManager (like prod)
-    console.log("   Building SpectralClusteringManager...");
-    const spectralClustering = new SpectralClusteringManager();
-
-    // Get all tools and capabilities
-    const tools = Array.from(nodes.entries())
-      .filter(([_, n]) => n.type === "tool")
-      .map(([id, _]) => id);
-
-    const capabilities = Array.from(nodes.entries())
-      .filter(([_, n]) => n.type === "capability")
-      .map(([id, _]) => ({
-        id,
-        toolsUsed: childrenMap.get(id) || [],
-      }));
-
-    // Build bipartite matrix and compute clusters
-    spectralClustering.buildBipartiteMatrix(tools, capabilities);
-    spectralClustering.computeClusters();
-    spectralClustering.computeHypergraphPageRank(capabilities);
-    console.log("   ✓ SpectralClustering computed");
-
-    // deno-lint-ignore no-explicit-any
-    const localAlphaCalculator = new LocalAlphaCalculator({
-      graph: graph as any,  // Graph is compatible with GraphLike
-      spectralClustering,  // Real spectral clustering!
-      getSemanticEmbedding: (nodeId: string) => nodeEmbeddings.get(nodeId) || null,  // Real BGE-M3 embeddings!
-      getObservationCount: (_nodeId: string) => 10,  // Assume 10 observations (not cold start)
-      getParent: (nodeId: string, _parentType) => parentMap.get(nodeId) || null,
-      getChildren: (nodeId: string, _childType) => childrenMap.get(nodeId) || [],
-    });
-    console.log("✓ LocalAlphaCalculator ready (spectral + embeddings)\n");
-
-    // DEBUG: Check what local alpha returns for a few nodes
-    console.log("🔬 Debug: Testing LocalAlphaCalculator...");
-    for (const nodeId of ["fs:read", "cap:file-backup", "meta:devops"]) {
-      const breakdown = localAlphaCalculator.getLocalAlphaWithBreakdown("active", nodeId, "tool", []);
-      console.log(`   ${nodeId}: alpha=${breakdown.alpha.toFixed(3)}, algo=${breakdown.algorithm}, coldStart=${breakdown.coldStart}`);
-
-      // Check structural embedding
-      const structEmb = spectralClustering.getEmbeddingRow(nodeId);
-      console.log(`     structEmb: ${structEmb ? `[${structEmb.length}d]` : "null"}`);
-    }
-    console.log("");
-
     // ========================================================================
-    // Test different alpha configurations
+    // Test pml_discover precision (pure semantic × reliability)
     // ========================================================================
-    const alphaTests: Array<{ name: string; alpha?: number; useLocal?: boolean }> = [
-      { name: "α=1.0 (pure semantic)", alpha: 1.0 },
-      { name: "α=0.7 (semantic heavy)", alpha: 0.7 },
-      { name: "α=0.5 (balanced)", alpha: 0.5 },
-      { name: "α=0.3 (graph heavy)", alpha: 0.3 },
-      { name: "α=adaptive (global)", alpha: undefined },
-      { name: "α=local (ADR-048)", useLocal: true },
-    ];
+    console.log("🔍 Testing pml_discover precision (semantic × reliability)...\n");
 
-    console.log("🔍 Testing different alpha configurations...\n");
-    console.log("╔══════════════════════════════╦════════╦════════╦════════╦════════╗");
-    console.log("║ Alpha Configuration          ║ Hit@1  ║ Hit@3  ║ Hit@5  ║  MRR   ║");
-    console.log("╠══════════════════════════════╬════════╬════════╬════════╬════════╣");
+    const precision = await measurePrecision(vectorSearch);
 
-    const results: Map<string, PrecisionResult> = new Map();
+    // Print summary
+    console.log("╔══════════════════════════════════════════════════════════╗");
+    console.log("║                    PRECISION RESULTS                     ║");
+    console.log("╠══════════════════════════════════════════════════════════╣");
+    console.log(`║ Hit@1:  ${(precision.hit1 * 100).toFixed(1).padStart(5)}%                                        ║`);
+    console.log(`║ Hit@3:  ${(precision.hit3 * 100).toFixed(1).padStart(5)}%                                        ║`);
+    console.log(`║ Hit@5:  ${(precision.hit5 * 100).toFixed(1).padStart(5)}%                                        ║`);
+    console.log(`║ MRR:    ${precision.mrr.toFixed(3).padStart(6)}                                        ║`);
+    console.log("╚══════════════════════════════════════════════════════════╝\n");
 
-    for (const { name, alpha, useLocal } of alphaTests) {
-      const precision = await measurePrecision(vectorSearch, {
-        alphaOverride: alpha,
-        localAlphaCalculator: useLocal ? localAlphaCalculator : null,
-      });
-      results.set(name, precision);
-
-      const h1 = (precision.hit1 * 100).toFixed(1).padStart(5);
-      const h3 = (precision.hit3 * 100).toFixed(1).padStart(5);
-      const h5 = (precision.hit5 * 100).toFixed(1).padStart(5);
-      const mrr = precision.mrr.toFixed(3).padStart(6);
-      console.log(`║ ${name.padEnd(28)} ║ ${h1}% ║ ${h3}% ║ ${h5}% ║ ${mrr} ║`);
-    }
-
-    console.log("╚══════════════════════════════╩════════╩════════╩════════╩════════╝\n");
-
-    // Use local alpha for detailed results (ADR-048)
-    const precision = results.get("α=local (ADR-048)")!;
-
-    // Print detailed results for local alpha
-    console.log("📋 Detailed Results (α=local ADR-048):");
+    // Print detailed results by difficulty
+    console.log("📋 Detailed Results:");
     console.log("─".repeat(70));
 
     for (const difficulty of ["easy", "medium", "hard"]) {
       const tests = precision.queryResults.filter((r) => r.difficulty === difficulty);
       if (tests.length === 0) continue;
-      console.log(`\n[${difficulty.toUpperCase()}]`);
+      const stats = precision.byDifficulty[difficulty];
+      console.log(`\n[${difficulty.toUpperCase()}] Hit@1: ${stats.hit1}/${stats.count}, Hit@5: ${stats.hit5}/${stats.count}`);
       for (const r of tests) {
         const icon = r.correct ? "✅" : r.rank > 0 && r.rank <= 5 ? "🔶" : "❌";
-        console.log(`${icon} "${r.query}"`);
+        console.log(`${icon} "${r.query.substring(0, 50)}${r.query.length > 50 ? "..." : ""}"`);
         console.log(`   Expected: ${r.expected} | Got: ${r.actual} | Rank: ${r.rank}`);
       }
     }
     console.log("\n" + "─".repeat(70) + "\n");
 
-    // Assertions - Mixed simple + complex queries
-    console.log("🧪 Running assertions (α=local ADR-048)...");
-    assertGreater(precision.hit1, 0.5, "Overall Hit@1 should be > 50%");
-    console.log("   ✓ Hit@1 > 50%");
-    assertGreater(precision.hit5, 0.85, "Overall Hit@5 should be > 85% (production threshold)");
+    // Assertions
+    console.log("🧪 Running assertions...");
+    assertGreater(precision.hit1, 0.55, "Hit@1 should be > 55%");
+    console.log("   ✓ Hit@1 > 55%");
+    assertGreater(precision.hit5, 0.85, "Hit@5 should be > 85% (production threshold)");
     console.log("   ✓ Hit@5 > 85%");
     assertGreater(precision.mrr, 0.7, "MRR should be > 0.7");
     console.log("   ✓ MRR > 0.7");
-
-    // Find best alpha
-    let bestAlpha = "";
-    let bestHit1 = 0;
-    for (const [name, result] of results) {
-      if (result.hit1 > bestHit1) {
-        bestHit1 = result.hit1;
-        bestAlpha = name;
-      }
-    }
-    console.log(`\n   💡 Best alpha: ${bestAlpha} (${(bestHit1 * 100).toFixed(1)}% Hit@1)`);
 
     console.log("\n╔════════════════════════════════════════════════════════════╗");
     console.log("║                    BENCHMARK PASSED                        ║");
@@ -837,7 +754,10 @@ if (import.meta.main) {
 export { queryTests, nodes, graph };
 
 // ============================================================================
-// Deno.bench Standard Benchmarks (using mocks for fast execution)
+// Deno.bench Latency Benchmarks (using mocks for fast execution)
+//
+// pml_discover formula: score = semantic × reliability
+// Pure semantic matching, no graph context.
 // ============================================================================
 
 // Pre-compute mock vector search for benchmarks
@@ -852,40 +772,6 @@ Deno.bench({
       nodes,
       "read a file from disk",
       { limit: 10, minScore: 0.3 },
-    );
-  },
-});
-
-Deno.bench({
-  name: "unifiedSearch - with fixed alpha 0.7",
-  async fn() {
-    await unifiedSearch(
-      mockVectorSearch,
-      graph,
-      nodes,
-      "commit changes to git",
-      {
-        limit: 10,
-        minScore: 0.3,
-        alpha: 0.7, // Fixed alpha instead of LocalAlphaCalculator
-      },
-    );
-  },
-});
-
-Deno.bench({
-  name: "unifiedSearch - with context nodes",
-  async fn() {
-    await unifiedSearch(
-      mockVectorSearch,
-      graph,
-      nodes,
-      "push to remote",
-      {
-        limit: 10,
-        minScore: 0.3,
-        contextNodes: ["git:commit", "git:status"],
-      },
     );
   },
 });

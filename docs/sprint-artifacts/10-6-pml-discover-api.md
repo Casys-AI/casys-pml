@@ -1,6 +1,6 @@
 # Story 10.6: pml_discover - Unified Discovery API
 
-Status: review
+Status: done
 
 > **Epic:** 10 - DAG Capability Learning & Unified APIs
 > **Tech-Spec:** [epic-10-dag-capability-learning-unified-apis.md](../epics/epic-10-dag-capability-learning-unified-apis.md)
@@ -161,6 +161,22 @@ Un seul tool qui :
 - [x] Test: dépréciation logged quand `pml_search_tools` utilisé
 - [x] Test: réponse backward compatible pour anciens tools
 
+### AC12: Unified Search Algorithm Integration (ex-10.6a) ✅
+- [x] Formule simplifiée pour search sans contexte: `score = semantic × reliability`
+- [x] Pas d'alpha/graph quand `contextNodes.length === 0` (Adamic-Adar retourne 0)
+- [x] Appliquer `reliabilityFactor` aux tools (default successRate=1.0, boosted)
+- [x] Support `getTransitiveReliability()` pour capabilities via CapabilityMatcher
+- [x] Tests: tools et capabilities scorés avec même formule
+- [x] Tests: reliability appliquée aux deux types
+- [x] Benchmark: unified-search.bench.ts exécuté
+
+### AC13: Refactor discover-handler pour formule unifiée ✅
+- [x] Créer `computeDiscoverScore(semanticScore, successRate)` helper
+- [x] Appliquer formule `semantic × reliability` aux tools ET capabilities
+- [x] Utiliser `calculateReliabilityFactor()` de unified-search.ts (thresholds)
+- [x] Merger les résultats et trier par score (avec formule unifiée)
+- [x] Nettoyer: supprimer les formules différentes actuelles
+
 ---
 
 ## Tasks / Subtasks
@@ -202,9 +218,100 @@ Un seul tool qui :
   - [x] Tests unitaires pour chaque AC (10 tests)
   - [x] Tests d'intégration avec GatewayServer
 
+- [x] **Task 7: Unified Scoring Formula** (AC: 12, 13)
+  - [x] Créer helper `computeDiscoverScore(semantic, successRate)`
+  - [x] Formule: `score = semantic × calculateReliabilityFactor(successRate)`
+  - [x] Appliquer aux tools (default successRate=1.0 → boost factor 1.2)
+  - [x] Réutiliser `getTransitiveReliability()` de CapabilityMatcher pour capabilities
+  - [x] Mettre à jour les tests pour vérifier formule unifiée (AC12-AC13 tests ajoutés)
+  - [x] Benchmark: unified-search.bench.ts exécuté
+
+### Review Follow-ups (AI) - 2025-12-22
+
+- [x] [AI-Review][HIGH] AC11 Tests d'intégration manquants - FIXED: 5 E2E tests added in mcp_gateway_e2e_test.ts
+- [x] [AI-Review][MEDIUM] Documenter unified-search.ts dans File List - FIXED: Added to File List
+- [x] [AI-Review][MEDIUM] Valider intent non-vide - FIXED: Added trim() validation + test for whitespace-only intent
+- [x] [AI-Review][MEDIUM] Single-capability behavior - BY DESIGN: DAGSuggester.searchCapabilities returns best match only
+- [x] [AI-Review][MEDIUM] Simplifier searchTools() - BY DESIGN: API receives deps, forwards to engine (clean separation)
+- [x] [AI-Review][MEDIUM] Clarifier meta counts - FIXED: Added returned_count to meta (total_found vs returned_count)
+- [x] [AI-Review][LOW] transitiveReliability comment - VERIFIED: Implemented in matcher.ts:187-188
+- [x] [AI-Review][LOW] Change Log AC12-AC13 - Already documented in existing Change Log entry
+- [x] [AI-Review][LOW] Extraire GLOBAL_SCORE_CAP - FIXED: Added constant in unified-search.ts, exported and used
+- [x] [AI-Review][LOW] Tests dynamiques - FIXED: Tests now use computeDiscoverScore() and GLOBAL_SCORE_CAP
+
 ---
 
 ## Dev Notes
+
+### Unified Search Migration (AC12-13, 2025-12-22)
+
+**Motivation:** Actuellement deux formules différentes pour tools et capabilities.
+Migration vers une formule cohérente selon le contexte.
+
+**Avant (deux formules incohérentes):**
+```typescript
+// Tools (graphEngine.searchToolsHybrid)
+finalScore = α × semantic + (1-α) × graph
+
+// Capabilities (capabilityMatcher.findMatch)
+score = semantic × reliability
+```
+
+**Après (séparation claire):**
+```typescript
+// pml_discover (recherche sans contexte)
+score = semantic × reliability
+
+// predictNextNode (suggestion pendant workflow) → SHGAT + DR-DSP (stories 10.7a/b)
+// Voir: src/graphrag/algorithms/dr-dsp.ts (pathfinding hypergraphe)
+// Voir: src/graphrag/algorithms/shgat.ts (scoring spectral)
+```
+
+**Pourquoi cette séparation:**
+- **pml_discover:** Recherche pure par intent, pas de contexte workflow
+- **predictNextNode:** Suggère le prochain nœud dans un workflow actif
+  - Utilise DR-DSP pour pathfinding sur hypergraphe (remplace Dijkstra)
+  - Utilise SHGAT pour scoring avec attention spectrale
+  - Story 10.7a (DR-DSP) + 10.7b (SHGAT)
+
+**Architecture des 4 modes:**
+- `pml_discover` → Cette story (formule simple `semantic × reliability`)
+- `suggestDAG` → Story 10.7a (DR-DSP pour pathfinding)
+- `predictNextNode` → Stories 10.7a/b (SHGAT + DR-DSP, **post-workflow** uniquement)
+- `speculateNextLayer` → Stories 12.4/12.6 (pas de prédiction, DAG connu, **intra-workflow**)
+
+**Note (2025-12-22):** `predictNextNode` = post-workflow (prédit après workflow terminé).
+L'intra-workflow utilise `speculateNextLayer` qui pré-exécute le DAG connu sans prédiction.
+
+**Modules existants à réutiliser:**
+- `src/graphrag/algorithms/unified-search.ts` → **UNIQUEMENT** `calculateReliabilityFactor()`
+  - PAS le search algorithm complet (réservé pour future use)
+  - PAS pour `predictNextNode` (utilise SHGAT + DR-DSP en 10.7a/b)
+- `src/graphrag/capability-store.ts` → `successRate` des capabilities
+
+**Architecture cible (simplifiée):**
+```
+┌─────────────────────────────────────────────────────────────┐
+│  handleDiscover(intent)                                      │
+│                                                              │
+│  1. Vector search sur tools → semanticScore                  │
+│  2. Vector search sur capabilities → semanticScore           │
+│                                                              │
+│  3. Pour chaque résultat:                                    │
+│     reliability = calculateReliabilityFactor(successRate)    │
+│     score = semanticScore × reliability                      │
+│                                                              │
+│  4. Merge + sort par score                                   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Note:** Le graph (alpha, Adamic-Adar) n'est PAS utilisé dans pml_discover
+car il n'y a pas de contexte. Pour `predictNextNode()` (workflow en cours),
+on utilise SHGAT + DR-DSP (stories 10.7a/b), pas unified-search.
+
+**Estimation:** +0.5 jour sur story existante (formule simplifiée)
+
+---
 
 ### Architecture existante à réutiliser (ADR-038 Active Search)
 
@@ -368,6 +475,8 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 - 2025-12-20: Story context created via create-story workflow (Claude Opus 4.5)
 - 2025-12-21: Implementation completed (Claude Opus 4.5)
+- 2025-12-22: Code review - 1 HIGH, 5 MEDIUM, 4 LOW issues identified. 10 action items created. (Claude Opus 4.5)
+- 2025-12-22: All 10 review follow-ups completed - 5 E2E tests added, intent validation, GLOBAL_SCORE_CAP extracted, returned_count in meta, tests refactored (Claude Opus 4.5)
 
 ### File List
 
@@ -376,4 +485,6 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - [x] `src/mcp/handlers/mod.ts` - MODIFY (~2 LOC)
 - [x] `src/mcp/handlers/search-handler.ts` - MODIFY (~4 LOC deprecation warnings)
 - [x] `src/mcp/gateway-server.ts` - MODIFY (~5 LOC)
-- [x] `tests/unit/mcp/handlers/discover_handler_test.ts` - NEW (~415 LOC)
+- [x] `src/graphrag/algorithms/unified-search.ts` - MODIFY (~10 LOC: GLOBAL_SCORE_CAP export)
+- [x] `tests/unit/mcp/handlers/discover_handler_test.ts` - NEW (~450 LOC)
+- [x] `tests/integration/mcp_gateway_e2e_test.ts` - MODIFY (~330 LOC: AC11 E2E tests)
