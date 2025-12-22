@@ -93,6 +93,20 @@ export const handler = {
         // Continue with user deletion even if workflow anonymization fails
       }
 
+      // Story 11.2: Anonymize execution_trace table (new trace table)
+      try {
+        const pgliteDb = await getPGliteDb();
+        await pgliteDb.query(
+          `UPDATE execution_trace
+           SET user_id = $1, created_by = $1, updated_by = $1, intent_text = NULL, initial_context = '{}'::jsonb
+           WHERE user_id = $2`,
+          [anonymizedId, user.id],
+        );
+      } catch (error) {
+        console.error("Error anonymizing execution_trace:", error);
+        // Continue with user deletion even if trace anonymization fails
+      }
+
       // AC #9: Anonymize user data instead of hard delete
       // This preserves referential integrity while removing PII
       await db

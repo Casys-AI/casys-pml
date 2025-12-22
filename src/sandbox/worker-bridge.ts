@@ -20,7 +20,7 @@
  */
 
 import type { MCPClientBase } from "../mcp/types.ts";
-import type { JsonValue } from "../capabilities/types.ts";
+import type { JsonValue, TraceTaskResult } from "../capabilities/types.ts";
 import type {
   CapabilityTraceEvent,
   ExecutionCompleteMessage,
@@ -29,6 +29,7 @@ import type {
   RPCCallMessage,
   RPCResultMessage,
   ToolDefinition,
+  ToolTraceEvent,
   TraceEvent,
   WorkerToBridgeMessage,
 } from "./types.ts";
@@ -149,6 +150,8 @@ export class WorkerBridge {
   private startTime: number = 0;
   private lastExecutedCode: string = "";
   private lastIntent?: string;
+  private lastContext?: Record<string, unknown>;
+  private lastParentTraceId?: string;
 
   // Story 7.3b: BroadcastChannel for real-time capability trace collection (ADR-036)
   private traceChannel: BroadcastChannel;
@@ -249,6 +252,8 @@ export class WorkerBridge {
     this.traces = []; // Reset traces for new execution
     this.lastExecutedCode = code;
     this.lastIntent = context?.intent as string | undefined;
+    this.lastContext = context; // Story 11.2: Store for traceData
+    this.lastParentTraceId = parentTraceId; // Story 11.2: Store for traceData
 
     try {
       logger.debug("Starting Worker execution", {
@@ -330,18 +335,53 @@ export class WorkerBridge {
               sequenceIndex: inv.sequenceIndex,
             }));
 
-          await this.capabilityStore.saveCapability({
+          // Story 11.2: Build taskResults from tool traces for execution trace persistence
+          const sortedTraces = [...this.traces].sort((a, b) => a.ts - b.ts);
+          const taskResults: TraceTaskResult[] = sortedTraces
+            .filter((t): t is TraceEvent & { tool: string; args?: Record<string, unknown>; result?: unknown } =>
+              t.type === "tool_end" && "tool" in t
+            )
+            .map((t, idx) => ({
+              taskId: `task-${idx}`,
+              tool: t.tool,
+              args: (t.args ?? {}) as Record<string, JsonValue>,
+              result: (t.result ?? null) as JsonValue,
+              success: t.success ?? false,
+              durationMs: t.durationMs ?? 0,
+            }));
+
+          // Build executedPath from traces (tool and capability nodes in execution order)
+          const executedPath = sortedTraces
+            .filter((t): t is ToolTraceEvent | CapabilityTraceEvent =>
+              t.type === "tool_end" || t.type === "capability_end"
+            )
+            .map((t) => {
+              if (t.type === "tool_end") return t.tool;
+              return (t as CapabilityTraceEvent).capability;
+            });
+
+          const { trace } = await this.capabilityStore.saveCapability({
             code: this.lastExecutedCode,
             intent: this.lastIntent,
             durationMs: Math.round(result.executionTimeMs),
             success: true,
             toolsUsed: this.getToolsCalled(),
             toolInvocations,
+            // Story 11.2: Include traceData for execution trace persistence
+            traceData: {
+              initialContext: (this.lastContext ?? {}) as Record<string, JsonValue>,
+              executedPath,
+              decisions: [], // Branch decisions not yet captured at runtime
+              taskResults,
+              userId: (this.lastContext?.userId as string) ?? "local",
+              parentTraceId: this.lastParentTraceId,
+            },
           });
           logger.debug("Capability saved via eager learning", {
             intent: this.lastIntent.substring(0, 50),
             toolsUsed: this.getToolsCalled().length,
             toolInvocations: toolInvocations.length,
+            traceId: trace?.id,
           });
         } catch (capError) {
           // Don't fail execution if capability storage fails

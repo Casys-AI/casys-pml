@@ -58,6 +58,12 @@ export type EventType =
   | "capability.zone.created"
   | "capability.zone.updated"
   | "capability.permission.updated" // Story 7.7c: HIL permission escalation
+  // ──────────────────────────────────────────────────────────────────────────
+  // EXECUTION TRACE EVENTS (Story 11.2 - Epic 11)
+  // ──────────────────────────────────────────────────────────────────────────
+  | "execution.trace.saved"
+  | "execution.trace.priority.updated"
+  | "execution.traces.pruned"
   | "learning.pattern.detected"
   | "learning.edge.strengthened"
   | "cache.hit"
