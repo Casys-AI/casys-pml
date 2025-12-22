@@ -199,8 +199,8 @@ development_status:
   10-3-provides-edge-type: done # Code Review APPROVED + AC10 added 2025-12-18, 37 tests passing, DB persistence for scalability
   10-5-execute-code-via-dag: in-progress # Code Review 2025-12-19: 4 HIGH, 3 MEDIUM issues - action items created
   10-6-pml-discover-api: done # Code Review APPROVED 2025-12-22: 15 unit + 5 E2E tests passing, all ACs validated, benchmark simplified
-  10-7-pml-execute-api: ready-for-dev
-  10-7a-drdsp-integration: backlog # Integrate DR-DSP for suggestDAG (replaces Dijkstra)
+  10-7-pml-execute-api: ready-for-dev # Includes DR-DSP (merged 10.7a) - 2 modes: Direct + Suggestion
+  10-7a-drdsp-integration: merged # MERGED into 10.7 - DR-DSP intégré directement
   10-7b-shgat-scoring-integration: backlog # Integrate SHGAT scoring + training pipeline on episodic_events
   10-7c-thompson-sampling-integration: backlog # Integrate Thompson Sampling in decision flow
   10-8-pml-get-task-result: backlog
@@ -212,9 +212,9 @@ development_status:
   # Architecture: TD Error + PER + SHGAT (style DQN/Rainbow) - 2025-12-22
   # DÉPRÉCIATIONS: CapabilityLearning supprimé, SHGAT apprend directement
   # Depends on: Epic 10
-  epic-11: backlog
-  11-0-db-schema-cleanup: backlog
-  11-1-result-tracing: backlog
+  epic-11: in-progress
+  11-0-db-schema-cleanup: done # 2025-12-22: KV singleton, workflow-state-cache, migration 019, mcp_tool removed - Code Review APPROVED (11 tests added)
+  11-1-result-tracing: done # Code Review APPROVED 2025-12-22: 9 tests passing, null handling bug fixed, parentTraceId types added
   11-2-execution-trace-table: backlog
   11-3-td-error-per-priority: backlog # REFACTORÉ: TD Error → PER priority (pas CapabilityLearning)
   11-4-definition-invocation-views: backlog

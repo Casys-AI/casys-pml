@@ -118,6 +118,8 @@ export interface ToolStartPayload {
   traceId: string;
   /** Tool arguments (may be redacted for sensitive data) */
   args?: Record<string, unknown>;
+  /** Parent trace ID for hierarchical tracking (ADR-041) */
+  parentTraceId?: string;
 }
 
 /**
@@ -136,6 +138,10 @@ export interface ToolEndPayload {
   error?: string;
   /** Result summary (truncated for large outputs) */
   resultSummary?: string;
+  /** Execution result (Story 11.1 - for learning/tracing) */
+  result?: unknown;
+  /** Parent trace ID for hierarchical tracking (ADR-041) */
+  parentTraceId?: string;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -174,6 +180,8 @@ export interface CapabilityEndPayload {
   durationMs: number;
   /** Error message if failed */
   error?: string;
+  /** Execution result (Story 11.1 - for learning/tracing) */
+  result?: unknown;
 }
 
 /**

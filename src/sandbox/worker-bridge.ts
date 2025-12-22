@@ -43,6 +43,38 @@ import { eventBus } from "../events/mod.ts";
 const logger = getLogger("default");
 
 /**
+ * Maximum length for toString fallback in non-serializable results.
+ * Prevents huge strings from being stored in traces while preserving useful debug info.
+ */
+const MAX_TOSTRING_LENGTH = 500;
+
+/**
+ * Safely serialize a result for tracing (Story 11.1)
+ * Handles circular references and non-serializable objects gracefully.
+ *
+ * @param result - The result to serialize
+ * @returns A JSON-safe representation of the result
+ */
+function safeSerializeResult(result: unknown): unknown {
+  if (result === undefined || result === null) {
+    return result;
+  }
+
+  try {
+    // Test if result is JSON-serializable
+    JSON.stringify(result);
+    return result;
+  } catch {
+    // Fallback for non-serializable results (circular refs, functions, etc.)
+    return {
+      __type: "non-serializable",
+      typeof: typeof result,
+      toString: String(result).substring(0, MAX_TOSTRING_LENGTH),
+    };
+  }
+}
+
+/**
  * Configuration for WorkerBridge
  */
 export interface WorkerBridgeConfig {
@@ -167,6 +199,7 @@ export class WorkerBridge {
             success: e.data.success ?? true,
             durationMs: e.data.durationMs ?? 0,
             error: e.data.error,
+            result: e.data.result, // Story 11.1
           },
         });
       }
@@ -436,14 +469,19 @@ export class WorkerBridge {
       const durationMs = endTime - startTime;
 
       // ADR-043: Check if MCP tool returned isError (soft failure)
-      const mcpResult = result as { isError?: boolean; content?: Array<{ text?: string }> };
-      const isToolError = mcpResult.isError === true;
-      const errorMessage = isToolError && mcpResult.content?.[0]?.text
+      // Note: Use optional chaining since result can be null (valid MCP response)
+      const mcpResult = result as { isError?: boolean; content?: Array<{ text?: string }> } | null;
+      const isToolError = mcpResult?.isError === true;
+      const errorMessage = isToolError && mcpResult?.content?.[0]?.text
         ? mcpResult.content[0].text
         : undefined;
 
+      // Story 11.1: Safely serialize result for tracing
+      const safeResult = safeSerializeResult(result);
+
       // TRACE END - success or soft failure
       // ADR-041: Include parentTraceId for hierarchical tracking
+      // Story 11.1: Include result for learning
       this.traces.push({
         type: "tool_end",
         tool: toolId,
@@ -452,10 +490,12 @@ export class WorkerBridge {
         success: !isToolError,
         durationMs: durationMs,
         parentTraceId: parentTraceId, // ADR-041
+        result: safeResult, // Story 11.1
         ...(isToolError && errorMessage ? { error: errorMessage } : {}),
       });
 
       // Story 6.5: Emit tool.end event to EventBus
+      // Story 11.1: Include result in payload
       eventBus.emit({
         type: "tool.end",
         source: "worker-bridge",
@@ -465,6 +505,7 @@ export class WorkerBridge {
           success: !isToolError,
           durationMs: durationMs,
           parentTraceId: parentTraceId, // ADR-041
+          result: safeResult, // Story 11.1
         },
       });
 
