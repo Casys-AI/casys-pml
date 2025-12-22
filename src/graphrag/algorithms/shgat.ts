@@ -198,8 +198,8 @@ export class SHGAT {
   // Incidence matrix: A[tool][capability] = 1 if tool is in capability
   private incidenceMatrix: number[][] = [];
 
-  // Learnable parameters per layer per head
-  private layerParams: Array<{
+  // Learnable parameters per layer per head (initialized in initializeParameters)
+  private layerParams!: Array<{
     // Vertex→Edge phase
     W_v: number[][][]; // [head][hiddenDim][inputDim]
     W_e: number[][][]; // [head][hiddenDim][inputDim]
@@ -211,8 +211,8 @@ export class SHGAT {
     a_ev: number[][]; // [head][2*hiddenDim]
   }>;
 
-  // Legacy per-head parameters for backward compatibility
-  private headParams: Array<{
+  // Legacy per-head parameters for backward compatibility (initialized in initializeParameters)
+  private headParams!: Array<{
     W_q: number[][];
     W_k: number[][];
     W_v: number[][];
@@ -686,20 +686,33 @@ export class SHGAT {
     contextToolEmbeddings: number[][],
     contextCapabilityIds?: string[],
   ): AttentionResult[] {
-    // Run forward pass
-    const { E } = this.forward();
+    // Run forward pass to warm up cache (we use original embeddings for scoring, not E)
+    this.forward();
+
+    // Compute context vector from tool embeddings
+    const contextVec = contextToolEmbeddings.length > 0
+      ? this.averageEmbeddings(contextToolEmbeddings)
+      : null;
 
     const results: AttentionResult[] = [];
 
     for (const [capId, cap] of this.capabilityNodes) {
       const cIdx = this.capabilityIndex.get(capId)!;
-      const capEmb = E[cIdx];
 
-      // Compute similarity with intent
-      const intentSim = this.cosineSimilarity(intentEmbedding, capEmb);
+      // Use ORIGINAL embedding for semantic similarity (same 1024-dim as intent)
+      // E[cIdx] is the SHGAT output (hiddenDim*numHeads = 256-dim) - used for structural features
+      const capOriginalEmb = cap.embedding;
 
-      // Context boost
+      // Compute similarity with intent using original embedding (dimension-matched)
+      const intentSim = this.cosineSimilarity(intentEmbedding, capOriginalEmb);
+
+      // Context boost from tool embeddings (using original embedding for dimension match)
       let contextBoost = 0;
+      if (contextVec) {
+        contextBoost = this.cosineSimilarity(contextVec, capOriginalEmb) * 0.3;
+      }
+
+      // Additional context boost from capability cluster matching
       if (contextCapabilityIds && contextCapabilityIds.length > 0) {
         const features = cap.hypergraphFeatures || DEFAULT_HYPERGRAPH_FEATURES;
         const contextClusters = contextCapabilityIds
@@ -855,15 +868,27 @@ export class SHGAT {
         .map((id) => getEmbedding(id))
         .filter((e): e is number[] => e !== null);
 
-      // Forward
-      const { E, cache } = this.forward();
+      // Forward (E unused - we use original embeddings, but cache needed for backward)
+      const { E: _E, cache } = this.forward();
 
       const capIdx = this.capabilityIndex.get(example.candidateId);
       if (capIdx === undefined) continue;
 
-      const capEmb = E[capIdx];
-      const intentSim = this.cosineSimilarity(example.intentEmbedding, capEmb);
-      const score = this.sigmoid(intentSim);
+      // Get capability node for original embedding (1024-dim, matches intent)
+      const capNode = this.capabilityNodes.get(example.candidateId)!;
+      const capOriginalEmb = capNode.embedding;
+
+      // Use original embedding for semantic similarity (dimension-matched)
+      const intentSim = this.cosineSimilarity(example.intentEmbedding, capOriginalEmb);
+
+      // Context-aware scoring: boost if capability is related to context tools
+      let contextBoost = 0;
+      if (contextEmbeddings.length > 0) {
+        const contextVec = this.averageEmbeddings(contextEmbeddings);
+        contextBoost = this.cosineSimilarity(contextVec, capOriginalEmb) * 0.3; // 30% weight
+      }
+
+      const score = this.sigmoid(intentSim + contextBoost);
 
       // Loss
       const loss = this.binaryCrossEntropy(score, example.outcome);
@@ -1041,6 +1066,21 @@ export class SHGAT {
     return normA * normB > 0 ? dot / (normA * normB) : 0;
   }
 
+  private averageEmbeddings(embeddings: number[][]): number[] {
+    if (embeddings.length === 0) return [];
+    const dim = embeddings[0].length;
+    const avg = new Array(dim).fill(0);
+    for (const emb of embeddings) {
+      for (let i = 0; i < dim; i++) {
+        avg[i] += emb[i];
+      }
+    }
+    for (let i = 0; i < dim; i++) {
+      avg[i] /= embeddings.length;
+    }
+    return avg;
+  }
+
   private binaryCrossEntropy(pred: number, label: number): number {
     const eps = 1e-7;
     const p = Math.max(eps, Math.min(1 - eps, pred));
@@ -1124,10 +1164,41 @@ export function createSHGATFromCapabilities(
     parents?: string[];
     children?: string[];
   }>,
+  configOrToolEmbeddings?: Partial<SHGATConfig> | Map<string, number[]>,
   config?: Partial<SHGATConfig>,
 ): SHGAT {
-  const shgat = new SHGAT(config);
+  // Handle overloaded parameters
+  let toolEmbeddings: Map<string, number[]> | undefined;
+  let actualConfig: Partial<SHGATConfig> | undefined;
 
+  if (configOrToolEmbeddings instanceof Map) {
+    toolEmbeddings = configOrToolEmbeddings;
+    actualConfig = config;
+  } else {
+    actualConfig = configOrToolEmbeddings;
+  }
+
+  const shgat = new SHGAT(actualConfig);
+
+  // Extract all unique tools from capabilities
+  const allTools = new Set<string>();
+  for (const cap of capabilities) {
+    for (const toolId of cap.toolsUsed) {
+      allTools.add(toolId);
+    }
+  }
+
+  // Determine embedding dimension from first capability
+  const embeddingDim = capabilities[0]?.embedding.length || 1024;
+
+  // Register tools with embeddings (provided or generated)
+  for (const toolId of allTools) {
+    const embedding = toolEmbeddings?.get(toolId) ||
+      generateDefaultToolEmbedding(toolId, embeddingDim);
+    shgat.registerTool({ id: toolId, embedding });
+  }
+
+  // Register capabilities
   for (const cap of capabilities) {
     shgat.registerCapability({
       id: cap.id,
@@ -1143,6 +1214,24 @@ export function createSHGATFromCapabilities(
 }
 
 /**
+ * Generate a deterministic default embedding for a tool based on its ID
+ */
+function generateDefaultToolEmbedding(toolId: string, dim: number): number[] {
+  const embedding: number[] = [];
+  // Use hash-like seed from tool ID for deterministic pseudo-random values
+  let seed = 0;
+  for (let i = 0; i < toolId.length; i++) {
+    seed = ((seed << 5) - seed + toolId.charCodeAt(i)) | 0;
+  }
+  for (let i = 0; i < dim; i++) {
+    // Deterministic pseudo-random based on seed and index
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    embedding.push((seed / 0x7fffffff - 0.5) * 0.1);
+  }
+  return embedding;
+}
+
+/**
  * Train SHGAT on episodic events
  */
 export async function trainSHGATOnEpisodes(
@@ -1155,6 +1244,9 @@ export async function trainSHGATOnEpisodes(
     onEpoch?: (epoch: number, loss: number, accuracy: number) => void;
   } = {},
 ): Promise<{ finalLoss: number; finalAccuracy: number }> {
+  // Yield to event loop for UI responsiveness during long training
+  await Promise.resolve();
+
   const epochs = options.epochs || 10;
   const batchSize = options.batchSize || 32;
 

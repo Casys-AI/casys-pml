@@ -368,12 +368,13 @@ Remplacer Dijkstra par des algorithmes natifs hypergraph. Architecture unifiée 
 │                         ARCHITECTURE FINALE UNIFIÉE                          │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  1. SEARCH (Active) - unifiedSearch(intent)                                 │
+│  1. SEARCH (Active) - pml_discover(intent) [Story 10.6]                     │
 │  ┌──────────────────────────────────────────────────────────────────┐       │
-│  │   score = (semantic × α + graph × (1-α)) × reliability           │       │
+│  │   score = semantic × reliability                                  │       │
+│  │   - Formule simplifiée (pas de context → pas de graph)           │       │
 │  │   - Unified pour tools ET capabilities                           │       │
-│  │   - Adamic-Adar pour graph score                                 │       │
-│  │   - Reliability = successRate × transitiveReliability            │       │
+│  │   - Reliability = calculateReliabilityFactor(successRate)        │       │
+│  │   - Graph (Adamic-Adar) = 0 sans context nodes                   │       │
 │  └──────────────────────────────────────────────────────────────────┘       │
 │                                                                             │
 │  2. PREDICTION (Passive) - predictNextNode(intent, context)                 │
@@ -401,13 +402,18 @@ Remplacer Dijkstra par des algorithmes natifs hypergraph. Architecture unifiée 
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Les 3 modes clarifiés
+### Les 4 modes clarifiés
 
-| Mode | Fonction | Input | Algo | Output |
-|------|----------|-------|------|--------|
-| **Search (actif)** | `unifiedSearch()` | intent | Hybrid (semantic + graph) × reliability | Ranked tools/capabilities |
-| **Prediction (passif)** | `predictNextNode()` | intent + context | DR-DSP → SHGAT | Prochain tool/capability |
-| **Suggestion (DAG)** | `suggestDAG()` | intent | DR-DSP seul | DAG complet |
+| Mode | Fonction | Quand | Input | Algo | Story |
+|------|----------|-------|-------|------|-------|
+| **Search** | `pml_discover()` | Recherche active | intent | semantic × reliability | 10.6 |
+| **Suggestion** | `suggestDAG()` | Construire un workflow | intent | DR-DSP | 10.7a |
+| **Prediction** | `predictNextNode()` | **Post-workflow** | workflow result | DR-DSP → SHGAT | 10.7a/b |
+| **Speculation** | `speculateNextLayer()` | **Intra-workflow** | DAG + context | Aucun (DAG connu) | 12.4/12.6 |
+
+**Distinction Prediction vs Speculation (2025-12-22):**
+- **Prediction** (`predictNextNode`): Après un workflow terminé, prédit ce que l'utilisateur va demander ensuite. Utilise SHGAT + DR-DSP.
+- **Speculation** (`speculateNextLayer`): Pendant un workflow, pré-exécute les tasks connues du DAG. Pas de prédiction, juste optimisation.
 
 ### Unification Tools ↔ Capabilities
 
@@ -415,25 +421,27 @@ Remplacer Dijkstra par des algorithmes natifs hypergraph. Architecture unifiée 
 - Tools : Hybrid Search élaboré (semantic + graph + alpha adaptatif)
 - Capabilities : Simple (semantic × reliability)
 
-**Après** (unifié) :
+**Après** (unifié par contexte) :
 - Tout est capability (tools = capabilities atomiques)
-- Même formule : `(semantic × α + graph × (1-α)) × reliability`
-- Même algorithme pour tous les nœuds de l'hypergraph
+- **Sans contexte** (`pml_discover`) : `score = semantic × reliability`
+- **Avec contexte** (`predictNextNode`) : DR-DSP → SHGAT (pas la formule hybrid)
+- Raison : graph score = 0 sans context nodes (Adamic-Adar retourne 0)
 
 ### Algorithmes choisis
 
-| Use Case | Algorithme | Rôle | Justification |
-|----------|------------|------|---------------|
-| `unifiedSearch(intent)` | **Hybrid Search unifié** | Recherche active | Même formule pour tools et capabilities |
-| `suggestDAG(intent)` | **DR-DSP** | Pathfinding | Shortest hyperpath polynomial pour DAG |
-| `predictNextNode(intent, context)` | **DR-DSP + SHGAT** | Pathfinding + Scoring | DR-DSP génère les candidats, SHGAT les score |
+| Use Case | Algorithme | Rôle | Story |
+|----------|------------|------|-------|
+| `pml_discover(intent)` | **semantic × reliability** | Recherche active (sans context) | 10.6 |
+| `suggestDAG(intent)` | **DR-DSP** | Pathfinding hyperpath | 10.7a |
+| `predictNextNode(workflowResult)` | **DR-DSP + SHGAT** | Prédiction post-workflow | 10.7a/b |
+| `speculateNextLayer(dag, context)` | **Aucun** | Pré-exécution DAG connu | 12.4/12.6 |
 
 ### Pourquoi ces choix
 
-1. **Unified Search** (nouveau)
-   - Formule : `(semantic × α + graph × (1-α)) × reliability`
-   - Unifie tools et capabilities (tout est capability)
-   - Reliability = successRate × transitiveReliability (chain as weak as its weakest link)
+1. **pml_discover** (Story 10.6)
+   - Formule simplifiée : `semantic × reliability`
+   - Pas de graph car pas de context nodes (Adamic-Adar retourne 0)
+   - Reliability via `calculateReliabilityFactor(successRate)` de unified-search.ts
 
 2. **DR-DSP** (Directed Relationship Dynamic Shortest Path)
    - Natif hypergraph (comprend les capabilities comme hyperedges)
@@ -522,3 +530,23 @@ Remplacer Dijkstra par des algorithmes natifs hypergraph. Architecture unifiée 
   - **Seul `provides` = data flow = vraie relation `dependsOn`**
   - Solution recommandée : extraire les edges `provides` depuis `static_structure.edges` des capabilities
 - 2025-12-21: **Conclusion finale** : DR-DSP (pathfinding) + SHGAT (scoring) sur structure DASH
+- 2025-12-22: **Clarification données d'entraînement SHGAT** :
+  - SHGAT s'entraîne sur les **mêmes traces** que le TD Learning (Epic 11)
+  - Sources de données :
+    - `episodic_events` : event-level, `speculation_start.wasCorrect` comme label
+    - `execution_trace` (Epic 11.2) : workflow-level, `executed_path` + `success` comme labels
+  - Différence d'approche :
+    - TD Learning : formule explicite `V(s) ← V(s) + α(actual - V(s))`
+    - SHGAT : réseau d'attention qui apprend les poids automatiquement
+  - **Conséquence** : Epic 11 (execution_trace) enrichit les données pour SHGAT ET TD Learning
+  - Relation avec APIs : SHGAT/DR-DSP sont les algorithmes **derrière** `pml_discover` (10.6) et `pml_execute` (10.7)
+- 2025-12-22: **Clarification formules par mode** :
+  - `pml_discover` (sans context) → `score = semantic × reliability` (formule simplifiée)
+  - `predictNextNode` (avec context) → DR-DSP + SHGAT (pas unified-search)
+  - Raison : graphScore = 0 sans context nodes, donc la formule hybrid est inutile
+  - Le module `unified-search.ts` n'est utilisé que pour `calculateReliabilityFactor()`
+- 2025-12-22: **Distinction Prediction vs Speculation** :
+  - `predictNextNode()` = **post-workflow** (après un workflow terminé, prédit le prochain)
+  - `speculateNextLayer()` = **intra-workflow** (pendant un workflow, pré-exécute le DAG connu)
+  - Intra-workflow n'a pas besoin de prédiction car le DAG est déjà défini (static_structure)
+  - Seul post-workflow utilise SHGAT + DR-DSP pour vraie prédiction

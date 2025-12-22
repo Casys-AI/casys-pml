@@ -252,7 +252,120 @@ class SuperHyperGraphAttention {
 }
 ```
 
-### 3.3 Intégration avec Stack Existante
+### 3.3 Options d'Intégration du Contexte
+
+> **Note 2025-12-21:** Le papier SHGAT de Fujita est purement théorique et ne traite PAS du contexte externe (outils récemment utilisés, conversation active). L'intégration du contexte est une extension spécifique à Casys PML.
+
+**Analyse du papier original:**
+- L'attention SHGAT ne considère que les relations **supervertex ↔ superedge** au sein du graphe
+- Deux phases d'attention: Vertex→Hyperedge et Hyperedge→Vertex
+- Aucun mécanisme pour injecter du contexte externe
+
+**Options d'implémentation:**
+
+#### Option 1: Contexte comme Nœuds Temporaires (Fidèle au Papier)
+
+```typescript
+// Ajouter les outils contextuels comme nœuds temporaires dans le graphe
+class SHGATWithContextNodes extends SHGAT {
+  scoreWithContext(
+    queryEmbed: number[],
+    contextToolIds: string[],
+    contextEmbeddings: number[][]
+  ): ScoredCapability[] {
+    // 1. Créer une "virtual capability" temporaire pour le contexte
+    const contextCap = {
+      id: "__context__",
+      toolsUsed: contextToolIds,
+      embedding: this.averageEmbeddings(contextEmbeddings)
+    };
+
+    // 2. Ajouter temporairement au graphe
+    this.registerCapability(contextCap);
+
+    // 3. Laisser SHGAT propager l'attention naturellement
+    const scores = this.scoreAllCapabilities(queryEmbed, []);
+
+    // 4. Nettoyer
+    this.unregisterCapability("__context__");
+
+    return scores;
+  }
+}
+```
+
+**Avantages:** Fidèle à l'esprit du papier, utilise le mécanisme d'attention existant
+**Inconvénients:** Complexité accrue, overhead de création/suppression de nœuds
+
+#### Option 2: Cosine Boost (Implémentation Actuelle POC)
+
+```typescript
+// Extension simple: boost par similarité cosinus avec le contexte moyen
+scoreAllCapabilities(
+  queryEmbedding: number[],
+  contextToolEmbeddings: number[][]
+): ScoredCapability[] {
+  const contextAvg = this.averageEmbeddings(contextToolEmbeddings);
+
+  return this.capabilities.map(cap => {
+    // Score SHGAT de base
+    const baseScore = this.computeAttention(queryEmbedding, [], cap.id);
+
+    // Boost contextuel
+    const contextBoost = contextAvg.length > 0
+      ? cosineSimilarity(cap.embedding, contextAvg) * 0.2
+      : 0;
+
+    return { capabilityId: cap.id, score: baseScore + contextBoost };
+  });
+}
+```
+
+**Avantages:** Simple, rapide, pas de modification structurelle du graphe
+**Inconvénients:** Ne bénéficie pas de la propagation d'attention multi-hop
+
+#### Option 3: Cross-Attention Transformer (Extension Future)
+
+```typescript
+// Architecture plus sophistiquée avec encodeur séparé pour le contexte
+class SHGATWithCrossAttention extends SHGAT {
+  private contextEncoder: TransformerEncoder;
+  private crossAttention: MultiHeadAttention;
+
+  computeWithCrossAttention(
+    queryEmbed: number[],
+    contextEmbeddings: number[][],
+    capabilityId: string
+  ): number {
+    // 1. Encoder le contexte
+    const contextHidden = this.contextEncoder.encode(contextEmbeddings);
+
+    // 2. Obtenir les features SHGAT pour la capability
+    const capFeatures = this.getCapabilityFeatures(capabilityId);
+
+    // 3. Cross-attention: capability attend au contexte
+    const attended = this.crossAttention.forward(
+      query: capFeatures,
+      key: contextHidden,
+      value: contextHidden
+    );
+
+    // 4. Score final combine query similarity + context attention
+    return this.finalScore(queryEmbed, attended);
+  }
+}
+```
+
+**Avantages:** Maximum de flexibilité, peut apprendre des patterns complexes
+**Inconvénients:** Complexité d'implémentation, plus de paramètres à entraîner
+
+---
+
+**Décision POC:** Option 2 (Cosine Boost) pour le prototype initial.
+
+**Évolution prévue:** Migrer vers Option 1 ou 3 quand les données d'entraînement seront suffisantes pour valider le gain de performance.
+
+### 3.4 Intégration avec Stack Existante
 
 ```typescript
 // Dans dag-suggester.ts - Strategic Discovery

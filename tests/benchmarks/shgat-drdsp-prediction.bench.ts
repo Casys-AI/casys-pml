@@ -11,15 +11,13 @@
  * @module tests/integration/shgat-drdsp-prediction
  */
 
-import { assertEquals, assertExists } from "https://deno.land/std@0.208.0/assert/mod.ts";
+import { assertEquals, assertExists } from "@std/assert";
 import {
   SHGAT,
   DRDSP,
   capabilityToHyperedge,
+  createSHGATFromCapabilities,
   type Hyperedge,
-  type AttentionResult,
-  type HyperpathResult,
-  type CapabilityNode,
 } from "../../src/graphrag/algorithms/mod.ts";
 
 // ============================================================================
@@ -123,6 +121,36 @@ function getEmbedding(id: string): number[] | null {
 }
 
 // ============================================================================
+// Helper: Create SHGAT with factory function
+// ============================================================================
+
+function buildSHGAT(): SHGAT {
+  const toolEmbeddings = new Map<string, number[]>();
+  for (const [id, emb] of Object.entries(TOOL_EMBEDDINGS)) {
+    toolEmbeddings.set(id, emb);
+  }
+
+  const capabilities = CAPABILITIES.map((cap) => ({
+    id: cap.id,
+    embedding: getEmbedding(cap.id)!,
+    toolsUsed: cap.tools,
+    successRate: cap.successRate,
+    parents: [] as string[],
+    children: [] as string[],
+  }));
+
+  return createSHGATFromCapabilities(
+    capabilities,
+    toolEmbeddings,
+    {
+      numHeads: 2,
+      hiddenDim: 4,
+      embeddingDim: 8,
+    }
+  );
+}
+
+// ============================================================================
 // Test: Combined SHGAT + DR-DSP Prediction
 // ============================================================================
 
@@ -131,30 +159,7 @@ Deno.test("Integration: SHGAT scores capabilities, DR-DSP finds path", async (t)
   // Step 1: Initialize SHGAT with capabilities
   // -------------------------------------------------------------------------
   await t.step("1. Initialize SHGAT with capabilities", () => {
-    const shgat = new SHGAT({
-      numHeads: 2,
-      hiddenDim: 4,
-      embeddingDim: 8, // Our test embedding dim
-      depthDecay: 0.8,
-      learningRate: 0.01,
-      leakyReluSlope: 0.2,
-    });
-
-    // Register capabilities
-    for (const cap of CAPABILITIES) {
-      const embedding = getEmbedding(cap.id);
-      assertExists(embedding, `Embedding should exist for ${cap.id}`);
-
-      shgat.registerCapability({
-        id: cap.id,
-        embedding: embedding!,
-        toolsUsed: cap.tools,
-        successRate: cap.successRate,
-        parents: [],
-        children: [],
-      });
-    }
-
+    const shgat = buildSHGAT();
     assertEquals(shgat.getStats().registeredCapabilities, 4, "Should have 4 capabilities");
   });
 
@@ -189,26 +194,7 @@ Deno.test("Integration: SHGAT scores capabilities, DR-DSP finds path", async (t)
       .filter((e) => e !== undefined);
 
     // === PHASE 1: SHGAT scores all capabilities ===
-    const shgat = new SHGAT({
-      numHeads: 2,
-      hiddenDim: 4,
-      embeddingDim: 8,
-      depthDecay: 0.8,
-      learningRate: 0.01,
-      leakyReluSlope: 0.2,
-    });
-
-    // Register capabilities
-    for (const cap of CAPABILITIES) {
-      shgat.registerCapability({
-        id: cap.id,
-        embedding: getEmbedding(cap.id)!,
-        toolsUsed: cap.tools,
-        successRate: cap.successRate,
-        parents: [],
-        children: [],
-      });
-    }
+    const shgat = buildSHGAT();
 
     // Score all capabilities for this intent
     const scores = shgat.scoreAllCapabilities(intentEmbedding, contextEmbeddings);
@@ -280,26 +266,7 @@ Deno.test("Integration: SHGAT scores capabilities, DR-DSP finds path", async (t)
 // ============================================================================
 
 Deno.test("Integration: Train SHGAT on episodes, use for prediction", async (t) => {
-  const shgat = new SHGAT({
-    numHeads: 2,
-    hiddenDim: 4,
-    embeddingDim: 8,
-    depthDecay: 0.8,
-    learningRate: 0.05, // Higher LR for test
-    leakyReluSlope: 0.2,
-  });
-
-  // Register capabilities
-  for (const cap of CAPABILITIES) {
-    shgat.registerCapability({
-      id: cap.id,
-      embedding: getEmbedding(cap.id)!,
-      toolsUsed: cap.tools,
-      successRate: cap.successRate,
-      parents: [],
-      children: [],
-    });
-  }
+  const shgat = buildSHGAT();
 
   await t.step("1. Train on episodic events", () => {
     // Simulate episodic events (from episodic_events table)
@@ -494,25 +461,7 @@ Deno.test("Integration: Full predictNextNode simulation", async (t) => {
 
   await t.step("Full pipeline", () => {
     // === Setup SHGAT ===
-    const shgat = new SHGAT({
-      numHeads: 2,
-      hiddenDim: 4,
-      embeddingDim: 8,
-      depthDecay: 0.8,
-      learningRate: 0.01,
-      leakyReluSlope: 0.2,
-    });
-
-    for (const cap of CAPABILITIES) {
-      shgat.registerCapability({
-        id: cap.id,
-        embedding: getEmbedding(cap.id)!,
-        toolsUsed: cap.tools,
-        successRate: cap.successRate,
-        parents: [],
-        children: [],
-      });
-    }
+    const shgat = buildSHGAT();
 
     // === Setup DR-DSP ===
     const hyperedges: Hyperedge[] = CAPABILITIES.map((cap) =>
@@ -677,23 +626,28 @@ const META_CAPABILITIES: Array<{
  * Build SHGAT with full hierarchy (capabilities + meta-capabilities)
  */
 function buildSHGATWithMetas(): SHGAT {
-  const shgat = new SHGAT({
-    numHeads: 2,
-    hiddenDim: 4,
-    embeddingDim: 8,
-    depthDecay: 0.8,
-    learningRate: 0.01,
-    leakyReluSlope: 0.2,
-  });
+  const toolEmbeddingsMap = new Map<string, number[]>();
+  for (const [id, emb] of Object.entries(TOOL_EMBEDDINGS)) {
+    toolEmbeddingsMap.set(id, emb);
+  }
 
-  // Register base capabilities with parents
+  // Build capabilities with parent info
+  const capabilitiesWithMetas: Array<{
+    id: string;
+    embedding: number[];
+    toolsUsed: string[];
+    successRate: number;
+    parents: string[];
+    children: string[];
+  }> = [];
+
+  // Add base capabilities
   for (const cap of CAPABILITIES) {
-    // Find parent meta-capability
     const parentMeta = META_CAPABILITIES.find((m) =>
       m.contains.includes(cap.id)
     );
 
-    shgat.registerCapability({
+    capabilitiesWithMetas.push({
       id: cap.id,
       embedding: getEmbedding(cap.id)!,
       toolsUsed: cap.tools,
@@ -703,22 +657,21 @@ function buildSHGATWithMetas(): SHGAT {
     });
   }
 
-  // Register meta-capabilities
+  // Add meta-capabilities
   for (const meta of META_CAPABILITIES) {
-    // Create embedding from aggregated tools
-    const toolEmbeddings = meta.toolsAggregated
+    const toolEmbs = meta.toolsAggregated
       .map((t) => TOOL_EMBEDDINGS[t])
       .filter((e) => e !== undefined);
 
     const dim = 8;
     const metaEmbedding = new Array(dim).fill(0);
-    for (const emb of toolEmbeddings) {
+    for (const emb of toolEmbs) {
       for (let i = 0; i < dim; i++) {
-        metaEmbedding[i] += emb[i] / toolEmbeddings.length;
+        metaEmbedding[i] += emb[i] / toolEmbs.length;
       }
     }
 
-    shgat.registerCapability({
+    capabilitiesWithMetas.push({
       id: meta.id,
       embedding: metaEmbedding,
       toolsUsed: meta.toolsAggregated,
@@ -728,7 +681,15 @@ function buildSHGATWithMetas(): SHGAT {
     });
   }
 
-  return shgat;
+  return createSHGATFromCapabilities(
+    capabilitiesWithMetas,
+    toolEmbeddingsMap,
+    {
+      numHeads: 2,
+      hiddenDim: 4,
+      embeddingDim: 8,
+    }
+  );
 }
 
 /**

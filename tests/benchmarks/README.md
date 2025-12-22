@@ -8,9 +8,10 @@ Comprehensive benchmarking framework for Casys PML graph algorithms.
 tests/benchmarks/
 ├── fixtures/
 │   ├── scenarios/           # Test data (JSON graph definitions)
-│   │   ├── small-graph.json    # 10 tools, 3 caps - quick sanity checks
-│   │   ├── medium-graph.json   # 50 tools, 10 caps - realistic tests
-│   │   └── stress-graph.json   # 200 tools, 30 caps - stress testing
+│   │   ├── small-graph.json       # 10 tools, 3 caps - quick sanity checks
+│   │   ├── medium-graph.json      # 50 tools, 10 caps - realistic tests
+│   │   ├── stress-graph.json      # 200 tools, 30 caps - stress testing
+│   │   └── episodic-training.json # Training data for SHGAT
 │   └── scenario-loader.ts   # Graph construction from scenarios
 ├── tactical/                # Tool-level algorithms
 │   ├── pagerank.bench.ts       # PageRank centrality
@@ -20,15 +21,22 @@ tests/benchmarks/
 ├── strategic/               # Capability-level algorithms
 │   ├── spectral-clustering.bench.ts  # Spectral clustering
 │   ├── capability-match.bench.ts     # Capability matching
-│   └── shgat.bench.ts                # SHGAT [PLACEHOLDER]
+│   └── shgat.bench.ts                # SHGAT learned attention
 ├── pathfinding/             # Shortest path algorithms
-│   ├── dijkstra.bench.ts       # Dijkstra (current)
-│   └── dr-dsp.bench.ts         # DR-DSP [PLACEHOLDER]
+│   ├── dijkstra.bench.ts       # Dijkstra baseline
+│   └── dr-dsp.bench.ts         # DR-DSP hypergraph shortest path
 ├── decision/                # Decision-making algorithms
 │   └── thompson-sampling.bench.ts  # Thompson Sampling (ADR-049)
 ├── utils/
 │   └── metrics.ts           # Statistical analysis & reporting
-└── performance.bench.ts     # Existing system-level benchmarks
+├── unified-search.bench.ts    # Search (active mode) - query → tools/caps
+├── shgat-drdsp-prediction.bench.ts # Prediction (passive mode) - context → next
+├── shgat-training.bench.ts    # SHGAT training on episodic events
+├── shgat-embeddings.bench.ts  # SHGAT with real BGE-M3 embeddings
+├── performance.bench.ts       # System-level performance benchmarks
+├── context_latency_bench.ts   # Context retrieval latency
+├── parallel_execution_bench.ts # Parallel execution performance
+└── sandbox_performance_test.ts # Sandbox isolation overhead
 ```
 
 ## Running Benchmarks
@@ -67,29 +75,45 @@ deno bench --allow-all --filter "pagerank-size" tests/benchmarks/tactical/
 deno bench --allow-all --filter "vs" tests/benchmarks/
 ```
 
+## The 3 Modes
+
+See [spike: capability-pathfinding-dijkstra](../../docs/spikes/2025-12-21-capability-pathfinding-dijkstra.md)
+
+| Mode | Function | Input | Algorithm | Benchmark |
+|------|----------|-------|-----------|-----------|
+| **Search (active)** | `unifiedSearch()` | intent | Hybrid (semantic + graph) × reliability | `unified-search.bench.ts` |
+| **Prediction (passive)** | `predictNextNode()` | intent + context | DR-DSP → SHGAT | `shgat-drdsp-prediction.bench.ts` |
+| **Suggestion (DAG)** | `suggestDAG()` | intent | DR-DSP seul | `pathfinding/dr-dsp.bench.ts` |
+
 ## Algorithm Coverage
 
 ### Implemented (Real Benchmarks)
 
-| Layer | Algorithm | File | ADR |
-|-------|-----------|------|-----|
+| Layer | Algorithm | File | ADR/Spike |
+|-------|-----------|------|-----------|
 | Tactical | PageRank | `tactical/pagerank.bench.ts` | - |
 | Tactical | Louvain | `tactical/louvain.bench.ts` | - |
 | Tactical | Adamic-Adar | `tactical/adamic-adar.bench.ts` | ADR-041 |
 | Tactical | Local Alpha | `tactical/local-alpha.bench.ts` | ADR-048 |
 | Strategic | Spectral Clustering | `strategic/spectral-clustering.bench.ts` | Story 7.4 |
 | Strategic | Capability Match | `strategic/capability-match.bench.ts` | ADR-038 |
-| Pathfinding | Dijkstra | `pathfinding/dijkstra.bench.ts` | ADR-041 |
-| Decision | Thompson Sampling | `decision/thompson-sampling.bench.ts` | ADR-049 |
-
-### Planned (Placeholder Benchmarks)
-
-| Layer | Algorithm | File | Spike |
-|-------|-----------|------|-------|
 | Strategic | SHGAT | `strategic/shgat.bench.ts` | `2025-12-17-superhypergraph` |
+| Strategic | SHGAT (real embeddings) | `shgat-embeddings.bench.ts` | `2025-12-17-superhypergraph` |
+| Strategic | SHGAT Training | `shgat-training.bench.ts` | `2025-12-17-superhypergraph` |
+| Pathfinding | Dijkstra | `pathfinding/dijkstra.bench.ts` | ADR-041 |
 | Pathfinding | DR-DSP | `pathfinding/dr-dsp.bench.ts` | `2025-12-21-capability-pathfinding` |
+| Decision | Thompson Sampling | `decision/thompson-sampling.bench.ts` | ADR-049 |
+| **Mode** | Unified Search | `unified-search.bench.ts` | `2025-12-21-capability-pathfinding` |
+| **Mode** | DR-DSP + SHGAT Prediction | `shgat-drdsp-prediction.bench.ts` | `2025-12-21-capability-pathfinding` |
 
-Placeholder benchmarks are marked with `ignore: true`. Enable them when the algorithm is implemented.
+### Other Benchmarks
+
+| File | Description |
+|------|-------------|
+| `performance.bench.ts` | System-level performance benchmarks |
+| `context_latency_bench.ts` | Context retrieval latency tests |
+| `parallel_execution_bench.ts` | Parallel execution performance |
+| `sandbox_performance_test.ts` | Sandbox isolation overhead |
 
 ## Benchmark Groups
 
