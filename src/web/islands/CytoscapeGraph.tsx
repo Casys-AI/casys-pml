@@ -177,6 +177,8 @@ interface CytoscapeGraphProps {
   expandedNodes?: Set<string>;
   /** Key to trigger data refresh (increment to refetch) */
   refreshKey?: number;
+  /** Callback when server list is discovered from graph data (eliminates redundant fetch) */
+  onServersDiscovered?: (servers: Set<string>) => void;
 }
 
 // Color palette for servers
@@ -220,6 +222,7 @@ export default function CytoscapeGraph({
   onExpandedNodesChange,
   expandedNodes: externalExpandedNodes,
   refreshKey = 0,
+  onServersDiscovered,
 }: CytoscapeGraphProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   // deno-lint-ignore no-explicit-any
@@ -707,6 +710,17 @@ export default function CytoscapeGraph({
 
       capabilityDataRef.current = capMap;
       toolDataRef.current = toolMap;
+
+      // Extract unique servers and notify parent (eliminates redundant fetch in GraphExplorer)
+      if (onServersDiscovered) {
+        const serverSet = new Set<string>();
+        for (const tool of tools) {
+          if (tool.server && tool.server !== "unknown") {
+            serverSet.add(tool.server);
+          }
+        }
+        onServersDiscovered(serverSet);
+      }
 
       renderGraph(true);
       setIsLoading(false);

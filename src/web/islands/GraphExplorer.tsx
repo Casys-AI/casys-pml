@@ -110,31 +110,10 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
     return serverColorsRef.current.get(server)!;
   }, []);
 
-  // Load servers list from API
-  useEffect(() => {
-    const loadServers = async () => {
-      try {
-        const response = await fetch(`${apiBase}/api/graph/hypergraph`);
-        if (response.ok) {
-          const data = await response.json();
-          const serverSet = new Set<string>();
-
-          // API returns nodes array with both capabilities and tools
-          for (const node of data.nodes || []) {
-            const d = node.data;
-            if (d.type === "tool" && d.server) {
-              serverSet.add(d.server);
-            }
-          }
-
-          setServers(serverSet);
-        }
-      } catch (error) {
-        console.error("Failed to load servers:", error);
-      }
-    };
-    loadServers();
-  }, [apiBase]);
+  // Servers are now discovered via CytoscapeGraph callback (eliminates redundant fetch)
+  const handleServersDiscovered = useCallback((serverSet: Set<string>) => {
+    setServers(serverSet);
+  }, []);
 
   // SSE listener for incremental graph updates (Story 8.3)
   useEffect(() => {
@@ -667,6 +646,7 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
           onExpandedNodesChange={setExpandedNodes}
           nodeMode={nodeMode}
           refreshKey={graphRefreshKey}
+          onServersDiscovered={handleServersDiscovered}
         />
 
         {/* GraphLegendPanel with all controls */}
