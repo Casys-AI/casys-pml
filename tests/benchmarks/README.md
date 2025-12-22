@@ -75,36 +75,51 @@ deno bench --allow-all --filter "pagerank-size" tests/benchmarks/tactical/
 deno bench --allow-all --filter "vs" tests/benchmarks/
 ```
 
-## The 3 Modes
+## The 3 Modes (ADR-050)
 
+See [ADR-050: Unified Search Simplification](../../docs/adrs/ADR-050-unified-search-simplification.md)
 See [spike: capability-pathfinding-dijkstra](../../docs/spikes/2025-12-21-capability-pathfinding-dijkstra.md)
 
 | Mode | Function | Input | Algorithm | Benchmark |
 |------|----------|-------|-----------|-----------|
-| **Search (active)** | `unifiedSearch()` | intent | Hybrid (semantic + graph) × reliability | `unified-search.bench.ts` |
-| **Prediction (passive)** | `predictNextNode()` | intent + context | DR-DSP → SHGAT | `shgat-drdsp-prediction.bench.ts` |
-| **Suggestion (DAG)** | `suggestDAG()` | intent | DR-DSP seul | `pathfinding/dr-dsp.bench.ts` |
+| **Search (active)** | `unifiedSearch()` | intent | `semantic × reliability` | `unified-search.bench.ts` |
+| **Prediction (forward)** | `predictNextNode()` | intent + context | SHGAT(intent) → TARGET, DR-DSP(current, TARGET) → next | `shgat-drdsp-prediction.bench.ts` |
+| **Suggestion (backward)** | `pml_execute()` | intent | SHGAT(intent) → TARGET, DR-DSP.backward(TARGET) → DAG | `shgat-drdsp-prediction.bench.ts` |
+
+### Key Changes (2025-12-22)
+
+1. **Search mode simplified** - No more alpha, no graph score
+2. **SHGAT is context-free** - Uses intent + graph features (pageRank, cooccurrence, recency)
+3. **SHGAT for TARGET selection** - Replaces unifiedSearch in Prediction/Suggestion modes
+4. **DR-DSP for pathfinding** - Forward (current→TARGET) or Backward (TARGET→dependencies)
 
 ## Algorithm Coverage
 
 ### Implemented (Real Benchmarks)
 
-| Layer | Algorithm | File | ADR/Spike |
-|-------|-----------|------|-----------|
-| Tactical | PageRank | `tactical/pagerank.bench.ts` | - |
-| Tactical | Louvain | `tactical/louvain.bench.ts` | - |
-| Tactical | Adamic-Adar | `tactical/adamic-adar.bench.ts` | ADR-041 |
-| Tactical | Local Alpha | `tactical/local-alpha.bench.ts` | ADR-048 |
-| Strategic | Spectral Clustering | `strategic/spectral-clustering.bench.ts` | Story 7.4 |
-| Strategic | Capability Match | `strategic/capability-match.bench.ts` | ADR-038 |
-| Strategic | SHGAT | `strategic/shgat.bench.ts` | `2025-12-17-superhypergraph` |
-| Strategic | SHGAT (real embeddings) | `shgat-embeddings.bench.ts` | `2025-12-17-superhypergraph` |
-| Strategic | SHGAT Training | `shgat-training.bench.ts` | `2025-12-17-superhypergraph` |
-| Pathfinding | Dijkstra | `pathfinding/dijkstra.bench.ts` | ADR-041 |
-| Pathfinding | DR-DSP | `pathfinding/dr-dsp.bench.ts` | `2025-12-21-capability-pathfinding` |
-| Decision | Thompson Sampling | `decision/thompson-sampling.bench.ts` | ADR-049 |
-| **Mode** | Unified Search | `unified-search.bench.ts` | `2025-12-21-capability-pathfinding` |
-| **Mode** | DR-DSP + SHGAT Prediction | `shgat-drdsp-prediction.bench.ts` | `2025-12-21-capability-pathfinding` |
+| Layer | Algorithm | File | ADR/Spike | Status |
+|-------|-----------|------|-----------|--------|
+| Tactical | PageRank | `tactical/pagerank.bench.ts` | - | ✅ Active |
+| Tactical | Louvain | `tactical/louvain.bench.ts` | - | ✅ Active |
+| Tactical | Adamic-Adar | `tactical/adamic-adar.bench.ts` | ADR-041 | ⚠️ Prediction only |
+| Tactical | Local Alpha | `tactical/local-alpha.bench.ts` | ~~ADR-048~~ | ❌ **OBSOLETE** (ADR-050) |
+| Strategic | Spectral Clustering | `strategic/spectral-clustering.bench.ts` | Story 7.4 | ✅ Active |
+| Strategic | Capability Match | `strategic/capability-match.bench.ts` | ADR-038 | ✅ Active |
+| Strategic | SHGAT | `strategic/shgat.bench.ts` | `2025-12-17-superhypergraph` | ✅ Active |
+| Strategic | SHGAT (real embeddings) | `shgat-embeddings.bench.ts` | `2025-12-17-superhypergraph` | ✅ Active |
+| Strategic | SHGAT Training | `shgat-training.bench.ts` | `2025-12-17-superhypergraph` | ✅ Active |
+| Pathfinding | Dijkstra | `pathfinding/dijkstra.bench.ts` | ADR-041 | ⚠️ Baseline only |
+| Pathfinding | DR-DSP | `pathfinding/dr-dsp.bench.ts` | `2025-12-21-capability-pathfinding` | ✅ Active |
+| Decision | Thompson Sampling | `decision/thompson-sampling.bench.ts` | ADR-049 | ✅ Active (Story 10.7c) |
+| **Mode** | Unified Search | `unified-search.bench.ts` | ADR-050 | ✅ Active |
+| **Mode** | DR-DSP + SHGAT Prediction | `shgat-drdsp-prediction.bench.ts` | ADR-050 | ✅ Active |
+
+### Obsolete Benchmarks (ADR-050)
+
+| File | Reason | Superseded by |
+|------|--------|---------------|
+| `tactical/local-alpha.bench.ts` | Alpha formulas replaced by SHGAT | `shgat-drdsp-prediction.bench.ts` |
+| `tactical/adamic-adar.bench.ts` | No longer used in Search mode (no context) | SHGAT for Prediction mode |
 
 ### Other Benchmarks
 
@@ -195,8 +210,9 @@ Deno.bench({
 
 ## Related Documentation
 
-- [ADR-038: Scoring Algorithms Reference](../../docs/adrs/ADR-038-scoring-algorithms-reference.md)
+- [**ADR-050: Unified Search Simplification**](../../docs/adrs/ADR-050-unified-search-simplification.md) - Current architecture (supersedes ADR-015, ADR-022, ADR-048)
+- [ADR-038: Scoring Algorithms Reference](../../docs/adrs/ADR-038-scoring-algorithms-reference.md) - Historical reference
 - [ADR-041: Edge Weights](../../docs/adrs/ADR-041-hierarchical-trace-tracking.md)
-- [ADR-048: Local Alpha](../../docs/adrs/ADR-048-local-adaptive-alpha.md)
+- ~~[ADR-048: Local Alpha](../../docs/adrs/ADR-048-local-adaptive-alpha.md)~~ - OBSOLETE (see ADR-050)
 - [ADR-049: Intelligent Thresholds](../../docs/adrs/ADR-049-intelligent-adaptive-thresholds.md)
 - [Spike: DR-DSP + SHGAT](../../docs/spikes/2025-12-21-capability-pathfinding-dijkstra.md)

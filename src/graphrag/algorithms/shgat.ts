@@ -83,8 +83,8 @@ export interface TrainingExample {
  *
  * These features are computed by support algorithms and fed to SHGAT heads:
  * - Heads 0-1 (semantic): uses embedding
- * - Head 2 (structure): uses spectralCluster, hypergraphPageRank
- * - Head 3 (temporal): uses cooccurrence, recency
+ * - Head 2 (structure): uses spectralCluster, hypergraphPageRank, adamicAdar
+ * - Head 3 (temporal): uses cooccurrence, recency, heatDiffusion
  */
 export interface HypergraphFeatures {
   /** Spectral cluster ID on the hypergraph (0-based) */
@@ -95,6 +95,34 @@ export interface HypergraphFeatures {
   cooccurrence: number;
   /** Recency score - how recently used (0-1, 1 = very recent) */
   recency: number;
+  /**
+   * Adamic-Adar similarity with neighboring capabilities (0-1)
+   *
+   * TODO: Integrate with existing computeAdamicAdar() implementation
+   *   - See: src/graphrag/algorithms/adamic-adar.ts
+   *   - Pre-compute for each capability based on shared tools/neighbors
+   *   - Currently: placeholder value, set manually or defaults to 0
+   */
+  adamicAdar?: number;
+  /**
+   * Heat diffusion score (0-1)
+   *
+   * TODO: Implement real heat diffusion computation. Options:
+   *
+   * Option 1: Static topology heat (context-free)
+   *   - Extract computeLocalHeat() from LocalAlphaCalculator
+   *   - Based on node degree + neighbor propagation
+   *   - See: src/graphrag/local-alpha.ts:649
+   *
+   * Option 2: Pre-computed from episodic traces
+   *   - Compute heat scores from episodic_events history
+   *   - Which capabilities are frequently "hot" together
+   *   - Use computeHierarchicalHeat() for Tool→Cap→Meta propagation
+   *   - See: src/graphrag/local-alpha.ts:756
+   *
+   * Currently: placeholder value, set manually or defaults to 0
+   */
+  heatDiffusion?: number;
 }
 
 /**
@@ -105,6 +133,8 @@ export const DEFAULT_HYPERGRAPH_FEATURES: HypergraphFeatures = {
   hypergraphPageRank: 0.01,
   cooccurrence: 0,
   recency: 0,
+  adamicAdar: 0,
+  heatDiffusion: 0,
 };
 
 /**
@@ -679,20 +709,23 @@ export class SHGAT {
   // ==========================================================================
 
   /**
-   * Score all capabilities given intent and context
+   * Score all capabilities given intent embedding
+   *
+   * SHGAT scoring is context-free per the original paper.
+   * Context (current position) is handled by DR-DSP pathfinding, not here.
+   *
+   * Multi-head attention:
+   * - Heads 0-1: Semantic (intent × capability embedding)
+   * - Head 2: Structure (hypergraph PageRank)
+   * - Head 3: Temporal (cooccurrence + recency)
    */
   scoreAllCapabilities(
     intentEmbedding: number[],
-    contextToolEmbeddings: number[][],
-    contextCapabilityIds?: string[],
+    _contextToolEmbeddings?: number[][], // DEPRECATED - kept for API compat, ignored
+    _contextCapabilityIds?: string[], // DEPRECATED - kept for API compat, ignored
   ): AttentionResult[] {
     // Run forward pass to warm up cache (we use original embeddings for scoring, not E)
     this.forward();
-
-    // Compute context vector from tool embeddings
-    const contextVec = contextToolEmbeddings.length > 0
-      ? this.averageEmbeddings(contextToolEmbeddings)
-      : null;
 
     const results: AttentionResult[] = [];
 
@@ -706,35 +739,43 @@ export class SHGAT {
       // Compute similarity with intent using original embedding (dimension-matched)
       const intentSim = this.cosineSimilarity(intentEmbedding, capOriginalEmb);
 
-      // Context boost from tool embeddings (using original embedding for dimension match)
-      let contextBoost = 0;
-      if (contextVec) {
-        contextBoost = this.cosineSimilarity(contextVec, capOriginalEmb) * 0.3;
-      }
-
-      // Additional context boost from capability cluster matching
-      if (contextCapabilityIds && contextCapabilityIds.length > 0) {
-        const features = cap.hypergraphFeatures || DEFAULT_HYPERGRAPH_FEATURES;
-        const contextClusters = contextCapabilityIds
-          .map(id => this.capabilityNodes.get(id)?.hypergraphFeatures?.spectralCluster)
-          .filter((c): c is number => c !== undefined);
-
-        if (contextClusters.includes(features.spectralCluster)) {
-          contextBoost = 0.2;
-        }
-      }
-
-      // Reliability
+      // Reliability multiplier
       const reliability = cap.successRate;
       const reliabilityMult = reliability < 0.5 ? 0.5 : (reliability > 0.9 ? 1.2 : 1.0);
 
-      // Compute head scores
+      // Compute head scores (NO context boost - per original paper)
       const features = cap.hypergraphFeatures || DEFAULT_HYPERGRAPH_FEATURES;
+
+      // Head 2: Structure score combines graph topology features
+      // Normalized to ~0-1 range to balance with semantic heads
+      // - PageRank: global importance (already 0-1)
+      // - SpectralCluster: cluster centrality (1/(1+c) gives 0.5-1)
+      // - AdamicAdar: similarity with neighbors (0-1)
+      const spectralBonus = 1 / (1 + features.spectralCluster);
+      const adamicAdar = features.adamicAdar ?? 0;
+      const structureScore = (
+        0.4 * features.hypergraphPageRank +
+        0.3 * spectralBonus +
+        0.3 * adamicAdar
+      );
+
+      // Head 3: Temporal score combines usage patterns
+      // Normalized to ~0-1 range
+      // - Cooccurrence: frequently used together (0-1)
+      // - Recency: recently used (0-1)
+      // - HeatDiffusion: influence from active context (0-1)
+      const heatDiffusion = features.heatDiffusion ?? 0;
+      const temporalScore = (
+        0.4 * features.cooccurrence +
+        0.4 * features.recency +
+        0.2 * heatDiffusion
+      );
+
       const headScores = [
         intentSim, // Head 0: semantic
         intentSim, // Head 1: semantic
-        features.hypergraphPageRank * 5 + contextBoost, // Head 2: structure
-        0.6 * features.cooccurrence + 0.4 * features.recency, // Head 3: temporal
+        structureScore, // Head 2: structure (pageRank + spectral + adamicAdar)
+        temporalScore, // Head 3: temporal (cooccurrence + recency + heatDiffusion)
       ];
 
       const headWeights = this.softmax(headScores);
@@ -770,19 +811,15 @@ export class SHGAT {
   }
 
   /**
-   * Compute attention for a single capability (backward compatible API)
+   * Compute attention for a single capability
    */
   computeAttention(
     intentEmbedding: number[],
-    contextToolEmbeddings: number[][],
+    _contextToolEmbeddings: number[][], // DEPRECATED - ignored
     capabilityId: string,
-    contextCapabilityIds?: string[],
+    _contextCapabilityIds?: string[], // DEPRECATED - ignored
   ): AttentionResult {
-    const results = this.scoreAllCapabilities(
-      intentEmbedding,
-      contextToolEmbeddings,
-      contextCapabilityIds,
-    );
+    const results = this.scoreAllCapabilities(intentEmbedding);
 
     return results.find(r => r.capabilityId === capabilityId) || {
       capabilityId,
@@ -854,7 +891,7 @@ export class SHGAT {
    */
   trainBatch(
     examples: TrainingExample[],
-    getEmbedding: (id: string) => number[] | null,
+    _getEmbedding?: (id: string) => number[] | null, // DEPRECATED - kept for API compat
   ): { loss: number; accuracy: number } {
     this.trainingMode = true;
 
@@ -864,10 +901,6 @@ export class SHGAT {
     const gradients = this.initGradients();
 
     for (const example of examples) {
-      const contextEmbeddings = example.contextTools
-        .map((id) => getEmbedding(id))
-        .filter((e): e is number[] => e !== null);
-
       // Forward (E unused - we use original embeddings, but cache needed for backward)
       const { E: _E, cache } = this.forward();
 
@@ -881,14 +914,8 @@ export class SHGAT {
       // Use original embedding for semantic similarity (dimension-matched)
       const intentSim = this.cosineSimilarity(example.intentEmbedding, capOriginalEmb);
 
-      // Context-aware scoring: boost if capability is related to context tools
-      let contextBoost = 0;
-      if (contextEmbeddings.length > 0) {
-        const contextVec = this.averageEmbeddings(contextEmbeddings);
-        contextBoost = this.cosineSimilarity(contextVec, capOriginalEmb) * 0.3; // 30% weight
-      }
-
-      const score = this.sigmoid(intentSim + contextBoost);
+      // Score based on semantic similarity only (no context boost per original paper)
+      const score = this.sigmoid(intentSim);
 
       // Loss
       const loss = this.binaryCrossEntropy(score, example.outcome);
@@ -1066,20 +1093,6 @@ export class SHGAT {
     return normA * normB > 0 ? dot / (normA * normB) : 0;
   }
 
-  private averageEmbeddings(embeddings: number[][]): number[] {
-    if (embeddings.length === 0) return [];
-    const dim = embeddings[0].length;
-    const avg = new Array(dim).fill(0);
-    for (const emb of embeddings) {
-      for (let i = 0; i < dim; i++) {
-        avg[i] += emb[i];
-      }
-    }
-    for (let i = 0; i < dim; i++) {
-      avg[i] /= embeddings.length;
-    }
-    return avg;
-  }
 
   private binaryCrossEntropy(pred: number, label: number): number {
     const eps = 1e-7;
@@ -1163,6 +1176,7 @@ export function createSHGATFromCapabilities(
     successRate: number;
     parents?: string[];
     children?: string[];
+    hypergraphFeatures?: HypergraphFeatures;
   }>,
   configOrToolEmbeddings?: Partial<SHGATConfig> | Map<string, number[]>,
   config?: Partial<SHGATConfig>,
@@ -1208,6 +1222,11 @@ export function createSHGATFromCapabilities(
       parents: cap.parents || [],
       children: cap.children || [],
     });
+
+    // Update hypergraph features if provided
+    if (cap.hypergraphFeatures) {
+      shgat.updateHypergraphFeatures(cap.id, cap.hypergraphFeatures);
+    }
   }
 
   return shgat;
