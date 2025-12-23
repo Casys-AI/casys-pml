@@ -330,6 +330,103 @@ Fees collectés par le smart contract
           └── Future: DAO governance
 ```
 
+### Royalties sur Ventes de Namespace
+
+Quand une méta-capacité utilise des capacités d'autres namespaces, les owners de ces dépendances reçoivent une part lors de la **revente** du namespace.
+
+**Principe** : Comme les royalties NFT sur secondary sales.
+
+```
+acme.payments namespace vendu pour 10 ETH
+├── uses → stripe.billing (Stripe gets 2%)
+├── uses → paypal.payments (PayPal gets 2%)
+└── uses → pml.retry (PML treasury gets 1%)
+
+Distribution:
+├── Stripe:  0.2 ETH
+├── PayPal:  0.2 ETH
+├── PML:     0.1 ETH
+└── Vendeur: 9.5 ETH
+```
+
+**Smart Contract Extension :**
+
+```solidity
+// Royalty tracking
+uint16 public constant ROYALTY_BPS = 200;  // 2% per dependency
+uint16 public constant MAX_ROYALTY_BPS = 1000;  // 10% max total
+
+// Dependencies are declared when publishing capabilities (off-chain)
+// but stored as merkle root for on-chain verification
+mapping(string => bytes32) public dependencyRoots;
+
+/**
+ * @notice Transfer with royalty distribution to dependencies
+ * @param ns The namespace to transfer
+ * @param to The new owner
+ * @param dependencies List of namespace dependencies
+ * @param proof Merkle proof that dependencies match stored root
+ */
+function transferWithRoyalties(
+    string calldata ns,
+    address to,
+    string[] calldata dependencies,
+    bytes32[] calldata proof
+) external payable {
+    require(namespaces[ns].owner == msg.sender, "Not owner");
+    require(msg.value > 0, "Sale price required");
+
+    // Verify dependencies match stored merkle root
+    require(verifyDependencies(ns, dependencies, proof), "Invalid dependencies");
+
+    uint256 salePrice = msg.value;
+    uint256 totalRoyalties = 0;
+
+    // Distribute royalties to dependency owners (capped)
+    uint256 royaltyPerDep = (salePrice * ROYALTY_BPS) / 10000;
+    for (uint i = 0; i < dependencies.length && totalRoyalties < (salePrice * MAX_ROYALTY_BPS) / 10000; i++) {
+        address depOwner = namespaces[dependencies[i]].owner;
+        if (depOwner != address(0) && depOwner != msg.sender) {
+            payable(depOwner).transfer(royaltyPerDep);
+            totalRoyalties += royaltyPerDep;
+        }
+    }
+
+    // Rest goes to seller
+    payable(msg.sender).transfer(salePrice - totalRoyalties);
+
+    // Transfer ownership
+    namespaces[ns].owner = to;
+
+    emit NamespaceTransferred(ns, msg.sender, to);
+    emit RoyaltiesPaid(ns, totalRoyalties);
+}
+```
+
+**Avantages :**
+- 100% on-chain, trustless
+- Pas de tracking d'usage complexe
+- Récompense les créateurs de briques fondamentales
+- Incite à créer des capacités réutilisables
+
+**Flow :**
+
+```
+1. Acme publie capability "acme.payments.multi_gateway"
+   └── Déclare: uses stripe.billing, paypal.payments
+   └── PML stocke merkle root des dépendances on-chain
+
+2. Acme veut vendre namespace "acme" à BigCorp pour 10 ETH
+   └── Appelle transferWithRoyalties()
+   └── Smart contract vérifie proof
+   └── Distribue 2% à Stripe, 2% à PayPal
+   └── Acme reçoit 9.6 ETH
+
+3. BigCorp est maintenant owner
+   └── Peut publier sous acme.*
+   └── Hérite des mêmes royalty obligations si revente
+```
+
 ---
 
 ## Flow d'Utilisation
@@ -621,11 +718,19 @@ async function linkWallet(req: Request) {
 
 Ce spike propose une approche **minimaliste** de blockchain pour les capabilities :
 
-- **On-chain** : Juste l'ownership des namespaces (comme ENS)
-- **Off-chain** : Tout le reste (code, exécution, billing)
+- **On-chain** : Ownership des namespaces + royalties sur reventes
+- **Off-chain** : Tout le reste (code, exécution, billing publishers)
 
-Pas de token custom, pas de pay-per-call, pas de revenue splitting automatique.
+**Pas de** :
+- Token custom ($CAP) → on utilise ETH
+- Pay-per-call → publishers gèrent leur billing
+- Tracking d'usage complexe
 
-Les publishers gèrent leur propre monétisation. PML gère les noms.
+**Mais avec** :
+- Royalties automatiques aux dépendances lors des ventes de namespace
+- Incitation à créer des briques réutilisables
+- Redistribution trustless on-chain
+
+Les publishers gèrent leur propre monétisation. PML gère les noms et récompense la composition.
 
 C'est simple, c'est clean, c'est faisable en ~7 semaines.
