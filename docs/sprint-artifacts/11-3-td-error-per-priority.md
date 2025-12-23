@@ -1,6 +1,6 @@
 # Story 11.3: TD Error + PER Priority
 
-Status: in-progress
+Status: done
 
 ## Story
 
@@ -170,7 +170,7 @@ So that SHGAT can sample and learn from surprising traces efficiently.
 - [x] [AI-Review][MEDIUM] **Performance**: ~~`predictPathSuccess` is O(n × SHGAT_forward)~~ FALSE ALARM - Code already caches via toolScoresMap/capScoresMap. Complexity is O(scoreAll) + O(path), not O(n × scoreAll). [shgat.ts:985-1017]
 - [x] [AI-Review][MEDIUM] **batchUpdatePriorities count**: ~~`updated++` increments even when update is skipped.~~ FIXED - `updateTracePriority` now returns boolean, `batchUpdatePriorities` tracks skipped count. [per-priority.ts:224-298]
 - [x] [AI-Review][MEDIUM] **Missing E2E test**: ~~Add integration test for full flow.~~ ADDED `tests/integration/per_priority_e2e_test.ts` - 5 E2E tests covering success/failure cases, cold start, and priority ordering.
-- [ ] [AI-Review][LOW] **Commit files**: All implementation files are untracked/unstaged - need git add and commit
+- [x] [AI-Review][LOW] **Commit files**: ~~All implementation files are untracked/unstaged.~~ COMMITTED as `2b6fb75` - 6 files, 1183 insertions
 
 ## Dev Notes
 
