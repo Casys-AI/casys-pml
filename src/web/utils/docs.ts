@@ -5,7 +5,7 @@
 
 import { extract } from "@std/front-matter/yaml";
 import { render } from "@deno/gfm";
-import { dirname, fromFileUrl, join } from "@std/path";
+import { dirname, join } from "@std/path";
 import { deflate } from "pako";
 
 // Import Prism language support for syntax highlighting
@@ -47,22 +47,26 @@ export interface DocNavItem {
   children?: DocNavItem[];
 }
 
-// Get project root directory using import.meta.url (stable across all environments)
-// This file is at: src/web/utils/docs.ts
-// Project root is 3 levels up: src/web/utils -> src/web -> src -> root
-const PROJECT_ROOT = dirname(dirname(dirname(dirname(fromFileUrl(import.meta.url)))));
-
-// Log project root at startup for debugging production issues
-console.log(`[docs] PROJECT_ROOT resolved to: ${PROJECT_ROOT} (from ${import.meta.url})`);
-
-// Use stable import.meta.url for docs directory
-function getDocsDir(): string {
-  return join(PROJECT_ROOT, "docs/user-docs");
+// Get project root using Deno.cwd() which works in both dev and production
+// In production: WorkingDirectory=/home/ubuntu/CascadeProjects/AgentCards/src/web
+// In dev: cwd is project root, so we detect and adjust
+function getProjectRoot(): string {
+  const cwd = Deno.cwd();
+  if (cwd.endsWith("/src/web") || cwd.endsWith("\\src\\web")) {
+    return dirname(dirname(cwd)); // Go up 2 levels from src/web
+  }
+  return cwd;
 }
 
-// Helper to get project root directory (now uses stable import.meta.url)
-function getProjectRoot(): string {
-  return PROJECT_ROOT;
+const PROJECT_ROOT = getProjectRoot();
+
+// Log paths at startup for debugging
+console.log(`[docs] Deno.cwd(): ${Deno.cwd()}`);
+console.log(`[docs] PROJECT_ROOT resolved to: ${PROJECT_ROOT}`);
+
+// Get docs directory
+function getDocsDir(): string {
+  return join(PROJECT_ROOT, "docs/user-docs");
 }
 
 // Helper to create Kroki URL for diagrams

@@ -1,6 +1,6 @@
 import { extract } from "@std/front-matter/yaml";
 import { render } from "@deno/gfm";
-import { dirname, fromFileUrl, join } from "@std/path";
+import { dirname, join } from "@std/path";
 import { deflate } from "pako";
 
 // Import Prism language support for syntax highlighting
@@ -36,16 +36,35 @@ export interface Post {
   html: string;
 }
 
-// Get project root directory using import.meta.url (stable across all environments)
-// This file is at: src/web/utils/posts.ts
-// Project root is 3 levels up: src/web/utils -> src/web -> src -> root
-const PROJECT_ROOT = dirname(dirname(dirname(dirname(fromFileUrl(import.meta.url)))));
+// Get posts directory using Deno.cwd() which works in both dev and production
+// In production: WorkingDirectory=/home/ubuntu/CascadeProjects/AgentCards/src/web
+// In dev: cwd is project root, so we detect and adjust
+function getPostsDir(): string {
+  const cwd = Deno.cwd();
+  // Check if we're running from src/web (production) or project root (dev)
+  if (cwd.endsWith("/src/web") || cwd.endsWith("\\src\\web")) {
+    return join(cwd, "posts");
+  }
+  // Dev mode: running from project root
+  return join(cwd, "src/web/posts");
+}
 
-// Log project root at startup for debugging production issues
-console.log(`[posts] PROJECT_ROOT resolved to: ${PROJECT_ROOT} (from ${import.meta.url})`);
+// Also compute PROJECT_ROOT for excalidraw/diagram loading
+function getProjectRoot(): string {
+  const cwd = Deno.cwd();
+  if (cwd.endsWith("/src/web") || cwd.endsWith("\\src\\web")) {
+    return dirname(dirname(cwd)); // Go up 2 levels from src/web
+  }
+  return cwd;
+}
 
-// Use stable import.meta.url for posts directory
-const POSTS_DIR = join(PROJECT_ROOT, "src/web/posts");
+const POSTS_DIR = getPostsDir();
+const PROJECT_ROOT = getProjectRoot();
+
+// Log paths at startup for debugging
+console.log(`[posts] Deno.cwd(): ${Deno.cwd()}`);
+console.log(`[posts] POSTS_DIR resolved to: ${POSTS_DIR}`);
+console.log(`[posts] PROJECT_ROOT resolved to: ${PROJECT_ROOT}`);
 
 export async function getPosts(): Promise<Post[]> {
   const posts: Post[] = [];
@@ -113,11 +132,6 @@ function createKrokiUrl(type: string, source: string): string {
 
 // Cache for external excalidraw files
 const excalidrawCache = new Map<string, string>();
-
-// Helper to get project root directory (uses PROJECT_ROOT defined above)
-function getProjectRoot(): string {
-  return PROJECT_ROOT;
-}
 
 // Load external excalidraw file and create Kroki URL
 async function loadExcalidrawFile(filePath: string): Promise<string | null> {

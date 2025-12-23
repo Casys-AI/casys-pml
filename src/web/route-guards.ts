@@ -13,7 +13,7 @@
 const PROTECTED_PREFIXES = ["/dashboard", "/settings"];
 
 // Routes that are always public
-const PUBLIC_PREFIXES = ["/auth", "/blog", "/_frsh"];
+const PUBLIC_PREFIXES = ["/auth", "/blog", "/docs", "/_frsh"];
 
 /**
  * Check if path requires authentication
