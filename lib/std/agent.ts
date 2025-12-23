@@ -17,13 +17,26 @@ import type { MiniTool } from "./types.ts";
 /**
  * Interface pour le client de sampling MCP
  * Sera injecté par le serveur MCP au runtime
+ *
+ * Per MCP Spec (SEP-1577 - Nov 2025):
+ * - Server sends sampling/createMessage with optional tools
+ * - Client handles LLM call AND tool execution (agentic loop)
+ * - Client returns final result after loop completes
+ *
+ * This means tool calls during sampling ARE traced by the client's RPC!
  */
 interface SamplingClient {
   createMessage(params: {
     messages: Array<{ role: "user" | "assistant"; content: string }>;
+    /** Tools available for the agent to use. Client handles execution. */
     tools?: Array<{ name: string; description: string; inputSchema: Record<string, unknown> }>;
+    /** "auto" = LLM decides, "required" = must use tool, "none" = no tools */
     toolChoice?: "auto" | "required" | "none";
     maxTokens?: number;
+    /** Hint for client: max agentic loop iterations */
+    maxIterations?: number;
+    /** Tool name patterns to filter (e.g., ['git_*', 'vfs_*']) */
+    allowedToolPatterns?: string[];
   }): Promise<{
     content: Array<{ type: string; text?: string; name?: string; input?: Record<string, unknown> }>;
     stopReason: "end_turn" | "tool_use" | "max_tokens";
@@ -90,9 +103,16 @@ export const agentTools: MiniTool[] = [
   // -------------------------------------------------------------------------
   // agent_delegate - Full agentic loop with tool access
   // -------------------------------------------------------------------------
+  // NOTE: Per MCP spec (SEP-1577), when tools are provided in sampling request,
+  // the CLIENT handles tool execution (traced via RPC). The server just sends
+  // the request and receives the final result.
+  //
+  // In Claude Code: Native support, tools executed by Claude Code (traced)
+  // In Local/Cloud: Client must implement tool execution handler
+  // -------------------------------------------------------------------------
   {
     name: "agent_delegate",
-    description: "Delegate a complex sub-task to an autonomous agent. The agent can make multiple decisions and call tools to accomplish the goal. Use for multi-step tasks requiring reasoning and tool use. Keywords: agent, delegate, autonomous, sub-task, agentic loop, multi-step.",
+    description: "Delegate a complex sub-task to an autonomous agent. The agent can make multiple decisions and call tools to accomplish the goal. Use for multi-step tasks requiring reasoning and tool use. The MCP client handles the agentic loop and tool execution. Keywords: agent, delegate, autonomous, sub-task, agentic loop, multi-step.",
     category: "agent" as any,
     inputSchema: {
       type: "object",
@@ -108,11 +128,11 @@ export const agentTools: MiniTool[] = [
         allowedTools: {
           type: "array",
           items: { type: "string" },
-          description: "Tool name patterns the agent can use (e.g., ['git_*', 'vfs_*'])"
+          description: "Tool name patterns the agent can use (e.g., ['git_*', 'vfs_*']). The client will filter available tools."
         },
         maxIterations: {
           type: "number",
-          description: "Maximum agentic loop iterations (default: 5)"
+          description: "Maximum agentic loop iterations (default: 5). Passed to client as hint."
         },
       },
       required: ["goal"],
@@ -120,6 +140,7 @@ export const agentTools: MiniTool[] = [
     handler: async ({ goal, context, allowedTools, maxIterations = 5 }) => {
       const client = getSamplingClient();
 
+      // Build the prompt with goal and context
       const systemPrompt = `You are an autonomous agent. Your goal: ${goal}
 
 ${context ? `Context:\n${JSON.stringify(context, null, 2)}` : ""}
@@ -128,55 +149,26 @@ ${allowedTools ? `You may use these tools: ${(allowedTools as string[]).join(", 
 
 Work step by step. When you have completed the goal, provide your final answer.`;
 
-      const messages: Array<{ role: "user" | "assistant"; content: string }> = [
-        { role: "user", content: systemPrompt }
-      ];
+      // Per MCP spec: Send sampling request with tools parameter
+      // The CLIENT handles the agentic loop:
+      // 1. Client calls LLM with tools
+      // 2. If tool_use → Client executes tools (traced!) → continues
+      // 3. Repeat until end_turn or max iterations
+      // 4. Client returns final result
+      const response = await client.createMessage({
+        messages: [{ role: "user", content: systemPrompt }],
+        toolChoice: "auto",
+        maxTokens: 4096,
+        // Pass hints to client for agentic loop control
+        maxIterations: maxIterations as number,
+        allowedToolPatterns: allowedTools as string[] | undefined,
+      });
 
-      let iterations = 0;
-      const toolCalls: string[] = [];
-
-      while (iterations < (maxIterations as number)) {
-        const response = await client.createMessage({
-          messages,
-          toolChoice: "auto",
-          maxTokens: 4096,
-        });
-
-        if (response.stopReason === "end_turn") {
-          return {
-            success: true,
-            result: extractText(response.content),
-            iterations,
-            toolCalls,
-          };
-        }
-
-        if (response.stopReason === "tool_use") {
-          // Extract tool calls
-          const tools = response.content.filter(c => c.type === "tool_use");
-          for (const tool of tools) {
-            if (tool.name) toolCalls.push(tool.name);
-          }
-
-          // Add assistant response and tool results to messages
-          messages.push({
-            role: "assistant",
-            content: JSON.stringify(response.content)
-          });
-          messages.push({
-            role: "user",
-            content: "[Tool results would be here - continue with your task]"
-          });
-        }
-
-        iterations++;
-      }
-
+      // Client returns final result after completing agentic loop
       return {
-        success: false,
-        error: `Exceeded max iterations (${maxIterations})`,
-        iterations,
-        toolCalls,
+        success: response.stopReason === "end_turn",
+        result: extractText(response.content),
+        stopReason: response.stopReason,
       };
     },
   },

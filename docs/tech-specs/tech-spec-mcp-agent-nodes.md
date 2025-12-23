@@ -30,185 +30,183 @@ La spec MCP de novembre 2025 (SEP-1577) permet aux serveurs MCP de faire des bou
 
 ## Architecture
 
+**Point clé:** Per MCP spec (SEP-1577), le **CLIENT** gère la boucle agentique, pas le serveur.
+Cela garantit que les tool calls sont tracés via le RPC normal du client.
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  Code généré par l'agent :                                       │
-│  await mcp.std.agent_delegate({ goal, context, tools })         │
+│  await mcp.std.agent_delegate({ goal, context, allowedTools })  │
 └─────────────────────────────────────────────────────────────────┘
                               │
-                    Worker RPC → Main Process
+                    Worker RPC → Main Process (tracé ✓)
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  lib/mcp-tools-server.ts                                         │
 │                                                                  │
 │  tools/call "agent_delegate" →                                   │
-│    loop {                                                        │
-│      response = sampling/createMessage(goal, tools)             │
-│      if (toolUse) → execute tools → continue                    │
-│      else → return result                                        │
-│    }                                                             │
+│    sampling/createMessage({                                      │
+│      messages: [{ role: "user", content: goal + context }],     │
+│      allowedToolPatterns: ["git_*", "vfs_*"],                   │
+│      maxIterations: 5                                            │
+│    })                                                            │
+│                                                                  │
+│  ⚠️ Serveur ne boucle PAS - une seule requête sampling          │
 └─────────────────────────────────────────────────────────────────┘
                               │
                     sampling/createMessage
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  Gateway (MCP Client)                                            │
+│  MCP Client (Gateway / Claude Code)                              │
 │                                                                  │
-│  Si Claude Code → répondu nativement par Claude                 │
-│  Sinon → appel LLM via env config (SAMPLING_PROVIDER)           │
+│  loop {  ← CLIENT gère la boucle agentique                      │
+│    response = LLM.createMessage(messages, tools)                │
+│    if (tool_use) {                                               │
+│      results = executeTool(...)  ← Tracé via RPC normal! ✓     │
+│      messages.push(results)                                      │
+│    } else {                                                      │
+│      return response  ← Résultat final au serveur               │
+│    }                                                             │
+│  }                                                               │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+### Traçage garanti
+
+Parce que le CLIENT gère la boucle et l'exécution des tools :
+- Chaque tool call passe par le RPC normal du client
+- WorkerBridge/Gateway voit tous les appels
+- Les traces incluent tous les tools utilisés par l'agent
+- Pas de "boîte noire" - visibilité complète
+
 ## Implémentation
 
-### 1. Nouveau tool : `lib/std/agent.ts`
+### 1. Nouveau tool : `lib/std/agent.ts` ✅ IMPLÉMENTÉ
 
 ```typescript
-import { type MiniTool } from "./common.ts";
+import { type MiniTool } from "./types.ts";
 
+// Le serveur ne boucle PAS - le client gère l'agentic loop
 export const agentTools: MiniTool[] = [
   {
     name: "agent_delegate",
-    description: "Delegate a sub-task to an autonomous agent that can make decisions and call tools",
+    description: "Delegate a sub-task to an autonomous agent...",
     category: "agent",
     inputSchema: {
       type: "object",
       properties: {
-        goal: {
-          type: "string",
-          description: "What the agent should accomplish"
-        },
-        context: {
-          type: "object",
-          description: "Context data for the agent"
-        },
-        allowedTools: {
-          type: "array",
-          items: { type: "string" },
-          description: "Tools the agent can use (e.g., ['git_*', 'vfs_*'])"
-        },
-        maxIterations: {
-          type: "number",
-          default: 5,
-          description: "Maximum agentic loop iterations"
-        },
+        goal: { type: "string", description: "What the agent should accomplish" },
+        context: { type: "object", description: "Context data for the agent" },
+        allowedTools: { type: "array", items: { type: "string" }, description: "Tool patterns" },
+        maxIterations: { type: "number", description: "Max iterations (hint for client)" },
       },
       required: ["goal"],
     },
     handler: async ({ goal, context, allowedTools, maxIterations = 5 }) => {
-      // Récupère le sampling client depuis le contexte MCP
-      const samplingClient = getSamplingClient();
+      const client = getSamplingClient();
 
-      const messages = [
-        { role: "user", content: buildPrompt(goal, context) }
-      ];
+      // UNE seule requête - le CLIENT gère la boucle agentique
+      const response = await client.createMessage({
+        messages: [{ role: "user", content: buildPrompt(goal, context) }],
+        toolChoice: "auto",
+        maxTokens: 4096,
+        maxIterations: maxIterations as number,      // Hint pour le client
+        allowedToolPatterns: allowedTools as string[], // Filtre pour le client
+      });
 
-      const tools = filterTools(allowedTools);
-      let iterations = 0;
-
-      while (iterations < maxIterations) {
-        const response = await samplingClient.createMessage({
-          messages,
-          tools,
-          toolChoice: "auto",
-          maxTokens: 4096,
-        });
-
-        if (response.stopReason === "end_turn") {
-          return extractResult(response);
-        }
-
-        if (response.stopReason === "tool_use") {
-          const toolResults = await executeToolCalls(response.content);
-          messages.push({ role: "assistant", content: response.content });
-          messages.push({ role: "user", content: toolResults });
-        }
-
-        iterations++;
-      }
-
-      throw new Error(`Agent exceeded max iterations (${maxIterations})`);
+      // Le client retourne le résultat FINAL après avoir terminé la boucle
+      return {
+        success: response.stopReason === "end_turn",
+        result: extractText(response.content),
+        stopReason: response.stopReason,
+      };
     },
   },
+  // + 7 autres tools: agent_decide, agent_analyze, agent_extract,
+  //   agent_classify, agent_summarize, agent_generate, agent_compare
 ];
 ```
 
-### 2. Export dans `lib/std/mod.ts`
+**8 tools implémentés dans `lib/std/agent.ts`:**
+- `agent_delegate` - Délégation de sous-tâche avec tools
+- `agent_decide` - Décision booléenne ou choix multiple
+- `agent_analyze` - Analyse de données structurée
+- `agent_extract` - Extraction de données selon un schéma
+- `agent_classify` - Classification dans des catégories
+- `agent_summarize` - Résumé de contenu
+- `agent_generate` - Génération de contenu (code, texte, etc.)
+- `agent_compare` - Comparaison et ranking d'options
+
+### 2. Export dans `lib/std/mod.ts` ✅ IMPLÉMENTÉ
 
 ```typescript
-// Ajouter
-export { agentTools } from "./agent.ts";
+// Agent tools (MCP Sampling)
+export { agentTools, setSamplingClient } from "./agent.ts";
 import { agentTools } from "./agent.ts";
 
 // Dans systemTools
 export const systemTools = [
   ...existingTools,
-  ...agentTools,  // ← Ajouter
+  ...agentTools,  // ✅ Ajouté
 ];
 
 // Dans toolsByCategory
 export const toolsByCategory = {
   ...existing,
-  agent: agentTools,  // ← Ajouter
+  agent: agentTools,  // ✅ Ajouté
 };
 ```
 
-### 3. Sampling handler (gateway)
-
-Le gateway doit implémenter le handler pour `sampling/createMessage` :
+### 3. Type `agent` dans `lib/std/types.ts` ✅ IMPLÉMENTÉ
 
 ```typescript
-// src/mcp/sampling-handler.ts
-export class SamplingHandler {
-  private provider: "anthropic" | "openai" | "ollama" | "native";
-  private apiKey?: string;
-  private endpoint?: string;
-  private model: string;
+export type ToolCategory =
+  | "text" | "json" | ...
+  | "agent";  // ✅ Ajouté
+```
 
-  constructor() {
-    this.provider = Deno.env.get("SAMPLING_PROVIDER") as any || "native";
-    this.apiKey = Deno.env.get("SAMPLING_API_KEY");
-    this.endpoint = Deno.env.get("SAMPLING_ENDPOINT");
-    this.model = Deno.env.get("SAMPLING_MODEL") || "claude-sonnet-4-20250514";
-  }
+### 4. Sampling handler (gateway) ⏳ TODO
 
-  async createMessage(params: CreateMessageParams): Promise<CreateMessageResult> {
-    switch (this.provider) {
-      case "native":
-        // Claude Code - le client MCP parent gère
-        throw new Error("Native sampling - request should be forwarded to parent");
+Le MCP Client (Gateway ou Claude Code) doit implémenter le handler pour `sampling/createMessage`.
 
-      case "anthropic":
-        return this.callAnthropic(params);
+**Responsabilités du client:**
+1. Recevoir la requête sampling du serveur
+2. Filtrer les tools selon `allowedToolPatterns`
+3. Gérer la boucle agentique (LLM → tool_use → execute → repeat)
+4. Tracer chaque tool call via le RPC normal
+5. Retourner le résultat final au serveur
 
-      case "openai":
-        return this.callOpenAI(params);
+```typescript
+// Dans le client MCP (Gateway / mcp-tools-server.ts)
+async handleSamplingRequest(params: CreateMessageParams): Promise<CreateMessageResult> {
+  const tools = this.filterToolsByPatterns(params.allowedToolPatterns);
+  let iterations = 0;
+  const maxIterations = params.maxIterations || 5;
 
-      case "ollama":
-        return this.callOllama(params);
-    }
-  }
-
-  private async callAnthropic(params: CreateMessageParams) {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": this.apiKey!,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: this.model,
-        messages: params.messages,
-        tools: params.tools,
-        max_tokens: params.maxTokens,
-      }),
+  while (iterations < maxIterations) {
+    const response = await this.llm.createMessage({
+      messages: params.messages,
+      tools,
+      maxTokens: params.maxTokens,
     });
 
-    return response.json();
+    if (response.stopReason === "end_turn") {
+      return response;
+    }
+
+    if (response.stopReason === "tool_use") {
+      // Exécuter les tools - PASSENT PAR LE RPC NORMAL = TRACÉS ✓
+      const results = await this.executeToolCalls(response.content);
+      params.messages.push({ role: "assistant", content: response.content });
+      params.messages.push({ role: "user", content: results });
+    }
+
+    iterations++;
   }
+
+  return { stopReason: "max_tokens", content: [] };
 }
 ```
 
