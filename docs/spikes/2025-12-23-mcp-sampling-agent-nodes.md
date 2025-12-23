@@ -2,9 +2,10 @@
 
 **Date:** 2025-12-23
 **Auteur:** Erwan + Claude
-**Status:** Exploration
+**Status:** Exploration → Tech Spec créée
 **Contexte:** Discussion sur les branches conditionnelles dans les DAGs et la possibilité de nœuds "agent"
 **Supersedes:** [spike-hybrid-dag-agent-delegation.md](./spike-hybrid-dag-agent-delegation.md) (2025-11-23)
+**Tech Spec:** [tech-spec-mcp-agent-nodes.md](../tech-specs/tech-spec-mcp-agent-nodes.md)
 
 ---
 
