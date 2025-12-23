@@ -202,7 +202,7 @@ development_status:
   10-7-pml-execute-api: done # Code Review APPROVED 2025-12-23: 14 unit + 5 E2E tests passing, SHGAT+DR-DSP integrated
   10-7a-drdsp-integration: merged # MERGED into 10.7 - DR-DSP intégré directement
   10-7b-shgat-scoring-integration: merged # MERGED into 10.7 - SHGAT scoring + persistence (migration 010)
-  10-7c-thompson-sampling-integration: ready-for-dev # Story context created 2025-12-23
+  10-7c-thompson-sampling-integration: done # Code Review APPROVED 2025-12-23: 25 tests passing, Thompson integrated into AdaptiveThresholdManager
   10-8-pml-get-task-result: backlog
   epic-10-retrospective: optional
 
@@ -215,9 +215,9 @@ development_status:
   epic-11: in-progress
   11-0-db-schema-cleanup: done # 2025-12-22: KV singleton, workflow-state-cache, migration 019, mcp_tool removed - Code Review APPROVED (11 tests added)
   11-1-result-tracing: done # Code Review APPROVED 2025-12-22: 9 tests passing, null handling bug fixed, parentTraceId types added
-  11-2-execution-trace-table: done # 25 tests passing, decisions[] tracking deferred to dedicated story (architectural dependency on DAG condition evaluation)
+  11-2-execution-trace-table: done # 33 tests passing, decisions[] inference implemented via StaticStructureBuilder.inferDecisions()
   11-3-td-error-per-priority: done # Code Review APPROVED 2025-12-23: 17 tests (12 unit + 5 E2E), all issues resolved
-  11-4-definition-invocation-views: backlog
+  11-4-definition-invocation-views: ready-for-dev # Story created 2025-12-23, toggle UI exists, needs API + wiring
   11-5-dry-run-mode: backlog
   11-6-shgat-training-per-sampling: backlog # REFACTORÉ: PER sampling + SHGAT train
   epic-11-retrospective: optional
