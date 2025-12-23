@@ -104,6 +104,11 @@ const singleHeadShgat = createSHGATFromCapabilities(
   toolEmbeddings,
   { numHeads: 1 },
 );
+const sixHeadShgat = createSHGATFromCapabilities(
+  [mediumCapabilities[0]],
+  toolEmbeddings,
+  { numHeads: 6 }, // Default 6-head architecture (2 semantic + 2 structure + 2 temporal)
+);
 const multiHeadShgat = createSHGATFromCapabilities(
   [mediumCapabilities[0]],
   toolEmbeddings,
@@ -124,6 +129,14 @@ Deno.bench({
   group: "shgat-inference",
   fn: () => {
     pretrainedShgat.computeAttention(testIntent, testContext, mediumCapabilities[0].id);
+  },
+});
+
+Deno.bench({
+  name: "SHGAT: single score (6 heads - default)",
+  group: "shgat-inference",
+  fn: () => {
+    sixHeadShgat.computeAttention(testIntent, testContext, mediumCapabilities[0].id);
   },
 });
 

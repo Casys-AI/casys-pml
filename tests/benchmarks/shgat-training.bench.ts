@@ -155,13 +155,17 @@ Deno.test("SHGAT: builds hypergraph with incidence matrix", () => {
   const { shgat, trainingExamples } = buildSHGATFromFixture();
 
   const stats = shgat.getStats();
-  assertEquals(stats.numHeads, 4);
+  assertEquals(stats.numHeads, 4); // Test uses explicit numHeads: 4 config
   assertEquals(stats.numLayers, 2);
   assertEquals(stats.registeredCapabilities, 4); // 4 capabilities
   assertEquals(stats.registeredTools, 15); // 15 tools
   assertGreater(stats.incidenceNonZeros, 0); // Has connections
   assertEquals(stats.incidenceNonZeros, 15); // Sum of toolsUsed counts
   assertEquals(trainingExamples.length, 12); // 12 episodic events
+  // Check fusion weights are available
+  assertEquals(typeof stats.fusionWeights.semantic, "number");
+  assertEquals(typeof stats.fusionWeights.structure, "number");
+  assertEquals(typeof stats.fusionWeights.temporal, "number");
 });
 
 Deno.test("SHGAT: forward pass produces embeddings", () => {
@@ -400,8 +404,9 @@ Deno.test("SHGAT: computeAttention backward compatible API", () => {
   assertEquals(result.capabilityId, "cap__checkout_flow");
   assertGreater(result.score, 0);
   assertLess(result.score, 1);
-  assertEquals(result.headWeights.length, 4);
-  assertEquals(result.headScores.length, 4);
+  // 6-head architecture returns 6 weights/scores
+  assertEquals(result.headWeights.length, 6);
+  assertEquals(result.headScores.length, 6);
 });
 
 Deno.test("SHGAT: tool attention weights are valid", () => {
