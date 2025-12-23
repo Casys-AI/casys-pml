@@ -132,6 +132,37 @@ Implémenter le système d'apprentissage basé sur les traces d'exécution. Capt
 - Le LLM n'a besoin que de ce qui s'est passé, pas de ce qui aurait pu se passer
 - La trace inclut les `decisions` (quelle branche prise et pourquoi)
 
+> **Note sur l'apprentissage des branches (2025-12-23):**
+>
+> Actuellement, on **n'apprend PAS sur les branches séparément**. SHGAT apprend sur la
+> capability entière (success/fail), pas sur chaque branche individuelle.
+>
+> **Design voulu:** Les capabilities doivent être des **workflows linéaires**. Les if/else
+> dans le code généré sont des **gardes** (error handling, edge cases), pas des **options**
+> métier. L'adaptation se fait au niveau de la **sélection** de capability, pas dans les
+> branches internes.
+>
+> Exemple correct:
+> ```typescript
+> // Garde (OK) - gestion d'erreur
+> const result = await mcp.fs.read({ path });
+> if (!result.success) throw new Error("File not found");
+> await mcp.fs.write({ out, content: result.data });
+> ```
+>
+> Exemple à éviter:
+> ```typescript
+> // Options métier (éviter) - devrait être 2 capabilities séparées
+> if (format === "json") {
+>   await mcp.json.parse(...);
+> } else {
+>   await mcp.csv.parse(...);
+> }
+> ```
+>
+> Pour le cas "options métier", préférer 2 capabilities distinctes (`parse_json`, `parse_csv`)
+> et laisser la sélection choisir la bonne selon le contexte.
+
 **Flow d'exécution :**
 ```
 ┌─────────────────────────────────────────────────────────────┐
