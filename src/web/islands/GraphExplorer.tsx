@@ -116,25 +116,63 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
   }, []);
 
   // SSE listener for incremental graph updates (Story 8.3)
+  // With debouncing to prevent rapid refresh loops
   useEffect(() => {
-    const eventSource = new EventSource(`${apiBase}/events/stream`);
+    let eventSource: EventSource | null = null;
+    let refreshTimeout: number | null = null;
+    let reconnectAttempts = 0;
+    const MAX_RECONNECT_ATTEMPTS = 5;
 
-    // Handle capability zone events - trigger graph refresh
-    const handleCapabilityEvent = () => {
-      console.log("[SSE] Capability event received, refreshing graph...");
-      setGraphRefreshKey((prev) => prev + 1);
+    const connect = () => {
+      if (eventSource) {
+        eventSource.close();
+      }
+
+      eventSource = new EventSource(`${apiBase}/events/stream`);
+
+      eventSource.onopen = () => {
+        console.log("[SSE] Connected to events stream");
+        reconnectAttempts = 0; // Reset on successful connection
+      };
+
+      // Debounced handler to prevent rapid refreshes
+      const handleCapabilityEvent = () => {
+        // Clear previous pending refresh
+        if (refreshTimeout) {
+          clearTimeout(refreshTimeout);
+        }
+        // Debounce: wait 500ms before triggering refresh
+        refreshTimeout = setTimeout(() => {
+          console.log("[SSE] Capability event received, refreshing graph...");
+          setGraphRefreshKey((prev) => prev + 1);
+        }, 500) as unknown as number;
+      };
+
+      eventSource.addEventListener("capability.zone.created", handleCapabilityEvent);
+      eventSource.addEventListener("capability.zone.updated", handleCapabilityEvent);
+      eventSource.addEventListener("capability.learned", handleCapabilityEvent);
+
+      eventSource.onerror = () => {
+        reconnectAttempts++;
+        if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+          console.warn("[SSE] Max reconnection attempts reached, stopping");
+          eventSource?.close();
+          eventSource = null;
+        } else {
+          console.warn(`[SSE] Connection error, attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`);
+        }
+      };
     };
 
-    eventSource.addEventListener("capability.zone.created", handleCapabilityEvent);
-    eventSource.addEventListener("capability.zone.updated", handleCapabilityEvent);
-    eventSource.addEventListener("capability.learned", handleCapabilityEvent);
-
-    eventSource.onerror = (err) => {
-      console.warn("[SSE] EventSource error:", err);
-    };
+    connect();
 
     return () => {
-      eventSource.close();
+      if (refreshTimeout) {
+        clearTimeout(refreshTimeout);
+      }
+      if (eventSource) {
+        eventSource.close();
+      }
     };
   }, [apiBase]);
 

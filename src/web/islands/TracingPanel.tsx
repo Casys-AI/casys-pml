@@ -52,19 +52,34 @@ export default function TracingPanel({ apiBase: _apiBaseProp }: TracingPanelProp
     }
   }, [collapsed]);
 
+  // Track paused state in ref to avoid SSE reconnection when paused changes
+  const pausedRef = useRef(paused);
+  useEffect(() => {
+    pausedRef.current = paused;
+  }, [paused]);
+
   // Subscribe to SSE for algorithm.scored events
+  // Note: Only reconnect on collapsed change, not paused (handled in event handler)
   useEffect(() => {
     if (typeof window === "undefined" || collapsed) return;
 
     const apiBase = "http://localhost:3003";
     let eventSource: EventSource | null = null;
+    let reconnectAttempts = 0;
+    const MAX_RECONNECT_ATTEMPTS = 5;
 
     try {
       // Use filter to only receive algorithm.* events
       eventSource = new EventSource(`${apiBase}/events/stream?filter=algorithm.*`);
 
+      eventSource.onopen = () => {
+        console.log("[TracingPanel] SSE connected");
+        reconnectAttempts = 0;
+      };
+
       eventSource.addEventListener("algorithm.scored", (e: Event) => {
-        if (paused) return;
+        // Use ref to check paused without causing reconnection
+        if (pausedRef.current) return;
         const messageEvent = e as MessageEvent;
         try {
           const payload = JSON.parse(messageEvent.data);
@@ -84,7 +99,13 @@ export default function TracingPanel({ apiBase: _apiBaseProp }: TracingPanelProp
       });
 
       eventSource.onerror = () => {
-        console.warn("SSE connection error, will retry...");
+        reconnectAttempts++;
+        if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+          console.warn("[TracingPanel] Max reconnection attempts reached");
+          eventSource?.close();
+        } else {
+          console.warn(`[TracingPanel] SSE error, attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`);
+        }
       };
     } catch (err) {
       console.warn("EventSource not available:", err);
@@ -93,7 +114,7 @@ export default function TracingPanel({ apiBase: _apiBaseProp }: TracingPanelProp
     return () => {
       eventSource?.close();
     };
-  }, [collapsed, paused]);
+  }, [collapsed]); // Only collapsed, not paused
 
   // Auto-scroll to top on new events
   useEffect(() => {

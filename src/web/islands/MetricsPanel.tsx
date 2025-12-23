@@ -113,25 +113,47 @@ export default function MetricsPanel({ apiBase: apiBaseProp }: MetricsPanelProps
     }
   }, [viewMode]);
 
-  const fetchMetrics = async () => {
-    try {
-      const res = await fetch(`${apiBase}/api/metrics?range=${dateRange}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data: GraphMetricsResponse = await res.json();
-      setMetrics(data);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Fetch metrics with abort controller for cleanup
   useEffect(() => {
+    const abortController = new AbortController();
+    let isMounted = true;
+
+    const fetchMetrics = async () => {
+      try {
+        const res = await fetch(`${apiBase}/api/metrics?range=${dateRange}`, {
+          signal: abortController.signal,
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data: GraphMetricsResponse = await res.json();
+        if (isMounted) {
+          setMetrics(data);
+          setError(null);
+          setLoading(false);
+        }
+      } catch (err) {
+        // Ignore abort errors (component unmounted or dateRange changed)
+        if (err instanceof Error && err.name === "AbortError") {
+          return;
+        }
+        if (isMounted) {
+          setError(err instanceof Error ? err.message : "Failed");
+          setLoading(false);
+        }
+      }
+    };
+
+    // Initial fetch
     fetchMetrics();
+
+    // Poll every 5 seconds
     const interval = setInterval(fetchMetrics, 5000);
-    return () => clearInterval(interval);
-  }, [dateRange]);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+      abortController.abort();
+    };
+  }, [apiBase, dateRange]);
 
   // Dashboard mode: render all charts with better config
   useEffect(() => {
