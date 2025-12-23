@@ -11,7 +11,8 @@
  *   - Head 3: Temporal (co-occurrence, recency)
  *
  * Training:
- * - Supervised on episodic_events outcomes (success/failure)
+ * - Online: trainOnExample() after each execution (via updateSHGAT in execute-handler)
+ * - Batch: trainBatch() with PER sampling from execution_trace (Story 11.6)
  * - Proper backpropagation through both phases
  *
  * @module graphrag/algorithms/shgat
@@ -386,6 +387,20 @@ export class SHGAT {
    */
   hasCapabilityNode(capabilityId: string): boolean {
     return this.capabilityNodes.has(capabilityId);
+  }
+
+  /**
+   * Get the number of registered tools (Story 11.3 - cold start detection)
+   */
+  getToolCount(): number {
+    return this.toolNodes.size;
+  }
+
+  /**
+   * Get the number of registered capabilities (Story 11.3 - cold start detection)
+   */
+  getCapabilityCount(): number {
+    return this.capabilityNodes.size;
   }
 
   /**
@@ -938,6 +953,89 @@ export class SHGAT {
 
     results.sort((a, b) => b.score - a.score);
     return results;
+  }
+
+  /**
+   * Predict the success probability of an executed path (Story 11.3 - TD Learning)
+   *
+   * Uses the same multi-head architecture as scoreAllTools/scoreAllCapabilities
+   * to predict whether a path of tools/capabilities will succeed.
+   *
+   * Used for TD Error calculation: tdError = actual - predicted
+   * Where priority = |tdError| for PER sampling.
+   *
+   * @param intentEmbedding - The intent embedding (1024-dim BGE-M3)
+   * @param path - Array of tool/capability IDs that were executed
+   * @returns Probability of success [0, 1]
+   */
+  predictPathSuccess(intentEmbedding: number[], path: string[]): number {
+    // Cold start: no nodes registered yet
+    if (this.capabilityNodes.size === 0 && this.toolNodes.size === 0) {
+      return 0.5;
+    }
+
+    // Empty path: neutral prediction
+    if (!path || path.length === 0) {
+      return 0.5;
+    }
+
+    // Collect scores for each node in the path
+    const nodeScores: number[] = [];
+
+    // Cache the full scoring results (avoid recomputing for each node)
+    const toolScoresMap = new Map<string, number>();
+    const capScoresMap = new Map<string, number>();
+
+    // Only compute if we have nodes of that type in the path
+    const hasTools = path.some((id) => this.toolNodes.has(id));
+    const hasCaps = path.some((id) => this.capabilityNodes.has(id));
+
+    if (hasTools) {
+      const toolResults = this.scoreAllTools(intentEmbedding);
+      for (const r of toolResults) {
+        toolScoresMap.set(r.toolId, r.score);
+      }
+    }
+
+    if (hasCaps) {
+      const capResults = this.scoreAllCapabilities(intentEmbedding);
+      for (const r of capResults) {
+        capScoresMap.set(r.capabilityId, r.score);
+      }
+    }
+
+    // Get score for each node in path
+    for (const nodeId of path) {
+      if (toolScoresMap.has(nodeId)) {
+        nodeScores.push(toolScoresMap.get(nodeId)!);
+      } else if (capScoresMap.has(nodeId)) {
+        nodeScores.push(capScoresMap.get(nodeId)!);
+      } else {
+        // Unknown node: neutral score
+        nodeScores.push(0.5);
+      }
+    }
+
+    // Weighted average: later nodes in path are more critical for success
+    // Weight increases linearly: 1.0, 1.5, 2.0, 2.5, ...
+    let weightedSum = 0;
+    let weightTotal = 0;
+
+    for (let i = 0; i < nodeScores.length; i++) {
+      const weight = 1 + i * 0.5;
+      weightedSum += nodeScores[i] * weight;
+      weightTotal += weight;
+    }
+
+    const pathScore = weightedSum / weightTotal;
+
+    log.debug("[SHGAT] predictPathSuccess", {
+      pathLength: path.length,
+      nodeScores,
+      pathScore,
+    });
+
+    return pathScore;
   }
 
   /**
