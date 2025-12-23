@@ -4,12 +4,23 @@
 **Auteur:** Erwan + Claude
 **Status:** Exploration
 **Contexte:** Discussion sur les branches conditionnelles dans les DAGs et la possibilité de nœuds "agent"
+**Supersedes:** [spike-hybrid-dag-agent-delegation.md](./spike-hybrid-dag-agent-delegation.md) (2025-11-23)
 
 ---
 
 ## Résumé
 
 Exploration de la spec MCP (novembre 2025) concernant le "sampling with tools" et son potentiel pour créer des nœuds de type `agent` dans nos DAGs.
+
+> **Note:** Ce spike reprend les concepts de design du spike de novembre 2025 (AgentDelegationTask,
+> tool filtering, budget, GraphRAG integration) mais propose une implémentation basée sur le
+> protocole MCP standard (sampling) plutôt qu'un spawn d'instances Claude custom.
+
+### Avantage clé : Claude Code
+
+Avec Claude Code, le sampling fonctionne **nativement sans configuration** car Claude Code
+EST déjà un client MCP avec accès au LLM. Les utilisateurs Claude Code pourraient utiliser
+les agent nodes directement, sans clé API à configurer.
 
 ---
 
