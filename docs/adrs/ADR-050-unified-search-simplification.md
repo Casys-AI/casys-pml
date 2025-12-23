@@ -319,7 +319,81 @@ Mode Direct réussi
     → trainOnExample({ intent, tools, outcome })
 ```
 
-**Méthodes ajoutées à SHGAT:**
+**Méthodes SHGAT - Scoring (multi-head attention):**
+
+| Méthode | Input | Output | Usage |
+|---------|-------|--------|-------|
+| `scoreAllCapabilities(intentEmb)` | intent embedding | ranked capabilities | Suggestion mode |
+| `scoreAllTools(intentEmb)` | intent embedding | ranked tools | Tool selection |
+| `predictPathSuccess(intentEmb, path)` | intent + path | probability [0,1] | TD Learning (Epic 11.3) |
+
+**Multi-head architecture (4 heads):**
+
+```typescript
+// scoreAllTools - même architecture que scoreAllCapabilities mais avec ToolGraphFeatures
+scoreAllTools(intentEmbedding: number[]): Array<{ toolId: string; score: number }> {
+  for (const [toolId, tool] of this.toolNodes) {
+    // HEAD 0-1: Semantic (cosine similarity)
+    const intentSim = this.cosineSimilarity(intentEmbedding, tool.embedding);
+
+    // HEAD 2: Structure (simple graph algos - différent des capabilities)
+    const structureScore = (
+      0.4 * features.pageRank +        // Regular PageRank
+      0.3 * louvainBonus +             // Louvain community centrality
+      0.3 * features.adamicAdar        // Neighbor similarity
+    );
+
+    // HEAD 3: Temporal
+    const temporalScore = (
+      0.4 * features.cooccurrence +    // Usage frequency
+      0.6 * features.recency           // Recent usage (no heatDiffusion for tools)
+    );
+
+    // Fusion via softmax + weighted sum
+    headScores = [intentSim, intentSim, structureScore, temporalScore];
+    score = sigmoid(weighted_sum(softmax(headScores) * headScores));
+  }
+}
+```
+
+**predictPathSuccess pour TD Learning (Story 11.3):**
+
+```typescript
+// Prédit la probabilité de succès d'un path exécuté
+// Utilisé pour calculer TD Error = actual - predicted
+predictPathSuccess(intentEmbedding: number[], path: string[]): number {
+  if (path.length === 0) return 0.5;  // Cold start
+
+  const nodeScores: number[] = [];
+
+  for (const nodeId of path) {
+    // Utiliser scoreAllTools ou scoreAllCapabilities selon le type
+    if (this.toolNodes.has(nodeId)) {
+      const toolScores = this.scoreAllTools(intentEmbedding);
+      const score = toolScores.find(t => t.toolId === nodeId)?.score ?? 0.5;
+      nodeScores.push(score);
+    } else if (this.capabilityNodes.has(nodeId)) {
+      const capScores = this.scoreAllCapabilities(intentEmbedding);
+      const score = capScores.find(c => c.capabilityId === nodeId)?.score ?? 0.5;
+      nodeScores.push(score);
+    } else {
+      nodeScores.push(0.5);  // Unknown node
+    }
+  }
+
+  // Weighted average (later nodes more critical)
+  let weightedSum = 0, weightTotal = 0;
+  for (let i = 0; i < nodeScores.length; i++) {
+    const weight = 1 + i * 0.5;  // 1.0, 1.5, 2.0...
+    weightedSum += nodeScores[i] * weight;
+    weightTotal += weight;
+  }
+
+  return weightedSum / weightTotal;
+}
+```
+
+**Méthodes utilitaires ajoutées:**
 - `hasToolNode(toolId)` - vérifie si un tool est déjà enregistré
 - `hasCapabilityNode(capabilityId)` - vérifie si une capability existe
 - `trainOnExample(example)` - training online sur un seul exemple

@@ -871,9 +871,9 @@ pml_execute({
 
 | Story | Ajout | Description |
 |-------|-------|-------------|
-| **10.7b** | SHGAT + cache session | Scoring avec attention apprise + contexte workflows précédents |
+| **10.7b** | SHGAT Persistence | Sauvegarder/charger les poids SHGAT entre redémarrages |
 | **10.7c** | Thompson Sampling | Seuils de confiance adaptatifs (exploration/exploitation) |
-| **Epic 12** | Speculation | Pré-exécution intra-workflow |
+| **Epic 12** | Speculation + Session Context | Pré-exécution intra-workflow + cache session workflows précédents |
 
 **Acceptance Criteria:**
 
@@ -953,22 +953,52 @@ Le module `src/graphrag/algorithms/dr-dsp.ts` est déjà implémenté (POC).
 
 ---
 
-**Story 10.7b: SHGAT Scoring Integration** ✅ MERGED INTO 10.7
+**Story 10.7b: SHGAT Persistence** ✅ DONE (2025-12-23)
 
-> **Note:** Cette story a été mergée dans Story 10.7 (2025-12-22).
-> Raison: SHGAT fonctionne en backward (suggestion) ET forward (prediction).
-> Voir ADR-050 section "Clarification: SHGAT avec et sans context".
+As a learning system, I want SHGAT weights to persist between server restarts,
+So that learned attention patterns are not lost and the system improves over time.
 
-~~As a prediction system, I want to use SHGAT for scoring candidates,~~
-~~So that I leverage learned attention weights instead of manual scoring formulas.~~
+> **Note (2025-12-23):** Scope clarifié - "Cache Session" déplacé vers Epic 12.
+> Le scoring SHGAT a été mergé dans Story 10.7.
+> Cette story couvre uniquement la persistence des poids.
 
-**Contenu mergé dans Story 10.7:**
-- SHGAT initialisé au démarrage gateway
-- Scoring backward (sans context) pour mode Suggestion
-- Scoring forward (avec context) pour predictNextNode()
-- Training pipeline sur `episodic_events`
-- Persistence params SHGAT
-- Fallback si <20 traces
+**Ce qui a été fait dans 10.7:**
+- ✅ SHGAT initialisé au démarrage gateway
+- ✅ Scoring backward (sans context) pour mode Suggestion
+- ✅ Scoring forward (avec context) pour predictNextNode()
+- ✅ Training pipeline sur `episodic_events`
+- ✅ Fallback si <20 traces
+- ✅ `exportParams()` / `importParams()` existent
+
+**Implémenté (10.7b):**
+- [x] Migration: `010_shgat_params.sql` - table avec user_id UNIQUE
+- [x] `loadSHGATParams()` au startup → `importParams()` si row existe
+- [x] `saveSHGATParams()` au shutdown → `exportParams()` + UPSERT
+- [x] Sauvegarde périodique (toutes les 10 min) pour éviter perte en cas de crash
+- [x] Tests: 4 tests unitaires (export/import, JSON round-trip, DB simulation)
+
+**Design décidé (2025-12-23):**
+- **Stockage:** PostgreSQL (cohérent, multi-tenant, backup auto)
+- **Pas de reimport en cours de route:** weights en mémoire, live learning les modifie
+- **Un row par user_id:** UPSERT à chaque sauvegarde
+
+```sql
+CREATE TABLE shgat_params (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT DEFAULT 'local' UNIQUE,
+  params JSONB NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+**Files to Create:**
+- `src/db/migrations/020_shgat_params.sql` (~15 LOC)
+
+**Files to Modify:**
+- `src/mcp/gateway-server.ts` (~40 LOC) - load at startup, save at shutdown
+
+**Estimation:** 0.5 jour
 
 ---
 
@@ -1205,20 +1235,20 @@ pml_get_task_result({
 | 3 | **10.3** | Provides Edge + DB Persistence | 1-2j | **2j** | ✅ DONE |
 | 4 | **10.5** | Execute via DAG + Worker Unification | 2-3j | **5j** | ✅ DONE |
 | 5 | 10.6 | pml_discover + Unified Scoring Formula | 2.5-3.5j | **2j** | ✅ DONE |
-| 6 | **10.7** | **pml_execute + DR-DSP** (merged 10.7a) | 3-4j | - | ⬜ TODO |
+| 6 | **10.7** | **pml_execute + DR-DSP + SHGAT** (merged 10.7a) | 3-4j | **3j** | ✅ DONE |
 | - | ~~10.7a~~ | ~~DR-DSP Integration~~ | - | - | ✅ MERGED → 10.7 |
-| 7 | **10.7b** | SHGAT Scoring + Cache Session | 1-2j | - | ⬜ TODO |
+| 7 | **10.7b** | SHGAT Persistence (weights saved/loaded) | 0.5j | **0.5j** | ✅ DONE |
 | 8 | **10.7c** | Thompson Sampling Integration | 0.5-1j | - | ⬜ TODO |
 | 9 | 10.8 | pml_get_task_result | 1-2j | - | ⬜ TODO |
 
-**Progression: 5/9 stories (56%)** *(10.7a merged)*
+**Progression: 7/9 stories (78%)** *(10.7a merged, 10.7+10.7b done)*
 
-**Note (2025-12-22):**
+**Note (2025-12-23):**
 - Story 10.6a (Unified Search) mergée dans 10.6
 - **Story 10.7a (DR-DSP) mergée dans 10.7** - DR-DSP intégré directement
-- Stories 10.7b-c restent séparées pour SHGAT et Thompson Sampling
+- **Story 10.7b scope clarifié** - Persistence uniquement, "Cache Session" → Epic 12
 - **Algorithmes déjà implémentés (POC):** DR-DSP (460 LOC), SHGAT (1284 LOC), Thompson (708 LOC)
-- **Stories 10.7-10.7c = INTÉGRATION, pas développement from scratch**
+- **Stories 10.7b-c = petites intégrations** (~0.5-1j chacune)
 
 **Effort réel vs estimé:**
 - Stories 10.1-10.5: **13 jours** (vs 7-11j estimés)

@@ -196,11 +196,11 @@ interface ExecuteResponse {
   - Retourne `status: "success"` avec `mode: "speculation"`
 - [x] **Si pas de match ou confiance < seuil:**
   - Retourne `status: "suggestions"` avec tools + capabilities + suggestedDag
-- [x] **DR-DSP backward pour suggestedDag** (2024-12-22):
+- [x] **DR-DSP backward pour suggestedDag** (2025-12-22):
   - `getSuggestions()` utilise `drdsp.findShortestHyperpath()` pour construire le DAG
   - Pattern du POC: shgat-vs-unified-search.bench.ts lignes 315-410
   - **NO FALLBACKS** - uniquement DR-DSP avec bestCapability SHGAT (pas de DAG linéaire)
-- [x] **ControlledExecutor partout** (2024-12-22):
+- [x] **ControlledExecutor partout** (2025-12-22):
   - Mode Direct: DAG via ControlledExecutor, erreur MCP si pas de DAG valide
   - Mode Suggestion (haute confiance): exécute capability via ControlledExecutor avec `staticStructure`
   - DenoSandboxExecutor supprimé de execute-handler.ts
@@ -251,11 +251,11 @@ interface ExecuteResponse {
 - [x] Test: response includes executionTimeMs
 - [x] Test: response includes suggestions with tools
 - [x] Test: options (timeout, per_layer_validation) accepted
-- [x] Test: DR-DSP backward builds suggestedDag from hyperpath (2024-12-22)
-- [x] Test: DR-DSP fallback to semantic match when bestCapability fails (2024-12-22)
-- [x] Test: Linear fallback when DR-DSP not available (2024-12-22)
-- [ ] Test: mode direct avec Worker (requires integration test)
-- [ ] Test: mode suggestion avec execution (requires integration test)
+- [x] Test: DR-DSP backward builds suggestedDag from hyperpath (2025-12-22)
+- [x] Test: DR-DSP fallback to semantic match when bestCapability fails (2025-12-22)
+- [x] Test: Linear fallback when DR-DSP not available (2025-12-22)
+- [x] Test: mode direct avec Worker (covered by E2E tests in AC11)
+- [x] Test: mode suggestion avec execution (covered by E2E tests in AC11)
 
 ### AC11: Tests d'intégration
 - [x] Test E2E: appel MCP `pml:execute` via gateway - mode direct
@@ -264,30 +264,11 @@ interface ExecuteResponse {
 - [x] Test: dépréciation logged quand anciens tools utilisés (log.warn added)
 - [x] Test: backward compat `pml:execute_dag` et `pml:execute_code` (requires --unstable-kv)
 
-### AC12: SHGAT Live Learning (2024-12-22)
-- [x] **Live capability registration** après chaque exécution Mode Direct
-  - `updateSHGAT()` dans execute-handler.ts
-  - Enregistre nouveaux tools via `shgat.registerTool()`
-  - Enregistre nouvelle capability via `shgat.registerCapability()`
-- [x] **Online training** après chaque trace
-  - `shgat.trainOnExample()` appelé avec l'outcome (success/failure)
-  - Utilise l'intent embedding + tools appelés + résultat
-  - Permet à SHGAT d'apprendre en temps réel sans redémarrage
-- [x] **Helper methods ajoutés à SHGAT**:
-  - `hasToolNode(toolId)` - vérifie si un tool est déjà enregistré
-  - `hasCapabilityNode(capabilityId)` - vérifie si une capability existe
-  - `trainOnExample(example)` - training sur un seul exemple (wrapper de trainBatch)
-- [x] **Flow complet**:
-  ```
-  Mode Direct réussi
-    → saveCapability() (stocke en DB)
-    → updateDRDSP() (met à jour le graphe hyperedges)
-    → updateSHGAT() (enregistre + entraîne)
-      → Génère embedding de l'intent
-      → Enregistre nouveaux tools (si pas déjà connus)
-      → Enregistre la capability
-      → trainOnExample({ intent, tools, outcome })
-  ```
+### ~~AC12: SHGAT Live Learning~~ → Moved to Epic 11.6
+
+> **Note (2025-12-23):** AC12 was feature-creeped into 10.7 but belongs to Epic 11.6 (SHGAT Training avec PER Sampling).
+> Code was implemented early in `execute-handler.ts` (`updateSHGAT()`).
+> See Epic 11.6 for verification checklist.
 
 ---
 
@@ -321,7 +302,7 @@ interface ExecuteResponse {
   - [x] Initialiser SHGAT au démarrage gateway avec `createSHGATFromCapabilities()`
   - [x] Intégrer scoring SHGAT dans mode Suggestion (context-free)
   - [x] Training basique au démarrage si `execution_trace` dispo
-  - [x] DR-DSP backward pour construire `suggestedDag` depuis hyperpath (2024-12-22)
+  - [x] DR-DSP backward pour construire `suggestedDag` depuis hyperpath (2025-12-22)
 
 - [x] **Task 6: Déprécier les anciens tools** (AC: 8)
   - [x] Ajouter "[DEPRECATED]" au début des descriptions
@@ -330,13 +311,13 @@ interface ExecuteResponse {
 
 - [x] **Task 7: Support per_layer_validation** (AC: 7)
   - [x] Options passées au handler (per_layer_validation field)
-  - [ ] Retourner `approval_required` avec workflow context (uses workflow-handler patterns)
+  - [x] Délègue à `handleWorkflowExecution()` qui retourne `layer_complete` (approval_required deprecated)
 
 - [x] **Task 8: Tests** (AC: 10, 11)
   - [x] Créer `tests/unit/mcp/handlers/execute_handler_test.ts`
   - [x] Tests unitaires: 15 tests (validation, mode detection, suggestions, options, DR-DSP backward)
   - [x] Tests DR-DSP backward: hyperpath → suggestedDag, semantic fallback, linear fallback (3 tests)
-  - [ ] Tests d'intégration avec GatewayServer (requires Worker unstable flags)
+  - [x] Tests d'intégration avec GatewayServer (5 E2E tests in mcp_gateway_e2e_test.ts)
 
 ---
 

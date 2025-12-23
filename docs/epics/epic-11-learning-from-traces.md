@@ -819,6 +819,26 @@ interface SHGATPathEncoder {
 
 **Estimation:** 2-3 jours
 
+**⚠️ Early Implementation from Story 10.7 (2025-12-23):**
+
+The following was implemented early in Story 10.7 (`execute-handler.ts`) and needs verification:
+
+| Item | Status | Location | To Verify |
+|------|--------|----------|-----------|
+| `updateSHGAT()` function | ✅ Implemented | `execute-handler.ts:503-560` | Integration with PER sampling |
+| `shgat.registerTool()` | ✅ Implemented | `shgat.ts:364` | Called for new tools |
+| `shgat.registerCapability()` | ✅ Implemented | `shgat.ts:372` | Called for new capabilities |
+| `shgat.hasToolNode()` | ✅ Implemented | `shgat.ts:380` | Prevents duplicates |
+| `shgat.hasCapabilityNode()` | ✅ Implemented | `shgat.ts:387` | Prevents duplicates |
+| `shgat.trainOnExample()` | ✅ Implemented | `shgat.ts:1051` | Online learning after each trace |
+| Silent fail if SHGAT not init | ⚠️ Known issue | `execute-handler.ts:503-506` | Should queue for later training |
+
+**Verification checklist for 11.6:**
+- [ ] Verify `updateSHGAT()` works with PER priority (not just binary success)
+- [ ] Verify training uses `execution_trace` table (not just in-memory)
+- [ ] Verify cold-start behavior (first capabilities before SHGAT init)
+- [ ] Add tests for online learning path
+
 ---
 
 ## Epic 11 Dependencies (Refactoré 2025-12-22)
