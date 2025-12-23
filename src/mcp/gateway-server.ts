@@ -387,6 +387,7 @@ export class PMLGatewayServer {
       gatewayHandler: this.gatewayHandler,
       checkpointManager: this.checkpointManager,
       activeWorkflows: this.activeWorkflows,
+      adaptiveThresholdManager: this.adaptiveThresholdManager, // Story 10.7c
     };
   }
 
