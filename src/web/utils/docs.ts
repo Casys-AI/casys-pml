@@ -5,7 +5,7 @@
 
 import { extract } from "@std/front-matter/yaml";
 import { render } from "@deno/gfm";
-import { join } from "@std/path";
+import { dirname, fromFileUrl, join } from "@std/path";
 import { deflate } from "pako";
 
 // Import Prism language support for syntax highlighting
@@ -47,18 +47,22 @@ export interface DocNavItem {
   children?: DocNavItem[];
 }
 
-// Use working directory for production compatibility
+// Get project root directory using import.meta.url (stable across all environments)
+// This file is at: src/web/utils/docs.ts
+// Project root is 3 levels up: src/web/utils -> src/web -> src -> root
+const PROJECT_ROOT = dirname(dirname(dirname(dirname(fromFileUrl(import.meta.url)))));
+
+// Log project root at startup for debugging production issues
+console.log(`[docs] PROJECT_ROOT resolved to: ${PROJECT_ROOT} (from ${import.meta.url})`);
+
+// Use stable import.meta.url for docs directory
 function getDocsDir(): string {
-  const cwd = Deno.cwd();
-  return cwd.endsWith("src/web")
-    ? join(cwd, "../../docs/user-docs")
-    : join(cwd, "docs/user-docs");
+  return join(PROJECT_ROOT, "docs/user-docs");
 }
 
-// Helper to get project root directory
+// Helper to get project root directory (now uses stable import.meta.url)
 function getProjectRoot(): string {
-  const cwd = Deno.cwd();
-  return cwd.endsWith("src/web") ? join(cwd, "../..") : cwd;
+  return PROJECT_ROOT;
 }
 
 // Helper to create Kroki URL for diagrams
@@ -91,7 +95,14 @@ async function loadExcalidrawFile(filePath: string): Promise<string | null> {
     excalidrawCache.set(filePath, url);
     return url;
   } catch (error) {
-    console.error(`[docs] Error loading excalidraw ${filePath}:`, error);
+    const root = getProjectRoot();
+    const fullPath = join(root, filePath);
+    console.error(`[docs] FAILED to load excalidraw diagram:`);
+    console.error(`  - filePath: ${filePath}`);
+    console.error(`  - fullPath: ${fullPath}`);
+    console.error(`  - PROJECT_ROOT: ${root}`);
+    console.error(`  - Deno.cwd(): ${Deno.cwd()}`);
+    console.error(`  - Error:`, error);
     return null;
   }
 }

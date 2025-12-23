@@ -1,6 +1,6 @@
 import { extract } from "@std/front-matter/yaml";
 import { render } from "@deno/gfm";
-import { join } from "@std/path";
+import { dirname, fromFileUrl, join } from "@std/path";
 import { deflate } from "pako";
 
 // Import Prism language support for syntax highlighting
@@ -36,11 +36,16 @@ export interface Post {
   html: string;
 }
 
-// Use working directory for production compatibility
-// Note: When running via Vite, cwd is already "src/web"
-const POSTS_DIR = Deno.cwd().endsWith("src/web")
-  ? join(Deno.cwd(), "posts")
-  : join(Deno.cwd(), "src/web/posts");
+// Get project root directory using import.meta.url (stable across all environments)
+// This file is at: src/web/utils/posts.ts
+// Project root is 3 levels up: src/web/utils -> src/web -> src -> root
+const PROJECT_ROOT = dirname(dirname(dirname(dirname(fromFileUrl(import.meta.url)))));
+
+// Log project root at startup for debugging production issues
+console.log(`[posts] PROJECT_ROOT resolved to: ${PROJECT_ROOT} (from ${import.meta.url})`);
+
+// Use stable import.meta.url for posts directory
+const POSTS_DIR = join(PROJECT_ROOT, "src/web/posts");
 
 export async function getPosts(): Promise<Post[]> {
   const posts: Post[] = [];
@@ -109,11 +114,9 @@ function createKrokiUrl(type: string, source: string): string {
 // Cache for external excalidraw files
 const excalidrawCache = new Map<string, string>();
 
-// Helper to get project root directory
+// Helper to get project root directory (uses PROJECT_ROOT defined above)
 function getProjectRoot(): string {
-  const cwd = Deno.cwd();
-  const root = cwd.endsWith("src/web") ? join(cwd, "../..") : cwd;
-  return root;
+  return PROJECT_ROOT;
 }
 
 // Load external excalidraw file and create Kroki URL
@@ -141,7 +144,14 @@ async function loadExcalidrawFile(filePath: string): Promise<string | null> {
     excalidrawCache.set(filePath, url);
     return url;
   } catch (error) {
-    console.error(`[loadExcalidrawFile] Error loading ${filePath}:`, error);
+    const root = getProjectRoot();
+    const fullPath = join(root, filePath);
+    console.error(`[loadExcalidrawFile] FAILED to load diagram:`);
+    console.error(`  - filePath: ${filePath}`);
+    console.error(`  - fullPath: ${fullPath}`);
+    console.error(`  - PROJECT_ROOT: ${root}`);
+    console.error(`  - Deno.cwd(): ${Deno.cwd()}`);
+    console.error(`  - Error:`, error);
     return null;
   }
 }
