@@ -276,7 +276,7 @@ Deno.test("LocalAlphaCalculator - passive tool mode considers path heat from con
   const result = calculator.getLocalAlphaWithBreakdown("passive", "tool:target", "tool", ["tool:ctx"]);
 
   assertEquals(result.algorithm, "heat_diffusion");
-  assert(result.inputs.pathHeat > 0, "Path heat should be positive with direct edge");
+  assert(Number(result.inputs.pathHeat) > 0, "Path heat should be positive with direct edge");
 });
 
 // =============================================================================
