@@ -358,6 +358,126 @@ describe('DASHValidator', () => {
 
 ---
 
+## SHGAT Multi-Head Attention Architecture
+
+### Context
+
+SHGAT (SuperHyperGraph Attention Networks) implements learned attention for scoring capabilities and tools in the n-SuperHyperGraph. Initial implementation used 4 attention heads, but analysis revealed opportunities for:
+
+1. Better separation of semantic, structural, and temporal features
+2. Integration of AdamicAdar (graph similarity) and HeatDiffusion (propagation dynamics)
+3. Learnable fusion weights to adapt scoring to episodic feedback
+
+### 6-Head Architecture
+
+The upgraded architecture uses 6 specialized heads organized in 3 categories:
+
+| Category | Heads | Features Used | Purpose |
+|----------|-------|---------------|---------|
+| **Semantic** | 0, 1 | Cosine similarity (intent × capability) | Intent-capability alignment |
+| **Structure** | 2, 3 | PageRank, Spectral clusters, AdamicAdar | Graph topology signals |
+| **Temporal** | 4, 5 | Cooccurrence, Recency, HeatDiffusion | Usage patterns & dynamics |
+
+#### Head Details
+
+```
+Head 0-1 (Semantic):
+  - Input: cosine(intentEmbedding, capabilityEmbedding)
+  - 2 heads for diverse semantic projections
+
+Head 2 (Structure - PageRank):
+  - Input: pageRank / hypergraphPageRank normalized score
+  - Dedicated head for centrality
+
+Head 3 (Structure - Spectral + AdamicAdar):
+  - Input: spectralCluster membership + AdamicAdar similarity score
+  - Captures community structure and link prediction
+
+Head 4 (Temporal - Cooccurrence + Recency):
+  - Input: contextual cooccurrence + time decay
+  - Recent workflow patterns
+
+Head 5 (Temporal - HeatDiffusion):
+  - Input: heat propagation score
+  - Dedicated head for diffusion dynamics
+```
+
+### Learnable Fusion Weights
+
+The 6 heads output scores that are fused using learnable weights:
+
+```typescript
+interface FusionWeights {
+  semantic: number;   // Weight for heads 0-1
+  structure: number;  // Weight for heads 2-3
+  temporal: number;   // Weight for heads 4-5
+}
+
+// Default initialization
+const DEFAULT_FUSION_WEIGHTS = {
+  semantic: 1.0,    // Highest priority to intent matching
+  structure: 0.5,   // Graph structure secondary
+  temporal: 0.5     // Usage patterns secondary
+};
+```
+
+Fusion is normalized via softmax to ensure weights sum to 1:
+
+```
+finalScore = softmax(fusionWeights) · [semanticScore, structureScore, temporalScore]
+```
+
+Weights are updated during training via backpropagation through the softmax.
+
+### HeatDiffusion for Tools vs Capabilities
+
+**Design Decision:** HeatDiffusion is computed for BOTH tools and capabilities, but with different semantics:
+
+| Entity | Heat Computation | Rationale |
+|--------|------------------|-----------|
+| **Tools** | Simple graph heat: degree-based intrinsic heat + neighbor propagation | Tools have local heat based on connectivity in the tool graph |
+| **Capabilities** | Hierarchical heat: aggregated from constituent tools + capability neighbor propagation | Capabilities inherit heat from their tools, weighted by position |
+
+```typescript
+// Tool heat (simple)
+toolHeat = intrinsicWeight * (degree / maxDegree) + neighborWeight * avgNeighborHeat
+
+// Capability heat (hierarchical)
+capHeat = Σ(toolHeat[i] * positionWeight[i]) / totalWeight
+propagatedCapHeat = intrinsicWeight * capHeat + neighborWeight * neighborCapHeat * hierarchyDecay
+```
+
+This allows:
+- Tools to have local connectivity signals (useful for tool graph navigation)
+- Capabilities to aggregate tool-level heat with hierarchical propagation
+- Different decay rates for tool vs capability heat propagation
+
+### Implementation Files
+
+| File | Content |
+|------|---------|
+| `src/graphrag/algorithms/shgat.ts` | SHGAT class with 6-head scoring, fusion weights, backprop |
+| `src/graphrag/algorithms/shgat-features.ts` | AdamicAdar + HeatDiffusion integration |
+| `tests/benchmarks/strategic/shgat.bench.ts` | Performance benchmarks for head configurations |
+
+### Benchmarking
+
+Available benchmarks to validate the architecture:
+
+```bash
+# Run SHGAT benchmarks
+deno bench --allow-all tests/benchmarks/strategic/shgat.bench.ts
+
+# Benchmark groups:
+# - shgat-inference: Compare 1/4/6/8 head performance
+# - shgat-context: Context size scaling (0, 3, 10 tools)
+# - shgat-dim: Hidden dimension scaling (32, 64, 128)
+# - shgat-training: Batch and epoch training performance
+# - shgat-vs-spectral: Compare learned vs static scoring
+```
+
+---
+
 ## References
 
 - [DASH - Fujita 2025](https://www.researchgate.net/publication/392710720) - Directed Acyclic SuperHypergraphs
