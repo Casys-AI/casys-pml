@@ -199,9 +199,9 @@ development_status:
   10-3-provides-edge-type: done # Code Review APPROVED + AC10 added 2025-12-18, 37 tests passing, DB persistence for scalability
   10-5-execute-code-via-dag: in-progress # Code Review 2025-12-19: 4 HIGH, 3 MEDIUM issues - action items created
   10-6-pml-discover-api: done # Code Review APPROVED 2025-12-22: 15 unit + 5 E2E tests passing, all ACs validated, benchmark simplified
-  10-7-pml-execute-api: ready-for-dev # Includes DR-DSP (merged 10.7a) - 2 modes: Direct + Suggestion
+  10-7-pml-execute-api: done # Code Review APPROVED 2025-12-23: 14 unit + 5 E2E tests passing, SHGAT+DR-DSP integrated
   10-7a-drdsp-integration: merged # MERGED into 10.7 - DR-DSP intégré directement
-  10-7b-shgat-scoring-integration: backlog # Integrate SHGAT scoring + training pipeline on episodic_events
+  10-7b-shgat-scoring-integration: merged # MERGED into 10.7 - SHGAT scoring + persistence (migration 010)
   10-7c-thompson-sampling-integration: backlog # Integrate Thompson Sampling in decision flow
   10-8-pml-get-task-result: backlog
   epic-10-retrospective: optional
@@ -216,8 +216,49 @@ development_status:
   11-0-db-schema-cleanup: done # 2025-12-22: KV singleton, workflow-state-cache, migration 019, mcp_tool removed - Code Review APPROVED (11 tests added)
   11-1-result-tracing: done # Code Review APPROVED 2025-12-22: 9 tests passing, null handling bug fixed, parentTraceId types added
   11-2-execution-trace-table: review # Story 11.2 complete 2025-12-22, 25 tests passing, all 12 ACs implemented
-  11-3-td-error-per-priority: ready-for-dev # Story context created 2025-12-22, TD Error → PER priority
+  11-3-td-error-per-priority: review # Implementation complete 2025-12-23: predictPathSuccess() + per-priority.ts + 12 tests passing
   11-4-definition-invocation-views: backlog
   11-5-dry-run-mode: backlog
   11-6-shgat-training-per-sampling: backlog # REFACTORÉ: PER sampling + SHGAT train
   epic-11-retrospective: optional
+
+  # Epic 12: Speculative Execution with Arguments
+  # Epic: epic-12-speculative-execution-arguments.md
+  # Spike: spikes/2025-12-18-speculative-execution-arguments.md
+  # 6 stories, ~11.5 jours
+  # Pre-execute tools/capabilities with real arguments for ~0ms cache hit latency
+  # Depends on: Epic 10.2, 10.3, 10.5, Epic 11.2
+  epic-12: backlog
+  12-1-context-initialization-result-accumulation: backlog # FR1, FR2 - Initialize context, accumulate task results
+  12-2-argument-resolver: backlog # FR3, FR6, FR9 - Resolve static args (literal/reference/parameter)
+  12-3-security-guard-can-speculate: backlog # FR5 - canSpeculate() based on tool permissions
+  12-4-real-speculative-execution: backlog # FR4, FR7, FR11 - Real MCP calls via WorkerBridge
+  12-5-speculation-cache-validation: backlog # FR10 - Cache with TTL, hit/miss validation
+  12-6-per-layer-speculation: backlog # FR8 - Speculate during per_layer validation pauses
+  epic-12-retrospective: optional
+
+  # Epic 13: Capability Naming & Curation System
+  # Tech-Spec: tech-spec-capability-naming-curation.md
+  # 13 stories across 5 phases, ~32.5 jours estimated
+  # Transforms opaque capability IDs into DNS-like naming system
+  # Depends on: Epic 7 (Emergent Capabilities), Epic 10 (pml_execute)
+  epic-13: backlog
+  # Phase 1: Core MVP (~9.5 days)
+  13-1-capability-records-schema-migration: backlog # FQDN structure, metadata fields
+  13-2-fqdn-generation-resolution: backlog # org.project.namespace.action.hash
+  13-3-pml-execute-name-param: backlog # Optional name param, validation
+  13-4-pml-execute-capability-call: backlog # Call by name with args
+  13-5-capability-mcp-server: backlog # Virtual MCP server, cap:* prefix
+  13-6-gateway-integration: backlog # handleListTools, handleCallTool
+  13-7-transparent-resolution-aliases: backlog # tools/list_changed, alias table
+  # Phase 2: Curation & Query (~7 days)
+  13-8-pml-curate-capabilities: backlog # suggest/auto/apply modes
+  13-9-pml-list-capabilities: backlog # Filtering, sorting
+  13-10-curation-agent-llm: backlog # LLM + heuristics naming
+  13-11-query-api-dns-like: backlog # lookup, query, whois, history
+  # Phase 3: Versioning (~3 days)
+  13-12-capability-versioning: backlog # capability_versions table, @v1 specifiers
+  # Phase 5: PML Stdlib (~6 days)
+  13-13-pml-stdlib-modules: backlog # lib/std/mcp/ - cap, dns, meta, learn modules
+  epic-13-retrospective: optional
+  # NOTE: Phase 4 (Fork & Merge) deferred to Epic 14+
