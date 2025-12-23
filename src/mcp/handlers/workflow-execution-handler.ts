@@ -455,9 +455,11 @@ async function executeWithPerLayerValidation(
   const { executor, context } = createToolExecutorWithTracing(deps, toolDefs);
 
   // Create ControlledExecutor for this workflow
+  // Story 10.7c fix: Enable perLayerValidation so generator pauses after checkpoints
   const controlledExecutor = new ControlledExecutor(executor, {
     taskTimeout: ServerDefaults.taskTimeout,
     userId: userId ?? "local",
+    perLayerValidation: true,
   });
 
   // Configure checkpointing
