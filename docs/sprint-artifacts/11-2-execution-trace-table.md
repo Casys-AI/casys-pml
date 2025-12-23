@@ -1,6 +1,6 @@
 # Story 11.2: Execution Trace Table & Store
 
-Status: review
+Status: done
 
 ## Story
 
@@ -200,6 +200,14 @@ So that I can track execution patterns with proper FK to capabilities and learni
   - [x] 8.2 Run existing tests: no regressions
   - [x] 8.3 Run new tests: all passing (25 tests)
   - [x] 8.4 Migration runs successfully
+
+### Review Follow-ups (AI)
+
+- [x] [AI-Review][MEDIUM] ~~Implement runtime branch decision tracking~~ → **DEFERRED to future story**
+  - Analysis: `decisions[]` requires runtime evaluation of DecisionNode conditions, but ControlledExecutor doesn't evaluate conditions yet
+  - Root cause: DecisionNodes are identified by StaticStructureBuilder but not evaluated at runtime
+  - Recommendation: Create dedicated story for "DAG Decision Evaluation" (requires condition evaluation context + AST instrumentation coordination)
+  - Tracked in: Epic 11/12 backlog
 
 ## Dev Notes
 
@@ -528,6 +536,7 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 6. **saveCapability refactored** - Returns `{ capability: Capability; trace?: ExecutionTrace }`, optionally saves trace via traceData field
 7. **25 unit tests written** - Full coverage of AC7 (FK validation), AC8 (SELECT by capability_id), AC11 (sanitization)
 8. **Fixed pre-existing test** - schema_inferrer_test.ts now works without mcp_server table
+9. **Review follow-up deferred** - `decisions[]` runtime tracking requires architectural work (DAG condition evaluation) - deferred to dedicated story
 
 ### File List
 

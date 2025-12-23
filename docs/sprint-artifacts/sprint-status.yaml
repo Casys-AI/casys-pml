@@ -215,7 +215,7 @@ development_status:
   epic-11: in-progress
   11-0-db-schema-cleanup: done # 2025-12-22: KV singleton, workflow-state-cache, migration 019, mcp_tool removed - Code Review APPROVED (11 tests added)
   11-1-result-tracing: done # Code Review APPROVED 2025-12-22: 9 tests passing, null handling bug fixed, parentTraceId types added
-  11-2-execution-trace-table: review # Story 11.2 complete 2025-12-22, 25 tests passing, all 12 ACs implemented
+  11-2-execution-trace-table: done # 25 tests passing, decisions[] tracking deferred to dedicated story (architectural dependency on DAG condition evaluation)
   11-3-td-error-per-priority: done # Code Review APPROVED 2025-12-23: 17 tests (12 unit + 5 E2E), all issues resolved
   11-4-definition-invocation-views: backlog
   11-5-dry-run-mode: backlog
