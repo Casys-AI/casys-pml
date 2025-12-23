@@ -63,31 +63,7 @@ The registry lives on **Base** (Coinbase's L2)—low fees, high credibility.
 
 ## The Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     ON-CHAIN (Base)                              │
-│                                                                  │
-│   CapabilityNameRegistry.sol                                     │
-│   ├── register("stripe")  →  0xStripe... owns "stripe"          │
-│   ├── transfer("stripe")  →  Sell to someone else               │
-│   └── isOwner("stripe")   →  Verify ownership                   │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                     OFF-CHAIN (PML)                              │
-│                                                                  │
-│   Everything else:                                               │
-│   ├── Capability code                                            │
-│   ├── Execution (sandboxed)                                      │
-│   ├── Stats, quality scores                                      │
-│   └── The superhypergraph of relationships                       │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-**Key insight**: Only names go on-chain. Everything else stays off-chain where it's fast and free.
+![On-chain/Off-chain Architecture](excalidraw:src/web/assets/diagrams/cap-dns-architecture.excalidraw)
 
 ## The Standard Library
 
@@ -125,14 +101,7 @@ Stripe publishes:
 
 Capabilities don't live in isolation. They form a **web of relationships**:
 
-```
-stripe.billing.create_invoice
-        │
-        ├── depends_on → stripe.auth.verify_token
-        ├── uses → pml.json.merge
-        ├── similar_to → paypal.billing.create_invoice
-        └── part_of → acme.deploy.full_pipeline
-```
+![Capability Relationships](excalidraw:src/web/assets/diagrams/cap-dns-superhypergraph.excalidraw)
 
 This graph enables:
 - **Smart discovery**: "Find capabilities similar to X"
@@ -183,15 +152,7 @@ Just as the web connected documents, the Web of Capabilities connects AI skills.
 
 When an agent calls `stripe.billing.create_invoice`, it doesn't need to know the internal ID. The system resolves it transparently:
 
-```
-Agent calls: "stripe.billing.create_invoice"
-       │
-       ▼
-Gateway resolves → finds capability abc123
-       │
-       ▼
-Executes abc123 → returns result
-```
+![Name Resolution Flow](excalidraw:src/web/assets/diagrams/cap-dns-resolution.excalidraw)
 
 Like DNS, the caller uses **names**, the system handles **routing**. If a capability is renamed, old names become aliases—backward compatibility for free.
 
