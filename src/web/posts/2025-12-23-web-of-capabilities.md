@@ -179,16 +179,41 @@ Just as the web connected documents, the Web of Capabilities connects AI skills.
 - **Predictable structure**: Know what to expect from `*.api.*`
 - **Cross-org discovery**: Find the best tool for the job
 
-## Timeline
+## Resolution: The Magic of RPC
 
-| Phase | Scope | Timeline |
-|-------|-------|----------|
-| **Phase 1** | Smart contract + testnet | 2 weeks |
-| **Phase 2** | PML integration | 2 weeks |
-| **Phase 3** | Frontend (register, manage) | 2 weeks |
-| **Phase 4** | Production on Base mainnet | 1 week |
+When an agent calls `stripe.billing.create_invoice`, it doesn't need to know the internal ID. The system resolves it transparently:
 
-**7 weeks to the Web of Capabilities.**
+```
+Agent calls: "stripe.billing.create_invoice"
+       │
+       ▼
+Gateway resolves → finds capability abc123
+       │
+       ▼
+Executes abc123 → returns result
+```
+
+Like DNS, the caller uses **names**, the system handles **routing**. If a capability is renamed, old names become aliases—backward compatibility for free.
+
+## Query API: Like nslookup for Skills
+
+```typescript
+// Simple lookup
+await pml.lookup("stripe.billing.create_invoice");
+// → { owner: "0xStripe...", quality: 0.95, calls: 15000 }
+
+// Search by tags
+await pml.query({ tags: ["billing", "invoice"] });
+// → [stripe.billing.*, paypal.billing.*, ...]
+
+// History (like DNS zone transfer)
+await pml.history("stripe.billing.create_invoice");
+// → [v3, v2, v1] with diffs
+
+// Whois
+await pml.whois("stripe");
+// → { owner, created, expires, capabilities: [...] }
+```
 
 ## The Vision
 
