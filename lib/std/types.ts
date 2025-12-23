@@ -64,7 +64,9 @@ export type ToolCategory =
   | "sysinfo"
   | "packages"
   // Agent tools (MCP Sampling)
-  | "agent";
+  | "agent"
+  // Python execution
+  | "python";
 
 /** Mini tool handler function type */
 export type MiniToolHandler = (args: Record<string, unknown>) => Promise<unknown> | unknown;

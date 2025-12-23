@@ -24,7 +24,7 @@ lib/
 
 ### std (Standard Library)
 
-**~313 utility tools across 20 categories**, inspired by popular MCP tool servers:
+**~318 utility tools across 21 categories**, inspired by popular MCP tool servers:
 
 #### Sources & Credits
 
@@ -43,6 +43,7 @@ This library is inspired by and includes tools from the following open-source MC
 |----------|-------|----------|
 | **system** | 71 | docker, git, curl, dig, ping, ps, tar, zip, ssh, rsync, kubectl, sqlite, psql, redis, ffmpeg, imagemagick, npm, pip, aws, gcloud, chmod, df, du, sed, awk, jq |
 | **agent** | 8 | delegate, decide, analyze, extract, classify, summarize, generate, compare (LLM-powered via MCP sampling) |
+| **python** | 5 | exec, eval, pip, script, version (Python execution in isolated subprocess) |
 | text | 26 | split, join, regex, case, template, slugify, nato, lorem, diff, stats, crontab, markdown_toc, ascii_art, numeronym, obfuscate, emoji_search, unicode_info, homoglyph, analyze_words, list_convert |
 | format | 25 | number, bytes, duration, truncate, yaml_to_json, json_to_yaml, toml_to_json, json_to_toml, markdown_to_html, html_to_markdown, json_to_csv, format_sql, format_phone, xml_escape, properties, format_html, format_javascript, format_xml, format_yaml |
 | crypto | 20 | hash, uuid, ulid, base64, hex, url, html, password, jwt_decode, hmac, totp, text_to_binary, generate_token, basic_auth, bcrypt, bip39, md5 |
@@ -273,6 +274,40 @@ The **agent** category provides LLM-powered tools using MCP Sampling (SEP-1577, 
 4. Return results to the MCP server
 
 See: `docs/tech-specs/tech-spec-mcp-agent-nodes.md` for architecture details.
+
+## Python Execution
+
+The **python** category enables running Python code in isolated subprocesses.
+
+### Tools
+
+| Tool | Description |
+|------|-------------|
+| `python_exec` | Execute Python code, return stdout/stderr |
+| `python_eval` | Evaluate expression, return JSON result |
+| `python_pip` | Install pip packages |
+| `python_script` | Run a Python script file |
+| `python_version` | Get Python installation info |
+
+### Security
+
+- Runs in **subprocess** (not FFI) - no access to parent process memory
+- Configurable **timeout** (default 30s)
+- No sandbox bypass - isolated from Deno runtime
+
+### Example
+
+```typescript
+// In generated code
+const result = await mcp.python.exec({
+  code: `
+import pandas as pd
+df = pd.read_csv('data.csv')
+print(df.describe().to_json())
+  `,
+  timeout: 60000
+});
+```
 
 ## Future Libraries
 
