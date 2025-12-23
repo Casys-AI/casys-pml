@@ -167,6 +167,85 @@ const action = await mcp.agent.decide({
 
 ---
 
+## Configuration LLM pour le Sampling
+
+Le sampling nécessite un accès LLM. Trois modes selon l'environnement :
+
+### Mode 1 : Claude Code (Natif)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Claude Code = Claude + MCP Client intégré                       │
+│                                                                  │
+│  sampling/createMessage → Répondu directement par Claude         │
+│                                                                  │
+│  ✅ Zéro configuration                                           │
+│  ✅ Pas de clé API à fournir                                     │
+│  ✅ Fonctionne out-of-the-box                                    │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Mode 2 : Local / Self-hosted
+
+L'utilisateur fournit sa clé API dans `mcp-servers.json` :
+
+```json
+{
+  "mcpServers": {
+    "std": {
+      "command": "deno",
+      "args": ["run", "--allow-all", "lib/mcp-tools-server.ts"],
+      "env": {
+        "SAMPLING_PROVIDER": "anthropic",
+        "SAMPLING_API_KEY": "sk-ant-...",
+        "SAMPLING_MODEL": "claude-sonnet-4-20250514"
+      }
+    }
+  }
+}
+```
+
+Providers supportés :
+- `anthropic` - Claude API (clé utilisateur)
+- `openai` - OpenAI API (clé utilisateur)
+- `ollama` - Local LLM (gratuit, endpoint local)
+
+```json
+{
+  "env": {
+    "SAMPLING_PROVIDER": "ollama",
+    "SAMPLING_ENDPOINT": "http://localhost:11434",
+    "SAMPLING_MODEL": "llama3"
+  }
+}
+```
+
+### Mode 3 : Cloud (SaaS)
+
+Même pattern que local - clé API dans la config :
+
+```json
+{
+  "env": {
+    "SAMPLING_PROVIDER": "anthropic",
+    "SAMPLING_API_KEY": "sk-ant-..."
+  }
+}
+```
+
+**Évolution future :** Abonnement avec quota inclus (pas de clé à fournir).
+
+### Résumé des modes
+
+| Mode | Config | Qui paie | Use case |
+|------|--------|----------|----------|
+| **Claude Code** | Aucune | Anthropic (inclus) | Utilisateurs Claude Code |
+| **Local** | `mcp-servers.json` | Utilisateur (BYOK) | Dev local, self-hosted |
+| **Cloud** | `mcp-servers.json` | Utilisateur (BYOK) | Déploiement cloud |
+| **Cloud (future)** | Abonnement | Subscription | SaaS simplifié |
+
+---
+
 ## Questions ouvertes
 
 1. **Configuration** - Comment configurer les tools autorisés pour un agent node ?
