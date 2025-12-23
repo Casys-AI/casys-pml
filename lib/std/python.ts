@@ -69,22 +69,76 @@ async function execWithTimeout(
   };
 }
 
+// Minimum required Python version
+const MIN_PYTHON_VERSION = { major: 3, minor: 8 };
+
+// Cache for found Python path
+let cachedPythonPath: string | null = null;
+
+/**
+ * Parse Python version from "Python X.Y.Z" string
+ */
+function parseVersion(versionStr: string): { major: number; minor: number; patch: number } | null {
+  const match = versionStr.match(/Python\s+(\d+)\.(\d+)\.(\d+)/i);
+  if (!match) return null;
+  return {
+    major: parseInt(match[1], 10),
+    minor: parseInt(match[2], 10),
+    patch: parseInt(match[3], 10),
+  };
+}
+
+/**
+ * Check if version meets minimum requirement
+ */
+function checkVersion(version: { major: number; minor: number }): boolean {
+  if (version.major > MIN_PYTHON_VERSION.major) return true;
+  if (version.major < MIN_PYTHON_VERSION.major) return false;
+  return version.minor >= MIN_PYTHON_VERSION.minor;
+}
+
 /**
  * Find Python executable
+ *
+ * Priority:
+ * 1. PYTHON_PATH env var (if set)
+ * 2. python3
+ * 3. python
+ *
+ * Validates version >= 3.8
  */
 async function findPython(): Promise<string> {
-  // Try python3 first, then python
-  for (const cmd of ["python3", "python"]) {
+  // Return cached path if available
+  if (cachedPythonPath) return cachedPythonPath;
+
+  // Check env var first
+  const envPath = Deno.env.get("PYTHON_PATH");
+  const candidates = envPath ? [envPath, "python3", "python"] : ["python3", "python"];
+
+  for (const cmd of candidates) {
     try {
       const result = await execWithTimeout([cmd, "--version"], { timeout: 5000 });
       if (result.code === 0) {
-        return cmd;
+        // Parse and check version
+        const version = parseVersion(result.stdout + result.stderr);
+        if (version && checkVersion(version)) {
+          cachedPythonPath = cmd;
+          return cmd;
+        } else if (version) {
+          console.error(
+            `[python] ${cmd} version ${version.major}.${version.minor}.${version.patch} ` +
+            `is below minimum ${MIN_PYTHON_VERSION.major}.${MIN_PYTHON_VERSION.minor}`
+          );
+        }
       }
     } catch {
       // Continue to next option
     }
   }
-  throw new Error("Python not found. Please install Python 3.x");
+  throw new Error(
+    `Python ${MIN_PYTHON_VERSION.major}.${MIN_PYTHON_VERSION.minor}+ not found. ` +
+    `Install Python or set PYTHON_PATH env var.`
+  );
 }
 
 // =============================================================================

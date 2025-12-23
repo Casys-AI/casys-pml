@@ -289,6 +289,11 @@ The **python** category enables running Python code in isolated subprocesses.
 | `python_script` | Run a Python script file |
 | `python_version` | Get Python installation info |
 
+### Requirements
+
+- **Python 3.8+** required (validated at runtime)
+- Override with `PYTHON_PATH` env var if needed
+
 ### Security
 
 - Runs in **subprocess** (not FFI) - no access to parent process memory
