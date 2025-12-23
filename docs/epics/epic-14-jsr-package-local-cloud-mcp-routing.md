@@ -335,6 +335,13 @@ So that Claude Code connects locally while the package routes to local sandbox o
 **Then** they are handled concurrently where possible
 **And** the JSON-RPC multiplexer pattern (ADR-044) is applied
 
+**Given** a local MCP sends `sampling/createMessage` (agent tools)
+**When** the package receives the request
+**Then** it routes to configured LLM API (Anthropic, OpenAI via BYOK keys)
+**And** executes the agentic loop with tool filtering per `allowedToolPatterns`
+**And** returns the result to the MCP server
+**And** see `lib/README.md` "Agent Tools & MCP Sampling" section
+
 ---
 
 ### Story 14.7: MCP Source Resolution (Depends on Registry Decision)
