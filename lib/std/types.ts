@@ -62,7 +62,9 @@ export type ToolCategory =
   | "media"
   | "cloud"
   | "sysinfo"
-  | "packages";
+  | "packages"
+  // Agent tools (MCP Sampling)
+  | "agent";
 
 /** Mini tool handler function type */
 export type MiniToolHandler = (args: Record<string, unknown>) => Promise<unknown> | unknown;

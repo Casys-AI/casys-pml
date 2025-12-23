@@ -40,6 +40,9 @@
  * - schema.ts     - Schema inference
  * - diff.ts       - Text diff/comparison
  *
+ * Agent tools (MCP Sampling):
+ * - agent.ts      - LLM-powered decision/analysis via sampling
+ *
  * @module lib/std/mod
  */
 
@@ -85,6 +88,9 @@ export { resilienceTools } from "./resilience.ts";
 export { schemaTools } from "./schema.ts";
 export { diffTools } from "./diff.ts";
 
+// Agent tools (MCP Sampling)
+export { agentTools, setSamplingClient } from "./agent.ts";
+
 // Legacy tools (backward compat)
 export { dataTools } from "./data.ts";
 export { stateTools } from "./state.ts";
@@ -127,6 +133,8 @@ import { qrcodeTools } from "./qrcode.ts";
 import { resilienceTools } from "./resilience.ts";
 import { schemaTools } from "./schema.ts";
 import { diffTools } from "./diff.ts";
+// Agent imports
+import { agentTools } from "./agent.ts";
 // Legacy imports
 import { dataTools } from "./data.ts";
 import { stateTools } from "./state.ts";
@@ -173,6 +181,8 @@ export const systemTools = [
   ...resilienceTools,
   ...schemaTools,
   ...diffTools,
+  // Agent tools
+  ...agentTools,
   // Legacy tools
   ...dataTools,
   ...stateTools,
@@ -225,6 +235,8 @@ export const toolsByCategory: Record<string, MiniToolType[]> = {
   packages: packagesTools,
   // Utility tools
   util: utilTools,
+  // Agent tools (MCP Sampling)
+  agent: agentTools,
 };
 
 // ============================================================================
