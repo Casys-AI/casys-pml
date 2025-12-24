@@ -85,6 +85,9 @@ import {
 import { buildDRDSPFromCapabilities, DRDSP } from "../graphrag/algorithms/dr-dsp.ts";
 import type { EmbeddingModelInterface } from "../vector/embeddings.ts";
 
+// Sampling Relay for agent tools
+import { samplingRelay } from "./sampling/mod.ts";
+
 // Re-export for backward compatibility
 export type { GatewayServerConfig };
 
@@ -172,6 +175,40 @@ export class PMLGatewayServer {
     this.capabilityDataService.setDAGSuggester(this.dagSuggester);
 
     this.setupHandlers();
+    this.setupSamplingRelay();
+  }
+
+  /**
+   * Setup sampling relay for agent tools (Story 11.x)
+   *
+   * Configures the relay to forward sampling/createMessage requests from
+   * child MCP servers to Claude Code via the SDK's createMessage method.
+   */
+  private setupSamplingRelay(): void {
+    // Configure the relay to use SDK's createMessage
+    // The server.createMessage method forwards to the parent client (Claude Code)
+    // @ts-ignore - createMessage exists on Server when client supports sampling
+    if (typeof this.server.createMessage === "function") {
+      samplingRelay.setCreateMessageFn(
+        // @ts-ignore - createMessage params type matches our interface
+        (request) => this.server.createMessage(request),
+      );
+      log.info("[Gateway] Sampling relay configured with SDK createMessage");
+    } else {
+      log.warn("[Gateway] SDK server.createMessage not available - sampling relay disabled");
+    }
+
+    // Configure MCPClients with sampling handler
+    for (const [serverId, client] of this.mcpClients.entries()) {
+      // MCPClient has setSamplingHandler if properly typed
+      if ("setSamplingHandler" in client && typeof client.setSamplingHandler === "function") {
+        client.setSamplingHandler(
+          (childServerId, request, respondToChild) =>
+            samplingRelay.handleChildRequest(childServerId, request, respondToChild),
+        );
+        log.debug(`[Gateway] Sampling handler configured for ${serverId}`);
+      }
+    }
   }
 
   /**
@@ -502,7 +539,14 @@ export class PMLGatewayServer {
         success_rate: number;
       }
       const rows = await this.db.query(
-        `SELECT id, embedding, tools_used, success_rate FROM capability LIMIT 1000`,
+        `SELECT
+          pattern_id as id,
+          intent_embedding as embedding,
+          dag_structure->'tools_used' as tools_used,
+          success_rate
+        FROM workflow_pattern
+        WHERE code_snippet IS NOT NULL
+        LIMIT 1000`,
       ) as unknown as CapRow[];
 
       if (rows.length === 0) {
@@ -702,6 +746,7 @@ export class PMLGatewayServer {
           adamicAdar,
           cooccurrence,
           recency,
+          heatDiffusion: 0, // TODO: compute from graph diffusion
         });
       }
 

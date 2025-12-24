@@ -112,7 +112,7 @@ export const agentTools: MiniTool[] = [
   // -------------------------------------------------------------------------
   {
     name: "agent_delegate",
-    description: "Delegate a complex sub-task to an autonomous agent. The agent can make multiple decisions and call tools to accomplish the goal. Use for multi-step tasks requiring reasoning and tool use. The MCP client handles the agentic loop and tool execution. Keywords: agent, delegate, autonomous, sub-task, agentic loop, multi-step.",
+    description: "Delegate a complex sub-task to an autonomous agent. The agent can make multiple decisions and call tools to accomplish the goal. Use for multi-step tasks requiring reasoning and tool use. The MCP client handles the agentic loop and tool execution. Keywords: agent, delegate, autonomous, sub-task, agentic, loop, multi-step, spawn, subprocess, llm, ai, assistant, worker, task, orchestrate, subagent.",
     category: "agent" as any,
     inputSchema: {
       type: "object",
@@ -178,7 +178,7 @@ Work step by step. When you have completed the goal, provide your final answer.`
   // -------------------------------------------------------------------------
   {
     name: "agent_decide",
-    description: "Ask an LLM to make a decision based on context. Returns a boolean or choice from options. Use for conditional branching based on complex criteria that can't be expressed in simple code. Keywords: decide, decision, condition, evaluate, branch, if-else, choose.",
+    description: "Ask an LLM to make a decision based on context. Returns a boolean or choice from options. Use for conditional branching based on complex criteria that can't be expressed in simple code. Keywords: agent, decide, decision, condition, evaluate, branch, if-else, choose, llm, ai, boolean, yes-no, choice, select, pick.",
     category: "agent" as any,
     inputSchema: {
       type: "object",
@@ -246,7 +246,7 @@ Respond with ONLY your choice, no explanation.`;
   // -------------------------------------------------------------------------
   {
     name: "agent_analyze",
-    description: "Analyze data or content and return structured insights. Use for understanding patterns, identifying issues, or generating reports. Keywords: analyze, analysis, insights, patterns, review, examine, assess.",
+    description: "Analyze data or content and return structured insights. Use for understanding patterns, identifying issues, or generating reports. Keywords: agent, analyze, analysis, insights, patterns, review, examine, assess, llm, ai, understand, inspect, audit, report.",
     category: "agent" as any,
     inputSchema: {
       type: "object",
@@ -297,7 +297,7 @@ Provide your analysis in ${format} format.${format === "json" ? " Return valid J
   // -------------------------------------------------------------------------
   {
     name: "agent_extract",
-    description: "Extract structured data from unstructured text or content. Define a schema and the LLM will populate it. Keywords: extract, parse, structure, schema, entities, fields, data extraction.",
+    description: "Extract structured data from unstructured text or content. Define a schema and the LLM will populate it. Keywords: agent, extract, parse, structure, schema, entities, fields, data, llm, ai, scrape, ner, named-entity, json, populate.",
     category: "agent" as any,
     inputSchema: {
       type: "object",
@@ -349,7 +349,7 @@ ${JSON.stringify(schema, null, 2)}`;
   // -------------------------------------------------------------------------
   {
     name: "agent_classify",
-    description: "Classify content into predefined categories. Returns the category and confidence. Keywords: classify, categorize, label, tag, type, sentiment, intent.",
+    description: "Classify content into predefined categories. Returns the category and confidence. Keywords: agent, classify, categorize, label, tag, type, sentiment, intent, llm, ai, category, bucket, sort, triage.",
     category: "agent" as any,
     inputSchema: {
       type: "object",
@@ -394,7 +394,7 @@ Respond with JSON: { "categories": [...], "confidence": 0.0-1.0, "reasoning": ".
   // -------------------------------------------------------------------------
   {
     name: "agent_summarize",
-    description: "Summarize long content into a shorter form. Control length and style. Keywords: summarize, summary, condense, brief, tldr, abstract, digest.",
+    description: "Summarize long content into a shorter form. Control length and style. Keywords: agent, summarize, summary, condense, brief, tldr, abstract, digest, llm, ai, shorten, compress, synopsis.",
     category: "agent" as any,
     inputSchema: {
       type: "object",
@@ -452,7 +452,7 @@ ${content}`;
   // -------------------------------------------------------------------------
   {
     name: "agent_generate",
-    description: "Generate content based on instructions. Can generate code, text, documentation, etc. Keywords: generate, create, write, compose, produce, synthesize.",
+    description: "Generate content based on instructions. Can generate code, text, documentation, etc. Keywords: agent, generate, create, write, compose, produce, synthesize, llm, ai, content, text, code, docs, author.",
     category: "agent" as any,
     inputSchema: {
       type: "object",
@@ -525,7 +525,7 @@ ${content}`;
   // -------------------------------------------------------------------------
   {
     name: "agent_compare",
-    description: "Compare multiple items and rank them or pick the best. Use for selecting between options based on criteria. Keywords: compare, rank, best, winner, evaluate, choose, select.",
+    description: "Compare multiple items and rank them or pick the best. Use for selecting between options based on criteria. Keywords: agent, compare, rank, best, winner, evaluate, choose, select, llm, ai, versus, pros-cons, tradeoff, decision.",
     category: "agent" as any,
     inputSchema: {
       type: "object",

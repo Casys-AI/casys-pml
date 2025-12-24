@@ -151,7 +151,8 @@ export const pythonTools: MiniTool[] = [
     category: "python",
     description:
       "Execute Python code in an isolated subprocess. Returns stdout, stderr, and exit code. " +
-      "Use for running scripts, data processing, or any Python operation.",
+      "Use for running scripts, data processing, or any Python operation. " +
+      "Keywords: python, execute, run, script, code, subprocess, shell, interpreter, py.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -204,7 +205,8 @@ export const pythonTools: MiniTool[] = [
     category: "python",
     description:
       "Evaluate a Python expression and return the result as JSON. " +
-      "Use for calculations, data transformations, or getting values.",
+      "Use for calculations, data transformations, or getting values. " +
+      "Keywords: python, eval, evaluate, expression, calculate, compute, math, py.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -269,7 +271,8 @@ print(json.dumps(result))
     name: "python_pip",
     category: "python",
     description:
-      "Install Python packages using pip. Use before running code that requires external packages.",
+      "Install Python packages using pip. Use before running code that requires external packages. " +
+      "Keywords: python, pip, install, package, dependency, library, module, requirements, py.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -325,7 +328,8 @@ print(json.dumps(result))
     name: "python_script",
     category: "python",
     description:
-      "Execute a Python script file. Optionally pass arguments and stdin data.",
+      "Execute a Python script file. Optionally pass arguments and stdin data. " +
+      "Keywords: python, script, file, run, execute, .py, arguments, stdin, py.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -388,7 +392,9 @@ print(json.dumps(result))
   {
     name: "python_version",
     category: "python",
-    description: "Get Python version and installation info",
+    description:
+      "Get Python version and installation info. " +
+      "Keywords: python, version, info, installation, path, executable, py.",
     inputSchema: {
       type: "object" as const,
       properties: {},
