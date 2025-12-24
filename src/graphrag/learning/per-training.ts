@@ -19,7 +19,7 @@ import type { ExecutionTraceStore } from "../../capabilities/execution-trace-sto
 import type { ExecutionTrace } from "../../capabilities/types.ts";
 import {
   type EmbeddingProvider,
-  batchUpdatePriorities,
+  batchUpdatePrioritiesFromTDErrors,
 } from "../../capabilities/per-priority.ts";
 import { extractPathLevelFeatures, type PathLevelFeatures } from "./path-level-features.ts";
 import { getLogger } from "../../telemetry/logger.ts";
@@ -184,6 +184,8 @@ export async function trainSHGATOnPathTraces(
   // Step 4: Flatten paths and generate training examples
   const allExamples: TrainingExample[] = [];
   const intentEmbeddings = new Map<string, number[]>();
+  // Track which examples belong to which trace (for TD error aggregation)
+  const exampleToTraceId: string[] = [];
 
   // Batch compute embeddings for efficiency
   const uniqueIntents = [...new Set(traces.map((t) => t.intentText ?? ""))];
@@ -206,6 +208,9 @@ export async function trainSHGATOnPathTraces(
 
     // Generate multi-example (one per node)
     const examples = traceToTrainingExamples(trace, flatPath, intentEmbedding, pathFeatures);
+    for (const _ex of examples) {
+      exampleToTraceId.push(trace.id);
+    }
     allExamples.push(...examples);
   }
 
@@ -223,28 +228,62 @@ export async function trainSHGATOnPathTraces(
     };
   }
 
-  // Step 5: Train SHGAT in batches
+  // Step 5: Train SHGAT in batches with IS weights
   let totalLoss = 0;
   let totalAccuracy = 0;
   let batchCount = 0;
+  const allTdErrors: number[] = [];
+
+  // Compute IS weights for PER (Schaul et al. 2015)
+  // P(i) ∝ priority^alpha, weight = (N * P(i))^(-beta) / max_weight
+  const beta = 0.4; // IS exponent (anneals to 1.0 over training)
+  const tracePriorities = traces.map(t => Math.pow(t.priority + 1e-6, alpha));
+  const totalPriority = tracePriorities.reduce((a, b) => a + b, 0);
+  const probs = tracePriorities.map(p => p / totalPriority);
+  const minProb = Math.min(...probs);
+  const maxWeight = Math.pow(traces.length * minProb, -beta);
+  const traceWeights = probs.map(p => Math.pow(traces.length * p, -beta) / maxWeight);
+
+  // Map trace index to example indices (multi-example per trace)
+  const exampleWeights: number[] = [];
+  for (let t = 0; t < traces.length; t++) {
+    const numExamplesFromTrace = (traces[t].executedPath?.length ?? 0);
+    for (let e = 0; e < numExamplesFromTrace; e++) {
+      exampleWeights.push(traceWeights[t]);
+    }
+  }
 
   for (let i = 0; i < allExamples.length; i += batchSize) {
     const batch = allExamples.slice(i, i + batchSize);
-    const result = shgat.trainBatch(batch);
+    const batchWeights = exampleWeights.slice(i, i + batchSize);
+    const result = shgat.trainBatch(batch, batchWeights);
     totalLoss += result.loss;
     totalAccuracy += result.accuracy;
+    allTdErrors.push(...result.tdErrors);
     batchCount++;
   }
 
   const avgLoss = batchCount > 0 ? totalLoss / batchCount : 0;
   const avgAccuracy = batchCount > 0 ? totalAccuracy / batchCount : 0;
 
-  // Step 6: Update priorities after training (TD error has changed)
-  const prioritiesUpdated = await batchUpdatePriorities(
+  // Step 6: Aggregate TD errors per trace and update priorities
+  // Use max |TD error| per trace as priority (surprising = high priority)
+  const tdErrorsPerTrace = new Map<string, number>();
+  for (let i = 0; i < allTdErrors.length; i++) {
+    const traceId = exampleToTraceId[i];
+    if (!traceId) continue;
+    const absError = Math.abs(allTdErrors[i]);
+    const current = tdErrorsPerTrace.get(traceId) ?? 0;
+    if (absError > current) {
+      tdErrorsPerTrace.set(traceId, absError);
+    }
+  }
+
+  // Update priorities using pre-computed TD errors (no recalculation needed)
+  const prioritiesUpdated = await batchUpdatePrioritiesFromTDErrors(
     traceStore,
-    shgat,
-    embeddingProvider,
     traces,
+    tdErrorsPerTrace,
   );
 
   const elapsed = performance.now() - startTime;

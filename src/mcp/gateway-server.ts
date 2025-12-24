@@ -35,6 +35,8 @@ import { addBreadcrumb, captureError, startTransaction } from "../telemetry/sent
 import type { CapabilityStore } from "../capabilities/capability-store.ts";
 import type { AdaptiveThresholdManager } from "./adaptive-threshold.ts";
 import { CapabilityDataService } from "../capabilities/mod.ts";
+import { CapabilityRegistry } from "../capabilities/capability-registry.ts";
+import { TraceFeatureExtractor } from "../graphrag/algorithms/trace-feature-extractor.ts";
 import { CheckpointManager } from "../dag/checkpoint-manager.ts";
 import { EventsStreamManager } from "../server/events-stream.ts";
 
@@ -113,6 +115,8 @@ export class PMLGatewayServer {
   private drdsp: DRDSP | null = null;
   private embeddingModel: EmbeddingModelInterface | null = null;
   private shgatSaveInterval: number | null = null; // Story 10.7b: periodic save timer
+  private capabilityRegistry: CapabilityRegistry | null = null; // Story 13.2
+  private traceFeatureExtractor: TraceFeatureExtractor | null = null; // Story 11.10
 
   constructor(
     // @ts-ignore: db kept for future use (direct queries)
@@ -173,6 +177,9 @@ export class PMLGatewayServer {
     // Initialize CapabilityDataService for API endpoints (Story 8.1)
     this.capabilityDataService = new CapabilityDataService(this.db, this.graphEngine);
     this.capabilityDataService.setDAGSuggester(this.dagSuggester);
+
+    // Initialize CapabilityRegistry for naming support (Story 13.2)
+    this.capabilityRegistry = new CapabilityRegistry(this.db);
 
     this.setupHandlers();
     this.setupSamplingRelay();
@@ -445,8 +452,9 @@ export class PMLGatewayServer {
   }
 
   /**
-   * Get execute handler dependencies (Story 10.7)
+   * Get execute handler dependencies (Story 10.7 + Story 13.2)
    * Uses SHGAT + DR-DSP for capability matching (not CapabilityMatcher)
+   * Includes CapabilityRegistry for naming support
    */
   private getExecuteDeps(): ExecuteDependencies {
     return {
@@ -464,6 +472,8 @@ export class PMLGatewayServer {
       embeddingModel: this.embeddingModel ?? undefined,
       checkpointManager: this.checkpointManager ?? undefined,
       workflowDeps: this.getWorkflowDeps(),
+      capabilityRegistry: this.capabilityRegistry ?? undefined, // Story 13.2
+      traceFeatureExtractor: this.traceFeatureExtractor ?? undefined, // Story 11.10
     };
   }
 
@@ -584,6 +594,10 @@ export class PMLGatewayServer {
 
         // Story 10.7: Train SHGAT on execution traces if available (≥20 traces)
         await this.trainSHGATOnTraces(capabilitiesWithEmbeddings);
+
+        // Story 11.10: Initialize TraceFeatureExtractor for SHGAT v2 scoring
+        this.traceFeatureExtractor = new TraceFeatureExtractor(this.db);
+        log.info("[Gateway] TraceFeatureExtractor initialized for SHGAT v2");
       }
 
       // Initialize DR-DSP

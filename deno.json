@@ -19,8 +19,10 @@
   },
   "nodeModulesDir": "auto",
   "tasks": {
-    "dev": "cp -r .pml-dev.db .pml-dev.db.last 2>/dev/null || true; deno run --watch --allow-all --env --unstable-worker-options --unstable-kv src/main.ts serve --port 3003 --config config/.mcp-servers.json",
-    "dev:api": "cp -r .pml-dev.db .pml-dev.db.last 2>/dev/null || true; deno run --watch --allow-all --env --unstable-worker-options --unstable-broadcast-channel --unstable-kv src/main.ts serve --port 3003 --config config/.mcp-servers.json",
+    "dev": "deno run --allow-all scripts/backup-db.ts || true; deno run --watch --allow-all --env --unstable-worker-options --unstable-kv src/main.ts serve --port 3003 --config config/.mcp-servers.json",
+    "dev:api": "deno run --allow-all scripts/backup-db.ts || true; deno run --watch --allow-all --env --unstable-worker-options --unstable-broadcast-channel --unstable-kv src/main.ts serve --port 3003 --config config/.mcp-servers.json",
+    "db:backup": "deno run --allow-all scripts/backup-db.ts",
+    "db:backup:prod": "deno run --allow-all scripts/backup-db.ts .pml.db .pml.db.last",
     "dev:fresh": "cd src/web && deno run -A --env --unstable-kv --node-modules-dir=auto npm:vite",
     "dev:build": "cd src/web && vite build",
     "prod:start": "sudo systemctl start casys-dashboard casys-api",
