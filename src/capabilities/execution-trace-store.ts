@@ -89,16 +89,22 @@ export class ExecutionTraceStore {
       taskResultsCount: trace.taskResults.length,
     });
 
+    // Format intent embedding as PostgreSQL vector if provided
+    const intentEmbeddingValue = trace.intentEmbedding
+      ? `[${trace.intentEmbedding.join(",")}]`
+      : null;
+
     const result = await this.db.query(
       `INSERT INTO execution_trace (
-        capability_id, intent_text, initial_context, success, duration_ms,
+        capability_id, intent_text, intent_embedding, initial_context, success, duration_ms,
         error_message, user_id, created_by, executed_path, decisions,
         task_results, priority, parent_trace_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      ) VALUES ($1, $2, $3::vector, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *`,
       [
         trace.capabilityId ?? null,
         trace.intentText ?? null,
+        intentEmbeddingValue,
         JSON.stringify(sanitizedContext),
         trace.success,
         trace.durationMs,
@@ -570,10 +576,29 @@ export class ExecutionTraceStore {
       }
     }
 
+    // Parse intent_embedding (vector column)
+    let intentEmbedding: number[] | undefined;
+    if (row.intent_embedding) {
+      try {
+        // PGlite returns vector as string "[0.1,0.2,...]" or as array
+        if (Array.isArray(row.intent_embedding)) {
+          intentEmbedding = row.intent_embedding as number[];
+        } else if (typeof row.intent_embedding === "string") {
+          const embStr = row.intent_embedding as string;
+          // Handle "[0.1,0.2,...]" format
+          const cleaned = embStr.replace(/^\[|\]$/g, "");
+          intentEmbedding = cleaned.split(",").map(Number);
+        }
+      } catch {
+        logger.warn("Failed to parse intent_embedding", { traceId: row.id });
+      }
+    }
+
     return {
       id: row.id as string,
       capabilityId: (row.capability_id as string) || undefined,
       intentText: (row.intent_text as string) || undefined,
+      intentEmbedding,
       initialContext,
       executedAt: new Date(row.executed_at as string),
       success: row.success as boolean,

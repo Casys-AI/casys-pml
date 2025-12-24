@@ -16,13 +16,11 @@ import type {
   CapabilityAlias,
   AliasResolutionResult,
   Scope,
-  JSONSchema,
   CapabilityVisibility,
   CapabilityRouting,
 } from "./types.ts";
 import {
   generateFQDN,
-  generateHash,
   isValidMCPName,
 } from "./fqdn.ts";
 import * as log from "@std/log";
@@ -32,6 +30,9 @@ export type { Scope, CapabilityRecord, CapabilityAlias, AliasResolutionResult };
 
 /**
  * Input for creating a new capability record
+ *
+ * Note: code_snippet, description, parameters_schema, tools_used are stored in
+ * workflow_pattern table, linked via workflowPatternId FK (migration 023).
  */
 export interface CreateCapabilityRecordInput {
   /** Free-format display name (user-chosen) */
@@ -44,22 +45,18 @@ export interface CreateCapabilityRecordInput {
   namespace: string;
   /** Action name */
   action: string;
-  /** The TypeScript code snippet */
-  codeSnippet: string;
+  /** FK to workflow_pattern.pattern_id */
+  workflowPatternId: string;
+  /** Hash of code_snippet (4 chars) for FQDN generation */
+  hash: string;
   /** Who is creating this record */
   createdBy?: string;
-  /** Optional description */
-  description?: string;
   /** Optional tags */
   tags?: string[];
   /** Visibility level (default: private) */
   visibility?: CapabilityVisibility;
   /** Execution routing (default: local) */
   routing?: CapabilityRouting;
-  /** Parameters schema */
-  parametersSchema?: JSONSchema;
-  /** Tools used by this capability */
-  toolsUsed?: string[];
 }
 
 /**
@@ -81,6 +78,8 @@ export class CapabilityRegistry {
   /**
    * Create a new capability record with generated FQDN (AC4)
    *
+   * Note: Code, description, params, tools are in workflow_pattern via FK.
+   *
    * @param input - The capability record data
    * @returns The created record with FQDN
    */
@@ -92,42 +91,33 @@ export class CapabilityRegistry {
       );
     }
 
-    // Generate hash from code
-    const hash = await generateHash(input.codeSnippet);
-
-    // Generate FQDN
+    // Generate FQDN using provided hash
     const fqdn = generateFQDN({
       org: input.org,
       project: input.project,
       namespace: input.namespace,
       action: input.action,
-      hash,
+      hash: input.hash,
     });
 
     const now = new Date();
     const createdBy = input.createdBy || "local";
 
-    // Insert into database using query (PGlite requires query for parameterized SQL)
+    // Insert into database - code/description/params/tools are in workflow_pattern via FK
     await this.db.query(`
       INSERT INTO capability_records (
         id, display_name, org, project, namespace, action, hash,
-        created_by, created_at, visibility, routing,
-        code_snippet, description, tags, parameters_schema, tools_used
+        workflow_pattern_id, created_by, created_at, visibility, routing, tags
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7,
-        $8, $9, $10, $11,
-        $12, $13, $14, $15, $16
+        $8, $9, $10, $11, $12, $13
       )
       ON CONFLICT (id) DO UPDATE SET
         display_name = EXCLUDED.display_name,
         updated_by = EXCLUDED.created_by,
         updated_at = NOW(),
         version = capability_records.version + 1,
-        code_snippet = EXCLUDED.code_snippet,
-        description = EXCLUDED.description,
-        tags = EXCLUDED.tags,
-        parameters_schema = EXCLUDED.parameters_schema,
-        tools_used = EXCLUDED.tools_used
+        tags = EXCLUDED.tags
     `, [
       fqdn,
       input.displayName,
@@ -135,16 +125,13 @@ export class CapabilityRegistry {
       input.project,
       input.namespace,
       input.action,
-      hash,
+      input.hash,
+      input.workflowPatternId,
       createdBy,
       now.toISOString(),
       input.visibility || "private",
       input.routing || "local",
-      input.codeSnippet,
-      input.description || null,
       input.tags || [],
-      input.parametersSchema ? JSON.stringify(input.parametersSchema) : null,
-      input.toolsUsed || [],
     ]);
 
     // Fetch and return the created record
@@ -364,21 +351,23 @@ export class CapabilityRegistry {
       throw new Error(`Capability not found: ${oldFqdn}`);
     }
 
-    // Create new record with new display name
+    if (!oldRecord.workflowPatternId) {
+      throw new Error(`Cannot rename capability without workflowPatternId: ${oldFqdn}`);
+    }
+
+    // Create new record with new display name, keeping same FK
     const newRecord = await this.create({
       displayName: newDisplayName,
       org: oldRecord.org,
       project: oldRecord.project,
       namespace: oldRecord.namespace,
       action: oldRecord.action,
-      codeSnippet: oldRecord.codeSnippet || "",
+      workflowPatternId: oldRecord.workflowPatternId,
+      hash: oldRecord.hash,
       createdBy: oldRecord.createdBy,
-      description: oldRecord.description,
       tags: oldRecord.tags,
       visibility: oldRecord.visibility,
       routing: oldRecord.routing,
-      parametersSchema: oldRecord.parametersSchema,
-      toolsUsed: oldRecord.toolsUsed,
     });
 
     // Create alias from old display name to new FQDN
@@ -474,6 +463,9 @@ export class CapabilityRegistry {
 
   /**
    * Convert database row to CapabilityRecord
+   *
+   * Note: code_snippet, description, parameters_schema, tools_used are now
+   * in workflow_pattern, accessed via workflowPatternId FK.
    */
   private rowToRecord(row: Record<string, unknown>): CapabilityRecord {
     return {
@@ -484,6 +476,7 @@ export class CapabilityRegistry {
       namespace: row.namespace as string,
       action: row.action as string,
       hash: row.hash as string,
+      workflowPatternId: row.workflow_pattern_id as string | undefined,
       createdBy: row.created_by as string,
       createdAt: new Date(row.created_at as string),
       updatedBy: row.updated_by as string | undefined,
@@ -497,14 +490,6 @@ export class CapabilityRegistry {
       totalLatencyMs: row.total_latency_ms as number,
       tags: (row.tags as string[]) || [],
       visibility: row.visibility as CapabilityVisibility,
-      codeSnippet: row.code_snippet as string | undefined,
-      parametersSchema: row.parameters_schema
-        ? (typeof row.parameters_schema === "string"
-          ? JSON.parse(row.parameters_schema)
-          : row.parameters_schema)
-        : undefined,
-      description: row.description as string | undefined,
-      toolsUsed: (row.tools_used as string[]) || [],
       routing: row.routing as CapabilityRouting,
     };
   }

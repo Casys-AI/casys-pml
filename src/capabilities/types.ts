@@ -139,7 +139,10 @@ export interface Capability {
   parametersSchema?: JSONSchema;
   /** Cache configuration */
   cacheConfig: CacheConfig;
-  /** Human-readable name (auto-generated or manual) */
+  /**
+   * @deprecated Use capability_records.display_name instead (Story 13.2)
+   * Kept for backward compatibility, always undefined after migration 022
+   */
   name?: string;
   /** Description of what this capability does */
   description?: string;
@@ -207,8 +210,6 @@ export interface SaveCapabilityInput {
   durationMs: number;
   /** Whether execution was successful */
   success?: boolean;
-  /** Optional name for the capability */
-  name?: string;
   /** Optional description */
   description?: string;
   /** Tool IDs used during execution (from traces) - deduplicated list */
@@ -234,6 +235,11 @@ export interface SaveCapabilityInput {
     userId?: string;
     /** Parent trace ID for hierarchical traces */
     parentTraceId?: string;
+    /**
+     * BGE-M3 1024D embedding of intent (Story 11.x - SHGAT v2)
+     * Used for semantic similarity search in intentSimilarSuccessRate
+     */
+    intentEmbedding?: number[];
   };
 }
 
@@ -446,6 +452,13 @@ export interface ExecutionTrace {
   capabilityId?: string;
   /** Natural language intent that triggered this execution */
   intentText?: string;
+  /**
+   * BGE-M3 1024D embedding of intent_text (Story 11.x - SHGAT v2)
+   *
+   * Used for semantic similarity search in queryIntentSimilarSuccessRate().
+   * Populated at trace save time from the intent embedding used for scoring.
+   */
+  intentEmbedding?: number[];
   /** Input arguments/context for the execution (AC #9 - Epic 12 dependency) */
   initialContext?: Record<string, JsonValue>;
   /** When the execution occurred */
@@ -654,7 +667,8 @@ export interface CapabilityFilters {
  */
 export interface CapabilityResponseInternal {
   id: string; // pattern_id UUID
-  name: string | null; // Human-readable name
+  name: string | null; // Human-readable name (from capability_records.display_name or FQDN)
+  fqdn: string | null; // Full FQDN from capability_records (Story 13.2)
   description: string | null; // Intent description
   codeSnippet: string; // TypeScript code
   toolsUsed: string[]; // ["filesystem:read", "github:create_issue"]
@@ -964,10 +978,9 @@ export interface Scope {
  * This is the registry record type stored in `capability_records` table.
  * Different from `Capability` which is the workflow_pattern-based type.
  *
- * Architecture: Dual-table strategy
+ * Architecture: Dual-table strategy (migration 023)
  * - capability_records: FQDN registry, naming, visibility, provenance
- * - workflow_pattern: Code, embeddings, execution stats
- * - Future: Link via workflow_pattern_id FK
+ * - workflow_pattern: Code, embeddings, execution stats (via workflowPatternId FK)
  */
 export interface CapabilityRecord {
   // Identity
@@ -985,6 +998,10 @@ export interface CapabilityRecord {
   action: string;
   /** 4-char hex hash of code_snippet */
   hash: string;
+
+  // Link to workflow_pattern (migration 023)
+  /** FK to workflow_pattern.pattern_id for code, embedding, stats */
+  workflowPatternId?: string;
 
   // Provenance
   /** Who created this record */
@@ -1021,14 +1038,6 @@ export interface CapabilityRecord {
   tags: string[];
   /** Visibility level */
   visibility: CapabilityVisibility;
-  /** The TypeScript code snippet */
-  codeSnippet?: string;
-  /** JSON Schema for parameters */
-  parametersSchema?: JSONSchema;
-  /** Description of what this capability does */
-  description?: string;
-  /** Tools used by this capability */
-  toolsUsed: string[];
   /** Execution routing: local or cloud */
   routing: CapabilityRouting;
 }
