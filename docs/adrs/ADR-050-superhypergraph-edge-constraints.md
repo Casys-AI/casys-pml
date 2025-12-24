@@ -358,6 +358,228 @@ describe('DASHValidator', () => {
 
 ---
 
+## SHGAT Multi-Head Attention Architecture
+
+### Context
+
+SHGAT (SuperHyperGraph Attention Networks) implements learned attention for scoring capabilities and tools in the n-SuperHyperGraph. Initial implementation used 4 attention heads, but analysis revealed opportunities for:
+
+1. Better separation of semantic, structural, and temporal features
+2. Integration of AdamicAdar (graph similarity) and HeatDiffusion (propagation dynamics)
+3. Learnable fusion weights to adapt scoring to episodic feedback
+
+### 6-Head Architecture
+
+The upgraded architecture uses 6 specialized heads organized in 3 categories:
+
+| Category | Heads | Features Used | Purpose |
+|----------|-------|---------------|---------|
+| **Semantic** | 0, 1 | Cosine similarity (intent × capability) | Intent-capability alignment |
+| **Structure** | 2, 3 | PageRank, Spectral clusters, AdamicAdar | Graph topology signals |
+| **Temporal** | 4, 5 | Cooccurrence, Recency, HeatDiffusion | Usage patterns & dynamics |
+
+#### Head Details
+
+```
+Head 0-1 (Semantic):
+  - Input: cosine(intentEmbedding, capabilityEmbedding)
+  - 2 heads for diverse semantic projections
+
+Head 2 (Structure - PageRank):
+  - Input: pageRank / hypergraphPageRank normalized score
+  - Dedicated head for centrality
+
+Head 3 (Structure - Spectral + AdamicAdar):
+  - Input: spectralCluster membership + AdamicAdar similarity score
+  - Captures community structure and link prediction
+
+Head 4 (Temporal - Cooccurrence + Recency):
+  - Input: contextual cooccurrence + time decay
+  - Recent workflow patterns
+
+Head 5 (Temporal - HeatDiffusion):
+  - Input: heat propagation score
+  - Dedicated head for diffusion dynamics
+```
+
+### Learnable Fusion Weights
+
+The 6 heads output scores that are fused using learnable weights:
+
+```typescript
+interface FusionWeights {
+  semantic: number;   // Weight for heads 0-1
+  structure: number;  // Weight for heads 2-3
+  temporal: number;   // Weight for heads 4-5
+}
+
+// Default initialization
+const DEFAULT_FUSION_WEIGHTS = {
+  semantic: 1.0,    // Highest priority to intent matching
+  structure: 0.5,   // Graph structure secondary
+  temporal: 0.5     // Usage patterns secondary
+};
+```
+
+Fusion is normalized via softmax to ensure weights sum to 1:
+
+```
+finalScore = softmax(fusionWeights) · [semanticScore, structureScore, temporalScore]
+```
+
+Weights are updated during training via backpropagation through the softmax.
+
+### HeatDiffusion for Tools vs Capabilities
+
+**Design Decision:** HeatDiffusion is computed for BOTH tools and capabilities, but with different semantics:
+
+| Entity | Heat Computation | Rationale |
+|--------|------------------|-----------|
+| **Tools** | Simple graph heat: degree-based intrinsic heat + neighbor propagation | Tools have local heat based on connectivity in the tool graph |
+| **Capabilities** | Hierarchical heat: aggregated from constituent tools + capability neighbor propagation | Capabilities inherit heat from their tools, weighted by position |
+
+```typescript
+// Tool heat (simple)
+toolHeat = intrinsicWeight * (degree / maxDegree) + neighborWeight * avgNeighborHeat
+
+// Capability heat (hierarchical)
+capHeat = Σ(toolHeat[i] * positionWeight[i]) / totalWeight
+propagatedCapHeat = intrinsicWeight * capHeat + neighborWeight * neighborCapHeat * hierarchyDecay
+```
+
+This allows:
+- Tools to have local connectivity signals (useful for tool graph navigation)
+- Capabilities to aggregate tool-level heat with hierarchical propagation
+- Different decay rates for tool vs capability heat propagation
+
+### V→E→V Message Passing
+
+**Core mechanism from n-SuHGAT (Fujita 2025):** Two-phase attention propagates information between tools (vertices) and capabilities (hyperedges).
+
+#### Phase 1: Vertex → Hyperedge (V→E)
+
+Tools contribute their embeddings to capabilities they belong to:
+
+```
+E^(l+1) = σ(A'^T · H^(l))
+
+where A' = A ⊙ softmax(LeakyReLU(H·W_v · (E·W_e)^T))
+```
+
+- `A` is the incidence matrix (tool × capability membership)
+- Attention weights learn which tools are most relevant for each capability
+- Result: capability embeddings enriched with tool information
+
+#### Phase 2: Hyperedge → Vertex (E→V)
+
+Capabilities propagate back to their constituent tools:
+
+```
+H^(l+1) = σ(B'^T · E^(l))
+
+where B' = A^T ⊙ softmax(LeakyReLU(E·W_e2 · (H·W_v2)^T))
+```
+
+- Tools receive aggregated signals from capabilities they participate in
+- Result: tool embeddings enriched with capability context
+
+#### Intent Projection
+
+To compare intent (1024-dim BGE-M3) with propagated embeddings (384-dim):
+
+```typescript
+// W_intent: learnable projection matrix [384 × 1024]
+intentProjected = W_intent @ intentEmbedding
+
+// Semantic similarity in propagated space
+score = cosineSimilarity(intentProjected, E[capIdx])
+```
+
+#### Scoring with Propagated Embeddings
+
+```typescript
+// Forward pass computes propagated embeddings
+const { H, E } = this.forward();  // V→E→V message passing
+
+// Project intent to same space
+const intentProj = this.projectIntent(intentEmbedding);
+
+// Score using enriched embeddings
+const score = cosineSimilarity(intentProj, E[capIdx]);
+```
+
+**Key insight:** Propagated embeddings capture graph structure implicitly through learned attention. Pre-calculated features (PageRank, spectral, etc.) may be redundant—ablation studies pending to validate.
+
+### Hierarchical Capabilities (n-SuperHyperGraph)
+
+Per n-SuperHyperGraph theory (Smarandache 2019), hyperedges can contain other hyperedges recursively:
+
+```
+E ⊆ P(V) ∪ P(E)  // Hyperedges can contain vertices OR other hyperedges
+```
+
+This enables arbitrary nesting depth (n=∞):
+
+```
+Meta-Meta-Capability "release-cycle"
+    └── Meta-Capability "deploy-full"
+          └── Capability "build"
+                └── Tools: [compiler, linker]
+          └── Capability "test"
+                └── Tools: [pytest]
+    └── Meta-Capability "rollback-plan"
+          └── Tools: [kubectl, rollback-script]
+```
+
+#### Transitive Flattening Strategy
+
+Rather than adding explicit E→E message passing phases, we **flatten the hierarchy into the incidence matrix**:
+
+```
+Incidence Matrix A (with transitive closure):
+
+                    build  test  deploy-full  rollback-plan  release-cycle
+compiler              1      0        1            0              1
+linker                1      0        1            0              1
+pytest                0      1        1            0              1
+kubectl               0      0        0            1              1
+rollback-script       0      0        0            1              1
+```
+
+**Benefits:**
+- No code change to V→E→V message passing
+- Meta-capabilities receive embeddings from ALL descendant tools
+- Attention learns which tools (at any depth) are most relevant
+- Infinite nesting depth supported naturally
+
+**Implementation:** When registering a capability with `contains` edges, compute transitive tool membership and populate the incidence matrix accordingly.
+
+### Implementation Files
+
+| File | Content |
+|------|---------|
+| `src/graphrag/algorithms/shgat.ts` | SHGAT class with 6-head scoring, V→E→V message passing, fusion weights, backprop |
+| `src/graphrag/algorithms/shgat-features.ts` | AdamicAdar + HeatDiffusion integration |
+| `tests/benchmarks/strategic/shgat.bench.ts` | Performance benchmarks for head configurations |
+
+### Benchmarking
+
+Available benchmarks to validate the architecture:
+
+```bash
+# Run SHGAT benchmarks
+deno bench --allow-all tests/benchmarks/strategic/shgat.bench.ts
+
+# Benchmark groups:
+# - shgat-inference: Compare 1/4/6/8 head performance
+# - shgat-context: Context size scaling (0, 3, 10 tools)
+# - shgat-dim: Hidden dimension scaling (32, 64, 128)
+# - shgat-training: Batch and epoch training performance
+# - shgat-vs-spectral: Compare learned vs static scoring
+```
+
+---
+
 ## References
 
 - [DASH - Fujita 2025](https://www.researchgate.net/publication/392710720) - Directed Acyclic SuperHypergraphs
