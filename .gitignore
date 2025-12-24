@@ -51,10 +51,9 @@ temp/
 *.tmp
 
 # Database files
-*.db
+
 *.db-shm
 *.db-wal
-.pml/
 *.db.corrupted-*
 *.db.backup-*
 *.db.old
@@ -108,3 +107,7 @@ scripts/deploy.sh
 # docs/ux-design-*
 # docs/wireframes-*
 # docs/mockups-*
+# PGlite databases
+.pml-dev.db/
+.pml-dev.db.last/
+.pml-dev.db.backup*/
