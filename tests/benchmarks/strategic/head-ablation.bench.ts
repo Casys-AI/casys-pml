@@ -29,20 +29,33 @@ import { loadScenario, type ScenarioData } from "../fixtures/scenario-loader.ts"
 // ============================================================================
 
 export const HEAD_CONFIGS: Record<string, Partial<SHGATConfig>> = {
-  // Single head types
-  "semantic_only": { activeHeads: [0, 1], headFusionWeights: [0.5, 0.5, 0, 0] },
-  "structure_only": { activeHeads: [2], headFusionWeights: [0, 0, 1, 0] },
-  "temporal_only": { activeHeads: [3], headFusionWeights: [0, 0, 0, 1] },
+  // === Single Group Ablations ===
+  // Semantic only (heads 0,1: IntentCosine, ToolCosine)
+  "semantic_only": { activeHeads: [0, 1] },
+  // Structure only (heads 2,3: PageRank, Spectral+AdamicAdar)
+  "structure_only": { activeHeads: [2, 3] },
+  // Temporal only (heads 4,5: Cooccurrence+Recency, HeatDiffusion)
+  "temporal_only": { activeHeads: [4, 5] },
 
-  // Two-head combinations
-  "semantic_structure": { activeHeads: [0, 1, 2], headFusionWeights: [0.35, 0.35, 0.3, 0] },
-  "semantic_temporal": { activeHeads: [0, 1, 3], headFusionWeights: [0.35, 0.35, 0, 0.3] },
-  "structure_temporal": { activeHeads: [2, 3], headFusionWeights: [0, 0, 0.5, 0.5] },
+  // === Two-Group Combinations ===
+  "semantic_structure": { activeHeads: [0, 1, 2, 3] },
+  "semantic_temporal": { activeHeads: [0, 1, 4, 5] },
+  "structure_temporal": { activeHeads: [2, 3, 4, 5] },
 
-  // Full SHGAT variants
-  "full_shgat": { activeHeads: [0, 1, 2, 3] }, // softmax fusion
-  "full_shgat_equal": { activeHeads: [0, 1, 2, 3], headFusionWeights: [0.25, 0.25, 0.25, 0.25] },
-  "full_shgat_semantic_heavy": { activeHeads: [0, 1, 2, 3], headFusionWeights: [0.4, 0.4, 0.1, 0.1] },
+  // === Per-Head Ablations (one head per group) ===
+  "minimal_one_per_group": { activeHeads: [0, 2, 4] },
+  "minimal_alt": { activeHeads: [1, 3, 5] },
+
+  // === Full 6-Head SHGAT ===
+  "full_shgat": { activeHeads: [0, 1, 2, 3, 4, 5] }, // learned fusion
+  "full_shgat_equal": {
+    activeHeads: [0, 1, 2, 3, 4, 5],
+    headFusionWeights: [1 / 6, 1 / 6, 1 / 6, 1 / 6, 1 / 6, 1 / 6],
+  },
+  "full_shgat_semantic_heavy": {
+    activeHeads: [0, 1, 2, 3, 4, 5],
+    headFusionWeights: [0.25, 0.25, 0.1, 0.1, 0.15, 0.15], // 50% semantic, 20% structure, 30% temporal
+  },
 };
 
 export const FEATURE_WEIGHT_PRESETS: Record<string, Partial<HeadWeightConfig>> = {

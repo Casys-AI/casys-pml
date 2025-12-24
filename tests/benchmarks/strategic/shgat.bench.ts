@@ -12,7 +12,6 @@
  */
 
 import {
-  SHGAT,
   createSHGATFromCapabilities,
   trainSHGATOnEpisodes,
   type TrainingExample,
@@ -67,9 +66,6 @@ for (let i = 0; i < 100; i++) {
     outcome: Math.random() > 0.3 ? 1 : 0, // 70% success rate
   });
 }
-
-// Create SHGAT instance
-const shgat = createSHGATFromCapabilities(mediumCapabilities);
 
 // Pre-trained SHGAT (for inference benchmarks)
 const pretrainedShgat = createSHGATFromCapabilities(mediumCapabilities);

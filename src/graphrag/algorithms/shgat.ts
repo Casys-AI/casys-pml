@@ -124,20 +124,26 @@ export interface SHGATConfig {
   // =========================================================================
 
   /**
-   * Which heads are active for scoring. Default: [0,1,2,3] (all heads)
+   * Which heads are active for scoring. Default: [0,1,2,3,4,5] (all 6 heads)
    *
-   * Head assignments:
-   * - 0: Semantic (cosine similarity with intent)
-   * - 1: Semantic (duplicate for weight balance)
-   * - 2: Structure (pageRank + spectralCluster + adamicAdar)
-   * - 3: Temporal (cooccurrence + recency + heatDiffusion)
+   * 6-Head Architecture (grouped by signal type):
+   * - Semantic Group:
+   *   - 0: IntentCosine (cosine similarity with intent)
+   *   - 1: ToolCosine (cosine similarity with tool context)
+   * - Structure Group:
+   *   - 2: PageRank (dedicated hypergraph pagerank)
+   *   - 3: Spectral+AdamicAdar (cluster bonus + link prediction)
+   * - Temporal Group:
+   *   - 4: Cooccurrence+Recency (usage patterns)
+   *   - 5: HeatDiffusion (dedicated heat propagation)
    *
-   * Examples:
+   * Ablation Examples:
    * - [0,1]: Semantic only (cosine baseline)
-   * - [2]: Structure only
-   * - [3]: Temporal only
-   * - [0,1,2]: No temporal
-   * - [0,1,3]: No structure
+   * - [2,3]: Structure only
+   * - [4,5]: Temporal only
+   * - [0,1,2,3]: No temporal (semantic + structure)
+   * - [0,1,4,5]: No structure (semantic + temporal)
+   * - [0,2,4]: One head per group (minimal)
    */
   activeHeads?: number[];
 
@@ -1051,29 +1057,58 @@ export class SHGAT {
 
       const allHeadScores = [head0, head1, head2, head3, head4, head5];
 
-      // === LEARNABLE FUSION ===
-      // Group scores: average of heads in each group
-      const semanticScore = (head0 + head1) / 2;
-      const structureScore = (head2 + head3) / 2;
-      const temporalScore = (head4 + head5) / 2;
-
-      // Apply learned fusion weights
-      const baseScore = groupWeights.semantic * semanticScore +
-        groupWeights.structure * structureScore +
-        groupWeights.temporal * temporalScore;
-
-      // Apply activeHeads filter for ablation studies (optional)
+      // === ABLATION-AWARE FUSION ===
+      // Apply activeHeads filter for ablation studies
       const activeHeads = this.config.activeHeads ?? [0, 1, 2, 3, 4, 5];
+
+      // Calculate group scores only from ACTIVE heads
+      const semanticHeads = [0, 1].filter((h) => activeHeads.includes(h));
+      const structureHeads = [2, 3].filter((h) => activeHeads.includes(h));
+      const temporalHeads = [4, 5].filter((h) => activeHeads.includes(h));
+
+      const semanticScore = semanticHeads.length > 0
+        ? semanticHeads.reduce((sum, h) => sum + allHeadScores[h], 0) /
+          semanticHeads.length
+        : 0;
+      const structureScore = structureHeads.length > 0
+        ? structureHeads.reduce((sum, h) => sum + allHeadScores[h], 0) /
+          structureHeads.length
+        : 0;
+      const temporalScore = temporalHeads.length > 0
+        ? temporalHeads.reduce((sum, h) => sum + allHeadScores[h], 0) /
+          temporalHeads.length
+        : 0;
+
+      // Normalize group weights based on which groups are active
+      const activeGroups = [
+        semanticHeads.length > 0 ? groupWeights.semantic : 0,
+        structureHeads.length > 0 ? groupWeights.structure : 0,
+        temporalHeads.length > 0 ? groupWeights.temporal : 0,
+      ];
+      const totalActiveWeight = activeGroups.reduce((a, b) => a + b, 0) || 1;
+
+      // Apply normalized fusion weights
+      const baseScore = (activeGroups[0] * semanticScore +
+        activeGroups[1] * structureScore +
+        activeGroups[2] * temporalScore) / totalActiveWeight;
 
       // Compute per-head weights for interpretability
       const fullHeadWeights = [0, 0, 0, 0, 0, 0];
-      // Distribute group weight to individual heads
-      if (activeHeads.includes(0)) fullHeadWeights[0] = groupWeights.semantic / 2;
-      if (activeHeads.includes(1)) fullHeadWeights[1] = groupWeights.semantic / 2;
-      if (activeHeads.includes(2)) fullHeadWeights[2] = groupWeights.structure / 2;
-      if (activeHeads.includes(3)) fullHeadWeights[3] = groupWeights.structure / 2;
-      if (activeHeads.includes(4)) fullHeadWeights[4] = groupWeights.temporal / 2;
-      if (activeHeads.includes(5)) fullHeadWeights[5] = groupWeights.temporal / 2;
+      const normSemantic = semanticHeads.length > 0
+        ? groupWeights.semantic / totalActiveWeight / semanticHeads.length
+        : 0;
+      const normStructure = structureHeads.length > 0
+        ? groupWeights.structure / totalActiveWeight / structureHeads.length
+        : 0;
+      const normTemporal = temporalHeads.length > 0
+        ? groupWeights.temporal / totalActiveWeight / temporalHeads.length
+        : 0;
+      if (activeHeads.includes(0)) fullHeadWeights[0] = normSemantic;
+      if (activeHeads.includes(1)) fullHeadWeights[1] = normSemantic;
+      if (activeHeads.includes(2)) fullHeadWeights[2] = normStructure;
+      if (activeHeads.includes(3)) fullHeadWeights[3] = normStructure;
+      if (activeHeads.includes(4)) fullHeadWeights[4] = normTemporal;
+      if (activeHeads.includes(5)) fullHeadWeights[5] = normTemporal;
 
       const score = this.sigmoid(baseScore * reliabilityMult);
 
@@ -1185,28 +1220,58 @@ export class SHGAT {
 
       const allHeadScores = [head0, head1, head2, head3, head4, head5];
 
-      // === LEARNABLE FUSION ===
-      // Group scores: average of heads in each group
-      const semanticScore = (head0 + head1) / 2;
-      const structureScore = (head2 + head3) / 2;
-      const temporalScore = (head4 + head5) / 2;
-
-      // Apply learned fusion weights
-      const baseScore = groupWeights.semantic * semanticScore +
-        groupWeights.structure * structureScore +
-        groupWeights.temporal * temporalScore;
-
-      // Apply activeHeads filter for ablation studies (optional)
+      // === ABLATION-AWARE FUSION ===
+      // Apply activeHeads filter for ablation studies
       const activeHeads = this.config.activeHeads ?? [0, 1, 2, 3, 4, 5];
+
+      // Calculate group scores only from ACTIVE heads
+      const semanticHeads = [0, 1].filter((h) => activeHeads.includes(h));
+      const structureHeads = [2, 3].filter((h) => activeHeads.includes(h));
+      const temporalHeads = [4, 5].filter((h) => activeHeads.includes(h));
+
+      const semanticScore = semanticHeads.length > 0
+        ? semanticHeads.reduce((sum, h) => sum + allHeadScores[h], 0) /
+          semanticHeads.length
+        : 0;
+      const structureScore = structureHeads.length > 0
+        ? structureHeads.reduce((sum, h) => sum + allHeadScores[h], 0) /
+          structureHeads.length
+        : 0;
+      const temporalScore = temporalHeads.length > 0
+        ? temporalHeads.reduce((sum, h) => sum + allHeadScores[h], 0) /
+          temporalHeads.length
+        : 0;
+
+      // Normalize group weights based on which groups are active
+      const activeGroups = [
+        semanticHeads.length > 0 ? groupWeights.semantic : 0,
+        structureHeads.length > 0 ? groupWeights.structure : 0,
+        temporalHeads.length > 0 ? groupWeights.temporal : 0,
+      ];
+      const totalActiveWeight = activeGroups.reduce((a, b) => a + b, 0) || 1;
+
+      // Apply normalized fusion weights
+      const baseScore = (activeGroups[0] * semanticScore +
+        activeGroups[1] * structureScore +
+        activeGroups[2] * temporalScore) / totalActiveWeight;
 
       // Compute per-head weights for interpretability
       const fullHeadWeights = [0, 0, 0, 0, 0, 0];
-      if (activeHeads.includes(0)) fullHeadWeights[0] = groupWeights.semantic / 2;
-      if (activeHeads.includes(1)) fullHeadWeights[1] = groupWeights.semantic / 2;
-      if (activeHeads.includes(2)) fullHeadWeights[2] = groupWeights.structure / 2;
-      if (activeHeads.includes(3)) fullHeadWeights[3] = groupWeights.structure / 2;
-      if (activeHeads.includes(4)) fullHeadWeights[4] = groupWeights.temporal / 2;
-      if (activeHeads.includes(5)) fullHeadWeights[5] = groupWeights.temporal / 2;
+      const normSemantic = semanticHeads.length > 0
+        ? groupWeights.semantic / totalActiveWeight / semanticHeads.length
+        : 0;
+      const normStructure = structureHeads.length > 0
+        ? groupWeights.structure / totalActiveWeight / structureHeads.length
+        : 0;
+      const normTemporal = temporalHeads.length > 0
+        ? groupWeights.temporal / totalActiveWeight / temporalHeads.length
+        : 0;
+      if (activeHeads.includes(0)) fullHeadWeights[0] = normSemantic;
+      if (activeHeads.includes(1)) fullHeadWeights[1] = normSemantic;
+      if (activeHeads.includes(2)) fullHeadWeights[2] = normStructure;
+      if (activeHeads.includes(3)) fullHeadWeights[3] = normStructure;
+      if (activeHeads.includes(4)) fullHeadWeights[4] = normTemporal;
+      if (activeHeads.includes(5)) fullHeadWeights[5] = normTemporal;
 
       const score = this.sigmoid(baseScore);
 
