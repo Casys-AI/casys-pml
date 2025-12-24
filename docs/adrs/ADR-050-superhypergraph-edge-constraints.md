@@ -510,6 +510,50 @@ const score = cosineSimilarity(intentProj, E[capIdx]);
 
 **Key insight:** Propagated embeddings capture graph structure implicitly through learned attention. Pre-calculated features (PageRank, spectral, etc.) may be redundant—ablation studies pending to validate.
 
+### Hierarchical Capabilities (n-SuperHyperGraph)
+
+Per n-SuperHyperGraph theory (Smarandache 2019), hyperedges can contain other hyperedges recursively:
+
+```
+E ⊆ P(V) ∪ P(E)  // Hyperedges can contain vertices OR other hyperedges
+```
+
+This enables arbitrary nesting depth (n=∞):
+
+```
+Meta-Meta-Capability "release-cycle"
+    └── Meta-Capability "deploy-full"
+          └── Capability "build"
+                └── Tools: [compiler, linker]
+          └── Capability "test"
+                └── Tools: [pytest]
+    └── Meta-Capability "rollback-plan"
+          └── Tools: [kubectl, rollback-script]
+```
+
+#### Transitive Flattening Strategy
+
+Rather than adding explicit E→E message passing phases, we **flatten the hierarchy into the incidence matrix**:
+
+```
+Incidence Matrix A (with transitive closure):
+
+                    build  test  deploy-full  rollback-plan  release-cycle
+compiler              1      0        1            0              1
+linker                1      0        1            0              1
+pytest                0      1        1            0              1
+kubectl               0      0        0            1              1
+rollback-script       0      0        0            1              1
+```
+
+**Benefits:**
+- No code change to V→E→V message passing
+- Meta-capabilities receive embeddings from ALL descendant tools
+- Attention learns which tools (at any depth) are most relevant
+- Infinite nesting depth supported naturally
+
+**Implementation:** When registering a capability with `contains` edges, compute transitive tool membership and populate the incidence matrix accordingly.
+
 ### Implementation Files
 
 | File | Content |
