@@ -342,6 +342,13 @@ So that Claude Code connects locally while the package routes to local sandbox o
 **And** returns the result to the MCP server
 **And** see `lib/README.md` "Agent Tools & MCP Sampling" section
 
+**Technical Note (2024-12-24):**
+> MCP SDK's `server.createMessage()` relay approach was tested but doesn't work with HTTP transport.
+> The SDK expects a persistent stdio bidirectional channel for sampling relay.
+> With HTTP Streamable transport, the sampling requests must go through direct cloud API calls
+> (Anthropic API with BYOK keys) rather than relying on MCP protocol relay.
+> See `src/mcp/sampling/` for the stdio relay implementation (works for stdio connections only).
+
 ---
 
 ### Story 14.7: MCP Source Resolution (Depends on Registry Decision)
