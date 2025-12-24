@@ -232,7 +232,7 @@ export const dagExecutions = sqliteTable("dag_executions", {
 ```
 ac_7f3d8a2b1c4e5f6g7h8i9j0k
 │  └─ random 24 chars (crypto.randomUUID style)
-└─ prefix: "cai"
+└─ prefix: "pml"
 
 Exemple: ac_a1b2c3d4e5f6g7h8i9j0k1l2
 ```
@@ -434,12 +434,12 @@ Landing → "Sign in with GitHub" → OAuth → Dashboard
 **Self-hosted - Aucun setup requis :**
 ```bash
 # Clone et lance, c'est tout !
-$ git clone github.com/xxx/cai && cd cai
+$ git clone github.com/xxx/pml && cd pml
 $ deno task start
 
 # Config MCP simplifiée (pas d'API Key nécessaire)
 {
-  "cai": {
+  "pml": {
     "command": "deno",
     "args": ["task", "mcp"]
   }

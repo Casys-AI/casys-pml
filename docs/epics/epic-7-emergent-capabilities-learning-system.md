@@ -285,7 +285,7 @@ discover and reuse proven code.
    - Threshold = `adaptiveThresholds.getThresholds().suggestionThreshold`
    - Pas de threshold hardcodé!
 4. Vector search sur `workflow_pattern.intent_embedding`
-5. Nouveau tool MCP `cai:search_capabilities` exposé
+5. Nouveau tool MCP `pml:search_capabilities` exposé
 6. Input schema: `{ intent: string, include_suggestions?: boolean }`
    - Pas de threshold en param - géré par adaptive system
 7. Output:

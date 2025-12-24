@@ -78,7 +78,7 @@ GraphRAG patterns in action immediately.
    - Parallélisation pure (3 outils indépendants)
    - Pattern récurrent (séquence filesystem → memory)
    - DAG multi-niveaux (dépendances entre niveaux)
-2. Format compatible avec `cai workflows sync`
+2. Format compatible avec `pml workflows sync`
 3. Commentaires expliquant chaque workflow
 
 **Prerequisites:** Story 1.2

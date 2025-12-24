@@ -318,7 +318,7 @@ The 4 commands are exposed as MCP meta-tools for external agents (Claude Code):
 
 ```typescript
 // 1. Start workflow with per-layer validation
-let response = await cai.execute_workflow({
+let response = await pml.execute_workflow({
   intent: "Analyze codebase for security issues",
   config: { per_layer_validation: true },
 });
@@ -330,21 +330,21 @@ while (response.status === "layer_complete") {
 
   if (analysis.needsMoreTools) {
     // Replan: Add new tools based on discovery
-    response = await cai.replan_dag({
+    response = await pml.replan_dag({
       workflow_id: response.workflow_id,
       new_requirement: "Add XML parser for config files",
       available_context: { xml_files: analysis.discoveredFiles },
     });
   } else if (analysis.criticalIssue) {
     // Abort: Stop execution
-    response = await cai.abort({
+    response = await pml.abort({
       workflow_id: response.workflow_id,
       reason: "Critical security issue found",
     });
     break;
   } else {
     // Continue: Proceed to next layer
-    response = await cai.continue({
+    response = await pml.continue({
       workflow_id: response.workflow_id,
     });
   }

@@ -154,12 +154,12 @@ et workflows parallélisés
 
 **1. Setup Casys PML** (3-5 min)
 
-- Alex exécute `cai init` dans son terminal
+- Alex exécute `pml init` dans son terminal
 - Casys PML lit automatiquement le `mcp.json` existant de Claude Code
 - Détecte les 15 MCP servers configurés (GitHub, Filesystem, Database, Playwright, Serena, etc.)
-- Génère `~/.cai/config.yaml` avec la configuration migrée
+- Génère `~/.pml/config.yaml` avec la configuration migrée
 - Génère les embeddings vectoriels pour tous les tools (~60s via BGE-Large-EN-v1.5)
-- Stocke tout dans `.cai.db` (PGlite portable)
+- Stocke tout dans `.pml.db` (PGlite portable)
 - ✅ Console: "15 MCP servers migrés et indexés avec succès"
 
 **2. Migration Config Claude Code** (2 min)
@@ -171,8 +171,8 @@ et workflows parallélisés
   ```json
   {
     "mcpServers": {
-      "cai": {
-        "command": "cai",
+      "pml": {
+        "command": "pml",
         "args": ["serve"]
       }
     }
@@ -233,7 +233,7 @@ Principes clés:
 
 **2. Zero-Friction Setup**
 
-- Installation en une commande (`cai init`)
+- Installation en une commande (`pml init`)
 - Auto-discovery et migration automatique du mcp.json existant
 - Configuration par défaut sensible (pas de fichiers à éditer manuellement)
 - Messages d'erreur avec suggestions de résolution
@@ -249,7 +249,7 @@ Principes clés:
 
 - Métriques temps réel streamées dans console
 - Comparaison before/after (context: 45% → 3%)
-- Dashboard CLI optionnel (`cai status`) pour vue d'ensemble
+- Dashboard CLI optionnel (`pml status`) pour vue d'ensemble
 
 ---
 
@@ -289,7 +289,7 @@ vector search sémantique
 - PGlite + pgvector fonctionnel avec embeddings storage
 - Vector search sémantique opérationnel (<100ms queries)
 - On-demand schema loading via MCP protocol
-- Migration tool (`cai init`) fonctionnel
+- Migration tool (`pml init`) fonctionnel
 
 **Estimation:** 7-8 stories
 
@@ -432,7 +432,7 @@ LLM
 - Deno sandbox executor avec isolation et sécurité
 - MCP tools injection dans code context (vector search-guided)
 - Local data processing pipeline (filtrage/agrégation pré-contexte)
-- Nouveau tool MCP `cai:execute_code`
+- Nouveau tool MCP `pml:execute_code`
 - PII detection et tokenization automatique
 - Code execution caching et optimizations
 - Documentation et tests E2E complets

@@ -265,13 +265,13 @@ code_execution:
 
 ```bash
 # Enable cache (default)
-./cai serve
+./pml serve
 
 # Disable cache
-./cai serve --no-cache
+./pml serve --no-cache
 
 # Environment variable
-CAI_NO_CACHE=1 ./cai serve
+CAI_NO_CACHE=1 ./pml serve
 ```
 
 ### Cache Metrics Dashboard

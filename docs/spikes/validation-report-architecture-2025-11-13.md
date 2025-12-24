@@ -175,7 +175,7 @@ LTS_CONSIDERATIONS:
 | Requirement             | Status     | Evidence                              |
 | ----------------------- | ---------- | ------------------------------------- |
 | Starter template chosen | ✅ PASS    | "deno init" (ligne 12)                |
-| Initialization command  | ✅ PASS    | "deno init cai" avec flags     |
+| Initialization command  | ✅ PASS    | "deno init pml" avec flags     |
 | Template version        | ⚠️ PARTIAL | Deno 2.5/2.2, pas de version template |
 | Command search term     | ❌ FAIL    | Non fourni                            |
 
@@ -360,7 +360,7 @@ Section "Implementation Patterns" (lignes 906-1077) couvre 7 catégories:
 | 3. Format Patterns        | ⚠️ PARTIAL  | Dates, errors (pas d'API = CLI)  | 85%   |
 | 4. Communication Patterns | ⚠️ PARTIAL  | Implicite Pattern 4              | 70%   |
 | 5. Lifecycle Patterns     | ✅ COMPLETE | Error recovery, retry (956-1075) | 95%   |
-| 6. Location Patterns      | ⚠️ PARTIAL  | Config (~/.cai/)          | 85%   |
+| 6. Location Patterns      | ⚠️ PARTIAL  | Config (~/.pml/)          | 85%   |
 | 7. Consistency Patterns   | ✅ COMPLETE | Dates, logging, errors           | 100%  |
 
 **Note:** Gaps pour API/URLs/UI justifiés (CLI tool local)
@@ -458,7 +458,7 @@ export { Command } from "https://deno.land/x/cliffy@...";
 
 1. ✅ MCP servers: stdio via `Deno.Command` (ligne 172)
 2. ✅ SSE streaming: `Deno.serve` compatible (ligne 49)
-3. ✅ File storage: PGlite single-file + ~/.cai/ (lignes 125-127)
+3. ✅ File storage: PGlite single-file + ~/.pml/ (lignes 125-127)
 4. ✅ Background jobs: Retry logic (1066-1075), pas de queue system nécessaire
 5. ✅ All dependencies: Verified Deno-compatible (lignes 146-183)
 
@@ -466,7 +466,7 @@ export { Command } from "https://deno.land/x/cliffy@...";
 
 - MCP Servers → stdio subprocess ✅
 - Claude Code → config.json read ✅
-- File System → ~/.cai/ ✅
+- File System → ~/.pml/ ✅
 - Internal → PGlite SQL queries ✅
 
 **Verdict:** Excellente compatibilité, tous les choix sont cohérents
@@ -490,7 +490,7 @@ export { Command } from "https://deno.land/x/cliffy@...";
    - 14 technologies listées
 
 4. ✅ **Project structure:** Complete source tree (lignes 52-130)
-   - Dossiers: src/, tests/, docs/, .cai/
+   - Dossiers: src/, tests/, docs/, .pml/
    - Fichiers: deno.json, deps.ts, mod.ts, main.ts
 
 5. ✅ **Implementation patterns:** Section complète (lignes 906-1077)

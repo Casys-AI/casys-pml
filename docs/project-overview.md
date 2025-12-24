@@ -242,7 +242,7 @@ BroadcastChannel-based event distribution (ADR-036):
 | `pml workflows` | Manage workflow templates |
 | `pml speculation` | Manage speculative execution |
 
-> **Note:** CLI currently uses `cai` name - migration to `pml` pending.
+> **Note:** CLI currently uses `pml` name - migration to `pml` pending.
 
 ---
 
@@ -353,7 +353,7 @@ See [docs/adrs/](adrs/index.md) for all 50 ADRs.
 
 | Issue | Description | Files Affected |
 |-------|-------------|----------------|
-| CLI naming | CLI uses `cai` instead of `pml` | src/main.ts, deno.json |
+| CLI naming | CLI uses `pml` instead of `pml` | src/main.ts, deno.json |
 
 ---
 

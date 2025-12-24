@@ -243,7 +243,7 @@ tracking et l'exécution itérative.
 
 - **Stack technologique complet** avec versions précises et justifications (Deno 2.5, PGlite 0.3.11,
   pgvector HNSW, BGE-Large-EN-v1.5)
-- **Commande d'initialisation documentée** (`deno init cai`) avec outputs attendus
+- **Commande d'initialisation documentée** (`deno init pml`) avec outputs attendus
 - **Structure projet détaillée** (10 modules src/, mapping exact vers stories)
 - **4 ADRs (Architecture Decision Records)** justifiant choix clés (PGlite over SQLite, Custom DAG,
   BGE embeddings, stdio transport)
@@ -299,7 +299,7 @@ tracking et l'exécution itérative.
 4. **Story 1.4:** Embeddings Generation (BGE-Large-EN-v1.5) - 7 AC
 5. **Story 1.5:** Semantic Vector Search - 7 AC
 6. **Story 1.6:** On-Demand Schema Loading & Context Optimization - 7 AC
-7. **Story 1.7:** Migration Tool (`cai init`) - 9 AC
+7. **Story 1.7:** Migration Tool (`pml init`) - 9 AC
 8. **Story 1.8:** Basic Logging & Telemetry - 8 AC
 
 **Epic 2 - Stories identifiées:**
@@ -411,7 +411,7 @@ tracking et l'exécution itérative.
 | FR013 (Cache schemas)     | 1.2 (Database), 1.3 (MCP Discovery)       | ✅ 100%    | Non               |
 | FR014 (Track metrics)     | 1.8 (Telemetry)                           | ✅ 100%    | Non               |
 | FR015 (Structured logs)   | 1.8 (Logging)                             | ✅ 100%    | Non               |
-| FR016 (Migration tool)    | 1.7 (cai init)                     | ✅ 100%    | Non               |
+| FR016 (Migration tool)    | 1.7 (pml init)                     | ✅ 100%    | Non               |
 
 **NFRs - Story Coverage:**
 
@@ -486,7 +486,7 @@ Story 1.2 AC#3 référence:
 
 **Validation Init Command → Story 1.1 & Architecture:**
 
-Architecture: "deno init cai" → Story 1.1 AC#1 ✅ Story 1.1: "Repository initialisé avec
+Architecture: "deno init pml" → Story 1.1 AC#1 ✅ Story 1.1: "Repository initialisé avec
 structure Deno standard" ✅
 
 **Verdict Architecture-Stories:** ⚠️ **Bon alignement structurel SAUF contradiction database
@@ -570,15 +570,15 @@ fournit une justification solide pour PGlite. La correction est straightforward 
 
 #### 🟠 Missing Infrastructure Stories (Greenfield Context)
 
-**GAP-004: Pas de Story Dédiée pour `.cai/` Directory Initialization**
+**GAP-004: Pas de Story Dédiée pour `.pml/` Directory Initialization**
 
 - **Sévérité:** LOW (couvert implicitement)
-- **Description:** Architecture mentionne `~/.cai/` user data directory mais pas de story
+- **Description:** Architecture mentionne `~/.pml/` user data directory mais pas de story
   explicite pour sa création
 - **Couverture Actuelle:**
-  - Story 1.2 AC#1: "SQLite database initialization dans `~/.cai/.cai.db`" → implique
+  - Story 1.2 AC#1: "SQLite database initialization dans `~/.pml/.pml.db`" → implique
     création directory
-  - Story 1.8 AC#3: "Log output... file (`~/.cai/logs/cai.log`)"
+  - Story 1.8 AC#3: "Log output... file (`~/.pml/logs/pml.log`)"
 - **Statut:** ✅ Résolu implicitement - Stories créent directory au besoin
 - **Recommandation:** Acceptable, pas d'action requise
 
@@ -619,7 +619,7 @@ fournit une justification solide pour PGlite. La correction est straightforward 
   - Comment détecter schema change? (hash? version?)
   - Trigger automatique re-embedding?
 - **Impact:** Risque embeddings obsolètes si MCP server update schema
-- **Mitigation:** Acceptable pour MVP - manual re-init via `cai init --force`
+- **Mitigation:** Acceptable pour MVP - manual re-init via `pml init --force`
 - **Recommandation:** ✅ Out-of-scope MVP, defer to v1.1
 
 **GAP-008: Story 2.4 Gateway - Pas de Graceful Shutdown Handling**
@@ -748,16 +748,16 @@ entièrement sur la **Developer Experience (DX)**.
 **Principe DX #2: Zero-Friction Setup**
 
 - **PRD Requirements:**
-  - Installation en une commande (`cai init`)
+  - Installation en une commande (`pml init`)
   - Auto-discovery et migration automatique du mcp.json existant
   - Configuration par défaut sensible (pas de fichiers à éditer manuellement)
   - Messages d'erreur avec suggestions de résolution
 
 - **Couverture Stories:**
   - ✅ **Story 1.7 (Migration Tool):**
-    - AC#1: CLI command `cai init` implemented
+    - AC#1: CLI command `pml init` implemented
     - AC#2: Detection automatique du claude_desktop_config.json
-    - AC#4: Generation de `~/.cai/config.yaml` avec servers migrés
+    - AC#4: Generation de `~/.pml/config.yaml` avec servers migrés
     - AC#6: Console output avec instructions pour éditer mcp.json
   - ✅ **Story 1.3 (MCP Discovery):**
     - AC#1: MCP server discovery via stdio et SSE protocols (auto-discovery)
@@ -785,7 +785,7 @@ entièrement sur la **Developer Experience (DX)**.
     - AC#4: Rollback capability pour failed migrations
     - AC#8: Error logs persistés pour post-mortem analysis
   - ✅ **Story 1.8 (Logging):**
-    - AC#3: Log output console + file (`~/.cai/logs/cai.log`)
+    - AC#3: Log output console + file (`~/.pml/logs/pml.log`)
     - AC#7: CLI flag `--telemetry` pour enable/disable
   - ❌ **Manquant:** Mode verbose (`--verbose`) pas mentionné explicitement
     - Architecture mentionne "Mode verbose optionnel (`--verbose`)" mais pas d'AC story
@@ -799,14 +799,14 @@ entièrement sur la **Developer Experience (DX)**.
 - **PRD Requirements:**
   - Métriques temps réel streamées dans console
   - Comparaison before/after (context: 45% → 3%)
-  - Dashboard CLI optionnel (`cai status`) pour vue d'ensemble
+  - Dashboard CLI optionnel (`pml status`) pour vue d'ensemble
 
 - **Couverture Stories:**
   - ✅ **Story 1.6 (Context Optimization):**
     - AC#4: Context usage measurement et logging (<5% target)
     - AC#5: Comparison metric affiché (before vs after)
   - ✅ **Story 2.5 (Health & Monitoring):**
-    - AC#6: Health status API: `cai status` CLI command
+    - AC#6: Health status API: `pml status` CLI command
   - ✅ **Story 2.3 (SSE Streaming):**
     - AC#3: Results streamés dès disponibilité (feedback progressif)
     - AC#4: Event payload: tool_id, status, result, timestamp
@@ -825,7 +825,7 @@ entièrement sur la **Developer Experience (DX)**.
   - Story 1.7 (init): ✅ CLI command, detection config, generation YAML
   - Story 1.3 (discovery): ✅ Auto-detect 15 servers
   - Story 1.4 (embeddings): ✅ Generation BGE + progress bar (AC#5)
-  - Story 1.2 (database): ✅ Stockage dans `.cai.db`
+  - Story 1.2 (database): ✅ Stockage dans `.pml.db`
 - **DX Quality:** ✅ Console output clair spécifié ("15 MCP servers migrés et indexés avec succès")
 
 **Journey Step 2: Migration Config (2 min)**
@@ -935,7 +935,7 @@ accepter basique
 **Usability Validation:**
 
 - ✅ NFR002: <10 minutes installation → User journey Step 1-2 validates
-- ✅ Clear command naming: `cai init`, `cai serve`, `cai status`
+- ✅ Clear command naming: `pml init`, `pml serve`, `pml status`
 - ✅ No ambiguous flags: Architecture defines clear CLI structure (cliffy framework)
 - ⚠️ Help documentation: Story 1.1 AC#4 "README.md avec quick start guide" covers basics
 
@@ -1092,7 +1092,7 @@ _Minor items for consideration_
 - **Référence:** GAP-007
 - **Description:** Pas de stratégie automatique détection schema change et trigger re-embedding
 - **Impact:** Embeddings obsolètes si MCP server update, mais mitigé par manual re-init
-- **Recommendation:** Out-of-scope MVP, defer to v1.1, manual `cai init --force` acceptable
+- **Recommendation:** Out-of-scope MVP, defer to v1.1, manual `pml init --force` acceptable
 - **Priorité:** P3 - Déféré post-MVP
 
 **LOW-003: Quiet Mode (`--quiet`) Absent**
@@ -1158,10 +1158,10 @@ _Minor items for consideration_
 
 **STRENGTH-006: Greenfield Setup Instructions Claires**
 
-- First story command documented: `deno init cai` (architecture)
+- First story command documented: `deno init pml` (architecture)
 - Project structure detailed avec 10 modules src/ mappés aux stories
 - Init command outputs specified
-- Database initialization path specified (`~/.cai/`)
+- Database initialization path specified (`~/.pml/`)
 
 **STRENGTH-007: Risk Mitigation Proactive**
 
@@ -1561,7 +1561,7 @@ solutioning-gate-check:
 | Criterion                       | Status     | Evidence                                             |
 | ------------------------------- | ---------- | ---------------------------------------------------- |
 | User journey completeness       | ✅ PASS    | 5-step journey fully specified with timings          |
-| Zero-config principle respected | ✅ PASS    | `cai init` auto-migration (Story 1.7)         |
+| Zero-config principle respected | ✅ PASS    | `pml init` auto-migration (Story 1.7)         |
 | Observable performance metrics  | ✅ PASS    | Story 1.8 telemetry + Story 1.6 context logging      |
 | Error messages user-friendly    | ✅ PASS    | Story 2.6 AC#3: messages with resolution suggestions |
 | Console output structured       | ⚠️ PARTIAL | Logs covered but colors/formatting not specified     |
@@ -1717,7 +1717,7 @@ solutioning-gate-check:
 - **Probabilité:** LOW (10-20%)
 - **Impact:** LOW - Embeddings obsolètes si schema change
 - **Mitigation Strategy:**
-  1. **Manual workaround:** `cai init --force` pour full re-init
+  1. **Manual workaround:** `pml init --force` pour full re-init
   2. **V1.1 Feature:** Automatic schema change detection (hash-based)
   3. **Monitoring:** Users report stale results → trigger re-init
 - **Acceptance:** Out-of-scope MVP, acceptable manual workaround

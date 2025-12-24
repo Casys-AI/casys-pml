@@ -36,12 +36,12 @@ validation and progressive discovery.
 
 **Level 1 Support**: Expose commands as MCP meta-tools for external agents (Claude Code):
 
-- `cai:continue` - Continue to next layer
-- `cai:abort` - Stop workflow
-- `cai:replan` - Replan via GraphRAG
-- `cai:approval_response` - HIL approval
+- `pml:continue` - Continue to next layer
+- `pml:abort` - Stop workflow
+- `pml:replan` - Replan via GraphRAG
+- `pml:approval_response` - HIL approval
 
-**Simplify**: `cai:execute_workflow` → `cai:execute`
+**Simplify**: `pml:execute_workflow` → `pml:execute`
 
 **Per-Layer Validation Mode**: Enable external agents to validate after each layer.
 
@@ -58,7 +58,7 @@ validation and progressive discovery.
 ```typescript
 // Add to tools list (Story 2.5-4)
 {
-  name: "cai:continue",
+  name: "pml:continue",
   description: "Continue DAG execution to next layer",
   inputSchema: {
     type: "object",
@@ -70,7 +70,7 @@ validation and progressive discovery.
   }
 },
 {
-  name: "cai:abort",
+  name: "pml:abort",
   description: "Abort DAG execution",
   inputSchema: {
     type: "object",
@@ -82,7 +82,7 @@ validation and progressive discovery.
   }
 },
 {
-  name: "cai:replan",
+  name: "pml:replan",
   description: "Replan DAG with new requirement (triggers GraphRAG)",
   inputSchema: {
     type: "object",
@@ -95,7 +95,7 @@ validation and progressive discovery.
   }
 },
 {
-  name: "cai:approval_response",
+  name: "pml:approval_response",
   description: "Respond to HIL approval checkpoint",
   inputSchema: {
     type: "object",
@@ -112,10 +112,10 @@ validation and progressive discovery.
 
 **Tests:**
 
-- Call `cai:continue` → workflow proceeds to next layer
-- Call `cai:abort` → workflow stops with reason
-- Call `cai:replan` → GraphRAG adds new tasks
-- Call `cai:approval_response` → HIL checkpoint resolved
+- Call `pml:continue` → workflow proceeds to next layer
+- Call `pml:abort` → workflow stops with reason
+- Call `pml:replan` → GraphRAG adds new tasks
+- Call `pml:approval_response` → HIL checkpoint resolved
 
 ---
 
@@ -123,7 +123,7 @@ validation and progressive discovery.
 
 **Purpose:** Enable external agents to validate after each layer.
 
-**Modify `cai:execute` tool:**
+**Modify `pml:execute` tool:**
 
 ```typescript
 // Input schema addition
@@ -146,7 +146,7 @@ config: {
 
 ```typescript
 // 1. Start DAG execution
-let response = await cai.execute({
+let response = await pml.execute({
   intent: "Analyze codebase",
   config: { per_layer_validation: true },
 });
@@ -156,12 +156,12 @@ while (response.status === "layer_complete") {
   const analysis = analyzeResults(response.layer_results);
 
   if (analysis.needsReplan) {
-    response = await cai.replan({
+    response = await pml.replan({
       workflow_id: response.workflow_id,
       new_requirement: "Add XML parser",
     });
   } else {
-    response = await cai.continue({ workflow_id: response.workflow_id });
+    response = await pml.continue({ workflow_id: response.workflow_id });
   }
 }
 
@@ -252,25 +252,25 @@ continue(workflow_id)
 // tests/integration/mcp/control-tools.test.ts
 
 Deno.test("External agent flow: execute → continue → complete", async () => {
-  const response1 = await callTool("cai:execute", {
+  const response1 = await callTool("pml:execute", {
     intent: "List files",
     config: { per_layer_validation: true },
   });
   assertEquals(response1.status, "layer_complete");
 
-  const response2 = await callTool("cai:continue", {
+  const response2 = await callTool("pml:continue", {
     workflow_id: response1.workflow_id,
   });
   assertEquals(response2.status, "complete");
 });
 
 Deno.test("Replan mid-workflow", async () => {
-  const response1 = await callTool("cai:execute", {
+  const response1 = await callTool("pml:execute", {
     intent: "Analyze project",
     config: { per_layer_validation: true },
   });
 
-  const response2 = await callTool("cai:replan", {
+  const response2 = await callTool("pml:replan", {
     workflow_id: response1.workflow_id,
     new_requirement: "Add XML parser",
   });
@@ -278,12 +278,12 @@ Deno.test("Replan mid-workflow", async () => {
 });
 
 Deno.test("Abort mid-workflow", async () => {
-  const response1 = await callTool("cai:execute", {
+  const response1 = await callTool("pml:execute", {
     intent: "Process data",
     config: { per_layer_validation: true },
   });
 
-  const response2 = await callTool("cai:abort", {
+  const response2 = await callTool("pml:abort", {
     workflow_id: response1.workflow_id,
     reason: "User cancelled",
   });
@@ -299,11 +299,11 @@ Deno.test("Abort mid-workflow", async () => {
 
 Use colons (`:`) as separator to match existing tools pattern:
 
-- `cai:execute` (simplified from execute_workflow)
-- `cai:continue`
-- `cai:abort`
-- `cai:replan`
-- `cai:approval_response`
+- `pml:execute` (simplified from execute_workflow)
+- `pml:continue`
+- `pml:abort`
+- `pml:replan`
+- `pml:approval_response`
 
 ### Workflow State Lifecycle
 
@@ -424,10 +424,10 @@ agents (like Claude Code) to control workflow execution via stateless MCP protoc
    - Status: ✅ Implemented with activeWorkflows Map for in-memory state
 
 4. **MCP Control Tools (4 handlers)**
-   - `cai:continue` - Resume workflow execution (in-memory or from DB)
-   - `cai:abort` - Stop + cleanup resources
-   - `cai:replan` - GraphRAG replanning + DAG update
-   - `cai:approval_response` - HIL approval/rejection
+   - `pml:continue` - Resume workflow execution (in-memory or from DB)
+   - `pml:abort` - Stop + cleanup resources
+   - `pml:replan` - GraphRAG replanning + DAG update
+   - `pml:approval_response` - HIL approval/rejection
    - Status: ✅ All handlers fully implemented
 
 5. **Integration Tests**
@@ -441,7 +441,7 @@ agents (like Claude Code) to control workflow execution via stateless MCP protoc
    - Rationale: Clean separation, no duplication, independent cleanup
    - See: `docs/spikes/spike-mcp-workflow-state-persistence.md`
 
-2. **Tool Naming**: Changed `cai:replan_dag` → `cai:replan`
+2. **Tool Naming**: Changed `pml:replan_dag` → `pml:replan`
    - Rationale: Simpler, matches story spec
 
 3. **State Management**: Hybrid in-memory + DB approach
@@ -520,10 +520,10 @@ inclut:
 
 | Tool                           | Schema Definition           | Handler Implementation                | Status |
 | ------------------------------ | --------------------------- | ------------------------------------- | ------ |
-| `cai:continue`          | `gateway-server.ts:344-360` | `handleContinue():1157-1238`          | ✅     |
-| `cai:abort`             | `gateway-server.ts:364-380` | `handleAbort():1391-1465`             | ✅     |
-| `cai:replan`            | `gateway-server.ts:384-404` | `handleReplan():1475-1584`            | ✅     |
-| `cai:approval_response` | `gateway-server.ts:408-428` | `handleApprovalResponse():1594-1700+` | ✅     |
+| `pml:continue`          | `gateway-server.ts:344-360` | `handleContinue():1157-1238`          | ✅     |
+| `pml:abort`             | `gateway-server.ts:364-380` | `handleAbort():1391-1465`             | ✅     |
+| `pml:replan`            | `gateway-server.ts:384-404` | `handleReplan():1475-1584`            | ✅     |
+| `pml:approval_response` | `gateway-server.ts:408-428` | `handleApprovalResponse():1594-1700+` | ✅     |
 
 **Validation:**
 
@@ -570,7 +570,7 @@ inclut:
 
 | Task                                              | Marked | Verified | Evidence                                          |
 | ------------------------------------------------- | ------ | -------- | ------------------------------------------------- |
-| `execute_workflow` → `execute` renamed            | [x]    | ✅       | Tool names use `cai:` prefix               |
+| `execute_workflow` → `execute` renamed            | [x]    | ✅       | Tool names use `pml:` prefix               |
 | 4 MCP control tools implemented                   | [x]    | ✅       | AC1 evidence                                      |
 | Per-layer validation mode working                 | [x]    | ✅       | AC2 evidence                                      |
 | Migration 008: `workflow_dags` table              | [x]    | ✅       | `migrations/008_workflow_dags_migration.ts:14-26` |

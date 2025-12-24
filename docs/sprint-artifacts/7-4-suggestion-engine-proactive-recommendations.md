@@ -574,7 +574,7 @@ const result = await this.workerBridge.execute(
 ```
 d514241 feat(events): Story 6.5 - EventBus with BroadcastChannel (ADR-036)
 7839231 Merge branch 'refactor/rename-to-casys-pml' into main
-a11bd7e refactor: rename Casys PML to Casys PML (CAI)
+a11bd7e refactor: rename Casys PML to Casys PML (PML)
 d3f36e0 docs: update README and architecture for Casys PML rebrand
 f7f2a7d feat(capabilities): Story 7.3b - Capability injection with nested tracing
 ```

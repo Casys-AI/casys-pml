@@ -94,7 +94,7 @@ notebook can be run independently without manual setup**.
 
 - Utiliser `src/mcp/gateway-server.ts` patterns pour connexion MCP
 - Utiliser `src/graphrag/graph-engine.ts` pour sync workflow templates
-- DB path: `CAI_DB_PATH` ou default `~/.cai/.cai.db`
+- DB path: `CAI_DB_PATH` ou default `~/.pml/.pml.db`
 
 **Idempotency Pattern:**
 

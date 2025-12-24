@@ -25,7 +25,7 @@ Effort:** 3-4 hours **Actual Effort:** 3 hours
 **Key Changes:**
 
 - HealthChecker service: Monitors MCP server health with initial and periodic checks (every 5 min)
-- CLI command: `cai status` with --json and --watch options
+- CLI command: `pml status` with --json and --watch options
 - Gateway integration: Health checks run at startup and periodically during runtime
 - Comprehensive logging: Structured logs with server_id, status, last_check timestamp
 - Retry logic: 3 attempts with exponential backoff (1s, 2s, 4s delays)
@@ -64,7 +64,7 @@ I know which servers are down or misconfigured.
 3. Health status tracking: healthy, degraded, down
 4. Console warnings pour servers unavailable
 5. Automatic retry logic (3 attempts) avant marking server down
-6. Health status API: `cai status` CLI command
+6. Health status API: `pml status` CLI command
 7. Logs structured avec server_id, status, last_check timestamp
 
 ---
@@ -293,7 +293,7 @@ export class HealthChecker {
 }
 ```
 
-### CLI Command: `cai status`
+### CLI Command: `pml status`
 
 ```typescript
 // src/cli/status.ts
@@ -365,7 +365,7 @@ async function displayHealthStatus(
 
   if (summary.down > 0) {
     console.warn(
-      `⚠️  ${summary.down} server(s) are down. Run 'cai init' to reconfigure.`,
+      `⚠️  ${summary.down} server(s) are down. Run 'pml init' to reconfigure.`,
     );
   }
 }
@@ -443,7 +443,7 @@ export class Casys PMLGateway {
 - [x] Initial health check at startup working
 - [x] Periodic health checks (5 min interval) working
 - [x] Retry logic (3 attempts) implemented
-- [x] `cai status` CLI command working
+- [x] `pml status` CLI command working
 - [x] Watch mode for real-time monitoring
 - [x] JSON output option for scripting
 - [x] Health status logged to structured logs (console + file via logger)
@@ -475,7 +475,7 @@ export class Casys PMLGateway {
 
 - **2025-11-08**: Story 2.5 implementation completed and code review approved
   - Implemented HealthChecker service with retry logic and periodic checks
-  - Created `cai status` CLI command with JSON and watch mode
+  - Created `pml status` CLI command with JSON and watch mode
   - Integrated health checks into gateway server lifecycle
   - Added comprehensive unit and integration tests (14/14 passing)
   - Code review: 3 issues identified and immediately corrected
@@ -536,7 +536,7 @@ acceptance criteria fully implemented and 14/14 tests passing.
 | AC3 | Health status tracking: healthy, degraded, down    | ✅ **FULLY IMPLEMENTED** | [src/health/health-checker.ts:12](src/health/health-checker.ts#L12) - All 3 states defined<br/>[src/health/health-checker.ts:155-158](src/health/health-checker.ts#L155-L158) - Degraded assigned for high latency/retries<br/>Tests verify all 3 states                                                                               |
 | AC4 | Console warnings pour servers unavailable          | ✅ **FULLY IMPLEMENTED** | [src/health/health-checker.ts:86-90](src/health/health-checker.ts#L86-L90) - Warning when servers down<br/>[src/cli/commands/status.ts:108-112](src/cli/commands/status.ts#L108-L112) - CLI warning<br/>[src/health/health-checker.ts:239-253](src/health/health-checker.ts#L239-L253) - Status change warnings                        |
 | AC5 | Automatic retry logic (3 attempts)                 | ✅ **FULLY IMPLEMENTED** | [src/health/health-checker.ts:38](src/health/health-checker.ts#L38) - `MAX_RETRIES = 3`<br/>[src/health/health-checker.ts:145-181](src/health/health-checker.ts#L145-L181) - Retry loop with exponential backoff<br/>Backoff: 1s, 2s, 4s (true exponential)                                                                            |
-| AC6 | CLI command `cai status`                    | ✅ **FULLY IMPLEMENTED** | [src/cli/commands/status.ts:153-234](src/cli/commands/status.ts#L153-L234) - Full implementation<br/>[src/main.ts:70](src/main.ts#L70) - Registered in CLI<br/>Supports --json, --watch, --config options                                                                                                                              |
+| AC6 | CLI command `pml status`                    | ✅ **FULLY IMPLEMENTED** | [src/cli/commands/status.ts:153-234](src/cli/commands/status.ts#L153-L234) - Full implementation<br/>[src/main.ts:70](src/main.ts#L70) - Registered in CLI<br/>Supports --json, --watch, --config options                                                                                                                              |
 | AC7 | Logs structured avec server_id, status, last_check | ✅ **FULLY IMPLEMENTED** | [src/health/health-checker.ts:73-80](src/health/health-checker.ts#L73-L80) - Structured logs with all required fields<br/>[src/health/health-checker.ts:124-129](src/health/health-checker.ts#L124-L129) - Periodic check logs<br/>[src/health/health-checker.ts:247-253](src/health/health-checker.ts#L247-L253) - Status change logs |
 
 **AC Coverage Summary:** **7 of 7** acceptance criteria fully implemented ✅

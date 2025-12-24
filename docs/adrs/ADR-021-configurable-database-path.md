@@ -6,7 +6,7 @@
 
 ## Context and Problem Statement
 
-Casys PML stores its PGlite database in a hardcoded location: `~/.cai/.cai.db` (user home
+Casys PML stores its PGlite database in a hardcoded location: `~/.pml/.pml.db` (user home
 directory).
 
 **Problem:** In ephemeral environments like **GitHub Codespaces**, the home directory
@@ -55,7 +55,7 @@ This causes:
 
 ### Option 2: Config File Option
 
-**Implementation:** Add `database.path` to `~/.cai/config.json`
+**Implementation:** Add `database.path` to `~/.pml/config.json`
 
 **Pros:**
 
@@ -64,7 +64,7 @@ This causes:
 
 **Cons:**
 
-- ❌ Config file is also in `~/.cai/` (same persistence problem!)
+- ❌ Config file is also in `~/.pml/` (same persistence problem!)
 - ❌ Chicken-and-egg: Can't read config if DB path is in config
 - ❌ More complex implementation
 
@@ -85,7 +85,7 @@ This causes:
 
 ### Option 4: Change Default Path
 
-**Implementation:** Move default to project directory (e.g., `./.cai.db`)
+**Implementation:** Move default to project directory (e.g., `./.pml.db`)
 
 **Pros:**
 
@@ -118,11 +118,11 @@ export function getCasys PMLDatabasePath(): string {
     return customPath;
   }
 
-  // Default: ~/.cai/.cai.db
+  // Default: ~/.pml/.pml.db
   const configDir = getCasys PMLConfigDir();
   const os = Deno.build.os;
   const separator = os === "windows" ? "\\" : "/";
-  return `${configDir}${separator}.cai.db`;
+  return `${configDir}${separator}.pml.db`;
 }
 ```
 
@@ -142,7 +142,7 @@ export function getCasys PMLDatabasePath(): string {
 ```bash
 # In .devcontainer.json
 "remoteEnv": {
-  "PML_DB_PATH": "/workspaces/Casys PML/.cai.db"
+  "PML_DB_PATH": "/workspaces/Casys PML/.pml.db"
 }
 ```
 
@@ -158,7 +158,7 @@ PML_DB_PATH=/tmp/test-db-${TEST_ID}.db deno test
 
 ```bash
 # Production server
-PML_DB_PATH=/var/lib/cai/cai.db cai serve
+PML_DB_PATH=/var/lib/pml/pml.db pml serve
 ```
 
 ### Negative
@@ -191,12 +191,12 @@ configure playground environment
 ```bash
 # Test 1: Default behavior (unchanged)
 deno task cli workflows sync --file playground/config/workflow-templates.yaml
-# → Uses ~/.cai/.cai.db ✅
+# → Uses ~/.pml/.pml.db ✅
 
 # Test 2: Custom path via env var
-PML_DB_PATH=/workspaces/Casys PML/.cai.db \
+PML_DB_PATH=/workspaces/Casys PML/.pml.db \
   deno task cli workflows sync --file playground/config/workflow-templates.yaml
-# → Uses /workspaces/Casys PML/.cai.db ✅
+# → Uses /workspaces/Casys PML/.pml.db ✅
 ```
 
 ---

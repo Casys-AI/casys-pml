@@ -280,8 +280,8 @@ As a new user, I want a landing page with GitHub sign-in and a dashboard showing
    - Section "MCP Configuration":
      ```json
      {
-       "cai": {
-         "command": "cai",
+       "pml": {
+         "command": "pml",
          "args": ["serve"],
          "env": { "CAI_API_KEY": "ac_xxx" }
        }
@@ -416,7 +416,7 @@ As a cloud user, I want to configure my API keys for third-party MCPs via the da
 
 - `SECRETS_MASTER_KEY` (32 bytes base64) in Deno Deploy secrets
 - Future: migrate to KMS envelope encryption for production
-- MCP catalog managed by CAI (no custom MCPs for MVP)
+- MCP catalog managed by PML (no custom MCPs for MVP)
 - See ADR-040 for full architecture
 
 **TODO from Story 9.5 - Cloud userId Propagation:**

@@ -187,7 +187,7 @@ from:
 
 **Story 3.1 (Sandbox Executor):**
 
-- ✅ Explicit permissions: `--allow-env`, `--allow-read=~/.cai`
+- ✅ Explicit permissions: `--allow-env`, `--allow-read=~/.pml`
 - ✅ Denied by default: `--deny-write`, `--deny-net`, `--deny-run`, `--deny-ffi`
 - ✅ Timeout enforcement: 30s default
 - ✅ Memory limits: 512MB heap
@@ -217,7 +217,7 @@ from:
    - No memory pressure detection
 
 3. **Incomplete Permission Model:**
-   - Read paths not minimized (currently allows entire ~/.cai)
+   - Read paths not minimized (currently allows entire ~/.pml)
    - No explicit deny-list for sensitive paths
    - Network deny not enforced with flag
 

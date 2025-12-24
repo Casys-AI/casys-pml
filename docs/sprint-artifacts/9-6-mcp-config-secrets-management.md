@@ -165,14 +165,14 @@ ADR-040 définit le modèle BYOK pour les MCPs tiers:
 └─────────────────────────────────────────────────────────────────┘
 
 User ne configure qu'UN seul MCP (mcp-gateway).
-Les API keys pour Tavily, OpenAI, etc. sont stockées dans CAI.
+Les API keys pour Tavily, OpenAI, etc. sont stockées dans PML.
 ```
 
 ### MCP Categories (ADR-040)
 
 | Category | Examples | API Key Source |
 |----------|----------|----------------|
-| **Managed** | filesystem, memory, fetch | None (CAI provides) |
+| **Managed** | filesystem, memory, fetch | None (PML provides) |
 | **OAuth** | github | User's GitHub login token |
 | **BYOK** | tavily, brave, openai, airtable | User provides via Settings |
 
@@ -755,9 +755,9 @@ Story ready for implementation.
 ┌─────────────────────────────────────────────────────────────────┐
 │                        User's Machine                            │
 ├─────────────────────────────────────────────────────────────────┤
-│  Claude Code                    CAI Local Agent                  │
+│  Claude Code                    PML Local Agent                  │
 │  ┌──────────────┐              ┌──────────────────────┐         │
-│  │ Calls tools  │──────────────│ npx @cai/agent       │         │
+│  │ Calls tools  │──────────────│ npx @pml/agent       │         │
 │  └──────────────┘              │ • Spawns local MCPs  │         │
 │                                │ • filesystem, sqlite │         │
 │                                │ • WebSocket tunnel   │         │
@@ -766,7 +766,7 @@ Story ready for implementation.
                                             │ WSS (tunnel sécurisé)
                                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                      CAI Cloud Gateway                           │
+│                      PML Cloud Gateway                           │
 │  • Route MCPs cloud (tavily, github) directement                │
 │  • Route MCPs locaux via agent tunnel                           │
 └─────────────────────────────────────────────────────────────────┘
@@ -788,10 +788,10 @@ Story ready for implementation.
 ### Impact Architecture
 
 Cette story (9.6) doit attendre la refacto workspace:
-- `cai-core` → open source (ce repo)
-- `cai-cloud` → SaaS privé (auth cloud, local agent, billing)
+- `pml-core` → open source (ce repo)
+- `pml-cloud` → SaaS privé (auth cloud, local agent, billing)
 
-Le Local Agent sera développé dans `cai-cloud`.
+Le Local Agent sera développé dans `pml-cloud`.
 
 ## Change Log
 

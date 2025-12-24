@@ -80,7 +80,7 @@ const speculativeDAG: DAGStructure = {
     {
       id: "fetch",
       tool: "github:list_commits",
-      arguments: { repo: "cai", limit: 1000 },
+      arguments: { repo: "pml", limit: 1000 },
       depends_on: [],
       side_effects: true, // MCP task - has external side effects
     },
@@ -184,7 +184,7 @@ const degradationDAG: DAGStructure = {
     {
       id: "fetch",
       tool: "github:list_commits",
-      arguments: { repo: "cai" },
+      arguments: { repo: "pml" },
       depends_on: [],
       side_effects: true,
     },
@@ -272,7 +272,7 @@ const abTestDAG: DAGStructure = {
     {
       id: "fetch",
       tool: "github:list_commits",
-      arguments: { repo: "cai" },
+      arguments: { repo: "pml" },
       depends_on: [],
       side_effects: true,
     },
@@ -364,7 +364,7 @@ const retryDAG: DAGStructure = {
     {
       id: "fetch",
       tool: "github:list_commits",
-      arguments: { repo: "cai" },
+      arguments: { repo: "pml" },
       depends_on: [],
       side_effects: true, // NOT retried (MCP task)
     },

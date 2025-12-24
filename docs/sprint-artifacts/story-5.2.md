@@ -13,7 +13,7 @@ common tool sequences and speculate effectively.
    - Just `workflows: [{ name, steps: [tool1, tool2] }]`
    - No confidence scores (system calculates)
    - No parallel/sequential (gateway decides)
-2. `cai workflows sync` CLI command imports YAML → DB
+2. `pml workflows sync` CLI command imports YAML → DB
 3. Entries marked with `source: 'user'` in `tool_dependency` table
 4. Auto-sync on startup if file changed (checksum comparison)
 5. Validation: unknown tools cause errors (strict validation - workflows must reference only existing tools in tool_schema)
@@ -41,7 +41,7 @@ common tool sequences and speculate effectively.
   - [x] 2.4: Preserve existing `observed_count` on upsert (don't reset)
 
 - [x] Task 3: Create CLI command (AC: #2, #4)
-  - [x] 3.1: Add `cai workflows sync` to CLI
+  - [x] 3.1: Add `pml workflows sync` to CLI
   - [x] 3.2: Store file checksum in DB (`config` table)
   - [x] 3.3: Compare checksum → skip sync if unchanged
   - [x] 3.4: Add `--force` flag to sync even if unchanged
@@ -153,7 +153,7 @@ N/A
 - WorkflowLoader: YAML parsing with validation (min 2 steps, unknown tool warnings)
 - WorkflowSyncService: DB sync with checksum change detection
 - Migration 009: Added `source` column to tool_dependency table
-- CLI command: `cai workflows sync|validate|stats`
+- CLI command: `pml workflows sync|validate|stats`
 - Auto-bootstrap: Runs on serve startup when graph is empty
 - 52 tests passing (21 graph_engine + 17 workflow_loader + 14 workflow_sync)
 
@@ -196,7 +196,7 @@ N/A
 | AC                                        | Status  | Evidence                                                                            |
 | ----------------------------------------- | ------- | ----------------------------------------------------------------------------------- |
 | AC #1: Simple YAML format                 | ✅ PASS | `config/workflow-templates.yaml` (55 lines), format: `workflows: [{name, steps[]}]` |
-| AC #2: `cai workflows sync` CLI    | ✅ PASS | `src/cli/commands/workflows.ts:45-99` - createSyncSubcommand()                      |
+| AC #2: `pml workflows sync` CLI    | ✅ PASS | `src/cli/commands/workflows.ts:45-99` - createSyncSubcommand()                      |
 | AC #3: `source='user'` in tool_dependency | ✅ PASS | `workflow-sync.ts:161-166` - INSERT with `source='user'`, confidence=0.90           |
 | AC #4: Auto-sync on checksum change       | ✅ PASS | `workflow-sync.ts:57-70` - needsSync() compares SHA-256 checksums                   |
 | AC #5: Unknown tools logged as warnings   | ✅ PASS | `workflow-loader.ts` - setKnownTools() + validate() with warnings array             |

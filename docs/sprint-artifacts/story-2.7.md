@@ -552,26 +552,26 @@ if (coveragePct < MIN_COVERAGE) {
 
 1. **Install Casys PML**
    ```bash
-   deno install --allow-all -n cai https://deno.land/x/cai/cli.ts
+   deno install --allow-all -n pml https://deno.land/x/pml/cli.ts
    ```
 ````
 
 2. **Initialize configuration**
    ```bash
-   cai init
+   pml init
    ```
 
 3. **Start gateway**
    ```bash
-   cai serve
+   pml serve
    ```
 
 4. **Update Claude Desktop config**
    ```json
    {
      "mcpServers": {
-       "cai": {
-         "command": "cai",
+       "pml": {
+         "command": "pml",
          "args": ["serve"]
        }
      }
@@ -582,20 +582,20 @@ if (coveragePct < MIN_COVERAGE) {
 
 ### MCP Server Not Connecting
 
-- Check server health: `cai status`
-- Verify configuration: `~/.cai/config.yaml`
-- Check logs: `~/.cai/logs/cai.log`
+- Check server health: `pml status`
+- Verify configuration: `~/.pml/config.yaml`
+- Check logs: `~/.pml/logs/pml.log`
 
 ### Vector Search Slow
 
 - Check database file permissions
-- Verify HNSW index: `cai debug --check-index`
-- Re-generate embeddings: `cai init --force-embeddings`
+- Verify HNSW index: `pml debug --check-index`
+- Re-generate embeddings: `pml init --force-embeddings`
 
 ### Memory Issues
 
 - Limit tool count: reduce `context.topK` in config
-- Clear cache: `cai cache clear`
+- Clear cache: `pml cache clear`
 
 ```
 ---

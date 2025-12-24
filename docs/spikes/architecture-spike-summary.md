@@ -26,7 +26,7 @@ Deno sandbox via message passing with acceptable performance and complete securi
 **Test Scenario:**
 
 1. Create Deno sandbox worker with **zero permissions**
-2. Inject `cai` bridge module
+2. Inject `pml` bridge module
 3. Execute user code that calls:
    - `searchTools("read file and parse JSON", 3)`
    - `callTool("filesystem:read", { path: "/test.txt" })`
@@ -87,11 +87,11 @@ Execution complete: ✅
 │  │  User Code                   │  │
 │  │  import { searchTools,       │  │
 │  │           callTool }          │  │
-│  │  from "cai"           │  │
+│  │  from "pml"           │  │
 │  └──────────┬───────────────────┘  │
 │             │                       │
 │  ┌──────────▼───────────────────┐  │
-│  │  cai-bridge.ts        │  │
+│  │  pml-bridge.ts        │  │
 │  │  - searchTools()             │  │
 │  │  - callTool()                │  │
 │  │  (Message passing)           │  │
@@ -128,11 +128,11 @@ Execution complete: ✅
 
 ## API Design
 
-### Bridge Module: `cai`
+### Bridge Module: `pml`
 
 ```typescript
 // User code in sandbox
-import { callTool, searchTools } from "cai";
+import { callTool, searchTools } from "pml";
 
 // Search for tools
 const tools = await searchTools("read file and parse JSON", 5);
@@ -180,7 +180,7 @@ export async function callTool(
 
 **Phase 1: Core Bridge** (1 day)
 
-- ✅ Create `cai-bridge.ts` (DONE - POC)
+- ✅ Create `pml-bridge.ts` (DONE - POC)
 - ✅ Implement `searchTools()` (DONE - POC)
 - ✅ Implement `callTool()` (DONE - POC)
 - ✅ Message passing infrastructure (DONE - POC)
@@ -314,7 +314,7 @@ class SandboxResourceManager {
    - Performance benchmarks
 
 4. **Documentation**
-   - API docs for `cai` module
+   - API docs for `pml` module
    - Security guidelines
    - Performance tuning guide
 
@@ -336,7 +336,7 @@ class SandboxResourceManager {
 
 ### Q3: Import Map vs Dynamic Import?
 
-**Question:** How to provide `cai` module to sandbox?
+**Question:** How to provide `pml` module to sandbox?
 
 **Recommendation:** Import Map (standard, clean)
 
@@ -346,7 +346,7 @@ const worker = new Worker(url, {
   deno: {
     importMap: {
       imports: {
-        "cai": "./cai-bridge.ts",
+        "pml": "./pml-bridge.ts",
       },
     },
   },
@@ -382,7 +382,7 @@ const worker = new Worker(url, {
 **Files Created:**
 
 - ✅ [Architecture Spike Document](./architecture-spike-mcp-tools-injection.md)
-- ✅ [POC Bridge Module](../tests/poc/cai-bridge.ts)
+- ✅ [POC Bridge Module](../tests/poc/pml-bridge.ts)
 - ✅ [POC Sandbox Worker](../tests/poc/sandbox-worker.ts)
 - ✅ [POC Test](../tests/poc/sandbox-host-poc.test.ts)
 

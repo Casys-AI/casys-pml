@@ -20,7 +20,7 @@ Cette story est **architecturalement incompatible** avec Epic 2.5 (AIL/HIL Feedb
    - Contradictoire avec architecture adaptive DAG (Epic 2.5)
 
 2. **Redondant avec Story 3.4** :
-   - Story 3.4 (`cai:execute_code`) permet déjà code execution dans DAG
+   - Story 3.4 (`pml:execute_code`) permet déjà code execution dans DAG
    - DAG avec code_execution tasks = pipeline de processing
    - Event stream + checkpoints permettent AIL durant processing
    - Exemple : fetch → analyze → deep_dive (agent peut injecter tasks dynamiquement)
@@ -450,7 +450,7 @@ return { total, daily: byDay };
 
 - PII detection/tokenization (Story 3.5)
 - Result caching (Story 3.6)
-- MCP tool `cai:execute_code` (Story 3.4)
+- MCP tool `pml:execute_code` (Story 3.4)
 - E2E documentation (Story 3.7)
 
 ### References

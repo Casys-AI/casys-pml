@@ -42,7 +42,7 @@ système.
 
 **Code Execution Integration (Story 3.4):**
 
-- ✅ MCP tool `cai:execute_code` exposé via gateway
+- ✅ MCP tool `pml:execute_code` exposé via gateway
 - ✅ Intent-based mode (vector search → inject tools) et explicit mode
 - ✅ DAG integration: nouveau type de tâche `code_execution`
 - ✅ ControlledExecutor (Epic 2.5) peut déléguer tasks au sandbox
@@ -187,7 +187,7 @@ Epic 3 résout les limitations de checkpointing identifiées dans Epic 2.5:
 
 **3. MCPGatewayServer Extension** (`src/mcp/gateway-server.ts`) - Story 3.4
 
-- **Purpose:** Registration du tool `cai:execute_code` exposé via MCP protocol
+- **Purpose:** Registration du tool `pml:execute_code` exposé via MCP protocol
 - **API:** MCP tool with schema
   `{ code: string, intent?: string, context?: object, sandbox_config?: object }`
 - **Features:**
@@ -237,7 +237,7 @@ User Intent → MCPGatewayServer.execute_code
 interface SandboxConfig {
   timeoutMs: number; // Default: 30000 (30s)
   heapLimitMB: number; // Default: 512MB
-  allowedReadPaths?: string[]; // Default: ["~/.cai"]
+  allowedReadPaths?: string[]; // Default: ["~/.pml"]
   allowNetwork?: boolean; // Default: false
   allowWrite?: boolean; // Default: false
 }
@@ -302,7 +302,7 @@ interface CodeExecutionTask {
 
 ```json
 {
-  "name": "cai:execute_code",
+  "name": "pml:execute_code",
   "description": "Execute TypeScript code in isolated Deno sandbox with optional MCP tools injection",
   "inputSchema": {
     "type": "object",
@@ -556,7 +556,7 @@ Sandbox Error Types:
 **Sandbox Isolation:**
 
 - **Explicit Permissions Only:** Deno subprocess avec permissions explicites
-  - Allow: `--allow-env`, `--allow-read=~/.cai`
+  - Allow: `--allow-env`, `--allow-read=~/.pml`
   - Deny: `--deny-write`, `--deny-net`, `--deny-run`, `--deny-ffi`
 - **No Eval:** Aucune utilisation de `eval()` ou `Function()` constructor dans tool injection
 - **Subprocess Isolation:** Code agent exécute dans processus séparé, pas dans main process
@@ -655,7 +655,7 @@ Sandbox Error Types:
   - Used by ContextBuilder for intent-based tool discovery
   - <100ms P95 semantic search performance
 - **MCPGatewayServer** (`src/mcp/gateway-server.ts`) - Epic 2.4
-  - Tool registration for `cai:execute_code`
+  - Tool registration for `pml:execute_code`
   - MCP tool call routing from sandbox
 - **ControlledExecutor** (`src/dag/controlled-executor.ts`) - Epic 2.5
   - Orchestrates code_execution tasks in DAG
@@ -700,7 +700,7 @@ Sandbox Error Types:
    - Error handling structuré (syntax, runtime, timeout errors)
 
 2. ✅ **Code Execution Integration (Story 3.4):**
-   - MCP tool `cai:execute_code` exposé via gateway
+   - MCP tool `pml:execute_code` exposé via gateway
    - Intent-based mode (vector search → inject tools) et explicit mode
    - DAG integration: nouveau type de tâche `code_execution`
    - ControlledExecutor (Epic 2.5) peut déléguer tasks au sandbox
@@ -752,7 +752,7 @@ Sandbox Error Types:
 
 **Story 3.4 (execute_code MCP Tool):**
 
-1. ⏳ New MCP tool registered: cai:execute_code
+1. ⏳ New MCP tool registered: pml:execute_code
 2. ⏳ Input schema: { code, intent?, context?, sandbox_config? }
 3. ⏳ Intent-based mode: vector search → inject tools → execute
 4. ⏳ Explicit mode: Execute with specified context

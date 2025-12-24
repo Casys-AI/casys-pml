@@ -8,7 +8,7 @@
 ## Context
 
 Casys PML acts as an MCP (Model Context Protocol) gateway that consolidates multiple MCP servers.
-The current implementation uses YAML for configuration files (`~/.cai/config.yaml`), while
+The current implementation uses YAML for configuration files (`~/.pml/config.yaml`), while
 the entire MCP ecosystem standardizes on JSON:
 
 **MCP Ecosystem Format:**
@@ -21,7 +21,7 @@ the entire MCP ecosystem standardizes on JSON:
 
 **Current Casys PML Format:**
 
-- Configuration: `~/.cai/config.yaml` (YAML)
+- Configuration: `~/.pml/config.yaml` (YAML)
 - Creates friction: users must convert between formats
 - No direct reuse of existing MCP configurations
 
@@ -41,14 +41,14 @@ This violates the principle of least surprise and creates onboarding friction.
 **Adopt JSON as the primary configuration format for Casys PML**, with temporary backward
 compatibility for YAML during migration period.
 
-**Configuration file:** `~/.cai/config.json` (was: `config.yaml`)
+**Configuration file:** `~/.pml/config.json` (was: `config.yaml`)
 
 **Migration Strategy:**
 
 1. **Support both formats** (auto-detection by file extension)
 2. **Default to JSON** for all new configurations
 3. **Deprecate YAML** with migration path
-4. **Provide migration tool:** `./cai migrate-config`
+4. **Provide migration tool:** `./pml migrate-config`
 
 ---
 
@@ -77,7 +77,7 @@ Users can directly copy MCP server configurations from Claude Desktop:
 → User must convert to YAML:
 
 ```yaml
-# ~/.cai/config.yaml
+# ~/.pml/config.yaml
 mcpServers:
   - id: filesystem
     command: npx
@@ -90,7 +90,7 @@ mcpServers:
 **After (JSON - seamless):**
 
 ```json
-// ~/.cai/config.json
+// ~/.pml/config.json
 {
   "mcpServers": {
     "filesystem": {
@@ -133,7 +133,7 @@ JSON enables first-class schema validation with JSON Schema:
 
 ```json
 {
-  "$schema": "https://cai.dev/config.schema.json",
+  "$schema": "https://pml.dev/config.schema.json",
   "mcpServers": { ... }
 }
 ```
@@ -251,8 +251,8 @@ async function loadConfig(configPath?: string): Promise<Config> {
 
 async function findConfigFile(): Promise<string> {
   // Prefer JSON, fallback to YAML
-  const jsonPath = `${HOME}/.cai/config.json`;
-  const yamlPath = `${HOME}/.cai/config.yaml`;
+  const jsonPath = `${HOME}/.pml/config.json`;
+  const yamlPath = `${HOME}/.pml/config.yaml`;
 
   try {
     await Deno.stat(jsonPath);
@@ -261,7 +261,7 @@ async function findConfigFile(): Promise<string> {
     try {
       await Deno.stat(yamlPath);
       console.warn("⚠️  YAML config detected. JSON is now recommended for MCP compatibility.");
-      console.warn("    Run: ./cai migrate-config");
+      console.warn("    Run: ./pml migrate-config");
       return yamlPath;
     } catch {
       throw new Error("No config file found");
@@ -272,12 +272,12 @@ async function findConfigFile(): Promise<string> {
 
 ### Phase 2: Migration Tool
 
-**Command:** `./cai migrate-config`
+**Command:** `./pml migrate-config`
 
 ```typescript
 async function migrateConfig() {
-  const yamlPath = `${HOME}/.cai/config.yaml`;
-  const jsonPath = `${HOME}/.cai/config.json`;
+  const yamlPath = `${HOME}/.pml/config.yaml`;
+  const jsonPath = `${HOME}/.pml/config.json`;
 
   // 1. Check if YAML exists
   if (!await exists(yamlPath)) {
@@ -331,7 +331,7 @@ async function initConfig(mcpServers: MCPServer[]) {
   };
 
   // Write JSON (not YAML)
-  const configPath = `${HOME}/.cai/config.json`;
+  const configPath = `${HOME}/.pml/config.json`;
   await Deno.writeTextFile(
     configPath,
     JSON.stringify(config, null, 2),
@@ -348,7 +348,7 @@ async function initConfig(mcpServers: MCPServer[]) {
 1. **Warning on YAML load:**
    ```
    ⚠️  WARNING: YAML config support will be removed in v2.0
-       Please migrate to JSON: ./cai migrate-config
+       Please migrate to JSON: ./pml migrate-config
    ```
 
 2. **Documentation updates:**
@@ -492,28 +492,28 @@ async function initConfig(mcpServers: MCPServer[]) {
 
 ```bash
 # Casys PML detects YAML and prompts
-./cai serve
+./pml serve
 
 # Output:
-# ⚠️  YAML config detected: ~/.cai/config.yaml
+# ⚠️  YAML config detected: ~/.pml/config.yaml
 #     Casys PML now uses JSON for MCP compatibility.
 #     Migrate now? (Y/n): y
 #
-# ✓ Config migrated to: ~/.cai/config.json
+# ✓ Config migrated to: ~/.pml/config.json
 # You can delete the old YAML file:
-#   rm ~/.cai/config.yaml
+#   rm ~/.pml/config.yaml
 ```
 
 **Step 2: Manual migration**
 
 ```bash
-./cai migrate-config
+./pml migrate-config
 ```
 
 **Step 3: New users**
 
 ```bash
-./cai init  # → generates config.json (not YAML)
+./pml init  # → generates config.json (not YAML)
 ```
 
 ### For Developers
@@ -578,7 +578,7 @@ same pattern.
 ### Before (YAML)
 
 ```yaml
-# ~/.cai/config.yaml
+# ~/.pml/config.yaml
 mcpServers:
   - id: filesystem
     name: Filesystem Server
@@ -610,7 +610,7 @@ execution:
 
 ```json
 {
-  "$schema": "https://cai.dev/config.schema.json",
+  "$schema": "https://pml.dev/config.schema.json",
   "mcpServers": {
     "filesystem": {
       "command": "npx",

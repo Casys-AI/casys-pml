@@ -16,7 +16,7 @@ Effort:** 6-8 heures (Actual: ~6h)
 
 1. ✅ Sandbox module créé (`src/sandbox/executor.ts`)
 2. ✅ Deno subprocess spawned avec permissions explicites (`--allow-env`,
-   `--allow-read=~/.cai`)
+   `--allow-read=~/.pml`)
 3. ✅ Code execution isolée (no access to filesystem outside allowed paths)
 4. ✅ Timeout enforcement (default 30s, configurable)
 5. ✅ Memory limits enforcement (default 512MB heap)
@@ -114,7 +114,7 @@ Effort:** 6-8 heures (Actual: ~6h)
 ```typescript
 // Allowed permissions (explicit whitelist)
 --allow-env              // Environment variables (needed for Deno runtime)
---allow-read=~/.cai  // Read access to Casys PML data directory only
+--allow-read=~/.pml  // Read access to Casys PML data directory only
 
 // Denied permissions (implicit blacklist)
 --deny-write             // No write access anywhere
@@ -142,7 +142,7 @@ src/sandbox/
 
 **Integration Points:**
 
-- `src/mcp/gateway-server.ts`: Will invoke sandbox via new `cai:execute_code` tool (Story
+- `src/mcp/gateway-server.ts`: Will invoke sandbox via new `pml:execute_code` tool (Story
   3.4)
 - `src/dag/executor.ts`: Code execution can be DAG task type (Story 3.3)
 - `src/telemetry/`: Log sandbox metrics (execution time, errors, resource usage)
@@ -219,7 +219,7 @@ tests/benchmarks/
 
 1. **Malicious code execution**: Sandbox doit empêcher accès filesystem/network
 2. **Resource exhaustion**: Timeout + memory limits préviennent DoS
-3. **Data leakage**: Aucun accès à données utilisateur hors `~/.cai`
+3. **Data leakage**: Aucun accès à données utilisateur hors `~/.pml`
 
 **Mitigation:**
 
@@ -305,7 +305,7 @@ Claude Sonnet 4.5 (model: claude-sonnet-4-5-20250929)
 - Consider caching executor instance if multiple tools invoke sandbox
 - Remember to integrate with MCP Gateway's tool execution flow
 
-**For Story 3.4 (cai:execute_code MCP Tool):**
+**For Story 3.4 (pml:execute_code MCP Tool):**
 
 - Executor already handles all error cases gracefully
 - Return ExecutionResult directly - it's MCP-friendly (success flag + structured errors)
@@ -505,7 +505,7 @@ standards. Zero critical issues identified. Ready for production integration.
 **Integration Readiness:**
 
 - ✅ Ready for Story 3.2 (MCP Tools Injection): DenoSandboxExecutor can be wrapped in MCP tool
-- ✅ Ready for Story 3.4 (cai:execute_code): ExecutionResult directly compatible with MCP
+- ✅ Ready for Story 3.4 (pml:execute_code): ExecutionResult directly compatible with MCP
   response format
 - ✅ Security event logging: WARN level for permission violations, INFO for success
 - ✅ Performance tracking: executionTimeMs included in all results
@@ -587,7 +587,7 @@ standards. Zero critical issues identified. Ready for production integration.
 - Consider single instance for MCP Gateway (vs new instance per call) if performance becomes concern
 - Ensure MCP tool timeout configuration maps correctly to sandbox timeout config
 
-**For Story 3.4 (cai:execute_code MCP Tool):**
+**For Story 3.4 (pml:execute_code MCP Tool):**
 
 - ExecutionResult already MCP-compatible (success flag + structured error format)
 - Consider tool-level timeout override (some code may need >30s default)

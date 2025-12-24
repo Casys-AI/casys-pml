@@ -34,7 +34,7 @@ can start development with proper tooling and automation in place.
 ### Directory Structure
 
 ```
-cai/
+pml/
 ├── src/
 │   ├── main.ts          # Entry point
 │   ├── db/              # Database modules

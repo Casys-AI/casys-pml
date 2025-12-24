@@ -526,7 +526,7 @@ src/web/islands/
 **Key Learnings:**
 1. **Hull click handler ready:** `handleHullClick` callback implemented
 2. **Capability tooltip pattern:** `capabilityTooltip` state shows hover behavior
-3. **BroadcastChannel integration:** `cai-events` channel for cross-tab sync
+3. **BroadcastChannel integration:** `pml-events` channel for cross-tab sync
 4. **Animation patterns:** 300ms transitions established
 
 **Integration Points Created by 8.3:**
@@ -560,7 +560,7 @@ src/web/islands/
 
 ### Learnings:
 
-1. **pml-events channel:** Recent commit migrated from `cai-events` - use `pml-events` for BroadcastChannel
+1. **pml-events channel:** Recent commit migrated from `pml-events` - use `pml-events` for BroadcastChannel
 2. **HypergraphBuilder output:** capabilityZones[] structure established
 3. **D3.js patterns:** Hull rendering, zoom transform patterns
 
@@ -655,7 +655,7 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 6. **Type System:** Extended CapabilityData interface in D3GraphVisualization with optional fields (toolIds, createdAt, lastUsedAt, communityId) and exported it. CodePanel re-exports the type.
 
-7. **Event System:** Confirmed using `pml-events` BroadcastChannel (not cai-events) per recent migration.
+7. **Event System:** Confirmed using `pml-events` BroadcastChannel (not pml-events) per recent migration.
 
 ### File List
 

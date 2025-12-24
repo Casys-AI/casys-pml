@@ -92,7 +92,7 @@ Migrate all event sources to a single BroadcastChannel-based EventBus per ADR-03
 
 - [x] File `src/events/event-bus.ts` created
 - [x] Class `EventBus` with singleton pattern
-- [x] Uses BroadcastChannel `"cai-events"` (renamed from agentcards-events)
+- [x] Uses BroadcastChannel `"pml-events"` (renamed from agentcards-events)
 - [x] Methods:
   - `emit(event: CaiEvent): void`
   - `on(type: EventType | "*", handler): () => void` (returns unsubscribe)
@@ -118,7 +118,7 @@ Migrate all event sources to a single BroadcastChannel-based EventBus per ADR-03
 - [x] `tool.start` / `tool.end` emitted via EventBus (not just internal array)
 - [x] Existing `getTraces()` still works (backward compatibility)
 - [x] Real-time emission during RPC handling
-- [x] Bridge `cai-traces` channel to unified EventBus
+- [x] Bridge `pml-traces` channel to unified EventBus
 
 ### AC4: DAG Executor Migration ✅
 
@@ -156,7 +156,7 @@ Migrate all event sources to a single BroadcastChannel-based EventBus per ADR-03
 ### AC9: Capability Traces Migration (from 7.3b) ✅
 
 - [x] `capability.start` / `capability.end` forwarded to EventBus
-- [x] Separate channel `"cai-traces"` bridged into main EventBus (in WorkerBridge)
+- [x] Separate channel `"pml-traces"` bridged into main EventBus (in WorkerBridge)
 - [x] Consistent event format with other events
 
 ### AC10: Tests ✅
@@ -193,7 +193,7 @@ Migrate all event sources to a single BroadcastChannel-based EventBus per ADR-03
 - [x] **Task 2: Migrate WorkerBridge** (AC: #3, #9)
   - [x] 2.1 Import EventBus in `src/sandbox/worker-bridge.ts`
   - [x] 2.2 Emit `tool.start` / `tool.end` during RPC handling
-  - [x] 2.3 Bridge `cai-traces` channel events to unified EventBus
+  - [x] 2.3 Bridge `pml-traces` channel events to unified EventBus
   - [x] 2.4 Keep `getTraces()` working (backward compat)
   - [x] 2.5 Tests maintained (existing tests still pass)
 

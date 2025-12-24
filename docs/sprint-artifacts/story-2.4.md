@@ -53,7 +53,7 @@ export class Casys PMLGateway {
   ) {
     this.server = new Server(
       {
-        name: "cai",
+        name: "pml",
         version: "1.0.0",
       },
       {
@@ -131,7 +131,7 @@ export class Casys PMLGateway {
       const { name, arguments: args } = request.params;
 
       // Check if this is a workflow request
-      if (name === "cai:execute_workflow") {
+      if (name === "pml:execute_workflow") {
         return await this.handleWorkflowExecution(args);
       }
 
@@ -251,7 +251,7 @@ export class Casys PMLGateway {
     await this.server.connect(transport);
 
     console.log("✓ Casys PML gateway started (stdio mode)");
-    console.log("  Claude Code can now connect to cai");
+    console.log("  Claude Code can now connect to pml");
   }
 }
 ```
@@ -262,15 +262,15 @@ export class Casys PMLGateway {
 // ~/.config/Claude/claude_desktop_config.json
 {
   "mcpServers": {
-    "cai": {
-      "command": "cai",
+    "pml": {
+      "command": "pml",
       "args": ["serve"]
     }
   }
 }
 ```
 
-### CLI Command: `cai serve`
+### CLI Command: `pml serve`
 
 ```typescript
 // src/cli/serve.ts
@@ -300,10 +300,10 @@ export const serveCommand = new Command()
 // Claude Code sees Casys PML as single server with all tools
 
 // Claude's perspective:
-// cai:filesystem:read
-// cai:github:create_issue
-// cai:database:query
-// cai:execute_workflow (special)
+// pml:filesystem:read
+// pml:github:create_issue
+// pml:database:query
+// pml:execute_workflow (special)
 
 // Casys PML internally routes to:
 // filesystem → filesystem-server MCP client
@@ -387,7 +387,7 @@ Deno.test("MCP Gateway - execute_workflow", async () => {
   const response = await gateway.server.request({
     method: "tools/call",
     params: {
-      name: "cai:execute_workflow",
+      name: "pml:execute_workflow",
       arguments: { workflow },
     },
   });
@@ -409,7 +409,7 @@ Deno.test("MCP Gateway - execute_workflow", async () => {
 - [x] call_tool handler functional (single + workflow)
 - [x] Transparent proxying to underlying MCP servers
 - [x] MCP-compliant error responses
-- [x] `cai serve` CLI command working
+- [x] `pml serve` CLI command working
 - [x] Integration tests passing (7/7 unit tests ✅)
 - [x] Documentation for Claude Code setup (inline code comments)
 - [ ] Code reviewed and merged
@@ -490,7 +490,7 @@ Deno.test("MCP Gateway - execute_workflow", async () => {
 
 - Semantic tool search via VectorSearch when query provided
 - Transparent proxying to underlying MCP servers (serverId:toolName pattern)
-- Special workflow execution tool (cai:execute_workflow)
+- Special workflow execution tool (pml:execute_workflow)
 - Intent-based workflow suggestions via GatewayHandler
 - Explicit workflow execution via ParallelExecutor
 - MCP-compliant error responses with proper JSON-RPC codes

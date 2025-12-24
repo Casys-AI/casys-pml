@@ -3,22 +3,22 @@
 /* Custom theme extending Tailwind 4 */
 @theme {
   /* Casys Design System Colors */
-  --color-cai-bg: #0a0908;
-  --color-cai-bg-elevated: #12110f;
-  --color-cai-bg-surface: #1a1816;
-  --color-cai-accent: #ffb86f;
-  --color-cai-accent-dim: rgba(255, 184, 111, 0.1);
-  --color-cai-accent-medium: rgba(255, 184, 111, 0.2);
-  --color-cai-accent-strong: rgba(255, 184, 111, 0.3);
-  --color-cai-text: #f5f0ea;
-  --color-cai-text-muted: #d5c3b5;
-  --color-cai-text-dim: #8a8078;
-  --color-cai-border: rgba(255, 184, 111, 0.1);
-  --color-cai-border-strong: rgba(255, 184, 111, 0.2);
-  --color-cai-success: #4ade80;
-  --color-cai-warning: #fbbf24;
-  --color-cai-error: #f87171;
-  --color-cai-info: #60a5fa;
+  --color-pml-bg: #0a0908;
+  --color-pml-bg-elevated: #12110f;
+  --color-pml-bg-surface: #1a1816;
+  --color-pml-accent: #ffb86f;
+  --color-pml-accent-dim: rgba(255, 184, 111, 0.1);
+  --color-pml-accent-medium: rgba(255, 184, 111, 0.2);
+  --color-pml-accent-strong: rgba(255, 184, 111, 0.3);
+  --color-pml-text: #f5f0ea;
+  --color-pml-text-muted: #d5c3b5;
+  --color-pml-text-dim: #8a8078;
+  --color-pml-border: rgba(255, 184, 111, 0.1);
+  --color-pml-border-strong: rgba(255, 184, 111, 0.2);
+  --color-pml-success: #4ade80;
+  --color-pml-warning: #fbbf24;
+  --color-pml-error: #f87171;
+  --color-pml-info: #60a5fa;
 
   /* Edge type colors */
   --color-edge-contains: #22c55e;

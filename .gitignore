@@ -13,7 +13,7 @@ dist/
 build/
 _fresh/
 *.exe
-cai
+pml
 lib/std/bundle.js
 
 # Logs
@@ -54,7 +54,7 @@ temp/
 *.db
 *.db-shm
 *.db-wal
-.cai/
+.pml/
 *.db.corrupted-*
 *.db.backup-*
 *.db.old

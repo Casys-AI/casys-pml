@@ -14,7 +14,7 @@ can store embeddings vectoriels et perform semantic search efficiently.
 
 ## Acceptance Criteria
 
-1. PGlite database initialization dans `~/.cai/.cai.db`
+1. PGlite database initialization dans `~/.pml/.pml.db`
 2. pgvector extension loaded et operational
 3. Database schema créé avec tables:
    - `tool_embedding` (tool_id, embedding vector(1024), metadata)
@@ -40,7 +40,7 @@ can store embeddings vectoriels et perform semantic search efficiently.
 import { PGlite } from "@electric-sql/pglite";
 import { vector } from "@electric-sql/pglite/vector";
 
-const db = new PGlite("~/.cai/.cai.db", {
+const db = new PGlite("~/.pml/.pml.db", {
   extensions: { vector },
 });
 
@@ -145,7 +145,7 @@ async function runMigrations(db: PGlite, migrations: Migration[]) {
 **AC1-AC2: Database & Extension**
 
 - PGliteClient wrapper around PGlite with automatic pgvector extension loading
-- Proper directory creation for ~/.cai/ path
+- Proper directory creation for ~/.pml/ path
 - Transaction support via db.transaction() pattern
 - Logging for all database operations
 
@@ -222,7 +222,7 @@ migrations et les opérations CRUD sont complètes et bien testées.
 
 | AC# | Description                                                      | Statut        | Évidence                                                                                |
 | --- | ---------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------- |
-| AC1 | PGlite database initialization dans ~/.cai/.cai.db | ✅ IMPLÉMENTÉ | PGliteClient.connect() crée le répertoire et initialise la DB (src/db/client.ts:40-54)  |
+| AC1 | PGlite database initialization dans ~/.pml/.pml.db | ✅ IMPLÉMENTÉ | PGliteClient.connect() crée le répertoire et initialise la DB (src/db/client.ts:40-54)  |
 | AC2 | pgvector extension loaded et operational                         | ✅ IMPLÉMENTÉ | Extension créée via `CREATE EXTENSION IF NOT EXISTS vector` (src/db/client.ts:51)       |
 | AC3 | Database schema: tool_embedding, tool_schema, config tables      | ✅ IMPLÉMENTÉ | Toutes 3 tables créées dans createInitialMigration() (src/db/migrations.ts:133-178)     |
 | AC4 | Vector index HNSW sur tool_embedding.embedding                   | ✅ IMPLÉMENTÉ | Index HNSW avec m=16, ef_construction=64 créé (src/db/migrations.ts:154-159)            |
@@ -322,7 +322,7 @@ migrations et les opérations CRUD sont complètes et bien testées.
 ✅ **Aspects de Sécurité Généraux:**
 
 - Aucune secret ou credential hardcodée
-- Path ~/.cai/ correctement créé avec ensureDir()
+- Path ~/.pml/ correctement créé avec ensureDir()
 - Permissions Deno explicites (--allow-all pour dev)
 - Gestion d'erreurs complète, pas de stack traces exposées
 

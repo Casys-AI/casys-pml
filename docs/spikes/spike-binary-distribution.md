@@ -97,7 +97,7 @@ wget https://github.com/microsoft/onnxruntime/releases/download/v1.21.0/onnxrunt
 // .mcp.json
 {
   "mcpServers": {
-    "cai": {
+    "pml": {
       "command": "deno",
       "args": ["run", "--allow-all", "/path/to/src/main.ts", "serve"]
     }
@@ -135,7 +135,7 @@ RUN apt-get update && apt-get install -y libvips-dev
 # ... installation ONNX Runtime
 COPY . /app
 RUN deno task build
-ENTRYPOINT ["/app/cai"]
+ENTRYPOINT ["/app/pml"]
 ```
 
 ---
@@ -234,15 +234,15 @@ ENTRYPOINT ["/app/cai"]
 ```json
 {
   "mcpServers": {
-    "cai": {
+    "pml": {
       "command": "deno",
       "args": [
         "run",
         "--allow-all",
-        "/chemin/absolu/vers/cai/src/main.ts",
+        "/chemin/absolu/vers/pml/src/main.ts",
         "serve",
         "--config",
-        "/chemin/absolu/vers/cai/.mcp-servers.json"
+        "/chemin/absolu/vers/pml/.mcp-servers.json"
       ]
     }
   }
@@ -266,7 +266,7 @@ ENTRYPOINT ["/app/cai"]
 ```json
 {
   "mcpServers": {
-    "cai": {
+    "pml": {
       "command": "deno",
       "args": [
         "run",
@@ -293,11 +293,11 @@ Une fois le produit stabilisé, fournir un installeur pour Linux:
 
 ```bash
 # Installation one-liner
-curl -fsSL https://cai.dev/install.sh | bash
+curl -fsSL https://pml.dev/install.sh | bash
 
 # Utilisation
-cai init
-cai serve
+pml init
+pml serve
 ```
 
 Le script:
@@ -317,8 +317,8 @@ Le script:
 
 Permettre aux utilisateurs de choisir:
 
-- `cai serve` → Utilise embeddings locaux (nécessite deps)
-- `cai serve --embeddings-api openai` → API externe (pas de deps)
+- `pml serve` → Utilise embeddings locaux (nécessite deps)
+- `pml serve --embeddings-api openai` → API externe (pas de deps)
 
 ## Actions nécessaires
 
@@ -390,11 +390,11 @@ $ deno task build
 ✓ Compilation réussie (2.8GB binaire généré)
 
 # Exécution (échoue)
-$ ./cai serve
+$ ./pml serve
 ❌ Error: libvips-cpp.so.8.17.2: cannot open shared object file
 
 # Exécution (échoue aussi)
-$ ./cai init
+$ ./pml init
 ❌ Error: libvips-cpp.so.8.17.2: cannot open shared object file
 ```
 
@@ -405,9 +405,9 @@ $ ./cai init
 
 Le problème affecte **toutes** les commandes du binaire compilé :
 
-- `./cai init` → ❌ Échoue
-- `./cai serve` → ❌ Échoue
-- `./cai --help` → ❌ Échoue même
+- `./pml init` → ❌ Échoue
+- `./pml serve` → ❌ Échoue
+- `./pml --help` → ❌ Échoue même
 
 Car Transformers.js/Sharp s'importent au niveau du module (top-level import).
 
@@ -423,15 +423,15 @@ deno run --allow-all src/main.ts serve
 # Configuration .mcp.json
 {
   "mcpServers": {
-    "cai": {
+    "pml": {
       "command": "deno",
       "args": [
         "run",
         "--allow-all",
-        "/chemin/absolu/vers/cai/src/main.ts",
+        "/chemin/absolu/vers/pml/src/main.ts",
         "serve",
         "--config",
-        "/chemin/absolu/vers/cai/.mcp-servers.json"
+        "/chemin/absolu/vers/pml/.mcp-servers.json"
       ]
     }
   }

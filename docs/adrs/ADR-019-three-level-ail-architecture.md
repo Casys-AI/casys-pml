@@ -277,7 +277,7 @@ Level 1 external agents use **4 MCP meta-tools** (see ADR-018 for full specifica
 
 ```typescript
 // Claude Code (MCP Client) execution flow - using MCP meta-tools
-let response = await cai.execute_workflow({
+let response = await pml.execute_workflow({
   intent: "Analyze codebase",
   config: { per_layer_validation: true },
 });
@@ -289,21 +289,21 @@ while (response.status === "layer_complete") {
 
   if (analysis.needsMoreTools) {
     // Replan: Add new tools based on discovery
-    response = await cai.replan_dag({
+    response = await pml.replan_dag({
       workflow_id: response.workflow_id,
       new_requirement: "Add XML parser for discovered files",
       available_context: { xml_files: ["data.xml", "config.xml"] },
     });
   } else if (analysis.criticalIssue) {
     // Abort: Stop execution
-    response = await cai.abort({
+    response = await pml.abort({
       workflow_id: response.workflow_id,
       reason: "Critical security issue found",
     });
     break;
   } else {
     // Continue: Proceed to next layer
-    response = await cai.continue({
+    response = await pml.continue({
       workflow_id: response.workflow_id,
     });
   }

@@ -208,7 +208,7 @@ _Minor items for consideration_
    - Action: Aucune requise
 
 2. **Dépendance sur CLI principal**
-   - Observation: FR002-FR003 dépendent de `cai init/serve`
+   - Observation: FR002-FR003 dépendent de `pml init/serve`
    - Impact: Mineur (CLI déjà implémenté dans projet principal)
    - Action: Documenter la dépendance dans README
 

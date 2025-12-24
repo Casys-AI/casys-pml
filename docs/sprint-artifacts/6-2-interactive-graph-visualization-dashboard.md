@@ -229,7 +229,7 @@ const SERVER_COLORS = {
   "postgres": "#9b59b6",
   "github": "#2ecc71",
   "brave-search": "#e74c3c",
-  "cai": "#f39c12",
+  "pml": "#f39c12",
   // ... other servers
 };
 

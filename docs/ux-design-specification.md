@@ -109,7 +109,7 @@ Casys PML transforme la facon dont les agents IA decouvrent et partagent des pat
 ### 3.3 Effortless Interactions
 
 1. **10-Minute Onboarding** (NFR002)
-   - `cai init` lit mcp.json existant
+   - `pml init` lit mcp.json existant
    - Migration automatique des 15+ servers
    - Premier workflow parallelise sans config
 

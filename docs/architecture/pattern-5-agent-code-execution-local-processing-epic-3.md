@@ -131,7 +131,7 @@ const dag = {
 
 ## Security Model
 
-- **Explicit permissions only:** `--allow-env`, `--allow-read=~/.cai`
+- **Explicit permissions only:** `--allow-env`, `--allow-read=~/.pml`
 - **Deny by default:** `--deny-write`, `--deny-net`, `--deny-run`, `--deny-ffi`
 - **No eval():** Template strings only, no dynamic code generation
 - **Process isolation:** Code runs in separate subprocess

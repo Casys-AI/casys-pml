@@ -48,7 +48,7 @@ development_status:
   1-4-embeddings-generation-with-bge-large-en-v1-5: done
   1-5-semantic-vector-search-implementation: done
   1-6-on-demand-schema-loading-context-optimization: done
-  1-7-migration-tool-cai-init: done
+  1-7-migration-tool-pml-init: done
   1-8-basic-logging-telemetry-backend: done
   epic-1-retrospective: completed
 
@@ -85,7 +85,7 @@ development_status:
   3-1-deno-sandbox-executor-foundation: done
   3-2-mcp-tools-injection-into-code-context: done
   3-3-local-data-processing-pipeline: deprecated # Architectural issue: breaks AIL, redundant with 3.4 DAG + code_execution
-  3-4-cai-execute-code-mcp-tool: done
+  3-4-pml-execute-code-mcp-tool: done
   3-5-safe-to-fail-branches-resilient-workflows: done
   3-6-pii-detection-tokenization: done
   3-7-code-execution-caching-optimization: done
@@ -219,7 +219,7 @@ development_status:
   11-3-td-error-per-priority: done # Code Review APPROVED 2025-12-23: 17 tests (12 unit + 5 E2E), all issues resolved
   11-4-definition-invocation-views: ready-for-dev # Story created 2025-12-23, toggle UI exists, needs API + wiring
   11-5-dry-run-mode: backlog
-  11-6-shgat-training-per-sampling: backlog # REFACTORÉ: PER sampling + SHGAT train
+  11-6-shgat-training-per-sampling: in-progress # Started 2025-12-24, PER sampling + SHGAT train
   epic-11-retrospective: optional
 
   # Epic 12: Speculative Execution with Arguments
@@ -235,30 +235,52 @@ development_status:
   12-4-real-speculative-execution: backlog # FR4, FR7, FR11 - Real MCP calls via WorkerBridge
   12-5-speculation-cache-validation: backlog # FR10 - Cache with TTL, hit/miss validation
   12-6-per-layer-speculation: backlog # FR8 - Speculate during per_layer validation pauses
+  12-7-argument-aware-learning: backlog # Argument patterns → SHGAT learning (dépend 12.1, 12.2)
   epic-12-retrospective: optional
 
   # Epic 13: Capability Naming & Curation System
   # Tech-Spec: tech-spec-capability-naming-curation.md
-  # 13 stories across 5 phases, ~32.5 jours estimated
-  # Transforms opaque capability IDs into DNS-like naming system
+  # Epic: epic-13-capability-naming-curation.md (CONSOLIDATED 2025-12-24)
+  # 9 stories across 4 phases, ~20 jours estimated (was 15 stories, 25j before consolidation)
+  # Architecture: cap:* (management), meta:* (optional introspection), free naming for capabilities
+  # No dns:* (confusing), no learn:* (redundant)
   # Depends on: Epic 7 (Emergent Capabilities), Epic 10 (pml_execute)
   epic-13: backlog
-  # Phase 1: Core MVP (~9.5 days)
-  13-1-capability-records-schema-migration: backlog # FQDN structure, metadata fields
-  13-2-fqdn-generation-resolution: backlog # org.project.namespace.action.hash
-  13-3-pml-execute-name-param: backlog # Optional name param, validation
-  13-4-pml-execute-capability-call: backlog # Call by name with args
-  13-5-capability-mcp-server: backlog # Virtual MCP server, cap:* prefix
-  13-6-gateway-integration: backlog # handleListTools, handleCallTool
-  13-7-transparent-resolution-aliases: backlog # tools/list_changed, alias table
-  # Phase 2: Curation & Query (~7 days)
-  13-8-pml-curate-capabilities: backlog # suggest/auto/apply modes
-  13-9-pml-list-capabilities: backlog # Filtering, sorting
-  13-10-curation-agent-llm: backlog # LLM + heuristics naming
-  13-11-query-api-dns-like: backlog # lookup, query, whois, history
-  # Phase 3: Versioning (~3 days)
-  13-12-capability-versioning: backlog # capability_versions table, @v1 specifiers
-  # Phase 5: PML Stdlib (~6 days)
-  13-13-pml-stdlib-modules: backlog # lib/std/mcp/ - cap, dns, meta, learn modules
+  # Phase 1: Core MVP (~6 days)
+  13-1-schema-fqdn-aliases: backlog # FQDN structure, metadata, aliases (merged 13.1+13.2+part 13.7)
+  13-2-pml-execute-naming-support: backlog # Name param + call by name (merged 13.3+13.4)
+  13-3-capability-mcp-server-gateway: backlog # Virtual MCP + Gateway + notifications (merged 13.5+13.6+part 13.7)
+  # Phase 2: Curation & Query (~5 days)
+  13-4-capability-curation-system: backlog # LLM + heuristics, suggest/auto/apply (merged 13.8+13.10)
+  13-5-discovery-query-api: backlog # cap:list, cap:lookup, cap:query, cap:whois (merged 13.9+13.11)
+  # Phase 3: Versioning (~2 days)
+  13-6-capability-versioning: backlog # capability_versions table, @v1 specifiers
+  # Phase 4: Stdlib & Registry (~7 days)
+  13-7-pml-stdlib-unification: backlog # lib/std/mcp/ - cap.ts + meta.ts (simplified, no dns/learn)
+  13-8-mcp-server-registry: backlog # record_type=mcp-server, cap:lookup("mcp:*")
+  13-9-routing-inheritance: backlog # tools_used tracking, local/cloud inheritance
   epic-13-retrospective: optional
-  # NOTE: Phase 4 (Fork & Merge) deferred to Epic 14+
+  # NOTE: Fork & Merge (cap:fork, cap:merge) deferred to Epic 14+
+
+  # Epic 14: JSR Package Local/Cloud MCP Routing
+  # Epic: epic-14-jsr-package-local-cloud-mcp-routing.md
+  # Spike: spikes/2025-12-23-jsr-package-local-mcp-routing.md
+  # 8 stories, ~15-20 jours estimated
+  # Lightweight JSR package (jsr:@casys/pml) for hybrid local/cloud MCP execution
+  # Solves: cloud gateway uses server filesystem instead of user's local resources
+  # Architecture: Local MCPs (sandbox) + Cloud MCPs (HTTP RPC) + BYOK
+  # Depends on: Epic 9 (Auth), Epic 13 (Registry strategy for 14.7)
+  epic-14: backlog
+  # Phase 1: Package Foundation (~4 days)
+  14-1-package-scaffolding-cli-init: backlog # deno install, pml init, .mcp.json generation
+  14-2-workspace-resolution-system: backlog # ENV → project root detection → CWD fallback
+  14-3-routing-config-permission-inferrer: backlog # mcp-permissions.yaml routing: local|cloud
+  # Phase 2: Local Execution (~5 days)
+  14-4-dynamic-mcp-loader-registry: backlog # Dynamic import from JSR, Deno cache
+  14-5-sandboxed-local-mcp-execution: backlog # Deno Worker/subprocess, workspace-scoped permissions
+  # Phase 3: Cloud Integration (~4 days)
+  14-6-http-streamable-server-byok: backlog # MCP HTTP server, cloud RPC, BYOK API key injection
+  14-7-mcp-source-resolution: backlog # Registry strategy (depends on 13.8 MCP Server Registry)
+  # Phase 4: Quality (~3 days)
+  14-8-e2e-integration-testing: backlog # Full flow tests, offline mode, permission boundaries
+  epic-14-retrospective: optional

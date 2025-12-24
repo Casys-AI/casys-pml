@@ -373,12 +373,12 @@ So that I get the correct MCP implementations regardless of the registry strateg
 **Then** uses the default (to be defined per Epic 13)
 
 **Technical Note:**
-> This story depends on **Epic 13 Stories 13.14-13.15** (MCP Server Registry & Routing Inheritance).
-> Once those are complete, this story uses `dns:lookup("mcp:{name}")` to resolve MCP code URLs.
+> This story depends on **Epic 13 Stories 13.8-13.9** (MCP Server Registry & Routing Inheritance).
+> Once those are complete, this story uses `cap:lookup("mcp:{name}")` to resolve MCP code URLs.
 
 **Dependencies:**
-- Story 13.14: MCP Server Registry (provides `dns:lookup` for MCPs)
-- Story 13.15: Routing Inheritance (provides `routing` field in responses)
+- Story 13.8: MCP Server Registry (provides `cap:lookup` for MCPs)
+- Story 13.9: Routing Inheritance (provides `routing` field in responses)
 
 ---
 

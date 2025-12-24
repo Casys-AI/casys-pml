@@ -240,7 +240,7 @@ const exportMetricsCSV = () => {
 
   const a = document.createElement("a");
   a.href = url;
-  a.download = `cai-metrics-${dateRange}.csv`;
+  a.download = `pml-metrics-${dateRange}.csv`;
   a.click();
 };
 ```

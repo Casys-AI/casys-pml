@@ -82,7 +82,7 @@ SET hnsw.ef_search = 40;  -- Balance recall/speed
 // Lazy loading + caching
 const embedder = await pipeline("feature-extraction", "Xenova/bge-m3", {
   quantized: false,  // Full precision for quality
-  cache_dir: "~/.cai/cache/embeddings",
+  cache_dir: "~/.pml/cache/embeddings",
 });
 ```
 
@@ -225,7 +225,7 @@ const executionCache = new LRUCache<string, ExecutionResult>({
 
 ```typescript
 const db = new PGlite({
-  dataDir: "~/.cai/cai.db",
+  dataDir: "~/.pml/pml.db",
   // WAL mode for concurrent reads
   pragmas: {
     journal_mode: "wal",

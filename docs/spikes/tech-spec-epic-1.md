@@ -30,7 +30,7 @@ contexte validant la proposition de valeur principale du projet.
 - Génération d'embeddings vectoriels 1024-dim avec BGE-Large-EN-v1.5 local inference
 - Semantic vector search avec HNSW index et top-k retrieval (cosine similarity)
 - Système de chargement on-demand basé sur relevance score (k=3-10 tools)
-- Migration tool (cai init) lisant mcp.json de Claude Code
+- Migration tool (pml init) lisant mcp.json de Claude Code
 - Logging structuré et telemetry backend opt-in (context tracking, latency metrics)
 
 **Out-of-Scope (deferred to Epic 2):**
@@ -77,7 +77,7 @@ contexte validant la proposition de valeur principale du projet.
 - Single-file database portability (PGlite)
 - Zero external dependencies pour vector search (pgvector built-in)
 - Local inference embeddings (aucun API call externe)
-- Filesystem access préservé (pas Docker, accès direct ~/.cai/)
+- Filesystem access préservé (pas Docker, accès direct ~/.pml/)
 - Testing coverage target >80% (Deno.test native)
 
 ## Detailed Design
@@ -227,15 +227,15 @@ export interface MCPToolDefinition {
 
 ```bash
 # Initialize Casys PML and migrate MCP configuration
-cai init [--dry-run] [--config <path>]
+pml init [--dry-run] [--config <path>]
 # Returns: Migration summary, config.yaml path, next steps
 
 # Status check (Epic 2, out of scope for Epic 1)
-cai status [--verbose]
+pml status [--verbose]
 # Returns: Server health, database size, metrics
 
 # Serve gateway (Epic 2, out of scope for Epic 1)
-cai serve [--port <port>] [--stdio]
+pml serve [--port <port>] [--stdio]
 # Starts MCP gateway server
 ```
 
@@ -276,7 +276,7 @@ export interface VectorSearchAPI {
 export interface DatabaseAPI {
   /**
    * Initialize PGlite database with pgvector
-   * @param dbPath - Database file path (default: ~/.cai/cai.db)
+   * @param dbPath - Database file path (default: ~/.pml/pml.db)
    */
   initialize(dbPath?: string): Promise<void>;
 
@@ -388,7 +388,7 @@ export interface MetricsAPI {
 export interface ConfigAPI {
   /**
    * Load configuration from YAML file
-   * @param path - Config file path (default: ~/.cai/config.yaml)
+   * @param path - Config file path (default: ~/.pml/config.yaml)
    * @returns Validated configuration object
    */
   load(path?: string): Promise<Config>;
@@ -421,7 +421,7 @@ export interface ConfigAPI {
 **Workflow 1: Initialization & Migration (Story 1.7)**
 
 ```
-User runs: cai init
+User runs: pml init
     |
     v
 1. Detect claude_desktop_config.json path (OS-specific)
@@ -433,10 +433,10 @@ User runs: cai init
 2. Parse existing mcp.json → extract MCP server configs
     |
     v
-3. Generate ~/.cai/config.yaml with migrated servers
+3. Generate ~/.pml/config.yaml with migrated servers
     |
     v
-4. Initialize PGlite database (~/.cai/cai.db)
+4. Initialize PGlite database (~/.pml/pml.db)
     - Run migrations (create tables + indexes)
     |
     v
@@ -455,7 +455,7 @@ User runs: cai init
     - Servers discovered: X
     - Tools indexed: Y
     - Embeddings generated: Y
-    - Config path: ~/.cai/config.yaml
+    - Config path: ~/.pml/config.yaml
     |
     v
 9. Print instructions for updating mcp.json to point to Casys PML
@@ -611,7 +611,7 @@ Throughout all workflows:
     v
 3. Log destination:
     - Console: INFO level (colorized)
-    - File: ~/.cai/logs/cai.log (all levels, JSON format)
+    - File: ~/.pml/logs/pml.log (all levels, JSON format)
     |
     v
 4. Metrics storage:
@@ -710,12 +710,12 @@ Total query-to-schema latency: <200ms
 | **MCP server isolation**        | Each MCP server runs in separate subprocess (stdio isolation)                  | 1.3      |
 | **Input validation**            | All CLI args validated via cliffy, MCP responses validated against JSON Schema | 1.7, 1.3 |
 | **SQL injection prevention**    | Parameterized queries only (PGlite prepared statements)                        | 1.2      |
-| **Filesystem access control**   | Limited to `~/.cai/` directory for database/logs/config                 | 1.2, 1.8 |
+| **Filesystem access control**   | Limited to `~/.pml/` directory for database/logs/config                 | 1.2, 1.8 |
 
 **Security Implementation Details:**
 
 - **Deno Security Model (Story 1.1):**
-  - Explicit permissions required: `--allow-read=~/.cai`, `--allow-net` (for model download
+  - Explicit permissions required: `--allow-read=~/.pml`, `--allow-net` (for model download
     only)
   - No `eval()` or `Function()` constructor usage
   - Import map restrictions: Only trusted npm packages via Deno's npm: prefix
@@ -741,7 +741,7 @@ Total query-to-schema latency: <200ms
 | Threat                     | Mitigation                                           | Priority |
 | -------------------------- | ---------------------------------------------------- | -------- |
 | Malicious MCP server       | Schema validation, subprocess isolation              | High     |
-| Path traversal attack      | Restrict filesystem access to ~/.cai/         | Medium   |
+| Path traversal attack      | Restrict filesystem access to ~/.pml/         | Medium   |
 | Memory exhaustion          | Model size limits, HNSW index size monitoring        | Medium   |
 | Dependency vulnerabilities | Deno's built-in security audit, minimal dependencies | High     |
 | SQL injection              | Parameterized queries only                           | High     |
@@ -783,7 +783,7 @@ Total query-to-schema latency: <200ms
     await db.migrate();
   } catch (error) {
     if (error.code === "EACCES") {
-      throw new DBInitError("Permission denied. Check ~/.cai/ permissions.");
+      throw new DBInitError("Permission denied. Check ~/.pml/ permissions.");
     } else if (error.code === "ENOSPC") {
       throw new DBInitError("Insufficient disk space. Require 1GB free.");
     } else {
@@ -810,8 +810,8 @@ Total query-to-schema latency: <200ms
 **Recovery Mechanisms:**
 
 - **Database Recovery (Story 1.2):**
-  - Automatic backup: Create `cai.db.backup` on first successful init
-  - Manual recovery: `cai init --restore-backup` command
+  - Automatic backup: Create `pml.db.backup` on first successful init
+  - Manual recovery: `pml init --restore-backup` command
   - Migration rollback: Track migration version, rollback on failure
 
 - **Configuration Recovery (Story 1.7):**
@@ -919,7 +919,7 @@ await metrics.record("mcp_servers_failed", failedServers.length);
   - User-friendly messages (not JSON)
 
 - **File Output (ALL levels):**
-  - Location: `~/.cai/logs/cai.log`
+  - Location: `~/.pml/logs/pml.log`
   - Format: JSON (one line per entry)
   - Rotation: Daily, keep last 7 days, max 100MB total
   - Example:
@@ -949,13 +949,13 @@ await metrics.record("mcp_servers_failed", failedServers.length);
 
 - **Debug Mode:**
   ```bash
-  cai init --log-level=debug
+  pml init --log-level=debug
   # Prints detailed info: SQL queries, embedding vectors, HTTP requests
   ```
 
 - **Queryable Metrics:**
   ```bash
-  cai status --metrics
+  pml status --metrics
   # Shows:
   # - Average context usage (last 24h)
   # - P95 query latency
@@ -1013,7 +1013,7 @@ Expected addition in Epic 2:
 | **Claude Desktop Config** | Read-only                | JSON file read (~/.config/Claude/claude_desktop_config.json) | 1.7           |
 | **PGlite Database**       | Internal                 | SQL queries (parameterized)                                  | 1.2           |
 | **BGE Model Cache**       | HuggingFace Hub          | HTTP download (first time only)                              | 1.4           |
-| **Filesystem**            | Read/Write               | Deno file APIs (~/.cai/ directory)                    | 1.2, 1.7, 1.8 |
+| **Filesystem**            | Read/Write               | Deno file APIs (~/.pml/ directory)                    | 1.2, 1.7, 1.8 |
 
 **External System Dependencies:**
 
@@ -1064,7 +1064,7 @@ the authoritative definition of "done" for this epic.
 
 **Story 1.2: PGlite Database Foundation with pgvector**
 
-1. PGlite database initialization dans `~/.cai/.cai.db`
+1. PGlite database initialization dans `~/.pml/.pml.db`
 2. pgvector extension loaded et operational
 3. Database schema créé avec tables: tool_embedding, tool_schema, config
 4. Vector index HNSW créé sur tool_embedding.embedding avec pgvector
@@ -1112,15 +1112,15 @@ the authoritative definition of "done" for this epic.
 6. Cache hit pour frequently used tools (évite reloading)
 7. Performance: Total query-to-schema latency <200ms P95
 
-**Story 1.7: Migration Tool (`cai init`)**
+**Story 1.7: Migration Tool (`pml init`)**
 
-1. CLI command `cai init` implemented
+1. CLI command `pml init` implemented
 2. Detection automatique du claude_desktop_config.json path (OS-specific)
 3. Parsing du mcp.json existant et extraction des MCP servers
-4. Generation de `~/.cai/config.yaml` avec servers migrés
+4. Generation de `~/.pml/config.yaml` avec servers migrés
 5. Embeddings generation triggered automatiquement post-migration
 6. Console output avec instructions pour éditer mcp.json
-7. Template affiché pour nouvelle config mcp.json (juste cai gateway)
+7. Template affiché pour nouvelle config mcp.json (juste pml gateway)
 8. Rollback capability si erreur durant migration
 9. Dry-run mode (`--dry-run`) pour preview changes
 
@@ -1128,7 +1128,7 @@ the authoritative definition of "done" for this epic.
 
 1. Structured logging avec std/log (Deno standard library)
 2. Log levels: error, warn, info, debug
-3. Log output: console + file (`~/.cai/logs/cai.log`)
+3. Log output: console + file (`~/.pml/logs/pml.log`)
 4. Telemetry table dans PGlite: `metrics` (timestamp, metric_name, value)
 5. Metrics tracked: context_usage_pct, query_latency_ms, tools_loaded_count
 6. Opt-in consent prompt au premier launch (telemetry disabled by default)
@@ -1183,7 +1183,7 @@ component(s), and test verification strategy.
 | 1.6     | 5     | Before/after comparison                 | Observability (Metrics: context_usage_pct)                              | src/telemetry/metrics.ts                      | Integration test: Log metrics, verify comparison logged              |
 | 1.6     | 6     | Cache hit optimization                  | Performance (Context Budget Management)                                 | src/vector/search.ts                          | Unit test: Repeat query, verify cache behavior                       |
 | 1.6     | 7     | <200ms P95 latency                      | Performance (Query-to-Schema Latency)                                   | tests/benchmark/context_optimization_bench.ts | Benchmark test: End-to-end P95 measurement                           |
-| **1.7** | **1** | **cai init command**             | **APIs (CLI Commands), Workflows (Workflow 1)**                         | **src/cli/commands/init.ts**                  | **Integration test: Run CLI, verify command executes**               |
+| **1.7** | **1** | **pml init command**             | **APIs (CLI Commands), Workflows (Workflow 1)**                         | **src/cli/commands/init.ts**                  | **Integration test: Run CLI, verify command executes**               |
 | 1.7     | 2     | Auto-detect config path                 | Workflows (Workflow 1, step 1)                                          | src/cli/commands/init.ts                      | Unit test: Mock OS, verify correct path detection                    |
 | 1.7     | 3     | Parse mcp.json                          | Workflows (Workflow 1, step 2)                                          | src/config/loader.ts                          | Unit test: Sample mcp.json, verify parsing                           |
 | 1.7     | 4     | Generate config.yaml                    | APIs (ConfigAPI.save), Workflows (Workflow 1, step 3)                   | src/config/loader.ts                          | Integration test: Parse + generate, verify YAML output               |

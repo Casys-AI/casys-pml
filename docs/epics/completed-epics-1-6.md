@@ -51,7 +51,7 @@ embeddings vectoriels et perform semantic search efficiently.
 
 **Acceptance Criteria:**
 
-1. PGlite database initialization dans `~/.cai/.cai.db`
+1. PGlite database initialization dans `~/.pml/.pml.db`
 2. pgvector extension loaded et operational
 3. Database schema créé avec tables:
    - `tool_embedding` (tool_id, embedding vector(1024), metadata)
@@ -142,20 +142,20 @@ that my context window is not saturated by unused tool schemas.
 
 ---
 
-**Story 1.7: Migration Tool (`cai init`)**
+**Story 1.7: Migration Tool (`pml init`)**
 
 As a power user with existing MCP configuration, I want to migrate my mcp.json configuration to
 Casys PML automatically, So that I don't have to manually reconfigure everything.
 
 **Acceptance Criteria:**
 
-1. CLI command `cai init` implemented
+1. CLI command `pml init` implemented
 2. Detection automatique du claude_desktop_config.json path (OS-specific)
 3. Parsing du mcp.json existant et extraction des MCP servers
-4. Generation de `~/.cai/config.yaml` avec servers migrés
+4. Generation de `~/.pml/config.yaml` avec servers migrés
 5. Embeddings generation triggered automatiquement post-migration
 6. Console output avec instructions pour éditer mcp.json
-7. Template affiché pour nouvelle config mcp.json (juste cai gateway)
+7. Template affiché pour nouvelle config mcp.json (juste pml gateway)
 8. Rollback capability si erreur durant migration
 9. Dry-run mode (`--dry-run`) pour preview changes
 
@@ -172,7 +172,7 @@ et measure success metrics (context usage, latency).
 
 1. Structured logging avec std/log (Deno standard library)
 2. Log levels: error, warn, info, debug
-3. Log output: console + file (`~/.cai/logs/cai.log`)
+3. Log output: console + file (`~/.pml/logs/pml.log`)
 4. Telemetry table dans PGlite: `metrics` (timestamp, metric_name, value)
 5. Metrics tracked: context_usage_pct, query_latency_ms, tools_loaded_count
 6. Opt-in consent prompt au premier launch (telemetry disabled by default)
@@ -334,7 +334,7 @@ which servers are down or misconfigured.
 3. Health status tracking: healthy, degraded, down
 4. Console warnings pour servers unavailable
 5. Automatic retry logic (3 attempts) avant marking server down
-6. Health status API: `cai status` CLI command
+6. Health status API: `pml status` CLI command
 7. Logs structured avec server_id, status, last_check timestamp
 
 **Prerequisites:** Story 2.4 (gateway integration)
@@ -467,7 +467,7 @@ I don't lose progress if something fails or I need to stop.
 5. Partial result preservation: completed tasks results cached
 6. Task idempotency verification: detect if task already completed before retry
 7. Checkpoint cleanup: auto-delete checkpoints >7 days old
-8. CLI command: `cai resume <workflow_id>`
+8. CLI command: `pml resume <workflow_id>`
 9. Error handling: corrupt checkpoint → fallback to nearest valid checkpoint
 10. Integration test: Workflow fails mid-execution → resume → completes successfully
 
@@ -610,7 +610,7 @@ executor en système de **speculative resilience**.
 
 > Architectural issue: breaks AIL, redundant with 3.4 DAG + code_execution
 
-**Story 3.4: `cai:execute_code` MCP Tool** ✅
+**Story 3.4: `pml:execute_code` MCP Tool** ✅
 
 **Story 3.5: Safe-to-Fail Branches & Resilient Workflows** ✅
 

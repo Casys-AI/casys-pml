@@ -35,7 +35,7 @@ all sensitive operations. This is fundamentally different from Node.js's implici
 5. [Permission Inheritance](#permission-inheritance)
 6. [Runtime Permission Checks](#runtime-permission-checks)
 7. [Permission Prompts](#permission-prompts)
-8. [Best Practices for Casys PML](#best-practices-for-cai)
+8. [Best Practices for Casys PML](#best-practices-for-pml)
 9. [Security Patterns](#security-patterns)
 10. [Common Pitfalls](#common-pitfalls)
 11. [Performance Considerations](#performance-considerations)
@@ -677,7 +677,7 @@ const permissions = [
 --allow-read=/home/user
 
 // ✅ GOOD: Narrow permission
---allow-read=/home/user/.cai/temp/abc123.ts
+--allow-read=/home/user/.pml/temp/abc123.ts
 ```
 
 ---

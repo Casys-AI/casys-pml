@@ -55,7 +55,7 @@ channel.onmessage = (event) => {
 | **SQL Migrations** | Custom runner (`src/db/migrations.ts`)      | Tool index, GraphRAG, episodic memory, telemetry    |
 | **Vector Search**  | pgvector HNSW (`vector_cosine_ops`, `m=16`) | `tool_embedding`, `workflow_pattern`                |
 | **Deno KV**        | `Deno.openKv()` singleton                   | OAuth sessions, pending states, future secret cache |
-| **Database Path**  | `.cai.db` (prod) / `.cai-dev.db` (dev)      | Configurable via `PML_DB_PATH` env var              |
+| **Database Path**  | `.pml.db` (prod) / `.pml-dev.db` (dev)      | Configurable via `PML_DB_PATH` env var              |
 
 See `docs/architecture/data-architecture.md` for the exhaustive schema.
 
@@ -140,7 +140,7 @@ class MCPMultiplexer {
 
 | Variable               | Default   | Description                       |
 | ---------------------- | --------- | --------------------------------- |
-| `PML_DB_PATH`          | `.cai.db` | Database path                     |
+| `PML_DB_PATH`          | `.pml.db` | Database path                     |
 | `PML_API_KEY`          | -         | API key for cloud mode MCP access |
 | `GITHUB_CLIENT_ID`     | -         | Enables cloud mode when set       |
 | `GITHUB_CLIENT_SECRET` | -         | GitHub OAuth secret               |

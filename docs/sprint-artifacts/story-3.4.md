@@ -1,4 +1,4 @@
-# Story 3.4: `cai:execute_code` MCP Tool
+# Story 3.4: `pml:execute_code` MCP Tool
 
 **Epic:** 3 - Agent Code Execution & Local Processing **Story ID:** 3.4 **Status:** done **Estimated
 Effort:** 6-8 heures
@@ -17,7 +17,7 @@ code execution with checkpoint/rollback support.
 
 ### Core Tool Implementation
 
-1. ✅ New MCP tool registered: `cai:execute_code`
+1. ✅ New MCP tool registered: `pml:execute_code`
 2. ✅ Input schema: `{ code: string, intent?: string, context?: object, sandbox_config?: object }`
 3. ✅ Intent-based mode: vector search → inject relevant tools → execute code
 4. ✅ Explicit mode: Execute provided code with specified context
@@ -50,11 +50,11 @@ code execution with checkpoint/rollback support.
 ### Phase 1: MCP Tool Registration (1-2h)
 
 - [x] **Task 1: Define tool schema and register in gateway** (AC: #1, #2, #5, #7)
-  - [x] Créer schema JSON pour `cai:execute_code`
+  - [x] Créer schema JSON pour `pml:execute_code`
   - [x] Input: `{ code: string, intent?: string, context?: object, sandbox_config?: object }`
   - [x] Output: `{ result: unknown, logs: string[], metrics: object, state?: object }`
   - [x] Modifier `src/mcp/gateway-server.ts`
-  - [x] Ajouter `cai:execute_code` dans `list_tools` response
+  - [x] Ajouter `pml:execute_code` dans `list_tools` response
   - [x] Créer handler `handleExecuteCode()` dans gateway
   - [x] Router tool call vers sandbox executor
 
@@ -103,7 +103,7 @@ code execution with checkpoint/rollback support.
 
 ```json
 {
-  "name": "cai:execute_code",
+  "name": "pml:execute_code",
   "description": "Execute TypeScript code in secure sandbox with access to MCP tools. Process large datasets locally before returning results to save context tokens.",
   "inputSchema": {
     "type": "object",
@@ -205,7 +205,7 @@ for await (const event of executor.executeStream(dag)) {
 
 ```typescript
 // Claude calls tool directly (not via DAG)
-await mcp.callTool("cai:execute_code", {
+await mcp.callTool("pml:execute_code", {
   intent: "Analyze GitHub commits from last week",
   code: `
     const commits = await github.listCommits({ repo: "anthropics/claude", limit: 1000 });
@@ -311,7 +311,7 @@ class ControlledExecutor extends ParallelExecutor {
 async listTools() {
   return [
     {
-      name: "cai:execute_code",
+      name: "pml:execute_code",
       description: "Execute TypeScript code in secure sandbox with access to MCP tools. Integrates with DAG workflows for hybrid orchestration.",
       inputSchema: {
         type: "object",
@@ -503,7 +503,7 @@ Code execution tasks are **idempotent** and **isolated**:
 
 **Sandbox Isolation:**
 - Code runs in isolated Deno subprocess (Story 3.1)
-- Limited permissions (only `~/.cai` read access)
+- Limited permissions (only `~/.pml` read access)
 - No network access from sandbox
 
 **Input Validation:**
@@ -536,7 +536,7 @@ Code execution tasks are **idempotent** and **isolated**:
 
 ### Context Reference
 
-- `docs/stories/3-4-cai-execute-code-mcp-tool.context.xml` (Generated: 2025-11-20)
+- `docs/stories/3-4-pml-execute-code-mcp-tool.context.xml` (Generated: 2025-11-20)
 
 ### Agent Model Used
 

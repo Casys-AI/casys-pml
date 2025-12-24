@@ -95,7 +95,7 @@ finalScore = α × semanticScore + (1-α) × graphScore
 ```typescript
 // API
 {
-  "name": "cai:search_tools",
+  "name": "pml:search_tools",
   "arguments": {
     "query": "take a screenshot",
     "limit": 5,
@@ -257,7 +257,7 @@ templates:
 curl -X POST http://localhost:8080/message \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{
-    "name":"cai:search_tools",
+    "name":"pml:search_tools",
     "arguments":{"query":"screenshot","limit":5}
   }}'
 ```

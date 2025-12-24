@@ -103,7 +103,7 @@ await kv.atomic()
          │                                      │
          │ SQLite (auto)                        │ PGlite file
          ▼                                      ▼
-    ./data/cache.db                      ./data/cai.db
+    ./data/cache.db                      ./data/pml.db
 ```
 
 ### Use Cases

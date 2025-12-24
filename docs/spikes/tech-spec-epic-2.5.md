@@ -730,7 +730,7 @@ Updated DAG:
 - ✅ **Requirement:** All events logged with structured context
 - ✅ **Format:** JSON logs with `{ timestamp, level, event_type, workflow_id, context }`
 - ✅ **Levels:** ERROR (task failures), WARN (degradation), INFO (events), DEBUG (internals)
-- ✅ **Destination:** File (`~/.cai/logs/`) + Console (development)
+- ✅ **Destination:** File (`~/.pml/logs/`) + Console (development)
 
 **NFR-O3: State Snapshots (High)**
 

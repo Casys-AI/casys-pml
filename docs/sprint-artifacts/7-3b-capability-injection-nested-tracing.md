@@ -845,7 +845,7 @@ export class CapabilityExecutor {
 
 ```typescript
 // src/sandbox/sandbox-worker.ts - Alternative to __workerTraces array
-const traceChannel = new BroadcastChannel("cai-traces");
+const traceChannel = new BroadcastChannel("pml-traces");
 
 function __trace(event: Partial<TraceEvent>): void {
   const fullEvent: TraceEvent = {
@@ -868,7 +868,7 @@ export class WorkerBridge {
   private traceChannel: BroadcastChannel;
 
   constructor(/* ... */) {
-    this.traceChannel = new BroadcastChannel("cai-traces");
+    this.traceChannel = new BroadcastChannel("pml-traces");
     this.traceChannel.onmessage = (e) => {
       this.traces.push(e.data as TraceEvent);
     };

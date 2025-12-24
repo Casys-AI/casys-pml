@@ -157,7 +157,7 @@ logger.debug("Vector search query", { query, results });
 **Log Destinations:**
 
 - Console: INFO level (colorized for terminal)
-- File: `~/.cai/logs/cai.log` (all levels, rotated daily)
+- File: `~/.pml/logs/pml.log` (all levels, rotated daily)
 
 ## Cross-Cutting Patterns
 
@@ -177,7 +177,7 @@ logger.debug("Vector search query", { query, results });
 
 ```typescript
 // Single source of truth
-const config = await loadConfig("~/.cai/config.yaml");
+const config = await loadConfig("~/.pml/config.yaml");
 // Pass explicitly, no global state
 ```
 

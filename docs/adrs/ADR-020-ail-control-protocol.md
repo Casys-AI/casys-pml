@@ -171,7 +171,7 @@ const controlTools: MCPTool[] = [
 
 ```typescript
 // execute with per-layer validation
-const response = await cai.execute({
+const response = await pml.execute({
   intent: "Analyze codebase for security issues",
   config: { per_layer_validation: true }  // ← Enable AIL
 });

@@ -2088,7 +2088,7 @@ const executor = new ControlledExecutor(
 **Recommendation:** B for Phase 2 (not MVP)
 
 - MVP: Internal use only
-- Phase 2: Add CLI command `cai memory query --workflow-id=abc`
+- Phase 2: Add CLI command `pml memory query --workflow-id=abc`
 - Use case: Debugging why speculation failed, analytics dashboard
 
 **Impact:** Low (nice-to-have feature)
@@ -2151,7 +2151,7 @@ const executor = new ControlledExecutor(
 **Recommendation:** Yes (Phase 2)
 
 - MVP: System-managed only
-- Phase 2: CLI flag `cai config set threshold.workflow_type=0.75`
+- Phase 2: CLI flag `pml config set threshold.workflow_type=0.75`
 - Use case: User prefers more aggressive speculation for specific workflows
 
 **Impact:** Medium (user control vs automation)

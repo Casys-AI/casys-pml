@@ -492,8 +492,9 @@ car le DAG est connu - on pré-exécute, on ne prédit pas.
 | 12.4 | Real Speculative Execution | FR4, FR7, FR11 | 3j |
 | 12.5 | Speculation Cache & Validation | FR10 | 2j |
 | 12.6 | Per-Layer Speculation | FR8 | 2j |
+| 12.7 | Argument-Aware Learning | (ext FR2) | 2-3j |
 
-**Total Epic 12: ~11.5 jours**
+**Total Epic 12: ~14 jours**
 
 **Dependencies:**
 ```
@@ -504,6 +505,66 @@ Epic 11.2 (execution_trace) ─────────────┘          
 
 Note: Story 10.5 est CRITIQUE - sans WorkerBridge, pas de traçabilité des exécutions spéculatives.
 ```
+
+---
+
+### Story 12.7: Argument-Aware Learning
+
+**As a** learning system,
+**I want** to learn from argument patterns in execution traces,
+**So that** SHGAT can predict success/failure based on argument types and values.
+
+**FRs covered:** (extension de FR2)
+**NFRs addressed:** NFR5 (JSON-serializable)
+
+**Context utilisé:** `initialContext` + `taskResults[].args`
+
+**Ce qu'on apprend:**
+- "Quand args.path = *.json → 90% succès"
+- "Quand args.channel = #prod → plus de risque d'échec"
+- Patterns d'arguments qui influencent le succès
+
+**Acceptance Criteria:**
+
+**Given** execution traces with `taskResults[].args` stored
+**When** extracting argument features
+**Then** `ArgumentPattern` is computed for each trace
+**And** patterns are stored for learning
+
+**Given** a set of traces with argument patterns
+**When** training SHGAT
+**Then** argument features influence the training
+**And** SHGAT can predict better based on arg types
+
+**Given** a new execution with similar arguments to past successes
+**When** SHGAT scores capabilities
+**Then** score is boosted by argument pattern match
+
+**Dépendances:**
+- Story 12.1 (Context Initialization) - stocke `initial_context`
+- Story 12.2 (Argument Resolver) - résout les args
+
+**Files to create:**
+- `src/graphrag/learning/argument-features.ts` (~100 LOC)
+
+**Files to modify:**
+- `src/graphrag/learning/per-training.ts` - Integrate argument features
+- `src/graphrag/algorithms/shgat.ts` - Accept argument features in training
+
+**Implementation notes:**
+```typescript
+interface ArgumentPattern {
+  hasFilePath: boolean;       // args contient un path
+  fileExtension?: string;     // .json, .xml, .txt
+  hasChannelRef: boolean;     // args contient un channel
+  argCount: number;           // nombre d'arguments
+}
+
+// Feature engineering sur les args pour enrichir le training
+function extractArgumentFeatures(args: Record<string, JsonValue>): ArgumentPattern
+```
+
+**Estimation:** 2-3 jours
 
 ---
 

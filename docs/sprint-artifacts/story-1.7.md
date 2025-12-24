@@ -1,4 +1,4 @@
-# Story 1.7: Migration Tool (`cai init`)
+# Story 1.7: Migration Tool (`pml init`)
 
 **Epic:** 1 - Project Foundation & Context Optimization Engine **Story ID:** 1.7 **Status:** review
 **Estimated Effort:** 4-5 hours
@@ -14,13 +14,13 @@ to Casys PML automatically, **So that** I don't have to manually reconfigure eve
 
 ## Acceptance Criteria
 
-1. CLI command `cai init` implemented
+1. CLI command `pml init` implemented
 2. Detection automatique du claude_desktop_config.json path (OS-specific)
 3. Parsing du mcp.json existant et extraction des MCP servers
-4. Generation de `~/.cai/config.yaml` avec servers migrés
+4. Generation de `~/.pml/config.yaml` avec servers migrés
 5. Embeddings generation triggered automatiquement post-migration
 6. Console output avec instructions pour éditer mcp.json
-7. Template affiché pour nouvelle config mcp.json (juste cai gateway)
+7. Template affiché pour nouvelle config mcp.json (juste pml gateway)
 8. Rollback capability si erreur durant migration
 9. Dry-run mode (`--dry-run`) pour preview changes
 
@@ -160,7 +160,7 @@ class ConfigMigrator {
 
       // 3. Generate Casys PML config
       const agentCardsConfig = await generateCasys PMLConfig(mcpConfig);
-      const configDir = `${Deno.env.get("HOME")}/.cai`;
+      const configDir = `${Deno.env.get("HOME")}/.pml`;
       await Deno.mkdir(configDir, { recursive: true });
       await Deno.writeTextFile(
         `${configDir}/config.yaml`,
@@ -191,8 +191,8 @@ class ConfigMigrator {
     console.log(JSON.stringify(
       {
         mcpServers: {
-          cai: {
-            command: "cai",
+          pml: {
+            command: "pml",
             args: ["serve"],
           },
         },
@@ -206,7 +206,7 @@ class ConfigMigrator {
   private async rollback(): Promise<void> {
     console.log("🔄 Rolling back migration...");
     // Remove generated config and database
-    const configDir = `${Deno.env.get("HOME")}/.cai`;
+    const configDir = `${Deno.env.get("HOME")}/.pml`;
     try {
       await Deno.remove(configDir, { recursive: true });
       console.log("✓ Rollback complete");
@@ -236,7 +236,7 @@ async previewMigration(configPath?: string): Promise<void> {
   });
 
   console.log(`\n  Casys PML config will be created at:`);
-  console.log(`    ~/.cai/config.yaml`);
+  console.log(`    ~/.pml/config.yaml`);
 
   console.log(`\n  Run without --dry-run to apply migration`);
 }
@@ -247,7 +247,7 @@ async previewMigration(configPath?: string): Promise<void> {
 ## Definition of Done
 
 - [ ] All acceptance criteria met
-- [ ] `cai init` command working
+- [ ] `pml init` command working
 - [ ] Auto-detection of MCP config on macOS, Linux, Windows
 - [ ] Config migration successful with all server configs
 - [ ] Embeddings automatically generated post-migration
@@ -285,7 +285,7 @@ async previewMigration(configPath?: string): Promise<void> {
 
 ### Context Reference
 
-- docs/stories/1-7-migration-tool-cai-init.context.xml
+- docs/stories/1-7-migration-tool-pml-init.context.xml
 
 ### Debug Log
 
@@ -303,7 +303,7 @@ async previewMigration(configPath?: string): Promise<void> {
 
 Successfully implemented complete migration tool with all acceptance criteria met:
 
-- ✅ CLI command `cai init` working with Cliffy framework
+- ✅ CLI command `pml init` working with Cliffy framework
 - ✅ Auto-detection of MCP config path (macOS, Linux, Windows)
 - ✅ Parsing and normalization of Claude mcp.json format (reused existing MCPServerDiscovery)
 - ✅ Generation of Casys PML config.yaml
@@ -397,13 +397,13 @@ L'implémentation est de qualité production avec:
 
 | AC      | Description                                                    | Status             | Evidence                                                                                                                                                                                                                                                                                                                                       |
 | ------- | -------------------------------------------------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **AC1** | CLI command `cai init` implemented                      | ✅ **IMPLEMENTED** | [src/cli/commands/init.ts:20-46](src/cli/commands/init.ts#L20-L46) createInitCommand() avec Cliffy<br/>[src/main.ts:67](src/main.ts#L67) Command registered `.command("init", createInitCommand())`<br/>**Test:** Integration test "CLI command registration" ✅                                                                               |
+| **AC1** | CLI command `pml init` implemented                      | ✅ **IMPLEMENTED** | [src/cli/commands/init.ts:20-46](src/cli/commands/init.ts#L20-L46) createInitCommand() avec Cliffy<br/>[src/main.ts:67](src/main.ts#L67) Command registered `.command("init", createInitCommand())`<br/>**Test:** Integration test "CLI command registration" ✅                                                                               |
 | **AC2** | Detection automatique claude_desktop_config.json (OS-specific) | ✅ **IMPLEMENTED** | [src/cli/utils.ts:20-47](src/cli/utils.ts#L20-L47) detectMCPConfigPath() handles:<br/>• macOS: ~/Library/Application Support/Claude/ (line 30)<br/>• Linux: ~/.config/Claude/ (line 36)<br/>• Windows: %APPDATA%\Claude\ (line 42)<br/>**Test:** "detectMCPConfigPath - returns OS-specific path" ✅                                           |
 | **AC3** | Parsing mcp.json + extraction MCP servers                      | ✅ **IMPLEMENTED** | [src/cli/config-migrator.ts:83-84](src/cli/config-migrator.ts#L83-L84) Uses MCPServerDiscovery.loadConfig()<br/>Story context confirms normalizeConfig() converts Claude format → Casys PML format<br/>**Test:** ConfigMigrator tests with sample config ✅                                                                                   |
-| **AC4** | Generation ~/.cai/config.yaml                           | ✅ **IMPLEMENTED** | [src/cli/config-migrator.ts:100-125](src/cli/config-migrator.ts#L100-L125) Complete workflow:<br/>• Creates config dir (line 105)<br/>• Writes YAML (line 123)<br/>• Cleans undefined values (lines 109-121)<br/>**Test:** Preview test shows correct path ✅                                                                                  |
+| **AC4** | Generation ~/.pml/config.yaml                           | ✅ **IMPLEMENTED** | [src/cli/config-migrator.ts:100-125](src/cli/config-migrator.ts#L100-L125) Complete workflow:<br/>• Creates config dir (line 105)<br/>• Writes YAML (line 123)<br/>• Cleans undefined values (lines 109-121)<br/>**Test:** Preview test shows correct path ✅                                                                                  |
 | **AC5** | Embeddings generation triggered automatiquement                | ✅ **IMPLEMENTED** | [src/cli/config-migrator.ts:139-145](src/cli/config-migrator.ts#L139-L145) Automatic trigger:<br/>• Line 142: `const model = new EmbeddingModel()`<br/>• Line 143: `await generateEmbeddings(db, model)`<br/>• Reuses existing service from vector/embeddings.ts                                                                               |
 | **AC6** | Console output avec instructions                               | ✅ **IMPLEMENTED** | [src/cli/config-migrator.ts](src/cli/config-migrator.ts) Multiple console logs:<br/>• Line 68: "🔄 Starting migration..."<br/>• Line 73: "✓ Found MCP config"<br/>• Line 128: "🔍 Discovering..."<br/>• Line 148: "✅ Migration complete!"<br/>**Test:** Integration test validates output ✅                                                  |
-| **AC7** | Template nouveau config mcp.json (gateway)                     | ✅ **IMPLEMENTED** | [src/cli/config-migrator.ts:242-260](src/cli/config-migrator.ts#L242-L260) displayNewMCPConfig():<br/>• Lines 246-253: Template JSON with cai command<br/>• Line 257: "💡 Casys PML now acts as gateway..."<br/>• Format: `{ mcpServers: { cai: { command: "cai", args: ["serve"] } } }`                                 |
+| **AC7** | Template nouveau config mcp.json (gateway)                     | ✅ **IMPLEMENTED** | [src/cli/config-migrator.ts:242-260](src/cli/config-migrator.ts#L242-L260) displayNewMCPConfig():<br/>• Lines 246-253: Template JSON with pml command<br/>• Line 257: "💡 Casys PML now acts as gateway..."<br/>• Format: `{ mcpServers: { pml: { command: "pml", args: ["serve"] } } }`                                 |
 | **AC8** | Rollback capability on error                                   | ✅ **IMPLEMENTED** | [src/cli/config-migrator.ts:265-279](src/cli/config-migrator.ts#L265-L279) rollback() method:<br/>• Line 167: Called on error<br/>• Line 271: Removes directory recursively<br/>• Lines 274-277: Handles NotFound error gracefully<br/>**Test:** Error handling test validates rollback ✅                                                     |
 | **AC9** | Dry-run mode --dry-run                                         | ✅ **IMPLEMENTED** | [src/cli/commands/init.ts:24-27](src/cli/commands/init.ts#L24-L27) Option declared<br/>[src/cli/config-migrator.ts:183-237](src/cli/config-migrator.ts#L183-L237) previewMigration():<br/>• Line 64: if (dryRun) branch<br/>• Lines 202-215: Display preview without file changes<br/>**Test:** "Full dry-run workflow" + "dry-run preview" ✅ |
 
@@ -468,8 +468,8 @@ L'implémentation est de qualité production avec:
 **Architecture Doc Compliance:**
 
 - ✅ CLI commands location: src/cli/commands/init.ts (architecture.md:65)
-- ✅ Config location: ~/.cai/config.yaml (architecture.md:125)
-- ✅ Database location: ~/.cai/.cai.db (architecture.md:126)
+- ✅ Config location: ~/.pml/config.yaml (architecture.md:125)
+- ✅ Database location: ~/.pml/.pml.db (architecture.md:126)
 - ✅ Project structure matches specification exactly
 
 **Service Reuse (Critical Constraint):**

@@ -17,7 +17,7 @@ Casys PML is designed as a **local-first** tool with no cloud dependencies for t
 │                                   │                                 │
 │                          ┌────────▼────────┐                       │
 │                          │    PGlite DB    │                       │
-│                          │ ~/.cai/  │                       │
+│                          │ ~/.pml/  │                       │
 │                          └─────────────────┘                       │
 │                                                                     │
 │  ┌─────────────────────────────────────────────────────────────┐   │
@@ -36,11 +36,11 @@ Casys PML is designed as a **local-first** tool with no cloud dependencies for t
 
 ```bash
 # Installation via deno install
-deno install -Agf -n cai jsr:@cai/cli
+deno install -Agf -n pml jsr:@pml/cli
 
 # Direct usage
-cai init     # MCP config migration
-cai serve    # Start gateway
+pml init     # MCP config migration
+pml serve    # Start gateway
 ```
 
 **Characteristics:**
@@ -113,11 +113,11 @@ CMD ["deno", "run", "-A", "src/main.ts", "serve"]
 ## Runtime File Structure
 
 ```
-~/.cai/                    # User data directory
+~/.pml/                    # User data directory
 ├── config.yaml                   # User configuration
-├── cai.db                 # PGlite database (single file)
+├── pml.db                 # PGlite database (single file)
 ├── logs/
-│   └── cai.log            # Application logs (rotated)
+│   └── pml.log            # Application logs (rotated)
 ├── cache/
 │   ├── embeddings/               # Cached model weights
 │   └── results/                  # Execution result cache
@@ -239,20 +239,20 @@ Future: Shared PGlite via S3/GCS + PGlite-sync
 ### Option 1: JSR Package
 
 ```bash
-deno install -Agf jsr:@cai/cli
+deno install -Agf jsr:@pml/cli
 ```
 
 ### Option 2: Homebrew
 
 ```bash
-brew tap casys-ai/cai
-brew install cai
+brew tap casys-ai/pml
+brew install pml
 ```
 
 ### Option 3: npm (via deno compile)
 
 ```bash
-npx @cai/cli serve
+npx @pml/cli serve
 ```
 
 ### Option 4: Deno Deploy (Edge)

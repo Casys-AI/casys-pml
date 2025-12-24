@@ -74,7 +74,7 @@
       {
         "type": "naming",
         "severity": "low",
-        "description": "CLI name 'cai' should be renamed to 'pml'",
+        "description": "CLI name 'pml' should be renamed to 'pml'",
         "files": ["src/main.ts", "deno.json"]
       }
     ]

@@ -508,18 +508,18 @@ function ticked() {
 
 Le dashboard DOIT recevoir les updates en temps réel via BroadcastChannel (pas juste SSE polling).
 
-**Channel:** `"cai-events"` (EventBus unifié - voir `src/events/event-bus.ts`)
+**Channel:** `"pml-events"` (EventBus unifié - voir `src/events/event-bus.ts`)
 
-> ⚠️ **Tech Debt:** Le channel s'appelle encore `"cai-events"` (legacy CAI naming).
+> ⚠️ **Tech Debt:** Le channel s'appelle encore `"pml-events"` (legacy PML naming).
 > Migration vers `"pml-events"` à faire dans une story séparée (impact: EventBus, sandbox-worker, worker-bridge, tous les listeners).
-> Pour Story 8.3: utiliser le nom actuel `"cai-events"`.
+> Pour Story 8.3: utiliser le nom actuel `"pml-events"`.
 
 ```typescript
 // In D3GraphVisualization.tsx - Setup BroadcastChannel
 useEffect(() => {
   // BroadcastChannel for real-time updates (ADR-036)
   // Channel name from src/events/event-bus.ts:20
-  const channel = new BroadcastChannel("cai-events");
+  const channel = new BroadcastChannel("pml-events");
 
   channel.onmessage = (event: MessageEvent) => {
     const { type, payload } = event.data;
@@ -901,7 +901,7 @@ N/A
 |----------|-------|-------------|
 | **HIGH** | API `/api/graph/hypergraph` missing `capability_zones` in response | Added `capability_zones: result.capabilityZones \|\| []` to gateway response |
 | **MEDIUM** | API missing `parents[]` array for tool nodes | Added `parents: node.data.parents` to tool node mapping |
-| **MEDIUM** | BroadcastChannel name mismatch (`casys-pml-events` vs `cai-events`) | Changed to `cai-events` to match EventBus |
+| **MEDIUM** | BroadcastChannel name mismatch (`casys-pml-events` vs `pml-events`) | Changed to `pml-events` to match EventBus |
 | **LOW** | Export JSON missing capability zones | Added capabilityZones to JSON export in hypergraph mode |
 
 ### Verification

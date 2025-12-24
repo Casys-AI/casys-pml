@@ -7,9 +7,9 @@ Validation)
 
 Pour les MCP control tools (Story 2.5-4), un agent externe (Claude Code) doit pouvoir:
 
-1. Appeler `cai:execute` avec `per_layer_validation: true`
+1. Appeler `pml:execute` avec `per_layer_validation: true`
 2. Recevoir `{ status: "layer_complete", workflow_id: "..." }`
-3. Appeler `cai:continue(workflow_id)` pour continuer
+3. Appeler `pml:continue(workflow_id)` pour continuer
 
 **Problème découvert:** Le `Checkpoint` actuel ne sauvegarde PAS le DAG original!
 

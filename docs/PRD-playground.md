@@ -50,10 +50,10 @@ métriques réelles. La gateway supporte stdio et HTTP pour différents cas d'us
 
 - **FR001:** Le playground doit s'exécuter dans un GitHub Codespace avec une configuration
   devcontainer prête à l'emploi
-- **FR002:** L'initialisation doit supporter la commande `cai init` pour configurer
+- **FR002:** L'initialisation doit supporter la commande `pml init` pour configurer
   automatiquement la gateway
-- **FR003:** La gateway doit pouvoir démarrer en mode stdio (`cai serve`) ou HTTP
-  (`cai serve --port 3000`)
+- **FR003:** La gateway doit pouvoir démarrer en mode stdio (`pml serve`) ou HTTP
+  (`pml serve --port 3000`)
 
 **Multi-LLM Support**
 
@@ -96,7 +96,7 @@ métriques réelles. La gateway supporte stdio et HTTP pour différents cas d'us
   - Pattern récurrent GraphRAG (séquence apprise)
   - DAG multi-niveaux (dépendances entre niveaux)
 - **FR017:** Le notebook GraphRAG doit démontrer le chargement de workflow templates via
-  `cai workflows sync`
+  `pml workflows sync`
 
 **Progression & Checkpoints**
 
@@ -271,4 +271,4 @@ métriques réelles. La gateway supporte stdio et HTTP pour différents cas d'us
 **Inclus mais pas documenté en détail:**
 
 - **Workflow Templates (5.2)** - Le notebook GraphRAG montrera comment définir des templates YAML et
-  les charger via `cai workflows sync`
+  les charger via `pml workflows sync`

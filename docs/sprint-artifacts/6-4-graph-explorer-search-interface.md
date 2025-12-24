@@ -326,12 +326,12 @@ const exportGraphData = (format: "json" | "graphml") => {
   if (format === "json") {
     const data = cyRef.current.json();
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    downloadBlob(blob, `cai-graph-${new Date().toISOString()}.json`);
+    downloadBlob(blob, `pml-graph-${new Date().toISOString()}.json`);
   } else {
     // GraphML format
     const graphml = generateGraphML(cyRef.current);
     const blob = new Blob([graphml], { type: "application/xml" });
-    downloadBlob(blob, `cai-graph-${new Date().toISOString()}.graphml`);
+    downloadBlob(blob, `pml-graph-${new Date().toISOString()}.graphml`);
   }
 };
 
@@ -762,7 +762,7 @@ const SERVER_COLORS: Record<string, string> = {
   "sequential-thinking": "#f59e0b",  // amber
   playwright: "#ef4444",    // red
   tavily: "#06b6d4",        // cyan
-  cai: "#ec4899",    // pink
+  pml: "#ec4899",    // pink
   serena: "#84cc16",        // lime
 };
 

@@ -16,7 +16,7 @@ debug issues et measure success metrics (context usage, latency).
 
 1. Structured logging avec std/log (Deno standard library)
 2. Log levels: error, warn, info, debug
-3. Log output: console + file (`~/.cai/logs/cai.log`)
+3. Log output: console + file (`~/.pml/logs/pml.log`)
 4. Telemetry table dans PGlite: `metrics` (timestamp, metric_name, value)
 5. Metrics tracked: context_usage_pct, query_latency_ms, tools_loaded_count
 6. Opt-in consent prompt au premier launch (telemetry disabled by default)
@@ -47,7 +47,7 @@ await log.setup({
     }),
 
     file: new log.handlers.FileHandler("INFO", {
-      filename: `${Deno.env.get("HOME")}/.cai/logs/cai.log`,
+      filename: `${Deno.env.get("HOME")}/.pml/logs/pml.log`,
       formatter: (record) => {
         return JSON.stringify({
           level: record.levelName,
@@ -126,7 +126,7 @@ class TelemetryService {
   private loadTelemetryPreference(): boolean {
     try {
       const config = Deno.readTextFileSync(
-        `${Deno.env.get("HOME")}/.cai/config.yaml`,
+        `${Deno.env.get("HOME")}/.pml/config.yaml`,
       );
       const parsed = YAML.parse(config);
       return parsed.telemetry?.enabled ?? false;
@@ -155,7 +155,7 @@ class TelemetryService {
   }
 
   private async saveTelemetryPreference(enabled: boolean): Promise<void> {
-    const configPath = `${Deno.env.get("HOME")}/.cai/config.yaml`;
+    const configPath = `${Deno.env.get("HOME")}/.pml/config.yaml`;
     const config = YAML.parse(await Deno.readTextFile(configPath));
     config.telemetry = { enabled };
     await Deno.writeTextFile(configPath, YAML.stringify(config));
@@ -201,7 +201,7 @@ await telemetry.track("mcp_server_health", 0.93, {
 ```typescript
 // Main CLI entry point
 const cli = new Command()
-  .name("cai")
+  .name("pml")
   .version("1.0.0")
   .description("Casys PML - MCP Context Optimizer & Parallel Gateway")
   .globalOption("--telemetry", "Enable telemetry (opt-in)")
@@ -302,13 +302,13 @@ const cli = new Command()
    - Console and file handlers with JSON formatting
    - 4 log levels: error, warn, info, debug
    - Log rotation at 10MB per file
-   - Output to ~/.cai/logs/cai.log
+   - Output to ~/.pml/logs/pml.log
    - Specific loggers for mcp, vector modules
 
 2. **Telemetry Service** (AC4-AC6)
    - Opt-in telemetry (disabled by default)
    - First-run consent prompt
-   - Config stored in ~/.cai/config.yaml
+   - Config stored in ~/.pml/config.yaml
    - Metrics table schema with migration
    - TelemetryService class with track(), promptConsent(), setEnabled()
 
@@ -458,7 +458,7 @@ manquant pour les flags CLI.
 | ------- | ------------------------------------ | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **AC1** | Structured logging avec std/log      | ✅ **IMPLEMENTED** | [logger.ts:10](src/telemetry/logger.ts#L10) import @std/log<br/>[logger.ts:96-137](src/telemetry/logger.ts#L96-L137) Complete setup with ConsoleHandler + FileHandler<br/>**Test:** [logger_test.ts:11-27](tests/unit/telemetry/logger_test.ts#L11-L27) ✅ Passing                                                                                                                                                          |
 | **AC2** | Log levels: error, warn, info, debug | ✅ **IMPLEMENTED** | [logger.ts:158-163](src/telemetry/logger.ts#L158-L163) All 4 levels exported<br/>[logger.ts:98-104, 106-116](src/telemetry/logger.ts#L98-L116) Handlers configured<br/>**Test:** [logger_test.ts:29-46](tests/unit/telemetry/logger_test.ts#L29-L46) ✅ Passing                                                                                                                                                             |
-| **AC3** | Log output: console + file           | ✅ **IMPLEMENTED** | [logger.ts:98-104](src/telemetry/logger.ts#L98-L104) ConsoleHandler with formatter<br/>[logger.ts:106-116](src/telemetry/logger.ts#L106-L116) RotatingFileHandler with JSON formatter<br/>[logger.ts:20](src/telemetry/logger.ts#L20) Path: `~/.cai/logs/cai.log`<br/>**Test:** [logger_test.ts:48-78](tests/unit/telemetry/logger_test.ts#L48-L78) ✅ Passing                                                |
+| **AC3** | Log output: console + file           | ✅ **IMPLEMENTED** | [logger.ts:98-104](src/telemetry/logger.ts#L98-L104) ConsoleHandler with formatter<br/>[logger.ts:106-116](src/telemetry/logger.ts#L106-L116) RotatingFileHandler with JSON formatter<br/>[logger.ts:20](src/telemetry/logger.ts#L20) Path: `~/.pml/logs/pml.log`<br/>**Test:** [logger_test.ts:48-78](tests/unit/telemetry/logger_test.ts#L48-L78) ✅ Passing                                                |
 | **AC4** | Telemetry table `metrics`            | ✅ **IMPLEMENTED** | [migrations.ts:290-296](src/db/migrations.ts#L290-L296) `CREATE TABLE IF NOT EXISTS metrics` with correct schema<br/>[migrations.ts:299-300](src/db/migrations.ts#L299-L300) Index `idx_metrics_name_timestamp`<br/>**Test:** [telemetry-service_test.ts:24-50](tests/unit/telemetry/telemetry-service_test.ts#L24-L50) ✅ Passing                                                                                          |
 | **AC5** | Metrics tracked: 3 required          | ✅ **IMPLEMENTED** | [telemetry.ts:68-85](src/telemetry/telemetry.ts#L68-L85) `track()` method implementation<br/>**Test:** [telemetry-service_test.ts:111-145](tests/unit/telemetry/telemetry-service_test.ts#L111-L145) All 3 metrics validated:<br/>• context_usage_pct ✅<br/>• query_latency_ms ✅<br/>• tools_loaded_count ✅                                                                                                              |
 | **AC6** | Opt-in consent (disabled by default) | ✅ **IMPLEMENTED** | [telemetry.ts:29, 36](src/telemetry/telemetry.ts#L29) `enabled: boolean = false` default<br/>[telemetry.ts:92-112](src/telemetry/telemetry.ts#L92-L112) `loadTelemetryPreference()` defaults to false<br/>[telemetry.ts:120-137](src/telemetry/telemetry.ts#L120-L137) `promptConsent()` for first-run<br/>**Test:** [telemetry-service_test.ts:82-109](tests/unit/telemetry/telemetry-service_test.ts#L82-L109) ✅ Passing |
@@ -528,8 +528,8 @@ Dev Agent Record → Completion Notes.
 
 **Architecture Doc Compliance:**
 
-- ✅ Config location: `~/.cai/config.yaml` (correct)
-- ✅ Log location: `~/.cai/logs/cai.log` (correct)
+- ✅ Config location: `~/.pml/config.yaml` (correct)
+- ✅ Log location: `~/.pml/logs/pml.log` (correct)
 - ✅ Metrics table schema matches spec
 - ✅ Index on `(metric_name, timestamp DESC)` (correct)
 - ✅ Privacy-first: all data local, no network calls
@@ -560,7 +560,7 @@ Dev Agent Record → Completion Notes.
 **Data Protection:**
 
 - ✅ Default telemetry: **DISABLED** (opt-in only)
-- ✅ Config persistence secure (YAML in ~/.cai/)
+- ✅ Config persistence secure (YAML in ~/.pml/)
 - ✅ No sensitive data collected:
   - ❌ User queries NOT tracked
   - ❌ Tool schemas NOT tracked
@@ -639,7 +639,7 @@ Dev Agent Record → Completion Notes.
 - Note: 2 integration tests are ignored by design (file I/O timing with @std/log FileHandler async
   writes). This is acceptable and documented.
 - Note: Consider adding config file permissions check in future enhancement (ensure
-  ~/.cai/config.yaml is 600)
+  ~/.pml/config.yaml is 600)
 - Note: TelemetryService.promptConsent() exists and works, but no integration test due to requiring
   user interaction mock - acceptable for MVP
 

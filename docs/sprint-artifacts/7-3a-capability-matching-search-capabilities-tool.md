@@ -34,7 +34,7 @@ Claude intent → CapabilityMatcher.findMatch() → MATCH → Execute cached cod
 ### Missing Components
 
 1. **CapabilityMatcher** - Intelligent matching with adaptive thresholds
-2. **MCP Tool** - `cai:search_capabilities` exposed to Claude
+2. **MCP Tool** - `pml:search_capabilities` exposed to Claude
 3. **Feedback Loop** - Track match outcomes to improve thresholds (FP/FN auto-adjustment)
 
 ### Impact
@@ -157,7 +157,7 @@ adaptiveThresholds.recordExecution({
 ### AC4: MCP Tool search_capabilities Exposed
 
 - [x] Tool registered in `GatewayServer.listTools()`
-- [x] Tool name: `cai:search_capabilities` (existing naming convention with colon)
+- [x] Tool name: `pml:search_capabilities` (existing naming convention with colon)
 - [x] Input schema (from epic: "Pas de threshold en param"):
   ```json
   {
@@ -253,7 +253,7 @@ adaptiveThresholds.recordExecution({
 - [x] **Task 2: Expose MCP tool** (AC: #4, #5)
 
   - [x] 2.1 Add tool schema in `gateway-server.ts`
-  - [x] 2.2 Implement tool handler for `cai:search_capabilities`
+  - [x] 2.2 Implement tool handler for `pml:search_capabilities`
   - [x] 2.3 Wire CapabilityMatcher to gateway (via DAGSuggester)
   - [x] 2.4 Wire CapabilityMatcher in serve.ts runtime init
 
@@ -300,7 +300,7 @@ adaptiveThresholds.recordExecution({
 
 3. **MCP Tool Naming Convention**: Use colons (existing pattern)
 
-   - `cai:search_capabilities` ✅
+   - `pml:search_capabilities` ✅
    - `cai_search_capabilities` ❌
 
 4. **Feedback Loop Critical**: Without recordExecution, thresholds never adapt!
@@ -377,7 +377,7 @@ getThresholds(): { explicitThreshold?: number; suggestionThreshold?: number } {
 ```typescript
 // In listTools(), add:
 {
-  name: "cai:search_capabilities",
+  name: "pml:search_capabilities",
   description: "Search for existing learned capabilities matching your intent",
   inputSchema: { /* ... */ },
 }

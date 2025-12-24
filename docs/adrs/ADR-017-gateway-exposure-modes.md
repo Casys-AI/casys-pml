@@ -349,7 +349,7 @@ full_proxy:
 Start with transparent proxy to minimize disruption:
 
 ```yaml
-# ~/.cai/config.yaml
+# ~/.pml/config.yaml
 gateway:
   tools_exposure: "full_proxy"
 ```
@@ -468,7 +468,7 @@ async handleListTools(request: ListToolsRequest): Promise<ListToolsResult> {
 ### Default Configuration
 
 ```yaml
-# ~/.cai/config.yaml (default)
+# ~/.pml/config.yaml (default)
 gateway:
   tools_exposure: "meta_only" # ADR-013 preserved as default
 ```
@@ -522,7 +522,7 @@ Users opt-in to hybrid/full_proxy as needed.
 1. **Smart Defaults:**
    - meta_only default (ADR-013 preserved)
    - Presets with clear names (migration, balanced, advanced)
-   - CLI wizard: `cai config --wizard`
+   - CLI wizard: `pml config --wizard`
 
 2. **Documentation:**
    - Decision tree: "Which mode is right for me?"
@@ -550,7 +550,7 @@ Users opt-in to hybrid/full_proxy as needed.
 
 - Create `config/gateway-presets.yaml`
 - Add config validation (Zod schema)
-- CLI: `cai config --preset hybrid_balanced`
+- CLI: `pml config --preset hybrid_balanced`
 
 **Day 4-5: Testing & Documentation**
 
@@ -571,7 +571,7 @@ Users opt-in to hybrid/full_proxy as needed.
 
 **UX Improvements:**
 
-- CLI wizard: `cai config --wizard`
+- CLI wizard: `pml config --wizard`
 - Config validation warnings
 - Performance dashboard (context usage real-time)
 

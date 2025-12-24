@@ -217,7 +217,7 @@ const resilientWorkflow: DAGStructure = {
     {
       id: "fetch",
       tool: "github:list_commits",
-      arguments: { repo: "cai", limit: 1000 },
+      arguments: { repo: "pml", limit: 1000 },
       depends_on: [],
       side_effects: true, // MCP task - has external side effects
     },
@@ -331,7 +331,7 @@ Speculative execution becomes aggressive and safe
 
 ## Prerequisites
 
-- **Story 3.4**: `cai:execute_code` tool functional
+- **Story 3.4**: `pml:execute_code` tool functional
 - **Epic 2**: DAG executor with parallel execution
 - **Epic 2**: Speculative execution capability
 

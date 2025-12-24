@@ -13,13 +13,13 @@ patterns in action immediately**.
    - Parallélisation pure (3 outils indépendants)
    - Pattern récurrent (séquence filesystem → memory)
    - DAG multi-niveaux (dépendances entre niveaux)
-2. Format compatible avec `cai workflows sync`
+2. Format compatible avec `pml workflows sync`
 3. Commentaires expliquant chaque workflow
 
 ## Tasks / Subtasks
 
 - [x] Task 1: Analyze workflow template format (AC: #2)
-  - [x] Review `cai workflows sync` command implementation
+  - [x] Review `pml workflows sync` command implementation
   - [x] Identify required YAML schema fields (name, description, nodes, edges)
   - [x] Document workflow template structure with examples
 
@@ -37,7 +37,7 @@ patterns in action immediately**.
   - [x] Provide GraphRAG learning context for each pattern
 
 - [x] Task 4: Validate compatibility (AC: #2)
-  - [x] Test YAML can be parsed by `cai workflows sync`
+  - [x] Test YAML can be parsed by `pml workflows sync`
   - [x] Verify all referenced MCP tools exist in Story 1.2 config
   - [x] Confirm workflow structure matches expected format
   - [x] Run basic integration test with workflow sync command
@@ -55,7 +55,7 @@ patterns in action immediately**.
 
 **From Epics (Story 1.3):**
 
-- Format compatible with `cai workflows sync` command
+- Format compatible with `pml workflows sync` command
 - At least 3 workflows covering different execution patterns
 - Inline comments explaining each workflow's purpose
 
@@ -127,7 +127,7 @@ Story 1.2 successfully configured 3 MCP servers Tier 1 for the playground:
 **Technical Dependencies:**
 
 - Story 1.2 completion ensures all referenced MCP tools are available
-- `cai workflows sync` command implementation (Story 5.2) defines YAML format
+- `pml workflows sync` command implementation (Story 5.2) defines YAML format
 - GraphRAG engine (Epic 5) will consume these templates for bootstrap
 
 [Source: stories/1-2-mcp-servers-configuration.md#Completion-Notes] [Source:
@@ -140,7 +140,7 @@ stories/1-2-mcp-servers-configuration.md#File-List]
 1. YAML syntax validation (using YAML parser)
 2. Schema validation (verify all required fields present)
 3. Tool reference validation (all tools exist in mcp-servers.json)
-4. Integration test with `cai workflows sync` (dry-run mode)
+4. Integration test with `pml workflows sync` (dry-run mode)
 5. GraphRAG bootstrap verification (templates loaded into graph)
 
 **Test Workflows:**
@@ -206,13 +206,13 @@ Comprehensive analysis reveals:
 
 **2025-12-01 - Bonus: Configurable Database Path (ADR-021)**
 
-During story implementation, discovered that Codespace environments don't persist `~/.cai/`
+During story implementation, discovered that Codespace environments don't persist `~/.pml/`
 directory between sessions. This would cause workflow templates to be lost on Codespace restart.
 
 **Solution Implemented:**
 
 - Added `CAI_DB_PATH` environment variable support
-- Allows custom database path (e.g., `/workspaces/Casys PML/.cai.db` for Codespaces)
+- Allows custom database path (e.g., `/workspaces/Casys PML/.pml.db` for Codespaces)
 - Zero breaking changes (default behavior unchanged)
 - 2 new unit tests added and passing
 
@@ -232,10 +232,10 @@ directory between sessions. This would cause workflow templates to be lost on Co
 
 ```bash
 # Codespace (persistent)
-CAI_DB_PATH=/workspaces/Casys PML/.cai.db deno task cli workflows sync
+CAI_DB_PATH=/workspaces/Casys PML/.pml.db deno task cli workflows sync
 
 # Default (unchanged)
-deno task cli workflows sync  # Uses ~/.cai/.cai.db
+deno task cli workflows sync  # Uses ~/.pml/.pml.db
 ```
 
 This enhancement improves playground UX and will be leveraged by Story 1.5 (Idempotent Init Helper).
@@ -254,7 +254,7 @@ workflows demonstrating GraphRAG patterns.
    - `document_to_knowledge_graph`: Sequential filesystem → memory pipeline
    - `multi_file_knowledge_extraction`: Complex multi-level DAG with fan-out → parallel → fan-in
 
-2. ✅ **AC #2 Satisfied**: Format fully compatible with `cai workflows sync`:
+2. ✅ **AC #2 Satisfied**: Format fully compatible with `pml workflows sync`:
    - Validated against WorkflowLoader interface (13 unit tests passing)
    - Successfully synced to database: 3 workflows → 13 edges created/updated
    - All tool IDs use correct format (serverId:toolName)
@@ -276,7 +276,7 @@ workflows demonstrating GraphRAG patterns.
 **Testing:**
 
 - 13 unit tests created and passing (100% coverage of ACs)
-- Integration test with `cai workflows sync` successful
+- Integration test with `pml workflows sync` successful
 - YAML parsing validation confirmed
 - Tool reference validation against MCP config verified
 
@@ -325,7 +325,7 @@ workflows demonstrating GraphRAG patterns.
 - ✅ Implemented multi-level DAG pattern (fan-out → parallel → fan-in)
 - ✅ Added comprehensive documentation (100+ comment lines)
 - ✅ Created 13 unit tests validating all acceptance criteria
-- ✅ Validated compatibility with `cai workflows sync` command
+- ✅ Validated compatibility with `pml workflows sync` command
 - ✅ **BONUS**: Added configurable DB path via `CAI_DB_PATH` env var (ADR-021)
 - ✅ All tests passing (13 workflow tests + 2 DB path tests), all ACs satisfied
 - Status: ready-for-dev → in-progress → review
@@ -370,7 +370,7 @@ Cette story définit un standard d'excellence pour les futures stories du projet
 | AC#  | Description                                          | Status         | Evidence                                                                                                                                               |
 | ---- | ---------------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | AC#1 | 3+ workflows (parallel, sequential, multi-level DAG) | ✅ IMPLEMENTED | `playground/config/workflow-templates.yaml:56` (parallel_file_analysis), `:85` (document_to_knowledge_graph), `:130` (multi_file_knowledge_extraction) |
-| AC#2 | Format compatible avec `cai workflows sync`   | ✅ IMPLEMENTED | Tests passing (13/13), integration test successful, edges synced to DB                                                                                 |
+| AC#2 | Format compatible avec `pml workflows sync`   | ✅ IMPLEMENTED | Tests passing (13/13), integration test successful, edges synced to DB                                                                                 |
 | AC#3 | Commentaires expliquant chaque workflow              | ✅ IMPLEMENTED | 100+ comment lines, pedagogical approach with keywords (parallel, sequential, dag, graphrag) all present                                               |
 
 **Summary:** **3 of 3** acceptance criteria fully implemented ✅
@@ -380,7 +380,7 @@ Cette story définit un standard d'excellence pour les futures stories du projet
 | Task                                              | Marked As   | Verified As | Evidence                                                                            |
 | ------------------------------------------------- | ----------- | ----------- | ----------------------------------------------------------------------------------- |
 | Task 1: Analyze workflow template format          | ✅ Complete | ✅ VERIFIED | Debug notes lines 154-180 show comprehensive analysis with schema documentation     |
-| Task 1.1: Review `cai workflows sync`      | ✅ Complete | ✅ VERIFIED | Context references WorkflowLoader analysis                                          |
+| Task 1.1: Review `pml workflows sync`      | ✅ Complete | ✅ VERIFIED | Context references WorkflowLoader analysis                                          |
 | Task 1.2: Identify required YAML schema           | ✅ Complete | ✅ VERIFIED | Schema documented: `workflows` array, `name`, `steps` OR `edges` mutually exclusive |
 | Task 1.3: Document workflow template structure    | ✅ Complete | ✅ VERIFIED | Complete structure documentation in debug notes                                     |
 | Task 2: Create workflow templates file            | ✅ Complete | ✅ VERIFIED | File exists at `playground/config/workflow-templates.yaml`                          |

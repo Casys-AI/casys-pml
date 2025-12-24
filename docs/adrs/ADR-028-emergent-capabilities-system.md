@@ -1164,7 +1164,7 @@ Pour les longues tâches, streamer les events `progress` en temps réel via SSE.
 Permettre à l'utilisateur de créer des capabilities manuellement:
 
 ```typescript
-await cai.create_capability({
+await pml.create_capability({
   name: "weekly-report",
   intent: "Generate weekly activity report",
   code: `const commits = await github.listCommits(...); ...`,

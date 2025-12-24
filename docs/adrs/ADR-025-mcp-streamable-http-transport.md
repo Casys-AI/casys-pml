@@ -48,7 +48,7 @@ to the same server instance running the dashboard.
   "result": {
     "protocolVersion": "2024-11-05",
     "capabilities": { "tools": { "listChanged": true } },
-    "serverInfo": { "name": "cai", "version": "1.0.0" }
+    "serverInfo": { "name": "pml", "version": "1.0.0" }
   }
 }
 ```
@@ -65,7 +65,7 @@ Claude Code `.mcp.json`:
 ```json
 {
   "mcpServers": {
-    "cai": {
+    "pml": {
       "type": "http",
       "url": "http://localhost:3001/mcp"
     }

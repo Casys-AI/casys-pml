@@ -39,7 +39,7 @@ deno run --unstable-otel src/main.ts serve
 
 **Configuration via variables d'environnement:**
 ```bash
-OTEL_SERVICE_NAME=cai
+OTEL_SERVICE_NAME=pml
 OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
 OTEL_EXPORTER_OTLP_PROTOCOL=grpc  # ou http/protobuf
 OTEL_TRACES_SAMPLER=parentbased_traceidratio
@@ -113,7 +113,7 @@ services:
 // src/telemetry/otel.ts - wrapper pour spans custom
 import { trace } from "npm:@opentelemetry/api";
 
-const tracer = trace.getTracer("cai", "0.1.0");
+const tracer = trace.getTracer("pml", "0.1.0");
 
 export function withSpan<T>(
   name: string,

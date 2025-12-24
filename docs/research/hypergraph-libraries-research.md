@@ -375,7 +375,7 @@ async def match_capabilities(graph: CapabilityGraph):
 ```
 
 ```typescript
-// cai/src/hypergraph-client.ts
+// pml/src/hypergraph-client.ts
 export class HypergraphService {
   private baseUrl = 'http://localhost:8000';
 
@@ -842,7 +842,7 @@ async def health():
 ### Deno Client
 
 ```typescript
-// cai/src/lib/hypergraph/client.ts
+// pml/src/lib/hypergraph/client.ts
 
 export interface Capability {
   id: string;
@@ -942,7 +942,7 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```yaml
 # docker-compose.yml (add to Casys PML)
 services:
-  cai-hypergraph:
+  pml-hypergraph:
     build: ./hypergraph_service
     ports:
       - "8000:8000"

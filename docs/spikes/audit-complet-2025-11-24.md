@@ -436,7 +436,7 @@ Casys PMLError (base)
 
 ```bash
 --deny-write --deny-net --deny-run --deny-ffi
---allow-env --allow-read=~/.cai
+--allow-env --allow-read=~/.pml
 ```
 
 - Whitelist-only approach ✅

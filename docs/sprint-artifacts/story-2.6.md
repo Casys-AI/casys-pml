@@ -84,7 +84,7 @@ export class MCPServerError extends Casys PMLError {
       message,
       "MCP_SERVER_ERROR",
       true, // Recoverable - can continue with other servers
-      `Check server configuration for '${serverId}' or run 'cai status'`,
+      `Check server configuration for '${serverId}' or run 'pml status'`,
     );
   }
 }
@@ -144,7 +144,7 @@ export class ConfigurationError extends Casys PMLError {
       message,
       "CONFIGURATION_ERROR",
       false,
-      "Run 'cai init' to reconfigure",
+      "Run 'pml init' to reconfigure",
     );
   }
 }
@@ -209,7 +209,7 @@ export class ErrorHandler {
       });
 
       console.error(`❌ Unexpected error: ${error.message}`);
-      console.log(`💡 Please report this issue with logs from ~/.cai/logs/`);
+      console.log(`💡 Please report this issue with logs from ~/.pml/logs/`);
     }
   }
 

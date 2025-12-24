@@ -54,7 +54,7 @@ avec accès aux MCP tools via vector search.
 
 **Story 3.4:** Expose execute_code Tool
 
-- Exposer `cai:execute_code` via gateway MCP
+- Exposer `pml:execute_code` via gateway MCP
 - Intégration avec Claude Code
 - SSE streaming des résultats
 
@@ -62,7 +62,7 @@ avec accès aux MCP tools via vector search.
 
 ```typescript
 // Code généré par Claude, exécuté dans sandbox
-import { callTool, searchTools } from "cai";
+import { callTool, searchTools } from "pml";
 
 // Vector search pour trouver tools pertinents
 const tools = await searchTools("read file and parse JSON");
@@ -325,11 +325,11 @@ traces)
 
 ### Option 2: API Bridge via Module Import (Recommended)
 
-**Concept:** Fournir un module `cai` virtuel via import map ou dynamic import interception.
+**Concept:** Fournir un module `pml` virtuel via import map ou dynamic import interception.
 
 ```typescript
 // User code (in sandbox)
-import { callTool, searchTools } from "cai";
+import { callTool, searchTools } from "pml";
 
 const tools = await searchTools("read file");
 const result = await callTool(tools[0].name, { path: "/data/file.txt" });
@@ -338,7 +338,7 @@ const result = await callTool(tools[0].name, { path: "/data/file.txt" });
 **Implementation:** Message passing bridge
 
 ```typescript
-// cai-bridge.ts (injected in sandbox)
+// pml-bridge.ts (injected in sandbox)
 export async function searchTools(
   query: string,
   limit = 10,
@@ -447,11 +447,11 @@ worker.addEventListener("message", async (event) => {
 │  ┌──────────────────────────────┐  │
 │  │  User Code                   │  │
 │  │  import { searchTools }      │  │
-│  │  from "cai"           │  │
+│  │  from "pml"           │  │
 │  └──────────┬───────────────────┘  │
 │             │                       │
 │  ┌──────────▼───────────────────┐  │
-│  │  cai-bridge.ts        │  │
+│  │  pml-bridge.ts        │  │
 │  │  - searchTools()             │  │
 │  │  - callTool()                │  │
 │  │  (Message passing)           │  │
@@ -493,7 +493,7 @@ const sharedBuffer = new SharedArrayBuffer(1024 * 1024); // 1MB
 const sharedArray = new Int32Array(sharedBuffer);
 
 // Sandbox side
-import { searchTools } from "cai";
+import { searchTools } from "pml";
 
 const tools = await searchTools("read file");
 // → Writes query to sharedBuffer
@@ -520,7 +520,7 @@ const tools = await searchTools("read file");
 
 ```typescript
 // test-sandbox-vector-search.ts
-import { searchTools } from "cai";
+import { searchTools } from "pml";
 
 // Query vector search
 const tools = await searchTools("read file and parse JSON", 5);
@@ -594,7 +594,7 @@ Deno.test("POC: Vector search from sandbox via message passing", async () => {
   worker.postMessage({
     type: "execute_code",
     code: `
-      import { searchTools } from "cai";
+      import { searchTools } from "pml";
       const tools = await searchTools("read file", 2);
       postMessage({ type: "result", tools });
     `,
@@ -710,7 +710,7 @@ self.addEventListener("message", (event) => {
 
 ### 7.3 API Design
 
-**Module:** `cai` (virtual import)
+**Module:** `pml` (virtual import)
 
 ```typescript
 // Type definitions
@@ -890,7 +890,7 @@ async function logToolCall(log: AuditLog): Promise<void> {
 **Tasks:**
 
 1. **Create API Bridge Module** (4h)
-   - `src/sandbox/cai-bridge.ts`
+   - `src/sandbox/pml-bridge.ts`
    - `searchTools()` and `callTool()` implementations
    - Message passing infrastructure
    - Type definitions
@@ -903,7 +903,7 @@ async function logToolCall(log: AuditLog): Promise<void> {
 
 3. **Sandbox Executor Integration** (3h)
    - Modify `src/sandbox/executor.ts` (Story 3.1)
-   - Inject cai-bridge into worker context
+   - Inject pml-bridge into worker context
    - Setup message handlers
    - Resource management
 
@@ -926,7 +926,7 @@ async function logToolCall(log: AuditLog): Promise<void> {
 **Tasks:**
 
 1. **Gateway Integration** (3h)
-   - Add `cai:execute_code` tool to gateway
+   - Add `pml:execute_code` tool to gateway
    - Tool schema definition
    - Handler implementation
 
@@ -989,7 +989,7 @@ Story 3.6 (Caching & Optimization)
 
 ### Q1: Import Map vs Dynamic Import?
 
-**Question:** Comment fournir le module `cai` au sandbox?
+**Question:** Comment fournir le module `pml` au sandbox?
 
 **Options:**
 
@@ -998,7 +998,7 @@ Story 3.6 (Caching & Optimization)
 ```typescript
 const importMap = {
   imports: {
-    "cai": "./cai-bridge.ts",
+    "pml": "./pml-bridge.ts",
   },
 };
 
@@ -1013,8 +1013,8 @@ new Worker(url, {
 ```typescript
 // Inject at runtime via eval preamble
 const preamble = `
-import * as cai from "data:text/javascript,${encodedBridge}";
-globalThis.cai = cai;
+import * as pml from "data:text/javascript,${encodedBridge}";
+globalThis.pml = pml;
 `;
 ```
 
@@ -1079,7 +1079,7 @@ const results = await callToolsBatch([
 
 ✅ **Criterion 3:** TypeScript auto-completion fonctionne
 
-- Import: `import { searchTools } from "cai"`
+- Import: `import { searchTools } from "pml"`
 - IDE shows types, docs
 
 ### 12.2 Non-Functional Validation

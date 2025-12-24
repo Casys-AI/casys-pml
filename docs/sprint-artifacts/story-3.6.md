@@ -277,13 +277,13 @@ pii_protection:
 
 ```bash
 # Enable PII protection (default)
-./cai serve
+./pml serve
 
 # Disable PII protection (opt-out)
-./cai serve --no-pii-protection
+./pml serve --no-pii-protection
 
 # Environment variable
-CAI_NO_PII_PROTECTION=1 ./cai serve
+CAI_NO_PII_PROTECTION=1 ./pml serve
 ```
 
 ### Performance Considerations

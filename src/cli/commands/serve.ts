@@ -44,12 +44,12 @@ async function findConfigFile(configPath?: string): Promise<string> {
 
 Please specify your MCP servers config file using --config:
 
-  ${Deno.build.os === "windows" ? ">" : "$"} cai serve --port 3001 --config <path-to-config>
+  ${Deno.build.os === "windows" ? ">" : "$"} pml serve --port 3001 --config <path-to-config>
 
 Examples:
   • ./config/mcp-servers.json
   • ./playground/config/mcp-servers.json
-  • ~/.config/cai/mcp-servers.json
+  • ~/.config/pml/mcp-servers.json
 
 Need help creating a config? See: https://github.com/casys-ai/casys-pml#configuration`,
     );
@@ -176,8 +176,8 @@ function createToolExecutor(
  * Create serve command
  *
  * Usage:
- *   cai serve --config ./config/mcp-servers.json --port 3001
- *   cai serve --config ~/.config/cai/mcp-servers.json
+ *   pml serve --config ./config/mcp-servers.json --port 3001
+ *   pml serve --config ~/.config/pml/mcp-servers.json
  */
 export function createServeCommand() {
   return new Command()

@@ -216,7 +216,7 @@ Casys PML allows agents to write and execute TypeScript code locally in a secure
 
 ```typescript
 // 1. Enable code execution mode
-await mcp.callTool("cai:execute_code", {
+await mcp.callTool("pml:execute_code", {
   intent: "Analyze GitHub commits from last week",
   code: `
     const commits = await github.listCommits({ limit: 1000 });
@@ -274,7 +274,7 @@ const commits = await github.listCommits({ limit: 1000 });
 **After (Code execution):**
 
 ```typescript
-await cai.executeCode({
+await pml.executeCode({
   intent: "Get commit count",
   code: `
     const commits = await github.listCommits({ limit: 1000 });
@@ -291,7 +291,7 @@ await cai.executeCode({
 ```
 Deno Sandbox Permissions:
 ✅ --allow-env                 (Environment variables)
-✅ --allow-read=~/.cai  (Casys PML data only)
+✅ --allow-read=~/.pml  (Casys PML data only)
 ❌ --deny-write                (No write access)
 ❌ --deny-net                  (No network access)
 ❌ --deny-run                  (No subprocess spawning)

@@ -761,7 +761,7 @@ const result = await executeSandbox(tempFile);
 
 ```typescript
 // Error exposes host file system structure
-Error: Cannot read file: /home/cai/src/gateway/api-key.ts
+Error: Cannot read file: /home/pml/src/gateway/api-key.ts
 ```
 
 **Fix:**

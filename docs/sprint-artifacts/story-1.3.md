@@ -46,7 +46,7 @@ interface MCPServer {
 }
 
 async function discoverServers(configPath: string): Promise<MCPServer[]> {
-  // Read config file (e.g., ~/.cai/config.yaml)
+  // Read config file (e.g., ~/.pml/config.yaml)
   // Parse and validate server configurations
   // Return list of servers
 }
@@ -261,7 +261,7 @@ async function storeSchemas(
 
 **Configuration Sources:**
 
-- Supports ~/.cai/config.yaml (YAML format)
+- Supports ~/.pml/config.yaml (YAML format)
 - Supports Claude Code ~/.config/Claude/claude_desktop_config.json (JSON format)
 - Hardcoded timeout of 10s (could be configurable in future)
 

@@ -58,7 +58,7 @@
     "fmt": "deno fmt",
     "check": "deno check src/**/*.ts",
     "cli": "deno run --allow-all --unstable-worker-options src/main.ts",
-    "build": "deno compile --allow-all --output=cai src/main.ts",
+    "build": "deno compile --allow-all --output=pml src/main.ts",
     "mock:fs": "deno run --allow-all tests/mocks/filesystem-mock.ts",
     "mock:db": "deno run --allow-all tests/mocks/database-mock.ts",
     "mock:api": "deno run --allow-all tests/mocks/api-mock.ts",

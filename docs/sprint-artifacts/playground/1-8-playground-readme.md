@@ -63,7 +63,7 @@ what it does, why it exists, and how to start**.
 **From PRD-playground.md:**
 
 - FR001: Playground doit s'exécuter dans GitHub Codespace avec devcontainer
-- FR002: Init via `cai init`
+- FR002: Init via `pml init`
 - NFR001: Temps de setup < 5 minutes
 - NFR003: Documentation inline auto-explicative
 

@@ -75,7 +75,7 @@ interopérables :
   id: "fetch_data",
   tool: "github:list_commits",
   arguments: {
-    repo: "cai",
+    repo: "pml",
     limit: 1000
   },
   side_effects: true  // Explicit: external API call
