@@ -27,6 +27,7 @@ import { createPermissionInferenceMigration } from "./migrations/017_permission_
 import { createPermissionAuditLogMigration } from "./migrations/018_permission_audit_log.ts";
 import { createDbSchemaCleanupMigration } from "./migrations/019_db_schema_cleanup.ts";
 import { createExecutionTraceMigration } from "./migrations/020_execution_trace.ts";
+import { createCapabilityRecordsMigration } from "./migrations/021_capability_records.ts";
 
 /**
  * Migration definition
@@ -407,5 +408,6 @@ export function getAllMigrations(): Migration[] {
     createPermissionAuditLogMigration(), // Story 7.7c: HIL permission escalation audit log
     createDbSchemaCleanupMigration(), // Story 11.0: DB cleanup - drop workflow_dags, mcp_tool, mcp_server
     createExecutionTraceMigration(), // Story 11.2: Execution trace table (TD Error + PER)
+    createCapabilityRecordsMigration(), // Story 13.1: Capability records & aliases (Epic 13)
   ];
 }

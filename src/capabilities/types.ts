@@ -1,5 +1,8 @@
 /**
- * Type definitions for Capability Storage (Epic 7 - Story 7.2a)
+ * Type definitions for Capability Storage
+ *
+ * Epic 7 - Story 7.2a: Capability storage for learned code patterns
+ * Epic 13 - Story 13.1: FQDN registry with naming and aliases
  *
  * Capabilities are learned code patterns that can be matched and reused.
  * Eager learning: store on 1st successful execution, no wait for patterns.
@@ -712,6 +715,8 @@ export interface CapabilityNode {
     pagerank: number; // Hypergraph PageRank score (0-1)
     toolsUsed?: string[]; // Unique tools (deduplicated)
     toolInvocations?: CapabilityToolInvocation[]; // Full sequence with timestamps (for invocation mode)
+    /** Execution traces (Story 11.4) - included when includeTraces=true */
+    traces?: ExecutionTrace[];
   };
 }
 
@@ -886,4 +891,178 @@ export interface HypergraphResponseInternal {
     generatedAt: string;
     version: string;
   };
+}
+
+// ============================================
+// FQDN Types (Story 13.1)
+// ============================================
+
+/**
+ * Visibility levels for capability records (Epic 13)
+ *
+ * Controls access to capabilities:
+ * - private: Only visible to creator
+ * - project: Visible within same project
+ * - org: Visible within same organization
+ * - public: Visible to everyone
+ */
+export type CapabilityVisibility = "private" | "project" | "org" | "public";
+
+/**
+ * Routing mode for capability execution (Epic 13)
+ *
+ * - local: Execute in local sandbox (default)
+ * - cloud: Execute via cloud RPC
+ */
+export type CapabilityRouting = "local" | "cloud";
+
+/**
+ * Components of a Fully Qualified Domain Name for capabilities (Story 13.1)
+ *
+ * FQDN format: `<org>.<project>.<namespace>.<action>.<hash>`
+ *
+ * @example
+ * - `local.default.fs.read_json.a7f3` - Local dev capability
+ * - `acme.webapp.api.fetch_user.b8e2` - Organization capability
+ * - `marketplace.public.util.format_date.c9d1` - Public marketplace capability
+ */
+export interface FQDNComponents {
+  /** Organization identifier (e.g., "local", "acme", "marketplace") */
+  org: string;
+  /** Project identifier (e.g., "default", "webapp", "public") */
+  project: string;
+  /** Namespace grouping (e.g., "fs", "api", "util") - user-chosen, not enforced */
+  namespace: string;
+  /** Action name (e.g., "read_json", "fetch_user") */
+  action: string;
+  /** 4-char hex hash of code content for uniqueness */
+  hash: string;
+}
+
+/**
+ * Scope for capability name resolution (Story 13.1)
+ *
+ * Used to resolve short names within a specific org/project context.
+ *
+ * @example
+ * ```typescript
+ * const scope: Scope = { org: "acme", project: "webapp" };
+ * const resolved = await registry.resolveByName("my-reader", scope);
+ * // Returns: "acme.webapp.fs.read_json.a7f3"
+ * ```
+ */
+export interface Scope {
+  /** Organization identifier ("local" for self-hosted, org slug for cloud) */
+  org: string;
+  /** Project identifier */
+  project: string;
+}
+
+/**
+ * A named capability in the registry (Story 13.1)
+ *
+ * This is the registry record type stored in `capability_records` table.
+ * Different from `Capability` which is the workflow_pattern-based type.
+ *
+ * Architecture: Dual-table strategy
+ * - capability_records: FQDN registry, naming, visibility, provenance
+ * - workflow_pattern: Code, embeddings, execution stats
+ * - Future: Link via workflow_pattern_id FK
+ */
+export interface CapabilityRecord {
+  // Identity
+  /** FQDN primary key: <org>.<project>.<namespace>.<action>.<hash> */
+  id: string;
+  /** Free-format display name (user-chosen) */
+  displayName: string;
+  /** Organization */
+  org: string;
+  /** Project */
+  project: string;
+  /** Namespace grouping */
+  namespace: string;
+  /** Action name */
+  action: string;
+  /** 4-char hex hash of code_snippet */
+  hash: string;
+
+  // Provenance
+  /** Who created this record */
+  createdBy: string;
+  /** When created */
+  createdAt: Date;
+  /** Who last updated (null if never updated) */
+  updatedBy?: string;
+  /** When last updated (null if never updated) */
+  updatedAt?: Date;
+
+  // Versioning
+  /** Version number (increments on updates) */
+  version: number;
+  /** Optional semantic version tag (e.g., "1.0.0") */
+  versionTag?: string;
+
+  // Trust
+  /** Whether this capability is verified */
+  verified: boolean;
+  /** Optional cryptographic signature */
+  signature?: string;
+
+  // Metrics
+  /** Total number of times used */
+  usageCount: number;
+  /** Number of successful executions */
+  successCount: number;
+  /** Cumulative execution time in milliseconds */
+  totalLatencyMs: number;
+
+  // Metadata
+  /** Tags for categorization */
+  tags: string[];
+  /** Visibility level */
+  visibility: CapabilityVisibility;
+  /** The TypeScript code snippet */
+  codeSnippet?: string;
+  /** JSON Schema for parameters */
+  parametersSchema?: JSONSchema;
+  /** Description of what this capability does */
+  description?: string;
+  /** Tools used by this capability */
+  toolsUsed: string[];
+  /** Execution routing: local or cloud */
+  routing: CapabilityRouting;
+}
+
+/**
+ * Alias record for capability name resolution (Story 13.1)
+ *
+ * Stored in `capability_aliases` table with composite PK (org, project, alias).
+ * Used to support renames while maintaining backward compatibility.
+ */
+export interface CapabilityAlias {
+  /** The old/alternative name */
+  alias: string;
+  /** Organization scope */
+  org: string;
+  /** Project scope */
+  project: string;
+  /** Points to current FQDN (no alias chains) */
+  targetFqdn: string;
+  /** When alias was created */
+  createdAt: Date;
+}
+
+/**
+ * Result of alias resolution (Story 13.1)
+ *
+ * Includes both the record and whether it was resolved via alias.
+ * When isAlias=true, a deprecation warning should be logged.
+ */
+export interface AliasResolutionResult {
+  /** The resolved capability record */
+  record: CapabilityRecord;
+  /** Whether this was resolved via alias (deprecated name) */
+  isAlias: boolean;
+  /** The original alias used (only set if isAlias=true) */
+  usedAlias?: string;
 }

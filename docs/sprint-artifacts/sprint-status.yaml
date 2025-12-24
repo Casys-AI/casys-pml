@@ -219,7 +219,7 @@ development_status:
   11-3-td-error-per-priority: done # Code Review APPROVED 2025-12-23: 17 tests (12 unit + 5 E2E), all issues resolved
   11-4-definition-invocation-views: ready-for-dev # Story created 2025-12-23, toggle UI exists, needs API + wiring
   11-5-dry-run-mode: backlog
-  11-6-shgat-training-per-sampling: in-progress # Started 2025-12-24, PER sampling + SHGAT train
+  11-6-shgat-training-per-sampling: done # Code Review APPROVED 2025-12-24: 19 tests passing, AC8/AC9/AC10 tests added
   epic-11-retrospective: optional
 
   # Epic 12: Speculative Execution with Arguments
@@ -245,9 +245,9 @@ development_status:
   # Architecture: cap:* (management), meta:* (optional introspection), free naming for capabilities
   # No dns:* (confusing), no learn:* (redundant)
   # Depends on: Epic 7 (Emergent Capabilities), Epic 10 (pml_execute)
-  epic-13: backlog
+  epic-13: in-progress
   # Phase 1: Core MVP (~6 days)
-  13-1-schema-fqdn-aliases: backlog # FQDN structure, metadata, aliases (merged 13.1+13.2+part 13.7)
+  13-1-schema-fqdn-aliases: done # FQDN structure, metadata, aliases (merged 13.1+13.2+part 13.7) - Code Review APPROVED 2025-12-24, 66 tests
   13-2-pml-execute-naming-support: backlog # Name param + call by name (merged 13.3+13.4)
   13-3-capability-mcp-server-gateway: backlog # Virtual MCP + Gateway + notifications (merged 13.5+13.6+part 13.7)
   # Phase 2: Curation & Query (~5 days)
