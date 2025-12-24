@@ -409,6 +409,13 @@ export class SHGAT {
   // Gradient accumulator for fusion weights
   private fusionGradients: FusionWeights = { semantic: 0, structure: 0, temporal: 0 };
 
+  // Gradient accumulator for W_intent (reset each batch)
+  private W_intent_gradients: number[][] = [];
+
+  // Intent projection matrix: projects intent (1024) to propagated embedding space (numHeads * hiddenDim)
+  // This enables using message-passed embeddings for semantic similarity
+  private W_intent!: number[][];
+
   constructor(config: Partial<SHGATConfig> = {}) {
     this.config = { ...DEFAULT_SHGAT_CONFIG, ...config };
     this.initializeParameters();
@@ -449,6 +456,11 @@ export class SHGAT {
 
     // Initialize learnable fusion weights
     this.fusionWeights = { ...DEFAULT_FUSION_WEIGHTS };
+
+    // Initialize intent projection matrix: maps intent (1024) → propagated space (numHeads * hiddenDim)
+    // This enables semantic comparison in the message-passed embedding space
+    const propagatedDim = numHeads * hiddenDim;
+    this.W_intent = this.initMatrix(propagatedDim, embeddingDim);
   }
 
   private initTensor3D(d1: number, d2: number, d3: number): number[][][] {
@@ -474,6 +486,30 @@ export class SHGAT {
   private initVector(size: number): number[] {
     const scale = Math.sqrt(1.0 / size);
     return Array.from({ length: size }, () => (Math.random() - 0.5) * 2 * scale);
+  }
+
+  /**
+   * Project intent embedding to propagated embedding space
+   *
+   * Maps the 1024-dim intent (BGE-M3) to the numHeads*hiddenDim space
+   * so it can be compared with message-passed capability embeddings.
+   *
+   * @param intentEmbedding - Original intent embedding (1024-dim)
+   * @returns Projected intent in propagated space (numHeads*hiddenDim dim)
+   */
+  private projectIntent(intentEmbedding: number[]): number[] {
+    // W_intent: [propagatedDim][embeddingDim]
+    // result = W_intent @ intentEmbedding
+    const propagatedDim = this.W_intent.length;
+    const result = new Array(propagatedDim).fill(0);
+
+    for (let i = 0; i < propagatedDim; i++) {
+      for (let j = 0; j < intentEmbedding.length; j++) {
+        result[i] += this.W_intent[i][j] * intentEmbedding[j];
+      }
+    }
+
+    return result;
   }
 
   // ==========================================================================
@@ -917,20 +953,25 @@ export class SHGAT {
     _contextToolEmbeddings?: number[][], // DEPRECATED - kept for API compat, ignored
     _contextCapabilityIds?: string[], // DEPRECATED - kept for API compat, ignored
   ): AttentionResult[] {
-    // Run forward pass to warm up cache (we use original embeddings for scoring, not E)
-    this.forward();
+    // Run forward pass to get propagated embeddings via V→E→V message passing
+    // E contains capability embeddings enriched with tool information
+    const { E } = this.forward();
 
     const results: AttentionResult[] = [];
 
     // Compute normalized fusion weights from learnable params
     const groupWeights = this.computeFusionWeights();
 
+    // Project intent to propagated space (numHeads * hiddenDim) for semantic comparison
+    const intentProjected = this.projectIntent(intentEmbedding);
+
     for (const [capId, cap] of this.capabilityNodes) {
       const cIdx = this.capabilityIndex.get(capId)!;
 
-      // Use ORIGINAL embedding for semantic similarity (same 1024-dim as intent)
-      const capOriginalEmb = cap.embedding;
-      const intentSim = this.cosineSimilarity(intentEmbedding, capOriginalEmb);
+      // Use PROPAGATED embedding from message passing for semantic similarity
+      // E[cIdx] contains tool-enriched capability representation
+      const capPropagatedEmb = E[cIdx];
+      const intentSim = this.cosineSimilarity(intentProjected, capPropagatedEmb);
 
       // Reliability multiplier
       const reliability = cap.successRate;
@@ -1043,17 +1084,25 @@ export class SHGAT {
   scoreAllTools(
     intentEmbedding: number[],
   ): Array<{ toolId: string; score: number; headWeights?: number[] }> {
-    // Run forward pass to warm up cache
-    this.forward();
+    // Run forward pass to get propagated embeddings via V→E→V message passing
+    // H contains tool embeddings enriched with capability information
+    const { H } = this.forward();
 
     const results: Array<{ toolId: string; score: number; headWeights?: number[] }> = [];
 
     // Compute normalized fusion weights from learnable params
     const groupWeights = this.computeFusionWeights();
 
+    // Project intent to propagated space for semantic comparison
+    const intentProjected = this.projectIntent(intentEmbedding);
+
     for (const [toolId, tool] of this.toolNodes) {
+      const tIdx = this.toolIndex.get(toolId)!;
+
       // === HEAD 0-1: SEMANTIC ===
-      const intentSim = this.cosineSimilarity(intentEmbedding, tool.embedding);
+      // Use PROPAGATED embedding from message passing
+      const toolPropagatedEmb = H[tIdx];
+      const intentSim = this.cosineSimilarity(intentProjected, toolPropagatedEmb);
 
       // Get tool features (may be undefined for tools without features)
       const features = tool.toolFeatures;
@@ -1337,20 +1386,29 @@ export class SHGAT {
     // Reset fusion gradients for this batch
     this.fusionGradients = { semantic: 0, structure: 0, temporal: 0 };
 
+    // Reset W_intent gradients for this batch
+    const propagatedDim = this.config.numHeads * this.config.hiddenDim;
+    this.W_intent_gradients = Array.from({ length: propagatedDim }, () =>
+      Array(this.config.embeddingDim).fill(0)
+    );
+
     for (const example of examples) {
-      // Forward (E unused - we use original embeddings, but cache needed for backward)
-      const { E: _E, cache } = this.forward();
+      // Forward pass to get propagated embeddings via V→E→V message passing
+      const { E, cache } = this.forward();
 
       const capIdx = this.capabilityIndex.get(example.candidateId);
       if (capIdx === undefined) continue;
 
-      // Get capability node
+      // Get capability node and propagated embedding
       const capNode = this.capabilityNodes.get(example.candidateId)!;
-      const capOriginalEmb = capNode.embedding;
+      const capPropagatedEmb = E[capIdx]; // Use propagated embedding
       const features = capNode.hypergraphFeatures || DEFAULT_HYPERGRAPH_FEATURES;
 
+      // Project intent to propagated space for semantic comparison
+      const intentProjected = this.projectIntent(example.intentEmbedding);
+
       // === COMPUTE 6-HEAD SCORES (same as scoreAllCapabilities) ===
-      const intentSim = this.cosineSimilarity(example.intentEmbedding, capOriginalEmb);
+      const intentSim = this.cosineSimilarity(intentProjected, capPropagatedEmb);
       const adamicAdar = features.adamicAdar ?? 0;
       const heatDiffusion = features.heatDiffusion ?? 0;
 
@@ -1422,13 +1480,25 @@ export class SHGAT {
         wt * wst * structureScore
       );
 
-      // Standard backward for layer params
-      this.backward(gradients, cache, capIdx, example.intentEmbedding, dLoss);
+      // Backward for layer params and W_intent
+      // Pass projected intent so gradient computation is in the same space
+      this.backward(gradients, cache, capIdx, intentProjected, dLoss);
+
+      // Accumulate W_intent gradients
+      // d(loss)/d(W_intent[i][j]) = d(loss)/d(intentProjected[i]) * intent[j]
+      // where d(loss)/d(intentProjected) comes from cosine similarity gradient
+      this.accumulateW_intentGradients(
+        example.intentEmbedding,
+        intentProjected,
+        capPropagatedEmb,
+        dLoss
+      );
     }
 
     // Apply all gradients
     this.applyGradients(gradients, examples.length);
     this.applyFusionGradients(examples.length);
+    this.applyW_intentGradients(examples.length);
     this.trainingMode = false;
 
     return {
@@ -1453,6 +1523,62 @@ export class SHGAT {
       semantic: this.fusionWeights.semantic.toFixed(4),
       structure: this.fusionWeights.structure.toFixed(4),
       temporal: this.fusionWeights.temporal.toFixed(4),
+    });
+  }
+
+  /**
+   * Accumulate gradients for W_intent from cosine similarity
+   *
+   * Chain rule: d(loss)/d(W_intent[i][j]) = d(loss)/d(intentProj[i]) * intent[j]
+   */
+  private accumulateW_intentGradients(
+    intentOriginal: number[],
+    intentProjected: number[],
+    capEmb: number[],
+    dLoss: number
+  ): void {
+    const propagatedDim = intentProjected.length;
+
+    // Compute gradient of cosine similarity w.r.t. intentProjected
+    const normIntent = Math.sqrt(intentProjected.reduce((s, x) => s + x * x, 0)) + 1e-8;
+    const normCap = Math.sqrt(capEmb.reduce((s, x) => s + x * x, 0)) + 1e-8;
+    const dot = this.dot(intentProjected, capEmb);
+
+    // d(cos)/d(intentProj[i]) = capEmb[i]/(normIntent*normCap) - dot*intentProj[i]/(normIntent^3*normCap)
+    const dIntentProj: number[] = new Array(propagatedDim);
+    for (let i = 0; i < propagatedDim; i++) {
+      const term1 = capEmb[i] / (normIntent * normCap);
+      const term2 = (dot * intentProjected[i]) / (normIntent * normIntent * normIntent * normCap);
+      dIntentProj[i] = dLoss * (term1 - term2);
+    }
+
+    // Accumulate gradients for W_intent
+    // W_intent[i][j] affects intentProj[i] via: intentProj[i] = sum_j(W_intent[i][j] * intent[j])
+    // So d(loss)/d(W_intent[i][j]) = dIntentProj[i] * intent[j]
+    for (let i = 0; i < propagatedDim; i++) {
+      for (let j = 0; j < intentOriginal.length; j++) {
+        this.W_intent_gradients[i][j] += dIntentProj[i] * intentOriginal[j];
+      }
+    }
+  }
+
+  /**
+   * Apply accumulated W_intent gradients with L2 regularization
+   */
+  private applyW_intentGradients(batchSize: number): void {
+    const lr = this.config.learningRate / batchSize;
+    const l2 = this.config.l2Lambda;
+
+    for (let i = 0; i < this.W_intent.length; i++) {
+      for (let j = 0; j < this.W_intent[i].length; j++) {
+        const grad = this.W_intent_gradients[i][j] + l2 * this.W_intent[i][j];
+        this.W_intent[i][j] -= lr * grad;
+      }
+    }
+
+    log.debug("[SHGAT] Updated W_intent (sample weights)", {
+      w00: this.W_intent[0]?.[0]?.toFixed(6) ?? "N/A",
+      w01: this.W_intent[0]?.[1]?.toFixed(6) ?? "N/A",
     });
   }
 
@@ -1623,6 +1749,7 @@ export class SHGAT {
       layerParams: this.layerParams,
       headParams: this.headParams,
       fusionWeights: this.fusionWeights,
+      W_intent: this.W_intent,
     };
   }
 
@@ -1638,6 +1765,9 @@ export class SHGAT {
     }
     if (params.fusionWeights) {
       this.fusionWeights = params.fusionWeights as FusionWeights;
+    }
+    if (params.W_intent) {
+      this.W_intent = params.W_intent as number[][];
     }
   }
 
