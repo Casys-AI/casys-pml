@@ -11,7 +11,6 @@
 
 import { SpectralClusteringManager, type ClusterableCapability } from "../../../src/graphrag/spectral-clustering.ts";
 import {
-  buildGraphFromScenario,
   generateStressGraph,
   loadScenario,
 } from "../fixtures/scenario-loader.ts";

@@ -19,70 +19,53 @@ import {
   createSHGATFromCapabilities,
   trainSHGATOnEpisodes,
   type SHGATConfig,
-  type HeadWeightConfig,
   type TrainingExample,
-  DEFAULT_HEAD_WEIGHTS,
+  getAdaptiveConfig,
 } from "../../../src/graphrag/algorithms/shgat.ts";
 import { EmbeddingModel } from "../../../src/vector/embeddings.ts";
 import { loadScenario, type ScenarioData } from "../fixtures/scenario-loader.ts";
 
 // ============================================================================
-// Head Configuration Presets
+// Head Configuration Presets (3-Head Architecture)
+// Head 0: Semantic (intentSim * featureWeights.semantic)
+// Head 1: Structure (pageRank + adamicAdar) * featureWeights.structure
+// Head 2: Temporal  (recency + heatDiffusion) * featureWeights.temporal
 // ============================================================================
 
 export const HEAD_CONFIGS: Record<string, Partial<SHGATConfig>> = {
-  // === Single Group Ablations ===
-  // Semantic only (heads 0,1: IntentCosine, ToolCosine)
-  "semantic_only": { activeHeads: [0, 1] },
-  // Structure only (heads 2,3: PageRank, Spectral+AdamicAdar)
-  "structure_only": { activeHeads: [2, 3] },
-  // Temporal only (heads 4,5: Cooccurrence+Recency, HeatDiffusion)
-  "temporal_only": { activeHeads: [4, 5] },
+  // === Single Head Ablations ===
+  "semantic_only": { activeHeads: [0] },
+  "structure_only": { activeHeads: [1] },
+  "temporal_only": { activeHeads: [2] },
 
-  // === Two-Group Combinations ===
-  "semantic_structure": { activeHeads: [0, 1, 2, 3] },
-  "semantic_temporal": { activeHeads: [0, 1, 4, 5] },
-  "structure_temporal": { activeHeads: [2, 3, 4, 5] },
+  // === Two-Head Combinations ===
+  "semantic_structure": { activeHeads: [0, 1] },
+  "semantic_temporal": { activeHeads: [0, 2] },
+  "structure_temporal": { activeHeads: [1, 2] },
 
-  // === Per-Head Ablations (one head per group) ===
-  "minimal_one_per_group": { activeHeads: [0, 2, 4] },
-  "minimal_alt": { activeHeads: [1, 3, 5] },
-
-  // === Full 6-Head SHGAT ===
-  "full_shgat": { activeHeads: [0, 1, 2, 3, 4, 5] }, // learned fusion
+  // === Full 3-Head SHGAT ===
+  "full_shgat": { activeHeads: [0, 1, 2] }, // learned fusion
   "full_shgat_equal": {
-    activeHeads: [0, 1, 2, 3, 4, 5],
-    headFusionWeights: [1 / 6, 1 / 6, 1 / 6, 1 / 6, 1 / 6, 1 / 6],
+    activeHeads: [0, 1, 2],
+    headFusionWeights: [1 / 3, 1 / 3, 1 / 3],
   },
   "full_shgat_semantic_heavy": {
-    activeHeads: [0, 1, 2, 3, 4, 5],
-    headFusionWeights: [0.25, 0.25, 0.1, 0.1, 0.15, 0.15], // 50% semantic, 20% structure, 30% temporal
+    activeHeads: [0, 1, 2],
+    headFusionWeights: [0.6, 0.2, 0.2], // 60% semantic, 20% structure, 20% temporal
   },
   // Test: semantic dominant (80%)
   "semantic_80pct": {
-    activeHeads: [0, 1, 2, 3, 4, 5],
-    headFusionWeights: [0.4, 0.4, 0.05, 0.05, 0.05, 0.05], // 80% semantic, 10% structure, 10% temporal
-  },
-  // Test: 3 heads only (1 per group)
-  "3_heads_balanced": {
-    activeHeads: [0, 2, 4], // 1 semantic, 1 structure, 1 temporal
-  },
-  // Test: 4 heads (2 semantic + 1 each other)
-  "4_heads_semantic_focus": {
-    activeHeads: [0, 1, 2, 4], // 2 semantic, 1 structure, 1 temporal
+    activeHeads: [0, 1, 2],
+    headFusionWeights: [0.8, 0.1, 0.1],
   },
   // Test: structure + temporal only (no semantic)
   "no_semantic": {
-    activeHeads: [2, 3, 4, 5], // 0 semantic, 2 structure, 2 temporal
+    activeHeads: [1, 2],
   },
 };
 
-export const FEATURE_WEIGHT_PRESETS: Record<string, Partial<HeadWeightConfig>> = {
-  "default": DEFAULT_HEAD_WEIGHTS,
-  "pagerank_heavy": { structure: { pageRank: 0.7, spectral: 0.15, adamicAdar: 0.15 } },
-  "recency_heavy": { temporal: { cooccurrence: 0.2, recency: 0.7, heatDiffusion: 0.1 } },
-  "cooccurrence_heavy": { temporal: { cooccurrence: 0.7, recency: 0.2, heatDiffusion: 0.1 } },
-};
+// Note: FEATURE_WEIGHT_PRESETS are obsolete in v2 - fusion is learned via MLP
+// Legacy configs use activeHeads/headFusionWeights (deprecated but functional)
 
 // ============================================================================
 // Types
@@ -297,12 +280,12 @@ async function runAblation(
 ): Promise<AblationResult> {
   const shgat = buildSHGAT(capabilities, toolEmbeddings, configOverrides);
 
-  // Train the model before evaluation (reduced for faster ablation)
+  // Train the model before evaluation
   if (trainBeforeEval) {
     await trainSHGAT(shgat, capabilities, toolEmbeddings, {
-      epochs: 2,
-      batchSize: 32,
-      examples: 80,
+      epochs: 10,
+      batchSize: 16,
+      examples: 200,
     });
   }
   const details: AblationResult["details"] = [];
@@ -364,9 +347,10 @@ if (import.meta.main) {
     const results: AblationResult[] = [];
 
     // Run all head configurations (with training for each)
-    console.log("Running ablation study (with training per config)...\n");
+    const SKIP_TRAINING = Deno.env.get("SKIP_TRAINING") === "1";
+    console.log(`Running ablation study (training: ${SKIP_TRAINING ? "SKIPPED" : "enabled"})...\n`);
     for (const [name, config] of Object.entries(HEAD_CONFIGS)) {
-      const result = await runAblation(capabilities, toolEmbeddings, testQueries, name, config, true);
+      const result = await runAblation(capabilities, toolEmbeddings, testQueries, name, config, !SKIP_TRAINING);
       results.push(result);
       console.log(`  ${name.padEnd(25)}: Top-1=${(result.top1Accuracy * 100).toFixed(0)}% MRR=${result.mrr.toFixed(3)}`);
     }
@@ -394,17 +378,16 @@ if (import.meta.main) {
     console.log(`  MRR: ${results[0].mrr.toFixed(3)}, Top-1: ${(results[0].top1Accuracy * 100).toFixed(0)}%`);
     console.log("═".repeat(80));
 
-    // Feature weight ablation
+    // V2 Adaptive Config Ablation (head count scaling)
     console.log("\n" + "═".repeat(80));
-    console.log("FEATURE WEIGHT ABLATION (with full_shgat)");
+    console.log("V2 ADAPTIVE CONFIG ABLATION (head count scaling)");
     console.log("═".repeat(80));
 
-    for (const [presetName, preset] of Object.entries(FEATURE_WEIGHT_PRESETS)) {
-      const result = await runAblation(capabilities, toolEmbeddings, testQueries, `full+${presetName}`, {
-        ...HEAD_CONFIGS["full_shgat"],
-        headWeights: preset,
-      }, true);
-      console.log(`  ${presetName.padEnd(20)}: MRR=${result.mrr.toFixed(3)} Top-1=${(result.top1Accuracy * 100).toFixed(0)}%`);
+    const traceCounts = [500, 5000, 50000, 200000];
+    for (const traceCount of traceCounts) {
+      const adaptiveConfig = getAdaptiveConfig(traceCount);
+      const result = await runAblation(capabilities, toolEmbeddings, testQueries, `adaptive_${traceCount}`, adaptiveConfig, true);
+      console.log(`  ${traceCount.toString().padEnd(10)} traces (${adaptiveConfig.numHeads} heads): MRR=${result.mrr.toFixed(3)} Top-1=${(result.top1Accuracy * 100).toFixed(0)}%`);
     }
 
     console.log("\n" + "═".repeat(80));
@@ -491,12 +474,13 @@ Deno.test("Ablation: Inactive heads have zero weight", async () => {
     toolEmbeddings.set(t.id, mockEmbedding(t.id));
   }
 
+  // semantic_only = [0] → heads 1 (structure) and 2 (temporal) should be 0
   const shgat = buildSHGAT(capabilities, toolEmbeddings, HEAD_CONFIGS["semantic_only"]);
   const results = shgat.scoreAllCapabilities(mockEmbedding("test"));
 
   for (const r of results) {
-    assertEquals(r.headWeights[2], 0, "Structure head should be 0");
-    assertEquals(r.headWeights[3], 0, "Temporal head should be 0");
+    assertEquals(r.headWeights[1], 0, "Structure head should be 0");
+    assertEquals(r.headWeights[2], 0, "Temporal head should be 0");
   }
 });
 
@@ -518,23 +502,25 @@ Deno.test("Ablation: headFusionWeights applies fixed weights", async () => {
     toolEmbeddings.set(t.id, mockEmbedding(t.id));
   }
 
-  // Test with fixed equal weights
+  // Test with fixed equal weights (3 heads)
+  const oneThird = 1 / 3;
   const shgat = buildSHGAT(capabilities, toolEmbeddings, {
-    activeHeads: [0, 1, 2, 3],
-    headFusionWeights: [0.25, 0.25, 0.25, 0.25],
+    activeHeads: [0, 1, 2],
+    headFusionWeights: [oneThird, oneThird, oneThird],
   });
   const results = shgat.scoreAllCapabilities(mockEmbedding("test"));
 
   for (const r of results) {
-    // With equal fixed weights, each head should be 0.25
-    assertEquals(r.headWeights[0], 0.25, "Head 0 should be 0.25");
-    assertEquals(r.headWeights[1], 0.25, "Head 1 should be 0.25");
-    assertEquals(r.headWeights[2], 0.25, "Head 2 should be 0.25");
-    assertEquals(r.headWeights[3], 0.25, "Head 3 should be 0.25");
+    // With equal fixed weights, each head should be ~0.333
+    assertEquals(r.headWeights.length, 3, "Should have 3 head weights");
+    for (let i = 0; i < 3; i++) {
+      const diff = Math.abs(r.headWeights[i] - oneThird);
+      assertEquals(diff < 0.01, true, `Head ${i} should be ~0.333`);
+    }
   }
 });
 
-Deno.test("Ablation: headWeights affects feature contributions", async () => {
+Deno.test("Ablation: adaptive config head count affects scores", async () => {
   const scenario = await loadScenario("medium-graph");
 
   const capabilities = (scenario.nodes.capabilities as Array<{
@@ -562,25 +548,23 @@ Deno.test("Ablation: headWeights affects feature contributions", async () => {
 
   const intentEmb = mockEmbedding("test query");
 
-  // Default weights
-  const shgatDefault = buildSHGAT(capabilities, toolEmbeddings, HEAD_CONFIGS["structure_only"]);
-  const defaultResults = shgatDefault.scoreAllCapabilities(intentEmb);
+  // Conservative config (4 heads)
+  const config4 = getAdaptiveConfig(500);
+  const shgat4 = buildSHGAT(capabilities, toolEmbeddings, config4);
+  const results4 = shgat4.scoreAllCapabilities(intentEmb);
 
-  // PageRank heavy weights
-  const shgatPR = buildSHGAT(capabilities, toolEmbeddings, {
-    ...HEAD_CONFIGS["structure_only"],
-    headWeights: FEATURE_WEIGHT_PRESETS["pagerank_heavy"],
-  });
-  const prResults = shgatPR.scoreAllCapabilities(intentEmb);
+  // Scaled config (8 heads)
+  const config8 = getAdaptiveConfig(5000);
+  const shgat8 = buildSHGAT(capabilities, toolEmbeddings, config8);
+  const results8 = shgat8.scoreAllCapabilities(intentEmb);
 
-  // Scores should be different due to different feature weights
-  const defaultScore = defaultResults[0].score;
-  const prScore = prResults[0].score;
+  // Both should produce valid scores
+  assertGreater(results4[0].score, 0, "4-head config should produce positive score");
+  assertGreater(results8[0].score, 0, "8-head config should produce positive score");
 
-  // They may or may not be equal depending on data, but the structure score contribution differs
-  // Just verify both produce valid scores
-  assertGreater(defaultScore, 0, "Default config should produce positive score");
-  assertGreater(prScore, 0, "PageRank-heavy config should produce positive score");
+  // Head counts should differ
+  assertEquals(config4.numHeads, 4, "Conservative config should have 4 heads");
+  assertEquals(config8.numHeads, 8, "Scaled config should have 8 heads");
 });
 
 Deno.test("Ablation: Different configs produce different rankings", async () => {
@@ -641,7 +625,7 @@ Deno.test("Ablation: Tool scoring respects activeHeads", async () => {
     toolEmbeddings.set(t.id, mockEmbedding(t.id));
   }
 
-  // Semantic only for tools
+  // Semantic only for tools (head 0 only)
   const shgat = buildSHGAT(capabilities, toolEmbeddings, HEAD_CONFIGS["semantic_only"]);
 
   // Need to add tool features for structure/temporal heads to work
@@ -657,11 +641,11 @@ Deno.test("Ablation: Tool scoring respects activeHeads", async () => {
 
   const toolResults = shgat.scoreAllTools(mockEmbedding("read file"));
 
-  // With semantic_only, structure and temporal heads should be 0
+  // With semantic_only [0], heads 1 (structure) and 2 (temporal) should be 0
   for (const r of toolResults) {
     if (r.headWeights) {
-      assertEquals(r.headWeights[2], 0, "Tool structure head should be 0");
-      assertEquals(r.headWeights[3], 0, "Tool temporal head should be 0");
+      assertEquals(r.headWeights[1], 0, "Tool structure head should be 0");
+      assertEquals(r.headWeights[2], 0, "Tool temporal head should be 0");
     }
   }
 });
