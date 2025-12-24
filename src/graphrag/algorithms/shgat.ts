@@ -599,6 +599,50 @@ export class SHGAT {
   }
 
   /**
+   * Recursively collect all tools from a capability and its children (transitive closure)
+   *
+   * This enables hierarchical capabilities (meta-meta-capabilities → meta-capabilities → capabilities)
+   * to inherit all tools from their descendants in the incidence matrix.
+   *
+   * Example:
+   *   release-cycle (meta-meta) contains [deploy-full, rollback-plan]
+   *   deploy-full (meta) contains [build, test]
+   *   build (capability) has tools [compiler, linker]
+   *   test (capability) has tools [pytest]
+   *
+   *   collectTransitiveTools("release-cycle") returns [compiler, linker, pytest, ...]
+   *
+   * @param capId - The capability ID to collect tools from
+   * @param visited - Set of already visited capability IDs (cycle detection)
+   * @returns Set of all tool IDs transitively reachable from this capability
+   */
+  private collectTransitiveTools(capId: string, visited: Set<string> = new Set()): Set<string> {
+    // Cycle detection - prevent infinite recursion
+    if (visited.has(capId)) {
+      return new Set();
+    }
+    visited.add(capId);
+
+    const cap = this.capabilityNodes.get(capId);
+    if (!cap) {
+      return new Set();
+    }
+
+    // Start with direct tools
+    const tools = new Set<string>(cap.toolsUsed);
+
+    // Recursively collect from children (contained capabilities)
+    for (const childId of cap.children) {
+      const childTools = this.collectTransitiveTools(childId, visited);
+      for (const tool of childTools) {
+        tools.add(tool);
+      }
+    }
+
+    return tools;
+  }
+
+  /**
    * Rebuild indices and incidence matrix
    */
   private rebuildIndices(): void {
@@ -615,15 +659,20 @@ export class SHGAT {
       this.capabilityIndex.set(cId, cIdx++);
     }
 
-    // Build incidence matrix A[tool][capability]
+    // Build incidence matrix A[tool][capability] with transitive closure
+    // Meta-capabilities inherit all tools from their child capabilities
+    // This enables infinite hierarchical nesting (meta-meta-meta... → meta → capability)
     const numTools = this.toolNodes.size;
     const numCaps = this.capabilityNodes.size;
 
     this.incidenceMatrix = Array.from({ length: numTools }, () => Array(numCaps).fill(0));
 
-    for (const [capId, cap] of this.capabilityNodes) {
+    for (const [capId] of this.capabilityNodes) {
       const cIdx = this.capabilityIndex.get(capId)!;
-      for (const toolId of cap.toolsUsed) {
+      // Use transitive collection to get all tools from this capability
+      // and all its descendants (children, grandchildren, etc.)
+      const transitiveTools = this.collectTransitiveTools(capId);
+      for (const toolId of transitiveTools) {
         const tIdx = this.toolIndex.get(toolId);
         if (tIdx !== undefined) {
           this.incidenceMatrix[tIdx][cIdx] = 1;
