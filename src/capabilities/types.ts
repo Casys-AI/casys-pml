@@ -404,6 +404,13 @@ export interface TraceTaskResult {
   success: boolean;
   /** Execution duration in milliseconds */
   durationMs: number;
+  /**
+   * DAG layer index for fan-in/fan-out edge reconstruction
+   * Story 11.4: Tasks with same layerIndex execute in parallel
+   * - Layer 0: root tasks (no dependencies)
+   * - Layer N: tasks that depend on layer N-1
+   */
+  layerIndex?: number;
 }
 
 /**
@@ -681,6 +688,11 @@ export interface HypergraphOptions {
   minSuccessRate?: number;
   /** Filter capabilities by minimum usage */
   minUsage?: number;
+  /**
+   * Include execution traces for each capability (Story 11.4)
+   * When true, each capability node includes up to 10 recent traces
+   */
+  includeTraces?: boolean;
 }
 
 /**

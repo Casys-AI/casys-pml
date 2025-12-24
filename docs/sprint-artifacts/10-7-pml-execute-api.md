@@ -266,9 +266,9 @@ interface ExecuteResponse {
 
 ### ~~AC12: SHGAT Live Learning~~ → Moved to Epic 11.6
 
-> **Note (2025-12-23):** AC12 was feature-creeped into 10.7 but belongs to Epic 11.6 (SHGAT Training avec PER Sampling).
-> Code was implemented early in `execute-handler.ts` (`updateSHGAT()`).
-> See Epic 11.6 for verification checklist.
+> **Note (2025-12-24):** AC12 was feature-creeped into 10.7 but belongs to Epic 11.6 (SHGAT Training avec PER Sampling).
+> Original `updateSHGAT()` replaced by `registerSHGATNodes()` + `runPERBatchTraining()` in Story 11.6.
+> See Epic 11.6 for implementation details.
 
 ---
 

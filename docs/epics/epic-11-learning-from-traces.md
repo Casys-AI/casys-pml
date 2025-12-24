@@ -850,25 +850,24 @@ interface SHGATPathEncoder {
 
 **Estimation:** 2-3 jours
 
-**⚠️ Early Implementation from Story 10.7 (2025-12-23):**
+**✅ Implementation Complete (2025-12-24):**
 
-The following was implemented early in Story 10.7 (`execute-handler.ts`) and needs verification:
+Story 11.6 replaced single-example `updateSHGAT()` with PER batch training:
 
-| Item | Status | Location | To Verify |
-|------|--------|----------|-----------|
-| `updateSHGAT()` function | ✅ Implemented | `execute-handler.ts:503-560` | Integration with PER sampling |
-| `shgat.registerTool()` | ✅ Implemented | `shgat.ts:364` | Called for new tools |
-| `shgat.registerCapability()` | ✅ Implemented | `shgat.ts:372` | Called for new capabilities |
-| `shgat.hasToolNode()` | ✅ Implemented | `shgat.ts:380` | Prevents duplicates |
-| `shgat.hasCapabilityNode()` | ✅ Implemented | `shgat.ts:387` | Prevents duplicates |
-| `shgat.trainOnExample()` | ✅ Implemented | `shgat.ts:1051` | Online learning after each trace |
-| Silent fail if SHGAT not init | ⚠️ Known issue | `execute-handler.ts:503-506` | Should queue for later training |
+| Item | Status | Location | Notes |
+|------|--------|----------|-------|
+| `registerSHGATNodes()` | ✅ Implemented | `execute-handler.ts:531-571` | Registers capability + tools (no training) |
+| `runPERBatchTraining()` | ✅ Implemented | `execute-handler.ts:585-628` | PER-weighted path-level training |
+| `trainSHGATOnPathTraces()` | ✅ Implemented | `per-training.ts:127-270` | Core PER training logic |
+| `shgat.trainBatch()` | ✅ Implemented | `shgat.ts` | Batch training with path features |
+| Training lock | ✅ Implemented | `execute-handler.ts:576` | Prevents concurrent training |
 
-**Verification checklist for 11.6:**
-- [ ] Verify `updateSHGAT()` works with PER priority (not just binary success)
-- [ ] Verify training uses `execution_trace` table (not just in-memory)
-- [ ] Verify cold-start behavior (first capabilities before SHGAT init)
-- [ ] Add tests for online learning path
+**Key changes from 10.7:**
+- ~~`updateSHGAT()` + `trainOnExample()`~~ → `registerSHGATNodes()` + `runPERBatchTraining()`
+- Single-example → Multi-example per trace (1 per node in path)
+- Tool-level → Path-level learning
+- Binary outcome → PER priority (TD error weighted)
+- Train every 10 exec → Train every exec (with lock)
 
 ---
 

@@ -239,35 +239,133 @@ export class ExecutionTraceStore {
   }
 
   /**
-   * Sample traces by priority with weighted sampling
+   * Sample traces by priority with weighted sampling (PER - Schaul et al. 2015)
    *
    * Implements Prioritized Experience Replay (PER) sampling.
-   * Traces with higher priority have higher probability of being selected.
+   * Formula: P(i) ∝ priority_i^α where α controls prioritization strength.
    *
-   * Formula: P(i) = priority_i / sum(priorities)
+   * - α = 0: Uniform random sampling (ignore priorities)
+   * - α = 1: Fully prioritized (sample proportional to priority)
+   * - α = 0.6: Recommended balance (PER paper default)
+   *
+   * Cold start handling: If all priorities are near-equal (variance < 0.001),
+   * falls back to uniform sampling to avoid degenerate distributions.
    *
    * @param limit - Number of traces to sample
    * @param minPriority - Minimum priority threshold (default: 0.1)
-   * @returns Weighted sample of traces
+   * @param alpha - Priority exponent (default: 0.6, range 0-1)
+   * @returns Weighted sample of traces (without replacement)
    */
-  async sampleByPriority(limit: number, minPriority = 0.1): Promise<ExecutionTrace[]> {
-    // Use PostgreSQL's random() weighted by priority
-    // Approximate weighted sampling: ORDER BY priority * random() DESC
+  async sampleByPriority(
+    limit: number,
+    minPriority = 0.1,
+    alpha = 0.6,
+  ): Promise<ExecutionTrace[]> {
+    // Fetch eligible traces (fetch more than needed for proper sampling)
+    const fetchLimit = Math.min(limit * 3, 500);
     const result = await this.db.query(
       `SELECT * FROM execution_trace
        WHERE priority >= $1
-       ORDER BY priority * random() DESC
+       ORDER BY priority DESC
        LIMIT $2`,
-      [minPriority, limit],
+      [minPriority, fetchLimit],
     );
 
-    logger.debug("Sampled traces by priority", {
+    const available = result.map((row) => this.rowToTrace(row as Row));
+
+    if (available.length === 0) {
+      logger.debug("No traces available for PER sampling", { minPriority });
+      return [];
+    }
+
+    // If we have fewer traces than requested, return all
+    if (available.length <= limit) {
+      logger.debug("PER sampling: returning all available traces", {
+        requested: limit,
+        available: available.length,
+      });
+      return available;
+    }
+
+    // Apply true PER weighted sampling without replacement
+    const sampled = this.weightedSampleWithoutReplacement(available, limit, alpha);
+
+    logger.debug("PER sampling completed", {
       requested: limit,
-      returned: result.length,
+      returned: sampled.length,
       minPriority,
+      alpha,
+      poolSize: available.length,
     });
 
-    return result.map((row) => this.rowToTrace(row as Row));
+    return sampled;
+  }
+
+  /**
+   * Weighted sampling without replacement using PER formula
+   *
+   * Recomputes probabilities after each selection to maintain correct distribution.
+   * Handles cold start by detecting near-uniform priorities.
+   *
+   * @param traces - Pool of traces to sample from
+   * @param n - Number of samples to draw
+   * @param alpha - Priority exponent (0-1)
+   * @returns Sampled traces
+   */
+  private weightedSampleWithoutReplacement(
+    traces: ExecutionTrace[],
+    n: number,
+    alpha: number,
+  ): ExecutionTrace[] {
+    const pool = [...traces];
+    const sampled: ExecutionTrace[] = [];
+
+    while (sampled.length < n && pool.length > 0) {
+      // Compute priority^alpha for each remaining trace
+      const priorities = pool.map((t) => Math.pow(t.priority, alpha));
+      const total = priorities.reduce((a, b) => a + b, 0);
+
+      // Cold start detection: if all priorities are nearly equal, use uniform
+      const variance = this.computeVariance(priorities);
+      if (total === 0 || variance < 0.001) {
+        // Uniform random selection
+        const idx = Math.floor(Math.random() * pool.length);
+        sampled.push(pool[idx]);
+        pool.splice(idx, 1);
+        continue;
+      }
+
+      // Compute probabilities
+      const probs = priorities.map((p) => p / total);
+
+      // Weighted random selection
+      const rand = Math.random();
+      let cumSum = 0;
+      let selectedIdx = pool.length - 1; // Fallback to last
+
+      for (let i = 0; i < pool.length; i++) {
+        cumSum += probs[i];
+        if (rand <= cumSum) {
+          selectedIdx = i;
+          break;
+        }
+      }
+
+      sampled.push(pool[selectedIdx]);
+      pool.splice(selectedIdx, 1);
+    }
+
+    return sampled;
+  }
+
+  /**
+   * Compute variance of an array of numbers
+   */
+  private computeVariance(values: number[]): number {
+    if (values.length === 0) return 0;
+    const mean = values.reduce((a, b) => a + b, 0) / values.length;
+    const squaredDiffs = values.map((v) => Math.pow(v - mean, 2));
+    return squaredDiffs.reduce((a, b) => a + b, 0) / values.length;
   }
 
   /**

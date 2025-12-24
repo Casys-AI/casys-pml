@@ -304,7 +304,7 @@ function calculateReliabilityFactor(successRate: number): number {
 
 ## Implementation Status (2025-12-22)
 
-### SHGAT Live Learning
+### SHGAT Live Learning (Updated 2025-12-24)
 
 SHGAT apprend maintenant **en temps réel** après chaque exécution `pml_execute`:
 
@@ -312,12 +312,16 @@ SHGAT apprend maintenant **en temps réel** après chaque exécution `pml_execut
 Mode Direct réussi
   → saveCapability() (stocke en DB)
   → updateDRDSP() (met à jour le graphe hyperedges)
-  → updateSHGAT() (enregistre + entraîne)
-    → Génère embedding de l'intent
-    → Enregistre nouveaux tools (si pas déjà connus)
-    → Enregistre la capability
-    → trainOnExample({ intent, tools, outcome })
+  → registerSHGATNodes() (enregistre capability + tools)
+  → runPERBatchTraining() (PER-weighted path-level training)
+    → Sample traces par priorité (P(i) ∝ priority^α)
+    → Multi-example per trace (1 example par node du path)
+    → trainBatch() avec path features
+    → Update priorities (TD error recalculé)
 ```
+
+**Story 11.6:** Remplace `updateSHGAT()` (single-example tool-level) par PER batch training (path-level).
+Un verrou empêche les trainings concurrents si plusieurs exécutions en parallèle.
 
 **Méthodes SHGAT - Scoring (multi-head attention):**
 
@@ -396,12 +400,15 @@ predictPathSuccess(intentEmbedding: number[], path: string[]): number {
 **Méthodes utilitaires ajoutées:**
 - `hasToolNode(toolId)` - vérifie si un tool est déjà enregistré
 - `hasCapabilityNode(capabilityId)` - vérifie si une capability existe
-- `trainOnExample(example)` - training online sur un seul exemple
+- `trainBatch(examples)` - training batch sur plusieurs examples (utilisé par PER)
 
-**Flow complet:**
-1. Au démarrage: SHGAT initialisé avec capabilities existantes + training sur traces
-2. À chaque exécution: nouvelle capability enregistrée + training immédiat
-3. Plus besoin de redémarrer pour que SHGAT apprenne
+**Flow complet (Story 11.6):**
+1. Au démarrage: SHGAT initialisé avec capabilities existantes
+2. À chaque exécution:
+   - `registerSHGATNodes()` - enregistre capability + tools dans le graphe
+   - `runPERBatchTraining()` - PER-weighted training sur traces stockées
+3. Training path-level: 1 example par node du path (vs 1 example par exécution avant)
+4. Verrou anti-concurrence: skip training si un autre est en cours
 
 ### SERVER_TITLE Update
 
