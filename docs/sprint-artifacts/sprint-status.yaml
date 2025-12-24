@@ -248,7 +248,7 @@ development_status:
   epic-13: in-progress
   # Phase 1: Core MVP (~6 days)
   13-1-schema-fqdn-aliases: done # FQDN structure, metadata, aliases (merged 13.1+13.2+part 13.7) - Code Review APPROVED 2025-12-24, 66 tests
-  13-2-pml-execute-naming-support: backlog # Name param + call by name (merged 13.3+13.4)
+  13-2-pml-execute-naming-support: done # Name param + call by name (merged 13.3+13.4) - Code Review APPROVED 2024-12-24, 20 tests
   13-3-capability-mcp-server-gateway: backlog # Virtual MCP + Gateway + notifications (merged 13.5+13.6+part 13.7)
   # Phase 2: Curation & Query (~5 days)
   13-4-capability-curation-system: backlog # LLM + heuristics, suggest/auto/apply (merged 13.8+13.10)
