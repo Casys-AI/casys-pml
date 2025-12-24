@@ -17,8 +17,10 @@ import { assertEquals, assertGreater } from "@std/assert";
 import {
   SHGAT,
   createSHGATFromCapabilities,
+  trainSHGATOnEpisodes,
   type SHGATConfig,
   type HeadWeightConfig,
+  type TrainingExample,
   DEFAULT_HEAD_WEIGHTS,
 } from "../../../src/graphrag/algorithms/shgat.ts";
 import { EmbeddingModel } from "../../../src/vector/embeddings.ts";
@@ -55,6 +57,23 @@ export const HEAD_CONFIGS: Record<string, Partial<SHGATConfig>> = {
   "full_shgat_semantic_heavy": {
     activeHeads: [0, 1, 2, 3, 4, 5],
     headFusionWeights: [0.25, 0.25, 0.1, 0.1, 0.15, 0.15], // 50% semantic, 20% structure, 30% temporal
+  },
+  // Test: semantic dominant (80%)
+  "semantic_80pct": {
+    activeHeads: [0, 1, 2, 3, 4, 5],
+    headFusionWeights: [0.4, 0.4, 0.05, 0.05, 0.05, 0.05], // 80% semantic, 10% structure, 10% temporal
+  },
+  // Test: 3 heads only (1 per group)
+  "3_heads_balanced": {
+    activeHeads: [0, 2, 4], // 1 semantic, 1 structure, 1 temporal
+  },
+  // Test: 4 heads (2 semantic + 1 each other)
+  "4_heads_semantic_focus": {
+    activeHeads: [0, 1, 2, 4], // 2 semantic, 1 structure, 1 temporal
+  },
+  // Test: structure + temporal only (no semantic)
+  "no_semantic": {
+    activeHeads: [2, 3, 4, 5], // 0 semantic, 2 structure, 2 temporal
   },
 };
 
@@ -203,17 +222,89 @@ function buildSHGAT(
 }
 
 // ============================================================================
+// Training
+// ============================================================================
+
+/**
+ * Generate training examples from capabilities (simulated execution traces)
+ */
+function generateTrainingExamples(
+  capabilities: CapabilityWithEmbedding[],
+  count: number = 100
+): TrainingExample[] {
+  const examples: TrainingExample[] = [];
+
+  for (let i = 0; i < count; i++) {
+    const cap = capabilities[i % capabilities.length];
+
+    // Simulate intent embedding with noise
+    const noiseScale = 0.05 + Math.random() * 0.15;
+    const intentEmbedding = cap.embedding.map((v) =>
+      v + (Math.random() - 0.5) * noiseScale
+    );
+
+    // Simulate different execution points
+    const executionProgress = Math.random();
+    const contextEndIndex = Math.floor(executionProgress * cap.toolsUsed.length);
+    const contextTools = cap.toolsUsed.slice(0, contextEndIndex);
+
+    // Success based on capability's success rate
+    const outcome = Math.random() < cap.successRate ? 1 : 0;
+
+    examples.push({
+      intentEmbedding,
+      contextTools,
+      candidateId: cap.id,
+      outcome,
+    });
+  }
+
+  return examples;
+}
+
+/**
+ * Train SHGAT on simulated traces
+ */
+async function trainSHGAT(
+  shgat: SHGAT,
+  capabilities: CapabilityWithEmbedding[],
+  toolEmbeddings: Map<string, number[]>,
+  options: { epochs: number; batchSize: number; examples: number } = { epochs: 3, batchSize: 16, examples: 100 }
+): Promise<{ loss: number; accuracy: number }> {
+  const trainingExamples = generateTrainingExamples(capabilities, options.examples);
+
+  const result = await trainSHGATOnEpisodes(
+    shgat,
+    trainingExamples,
+    (id) => toolEmbeddings.get(id) || null,
+    { epochs: options.epochs, batchSize: options.batchSize }
+  );
+
+  return { loss: result.finalLoss, accuracy: result.finalAccuracy };
+}
+
+// ============================================================================
 // Ablation Runner
 // ============================================================================
 
-function runAblation(
+async function runAblation(
   capabilities: CapabilityWithEmbedding[],
   toolEmbeddings: Map<string, number[]>,
   testQueries: TestQuery[],
   configName: string,
-  configOverrides: Partial<SHGATConfig>
-): AblationResult {
+  configOverrides: Partial<SHGATConfig>,
+  trainBeforeEval: boolean = true
+): Promise<AblationResult> {
   const shgat = buildSHGAT(capabilities, toolEmbeddings, configOverrides);
+
+  // Train the model before evaluation (reduced for faster ablation)
+  if (trainBeforeEval) {
+    await trainSHGAT(shgat, capabilities, toolEmbeddings, {
+      epochs: 2,
+      batchSize: 32,
+      examples: 80,
+    });
+  }
   const details: AblationResult["details"] = [];
   let top1 = 0, top3 = 0, sumReciprocal = 0, sumScore = 0;
 
@@ -272,10 +363,10 @@ if (import.meta.main) {
 
     const results: AblationResult[] = [];
 
-    // Run all head configurations
-    console.log("Running ablation study...\n");
+    // Run all head configurations (with training for each)
+    console.log("Running ablation study (with training per config)...\n");
     for (const [name, config] of Object.entries(HEAD_CONFIGS)) {
-      const result = runAblation(capabilities, toolEmbeddings, testQueries, name, config);
+      const result = await runAblation(capabilities, toolEmbeddings, testQueries, name, config, true);
       results.push(result);
       console.log(`  ${name.padEnd(25)}: Top-1=${(result.top1Accuracy * 100).toFixed(0)}% MRR=${result.mrr.toFixed(3)}`);
     }
@@ -309,10 +400,10 @@ if (import.meta.main) {
     console.log("═".repeat(80));
 
     for (const [presetName, preset] of Object.entries(FEATURE_WEIGHT_PRESETS)) {
-      const result = runAblation(capabilities, toolEmbeddings, testQueries, `full+${presetName}`, {
+      const result = await runAblation(capabilities, toolEmbeddings, testQueries, `full+${presetName}`, {
         ...HEAD_CONFIGS["full_shgat"],
         headWeights: preset,
-      });
+      }, true);
       console.log(`  ${presetName.padEnd(20)}: MRR=${result.mrr.toFixed(3)} Top-1=${(result.top1Accuracy * 100).toFixed(0)}%`);
     }
 

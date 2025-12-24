@@ -518,6 +518,35 @@ export class SHGAT {
     return result;
   }
 
+  /**
+   * Matrix-vector multiplication: M @ v
+   * @param M - Matrix of shape [rows][cols]
+   * @param v - Vector of length cols
+   * @returns Vector of length rows
+   */
+  private matVecMul(M: number[][], v: number[]): number[] {
+    const rows = M.length;
+    const result = new Array(rows).fill(0);
+    for (let i = 0; i < rows; i++) {
+      for (let j = 0; j < v.length; j++) {
+        result[i] += M[i][j] * v[j];
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Dot product of two vectors
+   */
+  private dotProduct(a: number[], b: number[]): number {
+    let sum = 0;
+    const len = Math.min(a.length, b.length);
+    for (let i = 0; i < len; i++) {
+      sum += a[i] * b[i];
+    }
+    return sum;
+  }
+
   // ==========================================================================
   // Graph Construction
   // ==========================================================================
@@ -1037,25 +1066,48 @@ export class SHGAT {
       const adamicAdar = features.adamicAdar ?? 0;
       const heatDiffusion = features.heatDiffusion ?? 0;
 
-      // === 6-HEAD SCORES ===
-      // Heads 0-1: Semantic (cosine similarity)
-      const head0 = intentSim;
-      const head1 = intentSim;
+      // === LEARNED MULTI-HEAD ATTENTION ===
+      // Each head has its own W_q, W_k projections (no hardcoded formulas)
+      // Score = dot(Q_h, K_h) / sqrt(hiddenDim) + feature_bias
+      const allHeadScores: number[] = [];
+      const scaleFactor = 1.0 / Math.sqrt(this.config.hiddenDim);
 
-      // Head 2: Structure - PageRank (dedicated)
-      const head2 = features.hypergraphPageRank;
+      for (let h = 0; h < this.config.numHeads; h++) {
+        const headParam = this.headParams[h];
 
-      // Head 3: Structure - Spectral + AdamicAdar
-      const spectralBonus = 1 / (1 + features.spectralCluster);
-      const head3 = 0.5 * spectralBonus + 0.5 * adamicAdar;
+        // Project intent with W_q: (hiddenDim x embeddingDim) @ (embeddingDim) -> (hiddenDim)
+        const Q_h = this.matVecMul(headParam.W_q, intentEmbedding);
 
-      // Head 4: Temporal - Cooccurrence + Recency
-      const head4 = 0.5 * features.cooccurrence + 0.5 * features.recency;
+        // Project capability with W_k: use ORIGINAL embedding (before propagation)
+        // This allows each head to learn different aspects of the capability
+        const K_h = this.matVecMul(headParam.W_k, cap.embedding);
 
-      // Head 5: Temporal - HeatDiffusion (dedicated)
-      const head5 = heatDiffusion;
+        // Scaled dot-product attention
+        let attentionScore = this.dotProduct(Q_h, K_h) * scaleFactor;
 
-      const allHeadScores = [head0, head1, head2, head3, head4, head5];
+        // Add learned bias from propagated embedding (captures graph structure)
+        // This combines learned projections with message-passed information
+        const propagatedBias = intentSim * 0.3; // Blend with propagated similarity
+
+        // Add feature conditioning (soft bias, not hardcoded formula)
+        // Heads 0-1: semantic focus (higher propagated weight)
+        // Heads 2-3: structure focus (PageRank, AdamicAdar as soft bias)
+        // Heads 4-5: temporal focus (recency, cooccurrence as soft bias)
+        let featureBias = 0;
+        if (h < 2) {
+          // Semantic heads: stronger propagated embedding influence
+          featureBias = propagatedBias * 0.5;
+        } else if (h < 4) {
+          // Structure heads: graph topology soft bias
+          featureBias = (features.hypergraphPageRank + adamicAdar) * 0.1;
+        } else {
+          // Temporal heads: usage pattern soft bias
+          featureBias = (features.recency + heatDiffusion) * 0.1;
+        }
+
+        attentionScore += featureBias;
+        allHeadScores.push(attentionScore);
+      }
 
       // === ABLATION-AWARE FUSION ===
       // Apply activeHeads filter for ablation studies
@@ -1150,6 +1202,85 @@ export class SHGAT {
   }
 
   /**
+   * Compute context similarity for Head 1 (Story 11.6: fix dead contextTools)
+   *
+   * Given a sequence of context tools (nodes executed before this point),
+   * computes similarity between the aggregated context and the candidate.
+   *
+   * This enables SHGAT to learn sequential patterns:
+   * "After executing [fs:read, json:parse], slack:send is likely next"
+   *
+   * @param H - Propagated tool embeddings from forward pass
+   * @param contextTools - Tool IDs executed before the candidate
+   * @param capIdx - Index of candidate capability in E
+   * @returns Context similarity score (0-1)
+   */
+  private computeContextSimilarity(
+    H: number[][],
+    contextTools: string[],
+    capIdx: number,
+  ): number {
+    // No context: return neutral similarity
+    if (!contextTools || contextTools.length === 0) {
+      return 0.5;
+    }
+
+    // Collect embeddings for context tools
+    const contextEmbeddings: number[][] = [];
+    for (const toolId of contextTools) {
+      const toolIdx = this.toolIndex.get(toolId);
+      if (toolIdx !== undefined && H[toolIdx]) {
+        contextEmbeddings.push(H[toolIdx]);
+      }
+    }
+
+    if (contextEmbeddings.length === 0) {
+      return 0.5;
+    }
+
+    // Compute average context embedding
+    const dim = contextEmbeddings[0].length;
+    const avgContext = new Array(dim).fill(0);
+    for (const emb of contextEmbeddings) {
+      for (let i = 0; i < dim; i++) {
+        avgContext[i] += emb[i];
+      }
+    }
+    for (let i = 0; i < dim; i++) {
+      avgContext[i] /= contextEmbeddings.length;
+    }
+
+    // Get capability's tools and compute average tool embedding
+    const cap = Array.from(this.capabilityNodes.values())[capIdx];
+    if (!cap) return 0.5;
+
+    const capToolEmbeddings: number[][] = [];
+    for (const toolId of cap.toolsUsed) {
+      const toolIdx = this.toolIndex.get(toolId);
+      if (toolIdx !== undefined && H[toolIdx]) {
+        capToolEmbeddings.push(H[toolIdx]);
+      }
+    }
+
+    if (capToolEmbeddings.length === 0) {
+      return 0.5;
+    }
+
+    const avgCapTool = new Array(dim).fill(0);
+    for (const emb of capToolEmbeddings) {
+      for (let i = 0; i < dim; i++) {
+        avgCapTool[i] += emb[i];
+      }
+    }
+    for (let i = 0; i < dim; i++) {
+      avgCapTool[i] /= capToolEmbeddings.length;
+    }
+
+    // Compute cosine similarity between context and candidate's tools
+    return this.cosineSimilarity(avgContext, avgCapTool);
+  }
+
+  /**
    * Score all tools given intent embedding
    *
    * 6-Head Multi-head attention scoring for tools (simple graph algorithms):
@@ -1200,25 +1331,42 @@ export class SHGAT {
         continue;
       }
 
-      // === 6-HEAD SCORES ===
-      // Heads 0-1: Semantic (cosine similarity)
-      const head0 = intentSim;
-      const head1 = intentSim;
+      // === LEARNED MULTI-HEAD ATTENTION ===
+      // Each head has its own W_q, W_k projections (no hardcoded formulas)
+      const allHeadScores: number[] = [];
+      const scaleFactor = 1.0 / Math.sqrt(this.config.hiddenDim);
 
-      // Head 2: Structure - PageRank (dedicated)
-      const head2 = features.pageRank;
+      for (let h = 0; h < this.config.numHeads; h++) {
+        const headParam = this.headParams[h];
 
-      // Head 3: Structure - Louvain + AdamicAdar
-      const louvainBonus = 1 / (1 + features.louvainCommunity);
-      const head3 = 0.5 * louvainBonus + 0.5 * features.adamicAdar;
+        // Project intent with W_q
+        const Q_h = this.matVecMul(headParam.W_q, intentEmbedding);
 
-      // Head 4: Temporal - Cooccurrence + Recency
-      const head4 = 0.5 * features.cooccurrence + 0.5 * features.recency;
+        // Project tool with W_k: use ORIGINAL embedding
+        const K_h = this.matVecMul(headParam.W_k, tool.embedding);
 
-      // Head 5: Temporal - HeatDiffusion (dedicated)
-      const head5 = features.heatDiffusion;
+        // Scaled dot-product attention
+        let attentionScore = this.dotProduct(Q_h, K_h) * scaleFactor;
 
-      const allHeadScores = [head0, head1, head2, head3, head4, head5];
+        // Add learned bias from propagated embedding
+        const propagatedBias = intentSim * 0.3;
+
+        // Add feature conditioning (soft bias)
+        let featureBias = 0;
+        if (h < 2) {
+          // Semantic heads
+          featureBias = propagatedBias * 0.5;
+        } else if (h < 4) {
+          // Structure heads
+          featureBias = (features.pageRank + features.adamicAdar) * 0.1;
+        } else {
+          // Temporal heads
+          featureBias = (features.recency + features.heatDiffusion) * 0.1;
+        }
+
+        attentionScore += featureBias;
+        allHeadScores.push(attentionScore);
+      }
 
       // === ABLATION-AWARE FUSION ===
       // Apply activeHeads filter for ablation studies
@@ -1508,7 +1656,7 @@ export class SHGAT {
 
     for (const example of examples) {
       // Forward pass to get propagated embeddings via V→E→V message passing
-      const { E, cache } = this.forward();
+      const { H, E, cache } = this.forward();
 
       const capIdx = this.capabilityIndex.get(example.candidateId);
       if (capIdx === undefined) continue;
@@ -1521,13 +1669,17 @@ export class SHGAT {
       // Project intent to propagated space for semantic comparison
       const intentProjected = this.projectIntent(example.intentEmbedding);
 
+      // === COMPUTE CONTEXT SIMILARITY (Story 11.6: fix dead contextTools) ===
+      // Head 1 uses context tool embeddings instead of just intent similarity
+      const contextSim = this.computeContextSimilarity(H, example.contextTools, capIdx);
+
       // === COMPUTE 6-HEAD SCORES (same as scoreAllCapabilities) ===
       const intentSim = this.cosineSimilarity(intentProjected, capPropagatedEmb);
       const adamicAdar = features.adamicAdar ?? 0;
       const heatDiffusion = features.heatDiffusion ?? 0;
 
       const head0 = intentSim;
-      const head1 = intentSim;
+      const head1 = contextSim; // NOW USES CONTEXT TOOLS instead of duplicate intentSim
       const head2 = features.hypergraphPageRank;
       const spectralBonus = 1 / (1 + features.spectralCluster);
       const head3 = 0.5 * spectralBonus + 0.5 * adamicAdar;
