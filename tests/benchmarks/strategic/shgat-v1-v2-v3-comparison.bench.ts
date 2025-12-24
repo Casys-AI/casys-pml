@@ -76,12 +76,12 @@ for (let i = 0; i < 100; i++) {
 // Create SHGAT instances
 const shgat = createSHGATFromCapabilities(capabilities, toolEmbeddings);
 
-// Quick pre-training
+// Extended training (was: 3 epochs, 50 examples)
 await trainSHGATOnEpisodes(
   shgat,
-  mockEpisodicEvents.slice(0, 50),
+  mockEpisodicEvents, // All 100 examples
   (id) => toolEmbeddings.get(id) || null,
-  { epochs: 3, batchSize: 16 },
+  { epochs: 15, batchSize: 16 }, // Increase to 25+ for better v2 results
 );
 
 // Test intent and context
