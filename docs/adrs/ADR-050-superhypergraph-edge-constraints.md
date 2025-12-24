@@ -452,11 +452,69 @@ This allows:
 - Capabilities to aggregate tool-level heat with hierarchical propagation
 - Different decay rates for tool vs capability heat propagation
 
+### V→E→V Message Passing
+
+**Core mechanism from n-SuHGAT (Fujita 2025):** Two-phase attention propagates information between tools (vertices) and capabilities (hyperedges).
+
+#### Phase 1: Vertex → Hyperedge (V→E)
+
+Tools contribute their embeddings to capabilities they belong to:
+
+```
+E^(l+1) = σ(A'^T · H^(l))
+
+where A' = A ⊙ softmax(LeakyReLU(H·W_v · (E·W_e)^T))
+```
+
+- `A` is the incidence matrix (tool × capability membership)
+- Attention weights learn which tools are most relevant for each capability
+- Result: capability embeddings enriched with tool information
+
+#### Phase 2: Hyperedge → Vertex (E→V)
+
+Capabilities propagate back to their constituent tools:
+
+```
+H^(l+1) = σ(B'^T · E^(l))
+
+where B' = A^T ⊙ softmax(LeakyReLU(E·W_e2 · (H·W_v2)^T))
+```
+
+- Tools receive aggregated signals from capabilities they participate in
+- Result: tool embeddings enriched with capability context
+
+#### Intent Projection
+
+To compare intent (1024-dim BGE-M3) with propagated embeddings (384-dim):
+
+```typescript
+// W_intent: learnable projection matrix [384 × 1024]
+intentProjected = W_intent @ intentEmbedding
+
+// Semantic similarity in propagated space
+score = cosineSimilarity(intentProjected, E[capIdx])
+```
+
+#### Scoring with Propagated Embeddings
+
+```typescript
+// Forward pass computes propagated embeddings
+const { H, E } = this.forward();  // V→E→V message passing
+
+// Project intent to same space
+const intentProj = this.projectIntent(intentEmbedding);
+
+// Score using enriched embeddings
+const score = cosineSimilarity(intentProj, E[capIdx]);
+```
+
+**Key insight:** Propagated embeddings capture graph structure implicitly through learned attention. Pre-calculated features (PageRank, spectral, etc.) may be redundant—ablation studies pending to validate.
+
 ### Implementation Files
 
 | File | Content |
 |------|---------|
-| `src/graphrag/algorithms/shgat.ts` | SHGAT class with 6-head scoring, fusion weights, backprop |
+| `src/graphrag/algorithms/shgat.ts` | SHGAT class with 6-head scoring, V→E→V message passing, fusion weights, backprop |
 | `src/graphrag/algorithms/shgat-features.ts` | AdamicAdar + HeatDiffusion integration |
 | `tests/benchmarks/strategic/shgat.bench.ts` | Performance benchmarks for head configurations |
 
