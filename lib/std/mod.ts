@@ -58,6 +58,7 @@ export { archiveTools } from "./archive.ts";
 export { sshTools } from "./ssh.ts";
 export { kubernetesTools } from "./kubernetes.ts";
 export { databaseTools } from "./database.ts";
+export { pgliteTools, closePgliteConnection } from "./pglite.ts";
 export { mediaTools } from "./media.ts";
 export { cloudTools } from "./cloud.ts";
 export { sysinfoTools } from "./sysinfo.ts";
@@ -111,6 +112,7 @@ import { archiveTools } from "./archive.ts";
 import { sshTools } from "./ssh.ts";
 import { kubernetesTools } from "./kubernetes.ts";
 import { databaseTools } from "./database.ts";
+import { pgliteTools } from "./pglite.ts";
 import { mediaTools } from "./media.ts";
 import { cloudTools } from "./cloud.ts";
 import { sysinfoTools } from "./sysinfo.ts";
@@ -159,6 +161,7 @@ export const systemTools = [
   ...sshTools,
   ...kubernetesTools,
   ...databaseTools,
+  ...pgliteTools,
   ...mediaTools,
   ...cloudTools,
   ...sysinfoTools,
@@ -236,6 +239,7 @@ export const toolsByCategory: Record<string, MiniToolType[]> = {
   ssh: sshTools,
   kubernetes: kubernetesTools,
   database: databaseTools,
+  pglite: pgliteTools,
   media: mediaTools,
   cloud: cloudTools,
   sysinfo: sysinfoTools,
