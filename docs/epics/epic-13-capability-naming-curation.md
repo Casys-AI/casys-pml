@@ -25,16 +25,22 @@ This document provides the complete epic and story breakdown for the **Capabilit
 
 | Type | Format | Examples |
 |------|--------|----------|
-| **Capabilities (virtual tools)** | User-defined (free naming) | `read_config`, `myapp:fetch_user`, `analytics-compute`, `fs:read_json` |
+| **Capabilities (MCP tools)** | `mcp__<namespace>__<action>` | `mcp__code__analyze`, `mcp__data__transform`, `mcp__fs__read_json` |
+| **Capability display_name** | `namespace:action` | `code:analyze`, `data:transform`, `fs:read_json` |
 | **Capability Management** | `cap:*` prefix | `cap:lookup`, `cap:list`, `cap:curate`, `cap:rename`, `cap:history` |
 | **System Introspection** | `meta:*` prefix (optional) | `meta:tools`, `meta:servers`, `meta:stats` |
 
-**Key Points:**
-- Capability names are **completely free** - no enforced format
-- Standard namespaces (`fs`, `api`, `db`, `git`, `shell`, `ai`, `util`) are **recommended but not required**
+**Key Points (updated 2024-12-24):**
+- Capability tool names follow MCP format: `mcp__<namespace>__<action>` (indistinguishable from native MCP tools)
+- display_name = `namespace:action` (derived, not free-form)
+- Standard namespaces (`fs`, `api`, `db`, `git`, `shell`, `ai`, `util`, `code`, `data`, `test`) are recommended
 - `cap:*` tools handle all capability registry operations
 - No `dns:*` prefix (confusing with real DNS)
 - No `learn:*` prefix (redundant with existing functionality)
+
+**Namespace/Action Strategy (decided 2024-12-24):**
+1. **Auto-generated** at creation: heuristics based on tools used (e.g., `filesystem:*` → `fs`, `shell:*` → `shell`)
+2. **LLM-refined** via `cap:curate`: Story 13.4 allows renaming with better namespace:action after analysis
 
 ## Requirements Inventory
 
@@ -184,8 +190,8 @@ This document provides the complete epic and story breakdown for the **Capabilit
 
 | Story | Title | Phase | Effort | Status |
 |-------|-------|-------|--------|--------|
-| 13.1 | Schema, FQDN & Aliases | 1 | 2j | backlog |
-| 13.2 | pml_execute Naming Support | 1 | 1.5j | backlog |
+| 13.1 | Schema, FQDN & Aliases | 1 | 2j | ✅ done |
+| 13.2 | pml_execute Naming Support | 1 | 1.5j | ✅ done |
 | 13.3 | CapabilityMCPServer + Gateway | 1 | 2.5j | backlog |
 | 13.4 | Capability Curation System | 2 | 3j | backlog |
 | 13.5 | Discovery & Query API | 2 | 2j | backlog |
@@ -338,20 +344,28 @@ This document provides the complete epic and story breakdown for the **Capabilit
 **I want** capabilities to appear as MCP tools in the unified tool list,
 **So that** I can discover and call them like any other MCP tool.
 
+**Design Decision (2024-12-24):**
+- **Naming format:** `mcp__<namespace>__<action>` (indistinguishable from native MCP tools)
+- **display_name:** `namespace:action` (not free-form, derived from namespace + action)
+- **Dynamic servers:** One virtual MCP server per namespace (e.g., `code`, `data`, `test`)
+- **Example:** Capability with namespace=`code`, action=`analyze` → tool name `mcp__code__analyze`
+
+This makes learned capabilities completely transparent - Claude cannot distinguish them from native MCP tools.
+
 **Acceptance Criteria:**
 
-**AC1: Virtual Server Creation**
-**Given** the MCP Gateway
-**When** initialized
-**Then** `CapabilityMCPServer` is registered as virtual server with `serverId = "pml-capabilities"`
+**AC1: Dynamic Server Registration**
+**Given** capabilities with namespaces `code`, `data`, `test`
+**When** Gateway initialized
+**Then** virtual MCP servers registered dynamically for each namespace
 
 **AC2: listTools Implementation**
-**Given** 5 named capabilities exist (`my-reader`, `api-fetcher`, `data-transform`, etc.)
+**Given** 5 capabilities: `code:analyze`, `code:refactor`, `data:transform`, etc.
 **When** `listTools()` called
-**Then** returns 5 tools with user-defined names and proper inputSchema
+**Then** returns tools as `mcp__code__analyze`, `mcp__code__refactor`, `mcp__data__transform` with proper inputSchema
 
 **AC3: callTool Implementation**
-**Given** tool call for `my-reader` with args `{ path: "config.json" }`
+**Given** tool call for `mcp__code__analyze` with args `{ file: "src/main.ts" }`
 **When** `callTool()` executed
 **Then** capability code runs via WorkerBridge and result returned as ToolResult
 

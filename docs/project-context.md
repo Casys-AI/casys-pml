@@ -240,6 +240,115 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **No magic strings** — Utiliser des constantes ou enums
 - **Immutability preferred** — `const` par défaut, éviter mutations
 
+### Architecture Patterns
+
+#### Service Layer Separation (3-Tier)
+Strict separation entre handlers (API), services (business logic), et repositories (data).
+
+```
+Handler (MCP/HTTP) → Service (Business Logic) → Repository (Data Access)
+      ↓                      ↓                         ↓
+  Validation          Orchestration              SQL/Queries
+  Formatting          Domain Logic               Row Mapping
+  Routing             Event Emission             Transactions
+```
+
+**Règles:**
+- **Handlers** (`src/mcp/handlers/`): Validation input, appel services, formatage output
+- **Services** (`src/*/`): Business logic, pas d'accès DB direct, utilise repositories
+- **Repositories** (`*-store.ts`, `*-repository.ts`): Data access only, pas de business logic
+
+#### Repository Pattern for Data Access
+Toutes les opérations DB passent par des classes repository. Pas de SQL direct dans handlers ou services.
+
+**Règles:**
+- **Repository files** en `*-store.ts` ou `*-repository.ts`
+- **Single table/aggregate per repository**
+- **Return domain objects**, pas raw rows
+- **No business logic** dans repositories — pure CRUD + queries
+
+```typescript
+// GOOD - Service utilise repository
+class CapabilityService {
+  constructor(private store: CapabilityStore) {}
+  async execute(name: string): Promise<Result> {
+    const cap = await this.store.findByName(name);
+    // business logic here
+  }
+}
+
+// BAD - Handler fait du SQL direct
+async function handleExecute(args, deps) {
+  const rows = await deps.db.query("SELECT * FROM..."); // ❌
+}
+```
+
+#### Interface-First Design
+Définir interfaces avant implémentations, surtout pour les boundaries cross-module.
+
+**Règles:**
+- **Interfaces** dans `types.ts` ou `interfaces.ts` dédié
+- **Implementations** importent interfaces, pas classes concrètes
+- **Tests** peuvent mocker les interfaces facilement
+
+```typescript
+// src/mcp/capability-server/interfaces.ts
+export interface CapabilityExecutor {
+  execute(name: string, args: Record<string, unknown>): Promise<ExecuteResult>;
+}
+
+// src/mcp/capability-server/server.ts - utilise l'interface
+export class CapabilityMCPServer {
+  constructor(private executor: CapabilityExecutor) {}
+}
+```
+
+#### Constructor Injection (Max 5 Dependencies)
+Injection de dépendances via constructeur avec limite stricte.
+
+**Règles:**
+- **JAMAIS plus de 5 paramètres** dans un constructeur
+- Si plus → refactoriser en services composés
+- **JAMAIS créer services avec `new`** dans le code métier — utiliser composition
+
+```typescript
+// BAD - 10 paramètres = God class
+constructor(db, vectorSearch, graphEngine, dagSuggester, executor, mcpClients,
+            capabilityStore, thresholdManager, config, embeddingModel) {}
+
+// GOOD - Services composés (max 5)
+constructor(
+  private toolRouter: ToolRouter,
+  private algorithmManager: AlgorithmManager,
+  private healthService: HealthService,
+) {}
+```
+
+#### Feature Module Pattern (Vertical Slices)
+Grouper fonctionnalités par feature, pas par layer technique.
+
+**Structure recommandée:**
+```
+src/
+  capabilities/           # Feature: Capability Management
+    mod.ts               # Public API exports
+    types.ts             # Domain types
+    capability-store.ts  # Repository
+    capability-service.ts # Business logic
+
+  mcp/
+    capability-server/   # Feature: Capability MCP Server
+      mod.ts             # Public exports
+      interfaces.ts      # Contracts
+      server.ts          # Main class
+      handlers/          # MCP handlers
+```
+
+**Règles:**
+- Chaque feature folder est self-contained
+- `mod.ts` exporte API publique uniquement
+- Communication cross-feature via interfaces
+
 ### Development Workflow Rules
 
 #### Git Conventions

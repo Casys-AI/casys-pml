@@ -5,9 +5,9 @@
 # generated: 2025-11-03
 # project: Casys Intelligence
 # project_type: software
-# project_level: 3
+# project_level: 4
 # field_type: greenfield
-# workflow_path: greenfield-level-3.yaml
+# workflow_path: enterprise-greenfield.yaml
 
 # STATUS DEFINITIONS:
 # ==================
@@ -24,9 +24,9 @@
 generated: "2025-11-03"
 project: "Casys Intelligence"
 project_type: "software"
-project_level: "3"
+project_level: "4"
 field_type: "greenfield"
-workflow_path: "greenfield-level-3.yaml"
+workflow_path: "enterprise-greenfield.yaml"
 
 workflow_status:
   # Phase 1: Analysis
