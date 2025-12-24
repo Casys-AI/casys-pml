@@ -16,6 +16,7 @@ import { SmitheryMCPClient } from "../../mcp/smithery-client.ts";
 import { EmbeddingModel } from "../../vector/embeddings.ts";
 import { VectorSearch } from "../../vector/search.ts";
 import { GraphRAGEngine } from "../../graphrag/graph-engine.ts";
+import { syncAllProvidesEdges } from "../../graphrag/provides-edge-calculator.ts";
 import { DAGSuggester } from "../../graphrag/dag-suggester.ts";
 import { ParallelExecutor } from "../../dag/executor.ts";
 import { PMLGatewayServer } from "../../mcp/gateway-server.ts";
@@ -273,6 +274,14 @@ export function createServeCommand() {
 
         const graphEngine = new GraphRAGEngine(db);
         await graphEngine.syncFromDatabase();
+
+        // Calculate provides edges from tool schemas (Definition mode data flow)
+        const providesEdgeCount = await syncAllProvidesEdges(db);
+        if (providesEdgeCount > 0) {
+          log.info(`✓ Synced ${providesEdgeCount} provides edges from tool schemas`);
+          // Re-sync graph to include new provides edges
+          await graphEngine.syncFromDatabase();
+        }
 
         // 4.1 Initialize Capabilities System (Story 7.3a)
         const schemaInferrer = new SchemaInferrer(db);

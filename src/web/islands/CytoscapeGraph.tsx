@@ -35,6 +35,25 @@ interface ApiNodeData {
   tools_used?: string[]; // Unique tools (deduplicated)
   tool_invocations?: ApiToolInvocation[]; // Full sequence with timestamps
   pagerank?: number;
+  // Story 11.4: Execution traces (when include_traces=true)
+  traces?: Array<{
+    id: string;
+    capability_id?: string;
+    executed_at: string;
+    success: boolean;
+    duration_ms: number;
+    error_message?: string;
+    priority: number;
+    task_results: Array<{
+      task_id: string;
+      tool: string;
+      args: Record<string, unknown>;
+      result: unknown;
+      success: boolean;
+      duration_ms: number;
+      layer_index?: number;
+    }>;
+  }>;
   // Tool fields
   server?: string;
   parent?: string;
@@ -63,6 +82,8 @@ interface ApiEdgeData {
   // Sequence edge fields
   time_delta_ms?: number;
   is_parallel?: boolean;
+  // Provides edge fields (Story 11.4 AC12)
+  coverage?: "strict" | "partial" | "optional";
 }
 
 interface ApiEdge {
@@ -85,6 +106,29 @@ interface ToolInvocation {
   sequenceIndex: number;
 }
 
+// Story 11.4: Trace task result with layerIndex for fan-in/fan-out
+export interface TraceTaskResult {
+  taskId: string;
+  tool: string;
+  args: Record<string, unknown>;
+  result: unknown;
+  success: boolean;
+  durationMs: number;
+  layerIndex?: number;
+}
+
+// Story 11.4: Execution trace for capability
+export interface ExecutionTrace {
+  id: string;
+  capabilityId?: string;
+  executedAt: string;
+  success: boolean;
+  durationMs: number;
+  errorMessage?: string;
+  priority: number;
+  taskResults: TraceTaskResult[];
+}
+
 // Transformed types for internal use
 interface CapabilityNode {
   id: string;
@@ -98,6 +142,7 @@ interface CapabilityNode {
   toolsUsed?: string[]; // Unique tools (deduplicated)
   toolInvocations?: ToolInvocation[]; // Full sequence with timestamps
   parentCapabilityId?: string;
+  traces?: ExecutionTrace[]; // Story 11.4: Recent execution traces
 }
 
 interface ToolNode {
@@ -114,12 +159,14 @@ interface ToolNode {
 interface Edge {
   source: string;
   target: string;
-  edgeType: "hierarchy" | "contains" | "sequence" | "dependency" | "capability_link" | "uses";
+  edgeType: "hierarchy" | "contains" | "sequence" | "dependency" | "capability_link" | "uses" | "provides" | "dependsOn";
   weight?: number;
   observedCount?: number;
   // Sequence edge specific
   timeDeltaMs?: number;
   isParallel?: boolean;
+  // Provides edge specific (Story 11.4 AC12)
+  coverage?: "strict" | "partial" | "optional";
 }
 
 interface TransformedData {
@@ -140,6 +187,7 @@ export interface CapabilityData {
   communityId?: number;
   lastUsedAt?: number;
   createdAt?: number;
+  traces?: ExecutionTrace[]; // Story 11.4
 }
 
 export interface ToolData {
@@ -506,6 +554,34 @@ export default function CytoscapeGraph({
         opacity: 0.6,
       },
     },
+    // Story 11.4 AC12: Edges - provides (data flow: A.output → B.input)
+    {
+      selector: 'edge[edgeType="provides"]',
+      style: {
+        width: 2,
+        "line-color": "#22c55e",
+        "line-style": "dashed",
+        "target-arrow-shape": "triangle",
+        "target-arrow-color": "#22c55e",
+        "arrow-scale": 0.8,
+        "curve-style": "bezier",
+        opacity: 0.7,
+      },
+    },
+    // Story 11.4 AC12: Edges - dependsOn (reverse of provides)
+    {
+      selector: 'edge[edgeType="dependsOn"]',
+      style: {
+        width: 2,
+        "line-color": "#3b82f6",
+        "line-style": "solid",
+        "target-arrow-shape": "triangle",
+        "target-arrow-color": "#3b82f6",
+        "arrow-scale": 0.8,
+        "curve-style": "bezier",
+        opacity: 0.7,
+      },
+    },
     // Highlighted node
     {
       selector: "node.highlighted",
@@ -580,7 +656,8 @@ export default function CytoscapeGraph({
     setError(null);
 
     try {
-      const response = await fetch(`${apiBase}/api/graph/hypergraph`);
+      // Story 11.4: Include traces for invocation mode
+      const response = await fetch(`${apiBase}/api/graph/hypergraph?include_traces=true`);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
@@ -606,6 +683,43 @@ export default function CytoscapeGraph({
               sequenceIndex: inv.sequence_index,
             }));
 
+            // Story 11.4: Transform traces from snake_case to camelCase
+            const traces = d.traces?.map((t: {
+              id: string;
+              capability_id?: string;
+              executed_at: string;
+              success: boolean;
+              duration_ms: number;
+              error_message?: string;
+              priority: number;
+              task_results: Array<{
+                task_id: string;
+                tool: string;
+                args: Record<string, unknown>;
+                result: unknown;
+                success: boolean;
+                duration_ms: number;
+                layer_index?: number;
+              }>;
+            }) => ({
+              id: t.id,
+              capabilityId: t.capability_id,
+              executedAt: t.executed_at,
+              success: t.success,
+              durationMs: t.duration_ms,
+              errorMessage: t.error_message,
+              priority: t.priority,
+              taskResults: t.task_results.map((r) => ({
+                taskId: r.task_id,
+                tool: r.tool,
+                args: r.args,
+                result: r.result,
+                success: r.success,
+                durationMs: r.duration_ms,
+                layerIndex: r.layer_index,
+              })),
+            }));
+
             capabilities.push({
               id: d.id,
               name: d.label,
@@ -617,6 +731,7 @@ export default function CytoscapeGraph({
               toolInvocations, // Full sequence with timestamps
               codeSnippet: d.code_snippet,
               communityId: d.community_id,
+              traces, // Story 11.4
             });
           }
         } else if (d.type === "tool") {
@@ -644,6 +759,7 @@ export default function CytoscapeGraph({
         observedCount: e.data.observed_count,
         timeDeltaMs: e.data.time_delta_ms,
         isParallel: e.data.is_parallel,
+        coverage: e.data.coverage as Edge["coverage"], // Story 11.4 AC12
       }));
 
       // Derive parent-child relationships from "contains" edges
@@ -696,6 +812,7 @@ export default function CytoscapeGraph({
           toolIds,
           childCapabilityIds: childCapIds,
           communityId: cap.communityId,
+          traces: cap.traces, // Story 11.4
         });
       }
 
@@ -826,12 +943,49 @@ export default function CytoscapeGraph({
     }
 
     // Add tool invocation nodes only in "invocation" mode
-    // Use toolInvocations (with timestamps) if available, fallback to toolsUsed
-    const generatedInvocations: Array<{ capId: string; invId: string; index: number; ts?: number }> = [];
+    // Story 11.4: Prefer traces with layerIndex for fan-in/fan-out visualization
+    // Fallback to toolInvocations, then toolsUsed
+    const generatedInvocations: Array<{
+      capId: string;
+      invId: string;
+      index: number;
+      layerIndex: number;
+      ts?: number;
+    }> = [];
     if (currentNodeMode === "invocation") {
       for (const cap of data.capabilities) {
-        // Prefer toolInvocations (full sequence with timestamps)
-        if (cap.toolInvocations && cap.toolInvocations.length > 0) {
+        // Priority 1: Use traces with layerIndex for fan-in/fan-out (Story 11.4)
+        const latestTrace = cap.traces?.[0]; // Most recent trace
+        if (latestTrace && latestTrace.taskResults.length > 0) {
+          for (let i = 0; i < latestTrace.taskResults.length; i++) {
+            const task = latestTrace.taskResults[i];
+            const [server = "unknown", ...nameParts] = task.tool.split(":");
+            const toolName = nameParts.join(":") || task.tool;
+            const color = getServerColor(server);
+            const layerIndex = task.layerIndex ?? 0;
+            const invId = `${cap.id}:inv-${i}`;
+
+            elements.push({
+              group: "nodes",
+              data: {
+                id: invId,
+                label: `L${layerIndex}#${i + 1} ${toolName.length > 12 ? toolName.slice(0, 10) + ".." : toolName}`,
+                type: "tool_invocation",
+                tool: task.tool,
+                server,
+                color,
+                parent: cap.id,
+                sequenceIndex: i,
+                layerIndex,
+                durationMs: task.durationMs,
+                success: task.success,
+              },
+            });
+
+            generatedInvocations.push({ capId: cap.id, invId, index: i, layerIndex });
+          }
+        } else if (cap.toolInvocations && cap.toolInvocations.length > 0) {
+          // Priority 2: toolInvocations (full sequence with timestamps, no layerIndex)
           for (const inv of cap.toolInvocations) {
             const [server = "unknown", ...nameParts] = inv.tool.split(":");
             const toolName = nameParts.join(":") || inv.tool;
@@ -854,10 +1008,16 @@ export default function CytoscapeGraph({
               },
             });
 
-            generatedInvocations.push({ capId: cap.id, invId, index: inv.sequenceIndex, ts: inv.ts });
+            generatedInvocations.push({
+              capId: cap.id,
+              invId,
+              index: inv.sequenceIndex,
+              layerIndex: inv.sequenceIndex, // Fallback: assume sequential layers
+              ts: inv.ts,
+            });
           }
         } else if (cap.toolsUsed && cap.toolsUsed.length > 0) {
-          // Fallback to toolsUsed (deduplicated, no timestamps)
+          // Priority 3: toolsUsed (deduplicated, no timestamps)
           for (let i = 0; i < cap.toolsUsed.length; i++) {
             const toolId = cap.toolsUsed[i];
             const [server = "unknown", ...nameParts] = toolId.split(":");
@@ -879,7 +1039,12 @@ export default function CytoscapeGraph({
               },
             });
 
-            generatedInvocations.push({ capId: cap.id, invId, index: i });
+            generatedInvocations.push({
+              capId: cap.id,
+              invId,
+              index: i,
+              layerIndex: i, // Fallback: assume sequential layers
+            });
           }
         }
       }
@@ -921,10 +1086,10 @@ export default function CytoscapeGraph({
         });
       }
       // Tool-to-tool edges (definition mode only)
-      // Note: sequence edges for invocation mode are generated from toolsUsed, not from API
+      // Definition mode: show static data flow (provides), not execution patterns (sequence)
       else if (!sourceIsCap && !targetIsCap) {
-        // Regular tool-to-tool edges (only in definition mode)
-        if (currentNodeMode === "definition") {
+        // Regular tool-to-tool edges (only in definition mode, only "provides" edges)
+        if (currentNodeMode === "definition" && edge.edgeType === "provides") {
           const sourceTools = data.tools.find((t) => t.id === edge.source);
           const targetTools = data.tools.find((t) => t.id === edge.target);
           if (!sourceTools || !targetTools) continue;
@@ -951,36 +1116,55 @@ export default function CytoscapeGraph({
       }
     }
 
-    // Generate sequence edges for invocation mode (connect consecutive invocations)
+    // Generate sequence edges for invocation mode (Story 11.4: fan-in/fan-out)
     if (currentNodeMode === "invocation" && generatedInvocations.length > 0) {
-      // Group invocations by capability
-      const invocationsByCapability = new Map<string, Array<{ invId: string; index: number }>>();
+      // Group invocations by capability, then by layer for fan-in/fan-out
+      const invocationsByCapability = new Map<
+        string,
+        Map<number, Array<{ invId: string; index: number }>>
+      >();
+
       for (const inv of generatedInvocations) {
         if (!invocationsByCapability.has(inv.capId)) {
-          invocationsByCapability.set(inv.capId, []);
+          invocationsByCapability.set(inv.capId, new Map());
         }
-        invocationsByCapability.get(inv.capId)!.push({ invId: inv.invId, index: inv.index });
+        const capLayers = invocationsByCapability.get(inv.capId)!;
+        if (!capLayers.has(inv.layerIndex)) {
+          capLayers.set(inv.layerIndex, []);
+        }
+        capLayers.get(inv.layerIndex)!.push({ invId: inv.invId, index: inv.index });
       }
 
-      // Create sequence edges between consecutive invocations in each capability
-      for (const [_capId, invocations] of invocationsByCapability) {
-        // Sort by index to ensure correct order
-        invocations.sort((a, b) => a.index - b.index);
+      // Create fan-in/fan-out edges between consecutive layers
+      for (const [_capId, layersMap] of invocationsByCapability) {
+        // Sort layers by index
+        const sortedLayers = Array.from(layersMap.entries()).sort((a, b) => a[0] - b[0]);
 
-        for (let i = 0; i < invocations.length - 1; i++) {
-          const current = invocations[i];
-          const next = invocations[i + 1];
+        // Connect all nodes in layer N to all nodes in layer N+1 (fan-in/fan-out)
+        for (let i = 0; i < sortedLayers.length - 1; i++) {
+          const currentLayer = sortedLayers[i][1];
+          const nextLayer = sortedLayers[i + 1][1];
+          const isParallel = currentLayer.length > 1 || nextLayer.length > 1;
 
-          elements.push({
-            group: "edges",
-            data: {
-              id: `seq-${current.invId}-${next.invId}`,
-              source: current.invId,
-              target: next.invId,
-              edgeType: "sequence",
-              isParallel: false,
-            },
-          });
+          // Create edges from each node in current layer to each node in next layer
+          for (const current of currentLayer) {
+            for (const next of nextLayer) {
+              elements.push({
+                group: "edges",
+                data: {
+                  id: `seq-${current.invId}-${next.invId}`,
+                  source: current.invId,
+                  target: next.invId,
+                  edgeType: "sequence",
+                  isParallel,
+                  // Fan-out: current layer has 1 node, next has multiple
+                  isFanOut: currentLayer.length === 1 && nextLayer.length > 1,
+                  // Fan-in: current layer has multiple, next has 1
+                  isFanIn: currentLayer.length > 1 && nextLayer.length === 1,
+                },
+              });
+            }
+          }
         }
       }
     }
@@ -1011,13 +1195,14 @@ export default function CytoscapeGraph({
       });
     }
 
-    // Add edges between tools (from sequence edges)
+    // Add edges between tools (Definition mode: provides edges from schema)
     for (const edge of data.edges) {
       // Only show tool-to-tool relationships
       const sourceIsTool = data.tools.some((t) => t.id === edge.source);
       const targetIsTool = data.tools.some((t) => t.id === edge.target);
 
-      if (sourceIsTool && targetIsTool && edge.edgeType === "sequence") {
+      // Definition mode shows static data flow (provides), not execution patterns (sequence)
+      if (sourceIsTool && targetIsTool && edge.edgeType === "provides") {
         elements.push({
           group: "edges",
           data: {
