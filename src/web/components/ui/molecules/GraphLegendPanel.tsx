@@ -30,9 +30,6 @@ interface GraphLegendPanelProps {
   // View mode control
   viewMode?: ViewMode;
   onViewModeChange?: (mode: ViewMode) => void;
-  // Node mode (instance vs invocation)
-  nodeMode?: NodeMode;
-  onNodeModeChange?: (mode: NodeMode) => void;
 }
 
 export default function GraphLegendPanel({
@@ -50,9 +47,6 @@ export default function GraphLegendPanel({
   // View mode
   viewMode = "capabilities",
   onViewModeChange,
-  // Node mode
-  nodeMode = "definition",
-  onNodeModeChange,
 }: GraphLegendPanelProps): JSX.Element {
   return (
     <div
@@ -113,56 +107,6 @@ export default function GraphLegendPanel({
         </>
       )}
 
-      {/* Node Mode */}
-      {onNodeModeChange && (
-        <>
-          <h3
-            class="text-xs font-semibold uppercase tracking-widest mb-2"
-            style={{ color: "var(--text-dim)" }}
-          >
-            Node Mode
-          </h3>
-          <div class="flex gap-1 mb-3">
-            <button
-              class="flex-1 px-2 py-1.5 rounded text-xs font-medium transition-all"
-              style={{
-                background: nodeMode === "definition"
-                  ? "var(--accent, #FFB86F)"
-                  : "var(--bg-surface, #1a1816)",
-                color: nodeMode === "definition"
-                  ? "var(--bg, #0a0908)"
-                  : "var(--text-muted, #d5c3b5)",
-                border: nodeMode === "definition"
-                  ? "1px solid var(--accent)"
-                  : "1px solid var(--border)",
-              }}
-              onClick={() => onNodeModeChange("definition")}
-              title="Generic tool definitions"
-            >
-              Definition
-            </button>
-            <button
-              class="flex-1 px-2 py-1.5 rounded text-xs font-medium transition-all"
-              style={{
-                background: nodeMode === "invocation"
-                  ? "var(--accent, #FFB86F)"
-                  : "var(--bg-surface, #1a1816)",
-                color: nodeMode === "invocation"
-                  ? "var(--bg, #0a0908)"
-                  : "var(--text-muted, #d5c3b5)",
-                border: nodeMode === "invocation"
-                  ? "1px solid var(--accent)"
-                  : "1px solid var(--border)",
-              }}
-              onClick={() => onNodeModeChange("invocation")}
-              title="Actual tool invocations with sequence"
-            >
-              Invocation
-            </button>
-          </div>
-          <Divider />
-        </>
-      )}
 
       {/* MCP Servers */}
       <h3

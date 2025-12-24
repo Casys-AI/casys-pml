@@ -74,7 +74,8 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
   const [viewMode, setViewMode] = useState<ViewMode>("capabilities");
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [highlightDepth, setHighlightDepth] = useState(1);
-  const [nodeMode, setNodeMode] = useState<NodeMode>("definition");
+  // nodeMode is always "definition" - graph shows structure, not invocations
+  const nodeMode: NodeMode = "definition";
 
   // Server filtering state (for GraphLegendPanel)
   const [servers, setServers] = useState<Set<string>>(new Set());
@@ -701,8 +702,6 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
           onHighlightDepthChange={setHighlightDepth}
           viewMode={viewMode}
           onViewModeChange={setViewMode}
-          nodeMode={nodeMode}
-          onNodeModeChange={setNodeMode}
         />
       </div>
 

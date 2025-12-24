@@ -14,6 +14,9 @@ export { ProgressBar } from "./ProgressBar.tsx";
 export { RankItem } from "./RankItem.tsx";
 export { SectionCard } from "./SectionCard.tsx";
 
+// Trace atoms
+export { default as TaskCard } from "./TaskCard.tsx";
+
 // Graph atoms
 export { default as GraphNode, getNodeRadius, type GraphNodeData } from "./GraphNode.tsx";
 export {

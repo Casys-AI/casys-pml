@@ -14,10 +14,12 @@
 
 import { useEffect, useState, useRef, useCallback } from "preact/hooks";
 import { highlightCode, detectLanguage, syntaxHighlightStyles } from "../lib/syntax-highlight.ts";
-import type { CapabilityData, ToolData } from "./CytoscapeGraph.tsx";
+import type { CapabilityData, ToolData, ExecutionTrace, TraceTaskResult } from "./CytoscapeGraph.tsx";
+import TraceSelector from "../components/ui/molecules/TraceSelector.tsx";
+import TraceTimeline from "../components/ui/molecules/TraceTimeline.tsx";
 
 // Re-export for convenience
-export type { CapabilityData, ToolData };
+export type { CapabilityData, ToolData, ExecutionTrace, TraceTaskResult };
 
 interface CodePanelProps {
   /** Capability data to display (null hides panel) */
@@ -85,6 +87,10 @@ export default function CodePanel({
 }: CodePanelProps) {
   const [copied, setCopied] = useState(false);
   const [showLineNumbers, setShowLineNumbers] = useState(true);
+  // Story 11.4: Selected trace index for Invocation view
+  const [selectedTraceIndex, setSelectedTraceIndex] = useState(0);
+  // Track if initial animation has completed (prevents re-animation on resize)
+  const [hasAnimated, setHasAnimated] = useState(false);
 
   // Resizable panel state
   const [panelHeight, setPanelHeight] = useState(() => {
@@ -139,6 +145,12 @@ export default function CodePanel({
       localStorage.setItem("codePanelHeight", String(panelHeight));
     }
   }, [panelHeight]);
+
+  // Mark animation as complete after initial slide-up (prevents re-animation on resize)
+  useEffect(() => {
+    const timer = setTimeout(() => setHasAnimated(true), 350); // 300ms animation + buffer
+    return () => clearTimeout(timer);
+  }, []);
 
   // Resize handlers
   const handleResizeStart = useCallback((e: MouseEvent | TouchEvent) => {
@@ -271,7 +283,7 @@ export default function CodePanel({
           borderTop: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
           display: "flex",
           flexDirection: "column",
-          animation: isResizing ? "none" : "slideUp 300ms ease-out",
+          animation: hasAnimated ? "none" : "slideUp 300ms ease-out",
           position: "relative",
           zIndex: 100,
           outline: "none",
@@ -470,17 +482,31 @@ export default function CodePanel({
           </button>
         </div>
 
-        {/* Content */}
+        {/* Content - Story 11.4: Split layout for Definition (left) + Invocation (right) */}
         <div
           style={{
             flex: 1,
-            overflow: "auto",
-            padding: "16px",
+            overflow: "hidden",
             display: "flex",
-            flexDirection: "column",
-            gap: "12px",
+            flexDirection: "row",
+            gap: "0",
           }}
         >
+          {/* Left Side: Definition (code, stats, tools) */}
+          <div
+            style={{
+              width: displayMode === "capability" && capability?.traces?.length ? "50%" : "100%",
+              overflow: "auto",
+              padding: "16px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "12px",
+              borderRight: displayMode === "capability" && capability?.traces?.length
+                ? "1px solid var(--border, rgba(255, 184, 111, 0.1))"
+                : "none",
+            }}
+          >
+
           {/* Code Section */}
           <div
             style={{
@@ -805,6 +831,34 @@ export default function CodePanel({
                 <span style={{ color: "var(--text-dim, #8a8078)" }}>
                   +{tool.parentCapabilities.length - 5} more
                 </span>
+              )}
+            </div>
+          )}
+          </div>
+
+          {/* Right Side: Invocation (trace selector + timeline) - Story 11.4 */}
+          {displayMode === "capability" && capability?.traces && capability.traces.length > 0 && (
+            <div
+              style={{
+                width: "50%",
+                overflow: "auto",
+                padding: "16px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "12px",
+              }}
+            >
+
+              <TraceSelector
+                traces={capability.traces}
+                selectedIndex={selectedTraceIndex}
+                onSelect={setSelectedTraceIndex}
+              />
+              {capability.traces[selectedTraceIndex] && (
+                <TraceTimeline
+                  trace={capability.traces[selectedTraceIndex]}
+                  getServerColor={getServerColor}
+                />
               )}
             </div>
           )}
