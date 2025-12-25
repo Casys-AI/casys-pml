@@ -457,8 +457,8 @@ export class SHGAT {
     // Attention = softmax(Q·K^T / √d_k)
     // For single-query self-attention, this simplifies to a scalar
     const scale = Math.sqrt(hiddenDim);
-    const attention = this.dot(Q, K) / scale;
-    const attentionWeight = this.sigmoid(attention); // Use sigmoid for [0,1] range
+    const attention = math.dot(Q, K) / scale;
+    const attentionWeight = math.sigmoid(attention); // Use sigmoid for [0,1] range
 
     // Output = attention_weight * sum(V)
     const vSum = V.reduce((a, b) => a + b, 0);
@@ -513,7 +513,7 @@ export class SHGAT {
       output += this.fusionMLP.W2[i] * hidden[i];
     }
 
-    return this.sigmoid(output);
+    return math.sigmoid(output);
   }
 
   /**
@@ -565,7 +565,7 @@ export class SHGAT {
         contextEmbeddings.push(tool.embedding);
       }
     }
-    const contextAggregated = this.meanPool(contextEmbeddings, intentEmbedding.length);
+    const contextAggregated = math.meanPool(contextEmbeddings, intentEmbedding.length);
 
     for (const [capId, cap] of this.capabilityNodes) {
       // Always use embeddings from nodes, merge traceStats from map if provided
@@ -650,7 +650,7 @@ export class SHGAT {
         contextEmbeddings.push(tool.embedding);
       }
     }
-    const contextAggregated = this.meanPool(contextEmbeddings, intentEmbedding.length);
+    const contextAggregated = math.meanPool(contextEmbeddings, intentEmbedding.length);
 
     for (const [toolId, tool] of this.toolNodes) {
       // Always use embeddings from nodes, merge traceStats from map if provided
@@ -730,7 +730,7 @@ export class SHGAT {
         contextEmbeddings.push(tool.embedding);
       }
     }
-    const contextAggregated = this.meanPool(contextEmbeddings, intentEmbedding.length);
+    const contextAggregated = math.meanPool(contextEmbeddings, intentEmbedding.length);
 
     for (const [capId, cap] of this.capabilityNodes) {
       const cIdx = this.capabilityIndex.get(capId)!;
@@ -794,28 +794,6 @@ export class SHGAT {
 
     results.sort((a, b) => b.score - a.score);
     return results;
-  }
-
-  /**
-   * Mean pooling for context embeddings
-   */
-  private meanPool(embeddings: number[][], dim: number): number[] {
-    if (embeddings.length === 0) {
-      return new Array(dim).fill(0);
-    }
-
-    const result = new Array(dim).fill(0);
-    for (const emb of embeddings) {
-      for (let i = 0; i < Math.min(dim, emb.length); i++) {
-        result[i] += emb[i];
-      }
-    }
-
-    for (let i = 0; i < dim; i++) {
-      result[i] /= embeddings.length;
-    }
-
-    return result;
   }
 
   // ==========================================================================
@@ -1068,13 +1046,13 @@ export class SHGAT {
       }
 
       // Concatenate heads
-      H = this.concatHeads(headsH);
-      E = this.concatHeads(headsE);
+      H = math.concatHeads(headsH);
+      E = math.concatHeads(headsE);
 
       // Apply dropout during training
       if (this.trainingMode && this.config.dropout > 0) {
-        H = this.applyDropout(H);
-        E = this.applyDropout(E);
+        H = math.applyDropout(H, this.config.dropout);
+        E = math.applyDropout(E, this.config.dropout);
       }
 
       cache.H.push(H);
@@ -1102,8 +1080,8 @@ export class SHGAT {
     const numCaps = E.length;
 
     // Project
-    const H_proj = this.matmulTranspose(H, W_v);
-    const E_proj = this.matmulTranspose(E, W_e);
+    const H_proj = math.matmulTranspose(H, W_v);
+    const E_proj = math.matmulTranspose(E, W_e);
 
     // Compute attention scores (masked by incidence matrix)
     const attentionScores: number[][] = Array.from(
@@ -1115,8 +1093,8 @@ export class SHGAT {
       for (let c = 0; c < numCaps; c++) {
         if (this.incidenceMatrix[t][c] === 1) {
           const concat = [...H_proj[t], ...E_proj[c]];
-          const activated = concat.map((x) => this.leakyRelu(x));
-          attentionScores[t][c] = this.dot(a_ve, activated);
+          const activated = concat.map((x) => math.leakyRelu(x, this.config.leakyReluSlope));
+          attentionScores[t][c] = math.dot(a_ve, activated);
         }
       }
     }
@@ -1138,7 +1116,7 @@ export class SHGAT {
       if (toolsInCap.length === 0) continue;
 
       const scores = toolsInCap.map((t) => attentionScores[t][c]);
-      const softmaxed = this.softmax(scores);
+      const softmaxed = math.softmax(scores);
 
       for (let i = 0; i < toolsInCap.length; i++) {
         attentionVE[toolsInCap[i]][c] = softmaxed[i];
@@ -1160,7 +1138,7 @@ export class SHGAT {
         }
       }
 
-      E_new.push(aggregated.map((x) => this.elu(x)));
+      E_new.push(aggregated.map((x) => math.elu(x)));
     }
 
     return { E_new, attentionVE };
@@ -1180,8 +1158,8 @@ export class SHGAT {
     const numTools = H.length;
     const numCaps = E.length;
 
-    const E_proj = this.matmulTranspose(E, W_e);
-    const H_proj = this.matmulTranspose(H, W_v);
+    const E_proj = math.matmulTranspose(E, W_e);
+    const H_proj = math.matmulTranspose(H, W_v);
 
     // Compute attention scores
     const attentionScores: number[][] = Array.from(
@@ -1193,8 +1171,8 @@ export class SHGAT {
       for (let t = 0; t < numTools; t++) {
         if (this.incidenceMatrix[t][c] === 1) {
           const concat = [...E_proj[c], ...H_proj[t]];
-          const activated = concat.map((x) => this.leakyRelu(x));
-          attentionScores[c][t] = this.dot(a_ev, activated);
+          const activated = concat.map((x) => math.leakyRelu(x, this.config.leakyReluSlope));
+          attentionScores[c][t] = math.dot(a_ev, activated);
         }
       }
     }
@@ -1216,7 +1194,7 @@ export class SHGAT {
       if (capsForTool.length === 0) continue;
 
       const scores = capsForTool.map((c) => attentionScores[c][t]);
-      const softmaxed = this.softmax(scores);
+      const softmaxed = math.softmax(scores);
 
       for (let i = 0; i < capsForTool.length; i++) {
         attentionEV[capsForTool[i]][t] = softmaxed[i];
@@ -1238,7 +1216,7 @@ export class SHGAT {
         }
       }
 
-      H_new.push(aggregated.map((x) => this.elu(x)));
+      H_new.push(aggregated.map((x) => math.elu(x)));
     }
 
     return { H_new, attentionEV };
@@ -1346,7 +1324,7 @@ export class SHGAT {
 
       // Use PROPAGATED embedding from message passing for semantic similarity
       const capPropagatedEmb = E[cIdx];
-      const intentSim = this.cosineSimilarity(intentProjected, capPropagatedEmb);
+      const intentSim = math.cosineSimilarity(intentProjected, capPropagatedEmb);
 
       // Reliability multiplier
       const reliability = cap.successRate;
@@ -1388,7 +1366,7 @@ export class SHGAT {
 
       // Final score with reliability
       const rawScore = baseScore * reliabilityMult;
-      const score = Number.isFinite(rawScore) ? this.sigmoid(rawScore) : 0.5;
+      const score = Number.isFinite(rawScore) ? math.sigmoid(rawScore) : 0.5;
 
       // Compute normalized head weights for interpretability
       const headWeights = [
@@ -1433,7 +1411,7 @@ export class SHGAT {
     }
     // Otherwise, use learnable weights with softmax normalization
     const raw = [this.fusionWeights.semantic, this.fusionWeights.structure, this.fusionWeights.temporal];
-    const softmaxed = this.softmax(raw);
+    const softmaxed = math.softmax(raw);
     return {
       semantic: softmaxed[0],
       structure: softmaxed[1],
@@ -1474,7 +1452,7 @@ export class SHGAT {
 
       // Use PROPAGATED embedding from message passing
       const toolPropagatedEmb = H[tIdx];
-      const intentSim = this.cosineSimilarity(intentProjected, toolPropagatedEmb);
+      const intentSim = math.cosineSimilarity(intentProjected, toolPropagatedEmb);
 
       // Get tool features (may be undefined for tools without features)
       const features = tool.toolFeatures;
@@ -1516,7 +1494,7 @@ export class SHGAT {
       ) / totalActiveWeight;
 
       // Final score
-      const score = Number.isFinite(baseScore) ? this.sigmoid(baseScore) : 0.5;
+      const score = Number.isFinite(baseScore) ? math.sigmoid(baseScore) : 0.5;
 
       // Compute normalized head weights for interpretability
       const headWeights = [
@@ -1787,7 +1765,7 @@ export class SHGAT {
       const intentProjected = this.projectIntent(example.intentEmbedding);
 
       // === 3-HEAD ARCHITECTURE (all weights learnable) ===
-      const intentSim = this.cosineSimilarity(intentProjected, capPropagatedEmb);
+      const intentSim = math.cosineSimilarity(intentProjected, capPropagatedEmb);
 
       // Raw feature values (before scaling by featureWeights)
       const rawSemantic = intentSim;
@@ -1811,7 +1789,7 @@ export class SHGAT {
         groupWeights.structure * structureScore +
         groupWeights.temporal * temporalScore;
 
-      const score = this.sigmoid(baseScore * reliabilityMult);
+      const score = math.sigmoid(baseScore * reliabilityMult);
 
       // TD Error computation (Phase 3): target = outcome * gamma^pathLength
       const pathLength = example.contextTools?.length ?? 0;
@@ -1820,7 +1798,7 @@ export class SHGAT {
       tdErrors.push(tdError);
 
       // Weighted loss (IS weight from PER)
-      const loss = this.binaryCrossEntropy(score, example.outcome) * isWeight;
+      const loss = math.binaryCrossEntropy(score, example.outcome) * isWeight;
       totalLoss += loss;
 
       // Accuracy
@@ -1938,7 +1916,7 @@ export class SHGAT {
     // Compute gradient of cosine similarity w.r.t. intentProjected
     const normIntent = Math.sqrt(intentProjected.reduce((s, x) => s + x * x, 0)) + 1e-8;
     const normCap = Math.sqrt(capEmb.reduce((s, x) => s + x * x, 0)) + 1e-8;
-    const dot = this.dot(intentProjected, capEmb);
+    const dot = math.dot(intentProjected, capEmb);
 
     // d(cos)/d(intentProj[i]) = capEmb[i]/(normIntent*normCap) - dot*intentProj[i]/(normIntent^3*normCap)
     const dIntentProj: number[] = new Array(propagatedDim);
@@ -2009,7 +1987,7 @@ export class SHGAT {
     // Gradient of cosine similarity
     const normIntent = Math.sqrt(intentEmb.reduce((s, x) => s + x * x, 0));
     const normCap = Math.sqrt(capEmb.reduce((s, x) => s + x * x, 0));
-    const dot = this.dot(intentEmb, capEmb);
+    const dot = math.dot(intentEmb, capEmb);
 
     const dCapEmb = intentEmb.map((xi, i) => {
       const term1 = xi / (normIntent * normCap);
@@ -2138,7 +2116,7 @@ export class SHGAT {
 
       // Attention = sigmoid(Q·K / √d)
       const scale = Math.sqrt(hiddenDim);
-      const attention = this.sigmoid(this.dot(Q, K) / scale);
+      const attention = math.sigmoid(math.dot(Q, K) / scale);
 
       // Head score = attention * mean(V)
       const vSum = V.reduce((a, b) => a + b, 0);
@@ -2165,7 +2143,7 @@ export class SHGAT {
       mlpOutput += this.fusionMLP.W2[i] * mlpHiddenRelu[i];
     }
 
-    const score = this.sigmoid(mlpOutput);
+    const score = math.sigmoid(mlpOutput);
 
     return {
       score,
@@ -2370,7 +2348,7 @@ export class SHGAT {
       }
 
       const contextAggregated = contextEmbeddings.length > 0
-        ? this.meanPool(contextEmbeddings, this.config.embeddingDim)
+        ? math.meanPool(contextEmbeddings, this.config.embeddingDim)
         : new Array(this.config.embeddingDim).fill(0);
 
       const features: TraceFeatures = {
@@ -2391,7 +2369,7 @@ export class SHGAT {
       tdErrors.push(tdError);
 
       // Weighted loss (IS weight from PER)
-      const loss = this.binaryCrossEntropy(cache.score, example.outcome) * isWeight;
+      const loss = math.binaryCrossEntropy(cache.score, example.outcome) * isWeight;
       totalLoss += loss;
 
       // Accuracy
@@ -2431,58 +2409,6 @@ export class SHGAT {
       embeddings.push([...cap.embedding]);
     }
     return embeddings;
-  }
-
-  private matmulTranspose(A: number[][], B: number[][]): number[][] {
-    return A.map((row) =>
-      B.map((bRow) => row.reduce((sum, val, i) => sum + val * (bRow[i] || 0), 0))
-    );
-  }
-
-  private concatHeads(heads: number[][][]): number[][] {
-    const numNodes = heads[0].length;
-    return Array.from({ length: numNodes }, (_, i) => heads.flatMap((head) => head[i]));
-  }
-
-  private applyDropout(matrix: number[][]): number[][] {
-    const keepProb = 1 - this.config.dropout;
-    return matrix.map((row) => row.map((x) => (Math.random() < keepProb ? x / keepProb : 0)));
-  }
-
-  private leakyRelu(x: number): number {
-    return x > 0 ? x : this.config.leakyReluSlope * x;
-  }
-
-  private elu(x: number, alpha = 1.0): number {
-    return x >= 0 ? x : alpha * (Math.exp(x) - 1);
-  }
-
-  private sigmoid(x: number): number {
-    return 1 / (1 + Math.exp(-x));
-  }
-
-  private softmax(values: number[]): number[] {
-    const maxVal = Math.max(...values);
-    const exps = values.map((v) => Math.exp(v - maxVal));
-    const sum = exps.reduce((a, b) => a + b, 0);
-    return exps.map((e) => e / sum);
-  }
-
-  private dot(a: number[], b: number[]): number {
-    return a.reduce((sum, val, i) => sum + val * (b[i] || 0), 0);
-  }
-
-  private cosineSimilarity(a: number[], b: number[]): number {
-    const dot = this.dot(a, b);
-    const normA = Math.sqrt(a.reduce((s, x) => s + x * x, 0));
-    const normB = Math.sqrt(b.reduce((s, x) => s + x * x, 0));
-    return normA * normB > 0 ? dot / (normA * normB) : 0;
-  }
-
-  private binaryCrossEntropy(pred: number, label: number): number {
-    const eps = 1e-7;
-    const p = Math.max(eps, Math.min(1 - eps, pred));
-    return -label * Math.log(p) - (1 - label) * Math.log(1 - p);
   }
 
   // ==========================================================================
