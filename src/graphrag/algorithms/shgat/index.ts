@@ -32,7 +32,7 @@ export * from "./training/index.ts";
 // Math utilities
 export * as math from "./utils/math.ts";
 
-// Re-export types from shgat-types.ts
+// Re-export types from ./types.ts
 export type {
   // Trace Features (v2)
   TraceStats,
@@ -52,7 +52,7 @@ export type {
   // Legacy Types
   FusionWeights,
   FeatureWeights,
-} from "../shgat-types.ts";
+} from "./types.ts";
 
 export {
   // Constants
@@ -66,4 +66,4 @@ export {
   // Functions
   createDefaultTraceFeatures,
   getAdaptiveConfig,
-} from "../shgat-types.ts";
+} from "./types.ts";

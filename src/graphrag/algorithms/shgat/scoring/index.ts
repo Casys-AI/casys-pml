@@ -24,7 +24,7 @@ export type {
   ToolNode,
   TraceFeatures,
   TraceStats,
-} from "../../shgat-types.ts";
+} from "../types.ts";
 
 export {
   DEFAULT_FEATURE_WEIGHTS,
@@ -34,7 +34,7 @@ export {
   DEFAULT_TOOL_GRAPH_FEATURES,
   DEFAULT_TRACE_STATS,
   NUM_TRACE_STATS,
-} from "../../shgat-types.ts";
+} from "../types.ts";
 
 /**
  * Common interface for all SHGAT scorers
@@ -75,4 +75,4 @@ export enum ScorerVersion {
 }
 
 // Import AttentionResult for interface definition
-import type { AttentionResult } from "../../shgat-types.ts";
+import type { AttentionResult } from "../types.ts";

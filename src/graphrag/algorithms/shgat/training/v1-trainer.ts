@@ -15,7 +15,7 @@
  * @module graphrag/algorithms/shgat/training/v1-trainer
  */
 
-import type { SHGATConfig, TrainingExample, FusionWeights, FeatureWeights, ForwardCache } from "../../shgat-types.ts";
+import type { SHGATConfig, TrainingExample, FusionWeights, FeatureWeights, ForwardCache } from "../types.ts";
 import type { LayerParams, HeadParams } from "../initialization/parameters.ts";
 import { zerosLike3D } from "../initialization/parameters.ts";
 import * as math from "../utils/math.ts";

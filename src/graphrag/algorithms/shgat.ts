@@ -53,7 +53,7 @@ import {
   createDefaultTraceStatsFromFeatures,
 } from "./shgat/training/v2-trainer.ts";
 
-// Re-export all types from shgat-types.ts for backward compatibility
+// Re-export all types from ./shgat/types.ts for backward compatibility
 export {
   type TraceStats,
   DEFAULT_TRACE_STATS,
@@ -76,7 +76,7 @@ export {
   type CapabilityNode,
   type AttentionResult,
   type ForwardCache,
-} from "./shgat-types.ts";
+} from "./shgat/types.ts";
 
 import {
   type TraceStats,
@@ -94,7 +94,7 @@ import {
   type AttentionResult,
   type ForwardCache,
   type FusionWeights,
-} from "./shgat-types.ts";
+} from "./shgat/types.ts";
 
 const log = getLogger("default");
 

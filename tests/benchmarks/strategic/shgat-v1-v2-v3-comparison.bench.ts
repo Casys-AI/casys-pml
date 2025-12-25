@@ -25,7 +25,7 @@ import {
 import {
   DEFAULT_TRACE_STATS,
   type TraceFeatures,
-} from "../../../src/graphrag/algorithms/shgat-types.ts";
+} from "../../../src/graphrag/algorithms/shgat/types.ts";
 import { loadScenario } from "../fixtures/scenario-loader.ts";
 
 // ============================================================================

@@ -12,9 +12,9 @@
  * @module graphrag/algorithms/shgat/initialization/parameters
  */
 
-import type { SHGATConfig } from "../../shgat-types.ts";
-import { DEFAULT_FUSION_WEIGHTS, DEFAULT_FEATURE_WEIGHTS, NUM_TRACE_STATS } from "../../shgat-types.ts";
-import type { FusionWeights, FeatureWeights } from "../../shgat-types.ts";
+import type { SHGATConfig } from "../types.ts";
+import { DEFAULT_FUSION_WEIGHTS, DEFAULT_FEATURE_WEIGHTS, NUM_TRACE_STATS } from "../types.ts";
+import type { FusionWeights, FeatureWeights } from "../types.ts";
 
 // ============================================================================
 // Parameter Types

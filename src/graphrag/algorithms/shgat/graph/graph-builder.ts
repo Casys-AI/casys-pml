@@ -15,11 +15,11 @@ import type {
   HypergraphFeatures,
   ToolGraphFeatures,
   ToolNode,
-} from "../../shgat-types.ts";
+} from "../types.ts";
 import {
   DEFAULT_HYPERGRAPH_FEATURES,
   DEFAULT_TOOL_GRAPH_FEATURES,
-} from "../../shgat-types.ts";
+} from "../types.ts";
 
 /**
  * Input data for building a hypergraph
