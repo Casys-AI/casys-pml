@@ -1212,23 +1212,211 @@ Training examples can now target capabilities at ANY hierarchy level:
 - v2: TraceFeatures now include hierarchical success patterns
 - v3: Benefits from BOTH message passing AND hierarchical trace patterns
 
-#### 9.3.4 Database Schema (Optional Extension)
+#### 9.3.4 Database Schema Extension
 
-If `execution_trace` table needs schema updates:
+**REQUIRED**: Add `parent_trace_id` to preserve hierarchy without breaking `executedPath` format.
 
 ```sql
--- Add optional columns (nullable for backward compat)
+-- Required: Store parent trace for hierarchy reconstruction
+ALTER TABLE execution_trace ADD COLUMN parent_trace_id TEXT;
+CREATE INDEX idx_execution_trace_parent ON execution_trace(parent_trace_id);
+
+-- Optional: Analytics metadata (not required for core functionality)
 ALTER TABLE execution_trace ADD COLUMN node_types JSONB;
 ALTER TABLE execution_trace ADD COLUMN hierarchy_levels JSONB;
-
--- Example values:
--- node_types: {"tool1": "tool", "cap-A": "capability", "meta-B": "capability"}
--- hierarchy_levels: {"cap-A": 0, "meta-B": 1}
 ```
 
-**Migration**: Existing traces without these fields continue to work (NULL values ignored).
+**Rationale**:
+- `parent_trace_id`: Captures hierarchy WITHOUT changing `executedPath` format
+- Backward compatible: Old traces have `parent_trace_id = NULL`
+- TraceEvent already includes `parentTraceId` at runtime (see ADR-041)
+- Simply persist what we already capture
 
-#### 9.3.5 Key Insight
+**Example data**:
+```typescript
+// Top-level trace (no parent)
+{
+  id: "trace-outer",
+  executedPath: ["cap-outer", "cap-inner", "tool1"],  // Flat (unchanged)
+  parentTraceId: null
+}
+
+// Nested trace (from capability_end event with parentTraceId)
+{
+  id: "trace-inner",
+  executedPath: ["cap-inner", "tool1"],
+  parentTraceId: "trace-outer"  // ← NEW: Preserves hierarchy
+}
+
+// Tool trace (leaf)
+{
+  id: "trace-tool1",
+  executedPath: ["tool1"],
+  parentTraceId: "trace-inner"
+}
+```
+
+**Migration**: Existing traces without `parent_trace_id` continue to work (NULL = root-level trace).
+
+#### 9.3.5 Hierarchy Reconstruction
+
+**When needed**: Reconstruct full hierarchy tree from flat traces using `parent_trace_id`.
+
+```typescript
+interface HierarchyNode {
+  trace: ExecutionTrace;
+  children: HierarchyNode[];
+}
+
+/**
+ * Rebuild hierarchy tree from flat traces
+ *
+ * Example:
+ *   Input: [trace-outer, trace-inner, trace-tool1]
+ *          with parent_trace_id links
+ *   Output: trace-outer → [trace-inner → [trace-tool1]]
+ */
+function buildHierarchy(traces: ExecutionTrace[]): HierarchyNode[] {
+  const traceMap = new Map<string, HierarchyNode>();
+  const roots: HierarchyNode[] = [];
+
+  // Build node map
+  for (const trace of traces) {
+    traceMap.set(trace.id, { trace, children: [] });
+  }
+
+  // Link children to parents
+  for (const trace of traces) {
+    const node = traceMap.get(trace.id)!;
+
+    if (!trace.parentTraceId) {
+      // Root node
+      roots.push(node);
+    } else {
+      // Child node: attach to parent
+      const parent = traceMap.get(trace.parentTraceId);
+      if (parent) {
+        parent.children.push(node);
+      } else {
+        // Parent not in result set: treat as root
+        roots.push(node);
+      }
+    }
+  }
+
+  return roots;
+}
+```
+
+**Use case**: Analytics, debugging, visualization of execution flows.
+
+#### 9.3.6 Implementation Changes
+
+**File: `src/sandbox/worker-bridge.ts:354-361`**
+
+Current code flattens `executedPath` without preserving hierarchy:
+```typescript
+// BEFORE (loses hierarchy)
+const executedPath = sortedTraces
+  .filter((t): t is ToolTraceEvent | CapabilityTraceEvent =>
+    t.type === "tool_end" || t.type === "capability_end"
+  )
+  .map((t) => {
+    if (t.type === "tool_end") return t.tool;
+    return (t as CapabilityTraceEvent).capability;
+  });
+```
+
+**Required change**: Extract `parentTraceId` from TraceEvent and pass to `saveTrace()`.
+
+```typescript
+// AFTER (preserves hierarchy via parent_trace_id)
+const executedPath = sortedTraces
+  .filter((t): t is ToolTraceEvent | CapabilityTraceEvent =>
+    t.type === "tool_end" || t.type === "capability_end"
+  )
+  .map((t) => {
+    if (t.type === "tool_end") return t.tool;
+    return (t as CapabilityTraceEvent).capability;
+  });
+
+// NEW: Extract parentTraceId from the root trace event
+// For top-level capability execution, parentTraceId will be undefined/null
+const rootTrace = sortedTraces.find(t =>
+  t.type === "capability_start" && !t.parentTraceId
+);
+const parentTraceId = sortedTraces[0]?.parentTraceId ?? null;
+
+// Pass to traceData
+traceData: {
+  initialContext: (this.lastContext ?? {}) as Record<string, JsonValue>,
+  executedPath,
+  parentTraceId,  // ← NEW
+  decisions: [],
+  taskResults,
+  userId: (this.lastContext?.userId as string) ?? "local",
+},
+```
+
+**File: `src/capabilities/execution-trace-store.ts`**
+
+Add `parent_trace_id` to INSERT and SELECT queries:
+
+```typescript
+interface SaveTraceParams {
+  // ... existing fields
+  parentTraceId?: string | null;  // NEW
+}
+
+async saveTrace(params: SaveTraceParams): Promise<ExecutionTrace> {
+  const result = await this.db.query(`
+    INSERT INTO execution_trace (
+      capability_id, intent_text, intent_embedding,
+      initial_context, executed_at, success,
+      duration_ms, error_message, executed_path,
+      decisions, task_results, priority,
+      parent_trace_id,  -- NEW
+      user_id, created_by
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+    RETURNING id;
+  `, [
+    // ... existing params
+    params.parentTraceId,  // NEW
+    // ... remaining params
+  ]);
+
+  return result.rows[0];
+}
+```
+
+**File: `src/capabilities/types.ts`**
+
+Update `ExecutionTrace` interface:
+
+```typescript
+export interface ExecutionTrace {
+  id: string;
+  capabilityId: string;
+  intentText: string;
+  intentEmbedding?: number[];
+  initialContext: Record<string, JsonValue>;
+  executedAt: Date;
+  success: boolean;
+  durationMs: number;
+  errorMessage?: string;
+  executedPath?: string[];
+  decisions?: BranchDecision[];
+  taskResults?: TaskResult[];
+  priority: number;
+
+  parentTraceId?: string | null;  // NEW: Link to parent trace in hierarchy
+
+  userId?: string;
+  createdBy: string;
+}
+```
+
+#### 9.3.7 Key Insight
 
 The hierarchical message passing **complements** trace-based learning:
 
@@ -1239,6 +1427,11 @@ The hierarchical message passing **complements** trace-based learning:
 - Structure alone (v1) lacks historical context
 - Traces alone (v2) lack compositional understanding
 - Hybrid (v3) combines both for optimal performance
+
+**Hierarchy preservation**:
+- `parentTraceId` preserves hierarchy WITHOUT breaking existing `executedPath` format
+- Reconstruction is opt-in (only when needed for analytics/debugging)
+- Training and inference continue to use flat `executedPath` (unchanged)
 
 ---
 
