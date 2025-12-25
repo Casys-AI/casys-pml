@@ -26,6 +26,7 @@
  */
 
 import { getLogger } from "../../telemetry/logger.ts";
+import * as math from "./shgat/utils/math.ts";
 
 // Re-export all types from shgat-types.ts for backward compatibility
 export {
