@@ -14,10 +14,11 @@
  */
 
 import * as math from "../utils/math.ts";
-import type { MessagePassingPhase, PhaseParameters } from "./phase-interface.ts";
+import type { PhaseParameters } from "./phase-interface.ts";
 import { VertexToEdgePhase } from "./vertex-to-edge-phase.ts";
 import { EdgeToVertexPhase } from "./edge-to-vertex-phase.ts";
-import { EdgeToEdgePhase } from "./edge-to-edge-phase.ts";
+// EdgeToEdgePhase will be used for multi-level message passing (TODO)
+import { EdgeToEdgePhase as _EdgeToEdgePhase } from "./edge-to-edge-phase.ts";
 
 /**
  * Layer parameters for all phases
@@ -203,12 +204,12 @@ export class MultiLevelOrchestrator {
    * @returns Final embeddings for all levels
    */
   forwardMultiLevel(
-    H_init: number[][],
-    E_levels_init: number[][][],
-    incidenceMatrices: number[][][],
-    layerParams: any, // TODO: Define proper multi-level parameter structure
-    config: OrchestratorConfig,
-  ): { H: number[][]; E_levels: number[][][]; cache: any } {
+    _H_init: number[][],
+    _E_levels_init: number[][][],
+    _incidenceMatrices: number[][][],
+    _layerParams: unknown, // TODO: Define proper multi-level parameter structure
+    _config: OrchestratorConfig,
+  ): { H: number[][]; E_levels: number[][][]; cache: unknown } {
     // TODO: Implement multi-level message passing
     // Algorithm:
     // 1. Upward pass: V → E^0 → E^1 → ... → E^n

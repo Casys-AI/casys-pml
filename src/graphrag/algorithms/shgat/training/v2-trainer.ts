@@ -15,7 +15,6 @@
  */
 
 import type { SHGATConfig, TraceStats, TraceFeatures } from "../types.ts";
-import { DEFAULT_TRACE_STATS } from "../types.ts";
 import type { HeadParams, FusionMLPParams, V2GradientAccumulators } from "../initialization/parameters.ts";
 import * as math from "../utils/math.ts";
 
