@@ -27,6 +27,7 @@
 
 import { getLogger } from "../../telemetry/logger.ts";
 import * as math from "./shgat/utils/math.ts";
+import { MultiLevelOrchestrator, type ForwardCache as OrchestratorCache } from "./shgat/message-passing/index.ts";
 
 // Re-export all types from shgat-types.ts for backward compatibility
 export {
@@ -175,6 +176,9 @@ export class SHGAT {
   private trainingMode = false;
   private lastCache: ForwardCache | null = null;
 
+  // Message passing orchestrator
+  private orchestrator: MultiLevelOrchestrator;
+
   // Gradient accumulators
   private fusionGradients: FusionWeights = { semantic: 0, structure: 0, temporal: 0 };
   private featureGradients: FeatureWeights = { semantic: 0, structure: 0, temporal: 0 };
@@ -197,6 +201,7 @@ export class SHGAT {
 
   constructor(config: Partial<SHGATConfig> = {}) {
     this.config = { ...DEFAULT_SHGAT_CONFIG, ...config };
+    this.orchestrator = new MultiLevelOrchestrator(this.trainingMode);
     this.initializeParameters();
   }
 
@@ -995,291 +1000,44 @@ export class SHGAT {
    *   H^(l+1) = σ(B^T · E^(l))
    */
   forward(): { H: number[][]; E: number[][]; cache: ForwardCache } {
-    const cache: ForwardCache = {
-      H: [],
-      E: [],
-      attentionVE: [],
-      attentionEV: [],
-    };
-
     // Initialize embeddings
-    let H = this.getToolEmbeddings();
-    let E = this.getCapabilityEmbeddings();
+    const H = this.getToolEmbeddings();
+    const E = this.getCapabilityEmbeddings();
 
-    cache.H.push(H);
-    cache.E.push(E);
-
-    // Process each layer
-    for (let l = 0; l < this.config.numLayers; l++) {
-      const params = this.layerParams[l];
-      const layerAttentionVE: number[][][] = [];
-      const layerAttentionEV: number[][][] = [];
-
-      const headsH: number[][][] = [];
-      const headsE: number[][][] = [];
-
-      for (let head = 0; head < this.config.numHeads; head++) {
-        // Phase 1: Vertex → Hyperedge
-        const { E_new, attentionVE } = this.vertexToEdgePhase(
-          H,
-          E,
-          params.W_v[head],
-          params.W_e[head],
-          params.a_ve[head],
-          head,
-        );
-        layerAttentionVE.push(attentionVE);
-
-        // Phase 2: Hyperedge → Vertex
-        const { H_new, attentionEV } = this.edgeToVertexPhase(
-          H,
-          E_new,
-          params.W_e2[head],
-          params.W_v2[head],
-          params.a_ev[head],
-          head,
-        );
-        layerAttentionEV.push(attentionEV);
-
-        headsH.push(H_new);
-        headsE.push(E_new);
-      }
-
-      // Concatenate heads
-      H = math.concatHeads(headsH);
-      E = math.concatHeads(headsE);
-
-      // Apply dropout during training
-      if (this.trainingMode && this.config.dropout > 0) {
-        H = math.applyDropout(H, this.config.dropout);
-        E = math.applyDropout(E, this.config.dropout);
-      }
-
-      cache.H.push(H);
-      cache.E.push(E);
-      cache.attentionVE.push(layerAttentionVE);
-      cache.attentionEV.push(layerAttentionEV);
-    }
-
-    this.lastCache = cache;
-    return { H, E, cache };
-  }
-
-  /**
-   * Phase 1: Vertex → Hyperedge message passing
-   */
-  private vertexToEdgePhase(
-    H: number[][],
-    E: number[][],
-    W_v: number[][],
-    W_e: number[][],
-    a_ve: number[],
-    headIdx: number,
-  ): { E_new: number[][]; attentionVE: number[][] } {
-    const numTools = H.length;
-    const numCaps = E.length;
-
-    // Project
-    const H_proj = math.matmulTranspose(H, W_v);
-    const E_proj = math.matmulTranspose(E, W_e);
-
-    // Compute attention scores (masked by incidence matrix)
-    const attentionScores: number[][] = Array.from(
-      { length: numTools },
-      () => Array(numCaps).fill(-Infinity),
+    // Delegate to orchestrator for modular message passing
+    const result = this.orchestrator.forward(
+      H,
+      E,
+      this.incidenceMatrix,
+      this.layerParams,
+      {
+        numHeads: this.config.numHeads,
+        numLayers: this.config.numLayers,
+        dropout: this.config.dropout,
+        leakyReluSlope: this.config.leakyReluSlope,
+      },
     );
 
-    for (let t = 0; t < numTools; t++) {
-      for (let c = 0; c < numCaps; c++) {
-        if (this.incidenceMatrix[t][c] === 1) {
-          const concat = [...H_proj[t], ...E_proj[c]];
-          const activated = concat.map((x) => math.leakyRelu(x, this.config.leakyReluSlope));
-          attentionScores[t][c] = math.dot(a_ve, activated);
-        }
-      }
-    }
-
-    // Apply head-specific feature modulation
-    this.applyHeadFeatures(attentionScores, headIdx, "vertex");
-
-    // Softmax per capability (column-wise)
-    const attentionVE: number[][] = Array.from({ length: numTools }, () => Array(numCaps).fill(0));
-
-    for (let c = 0; c < numCaps; c++) {
-      const toolsInCap: number[] = [];
-      for (let t = 0; t < numTools; t++) {
-        if (this.incidenceMatrix[t][c] === 1) {
-          toolsInCap.push(t);
-        }
-      }
-
-      if (toolsInCap.length === 0) continue;
-
-      const scores = toolsInCap.map((t) => attentionScores[t][c]);
-      const softmaxed = math.softmax(scores);
-
-      for (let i = 0; i < toolsInCap.length; i++) {
-        attentionVE[toolsInCap[i]][c] = softmaxed[i];
-      }
-    }
-
-    // Aggregate: E_new = σ(A'^T · H_proj)
-    const E_new: number[][] = [];
-    const hiddenDim = H_proj[0].length;
-
-    for (let c = 0; c < numCaps; c++) {
-      const aggregated = Array(hiddenDim).fill(0);
-
-      for (let t = 0; t < numTools; t++) {
-        if (attentionVE[t][c] > 0) {
-          for (let d = 0; d < hiddenDim; d++) {
-            aggregated[d] += attentionVE[t][c] * H_proj[t][d];
-          }
-        }
-      }
-
-      E_new.push(aggregated.map((x) => math.elu(x)));
-    }
-
-    return { E_new, attentionVE };
+    this.lastCache = result.cache;
+    return result;
   }
 
-  /**
-   * Phase 2: Hyperedge → Vertex message passing
-   */
-  private edgeToVertexPhase(
-    H: number[][],
-    E: number[][],
-    W_e: number[][],
-    W_v: number[][],
-    a_ev: number[],
-    headIdx: number,
-  ): { H_new: number[][]; attentionEV: number[][] } {
-    const numTools = H.length;
-    const numCaps = E.length;
-
-    const E_proj = math.matmulTranspose(E, W_e);
-    const H_proj = math.matmulTranspose(H, W_v);
-
-    // Compute attention scores
-    const attentionScores: number[][] = Array.from(
-      { length: numCaps },
-      () => Array(numTools).fill(-Infinity),
-    );
-
-    for (let c = 0; c < numCaps; c++) {
-      for (let t = 0; t < numTools; t++) {
-        if (this.incidenceMatrix[t][c] === 1) {
-          const concat = [...E_proj[c], ...H_proj[t]];
-          const activated = concat.map((x) => math.leakyRelu(x, this.config.leakyReluSlope));
-          attentionScores[c][t] = math.dot(a_ev, activated);
-        }
-      }
-    }
-
-    // Apply head-specific feature modulation
-    this.applyHeadFeatures(attentionScores, headIdx, "edge");
-
-    // Softmax per tool (column-wise in transposed view)
-    const attentionEV: number[][] = Array.from({ length: numCaps }, () => Array(numTools).fill(0));
-
-    for (let t = 0; t < numTools; t++) {
-      const capsForTool: number[] = [];
-      for (let c = 0; c < numCaps; c++) {
-        if (this.incidenceMatrix[t][c] === 1) {
-          capsForTool.push(c);
-        }
-      }
-
-      if (capsForTool.length === 0) continue;
-
-      const scores = capsForTool.map((c) => attentionScores[c][t]);
-      const softmaxed = math.softmax(scores);
-
-      for (let i = 0; i < capsForTool.length; i++) {
-        attentionEV[capsForTool[i]][t] = softmaxed[i];
-      }
-    }
-
-    // Aggregate: H_new = σ(B^T · E_proj)
-    const H_new: number[][] = [];
-    const hiddenDim = E_proj[0].length;
-
-    for (let t = 0; t < numTools; t++) {
-      const aggregated = Array(hiddenDim).fill(0);
-
-      for (let c = 0; c < numCaps; c++) {
-        if (attentionEV[c][t] > 0) {
-          for (let d = 0; d < hiddenDim; d++) {
-            aggregated[d] += attentionEV[c][t] * E_proj[c][d];
-          }
-        }
-      }
-
-      H_new.push(aggregated.map((x) => math.elu(x)));
-    }
-
-    return { H_new, attentionEV };
-  }
-
-  /**
-   * Apply head-specific feature modulation based on HypergraphFeatures
-   *
-   * @deprecated v2 uses learned multi-head attention instead of manual feature modulation.
-   * This method is only used by the legacy forward() message passing, not by v2 scoring.
-   * In v2, all features (including structure/temporal) are fed to ALL heads via TraceFeatures,
-   * and each head learns its own patterns through W_Q, W_K, W_V matrices.
-   */
-  private applyHeadFeatures(
-    scores: number[][],
-    headIdx: number,
-    phase: "vertex" | "edge",
-  ): void {
-    if (headIdx === 2) {
-      // Head 2: Structure (spectral cluster, pagerank)
-      for (const [capId, cap] of this.capabilityNodes) {
-        const cIdx = this.capabilityIndex.get(capId)!;
-        const features = cap.hypergraphFeatures || DEFAULT_HYPERGRAPH_FEATURES;
-        const boost = features.hypergraphPageRank * 2; // PageRank boost
-
-        if (phase === "vertex") {
-          for (let t = 0; t < scores.length; t++) {
-            if (scores[t][cIdx] > -Infinity) {
-              scores[t][cIdx] += boost;
-            }
-          }
-        } else {
-          for (let t = 0; t < scores[cIdx].length; t++) {
-            if (scores[cIdx][t] > -Infinity) {
-              scores[cIdx][t] += boost;
-            }
-          }
-        }
-      }
-    } else if (headIdx === 3) {
-      // Head 3: Temporal (co-occurrence, recency)
-      for (const [capId, cap] of this.capabilityNodes) {
-        const cIdx = this.capabilityIndex.get(capId)!;
-        const features = cap.hypergraphFeatures || DEFAULT_HYPERGRAPH_FEATURES;
-        const boost = 0.6 * features.cooccurrence + 0.4 * features.recency;
-
-        if (phase === "vertex") {
-          for (let t = 0; t < scores.length; t++) {
-            if (scores[t][cIdx] > -Infinity) {
-              scores[t][cIdx] += boost;
-            }
-          }
-        } else {
-          for (let t = 0; t < scores[cIdx].length; t++) {
-            if (scores[cIdx][t] > -Infinity) {
-              scores[cIdx][t] += boost;
-            }
-          }
-        }
-      }
-    }
-    // Heads 0-1: Semantic (no modification, pure embedding attention)
-  }
+  // ===================================================================
+  // Legacy message passing methods - REMOVED in Phase 3 refactoring
+  // ===================================================================
+  //
+  // The following methods have been extracted to the message-passing module:
+  // - vertexToEdgePhase → src/graphrag/algorithms/shgat/message-passing/vertex-to-edge-phase.ts
+  // - edgeToVertexPhase → src/graphrag/algorithms/shgat/message-passing/edge-to-vertex-phase.ts
+  // - applyHeadFeatures (deprecated in v2, not used by orchestrator)
+  //
+  // Message passing is now handled by MultiLevelOrchestrator.
+  // This provides:
+  // - Separation of concerns (phases are self-contained)
+  // - Testability (phases can be unit tested independently)
+  // - Extensibility (easy to add new phases for multi-level hierarchies)
+  //
+  // See: src/graphrag/algorithms/shgat/message-passing/index.ts
 
   // ==========================================================================
   // Scoring API
