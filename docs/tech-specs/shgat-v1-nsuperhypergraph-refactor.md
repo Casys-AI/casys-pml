@@ -1103,6 +1103,143 @@ class SHGAT {
 }
 ```
 
+### 9.3 Execution Trace Format Changes
+
+**IMPORTANT**: Execution traces remain **critical** for v2 (TraceFeatures) and v3 (Hybrid). The multi-level message passing enriches the graph structure but does NOT replace trace-based learning.
+
+#### 9.3.1 Path Format Extension
+
+**Current format**:
+```typescript
+interface ExecutionTrace {
+  path: string[];  // Tool IDs only
+  outcome: 'success' | 'failure';
+  // ... other fields
+}
+```
+
+**New format (backward compatible)**:
+```typescript
+interface ExecutionTrace {
+  /** Execution path - can contain tool IDs AND capability IDs */
+  path: string[];
+
+  /** Node types for each path element (optional, for analytics) */
+  nodeTypes?: Map<string, 'tool' | 'capability'>;
+
+  /** Hierarchy levels for capability nodes (optional, for analytics) */
+  hierarchyLevels?: Map<string, number>;
+
+  outcome: 'success' | 'failure';
+  // ... other fields unchanged
+}
+```
+
+**Backward Compatibility**:
+- Old traces (tool IDs only): Continue to work without modification
+- New traces: Can include capability IDs in path (e.g., `["tool1", "cap-A", "meta-cap-B", "tool5"]`)
+- Detection: Check if node exists in `toolNodes` or `capabilityNodes`
+
+#### 9.3.2 Enriched Co-occurrence Patterns
+
+With hierarchical paths, TraceFeatures can now capture:
+
+**Tool-level patterns** (existing):
+- "tool1 frequently followed by tool2" → `cooccurrenceWithContext`
+
+**Capability-level patterns** (new):
+- "cap-A frequently followed by meta-cap-B" → Higher-order workflow patterns
+- "meta-cap-X succeeds 80% when used after tool5" → Cross-level dependencies
+
+**Implementation**:
+```typescript
+function computeCooccurrence(traces: ExecutionTrace[]): Map<string, number> {
+  const cooccurrence = new Map<string, number>();
+
+  for (const trace of traces) {
+    for (let i = 0; i < trace.path.length - 1; i++) {
+      const current = trace.path[i];
+      const next = trace.path[i + 1];
+
+      // Co-occurrence key: "current→next"
+      const key = `${current}→${next}`;
+      cooccurrence.set(key, (cooccurrence.get(key) ?? 0) + 1);
+    }
+  }
+
+  // Normalize by total occurrences per node
+  // ... normalization logic
+  return cooccurrence;
+}
+```
+
+#### 9.3.3 Episodic Events for Capabilities
+
+Training examples can now target capabilities at ANY hierarchy level:
+
+**Level-0 capability**:
+```typescript
+{
+  intentEmbedding: [...],
+  contextTools: ["tool1", "tool2"],
+  candidateId: "capability-setup",  // Level 0
+  outcome: 1
+}
+```
+
+**Meta-capability** (new):
+```typescript
+{
+  intentEmbedding: [...],
+  contextTools: ["tool1", "tool2"],
+  candidateId: "meta-workflow-deploy",  // Level 1
+  outcome: 1
+}
+```
+
+**Super-capability** (new):
+```typescript
+{
+  intentEmbedding: [...],
+  contextTools: [],
+  candidateId: "super-release-pipeline",  // Level 2
+  outcome: 1
+}
+```
+
+**Training impact**:
+- v1: Learns attention weights for ALL hierarchy levels
+- v2: TraceFeatures now include hierarchical success patterns
+- v3: Benefits from BOTH message passing AND hierarchical trace patterns
+
+#### 9.3.4 Database Schema (Optional Extension)
+
+If `execution_trace` table needs schema updates:
+
+```sql
+-- Add optional columns (nullable for backward compat)
+ALTER TABLE execution_trace ADD COLUMN node_types JSONB;
+ALTER TABLE execution_trace ADD COLUMN hierarchy_levels JSONB;
+
+-- Example values:
+-- node_types: {"tool1": "tool", "cap-A": "capability", "meta-B": "capability"}
+-- hierarchy_levels: {"cap-A": 0, "meta-B": 1}
+```
+
+**Migration**: Existing traces without these fields continue to work (NULL values ignored).
+
+#### 9.3.5 Key Insight
+
+The hierarchical message passing **complements** trace-based learning:
+
+- **Message passing**: Captures structural relationships (tool→cap→meta-cap)
+- **Trace features**: Captures behavioral patterns (success rates, co-occurrence, recency)
+
+**Both are necessary**:
+- Structure alone (v1) lacks historical context
+- Traces alone (v2) lack compositional understanding
+- Hybrid (v3) combines both for optimal performance
+
 ---
 
 ## 10. Validation & Testing
