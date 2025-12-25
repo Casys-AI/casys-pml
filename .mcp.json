@@ -1,6 +1,13 @@
 {
   "mcpServers": {
     "pml": {
+      "type": "stdio",
+      "command": "/home/ubuntu/.deno/bin/deno",
+      "args": ["task", "mcp"],
+      "cwd": "/home/ubuntu/CascadeProjects/AgentCards"
+    },
+    "_pml_http": {
+      "_comment": "HTTP mode - uncomment and rename to 'pml' to use",
       "type": "http",
       "url": "http://localhost:3003/mcp"
     },
