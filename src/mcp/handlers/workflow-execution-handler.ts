@@ -394,6 +394,8 @@ async function executeStandardWorkflow(
 
     controlledExecutor.setDAGSuggester(deps.dagSuggester);
     controlledExecutor.setLearningDependencies(deps.capabilityStore, deps.graphEngine);
+    // Phase 1: Set WorkerBridge for code execution task tracing
+    controlledExecutor.setWorkerBridge(context.bridge);
 
     const result = await controlledExecutor.execute(dag);
 
