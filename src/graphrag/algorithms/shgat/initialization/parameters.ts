@@ -121,6 +121,22 @@ export function initMatrix(rows: number, cols: number): number[][] {
 }
 
 /**
+ * Initialize 2D matrix with scaled Xavier initialization
+ *
+ * Used for K-head attention (W_q, W_k) where standard Xavier gives
+ * values too small for Q·K to escape sigmoid(0) = 0.5.
+ *
+ * @param scaleFactor Multiplier for Xavier scale (default 10 for K-head)
+ */
+export function initMatrixScaled(rows: number, cols: number, scaleFactor: number = 10): number[][] {
+  const scale = Math.sqrt(2.0 / (rows + cols)) * scaleFactor;
+  return Array.from(
+    { length: rows },
+    () => Array.from({ length: cols }, () => (Math.random() - 0.5) * 2 * scale),
+  );
+}
+
+/**
  * Initialize 1D vector
  */
 export function initVector(size: number): number[] {
@@ -171,11 +187,12 @@ export function initializeParameters(config: SHGATConfig): SHGATParams {
   }
 
   // Initialize head parameters
+  // W_q, W_k use scaled init (× 10) for K-head attention to escape sigmoid(0) = 0.5
   const headParams: HeadParams[] = [];
   for (let h = 0; h < numHeads; h++) {
     headParams.push({
-      W_q: initMatrix(hiddenDim, embeddingDim),
-      W_k: initMatrix(hiddenDim, embeddingDim),
+      W_q: initMatrixScaled(hiddenDim, embeddingDim, 10),
+      W_k: initMatrixScaled(hiddenDim, embeddingDim, 10),
       W_v: initMatrix(hiddenDim, embeddingDim),
       a: initVector(2 * hiddenDim),
     });

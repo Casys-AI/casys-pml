@@ -291,3 +291,52 @@ Graph size    numHeads  headDim  hiddenDim  propagatedDim
 ```
 
 **All 36 unit tests pass after fix.**
+
+### 2025-12-26: K-Head Training + Production Integration
+
+**K-Head Scoring Architecture:**
+```
+score = sigmoid(mean(headScores))
+headScore[h] = Q[h] · K[h] / √dim
+Q[h] = W_q[h] @ intentProjected
+K[h] = W_k[h] @ capEmbedding
+```
+
+**Problem solved:** Xavier init gave W_q, W_k ~ 0.01 → Q·K ≈ 0 → sigmoid(0) = 0.5 → gradNorm = 0.002
+
+**Fix:** `initMatrixScaled(rows, cols, 10)` - scale × 10 for W_q/W_k
+- gradNorm: 0.002 → 0.023 (× 11)
+- Scores now diversified (0.5995-0.6005 vs all 0.6000)
+
+**New Training Functions:**
+```typescript
+// Batch training with K-head backprop
+trainBatchV1KHead(examples): { loss, accuracy, tdErrors, gradNorm }
+
+// Online learning (production) - trains after each execution
+trainSHGATOnExecution(shgat, { intentEmbedding, targetCapId, outcome })
+```
+
+**Files added/modified:**
+- `training/multi-level-trainer-khead.ts` - K-head backprop (W_q, W_k gradients)
+- `initialization/parameters.ts` - `initMatrixScaled()` for K-head init
+- `learning/online-learning.ts` - Event listener for live training
+
+**Production Integration (execute-handler.ts):**
+```typescript
+// Switched from V2 to V1 (V1 won benchmark)
+const shgatCapabilities = deps.shgat.scoreAllCapabilities(intentEmbedding);
+const shgatTools = deps.shgat.scoreAllTools(intentEmbedding);
+```
+
+**Benchmark Results (V1 K-head, 30 epochs):**
+```
+Version                              MRR       Hit@1     Hit@3
+v1 (message passing + K heads)       0.214     4.7%      23.3%
+v2 (direct + K heads + MLP)          0.198     4.7%      20.9%
+v3 (HYBRID)                          0.170     4.7%      7.0%
+🏆 WINNER: v1 with MRR=0.214
+```
+
+**Event types added:**
+- `learning.online.trained` - emitted after each online training

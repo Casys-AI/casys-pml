@@ -361,35 +361,52 @@ describe('DASHValidator', () => {
 
 ## SHGAT Multi-Head Attention Architecture
 
-### 3-Head Architecture (Simplified)
+### K Adaptive Heads (v1 Refactor - 2025-12-26)
 
-After ablation studies, we simplified from 6 to 3 heads—one per signal type:
+Head count adapts to graph size (4-16 heads):
 
-| Head | Features | Formula |
-|------|----------|---------|
-| 0: Semantic | Intent similarity | `intentSim * featureWeights.semantic` |
-| 1: Structure | PageRank + AdamicAdar | `(pageRank + adamicAdar) * featureWeights.structure` |
-| 2: Temporal | Recency + HeatDiffusion | `(recency + heatDiffusion) * featureWeights.temporal` |
+| Graph Size | numHeads | hiddenDim | headDim |
+|------------|----------|-----------|---------|
+| < 50 nodes | 4 | 64 | 16 |
+| < 200 nodes | 6 | 96 | 16 |
+| < 500 nodes | 8 | 256 | 32 |
+| < 1000 nodes | 12 | 384 | 32 |
+| >= 1000 nodes | 16 | 512 | 32 |
 
-### Learnable Weights
-
-**All weights are learned via backpropagation:**
+### K-Head Scoring (Production)
 
 ```typescript
-// Fusion weights (how to combine heads) - learned via softmax
-fusionWeights: { semantic: number; structure: number; temporal: number }
+// K-head attention scoring
+score = sigmoid(mean(headScores))
 
-// Feature weights (scale factor per head) - learned directly
-featureWeights: { semantic: number; structure: number; temporal: number }
-
-// Final score
-score = sigmoid(fusionWeights · [semanticScore, structureScore, temporalScore])
+for (h = 0; h < numHeads; h++) {
+  Q[h] = W_q[h] @ intentProjected   // [headDim]
+  K[h] = W_k[h] @ capEmbedding      // [headDim]
+  headScores[h] = dot(Q[h], K[h]) / sqrt(headDim)
+}
 ```
 
-**Why this design:**
-- Ablation showed 6 heads with W_q/W_k projections didn't outperform simpler feature-based scoring
-- 3 heads = 6 learnable params (vs 12 matrices before)
-- Explicit features (PageRank, recency) provide more signal than learned projections on small data
+### Learnable Parameters (per head)
+
+| Parameter | Shape | Description |
+|-----------|-------|-------------|
+| W_q | [hiddenDim × embeddingDim] | Query projection |
+| W_k | [hiddenDim × embeddingDim] | Key projection |
+| W_v | [hiddenDim × embeddingDim] | Value projection (message passing) |
+| a | [2 × hiddenDim] | Attention vector |
+
+**Initialization (critical for convergence):**
+```typescript
+// Standard Xavier for W_v, a
+W_v = initMatrix(hiddenDim, embeddingDim)
+
+// Scaled Xavier (× 10) for W_q, W_k to escape sigmoid(0) = 0.5
+W_q = initMatrixScaled(hiddenDim, embeddingDim, 10)
+W_k = initMatrixScaled(hiddenDim, embeddingDim, 10)
+```
+
+Without scaled init: gradNorm ≈ 0.002, scores stuck at 0.6
+With scaled init (× 10): gradNorm ≈ 0.023, scores diversified
 
 ### HeatDiffusion for Tools vs Capabilities
 

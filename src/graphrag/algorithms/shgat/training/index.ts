@@ -55,3 +55,23 @@ export {
   trainMultiLevelBatch,
   trainOnSingleExample, // Online learning for production
 } from "./multi-level-trainer.ts";
+
+// Multi-Level K-Head Training (K-head attention scoring)
+export {
+  type KHeadGradientAccumulators,
+  type MultiLevelKHeadGradientAccumulators,
+  type MultiLevelKHeadTrainingResult,
+  type KHeadForwardContext,
+  initMultiLevelKHeadGradients,
+  resetMultiLevelKHeadGradients,
+  computeKHeadScoreWithCache,
+  computeMultiHeadKHeadScoresWithCache,
+  backpropKHeadScore,
+  backpropMultiHeadKHead,
+  backpropWIntent,
+  applyKHeadGradients,
+  applyWIntentGradients,
+  computeKHeadGradientNorm,
+  trainMultiLevelKHeadBatch,
+  trainOnSingleKHeadExample, // Online learning for K-head scoring
+} from "./multi-level-trainer-khead.ts";

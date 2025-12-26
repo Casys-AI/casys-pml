@@ -89,15 +89,17 @@ Le papier original SHGAT (Fujita) ne traite pas du contexte externe. Les benchma
 de précision ont confirmé que le contextBoost (×0.3) n'apportait **aucune amélioration**
 (0% de différence en accuracy).
 
-### Clarification: Tools vs Capabilities - Algorithmes différents (2025-12-22, Updated 2025-12-24)
+### Clarification: Tools vs Capabilities - V1 K-Head Architecture (2025-12-22, Updated 2025-12-26)
 
-**IMPORTANT:** Les tools et capabilities utilisent des algorithmes différents dans SHGAT (architecture 3-têtes):
+**IMPORTANT:** Production uses SHGAT V1 with K adaptive heads (4-16 based on graph size):
 
-| Head | Tools (graph simple) | Capabilities (hypergraph) |
-|------|---------------------|--------------------------|
-| 0 (Semantic) | Cosine similarity × featureWeights.semantic | Cosine similarity × featureWeights.semantic |
-| 1 (Structure) | (PageRank + AdamicAdar) × featureWeights.structure | (Hypergraph PageRank + AdamicAdar) × featureWeights.structure |
-| 2 (Temporal) | (Cooccurrence + Recency) × featureWeights.temporal | (Recency + HeatDiffusion) × featureWeights.temporal |
+| Component | Description |
+|-----------|-------------|
+| Message Passing | V → E^0 → E^1 → ... → E^L_max (upward) then back (downward) |
+| K-Head Scoring | `score = sigmoid(mean([Q[h]·K[h]/√dim for h in 0..K]))` |
+| Training | K-head backprop through W_q, W_k + levelParams + W_intent |
+
+**V1 won benchmark (MRR=0.214 vs V2=0.198)** - pure structural similarity outperforms TraceFeatures.
 
 **Interfaces séparées:**
 - `ToolGraphFeatures` : pour tools (`pageRank`, `louvainCommunity`, `adamicAdar`, `cooccurrence`, `recency`)
@@ -118,21 +120,20 @@ const features: ToolGraphFeatures = {
 };
 ```
 
-**SHGAT scoring (context-free, 3-head architecture):**
+**SHGAT V1 scoring (context-free, K adaptive heads):**
 ```typescript
-// Multi-head attention (3 têtes avec poids appris)
-// Head 0: Semantic
-const semanticScore = intentSim * featureWeights.semantic;
+// K-head attention scoring (K = 4-16 based on graph size)
+const { E } = forwardMultiLevel();  // Message passing through hierarchy
+const intentProjected = W_intent @ intentEmbedding;
 
-// Head 1: Structure (graph topology)
-const structureScore = (pageRank + adamicAdar) * featureWeights.structure;
+for (let h = 0; h < numHeads; h++) {
+  const Q = W_q[h] @ intentProjected;
+  const K = W_k[h] @ E.get(level)[capIdx];  // Propagated embedding
+  headScores[h] = dot(Q, K) / sqrt(headDim);
+}
 
-// Head 2: Temporal (usage patterns)
-const temporalScore = (recency + heatDiffusion) * featureWeights.temporal;
-
-headScores = [semanticScore, structureScore, temporalScore];
-score = sigmoid(weighted_sum(fusionWeights * headScores));
-// fusionWeights et featureWeights sont appris via backprop
+score = sigmoid(mean(headScores));
+// W_q, W_k, W_intent trained via backprop
 ```
 
 Le **context** (position actuelle) est géré par **DR-DSP**, pas SHGAT :
@@ -314,13 +315,14 @@ Mode Direct réussi
 **Story 11.6:** Remplace `updateSHGAT()` (single-example tool-level) par PER batch training (path-level).
 Un verrou empêche les trainings concurrents si plusieurs exécutions en parallèle.
 
-**Méthodes SHGAT - Scoring (multi-head attention):**
+**Méthodes SHGAT V1 - Scoring (K-head attention):**
 
 | Méthode | Input | Output | Usage |
 |---------|-------|--------|-------|
-| `scoreAllCapabilities(intentEmb)` | intent embedding | ranked capabilities with `hierarchyLevel` | Suggestion mode |
-| `scoreAllTools(intentEmb)` | intent embedding | ranked tools | Tool selection |
-| `predictPathSuccess(intentEmb, path)` | intent + path | probability [0,1] | TD Learning (Epic 11.3) |
+| `scoreAllCapabilities(intentEmb)` | intent embedding | ranked capabilities with `hierarchyLevel` | Production (pml_execute) |
+| `scoreAllTools(intentEmb)` | intent embedding | ranked tools | Production (pml_execute) |
+| `trainBatchV1KHead(examples)` | TrainingExample[] | { loss, accuracy, tdErrors, gradNorm } | Batch training |
+| `trainSHGATOnExecution(...)` | single execution | { loss, accuracy, gradNorm } | Online learning |
 
 **Multi-Level Scoring API (v1 Refactor - 2025-12-25):**
 
@@ -343,37 +345,40 @@ const byLevel = scorer.getTopByLevel(intent, 5);
 // Returns Map<number, AttentionResult[]>
 ```
 
-**Multi-head architecture (3 heads with multi-level message passing):**
+**K-head architecture (K = 4-16 adaptive heads with multi-level message passing):**
 
 ```typescript
 // Forward pass propagates through hierarchy levels
-const { H, E } = this.forward();  // E: Map<level, embeddings[][]>
+const { E } = forwardMultiLevel();  // E: Map<level, embeddings[][]>
 
-// Score using PROPAGATED embeddings (enriched by multi-level attention)
+// Score using K-head attention on PROPAGATED embeddings
 scoreAllCapabilities(intentEmbedding: number[]): AttentionResult[] {
-  const { E } = forwardMultiLevel();  // Upward + downward phases
-  const intentProjected = projectIntent(intentEmbedding);
+  const intentProjected = W_intent @ intentEmbedding;
 
   for (const level of hierarchyLevels.keys()) {
     for (const [idx, capId] of capsAtLevel) {
       const capEmb = E.get(level)[idx];  // Propagated embedding
-      const intentSim = cosineSimilarity(intentProjected, capEmb);
 
-      // Head 0: Semantic
-      const semanticScore = intentSim * featureWeights.semantic;
-      // Head 1: Structure
-      const structureScore = (pageRank + adamicAdar) * featureWeights.structure;
-      // Head 2: Temporal
-      const temporalScore = (recency + heatDiffusion) * featureWeights.temporal;
+      // K-head scoring
+      const headScores: number[] = [];
+      for (let h = 0; h < numHeads; h++) {
+        const Q = W_q[h] @ intentProjected;
+        const K = W_k[h] @ capEmb;
+        headScores.push(dot(Q, K) / sqrt(headDim));
+      }
 
-      // Fusion via learned weights
-      headScores = [semanticScore, structureScore, temporalScore];
-      score = sigmoid(weighted_sum(fusionWeights, headScores));
-
+      const score = sigmoid(mean(headScores));
       results.push({ capabilityId, score, hierarchyLevel: level, ... });
     }
   }
 }
+```
+
+**Benchmark (V1 K-head wins):**
+```
+v1 (message passing + K heads): MRR=0.214, Hit@3=23.3%
+v2 (direct + K heads + MLP):    MRR=0.198, Hit@3=20.9%
+v3 (HYBRID):                    MRR=0.170, Hit@3=7.0%
 ```
 
 **predictPathSuccess pour TD Learning (Story 11.3):**

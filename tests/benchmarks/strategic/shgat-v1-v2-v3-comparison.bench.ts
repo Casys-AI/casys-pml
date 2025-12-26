@@ -2,7 +2,7 @@
  * SHGAT v1 vs v2 vs v3 Comparison Benchmark
  *
  * Compares the three SHGAT scoring approaches:
- * - v1: Message passing (V→E→V) + 3 specialized heads (semantic/structure/temporal)
+ * - v1: Message passing (V→E→V) + K adaptive heads (numHeads=4-16 based on graph size)
  * - v2: Direct embeddings + Rich TraceFeatures (17 features) + K heads + Fusion MLP
  * - v3: HYBRID - Message passing + TraceFeatures + K heads + Fusion MLP
  *
@@ -25,6 +25,7 @@
 import {
   createSHGATFromCapabilities,
   trainSHGATOnEpisodes,
+  trainSHGATOnEpisodesKHead,
   type TrainingExample,
 } from "../../../src/graphrag/algorithms/shgat.ts";
 import {
@@ -85,15 +86,15 @@ const trainingExamples: TrainingExample[] = rawEvents.map(event => ({
 console.log("🏗️ Creating SHGAT model...");
 const shgat = createSHGATFromCapabilities(capabilities, toolEmbeddings);
 
-// Training with optimized params (batch must be < dataset size for multiple updates)
-console.log("🎓 Training SHGAT (30 epochs, batch=16)...");
-await trainSHGATOnEpisodes(
+// Training with K-head (trains W_q, W_k for multi-head attention scoring)
+console.log("🎓 Training SHGAT K-head (30 epochs, batch=16)...");
+await trainSHGATOnEpisodesKHead(
   shgat,
   trainingExamples,
   (id) => toolEmbeddings.get(id) || null,
   { epochs: 30, batchSize: 16 },
 );
-console.log("✅ Training complete!");
+console.log("✅ K-head training complete!");
 
 // Build test queries from pre-computed embeddings
 console.log("📝 Loading test queries...");
@@ -178,7 +179,7 @@ function computeAccuracyMetrics(
 // ============================================================================
 
 Deno.bench({
-  name: "v1: scoreAllCapabilities (message passing + 3 heads)",
+  name: "v1: scoreAllCapabilities (message passing + K heads)",
   group: "shgat-versions-latency",
   baseline: true,
   fn: () => {
@@ -239,7 +240,7 @@ console.log(
 );
 console.log("-".repeat(80));
 console.log(
-  "v1 (message passing + 3 heads)".padEnd(50) +
+  "v1 (message passing + K heads)".padEnd(50) +
     v1Accuracy.mrr.toFixed(3).padEnd(10) +
     (v1Accuracy.hit1 * 100).toFixed(1).padEnd(10) +
     (v1Accuracy.hit3 * 100).toFixed(1).padEnd(10),

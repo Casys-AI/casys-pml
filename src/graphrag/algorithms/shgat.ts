@@ -60,6 +60,16 @@ import {
   buildTraceFeatures,
   createDefaultTraceStatsFromFeatures,
 } from "./shgat/training/v2-trainer.ts";
+import {
+  initMultiLevelKHeadGradients,
+  computeMultiHeadKHeadScoresWithCache,
+  backpropMultiHeadKHead,
+  backpropWIntent,
+  applyKHeadGradients,
+  applyWIntentGradients,
+  computeKHeadGradientNorm,
+} from "./shgat/training/multi-level-trainer-khead.ts";
+import { applyLevelGradients, computeGradientNorm } from "./shgat/training/multi-level-trainer.ts";
 
 // Re-export all types from ./shgat/types.ts for backward compatibility
 export {
@@ -1111,6 +1121,105 @@ export class SHGAT {
     applyV2Gradients(this.v2GradAccum, this.config, this.params.W_proj, this.params.b_proj, this.params.fusionMLP, batchSize);
   }
 
+  /**
+   * Train v1 with K-head scoring (trains headParams W_q, W_k)
+   *
+   * Unlike trainBatch() which uses cosine + fusion weights,
+   * this trains the K-head attention mechanism used in scoreAllCapabilities().
+   */
+  trainBatchV1KHead(examples: TrainingExample[]): { loss: number; accuracy: number; tdErrors: number[]; gradNorm: number } {
+    this.trainingMode = true;
+    const tdErrors: number[] = [];
+
+    // Initialize gradients
+    const grads = initMultiLevelKHeadGradients(
+      this.levelParams,
+      this.params.headParams,
+      this.config,
+    );
+
+    let totalLoss = 0;
+    let correct = 0;
+
+    for (const example of examples) {
+      // Forward pass
+      const { E } = this.forward();
+      const intentProjected = this.projectIntent(example.intentEmbedding);
+
+      // Get capability index
+      const capIdx = this.graphBuilder.getCapabilityIndex(example.candidateId);
+      if (capIdx === undefined) {
+        tdErrors.push(0);
+        continue;
+      }
+
+      const capEmbedding = E[capIdx];
+
+      // Compute K-head scores with cache for backprop
+      const { scores: headScores, caches: headCaches } = computeMultiHeadKHeadScoresWithCache(
+        intentProjected,
+        capEmbedding,
+        this.params.headParams,
+        this.config,
+      );
+
+      // Average fusion
+      const avgScore = headScores.reduce((a, b) => a + b, 0) / this.config.numHeads;
+      const predScore = Math.min(0.95, Math.max(0.05, avgScore));
+
+      // Loss
+      const loss = math.binaryCrossEntropy(predScore, example.outcome);
+      totalLoss += loss;
+
+      // TD error
+      const tdError = example.outcome - predScore;
+      tdErrors.push(tdError);
+
+      // Accuracy
+      if ((predScore > 0.5 ? 1 : 0) === example.outcome) {
+        correct++;
+      }
+
+      // Backward pass through K-head scoring
+      // dLoss/dScore = -(y/p) + (1-y)/(1-p) for BCE
+      const dLoss = example.outcome === 1
+        ? -1 / (predScore + 1e-7)
+        : 1 / (1 - predScore + 1e-7);
+
+      const { dIntentProjected } = backpropMultiHeadKHead(
+        dLoss,
+        headScores,
+        headCaches,
+        intentProjected,
+        capEmbedding,
+        this.params.headParams,
+        grads.khead,
+        this.config,
+      );
+
+      // Backprop through W_intent
+      backpropWIntent(dIntentProjected, example.intentEmbedding, grads, this.config);
+    }
+
+    // Compute gradient norm before applying (for monitoring)
+    const levelGradNorm = computeGradientNorm(grads);
+    const kheadGradNorm = computeKHeadGradientNorm(grads.khead);
+    const gradNorm = Math.sqrt(levelGradNorm ** 2 + kheadGradNorm ** 2);
+
+    // Apply gradients
+    applyLevelGradients(grads, this.levelParams, this.config, examples.length);
+    applyKHeadGradients(grads.khead, this.params.headParams, this.config, examples.length);
+    applyWIntentGradients(grads, this.params.W_intent, this.config, examples.length);
+
+    this.trainingMode = false;
+    return {
+      loss: totalLoss / examples.length,
+      accuracy: correct / examples.length,
+      tdErrors,
+      gradNorm,
+    };
+  }
+
   // ==========================================================================
   // Serialization
   // ==========================================================================
@@ -1213,7 +1322,23 @@ export async function trainSHGATOnEpisodes(
 }
 
 /**
- * Online learning: Train SHGAT on a single execution result
+ * Train SHGAT using K-head attention scoring (trains W_q, W_k)
+ *
+ * Unlike trainSHGATOnEpisodes which trains the fusion weights,
+ * this trains the K-head attention mechanism used in scoreAllCapabilities().
+ */
+export async function trainSHGATOnEpisodesKHead(
+  shgat: SHGAT, episodes: TrainingExample[], _getEmbedding: (id: string) => number[] | null,
+  options: { epochs?: number; batchSize?: number; onEpoch?: (epoch: number, loss: number, accuracy: number) => void } = {},
+): Promise<{ finalLoss: number; finalAccuracy: number }> {
+  return trainOnEpisodes((batch) => shgat.trainBatchV1KHead(batch), episodes, options);
+}
+
+/**
+ * Online learning: Train SHGAT V1 on a single execution result
+ *
+ * Uses V1 K-head architecture (message passing + K adaptive heads).
+ * Trains W_q, W_k (K-head attention), levelParams, and W_intent.
  *
  * Use this in production after each capability execution.
  * No epochs to manage - just call after each execution.
@@ -1221,11 +1346,12 @@ export async function trainSHGATOnEpisodes(
  * @example
  * ```typescript
  * // After successful capability execution:
- * await trainSHGATOnExecution(shgat, {
+ * const { loss, gradNorm } = await trainSHGATOnExecution(shgat, {
  *   intentEmbedding: userIntent,
  *   targetCapId: "executed-capability",
  *   outcome: 1, // success
  * });
+ * console.log(`Trained: loss=${loss.toFixed(4)}, gradNorm=${gradNorm.toFixed(4)}`);
  *
  * // After failed capability execution:
  * await trainSHGATOnExecution(shgat, {
@@ -1237,7 +1363,7 @@ export async function trainSHGATOnEpisodes(
  *
  * @param shgat SHGAT instance
  * @param execution Single execution result
- * @returns Training metrics (loss, accuracy for this single example)
+ * @returns Training metrics (loss, accuracy, gradNorm for this single example)
  */
 export async function trainSHGATOnExecution(
   shgat: SHGAT,
@@ -1246,7 +1372,7 @@ export async function trainSHGATOnExecution(
     targetCapId: string;
     outcome: number; // 1 = success, 0 = failure
   },
-): Promise<{ loss: number; accuracy: number }> {
+): Promise<{ loss: number; accuracy: number; gradNorm: number }> {
   // Convert to TrainingExample format
   const example: TrainingExample = {
     intentEmbedding: execution.intentEmbedding,
@@ -1255,11 +1381,13 @@ export async function trainSHGATOnExecution(
     outcome: execution.outcome,
   };
 
-  // Train on single example (no batching, immediate gradient update)
-  const result = shgat.trainBatch([example]);
+  // Train on single example using V1 K-head architecture
+  // This trains W_q, W_k (K-head attention) + levelParams + W_intent
+  const result = shgat.trainBatchV1KHead([example]);
 
   return {
     loss: result.loss,
     accuracy: result.accuracy,
+    gradNorm: result.gradNorm,
   };
 }
