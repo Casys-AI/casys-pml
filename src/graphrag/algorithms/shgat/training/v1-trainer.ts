@@ -78,7 +78,8 @@ export function initV1Gradients(
     grads.set(`W_e_${l}`, zerosLike3D(params.W_e));
   }
 
-  const propagatedDim = config.numHeads * config.hiddenDim;
+  // propagatedDim = hiddenDim (matches message passing output after concatHeads)
+  const propagatedDim = config.hiddenDim;
 
   return {
     fusionGradients: { semantic: 0, structure: 0, temporal: 0 },
@@ -101,7 +102,8 @@ export function resetV1Gradients(
   grads.fusionGradients = { semantic: 0, structure: 0, temporal: 0 };
   grads.featureGradients = { semantic: 0, structure: 0, temporal: 0 };
 
-  const propagatedDim = config.numHeads * config.hiddenDim;
+  // propagatedDim = hiddenDim (matches message passing output after concatHeads)
+  const propagatedDim = config.hiddenDim;
   grads.W_intent_gradients = Array.from({ length: propagatedDim }, () =>
     Array(config.embeddingDim).fill(0)
   );

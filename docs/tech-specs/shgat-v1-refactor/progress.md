@@ -1,6 +1,6 @@
 # SHGAT v1 Refactor - Progress Tracker
 
-**Last Updated**: 2025-12-25
+**Last Updated**: 2025-12-26
 
 ---
 
@@ -85,8 +85,8 @@
 - [x] Unit tests: downward propagation (included in message-passing tests)
 - [x] Unit tests: backward compatibility (3 tests for legacy API)
 - [x] Unit tests: level parameters (10 tests in level-params_test.ts)
-- [ ] Integration test: end-to-end scoring
-- [ ] Benchmark: old vs new implementation
+- [x] Integration test: end-to-end scoring
+- [x] Benchmark: v1 vs v2 vs v3 comparison (shgat-v1-v2-v3-comparison.bench.ts)
 - [ ] Performance: forward pass ≤ 2× old time
 - [ ] Performance: memory ≤ old for L_max ≤ 3
 
@@ -217,3 +217,77 @@ await trainSHGATOnExecution(shgat, {
 - Single gradient update per execution
 - Continuous learning from user interactions
 - Works with 460+ tools (batch training not required at startup)
+
+### 2025-12-26: Multi-Level Forward Wired Up + Cache Format Adapted
+
+**Critical fix: `forwardMultiLevel()` was implemented but never wired up!**
+
+The main `forward()` method was still using the flattened incidence matrix with
+transitive closure. Fixed by:
+
+1. **Wired `forwardMultiLevel()` in `SHGAT.forward()`**:
+   - Added `rebuildHierarchy()` call on graph changes
+   - Added `buildToolToCapMatrix()` for level-0 incidence
+   - Added `buildCapToCapMatrices()` for inter-level incidence
+   - Added `flattenEmbeddingsByCapabilityOrder()` for backward-compat output
+
+2. **Fixed `transposeMatrix` bug in EdgeToVertexPhase**:
+   - Downward pass was transposing the matrix incorrectly
+   - `EdgeToVertexPhase.forward()` expects `[tool][cap]` format (same as upward)
+
+3. **Adapted cache format for training**:
+   - Added `convertAttentionToLayerFormat()` method
+   - Converts `Map<level, [head][src][tgt]>` → `[layer][head][src][tgt]`
+   - Interpolates H and E arrays across layers for gradient flow
+   - Training backward pass now works with multi-level forward
+
+**Benchmark Results (with training, 30 epochs):**
+```
+Version                                           MRR       Hit@1     Hit@3
+--------------------------------------------------------------------------------
+v1 (message passing + cosine)                     0.237     9.3       20.9
+v2 (direct + K heads + MLP)                       0.175     2.3       16.3
+v3 (HYBRID: message passing + K heads + MLP)      0.175     4.7       11.6
+--------------------------------------------------------------------------------
+🏆 WINNER (by MRR): v1 with MRR=0.237
+```
+
+**v1 Architecture (pure n-SuperHyperGraph):**
+- Forward: V → E^0 → E^1 → ... → E^L_max (upward) then back (downward)
+- Scoring: `cosine(projectIntent(intent), E_propagated[cap])`
+- No TraceFeatures, no MLP fusion - pure structural similarity
+
+**All 10 multi-level message passing tests pass.**
+
+### 2025-12-26: Dimension Bug Fix - propagatedDim
+
+**Critical bug found and fixed in dimension calculations!**
+
+The code had `propagatedDim = numHeads * hiddenDim` which was **wrong**.
+
+**Correct formula:**
+```
+hiddenDim = numHeads * headDim    (e.g., 4 * 16 = 64)
+propagatedDim = hiddenDim         (NOT numHeads * hiddenDim!)
+```
+
+After `concatHeads()`, the output dimension is `numHeads * headDim = hiddenDim`.
+So `W_intent` should project intent from `embeddingDim` → `hiddenDim` (not `numHeads * hiddenDim`).
+
+**Files fixed:**
+- `initialization/parameters.ts:186`: `propagatedDim = hiddenDim`
+- `initialization/parameters.ts:161`: `layerInputDim = l === 0 ? embeddingDim : hiddenDim`
+- `initialization/parameters.ts:573`: Same fix for `countParameters()`
+- `training/v1-trainer.ts:82,106`: Same fix for gradient accumulators
+
+**Dimension flow (with adaptive heads):**
+```
+Graph size    numHeads  headDim  hiddenDim  propagatedDim
+< 50          4         16       64         64
+< 200         6         16       96         96
+< 500         8         32       256        256
+< 1000        12        32       384        384
+>= 1000       16        32       512        512
+```
+
+**All 36 unit tests pass after fix.**

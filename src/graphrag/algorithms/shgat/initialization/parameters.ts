@@ -66,7 +66,7 @@ export interface SHGATParams {
   // Legacy weights (v1)
   fusionWeights: FusionWeights;
   featureWeights: FeatureWeights;
-  W_intent: number[][];
+  W_intent: number[][]; // [hiddenDim][embeddingDim] - projects intent to match E after concatHeads
 
   // V2 parameters
   W_proj: number[][];
@@ -155,7 +155,9 @@ export function initializeParameters(config: SHGATConfig): SHGATParams {
   // Initialize layer parameters
   const layerParams: LayerParams[] = [];
   for (let l = 0; l < numLayers; l++) {
-    const layerInputDim = l === 0 ? embeddingDim : hiddenDim * numHeads;
+    // Layer 0: input is raw embedding (embeddingDim)
+    // Layer k>0: input is previous layer output after concatHeads (hiddenDim)
+    const layerInputDim = l === 0 ? embeddingDim : hiddenDim;
 
     layerParams.push({
       W_v: initTensor3D(numHeads, hiddenDim, layerInputDim),
@@ -180,7 +182,9 @@ export function initializeParameters(config: SHGATConfig): SHGATParams {
   }
 
   // Initialize intent projection matrix
-  const propagatedDim = numHeads * hiddenDim;
+  // propagatedDim = hiddenDim (NOT numHeads * hiddenDim!)
+  // This matches the output of message passing after concatHeads: numHeads * headDim = hiddenDim
+  const propagatedDim = hiddenDim;
   const W_intent = initMatrix(propagatedDim, embeddingDim);
 
   // Initialize V2 parameters
@@ -564,7 +568,8 @@ export function countParameters(config: SHGATConfig): {
   // V1 param count
   let v1ParamCount = 0;
   for (let l = 0; l < numLayers; l++) {
-    const layerInputDim = l === 0 ? embeddingDim : hiddenDim * numHeads;
+    // Layer 0: input is embeddingDim, Layer k>0: input is hiddenDim (after concatHeads)
+    const layerInputDim = l === 0 ? embeddingDim : hiddenDim;
     v1ParamCount += numHeads * hiddenDim * layerInputDim * 2; // W_v, W_e
     v1ParamCount += numHeads * 2 * hiddenDim; // a_ve
     v1ParamCount += numHeads * hiddenDim * hiddenDim * 2; // W_e2, W_v2
@@ -572,7 +577,7 @@ export function countParameters(config: SHGATConfig): {
   }
   v1ParamCount += 3; // fusionWeights
   v1ParamCount += 3; // featureWeights
-  v1ParamCount += numHeads * hiddenDim * embeddingDim; // W_intent
+  v1ParamCount += hiddenDim * embeddingDim; // W_intent (hiddenDim = propagatedDim)
 
   // V2 param count
   const projInputDim = 3 * embeddingDim + numTraceStats;

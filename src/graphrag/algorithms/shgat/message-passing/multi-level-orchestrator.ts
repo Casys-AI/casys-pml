@@ -399,8 +399,8 @@ export class MultiLevelOrchestrator {
         // Save pre-downward tool embeddings for residual connection
         const H_preDownward = H.map((row) => [...row]);
 
-        // Transpose tool→cap matrix for downward pass
-        const reverseToolMatrix = this.transposeMatrix(toolToCapMatrix);
+        // EdgeToVertexPhase expects [tool][cap] format (same as upward pass)
+        // It internally handles the reverse aggregation direction
 
         const headsH: number[][][] = [];
         const levelAttention: number[][][] = [];
@@ -415,7 +415,7 @@ export class MultiLevelOrchestrator {
           const { embeddings: propagated, attention } = this.edgeToVertexPhase.forward(
             E_level0,
             H,
-            reverseToolMatrix,
+            toolToCapMatrix,
             phaseParams,
             { leakyReluSlope: config.leakyReluSlope },
           );

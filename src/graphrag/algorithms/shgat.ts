@@ -20,9 +20,17 @@
 import { getLogger } from "../../telemetry/logger.ts";
 
 // Module imports
-import { GraphBuilder, generateDefaultToolEmbedding } from "./shgat/graph/index.ts";
+import {
+  GraphBuilder,
+  generateDefaultToolEmbedding,
+  computeHierarchyLevels,
+  buildMultiLevelIncidence,
+  type HierarchyResult,
+  type MultiLevelIncidence,
+} from "./shgat/graph/index.ts";
 import {
   initializeParameters,
+  initializeLevelParameters,
   initializeV2GradientAccumulators,
   resetV2GradientAccumulators,
   exportParams as exportParamsHelper,
@@ -94,6 +102,7 @@ import {
   type AttentionResult,
   type ForwardCache,
   type FusionWeights,
+  type LevelParams,
   createMembersFromLegacy,
 } from "./shgat/types.ts";
 
@@ -119,6 +128,12 @@ export class SHGAT {
   private lastCache: ForwardCache | null = null;
   private v2GradAccum: V2GradientAccumulators;
 
+  // Multi-level n-SuperHyperGraph structures
+  private hierarchy: HierarchyResult | null = null;
+  private multiLevelIncidence: MultiLevelIncidence | null = null;
+  private levelParams: Map<number, LevelParams> = new Map();
+  private hierarchyDirty = true; // Flag to rebuild hierarchy when graph changes
+
   constructor(config: Partial<SHGATConfig> = {}) {
     this.config = { ...DEFAULT_SHGAT_CONFIG, ...config };
     this.graphBuilder = new GraphBuilder();
@@ -133,10 +148,65 @@ export class SHGAT {
 
   registerTool(node: ToolNode): void {
     this.graphBuilder.registerTool(node);
+    this.hierarchyDirty = true;
   }
 
   registerCapability(node: CapabilityNode): void {
     this.graphBuilder.registerCapability(node);
+    this.hierarchyDirty = true;
+  }
+
+  /**
+   * Rebuild multi-level hierarchy and incidence structures
+   *
+   * Called lazily before forward() when hierarchyDirty is true.
+   */
+  private rebuildHierarchy(): void {
+    if (!this.hierarchyDirty) return;
+
+    const capabilityNodes = this.graphBuilder.getCapabilityNodes();
+
+    if (capabilityNodes.size === 0) {
+      this.hierarchy = {
+        hierarchyLevels: new Map(),
+        maxHierarchyLevel: 0,
+        capabilities: new Map(),
+      };
+      this.multiLevelIncidence = {
+        toolToCapIncidence: new Map(),
+        capToCapIncidence: new Map(),
+        parentToChildIncidence: new Map(),
+        capToToolIncidence: new Map(),
+      };
+      this.levelParams = new Map();
+      this.hierarchyDirty = false;
+      return;
+    }
+
+    // 1. Compute hierarchy levels
+    this.hierarchy = computeHierarchyLevels(capabilityNodes);
+
+    // 2. Update hierarchyLevel on each capability
+    for (const [level, capIds] of this.hierarchy.hierarchyLevels) {
+      for (const capId of capIds) {
+        const cap = capabilityNodes.get(capId);
+        if (cap) cap.hierarchyLevel = level;
+      }
+    }
+
+    // 3. Build multi-level incidence structure
+    this.multiLevelIncidence = buildMultiLevelIncidence(capabilityNodes, this.hierarchy);
+
+    // 4. Initialize level parameters if needed
+    if (this.levelParams.size === 0 || this.levelParams.size <= this.hierarchy.maxHierarchyLevel) {
+      this.levelParams = initializeLevelParameters(this.config, this.hierarchy.maxHierarchyLevel);
+    }
+
+    this.hierarchyDirty = false;
+    log.debug("[SHGAT] Rebuilt hierarchy", {
+      maxLevel: this.hierarchy.maxHierarchyLevel,
+      levels: Array.from(this.hierarchy.hierarchyLevels.keys()),
+    });
   }
 
   /**
@@ -225,16 +295,61 @@ export class SHGAT {
   }
 
   // ==========================================================================
-  // Two-Phase Message Passing
+  // Multi-Level Message Passing (n-SuperHyperGraph)
   // ==========================================================================
 
+  /**
+   * Execute multi-level message passing
+   *
+   * n-SHG Architecture:
+   * - Upward: V → E^0 → E^1 → ... → E^L_max
+   * - Downward: E^L_max → ... → E^1 → E^0 → V
+   *
+   * Each level uses direct membership only (no transitive closure).
+   *
+   * @returns H (tool embeddings), E (flattened cap embeddings), cache
+   */
   forward(): { H: number[][]; E: number[][]; cache: ForwardCache } {
-    const H = this.graphBuilder.getToolEmbeddings();
-    const E = this.graphBuilder.getCapabilityEmbeddings();
-    const incidenceMatrix = this.graphBuilder.getIncidenceMatrix();
+    // Rebuild hierarchy if graph changed
+    this.rebuildHierarchy();
 
-    const result = this.orchestrator.forward(
-      H, E, incidenceMatrix, this.params.layerParams,
+    const H_init = this.graphBuilder.getToolEmbeddings();
+    const capabilityNodes = this.graphBuilder.getCapabilityNodes();
+
+    // Handle empty graph
+    if (capabilityNodes.size === 0 || !this.hierarchy || !this.multiLevelIncidence) {
+      return {
+        H: H_init,
+        E: [],
+        cache: { H: [H_init], E: [[]], attentionVE: [], attentionEV: [] },
+      };
+    }
+
+    // Build E_levels_init: initial embeddings grouped by level
+    const E_levels_init = new Map<number, number[][]>();
+    for (let level = 0; level <= this.hierarchy.maxHierarchyLevel; level++) {
+      const capsAtLevel = this.hierarchy.hierarchyLevels.get(level) ?? new Set<string>();
+      const embeddings: number[][] = [];
+      for (const capId of capsAtLevel) {
+        const cap = capabilityNodes.get(capId);
+        if (cap) embeddings.push([...cap.embedding]);
+      }
+      if (embeddings.length > 0) {
+        E_levels_init.set(level, embeddings);
+      }
+    }
+
+    // Build incidence matrices from MultiLevelIncidence
+    const toolToCapMatrix = this.buildToolToCapMatrix();
+    const capToCapMatrices = this.buildCapToCapMatrices();
+
+    // Execute multi-level forward pass
+    const { result, cache: _multiCache } = this.orchestrator.forwardMultiLevel(
+      H_init,
+      E_levels_init,
+      toolToCapMatrix,
+      capToCapMatrices,
+      this.levelParams,
       {
         numHeads: this.config.numHeads,
         numLayers: this.config.numLayers,
@@ -243,7 +358,244 @@ export class SHGAT {
       },
     );
 
-    this.lastCache = result.cache;
+    // Flatten E for backward compatibility with scoring
+    // Order: level 0, then level 1, etc. (matches capabilityIndex order from graphBuilder)
+    const E_flat = this.flattenEmbeddingsByCapabilityOrder(result.E);
+
+    // Convert cache format for backward compatibility with training
+    // Training backward pass expects cache.E[numLayers] and cache.attentionVE[l]
+    const E_init = this.graphBuilder.getCapabilityEmbeddings();
+    const numLayers = this.config.numLayers;
+
+    // Pad H and E arrays to have numLayers + 1 entries
+    // Interpolate intermediate layers for gradient flow
+    const H_layers: number[][][] = [H_init];
+    const E_layers: number[][][] = [E_init];
+
+    for (let l = 1; l < numLayers; l++) {
+      // Interpolate: lerp between init and final
+      const alpha = l / numLayers;
+      H_layers.push(H_init.map((row, i) =>
+        row.map((v, j) => v * (1 - alpha) + (result.H[i]?.[j] ?? v) * alpha)
+      ));
+      E_layers.push(E_init.map((row, i) =>
+        row.map((v, j) => v * (1 - alpha) + (E_flat[i]?.[j] ?? v) * alpha)
+      ));
+    }
+    H_layers.push(result.H);
+    E_layers.push(E_flat);
+
+    // Convert attention from multi-level format to layer format
+    // attentionVE[layer][head][tool][cap]
+    const attentionVE = this.convertAttentionToLayerFormat(
+      _multiCache.attentionUpward,
+      this.graphBuilder.getToolCount(),
+      this.graphBuilder.getCapabilityCount(),
+    );
+    const attentionEV = this.convertAttentionToLayerFormat(
+      _multiCache.attentionDownward,
+      this.graphBuilder.getCapabilityCount(),
+      this.graphBuilder.getToolCount(),
+    );
+
+    const cache: ForwardCache = {
+      H: H_layers,
+      E: E_layers,
+      attentionVE,
+      attentionEV,
+    };
+
+    this.lastCache = cache;
+    return { H: result.H, E: E_flat, cache };
+  }
+
+  /**
+   * Build tool → capability incidence matrix from MultiLevelIncidence
+   *
+   * Returns matrix A[tool_idx][cap_idx] = 1 if tool is directly in capability
+   * Only for level-0 mappings (no transitive closure)
+   */
+  private buildToolToCapMatrix(): number[][] {
+    const numTools = this.graphBuilder.getToolCount();
+    const capsAtLevel0 = this.hierarchy?.hierarchyLevels.get(0) ?? new Set<string>();
+    const numCapsLevel0 = capsAtLevel0.size;
+
+    if (numTools === 0 || numCapsLevel0 === 0) return [];
+
+    // Build cap index for level 0
+    const capIndex = new Map<string, number>();
+    let idx = 0;
+    for (const capId of capsAtLevel0) {
+      capIndex.set(capId, idx++);
+    }
+
+    const matrix: number[][] = Array.from({ length: numTools }, () =>
+      Array(numCapsLevel0).fill(0)
+    );
+
+    for (const [toolId, caps] of this.multiLevelIncidence!.toolToCapIncidence) {
+      const tIdx = this.graphBuilder.getToolIndex(toolId);
+      if (tIdx === undefined) continue;
+
+      for (const capId of caps) {
+        const cIdx = capIndex.get(capId);
+        if (cIdx !== undefined) {
+          matrix[tIdx][cIdx] = 1;
+        }
+      }
+    }
+
+    return matrix;
+  }
+
+  /**
+   * Build capability → capability incidence matrices for each level
+   *
+   * For level k: matrix A[child_idx][parent_idx] = 1 if child is directly in parent
+   */
+  private buildCapToCapMatrices(): Map<number, number[][]> {
+    const matrices = new Map<number, number[][]>();
+    if (!this.hierarchy || !this.multiLevelIncidence) return matrices;
+
+    for (let level = 1; level <= this.hierarchy.maxHierarchyLevel; level++) {
+      const childLevel = level - 1;
+      const capsAtChildLevel = this.hierarchy.hierarchyLevels.get(childLevel) ?? new Set<string>();
+      const capsAtParentLevel = this.hierarchy.hierarchyLevels.get(level) ?? new Set<string>();
+
+      if (capsAtChildLevel.size === 0 || capsAtParentLevel.size === 0) continue;
+
+      // Build indices
+      const childIndex = new Map<string, number>();
+      let idx = 0;
+      for (const capId of capsAtChildLevel) childIndex.set(capId, idx++);
+
+      const parentIndex = new Map<string, number>();
+      idx = 0;
+      for (const capId of capsAtParentLevel) parentIndex.set(capId, idx++);
+
+      // Build matrix [numChildren][numParents]
+      const matrix: number[][] = Array.from({ length: capsAtChildLevel.size }, () =>
+        Array(capsAtParentLevel.size).fill(0)
+      );
+
+      const levelMap = this.multiLevelIncidence.capToCapIncidence.get(level);
+      if (levelMap) {
+        for (const [childId, parents] of levelMap) {
+          const cIdx = childIndex.get(childId);
+          if (cIdx === undefined) continue;
+
+          for (const parentId of parents) {
+            const pIdx = parentIndex.get(parentId);
+            if (pIdx !== undefined) {
+              matrix[cIdx][pIdx] = 1;
+            }
+          }
+        }
+      }
+
+      matrices.set(level, matrix);
+    }
+
+    return matrices;
+  }
+
+  /**
+   * Flatten multi-level embeddings to match graphBuilder capability order
+   */
+  private flattenEmbeddingsByCapabilityOrder(E_levels: Map<number, number[][]>): number[][] {
+    const capabilityNodes = this.graphBuilder.getCapabilityNodes();
+    const result: number[][] = [];
+
+    // Create a map from capId to embedding
+    const embeddingMap = new Map<string, number[]>();
+
+    for (let level = 0; level <= (this.hierarchy?.maxHierarchyLevel ?? 0); level++) {
+      const capsAtLevel = this.hierarchy?.hierarchyLevels.get(level) ?? new Set<string>();
+      const embeddings = E_levels.get(level) ?? [];
+
+      let idx = 0;
+      for (const capId of capsAtLevel) {
+        if (idx < embeddings.length) {
+          embeddingMap.set(capId, embeddings[idx]);
+        }
+        idx++;
+      }
+    }
+
+    // Return in graphBuilder order
+    for (const [capId] of capabilityNodes) {
+      const emb = embeddingMap.get(capId);
+      if (emb) {
+        result.push(emb);
+      } else {
+        // Fallback: use zero embedding with correct dimension
+        const dim = E_levels.get(0)?.[0]?.length ?? this.config.hiddenDim;
+        result.push(new Array(dim).fill(0));
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Convert multi-level attention format to layer-based format for training
+   *
+   * Multi-level: Map<level, [head][source][target]>
+   * Layer-based: [layer][head][source][target]
+   *
+   * Training backward pass expects attention matrices per layer.
+   * We replicate the multi-level attention to fill all layers.
+   */
+  private convertAttentionToLayerFormat(
+    multiLevelAttention: Map<number, number[][][]>,
+    numSources: number,
+    numTargets: number,
+  ): number[][][][] {
+    const numLayers = this.config.numLayers;
+    const numHeads = this.config.numHeads;
+    const result: number[][][][] = [];
+
+    // Initialize empty attention matrices for each layer
+    for (let l = 0; l < numLayers; l++) {
+      const layerAttention: number[][][] = [];
+      for (let h = 0; h < numHeads; h++) {
+        const headMatrix: number[][] = Array.from({ length: numSources }, () =>
+          Array(numTargets).fill(0)
+        );
+        layerAttention.push(headMatrix);
+      }
+      result.push(layerAttention);
+    }
+
+    // Fill with multi-level attention data
+    // Strategy: distribute levels across layers
+    const levels = Array.from(multiLevelAttention.keys()).sort((a, b) => a - b);
+    if (levels.length === 0) return result;
+
+    for (let l = 0; l < numLayers; l++) {
+      // Map layer index to level (round-robin if more layers than levels)
+      const levelIdx = Math.min(l, levels.length - 1);
+      const level = levels[levelIdx];
+      const levelAttention = multiLevelAttention.get(level);
+
+      if (!levelAttention) continue;
+
+      // Copy attention weights
+      for (let h = 0; h < Math.min(numHeads, levelAttention.length); h++) {
+        const srcMatrix = levelAttention[h];
+        if (!srcMatrix) continue;
+
+        for (let s = 0; s < Math.min(numSources, srcMatrix.length); s++) {
+          const srcRow = srcMatrix[s];
+          if (!srcRow) continue;
+
+          for (let t = 0; t < Math.min(numTargets, srcRow.length); t++) {
+            result[l][h][s][t] = srcRow[t];
+          }
+        }
+      }
+    }
+
     return result;
   }
 
@@ -461,70 +813,92 @@ export class SHGAT {
   }
 
   // ==========================================================================
-  // V1 Scoring Methods (Unified K-Head + MLP Architecture)
+  // V1 Scoring Methods (Multi-Head n-SuperHyperGraph)
   // ==========================================================================
 
   /**
-   * Score all capabilities using multi-level message passing + K-head attention + MLP
+   * Compute attention score for a single head (v1)
    *
-   * Unified architecture (formerly 3-head, now K-head):
-   * 1. Forward pass: V → E^0 → E^1 → ... → E^L_max (message passing with K heads)
-   * 2. Scoring: K-head attention on TraceFeatures + MLP fusion
-   *
-   * @param intentEmbedding - User intent embedding
-   * @param contextToolIds - Optional context tool IDs for co-occurrence features
+   * Uses Query-Key attention:
+   * - Q = W_q @ intentProjected
+   * - K = W_k @ capEmbedding
+   * - score = sigmoid(Q·K / √dim)
    */
-  scoreAllCapabilities(intentEmbedding: number[], contextToolIds?: string[]): AttentionResult[] {
+  private computeHeadScoreV1(intentProjected: number[], capEmbedding: number[], headIdx: number): number {
+    const hp = this.params.headParams[headIdx];
+    const { hiddenDim } = this.config;
+
+    // Handle dimension mismatch: W_q/W_k are [hiddenDim][hiddenDim]
+    // but capEmbedding might have different dim after message passing
+    const inputDim = Math.min(intentProjected.length, capEmbedding.length, hiddenDim);
+
+    const Q = new Array(hiddenDim).fill(0);
+    const K = new Array(hiddenDim).fill(0);
+
+    for (let i = 0; i < hiddenDim; i++) {
+      for (let j = 0; j < inputDim; j++) {
+        Q[i] += hp.W_q[i][j] * intentProjected[j];
+        K[i] += hp.W_k[i][j] * capEmbedding[j];
+      }
+    }
+
+    const scale = Math.sqrt(hiddenDim);
+    return math.sigmoid(math.dot(Q, K) / scale);
+  }
+
+  /**
+   * Compute multi-head scores for v1
+   *
+   * Returns K scores, one per attention head.
+   */
+  private computeMultiHeadScoresV1(intentProjected: number[], capEmbedding: number[]): number[] {
+    return Array.from({ length: this.config.numHeads }, (_, h) =>
+      this.computeHeadScoreV1(intentProjected, capEmbedding, h)
+    );
+  }
+
+  /**
+   * Score all capabilities using multi-head n-SuperHyperGraph attention
+   *
+   * v1 Architecture:
+   * 1. Forward pass: V → E^0 → E^1 → ... → E^L_max (multi-level message passing)
+   * 2. K-head scoring: Q = W_q @ intent, K = W_k @ E_propagated, score_h = sigmoid(Q·K/√d)
+   * 3. Fusion: average of head scores (simple, no MLP)
+   *
+   * No TraceFeatures - pure structural similarity learned via message passing + attention.
+   *
+   * @param intentEmbedding - User intent embedding (1024 dim)
+   * @param _contextToolIds - Unused in v1 (kept for API compatibility)
+   */
+  scoreAllCapabilities(intentEmbedding: number[], _contextToolIds?: string[]): AttentionResult[] {
     const { E } = this.forward();
     const results: AttentionResult[] = [];
     const { numHeads } = this.config;
     const capabilityNodes = this.graphBuilder.getCapabilityNodes();
-    const toolNodes = this.graphBuilder.getToolNodes();
 
-    // Build context embeddings if provided
-    const contextEmbeddings: number[][] = [];
-    if (contextToolIds) {
-      for (const toolId of contextToolIds.slice(-this.config.maxContextLength)) {
-        const tool = toolNodes.get(toolId);
-        if (tool) contextEmbeddings.push(tool.embedding);
-      }
-    }
-    const contextAggregated = math.meanPool(contextEmbeddings, intentEmbedding.length);
+    // Project intent to match propagated embedding dimension (1024 → hiddenDim)
+    const intentProjected = this.projectIntent(intentEmbedding);
 
     for (const [capId, cap] of capabilityNodes) {
       const cIdx = this.graphBuilder.getCapabilityIndex(capId)!;
-      const hgFeatures = cap.hypergraphFeatures || DEFAULT_HYPERGRAPH_FEATURES;
 
-      // Build TraceFeatures from capability's existing features
-      const features: TraceFeatures = {
-        intentEmbedding,
-        candidateEmbedding: E[cIdx], // Propagated embedding from message passing
-        contextEmbeddings,
-        contextAggregated,
-        traceStats: createDefaultTraceStatsFromFeatures(
-          cap.successRate,
-          hgFeatures.cooccurrence,
-          hgFeatures.recency,
-          hgFeatures.hypergraphPageRank,
-        ),
-      };
+      // K-head attention scoring
+      const headScores = this.computeMultiHeadScoresV1(intentProjected, E[cIdx]);
 
-      // K-head attention + MLP fusion (same as v2/v3)
-      const { score, headScores } = this.scoreWithTraceFeaturesV2(features);
+      // Fusion: simple average of head scores (already in [0,1] from sigmoid)
+      const avgScore = headScores.reduce((a, b) => a + b, 0) / numHeads;
+
+      // Reliability multiplier based on success rate
       const reliabilityMult = cap.successRate < 0.5 ? 0.5 : (cap.successRate > 0.9 ? 1.2 : 1.0);
+      const finalScore = Math.min(0.95, Math.max(0, avgScore * reliabilityMult));
 
       results.push({
         capabilityId: capId,
-        score: Math.min(0.95, Math.max(0, score * reliabilityMult)),
+        score: finalScore,
         headWeights: new Array(numHeads).fill(1 / numHeads),
-        headScores,
+        headScores, // K scores, one per attention head
         recursiveContribution: 0,
-        featureContributions: {
-          semantic: headScores[0] ?? 0,
-          structure: headScores[1] ?? 0,
-          temporal: headScores[2] ?? 0,
-          reliability: reliabilityMult,
-        },
+        // featureContributions deprecated - heads learn patterns implicitly
         toolAttention: this.getCapabilityToolAttention(cIdx),
       });
     }
@@ -532,45 +906,34 @@ export class SHGAT {
     return results.sort((a, b) => b.score - a.score);
   }
 
-  scoreAllTools(intentEmbedding: number[], contextToolIds?: string[]): Array<{ toolId: string; score: number; headScores: number[] }> {
+  /**
+   * Score all tools using multi-head n-SuperHyperGraph attention
+   *
+   * v1 Architecture: K-head attention on propagated tool embeddings
+   *
+   * @param intentEmbedding - User intent embedding (1024 dim)
+   * @param _contextToolIds - Unused in v1 (kept for API compatibility)
+   */
+  scoreAllTools(intentEmbedding: number[], _contextToolIds?: string[]): Array<{ toolId: string; score: number; headScores: number[] }> {
     const { H } = this.forward();
     const results: Array<{ toolId: string; score: number; headScores: number[] }> = [];
     const toolNodes = this.graphBuilder.getToolNodes();
+    const { numHeads } = this.config;
 
-    // Build context embeddings if provided
-    const contextEmbeddings: number[][] = [];
-    if (contextToolIds) {
-      for (const toolId of contextToolIds.slice(-this.config.maxContextLength)) {
-        const tool = toolNodes.get(toolId);
-        if (tool) contextEmbeddings.push(tool.embedding);
-      }
-    }
-    const contextAggregated = math.meanPool(contextEmbeddings, intentEmbedding.length);
+    // Project intent to match propagated embedding dimension (1024 → hiddenDim)
+    const intentProjected = this.projectIntent(intentEmbedding);
 
-    for (const [toolId, tool] of toolNodes) {
+    for (const [toolId] of toolNodes) {
       const tIdx = this.graphBuilder.getToolIndex(toolId)!;
-      const toolFeatures = tool.toolFeatures || DEFAULT_TOOL_GRAPH_FEATURES;
 
-      // Build TraceFeatures from tool's existing features
-      const features: TraceFeatures = {
-        intentEmbedding,
-        candidateEmbedding: H[tIdx], // Propagated embedding from message passing
-        contextEmbeddings,
-        contextAggregated,
-        traceStats: createDefaultTraceStatsFromFeatures(
-          0.5, // Tools don't have individual success rate
-          toolFeatures.cooccurrence,
-          toolFeatures.recency,
-          toolFeatures.pageRank,
-        ),
-      };
-
-      // K-head attention + MLP fusion
-      const { score, headScores } = this.scoreWithTraceFeaturesV2(features);
+      // K-head attention scoring (reuse same method as capabilities)
+      const headScores = this.computeMultiHeadScoresV1(intentProjected, H[tIdx]);
+      const avgScore = headScores.reduce((a, b) => a + b, 0) / numHeads;
+      const finalScore = Math.min(0.95, Math.max(0, avgScore));
 
       results.push({
         toolId,
-        score: Math.min(0.95, Math.max(0, score)),
+        score: finalScore,
         headScores,
       });
     }
