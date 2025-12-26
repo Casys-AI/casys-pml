@@ -240,7 +240,15 @@ function nodeToTask(
       // Check if this is a pseudo-tool (code operation)
       if (node.tool.startsWith("code:")) {
         const operation = node.tool.replace("code:", "");
-        const code = generateOperationCode(operation);
+        // Use extracted code from SWC span (Phase 1)
+        const code = node.code || generateOperationCode(operation);
+
+        if (!node.code) {
+          logger.warn("Code operation missing extracted code, using fallback", {
+            tool: node.tool,
+            nodeId: node.id,
+          });
+        }
 
         return {
           id: taskId,

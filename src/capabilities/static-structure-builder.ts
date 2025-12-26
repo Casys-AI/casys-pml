@@ -66,7 +66,7 @@ type InternalNode = {
   /** Parent scope for conditional/parallel containment (e.g., "d1:true", "f1") */
   parentScope?: string;
 } & (
-  | { type: "task"; tool: string; arguments?: ArgumentsStructure }
+  | { type: "task"; tool: string; arguments?: ArgumentsStructure; code?: string }
   | { type: "decision"; condition: string }
   | { type: "capability"; capabilityId: string }
   | { type: "fork" }
@@ -362,14 +362,22 @@ export class StaticStructureBuilder {
       const methodName = chain[chain.length - 1];
       if (arrayOps.includes(methodName)) {
         const nodeId = this.generateNodeId("task");
+
+        // Extract code via SWC span
+        const span = n.span as { start: number; end: number } | undefined;
+        const code = span
+          ? this.originalCode.substring(span.start, span.end)
+          : undefined;
+
         nodes.push({
           id: nodeId,
           type: "task",
           tool: `code:${methodName}`,
           position,
           parentScope,
+          code, // Original code extracted via span
         });
-        logger.debug("Detected array operation", { operation: methodName, nodeId });
+        logger.debug("Detected array operation", { operation: methodName, nodeId, codeExtracted: !!code });
         return false; // Continue recursing
       }
 
@@ -381,14 +389,22 @@ export class StaticStructureBuilder {
 
       if (stringOps.includes(methodName)) {
         const nodeId = this.generateNodeId("task");
+
+        // Extract code via SWC span
+        const span = n.span as { start: number; end: number } | undefined;
+        const code = span
+          ? this.originalCode.substring(span.start, span.end)
+          : undefined;
+
         nodes.push({
           id: nodeId,
           type: "task",
           tool: `code:${methodName}`,
           position,
           parentScope,
+          code, // Original code extracted via span
         });
-        logger.debug("Detected string operation", { operation: methodName, nodeId });
+        logger.debug("Detected string operation", { operation: methodName, nodeId, codeExtracted: !!code });
         return false;
       }
 
@@ -396,14 +412,22 @@ export class StaticStructureBuilder {
       if (chain[0] === "Object" && ["keys", "values", "entries", "fromEntries", "assign"].includes(chain[1])) {
         const nodeId = this.generateNodeId("task");
         const operation = chain[1];
+
+        // Extract code via SWC span
+        const span = n.span as { start: number; end: number } | undefined;
+        const code = span
+          ? this.originalCode.substring(span.start, span.end)
+          : undefined;
+
         nodes.push({
           id: nodeId,
           type: "task",
           tool: `code:Object.${operation}`,
           position,
           parentScope,
+          code, // Original code extracted via span
         });
-        logger.debug("Detected Object operation", { operation, nodeId });
+        logger.debug("Detected Object operation", { operation, nodeId, codeExtracted: !!code });
         return false;
       }
 
@@ -411,14 +435,22 @@ export class StaticStructureBuilder {
       if (chain[0] === "Math" && ["max", "min", "abs", "floor", "ceil", "round"].includes(chain[1])) {
         const nodeId = this.generateNodeId("task");
         const operation = chain[1];
+
+        // Extract code via SWC span
+        const span = n.span as { start: number; end: number } | undefined;
+        const code = span
+          ? this.originalCode.substring(span.start, span.end)
+          : undefined;
+
         nodes.push({
           id: nodeId,
           type: "task",
           tool: `code:Math.${operation}`,
           position,
           parentScope,
+          code, // Original code extracted via span
         });
-        logger.debug("Detected Math operation", { operation, nodeId });
+        logger.debug("Detected Math operation", { operation, nodeId, codeExtracted: !!code });
         return false;
       }
 
@@ -426,14 +458,22 @@ export class StaticStructureBuilder {
       if (chain[0] === "JSON" && ["parse", "stringify"].includes(chain[1])) {
         const nodeId = this.generateNodeId("task");
         const operation = chain[1];
+
+        // Extract code via SWC span
+        const span = n.span as { start: number; end: number } | undefined;
+        const code = span
+          ? this.originalCode.substring(span.start, span.end)
+          : undefined;
+
         nodes.push({
           id: nodeId,
           type: "task",
           tool: `code:JSON.${operation}`,
           position,
           parentScope,
+          code, // Original code extracted via span
         });
-        logger.debug("Detected JSON operation", { operation, nodeId });
+        logger.debug("Detected JSON operation", { operation, nodeId, codeExtracted: !!code });
         return false;
       }
 
@@ -881,15 +921,23 @@ export class StaticStructureBuilder {
 
     // Create a task for the operator
     const nodeId = this.generateNodeId("task");
+
+    // Extract code via SWC span
+    const span = n.span as { start: number; end: number } | undefined;
+    const code = span
+      ? this.originalCode.substring(span.start, span.end)
+      : undefined;
+
     nodes.push({
       id: nodeId,
       type: "task",
       tool: `code:${operation}`,
       position: position + 2,
       parentScope,
+      code, // Original code extracted via span
     });
 
-    logger.debug("Detected binary operation", { operation, operator, nodeId });
+    logger.debug("Detected binary operation", { operation, operator, nodeId, codeExtracted: !!code });
   }
 
   /**
