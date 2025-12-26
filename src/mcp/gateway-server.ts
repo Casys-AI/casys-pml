@@ -38,7 +38,7 @@ import type { AdaptiveThresholdManager } from "./adaptive-threshold.ts";
 import { CapabilityDataService } from "../capabilities/mod.ts";
 import { CapabilityRegistry } from "../capabilities/capability-registry.ts";
 import { CapabilityMCPServer } from "./capability-server/mod.ts";
-import { TraceFeatureExtractor } from "../graphrag/algorithms/trace-feature-extractor.ts";
+// TraceFeatureExtractor removed - V1 uses message passing, not TraceFeatures
 import { CheckpointManager } from "../dag/checkpoint-manager.ts";
 import { EventsStreamManager } from "../server/events-stream.ts";
 import { PmlStdServer } from "../../lib/std/cap.ts";
@@ -120,7 +120,7 @@ export class PMLGatewayServer {
   private shgatSaveInterval: number | null = null; // Story 10.7b: periodic save timer
   private capabilityRegistry: CapabilityRegistry | null = null; // Story 13.2
   private capabilityMCPServer: CapabilityMCPServer | null = null; // Story 13.3
-  private traceFeatureExtractor: TraceFeatureExtractor | null = null; // Story 11.10
+  // traceFeatureExtractor removed - V1 uses message passing, not TraceFeatures
   private pmlStdServer: PmlStdServer | null = null; // Story 13.5: cap:* management tools
 
   constructor(
@@ -529,7 +529,6 @@ export class PMLGatewayServer {
       checkpointManager: this.checkpointManager ?? undefined,
       workflowDeps: this.getWorkflowDeps(),
       capabilityRegistry: this.capabilityRegistry ?? undefined, // Story 13.2
-      traceFeatureExtractor: this.traceFeatureExtractor ?? undefined, // Story 11.10
     };
   }
 
@@ -615,12 +614,7 @@ export class PMLGatewayServer {
         LIMIT 1000`,
       ) as unknown as CapRow[];
 
-      if (rows.length === 0) {
-        log.info("[Gateway] No capabilities yet - SHGAT/DR-DSP will init on first capability");
-        return;
-      }
-
-      // Initialize SHGAT with capabilities that have embeddings
+      // Initialize SHGAT with capabilities that have embeddings (or empty)
       const capabilitiesWithEmbeddings = rows
         .filter((c): c is CapRow & { embedding: number[] } =>
           c.embedding !== null && Array.isArray(c.embedding) && c.embedding.length > 0
@@ -632,29 +626,27 @@ export class PMLGatewayServer {
           successRate: c.success_rate,
         }));
 
+      // Always create SHGAT - even empty, capabilities added dynamically
+      this.shgat = createSHGATFromCapabilities(capabilitiesWithEmbeddings);
+      log.info(
+        `[Gateway] SHGAT initialized with ${capabilitiesWithEmbeddings.length} capabilities`,
+      );
+
+      // Story 10.7b: Load persisted SHGAT params if available
+      await this.loadSHGATParams();
+
+      // Story 10.7b: Start periodic save (every 10 minutes)
+      this.startPeriodicSHGATSave();
+
+      // Story 10.7: Populate tool features for multi-head attention
+      await this.populateToolFeaturesForSHGAT();
+
       if (capabilitiesWithEmbeddings.length > 0) {
-        // Create SHGAT - it extracts tools from capabilities automatically
-        this.shgat = createSHGATFromCapabilities(capabilitiesWithEmbeddings);
-        log.info(
-          `[Gateway] SHGAT initialized with ${capabilitiesWithEmbeddings.length} capabilities`,
-        );
-
-        // Story 10.7b: Load persisted SHGAT params if available
-        await this.loadSHGATParams();
-
-        // Story 10.7b: Start periodic save (every 10 minutes)
-        this.startPeriodicSHGATSave();
-
-        // Story 10.7: Populate tool features for multi-head attention
-        await this.populateToolFeaturesForSHGAT();
-
         // Story 10.7: Train SHGAT on execution traces if available (≥20 traces)
         await this.trainSHGATOnTraces(capabilitiesWithEmbeddings);
-
-        // Story 11.10: Initialize TraceFeatureExtractor for SHGAT v2 scoring
-        this.traceFeatureExtractor = new TraceFeatureExtractor(this.db);
-        log.info("[Gateway] TraceFeatureExtractor initialized for SHGAT v2");
       }
+
+      // TraceFeatureExtractor removed - V1 uses message passing, not TraceFeatures
 
       // Initialize DR-DSP
       this.drdsp = buildDRDSPFromCapabilities(
