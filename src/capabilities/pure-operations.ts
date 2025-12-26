@@ -128,3 +128,54 @@ export function getOperationName(toolId: string): string | undefined {
   }
   return toolId.replace("code:", "");
 }
+
+/**
+ * Forbidden patterns in pure task code
+ *
+ * These patterns indicate potential side effects or unsafe operations
+ * that should not appear in pure computational code.
+ */
+const FORBIDDEN_PATTERNS = [
+  { pattern: /\bfetch\b/, name: "fetch (Network I/O)" },
+  { pattern: /\bDeno\./, name: "Deno APIs (filesystem, network, etc.)" },
+  { pattern: /\bprocess\./, name: "Process APIs" },
+  { pattern: /\beval\b/, name: "eval (code injection)" },
+  { pattern: /\bnew\s+Function\b/, name: "Function constructor (code generation)" },
+  { pattern: /\bsetTimeout\b/, name: "setTimeout (side effects)" },
+  { pattern: /\bsetInterval\b/, name: "setInterval (side effects)" },
+  { pattern: /\bimport\s*\(/, name: "dynamic import" },
+  { pattern: /\brequire\s*\(/, name: "CommonJS require" },
+];
+
+/**
+ * Validates that a task marked as "pure" contains only safe code
+ *
+ * Checks for forbidden patterns that would indicate side effects or unsafe operations.
+ * This provides defense-in-depth alongside Worker permission enforcement.
+ *
+ * @param task Task to validate (must have code and metadata)
+ * @param taskId Task identifier for error messages
+ * @throws Error if the task is marked pure but contains forbidden patterns
+ */
+export function validatePureTask(
+  task: { code?: string; metadata?: { pure?: boolean }; tool: string },
+  taskId: string,
+): void {
+  // Only validate tasks explicitly marked as pure
+  if (!task.metadata?.pure) {
+    return;
+  }
+
+  if (!task.code) {
+    throw new Error(`Pure task ${taskId} (${task.tool}) is missing code`);
+  }
+
+  // Check for forbidden patterns
+  for (const { pattern, name } of FORBIDDEN_PATTERNS) {
+    if (pattern.test(task.code)) {
+      throw new Error(
+        `Pure task ${taskId} (${task.tool}) contains forbidden pattern: ${name}`,
+      );
+    }
+  }
+}
