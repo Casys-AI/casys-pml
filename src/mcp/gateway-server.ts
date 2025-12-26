@@ -769,7 +769,30 @@ export class PMLGatewayServer {
     }
 
     try {
-      // Get all tool IDs from SHGAT
+      // First, register ALL tools from graphEngine into SHGAT (not just from capabilities)
+      // This ensures tools from MCP servers are available for scoring
+      const graphToolIds = this.graphEngine.getGraph().nodes();
+      let registeredCount = 0;
+
+      for (const toolId of graphToolIds) {
+        if (!this.shgat.hasToolNode(toolId)) {
+          // Generate embedding from tool description
+          const toolNode = this.graphEngine.getToolNode(toolId);
+          const description = toolNode?.description ?? toolId.replace(":", " ");
+          const embedding = this.embeddingModel
+            ? await this.embeddingModel.encode(description)
+            : new Array(1024).fill(0).map(() => Math.random() - 0.5);
+
+          this.shgat.registerTool({ id: toolId, embedding });
+          registeredCount++;
+        }
+      }
+
+      if (registeredCount > 0) {
+        log.info(`[Gateway] Registered ${registeredCount} MCP tools in SHGAT`);
+      }
+
+      // Get all tool IDs from SHGAT (now includes MCP tools)
       const toolIds = this.shgat.getRegisteredToolIds();
 
       if (toolIds.length === 0) {
