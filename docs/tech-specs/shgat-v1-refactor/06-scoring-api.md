@@ -5,162 +5,143 @@
 
 ---
 
-## Modified `scoreAllCapabilities()`
+## Architecture Summary
 
-```typescript
-scoreAllCapabilities(
-  intentEmbedding: number[],
-  targetLevel?: number  // NEW: optional level filter
-): AttentionResult[] {
-  // Run multi-level forward pass
-  const { H, E } = this.forward();
-
-  const results: AttentionResult[] = [];
-  const groupWeights = this.computeFusionWeights();
-  const intentProjected = this.projectIntent(intentEmbedding);
-
-  // Score capabilities at ALL levels (or filtered level)
-  const levelsToScore = targetLevel !== undefined
-    ? [targetLevel]
-    : Array.from(this.hierarchyLevels.keys());
-
-  for (const level of levelsToScore) {
-    const capsAtLevel = Array.from(this.hierarchyLevels.get(level) ?? []);
-    const E_level = E.get(level)!;
-
-    capsAtLevel.forEach((capId, idx) => {
-      const cap = this.capabilityNodes.get(capId)!;
-      const capPropagatedEmb = E_level[idx];
-
-      // Use PROPAGATED embedding (includes hierarchy context)
-      const intentSim = this.cosineSimilarity(intentProjected, capPropagatedEmb);
-      const features = cap.hypergraphFeatures || DEFAULT_HYPERGRAPH_FEATURES;
-
-      // 3-head scoring (unchanged)
-      const semanticScore = intentSim * this.featureWeights.semantic;
-      const structureScore =
-        (features.hypergraphPageRank + (features.adamicAdar ?? 0)) *
-        this.featureWeights.structure;
-      const temporalScore =
-        (features.recency + (features.heatDiffusion ?? 0)) *
-        this.featureWeights.temporal;
-
-      const finalScore =
-        groupWeights.semantic * semanticScore +
-        groupWeights.structure * structureScore +
-        groupWeights.temporal * temporalScore;
-
-      results.push({
-        capabilityId: capId,
-        score: Math.max(0, Math.min(finalScore, 0.95)),
-        headWeights: [groupWeights.semantic, groupWeights.structure, groupWeights.temporal],
-        headScores: [semanticScore, structureScore, temporalScore],
-        recursiveContribution: 0, // TODO: compute from attention weights
-        hierarchyLevel: level,  // NEW field
-      });
-    });
-  }
-
-  results.sort((a, b) => b.score - a.score);
-  return results;
-}
-```
+| Version | Scoring Method | Message Passing | TraceFeatures |
+|---------|---------------|-----------------|---------------|
+| **v1**  | Pure cosine similarity | Yes (n-SHG) | No |
+| **v2**  | K heads + MLP | No (raw embeddings) | Yes |
+| **v3**  | K heads + MLP | Yes | Yes (dimension issue) |
 
 ---
 
-## New AttentionResult Field
+## v1: Pure n-SuperHyperGraph Structure
+
+Based on [Smarandache n-SuperHyperGraph](../../../docs/research/n-superhypergraph-smarandache.pdf)
+and [n-SuHGAT](../../../docs/research/Graph+Attention+Networks+(3).pdf) research papers.
+
+```typescript
+scoreAllCapabilities(
+  intentEmbedding: number[],    // 1024 dim
+  _contextToolIds?: string[]    // Unused in v1
+): AttentionResult[] {
+  // 1. Multi-level message passing: V → E^0 → E^1 → ... → E^L_max
+  const { E } = this.forward();
+
+  // 2. Project intent to match propagated embedding dimension
+  const intentProjected = this.projectIntent(intentEmbedding); // 1024 → hiddenDim
+
+  for (const [capId, cap] of capabilityNodes) {
+    const cIdx = this.graphBuilder.getCapabilityIndex(capId)!;
+
+    // 3. Pure cosine similarity (no TraceFeatures, no MLP)
+    const score = cosineSimilarity(intentProjected, E[cIdx]);
+
+    // 4. Normalize [-1, 1] → [0, 1] and apply reliability
+    const reliabilityMult = cap.successRate < 0.5 ? 0.5 :
+                            cap.successRate > 0.9 ? 1.2 : 1.0;
+    const finalScore = Math.min(0.95, Math.max(0, (score + 1) / 2 * reliabilityMult));
+
+    results.push({
+      capabilityId: capId,
+      score: finalScore,
+      headScores: [score],  // Single cosine score
+      // ...
+    });
+  }
+
+  return results.sort((a, b) => b.score - a.score);
+}
+```
+
+**Key insight**: The multi-level message passing learns structural patterns (pageRank,
+adamicAdar, spectralCluster) implicitly via attention weights. No need for explicit
+`hypergraphFeatures` in v1.
+
+---
+
+## v2: Behavioral Features + K-Head Attention
+
+Uses raw embeddings + TraceFeatures + K-head attention + MLP fusion.
+
+```typescript
+scoreAllCapabilitiesV2(
+  intentEmbedding: number[],
+  traceFeaturesMap: Map<string, TraceFeatures>,
+  contextToolIds: string[] = [],
+): AttentionResult[] {
+  // No message passing - use raw embeddings
+  for (const [capId, cap] of capabilityNodes) {
+    const features: TraceFeatures = {
+      intentEmbedding,                    // 1024 dim
+      candidateEmbedding: cap.embedding,  // 1024 dim (raw)
+      contextEmbeddings,
+      contextAggregated,                  // 1024 dim
+      traceStats,                         // 17 behavioral features
+    };
+
+    // K-head attention on projected features
+    const projected = projectFeaturesV2(features);  // 3089 → hiddenDim
+    const headScores = computeMultiHeadScoresV2(projected);
+
+    // MLP fusion: K scores → final score
+    const score = fusionMLPForward(headScores);
+
+    results.push({
+      capabilityId: capId,
+      score,
+      headScores,
+      // ...
+    });
+  }
+
+  return results.sort((a, b) => b.score - a.score);
+}
+```
+
+**TraceStats (17 features):**
+- `successRate`, `usageCount`, `avgLatency`, etc.
+- Learned from execution history
+
+---
+
+## v3: Hybrid (Dimension Issue)
+
+Combines message passing + TraceFeatures, but has a dimension mismatch:
+
+- W_proj expects: 1024 + 1024 + 1024 + 17 = **3089** input dim
+- With E[cIdx] (propagated): 1024 + 256 + 1024 + 17 = **2321** input dim
+
+**Status**: Not recommended until dimension alignment is resolved.
+
+---
+
+## AttentionResult Interface
 
 ```typescript
 interface AttentionResult {
   capabilityId: string;
   score: number;
   headWeights: number[];
-  headScores: number[];
+  headScores: number[];           // v1: [cosine], v2: [head1, head2, ...]
   recursiveContribution: number;
-  featureContributions?: Record<string, number>;
+  featureContributions?: {
+    semantic: number;             // v1: cosine, v2: headScores[0]
+    structure: number;            // v1: 0, v2: headScores[1]
+    temporal: number;             // v1: 0, v2: headScores[2]
+    reliability: number;
+  };
   toolAttention?: number[];
-
-  hierarchyLevel: number;  // NEW: 0, 1, 2, ...
+  hierarchyLevel?: number;
 }
-```
-
----
-
-## v2 Compatibility
-
-**v2** (Direct embeddings + TraceFeatures):
-- No changes required
-- `scoreAllCapabilitiesV2()` bypasses message passing
-- Can optionally add `hierarchyLevel` as a TraceStats feature
-
-```typescript
-// v2 unchanged - uses raw embeddings
-scoreAllCapabilitiesV2(
-  intentEmbedding: number[],
-  traceFeaturesMap: Map<string, TraceFeatures>,
-  contextToolIds: string[] = [],
-): AttentionResult[] {
-  // Uses cap.embedding directly, not E[level][idx]
-  // Optionally add hierarchyLevel to traceStats
-}
-```
-
----
-
-## v3 Hybrid Compatibility
-
-**v3** (Hybrid): Uses multi-level forward pass + TraceFeatures
-
-```typescript
-scoreAllCapabilitiesV3(
-  intentEmbedding: number[],
-  traceFeaturesMap: Map<string, TraceFeatures>,
-  contextToolIds: string[] = [],
-): AttentionResult[] {
-  // Multi-level forward pass
-  const { H, E } = this.forward();
-
-  for (const [capId, cap] of this.capabilityNodes) {
-    const level = cap.hierarchyLevel;
-    const capsAtLevel = Array.from(this.hierarchyLevels.get(level) ?? []);
-    const idx = capsAtLevel.indexOf(capId);
-
-    // KEY: Use PROPAGATED embedding from correct level
-    const features: TraceFeatures = {
-      intentEmbedding,
-      candidateEmbedding: E.get(level)![idx],  // ← Propagated, not raw!
-      contextEmbeddings,
-      contextAggregated,
-      traceStats: providedFeatures?.traceStats ?? defaultStats,
-    };
-
-    // ... rest of v3 scoring
-  }
-}
-```
-
----
-
-## Level Filtering
-
-```typescript
-// Score only leaf capabilities (level 0)
-const leafResults = shgat.scoreAllCapabilities(intent, 0);
-
-// Score only meta-capabilities (level 1)
-const metaResults = shgat.scoreAllCapabilities(intent, 1);
-
-// Score all levels (default)
-const allResults = shgat.scoreAllCapabilities(intent);
 ```
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] `scoreAllCapabilities()` uses multi-level forward pass
-- [ ] `targetLevel` optional parameter works
-- [ ] `hierarchyLevel` field in AttentionResult
-- [ ] v2 API unchanged (bypasses message passing)
-- [ ] v3 hybrid uses `E.get(level)[idx]` for propagated embedding
-- [ ] Level filtering works correctly
+- [x] `scoreAllCapabilities()` uses multi-level forward pass
+- [x] Pure cosine similarity (no TraceFeatures, no MLP)
+- [x] v2 API unchanged (bypasses message passing)
+- [x] Unit tests pass (36/36)
+- [x] Scores differentiated across capabilities
