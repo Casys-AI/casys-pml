@@ -7,8 +7,8 @@ inputDocuments:
   - docs/architecture/executive-summary.md
 epicNumber: 13
 epicTitle: "Capability Naming & Curation System"
-lastUpdated: 2024-12-24
-consolidationNotes: "Stories fusionnées pour cohérence dev. Architecture simplifiée: cap:* pour gestion, meta:* optionnel, nommage libre."
+lastUpdated: 2024-12-26
+consolidationNotes: "Stories fusionnées pour cohérence dev. Architecture simplifiée: cap:* pour gestion (query→list, tag→rename), meta:* dropped, nommage libre."
 ---
 
 # Procedural Memory Layer (PML) - Epic 13: Capability Naming & Curation System
@@ -20,6 +20,25 @@ This document provides the complete epic and story breakdown for the **Capabilit
 **Related Tech Spec:** [tech-spec-capability-naming-curation.md](../tech-specs/tech-spec-capability-naming-curation.md)
 
 ## Architecture Decisions
+
+### FQDN Architecture (decided 2024-12-26)
+
+**Immutable vs Mutable Identifiers:**
+
+| Identifier | Location | Mutable? | Purpose |
+|------------|----------|----------|---------|
+| **FQDN** | `capability_records.id` | ❌ Immutable | Permanent identity, used in saved code |
+| **display_name** | `capability_records.display_name` | ✅ Mutable | Human-friendly name, can be renamed |
+| **aliases** | `capability_aliases.alias` | ➕ Append-only | Old names after `cap:rename` |
+
+**FQDN Format:** `<org>.<project>.<namespace>.<action>.<hash>`
+- Example: `local.default.fs.read_json.a7f3`
+- `hash` is 4-char hex derived from code content (ensures uniqueness)
+
+**Why FQDNs in Saved Code:**
+- When capability A calls capability B by name, we save `mcp["FQDN_of_B"]` not `mcp.namespace.displayName`
+- If B is renamed later, A's saved code still works (FQDN doesn't change)
+- The code transformer handles this conversion automatically at save time
 
 ### Naming Convention
 
@@ -41,6 +60,23 @@ This document provides the complete epic and story breakdown for the **Capabilit
 **Namespace/Action Strategy (decided 2024-12-24):**
 1. **Auto-generated** at creation: heuristics based on tools used (e.g., `filesystem:*` → `fs`, `shell:*` → `shell`)
 2. **LLM-refined** via `cap:curate`: Story 13.4 allows renaming with better namespace:action after analysis
+
+### Capability Invocation Syntax (decided 2024-12-26)
+
+**In Code (at runtime):**
+```typescript
+// Capabilities use same syntax as MCP tools:
+await mcp.fs.readJson({ path: "config.json" });
+
+// After transformation (saved to DB):
+await mcp["local.default.fs.read_json.a7f3"]({ path: "config.json" });
+```
+
+**Resolution Logic:**
+1. Parser finds `mcp.namespace.action()` pattern
+2. Lookup action name in capability registry
+3. If found → capability → transform to FQDN
+4. If not found → MCP tool → leave unchanged
 
 ## Requirements Inventory
 
@@ -70,7 +106,7 @@ This document provides the complete epic and story breakdown for the **Capabilit
 - **FR015:** The system must support filtering by namespace pattern and named_only flag
 - **FR016:** The system must support sorting by name, usage, or creation date
 - **FR017:** The system must provide `cap:lookup` for name resolution
-- **FR018:** The system must provide `cap:query` for advanced search (tags, creator, visibility)
+- **FR018:** ~~`cap:query`~~ MERGED into `cap:list` - extend with tags, creator, visibility filters if needed
 - **FR019:** The system must provide `cap:history` for version history
 - **FR020:** The system must provide `cap:whois` for complete metadata
 
@@ -115,12 +151,12 @@ This document provides the complete epic and story breakdown for the **Capabilit
 - **FR046:** Public visibility must enable marketplace functionality
 - **FR047:** `forked_from` must track provenance in capability_records
 
-**PML Standard Library (`lib/std/mcp/`):**
-- **FR048:** Create `lib/std/mcp/mod.ts` with `PmlStdServer` class
-- **FR049:** Create `cap.ts` module for capability management (lookup, list, curate, rename, history, whois, execute)
-- **FR050:** Create `meta.ts` module for introspection (tools, servers, stats) - optional
-- **FR051:** Integrate stdlib into GatewayServer
-- **FR052:** Route by prefix (`cap:`, `meta:`)
+**PML Standard Library (`lib/std/cap.ts`):**
+- **FR048:** ✅ Create `lib/std/cap.ts` with `PmlStdServer` class
+- **FR049:** ✅ Create `CapModule` for capability management (lookup, list, rename, whois). `curate`/`history` in 13.4/13.6
+- **FR050:** ~~Create `meta.ts` module~~ DROPPED - not needed for MVP
+- **FR051:** ✅ Integrate stdlib via `pmlTools` export in `lib/std/mod.ts`
+- **FR052:** ✅ Route by prefix (`cap:`)
 
 **MCP Server Registry (Extension for Epic 14 integration):**
 - **FR053:** The registry must support `record_type = 'mcp-server'` in addition to `'capability'`
@@ -194,9 +230,9 @@ This document provides the complete epic and story breakdown for the **Capabilit
 | 13.2 | pml_execute Naming Support | 1 | 1.5j | ✅ done |
 | 13.3 | CapabilityMCPServer + Gateway | 1 | 2.5j | backlog |
 | 13.4 | Capability Curation System | 2 | 3j | backlog |
-| 13.5 | Discovery & Query API | 2 | 2j | backlog |
+| 13.5 | Discovery & Query API | 2 | 2j | ✅ done |
 | 13.6 | Capability Versioning | 3 | 2j | backlog |
-| 13.7 | PmlStdServer Unification | 4 | 4j | backlog |
+| 13.7 | PmlStdServer Unification | 4 | 4j | ✅ done |
 | 13.8 | MCP Server Registry | 4 | 2j | backlog |
 | 13.9 | Routing Inheritance | 4 | 1j | backlog |
 
@@ -277,6 +313,35 @@ This document provides the complete epic and story breakdown for the **Capabilit
 ### Story 13.2: pml_execute Naming Support
 
 **Consolidation:** Merges original 13.3 (name param) + 13.4 (capability call)
+
+**Status:** ✅ DONE (2024-12-26)
+
+**Implementation Notes:**
+
+**Architecture - Identifiers:**
+- **FQDN** (Fully Qualified Domain Name): `<org>.<project>.<namespace>.<action>.<hash>` - immutable identifier stored in `capability_records.id`
+- **display_name**: Human-readable mutable name stored in `capability_records.display_name`
+- **capability_aliases**: Table for old names after `cap:rename` operations (enables transparent resolution)
+
+**Capability Syntax:**
+- Capabilities use same syntax as MCP tools: `mcp.namespace.action()`
+- Tool vs Capability distinction: if action name is found in registry → capability, if not → MCP tool
+- This allows capabilities to be indistinguishable from native MCP tools at call sites
+
+**Code Transformation (display_name → FQDN):**
+- When capability code references other capabilities by display_name, the code transformer converts them to FQDNs before saving
+- Pattern: `mcp.fs.readJson({ path: "x" })` → `mcp["local.default.fs.read_json.a7f3"]({ path: "x" })`
+- This ensures saved code uses immutable FQDNs, not mutable display_names that could break after rename
+
+**Key Files:**
+- `src/capabilities/code-transformer.ts` - transforms display_name references to FQDN when saving
+- `src/capabilities/swc-analyzer.ts` - shared SWC AST parser for tools + capabilities
+- `tests/unit/capabilities/code_transformer_test.ts` - 10 unit tests
+
+**Technical Details:**
+- SWC parser maintains cumulative positions across `parse()` calls → fixed with dynamic `baseOffset = ast.span.start + WRAPPER_OFFSET`
+- `WRAPPER_OFFSET = 15` (the length of `(async () => { ` wrapper)
+- `buildCapabilitiesObject` exposes capabilities by FQDN for runtime resolution
 
 **As a** developer,
 **I want** to name capabilities and call them by name via pml_execute,
@@ -480,7 +545,14 @@ This makes learned capabilities completely transparent - Claude cannot distingui
 
 ### Story 13.5: Discovery & Query API
 
+**Status:** ✅ DONE (2024-12-26)
+
 **Consolidation:** Merges original 13.9 (pml_list) + 13.11 (Query API)
+
+**Implementation Notes:**
+- `cap:list`, `cap:lookup`, `cap:whois` implemented in `lib/std/cap.ts`
+- `cap:query` removed - filters merged into `cap:list` as optional extensions
+- Sort by usage_count DESC by default, can extend with `sortBy` param if needed
 
 **As a** developer,
 **I want** powerful tools to discover and query capabilities,
@@ -518,20 +590,11 @@ This makes learned capabilities completely transparent - Claude cannot distingui
 **When** `cap:lookup({ name: "my-reader" })` called
 **Then** returns `{ fqdn, display_name, description, usage_count, success_rate }`
 
-**AC7: cap:query by Creator**
-**Given** capabilities created by different users
-**When** `cap:query({ created_by: "erwan" })` called
-**Then** returns all capabilities matching creator
-
-**AC8: cap:query by Tags**
-**Given** capabilities with various tags
-**When** `cap:query({ tags: ["json", "config"] })` called
-**Then** returns capabilities having ALL specified tags
-
-**AC9: cap:query by Visibility**
-**Given** capabilities with different visibility levels
-**When** `cap:query({ visibility: "public" })` called
-**Then** returns only public capabilities
+**AC7-9: Advanced Filters (MERGED into cap:list)**
+~~`cap:query`~~ removed - extend `cap:list` with these optional filters if needed:
+- `createdBy: "erwan"` - filter by creator
+- `tags: ["json", "config"]` - filter by tags (AND match)
+- `visibility: "public"` - filter by visibility level
 
 **AC10: cap:whois**
 **Given** capability FQDN
@@ -607,66 +670,64 @@ This makes learned capabilities completely transparent - Claude cannot distingui
 
 ### Story 13.7: PmlStdServer Unification
 
-**Simplification:** Refactored from original 13.13, removes dns.ts and learn.ts
+**Status:** ✅ DONE (2024-12-26)
+
+**Simplification:** Refactored from original 13.13, removes dns.ts, learn.ts, meta.ts
 
 **As a** developer,
-**I want** a unified stdlib MCP server with cap and meta modules,
+**I want** a unified stdlib MCP server with cap module,
 **So that** I have a complete toolkit for capability management.
+
+**Implementation Notes:**
+- `PmlStdServer` class in `lib/std/cap.ts` (not separate mcp/ folder)
+- `CapModule` handles all `cap:*` tool calls
+- Types exported from `lib/std/cap.ts` directly
+- `cap:query` removed - use `cap:list` with extended filters instead
+- `cap:tag` removed - merged into `cap:rename` as optional param
+- `meta.ts` dropped - not needed for MVP
 
 **Acceptance Criteria:**
 
-**AC1: PmlStdServer Class**
-**Given** `lib/std/mcp/mod.ts`
+**AC1: PmlStdServer Class** ✅
+**Given** `lib/std/cap.ts`
 **When** server initialized
 **Then** `PmlStdServer` implements MCPServer interface with `serverId = "pml-std"`
 
-**AC2: Module cap.ts**
+**AC2: Module cap.ts** ✅
 **Given** cap module
 **When** `listTools()` called
-**Then** returns: `cap:lookup`, `cap:list`, `cap:query`, `cap:curate`, `cap:rename`, `cap:history`, `cap:whois`
+**Then** returns: `cap:lookup`, `cap:list`, `cap:rename`, `cap:whois`
+**Note:** `cap:curate` and `cap:history` are in Stories 13.4 and 13.6 respectively
 
-**AC3: Module meta.ts (optional)**
-**Given** meta module
-**When** `listTools()` called
-**Then** returns: `meta:tools` (list all), `meta:servers` (list servers), `meta:stats` (usage stats)
+**AC3: cap:list Extension** ✅
+**Given** `cap:list` tool
+**When** called with filters
+**Then** supports: `pattern`, `unnamedOnly`, `limit`, `offset`
+**Future:** Can extend with `createdBy`, `tags`, `visibility`, `sortBy` if needed
 
-**AC4: Prefix Routing**
+**AC4: Prefix Routing** ✅
 **Given** tool call `cap:lookup`
 **When** `callTool()` invoked
 **Then** routes to `CapModule.call("lookup", args)`
 
-**AC5: Gateway Integration**
-**Given** GatewayServer
-**When** `handleListTools()` called
-**Then** includes all pml-std tools alongside real server tools
-
-**AC6: Gateway Routing**
-**Given** tool call with prefix `cap:` or `meta:`
-**When** `handleCallTool()` invoked
-**Then** routes to PmlStdServer
-
-**AC7: Types Module**
-**Given** `lib/std/mcp/types.ts`
-**When** imported
-**Then** exports: `CapabilityRecord`, `CapabilityAlias`, `CapabilityVersion`, `CurationSuggestion`
-
-**AC8: cap:rename Tool**
-**Given** `cap:rename({ name: "old-name", newName: "new-name" })`
+**AC5: cap:rename Tool (unified update)** ✅
+**Given** `cap:rename({ name: "old-name", newName?, description?, tags?, visibility? })`
 **When** executed
-**Then** renames capability, creates alias, sends tools/list_changed
-
-**AC9: cap:tag Tool**
-**Given** `cap:tag({ name: "my-reader", tags: ["io", "json", "config"] })`
-**When** executed
-**Then** updates capability tags array
+**Then** updates capability with provided optional fields
+**Note:** Only `name` is required - all other fields optional for partial updates
 
 ---
 
 ### Story 13.8: MCP Server Registry
 
+**Problem Statement:**
+Cloud PML cannot execute capabilities that use local-only MCP tools (filesystem, shell).
+We need metadata about MCP servers to know their routing requirements (local vs cloud)
+so that capability execution can be routed to the correct environment.
+
 **As a** platform maintainer,
-**I want** MCP server implementations registered in the same registry as capabilities,
-**So that** tools can be versioned, customized, and resolved dynamically by Epic 14 package.
+**I want** MCP server metadata (routing, code_url) registered in the capability registry,
+**So that** the system knows which servers are local-only and can route capability execution accordingly.
 
 **Acceptance Criteria:**
 
@@ -707,15 +768,20 @@ This makes learned capabilities completely transparent - Claude cannot distingui
 **When** migrations run
 **Then** base MCPs are seeded: `mcp:filesystem`, `mcp:shell`, `mcp:sqlite`
 
-**AC8: cap:fork Support**
-**Given** `cap:fork("mcp:filesystem")`
-**When** executed
-**Then** copy created in user's namespace
-**And** `forked_from` references original FQDN
+**AC8: Routing Field** (KEY for 13.9)
+**Given** an MCP server record
+**When** stored
+**Then** `routing` field indicates `"local"` or `"cloud"`
+**Example:** `mcp:filesystem` → `routing: "local"`, `mcp:tavily` → `routing: "cloud"`
 
 ---
 
 ### Story 13.9: Routing Inheritance
+
+**Problem Statement:**
+When a capability is created, we don't know if it needs local or cloud execution.
+But we CAN infer this from the tools it uses: if ANY tool is local-only (filesystem, shell),
+the capability MUST run locally. This avoids manual routing configuration.
 
 **As a** developer,
 **I want** capability routing automatically inherited from tools used,
