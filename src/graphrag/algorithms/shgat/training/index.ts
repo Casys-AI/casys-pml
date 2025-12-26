@@ -34,3 +34,24 @@ export {
   computeHeadScores,
   fusionMLPForward,
 } from "./v2-trainer.ts";
+
+// Multi-Level Training (n-SuperHyperGraph v1 refactor)
+export {
+  type MultiLevelGradientAccumulators,
+  type LevelGradients,
+  type LevelIntermediates,
+  type ExtendedMultiLevelForwardCache,
+  type MultiLevelTrainingResult,
+  initMultiLevelGradients,
+  resetMultiLevelGradients,
+  backpropAttention,
+  backpropLeakyRelu,
+  backwardUpwardPhase,
+  backwardDownwardPhase,
+  backwardMultiLevel,
+  applyLevelGradients,
+  computeGradientNorm,
+  createExtendedCache,
+  trainMultiLevelBatch,
+  trainOnSingleExample, // Online learning for production
+} from "./multi-level-trainer.ts";

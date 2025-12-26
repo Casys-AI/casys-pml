@@ -379,6 +379,18 @@ export const DEFAULT_TOOL_GRAPH_FEATURES: ToolGraphFeatures = {
 // ============================================================================
 
 /**
+ * Member of a capability (tool OR capability)
+ *
+ * This enables P^n(V₀) structure where capabilities at level k
+ * can contain capabilities from level k-1 OR tools from V₀.
+ *
+ * @since v1 refactor (n-SuperHyperGraph multi-level message passing)
+ */
+export type Member =
+  | { type: "tool"; id: string }
+  | { type: "capability"; id: string };
+
+/**
  * Tool node (vertex in hypergraph)
  */
 export interface ToolNode {
@@ -390,20 +402,66 @@ export interface ToolNode {
 }
 
 /**
- * Capability node (hyperedge in hypergraph)
+ * Capability node (hyperedge in n-SuperHyperGraph)
+ *
+ * Supports n-SuperHyperGraph structure where capabilities can contain
+ * both tools (V₀) and other capabilities (P^k).
+ *
+ * @see 01-data-model.md for spec details
  */
 export interface CapabilityNode {
   id: string;
   /** Embedding (from description or aggregated tools) */
   embedding: number[];
-  /** Tools in this capability (vertex IDs) */
-  toolsUsed: string[];
+
+  /**
+   * Members: tools (V₀) OR capabilities (P^k, k < level)
+   *
+   * This is the unified representation for n-SuperHyperGraph.
+   * Use getDirectTools() and getDirectCapabilities() helpers for typed access.
+   *
+   * REQUIRED for new code. Use migrateCapabilityNode() to convert legacy nodes.
+   *
+   * @since v1 refactor
+   */
+  members: Member[];
+
+  /**
+   * Hierarchy level (computed via topological sort)
+   *
+   * - level(c) = 0 if c contains only tools
+   * - level(c) = 1 + max{level(c') | c' ∈ c.members} otherwise
+   *
+   * Computed by computeHierarchyLevels(), not set manually.
+   *
+   * @since v1 refactor
+   * @default 0
+   */
+  hierarchyLevel: number;
+
   /** Success rate from history (reliability) */
   successRate: number;
-  /** Parent capabilities (via contains) */
-  parents: string[];
-  /** Child capabilities (via contains) */
-  children: string[];
+
+  // === Legacy fields (kept for backward compatibility, will be removed) ===
+
+  /**
+   * @deprecated Use members.filter(m => m.type === 'tool') instead
+   * Tools in this capability (vertex IDs)
+   */
+  toolsUsed?: string[];
+
+  /**
+   * @deprecated Use members.filter(m => m.type === 'capability') instead
+   * Child capabilities (via contains)
+   */
+  children?: string[];
+
+  /**
+   * @deprecated Compute via reverse incidence mapping
+   * Parent capabilities (via contains)
+   */
+  parents?: string[];
+
   /** Hypergraph features for multi-head attention */
   hypergraphFeatures?: HypergraphFeatures;
 }
@@ -430,6 +488,17 @@ export interface AttentionResult {
   };
   /** Attention over tools (for interpretability) */
   toolAttention?: number[];
+
+  /**
+   * Hierarchy level of this capability (n-SuperHyperGraph)
+   *
+   * - Level 0: Leaf capabilities (contain only tools)
+   * - Level 1: Meta-capabilities (contain level-0 caps)
+   * - Level k: Meta^k capabilities (contain level-(k-1) caps)
+   *
+   * @since v1 refactor
+   */
+  hierarchyLevel?: number;
 }
 
 /**
@@ -444,4 +513,192 @@ export interface ForwardCache {
   attentionVE: number[][][][];
   /** Attention weights edge→vertex [layer][head][edge][vertex] */
   attentionEV: number[][][][];
+}
+
+// ============================================================================
+// Multi-Level Message Passing Types (n-SuperHyperGraph v1 refactor)
+// ============================================================================
+
+/**
+ * Multi-level embeddings structure for n-SuperHyperGraph
+ *
+ * After forward pass, contains:
+ * - H: Final tool embeddings (V, level -1)
+ * - E: Capability embeddings per hierarchy level (E^0, E^1, ..., E^L_max)
+ * - Attention weights for interpretability
+ *
+ * @since v1 refactor
+ * @see 04-message-passing.md
+ */
+export interface MultiLevelEmbeddings {
+  /** Tool embeddings (level -1) [numTools][embeddingDim] */
+  H: number[][];
+
+  /** Capability embeddings by level (E^0, E^1, ..., E^L_max) */
+  E: Map<number, number[][]>;
+
+  /** Attention weights for upward pass: level → [head][child][parent] */
+  attentionUpward: Map<number, number[][][]>;
+
+  /** Attention weights for downward pass: level → [head][parent][child] */
+  attentionDownward: Map<number, number[][][]>;
+}
+
+/**
+ * Learnable parameters per hierarchy level
+ *
+ * Each level has projection matrices and attention vectors for:
+ * - Upward pass: child → parent aggregation
+ * - Downward pass: parent → child propagation
+ *
+ * @since v1 refactor
+ * @see 05-parameters.md
+ */
+export interface LevelParams {
+  /**
+   * Child projection matrices per head [numHeads][headDim][embeddingDim]
+   *
+   * Projects child embeddings (tools or lower-level caps) for attention.
+   */
+  W_child: number[][][];
+
+  /**
+   * Parent projection matrices per head [numHeads][headDim][embeddingDim]
+   *
+   * Projects parent embeddings (higher-level caps) for attention.
+   */
+  W_parent: number[][][];
+
+  /**
+   * Attention vectors for upward pass per head [numHeads][2*headDim]
+   *
+   * Computes attention: a^T · LeakyReLU([W_child · e_i || W_parent · e_j])
+   */
+  a_upward: number[][];
+
+  /**
+   * Attention vectors for downward pass per head [numHeads][2*headDim]
+   *
+   * Computes attention: b^T · LeakyReLU([W_parent · e_i || W_child · e_j])
+   */
+  a_downward: number[][];
+}
+
+/**
+ * Extended forward cache for multi-level message passing
+ *
+ * Extends ForwardCache with per-level intermediate embeddings for backprop.
+ *
+ * @since v1 refactor
+ */
+export interface MultiLevelForwardCache {
+  /** Initial tool embeddings [numTools][embDim] */
+  H_init: number[][];
+
+  /** Final tool embeddings after downward pass [numTools][embDim] */
+  H_final: number[][];
+
+  /** Capability embeddings per level: level → [numCapsAtLevel][embDim] */
+  E_init: Map<number, number[][]>;
+
+  /** Final capability embeddings per level after forward pass */
+  E_final: Map<number, number[][]>;
+
+  /** Intermediate upward embeddings: level → [numCapsAtLevel][embDim] */
+  intermediateUpward: Map<number, number[][]>;
+
+  /** Intermediate downward embeddings: level → [numCapsAtLevel][embDim] */
+  intermediateDownward: Map<number, number[][]>;
+
+  /** Attention weights upward: level → [head][child][parent] */
+  attentionUpward: Map<number, number[][][]>;
+
+  /** Attention weights downward: level → [head][parent][child] */
+  attentionDownward: Map<number, number[][][]>;
+}
+
+// ============================================================================
+// n-SuperHyperGraph Helper Functions
+// ============================================================================
+
+/** Type alias for tool member */
+export type ToolMember = Extract<Member, { type: "tool" }>;
+
+/** Type alias for capability member */
+export type CapabilityMember = Extract<Member, { type: "capability" }>;
+
+/**
+ * Get direct tools from a capability (no transitive closure)
+ *
+ * @param cap Capability node
+ * @returns Array of tool IDs
+ */
+export function getDirectTools(cap: CapabilityNode): string[] {
+  return cap.members
+    .filter((m): m is ToolMember => m.type === "tool")
+    .map((m) => m.id);
+}
+
+/**
+ * Get direct child capabilities (no transitive closure)
+ *
+ * @param cap Capability node
+ * @returns Array of capability IDs
+ */
+export function getDirectCapabilities(cap: CapabilityNode): string[] {
+  return cap.members
+    .filter((m): m is CapabilityMember => m.type === "capability")
+    .map((m) => m.id);
+}
+
+/**
+ * Create members array from legacy toolsUsed + children
+ *
+ * @param toolsUsed Tool IDs (default: empty array)
+ * @param children Child capability IDs (default: empty array)
+ * @returns Unified members array
+ */
+export function createMembersFromLegacy(
+  toolsUsed: string[] = [],
+  children: string[] = [],
+): Member[] {
+  return [
+    ...toolsUsed.map((id) => ({ type: "tool" as const, id })),
+    ...children.map((id) => ({ type: "capability" as const, id })),
+  ];
+}
+
+/**
+ * Legacy capability node format (before n-SuperHyperGraph refactor)
+ */
+export interface LegacyCapabilityNode {
+  id: string;
+  embedding: number[];
+  toolsUsed: string[];
+  children?: string[];
+  parents?: string[];
+  successRate: number;
+  hypergraphFeatures?: HypergraphFeatures;
+}
+
+/**
+ * Migrate legacy CapabilityNode to new format with members
+ *
+ * Converts old format (toolsUsed + children) to new unified members array.
+ *
+ * @param legacy Legacy capability node
+ * @returns Capability node with members field (hierarchyLevel = 0, needs recomputation)
+ */
+export function migrateCapabilityNode(legacy: LegacyCapabilityNode): CapabilityNode {
+  return {
+    id: legacy.id,
+    embedding: legacy.embedding,
+    members: createMembersFromLegacy(legacy.toolsUsed, legacy.children),
+    hierarchyLevel: 0, // Will be recomputed by computeHierarchyLevels()
+    successRate: legacy.successRate,
+    toolsUsed: legacy.toolsUsed, // Keep for backward compat
+    children: legacy.children,
+    parents: legacy.parents,
+    hypergraphFeatures: legacy.hypergraphFeatures,
+  };
 }

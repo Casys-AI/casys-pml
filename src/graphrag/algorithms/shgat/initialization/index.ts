@@ -23,7 +23,16 @@ export {
   initializeParameters,
   initializeV2GradientAccumulators,
   resetV2GradientAccumulators,
-  // Serialization
+  // Multi-level parameter initialization (v1 refactor)
+  initializeLevelParameters,
+  countLevelParameters,
+  getLevelParams,
+  // Level params serialization (v1 refactor)
+  exportLevelParams,
+  importLevelParams,
+  // Adaptive configuration (v1 refactor)
+  getAdaptiveHeadsByGraphSize,
+  // Legacy serialization
   exportParams,
   importParams,
   // Statistics

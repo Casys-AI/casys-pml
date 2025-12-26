@@ -12,7 +12,7 @@
  * @module graphrag/algorithms/shgat/initialization/parameters
  */
 
-import type { SHGATConfig } from "../types.ts";
+import type { SHGATConfig, LevelParams } from "../types.ts";
 import { DEFAULT_FUSION_WEIGHTS, DEFAULT_FEATURE_WEIGHTS, NUM_TRACE_STATS } from "../types.ts";
 import type { FusionWeights, FeatureWeights } from "../types.ts";
 
@@ -253,6 +253,224 @@ export function resetV2GradientAccumulators(
     W2: new Array(mlpHiddenDim).fill(0),
     b2: 0,
   };
+}
+
+// ============================================================================
+// Multi-Level Parameter Initialization (n-SuperHyperGraph v1 refactor)
+// ============================================================================
+
+/**
+ * Initialize parameters for multi-level message passing
+ *
+ * Creates LevelParams for each hierarchy level (0 to maxLevel).
+ * Uses Xavier initialization for proper gradient flow.
+ *
+ * Dimension notes:
+ * - Level 0: input is embeddingDim (from tools)
+ * - Level k > 0: input is numHeads * headDim (after concat from previous level)
+ * - All levels: headDim = hiddenDim / numHeads (per-head dimension)
+ *
+ * @param config SHGAT configuration
+ * @param maxLevel Maximum hierarchy level (L_max)
+ * @returns Map of level → LevelParams
+ *
+ * @since v1 refactor
+ * @see 05-parameters.md
+ */
+export function initializeLevelParameters(
+  config: SHGATConfig,
+  maxLevel: number,
+): Map<number, LevelParams> {
+  const { numHeads, hiddenDim, embeddingDim } = config;
+  const headDim = Math.floor(hiddenDim / numHeads);
+
+  const levelParams = new Map<number, LevelParams>();
+
+  for (let level = 0; level <= maxLevel; level++) {
+    // Input dimension depends on level
+    // Level 0: tools have embeddingDim
+    // Level k > 0: capabilities have numHeads * headDim after concat
+    const inputDim = level === 0 ? embeddingDim : numHeads * headDim;
+
+    levelParams.set(level, {
+      // Child projection: [numHeads][headDim][inputDim]
+      W_child: initTensor3D(numHeads, headDim, inputDim),
+
+      // Parent projection: [numHeads][headDim][inputDim]
+      // Parents at level k receive from children, same input dim
+      W_parent: initTensor3D(numHeads, headDim, inputDim),
+
+      // Attention vectors for upward pass: [numHeads][2*headDim]
+      a_upward: initMatrix(numHeads, 2 * headDim),
+
+      // Attention vectors for downward pass: [numHeads][2*headDim]
+      a_downward: initMatrix(numHeads, 2 * headDim),
+    });
+  }
+
+  return levelParams;
+}
+
+/**
+ * Count parameters for multi-level message passing
+ *
+ * @param config SHGAT configuration
+ * @param maxLevel Maximum hierarchy level
+ * @returns Total parameter count for level params
+ */
+export function countLevelParameters(
+  config: SHGATConfig,
+  maxLevel: number,
+): number {
+  const { numHeads, hiddenDim, embeddingDim } = config;
+  const headDim = Math.floor(hiddenDim / numHeads);
+
+  let count = 0;
+
+  for (let level = 0; level <= maxLevel; level++) {
+    const inputDim = level === 0 ? embeddingDim : numHeads * headDim;
+
+    // W_child: numHeads * headDim * inputDim
+    count += numHeads * headDim * inputDim;
+    // W_parent: numHeads * headDim * inputDim
+    count += numHeads * headDim * inputDim;
+    // a_upward: numHeads * 2 * headDim
+    count += numHeads * 2 * headDim;
+    // a_downward: numHeads * 2 * headDim
+    count += numHeads * 2 * headDim;
+  }
+
+  return count;
+}
+
+/**
+ * Get parameters for a specific hierarchy level
+ *
+ * @param levelParams Map of all level parameters
+ * @param level The hierarchy level to get
+ * @returns LevelParams for the specified level
+ * @throws Error if level not found
+ */
+export function getLevelParams(
+  levelParams: Map<number, LevelParams>,
+  level: number,
+): LevelParams {
+  const params = levelParams.get(level);
+  if (!params) {
+    throw new Error(
+      `LevelParams not found for level ${level}. ` +
+        `Available levels: ${Array.from(levelParams.keys()).join(", ")}`,
+    );
+  }
+  return params;
+}
+
+/**
+ * Export level parameters to JSON-serializable object
+ *
+ * Format: { "level_0": {...}, "level_1": {...}, ... }
+ *
+ * @param levelParams Map of level → LevelParams
+ * @returns Serializable object
+ */
+export function exportLevelParams(
+  levelParams: Map<number, LevelParams>,
+): Record<string, LevelParams> {
+  const result: Record<string, LevelParams> = {};
+
+  for (const [level, params] of levelParams) {
+    result[`level_${level}`] = {
+      W_child: params.W_child,
+      W_parent: params.W_parent,
+      a_upward: params.a_upward,
+      a_downward: params.a_downward,
+    };
+  }
+
+  return result;
+}
+
+/**
+ * Import level parameters from JSON object
+ *
+ * @param data Serialized level params
+ * @returns Map of level → LevelParams
+ */
+export function importLevelParams(
+  data: Record<string, LevelParams>,
+): Map<number, LevelParams> {
+  const levelParams = new Map<number, LevelParams>();
+
+  for (const key of Object.keys(data)) {
+    const level = parseInt(key.replace("level_", ""));
+    if (isNaN(level)) continue;
+
+    const params = data[key];
+    levelParams.set(level, {
+      W_child: params.W_child,
+      W_parent: params.W_parent,
+      a_upward: params.a_upward,
+      a_downward: params.a_downward,
+    });
+  }
+
+  return levelParams;
+}
+
+// ============================================================================
+// Adaptive Configuration
+// ============================================================================
+
+/**
+ * Adaptive heads configuration based on graph complexity
+ *
+ * More tools/capabilities = more heads can capture diverse patterns.
+ * Also considers hierarchy depth for multi-level message passing.
+ *
+ * @param numTools Number of tools in graph
+ * @param numCapabilities Number of capabilities
+ * @param maxLevel Maximum hierarchy level (L_max)
+ * @returns Recommended numHeads and hiddenDim
+ */
+export function getAdaptiveHeadsByGraphSize(
+  numTools: number,
+  numCapabilities: number,
+  maxLevel: number = 0,
+): { numHeads: number; hiddenDim: number; headDim: number } {
+  const graphSize = numTools + numCapabilities;
+  const complexityFactor = maxLevel + 1; // More levels = more complex
+
+  // Base heads on graph size
+  let numHeads: number;
+  if (graphSize < 50) {
+    numHeads = 4; // Small graph
+  } else if (graphSize < 200) {
+    numHeads = 6; // Medium graph
+  } else if (graphSize < 500) {
+    numHeads = 8; // Large graph
+  } else if (graphSize < 1000) {
+    numHeads = 12; // Very large graph
+  } else {
+    numHeads = 16; // Massive graph
+  }
+
+  // Increase heads for deep hierarchies (more levels = more patterns)
+  if (complexityFactor >= 3) {
+    numHeads = Math.min(16, numHeads + 2);
+  } else if (complexityFactor >= 2) {
+    numHeads = Math.min(16, numHeads + 1);
+  }
+
+  // Ensure numHeads is even (for symmetric attention)
+  if (numHeads % 2 !== 0) {
+    numHeads += 1;
+  }
+
+  // hiddenDim = numHeads * headDim (headDim typically 16 or 32)
+  const headDim = graphSize < 200 ? 16 : 32;
+  const hiddenDim = numHeads * headDim;
+
+  return { numHeads, hiddenDim, headDim };
 }
 
 // ============================================================================

@@ -45,10 +45,18 @@ export type {
   HypergraphFeatures,
   ToolGraphFeatures,
   // Node Types
+  Member,
+  ToolMember,
+  CapabilityMember,
   ToolNode,
   CapabilityNode,
+  LegacyCapabilityNode,
   AttentionResult,
   ForwardCache,
+  // Multi-level message passing types (v1 refactor)
+  MultiLevelEmbeddings,
+  LevelParams,
+  MultiLevelForwardCache,
   // Legacy Types
   FusionWeights,
   FeatureWeights,
@@ -66,4 +74,12 @@ export {
   // Functions
   createDefaultTraceFeatures,
   getAdaptiveConfig,
+  // n-SuperHyperGraph helpers (v1 refactor)
+  getDirectTools,
+  getDirectCapabilities,
+  createMembersFromLegacy,
+  migrateCapabilityNode,
 } from "./types.ts";
+
+// Re-export HierarchyCycleError from graph module for easy access
+export { HierarchyCycleError } from "./graph/index.ts";

@@ -94,6 +94,7 @@ import {
   type AttentionResult,
   type ForwardCache,
   type FusionWeights,
+  createMembersFromLegacy,
 } from "./shgat/types.ts";
 
 const log = getLogger("default");
@@ -136,6 +137,35 @@ export class SHGAT {
 
   registerCapability(node: CapabilityNode): void {
     this.graphBuilder.registerCapability(node);
+  }
+
+  /**
+   * Legacy API: accepts old format, converts internally
+   *
+   * This method provides backward compatibility for code that uses the
+   * pre-v1-refactor API with separate toolsUsed and children arrays.
+   *
+   * @deprecated Use registerCapability() with new format (members array)
+   * @see 08-migration.md for migration guide
+   */
+  addCapabilityLegacy(
+    id: string,
+    embedding: number[],
+    toolsUsed: string[],
+    children: string[] = [],
+    successRate: number = 0.5,
+  ): void {
+    const members = createMembersFromLegacy(toolsUsed, children);
+
+    this.registerCapability({
+      id,
+      embedding,
+      members,
+      hierarchyLevel: 0, // Will be recomputed during rebuild
+      toolsUsed, // Keep for backward compat
+      children,
+      successRate,
+    });
   }
 
   hasToolNode(toolId: string): boolean {
@@ -431,45 +461,70 @@ export class SHGAT {
   }
 
   // ==========================================================================
-  // V1 Scoring Methods (Legacy 3-Head Architecture)
+  // V1 Scoring Methods (Unified K-Head + MLP Architecture)
   // ==========================================================================
 
-  scoreAllCapabilities(intentEmbedding: number[], _contextToolEmbeddings?: number[][], _contextCapabilityIds?: string[]): AttentionResult[] {
+  /**
+   * Score all capabilities using multi-level message passing + K-head attention + MLP
+   *
+   * Unified architecture (formerly 3-head, now K-head):
+   * 1. Forward pass: V → E^0 → E^1 → ... → E^L_max (message passing with K heads)
+   * 2. Scoring: K-head attention on TraceFeatures + MLP fusion
+   *
+   * @param intentEmbedding - User intent embedding
+   * @param contextToolIds - Optional context tool IDs for co-occurrence features
+   */
+  scoreAllCapabilities(intentEmbedding: number[], contextToolIds?: string[]): AttentionResult[] {
     const { E } = this.forward();
     const results: AttentionResult[] = [];
+    const { numHeads } = this.config;
     const capabilityNodes = this.graphBuilder.getCapabilityNodes();
+    const toolNodes = this.graphBuilder.getToolNodes();
 
-    const groupWeights = computeFusionWeights(this.params.fusionWeights, this.config.headFusionWeights);
-    const intentProjected = this.projectIntent(intentEmbedding);
-    const activeHeads = this.config.activeHeads ?? [0, 1, 2];
+    // Build context embeddings if provided
+    const contextEmbeddings: number[][] = [];
+    if (contextToolIds) {
+      for (const toolId of contextToolIds.slice(-this.config.maxContextLength)) {
+        const tool = toolNodes.get(toolId);
+        if (tool) contextEmbeddings.push(tool.embedding);
+      }
+    }
+    const contextAggregated = math.meanPool(contextEmbeddings, intentEmbedding.length);
 
     for (const [capId, cap] of capabilityNodes) {
       const cIdx = this.graphBuilder.getCapabilityIndex(capId)!;
-      const intentSim = math.cosineSimilarity(intentProjected, E[cIdx]);
+      const hgFeatures = cap.hypergraphFeatures || DEFAULT_HYPERGRAPH_FEATURES;
+
+      // Build TraceFeatures from capability's existing features
+      const features: TraceFeatures = {
+        intentEmbedding,
+        candidateEmbedding: E[cIdx], // Propagated embedding from message passing
+        contextEmbeddings,
+        contextAggregated,
+        traceStats: createDefaultTraceStatsFromFeatures(
+          cap.successRate,
+          hgFeatures.cooccurrence,
+          hgFeatures.recency,
+          hgFeatures.hypergraphPageRank,
+        ),
+      };
+
+      // K-head attention + MLP fusion (same as v2/v3)
+      const { score, headScores } = this.scoreWithTraceFeaturesV2(features);
       const reliabilityMult = cap.successRate < 0.5 ? 0.5 : (cap.successRate > 0.9 ? 1.2 : 1.0);
-      const features = cap.hypergraphFeatures || DEFAULT_HYPERGRAPH_FEATURES;
-
-      const semanticScore = intentSim * this.params.featureWeights.semantic;
-      const structureScore = (features.hypergraphPageRank + (features.adamicAdar ?? 0)) * this.params.featureWeights.structure;
-      const temporalScore = (features.recency + (features.heatDiffusion ?? 0)) * this.params.featureWeights.temporal;
-
-      const activeWeights = [
-        activeHeads.includes(0) ? groupWeights.semantic : 0,
-        activeHeads.includes(1) ? groupWeights.structure : 0,
-        activeHeads.includes(2) ? groupWeights.temporal : 0,
-      ];
-      const totalActiveWeight = activeWeights.reduce((a, b) => a + b, 0) || 1;
-
-      const baseScore = (activeWeights[0] * semanticScore + activeWeights[1] * structureScore + activeWeights[2] * temporalScore) / totalActiveWeight;
-      const score = Number.isFinite(baseScore * reliabilityMult) ? math.sigmoid(baseScore * reliabilityMult) : 0.5;
 
       results.push({
         capabilityId: capId,
-        score,
-        headWeights: activeWeights.map(w => w / totalActiveWeight),
-        headScores: [semanticScore, structureScore, temporalScore],
+        score: Math.min(0.95, Math.max(0, score * reliabilityMult)),
+        headWeights: new Array(numHeads).fill(1 / numHeads),
+        headScores,
         recursiveContribution: 0,
-        featureContributions: { semantic: semanticScore, structure: structureScore, temporal: temporalScore, reliability: reliabilityMult },
+        featureContributions: {
+          semantic: headScores[0] ?? 0,
+          structure: headScores[1] ?? 0,
+          temporal: headScores[2] ?? 0,
+          reliability: reliabilityMult,
+        },
         toolAttention: this.getCapabilityToolAttention(cIdx),
       });
     }
@@ -477,40 +532,47 @@ export class SHGAT {
     return results.sort((a, b) => b.score - a.score);
   }
 
-  scoreAllTools(intentEmbedding: number[]): Array<{ toolId: string; score: number; headWeights?: number[] }> {
+  scoreAllTools(intentEmbedding: number[], contextToolIds?: string[]): Array<{ toolId: string; score: number; headScores: number[] }> {
     const { H } = this.forward();
-    const results: Array<{ toolId: string; score: number; headWeights?: number[] }> = [];
+    const results: Array<{ toolId: string; score: number; headScores: number[] }> = [];
     const toolNodes = this.graphBuilder.getToolNodes();
 
-    const groupWeights = computeFusionWeights(this.params.fusionWeights, this.config.headFusionWeights);
-    const intentProjected = this.projectIntent(intentEmbedding);
-    const activeHeads = this.config.activeHeads ?? [0, 1, 2];
+    // Build context embeddings if provided
+    const contextEmbeddings: number[][] = [];
+    if (contextToolIds) {
+      for (const toolId of contextToolIds.slice(-this.config.maxContextLength)) {
+        const tool = toolNodes.get(toolId);
+        if (tool) contextEmbeddings.push(tool.embedding);
+      }
+    }
+    const contextAggregated = math.meanPool(contextEmbeddings, intentEmbedding.length);
 
     for (const [toolId, tool] of toolNodes) {
       const tIdx = this.graphBuilder.getToolIndex(toolId)!;
-      const intentSim = math.cosineSimilarity(intentProjected, H[tIdx]);
-      const features = tool.toolFeatures;
+      const toolFeatures = tool.toolFeatures || DEFAULT_TOOL_GRAPH_FEATURES;
 
-      if (!features) {
-        results.push({ toolId, score: Math.max(0, Math.min(intentSim, 0.95)) });
-        continue;
-      }
+      // Build TraceFeatures from tool's existing features
+      const features: TraceFeatures = {
+        intentEmbedding,
+        candidateEmbedding: H[tIdx], // Propagated embedding from message passing
+        contextEmbeddings,
+        contextAggregated,
+        traceStats: createDefaultTraceStatsFromFeatures(
+          0.5, // Tools don't have individual success rate
+          toolFeatures.cooccurrence,
+          toolFeatures.recency,
+          toolFeatures.pageRank,
+        ),
+      };
 
-      const semanticScore = intentSim * this.params.featureWeights.semantic;
-      const structureScore = (features.pageRank + features.adamicAdar) * this.params.featureWeights.structure;
-      const temporalScore = (features.recency + features.heatDiffusion) * this.params.featureWeights.temporal;
+      // K-head attention + MLP fusion
+      const { score, headScores } = this.scoreWithTraceFeaturesV2(features);
 
-      const activeWeights = [
-        activeHeads.includes(0) ? groupWeights.semantic : 0,
-        activeHeads.includes(1) ? groupWeights.structure : 0,
-        activeHeads.includes(2) ? groupWeights.temporal : 0,
-      ];
-      const totalActiveWeight = activeWeights.reduce((a, b) => a + b, 0) || 1;
-
-      const baseScore = (activeWeights[0] * semanticScore + activeWeights[1] * structureScore + activeWeights[2] * temporalScore) / totalActiveWeight;
-      const score = Number.isFinite(baseScore) ? math.sigmoid(baseScore) : 0.5;
-
-      results.push({ toolId, score: Math.max(0, Math.min(score, 0.95)), headWeights: activeWeights.map(w => w / totalActiveWeight) });
+      results.push({
+        toolId,
+        score: Math.min(0.95, Math.max(0, score)),
+        headScores,
+      });
     }
 
     return results.sort((a, b) => b.score - a.score);
@@ -764,7 +826,16 @@ export function createSHGATFromCapabilities(
   }
 
   for (const cap of capabilities) {
-    shgat.registerCapability({ id: cap.id, embedding: cap.embedding, toolsUsed: cap.toolsUsed, successRate: cap.successRate, parents: cap.parents || [], children: cap.children || [] });
+    shgat.registerCapability({
+      id: cap.id,
+      embedding: cap.embedding,
+      members: createMembersFromLegacy(cap.toolsUsed, cap.children),
+      hierarchyLevel: 0,
+      toolsUsed: cap.toolsUsed,
+      successRate: cap.successRate,
+      parents: cap.parents,
+      children: cap.children,
+    });
     if (cap.hypergraphFeatures) shgat.updateHypergraphFeatures(cap.id, cap.hypergraphFeatures);
   }
 
@@ -776,4 +847,56 @@ export async function trainSHGATOnEpisodes(
   options: { epochs?: number; batchSize?: number; onEpoch?: (epoch: number, loss: number, accuracy: number) => void } = {},
 ): Promise<{ finalLoss: number; finalAccuracy: number }> {
   return trainOnEpisodes((batch) => shgat.trainBatch(batch), episodes, options);
+}
+
+/**
+ * Online learning: Train SHGAT on a single execution result
+ *
+ * Use this in production after each capability execution.
+ * No epochs to manage - just call after each execution.
+ *
+ * @example
+ * ```typescript
+ * // After successful capability execution:
+ * await trainSHGATOnExecution(shgat, {
+ *   intentEmbedding: userIntent,
+ *   targetCapId: "executed-capability",
+ *   outcome: 1, // success
+ * });
+ *
+ * // After failed capability execution:
+ * await trainSHGATOnExecution(shgat, {
+ *   intentEmbedding: userIntent,
+ *   targetCapId: "failed-capability",
+ *   outcome: 0, // failure
+ * });
+ * ```
+ *
+ * @param shgat SHGAT instance
+ * @param execution Single execution result
+ * @returns Training metrics (loss, accuracy for this single example)
+ */
+export async function trainSHGATOnExecution(
+  shgat: SHGAT,
+  execution: {
+    intentEmbedding: number[];
+    targetCapId: string;
+    outcome: number; // 1 = success, 0 = failure
+  },
+): Promise<{ loss: number; accuracy: number }> {
+  // Convert to TrainingExample format
+  const example: TrainingExample = {
+    intentEmbedding: execution.intentEmbedding,
+    contextTools: [], // Will be computed from capability
+    candidateId: execution.targetCapId,
+    outcome: execution.outcome,
+  };
+
+  // Train on single example (no batching, immediate gradient update)
+  const result = shgat.trainBatch([example]);
+
+  return {
+    loss: result.loss,
+    accuracy: result.accuracy,
+  };
 }

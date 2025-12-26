@@ -17,6 +17,7 @@ import type {
   ToolNode,
 } from "../types.ts";
 import {
+  createMembersFromLegacy,
   DEFAULT_HYPERGRAPH_FEATURES,
   DEFAULT_TOOL_GRAPH_FEATURES,
 } from "../types.ts";
@@ -184,10 +185,12 @@ export class GraphBuilder {
       this.capabilityNodes.set(cap.id, {
         id: cap.id,
         embedding: cap.embedding,
+        members: createMembersFromLegacy(cap.toolsUsed, cap.children),
+        hierarchyLevel: 0, // Will be recomputed by computeHierarchyLevels()
         toolsUsed: cap.toolsUsed,
         successRate: cap.successRate,
-        parents: cap.parents || [],
-        children: cap.children || [],
+        parents: cap.parents,
+        children: cap.children,
       });
     }
 
@@ -300,6 +303,13 @@ export class GraphBuilder {
    * @param capId - The capability ID to collect tools from
    * @param visited - Set of already visited capability IDs (cycle detection)
    * @returns Set of all tool IDs transitively reachable from this capability
+   *
+   * @deprecated Use multi-level message passing with buildMultiLevelIncidence() instead.
+   * This method flattens the n-SuperHyperGraph structure which loses hierarchical information.
+   * For proper multi-level message passing, use the incidence structures from graph/incidence.ts
+   * that preserve the direct membership relationships at each level.
+   *
+   * @see 03-incidence-structure.md for the new multi-level approach
    */
   private collectTransitiveTools(capId: string, visited: Set<string> = new Set()): Set<string> {
     // Cycle detection - prevent infinite recursion
@@ -313,11 +323,17 @@ export class GraphBuilder {
       return new Set();
     }
 
-    // Start with direct tools
-    const tools = new Set<string>(cap.toolsUsed);
+    // Start with direct tools (use members for new format, fallback to toolsUsed)
+    const directTools = cap.members
+      ? cap.members.filter((m) => m.type === "tool").map((m) => m.id)
+      : cap.toolsUsed ?? [];
+    const tools = new Set<string>(directTools);
 
     // Recursively collect from children (contained capabilities)
-    for (const childId of cap.children) {
+    const childCapIds = cap.members
+      ? cap.members.filter((m) => m.type === "capability").map((m) => m.id)
+      : cap.children ?? [];
+    for (const childId of childCapIds) {
       const childTools = this.collectTransitiveTools(childId, visited);
       for (const tool of childTools) {
         tools.add(tool);

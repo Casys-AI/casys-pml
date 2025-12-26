@@ -1,13 +1,15 @@
 # ADR-051: Simplification de la Recherche Unifiée
 
 **Status:** Accepted
-**Date:** 2025-12-22
+**Date:** 2025-12-22 (Updated 2025-12-25 for v1 refactor)
 **Supersedes:**
 - ADR-015 (Dynamic Alpha)
 - ADR-022 (Hybrid Search Alpha)
 - ADR-038 (Scoring Algorithms Reference) - sections Search et alpha
 - ADR-048 (Local Adaptive Alpha)
-**Related:** spike `2025-12-21-capability-pathfinding-dijkstra.md`
+**Related:**
+- spike `2025-12-21-capability-pathfinding-dijkstra.md`
+- tech-spec `docs/tech-specs/shgat-v1-refactor/` (multi-level architecture)
 
 ## Context
 
@@ -316,28 +318,60 @@ Un verrou empêche les trainings concurrents si plusieurs exécutions en parall�
 
 | Méthode | Input | Output | Usage |
 |---------|-------|--------|-------|
-| `scoreAllCapabilities(intentEmb)` | intent embedding | ranked capabilities | Suggestion mode |
+| `scoreAllCapabilities(intentEmb)` | intent embedding | ranked capabilities with `hierarchyLevel` | Suggestion mode |
 | `scoreAllTools(intentEmb)` | intent embedding | ranked tools | Tool selection |
 | `predictPathSuccess(intentEmb, path)` | intent + path | probability [0,1] | TD Learning (Epic 11.3) |
 
-**Multi-head architecture (3 heads - Updated 2025-12-24):**
+**Multi-Level Scoring API (v1 Refactor - 2025-12-25):**
 
 ```typescript
-// scoreAllTools - 3 heads avec poids appris
-scoreAllTools(intentEmbedding: number[]): Array<{ toolId: string; score: number }> {
-  for (const [toolId, tool] of this.toolNodes) {
-    const intentSim = this.cosineSimilarity(intentEmbedding, tool.embedding);
+// MultiLevelScorer - hierarchy-aware scoring
+const scorer = new MultiLevelScorer(deps);
 
-    // Head 0: Semantic
-    const semanticScore = intentSim * featureWeights.semantic;
-    // Head 1: Structure
-    const structureScore = (features.pageRank + features.adamicAdar) * featureWeights.structure;
-    // Head 2: Temporal
-    const temporalScore = (features.cooccurrence + features.recency) * featureWeights.temporal;
+// Score all capabilities across all hierarchy levels
+const all = scorer.scoreAllCapabilities(intent);
+// Returns AttentionResult[] with hierarchyLevel field
 
-    // Fusion via poids appris
-    headScores = [semanticScore, structureScore, temporalScore];
-    score = sigmoid(dot(fusionWeights, headScores));
+// Score only leaf capabilities (level 0 - most specific)
+const leaves = scorer.scoreLeafCapabilities(intent);
+
+// Score meta-capabilities at specific level
+const metas = scorer.scoreMetaCapabilities(intent, 1);
+
+// Get top-K per level (for hierarchical exploration)
+const byLevel = scorer.getTopByLevel(intent, 5);
+// Returns Map<number, AttentionResult[]>
+```
+
+**Multi-head architecture (3 heads with multi-level message passing):**
+
+```typescript
+// Forward pass propagates through hierarchy levels
+const { H, E } = this.forward();  // E: Map<level, embeddings[][]>
+
+// Score using PROPAGATED embeddings (enriched by multi-level attention)
+scoreAllCapabilities(intentEmbedding: number[]): AttentionResult[] {
+  const { E } = forwardMultiLevel();  // Upward + downward phases
+  const intentProjected = projectIntent(intentEmbedding);
+
+  for (const level of hierarchyLevels.keys()) {
+    for (const [idx, capId] of capsAtLevel) {
+      const capEmb = E.get(level)[idx];  // Propagated embedding
+      const intentSim = cosineSimilarity(intentProjected, capEmb);
+
+      // Head 0: Semantic
+      const semanticScore = intentSim * featureWeights.semantic;
+      // Head 1: Structure
+      const structureScore = (pageRank + adamicAdar) * featureWeights.structure;
+      // Head 2: Temporal
+      const temporalScore = (recency + heatDiffusion) * featureWeights.temporal;
+
+      // Fusion via learned weights
+      headScores = [semanticScore, structureScore, temporalScore];
+      score = sigmoid(weighted_sum(fusionWeights, headScores));
+
+      results.push({ capabilityId, score, hierarchyLevel: level, ... });
+    }
   }
 }
 ```
@@ -384,12 +418,16 @@ predictPathSuccess(intentEmbedding: number[], path: string[]): number {
 - `hasCapabilityNode(capabilityId)` - vérifie si une capability existe
 - `trainBatch(examples)` - training batch sur plusieurs examples (utilisé par PER)
 
-**Flow complet (Story 11.6):**
+**Flow complet (Story 11.6 + v1 Refactor):**
 1. Au démarrage: SHGAT initialisé avec capabilities existantes
+   - `computeHierarchyLevels()` calcule les niveaux via tri topologique
+   - `buildMultiLevelIncidence()` construit I₀, I_k sans fermeture transitive
+   - `initializeLevelParameters()` initialise W_child, W_parent, a_upward, a_downward par niveau
 2. À chaque exécution:
    - `registerSHGATNodes()` - enregistre capability + tools dans le graphe
+   - Recalcul des niveaux de hiérarchie si nouvelles capabilities
    - `runPERBatchTraining()` - PER-weighted training sur traces stockées
-3. Training path-level: 1 example par node du path (vs 1 example par exécution avant)
+3. Training multi-level: gradients propagés à travers tous les niveaux (upward + downward)
 4. Verrou anti-concurrence: skip training si un autre est en cours
 
 ### SERVER_TITLE Update

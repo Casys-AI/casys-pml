@@ -1,9 +1,10 @@
 # ADR-050: SuperHyperGraph Edge Constraints
 
 **Status:** Accepted
-**Date:** 2025-12-17
+**Date:** 2025-12-17 (Updated 2025-12-25 for v1 refactor)
 **Relates to:** ADR-038 (Scoring Algorithms), ADR-042 (Capability Hyperedges), ADR-045 (Cap-to-Cap Dependencies)
 **Research:** `spikes/2025-12-17-superhypergraph-hierarchical-structures.md`
+**Tech Spec:** `docs/tech-specs/shgat-v1-refactor/` (multi-level architecture)
 
 ---
 
@@ -413,63 +414,160 @@ This allows:
 - Capabilities to aggregate tool-level heat with hierarchical propagation
 - Different decay rates for tool vs capability heat propagation
 
-### V→E→V Message Passing
+### Multi-Level Message Passing (v1 Refactor - 2025-12-25)
 
-**Core mechanism from n-SuHGAT (Fujita 2025):** Two-phase attention propagates information between tools (vertices) and capabilities (hyperedges).
+**Core mechanism:** n-SuperHyperGraph with hierarchical message passing. Unlike flat V→E→V, the refactored architecture propagates through **all hierarchy levels**.
 
-#### Phase 1: Vertex → Hyperedge (V→E)
+#### Data Model
 
-Tools contribute their embeddings to capabilities they belong to:
+```typescript
+// Capability members can be tools OR other capabilities
+type Member = { type: "tool"; id: string } | { type: "capability"; id: string };
 
-```
-E^(l+1) = σ(A'^T · H^(l))
-
-where A' = A ⊙ softmax(LeakyReLU(H·W_v · (E·W_e)^T))
-```
-
-- `A` is the incidence matrix (tool × capability membership)
-- Attention weights learn which tools are most relevant for each capability
-- Result: capability embeddings enriched with tool information
-
-#### Phase 2: Hyperedge → Vertex (E→V)
-
-Capabilities propagate back to their constituent tools:
-
-```
-H^(l+1) = σ(B'^T · E^(l))
-
-where B' = A^T ⊙ softmax(LeakyReLU(E·W_e2 · (H·W_v2)^T))
+interface CapabilityNode {
+  id: string;
+  embedding: number[];
+  members: Member[];        // Direct children only (no transitive)
+  hierarchyLevel: number;   // Computed via topological sort
+  successRate: number;
+}
 ```
 
-- Tools receive aggregated signals from capabilities they participate in
-- Result: tool embeddings enriched with capability context
+#### Hierarchy Levels
+
+```
+level(c) = 0                          if c contains only tools
+level(c) = 1 + max{level(c') | c' ∈ c}  otherwise
+```
+
+Example:
+```
+Level 2: release-cycle (contains deploy-full, rollback-plan)
+Level 1: deploy-full (contains build, test), rollback-plan (contains tools)
+Level 0: build (tools only), test (tools only)
+```
+
+#### Multi-Level Incidence Structure
+
+**NO transitive closure.** Each mapping captures direct membership only:
+
+| Structure | Description |
+|-----------|-------------|
+| `I₀: toolToCapIncidence` | Tool → Level-0 Caps (direct membership) |
+| `I_k: capToCapIncidence` | Level-(k-1) Caps → Level-k Caps (k ≥ 1) |
+| `parentToChildIncidence` | Reverse mapping for downward pass |
+
+#### Upward Phase: V → E^0 → E^1 → ... → E^L_max
+
+```
+For level k = 0 to L_max:
+  For each parent capability c at level k:
+    children = level-(k-1) caps or tools in c
+
+    For each head h:
+      child_proj = W_child[h] @ child_emb
+      parent_proj = W_parent[h] @ parent_emb
+
+      score = a_upward[h]^T · LeakyReLU([child_proj || parent_proj])
+      attention = softmax(scores over children)
+
+      E[k][c][h] = Σ attention[i] × child_proj[i]
+
+    E[k][c] = concat(E[k][c][0], ..., E[k][c][K-1])
+```
+
+#### Downward Phase: E^L_max → ... → E^0 → V
+
+```
+For level k = L_max-1 down to 0:
+  For each child c at level k:
+    parents = level-(k+1) caps containing c
+
+    For each head h:
+      parent_proj = W_parent[h] @ parent_emb
+      child_proj = W_child[h] @ child_emb
+
+      score = a_downward[h]^T · LeakyReLU([parent_proj || child_proj])
+      attention = softmax(scores over parents)
+
+      update = Σ attention[i] × parent_proj[i]
+
+    E[k][c] = E[k][c] + α × concat(updates)  // Residual connection
+```
+
+#### Per-Level Parameters
+
+```typescript
+interface LevelParams {
+  W_child: number[][][];    // [numHeads][headDim][inputDim]
+  W_parent: number[][][];   // [numHeads][headDim][inputDim]
+  a_upward: number[][];     // [numHeads][2*headDim]
+  a_downward: number[][];   // [numHeads][2*headDim]
+}
+
+// Parameter count per level k:
+// K × (2·headDim·inputDim + 4·headDim)
+// Level 0: inputDim = embeddingDim (1024)
+// Level k>0: inputDim = numHeads × headDim
+```
 
 #### Intent Projection
 
-To compare intent (1024-dim BGE-M3) with propagated embeddings (384-dim):
-
 ```typescript
-// W_intent: learnable projection matrix [384 × 1024]
+// W_intent: learnable projection [propagatedDim × 1024]
 intentProjected = W_intent @ intentEmbedding
 
-// Semantic similarity in propagated space
-score = cosineSimilarity(intentProjected, E[capIdx])
+// Score using PROPAGATED embedding from multi-level pass
+score = cosineSimilarity(intentProjected, E.get(level)[capIdx])
 ```
 
-#### Scoring with Propagated Embeddings
+#### Multi-Level Scoring API
 
 ```typescript
-// Forward pass computes propagated embeddings
-const { H, E } = this.forward();  // V→E→V message passing
+const scorer = new MultiLevelScorer(deps);
 
-// Project intent to same space
-const intentProj = this.projectIntent(intentEmbedding);
+// Score all levels
+const all = scorer.scoreAllCapabilities(intent);
+// Returns AttentionResult[] with hierarchyLevel field
 
-// Score using enriched embeddings
-const score = cosineSimilarity(intentProj, E[capIdx]);
+// Score only leaf capabilities (level 0)
+const leaves = scorer.scoreLeafCapabilities(intent);
+
+// Score meta-capabilities at specific level
+const metas = scorer.scoreMetaCapabilities(intent, 1);
+
+// Top-K per level
+const byLevel = scorer.getTopByLevel(intent, 5);
+// Returns Map<number, AttentionResult[]>
 ```
 
-**Key insight:** Propagated embeddings capture graph structure implicitly through learned attention. Pre-calculated features (PageRank, spectral, etc.) may be redundant—ablation studies pending to validate.
+#### Training (Backpropagation)
+
+```typescript
+// Extended cache for gradient flow
+interface ExtendedMultiLevelForwardCache extends MultiLevelForwardCache {
+  intermediateUpwardActivations: Map<number, LevelIntermediates>;
+  intermediateDownwardActivations: Map<number, LevelIntermediates>;
+}
+
+// Backward pass through phases
+backwardMultiLevel(dLoss, targetCapId, targetLevel, cache, ...)
+  → Backward through downward pass (E^0 → E^L_max)
+  → Backward through upward pass (E^L_max → E^0 → V)
+  → Accumulate gradients for W_child, W_parent, a_upward, a_downward
+```
+
+#### Adaptive Heads
+
+```typescript
+// Scale heads based on graph complexity
+const { numHeads, hiddenDim, headDim } = getAdaptiveHeadsByGraphSize(
+  numTools,
+  numCaps,
+  maxHierarchyLevel
+);
+// 4 heads for small graphs → 16 heads for large/deep graphs
+```
 
 ### Hierarchical Capabilities (n-SuperHyperGraph)
 
@@ -482,61 +580,65 @@ E ⊆ P(V) ∪ P(E)  // Hyperedges can contain vertices OR other hyperedges
 This enables arbitrary nesting depth (n=∞):
 
 ```
-Meta-Meta-Capability "release-cycle"
-    └── Meta-Capability "deploy-full"
-          └── Capability "build"
-                └── Tools: [compiler, linker]
-          └── Capability "test"
-                └── Tools: [pytest]
-    └── Meta-Capability "rollback-plan"
-          └── Tools: [kubectl, rollback-script]
+Level 2: Meta-Meta-Capability "release-cycle"
+           └── contains: [deploy-full, rollback-plan]
+
+Level 1: Meta-Capability "deploy-full"
+           └── contains: [build, test]
+         Meta-Capability "rollback-plan"
+           └── contains: [kubectl-tool, rollback-script-tool]
+
+Level 0: Capability "build" → Tools: [compiler, linker]
+         Capability "test" → Tools: [pytest]
 ```
 
-#### Transitive Flattening Strategy
+#### Direct Membership (NO Transitive Flattening)
 
-Rather than adding explicit E→E message passing phases, we **flatten the hierarchy into the incidence matrix**:
+**Key change in v1 refactor:** We do NOT flatten the hierarchy. Instead, multi-level message passing propagates information through each level explicitly.
 
 ```
-Incidence Matrix A (with transitive closure):
-
-                    build  test  deploy-full  rollback-plan  release-cycle
-compiler              1      0        1            0              1
-linker                1      0        1            0              1
-pytest                0      1        1            0              1
-kubectl               0      0        0            1              1
-rollback-script       0      0        0            1              1
+I₀ (Tools → Level-0 Caps):    I₁ (Level-0 → Level-1):
+  compiler → {build}            build → {deploy-full}
+  linker → {build}              test → {deploy-full}
+  pytest → {test}
 ```
 
 **Benefits:**
-- No code change to V→E→V message passing
-- Meta-capabilities receive embeddings from ALL descendant tools
-- Attention learns which tools (at any depth) are most relevant
-- Infinite nesting depth supported naturally
+- Explicit hierarchy awareness in scoring
+- `hierarchyLevel` field enables level-filtered queries
+- Gradients flow through correct paths
+- Memory efficient (no redundant edges)
 
-**Implementation:** When registering a capability with `contains` edges, compute transitive tool membership and populate the incidence matrix accordingly.
-
-### Implementation Files
+### Implementation Files (v1 Refactor)
 
 | File | Content |
 |------|---------|
-| `src/graphrag/algorithms/shgat.ts` | SHGAT class with 6-head scoring, V→E→V message passing, fusion weights, backprop |
-| `src/graphrag/algorithms/shgat-features.ts` | AdamicAdar + HeatDiffusion integration |
-| `tests/benchmarks/strategic/shgat.bench.ts` | Performance benchmarks for head configurations |
+| `src/graphrag/algorithms/shgat.ts` | SHGAT class orchestrator, backward-compat APIs |
+| `src/graphrag/algorithms/shgat/types.ts` | Types: Member, CapabilityNode, LevelParams, ForwardCache |
+| `src/graphrag/algorithms/shgat/graph/hierarchy.ts` | `computeHierarchyLevels()`, cycle detection |
+| `src/graphrag/algorithms/shgat/graph/incidence.ts` | Multi-level incidence: I₀, I_k, reverse mappings |
+| `src/graphrag/algorithms/shgat/graph/graph-builder.ts` | Node registration, incidence matrix building |
+| `src/graphrag/algorithms/shgat/initialization/parameters.ts` | Xavier init, `initializeLevelParameters()` |
+| `src/graphrag/algorithms/shgat/message-passing/multi-level-orchestrator.ts` | Upward + downward phases |
+| `src/graphrag/algorithms/shgat/scoring/multi-level-scorer.ts` | `MultiLevelScorer` with level filtering |
+| `src/graphrag/algorithms/shgat/training/multi-level-trainer.ts` | Backprop through all levels |
+| `tests/unit/graphrag/shgat/` | 36 unit tests for hierarchy, params, message passing |
+| `tests/benchmarks/strategic/shgat-v1-v2-v3-comparison.bench.ts` | Performance benchmarks |
 
 ### Benchmarking
 
-Available benchmarks to validate the architecture:
-
 ```bash
+# Run SHGAT unit tests
+deno test --allow-all tests/unit/graphrag/shgat/
+
 # Run SHGAT benchmarks
-deno bench --allow-all tests/benchmarks/strategic/shgat.bench.ts
+deno bench --allow-all tests/benchmarks/strategic/shgat-v1-v2-v3-comparison.bench.ts
 
 # Benchmark groups:
-# - shgat-inference: Compare 1/4/6/8 head performance
-# - shgat-context: Context size scaling (0, 3, 10 tools)
-# - shgat-dim: Hidden dimension scaling (32, 64, 128)
-# - shgat-training: Batch and epoch training performance
-# - shgat-vs-spectral: Compare learned vs static scoring
+# - shgat-v1-scoring: Multi-level scoring performance
+# - shgat-v2-scoring: TraceFeatures-based scoring
+# - shgat-v3-hybrid: v1 message passing + v2 scoring
+# - shgat-hierarchy: Deep hierarchy scaling (L_max = 1, 2, 3)
 ```
 
 ---

@@ -5,12 +5,18 @@
  * - v1: Legacy 3-head architecture (semantic/structure/temporal)
  * - v2: Multi-head with TraceFeatures (K adaptive heads)
  * - v3: Hybrid (v1 message passing + v2 multi-head)
+ * - Multi-level: n-SuperHyperGraph with hierarchical message passing
  *
  * @module graphrag/algorithms/shgat/scoring
  */
 
 export { V1Scorer } from "./v1-scorer.ts";
 export { V2Scorer } from "./v2-scorer.ts";
+export {
+  MultiLevelScorer,
+  type MultiLevelScorerDependencies,
+  type MultiLevelForwardResult,
+} from "./multi-level-scorer.ts";
 
 // Re-export types from shgat-types for convenience
 export type {
