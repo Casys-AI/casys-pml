@@ -186,6 +186,11 @@ export class PMLGatewayServer {
     // Initialize CapabilityRegistry for naming support (Story 13.2)
     this.capabilityRegistry = new CapabilityRegistry(this.db);
 
+    // Wire registry to store for code transformation (display_name → FQDN)
+    if (this.capabilityStore) {
+      this.capabilityStore.setCapabilityRegistry(this.capabilityRegistry);
+    }
+
     // Story 13.5: Initialize PmlStdServer for cap:* management tools
     this.pmlStdServer = new PmlStdServer(this.capabilityRegistry, this.db);
     log.info("[Gateway] PmlStdServer initialized (Story 13.5)");
@@ -278,13 +283,12 @@ export class PMLGatewayServer {
     const transaction = startTransaction("mcp.tools.list", "mcp");
     try {
       addBreadcrumb("mcp", "Processing tools/list request", {});
-      log.info(`list_tools: returning meta-tools + cap:* tools (ADR-013, Story 13.5)`);
+      log.info(`list_tools: returning meta-tools (ADR-013)`);
 
-      // Get meta-tools + cap:* management tools
+      // Get meta-tools (cap:* tools are MiniTools in lib/std, not meta-tools)
       const metaTools = getMetaTools();
-      const capTools = this.pmlStdServer?.handleListTools() ?? [];
 
-      const result = { tools: [...metaTools, ...capTools] };
+      const result = { tools: metaTools };
       transaction.setData("tools_returned", result.tools.length);
       transaction.finish();
       return Promise.resolve(result);
@@ -426,9 +430,12 @@ export class PMLGatewayServer {
       }
     }
 
-    // Story 13.5: cap:* management tools
-    if (name.startsWith("cap:") && this.pmlStdServer) {
-      const result = await this.pmlStdServer.handleCallTool(name, args);
+    // Story 13.5: std:cap_* tools need special handling
+    // They're MiniTools in lib/std but require gateway's CapModule (not std server's)
+    if (name.startsWith("std:cap_") && this.pmlStdServer) {
+      // Map std:cap_list → cap:list, std:cap_rename → cap:rename, etc.
+      const capToolName = "cap:" + name.slice(8); // "std:cap_list" → "cap:list"
+      const result = await this.pmlStdServer.handleCallTool(capToolName, args);
       return {
         content: result.content,
         ...(result.isError ? { isError: true } : {}),
