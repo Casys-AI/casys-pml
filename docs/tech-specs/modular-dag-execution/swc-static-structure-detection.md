@@ -36,6 +36,32 @@ The `StaticStructureBuilder` uses SWC (Rust-based TypeScript parser) to analyze 
 | `[...].map(x => mcp.tool())` inline | ✅ Detected | Unrolls to N parallel tasks |
 | `arr.map(x => mcp.tool())` (variable) | ✅ Detected | Creates 1 task as template |
 
+### Array Operations (Phase 1 - Planned)
+
+> **Tech-Spec:** See [index.md](./index.md) for full implementation details.
+
+| Pattern | Status | Tool ID | Notes |
+|---------|--------|---------|-------|
+| `arr.filter(x => ...)` | 🔜 Planned | `code:filter` | Pure operation, HIL bypass |
+| `arr.map(x => ...)` | 🔜 Planned | `code:map` | Pure operation, HIL bypass |
+| `arr.reduce((a,b) => ...)` | 🔜 Planned | `code:reduce` | Pure operation, HIL bypass |
+| `arr.flatMap(x => ...)` | 🔜 Planned | `code:flatMap` | Pure operation |
+| `arr.find(x => ...)` | 🔜 Planned | `code:find` | Pure operation |
+| `arr.some(x => ...)` | 🔜 Planned | `code:some` | Pure operation |
+| `arr.every(x => ...)` | 🔜 Planned | `code:every` | Pure operation |
+| `arr.sort(...)` | 🔜 Planned | `code:sort` | Pure operation |
+| `arr.slice(...)` | 🔜 Planned | `code:slice` | Pure operation |
+
+**Implementation approach:**
+1. Detect array method via `MemberExpression` in `handleCallExpression()`
+2. Extract original code via SWC span: `originalCode.substring(span.start, span.end)`
+3. Create task with `tool: "code:<method>"`, `type: "code_execution"`
+4. Mark as pure operation → `isSafeToFail()` returns `true`, HIL bypassed
+
+**SHGAT Learning:**
+- Traces operation names only: `executedPath = ["code:filter", "code:map"]`
+- Does NOT trace callback content or variable values
+
 ### Arguments Extraction
 
 | Pattern | Status | Notes |
@@ -144,4 +170,5 @@ if (file.exists) {
 
 ## Changelog
 
+- **2025-12-26:** Added Array Operations (Phase 1 - Planned) section with `code:*` pseudo-tools
 - **2025-12-22:** Added `Promise.all(arr.map(fn))` detection with literal array unrolling
