@@ -9,7 +9,7 @@
  * @module capabilities/capability-store
  */
 
-import type { PGliteClient } from "../db/client.ts";
+import type { DbClient } from "../db/types.ts";
 import type { EmbeddingModel } from "../vector/embeddings.ts";
 import type { Row } from "../db/client.ts";
 import {
@@ -73,7 +73,7 @@ export class CapabilityStore {
   private traceStore?: ExecutionTraceStore;
 
   constructor(
-    private db: PGliteClient,
+    private db: DbClient,
     private embeddingModel: EmbeddingModel,
     private schemaInferrer?: SchemaInferrer,
     private permissionInferrer?: PermissionInferrer,
@@ -222,7 +222,7 @@ export class CapabilityStore {
         created_at,
         source
       ) VALUES (
-        $1, $2, $3, 1, $4, NOW(), $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), 'emergent'
+        $1, $2::jsonb, $3, 1, $4, NOW(), $5, $6, $7::jsonb, $8, $9, $10, $11::jsonb, $12, $13, NOW(), 'emergent'
       )
       ON CONFLICT (code_hash) WHERE code_hash IS NOT NULL DO UPDATE SET
         usage_count = workflow_pattern.usage_count + 1,
@@ -233,10 +233,10 @@ export class CapabilityStore {
         avg_duration_ms = (
           (workflow_pattern.avg_duration_ms * workflow_pattern.usage_count) + $10
         ) / (workflow_pattern.usage_count + 1),
-        parameters_schema = $11,
+        parameters_schema = $11::jsonb,
         permission_set = $12,
         permission_confidence = $13,
-        dag_structure = $2
+        dag_structure = $2::jsonb
       RETURNING *`,
       [
         patternHash,

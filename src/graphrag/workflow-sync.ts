@@ -8,7 +8,7 @@
  */
 
 import * as log from "@std/log";
-import type { PGliteClient } from "../db/client.ts";
+import type { DbClient } from "../db/types.ts";
 import { type WorkflowEdge, WorkflowLoader } from "./workflow-loader.ts";
 import { EmbeddingModel, schemaToText } from "../vector/embeddings.ts";
 
@@ -57,7 +57,7 @@ export class WorkflowSyncService {
   private loader: WorkflowLoader;
   private embeddingFactory: EmbeddingModelFactory;
 
-  constructor(private db: PGliteClient, embeddingFactory?: EmbeddingModelFactory) {
+  constructor(private db: DbClient, embeddingFactory?: EmbeddingModelFactory) {
     this.loader = new WorkflowLoader();
     this.embeddingFactory = embeddingFactory ?? defaultEmbeddingFactory;
   }
@@ -309,7 +309,7 @@ export class WorkflowSyncService {
           // Insert into tool_embedding
           await this.db.query(
             `INSERT INTO tool_embedding (tool_id, server_id, tool_name, embedding, metadata, created_at)
-             VALUES ($1, $2, $3, $4, $5, NOW())
+             VALUES ($1, $2, $3, $4, $5::jsonb, NOW())
              ON CONFLICT (tool_id) DO UPDATE
              SET embedding = EXCLUDED.embedding,
                  metadata = EXCLUDED.metadata,
@@ -329,7 +329,7 @@ export class WorkflowSyncService {
           // Track metric for getPeriodStats().newNodesAdded
           await this.db.query(
             `INSERT INTO metrics (metric_name, value, metadata, timestamp)
-             VALUES ('tool_embedded', 1, $1, NOW())`,
+             VALUES ('tool_embedded', 1, $1::jsonb, NOW())`,
             [JSON.stringify({ tool_id: toolId })],
           );
 

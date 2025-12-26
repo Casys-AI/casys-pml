@@ -9,7 +9,7 @@
  */
 
 import * as log from "@std/log";
-import type { PGliteClient } from "../db/client.ts";
+import type { DbClient } from "../db/types.ts";
 import type { VectorSearch } from "../vector/search.ts";
 import type { MCPTool } from "../mcp/types.ts";
 import { SchemaCache } from "./cache.ts";
@@ -60,7 +60,7 @@ export class ContextOptimizer {
    */
   constructor(
     private vectorSearch: VectorSearch,
-    private db: PGliteClient,
+    private db: DbClient,
     cacheSize: number = 50,
   ) {
     this.schemaCache = new SchemaCache(cacheSize);
@@ -211,7 +211,7 @@ export class ContextOptimizer {
       // Log to metrics table for historical tracking
       await this.db.query(
         `INSERT INTO metrics (metric_name, value, metadata, timestamp)
-         VALUES ($1, $2, $3, NOW())`,
+         VALUES ($1, $2, $3::jsonb, NOW())`,
         [
           "context_savings_pct",
           comparison.savingsPercent,

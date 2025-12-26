@@ -9,7 +9,7 @@
  * @module capabilities/execution-trace-store
  */
 
-import type { PGliteClient } from "../db/client.ts";
+import type { DbClient } from "../db/types.ts";
 import type { Row } from "../db/client.ts";
 import {
   DEFAULT_TRACE_PRIORITY,
@@ -60,7 +60,7 @@ export type SaveTraceInput = Omit<ExecutionTrace, "id">;
  * ```
  */
 export class ExecutionTraceStore {
-  constructor(private db: PGliteClient) {
+  constructor(private db: DbClient) {
     logger.debug("ExecutionTraceStore initialized");
   }
 
@@ -100,7 +100,7 @@ export class ExecutionTraceStore {
         capability_id, intent_text, intent_embedding, initial_context, success, duration_ms,
         error_message, user_id, created_by, executed_path, decisions,
         task_results, priority, parent_trace_id
-      ) VALUES ($1, $2, $3::vector, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      ) VALUES ($1, $2, $3::vector, $4::jsonb, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13, $14)
       RETURNING *`,
       [
         trace.capabilityId ?? null,

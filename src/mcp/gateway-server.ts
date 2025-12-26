@@ -22,7 +22,7 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import * as log from "@std/log";
-import type { PGliteClient } from "../db/client.ts";
+import type { DbClient } from "../db/types.ts";
 import type { VectorSearch } from "../vector/search.ts";
 import type { GraphRAGEngine } from "../graphrag/graph-engine.ts";
 import type { DAGSuggester } from "../graphrag/dag-suggester.ts";
@@ -125,7 +125,7 @@ export class PMLGatewayServer {
 
   constructor(
     // @ts-ignore: db kept for future use (direct queries)
-    private db: PGliteClient,
+    private db: DbClient,
     private vectorSearch: VectorSearch,
     private graphEngine: GraphRAGEngine,
     private dagSuggester: DAGSuggester,
