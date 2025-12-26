@@ -340,3 +340,26 @@ v3 (HYBRID)                          0.170     4.7%      7.0%
 
 **Event types added:**
 - `learning.online.trained` - emitted after each online training
+
+### 2025-12-26: Online Learning Fix - Fetch Trace from DB
+
+**Bug:** `OnlineLearningController` expected `intent_embedding` in event payload, but `execution.trace.saved` doesn't include it.
+
+**Fix:** Controller now fetches the trace from DB via `traceStore.getTraceById(trace_id)`:
+```typescript
+// Before (broken):
+const payload = event.payload as { trace_id, capability_id, success, intent_embedding };
+// intent_embedding was always undefined!
+
+// After (fixed):
+const trace = await this.traceStore.getTraceById(payload.trace_id);
+if (!trace?.intentEmbedding) return;
+// Now uses trace.intentEmbedding from DB
+```
+
+**API change:**
+```typescript
+// Constructor now requires traceStore
+new OnlineLearningController(shgat, traceStore, config)
+startOnlineLearning(shgat, traceStore, config)
+```
