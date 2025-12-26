@@ -80,7 +80,7 @@ export class TelemetryService {
       await this.db.query(
         `INSERT INTO metrics (metric_name, value, metadata, timestamp)
          VALUES ($1, $2, $3::jsonb, NOW())`,
-        [metricName, value, JSON.stringify(metadata || {})],
+        [metricName, value, metadata || {}], // postgres.js/pglite auto-serializes to JSONB
       );
 
       log.debug(`Tracked metric: ${metricName} = ${value}`, metadata);

@@ -33,6 +33,8 @@ import { getLogger } from "../telemetry/logger.ts";
 import type { SchemaInferrer } from "./schema-inferrer.ts";
 import type { PermissionInferrer } from "./permission-inferrer.ts";
 import type { StaticStructureBuilder } from "./static-structure-builder.ts";
+import type { CapabilityRegistry } from "./capability-registry.ts";
+import { transformCapabilityRefs } from "./code-transformer.ts";
 // Story 6.5: EventBus integration (ADR-036)
 import { eventBus } from "../events/mod.ts";
 // Story 10.7c: Thompson Sampling risk classification
@@ -71,6 +73,7 @@ const DEFAULT_CACHE_CONFIG: CacheConfig = {
  */
 export class CapabilityStore {
   private traceStore?: ExecutionTraceStore;
+  private capabilityRegistry?: CapabilityRegistry;
 
   constructor(
     private db: DbClient,
@@ -90,6 +93,15 @@ export class CapabilityStore {
   }
 
   /**
+   * Set the CapabilityRegistry for code transformation
+   * (Converts capability display_names to FQDNs when saving)
+   */
+  setCapabilityRegistry(registry: CapabilityRegistry): void {
+    this.capabilityRegistry = registry;
+    logger.debug("CapabilityRegistry set for code transformation");
+  }
+
+  /**
    * Save a capability after execution (eager learning)
    *
    * Uses UPSERT: INSERT ... ON CONFLICT to handle deduplication.
@@ -103,9 +115,29 @@ export class CapabilityStore {
     capability: Capability;
     trace?: ExecutionTrace;
   }> {
-    const { code, intent, durationMs, success = true, description, toolsUsed, toolInvocations, traceData } = input;
+    const { code: originalCode, intent, durationMs, success = true, description, toolsUsed, toolInvocations, traceData } = input;
 
-    // Generate code hash for deduplication
+    // Transform capability references: display_name → FQDN (makes code robust to renames)
+    let code = originalCode;
+    if (this.capabilityRegistry) {
+      try {
+        const transformResult = await transformCapabilityRefs(code, this.capabilityRegistry);
+        if (transformResult.replacedCount > 0) {
+          code = transformResult.code;
+          logger.info("Transformed capability refs to FQDNs", {
+            replacedCount: transformResult.replacedCount,
+            replacements: transformResult.replacements,
+          });
+        }
+      } catch (error) {
+        // Non-critical: continue with original code if transformation fails
+        logger.warn("Code transformation failed, using original", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    // Generate code hash for deduplication (after transformation)
     const codeHash = await hashCode(code);
 
     // Generate intent embedding for semantic search
@@ -240,16 +272,16 @@ export class CapabilityStore {
       RETURNING *`,
       [
         patternHash,
-        JSON.stringify(dagStructure),
+        dagStructure, // postgres.js auto-serializes objects to JSONB
         embeddingStr,
         success ? 1 : 0,
         code,
         codeHash,
-        JSON.stringify(DEFAULT_CACHE_CONFIG),
+        DEFAULT_CACHE_CONFIG, // postgres.js auto-serializes
         description || intent,
         success ? 1.0 : 0.0,
         durationMs,
-        parametersSchema ? JSON.stringify(parametersSchema) : null,
+        parametersSchema ?? null, // postgres.js auto-serializes
         permissionSet,
         permissionConfidence,
       ],
@@ -479,13 +511,16 @@ export class CapabilityStore {
     const embedding = await this.embeddingModel.encode(intent);
     const embeddingStr = `[${embedding.join(",")}]`;
 
+    // LEFT JOIN with capability_records to get FQDN (Story 13.2)
+    // cr.id is the FQDN in capability_records table
     const result = await this.db.query(
-      `SELECT *,
-        1 - (intent_embedding <=> $1::vector) as semantic_score
-      FROM workflow_pattern
-      WHERE code_hash IS NOT NULL
-        AND 1 - (intent_embedding <=> $1::vector) >= $2
-      ORDER BY intent_embedding <=> $1::vector
+      `SELECT wp.*, cr.id as fqdn,
+        1 - (wp.intent_embedding <=> $1::vector) as semantic_score
+      FROM workflow_pattern wp
+      LEFT JOIN capability_records cr ON cr.workflow_pattern_id = wp.pattern_id
+      WHERE wp.code_hash IS NOT NULL
+        AND 1 - (wp.intent_embedding <=> $1::vector) >= $2
+      ORDER BY wp.intent_embedding <=> $1::vector
       LIMIT $3`,
       [embeddingStr, minSemanticScore, limit],
     );
@@ -731,6 +766,8 @@ export class CapabilityStore {
 
     return {
       id: row.pattern_id as string,
+      // Story 13.2: FQDN from capability_records (via JOIN)
+      fqdn: (row.fqdn as string) || undefined,
       codeSnippet: (row.code_snippet as string) || "",
       codeHash: (row.code_hash as string) || "",
       intentEmbedding,

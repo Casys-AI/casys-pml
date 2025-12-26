@@ -319,10 +319,10 @@ export class WorkflowSyncService {
               schemaObj.server_id,
               schemaObj.name,
               `[${embedding.join(",")}]`,
-              JSON.stringify({
+              { // postgres.js/pglite auto-serializes to JSONB
                 source: "workflow_sync",
                 generated_at: new Date().toISOString(),
-              }),
+              },
             ],
           );
 
@@ -330,7 +330,7 @@ export class WorkflowSyncService {
           await this.db.query(
             `INSERT INTO metrics (metric_name, value, metadata, timestamp)
              VALUES ('tool_embedded', 1, $1::jsonb, NOW())`,
-            [JSON.stringify({ tool_id: toolId })],
+            [{ tool_id: toolId }], // postgres.js/pglite auto-serializes to JSONB
           );
 
           created++;

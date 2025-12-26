@@ -306,11 +306,11 @@ export async function persistWorkflowExecution(
       userId,
       userId,
       execution.capabilityId || null,
-      JSON.stringify(sanitizedDecisions),
-      JSON.stringify(sanitizedTaskResults),
+      sanitizedDecisions, // postgres.js auto-serializes to JSONB
+      sanitizedTaskResults, // postgres.js auto-serializes to JSONB
       execution.executedPath || [],
       execution.parentTraceId || null,
-      JSON.stringify({}), // initial_context (Epic 12)
+      {}, // initial_context - postgres.js auto-serializes
       DEFAULT_TRACE_PRIORITY,
     ]
   );

@@ -416,14 +416,14 @@ export async function generateEmbeddings(
                   schema.server_id,
                   schema.name,
                   `[${embedding.join(",")}]`,
-                  JSON.stringify({
+                  { // postgres.js auto-serializes to JSONB
                     description: schema.description,
                     schema: {
                       inputSchema: schema.input_schema,
                       outputSchema: schema.output_schema,
                     },
                     generated_at: new Date().toISOString(),
-                  }),
+                  },
                 ],
               );
 
@@ -431,7 +431,7 @@ export async function generateEmbeddings(
               await tx.query(
                 `INSERT INTO metrics (metric_name, value, metadata, timestamp)
                  VALUES ('tool_embedded', 1, $1::jsonb, NOW())`,
-                [JSON.stringify({ tool_id: schema.tool_id })],
+                [{ tool_id: schema.tool_id }], // postgres.js/pglite auto-serializes to JSONB
               );
 
               newlyGenerated++;
@@ -533,10 +533,10 @@ export async function generateEmbeddingForTool(
       schema.server_id,
       schema.name,
       `[${embedding.join(",")}]`,
-      JSON.stringify({
+      { // postgres.js/pglite auto-serializes to JSONB
         schema_hash: text.substring(0, 100),
         generated_at: new Date().toISOString(),
-      }),
+      },
     ],
   );
 

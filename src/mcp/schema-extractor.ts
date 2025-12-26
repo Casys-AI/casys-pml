@@ -232,8 +232,8 @@ export class SchemaExtractor {
             serverId,
             tool.name,
             tool.description,
-            JSON.stringify(tool.inputSchema),
-            tool.outputSchema ? JSON.stringify(tool.outputSchema) : null,
+            tool.inputSchema, // postgres.js/pglite auto-serializes to JSONB
+            tool.outputSchema ?? null, // postgres.js/pglite auto-serializes to JSONB
           ],
         );
       } catch (error) {

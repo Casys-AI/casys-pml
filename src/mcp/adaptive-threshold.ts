@@ -188,7 +188,7 @@ export class AdaptiveThresholdManager {
            updated_at = NOW()`,
         [
           contextHash,
-          JSON.stringify(contextKeys),
+          contextKeys, // postgres.js/pglite auto-serializes to JSONB
           thresholds.suggestionThreshold,
           thresholds.explicitThreshold,
           successRate,

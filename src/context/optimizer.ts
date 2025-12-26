@@ -215,12 +215,12 @@ export class ContextOptimizer {
         [
           "context_savings_pct",
           comparison.savingsPercent,
-          JSON.stringify({
+          { // postgres.js/pglite auto-serializes to JSONB
             before_count: comparison.before.schemaCount,
             after_count: comparison.after.schemaCount,
             before_usage: comparison.before.usagePercent,
             after_usage: comparison.after.usagePercent,
-          }),
+          },
         ],
       );
     } catch (error) {

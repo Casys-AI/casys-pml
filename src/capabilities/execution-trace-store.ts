@@ -106,15 +106,15 @@ export class ExecutionTraceStore {
         trace.capabilityId ?? null,
         trace.intentText ?? null,
         intentEmbeddingValue,
-        JSON.stringify(sanitizedContext),
+        sanitizedContext, // postgres.js auto-serializes to JSONB
         trace.success,
         trace.durationMs,
         trace.errorMessage ?? null,
         trace.userId ?? "local",
         trace.createdBy ?? "local",
         trace.executedPath ?? [],
-        JSON.stringify(trace.decisions),
-        JSON.stringify(sanitizedResults),
+        trace.decisions, // postgres.js auto-serializes to JSONB
+        sanitizedResults, // postgres.js auto-serializes to JSONB
         trace.priority ?? DEFAULT_TRACE_PRIORITY,
         trace.parentTraceId ?? null,
       ],

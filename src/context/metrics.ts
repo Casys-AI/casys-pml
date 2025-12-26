@@ -184,12 +184,12 @@ export async function logContextUsage(
       [
         "context_usage_pct",
         usage.usagePercent,
-        JSON.stringify({
+        { // postgres.js/pglite auto-serializes to JSONB
           schema_count: usage.schemaCount,
           estimated_tokens: usage.estimatedTokens,
           context_window: usage.contextWindowSize,
           ...metadata,
-        }),
+        },
       ],
     );
 
@@ -216,7 +216,7 @@ export async function logQueryLatency(
     await db.query(
       `INSERT INTO metrics (metric_name, value, metadata, timestamp)
        VALUES ($1, $2, $3::jsonb, NOW())`,
-      ["query_latency_ms", latencyMs, JSON.stringify(metadata || {})],
+      ["query_latency_ms", latencyMs, metadata || {}], // postgres.js/pglite auto-serializes to JSONB
     );
 
     log.debug(`Logged query latency: ${latencyMs.toFixed(2)}ms`);
@@ -241,7 +241,7 @@ export async function logCacheHitRate(
     await db.query(
       `INSERT INTO metrics (metric_name, value, metadata, timestamp)
        VALUES ($1, $2, $3::jsonb, NOW())`,
-      ["cache_hit_rate", hitRate * 100, JSON.stringify(metadata || {})],
+      ["cache_hit_rate", hitRate * 100, metadata || {}], // postgres.js/pglite auto-serializes to JSONB
     );
 
     log.debug(`Logged cache hit rate: ${(hitRate * 100).toFixed(2)}%`);
