@@ -1177,6 +1177,267 @@ Ces annotations seraient lues par le système pour enrichir le DAG inféré.
 > **Note :** Ces mitigations sont pour une phase future. La Phase 1-2 du plan actuel
 > couvre 80-90% des cas d'usage avec la reconstruction basique depuis traces.
 
+### 8.8 Modular Code Operations Tracing (IMPLÉMENTÉ - Phase 0/1)
+
+> **Status:** ✅ COMPLETE (2025-12-26)
+> **Commits:** c348a58, edf2d40, d878ed8, 438f01e, 0fb74b8
+
+#### Problème résolu
+
+Les opérations JavaScript modulaires (`code:filter`, `code:map`, etc.) n'apparaissaient **pas** dans les traces d'exécution, rendant impossible l'apprentissage SHGAT de ces patterns.
+
+**Avant :**
+```typescript
+executed_path = ["db:query"]  // ❌ Missing code operations
+```
+
+**Après :**
+```typescript
+executed_path = ["db:query", "code:filter", "code:map", "code:reduce"]  // ✅ Complete
+```
+
+#### Architecture (Option B)
+
+Le problème était que les tâches `code_execution` passaient par `DenoSandboxExecutor` sans tracing, alors que les tools MCP passaient par `WorkerBridge.callTool()` qui émet des traces.
+
+**Solution : Router les code tasks via WorkerBridge**
+
+```
+workflow-execution-handler
+  ↓ creates WorkerBridge
+  ↓ passes to ControlledExecutor
+ControlledExecutor.executeTask()
+  ↓ detects code_execution task
+  ↓ routes to WorkerBridge.executeCodeTask()
+WorkerBridge.executeCodeTask(tool, code, context)
+  ↓ emits tool_start("code:filter")
+  ↓ executes code in Worker sandbox
+  ↓ emits tool_end("code:filter", result, duration)
+Traces collected → executedPath
+  ↓
+SHGAT learns from complete traces ✅
+```
+
+#### Implémentation
+
+**1. WorkerBridge.executeCodeTask()** (`src/sandbox/worker-bridge.ts:454-543`)
+
+Nouvelle méthode qui exécute du code et émet des traces comme un pseudo-tool :
+
+```typescript
+async executeCodeTask(
+  toolName: string,      // "code:filter", "code:map", etc.
+  code: string,          // TypeScript code to execute
+  context?: Record<string, unknown>,
+  toolDefinitions: ToolDefinition[] = [],
+): Promise<ExecutionResult> {
+  const traceId = `code-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  const startTime = Date.now();
+
+  // Emit tool_start trace for pseudo-tool
+  this.traces.push({
+    type: "tool_start",
+    tool: toolName,  // "code:filter"
+    traceId,
+    ts: startTime,
+  });
+
+  // Execute in Worker sandbox (permissions: "none")
+  const result = await this.execute(code, toolDefinitions, context);
+
+  // Emit tool_end trace
+  this.traces.push({
+    type: "tool_end",
+    tool: toolName,
+    traceId,
+    ts: endTime,
+    success: result.success,
+    durationMs: endTime - startTime,
+    result: result.result,
+  });
+
+  return result;
+}
+```
+
+**2. ControlledExecutor routing** (`src/dag/controlled-executor.ts`)
+
+- **Field** (line 101): `private workerBridge: WorkerBridge | null = null`
+- **Setter** (lines 132-144): `setWorkerBridge(workerBridge)`
+- **Routing logic** (lines 726-728):
+
+```typescript
+if (taskType === "code_execution") {
+  // Phase 0: Use WorkerBridge for pseudo-tool tracing
+  if (this.workerBridge && task.tool) {
+    return await this.executeCodeTaskViaWorkerBridge(task, previousResults);
+  }
+
+  // Fallback: DenoSandboxExecutor (no tracing)
+  // ...
+}
+```
+
+**3. Integration** (`src/mcp/handlers/workflow-execution-handler.ts:398`)
+
+```typescript
+controlledExecutor.setDAGSuggester(deps.dagSuggester);
+controlledExecutor.setLearningDependencies(deps.capabilityStore, deps.graphEngine);
+// Phase 0: Set WorkerBridge for code execution task tracing
+controlledExecutor.setWorkerBridge(context.bridge);
+```
+
+#### Détection des opérations (SWC)
+
+**StaticStructureBuilder** détecte les opérations JavaScript et génère des pseudo-tools :
+
+```typescript
+// Detect array operation (e.g., users.filter(...))
+if (arrayOps.includes(methodName)) {
+  const nodeId = this.generateNodeId("task");
+
+  // Extract original code via SWC span
+  const span = n.span as { start: number; end: number } | undefined;
+  const code = span
+    ? this.originalCode.substring(span.start, span.end)
+    : undefined;
+
+  nodes.push({
+    id: nodeId,
+    type: "task",
+    tool: `code:${methodName}`,  // Pseudo-tool: "code:filter"
+    code,  // Original code: "users.filter(u => u.active)"
+  });
+}
+```
+
+**97 opérations pure** définies dans `src/capabilities/pure-operations.ts` :
+- Array: filter, map, reduce, flatMap, find, some, every, sort, slice...
+- String: split, replace, trim, toLowerCase, toUpperCase...
+- Object: keys, values, entries, assign...
+- Math: abs, max, min, round...
+
+#### Conversion DAG
+
+**StaticToDAGConverter** convertit les pseudo-tools en tâches `code_execution` :
+
+```typescript
+if (node.tool.startsWith("code:")) {
+  const operation = node.tool.replace("code:", "");
+  const code = node.code || generateOperationCode(operation);
+
+  return {
+    id: taskId,
+    tool: node.tool,           // Keep "code:filter" for tracing
+    type: "code_execution",
+    code,                      // Extracted code from SWC span
+    sandboxConfig: {
+      permissionSet: "minimal"  // Pure operations are safe
+    },
+    metadata: { pure: isPureOperation(node.tool) },
+    staticArguments: node.arguments,
+  };
+}
+```
+
+#### Bypass HIL pour opérations pures
+
+**workflow-execution-handler.ts** skip la validation HIL pour les opérations pures :
+
+```typescript
+if (taskType === "code_execution") {
+  // Pure operations NEVER require validation (Phase 1)
+  if (task.metadata?.pure === true || isPureOperation(task.tool)) {
+    log.debug(`Skipping validation for pure operation: ${task.tool}`);
+    continue;
+  }
+  // ...
+}
+```
+
+#### Impact sur l'apprentissage
+
+**executedPath complet :**
+```typescript
+// Avant Phase 0
+executed_path = ["db:query"]
+
+// Après Phase 0
+executed_path = ["db:query", "code:filter", "code:map", "code:reduce"]
+```
+
+**Graph construction :**
+```typescript
+// SHGAT voit maintenant TOUTES les opérations
+graph.addNode("db:query", { type: "tool" });
+graph.addNode("code:filter", { type: "tool" });
+graph.addNode("code:map", { type: "tool" });
+graph.addNode("code:reduce", { type: "tool" });
+
+// Edges séquentiels
+graph.addEdge("db:query", "code:filter", { type: "sequence", weight: 1.0 });
+graph.addEdge("code:filter", "code:map", { type: "sequence", weight: 1.0 });
+graph.addEdge("code:map", "code:reduce", { type: "sequence", weight: 1.0 });
+```
+
+**SHGAT K-head attention :**
+```typescript
+// Incidence matrix inclut maintenant les opérations code
+connectivity = [
+  //         cap_transform_data
+  db:query:      1
+  code:filter:   1  // ← SHGAT apprend
+  code:map:      1  // ← SHGAT apprend
+  code:reduce:   1  // ← SHGAT apprend
+];
+
+// K-head attention apprend des patterns
+Head 1: "db → filter" pattern
+Head 2: "filter+map branches" pattern
+Head 3: "map → reduce aggregation" pattern
+```
+
+**Feature extraction (TraceStats) :**
+```typescript
+// executedPath complet permet le calcul de stats
+const stats = await extractTraceFeatures(db, "code:filter", intent, context);
+// historicalSuccessRate: 0.85
+// cooccurrenceWithContext: 0.6
+// sequencePosition: 0.5
+```
+
+#### Fichiers modifiés
+
+| File | Changes | Lines |
+|------|---------|-------|
+| `src/capabilities/pure-operations.ts` | **NEW** - Registry of 97 pure operations | - |
+| `src/capabilities/static-structure-builder.ts` | Added span extraction for code operations | - |
+| `src/capabilities/types.ts` | Added `code?: string` field to `StaticStructureNode` | - |
+| `src/dag/static-to-dag-converter.ts` | Convert pseudo-tools to `code_execution` tasks | - |
+| `src/dag/execution/task-router.ts` | Add `isSafeToFail()` for pure operations | - |
+| `src/mcp/handlers/workflow-execution-handler.ts` | Bypass validation for pure ops, pass WorkerBridge | 398 |
+| `src/sandbox/worker-bridge.ts` | Add `executeCodeTask()` method for tracing | 454-543 |
+| `src/dag/controlled-executor.ts` | Route code tasks through WorkerBridge | 101, 132-144, 761-813 |
+
+#### Documentation
+
+- **Tech Spec (SHGAT):** `docs/sprint-artifacts/tech-spec-shgat-multihead-traces.md` (Section 13)
+- **Tech Spec (SWC):** `docs/tech-specs/swc-static-structure-detection.md` (Modular Code Operations)
+- **ADR-032:** Sandbox Worker RPC Bridge
+
+#### Bénéfices
+
+**Avant :**
+- ❌ Code operations invisible à SHGAT
+- ❌ Can't learn "query → filter → map → reduce" patterns
+- ❌ TraceStats incomplete
+
+**Après :**
+- ✅ All operations in graph (MCP + code)
+- ✅ K-head attention learns modular patterns
+- ✅ TraceStats computed for code operations
+- ✅ Feature extraction works on complete traces
+
 ---
 
 ## 9. Plan d'implémentation
