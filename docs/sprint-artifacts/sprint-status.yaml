@@ -217,7 +217,7 @@ development_status:
   11-1-result-tracing: done # Code Review APPROVED 2025-12-22: 9 tests passing, null handling bug fixed, parentTraceId types added
   11-2-execution-trace-table: done # 33 tests passing, decisions[] inference implemented via StaticStructureBuilder.inferDecisions()
   11-3-td-error-per-priority: done # Code Review APPROVED 2025-12-23: 17 tests (12 unit + 5 E2E), all issues resolved
-  11-4-definition-invocation-views: ready-for-dev # Story created 2025-12-23, toggle UI exists, needs API + wiring
+  11-4-definition-invocation-views: done # Story created 2025-12-23, toggle UI exists, needs API + wiring
   11-5-dry-run-mode: backlog
   11-6-shgat-training-per-sampling: done # Code Review APPROVED 2025-12-24: 19 tests passing, AC8/AC9/AC10 tests added
   epic-11-retrospective: optional
@@ -249,12 +249,12 @@ development_status:
   # Phase 1: Core MVP (~6 days)
   13-1-schema-fqdn-aliases: done # FQDN structure, metadata, aliases (merged 13.1+13.2+part 13.7) - Code Review APPROVED 2025-12-24, 66 tests
   13-2-pml-execute-naming-support: done # Name param + call by name (merged 13.3+13.4) - Code Review APPROVED 2024-12-24, 20 tests
-  13-3-capability-mcp-server-gateway: ready-for-dev # Story created 2025-12-24, Virtual MCP + Gateway + notifications
+  13-3-capability-mcp-server-gateway: done # Code Review APPROVED 2025-12-26, 31 unit + 3 E2E tests, all ACs validated
   # Phase 2: Curation & Query (~5 days)
-  13-4-capability-curation-system: backlog # LLM + heuristics, suggest/auto/apply (merged 13.8+13.10)
-  13-5-discovery-query-api: backlog # cap:list, cap:lookup, cap:query, cap:whois (merged 13.9+13.11)
+  13-4-capability-curation-system: skipped # Deferred - LLM auto-curation not needed now, cap:rename in 13.5
+  13-5-capability-management-tools: done # Code Review APPROVED 2025-12-26, 25 tests (21 + 4 review fixes), 10 ACs validated
   # Phase 3: Versioning (~2 days)
-  13-6-capability-versioning: backlog # capability_versions table, @v1 specifiers
+  13-6-capability-versioning: deferred # Requires cap:update + dry-mode first. Rename/description already in 13.5
   # Phase 4: Stdlib & Registry (~7 days)
   13-7-pml-stdlib-unification: backlog # lib/std/mcp/ - cap.ts + meta.ts (simplified, no dns/learn)
   13-8-mcp-server-registry: backlog # record_type=mcp-server, cap:lookup("mcp:*")
