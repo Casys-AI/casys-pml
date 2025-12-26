@@ -126,6 +126,12 @@ export class StaticStructureBuilder {
    */
   private variableToNodeId = new Map<string, string>();
 
+  /**
+   * Original source code for span extraction
+   * Used to extract code operations via SWC spans
+   */
+  private originalCode = "";
+
   constructor(private db: PGliteClient) {
     logger.debug("StaticStructureBuilder initialized");
   }
@@ -139,6 +145,9 @@ export class StaticStructureBuilder {
   async buildStaticStructure(code: string): Promise<StaticStructure> {
     // Reset counters for fresh analysis
     this.resetCounters();
+
+    // Store original code for span extraction
+    this.originalCode = code;
 
     try {
       // Wrap code in function if not already (for valid parsing)
@@ -281,6 +290,12 @@ export class StaticStructureBuilder {
       if (fullyHandled) return; // Promise.all etc. handle their own children
     }
 
+    // Check for binary operations (arithmetic, comparison, logical)
+    if (n.type === "BinaryExpression") {
+      this.handleBinaryExpression(n, nodes, position, parentScope);
+      return; // Handled, don't recurse normally
+    }
+
     // Check for if statements
     if (n.type === "IfStatement") {
       this.handleIfStatement(n, nodes, position, parentScope);
@@ -334,6 +349,92 @@ export class StaticStructureBuilder {
       if (chain[0] === "Promise" && (chain[1] === "all" || chain[1] === "allSettled")) {
         this.handlePromiseAll(n, nodes, position, parentScope);
         return true; // Fully handled, don't recurse
+      }
+
+      // Array operations (filter, map, reduce, etc.) - Phase 1
+      const arrayOps = [
+        "filter", "map", "reduce", "flatMap",
+        "find", "findIndex", "some", "every",
+        "sort", "reverse", "slice", "concat", "join",
+        "includes", "indexOf", "lastIndexOf",
+      ];
+
+      const methodName = chain[chain.length - 1];
+      if (arrayOps.includes(methodName)) {
+        const nodeId = this.generateNodeId("task");
+        nodes.push({
+          id: nodeId,
+          type: "task",
+          tool: `code:${methodName}`,
+          position,
+          parentScope,
+        });
+        logger.debug("Detected array operation", { operation: methodName, nodeId });
+        return false; // Continue recursing
+      }
+
+      // String operations
+      const stringOps = [
+        "split", "replace", "replaceAll", "trim", "trimStart", "trimEnd",
+        "toLowerCase", "toUpperCase", "substring", "substr", "match", "matchAll",
+      ];
+
+      if (stringOps.includes(methodName)) {
+        const nodeId = this.generateNodeId("task");
+        nodes.push({
+          id: nodeId,
+          type: "task",
+          tool: `code:${methodName}`,
+          position,
+          parentScope,
+        });
+        logger.debug("Detected string operation", { operation: methodName, nodeId });
+        return false;
+      }
+
+      // Object operations (Object.keys, Object.values, etc.)
+      if (chain[0] === "Object" && ["keys", "values", "entries", "fromEntries", "assign"].includes(chain[1])) {
+        const nodeId = this.generateNodeId("task");
+        const operation = chain[1];
+        nodes.push({
+          id: nodeId,
+          type: "task",
+          tool: `code:Object.${operation}`,
+          position,
+          parentScope,
+        });
+        logger.debug("Detected Object operation", { operation, nodeId });
+        return false;
+      }
+
+      // Math operations
+      if (chain[0] === "Math" && ["max", "min", "abs", "floor", "ceil", "round"].includes(chain[1])) {
+        const nodeId = this.generateNodeId("task");
+        const operation = chain[1];
+        nodes.push({
+          id: nodeId,
+          type: "task",
+          tool: `code:Math.${operation}`,
+          position,
+          parentScope,
+        });
+        logger.debug("Detected Math operation", { operation, nodeId });
+        return false;
+      }
+
+      // JSON operations
+      if (chain[0] === "JSON" && ["parse", "stringify"].includes(chain[1])) {
+        const nodeId = this.generateNodeId("task");
+        const operation = chain[1];
+        nodes.push({
+          id: nodeId,
+          type: "task",
+          tool: `code:JSON.${operation}`,
+          position,
+          parentScope,
+        });
+        logger.debug("Detected JSON operation", { operation, nodeId });
+        return false;
       }
 
       // mcp.server.tool pattern
@@ -711,6 +812,84 @@ export class StaticStructureBuilder {
     if (alternate) {
       this.findNodes(alternate, nodes, position + 100, `${decisionId}:false`);
     }
+  }
+
+  /**
+   * Handle binary expressions (arithmetic, comparison, logical operators)
+   *
+   * Creates pseudo-tool tasks for operators to enable complete SHGAT learning.
+   * Example: a + b becomes a task with tool: "code:add"
+   */
+  private handleBinaryExpression(
+    n: Record<string, unknown>,
+    nodes: InternalNode[],
+    position: number,
+    parentScope?: string,
+  ): void {
+    const operator = n.operator as string;
+
+    // Map operators to operation names
+    const operatorMap: Record<string, string> = {
+      // Arithmetic
+      "+": "add",
+      "-": "subtract",
+      "*": "multiply",
+      "/": "divide",
+      "%": "modulo",
+      "**": "power",
+      // Comparison
+      "==": "equal",
+      "===": "strictEqual",
+      "!=": "notEqual",
+      "!==": "strictNotEqual",
+      "<": "lessThan",
+      "<=": "lessThanOrEqual",
+      ">": "greaterThan",
+      ">=": "greaterThanOrEqual",
+      // Logical
+      "&&": "and",
+      "||": "or",
+      // Bitwise
+      "&": "bitwiseAnd",
+      "|": "bitwiseOr",
+      "^": "bitwiseXor",
+      "<<": "leftShift",
+      ">>": "rightShift",
+      ">>>": "unsignedRightShift",
+    };
+
+    const operation = operatorMap[operator];
+    if (!operation) {
+      // Unknown operator, skip but recurse into children
+      const left = n.left as Record<string, unknown> | undefined;
+      const right = n.right as Record<string, unknown> | undefined;
+      if (left) this.findNodes(left, nodes, position, parentScope);
+      if (right) this.findNodes(right, nodes, position + 1, parentScope);
+      return;
+    }
+
+    // Process left and right operands first (to capture their nodes)
+    const left = n.left as Record<string, unknown> | undefined;
+    const right = n.right as Record<string, unknown> | undefined;
+
+    if (left) {
+      this.findNodes(left, nodes, position, parentScope);
+    }
+    if (right) {
+      this.findNodes(right, nodes, position + 1, parentScope);
+    }
+
+    // Create a task for the operator
+    const nodeId = this.generateNodeId("task");
+    nodes.push({
+      id: nodeId,
+      type: "task",
+      tool: `code:${operation}`,
+      position: position + 2,
+      parentScope,
+    });
+
+    logger.debug("Detected binary operation", { operation, operator, nodeId });
   }
 
   /**

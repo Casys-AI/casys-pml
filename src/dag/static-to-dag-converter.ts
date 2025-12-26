@@ -18,6 +18,7 @@ import type {
 } from "../capabilities/types.ts";
 import type { Task } from "../graphrag/types.ts";
 import { getLogger } from "../telemetry/logger.ts";
+import { isPureOperation } from "../capabilities/pure-operations.ts";
 
 const logger = getLogger("default");
 
@@ -236,6 +237,27 @@ function nodeToTask(
 
   switch (node.type) {
     case "task":
+      // Check if this is a pseudo-tool (code operation)
+      if (node.tool.startsWith("code:")) {
+        const operation = node.tool.replace("code:", "");
+        const code = generateOperationCode(operation);
+
+        return {
+          id: taskId,
+          tool: node.tool, // Keep the pseudo-tool ID for tracing
+          arguments: {}, // Will be resolved at runtime
+          dependsOn: [],
+          type: "code_execution",
+          code,
+          sandboxConfig: {
+            permissionSet: "minimal", // Pure operations have minimal permissions
+          },
+          metadata: { pure: isPureOperation(node.tool) },
+          staticArguments: node.arguments,
+        };
+      }
+
+      // Regular MCP tool
       return {
         id: taskId,
         tool: node.tool,
@@ -283,6 +305,108 @@ function nodeToTask(
       logger.warn("Unknown node type in static structure", { node });
       return null;
   }
+}
+
+/**
+ * Generate executable code for a code operation (filter, map, reduce, etc.)
+ *
+ * Takes an operation name and generates placeholder JavaScript code.
+ * This is a simplified Phase 1 implementation - actual code execution
+ * will need proper dependency resolution.
+ *
+ * @param operation The operation name (e.g., "filter", "map", "add")
+ * @returns JavaScript code string for execution
+ */
+function generateOperationCode(operation: string): string {
+  // Array operations with callbacks
+  if (["filter", "map", "reduce", "flatMap", "find", "findIndex", "some", "every"].includes(operation)) {
+    if (operation === "reduce") {
+      return `// Auto-generated placeholder for ${operation}
+const input = Object.values(deps)[0]?.output;
+// TODO: Extract actual callback from source
+return input.${operation}((acc, item) => acc + item, 0);`;
+    }
+    return `// Auto-generated placeholder for ${operation}
+const input = Object.values(deps)[0]?.output;
+// TODO: Extract actual callback from source
+return input.${operation}(item => item);`;
+  }
+
+  // Array operations without callbacks
+  if (["sort", "reverse", "slice", "concat", "join", "includes", "indexOf", "lastIndexOf"].includes(operation)) {
+    return `// Auto-generated placeholder for ${operation}
+const input = Object.values(deps)[0]?.output;
+return input.${operation}();`;
+  }
+
+  // String operations
+  if (["split", "replace", "replaceAll", "trim", "trimStart", "trimEnd", "toLowerCase", "toUpperCase", "substring", "substr", "match", "matchAll"].includes(operation)) {
+    return `// Auto-generated placeholder for ${operation}
+const input = Object.values(deps)[0]?.output;
+return input.${operation}();`;
+  }
+
+  // Object operations
+  if (operation.startsWith("Object.")) {
+    const method = operation.replace("Object.", "");
+    return `// Auto-generated for ${operation}
+const input = Object.values(deps)[0]?.output;
+return Object.${method}(input);`;
+  }
+
+  // Math operations
+  if (operation.startsWith("Math.")) {
+    const method = operation.replace("Math.", "");
+    return `// Auto-generated for ${operation}
+const input = Object.values(deps)[0]?.output;
+return Math.${method}(...input);`;
+  }
+
+  // JSON operations
+  if (operation.startsWith("JSON.")) {
+    const method = operation.replace("JSON.", "");
+    if (method === "stringify") {
+      return `// Auto-generated for ${operation}
+const input = Object.values(deps)[0]?.output;
+return JSON.stringify(input, null, 2);`;
+    }
+    return `// Auto-generated for ${operation}
+const input = Object.values(deps)[0]?.output;
+return JSON.${method}(input);`;
+  }
+
+  // Binary operators
+  const binaryOps = [
+    "add", "subtract", "multiply", "divide", "modulo", "power",
+    "equal", "strictEqual", "notEqual", "strictNotEqual",
+    "lessThan", "lessThanOrEqual", "greaterThan", "greaterThanOrEqual",
+    "and", "or",
+    "bitwiseAnd", "bitwiseOr", "bitwiseXor", "leftShift", "rightShift", "unsignedRightShift",
+  ];
+
+  if (binaryOps.includes(operation)) {
+    const operatorMap: Record<string, string> = {
+      add: "+", subtract: "-", multiply: "*", divide: "/", modulo: "%", power: "**",
+      equal: "==", strictEqual: "===", notEqual: "!=", strictNotEqual: "!==",
+      lessThan: "<", lessThanOrEqual: "<=", greaterThan: ">", greaterThanOrEqual: ">=",
+      and: "&&", or: "||",
+      bitwiseAnd: "&", bitwiseOr: "|", bitwiseXor: "^",
+      leftShift: "<<", rightShift: ">>", unsignedRightShift: ">>>",
+    };
+
+    const operator = operatorMap[operation] || "+";
+    return `// Auto-generated for ${operation} (${operator})
+const deps_array = Object.values(deps);
+const left = deps_array[0]?.output;
+const right = deps_array[1]?.output;
+return left ${operator} right;`;
+  }
+
+  // Fallback for unknown operations
+  logger.warn("Unknown code operation, generating fallback", { operation });
+  return `// Fallback for unknown operation: ${operation}
+const input = Object.values(deps)[0]?.output;
+return input;`;
 }
 
 /**
