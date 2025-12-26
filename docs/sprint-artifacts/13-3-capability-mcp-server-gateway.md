@@ -1,6 +1,6 @@
 # Story 13.3: CapabilityMCPServer + Gateway
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -396,10 +396,68 @@ Claude: tools/call mcp__code__analyze {file: "x.ts"}
 ## Dev Agent Record
 
 ### Agent Model Used
+Claude Opus 4.5
 
 ### Debug Log References
+N/A
 
 ### Completion Notes List
 
+**2025-12-26: Core Implementation Complete (Tasks 1-5)**
+
+Implementation following the Feature Module Pattern:
+
+1. **Task 1: Module Structure** ✅
+   - Created `src/mcp/capability-server/` with interfaces.ts, mod.ts
+   - `parseToolName()` and `toMCPToolName()` utilities
+   - 9 tests passing
+
+2. **Task 2: CapabilityListerService** ✅
+   - Implements `CapabilityLister` interface
+   - Uses `CapabilityStore.listWithSchemas()` (new method added)
+   - Maps capabilities to MCP tool format: `mcp__<namespace>__<action>`
+   - 7 tests passing
+
+3. **Task 3: CapabilityExecutorService** ✅
+   - Implements `CapabilityExecutor` interface
+   - Resolves capability via `CapabilityRegistry.resolveByName()`
+   - Gets code from `CapabilityStore.findById()`
+   - Executes via `WorkerBridge`
+   - 7 tests passing
+
+4. **Task 4: CapabilityMCPServer** ✅
+   - Orchestrates listing and execution
+   - `handleListTools()` - returns capability tools
+   - `handleCallTool()` - executes and records usage
+   - `isCapabilityTool()` - routing helper
+   - 8 tests passing
+
+5. **Task 5: Gateway Integration** ✅
+   - Added `CapabilityMCPServer` to `PMLGatewayServer`
+   - Added routing for `mcp__` prefix in `routeToolCall()`
+   - Initialized with `WorkerBridge` for sandbox execution
+
+**Total: 31 unit tests + 2 e2e tests passing**
+
+**2025-12-26: E2E Integration Tests Added**
+- Created `tests/integration/capability_server_e2e_test.ts`
+- Test 1: Full integration - capability found, resolved, executed via WorkerBridge
+- Test 2: Unknown capability - returns proper "not found" error
+- Both tests validate complete flow: Gateway → CapabilityMCPServer → WorkerBridge
+
 ### File List
+- `src/mcp/capability-server/interfaces.ts` - Interfaces and utilities
+- `src/mcp/capability-server/mod.ts` - Module exports
+- `src/mcp/capability-server/server.ts` - CapabilityMCPServer class
+- `src/mcp/capability-server/services/capability-lister.ts` - Lister service
+- `src/mcp/capability-server/services/capability-executor.ts` - Executor service
+- `src/capabilities/types.ts` - Added CapabilityWithSchema, ListWithSchemasOptions
+- `src/capabilities/capability-store.ts` - Added listWithSchemas() method
+- `src/mcp/gateway-server.ts` - Integration with Gateway
+- `src/mcp/handlers/execute-handler.ts` - Added capabilityRegistry dependency for naming support
+- `tests/unit/mcp/capability-server/interfaces_test.ts` - 9 tests
+- `tests/unit/mcp/capability-server/capability-lister_test.ts` - 7 tests
+- `tests/unit/mcp/capability-server/capability-executor_test.ts` - 7 tests
+- `tests/unit/mcp/capability-server/server_test.ts` - 8 tests
+- `tests/integration/capability_server_e2e_test.ts` - 2 e2e tests
 
