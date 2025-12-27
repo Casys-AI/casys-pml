@@ -285,6 +285,125 @@ Deno.test("isSafeToFail returns true for pure operations", () => {
 
 ---
 
+## Phase 1 Implementation Status
+
+**Status:** ✅ **IMPLEMENTED** (2025-12-26)
+**Commits:** `c348a58`, `edf2d40`, `d878ed8`, `438f01e`, `0fb74b8`, `ae0b4b8`
+
+### What Was Implemented
+
+| Component | Location | Status |
+|-----------|----------|--------|
+| SWC operation detection | `src/capabilities/static-structure-builder.ts` | ✅ Complete |
+| Pure operations registry | `src/capabilities/pure-operations.ts` | ✅ Complete (97 ops) |
+| Pseudo-tools generation | `src/dag/static-to-dag-converter.ts` | ✅ Complete |
+| WorkerBridge routing | `src/sandbox/worker-bridge.ts` | ✅ Complete |
+| Variable bindings | `src/capabilities/static-structure-builder.ts:588-594` | ⚠️ Partial |
+| Deterministic error handling | `src/dag/execution/code-executor.ts:33-45` | ✅ Complete |
+
+### Implementation Approach
+
+Phase 1 implementation **diverged from original design**:
+
+**Original Design (Decision 1):**
+```
+Execute original code as-is, trace only operation names
+```
+
+**Actual Implementation:**
+```
+Split code into separate tasks (Phase 2 behavior)
++ Variable bindings to propagate context
+```
+
+**Why the divergence?** To enable SHGAT to see atomic operations as separate DAG nodes.
+
+### Critical Limitation Discovered
+
+**Variable Bindings are Incomplete** (`static-structure-builder.ts:588-594`):
+
+```typescript
+// Only tracks variables IF a task node was created
+const nodeCountAfter = this.nodeCounters.task;
+if (variableName && nodeCountAfter > nodeCountBefore) {
+  this.variableToNodeId.set(variableName, nodeId);
+}
+```
+
+**Works for:** MCP results
+```typescript
+const users = await mcp.db.query(...);  // ✅ Creates task node → tracked
+const active = users.filter(u => u.active);  // ✅ users binding works
+```
+
+**Fails for:** Literals
+```typescript
+const numbers = [1, 2, 3];  // ❌ No task node → NOT tracked
+const doubled = numbers.map(x => x * 2);  // ❌ ReferenceError: numbers is not defined
+```
+
+**Root Cause:** Literals don't create task nodes, so `nodeCountAfter === nodeCountBefore` → no binding created.
+
+### Why Phase 2 DAG Optimizer Solves This
+
+The DAG Optimizer (see `two-level-dag-architecture.md`) **fuses code blocks**, eliminating the variable binding problem:
+
+**DAG Logique (detects operations):**
+```typescript
+task_lit1: "const numbers = [1, 2, 3]"
+task_c1: "code:map"
+```
+
+**DAG Physique (after fusion):**
+```typescript
+task_fused_1: {
+  code: `
+    const numbers = [1, 2, 3];           // ← Literal included in fused code
+    const doubled = numbers.map(x => x * 2);  // ← numbers exists!
+    return doubled;
+  `
+}
+```
+
+**Result:**
+- ✅ SHGAT sees atomic operations in `executedPath: ["code:literal", "code:map"]`
+- ✅ Execution works (no variable scope issues)
+- ✅ Performance optimized (fewer layers)
+
+### Variable Bindings After Fusion
+
+**variableBindings doesn't become obsolete** - it changes role:
+
+**Before Fusion (current):**
+```typescript
+// Inject variables directly into execution context
+executionContext[varName] = previousResults.get(taskId).output;
+```
+
+**After Fusion:**
+```typescript
+// Used by DAG Optimizer to generate fused code
+const code = `
+  const active = deps.task_n1.output.filter(...);  // ← Generated from variableBindings
+`;
+```
+
+**Still needed for:** MCP results that can't be fused (side effects).
+
+### Next Steps
+
+**Recommendation:** Implement Phase 2 DAG Optimizer rather than extend variable tracking.
+
+**Rationale:**
+1. ✅ Solves variable binding limitation for literals
+2. ✅ Enables SHGAT atomic operation learning
+3. ✅ Performance optimization (fusion)
+4. ✅ Design already documented (`two-level-dag-architecture.md`)
+
+**Estimated Effort:** 2-3 days (fusion logic + trace generation)
+
+---
+
 ## Acceptance Criteria
 
 ### Phase 1
