@@ -461,3 +461,14 @@ export function getOperationsByCategory(
 ): OperationDescription[] {
   return OPERATION_DESCRIPTIONS.filter((op) => op.category === category);
 }
+
+/**
+ * Get category for a code operation
+ *
+ * @param toolId Tool identifier (e.g., "code:filter")
+ * @returns Category (e.g., "array"), or undefined if not found
+ */
+export function getOperationCategory(toolId: string): OperationDescription["category"] | undefined {
+  const op = getOperationDescription(toolId);
+  return op?.category;
+}

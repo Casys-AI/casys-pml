@@ -37,14 +37,70 @@ All operations are now **uniformly represented** as nodes with embeddings:
 ```
 Intent (embedding)
    ↓ (sequence edge, weight)
-code:filter (embedding ✅)
+code:filter (type="operation", embedding ✅)
    ↓ (sequence edge, weight)
-code:map (embedding ✅)
+code:map (type="operation", embedding ✅)
    ↓ (sequence edge, weight)
-github:create_issue (embedding ✅)
+github:create_issue (type="tool", embedding ✅)
    ↓
 Result
 ```
+
+### Node Type Distinction (Phase 2a)
+
+**Operations** and **Tools** are now distinct node types in the graph:
+
+#### Operation Nodes (`type="operation"`)
+
+Pure JavaScript operations with **no side effects**:
+
+```typescript
+{
+  type: "operation",
+  name: "filter",
+  serverId: "code",
+  category: "array",        // Semantic category
+  pure: true,              // No side effects
+  metadata: {
+    description: "Filter array elements...",
+    source: "pure_operations"
+  }
+}
+```
+
+**Categories**: `array`, `string`, `object`, `math`, `json`, `binary`, `logical`, `bitwise`
+
+**Examples**: `code:filter`, `code:map`, `code:reduce`, `code:split`, `code:JSON.parse`
+
+#### Tool Nodes (`type="tool"`)
+
+External MCP tools with **potential side effects**:
+
+```typescript
+{
+  type: "tool",
+  name: "create_issue",
+  serverId: "github",      // External server
+  metadata: {
+    schema: {...},
+    permissions: ["network"]
+  }
+}
+```
+
+**Examples**: `github:create_issue`, `filesystem:read`, `db:query`
+
+#### Benefits of Separation
+
+1. **Semantic Clarity**: Clear distinction between pure code vs external I/O
+2. **Filterable Queries**:
+   ```typescript
+   graph.getNodesByType("operation")  // Only pure operations
+   graph.getNodesByType("tool")       // Only MCP tools
+   graph.getNodesByCategory("array")  // Only array operations
+   ```
+3. **SHGAT Learning**: Different patterns for pure chains vs I/O chains
+4. **Future Optimization**: Operations can be fused, tools cannot
 
 ### Embedding Generation
 
@@ -115,9 +171,13 @@ SHGAT reasoning:
 
 | File | Purpose |
 |------|---------|
-| `src/capabilities/operation-descriptions.ts` | Semantic descriptions (62 operations) |
+| `src/capabilities/operation-descriptions.ts` | Semantic descriptions (62 operations) + `getOperationCategory()` helper |
 | `scripts/seed-operation-embeddings.ts` | Generate and insert embeddings |
 | `src/capabilities/pure-operations.ts` | List of pure operations |
+| `src/graphrag/types.ts` | TypeScript types for `OperationNode` vs `ToolNode` |
+| `src/graphrag/dag/execution-learning.ts` | Creates nodes with `type="operation"` for code operations |
+| `src/graphrag/sync/db-sync.ts` | Loads nodes from DB with correct type distinction |
+| `tests/unit/graphrag/execution-learning.test.ts` | Unit tests for operation vs tool distinction |
 
 ### Semantic Descriptions
 
@@ -157,6 +217,58 @@ deno run --allow-all scripts/seed-operation-embeddings.ts
   📈 Total code operations in DB: 62
 ✅ Operation embeddings seeded successfully!
 ```
+
+### Node Type Implementation
+
+**Phase 2a**: All graph nodes are now created with `type="operation"` for code operations:
+
+#### Execution Learning (`execution-learning.ts`)
+
+When learning from task execution:
+
+```typescript
+// Detect if tool is a code operation
+const isOperation = isCodeOperation(task.tool);
+const nodeType = isOperation ? "operation" : "tool";
+
+const attributes: Record<string, unknown> = {
+  type: nodeType,
+  name: task.tool,
+};
+
+// Add operation-specific attributes
+if (isOperation) {
+  const category = getOperationCategory(task.tool);
+  attributes.serverId = "code";
+  attributes.category = category || "unknown";
+  attributes.pure = isPureOperation(task.tool);
+}
+
+graph.addNode(task.tool, attributes);
+```
+
+#### Database Sync (`db-sync.ts`)
+
+When loading from `tool_embedding` table:
+
+```typescript
+// Apply same logic when loading from DB
+for (const tool of tools) {
+  const toolId = tool.tool_id as string;
+  const isOperation = isCodeOperation(toolId);
+
+  const attributes = {
+    type: isOperation ? "operation" : "tool",
+    name: tool.tool_name,
+    serverId: tool.server_id,
+    // ... operation-specific attributes if isOperation
+  };
+
+  graph.addNode(toolId, attributes);
+}
+```
+
+**Result**: All code operations (`code:*`) are consistently represented as `type="operation"` throughout the system.
 
 ---
 
