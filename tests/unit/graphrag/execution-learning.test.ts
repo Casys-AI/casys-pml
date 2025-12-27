@@ -190,11 +190,17 @@ Deno.test("learnSequenceEdgesFromTasks - assigns correct categories to operation
 
 Deno.test("learnSequenceEdgesFromTasks - operation node has all required attributes", async () => {
   const graph = new MockGraph();
+  // Need at least 2 tasks for learnSequenceEdgesFromTasks to create nodes
   const tasks: TaskResultWithLayer[] = [
     {
       taskId: "task1",
       tool: "code:reduce",
       layerIndex: 0,
+    },
+    {
+      taskId: "task2",
+      tool: "code:map",
+      layerIndex: 1,
     },
   ];
 

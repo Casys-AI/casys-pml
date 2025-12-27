@@ -468,9 +468,9 @@ async function executeDirectMode(
         const physicalResultsMap = new Map(
           physicalResults.results.map((r) => [r.taskId, {
             taskId: r.taskId,
+            status: r.status,
             output: r.output,
-            success: r.status === "success",
-            durationMs: r.executionTimeMs ?? 0,
+            executionTimeMs: r.executionTimeMs ?? 0,
           }])
         );
 
@@ -495,7 +495,7 @@ async function executeDirectMode(
           let logicalOps: LogicalOperation[] | undefined;
           if (fused) {
             // Extract logical operations for fused task
-            const estimatedDuration = (physicalResult.executionTime || 0) / logicalTaskIds.length;
+            const estimatedDuration = (physicalResult.executionTimeMs || 0) / logicalTaskIds.length;
             logicalOps = logicalTaskIds.map(logicalId => {
               const logicalTask = optimizedDAG.logicalDAG.tasks.find(t => t.id === logicalId);
               return {
@@ -511,7 +511,7 @@ async function executeDirectMode(
             args: {} as Record<string, JsonValue>,
             result: physicalResult.output as JsonValue ?? null,
             success: physicalResult.status === "success",
-            durationMs: physicalResult.executionTime || 0,
+            durationMs: physicalResult.executionTimeMs || 0,
             layerIndex: physicalResult.layerIndex,
             // Phase 2a: Fusion metadata
             isFused: fused,
@@ -530,6 +530,20 @@ async function executeDirectMode(
               executionTimeMs,
             },
           );
+        }
+
+        // Count failed_safe tasks (these are NOT counted in failedTasks but still represent failures)
+        // Pure code operations like code:filter are safe-to-fail but should NOT save as success
+        const failedSafeTasks = physicalResults.results.filter(
+          (r) => r.status === "failed_safe"
+        ).length;
+        const hasAnyFailure = physicalResults.failedTasks > 0 || failedSafeTasks > 0;
+
+        if (failedSafeTasks > 0) {
+          log.info("[pml:execute] Code tasks failed (safe-to-fail), capability will be saved with success=false", {
+            failedSafeTasks,
+            failedTasks: physicalResults.failedTasks,
+          });
         }
 
         // Create capability with trace data
@@ -555,7 +569,7 @@ async function executeDirectMode(
           code,
           intent,
           durationMs: Math.round(executionTimeMs),
-          success: physicalResults.failedTasks === 0,
+          success: !hasAnyFailure,
           toolsUsed: toolsCalled,
           traceData: {
             executedPath: toolsCalled,
@@ -863,9 +877,9 @@ async function executeByNameMode(
         const physicalResultsMap = new Map(
           physicalResults.results.map((r) => [r.taskId, {
             taskId: r.taskId,
+            status: r.status,
             output: r.output,
-            success: r.status === "success",
-            durationMs: r.executionTimeMs ?? 0,
+            executionTimeMs: r.executionTimeMs ?? 0,
           }])
         );
 

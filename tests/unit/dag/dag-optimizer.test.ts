@@ -26,7 +26,8 @@ Deno.test("canFuseTasks - returns true for fusible tasks", () => {
       code: "data.filter(x => x.active)",
       arguments: {},
       dependsOn: [],
-      sandboxConfig: { permissionSet: "minimal" }
+      sandboxConfig: { permissionSet: "minimal" },
+      metadata: { pure: true }
     },
     {
       id: "task_c2",
@@ -35,7 +36,8 @@ Deno.test("canFuseTasks - returns true for fusible tasks", () => {
       code: "data.map(x => x.name)",
       arguments: {},
       dependsOn: ["task_c1"],
-      sandboxConfig: { permissionSet: "minimal" }
+      sandboxConfig: { permissionSet: "minimal" },
+      metadata: { pure: true }
     }
   ];
 
@@ -201,7 +203,8 @@ Deno.test("optimizeDAG - fuses sequential code tasks", () => {
         code: "data.filter(x => x.active)",
         arguments: {},
         dependsOn: ["task_n1"],
-        sandboxConfig: { permissionSet: "minimal" }
+        sandboxConfig: { permissionSet: "minimal" },
+        metadata: { pure: true }
       },
       {
         id: "task_c2",
@@ -210,7 +213,8 @@ Deno.test("optimizeDAG - fuses sequential code tasks", () => {
         code: "data.map(x => x.name)",
         arguments: {},
         dependsOn: ["task_c1"],
-        sandboxConfig: { permissionSet: "minimal" }
+        sandboxConfig: { permissionSet: "minimal" },
+        metadata: { pure: true }
       },
       {
         id: "task_c3",
@@ -219,7 +223,8 @@ Deno.test("optimizeDAG - fuses sequential code tasks", () => {
         code: "data.sort()",
         arguments: {},
         dependsOn: ["task_c2"],
-        sandboxConfig: { permissionSet: "minimal" }
+        sandboxConfig: { permissionSet: "minimal" },
+        metadata: { pure: true }
       }
     ]
   };
@@ -355,7 +360,8 @@ Deno.test("optimizeDAG - respects maxFusionSize", () => {
       code: `data.map(x => x.field${i})`,
       arguments: {},
       dependsOn: i === 0 ? [] : [`task_c${i}`],
-      sandboxConfig: { permissionSet: "minimal" as const }
+      sandboxConfig: { permissionSet: "minimal" as const },
+      metadata: { pure: true }
     }))
   };
 

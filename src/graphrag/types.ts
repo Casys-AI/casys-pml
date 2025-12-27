@@ -106,6 +106,10 @@ export interface Task {
   metadata?: {
     /** Whether this task is a pure operation (safe to retry, no side effects) */
     pure?: boolean;
+    /** IDs of logical tasks that were fused into this physical task (Phase 2a) */
+    fusedFrom?: string[];
+    /** Logical tool names that were fused into this task (Phase 2a) */
+    logicalTools?: string[];
   };
 }
 

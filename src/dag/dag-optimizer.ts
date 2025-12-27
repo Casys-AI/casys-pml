@@ -235,29 +235,32 @@ function findSequentialChain(
  */
 export function canFuseTasks(tasks: Task[]): boolean {
   if (tasks.length === 0) return false;
-  if (tasks.length === 1) return true; // Single task is trivially fusible
 
   // Rule 1: All must be code_execution
   if (!tasks.every(t => t.type === "code_execution")) {
     return false;
   }
 
-  // Rule 2: All must be pure operations (Phase 2a: checked via metadata)
-  if (!tasks.every(t => t.metadata?.pure === true)) {
-    return false;
-  }
-
-  // Rule 3: Same permission set
-  const permSets = tasks.map(t => t.sandboxConfig?.permissionSet ?? "minimal");
-  if (new Set(permSets).size > 1) {
-    return false;
-  }
-
-  // Rule 4: No MCP calls in code
+  // Rule 2: No MCP calls in code (side effects)
   for (const task of tasks) {
     if (task.code?.includes("mcp.")) {
       return false;
     }
+  }
+
+  // Single task passes basic checks - can be part of a fusion
+  if (tasks.length === 1) return true;
+
+  // Rule 3: All must be pure operations (Phase 2a: checked via metadata)
+  // For multi-task fusion, we require explicit pure marking
+  if (!tasks.every(t => t.metadata?.pure === true)) {
+    return false;
+  }
+
+  // Rule 4: Same permission set
+  const permSets = tasks.map(t => t.sandboxConfig?.permissionSet ?? "minimal");
+  if (new Set(permSets).size > 1) {
+    return false;
   }
 
   return true;

@@ -124,17 +124,19 @@ export function generateLogicalTrace(
 
       // Create logical task result
       // Duration is divided equally among fused tasks (approximation)
-      const logicalDuration = (physicalResult.durationMs || 0) / totalLogicalTasks;
+      const logicalDuration = (physicalResult.executionTimeMs || 0) / totalLogicalTasks;
+      const isSuccess = physicalResult.status === "success";
 
       taskResults.push({
         taskId: logicalTask.id,
         tool: logicalTask.tool || "unknown",
         output: extractIntermediateResult(physicalResult, fusedTaskIndex, totalLogicalTasks),
-        success: physicalResult.success,
+        success: isSuccess,
         durationMs: logicalDuration
       });
 
       totalDurationMs += logicalDuration;
+      if (!isSuccess) totalSuccess = false;
     } else {
       // Non-fused task: Map 1:1
       if (logicalTask.tool) {
@@ -142,19 +144,17 @@ export function generateLogicalTrace(
         toolsUsed.add(logicalTask.tool);
       }
 
+      const isSuccess = physicalResult.status === "success";
       taskResults.push({
         taskId: logicalTask.id,
         tool: logicalTask.tool || "unknown",
         output: physicalResult.output,
-        success: physicalResult.success,
-        durationMs: physicalResult.durationMs || 0
+        success: isSuccess,
+        durationMs: physicalResult.executionTimeMs || 0
       });
 
-      totalDurationMs += physicalResult.durationMs || 0;
-    }
-
-    if (!physicalResult.success) {
-      totalSuccess = false;
+      totalDurationMs += physicalResult.executionTimeMs || 0;
+      if (!isSuccess) totalSuccess = false;
     }
   }
 
