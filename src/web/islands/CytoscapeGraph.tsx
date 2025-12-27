@@ -373,11 +373,15 @@ export default function CytoscapeGraph({
   useEffect(() => {
     // Skip initial render (loadData already called in init useEffect)
     if (prevRefreshKeyRef.current === refreshKey) return;
+    console.log(`[CytoscapeGraph] refreshKey changed: ${prevRefreshKeyRef.current} -> ${refreshKey}`);
     prevRefreshKeyRef.current = refreshKey;
 
-    // Refetch data - Cytoscape instance already exists
+    // Refetch data silently (no loading indicator) - Cytoscape instance already exists
     if (cyRef.current) {
-      loadData();
+      console.log("[CytoscapeGraph] Calling loadData(silent) due to refreshKey change");
+      loadData(0, true); // silent=true for SSE updates
+    } else {
+      console.warn("[CytoscapeGraph] cyRef.current is null, cannot reload data");
     }
   }, [refreshKey]);
 
@@ -659,12 +663,22 @@ export default function CytoscapeGraph({
     },
   ];
 
-  const loadData = async () => {
-    setIsLoading(true);
-    setError(null);
+  const loadData = async (retryCount = 0, silent = false) => {
+    const MAX_RETRIES = 5;
+    const BASE_DELAY = 1000;
+
+    console.log(`[CytoscapeGraph] loadData called (retry ${retryCount}, silent=${silent})`);
+    // Only show loading indicator on initial load, not SSE refreshes
+    if (!silent) {
+      setIsLoading(true);
+    }
+    if (retryCount === 0) {
+      setError(null);
+    }
 
     try {
       // Story 11.4: Include traces for invocation mode
+      console.log("[CytoscapeGraph] Fetching hypergraph data...");
       const response = await fetch(`${apiBase}/api/graph/hypergraph?include_traces=true`);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
@@ -847,12 +861,27 @@ export default function CytoscapeGraph({
         onServersDiscovered(serverSet);
       }
 
+      console.log("[CytoscapeGraph] Data loaded, calling renderGraph(true)");
       renderGraph(true);
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     } catch (err) {
-      console.error("Failed to load graph data:", err);
-      setError(err instanceof Error ? err.message : "Failed to load graph");
-      setIsLoading(false);
+      console.error("[CytoscapeGraph] Failed to load graph data:", err);
+
+      // Retry with exponential backoff
+      if (retryCount < MAX_RETRIES) {
+        const delay = BASE_DELAY * Math.pow(2, retryCount);
+        console.warn(`[Graph] Retrying in ${delay / 1000}s (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+        setTimeout(() => loadData(retryCount + 1, silent), delay);
+        return; // Don't set error yet, still retrying
+      }
+
+      // Only show error on non-silent loads (silent SSE refreshes fail silently)
+      if (!silent) {
+        setError(err instanceof Error ? err.message : "Failed to load graph");
+        setIsLoading(false);
+      }
     }
   };
 

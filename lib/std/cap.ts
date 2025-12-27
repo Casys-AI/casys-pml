@@ -718,11 +718,26 @@ export class CapModule {
     newName: string,
     description?: string,
   ): Promise<void> {
+    // Parse namespace and action from newName
+    // Format: "namespace:action" or just "action" (defaults to namespace="cap")
+    let namespace: string;
+    let action: string;
+    const colonIndex = newName.indexOf(":");
+    if (colonIndex > 0) {
+      namespace = newName.substring(0, colonIndex);
+      action = newName.substring(colonIndex + 1);
+    } else {
+      // Default namespace for named capabilities
+      namespace = "cap";
+      action = newName;
+    }
+
+    // Update display_name, namespace, and action
     await this.db.query(
       `UPDATE capability_records
-       SET display_name = $1, updated_at = NOW()
+       SET display_name = $1, namespace = $3, action = $4, updated_at = NOW()
        WHERE id = $2`,
-      [newName, fqdn],
+      [newName, fqdn, namespace, action],
     );
 
     if (description !== undefined) {

@@ -33,6 +33,7 @@ import { createCapabilityRecordsFkMigration } from "./migrations/023_capability_
 import { createErrorTypeColumnMigration } from "./migrations/024_error_type_column.ts";
 import { createIntentEmbeddingColumnMigration } from "./migrations/025_intent_embedding_column.ts";
 import { createAlgorithmNameColumnMigration } from "./migrations/026_algorithm_name_column.ts";
+import { createSHGATParamsMigration } from "./migrations/027_shgat_params.ts";
 
 /**
  * Migration definition
@@ -419,5 +420,6 @@ export function getAllMigrations(): Migration[] {
     createErrorTypeColumnMigration(), // SHGAT v2: errorTypeAffinity feature
     createIntentEmbeddingColumnMigration(), // SHGAT v2: intentSimilarSuccessRate feature
     createAlgorithmNameColumnMigration(), // Story 7.6+: Algorithm name for tracing
+    createSHGATParamsMigration(), // Story 10.7b: SHGAT weights persistence
   ];
 }

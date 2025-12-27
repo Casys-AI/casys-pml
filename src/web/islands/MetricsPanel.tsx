@@ -107,6 +107,9 @@ export default function MetricsPanel({ apiBase: apiBaseProp }: MetricsPanelProps
   };
   const chartInstances = useRef<Record<string, any>>({});
 
+  // SSE ref to ensure cleanup even during HMR
+  const sseRef = useRef<EventSource | null>(null);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       localStorage.setItem("metrics-panel-mode", viewMode);
@@ -115,6 +118,13 @@ export default function MetricsPanel({ apiBase: apiBaseProp }: MetricsPanelProps
 
   // Fetch metrics with abort controller for cleanup
   useEffect(() => {
+    // Close any existing SSE connection first (handles HMR leaks)
+    if (sseRef.current) {
+      console.log("[MetricsPanel] Closing previous SSE connection (HMR cleanup)");
+      sseRef.current.close();
+      sseRef.current = null;
+    }
+
     const abortController = new AbortController();
     let isMounted = true;
 
@@ -146,9 +156,9 @@ export default function MetricsPanel({ apiBase: apiBaseProp }: MetricsPanelProps
     fetchMetrics();
 
     // SSE trigger for refresh (instead of polling)
-    let eventSource: EventSource | null = null;
     try {
-      eventSource = new EventSource(`${apiBase}/events/stream?filter=graph.*,workflow.*`);
+      const eventSource = new EventSource(`${apiBase}/events/stream?filter=graph.*,workflow.*`);
+      sseRef.current = eventSource;
 
       eventSource.onopen = () => {
         console.log("[MetricsPanel] SSE connected");
@@ -172,7 +182,10 @@ export default function MetricsPanel({ apiBase: apiBaseProp }: MetricsPanelProps
 
     return () => {
       isMounted = false;
-      eventSource?.close();
+      if (sseRef.current) {
+        sseRef.current.close();
+        sseRef.current = null;
+      }
       abortController.abort();
     };
   }, [apiBase, dateRange]);

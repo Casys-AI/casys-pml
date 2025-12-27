@@ -57,7 +57,7 @@ import type { WorkflowHandlerDependencies } from "./workflow-handler-types.ts";
 import { buildToolDefinitionsFromStaticStructure } from "./shared/tool-definitions.ts";
 
 // Story 11.6: PER Training imports
-import { trainSHGATOnPathTraces } from "../../graphrag/learning/mod.ts";
+import { trainSHGATOnPathTracesSubprocess } from "../../graphrag/learning/mod.ts";
 
 /**
  * Dependencies required for execute handler
@@ -89,6 +89,8 @@ export interface ExecuteDependencies {
   capabilityRegistry?: CapabilityRegistry;
   /** Algorithm tracer for observability (Story 7.6+) */
   algorithmTracer?: AlgorithmTracer;
+  /** Callback to save SHGAT params after PER training */
+  onSHGATParamsUpdated?: () => Promise<void>;
 }
 
 /**
@@ -389,6 +391,7 @@ async function executeDirectMode(
     toolDefinitions: toolDefs,
     capabilityStore: deps.capabilityStore,
     graphRAG: deps.graphEngine,
+    capabilityRegistry: deps.capabilityRegistry,
   });
 
   try {
@@ -866,6 +869,7 @@ async function executeByNameMode(
     toolDefinitions: toolDefs,
     capabilityStore: deps.capabilityStore,
     graphRAG: deps.graphEngine,
+    capabilityRegistry: deps.capabilityRegistry,
   });
 
   try {
@@ -1126,9 +1130,20 @@ async function registerSHGATNodes(
 let isTrainingInProgress = false;
 
 /**
+ * Capability row from database
+ */
+interface CapabilityRow {
+  id: string;
+  embedding: number[] | string | null;
+  tools_used: string[] | null;
+  success_rate: number;
+}
+
+/**
  * Run PER batch training (Story 11.6)
  *
  * Called after every execution to train SHGAT on high-priority traces.
+ * Uses subprocess for non-blocking execution.
  * Skips if another training is already in progress (prevents race conditions).
  */
 async function runPERBatchTraining(deps: ExecuteDependencies): Promise<void> {
@@ -1139,7 +1154,7 @@ async function runPERBatchTraining(deps: ExecuteDependencies): Promise<void> {
   }
 
   // Check required dependencies
-  if (!deps.shgat || !deps.traceStore || !deps.embeddingModel) {
+  if (!deps.shgat || !deps.traceStore || !deps.embeddingModel || !deps.db) {
     return;
   }
 
@@ -1150,15 +1165,60 @@ async function runPERBatchTraining(deps: ExecuteDependencies): Promise<void> {
       getEmbedding: async (text: string) => deps.embeddingModel!.encode(text),
     };
 
-    // Run path-level training with PER sampling
-    const result = await trainSHGATOnPathTraces(
+    // Fetch capabilities with embeddings for subprocess
+    const rows = await deps.db.query(
+      `SELECT
+        pattern_id as id,
+        intent_embedding as embedding,
+        dag_structure->'tools_used' as tools_used,
+        success_rate
+      FROM workflow_pattern
+      WHERE code_snippet IS NOT NULL
+        AND intent_embedding IS NOT NULL
+      LIMIT 500`,
+    ) as unknown as CapabilityRow[];
+
+    // Parse embeddings (handle pgvector string format)
+    const capabilities = rows
+      .map((c) => {
+        let embedding: number[];
+        if (Array.isArray(c.embedding)) {
+          embedding = c.embedding;
+        } else if (typeof c.embedding === "string") {
+          try {
+            embedding = JSON.parse(c.embedding);
+          } catch {
+            return null;
+          }
+        } else {
+          return null;
+        }
+        if (!Array.isArray(embedding) || embedding.length === 0) return null;
+        return {
+          id: c.id,
+          embedding,
+          toolsUsed: c.tools_used ?? [],
+          successRate: c.success_rate,
+        };
+      })
+      .filter((c): c is NonNullable<typeof c> => c !== null);
+
+    if (capabilities.length === 0) {
+      log.debug("[pml:execute] No capabilities with embeddings for PER training");
+      return;
+    }
+
+    // Run path-level training with PER sampling in subprocess
+    const result = await trainSHGATOnPathTracesSubprocess(
       deps.shgat,
       deps.traceStore,
       embeddingProvider,
       {
+        capabilities,
         minTraces: 1,
         maxTraces: 50,
         batchSize: 16,
+        epochs: 1, // Live mode: single epoch
       },
     );
 
@@ -1167,7 +1227,12 @@ async function runPERBatchTraining(deps: ExecuteDependencies): Promise<void> {
         traces: result.tracesProcessed,
         examples: result.examplesGenerated,
         loss: result.loss.toFixed(4),
+        priorities: result.prioritiesUpdated,
       });
+      // Save params after successful PER training
+      if (deps.onSHGATParamsUpdated) {
+        await deps.onSHGATParamsUpdated();
+      }
     }
   } catch (error) {
     log.warn("[pml:execute] PER training failed", { error: String(error) });
@@ -1261,9 +1326,7 @@ async function executeSuggestionMode(
     // Lookup capability for additional context
     const capInfo = await deps.capabilityStore.findById(cap.capabilityId);
     const numHeads = cap.headScores?.length ?? 0;
-    const avgHeadScore = numHeads > 0
-      ? cap.headScores!.reduce((a, b) => a + b, 0) / numHeads
-      : 0;
+    const avgHeadScore = numHeads > 0 ? cap.headScores!.reduce((a, b) => a + b, 0) / numHeads : 0;
 
     deps.algorithmTracer?.logTrace({
       correlationId,
@@ -1399,6 +1462,7 @@ async function executeSuggestionMode(
           pathFound: pathResult.found,
           pathLength: pathResult.found ? pathResult.nodeSequence.length : 0,
           pathWeight: pathResult.found ? pathResult.totalWeight : 0,
+          targetId: endTool, // Auto-detects pure in AlgorithmTracer
         },
         params: {
           alpha: 0, // N/A for pathfinding
@@ -1599,6 +1663,7 @@ async function getSuggestions(
             pathFound: true,
             pathLength: pathResult.nodeSequence.length,
             pathWeight: pathResult.totalWeight,
+            targetId: bestCapability.id,
           },
           params: {
             alpha: 0, // N/A for pathfinding

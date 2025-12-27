@@ -31,6 +31,7 @@
 import type { DbClient } from "../db/types.ts";
 import { getLogger } from "./logger.ts";
 import { eventBus } from "../events/mod.ts";
+import { isPureOperation } from "../capabilities/pure-operations.ts";
 
 const logger = getLogger("default");
 
@@ -112,6 +113,8 @@ export interface AlgorithmSignals {
   pathFound?: boolean;
   pathLength?: number;
   pathWeight?: number;
+  // Operation type signals
+  pure?: boolean; // true for code:* operations (no side effects)
 }
 
 /**
@@ -280,19 +283,25 @@ export class AlgorithmTracer {
    */
   async logTrace(record: TraceInput): Promise<string> {
     const traceId = crypto.randomUUID();
+
+    // Auto-detect pure flag from targetId if not explicitly set
+    const signals = { ...record.signals };
+    if (signals.pure === undefined && signals.targetId) {
+      signals.pure = isPureOperation(signals.targetId);
+    }
+
     const trace: AlgorithmTraceRecord = {
       ...record,
+      signals,
       traceId,
       timestamp: new Date(),
     };
 
     this.buffer.push(trace);
 
-    // Auto-flush when buffer is full
-    if (this.buffer.length >= this.BUFFER_SIZE) {
-      // Don't await to keep it non-blocking
-      this.scheduleFlush();
-    }
+    // Flush immediately for SSE real-time updates (Story 7.6+)
+    // This ensures trace is in DB before SSE event triggers client refetch
+    await this.flush();
 
     // Emit SSE event for real-time dashboard updates (Story 7.6)
     eventBus.emit({
@@ -309,7 +318,7 @@ export class AlgorithmTracer {
       },
     });
 
-    logger.debug("Algorithm trace buffered", {
+    logger.debug("Algorithm trace logged", {
       traceId,
       mode: record.algorithmMode,
       targetType: record.targetType,

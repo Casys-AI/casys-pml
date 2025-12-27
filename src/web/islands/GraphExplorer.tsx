@@ -89,6 +89,9 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
   const searchTimeoutRef = useRef<number | null>(null);
   const graphRef = useRef<HTMLDivElement>(null);
 
+  // SSE ref to ensure cleanup even during HMR
+  const sseRef = useRef<EventSource | null>(null);
+
   // Server color mapping
   const serverColorsRef = useRef<Map<string, string>>(new Map());
   const SERVER_COLORS = [
@@ -118,31 +121,39 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
 
   // SSE listener for incremental graph updates (Story 8.3)
   // With debouncing to prevent rapid refresh loops
+  // Enhanced: exponential backoff reconnection for HMR resilience
   useEffect(() => {
-    let eventSource: EventSource | null = null;
+    // Close any existing connection first (handles HMR leaks)
+    if (sseRef.current) {
+      console.log("[SSE] Closing previous connection (HMR cleanup)");
+      sseRef.current.close();
+      sseRef.current = null;
+    }
+
     let refreshTimeout: number | null = null;
+    let reconnectTimeout: number | null = null;
     let reconnectAttempts = 0;
-    const MAX_RECONNECT_ATTEMPTS = 5;
+    const MAX_RECONNECT_ATTEMPTS = 30;
+    const BASE_RECONNECT_DELAY = 1000;
+    const MAX_RECONNECT_DELAY = 30000;
 
     const connect = () => {
-      if (eventSource) {
-        eventSource.close();
+      if (sseRef.current) {
+        sseRef.current.close();
       }
 
-      eventSource = new EventSource(`${apiBase}/events/stream`);
+      const eventSource = new EventSource(`${apiBase}/events/stream`);
+      sseRef.current = eventSource;
 
       eventSource.onopen = () => {
         console.log("[SSE] Connected to events stream");
-        reconnectAttempts = 0; // Reset on successful connection
+        reconnectAttempts = 0;
       };
 
-      // Debounced handler to prevent rapid refreshes
       const handleCapabilityEvent = () => {
-        // Clear previous pending refresh
         if (refreshTimeout) {
           clearTimeout(refreshTimeout);
         }
-        // Debounce: wait 500ms before triggering refresh
         refreshTimeout = setTimeout(() => {
           console.log("[SSE] Capability event received, refreshing graph...");
           setGraphRefreshKey((prev) => prev + 1);
@@ -154,15 +165,25 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
       eventSource.addEventListener("capability.learned", handleCapabilityEvent);
 
       eventSource.onerror = () => {
+        eventSource.close();
+        if (sseRef.current === eventSource) {
+          sseRef.current = null;
+        }
         reconnectAttempts++;
+
         if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
           console.warn("[SSE] Max reconnection attempts reached, stopping");
-          eventSource?.close();
-          eventSource = null;
         } else {
-          console.warn(
-            `[SSE] Connection error, attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`,
+          const delay = Math.min(
+            BASE_RECONNECT_DELAY * Math.pow(2, reconnectAttempts - 1),
+            MAX_RECONNECT_DELAY,
           );
+          console.warn(
+            `[SSE] Connection error, reconnecting in ${
+              delay / 1000
+            }s (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`,
+          );
+          reconnectTimeout = setTimeout(connect, delay) as unknown as number;
         }
       };
     };
@@ -170,11 +191,11 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
     connect();
 
     return () => {
-      if (refreshTimeout) {
-        clearTimeout(refreshTimeout);
-      }
-      if (eventSource) {
-        eventSource.close();
+      if (refreshTimeout) clearTimeout(refreshTimeout);
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (sseRef.current) {
+        sseRef.current.close();
+        sseRef.current = null;
       }
     };
   }, [apiBase]);
@@ -201,10 +222,36 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
     console.log("Export PNG not yet implemented");
   }, []);
 
-  // Find header slot for portal
+  // Find header slot for portal (with retry for async island loading)
   useEffect(() => {
-    const slot = document.getElementById("header-search-slot");
-    if (slot) setHeaderSlot(slot);
+    const findSlot = () => {
+      const slot = document.getElementById("header-search-slot");
+      if (slot) {
+        console.log("[Search] Header slot found, enabling portal");
+        setHeaderSlot(slot);
+        return true;
+      }
+      return false;
+    };
+
+    // Try immediately
+    if (findSlot()) return;
+
+    // Retry a few times if not found (island async loading)
+    console.log("[Search] Header slot not found, retrying...");
+    let attempts = 0;
+    const maxAttempts = 10;
+    const interval = setInterval(() => {
+      attempts++;
+      if (findSlot() || attempts >= maxAttempts) {
+        clearInterval(interval);
+        if (attempts >= maxAttempts) {
+          console.warn("[Search] Header slot not found after max attempts");
+        }
+      }
+    }, 100);
+
+    return () => clearInterval(interval);
   }, []);
 
   // Keyboard shortcuts
@@ -238,22 +285,29 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
   useEffect(() => {
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
 
+    console.log(`[Search] Query changed: "${searchQuery}" (length: ${searchQuery.length})`);
+
     if (searchQuery.length < 2) {
+      console.log("[Search] Query too short, clearing results");
       setSearchResults([]);
       setShowResults(false);
       return;
     }
 
+    console.log("[Search] Starting debounced search...");
     searchTimeoutRef.current = setTimeout(async () => {
+      const url = `${apiBase}/api/tools/search?q=${encodeURIComponent(searchQuery)}&limit=10`;
+      console.log(`[Search] Fetching: ${url}`);
       try {
-        const response = await fetch(
-          `${apiBase}/api/tools/search?q=${encodeURIComponent(searchQuery)}&limit=10`,
-        );
+        const response = await fetch(url);
+        console.log(`[Search] Response status: ${response.status}`);
         const data = await response.json();
+        console.log(`[Search] Results: ${data.results?.length || 0} items`, data.results);
         setSearchResults(data.results || []);
         setShowResults(true);
+        console.log("[Search] showResults set to true");
       } catch (error) {
-        console.error("Search failed:", error);
+        console.error("[Search] Fetch failed:", error);
         setSearchResults([]);
       }
     }, 200) as unknown as number;
@@ -398,11 +452,19 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
           value={searchQuery}
           onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
           onFocus={(e) => {
-            searchQuery.length >= 2 && setShowResults(true);
+            console.log(`[Search] Input focus - query length: ${searchQuery.length}`);
+            if (searchQuery.length >= 2) {
+              console.log("[Search] Re-showing results on focus");
+              setShowResults(true);
+            }
             Object.assign(e.currentTarget.style, styles.inputFocus);
           }}
           onBlur={(e) => {
-            setTimeout(() => setShowResults(false), 200);
+            console.log("[Search] Input blur - closing dropdown in 200ms");
+            setTimeout(() => {
+              console.log("[Search] Closing dropdown now");
+              setShowResults(false);
+            }, 200);
             e.currentTarget.style.borderColor = "var(--border)";
             e.currentTarget.style.boxShadow = "none";
           }}
@@ -412,10 +474,11 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
         </span>
 
         {/* Autocomplete Results - dropdown below search */}
+        {console.log(`[Search Render] showResults=${showResults}, results=${searchResults.length}`)}
         {showResults && searchResults.length > 0 && (
           <div
-            class="absolute top-full left-0 right-0 mt-2 rounded-xl overflow-hidden max-h-[400px] overflow-y-auto shadow-2xl z-50"
-            style={styles.panel}
+            class="absolute top-full left-0 mt-2 rounded-xl overflow-hidden max-h-[400px] overflow-y-auto shadow-2xl"
+            style={{ ...styles.panel, zIndex: 9999, width: "420px" }}
           >
             {searchResults.map((result) => (
               <div

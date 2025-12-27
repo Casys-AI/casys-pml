@@ -174,6 +174,7 @@ export async function handleDiscover(
         graphEngine,
         limit,
         includeRelated,
+        correlationId,
       );
       for (const tool of toolResults) {
         if (tool.score >= minScore) {
@@ -252,6 +253,7 @@ async function searchTools(
   graphEngine: GraphRAGEngine,
   limit: number,
   includeRelated: boolean,
+  correlationId?: string,
 ): Promise<DiscoverResultItem[]> {
   const hybridResults: HybridSearchResult[] = await graphEngine.searchToolsHybrid(
     vectorSearch,
@@ -259,6 +261,8 @@ async function searchTools(
     limit,
     [], // contextTools - empty for pml_discover
     includeRelated,
+    undefined, // minScore
+    correlationId,
   );
 
   return hybridResults.map((result) => {

@@ -100,6 +100,8 @@ interface TraceEvent {
     pathFound?: boolean;
     pathLength?: number;
     pathWeight?: number;
+    // Operation type
+    pure?: boolean;
   };
   params: {
     alpha: number;
@@ -191,6 +193,7 @@ export default function TracingPanel({ apiBase }: TracingPanelProps) {
   const eventsContainerRef = useRef<HTMLDivElement>(null);
   const lastTimestampRef = useRef<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const sseRef = useRef<EventSource | null>(null);
 
   // Persist panel width
   useEffect(() => {
@@ -281,19 +284,29 @@ export default function TracingPanel({ apiBase }: TracingPanelProps) {
   useEffect(() => {
     if (typeof window === "undefined" || collapsed || paused) return;
 
-    let eventSource: EventSource | null = null;
+    // Close any existing connection first (handles HMR leaks)
+    if (sseRef.current) {
+      console.log("[TracingPanel] Closing previous SSE connection (HMR cleanup)");
+      sseRef.current.close();
+      sseRef.current = null;
+    }
+
     let reconnectTimer: number | null = null;
     const RECONNECT_DELAY_MS = 2000;
 
     const connect = () => {
       try {
-        eventSource = new EventSource(`${apiBase}/events/stream?filter=algorithm.*`);
+        if (sseRef.current) {
+          sseRef.current.close();
+        }
+
+        const eventSource = new EventSource(`${apiBase}/events/stream?filter=algorithm.*`);
+        sseRef.current = eventSource;
 
         eventSource.onopen = () => {
           console.log("[TracingPanel] SSE connected - real-time updates active");
         };
 
-        // When SSE event arrives, immediately refetch from DB
         eventSource.addEventListener("algorithm.scored", () => {
           console.debug("[TracingPanel] SSE algorithm.scored received");
           fetchTraces(lastTimestampRef.current || undefined);
@@ -301,9 +314,10 @@ export default function TracingPanel({ apiBase }: TracingPanelProps) {
 
         eventSource.onerror = () => {
           console.warn("[TracingPanel] SSE error, reconnecting in 2s...");
-          eventSource?.close();
-          eventSource = null;
-          // Auto-reconnect
+          eventSource.close();
+          if (sseRef.current === eventSource) {
+            sseRef.current = null;
+          }
           if (!reconnectTimer) {
             reconnectTimer = setTimeout(() => {
               reconnectTimer = null;
@@ -320,7 +334,10 @@ export default function TracingPanel({ apiBase }: TracingPanelProps) {
 
     return () => {
       if (reconnectTimer) clearTimeout(reconnectTimer);
-      eventSource?.close();
+      if (sseRef.current) {
+        sseRef.current.close();
+        sseRef.current = null;
+      }
     };
   }, [collapsed, paused, apiBase]);
 
@@ -384,7 +401,8 @@ export default function TracingPanel({ apiBase }: TracingPanelProps) {
     const rejected = groupEvents.length - accepted;
     const avgScore = groupEvents.reduce((sum, e) => sum + e.finalScore, 0) / groupEvents.length;
     const algorithms = [...new Set(groupEvents.map((e) => e.algorithmName || e.algorithmMode))];
-    return { count: groupEvents.length, accepted, rejected, avgScore, algorithms };
+    const intent = groupEvents[0]?.intent; // All events in group share same intent
+    return { count: groupEvents.length, accepted, rejected, avgScore, algorithms, intent };
   };
 
   // Check if this is the first item of a correlation group
@@ -660,7 +678,7 @@ export default function TracingPanel({ apiBase }: TracingPanelProps) {
                     class="px-2 py-1.5 text-left font-medium"
                     style={{ color: "var(--text-muted)" }}
                   >
-                    Intent
+                    Target
                   </th>
                   <th
                     class="px-2 py-1.5 text-right font-medium"
@@ -735,6 +753,18 @@ export default function TracingPanel({ apiBase }: TracingPanelProps) {
                             <span style={{ opacity: 0.7 }}>
                               {groupStats.algorithms.join(", ")}
                             </span>
+                            {groupStats.intent && (
+                              <>
+                                <span class="mx-2">·</span>
+                                <span
+                                  style={{ color: "var(--text)", fontStyle: "italic" }}
+                                  title={groupStats.intent}
+                                >
+                                  "{groupStats.intent.substring(0, 40)}
+                                  {groupStats.intent.length > 40 ? "..." : ""}"
+                                </span>
+                              </>
+                            )}
                           </td>
                         </tr>
                       )}
@@ -804,24 +834,39 @@ export default function TracingPanel({ apiBase }: TracingPanelProps) {
                           </span>
                         </td>
                         <td class="px-2 py-1.5">
-                          <span
-                            class="px-1 py-0.5 rounded text-[9px] font-bold"
-                            style={{
-                              background: event.targetType === "tool"
-                                ? "var(--accent-dim)"
-                                : "rgba(59, 130, 246, 0.2)",
-                              color: event.targetType === "tool" ? "var(--accent)" : "#3b82f6",
-                            }}
-                          >
-                            {event.targetType === "tool" ? "T" : "C"}
+                          <span class="flex items-center gap-0.5">
+                            <span
+                              class="px-1 py-0.5 rounded text-[9px] font-bold"
+                              style={{
+                                background: event.targetType === "tool"
+                                  ? "var(--accent-dim)"
+                                  : "rgba(59, 130, 246, 0.2)",
+                                color: event.targetType === "tool" ? "var(--accent)" : "#3b82f6",
+                              }}
+                            >
+                              {event.targetType === "tool" ? "T" : "C"}
+                            </span>
+                            {event.signals?.pure && (
+                              <span
+                                class="px-1 py-0.5 rounded text-[8px] font-bold"
+                                style={{ background: "rgba(239, 68, 68, 0.2)", color: "#ef4444" }}
+                                title="Pure operation (no side effects)"
+                              >
+                                P
+                              </span>
+                            )}
                           </span>
                         </td>
                         <td
                           class="px-2 py-1.5 truncate max-w-[120px]"
                           style={{ color: "var(--text)" }}
-                          title={event.intent || event.traceId}
+                          title={event.signals?.targetName || event.signals?.targetId ||
+                            event.intent || event.traceId}
                         >
-                          {event.intent?.substring(0, 25) ||
+                          {/* Show targetName if available, otherwise intent */}
+                          {event.signals?.targetName ||
+                            event.signals?.targetId?.split(":").pop()?.substring(0, 20) ||
+                            event.intent?.substring(0, 25) ||
                             event.traceId.substring(0, 8)}
                         </td>
                         <td

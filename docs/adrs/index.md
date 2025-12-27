@@ -79,6 +79,9 @@ Index des décisions d'architecture du projet Casys PML.
 | 047  | [Tool Sequence vs Deduplication](./ADR-047-tool-sequence-vs-deduplication.md)               | accepted   | done           | tool_invocations pour séquence, tools_used dédupliqué |
 | 048  | [Local Adaptive Alpha](./ADR-048-hierarchical-heat-diffusion-alpha.md)                      | accepted   | done           | Alpha local par mode (tool/capability/meta)           |
 | 049  | [Intelligent Adaptive Thresholds](./ADR-049-intelligent-adaptive-thresholds.md)             | proposed   | not_started    | Seuils adaptatifs intelligents par contexte           |
+| 050  | [Superhypergraph Edge Constraints](./ADR-050-superhypergraph-edge-constraints.md)           | accepted   | done           | Contraintes edges superhypergraph                     |
+| 051  | [Unified Search Simplification](./ADR-051-unified-search-simplification.md)                 | accepted   | done           | Simplification recherche unifiée (SHGAT v1)           |
+| 052  | [Dynamic Capability Routing](./ADR-052-dynamic-capability-routing.md)                       | accepted   | done           | Routing capabilities via MCP proxy                    |
 
 ---
 

@@ -105,6 +105,8 @@ const log = getLogger("controlled-executor");
  */
 function taskRequiresHIL(task: Task): boolean {
   if (!task.tool) return false;
+  // Pure operations never require HIL (Phase 2a: no side effects)
+  if (task.metadata?.pure === true) return false;
   const prefix = task.tool.split(":")[0];
   const config = getToolPermissionConfig(prefix);
   // Unknown tool or explicit HIL required

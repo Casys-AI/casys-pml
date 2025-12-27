@@ -127,6 +127,9 @@ export default function D3GraphVisualization({
   // Server colors
   const serverColorsRef = useRef<Map<string, string>>(new Map());
 
+  // SSE ref to ensure cleanup even during HMR
+  const sseRef = useRef<EventSource | null>(null);
+
   const getServerColor = useCallback((server: string): string => {
     if (server === "unknown") return "#8a8078";
     if (server === "capability") return "#8b5cf6"; // Purple for capabilities
@@ -143,6 +146,14 @@ export default function D3GraphVisualization({
 
   useEffect(() => {
     console.log("[RadialHEB] Component mounted, apiBase:", apiBase);
+
+    // Close any existing SSE connection first (handles HMR leaks)
+    if (sseRef.current) {
+      console.log("[RadialHEB] Closing previous SSE connection (HMR cleanup)");
+      sseRef.current.close();
+      sseRef.current = null;
+    }
+
     let isMounted = true;
 
     // Initialize SVG
@@ -226,6 +237,7 @@ export default function D3GraphVisualization({
 
     // SSE for real-time updates
     const eventSource = new EventSource(`${apiBase}/events/stream`);
+    sseRef.current = eventSource;
     let hadError = false;
 
     eventSource.onopen = () => {
@@ -244,7 +256,10 @@ export default function D3GraphVisualization({
 
     return () => {
       isMounted = false;
-      eventSource.close();
+      if (sseRef.current) {
+        sseRef.current.close();
+        sseRef.current = null;
+      }
       if (svgRef.current) {
         svgRef.current.remove();
         svgRef.current = null;
