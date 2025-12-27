@@ -272,16 +272,28 @@ Deno.test("isSafeToFail returns true for pure operations", () => {
 
 ---
 
-### Phase 2+: DAG Fusion (Deferred)
+### Phase 2a: DAG Fusion - Sequential (IN PROGRESS)
 
 **Goal:** Fuse sequential pure operations for performance.
 
-> Only implement after measuring Phase 1 overhead. May not be necessary.
+**Status:** 🚧 **IN PROGRESS** (2025-12-27)
 
-- [ ] Implement `canFuseTasks(tasks: Task[]): boolean`
-- [ ] Implement `fuseTasks(tasks: Task[]): Task`
-- [ ] Implement `optimizeDAG(logical: DAG): OptimizedDAG`
-- [ ] Generate logical traces from fused execution
+- [x] Implement `canFuseTasks(tasks: Task[]): boolean`
+- [x] Implement `fuseTasks(tasks: Task[]): Task`
+- [x] Implement `optimizeDAG(logical: DAG): OptimizedDAG`
+- [x] Generate logical traces from fused execution
+- [x] Unit tests for fusion logic
+- [x] E2E tests for pure code execution
+- [ ] Integration with ControlledExecutor
+- [ ] Update workflow-execution-handler to use optimizer
+
+**Files Created:**
+- `src/dag/dag-optimizer.ts` - Sequential fusion implementation
+- `src/dag/trace-generator.ts` - Logical trace generation
+- `tests/unit/dag/dag-optimizer.test.ts` - Unit tests
+- `tests/e2e/code-execution/07-dag-optimizer-pure-code.test.ts` - E2E tests
+
+**Next:** Phase 2b+ (Fork-join, partial fusion) - Deferred
 
 ---
 
