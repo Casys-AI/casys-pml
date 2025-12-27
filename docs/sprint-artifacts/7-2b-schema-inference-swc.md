@@ -1,19 +1,20 @@
 # Story 7.2b: Schema Inference (SWC)
 
-> **Epic:** 7 - Emergent Capabilities & Learning System
-> **ADRs:** ADR-027 (Execute Code Graph Learning), ADR-028 (Emergent Capabilities System)
-> **Prerequisites:** Story 7.2a (Capability Storage - ✅ DONE, 32 tests passing)
-> **Status:** done
+> **Epic:** 7 - Emergent Capabilities & Learning System **ADRs:** ADR-027 (Execute Code Graph
+> Learning), ADR-028 (Emergent Capabilities System) **Prerequisites:** Story 7.2a (Capability
+> Storage - ✅ DONE, 32 tests passing) **Status:** done
 
 ## User Story
 
-As a system exposing capability interfaces, I want to automatically infer parameter schemas from TypeScript code, So that Claude knows what arguments to pass when calling capabilities.
+As a system exposing capability interfaces, I want to automatically infer parameter schemas from
+TypeScript code, So that Claude knows what arguments to pass when calling capabilities.
 
 ## Problem Context
 
 ### Current State (After Story 7.2a)
 
-The `workflow_pattern.parameters_schema` column exists (Migration 011, line 38-41) but is **always NULL**:
+The `workflow_pattern.parameters_schema` column exists (Migration 011, line 38-41) but is **always
+NULL**:
 
 ```sql
 -- Migration 011: Added but never populated
@@ -22,6 +23,7 @@ ADD COLUMN IF NOT EXISTS parameters_schema JSONB
 ```
 
 When `CapabilityStore.saveCapability()` is called (line 68-167), it stores:
+
 - ✅ `code_snippet` - The TypeScript code
 - ✅ `code_hash` - SHA-256 for deduplication
 - ✅ `intent_embedding` - 1024-dim vector for semantic search
@@ -37,6 +39,7 @@ When Claude or the system wants to reuse a learned capability, there's no struct
 3. Which arguments are required vs optional
 
 **Example capability code:**
+
 ```typescript
 const content = await mcp.filesystem.read({ path: args.filePath });
 const parsed = JSON.parse(content);
@@ -47,6 +50,7 @@ return parsed;
 **Current `parameters_schema`:** `NULL`
 
 **Desired `parameters_schema`:**
+
 ```json
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
@@ -63,13 +67,13 @@ return parsed;
 
 ### Why SWC over ts-morph?
 
-| Critère | **SWC** ✅ | ts-morph ❌ |
-|---------|-----------|-------------|
-| **Deno Support** | Natif `deno.land/x/swc` | JSR issues #949 #950 |
-| **Performance** | 🚀 20x faster (Rust/WASM) | Slow (TS compiler) |
-| **Tested** | ✅ Validated in POC | ⚠️ "Deno not tested well" |
-| **Size** | ~2MB (lz4 compressed) | ~15MB+ |
-| **Used by** | Deno, Next.js, Parcel | Standalone |
+| Critère          | **SWC** ✅                | ts-morph ❌               |
+| ---------------- | ------------------------- | ------------------------- |
+| **Deno Support** | Natif `deno.land/x/swc`   | JSR issues #949 #950      |
+| **Performance**  | 🚀 20x faster (Rust/WASM) | Slow (TS compiler)        |
+| **Tested**       | ✅ Validated in POC       | ⚠️ "Deno not tested well" |
+| **Size**         | ~2MB (lz4 compressed)     | ~15MB+                    |
+| **Used by**      | Deno, Next.js, Parcel     | Standalone                |
 
 ### POC Validation (2025-12-05)
 
@@ -164,6 +168,7 @@ Create a `SchemaInferrer` class that:
 ### No deno.json Changes Required
 
 SWC is imported directly from deno.land/x:
+
 ```typescript
 import { parse } from "https://deno.land/x/swc@0.2.1/mod.ts";
 ```
@@ -175,6 +180,7 @@ import { parse } from "https://deno.land/x/swc@0.2.1/mod.ts";
 **Required changes:**
 
 1. **Constructor modification (line 50-56):**
+
 ```typescript
 constructor(
   private db: PGliteClient,
@@ -188,6 +194,7 @@ constructor(
 ```
 
 2. **Schema inference after embedding (insert after line 86):**
+
 ```typescript
 // NEW: Infer parameters schema from code (Story 7.2b)
 let parametersSchema: JSONSchema | undefined;
@@ -209,6 +216,7 @@ if (this.schemaInferrer) {
 ### SWC AST Structure
 
 **MemberExpression (args.xxx):**
+
 ```json
 {
   "type": "MemberExpression",
@@ -218,6 +226,7 @@ if (this.schemaInferrer) {
 ```
 
 **ObjectPattern destructuring (const { a, b } = args):**
+
 ```json
 {
   "type": "VariableDeclarator",
@@ -283,8 +292,10 @@ export class SchemaInferrer {
     if (n.type === "MemberExpression") {
       const obj = n.object as Record<string, unknown> | undefined;
       const prop = n.property as Record<string, unknown> | undefined;
-      if (obj?.type === "Identifier" && obj?.value === "args" &&
-          prop?.type === "Identifier" && typeof prop?.value === "string") {
+      if (
+        obj?.type === "Identifier" && obj?.value === "args" &&
+        prop?.type === "Identifier" && typeof prop?.value === "string"
+      ) {
         props.push({ name: prop.value, inferredType: "unknown", source: "unknown" });
       }
     }
@@ -412,14 +423,14 @@ tests/unit/capabilities/
 
 ## Key Files Reference
 
-| File | Lines | Purpose | Changes |
-|------|-------|---------|---------|
-| `src/capabilities/capability-store.ts` | 50-56, 68-167 | Core storage class | Add schemaInferrer param |
-| `src/capabilities/types.ts` | 13-20 | JSONSchema interface | No changes |
-| `src/capabilities/mod.ts` | 1-20 | Module exports | Add SchemaInferrer |
-| `src/capabilities/schema-inferrer.ts` | NEW | Schema inference | ~150 LOC |
-| `src/sandbox/worker-bridge.ts` | 183-203 | Eager learning | No changes |
-| `tests/unit/capabilities/capability_store_test.ts` | 1-580 | Test patterns | Reference |
+| File                                               | Lines         | Purpose              | Changes                  |
+| -------------------------------------------------- | ------------- | -------------------- | ------------------------ |
+| `src/capabilities/capability-store.ts`             | 50-56, 68-167 | Core storage class   | Add schemaInferrer param |
+| `src/capabilities/types.ts`                        | 13-20         | JSONSchema interface | No changes               |
+| `src/capabilities/mod.ts`                          | 1-20          | Module exports       | Add SchemaInferrer       |
+| `src/capabilities/schema-inferrer.ts`              | NEW           | Schema inference     | ~150 LOC                 |
+| `src/sandbox/worker-bridge.ts`                     | 183-203       | Eager learning       | No changes               |
+| `tests/unit/capabilities/capability_store_test.ts` | 1-580         | Test patterns        | Reference                |
 
 ---
 
@@ -434,14 +445,14 @@ tests/unit/capabilities/
 
 ### Edge Cases
 
-| Pattern | AST Node | Inferred Type |
-|---------|----------|---------------|
-| `args.filePath` | MemberExpression | From MCP or unknown |
-| `const { a } = args` | ObjectPattern | From usage |
-| `args.config.timeout` | Nested MemberExpression | `config: object` |
-| `args?.field` | OptionalChaining | Optional property |
-| `args.enabled === true` | BinaryExpression | `boolean` |
-| `args.items.length` | MemberExpression chain | `items: array` |
+| Pattern                 | AST Node                | Inferred Type       |
+| ----------------------- | ----------------------- | ------------------- |
+| `args.filePath`         | MemberExpression        | From MCP or unknown |
+| `const { a } = args`    | ObjectPattern           | From usage          |
+| `args.config.timeout`   | Nested MemberExpression | `config: object`    |
+| `args?.field`           | OptionalChaining        | Optional property   |
+| `args.enabled === true` | BinaryExpression        | `boolean`           |
+| `args.items.length`     | MemberExpression chain  | `items: array`      |
 
 ### Performance
 

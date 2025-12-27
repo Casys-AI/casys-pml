@@ -1,10 +1,10 @@
 ---
-installed_path: '{project-root}/_bmad/bmb/workflows/create-module'
-nextStepFile: '{installed_path}/steps/step-10-roadmap.md'
-modulePlanFile: '{bmb_creations_output_folder}/{module_name}/module-plan-{module_name}.md'
-moduleReadmeFile: '{bmb_creations_output_folder}/{module_name}/README.md'
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+installed_path: "{project-root}/_bmad/bmb/workflows/create-module"
+nextStepFile: "{installed_path}/steps/step-10-roadmap.md"
+modulePlanFile: "{bmb_creations_output_folder}/{module_name}/module-plan-{module_name}.md"
+moduleReadmeFile: "{bmb_creations_output_folder}/{module_name}/README.md"
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 ---
 
 # Step 9: Create Module Documentation
@@ -21,7 +21,8 @@ partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 ### Role Reinforcement:
 
 - ✅ You are a Module Architect and Technical Writer
-- ✅ If you already have been given communication or persona patterns, continue to use those while playing this new role
+- ✅ If you already have been given communication or persona patterns, continue to use those while
+  playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You bring expertise in documentation best practices, user brings their module knowledge
 - ✅ Maintain collaborative, clear tone
@@ -49,7 +50,8 @@ partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 
 ## STEP GOAL:
 
-To create comprehensive README.md documentation for the module that helps users understand, install, and use the module.
+To create comprehensive README.md documentation for the module that helps users understand, install,
+and use the module.
 
 ## DOCUMENTATION CREATION PROCESS:
 
@@ -57,12 +59,13 @@ To create comprehensive README.md documentation for the module that helps users 
 
 "Let's create the README.md for your {module_display_name} module.
 
-Good documentation is crucial for module adoption. Your README will be the first thing users see when discovering your module."
+Good documentation is crucial for module adoption. Your README will be the first thing users see
+when discovering your module."
 
 ### 2. Generate README Content
 
-Load module-plan.md to gather all module information
-Update {moduleReadmeFile} with comprehensive content:
+Load module-plan.md to gather all module information Update {moduleReadmeFile} with comprehensive
+content:
 
 ````markdown
 # {module_display_name}
@@ -71,8 +74,7 @@ Update {moduleReadmeFile} with comprehensive content:
 
 ## Overview
 
-This module provides:
-[Generate list based on module components and features]
+This module provides: [Generate list based on module components and features]
 
 ## Installation
 
@@ -176,7 +178,8 @@ This module is currently:
 - [ ] Workflows implemented
 - [ ] Full testing complete
 
-**Note:** Some workflows are planned but not yet implemented. See individual workflow folders for status.
+**Note:** Some workflows are planned but not yet implemented. See individual workflow folders for
+status.
 
 ## Contributing
 
@@ -204,15 +207,12 @@ Created by {user_name} on [creation date]
 
 ## Module Details
 
-**Module Code:** {module_name}
-**Category:** {module_category}
-**Type:** {module_type}
-**Version:** 1.0.0
+**Module Code:** {module_name} **Category:** {module_category} **Type:** {module_type} **Version:**
+1.0.0
 
 **Last Updated:** [current date]
 
 ````
-
 ### 3. Review Documentation
 
 "**Documentation Review:**
@@ -273,7 +273,8 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 
 - IF A: Execute {advancedElicitationTask} to improve documentation clarity
 - IF P: Execute {partyModeWorkflow} to get input on user experience
-- IF C: Save documentation info to module-plan.md, add step-09-documentation to the end of the stepsCompleted array in frontmatter, then load nextStepFile
+- IF C: Save documentation info to module-plan.md, add step-09-documentation to the end of the
+  stepsCompleted array in frontmatter, then load nextStepFile
 - IF Any other comments or queries: help user respond then redisplay menu
 
 #### EXECUTION RULES:
@@ -302,8 +303,11 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 - Missing critical sections (installation, usage)
 - Misrepresenting implementation status
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN C is selected and documentation info is saved to module-plan.md with stepsCompleted updated to [1, 2, 3, 4, 5, 6, 7, 8, 9], will you then load, read entire file, then execute `{nextStepFile}` to begin roadmap generation.
+ONLY WHEN C is selected and documentation info is saved to module-plan.md with stepsCompleted
+updated to [1, 2, 3, 4, 5, 6, 7, 8, 9], will you then load, read entire file, then execute
+`{nextStepFile}` to begin roadmap generation.

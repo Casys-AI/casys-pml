@@ -25,7 +25,8 @@
 
 ## YOUR TASK:
 
-Load and present brainstorming techniques from CSV, allowing user to browse and select based on their preferences.
+Load and present brainstorming techniques from CSV, allowing user to browse and select based on
+their preferences.
 
 ## USER SELECTION SEQUENCE:
 
@@ -33,14 +34,16 @@ Load and present brainstorming techniques from CSV, allowing user to browse and 
 
 Load techniques from CSV on-demand:
 
-"Perfect! Let's explore our complete brainstorming techniques library. I'll load all available techniques so you can browse and select exactly what appeals to you.
+"Perfect! Let's explore our complete brainstorming techniques library. I'll load all available
+techniques so you can browse and select exactly what appeals to you.
 
 **Loading Brain Techniques Library...**"
 
 **Load CSV and parse:**
 
 - Read `brain-methods.csv`
-- Parse: category, technique_name, description, facilitation_prompts, best_for, energy_level, typical_duration
+- Parse: category, technique_name, description, facilitation_prompts, best_for, energy_level,
+  typical_duration
 - Organize by categories for browsing
 
 ### 2. Present Technique Categories
@@ -96,16 +99,14 @@ After user selects category:
 
 **Loading specific techniques from this category...**"
 
-**Present 3-5 techniques from selected category:**
-For each technique:
+**Present 3-5 techniques from selected category:** For each technique:
 
 - **Technique Name** (Duration: [time], Energy: [level])
 - Description: [Brief clear description]
 - Best for: [What this technique excels at]
 - Example prompt: [Sample facilitation prompt]
 
-**Example presentation format:**
-"**1. SCAMPER Method** (Duration: 20-30 min, Energy: Moderate)
+**Example presentation format:** "**1. SCAMPER Method** (Duration: 20-30 min, Energy: Moderate)
 
 - Systematic creativity through seven lenses (Substitute/Combine/Adapt/Modify/Put/Eliminate/Reverse)
 - Best for: Product improvement, innovation challenges, systematic idea generation
@@ -139,19 +140,17 @@ You can:
 
 When user selects techniques:
 
-**Confirmation Process:**
-"**Your Selected Techniques:**
+**Confirmation Process:** "**Your Selected Techniques:**
 
 - [Technique 1]: [Why this matches their session goals]
 - [Technique 2]: [Why this complements the first]
 - [Technique 3]: [If selected, how it builds on others]
 
-**Session Plan:**
-This combination will take approximately [total_time] and focus on [expected outcomes].
+**Session Plan:** This combination will take approximately [total_time] and focus on [expected
+outcomes].
 
-**Confirm these choices?**
-[C] Continue - Begin technique execution
-[Back] - Modify technique selection"
+**Confirm these choices?** [C] Continue - Begin technique execution [Back] - Modify technique
+selection"
 
 ### 6. Update Frontmatter and Continue
 
@@ -172,8 +171,7 @@ stepsCompleted: [1, 2]
 ```markdown
 ## Technique Selection
 
-**Approach:** User-Selected Techniques
-**Selected Techniques:**
+**Approach:** User-Selected Techniques **Selected Techniques:**
 
 - [Technique 1]: [Brief description and session fit]
 - [Technique 2]: [Brief description and session fit]
@@ -182,8 +180,7 @@ stepsCompleted: [1, 2]
 **Selection Rationale:** [Content based on user's choices and reasoning]
 ```
 
-**Route to execution:**
-Load `./step-03-technique-execution.md`
+**Route to execution:** Load `./step-03-technique-execution.md`
 
 ### 7. Handle Back Option
 
@@ -194,20 +191,16 @@ If user selects [Back]:
 
 ## SUCCESS METRICS:
 
-✅ Brain techniques CSV loaded successfully on-demand
-✅ Technique categories presented clearly with helpful descriptions
-✅ User able to browse and select techniques based on interests
-✅ Selected techniques confirmed with session fit explanation
-✅ Frontmatter updated with technique selections
+✅ Brain techniques CSV loaded successfully on-demand ✅ Technique categories presented clearly with
+helpful descriptions ✅ User able to browse and select techniques based on interests ✅ Selected
+techniques confirmed with session fit explanation ✅ Frontmatter updated with technique selections
 ✅ Proper routing to technique execution or back navigation
 
 ## FAILURE MODES:
 
-❌ Preloading all techniques instead of loading on-demand
-❌ Making recommendations instead of letting user explore
-❌ Not providing enough detail for informed selection
-❌ Missing back navigation option
-❌ Not updating frontmatter with technique selections
+❌ Preloading all techniques instead of loading on-demand ❌ Making recommendations instead of
+letting user explore ❌ Not providing enough detail for informed selection ❌ Missing back
+navigation option ❌ Not updating frontmatter with technique selections
 
 ## USER SELECTION PROTOCOLS:
 
@@ -219,6 +212,8 @@ If user selects [Back]:
 
 ## NEXT STEP:
 
-After technique confirmation, load `./step-03-technique-execution.md` to begin facilitating the selected brainstorming techniques.
+After technique confirmation, load `./step-03-technique-execution.md` to begin facilitating the
+selected brainstorming techniques.
 
-Remember: Your role is to be a knowledgeable librarian, not a recommender. Let the user explore and choose based on their interests and intuition!
+Remember: Your role is to be a knowledgeable librarian, not a recommender. Let the user explore and
+choose based on their interests and intuition!

@@ -35,7 +35,8 @@ Demonstrates:
 
 ## Important Note
 
-These are **hypothetical reference agents**. The workflows they reference (threat-model, trend-scan, etc.) may not exist. They serve as examples of proper module agent structure.
+These are **hypothetical reference agents**. The workflows they reference (threat-model, trend-scan,
+etc.) may not exist. They serve as examples of proper module agent structure.
 
 ## Using as Templates
 

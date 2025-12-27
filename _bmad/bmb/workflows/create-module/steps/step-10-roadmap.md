@@ -1,10 +1,10 @@
 ---
-installed_path: '{project-root}/_bmad/bmb/workflows/create-module'
-nextStepFile: '{installed_path}/steps/step-11-validate.md'
-modulePlanFile: '{bmb_creations_output_folder}/{module_name}/module-plan-{module_name}.md'
-moduleTodoFile: '{bmb_creations_output_folder}/{module_name}/TODO.md'
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+installed_path: "{project-root}/_bmad/bmb/workflows/create-module"
+nextStepFile: "{installed_path}/steps/step-11-validate.md"
+modulePlanFile: "{bmb_creations_output_folder}/{module_name}/module-plan-{module_name}.md"
+moduleTodoFile: "{bmb_creations_output_folder}/{module_name}/TODO.md"
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 ---
 
 # Step 10: Generate Development Roadmap
@@ -21,7 +21,8 @@ partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 ### Role Reinforcement:
 
 - ✅ You are a Module Architect and Project Planner
-- ✅ If you already have been given communication or persona patterns, continue to use those while playing this new role
+- ✅ If you already have been given communication or persona patterns, continue to use those while
+  playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You bring expertise in development planning, user brings their module vision
 - ✅ Maintain collaborative, forward-looking tone
@@ -224,11 +225,9 @@ The module is complete when:
 
 ---
 
-Created: [current date]
-Last Updated: [current date]
+Created: [current date] Last Updated: [current date]
 
 ````
-
 ### 4. Prioritize Immediate Next Steps
 
 "**Immediate Next Steps (This Week):**
@@ -301,7 +300,8 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 
 - IF A: Execute {advancedElicitationTask} to explore development approaches
 - IF P: Execute {partyModeWorkflow} to get creative input on implementation
-- IF C: Save roadmap info to module-plan.md, add step-10-roadmap to the end of the stepsCompleted array in frontmatter, then load nextStepFile
+- IF C: Save roadmap info to module-plan.md, add step-10-roadmap to the end of the stepsCompleted
+  array in frontmatter, then load nextStepFile
 - IF Any other comments or queries: help user respond then redisplay menu
 
 #### EXECUTION RULES:
@@ -330,8 +330,11 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 - Not prioritizing tasks effectively
 - Missing essential development commands
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN C is selected and roadmap info is saved to module-plan.md with stepsCompleted updated to [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], will you then load, read entire file, then execute `{nextStepFile}` to begin final validation.
+ONLY WHEN C is selected and roadmap info is saved to module-plan.md with stepsCompleted updated to
+[1, 2, 3, 4, 5, 6, 7, 8, 9, 10], will you then load, read entire file, then execute `{nextStepFile}`
+to begin final validation.

@@ -1,9 +1,9 @@
 ---
-installed_path: '{project-root}/_bmad/bmb/workflows/create-module'
-nextStepFile: '{installed_path}/steps/step-06-agents.md'
-modulePlanFile: '{bmb_creations_output_folder}/{module_name}/module-plan-{module_name}.md'
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+installed_path: "{project-root}/_bmad/bmb/workflows/create-module"
+nextStepFile: "{installed_path}/steps/step-06-agents.md"
+modulePlanFile: "{bmb_creations_output_folder}/{module_name}/module-plan-{module_name}.md"
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 ---
 
 # Step 5: Plan Module Configuration
@@ -20,7 +20,8 @@ partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 ### Role Reinforcement:
 
 - ✅ You are a Module Architect and Configuration Specialist
-- ✅ If you already have been given communication or persona patterns, continue to use those while playing this new role
+- ✅ If you already have been given communication or persona patterns, continue to use those while
+  playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You bring expertise in BMAD installation patterns, user brings their module requirements
 - ✅ Maintain collaborative, planning-focused tone
@@ -48,13 +49,15 @@ partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 
 ## STEP GOAL:
 
-To determine what configuration settings the module needs and plan how they'll be implemented in the installer.
+To determine what configuration settings the module needs and plan how they'll be implemented in the
+installer.
 
 ## CONFIGURATION PLANNING PROCESS:
 
 ### 1. Initialize Configuration Planning
 
-"Now let's plan the configuration for your module's installer. This determines what users can customize when they install your module."
+"Now let's plan the configuration for your module's installer. This determines what users can
+customize when they install your module."
 
 **Configuration allows users to:**
 
@@ -114,25 +117,25 @@ Does your {module_display_name} module need any user-configurable settings durin
 
 ```yaml
 output_path:
-  prompt: 'Where should {module_name} save outputs?'
-  default: 'output/{module_name}'
-  result: '{project-root}/{value}'
+  prompt: "Where should {module_name} save outputs?"
+  default: "output/{module_name}"
+  result: "{project-root}/{value}"
 ```
 
 **INTERACTIVE Single-Select:**
 
 ```yaml
 detail_level:
-  prompt: 'How detailed should outputs be?'
-  default: 'standard'
-  result: '{value}'
+  prompt: "How detailed should outputs be?"
+  default: "standard"
+  result: "{value}"
   single-select:
-    - value: 'minimal'
-      label: 'Minimal - Brief summaries only'
-    - value: 'standard'
-      label: 'Standard - Balanced detail'
-    - value: 'detailed'
-      label: 'Detailed - Comprehensive information'
+    - value: "minimal"
+      label: "Minimal - Brief summaries only"
+    - value: "standard"
+      label: "Standard - Balanced detail"
+    - value: "detailed"
+      label: "Detailed - Comprehensive information"
 ```
 
 **STATIC Value:**
@@ -197,7 +200,8 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 
 - IF A: Execute {advancedElicitationTask} to explore additional configuration options
 - IF P: Execute {partyModeWorkflow} to get input on user experience
-- IF C: Save configuration plan to module-plan.md, add step-05-config to the end of the stepsCompleted array in frontmatter, then load nextStepFile
+- IF C: Save configuration plan to module-plan.md, add step-05-config to the end of the
+  stepsCompleted array in frontmatter, then load nextStepFile
 - IF Any other comments or queries: help user respond then redisplay menu
 
 #### EXECUTION RULES:
@@ -226,8 +230,11 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 - Not considering user experience
 - Not documenting configuration plans
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN C is selected and configuration plan is saved to module-plan.md with stepsCompleted updated to [1, 2, 3, 4, 5], will you then load, read entire file, then execute `{nextStepFile}` to begin agent creation.
+ONLY WHEN C is selected and configuration plan is saved to module-plan.md with stepsCompleted
+updated to [1, 2, 3, 4, 5], will you then load, read entire file, then execute `{nextStepFile}` to
+begin agent creation.

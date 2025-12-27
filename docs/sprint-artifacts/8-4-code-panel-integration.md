@@ -1,13 +1,12 @@
 # Story 8.4: Code Panel Integration
 
-> **Epic:** 8 - Hypergraph Capabilities Visualization
-> **ADRs:** ADR-029 (Hypergraph Capabilities Visualization)
-> **Prerequisites:** Story 8.3 (Hypergraph View Mode - DONE)
-> **Status:** Done
+> **Epic:** 8 - Hypergraph Capabilities Visualization **ADRs:** ADR-029 (Hypergraph Capabilities
+> Visualization) **Prerequisites:** Story 8.3 (Hypergraph View Mode - DONE) **Status:** Done
 
 ## User Story
 
-As a developer, I want to see the code_snippet when I click on a capability, So that I can understand what the capability does and copy the code.
+As a developer, I want to see the code_snippet when I click on a capability, So that I can
+understand what the capability does and copy the code.
 
 ## Problem Context
 
@@ -34,18 +33,19 @@ Le systeme dispose de:
 
 ### Gap Analysis (MVP)
 
-| Feature | Existe? | Location |
-|---------|---------|----------|
-| Hull click selection | Oui | `D3GraphVisualization.tsx` (Story 8.3) |
-| `onCapabilitySelect` callback | Oui | `D3GraphVisualization.tsx` (Story 8.3) |
-| CapabilityData interface | Oui | `D3GraphVisualization.tsx:43-50` |
-| Code Panel component | Non | **Story 8.4 MVP** |
-| Syntax highlighting | Non | **Story 8.4 MVP** |
-| Copy to clipboard | Non | **Story 8.4 MVP** |
+| Feature                       | Existe? | Location                               |
+| ----------------------------- | ------- | -------------------------------------- |
+| Hull click selection          | Oui     | `D3GraphVisualization.tsx` (Story 8.3) |
+| `onCapabilitySelect` callback | Oui     | `D3GraphVisualization.tsx` (Story 8.3) |
+| CapabilityData interface      | Oui     | `D3GraphVisualization.tsx:43-50`       |
+| Code Panel component          | Non     | **Story 8.4 MVP**                      |
+| Syntax highlighting           | Non     | **Story 8.4 MVP**                      |
+| Copy to clipboard             | Non     | **Story 8.4 MVP**                      |
 
 ### Impact
 
 Sans le Code Panel:
+
 - Les utilisateurs voient les capabilities mais ne peuvent pas voir le code
 - La valeur principale d'Epic 8 (visualiser + reutiliser les capabilities) n'est pas atteinte
 - Impossible de copier ou d'executer le code appris
@@ -88,7 +88,8 @@ Sans le Code Panel:
 2. **Hauteur Fixe:** 35vh - pas de resize pour le MVP (comme MetricsPanel)
 3. **Show/Hide Simple:** Click capability → panel apparaît, Click ✕ ou Escape → panel disparaît
 4. **Pas de Pin:** Superflu pour un bottom panel - le panel reste ouvert jusqu'à fermeture explicite
-5. **Syntax Highlighting:** Utiliser [refractor](https://github.com/wooorm/refractor) (Prism-based, Deno-compatible)
+5. **Syntax Highlighting:** Utiliser [refractor](https://github.com/wooorm/refractor) (Prism-based,
+   Deno-compatible)
 
 ### Data Flow
 
@@ -202,7 +203,8 @@ CodePanel renders with:
 
 - [x] **Task 2: Create CodePanel Island (MVP)** (AC: #1, #2, #8)
   - [x] 2.1 Create `src/web/islands/CodePanel.tsx` (~120 LOC) - **Island car stateful**
-  - [x] 2.2 Define props interface: `{ capability: CapabilityData | null; onClose: () => void; onToolClick?: (toolId: string) => void; }`
+  - [x] 2.2 Define props interface:
+        `{ capability: CapabilityData | null; onClose: () => void; onToolClick?: (toolId: string) => void; }`
   - [x] 2.3 Implement close button (X) et escape handler
   - [x] 2.4 Add slide-up animation CSS (300ms ease-out)
   - [x] 2.5 **Bottom panel layout:** hauteur fixe 35vh, border-top, flex-direction column
@@ -235,7 +237,8 @@ CodePanel renders with:
   - [x] 6.4 Reuse existing server color palette from D3GraphVisualization
 
 - [x] **Task 7: Integrate with GraphExplorer (MVP)** (AC: #1, #8)
-  - [x] 7.1 **CRITICAL:** Wire `onCapabilitySelect` callback from GraphExplorer to D3GraphVisualization
+  - [x] 7.1 **CRITICAL:** Wire `onCapabilitySelect` callback from GraphExplorer to
+        D3GraphVisualization
   - [x] 7.2 Add `selectedCapability` state to GraphExplorer
   - [x] 7.3 **Flex column layout:** GraphExplorer devient `flex-direction: column`
   - [x] 7.4 Render CodePanel **en bas** when capability selected (hauteur fixe 35vh)
@@ -334,13 +337,16 @@ export default function CodePanel({ capability, onClose, onToolClick }: CodePane
       }}
     >
       {/* Header with Close */}
-      <div class="panel-header" style={{
-        padding: "12px 16px",
-        borderBottom: "1px solid var(--border)",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-      }}>
+      <div
+        class="panel-header"
+        style={{
+          padding: "12px 16px",
+          borderBottom: "1px solid var(--border)",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
         <h3 style={{ margin: 0, color: "var(--text)", fontSize: "1rem" }}>
           {capability.label}
         </h3>
@@ -350,12 +356,14 @@ export default function CodePanel({ capability, onClose, onToolClick }: CodePane
       {/* Content (scrollable) */}
       <div style={{ flex: 1, overflow: "auto", padding: "16px" }}>
         {/* Code Section */}
-        <div style={{
-          background: "var(--bg, #0a0908)",
-          borderRadius: "8px",
-          padding: "16px",
-          overflow: "auto",
-        }}>
+        <div
+          style={{
+            background: "var(--bg, #0a0908)",
+            borderRadius: "8px",
+            padding: "16px",
+            overflow: "auto",
+          }}
+        >
           <pre style={{ margin: 0, fontFamily: "monospace", fontSize: "13px" }}>
             <code>
               {capability.codeSnippet
@@ -367,14 +375,16 @@ export default function CodePanel({ capability, onClose, onToolClick }: CodePane
         </div>
 
         {/* Actions + Stats Row */}
-        <div style={{
-          marginTop: "12px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: "12px",
-        }}>
+        <div
+          style={{
+            marginTop: "12px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: "12px",
+          }}
+        >
           <div style={{ display: "flex", gap: "8px" }}>
             <button onClick={handleCopy} class="btn-primary">
               {copied ? "✓ Copied!" : "Copy Code"}
@@ -436,7 +446,7 @@ const handleCapabilitySelect = (capability: CapabilityData | null) => {
       onToolClick={(toolId) => setHighlightedNode(toolId)}
     />
   )}
-</div>
+</div>;
 ```
 
 4. **CSS Animation (BOTTOM PANEL)**
@@ -468,9 +478,11 @@ const handleCapabilitySelect = (capability: CapabilityData | null) => {
 
 ### Project Structure Notes (MVP)
 
-> **Note:** JSON export already includes `capabilityZones` (Story 8.3, `D3GraphVisualization.tsx:967-971`). No additional export changes needed for Story 8.4.
+> **Note:** JSON export already includes `capabilityZones` (Story 8.3,
+> `D3GraphVisualization.tsx:967-971`). No additional export changes needed for Story 8.4.
 
 **Files to Create (MVP):**
+
 ```
 src/web/
 ├── lib/
@@ -483,6 +495,7 @@ tests/web/
 ```
 
 **Files to Modify (MVP):**
+
 ```
 src/web/islands/
 ├── mod.ts                           # Export CodePanel
@@ -492,27 +505,32 @@ src/web/islands/
 ### Existing Code Patterns to Follow
 
 **D3GraphVisualization.tsx** (Story 8.3 patterns):
+
 - `onCapabilitySelect` callback already defined at line 37
 - `CapabilityData` interface at lines 43-50
 - Hull click handler pattern at lines 191-198
 - Tooltip state pattern for capability tooltips
 
 **GraphExplorer.tsx** (Story 6.4 patterns):
+
 - State management with useState hooks
 - Sidebar panel pattern (similar to NodeDetailsPanel integration)
 - Keyboard shortcuts with useEffect
 - Style object pattern for inline CSS
 
 **Atomic Design structure:**
+
 - Atoms: single-responsibility, no internal dependencies
 - Molecules: combine atoms, add interactivity
 - All exports via mod.ts files
 
 ### References
 
-- **Story 8.3:** `docs/sprint-artifacts/8-3-hypergraph-view-mode.md` - Hull click handler, callback setup
+- **Story 8.3:** `docs/sprint-artifacts/8-3-hypergraph-view-mode.md` - Hull click handler, callback
+  setup
 - **Story 8.2:** `docs/sprint-artifacts/8-2-compound-graph-builder.md` - CapabilityData structure
-- **D3GraphVisualization:** `src/web/islands/D3GraphVisualization.tsx:43-50` - CapabilityData interface
+- **D3GraphVisualization:** `src/web/islands/D3GraphVisualization.tsx:43-50` - CapabilityData
+  interface
 - **GraphExplorer:** `src/web/islands/GraphExplorer.tsx` - Container integration point
 - **ADR-029:** `docs/adrs/ADR-029-hypergraph-capabilities-visualization.md` - Architecture
 - **Refractor docs:** https://github.com/wooorm/refractor - Syntax highlighting library
@@ -524,17 +542,20 @@ src/web/islands/
 ### From Story 8.3 (Hypergraph View Mode) - CRITICAL
 
 **Key Learnings:**
+
 1. **Hull click handler ready:** `handleHullClick` callback implemented
 2. **Capability tooltip pattern:** `capabilityTooltip` state shows hover behavior
 3. **BroadcastChannel integration:** `pml-events` channel for cross-tab sync
 4. **Animation patterns:** 300ms transitions established
 
 **Integration Points Created by 8.3:**
+
 - `onCapabilitySelect` prop defined but not wired
 - `_selectedCapability` state defined but unused (prefixed _ to suppress warning)
 - `capabilityDataRef` Map available for capability lookup
 
 **Files Modified by 8.3:**
+
 - `src/web/islands/D3GraphVisualization.tsx` - Added hypergraph mode
 - `src/web/islands/GraphExplorer.tsx` - Added view mode toggle
 - `src/web/components/ui/atoms/ViewModeToggle.tsx` - Created
@@ -542,6 +563,7 @@ src/web/islands/
 ### From Epic 6 (D3.js Dashboard)
 
 **Patterns:**
+
 - NodeDetailsPanel: sidebar panel pattern for tool details
 - GraphTooltip: hover tooltip pattern
 - CSS variable usage: `--bg`, `--accent`, `--border`, `--text`
@@ -560,7 +582,8 @@ src/web/islands/
 
 ### Learnings:
 
-1. **pml-events channel:** Recent commit migrated from `pml-events` - use `pml-events` for BroadcastChannel
+1. **pml-events channel:** Recent commit migrated from `pml-events` - use `pml-events` for
+   BroadcastChannel
 2. **HypergraphBuilder output:** capabilityZones[] structure established
 3. **D3.js patterns:** Hull rendering, zoom transform patterns
 
@@ -608,7 +631,8 @@ deno task dev:web
 
 ### Context Reference
 
-- `src/web/islands/D3GraphVisualization.tsx:43-58` - CapabilityData interface (exported, extended with toolIds)
+- `src/web/islands/D3GraphVisualization.tsx:43-58` - CapabilityData interface (exported, extended
+  with toolIds)
 - `src/web/islands/D3GraphVisualization.tsx:215-238` - Hull click handler with callback
 - `src/web/islands/GraphExplorer.tsx:130-133` - handleCapabilitySelect handler
 - `src/web/islands/GraphExplorer.tsx:543-553` - CodePanel integration
@@ -626,9 +650,11 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Completion Notes List
 
-1. **Task 1 Complete:** Created `src/web/lib/syntax-highlight.ts` with refractor integration for TypeScript/TSX/JSON syntax highlighting. Used esm.sh imports for Deno compatibility.
+1. **Task 1 Complete:** Created `src/web/lib/syntax-highlight.ts` with refractor integration for
+   TypeScript/TSX/JSON syntax highlighting. Used esm.sh imports for Deno compatibility.
 
-2. **Task 2-6 Complete:** Created `src/web/islands/CodePanel.tsx` (~400 LOC) as a comprehensive bottom panel island with:
+2. **Task 2-6 Complete:** Created `src/web/islands/CodePanel.tsx` (~400 LOC) as a comprehensive
+   bottom panel island with:
    - Capability name display with truncation
    - Code snippet with syntax highlighting and line numbers toggle
    - Copy to clipboard with visual feedback
@@ -653,19 +679,24 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
    - Success rate color logic
    - Clipboard mock
 
-6. **Type System:** Extended CapabilityData interface in D3GraphVisualization with optional fields (toolIds, createdAt, lastUsedAt, communityId) and exported it. CodePanel re-exports the type.
+6. **Type System:** Extended CapabilityData interface in D3GraphVisualization with optional fields
+   (toolIds, createdAt, lastUsedAt, communityId) and exported it. CodePanel re-exports the type.
 
-7. **Event System:** Confirmed using `pml-events` BroadcastChannel (not pml-events) per recent migration.
+7. **Event System:** Confirmed using `pml-events` BroadcastChannel (not pml-events) per recent
+   migration.
 
 ### File List
 
 **New Files:**
+
 - `src/web/lib/syntax-highlight.ts` - Syntax highlighting helper with refractor
 - `src/web/islands/CodePanel.tsx` - Bottom panel island for capability code display
 - `tests/unit/web/code_panel_test.ts` - Unit tests for CodePanel
 
 **Modified Files:**
-- `src/web/islands/D3GraphVisualization.tsx` - Extended CapabilityData interface, added toolIds enrichment
+
+- `src/web/islands/D3GraphVisualization.tsx` - Extended CapabilityData interface, added toolIds
+  enrichment
 - `src/web/islands/GraphExplorer.tsx` - Added CodePanel integration with flex layout
 - `docs/sprint-artifacts/sprint-status.yaml` - Updated story status to done
 - `deno.json` - Added refractor and hast-util-to-jsx-runtime npm imports for SSR compatibility
@@ -674,11 +705,11 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 **Reviewer:** Claude Opus 4.5 (adversarial review)
 
-**Issues Found:** 1 HIGH, 3 MEDIUM, 3 LOW
-**Issues Fixed:** 4 (H1, M1, L1, L3)
-**Issues Accepted:** 3 (M2 scope creep accepted, M3 unrelated files, L2 console logs acceptable)
+**Issues Found:** 1 HIGH, 3 MEDIUM, 3 LOW **Issues Fixed:** 4 (H1, M1, L1, L3) **Issues Accepted:**
+3 (M2 scope creep accepted, M3 unrelated files, L2 console logs acceptable)
 
 **Fixes Applied:**
+
 1. **H1 FIXED:** Test import error - removed invalid value import of CapabilityData interface
 2. **M1 FIXED:** Added accessibility attributes (role="region", aria-labelledby, tabIndex)
 3. **L1 FIXED:** Removed redundant _selectedCapability state from D3GraphVisualization
@@ -686,6 +717,7 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 5. **SSR FIX:** Migrated esm.sh imports to npm: specifiers in deno.json for Vite SSR compatibility
 
 **Verification:**
+
 - Type check: PASSED (all 4 files)
 - Unit tests: 12/12 PASSED
 - Fresh SSR: PASSED (Vite starts without ERR_UNSUPPORTED_ESM_URL_SCHEME)

@@ -1,14 +1,14 @@
 # Story 7.6: Algorithm Observability Implementation (ADR-039)
 
-> **Epic:** 7 - Emergent Capabilities & Learning System
-> **ADRs:** ADR-038 (Scoring Algorithms Reference), ADR-039 (Algorithm Observability & Adaptive Weight Preparation), ADR-041 (Hierarchical Trace Tracking)
-> **Prerequisites:** Story 7.4 (DAGSuggester Extension - Mixed DAG) - DONE
-> **Status:** done
-> **Created:** 2025-12-10
+> **Epic:** 7 - Emergent Capabilities & Learning System **ADRs:** ADR-038 (Scoring Algorithms
+> Reference), ADR-039 (Algorithm Observability & Adaptive Weight Preparation), ADR-041 (Hierarchical
+> Trace Tracking) **Prerequisites:** Story 7.4 (DAGSuggester Extension - Mixed DAG) - DONE
+> **Status:** done **Created:** 2025-12-10
 
 ## User Story
 
-As a system administrator, I want to trace algorithm decisions and outcomes, So that I can validate the scoring weights and detect anomalies.
+As a system administrator, I want to trace algorithm decisions and outcomes, So that I can validate
+the scoring weights and detect anomalies.
 
 ## Problem Context
 
@@ -29,6 +29,7 @@ Le systeme utilise plusieurs algorithmes de scoring complexes (ADR-038):
    - Spectral Clustering pour identifier clusters actifs
 
 **MAIS:** Ces algorithmes n'ont aucune observabilite. On ne peut pas:
+
 - Valider si le Spectral Clustering aide vraiment
 - Mesurer l'impact du ReliabilityFactor
 - Detecter des anomalies (scores anormalement hauts/bas)
@@ -37,6 +38,7 @@ Le systeme utilise plusieurs algorithmes de scoring complexes (ADR-038):
 ### Impact Without Observability
 
 Sans traces algorithmes:
+
 - Impossible de valider empiriquement les choix ADR-038
 - Pas de metriques pour ajuster les weights
 - Debugging difficile quand les suggestions sont mauvaises
@@ -81,10 +83,10 @@ Sans traces algorithmes:
 ```typescript
 interface AlgorithmTraceRecord {
   // --- Context ---
-  traceId: string;           // UUID
+  traceId: string; // UUID
   timestamp: Date;
-  intent?: string;           // If Active Search
-  contextHash: string;       // Link to AdaptiveThresholds
+  intent?: string; // If Active Search
+  contextHash: string; // Link to AdaptiveThresholds
 
   // --- Mode & Target ---
   algorithmMode: "active_search" | "passive_suggestion";
@@ -105,16 +107,16 @@ interface AlgorithmTraceRecord {
 
   // --- Algorithm Parameters ---
   params: {
-    alpha: number;              // Semantic vs Graph balance
-    reliabilityFactor: number;  // Impact of success_rate
-    structuralBoost: number;    // Impact of cluster match
+    alpha: number; // Semantic vs Graph balance
+    reliabilityFactor: number; // Impact of success_rate
+    structuralBoost: number; // Impact of cluster match
   };
 
   // --- Computed Results ---
   scores: {
-    relevanceScore: number;  // Base score
-    finalScore: number;      // After boosts
-    thresholdUsed: number;   // Adaptive threshold
+    relevanceScore: number; // Base score
+    finalScore: number; // After boosts
+    thresholdUsed: number; // Adaptive threshold
   };
 
   // --- Decision ---
@@ -166,10 +168,12 @@ interface AlgorithmTraceRecord {
 
 - [x] File `src/telemetry/algorithm-tracer.ts` created (434 LOC)
 - [x] Constructor: `AlgorithmTracer(db: PGliteClient)`
-- [x] Method `logTrace(record: Omit<AlgorithmTraceRecord, 'traceId' | 'timestamp'>): Promise<string>`:
+- [x] Method
+      `logTrace(record: Omit<AlgorithmTraceRecord, 'traceId' | 'timestamp'>): Promise<string>`:
   - Buffers traces in memory (batch write for performance)
   - Returns trace_id for outcome update
-- [x] Method `updateOutcome(traceId: string, outcome: AlgorithmTraceRecord['outcome']): Promise<void>`:
+- [x] Method
+      `updateOutcome(traceId: string, outcome: AlgorithmTraceRecord['outcome']): Promise<void>`:
   - Updates existing trace with outcome
 - [x] Method `flush(): Promise<void>`:
   - Writes buffered traces to database
@@ -233,8 +237,8 @@ interface AlgorithmTraceRecord {
   ```typescript
   interface AlgorithmMetrics {
     avgFinalScore: { tool: number; capability: number };
-    conversionRate: number;  // accepted / total
-    spectralRelevance: number;  // avg score when spectralClusterMatch=true
+    conversionRate: number; // accepted / total
+    spectralRelevance: number; // avg score when spectralClusterMatch=true
     decisionDistribution: {
       accepted: number;
       rejectedByThreshold: number;
@@ -261,7 +265,8 @@ interface AlgorithmTraceRecord {
 - [x] Test: POST /api/algorithm-feedback updates trace outcome
 - [x] Test: Spectral cluster tracking works correctly
 - [x] Test: 7-day retention cleanup (5 integration tests, all passing)
-- [~] Test: DAGSuggester integration (code present, not tested end-to-end due to GraphEngine mock complexity)
+- [~] Test: DAGSuggester integration (code present, not tested end-to-end due to GraphEngine mock
+  complexity)
 
 ### AC10: Performance Requirements
 
@@ -350,7 +355,7 @@ interface AlgorithmTraceRecord {
      private buffer: AlgorithmTraceRecord[] = [];
      private readonly BUFFER_SIZE = 100;
 
-     async logTrace(record: Omit<AlgorithmTraceRecord, 'traceId' | 'timestamp'>): Promise<string> {
+     async logTrace(record: Omit<AlgorithmTraceRecord, "traceId" | "timestamp">): Promise<string> {
        const traceId = crypto.randomUUID();
        const trace = {
          ...record,
@@ -434,6 +439,7 @@ interface AlgorithmTraceRecord {
 ### Project Structure Notes
 
 **Files to Create:**
+
 ```
 src/db/migrations/
 └── 014_algorithm_traces_migration.ts   # NEW: Table schema
@@ -453,6 +459,7 @@ tests/integration/telemetry/
 ```
 
 **Files to Modify:**
+
 ```
 src/capabilities/matcher.ts             # Add tracer integration (~30 LOC)
 src/graphrag/dag-suggester.ts           # Add tracer integration (~50 LOC)
@@ -461,16 +468,19 @@ src/graphrag/dag-suggester.ts           # Add tracer integration (~50 LOC)
 ### Existing Code Patterns to Follow
 
 **Logger Pattern** (`src/telemetry/logger.ts`):
+
 - Structured logging with getLogger()
 - JSON format with level, timestamp, context
 - Follow same DI pattern for tracer
 
 **Migration Pattern** (`src/db/migrations/011_capability_storage_migration.ts`):
+
 - Export `up()` and `down()` functions
 - Use raw SQL or Drizzle schema
 - Idempotent operations
 
 **API Route Pattern** (`src/web/routes/api/user/delete.ts`):
+
 - Fresh route handler with Handlers export
 - Auth validation via validateRequest()
 - JSON response with proper status codes
@@ -481,7 +491,8 @@ src/graphrag/dag-suggester.ts           # Add tracer integration (~50 LOC)
 - **ADR-039:** `docs/adrs/ADR-039-algorithm-observability-tracking.md`
 - **CapabilityMatcher:** `src/capabilities/matcher.ts`
 - **DAGSuggester:** `src/graphrag/dag-suggester.ts`
-- **Previous story (7.4):** `docs/sprint-artifacts/7-4-suggestion-engine-proactive-recommendations.md`
+- **Previous story (7.4):**
+  `docs/sprint-artifacts/7-4-suggestion-engine-proactive-recommendations.md`
 - **Project Context:** `docs/project_context.md`
 
 ---
@@ -587,14 +598,14 @@ export async function down(db: PGliteDatabase): Promise<void> {
 
 ## Pre-Implementation Checklist
 
-| Topic | Decision | Rationale |
-|-------|----------|-----------|
-| **Table schema** | JSONB for flexible signals | Different algorithms have different signals |
-| **Buffer size** | 100 traces | Balance memory vs I/O |
-| **Retention** | 7 days | Enough for tuning, not audit |
-| **Async writes** | Fire-and-forget | Zero impact on algorithm latency |
-| **Metrics scope** | 24h window | Recent data more relevant |
-| **Auth on feedback** | Required (cloud mode) | Prevent spam/abuse |
+| Topic                | Decision                   | Rationale                                   |
+| -------------------- | -------------------------- | ------------------------------------------- |
+| **Table schema**     | JSONB for flexible signals | Different algorithms have different signals |
+| **Buffer size**      | 100 traces                 | Balance memory vs I/O                       |
+| **Retention**        | 7 days                     | Enough for tuning, not audit                |
+| **Async writes**     | Fire-and-forget            | Zero impact on algorithm latency            |
+| **Metrics scope**    | 24h window                 | Recent data more relevant                   |
+| **Auth on feedback** | Required (cloud mode)      | Prevent spam/abuse                          |
 
 ---
 
@@ -620,6 +631,7 @@ Claude Sonnet 4.5 (claude-sonnet-4-5-20250929)
 ### Completion Notes List
 
 **Implementation Summary:**
+
 - ✅ All 10 ACs completed successfully
 - ✅ 9 unit tests passing (algorithm_tracer_test.ts)
 - ✅ 5 integration tests passing (algorithm_tracer_integration_test.ts)
@@ -631,12 +643,15 @@ Claude Sonnet 4.5 (claude-sonnet-4-5-20250929)
 - ✅ Bonus: GET /api/algorithm-feedback for metrics retrieval
 
 **Code Review Findings & Resolutions:**
+
 1. ✅ Route pattern verified: `/api/algorithm-feedback` is correct (flat file-system routing)
 2. ✅ Auth protection added: Both POST and GET handlers check `isCloudMode && user`
 3. ✅ Git discrepancies noted: Other stories (9.5 auth) developed in parallel - expected
-4. ⚠️ DAGSuggester end-to-end test skipped: Code present and correct, mock complexity too high for test ROI
+4. ⚠️ DAGSuggester end-to-end test skipped: Code present and correct, mock complexity too high for
+   test ROI
 
 **Performance Validation:**
+
 - logTrace(): Fire-and-forget pattern, buffered, < 1ms
 - flush(): Batch INSERT for 100 traces, < 50ms
 - Zero impact on algorithm execution (async, non-blocking)
@@ -649,7 +664,8 @@ Claude Sonnet 4.5 (claude-sonnet-4-5-20250929)
 - [x] `src/telemetry/index.ts` - MODIFY (export AlgorithmTracer)
 - [x] `src/capabilities/matcher.ts` - MODIFY (add tracer integration)
 - [x] `src/graphrag/dag-suggester.ts` - MODIFY (add tracer integration)
-- [x] `src/web/routes/api/algorithm-feedback.ts` - NEW (feedback endpoint at /api/algorithm-feedback)
+- [x] `src/web/routes/api/algorithm-feedback.ts` - NEW (feedback endpoint at
+      /api/algorithm-feedback)
 - [x] `tests/unit/telemetry/algorithm_tracer_test.ts` - NEW (unit tests)
 - [x] `tests/integration/algorithm_tracer_integration_test.ts` - NEW (integration tests)
 
@@ -657,10 +673,10 @@ Claude Sonnet 4.5 (claude-sonnet-4-5-20250929)
 
 ## Change Log
 
-| Date | Author | Change |
-|------|--------|--------|
-| 2025-12-10 | create-story workflow | Initial story creation from ADR-039 |
-| 2025-12-10 | SM validation | Fixed mod.ts -> index.ts references (4 occurrences) |
-| 2025-12-10 | Code Review | AC6 clarification: Route created at /api/algorithm-feedback (flat pattern) instead of /api/traces/feedback (nested). Follows project convention: file-system routing with flat structure. |
-| 2025-12-10 | Code Review | Added auth protection to algorithm-feedback route: POST and GET handlers now check isCloudMode && user (AC6 compliance). Returns 401 in cloud mode without valid session. |
-| 2025-12-10 | Code Review | Bonus feature implemented: GET /api/algorithm-feedback?windowHours=24&mode=active_search for metrics retrieval (not in AC but useful for observability dashboard). |
+| Date       | Author                | Change                                                                                                                                                                                    |
+| ---------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2025-12-10 | create-story workflow | Initial story creation from ADR-039                                                                                                                                                       |
+| 2025-12-10 | SM validation         | Fixed mod.ts -> index.ts references (4 occurrences)                                                                                                                                       |
+| 2025-12-10 | Code Review           | AC6 clarification: Route created at /api/algorithm-feedback (flat pattern) instead of /api/traces/feedback (nested). Follows project convention: file-system routing with flat structure. |
+| 2025-12-10 | Code Review           | Added auth protection to algorithm-feedback route: POST and GET handlers now check isCloudMode && user (AC6 compliance). Returns 401 in cloud mode without valid session.                 |
+| 2025-12-10 | Code Review           | Bonus feature implemented: GET /api/algorithm-feedback?windowHours=24&mode=active_search for metrics retrieval (not in AC but useful for observability dashboard).                        |

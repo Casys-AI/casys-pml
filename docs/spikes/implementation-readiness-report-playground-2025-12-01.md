@@ -26,7 +26,7 @@ complétées avant de commencer les notebooks (Epic 2).
 | **Niveau**          | 2 (Medium - multiple epics, 10+ stories) |
 | **Field Type**      | Greenfield                               |
 | **Chemin Workflow** | greenfield-level-2.yaml                  |
-| **Projet Parent**   | Casys PML                               |
+| **Projet Parent**   | Casys PML                                |
 
 **Objectif:** Créer un playground éducatif démontrant les capacités de Casys MCP Gateway (context
 optimization, DAG execution, sandbox, GraphRAG) via des notebooks Jupyter exécutables.

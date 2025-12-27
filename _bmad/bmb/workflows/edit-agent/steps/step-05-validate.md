@@ -1,28 +1,29 @@
 ---
-name: 'step-05-validate'
-description: 'Validate that changes work correctly'
+name: "step-05-validate"
+description: "Validate that changes work correctly"
 
 # Path Definitions
-workflow_path: '{project-root}/bmb/workflows/create-agent/edit-agent'
+workflow_path: "{project-root}/bmb/workflows/create-agent/edit-agent"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-05-validate.md'
-agentFile: '{{agent_path}}'
+thisStepFile: "{workflow_path}/steps/step-05-validate.md"
+agentFile: "{{agent_path}}"
 
 # Task References
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 
 # Documentation References (load JIT)
-validation: '{project-root}/_bmad/bmb/workflows/create-agent/data/agent-validation-checklist.md'
-agent_compilation: '{project-root}/_bmad/bmb/docs/agents/agent-compilation.md'
+validation: "{project-root}/_bmad/bmb/workflows/create-agent/data/agent-validation-checklist.md"
+agent_compilation: "{project-root}/_bmad/bmb/docs/agents/agent-compilation.md"
 ---
 
 # Step 5: Validate Changes
 
 ## STEP GOAL:
 
-Validate that the applied changes work correctly and the edited agent follows BMAD best practices and standards.
+Validate that the applied changes work correctly and the edited agent follows BMAD best practices
+and standards.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -36,9 +37,11 @@ Validate that the applied changes work correctly and the edited agent follows BM
 ### Role Reinforcement:
 
 - ✅ You are an agent editor who helps users ensure their edited BMAD agents meet quality standards
-- ✅ If you already have a name, communication_style and identity, continue to use those while playing this new role
+- ✅ If you already have a name, communication_style and identity, continue to use those while
+  playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
-- ✅ You bring agent architecture expertise, user brings their agent and goals, together we ensure quality
+- ✅ You bring agent architecture expertise, user brings their agent and goals, together we ensure
+  quality
 - ✅ Maintain collaborative guiding tone throughout
 
 ### Step-Specific Rules:
@@ -99,11 +102,8 @@ If persona or agent structure was changed:
 
 ### 6. Report Validation Results
 
-"Validation results:
-✓ All {{number}} changes applied correctly
-✓ Agent meets BMAD standards and best practices
-✓ No issues found in modified sections
-✓ Ready for use"
+"Validation results: ✓ All {{number}} changes applied correctly ✓ Agent meets BMAD standards and
+best practices ✓ No issues found in modified sections ✓ Ready for use"
 
 ### 7. Present MENU OPTIONS
 
@@ -114,18 +114,22 @@ Display: "**Select an Option:** [A] Edit Another Agent [P] Party Mode [C] Comple
 - IF A: Start fresh workflow with new agent path
 - IF P: Execute {partyModeWorkflow} to celebrate successful agent editing
 - IF C: Complete workflow and provide final success message
-- IF Any other comments or queries: help user respond then [Redisplay Menu Options](#7-present-menu-options)
+- IF Any other comments or queries: help user respond then
+  [Redisplay Menu Options](#7-present-menu-options)
 
 #### EXECUTION RULES:
 
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed when user selects 'A', 'P', or 'C'
 - After party mode execution, return to this menu
-- User can chat or ask questions - always respond and then end with display again of the menu options
+- User can chat or ask questions - always respond and then end with display again of the menu
+  options
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN [C complete option] is selected and [all changes from step 4 have been validated successfully], will you then provide a final workflow completion message. The agent editing workflow is complete.
+ONLY WHEN [C complete option] is selected and [all changes from step 4 have been validated
+successfully], will you then provide a final workflow completion message. The agent editing workflow
+is complete.
 
 ---
 
@@ -147,4 +151,5 @@ ONLY WHEN [C complete option] is selected and [all changes from step 4 have been
 - Not reporting validation results clearly
 - Not loading references when needed for specific validation
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

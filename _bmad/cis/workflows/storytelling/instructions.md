@@ -28,7 +28,8 @@
   <ask response="key_messages">3. What key messages or takeaways do you want the audience to have?</ask>
   <ask>4. Any constraints? (length, tone, medium, existing brand guidelines)</ask>
 
-<critical>Wait for user response before proceeding. This context shapes the narrative approach.</critical>
+<critical>Wait for user response before proceeding. This context shapes the narrative
+approach.</critical>
 </check>
 
 <template-output>story_purpose, target_audience, key_messages</template-output>
@@ -255,7 +256,8 @@ Provide strategic guidance for story deployment:
 - Testing and feedback approach
   </guide>
 
-<template-output>best_channels, audience_considerations, tone_notes, adaptation_suggestions</template-output>
+<template-output>best_channels, audience_considerations, tone_notes,
+adaptation_suggestions</template-output>
 
 </step>
 
@@ -269,7 +271,8 @@ Polish and plan forward:
 <ask>Do you need additional story versions for other audiences/purposes?</ask>
 <ask>How will you test this story with your audience?</ask>
 
-<template-output>resolution, refinement_opportunities, additional_versions, feedback_plan</template-output>
+<template-output>resolution, refinement_opportunities, additional_versions,
+feedback_plan</template-output>
 
 </step>
 
@@ -284,7 +287,8 @@ Compile all story components into the structured template:
 5. Fill all template placeholders with actual content
 
 <action>Write final story document to {output_folder}/story-{{date}}.md</action>
-<action>Confirm completion with: "Story complete, {user_name}! Your narrative has been saved to {output_folder}/story-{{date}}.md"</action>
+<action>Confirm completion with: "Story complete, {user_name}! Your narrative has been saved to
+{output_folder}/story-{{date}}.md"</action>
 
 <template-output>agent_role, agent_name, user_name, date</template-output>
 

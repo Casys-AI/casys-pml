@@ -1,17 +1,19 @@
 # 03 - Multi-Level Incidence Structure
 
-**Parent**: [00-overview.md](./00-overview.md)
-**Depends on**: [02-hierarchy-computation.md](./02-hierarchy-computation.md)
+**Parent**: [00-overview.md](./00-overview.md) **Depends on**:
+[02-hierarchy-computation.md](./02-hierarchy-computation.md)
 
 ---
 
 ## Concept
 
 Instead of single matrix A[tool][cap], we have:
+
 - **I₀**: Tools → Level-0 Capabilities (binary)
 - **I_k**: Level-(k-1) Caps → Level-k Caps (binary, k ≥ 1)
 
 For capability c at level k:
+
 - If k = 0: I₀[t][c] = 1 iff tool t ∈ c.members
 - If k > 0: I_k[c'][c] = 1 iff capability c' ∈ c.members
 

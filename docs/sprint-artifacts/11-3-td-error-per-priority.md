@@ -4,13 +4,14 @@ Status: done
 
 ## Story
 
-As a learning system,
-I want to calculate TD error for PER priority,
-So that SHGAT can sample and learn from surprising traces efficiently.
+As a learning system, I want to calculate TD error for PER priority, So that SHGAT can sample and
+learn from surprising traces efficiently.
 
 ## Context & Background
 
-**Epic 11: Learning from Execution Traces** implements a TD Error + PER + SHGAT learning system (DQN/Rainbow style). This story is the third step: calculating TD error as a signal for Prioritized Experience Replay (PER).
+**Epic 11: Learning from Execution Traces** implements a TD Error + PER + SHGAT learning system
+(DQN/Rainbow style). This story is the third step: calculating TD error as a signal for Prioritized
+Experience Replay (PER).
 
 **Architecture Overview (2025-12-22):**
 
@@ -40,28 +41,31 @@ So that SHGAT can sample and learn from surprising traces efficiently.
 
 **Role of each component:**
 
-| Component | Role | What it produces |
-|-----------|------|------------------|
-| **TD Error** | Learning signal | `|predicted - actual|` for PER |
-| **PER** | Replay prioritization | Traces weighted by surprise |
-| **SHGAT** | The model itself | Attention weights, prediction scores |
+| Component    | Role                  | What it produces                     |
+| ------------ | --------------------- | ------------------------------------ |
+| **TD Error** | Learning signal       | `                                    |
+| **PER**      | Replay prioritization | Traces weighted by surprise          |
+| **SHGAT**    | The model itself      | Attention weights, prediction scores |
 
 **DEPRECATIONS (2025-12-22):**
 
-| Deprecated | Replaced by | Reason |
-|----------|--------------|--------|
-| `CapabilityLearning` structure | SHGAT weights | SHGAT learns directly from traces |
-| `workflow_pattern.learning` column | `execution_trace.priority` + SHGAT | No intermediate stats |
-| `updateLearningTD()` -> stats | `updatePriority()` -> PER only | TD error = signal for PER, not stats |
-| `pathSuccessRate` calculated | SHGAT predicts directly | Network learns patterns |
+| Deprecated                         | Replaced by                        | Reason                               |
+| ---------------------------------- | ---------------------------------- | ------------------------------------ |
+| `CapabilityLearning` structure     | SHGAT weights                      | SHGAT learns directly from traces    |
+| `workflow_pattern.learning` column | `execution_trace.priority` + SHGAT | No intermediate stats                |
+| `updateLearningTD()` -> stats      | `updatePriority()` -> PER only     | TD error = signal for PER, not stats |
+| `pathSuccessRate` calculated       | SHGAT predicts directly            | Network learns patterns              |
 
 **Previous Story Intelligence (11.1 - completed 2025-12-22):**
+
 - Result tracing implemented in `worker-bridge.ts` and `code-generator.ts`
 - `tool_end` and `capability_end` events now include `result` field
 - `safeSerializeResult()` handles circular references
 - 277 sandbox tests passing including 9 result tracing tests
 
-**Important:** Story 11.2 (`execution_trace` table) is a **prerequisite** for this story. This story depends on:
+**Important:** Story 11.2 (`execution_trace` table) is a **prerequisite** for this story. This story
+depends on:
+
 - `ExecutionTraceStore` class with `saveTrace()`, `getTraces()`, `updatePriority()` methods
 - `execution_trace.priority` column (FLOAT, default 0.5)
 
@@ -72,7 +76,7 @@ So that SHGAT can sample and learn from surprising traces efficiently.
    async function calculateTDError(
      shgat: SHGAT,
      embeddingProvider: EmbeddingProvider,
-     trace: { intentText?: string; executedPath?: string[]; success: boolean }
+     trace: { intentText?: string; executedPath?: string[]; success: boolean },
    ): Promise<TDErrorResult> {
      const intentEmbedding = await embeddingProvider.getEmbedding(trace.intentText ?? "");
      const predicted = shgat.predictPathSuccess(intentEmbedding, trace.executedPath ?? []);
@@ -100,7 +104,7 @@ So that SHGAT can sample and learn from surprising traces efficiently.
    async function storeTraceWithPriority(
      shgat: SHGAT,
      traceStore: ExecutionTraceStore,
-     trace: ExecutionTrace
+     trace: ExecutionTrace,
    ): Promise<void> {
      const tdError = await calculateTDError(shgat, trace);
      const priority = Math.abs(tdError);
@@ -108,9 +112,11 @@ So that SHGAT can sample and learn from surprising traces efficiently.
    }
    ```
 
-4. **AC4:** **COLD START handling:** If SHGAT not yet trained (no capabilities registered), priority = 0.5 (neutral)
+4. **AC4:** **COLD START handling:** If SHGAT not yet trained (no capabilities registered), priority
+   = 0.5 (neutral)
 
-5. **AC5:** `ExecutionTraceStore.getHighPriorityTraces(limit)` for PER sampling (Story 11.6 prerequisite):
+5. **AC5:** `ExecutionTraceStore.getHighPriorityTraces(limit)` for PER sampling (Story 11.6
+   prerequisite):
    ```typescript
    getHighPriorityTraces(limit: number): Promise<ExecutionTrace[]>
    ```
@@ -165,32 +171,48 @@ So that SHGAT can sample and learn from surprising traces efficiently.
 
 ### Review Follow-ups (AI) - 2025-12-23
 
-- [x] [AI-Review][HIGH] **AC1 API Mismatch**: ~~Story spec says `calculateTDError(shgat, trace)` but implementation requires `embeddingProvider` parameter.~~ AC1 spec updated to match implementation. [per-priority.ts:98-102]
-- [x] [AI-Review][HIGH] **AC2 API Mismatch**: ~~Story spec says `predictPathSuccess(path)` but implementation requires `intentEmbedding` parameter.~~ AC2 spec updated to match implementation. [shgat.ts:971]
-- [x] [AI-Review][MEDIUM] **Performance**: ~~`predictPathSuccess` is O(n × SHGAT_forward)~~ FALSE ALARM - Code already caches via toolScoresMap/capScoresMap. Complexity is O(scoreAll) + O(path), not O(n × scoreAll). [shgat.ts:985-1017]
-- [x] [AI-Review][MEDIUM] **batchUpdatePriorities count**: ~~`updated++` increments even when update is skipped.~~ FIXED - `updateTracePriority` now returns boolean, `batchUpdatePriorities` tracks skipped count. [per-priority.ts:224-298]
-- [x] [AI-Review][MEDIUM] **Missing E2E test**: ~~Add integration test for full flow.~~ ADDED `tests/integration/per_priority_e2e_test.ts` - 5 E2E tests covering success/failure cases, cold start, and priority ordering.
-- [x] [AI-Review][LOW] **Commit files**: ~~All implementation files are untracked/unstaged.~~ COMMITTED as `2b6fb75` - 6 files, 1183 insertions
+- [x] [AI-Review][HIGH] **AC1 API Mismatch**: ~~Story spec says `calculateTDError(shgat, trace)` but
+      implementation requires `embeddingProvider` parameter.~~ AC1 spec updated to match
+      implementation. [per-priority.ts:98-102]
+- [x] [AI-Review][HIGH] **AC2 API Mismatch**: ~~Story spec says `predictPathSuccess(path)` but
+      implementation requires `intentEmbedding` parameter.~~ AC2 spec updated to match
+      implementation. [shgat.ts:971]
+- [x] [AI-Review][MEDIUM] **Performance**: ~~`predictPathSuccess` is O(n × SHGAT_forward)~~ FALSE
+      ALARM - Code already caches via toolScoresMap/capScoresMap. Complexity is O(scoreAll) +
+      O(path), not O(n × scoreAll). [shgat.ts:985-1017]
+- [x] [AI-Review][MEDIUM] **batchUpdatePriorities count**: ~~`updated++` increments even when update
+      is skipped.~~ FIXED - `updateTracePriority` now returns boolean, `batchUpdatePriorities`
+      tracks skipped count. [per-priority.ts:224-298]
+- [x] [AI-Review][MEDIUM] **Missing E2E test**: ~~Add integration test for full flow.~~ ADDED
+      `tests/integration/per_priority_e2e_test.ts` - 5 E2E tests covering success/failure cases,
+      cold start, and priority ordering.
+- [x] [AI-Review][LOW] **Commit files**: ~~All implementation files are untracked/unstaged.~~
+      COMMITTED as `2b6fb75` - 6 files, 1183 insertions
 
 ## Dev Notes
 
 ### Implementation Summary (2025-12-23)
 
 **Files Created:**
+
 - `src/capabilities/per-priority.ts` - TD Error + PER functions
 
 **Files Modified:**
-- `src/graphrag/algorithms/shgat.ts` - Added `predictPathSuccess()`, `getToolCount()`, `getCapabilityCount()`
+
+- `src/graphrag/algorithms/shgat.ts` - Added `predictPathSuccess()`, `getToolCount()`,
+  `getCapabilityCount()`
 - `docs/adrs/ADR-050-unified-search-simplification.md` - Documented multi-head architecture
 
 **Tests Created:**
+
 - `tests/unit/capabilities/per_priority_test.ts` - 12 tests, all passing
 
 ### Critical Implementation Details
 
 **1. SHGAT.predictPathSuccess() - Multi-Head Architecture (ADR-050)**
 
-Unlike the original proposal (average embeddings), we use the same **multi-head architecture** as `scoreAllTools` and `scoreAllCapabilities`:
+Unlike the original proposal (average embeddings), we use the same **multi-head architecture** as
+`scoreAllTools` and `scoreAllCapabilities`:
 
 ```typescript
 // In src/graphrag/algorithms/shgat.ts (line 956-1024)
@@ -252,14 +274,14 @@ TD Error requires the intent embedding for multi-head scoring:
 // In src/capabilities/per-priority.ts
 async function calculateTDError(
   shgat: SHGAT,
-  embeddingProvider: EmbeddingProvider,  // VectorSearch or similar
-  trace: { intentText?: string; executedPath?: string[]; success: boolean }
+  embeddingProvider: EmbeddingProvider, // VectorSearch or similar
+  trace: { intentText?: string; executedPath?: string[]; success: boolean },
 ): Promise<TDErrorResult> {
   const intentEmbedding = await embeddingProvider.getEmbedding(trace.intentText ?? "");
   const predicted = shgat.predictPathSuccess(intentEmbedding, trace.executedPath ?? []);
   const actual = trace.success ? 1.0 : 0.0;
   const tdError = actual - predicted;
-  const priority = Math.abs(tdError);  // Clamped to [0.01, 1.0]
+  const priority = Math.abs(tdError); // Clamped to [0.01, 1.0]
 
   return { tdError, priority, predicted, actual, isColdStart: false };
 }
@@ -268,19 +290,20 @@ async function calculateTDError(
 **3. Cold Start Strategy**
 
 When SHGAT has no registered nodes:
+
 - `getToolCount() === 0 && getCapabilityCount() === 0`
 - Returns `COLD_START_PRIORITY = 0.5`
 - All traces get neutral priority until SHGAT learns
 
 **4. Priority Range**
 
-| Scenario | Predicted | Actual | TD Error | Priority |
-|----------|-----------|--------|----------|----------|
-| Cold start | 0.5 | any | 0 | 0.5 |
-| Expected success | 0.9 | 1.0 | 0.1 | 0.1 |
-| Unexpected failure | 0.9 | 0.0 | -0.9 | 0.9 |
-| Expected failure | 0.1 | 0.0 | -0.1 | 0.1 |
-| Unexpected success | 0.1 | 1.0 | 0.9 | 0.9 |
+| Scenario           | Predicted | Actual | TD Error | Priority |
+| ------------------ | --------- | ------ | -------- | -------- |
+| Cold start         | 0.5       | any    | 0        | 0.5      |
+| Expected success   | 0.9       | 1.0    | 0.1      | 0.1      |
+| Unexpected failure | 0.9       | 0.0    | -0.9     | 0.9      |
+| Expected failure   | 0.1       | 0.0    | -0.1     | 0.1      |
+| Unexpected success | 0.1       | 1.0    | 0.9      | 0.9      |
 
 ### Architecture Compliance
 
@@ -293,30 +316,34 @@ When SHGAT has no registered nodes:
 
 ### Files to Create
 
-| File | Purpose | LOC |
-|------|---------|-----|
-| `src/capabilities/per-priority.ts` | TD error calculation and priority storage | ~60 |
-| `tests/unit/capabilities/per_priority_test.ts` | Unit tests | ~80 |
+| File                                           | Purpose                                   | LOC |
+| ---------------------------------------------- | ----------------------------------------- | --- |
+| `src/capabilities/per-priority.ts`             | TD error calculation and priority storage | ~60 |
+| `tests/unit/capabilities/per_priority_test.ts` | Unit tests                                | ~80 |
 
 ### Files to Modify
 
-| File | Changes | LOC |
-|------|---------|-----|
-| `src/graphrag/algorithms/shgat.ts:~795` | Add `predictPathSuccess()` method | ~40 |
+| File                                        | Changes                                           | LOC |
+| ------------------------------------------- | ------------------------------------------------- | --- |
+| `src/graphrag/algorithms/shgat.ts:~795`     | Add `predictPathSuccess()` method                 | ~40 |
 | `src/capabilities/execution-trace-store.ts` | Add `getHighPriorityTraces()`, `updatePriority()` | ~30 |
 
 ### References
 
 - [Epic 11: Learning from Traces](../epics/epic-11-learning-from-traces.md)
 - [Story 11.1: Result Tracing](./11-1-result-tracing.md) - DONE
-- [Story 11.2: Execution Trace Table](../epics/epic-11-learning-from-traces.md#story-112-execution-trace-table--store) - PREREQUISITE (backlog)
-- [Source: src/graphrag/algorithms/shgat.ts](../../src/graphrag/algorithms/shgat.ts) - SHGAT implementation
-- [Source: src/capabilities/types.ts](../../src/capabilities/types.ts) - ExecutionTrace types (to be added in 11.2)
+- [Story 11.2: Execution Trace Table](../epics/epic-11-learning-from-traces.md#story-112-execution-trace-table--store) -
+  PREREQUISITE (backlog)
+- [Source: src/graphrag/algorithms/shgat.ts](../../src/graphrag/algorithms/shgat.ts) - SHGAT
+  implementation
+- [Source: src/capabilities/types.ts](../../src/capabilities/types.ts) - ExecutionTrace types (to be
+  added in 11.2)
 - [Project Context](../project-context.md) - Architecture patterns
 
 ### Previous Story Intelligence (11.1)
 
 From Story 11.1 (Result Tracing - completed 2025-12-22):
+
 - Pattern: `safeSerializeResult()` for handling non-JSON values
 - Pattern: IIFE wrapper in code-generator.ts to capture return values
 - Test patterns in `tests/unit/sandbox/result_tracing_test.ts`
@@ -325,6 +352,7 @@ From Story 11.1 (Result Tracing - completed 2025-12-22):
 ### Git Intelligence
 
 Recent commits (2025-12-22):
+
 ```
 f1f924c feat(story-11.0): DB schema cleanup - KV singleton and workflow state cache
 cde94eb feat(story-11.1): result tracing for tools and capabilities
@@ -332,6 +360,7 @@ dbefd58 chore(story-10.6): mark done + simplify unified-search benchmark
 ```
 
 Patterns observed:
+
 - Commit format: `feat(story-X.Y): description`
 - Test-first approach for algorithm changes
 - Story files include Dev Agent Record section
@@ -349,11 +378,13 @@ Story 11.6 (SHGAT Training with PER Sampling)
 ```
 
 **Story 11.2 provides:**
+
 - `execution_trace` table with `priority` column (FLOAT, default 0.5)
 - `ExecutionTraceStore` class with `save()`, `getTraces()` methods
 - `ExecutionTrace` interface with `executedPath`, `success`, `priority` fields
 
 **This story provides to 11.6:**
+
 - `calculateTDError()` function for computing TD error
 - `storeTraceWithPriority()` for saving traces with PER priority
 - `SHGAT.predictPathSuccess()` for path-level predictions
@@ -364,6 +395,7 @@ Story 11.6 (SHGAT Training with PER Sampling)
 **Effort:** 1-2 days (simplified because no CapabilityLearning structure)
 
 **Breakdown:**
+
 - Task 1 (SHGAT.predictPathSuccess): 2-3h
 - Task 2 (per-priority.ts): 1-2h
 - Task 3 (ExecutionTraceStore methods): 1h
@@ -371,6 +403,7 @@ Story 11.6 (SHGAT Training with PER Sampling)
 - Task 5 (validation): 30min
 
 **Risk:**
+
 - Dependency on Story 11.2 (execution_trace table) which is still in backlog
 - Recommend implementing 11.2 first, or mocking ExecutionTraceStore for testing
 
@@ -385,16 +418,20 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 ### Completion Notes List
 
 - 2025-12-23: Implementation complete, 12 tests passing
-- 2025-12-23: Code review identified API mismatches between AC specs and implementation (embeddingProvider param required)
+- 2025-12-23: Code review identified API mismatches between AC specs and implementation
+  (embeddingProvider param required)
 - 2025-12-23: Performance concern flagged for predictPathSuccess O(n × forward) complexity
 
 ### File List
 
 **Created:**
+
 - `src/capabilities/per-priority.ts` - TD Error + PER priority functions (290 LOC)
 - `tests/unit/capabilities/per_priority_test.ts` - 12 unit tests (323 LOC)
 
 **Modified:**
-- `src/graphrag/algorithms/shgat.ts` - Added predictPathSuccess(), getToolCount(), getCapabilityCount() (~70 LOC added)
-- `docs/adrs/ADR-050-unified-search-simplification.md` - Documented multi-head architecture and predictPathSuccess
 
+- `src/graphrag/algorithms/shgat.ts` - Added predictPathSuccess(), getToolCount(),
+  getCapabilityCount() (~70 LOC added)
+- `docs/adrs/ADR-050-unified-search-simplification.md` - Documented multi-head architecture and
+  predictPathSuccess

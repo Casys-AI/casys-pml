@@ -1,7 +1,6 @@
 # Product Brief: {{project_name}}
 
-**Date:** {{date}}
-**Author:** {{user_name}}
+**Date:** {{date}} **Author:** {{user_name}}
 
 ---
 

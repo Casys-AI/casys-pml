@@ -43,7 +43,9 @@ npm run validate:bundles  # Validate bundle integrity
 
 ## Purpose
 
-Web bundles allow BMAD agents and workflows to run in browser environments (like Claude.ai web interface, ChatGPT, Gemini) without file system access. Bundles inline all necessary content into self-contained files.
+Web bundles allow BMAD agents and workflows to run in browser environments (like Claude.ai web
+interface, ChatGPT, Gemini) without file system access. Bundles inline all necessary content into
+self-contained files.
 
 ## Output Structure
 

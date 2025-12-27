@@ -1,30 +1,31 @@
 ---
-name: 'step-03-step-validation'
-description: 'Validate each step file against step-template.md standards'
+name: "step-03-step-validation"
+description: "Validate each step file against step-template.md standards"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmb/workflows/workflow-compliance-check'
+workflow_path: "{project-root}/_bmad/bmb/workflows/workflow-compliance-check"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-03-step-validation.md'
-nextStepFile: '{workflow_path}/steps/step-04-file-validation.md'
-workflowFile: '{workflow_path}/workflow.md'
-complianceReportFile: '{output_folder}/workflow-compliance-report-{workflow_name}.md'
-targetWorkflowStepsPath: '{target_workflow_steps_path}'
+thisStepFile: "{workflow_path}/steps/step-03-step-validation.md"
+nextStepFile: "{workflow_path}/steps/step-04-file-validation.md"
+workflowFile: "{workflow_path}/workflow.md"
+complianceReportFile: "{output_folder}/workflow-compliance-report-{workflow_name}.md"
+targetWorkflowStepsPath: "{target_workflow_steps_path}"
 
 # Template References
-complianceReportTemplate: '{workflow_path}/templates/compliance-report.md'
+complianceReportTemplate: "{workflow_path}/templates/compliance-report.md"
 
 # Documentation References
-stepTemplate: '{project-root}/_bmad/bmb/docs/workflows/templates/step-template.md'
-workflowTemplate: '{project-root}/_bmad/bmb/docs/workflows/templates/workflow-template.md'
+stepTemplate: "{project-root}/_bmad/bmb/docs/workflows/templates/step-template.md"
+workflowTemplate: "{project-root}/_bmad/bmb/docs/workflows/templates/workflow-template.md"
 ---
 
 # Step 3: Step-by-Step Validation
 
 ## STEP GOAL:
 
-Perform systematic adversarial validation of each step file against step-template.md standards, documenting all violations with specific template references and severity rankings.
+Perform systematic adversarial validation of each step file against step-template.md standards,
+documenting all violations with specific template references and severity rankings.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -38,7 +39,8 @@ Perform systematic adversarial validation of each step file against step-templat
 ### Role Reinforcement:
 
 - ✅ You are a compliance validator and quality assurance specialist
-- ✅ If you already have been given a name, communication_style and persona, continue to use those while playing this new role
+- ✅ If you already have been given a name, communication_style and persona, continue to use those
+  while playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You bring adversarial step-by-step validation expertise
 - ✅ User brings their workflow steps and needs thorough validation
@@ -48,7 +50,8 @@ Perform systematic adversarial validation of each step file against step-templat
 - 🎯 Focus only on step file validation against step-template.md
 - 🚫 FORBIDDEN to skip any step files or validation checks
 - 💬 Approach: Systematic file-by-file adversarial analysis
-- 📋 Document every violation against each step file with template reference and specific proposed fixes
+- 📋 Document every violation against each step file with template reference and specific proposed
+  fixes
 
 ## EXECUTION PROTOCOLS:
 
@@ -68,13 +71,15 @@ Perform systematic adversarial validation of each step file against step-templat
 
 ### 1. Initialize Step Validation Phase
 
-"Beginning **Phase 2: Step-by-Step Validation**
-Target: `{target_workflow_name}` - [number] step files found
+"Beginning **Phase 2: Step-by-Step Validation** Target: `{target_workflow_name}` - [number] step
+files found
 
-**COMPLIANCE STANDARD:** All validation performed against `{stepTemplate}` - this is THE authoritative standard for step file compliance.
+**COMPLIANCE STANDARD:** All validation performed against `{stepTemplate}` - this is THE
+authoritative standard for step file compliance.
 
-Loading step template and validating each step systematically..."
-[Load stepTemplate, enumerate all step files]. Utilize sub processes if available but ensure all rules are passed in and all findings are returned from the sub process to collect and record the results.
+Loading step template and validating each step systematically..." [Load stepTemplate, enumerate all
+step files]. Utilize sub processes if available but ensure all rules are passed in and all findings
+are returned from the sub process to collect and record the results.
 
 ### 2. Systematic Step File Analysis
 
@@ -82,8 +87,7 @@ For each step file in order:
 
 "**Validating step:** `{step_filename}`"
 
-**A. Frontmatter Structure Validation:**
-Check each required field:
+**A. Frontmatter Structure Validation:** Check each required field:
 
 ```yaml
 ---
@@ -104,8 +108,7 @@ outputFile: [if appropriate for workflow type]
 - Inappropriate `outputFile` for workflow type (Major)
 - Missing `Template References` section (Major)
 
-**B. MANDATORY EXECUTION RULES Validation:**
-Check for complete sections:
+**B. MANDATORY EXECUTION RULES Validation:** Check for complete sections:
 
 ```markdown
 ## MANDATORY EXECUTION RULES (READ FIRST):
@@ -133,13 +136,12 @@ Check for complete sections:
 - Missing Role Reinforcement (Major)
 - Improper emoji usage in rules (Minor)
 
-**C. Task References Validation:**
-Check for proper references:
+**C. Task References Validation:** Check for proper references:
 
 ```yaml
 # Task References
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 ```
 
 **Violations to document:**
@@ -148,8 +150,7 @@ partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 - Incorrect paths in task references (Major)
 - Missing standard task references (Minor)
 
-**D. Menu Pattern Validation:**
-Check menu structure:
+**D. Menu Pattern Validation:** Check menu structure:
 
 ```markdown
 Display: "**Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Continue"
@@ -158,7 +159,8 @@ Display: "**Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Cont
 
 - IF A: Execute {advancedElicitationTask}
 - IF P: Execute {partyModeWorkflow}
-- IF C: Save content to {outputFile}, update frontmatter, then only then load, read entire file, then execute {nextStepFile}
+- IF C: Save content to {outputFile}, update frontmatter, then only then load, read entire file,
+  then execute {nextStepFile}
 ```
 
 **Violations to document:**
@@ -242,13 +244,15 @@ For each step file with violations:
 
 ## Menu Handling Logic:
 
-- IF C: Save step validation findings to report, update frontmatter, then load, read entire file, then execute {nextStepFile}
+- IF C: Save step validation findings to report, update frontmatter, then load, read entire file,
+  then execute {nextStepFile}
 - IF X: Save current findings and end with guidance for resuming
 - IF Any other comments or queries: respond and redisplay menu
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN [C continue option] is selected and [all step files validated with violations documented], will you then load and read fully `{nextStepFile}` to execute and begin holistic analysis phase.
+ONLY WHEN [C continue option] is selected and [all step files validated with violations documented],
+will you then load and read fully `{nextStepFile}` to execute and begin holistic analysis phase.
 
 ---
 
@@ -271,4 +275,5 @@ ONLY WHEN [C continue option] is selected and [all step files validated with vio
 - Missing path variable consistency analysis
 - Providing incomplete or vague fix recommendations
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

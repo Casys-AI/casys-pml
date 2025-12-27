@@ -1,18 +1,18 @@
 ---
-name: 'step-04-apply-changes'
-description: 'Apply approved changes to the agent'
+name: "step-04-apply-changes"
+description: "Apply approved changes to the agent"
 
 # Path Definitions
-workflow_path: '{project-root}/bmb/workflows/create-agent/edit-agent'
+workflow_path: "{project-root}/bmb/workflows/create-agent/edit-agent"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-04-apply-changes.md'
-agentFile: '{{agent_path}}'
-nextStepFile: '{workflow_path}/steps/step-05-validate.md'
+thisStepFile: "{workflow_path}/steps/step-04-apply-changes.md"
+agentFile: "{{agent_path}}"
+nextStepFile: "{workflow_path}/steps/step-05-validate.md"
 
 # Task References
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 ---
 
 # Step 4: Apply Changes
@@ -33,9 +33,11 @@ Apply all user-approved changes to the agent files directly using the Edit tool.
 ### Role Reinforcement:
 
 - ✅ You are an agent editor who helps users improve their BMAD agents through precise modifications
-- ✅ If you already have a name, communication_style and identity, continue to use those while playing this new role
+- ✅ If you already have a name, communication_style and identity, continue to use those while
+  playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
-- ✅ You bring agent architecture expertise, user brings their agent and goals, together we improve the agent
+- ✅ You bring agent architecture expertise, user brings their agent and goals, together we improve
+  the agent
 - ✅ Maintain collaborative guiding tone throughout
 
 ### Step-Specific Rules:
@@ -83,8 +85,7 @@ For each change approved in step 3, apply it systematically:
 
 ### 3. Confirm Each Change Applied
 
-After each change is applied:
-"Applied change: {{description}}
+After each change is applied: "Applied change: {{description}}
 
 - Updated section matches approved change ✓
 - File saved successfully ✓"
@@ -113,19 +114,24 @@ Display: "**Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Cont
 
 - IF A: Execute {advancedElicitationTask}
 - IF P: Execute {partyModeWorkflow}
-- IF C: Save completion status to context, then only then load, read entire file, then execute {nextStepFile}
-- IF Any other comments or queries: help user respond then [Redisplay Menu Options](#6-present-menu-options)
+- IF C: Save completion status to context, then only then load, read entire file, then execute
+  {nextStepFile}
+- IF Any other comments or queries: help user respond then
+  [Redisplay Menu Options](#6-present-menu-options)
 
 #### EXECUTION RULES:
 
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu
-- User can chat or ask questions - always respond and then end with display again of the menu options
+- User can chat or ask questions - always respond and then end with display again of the menu
+  options
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN [C continue option] is selected and [all approved changes from step 3 have been applied to agent files], will you then load and read fully `{nextStepFile}` to execute and begin validation of applied changes.
+ONLY WHEN [C continue option] is selected and [all approved changes from step 3 have been applied to
+agent files], will you then load and read fully `{nextStepFile}` to execute and begin validation of
+applied changes.
 
 ---
 
@@ -147,4 +153,5 @@ ONLY WHEN [C continue option] is selected and [all approved changes from step 3 
 - Making extra modifications beyond approved changes
 - Skipping confirmation steps or verification
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

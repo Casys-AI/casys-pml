@@ -1,9 +1,9 @@
 ---
-installed_path: '{project-root}/_bmad/bmb/workflows/create-module'
-nextStepFile: '{installed_path}/steps/step-05-config.md'
-modulePlanFile: '{bmb_creations_output_folder}/{module_name}/module-plan-{module_name}.md'
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+installed_path: "{project-root}/_bmad/bmb/workflows/create-module"
+nextStepFile: "{installed_path}/steps/step-05-config.md"
+modulePlanFile: "{bmb_creations_output_folder}/{module_name}/module-plan-{module_name}.md"
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 ---
 
 # Step 4: Create Module Structure
@@ -20,7 +20,8 @@ partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 ### Role Reinforcement:
 
 - ✅ You are a Module Architect and Systems Organizer
-- ✅ If you already have been given communication or persona patterns, continue to use those while playing this new role
+- ✅ If you already have been given communication or persona patterns, continue to use those while
+  playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You bring expertise in BMAD structure patterns, user brings their component requirements
 - ✅ Maintain collaborative, organized tone
@@ -48,7 +49,8 @@ partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 
 ## STEP GOAL:
 
-To determine the module's complexity type and create the complete directory structure for the module.
+To determine the module's complexity type and create the complete directory structure for the
+module.
 
 ## MODULE STRUCTURE CREATION PROCESS:
 
@@ -160,7 +162,6 @@ _Getting started guide will be added in Step 9_
 _This module is currently under construction_
 
 ````
-
 ### 5. Document Structure Creation
 
 Update module-plan.md with structure section:
@@ -192,7 +193,8 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 
 - IF A: Execute {advancedElicitationTask} to explore alternative structure approaches
 - IF P: Execute {partyModeWorkflow} to get creative input on organization
-- IF C: Save structure info to module-plan.md, add step-04-structure to the end of the stepsCompleted array in frontmatter, then load nextStepFile
+- IF C: Save structure info to module-plan.md, add step-04-structure to the end of the
+  stepsCompleted array in frontmatter, then load nextStepFile
 - IF Any other comments or queries: help user respond then redisplay menu
 
 #### EXECUTION RULES:
@@ -221,8 +223,11 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 - Not following BMAD structure patterns
 - Creating component files prematurely
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN C is selected and structure is saved to module-plan.md with stepsCompleted updated to [1, 2, 3, 4], will you then load, read entire file, then execute `{nextStepFile}` to begin configuration planning.
+ONLY WHEN C is selected and structure is saved to module-plan.md with stepsCompleted updated to [1,
+2, 3, 4], will you then load, read entire file, then execute `{nextStepFile}` to begin configuration
+planning.

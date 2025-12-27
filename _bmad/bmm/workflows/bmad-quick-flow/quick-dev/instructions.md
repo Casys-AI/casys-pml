@@ -15,15 +15,15 @@
 
 <step n="1" goal="Load project context and determine execution mode">
 
-<action>Check if {project_context} exists. If yes, load it - this is your foundational reference for ALL implementation decisions (patterns, conventions, architecture).</action>
+<action>Check if {project_context} exists. If yes, load it - this is your foundational reference for
+ALL implementation decisions (patterns, conventions, architecture).</action>
 
 <action>Parse user input:
 
-**Mode A: Tech-Spec** - e.g., `quick-dev tech-spec-auth.md`
-→ Load spec, extract tasks/context/AC, goto step 3
+**Mode A: Tech-Spec** - e.g., `quick-dev tech-spec-auth.md` → Load spec, extract tasks/context/AC,
+goto step 3
 
-**Mode B: Direct Instructions** - e.g., `refactor src/foo.ts...`
-→ Offer planning choice
+**Mode B: Direct Instructions** - e.g., `refactor src/foo.ts...` → Offer planning choice
 </action>
 
 <check if="Mode A">
@@ -33,7 +33,7 @@
 
 <check if="Mode B">
 
-  <!-- Escalation Threshold: Lightweight check - should we invoke scale-adaptive? -->
+<!-- Escalation Threshold: Lightweight check - should we invoke scale-adaptive? -->
 
 <action>Evaluate escalation threshold against user input (minimal tokens, no file loading):
 
@@ -53,8 +53,8 @@
 
 Use holistic judgment, not mechanical keyword matching.</action>
 
-  <!-- No Escalation: Simple request, offer existing choice -->
-  <check if="escalation threshold NOT triggered">
+<!-- No Escalation: Simple request, offer existing choice -->
+<check if="escalation threshold NOT triggered">
     <ask>**[t] Plan first** - Create tech-spec then implement
 **[e] Execute directly** - Start now</ask>
 
@@ -68,10 +68,10 @@ Use holistic judgment, not mechanical keyword matching.</action>
       <goto>step_2</goto>
     </check>
 
-  </check>
+</check>
 
-  <!-- Escalation Triggered: Load scale-adaptive and evaluate level -->
-  <check if="escalation threshold triggered">
+<!-- Escalation Triggered: Load scale-adaptive and evaluate level -->
+<check if="escalation threshold triggered">
     <action>Load {project_levels} and evaluate user input against detection_hints.keywords</action>
     <action>Determine level (0-4) using scale-adaptive definitions</action>
 
@@ -95,9 +95,8 @@ Use holistic judgment, not mechanical keyword matching.</action>
     <check if="level 1 or 2 or couldn't determine level">
       <ask>This looks like a focused feature with multiple components.
 
-**[t] Create tech-spec first** (recommended)
-**[w] Seems bigger than quick-dev** — see what BMad Method recommends (workflow-init)
-**[e] Execute directly**</ask>
+**[t] Create tech-spec first** (recommended) **[w] Seems bigger than quick-dev** — see what BMad
+Method recommends (workflow-init) **[e] Execute directly**</ask>
 
       <check if="t">
         <action>Load and execute {create_tech_spec_workflow}</action>
@@ -119,8 +118,7 @@ Use holistic judgment, not mechanical keyword matching.</action>
     <check if="level 3 or higher">
       <ask>This sounds like platform/system work.
 
-**[w] Start BMad Method** (recommended) (workflow-init)
-**[t] Create tech-spec** (lighter planning)
+**[w] Start BMad Method** (recommended) (workflow-init) **[t] Create tech-spec** (lighter planning)
 **[e] Execute directly** - feeling lucky</ask>
 
       <check if="w">
@@ -139,7 +137,7 @@ Use holistic judgment, not mechanical keyword matching.</action>
       </check>
     </check>
 
-  </check>
+</check>
 
 </check>
 
@@ -180,10 +178,8 @@ Use holistic judgment, not mechanical keyword matching.</action>
 
 <output>**Implementation Complete!**
 
-**Summary:** {{implementation_summary}}
-**Files Modified:** {{files_list}}
-**Tests:** {{test_summary}}
-**AC Status:** {{ac_status}}
+**Summary:** {{implementation_summary}} **Files Modified:** {{files_list}} **Tests:**
+{{test_summary}} **AC Status:** {{ac_status}}
 
 ---
 

@@ -53,9 +53,11 @@
 
 ### The Core Difference
 
-**What changed:** AI agents collapse story duration from days to hours, making **epic-level ownership** practical.
+**What changed:** AI agents collapse story duration from days to hours, making **epic-level
+ownership** practical.
 
-**Impact:** Single developer with BMad Method can deliver in 1 day what previously required full team and multiple sprints.
+**Impact:** Single developer with BMad Method can deliver in 1 day what previously required full
+team and multiple sprints.
 
 ---
 
@@ -63,7 +65,9 @@
 
 ### The Future is Now
 
-Product Managers and UX Designers are undergoing **the most significant transformation since the creation of these disciplines**. The emergence of AI agents is creating a new breed of technical product leaders who translate vision directly into working code.
+Product Managers and UX Designers are undergoing **the most significant transformation since the
+creation of these disciplines**. The emergence of AI agents is creating a new breed of technical
+product leaders who translate vision directly into working code.
 
 ### From Spec Writers to Code Orchestrators
 
@@ -121,7 +125,8 @@ Product Managers and UX Designers are undergoing **the most significant transfor
 - **UX designers generating code** with UXPin Merge, Figma-to-code tools
 - **Developers becoming orchestrators** reviewing AI output vs writing from scratch
 
-**The Bottom Line:** By 2026, successful PMs/UX will fluently operate in both vision and execution. **BMad Method provides the structured framework to make this transition.**
+**The Bottom Line:** By 2026, successful PMs/UX will fluently operate in both vision and execution.
+**BMad Method provides the structured framework to make this transition.**
 
 ---
 
@@ -144,9 +149,11 @@ bmad pm *create-prd
 - Non-Functional Requirements (NFRs) with measurable targets
 - Technical context for AI agents
 
-**Why it matters:** Traditional PRDs are human-readable prose. BMad PRDs are **AI-executable requirement specifications**.
+**Why it matters:** Traditional PRDs are human-readable prose. BMad PRDs are **AI-executable
+requirement specifications**.
 
-**PM Value:** Clear requirements that feed into architecture decisions, then into story breakdown. No ambiguity.
+**PM Value:** Clear requirements that feed into architecture decisions, then into story breakdown.
+No ambiguity.
 
 ### 2. Human-in-the-Loop Architecture
 
@@ -163,7 +170,8 @@ bmad architect *create-architecture
 - FR/NFR-specific technical guidance
 - Integration patterns and standards
 
-**Why it matters:** PMs can **understand and validate** technical decisions. Architecture is conversational, not template-driven.
+**Why it matters:** PMs can **understand and validate** technical decisions. Architecture is
+conversational, not template-driven.
 
 **PM Value:** Technical fluency built through guided architecture process. PMs learn while creating.
 
@@ -175,7 +183,8 @@ bmad architect *create-architecture
 bmad pm *create-epics-and-stories
 ```
 
-**V6 Improvement:** Epics and stories are now created AFTER architecture for better quality. The workflow uses both PRD (FRs/NFRs) and Architecture to create technically-informed stories.
+**V6 Improvement:** Epics and stories are now created AFTER architecture for better quality. The
+workflow uses both PRD (FRs/NFRs) and Architecture to create technically-informed stories.
 
 **BMad produces:**
 
@@ -184,9 +193,11 @@ bmad pm *create-epics-and-stories
 - Priority assignments (P0-P3)
 - Dependency mapping informed by architectural decisions
 
-**Why it matters:** Stories become **work packages for cloud AI agents**. Each story is self-contained with full context AND aligned with architecture.
+**Why it matters:** Stories become **work packages for cloud AI agents**. Each story is
+self-contained with full context AND aligned with architecture.
 
-**PM Value:** No more "story refinement sessions" with engineering. Stories are technically grounded from the start.
+**PM Value:** No more "story refinement sessions" with engineering. Stories are technically grounded
+from the start.
 
 ### 4. Cloud Agentic Pipeline (Emerging Pattern)
 
@@ -250,9 +261,11 @@ bmad ux *create-ux-design
 - Accessibility guidelines
 - Responsive design specifications
 
-**Why it matters:** Design specs become **implementation-ready** for AI agents. No "lost in translation" between design and dev.
+**Why it matters:** Design specs become **implementation-ready** for AI agents. No "lost in
+translation" between design and dev.
 
-**UX Value:** Designs validated through working prototypes, not static mocks. Technical understanding built through BMad workflows.
+**UX Value:** Designs validated through working prototypes, not static mocks. Technical
+understanding built through BMad workflows.
 
 ### 6. PM Technical Skills Development
 
@@ -280,7 +293,8 @@ bmad ux *create-ux-design
 
 **BMad Agentic Model:**
 
-- 1 PM → writes BMad PRD → 20-50 AI agents execute stories in parallel → delivers 5-10 features/quarter
+- 1 PM → writes BMad PRD → 20-50 AI agents execute stories in parallel → delivers 5-10
+  features/quarter
 
 **Leverage multiplier:** 5-10× with same PM headcount.
 
@@ -305,8 +319,8 @@ bmad ux *create-ux-design
 4. Working prototype in 10-15 minutes
 5. Validate with users **before** committing to full development
 
-**Traditional:** Months of development to validate idea
-**BMad Agentic:** Hours of development to validate idea
+**Traditional:** Months of development to validate idea **BMad Agentic:** Hours of development to
+validate idea
 
 ### 10. Career Path Evolution
 
@@ -423,7 +437,8 @@ Team C (2 devs): Analytics feature (3 epics)
 
 ### The Challenge
 
-**Problem:** Teams customize BMad (agents, workflows, configs) but don't want personal tooling in main repo.
+**Problem:** Teams customize BMad (agents, workflows, configs) but don't want personal tooling in
+main repo.
 
 **Anti-pattern:** Adding `_bmad/` to `.gitignore` breaks IDE tools, submodule management.
 
@@ -493,7 +508,8 @@ git pull origin main
 
 **Option 1: Fully Personal** - No submodule, each dev installs independently, use `.gitignore`
 
-**Option 2: Team Baseline + Personal** - Submodule has team standards, devs add personal customizations locally
+**Option 2: Team Baseline + Personal** - Submodule has team standards, devs add personal
+customizations locally
 
 **Option 3: Full Team Sharing** - All configs in submodule, team collaborates on improvements
 
@@ -508,13 +524,14 @@ git pull origin main
 
 ### 2. Dependency Management
 
-- **Do:** Identify epic dependencies in planning, document API contracts, complete prerequisites first
-- **Don't:** Start dependent epic before prerequisite ready, change API contracts without coordination
+- **Do:** Identify epic dependencies in planning, document API contracts, complete prerequisites
+  first
+- **Don't:** Start dependent epic before prerequisite ready, change API contracts without
+  coordination
 
 ### 3. Communication Cadence
 
-**Traditional:** Daily standups essential
-**Agentic:** Lighter coordination
+**Traditional:** Daily standups essential **Agentic:** Lighter coordination
 
 **Recommended:**
 
@@ -547,8 +564,8 @@ feature/epic-3-admin-panel           (Carol)
 
 ### 7. Metrics (Different from Traditional)
 
-**Traditional:** Story points per sprint, burndown charts
-**Agentic:** Epics per week, stories per day, time to epic completion
+**Traditional:** Story points per sprint, burndown charts **Agentic:** Epics per week, stories per
+day, time to epic completion
 
 **Example velocity:**
 
@@ -661,13 +678,14 @@ Traditional estimate: 2-3 years
 
 ### Enterprise Adoption
 
-**Git submodules:** Best practice for BMM management across teams
-**Team flexibility:** Mix of tools (Claude Code, Cursor, Windsurf) with shared BMM foundation
-**Scalable patterns:** Epic-based, layer-based, feature-based distribution strategies
+**Git submodules:** Best practice for BMM management across teams **Team flexibility:** Mix of tools
+(Claude Code, Cursor, Windsurf) with shared BMM foundation **Scalable patterns:** Epic-based,
+layer-based, feature-based distribution strategies
 
 ### The Future (2026)
 
-PMs write BMad PRDs → Stories auto-fed to cloud AI agents → Parallel implementation → Human review of PRs → Continuous deployment
+PMs write BMad PRDs → Stories auto-fed to cloud AI agents → Parallel implementation → Human review
+of PRs → Continuous deployment
 
 **The future isn't AI replacing PMs—it's AI-augmented PMs becoming 10× more powerful.**
 
@@ -683,4 +701,5 @@ PMs write BMad PRDs → Stories auto-fed to cloud AI agents → Parallel impleme
 
 ---
 
-_BMad Method fundamentally changes how PMs work, how teams structure work, and how products get built. Understanding these patterns is essential for enterprise success in the age of AI agents._
+_BMad Method fundamentally changes how PMs work, how teams structure work, and how products get
+built. Understanding these patterns is essential for enterprise success in the age of AI agents._

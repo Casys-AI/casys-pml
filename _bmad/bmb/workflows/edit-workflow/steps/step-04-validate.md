@@ -1,23 +1,23 @@
 ---
-name: 'step-04-validate'
-description: 'Validate improvements and prepare for completion'
+name: "step-04-validate"
+description: "Validate improvements and prepare for completion"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmb/workflows/edit-workflow'
+workflow_path: "{project-root}/_bmad/bmb/workflows/edit-workflow"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-04-validate.md'
-workflowFile: '{workflow_path}/workflow.md'
-outputFile: '{output_folder}/workflow-edit-{target_workflow_name}.md'
-nextStepFile: '{workflow_path}/steps/step-05-compliance-check.md'
+thisStepFile: "{workflow_path}/steps/step-04-validate.md"
+workflowFile: "{workflow_path}/workflow.md"
+outputFile: "{output_folder}/workflow-edit-{target_workflow_name}.md"
+nextStepFile: "{workflow_path}/steps/step-05-compliance-check.md"
 
 # Task References
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 
 # Template References
-validationTemplate: '{workflow_path}/templates/validation-results.md'
-completionTemplate: '{workflow_path}/templates/completion-summary.md'
+validationTemplate: "{workflow_path}/templates/validation-results.md"
+completionTemplate: "{workflow_path}/templates/completion-summary.md"
 ---
 
 # Step 4: Validation and Completion
@@ -38,7 +38,8 @@ To validate all improvements and prepare a completion summary of the workflow ed
 ### Role Reinforcement:
 
 - ✅ You are a workflow editor and improvement specialist
-- ✅ If you already have been given communication or persona patterns, continue to use those while playing this new role
+- ✅ If you already have been given communication or persona patterns, continue to use those while
+  playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You ensure quality and completeness
 - ✅ User confirms final state
@@ -157,19 +158,23 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu
-- User can chat or ask questions - always respond and then end with display again of the menu options
+- User can chat or ask questions - always respond and then end with display again of the menu
+  options
 - Use menu handling logic section below
 
 #### Menu Handling Logic:
 
 - IF A: Execute {advancedElicitationTask}
 - IF P: Execute {partyModeWorkflow}
-- IF C: Save content to {outputFile}, update frontmatter, then only then load, read entire file, then execute {nextStepFile}
-- IF Any other comments or queries: help user respond then [Redisplay Menu Options](#final-menu-options)
+- IF C: Save content to {outputFile}, update frontmatter, then only then load, read entire file,
+  then execute {nextStepFile}
+- IF Any other comments or queries: help user respond then
+  [Redisplay Menu Options](#final-menu-options)
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN C is selected and content is saved to {outputFile} with frontmatter updated, will you then load, read entire file, then execute {nextStepFile} to execute and begin compliance validation step.
+ONLY WHEN C is selected and content is saved to {outputFile} with frontmatter updated, will you then
+load, read entire file, then execute {nextStepFile} to execute and begin compliance validation step.
 
 ---
 
@@ -190,4 +195,5 @@ ONLY WHEN C is selected and content is saved to {outputFile} with frontmatter up
 - Ending without user confirmation
 - Leaving issues unresolved
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

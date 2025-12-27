@@ -1,21 +1,21 @@
 ---
-name: 'step-06-prep-schedule'
+name: "step-06-prep-schedule"
 description: "Create a realistic meal prep schedule that fits the user's lifestyle"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmb/reference/workflows/meal-prep-nutrition'
+workflow_path: "{project-root}/_bmad/bmb/reference/workflows/meal-prep-nutrition"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-06-prep-schedule.md'
-workflowFile: '{workflow_path}/workflow.md'
-outputFile: '{output_folder}/nutrition-plan-{project_name}.md'
+thisStepFile: "{workflow_path}/steps/step-06-prep-schedule.md"
+workflowFile: "{workflow_path}/workflow.md"
+outputFile: "{output_folder}/nutrition-plan-{project_name}.md"
 
 # Task References
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 
 # Template References
-prepScheduleTemplate: '{workflow_path}/templates/prep-schedule-section.md'
+prepScheduleTemplate: "{workflow_path}/templates/prep-schedule-section.md"
 ---
 
 # Step 6: Meal Prep Execution Schedule
@@ -130,11 +130,11 @@ Sunday (2 hours):
 
 ## 💬 SAMPLE DIALOG STYLE:
 
-**✅ GOOD (Intent-based):**
-"Based on your 2-hour Sunday availability, we could create a prep schedule that sets you up for the week. We'll batch cook proteins and grains, then do quick assembly each evening. How does that sound with your energy levels?"
+**✅ GOOD (Intent-based):** "Based on your 2-hour Sunday availability, we could create a prep
+schedule that sets you up for the week. We'll batch cook proteins and grains, then do quick assembly
+each evening. How does that sound with your energy levels?"
 
-**❌ AVOID (Prescriptive):**
-"You must prep every Sunday from 2-4 PM. No exceptions."
+**❌ AVOID (Prescriptive):** "You must prep every Sunday from 2-4 PM. No exceptions."
 
 ## 📝 FINAL TEMPLATE OUTPUT:
 
@@ -145,15 +145,17 @@ Complete {outputFile} by loading and appending content from {prepScheduleTemplat
 ### Update workflow.md frontmatter:
 
 ```yaml
-stepsCompleted: ['init', 'assessment', 'strategy', 'shopping', 'prep-schedule']
-lastStep: 'prep-schedule'
+stepsCompleted: ["init", "assessment", "strategy", "shopping", "prep-schedule"]
+lastStep: "prep-schedule"
 completionDate: [current date]
 userSatisfaction: [to be rated]
 ```
 
 ### Final Message Template:
 
-"Congratulations! Your personalized nutrition plan is complete. Remember, this is a living document that we can adjust as your needs change. Check in weekly for the first month to fine-tune your approach!"
+"Congratulations! Your personalized nutrition plan is complete. Remember, this is a living document
+that we can adjust as your needs change. Check in weekly for the first month to fine-tune your
+approach!"
 
 ## 📊 NEXT STEPS FOR USER:
 
@@ -165,14 +167,16 @@ userSatisfaction: [to be rated]
 
 ### 5. Present MENU OPTIONS
 
-Display: **Select an Option:** [A] Advanced Prep Techniques [P] Coach Perspectives [C] Complete Workflow
+Display: **Select an Option:** [A] Advanced Prep Techniques [P] Coach Perspectives [C] Complete
+Workflow
 
 #### EXECUTION RULES:
 
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu
-- User can chat or ask questions - always respond and then end with display again of the menu options
+- User can chat or ask questions - always respond and then end with display again of the menu
+  options
 - Use menu handling logic section below
 
 #### Menu Handling Logic:
@@ -180,15 +184,20 @@ Display: **Select an Option:** [A] Advanced Prep Techniques [P] Coach Perspectiv
 - HALT and AWAIT ANSWER
 - IF A: Execute `{project-root}/_bmad/core/tasks/advanced-elicitation.xml`
 - IF P: Execute `{project-root}/_bmad/core/workflows/party-mode/workflow.md`
-- IF C: update frontmatter `stepsCompleted` to add 6 at the end of the array before loading next step, mark workflow complete, display final message
-- IF Any other comments or queries: help user respond then [Redisplay Menu Options](#6-present-menu-options)
+- IF C: update frontmatter `stepsCompleted` to add 6 at the end of the array before loading next
+  step, mark workflow complete, display final message
+- IF Any other comments or queries: help user respond then
+  [Redisplay Menu Options](#6-present-menu-options)
 
 ## CRITICAL STEP COMPLETION NOTE
 
 ONLY WHEN C is selected and content is saved to document:
 
-1. update frontmatter `stepsCompleted` to add 6 at the end of the array before loading next step completed and indicate final completion
+1. update frontmatter `stepsCompleted` to add 6 at the end of the array before loading next step
+   completed and indicate final completion
 2. Display final completion message
 3. End workflow session
 
-**Final Message:** "Congratulations! Your personalized nutrition plan is complete. Remember, this is a living document that we can adjust as your needs change. Check in weekly for the first month to fine-tune your approach!"
+**Final Message:** "Congratulations! Your personalized nutrition plan is complete. Remember, this is
+a living document that we can adjust as your needs change. Check in weekly for the first month to
+fine-tune your approach!"

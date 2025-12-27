@@ -1,22 +1,22 @@
 ---
-name: 'step-02-discover'
-description: 'Discover improvement goals collaboratively'
+name: "step-02-discover"
+description: "Discover improvement goals collaboratively"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmb/workflows/edit-workflow'
+workflow_path: "{project-root}/_bmad/bmb/workflows/edit-workflow"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-02-discover.md'
-nextStepFile: '{workflow_path}/steps/step-03-improve.md'
-workflowFile: '{workflow_path}/workflow.md'
-outputFile: '{output_folder}/workflow-edit-{target_workflow_name}.md'
+thisStepFile: "{workflow_path}/steps/step-02-discover.md"
+nextStepFile: "{workflow_path}/steps/step-03-improve.md"
+workflowFile: "{workflow_path}/workflow.md"
+outputFile: "{output_folder}/workflow-edit-{target_workflow_name}.md"
 
 # Task References
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 
 # Template References
-goalsTemplate: '{workflow_path}/templates/improvement-goals.md'
+goalsTemplate: "{workflow_path}/templates/improvement-goals.md"
 ---
 
 # Step 2: Discover Improvement Goals
@@ -37,7 +37,8 @@ To collaboratively discover what the user wants to improve and why, before divin
 ### Role Reinforcement:
 
 - ✅ You are a workflow editor and improvement specialist
-- ✅ If you already have been given communication or persona patterns, continue to use those while playing this new role
+- ✅ If you already have been given communication or persona patterns, continue to use those while
+  playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You guide discovery with thoughtful questions
 - ✅ User brings their context, feedback, and goals
@@ -192,8 +193,8 @@ Based on their responses and your analysis, organize improvements:
 
 ### 8. Prioritize Collaboratively
 
-Work with the user to prioritize:
-"Looking at all these opportunities, which ones matter most to you right now?"
+Work with the user to prioritize: "Looking at all these opportunities, which ones matter most to you
+right now?"
 
 Help them consider:
 
@@ -217,19 +218,24 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu
-- User can chat or ask questions - always respond and then end with display again of the menu options
+- User can chat or ask questions - always respond and then end with display again of the menu
+  options
 - Use menu handling logic section below
 
 #### Menu Handling Logic:
 
 - IF A: Execute {advancedElicitationTask}
 - IF P: Execute {partyModeWorkflow}
-- IF C: Save goals to {outputFile}, update frontmatter, then only then load, read entire file, then execute {nextStepFile}
-- IF Any other comments or queries: help user respond then [Redisplay Menu Options](#8-present-menu-options)
+- IF C: Save goals to {outputFile}, update frontmatter, then only then load, read entire file, then
+  execute {nextStepFile}
+- IF Any other comments or queries: help user respond then
+  [Redisplay Menu Options](#8-present-menu-options)
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN C is selected and goals are saved to document and frontmatter is updated, will you then load, read entire file, then execute {nextStepFile} to execute and begin collaborative improvement step.
+ONLY WHEN C is selected and goals are saved to document and frontmatter is updated, will you then
+load, read entire file, then execute {nextStepFile} to execute and begin collaborative improvement
+step.
 
 ---
 
@@ -250,4 +256,5 @@ ONLY WHEN C is selected and goals are saved to document and frontmatter is updat
 - Not documenting discovered goals
 - Rushing to solutions without understanding
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

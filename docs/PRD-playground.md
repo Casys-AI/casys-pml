@@ -27,9 +27,9 @@ outils externes. Cependant, l'adoption à grande échelle se heurte à deux prob
 l'explosion du contexte (30-50% de la fenêtre consommée par les schémas d'outils) et la latence
 séquentielle des appels.
 
-**Le paradigme Casys PML :** Plutôt que d'orchestrer des appels MCP individuels, Claude **compose
-du code TypeScript** qui est ensuite **exécuté par Casys PML** dans un Worker sandbox sécurisé. Ce
-code appelle les MCP tools via un RPC Bridge. Le système **apprend** de chaque exécution réussie,
+**Le paradigme Casys PML :** Plutôt que d'orchestrer des appels MCP individuels, Claude **compose du
+code TypeScript** qui est ensuite **exécuté par Casys PML** dans un Worker sandbox sécurisé. Ce code
+appelle les MCP tools via un RPC Bridge. Le système **apprend** de chaque exécution réussie,
 cristallisant des "capabilities" réutilisables. Résultat : Claude devient un compositeur de code de
 haut niveau, Casys PML gère l'exécution sécurisée et l'apprentissage.
 
@@ -50,8 +50,8 @@ métriques réelles. La gateway supporte stdio et HTTP pour différents cas d'us
 
 - **FR001:** Le playground doit s'exécuter dans un GitHub Codespace avec une configuration
   devcontainer prête à l'emploi
-- **FR002:** L'initialisation doit supporter la commande `pml init` pour configurer
-  automatiquement la gateway
+- **FR002:** L'initialisation doit supporter la commande `pml init` pour configurer automatiquement
+  la gateway
 - **FR003:** La gateway doit pouvoir démarrer en mode stdio (`pml serve`) ou HTTP
   (`pml serve --port 3000`)
 

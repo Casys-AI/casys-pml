@@ -2,11 +2,15 @@
 
 ## Overview
 
-Phase 2 (Planning) workflows are **required** for all projects. They transform strategic vision into actionable requirements using a **scale-adaptive system** that automatically selects the right planning depth based on project complexity.
+Phase 2 (Planning) workflows are **required** for all projects. They transform strategic vision into
+actionable requirements using a **scale-adaptive system** that automatically selects the right
+planning depth based on project complexity.
 
-**Key principle:** One unified entry point (`workflow-init`) intelligently routes to the appropriate planning methodology - from quick tech-specs to comprehensive PRDs.
+**Key principle:** One unified entry point (`workflow-init`) intelligently routes to the appropriate
+planning methodology - from quick tech-specs to comprehensive PRDs.
 
-**When to use:** All projects require planning. The system adapts depth automatically based on complexity.
+**When to use:** All projects require planning. The system adapts depth automatically based on
+complexity.
 
 ---
 
@@ -51,7 +55,8 @@ The `correct-course` workflow can be used anytime for significant requirement ch
 | **create-ux-design** | UX Designer | BMad Method, Enterprise | Optional UX specification (after PRD)           | N/A             |
 | **correct-course**   | PM/SM       | All                     | Mid-stream requirement changes                  | N/A             |
 
-**Note:** Story counts are guidance. V6 improvement: Epic+Stories are created AFTER architecture for better quality.
+**Note:** Story counts are guidance. V6 improvement: Epic+Stories are created AFTER architecture for
+better quality.
 
 ---
 
@@ -87,13 +92,16 @@ BMM uses three distinct planning tracks that adapt to project complexity:
 
 **Documents:** PRD.md (FRs/NFRs) + architecture.md + epics.md + epic files
 
-**Greenfield:** Product Brief (optional) → PRD (FRs/NFRs) → UX (optional) → Architecture → Epics+Stories → Implementation
+**Greenfield:** Product Brief (optional) → PRD (FRs/NFRs) → UX (optional) → Architecture →
+Epics+Stories → Implementation
 
-**Brownfield:** document-project → PRD (FRs/NFRs) → Architecture (recommended) → Epics+Stories → Implementation
+**Brownfield:** document-project → PRD (FRs/NFRs) → Architecture (recommended) → Epics+Stories →
+Implementation
 
 **Example:** "Customer dashboard", "E-commerce platform", "Add search to existing app"
 
-**Why Architecture for Brownfield?** Distills massive codebase context into focused solution design for your specific project.
+**Why Architecture for Brownfield?** Distills massive codebase context into focused solution design
+for your specific project.
 
 ---
 
@@ -103,7 +111,8 @@ BMM uses three distinct planning tracks that adapt to project complexity:
 
 **Planning (Phase 2):** Uses BMad Method planning (PRD with FRs/NFRs)
 
-**Solutioning (Phase 3):** Extended workflows (Architecture + Security + DevOps + SecOps as optional additions) → Epics+Stories
+**Solutioning (Phase 3):** Extended workflows (Architecture + Security + DevOps + SecOps as optional
+additions) → Epics+Stories
 
 **Time:** 3-7 days total (1-3 days planning + 2-4 days extended solutioning)
 
@@ -111,7 +120,8 @@ BMM uses three distinct planning tracks that adapt to project complexity:
 
 **Documents Phase 2:** PRD.md (FRs/NFRs)
 
-**Documents Phase 3:** architecture.md + epics.md + epic files + security-architecture.md (optional) + devops-strategy.md (optional) + secops-strategy.md (optional)
+**Documents Phase 3:** architecture.md + epics.md + epic files + security-architecture.md
+(optional) + devops-strategy.md (optional) + secops-strategy.md (optional)
 
 **Example:** "Multi-tenant SaaS", "HIPAA-compliant portal", "Add SOC2 audit logging"
 
@@ -134,11 +144,13 @@ The system guides but never forces. You can override recommendations.
 
 ### workflow-init (Entry Point)
 
-**Purpose:** Single unified entry point for all planning. Discovers project needs and intelligently routes to appropriate track.
+**Purpose:** Single unified entry point for all planning. Discovers project needs and intelligently
+routes to appropriate track.
 
 **Agent:** PM (orchestrates others as needed)
 
-**Always Use:** This is your planning starting point. Don't call prd/tech-spec directly unless skipping discovery.
+**Always Use:** This is your planning starting point. Don't call prd/tech-spec directly unless
+skipping discovery.
 
 **Process:**
 
@@ -151,7 +163,8 @@ The system guides but never forces. You can override recommendations.
 
 ### tech-spec (Quick Flow)
 
-**Purpose:** Lightweight technical specification for simple changes (Quick Flow track). Produces technical document and story or epic+stories structure.
+**Purpose:** Lightweight technical specification for simple changes (Quick Flow track). Produces
+technical document and story or epic+stories structure.
 
 **Agent:** PM
 
@@ -175,13 +188,15 @@ The system guides but never forces. You can override recommendations.
 
 **Skip To Phase:** 4 (Implementation) - no Phase 3 architecture needed
 
-**Example:** "Fix null pointer when user has no profile image" → Single file change, null check, unit test, no DB migration.
+**Example:** "Fix null pointer when user has no profile image" → Single file change, null check,
+unit test, no DB migration.
 
 ---
 
 ### prd (Product Requirements Document)
 
-**Purpose:** Strategic PRD with Functional Requirements (FRs) and Non-Functional Requirements (NFRs) for software products (BMad Method track).
+**Purpose:** Strategic PRD with Functional Requirements (FRs) and Non-Functional Requirements (NFRs)
+for software products (BMad Method track).
 
 **Agent:** PM (with Architect and Analyst support)
 
@@ -203,17 +218,20 @@ The system guides but never forces. You can override recommendations.
 
 - PRD.md (complete requirements with FRs and NFRs)
 
-**Note:** V6 improvement - PRD focuses on WHAT to build (requirements). Epic+Stories are created AFTER architecture via `create-epics-and-stories` workflow for better quality.
+**Note:** V6 improvement - PRD focuses on WHAT to build (requirements). Epic+Stories are created
+AFTER architecture via `create-epics-and-stories` workflow for better quality.
 
 **Integration:** Feeds into Architecture (Phase 3)
 
-**Example:** E-commerce checkout → PRD with 15 FRs (user account, cart management, payment flow) and 8 NFRs (performance, security, scalability).
+**Example:** E-commerce checkout → PRD with 15 FRs (user account, cart management, payment flow) and
+8 NFRs (performance, security, scalability).
 
 ---
 
 ### create-ux-design (UX Design)
 
-**Purpose:** UX specification for projects where user experience is the primary differentiator (BMad Method track).
+**Purpose:** UX specification for projects where user experience is the primary differentiator (BMad
+Method track).
 
 **Agent:** UX Designer
 
@@ -243,7 +261,8 @@ The system guides but never forces. You can override recommendations.
 
 **Integration:** Feeds PRD or updates epics, then Architecture (Phase 3)
 
-**Example:** Dashboard redesign → Card-based layout with split-pane toggle, 5 card components, 12 color tokens, responsive grid, 3 epics (Layout, Visualization, Accessibility).
+**Example:** Dashboard redesign → Card-based layout with split-pane toggle, 5 card components, 12
+color tokens, responsive grid, 3 epics (Layout, Visualization, Accessibility).
 
 ---
 
@@ -311,11 +330,13 @@ See: [workflows-solutioning.md](./workflows-solutioning.md)
 
 ### 1. Always Start with workflow-init
 
-Let the entry point guide you. It prevents over-planning simple features or under-planning complex initiatives.
+Let the entry point guide you. It prevents over-planning simple features or under-planning complex
+initiatives.
 
 ### 2. Trust the Recommendation
 
-If `workflow-init` suggests BMad Method, there's likely complexity you haven't considered. Review carefully before overriding.
+If `workflow-init` suggests BMad Method, there's likely complexity you haven't considered. Review
+carefully before overriding.
 
 ### 3. Iterate on Requirements
 
@@ -327,11 +348,13 @@ Review PRDs with stakeholders before Solutioning. Catch misalignment early.
 
 ### 5. Focus on "What" Not "How"
 
-Planning defines **what** to build and **why**. Leave **how** (technical design) to Phase 3 (Solutioning).
+Planning defines **what** to build and **why**. Leave **how** (technical design) to Phase 3
+(Solutioning).
 
 ### 6. Document-Project First for Brownfield
 
-Always run `document-project` before planning brownfield projects. AI agents need existing codebase context.
+Always run `document-project` before planning brownfield projects. AI agents need existing codebase
+context.
 
 ---
 
@@ -381,23 +404,21 @@ Always run `document-project` before planning brownfield projects. AI agents nee
 
 ### ❌ Skipping Planning
 
-"We'll just start coding and figure it out."
-**Result:** Scope creep, rework, missed requirements
+"We'll just start coding and figure it out." **Result:** Scope creep, rework, missed requirements
 
 ### ❌ Over-Planning Simple Changes
 
-"Let me write a 20-page PRD for this button color change."
-**Result:** Wasted time, analysis paralysis
+"Let me write a 20-page PRD for this button color change." **Result:** Wasted time, analysis
+paralysis
 
 ### ❌ Planning Without Discovery
 
-"I already know what I want, skip the questions."
-**Result:** Solving wrong problem, missing opportunities
+"I already know what I want, skip the questions." **Result:** Solving wrong problem, missing
+opportunities
 
 ### ❌ Treating PRD as Immutable
 
-"The PRD is locked, no changes allowed."
-**Result:** Ignoring new information, rigid planning
+"The PRD is locked, no changes allowed." **Result:** Ignoring new information, rigid planning
 
 ### ✅ Correct Approach
 
@@ -422,29 +443,29 @@ Always run `document-project` before planning brownfield projects. AI agents nee
 
 ## Troubleshooting
 
-**Q: Which workflow should I run first?**
-A: Run `workflow-init`. It analyzes your project and routes to the right planning workflow.
+**Q: Which workflow should I run first?** A: Run `workflow-init`. It analyzes your project and
+routes to the right planning workflow.
 
-**Q: Do I always need a PRD?**
-A: No. Simple changes use `tech-spec` (Quick Flow). Only BMad Method and Enterprise tracks create PRDs.
+**Q: Do I always need a PRD?** A: No. Simple changes use `tech-spec` (Quick Flow). Only BMad Method
+and Enterprise tracks create PRDs.
 
-**Q: Can I skip Phase 3 (Solutioning)?**
-A: Yes for Quick Flow. Optional for BMad Method (simple projects). Required for BMad Method (complex projects) and Enterprise.
+**Q: Can I skip Phase 3 (Solutioning)?** A: Yes for Quick Flow. Optional for BMad Method (simple
+projects). Required for BMad Method (complex projects) and Enterprise.
 
-**Q: How do I know which track to choose?**
-A: Use `workflow-init` - it recommends based on your description. Story counts are guidance, not definitions.
+**Q: How do I know which track to choose?** A: Use `workflow-init` - it recommends based on your
+description. Story counts are guidance, not definitions.
 
-**Q: What if requirements change mid-project?**
-A: Run `correct-course` workflow. It analyzes impact and updates planning artifacts.
+**Q: What if requirements change mid-project?** A: Run `correct-course` workflow. It analyzes impact
+and updates planning artifacts.
 
-**Q: Do brownfield projects need architecture?**
-A: Recommended! Architecture distills massive codebase into focused solution design for your specific project.
+**Q: Do brownfield projects need architecture?** A: Recommended! Architecture distills massive
+codebase into focused solution design for your specific project.
 
-**Q: When do I run create-epics-and-stories?**
-A: In Phase 3 (Solutioning), after architecture is complete.
+**Q: When do I run create-epics-and-stories?** A: In Phase 3 (Solutioning), after architecture is
+complete.
 
-**Q: Should I use product-brief before PRD?**
-A: Optional but recommended for greenfield. Helps strategic thinking. `workflow-init` offers it based on context.
+**Q: Should I use product-brief before PRD?** A: Optional but recommended for greenfield. Helps
+strategic thinking. `workflow-init` offers it based on context.
 
 ---
 

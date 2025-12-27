@@ -1,14 +1,14 @@
 ---
-name: 'step-01b-continue'
-description: 'Handle workflow continuation from previous session'
+name: "step-01b-continue"
+description: "Handle workflow continuation from previous session"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmb/reference/workflows/meal-prep-nutrition'
+workflow_path: "{project-root}/_bmad/bmb/reference/workflows/meal-prep-nutrition"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-01b-continue.md'
-workflowFile: '{workflow_path}/workflow.md'
-outputFile: '{output_folder}/nutrition-plan-{project_name}.md'
+thisStepFile: "{workflow_path}/steps/step-01b-continue.md"
+workflowFile: "{workflow_path}/workflow.md"
+outputFile: "{output_folder}/nutrition-plan-{project_name}.md"
 # Template References
 # This step doesn't use content templates, reads from existing output file
 ---
@@ -17,7 +17,8 @@ outputFile: '{output_folder}/nutrition-plan-{project_name}.md'
 
 ## STEP GOAL:
 
-To resume the nutrition planning workflow from where it was left off, ensuring smooth continuation without loss of context.
+To resume the nutrition planning workflow from where it was left off, ensuring smooth continuation
+without loss of context.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -31,9 +32,11 @@ To resume the nutrition planning workflow from where it was left off, ensuring s
 ### Role Reinforcement:
 
 - ✅ You are a nutrition expert and meal planning specialist
-- ✅ If you already have been given communication or persona patterns, continue to use those while playing this new role
+- ✅ If you already have been given communication or persona patterns, continue to use those while
+  playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
-- ✅ You bring nutritional expertise and structured planning, user brings their personal preferences and lifestyle constraints
+- ✅ You bring nutritional expertise and structured planning, user brings their personal preferences
+  and lifestyle constraints
 
 ### Step-Specific Rules:
 
@@ -96,7 +99,8 @@ continuationDate: [current date]
 
 ### 4. Welcome Back Dialog
 
-"Welcome back! I see we've completed [X] steps of your nutrition plan. We last worked on [brief description]. Are you ready to continue with [next step]?"
+"Welcome back! I see we've completed [X] steps of your nutrition plan. We last worked on [brief
+description]. Are you ready to continue with [next step]?"
 
 ### 5. Resumption Protocols
 
@@ -113,21 +117,25 @@ Display: **Resuming workflow - Select an Option:** [C] Continue
 
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
-- User can chat or ask questions - always respond and then end with display again of the menu options
+- User can chat or ask questions - always respond and then end with display again of the menu
+  options
 - Use menu handling logic section below
 
 #### Menu Handling Logic:
 
-- IF C: Update frontmatter with continuation info, then load, read entire file, then execute appropriate next step based on `lastStep`
+- IF C: Update frontmatter with continuation info, then load, read entire file, then execute
+  appropriate next step based on `lastStep`
   - IF lastStep = "init": load {workflow_path}/step-03-assessment.md
   - IF lastStep = "assessment": load {workflow_path}/step-04-strategy.md
   - IF lastStep = "strategy": check cooking frequency, then load appropriate step
   - IF lastStep = "shopping": load {workflow_path}/step-06-prep-schedule.md
-- IF Any other comments or queries: help user respond then [Redisplay Menu Options](#5-present-menu-options)
+- IF Any other comments or queries: help user respond then
+  [Redisplay Menu Options](#5-present-menu-options)
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN C is selected and continuation analysis is complete, will you then update frontmatter and load, read entire file, then execute the appropriate next step file.
+ONLY WHEN C is selected and continuation analysis is complete, will you then update frontmatter and
+load, read entire file, then execute the appropriate next step file.
 
 ---
 
@@ -147,4 +155,5 @@ ONLY WHEN C is selected and continuation analysis is complete, will you then upd
 - Loading wrong next step
 - Not updating frontmatter properly
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

@@ -215,8 +215,7 @@ export function buildHierarchy(response: HypergraphApiResponse): HierarchyBuildR
         edgeType: edge.data.edge_type,
         observedCount: edge.data.observed_count ?? 1,
       });
-    }
-    // Tool-to-tool edges (sequence, dependency, contains)
+    } // Tool-to-tool edges (sequence, dependency, contains)
     else if (tools.has(sourceId) && tools.has(targetId)) {
       const edgeType = edge.data.edge_type as "sequence" | "dependency" | "contains";
       // Only include sequence and dependency (contains is implicit in hierarchy)

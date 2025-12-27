@@ -1,20 +1,20 @@
 ---
-name: 'step-02-gather'
-description: 'Gather comprehensive requirements for the workflow being created'
+name: "step-02-gather"
+description: "Gather comprehensive requirements for the workflow being created"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmb/workflows/create-workflow'
+workflow_path: "{project-root}/_bmad/bmb/workflows/create-workflow"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-02-gather.md'
-nextStepFile: '{workflow_path}/steps/step-03-tools-configuration.md'
+thisStepFile: "{workflow_path}/steps/step-02-gather.md"
+nextStepFile: "{workflow_path}/steps/step-03-tools-configuration.md"
 # Output files for workflow creation process
-targetWorkflowPath: '{bmb_creations_output_folder}/workflows/{new_workflow_name}'
-workflowPlanFile: '{targetWorkflowPath}/workflow-plan-{new_workflow_name}.md'
+targetWorkflowPath: "{bmb_creations_output_folder}/workflows/{new_workflow_name}"
+workflowPlanFile: "{targetWorkflowPath}/workflow-plan-{new_workflow_name}.md"
 
 # Task References
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 # Template References
 # No template needed - will append requirements directly to workflow plan
 ---
@@ -23,7 +23,8 @@ partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 
 ## STEP GOAL:
 
-To gather comprehensive requirements through collaborative conversation that will inform the design of a structured workflow tailored to the user's needs and use case.
+To gather comprehensive requirements through collaborative conversation that will inform the design
+of a structured workflow tailored to the user's needs and use case.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -37,7 +38,8 @@ To gather comprehensive requirements through collaborative conversation that wil
 ### Role Reinforcement:
 
 - ✅ You are a workflow architect and systems designer
-- ✅ If you already have been given communication or persona patterns, continue to use those while playing this new role
+- ✅ If you already have been given communication or persona patterns, continue to use those while
+  playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You bring workflow design expertise and best practices
 - ✅ User brings their domain knowledge and specific requirements
@@ -107,7 +109,8 @@ This shows a linear workflow structure. Now let's explore your desired pattern:
   - See: `{project-root}/_bmad/bmb/reference/workflows/meal-prep-nutrition/`
 - **Looping**: User Story Generator (Generate → Review → Refine → Generate more... until done)
 - **Branching**: Architecture Decision (Analyze → Choose pattern → Implement based on choice)
-- **Iterative**: Document Review (Load → Analyze → Suggest changes → Implement → Repeat until approved)
+- **Iterative**: Document Review (Load → Analyze → Suggest changes → Implement → Repeat until
+  approved)
 
 ### 4. User Interaction Style
 
@@ -165,7 +168,8 @@ Define what makes the workflow successful:
 
 #### STORE REQUIREMENTS:
 
-After collecting all requirements, append them to {workflowPlanFile} in a format that will be be used later to design in more detail and create the workflow structure.
+After collecting all requirements, append them to {workflowPlanFile} in a format that will be be
+used later to design in more detail and create the workflow structure.
 
 ### 9. Present MENU OPTIONS
 
@@ -176,19 +180,23 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu
-- User can chat or ask questions - always respond and then end with display again of the menu options
+- User can chat or ask questions - always respond and then end with display again of the menu
+  options
 - Use menu handling logic section below
 
 #### Menu Handling Logic:
 
 - IF A: Execute {advancedElicitationTask}
 - IF P: Execute {partyModeWorkflow}
-- IF C: Append requirements to {workflowPlanFile}, update frontmatter, then load, read entire file, then execute {nextStepFile}
-- IF Any other comments or queries: help user respond then [Redisplay Menu Options](#8-present-menu-options)
+- IF C: Append requirements to {workflowPlanFile}, update frontmatter, then load, read entire file,
+  then execute {nextStepFile}
+- IF Any other comments or queries: help user respond then
+  [Redisplay Menu Options](#8-present-menu-options)
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN C is selected and requirements are stored in the output file, will you then load, read entire file, then execute {nextStepFile} to execute and begin workflow structure design step.
+ONLY WHEN C is selected and requirements are stored in the output file, will you then load, read
+entire file, then execute {nextStepFile} to execute and begin workflow structure design step.
 
 ---
 
@@ -208,4 +216,5 @@ ONLY WHEN C is selected and requirements are stored in the output file, will you
 - Proceeding to next step without 'C' selection
 - Not storing requirements properly
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

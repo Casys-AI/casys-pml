@@ -1,8 +1,6 @@
 # Problem Solving Session: {{problem_title}}
 
-**Date:** {{date}}
-**Problem Solver:** {{user_name}}
-**Problem Category:** {{problem_category}}
+**Date:** {{date}} **Problem Solver:** {{user_name}} **Problem Category:** {{problem_category}}
 
 ---
 
@@ -50,11 +48,9 @@
 
 ### Force Field Analysis
 
-**Driving Forces (Supporting Solution):**
-{{driving_forces}}
+**Driving Forces (Supporting Solution):** {{driving_forces}}
 
-**Restraining Forces (Blocking Solution):**
-{{restraining_forces}}
+**Restraining Forces (Blocking Solution):** {{restraining_forces}}
 
 ### Constraint Identification
 

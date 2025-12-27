@@ -6,11 +6,11 @@ Secure sandbox for running generated code.
 
 ## Topics
 
-| Document | Description |
-|----------|-------------|
-| [Sandbox](./01-sandbox.md) | Deno isolation and permissions |
+| Document                               | Description                        |
+| -------------------------------------- | ---------------------------------- |
+| [Sandbox](./01-sandbox.md)             | Deno isolation and permissions     |
 | [Worker Bridge](./02-worker-bridge.md) | RPC communication between contexts |
-| [Tracing](./03-tracing.md) | Call hierarchy and observability |
+| [Tracing](./03-tracing.md)             | Call hierarchy and observability   |
 
 ---
 

@@ -315,28 +315,28 @@ Les capabilities ne sont pas pré-définies, elles **ÉMERGENT de l'usage**.
 
 ### Matrice de Comparaison
 
-| Critère         | Docker MCP | Anthropic PTC | Casys PML Actuel | Casys PML Proposé    |
-| --------------- | ---------- | ------------- | ----------------- | --------------------- |
-| **Discovery**   | Runtime    | Pre-config    | Pre-exec          | Pre-exec + Capability |
-| **Learning**    | ❌         | ❌            | Partiel (edges)   | ✅ Complet            |
-| **Suggestions** | ❌         | ❌            | Related tools     | ✅ Proactives         |
-| **Code Reuse**  | ❌         | ❌            | ❌                | ✅ Capabilities       |
-| **Cache**       | Session    | ❌            | ✅ LRU            | ✅ LRU + Capability   |
-| **Sécurité**    | Container  | Sandbox       | Sandbox           | Sandbox               |
-| **Récursion**   | Possible   | N/A           | Impossible        | Impossible            |
-| **Complexité**  | Haute      | Moyenne       | Moyenne           | Moyenne+              |
+| Critère         | Docker MCP | Anthropic PTC | Casys PML Actuel | Casys PML Proposé     |
+| --------------- | ---------- | ------------- | ---------------- | --------------------- |
+| **Discovery**   | Runtime    | Pre-config    | Pre-exec         | Pre-exec + Capability |
+| **Learning**    | ❌         | ❌            | Partiel (edges)  | ✅ Complet            |
+| **Suggestions** | ❌         | ❌            | Related tools    | ✅ Proactives         |
+| **Code Reuse**  | ❌         | ❌            | ❌               | ✅ Capabilities       |
+| **Cache**       | Session    | ❌            | ✅ LRU           | ✅ LRU + Capability   |
+| **Sécurité**    | Container  | Sandbox       | Sandbox          | Sandbox               |
+| **Récursion**   | Possible   | N/A           | Impossible       | Impossible            |
+| **Complexité**  | Haute      | Moyenne       | Moyenne          | Moyenne+              |
 
 ### Scores Pondérés
 
 | Critère (Poids)       | Docker  | Anthropic | Casys PML Proposé |
-| --------------------- | ------- | --------- | ------------------ |
-| Learning (25%)        | 0       | 0         | **10**             |
-| Performance (20%)     | 6       | 8         | **9**              |
-| Sécurité (20%)        | 8       | 7         | **9**              |
-| Flexibilité (15%)     | 9       | 5         | **7**              |
-| Simplicité (10%)      | 5       | 8         | **7**              |
-| Différenciation (10%) | 6       | 4         | **10**             |
-| **TOTAL**             | **5.3** | **5.2**   | **8.7**            |
+| --------------------- | ------- | --------- | ----------------- |
+| Learning (25%)        | 0       | 0         | **10**            |
+| Performance (20%)     | 6       | 8         | **9**             |
+| Sécurité (20%)        | 8       | 7         | **9**             |
+| Flexibilité (15%)     | 9       | 5         | **7**             |
+| Simplicité (10%)      | 5       | 8         | **7**             |
+| Différenciation (10%) | 6       | 4         | **10**            |
+| **TOTAL**             | **5.3** | **5.2**   | **8.7**           |
 
 ---
 
@@ -344,26 +344,26 @@ Les capabilities ne sont pas pré-définies, elles **ÉMERGENT de l'usage**.
 
 ### Casys PML Proposé vs Docker Dynamic MCPs
 
-| Gain avec Casys PML   | Sacrifice                    |
+| Gain avec Casys PML    | Sacrifice                    |
 | ---------------------- | ---------------------------- |
 | Learning persistant    | Pas de discovery runtime     |
 | Pas de récursion       | Moins flexible mid-session   |
 | Suggestions proactives | Scope fixé à l'avance        |
 | Performance (cache)    | Complexité code légèrement + |
 
-**Quand choisir Docker:** Agent autonome qui doit explorer un espace inconnu. **Quand choisir
-Casys PML:** Tâches répétitives où l'apprentissage apporte de la valeur.
+**Quand choisir Docker:** Agent autonome qui doit explorer un espace inconnu. **Quand choisir Casys
+PML:** Tâches répétitives où l'apprentissage apporte de la valeur.
 
 ### Casys PML Proposé vs Anthropic PTC
 
-| Gain avec Casys PML  | Sacrifice            |
+| Gain avec Casys PML   | Sacrifice            |
 | --------------------- | -------------------- |
 | Learning des patterns | N/A (complémentaire) |
 | Suggestions           | N/A                  |
 | Capability reuse      | N/A                  |
 
-**Note:** Anthropic PTC et Casys PML sont **complémentaires**. Casys PML pourrait utiliser PTC
-comme mécanisme d'exécution tout en ajoutant le learning layer.
+**Note:** Anthropic PTC et Casys PML sont **complémentaires**. Casys PML pourrait utiliser PTC comme
+mécanisme d'exécution tout en ajoutant le learning layer.
 
 ---
 
@@ -817,30 +817,30 @@ Option 3: Implémenter le système de Capabilities Émergentes en 3 phases.
 
 ### Appendix A: Matrice de Comparaison Complète
 
-| Fonctionnalité  | Docker MCP | Anthropic PTC | Casys PML Actuel | Casys PML Proposé |
-| --------------- | ---------- | ------------- | ----------------- | ------------------ |
-| **DISCOVERY**   |            |               |                   |                    |
-| Timing          | Runtime    | Pre-config    | Pre-exec          | Pre-exec + Match   |
-| Method          | Catalog    | Static        | Semantic+Graph    | Semantic+Graph+Cap |
-| Dynamic add     | ✅         | ❌            | ❌                | ❌                 |
-| **EXECUTION**   |            |               |                   |                    |
-| Sandbox         | Container  | Python        | Deno              | Deno               |
-| Cold start      | ~500ms     | ~200ms        | ~150ms            | ~150ms             |
-| IPC             | stdio      | API           | stdout            | stdout+events      |
-| **LEARNING**    |            |               |                   |                    |
-| Edges           | ❌         | ❌            | ✅                | ✅                 |
-| Patterns        | ❌         | ❌            | ⚠️                | ✅                 |
-| Capabilities    | ❌         | ❌            | ❌                | ✅                 |
-| **ALGORITHMS**  |            |               |                   |                    |
-| PageRank        | ❌         | ❌            | ✅                | ✅                 |
-| Louvain         | ❌         | ❌            | ✅                | ✅                 |
-| Adamic-Adar     | ❌         | ❌            | ✅                | ✅                 |
-| **CACHE**       |            |               |                   |                    |
-| Code results    | ❌         | ❌            | ✅                | ✅                 |
-| Capabilities    | ❌         | ❌            | ❌                | ✅                 |
-| **SUGGESTIONS** |            |               |                   |                    |
-| Related tools   | ❌         | ❌            | ✅                | ✅                 |
-| Proactive       | ❌         | ❌            | ❌                | ✅                 |
+| Fonctionnalité  | Docker MCP | Anthropic PTC | Casys PML Actuel | Casys PML Proposé  |
+| --------------- | ---------- | ------------- | ---------------- | ------------------ |
+| **DISCOVERY**   |            |               |                  |                    |
+| Timing          | Runtime    | Pre-config    | Pre-exec         | Pre-exec + Match   |
+| Method          | Catalog    | Static        | Semantic+Graph   | Semantic+Graph+Cap |
+| Dynamic add     | ✅         | ❌            | ❌               | ❌                 |
+| **EXECUTION**   |            |               |                  |                    |
+| Sandbox         | Container  | Python        | Deno             | Deno               |
+| Cold start      | ~500ms     | ~200ms        | ~150ms           | ~150ms             |
+| IPC             | stdio      | API           | stdout           | stdout+events      |
+| **LEARNING**    |            |               |                  |                    |
+| Edges           | ❌         | ❌            | ✅               | ✅                 |
+| Patterns        | ❌         | ❌            | ⚠️               | ✅                 |
+| Capabilities    | ❌         | ❌            | ❌               | ✅                 |
+| **ALGORITHMS**  |            |               |                  |                    |
+| PageRank        | ❌         | ❌            | ✅               | ✅                 |
+| Louvain         | ❌         | ❌            | ✅               | ✅                 |
+| Adamic-Adar     | ❌         | ❌            | ✅               | ✅                 |
+| **CACHE**       |            |               |                  |                    |
+| Code results    | ❌         | ❌            | ✅               | ✅                 |
+| Capabilities    | ❌         | ❌            | ❌               | ✅                 |
+| **SUGGESTIONS** |            |               |                  |                    |
+| Related tools   | ❌         | ❌            | ✅               | ✅                 |
+| Proactive       | ❌         | ❌            | ❌               | ✅                 |
 
 ### Appendix B: Diagramme de Flux Complet
 

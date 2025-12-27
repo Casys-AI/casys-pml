@@ -1,30 +1,37 @@
 # Document Project Workflow - Technical Reference
 
-**Module:** BMM (BMAD Method Module)
-**Type:** Action Workflow (Documentation Generator)
+**Module:** BMM (BMAD Method Module) **Type:** Action Workflow (Documentation Generator)
 
 ---
 
 ## Purpose
 
-Analyzes and documents brownfield projects by scanning codebase, architecture, and patterns to create comprehensive reference documentation for AI-assisted development. Generates a master index and multiple documentation files tailored to project structure and type.
+Analyzes and documents brownfield projects by scanning codebase, architecture, and patterns to
+create comprehensive reference documentation for AI-assisted development. Generates a master index
+and multiple documentation files tailored to project structure and type.
 
-**NEW in v1.2.0:** Context-safe architecture with scan levels, resumability, and write-as-you-go pattern to prevent context exhaustion.
+**NEW in v1.2.0:** Context-safe architecture with scan levels, resumability, and write-as-you-go
+pattern to prevent context exhaustion.
 
 ---
 
 ## Key Features
 
-- **Multi-Project Type Support**: Handles web, backend, mobile, CLI, game, embedded, data, infra, library, desktop, and extension projects
-- **Multi-Part Detection**: Automatically detects and documents projects with separate client/server or multiple services
+- **Multi-Project Type Support**: Handles web, backend, mobile, CLI, game, embedded, data, infra,
+  library, desktop, and extension projects
+- **Multi-Part Detection**: Automatically detects and documents projects with separate client/server
+  or multiple services
 - **Three Scan Levels** (NEW v1.2.0): Quick (2-5 min), Deep (10-30 min), Exhaustive (30-120 min)
 - **Resumability** (NEW v1.2.0): Interrupt and resume workflows without losing progress
 - **Write-as-you-go** (NEW v1.2.0): Documents written immediately to prevent context exhaustion
 - **Intelligent Batching** (NEW v1.2.0): Subfolder-based processing for deep/exhaustive scans
 - **Data-Driven Analysis**: Uses CSV-based project type detection and documentation requirements
-- **Comprehensive Scanning**: Analyzes APIs, data models, UI components, configuration, security patterns, and more
-- **Architecture Matching**: Matches projects to 170+ architecture templates from the solutioning registry
-- **Brownfield PRD Ready**: Generates documentation specifically designed for AI agents planning new features
+- **Comprehensive Scanning**: Analyzes APIs, data models, UI components, configuration, security
+  patterns, and more
+- **Architecture Matching**: Matches projects to 170+ architecture templates from the solutioning
+  registry
+- **Brownfield PRD Ready**: Generates documentation specifically designed for AI agents planning new
+  features
 
 ---
 
@@ -48,10 +55,8 @@ Choose the right scan depth for your needs:
 
 ### 1. Quick Scan (Default)
 
-**Duration:** 2-5 minutes
-**What it does:** Pattern-based analysis without reading source files
-**Reads:** Config files, package manifests, directory structure, README
-**Use when:**
+**Duration:** 2-5 minutes **What it does:** Pattern-based analysis without reading source files
+**Reads:** Config files, package manifests, directory structure, README **Use when:**
 
 - You need a fast project overview
 - Initial understanding of project structure
@@ -61,10 +66,8 @@ Choose the right scan depth for your needs:
 
 ### 2. Deep Scan
 
-**Duration:** 10-30 minutes
-**What it does:** Reads files in critical directories based on project type
-**Reads:** Files in critical paths defined by documentation requirements
-**Use when:**
+**Duration:** 10-30 minutes **What it does:** Reads files in critical directories based on project
+type **Reads:** Files in critical paths defined by documentation requirements **Use when:**
 
 - Creating comprehensive documentation for brownfield PRD
 - Need detailed analysis of key areas
@@ -74,10 +77,8 @@ Choose the right scan depth for your needs:
 
 ### 3. Exhaustive Scan
 
-**Duration:** 30-120 minutes
-**What it does:** Reads ALL source files in project
-**Reads:** Every source file (excludes node_modules, dist, build, .git)
-**Use when:**
+**Duration:** 30-120 minutes **What it does:** Reads ALL source files in project **Reads:** Every
+source file (excludes node_modules, dist, build, .git) **Use when:**
 
 - Complete project analysis needed
 - Migration planning requires full understanding
@@ -125,7 +126,8 @@ Your choice [1/2/3]:
 
 ### Step-by-Step Process
 
-1. **Detects Project Structure** - Identifies if project is single-part or multi-part (client/server/etc.)
+1. **Detects Project Structure** - Identifies if project is single-part or multi-part
+   (client/server/etc.)
 2. **Classifies Project Type** - Matches against 12 project types (web, backend, mobile, etc.)
 3. **Discovers Documentation** - Finds existing README, CONTRIBUTING, ARCHITECTURE files
 4. **Analyzes Tech Stack** - Parses package files, identifies frameworks, versions, dependencies
@@ -180,10 +182,13 @@ The workflow uses a single comprehensive CSV file:
 **documentation-requirements.csv** - Complete project analysis guide
 
 - Location: `/_bmad/bmm/workflows/document-project/documentation-requirements.csv`
-- 12 project types (web, mobile, backend, cli, library, desktop, game, data, extension, infra, embedded)
+- 12 project types (web, mobile, backend, cli, library, desktop, game, data, extension, infra,
+  embedded)
 - 24 columns combining:
-  - **Detection columns**: `project_type_id`, `key_file_patterns` (identifies project type from codebase)
-  - **Requirement columns**: `requires_api_scan`, `requires_data_models`, `requires_ui_components`, etc.
+  - **Detection columns**: `project_type_id`, `key_file_patterns` (identifies project type from
+    codebase)
+  - **Requirement columns**: `requires_api_scan`, `requires_data_models`, `requires_ui_components`,
+    etc.
   - **Pattern columns**: `critical_directories`, `test_file_patterns`, `config_patterns`, etc.
 - Self-contained: All project detection AND scanning requirements in one file
 - Architecture patterns inferred from tech stack (no external registry needed)
@@ -320,10 +325,12 @@ docs/
 When you run the workflow on a project that already has documentation, you'll be offered a choice:
 
 1. **Rescan entire project** - Update all documentation with latest changes
-2. **Deep-dive into specific area** - Generate EXHAUSTIVE documentation for a particular feature/module/folder
+2. **Deep-dive into specific area** - Generate EXHAUSTIVE documentation for a particular
+   feature/module/folder
 3. **Cancel** - Keep existing documentation
 
-Deep-dive mode performs **comprehensive, file-by-file analysis** of a specific area, reading EVERY file completely and documenting:
+Deep-dive mode performs **comprehensive, file-by-file analysis** of a specific area, reading EVERY
+file completely and documenting:
 
 - All exports with complete signatures
 - All imports and dependencies

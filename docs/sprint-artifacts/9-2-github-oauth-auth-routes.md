@@ -4,9 +4,8 @@ Status: done
 
 ## Story
 
-As a cloud user,
-I want to authenticate via GitHub OAuth,
-So that I can access the dashboard and get my API key.
+As a cloud user, I want to authenticate via GitHub OAuth, So that I can access the dashboard and get
+my API key.
 
 ## Acceptance Criteria
 
@@ -90,8 +89,7 @@ const oauthConfig = createGitHubOAuthConfig({
   scope: ["read:user", "user:email"],
 });
 
-export const { signIn, handleCallback, signOut, getSessionId } =
-  createHelpers(oauthConfig);
+export const { signIn, handleCallback, signOut, getSessionId } = createHelpers(oauthConfig);
 ```
 
 **CRITICAL:** Import via `@deno/kv-oauth` (mapped in `deno.json`), NOT `jsr:@deno/kv-oauth` inline.
@@ -112,14 +110,14 @@ export interface Session {
 export async function createSession(
   kv: Deno.Kv,
   sessionId: string,
-  user: Session
+  user: Session,
 ): Promise<void> {
   await kv.set(["sessions", sessionId], user, { expireIn: SESSION_TTL_MS });
 }
 
 export async function getSession(
   kv: Deno.Kv,
-  sessionId: string
+  sessionId: string,
 ): Promise<Session | null> {
   const result = await kv.get<Session>(["sessions", sessionId]);
   return result.value;
@@ -127,7 +125,7 @@ export async function getSession(
 
 export async function destroySession(
   kv: Deno.Kv,
-  sessionId: string
+  sessionId: string,
 ): Promise<void> {
   await kv.delete(["sessions", sessionId]);
 }
@@ -135,7 +133,8 @@ export async function destroySession(
 
 ### Fresh Route Handlers Pattern
 
-**CRITICAL:** Use `export const handler = { ... }` pattern (NOT `define.handlers`). See existing routes in `src/web/routes/`.
+**CRITICAL:** Use `export const handler = { ... }` pattern (NOT `define.handlers`). See existing
+routes in `src/web/routes/`.
 
 **signin.ts:**
 
@@ -253,7 +252,7 @@ async function fetchGitHubUser(accessToken: string): Promise<GitHubUser> {
 
 // Fetch primary verified email (user:email scope required)
 async function fetchGitHubPrimaryEmail(
-  accessToken: string
+  accessToken: string,
 ): Promise<string | null> {
   const resp = await fetch("https://api.github.com/user/emails", {
     headers: {
@@ -262,8 +261,7 @@ async function fetchGitHubPrimaryEmail(
     },
   });
   if (!resp.ok) return null;
-  const emails: Array<{ email: string; primary: boolean; verified: boolean }> =
-    await resp.json();
+  const emails: Array<{ email: string; primary: boolean; verified: boolean }> = await resp.json();
   const primary = emails.find((e) => e.primary && e.verified);
   return primary?.email ?? null;
 }
@@ -276,7 +274,8 @@ interface GitHubUser {
 }
 ```
 
-**SECURITY:** API key stored in flash session (Deno KV with 5min TTL), NOT passed in URL query string.
+**SECURITY:** API key stored in flash session (Deno KV with 5min TTL), NOT passed in URL query
+string.
 
 ### Reuse from Story 9.1
 
@@ -332,13 +331,12 @@ export const handler = {
       JSON.stringify({
         key,
         prefix,
-        message:
-          "API Key regenerated. Save this key - it won't be shown again.",
+        message: "API Key regenerated. Save this key - it won't be shown again.",
       }),
       {
         status: 200,
         headers: { "Content-Type": "application/json" },
-      }
+      },
     );
   },
 };
@@ -389,7 +387,8 @@ export async function closeDb(): Promise<void> {
 }
 ```
 
-**NOTE:** Uses same DB path as API Server (`getCasys PMLDatabasePath()`) for data consistency between ports 3003 and 8080.
+**NOTE:** Uses same DB path as API Server (`getCasys PMLDatabasePath()`) for data consistency
+between ports 3003 and 8080.
 
 ### Extended Session Helpers
 
@@ -403,7 +402,7 @@ const FLASH_TTL_MS = 5 * 60 * 1000; // 5 minutes
 export async function setFlashApiKey(
   kv: Deno.Kv,
   sessionId: string,
-  apiKey: string
+  apiKey: string,
 ): Promise<void> {
   await kv.set(["flash_api_key", sessionId], apiKey, {
     expireIn: FLASH_TTL_MS,
@@ -415,7 +414,7 @@ export async function setFlashApiKey(
  */
 export async function consumeFlashApiKey(
   kv: Deno.Kv,
-  sessionId: string
+  sessionId: string,
 ): Promise<string | null> {
   const result = await kv.get<string>(["flash_api_key", sessionId]);
   if (result.value) {
@@ -428,7 +427,7 @@ export async function consumeFlashApiKey(
  * Get session from request cookie
  */
 export async function getSessionFromRequest(
-  req: Request
+  req: Request,
 ): Promise<Session | null> {
   const { getSessionId } = await import("./oauth.ts");
   const sessionId = await getSessionId(req);
@@ -492,7 +491,8 @@ AUTH_REDIRECT_URL=http://localhost:8080/auth/callback
 - **CSRF:** Built into kv-oauth via state parameter
 - **Session:** Stored in Deno KV with 30-day expiration
 - **Argon2id:** Used for API Key hashing (from Story 9.1)
-- **Rate limiting:** Auth routes (`/auth/*`) should have rate limiting to prevent brute force - reuse `src/lib/rate-limiter.ts` pattern (Story 9.5 will formalize)
+- **Rate limiting:** Auth routes (`/auth/*`) should have rate limiting to prevent brute force -
+  reuse `src/lib/rate-limiter.ts` pattern (Story 9.5 will formalize)
 
 ### Testing Strategy
 
@@ -535,9 +535,11 @@ Deno.test("OAuth callback - creates user on first login", async () => {
 
 ### References
 
-- **Tech-Spec:** [tech-spec-github-auth-multitenancy.md](tech-spec-github-auth-multitenancy.md#phase-2-routes--middleware-dual-server)
+- **Tech-Spec:**
+  [tech-spec-github-auth-multitenancy.md](tech-spec-github-auth-multitenancy.md#phase-2-routes--middleware-dual-server)
 - **Epic Definition:** [docs/epics.md#story-92](../epics.md) - Story 9.2
-- **Previous Story:** [9-1-infrastructure-auth-schema-helpers.md](9-1-infrastructure-auth-schema-helpers.md)
+- **Previous Story:**
+  [9-1-infrastructure-auth-schema-helpers.md](9-1-infrastructure-auth-schema-helpers.md)
 - **Deno KV OAuth Docs:** https://deno.land/x/deno_kv_oauth
 - **Fresh 2.x Handlers:** https://fresh.deno.dev/docs/concepts/handlers
 
@@ -562,7 +564,8 @@ Claude Sonnet 4 (Cascade)
 - OAuth helpers use @deno/kv-oauth with built-in CSRF protection via state parameter
 - Session management with 30-day TTL in Deno KV
 - Flash API key pattern for secure one-time display (5-min TTL)
-- Callback flow: fetches GitHub profile + primary email, upserts user, generates API key for new users
+- Callback flow: fetches GitHub profile + primary email, upserts user, generates API key for new
+  users
 - API key regeneration invalidates old key by replacing hash/prefix
 
 ### Senior Developer Review (AI)
@@ -571,9 +574,12 @@ Claude Sonnet 4 (Cascade)
 
 **Issues Fixed:**
 
-- **H1/M4 (KV Connection Leak):** Created `src/server/auth/kv.ts` singleton to prevent connection leaks. All auth modules now use shared `getKv()` instead of `Deno.openKv()`.
-- **H2 (Missing Error Handling):** Added try/catch in `callback.ts` with proper error redirect to `/auth/signin?error=callback_failed`.
-- **L1 (Signout Error Handling):** Added try/catch in `signout.ts` with fallback redirect to landing page.
+- **H1/M4 (KV Connection Leak):** Created `src/server/auth/kv.ts` singleton to prevent connection
+  leaks. All auth modules now use shared `getKv()` instead of `Deno.openKv()`.
+- **H2 (Missing Error Handling):** Added try/catch in `callback.ts` with proper error redirect to
+  `/auth/signin?error=callback_failed`.
+- **L1 (Signout Error Handling):** Added try/catch in `signout.ts` with fallback redirect to landing
+  page.
 - **Test Coverage:** Added 3 new tests for KV singleton behavior (`kv_test.ts`).
 
 **Notes:**
@@ -609,6 +615,7 @@ Claude Sonnet 4 (Cascade)
 
 **Modified:**
 
-- `deno.json` - Added `"@deno/kv-oauth": "jsr:@deno/kv-oauth@^0.11.0"`, added `--env` flag to dev tasks
+- `deno.json` - Added `"@deno/kv-oauth": "jsr:@deno/kv-oauth@^0.11.0"`, added `--env` flag to dev
+  tasks
 - `src/cli/utils.ts` - Use `resolvePath()` for DB path
 - `src/db/drizzle.ts` - Use `resolvePath()` for migrations folder

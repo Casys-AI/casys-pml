@@ -104,7 +104,9 @@ export default function TracingPanel({ apiBase: _apiBaseProp }: TracingPanelProp
           console.warn("[TracingPanel] Max reconnection attempts reached");
           eventSource?.close();
         } else {
-          console.warn(`[TracingPanel] SSE error, attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`);
+          console.warn(
+            `[TracingPanel] SSE error, attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`,
+          );
         }
       };
     } catch (err) {
@@ -224,15 +226,17 @@ export default function TracingPanel({ apiBase: _apiBaseProp }: TracingPanelProp
               }
             }}
           >
-            {paused ? (
-              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z" />
-              </svg>
-            ) : (
-              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
-              </svg>
-            )}
+            {paused
+              ? (
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              )
+              : (
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                </svg>
+              )}
           </button>
           <button
             class="p-2 rounded-lg transition-all duration-200"
@@ -303,103 +307,111 @@ export default function TracingPanel({ apiBase: _apiBaseProp }: TracingPanelProp
         class="flex-1 overflow-y-auto flex flex-col gap-3"
         style={{ minHeight: 0 }}
       >
-        {events.length === 0 ? (
-          <div
-            class="p-4 rounded-xl text-center"
-            style={styles.card}
-          >
-            <p class="text-sm" style={{ color: "var(--text-dim)" }}>
-              Waiting for algorithm.scored events...
-            </p>
-            <p class="text-xs mt-2" style={{ color: "var(--text-dim)" }}>
-              Execute a search or DAG to see scoring decisions
-            </p>
-          </div>
-        ) : (
-          events.map((event, idx) => (
+        {events.length === 0
+          ? (
             <div
-              key={`${event.timestamp}-${idx}`}
-              class="p-2 rounded-lg transition-all duration-200"
+              class="p-4 rounded-xl text-center"
               style={styles.card}
-              onMouseOver={(e) => {
-                e.currentTarget.style.borderColor = "var(--accent-medium)";
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.borderColor = "var(--border)";
-              }}
             >
-              {/* Compact header: type + name + score + decision */}
-              <div class="flex items-center gap-1.5 mb-1">
-                <span
-                  class="text-[9px] font-medium px-1.5 py-0.5 rounded shrink-0"
-                  style={{
-                    background: event.payload.itemType === "tool"
-                      ? "var(--accent-dim)"
-                      : "var(--info-dim, rgba(59, 130, 246, 0.2))",
-                    color: event.payload.itemType === "tool"
-                      ? "var(--accent)"
-                      : "var(--info, #3b82f6)",
-                  }}
-                >
-                  {event.payload.itemType === "tool" ? "T" : "C"}
-                </span>
-                <span
-                  class="text-xs truncate flex-1"
-                  style={{ color: "var(--text)" }}
-                  title={event.payload.itemId}
-                >
-                  {event.payload.itemName || event.payload.itemId.split("__").pop()?.split(":").pop() || event.payload.itemId}
-                </span>
-                <span
-                  class="text-xs font-bold tabular-nums"
-                  style={{
-                    color: getScoreColor(event.payload.finalScore),
-                    fontFamily: "var(--font-mono)",
-                  }}
-                >
-                  {event.payload.finalScore.toFixed(2)}
-                </span>
-                <span
-                  class="w-2 h-2 rounded-full shrink-0"
-                  style={{
-                    background: getDecisionColor(event.payload.decision),
-                  }}
-                  title={event.payload.decision}
-                />
-              </div>
-
-              {/* Compact signals row */}
-              <div class="flex flex-wrap gap-x-2 gap-y-0.5">
-                {[
-                  { label: "sem", value: event.payload.signals.semanticScore },
-                  { label: "grp", value: event.payload.signals.graphScore },
-                  { label: "suc", value: event.payload.signals.successRate },
-                  { label: "pr", value: event.payload.signals.pagerank },
-                  { label: "aa", value: event.payload.signals.adamicAdar },
-                ]
-                  .filter((signal) => signal.value !== undefined && signal.value > 0)
-                  .map((signal) => (
-                    <span
-                      key={signal.label}
-                      class="text-[9px] tabular-nums"
-                      style={{ color: "var(--text-dim)", fontFamily: "var(--font-mono)" }}
-                    >
-                      <span style={{ opacity: 0.6 }}>{signal.label}:</span>
-                      <span style={{ color: getScoreColor(signal.value!) }}>
-                        {(signal.value! * 100).toFixed(0)}
-                      </span>
-                    </span>
-                  ))}
-                <span
-                  class="text-[9px] ml-auto"
-                  style={{ color: "var(--text-dim)", opacity: 0.5 }}
-                >
-                  {new Date(event.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-                </span>
-              </div>
+              <p class="text-sm" style={{ color: "var(--text-dim)" }}>
+                Waiting for algorithm.scored events...
+              </p>
+              <p class="text-xs mt-2" style={{ color: "var(--text-dim)" }}>
+                Execute a search or DAG to see scoring decisions
+              </p>
             </div>
-          ))
-        )}
+          )
+          : (
+            events.map((event, idx) => (
+              <div
+                key={`${event.timestamp}-${idx}`}
+                class="p-2 rounded-lg transition-all duration-200"
+                style={styles.card}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.borderColor = "var(--accent-medium)";
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.borderColor = "var(--border)";
+                }}
+              >
+                {/* Compact header: type + name + score + decision */}
+                <div class="flex items-center gap-1.5 mb-1">
+                  <span
+                    class="text-[9px] font-medium px-1.5 py-0.5 rounded shrink-0"
+                    style={{
+                      background: event.payload.itemType === "tool"
+                        ? "var(--accent-dim)"
+                        : "var(--info-dim, rgba(59, 130, 246, 0.2))",
+                      color: event.payload.itemType === "tool"
+                        ? "var(--accent)"
+                        : "var(--info, #3b82f6)",
+                    }}
+                  >
+                    {event.payload.itemType === "tool" ? "T" : "C"}
+                  </span>
+                  <span
+                    class="text-xs truncate flex-1"
+                    style={{ color: "var(--text)" }}
+                    title={event.payload.itemId}
+                  >
+                    {event.payload.itemName ||
+                      event.payload.itemId.split("__").pop()?.split(":").pop() ||
+                      event.payload.itemId}
+                  </span>
+                  <span
+                    class="text-xs font-bold tabular-nums"
+                    style={{
+                      color: getScoreColor(event.payload.finalScore),
+                      fontFamily: "var(--font-mono)",
+                    }}
+                  >
+                    {event.payload.finalScore.toFixed(2)}
+                  </span>
+                  <span
+                    class="w-2 h-2 rounded-full shrink-0"
+                    style={{
+                      background: getDecisionColor(event.payload.decision),
+                    }}
+                    title={event.payload.decision}
+                  />
+                </div>
+
+                {/* Compact signals row */}
+                <div class="flex flex-wrap gap-x-2 gap-y-0.5">
+                  {[
+                    { label: "sem", value: event.payload.signals.semanticScore },
+                    { label: "grp", value: event.payload.signals.graphScore },
+                    { label: "suc", value: event.payload.signals.successRate },
+                    { label: "pr", value: event.payload.signals.pagerank },
+                    { label: "aa", value: event.payload.signals.adamicAdar },
+                  ]
+                    .filter((signal) => signal.value !== undefined && signal.value > 0)
+                    .map((signal) => (
+                      <span
+                        key={signal.label}
+                        class="text-[9px] tabular-nums"
+                        style={{ color: "var(--text-dim)", fontFamily: "var(--font-mono)" }}
+                      >
+                        <span style={{ opacity: 0.6 }}>{signal.label}:</span>
+                        <span style={{ color: getScoreColor(signal.value!) }}>
+                          {(signal.value! * 100).toFixed(0)}
+                        </span>
+                      </span>
+                    ))}
+                  <span
+                    class="text-[9px] ml-auto"
+                    style={{ color: "var(--text-dim)", opacity: 0.5 }}
+                  >
+                    {new Date(event.timestamp).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      second: "2-digit",
+                    })}
+                  </span>
+                </div>
+              </div>
+            ))
+          )}
       </div>
     </div>
   );

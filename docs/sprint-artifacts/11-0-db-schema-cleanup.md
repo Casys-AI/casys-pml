@@ -4,13 +4,13 @@ Status: done
 
 ## Story
 
-As a developer,
-I want a clean database schema with proper separation of concerns,
-So that the learning system has solid infrastructure foundations.
+As a developer, I want a clean database schema with proper separation of concerns, So that the
+learning system has solid infrastructure foundations.
 
 ## Context & Background
 
-Audit complet du schéma DB (spike 2025-12-18) révèle plusieurs problèmes à corriger AVANT d'implémenter le learning (Epic 11):
+Audit complet du schéma DB (spike 2025-12-18) révèle plusieurs problèmes à corriger AVANT
+d'implémenter le learning (Epic 11):
 
 1. **`workflow_dags`** - État runtime temporaire stocké en PostgreSQL (overkill) - migration 008
 2. **`mcp_tool`** - Table dupliquée avec `tool_schema` - migration 004
@@ -84,18 +84,19 @@ Audit complet du schéma DB (spike 2025-12-18) révèle plusieurs problèmes à 
 
 ### Existing Files to Analyze
 
-| File | Purpose | Action |
-|------|---------|--------|
-| `src/mcp/workflow-dag-store.ts` | Store DAG en PostgreSQL | Refactorer → KV |
-| `src/server/auth/kv.ts` | Singleton KV auth | Déplacer → `src/cache/kv.ts` |
-| `src/db/migrations/008_workflow_dags.sql` | Crée `workflow_dags` | Supprimée par 019 |
-| `src/db/migrations/004_mcp_tool_tables.ts` | Crée `mcp_tool`, `mcp_server` | Supprimées par 019 |
-| `src/db/migrations/009_tool_dependency_source.sql` | Ajoute `source` | Colonne supprimée par 019 |
-| `src/db/migrations/018_permission_audit_log.ts` | Crée audit log | FK ajoutée par 019 |
+| File                                               | Purpose                       | Action                       |
+| -------------------------------------------------- | ----------------------------- | ---------------------------- |
+| `src/mcp/workflow-dag-store.ts`                    | Store DAG en PostgreSQL       | Refactorer → KV              |
+| `src/server/auth/kv.ts`                            | Singleton KV auth             | Déplacer → `src/cache/kv.ts` |
+| `src/db/migrations/008_workflow_dags.sql`          | Crée `workflow_dags`          | Supprimée par 019            |
+| `src/db/migrations/004_mcp_tool_tables.ts`         | Crée `mcp_tool`, `mcp_server` | Supprimées par 019           |
+| `src/db/migrations/009_tool_dependency_source.sql` | Ajoute `source`               | Colonne supprimée par 019    |
+| `src/db/migrations/018_permission_audit_log.ts`    | Crée audit log                | FK ajoutée par 019           |
 
 ### Deno KV Migration Pattern
 
 **AVANT (PostgreSQL):**
+
 ```typescript
 // src/mcp/workflow-dag-store.ts
 await db.query(`INSERT INTO workflow_dags ...`, [workflowId, dag, intent]);
@@ -103,6 +104,7 @@ await db.query(`SELECT dag FROM workflow_dags WHERE expires_at > NOW()`, [workfl
 ```
 
 **APRÈS (Deno KV):**
+
 ```typescript
 // src/cache/workflow-state-cache.ts
 import { getKv } from "./kv.ts";
@@ -147,6 +149,7 @@ END $$;
 ### E2E Tests Using mcp_tool (24 files)
 
 Files to migrate to `tool_schema`:
+
 - `tests/e2e/*.test.ts` (7 files)
 - `tests/fixtures/test-helpers.ts`
 - `tests/integration/dag/*.test.ts`
@@ -183,7 +186,8 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 1. **KV Singleton**: Créé `src/cache/kv.ts` avec réexport dans `src/server/auth/kv.ts`
 2. **Workflow State Cache**: Nouveau `src/cache/workflow-state-cache.ts` avec TTL 1h natif
-3. **Migration 019**: Supprime workflow_dags, mcp_tool, mcp_server; convertit capability_id TEXT→UUID; ajoute FK
+3. **Migration 019**: Supprime workflow_dags, mcp_tool, mcp_server; convertit capability_id
+   TEXT→UUID; ajoute FK
 4. **E2E Tests Adaptés**: 8 fichiers de test modifiés pour utiliser tool_schema
 5. **Tests Passent**: E2E 01-init, 02-discovery, 05-graph-engine ✅
 
@@ -215,19 +219,21 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 ## Senior Developer Review (AI)
 
 ### Review Date
+
 2025-12-22
 
 ### Reviewer
+
 Claude Opus 4.5 (code-review workflow)
 
 ### Issues Found & Fixed
 
-| Severity | Issue | Resolution |
-|----------|-------|------------|
-| HIGH | AC8/AC9: Aucun test pour workflow-state-cache.ts | ✅ Créé `tests/unit/cache/workflow-state-cache.test.ts` (11 tests) |
-| HIGH | Fichiers modifiés non documentés (discover-handler, benchmarks) | ✅ Ajoutés à Files Modified |
-| LOW | Module export manquant pour src/cache/ | ✅ Créé `src/cache/mod.ts` |
-| LOW | LOC counts incorrects dans Dev Agent Record | ✅ Corrigés (36, 277, 176 LOC) |
+| Severity | Issue                                                           | Resolution                                                         |
+| -------- | --------------------------------------------------------------- | ------------------------------------------------------------------ |
+| HIGH     | AC8/AC9: Aucun test pour workflow-state-cache.ts                | ✅ Créé `tests/unit/cache/workflow-state-cache.test.ts` (11 tests) |
+| HIGH     | Fichiers modifiés non documentés (discover-handler, benchmarks) | ✅ Ajoutés à Files Modified                                        |
+| LOW      | Module export manquant pour src/cache/                          | ✅ Créé `src/cache/mod.ts`                                         |
+| LOW      | LOC counts incorrects dans Dev Agent Record                     | ✅ Corrigés (36, 277, 176 LOC)                                     |
 
 ### Test Results
 
@@ -240,4 +246,5 @@ Migration 019: ✅ idempotent
 ```
 
 ### Final Status
+
 All 11 Acceptance Criteria validated and passing.

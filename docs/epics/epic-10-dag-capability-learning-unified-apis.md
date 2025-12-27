@@ -1,24 +1,28 @@
 ## Epic 10: DAG Capability Learning & Unified APIs
 
-> **Tech-Spec:** [tech-spec-dag-capability-learning.md](./tech-specs/tech-spec-dag-capability-learning.md)
-> **Status:** In Progress (Stories 10.1-10.5 DONE)
-> **Author:** Erwan + Claude
-> **Depends on:** Epic 7 (Emergent Capabilities), HIL Phase 2 (Permission Escalation)
-> **Last Updated:** 2025-12-20 (Post-implementation review)
+> **Tech-Spec:**
+> [tech-spec-dag-capability-learning.md](./tech-specs/tech-spec-dag-capability-learning.md)
+> **Status:** In Progress (Stories 10.1-10.5 DONE) **Author:** Erwan + Claude **Depends on:** Epic 7
+> (Emergent Capabilities), HIL Phase 2 (Permission Escalation) **Last Updated:** 2025-12-20
+> (Post-implementation review)
 
 **Expanded Goal (2-3 sentences):**
 
-Unifier les deux modèles d'exécution (DAG explicite et Code libre) en un système d'apprentissage cohérent où **tout passe par les mêmes mécanismes**. Implémenter la reconstruction de DAG depuis les traces de code, permettant au système d'apprendre des workflows qu'il soit exprimé en DAG ou en code TypeScript. Simplifier les APIs en deux points d'entrée : `pml_discover` (exploration intelligente) et `pml_execute` (exécution unifiée).
+Unifier les deux modèles d'exécution (DAG explicite et Code libre) en un système d'apprentissage
+cohérent où **tout passe par les mêmes mécanismes**. Implémenter la reconstruction de DAG depuis les
+traces de code, permettant au système d'apprendre des workflows qu'il soit exprimé en DAG ou en code
+TypeScript. Simplifier les APIs en deux points d'entrée : `pml_discover` (exploration intelligente)
+et `pml_execute` (exécution unifiée).
 
 **Problèmes Résolus:**
 
-| Problème | Solution |
-|----------|----------|
-| Parallel tracking - pas d'edges créés | Détection via timestamps `ts` + `durationMs` |
-| DAG → Capability - pas de génération | Capability unifiée `source: code \| dag` |
-| Edge types confus (sequence vs dependency) | Clarification: Definition view vs Invocation view |
-| Manque de `provides` edge | Nouveau type pour data flow (strict/partial/optional) |
-| APIs fragmentées (5 tools) | Unification: `pml_discover` + `pml_execute` |
+| Problème                                   | Solution                                              |
+| ------------------------------------------ | ----------------------------------------------------- |
+| Parallel tracking - pas d'edges créés      | Détection via timestamps `ts` + `durationMs`          |
+| DAG → Capability - pas de génération       | Capability unifiée `source: code \| dag`              |
+| Edge types confus (sequence vs dependency) | Clarification: Definition view vs Invocation view     |
+| Manque de `provides` edge                  | Nouveau type pour data flow (strict/partial/optional) |
+| APIs fragmentées (5 tools)                 | Unification: `pml_discover` + `pml_execute`           |
 
 **Value Delivery:**
 
@@ -32,16 +36,17 @@ Unifier les deux modèles d'exécution (DAG explicite et Code libre) en un syst�
 
 ### Unified Learning Model (Philosophy) — REVISED
 
-> **Principe fondamental révisé:** La **Capability** est créée à l'**analyse statique** (structure complète).
-> Les **Traces** sont des instances d'exécution stockées séparément. L'apprentissage agrège les traces.
+> **Principe fondamental révisé:** La **Capability** est créée à l'**analyse statique** (structure
+> complète). Les **Traces** sont des instances d'exécution stockées séparément. L'apprentissage
+> agrège les traces.
 
 **Distinction clé : Capability vs Trace**
 
-| Concept | Quand créé | Ce qu'il contient | Stockage |
-|---------|------------|-------------------|----------|
+| Concept        | Quand créé                  | Ce qu'il contient                           | Stockage                                          |
+| -------------- | --------------------------- | ------------------------------------------- | ------------------------------------------------- |
 | **Capability** | Analyse statique (PRE-exec) | Structure complète avec branches/conditions | `workflow_pattern.dag_structure.static_structure` |
-| **Trace** | Après exécution (POST-exec) | Chemin emprunté + résultats concrets | `execution_trace` (nouvelle table) |
-| **Learning** | Agrégation des traces | Stats par chemin, dominant path | `workflow_pattern.dag_structure.learning` |
+| **Trace**      | Après exécution (POST-exec) | Chemin emprunté + résultats concrets        | `execution_trace` (nouvelle table)                |
+| **Learning**   | Agrégation des traces       | Stats par chemin, dominant path             | `workflow_pattern.dag_structure.learning`         |
 
 **Pourquoi ce changement ?**
 
@@ -186,11 +191,11 @@ learning: {
 
 Une Capability n'est pas forcément un DAG interne. Elle peut être:
 
-| Type | Exemple | Exécution |
-|------|---------|-----------|
-| **DAG interne** | `fs:read → json:parse → github:createIssue` | PML exécute les tasks |
-| **Code snippet** | TypeScript avec logique complexe | Sandbox PML |
-| **Tool externe** | Temporal workflow, Airflow DAG | Délégation à l'orchestrateur |
+| Type             | Exemple                                     | Exécution                    |
+| ---------------- | ------------------------------------------- | ---------------------------- |
+| **DAG interne**  | `fs:read → json:parse → github:createIssue` | PML exécute les tasks        |
+| **Code snippet** | TypeScript avec logique complexe            | Sandbox PML                  |
+| **Tool externe** | Temporal workflow, Airflow DAG              | Délégation à l'orchestrateur |
 
 **Implications pour l'implémentation:**
 
@@ -246,10 +251,11 @@ Une Capability n'est pas forcément un DAG interne. Elle peut être:
 ### Architecture Unifiée Worker-Only (Découverte 10.5)
 
 > **Décision Architecture (2025-12-20):** Suite à l'implémentation de Story 10.5, l'architecture
-> d'exécution a été unifiée. Cette section documente les changements par rapport à la vision initiale.
+> d'exécution a été unifiée. Cette section documente les changements par rapport à la vision
+> initiale.
 
-**Principe Fondamental:**
-**TOUT passe par le Worker Sandbox (permissions: "none") pour 100% traçabilité.**
+**Principe Fondamental:** **TOUT passe par le Worker Sandbox (permissions: "none") pour 100%
+traçabilité.**
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -283,19 +289,21 @@ Une Capability n'est pas forcément un DAG interne. Elle peut être:
 
 **Changements par rapport à la vision initiale:**
 
-| Aspect | Vision Epic (avant) | Réalité Implémentée |
-|--------|---------------------|---------------------|
-| **Fallback** | "Fallback gracieux vers sandbox direct" | ❌ Supprimé - UN seul chemin |
-| **DAG execution** | `client.callTool()` direct | WorkerBridge pour 100% trace |
-| **Subprocess** | Chemin alternatif | Conservé uniquement pour features spécifiques |
-| **Permissions** | Granulaires par tool | `"none"` toujours (force RPC) |
+| Aspect            | Vision Epic (avant)                     | Réalité Implémentée                           |
+| ----------------- | --------------------------------------- | --------------------------------------------- |
+| **Fallback**      | "Fallback gracieux vers sandbox direct" | ❌ Supprimé - UN seul chemin                  |
+| **DAG execution** | `client.callTool()` direct              | WorkerBridge pour 100% trace                  |
+| **Subprocess**    | Chemin alternatif                       | Conservé uniquement pour features spécifiques |
+| **Permissions**   | Granulaires par tool                    | `"none"` toujours (force RPC)                 |
 
 **Performance Mesurée:**
+
 - Worker: ~31ms
 - Subprocess: ~53ms
 - **Speedup: 1.7x**
 
 **Fichiers Clés:**
+
 - `src/dag/execution/workerbridge-executor.ts` - `createToolExecutorViaWorker()`
 - `src/sandbox/executor.ts` - `useWorkerForExecute` option
 - `src/sandbox/worker-bridge.ts` - Constante `WORKER_PERMISSIONS = "none"`
@@ -310,6 +318,7 @@ As an execution system, I want to parse code statically to generate a complete `
 So that I can **create the Capability immediately** with full branch/condition visibility for HIL.
 
 **Position dans l'Epic (RÉVISÉE):**
+
 - **VRAIE FONDATION** - crée la Capability avec `static_structure` avant exécution
 - Débloque Epic 11 (traces) car les traces référencent les nodeIds de static_structure
 - Débloque HIL car on connaît tous les tools potentiels avant exécution
@@ -317,10 +326,12 @@ So that I can **create the Capability immediately** with full branch/condition v
 **Context (RÉVISÉ):**
 
 Changement de philosophie :
+
 - **AVANT :** La Capability était créée après exécution (validée par l'usage)
 - **MAINTENANT :** La Capability est créée à l'analyse statique (structure complète)
 
 Pourquoi ? L'analyse statique EST suffisante grâce à :
+
 - SchemaInferrer → infère les dépendances via schémas input/output
 - PermissionInferrer → détecte les patterns de permissions
 - Les schémas MCP → provides edges calculables statiquement
@@ -328,16 +339,17 @@ Pourquoi ? L'analyse statique EST suffisante grâce à :
 
 **Différence avec Epic 11 (CLARIFIÉE):**
 
-| Aspect | 10.1 Static (PRE) | Epic 11 Traces (POST) |
-|--------|--------------------|-----------------------|
-| **Quand** | Avant exécution | Après exécution |
-| **Output** | **Capability** avec `static_structure` | **Trace** avec `executed_path` |
-| **Contenu** | Structure COMPLÈTE (toutes branches) | Chemin EMPRUNTÉ (une branche) |
-| **Stockage** | `workflow_pattern.dag_structure` | `execution_trace` table |
+| Aspect       | 10.1 Static (PRE)                      | Epic 11 Traces (POST)          |
+| ------------ | -------------------------------------- | ------------------------------ |
+| **Quand**    | Avant exécution                        | Après exécution                |
+| **Output**   | **Capability** avec `static_structure` | **Trace** avec `executed_path` |
+| **Contenu**  | Structure COMPLÈTE (toutes branches)   | Chemin EMPRUNTÉ (une branche)  |
+| **Stockage** | `workflow_pattern.dag_structure`       | `execution_trace` table        |
 
 **Réutilisation de l'existant:**
 
 On a DÉJÀ tout le pipeline SWC :
+
 - `SchemaInferrer` (726 LOC, 19 tests) → parse AST, trouve `args.xxx`, infère types
 - `PermissionInferrer` (510 LOC) → parse AST, détecte patterns dangereux
 - `tool_schema` table → schemas input/output des MCP tools
@@ -346,6 +358,7 @@ On a DÉJÀ tout le pipeline SWC :
 **Story 10.1 = Extension de ~200-250 LOC** pour générer `static_structure`.
 
 **Architecture (RÉVISÉE):**
+
 ```
 Code TypeScript
       │
@@ -469,8 +482,8 @@ if (condition) {
      from: string;
      to: string;
      type: "sequence" | "provides" | "conditional" | "contains";
-     outcome?: string;  // Pour conditional: "true", "false", "case1"
-     coverage?: "strict" | "partial" | "optional";  // Pour provides
+     outcome?: string; // Pour conditional: "true", "false", "case1"
+     coverage?: "strict" | "partial" | "optional"; // Pour provides
    }
 
    interface StaticStructure {
@@ -502,9 +515,11 @@ if (condition) {
 13. Tests: chaînage tool→tool → edge "provides" calculé
 
 **Files to Create:**
+
 - `src/capabilities/static-structure-builder.ts` (~200-250 LOC)
 
 **Files to Modify:**
+
 - `src/capabilities/types.ts` - Ajouter `StaticStructure` types (~40 LOC)
 - `src/capabilities/capability-store.ts` - Intégrer static_structure dans saveCapability (~30 LOC)
 - `src/mcp/handlers/code-execution-handler.ts` - Build structure avant exécution (~20 LOC)
@@ -513,47 +528,53 @@ if (condition) {
 
 **Estimation:** 3-4 jours (augmenté car scope élargi)
 
-**Changement clé:**
-Cette story **crée la Capability** avec sa structure complète. Les traces (Epic 11)
-viennent ensuite enrichir le `learning` avec les chemins réellement empruntés.
+**Changement clé:** Cette story **crée la Capability** avec sa structure complète. Les traces
+(Epic 11) viennent ensuite enrichir le `learning` avec les chemins réellement empruntés.
 
 ---
 
 **Story 10.2: Static Argument Extraction for Speculative Execution** ✅ DONE
 
-> **Status:** DONE (2025-12-19)
-> **Tech-Spec:** [10-2-static-argument-extraction.md](../sprint-artifacts/10-2-static-argument-extraction.md)
+> **Status:** DONE (2025-12-19) **Tech-Spec:**
+> [10-2-static-argument-extraction.md](../sprint-artifacts/10-2-static-argument-extraction.md)
 
-As a speculative execution system, I want to extract and store tool arguments from static code analysis,
-So that I can execute capabilities speculatively without requiring runtime argument inference.
+As a speculative execution system, I want to extract and store tool arguments from static code
+analysis, So that I can execute capabilities speculatively without requiring runtime argument
+inference.
 
-**Context:**
-Story 10.1 extracts tool calls but NOT their arguments. For speculative execution to work,
-we need to know what arguments to pass. Arguments can be:
+**Context:** Story 10.1 extracts tool calls but NOT their arguments. For speculative execution to
+work, we need to know what arguments to pass. Arguments can be:
+
 - **Literals**: `{ path: "config.json" }` - can be stored and reused directly
 - **References**: `{ input: file.content }` - resolved via ProvidesEdge at runtime
 - **Parameters**: `{ path: userPath }` - capability input parameters from input_schema
 
-**Why this matters for speculation:**
-Without arguments, we can only "prepare" execution, not actually execute speculatively.
-By storing argument structure, we enable true speculative execution with 0ms latency.
+**Why this matters for speculation:** Without arguments, we can only "prepare" execution, not
+actually execute speculatively. By storing argument structure, we enable true speculative execution
+with 0ms latency.
 
 **Types:**
+
 ```typescript
 // JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
 interface ArgumentValue {
   type: "literal" | "reference" | "parameter";
-  value?: JsonValue;         // For literal (JSON-serializable)
-  expression?: string;       // For reference: "file.content"
-  parameterName?: string;    // For parameter: "userPath"
+  value?: JsonValue; // For literal (JSON-serializable)
+  expression?: string; // For reference: "file.content"
+  parameterName?: string; // For parameter: "userPath"
 }
 
-type StaticStructureNode =
-  | { id: string; type: "task"; tool: string; arguments?: Record<string, ArgumentValue> }
-  // ... other variants unchanged
+type StaticStructureNode = {
+  id: string;
+  type: "task";
+  tool: string;
+  arguments?: Record<string, ArgumentValue>;
+};
+// ... other variants unchanged
 ```
 
 **Acceptance Criteria:**
+
 1. [ ] `ArgumentValue` and `ArgumentsStructure` types defined in types.ts
 2. [ ] `StaticStructureNode` (task variant) extended with optional `arguments`
 3. [ ] Literal arguments extracted from ObjectExpression (strings, numbers, objects, arrays)
@@ -563,6 +584,7 @@ type StaticStructureNode =
 7. [ ] Tests for literal, reference, parameter, and mixed argument scenarios
 
 **Files to modify:**
+
 - `src/capabilities/types.ts` - Add ArgumentValue types
 - `src/capabilities/static-structure-builder.ts` - Add argument extraction
 - `src/graphrag/dag-suggester.ts` - Populate PredictedNode.arguments
@@ -575,22 +597,22 @@ type StaticStructureNode =
 
 **Story 10.3: Provides Edge Type - Data Flow Relationships** ✅ DONE
 
-> **Status:** DONE (2025-12-18)
-> **Tech-Spec:** [10-3-provides-edge-type.md](../sprint-artifacts/10-3-provides-edge-type.md)
+> **Status:** DONE (2025-12-18) **Tech-Spec:**
+> [10-3-provides-edge-type.md](../sprint-artifacts/10-3-provides-edge-type.md)
 
-As a graph learning system, I want a `provides` edge type that captures data flow between tools,
-So that I can understand which tools can feed data to which other tools.
+As a graph learning system, I want a `provides` edge type that captures data flow between tools, So
+that I can understand which tools can feed data to which other tools.
 
-**Context:**
-Le `provides` edge est pour la vue **Definition** (structure abstraite). Il indique que
+**Context:** Le `provides` edge est pour la vue **Definition** (structure abstraite). Il indique que
 les outputs de A peuvent alimenter les inputs de B, basé sur les schemas.
 
 **Edge Coverage Types:**
+
 ```typescript
 type ProvidesCoverage =
-  | "strict"     // R ⊆ O (tous les required inputs couverts)
-  | "partial"    // R ∩ O ≠ ∅ (intersection non-vide)
-  | "optional";  // Que des inputs optionnels couverts
+  | "strict" // R ⊆ O (tous les required inputs couverts)
+  | "partial" // R ∩ O ≠ ∅ (intersection non-vide)
+  | "optional"; // Que des inputs optionnels couverts
 ```
 
 **Acceptance Criteria:**
@@ -603,17 +625,17 @@ type ProvidesCoverage =
 3. Interface `ProvidesEdge` définie avec **schemas exposés**:
    ```typescript
    interface ProvidesEdge {
-     from: string;              // Tool/capability provider
-     to: string;                // Tool/capability consumer
+     from: string; // Tool/capability provider
+     to: string; // Tool/capability consumer
      type: "provides";
      coverage: ProvidesCoverage;
 
      // Schemas exposés pour que l'IA sache remplir les args
-     providerOutputSchema: JSONSchema;   // Ce que A produit
-     consumerInputSchema: JSONSchema;    // Ce que B attend (required + optional)
-     fieldMapping: Array<{               // Correspondances champ par champ
-       fromField: string;       // e.g., "content"
-       toField: string;         // e.g., "json"
+     providerOutputSchema: JSONSchema; // Ce que A produit
+     consumerInputSchema: JSONSchema; // Ce que B attend (required + optional)
+     fieldMapping: Array<{ // Correspondances champ par champ
+       fromField: string; // e.g., "content"
+       toField: string; // e.g., "json"
        typeCompatible: boolean; // Types compatibles ?
      }>;
    }
@@ -630,16 +652,18 @@ type ProvidesCoverage =
 8. Tests: json:parse → http:post (need url, body) → coverage = "partial"
 
 **Files to Create:**
+
 - `src/graphrag/provides-edge-calculator.ts` (~100 LOC)
 
 **Files to Modify:**
+
 - `src/graphrag/edge-weights.ts` (~5 LOC)
 - `src/graphrag/types.ts` (~15 LOC)
 
 **Prerequisites:** Story 10.1 (static_structure with provides edges)
 
-**Note:** Les provides edges sont calculés à l'analyse statique via les schémas MCP,
-pas depuis les résultats d'exécution. Voir Story 10.1.
+**Note:** Les provides edges sont calculés à l'analyse statique via les schémas MCP, pas depuis les
+résultats d'exécution. Voir Story 10.1.
 
 **Estimation:** 1-2 jours
 
@@ -647,14 +671,15 @@ pas depuis les résultats d'exécution. Voir Story 10.1.
 
 **Story 10.5: Execute Code via Inferred DAG** ✅ DONE
 
-> **Status:** DONE (2025-12-20)
-> **Tech-Spec:** [10-5-execute-code-via-dag.md](../sprint-artifacts/10-5-execute-code-via-dag.md)
+> **Status:** DONE (2025-12-20) **Tech-Spec:**
+> [10-5-execute-code-via-dag.md](../sprint-artifacts/10-5-execute-code-via-dag.md)
 
-As an execution system, I want to execute code via its inferred DAG structure,
-So that code execution benefits from DAG features (per-layer validation, parallel execution, checkpoints, SSE streaming).
+As an execution system, I want to execute code via its inferred DAG structure, So that code
+execution benefits from DAG features (per-layer validation, parallel execution, checkpoints, SSE
+streaming).
 
-**Context:**
-Story 10.1 génère `static_structure` (le DAG inféré du code), mais `execute_code` ne l'utilisait pas.
+**Context:** Story 10.1 génère `static_structure` (le DAG inféré du code), mais `execute_code` ne
+l'utilisait pas.
 
 **Architecture Unifiée (Découverte pendant l'implémentation):**
 
@@ -676,6 +701,7 @@ Code → static_structure → DAGStructure → ControlledExecutor
 ```
 
 **Décision Architecture Clé:**
+
 - **Worker permissions = "none" toujours** - Force TOUT à passer par MCP RPC
 - **Pas de fallback** - UN seul chemin d'exécution (Worker)
 - **Performance:** Worker ~31ms vs subprocess ~53ms (1.7x speedup)
@@ -702,12 +728,14 @@ Code → static_structure → DAGStructure → ControlledExecutor
     - `useWorkerForExecute: false` pour features subprocess-only (allowedReadPaths, memoryLimit)
 
 **Files Created:**
+
 - `src/dag/static-to-dag-converter.ts` (~220 LOC)
 - `src/dag/argument-resolver.ts` (~230 LOC)
 - `src/dag/execution/workerbridge-executor.ts` (WorkerBridge-based ToolExecutor)
 - `tests/integration/code-to-dag-execution_test.ts` (7 tests)
 
 **Files Modified:**
+
 - `src/mcp/handlers/code-execution-handler.ts` (~350 LOC changes)
 - `src/mcp/handlers/workflow-execution-handler.ts` (WorkerBridge)
 - `src/mcp/handlers/control-commands-handler.ts` (WorkerBridge)
@@ -719,13 +747,14 @@ Code → static_structure → DAGStructure → ControlledExecutor
 
 **Story 10.6: pml_discover - Unified Discovery API**
 
-As an AI agent, I want a single `pml_discover` tool to search both tools and capabilities,
-So that I have a simplified API for finding what I need.
+As an AI agent, I want a single `pml_discover` tool to search both tools and capabilities, So that I
+have a simplified API for finding what I need.
 
-**Context:**
-Phase 4 de la tech spec. Remplace `pml_search_tools`, `pml_search_capabilities`, `pml_find_capabilities`.
+**Context:** Phase 4 de la tech spec. Remplace `pml_search_tools`, `pml_search_capabilities`,
+`pml_find_capabilities`.
 
 **API Design:**
+
 ```typescript
 pml_discover({
   intent: "lire et parser un fichier JSON",
@@ -772,9 +801,11 @@ pml_discover({
 11. Tests: filter type="capability" → que des capabilities
 
 **Files to Create:**
+
 - `src/mcp/handlers/discover-handler.ts` (~150 LOC)
 
 **Files to Modify:**
+
 - `src/mcp/gateway-server.ts` - Register new handler
 - `src/mcp/handlers/search-handler.ts` - Add deprecation notice
 
@@ -784,22 +815,24 @@ pml_discover({
 
 ---
 
-**Story 10.7: pml_execute - Unified Execution API** *(includes DR-DSP from 10.7a)*
+**Story 10.7: pml_execute - Unified Execution API** _(includes DR-DSP from 10.7a)_
 
-As an AI agent, I want a single `pml_execute` tool that handles code execution with automatic learning,
-So that I have a simplified API and the system learns from my executions.
+As an AI agent, I want a single `pml_execute` tool that handles code execution with automatic
+learning, So that I have a simplified API and the system learns from my executions.
 
-**Context:**
-Phase 5 de la tech spec. Remplace `pml_execute_dag` et `pml_execute_code`.
-**Inclut DR-DSP** (anciennement Story 10.7a) pour le pathfinding hypergraph.
+**Context:** Phase 5 de la tech spec. Remplace `pml_execute_dag` et `pml_execute_code`. **Inclut
+DR-DSP** (anciennement Story 10.7a) pour le pathfinding hypergraph.
 
 **Design Principles:**
+
 - **Code-first**: Tout est du code TypeScript. Le DAG est inféré via analyse statique (Story 10.1)
-- **Le code contient son context**: Les arguments sont des littéraux dans le code (pas de param `context` séparé)
+- **Le code contient son context**: Les arguments sont des littéraux dans le code (pas de param
+  `context` séparé)
 - **DR-DSP pour hypergraph**: Remplace Dijkstra, comprend les capabilities comme hyperedges
 - **2 modes simples**: Direct (code) vs Suggestion (intent seul)
 
 **API Design:**
+
 ```typescript
 pml_execute({
   intent: string,     // REQUIRED - natural language description
@@ -813,12 +846,13 @@ pml_execute({
 
 **Les 2 Modes d'Exécution:**
 
-| Input | Mode | Algo | Ce qui se passe | SWC Parsing ? |
-|-------|------|------|-----------------|---------------|
-| `intent` + `code` | **Direct** | SWC | Exécute → Crée capability | ✅ OUI |
-| `intent` seul | **Suggestion** | DR-DSP | Trouve → Exécute si confiance haute, sinon suggestions | ❌ NON |
+| Input             | Mode           | Algo   | Ce qui se passe                                        | SWC Parsing ? |
+| ----------------- | -------------- | ------ | ------------------------------------------------------ | ------------- |
+| `intent` + `code` | **Direct**     | SWC    | Exécute → Crée capability                              | ✅ OUI        |
+| `intent` seul     | **Suggestion** | DR-DSP | Trouve → Exécute si confiance haute, sinon suggestions | ❌ NON        |
 
 **Execution Flow:**
+
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │  pml_execute({ intent, code? })                                      │
@@ -857,22 +891,23 @@ pml_execute({
 
 **ATTENTION: Analyse statique selon le mode**
 
-| Mode | Analyse statique SWC | Pourquoi |
-|------|---------------------|----------|
-| **Direct** | ✅ OUI - AVANT exécution | Doit créer `static_structure` pour la capability |
-| **Suggestion** | ❌ NON - SKIP | Capability existante a déjà `static_structure` |
+| Mode           | Analyse statique SWC     | Pourquoi                                         |
+| -------------- | ------------------------ | ------------------------------------------------ |
+| **Direct**     | ✅ OUI - AVANT exécution | Doit créer `static_structure` pour la capability |
+| **Suggestion** | ❌ NON - SKIP            | Capability existante a déjà `static_structure`   |
 
 **Cycle d'Apprentissage (Procedural Memory):**
+
 1. **Jour 1:** Claude écrit du code → `pml_execute({ intent, code })` → capability créée
 2. **Jour 2:** Intent similaire → `pml_execute({ intent })` → DR-DSP trouve → exécute
 3. **Amélioration continue:** success_rate, usage_count mis à jour
 
 **Évolution future (10.7b, Epic 12):**
 
-| Story | Ajout | Description |
-|-------|-------|-------------|
-| **10.7b** | SHGAT Persistence | Sauvegarder/charger les poids SHGAT entre redémarrages |
-| **10.7c** | Thompson Sampling | Seuils de confiance adaptatifs (exploration/exploitation) |
+| Story       | Ajout                         | Description                                                       |
+| ----------- | ----------------------------- | ----------------------------------------------------------------- |
+| **10.7b**   | SHGAT Persistence             | Sauvegarder/charger les poids SHGAT entre redémarrages            |
+| **10.7c**   | Thompson Sampling             | Seuils de confiance adaptatifs (exploration/exploitation)         |
 | **Epic 12** | Speculation + Session Context | Pré-exécution intra-workflow + cache session workflows précédents |
 
 **Acceptance Criteria:**
@@ -903,9 +938,11 @@ pml_execute({
 10. Tests: execute avec intent seul + pas de match → suggestions
 
 **Files to Create:**
+
 - `src/mcp/handlers/execute-handler.ts` (~300 LOC)
 
 **Files to Modify:**
+
 - `src/mcp/gateway-server.ts` - Register handler + init DRDSP
 - `src/mcp/handlers/workflow-execution-handler.ts` - Add deprecation
 - `src/mcp/handlers/code-execution-handler.ts` - Add deprecation
@@ -918,17 +955,18 @@ pml_execute({
 
 **Story 10.7a: DR-DSP Integration for DAG Suggestion** ✅ MERGED INTO 10.7
 
-> **Note:** Cette story a été mergée dans Story 10.7. Le contenu ci-dessous est conservé pour référence.
+> **Note:** Cette story a été mergée dans Story 10.7. Le contenu ci-dessous est conservé pour
+> référence.
 
-As a DAG suggestion system, I want to use DR-DSP for pathfinding,
-So that I find optimal hyperpaths through the capability graph instead of simple Dijkstra paths.
+As a DAG suggestion system, I want to use DR-DSP for pathfinding, So that I find optimal hyperpaths
+through the capability graph instead of simple Dijkstra paths.
 
-**Context:**
-Le module `src/graphrag/algorithms/dr-dsp.ts` est déjà implémenté (POC).
-~~Cette story intègre DR-DSP dans `suggestDAG()` pour remplacer Dijkstra.~~
-**→ Maintenant intégré directement dans Story 10.7**
+**Context:** Le module `src/graphrag/algorithms/dr-dsp.ts` est déjà implémenté (POC). ~~Cette story
+intègre DR-DSP dans `suggestDAG()` pour remplacer Dijkstra.~~ **→ Maintenant intégré directement
+dans Story 10.7**
 
 **Ce qui existe déjà:
+
 - `DRDSP` class avec `findShortestHyperpath(source, target)`
 - `buildDRDSPFromCapabilities()` factory
 - `applyUpdate()` pour mise à jour dynamique
@@ -944,6 +982,7 @@ Le module `src/graphrag/algorithms/dr-dsp.ts` est déjà implémenté (POC).
 6. Benchmark: performance DR-DSP vs Dijkstra
 
 **Files to Modify:**
+
 - `src/graphrag/dag-suggester.ts` - Remplacer Dijkstra par DR-DSP
 - `src/mcp/handlers/execute-handler.ts` - Utiliser nouveau suggester
 
@@ -955,14 +994,14 @@ Le module `src/graphrag/algorithms/dr-dsp.ts` est déjà implémenté (POC).
 
 **Story 10.7b: SHGAT Persistence** ✅ DONE (2025-12-23)
 
-As a learning system, I want SHGAT weights to persist between server restarts,
-So that learned attention patterns are not lost and the system improves over time.
+As a learning system, I want SHGAT weights to persist between server restarts, So that learned
+attention patterns are not lost and the system improves over time.
 
-> **Note (2025-12-23):** Scope clarifié - "Cache Session" déplacé vers Epic 12.
-> Le scoring SHGAT a été mergé dans Story 10.7.
-> Cette story couvre uniquement la persistence des poids.
+> **Note (2025-12-23):** Scope clarifié - "Cache Session" déplacé vers Epic 12. Le scoring SHGAT a
+> été mergé dans Story 10.7. Cette story couvre uniquement la persistence des poids.
 
 **Ce qui a été fait dans 10.7:**
+
 - ✅ SHGAT initialisé au démarrage gateway
 - ✅ Scoring backward (sans context) pour mode Suggestion
 - ✅ Scoring forward (avec context) pour predictNextNode()
@@ -971,6 +1010,7 @@ So that learned attention patterns are not lost and the system improves over tim
 - ✅ `exportParams()` / `importParams()` existent
 
 **Implémenté (10.7b):**
+
 - [x] Migration: `010_shgat_params.sql` - table avec user_id UNIQUE
 - [x] `loadSHGATParams()` au startup → `importParams()` si row existe
 - [x] `saveSHGATParams()` au shutdown → `exportParams()` + UPSERT
@@ -978,6 +1018,7 @@ So that learned attention patterns are not lost and the system improves over tim
 - [x] Tests: 4 tests unitaires (export/import, JSON round-trip, DB simulation)
 
 **Design décidé (2025-12-23):**
+
 - **Stockage:** PostgreSQL (cohérent, multi-tenant, backup auto)
 - **Pas de reimport en cours de route:** weights en mémoire, live learning les modifie
 - **Un row par user_id:** UPSERT à chaque sauvegarde
@@ -993,9 +1034,11 @@ CREATE TABLE shgat_params (
 ```
 
 **Files to Create:**
+
 - `src/db/migrations/020_shgat_params.sql` (~15 LOC)
 
 **Files to Modify:**
+
 - `src/mcp/gateway-server.ts` (~40 LOC) - load at startup, save at shutdown
 
 **Estimation:** 0.5 jour
@@ -1004,14 +1047,14 @@ CREATE TABLE shgat_params (
 
 **Story 10.7c: Thompson Sampling Integration**
 
-As a decision system, I want to use Thompson Sampling for execution decisions,
-So that I balance exploration (trying uncertain tools) and exploitation (using reliable tools).
+As a decision system, I want to use Thompson Sampling for execution decisions, So that I balance
+exploration (trying uncertain tools) and exploitation (using reliable tools).
 
-**Context:**
-Le module `src/graphrag/algorithms/thompson.ts` est déjà implémenté (POC).
-Cette story intègre Thompson Sampling dans le flow de décision AIL/HIL.
+**Context:** Le module `src/graphrag/algorithms/thompson.ts` est déjà implémenté (POC). Cette story
+intègre Thompson Sampling dans le flow de décision AIL/HIL.
 
 **Ce qui existe déjà:**
+
 - `ThompsonSampler` class avec Beta distribution per tool
 - `getThreshold(toolId, riskCategory, mode)` - threshold adaptatif
 - `recordOutcome(toolId, success)` - mise à jour Bayésienne
@@ -1033,6 +1076,7 @@ Cette story intègre Thompson Sampling dans le flow de décision AIL/HIL.
 8. Benchmark: variance des décisions réduite avec Thompson
 
 **Files to Modify:**
+
 - `src/mcp/adaptive-threshold.ts` - Intégrer ThompsonSampler
 - `src/dag/controlled-executor.ts` - Utiliser nouveaux seuils
 
@@ -1047,11 +1091,11 @@ Cette story intègre Thompson Sampling dans le flow de décision AIL/HIL.
 As an AI agent reviewing DAG execution results, I want to fetch the full result of a specific task,
 So that I can make informed decisions when the preview isn't sufficient.
 
-**Context:**
-Complémente le `resultPreview` (240 chars) déjà implémenté. Si l'IA a besoin de plus
-de contexte pour décider, elle peut demander le résultat complet.
+**Context:** Complémente le `resultPreview` (240 chars) déjà implémenté. Si l'IA a besoin de plus de
+contexte pour décider, elle peut demander le résultat complet.
 
 **API Design:**
+
 ```typescript
 pml_get_task_result({
   workflow_id: string;
@@ -1080,9 +1124,11 @@ pml_get_task_result({
 8. Tests: résultat expiré → erreur appropriée
 
 **Files to Create:**
+
 - `src/mcp/handlers/task-result-handler.ts` (~80 LOC)
 
 **Files to Modify:**
+
 - `src/mcp/gateway-server.ts` - Register handler
 - `src/dag/controlled-executor.ts` - Store full results
 
@@ -1094,15 +1140,16 @@ pml_get_task_result({
 
 ### Epic 10 Breaking Changes Summary
 
-| Phase | Change | Breaking? | Impact |
-|-------|--------|-----------|--------|
-| 1 | `static_structure` in dag_structure | ❌ No | Additive |
-| 3 | `provides` EdgeType | ❌ No | Additive |
-| 5 | Capability `source: code \| dag` | ⚠️ **Yes** | Schema change |
-| 6 | Deprecate `pml_search_*` | ⚠️ **Yes** | MCP APIs |
-| 7 | Deprecate `pml_execute_*` | ⚠️ **Yes** | MCP APIs |
+| Phase | Change                              | Breaking?  | Impact        |
+| ----- | ----------------------------------- | ---------- | ------------- |
+| 1     | `static_structure` in dag_structure | ❌ No      | Additive      |
+| 3     | `provides` EdgeType                 | ❌ No      | Additive      |
+| 5     | Capability `source: code \| dag`    | ⚠️ **Yes** | Schema change |
+| 6     | Deprecate `pml_search_*`            | ⚠️ **Yes** | MCP APIs      |
+| 7     | Deprecate `pml_execute_*`           | ⚠️ **Yes** | MCP APIs      |
 
 **Migration Strategy:**
+
 - Phase 5-7: Breaking changes. No transition period - clean cut.
 
 > **Note:** Stories DB cleanup et learning déplacées vers Epic 11.
@@ -1149,26 +1196,29 @@ pml_get_task_result({
 
 **Ordre d'implémentation recommandé (RÉVISÉ):**
 
-| Ordre | Story | Justification |
-|-------|-------|---------------|
-| 1 | **10.1** Static Analysis | **VRAIE FONDATION** - crée la Capability avec static_structure |
-| 2 | **10.2** Static Argument Extraction | Extraction arguments pour exécution spéculative |
-| 3 | **10.3** Provides Edge | Types d'edges pour data flow |
-| 4 | **10.5** Unified Capability | source: code \| dag \| tool |
-| 5 | **10.6** pml_discover | API unifiée de découverte |
-| 6 | **10.7** pml_execute | API unifiée d'exécution |
-| 7 | **10.8** pml_get_task_result | Complément pour AIL |
+| Ordre | Story                               | Justification                                                  |
+| ----- | ----------------------------------- | -------------------------------------------------------------- |
+| 1     | **10.1** Static Analysis            | **VRAIE FONDATION** - crée la Capability avec static_structure |
+| 2     | **10.2** Static Argument Extraction | Extraction arguments pour exécution spéculative                |
+| 3     | **10.3** Provides Edge              | Types d'edges pour data flow                                   |
+| 4     | **10.5** Unified Capability         | source: code \| dag \| tool                                    |
+| 5     | **10.6** pml_discover               | API unifiée de découverte                                      |
+| 6     | **10.7** pml_execute                | API unifiée d'exécution                                        |
+| 7     | **10.8** pml_get_task_result        | Complément pour AIL                                            |
 
 **Changement clé:**
+
 - Stories de learning et DB cleanup déplacées vers Epic 11
 - Epic 10 se concentre sur **création de capability** et **APIs unifiées**
 
 **Pourquoi 10.1 d'abord?**
+
 1. La Capability est créée à l'analyse statique (structure complète avec conditions)
 2. L'HIL fonctionne immédiatement (on connaît les tools avant exécution)
 3. Les APIs unifiées peuvent être construites directement sur cette base
 
 **External Dependencies:**
+
 - Epic 7 Story 7.1b (Worker RPC Bridge)
 - HIL Phase 2 (per_layer_validation, resultPreview)
 
@@ -1176,49 +1226,51 @@ pml_get_task_result({
 
 ### Epic 10 FR Coverage
 
-| FR | Description | Story |
-|----|-------------|-------|
-| **FR1** | **Capability Creation à l'analyse statique (static_structure)** | **10.1** |
-| **FR1b** | **Validation permissions avant exécution** | **10.1** |
-| **FR1c** | **HIL pre-execution approval flow** | **10.1** |
-| **FR1d** | **Détection conditions/branches dans static_structure** | **10.1** |
-| **FR2** | **Extraction arguments (literal, reference, parameter) pour spéculation** | **10.2** |
-| FR3 | Edge type `provides` avec coverage | 10.3 |
-| FR5 | Capability unifiée (code OU dag) | 10.5 |
-| FR6 | API `pml_discover` unifiée | 10.6 |
-| FR7 | API `pml_execute` unifiée | 10.7 |
-| FR8 | `pml_get_task_result` pour résultats complets | 10.8 |
-| FR10 | Dépréciation anciennes APIs | 10.6, 10.7 |
-| FR11 | Learning automatique après succès | 10.7 |
+| FR       | Description                                                               | Story      |
+| -------- | ------------------------------------------------------------------------- | ---------- |
+| **FR1**  | **Capability Creation à l'analyse statique (static_structure)**           | **10.1**   |
+| **FR1b** | **Validation permissions avant exécution**                                | **10.1**   |
+| **FR1c** | **HIL pre-execution approval flow**                                       | **10.1**   |
+| **FR1d** | **Détection conditions/branches dans static_structure**                   | **10.1**   |
+| **FR2**  | **Extraction arguments (literal, reference, parameter) pour spéculation** | **10.2**   |
+| FR3      | Edge type `provides` avec coverage                                        | 10.3       |
+| FR5      | Capability unifiée (code OU dag)                                          | 10.5       |
+| FR6      | API `pml_discover` unifiée                                                | 10.6       |
+| FR7      | API `pml_execute` unifiée                                                 | 10.7       |
+| FR8      | `pml_get_task_result` pour résultats complets                             | 10.8       |
+| FR10     | Dépréciation anciennes APIs                                               | 10.6, 10.7 |
+| FR11     | Learning automatique après succès                                         | 10.7       |
 
 > **Note:** FRs liés au DB cleanup et learning déplacés vers Epic 11.
 
 ### Epic 10 → PRD FR Traceability Matrix
 
-> **Note:** Cette table lie les FRs locaux de l'Epic 10 aux FRs globaux du PRD pour assurer la traçabilité.
+> **Note:** Cette table lie les FRs locaux de l'Epic 10 aux FRs globaux du PRD pour assurer la
+> traçabilité.
 
-| Epic 10 FR | PRD FR | PRD Requirement | Relation |
-|------------|--------|-----------------|----------|
-| FR1 | FR005 | Analyser dépendances input/output pour construire graphe DAG | **Implements** |
-| FR1 | FR006 | Identifier automatiquement tools parallèles vs séquentiels | **Implements** |
-| FR1b | FR017 | Exécution TypeScript dans Deno sandbox isolé | **Extends** |
-| FR1c | FR018 | Branches DAG safe-to-fail (resilient workflows) | **Extends** |
-| FR2 | FR005 | Analyser dépendances input/output pour construire graphe DAG | **Extends** |
-| FR2 | FR007 | Exécuter simultanément branches indépendantes du DAG | **Enables** |
-| FR3 | FR005 | Analyser dépendances input/output pour construire graphe DAG | **Extends** |
-| FR5 | FR017 | Exécution TypeScript dans Deno sandbox isolé | **Extends** |
-| FR5 | FR019 | Injecter MCP tools dans contexte sandbox via vector search | **Extends** |
-| FR6 | FR002 | Recherche sémantique pour identifier top-k tools pertinents | **Unifies** |
-| FR6 | FR003 | Charger tool schemas on-demand pour tools pertinents | **Unifies** |
-| FR7 | FR007 | Exécuter simultanément branches indépendantes du DAG | **Unifies** |
-| FR7 | FR017 | Exécution TypeScript dans Deno sandbox isolé | **Unifies** |
-| FR8 | FR008 | Streamer résultats via SSE pour feedback progressif | **Extends** |
-| FR10 | - | N/A (internal cleanup) | **Internal** |
-| FR11 | - | N/A (Epic 7 extension) | **Epic 7** |
+| Epic 10 FR | PRD FR | PRD Requirement                                              | Relation       |
+| ---------- | ------ | ------------------------------------------------------------ | -------------- |
+| FR1        | FR005  | Analyser dépendances input/output pour construire graphe DAG | **Implements** |
+| FR1        | FR006  | Identifier automatiquement tools parallèles vs séquentiels   | **Implements** |
+| FR1b       | FR017  | Exécution TypeScript dans Deno sandbox isolé                 | **Extends**    |
+| FR1c       | FR018  | Branches DAG safe-to-fail (resilient workflows)              | **Extends**    |
+| FR2        | FR005  | Analyser dépendances input/output pour construire graphe DAG | **Extends**    |
+| FR2        | FR007  | Exécuter simultanément branches indépendantes du DAG         | **Enables**    |
+| FR3        | FR005  | Analyser dépendances input/output pour construire graphe DAG | **Extends**    |
+| FR5        | FR017  | Exécution TypeScript dans Deno sandbox isolé                 | **Extends**    |
+| FR5        | FR019  | Injecter MCP tools dans contexte sandbox via vector search   | **Extends**    |
+| FR6        | FR002  | Recherche sémantique pour identifier top-k tools pertinents  | **Unifies**    |
+| FR6        | FR003  | Charger tool schemas on-demand pour tools pertinents         | **Unifies**    |
+| FR7        | FR007  | Exécuter simultanément branches indépendantes du DAG         | **Unifies**    |
+| FR7        | FR017  | Exécution TypeScript dans Deno sandbox isolé                 | **Unifies**    |
+| FR8        | FR008  | Streamer résultats via SSE pour feedback progressif          | **Extends**    |
+| FR10       | -      | N/A (internal cleanup)                                       | **Internal**   |
+| FR11       | -      | N/A (Epic 7 extension)                                       | **Epic 7**     |
 
 > **Note:** FRs DB cleanup et learning déplacés vers Epic 11.
 
 **Legend:**
+
 - **Implements**: Implémentation directe du FR PRD
 - **Extends**: Étend/améliore un FR PRD existant
 - **Unifies**: Unifie plusieurs FRs PRD en une seule API
@@ -1228,22 +1280,23 @@ pml_get_task_result({
 
 ### Epic 10 Estimation Summary (Révisé 2025-12-22)
 
-| Ordre | Story | Description | Estimé | Réel | Status |
-|-------|-------|-------------|--------|------|--------|
-| 1 | **10.1** | **Static Analysis → Capability** ⭐ FONDATION | 3-4j | **4j** | ✅ DONE |
-| 2 | **10.2** | Static Argument Extraction | 1-2j | **2j** | ✅ DONE |
-| 3 | **10.3** | Provides Edge + DB Persistence | 1-2j | **2j** | ✅ DONE |
-| 4 | **10.5** | Execute via DAG + Worker Unification | 2-3j | **5j** | ✅ DONE |
-| 5 | 10.6 | pml_discover + Unified Scoring Formula | 2.5-3.5j | **2j** | ✅ DONE |
-| 6 | **10.7** | **pml_execute + DR-DSP + SHGAT** (merged 10.7a) | 3-4j | **3j** | ✅ DONE |
-| - | ~~10.7a~~ | ~~DR-DSP Integration~~ | - | - | ✅ MERGED → 10.7 |
-| 7 | **10.7b** | SHGAT Persistence (weights saved/loaded) | 0.5j | **0.5j** | ✅ DONE |
-| 8 | **10.7c** | Thompson Sampling Integration | 0.5-1j | - | ⬜ TODO |
-| 9 | 10.8 | pml_get_task_result | 1-2j | - | ⬜ TODO |
+| Ordre | Story     | Description                                     | Estimé   | Réel     | Status           |
+| ----- | --------- | ----------------------------------------------- | -------- | -------- | ---------------- |
+| 1     | **10.1**  | **Static Analysis → Capability** ⭐ FONDATION   | 3-4j     | **4j**   | ✅ DONE          |
+| 2     | **10.2**  | Static Argument Extraction                      | 1-2j     | **2j**   | ✅ DONE          |
+| 3     | **10.3**  | Provides Edge + DB Persistence                  | 1-2j     | **2j**   | ✅ DONE          |
+| 4     | **10.5**  | Execute via DAG + Worker Unification            | 2-3j     | **5j**   | ✅ DONE          |
+| 5     | 10.6      | pml_discover + Unified Scoring Formula          | 2.5-3.5j | **2j**   | ✅ DONE          |
+| 6     | **10.7**  | **pml_execute + DR-DSP + SHGAT** (merged 10.7a) | 3-4j     | **3j**   | ✅ DONE          |
+| -     | ~~10.7a~~ | ~~DR-DSP Integration~~                          | -        | -        | ✅ MERGED → 10.7 |
+| 7     | **10.7b** | SHGAT Persistence (weights saved/loaded)        | 0.5j     | **0.5j** | ✅ DONE          |
+| 8     | **10.7c** | Thompson Sampling Integration                   | 0.5-1j   | -        | ⬜ TODO          |
+| 9     | 10.8      | pml_get_task_result                             | 1-2j     | -        | ⬜ TODO          |
 
-**Progression: 7/9 stories (78%)** *(10.7a merged, 10.7+10.7b done)*
+**Progression: 7/9 stories (78%)** _(10.7a merged, 10.7+10.7b done)_
 
 **Note (2025-12-23):**
+
 - Story 10.6a (Unified Search) mergée dans 10.6
 - **Story 10.7a (DR-DSP) mergée dans 10.7** - DR-DSP intégré directement
 - **Story 10.7b scope clarifié** - Persistence uniquement, "Cache Session" → Epic 12
@@ -1251,10 +1304,12 @@ pml_get_task_result({
 - **Stories 10.7b-c = petites intégrations** (~0.5-1j chacune)
 
 **Effort réel vs estimé:**
+
 - Stories 10.1-10.5: **13 jours** (vs 7-11j estimés)
 - Raison principale: Story 10.5 a découvert le besoin d'architecture unifiée Worker-only (+2j)
 
 > **Note:** Stories déplacées vers Epic 11 :
+>
 > - 11.0 DB Schema Cleanup complet (2-3j)
 > - 11.1 Result Tracing (0.5-1j)
 > - 11.2 execution_trace table (2-3j)
@@ -1263,6 +1318,7 @@ pml_get_task_result({
 > - 11.5 Dry Run (3-4j, optional)
 
 **🎯 Découvertes clés pendant l'implémentation:**
+
 1. **Architecture unifiée Worker-only** - Tout passe par WorkerBridge (100% traçabilité)
 2. **Performance Worker** - 1.7x plus rapide que subprocess
 3. **Pas de fallback** - Un seul chemin d'exécution (simplicité)

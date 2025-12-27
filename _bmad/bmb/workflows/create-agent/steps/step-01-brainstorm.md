@@ -1,27 +1,28 @@
 ---
-name: 'step-01-brainstorm'
-description: 'Optional brainstorming for agent ideas'
+name: "step-01-brainstorm"
+description: "Optional brainstorming for agent ideas"
 
 # Path Definitions
-workflow_path: '{project-root}/bmb/workflows/create-agent/create-agent'
+workflow_path: "{project-root}/bmb/workflows/create-agent/create-agent"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-01-brainstorm.md'
-nextStepFile: '{workflow_path}/steps/step-02-discover.md'
-workflowFile: '{workflow_path}/workflow.md'
-brainstormContext: '{workflow_path}/data/brainstorm-context.md'
-brainstormWorkflow: '{project-root}/_bmad/core/workflows/brainstorming/workflow.md'
+thisStepFile: "{workflow_path}/steps/step-01-brainstorm.md"
+nextStepFile: "{workflow_path}/steps/step-02-discover.md"
+workflowFile: "{workflow_path}/workflow.md"
+brainstormContext: "{workflow_path}/data/brainstorm-context.md"
+brainstormWorkflow: "{project-root}/_bmad/core/workflows/brainstorming/workflow.md"
 
 # Task References
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 ---
 
 # Step 1: Optional Brainstorming
 
 ## STEP GOAL:
 
-Optional creative exploration to generate agent ideas through structured brainstorming before proceeding to agent discovery and development.
+Optional creative exploration to generate agent ideas through structured brainstorming before
+proceeding to agent discovery and development.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -35,9 +36,11 @@ Optional creative exploration to generate agent ideas through structured brainst
 ### Role Reinforcement:
 
 - ✅ You are a creative facilitator who helps users explore agent possibilities
-- ✅ If you already have been given a name, communication_style and identity, continue to use those while playing this new role
+- ✅ If you already have been given a name, communication_style and identity, continue to use those
+  while playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
-- ✅ You bring creative brainstorming expertise, user brings their goals and domain knowledge, together we explore innovative agent concepts
+- ✅ You bring creative brainstorming expertise, user brings their goals and domain knowledge,
+  together we explore innovative agent concepts
 - ✅ Maintain collaborative inspiring tone throughout
 
 ### Step-Specific Rules:
@@ -67,7 +70,8 @@ Optional creative exploration to generate agent ideas through structured brainst
 
 Present this to the user:
 
-"Would you like to brainstorm agent ideas first? This can help spark creativity and explore possibilities you might not have considered yet.
+"Would you like to brainstorm agent ideas first? This can help spark creativity and explore
+possibilities you might not have considered yet.
 
 **Benefits of brainstorming:**
 
@@ -78,7 +82,8 @@ Present this to the user:
 
 **Skip if you already have a clear agent concept in mind!**
 
-This step is completely optional - you can move directly to agent discovery if you already know what you want to build.
+This step is completely optional - you can move directly to agent discovery if you already know what
+you want to build.
 
 Would you like to brainstorm? [y/n]"
 
@@ -108,18 +113,21 @@ Display: "**Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Cont
 - IF A: Execute {advancedElicitationTask}
 - IF P: Execute {partyModeWorkflow}
 - IF C: Load, read entire file, then execute {nextStepFile}
-- IF Any other comments or queries: help user respond then [Redisplay Menu Options](#3-present-menu-options)
+- IF Any other comments or queries: help user respond then
+  [Redisplay Menu Options](#3-present-menu-options)
 
 #### EXECUTION RULES:
 
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu
-- User can chat or ask questions - always respond and then end with display again of the menu options
+- User can chat or ask questions - always respond and then end with display again of the menu
+  options
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN [C continue option] is selected and [user choice regarding brainstorming handled], will you then load and read fully `{nextStepFile}` to execute and begin agent discovery.
+ONLY WHEN [C continue option] is selected and [user choice regarding brainstorming handled], will
+you then load and read fully `{nextStepFile}` to execute and begin agent discovery.
 
 ---
 
@@ -142,4 +150,5 @@ ONLY WHEN [C continue option] is selected and [user choice regarding brainstormi
 - Failing to execute brainstorming workflow when chosen
 - Not respecting user's choice to skip brainstorming
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

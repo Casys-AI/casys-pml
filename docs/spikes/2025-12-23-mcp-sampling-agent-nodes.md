@@ -1,17 +1,17 @@
 # Spike: MCP Sampling with Tools - Nœuds Agent
 
-**Date:** 2025-12-23
-**Auteur:** Erwan + Claude
-**Status:** Exploration → Tech Spec créée
-**Contexte:** Discussion sur les branches conditionnelles dans les DAGs et la possibilité de nœuds "agent"
-**Supersedes:** [spike-hybrid-dag-agent-delegation.md](./spike-hybrid-dag-agent-delegation.md) (2025-11-23)
-**Tech Spec:** [tech-spec-mcp-agent-nodes.md](../tech-specs/tech-spec-mcp-agent-nodes.md)
+**Date:** 2025-12-23 **Auteur:** Erwan + Claude **Status:** Exploration → Tech Spec créée
+**Contexte:** Discussion sur les branches conditionnelles dans les DAGs et la possibilité de nœuds
+"agent" **Supersedes:**
+[spike-hybrid-dag-agent-delegation.md](./spike-hybrid-dag-agent-delegation.md) (2025-11-23) **Tech
+Spec:** [tech-spec-mcp-agent-nodes.md](../tech-specs/tech-spec-mcp-agent-nodes.md)
 
 ---
 
 ## Résumé
 
-Exploration de la spec MCP (novembre 2025) concernant le "sampling with tools" et son potentiel pour créer des nœuds de type `agent` dans nos DAGs.
+Exploration de la spec MCP (novembre 2025) concernant le "sampling with tools" et son potentiel pour
+créer des nœuds de type `agent` dans nos DAGs.
 
 > **Note:** Ce spike reprend les concepts de design du spike de novembre 2025 (AgentDelegationTask,
 > tool filtering, budget, GraphRAG integration) mais propose une implémentation basée sur le
@@ -19,9 +19,9 @@ Exploration de la spec MCP (novembre 2025) concernant le "sampling with tools" e
 
 ### Avantage clé : Claude Code
 
-Avec Claude Code, le sampling fonctionne **nativement sans configuration** car Claude Code
-EST déjà un client MCP avec accès au LLM. Les utilisateurs Claude Code pourraient utiliser
-les agent nodes directement, sans clé API à configurer.
+Avec Claude Code, le sampling fonctionne **nativement sans configuration** car Claude Code EST déjà
+un client MCP avec accès au LLM. Les utilisateurs Claude Code pourraient utiliser les agent nodes
+directement, sans clé API à configurer.
 
 ---
 
@@ -39,6 +39,7 @@ Le **sampling** MCP permet à un **serveur** MCP de demander une complétion LLM
 **Avant (2024):** Sampling simple - le serveur demande une réponse texte.
 
 **Maintenant (2025-11-25, SEP-1577):** Sampling with tools - le serveur peut :
+
 1. Demander une complétion avec `tools` disponibles
 2. Recevoir des `ToolUseContent` en réponse
 3. Exécuter ces tools
@@ -53,8 +54,8 @@ Le **sampling** MCP permet à un **serveur** MCP de demander une complétion LLM
 // sampling/createMessage avec tools
 interface CreateMessageRequestParams {
   messages: SamplingMessage[];
-  tools?: Tool[];              // ← Nouveau !
-  toolChoice?: ToolChoice;     // "auto" | "required" | "none"
+  tools?: Tool[]; // ← Nouveau !
+  toolChoice?: ToolChoice; // "auto" | "required" | "none"
   maxTokens: number;
 }
 
@@ -62,8 +63,8 @@ interface CreateMessageRequestParams {
 type SamplingMessageContentBlock =
   | TextContent
   | ImageContent
-  | ToolUseContent      // ← LLM demande un tool
-  | ToolResultContent;  // ← Résultat du tool
+  | ToolUseContent // ← LLM demande un tool
+  | ToolResultContent; // ← Résultat du tool
 
 interface ToolUseContent {
   type: "tool_use";
@@ -83,10 +84,11 @@ interface ToolUseContent {
 
 ```typescript
 type StaticStructureNode =
-  | { type: "task"; tool: string }              // MCP tool call
-  | { type: "decision"; condition: string }     // if/else (SWC)
+  | { type: "task"; tool: string } // MCP tool call
+  | { type: "decision"; condition: string } // if/else (SWC)
   | { type: "capability"; capabilityId: string } // nested capability
-  | { type: "fork" } | { type: "join" };        // parallel
+  | { type: "fork" }
+  | { type: "join" }; // parallel
 ```
 
 ### Avec sampling with tools
@@ -97,6 +99,7 @@ type StaticStructureNode =
 ```
 
 Un nœud `agent` serait une **boîte noire intelligente** qui :
+
 1. Reçoit un goal + context
 2. Utilise sampling pour décider quoi faire
 3. Appelle des tools selon les décisions LLM
@@ -114,7 +117,7 @@ const fileInfo = await mcp.filesystem.read_file({ path });
 const action = await mcp.agent.decide({
   goal: "Détermine la meilleure action pour ce fichier",
   context: { fileInfo },
-  tools: ["filesystem:write_file", "filesystem:delete_file", "git:commit"]
+  tools: ["filesystem:write_file", "filesystem:delete_file", "git:commit"],
 });
 
 // Le sub-agent utilise sampling pour :
@@ -126,12 +129,12 @@ const action = await mcp.agent.decide({
 
 ### Différence avec une capability
 
-| Aspect | Capability | Agent Node |
-|--------|-----------|------------|
-| Décisions | Statiques (code généré) | Dynamiques (runtime LLM) |
-| Visibilité | Structure complète (SWC) | Boîte noire |
-| Contrôle | Déterministe | Probabiliste |
-| Traçabilité | Chaque tool tracé | Agent + tools internes |
+| Aspect      | Capability               | Agent Node               |
+| ----------- | ------------------------ | ------------------------ |
+| Décisions   | Statiques (code généré)  | Dynamiques (runtime LLM) |
+| Visibilité  | Structure complète (SWC) | Boîte noire              |
+| Contrôle    | Déterministe             | Probabiliste             |
+| Traçabilité | Chaque tool tracé        | Agent + tools internes   |
 
 ---
 
@@ -207,6 +210,7 @@ L'utilisateur fournit sa clé API dans `mcp-servers.json` :
 ```
 
 Providers supportés :
+
 - `anthropic` - Claude API (clé utilisateur)
 - `openai` - OpenAI API (clé utilisateur)
 - `ollama` - Local LLM (gratuit, endpoint local)
@@ -238,12 +242,12 @@ Même pattern que local - clé API dans la config :
 
 ### Résumé des modes
 
-| Mode | Config | Qui paie | Use case |
-|------|--------|----------|----------|
-| **Claude Code** | Aucune | Anthropic (inclus) | Utilisateurs Claude Code |
-| **Local** | `mcp-servers.json` | Utilisateur (BYOK) | Dev local, self-hosted |
-| **Cloud** | `mcp-servers.json` | Utilisateur (BYOK) | Déploiement cloud |
-| **Cloud (future)** | Abonnement | Subscription | SaaS simplifié |
+| Mode               | Config             | Qui paie           | Use case                 |
+| ------------------ | ------------------ | ------------------ | ------------------------ |
+| **Claude Code**    | Aucune             | Anthropic (inclus) | Utilisateurs Claude Code |
+| **Local**          | `mcp-servers.json` | Utilisateur (BYOK) | Dev local, self-hosted   |
+| **Cloud**          | `mcp-servers.json` | Utilisateur (BYOK) | Déploiement cloud        |
+| **Cloud (future)** | Abonnement         | Subscription       | SaaS simplifié           |
 
 ---
 
@@ -259,11 +263,13 @@ Même pattern que local - clé API dans la config :
 
 ## Position actuelle
 
-**Notre architecture** (code généré → SWC → Worker → RPC → MCP) est alignée avec les recommandations Anthropic ("Code execution with MCP").
+**Notre architecture** (code généré → SWC → Worker → RPC → MCP) est alignée avec les recommandations
+Anthropic ("Code execution with MCP").
 
 Les décisions (if/else) sont générées par l'agent principal dans le code.
 
 Les nœuds `agent` seraient utiles pour :
+
 - Décisions complexes basées sur résultats runtime
 - Délégation de sous-tâches
 - Réduction de la complexité du code généré

@@ -1,17 +1,14 @@
 # Workflow Compliance Report Template
 
-**Workflow:** {workflow_name}
-**Date:** {validation_date}
-**Standards:** BMAD workflow-template.md and step-template.md
-**Report Type:** Comprehensive Compliance Validation
+**Workflow:** {workflow_name} **Date:** {validation_date} **Standards:** BMAD workflow-template.md
+and step-template.md **Report Type:** Comprehensive Compliance Validation
 
 ---
 
 ## Executive Summary
 
-**Overall Compliance Status:** {compliance_status}
-**Critical Issues:** {critical_count} - Must be fixed immediately
-**Major Issues:** {major_count} - Significantly impacts quality/maintainability
+**Overall Compliance Status:** {compliance_status} **Critical Issues:** {critical_count} - Must be
+fixed immediately **Major Issues:** {major_count} - Significantly impacts quality/maintainability
 **Minor Issues:** {minor_count} - Standards compliance improvements
 
 **Compliance Score:** {compliance_score}% based on template adherence
@@ -54,8 +51,7 @@
 
 ### Workflow Type Appropriateness
 
-**Analysis:** {workflow_type_analysis}
-**Recommendations:** {type_recommendations}
+**Analysis:** {workflow_type_analysis} **Recommendations:** {type_recommendations}
 
 ---
 
@@ -67,10 +63,8 @@
 
 ### Goal Alignment
 
-**Stated Goal:** {stated_goal}
-**Actual Implementation:** {actual_implementation}
-**Alignment Score:** {alignment_score}%
-**Gap Analysis:** {gap_analysis}
+**Stated Goal:** {stated_goal} **Actual Implementation:** {actual_implementation} **Alignment
+Score:** {alignment_score}% **Gap Analysis:** {gap_analysis}
 
 ### Optimization Opportunities
 
@@ -82,11 +76,9 @@
 
 ### Issues That Should Have Been Prevented
 
-**By create-workflow:**
-{create_workflow_failures}
+**By create-workflow:** {create_workflow_failures}
 
-**By edit-workflow:**
-{edit_workflow_failures}
+**By edit-workflow:** {edit_workflow_failures}
 
 ### Recommended Meta-Workflow Improvements
 
@@ -124,8 +116,7 @@
 
 ## Next Steps Recommendation
 
-**Recommended Approach:**
-{recommended_approach}
+**Recommended Approach:** {recommended_approach}
 
 **Estimated Effort:**
 
@@ -135,6 +126,5 @@
 
 ---
 
-**Report Generated:** {timestamp}
-**Validation Engine:** BMAD Workflow Compliance Checker
-**Next Review Date:** {next_review_date}
+**Report Generated:** {timestamp} **Validation Engine:** BMAD Workflow Compliance Checker **Next
+Review Date:** {next_review_date}

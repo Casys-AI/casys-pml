@@ -4,7 +4,9 @@
 
 ## En bref
 
-La boucle de feedback de PML, c'est comme un **musicien qui s'améliore à chaque répétition**. Chaque fois que vous utilisez PML, il observe ce que vous faites, note ce qui marche, et devient meilleur pour anticiper vos besoins la prochaine fois.
+La boucle de feedback de PML, c'est comme un **musicien qui s'améliore à chaque répétition**. Chaque
+fois que vous utilisez PML, il observe ce que vous faites, note ce qui marche, et devient meilleur
+pour anticiper vos besoins la prochaine fois.
 
 **Le cycle vertueux :**
 
@@ -23,19 +25,19 @@ La boucle de feedback de PML, c'est comme un **musicien qui s'améliore à chaqu
 
 **Trois sources d'apprentissage :**
 
-| Source | Ce qui est appris | Exemple |
-|--------|-------------------|---------|
-| **Exécutions DAG** | Séquences d'outils réussies | read → parse → write devient un pattern |
-| **Traces de code** | Relations parent-enfant | Capability X utilise les outils A, B, C |
-| **Templates utilisateur** | Workflows prédéfinis | Votre workflow personnalisé (confiance 50% au départ) |
+| Source                    | Ce qui est appris           | Exemple                                               |
+| ------------------------- | --------------------------- | ----------------------------------------------------- |
+| **Exécutions DAG**        | Séquences d'outils réussies | read → parse → write devient un pattern               |
+| **Traces de code**        | Relations parent-enfant     | Capability X utilise les outils A, B, C               |
+| **Templates utilisateur** | Workflows prédéfinis        | Votre workflow personnalisé (confiance 50% au départ) |
 
 **Évolution temporelle :**
 
-| Période | Ce qui se passe | Exemple |
-|---------|-----------------|---------|
-| **Court terme** (session) | Patterns récents renforcés | Confiance 0.5 → 0.85 après 3 usages |
-| **Moyen terme** (semaines) | Patterns stabilisés, variations découvertes | Nouveau pattern: read → **validate** → parse |
-| **Long terme** (mois) | Patterns populaires deviennent core knowledge, inutilisés déclinent | Graph reflète l'usage réel |
+| Période                    | Ce qui se passe                                                     | Exemple                                      |
+| -------------------------- | ------------------------------------------------------------------- | -------------------------------------------- |
+| **Court terme** (session)  | Patterns récents renforcés                                          | Confiance 0.5 → 0.85 après 3 usages          |
+| **Moyen terme** (semaines) | Patterns stabilisés, variations découvertes                         | Nouveau pattern: read → **validate** → parse |
+| **Long terme** (mois)      | Patterns populaires deviennent core knowledge, inutilisés déclinent | Graph reflète l'usage réel                   |
 
 **Analogie du musicien :**
 
@@ -87,6 +89,7 @@ PML Learns:
 ```
 
 Each execution:
+
 - Increases `observed_count` on edges
 - May promote edges from `inferred` → `observed`
 - Records execution time for analytics
@@ -110,6 +113,7 @@ PML Learns:
 ```
 
 Traces capture:
+
 - Parent-child relationships (capability → tools)
 - Temporal sequences (tool A before tool B)
 - Nested patterns (capability within capability)
@@ -129,6 +133,7 @@ workflows:
 ```
 
 Templates:
+
 - Bootstrap the graph with known patterns
 - Start at 50% confidence (template source)
 - Get validated through actual usage
@@ -171,13 +176,13 @@ The graph evolves to reflect actual usage.
 
 After each execution:
 
-| Data | Storage | Purpose |
-|------|---------|---------|
-| Tool sequences | `tool_dependency` | Graph edges |
-| Capability patterns | `workflow_pattern` | Reusable code |
-| Capability relations | `capability_dependency` | High-level patterns |
-| Execution results | `workflow_execution` | Analytics, debugging |
-| Metrics | `metrics` | Performance tracking |
+| Data                 | Storage                 | Purpose              |
+| -------------------- | ----------------------- | -------------------- |
+| Tool sequences       | `tool_dependency`       | Graph edges          |
+| Capability patterns  | `workflow_pattern`      | Reusable code        |
+| Capability relations | `capability_dependency` | High-level patterns  |
+| Execution results    | `workflow_execution`    | Analytics, debugging |
+| Metrics              | `metrics`               | Performance tracking |
 
 ## The Virtuous Cycle
 
@@ -188,6 +193,7 @@ Better suggestions ───▶ More usage ───▶ More data ───▶ B
 ```
 
 This creates a **virtuous cycle**:
+
 1. Good suggestions → Users trust PML more
 2. More usage → More execution data
 3. More data → Better pattern recognition
@@ -195,11 +201,13 @@ This creates a **virtuous cycle**:
 
 ## Adaptive Thresholds - L'auto-calibration
 
-PML ne se contente pas d'apprendre les patterns, il ajuste aussi ses **seuils de confiance** automatiquement pour optimiser le ratio risque/bénéfice.
+PML ne se contente pas d'apprendre les patterns, il ajuste aussi ses **seuils de confiance**
+automatiquement pour optimiser le ratio risque/bénéfice.
 
 ### Le problème des seuils fixes
 
 Avec un seuil fixe de 0.7 pour les exécutions spéculatives :
+
 - **Trop conservateur ?** Si 95% des spéculations réussissent → On rate des opportunités
 - **Trop agressif ?** Si seulement 60% réussissent → On gaspille des ressources
 
@@ -219,6 +227,7 @@ Sinon (80-90%):
 ```
 
 **Formule EMA :**
+
 ```
 nouveau_seuil = ancien_seuil × 0.95 + optimal × 0.05
 
@@ -229,28 +238,32 @@ Où optimal est calculé selon l'écart au taux de succès cible (85%)
 
 Les seuils s'adaptent **par type de workflow**, pas globalement :
 
-| Contexte | Seuil initial | Après apprentissage | Pourquoi |
-|----------|---------------|---------------------|----------|
-| `data_analysis` | 0.70 | ~0.55 | Workflows simples, faible risque |
-| `production_deploy` | 0.70 | ~0.85 | Risque élevé, rester prudent |
-| `file_operations` | 0.70 | ~0.50 | Très prévisible, être audacieux |
+| Contexte            | Seuil initial | Après apprentissage | Pourquoi                         |
+| ------------------- | ------------- | ------------------- | -------------------------------- |
+| `data_analysis`     | 0.70          | ~0.55               | Workflows simples, faible risque |
+| `production_deploy` | 0.70          | ~0.85               | Risque élevé, rester prudent     |
+| `file_operations`   | 0.70          | ~0.50               | Très prévisible, être audacieux  |
 
 ### Bornes de sécurité
 
 Le seuil ne sort jamais de l'intervalle **[0.40, 0.90]** :
+
 - **Minimum 0.40** : Permet des spéculations audacieuses pour workflows éprouvés
 - **Maximum 0.90** : Reste prudent même avec beaucoup d'échecs
 - **Départ à 0.70** : Équilibré, ni trop conservateur ni trop risqué
 
-**Configuration:** Voir `config/speculation_config.yaml` ([Configuration Reference](../../reference/02-configuration.md#speculation-configuration))
+**Configuration:** Voir `config/speculation_config.yaml`
+([Configuration Reference](../../reference/02-configuration.md#speculation-configuration))
 
 ### Convergence
 
-Après environ **50-100 exécutions** par type de workflow, les seuils convergent vers leur valeur optimale. C'est le système qui apprend ce qui fonctionne dans votre contexte spécifique.
+Après environ **50-100 exécutions** par type de workflow, les seuils convergent vers leur valeur
+optimale. C'est le système qui apprend ce qui fonctionne dans votre contexte spécifique.
 
 ## Observing Learning
 
 You can see PML's learning in action:
+
 - **Dashboard** shows graph growth
 - **Metrics** track pattern discovery
 - **Confidence scores** increase over time

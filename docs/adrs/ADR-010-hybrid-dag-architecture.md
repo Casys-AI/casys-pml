@@ -1,7 +1,6 @@
 # ADR-010: Architecture DAG Hybride - Nœuds Externes vs Nœuds de Logique
 
-**Status:** ✅ Implemented
-**Date:** 2025-11-20 | **Deciders:** BMad | **Epic:** 3 (Sandbox)
+**Status:** ✅ Implemented **Date:** 2025-11-20 | **Deciders:** BMad | **Epic:** 3 (Sandbox)
 
 ---
 

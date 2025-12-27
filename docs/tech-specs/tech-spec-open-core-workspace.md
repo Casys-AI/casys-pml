@@ -1,9 +1,7 @@
 # Tech-Spec: Architecture Open Core — Monorepo Privé + Sync Public
 
-**Created:** 2025-12-10
-**Status:** Completed
-**Completed:** 2025-12-15
-**Author:** Erwan + BMad Master
+**Created:** 2025-12-10 **Status:** Completed **Completed:** 2025-12-15 **Author:** Erwan + BMad
+Master
 
 ---
 
@@ -12,10 +10,12 @@
 ### Problem Statement
 
 Casys PML doit adopter un modèle **Open Core** :
+
 - **Core** (AGPL) : Moteur PML open-source, self-hostable
 - **Cloud** (Propriétaire) : SaaS multi-tenant avec features premium
 
-Le challenge : développer les deux dans un workflow unifié compatible avec Claude Code, sans perdre l'historique git ni casser le code existant.
+Le challenge : développer les deux dans un workflow unifié compatible avec Claude Code, sans perdre
+l'historique git ni casser le code existant.
 
 ### Solution
 
@@ -37,12 +37,14 @@ casys-pml-cloud (PRIVÉ - repo de dev principal)
 ### Scope
 
 **In scope :**
+
 - Migration des remotes git (origin → privé, public → ancien)
 - Réorganisation structure `src/core/` vs `src/cloud/`
 - GitHub Action de synchronisation automatique
 - Séparation des features Core vs Cloud
 
 **Out of scope (Phase 2+) :**
+
 - Billing / Stripe integration
 - Package npm `@casys/mcp-connector`
 - CI/CD production cloud
@@ -53,43 +55,43 @@ casys-pml-cloud (PRIVÉ - repo de dev principal)
 
 ### Repositories
 
-| Repo | Visibilité | Contenu | License |
-|------|------------|---------|---------|
-| `Casys-AI/casys-pml` | Public | Core + docs + BMAD | AGPL-3.0 |
-| `Casys-AI/casys-pml-cloud` | Privé | Tout (core + cloud) | Propriétaire |
+| Repo                       | Visibilité | Contenu             | License      |
+| -------------------------- | ---------- | ------------------- | ------------ |
+| `Casys-AI/casys-pml`       | Public     | Core + docs + BMAD  | AGPL-3.0     |
+| `Casys-AI/casys-pml-cloud` | Privé      | Tout (core + cloud) | Propriétaire |
 
 ### Current State Analysis
 
 Code "cloud" déjà implémenté dans le repo actuel :
 
-| Fichier | Status | Destination |
-|---------|--------|-------------|
-| `src/lib/auth.ts` | ✅ Existe | Core (mode detection) |
-| `src/db/schema/users.ts` | ✅ Existe | Core (schema basique) |
-| `src/server/auth/oauth.ts` | ✅ Existe | Core (GitHub OAuth) |
-| `src/lib/api-key.ts` | ✅ Existe | Core |
-| `src/web/routes/api/user/*` | ✅ Existe | Core |
-| `src/mcp/smithery-client.ts` | 🚧 WIP | Cloud (`src/cloud/smithery/`) |
+| Fichier                      | Status    | Destination                   |
+| ---------------------------- | --------- | ----------------------------- |
+| `src/lib/auth.ts`            | ✅ Existe | Core (mode detection)         |
+| `src/db/schema/users.ts`     | ✅ Existe | Core (schema basique)         |
+| `src/server/auth/oauth.ts`   | ✅ Existe | Core (GitHub OAuth)           |
+| `src/lib/api-key.ts`         | ✅ Existe | Core                          |
+| `src/web/routes/api/user/*`  | ✅ Existe | Core                          |
+| `src/mcp/smithery-client.ts` | 🚧 WIP    | Cloud (`src/cloud/smithery/`) |
 
 ### Feature Separation
 
-| Feature | Core (Public) | Cloud (Privé) |
-|---------|---------------|---------------|
-| DAG Executor | ✅ | ✅ |
-| GraphRAG Engine | ✅ | ✅ |
-| Sandbox Execution | ✅ | ✅ |
-| MCP Gateway | ✅ | ✅ |
-| Mode Detection (`isCloudMode`) | ✅ | ✅ |
-| GitHub OAuth (basique) | ✅ | ✅ |
-| API Key Auth | ✅ | ✅ |
-| Multi-tenant Isolation | ✅ | ✅ |
-| **BYOK** (Bring Your Own Key) | ❌ | ✅ |
-| **User Analytics/Tracking** | ❌ | ✅ |
-| **MCP Connector Package** | ❌ | ✅ |
-| **Billing / Subscriptions** | ❌ | ✅ |
-| **Advanced Rate Limiting** | ❌ | ✅ |
-| **SSO Enterprise** | ❌ | ✅ |
-| **Smithery MCP Gateway** | ❌ | ✅ |
+| Feature                        | Core (Public) | Cloud (Privé) |
+| ------------------------------ | ------------- | ------------- |
+| DAG Executor                   | ✅            | ✅            |
+| GraphRAG Engine                | ✅            | ✅            |
+| Sandbox Execution              | ✅            | ✅            |
+| MCP Gateway                    | ✅            | ✅            |
+| Mode Detection (`isCloudMode`) | ✅            | ✅            |
+| GitHub OAuth (basique)         | ✅            | ✅            |
+| API Key Auth                   | ✅            | ✅            |
+| Multi-tenant Isolation         | ✅            | ✅            |
+| **BYOK** (Bring Your Own Key)  | ❌            | ✅            |
+| **User Analytics/Tracking**    | ❌            | ✅            |
+| **MCP Connector Package**      | ❌            | ✅            |
+| **Billing / Subscriptions**    | ❌            | ✅            |
+| **Advanced Rate Limiting**     | ❌            | ✅            |
+| **SSO Enterprise**             | ❌            | ✅            |
+| **Smithery MCP Gateway**       | ❌            | ✅            |
 
 ### Codebase Patterns
 
@@ -106,11 +108,13 @@ Code "cloud" déjà implémenté dans le repo actuel :
 **Objectif :** Changer les remotes sans toucher au code
 
 #### Task 1.1: Créer le repo privé
+
 ```bash
 # Sur GitHub: créer Casys-AI/casys-pml-cloud (privé)
 ```
 
 #### Task 1.2: Migrer les remotes
+
 ```bash
 # Dans le repo local
 git remote rename origin public
@@ -120,6 +124,7 @@ git push origin --tags
 ```
 
 #### Task 1.3: Vérifier que tout fonctionne
+
 ```bash
 git remote -v
 # origin  → casys-pml-cloud (privé)
@@ -140,14 +145,14 @@ on:
   push:
     branches: [main]
     paths:
-      - 'src/core/**'
-      - 'src/shared/**'
-      - 'docs/**'
-      - '.bmad/**'
-      - 'README.md'
-      - 'LICENSE'
-      - 'deno.json'
-      - 'tests/**'
+      - "src/core/**"
+      - "src/shared/**"
+      - "docs/**"
+      - ".bmad/**"
+      - "README.md"
+      - "LICENSE"
+      - "deno.json"
+      - "tests/**"
 
 jobs:
   sync:
@@ -162,9 +167,9 @@ jobs:
         env:
           SSH_DEPLOY_KEY: ${{ secrets.PUBLIC_REPO_DEPLOY_KEY }}
         with:
-          source-directory: '.'
-          destination-github-username: 'Casys-AI'
-          destination-repository-name: 'casys-pml'
+          source-directory: "."
+          destination-github-username: "Casys-AI"
+          destination-repository-name: "casys-pml"
           target-branch: main
           exclude: |
             src/cloud/
@@ -175,6 +180,7 @@ jobs:
 ```
 
 #### Task 2.2: Configurer les secrets GitHub
+
 - Générer SSH deploy key pour le repo public
 - Ajouter comme secret `PUBLIC_REPO_DEPLOY_KEY` dans le repo privé
 
@@ -183,12 +189,14 @@ jobs:
 **Objectif :** Séparer clairement le code Core vs Cloud
 
 #### Task 3.1: Créer la structure cloud
+
 ```bash
 mkdir -p src/cloud
 mkdir -p packages/mcp-connector
 ```
 
 #### Task 3.2: Déplacer le code cloud-only
+
 ```
 src/cloud/
 ├── byok/           ← Bring Your Own Key
@@ -205,6 +213,7 @@ src/cloud/
 ```
 
 #### Task 3.3: Configurer les imports conditionnels
+
 ```typescript
 // src/lib/features.ts
 export async function loadCloudFeatures() {
@@ -237,21 +246,25 @@ packages/mcp-connector/
 ## Acceptance Criteria
 
 ### Phase 1: Migration Git
+
 - [x] **AC 1.1:** Le repo privé `casys-pml-cloud` existe et contient tout le code
 - [x] **AC 1.2:** `git remote -v` montre origin=privé, public=public
 - [x] **AC 1.3:** `git push origin main` pousse vers le privé
 - [x] **AC 1.4:** L'historique git complet est préservé
 
 ### Phase 2: Sync Automatique
+
 - [x] **AC 2.1:** Push sur `src/core/**` déclenche le sync vers public
 - [x] **AC 2.2:** Les fichiers `src/cloud/**` ne sont JAMAIS sync vers public
 - [x] **AC 2.3:** Les secrets et .env ne sont pas sync
 
 ### Phase 3: Réorganisation
+
 - [x] **AC 3.1:** Smithery reste dans `src/mcp/` (code visible, protégé par API key)
 - [x] **AC 3.2:** `deno check` passe sans erreur
 - [x] **AC 3.3:** `deno task test` passe (14/14 tests smithery)
-- [ ] **AC 3.4:** `src/cloud/` réservé pour futures features premium (BYOK, billing) - À créer quand nécessaire
+- [ ] **AC 3.4:** `src/cloud/` réservé pour futures features premium (BYOK, billing) - À créer quand
+      nécessaire
 
 ---
 
@@ -259,11 +272,11 @@ packages/mcp-connector/
 
 ### Risques
 
-| Risque | Impact | Mitigation |
-|--------|--------|------------|
+| Risque                        | Impact   | Mitigation                                                        |
+| ----------------------------- | -------- | ----------------------------------------------------------------- |
 | Sync accidentel de code cloud | Critique | `.github/workflows/sync-to-public.yml` avec exclusions explicites |
-| Perte d'historique git | Moyen | Backup avant migration |
-| Imports cassés après réorg | Moyen | Phase 3 optionnelle, faire après stabilisation |
+| Perte d'historique git        | Moyen    | Backup avant migration                                            |
+| Imports cassés après réorg    | Moyen    | Phase 3 optionnelle, faire après stabilisation                    |
 
 ### Rollback Plan
 
@@ -276,6 +289,7 @@ git remote rename public origin
 ### Workflow Claude Code
 
 Après migration, le workflow quotidien :
+
 1. Dev dans `casys-pml-cloud` (privé)
 2. Claude Code voit **tout** le code (core + cloud)
 3. Push sur main → sync auto vers public (sauf cloud/)
@@ -283,21 +297,22 @@ Après migration, le workflow quotidien :
 
 ### Alternatives Considérées
 
-| Option | Avantages | Inconvénients | Verdict |
-|--------|-----------|---------------|---------|
-| Fork privé | Simple | Deux repos à gérer, merge manuel | ❌ |
-| Git subtree | Standard | Complexe, risque d'erreur | ❌ |
-| Monorepo + sync CI | Un workspace, auto | Setup initial | ✅ Choisi |
+| Option             | Avantages          | Inconvénients                    | Verdict   |
+| ------------------ | ------------------ | -------------------------------- | --------- |
+| Fork privé         | Simple             | Deux repos à gérer, merge manuel | ❌        |
+| Git subtree        | Standard           | Complexe, risque d'erreur        | ❌        |
+| Monorepo + sync CI | Un workspace, auto | Setup initial                    | ✅ Choisi |
 
 ---
 
 ## Notes
 
-- Le code auth actuel (`src/lib/auth.ts`, `src/server/auth/oauth.ts`) reste dans Core car il gère le mode local
+- Le code auth actuel (`src/lib/auth.ts`, `src/server/auth/oauth.ts`) reste dans Core car il gère le
+  mode local
 - La logique `isCloudMode()` est essentielle pour le dual-mode
 - BMAD reste dans le repo (outil de dev, pas le produit)
 - Les docs restent publiques pour la communauté
 
 ---
 
-*Tech-spec créée via BMAD Quick-Flow*
+_Tech-spec créée via BMAD Quick-Flow_

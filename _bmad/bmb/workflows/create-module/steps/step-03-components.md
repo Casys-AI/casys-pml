@@ -1,10 +1,10 @@
 ---
-installed_path: '{project-root}/_bmad/bmb/workflows/create-module'
-nextStepFile: '{installed_path}/steps/step-04-structure.md'
-modulePlanFile: '{bmb_creations_output_folder}/{module_name}/module-plan-{module_name}.md'
-agent_examples_path: '{project-root}/bmb/reference/agents/module-examples'
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+installed_path: "{project-root}/_bmad/bmb/workflows/create-module"
+nextStepFile: "{installed_path}/steps/step-04-structure.md"
+modulePlanFile: "{bmb_creations_output_folder}/{module_name}/module-plan-{module_name}.md"
+agent_examples_path: "{project-root}/bmb/reference/agents/module-examples"
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 ---
 
 # Step 3: Plan Module Components
@@ -21,7 +21,8 @@ partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 ### Role Reinforcement:
 
 - ✅ You are a Module Architect and Systems Designer
-- ✅ If you already have been given communication or persona patterns, continue to use those while playing this new role
+- ✅ If you already have been given communication or persona patterns, continue to use those while
+  playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You bring expertise in BMAD component design patterns, user brings their domain requirements
 - ✅ Maintain collaborative, design-focused tone
@@ -49,7 +50,8 @@ partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 
 ## STEP GOAL:
 
-To design the component architecture for the module, determining what agents, workflows, and tasks are needed to fulfill the module's purpose.
+To design the component architecture for the module, determining what agents, workflows, and tasks
+are needed to fulfill the module's purpose.
 
 ## COMPONENT PLANNING PROCESS:
 
@@ -67,10 +69,10 @@ Based on your module's purpose and scope, we'll design:
 
 "**Agent Architecture:**
 
-Think about the different roles or perspectives needed to accomplish your module's goals. Each agent should have a clear, distinct purpose."
+Think about the different roles or perspectives needed to accomplish your module's goals. Each agent
+should have a clear, distinct purpose."
 
-Reference agent examples for patterns
-Load and browse agent examples: {agent_examples_path}
+Reference agent examples for patterns Load and browse agent examples: {agent_examples_path}
 
 "**Common Agent Patterns:**
 
@@ -102,13 +104,15 @@ Load and browse agent examples: {agent_examples_path}
 
 [Suggest 2-4 specific agent types based on module concept]
 
-**What resonates with your vision?** Which of these agents would be most valuable, and are there any others you'd like to add?"
+**What resonates with your vision?** Which of these agents would be most valuable, and are there any
+others you'd like to add?"
 
 ### 3. Workflow Planning
 
 "**Workflow Design:**
 
-Workflows are the step-by-step processes that users will follow to accomplish specific tasks. Each workflow should solve a specific problem or achieve a particular outcome."
+Workflows are the step-by-step processes that users will follow to accomplish specific tasks. Each
+workflow should solve a specific problem or achieve a particular outcome."
 
 **Types of Workflows:**
 
@@ -124,7 +128,8 @@ Workflows are the step-by-step processes that users will follow to accomplish sp
 2. **[Supporting Workflow 1]** - For specific use case
 3. **[Supporting Workflow 2]** - For another use case
 
-Remember: We'll create workflow PLANS first, not full implementations. These plans can be used later with the create-workflow workflow."
+Remember: We'll create workflow PLANS first, not full implementations. These plans can be used later
+with the create-workflow workflow."
 
 ### 4. Task Planning (Optional)
 
@@ -230,7 +235,8 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 
 - IF A: Execute {advancedElicitationTask} to explore alternative component architectures
 - IF P: Execute {partyModeWorkflow} to get creative input on component design
-- IF C: Save component plan to module-plan.md, add step-03-components to the end of the stepsCompleted array in frontmatter, then load nextStepFile
+- IF C: Save component plan to module-plan.md, add step-03-components to the end of the
+  stepsCompleted array in frontmatter, then load nextStepFile
 - IF Any other comments or queries: help user respond then redisplay menu
 
 #### EXECUTION RULES:
@@ -260,8 +266,11 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 - Under-planning (missing essential components)
 - Not establishing development priorities
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN C is selected and component plan is saved to module-plan.md with stepsCompleted updated to [1, 2, 3], will you then load, read entire file, then execute `{nextStepFile}` to begin creating the module structure.
+ONLY WHEN C is selected and component plan is saved to module-plan.md with stepsCompleted updated to
+[1, 2, 3], will you then load, read entire file, then execute `{nextStepFile}` to begin creating the
+module structure.

@@ -1,7 +1,7 @@
 # Non-Functional Requirements Assessment - Validation Checklist
 
-**Workflow:** `testarch-nfr`
-**Purpose:** Ensure comprehensive and evidence-based NFR assessment with actionable recommendations
+**Workflow:** `testarch-nfr` **Purpose:** Ensure comprehensive and evidence-based NFR assessment
+with actionable recommendations
 
 ---
 
@@ -396,9 +396,7 @@
 - If CONCERNS ⚠️: Address HIGH/CRITICAL issues, re-run `*nfr-assess`
 - If FAIL ❌: Resolve FAIL status NFRs, re-run `*nfr-assess`
 
-**Critical Issues:** {COUNT}
-**High Priority Issues:** {COUNT}
-**Concerns:** {COUNT}
+**Critical Issues:** {COUNT} **High Priority Issues:** {COUNT} **Concerns:** {COUNT}
 
 ---
 

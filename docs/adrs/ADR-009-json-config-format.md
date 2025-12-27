@@ -1,15 +1,14 @@
 # ADR-009: JSON Configuration Format for MCP Ecosystem Alignment
 
-**Status:** ✅ Implemented
-**Date:** 2025-11-18 | **Author:** BMad
+**Status:** ✅ Implemented **Date:** 2025-11-18 | **Author:** BMad
 
 ---
 
 ## Context
 
 Casys PML acts as an MCP (Model Context Protocol) gateway that consolidates multiple MCP servers.
-The current implementation uses YAML for configuration files (`~/.pml/config.yaml`), while
-the entire MCP ecosystem standardizes on JSON:
+The current implementation uses YAML for configuration files (`~/.pml/config.yaml`), while the
+entire MCP ecosystem standardizes on JSON:
 
 **MCP Ecosystem Format:**
 

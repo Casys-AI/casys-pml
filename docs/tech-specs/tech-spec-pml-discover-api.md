@@ -1,15 +1,15 @@
 # Tech Spec: pml_discover API - Unified Search & Context Management
 
-**Status:** 📋 DRAFT
-**Date:** 2025-12-17
-**Authors:** Discussion Claude + User
-**Related:** `tech-spec-dag-capability-learning.md`, `search-tools.ts`, `search-capabilities.ts`
+**Status:** 📋 DRAFT **Date:** 2025-12-17 **Authors:** Discussion Claude + User **Related:**
+`tech-spec-dag-capability-learning.md`, `search-tools.ts`, `search-capabilities.ts`
 
 ---
 
 ## Executive Summary
 
-Cette tech spec définit l'API unifiée `pml_discover` qui remplace les outils de recherche fragmentés (`pml_search_tools`, `pml_search_capabilities`, `pml_find_capabilities`). L'objectif est de fournir une interface unique, context-efficient, avec progressive disclosure.
+Cette tech spec définit l'API unifiée `pml_discover` qui remplace les outils de recherche fragmentés
+(`pml_search_tools`, `pml_search_capabilities`, `pml_find_capabilities`). L'objectif est de fournir
+une interface unique, context-efficient, avec progressive disclosure.
 
 ### Problèmes actuels
 
@@ -21,6 +21,7 @@ Cette tech spec définit l'API unifiée `pml_discover` qui remplace les outils d
 ### Solution
 
 Un seul outil `pml_discover` avec :
+
 - Niveaux de verbosité configurables
 - Résumés intelligents pour capabilities multi-parties
 - Flow en deux temps (discover → get_details si besoin)
@@ -72,8 +73,8 @@ interface DiscoverResult {
   // Toujours présent (minimal)
   id: string;
   type: "tool" | "capability";
-  intent: string;              // 1 phrase descriptive
-  score: number;               // 0-1, pertinence
+  intent: string; // 1 phrase descriptive
+  score: number; // 0-1, pertinence
 
   // Présent si verbosity >= "summary"
   summary?: ResultSummary;
@@ -96,12 +97,19 @@ interface DiscoverResult {
 ```json
 {
   "results": [
-    { "id": "cap:sales-analysis", "type": "capability",
-      "intent": "Analyse des ventes par région", "score": 0.92 },
-    { "id": "tool:db:query", "type": "tool",
-      "intent": "Exécuter une requête SQL", "score": 0.85 },
-    { "id": "cap:data-export", "type": "capability",
-      "intent": "Export données en PDF/CSV", "score": 0.78 }
+    {
+      "id": "cap:sales-analysis",
+      "type": "capability",
+      "intent": "Analyse des ventes par région",
+      "score": 0.92
+    },
+    { "id": "tool:db:query", "type": "tool", "intent": "Exécuter une requête SQL", "score": 0.85 },
+    {
+      "id": "cap:data-export",
+      "type": "capability",
+      "intent": "Export données en PDF/CSV",
+      "score": 0.78
+    }
   ]
 }
 ```
@@ -118,30 +126,31 @@ interface ResultSummary {
   toolSchema?: {
     requiredParams: string[];
     optionalParams: string[];
-    returnType: string;          // Description courte
+    returnType: string; // Description courte
   };
 
   // Pour les capabilities
-  pipeline?: PipelineStep[];     // Vue "étapes" compacte
-  toolsUsed?: string[];          // Liste des tools
-  inputs?: string[];             // Paramètres attendus
-  outputs?: string[];            // Ce que ça retourne
+  pipeline?: PipelineStep[]; // Vue "étapes" compacte
+  toolsUsed?: string[]; // Liste des tools
+  inputs?: string[]; // Paramètres attendus
+  outputs?: string[]; // Ce que ça retourne
 
   // Métadonnées communes
   successRate?: number;
   avgDurationMs?: number;
   usageCount?: number;
-  lastUsed?: string;             // ISO date
+  lastUsed?: string; // ISO date
 }
 
 interface PipelineStep {
   step: number;
-  action: string;                // "fetch", "transform", "export"...
-  tools: string[];               // Tools utilisés dans cette étape
+  action: string; // "fetch", "transform", "export"...
+  tools: string[]; // Tools utilisés dans cette étape
 }
 ```
 
 **Exemple :**
+
 ```json
 {
   "id": "cap:sales-analysis",
@@ -176,16 +185,16 @@ interface PipelineStep {
 ```typescript
 interface ResultDetails {
   // Pour les tools
-  fullSchema?: JSONSchema;       // Schema JSON complet
-  examples?: ToolExample[];      // Exemples d'utilisation
+  fullSchema?: JSONSchema; // Schema JSON complet
+  examples?: ToolExample[]; // Exemples d'utilisation
 
   // Pour les capabilities
   source?: {
     type: "code" | "dag";
-    code?: string;               // Code complet
+    code?: string; // Code complet
     dagStructure?: DAGStructure; // DAG complet
   };
-  reconstructedDAG?: DAGStructure;  // Si code → DAG inféré
+  reconstructedDAG?: DAGStructure; // Si code → DAG inféré
   invocationHistory?: Invocation[]; // Dernières exécutions
 }
 ```
@@ -196,7 +205,8 @@ interface ResultDetails {
 
 ### 3.1 Problème
 
-Une capability peut être un workflow complexe avec plusieurs étapes. Retourner tout le code est inefficace.
+Une capability peut être un workflow complexe avec plusieurs étapes. Retourner tout le code est
+inefficace.
 
 ### 3.2 Solution : Vue Pipeline
 
@@ -212,27 +222,33 @@ function generatePipelineSummary(capability: Capability): PipelineStep[] {
 
   return layers.map((layer, idx) => ({
     step: idx + 1,
-    action: inferAction(layer.tasks),  // "fetch", "transform", etc.
-    tools: layer.tasks.map(t => t.tool),
+    action: inferAction(layer.tasks), // "fetch", "transform", etc.
+    tools: layer.tasks.map((t) => t.tool),
   }));
 }
 
 function inferAction(tasks: Task[]): string {
   // Heuristiques basées sur les noms de tools
-  const tools = tasks.map(t => t.tool.toLowerCase());
+  const tools = tasks.map((t) => t.tool.toLowerCase());
 
-  if (tools.some(t => t.includes("query") || t.includes("fetch") || t.includes("get")))
+  if (tools.some((t) => t.includes("query") || t.includes("fetch") || t.includes("get"))) {
     return "fetch";
-  if (tools.some(t => t.includes("parse") || t.includes("transform") || t.includes("map")))
+  }
+  if (tools.some((t) => t.includes("parse") || t.includes("transform") || t.includes("map"))) {
     return "transform";
-  if (tools.some(t => t.includes("aggregate") || t.includes("group") || t.includes("sum")))
+  }
+  if (tools.some((t) => t.includes("aggregate") || t.includes("group") || t.includes("sum"))) {
     return "aggregate";
-  if (tools.some(t => t.includes("chart") || t.includes("plot") || t.includes("render")))
+  }
+  if (tools.some((t) => t.includes("chart") || t.includes("plot") || t.includes("render"))) {
     return "visualize";
-  if (tools.some(t => t.includes("export") || t.includes("pdf") || t.includes("csv")))
+  }
+  if (tools.some((t) => t.includes("export") || t.includes("pdf") || t.includes("csv"))) {
     return "export";
-  if (tools.some(t => t.includes("send") || t.includes("post") || t.includes("write")))
+  }
+  if (tools.some((t) => t.includes("send") || t.includes("post") || t.includes("write"))) {
     return "output";
+  }
 
   return "process";
 }
@@ -330,10 +346,14 @@ Si `includeCoOccurrences: true`, on ajoute les tools souvent utilisés ensemble 
 {
   "results": [
     { "id": "tool:db:query", "score": 0.92, "type": "tool" },
-    { "id": "tool:cache:get", "score": 0.65, "type": "tool",
+    {
+      "id": "tool:cache:get",
+      "score": 0.65,
+      "type": "tool",
       "suggestionReason": "co-occurrence",
       "coOccurrenceWith": "db:query",
-      "coOccurrenceStrength": 0.78 }
+      "coOccurrenceStrength": 0.78
+    }
   ]
 }
 ```
@@ -346,9 +366,13 @@ Si `includeAlternatives: true`, on ajoute les alternatives connues :
 {
   "results": [
     { "id": "tool:http:fetch", "score": 0.90, "type": "tool" },
-    { "id": "tool:http:axios", "score": 0.70, "type": "tool",
+    {
+      "id": "tool:http:axios",
+      "score": 0.70,
+      "type": "tool",
       "suggestionReason": "alternative",
-      "alternativeTo": "http:fetch" }
+      "alternativeTo": "http:fetch"
+    }
   ]
 }
 ```
@@ -360,10 +384,10 @@ Si `includeAlternatives: true`, on ajoute les alternatives connues :
 ### 6.1 Budget estimé par verbosité
 
 | Verbosity | Tokens/résultat | Pour 10 résultats |
-|-----------|-----------------|-------------------|
-| `minimal` | ~50 | ~500 |
-| `summary` | ~150 | ~1500 |
-| `full` | ~500-2000 | ~5000-20000 |
+| --------- | --------------- | ----------------- |
+| `minimal` | ~50             | ~500              |
+| `summary` | ~150            | ~1500             |
+| `full`    | ~500-2000       | ~5000-20000       |
 
 ### 6.2 Recommandations
 
@@ -388,23 +412,28 @@ function compressPipeline(steps: PipelineStep[], maxSteps: number = 5): Pipeline
   const compressed: PipelineStep = {
     step: 2,
     action: `${middle.length} étapes intermédiaires`,
-    tools: [...new Set(middle.flatMap(s => s.tools))],
+    tools: [...new Set(middle.flatMap((s) => s.tools))],
   };
 
   return [
     first,
     compressed,
-    { ...last, step: 3 }
+    { ...last, step: 3 },
   ];
 }
 ```
 
 **Résultat :**
+
 ```json
 {
   "pipeline": [
     { "step": 1, "action": "fetch", "tools": ["db:query"] },
-    { "step": 2, "action": "5 étapes intermédiaires", "tools": ["transform", "validate", "enrich", "..."] },
+    {
+      "step": 2,
+      "action": "5 étapes intermédiaires",
+      "tools": ["transform", "validate", "enrich", "..."]
+    },
     { "step": 3, "action": "export", "tools": ["pdf:generate"] }
   ]
 }
@@ -479,8 +508,8 @@ src/graphrag/
 pml_discover({
   intent: "manipuler des fichiers JSON",
   verbosity: "minimal",
-  limit: 10
-})
+  limit: 10,
+});
 
 // → Liste rapide de 10 options
 // L'IA choisit et demande plus de détails si besoin
@@ -494,8 +523,8 @@ pml_discover({
   intent: "convertir CSV en JSON avec validation",
   verbosity: "summary",
   limit: 5,
-  filter: { type: "capability", minScore: 0.7 }
-})
+  filter: { type: "capability", minScore: 0.7 },
+});
 
 // → Top 5 capabilities avec résumés pipeline
 // L'IA peut exécuter directement ou demander détails
@@ -507,8 +536,8 @@ pml_discover({
 // L'IA veut comprendre/modifier une capability
 pml_get_details({
   id: "cap:csv-to-json",
-  include: { code: true, dag: true }
-})
+  include: { code: true, dag: true },
+});
 
 // → Code complet + DAG pour analyse
 ```

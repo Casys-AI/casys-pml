@@ -78,8 +78,7 @@ deno run --deny-read script.ts
 **Important:** Read permission is required even for `import` statements. Without it, Deno cannot
 load modules.
 
-**Casys PML usage:** Sandbox needs read access to temp files containing user code, but nothing
-else.
+**Casys PML usage:** Sandbox needs read access to temp files containing user code, but nothing else.
 
 ---
 
@@ -262,8 +261,8 @@ deno run --deny-hrtime script.ts
 **Security note:** High-resolution timers can be used for timing attacks (e.g., Spectre-style
 exploits).
 
-**Casys PML usage:** We currently allow hrtime for performance measurement. This is low-risk for
-our use case but should be reconsidered if processing sensitive data.
+**Casys PML usage:** We currently allow hrtime for performance measurement. This is low-risk for our
+use case but should be reconsidered if processing sensitive data.
 
 ---
 

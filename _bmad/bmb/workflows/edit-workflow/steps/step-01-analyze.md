@@ -1,25 +1,26 @@
 ---
-name: 'step-01-analyze'
-description: 'Load and deeply understand the target workflow'
+name: "step-01-analyze"
+description: "Load and deeply understand the target workflow"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmb/workflows/edit-workflow'
+workflow_path: "{project-root}/_bmad/bmb/workflows/edit-workflow"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-01-analyze.md'
-nextStepFile: '{workflow_path}/steps/step-02-discover.md'
-workflowFile: '{workflow_path}/workflow.md'
-outputFile: '{output_folder}/workflow-edit-{target_workflow_name}.md'
+thisStepFile: "{workflow_path}/steps/step-01-analyze.md"
+nextStepFile: "{workflow_path}/steps/step-02-discover.md"
+workflowFile: "{workflow_path}/workflow.md"
+outputFile: "{output_folder}/workflow-edit-{target_workflow_name}.md"
 
 # Template References
-analysisTemplate: '{workflow_path}/templates/workflow-analysis.md'
+analysisTemplate: "{workflow_path}/templates/workflow-analysis.md"
 ---
 
 # Step 1: Workflow Analysis
 
 ## STEP GOAL:
 
-To load and deeply understand the target workflow, including its structure, purpose, and potential improvement areas.
+To load and deeply understand the target workflow, including its structure, purpose, and potential
+improvement areas.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -33,7 +34,8 @@ To load and deeply understand the target workflow, including its structure, purp
 ### Role Reinforcement:
 
 - ✅ You are a workflow editor and improvement specialist
-- ✅ If you already have been given communication or persona patterns, continue to use those while playing this new role
+- ✅ If you already have been given communication or persona patterns, continue to use those while
+  playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You bring workflow analysis expertise and best practices knowledge
 - ✅ User brings their workflow context and improvement needs
@@ -63,8 +65,7 @@ To load and deeply understand the target workflow, including its structure, purp
 
 ### 1. Get Workflow Information
 
-Ask the user:
-"I need two pieces of information to help you edit your workflow effectively:
+Ask the user: "I need two pieces of information to help you edit your workflow effectively:
 
 1. **What is the path to the workflow you want to edit?**
    - Path to workflow.md file (new format)
@@ -152,9 +153,8 @@ Share your analysis with the user in a conversational way:
 
 ### 6. Confirm Understanding and Refine Focus
 
-Ask:
-"Based on your goal to {{userGoal}}, I've noticed {{initialFindings}}.
-Does this align with what you were expecting? Are there other areas you'd like me to focus on in my analysis?"
+Ask: "Based on your goal to {{userGoal}}, I've noticed {{initialFindings}}. Does this align with
+what you were expecting? Are there other areas you'd like me to focus on in my analysis?"
 
 This allows the user to:
 
@@ -181,19 +181,23 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu
-- User can chat or ask questions - always respond and then end with display again of the menu options
+- User can chat or ask questions - always respond and then end with display again of the menu
+  options
 - Use menu handling logic section below
 
 #### Menu Handling Logic:
 
 - IF A: Execute {advancedElicitationTask}
 - IF P: Execute {partyModeWorkflow}
-- IF C: Save analysis to {outputFile}, update frontmatter, then only then load, read entire file, then execute {nextStepFile}
-- IF Any other comments or queries: help user respond then [Redisplay Menu Options](#7-present-menu-options)
+- IF C: Save analysis to {outputFile}, update frontmatter, then only then load, read entire file,
+  then execute {nextStepFile}
+- IF Any other comments or queries: help user respond then
+  [Redisplay Menu Options](#7-present-menu-options)
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN C is selected and analysis is saved to document and frontmatter is updated, will you then load, read entire file, then execute {nextStepFile} to execute and begin improvement discovery step.
+ONLY WHEN C is selected and analysis is saved to document and frontmatter is updated, will you then
+load, read entire file, then execute {nextStepFile} to execute and begin improvement discovery step.
 
 ---
 
@@ -214,4 +218,5 @@ ONLY WHEN C is selected and analysis is saved to document and frontmatter is upd
 - Making suggestions without understanding
 - Not saving analysis findings
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

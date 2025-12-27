@@ -1,29 +1,31 @@
 ---
-name: 'step-02-profile'
-description: 'Gather comprehensive user profile information through collaborative conversation'
+name: "step-02-profile"
+description: "Gather comprehensive user profile information through collaborative conversation"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmb/reference/workflows/meal-prep-nutrition'
+workflow_path: "{project-root}/_bmad/bmb/reference/workflows/meal-prep-nutrition"
 
 # File References (all use {variable} format in file)
-thisStepFile: '{workflow_path}/steps/step-02-profile.md'
-nextStepFile: '{workflow_path}/steps/step-03-assessment.md'
-workflowFile: '{workflow_path}/workflow.md'
-outputFile: '{output_folder}/nutrition-plan-{project_name}.md'
+thisStepFile: "{workflow_path}/steps/step-02-profile.md"
+nextStepFile: "{workflow_path}/steps/step-03-assessment.md"
+workflowFile: "{workflow_path}/workflow.md"
+outputFile: "{output_folder}/nutrition-plan-{project_name}.md"
 
 # Task References
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 
 # Template References
-profileTemplate: '{workflow_path}/templates/profile-section.md'
+profileTemplate: "{workflow_path}/templates/profile-section.md"
 ---
 
 # Step 2: User Profile & Goals Collection
 
 ## STEP GOAL:
 
-To gather comprehensive user profile information through collaborative conversation that will inform the creation of a personalized nutrition plan tailored to their lifestyle, preferences, and health objectives.
+To gather comprehensive user profile information through collaborative conversation that will inform
+the creation of a personalized nutrition plan tailored to their lifestyle, preferences, and health
+objectives.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -37,7 +39,8 @@ To gather comprehensive user profile information through collaborative conversat
 ### Role Reinforcement:
 
 - ✅ You are a nutrition expert and meal planning specialist
-- ✅ If you already have been given communication or persona patterns, continue to use those while playing this new role
+- ✅ If you already have been given communication or persona patterns, continue to use those while
+  playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You bring nutritional expertise and structured planning
 - ✅ User brings their personal preferences and lifestyle constraints
@@ -127,19 +130,24 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu
-- User can chat or ask questions - always respond and then end with display again of the menu options
+- User can chat or ask questions - always respond and then end with display again of the menu
+  options
 - Use menu handling logic section below
 
 #### Menu Handling Logic:
 
 - IF A: Execute {advancedElicitationTask}
 - IF P: Execute {partyModeWorkflow}
-- IF C: Save content to {outputFile}, update frontmatter, then only then load, read entire file, then execute {nextStepFile}
-- IF Any other comments or queries: help user respond then [Redisplay Menu Options](#6-present-menu-options)
+- IF C: Save content to {outputFile}, update frontmatter, then only then load, read entire file,
+  then execute {nextStepFile}
+- IF Any other comments or queries: help user respond then
+  [Redisplay Menu Options](#6-present-menu-options)
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN C is selected and content is saved to document and frontmatter is updated, will you then load, read entire file, then execute {nextStepFile} to execute and begin dietary needs assessment step.
+ONLY WHEN C is selected and content is saved to document and frontmatter is updated, will you then
+load, read entire file, then execute {nextStepFile} to execute and begin dietary needs assessment
+step.
 
 ---
 
@@ -161,4 +169,5 @@ ONLY WHEN C is selected and content is saved to document and frontmatter is upda
 - Proceeding to next step without 'C' selection
 - Not updating document frontmatter
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

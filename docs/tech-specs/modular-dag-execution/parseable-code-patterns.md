@@ -1,16 +1,17 @@
 # Patterns de Code Détectables pour Exécution Modulaire
 
-Analyse de tous les patterns que l'agent pourrait écrire naturellement et qu'on pourrait détecter via SWC pour créer des tasks DAG modulaires.
+Analyse de tous les patterns que l'agent pourrait écrire naturellement et qu'on pourrait détecter
+via SWC pour créer des tasks DAG modulaires.
 
 ## ✅ Actuellement Détecté
 
-| Pattern | Exemple | Détection |
-|---------|---------|-----------|
-| **Appels MCP** | `mcp.filesystem.read_file({...})` | ✅ MemberChain `mcp.server.tool` |
-| **Capabilities** | `capabilities.summarize({...})` | ✅ MemberChain `capabilities.name` |
-| **Conditions** | `if (x > 0) { ... }` | ✅ IfStatement, SwitchStatement, Ternary |
-| **Parallélisme** | `Promise.all([a, b, c])` | ✅ Promise.all/allSettled |
-| **Map dans Promise** | `Promise.all(arr.map(fn))` | ✅ Détecté pour parallélisme |
+| Pattern              | Exemple                           | Détection                                |
+| -------------------- | --------------------------------- | ---------------------------------------- |
+| **Appels MCP**       | `mcp.filesystem.read_file({...})` | ✅ MemberChain `mcp.server.tool`         |
+| **Capabilities**     | `capabilities.summarize({...})`   | ✅ MemberChain `capabilities.name`       |
+| **Conditions**       | `if (x > 0) { ... }`              | ✅ IfStatement, SwitchStatement, Ternary |
+| **Parallélisme**     | `Promise.all([a, b, c])`          | ✅ Promise.all/allSettled                |
+| **Map dans Promise** | `Promise.all(arr.map(fn))`        | ✅ Détecté pour parallélisme             |
 
 ## 🔍 À Ajouter : Array Operations (Priorité 1)
 
@@ -20,11 +21,11 @@ Ces opérations sont **très fréquentes** dans le code agent et **facilement ch
 
 ```typescript
 // .map() - Transformation élément par élément
-const names = users.map(u => u.name);
+const names = users.map((u) => u.name);
 // → Nœud: { type: "computation", operation: "map", code: "u => u.name" }
 
 // .filter() - Filtrage conditionnel
-const active = users.filter(u => u.status === 'active');
+const active = users.filter((u) => u.status === "active");
 // → Nœud: { type: "computation", operation: "filter", code: "u => u.status === 'active'" }
 
 // .reduce() - Agrégation
@@ -32,7 +33,7 @@ const total = prices.reduce((sum, p) => sum + p, 0);
 // → Nœud: { type: "computation", operation: "reduce", code: "(sum, p) => sum + p", initialValue: 0 }
 
 // .flatMap() - Map + flatten
-const allTags = posts.flatMap(p => p.tags);
+const allTags = posts.flatMap((p) => p.tags);
 // → Nœud: { type: "computation", operation: "flatMap", code: "p => p.tags" }
 ```
 
@@ -40,23 +41,23 @@ const allTags = posts.flatMap(p => p.tags);
 
 ```typescript
 // .find() - Premier élément matching
-const admin = users.find(u => u.role === 'admin');
+const admin = users.find((u) => u.role === "admin");
 // → Nœud: { type: "computation", operation: "find", code: "u => u.role === 'admin'" }
 
 // .findIndex() - Index du premier matching
-const idx = users.findIndex(u => u.id === targetId);
+const idx = users.findIndex((u) => u.id === targetId);
 // → Nœud: { type: "computation", operation: "findIndex", code: "u => u.id === targetId" }
 
 // .some() - Au moins un matching
-const hasAdmin = users.some(u => u.role === 'admin');
+const hasAdmin = users.some((u) => u.role === "admin");
 // → Nœud: { type: "computation", operation: "some", code: "u => u.role === 'admin'" }
 
 // .every() - Tous matching
-const allActive = users.every(u => u.active);
+const allActive = users.every((u) => u.active);
 // → Nœud: { type: "computation", operation: "every", code: "u => u.active" }
 
 // .includes() - Contient valeur
-const hasJohn = names.includes('John');
+const hasJohn = names.includes("John");
 // → Nœud: { type: "computation", operation: "includes", value: 'John' }
 ```
 
@@ -89,7 +90,7 @@ const all = arr1.concat(arr2);
 // → Nœud: { type: "computation", operation: "concat", arrays: ["arr2"] }
 
 // .join() - Array → String
-const csv = items.join(',');
+const csv = items.join(",");
 // → Nœud: { type: "computation", operation: "join", separator: ',' }
 ```
 
@@ -98,10 +99,10 @@ const csv = items.join(',');
 ```typescript
 // Pipeline ETL typique
 const result = data
-  .filter(x => x.active)           // Task 1
-  .map(x => x.name.toUpperCase())  // Task 2
-  .sort()                          // Task 3
-  .slice(0, 10);                   // Task 4
+  .filter((x) => x.active) // Task 1
+  .map((x) => x.name.toUpperCase()) // Task 2
+  .sort() // Task 3
+  .slice(0, 10); // Task 4
 
 // DAG généré :
 // task_1 (filter) → task_2 (map) → task_3 (sort) → task_4 (slice)
@@ -114,11 +115,11 @@ Très fréquent pour manipulation de texte :
 
 ```typescript
 // .split() - String → Array
-const words = text.split(' ');
+const words = text.split(" ");
 // → Nœud: { type: "computation", operation: "split", separator: ' ' }
 
 // .replace() / .replaceAll() - Remplacement
-const cleaned = text.replace(/\s+/g, ' ');
+const cleaned = text.replace(/\s+/g, " ");
 // → Nœud: { type: "computation", operation: "replace", pattern: "/\\s+/g", replacement: ' ' }
 
 // .trim() / .trimStart() / .trimEnd()
@@ -240,7 +241,7 @@ for (const key in obj) {
 // → fork avec Object.keys() + tasks par key
 
 // .forEach() (side effects)
-users.forEach(u => console.log(u.name));
+users.forEach((u) => console.log(u.name));
 // → map (si pure) ou tasks séquentielles (si side effects)
 
 // while (complexe - dépend de condition dynamique)
@@ -278,12 +279,14 @@ const port = config.port ?? 3000;
 ### **Phase 1 : Array Operations (Quick Win)**
 
 Priorité immédiate car :
+
 - ✅ Très fréquent dans code agent
 - ✅ Facilement chainable (DAG naturel)
 - ✅ Parsing simple (CallExpression sur MemberExpression)
 - ✅ Sérialisation simple (lambdas pures)
 
 **Méthodes à détecter :**
+
 - `.filter()`, `.map()`, `.reduce()`, `.flatMap()`
 - `.find()`, `.findIndex()`, `.some()`, `.every()`
 - `.sort()`, `.reverse()`
@@ -413,19 +416,19 @@ private handleCallExpression(n: Record<string, unknown>, ...): boolean {
 ```typescript
 // Code agent :
 const users = await mcp.db.query({ sql: "SELECT * FROM users" });
-const active = users.filter(u => u.active);
-const names = active.map(u => u.name.toUpperCase());
+const active = users.filter((u) => u.active);
+const names = active.map((u) => u.name.toUpperCase());
 const sorted = names.sort();
 const top10 = sorted.slice(0, 10);
-const csv = top10.join(',');
+const csv = top10.join(",");
 
 // DAG auto-généré (6 tasks) :
-task_1: mcp.db.query
-task_2: filter
-task_3: map
-task_4: sort
-task_5: slice
-task_6: join
+task_1: mcp.db.query;
+task_2: filter;
+task_3: map;
+task_4: sort;
+task_5: slice;
+task_6: join;
 
 // Chaque task peut :
 // - Avoir son checkpoint
@@ -453,6 +456,7 @@ task_1: mcp.db.query
 ### **3. Pattern Learning pour Capabilities**
 
 Le GraphRAG peut apprendre :
+
 - **"ETL pipeline pattern"** : query → filter → map → sort
 - **"Data validation pattern"** : .every() checks
 - **"Aggregation pattern"** : .reduce() + Math operations
@@ -463,6 +467,7 @@ Ces patterns deviennent des **capabilities réutilisables**.
 ### **4. HIL Intelligent**
 
 Validation humaine seulement sur les opérations critiques :
+
 - ✅ `.filter()` sur données sensibles
 - ✅ `.map()` qui transforme données personnelles
 - ❌ `.join()` ou `.slice()` (pas sensible)
@@ -477,6 +482,7 @@ Validation humaine seulement sur les opérations critiques :
 ## 🎯 Recommandation Immédiate
 
 **Commencer par Array Operations (Phase 1)** :
+
 - Impact immédiat sur 80% du code agent
 - Parsing simple
 - Bénéfices clairs (granularité, parallélisme, learning)

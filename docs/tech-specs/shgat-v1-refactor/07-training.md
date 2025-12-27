@@ -1,7 +1,7 @@
 # 07 - Training & Gradient Computation
 
-**Parent**: [00-overview.md](./00-overview.md)
-**Depends on**: [04-message-passing.md](./04-message-passing.md), [05-parameters.md](./05-parameters.md)
+**Parent**: [00-overview.md](./00-overview.md) **Depends on**:
+[04-message-passing.md](./04-message-passing.md), [05-parameters.md](./05-parameters.md)
 
 ---
 
@@ -9,14 +9,14 @@
 
 ```typescript
 interface ForwardCache {
-  H: number[][];                           // Final tool embeddings
-  E: Map<number, number[][]>;             // Cap embeddings per level
+  H: number[][]; // Final tool embeddings
+  E: Map<number, number[][]>; // Cap embeddings per level
   attentionUpward: Map<number, number[][][]>;
   attentionDownward: Map<number, number[][][]>;
 
   // Intermediate activations for gradient computation
   intermediateUpward: Map<number, {
-    childProj: number[][][];   // [cap][head][dim]
+    childProj: number[][][]; // [cap][head][dim]
     parentProj: number[][][];
     scores: number[][][];
   }>;
@@ -206,7 +206,8 @@ applyLevelGradients(learningRate: number): void {
 
 ## Deferred Details
 
-Full implementation of backward pass through each phase is deferred to implementation phase. The structure above provides the framework.
+Full implementation of backward pass through each phase is deferred to implementation phase. The
+structure above provides the framework.
 
 ---
 

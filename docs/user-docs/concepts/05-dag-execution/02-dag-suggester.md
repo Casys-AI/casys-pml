@@ -4,19 +4,25 @@
 
 ## En bref
 
-Le DAG Suggester est comme un GPS intelligent pour vos workflows : vous lui donnez votre destination ("je veux lire un fichier et creer une issue GitHub"), et il construit automatiquement l'itineraire complet avec toutes les etapes necessaires. Il utilise l'apprentissage de PML pour savoir quels outils utiliser, dans quel ordre, et comment les connecter.
+Le DAG Suggester est comme un GPS intelligent pour vos workflows : vous lui donnez votre destination
+("je veux lire un fichier et creer une issue GitHub"), et il construit automatiquement l'itineraire
+complet avec toutes les etapes necessaires. Il utilise l'apprentissage de PML pour savoir quels
+outils utiliser, dans quel ordre, et comment les connecter.
 
 **Points cles :**
+
 - Transformation automatique d'intentions en workflows
 - Utilise la connaissance apprise des dependances entre outils
 - Suggere l'ordre optimal des taches
 - Gere les ambiguites avec le contexte
 
-**Analogie :** GPS intelligent - Vous donnez la destination, il calcule le meilleur itineraire en tenant compte du traffic, des routes et de votre historique de trajets.
+**Analogie :** GPS intelligent - Vous donnez la destination, il calcule le meilleur itineraire en
+tenant compte du traffic, des routes et de votre historique de trajets.
 
 ## How it Works
 
-The **DAG Suggester** transforms natural language intent into executable workflows. It uses PML's learned knowledge to build DAGs automatically.
+The **DAG Suggester** transforms natural language intent into executable workflows. It uses PML's
+learned knowledge to build DAGs automatically.
 
 ![DAG Replanning](excalidraw:src/web/assets/diagrams/dag-replanning.excalidraw)
 
@@ -99,12 +105,12 @@ The suggester produces a complete DAG ready for execution:
 
 ### What Gets Determined
 
-| Aspect | How It's Determined |
-|--------|---------------------|
+| Aspect          | How It's Determined                   |
+| --------------- | ------------------------------------- |
 | **Which tools** | Semantic search + capability matching |
-| **Tool order** | Learned dependencies from graph |
-| **Parameters** | Intent parsing + schema inference |
-| **Conditions** | Natural language conditionals parsed |
+| **Tool order**  | Learned dependencies from graph       |
+| **Parameters**  | Intent parsing + schema inference     |
+| **Conditions**  | Natural language conditionals parsed  |
 
 ## Using Learned Dependencies
 
@@ -174,6 +180,7 @@ DAG SUGGESTER :
 ```
 
 **Apprentissage continu :**
+
 ```
 Usage 1:   "Build and deploy" → build → deploy
 Usage 10:  "Build and deploy" → test → build → deploy

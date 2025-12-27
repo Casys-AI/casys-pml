@@ -4,22 +4,31 @@
 
 ## En bref
 
-Le sandbox est un environnement d'execution isole qui protege votre systeme contre du code potentiellement dangereux. Pensez-y comme une **aire de jeux securisee pour enfants** : les enfants (le code) peuvent jouer librement a l'interieur, mais ils ne peuvent pas sortir de l'espace delimite ni acceder aux zones dangereuses. Les parents (PML) controlent precisement quels equipements (outils MCP) sont accessibles et surveillent toutes les activites.
+Le sandbox est un environnement d'execution isole qui protege votre systeme contre du code
+potentiellement dangereux. Pensez-y comme une **aire de jeux securisee pour enfants** : les enfants
+(le code) peuvent jouer librement a l'interieur, mais ils ne peuvent pas sortir de l'espace delimite
+ni acceder aux zones dangereuses. Les parents (PML) controlent precisement quels equipements (outils
+MCP) sont accessibles et surveillent toutes les activites.
 
 ### Pourquoi c'est important
 
-La securite est critique dans PML car le systeme execute du code genere dynamiquement. Sans sandbox :
+La securite est critique dans PML car le systeme execute du code genere dynamiquement. Sans sandbox
+:
 
-- **Risque de fuite de donnees** : du code malveillant pourrait lire vos fichiers sensibles (`/etc/passwd`, cles SSH, tokens)
-- **Compromission du systeme** : du code pourrait modifier des fichiers systeme critiques ou executer des commandes dangereuses
+- **Risque de fuite de donnees** : du code malveillant pourrait lire vos fichiers sensibles
+  (`/etc/passwd`, cles SSH, tokens)
+- **Compromission du systeme** : du code pourrait modifier des fichiers systeme critiques ou
+  executer des commandes dangereuses
 - **Attaques reseau** : du code pourrait envoyer vos donnees vers des serveurs externes
 - **Epuisement des ressources** : du code mal ecrit pourrait consommer toute la memoire ou le CPU
 
-Le sandbox transforme ces risques en garanties : meme si du code tente une action malveillante, il est bloque par les multiples couches de protection.
+Le sandbox transforme ces risques en garanties : meme si du code tente une action malveillante, il
+est bloque par les multiples couches de protection.
 
 ## What is the Sandbox?
 
-PML executes code in a **sandboxed environment**—an isolated container that prevents untrusted code from accessing sensitive resources or affecting the host system.
+PML executes code in a **sandboxed environment**—an isolated container that prevents untrusted code
+from accessing sensitive resources or affecting the host system.
 
 ![Sandbox Architecture](excalidraw:src/web/assets/diagrams/sandbox-architecture.excalidraw)
 
@@ -27,13 +36,13 @@ PML executes code in a **sandboxed environment**—an isolated container that pr
 
 PML uses **Deno** as its sandbox runtime because of its security-first design:
 
-| Feature | Benefit |
-|---------|---------|
-| **Secure by default** | No permissions unless explicitly granted |
-| **TypeScript native** | No build step needed |
-| **Modern APIs** | fetch, Web Workers, etc. built-in |
-| **Fine-grained permissions** | Control network, fs, env separately |
-| **Isolated workers** | Each execution is independent |
+| Feature                      | Benefit                                  |
+| ---------------------------- | ---------------------------------------- |
+| **Secure by default**        | No permissions unless explicitly granted |
+| **TypeScript native**        | No build step needed                     |
+| **Modern APIs**              | fetch, Web Workers, etc. built-in        |
+| **Fine-grained permissions** | Control network, fs, env separately      |
+| **Isolated workers**         | Each execution is independent            |
 
 ## Isolation
 
@@ -56,13 +65,13 @@ Each code execution runs in complete isolation:
 
 ### What's Isolated
 
-| Resource | Isolation |
-|----------|-----------|
-| **Memory** | Each execution has its own heap |
-| **Variables** | No globals persist between runs |
-| **File handles** | Cannot access files from previous runs |
-| **Network connections** | Each run starts fresh |
-| **Environment variables** | Controlled per-execution |
+| Resource                  | Isolation                              |
+| ------------------------- | -------------------------------------- |
+| **Memory**                | Each execution has its own heap        |
+| **Variables**             | No globals persist between runs        |
+| **File handles**          | Cannot access files from previous runs |
+| **Network connections**   | Each run starts fresh                  |
+| **Environment variables** | Controlled per-execution               |
 
 ## Permissions
 
@@ -101,13 +110,13 @@ Permissions are explicitly granted per execution:
 
 ### Permission Types
 
-| Permission | Flag | Scope |
-|------------|------|-------|
-| **File Read** | `--allow-read` | Specific paths |
-| **File Write** | `--allow-write` | Specific paths |
-| **Network** | `--allow-net` | Specific hosts/ports |
-| **Environment** | `--allow-env` | Specific variables |
-| **Subprocess** | `--allow-run` | Specific commands |
+| Permission      | Flag            | Scope                |
+| --------------- | --------------- | -------------------- |
+| **File Read**   | `--allow-read`  | Specific paths       |
+| **File Write**  | `--allow-write` | Specific paths       |
+| **Network**     | `--allow-net`   | Specific hosts/ports |
+| **Environment** | `--allow-env`   | Specific variables   |
+| **Subprocess**  | `--allow-run`   | Specific commands    |
 
 ## Security Model
 
@@ -211,13 +220,13 @@ MCP tools have their own permissions and audit logging
 
 The sandbox handles errors gracefully:
 
-| Error Type | Handling |
-|------------|----------|
-| **Permission denied** | Clear error message, no retry |
-| **Timeout** | Execution killed, partial results returned |
-| **Out of memory** | Worker terminated, error logged |
-| **Code error** | Exception captured, stack trace returned |
-| **MCP tool error** | Error propagated to code for handling |
+| Error Type            | Handling                                   |
+| --------------------- | ------------------------------------------ |
+| **Permission denied** | Clear error message, no retry              |
+| **Timeout**           | Execution killed, partial results returned |
+| **Out of memory**     | Worker terminated, error logged            |
+| **Code error**        | Exception captured, stack trace returned   |
+| **MCP tool error**    | Error propagated to code for handling      |
 
 ## Next
 

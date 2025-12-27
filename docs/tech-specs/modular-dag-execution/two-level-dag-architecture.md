@@ -1,6 +1,7 @@
 # Two-Level DAG Architecture : Logique vs Physique
 
-Proposition d'implémentation pour tracker toutes les opérations (learning complet) tout en maintenant la performance (groupement intelligent).
+Proposition d'implémentation pour tracker toutes les opérations (learning complet) tout en
+maintenant la performance (groupement intelligent).
 
 ## 🎯 **Objectif**
 
@@ -45,7 +46,7 @@ SHGAT Learning (pattern complet)
 
 ```typescript
 const users = await mcp.db.query({ sql: "SELECT * FROM users" });
-const active = users.filter(u => u.active);
+const active = users.filter((u) => u.active);
 const totalAge = active.reduce((s, u) => s + u.age, 0);
 const count = active.length;
 const avg = totalAge / count;
@@ -61,44 +62,44 @@ const rounded = Math.round(avg);
       id: "task_n1",
       type: "mcp_tool",
       tool: "db:query",
-      dependsOn: []
+      dependsOn: [],
     },
     {
       id: "task_c1",
       type: "code_execution",
       tool: "code:filter",
       code: "return deps.task_n1.output.filter(u => u.active);",
-      dependsOn: ["task_n1"]
+      dependsOn: ["task_n1"],
     },
     {
       id: "task_c2",
       type: "code_execution",
       tool: "code:reduce",
       code: "return deps.task_c1.output.reduce((s, u) => s + u.age, 0);",
-      dependsOn: ["task_c1"]
+      dependsOn: ["task_c1"],
     },
     {
       id: "task_c3",
       type: "code_execution",
       tool: "code:get_length",
       code: "return deps.task_c1.output.length;",
-      dependsOn: ["task_c1"]
+      dependsOn: ["task_c1"],
     },
     {
       id: "task_c4",
       type: "code_execution",
       tool: "code:divide",
       code: "return deps.task_c2.output / deps.task_c3.output;",
-      dependsOn: ["task_c2", "task_c3"]
+      dependsOn: ["task_c2", "task_c3"],
     },
     {
       id: "task_c5",
       type: "code_execution",
       tool: "code:Math.round",
       code: "return Math.round(deps.task_c4.output);",
-      dependsOn: ["task_c4"]
-    }
-  ]
+      dependsOn: ["task_c4"],
+    },
+  ];
 }
 ```
 
@@ -219,7 +220,7 @@ interface FusionGroup {
  */
 function canFuseTasks(tasks: Task[]): { canFuse: boolean; reason?: string } {
   // Règle 1 : Toutes les tasks doivent être code_execution
-  if (!tasks.every(t => t.type === "code_execution")) {
+  if (!tasks.every((t) => t.type === "code_execution")) {
     return { canFuse: false, reason: "Contains non-code tasks" };
   }
 
@@ -231,7 +232,7 @@ function canFuseTasks(tasks: Task[]): { canFuse: boolean; reason?: string } {
   }
 
   // Règle 3 : Permissions identiques
-  const permSets = tasks.map(t => t.sandboxConfig?.permissionSet ?? "minimal");
+  const permSets = tasks.map((t) => t.sandboxConfig?.permissionSet ?? "minimal");
   if (new Set(permSets).size > 1) {
     return { canFuse: false, reason: "Different permission sets" };
   }
@@ -252,7 +253,7 @@ function formsSimplePattern(tasks: Task[]): boolean {
   // Pattern 2 : Petit fork-join (A → B,C → D)
   // Pattern 3 : Parallèle pur (A,B,C avec même parent)
 
-  const taskIds = new Set(tasks.map(t => t.id));
+  const taskIds = new Set(tasks.map((t) => t.id));
 
   // Toutes les dépendances doivent pointer vers des tasks du groupe
   for (const task of tasks) {
@@ -281,14 +282,14 @@ function optimizeDAG(logicalDAG: DAG): OptimizedDAG {
 
   for (const layer of layers) {
     // Séparer MCP tools vs code tasks
-    const mcpTasks = layer.filter(t => t.type === "mcp_tool");
-    const codeTasks = layer.filter(t => t.type === "code_execution");
+    const mcpTasks = layer.filter((t) => t.type === "mcp_tool");
+    const codeTasks = layer.filter((t) => t.type === "code_execution");
 
     // MCP tasks : Ne jamais fusionner (side effects)
     for (const mcpTask of mcpTasks) {
       physicalLayers.push({
         tasks: [mcpTask],
-        fusionApplied: false
+        fusionApplied: false,
       });
     }
 
@@ -303,13 +304,13 @@ function optimizeDAG(logicalDAG: DAG): OptimizedDAG {
           physicalLayers.push({
             tasks: [fusedTask],
             fusionApplied: true,
-            logicalTasks: group.tasks.map(t => t.id)
+            logicalTasks: group.tasks.map((t) => t.id),
           });
         } else {
           // Garder séparées
           physicalLayers.push({
             tasks: group.tasks,
-            fusionApplied: false
+            fusionApplied: false,
           });
         }
       }
@@ -317,7 +318,7 @@ function optimizeDAG(logicalDAG: DAG): OptimizedDAG {
       // Layer avec une seule task
       physicalLayers.push({
         tasks: codeTasks,
-        fusionApplied: false
+        fusionApplied: false,
       });
     }
   }
@@ -325,7 +326,7 @@ function optimizeDAG(logicalDAG: DAG): OptimizedDAG {
   return {
     physicalLayers,
     logicalDAG,
-    mapping: buildMapping(logicalDAG, physicalLayers)
+    mapping: buildMapping(logicalDAG, physicalLayers),
   };
 }
 ```
@@ -347,7 +348,7 @@ function fuseTasks(tasks: Task[]): Task {
   const externalDeps = new Set<string>();
   for (const task of tasks) {
     for (const dep of task.dependsOn) {
-      if (!tasks.find(t => t.id === dep)) {
+      if (!tasks.find((t) => t.id === dep)) {
         externalDeps.add(dep);
       }
     }
@@ -356,15 +357,15 @@ function fuseTasks(tasks: Task[]): Task {
   return {
     id: `fused_${tasks[0].id}`,
     type: "code_execution",
-    tool: "code:computation",  // Pseudo-tool générique
+    tool: "code:computation", // Pseudo-tool générique
     code: fusedCode,
     arguments: {},
     dependsOn: Array.from(externalDeps),
     sandboxConfig: tasks[0].sandboxConfig,
     metadata: {
-      fusedFrom: tasks.map(t => t.id),
-      logicalTools: tasks.map(t => t.tool)
-    }
+      fusedFrom: tasks.map((t) => t.id),
+      logicalTools: tasks.map((t) => t.tool),
+    },
   };
 }
 
@@ -396,7 +397,7 @@ function generateFusedCode(tasks: Task[]): string {
   const lastVar = `result_${tasks.length - 1}`;
   codeLines.push(`return ${lastVar};`);
 
-  return codeLines.join('\n');
+  return codeLines.join("\n");
 }
 
 // Exemple de code généré :
@@ -461,7 +462,7 @@ for (let i = 0; i < 2; i++) {
 // - Pas de branches
 // - Même permission set
 
-task_fused = { code: "A; B; C;" }
+task_fused = { code: "A; B; C;" };
 ```
 
 ### **Stratégie 2 : Fusion Fork-Join**
@@ -484,8 +485,8 @@ task_fused = {
     ]);
     const d = D(b, c);
     return d;
-  `
-}
+  `,
+};
 ```
 
 ### **Stratégie 3 : Fusion Partielle**
@@ -495,9 +496,9 @@ task_fused = {
 // A → B → C → D → E → F → G → H
 
 // Fusionner en 3 blocs :
-task_1 = { code: "A; B; C;" }  // Bloc 1
-task_2 = { code: "D; E; F;" }  // Bloc 2
-task_3 = { code: "G; H;" }     // Bloc 3
+task_1 = { code: "A; B; C;" }; // Bloc 1
+task_2 = { code: "D; E; F;" }; // Bloc 2
+task_3 = { code: "G; H;" }; // Bloc 3
 
 // Limite : Max 5 opérations par bloc
 ```
@@ -510,9 +511,11 @@ task_3 = { code: "G; H;" }     // Bloc 3
 // - Tasks avec permissionSet != "minimal"
 // - Tasks avec intent (learning requis)
 
-if (task.type === "mcp_tool" ||
-    task.sandboxConfig?.permissionSet !== "minimal" ||
-    task.intent) {
+if (
+  task.type === "mcp_tool" ||
+  task.sandboxConfig?.permissionSet !== "minimal" ||
+  task.intent
+) {
   // Garder séparée
   return { canFuse: false };
 }
@@ -528,7 +531,7 @@ if (task.type === "mcp_tool" ||
  */
 function generateLogicalTrace(
   optimizedDAG: OptimizedDAG,
-  physicalResults: ExecutionResults
+  physicalResults: ExecutionResults,
 ): Trace {
   const executedPath: string[] = [];
   const taskResults: TaskResult[] = [];
@@ -550,7 +553,7 @@ function generateLogicalTrace(
             tool: logicalTools[i],
             output: extractIntermediateResult(result, i),
             success: result.success,
-            durationMs: result.durationMs / logicalTaskIds.length
+            durationMs: result.durationMs / logicalTaskIds.length,
           });
         }
       } else {
@@ -562,7 +565,7 @@ function generateLogicalTrace(
           tool: physicalTask.tool,
           output: result.output,
           success: result.success,
-          durationMs: result.durationMs
+          durationMs: result.durationMs,
         });
       }
     }
@@ -572,8 +575,8 @@ function generateLogicalTrace(
     executedPath,
     taskResults,
     toolsUsed: Array.from(new Set(executedPath)),
-    success: taskResults.every(r => r.success),
-    totalDurationMs: physicalResults.totalTime
+    success: taskResults.every((r) => r.success),
+    totalDurationMs: physicalResults.totalTime,
   };
 }
 ```
@@ -582,14 +585,14 @@ function generateLogicalTrace(
 
 ## ✅ **Bénéfices de cette Architecture**
 
-| Aspect | Avant | Après |
-|--------|-------|-------|
-| **Learning SHGAT** | ❌ Incomplet (manque opérateurs) | ✅ Complet (toutes opérations) |
-| **Chemins suggérés** | ❌ Partiels | ✅ Complets et réutilisables |
-| **Layers** | ⚠️ N layers (N = nb opérations) | ✅ ~2-3 layers (fusionnées) |
-| **HIL validations** | ⚠️ Potentiellement N validations | ✅ ~2-3 validations |
-| **Overhead** | ✅ Minimal mais incomplet | ✅ Optimisé et complet |
-| **Parallélisation** | ⚠️ Limitée | ✅ Automatique (fork-join) |
+| Aspect               | Avant                            | Après                          |
+| -------------------- | -------------------------------- | ------------------------------ |
+| **Learning SHGAT**   | ❌ Incomplet (manque opérateurs) | ✅ Complet (toutes opérations) |
+| **Chemins suggérés** | ❌ Partiels                      | ✅ Complets et réutilisables   |
+| **Layers**           | ⚠️ N layers (N = nb opérations)  | ✅ ~2-3 layers (fusionnées)    |
+| **HIL validations**  | ⚠️ Potentiellement N validations | ✅ ~2-3 validations            |
+| **Overhead**         | ✅ Minimal mais incomplet        | ✅ Optimisé et complet         |
+| **Parallélisation**  | ⚠️ Limitée                       | ✅ Automatique (fork-join)     |
 
 ---
 
@@ -653,7 +656,7 @@ function generateLogicalTrace(
 ```typescript
 // Code agent :
 const users = await mcp.db.query({ sql: "SELECT * FROM users" });
-const active = users.filter(u => u.age > 18 && u.verified);
+const active = users.filter((u) => u.age > 18 && u.verified);
 const avgAge = active.reduce((s, u) => s + u.age, 0) / active.length;
 const avgSalary = active.reduce((s, u) => s + u.salary, 0) / active.length;
 const stats = { avgAge: Math.round(avgAge), avgSalary: Math.round(avgSalary) };
@@ -687,8 +690,8 @@ executedPath: [
   "code:get_length",
   "code:divide",
   "code:Math.round",
-  "code:object_literal"
-]
+  "code:object_literal",
+];
 
 // SHGAT apprend le pattern COMPLET
 // → Réutilisable pour "calculate average age and salary of active users"
@@ -777,7 +780,7 @@ export interface TraceTaskResult {
 // Build task results for trace (using physical tasks with logical detail)
 // Phase 2a: Include fusion metadata for UI display
 const taskResults: TraceTaskResult[] = physicalResults.results.map((physicalResult) => {
-  const physicalTask = optimizedDAG.tasks.find(t => t.id === physicalResult.taskId);
+  const physicalTask = optimizedDAG.tasks.find((t) => t.id === physicalResult.taskId);
   const logicalTaskIds = optimizedDAG.physicalToLogical.get(physicalResult.taskId) || [];
   const fused = logicalTaskIds.length > 1;
 
@@ -785,11 +788,11 @@ const taskResults: TraceTaskResult[] = physicalResults.results.map((physicalResu
   if (fused) {
     // Extraction des opérations logiques pour les tâches fusionnées
     const estimatedDuration = (physicalResult.executionTime || 0) / logicalTaskIds.length;
-    logicalOps = logicalTaskIds.map(logicalId => {
-      const logicalTask = optimizedDAG.logicalDAG.tasks.find(t => t.id === logicalId);
+    logicalOps = logicalTaskIds.map((logicalId) => {
+      const logicalTask = optimizedDAG.logicalDAG.tasks.find((t) => t.id === logicalId);
       return {
         toolId: logicalTask?.tool || "unknown",
-        durationMs: estimatedDuration
+        durationMs: estimatedDuration,
       };
     });
   }
@@ -804,15 +807,15 @@ const taskResults: TraceTaskResult[] = physicalResults.results.map((physicalResu
     layerIndex: physicalResult.layerIndex,
     // Phase 2a: Métadonnées de fusion
     isFused: fused,
-    logicalOperations: logicalOps
+    logicalOperations: logicalOps,
   };
 });
 ```
 
 #### **3. Mapping snake_case ↔ camelCase** (`src/capabilities/execution-trace-store.ts`)
 
-**TypeScript interne** : `camelCase` (isFused, logicalOperations)
-**PostgreSQL/API** : `snake_case` (is_fused, logical_operations)
+**TypeScript interne** : `camelCase` (isFused, logicalOperations) **PostgreSQL/API** : `snake_case`
+(is_fused, logical_operations)
 
 ```typescript
 // SAVE: camelCase → snake_case
@@ -826,10 +829,10 @@ const sanitizedResults = trace.taskResults.map((r) => ({
   layer_index: r.layerIndex,
   // Phase 2a: Fusion metadata
   is_fused: r.isFused,
-  logical_operations: r.logicalOperations?.map(op => ({
+  logical_operations: r.logicalOperations?.map((op) => ({
     tool_id: op.toolId,
-    duration_ms: op.durationMs
-  }))
+    duration_ms: op.durationMs,
+  })),
 }));
 
 // LOAD: snake_case → camelCase
@@ -845,8 +848,8 @@ taskResults = (rawResults as any[]).map((r: any) => ({
   isFused: r.is_fused,
   logicalOperations: r.logical_operations?.map((op: any) => ({
     toolId: op.tool_id,
-    durationMs: op.duration_ms
-  }))
+    durationMs: op.duration_ms,
+  })),
 }));
 ```
 
@@ -938,37 +941,39 @@ export default function FusedTaskCard({
 #### **2. Intégration dans TraceTimeline** (`src/web/components/ui/molecules/TraceTimeline.tsx`)
 
 ```typescript
-{tasks.map((task, taskIdx) => {
-  const [server = "unknown", ...nameParts] = task.tool.split(":");
-  const toolName = nameParts.join(":") || task.tool;
-  const color = getServerColor?.(server) ||
-    DEFAULT_COLORS[server.charCodeAt(0) % DEFAULT_COLORS.length];
+{
+  tasks.map((task, taskIdx) => {
+    const [server = "unknown", ...nameParts] = task.tool.split(":");
+    const toolName = nameParts.join(":") || task.tool;
+    const color = getServerColor?.(server) ||
+      DEFAULT_COLORS[server.charCodeAt(0) % DEFAULT_COLORS.length];
 
-  // Phase 2a: Render fused tasks with expandable logical operations
-  if (task.isFused && task.logicalOperations) {
+    // Phase 2a: Render fused tasks with expandable logical operations
+    if (task.isFused && task.logicalOperations) {
+      return (
+        <FusedTaskCard
+          key={`${layerIdx}-${taskIdx}`}
+          logicalOps={task.logicalOperations}
+          durationMs={task.durationMs}
+          success={task.success}
+          color={color}
+        />
+      );
+    }
+
+    // Regular task card
     return (
-      <FusedTaskCard
+      <TaskCard
         key={`${layerIdx}-${taskIdx}`}
-        logicalOps={task.logicalOperations}
+        toolName={toolName}
+        server={server}
         durationMs={task.durationMs}
         success={task.success}
         color={color}
       />
     );
-  }
-
-  // Regular task card
-  return (
-    <TaskCard
-      key={`${layerIdx}-${taskIdx}`}
-      toolName={toolName}
-      server={server}
-      durationMs={task.durationMs}
-      success={task.success}
-      color={color}
-    />
-  );
-})}
+  });
+}
 ```
 
 ---
@@ -1000,27 +1005,29 @@ export default function FusedTaskCard({
 
 ### **Bénéfices**
 
-| Aspect | Avant | Après |
-|--------|-------|-------|
-| **Visibilité** | ❌ Tâches fusionnées opaques | ✅ Détail des opérations atomiques |
-| **Debug** | ❌ Impossible de voir ce qui a été fusionné | ✅ Vue hiérarchique claire |
-| **Performance** | ✅ DAG physique compact | ✅ Maintenu (affichage optionnel) |
-| **Learning** | ✅ Traces logiques pour SHGAT | ✅ + Visibilité utilisateur |
-| **UX** | ⚠️ Confusion sur fusion | ✅ Transparence totale |
+| Aspect          | Avant                                       | Après                              |
+| --------------- | ------------------------------------------- | ---------------------------------- |
+| **Visibilité**  | ❌ Tâches fusionnées opaques                | ✅ Détail des opérations atomiques |
+| **Debug**       | ❌ Impossible de voir ce qui a été fusionné | ✅ Vue hiérarchique claire         |
+| **Performance** | ✅ DAG physique compact                     | ✅ Maintenu (affichage optionnel)  |
+| **Learning**    | ✅ Traces logiques pour SHGAT               | ✅ + Visibilité utilisateur        |
+| **UX**          | ⚠️ Confusion sur fusion                     | ✅ Transparence totale             |
 
 ---
 
 ### **Estimation des Durées**
 
-**Durée physique :** Mesurée réellement lors de l'exécution
-**Durée logique :** Estimée par `durationPhysique / nbOpérations`
+**Durée physique :** Mesurée réellement lors de l'exécution **Durée logique :** Estimée par
+`durationPhysique / nbOpérations`
 
 **Exemple :**
+
 - Tâche fusionnée : 45ms (mesuré)
 - 5 opérations logiques
 - Durée estimée par opération : 45 / 5 = 9ms
 
-**Note :** C'est une estimation (les opérations peuvent avoir des coûts différents), mais suffisante pour la visualisation.
+**Note :** C'est une estimation (les opérations peuvent avoir des coûts différents), mais suffisante
+pour la visualisation.
 
 ---
 
@@ -1084,10 +1091,10 @@ const code = `
       isFused: true,
       logicalOperations: [
         { toolId: "code:map", durationMs: 5 },
-        { toolId: "code:reduce", durationMs: 5 }
-      ]
-    }
-  ]
+        { toolId: "code:reduce", durationMs: 5 },
+      ],
+    },
+  ];
 }
 
 // UI attendue :

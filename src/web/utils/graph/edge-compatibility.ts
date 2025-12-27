@@ -236,7 +236,7 @@ export function edgeCompatibility(p: Edge, q: Edge): CompatibilityResult {
 export function isCompatible(
   p: Edge,
   q: Edge,
-  threshold: number = 0.05
+  threshold: number = 0.05,
 ): boolean {
   // Quick checks first (cheap to compute)
   const angle = angleCompatibility(p, q);

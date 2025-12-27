@@ -236,7 +236,7 @@ export function createRadialLayout(
           data: emptyCap,
           parent: pseudoRoot,
           // d3.path() calls ancestors() on both source and target nodes
-          ancestors: function() {
+          ancestors: function () {
             return [this, pseudoRoot];
           },
           path: (target: any) => {
@@ -249,7 +249,9 @@ export function createRadialLayout(
           },
         };
         // Also add ancestors to pseudoRoot for completeness
-        (pseudoRoot as any).ancestors = function() { return [this]; };
+        (pseudoRoot as any).ancestors = function () {
+          return [this];
+        };
 
         const positioned: PositionedNode = {
           id: emptyCap.id,

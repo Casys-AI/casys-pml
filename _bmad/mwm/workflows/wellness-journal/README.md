@@ -27,5 +27,5 @@ WJ (from Wellness Companion agent)
 
 ## Notes
 
-This workflow will be implemented using the create-workflow workflow.
-Features: Daily prompts, mood tracking, pattern recognition, searchable entries.
+This workflow will be implemented using the create-workflow workflow. Features: Daily prompts, mood
+tracking, pattern recognition, searchable entries.

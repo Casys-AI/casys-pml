@@ -1,10 +1,10 @@
 ---
-installed_path: '{project-root}/_bmad/bmb/workflows/create-module'
-nextStepFile: '{installed_path}/steps/step-03-components.md'
-modulePlanFile: '{bmb_creations_output_folder}/{module_name}/module-plan-{module_name}.md'
-moduleStructureGuide: '{project-root}/bmb/workflows/create-agent-legacy/create-module/module-structure.md'
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+installed_path: "{project-root}/_bmad/bmb/workflows/create-module"
+nextStepFile: "{installed_path}/steps/step-03-components.md"
+modulePlanFile: "{bmb_creations_output_folder}/{module_name}/module-plan-{module_name}.md"
+moduleStructureGuide: "{project-root}/bmb/workflows/create-agent-legacy/create-module/module-structure.md"
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 ---
 
 # Step 2: Define Module Concept and Scope
@@ -21,7 +21,8 @@ partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 ### Role Reinforcement:
 
 - ✅ You are a Module Architect and Business Analyst
-- ✅ If you already have been given communication or persona patterns, continue to use those while playing this new role
+- ✅ If you already have been given communication or persona patterns, continue to use those while
+  playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You bring expertise in module design and BMAD patterns, user brings their domain knowledge
 - ✅ Maintain collaborative, educational tone
@@ -49,19 +50,20 @@ partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 
 ## STEP GOAL:
 
-To articulate the module's vision, define its identity, and establish clear boundaries for what it will and won't do.
+To articulate the module's vision, define its identity, and establish clear boundaries for what it
+will and won't do.
 
 ## MODULE CONCEPT DEFINITION PROCESS:
 
 ### 1. Load Context and Briefs
 
-"Let's define your module's concept and identity. This will guide all the decisions we make about agents, workflows, and features."
+"Let's define your module's concept and identity. This will guide all the decisions we make about
+agents, workflows, and features."
 
 Load module-plan.md and check inputDocuments field
 
-Read the module brief completely
-"I see you have a module brief. Let me review that to understand your vision..."
-Use brief content to inform concept development questions
+Read the module brief completely "I see you have a module brief. Let me review that to understand
+your vision..." Use brief content to inform concept development questions
 
 Load and study the module structure guide for context
 
@@ -111,7 +113,8 @@ Based on their responses, collaboratively develop:
 
 "**Module Classification:**
 
-Based on your description, this seems to fit in the [Domain-Specific/Creative/Technical/Business/Personal] category.
+Based on your description, this seems to fit in the
+[Domain-Specific/Creative/Technical/Business/Personal] category.
 
 Does this sound right? Or would you categorize it differently?
 
@@ -140,13 +143,10 @@ Update module-plan.md with concept section:
 ```markdown
 ## Module Concept
 
-**Module Name:** {module_display_name}
-**Module Code:** {module_name}
-**Category:** [category]
+**Module Name:** {module_display_name} **Module Code:** {module_name} **Category:** [category]
 **Type:** [estimated type]
 
-**Purpose Statement:**
-[1-2 sentence clear purpose]
+**Purpose Statement:** [1-2 sentence clear purpose]
 
 **Target Audience:**
 
@@ -181,7 +181,8 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 
 - IF A: Execute {advancedElicitationTask} to explore alternative concept approaches
 - IF P: Execute {partyModeWorkflow} to get creative input on module identity
-- IF C: Save concept to module-plan.md, add step-02-concept to the end of the stepsCompleted array in frontmatter, then load nextStepFile
+- IF C: Save concept to module-plan.md, add step-02-concept to the end of the stepsCompleted array
+  in frontmatter, then load nextStepFile
 - IF Any other comments or queries: help user respond then redisplay menu
 
 #### EXECUTION RULES:
@@ -210,8 +211,11 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 - Skipping user validation of concept
 - Not documenting concept details
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN C is selected and module concept is saved to module-plan.md with stepsCompleted updated to [1, 2], will you then load, read entire file, then execute `{nextStepFile}` to begin component planning.
+ONLY WHEN C is selected and module concept is saved to module-plan.md with stepsCompleted updated to
+[1, 2], will you then load, read entire file, then execute `{nextStepFile}` to begin component
+planning.

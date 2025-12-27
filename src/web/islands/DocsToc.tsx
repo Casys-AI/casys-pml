@@ -22,7 +22,8 @@ export default function DocsToc() {
     headings.forEach((heading) => {
       const id = heading.id || heading.textContent?.toLowerCase()
         .replace(/[^a-z0-9\s-]/g, "")
-        .replace(/\s+/g, "-") || "";
+        .replace(/\s+/g, "-") ||
+        "";
 
       // Ensure heading has an ID for linking
       if (!heading.id && id) {
@@ -57,7 +58,7 @@ export default function DocsToc() {
       {
         rootMargin: "-80px 0px -80% 0px",
         threshold: 0,
-      }
+      },
     );
 
     tocItems.value.forEach((item) => {

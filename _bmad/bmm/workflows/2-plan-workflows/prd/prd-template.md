@@ -6,11 +6,10 @@ documentCounts:
   research: 0
   brainstorming: 0
   projectDocs: 0
-workflowType: 'prd'
+workflowType: "prd"
 lastStep: 0
 ---
 
 # Product Requirements Document - {{project_name}}
 
-**Author:** {{user_name}}
-**Date:** {{date}}
+**Author:** {{user_name}} **Date:** {{date}}

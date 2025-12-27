@@ -25,13 +25,14 @@ _Status: Updated December 2025_
 
 Casys PML currently manages **three families of stores**:
 
-| Store                        | Role                                                      | Tech                                                                    |
-| ---------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------- |
-| **PGlite (SQL + vectors)**   | Tool index, GraphRAG learning, capabilities, telemetry    | `tool_*`, `workflow_*`, `episodic_*`, `adaptive_*`, `metrics`, `config` |
-| **Drizzle ORM (on PGlite)**  | Multi-tenant application data (users, API keys)           | `users`                                                                 |
-| **Deno KV**                  | OAuth/API key sessions, ephemeral caches                  | `kv://auth/*`                                                           |
+| Store                       | Role                                                   | Tech                                                                    |
+| --------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------- |
+| **PGlite (SQL + vectors)**  | Tool index, GraphRAG learning, capabilities, telemetry | `tool_*`, `workflow_*`, `episodic_*`, `adaptive_*`, `metrics`, `config` |
+| **Drizzle ORM (on PGlite)** | Multi-tenant application data (users, API keys)        | `users`                                                                 |
+| **Deno KV**                 | OAuth/API key sessions, ephemeral caches               | `kv://auth/*`                                                           |
 
-The medium-term goal is to migrate the entire SQL schema to Drizzle, but until that's done **this document serves as an inventory of reality**.
+The medium-term goal is to migrate the entire SQL schema to Drizzle, but until that's done **this
+document serves as an inventory of reality**.
 
 ---
 
@@ -55,45 +56,46 @@ The medium-term goal is to migrate the entire SQL schema to Drizzle, but until t
 | `last_observed`    | `TIMESTAMP DEFAULT NOW()` | Last update.               |
 | `source`           | `TEXT DEFAULT 'learned'`  | `learned`, `user`, `hint`. |
 
-PK `(from_tool_id, to_tool_id)`. Indexes: `idx_tool_dependency_from`, `idx_tool_dependency_to`, `idx_tool_dependency_confidence`, `idx_tool_dependency_source`.
+PK `(from_tool_id, to_tool_id)`. Indexes: `idx_tool_dependency_from`, `idx_tool_dependency_to`,
+`idx_tool_dependency_confidence`, `idx_tool_dependency_source`.
 
 #### `workflow_execution`
 
-| Column              | Type                                         | Notes                      |
-| ------------------- | -------------------------------------------- | -------------------------- |
-| `execution_id`      | `UUID PRIMARY KEY DEFAULT gen_random_uuid()` | —                          |
-| `executed_at`       | `TIMESTAMP DEFAULT NOW()`                    | Timestamp.                 |
-| `intent_text`       | `TEXT`                                       | User prompt.               |
-| `dag_structure`     | `JSONB NOT NULL`                             | Complete DAG (tasks, deps).|
-| `success`           | `BOOLEAN NOT NULL`                           | Overall result.            |
-| `execution_time_ms` | `INTEGER NOT NULL`                           | Total duration.            |
-| `error_message`     | `TEXT`                                       | Summary stack on failure.  |
-| `code_snippet`      | `TEXT` (migration 011)                       | Executed code.             |
-| `code_hash`         | `TEXT` (migration 011)                       | Normalized SHA-256.        |
+| Column              | Type                                         | Notes                       |
+| ------------------- | -------------------------------------------- | --------------------------- |
+| `execution_id`      | `UUID PRIMARY KEY DEFAULT gen_random_uuid()` | —                           |
+| `executed_at`       | `TIMESTAMP DEFAULT NOW()`                    | Timestamp.                  |
+| `intent_text`       | `TEXT`                                       | User prompt.                |
+| `dag_structure`     | `JSONB NOT NULL`                             | Complete DAG (tasks, deps). |
+| `success`           | `BOOLEAN NOT NULL`                           | Overall result.             |
+| `execution_time_ms` | `INTEGER NOT NULL`                           | Total duration.             |
+| `error_message`     | `TEXT`                                       | Summary stack on failure.   |
+| `code_snippet`      | `TEXT` (migration 011)                       | Executed code.              |
+| `code_hash`         | `TEXT` (migration 011)                       | Normalized SHA-256.         |
 
 Indexes: `idx_execution_timestamp`, `idx_workflow_execution_code_hash` (partial, non-null).
 
 #### `workflow_pattern`
 
-| Column              | Type                                                  | Notes                       |
-| ------------------- | ----------------------------------------------------- | --------------------------- |
-| `pattern_id`        | `UUID PRIMARY KEY DEFAULT gen_random_uuid()`          | —                           |
-| `pattern_hash`      | `TEXT UNIQUE NOT NULL`                                | DAG hash.                   |
-| `dag_structure`     | `JSONB NOT NULL`                                      | Workflow snapshot.          |
-| `intent_embedding`  | `vector(1024) NOT NULL`                               | For semantic search.        |
-| `usage_count`       | `INTEGER DEFAULT 1`                                   | Total observations.         |
-| `success_count`     | `INTEGER DEFAULT 0`                                   | Successes.                  |
-| `last_used`         | `TIMESTAMP DEFAULT NOW()`                             | Last usage.                 |
-| `code_snippet`      | `TEXT`                                                | Capability code.            |
-| `code_hash`         | `TEXT`                                                | Unique (partial index).     |
-| `parameters_schema` | `JSONB`                                               | Input description.          |
-| `cache_config`      | `JSONB DEFAULT '{"ttl_ms":3600000,"cacheable":true}'` | TTL / invalidation.         |
-| `name`              | `TEXT`                                                | Human name.                 |
-| `description`       | `TEXT`                                                | Description.                |
-| `success_rate`      | `REAL DEFAULT 1.0`                                    | Ratio.                      |
-| `avg_duration_ms`   | `INTEGER DEFAULT 0`                                   | Average time.               |
-| `created_at`        | `TIMESTAMPTZ DEFAULT NOW()`                           | Promotion date.             |
-| `source`            | `TEXT DEFAULT 'emergent'`                             | `emergent` or `manual`.     |
+| Column              | Type                                                  | Notes                   |
+| ------------------- | ----------------------------------------------------- | ----------------------- |
+| `pattern_id`        | `UUID PRIMARY KEY DEFAULT gen_random_uuid()`          | —                       |
+| `pattern_hash`      | `TEXT UNIQUE NOT NULL`                                | DAG hash.               |
+| `dag_structure`     | `JSONB NOT NULL`                                      | Workflow snapshot.      |
+| `intent_embedding`  | `vector(1024) NOT NULL`                               | For semantic search.    |
+| `usage_count`       | `INTEGER DEFAULT 1`                                   | Total observations.     |
+| `success_count`     | `INTEGER DEFAULT 0`                                   | Successes.              |
+| `last_used`         | `TIMESTAMP DEFAULT NOW()`                             | Last usage.             |
+| `code_snippet`      | `TEXT`                                                | Capability code.        |
+| `code_hash`         | `TEXT`                                                | Unique (partial index). |
+| `parameters_schema` | `JSONB`                                               | Input description.      |
+| `cache_config`      | `JSONB DEFAULT '{"ttl_ms":3600000,"cacheable":true}'` | TTL / invalidation.     |
+| `name`              | `TEXT`                                                | Human name.             |
+| `description`       | `TEXT`                                                | Description.            |
+| `success_rate`      | `REAL DEFAULT 1.0`                                    | Ratio.                  |
+| `avg_duration_ms`   | `INTEGER DEFAULT 0`                                   | Average time.           |
+| `created_at`        | `TIMESTAMPTZ DEFAULT NOW()`                           | Promotion date.         |
+| `source`            | `TEXT DEFAULT 'emergent'`                             | `emergent` or `manual`. |
 
 Indexes: `idx_pattern_intent_embedding` (HNSW), `idx_workflow_pattern_code_hash` (partial).
 
@@ -120,7 +122,8 @@ Indexes: `idx_pattern_intent_embedding` (HNSW), `idx_workflow_pattern_code_hash`
 | `context_hash` | `TEXT`                      | Hash of contextual dimensions.                                                                               |
 | `data`         | `JSONB NOT NULL`            | Free payload (prediction/result).                                                                            |
 
-Indexes: `idx_episodic_workflow`, `idx_episodic_type`, `idx_episodic_timestamp`, `idx_episodic_context_hash`, `idx_episodic_data` (GIN). Retention: 30 days or 10k events.
+Indexes: `idx_episodic_workflow`, `idx_episodic_type`, `idx_episodic_timestamp`,
+`idx_episodic_context_hash`, `idx_episodic_data` (GIN). Retention: 30 days or 10k events.
 
 #### `adaptive_thresholds`
 
@@ -141,31 +144,33 @@ Indexes: `idx_adaptive_updated`, `idx_adaptive_context_keys` (GIN).
 
 #### `workflow_checkpoint`
 
-| Column        | Type                        | Notes                      |
-| ------------- | --------------------------- | -------------------------- |
-| `id`          | `TEXT PRIMARY KEY`          | UUID v4.                   |
-| `workflow_id` | `TEXT NOT NULL`             | Common identifier.         |
-| `timestamp`   | `TIMESTAMPTZ DEFAULT NOW()` | For pruning.               |
-| `layer`       | `INTEGER NOT NULL`          | Current DAG layer (>=0).   |
-| `state`       | `JSONB NOT NULL`            | Serialized `WorkflowState`.|
+| Column        | Type                        | Notes                       |
+| ------------- | --------------------------- | --------------------------- |
+| `id`          | `TEXT PRIMARY KEY`          | UUID v4.                    |
+| `workflow_id` | `TEXT NOT NULL`             | Common identifier.          |
+| `timestamp`   | `TIMESTAMPTZ DEFAULT NOW()` | For pruning.                |
+| `layer`       | `INTEGER NOT NULL`          | Current DAG layer (>=0).    |
+| `state`       | `JSONB NOT NULL`            | Serialized `WorkflowState`. |
 
-Indexes: `idx_checkpoint_workflow_ts`, `idx_checkpoint_workflow_id`. Retention: 5 checkpoints / workflow.
+Indexes: `idx_checkpoint_workflow_ts`, `idx_checkpoint_workflow_id`. Retention: 5 checkpoints /
+workflow.
 
 #### `workflow_dags`
 
-| Column        | Type                                            | Notes                   |
-| ------------- | ----------------------------------------------- | ----------------------- |
-| `workflow_id` | `TEXT PRIMARY KEY`                              | Aligned with checkpoints.|
-| `dag`         | `JSONB NOT NULL`                                | `DAGStructure`.         |
-| `intent`      | `TEXT`                                          | For debug.              |
-| `created_at`  | `TIMESTAMPTZ DEFAULT NOW()`                     | —                       |
-| `expires_at`  | `TIMESTAMPTZ DEFAULT NOW() + INTERVAL '1 hour'` | Auto cleanup.           |
+| Column        | Type                                            | Notes                     |
+| ------------- | ----------------------------------------------- | ------------------------- |
+| `workflow_id` | `TEXT PRIMARY KEY`                              | Aligned with checkpoints. |
+| `dag`         | `JSONB NOT NULL`                                | `DAGStructure`.           |
+| `intent`      | `TEXT`                                          | For debug.                |
+| `created_at`  | `TIMESTAMPTZ DEFAULT NOW()`                     | —                         |
+| `expires_at`  | `TIMESTAMPTZ DEFAULT NOW() + INTERVAL '1 hour'` | Auto cleanup.             |
 
 Index: `idx_workflow_dags_expires`.
 
 ### 1.5 Capabilities (Epic 7)
 
-The additional columns in `workflow_pattern` (cf. §1.2) serve as the main storage for capabilities (code, parameters, TTL, stats). No additional dedicated table until ADR-038 requires `capabilities`.
+The additional columns in `workflow_pattern` (cf. §1.2) serve as the main storage for capabilities
+(code, parameters, TTL, stats). No additional dedicated table until ADR-038 requires `capabilities`.
 
 ### 1.6 Telemetry & Operational Logging
 
@@ -183,54 +188,54 @@ Indexes: `idx_metrics_name_timestamp`, `idx_metrics_timestamp`. Target retention
 
 #### `error_log`
 
-| Column       | Type                      | Notes                                    |
-| ------------ | ------------------------- | ---------------------------------------- |
-| `id`         | `SERIAL PRIMARY KEY`      | —                                        |
-| `error_type` | `TEXT NOT NULL`           | Category (`GraphRAG`, `Sandbox`, etc.).  |
-| `message`    | `TEXT NOT NULL`           | Main message.                            |
-| `stack`      | `TEXT`                    | Stack trace.                             |
-| `context`    | `JSONB`                   | Extra data.                              |
-| `timestamp`  | `TIMESTAMP DEFAULT NOW()` | —                                        |
+| Column       | Type                      | Notes                                   |
+| ------------ | ------------------------- | --------------------------------------- |
+| `id`         | `SERIAL PRIMARY KEY`      | —                                       |
+| `error_type` | `TEXT NOT NULL`           | Category (`GraphRAG`, `Sandbox`, etc.). |
+| `message`    | `TEXT NOT NULL`           | Main message.                           |
+| `stack`      | `TEXT`                    | Stack trace.                            |
+| `context`    | `JSONB`                   | Extra data.                             |
+| `timestamp`  | `TIMESTAMP DEFAULT NOW()` | —                                       |
 
 Indexes: `idx_error_log_timestamp`, `idx_error_log_type`.
 
 ### 1.4 Capabilities & Future Epic 7
 
-| Table                                 | Key Columns                                                             | Description                                                      |
-| ------------------------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| `workflow_pattern` (extension Epic 7) | + `code_snippet TEXT`, `parameters JSONB`, `cache_config JSONB`, `name` | Stores materialized capabilities (code, TTL, invalidation).      |
-| `workflow_dags`                       | `workflow_id`, `dag JSONB`, `status`, `created_at`                      | Gateway-side DAG planning (Story 6.x).                           |
-| `workflow_checkpoints`                | `workflow_id`, `checkpoint_index`, `state JSONB`, `created_at`          | Enables resume/recovery (Story 6.4).                             |
+| Table                                 | Key Columns                                                             | Description                                                 |
+| ------------------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `workflow_pattern` (extension Epic 7) | + `code_snippet TEXT`, `parameters JSONB`, `cache_config JSONB`, `name` | Stores materialized capabilities (code, TTL, invalidation). |
+| `workflow_dags`                       | `workflow_id`, `dag JSONB`, `status`, `created_at`                      | Gateway-side DAG planning (Story 6.x).                      |
+| `workflow_checkpoints`                | `workflow_id`, `checkpoint_index`, `state JSONB`, `created_at`          | Enables resume/recovery (Story 6.4).                        |
 
 ### 1.5 Telemetry / Observability
 
-| Table                              | Key Columns                                           | Description                                                                                                |
-| ---------------------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `metrics` (ex-`telemetry_metrics`) | `metric_name`, `value`, `metadata JSONB`, `timestamp` | Simple time-series (counts, latency). Index `(metric_name, timestamp DESC)`. Future export to ClickHouse.  |
+| Table                              | Key Columns                                           | Description                                                                                               |
+| ---------------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `metrics` (ex-`telemetry_metrics`) | `metric_name`, `value`, `metadata JSONB`, `timestamp` | Simple time-series (counts, latency). Index `(metric_name, timestamp DESC)`. Future export to ClickHouse. |
 
 ---
 
 ## 2. Drizzle ORM (PGlite driver)
 
-| Table   | Description                                    | Source                   |
-| ------- | ---------------------------------------------- | ------------------------ |
-| `users` | Multi-tenant accounts (GitHub OAuth + API keys)| `src/db/schema/users.ts` |
+| Table   | Description                                     | Source                   |
+| ------- | ----------------------------------------------- | ------------------------ |
+| `users` | Multi-tenant accounts (GitHub OAuth + API keys) | `src/db/schema/users.ts` |
 
 ### 2.1 `users` (Drizzle schema)
 
-| Column            | Type                                     | Notes                                               |
-| ----------------- | ---------------------------------------- | --------------------------------------------------- |
-| `id`              | `uuid("id").primaryKey()`                | UUID v4 generated DB-side (Drizzle `defaultRandom()`).|
-| `githubId`        | `text("github_id").unique()`             | GitHub ID (string). Nullable if API key only.       |
-| `username`        | `text("username").notNull()`             | Displayed handle (GitHub login or alias).           |
-| `email`           | `text("email")`                          | Can be `NULL` if not provided.                      |
-| `avatarUrl`       | `text("avatar_url")`                     | GitHub avatar URL.                                  |
-| `role`            | `text("role").default("user")`           | `user`, `admin`, `ops` (future RBAC).               |
-| `apiKeyHash`      | `text("api_key_hash")`                   | Argon2id hash (`hashApiKey`).                       |
-| `apiKeyPrefix`    | `text("api_key_prefix").unique()`        | Prefix `ac_xxxxxx` for fast lookup (11 chars).      |
-| `apiKeyCreatedAt` | `timestamp(..., { withTimezone: true })` | Generation timestamp.                               |
-| `createdAt`       | `timestamp(...).defaultNow()`            | Account creation.                                   |
-| `updatedAt`       | `timestamp(...).defaultNow()`            | `DEFAULT NOW()` + future trigger.                   |
+| Column            | Type                                     | Notes                                                  |
+| ----------------- | ---------------------------------------- | ------------------------------------------------------ |
+| `id`              | `uuid("id").primaryKey()`                | UUID v4 generated DB-side (Drizzle `defaultRandom()`). |
+| `githubId`        | `text("github_id").unique()`             | GitHub ID (string). Nullable if API key only.          |
+| `username`        | `text("username").notNull()`             | Displayed handle (GitHub login or alias).              |
+| `email`           | `text("email")`                          | Can be `NULL` if not provided.                         |
+| `avatarUrl`       | `text("avatar_url")`                     | GitHub avatar URL.                                     |
+| `role`            | `text("role").default("user")`           | `user`, `admin`, `ops` (future RBAC).                  |
+| `apiKeyHash`      | `text("api_key_hash")`                   | Argon2id hash (`hashApiKey`).                          |
+| `apiKeyPrefix`    | `text("api_key_prefix").unique()`        | Prefix `ac_xxxxxx` for fast lookup (11 chars).         |
+| `apiKeyCreatedAt` | `timestamp(..., { withTimezone: true })` | Generation timestamp.                                  |
+| `createdAt`       | `timestamp(...).defaultNow()`            | Account creation.                                      |
+| `updatedAt`       | `timestamp(...).defaultNow()`            | `DEFAULT NOW()` + future trigger.                      |
 
 Constraints:
 
@@ -240,37 +245,42 @@ Constraints:
 
 Drizzle Roadmap:
 
-- Future tables (`sessions`, `user_secrets`, `user_mcp_configs`) will be added in `src/db/schema/` during Epic 9.
+- Future tables (`sessions`, `user_secrets`, `user_mcp_configs`) will be added in `src/db/schema/`
+  during Epic 9.
 
-> ✅ Decision: We progressively migrate other SQL tables to Drizzle (Epic 9), but until done, `users` remains the only table exposed via `src/db/schema`.
+> ✅ Decision: We progressively migrate other SQL tables to Drizzle (Epic 9), but until done,
+> `users` remains the only table exposed via `src/db/schema`.
 
 ---
 
 ## 3. Deno KV
 
-`src/server/auth/kv.ts` exposes a singleton `getKv()` used by auth/session modules. Keys follow a `namespace:key` convention.
+`src/server/auth/kv.ts` exposes a singleton `getKv()` used by auth/session modules. Keys follow a
+`namespace:key` convention.
 
-| KV Namespace            | Content                                                | Retention                | Product Owner |
-| ----------------------- | ------------------------------------------------------ | ------------------------ | ------------- |
-| `auth/session:*`        | GitHub OAuth sessions (access_token + minimal profile) | TTL 24h, invalidated logout | Platform    |
-| `auth/pending:*`        | PKCE/verifier state during OAuth dance                 | TTL 15 min               | Platform      |
-| `auth/api-key:*`        | API key proof (rate limiting)                          | TTL 1h                   | Platform      |
-| (future) `secrets/*`    | Encrypted user secrets cache (KMS envelope)            | TTL 10 min + LRU eviction| Capabilities  |
+| KV Namespace         | Content                                                | Retention                   | Product Owner |
+| -------------------- | ------------------------------------------------------ | --------------------------- | ------------- |
+| `auth/session:*`     | GitHub OAuth sessions (access_token + minimal profile) | TTL 24h, invalidated logout | Platform      |
+| `auth/pending:*`     | PKCE/verifier state during OAuth dance                 | TTL 15 min                  | Platform      |
+| `auth/api-key:*`     | API key proof (rate limiting)                          | TTL 1h                      | Platform      |
+| (future) `secrets/*` | Encrypted user secrets cache (KMS envelope)            | TTL 10 min + LRU eviction   | Capabilities  |
 
 ### 3.1 KV Details
 
-| Namespace                                    | Key format              | Value                                                  |
-| -------------------------------------------- | ----------------------- | ------------------------------------------------------ |
-| `auth/session:${sessionId}`                  | `sessionId` = UUID v4   | `{ userId, githubToken, expiresAt }` (JSON serialized) |
-| `auth/pending:${state}`                      | `state` = random string | `{ verifier, createdAt, redirectUri }`                 |
-| `auth/api-key:${prefix}`                     | `prefix` = `ac_xxxxx`   | `{ userId, lastUsedAt, windowCount }` for rate limiting|
-| `secrets:${userId}:${secretName}` (planned)  | user-scoped             | `{ ciphertext, expiresAt }` (cache of `user_secrets`)  |
+| Namespace                                   | Key format              | Value                                                   |
+| ------------------------------------------- | ----------------------- | ------------------------------------------------------- |
+| `auth/session:${sessionId}`                 | `sessionId` = UUID v4   | `{ userId, githubToken, expiresAt }` (JSON serialized)  |
+| `auth/pending:${state}`                     | `state` = random string | `{ verifier, createdAt, redirectUri }`                  |
+| `auth/api-key:${prefix}`                    | `prefix` = `ac_xxxxx`   | `{ userId, lastUsedAt, windowCount }` for rate limiting |
+| `secrets:${userId}:${secretName}` (planned) | user-scoped             | `{ ciphertext, expiresAt }` (cache of `user_secrets`)   |
 
 Policy:
 
-- KV used only for volatile data (24h max). Persistent data must go to SQL (`users`, future `user_secrets`).
+- KV used only for volatile data (24h max). Persistent data must go to SQL (`users`, future
+  `user_secrets`).
 
-> KV is ideal for volatile data. For persistent secrets we plan an encrypted SQL table (`user_secrets` + KMS envelope encryption).
+> KV is ideal for volatile data. For persistent secrets we plan an encrypted SQL table
+> (`user_secrets` + KMS envelope encryption).
 
 ---
 
@@ -312,12 +322,12 @@ Policy:
 
 ## 5. Data Roadmap
 
-| Item                    | Description                                                              | Status             |
-| ----------------------- | ------------------------------------------------------------------------ | ------------------ |
-| Drizzle full adoption   | Generate all SQL tables via Drizzle (GraphRAG, episodic, metrics…)       | 🚧 Epic 9          |
-| Encrypted secrets       | `user_secrets` + `user_mcp_configs` (KMS envelope encryption, KV cache)  | 📝 Design in progress |
-| Unified observability   | Export `metrics` + `workflow_execution` to ClickHouse/Prometheus         | 🧊 Backlog         |
-| Data retention policies | Formalize prune jobs (episodic 30d, metrics 90d, workflows 6m)           | 📝 To document     |
+| Item                    | Description                                                             | Status                |
+| ----------------------- | ----------------------------------------------------------------------- | --------------------- |
+| Drizzle full adoption   | Generate all SQL tables via Drizzle (GraphRAG, episodic, metrics…)      | 🚧 Epic 9             |
+| Encrypted secrets       | `user_secrets` + `user_mcp_configs` (KMS envelope encryption, KV cache) | 📝 Design in progress |
+| Unified observability   | Export `metrics` + `workflow_execution` to ClickHouse/Prometheus        | 🧊 Backlog            |
+| Data retention policies | Formalize prune jobs (episodic 30d, metrics 90d, workflows 6m)          | 📝 To document        |
 
 ---
 

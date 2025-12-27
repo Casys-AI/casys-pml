@@ -10,7 +10,7 @@ Agents define menus in YAML, with triggers auto-prefixed with `*` during compila
 menu:
   - trigger: action-name
     [handler]: [value]
-    description: 'What this command does'
+    description: "What this command does"
 ```
 
 **Note:** `*help` and `*exit` are auto-injected by the compiler - DO NOT include them.
@@ -39,8 +39,8 @@ prompts:
 
 menu:
   - trigger: analyze
-    action: '#analyze-code'
-    description: 'Analyze code patterns'
+    action: "#analyze-code"
+    description: "Analyze code patterns"
 ```
 
 **Inline Instruction:**
@@ -48,8 +48,8 @@ menu:
 ```yaml
 menu:
   - trigger: quick-check
-    action: 'Perform a quick syntax validation on the current file'
-    description: 'Quick syntax check'
+    action: "Perform a quick syntax validation on the current file"
+    description: "Quick syntax check"
 ```
 
 **When to Use:**
@@ -65,17 +65,17 @@ For module agents orchestrating multi-step processes.
 ```yaml
 menu:
   - trigger: create-prd
-    workflow: '{project-root}/_bmad/bmm/workflows/prd/workflow.yaml'
-    description: 'Create Product Requirements Document'
+    workflow: "{project-root}/_bmad/bmm/workflows/prd/workflow.yaml"
+    description: "Create Product Requirements Document"
 
   - trigger: brainstorm
-    workflow: '{project-root}/_bmad/core/workflows/brainstorming/workflow.yaml'
-    description: 'Guided brainstorming session'
+    workflow: "{project-root}/_bmad/core/workflows/brainstorming/workflow.yaml"
+    description: "Guided brainstorming session"
 
   # Placeholder for unimplemented workflows
   - trigger: future-feature
-    workflow: 'todo'
-    description: 'Coming soon'
+    workflow: "todo"
+    description: "Coming soon"
 ```
 
 **When to Use:**
@@ -92,12 +92,12 @@ For executing tasks directly.
 ```yaml
 menu:
   - trigger: validate
-    exec: '{project-root}/_bmad/core/tasks/validate-workflow.xml'
-    description: 'Validate document structure'
+    exec: "{project-root}/_bmad/core/tasks/validate-workflow.xml"
+    description: "Validate document structure"
 
   - trigger: advanced-elicitation
-    exec: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-    description: 'Advanced elicitation techniques'
+    exec: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+    description: "Advanced elicitation techniques"
 ```
 
 **When to Use:**
@@ -113,9 +113,9 @@ For document generation with templates.
 ```yaml
 menu:
   - trigger: create-brief
-    exec: '{project-root}/_bmad/core/tasks/create-doc.xml'
-    tmpl: '{project-root}/_bmad/bmm/templates/brief.md'
-    description: 'Create a Product Brief'
+    exec: "{project-root}/_bmad/core/tasks/create-doc.xml"
+    tmpl: "{project-root}/_bmad/bmm/templates/brief.md"
+    description: "Create a Product Brief"
 ```
 
 **When to Use:**
@@ -131,14 +131,14 @@ Universal attribute for supplementary information.
 ```yaml
 menu:
   - trigger: team-standup
-    exec: '{project-root}/_bmad/bmm/tasks/standup.xml'
-    data: '{project-root}/_bmad/_config/agent-manifest.csv'
-    description: 'Run team standup'
+    exec: "{project-root}/_bmad/bmm/tasks/standup.xml"
+    data: "{project-root}/_bmad/_config/agent-manifest.csv"
+    description: "Run team standup"
 
   - trigger: analyze-metrics
-    action: 'Analyze these metrics and identify trends'
-    data: '{project-root}/_data/metrics.json'
-    description: 'Analyze performance metrics'
+    action: "Analyze these metrics and identify trends"
+    data: "{project-root}/_data/metrics.json"
+    description: "Analyze performance metrics"
 ```
 
 **When to Use:**
@@ -154,13 +154,13 @@ Control visibility based on deployment target:
 ```yaml
 menu:
   - trigger: git-flow
-    exec: '{project-root}/_bmad/bmm/tasks/git-flow.xml'
-    description: 'Git workflow operations'
+    exec: "{project-root}/_bmad/bmm/tasks/git-flow.xml"
+    description: "Git workflow operations"
     ide-only: true # Only in IDE environments
 
   - trigger: advanced-elicitation
-    exec: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-    description: 'Advanced elicitation'
+    exec: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+    description: "Advanced elicitation"
     web-only: true # Only in web bundles
 ```
 
@@ -225,22 +225,22 @@ menu:
 
   # 1. Primary workflows (main value)
   - trigger: workflow-init
-    workflow: '...'
-    description: 'Start here - initialize workflow'
+    workflow: "..."
+    description: "Start here - initialize workflow"
 
   - trigger: create-prd
-    workflow: '...'
-    description: 'Create PRD'
+    workflow: "..."
+    description: "Create PRD"
 
   # 2. Secondary operations
   - trigger: validate
-    exec: '...'
-    description: 'Validate document'
+    exec: "..."
+    description: "Validate document"
 
   # 3. Utilities
   - trigger: party-mode
-    workflow: '...'
-    description: 'Multi-agent discussion'
+    workflow: "..."
+    description: "Multi-agent discussion"
 
   # Note: *exit auto-injected last by compiler
 ```
@@ -251,21 +251,21 @@ menu:
 menu:
   # Analysis Phase
   - trigger: brainstorm
-    workflow: '{project-root}/_bmad/bmm/workflows/1-analysis/brainstorm/workflow.yaml'
-    description: 'Brainstorm ideas'
+    workflow: "{project-root}/_bmad/bmm/workflows/1-analysis/brainstorm/workflow.yaml"
+    description: "Brainstorm ideas"
 
   - trigger: research
-    workflow: '{project-root}/_bmad/bmm/workflows/1-analysis/research/workflow.yaml'
-    description: 'Conduct research'
+    workflow: "{project-root}/_bmad/bmm/workflows/1-analysis/research/workflow.yaml"
+    description: "Conduct research"
 
   # Planning Phase
   - trigger: prd
-    workflow: '{project-root}/_bmad/bmm/workflows/2-planning/prd/workflow.yaml'
-    description: 'Create PRD'
+    workflow: "{project-root}/_bmad/bmm/workflows/2-planning/prd/workflow.yaml"
+    description: "Create PRD"
 
   - trigger: architecture
-    workflow: '{project-root}/_bmad/bmm/workflows/2-planning/architecture/workflow.yaml'
-    description: 'Design architecture'
+    workflow: "{project-root}/_bmad/bmm/workflows/2-planning/architecture/workflow.yaml"
+    description: "Design architecture"
 ```
 
 ## Description Best Practices
@@ -274,32 +274,32 @@ menu:
 
 ```yaml
 # Clear action + object
-- description: 'Create Product Requirements Document'
+- description: "Create Product Requirements Document"
 
 # Specific outcome
-- description: 'Analyze security vulnerabilities'
+- description: "Analyze security vulnerabilities"
 
 # User benefit
-- description: 'Optimize code for performance'
+- description: "Optimize code for performance"
 
 # Context when needed
-- description: 'Start here - initialize workflow path'
+- description: "Start here - initialize workflow path"
 ```
 
 ### Poor Descriptions
 
 ```yaml
 # Too vague
-- description: 'Process'
+- description: "Process"
 
 # Technical jargon
-- description: 'Execute WF123'
+- description: "Execute WF123"
 
 # Missing context
-- description: 'Run'
+- description: "Run"
 
 # Redundant with trigger
-- description: 'Create PRD' # trigger: create-prd (too similar)
+- description: "Create PRD" # trigger: create-prd (too similar)
 ```
 
 ## Prompts Section (Simple/Expert Agents)
@@ -398,25 +398,25 @@ prompts:
 
 menu:
   - trigger: format
-    action: '#format-code'
-    description: 'Format code to style guidelines'
+    action: "#format-code"
+    description: "Format code to style guidelines"
 
   - trigger: lint
-    action: 'Check code for common issues and anti-patterns'
-    description: 'Lint code for issues'
+    action: "Check code for common issues and anti-patterns"
+    description: "Lint code for issues"
 
   - trigger: suggest
-    action: 'Suggest improvements for code readability'
-    description: 'Suggest improvements'
+    action: "Suggest improvements for code readability"
+    description: "Suggest improvements"
 ```
 
 ### Expert Agent Menu
 
 ```yaml
 critical_actions:
-  - 'Load ./memories.md'
-  - 'Follow ./instructions.md'
-  - 'ONLY access ./'
+  - "Load ./memories.md"
+  - "Follow ./instructions.md"
+  - "ONLY access ./"
 
 prompts:
   - id: reflect
@@ -426,16 +426,16 @@ prompts:
 
 menu:
   - trigger: write
-    action: '#reflect'
-    description: 'Write journal entry'
+    action: "#reflect"
+    description: "Write journal entry"
 
   - trigger: save
-    action: 'Update ./memories.md with session insights'
+    action: "Update ./memories.md with session insights"
     description: "Save today's session"
 
   - trigger: patterns
-    action: 'Analyze recent entries for recurring themes'
-    description: 'View patterns'
+    action: "Analyze recent entries for recurring themes"
+    description: "View patterns"
 ```
 
 ### Module Agent Menu
@@ -443,24 +443,24 @@ menu:
 ```yaml
 menu:
   - trigger: workflow-init
-    workflow: '{project-root}/_bmad/bmm/workflows/workflow-status/init/workflow.yaml'
-    description: 'Initialize workflow path (START HERE)'
+    workflow: "{project-root}/_bmad/bmm/workflows/workflow-status/init/workflow.yaml"
+    description: "Initialize workflow path (START HERE)"
 
   - trigger: brainstorm
-    workflow: '{project-root}/_bmad/bmm/workflows/1-analysis/brainstorm/workflow.yaml'
-    description: 'Guided brainstorming'
+    workflow: "{project-root}/_bmad/bmm/workflows/1-analysis/brainstorm/workflow.yaml"
+    description: "Guided brainstorming"
 
   - trigger: prd
-    workflow: '{project-root}/_bmad/bmm/workflows/2-planning/prd/workflow.yaml'
-    description: 'Create PRD'
+    workflow: "{project-root}/_bmad/bmm/workflows/2-planning/prd/workflow.yaml"
+    description: "Create PRD"
 
   - trigger: architecture
-    workflow: '{project-root}/_bmad/bmm/workflows/2-planning/architecture/workflow.yaml'
-    description: 'Design architecture'
+    workflow: "{project-root}/_bmad/bmm/workflows/2-planning/architecture/workflow.yaml"
+    description: "Design architecture"
 
   - trigger: party-mode
-    workflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.yaml'
-    description: 'Multi-agent discussion'
+    workflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.yaml"
+    description: "Multi-agent discussion"
 ```
 
 ## Validation Checklist
@@ -482,12 +482,12 @@ menu:
 ```yaml
 # BAD - compiler will fail
 - trigger: analyze
-  action: '#first'
-  description: 'First analysis'
+  action: "#first"
+  description: "First analysis"
 
 - trigger: analyze
-  action: '#second'
-  description: 'Second analysis'
+  action: "#second"
+  description: "Second analysis"
 ```
 
 ### Including Auto-Injected Items
@@ -496,10 +496,10 @@ menu:
 # BAD - these are auto-injected
 menu:
   - trigger: help
-    description: 'Show help'
+    description: "Show help"
 
   - trigger: exit
-    description: 'Exit agent'
+    description: "Exit agent"
 ```
 
 ### Missing Prompt Reference
@@ -508,8 +508,8 @@ menu:
 # BAD - prompt id doesn't exist
 menu:
   - trigger: analyze
-    action: '#nonexistent-prompt'
-    description: 'Analysis'
+    action: "#nonexistent-prompt"
+    description: "Analysis"
 ```
 
 ### Hardcoded Paths
@@ -518,6 +518,6 @@ menu:
 # BAD - not portable
 menu:
   - trigger: run
-    workflow: '/absolute/path/to/workflow.yaml'
-    description: 'Run workflow'
+    workflow: "/absolute/path/to/workflow.yaml"
+    description: "Run workflow"
 ```

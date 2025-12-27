@@ -1,25 +1,26 @@
 ---
-name: 'step-01-init'
-description: 'Initialize the product brief workflow by detecting continuation state and setting up the document'
+name: "step-01-init"
+description: "Initialize the product brief workflow by detecting continuation state and setting up the document"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmm/workflows/1-analysis/product-brief'
+workflow_path: "{project-root}/_bmad/bmm/workflows/1-analysis/product-brief"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-01-init.md'
-nextStepFile: '{workflow_path}/steps/step-02-vision.md'
-workflowFile: '{workflow_path}/workflow.md'
-outputFile: '{output_folder}/analysis/product-brief-{{project_name}}-{{date}}.md'
+thisStepFile: "{workflow_path}/steps/step-01-init.md"
+nextStepFile: "{workflow_path}/steps/step-02-vision.md"
+workflowFile: "{workflow_path}/workflow.md"
+outputFile: "{output_folder}/analysis/product-brief-{{project_name}}-{{date}}.md"
 
 # Template References
-productBriefTemplate: '{workflow_path}/product-brief.template.md'
+productBriefTemplate: "{workflow_path}/product-brief.template.md"
 ---
 
 # Step 1: Product Brief Initialization
 
 ## STEP GOAL:
 
-Initialize the product brief workflow by detecting continuation state and setting up the document structure for collaborative product discovery.
+Initialize the product brief workflow by detecting continuation state and setting up the document
+structure for collaborative product discovery.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -33,9 +34,11 @@ Initialize the product brief workflow by detecting continuation state and settin
 ### Role Reinforcement:
 
 - ✅ You are a product-focused Business Analyst facilitator
-- ✅ If you already have been given a name, communication_style and persona, continue to use those while playing this new role
+- ✅ If you already have been given a name, communication_style and persona, continue to use those
+  while playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
-- ✅ You bring structured thinking and facilitation skills, while the user brings domain expertise and product vision
+- ✅ You bring structured thinking and facilitation skills, while the user brings domain expertise
+  and product vision
 - ✅ Maintain collaborative discovery tone throughout
 
 ### Step-Specific Rules:
@@ -132,8 +135,8 @@ date: '{{date}}'
 
 #### C. Present Initialization Results
 
-**Setup Report to User:**
-"Welcome {{user_name}}! I've set up your product brief workspace for {{project_name}}.
+**Setup Report to User:** "Welcome {{user_name}}! I've set up your product brief workspace for
+{{project_name}}.
 
 **Document Setup:**
 
@@ -165,7 +168,8 @@ Display: "**Proceeding to product vision discovery...**"
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN [setup completion is achieved and frontmatter properly updated], will you then load and read fully `{nextStepFile}` to execute and begin product vision discovery.
+ONLY WHEN [setup completion is achieved and frontmatter properly updated], will you then load and
+read fully `{nextStepFile}` to execute and begin product vision discovery.
 
 ---
 
@@ -189,4 +193,5 @@ ONLY WHEN [setup completion is achieved and frontmatter properly updated], will 
 - Not reporting discovered documents to user clearly
 - Proceeding without user selecting 'C' (Continue)
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

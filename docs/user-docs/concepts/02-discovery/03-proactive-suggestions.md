@@ -4,7 +4,9 @@
 
 ## En bref
 
-Les suggestions proactives de PML, c'est comme un **collègue expérimenté qui anticipe vos besoins**. Vous venez de lire un fichier JSON ? Il vous tend déjà le parseur avant que vous le demandiez. C'est la différence entre un assistant qui attend vos ordres et un partenaire qui comprend le contexte.
+Les suggestions proactives de PML, c'est comme un **collègue expérimenté qui anticipe vos besoins**.
+Vous venez de lire un fichier JSON ? Il vous tend déjà le parseur avant que vous le demandiez. C'est
+la différence entre un assistant qui attend vos ordres et un partenaire qui comprend le contexte.
 
 **Pourquoi c'est utile ?**
 
@@ -16,20 +18,23 @@ Les suggestions proactives de PML, c'est comme un **collègue expérimenté qui 
 **Analogie simple :**
 
 Pensez à **l'autocomplétion de votre téléphone**, mais pour les outils :
+
 - Vous tapez souvent "Bonjour" puis "ça va ?" → Le téléphone suggère "ça va ?" après "Bonjour"
 - Vous utilisez souvent `read_file` puis `parse_json` → PML suggère `parse_json` après `read_file`
 
-La différence : PML comprend aussi le **sens** de ce que vous faites, pas juste la séquence mécanique.
+La différence : PML comprend aussi le **sens** de ce que vous faites, pas juste la séquence
+mécanique.
 
 **Trois types de contexte utilisés :**
 
-| Contexte | Comment ça fonctionne | Exemple |
-|----------|----------------------|---------|
-| **Relations d'outils** | A souvent suivi par B | `read_file` → suggère `write_file` |
-| **Capabilities** | Intent similaire à un pattern connu | "traiter erreurs" → suggère workflow complet |
-| **Communauté** | Outils du même serveur | Utilise `postgres:query` → suggère `postgres:insert` |
+| Contexte               | Comment ça fonctionne               | Exemple                                              |
+| ---------------------- | ----------------------------------- | ---------------------------------------------------- |
+| **Relations d'outils** | A souvent suivi par B               | `read_file` → suggère `write_file`                   |
+| **Capabilities**       | Intent similaire à un pattern connu | "traiter erreurs" → suggère workflow complet         |
+| **Communauté**         | Outils du même serveur              | Utilise `postgres:query` → suggère `postgres:insert` |
 
 **Exemple concret :**
+
 ```
 Situation: Vous utilisez github:get_issue + filesystem:read_file
 Intent: "Créer un rapport de bug"
@@ -48,6 +53,7 @@ Suggestions:
 ## What Are Proactive Suggestions?
 
 Instead of waiting for you to search, PML can **suggest tools automatically** based on:
+
 - What you're currently doing
 - What tools you've already used
 - Patterns it has learned from past executions
@@ -112,27 +118,28 @@ Suggested (same community):
 
 Suggestions appear in different scenarios:
 
-| Scenario | Trigger |
-|----------|---------|
-| **DAG Building** | When constructing a workflow |
-| **After Execution** | "You might also want to..." |
-| **On Error** | Alternative tools that might work |
-| **Idle Context** | Periodic suggestions based on history |
+| Scenario            | Trigger                               |
+| ------------------- | ------------------------------------- |
+| **DAG Building**    | When constructing a workflow          |
+| **After Execution** | "You might also want to..."           |
+| **On Error**        | Alternative tools that might work     |
+| **Idle Context**    | Periodic suggestions based on history |
 
 ## Suggestion Quality
 
 Not all suggestions are equal. PML ranks them by:
 
-| Factor | Weight |
-|--------|--------|
-| **Relationship strength** | How often tools are used together |
-| **Success rate** | How often the suggestion leads to success |
-| **Recency** | Recent patterns matter more |
-| **Context match** | How well it fits current intent |
+| Factor                    | Weight                                    |
+| ------------------------- | ----------------------------------------- |
+| **Relationship strength** | How often tools are used together         |
+| **Success rate**          | How often the suggestion leads to success |
+| **Recency**               | Recent patterns matter more               |
+| **Context match**         | How well it fits current intent           |
 
 ## Opting Out
 
 Suggestions are helpful but optional:
+
 - Ignore them if not relevant
 - Disable in configuration
 - Provide feedback to improve future suggestions

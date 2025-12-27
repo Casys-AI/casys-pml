@@ -1,17 +1,17 @@
 # 06 - Scoring API Changes
 
-**Parent**: [00-overview.md](./00-overview.md)
-**Depends on**: [04-message-passing.md](./04-message-passing.md)
+**Parent**: [00-overview.md](./00-overview.md) **Depends on**:
+[04-message-passing.md](./04-message-passing.md)
 
 ---
 
 ## Architecture Summary
 
-| Version | Scoring Method | Message Passing | TraceFeatures |
-|---------|---------------|-----------------|---------------|
-| **v1**  | Pure cosine similarity | Yes (n-SHG) | No |
-| **v2**  | K heads + MLP | No (raw embeddings) | Yes |
-| **v3**  | K heads + MLP | Yes | Yes (dimension issue) |
+| Version | Scoring Method         | Message Passing     | TraceFeatures         |
+| ------- | ---------------------- | ------------------- | --------------------- |
+| **v1**  | Pure cosine similarity | Yes (n-SHG)         | No                    |
+| **v2**  | K heads + MLP          | No (raw embeddings) | Yes                   |
+| **v3**  | K heads + MLP          | Yes                 | Yes (dimension issue) |
 
 ---
 
@@ -54,9 +54,8 @@ scoreAllCapabilities(
 }
 ```
 
-**Key insight**: The multi-level message passing learns structural patterns (pageRank,
-adamicAdar, spectralCluster) implicitly via attention weights. No need for explicit
-`hypergraphFeatures` in v1.
+**Key insight**: The multi-level message passing learns structural patterns (pageRank, adamicAdar,
+spectralCluster) implicitly via attention weights. No need for explicit `hypergraphFeatures` in v1.
 
 ---
 
@@ -100,6 +99,7 @@ scoreAllCapabilitiesV2(
 ```
 
 **TraceStats (17 features):**
+
 - `successRate`, `usageCount`, `avgLatency`, etc.
 - Learned from execution history
 
@@ -123,12 +123,12 @@ interface AttentionResult {
   capabilityId: string;
   score: number;
   headWeights: number[];
-  headScores: number[];           // v1: [cosine], v2: [head1, head2, ...]
+  headScores: number[]; // v1: [cosine], v2: [head1, head2, ...]
   recursiveContribution: number;
   featureContributions?: {
-    semantic: number;             // v1: cosine, v2: headScores[0]
-    structure: number;            // v1: 0, v2: headScores[1]
-    temporal: number;             // v1: 0, v2: headScores[2]
+    semantic: number; // v1: cosine, v2: headScores[0]
+    structure: number; // v1: 0, v2: headScores[1]
+    temporal: number; // v1: 0, v2: headScores[2]
     reliability: number;
   };
   toolAttention?: number[];

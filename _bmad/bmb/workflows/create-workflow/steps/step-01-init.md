@@ -1,18 +1,18 @@
 ---
-name: 'step-01-init'
-description: 'Initialize workflow creation session by gathering project information and setting up unique workflow folder'
+name: "step-01-init"
+description: "Initialize workflow creation session by gathering project information and setting up unique workflow folder"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmb/workflows/create-workflow'
+workflow_path: "{project-root}/_bmad/bmb/workflows/create-workflow"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-01-init.md'
-nextStepFile: '{workflow_path}/steps/step-02-gather.md'
-workflowFile: '{workflow_path}/workflow.md'
+thisStepFile: "{workflow_path}/steps/step-01-init.md"
+nextStepFile: "{workflow_path}/steps/step-02-gather.md"
+workflowFile: "{workflow_path}/workflow.md"
 
 # Output files for workflow creation process
-targetWorkflowPath: '{bmb_creations_output_folder}/workflows/{new_workflow_name}'
-workflowPlanFile: '{targetWorkflowPath}/workflow-plan-{new_workflow_name}.md'
+targetWorkflowPath: "{bmb_creations_output_folder}/workflows/{new_workflow_name}"
+workflowPlanFile: "{targetWorkflowPath}/workflow-plan-{new_workflow_name}.md"
 # Template References
 # No workflow plan template needed - will create plan file directly
 ---
@@ -21,7 +21,8 @@ workflowPlanFile: '{targetWorkflowPath}/workflow-plan-{new_workflow_name}.md'
 
 ## STEP GOAL:
 
-To initialize the workflow creation process by understanding project context, determining a unique workflow name, and preparing for collaborative workflow design.
+To initialize the workflow creation process by understanding project context, determining a unique
+workflow name, and preparing for collaborative workflow design.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -35,7 +36,8 @@ To initialize the workflow creation process by understanding project context, de
 ### Role Reinforcement:
 
 - ✅ You are a workflow architect and systems designer
-- ✅ If you already have been given communication or persona patterns, continue to use those while playing this new role
+- ✅ If you already have been given communication or persona patterns, continue to use those while
+  playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You bring workflow design expertise, user brings their specific requirements
 - ✅ Together we will create a structured, repeatable workflow
@@ -65,8 +67,8 @@ To initialize the workflow creation process by understanding project context, de
 
 ### 1. Project Discovery
 
-Welcome the user and understand their needs:
-"Welcome! I'm excited to help you create a new workflow. Let's start by understanding what you want to build."
+Welcome the user and understand their needs: "Welcome! I'm excited to help you create a new
+workflow. Let's start by understanding what you want to build."
 
 Ask conversationally:
 
@@ -134,7 +136,9 @@ Display: **Proceeding to requirements gathering...**
 
 #### Menu Handling Logic:
 
-- After setup completion and the workflow folder with the workflow plan file created already, only then immediately load, read entire file, and then execute `{workflow_path}/steps/step-02-gather.md` to begin requirements gathering
+- After setup completion and the workflow folder with the workflow plan file created already, only
+  then immediately load, read entire file, and then execute
+  `{workflow_path}/steps/step-02-gather.md` to begin requirements gathering
 
 ---
 
@@ -154,4 +158,5 @@ Display: **Proceeding to requirements gathering...**
 - Not determining target location properly
 - Skipping welcome message
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

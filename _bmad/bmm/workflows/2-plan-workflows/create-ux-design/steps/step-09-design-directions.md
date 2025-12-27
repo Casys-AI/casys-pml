@@ -4,8 +4,10 @@
 
 - 🛑 NEVER generate content without user input
 
-- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding leads to incomplete decisions
-- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before proceeding
+- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding
+  leads to incomplete decisions
+- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before
+  proceeding
 - ✅ ALWAYS treat this as collaborative discovery between UX facilitator and stakeholder
 - 📋 YOU ARE A UX FACILITATOR, not a content generator
 - 💬 FOCUS on generating and evaluating design direction variations
@@ -49,8 +51,8 @@ Generate comprehensive design direction mockups showing different visual approac
 
 ### 1. Generate Design Direction Variations
 
-Create diverse visual explorations:
-"I'll generate 6-8 different design direction variations exploring:
+Create diverse visual explorations: "I'll generate 6-8 different design direction variations
+exploring:
 
 - Different layout approaches and information hierarchy
 - Various interaction patterns and visual weights
@@ -62,10 +64,10 @@ Each mockup will show a complete vision for {{project_name}} with all our design
 
 ### 2. Create HTML Design Direction Showcase
 
-Generate interactive visual exploration:
-"🎨 Design Direction Mockups Generated!
+Generate interactive visual exploration: "🎨 Design Direction Mockups Generated!
 
-I'm creating a comprehensive HTML design direction showcase at `{output_folder}/ux-design-directions.html`
+I'm creating a comprehensive HTML design direction showcase at
+`{output_folder}/ux-design-directions.html`
 
 **What you'll see:**
 
@@ -79,22 +81,19 @@ Each mockup represents a complete visual direction for your app's look and feel.
 
 ### 3. Present Design Exploration Framework
 
-Guide evaluation criteria:
-"As you explore the design directions, look for:
+Guide evaluation criteria: "As you explore the design directions, look for:
 
-✅ **Layout Intuitiveness** - Which information hierarchy matches your priorities?
-✅ **Interaction Style** - Which interaction style fits your core experience?
-✅ **Visual Weight** - Which visual density feels right for your brand?
-✅ **Navigation Approach** - Which navigation pattern matches user expectations?
-✅ **Component Usage** - How well do the components support your user journeys?
+✅ **Layout Intuitiveness** - Which information hierarchy matches your priorities? ✅ **Interaction
+Style** - Which interaction style fits your core experience? ✅ **Visual Weight** - Which visual
+density feels right for your brand? ✅ **Navigation Approach** - Which navigation pattern matches
+user expectations? ✅ **Component Usage** - How well do the components support your user journeys?
 ✅ **Brand Alignment** - Which direction best supports your emotional goals?
 
 Take your time exploring - this is a crucial decision that will guide all our design work!"
 
 ### 4. Facilitate Design Direction Selection
 
-Help user choose or combine elements:
-"After exploring all the design directions:
+Help user choose or combine elements: "After exploring all the design directions:
 
 **Which approach resonates most with you?**
 
@@ -112,15 +111,15 @@ Help user choose or combine elements:
 
 ### 5. Document Design Direction Decision
 
-Capture the chosen approach:
-"Based on your exploration, I'm understanding your design direction preference:
+Capture the chosen approach: "Based on your exploration, I'm understanding your design direction
+preference:
 
-**Chosen Direction:** [Direction number or combination]
-**Key Elements:** [Specific elements you liked]
-**Modifications Needed:** [Any changes requested]
-**Rationale:** [Why this direction works for your product]
+**Chosen Direction:** [Direction number or combination] **Key Elements:** [Specific elements you
+liked] **Modifications Needed:** [Any changes requested] **Rationale:** [Why this direction works
+for your product]
 
-This will become our design foundation moving forward. Are we ready to lock this in, or do you want to explore variations?"
+This will become our design foundation moving forward. Are we ready to lock this in, or do you want
+to explore variations?"
 
 ### 6. Generate Design Direction Content
 
@@ -152,23 +151,24 @@ When saving to document, append these Level 2 and Level 3 sections:
 
 ### 7. Present Content and Menu
 
-Show the generated design direction content and present choices:
-"I've documented our design direction decision for {{project_name}}. This visual approach will guide all our detailed design work.
+Show the generated design direction content and present choices: "I've documented our design
+direction decision for {{project_name}}. This visual approach will guide all our detailed design
+work.
 
 **Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 6]
 
-**What would you like to do?**
-[A] Advanced Elicitation - Let's refine our design direction
-[P] Party Mode - Bring different perspectives on visual choices
-[C] Continue - Save this to the document and move to user journey flows
+**What would you like to do?** [A] Advanced Elicitation - Let's refine our design direction [P]
+Party Mode - Bring different perspectives on visual choices [C] Continue - Save this to the document
+and move to user journey flows
 
 ### 8. Handle Menu Selection
 
 #### If 'A' (Advanced Elicitation):
 
-- Execute {project-root}/\_bmad/core/tasks/advanced-elicitation.xml with the current design direction content
+- Execute {project-root}/\_bmad/core/tasks/advanced-elicitation.xml with the current design
+  direction content
 - Process the enhanced design insights that come back
 - Ask user: "Accept these improvements to the design direction? (y/n)"
 - If yes: Update content with improvements, then return to A/P/C menu
@@ -176,7 +176,8 @@ Show the generated design direction content and present choices:
 
 #### If 'P' (Party Mode):
 
-- Execute {project-root}/\_bmad/core/workflows/party-mode/workflow.md with the current design direction
+- Execute {project-root}/\_bmad/core/workflows/party-mode/workflow.md with the current design
+  direction
 - Process the collaborative design insights that come back
 - Ask user: "Accept these changes to the design direction? (y/n)"
 - If yes: Update content with improvements, then return to A/P/C menu
@@ -194,30 +195,27 @@ When user selects 'C', append the content directly to the document using the str
 
 ## SUCCESS METRICS:
 
-✅ Multiple design direction variations generated
-✅ HTML showcase created with interactive elements
-✅ Design evaluation criteria clearly established
-✅ User able to explore and compare directions effectively
-✅ Design direction decision made with clear rationale
-✅ A/P/C menu presented and handled correctly
-✅ Content properly appended to document when C selected
+✅ Multiple design direction variations generated ✅ HTML showcase created with interactive elements
+✅ Design evaluation criteria clearly established ✅ User able to explore and compare directions
+effectively ✅ Design direction decision made with clear rationale ✅ A/P/C menu presented and
+handled correctly ✅ Content properly appended to document when C selected
 
 ## FAILURE MODES:
 
-❌ Not creating enough variation in design directions
-❌ Design directions not aligned with established foundation
-❌ Missing interactive elements in HTML showcase
-❌ Not providing clear evaluation criteria
-❌ Rushing decision without thorough exploration
-❌ Not presenting A/P/C menu after content generation
-❌ Appending content without user selecting 'C'
+❌ Not creating enough variation in design directions ❌ Design directions not aligned with
+established foundation ❌ Missing interactive elements in HTML showcase ❌ Not providing clear
+evaluation criteria ❌ Rushing decision without thorough exploration ❌ Not presenting A/P/C menu
+after content generation ❌ Appending content without user selecting 'C'
 
-❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
-❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step file
-❌ **CRITICAL**: Making decisions without complete understanding of step requirements and protocols
+❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor
+decisions ❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step
+file ❌ **CRITICAL**: Making decisions without complete understanding of step requirements and
+protocols
 
 ## NEXT STEP:
 
-After user selects 'C' and content is saved to document, load `./step-10-user-journeys.md` to design user journey flows.
+After user selects 'C' and content is saved to document, load `./step-10-user-journeys.md` to design
+user journey flows.
 
-Remember: Do NOT proceed to step-10 until user explicitly selects 'C' from the A/P/C menu and content is saved!
+Remember: Do NOT proceed to step-10 until user explicitly selects 'C' from the A/P/C menu and
+content is saved!

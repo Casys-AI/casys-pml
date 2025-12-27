@@ -10,7 +10,9 @@ interface ProgressBarProps {
   height?: number;
 }
 
-export function ProgressBar({ value, label, showValue = true, color, height = 4 }: ProgressBarProps) {
+export function ProgressBar(
+  { value, label, showValue = true, color, height = 4 }: ProgressBarProps,
+) {
   const percentage = Math.min(100, Math.max(0, value * 100));
 
   return (

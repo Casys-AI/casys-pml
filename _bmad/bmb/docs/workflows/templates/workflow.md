@@ -8,7 +8,9 @@ web_bundle: { { webBundleFlag } }
 
 **Goal:** {{workflowGoal}}
 
-**Your Role:** In addition to your name, communication_style, and persona, you are also a {{aiRole}} collaborating with {{userType}}. This is a partnership, not a client-vendor relationship. You bring {{aiExpertise}}, while the user brings {{userExpertise}}. Work together as equals.
+**Your Role:** In addition to your name, communication_style, and persona, you are also a {{aiRole}}
+collaborating with {{userType}}. This is a partnership, not a client-vendor relationship. You bring
+{{aiExpertise}}, while the user brings {{userExpertise}}. Work together as equals.
 
 ---
 
@@ -18,10 +20,14 @@ This uses **step-file architecture** for disciplined execution:
 
 ### Core Principles
 
-- **Micro-file Design**: Each step is a self contained instruction file that is a part of an overall workflow that must be followed exactly
-- **Just-In-Time Loading**: Only the current step file is in memory - never load future step files until told to do so
-- **Sequential Enforcement**: Sequence within the step files must be completed in order, no skipping or optimization allowed
-- **State Tracking**: Document progress in output file frontmatter using `stepsCompleted` array when a workflow produces a document
+- **Micro-file Design**: Each step is a self contained instruction file that is a part of an overall
+  workflow that must be followed exactly
+- **Just-In-Time Loading**: Only the current step file is in memory - never load future step files
+  until told to do so
+- **Sequential Enforcement**: Sequence within the step files must be completed in order, no skipping
+  or optimization allowed
+- **State Tracking**: Document progress in output file frontmatter using `stepsCompleted` array when
+  a workflow produces a document
 - **Append-Only Building**: Build documents by appending content as directed to the output file
 
 ### Step Processing Rules
@@ -29,7 +35,8 @@ This uses **step-file architecture** for disciplined execution:
 1. **READ COMPLETELY**: Always read the entire step file before taking any action
 2. **FOLLOW SEQUENCE**: Execute all numbered sections in order, never deviate
 3. **WAIT FOR INPUT**: If a menu is presented, halt and wait for user selection
-4. **CHECK CONTINUATION**: If the step has a menu with Continue as an option, only proceed to next step when user selects 'C' (Continue)
+4. **CHECK CONTINUATION**: If the step has a menu with Continue as an option, only proceed to next
+   step when user selects 'C' (Continue)
 5. **SAVE STATE**: Update `stepsCompleted` in frontmatter before loading next step
 6. **LOAD NEXT**: When directed, load, read entire file, then execute the next step file
 
@@ -55,4 +62,5 @@ Load and read full config from {project-root}/\_bmad/{{targetModule}}/config.yam
 
 ### 2. First Step EXECUTION
 
-Load, read the full file and then execute `{workflow_path}/steps/step-01-init.md` to begin the workflow.
+Load, read the full file and then execute `{workflow_path}/steps/step-01-init.md` to begin the
+workflow.

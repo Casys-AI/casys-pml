@@ -4,7 +4,9 @@
 
 ## What is PML?
 
-PML (Procedural Memory Layer) is an intelligent MCP gateway that consolidates all your MCP servers into a single entry point with semantic search, DAG workflow orchestration, and self-improving tool discovery.
+PML (Procedural Memory Layer) is an intelligent MCP gateway that consolidates all your MCP servers
+into a single entry point with semantic search, DAG workflow orchestration, and self-improving tool
+discovery.
 
 **Problems solved:**
 

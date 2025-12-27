@@ -29,10 +29,10 @@ pml init --config <path>
 
 ### Options
 
-| Option | Type | Required | Description |
-|--------|------|----------|-------------|
-| `--config` | string | Yes | Path to MCP servers configuration file |
-| `--force` | flag | No | Re-initialize even if already initialized |
+| Option     | Type   | Required | Description                               |
+| ---------- | ------ | -------- | ----------------------------------------- |
+| `--config` | string | Yes      | Path to MCP servers configuration file    |
+| `--force`  | flag   | No       | Re-initialize even if already initialized |
 
 ### What It Does
 
@@ -76,28 +76,32 @@ pml serve --config <path> [options]
 
 ### Options
 
-| Option | Type | Required | Description |
-|--------|------|----------|-------------|
-| `--config` | string | Yes | Path to MCP servers configuration file |
-| `--port` | number | No | HTTP port for Streamable HTTP mode |
-| `--no-speculative` | flag | No | Disable speculative execution |
-| `--no-pii-protection` | flag | No | Disable PII data protection |
-| `--no-cache` | flag | No | Disable execution cache |
+| Option                | Type   | Required | Description                            |
+| --------------------- | ------ | -------- | -------------------------------------- |
+| `--config`            | string | Yes      | Path to MCP servers configuration file |
+| `--port`              | number | No       | HTTP port for Streamable HTTP mode     |
+| `--no-speculative`    | flag   | No       | Disable speculative execution          |
+| `--no-pii-protection` | flag   | No       | Disable PII data protection            |
+| `--no-cache`          | flag   | No       | Disable execution cache                |
 
 ### Transport Modes
 
 **stdio mode (default):**
+
 ```bash
 ./pml serve --config config/mcp-servers.json
 ```
+
 - Communication via stdin/stdout
 - Recommended for Claude Code integration
 - No dashboard available
 
 **Streamable HTTP mode:**
+
 ```bash
 ./pml serve --config config/mcp-servers.json --port 3001
 ```
+
 - MCP transport on `/mcp` endpoint
 - Fresh dashboard available (port 8080)
 - SSE events on `/events/stream`
@@ -178,24 +182,24 @@ Metrics:
 
 These options apply to all commands:
 
-| Option | Description |
-|--------|-------------|
-| `--help`, `-h` | Show help for command |
-| `--version`, `-v` | Show version number |
-| `--quiet`, `-q` | Suppress non-error output |
-| `--verbose` | Enable verbose logging |
+| Option            | Description               |
+| ----------------- | ------------------------- |
+| `--help`, `-h`    | Show help for command     |
+| `--version`, `-v` | Show version number       |
+| `--quiet`, `-q`   | Suppress non-error output |
+| `--verbose`       | Enable verbose logging    |
 
 ---
 
 ## Exit Codes
 
-| Code | Meaning |
-|------|---------|
-| `0` | Success |
-| `1` | General error |
-| `2` | Configuration error |
-| `3` | Connection error (MCP server unreachable) |
-| `4` | Database error |
+| Code | Meaning                                   |
+| ---- | ----------------------------------------- |
+| `0`  | Success                                   |
+| `1`  | General error                             |
+| `2`  | Configuration error                       |
+| `3`  | Connection error (MCP server unreachable) |
+| `4`  | Database error                            |
 
 ---
 

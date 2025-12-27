@@ -8,7 +8,9 @@
 
 ## What is Quick Spec Flow?
 
-Quick Spec Flow is a **streamlined alternative** to the full BMad Method for Quick Flow track projects. Instead of going through Product Brief → PRD → Architecture, you go **straight to a context-aware technical specification** and start coding.
+Quick Spec Flow is a **streamlined alternative** to the full BMad Method for Quick Flow track
+projects. Instead of going through Product Brief → PRD → Architecture, you go **straight to a
+context-aware technical specification** and start coding.
 
 ### When to Use Quick Spec Flow
 
@@ -505,23 +507,28 @@ Quick Spec Flow is **fully standalone**:
 
 ### Q: Can I use Quick Spec Flow on an existing project?
 
-**A:** Yes! It's perfect for brownfield projects. It will analyze your existing code, detect patterns, and ask if you want to follow them.
+**A:** Yes! It's perfect for brownfield projects. It will analyze your existing code, detect
+patterns, and ask if you want to follow them.
 
 ### Q: What if I don't have a package.json or requirements.txt?
 
-**A:** Quick Spec Flow will work in greenfield mode, recommend starter templates, and use WebSearch for modern best practices.
+**A:** Quick Spec Flow will work in greenfield mode, recommend starter templates, and use WebSearch
+for modern best practices.
 
 ### Q: Do I need to run workflow-init first?
 
-**A:** No! Quick Spec Flow is standalone. But if you want guidance on which flow to use, workflow-init can help.
+**A:** No! Quick Spec Flow is standalone. But if you want guidance on which flow to use,
+workflow-init can help.
 
 ### Q: Can I use this for frontend changes?
 
-**A:** Absolutely! Quick Spec Flow captures UX/UI considerations, component changes, and accessibility requirements.
+**A:** Absolutely! Quick Spec Flow captures UX/UI considerations, component changes, and
+accessibility requirements.
 
 ### Q: What if my Quick Flow project grows?
 
-**A:** No problem! You can always transition to BMad Method by running workflow-init and create-prd. Your tech-spec becomes input for the PRD.
+**A:** No problem! You can always transition to BMad Method by running workflow-init and create-prd.
+Your tech-spec becomes input for the PRD.
 
 ### Q: Can I skip validation?
 
@@ -529,7 +536,8 @@ Quick Spec Flow is **fully standalone**:
 
 ### Q: Will it work with my team's code style?
 
-**A:** Yes! It detects your conventions and asks for confirmation. You control whether to follow existing patterns or establish new ones.
+**A:** Yes! It detects your conventions and asks for confirmation. You control whether to follow
+existing patterns or establish new ones.
 
 ---
 
@@ -556,7 +564,8 @@ When validation runs, read the scores. They tell you if your spec is production-
 
 ### 5. **Keep Single Changes Truly Atomic**
 
-If your "single change" needs 3+ files, it might be a multi-story feature. Let the workflow guide you.
+If your "single change" needs 3+ files, it might be a multi-story feature. Let the workflow guide
+you.
 
 ### 6. **Validate Story Sequence for Multi-Story Features**
 
@@ -629,7 +638,8 @@ Quick Spec Flow is your **fast path from idea to implementation** for:
 ## Next Steps
 
 - **Try it now:** Load PM agent and describe a small change
-- **Learn more:** See the [BMM Workflow Guides](./README.md#-workflow-guides) for comprehensive workflow documentation
+- **Learn more:** See the [BMM Workflow Guides](./README.md#-workflow-guides) for comprehensive
+  workflow documentation
 - **Need help deciding?** Run `workflow-init` to get a recommendation
 - **Have questions?** Join us on Discord: <https://discord.gg/gk8jAdXWmj>
 

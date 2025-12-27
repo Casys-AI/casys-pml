@@ -14,9 +14,7 @@ This project is organized into {{parts_count}} distinct parts:
 
 {{#each project_parts}}
 
-- **{{part_name}}** (`{{root_path}}`): {{purpose}}
-  {{/each}}
-  {{/if}}
+- **{{part_name}}** (`{{root_path}}`): {{purpose}} {{/each}} {{/if}}
 
 ## Complete Directory Structure
 
@@ -32,10 +30,8 @@ This project is organized into {{parts_count}} distinct parts:
 
 {{description}}
 
-**Purpose:** {{purpose}}
-**Contains:** {{contents_summary}}
-{{#if entry_points}}**Entry Points:** {{entry_points}}{{/if}}
-{{#if integration_note}}**Integration:** {{integration_note}}{{/if}}
+**Purpose:** {{purpose}} **Contains:** {{contents_summary}} {{#if entry_points}}**Entry Points:**
+{{entry_points}}{{/if}} {{#if integration_note}}**Integration:** {{integration_note}}{{/if}}
 
 {{/each}}
 
@@ -51,11 +47,9 @@ This project is organized into {{parts_count}} distinct parts:
 {{source_tree}}
 ```
 
-**Key Directories:**
-{{#each critical_directories}}
+**Key Directories:** {{#each critical_directories}}
 
-- **`{{path}}`**: {{description}}
-  {{/each}}
+- **`{{path}}`**: {{description}} {{/each}}
 
 {{/each}}
 
@@ -67,8 +61,7 @@ This project is organized into {{parts_count}} distinct parts:
 
 - **Location:** `{{integration_path}}`
 - **Type:** {{integration_type}}
-- **Details:** {{details}}
-  {{/each}}
+- **Details:** {{details}} {{/each}}
 
 {{/if}}
 
@@ -76,22 +69,14 @@ This project is organized into {{parts_count}} distinct parts:
 
 {{#if is_single_part}}
 
-- **Main Entry:** `{{main_entry_point}}`
-  {{#if additional_entry_points}}
-- **Additional:**
-  {{#each additional_entry_points}}
-  - `{{path}}`: {{description}}
-    {{/each}}
-    {{/if}}
-    {{else}}
-    {{#each project_parts}}
+- **Main Entry:** `{{main_entry_point}}` {{#if additional_entry_points}}
+- **Additional:** {{#each additional_entry_points}}
+  - `{{path}}`: {{description}} {{/each}} {{/if}} {{else}} {{#each project_parts}}
 
 ### {{part_name}}
 
 - **Entry Point:** `{{entry_point}}`
-- **Bootstrap:** {{bootstrap_description}}
-  {{/each}}
-  {{/if}}
+- **Bootstrap:** {{bootstrap_description}} {{/each}} {{/if}}
 
 ## File Organization Patterns
 
@@ -105,26 +90,20 @@ This project is organized into {{parts_count}} distinct parts:
 
 - **Pattern:** `{{pattern}}`
 - **Purpose:** {{purpose}}
-- **Examples:** {{examples}}
-  {{/each}}
+- **Examples:** {{examples}} {{/each}}
 
 ## Asset Locations
 
-{{#if has_assets}}
-{{#each asset_locations}}
+{{#if has_assets}} {{#each asset_locations}}
 
-- **{{asset_type}}**: `{{location}}` ({{file_count}} files, {{total_size}})
-  {{/each}}
-  {{else}}
-  No significant assets detected.
-  {{/if}}
+- **{{asset_type}}**: `{{location}}` ({{file_count}} files, {{total_size}}) {{/each}} {{else}} No
+  significant assets detected. {{/if}}
 
 ## Configuration Files
 
 {{#each config_files}}
 
-- **`{{path}}`**: {{description}}
-  {{/each}}
+- **`{{path}}`**: {{description}} {{/each}}
 
 ## Notes for Development
 

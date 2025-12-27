@@ -325,11 +325,11 @@ curl -X GET "https://registry.smithery.ai/servers/exa" \
 
 **Comparison:**
 
-| Approach            | User Setup                                   | Complexity  | Deps              |
-| ------------------- | -------------------------------------------- | ----------- | ----------------- |
-| **Stdio (current)** | Config `mcp.json`, run locally               | Medium      | None              |
+| Approach            | User Setup                                  | Complexity  | Deps              |
+| ------------------- | ------------------------------------------- | ----------- | ----------------- |
+| **Stdio (current)** | Config `mcp.json`, run locally              | Medium      | None              |
 | **Smithery HTTP**   | Config keys on Smithery, OAuth in Casys PML | Medium-High | Smithery API      |
-| **Hybrid**          | User chooses (stdio OR Smithery)             | High        | Optional Smithery |
+| **Hybrid**          | User chooses (stdio OR Smithery)            | High        | Optional Smithery |
 
 ### Connection Test Results ⏸️ PAUSED
 

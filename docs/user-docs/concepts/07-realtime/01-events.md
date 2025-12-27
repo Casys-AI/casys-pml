@@ -4,7 +4,9 @@
 
 ## En bref
 
-Les events dans PML, c'est comme les **notifications push sur votre téléphone** : vous n'avez pas besoin de rafraîchir constamment pour voir ce qui se passe, les mises à jour arrivent automatiquement en temps réel.
+Les events dans PML, c'est comme les **notifications push sur votre téléphone** : vous n'avez pas
+besoin de rafraîchir constamment pour voir ce qui se passe, les mises à jour arrivent
+automatiquement en temps réel.
 
 **Pourquoi c'est important ?**
 
@@ -13,11 +15,14 @@ Les events dans PML, c'est comme les **notifications push sur votre téléphone*
 - **Compréhension du système** : Observez comment PML apprend et évolue en temps réel
 - **Expérience utilisateur** : Barres de progression fluides, logs qui s'affichent au fil de l'eau
 
-**L'analogie simple :** Imaginez PML comme une cuisine de restaurant. Les events, c'est comme les sonnettes qui tintent quand un plat est prêt, ou les écrans qui montrent les commandes en cours. Vous n'avez pas besoin d'aller vérifier constamment en cuisine, les informations viennent à vous.
+**L'analogie simple :** Imaginez PML comme une cuisine de restaurant. Les events, c'est comme les
+sonnettes qui tintent quand un plat est prêt, ou les écrans qui montrent les commandes en cours.
+Vous n'avez pas besoin d'aller vérifier constamment en cuisine, les informations viennent à vous.
 
 ## What Are Events?
 
-PML emits **events** for everything that happens—tool calls, DAG progress, learning updates, errors. These events power real-time dashboards and monitoring.
+PML emits **events** for everything that happens—tool calls, DAG progress, learning updates, errors.
+These events power real-time dashboards and monitoring.
 
 ![Event Flow](excalidraw:src/web/assets/diagrams/realtime-events.excalidraw)
 
@@ -27,13 +32,13 @@ PML uses **Server-Sent Events** to stream updates to clients in real-time.
 
 ### Why SSE?
 
-| Feature | SSE | WebSocket | Polling |
-|---------|-----|-----------|---------|
-| **Direction** | Server → Client | Bidirectional | Client → Server |
-| **Complexity** | Simple | Complex | Simple |
-| **Auto-reconnect** | Built-in | Manual | Manual |
-| **HTTP compatible** | Yes | Upgrade needed | Yes |
-| **Best for** | Streaming updates | Chat, games | Legacy systems |
+| Feature             | SSE               | WebSocket      | Polling         |
+| ------------------- | ----------------- | -------------- | --------------- |
+| **Direction**       | Server → Client   | Bidirectional  | Client → Server |
+| **Complexity**      | Simple            | Complex        | Simple          |
+| **Auto-reconnect**  | Built-in          | Manual         | Manual          |
+| **HTTP compatible** | Yes               | Upgrade needed | Yes             |
+| **Best for**        | Streaming updates | Chat, games    | Legacy systems  |
 
 SSE is perfect for PML because updates flow one way: from the system to observers.
 
@@ -68,11 +73,16 @@ The **EventBus** is PML's internal message broker that distributes events.
 
 **Analogie : Le réseau social interne**
 
-Pensez à l'EventBus comme un **réseau social interne de l'entreprise** où chaque composant de PML peut poster des mises à jour :
+Pensez à l'EventBus comme un **réseau social interne de l'entreprise** où chaque composant de PML
+peut poster des mises à jour :
 
-- Les **Publishers** (Gateway, DAG Engine, Sandbox) sont comme des employés qui publient des posts : "Je viens de lire un fichier", "J'ai fini la tâche 3/5", "J'ai appris un nouveau pattern"
-- Les **Subscribers** (SSE Handler, Learning System, Metrics) sont comme des followers qui voient ces posts et réagissent : l'un envoie l'info aux clients, l'autre met à jour le graphe de connaissances, un troisième note les statistiques
-- Personne n'a besoin de demander des nouvelles à tout le monde, l'information circule automatiquement vers ceux qui sont intéressés
+- Les **Publishers** (Gateway, DAG Engine, Sandbox) sont comme des employés qui publient des posts :
+  "Je viens de lire un fichier", "J'ai fini la tâche 3/5", "J'ai appris un nouveau pattern"
+- Les **Subscribers** (SSE Handler, Learning System, Metrics) sont comme des followers qui voient
+  ces posts et réagissent : l'un envoie l'info aux clients, l'autre met à jour le graphe de
+  connaissances, un troisième note les statistiques
+- Personne n'a besoin de demander des nouvelles à tout le monde, l'information circule
+  automatiquement vers ceux qui sont intéressés
 
 ### Architecture
 
@@ -242,20 +252,26 @@ Chaque type d'event a une utilité concrète selon votre rôle :
 
 ### Pour les développeurs
 
-- **Tool Events** : Debuggez les appels d'outils qui échouent, mesurez les performances, détectez les appels redondants
-- **System Events** : Surveillez la santé du système, détectez les connexions/déconnexions de serveurs, recevez des alertes sur les erreurs
+- **Tool Events** : Debuggez les appels d'outils qui échouent, mesurez les performances, détectez
+  les appels redondants
+- **System Events** : Surveillez la santé du système, détectez les connexions/déconnexions de
+  serveurs, recevez des alertes sur les erreurs
 
 ### Pour les data scientists
 
-- **Learning Events** : Observez comment le graphe de connaissances évolue, identifiez les patterns émergents, validez que l'apprentissage fonctionne
+- **Learning Events** : Observez comment le graphe de connaissances évolue, identifiez les patterns
+  émergents, validez que l'apprentissage fonctionne
 - **DAG Events** : Analysez les workflows pour optimiser les pipelines de données
 
 ### Pour les product managers
 
 - **DAG Progress** : Suivez l'avancement des tâches en temps réel, estimez les délais de traitement
-- **Tool Completed** : Comprenez quels outils sont les plus utilisés, identifiez les goulots d'étranglement
+- **Tool Completed** : Comprenez quels outils sont les plus utilisés, identifiez les goulots
+  d'étranglement
 
-**Cas d'usage concret :** Vous développez une intégration GitHub. En observant les `tool_called` events, vous voyez que `create_issue` est appelé 5 fois pour la même tâche. C'est un bug ! Sans les events, vous ne l'auriez peut-être jamais remarqué.
+**Cas d'usage concret :** Vous développez une intégration GitHub. En observant les `tool_called`
+events, vous voyez que `create_issue` est appelé 5 fois pour la même tâche. C'est un bug ! Sans les
+events, vous ne l'auriez peut-être jamais remarqué.
 
 ## Using Events
 

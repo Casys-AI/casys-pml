@@ -1,8 +1,6 @@
 # ADR-001: PGlite over SQLite for Vector Search
 
-**Status:** accepted
-**Date:** 2025-11-03
-**Implementation:** done
+**Status:** accepted **Date:** 2025-11-03 **Implementation:** done
 
 ## Decision
 
@@ -10,7 +8,9 @@ Use PGlite (PostgreSQL WASM) with pgvector instead of SQLite + sqlite-vec
 
 ## Context
 
-The system requires efficient vector search for tool embeddings and semantic discovery. Key requirements:
+The system requires efficient vector search for tool embeddings and semantic discovery. Key
+requirements:
+
 - <100ms P95 vector search (NFR001)
 - Single-file portability (zero-config)
 - Deno compatibility
@@ -26,18 +26,20 @@ The system requires efficient vector search for tool embeddings and semantic dis
 ## Consequences
 
 ### Positive
+
 - Enables <100ms P95 vector search (NFR001)
 - Single-file portability maintained
 - PostgreSQL ecosystem access (future extensions)
 
 ### Negative
+
 - 3MB WASM overhead vs <1MB SQLite
 - PostgreSQL-specific SQL syntax
 
 ## Alternatives Considered
 
-| Alternative | Reason Rejected |
-|-------------|-----------------|
-| sqlite-vec | No HNSW index, full-scan only |
-| DuckDB VSS | Experimental persistence, Deno support unclear |
-| Full PostgreSQL | Breaks zero-config requirement |
+| Alternative     | Reason Rejected                                |
+| --------------- | ---------------------------------------------- |
+| sqlite-vec      | No HNSW index, full-scan only                  |
+| DuckDB VSS      | Experimental persistence, Deno support unclear |
+| Full PostgreSQL | Breaks zero-config requirement                 |

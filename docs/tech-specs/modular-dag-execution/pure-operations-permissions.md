@@ -1,10 +1,13 @@
 # Permissions pour Opérations JS Pures
 
-Stratégie de permissions pour les tasks d'opérations JavaScript pures (filter, map, reduce, +, -, etc.) afin de bypasser les validations HIL inutiles.
+Stratégie de permissions pour les tasks d'opérations JavaScript pures (filter, map, reduce, +, -,
+etc.) afin de bypasser les validations HIL inutiles.
 
 ## 🎯 **Problème**
 
-Avec l'architecture two-level qui crée des tasks pour chaque opération, on risque de déclencher des validations HIL sur des opérations purement computationnelles qui ne peuvent PAS avoir de side effects.
+Avec l'architecture two-level qui crée des tasks pour chaque opération, on risque de déclencher des
+validations HIL sur des opérations purement computationnelles qui ne peuvent PAS avoir de side
+effects.
 
 ### **Exemple**
 
@@ -27,6 +30,7 @@ task_c4: divide (JS pur)
 ```
 
 **Problème :** Les opérations JS pures NE PEUVENT PAS :
+
 - Accéder au filesystem
 - Faire des requêtes network
 - Exécuter des processus
@@ -41,6 +45,7 @@ task_c4: divide (JS pur)
 ### **Principe**
 
 Les opérations JS pures sont **toujours safe** et doivent :
+
 1. ✅ Avoir `permissionSet: "minimal"`
 2. ✅ `isSafeToFail() = true`
 3. ✅ Bypasser validation HIL automatiquement
@@ -152,12 +157,12 @@ const UNSAFE_OPERATIONS = [
   "code:await",
 
   // Potentiellement unsafe
-  "code:eval",         // JAMAIS autoriser
-  "code:Function",     // JAMAIS autoriser
-  "code:setTimeout",   // Side effect
-  "code:setInterval",  // Side effect
-  "code:fetch",        // Network I/O
-  "code:console.log",  // Side effect (output)
+  "code:eval", // JAMAIS autoriser
+  "code:Function", // JAMAIS autoriser
+  "code:setTimeout", // Side effect
+  "code:setInterval", // Side effect
+  "code:fetch", // Network I/O
+  "code:console.log", // Side effect (output)
 ];
 ```
 
@@ -190,13 +195,13 @@ function convertNodeToTask(node: StaticStructureNode): Task {
       arguments: {},
       dependsOn: inferDependencies(node),
       sandboxConfig: {
-        permissionSet: "minimal",  // ← TOUJOURS minimal pour opérations pures
-        timeout: isPure ? 5000 : 30000  // Timeout plus court pour opérations pures
+        permissionSet: "minimal", // ← TOUJOURS minimal pour opérations pures
+        timeout: isPure ? 5000 : 30000, // Timeout plus court pour opérations pures
       },
       metadata: {
-        pure: isPure,  // ← Marquer comme pure
-        safe: isPure   // ← Safe-to-fail
-      }
+        pure: isPure, // ← Marquer comme pure
+        safe: isPure, // ← Safe-to-fail
+      },
     };
   }
 
@@ -258,7 +263,7 @@ export async function requiresValidation(
       // NOUVEAU : Opérations pures ne nécessitent JAMAIS validation
       if (task.metadata?.pure === true || isPureOperation(task.tool)) {
         log.debug(`Skipping validation for pure operation: ${task.tool}`);
-        continue;  // ← Pas de validation
+        continue; // ← Pas de validation
       }
 
       // Code avec permissions élevées → validation
@@ -278,7 +283,7 @@ export async function requiresValidation(
     }
   }
 
-  return false;  // Aucune validation nécessaire
+  return false; // Aucune validation nécessaire
 }
 ```
 
@@ -314,7 +319,7 @@ function layerRequiresValidation(layer: Task[]): boolean {
     }
   }
 
-  return false;  // Layer composée uniquement d'opérations pures
+  return false; // Layer composée uniquement d'opérations pures
 }
 
 /**
@@ -346,7 +351,7 @@ async function executeLayers() {
 
 ```typescript
 const users = await mcp.db.query({ sql: "SELECT * FROM users" });
-const active = users.filter(u => u.active);
+const active = users.filter((u) => u.active);
 const totalAge = active.reduce((s, u) => s + u.age, 0);
 const avgAge = totalAge / active.length;
 const rounded = Math.round(avgAge);
@@ -363,10 +368,10 @@ await mcp.slack.send({ message: `Average age: ${rounded}` });
       id: "task_n1",
       type: "mcp_tool",
       tool: "db:query",
-      sandboxConfig: { permissionSet: "readonly" }
+      sandboxConfig: { permissionSet: "readonly" },
       // ⚠️ Nécessite validation (readonly permissions)
-    }
-  ]
+    },
+  ];
 }
 
 // Layer 1 : Opérations pures + MCP send
@@ -379,16 +384,16 @@ await mcp.slack.send({ message: `Average age: ${rounded}` });
       tool: "code:computation",
       sandboxConfig: { permissionSet: "minimal" },
       metadata: {
-        pure: true,  // ← Toutes les opérations fusionnées sont pures
+        pure: true, // ← Toutes les opérations fusionnées sont pures
         fusedFrom: ["task_c1", "task_c2", "task_c3", "task_c4", "task_c5"],
         logicalTools: [
-          "code:filter",      // ← Pure
-          "code:reduce",      // ← Pure
-          "code:get_length",  // ← Pure
-          "code:divide",      // ← Pure
-          "code:Math.round"   // ← Pure
-        ]
-      }
+          "code:filter", // ← Pure
+          "code:reduce", // ← Pure
+          "code:get_length", // ← Pure
+          "code:divide", // ← Pure
+          "code:Math.round", // ← Pure
+        ],
+      },
       // ✅ Pas de validation (pure)
     },
 
@@ -397,10 +402,10 @@ await mcp.slack.send({ message: `Average age: ${rounded}` });
       id: "task_n2",
       type: "mcp_tool",
       tool: "slack:send",
-      sandboxConfig: { permissionSet: "network-api" }
+      sandboxConfig: { permissionSet: "network-api" },
       // ⚠️ Nécessite validation (network access)
-    }
-  ]
+    },
+  ];
 }
 ```
 
@@ -464,7 +469,7 @@ Pour s'assurer qu'une opération "pure" n'a pas été corrompue :
  */
 function validatePureTask(task: Task): void {
   if (!task.metadata?.pure) {
-    return;  // Pas marquée pure, skip
+    return; // Pas marquée pure, skip
   }
 
   if (!task.code) {
@@ -473,22 +478,22 @@ function validatePureTask(task: Task): void {
 
   // Patterns interdits dans code pur
   const FORBIDDEN_PATTERNS = [
-    /\bfetch\b/,           // Network I/O
-    /\bDeno\./,            // Deno APIs (filesystem, network, etc.)
-    /\bprocess\./,         // Process APIs
-    /\beval\b/,            // Code injection
-    /\bFunction\b/,        // Code generation
-    /\bsetTimeout\b/,      // Side effects
-    /\bsetInterval\b/,     // Side effects
-    /\bconsole\./,         // Output (accepter seulement si debug)
-    /\bimport\b/,          // Dynamic imports
-    /\brequire\b/,         // CommonJS imports
+    /\bfetch\b/, // Network I/O
+    /\bDeno\./, // Deno APIs (filesystem, network, etc.)
+    /\bprocess\./, // Process APIs
+    /\beval\b/, // Code injection
+    /\bFunction\b/, // Code generation
+    /\bsetTimeout\b/, // Side effects
+    /\bsetInterval\b/, // Side effects
+    /\bconsole\./, // Output (accepter seulement si debug)
+    /\bimport\b/, // Dynamic imports
+    /\brequire\b/, // CommonJS imports
   ];
 
   for (const pattern of FORBIDDEN_PATTERNS) {
     if (pattern.test(task.code)) {
       throw new Error(
-        `Pure task ${task.id} contains forbidden pattern: ${pattern.source}`
+        `Pure task ${task.id} contains forbidden pattern: ${pattern.source}`,
       );
     }
   }
@@ -501,15 +506,16 @@ Le Worker a déjà `permissions: "none"`, donc même si code corrompu :
 
 ```typescript
 // Code corrompu tenté :
-const result = await fetch('https://evil.com');
+const result = await fetch("https://evil.com");
 //                    ↑ PermissionDenied (Worker permissions: "none")
 
 // Ou :
-const file = Deno.readTextFileSync('/etc/passwd');
+const file = Deno.readTextFileSync("/etc/passwd");
 //           ↑ PermissionDenied (Worker permissions: "none")
 ```
 
 **Donc :** Double sécurité
+
 1. Validation statique du code généré
 2. Runtime enforcement via Worker permissions
 
@@ -531,8 +537,7 @@ Deux approches complémentaires :
 }
 ```
 
-**Avantage :** Clair et explicite
-**Inconvénient :** Doit être set partout
+**Avantage :** Clair et explicite **Inconvénient :** Doit être set partout
 
 ### **Approche 2 : Detection via Tool ID**
 
@@ -547,8 +552,8 @@ if (isPureOperation(task.tool)) {
 }
 ```
 
-**Avantage :** Automatique, pas de metadata à set
-**Inconvénient :** Dépend de la convention de nommage
+**Avantage :** Automatique, pas de metadata à set **Inconvénient :** Dépend de la convention de
+nommage
 
 ### **Recommandation : Combiner les Deux**
 
@@ -568,13 +573,13 @@ function isPureTask(task: Task): boolean {
 
 ## ✅ **Bénéfices**
 
-| Aspect | Sans Optimisation | Avec Optimisation |
-|--------|-------------------|-------------------|
-| **Validations HIL** | N validations (toutes layers) | 2-3 validations (MCP seulement) |
-| **UX** | Validations inutiles ennuyantes | Validation seulement sur side effects |
-| **Performance** | Latence élevée (attente humain) | Latence réduite |
-| **Sécurité** | Identique (permissions minimal) | Identique + validation code |
-| **Auto-learning** | Patterns complets appris | Patterns complets appris |
+| Aspect              | Sans Optimisation               | Avec Optimisation                     |
+| ------------------- | ------------------------------- | ------------------------------------- |
+| **Validations HIL** | N validations (toutes layers)   | 2-3 validations (MCP seulement)       |
+| **UX**              | Validations inutiles ennuyantes | Validation seulement sur side effects |
+| **Performance**     | Latence élevée (attente humain) | Latence réduite                       |
+| **Sécurité**        | Identique (permissions minimal) | Identique + validation code           |
+| **Auto-learning**   | Patterns complets appris        | Patterns complets appris              |
 
 ---
 
@@ -628,6 +633,7 @@ function isPureTask(task: Task): boolean {
 **Les opérations JS pures doivent bypasser les validations HIL.**
 
 **Solution :**
+
 1. ✅ Auto-classification via `PURE_OPERATIONS` list
 2. ✅ `permissionSet: "minimal"` toujours
 3. ✅ `metadata.pure: true` pour skip validation
@@ -635,6 +641,7 @@ function isPureTask(task: Task): boolean {
 5. ✅ Runtime enforcement via Worker `permissions: "none"`
 
 **Résultat :**
+
 - Validation HIL seulement sur MCP tools et code avec permissions élevées
 - Opérations pures (filter, map, +, -, etc.) exécutées sans validation
 - Sécurité maintenue via double vérification (static + runtime)

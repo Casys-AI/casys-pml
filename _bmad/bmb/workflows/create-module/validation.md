@@ -1,6 +1,7 @@
 # Create Module Workflow Validation Checklist
 
-This document provides the validation criteria used in step-11-validate.md to ensure module quality and BMAD compliance.
+This document provides the validation criteria used in step-11-validate.md to ensure module quality
+and BMAD compliance.
 
 ## Structure Validation
 

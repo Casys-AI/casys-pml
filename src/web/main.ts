@@ -54,9 +54,12 @@ function requestLogger(ctx: FreshContext) {
     const status = response.status;
 
     // Status color
-    const statusColor = status >= 500 ? colors.red
-      : status >= 400 ? colors.red
-      : status >= 300 ? colors.yellow
+    const statusColor = status >= 500
+      ? colors.red
+      : status >= 400
+      ? colors.red
+      : status >= 300
+      ? colors.yellow
       : colors.green;
 
     // Build log line
@@ -92,7 +95,9 @@ function requestLogger(ctx: FreshContext) {
     return response;
   }).catch((error) => {
     const duration = Date.now() - start;
-    console.log(`${colors.red}${method}${colors.reset} ${pathname} ${colors.red}ERROR${colors.reset} ${duration}ms`);
+    console.log(
+      `${colors.red}${method}${colors.reset} ${pathname} ${colors.red}ERROR${colors.reset} ${duration}ms`,
+    );
     console.log(`  ${colors.red}↳ ${error.message}${colors.reset}`);
     throw error;
   });

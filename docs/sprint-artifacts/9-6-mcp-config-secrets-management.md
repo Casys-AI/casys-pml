@@ -4,9 +4,9 @@ Status: backlog (DEFERRED - requires workspace refacto: open-core + SaaS repos)
 
 ## Story
 
-En tant qu'utilisateur cloud,
-Je veux configurer mes clés API pour les MCPs tiers via le dashboard,
-Afin de pouvoir utiliser des services comme Tavily, OpenAI ou GitHub avec mes propres identifiants (BYOK - Bring Your Own Key).
+En tant qu'utilisateur cloud, Je veux configurer mes clés API pour les MCPs tiers via le dashboard,
+Afin de pouvoir utiliser des services comme Tavily, OpenAI ou GitHub avec mes propres identifiants
+(BYOK - Bring Your Own Key).
 
 ## Acceptance Criteria
 
@@ -170,11 +170,11 @@ Les API keys pour Tavily, OpenAI, etc. sont stockées dans PML.
 
 ### MCP Categories (ADR-040)
 
-| Category | Examples | API Key Source |
-|----------|----------|----------------|
-| **Managed** | filesystem, memory, fetch | None (PML provides) |
-| **OAuth** | github | User's GitHub login token |
-| **BYOK** | tavily, brave, openai, airtable | User provides via Settings |
+| Category    | Examples                        | API Key Source             |
+| ----------- | ------------------------------- | -------------------------- |
+| **Managed** | filesystem, memory, fetch       | None (PML provides)        |
+| **OAuth**   | github                          | User's GitHub login token  |
+| **BYOK**    | tavily, brave, openai, airtable | User provides via Settings |
 
 ### Database Schema
 
@@ -183,9 +183,9 @@ Les API keys pour Tavily, OpenAI, etc. sont stockées dans PML.
 export const userSecrets = pgTable("user_secrets", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").references(() => users.id).notNull(),
-  secretName: text("secret_name").notNull(),    // "TAVILY_API_KEY"
-  ciphertext: text("ciphertext").notNull(),     // AES-256-GCM encrypted
-  iv: text("iv").notNull(),                     // base64 encoded IV
+  secretName: text("secret_name").notNull(), // "TAVILY_API_KEY"
+  ciphertext: text("ciphertext").notNull(), // AES-256-GCM encrypted
+  iv: text("iv").notNull(), // base64 encoded IV
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -194,9 +194,9 @@ export const userSecrets = pgTable("user_secrets", {
 export const userMcpConfigs = pgTable("user_mcp_configs", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").references(() => users.id).notNull(),
-  mcpName: text("mcp_name").notNull(),          // "tavily", "github", etc.
+  mcpName: text("mcp_name").notNull(), // "tavily", "github", etc.
   enabled: boolean("enabled").default(true),
-  configJson: text("config_json"),               // MCP-specific options
+  configJson: text("config_json"), // MCP-specific options
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -232,7 +232,7 @@ function getMasterKey(): CryptoKey {
     keyBytes,
     { name: "AES-GCM" },
     false,
-    ["encrypt", "decrypt"]
+    ["encrypt", "decrypt"],
   );
 }
 
@@ -241,7 +241,7 @@ function getMasterKey(): CryptoKey {
  * @returns { ciphertext: base64, iv: base64 }
  */
 export async function encryptSecret(
-  plaintext: string
+  plaintext: string,
 ): Promise<{ ciphertext: string; iv: string }> {
   const key = await getMasterKey();
   const iv = crypto.getRandomValues(new Uint8Array(12)); // 96-bit IV for GCM
@@ -249,7 +249,7 @@ export async function encryptSecret(
   const encrypted = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv },
     key,
-    new TextEncoder().encode(plaintext)
+    new TextEncoder().encode(plaintext),
   );
 
   return {
@@ -263,14 +263,14 @@ export async function encryptSecret(
  */
 export async function decryptSecret(
   ciphertext: string,
-  iv: string
+  iv: string,
 ): Promise<string> {
   const key = await getMasterKey();
 
   const decrypted = await crypto.subtle.decrypt(
     { name: "AES-GCM", iv: decodeBase64(iv) },
     key,
-    decodeBase64(ciphertext)
+    decodeBase64(ciphertext),
   );
 
   return new TextDecoder().decode(decrypted);
@@ -285,8 +285,8 @@ export interface MCPDefinition {
   name: string;
   description: string;
   category: "managed" | "oauth" | "byok";
-  requiredSecrets: string[];  // e.g., ["TAVILY_API_KEY"]
-  configSchema?: object;       // JSON Schema for additional config
+  requiredSecrets: string[]; // e.g., ["TAVILY_API_KEY"]
+  configSchema?: object; // JSON Schema for additional config
 }
 
 export const MCP_CATALOG: MCPDefinition[] = [
@@ -315,7 +315,7 @@ export const MCP_CATALOG: MCPDefinition[] = [
     name: "github",
     description: "GitHub API access",
     category: "oauth",
-    requiredSecrets: [],  // Uses OAuth token from login
+    requiredSecrets: [], // Uses OAuth token from login
   },
 
   // BYOK (user provides key)
@@ -353,7 +353,7 @@ export const MCP_CATALOG: MCPDefinition[] = [
 
 async function handleCallTool(
   params: CallToolParams,
-  userId: string
+  userId: string,
 ): Promise<ToolResult> {
   const { name: toolName, arguments: args } = params;
 
@@ -364,7 +364,7 @@ async function handleCallTool(
   }
 
   // 2. Check if this MCP requires a secret
-  const mcpDef = MCP_CATALOG.find(m => m.name === mcpServer);
+  const mcpDef = MCP_CATALOG.find((m) => m.name === mcpServer);
   if (mcpDef && mcpDef.requiredSecrets.length > 0) {
     // 3. Load user's secret for this MCP
     const secretName = mcpDef.requiredSecrets[0]; // e.g., "TAVILY_API_KEY"
@@ -375,8 +375,8 @@ async function handleCallTool(
         isError: true,
         content: [{
           type: "text",
-          text: `Missing API key: ${secretName}. Configure it in Settings → API Keys.`
-        }]
+          text: `Missing API key: ${secretName}. Configure it in Settings → API Keys.`,
+        }],
       };
     }
 
@@ -400,7 +400,7 @@ async function handleCallTool(
 
 async function loadUserSecret(
   userId: string,
-  secretName: string
+  secretName: string,
 ): Promise<string | null> {
   const db = await getDb();
   const result = await db
@@ -408,7 +408,7 @@ async function loadUserSecret(
     .from(userSecrets)
     .where(and(
       eq(userSecrets.userId, userId),
-      eq(userSecrets.secretName, secretName)
+      eq(userSecrets.secretName, secretName),
     ))
     .limit(1);
 
@@ -427,23 +427,33 @@ Ajouter après la section "MCP Gateway Configuration" dans `settings.tsx`:
 
 ```tsx
 {/* API Keys Section (Cloud Mode Only) */}
-{isCloudMode && (
-  <section class="settings-section">
-    <h2 class="section-title">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M12 2a10 10 0 0 1 10 10c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2z"/>
-        <path d="M12 6v6l4 2"/>
-      </svg>
-      API Keys for MCP Services
-    </h2>
-    <div class="section-content">
-      <p class="config-description">
-        Configure your API keys for third-party MCP services. Keys are encrypted and securely stored.
-      </p>
-      <ApiKeysIsland userId={user.id} />
-    </div>
-  </section>
-)}
+{
+  isCloudMode && (
+    <section class="settings-section">
+      <h2 class="section-title">
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <path d="M12 2a10 10 0 0 1 10 10c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2z" />
+          <path d="M12 6v6l4 2" />
+        </svg>
+        API Keys for MCP Services
+      </h2>
+      <div class="section-content">
+        <p class="config-description">
+          Configure your API keys for third-party MCP services. Keys are encrypted and securely
+          stored.
+        </p>
+        <ApiKeysIsland userId={user.id} />
+      </div>
+    </section>
+  );
+}
 ```
 
 ### Environment Variables
@@ -462,12 +472,14 @@ SECRETS_MASTER_KEY=xxx  # 32 bytes, base64 encoded
 ### Security Considerations
 
 **Secrets stockés (cloud):**
+
 - Chiffrés AES-256-GCM avec IV unique par secret
 - Master key dans Deno Deploy secrets (jamais dans le code)
 - Déchiffrement uniquement au moment de l'appel MCP
 - Clés supprimées de la mémoire immédiatement après usage
 
 **Logging (CRITICAL):**
+
 ```typescript
 // ❌ NEVER DO THIS
 log.info(`Calling Tavily with key: ${apiKey}`);
@@ -478,12 +490,14 @@ log.debug(`Secret ${secretName} loaded successfully`);
 ```
 
 **Isolation:**
+
 - `user_secrets` filtré par `user_id` (jamais cross-tenant)
 - API endpoints vérifient `ctx.state.user.id === record.userId`
 
 ### Project Structure Notes
 
 **Fichiers à créer:**
+
 ```
 src/
 ├── lib/
@@ -517,6 +531,7 @@ tests/
 ```
 
 **Fichiers à modifier:**
+
 ```
 src/
 ├── web/
@@ -537,12 +552,14 @@ src/
 ### Git Intelligence (Recent Commits)
 
 Story 9.5 completed 2025-12-10:
+
 - Full userId propagation from HTTP auth to workflow_execution INSERT
 - 27 tests passing (14 isolation + 7 gateway + 6 controlled-executor)
 - Rate limiting implemented (100 req/min MCP, 200 req/min API)
 - Data isolation complete (cloud mode)
 
 Commit `970be2f`:
+
 ```
 feat(auth): Propagate userId from HTTP auth to workflow_execution INSERT (Story 9.5)
 ```
@@ -626,7 +643,7 @@ import type { AuthState } from "../../../_middleware.ts";
 import { getDb } from "../../../../server/auth/db.ts";
 import { userSecrets } from "../../../../db/schema/user-secrets.ts";
 import { encryptSecret } from "../../../../lib/secrets.ts";
-import { eq, and } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 export const handler: Handlers<unknown, AuthState> = {
   // GET /api/user/secrets - List secret names (not values!)
@@ -686,14 +703,17 @@ export const handler: Handlers<unknown, AuthState> = {
 
 ### References
 
-- **ADR-040:** [Multi-tenant MCP & Secrets Management](../adrs/ADR-040-multi-tenant-mcp-secrets-management.md)
+- **ADR-040:**
+  [Multi-tenant MCP & Secrets Management](../adrs/ADR-040-multi-tenant-mcp-secrets-management.md)
 - **Tech-Spec:** [tech-spec-github-auth-multitenancy.md](tech-spec-github-auth-multitenancy.md)
 - **Previous Story:** [9-5-rate-limiting-data-isolation.md](9-5-rate-limiting-data-isolation.md)
 - **Epic Definition:** [docs/epics.md#story-96](../epics.md) - Story 9.6
 - **Auth Module:** [src/lib/auth.ts](../../src/lib/auth.ts)
 - **Gateway Server:** [src/mcp/gateway-server.ts](../../src/mcp/gateway-server.ts)
-- **Settings Page:** [src/web/routes/dashboard/settings.tsx](../../src/web/routes/dashboard/settings.tsx)
-- **Web Crypto API:** [MDN SubtleCrypto.encrypt](https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/encrypt)
+- **Settings Page:**
+  [src/web/routes/dashboard/settings.tsx](../../src/web/routes/dashboard/settings.tsx)
+- **Web Crypto API:**
+  [MDN SubtleCrypto.encrypt](https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/encrypt)
 
 ## Dev Agent Record
 
@@ -716,6 +736,7 @@ Story ready for implementation.
 ### File List
 
 **New Files (to be created):**
+
 - `src/lib/secrets.ts` - Encryption helpers (encryptSecret, decryptSecret)
 - `src/db/schema/user-secrets.ts` - Drizzle schema for user_secrets
 - `src/db/schema/user-mcp-configs.ts` - Drizzle schema for user_mcp_configs
@@ -730,6 +751,7 @@ Story ready for implementation.
 - `tests/integration/auth/mcp_injection_test.ts` - Gateway injection tests
 
 **Modified Files:**
+
 - `src/web/routes/dashboard/settings.tsx` - Add API Keys section
 - `src/mcp/gateway-server.ts` - Secret injection in MCP calls
 - `src/db/schema/index.ts` - Export new schemas
@@ -739,15 +761,19 @@ Story ready for implementation.
 
 ### Problème: MCPs locaux en mode Cloud
 
-**Constat:** Comment accéder aux MCPs qui ont besoin du filesystem local (filesystem, sqlite, puppeteer) depuis un serveur cloud distant?
+**Constat:** Comment accéder aux MCPs qui ont besoin du filesystem local (filesystem, sqlite,
+puppeteer) depuis un serveur cloud distant?
 
 **Recherche Smithery:** Smithery utilise 2 modes:
+
 1. **Local Distribution** - User installe via `npx`, MCP tourne localement
 2. **Hosted (Remote)** - MCP tourne sur serveurs Smithery
 
-→ Tous les services du marché (Smithery, Cloudflare Tunnel, VS Code Remote, Tailscale) nécessitent un composant local à installer.
+→ Tous les services du marché (Smithery, Cloudflare Tunnel, VS Code Remote, Tailscale) nécessitent
+un composant local à installer.
 
-**Conclusion:** Il est **physiquement impossible** d'accéder au filesystem local sans un agent local. C'est une contrainte technique fondamentale.
+**Conclusion:** Il est **physiquement impossible** d'accéder au filesystem local sans un agent
+local. C'est une contrainte technique fondamentale.
 
 ### Solution proposée: Local Agent Bridge
 
@@ -774,13 +800,14 @@ Story ready for implementation.
 
 ### Décision: Open Core Model
 
-| Tier | MCPs | Agent Local |
-|------|------|-------------|
-| **Self-hosted (gratuit)** | Tous | N/A (tout local) |
-| **Cloud Free** | Cloud-only (tavily, github, brave) | Non |
-| **Cloud Pro** | Tous via bridge | Oui (feature payante) |
+| Tier                      | MCPs                               | Agent Local           |
+| ------------------------- | ---------------------------------- | --------------------- |
+| **Self-hosted (gratuit)** | Tous                               | N/A (tout local)      |
+| **Cloud Free**            | Cloud-only (tavily, github, brave) | Non                   |
+| **Cloud Pro**             | Tous via bridge                    | Oui (feature payante) |
 
 **Le Local Agent Bridge = feature premium** car:
+
 - Complexité technique (WebSocket tunnel, auth, routing)
 - Valeur business claire (best of both worlds)
 - Support/maintenance
@@ -788,6 +815,7 @@ Story ready for implementation.
 ### Impact Architecture
 
 Cette story (9.6) doit attendre la refacto workspace:
+
 - `pml-core` → open source (ce repo)
 - `pml-cloud` → SaaS privé (auth cloud, local agent, billing)
 
@@ -796,4 +824,5 @@ Le Local Agent sera développé dans `pml-cloud`.
 ## Change Log
 
 - 2025-12-10: Story 9.6 drafted with comprehensive context for MCP Config & Secrets Management
-- 2025-12-10: **DEFERRED** - Research on local MCPs problem documented. Requires workspace refacto (open-core + SaaS split) before implementation. Local Agent Bridge identified as premium feature.
+- 2025-12-10: **DEFERRED** - Research on local MCPs problem documented. Requires workspace refacto
+  (open-core + SaaS split) before implementation. Local Agent Bridge identified as premium feature.

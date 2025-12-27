@@ -2,19 +2,20 @@
 
 ## Overview
 
-PML (Procedural Memory Layer) exposes its features via the MCP (Model Context Protocol). This reference documents all available tools.
+PML (Procedural Memory Layer) exposes its features via the MCP (Model Context Protocol). This
+reference documents all available tools.
 
 **Version:** 1.0.0
 
 **Available transports:**
 
-| Transport           | Command                                     | Features                                |
-| ------------------- | ------------------------------------------- | --------------------------------------- |
-| **stdio**           | `pml serve --config ...`             | MCP protocol, console logs              |
-| **Streamable HTTP** | `pml serve --config ... --port 3001` | MCP on `/mcp` + Dashboard + Events SSE  |
+| Transport           | Command                              | Features                               |
+| ------------------- | ------------------------------------ | -------------------------------------- |
+| **stdio**           | `pml serve --config ...`             | MCP protocol, console logs             |
+| **Streamable HTTP** | `pml serve --config ... --port 3001` | MCP on `/mcp` + Dashboard + Events SSE |
 
-> **Note:** stdio mode is recommended for Claude Code. Streamable HTTP mode (MCP spec
-> 2025-03-26) enables the Fresh dashboard and real-time events.
+> **Note:** stdio mode is recommended for Claude Code. Streamable HTTP mode (MCP spec 2025-03-26)
+> enables the Fresh dashboard and real-time events.
 
 ---
 
@@ -22,14 +23,13 @@ PML (Procedural Memory Layer) exposes its features via the MCP (Model Context Pr
 
 PML exposes two types of tools:
 
-| Type               | Pattern             | Description                                                  |
-| ------------------ | ------------------- | ------------------------------------------------------------ |
-| **Meta-tools**     | `pml:*`      | PML intelligent tools (search, capabilities, DAG, sandbox) |
-| **Proxied tools**  | `serverId:toolName` | Tools from underlying MCP servers (filesystem, github...)    |
+| Type              | Pattern             | Description                                                |
+| ----------------- | ------------------- | ---------------------------------------------------------- |
+| **Meta-tools**    | `pml:*`             | PML intelligent tools (search, capabilities, DAG, sandbox) |
+| **Proxied tools** | `serverId:toolName` | Tools from underlying MCP servers (filesystem, github...)  |
 
-> **Note:** By default, only meta-tools are listed to minimize context usage
-> (ADR-013). Underlying tools are discovered via `search_tools` or used directly if
-> their name is known.
+> **Note:** By default, only meta-tools are listed to minimize context usage (ADR-013). Underlying
+> tools are discovered via `search_tools` or used directly if their name is known.
 
 ---
 
@@ -41,12 +41,12 @@ Semantic search and recommendations based on the usage graph.
 
 **Parameters:**
 
-| Name              | Type     | Required | Description                                              |
-| ----------------- | -------- | -------- | -------------------------------------------------------- |
-| `query`           | string   | Yes      | Natural language description of what you want to do      |
-| `limit`           | number   | No       | Max number of tools to return (default: 5)               |
-| `include_related` | boolean  | No       | Include related tools from graph (default: false)        |
-| `context_tools`   | string[] | No       | Already used tools - boosts related tools                |
+| Name              | Type     | Required | Description                                         |
+| ----------------- | -------- | -------- | --------------------------------------------------- |
+| `query`           | string   | Yes      | Natural language description of what you want to do |
+| `limit`           | number   | No       | Max number of tools to return (default: 5)          |
+| `include_related` | boolean  | No       | Include related tools from graph (default: false)   |
+| `context_tools`   | string[] | No       | Already used tools - boosts related tools           |
 
 **Request example:**
 
@@ -77,10 +77,10 @@ Search for proven code patterns learned from successful executions.
 
 **Parameters:**
 
-| Name                 | Type    | Required | Description                                              |
-| -------------------- | ------- | -------- | -------------------------------------------------------- |
-| `intent`             | string  | Yes      | What you want to accomplish - finds similar past successes |
-| `include_suggestions`| boolean | No       | Also show related capabilities (default: false)          |
+| Name                  | Type    | Required | Description                                                |
+| --------------------- | ------- | -------- | ---------------------------------------------------------- |
+| `intent`              | string  | Yes      | What you want to accomplish - finds similar past successes |
+| `include_suggestions` | boolean | No       | Also show related capabilities (default: false)            |
 
 **Request example:**
 
@@ -104,12 +104,13 @@ await callTool("pml:search_capabilities", {
 
 **When to use:**
 
-| Tool | Purpose |
-|------|---------|
-| `search_tools` | Find MCP tools by capability description |
+| Tool                  | Purpose                                      |
+| --------------------- | -------------------------------------------- |
+| `search_tools`        | Find MCP tools by capability description     |
 | `search_capabilities` | Find proven code patterns that worked before |
 
-> **Tip:** Use `search_capabilities` when you want to reuse existing patterns instead of building from scratch. The returned code can be executed directly via `execute_code`.
+> **Tip:** Use `search_capabilities` when you want to reuse existing patterns instead of building
+> from scratch. The returned code can be executed directly via `execute_code`.
 
 ---
 
@@ -126,11 +127,11 @@ Execute a multi-tool DAG (Directed Acyclic Graph) workflow.
 
 **Parameters:**
 
-| Name                   | Type    | Required | Description                                               |
-| ---------------------- | ------- | -------- | --------------------------------------------------------- |
-| `intent`               | string  | No*      | Natural description of the goal (suggestion mode)         |
-| `workflow`             | object  | No*      | Explicit DAG structure (explicit mode)                    |
-| `per_layer_validation` | boolean | No       | Pause between each layer for validation (default: false)  |
+| Name                   | Type    | Required | Description                                              |
+| ---------------------- | ------- | -------- | -------------------------------------------------------- |
+| `intent`               | string  | No*      | Natural description of the goal (suggestion mode)        |
+| `workflow`             | object  | No*      | Explicit DAG structure (explicit mode)                   |
+| `per_layer_validation` | boolean | No       | Pause between each layer for validation (default: false) |
 
 *At least one of the two is required.
 
@@ -209,20 +210,20 @@ Execute TypeScript/JavaScript code in an isolated Deno sandbox.
 
 **Parameters:**
 
-| Name             | Type   | Required | Description                                       |
-| ---------------- | ------ | -------- | ------------------------------------------------- |
-| `code`           | string | Yes      | TypeScript code to execute                        |
-| `intent`         | string | No       | Description for automatic tool discovery          |
-| `context`        | object | No       | Data/context to inject into the sandbox           |
-| `sandbox_config` | object | No       | Sandbox configuration                             |
+| Name             | Type   | Required | Description                              |
+| ---------------- | ------ | -------- | ---------------------------------------- |
+| `code`           | string | Yes      | TypeScript code to execute               |
+| `intent`         | string | No       | Description for automatic tool discovery |
+| `context`        | object | No       | Data/context to inject into the sandbox  |
+| `sandbox_config` | object | No       | Sandbox configuration                    |
 
 **sandbox_config options:**
 
-| Option             | Type     | Default | Description                              |
-| ------------------ | -------- | ------- | ---------------------------------------- |
-| `timeout`          | number   | 30000   | Timeout in milliseconds                  |
-| `memoryLimit`      | number   | 512     | Heap memory limit in MB                  |
-| `allowedReadPaths` | string[] | []      | Additional allowed read paths            |
+| Option             | Type     | Default | Description                   |
+| ------------------ | -------- | ------- | ----------------------------- |
+| `timeout`          | number   | 30000   | Timeout in milliseconds       |
+| `memoryLimit`      | number   | 512     | Heap memory limit in MB       |
+| `allowedReadPaths` | string[] | []      | Additional allowed read paths |
 
 **REPL behavior:**
 
@@ -277,10 +278,10 @@ Continue execution of a paused workflow (after per-layer validation).
 
 **Parameters:**
 
-| Name          | Type   | Required | Description                               |
-| ------------- | ------ | -------- | ----------------------------------------- |
-| `workflow_id` | string | Yes      | Workflow ID (returned by execute_dag)     |
-| `reason`      | string | No       | Reason for continuation                   |
+| Name          | Type   | Required | Description                           |
+| ------------- | ------ | -------- | ------------------------------------- |
+| `workflow_id` | string | Yes      | Workflow ID (returned by execute_dag) |
+| `reason`      | string | No       | Reason for continuation               |
 
 **Example:**
 
@@ -299,10 +300,10 @@ Stop a running workflow.
 
 **Parameters:**
 
-| Name          | Type   | Required | Description              |
-| ------------- | ------ | -------- | ------------------------ |
-| `workflow_id` | string | Yes      | Workflow ID to stop      |
-| `reason`      | string | Yes      | Reason for stopping      |
+| Name          | Type   | Required | Description         |
+| ------------- | ------ | -------- | ------------------- |
+| `workflow_id` | string | Yes      | Workflow ID to stop |
+| `reason`      | string | Yes      | Reason for stopping |
 
 **Example:**
 
@@ -321,11 +322,11 @@ Re-plan a DAG with new requirements (discovered during execution).
 
 **Parameters:**
 
-| Name                | Type   | Required | Description                             |
-| ------------------- | ------ | -------- | --------------------------------------- |
-| `workflow_id`       | string | Yes      | Workflow ID to replan                   |
-| `new_requirement`   | string | Yes      | Description of what needs to be added   |
-| `available_context` | object | No       | Context for replanning                  |
+| Name                | Type   | Required | Description                           |
+| ------------------- | ------ | -------- | ------------------------------------- |
+| `workflow_id`       | string | Yes      | Workflow ID to replan                 |
+| `new_requirement`   | string | Yes      | Description of what needs to be added |
+| `available_context` | object | No       | Context for replanning                |
 
 **Example:**
 
@@ -348,12 +349,12 @@ Respond to a Human-in-the-Loop (HIL) approval checkpoint.
 
 **Parameters:**
 
-| Name            | Type    | Required | Description                                     |
-| --------------- | ------- | -------- | ----------------------------------------------- |
-| `workflow_id`   | string  | Yes      | Workflow ID                                     |
-| `checkpoint_id` | string  | Yes      | Checkpoint ID (returned by workflow)            |
-| `approved`      | boolean | Yes      | `true` to approve, `false` to reject            |
-| `feedback`      | string  | No       | Comment or reason for the decision              |
+| Name            | Type    | Required | Description                          |
+| --------------- | ------- | -------- | ------------------------------------ |
+| `workflow_id`   | string  | Yes      | Workflow ID                          |
+| `checkpoint_id` | string  | Yes      | Checkpoint ID (returned by workflow) |
+| `approved`      | boolean | Yes      | `true` to approve, `false` to reject |
+| `feedback`      | string  | No       | Comment or reason for the decision   |
 
 **Example:**
 
@@ -445,36 +446,36 @@ type WorkflowStatus =
 
 ## Error Codes
 
-| Code   | Name             | Description        | Resolution                                       |
-| ------ | ---------------- | ------------------ | ------------------------------------------------ |
-| -32700 | PARSE_ERROR      | Invalid JSON       | Check request format                             |
-| -32600 | INVALID_REQUEST  | Malformed request  | Check MCP structure                              |
-| -32601 | METHOD_NOT_FOUND | Unknown method     | Use tools/list, tools/call, or prompts/get       |
-| -32602 | INVALID_PARAMS   | Invalid parameters | Check required parameters                        |
-| -32603 | INTERNAL_ERROR   | Internal error     | Check logs, retry                                |
+| Code   | Name             | Description        | Resolution                                 |
+| ------ | ---------------- | ------------------ | ------------------------------------------ |
+| -32700 | PARSE_ERROR      | Invalid JSON       | Check request format                       |
+| -32600 | INVALID_REQUEST  | Malformed request  | Check MCP structure                        |
+| -32601 | METHOD_NOT_FOUND | Unknown method     | Use tools/list, tools/call, or prompts/get |
+| -32602 | INVALID_PARAMS   | Invalid parameters | Check required parameters                  |
+| -32603 | INTERNAL_ERROR   | Internal error     | Check logs, retry                          |
 
 **PML specific errors:**
 
-| Error                | Description                    | Resolution                                       |
-| -------------------- | ------------------------------ | ------------------------------------------------ |
-| `WORKFLOW_NOT_FOUND` | Non-existent workflow ID       | Check ID, workflow may have expired              |
-| `TOOL_NOT_FOUND`     | Unknown tool                   | Use search_tools to discover tools               |
-| `SANDBOX_TIMEOUT`    | Code execution timeout         | Reduce complexity or increase timeout            |
-| `SANDBOX_MEMORY`     | Sandbox memory exceeded        | Reduce data or increase memoryLimit              |
-| `MCP_SERVER_ERROR`   | Underlying MCP server error    | Check MCP server connection                      |
+| Error                | Description                 | Resolution                            |
+| -------------------- | --------------------------- | ------------------------------------- |
+| `WORKFLOW_NOT_FOUND` | Non-existent workflow ID    | Check ID, workflow may have expired   |
+| `TOOL_NOT_FOUND`     | Unknown tool                | Use search_tools to discover tools    |
+| `SANDBOX_TIMEOUT`    | Code execution timeout      | Reduce complexity or increase timeout |
+| `SANDBOX_MEMORY`     | Sandbox memory exceeded     | Reduce data or increase memoryLimit   |
+| `MCP_SERVER_ERROR`   | Underlying MCP server error | Check MCP server connection           |
 
 ---
 
 ## Limits
 
-| Resource           | Limit   | Configurable                       |
-| ------------------ | ------- | ---------------------------------- |
-| Per-tool timeout   | 30s     | Yes (`sandbox_config.timeout`)     |
-| Sandbox memory     | 512MB   | Yes (`sandbox_config.memoryLimit`) |
-| Code size          | 100KB   | No                                 |
-| Active workflows   | 100     | No                                 |
-| Paused workflow TTL| 1 hour  | No                                 |
-| Cache entries      | 100     | Yes (`--no-cache` to disable)      |
+| Resource            | Limit  | Configurable                       |
+| ------------------- | ------ | ---------------------------------- |
+| Per-tool timeout    | 30s    | Yes (`sandbox_config.timeout`)     |
+| Sandbox memory      | 512MB  | Yes (`sandbox_config.memoryLimit`) |
+| Code size           | 100KB  | No                                 |
+| Active workflows    | 100    | No                                 |
+| Paused workflow TTL | 1 hour | No                                 |
+| Cache entries       | 100    | Yes (`--no-cache` to disable)      |
 
 ---
 

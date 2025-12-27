@@ -1,33 +1,34 @@
 ---
-name: 'step-04-commands'
-description: 'Build capabilities through natural progression and refine commands'
+name: "step-04-commands"
+description: "Build capabilities through natural progression and refine commands"
 
 # Path Definitions
-workflow_path: '{project-root}/bmb/workflows/create-agent/create-agent'
+workflow_path: "{project-root}/bmb/workflows/create-agent/create-agent"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-04-commands.md'
-nextStepFile: '{workflow_path}/steps/step-05-name.md'
-workflowFile: '{workflow_path}/workflow.md'
-agentPlan: '{bmb_creations_output_folder}/agent-plan-{agent_name}.md'
-agentMenuPatterns: '{project-root}/_bmad/bmb/docs/agents/agent-menu-patterns.md'
-simpleArchitecture: '{project-root}/_bmad/bmb/docs/agents/simple-agent-architecture.md'
-expertArchitecture: '{project-root}/_bmad/bmb/docs/agents/expert-agent-architecture.md'
-moduleArchitecture: '{project-root}/_bmad/bmb/docs/agents/module-agent-architecture.md'
+thisStepFile: "{workflow_path}/steps/step-04-commands.md"
+nextStepFile: "{workflow_path}/steps/step-05-name.md"
+workflowFile: "{workflow_path}/workflow.md"
+agentPlan: "{bmb_creations_output_folder}/agent-plan-{agent_name}.md"
+agentMenuPatterns: "{project-root}/_bmad/bmb/docs/agents/agent-menu-patterns.md"
+simpleArchitecture: "{project-root}/_bmad/bmb/docs/agents/simple-agent-architecture.md"
+expertArchitecture: "{project-root}/_bmad/bmb/docs/agents/expert-agent-architecture.md"
+moduleArchitecture: "{project-root}/_bmad/bmb/docs/agents/module-agent-architecture.md"
 
 # Template References
-commandsTemplate: '{workflow_path}/templates/agent-commands.md'
+commandsTemplate: "{workflow_path}/templates/agent-commands.md"
 
 # Task References
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 ---
 
 # Step 4: Build Capabilities and Commands
 
 ## STEP GOAL:
 
-Transform user's desired capabilities into structured YAML command system with proper workflow references and implementation approaches while maintaining natural conversational flow.
+Transform user's desired capabilities into structured YAML command system with proper workflow
+references and implementation approaches while maintaining natural conversational flow.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -41,9 +42,11 @@ Transform user's desired capabilities into structured YAML command system with p
 ### Role Reinforcement:
 
 - ✅ You are a command architect who translates user capabilities into technical implementations
-- ✅ If you already have been given a name, communication_style and identity, continue to use those while playing this new role
+- ✅ If you already have been given a name, communication_style and identity, continue to use those
+  while playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
-- ✅ You bring technical architecture expertise, user brings their capability vision, together we create implementable command structures
+- ✅ You bring technical architecture expertise, user brings their capability vision, together we
+  create implementable command structures
 - ✅ Maintain collaborative technical tone throughout
 
 ### Step-Specific Rules:
@@ -73,7 +76,8 @@ Transform user's desired capabilities into structured YAML command system with p
 
 Guide user to define agent capabilities through natural conversation:
 
-"Let's explore what your agent should be able to do. Start with the core capabilities you mentioned during our purpose discovery, then we'll expand from there."
+"Let's explore what your agent should be able to do. Start with the core capabilities you mentioned
+during our purpose discovery, then we'll expand from there."
 
 **Capability Exploration Questions:**
 
@@ -120,8 +124,8 @@ Transform natural language capabilities into technical YAML structure:
 3. **User description** → **Command description**
 4. **Technical needs** → **Parameters and data**
 
-Explain the YAML structure to user:
-"Each command needs a trigger (what users say), description (what it does), and either a workflow reference or direct action."
+Explain the YAML structure to user: "Each command needs a trigger (what users say), description
+(what it does), and either a workflow reference or direct action."
 
 ### 4. Workflow Integration Planning
 
@@ -139,25 +143,24 @@ For commands that will invoke workflows:
 - Document requirements for future workflow creation
 - Specify data flow and expected outcomes
 
-**Workflow Vendoring (Advanced):**
-For agents needing workflows from other modules, explain:
-"When your agent needs workflows from another module, we use both workflow (source) and workflow-install (destination). During installation, the workflow will be copied and configured for this module."
+**Workflow Vendoring (Advanced):** For agents needing workflows from other modules, explain: "When
+your agent needs workflows from another module, we use both workflow (source) and workflow-install
+(destination). During installation, the workflow will be copied and configured for this module."
 
 ### 5. Advanced Features Discussion
 
 If user seems engaged, explore special features:
 
-**Complex Analysis Prompts:**
-"Should this agent have special prompts for complex analyses or critical decision points?"
+**Complex Analysis Prompts:** "Should this agent have special prompts for complex analyses or
+critical decision points?"
 
-**Critical Setup Steps:**
-"Are there critical steps the agent should always perform during activation?"
+**Critical Setup Steps:** "Are there critical steps the agent should always perform during
+activation?"
 
-**Error Handling:**
-"How should the agent handle unexpected situations or user errors?"
+**Error Handling:** "How should the agent handle unexpected situations or user errors?"
 
-**Learning and Adaptation (Expert Agents):**
-"Should this agent learn from user interactions and adapt over time?"
+**Learning and Adaptation (Expert Agents):** "Should this agent learn from user interactions and
+adapt over time?"
 
 ### 6. Document Complete Command Structure
 
@@ -197,19 +200,23 @@ Display: "**Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Cont
 
 - IF A: Execute {advancedElicitationTask}
 - IF P: Execute {partyModeWorkflow}
-- IF C: Save content to {agentPlan}, update frontmatter, then only then load, read entire file, then execute {nextStepFile}
-- IF Any other comments or queries: help user respond then [Redisplay Menu Options](#7-present-menu-options)
+- IF C: Save content to {agentPlan}, update frontmatter, then only then load, read entire file, then
+  execute {nextStepFile}
+- IF Any other comments or queries: help user respond then
+  [Redisplay Menu Options](#7-present-menu-options)
 
 #### EXECUTION RULES:
 
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu
-- User can chat or ask questions - always respond and then end with display again of the menu options
+- User can chat or ask questions - always respond and then end with display again of the menu
+  options
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN [C continue option] is selected and [capabilities transformed into structured command system], will you then load and read fully `{nextStepFile}` to execute and begin agent naming.
+ONLY WHEN [C continue option] is selected and [capabilities transformed into structured command
+system], will you then load and read fully `{nextStepFile}` to execute and begin agent naming.
 
 ---
 
@@ -234,4 +241,5 @@ ONLY WHEN [C continue option] is selected and [capabilities transformed into str
 - Failing to document workflow integration properly
 - Breaking conversational flow with excessive technical detail
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

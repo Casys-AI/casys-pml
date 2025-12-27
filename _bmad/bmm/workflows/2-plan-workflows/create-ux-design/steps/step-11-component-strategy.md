@@ -4,8 +4,10 @@
 
 - 🛑 NEVER generate content without user input
 
-- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding leads to incomplete decisions
-- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before proceeding
+- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding
+  leads to incomplete decisions
+- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before
+  proceeding
 - ✅ ALWAYS treat this as collaborative discovery between UX facilitator and stakeholder
 - 📋 YOU ARE A UX FACILITATOR, not a content generator
 - 💬 FOCUS on defining component library strategy and custom components
@@ -16,7 +18,8 @@
 - 🎯 Show your analysis before taking any action
 - ⚠️ Present A/P/C menu after generating component strategy content
 - 💾 ONLY save when user chooses C (Continue)
-- 📖 Update frontmatter `stepsCompleted: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]` before loading next step
+- 📖 Update frontmatter `stepsCompleted: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]` before loading next
+  step
 - 🚫 FORBIDDEN to load next step until C is selected
 
 ## COLLABORATION MENUS (A/P/C):
@@ -49,14 +52,14 @@ Define component library strategy and design custom components not covered by th
 
 ### 1. Analyze Design System Coverage
 
-Review what components are available vs. needed:
-"Based on our chosen design system [design system from step 6], let's identify what components are already available and what we need to create custom.
+Review what components are available vs. needed: "Based on our chosen design system [design system
+from step 6], let's identify what components are already available and what we need to create
+custom.
 
-**Available from Design System:**
-[List of components available in chosen design system]
+**Available from Design System:** [List of components available in chosen design system]
 
-**Components Needed for {{project_name}}:**
-Looking at our user journeys and design direction, we need:
+**Components Needed for {{project_name}}:** Looking at our user journeys and design direction, we
+need:
 
 - [Component need 1 from journey analysis]
 - [Component need 2 from design requirements]
@@ -71,15 +74,12 @@ Looking at our user journeys and design direction, we need:
 
 For each custom component needed, design thoroughly:
 
-**For each custom component:**
-"**[Component Name] Design:**
+**For each custom component:** "**[Component Name] Design:**
 
-**Purpose:** What does this component do for users?
-**Content:** What information or data does it display?
-**Actions:** What can users do with this component?
-**States:** What different states does it have? (default, hover, active, disabled, error, etc.)
-**Variants:** Are there different sizes or styles needed?
-**Accessibility:** What ARIA labels and keyboard support needed?
+**Purpose:** What does this component do for users? **Content:** What information or data does it
+display? **Actions:** What can users do with this component? **States:** What different states does
+it have? (default, hover, active, disabled, error, etc.) **Variants:** Are there different sizes or
+styles needed? **Accessibility:** What ARIA labels and keyboard support needed?
 
 Let's walk through each custom component systematically."
 
@@ -92,20 +92,15 @@ Create detailed specifications for each component:
 ```markdown
 ### [Component Name]
 
-**Purpose:** [Clear purpose statement]
-**Usage:** [When and how to use]
-**Anatomy:** [Visual breakdown of parts]
-**States:** [All possible states with descriptions]
-**Variants:** [Different sizes/styles if applicable]
-**Accessibility:** [ARIA labels, keyboard navigation]
-**Content Guidelines:** [What content works best]
-**Interaction Behavior:** [How users interact]
+**Purpose:** [Clear purpose statement] **Usage:** [When and how to use] **Anatomy:** [Visual
+breakdown of parts] **States:** [All possible states with descriptions] **Variants:** [Different
+sizes/styles if applicable] **Accessibility:** [ARIA labels, keyboard navigation] **Content
+Guidelines:** [What content works best] **Interaction Behavior:** [How users interact]
 ```
 
 ### 4. Define Component Strategy
 
-Establish overall component library approach:
-"**Component Strategy:**
+Establish overall component library approach: "**Component Strategy:**
 
 **Foundation Components:** (from design system)
 
@@ -126,8 +121,7 @@ Establish overall component library approach:
 
 ### 5. Plan Implementation Roadmap
 
-Define how and when to build components:
-"**Implementation Roadmap:**
+Define how and when to build components: "**Implementation Roadmap:**
 
 **Phase 1 - Core Components:**
 
@@ -176,23 +170,24 @@ When saving to document, append these Level 2 and Level 3 sections:
 
 ### 7. Present Content and Menu
 
-Show the generated component strategy content and present choices:
-"I've defined the component strategy for {{project_name}}. This balances using proven design system components with custom components for your unique needs.
+Show the generated component strategy content and present choices: "I've defined the component
+strategy for {{project_name}}. This balances using proven design system components with custom
+components for your unique needs.
 
 **Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 6]
 
-**What would you like to do?**
-[A] Advanced Elicitation - Let's refine our component strategy
-[P] Party Mode - Bring technical perspectives on component design
-[C] Continue - Save this to the document and move to UX patterns
+**What would you like to do?** [A] Advanced Elicitation - Let's refine our component strategy [P]
+Party Mode - Bring technical perspectives on component design [C] Continue - Save this to the
+document and move to UX patterns
 
 ### 8. Handle Menu Selection
 
 #### If 'A' (Advanced Elicitation):
 
-- Execute {project-root}/\_bmad/core/tasks/advanced-elicitation.xml with the current component strategy content
+- Execute {project-root}/\_bmad/core/tasks/advanced-elicitation.xml with the current component
+  strategy content
 - Process the enhanced component insights that come back
 - Ask user: "Accept these improvements to the component strategy? (y/n)"
 - If yes: Update content with improvements, then return to A/P/C menu
@@ -200,7 +195,8 @@ Show the generated component strategy content and present choices:
 
 #### If 'P' (Party Mode):
 
-- Execute {project-root}/\_bmad/core/workflows/party-mode/workflow.md with the current component strategy
+- Execute {project-root}/\_bmad/core/workflows/party-mode/workflow.md with the current component
+  strategy
 - Process the collaborative component insights that come back
 - Ask user: "Accept these changes to the component strategy? (y/n)"
 - If yes: Update content with improvements, then return to A/P/C menu
@@ -218,30 +214,27 @@ When user selects 'C', append the content directly to the document using the str
 
 ## SUCCESS METRICS:
 
-✅ Design system coverage properly analyzed
-✅ All custom components thoroughly specified
-✅ Component strategy clearly defined
-✅ Implementation roadmap prioritized by user need
-✅ Accessibility considered for all components
-✅ A/P/C menu presented and handled correctly
-✅ Content properly appended to document when C selected
+✅ Design system coverage properly analyzed ✅ All custom components thoroughly specified ✅
+Component strategy clearly defined ✅ Implementation roadmap prioritized by user need ✅
+Accessibility considered for all components ✅ A/P/C menu presented and handled correctly ✅ Content
+properly appended to document when C selected
 
 ## FAILURE MODES:
 
-❌ Not analyzing design system coverage properly
-❌ Custom components not thoroughly specified
-❌ Missing accessibility considerations
-❌ Component strategy not aligned with user journeys
-❌ Implementation roadmap not prioritized effectively
-❌ Not presenting A/P/C menu after content generation
-❌ Appending content without user selecting 'C'
+❌ Not analyzing design system coverage properly ❌ Custom components not thoroughly specified ❌
+Missing accessibility considerations ❌ Component strategy not aligned with user journeys ❌
+Implementation roadmap not prioritized effectively ❌ Not presenting A/P/C menu after content
+generation ❌ Appending content without user selecting 'C'
 
-❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
-❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step file
-❌ **CRITICAL**: Making decisions without complete understanding of step requirements and protocols
+❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor
+decisions ❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step
+file ❌ **CRITICAL**: Making decisions without complete understanding of step requirements and
+protocols
 
 ## NEXT STEP:
 
-After user selects 'C' and content is saved to document, load `./step-12-ux-patterns.md` to define UX consistency patterns.
+After user selects 'C' and content is saved to document, load `./step-12-ux-patterns.md` to define
+UX consistency patterns.
 
-Remember: Do NOT proceed to step-12 until user explicitly selects 'C' from the A/P/C menu and content is saved!
+Remember: Do NOT proceed to step-12 until user explicitly selects 'C' from the A/P/C menu and
+content is saved!

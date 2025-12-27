@@ -4,19 +4,24 @@ last-redoc-date: 2025-09-28
 
 # Storytelling Workflow
 
-**Type:** Interactive Document Workflow
-**Module:** Creative Intelligence System (CIS)
+**Type:** Interactive Document Workflow **Module:** Creative Intelligence System (CIS)
 
 ## Purpose
 
-Crafts compelling narratives using proven story frameworks and techniques. Guides structured narrative development, applying appropriate story frameworks to create emotionally resonant and engaging stories for any purpose—brand narratives, user stories, change communications, or creative fiction.
+Crafts compelling narratives using proven story frameworks and techniques. Guides structured
+narrative development, applying appropriate story frameworks to create emotionally resonant and
+engaging stories for any purpose—brand narratives, user stories, change communications, or creative
+fiction.
 
 ## Distinctive Features
 
-- **Framework Library**: Comprehensive story frameworks in `story-types.csv` (Hero's Journey, Three-Act Structure, Story Brand, etc.)
-- **Emotional Psychology**: Leverages deep understanding of universal human themes and emotional connection
+- **Framework Library**: Comprehensive story frameworks in `story-types.csv` (Hero's Journey,
+  Three-Act Structure, Story Brand, etc.)
+- **Emotional Psychology**: Leverages deep understanding of universal human themes and emotional
+  connection
 - **Platform Adaptation**: Tailors narrative structure to medium and audience
-- **Whimsical Facilitation**: Flowery, enrapturing communication style that embodies master storytelling
+- **Whimsical Facilitation**: Flowery, enrapturing communication style that embodies master
+  storytelling
 
 ## Usage
 

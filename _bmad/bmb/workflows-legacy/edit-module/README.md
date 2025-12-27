@@ -1,6 +1,7 @@
 # Edit Module Workflow
 
-Interactive workflow for editing existing BMAD modules, including structure, agents, workflows, configuration, and documentation.
+Interactive workflow for editing existing BMAD modules, including structure, agents, workflows,
+configuration, and documentation.
 
 ## Purpose
 
@@ -66,7 +67,8 @@ This workflow integrates with:
 - **create-agent** - For adding new agents
 - **create-workflow** - For adding new workflows
 
-When you select options to manage agents or workflows, the appropriate specialized workflow is invoked automatically.
+When you select options to manage agents or workflows, the appropriate specialized workflow is
+invoked automatically.
 
 ## Module Structure
 
@@ -91,11 +93,11 @@ module-code/
 Every module config.yaml should have:
 
 ```yaml
-module_name: 'Full Module Name'
-module_code: 'xyz'
-user_name: 'User Name'
-communication_language: 'english'
-output_folder: 'path/to/output'
+module_name: "Full Module Name"
+module_code: "xyz"
+user_name: "User Name"
+communication_language: "english"
+output_folder: "path/to/output"
 ```
 
 Optional fields may be added for module-specific needs.
@@ -106,7 +108,7 @@ Modules can share workflows:
 
 ```yaml
 # In agent menu item:
-workflow: '{project-root}/_bmad/other-module/workflows/shared-workflow/workflow.yaml'
+workflow: "{project-root}/_bmad/other-module/workflows/shared-workflow/workflow.yaml"
 ```
 
 Common patterns:

@@ -178,7 +178,7 @@ particulière à:
 
 | Document                                                                                   | Type                    | Taille   | Dernière Modification | Statut     |
 | ------------------------------------------------------------------------------------------ | ----------------------- | -------- | --------------------- | ---------- |
-| [product-brief-Casys PML-2025-11-03.md](product-brief-Casys PML-2025-11-03.md)           | Product Brief           | 62.50 KB | 2025-11-03 07:14      | ✅ Complet |
+| [product-brief-Casys PML-2025-11-03.md](product-brief-Casys PML-2025-11-03.md)             | Product Brief           | 62.50 KB | 2025-11-03 07:14      | ✅ Complet |
 | [brainstorming-session-results-2025-11-03.md](brainstorming-session-results-2025-11-03.md) | Brainstorming Results   | 29.62 KB | 2025-11-03 04:20      | ✅ Complet |
 | [bmm-workflow-status.yaml](bmm-workflow-status.yaml)                                       | Workflow Status Tracker | 1.42 KB  | 2025-11-03 09:18      | ✅ À jour  |
 
@@ -411,7 +411,7 @@ tracking et l'exécution itérative.
 | FR013 (Cache schemas)     | 1.2 (Database), 1.3 (MCP Discovery)       | ✅ 100%    | Non               |
 | FR014 (Track metrics)     | 1.8 (Telemetry)                           | ✅ 100%    | Non               |
 | FR015 (Structured logs)   | 1.8 (Logging)                             | ✅ 100%    | Non               |
-| FR016 (Migration tool)    | 1.7 (pml init)                     | ✅ 100%    | Non               |
+| FR016 (Migration tool)    | 1.7 (pml init)                            | ✅ 100%    | Non               |
 
 **NFRs - Story Coverage:**
 
@@ -425,7 +425,7 @@ tracking et l'exécution itérative.
 
 | Étape Journey                      | Stories Impliquées                                  | Couverture |
 | ---------------------------------- | --------------------------------------------------- | ---------- |
-| 1. Setup Casys PML (3-5 min)      | 1.7 (init), 1.3 (discovery), 1.4 (embeddings)       | ✅ Complet |
+| 1. Setup Casys PML (3-5 min)       | 1.7 (init), 1.3 (discovery), 1.4 (embeddings)       | ✅ Complet |
 | 2. Migration Config (2 min)        | 1.7 (migration instructions)                        | ✅ Complet |
 | 3. Premier Workflow (1-2 min)      | 1.5 (vector search), 1.6 (on-demand), 2.4 (gateway) | ✅ Complet |
 | 4. "Aha Moment" Parallel (<10 min) | 2.1 (DAG), 2.2 (parallel exec), 2.3 (SSE)           | ✅ Complet |
@@ -486,8 +486,8 @@ Story 1.2 AC#3 référence:
 
 **Validation Init Command → Story 1.1 & Architecture:**
 
-Architecture: "deno init pml" → Story 1.1 AC#1 ✅ Story 1.1: "Repository initialisé avec
-structure Deno standard" ✅
+Architecture: "deno init pml" → Story 1.1 AC#1 ✅ Story 1.1: "Repository initialisé avec structure
+Deno standard" ✅
 
 **Verdict Architecture-Stories:** ⚠️ **Bon alignement structurel SAUF contradiction database
 technologie**
@@ -573,11 +573,11 @@ fournit une justification solide pour PGlite. La correction est straightforward 
 **GAP-004: Pas de Story Dédiée pour `.pml/` Directory Initialization**
 
 - **Sévérité:** LOW (couvert implicitement)
-- **Description:** Architecture mentionne `~/.pml/` user data directory mais pas de story
-  explicite pour sa création
+- **Description:** Architecture mentionne `~/.pml/` user data directory mais pas de story explicite
+  pour sa création
 - **Couverture Actuelle:**
-  - Story 1.2 AC#1: "SQLite database initialization dans `~/.pml/.pml.db`" → implique
-    création directory
+  - Story 1.2 AC#1: "SQLite database initialization dans `~/.pml/.pml.db`" → implique création
+    directory
   - Story 1.8 AC#3: "Log output... file (`~/.pml/logs/pml.log`)"
 - **Statut:** ✅ Résolu implicitement - Stories créent directory au besoin
 - **Recommandation:** Acceptable, pas d'action requise
@@ -691,11 +691,11 @@ fournit une justification solide pour PGlite. La correction est straightforward 
 
 **Risques Business/Market:**
 
-| Risque                                                     | Probabilité | Impact | Mitigation Status                      |
-| ---------------------------------------------------------- | ----------- | ------ | -------------------------------------- |
+| Risque                                                    | Probabilité | Impact | Mitigation Status                      |
+| --------------------------------------------------------- | ----------- | ------ | -------------------------------------- |
 | **R009:** Concurrent MCP gateways lancent avant Casys PML | HIGH        | MEDIUM | ⚠️ Market competitive - speed critical |
-| **R010:** sqlite-vec release HNSW entre-temps              | MEDIUM      | LOW    | ✅ PGlite validated choice, no re-arch |
-| **R011:** Claude Code change MCP protocol breaking         | LOW         | HIGH   | ✅ Use official SDK mitigate           |
+| **R010:** sqlite-vec release HNSW entre-temps             | MEDIUM      | LOW    | ✅ PGlite validated choice, no re-arch |
+| **R011:** Claude Code change MCP protocol breaking        | LOW         | HIGH   | ✅ Use official SDK mitigate           |
 
 ---
 
@@ -1274,8 +1274,8 @@ exécutables dans ordre défini.
 
 ### Overall Assessment: ✅ READY WITH CONDITIONS
 
-**Le projet Casys PML est prêt à procéder en Phase 4 (Implementation), sous réserve de la
-correction de 2 gaps critiques bloquants identifiés.**
+**Le projet Casys PML est prêt à procéder en Phase 4 (Implementation), sous réserve de la correction
+de 2 gaps critiques bloquants identifiés.**
 
 ### Rationale
 
@@ -1561,7 +1561,7 @@ solutioning-gate-check:
 | Criterion                       | Status     | Evidence                                             |
 | ------------------------------- | ---------- | ---------------------------------------------------- |
 | User journey completeness       | ✅ PASS    | 5-step journey fully specified with timings          |
-| Zero-config principle respected | ✅ PASS    | `pml init` auto-migration (Story 1.7)         |
+| Zero-config principle respected | ✅ PASS    | `pml init` auto-migration (Story 1.7)                |
 | Observable performance metrics  | ✅ PASS    | Story 1.8 telemetry + Story 1.6 context logging      |
 | Error messages user-friendly    | ✅ PASS    | Story 2.6 AC#3: messages with resolution suggestions |
 | Console output structured       | ⚠️ PARTIAL | Logs covered but colors/formatting not specified     |

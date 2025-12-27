@@ -53,11 +53,11 @@ export default function GraphTooltip({
         style={{ borderTop: "1px solid rgba(255, 255, 255, 0.1)" }}
       >
         <div>
-          <span style={{ color: "#6b6560" }}>PR </span>
+          <span style={{ color: "#6b6560" }}>PR</span>
           <span style={{ color: "#ffb86f" }}>{data.pagerank.toFixed(3)}</span>
         </div>
         <div>
-          <span style={{ color: "#6b6560" }}>Deg </span>
+          <span style={{ color: "#6b6560" }}>Deg</span>
           <span style={{ color: "#d5c3b5" }}>{data.degree}</span>
         </div>
       </div>

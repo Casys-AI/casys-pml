@@ -1,36 +1,37 @@
 ---
-name: 'step-02-analyze-agent'
-description: 'Load agent and relevant documentation for analysis'
+name: "step-02-analyze-agent"
+description: "Load agent and relevant documentation for analysis"
 
 # Path Definitions
-workflow_path: '{project-root}/bmb/workflows/create-agent/edit-agent'
+workflow_path: "{project-root}/bmb/workflows/create-agent/edit-agent"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-02-analyze-agent.md'
-nextStepFile: '{workflow_path}/steps/step-03-propose-changes.md'
+thisStepFile: "{workflow_path}/steps/step-02-analyze-agent.md"
+nextStepFile: "{workflow_path}/steps/step-03-propose-changes.md"
 
 # Task References
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 
 # Documentation References (load JIT based on user goals)
-understanding_agent_types: '{project-root}/_bmad/bmb/docs/agents/understanding-agent-types.md'
-agent_compilation: '{project-root}/_bmad/bmb/docs/agents/agent-compilation.md'
-simple_architecture: '{project-root}/_bmad/bmb/docs/agents/simple-agent-architecture.md'
-expert_architecture: '{project-root}/_bmad/bmb/docs/agents/expert-agent-architecture.md'
-module_architecture: '{project-root}/_bmad/bmb/docs/agents/module-agent-architecture.md'
-menu_patterns: '{project-root}/_bmad/bmb/docs/agents/agent-menu-patterns.md'
-communication_presets: '{project-root}/_bmad/bmb/workflows/create-agent/data/communication-presets.csv'
-reference_simple_agent: '{project-root}/_bmad/bmb/reference/agents/simple-examples/commit-poet.agent.yaml'
-reference_expert_agent: '{project-root}/_bmad/bmb/reference/agents/expert-examples/journal-keeper/journal-keeper.agent.yaml'
-validation: '{project-root}/_bmad/bmb/workflows/create-agent/data/agent-validation-checklist.md'
+understanding_agent_types: "{project-root}/_bmad/bmb/docs/agents/understanding-agent-types.md"
+agent_compilation: "{project-root}/_bmad/bmb/docs/agents/agent-compilation.md"
+simple_architecture: "{project-root}/_bmad/bmb/docs/agents/simple-agent-architecture.md"
+expert_architecture: "{project-root}/_bmad/bmb/docs/agents/expert-agent-architecture.md"
+module_architecture: "{project-root}/_bmad/bmb/docs/agents/module-agent-architecture.md"
+menu_patterns: "{project-root}/_bmad/bmb/docs/agents/agent-menu-patterns.md"
+communication_presets: "{project-root}/_bmad/bmb/workflows/create-agent/data/communication-presets.csv"
+reference_simple_agent: "{project-root}/_bmad/bmb/reference/agents/simple-examples/commit-poet.agent.yaml"
+reference_expert_agent: "{project-root}/_bmad/bmb/reference/agents/expert-examples/journal-keeper/journal-keeper.agent.yaml"
+validation: "{project-root}/_bmad/bmb/workflows/create-agent/data/agent-validation-checklist.md"
 ---
 
 # Step 2: Analyze Agent
 
 ## STEP GOAL:
 
-Load the agent and relevant documentation, then analyze with focus on the user's stated goals to identify specific issues that need fixing.
+Load the agent and relevant documentation, then analyze with focus on the user's stated goals to
+identify specific issues that need fixing.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -44,9 +45,11 @@ Load the agent and relevant documentation, then analyze with focus on the user's
 ### Role Reinforcement:
 
 - ✅ You are an agent editor with deep knowledge of BMAD agent architecture
-- ✅ If you already have a name, communication_style and identity, continue to use those while playing this new role
+- ✅ If you already have a name, communication_style and identity, continue to use those while
+  playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
-- ✅ You bring agent architecture expertise, user brings their agent and goals, together we identify specific improvements
+- ✅ You bring agent architecture expertise, user brings their agent and goals, together we identify
+  specific improvements
 - ✅ Maintain analytical yet supportive tone throughout
 
 ### Step-Specific Rules:
@@ -128,7 +131,8 @@ Analyze only what's relevant to user goals:
 - Check communication_style field for mixed behaviors/identity/principles
 - Look for red flag words that indicate improper mixing:
   - "ensures", "makes sure", "always", "never" → Behaviors (belongs in principles)
-  - "experienced", "expert who", "senior", "seasoned" → Identity descriptors (belongs in role/identity)
+  - "experienced", "expert who", "senior", "seasoned" → Identity descriptors (belongs in
+    role/identity)
   - "believes in", "focused on", "committed to" → Philosophy (belongs in principles)
 - Compare current communication_style against examples in `{communication_presets}`
 
@@ -146,8 +150,8 @@ Analyze only what's relevant to user goals:
 
 ### 4. Report Findings
 
-Present focused analysis findings:
-"Based on your goal to {{user_goal}}, I found the following issues:"
+Present focused analysis findings: "Based on your goal to {{user_goal}}, I found the following
+issues:"
 
 For each issue found:
 
@@ -172,11 +176,13 @@ Display: "**Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Cont
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu
-- User can chat or ask questions - always respond and then end with display again of the menu options
+- User can chat or ask questions - always respond and then end with display again of the menu
+  options
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN [C continue option] is selected and [analysis complete with specific issues identified], will you then load and read fully `{nextStepFile}` to execute and begin proposing specific changes.
+ONLY WHEN [C continue option] is selected and [analysis complete with specific issues identified],
+will you then load and read fully `{nextStepFile}` to execute and begin proposing specific changes.
 
 ---
 
@@ -199,4 +205,5 @@ ONLY WHEN [C continue option] is selected and [analysis complete with specific i
 - Not following "load and read fully" instruction
 - Making changes to agent files
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

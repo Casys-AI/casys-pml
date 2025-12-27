@@ -2,13 +2,13 @@
 
 ## Targets (NFR001)
 
-| Metric | Target | Measured | Status |
-|----------|-------|--------|--------|
-| Vector Search P95 | <100ms | ~45ms | ✅ |
-| 5-tool Workflow P95 | <3s | ~1.8s | ✅ |
-| Context Usage | <5% | ~3% | ✅ |
-| DAG Speedup | 5x | 4.8x | ✅ |
-| Speculation Success | >85% | 🟡 | In progress |
+| Metric              | Target | Measured | Status      |
+| ------------------- | ------ | -------- | ----------- |
+| Vector Search P95   | <100ms | ~45ms    | ✅          |
+| 5-tool Workflow P95 | <3s    | ~1.8s    | ✅          |
+| Context Usage       | <5%    | ~3%      | ✅          |
+| DAG Speedup         | 5x     | 4.8x     | ✅          |
+| Speculation Success | >85%   | 🟡       | In progress |
 
 ---
 
@@ -60,19 +60,19 @@ WITH (m = 16, ef_construction = 64);
 SET hnsw.ef_search = 40;  -- Balance recall/speed
 ```
 
-| Parameter | Value | Trade-off |
-|-----------|--------|-----------|
-| `m` | 16 | Memory vs quality |
-| `ef_construction` | 64 | Build time vs recall |
-| `ef_search` | 40 | Query time vs accuracy |
+| Parameter         | Value | Trade-off              |
+| ----------------- | ----- | ---------------------- |
+| `m`               | 16    | Memory vs quality      |
+| `ef_construction` | 64    | Build time vs recall   |
+| `ef_search`       | 40    | Query time vs accuracy |
 
 **Benchmarks:**
 
 | # Tools | Query Time | Recall@10 |
-|---------|------------|-----------|
-| 100 | 12ms | 99% |
-| 500 | 28ms | 98% |
-| 1000 | 45ms | 97% |
+| ------- | ---------- | --------- |
+| 100     | 12ms       | 99%       |
+| 500     | 28ms       | 98%       |
+| 1000    | 45ms       | 97%       |
 
 ### 2. Embeddings Generation
 
@@ -81,25 +81,23 @@ SET hnsw.ef_search = 40;  -- Balance recall/speed
 ```typescript
 // Lazy loading + caching
 const embedder = await pipeline("feature-extraction", "Xenova/bge-m3", {
-  quantized: false,  // Full precision for quality
+  quantized: false, // Full precision for quality
   cache_dir: "~/.pml/cache/embeddings",
 });
 ```
 
-| Phase | Duration | Frequency |
-|-------|-------|-----------|
-| Model load | ~3s | 1x per session |
-| Batch (10 texts) | ~200ms | Per tool discovery |
-| Single text | ~50ms | Per query |
+| Phase            | Duration | Frequency          |
+| ---------------- | -------- | ------------------ |
+| Model load       | ~3s      | 1x per session     |
+| Batch (10 texts) | ~200ms   | Per tool discovery |
+| Single text      | ~50ms    | Per query          |
 
 **Batch optimization:**
 
 ```typescript
 // Parallel batch processing
 const embeddings = await Promise.all(
-  chunks(tools, 10).map(batch =>
-    embedder(batch.map(t => t.description))
-  )
+  chunks(tools, 10).map((batch) => embedder(batch.map((t) => t.description))),
 );
 ```
 
@@ -145,17 +143,17 @@ Speedup: 5x
 if (confidence >= 0.85 && !isDangerous(dag)) {
   // Execute speculatively
   const result = await executor.execute(dag);
-  cache.set(intentHash, result);  // Cache for instant delivery
+  cache.set(intentHash, result); // Cache for instant delivery
 }
 ```
 
 **Performance impact:**
 
-| Scenario | Without Speculation | With Speculation |
-|----------|---------------------|------------------|
-| High confidence (>0.85) | 1.5s | 0ms (cached) |
-| Medium confidence | 1.5s | 1.5s (no change) |
-| Cache hit rate target | N/A | >60% |
+| Scenario                | Without Speculation | With Speculation |
+| ----------------------- | ------------------- | ---------------- |
+| High confidence (>0.85) | 1.5s                | 0ms (cached)     |
+| Medium confidence       | 1.5s                | 1.5s (no change) |
+| Cache hit rate target   | N/A                 | >60%             |
 
 ### 5. GraphRAG (Graphology)
 
@@ -176,12 +174,12 @@ class GraphRAGEngine {
 }
 ```
 
-| Operation | Duration | Caching |
-|-----------|----------|---------|
-| PageRank full recompute | ~100ms | 5min TTL |
-| Shortest path query | <1ms | Per-request |
-| Louvain communities | ~50ms | On graph change |
-| Adamic-Adar scoring | ~10ms | Per-query |
+| Operation               | Duration | Caching         |
+| ----------------------- | -------- | --------------- |
+| PageRank full recompute | ~100ms   | 5min TTL        |
+| Shortest path query     | <1ms     | Per-request     |
+| Louvain communities     | ~50ms    | On graph change |
+| Adamic-Adar scoring     | ~10ms    | Per-query       |
 
 ---
 
@@ -210,10 +208,10 @@ class GraphRAGEngine {
 ```typescript
 // LRU cache with size limit
 const executionCache = new LRUCache<string, ExecutionResult>({
-  max: 1000,  // Max entries
-  maxSize: 100 * 1024 * 1024,  // 100MB
+  max: 1000, // Max entries
+  maxSize: 100 * 1024 * 1024, // 100MB
   sizeCalculation: (value) => JSON.stringify(value).length,
-  ttl: 1000 * 60 * 60,  // 1 hour TTL
+  ttl: 1000 * 60 * 60, // 1 hour TTL
 });
 ```
 
@@ -230,7 +228,7 @@ const db = new PGlite({
   pragmas: {
     journal_mode: "wal",
     synchronous: "normal",
-    cache_size: -64000,  // 64MB cache
+    cache_size: -64000, // 64MB cache
   },
 });
 ```
@@ -255,9 +253,9 @@ CREATE INDEX idx_patterns_intent ON workflow_pattern USING gin(intent_embedding)
 
 ```typescript
 interface ExecutorConfig {
-  maxConcurrency: number;      // Default: CPU cores
-  taskTimeout: number;         // Default: 30s
-  retryAttempts: number;       // Default: 3
+  maxConcurrency: number; // Default: CPU cores
+  taskTimeout: number; // Default: 30s
+  retryAttempts: number; // Default: 3
   retryBackoff: "exponential"; // 100ms, 200ms, 400ms
 }
 ```
@@ -266,9 +264,9 @@ interface ExecutorConfig {
 
 ```typescript
 interface PoolConfig {
-  maxConnectionsPerServer: number;  // Default: 5
-  idleTimeout: number;              // Default: 5 minutes
-  healthCheckInterval: number;      // Default: 30s
+  maxConnectionsPerServer: number; // Default: 5
+  idleTimeout: number; // Default: 5 minutes
+  healthCheckInterval: number; // Default: 30s
 }
 ```
 
@@ -307,12 +305,12 @@ embedding_generation/batch_10 ... 198.45 ms/iter
 
 ### Key Metrics to Watch
 
-| Metric | Warning | Critical | Action |
-|--------|---------|----------|--------|
-| Heap usage | >70% | >85% | Increase memory / reduce cache |
-| Query P95 | >80ms | >150ms | Check HNSW params |
-| DAG P95 | >2.5s | >4s | Check MCP server latency |
-| Cache hit rate | <40% | <20% | Increase cache size |
+| Metric         | Warning | Critical | Action                         |
+| -------------- | ------- | -------- | ------------------------------ |
+| Heap usage     | >70%    | >85%     | Increase memory / reduce cache |
+| Query P95      | >80ms   | >150ms   | Check HNSW params              |
+| DAG P95        | >2.5s   | >4s      | Check MCP server latency       |
+| Cache hit rate | <40%    | <20%     | Increase cache size            |
 
 ### Profiling
 
@@ -329,7 +327,8 @@ deno run --inspect-brk src/main.ts serve
 
 ---
 
-*References:*
+_References:_
+
 - [ADR-001: PGlite over SQLite](./architecture-decision-records-adrs.md#adr-001-pglite-over-sqlite-for-vector-search)
 - [ADR-003: BGE-M3 Embeddings](./architecture-decision-records-adrs.md#adr-003-bge-m3-for-local-embeddings)
 - [Pattern 3: Speculative Execution](./novel-pattern-designs.md#pattern-3-speculative-execution-with-graphrag-the-feature)

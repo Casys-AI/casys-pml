@@ -152,19 +152,21 @@ deno bench tests/benchmarks/strategic/shgat-hierarchy-comparison.bench.ts
 
 ## Performance Requirements
 
-| Metric | Old | New (Target) |
-|--------|-----|--------------|
-| Forward pass time | X ms | ≤ 2X ms |
-| Memory usage | Y MB | ≤ Y MB (for L_max ≤ 3) |
-| Incidence build | O(C × D_max) | O(C) |
+| Metric            | Old          | New (Target)           |
+| ----------------- | ------------ | ---------------------- |
+| Forward pass time | X ms         | ≤ 2X ms                |
+| Memory usage      | Y MB         | ≤ Y MB (for L_max ≤ 3) |
+| Incidence build   | O(C × D_max) | O(C)                   |
 
 ### Expected Complexity
 
 **Old (flattened)**:
+
 - Incidence build: O(C × D_max) where D_max = max transitive depth
 - Forward pass: O(L × K × T × C)
 
 **New (multi-level)**:
+
 - Incidence build: O(C) (single pass, no recursion)
 - Hierarchy level computation: O(C) (topological sort)
 - Forward pass: O(L_max × K × M_avg × P_avg)
@@ -200,14 +202,16 @@ Deno.bench({
 
 ```typescript
 const smallHierarchy = {
-  tools: ['t1', 't2', 't3', 't4', 't5'],
+  tools: ["t1", "t2", "t3", "t4", "t5"],
   capabilities: {
-    'cap-a': { members: [{ type: 'tool', id: 't1' }, { type: 'tool', id: 't2' }] },
-    'cap-b': { members: [{ type: 'tool', id: 't3' }] },
-    'cap-c': { members: [{ type: 'tool', id: 't4' }, { type: 'tool', id: 't5' }] },
+    "cap-a": { members: [{ type: "tool", id: "t1" }, { type: "tool", id: "t2" }] },
+    "cap-b": { members: [{ type: "tool", id: "t3" }] },
+    "cap-c": { members: [{ type: "tool", id: "t4" }, { type: "tool", id: "t5" }] },
   },
   metaCapabilities: {
-    'meta-ab': { members: [{ type: 'capability', id: 'cap-a' }, { type: 'capability', id: 'cap-b' }] },
+    "meta-ab": {
+      members: [{ type: "capability", id: "cap-a" }, { type: "capability", id: "cap-b" }],
+    },
   },
 };
 ```

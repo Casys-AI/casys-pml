@@ -1,7 +1,6 @@
 # ADR-016: REPL-Style Auto-Return for Code Execution
 
-**Status:** ✅ Implemented
-**Date:** 2025-11-21 | **Story:** 3.4 (execute_code bug fix)
+**Status:** ✅ Implemented **Date:** 2025-11-21 | **Story:** 3.4 (execute_code bug fix)
 
 ## Context
 
@@ -35,7 +34,7 @@ Survey of industry standards:
 | Jupyter/IPython      | Auto-return last expression | REPL   |
 | E2B Sandbox          | Auto-return last expression | REPL   |
 | LangChain PythonREPL | Explicit `print()` required | Script |
-| Casys PML (current) | Explicit `return` required  | Script |
+| Casys PML (current)  | Explicit `return` required  | Script |
 
 **LLM Training Data:** 80%+ of code execution examples in training data use REPL-style auto-return.
 

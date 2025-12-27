@@ -94,8 +94,7 @@ Each handler must implement:
 
 ### Module Installer Pattern
 
-Modules can have custom installers at:
-`src/modules/{module-name}/_module-installer/installer.js`
+Modules can have custom installers at: `src/modules/{module-name}/_module-installer/installer.js`
 
 Export: `async function install(options)` with:
 
@@ -106,8 +105,7 @@ Export: `async function install(options)` with:
 
 ### Sub-module Pattern (IDE-specific customizations)
 
-Location: `src/modules/{module-name}/sub-modules/{ide-name}/`
-Contains:
+Location: `src/modules/{module-name}/sub-modules/{ide-name}/` Contains:
 
 - injections.yaml - Content injections
 - config.yaml - Configuration

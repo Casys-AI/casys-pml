@@ -1,13 +1,13 @@
 # Story 8.1: Capability Data API
 
-> **Epic:** 8 - Hypergraph Capabilities Visualization
-> **ADRs:** ADR-029 (Hypergraph Capabilities Visualization)
-> **Prerequisites:** Epic 7 Story 7.2a (workflow_pattern table with code_snippet), Epic 6 (Dashboard infrastructure)
-> **Status:** done
+> **Epic:** 8 - Hypergraph Capabilities Visualization **ADRs:** ADR-029 (Hypergraph Capabilities
+> Visualization) **Prerequisites:** Epic 7 Story 7.2a (workflow_pattern table with code_snippet),
+> Epic 6 (Dashboard infrastructure) **Status:** done
 
 ## User Story
 
-As a dashboard developer, I want API endpoints to fetch capabilities and hypergraph data, So that the frontend can visualize the learned capabilities.
+As a dashboard developer, I want API endpoints to fetch capabilities and hypergraph data, So that
+the frontend can visualize the learned capabilities.
 
 ## Problem Context
 
@@ -36,23 +36,25 @@ Le systeme dispose de:
 
 ### Gap Analysis
 
-| Feature | Existe? | Source |
-|---------|---------|--------|
-| Capability storage | Oui | `capability-store.ts` |
-| Capability search by intent | Oui | `searchByIntent()` |
-| Tools used extraction | Oui | `dag_structure.tools_used` |
-| Hierarchical tracing (parentTraceId) | Oui | ADR-041, `worker-bridge.ts`, `graph-engine.ts` |
-| API pour capabilities | Non | **A implementer (Story 8.1)** |
-| Hypergraph builder | Non | Story 8.2 |
+| Feature                              | Existe? | Source                                         |
+| ------------------------------------ | ------- | ---------------------------------------------- |
+| Capability storage                   | Oui     | `capability-store.ts`                          |
+| Capability search by intent          | Oui     | `searchByIntent()`                             |
+| Tools used extraction                | Oui     | `dag_structure.tools_used`                     |
+| Hierarchical tracing (parentTraceId) | Oui     | ADR-041, `worker-bridge.ts`, `graph-engine.ts` |
+| API pour capabilities                | Non     | **A implementer (Story 8.1)**                  |
+| Hypergraph builder                   | Non     | Story 8.2                                      |
 
 ### ADR-041: Hierarchical Trace Context (parentTraceId)
 
 Le systeme supporte deja le tracing hierarchique via `parentTraceId`:
+
 - **BroadcastChannel:** Propage `parentTraceId` en temps reel
 - **WorkerBridge:** Trace capability → tool avec parent/child
 - **GraphRAGEngine.updateFromCodeExecution():** Cree des edges hierarchiques
 
 **Impact sur l'API Hypergraph:**
+
 - Les relations capability → tool sont deja tracees avec `parentTraceId`
 - On peut exposer cette hierarchie dans `/api/graph/hypergraph`
 - Le format Cytoscape compound est parfaitement aligne avec cette architecture
@@ -60,6 +62,7 @@ Le systeme supporte deja le tracing hierarchique via `parentTraceId`:
 ### Impact
 
 Sans API capabilities:
+
 - Le dashboard ne peut pas afficher les capabilities apprises
 - Le mode Hypergraph (Story 8.3) n'a pas de donnees
 - L'exploration de code reusable (Story 8.5) est impossible
@@ -108,22 +111,25 @@ Sans API capabilities:
 Liste les capabilities stockees avec filtrage et pagination.
 
 **Request:**
+
 ```http
 GET /api/capabilities?community_id=N&min_success_rate=0.7&min_usage=2&limit=50&offset=0
 ```
 
 **Query Parameters:**
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `community_id` | number | - | Filter by Louvain community |
-| `min_success_rate` | number | 0 | Min success rate (0-1) |
-| `min_usage` | number | 0 | Min usage count |
-| `limit` | number | 50 | Max results |
-| `offset` | number | 0 | Pagination offset |
-| `sort` | string | "usage_count" | Sort field (usage_count, success_rate, last_used, created_at) |
-| `order` | string | "desc" | Sort order (asc, desc) |
+
+| Parameter          | Type   | Default       | Description                                                   |
+| ------------------ | ------ | ------------- | ------------------------------------------------------------- |
+| `community_id`     | number | -             | Filter by Louvain community                                   |
+| `min_success_rate` | number | 0             | Min success rate (0-1)                                        |
+| `min_usage`        | number | 0             | Min usage count                                               |
+| `limit`            | number | 50            | Max results                                                   |
+| `offset`           | number | 0             | Pagination offset                                             |
+| `sort`             | string | "usage_count" | Sort field (usage_count, success_rate, last_used, created_at) |
+| `order`            | string | "desc"        | Sort order (asc, desc)                                        |
 
 **Response (snake_case for external API - see gateway-server.ts:1029):**
+
 ```typescript
 // TypeScript interface (internal camelCase)
 interface CapabilityListResponse {
@@ -135,18 +141,18 @@ interface CapabilityListResponse {
 
 // JSON response (external snake_case) - mapped before JSON.stringify
 interface CapabilityResponse {
-  id: string;                    // pattern_id UUID
-  name: string | null;           // Human-readable name
-  description: string | null;    // Intent description
-  code_snippet: string;          // TypeScript code
-  tools_used: string[];          // ["filesystem:read", "github:create_issue"]
-  success_rate: number;          // 0-1
-  usage_count: number;           // Total executions
-  avg_duration_ms: number;       // Average execution time
-  community_id: number | null;   // Louvain cluster
-  intent_preview: string;        // First 100 chars of intent
-  created_at: string;            // ISO timestamp
-  last_used: string;             // ISO timestamp
+  id: string; // pattern_id UUID
+  name: string | null; // Human-readable name
+  description: string | null; // Intent description
+  code_snippet: string; // TypeScript code
+  tools_used: string[]; // ["filesystem:read", "github:create_issue"]
+  success_rate: number; // 0-1
+  usage_count: number; // Total executions
+  avg_duration_ms: number; // Average execution time
+  community_id: number | null; // Louvain cluster
+  intent_preview: string; // First 100 chars of intent
+  created_at: string; // ISO timestamp
+  last_used: string; // ISO timestamp
   source: "emergent" | "manual"; // Learning source
 }
 ```
@@ -156,18 +162,21 @@ interface CapabilityResponse {
 Retourne les donnees formatees Cytoscape pour le mode compound graph.
 
 **Request:**
+
 ```http
 GET /api/graph/hypergraph?include_tools=true
 ```
 
 **Query Parameters:**
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `include_tools` | boolean | true | Include standalone tools not in capabilities |
-| `min_success_rate` | number | 0 | Filter capabilities |
-| `min_usage` | number | 0 | Filter capabilities |
+
+| Parameter          | Type    | Default | Description                                  |
+| ------------------ | ------- | ------- | -------------------------------------------- |
+| `include_tools`    | boolean | true    | Include standalone tools not in capabilities |
+| `min_success_rate` | number  | 0       | Filter capabilities                          |
+| `min_usage`        | number  | 0       | Filter capabilities                          |
 
 **Response (snake_case for external API - consistent with GraphSnapshot):**
+
 ```typescript
 interface HypergraphResponse {
   nodes: CytoscapeNode[];
@@ -183,26 +192,26 @@ interface HypergraphResponse {
 // Capability node (parent) - extends GraphSnapshot node pattern
 interface CapabilityNode {
   data: {
-    id: string;              // "cap-{uuid}"
+    id: string; // "cap-{uuid}"
     type: "capability";
-    label: string;           // Name or intent preview
+    label: string; // Name or intent preview
     code_snippet: string;
     success_rate: number;
     usage_count: number;
-    tools_count: number;     // Number of child tools
+    tools_count: number; // Number of child tools
   };
 }
 
 // Tool node (child of capability OR standalone) - matches GraphSnapshot.nodes
 interface ToolNode {
   data: {
-    id: string;              // "filesystem:read"
-    parent?: string;         // "cap-{uuid}" if part of capability
+    id: string; // "filesystem:read"
+    parent?: string; // "cap-{uuid}" if part of capability
     type: "tool";
-    server: string;          // "filesystem"
-    label: string;           // "read"
-    pagerank: number;        // From GraphSnapshot
-    degree: number;          // From GraphSnapshot
+    server: string; // "filesystem"
+    label: string; // "read"
+    pagerank: number; // From GraphSnapshot
+    degree: number; // From GraphSnapshot
     // Standalone tools have no parent
   };
 }
@@ -211,10 +220,10 @@ interface ToolNode {
 interface CapabilityEdge {
   data: {
     id: string;
-    source: string;          // "cap-{uuid1}"
-    target: string;          // "cap-{uuid2}"
-    shared_tools: number;    // Count of shared tools
-    edge_type: "capability_link";  // Matches GraphSnapshot pattern
+    source: string; // "cap-{uuid1}"
+    target: string; // "cap-{uuid2}"
+    shared_tools: number; // Count of shared tools
+    edge_type: "capability_link"; // Matches GraphSnapshot pattern
     edge_source: "inferred";
   };
 }
@@ -223,11 +232,11 @@ interface CapabilityEdge {
 interface HierarchicalEdge {
   data: {
     id: string;
-    source: string;          // "cap-{uuid}" (parent)
-    target: string;          // "filesystem:read" (child tool)
-    edge_type: "hierarchy";  // ADR-041 edge type
+    source: string; // "cap-{uuid}" (parent)
+    target: string; // "filesystem:read" (child tool)
+    edge_type: "hierarchy"; // ADR-041 edge type
     edge_source: "observed"; // From trace data
-    observed_count: number;  // Number of times this call was traced
+    observed_count: number; // Number of times this call was traced
   };
 }
 ```
@@ -240,7 +249,8 @@ interface HierarchicalEdge {
 
 - [x] Route `GET /api/capabilities` ajoutee dans `gateway-server.ts`
 - [x] Response: `{ capabilities: CapabilityResponse[], total: number }`
-- [x] Capability includes: id, name, description, code_snippet, tools_used[], success_rate, usage_count, community_id
+- [x] Capability includes: id, name, description, code_snippet, tools_used[], success_rate,
+      usage_count, community_id
 - [x] CORS headers inclus (pattern existant)
 - [x] Auth middleware applique (mode cloud vs local)
 
@@ -256,7 +266,8 @@ interface HierarchicalEdge {
 ### AC3: GET /api/graph/hypergraph Endpoint Created
 
 - [x] Route `GET /api/graph/hypergraph` ajoutee dans `gateway-server.ts`
-- [x] Response: `{ nodes: CytoscapeNode[], edges: CytoscapeEdge[], capabilities_count, tools_count }`
+- [x] Response:
+      `{ nodes: CytoscapeNode[], edges: CytoscapeEdge[], capabilities_count, tools_count }`
 - [x] Nodes include both tools and capabilities with `type` field
 - [x] Capability nodes have `code_snippet`, `success_rate`, `usage_count`
 - [x] Tool nodes have optional `parent` field linking to capability
@@ -270,7 +281,8 @@ interface HierarchicalEdge {
 
 ### AC5: Join with tool_schemas for Metadata
 
-- [ ] Join sur `workflow_pattern` et `tool_schemas` pour recuperer metadata (DEFERRED: spec incorrecte, not needed for hypergraph)
+- [ ] Join sur `workflow_pattern` et `tool_schemas` pour recuperer metadata (DEFERRED: spec
+      incorrecte, not needed for hypergraph)
 - [x] tools_used[] resolve vers tool names complets (extracted from JSONB)
 - [x] Server info extrait du tool_id (via string split)
 
@@ -389,27 +401,28 @@ interface HierarchicalEdge {
    LIMIT $6 OFFSET $7
    ```
 
-2. **Hypergraph Node ID Convention**
+3. **Hypergraph Node ID Convention**
 
    - Capability: `cap-{uuid}` pour eviter collision avec tool IDs
    - Tool: `{server}:{tool_name}` (existant)
    - Edge: `edge-{source}-{target}`
 
-3. **Tool Multi-Membership Handling**
+4. **Tool Multi-Membership Handling**
 
    Un tool peut appartenir a plusieurs capabilities. Pour le hypergraph compound:
    - Option A: Duplicate tool nodes with unique IDs (`filesystem:read-cap1`, `filesystem:read-cap2`)
    - Option B: Tool sans parent + edges vers capabilities
 
-   **Decision:** Option B pour eviter duplication visuelle. Le frontend (Story 8.3) gerera l'affichage.
+   **Decision:** Option B pour eviter duplication visuelle. Le frontend (Story 8.3) gerera
+   l'affichage.
 
-4. **Performance Considerations**
+5. **Performance Considerations**
 
    - Pagination obligatoire (default limit 50)
    - Cache potential pour hypergraph data (TTL 30s)
    - Lazy load code_snippet (ou truncate in list view)
 
-5. **Route Handler Pattern (from gateway-server.ts)**
+6. **Route Handler Pattern (from gateway-server.ts)**
 
    ```typescript
    // API Capabilities endpoint (Story 8.1)
@@ -473,12 +486,14 @@ src/mcp/
 ### Existing Code Patterns to Follow
 
 **CapabilityStore.searchByContext()** (`src/capabilities/capability-store.ts:347-447`):
+
 - Complex SQL with JSONB extraction
 - Input validation with MAX limits
 - Proper logging
 - Parameterized queries
 
 **Gateway API Routes** (`src/mcp/gateway-server.ts:2257-2380`):
+
 - CORS headers pattern
 - URL param parsing
 - Error handling with try/catch
@@ -490,7 +505,8 @@ src/mcp/
 - **Types:** `src/capabilities/types.ts` (Capability interface)
 - **Gateway:** `src/mcp/gateway-server.ts:2257-2380` (existing API routes)
 - **Graph Snapshot:** `src/graphrag/graph-engine.ts:getGraphSnapshot()` (Cytoscape format)
-- **Hierarchical Tracing:** `src/graphrag/graph-engine.ts:621-722` (updateFromCodeExecution with parentTraceId)
+- **Hierarchical Tracing:** `src/graphrag/graph-engine.ts:621-722` (updateFromCodeExecution with
+  parentTraceId)
 - **WorkerBridge Tracing:** `src/sandbox/worker-bridge.ts:347-453` (parentTraceId propagation)
 - **ADR-029:** `docs/adrs/ADR-029-hypergraph-capabilities-visualization.md`
 - **ADR-041:** Hierarchical trace tracking with parent_trace_id
@@ -597,11 +613,13 @@ deno test -A tests/unit/capabilities/ tests/integration/capability*
 ### File List
 
 **New Files:**
+
 - `src/capabilities/data-service.ts` - CapabilityDataService class (370 LOC)
 - `src/db/migrations/015_capability_community_id.ts` - Migration for community_id column
 - `tests/unit/capabilities/data_service_test.ts` - Unit tests (10 tests, all passing)
 
 **Modified Files:**
+
 - `src/capabilities/types.ts` - Added 9 new API response types (+154 LOC)
 - `src/capabilities/mod.ts` - Export CapabilityDataService + new types
 - `src/mcp/gateway-server.ts` - Added 2 API routes (+209 LOC)
@@ -609,11 +627,13 @@ deno test -A tests/unit/capabilities/ tests/integration/capability*
 - `docs/sprint-artifacts/sprint-status.yaml` - Story status: review
 
 **Deleted Files:**
+
 - `tests/integration/capability_api_test.ts` - Integration tests skipped (unit tests sufficient)
 
 ### Completion Notes
 
 **Implementation Summary:**
+
 - ✅ All 6 tasks completed (Task 6 modified: unit tests only)
 - ✅ Migration 015 created for community_id support (discovered missing during implementation)
 - ✅ 10/10 unit tests passing with shared DB pattern
@@ -621,40 +641,58 @@ deno test -A tests/unit/capabilities/ tests/integration/capability*
 - ✅ Community ID filtering functional (Louvain clustering ready)
 
 **Test Results:**
+
 ```
 ✅ ok | 10 passed | 0 failed (1s)
 ```
 
 **Key Implementation Decisions:**
-1. **community_id column added** - Required migration 015 as it was specified in story but missing from schema
-2. **Integration tests skipped** - Unit tests provide sufficient coverage; HTTP testing deferred to Story 8.3
-3. **Shared DB test pattern** - Following dag_suggester_test.ts pattern for performance (~400ms saved per test)
+
+1. **community_id column added** - Required migration 015 as it was specified in story but missing
+   from schema
+2. **Integration tests skipped** - Unit tests provide sufficient coverage; HTTP testing deferred to
+   Story 8.3
+3. **Shared DB test pattern** - Following dag_suggester_test.ts pattern for performance (~400ms
+   saved per test)
 4. **Intent preview truncation** - SQL-based (97 chars + '...') for efficiency
 
 **Code Review Fixes (Post-Implementation):**
-1. **Fix #24 - Performance N+1 eliminated** - `getGraphSnapshot()` called once before loops instead of N×M times
-2. **Fix #20 - Parameter validation** - Added range checks: offset≥0, minSuccessRate∈[0,1], minUsage≥0 with 400 responses
+
+1. **Fix #24 - Performance N+1 eliminated** - `getGraphSnapshot()` called once before loops instead
+   of N×M times
+2. **Fix #20 - Parameter validation** - Added range checks: offset≥0, minSuccessRate∈[0,1],
+   minUsage≥0 with 400 responses
 3. **Fix #26 - Import convention** - Changed to import via `mod.ts` instead of direct file import
-4. **Fix #23 - Sorting tests** - Added 2 tests for sorting (usageCount desc, successRate asc) → 12/12 tests passing
+4. **Fix #23 - Sorting tests** - Added 2 tests for sorting (usageCount desc, successRate asc) →
+   12/12 tests passing
 5. **Fix #18 - AC documentation** - All ACs marked complete with implementation notes
 
 **Technical Decisions & Deferred Items:**
 
 **AC5 (JOIN tool_schemas) - NOT IMPLEMENTED:**
+
 - **Original intention:** Enrich `tools_used: string[]` with metadata from tool_schemas table
 - **Would require:** Complex LATERAL JOIN to unnest JSONB array and fetch tool descriptions
-- **Decision:** NOT NEEDED - Simple tool IDs sufficient for hypergraph visualization. If frontend needs tool metadata (descriptions, parameters), it can fetch via separate `/api/tools/{id}` calls
-- **Rationale:** Avoids API complexity, keeps response lightweight, prevents breaking changes to response contract
+- **Decision:** NOT NEEDED - Simple tool IDs sufficient for hypergraph visualization. If frontend
+  needs tool metadata (descriptions, parameters), it can fetch via separate `/api/tools/{id}` calls
+- **Rationale:** Avoids API complexity, keeps response lightweight, prevents breaking changes to
+  response contract
 
 **Issue #25 (Duplicate Tool Nodes in Multi-Capability Scenarios) - DEFERRED:**
-- **Problem:** When a tool belongs to multiple capabilities, Cytoscape compound graphs require unique node IDs (no multi-parent support)
-- **Current implementation:** Tool nodes can have duplicate IDs with different parents → will cause Cytoscape rendering issues
+
+- **Problem:** When a tool belongs to multiple capabilities, Cytoscape compound graphs require
+  unique node IDs (no multi-parent support)
+- **Current implementation:** Tool nodes can have duplicate IDs with different parents → will cause
+  Cytoscape rendering issues
 - **Decision:** Use **Graphology** library instead of Cytoscape if multi-parent support needed
 - **Graphology advantages:** Native support for multi-parent hierarchies in hypergraphs
-- **Action:** Defer to Story 8.3 (Frontend implementation) - if Cytoscape doesn't work, switch to Graphology
-- **Fallback:** Can implement duplicate-with-suffix approach (`toolId@capId`) if needed, but prefer lib switch
+- **Action:** Defer to Story 8.3 (Frontend implementation) - if Cytoscape doesn't work, switch to
+  Graphology
+- **Fallback:** Can implement duplicate-with-suffix approach (`toolId@capId`) if needed, but prefer
+  lib switch
 
 **Lines of Code:**
+
 - Production: ~750 LOC (data-service: 370, gateway routes: 209, types: 154, migration: 52)
 - Tests: 280 LOC (12 comprehensive unit tests including sorting)
 - Total: ~1030 LOC net

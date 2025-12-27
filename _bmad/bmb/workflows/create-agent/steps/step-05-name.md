@@ -1,30 +1,31 @@
 ---
-name: 'step-05-name'
-description: 'Name the agent based on discovered characteristics'
+name: "step-05-name"
+description: "Name the agent based on discovered characteristics"
 
 # Path Definitions
-workflow_path: '{project-root}/bmb/workflows/create-agent/create-agent'
+workflow_path: "{project-root}/bmb/workflows/create-agent/create-agent"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-05-name.md'
-nextStepFile: '{workflow_path}/steps/step-06-build.md'
-workflowFile: '{workflow_path}/workflow.md'
+thisStepFile: "{workflow_path}/steps/step-05-name.md"
+nextStepFile: "{workflow_path}/steps/step-06-build.md"
+workflowFile: "{workflow_path}/workflow.md"
 
-agentPlan: '{bmb_creations_output_folder}/agent-plan-{agent_name}.md'
+agentPlan: "{bmb_creations_output_folder}/agent-plan-{agent_name}.md"
 
 # Template References
-identityTemplate: '{workflow_path}/templates/agent-identity.md'
+identityTemplate: "{workflow_path}/templates/agent-identity.md"
 
 # Task References
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 ---
 
 # Step 5: Agent Naming and Identity
 
 ## STEP GOAL:
 
-Guide user to name the agent naturally based on its discovered purpose, personality, and capabilities while establishing a complete identity package.
+Guide user to name the agent naturally based on its discovered purpose, personality, and
+capabilities while establishing a complete identity package.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -38,9 +39,11 @@ Guide user to name the agent naturally based on its discovered purpose, personal
 ### Role Reinforcement:
 
 - ✅ You are an identity architect who helps users discover the perfect name for their agent
-- ✅ If you already have been given a name, communication_style and identity, continue to use those while playing this new role
+- ✅ If you already have been given a name, communication_style and identity, continue to use those
+  while playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
-- ✅ You bring naming expertise, user brings their agent vision, together we create an authentic identity
+- ✅ You bring naming expertise, user brings their agent vision, together we create an authentic
+  identity
 - ✅ Maintain collaborative creative tone throughout
 
 ### Step-Specific Rules:
@@ -70,7 +73,8 @@ Guide user to name the agent naturally based on its discovered purpose, personal
 
 Present this to the user:
 
-"Now that we know who your agent is - its purpose, personality, and capabilities - let's give it the perfect name that captures its essence."
+"Now that we know who your agent is - its purpose, personality, and capabilities - let's give it the
+perfect name that captures its essence."
 
 **Review Agent Characteristics:**
 
@@ -83,27 +87,23 @@ Present this to the user:
 
 Guide user through each identity element:
 
-**Agent Name (Personal Identity):**
-"What name feels right for this agent? Think about:"
+**Agent Name (Personal Identity):** "What name feels right for this agent? Think about:"
 
 - Personality-based names (e.g., "Sarah", "Max", "Data Wizard")
 - Domain-inspired names (e.g., "Clarity", "Nexus", "Catalyst")
 - Functional names (e.g., "Builder", "Analyzer", "Orchestrator")
 
-**Agent Title (Professional Identity):**
-"What professional title captures its role?"
+**Agent Title (Professional Identity):** "What professional title captures its role?"
 
 - Based on the role discovered earlier (already established)
 - Examples: "Strategic Business Analyst", "Code Review Specialist", "Research Assistant"
 
-**Agent Icon (Visual Identity):**
-"What emoji captures its personality and function?"
+**Agent Icon (Visual Identity):** "What emoji captures its personality and function?"
 
 - Should reflect both personality and purpose
 - Examples: 🧙‍♂️ (magical helper), 🔍 (investigator), 🚀 (accelerator), 🎯 (precision)
 
-**Filename (Technical Identity):**
-"Let's create a kebab-case filename for the agent:"
+**Filename (Technical Identity):** "Let's create a kebab-case filename for the agent:"
 
 - Based on agent name and function
 - Examples: "business-analyst", "code-reviewer", "research-assistant"
@@ -111,25 +111,21 @@ Guide user through each identity element:
 
 ### 3. Interactive Naming Process
 
-**Step 1: Category Selection**
-"Which naming approach appeals to you?"
+**Step 1: Category Selection** "Which naming approach appeals to you?"
 
 - A) Personal names (human-like identity)
 - B) Functional names (descriptive of purpose)
 - C) Conceptual names (abstract or metaphorical)
 - D) Creative names (unique and memorable)
 
-**Step 2: Present Options**
-Based on category, present 3-5 thoughtful options with explanations:
+**Step 2: Present Options** Based on category, present 3-5 thoughtful options with explanations:
 
 "Here are some options that fit your agent's personality:
 
-**Option 1: [Name]** - [Why this fits their personality/purpose]
-**Option 2: [Name]** - [How this captures their capabilities]
-**Option 3: [Name]** - [Why this reflects their communication style]"
+**Option 1: [Name]** - [Why this fits their personality/purpose] **Option 2: [Name]** - [How this
+captures their capabilities] **Option 3: [Name]** - [Why this reflects their communication style]"
 
-**Step 3: Explore Combinations**
-"Would you like to mix and match, or do one of these feel perfect?"
+**Step 3: Explore Combinations** "Would you like to mix and match, or do one of these feel perfect?"
 
 Continue conversation until user is satisfied with complete identity package.
 
@@ -193,19 +189,23 @@ Display: "**Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Cont
 
 - IF A: Execute {advancedElicitationTask}
 - IF P: Execute {partyModeWorkflow}
-- IF C: Save content to {agentPlan}, update frontmatter, then only then load, read entire file, then execute {nextStepFile}
-- IF Any other comments or queries: help user respond then [Redisplay Menu Options](#6-present-menu-options)
+- IF C: Save content to {agentPlan}, update frontmatter, then only then load, read entire file, then
+  execute {nextStepFile}
+- IF Any other comments or queries: help user respond then
+  [Redisplay Menu Options](#6-present-menu-options)
 
 #### EXECUTION RULES:
 
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu
-- User can chat or ask questions - always respond and then end with display again of the menu options
+- User can chat or ask questions - always respond and then end with display again of the menu
+  options
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN [C continue option] is selected and [complete identity package established and confirmed], will you then load and read fully `{nextStepFile}` to execute and begin YAML building.
+ONLY WHEN [C continue option] is selected and [complete identity package established and confirmed],
+will you then load and read fully `{nextStepFile}` to execute and begin YAML building.
 
 ---
 
@@ -229,4 +229,5 @@ ONLY WHEN [C continue option] is selected and [complete identity package establi
 - Not getting user confirmation on identity feel
 - Proceeding without proper filename convention compliance
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

@@ -483,10 +483,10 @@ tests/security/
 **Current Security Posture:** MEDIUM-HIGH RISK **Post-Hardening Security Posture:** LOW RISK
 (Production Ready)
 
-The Casys PML sandbox executor has **strong foundational security** with excellent process
-isolation and permission controls. However, **input validation gaps** (eval, Function, prototype
-pollution) and **missing resource monitoring** (concurrent limits, CPU tracking) create attack
-vectors that MUST be addressed before production.
+The Casys PML sandbox executor has **strong foundational security** with excellent process isolation
+and permission controls. However, **input validation gaps** (eval, Function, prototype pollution)
+and **missing resource monitoring** (concurrent limits, CPU tracking) create attack vectors that
+MUST be addressed before production.
 
 **Estimated Hardening Effort:** 20-25 hours **Risk if Deployed Without Hardening:** HIGH (Code
 injection, resource exhaustion possible) **Recommendation:** PROCEED with hardening tasks 2-9

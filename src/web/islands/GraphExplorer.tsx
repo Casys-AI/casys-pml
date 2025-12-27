@@ -160,7 +160,9 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
           eventSource?.close();
           eventSource = null;
         } else {
-          console.warn(`[SSE] Connection error, attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`);
+          console.warn(
+            `[SSE] Connection error, attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`,
+          );
         }
       };
     };

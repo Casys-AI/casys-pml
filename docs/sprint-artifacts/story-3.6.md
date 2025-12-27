@@ -493,7 +493,7 @@ architecture sécurisée (in-memory only), et 20/20 tests passants.
 | **AC #4** | Reverse mapping stored securely (in-memory only)          | ✅ IMPLEMENTED | Map<string, string> (line 261), no disk persistence, clear() method (329-331)                                                 |
 | **AC #5** | Agent receives tokenized data, references tokens          | ✅ IMPLEMENTED | Integration tests verify (pii_integration_test.ts:16-97), agent sees `[EMAIL_1]` tokens                                       |
 | **AC #6** | De-tokenization for final output (optional)               | ✅ IMPLEMENTED | detokenize() method (303-313), config: detokenizeOutput (default: false)                                                      |
-| **AC #7** | Opt-out: `--no-pii-protection` flag                       | ✅ IMPLEMENTED | CLI flag (serve.ts:140), env var CAI_NO_PII_PROTECTION (serve.ts:191), config option (gateway-server.ts:89)            |
+| **AC #7** | Opt-out: `--no-pii-protection` flag                       | ✅ IMPLEMENTED | CLI flag (serve.ts:140), env var CAI_NO_PII_PROTECTION (serve.ts:191), config option (gateway-server.ts:89)                   |
 | **AC #8** | Unit tests: >95% detection accuracy                       | ✅ IMPLEMENTED | 13/13 passing, Email 100%, Credit Card Luhn validation, all PII types >95%                                                    |
 | **AC #9** | Integration test: Email tokenized → agent never sees raw  | ✅ IMPLEMENTED | 7/7 E2E tests passing, tokenization verified, agent isolation confirmed                                                       |
 
@@ -537,18 +537,18 @@ architecture sécurisée (in-memory only), et 20/20 tests passants.
 
 #### Phase 3: De-tokenization & Opt-Out
 
-| Task                                        | Marked As    | Verified As  | Evidence                            |
-| ------------------------------------------- | ------------ | ------------ | ----------------------------------- |
-| Task 5: De-tokenization for final output    | [x] Complete | ✅ VERIFIED  | detokenize() implemented            |
-| - de-tokenize via TokenizationManager       | [x] Complete | ✅ VERIFIED  | Lines 303-313                       |
-| - User decide: keep tokens OR restore       | [x] Complete | ✅ VERIFIED  | Config option detokenizeOutput      |
-| - Default: keep tokens (safer)              | [x] Complete | ✅ VERIFIED  | Default: false (line 69)            |
-| - Config: `detokenizeOutput` option         | [x] Complete | ✅ VERIFIED  | types.ts:41, gateway-server.ts:57   |
-| Task 6: Opt-out mechanism                   | [x] Complete | ✅ VERIFIED  | 3 mechanisms implemented            |
-| - CLI flag: `--no-pii-protection`           | [x] Complete | ✅ VERIFIED  | serve.ts:140                        |
-| - Config option: `piiProtection.enabled`    | [x] Complete | ✅ VERIFIED  | gateway-server.ts:89                |
-| - Env var: `CAI_NO_PII_PROTECTION=1` | [x] Complete | ✅ VERIFIED  | serve.ts:191                        |
-| - Warning message si opt-out                | [x] Complete | ⚠️ NOT FOUND | Minor issue: no visible warning log |
+| Task                                     | Marked As    | Verified As  | Evidence                            |
+| ---------------------------------------- | ------------ | ------------ | ----------------------------------- |
+| Task 5: De-tokenization for final output | [x] Complete | ✅ VERIFIED  | detokenize() implemented            |
+| - de-tokenize via TokenizationManager    | [x] Complete | ✅ VERIFIED  | Lines 303-313                       |
+| - User decide: keep tokens OR restore    | [x] Complete | ✅ VERIFIED  | Config option detokenizeOutput      |
+| - Default: keep tokens (safer)           | [x] Complete | ✅ VERIFIED  | Default: false (line 69)            |
+| - Config: `detokenizeOutput` option      | [x] Complete | ✅ VERIFIED  | types.ts:41, gateway-server.ts:57   |
+| Task 6: Opt-out mechanism                | [x] Complete | ✅ VERIFIED  | 3 mechanisms implemented            |
+| - CLI flag: `--no-pii-protection`        | [x] Complete | ✅ VERIFIED  | serve.ts:140                        |
+| - Config option: `piiProtection.enabled` | [x] Complete | ✅ VERIFIED  | gateway-server.ts:89                |
+| - Env var: `CAI_NO_PII_PROTECTION=1`     | [x] Complete | ✅ VERIFIED  | serve.ts:191                        |
+| - Warning message si opt-out             | [x] Complete | ⚠️ NOT FOUND | Minor issue: no visible warning log |
 
 #### Phase 4: Testing & Validation
 

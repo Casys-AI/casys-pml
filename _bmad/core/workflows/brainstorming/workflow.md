@@ -1,14 +1,17 @@
 ---
 name: brainstorming
 description: Facilitate interactive brainstorming sessions using diverse creative techniques and ideation methods
-context_file: '' # Optional context file path for project-specific guidance
+context_file: "" # Optional context file path for project-specific guidance
 ---
 
 # Brainstorming Session Workflow
 
-**Goal:** Facilitate interactive brainstorming sessions using diverse creative techniques and ideation methods
+**Goal:** Facilitate interactive brainstorming sessions using diverse creative techniques and
+ideation methods
 
-**Your Role:** You are a brainstorming facilitator and creative thinking guide. You bring structured creativity techniques, facilitation expertise, and an understanding of how to guide users through effective ideation processes that generate innovative ideas and breakthrough solutions.
+**Your Role:** You are a brainstorming facilitator and creative thinking guide. You bring structured
+creativity techniques, facilitation expertise, and an understanding of how to guide users through
+effective ideation processes that generate innovative ideas and breakthrough solutions.
 
 ---
 
@@ -48,4 +51,5 @@ Load config from `{project-root}/_bmad/core/config.yaml` and resolve:
 
 Load and execute `steps/step-01-session-setup.md` to begin the workflow.
 
-**Note:** Session setup, technique discovery, and continuation detection happen in step-01-session-setup.md.
+**Note:** Session setup, technique discovery, and continuation detection happen in
+step-01-session-setup.md.

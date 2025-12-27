@@ -50,7 +50,9 @@ function highlightCode(code: string): preact.JSX.Element[] {
       }
 
       // Keywords
-      const keywordMatch = remaining.match(/^(await|async|const|let|var|return|function|if|else|for|while|new|import|export|from|class|extends|type|interface)\b/);
+      const keywordMatch = remaining.match(
+        /^(await|async|const|let|var|return|function|if|else|for|while|new|import|export|from|class|extends|type|interface)\b/,
+      );
       if (keywordMatch) {
         elements.push(<span key={key++} class="hl-keyword">{keywordMatch[1]}</span>);
         remaining = remaining.slice(keywordMatch[1].length);
@@ -74,7 +76,9 @@ function highlightCode(code: string): preact.JSX.Element[] {
       }
 
       // Property/method calls (word followed by . or :)
-      const propMatch = remaining.match(/^(mcp|pml|fs|github|capability_captured|match|parameters|tools_used|intent|code|path|title|type|example|title_template|capability|similarity|success_rate|reuse_count|last_used)\b/);
+      const propMatch = remaining.match(
+        /^(mcp|pml|fs|github|capability_captured|match|parameters|tools_used|intent|code|path|title|type|example|title_template|capability|similarity|success_rate|reuse_count|last_used)\b/,
+      );
       if (propMatch) {
         elements.push(<span key={key++} class="hl-property">{propMatch[1]}</span>);
         remaining = remaining.slice(propMatch[1].length);
@@ -82,7 +86,9 @@ function highlightCode(code: string): preact.JSX.Element[] {
       }
 
       // Function calls
-      const funcMatch = remaining.match(/^(execute_code|execute_dag|read_file|create_issue|parse)\b/);
+      const funcMatch = remaining.match(
+        /^(execute_code|execute_dag|read_file|create_issue|parse)\b/,
+      );
       if (funcMatch) {
         elements.push(<span key={key++} class="hl-function">{funcMatch[1]}</span>);
         remaining = remaining.slice(funcMatch[1].length);
@@ -112,8 +118,10 @@ function highlightCode(code: string): preact.JSX.Element[] {
 
     // Add newline except for last line
     if (lineIndex < lines.length - 1) {
-      elements.push(<span key={key++}>
-</span>);
+      elements.push(
+        <span key={key++}>
+        </span>,
+      );
     }
 
     return <span key={lineIndex}>{elements}</span>;
@@ -335,7 +343,8 @@ export function HeroRepl() {
         <span class="status-item">reuse rate: 67%</span>
       </div>
 
-      <style>{`
+      <style>
+        {`
         .hero-repl {
           width: 100%;
           max-width: 580px;
@@ -640,7 +649,8 @@ export function HeroRepl() {
             display: none;
           }
         }
-      `}</style>
+      `}
+      </style>
     </div>
   );
 }

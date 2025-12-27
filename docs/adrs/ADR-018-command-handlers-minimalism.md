@@ -1,14 +1,13 @@
 # ADR-018: Command Handlers Minimalism - Unified Control Plane
 
-**Status:** ⛔ Superseded
-**Date:** 2025-11-24 | **Superseded by:** ADR-020 (2025-11-25)
+**Status:** ⛔ Superseded **Date:** 2025-11-24 | **Superseded by:** ADR-020 (2025-11-25)
 
 > See **ADR-020: AIL Control Protocol** for the consolidated architecture.
 
 > **⚠️ ARCHITECTURE UPDATE 2025-11-25:** The 4 command handlers serve **two purposes**:
 >
-> 1. **Level 1 (External MCP agents)**: Exposed as MCP meta-tools (`pml:continue`,
->    `pml:abort`, `pml:replan_dag`, `pml:approval_response`)
+> 1. **Level 1 (External MCP agents)**: Exposed as MCP meta-tools (`pml:continue`, `pml:abort`,
+>    `pml:replan_dag`, `pml:approval_response`)
 > 2. **Level 2 (Internal native agents)**: Used via CommandQueue for async control
 
 ## Context
@@ -26,8 +25,7 @@ During implementation of Epic 2.5 (Adaptive DAG Feedback Loops), we discovered:
 
 **Level 1 - External MCP agents (Claude Code)**:
 
-- ✅ Via MCP meta-tools: `pml:continue`, `pml:abort`, `pml:replan_dag`,
-  `pml:approval_response`
+- ✅ Via MCP meta-tools: `pml:continue`, `pml:abort`, `pml:replan_dag`, `pml:approval_response`
 - ✅ HTTP Request/Response pattern (MCP compatible)
 
 **Level 2 - Internal native agents (JS/TS in Gateway)**:

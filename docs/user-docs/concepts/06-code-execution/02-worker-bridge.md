@@ -4,22 +4,33 @@
 
 ## En bref
 
-Le Worker Bridge est un canal de communication securise entre le code isole dans le sandbox et les outils MCP reel. Pensez-y comme un **interphone entre deux pieces isolees** : une personne dans une piece securisee (le sandbox) peut parler a travers l'interphone pour demander a quelqu'un dans l'autre piece (le processus principal) d'executer des actions pour elle. La personne isolee ne peut jamais quitter sa piece, mais elle peut faire des demandes precises via l'interphone.
+Le Worker Bridge est un canal de communication securise entre le code isole dans le sandbox et les
+outils MCP reel. Pensez-y comme un **interphone entre deux pieces isolees** : une personne dans une
+piece securisee (le sandbox) peut parler a travers l'interphone pour demander a quelqu'un dans
+l'autre piece (le processus principal) d'executer des actions pour elle. La personne isolee ne peut
+jamais quitter sa piece, mais elle peut faire des demandes precises via l'interphone.
 
 ### Pourquoi c'est important
 
-Le Worker Bridge resout un probleme fondamental : comment permettre au code isole d'etre utile tout en maintenant la securite ?
+Le Worker Bridge resout un probleme fondamental : comment permettre au code isole d'etre utile tout
+en maintenant la securite ?
 
-- **Isolation maintenue** : le code reste dans le sandbox, mais peut utiliser des outils puissants (filesystem, GitHub, etc.)
-- **Controle centralise** : toutes les actions passent par le bridge qui peut valider, auditer et tracer chaque appel
-- **API unifiee** : le code sandbox utilise simplement `mcp.tool()` sans se soucier de la complexite sous-jacente
+- **Isolation maintenue** : le code reste dans le sandbox, mais peut utiliser des outils puissants
+  (filesystem, GitHub, etc.)
+- **Controle centralise** : toutes les actions passent par le bridge qui peut valider, auditer et
+  tracer chaque appel
+- **API unifiee** : le code sandbox utilise simplement `mcp.tool()` sans se soucier de la complexite
+  sous-jacente
 - **Debugging facilite** : chaque message RPC peut etre logue et inspecte
 
-Sans le bridge, il faudrait soit donner des permissions directes au sandbox (dangereux), soit ne rien pouvoir faire d'utile (inutile). Le bridge offre le meilleur des deux mondes.
+Sans le bridge, il faudrait soit donner des permissions directes au sandbox (dangereux), soit ne
+rien pouvoir faire d'utile (inutile). Le bridge offre le meilleur des deux mondes.
 
 ## What is the Worker Bridge?
 
-The **Worker Bridge** is the communication layer between PML's main process and the sandboxed code execution environment. It enables isolated code to call MCP tools while maintaining security boundaries.
+The **Worker Bridge** is the communication layer between PML's main process and the sandboxed code
+execution environment. It enables isolated code to call MCP tools while maintaining security
+boundaries.
 
 ![RPC Bridge Architecture](excalidraw:src/web/assets/diagrams/rpc-bridge-after.excalidraw)
 
@@ -29,17 +40,17 @@ The bridge connects two isolated environments:
 
 ### Main Process Side
 
-| Component | Role |
-|-----------|------|
+| Component          | Role                                              |
+| ------------------ | ------------------------------------------------- |
 | **Bridge Handler** | Receives RPC, validates requests, returns results |
-| **MCP Gateway** | Routes calls, executes tools, returns data |
+| **MCP Gateway**    | Routes calls, executes tools, returns data        |
 
 ### Worker Side
 
-| Component | Role |
-|-----------|------|
+| Component     | Role                                                          |
+| ------------- | ------------------------------------------------------------- |
 | **MCP Proxy** | Provides `mcp.server.*` API, serializes calls, awaits replies |
-| **User Code** | Calls `await mcp.read_file()` etc. |
+| **User Code** | Calls `await mcp.read_file()` etc.                            |
 
 Communication via `postMessage` between both sides.
 
@@ -65,6 +76,7 @@ Communication uses a structured RPC protocol:
 ### Response Message
 
 **Success:**
+
 ```json
 {
   "type": "rpc_response",
@@ -75,6 +87,7 @@ Communication uses a structured RPC protocol:
 ```
 
 **Error:**
+
 ```json
 {
   "type": "rpc_response",
@@ -111,8 +124,8 @@ mcp = {
   },
   github: {
     create_issue: (args) => bridge.call("github", "create_issue", args),
-  }
-}
+  },
+};
 ```
 
 ### Using Injected Tools
@@ -154,13 +167,13 @@ Each becomes: mcp.{server}.{tool}()
 
 The bridge handles various error conditions:
 
-| Error | Handling |
-|-------|----------|
-| **Tool not found** | Clear error with available alternatives |
-| **Invalid parameters** | Schema validation error returned |
-| **Tool execution failed** | Error propagated to calling code |
-| **Timeout** | Request cancelled, error returned |
-| **Worker crashed** | Graceful failure, error logged |
+| Error                     | Handling                                |
+| ------------------------- | --------------------------------------- |
+| **Tool not found**        | Clear error with available alternatives |
+| **Invalid parameters**    | Schema validation error returned        |
+| **Tool execution failed** | Error propagated to calling code        |
+| **Timeout**               | Request cancelled, error returned       |
+| **Worker crashed**        | Graceful failure, error logged          |
 
 ### Error Example
 
@@ -182,12 +195,12 @@ try {
 
 The bridge is optimized for low latency:
 
-| Optimization | Benefit |
-|--------------|---------|
-| **Message pooling** | Reduce allocation overhead |
+| Optimization             | Benefit                         |
+| ------------------------ | ------------------------------- |
+| **Message pooling**      | Reduce allocation overhead      |
 | **Binary serialization** | Faster than JSON for large data |
-| **Request batching** | Multiple calls in one message |
-| **Keep-alive workers** | Avoid startup cost |
+| **Request batching**     | Multiple calls in one message   |
+| **Keep-alive workers**   | Avoid startup cost              |
 
 ## Next
 

@@ -1,24 +1,25 @@
 ---
-name: 'step-09-complete'
-description: 'Final completion and wrap-up of workflow creation process'
+name: "step-09-complete"
+description: "Final completion and wrap-up of workflow creation process"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmb/workflows/create-workflow'
+workflow_path: "{project-root}/_bmad/bmb/workflows/create-workflow"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-09-complete.md'
-workflowFile: '{workflow_path}/workflow.md'
+thisStepFile: "{workflow_path}/steps/step-09-complete.md"
+workflowFile: "{workflow_path}/workflow.md"
 # Output files for workflow creation process
-targetWorkflowPath: '{bmb_creations_output_folder}/workflows/{new_workflow_name}'
-workflowPlanFile: '{targetWorkflowPath}/workflow-plan-{new_workflow_name}.md'
-completionFile: '{targetWorkflowPath}/completion-summary-{new_workflow_name}.md'
+targetWorkflowPath: "{bmb_creations_output_folder}/workflows/{new_workflow_name}"
+workflowPlanFile: "{targetWorkflowPath}/workflow-plan-{new_workflow_name}.md"
+completionFile: "{targetWorkflowPath}/completion-summary-{new_workflow_name}.md"
 ---
 
 # Step 9: Workflow Creation Complete
 
 ## STEP GOAL:
 
-To complete the workflow creation process with a final summary, confirmation, and next steps for using the new workflow.
+To complete the workflow creation process with a final summary, confirmation, and next steps for
+using the new workflow.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -31,7 +32,8 @@ To complete the workflow creation process with a final summary, confirmation, an
 ### Role Reinforcement:
 
 - ✅ You are a workflow architect and systems designer
-- ✅ If you already have been given communication or persona patterns, continue to use those while playing this new role
+- ✅ If you already have been given communication or persona patterns, continue to use those while
+  playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You bring expertise in workflow deployment and usage guidance
 - ✅ User brings their specific workflow needs
@@ -63,15 +65,15 @@ To complete the workflow creation process with a final summary, confirmation, an
 
 "**Workflow Creation Complete!**
 
-Congratulations! We've successfully created your new workflow. Let's finalize everything and ensure you have everything you need to start using it."
+Congratulations! We've successfully created your new workflow. Let's finalize everything and ensure
+you have everything you need to start using it."
 
 ### 2. Final Summary
 
 Present a complete summary of what was created:
 
-**Workflow Created:** {new_workflow_name}
-**Location:** {targetWorkflowPath}
-**Files Generated:** [list from build step]
+**Workflow Created:** {new_workflow_name} **Location:** {targetWorkflowPath} **Files Generated:**
+[list from build step]
 
 ### 3. Create Completion Summary
 
@@ -132,7 +134,8 @@ Provide clear instructions on how to use the new workflow:
 
 1. **Test the Workflow:** Run it with sample data to ensure it works as expected
 2. **Customize if Needed:** You can modify the workflow based on your specific needs
-3. **Share with Team:** If others will use this workflow, provide them with the location and instructions
+3. **Share with Team:** If others will use this workflow, provide them with the location and
+   instructions
 4. **Monitor Usage:** Keep track of how well the workflow meets your needs"
 
 ### 6. Final Confirmation

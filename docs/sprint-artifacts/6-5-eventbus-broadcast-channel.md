@@ -1,24 +1,26 @@
 # Story 6.5: EventBus with BroadcastChannel
 
-> **Epic:** 6 - Real-time Graph Monitoring & Observability
-> **ADRs:** ADR-036 (BroadcastChannel for Event Distribution)
-> **Prerequisites:** Story 7.3b (Capability Injection with BroadcastChannel tracing - DONE)
-> **Status:** Done ✅
+> **Epic:** 6 - Real-time Graph Monitoring & Observability **ADRs:** ADR-036 (BroadcastChannel for
+> Event Distribution) **Prerequisites:** Story 7.3b (Capability Injection with BroadcastChannel
+> tracing - DONE) **Status:** Done ✅
 
 ## User Story
 
-As a dashboard user, I want all system events (tools, DAG, graph, capabilities) streamed in real-time via a unified EventBus, So that I can monitor execution live without polling.
+As a dashboard user, I want all system events (tools, DAG, graph, capabilities) streamed in
+real-time via a unified EventBus, So that I can monitor execution live without polling.
 
 ## Problem Context
 
 ### Current State (After Story 7.3b)
 
 Story 7.3b introduced BroadcastChannel for capability traces:
+
 - `capability_start` / `capability_end` → BroadcastChannel `"agentcards-traces"`
 - Pattern validated for cross-worker communication
 - WorkerBridge already receives traces via BroadcastChannel (`src/sandbox/worker-bridge.ts:99-119`)
 
 **BUT:** Other event sources still use different mechanisms:
+
 - Tool traces (`tool_start/end`) → batched in WorkerBridge internal array
 - Graph events → EventTarget in GraphRAGEngine (`src/graphrag/events.ts`)
 - SSE events → EventsStreamManager subscribes to GraphRAGEngine only (`src/server/events-stream.ts`)
@@ -77,7 +79,8 @@ Migrate all event sources to a single BroadcastChannel-based EventBus per ADR-03
 
 ### Key Design Decisions
 
-1. **Single BroadcastChannel:** `"agentcards-events"` for all event types (recommended over multiple channels)
+1. **Single BroadcastChannel:** `"agentcards-events"` for all event types (recommended over multiple
+   channels)
 2. **Singleton pattern:** One EventBus instance per process
 3. **Local dispatch:** Events emitted locally AND via BroadcastChannel for immediate local handlers
 4. **Backward compatibility:** Keep existing APIs where possible (`getTraces()`, `on()/off()`)
@@ -224,7 +227,7 @@ Migrate all event sources to a single BroadcastChannel-based EventBus per ADR-03
 
 - [x] **Task 7: Create Metrics Collector** (AC: #8)
   - [x] 7.1 Create `src/telemetry/metrics-collector.ts` (~320 LOC)
-  - [x] 7.2 Subscribe to relevant events (tool.*, capability.*, dag.*, graph.*)
+  - [x] 7.2 Subscribe to relevant events (tool._, capability._, dag._, graph._)
   - [x] 7.3 Aggregate counts and histograms
   - [x] 7.4 Expose via `getMetrics()` and `toPrometheusFormat()` methods
 
@@ -456,7 +459,7 @@ export class EventsStreamManager {
     // Parse optional filter param
     const url = new URL(request.url);
     const filterParam = url.searchParams.get("filter");
-    const filters = filterParam?.split(",").map(f => f.trim()) ?? [];
+    const filters = filterParam?.split(",").map((f) => f.trim()) ?? [];
 
     // ... rest of handler with optional filtering
   }
@@ -478,11 +481,13 @@ export class EventsStreamManager {
 ### Channel Strategy
 
 **Recommended (Option A):** Single channel `"agentcards-events"`
+
 - All events go through same channel
 - Simpler architecture
 - Filter by `event.type` in consumers
 
 **Alternative (Option B):** Multiple channels
+
 - `"agentcards-traces"` for tool/capability traces (already exists from 7.3b)
 - `"agentcards-events"` for other events
 - More complex, requires bridging
@@ -532,6 +537,7 @@ src/server/
 ### Existing Code Patterns to Follow
 
 **WorkerBridge BroadcastChannel** (`src/sandbox/worker-bridge.ts:99-119`):
+
 ```typescript
 // Story 7.3b pattern - already using BroadcastChannel
 this.traceChannel = new BroadcastChannel("agentcards-traces");
@@ -541,6 +547,7 @@ this.traceChannel.onmessage = (e: MessageEvent<CapabilityTraceEvent>) => {
 ```
 
 **EventsStreamManager** (`src/server/events-stream.ts:47-63`):
+
 ```typescript
 // Current pattern - subscribes to GraphRAGEngine
 constructor(
@@ -554,6 +561,7 @@ constructor(
 ```
 
 **GraphRAG Events** (`src/graphrag/events.ts`):
+
 - Currently uses `EventTarget` pattern
 - Will be replaced/augmented with EventBus
 
@@ -578,13 +586,15 @@ constructor(
 ### From Story 7.3b (Capability Injection with BroadcastChannel)
 
 - **What worked:** BroadcastChannel pattern validated for cross-worker communication
-- **Pattern established:** `new BroadcastChannel("agentcards-traces")` for real-time trace collection
+- **Pattern established:** `new BroadcastChannel("agentcards-traces")` for real-time trace
+  collection
 - **Key insight:** BroadcastChannel works across Web Workers in Deno natively
 - **Files modified:** `worker-bridge.ts:99-119`, `sandbox-worker.ts`
 - **Test pattern:** 58 tests across capability injection flow
 - **Code review:** 298 tests passing (sandbox + capabilities)
 
 **Reusable code from 7.3b:**
+
 ```typescript
 // BroadcastChannel setup pattern
 this.traceChannel = new BroadcastChannel("agentcards-traces");
@@ -642,6 +652,7 @@ f7f2a7d feat(capabilities): Story 7.3b - Capability injection with nested tracin
 ### BroadcastChannel Technical Notes
 
 From [Deno Web Platform APIs](https://docs.deno.com/api/web/~/BroadcastChannel):
+
 - BroadcastChannel is a native Web API available in Deno
 - 1-to-many communication (unlike MessageChannel which is 1-to-1)
 - All BroadcastChannel instances with same name are linked
@@ -667,7 +678,8 @@ From [Deno Web Platform APIs](https://docs.deno.com/api/web/~/BroadcastChannel):
 ## References
 
 - **ADR-036:** `docs/adrs/ADR-036-broadcast-channel-event-distribution.md`
-- **Story 7.3b:** `docs/sprint-artifacts/7-3b-capability-injection-nested-tracing.md` (introduces BroadcastChannel)
+- **Story 7.3b:** `docs/sprint-artifacts/7-3b-capability-injection-nested-tracing.md` (introduces
+  BroadcastChannel)
 - **Story 7.6:** Algorithm Observability Implementation (uses events from this story)
 - **Current SSE:** `src/server/events-stream.ts:1-275`
 - **Current GraphRAG events:** `src/graphrag/events.ts`
@@ -704,6 +716,7 @@ From [Deno Web Platform APIs](https://docs.deno.com/api/web/~/BroadcastChannel):
 ### File List
 
 **NEW FILES:**
+
 - [x] `src/events/types.ts` - Event type definitions (CaiEvent, EventType union, typed payloads)
 - [x] `src/events/event-bus.ts` - EventBus singleton with BroadcastChannel
 - [x] `src/events/mod.ts` - Module exports
@@ -713,15 +726,18 @@ From [Deno Web Platform APIs](https://docs.deno.com/api/web/~/BroadcastChannel):
 - [x] `tests/integration/event_flow_test.ts` - E2E event flow validation
 
 **MODIFIED FILES:**
+
 - [x] `src/sandbox/worker-bridge.ts` - Emit tool.start/end via EventBus, bridge capability traces
 - [x] `src/sandbox/types.ts` - Added args field to TraceEvent (ADR-041 hierarchical tracking)
 - [x] `src/dag/executor.ts` - Emit dag.* events during execution
 - [x] `src/graphrag/graph-engine.ts` - Bridge legacy GraphEvents to EventBus via emitToEventBus()
 - [x] `src/capabilities/capability-store.ts` - Emit capability.learned event
 - [x] `src/capabilities/matcher.ts` - Emit capability.matched event
-- [x] `src/server/events-stream.ts` - Subscribe to EventBus instead of GraphRAGEngine, add ?filter= support
+- [x] `src/server/events-stream.ts` - Subscribe to EventBus instead of GraphRAGEngine, add ?filter=
+      support
 - [x] `tests/unit/server/events_stream_test.ts` - Updated tests for EventBus integration
 
 **NOT MODIFIED (removed from original plan):**
+
 - `src/dag/controlled-executor.ts` - Not needed (uses ParallelExecutor internally)
 - `src/dag/streaming.ts` - Not needed (SSE handled via EventBus subscription)

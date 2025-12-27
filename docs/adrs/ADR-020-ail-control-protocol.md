@@ -1,7 +1,6 @@
 # ADR-020: AIL Control Protocol - Unified Command Architecture
 
-**Status:** 📝 Draft
-**Date:** 2025-11-25 | **Consolidates:** ADR-018 + ADR-019
+**Status:** 📝 Draft **Date:** 2025-11-25 | **Consolidates:** ADR-018 + ADR-019
 
 > Deferred to Epic 3.5+ - SSE streaming incompatible with MCP one-shot protocol.
 
@@ -18,8 +17,8 @@ external MCP agents (Level 1) and internal native agents (Level 2).
 
 ### MCP Tools (gateway-server.ts)
 
-| Tool                           | Purpose                | Status                           |
-| ------------------------------ | ---------------------- | -------------------------------- |
+| Tool                    | Purpose                | Status                           |
+| ----------------------- | ---------------------- | -------------------------------- |
 | `pml:execute`           | Execute workflow       | ✅ Exists (was execute_workflow) |
 | `pml:search_tools`      | Semantic tool search   | ✅ Exists                        |
 | `pml:execute_code`      | Deno sandbox execution | ✅ Exists                        |
@@ -62,8 +61,8 @@ During Epic 2.5 implementation, we discovered:
 
 ### The 4 Unified Commands
 
-| Command             | Purpose                | Level 1 (MCP)                  | Level 2 (Internal)                                 |
-| ------------------- | ---------------------- | ------------------------------ | -------------------------------------------------- |
+| Command             | Purpose                | Level 1 (MCP)           | Level 2 (Internal)                                 |
+| ------------------- | ---------------------- | ----------------------- | -------------------------------------------------- |
 | `continue`          | Resume execution       | `pml:continue`          | `commandQueue.enqueue({type:"continue"})`          |
 | `abort`             | Stop workflow          | `pml:abort`             | `commandQueue.enqueue({type:"abort"})`             |
 | `replan`            | Add tasks via GraphRAG | `pml:replan`            | `commandQueue.enqueue({type:"replan"})`            |

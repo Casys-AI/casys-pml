@@ -4,19 +4,25 @@
 
 ## En bref
 
-La parallelisation permet d'executer plusieurs taches independantes en meme temps, comme plusieurs chefs dans une cuisine qui preparent differents plats simultanement. Pendant qu'un chef prepare la salade, un autre cuit la viande, et un troisieme prepare le dessert. Le service est beaucoup plus rapide que si un seul chef faisait tout sequentiellement.
+La parallelisation permet d'executer plusieurs taches independantes en meme temps, comme plusieurs
+chefs dans une cuisine qui preparent differents plats simultanement. Pendant qu'un chef prepare la
+salade, un autre cuit la viande, et un troisieme prepare le dessert. Le service est beaucoup plus
+rapide que si un seul chef faisait tout sequentiellement.
 
 **Points cles :**
+
 - Execution simultanee de taches independantes
 - Organisation en couches (layers) basee sur les dependances
 - Reduction significative du temps d'execution total
 - Optimisation automatique de l'ordre d'execution
 
-**Analogie :** Brigade de cuisine - Plusieurs chefs travaillent en parallele sur differents plats, mais respectent l'ordre (entree avant plat, plat avant dessert).
+**Analogie :** Brigade de cuisine - Plusieurs chefs travaillent en parallele sur differents plats,
+mais respectent l'ordre (entree avant plat, plat avant dessert).
 
 ## Why Parallelize?
 
-Tasks that don't depend on each other can run at the same time, dramatically reducing total execution time.
+Tasks that don't depend on each other can run at the same time, dramatically reducing total
+execution time.
 
 ```
 Sequential (slow):          Parallel (fast):
@@ -48,7 +54,8 @@ PML organizes tasks into **layers** based on their dependencies:
 
 ### Layer Rules
 
-Same layer tasks have no inter-dependencies. Task layer = max(dependency layers) + 1. Layer 0 = no dependencies.
+Same layer tasks have no inter-dependencies. Task layer = max(dependency layers) + 1. Layer 0 = no
+dependencies.
 
 ```
 DAG: A → B,C → D
@@ -161,21 +168,21 @@ A workflow to process multiple files:
 
 ## Benefits of Parallelization
 
-| Benefit | Description |
-|---------|-------------|
-| **Speed** | Total time reduced significantly |
-| **Efficiency** | Better resource utilization |
-| **Scalability** | Add more tasks without linear slowdown |
+| Benefit          | Description                             |
+| ---------------- | --------------------------------------- |
+| **Speed**        | Total time reduced significantly        |
+| **Efficiency**   | Better resource utilization             |
+| **Scalability**  | Add more tasks without linear slowdown  |
 | **Independence** | Failures in one task don't block others |
 
 ## Considerations
 
-| Factor | Impact |
-|--------|--------|
-| **Rate limits** | External APIs may throttle parallel requests |
-| **Resource usage** | More parallel = more memory/CPU |
-| **Error handling** | Must handle partial failures |
-| **Data dependencies** | Can't parallelize dependent tasks |
+| Factor                | Impact                                       |
+| --------------------- | -------------------------------------------- |
+| **Rate limits**       | External APIs may throttle parallel requests |
+| **Resource usage**    | More parallel = more memory/CPU              |
+| **Error handling**    | Must handle partial failures                 |
+| **Data dependencies** | Can't parallelize dependent tasks            |
 
 ## Exemple concret : Traitement batch de donnees
 
@@ -202,6 +209,7 @@ ANALOGIE CUISINE :
 ```
 
 **Cas pratique : Validation 500 URLs**
+
 ```
 Sans parallelisation: 500 × 1s = 500s (8.3 min)
 Avec 10 batches paralleles: 13s

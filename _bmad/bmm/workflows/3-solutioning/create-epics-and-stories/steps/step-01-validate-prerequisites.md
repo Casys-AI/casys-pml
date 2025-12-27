@@ -1,30 +1,31 @@
 ---
-name: 'step-01-validate-prerequisites'
-description: 'Validate required documents exist and extract all requirements for epic and story creation'
+name: "step-01-validate-prerequisites"
+description: "Validate required documents exist and extract all requirements for epic and story creation"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmm/workflows/3-solutioning/create-epics-and-stories'
+workflow_path: "{project-root}/_bmad/bmm/workflows/3-solutioning/create-epics-and-stories"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-01-validate-prerequisites.md'
-nextStepFile: '{workflow_path}/steps/step-02-design-epics.md'
-workflowFile: '{workflow_path}/workflow.md'
-outputFile: '{output_folder}/epics.md'
-epicsTemplate: '{workflow_path}/templates/epics-template.md'
+thisStepFile: "{workflow_path}/steps/step-01-validate-prerequisites.md"
+nextStepFile: "{workflow_path}/steps/step-02-design-epics.md"
+workflowFile: "{workflow_path}/workflow.md"
+outputFile: "{output_folder}/epics.md"
+epicsTemplate: "{workflow_path}/templates/epics-template.md"
 
 # Task References
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 
 # Template References
-epicsTemplate: '{workflow_path}/templates/epics-template.md'
+epicsTemplate: "{workflow_path}/templates/epics-template.md"
 ---
 
 # Step 1: Validate Prerequisites and Extract Requirements
 
 ## STEP GOAL:
 
-To validate that all required input documents exist and extract all requirements (FRs, NFRs, and additional requirements from UX/Architecture) needed for epic and story creation.
+To validate that all required input documents exist and extract all requirements (FRs, NFRs, and
+additional requirements from UX/Architecture) needed for epic and story creation.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -38,7 +39,8 @@ To validate that all required input documents exist and extract all requirements
 ### Role Reinforcement:
 
 - ✅ You are a product strategist and technical specifications writer
-- ✅ If you already have been given communication or persona patterns, continue to use those while playing this new role
+- ✅ If you already have been given communication or persona patterns, continue to use those while
+  playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You bring requirements extraction expertise
 - ✅ User brings their product vision and context
@@ -73,7 +75,9 @@ Verify required documents exist and are complete:
 
 ### 2. Document Discovery and Validation
 
-Search for required documents using these patterns (sharded means a large document was split into multiple small files with an index.md into a folder) - if the whole document is found, use that instead of the sharded version:
+Search for required documents using these patterns (sharded means a large document was split into
+multiple small files with an index.md into a folder) - if the whole document is found, use that
+instead of the sharded version:
 
 **PRD Document Search Priority:**
 
@@ -90,7 +94,9 @@ Search for required documents using these patterns (sharded means a large docume
 1. `{output_folder}/*ux*.md` (whole document)
 2. `{output_folder}/*ux*/index.md` (sharded version)
 
-Ask the user if there are any other documents, or if what you have found is all there is [Yes/No]. Wait for user confirmation. Once confirmed, create the {outputFile} from the {epicsTemplate} and in the front matter list the files in the array of `inputDocuments: []`.
+Ask the user if there are any other documents, or if what you have found is all there is [Yes/No].
+Wait for user confirmation. Once confirmed, create the {outputFile} from the {epicsTemplate} and in
+the front matter list the files in the array of `inputDocuments: []`.
 
 ### 3. Extract Functional Requirements (FRs)
 
@@ -134,7 +140,8 @@ Review the Architecture document for technical requirements that impact epic and
 
 **Look for:**
 
-- **Starter Template**: Does Architecture specify a starter/greenfield template? If YES, document this for Epic 1 Story 1
+- **Starter Template**: Does Architecture specify a starter/greenfield template? If YES, document
+  this for Epic 1 Story 1
 - Infrastructure and deployment requirements
 - Integration requirements with external systems
 - Data migration or setup requirements
@@ -142,7 +149,8 @@ Review the Architecture document for technical requirements that impact epic and
 - API versioning or compatibility requirements
 - Security implementation requirements
 
-**IMPORTANT**: If a starter template is mentioned in Architecture, note it prominently. This will impact Epic 1 Story 1.
+**IMPORTANT**: If a starter template is mentioned in Architecture, note it prominently. This will
+impact Epic 1 Story 1.
 
 **Format Additional Requirements as:**
 
@@ -204,7 +212,8 @@ Display to user:
 
 ### 9. Get User Confirmation
 
-Ask: "Do these extracted requirements accurately represent what needs to be built? Any additions or corrections?"
+Ask: "Do these extracted requirements accurately represent what needs to be built? Any additions or
+corrections?"
 
 Update the requirements based on user feedback until confirmation is received.
 
@@ -228,12 +237,15 @@ Display: `**Confirm the Requirements are complete and correct to [C] continue:**
 
 #### Menu Handling Logic:
 
-- IF C: Save all to {outputFile}, update frontmatter, only then load, read entire file, then execute {nextStepFile}
-- IF Any other comments or queries: help user respond then [Redisplay Menu Options](#10-present-menu-options)
+- IF C: Save all to {outputFile}, update frontmatter, only then load, read entire file, then execute
+  {nextStepFile}
+- IF Any other comments or queries: help user respond then
+  [Redisplay Menu Options](#10-present-menu-options)
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN C is selected and all requirements are saved to document and frontmatter is updated, will you then load, read entire file, then execute {nextStepFile} to execute and begin epic design step.
+ONLY WHEN C is selected and all requirements are saved to document and frontmatter is updated, will
+you then load, read entire file, then execute {nextStepFile} to execute and begin epic design step.
 
 ---
 
@@ -255,4 +267,5 @@ ONLY WHEN C is selected and all requirements are saved to document and frontmatt
 - Template not properly initialized
 - Not saving requirements to output file
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

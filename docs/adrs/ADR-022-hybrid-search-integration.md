@@ -1,7 +1,6 @@
 # ADR-022: Hybrid Search Integration in DAG Suggester
 
-**Status:** ✅ Implemented
-**Date:** 2025-11-27
+**Status:** ✅ Implemented **Date:** 2025-11-27
 
 ## Context
 

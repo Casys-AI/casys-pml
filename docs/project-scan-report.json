@@ -11,15 +11,51 @@
   "project_root": "/home/ubuntu/CascadeProjects/AgentCards",
   "output_folder": "/home/ubuntu/CascadeProjects/AgentCards/docs",
   "completed_steps": [
-    {"step": "step_1", "status": "completed", "summary": "Classified as monolith hybrid (backend+web+cli+library), 19 src modules"},
-    {"step": "step_2", "status": "completed", "summary": "Found ~260 existing docs: PRD, 50 ADRs, 15 architecture, 12 tech-specs, 31 spikes, 10 epics"},
-    {"step": "step_3", "status": "completed", "summary": "Tech stack: Deno 2.x, Fresh+Preact, PGlite+KV, GraphRAG, MCP SDK, Zero-permission sandbox with RPC tracing"},
-    {"step": "step_4", "status": "completed", "summary": "248 TS files, 56K LOC, 8 MCP meta-tools, 15 islands, 203 tests"},
-    {"step": "step_5", "status": "completed", "summary": "Generated annotated source tree with all 19 modules"},
-    {"step": "step_6", "status": "completed", "summary": "Dev workflow: deno tasks, GitHub Actions CI, systemd deployment, Grafana monitoring"},
-    {"step": "step_7", "status": "completed", "summary": "Integrations: GitHub OAuth, Smithery, HuggingFace BGE-M3, Sentry, 8 MCP servers configured"},
-    {"step": "step_8", "status": "completed", "summary": "Updated project-overview.md with comprehensive architecture documentation"},
-    {"step": "step_9", "status": "completed", "summary": "Finalized scan report and supporting docs"}
+    {
+      "step": "step_1",
+      "status": "completed",
+      "summary": "Classified as monolith hybrid (backend+web+cli+library), 19 src modules"
+    },
+    {
+      "step": "step_2",
+      "status": "completed",
+      "summary": "Found ~260 existing docs: PRD, 50 ADRs, 15 architecture, 12 tech-specs, 31 spikes, 10 epics"
+    },
+    {
+      "step": "step_3",
+      "status": "completed",
+      "summary": "Tech stack: Deno 2.x, Fresh+Preact, PGlite+KV, GraphRAG, MCP SDK, Zero-permission sandbox with RPC tracing"
+    },
+    {
+      "step": "step_4",
+      "status": "completed",
+      "summary": "248 TS files, 56K LOC, 8 MCP meta-tools, 15 islands, 203 tests"
+    },
+    {
+      "step": "step_5",
+      "status": "completed",
+      "summary": "Generated annotated source tree with all 19 modules"
+    },
+    {
+      "step": "step_6",
+      "status": "completed",
+      "summary": "Dev workflow: deno tasks, GitHub Actions CI, systemd deployment, Grafana monitoring"
+    },
+    {
+      "step": "step_7",
+      "status": "completed",
+      "summary": "Integrations: GitHub OAuth, Smithery, HuggingFace BGE-M3, Sentry, 8 MCP servers configured"
+    },
+    {
+      "step": "step_8",
+      "status": "completed",
+      "summary": "Updated project-overview.md with comprehensive architecture documentation"
+    },
+    {
+      "step": "step_9",
+      "status": "completed",
+      "summary": "Finalized scan report and supporting docs"
+    }
   ],
   "findings": {
     "project_classification": {
@@ -66,7 +102,17 @@
       "adrs": 50
     },
     "integrations": {
-      "mcp_servers": ["std", "filesystem", "memory", "sequential-thinking", "playwright", "exa", "magic", "fetch", "plots"],
+      "mcp_servers": [
+        "std",
+        "filesystem",
+        "memory",
+        "sequential-thinking",
+        "playwright",
+        "exa",
+        "magic",
+        "fetch",
+        "plots"
+      ],
       "external": ["GitHub OAuth", "Smithery Registry", "HuggingFace Hub", "Sentry"],
       "monitoring": ["Grafana", "Prometheus", "Loki", "Promtail"]
     },
@@ -80,10 +126,10 @@
     ]
   },
   "project_types": [
-    {"part_id": "main", "project_type_id": "backend", "display_name": "MCP Gateway Server"},
-    {"part_id": "main", "project_type_id": "web", "display_name": "Fresh Dashboard"},
-    {"part_id": "main", "project_type_id": "cli", "display_name": "CLI Interface"},
-    {"part_id": "main", "project_type_id": "library", "display_name": "Exportable Modules"}
+    { "part_id": "main", "project_type_id": "backend", "display_name": "MCP Gateway Server" },
+    { "part_id": "main", "project_type_id": "web", "display_name": "Fresh Dashboard" },
+    { "part_id": "main", "project_type_id": "cli", "display_name": "CLI Interface" },
+    { "part_id": "main", "project_type_id": "library", "display_name": "Exportable Modules" }
   ],
   "outputs_generated": [
     "project-scan-report.json",

@@ -1,8 +1,8 @@
 # ADR-048: Local Adaptive Alpha by Mode
 
-**Status:** Accepted (Implemented)
-**Date:** 2025-12-15
-**Related:** ADR-015 (Dynamic Alpha), ADR-026 (Cold Start), ADR-038 (Scoring Algorithms), ADR-042 (Capability Hyperedges), ADR-049 (Intelligent Adaptive Thresholds)
+**Status:** Accepted (Implemented) **Date:** 2025-12-15 **Related:** ADR-015 (Dynamic Alpha),
+ADR-026 (Cold Start), ADR-038 (Scoring Algorithms), ADR-042 (Capability Hyperedges), ADR-049
+(Intelligent Adaptive Thresholds)
 
 ## Context
 
@@ -11,11 +11,13 @@
 L'alpha actuel (ADR-015, ADR-026) est calculé sur la **densité globale** du graphe :
 
 ```typescript
-const density = totalEdges / maxPossibleEdges;  // Global
-const alpha = Math.max(0.5, 1.0 - density * 2);  // Même pour tous les nœuds
+const density = totalEdges / maxPossibleEdges; // Global
+const alpha = Math.max(0.5, 1.0 - density * 2); // Même pour tous les nœuds
 ```
 
-**Problème identifié :** Dans un hypergraphe de Tools/Capabilities/MetaCapabilities, certaines zones sont denses et bien connectées, tandis que d'autres sont isolées. Un alpha global ne capture pas cette hétérogénéité.
+**Problème identifié :** Dans un hypergraphe de Tools/Capabilities/MetaCapabilities, certaines zones
+sont denses et bien connectées, tandis que d'autres sont isolées. Un alpha global ne capture pas
+cette hétérogénéité.
 
 ### Cas problématiques
 
@@ -57,21 +59,23 @@ Capabilities (dependency, sequence, alternative)
 Tools (co-occurrence, edges directs)
 ```
 
-Les MetaCapabilities sont **infinies** et **émergentes** - elles se créent dynamiquement à partir des patterns d'usage. L'alpha doit respecter cette hiérarchie.
+Les MetaCapabilities sont **infinies** et **émergentes** - elles se créent dynamiquement à partir
+des patterns d'usage. L'alpha doit respecter cette hiérarchie.
 
 ## Decision
 
-Comme pour les algorithmes de scoring (ADR-038), utiliser **différents algorithmes d'alpha selon le mode et le type d'objet**.
+Comme pour les algorithmes de scoring (ADR-038), utiliser **différents algorithmes d'alpha selon le
+mode et le type d'objet**.
 
 ### Matrice des Algorithmes Alpha
 
-| Mode | Type | Algorithme | Rationale |
-|------|------|------------|-----------|
-| **Active Search** | Tool | Embeddings Hybrides | Query explicite → comparer semantic vs structure |
-| **Active Search** | Capability | Embeddings Hybrides | Idem |
-| **Passive Suggestion** | Tool | Heat Diffusion | Propagation depuis le contexte |
-| **Passive Suggestion** | Capability | Heat Diffusion Hiérarchique | Respecte Tool→Cap→Meta |
-| **Cold Start** | Tous | Bayésien (prior) | Observations insuffisantes → incertitude haute |
+| Mode                   | Type       | Algorithme                  | Rationale                                        |
+| ---------------------- | ---------- | --------------------------- | ------------------------------------------------ |
+| **Active Search**      | Tool       | Embeddings Hybrides         | Query explicite → comparer semantic vs structure |
+| **Active Search**      | Capability | Embeddings Hybrides         | Idem                                             |
+| **Passive Suggestion** | Tool       | Heat Diffusion              | Propagation depuis le contexte                   |
+| **Passive Suggestion** | Capability | Heat Diffusion Hiérarchique | Respecte Tool→Cap→Meta                           |
+| **Cold Start**         | Tous       | Bayésien (prior)            | Observations insuffisantes → incertitude haute   |
 
 ### Alignement avec ADR-038
 
@@ -97,7 +101,8 @@ ADR-048 (Alpha Algorithms):
 
 ### Clarification: Modes vs États
 
-ADR-049 introduit un troisième mode d'exécution (**Speculation**) pour les thresholds. Voici comment Alpha et Threshold s'articulent :
+ADR-049 introduit un troisième mode d'exécution (**Speculation**) pour les thresholds. Voici comment
+Alpha et Threshold s'articulent :
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -124,7 +129,9 @@ ADR-049 introduit un troisième mode d'exécution (**Speculation**) pour les thr
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Note:** Speculation est un sous-mode de Passive où le système décide d'exécuter sans confirmation. L'alpha utilisé est le même que Passive (Heat Diffusion), mais le threshold est calculé différemment (plus conservateur, pas de sampling).
+**Note:** Speculation est un sous-mode de Passive où le système décide d'exécuter sans confirmation.
+L'alpha utilisé est le même que Passive (Heat Diffusion), mais le threshold est calculé différemment
+(plus conservateur, pas de sampling).
 
 ---
 
@@ -132,13 +139,17 @@ ADR-049 introduit un troisième mode d'exécution (**Speculation**) pour les thr
 
 **Utilisé pour :** Active Search (Tool & Capability)
 
-**Principe :** Mesurer si la structure du graphe reflète les relations sémantiques en comparant les **patterns de similarité** entre un nœud et ses voisins.
+**Principe :** Mesurer si la structure du graphe reflète les relations sémantiques en comparant les
+**patterns de similarité** entre un nœud et ses voisins.
 
 ### Rationale
 
-En mode Active Search, on a une **query explicite**. La question est : "Le graphe confirme-t-il ce que la sémantique suggère ?"
+En mode Active Search, on a une **query explicite**. La question est : "Le graphe confirme-t-il ce
+que la sémantique suggère ?"
 
-L'idée originale était de comparer directement les embeddings sémantiques (BGE-M3, 1024d) avec les embeddings structurels (eigenvectors spectraux, ~4d). Cependant, la similarité cosinus n'est pas définie pour des vecteurs de dimensions différentes.
+L'idée originale était de comparer directement les embeddings sémantiques (BGE-M3, 1024d) avec les
+embeddings structurels (eigenvectors spectraux, ~4d). Cependant, la similarité cosinus n'est pas
+définie pour des vecteurs de dimensions différentes.
 
 **Solution : Corrélation des Patterns de Similarité**
 
@@ -151,7 +162,8 @@ Au lieu de comparer les embeddings directement, on compare les **patterns de rel
 2. Calculer la **corrélation de Pearson** entre ces deux listes de similarités
 
 3. Interprétation :
-   - Corrélation haute (+1) → les voisins proches sémantiquement sont aussi proches structurellement → graphe fiable → **alpha bas**
+   - Corrélation haute (+1) → les voisins proches sémantiquement sont aussi proches structurellement
+     → graphe fiable → **alpha bas**
    - Corrélation basse (0) → pas de relation entre sémantique et structure → **alpha moyen**
    - Corrélation négative (-1) → structure contredit la sémantique → **alpha haut**
 
@@ -196,7 +208,7 @@ function computeAlphaEmbeddingsHybrides(nodeId: string): number {
   const structuralSims: number[] = [];
 
   // Normalisation des poids d'edges
-  const maxWeight = Math.max(...neighbors.map(n => getEdgeWeight(nodeId, n)));
+  const maxWeight = Math.max(...neighbors.map((n) => getEdgeWeight(nodeId, n)));
 
   for (const neighbor of neighbors) {
     const neighborEmb = getSemanticEmbedding(neighbor);
@@ -224,20 +236,20 @@ function computeAlphaEmbeddingsHybrides(nodeId: string): number {
 
 ### Avantages de cette approche
 
-| Aspect | Ancienne approche | Nouvelle approche |
-|--------|-------------------|-------------------|
-| **Dimensions** | ❌ Compare 1024d vs 4d (invalide) | ✅ Compare scalaires vs scalaires |
-| **Interprétabilité** | Opaque | Clair : "voisins proches sémantiquement = proches structurellement?" |
-| **Dépendances** | Nécessite spectral clustering | Utilise uniquement le graphe et les embeddings existants |
+| Aspect               | Ancienne approche                 | Nouvelle approche                                                    |
+| -------------------- | --------------------------------- | -------------------------------------------------------------------- |
+| **Dimensions**       | ❌ Compare 1024d vs 4d (invalide) | ✅ Compare scalaires vs scalaires                                    |
+| **Interprétabilité** | Opaque                            | Clair : "voisins proches sémantiquement = proches structurellement?" |
+| **Dépendances**      | Nécessite spectral clustering     | Utilise uniquement le graphe et les embeddings existants             |
 
 ### Briques existantes
 
-| Composant | Statut | Location |
-|-----------|--------|----------|
-| Embedding sémantique (BGE-M3) | ✅ Existe | `src/vector/embeddings.ts` |
-| Poids des edges | ✅ Existe | `graph.getEdgeAttribute(a, b, "weight")` |
-| Cosine similarity | ✅ Existe | `LocalAlphaCalculator.cosineSimilarity()` |
-| Pearson correlation | ✅ **Ajouté** | `LocalAlphaCalculator.pearsonCorrelation()` |
+| Composant                     | Statut        | Location                                    |
+| ----------------------------- | ------------- | ------------------------------------------- |
+| Embedding sémantique (BGE-M3) | ✅ Existe     | `src/vector/embeddings.ts`                  |
+| Poids des edges               | ✅ Existe     | `graph.getEdgeAttribute(a, b, "weight")`    |
+| Cosine similarity             | ✅ Existe     | `LocalAlphaCalculator.cosineSimilarity()`   |
+| Pearson correlation           | ✅ **Ajouté** | `LocalAlphaCalculator.pearsonCorrelation()` |
 
 ---
 
@@ -245,11 +257,13 @@ function computeAlphaEmbeddingsHybrides(nodeId: string): number {
 
 **Utilisé pour :** Passive Suggestion de Tools
 
-**Principe :** La "chaleur" représente la **confiance structurelle** locale. Elle se propage depuis les zones denses vers les zones sparse.
+**Principe :** La "chaleur" représente la **confiance structurelle** locale. Elle se propage depuis
+les zones denses vers les zones sparse.
 
 ### Rationale
 
-En mode Passive Suggestion, on n'a **pas de query** - juste un contexte (outils déjà utilisés). La question est : "Y a-t-il de la structure utile autour du nœud cible, depuis là où on est ?"
+En mode Passive Suggestion, on n'a **pas de query** - juste un contexte (outils déjà utilisés). La
+question est : "Y a-t-il de la structure utile autour du nœud cible, depuis là où on est ?"
 
 - Zone dense et bien connectée au contexte → chaleur haute → alpha bas
 - Zone sparse ou déconnectée du contexte → chaleur basse → alpha haut
@@ -266,7 +280,7 @@ En mode Passive Suggestion, on n'a **pas de query** - juste un contexte (outils 
  */
 function computeAlphaHeatDiffusion(
   targetNodeId: string,
-  contextNodes: string[]
+  contextNodes: string[],
 ): number {
   // Chaleur intrinsèque du nœud (basée sur son degré)
   const targetHeat = computeLocalHeat(targetNodeId);
@@ -280,8 +294,7 @@ function computeAlphaHeatDiffusion(
   const pathHeat = computePathHeat(contextNodes, targetNodeId);
 
   // Score de confiance structurelle [0, 1]
-  const structuralConfidence =
-    0.4 * targetHeat +
+  const structuralConfidence = 0.4 * targetHeat +
     0.3 * contextHeat +
     0.3 * pathHeat;
 
@@ -293,7 +306,7 @@ function computeAlphaHeatDiffusion(
  */
 function computeLocalHeat(nodeId: string): number {
   const degree = graph.degree(nodeId);
-  const maxDegree = getMaxDegreeForType('tool');
+  const maxDegree = getMaxDegreeForType("tool");
 
   // Chaleur intrinsèque
   const intrinsicHeat = degree / maxDegree;
@@ -318,7 +331,7 @@ function computePathHeat(contextNodes: string[], targetId: string): number {
   for (const ctx of contextNodes) {
     // Edge direct ?
     if (graph.hasEdge(ctx, targetId)) {
-      totalConnectivity += graph.getEdgeAttribute(ctx, targetId, 'weight') || 1.0;
+      totalConnectivity += graph.getEdgeAttribute(ctx, targetId, "weight") || 1.0;
     } else {
       // Adamic-Adar pour connexion indirecte
       totalConnectivity += computeAdamicAdar(ctx, targetId);
@@ -335,11 +348,13 @@ function computePathHeat(contextNodes: string[], targetId: string): number {
 
 **Utilisé pour :** Passive Suggestion de Capabilities
 
-**Principe :** Comme Heat Diffusion, mais avec **propagation hiérarchique** à travers Tool → Capability → MetaCapability, **enrichie par les Cap→Cap edges** (ADR-042).
+**Principe :** Comme Heat Diffusion, mais avec **propagation hiérarchique** à travers Tool →
+Capability → MetaCapability, **enrichie par les Cap→Cap edges** (ADR-042).
 
 ### Rationale
 
-Les Capabilities ont une structure hiérarchique ET des relations horizontales (dependency, contains, alternative, sequence). La chaleur se propage :
+Les Capabilities ont une structure hiérarchique ET des relations horizontales (dependency, contains,
+alternative, sequence). La chaleur se propage :
 
 - **Bottom-up** : MetaCapability chaude si ses Capabilities enfants sont chaudes
 - **Top-down** : Tool isolé hérite de la chaleur de sa Capability parente
@@ -353,15 +368,14 @@ Les Capabilities ont une structure hiérarchique ET des relations horizontales (
  */
 function computeAlphaHeatDiffusionHierarchical(
   targetNodeId: string,
-  targetType: 'tool' | 'capability' | 'meta',
-  contextNodes: string[]
+  targetType: "tool" | "capability" | "meta",
+  contextNodes: string[],
 ): number {
   const heat = computeHierarchicalHeat(targetNodeId, targetType);
   const contextHeat = computeContextHeat(contextNodes);
   const pathHeat = computeHierarchicalPathHeat(contextNodes, targetNodeId);
 
-  const structuralConfidence =
-    0.4 * heat +
+  const structuralConfidence = 0.4 * heat +
     0.3 * contextHeat +
     0.3 * pathHeat;
 
@@ -378,9 +392,9 @@ function computeHierarchicalHeat(nodeId: string, nodeType: NodeType): number {
   const neighborHeat = computeNeighborHeat(nodeId);
   const hierarchyHeat = computeHierarchyPropagation(nodeId, nodeType);
 
-  return weights.intrinsic * intrinsicHeat
-       + weights.neighbor * neighborHeat
-       + weights.hierarchy * hierarchyHeat;
+  return weights.intrinsic * intrinsicHeat +
+    weights.neighbor * neighborHeat +
+    weights.hierarchy * hierarchyHeat;
 }
 
 /**
@@ -388,37 +402,36 @@ function computeHierarchicalHeat(nodeId: string, nodeType: NodeType): number {
  */
 function computeHierarchyPropagation(nodeId: string, nodeType: NodeType): number {
   switch (nodeType) {
-    case 'meta':
+    case "meta":
       // Agrégation bottom-up des capabilities enfants
-      const children = getChildren(nodeId, 'capability');
+      const children = getChildren(nodeId, "capability");
       if (children.length === 0) return 0;
-      return children.reduce((sum, c) =>
-        sum + computeHierarchicalHeat(c, 'capability'), 0) / children.length;
+      return children.reduce((sum, c) => sum + computeHierarchicalHeat(c, "capability"), 0) /
+        children.length;
 
-    case 'capability':
+    case "capability":
       // 1. Héritage de la meta-capability parente
-      const metaParent = getParent(nodeId, 'meta');
-      const metaHeat = metaParent
-        ? computeHierarchicalHeat(metaParent, 'meta') * 0.5
-        : 0;
+      const metaParent = getParent(nodeId, "meta");
+      const metaHeat = metaParent ? computeHierarchicalHeat(metaParent, "meta") * 0.5 : 0;
 
       // 2. NEW (ADR-042): Chaleur des capabilities liées via dependency/contains
-      const deps = capabilityStore.getDependencies(nodeId, 'to');
+      const deps = capabilityStore.getDependencies(nodeId, "to");
       const depHeat = deps
-        .filter(d => d.edgeType === 'dependency' || d.edgeType === 'contains')
-        .reduce((sum, d) =>
-          sum + computeHierarchicalHeat(d.fromCapabilityId, 'capability') * d.confidenceScore,
-          0
+        .filter((d) => d.edgeType === "dependency" || d.edgeType === "contains")
+        .reduce(
+          (sum, d) =>
+            sum + computeHierarchicalHeat(d.fromCapabilityId, "capability") * d.confidenceScore,
+          0,
         ) / Math.max(1, deps.length);
 
       // Combine: vertical (50%) + horizontal (50%)
       return metaHeat + depHeat * 0.5;
 
-    case 'tool':
+    case "tool":
       // Héritage de la capability parente
-      const capParent = getParent(nodeId, 'capability');
+      const capParent = getParent(nodeId, "capability");
       if (!capParent) return 0;
-      return computeHierarchicalHeat(capParent, 'capability') * 0.5;
+      return computeHierarchicalHeat(capParent, "capability") * 0.5;
   }
 }
 
@@ -427,9 +440,12 @@ function computeHierarchyPropagation(nodeId: string, nodeType: NodeType): number
  */
 function getHierarchyWeights(nodeType: NodeType): HeatWeights {
   switch (nodeType) {
-    case 'tool':       return { intrinsic: 0.5, neighbor: 0.3, hierarchy: 0.2 };
-    case 'capability': return { intrinsic: 0.3, neighbor: 0.4, hierarchy: 0.3 };
-    case 'meta':       return { intrinsic: 0.2, neighbor: 0.2, hierarchy: 0.6 };
+    case "tool":
+      return { intrinsic: 0.5, neighbor: 0.3, hierarchy: 0.2 };
+    case "capability":
+      return { intrinsic: 0.3, neighbor: 0.4, hierarchy: 0.3 };
+    case "meta":
+      return { intrinsic: 0.2, neighbor: 0.2, hierarchy: 0.6 };
   }
 }
 ```
@@ -440,11 +456,14 @@ function getHierarchyWeights(nodeType: NodeType): HeatWeights {
 
 **Utilisé pour :** Tous les modes quand observations < seuil
 
-**Principe :** Modéliser l'**incertitude** explicitement. Un nœud avec peu d'observations a une variance haute → on ne fait pas confiance au graphe.
+**Principe :** Modéliser l'**incertitude** explicitement. Un nœud avec peu d'observations a une
+variance haute → on ne fait pas confiance au graphe.
 
 ### Rationale
 
-Pour les nouveaux nœuds (MetaCapabilities émergentes notamment), on n'a pas assez de données pour que les autres algorithmes soient fiables. Le fallback Bayésien garantit qu'on ne fait pas confiance au graphe prématurément.
+Pour les nouveaux nœuds (MetaCapabilities émergentes notamment), on n'a pas assez de données pour
+que les autres algorithmes soient fiables. Le fallback Bayésien garantit qu'on ne fait pas confiance
+au graphe prématurément.
 
 ### Implémentation
 
@@ -456,9 +475,9 @@ const COLD_START_THRESHOLD = 5; // Minimum observations
  */
 function computeAlphaWithColdStartCheck(
   nodeId: string,
-  mode: 'active' | 'passive',
+  mode: "active" | "passive",
   nodeType: NodeType,
-  contextNodes: string[]
+  contextNodes: string[],
 ): number {
   const observations = getObservationCount(nodeId);
 
@@ -468,10 +487,10 @@ function computeAlphaWithColdStartCheck(
   }
 
   // Sinon, utiliser l'algorithme approprié au mode
-  if (mode === 'active') {
+  if (mode === "active") {
     return computeAlphaEmbeddingsHybrides(nodeId);
   } else {
-    if (nodeType === 'tool') {
+    if (nodeType === "tool") {
       return computeAlphaHeatDiffusion(nodeId, contextNodes);
     } else {
       return computeAlphaHeatDiffusionHierarchical(nodeId, nodeType, contextNodes);
@@ -504,26 +523,26 @@ function computeAlphaBayesian(nodeId: string, observations: number): number {
 
 ### Fichiers à CRÉER
 
-| Fichier | Lignes | Description |
-|---------|--------|-------------|
-| `src/graphrag/local-alpha.ts` | ~200 | Classe `LocalAlphaCalculator` avec les 4 algorithmes |
-| `tests/unit/graphrag/local_alpha_test.ts` | ~150 | Tests unitaires pour les 4 algos |
+| Fichier                                   | Lignes | Description                                          |
+| ----------------------------------------- | ------ | ---------------------------------------------------- |
+| `src/graphrag/local-alpha.ts`             | ~200   | Classe `LocalAlphaCalculator` avec les 4 algorithmes |
+| `tests/unit/graphrag/local_alpha_test.ts` | ~150   | Tests unitaires pour les 4 algos                     |
 
 ### Fichiers à MODIFIER
 
-| Fichier | Impact | Changements |
-|---------|--------|-------------|
-| `src/graphrag/graph-engine.ts` | Moyen | `searchToolsHybrid()` : remplacer calcul alpha global par `LocalAlphaCalculator` |
-| `src/graphrag/dag-suggester.ts` | Moyen | `getAdaptiveWeights()` : utiliser alpha local au lieu de densité globale |
-| `src/graphrag/spectral-clustering.ts` | Faible | Exposer `getEmbeddingRow(nodeIndex)` pour Embeddings Hybrides |
-| `src/graphrag/types.ts` | Faible | Ajouter `AlphaMode`, `NodeType`, `LocalAlphaResult` |
+| Fichier                               | Impact | Changements                                                                      |
+| ------------------------------------- | ------ | -------------------------------------------------------------------------------- |
+| `src/graphrag/graph-engine.ts`        | Moyen  | `searchToolsHybrid()` : remplacer calcul alpha global par `LocalAlphaCalculator` |
+| `src/graphrag/dag-suggester.ts`       | Moyen  | `getAdaptiveWeights()` : utiliser alpha local au lieu de densité globale         |
+| `src/graphrag/spectral-clustering.ts` | Faible | Exposer `getEmbeddingRow(nodeIndex)` pour Embeddings Hybrides                    |
+| `src/graphrag/types.ts`               | Faible | Ajouter `AlphaMode`, `NodeType`, `LocalAlphaResult`                              |
 
 ### Tests à ADAPTER
 
-| Fichier | Changements |
-|---------|-------------|
+| Fichier                                            | Changements                                        |
+| -------------------------------------------------- | -------------------------------------------------- |
 | `tests/unit/graphrag/graph_engine_metrics_test.ts` | Adapter tests `getAdaptiveAlpha` → `getLocalAlpha` |
-| `tests/integration/dashboard_metrics_test.ts` | Adapter tests `adaptiveAlpha` dans metrics |
+| `tests/integration/dashboard_metrics_test.ts`      | Adapter tests `adaptiveAlpha` dans metrics         |
 
 ### Estimation
 
@@ -538,8 +557,8 @@ Total: ~450 lignes de code
 ### Interface principale
 
 ```typescript
-type AlphaMode = 'active' | 'passive';
-type NodeType = 'tool' | 'capability' | 'meta';
+type AlphaMode = "active" | "passive";
+type NodeType = "tool" | "capability" | "meta";
 
 interface LocalAlphaCalculator {
   /**
@@ -549,7 +568,7 @@ interface LocalAlphaCalculator {
     mode: AlphaMode,
     nodeId: string,
     nodeType: NodeType,
-    contextNodes?: string[]
+    contextNodes?: string[],
   ): number;
 
   /**
@@ -559,9 +578,9 @@ interface LocalAlphaCalculator {
     mode: AlphaMode,
     nodeId: string,
     nodeType: NodeType,
-    contextNodes?: string[]
+    contextNodes?: string[],
   ): {
-    algorithm: 'embeddings_hybrides' | 'heat_diffusion' | 'heat_hierarchical' | 'bayesian';
+    algorithm: "embeddings_hybrides" | "heat_diffusion" | "heat_hierarchical" | "bayesian";
     alpha: number;
     inputs: Record<string, number>;
     coldStart: boolean;
@@ -579,9 +598,9 @@ Returns statistics about local adaptive alpha usage for observability and algori
 
 **Query Parameters:**
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `windowHours` | number | 24 | Query window (1-168 hours) |
+| Parameter     | Type   | Default | Description                |
+| ------------- | ------ | ------- | -------------------------- |
+| `windowHours` | number | 24      | Query window (1-168 hours) |
 
 **Response Schema:**
 
@@ -622,13 +641,13 @@ Returns statistics about local adaptive alpha usage for observability and algori
 
 **Response Fields:**
 
-| Field | Description |
-|-------|-------------|
-| `avgAlphaByMode` | Average alpha values per algorithm mode |
-| `alphaDistribution` | Histogram of alpha values in 0.1 buckets |
-| `algorithmDistribution` | Count of traces per alpha algorithm |
-| `coldStartStats` | Cold start occurrences and percentage |
-| `alphaImpact` | Average scores for low (<0.7) vs high (≥0.7) alpha |
+| Field                   | Description                                        |
+| ----------------------- | -------------------------------------------------- |
+| `avgAlphaByMode`        | Average alpha values per algorithm mode            |
+| `alphaDistribution`     | Histogram of alpha values in 0.1 buckets           |
+| `algorithmDistribution` | Count of traces per alpha algorithm                |
+| `coldStartStats`        | Cold start occurrences and percentage              |
+| `alphaImpact`           | Average scores for low (<0.7) vs high (≥0.7) alpha |
 
 **Example Usage:**
 
@@ -641,6 +660,7 @@ curl -X GET "http://localhost:8000/api/alpha-stats?windowHours=48"
 ```
 
 **Authentication:**
+
 - Local mode: No authentication required
 - Cloud mode: Requires authenticated user (returns 401 if not authenticated)
 
@@ -663,9 +683,9 @@ interface AlgorithmSignals {
   adamicAdar?: number;
 
   // ADR-048: New alpha signals
-  localAlpha?: number;        // Alpha value used (0.5-1.0)
-  alphaAlgorithm?: string;    // Algorithm: "embeddings_hybrides" | "heat_diffusion" | "heat_hierarchical" | "bayesian" | "none"
-  coldStart?: boolean;        // True if in cold start mode
+  localAlpha?: number; // Alpha value used (0.5-1.0)
+  alphaAlgorithm?: string; // Algorithm: "embeddings_hybrides" | "heat_diffusion" | "heat_hierarchical" | "bayesian" | "none"
+  coldStart?: boolean; // True if in cold start mode
 }
 ```
 
@@ -673,11 +693,13 @@ interface AlgorithmSignals {
 
 ## Observability: Algorithm Tracing Integration (Story 7.6)
 
-Le local alpha est tracé via `AlgorithmTracer` pour l'observabilité et le tuning. Deux points d'intégration :
+Le local alpha est tracé via `AlgorithmTracer` pour l'observabilité et le tuning. Deux points
+d'intégration :
 
 ### 1. DAGSuggester (Existant)
 
-Les méthodes `selectNextTools()`, `predictFromCommunity()`, `suggestCapabilities()` tracent déjà les décisions avec les signaux local alpha.
+Les méthodes `selectNextTools()`, `predictFromCommunity()`, `suggestCapabilities()` tracent déjà les
+décisions avec les signaux local alpha.
 
 ### 2. GraphRAGEngine.searchToolsHybrid (Nouveau)
 
@@ -718,31 +740,33 @@ if (this.algorithmTracer) {
 
 ### Signal `graphScore` ajouté
 
-Le signal `graphScore` a été ajouté à `AlgorithmSignals` pour tracer le score de proximité graphe (Adamic-Adar / edges directs) :
+Le signal `graphScore` a été ajouté à `AlgorithmSignals` pour tracer le score de proximité graphe
+(Adamic-Adar / edges directs) :
 
 ```typescript
 // src/telemetry/algorithm-tracer.ts
 export interface AlgorithmSignals {
   // ... existing fields
-  graphScore?: number;  // Graph relatedness score (Adamic-Adar / direct edges)
+  graphScore?: number; // Graph relatedness score (Adamic-Adar / direct edges)
 }
 ```
 
 ### Couverture de traçage
 
-| Composant | Trace local alpha ? |
-|-----------|---------------------|
-| DAGSuggester.selectNextTools | ✅ |
-| DAGSuggester.predictFromCommunity | ✅ |
-| DAGSuggester.suggestCapabilities | ✅ |
-| GraphRAGEngine.searchToolsHybrid | ✅ (Nouveau) |
-| GatewayServer /api/search | ✅ (via searchToolsHybrid) |
+| Composant                         | Trace local alpha ?        |
+| --------------------------------- | -------------------------- |
+| DAGSuggester.selectNextTools      | ✅                         |
+| DAGSuggester.predictFromCommunity | ✅                         |
+| DAGSuggester.suggestCapabilities  | ✅                         |
+| GraphRAGEngine.searchToolsHybrid  | ✅ (Nouveau)               |
+| GatewayServer /api/search         | ✅ (via searchToolsHybrid) |
 
 ---
 
 ## Integration: Replacing Global Density Weights (ADR-026)
 
-L'ancienne méthode `getAdaptiveWeights()` basée sur la densité globale a été remplacée par le local alpha dans `suggestDAG()`:
+L'ancienne méthode `getAdaptiveWeights()` basée sur la densité globale a été remplacée par le local
+alpha dans `suggestDAG()`:
 
 ### Avant (ADR-026)
 
@@ -773,6 +797,7 @@ private getAdaptiveWeightsFromAlpha(avgAlpha: number): { hybrid: number; pageRan
 ```
 
 **Avantages:**
+
 - Cohérent: même alpha local pour Active Search et Passive Suggestions
 - Granulaire: chaque candidat contribue son alpha local à la moyenne
 - Interprétable: les traces incluent `localAlpha` et `alphaAlgorithm`
@@ -803,13 +828,13 @@ private getAdaptiveWeightsFromAlpha(avgAlpha: number): { hybrid: number; pageRan
 
 ## Métriques de Succès
 
-| Métrique | Avant | Après (cible) |
-|----------|-------|---------------|
-| Variance des alphas | 0 (global) | > 0.1 (distribution) |
-| Précision Active Search | ~70% | > 85% |
-| Précision Passive Suggestion zone dense | ~70% | > 85% |
-| Précision Passive Suggestion zone sparse | ~60% | > 75% |
-| Cold start false positives | N/A | < 5% |
+| Métrique                                 | Avant      | Après (cible)        |
+| ---------------------------------------- | ---------- | -------------------- |
+| Variance des alphas                      | 0 (global) | > 0.1 (distribution) |
+| Précision Active Search                  | ~70%       | > 85%                |
+| Précision Passive Suggestion zone dense  | ~70%       | > 85%                |
+| Précision Passive Suggestion zone sparse | ~60%       | > 75%                |
+| Cold start false positives               | N/A        | < 5%                 |
 
 ---
 
@@ -820,4 +845,5 @@ private getAdaptiveWeightsFromAlpha(avgAlpha: number): { hybrid: number; pageRan
 - [Spectral Graph Theory](https://mathweb.ucsd.edu/~fan/research/revised.html)
 - ADR-038: Scoring Algorithms Reference
 - ADR-042: Capability-to-Capability Hyperedges
-- ADR-049: Intelligent Adaptive Thresholds (utilise local alpha pour ajuster les thresholds d'exécution)
+- ADR-049: Intelligent Adaptive Thresholds (utilise local alpha pour ajuster les thresholds
+  d'exécution)

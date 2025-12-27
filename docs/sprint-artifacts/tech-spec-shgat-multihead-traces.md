@@ -1,25 +1,27 @@
 # Tech Spec: SHGAT Multi-Head Attention sur Traces d'Exécution
 
-**Status:** Complete (All 5 Phases Implemented)
-**Date:** 2025-12-24
-**Epic:** 11 - SHGAT Learning
-**Related ADRs:** ADR-051 (Unified Search Simplification)
-**Supersedes:** SHGAT 3-head architecture (semantic/structure/temporal)
+**Status:** Complete (All 5 Phases Implemented) **Date:** 2025-12-24 **Epic:** 11 - SHGAT Learning
+**Related ADRs:** ADR-051 (Unified Search Simplification) **Supersedes:** SHGAT 3-head architecture
+(semantic/structure/temporal)
 
 ## 1. Contexte et Motivation
 
 ### Problème actuel
 
 Notre implémentation SHGAT utilise 3 têtes avec des signaux **manuellement séparés** :
+
 - Head 0: Semantic (cosine similarity)
 - Head 1: Structure (PageRank, AdamicAdar)
 - Head 2: Temporal (recency, cooccurrence)
 
-Les benchmarks d'ablation montrent que `semantic_only` performe mieux (MRR 0.364) que les configurations multi-head (MRR 0.320). Cela suggère que nos signaux structure/temporal sont du **bruit** plutôt que du signal utile.
+Les benchmarks d'ablation montrent que `semantic_only` performe mieux (MRR 0.364) que les
+configurations multi-head (MRR 0.320). Cela suggère que nos signaux structure/temporal sont du
+**bruit** plutôt que du signal utile.
 
 ### Insight clé
 
-Dans GAT classique, les 8 têtes apprennent des **patterns différents** sur le **même signal riche**. Notre approche devrait faire pareil :
+Dans GAT classique, les 8 têtes apprennent des **patterns différents** sur le **même signal riche**.
+Notre approche devrait faire pareil :
 
 ```
 ❌ Actuel: 3 signaux faibles → 3 têtes spécialisées manuellement
@@ -61,47 +63,47 @@ CREATE TABLE episodic_events (
 
 ### ✅ GARDER tel quel (code existant)
 
-| Méthode/Composant | Fichier | Raison |
-|-------------------|---------|--------|
-| `trainBatch()` | shgat.ts:1439 | Batch training avec backprop - garder la structure |
-| `predictPathSuccess()` | shgat.ts:1252 | TD Learning - réutiliser |
-| `registerTool()`, `registerCapability()` | shgat.ts:547,555 | Enregistrement nodes |
-| `forward()` (V→E→V) | shgat.ts:724 | Two-phase message passing |
-| `exportParams()`, `importParams()` | shgat.ts:1822,1832 | Serialization |
-| `getStats()` | shgat.ts:1880 | Metrics |
-| Utilities: `sigmoid`, `softmax`, `dot`, `cosineSimilarity` | shgat.ts:1790+ | Math helpers |
-| Gradient infrastructure | shgat.ts:1570+ | Accumulators, apply |
-| `execution_trace` table | DB | Source de traces |
-| `episodic_events` table | DB | Events fins |
-| PER sampling (`priority` column) | execute-handler.ts | Prioritized replay |
+| Méthode/Composant                                          | Fichier            | Raison                                             |
+| ---------------------------------------------------------- | ------------------ | -------------------------------------------------- |
+| `trainBatch()`                                             | shgat.ts:1439      | Batch training avec backprop - garder la structure |
+| `predictPathSuccess()`                                     | shgat.ts:1252      | TD Learning - réutiliser                           |
+| `registerTool()`, `registerCapability()`                   | shgat.ts:547,555   | Enregistrement nodes                               |
+| `forward()` (V→E→V)                                        | shgat.ts:724       | Two-phase message passing                          |
+| `exportParams()`, `importParams()`                         | shgat.ts:1822,1832 | Serialization                                      |
+| `getStats()`                                               | shgat.ts:1880      | Metrics                                            |
+| Utilities: `sigmoid`, `softmax`, `dot`, `cosineSimilarity` | shgat.ts:1790+     | Math helpers                                       |
+| Gradient infrastructure                                    | shgat.ts:1570+     | Accumulators, apply                                |
+| `execution_trace` table                                    | DB                 | Source de traces                                   |
+| `episodic_events` table                                    | DB                 | Events fins                                        |
+| PER sampling (`priority` column)                           | execute-handler.ts | Prioritized replay                                 |
 
 ### 🔄 MODIFIER (refactorer)
 
-| Méthode | Modification | Raison |
-|---------|--------------|--------|
+| Méthode                  | Modification                                          | Raison             |
+| ------------------------ | ----------------------------------------------------- | ------------------ |
 | `scoreAllCapabilities()` | Utiliser K têtes génériques au lieu de 3 spécialisées | Multi-head learned |
-| `scoreAllTools()` | Idem | Multi-head learned |
-| `SHGATConfig` | Ajouter `maxBufferSize`, `minTracesForTraining` | Scaling |
-| `computeFusionWeights()` | K poids au lieu de 3 | Plus de têtes |
+| `scoreAllTools()`        | Idem                                                  | Multi-head learned |
+| `SHGATConfig`            | Ajouter `maxBufferSize`, `minTracesForTraining`       | Scaling            |
+| `computeFusionWeights()` | K poids au lieu de 3                                  | Plus de têtes      |
 
 ### ❌ SUPPRIMER
 
-| Composant | Raison |
-|-----------|--------|
-| `applyHeadFeatures()` | Remplacé par attention learned |
-| `HeadWeightConfig` interface | Plus de têtes spécialisées |
-| `FusionWeights` (semantic/structure/temporal) | Remplacé par K poids génériques |
-| `FeatureWeights` (semantic/structure/temporal) | Idem |
-| `DEFAULT_HEAD_WEIGHTS`, `DEFAULT_FUSION_WEIGHTS` | Obsolètes |
+| Composant                                        | Raison                          |
+| ------------------------------------------------ | ------------------------------- |
+| `applyHeadFeatures()`                            | Remplacé par attention learned  |
+| `HeadWeightConfig` interface                     | Plus de têtes spécialisées      |
+| `FusionWeights` (semantic/structure/temporal)    | Remplacé par K poids génériques |
+| `FeatureWeights` (semantic/structure/temporal)   | Idem                            |
+| `DEFAULT_HEAD_WEIGHTS`, `DEFAULT_FUSION_WEIGHTS` | Obsolètes                       |
 
 ### ➕ AJOUTER
 
-| Composant | Description |
-|-----------|-------------|
-| `TraceFeatures` interface | Features riches extraites des traces |
-| `extractTraceFeatures()` | Extraction depuis DB |
-| `AttentionHead` class | Une tête d'attention générique (W_Q, W_K, W_V) |
-| `getAdaptiveConfig()` | Scaling K selon volume traces |
+| Composant                 | Description                                    |
+| ------------------------- | ---------------------------------------------- |
+| `TraceFeatures` interface | Features riches extraites des traces           |
+| `extractTraceFeatures()`  | Extraction depuis DB                           |
+| `AttentionHead` class     | Une tête d'attention générique (W_Q, W_K, W_V) |
+| `getAdaptiveConfig()`     | Scaling K selon volume traces                  |
 
 ## 3. Architecture Proposée
 
@@ -155,25 +157,31 @@ CREATE TABLE episodic_events (
 
 ```typescript
 interface TraceFeatures {
-  intentEmbedding: number[];      // User intent (BGE-M3, 1024D)
-  candidateEmbedding: number[];   // Tool/capability being scored
-  contextEmbeddings: number[][];  // Recent tools in session (max 5)
-  contextAggregated: number[];    // Mean pooling of context
-  traceStats: TraceStats;         // See TraceStats below
+  intentEmbedding: number[]; // User intent (BGE-M3, 1024D)
+  candidateEmbedding: number[]; // Tool/capability being scored
+  contextEmbeddings: number[][]; // Recent tools in session (max 5)
+  contextAggregated: number[]; // Mean pooling of context
+  traceStats: TraceStats; // See TraceStats below
 }
 
 interface TraceStats {
   // Success patterns (3)
-  historicalSuccessRate, contextualSuccessRate, intentSimilarSuccessRate: number;
+  historicalSuccessRate;
+  contextualSuccessRate;
+  intentSimilarSuccessRate: number;
   // Co-occurrence (2)
-  cooccurrenceWithContext, sequencePosition: number;
+  cooccurrenceWithContext;
+  sequencePosition: number;
   // Temporal (3)
-  recencyScore, usageFrequency, avgExecutionTime: number;
+  recencyScore;
+  usageFrequency;
+  avgExecutionTime: number;
   // Error patterns (1 + 6)
   errorRecoveryRate: number;
-  errorTypeAffinity: number[];  // [TIMEOUT, PERMISSION, NOT_FOUND, VALIDATION, NETWORK, UNKNOWN]
+  errorTypeAffinity: number[]; // [TIMEOUT, PERMISSION, NOT_FOUND, VALIDATION, NETWORK, UNKNOWN]
   // Path patterns (2)
-  avgPathLengthToSuccess, pathVariance: number;
+  avgPathLengthToSuccess;
+  pathVariance: number;
 }
 // Total: 11 scalar + 6 errorTypeAffinity = 17 features (NUM_TRACE_STATS)
 ```
@@ -185,9 +193,9 @@ Chaque tête apprend une transformation différente des mêmes features :
 ```typescript
 class AttentionHead {
   // Learnable parameters
-  W_query: Matrix;   // [hidden_dim, head_dim]
-  W_key: Matrix;     // [hidden_dim, head_dim]
-  W_value: Matrix;   // [hidden_dim, head_dim]
+  W_query: Matrix; // [hidden_dim, head_dim]
+  W_key: Matrix; // [hidden_dim, head_dim]
+  W_value: Matrix; // [hidden_dim, head_dim]
 
   forward(projected: number[]): number {
     const Q = matmul(projected, this.W_query);
@@ -208,24 +216,24 @@ class AttentionHead {
 ```typescript
 interface SHGATv2Config {
   // Architecture
-  embeddingDim: number;      // 1024 (BGE-M3)
-  hiddenDim: number;         // 128 (projection size, increased for more heads)
-  numHeads: number;          // 8 (K heads - standard GAT, scales with data)
-  headDim: number;           // 16 (hidden_dim / num_heads)
-  mlpHiddenDim: number;      // 64 (fusion MLP)
+  embeddingDim: number; // 1024 (BGE-M3)
+  hiddenDim: number; // 128 (projection size, increased for more heads)
+  numHeads: number; // 8 (K heads - standard GAT, scales with data)
+  headDim: number; // 16 (hidden_dim / num_heads)
+  mlpHiddenDim: number; // 64 (fusion MLP)
 
   // Training
-  learningRate: number;      // 0.001
-  batchSize: number;         // 32
-  maxContextLength: number;  // 5 (max recent tools)
+  learningRate: number; // 0.001
+  batchSize: number; // 32
+  maxContextLength: number; // 5 (max recent tools)
 
   // Buffer management (for large trace volumes)
-  maxBufferSize: number;     // 50000 (PER buffer cap)
+  maxBufferSize: number; // 50000 (PER buffer cap)
   minTracesForTraining: number; // 100 (cold start threshold)
 
   // Regularization
-  dropout: number;           // 0.1
-  l2Penalty: number;         // 0.0001
+  dropout: number; // 0.1
+  l2Penalty: number; // 0.0001
 }
 
 const DEFAULT_CONFIG: SHGATv2Config = {
@@ -251,25 +259,23 @@ const DEFAULT_CONFIG: SHGATv2Config = {
 ```typescript
 interface PERBuffer {
   traces: ExecutionTrace[];
-  priorities: number[];      // TD errors
-  alpha: number;             // Priority exponent (0.6)
-  beta: number;              // IS weight exponent (0.4 → 1.0)
+  priorities: number[]; // TD errors
+  alpha: number; // Priority exponent (0.6)
+  beta: number; // IS weight exponent (0.4 → 1.0)
 }
 
 class PrioritizedReplayBuffer {
   sample(batchSize: number): { traces: ExecutionTrace[]; weights: number[] } {
     // Sample proportional to priority^alpha
-    const probs = this.priorities.map(p => Math.pow(p + 1e-6, this.alpha));
+    const probs = this.priorities.map((p) => Math.pow(p + 1e-6, this.alpha));
     const indices = weightedSample(probs, batchSize);
 
     // Importance sampling weights
-    const weights = indices.map(i =>
-      Math.pow(this.traces.length * probs[i], -this.beta)
-    );
+    const weights = indices.map((i) => Math.pow(this.traces.length * probs[i], -this.beta));
 
     return {
-      traces: indices.map(i => this.traces[i]),
-      weights: normalize(weights)
+      traces: indices.map((i) => this.traces[i]),
+      weights: normalize(weights),
     };
   }
 
@@ -286,13 +292,13 @@ class PrioritizedReplayBuffer {
 ```typescript
 interface TrainingExample {
   features: TraceFeatures;
-  actualOutcome: number;     // 1 = success, 0 = failure
-  pathLength: number;        // Number of steps to outcome
+  actualOutcome: number; // 1 = success, 0 = failure
+  pathLength: number; // Number of steps to outcome
 }
 
 function computeTDError(
   shgat: SHGATv2,
-  example: TrainingExample
+  example: TrainingExample,
 ): number {
   const predicted = shgat.predictSuccess(example.features);
   const actual = example.actualOutcome;
@@ -308,12 +314,12 @@ function computeTDError(
 async function trainBatch(
   shgat: SHGATv2,
   buffer: PrioritizedReplayBuffer,
-  batchSize: number
+  batchSize: number,
 ): Promise<{ loss: number; avgTDError: number }> {
   const { traces, weights } = buffer.sample(batchSize);
 
   const examples = await Promise.all(
-    traces.map(trace => buildTrainingExample(trace))
+    traces.map((trace) => buildTrainingExample(trace)),
   );
 
   let totalLoss = 0;
@@ -334,14 +340,14 @@ async function trainBatch(
   // Update priorities in buffer
   buffer.updatePriorities(
     traces.map((_, i) => i),
-    tdErrors
+    tdErrors,
   );
 
   shgat.applyGradients();
 
   return {
     loss: totalLoss / batchSize,
-    avgTDError: mean(tdErrors.map(Math.abs))
+    avgTDError: mean(tdErrors.map(Math.abs)),
   };
 }
 ```
@@ -388,47 +394,56 @@ async function extractTraceFeatures(
   db: Database,
   toolId: string,
   intentEmbedding: number[],
-  contextToolIds: string[]
+  contextToolIds: string[],
 ): Promise<TraceFeatures> {
-
   // Get tool embedding
   const candidateEmbedding = await getToolEmbedding(toolId);
 
   // Get context embeddings
   const contextEmbeddings = await Promise.all(
-    contextToolIds.slice(-5).map(id => getToolEmbedding(id))
+    contextToolIds.slice(-5).map((id) => getToolEmbedding(id)),
   );
   const contextAggregated = meanPool(contextEmbeddings);
 
   // === Trace Statistics ===
 
   // Historical success rate
-  const historicalSuccessRate = await db.get<number>(`
+  const historicalSuccessRate = await db.get<number>(
+    `
     SELECT AVG(CASE WHEN success THEN 1.0 ELSE 0.0 END)
     FROM execution_trace WHERE tool_id = ?
-  `, [toolId]) ?? 0.5;
+  `,
+    [toolId],
+  ) ?? 0.5;
 
   // Contextual success rate
-  const contextualSuccessRate = await db.get<number>(`
+  const contextualSuccessRate = await db.get<number>(
+    `
     SELECT AVG(CASE WHEN t2.success THEN 1.0 ELSE 0.0 END)
     FROM execution_trace t1
     JOIN execution_trace t2 ON t1.session_id = t2.session_id
       AND t2.created_at > t1.created_at
-    WHERE t1.tool_id IN (${contextToolIds.map(() => '?').join(',')})
+    WHERE t1.tool_id IN (${contextToolIds.map(() => "?").join(",")})
       AND t2.tool_id = ?
-  `, [...contextToolIds, toolId]) ?? 0.5;
+  `,
+    [...contextToolIds, toolId],
+  ) ?? 0.5;
 
   // Co-occurrence with context
-  const cooccurrenceWithContext = await db.get<number>(`
+  const cooccurrenceWithContext = await db.get<number>(
+    `
     SELECT COUNT(*) * 1.0 / (SELECT COUNT(*) FROM execution_trace WHERE tool_id = ?)
     FROM execution_trace t1
     JOIN execution_trace t2 ON t1.session_id = t2.session_id
-    WHERE t1.tool_id IN (${contextToolIds.map(() => '?').join(',')})
+    WHERE t1.tool_id IN (${contextToolIds.map(() => "?").join(",")})
       AND t2.tool_id = ?
-  `, [toolId, ...contextToolIds, toolId]) ?? 0;
+  `,
+    [toolId, ...contextToolIds, toolId],
+  ) ?? 0;
 
   // Sequence position (normalized 0-1)
-  const sequencePosition = await db.get<number>(`
+  const sequencePosition = await db.get<number>(
+    `
     SELECT AVG(step_index * 1.0 / total_steps)
     FROM (
       SELECT tool_id,
@@ -436,39 +451,54 @@ async function extractTraceFeatures(
              COUNT(*) OVER (PARTITION BY session_id) as total_steps
       FROM execution_trace
     ) WHERE tool_id = ?
-  `, [toolId]) ?? 0.5;
+  `,
+    [toolId],
+  ) ?? 0.5;
 
   // Recency score
-  const lastUsed = await db.get<string>(`
+  const lastUsed = await db.get<string>(
+    `
     SELECT MAX(created_at) FROM execution_trace WHERE tool_id = ?
-  `, [toolId]);
+  `,
+    [toolId],
+  );
   const recencyScore = lastUsed
     ? Math.exp(-(Date.now() - new Date(lastUsed).getTime()) / (24 * 60 * 60 * 1000))
     : 0.5;
 
   // Usage frequency (normalized)
-  const usageFrequency = await db.get<number>(`
+  const usageFrequency = await db.get<number>(
+    `
     SELECT COUNT(*) * 1.0 / (SELECT MAX(cnt) FROM (SELECT COUNT(*) as cnt FROM execution_trace GROUP BY tool_id))
     FROM execution_trace WHERE tool_id = ?
-  `, [toolId]) ?? 0;
+  `,
+    [toolId],
+  ) ?? 0;
 
   // Avg execution time (normalized)
-  const avgExecutionTime = await db.get<number>(`
+  const avgExecutionTime = await db.get<number>(
+    `
     SELECT AVG(duration_ms) * 1.0 / (SELECT MAX(duration_ms) FROM execution_trace)
     FROM execution_trace WHERE tool_id = ?
-  `, [toolId]) ?? 0.5;
+  `,
+    [toolId],
+  ) ?? 0.5;
 
   // Error recovery rate
-  const errorRecoveryRate = await db.get<number>(`
+  const errorRecoveryRate = await db.get<number>(
+    `
     SELECT AVG(CASE WHEN t2.success THEN 1.0 ELSE 0.0 END)
     FROM execution_trace t1
     JOIN execution_trace t2 ON t1.session_id = t2.session_id
       AND t2.created_at > t1.created_at
     WHERE t1.success = 0 AND t2.tool_id = ?
-  `, [toolId]) ?? 0.5;
+  `,
+    [toolId],
+  ) ?? 0.5;
 
   // Avg path length to success
-  const avgPathLengthToSuccess = await db.get<number>(`
+  const avgPathLengthToSuccess = await db.get<number>(
+    `
     SELECT AVG(steps_remaining)
     FROM (
       SELECT tool_id,
@@ -476,7 +506,9 @@ async function extractTraceFeatures(
       FROM execution_trace
       WHERE session_id IN (SELECT session_id FROM execution_trace WHERE success = 1)
     ) WHERE tool_id = ?
-  `, [toolId]) ?? 3;
+  `,
+    [toolId],
+  ) ?? 3;
 
   return {
     intentEmbedding,
@@ -496,7 +528,7 @@ async function extractTraceFeatures(
       errorTypeAffinity: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5], // TIMEOUT, PERMISSION, NOT_FOUND, VALIDATION, NETWORK, UNKNOWN
       avgPathLengthToSuccess,
       pathVariance: 0, // TODO: Compute variance
-    }
+    },
   };
 }
 ```
@@ -651,20 +683,20 @@ async function extractTraceFeatures(
 
 ### 7.1 Offline Metrics
 
-| Metric | Description | Target |
-|--------|-------------|--------|
-| MRR | Mean Reciprocal Rank on test set | > 0.40 |
-| Hit@1 | % correct tool at rank 1 | > 20% |
-| Hit@3 | % correct tool in top 3 | > 50% |
-| TD Error | Average |TD error| après convergence | < 0.15 |
+| Metric   | Description                      | Target   |
+| -------- | -------------------------------- | -------- |
+| MRR      | Mean Reciprocal Rank on test set | > 0.40   |
+| Hit@1    | % correct tool at rank 1         | > 20%    |
+| Hit@3    | % correct tool in top 3          | > 50%    |
+| TD Error | Average                          | TD error |
 
 ### 7.2 Online Metrics
 
-| Metric | Description | Target |
-|--------|-------------|--------|
-| Workflow Success Rate | % workflows completed successfully | > 80% |
-| Avg Path Length | Average steps to success | < 4 |
-| Learning Speed | Traces needed to improve 10% | < 100 |
+| Metric                | Description                        | Target |
+| --------------------- | ---------------------------------- | ------ |
+| Workflow Success Rate | % workflows completed successfully | > 80%  |
+| Avg Path Length       | Average steps to success           | < 4    |
+| Learning Speed        | Traces needed to improve 10%       | < 100  |
 
 ### 7.3 Ablation Studies
 
@@ -687,35 +719,35 @@ Le nombre de têtes peut s'adapter au volume de traces :
  */
 function getAdaptiveConfig(traceCount: number): Partial<SHGATv2Config> {
   if (traceCount < 1_000) {
-    return { numHeads: 4, hiddenDim: 64 };   // Conservative
+    return { numHeads: 4, hiddenDim: 64 }; // Conservative
   }
   if (traceCount < 10_000) {
-    return { numHeads: 8, hiddenDim: 128 };  // Default
+    return { numHeads: 8, hiddenDim: 128 }; // Default
   }
   if (traceCount < 100_000) {
     return { numHeads: 12, hiddenDim: 192 }; // Scale up
   }
-  return { numHeads: 16, hiddenDim: 256 };   // Full capacity
+  return { numHeads: 16, hiddenDim: 256 }; // Full capacity
 }
 ```
 
-| Traces | Heads | Hidden | Params (approx) |
-|--------|-------|--------|-----------------|
-| < 1K   | 4     | 64     | ~50K            |
-| 1K-10K | 8     | 128    | ~200K           |
-| 10K-100K | 12  | 192    | ~450K           |
-| 100K+  | 16    | 256    | ~800K           |
+| Traces   | Heads | Hidden | Params (approx) |
+| -------- | ----- | ------ | --------------- |
+| < 1K     | 4     | 64     | ~50K            |
+| 1K-10K   | 8     | 128    | ~200K           |
+| 10K-100K | 12    | 192    | ~450K           |
+| 100K+    | 16    | 256    | ~800K           |
 
 ## 8. Risques et Mitigations
 
-| Risque | Impact | Mitigation |
-|--------|--------|------------|
-| Cold start (peu de traces) | Mauvaises prédictions | Fallback sur semantic similarity pure, adaptive heads (K=4) |
-| Overfitting sur peu de données | Perte de généralisation | Regularization (dropout, L2), early stopping, adaptive heads |
-| Latence feature extraction | Slow scoring | Caching, batch queries, async precompute |
-| Training instability | Weights divergent | Gradient clipping, learning rate warmup |
-| Buffer overflow (trop de traces) | Mémoire saturée | Reservoir sampling: garder N récentes + M par priorité |
-| Inference latency (K=16) | Temps réel impacté | Cap K ≤ 12 en prod, ou batched inference |
+| Risque                           | Impact                  | Mitigation                                                   |
+| -------------------------------- | ----------------------- | ------------------------------------------------------------ |
+| Cold start (peu de traces)       | Mauvaises prédictions   | Fallback sur semantic similarity pure, adaptive heads (K=4)  |
+| Overfitting sur peu de données   | Perte de généralisation | Regularization (dropout, L2), early stopping, adaptive heads |
+| Latence feature extraction       | Slow scoring            | Caching, batch queries, async precompute                     |
+| Training instability             | Weights divergent       | Gradient clipping, learning rate warmup                      |
+| Buffer overflow (trop de traces) | Mémoire saturée         | Reservoir sampling: garder N récentes + M par priorité       |
+| Inference latency (K=16)         | Temps réel impacté      | Cap K ≤ 12 en prod, ou batched inference                     |
 
 ## 9. Backward Compatibility
 
@@ -735,7 +767,7 @@ shgatV2.scoreAllCapabilities(intentEmbedding, contextToolIds);
 
 ```typescript
 // Gradual rollout via feature flag
-const useV2 = await getFeatureFlag('shgat_v2_enabled');
+const useV2 = await getFeatureFlag("shgat_v2_enabled");
 const shgat = useV2 ? new SHGATv2(config) : new SHGAT(legacyConfig);
 ```
 
@@ -760,41 +792,71 @@ _Code review performed 2025-12-24 by Senior Developer AI_
 
 ### 🔴 HIGH Priority
 
-- [x] [AI-Review][HIGH] ~~Remove `errorTypeAffinity` from tech-spec Section 3.2 OR implement in TraceStats interface~~ **IMPLEMENTED 2025-12-24**: Migration 024 adds `error_type` column, `classifyError()` function, TraceStats now has 17 features (11 scalar + 6 errorTypeAffinity)
-- [x] [AI-Review][HIGH] ~~Implement `intentSimilarSuccessRate` extraction via embedding similarity search~~ **IMPLEMENTED 2025-12-24**: Migration 025 adds `intent_embedding vector(1024)` to execution_trace + HNSW index, SaveTraceInput & execute-handler pass embedding, `queryIntentSimilarSuccessRate()` uses vector similarity with topK=50, threshold=0.7. Added `getTraceStatsWithIntent()` convenience method.
-- [x] [AI-Review][HIGH] ~~Add `sequencePosition` computation to `batchExtractTraceStats()`~~ **IMPLEMENTED 2025-12-24**: Added batch SQL query using `array_position()` with normalization. Uses UNNEST + GROUP BY for efficient multi-tool query. Respects `minTracesForStats` threshold. **FIX:** capability-store.ts now prepends capability ID to `executed_path` so `sequencePosition` works for capabilities too (not just tools). Ensures consistency between save-time and training-time flattening.
+- [x] [AI-Review][HIGH] ~~Remove `errorTypeAffinity` from tech-spec Section 3.2 OR implement in
+      TraceStats interface~~ **IMPLEMENTED 2025-12-24**: Migration 024 adds `error_type` column,
+      `classifyError()` function, TraceStats now has 17 features (11 scalar + 6 errorTypeAffinity)
+- [x] [AI-Review][HIGH] ~~Implement `intentSimilarSuccessRate` extraction via embedding similarity
+      search~~ **IMPLEMENTED 2025-12-24**: Migration 025 adds `intent_embedding vector(1024)` to
+      execution_trace + HNSW index, SaveTraceInput & execute-handler pass embedding,
+      `queryIntentSimilarSuccessRate()` uses vector similarity with topK=50, threshold=0.7. Added
+      `getTraceStatsWithIntent()` convenience method.
+- [x] [AI-Review][HIGH] ~~Add `sequencePosition` computation to `batchExtractTraceStats()`~~
+      **IMPLEMENTED 2025-12-24**: Added batch SQL query using `array_position()` with normalization.
+      Uses UNNEST + GROUP BY for efficient multi-tool query. Respects `minTracesForStats` threshold.
+      **FIX:** capability-store.ts now prepends capability ID to `executed_path` so
+      `sequencePosition` works for capabilities too (not just tools). Ensures consistency between
+      save-time and training-time flattening.
 
 ### 🟡 MEDIUM Priority
 
-- [x] [AI-Review][MEDIUM] ~~Implement cache hit/miss tracking for observability~~ **IMPLEMENTED 2025-12-24**: Added `cacheHits`/`cacheMisses` counters, `getCacheStats()` returns actual hit rate, `resetCacheStats()` for benchmarking.
-- [x] [AI-Review][MEDIUM] ~~Add `pathVariance` and `avgPathLengthToSuccess` to batch extraction~~ **IMPLEMENTED 2025-12-24**: Added batch SQL query computing `steps_to_end` per tool with VARIANCE aggregation.
-- [x] [AI-Review][MEDIUM] ~~Complete Phase 5: Benchmarks Update~~ **IMPLEMENTED 2025-12-24**: Added MRR/Hit@1/Hit@3 accuracy benchmarks (shgat-accuracy group), extractTraceFeatures() latency (trace-features.bench.ts), memory usage profiling (shgat-memory group), adaptive config scaling benchmarks, v1 vs v2 comparison group. Fixed trace-features.bench.ts API compatibility.
-- [x] [AI-Review][MEDIUM] ~~Add edge case tests~~ **IMPLEMENTED 2025-12-24**: Added 17 edge case tests covering cache hit/miss, intent similarity fallback, sequencePosition normalization, pathVariance, batch extraction, recency extremes, repeated tools in path.
-- [x] [AI-Review][MEDIUM] ~~Implement v2 backward pass for W_proj and fusionMLP gradients~~ **IMPLEMENTED 2025-12-24**: Added `forwardV2WithCache()`, `backwardV2()`, `applyV2Gradients()`, and `trainBatchV2()` methods. Full backprop through fusionMLP (W1, b1, W2, b2), ReLU activations, and W_proj/b_proj.
+- [x] [AI-Review][MEDIUM] ~~Implement cache hit/miss tracking for observability~~ **IMPLEMENTED
+      2025-12-24**: Added `cacheHits`/`cacheMisses` counters, `getCacheStats()` returns actual hit
+      rate, `resetCacheStats()` for benchmarking.
+- [x] [AI-Review][MEDIUM] ~~Add `pathVariance` and `avgPathLengthToSuccess` to batch extraction~~
+      **IMPLEMENTED 2025-12-24**: Added batch SQL query computing `steps_to_end` per tool with
+      VARIANCE aggregation.
+- [x] [AI-Review][MEDIUM] ~~Complete Phase 5: Benchmarks Update~~ **IMPLEMENTED 2025-12-24**: Added
+      MRR/Hit@1/Hit@3 accuracy benchmarks (shgat-accuracy group), extractTraceFeatures() latency
+      (trace-features.bench.ts), memory usage profiling (shgat-memory group), adaptive config
+      scaling benchmarks, v1 vs v2 comparison group. Fixed trace-features.bench.ts API
+      compatibility.
+- [x] [AI-Review][MEDIUM] ~~Add edge case tests~~ **IMPLEMENTED 2025-12-24**: Added 17 edge case
+      tests covering cache hit/miss, intent similarity fallback, sequencePosition normalization,
+      pathVariance, batch extraction, recency extremes, repeated tools in path.
+- [x] [AI-Review][MEDIUM] ~~Implement v2 backward pass for W_proj and fusionMLP gradients~~
+      **IMPLEMENTED 2025-12-24**: Added `forwardV2WithCache()`, `backwardV2()`,
+      `applyV2Gradients()`, and `trainBatchV2()` methods. Full backprop through fusionMLP (W1, b1,
+      W2, b2), ReLU activations, and W_proj/b_proj.
 
 ### 🟢 LOW Priority
 
-- [x] [AI-Review][LOW] ~~Extract `numTraceStats` to derived constant~~ **IMPLEMENTED 2025-12-24**: Added `NUM_TRACE_STATS` constant in shgat-types.ts, derived from `DEFAULT_TRACE_STATS`. Replaced magic number 17 in shgat.ts.
-- [x] [AI-Review][LOW] ~~Deduplicate TraceStats documentation~~ **IMPLEMENTED 2025-12-24**: Simplified tech-spec Section 3.2 to reference `shgat-types.ts` as source of truth.
+- [x] [AI-Review][LOW] ~~Extract `numTraceStats` to derived constant~~ **IMPLEMENTED 2025-12-24**:
+      Added `NUM_TRACE_STATS` constant in shgat-types.ts, derived from `DEFAULT_TRACE_STATS`.
+      Replaced magic number 17 in shgat.ts.
+- [x] [AI-Review][LOW] ~~Deduplicate TraceStats documentation~~ **IMPLEMENTED 2025-12-24**:
+      Simplified tech-spec Section 3.2 to reference `shgat-types.ts` as source of truth.
 
 ## 13. Phase 0: Modular Code Operations Tracing (PREREQUISITE)
 
-**Status:** ✅ COMPLETE (2025-12-26)
-**Dependencies:** Phase 1-5 require this for complete SHGAT learning
-**Problem:** Code operations (code:filter, code:map, etc.) weren't traced, so SHGAT couldn't learn from them
+**Status:** ✅ COMPLETE (2025-12-26) **Dependencies:** Phase 1-5 require this for complete SHGAT
+learning **Problem:** Code operations (code:filter, code:map, etc.) weren't traced, so SHGAT
+couldn't learn from them
 
 ### 13.1 Motivation
 
-Before implementing multi-head SHGAT with TraceFeatures, we discovered a **critical gap**: modular code operations created by static structure builder (e.g., `code:filter`, `code:map`, `code:reduce`) were **not appearing in execution traces**.
+Before implementing multi-head SHGAT with TraceFeatures, we discovered a **critical gap**: modular
+code operations created by static structure builder (e.g., `code:filter`, `code:map`, `code:reduce`)
+were **not appearing in execution traces**.
 
 **Impact on SHGAT Learning:**
+
 ```typescript
 // BEFORE: Missing code operations
-executed_path = ["db:query"]
+executed_path = ["db:query"];
 // ❌ SHGAT can't learn "query → filter → map → reduce" patterns
 
 // AFTER: Complete traces
-executed_path = ["db:query", "code:filter", "code:map", "code:reduce"]
+executed_path = ["db:query", "code:filter", "code:map", "code:reduce"];
 // ✅ SHGAT learns full pipeline patterns
 ```
 
@@ -803,12 +865,14 @@ This was blocking Phase 2 (Feature Extraction) because `executedPath` was incomp
 ### 13.2 Root Cause Analysis
 
 **Execution Flow:**
+
 ```
 MCP Tools:     ToolExecutor → WorkerBridge.callTool() → emits traces ✅
 Code Tasks:    code-executor → DenoSandboxExecutor → NO traces ❌
 ```
 
 **Why code tasks weren't traced:**
+
 - `code-executor.ts` executes code via `DenoSandboxExecutor` directly
 - `DenoSandboxExecutor` is a low-level execution primitive (no tracing)
 - Only `WorkerBridge` emits `tool_start`/`tool_end` traces
@@ -837,7 +901,9 @@ SHGAT learns from complete traces ✅
 ```
 
 **Why Option B (not A or 1a):**
-- **Option A:** Emit traces in code-executor.ts → merge conflicts when combining MCP + code traces chronologically
+
+- **Option A:** Emit traces in code-executor.ts → merge conflicts when combining MCP + code traces
+  chronologically
 - **Option 1a:** WorkerBridge.executeCodeTask() method → good, but needs integration point
 - **Option B:** ControlledExecutor manages WorkerBridge → centralized, all traces in one place
 
@@ -914,7 +980,7 @@ const executedPath = sortedTraces
     t.type === "tool_end" || t.type === "capability_end"
   )
   .map((t) => {
-    if (t.type === "tool_end") return t.tool;  // ← "code:filter" appears here!
+    if (t.type === "tool_end") return t.tool; // ← "code:filter" appears here!
     return (t as CapabilityTraceEvent).capability;
   });
 ```
@@ -1023,9 +1089,9 @@ controlledExecutor.setWorkerBridge(context.bridge);
 // updateFromCodeExecution() now sees ALL operations
 traces = [
   { type: "tool_end", tool: "db:query", ts: 1100 },
-  { type: "tool_end", tool: "code:filter", ts: 1200 },  // ← Now visible!
-  { type: "tool_end", tool: "code:map", ts: 1210 },     // ← Now visible!
-  { type: "tool_end", tool: "code:reduce", ts: 1300 },  // ← Now visible!
+  { type: "tool_end", tool: "code:filter", ts: 1200 }, // ← Now visible!
+  { type: "tool_end", tool: "code:map", ts: 1210 }, // ← Now visible!
+  { type: "tool_end", tool: "code:reduce", ts: 1300 }, // ← Now visible!
 ];
 
 // Graph nodes created
@@ -1074,15 +1140,16 @@ const stats = await extractTraceFeatures(db, "code:filter", intent, context);
 
 ### 13.6 Files Modified
 
-| File | Changes | Lines |
-|------|---------|-------|
-| `src/sandbox/worker-bridge.ts` | Added `executeCodeTask()` method | 454-543 |
-| `src/dag/controlled-executor.ts` | Added WorkerBridge field, `setWorkerBridge()`, `executeCodeTaskViaWorkerBridge()` | 101, 132-144, 761-813 |
-| `src/mcp/handlers/workflow-execution-handler.ts` | Pass WorkerBridge to ControlledExecutor | 398 |
+| File                                             | Changes                                                                           | Lines                 |
+| ------------------------------------------------ | --------------------------------------------------------------------------------- | --------------------- |
+| `src/sandbox/worker-bridge.ts`                   | Added `executeCodeTask()` method                                                  | 454-543               |
+| `src/dag/controlled-executor.ts`                 | Added WorkerBridge field, `setWorkerBridge()`, `executeCodeTaskViaWorkerBridge()` | 101, 132-144, 761-813 |
+| `src/mcp/handlers/workflow-execution-handler.ts` | Pass WorkerBridge to ControlledExecutor                                           | 398                   |
 
 ### 13.7 Testing
 
 **Manual verification:**
+
 ```bash
 # Execute workflow with code operations
 pml_execute '{"intent": "fetch users and filter active ones"}'
@@ -1093,6 +1160,7 @@ SELECT executed_path FROM execution_trace ORDER BY executed_at DESC LIMIT 1;
 ```
 
 **Expected behavior:**
+
 - ✅ code:filter, code:map, etc. appear in `executed_path`
 - ✅ Traces have correct timestamps (chronological order)
 - ✅ Graph contains nodes for code operations
@@ -1101,6 +1169,7 @@ SELECT executed_path FROM execution_trace ORDER BY executed_at DESC LIMIT 1;
 ### 13.8 Fallback Behavior
 
 If `task.tool` is not set (e.g., legacy code_execution tasks):
+
 - Falls back to `DenoSandboxExecutor` (no tracing)
 - Ensures backward compatibility
 - Logs debug message: "Code task missing tool name, using executor without tracing"
@@ -1108,11 +1177,13 @@ If `task.tool` is not set (e.g., legacy code_execution tasks):
 ### 13.9 Related Work
 
 **Prerequisite for:**
+
 - Phase 2: Feature Extraction (needs complete executedPath)
 - Phase 3: Training Pipeline (needs traces from code operations)
 - Phase 4: Integration (needs SHGAT to learn from code patterns)
 
 **Related implementations:**
+
 - Span extraction (commit edf2d40): Extracts original code via SWC spans
 - Pure operations bypass (commit d878ed8): Skips HIL validation for safe ops
 - Static structure builder: Detects modular operations and assigns pseudo-tool IDs

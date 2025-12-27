@@ -4,19 +4,22 @@ last-redoc-date: 2025-09-28
 
 # Design Thinking Workflow
 
-**Type:** Interactive Document Workflow
-**Module:** Creative Intelligence System (CIS)
+**Type:** Interactive Document Workflow **Module:** Creative Intelligence System (CIS)
 
 ## Purpose
 
-Guides human-centered design processes through the complete design thinking methodology: Empathize, Define, Ideate, Prototype, and Test. Creates solutions deeply rooted in user needs by combining empathy-driven research with systematic creative problem-solving.
+Guides human-centered design processes through the complete design thinking methodology: Empathize,
+Define, Ideate, Prototype, and Test. Creates solutions deeply rooted in user needs by combining
+empathy-driven research with systematic creative problem-solving.
 
 ## Distinctive Features
 
 - **Phase-Based Structure**: Full five-phase design thinking journey from empathy to testing
-- **Method Library**: Curated collection of design methods in `design-methods.csv` organized by phase
+- **Method Library**: Curated collection of design methods in `design-methods.csv` organized by
+  phase
 - **Context Integration**: Accepts design briefs or user research via data attribute
-- **Facilitation Principles**: Guides divergent thinking before convergent action, emphasizes rapid prototyping over discussion
+- **Facilitation Principles**: Guides divergent thinking before convergent action, emphasizes rapid
+  prototyping over discussion
 
 ## Usage
 

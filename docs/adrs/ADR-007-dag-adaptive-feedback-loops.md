@@ -1,7 +1,6 @@
 # ADR-007: DAG Adaptatif avec Feedback Loops AIL/HIL et Re-planification Dynamique
 
-**Status:** ✅ Implemented
-**Date:** 2025-11-13 | **Updated:** 2025-11-24 | **Deciders:** BMad
+**Status:** ✅ Implemented **Date:** 2025-11-13 | **Updated:** 2025-11-24 | **Deciders:** BMad
 
 > **Note:** AIL/HIL implementation details superseded by ADR-019.
 

@@ -22,12 +22,12 @@ author: Erwan Lee Pesle
 
 Every LLM provider invented their own tool interface:
 
-| Provider | Format | Schema |
-|----------|--------|--------|
-| OpenAI | `functions` / `tools` | JSON Schema |
-| Anthropic | `tool_use` | JSON Schema (different structure) |
-| Google | `function_declarations` | Protocol Buffers |
-| Mistral | `tool_calls` | OpenAI-compatible-ish |
+| Provider  | Format                  | Schema                            |
+| --------- | ----------------------- | --------------------------------- |
+| OpenAI    | `functions` / `tools`   | JSON Schema                       |
+| Anthropic | `tool_use`              | JSON Schema (different structure) |
+| Google    | `function_declarations` | Protocol Buffers                  |
+| Mistral   | `tool_calls`            | OpenAI-compatible-ish             |
 
 Same concept, different implementations. Want to support multiple models? Write adapters for each.
 
@@ -37,14 +37,15 @@ Same concept, different implementations. Want to support multiple models? Write 
 
 ## What Is MCP?
 
-**Model Context Protocol** is an open standard for tool integration. Think USB for AI tools—one interface, universal compatibility.
+**Model Context Protocol** is an open standard for tool integration. Think USB for AI tools—one
+interface, universal compatibility.
 
-| Aspect | Details |
-|--------|---------|
+| Aspect     | Details                           |
+| ---------- | --------------------------------- |
 | Created by | Anthropic (open-sourced Nov 2024) |
-| Transport | JSON-RPC 2.0 |
-| Primitives | Tools, Resources, Prompts |
-| License | MIT |
+| Transport  | JSON-RPC 2.0                      |
+| Primitives | Tools, Resources, Prompts         |
+| License    | MIT                               |
 
 ![With MCP: 1 interface](excalidraw:src/web/assets/diagrams/mcp-with.excalidraw)
 
@@ -56,11 +57,13 @@ Our reasoning came down to four factors:
 
 ### 1. Vendor Independence
 
-Today we use Claude. Tomorrow? Who knows. MCP means our tools work with any model that supports the protocol—and that list is growing.
+Today we use Claude. Tomorrow? Who knows. MCP means our tools work with any model that supports the
+protocol—and that list is growing.
 
 ### 2. Ecosystem Growth
 
 MCP has momentum:
+
 - Claude Desktop, Cursor, VS Code extensions support it
 - 100+ open source servers available
 - Major IDE integrations coming
@@ -68,6 +71,7 @@ MCP has momentum:
 ### 3. Clean Separation
 
 MCP enforces good architecture:
+
 - **Server**: Exposes capabilities (tools, resources)
 - **Client**: Discovers and invokes
 - **Transport**: Pluggable (stdio, HTTP, WebSocket)
@@ -78,11 +82,11 @@ Your tool logic stays clean. Protocol handling is separate.
 
 Stdio transport means any language works. No HTTP server needed. Just read stdin, write stdout.
 
-| Approach | Pros | Cons |
-|----------|------|------|
-| Native function calling | Tight integration | Vendor lock-in |
-| Custom adapters | Full control | Maintenance burden |
-| **MCP** | Universal, growing ecosystem | Newer, evolving |
+| Approach                | Pros                         | Cons               |
+| ----------------------- | ---------------------------- | ------------------ |
+| Native function calling | Tight integration            | Vendor lock-in     |
+| Custom adapters         | Full control                 | Maintenance burden |
+| **MCP**                 | Universal, growing ecosystem | Newer, evolving    |
 
 ## The MCP Architecture
 
@@ -96,11 +100,11 @@ Three layers, cleanly separated:
 
 ### Primitives
 
-| Primitive | Purpose | Example |
-|-----------|---------|---------|
-| **Tools** | Actions the model can take | `file_read`, `git_commit` |
-| **Resources** | Data the model can access | File contents, DB rows |
-| **Prompts** | Reusable prompt templates | Coding assistant setup |
+| Primitive     | Purpose                    | Example                   |
+| ------------- | -------------------------- | ------------------------- |
+| **Tools**     | Actions the model can take | `file_read`, `git_commit` |
+| **Resources** | Data the model can access  | File contents, DB rows    |
+| **Prompts**   | Reusable prompt templates  | Coding assistant setup    |
 
 ## Practical Benefits
 
@@ -113,6 +117,7 @@ Our tools work unchanged whether we use Claude, GPT, or local models. The abstra
 ### Share Across Projects
 
 One MCP server can be used by:
+
 - CLI agents
 - Web applications
 - IDE extensions
@@ -121,6 +126,7 @@ One MCP server can be used by:
 ### Tap Into the Ecosystem
 
 Existing MCP servers we can use immediately:
+
 - **Filesystem**: Read/write files
 - **GitHub**: PRs, issues, repos
 - **Postgres/SQLite**: Database access
@@ -131,7 +137,8 @@ No integration work. Just configure and use.
 
 ### Future-Proof
 
-As the AI landscape evolves, MCP-compatible tools remain relevant. New models adopt MCP → our tools work with them automatically.
+As the AI landscape evolves, MCP-compatible tools remain relevant. New models adopt MCP → our tools
+work with them automatically.
 
 ---
 

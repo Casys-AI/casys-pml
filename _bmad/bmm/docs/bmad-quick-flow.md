@@ -1,14 +1,16 @@
 # BMAD Quick Flow
 
-**Track:** Quick Flow
-**Primary Agent:** Quick Flow Solo Dev (Barry)
-**Ideal For:** Bug fixes, small features, rapid prototyping
+**Track:** Quick Flow **Primary Agent:** Quick Flow Solo Dev (Barry) **Ideal For:** Bug fixes, small
+features, rapid prototyping
 
 ---
 
 ## Overview
 
-BMAD Quick Flow is the fastest path from idea to production in the BMAD Method ecosystem. It's a streamlined 3-step process designed for rapid development without sacrificing quality. Perfect for experienced teams who need to move fast or for smaller features that don't require extensive planning.
+BMAD Quick Flow is the fastest path from idea to production in the BMAD Method ecosystem. It's a
+streamlined 3-step process designed for rapid development without sacrificing quality. Perfect for
+experienced teams who need to move fast or for smaller features that don't require extensive
+planning.
 
 ### When to Use Quick Flow
 
@@ -142,8 +144,7 @@ quick-dev "Fix the memory leak in image processing"
    - Understand patterns and conventions
    - Identify relevant files and dependencies
 
-2. **Implementation Loop**
-   For each task:
+2. **Implementation Loop** For each task:
    - Load relevant files and context
    - Implement following established patterns
    - Write appropriate tests
@@ -259,9 +260,7 @@ The `code-review` workflow provides senior developer review of implemented code.
 ```markdown
 # Tech-Spec: {Feature Title}
 
-**Created:** {date}
-**Status:** Ready for Development
-**Estimated Effort:** Small (1-2 days)
+**Created:** {date} **Status:** Ready for Development **Estimated Effort:** Small (1-2 days)
 
 ## Overview
 
@@ -275,8 +274,7 @@ The `code-review` workflow provides senior developer review of implemented code.
 
 ### Scope (In/Out)
 
-**In:** {What will be implemented}
-**Out:** {Explicitly excluded items}
+**In:** {What will be implemented} **Out:** {Explicitly excluded items}
 
 ## Context for Development
 
@@ -464,17 +462,15 @@ Track these metrics to ensure Quick Flow effectiveness:
 
 ### Common Issues
 
-**Issue: Scope creep during development**
-**Solution:** Refer back to tech spec, explicitly document new requirements
+**Issue: Scope creep during development** **Solution:** Refer back to tech spec, explicitly document
+new requirements
 
-**Issue: Unknown patterns or conventions**
-**Solution:** Use party-mode to bring in architect or senior dev
+**Issue: Unknown patterns or conventions** **Solution:** Use party-mode to bring in architect or
+senior dev
 
-**Issue: Testing bottleneck**
-**Solution:** Leverage TEA agent for automated test generation
+**Issue: Testing bottleneck** **Solution:** Leverage TEA agent for automated test generation
 
-**Issue: Integration conflicts**
-**Solution:** Document dependencies, coordinate with affected teams
+**Issue: Integration conflicts** **Solution:** Document dependencies, coordinate with affected teams
 
 ### Emergency Procedures
 
@@ -508,20 +504,21 @@ Track these metrics to ensure Quick Flow effectiveness:
 
 ## FAQ
 
-**Q: How do I know if my feature is too big for Quick Flow?**
-A: If it requires more than 3-5 days of work, affects multiple systems significantly, or needs extensive UX design, consider the BMad Method track.
+**Q: How do I know if my feature is too big for Quick Flow?** A: If it requires more than 3-5 days
+of work, affects multiple systems significantly, or needs extensive UX design, consider the BMad
+Method track.
 
-**Q: Can I switch from Quick Flow to BMad Method mid-development?**
-A: Yes, you can upgrade. Create the missing artifacts (PRD, architecture) and transition to sprint-based development.
+**Q: Can I switch from Quick Flow to BMad Method mid-development?** A: Yes, you can upgrade. Create
+the missing artifacts (PRD, architecture) and transition to sprint-based development.
 
-**Q: Is Quick Flow suitable for production-critical features?**
-A: Yes, with code review. Quick Flow doesn't sacrifice quality, just ceremony.
+**Q: Is Quick Flow suitable for production-critical features?** A: Yes, with code review. Quick Flow
+doesn't sacrifice quality, just ceremony.
 
-**Q: How do I handle dependencies between Quick Flow features?**
-A: Document dependencies clearly, consider batching related features, or upgrade to BMad Method for complex interdependencies.
+**Q: How do I handle dependencies between Quick Flow features?** A: Document dependencies clearly,
+consider batching related features, or upgrade to BMad Method for complex interdependencies.
 
-**Q: Can junior developers use Quick Flow?**
-A: Yes, but they may benefit from the structure of BMad Method. Quick Flow assumes familiarity with patterns and autonomy.
+**Q: Can junior developers use Quick Flow?** A: Yes, but they may benefit from the structure of BMad
+Method. Quick Flow assumes familiarity with patterns and autonomy.
 
 ---
 

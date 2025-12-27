@@ -6,11 +6,11 @@ Technical reference documentation for PML.
 
 ## API & Configuration
 
-| Document | Description |
-|----------|-------------|
-| [MCP Tools](./01-mcp-tools.md) | PML's exposed MCP tools and their schemas |
-| [Configuration](./02-configuration.md) | Config files and environment variables |
-| [CLI](./03-cli.md) | Command-line interface reference |
+| Document                               | Description                               |
+| -------------------------------------- | ----------------------------------------- |
+| [MCP Tools](./01-mcp-tools.md)         | PML's exposed MCP tools and their schemas |
+| [Configuration](./02-configuration.md) | Config files and environment variables    |
+| [CLI](./03-cli.md)                     | Command-line interface reference          |
 
 ---
 

@@ -70,7 +70,14 @@ export default function MobileMenu() {
             class="mobile-menu-close"
             aria-label="Close menu"
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
           </button>
@@ -117,7 +124,8 @@ export default function MobileMenu() {
         </div>
       </nav>
 
-      <style>{`
+      <style>
+        {`
         /* ═══════════════════════════════════════════════════════════════════
            MOBILE MENU - Only visible on mobile (< 768px)
         ═══════════════════════════════════════════════════════════════════ */
@@ -402,7 +410,8 @@ export default function MobileMenu() {
             transform: none;
           }
         }
-      `}</style>
+      `}
+      </style>
     </>
   );
 }

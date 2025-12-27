@@ -4,9 +4,13 @@
 
 ## En bref
 
-La recherche hybride améliore la recherche sémantique en tenant compte de l'expérience collective : quels outils sont souvent utilisés ensemble, lesquels réussissent le mieux, et lesquels sont au coeur des workflows courants. C'est comme demander conseil à la fois à un dictionnaire (sens des mots) et à un expert (expérience pratique).
+La recherche hybride améliore la recherche sémantique en tenant compte de l'expérience collective :
+quels outils sont souvent utilisés ensemble, lesquels réussissent le mieux, et lesquels sont au
+coeur des workflows courants. C'est comme demander conseil à la fois à un dictionnaire (sens des
+mots) et à un expert (expérience pratique).
 
-**Résultat :** Vous trouvez non seulement les outils qui correspondent à votre requête, mais aussi ceux qui ont fait leurs preuves dans des situations similaires.
+**Résultat :** Vous trouvez non seulement les outils qui correspondent à votre requête, mais aussi
+ceux qui ont fait leurs preuves dans des situations similaires.
 
 ## Why Hybrid?
 
@@ -25,18 +29,21 @@ Semantic search finds tools by meaning. But meaning alone misses important signa
 Imaginez que vous cherchez "un bon restaurant italien" :
 
 **Approche sémantique seule** (comme Google)
+
 - Trouve tous les restaurants dont la description mentionne "italien"
 - Ne sait pas lesquels sont réellement bons
 - Résultat : beaucoup de choix, qualité variable
 
 **Approche hybride** (comme Google + TripAdvisor + vos amis)
+
 - Trouve les restaurants italiens (sémantique)
 - Privilégie ceux avec de bonnes notes (graph : PageRank)
 - Booste ceux que vos amis ont aimés (graph : usage)
 - Suggère ceux du même quartier que votre dernier choix (graph : communauté)
 - Résultat : les meilleurs restaurants italiens pour VOUS
 
-C'est exactement ce que fait la recherche hybride : elle combine le sens de votre requête avec l'intelligence collective.
+C'est exactement ce que fait la recherche hybride : elle combine le sens de votre requête avec
+l'intelligence collective.
 
 ## Semantic Component
 
@@ -92,6 +99,7 @@ If you're using `read_file`, other file tools get a boost.
 ### Usage Frequency
 
 Tools that are used more often get a small boost:
+
 - Frequently used = likely useful
 - Never used = might be less relevant
 
@@ -105,7 +113,8 @@ Final Score = α × Semantic Score + (1-α) × Graph Score
 
 ### Local Adaptive Alpha (α) - Intelligence contextuelle
 
-Le paramètre **α** (alpha) n'est pas fixe et n'est plus global ! PML calcule un **alpha local** pour chaque outil, adapté au contexte :
+Le paramètre **α** (alpha) n'est pas fixe et n'est plus global ! PML calcule un **alpha local** pour
+chaque outil, adapté au contexte :
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -121,16 +130,19 @@ Le paramètre **α** (alpha) n'est pas fixe et n'est plus global ! PML calcule u
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Pourquoi local ?** Un outil au cœur d'un cluster dense (ex: `read_file`) a un voisinage fiable. Un outil isolé (ex: un nouvel outil ML) n'a pas encore de connexions fiables. PML adapte la confiance **par outil**, pas globalement.
+**Pourquoi local ?** Un outil au cœur d'un cluster dense (ex: `read_file`) a un voisinage fiable. Un
+outil isolé (ex: un nouvel outil ML) n'a pas encore de connexions fiables. PML adapte la confiance
+**par outil**, pas globalement.
 
-| Situation | Alpha (α) | Comportement |
-|-----------|-----------|--------------|
-| **Zone dense** (bien connecté) | ~0.5 | Graphe fiable → influence forte |
-| **Zone sparse** (peu connecté) | ~0.8 | Graphe moins utile → sémantique domine |
-| **Cold start** (< 5 observations) | 0.85-1.0 | Bayésien → sémantique presque seul |
-| **Incohérence** (semantic ≠ structure) | ~0.9 | Semantic et graphe divergent → prudence |
+| Situation                              | Alpha (α) | Comportement                            |
+| -------------------------------------- | --------- | --------------------------------------- |
+| **Zone dense** (bien connecté)         | ~0.5      | Graphe fiable → influence forte         |
+| **Zone sparse** (peu connecté)         | ~0.8      | Graphe moins utile → sémantique domine  |
+| **Cold start** (< 5 observations)      | 0.85-1.0  | Bayésien → sémantique presque seul      |
+| **Incohérence** (semantic ≠ structure) | ~0.9      | Semantic et graphe divergent → prudence |
 
 **Exemple concret :**
+
 ```
 Requête: "lire fichier"
 
@@ -145,77 +157,92 @@ Tool 2: new_ml_reader (isolé, peu d'historique)
 
 **Algorithmes utilisés :**
 
-| Mode | Comment ça marche |
-|------|-------------------|
-| **Embeddings Hybrides** | Compare l'embedding sémantique (BGE-M3) avec l'embedding structurel (Laplacien). Si les deux concordent → graphe fiable. |
-| **Heat Diffusion** | La "chaleur" se propage depuis vos outils récents. Un outil proche de votre contexte reçoit plus de chaleur → plus fiable. |
-| **Bayésien** | Pour les nouveaux outils : commence à α=1.0 (sémantique seul) puis converge vers la normale avec plus d'observations. |
+| Mode                    | Comment ça marche                                                                                                          |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| **Embeddings Hybrides** | Compare l'embedding sémantique (BGE-M3) avec l'embedding structurel (Laplacien). Si les deux concordent → graphe fiable.   |
+| **Heat Diffusion**      | La "chaleur" se propage depuis vos outils récents. Un outil proche de votre contexte reçoit plus de chaleur → plus fiable. |
+| **Bayésien**            | Pour les nouveaux outils : commence à α=1.0 (sémantique seul) puis converge vers la normale avec plus d'observations.      |
 
 **Propriétés clés :**
+
 - **Granulaire** : Chaque outil a son propre alpha, pas de moyenne globale
 - **Contextuel** : L'alpha dépend de votre workflow actuel
 - **Cold start intelligent** : Les nouveaux outils sont traités avec prudence
 - **Sécurisé** : α ne descend jamais sous 0.5 (sémantique toujours au moins 50%)
-- **Configurable** : Paramètres ajustables via `config/local-alpha.yaml` ([voir Configuration](../../reference/02-configuration.md#local-alpha-configuration))
+- **Configurable** : Paramètres ajustables via `config/local-alpha.yaml`
+  ([voir Configuration](../../reference/02-configuration.md#local-alpha-configuration))
 
 ### Example
 
 Query: "save data"
 
-| Tool | Semantic | Graph | Final |
-|------|----------|-------|-------|
-| write_file | 0.75 | 0.80 | 0.77 |
-| save_json | 0.80 | 0.40 | 0.68 |
-| create_backup | 0.60 | 0.90 | 0.69 |
+| Tool          | Semantic | Graph | Final |
+| ------------- | -------- | ----- | ----- |
+| write_file    | 0.75     | 0.80  | 0.77  |
+| save_json     | 0.80     | 0.40  | 0.68  |
+| create_backup | 0.60     | 0.90  | 0.69  |
 
 `write_file` wins because it's both semantically relevant AND important in the graph.
 
 ### Exemples concrets : L'impact du graph
 
 **Exemple 1 : Popularité et fiabilité**
+
 ```
 Requête : "créer un projet"
 Sémantique seul : project:create (0.89) - nouveau, peu testé
 Hybride : project:initialize (0.91) - éprouvé, très utilisé
 ```
+
 Le graph booste l'outil que la communauté utilise avec succès.
 
 **Exemple 2 : Cohérence de workflow**
+
 ```
 Contexte : Vous venez d'utiliser git:commit
 Requête : "partager le code"
 Sémantique seul : share:send_link (0.82)
 Hybride : github:push (0.92) - même communauté Git
 ```
+
 Le graph privilégie les outils cohérents avec votre contexte actuel.
 
 **Exemple 3 : Centralité dans l'écosystème**
+
 ```
 Requête : "lire des données"
 Sémantique seul : data:read_custom (0.85) - spécialisé
 Hybride : filesystem:read_file (0.94) - central, fondamental
 ```
+
 Le graph met en avant les outils sur lesquels d'autres s'appuient (PageRank élevé).
 
 ## Benefits
 
-| Pure Semantic | Hybrid |
-|---------------|--------|
+| Pure Semantic        | Hybrid                          |
+| -------------------- | ------------------------------- |
 | Finds relevant tools | Finds relevant AND proven tools |
-| No learning | Improves with usage |
-| Static results | Dynamic, personalized |
+| No learning          | Improves with usage             |
+| Static results       | Dynamic, personalized           |
 
 ## Pourquoi c'est utile en pratique
 
-**Recommandations intelligentes** : PML suggère les outils qui ont fait leurs preuves, évite les solutions obsolètes, et privilégie ce qui fonctionne dans la communauté.
+**Recommandations intelligentes** : PML suggère les outils qui ont fait leurs preuves, évite les
+solutions obsolètes, et privilégie ce qui fonctionne dans la communauté.
 
-**Apprentissage continu** : Plus vous utilisez PML, meilleurs deviennent les résultats. Le système apprend quels outils fonctionnent bien ensemble et adapte les suggestions.
+**Apprentissage continu** : Plus vous utilisez PML, meilleurs deviennent les résultats. Le système
+apprend quels outils fonctionnent bien ensemble et adapte les suggestions.
 
-**Cohérence contextuelle** : Les suggestions s'adaptent à votre workflow actuel. Si vous travaillez avec Git, PML privilégie les outils Git. Moins de bruit, plus de pertinence.
+**Cohérence contextuelle** : Les suggestions s'adaptent à votre workflow actuel. Si vous travaillez
+avec Git, PML privilégie les outils Git. Moins de bruit, plus de pertinence.
 
-**Découverte guidée** : Trouvez des outils complémentaires et des workflows optimaux que vous n'auriez pas cherchés. Apprenez les meilleures pratiques naturellement.
+**Découverte guidée** : Trouvez des outils complémentaires et des workflows optimaux que vous
+n'auriez pas cherchés. Apprenez les meilleures pratiques naturellement.
 
-**Cas d'usage réel :** Vous cherchez "déployer mon app". La recherche sémantique seule trouverait 10 outils similaires. La recherche hybride met en avant `deploy:kubernetes` car c'est l'outil le plus utilisé dans votre équipe, avec le meilleur taux de succès, qui s'intègre avec vos outils Docker. Gain de temps immédiat.
+**Cas d'usage réel :** Vous cherchez "déployer mon app". La recherche sémantique seule trouverait 10
+outils similaires. La recherche hybride met en avant `deploy:kubernetes` car c'est l'outil le plus
+utilisé dans votre équipe, avec le meilleur taux de succès, qui s'intègre avec vos outils Docker.
+Gain de temps immédiat.
 
 ## Next
 

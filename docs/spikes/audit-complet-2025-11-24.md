@@ -150,7 +150,7 @@ Stories:** Structured avec AC, DoD, estimations
 
 #### Comparaison Industrie
 
-| Aspect                  | Casys PML           | Industrie Standard | Verdict      |
+| Aspect                  | Casys PML            | Industrie Standard | Verdict      |
 | ----------------------- | -------------------- | ------------------ | ------------ |
 | Documentation technique | 1,897 lignes arch.md | ~500 lignes        | ✅ Supérieur |
 | ADRs                    | 10 formels           | 0-3 informels      | ✅ Excellent |
@@ -657,7 +657,7 @@ await callTool("filesystem:read_file", { path: "/config.json" });
 
 ### Casys PML vs Compétiteurs
 
-| Critère               | Casys PML                        | AIRIS              | Smithery       | Unla         | Context Forge       |
+| Critère               | Casys PML                         | AIRIS              | Smithery       | Unla         | Context Forge       |
 | --------------------- | --------------------------------- | ------------------ | -------------- | ------------ | ------------------- |
 | Context Optimization  | ✅ 99% reduc (meta-tools)         | ⚠️ Lazy défaillant | ❌ All-at-once | ⚠️ Incomplet | ❌ No optimization  |
 | DAG Execution         | ✅ Parallel layers                | ❌ Sequential      | ❌ Sequential  | ⚠️ Basic     | ❌ No orchestration |
@@ -1316,12 +1316,12 @@ Scénario Réaliste:
 
 ### 6.3 Analyse Concurrentielle Prix
 
-| Concurrent     | Modèle      | Prix                  | Forces                       | Faiblesses                  |
-| -------------- | ----------- | --------------------- | ---------------------------- | --------------------------- |
-| Smithery       | Cloud SaaS  | Gratuit               | Hébergé, UI                  | Pas d'optimisation contexte |
-| Unla           | Cloud SaaS  | Gratuit               | Registry central             | Dépendance cloud            |
-| AIRIS          | Self-hosted | Open-source           | Lazy loading                 | Défaillances Docker         |
-| Context Forge  | Self-hosted | $?                    | Orchestration                | Pas de context optimization |
+| Concurrent    | Modèle      | Prix                  | Forces                       | Faiblesses                  |
+| ------------- | ----------- | --------------------- | ---------------------------- | --------------------------- |
+| Smithery      | Cloud SaaS  | Gratuit               | Hébergé, UI                  | Pas d'optimisation contexte |
+| Unla          | Cloud SaaS  | Gratuit               | Registry central             | Dépendance cloud            |
+| AIRIS         | Self-hosted | Open-source           | Lazy loading                 | Défaillances Docker         |
+| Context Forge | Self-hosted | $?                    | Orchestration                | Pas de context optimization |
 | **Casys PML** | Local-first | Freemium ($0-75/user) | GraphRAG, speculation, local | Adoption friction           |
 
 **Opportunité:** Gap entre "100% free mais limité" et "enterprise-only pricing"

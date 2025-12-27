@@ -1,29 +1,30 @@
 ---
-name: 'step-03-improve'
-description: 'Facilitate collaborative improvements to the workflow'
+name: "step-03-improve"
+description: "Facilitate collaborative improvements to the workflow"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmb/workflows/edit-workflow'
+workflow_path: "{project-root}/_bmad/bmb/workflows/edit-workflow"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-03-improve.md'
-nextStepFile: '{workflow_path}/steps/step-04-validate.md'
-workflowFile: '{workflow_path}/workflow.md'
-outputFile: '{output_folder}/workflow-edit-{target_workflow_name}.md'
+thisStepFile: "{workflow_path}/steps/step-03-improve.md"
+nextStepFile: "{workflow_path}/steps/step-04-validate.md"
+workflowFile: "{workflow_path}/workflow.md"
+outputFile: "{output_folder}/workflow-edit-{target_workflow_name}.md"
 
 # Task References
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 
 # Template References
-improvementLogTemplate: '{workflow_path}/templates/improvement-log.md'
+improvementLogTemplate: "{workflow_path}/templates/improvement-log.md"
 ---
 
 # Step 3: Collaborative Improvement
 
 ## STEP GOAL:
 
-To facilitate collaborative improvements to the workflow, working iteratively on each identified issue.
+To facilitate collaborative improvements to the workflow, working iteratively on each identified
+issue.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -37,7 +38,8 @@ To facilitate collaborative improvements to the workflow, working iteratively on
 ### Role Reinforcement:
 
 - ✅ You are a workflow editor and improvement specialist
-- ✅ If you already have been given communication or persona patterns, continue to use those while playing this new role
+- ✅ If you already have been given communication or persona patterns, continue to use those while
+  playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You guide improvements with explanations and options
 - ✅ User makes decisions and approves changes
@@ -79,25 +81,19 @@ For each prioritized improvement:
 
 #### A. Explain Current State
 
-Show the relevant section:
-"Here's how this step currently works:
-[Display current content]
+Show the relevant section: "Here's how this step currently works: [Display current content]
 
 This can cause {{problem}} because {{reason}}."
 
 #### B. Propose Improvement
 
-Suggest specific changes:
-"Based on best practices, we could:
-{{proposedSolution}}
+Suggest specific changes: "Based on best practices, we could: {{proposedSolution}}
 
 This would help users by {{benefit}}."
 
 #### C. Collaborate on Approach
 
-Ask for input:
-"Does this approach address your need?"
-"Would you like to modify this suggestion?"
+Ask for input: "Does this approach address your need?" "Would you like to modify this suggestion?"
 "What concerns do you have about this change?"
 
 #### D. Get Explicit Approval
@@ -106,9 +102,7 @@ Ask for input:
 
 #### E. Apply and Show Result
 
-Make the change and display:
-"Here's the updated version:
-[Display new content]
+Make the change and display: "Here's the updated version: [Display new content]
 
 Does this look right to you?"
 
@@ -181,19 +175,23 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu
-- User can chat or ask questions - always respond and then end with display again of the menu options
+- User can chat or ask questions - always respond and then end with display again of the menu
+  options
 - Use menu handling logic section below
 
 #### Menu Handling Logic:
 
 - IF A: Execute {advancedElicitationTask}
 - IF P: Execute {partyModeWorkflow}
-- IF C: Save improvement log to {outputFile}, update frontmatter, then only then load, read entire file, then execute {nextStepFile}
-- IF Any other comments or queries: help user respond then [Redisplay Menu Options](#5-present-menu-options)
+- IF C: Save improvement log to {outputFile}, update frontmatter, then only then load, read entire
+  file, then execute {nextStepFile}
+- IF Any other comments or queries: help user respond then
+  [Redisplay Menu Options](#5-present-menu-options)
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN C is selected and all prioritized improvements are complete and documented, will you then load, read entire file, then execute {nextStepFile} to execute and begin validation step.
+ONLY WHEN C is selected and all prioritized improvements are complete and documented, will you then
+load, read entire file, then execute {nextStepFile} to execute and begin validation step.
 
 ---
 
@@ -214,4 +212,5 @@ ONLY WHEN C is selected and all prioritized improvements are complete and docume
 - Skipping prioritized improvements
 - Breaking workflow functionality
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

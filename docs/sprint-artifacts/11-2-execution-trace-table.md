@@ -4,21 +4,23 @@ Status: done
 
 ## Story
 
-As a learning system,
-I want a unified `execution_trace` table that stores execution history,
-So that I can track execution patterns with proper FK to capabilities and learning-specific fields.
+As a learning system, I want a unified `execution_trace` table that stores execution history, So
+that I can track execution patterns with proper FK to capabilities and learning-specific fields.
 
 ## Context & Background
 
-**Epic 11: Learning from Execution Traces** implements TD Error + PER + SHGAT learning (DQN/Rainbow style). This story creates the persistence layer for execution traces.
+**Epic 11: Learning from Execution Traces** implements TD Error + PER + SHGAT learning (DQN/Rainbow
+style). This story creates the persistence layer for execution traces.
 
 **Why this matters:**
+
 - Story 11.1 (done) added `result` capture to tool_end and capability_end events
 - This story creates the `execution_trace` table to persist those traces
 - Story 11.3 will calculate TD error using SHGAT predictions and store as `priority`
 - Story 11.6 will train SHGAT using PER-weighted sampling from traces
 
 **Current state (before this story):**
+
 - `workflow_execution` table exists but lacks:
   - FK to `workflow_pattern` (capability)
   - Learning-specific fields (`executed_path`, `decisions`, `priority`)
@@ -27,16 +29,18 @@ So that I can track execution patterns with proper FK to capabilities and learni
 
 **Separation: Capability vs Trace (CRITICAL):**
 
-| Concept | Table | Contenu | Lifecycle |
-|---------|-------|---------|-----------|
-| **Capability** | `workflow_pattern` | `code`, `intent`, `static_structure`, `parameters_schema` | Immutable after creation |
-| **Trace** | `execution_trace` (NEW) | `executed_path`, `task_results`, `decisions`, `durationMs` | Created per execution |
+| Concept        | Table                   | Contenu                                                    | Lifecycle                |
+| -------------- | ----------------------- | ---------------------------------------------------------- | ------------------------ |
+| **Capability** | `workflow_pattern`      | `code`, `intent`, `static_structure`, `parameters_schema`  | Immutable after creation |
+| **Trace**      | `execution_trace` (NEW) | `executed_path`, `task_results`, `decisions`, `durationMs` | Created per execution    |
 
 **Refactor Required:**
+
 - `saveCapability()` currently stores both structure AND execution stats
 - After this story: `saveCapability()` → structure only, `saveTrace()` → execution data
 
 **Prerequisites:**
+
 - Story 11.0 (done) - DB Schema Cleanup (KV singleton, workflow-state-cache)
 - Story 11.1 (done) - Result Tracing (tool_end/capability_end include `result`)
 
@@ -111,9 +115,11 @@ So that I can track execution patterns with proper FK to capabilities and learni
    - `saveTrace(trace: Omit<ExecutionTrace, 'id'>): Promise<ExecutionTrace>` → INSERT
    - `getTraces(capabilityId: string, limit?: number): Promise<ExecutionTrace[]>` → SELECT
    - `getTraceById(traceId: string): Promise<ExecutionTrace | null>` → SELECT
-   - `getHighPriorityTraces(limit: number): Promise<ExecutionTrace[]>` → SELECT ORDER BY priority DESC
+   - `getHighPriorityTraces(limit: number): Promise<ExecutionTrace[]>` → SELECT ORDER BY priority
+     DESC
    - `updatePriority(traceId: string, priority: number): Promise<void>` → UPDATE priority
-   - `sampleByPriority(limit: number, minPriority?: number): Promise<ExecutionTrace[]>` → Weighted sampling
+   - `sampleByPriority(limit: number, minPriority?: number): Promise<ExecutionTrace[]>` → Weighted
+     sampling
 
 5. **AC5:** Migration handles `workflow_execution` → `execution_trace`:
    - Option A: Migrate data if exists
@@ -140,9 +146,12 @@ So that I can track execution patterns with proper FK to capabilities and learni
 
 12. **AC12:** Refactor post-execution calls (Capability vs Trace separation):
     - `executor.ts` → pass `traceData` to `saveCapability()` for unified capability+trace creation
-    - `worker-bridge.ts` → pass `traceData` to `saveCapability()` for unified capability+trace creation
-    - `saveCapability()` returns `{ capability, trace }` - creates both atomically when traceData provided
-    - Design decision: "Unit of Work" pattern - capability and its first trace created together with correct FK linkage
+    - `worker-bridge.ts` → pass `traceData` to `saveCapability()` for unified capability+trace
+      creation
+    - `saveCapability()` returns `{ capability, trace }` - creates both atomically when traceData
+      provided
+    - Design decision: "Unit of Work" pattern - capability and its first trace created together with
+      correct FK linkage
 
 ## Tasks / Subtasks
 
@@ -203,7 +212,8 @@ So that I can track execution patterns with proper FK to capabilities and learni
 
 ### Review Follow-ups (AI)
 
-- [x] [AI-Review][MEDIUM] ~~Implement runtime branch decision tracking~~ → **IMPLEMENTED via inference**
+- [x] [AI-Review][MEDIUM] ~~Implement runtime branch decision tracking~~ → **IMPLEMENTED via
+      inference**
   - Solution: `StaticStructureBuilder.inferDecisions(staticStructure, executedPath)`
   - Matches executed tools against conditional edges to infer which branches were taken
   - No runtime instrumentation needed - uses existing static analysis + trace data
@@ -261,6 +271,7 @@ END $$;
 **2. ExecutionTraceStore Implementation Pattern**
 
 Follow `capability-store.ts` patterns:
+
 - Constructor takes `PGliteClient`
 - Use parameterized queries (no SQL injection)
 - Return typed objects from `rowToTrace()`
@@ -269,7 +280,7 @@ Follow `capability-store.ts` patterns:
 ```typescript
 // src/capabilities/execution-trace-store.ts
 import type { PGliteClient } from "../db/client.ts";
-import type { ExecutionTrace, BranchDecision, TraceTaskResult, JsonValue } from "./types.ts";
+import type { BranchDecision, ExecutionTrace, JsonValue, TraceTaskResult } from "./types.ts";
 import { sanitizeForStorage } from "../utils/sanitize-for-storage.ts";
 import { eventBus } from "../events/mod.ts";
 import { getLogger } from "../telemetry/logger.ts";
@@ -279,37 +290,40 @@ const logger = getLogger("default");
 export class ExecutionTraceStore {
   constructor(private db: PGliteClient) {}
 
-  async saveTrace(trace: Omit<ExecutionTrace, 'id'>): Promise<ExecutionTrace> {
+  async saveTrace(trace: Omit<ExecutionTrace, "id">): Promise<ExecutionTrace> {
     // Sanitize large/sensitive data before storage
     const sanitizedContext = sanitizeForStorage(trace.initialContext ?? {});
-    const sanitizedResults = trace.taskResults.map(r => ({
+    const sanitizedResults = trace.taskResults.map((r) => ({
       ...r,
       args: sanitizeForStorage(r.args),
       result: sanitizeForStorage(r.result),
     }));
 
-    const result = await this.db.query(`
+    const result = await this.db.query(
+      `
       INSERT INTO execution_trace (
         capability_id, intent_text, initial_context, success, duration_ms,
         error_message, user_id, created_by, executed_path, decisions,
         task_results, priority, parent_trace_id
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *
-    `, [
-      trace.capabilityId ?? null,
-      trace.intentText ?? null,
-      JSON.stringify(sanitizedContext),
-      trace.success,
-      trace.durationMs,
-      trace.errorMessage ?? null,
-      trace.userId ?? 'local',
-      trace.createdBy ?? 'local',
-      trace.executedPath ?? [],
-      JSON.stringify(trace.decisions),
-      JSON.stringify(sanitizedResults),
-      trace.priority ?? 0.5,
-      trace.parentTraceId ?? null,
-    ]);
+    `,
+      [
+        trace.capabilityId ?? null,
+        trace.intentText ?? null,
+        JSON.stringify(sanitizedContext),
+        trace.success,
+        trace.durationMs,
+        trace.errorMessage ?? null,
+        trace.userId ?? "local",
+        trace.createdBy ?? "local",
+        trace.executedPath ?? [],
+        JSON.stringify(trace.decisions),
+        JSON.stringify(sanitizedResults),
+        trace.priority ?? 0.5,
+        trace.parentTraceId ?? null,
+      ],
+    );
 
     const savedTrace = this.rowToTrace(result[0]);
 
@@ -351,9 +365,7 @@ export function sanitizeForStorage(data: unknown): JsonValue {
 
   // Handle primitives
   if (typeof data === "string") {
-    return data.length > MAX_VALUE_SIZE
-      ? `[TRUNCATED: ${data.length} chars]`
-      : data;
+    return data.length > MAX_VALUE_SIZE ? `[TRUNCATED: ${data.length} chars]` : data;
   }
   if (typeof data === "number" || typeof data === "boolean") return data;
 
@@ -367,7 +379,7 @@ export function sanitizeForStorage(data: unknown): JsonValue {
     const result: Record<string, JsonValue> = {};
     for (const [key, value] of Object.entries(data)) {
       // Redact sensitive keys
-      if (SENSITIVE_PATTERNS.some(p => p.test(key))) {
+      if (SENSITIVE_PATTERNS.some((p) => p.test(key))) {
         result[key] = "[REDACTED]";
       } else {
         result[key] = sanitizeForStorage(value);
@@ -383,7 +395,9 @@ export function sanitizeForStorage(data: unknown): JsonValue {
 
 **4. Priority Default Value (0.5)**
 
-The `priority` column defaults to 0.5 (neutral). This is the cold start value when SHGAT hasn't been trained yet:
+The `priority` column defaults to 0.5 (neutral). This is the cold start value when SHGAT hasn't been
+trained yet:
+
 - 0.0 = expected trace (not surprising)
 - 0.5 = unknown (cold start, SHGAT not trained)
 - 1.0 = surprising trace (high learning value)
@@ -393,6 +407,7 @@ Story 11.3 will calculate `priority = |td_error|` after SHGAT predictions.
 **5. Files to Modify for db-sync.ts**
 
 Current `persistWorkflowExecution()` inserts into `workflow_execution`:
+
 ```typescript
 // BEFORE (db-sync.ts:268-295)
 export async function persistWorkflowExecution(
@@ -407,6 +422,7 @@ export async function persistWorkflowExecution(
 ```
 
 After this story:
+
 ```typescript
 // AFTER - delegate to ExecutionTraceStore
 import { ExecutionTraceStore } from "../../capabilities/execution-trace-store.ts";
@@ -435,25 +451,25 @@ export async function persistWorkflowExecution(
 
 ### Files to Create
 
-| File | Purpose | LOC |
-|------|---------|-----|
-| `src/db/migrations/020_execution_trace.sql` | Migration for new table | ~50 |
-| `src/capabilities/execution-trace-store.ts` | Store class with CRUD | ~200 |
-| `src/utils/sanitize-for-storage.ts` | Sanitization utility | ~60 |
-| `tests/unit/capabilities/execution-trace-store.test.ts` | Unit tests | ~150 |
+| File                                                    | Purpose                 | LOC  |
+| ------------------------------------------------------- | ----------------------- | ---- |
+| `src/db/migrations/020_execution_trace.sql`             | Migration for new table | ~50  |
+| `src/capabilities/execution-trace-store.ts`             | Store class with CRUD   | ~200 |
+| `src/utils/sanitize-for-storage.ts`                     | Sanitization utility    | ~60  |
+| `tests/unit/capabilities/execution-trace-store.test.ts` | Unit tests              | ~150 |
 
 ### Files to Modify
 
-| File | Changes | LOC |
-|------|---------|-----|
-| `src/capabilities/types.ts` | Add ExecutionTrace, BranchDecision, TraceTaskResult | ~50 |
-| `src/capabilities/mod.ts` | Export new store | ~5 |
-| `src/graphrag/sync/db-sync.ts` | Update persistWorkflowExecution | ~30 |
-| `src/graphrag/metrics/collector.ts` | Update workflow rate query | ~20 |
-| `src/web/routes/api/user/delete.ts` | Add execution_trace anonymization | ~15 |
-| `src/sandbox/executor.ts` | Add trace saving after execution | ~20 |
-| `src/sandbox/worker-bridge.ts` | Add trace saving after execution | ~20 |
-| `src/capabilities/capability-store.ts` | Clean SaveCapabilityInput | ~30 |
+| File                                   | Changes                                             | LOC |
+| -------------------------------------- | --------------------------------------------------- | --- |
+| `src/capabilities/types.ts`            | Add ExecutionTrace, BranchDecision, TraceTaskResult | ~50 |
+| `src/capabilities/mod.ts`              | Export new store                                    | ~5  |
+| `src/graphrag/sync/db-sync.ts`         | Update persistWorkflowExecution                     | ~30 |
+| `src/graphrag/metrics/collector.ts`    | Update workflow rate query                          | ~20 |
+| `src/web/routes/api/user/delete.ts`    | Add execution_trace anonymization                   | ~15 |
+| `src/sandbox/executor.ts`              | Add trace saving after execution                    | ~20 |
+| `src/sandbox/worker-bridge.ts`         | Add trace saving after execution                    | ~20 |
+| `src/capabilities/capability-store.ts` | Clean SaveCapabilityInput                           | ~30 |
 
 ### Architecture Compliance
 
@@ -469,16 +485,22 @@ export async function persistWorkflowExecution(
 - [Epic 11: Learning from Traces](../epics/epic-11-learning-from-traces.md)
 - [Story 11.0: DB Schema Cleanup](./11-0-db-schema-cleanup.md) - Prerequisite (DONE)
 - [Story 11.1: Result Tracing](./11-1-result-tracing.md) - Prerequisite (DONE)
-- [Source: src/capabilities/capability-store.ts](../../src/capabilities/capability-store.ts) - Pattern to follow
-- [Source: src/graphrag/sync/db-sync.ts:268](../../src/graphrag/sync/db-sync.ts) - persistWorkflowExecution
-- [Source: src/graphrag/metrics/collector.ts:188](../../src/graphrag/metrics/collector.ts) - workflowRateResult query
-- [Source: src/web/routes/api/user/delete.ts:83](../../src/web/routes/api/user/delete.ts) - workflow anonymization
+- [Source: src/capabilities/capability-store.ts](../../src/capabilities/capability-store.ts) -
+  Pattern to follow
+- [Source: src/graphrag/sync/db-sync.ts:268](../../src/graphrag/sync/db-sync.ts) -
+  persistWorkflowExecution
+- [Source: src/graphrag/metrics/collector.ts:188](../../src/graphrag/metrics/collector.ts) -
+  workflowRateResult query
+- [Source: src/web/routes/api/user/delete.ts:83](../../src/web/routes/api/user/delete.ts) - workflow
+  anonymization
 - [ADR-036: EventBus BroadcastChannel](../adrs/ADR-036-eventbus-broadcast-channel.md)
-- [ADR-041: Hierarchical Trace Tracking](../adrs/ADR-041-hierarchical-trace-tracking.md) - parentTraceId
+- [ADR-041: Hierarchical Trace Tracking](../adrs/ADR-041-hierarchical-trace-tracking.md) -
+  parentTraceId
 
 ### Previous Story Intelligence (11.1)
 
 From Story 11.1 (Result Tracing):
+
 - **Patterns established:** `result?: unknown` in TraceEvent types
 - **Test patterns:** `tests/unit/sandbox/result_tracing_test.ts` - 9 tests with safeSerializeResult
 - **Files modified:** worker-bridge.ts, sandbox-worker.ts, code-generator.ts, events/types.ts
@@ -487,6 +509,7 @@ From Story 11.1 (Result Tracing):
 ### Git Intelligence
 
 Recent commits (2025-12-22):
+
 ```
 f1f924c feat(story-11.0): DB schema cleanup - KV singleton and workflow state cache
 cde94eb feat(story-11.1): result tracing for tools and capabilities
@@ -494,6 +517,7 @@ dbefd58 chore(story-10.6): mark done + simplify unified-search benchmark
 ```
 
 Patterns observed:
+
 - Commit format: `type(scope): message`
 - Migration files: `0XX_descriptive_name.sql`
 - Test files: `*_test.ts` or `*.test.ts`
@@ -503,6 +527,7 @@ Patterns observed:
 **Effort:** 2-3 days
 
 **Breakdown:**
+
 - Task 1 (migration): 2h
 - Task 2 (types): 1h
 - Task 3 (ExecutionTraceStore): 4h
@@ -512,7 +537,8 @@ Patterns observed:
 - Task 7 (unit tests): 3h
 - Task 8 (validation): 1h
 
-**Risk:** Refactoring saveCapability (Task 6) touches multiple files - careful testing required to avoid regressions.
+**Risk:** Refactoring saveCapability (Task 6) touches multiple files - careful testing required to
+avoid regressions.
 
 ## Dev Agent Record
 
@@ -524,23 +550,33 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 - Migration 020 applies successfully in tests
 - 25 unit tests for ExecutionTraceStore all passing
-- Fixed pre-existing test failures in schema_inferrer_test.ts (mcp_server table removed in migration 019)
+- Fixed pre-existing test failures in schema_inferrer_test.ts (mcp_server table removed in
+  migration 019)
 
 ### Completion Notes List
 
-1. **Migration 020 created** - `execution_trace` table with all learning-specific fields (priority, decisions, taskResults, executedPath, parentTraceId)
-2. **TypeScript types defined** - ExecutionTrace, BranchDecision, TraceTaskResult interfaces added to types.ts
-3. **ExecutionTraceStore implemented** - Full CRUD + PER sampling (saveTrace, getTraces, getHighPriorityTraces, updatePriority, sampleByPriority, getChildTraces, anonymizeUserTraces, pruneOldTraces)
-4. **Sanitization utility created** - sanitizeForStorage() redacts sensitive data (api_key, token, password, secret, authorization) and truncates payloads >10KB
+1. **Migration 020 created** - `execution_trace` table with all learning-specific fields (priority,
+   decisions, taskResults, executedPath, parentTraceId)
+2. **TypeScript types defined** - ExecutionTrace, BranchDecision, TraceTaskResult interfaces added
+   to types.ts
+3. **ExecutionTraceStore implemented** - Full CRUD + PER sampling (saveTrace, getTraces,
+   getHighPriorityTraces, updatePriority, sampleByPriority, getChildTraces, anonymizeUserTraces,
+   pruneOldTraces)
+4. **Sanitization utility created** - sanitizeForStorage() redacts sensitive data (api_key, token,
+   password, secret, authorization) and truncates payloads >10KB
 5. **Dependent files updated** - db-sync.ts, collector.ts, delete.ts now use execution_trace table
-6. **saveCapability refactored** - Returns `{ capability: Capability; trace?: ExecutionTrace }`, optionally saves trace via traceData field
-7. **25 unit tests written** - Full coverage of AC7 (FK validation), AC8 (SELECT by capability_id), AC11 (sanitization)
+6. **saveCapability refactored** - Returns `{ capability: Capability; trace?: ExecutionTrace }`,
+   optionally saves trace via traceData field
+7. **25 unit tests written** - Full coverage of AC7 (FK validation), AC8 (SELECT by capability_id),
+   AC11 (sanitization)
 8. **Fixed pre-existing test** - schema_inferrer_test.ts now works without mcp_server table
-9. **decisions[] inference implemented** - `StaticStructureBuilder.inferDecisions()` matches executedPath vs static structure conditional edges to infer branch decisions (8 tests added)
+9. **decisions[] inference implemented** - `StaticStructureBuilder.inferDecisions()` matches
+   executedPath vs static structure conditional edges to infer branch decisions (8 tests added)
 
 ### File List
 
 **Created:**
+
 - `src/db/migrations/020_execution_trace.ts` - Migration for execution_trace table
 - `src/capabilities/execution-trace-store.ts` - ExecutionTraceStore class
 - `src/utils/sanitize-for-storage.ts` - Sanitization utility
@@ -548,20 +584,26 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - `tests/unit/capabilities/execution_trace_store_test.ts` - 25 unit tests
 
 **Modified:**
+
 - `src/db/migrations.ts` - Register migration 020
-- `src/capabilities/types.ts` - Added ExecutionTrace, BranchDecision, TraceTaskResult, SaveTraceInput, traceData field, DEFAULT_TRACE_PRIORITY constant
+- `src/capabilities/types.ts` - Added ExecutionTrace, BranchDecision, TraceTaskResult,
+  SaveTraceInput, traceData field, DEFAULT_TRACE_PRIORITY constant
 - `src/capabilities/mod.ts` - Export ExecutionTraceStore, DEFAULT_TRACE_PRIORITY
-- `src/capabilities/capability-store.ts` - New return type { capability, trace }, optional trace saving, uses DEFAULT_TRACE_PRIORITY
+- `src/capabilities/capability-store.ts` - New return type { capability, trace }, optional trace
+  saving, uses DEFAULT_TRACE_PRIORITY
 - `src/capabilities/execution-trace-store.ts` - Uses DEFAULT_TRACE_PRIORITY from types.ts
 - `src/events/types.ts` - Added execution trace event types
-- `src/graphrag/sync/db-sync.ts` - Updated persistWorkflowExecution to use execution_trace, sanitizeForStorage, DEFAULT_TRACE_PRIORITY
+- `src/graphrag/sync/db-sync.ts` - Updated persistWorkflowExecution to use execution_trace,
+  sanitizeForStorage, DEFAULT_TRACE_PRIORITY
 - `src/graphrag/metrics/collector.ts` - Updated queries for execution_trace
 - `src/web/routes/api/user/delete.ts` - Added execution_trace anonymization
 - `src/sandbox/executor.ts` - Added traceData to saveCapability call (AC12)
 - `src/sandbox/worker-bridge.ts` - Added traceData with taskResults from traces (AC12)
 - `tests/unit/capabilities/capability_store_test.ts` - Updated for new saveCapability return type
-- `tests/unit/capabilities/capability_dependency_test.ts` - Updated for new saveCapability return type
+- `tests/unit/capabilities/capability_dependency_test.ts` - Updated for new saveCapability return
+  type
 - `tests/unit/capabilities/permission_inferrer_test.ts` - Updated for new saveCapability return type
-- `tests/unit/capabilities/schema_inferrer_test.ts` - Updated for new saveCapability return type + fixed mcp_server test
-- `tests/unit/capabilities/static_structure_builder_test.ts` - Updated for new saveCapability return type
-
+- `tests/unit/capabilities/schema_inferrer_test.ts` - Updated for new saveCapability return type +
+  fixed mcp_server test
+- `tests/unit/capabilities/static_structure_builder_test.ts` - Updated for new saveCapability return
+  type

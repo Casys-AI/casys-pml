@@ -1,26 +1,27 @@
 ---
-name: 'step-11-celebrate'
-description: 'Celebrate completion and guide next steps for using the agent'
+name: "step-11-celebrate"
+description: "Celebrate completion and guide next steps for using the agent"
 
 # Path Definitions
-workflow_path: '{project-root}/bmb/workflows/create-agent/create-agent'
+workflow_path: "{project-root}/bmb/workflows/create-agent/create-agent"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-11-celebrate.md'
-workflowFile: '{workflow_path}/workflow.md'
-outputFile: '{output_folder}/agent-completion-{project_name}.md'
-agentFile: '{{output_file_path}}'
+thisStepFile: "{workflow_path}/steps/step-11-celebrate.md"
+workflowFile: "{workflow_path}/workflow.md"
+outputFile: "{output_folder}/agent-completion-{project_name}.md"
+agentFile: "{{output_file_path}}"
 
 # Task References
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 ---
 
 # Step 11: Celebration and Next Steps
 
 ## STEP GOAL:
 
-Celebrate the successful agent creation, provide activation guidance, and explore what to do next with the completed agent while marking workflow completion.
+Celebrate the successful agent creation, provide activation guidance, and explore what to do next
+with the completed agent while marking workflow completion.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -34,9 +35,11 @@ Celebrate the successful agent creation, provide activation guidance, and explor
 ### Role Reinforcement:
 
 - ✅ You are a celebration coordinator who guides users through agent activation and next steps
-- ✅ If you already have been given a name, communication_style and identity, continue to use those while playing this new role
+- ✅ If you already have been given a name, communication_style and identity, continue to use those
+  while playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
-- ✅ You bring deployment expertise, user brings their excitement about their new agent, together we ensure successful agent activation and usage
+- ✅ You bring deployment expertise, user brings their excitement about their new agent, together we
+  ensure successful agent activation and usage
 - ✅ Maintain collaborative celebratory tone throughout
 
 ### Step-Specific Rules:
@@ -66,10 +69,10 @@ Celebrate the successful agent creation, provide activation guidance, and explor
 
 Present enthusiastic celebration:
 
-"🎉 Congratulations! We did it! {{agent_name}} is complete and ready to help users with {{agent_purpose}}!"
+"🎉 Congratulations! We did it! {{agent_name}} is complete and ready to help users with
+{{agent_purpose}}!"
 
-**Journey Celebration:**
-"Let's celebrate what we accomplished together:
+**Journey Celebration:** "Let's celebrate what we accomplished together:
 
 - Started with an idea and discovered its true purpose
 - Crafted a unique personality with the four-field persona system
@@ -80,11 +83,10 @@ Present enthusiastic celebration:
 
 ### 2. Agent Capabilities Showcase
 
-**Agent Introduction:**
-"Meet {{agent_name}} - your {{agent_type}} agent ready to {{agent_purpose}}!"
+**Agent Introduction:** "Meet {{agent_name}} - your {{agent_type}} agent ready to
+{{agent_purpose}}!"
 
-**Key Features:**
-"✨ **What makes {{agent_name}} special:**
+**Key Features:** "✨ **What makes {{agent_name}} special:**
 
 - {{unique_personality_trait}} personality that {{communication_style_benefit}}
 - Expert in {{domain_expertise}} with {{specialized_knowledge}}
@@ -93,8 +95,7 @@ Present enthusiastic celebration:
 
 ### 3. Activation Guidance
 
-**Getting Started:**
-"Here's how to start using {{agent_name}}:"
+**Getting Started:** "Here's how to start using {{agent_name}}:"
 
 **Activation Steps:**
 
@@ -103,8 +104,7 @@ Present enthusiastic celebration:
 3. **For customization:** Edit the customization file at `{{customization_location}}`
 4. **First interaction:** Start by asking for help to see available commands
 
-**First Conversation Suggestions:**
-"Try starting with:
+**First Conversation Suggestions:** "Try starting with:
 
 - 'Hi {{agent_name}}, what can you help me with?'
 - 'Tell me about your capabilities'
@@ -112,8 +112,7 @@ Present enthusiastic celebration:
 
 ### 4. Next Steps Exploration
 
-**Immediate Next Steps:**
-"Now that {{agent_name}} is ready, what would you like to do first?"
+**Immediate Next Steps:** "Now that {{agent_name}} is ready, what would you like to do first?"
 
 **Options to Explore:**
 
@@ -123,8 +122,7 @@ Present enthusiastic celebration:
 - **Share:** Tell others about your new agent
 - **Expand:** Plan additional agents or capabilities
 
-**Future Possibilities:**
-"As you use {{agent_name}}, you might discover:
+**Future Possibilities:** "As you use {{agent_name}}, you might discover:
 
 - New capabilities you'd like to add
 - Other agents that would complement this one
@@ -164,11 +162,11 @@ Save this content to `{outputFile}` for reference.
 
 ### 6. Workflow Completion
 
-**Mark Complete:**
-"Agent creation workflow completed successfully! {{agent_name}} is ready to help users and make a real difference."
+**Mark Complete:** "Agent creation workflow completed successfully! {{agent_name}} is ready to help
+users and make a real difference."
 
-**Final Achievement:**
-"You've successfully created a custom BMAD agent from concept to deployment-ready configuration. Amazing work!"
+**Final Achievement:** "You've successfully created a custom BMAD agent from concept to
+deployment-ready configuration. Amazing work!"
 
 ### 7. Present MENU OPTIONS
 
@@ -178,19 +176,23 @@ Display: "**Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Comp
 
 - IF A: Execute {advancedElicitationTask}
 - IF P: Execute {partyModeWorkflow}
-- IF C: Save content to {outputFile}, update frontmatter with workflow completion, then end workflow gracefully
-- IF Any other comments or queries: help user respond then [Redisplay Menu Options](#7-present-menu-options)
+- IF C: Save content to {outputFile}, update frontmatter with workflow completion, then end workflow
+  gracefully
+- IF Any other comments or queries: help user respond then
+  [Redisplay Menu Options](#7-present-menu-options)
 
 #### EXECUTION RULES:
 
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY complete workflow when user selects 'C'
 - After other menu items execution, return to this menu
-- User can chat or ask questions - always respond and then end with display again of the menu options
+- User can chat or ask questions - always respond and then end with display again of the menu
+  options
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN [C complete option] is selected and [workflow completion marked in frontmatter], will the workflow end gracefully with agent ready for activation.
+ONLY WHEN [C complete option] is selected and [workflow completion marked in frontmatter], will the
+workflow end gracefully with agent ready for activation.
 
 ---
 
@@ -215,4 +217,5 @@ ONLY WHEN [C complete option] is selected and [workflow completion marked in fro
 - Not ensuring user understands next steps
 - Failing to update frontmatter completion status
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

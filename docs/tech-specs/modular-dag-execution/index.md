@@ -1,9 +1,7 @@
 # Tech-Spec: Modular DAG Code Execution
 
-**Created:** 2025-12-26
-**Updated:** 2025-12-27
-**Status:** Ready for Development
-**Author:** Erwan / Claude
+**Created:** 2025-12-26 **Updated:** 2025-12-27 **Status:** Ready for Development **Author:** Erwan
+/ Claude
 
 ---
 
@@ -13,35 +11,40 @@
 
 The current PML system executes agent code as a monolithic sandbox block, which limits:
 
-1. **SHGAT Learning** - Cannot observe granular operations (filter, map, reduce) for pattern learning
+1. **SHGAT Learning** - Cannot observe granular operations (filter, map, reduce) for pattern
+   learning
 2. **HIL Validation** - Either too many or too few validation checkpoints
 3. **Checkpointing** - Cannot resume execution mid-workflow
 4. **Parallelism** - Missed opportunities for parallel execution of independent operations
 
 ### Solution
 
-**Phase 1 (MVP):** Detect JS operations and represent them as `code:*` pseudo-tools in the DAG. Execute code as-is, trace only the operation names for SHGAT.
+**Phase 1 (MVP):** Detect JS operations and represent them as `code:*` pseudo-tools in the DAG.
+Execute code as-is, trace only the operation names for SHGAT.
 
 **Phase 2+ (Future):** Implement DAG fusion for performance optimization.
 
-| Phase | What | Complexity |
-|-------|------|------------|
-| **Phase 1** | Detection + Tracing | Simple |
-| **Phase 2+** | DAG Fusion | Complex (deferred) |
+| Phase        | What                | Complexity         |
+| ------------ | ------------------- | ------------------ |
+| **Phase 1**  | Detection + Tracing | Simple             |
+| **Phase 2+** | DAG Fusion          | Complex (deferred) |
 
 ### Scope
 
 **In Scope (Phase 1):**
+
 - Detect JS operations via SWC parsing (filter, map, reduce, etc.)
 - Create pseudo-tools with `code:` prefix convention
 - Auto-classify pure operations to bypass HIL
 - Generate operation traces for SHGAT learning
 
 **Deferred to Phase 2+:**
+
 - DAG optimizer for task fusion
 - Two-level DAG architecture (logical vs physical)
 
 **Out of Scope:**
+
 - Loop unrolling (while, for with dynamic conditions)
 - eval/Function code generation
 - External module imports in code tasks
@@ -60,7 +63,7 @@ The current PML system executes agent code as a monolithic sandbox block, which 
 
 ```typescript
 // SHGAT learns:
-executedPath = ["code:filter", "code:map", "code:reduce"]
+executedPath = ["code:filter", "code:map", "code:reduce"];
 
 // SHGAT does NOT learn:
 // - Variable names (threshold vs limit)
@@ -90,11 +93,11 @@ const code = originalCode.substring(span.start, span.end);
 
 **Decision:** Phase 1 executes each operation as separate task. Measure overhead first.
 
-| Without Fusion | With Fusion |
-|----------------|-------------|
-| More layers, more checkpoints | Fewer layers |
-| Better debugging | Less granular |
-| SHGAT traces identical | SHGAT traces identical |
+| Without Fusion                | With Fusion            |
+| ----------------------------- | ---------------------- |
+| More layers, more checkpoints | Fewer layers           |
+| Better debugging              | Less granular          |
+| SHGAT traces identical        | SHGAT traces identical |
 
 **Impact:** No `dag-optimizer.ts` needed Phase 1. Simpler implementation.
 
@@ -123,23 +126,28 @@ const code = originalCode.substring(span.start, span.end);
 
 ### Codebase Patterns
 
-| File | Purpose | Phase 1 Changes |
-|------|---------|-----------------|
-| `src/capabilities/static-structure-builder.ts` | SWC AST parsing | Add array operation detection |
-| `src/dag/static-to-dag-converter.ts` | Convert AST to DAG | Generate `code:*` tasks |
-| `src/dag/execution/task-router.ts` | Route tasks to executors | Extend `isSafeToFail()` |
-| `src/dag/pure-operations.ts` | **NEW** | Pure operation registry |
+| File                                           | Purpose                  | Phase 1 Changes               |
+| ---------------------------------------------- | ------------------------ | ----------------------------- |
+| `src/capabilities/static-structure-builder.ts` | SWC AST parsing          | Add array operation detection |
+| `src/dag/static-to-dag-converter.ts`           | Convert AST to DAG       | Generate `code:*` tasks       |
+| `src/dag/execution/task-router.ts`             | Route tasks to executors | Extend `isSafeToFail()`       |
+| `src/dag/pure-operations.ts`                   | **NEW**                  | Pure operation registry       |
 
 ### Files to Reference
 
 **Design Documents (this folder):**
+
 - [impact-analysis.md](./impact-analysis.md) - Detailed code impact analysis
-- [swc-static-structure-detection.md](./swc-static-structure-detection.md) - Current SWC detection patterns
+- [swc-static-structure-detection.md](./swc-static-structure-detection.md) - Current SWC detection
+  patterns
 - [parseable-code-patterns.md](./parseable-code-patterns.md) - All detectable JS patterns
-- [modular-operations-implementation.md](./modular-operations-implementation.md) - Pseudo-tools implementation
+- [modular-operations-implementation.md](./modular-operations-implementation.md) - Pseudo-tools
+  implementation
 - [pure-operations-permissions.md](./pure-operations-permissions.md) - HIL bypass for pure ops
-- [two-level-dag-architecture.md](./two-level-dag-architecture.md) - Logical vs Physical DAG + UI Fusion Display (Phase 2a)
-- [operation-embeddings.md](./operation-embeddings.md) - Operation embeddings for SHGAT learning (Phase 2a)
+- [two-level-dag-architecture.md](./two-level-dag-architecture.md) - Logical vs Physical DAG + UI
+  Fusion Display (Phase 2a)
+- [operation-embeddings.md](./operation-embeddings.md) - Operation embeddings for SHGAT learning
+  (Phase 2a)
 - [shgat-learning-and-dag-edges.md](./shgat-learning-and-dag-edges.md) - Learning impact
 - [modular-code-execution.md](./modular-code-execution.md) - Examples
 
@@ -157,8 +165,18 @@ Extend `StaticStructureBuilder.handleCallExpression()`:
 
 ```typescript
 // Detect array methods
-const TRACKED_METHODS = ["filter", "map", "reduce", "flatMap", "find",
-                         "findIndex", "some", "every", "sort", "slice"];
+const TRACKED_METHODS = [
+  "filter",
+  "map",
+  "reduce",
+  "flatMap",
+  "find",
+  "findIndex",
+  "some",
+  "every",
+  "sort",
+  "slice",
+];
 
 if (callee.type === "MemberExpression") {
   const methodName = callee.property?.value;
@@ -168,7 +186,7 @@ if (callee.type === "MemberExpression") {
       id: this.generateNodeId("task"),
       type: "task",
       tool: `code:${methodName}`,
-      code,  // ← Original code via span
+      code, // ← Original code via span
       position,
       parentScope,
     });
@@ -183,16 +201,31 @@ Create `src/dag/pure-operations.ts`:
 ```typescript
 export const PURE_OPERATIONS = [
   // Array
-  "code:filter", "code:map", "code:reduce", "code:flatMap",
-  "code:find", "code:findIndex", "code:some", "code:every",
-  "code:sort", "code:slice", "code:concat", "code:join",
+  "code:filter",
+  "code:map",
+  "code:reduce",
+  "code:flatMap",
+  "code:find",
+  "code:findIndex",
+  "code:some",
+  "code:every",
+  "code:sort",
+  "code:slice",
+  "code:concat",
+  "code:join",
   // String
-  "code:split", "code:replace", "code:trim",
-  "code:toLowerCase", "code:toUpperCase",
+  "code:split",
+  "code:replace",
+  "code:trim",
+  "code:toLowerCase",
+  "code:toUpperCase",
   // Object
-  "code:Object.keys", "code:Object.values", "code:Object.entries",
+  "code:Object.keys",
+  "code:Object.values",
+  "code:Object.entries",
   // JSON
-  "code:JSON.parse", "code:JSON.stringify",
+  "code:JSON.parse",
+  "code:JSON.stringify",
 ] as const;
 
 export function isPureOperation(toolId: string): boolean {
@@ -209,7 +242,7 @@ export function isCodeOperation(toolId: string): boolean {
 In `src/dag/execution/task-router.ts`:
 
 ```typescript
-import { isPureOperation, isCodeOperation } from "../pure-operations.ts";
+import { isCodeOperation, isPureOperation } from "../pure-operations.ts";
 
 export function isSafeToFail(task: Task): boolean {
   // Existing: code_execution with minimal permissions
@@ -255,7 +288,7 @@ case "task":
 Deno.test("detects filter operation", async () => {
   const builder = new StaticStructureBuilder(db);
   const structure = await builder.buildStaticStructure(
-    `users.filter(u => u.active)`
+    `users.filter(u => u.active)`,
   );
   assertEquals(structure.nodes[0].tool, "code:filter");
 });
@@ -290,16 +323,21 @@ Deno.test("isSafeToFail returns true for pure operations", () => {
 - [x] Update code-execution-handler.ts to use optimizer
 
 **Files Created:**
+
 - `src/dag/dag-optimizer.ts` - Sequential fusion implementation
 - `src/dag/trace-generator.ts` - Logical trace generation
 - `tests/unit/dag/dag-optimizer.test.ts` - Unit tests
 - `tests/e2e/code-execution/07-dag-optimizer-pure-code.test.ts` - E2E tests
 
 **Files Modified (Integration):**
-- `src/mcp/handlers/execute-handler.ts` - Integrated optimizer for `executeDirectMode` and `executeByNameMode`
-- `src/mcp/handlers/code-execution-handler.ts` - Integrated optimizer for deprecated `pml:execute_code`
+
+- `src/mcp/handlers/execute-handler.ts` - Integrated optimizer for `executeDirectMode` and
+  `executeByNameMode`
+- `src/mcp/handlers/code-execution-handler.ts` - Integrated optimizer for deprecated
+  `pml:execute_code`
 
 **Impact:**
+
 - ✅ Pure code with literals now works (no more `ReferenceError: numbers is not defined`)
 - ✅ Execution layers reduced by ~50% for sequential pure operations
 - ✅ SHGAT receives logical traces with atomic operations for learning
@@ -311,30 +349,32 @@ Deno.test("isSafeToFail returns true for pure operations", () => {
 
 ## Phase 1 Implementation Status
 
-**Status:** ✅ **IMPLEMENTED** (2025-12-26)
-**Commits:** `c348a58`, `edf2d40`, `d878ed8`, `438f01e`, `0fb74b8`, `ae0b4b8`
+**Status:** ✅ **IMPLEMENTED** (2025-12-26) **Commits:** `c348a58`, `edf2d40`, `d878ed8`, `438f01e`,
+`0fb74b8`, `ae0b4b8`
 
 ### What Was Implemented
 
-| Component | Location | Status |
-|-----------|----------|--------|
-| SWC operation detection | `src/capabilities/static-structure-builder.ts` | ✅ Complete |
-| Pure operations registry | `src/capabilities/pure-operations.ts` | ✅ Complete (97 ops) |
-| Pseudo-tools generation | `src/dag/static-to-dag-converter.ts` | ✅ Complete |
-| WorkerBridge routing | `src/sandbox/worker-bridge.ts` | ✅ Complete |
-| Variable bindings | `src/capabilities/static-structure-builder.ts:588-594` | ⚠️ Partial |
-| Deterministic error handling | `src/dag/execution/code-executor.ts:33-45` | ✅ Complete |
+| Component                    | Location                                               | Status               |
+| ---------------------------- | ------------------------------------------------------ | -------------------- |
+| SWC operation detection      | `src/capabilities/static-structure-builder.ts`         | ✅ Complete          |
+| Pure operations registry     | `src/capabilities/pure-operations.ts`                  | ✅ Complete (97 ops) |
+| Pseudo-tools generation      | `src/dag/static-to-dag-converter.ts`                   | ✅ Complete          |
+| WorkerBridge routing         | `src/sandbox/worker-bridge.ts`                         | ✅ Complete          |
+| Variable bindings            | `src/capabilities/static-structure-builder.ts:588-594` | ⚠️ Partial           |
+| Deterministic error handling | `src/dag/execution/code-executor.ts:33-45`             | ✅ Complete          |
 
 ### Implementation Approach
 
 Phase 1 implementation **diverged from original design**:
 
 **Original Design (Decision 1):**
+
 ```
 Execute original code as-is, trace only operation names
 ```
 
 **Actual Implementation:**
+
 ```
 Split code into separate tasks (Phase 2 behavior)
 + Variable bindings to propagate context
@@ -355,41 +395,48 @@ if (variableName && nodeCountAfter > nodeCountBefore) {
 ```
 
 **Works for:** MCP results
+
 ```typescript
 const users = await mcp.db.query(...);  // ✅ Creates task node → tracked
 const active = users.filter(u => u.active);  // ✅ users binding works
 ```
 
 **Fails for:** Literals
+
 ```typescript
-const numbers = [1, 2, 3];  // ❌ No task node → NOT tracked
-const doubled = numbers.map(x => x * 2);  // ❌ ReferenceError: numbers is not defined
+const numbers = [1, 2, 3]; // ❌ No task node → NOT tracked
+const doubled = numbers.map((x) => x * 2); // ❌ ReferenceError: numbers is not defined
 ```
 
-**Root Cause:** Literals don't create task nodes, so `nodeCountAfter === nodeCountBefore` → no binding created.
+**Root Cause:** Literals don't create task nodes, so `nodeCountAfter === nodeCountBefore` → no
+binding created.
 
 ### Why Phase 2 DAG Optimizer Solves This
 
-The DAG Optimizer (see `two-level-dag-architecture.md`) **fuses code blocks**, eliminating the variable binding problem:
+The DAG Optimizer (see `two-level-dag-architecture.md`) **fuses code blocks**, eliminating the
+variable binding problem:
 
 **DAG Logique (detects operations):**
+
 ```typescript
-task_lit1: "const numbers = [1, 2, 3]"
-task_c1: "code:map"
+task_lit1: "const numbers = [1, 2, 3]";
+task_c1: "code:map";
 ```
 
 **DAG Physique (after fusion):**
+
 ```typescript
 task_fused_1: {
   code: `
     const numbers = [1, 2, 3];           // ← Literal included in fused code
     const doubled = numbers.map(x => x * 2);  // ← numbers exists!
     return doubled;
-  `
+  `;
 }
 ```
 
 **Result:**
+
 - ✅ SHGAT sees atomic operations in `executedPath: ["code:literal", "code:map"]`
 - ✅ Execution works (no variable scope issues)
 - ✅ Performance optimized (fewer layers)
@@ -399,12 +446,14 @@ task_fused_1: {
 **variableBindings doesn't become obsolete** - it changes role:
 
 **Before Fusion (current):**
+
 ```typescript
 // Inject variables directly into execution context
 executionContext[varName] = previousResults.get(taskId).output;
 ```
 
 **After Fusion:**
+
 ```typescript
 // Used by DAG Optimizer to generate fused code
 const code = `
@@ -419,6 +468,7 @@ const code = `
 **Recommendation:** Implement Phase 2 DAG Optimizer rather than extend variable tracking.
 
 **Rationale:**
+
 1. ✅ Solves variable binding limitation for literals
 2. ✅ Enables SHGAT atomic operation learning
 3. ✅ Performance optimization (fusion)
@@ -432,26 +482,26 @@ const code = `
 
 ### Phase 1
 
-| AC | Description | Test |
-|----|-------------|------|
-| **AC 1.1** | `users.filter(u => u.active).map(u => u.name)` → DAG with `code:filter`, `code:map` | Unit |
-| **AC 1.2** | `code:filter` task executes and returns filtered array | Integration |
-| **AC 1.3** | `executedPath` contains `["code:filter", "code:map"]` | Integration |
-| **AC 1.4** | `isSafeToFail(code:filter)` returns `true` | Unit |
-| **AC 1.5** | Layer with only pure ops skips HIL validation | Integration |
+| AC         | Description                                                                         | Test        |
+| ---------- | ----------------------------------------------------------------------------------- | ----------- |
+| **AC 1.1** | `users.filter(u => u.active).map(u => u.name)` → DAG with `code:filter`, `code:map` | Unit        |
+| **AC 1.2** | `code:filter` task executes and returns filtered array                              | Integration |
+| **AC 1.3** | `executedPath` contains `["code:filter", "code:map"]`                               | Integration |
+| **AC 1.4** | `isSafeToFail(code:filter)` returns `true`                                          | Unit        |
+| **AC 1.5** | Layer with only pure ops skips HIL validation                                       | Integration |
 
 ---
 
 ## Estimation
 
-| Task | Complexity | Time |
-|------|------------|------|
-| Task 1.1: Detection | Medium | 1 day |
-| Task 1.2: Pure ops registry | Simple | 2 hours |
-| Task 1.3: isSafeToFail | Simple | 1 hour |
-| Task 1.4: DAG converter | Simple | 2 hours |
-| Task 1.5: Tests | Medium | 1 day |
-| **Total Phase 1** | | **2-3 days** |
+| Task                        | Complexity | Time         |
+| --------------------------- | ---------- | ------------ |
+| Task 1.1: Detection         | Medium     | 1 day        |
+| Task 1.2: Pure ops registry | Simple     | 2 hours      |
+| Task 1.3: isSafeToFail      | Simple     | 1 hour       |
+| Task 1.4: DAG converter     | Simple     | 2 hours      |
+| Task 1.5: Tests             | Medium     | 1 day        |
+| **Total Phase 1**           |            | **2-3 days** |
 
 ---
 

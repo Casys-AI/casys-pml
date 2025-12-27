@@ -1,18 +1,18 @@
 # ADR-005: Graphology for GraphRAG (True Graph Algorithms)
 
-**Status:** accepted
-**Date:** 2025-11-03
-**Implementation:** done
+**Status:** accepted **Date:** 2025-11-03 **Implementation:** done
 
 ## Decision
 
-Use Graphology library for graph algorithms instead of pseudo-GraphRAG with recursive CTEs in PostgreSQL.
+Use Graphology library for graph algorithms instead of pseudo-GraphRAG with recursive CTEs in
+PostgreSQL.
 
 ## Context
 
 User insight: "et networkx ou un truc comme ca?" (what about networkx or something like that?)
 
 The system needs graph algorithms for:
+
 - PageRank (tool importance)
 - Community detection (tool clustering)
 - Shortest path (dependency chains)
@@ -30,6 +30,7 @@ The system needs graph algorithms for:
 ## Consequences
 
 ### Positive
+
 - Enables true GraphRAG capabilities for workflow suggestion
 - Simplifies database schema dramatically
 - Fast graph operations (<100ms PageRank, <1ms shortest path)
@@ -37,17 +38,18 @@ The system needs graph algorithms for:
 - Small dependency footprint (~100KB)
 
 ### Negative
+
 - Graph must be loaded into memory
 - Sync required between DB and in-memory graph
 
 ## Alternatives Considered
 
-| Alternative | Reason Rejected |
-|-------------|-----------------|
-| Recursive CTEs + pseudo-PageRank | 90% more complex SQL, 3-5x slower |
-| NetworkX (Python) | Language barrier, would need Python runtime |
-| Neo4j | Breaks portability requirement |
-| No graph library | Would need to implement algorithms ourselves |
+| Alternative                      | Reason Rejected                              |
+| -------------------------------- | -------------------------------------------- |
+| Recursive CTEs + pseudo-PageRank | 90% more complex SQL, 3-5x slower            |
+| NetworkX (Python)                | Language barrier, would need Python runtime  |
+| Neo4j                            | Breaks portability requirement               |
+| No graph library                 | Would need to implement algorithms ourselves |
 
 ## Implementation
 

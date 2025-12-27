@@ -6,7 +6,8 @@
 
 ## Overview
 
-The **Scale Adaptive System** intelligently routes projects to the right planning methodology based on complexity, not arbitrary story counts.
+The **Scale Adaptive System** intelligently routes projects to the right planning methodology based
+on complexity, not arbitrary story counts.
 
 ### The Problem
 
@@ -173,7 +174,8 @@ PRD → (Optional UX) → Architecture → Create Epics and Stories → Implemen
 
 ![BMad Method Workflow - Standard Greenfield](./images/workflow-method-greenfield.svg)
 
-_Detailed flowchart showing all phases, workflows, agents (color-coded), and decision points for the BMad Method track. Each colored box represents a different agent role._
+_Detailed flowchart showing all phases, workflows, agents (color-coded), and decision points for the
+BMad Method track. Each colored box represents a different agent role._
 
 **Use For**:
 
@@ -201,7 +203,9 @@ _Detailed flowchart showing all phases, workflows, agents (color-coded), and dec
 
 **Why Architecture for Brownfield?**
 
-Your brownfield documentation might be huge. Architecture workflow distills massive codebase context into a focused solution design specific to YOUR project. This keeps AI agents focused without getting lost in existing code.
+Your brownfield documentation might be huge. Architecture workflow distills massive codebase context
+into a focused solution design specific to YOUR project. This keeps AI agents focused without
+getting lost in existing code.
 
 **Benefits**:
 
@@ -312,7 +316,8 @@ Implementation Readiness Check → Implement
 - Performance considerations
 - Deployment architecture
 
-**For Brownfield**: Acts as focused "solution design" that distills existing codebase into integration plan
+**For Brownfield**: Acts as focused "solution design" that distills existing codebase into
+integration plan
 
 ---
 
@@ -509,7 +514,8 @@ flowchart TD
 
 **Time**: 1-2 weeks
 
-**Why Method not Quick Flow?**: Integration with existing catalog system benefits from architecture planning to ensure consistency.
+**Why Method not Quick Flow?**: Integration with existing catalog system benefits from architecture
+planning to ensure consistency.
 
 ---
 
@@ -542,11 +548,13 @@ flowchart TD
 
 ### 1. Document-Project First for Brownfield
 
-Always run `document-project` before starting brownfield planning. AI agents need existing codebase context.
+Always run `document-project` before starting brownfield planning. AI agents need existing codebase
+context.
 
 ### 2. Trust the Recommendation
 
-If `workflow-init` suggests BMad Method, there's probably complexity you haven't considered. Review carefully before overriding.
+If `workflow-init` suggests BMad Method, there's probably complexity you haven't considered. Review
+carefully before overriding.
 
 ### 3. Start Smaller if Uncertain
 
@@ -554,19 +562,23 @@ Uncertain between Quick Flow and Method? Start with Quick Flow. You can create P
 
 ### 4. Don't Skip Implementation Readiness Check
 
-For BMad Method and Enterprise, implementation readiness checks prevent costly mistakes. Invest the time.
+For BMad Method and Enterprise, implementation readiness checks prevent costly mistakes. Invest the
+time.
 
 ### 5. Architecture is Optional but Recommended for Brownfield
 
-Brownfield BMad Method makes architecture optional, but it's highly recommended. It distills complex codebase into focused solution design.
+Brownfield BMad Method makes architecture optional, but it's highly recommended. It distills complex
+codebase into focused solution design.
 
 ### 6. Discovery Phase Based on Need
 
-Brainstorming and research are offered regardless of track. Use them when you need to think through the problem space.
+Brainstorming and research are offered regardless of track. Use them when you need to think through
+the problem space.
 
 ### 7. Product Brief for Greenfield Method
 
-Product Brief is only offered for greenfield BMad Method and Enterprise. It's optional but helps with strategic thinking.
+Product Brief is only offered for greenfield BMad Method and Enterprise. It's optional but helps
+with strategic thinking.
 
 ---
 
@@ -600,7 +612,8 @@ If you have existing projects using the old level system:
 - **Level 2-3** → BMad Method
 - **Level 4** → Enterprise Method
 
-Run `workflow-init` on existing projects to migrate to new tracking system. It detects existing planning artifacts and creates appropriate workflow tracking.
+Run `workflow-init` on existing projects to migrate to new tracking system. It detects existing
+planning artifacts and creates appropriate workflow tracking.
 
 ---
 

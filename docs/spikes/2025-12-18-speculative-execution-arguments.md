@@ -1,16 +1,16 @@
 # Spike: Speculative Execution with Arguments
 
-**Date**: 2025-12-18
-**Status**: Complete
-**Related Stories**: 10.2, 10.3, 3.5-1, 3.5-2
+**Date**: 2025-12-18 **Status**: Complete **Related Stories**: 10.2, 10.3, 3.5-1, 3.5-2
 
 ## Context
 
-During review of speculative execution mode, we discovered that arguments weren't being considered. This spike documents our findings and the path forward.
+During review of speculative execution mode, we discovered that arguments weren't being considered.
+This spike documents our findings and the path forward.
 
 ## Unified Model: Capabilities, Workflows, and Speculation
 
-**Key insight**: Workflows ARE capabilities. A capability can contain other capabilities (nested). The execution model is unified:
+**Key insight**: Workflows ARE capabilities. A capability can contain other capabilities (nested).
+The execution model is unified:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -34,13 +34,14 @@ During review of speculative execution mode, we discovered that arguments weren'
 └─────────────────────────────────────────────────────────────┘
 ```
 
-| Mode | What Happens | Speculative? |
-|------|--------------|--------------|
-| Standard (high confidence) | Execute full DAG | ✅ Implicit |
-| per_layer | Pause between layers | ✅ **If next layer is safe** |
-| **Post-workflow prefetch** | Preload next caps | ✅ Explicit |
+| Mode                       | What Happens         | Speculative?                 |
+| -------------------------- | -------------------- | ---------------------------- |
+| Standard (high confidence) | Execute full DAG     | ✅ Implicit                  |
+| per_layer                  | Pause between layers | ✅ **If next layer is safe** |
+| **Post-workflow prefetch** | Preload next caps    | ✅ Explicit                  |
 
 **Important**: per_layer and speculation are **orthogonal**:
+
 - per_layer = WHEN to pause (checkpoints)
 - speculation = CAN we pre-execute (security-based)
 
@@ -58,14 +59,15 @@ Agent: "continue"
 Layer 2: parse_json → Cache HIT if speculated!
 ```
 
-| Next tool | Can speculate during pause? |
-|-----------|---------------------------|
-| `read_file`, `search` | ✅ Yes (read-only) |
-| `parse_json`, `format` | ✅ Yes (pure transform) |
-| `github:push` | ❌ No (side effects) |
-| `write_file` | ❌ No (modifies FS) |
+| Next tool              | Can speculate during pause? |
+| ---------------------- | --------------------------- |
+| `read_file`, `search`  | ✅ Yes (read-only)          |
+| `parse_json`, `format` | ✅ Yes (pure transform)     |
+| `github:push`          | ❌ No (side effects)        |
+| `write_file`           | ❌ No (modifies FS)         |
 
-**Conclusion**: Speculation can happen in ALL modes. The only constraint is security (`canSpeculate()`). Post-workflow prefetch extends this to AFTER workflow completion.
+**Conclusion**: Speculation can happen in ALL modes. The only constraint is security
+(`canSpeculate()`). Post-workflow prefetch extends this to AFTER workflow completion.
 
 ## Key Clarification: Speculation vs Capability Creation
 
@@ -97,6 +99,7 @@ Layer 2: parse_json → Cache HIT if speculated!
 ```
 
 **Why this matters**:
+
 - We do NOT need a separate "pattern detection → capability promotion" mechanism
 - The workflow itself IS the capability (created after successful execution)
 - Speculation optimizes execution speed, not capability discovery
@@ -105,6 +108,7 @@ Layer 2: parse_json → Cache HIT if speculated!
 ## Current State
 
 ### What Works
+
 - `predictNextNodes()` predicts next tools based on:
   - Community membership (graph)
   - Co-occurrence (historical patterns)
@@ -113,8 +117,10 @@ Layer 2: parse_json → Cache HIT if speculated!
 - Results are cached for instant retrieval on cache hit
 
 ### What's Missing
+
 - **Arguments are not populated** in `PredictedNode`
-- **`generateSpeculationCode()` is a placeholder** - returns preparation metadata, not real execution
+- **`generateSpeculationCode()` is a placeholder** - returns preparation metadata, not real
+  execution
 - **`CompletedTask` has no `result` field** - can't chain outputs to inputs
 
 ## Key Findings
@@ -127,8 +133,8 @@ interface PredictedNode {
   confidence: number;
   reasoning: string;
   source: "community" | "co-occurrence" | "capability" | "hint" | "learned";
-  capabilityId?: string;      // Set when source === "capability"
-  arguments?: Record<string, unknown>;  // Added, but never populated
+  capabilityId?: string; // Set when source === "capability"
+  arguments?: Record<string, unknown>; // Added, but never populated
 }
 ```
 
@@ -160,7 +166,7 @@ interface WorkflowPredictionState {
   workflowId: string;
   currentLayer: number;
   completedTasks: CompletedTask[];
-  context?: Record<string, unknown>;  // Could hold task results
+  context?: Record<string, unknown>; // Could hold task results
 }
 ```
 
@@ -179,6 +185,7 @@ interface CompletedTask {
 ### 4. Capability Predictions
 
 When `source === "capability"`:
+
 - We have `capabilityId` to load the capability
 - Capability has `dag_structure.static_structure` (Story 10.1)
 - With Story 10.2: nodes will have `.arguments`
@@ -220,6 +227,7 @@ When `source === "capability"`:
 ### Q1: How to populate context with task results?
 
 Options:
+
 - A) Extend `CompletedTask` with `result?: unknown`
 - B) Use `WorkflowPredictionState.context` (already exists)
 - C) Separate result store keyed by taskId
@@ -229,10 +237,12 @@ Options:
 ### Q2: What if a reference points to a task not yet executed?
 
 Scenarios:
+
 - Speculation for node N+2 when only N is done (N+1 not yet executed)
 - Reference to parallel branch not yet complete
 
 **Options**:
+
 - Skip speculation if any reference unresolved
 - Speculate only for nodes with all refs resolvable
 - Use placeholder/mock values (risky)
@@ -242,11 +252,13 @@ Scenarios:
 ### Q3: How to generate real MCP tool calls?
 
 Current placeholder doesn't actually call tools. Need:
+
 - Tool ID → MCP server + method mapping
 - Arguments → properly formatted call
 - Result capture → for chaining
 
-**Answer**: `createToolExecutor(mcpClients)` already exists in `workflow-execution-handler.ts:112-122`:
+**Answer**: `createToolExecutor(mcpClients)` already exists in
+`workflow-execution-handler.ts:112-122`:
 
 ```typescript
 function createToolExecutor(mcpClients: Map<string, MCPClientBase>) {
@@ -261,21 +273,23 @@ function createToolExecutor(mcpClients: Map<string, MCPClientBase>) {
 ```
 
 For speculation, we need to:
+
 1. Pass `mcpClients` to `SpeculativeExecutor` (or the tool executor function)
 2. Use it in `generateSpeculationCode` to make real calls
 3. Capture results for validation on cache hit
 
 ### Q4: Capability vs Tool prediction differences?
 
-| Aspect | Tool | Capability |
-|--------|------|------------|
+| Aspect           | Tool                       | Capability           |
+| ---------------- | -------------------------- | -------------------- |
 | Arguments source | Need to infer from context | Has static_structure |
-| Execution | Single MCP call | Multi-step code |
-| Result | Direct tool result | Capability output |
+| Execution        | Single MCP call            | Multi-step code      |
+| Result           | Direct tool result         | Capability output    |
 
 ### Q5: How to handle parameter-type arguments?
 
 Parameters come from user intent, not previous tasks. Options:
+
 - Don't speculate if parameters required
 - Extract from original workflow intent (NLP)
 - Only speculate for chains with no parameters
@@ -300,7 +314,8 @@ return `
 `;
 ```
 
-The sandbox (`DenoSandboxExecutor`) has no MCP clients, no network access - it's completely isolated.
+The sandbox (`DenoSandboxExecutor`) has no MCP clients, no network access - it's completely
+isolated.
 
 ### Future Requirement: Permission-Based Speculation Guard
 
@@ -320,25 +335,27 @@ function canSpeculate(toolId: string): boolean {
 }
 ```
 
-| Tool Category | Can Speculate? | Reason |
-|---------------|---------------|--------|
-| `read_file`, `list_dir`, `search` | ✅ Yes | Read-only, no side effects |
-| `github:push`, `create_issue` | ❌ **NO** | Modifies external state |
-| `write_file`, `delete_file` | ❌ **NO** | Modifies filesystem |
-| `http_request` (POST/PUT/DELETE) | ❌ **NO** | External side effects |
-| `http_request` (GET) | ⚠️ Maybe | Read-only but network cost |
-| `code_execution` (elevated) | ❌ **NO** | Security risk |
+| Tool Category                     | Can Speculate? | Reason                     |
+| --------------------------------- | -------------- | -------------------------- |
+| `read_file`, `list_dir`, `search` | ✅ Yes         | Read-only, no side effects |
+| `github:push`, `create_issue`     | ❌ **NO**      | Modifies external state    |
+| `write_file`, `delete_file`       | ❌ **NO**      | Modifies filesystem        |
+| `http_request` (POST/PUT/DELETE)  | ❌ **NO**      | External side effects      |
+| `http_request` (GET)              | ⚠️ Maybe       | Read-only but network cost |
+| `code_execution` (elevated)       | ❌ **NO**      | Security risk              |
 
 **Rule**: If `requiresValidation()` returns true → NO speculation allowed.
 
 ### Standard Execution Mode: Implicit Speculation
 
 In `executeStandardWorkflow()` (no per_layer_validation):
+
 - DAG runs to completion without pauses
 - This IS already "speculative" in the sense that we trust the entire plan
 - No explicit next-node prediction needed - the DAG is the prediction
 
 **Explicit speculation** (predicting and pre-executing) makes sense during:
+
 1. Intent-based suggestions (before DAG exists)
 2. per_layer mode (during checkpoint pauses)
 3. Post-workflow prefetch (after workflow completion)
@@ -346,16 +363,19 @@ In `executeStandardWorkflow()` (no per_layer_validation):
 ## Implementation Path
 
 ### Phase 1: Story 10.2 (Current Sprint)
+
 - Extract arguments from AST
 - Store in `static_structure.nodes[].arguments`
 - Simple, focused scope
 
 ### Phase 2: Argument Resolution (Future)
+
 - Add logic to `predictNextNodes` to resolve arguments
 - Use `context` for task results
 - Populate `PredictedNode.arguments`
 
 ### Phase 3: Real Speculative Execution (Future)
+
 - Replace `generateSpeculationCode` placeholder
 - Generate real MCP calls
 - Handle result capture and validation
@@ -378,12 +398,12 @@ Agent sends new intent
 
 **Why this is cleaner than intra-workflow speculation:**
 
-| Aspect | Intra-workflow | Post-workflow Prefetch |
-|--------|---------------|------------------------|
-| Context | Partial (mid-execution) | Complete (workflow done) |
-| References | May be unresolved | All resolved |
-| Security | Complex (mid-flow) | Cleaner (new session boundary) |
-| Validation | Interrupts flow | Between intents |
+| Aspect     | Intra-workflow          | Post-workflow Prefetch         |
+| ---------- | ----------------------- | ------------------------------ |
+| Context    | Partial (mid-execution) | Complete (workflow done)       |
+| References | May be unresolved       | All resolved                   |
+| Security   | Complex (mid-flow)      | Cleaner (new session boundary) |
+| Validation | Interrupts flow         | Between intents                |
 
 **Implementation sketch:**
 
@@ -401,12 +421,12 @@ async function onWorkflowComplete(
   );
 
   // Filter to safe-to-speculate only
-  const safeToSpeculate = predictions.filter(p => canSpeculate(p.toolId));
+  const safeToSpeculate = predictions.filter((p) => canSpeculate(p.toolId));
 
   // Speculatively execute with full workflow results as context
   await speculativeExecutor.startSpeculations(
     safeToSpeculate,
-    workflowResult.context,  // Rich context from completed workflow
+    workflowResult.context, // Rich context from completed workflow
   );
 }
 ```
@@ -415,11 +435,11 @@ async function onWorkflowComplete(
 
 ## Files to Modify (Future Phases)
 
-| File | Change |
-|------|--------|
-| `src/graphrag/types.ts` | Extend `CompletedTask` with result? |
-| `src/graphrag/dag-suggester.ts` | Add argument resolution in `predictNextNodes` |
-| `src/speculation/speculative-executor.ts` | Replace placeholder in `generateSpeculationCode` |
+| File                                      | Change                                                   |
+| ----------------------------------------- | -------------------------------------------------------- |
+| `src/graphrag/types.ts`                   | Extend `CompletedTask` with result?                      |
+| `src/graphrag/dag-suggester.ts`           | Add argument resolution in `predictNextNodes`            |
+| `src/speculation/speculative-executor.ts` | Replace placeholder in `generateSpeculationCode`         |
 | `src/graphrag/prediction/capabilities.ts` | Use static_structure arguments in `createCapabilityTask` |
 
 ## Execution Modes Analysis: per_layer_validation vs AIL
@@ -469,12 +489,12 @@ There are TWO separate pause mechanisms in the executor, often confused:
 
 ### Key Discovery: They Are Independent!
 
-| Configuration | Checkpoints | Decision Points |
-|---------------|-------------|-----------------|
-| `per_layer_validation: true` only | ✅ Yes | ❌ No |
-| `ail.enabled + per_layer` only | ❌ No | ✅ Yes |
-| Both enabled | ✅ Yes | ✅ Yes |
-| Neither | ❌ No | ❌ No |
+| Configuration                     | Checkpoints | Decision Points |
+| --------------------------------- | ----------- | --------------- |
+| `per_layer_validation: true` only | ✅ Yes      | ❌ No           |
+| `ail.enabled + per_layer` only    | ❌ No       | ✅ Yes          |
+| Both enabled                      | ✅ Yes      | ✅ Yes          |
+| Neither                           | ❌ No       | ❌ No           |
 
 **Important**: `per_layer_validation: true` does NOT automatically enable `ail.enabled`!
 
@@ -518,25 +538,31 @@ Speculation is most useful during **pause windows** between layers:
 ### Current State: Functional but Redundant
 
 With `per_layer_validation: true` alone, Claude can already:
+
 - **continue** → call `pml_continue(workflow_id)` to resume
 - **abort** → simply don't call continue (workflow times out or is abandoned)
 
 AIL adds:
+
 - **replan_dag** → modify the DAG mid-execution based on new context
 
 **Note on replan**: Don't underestimate this feature. In practice, it could be useful when:
+
 - Claude discovers unexpected files/formats during execution
 - Intermediate results suggest a different approach is needed
 - Error recovery requires adding diagnostic/fix tasks
 
-The key is to ensure it's accessible. Currently `pml:replan` tool exists but AIL isn't auto-enabled with `per_layer_validation`.
+The key is to ensure it's accessible. Currently `pml:replan` tool exists but AIL isn't auto-enabled
+with `per_layer_validation`.
 
 **Cleanup opportunity**: The two mechanisms could potentially be consolidated:
+
 - `per_layer_validation` handles checkpointing + basic continue/abort
 - AIL handles advanced decisions (replan)
 - Currently they're independent, which is confusing but functional
 
 **TODO**: Study if we should:
+
 1. Keep them separate (current state - works)
 2. Make `per_layer_validation` auto-enable basic AIL
 3. Merge into a single unified pause mechanism
@@ -552,9 +578,9 @@ For speculation with arguments to work well:
    pml_execute({
      config: {
        per_layer_validation: true,
-       ail: { enabled: true, decision_points: "per_layer" }
-     }
-   })
+       ail: { enabled: true, decision_points: "per_layer" },
+     },
+   });
    ```
 
 2. **During checkpoint pause**:
@@ -571,16 +597,19 @@ For speculation with arguments to work well:
 
 ### Current State
 
-**Q: Do suggestions include output schemas?**
-**A: NO.** The `DAGStructure` returned by `suggestDAG()` only contains:
+**Q: Do suggestions include output schemas?** **A: NO.** The `DAGStructure` returned by
+`suggestDAG()` only contains:
+
 ```typescript
 { id: `task_${i}`, tool: toolId, arguments: {}, dependsOn }
 ```
 
-Schemas (`input_schema`, `output_schema`) are stored in the `tool_schema` table and used by `ProvidesEdgeCalculator`, but they are **NOT included** in the suggestion itself.
+Schemas (`input_schema`, `output_schema`) are stored in the `tool_schema` table and used by
+`ProvidesEdgeCalculator`, but they are **NOT included** in the suggestion itself.
 
-**Q: Do input schemas indicate dependencies on previous tool outputs?**
-**A: NO** in the suggestion. The `dependsOn` field indicates *which* task must execute first, but **NOT how data flows** (which output field maps to which input field).
+**Q: Do input schemas indicate dependencies on previous tool outputs?** **A: NO** in the suggestion.
+The `dependsOn` field indicates _which_ task must execute first, but **NOT how data flows** (which
+output field maps to which input field).
 
 ### Existing Data Flow Information
 
@@ -588,24 +617,25 @@ This information **exists** in `ProvidesEdge`:
 
 ```typescript
 interface ProvidesEdge {
-  from: string;           // "read_file"
-  to: string;             // "parse_json"
+  from: string; // "read_file"
+  to: string; // "parse_json"
   coverage: "strict" | "partial" | "optional";
-  fieldMapping: FieldMapping[];  // ← Precise field-to-field mapping!
+  fieldMapping: FieldMapping[]; // ← Precise field-to-field mapping!
   providerOutputSchema: JSONSchema;
   consumerInputSchema: JSONSchema;
 }
 
 interface FieldMapping {
-  fromField: string;      // "content"
-  toField: string;        // "text"
+  fromField: string; // "content"
+  toField: string; // "text"
   typeCompatible: boolean;
-  fromType?: string;      // "string"
-  toType?: string;        // "string"
+  fromType?: string; // "string"
+  toType?: string; // "string"
 }
 ```
 
-But this information is **not propagated** to the DAG suggestion - it stays in the `tool_dependency` table.
+But this information is **not propagated** to the DAG suggestion - it stays in the `tool_dependency`
+table.
 
 ### Gap: Field Mapping Not Exposed
 
@@ -630,7 +660,8 @@ For speculative execution with arguments to work well:
    }
    ```
 
-**Recommendation**: Option B is simpler - no schema changes, just use existing `ProvidesEdge` data at speculation time.
+**Recommendation**: Option B is simpler - no schema changes, just use existing `ProvidesEdge` data
+at speculation time.
 
 ## References
 

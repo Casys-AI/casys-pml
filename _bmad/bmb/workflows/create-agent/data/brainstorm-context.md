@@ -4,7 +4,8 @@ _Dream the soul. Discover the purpose. The build follows._
 
 ## Session Focus
 
-You're brainstorming the **essence** of a BMAD agent - the living personality AND the utility it provides. Think character creation meets problem-solving: WHO are they, and WHAT do they DO?
+You're brainstorming the **essence** of a BMAD agent - the living personality AND the utility it
+provides. Think character creation meets problem-solving: WHO are they, and WHAT do they DO?
 
 **Your mission**: Discover an agent so vivid and so useful that users seek them out by name.
 
@@ -45,11 +46,9 @@ You're brainstorming the **essence** of a BMAD agent - the living personality AN
 - What task transforms from grueling to effortless?
 - What impossible becomes inevitable with them?
 
-**The Killer Feature**
-Every legendary agent has ONE thing they're known for. What's theirs?
+**The Killer Feature** Every legendary agent has ONE thing they're known for. What's theirs?
 
-**The Command Menu**
-User types `*` and sees their options. Brainstorm 5-10 actions:
+**The Command Menu** User types `*` and sees their options. Brainstorm 5-10 actions:
 
 - What makes users sigh with relief?
 - What capabilities complement each other?

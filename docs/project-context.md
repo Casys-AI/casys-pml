@@ -1,28 +1,42 @@
 ---
-project_name: 'Procedural Memory Layer (PML)'
-user_name: 'Erwan'
-date: '2025-12-21'
-sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'code_quality', 'workflow_rules', 'critical_rules', 'hypergraph_algorithms', 'minitools', 'adaptive_learning']
+project_name: "Procedural Memory Layer (PML)"
+user_name: "Erwan"
+date: "2025-12-21"
+sections_completed: [
+  "technology_stack",
+  "language_rules",
+  "framework_rules",
+  "testing_rules",
+  "code_quality",
+  "workflow_rules",
+  "critical_rules",
+  "hypergraph_algorithms",
+  "minitools",
+  "adaptive_learning",
+]
 status: complete
-last_scan: 'exhaustive'
-last_update: '2025-12-21'
+last_scan: "exhaustive"
+last_update: "2025-12-21"
 rule_count: 185
 optimized_for_llm: true
 ---
 
 # Project Context for AI Agents
 
-_This file contains critical rules and patterns that AI agents must follow when implementing code in this project. Focus on unobvious details that agents might otherwise miss._
+_This file contains critical rules and patterns that AI agents must follow when implementing code in
+this project. Focus on unobvious details that agents might otherwise miss._
 
 ---
 
 ## Technology Stack & Versions
 
 ### Runtime & Language
+
 - **Deno 2.x** — Runtime principal (pas Node.js)
 - **TypeScript** — Strict mode obligatoire
 
 ### Frontend
+
 - **Fresh ^2.0.0** — Framework web Deno (SSR)
 - **Preact ^10.27.0** — Bibliothèque UI (pas React)
 - **@preact/signals ^2.5.1** — State management réactif
@@ -30,6 +44,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **Vite ^7.1.3** — Build tool
 
 ### Backend & Data
+
 - **PGlite 0.3.14** — PostgreSQL WASM (local-first)
 - **Deno KV** — Key-value store pour sessions, cache, OAuth tokens
 - **Drizzle ORM ^0.39.1** — TypeScript ORM
@@ -37,13 +52,16 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **Architecture Open Core** — Version cloud en préparation (multi-tenant ready)
 
 ### MCP & Graphes
+
 - **@modelcontextprotocol/sdk ^1.15.1** — Protocole MCP (Anthropic)
 - **@smithery/sdk ^2.1.0** — Registry MCP servers
 - **Graphology ^0.25.4** — Structure de graphe
 - **ml-matrix ^6.11.1** — Opérations matricielles (eigendecomposition)
 
 ### Hypergraph Algorithms (Custom Implementation)
-- **Spectral Clustering** — `src/graphrag/spectral-clustering.ts` — Clustering biparti tools↔capabilities
+
+- **Spectral Clustering** — `src/graphrag/spectral-clustering.ts` — Clustering biparti
+  tools↔capabilities
 - **Hypergraph PageRank** — Ranking d'importance des capabilities (hyperedges)
 - **PageRank** — `src/graphrag/graph-engine.ts` — Centralité des nœuds
 - **Adamic-Adar** — Similarité via voisins communs
@@ -52,26 +70,33 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **Dijkstra** — via graphology-shortest-path
 - **Louvain** — via graphology-communities-louvain
 - **Heat Diffusion** — `src/graphrag/local-alpha.ts` — Propagation hiérarchique (ADR-048)
-- **Thompson Sampling** — `src/learning/thompson-threshold.ts` — Thresholds adaptatifs per-tool (ADR-049)
+- **Thompson Sampling** — `src/learning/thompson-threshold.ts` — Thresholds adaptatifs per-tool
+  (ADR-049)
 - **Local Alpha** — Confiance adaptative par zone du graphe (cold start vs dense)
 
 ### MiniTools Library (`lib/std/`)
+
 - **120+ outils internes** — Organisés en 30+ modules thématiques
 - **MiniToolsClient** — Classe d'accès unifiée aux mini-tools
-- **Catégories System** — docker, git, network, process, archive, ssh, kubernetes, database, media, cloud, sysinfo, packages, text
-- **Catégories Data** — algo, collections, crypto, datetime, format, http, json, math, transform, validation, vfs
+- **Catégories System** — docker, git, network, process, archive, ssh, kubernetes, database, media,
+  cloud, sysinfo, packages, text
+- **Catégories Data** — algo, collections, crypto, datetime, format, http, json, math, transform,
+  validation, vfs
 - **Nouveaux modules** — string, path, faker, color, geo, qrcode, resilience, schema, diff
 
 ### Compilation & Communication
+
 - **SWC** — via Deno, compilation TS + parsing AST (remplace ts-morph)
 - **Broadcast Channel** — Communication inter-workers (sandbox ↔ main)
 - **SSE** — Server-Sent Events pour dashboard temps réel
 
 ### CLI & Utils
+
 - **@cliffy/command 1.0.0-rc.8** — CLI framework
 - **@std/assert, @std/dotenv, @std/fs, @std/yaml** — Deno std lib
 
 ### Configuration Files (`config/`)
+
 - **dag-scoring.yaml** — Scoring, thresholds, weights, reliability (ADR-022, 026, 038, 048)
 - **local-alpha.yaml** — Alpha adaptatif, cold start, heat diffusion (ADR-048)
 - **spectral-clustering.yaml** — Clustering biparti, edge weights, PageRank (Story 7.4, ADR-042)
@@ -80,6 +105,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **speculation_config.yaml** — Config spéculation legacy (supplanté par ADR-049)
 
 ### Version Constraints
+
 - **Preact, pas React** — JSX doit utiliser `jsxImportSource: "preact"`
 - **TailwindCSS v4** — Syntaxe différente de v3
 - **PGlite 0.3.14** — Version spécifique pour compatibilité vector extension
@@ -91,33 +117,39 @@ _This file contains critical rules and patterns that AI agents must follow when 
 ### Language-Specific Rules (TypeScript/Deno)
 
 #### Configuration TypeScript
+
 - **Strict mode obligatoire** — `strict: true`, `noImplicitAny: true`
 - **Pas de variables inutilisées** — `noUnusedLocals: true`, `noUnusedParameters: true`
 - **JSX Preact** — `jsx: "react-jsx"`, `jsxImportSource: "preact"`
 
 #### Imports & Modules
+
 - **Imports JSR** — `@std/*` pour la bibliothèque standard Deno (ex: `@std/assert`)
 - **Imports NPM** — Préfixe `npm:` pour packages npm (ex: `npm:graphology`)
 - **Extensions obligatoires** — Toujours `.ts` dans les imports (ex: `./utils.ts`)
 - **Pas de CommonJS** — Utiliser ESM uniquement (`import/export`)
 
 #### Databases (Dual-Mode)
+
 - **PGlite** — PostgreSQL WASM pour données persistantes (GraphRAG, capabilities, workflows)
 - **Deno KV** — Key-value store pour sessions, cache, OAuth tokens
 - **Architecture Open Core** — Version cloud en préparation, garder le code compatible multi-tenant
 
 #### Async/Await Patterns
+
 - **Toujours async/await** — Pas de `.then()/.catch()` chaînés
 - **Top-level await supporté** — Deno supporte nativement
 - **Gestion d'erreurs** — `try/catch` avec types d'erreur explicites
 
 #### Naming Conventions
+
 - **camelCase** pour variables, fonctions, propriétés d'objets
 - **PascalCase** pour types, interfaces, classes
 - **SCREAMING_SNAKE_CASE** pour constantes globales
 - **kebab-case** pour noms de fichiers (ex: `health-checker.ts`)
 
 #### Error Handling
+
 - **Classes d'erreur custom** dans `src/errors/` — Utiliser `CAIError`, `ValidationError`, etc.
 - **Pas de `any` dans les catch** — Typer les erreurs explicitement
 - **Logging structuré** — Utiliser `src/telemetry/logger.ts`
@@ -125,49 +157,58 @@ _This file contains critical rules and patterns that AI agents must follow when 
 ### Framework-Specific Rules
 
 #### Fresh 2.0 (SSR Framework)
+
 - **Routes dans `src/web/routes/`** — Convention de fichiers pour routing
 - **Middleware** — `_middleware.ts` pour auth et guards
 - **Islands architecture** — Composants interactifs isolés pour hydratation partielle
 - **API routes** — `routes/api/` pour endpoints REST
 
 #### Preact (UI Library)
+
 - **Pas de React** — Utiliser `preact` et `preact/hooks`, jamais `react`
 - **Signals pour state** — `@preact/signals` au lieu de useState pour state global
 - **JSX runtime** — Configuré via `jsxImportSource: "preact"` dans deno.json
 - **Hooks identiques** — `useState`, `useEffect`, etc. fonctionnent comme React
 
 #### MCP Gateway (Meta-Tools Pattern)
+
 - **Meta-tools uniquement** — Exposer `pml:search_tools`, `pml:execute_dag`, etc.
 - **Pas de proxy direct** — Ne jamais exposer les outils MCP sous-jacents directement
 - **DAG workflows** — Orchestration parallèle avec résolution de dépendances
 - **Intent-based execution** — Support des workflows par intention naturelle
 
 #### GraphRAG Engine
+
 - **Graphology** — Structure de graphe en mémoire
 - **Adamic-Adar** — Algorithme pour recommandations d'outils
 - **Louvain communities** — Clustering pour suggestions proactives
 - **PageRank** — Sizing des nœuds dans la visualisation
 
 #### Sandbox Execution
+
 - **Worker isolé** — Code exécuté dans subprocess Deno
 - **Permissions limitées** — Pas de réseau, pas de subprocess
 - **PII detection** — Tokenisation automatique des données sensibles
 - **MCP tool injection** — Outils injectés via intent discovery
 
 #### MiniTools Pattern (`lib/std/`)
-- **Import depuis lib/std/mod.ts** — `import { MiniToolsClient, getToolByName } from "../../lib/std/mod.ts"`
+
+- **Import depuis lib/std/mod.ts** —
+  `import { MiniToolsClient, getToolByName } from "../../lib/std/mod.ts"`
 - **Client par catégorie** — `new MiniToolsClient({ categories: ["json", "crypto"] })`
 - **Exécution typée** — `await client.execute("json_parse", { input: data })`
 - **Format MCP** — `client.toMCPFormat()` pour exposition via gateway
 - **Handler pattern** — Chaque tool a `name`, `description`, `inputSchema`, `handler`
 
 #### Externalized Configuration (`config/`)
+
 - **dag-scoring.yaml** — TOUTES les constantes de scoring externalisées
 - **Pas de magic numbers** — Utiliser `DagScoringConfig.load()` pour accéder aux valeurs
 - **Sections YAML** — `limits`, `weights`, `thresholds`, `caps`, `reliability`, `defaults`
 - **Hot reload supporté** — Config rechargeable sans restart
 
 #### Adaptive Learning (ADR-048, ADR-049)
+
 - **Local Alpha** — Confiance locale par zone du graphe (0.5 dense → 1.0 cold start)
 - **Thompson Sampling** — Distribution Beta(α,β) per-tool pour thresholds
 - **Risk Categories** — `safe` (0.55), `moderate` (0.70), `dangerous` (0.85)
@@ -176,46 +217,55 @@ _This file contains critical rules and patterns that AI agents must follow when 
 ### Testing Rules
 
 #### Test Framework
+
 - **Deno.test natif** — Pas Jest, pas Vitest
 - **@std/assert** — `assertEquals`, `assertThrows`, `assertRejects`, etc.
 - **Async tests** — Support natif des tests async/await
 
 #### Test Organization
+
 - **Tests unitaires** — `tests/unit/` miroir de `src/`
 - **Tests d'intégration** — `tests/integration/`
 - **Nommage** — `*_test.ts` (underscore, pas hyphen)
 - **Structure** — `Deno.test("description", async () => { ... })`
 
 #### Test Patterns
+
 - **Isolation** — Chaque test doit être indépendant
 - **Mocks dans `tests/mocks/`** — Filesystem, database, API mocks disponibles
 - **Cleanup** — Toujours nettoyer les ressources (DB, fichiers temp)
 - **Assertions explicites** — Pas de tests sans assertions
 
 #### Running Tests
+
 - `deno task test` — Tous les tests
 - `deno task test:unit` — Tests unitaires seulement
 - `deno task test:integration` — Tests d'intégration
-- **Flags requis** — `--allow-all --unstable-worker-options --unstable-broadcast-channel --unstable-kv`
+- **Flags requis** —
+  `--allow-all --unstable-worker-options --unstable-broadcast-channel --unstable-kv`
 
 #### Coverage Target
+
 - **>80% coverage** — Objectif de couverture
 - **Tests critiques obligatoires** — DAG executor, sandbox, MCP gateway
 
 ### Code Quality & Style Rules
 
 #### Formatting (deno fmt)
+
 - **Largeur ligne** — 100 caractères max
 - **Indentation** — 2 espaces (pas de tabs)
 - **Point-virgule** — Obligatoire
 - **Commande** — `deno task fmt`
 
 #### Linting (deno lint)
+
 - **Rules** — Tag `recommended` activé
 - **Exclusions** — `tests/integration/`, `tests/e2e/`, `tests/load/`, `tests/memory/`
 - **Commande** — `deno task lint`
 
 #### File Organization
+
 - **src/** — Code source principal
 - **src/dag/** — DAG executor et workflows
 - **src/graphrag/** — GraphRAG engine
@@ -229,12 +279,14 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **config/** — Configuration externalisée (YAML)
 
 #### Documentation
+
 - **JSDoc minimal** — Seulement pour exports publics complexes
 - **Pas de commentaires évidents** — Le code doit être auto-explicatif
 - **ADRs** — Décisions architecturales dans `docs/adrs/`
 - **Stories** — Artifacts de sprint dans `docs/sprint-artifacts/`
 
 #### Code Patterns
+
 - **Single responsibility** — Une fonction = une tâche
 - **Explicit returns** — Typage explicite des retours de fonctions
 - **No magic strings** — Utiliser des constantes ou enums
@@ -243,6 +295,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 ### Architecture Patterns
 
 #### Service Layer Separation (3-Tier)
+
 Strict separation entre handlers (API), services (business logic), et repositories (data).
 
 ```
@@ -254,14 +307,18 @@ Handler (MCP/HTTP) → Service (Business Logic) → Repository (Data Access)
 ```
 
 **Règles:**
+
 - **Handlers** (`src/mcp/handlers/`): Validation input, appel services, formatage output
 - **Services** (`src/*/`): Business logic, pas d'accès DB direct, utilise repositories
 - **Repositories** (`*-store.ts`, `*-repository.ts`): Data access only, pas de business logic
 
 #### Repository Pattern for Data Access
-Toutes les opérations DB passent par des classes repository. Pas de SQL direct dans handlers ou services.
+
+Toutes les opérations DB passent par des classes repository. Pas de SQL direct dans handlers ou
+services.
 
 **Règles:**
+
 - **Repository files** en `*-store.ts` ou `*-repository.ts`
 - **Single table/aggregate per repository**
 - **Return domain objects**, pas raw rows
@@ -284,9 +341,11 @@ async function handleExecute(args, deps) {
 ```
 
 #### Interface-First Design
+
 Définir interfaces avant implémentations, surtout pour les boundaries cross-module.
 
 **Règles:**
+
 - **Interfaces** dans `types.ts` ou `interfaces.ts` dédié
 - **Implementations** importent interfaces, pas classes concrètes
 - **Tests** peuvent mocker les interfaces facilement
@@ -304,9 +363,11 @@ export class CapabilityMCPServer {
 ```
 
 #### Constructor Injection (Max 5 Dependencies)
+
 Injection de dépendances via constructeur avec limite stricte.
 
 **Règles:**
+
 - **JAMAIS plus de 5 paramètres** dans un constructeur
 - Si plus → refactoriser en services composés
 - **JAMAIS créer services avec `new`** dans le code métier — utiliser composition
@@ -325,9 +386,11 @@ constructor(
 ```
 
 #### Feature Module Pattern (Vertical Slices)
+
 Grouper fonctionnalités par feature, pas par layer technique.
 
 **Structure recommandée:**
+
 ```
 src/
   capabilities/           # Feature: Capability Management
@@ -345,6 +408,7 @@ src/
 ```
 
 **Règles:**
+
 - Chaque feature folder est self-contained
 - `mod.ts` exporte API publique uniquement
 - Communication cross-feature via interfaces
@@ -352,32 +416,38 @@ src/
 ### Development Workflow Rules
 
 #### Git Conventions
+
 - **Branch main** — Branche principale de production
 - **Commits atomiques** — Un commit = une unité logique de changement
 - **Messages descriptifs** — Préfixe type: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`
 
 #### Development Commands
+
 - `deno task dev` — Serveur API (port 3003)
 - `deno task dev:fresh` — Dashboard Vite (port 8081)
 - `deno task check` — Type checking
 - `deno task fmt && deno task lint` — Avant commit
 
 #### Production Deployment
+
 - **Systemd services** — `casys-dashboard`, `casys-api`
 - `deno task prod:start` — Démarrer les services
 - `deno task deploy:all` — Pull, build, restart
 
 #### CLI Usage
+
 - `deno task cli init` — Initialisation (discover MCPs, embeddings)
 - `deno task cli status` — Vérification santé
 - `deno task cli workflows` — Gestion des workflows
 
 #### ADR Process
+
 - **Nouvelle décision** — Créer `docs/adrs/ADR-XXX-description.md`
 - **Numérotation séquentielle** — Incrémenter depuis le dernier ADR
 - **Format** — Context, Decision, Consequences
 
 #### Sprint Artifacts
+
 - **Stories** — `docs/sprint-artifacts/story-X.Y.md`
 - **Tech specs** — `docs/sprint-artifacts/tech-spec-*.md`
 - **Rétrospectives** — `docs/retrospectives/`
@@ -385,6 +455,7 @@ src/
 ### Critical Don't-Miss Rules
 
 #### ⚠️ Anti-Patterns à Éviter
+
 - **JAMAIS React** — Utiliser Preact uniquement, imports `preact` pas `react`
 - **JAMAIS CommonJS** — Pas de `require()`, ESM uniquement
 - **JAMAIS node_modules direct** — Préfixe `npm:` obligatoire
@@ -394,65 +465,76 @@ src/
 - **JAMAIS hardcode thresholds** — Tous externalisés dans `dag-scoring.yaml` ou `local-alpha.yaml`
 
 #### 🔒 Sécurité
+
 - **Sandbox isolation** — Code utilisateur dans worker isolé
 - **PII detection** — Activer tokenisation par défaut
 - **Pas de secrets en code** — Utiliser `.env` et `@std/dotenv`
 - **Permissions Deno explicites** — `--allow-read`, `--allow-net`, etc.
 
 #### 🎯 Patterns Critiques
+
 - **camelCase everywhere** — Events, state, API responses (refactoring récent appliqué)
 - **Async/await obligatoire** — Pas de callbacks ou .then() chains
 - **Extensions .ts dans imports** — Deno requiert extensions explicites
 - **Type safety** — `strict: true`, pas de `any` sauf cas documenté
 
 #### 🗄️ Base de Données
+
 - **PGlite pour persistance** — GraphRAG, capabilities, workflows
 - **Deno KV pour sessions** — OAuth, cache, tokens
 - **Migrations Drizzle** — `src/db/migrations/` numérotées séquentiellement
 - **Multi-tenant ready** — Préparer pour version cloud
 
 #### 📊 Observabilité
+
 - **Sentry pour erreurs** — Si `SENTRY_DSN` configuré
 - **Logger structuré** — `src/telemetry/logger.ts`
 - **SSE events** — Real-time updates via `src/server/events-stream.ts`
 - **Métriques** — Success rate, latency, graph density trackés
 
 #### 🔄 DAG Execution
+
 - **AIL (Agent-in-the-Loop)** — Décisions automatiques avec validation par layer
 - **HIL (Human-in-the-Loop)** — Checkpoints d'approbation pour opérations critiques
 - **Checkpoint/Resume** — Workflows interruptibles avec persistence d'état
 - **$OUTPUT resolution** — Référencer outputs des tasks précédentes
 
 #### 🛠️ MiniTools (`lib/std/`)
+
 - **Import centralisé** — `import { ... } from "../../lib/std/mod.ts"`
 - **MiniToolsClient** — Classe standard pour accès aux 120+ outils
 - **Handler pattern** — `{ name, description, inputSchema, handler }`
 - **Categories filtering** — `new MiniToolsClient({ categories: ["json", "crypto"] })`
 
 #### ⚙️ Configuration Externalisée
+
 - **DagScoringConfig** — `import { DagScoringConfig } from "./dag-scoring-config.ts"`
 - **LocalAlphaConfig** — `import { LocalAlphaConfig } from "./local-alpha-config.ts"`
 - **Sections YAML** — `limits`, `weights`, `thresholds`, `caps`, `reliability`, `defaults`
 - **Schémas JSON** — `*.schema.json` pour validation (yaml-language-server)
 
 #### 📈 Adaptive Learning (ADR-048, ADR-049)
+
 - **Local Alpha** — `alpha ∈ [0.5, 1.0]` — 0.5 = trust graph, 1.0 = semantic only
 - **Heat Diffusion** — Propagation de confiance par connectivité graphe
 - **Cold Start** — Bayesian prior `Beta(1,1)` → target après `threshold` observations
 - **Thompson Sampling** — Distribution `Beta(α,β)` per-tool pour thresholds adaptatifs
-- **Risk Categories** — `safe` (0.55), `moderate` (0.70), `dangerous` (0.85) via `mcp-permissions.yaml`
+- **Risk Categories** — `safe` (0.55), `moderate` (0.70), `dangerous` (0.85) via
+  `mcp-permissions.yaml`
 
 ---
 
 ## Usage Guidelines
 
 **For AI Agents:**
+
 - Read this file before implementing any code
 - Follow ALL rules exactly as documented
 - When in doubt, prefer the more restrictive option
 - Reference ADRs for architectural decisions rationale
 
 **For Humans:**
+
 - Keep this file lean and focused on agent needs
 - Update when technology stack changes
 - Review after each epic completion

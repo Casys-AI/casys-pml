@@ -1,13 +1,13 @@
 # Story 7.3a: Capability Matching & search_capabilities Tool
 
-> **Epic:** 7 - Emergent Capabilities & Learning System
-> **ADRs:** ADR-027 (Execute Code Graph Learning), ADR-028 (Emergent Capabilities System)
-> **Prerequisites:** Story 7.2b (Schema Inference - DONE, 19 tests passing)
-> **Status:** in-progress
+> **Epic:** 7 - Emergent Capabilities & Learning System **ADRs:** ADR-027 (Execute Code Graph
+> Learning), ADR-028 (Emergent Capabilities System) **Prerequisites:** Story 7.2b (Schema
+> Inference - DONE, 19 tests passing) **Status:** in-progress
 
 ## User Story
 
-As an AI agent, I want to search for existing capabilities matching my intent, So that I can discover and reuse proven code.
+As an AI agent, I want to search for existing capabilities matching my intent, So that I can
+discover and reuse proven code.
 
 ## Problem Context
 
@@ -146,8 +146,8 @@ adaptiveThresholds.recordExecution({
   ```typescript
   interface CapabilityMatch {
     capability: Capability;
-    score: number;           // Final score (Semantic * Reliability)
-    semanticScore: number;   // Raw semantic similarity
+    score: number; // Final score (Semantic * Reliability)
+    semanticScore: number; // Raw semantic similarity
     thresholdUsed: number;
     parametersSchema: JSONSchema | null;
   }
@@ -190,8 +190,8 @@ adaptiveThresholds.recordExecution({
       parameters_schema: JSONSchema | null;
       success_rate: number;
       usage_count: number;
-      score: number;           // Final score (Semantic * Reliability)
-      semantic_score: number;  // Raw semantic similarity
+      score: number; // Final score (Semantic * Reliability)
+      semantic_score: number; // Raw semantic similarity
     }>;
     suggestions?: Array<{
       type: "tool" | "capability";
@@ -285,8 +285,7 @@ adaptiveThresholds.recordExecution({
    }
 
    // CORRECT ✅
-   const threshold =
-     this.adaptiveThresholds.getThresholds().suggestionThreshold;
+   const threshold = this.adaptiveThresholds.getThresholds().suggestionThreshold;
    if (similarity >= threshold) {
      return capability;
    }

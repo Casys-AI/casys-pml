@@ -43,7 +43,9 @@ export function highlightCode(
   try {
     // Check if language is registered
     if (!refractor.registered(language)) {
-      console.warn(`[syntax-highlight] Language "${language}" not registered, returning plain text`);
+      console.warn(
+        `[syntax-highlight] Language "${language}" not registered, returning plain text`,
+      );
       return code;
     }
 

@@ -11,48 +11,48 @@ Migration des diagrammes ASCII vers Excalidraw dans la documentation user-docs.
 
 ## Completed Pages
 
-| Page | Diagrams Used |
-|------|---------------|
-| `concepts/04-capabilities/01-what-is-capability.md` | `emerge-tools-vs-capability`, `emerge-evolution`, `shg-graph-vs-hyperedge`, `emerge-meta-capabilities`, `emerge-clustering` |
-| `concepts/01-foundations/01-mcp-protocol.md` | `mcp-architecture`, `mcp-with` |
-| `concepts/03-learning/01-graphrag.md` | `rag-graph`, `rag-graph-evolution`, `emerge-clustering` |
-| `concepts/05-dag-execution/05-speculative-execution.md` | `spec-sequential`, `spec-speculative`, `spec-confirm`, `spec-cost-decision` |
-| `concepts/05-dag-execution/01-dag-structure.md` | `dag-dag-model`, `dag-workflow` |
-| `concepts/06-code-execution/02-worker-bridge.md` | `rpc-bridge-after` |
+| Page                                                    | Diagrams Used                                                                                                               |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `concepts/04-capabilities/01-what-is-capability.md`     | `emerge-tools-vs-capability`, `emerge-evolution`, `shg-graph-vs-hyperedge`, `emerge-meta-capabilities`, `emerge-clustering` |
+| `concepts/01-foundations/01-mcp-protocol.md`            | `mcp-architecture`, `mcp-with`                                                                                              |
+| `concepts/03-learning/01-graphrag.md`                   | `rag-graph`, `rag-graph-evolution`, `emerge-clustering`                                                                     |
+| `concepts/05-dag-execution/05-speculative-execution.md` | `spec-sequential`, `spec-speculative`, `spec-confirm`, `spec-cost-decision`                                                 |
+| `concepts/05-dag-execution/01-dag-structure.md`         | `dag-dag-model`, `dag-workflow`                                                                                             |
+| `concepts/06-code-execution/02-worker-bridge.md`        | `rpc-bridge-after`                                                                                                          |
 
 ## New Diagrams Created (Priority 2 - DONE)
 
-| Page | Diagram Created | Status |
-|------|-----------------|--------|
-| `concepts/01-foundations/02-gateway.md` | `gateway-architecture.excalidraw` | Created |
-| `concepts/01-foundations/03-database.md` | `database-schema.excalidraw` | Created |
-| `concepts/03-learning/02-dependencies.md` | `dependency-types.excalidraw` | Created |
-| `concepts/04-capabilities/03-schema-inference.md` | `schema-inference.excalidraw` | Created |
-| `concepts/05-dag-execution/03-parallelization.md` | `dag-parallelization.excalidraw` | Created |
-| `concepts/06-code-execution/01-sandbox.md` | `sandbox-architecture.excalidraw` | Created |
-| `concepts/06-code-execution/03-tracing.md` | `tracing-flow.excalidraw` | Created |
-| `concepts/07-realtime/01-events.md` | `realtime-events.excalidraw` | Created |
-| `concepts/07-realtime/02-visualization.md` | `dashboard-visualization.excalidraw` | Created |
+| Page                                              | Diagram Created                      | Status  |
+| ------------------------------------------------- | ------------------------------------ | ------- |
+| `concepts/01-foundations/02-gateway.md`           | `gateway-architecture.excalidraw`    | Created |
+| `concepts/01-foundations/03-database.md`          | `database-schema.excalidraw`         | Created |
+| `concepts/03-learning/02-dependencies.md`         | `dependency-types.excalidraw`        | Created |
+| `concepts/04-capabilities/03-schema-inference.md` | `schema-inference.excalidraw`        | Created |
+| `concepts/05-dag-execution/03-parallelization.md` | `dag-parallelization.excalidraw`     | Created |
+| `concepts/06-code-execution/01-sandbox.md`        | `sandbox-architecture.excalidraw`    | Created |
+| `concepts/06-code-execution/03-tracing.md`        | `tracing-flow.excalidraw`            | Created |
+| `concepts/07-realtime/01-events.md`               | `realtime-events.excalidraw`         | Created |
+| `concepts/07-realtime/02-visualization.md`        | `dashboard-visualization.excalidraw` | Created |
 
 ## Library & Theme Created
 
-| File | Description |
-|------|-------------|
+| File                        | Description                                                          |
+| --------------------------- | -------------------------------------------------------------------- |
 | `pml-library.excalidrawlib` | 24 composants réutilisables (Agent, Gateway, Server, Database, etc.) |
-| `theme.json` | Référence couleurs dark theme PML |
+| `theme.json`                | Référence couleurs dark theme PML                                    |
 
 ## Remaining Pages
 
 ### Priority 1: Core Concepts (have matching diagrams) - DONE
 
-| Page | Diagrams Used | Status |
-|------|---------------|--------|
-| `concepts/02-discovery/01-semantic-search.md` | `rag-flow` | ✅ Done |
-| `concepts/02-discovery/02-hybrid-search.md` | `rag-flow` | ✅ Done |
-| `concepts/03-learning/04-feedback-loop.md` | `coala-feedback-loops` | ✅ Done |
-| `concepts/04-capabilities/02-eager-learning.md` | `emerge-observation` | ✅ Done |
-| `concepts/05-dag-execution/02-dag-suggester.md` | `dag-replanning` | ✅ Done |
-| `concepts/05-dag-execution/04-checkpoints.md` | `dag-observability`, `dag-resilience` | ✅ Done |
+| Page                                            | Diagrams Used                         | Status  |
+| ----------------------------------------------- | ------------------------------------- | ------- |
+| `concepts/02-discovery/01-semantic-search.md`   | `rag-flow`                            | ✅ Done |
+| `concepts/02-discovery/02-hybrid-search.md`     | `rag-flow`                            | ✅ Done |
+| `concepts/03-learning/04-feedback-loop.md`      | `coala-feedback-loops`                | ✅ Done |
+| `concepts/04-capabilities/02-eager-learning.md` | `emerge-observation`                  | ✅ Done |
+| `concepts/05-dag-execution/02-dag-suggester.md` | `dag-replanning`                      | ✅ Done |
+| `concepts/05-dag-execution/04-checkpoints.md`   | `dag-observability`, `dag-resilience` | ✅ Done |
 
 ### Priority 2: New diagrams needed - COMPLETED
 
@@ -60,13 +60,13 @@ All 9 diagrams have been created.
 
 ### Priority 3: New diagrams needed - COMPLETED
 
-| Page | Diagram Needed | Status |
-|------|----------------|--------|
-| `reference/02-configuration.md` | `config-overview.excalidraw` | Created |
-| `reference/03-cli.md` | `cli-workflow.excalidraw` | Created |
-| `concepts/index.md` | `pml-architecture.excalidraw` | Created |
+| Page                                                | Diagram Needed                     | Status  |
+| --------------------------------------------------- | ---------------------------------- | ------- |
+| `reference/02-configuration.md`                     | `config-overview.excalidraw`       | Created |
+| `reference/03-cli.md`                               | `cli-workflow.excalidraw`          | Created |
+| `concepts/index.md`                                 | `pml-architecture.excalidraw`      | Created |
 | `concepts/02-discovery/03-proactive-suggestions.md` | `proactive-suggestions.excalidraw` | Created |
-| `concepts/03-learning/03-confidence-levels.md` | `confidence-levels.excalidraw` | Created |
+| `concepts/03-learning/03-confidence-levels.md`      | `confidence-levels.excalidraw`     | Created |
 
 ## Existing Diagrams Available
 
@@ -110,6 +110,7 @@ Total: 61 diagrams + 1 library
 ### Excalidraw Support
 
 Added to `src/web/utils/docs.ts`:
+
 - `loadExcalidrawFile()` - Loads .excalidraw files
 - `preprocessMarkdown()` - Now async, handles `![alt](excalidraw:path)` syntax
 - Cache for loaded diagrams
@@ -123,6 +124,7 @@ Added to `src/web/utils/docs.ts`:
 ### PML Library Usage
 
 To use the pre-styled components:
+
 1. Open Excalidraw
 2. Menu Library → Open
 3. Select `pml-library.excalidrawlib`
@@ -131,6 +133,7 @@ To use the pre-styled components:
 ### Fallback
 
 For simple ASCII that doesn't need a diagram, convert to:
+
 - Markdown tables
 - Bullet lists
 - Code blocks with syntax highlighting

@@ -2,7 +2,9 @@
 
 ## Overview
 
-PML (Procedural Memory Layer) is an intelligent MCP gateway designed for coding agents (Claude Code, Cursor, etc.). It acts as a single entry point to all your MCP servers, optimizing LLM context usage and parallelizing workflow execution.
+PML (Procedural Memory Layer) is an intelligent MCP gateway designed for coding agents (Claude Code,
+Cursor, etc.). It acts as a single entry point to all your MCP servers, optimizing LLM context usage
+and parallelizing workflow execution.
 
 **Key benefits:**
 
@@ -13,15 +15,15 @@ PML (Procedural Memory Layer) is an intelligent MCP gateway designed for coding 
 
 ### Key Concepts
 
-| Term                             | Definition                                                                |
-| -------------------------------- | ------------------------------------------------------------------------- |
-| **MCP (Model Context Protocol)** | Anthropic's standard protocol for connecting LLMs to external tools       |
-| **Gateway**                      | Single entry point that aggregates and proxies all your MCP servers       |
-| **DAG (Directed Acyclic Graph)** | Structure representing task dependencies for parallelization              |
-| **GraphRAG**                     | Learning knowledge base that improves tool suggestions                    |
-| **Sandbox**                      | Isolated environment for executing TypeScript code securely               |
-| **AIL (Agent-in-the-Loop)**      | Automatic agent decisions during execution                                |
-| **HIL (Human-in-the-Loop)**      | Human approval checkpoints for critical operations                        |
+| Term                             | Definition                                                          |
+| -------------------------------- | ------------------------------------------------------------------- |
+| **MCP (Model Context Protocol)** | Anthropic's standard protocol for connecting LLMs to external tools |
+| **Gateway**                      | Single entry point that aggregates and proxies all your MCP servers |
+| **DAG (Directed Acyclic Graph)** | Structure representing task dependencies for parallelization        |
+| **GraphRAG**                     | Learning knowledge base that improves tool suggestions              |
+| **Sandbox**                      | Isolated environment for executing TypeScript code securely         |
+| **AIL (Agent-in-the-Loop)**      | Automatic agent decisions during execution                          |
+| **HIL (Human-in-the-Loop)**      | Human approval checkpoints for critical operations                  |
 
 ---
 
@@ -204,12 +206,12 @@ await callTool("pml:approval_response", {
 
 **Control commands:**
 
-| Tool                          | Usage                                  |
-| ----------------------------- | -------------------------------------- |
-| `pml:continue`          | Resume a paused workflow               |
-| `pml:abort`             | Stop a running workflow                |
-| `pml:replan`            | Modify DAG with new requirements       |
-| `pml:approval_response` | Respond to an HIL checkpoint           |
+| Tool                    | Usage                            |
+| ----------------------- | -------------------------------- |
+| `pml:continue`          | Resume a paused workflow         |
+| `pml:abort`             | Stop a running workflow          |
+| `pml:replan`            | Modify DAG with new requirements |
+| `pml:approval_response` | Respond to an HIL checkpoint     |
 
 ---
 
@@ -217,24 +219,24 @@ await callTool("pml:approval_response", {
 
 ### Command Line Options
 
-| Option                | Type   | Default  | Description                                   |
-| --------------------- | ------ | -------- | --------------------------------------------- |
-| `--config <path>`     | string | (required) | Path to MCP config file                     |
-| `--port <number>`     | number | stdio    | HTTP port for SSE transport (optional)        |
-| `--no-speculative`    | flag   | false    | Disable speculative execution                 |
-| `--no-pii-protection` | flag   | false    | Disable sensitive data protection             |
-| `--no-cache`          | flag   | false    | Disable code execution cache                  |
+| Option                | Type   | Default    | Description                            |
+| --------------------- | ------ | ---------- | -------------------------------------- |
+| `--config <path>`     | string | (required) | Path to MCP config file                |
+| `--port <number>`     | number | stdio      | HTTP port for SSE transport (optional) |
+| `--no-speculative`    | flag   | false      | Disable speculative execution          |
+| `--no-pii-protection` | flag   | false      | Disable sensitive data protection      |
+| `--no-cache`          | flag   | false      | Disable code execution cache           |
 
 ### Environment Variables
 
-| Variable                       | Description                                      |
-| ------------------------------ | ------------------------------------------------ |
-| `PML_DB_PATH`           | Custom path for PGlite database                  |
-| `PML_WORKFLOW_PATH`     | Path to workflow templates                       |
-| `PML_NO_PII_PROTECTION` | `1` to disable PII protection                    |
-| `PML_NO_CACHE`          | `1` to disable cache                             |
-| `SENTRY_DSN`                   | Sentry DSN for error tracking (optional)         |
-| `LOG_LEVEL`                    | Log level: `debug`, `info`, `warn`, `error`      |
+| Variable                | Description                                 |
+| ----------------------- | ------------------------------------------- |
+| `PML_DB_PATH`           | Custom path for PGlite database             |
+| `PML_WORKFLOW_PATH`     | Path to workflow templates                  |
+| `PML_NO_PII_PROTECTION` | `1` to disable PII protection               |
+| `PML_NO_CACHE`          | `1` to disable cache                        |
+| `SENTRY_DSN`            | Sentry DSN for error tracking (optional)    |
+| `LOG_LEVEL`             | Log level: `debug`, `info`, `warn`, `error` |
 
 ### MCP Configuration Example
 
@@ -414,10 +416,10 @@ SENTRY_ENVIRONMENT=production
 
 PML supports two MCP transport modes:
 
-| Mode                | Command                                     | Dashboard | Use Case                            |
-| ------------------- | ------------------------------------------- | --------- | ----------------------------------- |
-| **stdio**           | `pml serve --config ...`             | No        | Claude Code, direct integration     |
-| **Streamable HTTP** | `pml serve --config ... --port 3001` | Yes       | Development, debugging, dashboard   |
+| Mode                | Command                              | Dashboard | Use Case                          |
+| ------------------- | ------------------------------------ | --------- | --------------------------------- |
+| **stdio**           | `pml serve --config ...`             | No        | Claude Code, direct integration   |
+| **Streamable HTTP** | `pml serve --config ... --port 3001` | Yes       | Development, debugging, dashboard |
 
 **stdio (default):**
 
@@ -434,8 +436,8 @@ PML supports two MCP transport modes:
 - REST APIs for snapshots and metrics
 - Ideal for development and monitoring
 
-> **Recommendation:** Use stdio for production with Claude Code, Streamable HTTP for development
-> and debugging.
+> **Recommendation:** Use stdio for production with Claude Code, Streamable HTTP for development and
+> debugging.
 
 ---
 

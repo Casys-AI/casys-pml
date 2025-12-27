@@ -6,11 +6,11 @@ How PML finds the right tools for the job.
 
 ## Topics
 
-| Document | Description |
-|----------|-------------|
-| [Semantic Search](./01-semantic-search.md) | Vector embeddings and similarity matching |
-| [Hybrid Search](./02-hybrid-search.md) | Combining semantic and graph-based search |
-| [Proactive Suggestions](./03-proactive-suggestions.md) | Automatic tool recommendations |
+| Document                                               | Description                               |
+| ------------------------------------------------------ | ----------------------------------------- |
+| [Semantic Search](./01-semantic-search.md)             | Vector embeddings and similarity matching |
+| [Hybrid Search](./02-hybrid-search.md)                 | Combining semantic and graph-based search |
+| [Proactive Suggestions](./03-proactive-suggestions.md) | Automatic tool recommendations            |
 
 ---
 

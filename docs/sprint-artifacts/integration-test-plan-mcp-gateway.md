@@ -1,18 +1,19 @@
 # Integration Test Plan: MCP Gateway Server
 
-**Document Type:** Test Plan
-**Status:** Draft
-**Created:** 2025-12-16
-**Target:** MCP Gateway Server (HTTP Transport)
-**Test Suite Location:** `tests/integration/mcp-gateway/`
+**Document Type:** Test Plan **Status:** Draft **Created:** 2025-12-16 **Target:** MCP Gateway
+Server (HTTP Transport) **Test Suite Location:** `tests/integration/mcp-gateway/`
 
 ## Executive Summary
 
-This document outlines a comprehensive integration test strategy for the MCP Gateway Server's HTTP transport functionality following its modular refactoring. The test plan covers all API endpoints, authentication flows, rate limiting, CORS handling, JSON-RPC protocol compliance, and SSE event streaming.
+This document outlines a comprehensive integration test strategy for the MCP Gateway Server's HTTP
+transport functionality following its modular refactoring. The test plan covers all API endpoints,
+authentication flows, rate limiting, CORS handling, JSON-RPC protocol compliance, and SSE event
+streaming.
 
 ## Scope
 
 ### In Scope
+
 - HTTP server lifecycle (startup/shutdown)
 - Authentication and authorization
 - Rate limiting behavior
@@ -24,6 +25,7 @@ This document outlines a comprehensive integration test strategy for the MCP Gat
 - Multi-client scenarios
 
 ### Out of Scope
+
 - Stdio transport testing (covered by existing E2E tests)
 - Unit tests for individual handlers (separate test suite)
 - Performance/load testing (separate test suite)
@@ -33,6 +35,7 @@ This document outlines a comprehensive integration test strategy for the MCP Gat
 ## Architecture Overview
 
 ### Gateway Server Components
+
 ```
 PMLGatewayServer
 ├── HTTP Server (Deno.serve)
@@ -54,6 +57,7 @@ PMLGatewayServer
 ```
 
 ### Key Configuration
+
 - **Ports:** 3003 (HTTP), 8081 (Dashboard fallback)
 - **Auth Modes:** Local (bypass) vs Cloud (API Key required)
 - **Rate Limits:** MCP (100 req/60s), API (200 req/60s)
@@ -67,15 +71,17 @@ PMLGatewayServer
 ## 1. Server Lifecycle Tests
 
 ### 1.1 HTTP Server Startup
-**Test ID:** `LIFECYCLE-001`
-**Priority:** CRITICAL
-**Description:** Verify HTTP server starts successfully and binds to port
+
+**Test ID:** `LIFECYCLE-001` **Priority:** CRITICAL **Description:** Verify HTTP server starts
+successfully and binds to port
 
 **Preconditions:**
+
 - Port 3003 is available
 - All dependencies initialized (db, vectorSearch, graphEngine, etc.)
 
 **Test Steps:**
+
 1. Initialize test database and dependencies
 2. Create PMLGatewayServer instance
 3. Call `startHttp(3003)`
@@ -84,11 +90,13 @@ PMLGatewayServer
 6. Verify 200 OK response
 
 **Expected Results:**
+
 - Server starts without errors
 - Health check returns `{"status": "ok"}`
 - Logs show: "✓ Casys PML MCP gateway started (HTTP mode on port 3003)"
 
 **Edge Cases:**
+
 - Port already in use (should throw error)
 - Missing required dependencies (should throw error)
 - EventsStreamManager initialization failure
@@ -96,11 +104,12 @@ PMLGatewayServer
 ---
 
 ### 1.2 HTTP Server Shutdown
-**Test ID:** `LIFECYCLE-002`
-**Priority:** CRITICAL
-**Description:** Verify graceful shutdown closes all connections
+
+**Test ID:** `LIFECYCLE-002` **Priority:** CRITICAL **Description:** Verify graceful shutdown closes
+all connections
 
 **Test Steps:**
+
 1. Start HTTP server
 2. Create active SSE connection to `/events/stream`
 3. Make in-flight request to `/api/graph/snapshot`
@@ -110,12 +119,14 @@ PMLGatewayServer
 7. Verify in-flight requests complete or abort gracefully
 
 **Expected Results:**
+
 - All MCP client connections closed
 - SSE streams terminated
 - HTTP server shutdown completes
 - Logs show: "✓ Gateway stopped"
 
 **Edge Cases:**
+
 - Multiple concurrent SSE clients
 - Shutdown during active workflow execution
 - Shutdown during checkpoint save operation
@@ -123,17 +134,19 @@ PMLGatewayServer
 ---
 
 ### 1.3 Multiple Start/Stop Cycles
-**Test ID:** `LIFECYCLE-003`
-**Priority:** HIGH
-**Description:** Verify server can be restarted without resource leaks
+
+**Test ID:** `LIFECYCLE-003` **Priority:** HIGH **Description:** Verify server can be restarted
+without resource leaks
 
 **Test Steps:**
+
 1. Start server, make 10 requests, stop server
 2. Repeat 5 times
 3. Verify no memory leaks (check event listener count)
 4. Verify no port binding errors
 
 **Expected Results:**
+
 - All cycles complete successfully
 - No increase in memory/resource usage
 - Clean restart each time
@@ -143,49 +156,57 @@ PMLGatewayServer
 ## 2. Authentication and Authorization Tests
 
 ### 2.1 Local Mode - Auth Bypass
-**Test ID:** `AUTH-001`
-**Priority:** CRITICAL
-**Description:** In local mode, all requests should bypass authentication
+
+**Test ID:** `AUTH-001` **Priority:** CRITICAL **Description:** In local mode, all requests should
+bypass authentication
 
 **Preconditions:**
+
 - `GITHUB_CLIENT_ID` environment variable is NOT set
 
 **Test Steps:**
+
 1. Make GET request to `/api/graph/snapshot` without API key header
 2. Make POST request to `/mcp` without API key header
 3. Make GET request to `/events/stream` without API key header
 
 **Expected Results:**
+
 - All requests succeed with 200 status
 - User ID defaults to "local"
 - No 401 Unauthorized responses
 
 **Edge Cases:**
+
 - Request with invalid API key header (should still succeed in local mode)
 - Request with valid API key header (should still succeed, but key ignored)
 
 ---
 
 ### 2.2 Cloud Mode - API Key Required
-**Test ID:** `AUTH-002`
-**Priority:** CRITICAL
-**Description:** In cloud mode, protected routes require valid API key
+
+**Test ID:** `AUTH-002` **Priority:** CRITICAL **Description:** In cloud mode, protected routes
+require valid API key
 
 **Preconditions:**
+
 - `GITHUB_CLIENT_ID=test_client_id` environment variable is set
 
 **Test Steps:**
+
 1. Make GET request to `/api/graph/snapshot` without API key
 2. Make POST request to `/mcp` without API key
 3. Verify both return 401 Unauthorized
 
 **Expected Results:**
+
 ```json
 {
   "error": "Unauthorized",
   "message": "Valid API key required"
 }
 ```
+
 - Status: 401
 - Content-Type: application/json
 - CORS headers present
@@ -193,19 +214,22 @@ PMLGatewayServer
 ---
 
 ### 2.3 Cloud Mode - Valid API Key
-**Test ID:** `AUTH-003`
-**Priority:** CRITICAL
-**Description:** Valid API key grants access to protected routes
+
+**Test ID:** `AUTH-003` **Priority:** CRITICAL **Description:** Valid API key grants access to
+protected routes
 
 **Preconditions:**
+
 - Cloud mode enabled
 - Valid API key `ac_123456789012345678901234` exists in database
 
 **Test Steps:**
+
 1. Make GET request to `/api/graph/snapshot` with header `x-api-key: ac_123456789012345678901234`
 2. Verify request succeeds (200 or 503 if dependencies unavailable)
 
 **Expected Results:**
+
 - Request authorized successfully
 - User ID extracted from database
 - Request processed normally
@@ -213,11 +237,11 @@ PMLGatewayServer
 ---
 
 ### 2.4 Cloud Mode - Invalid API Key Format
-**Test ID:** `AUTH-004`
-**Priority:** HIGH
-**Description:** Malformed API keys should be rejected
+
+**Test ID:** `AUTH-004` **Priority:** HIGH **Description:** Malformed API keys should be rejected
 
 **Test Vectors:**
+
 ```typescript
 [
   { key: "invalid_key", reason: "wrong prefix" },
@@ -226,33 +250,38 @@ PMLGatewayServer
   { key: "ac_12345678901234567890123456789", reason: "too long" },
   { key: "", reason: "empty string" },
   { key: "Bearer ac_123456789012345678901234", reason: "bearer format" },
-]
+];
 ```
 
 **Expected Results:**
+
 - All requests return 401 Unauthorized
 - No database queries executed (fail fast on format validation)
 
 ---
 
 ### 2.5 Public Routes - No Auth Required
-**Test ID:** `AUTH-005`
-**Priority:** HIGH
-**Description:** Public routes accessible without authentication in cloud mode
+
+**Test ID:** `AUTH-005` **Priority:** HIGH **Description:** Public routes accessible without
+authentication in cloud mode
 
 **Preconditions:**
+
 - Cloud mode enabled (GITHUB_CLIENT_ID set)
 
 **Test Steps:**
+
 1. Make GET request to `/health` without API key
 2. Verify 200 OK response
 
 **Expected Results:**
+
 - `/health` returns `{"status": "ok"}`
 - No authentication required
 - CORS headers present
 
 **Public Routes List:**
+
 - `/health`
 
 ---
@@ -260,20 +289,23 @@ PMLGatewayServer
 ## 3. Rate Limiting Tests
 
 ### 3.1 MCP Endpoint Rate Limit
-**Test ID:** `RATE-001`
-**Priority:** HIGH
-**Description:** MCP endpoint enforces 100 requests per minute
+
+**Test ID:** `RATE-001` **Priority:** HIGH **Description:** MCP endpoint enforces 100 requests per
+minute
 
 **Preconditions:**
+
 - Cloud mode with valid API key (to test rate limiting per user)
 
 **Test Steps:**
+
 1. Make 100 POST requests to `/mcp` with same API key
 2. Verify all 100 succeed
 3. Make 101st request
 4. Verify 429 Rate Limit Exceeded
 
 **Expected Results:**
+
 ```json
 {
   "error": "Rate limit exceeded",
@@ -281,6 +313,7 @@ PMLGatewayServer
   "retryAfter": 60
 }
 ```
+
 - Status: 429
 - Header: `Retry-After: 60`
 - CORS headers present
@@ -288,27 +321,30 @@ PMLGatewayServer
 ---
 
 ### 3.2 API Endpoint Rate Limit
-**Test ID:** `RATE-002`
-**Priority:** HIGH
-**Description:** API endpoints enforce 200 requests per minute
+
+**Test ID:** `RATE-002` **Priority:** HIGH **Description:** API endpoints enforce 200 requests per
+minute
 
 **Test Steps:**
+
 1. Make 200 GET requests to `/api/graph/snapshot` with same API key
 2. Verify all 200 succeed
 3. Make 201st request
 4. Verify 429 Rate Limit Exceeded
 
 **Expected Results:**
+
 - Same format as RATE-001
 
 ---
 
 ### 3.3 Rate Limit Key Isolation
-**Test ID:** `RATE-003`
-**Priority:** MEDIUM
-**Description:** Rate limits are per-user (different API keys have separate limits)
+
+**Test ID:** `RATE-003` **Priority:** MEDIUM **Description:** Rate limits are per-user (different
+API keys have separate limits)
 
 **Test Steps:**
+
 1. Make 100 requests with API key A to `/mcp`
 2. Make 100 requests with API key B to `/mcp`
 3. Verify both succeed (each has own rate limit counter)
@@ -316,38 +352,43 @@ PMLGatewayServer
 5. Verify only API key A gets 429
 
 **Expected Results:**
+
 - API key B still has capacity
 - Rate limits isolated by user_id + client IP
 
 ---
 
 ### 3.4 Rate Limit Window Reset
-**Test ID:** `RATE-004`
-**Priority:** MEDIUM
-**Description:** Rate limit window resets after 60 seconds
+
+**Test ID:** `RATE-004` **Priority:** MEDIUM **Description:** Rate limit window resets after 60
+seconds
 
 **Test Steps:**
+
 1. Exhaust rate limit (100 requests to `/mcp`)
 2. Wait 61 seconds
 3. Make new request
 4. Verify request succeeds (limit reset)
 
 **Expected Results:**
+
 - Request after 61s succeeds
 - Sliding window properly implemented
 
 ---
 
 ### 3.5 Public Routes - No Rate Limit
-**Test ID:** `RATE-005`
-**Priority:** LOW
-**Description:** Public routes not subject to rate limiting
+
+**Test ID:** `RATE-005` **Priority:** LOW **Description:** Public routes not subject to rate
+limiting
 
 **Test Steps:**
+
 1. Make 300 requests to `/health` rapidly
 2. Verify all succeed
 
 **Expected Results:**
+
 - No 429 responses for public routes
 
 ---
@@ -355,15 +396,17 @@ PMLGatewayServer
 ## 4. CORS Handling Tests
 
 ### 4.1 CORS Preflight Request
-**Test ID:** `CORS-001`
-**Priority:** CRITICAL
-**Description:** OPTIONS requests return proper CORS headers
+
+**Test ID:** `CORS-001` **Priority:** CRITICAL **Description:** OPTIONS requests return proper CORS
+headers
 
 **Test Steps:**
+
 1. Send OPTIONS request to `/api/graph/snapshot`
 2. Verify response headers
 
 **Expected Results:**
+
 ```
 Status: 200
 Access-Control-Allow-Origin: http://localhost:8081 (or custom domain)
@@ -372,65 +415,71 @@ Access-Control-Allow-Headers: Content-Type, x-api-key
 ```
 
 **Edge Cases:**
+
 - OPTIONS to `/mcp`
 - OPTIONS to `/events/stream`
 
 ---
 
 ### 4.2 CORS Headers on Actual Requests
-**Test ID:** `CORS-002`
-**Priority:** HIGH
-**Description:** All responses include CORS headers
+
+**Test ID:** `CORS-002` **Priority:** HIGH **Description:** All responses include CORS headers
 
 **Test Vectors:**
+
 ```typescript
 [
   { method: "GET", path: "/health" },
   { method: "GET", path: "/api/graph/snapshot" },
   { method: "POST", path: "/mcp" },
   { method: "GET", path: "/api/metrics" },
-]
+];
 ```
 
 **Expected Results:**
+
 - All responses include `Access-Control-Allow-Origin` header
 - Header value matches configured origin
 
 ---
 
 ### 4.3 CORS Origin Configuration
-**Test ID:** `CORS-003`
-**Priority:** MEDIUM
-**Description:** CORS origin respects environment configuration
+
+**Test ID:** `CORS-003` **Priority:** MEDIUM **Description:** CORS origin respects environment
+configuration
 
 **Test Scenarios:**
+
 1. **No DOMAIN env:** Origin = `http://localhost:8081`
 2. **DOMAIN=example.com:** Origin = `https://example.com`
 3. **FRESH_PORT=9000 (no DOMAIN):** Origin = `http://localhost:9000`
 
 **Test Steps:**
+
 1. Set environment variable
 2. Start server
 3. Make request
 4. Verify `Access-Control-Allow-Origin` header
 
 **Expected Results:**
+
 - Origin dynamically set based on config
 
 ---
 
 ### 4.4 CORS on Error Responses
-**Test ID:** `CORS-004`
-**Priority:** MEDIUM
-**Description:** Error responses include CORS headers
+
+**Test ID:** `CORS-004` **Priority:** MEDIUM **Description:** Error responses include CORS headers
 
 **Test Steps:**
+
 1. Make request that triggers 401 (invalid API key)
 2. Make request that triggers 429 (rate limit exceeded)
 3. Make request that triggers 404 (unknown route)
 4. Verify all include CORS headers
 
 **Expected Results:**
+
 - CORS headers present on all error responses
 
 ---
@@ -438,40 +487,46 @@ Access-Control-Allow-Headers: Content-Type, x-api-key
 ## 5. API Endpoint Tests
 
 ### 5.1 Health Check Endpoint
-**Test ID:** `API-001`
-**Priority:** CRITICAL
-**Description:** `GET /health` returns server health status
+
+**Test ID:** `API-001` **Priority:** CRITICAL **Description:** `GET /health` returns server health
+status
 
 **Test Steps:**
+
 1. Make GET request to `/health`
 2. Verify response
 
 **Expected Results:**
+
 ```json
 {
   "status": "ok"
 }
 ```
+
 - Status: 200
 - Content-Type: application/json
 - Public route (no auth)
 
 **Edge Cases:**
+
 - POST to `/health` (should return 405 Method Not Allowed or 404)
 
 ---
 
 ### 5.2 Graph Snapshot Endpoint
-**Test ID:** `API-002`
-**Priority:** HIGH
-**Description:** `GET /api/graph/snapshot` returns current graph state
+
+**Test ID:** `API-002` **Priority:** HIGH **Description:** `GET /api/graph/snapshot` returns current
+graph state
 
 **Test Steps:**
+
 1. Initialize graph with test data
 2. Make GET request to `/api/graph/snapshot`
 3. Verify response contains nodes and edges
 
 **Expected Results:**
+
 ```json
 {
   "nodes": [...],
@@ -483,20 +538,23 @@ Access-Control-Allow-Headers: Content-Type, x-api-key
   }
 }
 ```
+
 - Status: 200
 - Protected route (requires auth in cloud mode)
 
 **Error Cases:**
+
 - GraphEngine not initialized (500 error)
 
 ---
 
 ### 5.3 Graph Path Finding Endpoint
-**Test ID:** `API-003`
-**Priority:** HIGH
-**Description:** `GET /api/graph/path?from=A&to=B` finds shortest path
+
+**Test ID:** `API-003` **Priority:** HIGH **Description:** `GET /api/graph/path?from=A&to=B` finds
+shortest path
 
 **Test Steps:**
+
 1. Populate graph with known structure:
    - A -> B -> C
    - A -> D -> C
@@ -504,6 +562,7 @@ Access-Control-Allow-Headers: Content-Type, x-api-key
 3. Verify returns shortest path
 
 **Expected Results:**
+
 ```json
 {
   "path": ["A", "B", "C"],
@@ -514,6 +573,7 @@ Access-Control-Allow-Headers: Content-Type, x-api-key
 ```
 
 **Error Cases:**
+
 - Missing `from` parameter → 400 Bad Request
 - Missing `to` parameter → 400 Bad Request
 - No path exists → `{"path": [], "total_hops": -1}`
@@ -521,16 +581,18 @@ Access-Control-Allow-Headers: Content-Type, x-api-key
 ---
 
 ### 5.4 Graph Related Tools Endpoint
-**Test ID:** `API-004`
-**Priority:** HIGH
-**Description:** `GET /api/graph/related?tool_id=X&limit=5` finds similar tools
+
+**Test ID:** `API-004` **Priority:** HIGH **Description:**
+`GET /api/graph/related?tool_id=X&limit=5` finds similar tools
 
 **Test Steps:**
+
 1. Populate graph with tool relationships
 2. Query related tools for known tool_id
 3. Verify Adamic-Adar scores
 
 **Expected Results:**
+
 ```json
 {
   "tool_id": "filesystem:read",
@@ -547,6 +609,7 @@ Access-Control-Allow-Headers: Content-Type, x-api-key
 ```
 
 **Error Cases:**
+
 - Missing `tool_id` → 400
 - Invalid limit → defaults to 5
 - Tool not found → empty related array
@@ -554,21 +617,24 @@ Access-Control-Allow-Headers: Content-Type, x-api-key
 ---
 
 ### 5.5 Graph Hypergraph Endpoint
-**Test ID:** `API-005`
-**Priority:** HIGH
-**Description:** `GET /api/graph/hypergraph` returns capability hypergraph
+
+**Test ID:** `API-005` **Priority:** HIGH **Description:** `GET /api/graph/hypergraph` returns
+capability hypergraph
 
 **Query Parameters:**
+
 - `include_tools=true|false`
 - `min_success_rate=0.0-1.0`
 - `min_usage=N`
 
 **Test Steps:**
+
 1. Populate capabilities with varying success rates and usage
 2. Query with filters
 3. Verify filtering logic
 
 **Expected Results:**
+
 ```json
 {
   "nodes": [...],
@@ -584,6 +650,7 @@ Access-Control-Allow-Headers: Content-Type, x-api-key
 ```
 
 **Error Cases:**
+
 - `min_success_rate < 0` → 400
 - `min_success_rate > 1` → 400
 - `min_usage < 0` → 400
@@ -592,11 +659,12 @@ Access-Control-Allow-Headers: Content-Type, x-api-key
 ---
 
 ### 5.6 Capabilities List Endpoint
-**Test ID:** `API-006`
-**Priority:** HIGH
-**Description:** `GET /api/capabilities` lists stored capabilities
+
+**Test ID:** `API-006` **Priority:** HIGH **Description:** `GET /api/capabilities` lists stored
+capabilities
 
 **Query Parameters:**
+
 - `community_id=N`
 - `min_success_rate=0.0-1.0`
 - `min_usage=N`
@@ -605,6 +673,7 @@ Access-Control-Allow-Headers: Content-Type, x-api-key
 - `sort=usage_count|success_rate|last_used|created_at`
 
 **Test Steps:**
+
 1. Store multiple capabilities with different attributes
 2. Test each filter independently
 3. Test filter combinations
@@ -612,6 +681,7 @@ Access-Control-Allow-Headers: Content-Type, x-api-key
 5. Test sorting
 
 **Expected Results:**
+
 ```json
 {
   "capabilities": [
@@ -632,6 +702,7 @@ Access-Control-Allow-Headers: Content-Type, x-api-key
 ```
 
 **Error Cases:**
+
 - Invalid filter values → 400
 - Limit > 100 → capped at 100
 - Invalid sort field → 400
@@ -639,16 +710,18 @@ Access-Control-Allow-Headers: Content-Type, x-api-key
 ---
 
 ### 5.7 Capability Dependencies GET
-**Test ID:** `API-007`
-**Priority:** MEDIUM
-**Description:** `GET /api/capabilities/:id/dependencies` returns dependency graph
+
+**Test ID:** `API-007` **Priority:** MEDIUM **Description:**
+`GET /api/capabilities/:id/dependencies` returns dependency graph
 
 **Test Steps:**
+
 1. Create capability with dependencies
 2. Query dependencies
 3. Verify response
 
 **Expected Results:**
+
 ```json
 {
   "capability_id": "cap_123",
@@ -664,17 +737,19 @@ Access-Control-Allow-Headers: Content-Type, x-api-key
 ```
 
 **Error Cases:**
+
 - Capability not found → 404
 - Invalid capability ID → 400
 
 ---
 
 ### 5.8 Capability Dependencies POST
-**Test ID:** `API-008`
-**Priority:** MEDIUM
-**Description:** `POST /api/capabilities/:id/dependencies` creates new dependency
+
+**Test ID:** `API-008` **Priority:** MEDIUM **Description:**
+`POST /api/capabilities/:id/dependencies` creates new dependency
 
 **Request Body:**
+
 ```json
 {
   "target_id": "cap_789",
@@ -684,10 +759,12 @@ Access-Control-Allow-Headers: Content-Type, x-api-key
 ```
 
 **Expected Results:**
+
 - Status: 201 Created
 - Returns created dependency object
 
 **Error Cases:**
+
 - Missing target_id → 400
 - Invalid dependency_type → 400
 - Confidence out of range → 400
@@ -697,36 +774,41 @@ Access-Control-Allow-Headers: Content-Type, x-api-key
 ---
 
 ### 5.9 Capability Dependencies DELETE
-**Test ID:** `API-009`
-**Priority:** MEDIUM
-**Description:** `DELETE /api/capabilities/:from/dependencies/:to` removes dependency
+
+**Test ID:** `API-009` **Priority:** MEDIUM **Description:**
+`DELETE /api/capabilities/:from/dependencies/:to` removes dependency
 
 **Test Steps:**
+
 1. Create dependency between cap_A and cap_B
 2. DELETE dependency
 3. Verify removal
 4. Query dependencies (should not include removed)
 
 **Expected Results:**
+
 - Status: 204 No Content
 
 **Error Cases:**
+
 - Dependency not found → 404
 - Invalid capability IDs → 400
 
 ---
 
 ### 5.10 Metrics Endpoint
-**Test ID:** `API-010`
-**Priority:** MEDIUM
-**Description:** `GET /api/metrics` returns system metrics
+
+**Test ID:** `API-010` **Priority:** MEDIUM **Description:** `GET /api/metrics` returns system
+metrics
 
 **Test Steps:**
+
 1. Execute some workflows/tool calls to generate metrics
 2. Query metrics endpoint
 3. Verify metrics structure
 
 **Expected Results:**
+
 ```json
 {
   "graph_stats": {
@@ -750,16 +832,18 @@ Access-Control-Allow-Headers: Content-Type, x-api-key
 ---
 
 ### 5.11 Tools Search Endpoint
-**Test ID:** `API-011`
-**Priority:** MEDIUM
-**Description:** `GET /api/tools/search?q=query` searches for tools
+
+**Test ID:** `API-011` **Priority:** MEDIUM **Description:** `GET /api/tools/search?q=query`
+searches for tools
 
 **Test Steps:**
+
 1. Populate vector search with tool embeddings
 2. Search for "read file"
 3. Verify semantic results
 
 **Expected Results:**
+
 ```json
 {
   "query": "read file",
@@ -777,17 +861,19 @@ Access-Control-Allow-Headers: Content-Type, x-api-key
 ```
 
 **Error Cases:**
+
 - Missing query parameter → 400
 - Empty query → 400
 
 ---
 
 ### 5.12 Events Stream Endpoint
-**Test ID:** `API-012`
-**Priority:** HIGH
-**Description:** `GET /events/stream` establishes SSE connection
+
+**Test ID:** `API-012` **Priority:** HIGH **Description:** `GET /events/stream` establishes SSE
+connection
 
 **Test Steps:**
+
 1. Make GET request to `/events/stream`
 2. Verify Content-Type: text/event-stream
 3. Verify initial connection event received
@@ -795,68 +881,74 @@ Access-Control-Allow-Headers: Content-Type, x-api-key
 5. Verify event received via SSE
 
 **Expected Results:**
+
 - Status: 200
 - Header: `Content-Type: text/event-stream`
 - Header: `Cache-Control: no-cache`
 - Header: `Connection: keep-alive`
 - Initial event:
+
 ```
 event: system.startup
 data: {"client_id":"...","connected_clients":1,"filters":["*"]}
-
 ```
 
 **Error Cases:**
+
 - Max clients reached (100) → 503
 
 ---
 
 ### 5.13 Dashboard Redirect Endpoint
-**Test ID:** `API-013`
-**Priority:** LOW
-**Description:** `GET /dashboard` redirects to Fresh dashboard
+
+**Test ID:** `API-013` **Priority:** LOW **Description:** `GET /dashboard` redirects to Fresh
+dashboard
 
 **Test Steps:**
+
 1. Make GET request to `/dashboard`
 2. Verify redirect
 
 **Expected Results:**
+
 - Status: 302 Found
 - Header: `Location: http://localhost:8080/dashboard`
 
 ---
 
 ### 5.14 Method Not Allowed
-**Test ID:** `API-014`
-**Priority:** MEDIUM
-**Description:** Wrong HTTP method returns 405
+
+**Test ID:** `API-014` **Priority:** MEDIUM **Description:** Wrong HTTP method returns 405
 
 **Test Vectors:**
+
 ```typescript
 [
   { method: "POST", path: "/health" },
   { method: "POST", path: "/api/graph/snapshot" },
   { method: "DELETE", path: "/health" },
   { method: "PUT", path: "/api/metrics" },
-]
+];
 ```
 
 **Expected Results:**
+
 - Status: 405 Method Not Allowed
 - CORS headers present
 
 ---
 
 ### 5.15 Not Found
-**Test ID:** `API-015`
-**Priority:** MEDIUM
-**Description:** Unknown routes return 404
+
+**Test ID:** `API-015` **Priority:** MEDIUM **Description:** Unknown routes return 404
 
 **Test Steps:**
+
 1. Make GET request to `/unknown/route`
 2. Make POST request to `/api/unknown`
 
 **Expected Results:**
+
 - Status: 404 Not Found
 - Body: "Not Found"
 
@@ -865,11 +957,12 @@ data: {"client_id":"...","connected_clients":1,"filters":["*"]}
 ## 6. JSON-RPC Protocol Tests
 
 ### 6.1 MCP Initialize Handshake
-**Test ID:** `JSONRPC-001`
-**Priority:** CRITICAL
-**Description:** `POST /mcp` with initialize method returns server info
+
+**Test ID:** `JSONRPC-001` **Priority:** CRITICAL **Description:** `POST /mcp` with initialize
+method returns server info
 
 **Request:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -886,6 +979,7 @@ data: {"client_id":"...","connected_clients":1,"filters":["*"]}
 ```
 
 **Expected Results:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -907,11 +1001,12 @@ data: {"client_id":"...","connected_clients":1,"filters":["*"]}
 ---
 
 ### 6.2 MCP Initialized Notification
-**Test ID:** `JSONRPC-002`
-**Priority:** CRITICAL
-**Description:** `notifications/initialized` acknowledgment
+
+**Test ID:** `JSONRPC-002` **Priority:** CRITICAL **Description:** `notifications/initialized`
+acknowledgment
 
 **Request:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -921,6 +1016,7 @@ data: {"client_id":"...","connected_clients":1,"filters":["*"]}
 ```
 
 **Expected Results:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -932,11 +1028,11 @@ data: {"client_id":"...","connected_clients":1,"filters":["*"]}
 ---
 
 ### 6.3 Tools List via JSON-RPC
-**Test ID:** `JSONRPC-003`
-**Priority:** CRITICAL
-**Description:** `tools/list` returns meta-tools
+
+**Test ID:** `JSONRPC-003` **Priority:** CRITICAL **Description:** `tools/list` returns meta-tools
 
 **Request:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -946,6 +1042,7 @@ data: {"client_id":"...","connected_clients":1,"filters":["*"]}
 ```
 
 **Expected Results:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -971,11 +1068,12 @@ data: {"client_id":"...","connected_clients":1,"filters":["*"]}
 ---
 
 ### 6.4 Tools Call via JSON-RPC
-**Test ID:** `JSONRPC-004`
-**Priority:** CRITICAL
-**Description:** `tools/call` executes tool and returns result
+
+**Test ID:** `JSONRPC-004` **Priority:** CRITICAL **Description:** `tools/call` executes tool and
+returns result
 
 **Request:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -992,6 +1090,7 @@ data: {"client_id":"...","connected_clients":1,"filters":["*"]}
 ```
 
 **Expected Results:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -1008,6 +1107,7 @@ data: {"client_id":"...","connected_clients":1,"filters":["*"]}
 ```
 
 **Error Cases:**
+
 - Missing `name` parameter → error code -32602 (INVALID_PARAMS)
 - Unknown tool → error code -32602
 - Tool execution failure → error code -32603 (INTERNAL_ERROR)
@@ -1015,11 +1115,11 @@ data: {"client_id":"...","connected_clients":1,"filters":["*"]}
 ---
 
 ### 6.5 JSON-RPC Error: Method Not Found
-**Test ID:** `JSONRPC-005`
-**Priority:** HIGH
-**Description:** Unknown method returns error
+
+**Test ID:** `JSONRPC-005` **Priority:** HIGH **Description:** Unknown method returns error
 
 **Request:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -1029,6 +1129,7 @@ data: {"client_id":"...","connected_clients":1,"filters":["*"]}
 ```
 
 **Expected Results:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -1043,16 +1144,17 @@ data: {"client_id":"...","connected_clients":1,"filters":["*"]}
 ---
 
 ### 6.6 JSON-RPC Error: Invalid Request
-**Test ID:** `JSONRPC-006`
-**Priority:** HIGH
-**Description:** Malformed JSON returns parse error
+
+**Test ID:** `JSONRPC-006` **Priority:** HIGH **Description:** Malformed JSON returns parse error
 
 **Request:**
+
 ```
 {invalid json
 ```
 
 **Expected Results:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -1063,21 +1165,24 @@ data: {"client_id":"...","connected_clients":1,"filters":["*"]}
   }
 }
 ```
+
 - Status: 400
 
 ---
 
 ### 6.7 JSON-RPC User Context
-**Test ID:** `JSONRPC-007`
-**Priority:** MEDIUM
-**Description:** User ID from auth passed to tool handlers
+
+**Test ID:** `JSONRPC-007` **Priority:** MEDIUM **Description:** User ID from auth passed to tool
+handlers
 
 **Test Steps:**
+
 1. Make authenticated JSON-RPC call to `tools/call` with `pml:execute_dag`
 2. Verify user_id propagated to workflow handler
 3. Verify workflow execution logged with correct user
 
 **Expected Results:**
+
 - User ID correctly extracted from API key
 - Passed to `handleCallTool(request, userId)`
 - Available in workflow execution context
@@ -1085,11 +1190,12 @@ data: {"client_id":"...","connected_clients":1,"filters":["*"]}
 ---
 
 ### 6.8 Legacy Message Endpoint
-**Test ID:** `JSONRPC-008`
-**Priority:** LOW
-**Description:** `POST /message` still works (backward compatibility)
+
+**Test ID:** `JSONRPC-008` **Priority:** LOW **Description:** `POST /message` still works (backward
+compatibility)
 
 **Request:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -1099,6 +1205,7 @@ data: {"client_id":"...","connected_clients":1,"filters":["*"]}
 ```
 
 **Expected Results:**
+
 - Same behavior as `/mcp` endpoint
 - Returns tools list
 
@@ -1107,17 +1214,18 @@ data: {"client_id":"...","connected_clients":1,"filters":["*"]}
 ## 7. SSE Event Stream Tests
 
 ### 7.1 SSE Connection Establishment
-**Test ID:** `SSE-001`
-**Priority:** HIGH
-**Description:** Client can establish SSE connection
+
+**Test ID:** `SSE-001` **Priority:** HIGH **Description:** Client can establish SSE connection
 
 **Test Steps:**
+
 1. Make GET request to `/events/stream` with auth
 2. Keep connection open
 3. Verify connection event received
 4. Verify heartbeat events every 30s
 
 **Expected Results:**
+
 ```
 HTTP/1.1 200 OK
 Content-Type: text/event-stream
@@ -1135,32 +1243,33 @@ data: {"client_id":"...","connected_clients":1,"filters":["*"]}
 ---
 
 ### 7.2 SSE Event Broadcasting
-**Test ID:** `SSE-002`
-**Priority:** HIGH
-**Description:** Events broadcast to all connected clients
+
+**Test ID:** `SSE-002` **Priority:** HIGH **Description:** Events broadcast to all connected clients
 
 **Test Steps:**
+
 1. Connect 3 SSE clients
 2. Trigger system event (e.g., graph.node_created)
 3. Verify all 3 clients receive event
 
 **Expected Results:**
+
 - All clients receive same event
 - Event format:
+
 ```
 event: graph.node_created
 data: {"node_id":"...","timestamp":...}
-
 ```
 
 ---
 
 ### 7.3 SSE Event Filtering
-**Test ID:** `SSE-003`
-**Priority:** MEDIUM
-**Description:** `?filter=` parameter filters events
+
+**Test ID:** `SSE-003` **Priority:** MEDIUM **Description:** `?filter=` parameter filters events
 
 **Test Steps:**
+
 1. Connect client A with `?filter=graph.node_created,graph.edge_created`
 2. Connect client B with no filter (all events)
 3. Trigger events: graph.node_created, workflow.started, graph.edge_created
@@ -1168,6 +1277,7 @@ data: {"node_id":"...","timestamp":...}
 5. Verify client B receives all events
 
 **Expected Results:**
+
 - Filter applied correctly
 - Client A: 2 events (node_created, edge_created)
 - Client B: 3 events (all)
@@ -1175,32 +1285,34 @@ data: {"node_id":"...","timestamp":...}
 ---
 
 ### 7.4 SSE Max Clients Limit
-**Test ID:** `SSE-004`
-**Priority:** HIGH
-**Description:** 101st client receives 503 error
+
+**Test ID:** `SSE-004` **Priority:** HIGH **Description:** 101st client receives 503 error
 
 **Test Steps:**
+
 1. Connect 100 SSE clients
 2. Attempt 101st connection
 3. Verify 503 Service Unavailable
 
 **Expected Results:**
+
 ```json
 {
   "error": "Too many clients",
   "max": 100
 }
 ```
+
 - Status: 503
 
 ---
 
 ### 7.5 SSE Client Disconnect
-**Test ID:** `SSE-005`
-**Priority:** MEDIUM
-**Description:** Client disconnect properly cleaned up
+
+**Test ID:** `SSE-005` **Priority:** MEDIUM **Description:** Client disconnect properly cleaned up
 
 **Test Steps:**
+
 1. Connect 3 SSE clients
 2. Disconnect client 2
 3. Verify server logs "SSE client disconnected (2/100)"
@@ -1208,52 +1320,57 @@ data: {"node_id":"...","timestamp":...}
 5. Verify only clients 1 and 3 receive event
 
 **Expected Results:**
+
 - Client removed from active list
 - No errors sending to disconnected client
 
 ---
 
 ### 7.6 SSE Heartbeat
-**Test ID:** `SSE-006`
-**Priority:** MEDIUM
-**Description:** Heartbeat comments sent every 30s
+
+**Test ID:** `SSE-006` **Priority:** MEDIUM **Description:** Heartbeat comments sent every 30s
 
 **Test Steps:**
+
 1. Connect SSE client
 2. Wait and record incoming messages
 3. Verify heartbeat every 30s
 
 **Expected Results:**
+
 - Heartbeat format: `: heartbeat\n\n`
 - Interval: 30000ms ± 1000ms
 
 ---
 
 ### 7.7 SSE CORS Headers
-**Test ID:** `SSE-007`
-**Priority:** MEDIUM
-**Description:** SSE responses include CORS headers
+
+**Test ID:** `SSE-007` **Priority:** MEDIUM **Description:** SSE responses include CORS headers
 
 **Test Steps:**
+
 1. Make OPTIONS request to `/events/stream`
 2. Make GET request to `/events/stream` with Origin header
 3. Verify CORS headers
 
 **Expected Results:**
+
 - CORS headers present on SSE response
 
 ---
 
 ### 7.8 SSE GET to /mcp
-**Test ID:** `SSE-008`
-**Priority:** LOW
-**Description:** `GET /mcp` redirects to SSE stream (MCP spec)
+
+**Test ID:** `SSE-008` **Priority:** LOW **Description:** `GET /mcp` redirects to SSE stream (MCP
+spec)
 
 **Test Steps:**
+
 1. Make GET request to `/mcp`
 2. Verify SSE stream established
 
 **Expected Results:**
+
 - Same behavior as `/events/stream`
 
 ---
@@ -1261,17 +1378,19 @@ data: {"node_id":"...","timestamp":...}
 ## 8. Error Handling Tests
 
 ### 8.1 Dependency Initialization Failure
-**Test ID:** `ERROR-001`
-**Priority:** HIGH
-**Description:** Graceful handling when EventsStreamManager fails to initialize
+
+**Test ID:** `ERROR-001` **Priority:** HIGH **Description:** Graceful handling when
+EventsStreamManager fails to initialize
 
 **Test Steps:**
+
 1. Mock EventBus to throw error
 2. Start HTTP server
 3. Make request to `/events/stream`
 4. Verify 503 error
 
 **Expected Results:**
+
 ```json
 {
   "error": "Events stream not initialized"
@@ -1281,16 +1400,18 @@ data: {"node_id":"...","timestamp":...}
 ---
 
 ### 8.2 GraphEngine Failure
-**Test ID:** `ERROR-002`
-**Priority:** HIGH
-**Description:** API returns 500 when GraphEngine throws error
+
+**Test ID:** `ERROR-002` **Priority:** HIGH **Description:** API returns 500 when GraphEngine throws
+error
 
 **Test Steps:**
+
 1. Mock GraphEngine.getGraphSnapshot() to throw
 2. Make request to `/api/graph/snapshot`
 3. Verify 500 error with message
 
 **Expected Results:**
+
 ```json
 {
   "error": "Failed to get graph snapshot: ..."
@@ -1300,16 +1421,18 @@ data: {"node_id":"...","timestamp":...}
 ---
 
 ### 8.3 CapabilityDataService Unavailable
-**Test ID:** `ERROR-003`
-**Priority:** MEDIUM
-**Description:** Hypergraph endpoint returns 503 when service unavailable
+
+**Test ID:** `ERROR-003` **Priority:** MEDIUM **Description:** Hypergraph endpoint returns 503 when
+service unavailable
 
 **Test Steps:**
+
 1. Create PMLGatewayServer without CapabilityDataService
 2. Make request to `/api/graph/hypergraph`
 3. Verify 503 error
 
 **Expected Results:**
+
 ```json
 {
   "error": "CapabilityDataService not configured"
@@ -1319,17 +1442,19 @@ data: {"node_id":"...","timestamp":...}
 ---
 
 ### 8.4 Database Connection Loss
-**Test ID:** `ERROR-004`
-**Priority:** HIGH
-**Description:** Graceful degradation when database unavailable
+
+**Test ID:** `ERROR-004` **Priority:** HIGH **Description:** Graceful degradation when database
+unavailable
 
 **Test Steps:**
+
 1. Start server normally
 2. Simulate database connection loss
 3. Make request to `/api/capabilities`
 4. Verify error handling
 
 **Expected Results:**
+
 - 500 error with descriptive message
 - Server remains running (doesn't crash)
 - Can recover when DB reconnects
@@ -1337,30 +1462,32 @@ data: {"node_id":"...","timestamp":...}
 ---
 
 ### 8.5 Invalid JSON Body
-**Test ID:** `ERROR-005`
-**Priority:** MEDIUM
-**Description:** POST with invalid JSON returns 400
+
+**Test ID:** `ERROR-005` **Priority:** MEDIUM **Description:** POST with invalid JSON returns 400
 
 **Test Steps:**
+
 1. POST to `/mcp` with body: `{invalid}`
 2. POST to `/api/capabilities/123/dependencies` with body: `not json`
 
 **Expected Results:**
+
 - Status: 400
 - Error message about invalid JSON
 
 ---
 
 ### 8.6 Missing Required Fields
-**Test ID:** `ERROR-006`
-**Priority:** MEDIUM
-**Description:** API validates required fields
+
+**Test ID:** `ERROR-006` **Priority:** MEDIUM **Description:** API validates required fields
 
 **Test Vectors:**
+
 - POST `/api/capabilities/:id/dependencies` without `target_id`
 - tools/call without `name` parameter
 
 **Expected Results:**
+
 - Status: 400
 - Error message listing missing fields
 
@@ -1369,43 +1496,47 @@ data: {"node_id":"...","timestamp":...}
 ## 9. Multi-Client and Concurrency Tests
 
 ### 9.1 Concurrent API Requests
-**Test ID:** `CONCURRENCY-001`
-**Priority:** HIGH
-**Description:** Handle 50 concurrent API requests
+
+**Test ID:** `CONCURRENCY-001` **Priority:** HIGH **Description:** Handle 50 concurrent API requests
 
 **Test Steps:**
+
 1. Make 50 simultaneous GET requests to `/api/graph/snapshot`
 2. Verify all succeed
 3. Verify responses are correct
 
 **Expected Results:**
+
 - All requests return 200
 - No race conditions or corrupted responses
 
 ---
 
 ### 9.2 Concurrent JSON-RPC Calls
-**Test ID:** `CONCURRENCY-002`
-**Priority:** HIGH
-**Description:** Handle concurrent JSON-RPC requests
+
+**Test ID:** `CONCURRENCY-002` **Priority:** HIGH **Description:** Handle concurrent JSON-RPC
+requests
 
 **Test Steps:**
+
 1. Make 20 concurrent `tools/call` requests with different IDs
 2. Verify all responses match request IDs correctly
 3. Verify no response mixing
 
 **Expected Results:**
+
 - Each response.id matches request.id
 - No cross-contamination
 
 ---
 
 ### 9.3 Mixed Traffic Pattern
-**Test ID:** `CONCURRENCY-003`
-**Priority:** MEDIUM
-**Description:** Handle mixed API and JSON-RPC traffic
+
+**Test ID:** `CONCURRENCY-003` **Priority:** MEDIUM **Description:** Handle mixed API and JSON-RPC
+traffic
 
 **Test Steps:**
+
 1. Simultaneously:
    - 10 clients to `/api/graph/snapshot`
    - 10 clients to `/mcp` (JSON-RPC)
@@ -1413,23 +1544,26 @@ data: {"node_id":"...","timestamp":...}
 2. Verify all succeed
 
 **Expected Results:**
+
 - No blocking between different endpoint types
 - All requests processed correctly
 
 ---
 
 ### 9.4 SSE Broadcast Performance
-**Test ID:** `CONCURRENCY-004`
-**Priority:** MEDIUM
-**Description:** Broadcast event to 100 SSE clients
+
+**Test ID:** `CONCURRENCY-004` **Priority:** MEDIUM **Description:** Broadcast event to 100 SSE
+clients
 
 **Test Steps:**
+
 1. Connect 100 SSE clients
 2. Trigger single event
 3. Measure time to broadcast to all
 4. Verify all clients receive event
 
 **Expected Results:**
+
 - Broadcast completes in < 1 second
 - All clients receive event
 
@@ -1438,16 +1572,17 @@ data: {"node_id":"...","timestamp":...}
 ## 10. Edge Cases and Boundary Tests
 
 ### 10.1 Empty Database
-**Test ID:** `EDGE-001`
-**Priority:** MEDIUM
-**Description:** API handles empty database gracefully
+
+**Test ID:** `EDGE-001` **Priority:** MEDIUM **Description:** API handles empty database gracefully
 
 **Test Steps:**
+
 1. Start server with fresh database (no data)
 2. Query `/api/graph/snapshot`
 3. Query `/api/capabilities`
 
 **Expected Results:**
+
 ```json
 {
   "nodes": [],
@@ -1455,6 +1590,7 @@ data: {"node_id":"...","timestamp":...}
   "metadata": {...}
 }
 ```
+
 ```json
 {
   "capabilities": [],
@@ -1465,16 +1601,17 @@ data: {"node_id":"...","timestamp":...}
 ---
 
 ### 10.2 Very Large Graph
-**Test ID:** `EDGE-002`
-**Priority:** LOW
-**Description:** Handle large graph with 10,000 nodes
+
+**Test ID:** `EDGE-002` **Priority:** LOW **Description:** Handle large graph with 10,000 nodes
 
 **Test Steps:**
+
 1. Populate graph with 10,000 nodes, 20,000 edges
 2. Query `/api/graph/snapshot`
 3. Verify response (may be paginated or filtered)
 
 **Expected Results:**
+
 - Request completes (may take longer)
 - No memory errors
 - Response size manageable
@@ -1482,11 +1619,11 @@ data: {"node_id":"...","timestamp":...}
 ---
 
 ### 10.3 Query Parameter Edge Cases
-**Test ID:** `EDGE-003`
-**Priority:** MEDIUM
-**Description:** Handle unusual query parameters
+
+**Test ID:** `EDGE-003` **Priority:** MEDIUM **Description:** Handle unusual query parameters
 
 **Test Vectors:**
+
 ```typescript
 [
   { param: "limit=-1", expected: "default to server limit" },
@@ -1494,55 +1631,59 @@ data: {"node_id":"...","timestamp":...}
   { param: "offset=-10", expected: "400 error" },
   { param: "min_success_rate=1.5", expected: "400 error" },
   { param: "sort=invalid_field", expected: "400 error" },
-]
+];
 ```
 
 ---
 
 ### 10.4 Special Characters in IDs
-**Test ID:** `EDGE-004`
-**Priority:** LOW
-**Description:** Handle special characters in capability IDs
+
+**Test ID:** `EDGE-004` **Priority:** LOW **Description:** Handle special characters in capability
+IDs
 
 **Test Steps:**
+
 1. Create capability with ID containing `:`, `/`, `?`, `#`
 2. Query via API
 3. Verify encoding/decoding
 
 **Expected Results:**
+
 - Proper URL encoding
 - Correct retrieval
 
 ---
 
 ### 10.5 Very Long Event Filter
-**Test ID:** `EDGE-005`
-**Priority:** LOW
-**Description:** SSE filter with 100 event types
+
+**Test ID:** `EDGE-005` **Priority:** LOW **Description:** SSE filter with 100 event types
 
 **Test Steps:**
+
 1. Connect SSE with `?filter=type1,type2,...,type100`
 2. Verify connection succeeds
 3. Verify filtering works
 
 **Expected Results:**
+
 - Filter parsed correctly
 - Performance acceptable
 
 ---
 
 ### 10.6 Rapid Connect/Disconnect SSE
-**Test ID:** `EDGE-006`
-**Priority:** MEDIUM
-**Description:** Rapid SSE client churn
+
+**Test ID:** `EDGE-006` **Priority:** MEDIUM **Description:** Rapid SSE client churn
 
 **Test Steps:**
+
 1. Connect 10 clients
 2. Disconnect all
 3. Repeat 10 times rapidly
 4. Verify no resource leaks
 
 **Expected Results:**
+
 - Client count correctly maintained
 - No memory leaks
 
@@ -1743,7 +1884,7 @@ Deno.test("SSE-001: SSE connection establishment", async () => {
 export async function withEnv<T>(
   key: string,
   value: string | undefined,
-  fn: () => Promise<T>
+  fn: () => Promise<T>,
 ): Promise<T> {
   const original = Deno.env.get(key);
   if (value === undefined) {
@@ -1774,43 +1915,51 @@ export async function withLocalMode<T>(fn: () => Promise<T>): Promise<T> {
 ## Test Execution Plan
 
 ### Phase 1: Core Functionality (Week 1)
+
 - LIFECYCLE tests (3 tests)
 - AUTH tests (5 tests)
 - API-001 to API-005 (health, graph endpoints)
 - JSONRPC-001 to JSONRPC-004 (core protocol)
 
 **Exit Criteria:**
+
 - Server can start/stop cleanly
 - Authentication works in both modes
 - Basic API endpoints functional
 - JSON-RPC protocol compliant
 
 ### Phase 2: Extended API Coverage (Week 2)
+
 - API-006 to API-015 (capabilities, metrics, tools, errors)
 - CORS tests (4 tests)
 - ERROR tests (6 tests)
 
 **Exit Criteria:**
+
 - All API endpoints tested
 - CORS properly configured
 - Error handling comprehensive
 
 ### Phase 3: Advanced Features (Week 3)
+
 - SSE tests (8 tests)
 - RATE tests (5 tests)
 - JSONRPC-005 to JSONRPC-008 (error cases, user context)
 
 **Exit Criteria:**
+
 - SSE streaming reliable
 - Rate limiting effective
 - All JSON-RPC error cases handled
 
 ### Phase 4: Stress and Edge Cases (Week 4)
+
 - CONCURRENCY tests (4 tests)
 - EDGE tests (6 tests)
 - Integration with existing test suite
 
 **Exit Criteria:**
+
 - No concurrency issues
 - Edge cases handled gracefully
 - Full test suite passes
@@ -1818,6 +1967,7 @@ export async function withLocalMode<T>(fn: () => Promise<T>): Promise<T> {
 ## Success Criteria
 
 ### Coverage Targets
+
 - **Endpoint Coverage:** 100% of documented API endpoints
 - **Authentication Paths:** Both local and cloud modes
 - **Error Scenarios:** All error codes tested
@@ -1825,12 +1975,14 @@ export async function withLocalMode<T>(fn: () => Promise<T>): Promise<T> {
 - **JSON-RPC:** All methods and error codes
 
 ### Quality Metrics
+
 - **All tests pass:** 100% pass rate
 - **No flaky tests:** Tests should be deterministic
 - **Test execution time:** < 5 minutes for full suite
 - **Code coverage:** > 80% for gateway-server.ts and routing modules
 
 ### Documentation
+
 - All test cases documented with ID, description, expected results
 - Test fixtures and helpers well-documented
 - Example requests/responses provided
@@ -1839,12 +1991,14 @@ export async function withLocalMode<T>(fn: () => Promise<T>): Promise<T> {
 ## Risk Assessment
 
 ### High Risk Areas
+
 1. **SSE Connection Management:** Potential memory leaks with many clients
 2. **Rate Limiting:** Timing-sensitive, may be flaky
 3. **Authentication:** Database dependency, may require seeding
 4. **Concurrency:** Race conditions possible
 
 ### Mitigation Strategies
+
 1. **Memory Monitoring:** Track client count, check for leaks after disconnect
 2. **Rate Limit Testing:** Use generous time margins, reset state between tests
 3. **Auth Mocking:** Use in-memory mock database for auth tests
@@ -1853,16 +2007,19 @@ export async function withLocalMode<T>(fn: () => Promise<T>): Promise<T> {
 ## Test Maintenance
 
 ### Continuous Integration
+
 - Run full test suite on every PR
 - Run subset (CRITICAL tests) on every commit
 - Nightly runs with extended concurrency tests
 
 ### Test Review
+
 - Review test failures weekly
 - Update tests when API changes
 - Refactor flaky tests immediately
 
 ### Test Data Management
+
 - Use fixtures for consistent test data
 - Clean up test databases after each test
 - Avoid hard-coded IDs, generate dynamically
@@ -1871,98 +2028,102 @@ export async function withLocalMode<T>(fn: () => Promise<T>): Promise<T> {
 
 ## Appendix A: Full Test Inventory
 
-| Test ID | Category | Priority | Description | Est. Time |
-|---------|----------|----------|-------------|-----------|
-| LIFECYCLE-001 | Lifecycle | CRITICAL | HTTP server startup | 2h |
-| LIFECYCLE-002 | Lifecycle | CRITICAL | HTTP server shutdown | 2h |
-| LIFECYCLE-003 | Lifecycle | HIGH | Multiple start/stop cycles | 1h |
-| AUTH-001 | Auth | CRITICAL | Local mode bypass | 1h |
-| AUTH-002 | Auth | CRITICAL | Cloud mode API key required | 1h |
-| AUTH-003 | Auth | CRITICAL | Valid API key accepted | 2h |
-| AUTH-004 | Auth | HIGH | Invalid API key format | 1h |
-| AUTH-005 | Auth | HIGH | Public routes no auth | 1h |
-| RATE-001 | Rate Limit | HIGH | MCP endpoint rate limit | 2h |
-| RATE-002 | Rate Limit | HIGH | API endpoint rate limit | 2h |
-| RATE-003 | Rate Limit | MEDIUM | Rate limit isolation | 2h |
-| RATE-004 | Rate Limit | MEDIUM | Rate limit window reset | 1h |
-| RATE-005 | Rate Limit | LOW | Public routes no limit | 1h |
-| CORS-001 | CORS | CRITICAL | Preflight request | 1h |
-| CORS-002 | CORS | HIGH | CORS on actual requests | 1h |
-| CORS-003 | CORS | MEDIUM | CORS origin config | 1h |
-| CORS-004 | CORS | MEDIUM | CORS on errors | 1h |
-| API-001 | API | CRITICAL | Health check | 1h |
-| API-002 | API | HIGH | Graph snapshot | 2h |
-| API-003 | API | HIGH | Graph path finding | 2h |
-| API-004 | API | HIGH | Graph related tools | 2h |
-| API-005 | API | HIGH | Graph hypergraph | 3h |
-| API-006 | API | HIGH | Capabilities list | 3h |
-| API-007 | API | MEDIUM | Capability deps GET | 2h |
-| API-008 | API | MEDIUM | Capability deps POST | 2h |
-| API-009 | API | MEDIUM | Capability deps DELETE | 2h |
-| API-010 | API | MEDIUM | Metrics endpoint | 2h |
-| API-011 | API | MEDIUM | Tools search | 2h |
-| API-012 | API | HIGH | Events stream | 3h |
-| API-013 | API | LOW | Dashboard redirect | 1h |
-| API-014 | API | MEDIUM | Method not allowed | 1h |
-| API-015 | API | MEDIUM | Not found | 1h |
-| JSONRPC-001 | JSON-RPC | CRITICAL | Initialize handshake | 2h |
-| JSONRPC-002 | JSON-RPC | CRITICAL | Initialized notification | 1h |
-| JSONRPC-003 | JSON-RPC | CRITICAL | Tools list | 2h |
-| JSONRPC-004 | JSON-RPC | CRITICAL | Tools call | 3h |
-| JSONRPC-005 | JSON-RPC | HIGH | Method not found error | 1h |
-| JSONRPC-006 | JSON-RPC | HIGH | Invalid request error | 1h |
-| JSONRPC-007 | JSON-RPC | MEDIUM | User context propagation | 2h |
-| JSONRPC-008 | JSON-RPC | LOW | Legacy message endpoint | 1h |
-| SSE-001 | SSE | HIGH | Connection establishment | 2h |
-| SSE-002 | SSE | HIGH | Event broadcasting | 2h |
-| SSE-003 | SSE | MEDIUM | Event filtering | 2h |
-| SSE-004 | SSE | HIGH | Max clients limit | 1h |
-| SSE-005 | SSE | MEDIUM | Client disconnect | 2h |
-| SSE-006 | SSE | MEDIUM | Heartbeat | 1h |
-| SSE-007 | SSE | MEDIUM | CORS headers | 1h |
-| SSE-008 | SSE | LOW | GET /mcp SSE | 1h |
-| ERROR-001 | Error | HIGH | EventsStream init failure | 1h |
-| ERROR-002 | Error | HIGH | GraphEngine failure | 1h |
-| ERROR-003 | Error | MEDIUM | CapabilityDataService unavailable | 1h |
-| ERROR-004 | Error | HIGH | Database connection loss | 2h |
-| ERROR-005 | Error | MEDIUM | Invalid JSON body | 1h |
-| ERROR-006 | Error | MEDIUM | Missing required fields | 1h |
-| CONCURRENCY-001 | Concurrency | HIGH | Concurrent API requests | 2h |
-| CONCURRENCY-002 | Concurrency | HIGH | Concurrent JSON-RPC | 2h |
-| CONCURRENCY-003 | Concurrency | MEDIUM | Mixed traffic | 2h |
-| CONCURRENCY-004 | Concurrency | MEDIUM | SSE broadcast performance | 2h |
-| EDGE-001 | Edge Cases | MEDIUM | Empty database | 1h |
-| EDGE-002 | Edge Cases | LOW | Very large graph | 2h |
-| EDGE-003 | Edge Cases | MEDIUM | Query param edge cases | 2h |
-| EDGE-004 | Edge Cases | LOW | Special chars in IDs | 1h |
-| EDGE-005 | Edge Cases | LOW | Very long event filter | 1h |
-| EDGE-006 | Edge Cases | MEDIUM | Rapid SSE connect/disconnect | 2h |
+| Test ID         | Category    | Priority | Description                       | Est. Time |
+| --------------- | ----------- | -------- | --------------------------------- | --------- |
+| LIFECYCLE-001   | Lifecycle   | CRITICAL | HTTP server startup               | 2h        |
+| LIFECYCLE-002   | Lifecycle   | CRITICAL | HTTP server shutdown              | 2h        |
+| LIFECYCLE-003   | Lifecycle   | HIGH     | Multiple start/stop cycles        | 1h        |
+| AUTH-001        | Auth        | CRITICAL | Local mode bypass                 | 1h        |
+| AUTH-002        | Auth        | CRITICAL | Cloud mode API key required       | 1h        |
+| AUTH-003        | Auth        | CRITICAL | Valid API key accepted            | 2h        |
+| AUTH-004        | Auth        | HIGH     | Invalid API key format            | 1h        |
+| AUTH-005        | Auth        | HIGH     | Public routes no auth             | 1h        |
+| RATE-001        | Rate Limit  | HIGH     | MCP endpoint rate limit           | 2h        |
+| RATE-002        | Rate Limit  | HIGH     | API endpoint rate limit           | 2h        |
+| RATE-003        | Rate Limit  | MEDIUM   | Rate limit isolation              | 2h        |
+| RATE-004        | Rate Limit  | MEDIUM   | Rate limit window reset           | 1h        |
+| RATE-005        | Rate Limit  | LOW      | Public routes no limit            | 1h        |
+| CORS-001        | CORS        | CRITICAL | Preflight request                 | 1h        |
+| CORS-002        | CORS        | HIGH     | CORS on actual requests           | 1h        |
+| CORS-003        | CORS        | MEDIUM   | CORS origin config                | 1h        |
+| CORS-004        | CORS        | MEDIUM   | CORS on errors                    | 1h        |
+| API-001         | API         | CRITICAL | Health check                      | 1h        |
+| API-002         | API         | HIGH     | Graph snapshot                    | 2h        |
+| API-003         | API         | HIGH     | Graph path finding                | 2h        |
+| API-004         | API         | HIGH     | Graph related tools               | 2h        |
+| API-005         | API         | HIGH     | Graph hypergraph                  | 3h        |
+| API-006         | API         | HIGH     | Capabilities list                 | 3h        |
+| API-007         | API         | MEDIUM   | Capability deps GET               | 2h        |
+| API-008         | API         | MEDIUM   | Capability deps POST              | 2h        |
+| API-009         | API         | MEDIUM   | Capability deps DELETE            | 2h        |
+| API-010         | API         | MEDIUM   | Metrics endpoint                  | 2h        |
+| API-011         | API         | MEDIUM   | Tools search                      | 2h        |
+| API-012         | API         | HIGH     | Events stream                     | 3h        |
+| API-013         | API         | LOW      | Dashboard redirect                | 1h        |
+| API-014         | API         | MEDIUM   | Method not allowed                | 1h        |
+| API-015         | API         | MEDIUM   | Not found                         | 1h        |
+| JSONRPC-001     | JSON-RPC    | CRITICAL | Initialize handshake              | 2h        |
+| JSONRPC-002     | JSON-RPC    | CRITICAL | Initialized notification          | 1h        |
+| JSONRPC-003     | JSON-RPC    | CRITICAL | Tools list                        | 2h        |
+| JSONRPC-004     | JSON-RPC    | CRITICAL | Tools call                        | 3h        |
+| JSONRPC-005     | JSON-RPC    | HIGH     | Method not found error            | 1h        |
+| JSONRPC-006     | JSON-RPC    | HIGH     | Invalid request error             | 1h        |
+| JSONRPC-007     | JSON-RPC    | MEDIUM   | User context propagation          | 2h        |
+| JSONRPC-008     | JSON-RPC    | LOW      | Legacy message endpoint           | 1h        |
+| SSE-001         | SSE         | HIGH     | Connection establishment          | 2h        |
+| SSE-002         | SSE         | HIGH     | Event broadcasting                | 2h        |
+| SSE-003         | SSE         | MEDIUM   | Event filtering                   | 2h        |
+| SSE-004         | SSE         | HIGH     | Max clients limit                 | 1h        |
+| SSE-005         | SSE         | MEDIUM   | Client disconnect                 | 2h        |
+| SSE-006         | SSE         | MEDIUM   | Heartbeat                         | 1h        |
+| SSE-007         | SSE         | MEDIUM   | CORS headers                      | 1h        |
+| SSE-008         | SSE         | LOW      | GET /mcp SSE                      | 1h        |
+| ERROR-001       | Error       | HIGH     | EventsStream init failure         | 1h        |
+| ERROR-002       | Error       | HIGH     | GraphEngine failure               | 1h        |
+| ERROR-003       | Error       | MEDIUM   | CapabilityDataService unavailable | 1h        |
+| ERROR-004       | Error       | HIGH     | Database connection loss          | 2h        |
+| ERROR-005       | Error       | MEDIUM   | Invalid JSON body                 | 1h        |
+| ERROR-006       | Error       | MEDIUM   | Missing required fields           | 1h        |
+| CONCURRENCY-001 | Concurrency | HIGH     | Concurrent API requests           | 2h        |
+| CONCURRENCY-002 | Concurrency | HIGH     | Concurrent JSON-RPC               | 2h        |
+| CONCURRENCY-003 | Concurrency | MEDIUM   | Mixed traffic                     | 2h        |
+| CONCURRENCY-004 | Concurrency | MEDIUM   | SSE broadcast performance         | 2h        |
+| EDGE-001        | Edge Cases  | MEDIUM   | Empty database                    | 1h        |
+| EDGE-002        | Edge Cases  | LOW      | Very large graph                  | 2h        |
+| EDGE-003        | Edge Cases  | MEDIUM   | Query param edge cases            | 2h        |
+| EDGE-004        | Edge Cases  | LOW      | Special chars in IDs              | 1h        |
+| EDGE-005        | Edge Cases  | LOW      | Very long event filter            | 1h        |
+| EDGE-006        | Edge Cases  | MEDIUM   | Rapid SSE connect/disconnect      | 2h        |
 
-**Total Tests:** 62
-**Total Estimated Time:** 102 hours (≈ 13 days @ 8h/day)
-**Recommended Timeline:** 4 weeks (allows for debugging, refactoring, documentation)
+**Total Tests:** 62 **Total Estimated Time:** 102 hours (≈ 13 days @ 8h/day) **Recommended
+Timeline:** 4 weeks (allows for debugging, refactoring, documentation)
 
 ---
 
 ## Appendix B: Test Data Templates
 
 ### Mock API Key Database Seeding
+
 ```typescript
 export async function seedTestApiKeys(db: PGliteClient) {
   const validApiKey = "ac_123456789012345678901234";
   const prefix = "ac_1234"; // First 7 chars
   const hash = await hashApiKey(validApiKey);
 
-  await db.query(`
+  await db.query(
+    `
     INSERT INTO users (id, username, api_key_hash, api_key_prefix)
     VALUES ('user_1', 'test_user', $1, $2)
-  `, [hash, prefix]);
+  `,
+    [hash, prefix],
+  );
 
   return { validApiKey, userId: "user_1" };
 }
 ```
 
 ### Mock Graph Data
+
 ```typescript
 export async function seedTestGraph(graphEngine: GraphRAGEngine) {
   // Nodes
@@ -1977,6 +2138,7 @@ export async function seedTestGraph(graphEngine: GraphRAGEngine) {
 ```
 
 ### Mock Capability Data
+
 ```typescript
 export async function seedTestCapabilities(db: PGliteClient) {
   await db.query(`

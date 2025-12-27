@@ -5,6 +5,7 @@
 ## Prerequisites
 
 Before starting, ensure you have:
+
 - PML installed and configured ([Installation Guide](./01-installation.md))
 - At least one MCP server configured (e.g., filesystem)
 - Claude Code or another MCP client running
@@ -56,6 +57,7 @@ Use pml:execute_dag with intent "Read package.json and extract the project name"
 ```
 
 PML automatically:
+
 1. Identifies the required tools
 2. Builds a DAG with proper dependencies
 3. Executes the workflow
@@ -88,8 +90,8 @@ PML executes the code in an isolated Deno environment:
 
 ```javascript
 // PML executes this safely
-const data = [{"name": "Alice"}, {"name": "Bob"}, {"name": "Charlie"}];
-return data.length;  // Returns: 3
+const data = [{ "name": "Alice" }, { "name": "Bob" }, { "name": "Charlie" }];
+return data.length; // Returns: 3
 ```
 
 ## Step 5: Parallel Execution
@@ -109,12 +111,12 @@ Layer 0: [read_config, read_package, read_readme]  ← PARALLEL
 
 ## What You've Learned
 
-| Feature | What It Does |
-|---------|--------------|
+| Feature            | What It Does                   |
+| ------------------ | ------------------------------ |
 | `pml:search_tools` | Find tools by natural language |
-| `pml:execute_dag` | Run multi-tool workflows |
-| `pml:execute_code` | Process data in sandbox |
-| Parallelization | Automatic speedup |
+| `pml:execute_dag`  | Run multi-tool workflows       |
+| `pml:execute_code` | Process data in sandbox        |
+| Parallelization    | Automatic speedup              |
 
 ## Next Steps
 
@@ -130,6 +132,7 @@ Now explore more advanced features:
 ### PML not responding
 
 Check if the gateway is running:
+
 ```bash
 ./pml status
 ```
@@ -137,6 +140,7 @@ Check if the gateway is running:
 ### Tools not found
 
 Re-initialize to refresh tool discovery:
+
 ```bash
 ./pml init --config config/mcp-servers.json
 ```
@@ -144,6 +148,7 @@ Re-initialize to refresh tool discovery:
 ### Slow execution
 
 Enable the cache for repeated operations:
+
 ```bash
 ./pml serve --config ... # Cache enabled by default
 ```

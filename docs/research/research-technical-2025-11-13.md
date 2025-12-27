@@ -1884,8 +1884,8 @@ MessagesState analysis **Date:** 2025-11-13
 
 **Context:**
 
-Le système Casys PML actuel utilise un DAG executor qui s'exécute de manière linéaire et complète
-en une seule passe, sans capacité de feedback durant l'exécution, sans branches conditionnelles, et
+Le système Casys PML actuel utilise un DAG executor qui s'exécute de manière linéaire et complète en
+une seule passe, sans capacité de feedback durant l'exécution, sans branches conditionnelles, et
 sans points d'interaction pour demander des choix (ni à l'humain, ni décisions autonomes de
 l'agent).
 

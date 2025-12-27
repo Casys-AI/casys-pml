@@ -1,21 +1,21 @@
 ---
-name: 'step-06-design'
-description: 'Design the workflow structure and step sequence based on gathered requirements, tools configuration, and output format'
+name: "step-06-design"
+description: "Design the workflow structure and step sequence based on gathered requirements, tools configuration, and output format"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmb/workflows/create-workflow'
+workflow_path: "{project-root}/_bmad/bmb/workflows/create-workflow"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-06-design.md'
-nextStepFile: '{workflow_path}/steps/step-07-build.md'
-workflowFile: '{workflow_path}/workflow.md'
+thisStepFile: "{workflow_path}/steps/step-06-design.md"
+nextStepFile: "{workflow_path}/steps/step-07-build.md"
+workflowFile: "{workflow_path}/workflow.md"
 # Output files for workflow creation process
-targetWorkflowPath: '{bmb_creations_output_folder}/workflows/{new_workflow_name}'
-workflowPlanFile: '{targetWorkflowPath}/workflow-plan-{new_workflow_name}.md'
+targetWorkflowPath: "{bmb_creations_output_folder}/workflows/{new_workflow_name}"
+workflowPlanFile: "{targetWorkflowPath}/workflow-plan-{new_workflow_name}.md"
 
 # Task References
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 # Template References
 # No template needed - will append design details directly to workflow plan
 ---
@@ -24,7 +24,8 @@ partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 
 ## STEP GOAL:
 
-To collaboratively design the workflow structure, step sequence, and interaction patterns based on the approved plan and output format requirements.
+To collaboratively design the workflow structure, step sequence, and interaction patterns based on
+the approved plan and output format requirements.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -38,7 +39,8 @@ To collaboratively design the workflow structure, step sequence, and interaction
 ### Role Reinforcement:
 
 - ✅ You are a workflow architect and systems designer
-- ✅ If you already have been given communication or persona patterns, continue to use those while playing this new role
+- ✅ If you already have been given communication or persona patterns, continue to use those while
+  playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You bring workflow design patterns and architectural expertise
 - ✅ User brings their domain requirements and workflow preferences
@@ -71,8 +73,10 @@ To collaboratively design the workflow structure, step sequence, and interaction
 When designing, you may load these documents as needed:
 
 - `{project-root}/_bmad/bmb/docs/workflows/templates/step-template.md` - Step file structure
-- `{project-root}/_bmad/bmb/docs/workflows/templates/step-01-init-continuable-template.md` - Continuable init step template
-- `{project-root}/_bmad/bmb/docs/workflows/templates/step-1b-template.md` - Continuation step template
+- `{project-root}/_bmad/bmb/docs/workflows/templates/step-01-init-continuable-template.md` -
+  Continuable init step template
+- `{project-root}/_bmad/bmb/docs/workflows/templates/step-1b-template.md` - Continuation step
+  template
 - `{project-root}/_bmad/bmb/docs/workflows/templates/workflow-template.md` - Workflow configuration
 - `{project-root}/_bmad/bmb/reference/workflows/meal-prep-nutrition/workflow.md` - Complete example
 
@@ -106,8 +110,7 @@ Based on the approved plan, collaboratively design:
 
 ### 1a. Continuation Support Assessment
 
-**Ask the user:**
-"Will this workflow potentially take multiple sessions to complete? Consider:
+**Ask the user:** "Will this workflow potentially take multiple sessions to complete? Consider:
 
 - Does this workflow generate a document/output file?
 - Might users need to pause and resume the workflow?
@@ -235,15 +238,18 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu
-- User can chat or ask questions - always respond and then end with display again of the menu options
+- User can chat or ask questions - always respond and then end with display again of the menu
+  options
 - Use menu handling logic section below
 
 #### Menu Handling Logic:
 
 - IF A: Execute {advancedElicitationTask}
 - IF P: Execute {partyModeWorkflow}
-- IF C: Save design to {workflowPlanFile}, update frontmatter, then load, read entire file, then execute {nextStepFile}
-- IF Any other comments or queries: help user respond then [Redisplay Menu Options](#10-present-menu-options)
+- IF C: Save design to {workflowPlanFile}, update frontmatter, then load, read entire file, then
+  execute {nextStepFile}
+- IF Any other comments or queries: help user respond then
+  [Redisplay Menu Options](#10-present-menu-options)
 
 ## CRITICAL STEP COMPLETION NOTE
 
@@ -268,4 +274,5 @@ ONLY WHEN C is selected and design is saved will you load {nextStepFile} to begi
 - Not documenting design in plan
 - Proceeding without user agreement
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

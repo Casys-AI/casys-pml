@@ -80,7 +80,9 @@ export default function TraceTimeline({
           flexWrap: "wrap",
         }}
       >
-        <span style={{ color: trace.success ? "var(--success, #22c55e)" : "var(--error, #ef4444)" }}>
+        <span
+          style={{ color: trace.success ? "var(--success, #22c55e)" : "var(--error, #ef4444)" }}
+        >
           {trace.success ? "✅ Success" : "❌ Failed"}
         </span>
         <span style={{ color: "var(--text-muted, #d5c3b5)" }}>

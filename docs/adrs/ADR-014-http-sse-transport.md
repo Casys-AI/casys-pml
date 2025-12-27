@@ -1,7 +1,6 @@
 # ADR-014: HTTP/SSE Transport for MCP Gateway
 
-**Status:** ✅ Implemented
-**Date:** 2025-11-21
+**Status:** ✅ Implemented **Date:** 2025-11-21
 
 ## Context
 

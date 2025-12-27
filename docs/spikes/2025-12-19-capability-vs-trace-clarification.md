@@ -1,9 +1,7 @@
 # Spike: Capability vs Trace - Clarification Architecturale
 
-**Date:** 2025-12-19
-**Auteur:** Erwan + Claude
-**Status:** Investigation
-**Contexte:** Discussion Story 10.5 - Confusion dans le code entre Capability et Trace
+**Date:** 2025-12-19 **Auteur:** Erwan + Claude **Status:** Investigation **Contexte:** Discussion
+Story 10.5 - Confusion dans le code entre Capability et Trace
 
 ---
 
@@ -16,12 +14,13 @@ Le code actuel mélange deux concepts distincts sous le terme "Capability" :
 await this.capabilityStore.saveCapability({
   code: this.lastExecutedCode,
   intent: this.lastIntent,
-  toolsUsed: this.getToolsCalled(),      // ← Données de TRACE
-  toolInvocations,                        // ← Données de TRACE
+  toolsUsed: this.getToolsCalled(), // ← Données de TRACE
+  toolInvocations, // ← Données de TRACE
 });
 ```
 
-**Le problème :** On appelle `saveCapability()` avec des données d'exécution (trace), pas une vraie capability.
+**Le problème :** On appelle `saveCapability()` avec des données d'exécution (trace), pas une vraie
+capability.
 
 ---
 
@@ -29,9 +28,8 @@ await this.capabilityStore.saveCapability({
 
 ### Capability (Mémoire Sémantique)
 
-**Quand créée :** À l'analyse statique, AVANT exécution
-**Ce qu'elle contient :** Structure COMPLÈTE avec toutes les branches possibles
-**Source :** Analyse AST du code (Story 10.1)
+**Quand créée :** À l'analyse statique, AVANT exécution **Ce qu'elle contient :** Structure COMPLÈTE
+avec toutes les branches possibles **Source :** Analyse AST du code (Story 10.1)
 
 ```typescript
 interface Capability {
@@ -41,8 +39,8 @@ interface Capability {
 
   // Structure COMPLÈTE (analyse statique)
   staticStructure: {
-    nodes: StaticStructureNode[];  // Tous les noeuds possibles
-    edges: StaticStructureEdge[];  // Toutes les branches (if/else, etc.)
+    nodes: StaticStructureNode[]; // Tous les noeuds possibles
+    edges: StaticStructureEdge[]; // Toutes les branches (if/else, etc.)
   };
 
   // Metadata
@@ -53,6 +51,7 @@ interface Capability {
 ```
 
 **Exemple :**
+
 ```typescript
 // Code source
 if (file.exists) {
@@ -71,19 +70,18 @@ if (file.exists) {
 
 ### Trace / WorkflowExecution (Mémoire Épisodique)
 
-**Quand créée :** APRÈS exécution
-**Ce qu'elle contient :** Le chemin EMPRUNTÉ (une seule branche)
+**Quand créée :** APRÈS exécution **Ce qu'elle contient :** Le chemin EMPRUNTÉ (une seule branche)
 **Source :** Traçage RPC pendant l'exécution
 
 ```typescript
 interface ExecutionTrace {
   id: string;
-  capabilityId: string;           // Référence à la capability
+  capabilityId: string; // Référence à la capability
   executedAt: Date;
 
   // Chemin EMPRUNTÉ
-  executedPath: string[];          // ["n1", "d1", "n2"] - les nodeIds traversés
-  decisions: DecisionOutcome[];    // [{nodeId: "d1", outcome: "true"}]
+  executedPath: string[]; // ["n1", "d1", "n2"] - les nodeIds traversés
+  decisions: DecisionOutcome[]; // [{nodeId: "d1", outcome: "true"}]
 
   // Résultats
   taskResults: Map<string, TaskResult>;
@@ -93,6 +91,7 @@ interface ExecutionTrace {
 ```
 
 **Exemple :**
+
 ```
 Si file.exists = true :
 executedPath = ["fs:stat", "decision", "fs:read"]
@@ -103,14 +102,14 @@ executedPath = ["fs:stat", "decision", "fs:read"]
 
 ## Comparaison
 
-| Aspect | Capability | Trace |
-|--------|------------|-------|
-| **Quand** | Analyse statique (PRE) | Exécution (POST) |
-| **Contenu** | Structure COMPLÈTE | Chemin EMPRUNTÉ |
-| **Branches** | Toutes visibles | Une seule (celle prise) |
-| **Stockage** | `workflow_pattern` | `execution_trace` (à créer) |
-| **Analogie** | Plan d'un bâtiment | GPS trace d'un trajet |
-| **Mémoire** | Sémantique | Épisodique |
+| Aspect       | Capability             | Trace                       |
+| ------------ | ---------------------- | --------------------------- |
+| **Quand**    | Analyse statique (PRE) | Exécution (POST)            |
+| **Contenu**  | Structure COMPLÈTE     | Chemin EMPRUNTÉ             |
+| **Branches** | Toutes visibles        | Une seule (celle prise)     |
+| **Stockage** | `workflow_pattern`     | `execution_trace` (à créer) |
+| **Analogie** | Plan d'un bâtiment     | GPS trace d'un trajet       |
+| **Mémoire**  | Sémantique             | Épisodique                  |
 
 ---
 

@@ -4,23 +4,36 @@
 
 ## En bref
 
-Le tracing enregistre chaque action qui se produit pendant l'execution du code : quels outils ont ete appeles, dans quel ordre, avec quels parametres, combien de temps chaque action a pris, et si elle a reussi ou echoue. Pensez-y comme une **camera de surveillance qui enregistre tout** : si quelque chose tourne mal, vous pouvez "rembobiner la bande" et voir exactement ce qui s'est passe. Mais contrairement a une simple camera, le tracing comprend aussi les relations entre les actions (X a appele Y qui a ensuite appele Z).
+Le tracing enregistre chaque action qui se produit pendant l'execution du code : quels outils ont
+ete appeles, dans quel ordre, avec quels parametres, combien de temps chaque action a pris, et si
+elle a reussi ou echoue. Pensez-y comme une **camera de surveillance qui enregistre tout** : si
+quelque chose tourne mal, vous pouvez "rembobiner la bande" et voir exactement ce qui s'est passe.
+Mais contrairement a une simple camera, le tracing comprend aussi les relations entre les actions (X
+a appele Y qui a ensuite appele Z).
 
 ### Pourquoi c'est important
 
 Le tracing est essentiel pour plusieurs raisons critiques :
 
-- **Debugging efficace** : quand une execution echoue, les traces montrent exactement ou et pourquoi. Sans traces, debugger du code genere dynamiquement est quasi impossible.
-- **Apprentissage automatique** : PML apprend de ses executions en analysant les traces. Il decouvre des patterns (lire un fichier est souvent suivi de parser le JSON) et construit son graphe de connaissances.
-- **Performance** : les traces revelent quels outils sont lents, permettant d'optimiser les sequences d'operations.
-- **Audit et conformite** : pour les systemes critiques, savoir exactement quelles actions ont ete effectuees et quand est indispensable.
-- **Transparence** : les utilisateurs peuvent comprendre ce que le systeme a fait, pas juste voir le resultat final.
+- **Debugging efficace** : quand une execution echoue, les traces montrent exactement ou et
+  pourquoi. Sans traces, debugger du code genere dynamiquement est quasi impossible.
+- **Apprentissage automatique** : PML apprend de ses executions en analysant les traces. Il decouvre
+  des patterns (lire un fichier est souvent suivi de parser le JSON) et construit son graphe de
+  connaissances.
+- **Performance** : les traces revelent quels outils sont lents, permettant d'optimiser les
+  sequences d'operations.
+- **Audit et conformite** : pour les systemes critiques, savoir exactement quelles actions ont ete
+  effectuees et quand est indispensable.
+- **Transparence** : les utilisateurs peuvent comprendre ce que le systeme a fait, pas juste voir le
+  resultat final.
 
-Sans tracing, PML serait une boite noire : impossible de comprendre, debugger ou ameliorer ses executions.
+Sans tracing, PML serait une boite noire : impossible de comprendre, debugger ou ameliorer ses
+executions.
 
 ## What is Tracing?
 
-**Tracing** captures the complete history of what happens during code execution—every tool call, its timing, its results, and how calls relate to each other.
+**Tracing** captures the complete history of what happens during code execution—every tool call, its
+timing, its results, and how calls relate to each other.
 
 ![Execution Trace](excalidraw:src/web/assets/diagrams/tracing-flow.excalidraw)
 
@@ -28,12 +41,12 @@ Sans tracing, PML serait une boite noire : impossible de comprendre, debugger ou
 
 Tracing serves multiple purposes:
 
-| Purpose | How Tracing Helps |
-|---------|-------------------|
-| **Debugging** | See exactly what happened and when |
-| **Learning** | Discover tool patterns for the graph |
-| **Monitoring** | Track performance and errors |
-| **Auditing** | Record what actions were taken |
+| Purpose          | How Tracing Helps                      |
+| ---------------- | -------------------------------------- |
+| **Debugging**    | See exactly what happened and when     |
+| **Learning**     | Discover tool patterns for the graph   |
+| **Monitoring**   | Track performance and errors           |
+| **Auditing**     | Record what actions were taken         |
 | **Optimization** | Identify slow tools or redundant calls |
 
 ## Trace Events
@@ -70,13 +83,13 @@ Each action generates a trace event:
 
 ### Event Types
 
-| Type | Description |
-|------|-------------|
-| `execution_start` | Code execution begins |
-| `tool_call` | MCP tool invocation |
-| `capability_invoke` | Capability reuse |
-| `error` | Something went wrong |
-| `execution_end` | Code execution completes |
+| Type                | Description              |
+| ------------------- | ------------------------ |
+| `execution_start`   | Code execution begins    |
+| `tool_call`         | MCP tool invocation      |
+| `capability_invoke` | Capability reuse         |
+| `error`             | Something went wrong     |
+| `execution_end`     | Code execution completes |
 
 ## Parent-Child Relationships
 
@@ -107,12 +120,12 @@ Traces form a tree structure showing how calls relate:
 
 ### Relationship Types
 
-| Relationship | Meaning |
-|--------------|---------|
-| **Parent → Child** | A called B |
-| **Sibling** | Called by same parent |
-| **Root** | Top-level execution |
-| **Sequence** | B followed A temporally |
+| Relationship       | Meaning                 |
+| ------------------ | ----------------------- |
+| **Parent → Child** | A called B              |
+| **Sibling**        | Called by same parent   |
+| **Root**           | Top-level execution     |
+| **Sequence**       | B followed A temporally |
 
 ### Building the Tree
 
@@ -152,12 +165,12 @@ Traces are the primary source of learning for PML's knowledge graph:
 
 ### What Gets Learned
 
-| From Trace | Creates |
-|------------|---------|
-| Tool A → Tool B sequence | Sequence edge |
-| Capability contains Tool X | Contains edge |
-| Tool A output used by Tool B | Dependency edge |
-| Success/failure | Confidence adjustment |
+| From Trace                   | Creates               |
+| ---------------------------- | --------------------- |
+| Tool A → Tool B sequence     | Sequence edge         |
+| Capability contains Tool X   | Contains edge         |
+| Tool A output used by Tool B | Dependency edge       |
+| Success/failure              | Confidence adjustment |
 
 ### Learning Process
 
@@ -191,12 +204,12 @@ Traces are persisted for analysis:
 
 ### What's Stored
 
-| Data | Table | Retention |
-|------|-------|-----------|
-| Trace events | `trace_event` | Recent history |
-| Tool sequences | `tool_dependency` | Permanent |
-| Capability patterns | `workflow_pattern` | Permanent |
-| Execution summaries | `workflow_execution` | Configurable |
+| Data                | Table                | Retention      |
+| ------------------- | -------------------- | -------------- |
+| Trace events        | `trace_event`        | Recent history |
+| Tool sequences      | `tool_dependency`    | Permanent      |
+| Capability patterns | `workflow_pattern`   | Permanent      |
+| Execution summaries | `workflow_execution` | Configurable   |
 
 ### Query Examples
 

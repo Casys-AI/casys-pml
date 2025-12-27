@@ -1,8 +1,7 @@
 # NFR Assessment - {FEATURE_NAME}
 
-**Date:** {DATE}
-**Story:** {STORY_ID} (if applicable)
-**Overall Status:** {OVERALL_STATUS} {STATUS_ICON}
+**Date:** {DATE} **Story:** {STORY_ID} (if applicable) **Overall Status:** {OVERALL_STATUS}
+{STATUS_ICON}
 
 ---
 
@@ -367,15 +366,15 @@
 
 ```yaml
 nfr_assessment:
-  date: '{DATE}'
-  story_id: '{STORY_ID}'
-  feature_name: '{FEATURE_NAME}'
+  date: "{DATE}"
+  story_id: "{STORY_ID}"
+  feature_name: "{FEATURE_NAME}"
   categories:
-    performance: '{PERFORMANCE_STATUS}'
-    security: '{SECURITY_STATUS}'
-    reliability: '{RELIABILITY_STATUS}'
-    maintainability: '{MAINTAINABILITY_STATUS}'
-  overall_status: '{OVERALL_STATUS}'
+    performance: "{PERFORMANCE_STATUS}"
+    security: "{SECURITY_STATUS}"
+    reliability: "{RELIABILITY_STATUS}"
+    maintainability: "{MAINTAINABILITY_STATUS}"
+  overall_status: "{OVERALL_STATUS}"
   critical_issues: { CRITICAL_COUNT }
   high_priority_issues: { HIGH_COUNT }
   medium_priority_issues: { MEDIUM_COUNT }
@@ -384,9 +383,9 @@ nfr_assessment:
   quick_wins: { QUICK_WIN_COUNT }
   evidence_gaps: { EVIDENCE_GAP_COUNT }
   recommendations:
-    - '{RECOMMENDATION_1}'
-    - '{RECOMMENDATION_2}'
-    - '{RECOMMENDATION_3}'
+    - "{RECOMMENDATION_1}"
+    - "{RECOMMENDATION_2}"
+    - "{RECOMMENDATION_3}"
 ```
 
 ---
@@ -435,8 +434,7 @@ nfr_assessment:
 - If CONCERNS ⚠️: Address HIGH/CRITICAL issues, re-run `*nfr-assess`
 - If FAIL ❌: Resolve FAIL status NFRs, re-run `*nfr-assess`
 
-**Generated:** {DATE}
-**Workflow:** testarch-nfr v4.0
+**Generated:** {DATE} **Workflow:** testarch-nfr v4.0
 
 ---
 

@@ -1,6 +1,7 @@
 # CIS - Creative Intelligence Suite
 
-AI-powered creative facilitation transforming strategic thinking through expert coaching across five specialized domains.
+AI-powered creative facilitation transforming strategic thinking through expert coaching across five
+specialized domains.
 
 ## Table of Contents
 
@@ -13,7 +14,9 @@ AI-powered creative facilitation transforming strategic thinking through expert 
 
 ## Core Capabilities
 
-CIS provides structured creative methodologies through distinctive agent personas who act as master facilitators, drawing out insights through strategic questioning rather than generating solutions directly.
+CIS provides structured creative methodologies through distinctive agent personas who act as master
+facilitators, drawing out insights through strategic questioning rather than generating solutions
+directly.
 
 ## Specialized Agents
 

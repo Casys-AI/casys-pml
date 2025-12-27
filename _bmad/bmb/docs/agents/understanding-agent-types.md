@@ -1,6 +1,7 @@
 # Understanding Agent Types: Architecture, Not Capability
 
-**CRITICAL DISTINCTION:** Agent types define **architecture and integration**, NOT capability limits.
+**CRITICAL DISTINCTION:** Agent types define **architecture and integration**, NOT capability
+limits.
 
 ALL agent types can:
 
@@ -45,7 +46,7 @@ agent:
 
   menu:
     - trigger: generate
-      action: '#generate'
+      action: "#generate"
       description: Generate code from spec
 ```
 
@@ -98,11 +99,11 @@ agent:
 
   menu:
     - trigger: implement-story
-      workflow: '_bmad/bmm/workflows/dev-story/workflow.yaml'
+      workflow: "_bmad/bmm/workflows/dev-story/workflow.yaml"
       description: Implement user story
 
     - trigger: refactor
-      workflow: '_bmad/bmm/workflows/refactor/workflow.yaml'
+      workflow: "_bmad/bmm/workflows/refactor/workflow.yaml"
       description: Refactor codebase
 ```
 
@@ -117,7 +118,8 @@ agent:
 
 ## Important: Any Agent Can Be Added to a Module
 
-**CLARIFICATION:** The "Module Agent" type is about **design intent and ecosystem integration**, not just file location.
+**CLARIFICATION:** The "Module Agent" type is about **design intent and ecosystem integration**, not
+just file location.
 
 ### The Reality
 
@@ -181,4 +183,5 @@ A **Module Agent** is specifically:
 
 **Choose based on state and integration needs, NOT on what the agent can DO.**
 
-All three types are equally powerful. The difference is how they manage state, where they store data, and how they integrate with your system.
+All three types are equally powerful. The difference is how they manage state, where they store
+data, and how they integrate with your system.

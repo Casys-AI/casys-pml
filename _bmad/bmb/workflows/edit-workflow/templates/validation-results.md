@@ -2,9 +2,7 @@
 
 ### Overall Status
 
-**Result**: {{validationResult}}
-**Date**: {{date}}
-**Validator**: {{validator}}
+**Result**: {{validationResult}} **Date**: {{date}} **Validator**: {{validator}}
 
 ### Validation Categories
 
@@ -39,8 +37,7 @@
 
 - **{{severity}}**: {{description}}
   - **Impact**: {{impact}}
-  - **Recommendation**: {{recommendation}}
-    {{/validationIssues}}
+  - **Recommendation**: {{recommendation}} {{/validationIssues}}
 
 ### Validation Summary
 

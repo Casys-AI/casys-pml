@@ -140,10 +140,11 @@ deployctl deploy
 
 ### Cytoscape.js to D3.js (December 2024)
 
-The visualization was migrated from Cytoscape.js to D3.js to support hyperedges
-(multiple parents per node). See commit `cb15d9e`.
+The visualization was migrated from Cytoscape.js to D3.js to support hyperedges (multiple parents
+per node). See commit `cb15d9e`.
 
 **Key changes:**
+
 - Force-directed layout with d3-force
 - SVG-based rendering (vs Canvas)
 - Full zoom/pan support with d3-zoom

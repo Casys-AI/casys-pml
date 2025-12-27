@@ -1,21 +1,22 @@
 ---
-name: 'step-06-final-assessment'
-description: 'Compile final assessment and polish the readiness report'
+name: "step-06-final-assessment"
+description: "Compile final assessment and polish the readiness report"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmm/workflows/3-solutioning/implementation-readiness'
+workflow_path: "{project-root}/_bmad/bmm/workflows/3-solutioning/implementation-readiness"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-06-final-assessment.md'
-workflowFile: '{workflow_path}/workflow.md'
-outputFile: '{output_folder}/implementation-readiness-report-{{date}}.md'
+thisStepFile: "{workflow_path}/steps/step-06-final-assessment.md"
+workflowFile: "{workflow_path}/workflow.md"
+outputFile: "{output_folder}/implementation-readiness-report-{{date}}.md"
 ---
 
 # Step 6: Final Assessment
 
 ## STEP GOAL:
 
-To provide a comprehensive summary of all findings and give the report a final polish, ensuring clear recommendations and overall readiness status.
+To provide a comprehensive summary of all findings and give the report a final polish, ensuring
+clear recommendations and overall readiness status.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -91,7 +92,9 @@ Append to {outputFile}:
 
 ### Final Note
 
-This assessment identified [X] issues across [Y] categories. Address the critical issues before proceeding to implementation. These findings can be used to improve the artifacts or you may choose to proceed as-is.
+This assessment identified [X] issues across [Y] categories. Address the critical issues before
+proceeding to implementation. These findings can be used to improve the artifacts or you may choose
+to proceed as-is.
 ```
 
 ### 4. Complete the Report
@@ -103,16 +106,17 @@ This assessment identified [X] issues across [Y] categories. Address the critica
 
 ### 5. Present Completion
 
-Display:
-"**Implementation Readiness Assessment Complete**
+Display: "**Implementation Readiness Assessment Complete**
 
 Report generated: {outputFile}
 
-The assessment found [number] issues requiring attention. Review the detailed report for specific findings and recommendations."
+The assessment found [number] issues requiring attention. Review the detailed report for specific
+findings and recommendations."
 
 ## WORKFLOW COMPLETE
 
-The implementation readiness workflow is now complete. The report contains all findings and recommendations for the user to consider.
+The implementation readiness workflow is now complete. The report contains all findings and
+recommendations for the user to consider.
 
 ---
 

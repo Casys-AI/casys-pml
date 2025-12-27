@@ -1,23 +1,24 @@
 ---
-name: 'step-10-q9'
-description: 'Question 9 - Level 9 difficulty'
+name: "step-10-q9"
+description: "Question 9 - Level 9 difficulty"
 
 # Path Definitions
-workflow_path: '{project-root}/.bmad/custom/src/workflows/quiz-master'
+workflow_path: "{project-root}/.bmad/custom/src/workflows/quiz-master"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-10-q9.md'
-nextStepFile: '{workflow_path}/steps/step-10-q9.md'
-resultsStepFile: '{workflow_path}/steps/step-12-results.md'
-workflowFile: '{workflow_path}/workflow.md'
-csvFile: '{project-root}/BMad-quiz-results.csv'
+thisStepFile: "{workflow_path}/steps/step-10-q9.md"
+nextStepFile: "{workflow_path}/steps/step-10-q9.md"
+resultsStepFile: "{workflow_path}/steps/step-12-results.md"
+workflowFile: "{workflow_path}/workflow.md"
+csvFile: "{project-root}/BMad-quiz-results.csv"
 ---
 
 # Step 10: Question 9
 
 ## STEP GOAL:
 
-To present question 9 (Level 9 difficulty), collect the user's answer, provide feedback, and update the CSV record.
+To present question 9 (Level 9 difficulty), collect the user's answer, provide feedback, and update
+the CSV record.
 
 ## Sequence of Instructions (Do not deviate, skip, or optimize)
 

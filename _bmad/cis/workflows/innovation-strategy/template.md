@@ -1,8 +1,6 @@
 # Innovation Strategy: {{company_name}}
 
-**Date:** {{date}}
-**Strategist:** {{user_name}}
-**Strategic Focus:** {{strategic_focus}}
+**Date:** {{date}} **Strategist:** {{user_name}} **Strategic Focus:** {{strategic_focus}}
 
 ---
 

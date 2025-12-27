@@ -6,9 +6,10 @@ auto_execution_mode: 2
 <tool id="_bmad/core/tasks/shard-doc" name="Shard Document"
   description="Splits large markdown documents into smaller, organized files based on level 2 (default) sections" webskip="true"
   standalone="true">
-  <objective>Split large markdown documents into smaller, organized files based on level 2 sections using @kayvan/markdown-tree-parser tool</objective>
+<objective>Split large markdown documents into smaller, organized files based on level 2 sections
+using @kayvan/markdown-tree-parser tool</objective>
 
-  <llm critical="true">
+<llm critical="true">
     <i>MANDATORY: Execute ALL steps in the flow section IN EXACT ORDER</i>
     <i>DO NOT skip steps or change the sequence</i>
     <i>HALT immediately when halt-conditions are met</i>
@@ -16,11 +17,11 @@ auto_execution_mode: 2
     <i>Sections outside flow (validation, output, critical-context) provide essential context - review and apply throughout execution</i>
   </llm>
 
-  <critical-context>
+<critical-context>
     <i>Uses `npx @kayvan/markdown-tree-parser` to automatically shard documents by level 2 headings and generate an index</i>
   </critical-context>
 
-  <flow>
+<flow>
     <step n="1" title="Get Source Document">
       <action>Ask user for the source document path if not provided already</action>
       <action>Verify file exists and is accessible</action>
@@ -106,9 +107,10 @@ auto_execution_mode: 2
         <action>Confirm user choice: "Original document kept at: [source-document-path]"</action>
       </check>
     </step>
-  </flow>
 
-  <halt-conditions critical="true">
+</flow>
+
+<halt-conditions critical="true">
     <i>HALT if npx command fails or produces no output files</i>
   </halt-conditions>
 </tool>

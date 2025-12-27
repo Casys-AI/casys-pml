@@ -1,7 +1,6 @@
 # ADR-023: Dynamic Candidate Expansion for Hybrid Search
 
-**Status:** ✅ Implemented
-**Date:** 2025-12-03
+**Status:** ✅ Implemented **Date:** 2025-12-03
 
 ## Context
 

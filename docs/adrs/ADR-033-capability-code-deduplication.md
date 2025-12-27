@@ -1,7 +1,6 @@
 # ADR-033: Capability Code Deduplication Strategy
 
-**Status:** 📝 Draft
-**Date:** 2025-12-05 | **Requires:** Research
+**Status:** 📝 Draft **Date:** 2025-12-05 | **Requires:** Research
 
 > ADR exploratoire - recherche approfondie nécessaire avant décision.
 
@@ -25,20 +24,20 @@ whitespace).
 
 ```typescript
 // ❌ HASH DIFFÉRENT - renommage de variables
-"const result = await tools.search({q: 'test'});"
-"const data = await tools.search({q: 'test'});"
+"const result = await tools.search({q: 'test'});";
+"const data = await tools.search({q: 'test'});";
 
 // ❌ HASH DIFFÉRENT - commentaires
-"const x = 1;"
-"const x = 1; // valeur initiale"
+"const x = 1;";
+"const x = 1; // valeur initiale";
 
 // ❌ HASH DIFFÉRENT - ordre des propriétés
-"tools.fetch({url: 'x', method: 'GET'})"
-"tools.fetch({method: 'GET', url: 'x'})"
+"tools.fetch({url: 'x', method: 'GET'})";
+"tools.fetch({method: 'GET', url: 'x'})";
 
 // ❌ HASH DIFFÉRENT - sémantiquement équivalent
-"const x = 1 + 2;"
-"const x = 3;"
+"const x = 1 + 2;";
+"const x = 3;";
 ```
 
 ### Impact
@@ -84,11 +83,11 @@ Code TypeScript
 const hash = await hashCode(code.trim().replace(/\s+/g, " "));
 ```
 
-| Avantage | Inconvénient |
-| -------- | ------------ |
+| Avantage           | Inconvénient                            |
+| ------------------ | --------------------------------------- |
 | Simple, performant | Faux négatifs (variantes non détectées) |
-| Déterministe | Pas de détection sémantique |
-| Aucune dépendance | Pollution base à long terme |
+| Déterministe       | Pas de détection sémantique             |
+| Aucune dépendance  | Pollution base à long terme             |
 
 ### Option B : AST Normalization via SWC
 
@@ -108,13 +107,13 @@ function normalizeAST(code: string): string {
 }
 ```
 
-| Avantage | Inconvénient |
-| -------- | ------------ |
-| Détecte renommage variables | Complexité implémentation |
-| Détecte réordonnancement props | Performance (parse AST) |
-| Synergie avec 7.2b | Cas edge (macros, eval) |
-| SWC 20x plus rapide | |
-| Deno natif | |
+| Avantage                       | Inconvénient              |
+| ------------------------------ | ------------------------- |
+| Détecte renommage variables    | Complexité implémentation |
+| Détecte réordonnancement props | Performance (parse AST)   |
+| Synergie avec 7.2b             | Cas edge (macros, eval)   |
+| SWC 20x plus rapide            |                           |
+| Deno natif                     |                           |
 
 **Questions ouvertes :**
 
@@ -140,11 +139,11 @@ async function findDuplicates(code: string): Promise<Capability[]> {
 }
 ```
 
-| Avantage | Inconvénient |
-| -------- | ------------ |
+| Avantage                      | Inconvénient                       |
+| ----------------------------- | ---------------------------------- |
 | Détecte similarité sémantique | Coût embedding × 2 (code + intent) |
-| Pas de parsing AST | Faux positifs possibles |
-| Progressif (fast → slow path) | Threshold difficile à calibrer |
+| Pas de parsing AST            | Faux positifs possibles            |
+| Progressif (fast → slow path) | Threshold difficile à calibrer     |
 
 **Questions ouvertes :**
 
@@ -163,18 +162,18 @@ async function pruneCapabilities(): Promise<void> {
   for (const group of clusterBySimilarity(all)) {
     if (group.length > 1) {
       // Garder celle avec le meilleur success_rate
-      const best = maxBy(group, c => c.successRate * c.usageCount);
-      await store.mergeInto(best, group.filter(c => c !== best));
+      const best = maxBy(group, (c) => c.successRate * c.usageCount);
+      await store.mergeInto(best, group.filter((c) => c !== best));
     }
   }
 }
 ```
 
-| Avantage | Inconvénient |
-| -------- | ------------ |
-| Pas d'overhead à l'insertion | Pollution temporaire |
-| Peut utiliser ML clustering | Complexité merge (préserver stats) |
-| Exécution en background | Latence avant cleanup |
+| Avantage                     | Inconvénient                       |
+| ---------------------------- | ---------------------------------- |
+| Pas d'overhead à l'insertion | Pollution temporaire               |
+| Peut utiliser ML clustering  | Complexité merge (préserver stats) |
+| Exécution en background      | Latence avant cleanup              |
 
 ## Recherche Requise
 
@@ -216,11 +215,11 @@ Ce ADR documente le problème et les options. Une décision sera prise après :
 
 ## Stories Impactées
 
-| Story | Impact |
-| ----- | ------ |
+| Story                   | Impact                                       |
+| ----------------------- | -------------------------------------------- |
 | 7.2b (Schema Inference) | Potentielle extension pour normalisation AST |
-| 7.4 (Suggestion Engine) | Qualité des suggestions dépend de la dédup |
-| 7.5b (Pruning) | Pourrait inclure dedup post-hoc (Option D) |
+| 7.4 (Suggestion Engine) | Qualité des suggestions dépend de la dédup   |
+| 7.5b (Pruning)          | Pourrait inclure dedup post-hoc (Option D)   |
 
 ## Références
 

@@ -4,9 +4,8 @@ Status: done
 
 ## Story
 
-As a **Claude agent**,
-I want **tools to list, rename, and inspect capabilities**,
-So that **I can manage and discover capabilities in the registry**.
+As a **Claude agent**, I want **tools to list, rename, and inspect capabilities**, So that **I can
+manage and discover capabilities in the registry**.
 
 ## Consolidation Note
 
@@ -17,69 +16,74 @@ So that **I can manage and discover capabilities in the registry**.
 ## Acceptance Criteria
 
 ### AC1: cap:list Basic
-**Given** 10 capabilities in the registry
-**When** `cap:list({})` called
-**Then** returns all 10 with: `id`, `name`, `description`, `usageCount`, `namespace`, `action`
+
+**Given** 10 capabilities in the registry **When** `cap:list({})` called **Then** returns all 10
+with: `id`, `name`, `description`, `usageCount`, `namespace`, `action`
 
 ### AC2: cap:list Filter by Pattern
-**Given** capabilities with various names
-**When** `cap:list({ pattern: "fs:*" })` called
-**Then** returns only matching capabilities
+
+**Given** capabilities with various names **When** `cap:list({ pattern: "fs:*" })` called **Then**
+returns only matching capabilities
 
 ### AC3: cap:list Filter Unnamed Only
-**Given** mix of named and unnamed capabilities
-**When** `cap:list({ unnamed_only: true })` called
+
+**Given** mix of named and unnamed capabilities **When** `cap:list({ unnamed_only: true })` called
 **Then** returns only `unnamed_*` capabilities
 
 ### AC4: cap:list Pagination
-**Given** 100 capabilities
-**When** `cap:list({ limit: 10, offset: 20 })` called
-**Then** returns capabilities 21-30 with `total: 100` for pagination UI
+
+**Given** 100 capabilities **When** `cap:list({ limit: 10, offset: 20 })` called **Then** returns
+capabilities 21-30 with `total: 100` for pagination UI
 
 ### AC5: cap:rename Basic
-**Given** capability with name "old-reader"
-**When** `cap:rename({ name: "old-reader", newName: "json-reader" })` called
-**Then** capability renamed, alias created for "old-reader"
+
+**Given** capability with name "old-reader" **When**
+`cap:rename({ name: "old-reader", newName: "json-reader" })` called **Then** capability renamed,
+alias created for "old-reader"
 
 ### AC6: cap:rename with Description
-**Given** capability exists
-**When** `cap:rename({ name: "x", newName: "y", description: "Reads JSON files" })` called
-**Then** name AND description updated
+
+**Given** capability exists **When**
+`cap:rename({ name: "x", newName: "y", description: "Reads JSON files" })` called **Then** name AND
+description updated
 
 ### AC7: cap:rename Collision Error
-**Given** capability "json-reader" already exists
-**When** `cap:rename({ name: "old", newName: "json-reader" })` called
-**Then** returns error "Name 'json-reader' already exists"
+
+**Given** capability "json-reader" already exists **When**
+`cap:rename({ name: "old", newName: "json-reader" })` called **Then** returns error "Name
+'json-reader' already exists"
 
 ### AC8: cap:lookup
-**Given** capability named "json-reader"
-**When** `cap:lookup({ name: "json-reader" })` called
+
+**Given** capability named "json-reader" **When** `cap:lookup({ name: "json-reader" })` called
 **Then** returns `{ fqdn, displayName, description, usageCount, successRate }`
 
 ### AC9: cap:lookup via Alias
-**Given** capability renamed from "old-reader" to "json-reader"
-**When** `cap:lookup({ name: "old-reader" })` called
-**Then** returns capability with warning "Using deprecated alias"
+
+**Given** capability renamed from "old-reader" to "json-reader" **When**
+`cap:lookup({ name: "old-reader" })` called **Then** returns capability with warning "Using
+deprecated alias"
 
 ### AC10: cap:whois
-**Given** capability FQDN
-**When** `cap:whois({ fqdn: "local.default.fs.read_json.a7f3" })` called
+
+**Given** capability FQDN **When** `cap:whois({ fqdn: "local.default.fs.read_json.a7f3" })` called
 **Then** returns complete CapabilityRecord with all metadata
 
 ## Tools Summary
 
-| Tool | Purpose | Key Params |
-|------|---------|------------|
-| `cap:list` | List capabilities | `pattern?`, `unnamed_only?`, `limit?`, `offset?` |
-| `cap:rename` | Rename capability | `name`, `newName`, `description?` |
-| `cap:lookup` | Resolve name → details | `name` |
-| `cap:whois` | Full metadata | `fqdn` |
+| Tool         | Purpose                | Key Params                                       |
+| ------------ | ---------------------- | ------------------------------------------------ |
+| `cap:list`   | List capabilities      | `pattern?`, `unnamed_only?`, `limit?`, `offset?` |
+| `cap:rename` | Rename capability      | `name`, `newName`, `description?`                |
+| `cap:lookup` | Resolve name → details | `name`                                           |
+| `cap:whois`  | Full metadata          | `fqdn`                                           |
 
 ## Architecture
 
 ### Design: lib/std/mcp/ (Original Epic Design)
 
 Séparation claire des responsabilités :
+
 - **CapabilityMCPServer** (Story 13.3) → Execute capabilities (`mcp__*`)
 - **lib/std/mcp/cap.ts** (This story) → Manage registry (`cap:*`)
 
@@ -145,23 +149,18 @@ export class CapModule {
 }
 
 ### Data Flow
-
-```
-cap:list({ pattern: "fs:*" })
-  → CapModule.handleList()
-    → CapabilityRegistry.list({ pattern: "fs:*" })
-    → Format response
-  ← { items: [...], total: 100, limit: 50, offset: 0 }
-
-cap:rename({ name: "old", newName: "new" })
-  → CapModule.handleRename()
-    → CapabilityRegistry.resolveByName("old") → get FQDN
-    → Check collision: CapabilityRegistry.existsByName("new", scope)
-    → CapabilityRegistry.updateDisplayName(fqdn, "new", description?)
-    → CapabilityRegistry.createAlias("old", fqdn)
-  ← { success: true, fqdn: "..." (unchanged), aliasCreated: true }
 ```
 
+cap:list({ pattern: "fs:_" }) → CapModule.handleList() → CapabilityRegistry.list({ pattern: "fs:_"
+}) → Format response ← { items: [...], total: 100, limit: 50, offset: 0 }
+
+cap:rename({ name: "old", newName: "new" }) → CapModule.handleRename() →
+CapabilityRegistry.resolveByName("old") → get FQDN → Check collision:
+CapabilityRegistry.existsByName("new", scope) → CapabilityRegistry.updateDisplayName(fqdn, "new",
+description?) → CapabilityRegistry.createAlias("old", fqdn) ← { success: true, fqdn: "..."
+(unchanged), aliasCreated: true }
+
+````
 **CRITICAL: FQDN is immutable (like an IP address)**
 - `cap:rename` only updates `display_name` column
 - FQDN (`local.default.fs.read_json.a7f3`) NEVER changes
@@ -210,7 +209,7 @@ interface CapLookupResult {
   successRate: number;
   isAlias?: boolean;     // True if resolved via deprecated alias
 }
-```
+````
 
 ## Tasks / Subtasks
 
@@ -254,17 +253,18 @@ interface CapLookupResult {
 
 ### Files Created (Actual Implementation)
 
-| File | Description |
-|------|-------------|
-| `lib/std/cap.ts` | CapModule + PmlStdServer + all types (single file, follows lib/std/ pattern) |
-| `tests/unit/lib/std/cap_test.ts` | 21 unit tests covering all ACs |
+| File                             | Description                                                                  |
+| -------------------------------- | ---------------------------------------------------------------------------- |
+| `lib/std/cap.ts`                 | CapModule + PmlStdServer + all types (single file, follows lib/std/ pattern) |
+| `tests/unit/lib/std/cap_test.ts` | 21 unit tests covering all ACs                                               |
 
-**Note:** Original design proposed `lib/std/mcp/` directory structure, but implementation uses single file following existing `lib/std/*.ts` pattern (algo.ts, crypto.ts, etc.).
+**Note:** Original design proposed `lib/std/mcp/` directory structure, but implementation uses
+single file following existing `lib/std/*.ts` pattern (algo.ts, crypto.ts, etc.).
 
 ### Files Modified
 
-| File | Changes |
-|------|---------|
+| File                        | Changes                                                                                      |
+| --------------------------- | -------------------------------------------------------------------------------------------- |
 | `src/mcp/gateway-server.ts` | Import PmlStdServer, init in constructor, add to listTools(), route cap:* in routeToolCall() |
 
 ### Architecture Decision: Methods in CapModule (not Registry)
@@ -272,15 +272,18 @@ interface CapLookupResult {
 **Original plan:** Add `list()`, `updateDisplayName()`, `existsByName()` to CapabilityRegistry.
 
 **Actual implementation:** These are **private methods in CapModule** (`lib/std/cap.ts`):
+
 - `existsByName()` - Direct SQL query for collision detection
 - `updateDisplayName()` - Direct SQL UPDATE (FQDN immutable)
 - List logic embedded in `handleList()` with custom SQL
 
-**Rationale:** Keeps CapabilityRegistry focused on core CRUD + alias resolution. Management-specific queries stay in CapModule.
+**Rationale:** Keeps CapabilityRegistry focused on core CRUD + alias resolution. Management-specific
+queries stay in CapModule.
 
 ### Existing Infrastructure Used (from Story 13.1, 13.3)
 
 **CapabilityRegistry** (`src/capabilities/capability-registry.ts`):
+
 - ✅ `resolveByName(name, scope)` - Used in cap:rename, cap:lookup
 - ✅ `createAlias(org, project, alias, targetFqdn)` - Used in cap:rename
 - ✅ `getByFqdn(fqdn)` - Used in cap:whois
@@ -288,6 +291,7 @@ interface CapLookupResult {
 - ⚠️ `rename()` - NOT used (creates new FQDN, we need display_name update only)
 
 **CapabilityMCPServer** (`src/mcp/capability-server/server.ts`):
+
 - Handles `mcp__*` tool calls (execute capabilities)
 - Separate from cap:* management tools
 
@@ -302,10 +306,10 @@ For `cap:list({ pattern: "fs:*" })`:
 function globToSqlLike(pattern: string): string {
   // Escape SQL special chars first, then convert glob
   return pattern
-    .replace(/%/g, "\\%")   // Escape existing %
-    .replace(/_/g, "\\_")   // Escape existing _
-    .replace(/\*/g, "%")    // Glob * → SQL %
-    .replace(/\?/g, "_");   // Glob ? → SQL _
+    .replace(/%/g, "\\%") // Escape existing %
+    .replace(/_/g, "\\_") // Escape existing _
+    .replace(/\*/g, "%") // Glob * → SQL %
+    .replace(/\?/g, "_"); // Glob ? → SQL _
 }
 
 // Examples:
@@ -320,7 +324,7 @@ function globToSqlLike(pattern: string): string {
 function matchPattern(name: string, pattern: string): boolean {
   // Convert glob to regex: "fs:*" → /^fs:.*$/
   const regex = new RegExp(
-    "^" + pattern.replace(/\*/g, ".*").replace(/\?/g, ".") + "$"
+    "^" + pattern.replace(/\*/g, ".*").replace(/\?/g, ".") + "$",
   );
   return regex.test(name);
 }
@@ -368,7 +372,8 @@ WHERE pattern_id = (
 
 - [Epic: docs/epics/epic-13-capability-naming-curation.md]
 - [Tech Spec: docs/tech-specs/tech-spec-capability-naming-curation.md]
-- [Source: src/capabilities/capability-registry.ts] - resolveByName (L178), createAlias (L267), listByScope (L402)
+- [Source: src/capabilities/capability-registry.ts] - resolveByName (L178), createAlias (L267),
+  listByScope (L402)
 - [Source: src/mcp/capability-server/mod.ts] - CapabilityMCPServer (Story 13.3)
 - [Source: src/capabilities/types.ts] - CapabilityRecord, Scope, CapabilityAlias
 - [Source: src/mcp/gateway-server.ts] - Gateway integration pattern (L400)
@@ -385,43 +390,44 @@ N/A
 
 ### Completion Notes List
 
-1. **Architecture simplified:** Instead of lib/std/mcp/ directory, used single file `lib/std/cap.ts` following existing lib/std/ pattern (algo.ts, crypto.ts, etc.)
+1. **Architecture simplified:** Instead of lib/std/mcp/ directory, used single file `lib/std/cap.ts`
+   following existing lib/std/ pattern (algo.ts, crypto.ts, etc.)
 
 2. **CapModule:** Handles all cap:* tool calls with proper error handling and logging
 
 3. **PmlStdServer:** Minimal wrapper that routes cap:* calls to CapModule
 
-4. **globToSqlLike():** Converts glob patterns to SQL LIKE (escapes % and _, converts * to % and ? to _)
+4. **globToSqlLike():** Converts glob patterns to SQL LIKE (escapes % and _, converts * to % and ?
+   to _)
 
-5. **Gateway integration:** PmlStdServer initialized in constructor, cap:* tools added to listTools(), routing added to routeToolCall()
+5. **Gateway integration:** PmlStdServer initialized in constructor, cap:* tools added to
+   listTools(), routing added to routeToolCall()
 
 6. **Tests:** 25 unit tests covering all 10 ACs (21 original + 4 code review fixes)
 
 ### File List
 
-| File | Action | Description |
-|------|--------|-------------|
-| `lib/std/cap.ts` | Created | CapModule + PmlStdServer + types (~440 lines) |
-| `tests/unit/lib/std/cap_test.ts` | Created | 25 unit tests |
-| `src/mcp/gateway-server.ts` | Modified | Import PmlStdServer, init, listTools, routeToolCall |
-| `docs/sprint-artifacts/13-5-capability-management-tools.md` | Modified | Status → done |
-| `docs/sprint-artifacts/sprint-status.yaml` | Modified | Status → done |
+| File                                                        | Action   | Description                                         |
+| ----------------------------------------------------------- | -------- | --------------------------------------------------- |
+| `lib/std/cap.ts`                                            | Created  | CapModule + PmlStdServer + types (~440 lines)       |
+| `tests/unit/lib/std/cap_test.ts`                            | Created  | 25 unit tests                                       |
+| `src/mcp/gateway-server.ts`                                 | Modified | Import PmlStdServer, init, listTools, routeToolCall |
+| `docs/sprint-artifacts/13-5-capability-management-tools.md` | Modified | Status → done                                       |
+| `docs/sprint-artifacts/sprint-status.yaml`                  | Modified | Status → done                                       |
 
 ## Senior Developer Review (AI)
 
-**Reviewer:** Claude Opus 4.5
-**Date:** 2025-12-26
-**Outcome:** ✅ APPROVED (with 5 issues fixed)
+**Reviewer:** Claude Opus 4.5 **Date:** 2025-12-26 **Outcome:** ✅ APPROVED (with 5 issues fixed)
 
 ### Issues Found & Fixed
 
-| ID | Severity | Issue | Fix Applied |
-|----|----------|-------|-------------|
-| H1 | HIGH | Story Dev Notes claimed capability-registry.ts modifications but methods are in CapModule | Updated Dev Notes to reflect actual architecture |
-| M1 | MEDIUM | Double DB call in cap:lookup (resolveByName + resolveByAlias redundant) | Optimized: detect alias via `displayName !== name` comparison |
-| M2 | MEDIUM | Missing edge case tests for globToSqlLike (empty, SQL injection, unicode) | Added 3 new tests (24 total) |
-| M3 | MEDIUM | Hardcoded DEFAULT_SCOPE limitation not documented | Added JSDoc explaining MVP scope limitation |
-| M4 | MEDIUM | No validation of newName in cap:rename before SQL update | Added `isValidMCPName(newName)` validation + test |
+| ID | Severity | Issue                                                                                     | Fix Applied                                                   |
+| -- | -------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| H1 | HIGH     | Story Dev Notes claimed capability-registry.ts modifications but methods are in CapModule | Updated Dev Notes to reflect actual architecture              |
+| M1 | MEDIUM   | Double DB call in cap:lookup (resolveByName + resolveByAlias redundant)                   | Optimized: detect alias via `displayName !== name` comparison |
+| M2 | MEDIUM   | Missing edge case tests for globToSqlLike (empty, SQL injection, unicode)                 | Added 3 new tests (24 total)                                  |
+| M3 | MEDIUM   | Hardcoded DEFAULT_SCOPE limitation not documented                                         | Added JSDoc explaining MVP scope limitation                   |
+| M4 | MEDIUM   | No validation of newName in cap:rename before SQL update                                  | Added `isValidMCPName(newName)` validation + test             |
 
 ### Validation Summary
 

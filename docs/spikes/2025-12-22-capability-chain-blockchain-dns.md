@@ -1,34 +1,37 @@
 # Spike: Capability Chain - Blockchain DNS for Capabilities
 
-**Date:** 2025-12-22
-**Status:** exploration
-**Author:** Erwan + Claude
-**Related:** tech-spec-capability-naming-curation.md
+**Date:** 2025-12-22 **Status:** exploration **Author:** Erwan + Claude **Related:**
+tech-spec-capability-naming-curation.md
 
 ---
 
 ## Contexte
 
-Suite à l'élaboration de la tech spec sur le Capability Naming & Curation System (DNS-like), une idée émerge : pourquoi ne pas utiliser une vraie blockchain pour implémenter ce système ?
+Suite à l'élaboration de la tech spec sur le Capability Naming & Curation System (DNS-like), une
+idée émerge : pourquoi ne pas utiliser une vraie blockchain pour implémenter ce système ?
 
 ### Observation Clé
 
 > "Plus le nom est explicite, plus la capability est bien faite, mieux ça devrait valoir cher"
 
-Cette corrélation entre **qualité du nommage** et **valeur économique** suggère un marché naturel pour les **noms** de capabilities, similaire aux noms de domaine DNS.
+Cette corrélation entre **qualité du nommage** et **valeur économique** suggère un marché naturel
+pour les **noms** de capabilities, similaire aux noms de domaine DNS.
 
 ### Scope Clarifié : Noms Only, Pas Usage
 
 **Ce qu'on veut résoudre :**
+
 - Qui a le droit de publier sous `stripe.*` ?
 - Comment gérer les conflits de noms ?
 - Comment transférer/vendre un namespace ?
 
 **Ce qu'on ne veut PAS faire :**
+
 - Monétiser chaque appel de capability (pay-per-call)
 - S'insérer dans le billing des MCP existants
 
-Les publishers (Stripe, Vercel, etc.) gèrent déjà leur propre monétisation via API keys. PML n'a pas à s'insérer là-dedans.
+Les publishers (Stripe, Vercel, etc.) gèrent déjà leur propre monétisation via API keys. PML n'a pas
+à s'insérer là-dedans.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -44,15 +47,16 @@ Les publishers (Stripe, Vercel, etc.) gèrent déjà leur propre monétisation v
 
 ## Parallèle avec l'Existant Web3
 
-| Web3 | Capability DNS |
-|------|----------------|
-| ENS (`vitalik.eth`) | Namespace (`stripe.cap`) |
-| Domain ownership | Namespace ownership |
-| Transfer/sell | Transfer/sell namespace |
-| Expiration + renewal | Expiration + renewal |
-| Dispute (UDRP-like) | Dispute mechanism |
+| Web3                 | Capability DNS           |
+| -------------------- | ------------------------ |
+| ENS (`vitalik.eth`)  | Namespace (`stripe.cap`) |
+| Domain ownership     | Namespace ownership      |
+| Transfer/sell        | Transfer/sell namespace  |
+| Expiration + renewal | Expiration + renewal     |
+| Dispute (UDRP-like)  | Dispute mechanism        |
 
-**Note:** Contrairement à certains modèles web3, on ne tokenize PAS l'usage. Juste l'ownership des noms.
+**Note:** Contrairement à certains modèles web3, on ne tokenize PAS l'usage. Juste l'ownership des
+noms.
 
 ---
 
@@ -100,30 +104,30 @@ Les publishers (Stripe, Vercel, etc.) gèrent déjà leur propre monétisation v
 
 ### Séparation Claire
 
-| Layer | Responsabilité | Tech |
-|-------|----------------|------|
-| **On-chain** | Ownership des noms uniquement | Smart contract |
+| Layer         | Responsabilité                        | Tech             |
+| ------------- | ------------------------------------- | ---------------- |
+| **On-chain**  | Ownership des noms uniquement         | Smart contract   |
 | **Off-chain** | Code, exécution, stats, tout le reste | PML (PostgreSQL) |
 
 ### Hiérarchie des Namespaces
 
 ```
-                    ┌─────────────────────────────┐
-                    │   PML Capability Registry    │
-                    │   (on-chain)                 │
-                    └─────────────────────────────┘
-                                 │
-            ┌────────────────────┼────────────────────┐
-            │                    │                    │
-            ▼                    ▼                    ▼
-    ┌───────────────┐    ┌───────────────┐    ┌───────────────┐
-    │ stripe.cap    │    │ vercel.cap    │    │ acme.cap      │
-    │ (owned)       │    │ (owned)       │    │ (owned)       │
-    └───────────────┘    └───────────────┘    └───────────────┘
-            │                    │                    │
-            ▼                    ▼                    ▼
-    billing.api.*        deploy.api.*         webapp.fs.*
-    payments.api.*       edge.api.*           mobile.api.*
+                ┌─────────────────────────────┐
+                │   PML Capability Registry    │
+                │   (on-chain)                 │
+                └─────────────────────────────┘
+                             │
+        ┌────────────────────┼────────────────────┐
+        │                    │                    │
+        ▼                    ▼                    ▼
+┌───────────────┐    ┌───────────────┐    ┌───────────────┐
+│ stripe.cap    │    │ vercel.cap    │    │ acme.cap      │
+│ (owned)       │    │ (owned)       │    │ (owned)       │
+└───────────────┘    └───────────────┘    └───────────────┘
+        │                    │                    │
+        ▼                    ▼                    ▼
+billing.api.*        deploy.api.*         webapp.fs.*
+payments.api.*       edge.api.*           mobile.api.*
 ```
 
 ---
@@ -285,6 +289,7 @@ contract CapabilityNameRegistry {
 ### C'est Tout !
 
 Pas besoin de :
+
 - ~~RevenueSplitter.sol~~ → Les publishers gèrent leur billing
 - ~~QualityOracle.sol~~ → PML calcule ça off-chain
 - ~~$CAP Token~~ → On utilise ETH directement
@@ -299,23 +304,23 @@ On utilise ETH (ou le native token du L2 choisi) directement. Pas besoin de cré
 
 ### Ce qui est Payant
 
-| Action | Prix | Fréquence |
-|--------|------|-----------|
-| Enregistrer namespace 3 chars | 0.1 ETH | Une fois |
-| Enregistrer namespace 4-5 chars | 0.05 ETH | Une fois |
-| Enregistrer namespace 6-8 chars | 0.02 ETH | Une fois |
-| Enregistrer namespace 9+ chars | 0.01 ETH | Une fois |
-| Renouvellement annuel | 0.005 ETH | /an |
-| Transfer (gas only) | ~$0.10 | Par transfer |
+| Action                          | Prix      | Fréquence    |
+| ------------------------------- | --------- | ------------ |
+| Enregistrer namespace 3 chars   | 0.1 ETH   | Une fois     |
+| Enregistrer namespace 4-5 chars | 0.05 ETH  | Une fois     |
+| Enregistrer namespace 6-8 chars | 0.02 ETH  | Une fois     |
+| Enregistrer namespace 9+ chars  | 0.01 ETH  | Une fois     |
+| Renouvellement annuel           | 0.005 ETH | /an          |
+| Transfer (gas only)             | ~$0.10    | Par transfer |
 
 ### Ce qui est Gratuit
 
-| Action | Pourquoi gratuit |
-|--------|------------------|
-| Publier capability sous son namespace | Pas de friction |
-| Utiliser une capability | Publishers gèrent leur billing |
-| Discovery / resolution | Service de base |
-| Vérifier ownership (isOwner) | View function = free |
+| Action                                | Pourquoi gratuit               |
+| ------------------------------------- | ------------------------------ |
+| Publier capability sous son namespace | Pas de friction                |
+| Utiliser une capability               | Publishers gèrent leur billing |
+| Discovery / resolution                | Service de base                |
+| Vérifier ownership (isOwner)          | View function = free           |
 
 ### Revenue Model pour PML
 
@@ -332,7 +337,8 @@ Fees collectés par le smart contract
 
 ### Royalties sur Ventes de Namespace
 
-Quand une méta-capacité utilise des capacités d'autres namespaces, les owners de ces dépendances reçoivent une part lors de la **revente** du namespace.
+Quand une méta-capacité utilise des capacités d'autres namespaces, les owners de ces dépendances
+reçoivent une part lors de la **revente** du namespace.
 
 **Principe** : Comme les royalties NFT sur secondary sales.
 
@@ -404,6 +410,7 @@ function transferWithRoyalties(
 ```
 
 **Avantages :**
+
 - 100% on-chain, trustless
 - Pas de tracking d'usage complexe
 - Récompense les créateurs de briques fondamentales
@@ -504,42 +511,43 @@ Pour le MVP, Option A suffit. La plupart des registrars DNS fonctionnent comme �
 
 ## Avantages vs Centralisé
 
-| Aspect | Centralisé (DB only) | Blockchain (Namespace Registry) |
-|--------|----------------------|--------------------------------|
-| **Propriété** | "Trust us" | Cryptographique, vérifiable |
-| **Transferts** | Manual process | Self-service, instant |
-| **Ventes** | Escrow complexe | Smart contract escrow natif |
-| **Historique** | DB modifiable | Immuable, auditable |
-| **Confiance** | Réputation PML | Trustless (code = law) |
-| **Disputes** | PML décide seul | Transparent, auditable |
-| **Portabilité** | Lock-in possible | Données on-chain = ouvertes |
+| Aspect          | Centralisé (DB only) | Blockchain (Namespace Registry) |
+| --------------- | -------------------- | ------------------------------- |
+| **Propriété**   | "Trust us"           | Cryptographique, vérifiable     |
+| **Transferts**  | Manual process       | Self-service, instant           |
+| **Ventes**      | Escrow complexe      | Smart contract escrow natif     |
+| **Historique**  | DB modifiable        | Immuable, auditable             |
+| **Confiance**   | Réputation PML       | Trustless (code = law)          |
+| **Disputes**    | PML décide seul      | Transparent, auditable          |
+| **Portabilité** | Lock-in possible     | Données on-chain = ouvertes     |
 
 ---
 
 ## Risques & Mitigations
 
-| Risque | Impact | Mitigation |
-|--------|--------|------------|
-| Gas fees élevés | UX dégradée pour registration | L2 (Base, Arbitrum) - fees < $0.10 |
-| Volatilité ETH | Prix namespace imprévisible | Prix en USD, ajusté dynamiquement |
-| Smart contract bugs | Perte de namespaces | Audit, bug bounty, proxy upgradeable |
-| Squatting massif | Noms premium pris | Trademark priority period + disputes |
-| Low adoption | Overhead vs centralisé | Commencer hybride (optionnel) |
-| Complexité UX | Wallet requis | Custodial option pour onboarding |
+| Risque              | Impact                        | Mitigation                           |
+| ------------------- | ----------------------------- | ------------------------------------ |
+| Gas fees élevés     | UX dégradée pour registration | L2 (Base, Arbitrum) - fees < $0.10   |
+| Volatilité ETH      | Prix namespace imprévisible   | Prix en USD, ajusté dynamiquement    |
+| Smart contract bugs | Perte de namespaces           | Audit, bug bounty, proxy upgradeable |
+| Squatting massif    | Noms premium pris             | Trademark priority period + disputes |
+| Low adoption        | Overhead vs centralisé        | Commencer hybride (optionnel)        |
+| Complexité UX       | Wallet requis                 | Custodial option pour onboarding     |
 
 ---
 
 ## Choix de Blockchain
 
-| Option | Pros | Cons |
-|--------|------|------|
-| **Ethereum L1** | Sécurité max, adoption | Gas fees élevés |
-| **Arbitrum** | Low fees, EVM compatible | Moins décentralisé |
-| **Base** | Coinbase ecosystem, low fees | Nouveau, moins battle-tested |
-| **Solana** | Ultra low fees, fast | Différent tooling, outages history |
-| **Custom L2/Appchain** | Full control | Effort de dev, bootstrap |
+| Option                 | Pros                         | Cons                               |
+| ---------------------- | ---------------------------- | ---------------------------------- |
+| **Ethereum L1**        | Sécurité max, adoption       | Gas fees élevés                    |
+| **Arbitrum**           | Low fees, EVM compatible     | Moins décentralisé                 |
+| **Base**               | Coinbase ecosystem, low fees | Nouveau, moins battle-tested       |
+| **Solana**             | Ultra low fees, fast         | Différent tooling, outages history |
+| **Custom L2/Appchain** | Full control                 | Effort de dev, bootstrap           |
 
-**Recommendation:** Commencer sur **Base** ou **Arbitrum** pour les low fees + EVM compatibility, avec bridge vers L1 pour high-value namespaces.
+**Recommendation:** Commencer sur **Base** ou **Arbitrum** pour les low fees + EVM compatibility,
+avec bridge vers L1 pour high-value namespaces.
 
 ---
 
@@ -604,13 +612,14 @@ Pour le MVP, Option A suffit. La plupart des registrars DNS fonctionnent comme �
 
 ### Blockchain : Base
 
-| Critère | Base | Arbitrum |
-|---------|------|----------|
-| Fees | ~$0.01 | ~$0.05 |
-| Backing | Coinbase | Offchain Labs |
-| Target | Consumer apps | DeFi heavy |
+| Critère | Base          | Arbitrum      |
+| ------- | ------------- | ------------- |
+| Fees    | ~$0.01        | ~$0.05        |
+| Backing | Coinbase      | Offchain Labs |
+| Target  | Consumer apps | DeFi heavy    |
 
 **Base** choisi pour :
+
 - Fees ultra bas
 - Coinbase = crédibilité entreprises
 - Growing ecosystem
@@ -675,7 +684,7 @@ import { verifyMessage } from "viem";
 
 async function linkWallet(req: Request) {
   const { address, signature } = await req.json();
-  const userId = req.session.userId;  // From GitHub OAuth
+  const userId = req.session.userId; // From GitHub OAuth
 
   const valid = await verifyMessage({
     address,
@@ -691,7 +700,8 @@ async function linkWallet(req: Request) {
 }
 ```
 
-**Note :** L'utilisateur n'a pas besoin de wallet pour utiliser PML. Juste pour **posséder** des namespaces.
+**Note :** L'utilisateur n'a pas besoin de wallet pour utiliser PML. Juste pour **posséder** des
+namespaces.
 
 ---
 
@@ -722,11 +732,13 @@ Ce spike propose une approche **minimaliste** de blockchain pour les capabilitie
 - **Off-chain** : Tout le reste (code, exécution, billing publishers)
 
 **Pas de** :
+
 - Token custom ($CAP) → on utilise ETH
 - Pay-per-call → publishers gèrent leur billing
 - Tracking d'usage complexe
 
 **Mais avec** :
+
 - Royalties automatiques aux dépendances lors des ventes de namespace
 - Incitation à créer des briques réutilisables
 - Redistribution trustless on-chain

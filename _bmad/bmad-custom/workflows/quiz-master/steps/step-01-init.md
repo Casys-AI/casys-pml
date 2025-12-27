@@ -1,16 +1,16 @@
 ---
-name: 'step-01-init'
-description: 'Initialize quiz game with mode selection and category choice'
+name: "step-01-init"
+description: "Initialize quiz game with mode selection and category choice"
 
 # Path Definitions
-workflow_path: '{project-root}/.bmad/custom/src/workflows/quiz-master'
+workflow_path: "{project-root}/.bmad/custom/src/workflows/quiz-master"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-01-init.md'
-nextStepFile: '{workflow_path}/steps/step-02-q1.md'
-workflowFile: '{workflow_path}/workflow.md'
-csvFile: '{project-root}/BMad-quiz-results.csv'
-csvTemplate: '{workflow_path}/templates/csv-headers.template'
+thisStepFile: "{workflow_path}/steps/step-01-init.md"
+nextStepFile: "{workflow_path}/steps/step-02-q1.md"
+workflowFile: "{workflow_path}/workflow.md"
+csvFile: "{project-root}/BMad-quiz-results.csv"
+csvTemplate: "{workflow_path}/templates/csv-headers.template"
 # Task References
 # No task references for this simple quiz workflow
 
@@ -22,7 +22,8 @@ csvTemplate: '{workflow_path}/templates/csv-headers.template'
 
 ## STEP GOAL:
 
-To set up the quiz game by selecting game mode, choosing a category, and preparing the CSV history file for tracking.
+To set up the quiz game by selecting game mode, choosing a category, and preparing the CSV history
+file for tracking.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -68,12 +69,13 @@ To set up the quiz game by selecting game mode, choosing a category, and prepari
 
 Load config from {project-root}/.bmad/core/config.yaml to get user_name.
 
-Present dramatic welcome:
-"🎺 _DRAMATIC MUSIC PLAYS_ 🎺
+Present dramatic welcome: "🎺 _DRAMATIC MUSIC PLAYS_ 🎺
 
-WELCOME TO QUIZ MASTER! I'm your host, and tonight we're going to test your knowledge in the most exciting trivia challenge on the planet!
+WELCOME TO QUIZ MASTER! I'm your host, and tonight we're going to test your knowledge in the most
+exciting trivia challenge on the planet!
 
-{user_name}, you're about to embark on a journey of wit, wisdom, and wonder! Are you ready to become today's Quiz Master champion?"
+{user_name}, you're about to embark on a journey of wit, wisdom, and wonder! Are you ready to become
+today's Quiz Master champion?"
 
 ### 2. Game Mode Selection
 
@@ -81,11 +83,11 @@ Present game mode options with enthusiasm:
 
 "🎯 **CHOOSE YOUR CHALLENGE!**
 
-**MODE 1 - SUDDEN DEATH!** 🏆
-One wrong answer and it's game over! This is for the true trivia warriors who dare to be perfect! The pressure is on, the stakes are high!
+**MODE 1 - SUDDEN DEATH!** 🏆 One wrong answer and it's game over! This is for the true trivia
+warriors who dare to be perfect! The pressure is on, the stakes are high!
 
-**MODE 2 - MARATHON!** 🏃‍♂️
-Answer all 10 questions and see how many you can get right! Perfect for building your skills and enjoying the full quiz experience!
+**MODE 2 - MARATHON!** 🏃‍♂️ Answer all 10 questions and see how many you can get right! Perfect for
+building your skills and enjoying the full quiz experience!
 
 Which mode will test your mettle today? [1] Sudden Death [2] Marathon"
 
@@ -97,17 +99,11 @@ Based on mode selection, present category options:
 
 "FANTASTIC CHOICE! Now, what's your area of expertise?
 
-**POPULAR CATEGORIES:**
-🎬 Movies & TV
-🎵 Music
-📚 History
-⚽ Sports
-🧪 Science
-🌍 Geography
-📖 Literature
-🎮 Gaming
+**POPULAR CATEGORIES:** 🎬 Movies & TV 🎵 Music 📚 History ⚽ Sports 🧪 Science 🌍 Geography 📖
+Literature 🎮 Gaming
 
-**OR** - if you're feeling adventurous - **TYPE YOUR OWN CATEGORY!** Any topic is welcome - from Ancient Rome to Zoo Animals!"
+**OR** - if you're feeling adventurous - **TYPE YOUR OWN CATEGORY!** Any topic is welcome - from
+Ancient Rome to Zoo Animals!"
 
 Wait for category input.
 
@@ -127,7 +123,8 @@ Create new row with:
 
 Build excitement for first question:
 
-"ALRIGHT, {user_name}! You've chosen **[Category]** in **[Mode Name]** mode! The crowd is roaring, the lights are dimming, and your first question is coming up!
+"ALRIGHT, {user_name}! You've chosen **[Category]** in **[Mode Name]** mode! The crowd is roaring,
+the lights are dimming, and your first question is coming up!
 
 Let's start with Question 1 - the warm-up round! Get ready..."
 
@@ -137,7 +134,8 @@ Display: **Starting your quiz adventure...**
 
 #### Menu Handling Logic:
 
-- After CSV setup and category selection, immediately load, read entire file, then execute {nextStepFile}
+- After CSV setup and category selection, immediately load, read entire file, then execute
+  {nextStepFile}
 
 #### EXECUTION RULES:
 
@@ -146,7 +144,8 @@ Display: **Starting your quiz adventure...**
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN setup is complete (mode selected, category chosen, CSV initialized) will you then load, read fully, and execute `{workflow_path}/steps/step-02-q1.md` to begin the first question.
+ONLY WHEN setup is complete (mode selected, category chosen, CSV initialized) will you then load,
+read fully, and execute `{workflow_path}/steps/step-02-q1.md` to begin the first question.
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -165,4 +164,5 @@ ONLY WHEN setup is complete (mode selected, category chosen, CSV initialized) wi
 - Not creating/initializing CSV file
 - Losing gameshow host enthusiasm
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

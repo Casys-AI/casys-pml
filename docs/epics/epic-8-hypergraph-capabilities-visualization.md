@@ -6,9 +6,9 @@
 **Expanded Goal (2-3 sentences):**
 
 Visualiser les capabilities comme **hyperedges** (relations N-aires entre tools) via D3.js
-force-directed graph, permettant aux utilisateurs de voir, explorer et réutiliser le code appris par le
-système. Une capability n'est pas une relation binaire mais une relation N-aire connectant plusieurs
-tools ensemble, nécessitant une approche de visualisation différente du graph classique.
+force-directed graph, permettant aux utilisateurs de voir, explorer et réutiliser le code appris par
+le système. Une capability n'est pas une relation binaire mais une relation N-aire connectant
+plusieurs tools ensemble, nécessitant une approche de visualisation différente du graph classique.
 
 > **Note (Dec 2024):** Migré de Cytoscape.js vers D3.js car les compound nodes Cytoscape ne
 > supportent pas plusieurs parents (un tool partagé entre capabilities). Voir ADR-029.
@@ -30,8 +30,8 @@ tools ensemble, nécessitant une approche de visualisation différente du graph 
 - Click capability → Code Panel avec syntax highlighting
 - Toggle button: [Tools] [Capabilities] [Hypergraph]
 
-> **Migration:** Originalement prévu avec Cytoscape.js compound graphs, mais migré vers D3.js
-> pour supporter les hyperedges (un tool peut appartenir à plusieurs capabilities).
+> **Migration:** Originalement prévu avec Cytoscape.js compound graphs, mais migré vers D3.js pour
+> supporter les hyperedges (un tool peut appartenir à plusieurs capabilities).
 
 **Estimation:** 5 stories, ~1-2 semaines
 
@@ -69,8 +69,8 @@ the frontend can visualize the learned capabilities.
 
 **Story 8.2: Compound Graph Builder**
 
-As a system architect, I want a HypergraphBuilder class that converts capabilities to D3.js
-graph nodes with hyperedge support, So that the visualization can represent N-ary relationships correctly.
+As a system architect, I want a HypergraphBuilder class that converts capabilities to D3.js graph
+nodes with hyperedge support, So that the visualization can represent N-ary relationships correctly.
 
 **Acceptance Criteria:**
 
@@ -298,4 +298,4 @@ find relevant code patterns quickly.
 └─────────────────────────────────────────────────────────────────┘
 
 ---
-
+```

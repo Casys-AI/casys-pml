@@ -4,8 +4,10 @@
 
 - 🛑 NEVER generate content without user input
 
-- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding leads to incomplete decisions
-- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before proceeding
+- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding
+  leads to incomplete decisions
+- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before
+  proceeding
 - ✅ ALWAYS treat this as collaborative discovery between UX facilitator and stakeholder
 - 📋 YOU ARE A UX FACILITATOR, not a content generator
 - 💬 FOCUS on defining the core interaction that defines the product
@@ -49,8 +51,8 @@ Define the core interaction that, if nailed, makes everything else follow in the
 
 ### 1. Identify the Defining Experience
 
-Focus on the core interaction:
-"Every successful product has a defining experience - the core interaction that, if we nail it, everything else follows.
+Focus on the core interaction: "Every successful product has a defining experience - the core
+interaction that, if we nail it, everything else follows.
 
 **Think about these famous examples:**
 
@@ -59,15 +61,13 @@ Focus on the core interaction:
 - Instagram: "Share perfect moments with filters"
 - Spotify: "Discover and play any song instantly"
 
-**For {{project_name}}:**
-What's the core action that users will describe to their friends?
-What's the interaction that makes users feel successful?
-If we get ONE thing perfectly right, what should it be?"
+**For {{project_name}}:** What's the core action that users will describe to their friends? What's
+the interaction that makes users feel successful? If we get ONE thing perfectly right, what should
+it be?"
 
 ### 2. Explore the User's Mental Model
 
-Understand how users think about the core task:
-"**User Mental Model Questions:**
+Understand how users think about the core task: "**User Mental Model Questions:**
 
 - How do users currently solve this problem?
 - What mental model do they bring to this task?
@@ -82,8 +82,7 @@ Understand how users think about the core task:
 
 ### 3. Define Success Criteria for Core Experience
 
-Establish what makes the core interaction successful:
-"**Core Experience Success Criteria:**
+Establish what makes the core interaction successful: "**Core Experience Success Criteria:**
 
 - What makes users say 'this just works'?
 - When do they feel smart or accomplished?
@@ -99,9 +98,8 @@ Establish what makes the core interaction successful:
 
 ### 4. Identify Novel vs. Established Patterns
 
-Determine if we need to innovate or can use proven patterns:
-"**Pattern Analysis:**
-Looking at your core experience, does this:
+Determine if we need to innovate or can use proven patterns: "**Pattern Analysis:** Looking at your
+core experience, does this:
 
 - Use established UX patterns that users already understand?
 - Require novel interaction design that needs user education?
@@ -121,9 +119,8 @@ Looking at your core experience, does this:
 
 ### 5. Define Experience Mechanics
 
-Break down the core interaction into details:
-"**Core Experience Mechanics:**
-Let's design the step-by-step flow for [defining experience]:
+Break down the core interaction into details: "**Core Experience Mechanics:** Let's design the
+step-by-step flow for [defining experience]:
 
 **1. Initiation:**
 
@@ -182,23 +179,23 @@ When saving to document, append these Level 2 and Level 3 sections:
 
 ### 7. Present Content and Menu
 
-Show the generated defining experience content and present choices:
-"I've defined the core experience for {{project_name}} - the interaction that will make users love this product.
+Show the generated defining experience content and present choices: "I've defined the core
+experience for {{project_name}} - the interaction that will make users love this product.
 
 **Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 6]
 
-**What would you like to do?**
-[A] Advanced Elicitation - Let's refine the core experience definition
-[P] Party Mode - Bring different perspectives on the defining interaction
-[C] Continue - Save this to the document and move to visual foundation
+**What would you like to do?** [A] Advanced Elicitation - Let's refine the core experience
+definition [P] Party Mode - Bring different perspectives on the defining interaction [C] Continue -
+Save this to the document and move to visual foundation
 
 ### 8. Handle Menu Selection
 
 #### If 'A' (Advanced Elicitation):
 
-- Execute {project-root}/\_bmad/core/tasks/advanced-elicitation.xml with the current defining experience content
+- Execute {project-root}/\_bmad/core/tasks/advanced-elicitation.xml with the current defining
+  experience content
 - Process the enhanced experience insights that come back
 - Ask user: "Accept these improvements to the defining experience? (y/n)"
 - If yes: Update content with improvements, then return to A/P/C menu
@@ -206,7 +203,8 @@ Show the generated defining experience content and present choices:
 
 #### If 'P' (Party Mode):
 
-- Execute {project-root}/\_bmad/core/workflows/party-mode/workflow.md with the current defining experience
+- Execute {project-root}/\_bmad/core/workflows/party-mode/workflow.md with the current defining
+  experience
 - Process the collaborative experience insights that come back
 - Ask user: "Accept these changes to the defining experience? (y/n)"
 - If yes: Update content with improvements, then return to A/P/C menu
@@ -224,30 +222,27 @@ When user selects 'C', append the content directly to the document using the str
 
 ## SUCCESS METRICS:
 
-✅ Defining experience clearly articulated
-✅ User mental model thoroughly analyzed
-✅ Success criteria established for core interaction
-✅ Novel vs. established patterns properly evaluated
-✅ Experience mechanics designed in detail
-✅ A/P/C menu presented and handled correctly
-✅ Content properly appended to document when C selected
+✅ Defining experience clearly articulated ✅ User mental model thoroughly analyzed ✅ Success
+criteria established for core interaction ✅ Novel vs. established patterns properly evaluated ✅
+Experience mechanics designed in detail ✅ A/P/C menu presented and handled correctly ✅ Content
+properly appended to document when C selected
 
 ## FAILURE MODES:
 
-❌ Not identifying the true core interaction
-❌ Missing user's mental model and expectations
-❌ Not establishing clear success criteria
-❌ Not properly evaluating novel vs. established patterns
-❌ Experience mechanics too vague or incomplete
-❌ Not presenting A/P/C menu after content generation
+❌ Not identifying the true core interaction ❌ Missing user's mental model and expectations ❌ Not
+establishing clear success criteria ❌ Not properly evaluating novel vs. established patterns ❌
+Experience mechanics too vague or incomplete ❌ Not presenting A/P/C menu after content generation
 ❌ Appending content without user selecting 'C'
 
-❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
-❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step file
-❌ **CRITICAL**: Making decisions without complete understanding of step requirements and protocols
+❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor
+decisions ❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step
+file ❌ **CRITICAL**: Making decisions without complete understanding of step requirements and
+protocols
 
 ## NEXT STEP:
 
-After user selects 'C' and content is saved to document, load `./step-08-visual-foundation.md` to establish visual design foundation.
+After user selects 'C' and content is saved to document, load `./step-08-visual-foundation.md` to
+establish visual design foundation.
 
-Remember: Do NOT proceed to step-08 until user explicitly selects 'C' from the A/P/C menu and content is saved!
+Remember: Do NOT proceed to step-08 until user explicitly selects 'C' from the A/P/C menu and
+content is saved!

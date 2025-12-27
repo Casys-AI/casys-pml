@@ -2,24 +2,31 @@
 
 ## Principle
 
-Tests must be deterministic, isolated, explicit, focused, and fast. Every test should execute in under 1.5 minutes, contain fewer than 300 lines, avoid hard waits and conditionals, keep assertions visible in test bodies, and clean up after itself for parallel execution.
+Tests must be deterministic, isolated, explicit, focused, and fast. Every test should execute in
+under 1.5 minutes, contain fewer than 300 lines, avoid hard waits and conditionals, keep assertions
+visible in test bodies, and clean up after itself for parallel execution.
 
 ## Rationale
 
-Quality tests provide reliable signal about application health. Flaky tests erode confidence and waste engineering time. Tests that use hard waits (`waitForTimeout(3000)`) are non-deterministic and slow. Tests with hidden assertions or conditional logic become unmaintainable. Large tests (>300 lines) are hard to understand and debug. Slow tests (>1.5 min) block CI pipelines. Self-cleaning tests prevent state pollution in parallel runs.
+Quality tests provide reliable signal about application health. Flaky tests erode confidence and
+waste engineering time. Tests that use hard waits (`waitForTimeout(3000)`) are non-deterministic and
+slow. Tests with hidden assertions or conditional logic become unmaintainable. Large tests (>300
+lines) are hard to understand and debug. Slow tests (>1.5 min) block CI pipelines. Self-cleaning
+tests prevent state pollution in parallel runs.
 
 ## Pattern Examples
 
 ### Example 1: Deterministic Test Pattern
 
-**Context**: When writing tests, eliminate all sources of non-determinism: hard waits, conditionals controlling flow, try-catch for flow control, and random data without seeds.
+**Context**: When writing tests, eliminate all sources of non-determinism: hard waits, conditionals
+controlling flow, try-catch for flow control, and random data without seeds.
 
 **Implementation**:
 
 ```typescript
 // ❌ BAD: Non-deterministic test with conditionals and hard waits
-test('user can view dashboard - FLAKY', async ({ page }) => {
-  await page.goto('/dashboard');
+test("user can view dashboard - FLAKY", async ({ page }) => {
+  await page.goto("/dashboard");
   await page.waitForTimeout(3000); // NEVER - arbitrary wait
 
   // Conditional flow control - test behavior varies
@@ -41,16 +48,18 @@ test('user can view dashboard - FLAKY', async ({ page }) => {
 });
 
 // ✅ GOOD: Deterministic test with explicit waits
-test('user can view dashboard', async ({ page, apiRequest }) => {
-  const user = createUser({ email: 'test@example.com', hasSeenWelcome: true });
+test("user can view dashboard", async ({ page, apiRequest }) => {
+  const user = createUser({ email: "test@example.com", hasSeenWelcome: true });
 
   // Setup via API (fast, controlled)
-  await apiRequest.post('/api/users', { data: user });
+  await apiRequest.post("/api/users", { data: user });
 
   // Network-first: Intercept BEFORE navigate
-  const dashboardPromise = page.waitForResponse((resp) => resp.url().includes('/api/dashboard') && resp.status() === 200);
+  const dashboardPromise = page.waitForResponse((resp) =>
+    resp.url().includes("/api/dashboard") && resp.status() === 200
+  );
 
-  await page.goto('/dashboard');
+  await page.goto("/dashboard");
 
   // Wait for actual response, not arbitrary time
   const dashboardResponse = await dashboardPromise;
@@ -58,32 +67,32 @@ test('user can view dashboard', async ({ page, apiRequest }) => {
 
   // Explicit assertions with controlled data
   await expect(page.getByText(`Welcome, ${user.name}`)).toBeVisible();
-  await expect(page.getByTestId('dashboard-items')).toHaveCount(dashboard.items.length);
+  await expect(page.getByTestId("dashboard-items")).toHaveCount(dashboard.items.length);
 
   // No conditionals - test always executes same path
   // No try-catch - failures bubble up clearly
 });
 
 // Cypress equivalent
-describe('Dashboard', () => {
-  it('should display user dashboard', () => {
-    const user = createUser({ email: 'test@example.com', hasSeenWelcome: true });
+describe("Dashboard", () => {
+  it("should display user dashboard", () => {
+    const user = createUser({ email: "test@example.com", hasSeenWelcome: true });
 
     // Setup via task (fast, controlled)
-    cy.task('db:seed', { users: [user] });
+    cy.task("db:seed", { users: [user] });
 
     // Network-first interception
-    cy.intercept('GET', '**/api/dashboard').as('getDashboard');
+    cy.intercept("GET", "**/api/dashboard").as("getDashboard");
 
-    cy.visit('/dashboard');
+    cy.visit("/dashboard");
 
     // Deterministic wait for response
-    cy.wait('@getDashboard').then((interception) => {
+    cy.wait("@getDashboard").then((interception) => {
       const dashboard = interception.response.body;
 
       // Explicit assertions
-      cy.contains(`Welcome, ${user.name}`).should('be.visible');
-      cy.get('[data-cy="dashboard-items"]').should('have.length', dashboard.items.length);
+      cy.contains(`Welcome, ${user.name}`).should("be.visible");
+      cy.get('[data-cy="dashboard-items"]').should("have.length", dashboard.items.length);
     });
   });
 });
@@ -99,21 +108,22 @@ describe('Dashboard', () => {
 
 ### Example 2: Isolated Test with Cleanup
 
-**Context**: When tests create data, they must clean up after themselves to prevent state pollution in parallel runs. Use fixture auto-cleanup or explicit teardown.
+**Context**: When tests create data, they must clean up after themselves to prevent state pollution
+in parallel runs. Use fixture auto-cleanup or explicit teardown.
 
 **Implementation**:
 
 ```typescript
 // ❌ BAD: Test leaves data behind, pollutes other tests
-test('admin can create user - POLLUTES STATE', async ({ page, apiRequest }) => {
-  await page.goto('/admin/users');
+test("admin can create user - POLLUTES STATE", async ({ page, apiRequest }) => {
+  await page.goto("/admin/users");
 
   // Hardcoded email - collides in parallel runs
-  await page.fill('[data-testid="email"]', 'newuser@example.com');
-  await page.fill('[data-testid="name"]', 'New User');
+  await page.fill('[data-testid="email"]', "newuser@example.com");
+  await page.fill('[data-testid="name"]', "New User");
   await page.click('[data-testid="create-user"]');
 
-  await expect(page.getByText('User created')).toBeVisible();
+  await expect(page.getByText("User created")).toBeVisible();
 
   // NO CLEANUP - user remains in database
   // Next test run fails: "Email already exists"
@@ -121,8 +131,8 @@ test('admin can create user - POLLUTES STATE', async ({ page, apiRequest }) => {
 
 // ✅ GOOD: Test cleans up with fixture auto-cleanup
 // playwright/support/fixtures/database-fixture.ts
-import { test as base } from '@playwright/test';
-import { deleteRecord, seedDatabase } from '../helpers/db-helpers';
+import { test as base } from "@playwright/test";
+import { deleteRecord, seedDatabase } from "../helpers/db-helpers";
 
 type DatabaseFixture = {
   seedUser: (userData: Partial<User>) => Promise<User>;
@@ -133,7 +143,7 @@ export const test = base.extend<DatabaseFixture>({
     const createdUsers: string[] = [];
 
     const seedUser = async (userData: Partial<User>) => {
-      const user = await seedDatabase('users', userData);
+      const user = await seedDatabase("users", userData);
       createdUsers.push(user.id); // Track for cleanup
       return user;
     };
@@ -142,28 +152,28 @@ export const test = base.extend<DatabaseFixture>({
 
     // Auto-cleanup: Delete all users created during test
     for (const userId of createdUsers) {
-      await deleteRecord('users', userId);
+      await deleteRecord("users", userId);
     }
     createdUsers.length = 0;
   },
 });
 
 // Use the fixture
-test('admin can create user', async ({ page, seedUser }) => {
+test("admin can create user", async ({ page, seedUser }) => {
   // Create admin with unique data
   const admin = await seedUser({
     email: faker.internet.email(), // Unique each run
-    role: 'admin',
+    role: "admin",
   });
 
-  await page.goto('/admin/users');
+  await page.goto("/admin/users");
 
   const newUserEmail = faker.internet.email(); // Unique
   await page.fill('[data-testid="email"]', newUserEmail);
-  await page.fill('[data-testid="name"]', 'New User');
+  await page.fill('[data-testid="name"]', "New User");
   await page.click('[data-testid="create-user"]');
 
-  await expect(page.getByText('User created')).toBeVisible();
+  await expect(page.getByText("User created")).toBeVisible();
 
   // Verify in database
   const createdUser = await seedUser({ email: newUserEmail });
@@ -173,34 +183,34 @@ test('admin can create user', async ({ page, seedUser }) => {
 });
 
 // Cypress equivalent with explicit cleanup
-describe('Admin User Management', () => {
+describe("Admin User Management", () => {
   const createdUserIds: string[] = [];
 
   afterEach(() => {
     // Cleanup: Delete all users created during test
     createdUserIds.forEach((userId) => {
-      cy.task('db:delete', { table: 'users', id: userId });
+      cy.task("db:delete", { table: "users", id: userId });
     });
     createdUserIds.length = 0;
   });
 
-  it('should create user', () => {
-    const admin = createUser({ role: 'admin' });
+  it("should create user", () => {
+    const admin = createUser({ role: "admin" });
     const newUser = createUser(); // Unique data via faker
 
-    cy.task('db:seed', { users: [admin] }).then((result: any) => {
+    cy.task("db:seed", { users: [admin] }).then((result: any) => {
       createdUserIds.push(result.users[0].id);
     });
 
-    cy.visit('/admin/users');
+    cy.visit("/admin/users");
     cy.get('[data-cy="email"]').type(newUser.email);
     cy.get('[data-cy="name"]').type(newUser.name);
     cy.get('[data-cy="create-user"]').click();
 
-    cy.contains('User created').should('be.visible');
+    cy.contains("User created").should("be.visible");
 
     // Track for cleanup
-    cy.task('db:findByEmail', newUser.email).then((user: any) => {
+    cy.task("db:findByEmail", newUser.email).then((user: any) => {
       createdUserIds.push(user.id);
     });
   });
@@ -217,7 +227,8 @@ describe('Admin User Management', () => {
 
 ### Example 3: Explicit Assertions in Tests
 
-**Context**: When validating test results, keep assertions visible in test bodies. Never hide assertions in helper functions - this obscures test intent and makes failures harder to diagnose.
+**Context**: When validating test results, keep assertions visible in test bodies. Never hide
+assertions in helper functions - this obscures test intent and makes failures harder to diagnose.
 
 **Implementation**:
 
@@ -233,10 +244,10 @@ export async function validateUserCreation(response: Response, expectedEmail: st
   // Hidden assertions - not visible in test
 }
 
-test('create user via API - OPAQUE', async ({ request }) => {
-  const userData = createUser({ email: 'test@example.com' });
+test("create user via API - OPAQUE", async ({ request }) => {
+  const userData = createUser({ email: "test@example.com" });
 
-  const response = await request.post('/api/users', { data: userData });
+  const response = await request.post("/api/users", { data: userData });
 
   // What assertions are running? Have to check helper.
   await validateUserCreation(response, userData.email);
@@ -244,10 +255,10 @@ test('create user via API - OPAQUE', async ({ request }) => {
 });
 
 // ✅ GOOD: Assertions explicit in test
-test('create user via API', async ({ request }) => {
-  const userData = createUser({ email: 'test@example.com' });
+test("create user via API", async ({ request }) => {
+  const userData = createUser({ email: "test@example.com" });
 
-  const response = await request.post('/api/users', { data: userData });
+  const response = await request.post("/api/users", { data: userData });
 
   // All assertions visible - clear test intent
   expect(response.status()).toBe(201);
@@ -256,7 +267,7 @@ test('create user via API', async ({ request }) => {
   expect(createdUser.id).toBeTruthy();
   expect(createdUser.email).toBe(userData.email);
   expect(createdUser.name).toBe(userData.name);
-  expect(createdUser.role).toBe('user');
+  expect(createdUser.role).toBe("user");
   expect(createdUser.createdAt).toBeTruthy();
   expect(createdUser.isActive).toBe(true);
 
@@ -270,10 +281,10 @@ export async function extractUserFromResponse(response: Response): Promise<User>
   return user; // Just extracts, no assertions
 }
 
-test('create user with extraction helper', async ({ request }) => {
-  const userData = createUser({ email: 'test@example.com' });
+test("create user with extraction helper", async ({ request }) => {
+  const userData = createUser({ email: "test@example.com" });
 
-  const response = await request.post('/api/users', { data: userData });
+  const response = await request.post("/api/users", { data: userData });
 
   // Extract data with helper (OK)
   const createdUser = await extractUserFromResponse(response);
@@ -281,21 +292,21 @@ test('create user with extraction helper', async ({ request }) => {
   // But keep assertions in test (REQUIRED)
   expect(response.status()).toBe(201);
   expect(createdUser.email).toBe(userData.email);
-  expect(createdUser.role).toBe('user');
+  expect(createdUser.role).toBe("user");
 });
 
 // Cypress equivalent
-describe('User API', () => {
-  it('should create user with explicit assertions', () => {
-    const userData = createUser({ email: 'test@example.com' });
+describe("User API", () => {
+  it("should create user with explicit assertions", () => {
+    const userData = createUser({ email: "test@example.com" });
 
-    cy.request('POST', '/api/users', userData).then((response) => {
+    cy.request("POST", "/api/users", userData).then((response) => {
       // All assertions visible in test
       expect(response.status).to.equal(201);
       expect(response.body.id).to.exist;
       expect(response.body.email).to.equal(userData.email);
       expect(response.body.name).to.equal(userData.name);
-      expect(response.body.role).to.equal('user');
+      expect(response.body.role).to.equal("user");
       expect(response.body.createdAt).to.exist;
       expect(response.body.isActive).to.be.true;
     });
@@ -303,19 +314,19 @@ describe('User API', () => {
 });
 
 // ✅ GOOD: Parametrized tests for soft assertions (bulk validation)
-test.describe('User creation validation', () => {
+test.describe("User creation validation", () => {
   const testCases = [
-    { field: 'email', value: 'test@example.com', expected: 'test@example.com' },
-    { field: 'name', value: 'Test User', expected: 'Test User' },
-    { field: 'role', value: 'admin', expected: 'admin' },
-    { field: 'isActive', value: true, expected: true },
+    { field: "email", value: "test@example.com", expected: "test@example.com" },
+    { field: "name", value: "Test User", expected: "Test User" },
+    { field: "role", value: "admin", expected: "admin" },
+    { field: "isActive", value: true, expected: true },
   ];
 
   for (const { field, value, expected } of testCases) {
     test(`should set ${field} correctly`, async ({ request }) => {
       const userData = createUser({ [field]: value });
 
-      const response = await request.post('/api/users', { data: userData });
+      const response = await request.post("/api/users", { data: userData });
       const user = await response.json();
 
       // Parametrized assertion - still explicit
@@ -335,24 +346,25 @@ test.describe('User creation validation', () => {
 
 ### Example 4: Test Length Limits
 
-**Context**: When tests grow beyond 300 lines, they become hard to understand, debug, and maintain. Refactor long tests by extracting setup helpers, splitting scenarios, or using fixtures.
+**Context**: When tests grow beyond 300 lines, they become hard to understand, debug, and maintain.
+Refactor long tests by extracting setup helpers, splitting scenarios, or using fixtures.
 
 **Implementation**:
 
 ```typescript
 // ❌ BAD: 400-line monolithic test (truncated for example)
-test('complete user journey - TOO LONG', async ({ page, request }) => {
+test("complete user journey - TOO LONG", async ({ page, request }) => {
   // 50 lines of setup
-  const admin = createUser({ role: 'admin' });
-  await request.post('/api/users', { data: admin });
-  await page.goto('/login');
+  const admin = createUser({ role: "admin" });
+  await request.post("/api/users", { data: admin });
+  await page.goto("/login");
   await page.fill('[data-testid="email"]', admin.email);
-  await page.fill('[data-testid="password"]', 'password123');
+  await page.fill('[data-testid="password"]', "password123");
   await page.click('[data-testid="login"]');
-  await expect(page).toHaveURL('/dashboard');
+  await expect(page).toHaveURL("/dashboard");
 
   // 100 lines of user creation
-  await page.goto('/admin/users');
+  await page.goto("/admin/users");
   const newUser = createUser();
   await page.fill('[data-testid="email"]', newUser.email);
   // ... 95 more lines of form filling, validation, etc.
@@ -377,14 +389,14 @@ test('complete user journey - TOO LONG', async ({ page, request }) => {
 export const test = base.extend({
   adminPage: async ({ page, request }, use) => {
     // Shared setup: Login as admin
-    const admin = createUser({ role: 'admin' });
-    await request.post('/api/users', { data: admin });
+    const admin = createUser({ role: "admin" });
+    await request.post("/api/users", { data: admin });
 
-    await page.goto('/login');
+    await page.goto("/login");
     await page.fill('[data-testid="email"]', admin.email);
-    await page.fill('[data-testid="password"]', 'password123');
+    await page.fill('[data-testid="password"]', "password123");
     await page.click('[data-testid="login"]');
-    await expect(page).toHaveURL('/dashboard');
+    await expect(page).toHaveURL("/dashboard");
 
     await use(page); // Provide logged-in page
 
@@ -393,8 +405,8 @@ export const test = base.extend({
 });
 
 // Test 1: User creation (50 lines)
-test('admin can create user', async ({ adminPage, seedUser }) => {
-  await adminPage.goto('/admin/users');
+test("admin can create user", async ({ adminPage, seedUser }) => {
+  await adminPage.goto("/admin/users");
 
   const newUser = createUser();
   await adminPage.fill('[data-testid="email"]', newUser.email);
@@ -403,16 +415,16 @@ test('admin can create user', async ({ adminPage, seedUser }) => {
   await adminPage.click('[data-testid="role-user"]');
   await adminPage.click('[data-testid="create-user"]');
 
-  await expect(adminPage.getByText('User created')).toBeVisible();
+  await expect(adminPage.getByText("User created")).toBeVisible();
   await expect(adminPage.getByText(newUser.email)).toBeVisible();
 
   // Verify in database
   const created = await seedUser({ email: newUser.email });
-  expect(created.role).toBe('user');
+  expect(created.role).toBe("user");
 });
 
 // Test 2: Permission assignment (60 lines)
-test('admin can assign permissions', async ({ adminPage, seedUser }) => {
+test("admin can assign permissions", async ({ adminPage, seedUser }) => {
   const user = await seedUser({ email: faker.internet.email() });
 
   await adminPage.goto(`/admin/users/${user.id}`);
@@ -421,33 +433,33 @@ test('admin can assign permissions', async ({ adminPage, seedUser }) => {
   await adminPage.check('[data-testid="permission-write"]');
   await adminPage.click('[data-testid="save-permissions"]');
 
-  await expect(adminPage.getByText('Permissions updated')).toBeVisible();
+  await expect(adminPage.getByText("Permissions updated")).toBeVisible();
 
   // Verify permissions assigned
   const response = await adminPage.request.get(`/api/users/${user.id}`);
   const updated = await response.json();
-  expect(updated.permissions).toContain('read');
-  expect(updated.permissions).toContain('write');
+  expect(updated.permissions).toContain("read");
+  expect(updated.permissions).toContain("write");
 });
 
 // Test 3: Notification preferences (70 lines)
-test('admin can update notification preferences', async ({ adminPage, seedUser }) => {
+test("admin can update notification preferences", async ({ adminPage, seedUser }) => {
   const user = await seedUser({ email: faker.internet.email() });
 
   await adminPage.goto(`/admin/users/${user.id}/notifications`);
   await adminPage.check('[data-testid="email-notifications"]');
   await adminPage.uncheck('[data-testid="sms-notifications"]');
-  await adminPage.selectOption('[data-testid="frequency"]', 'daily');
+  await adminPage.selectOption('[data-testid="frequency"]', "daily");
   await adminPage.click('[data-testid="save-preferences"]');
 
-  await expect(adminPage.getByText('Preferences saved')).toBeVisible();
+  await expect(adminPage.getByText("Preferences saved")).toBeVisible();
 
   // Verify preferences
   const response = await adminPage.request.get(`/api/users/${user.id}/preferences`);
   const prefs = await response.json();
   expect(prefs.emailEnabled).toBe(true);
   expect(prefs.smsEnabled).toBe(false);
-  expect(prefs.frequency).toBe('daily');
+  expect(prefs.frequency).toBe("daily");
 });
 
 // TOTAL: 3 tests × 60 lines avg = 180 lines
@@ -464,31 +476,33 @@ test('admin can update notification preferences', async ({ adminPage, seedUser }
 
 ### Example 5: Execution Time Optimization
 
-**Context**: When tests take longer than 1.5 minutes, they slow CI pipelines and feedback loops. Optimize by using API setup instead of UI navigation, parallelizing independent operations, and avoiding unnecessary waits.
+**Context**: When tests take longer than 1.5 minutes, they slow CI pipelines and feedback loops.
+Optimize by using API setup instead of UI navigation, parallelizing independent operations, and
+avoiding unnecessary waits.
 
 **Implementation**:
 
 ```typescript
 // ❌ BAD: 4-minute test (slow setup, sequential operations)
-test('user completes order - SLOW (4 min)', async ({ page }) => {
+test("user completes order - SLOW (4 min)", async ({ page }) => {
   // Step 1: Manual signup via UI (90 seconds)
-  await page.goto('/signup');
-  await page.fill('[data-testid="email"]', 'buyer@example.com');
-  await page.fill('[data-testid="password"]', 'password123');
-  await page.fill('[data-testid="confirm-password"]', 'password123');
-  await page.fill('[data-testid="name"]', 'Buyer User');
+  await page.goto("/signup");
+  await page.fill('[data-testid="email"]', "buyer@example.com");
+  await page.fill('[data-testid="password"]', "password123");
+  await page.fill('[data-testid="confirm-password"]', "password123");
+  await page.fill('[data-testid="name"]', "Buyer User");
   await page.click('[data-testid="signup"]');
-  await page.waitForURL('/verify-email'); // Wait for email verification
+  await page.waitForURL("/verify-email"); // Wait for email verification
   // ... manual email verification flow
 
   // Step 2: Manual product creation via UI (60 seconds)
-  await page.goto('/admin/products');
-  await page.fill('[data-testid="product-name"]', 'Widget');
+  await page.goto("/admin/products");
+  await page.fill('[data-testid="product-name"]', "Widget");
   // ... 20 more fields
   await page.click('[data-testid="create-product"]');
 
   // Step 3: Navigate to checkout (30 seconds)
-  await page.goto('/products');
+  await page.goto("/products");
   await page.waitForTimeout(5000); // Unnecessary hard wait
   await page.click('[data-testid="product-widget"]');
   await page.waitForTimeout(3000); // Unnecessary
@@ -496,27 +510,27 @@ test('user completes order - SLOW (4 min)', async ({ page }) => {
   await page.waitForTimeout(2000); // Unnecessary
 
   // Step 4: Complete checkout (40 seconds)
-  await page.goto('/checkout');
+  await page.goto("/checkout");
   await page.waitForTimeout(5000); // Unnecessary
-  await page.fill('[data-testid="credit-card"]', '4111111111111111');
+  await page.fill('[data-testid="credit-card"]', "4111111111111111");
   // ... more form filling
   await page.click('[data-testid="submit-order"]');
   await page.waitForTimeout(10000); // Unnecessary
 
-  await expect(page.getByText('Order Confirmed')).toBeVisible();
+  await expect(page.getByText("Order Confirmed")).toBeVisible();
 
   // TOTAL: ~240 seconds (4 minutes)
 });
 
 // ✅ GOOD: 45-second test (API setup, parallel ops, deterministic waits)
-test('user completes order', async ({ page, apiRequest }) => {
+test("user completes order", async ({ page, apiRequest }) => {
   // Step 1: API setup (parallel, 5 seconds total)
   const [user, product] = await Promise.all([
     // Create user via API (fast)
     apiRequest
-      .post('/api/users', {
+      .post("/api/users", {
         data: createUser({
-          email: 'buyer@example.com',
+          email: "buyer@example.com",
           emailVerified: true, // Skip verification
         }),
       })
@@ -524,9 +538,9 @@ test('user completes order', async ({ page, apiRequest }) => {
 
     // Create product via API (fast)
     apiRequest
-      .post('/api/products', {
+      .post("/api/products", {
         data: createProduct({
-          name: 'Widget',
+          name: "Widget",
           price: 29.99,
           stock: 10,
         }),
@@ -537,65 +551,65 @@ test('user completes order', async ({ page, apiRequest }) => {
   // Step 2: Auth setup via storage state (instant, 0 seconds)
   await page.context().addCookies([
     {
-      name: 'auth_token',
+      name: "auth_token",
       value: user.token,
-      domain: 'localhost',
-      path: '/',
+      domain: "localhost",
+      path: "/",
     },
   ]);
 
   // Step 3: Network-first interception BEFORE navigation (10 seconds)
-  const cartPromise = page.waitForResponse('**/api/cart');
-  const orderPromise = page.waitForResponse('**/api/orders');
+  const cartPromise = page.waitForResponse("**/api/cart");
+  const orderPromise = page.waitForResponse("**/api/orders");
 
   await page.goto(`/products/${product.id}`);
   await page.click('[data-testid="add-to-cart"]');
   await cartPromise; // Deterministic wait (no hard wait)
 
   // Step 4: Checkout with network waits (30 seconds)
-  await page.goto('/checkout');
-  await page.fill('[data-testid="credit-card"]', '4111111111111111');
-  await page.fill('[data-testid="cvv"]', '123');
-  await page.fill('[data-testid="expiry"]', '12/25');
+  await page.goto("/checkout");
+  await page.fill('[data-testid="credit-card"]', "4111111111111111");
+  await page.fill('[data-testid="cvv"]', "123");
+  await page.fill('[data-testid="expiry"]', "12/25");
   await page.click('[data-testid="submit-order"]');
   await orderPromise; // Deterministic wait (no hard wait)
 
-  await expect(page.getByText('Order Confirmed')).toBeVisible();
+  await expect(page.getByText("Order Confirmed")).toBeVisible();
   await expect(page.getByText(`Order #${product.id}`)).toBeVisible();
 
   // TOTAL: ~45 seconds (6x faster)
 });
 
 // Cypress equivalent
-describe('Order Flow', () => {
-  it('should complete purchase quickly', () => {
+describe("Order Flow", () => {
+  it("should complete purchase quickly", () => {
     // Step 1: API setup (parallel, fast)
     const user = createUser({ emailVerified: true });
-    const product = createProduct({ name: 'Widget', price: 29.99 });
+    const product = createProduct({ name: "Widget", price: 29.99 });
 
-    cy.task('db:seed', { users: [user], products: [product] });
+    cy.task("db:seed", { users: [user], products: [product] });
 
     // Step 2: Auth setup via session (instant)
-    cy.setCookie('auth_token', user.token);
+    cy.setCookie("auth_token", user.token);
 
     // Step 3: Network-first interception
-    cy.intercept('POST', '**/api/cart').as('addToCart');
-    cy.intercept('POST', '**/api/orders').as('createOrder');
+    cy.intercept("POST", "**/api/cart").as("addToCart");
+    cy.intercept("POST", "**/api/orders").as("createOrder");
 
     cy.visit(`/products/${product.id}`);
     cy.get('[data-cy="add-to-cart"]').click();
-    cy.wait('@addToCart'); // Deterministic wait
+    cy.wait("@addToCart"); // Deterministic wait
 
     // Step 4: Checkout
-    cy.visit('/checkout');
-    cy.get('[data-cy="credit-card"]').type('4111111111111111');
-    cy.get('[data-cy="cvv"]').type('123');
-    cy.get('[data-cy="expiry"]').type('12/25');
+    cy.visit("/checkout");
+    cy.get('[data-cy="credit-card"]').type("4111111111111111");
+    cy.get('[data-cy="cvv"]').type("123");
+    cy.get('[data-cy="expiry"]').type("12/25");
     cy.get('[data-cy="submit-order"]').click();
-    cy.wait('@createOrder'); // Deterministic wait
+    cy.wait("@createOrder"); // Deterministic wait
 
-    cy.contains('Order Confirmed').should('be.visible');
-    cy.contains(`Order #${product.id}`).should('be.visible');
+    cy.contains("Order Confirmed").should("be.visible");
+    cy.contains(`Order #${product.id}`).should("be.visible");
   });
 });
 
@@ -606,27 +620,27 @@ export default async function globalSetup() {
   const page = await browser.newPage();
 
   // Create admin user once for all tests
-  const admin = createUser({ role: 'admin', emailVerified: true });
-  await page.request.post('/api/users', { data: admin });
+  const admin = createUser({ role: "admin", emailVerified: true });
+  await page.request.post("/api/users", { data: admin });
 
   // Login once, save session
-  await page.goto('/login');
+  await page.goto("/login");
   await page.fill('[data-testid="email"]', admin.email);
-  await page.fill('[data-testid="password"]', 'password123');
+  await page.fill('[data-testid="password"]', "password123");
   await page.click('[data-testid="login"]');
 
   // Save auth state for reuse
-  await page.context().storageState({ path: 'playwright/.auth/admin.json' });
+  await page.context().storageState({ path: "playwright/.auth/admin.json" });
 
   await browser.close();
 }
 
 // Use shared auth in tests (instant)
-test.use({ storageState: 'playwright/.auth/admin.json' });
+test.use({ storageState: "playwright/.auth/admin.json" });
 
-test('admin action', async ({ page }) => {
+test("admin action", async ({ page }) => {
   // Already logged in - no auth overhead (0 seconds)
-  await page.goto('/admin');
+  await page.goto("/admin");
   // ... test logic
 });
 ```
@@ -641,7 +655,8 @@ test('admin action', async ({ page }) => {
 
 ## Integration Points
 
-- **Used in workflows**: `*atdd` (test generation quality), `*automate` (test expansion quality), `*test-review` (quality validation)
+- **Used in workflows**: `*atdd` (test generation quality), `*automate` (test expansion quality),
+  `*test-review` (quality validation)
 - **Related fragments**:
   - `network-first.md` - Deterministic waiting strategies
   - `data-factories.md` - Isolated, parallel-safe data patterns
@@ -652,8 +667,10 @@ test('admin action', async ({ page }) => {
 
 Every test must pass these criteria:
 
-- [ ] **No Hard Waits** - Use `waitForResponse`, `waitForLoadState`, or element state (not `waitForTimeout`)
-- [ ] **No Conditionals** - Tests execute the same path every time (no if/else, try/catch for flow control)
+- [ ] **No Hard Waits** - Use `waitForResponse`, `waitForLoadState`, or element state (not
+      `waitForTimeout`)
+- [ ] **No Conditionals** - Tests execute the same path every time (no if/else, try/catch for flow
+      control)
 - [ ] **< 300 Lines** - Keep tests focused; split large tests or extract setup to fixtures
 - [ ] **< 1.5 Minutes** - Optimize with API setup, parallel operations, and shared auth
 - [ ] **Self-Cleaning** - Use fixtures with auto-cleanup or explicit `afterEach()` teardown

@@ -27,5 +27,5 @@ GM (from Meditation Guide agent)
 
 ## Notes
 
-This workflow will be implemented using the create-workflow workflow.
-Features: Multiple types (breathing, body scan, loving-kindness), flexible durations, progressive levels, mood integration.
+This workflow will be implemented using the create-workflow workflow. Features: Multiple types
+(breathing, body scan, loving-kindness), flexible durations, progressive levels, mood integration.

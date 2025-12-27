@@ -2,20 +2,22 @@
 
 ## Overview
 
-This tech spec outlines the refactoring strategy for 6 oversized TypeScript files in the AgentCards codebase. These files violate the Single Responsibility Principle (SRP) and create significant maintenance, testing, and code review challenges.
+This tech spec outlines the refactoring strategy for 6 oversized TypeScript files in the AgentCards
+codebase. These files violate the Single Responsibility Principle (SRP) and create significant
+maintenance, testing, and code review challenges.
 
 ## Problem Statement
 
 ### Current State
 
-| File | Lines | Responsibilities | Testability | Status |
-|------|-------|-----------------|-------------|--------|
-| `gateway-server.ts` | ~~3,236~~ **496** | 8+ domains | ~~Poor~~ **Good** | ✅ **DONE** |
-| `graph-engine.ts` | ~~2,367~~ **336** | 6+ domains | ~~Poor~~ **Good** | ✅ **DONE** |
-| `controlled-executor.ts` | ~~2,313~~ **841** | 8+ domains | ~~Poor~~ **Good** | ✅ **DONE** |
-| `dag-suggester.ts` | 2,023 | 5+ domains | Moderate | Phase 4 |
-| `sandbox/executor.ts` | 1,198 | 4+ domains | Moderate | Phase 5 |
-| `capability-store.ts` | 1,052 | 3+ domains | Moderate | Phase 6 |
+| File                     | Lines             | Responsibilities | Testability       | Status      |
+| ------------------------ | ----------------- | ---------------- | ----------------- | ----------- |
+| `gateway-server.ts`      | ~~3,236~~ **496** | 8+ domains       | ~~Poor~~ **Good** | ✅ **DONE** |
+| `graph-engine.ts`        | ~~2,367~~ **336** | 6+ domains       | ~~Poor~~ **Good** | ✅ **DONE** |
+| `controlled-executor.ts` | ~~2,313~~ **841** | 8+ domains       | ~~Poor~~ **Good** | ✅ **DONE** |
+| `dag-suggester.ts`       | 2,023             | 5+ domains       | Moderate          | Phase 4     |
+| `sandbox/executor.ts`    | 1,198             | 4+ domains       | Moderate          | Phase 5     |
+| `capability-store.ts`    | 1,052             | 3+ domains       | Moderate          | Phase 6     |
 
 ### Impact
 
@@ -39,9 +41,11 @@ This tech spec outlines the refactoring strategy for 6 oversized TypeScript file
 ## Phase 1: Gateway Server (P0 - Critical) ✅ COMPLETED
 
 ### Original: `src/mcp/gateway-server.ts` (3,236 lines)
+
 ### Current: `src/mcp/gateway-server.ts` (496 lines)
 
 **Identified Responsibilities:**
+
 1. Server lifecycle management
 2. Connection handling & pooling
 3. Tool registry & discovery
@@ -103,9 +107,12 @@ src/mcp/
 ```
 
 **Notes**:
-- The `routing/handlers/` directory holds HTTP route handlers (graph, capabilities, metrics, tools, health)
+
+- The `routing/handlers/` directory holds HTTP route handlers (graph, capabilities, metrics, tools,
+  health)
 - The `handlers/` directory holds MCP protocol handlers (workflow execution, code execution, search)
-- Response formatting was consolidated into `server/responses.ts` (no separate `responses/` directory)
+- Response formatting was consolidated into `server/responses.ts` (no separate `responses/`
+  directory)
 
 ### Migration Strategy
 
@@ -128,9 +135,11 @@ src/mcp/
 ## Phase 2: Graph Engine (P1 - High) ✅ COMPLETED
 
 ### Original: `src/graphrag/graph-engine.ts` (2,367 lines)
+
 ### Current: `src/graphrag/graph-engine.ts` (336 lines)
 
 **Identified Responsibilities:**
+
 1. Graph data structure management
 2. PageRank computation
 3. Louvain community detection
@@ -177,12 +186,14 @@ src/graphrag/
 ### Test Coverage (103 tests total)
 
 **Unit Tests (95 tests):**
+
 - `tests/unit/graphrag/algorithms/edge_weights_test.ts` - 27 tests
 - `tests/unit/graphrag/algorithms/pathfinding_test.ts` - 29 tests
 - `tests/unit/graphrag/algorithms/pagerank_test.ts` - 19 tests
 - `tests/unit/graphrag/dag/execution_learning_test.ts` - 20 tests
 
 **Integration Tests (8 tests):**
+
 - `tests/integration/graphrag/graph_engine_workflows_test.ts` - 8 tests
   - Concurrent operations, execution learning → DAG, edge weight consistency, persistence round-trip
 
@@ -191,9 +202,11 @@ src/graphrag/
 ## Phase 3: Controlled Executor (P1 - High) ✅ COMPLETED
 
 ### Original: `src/dag/controlled-executor.ts` (2,313 lines)
+
 ### Current: `src/dag/controlled-executor.ts` (841 lines)
 
 **Identified Responsibilities:**
+
 1. DAG execution orchestration
 2. Checkpoint management integration
 3. HIL (Human-in-the-Loop) handling
@@ -231,7 +244,8 @@ src/dag/
 
 ### Migration Completed
 
-1. ✅ **Extract Capture Methods**: `captureTaskComplete`, `captureAILDecision`, etc. → `episodic/capture.ts`
+1. ✅ **Extract Capture Methods**: `captureTaskComplete`, `captureAILDecision`, etc. →
+   `episodic/capture.ts`
 2. ✅ **Extract HIL/AIL**: Decision loop handling → `loops/` module
 3. ✅ **Extract Speculation**: Speculative execution → `speculation/integration.ts`
 4. ✅ **Extract Checkpoints**: Checkpoint logic → `checkpoints/integration.ts`
@@ -243,17 +257,20 @@ src/dag/
 See: `docs/sprint-artifacts/review-controlled-executor-refactor.md`
 
 **Key Fixes:**
+
 - H1: Removed unused `eventId` return from `captureSpeculationStart`
 - H2: Added `CommandQueue.waitForCommand()` for proper async waiting (no CPU polling)
 - H3: Added `isDecisionCommand()` type guard for runtime validation
-- H4: Added AIL/HIL to `resumeFromCheckpoint` (security fix) - *Note: Blocked by HIL deadlock bug*
+- H4: Added AIL/HIL to `resumeFromCheckpoint` (security fix) - _Note: Blocked by HIL deadlock bug_
 - H5: Fixed double emission of checkpoint events
 - M2: Created shared `resolveDependencies()` utility
 - M4: Added configurable timeouts to ExecutorConfig
 
 ### Known Issues
 
-**BUG-HIL-DEADLOCK & BUG-AIL-ABORT**: Security tests exposed architectural deadlock in HIL/AIL handling.
+**BUG-HIL-DEADLOCK & BUG-AIL-ABORT**: Security tests exposed architectural deadlock in HIL/AIL
+handling.
+
 - See: `docs/tech-specs/tech-spec-hil-permission-escalation-fix.md`
 - Fix: Implement Deferred Escalation Pattern (Option A)
 - Tests: `tests/dag/checkpoint-resume-security.test.ts` (will pass after fix)
@@ -263,9 +280,11 @@ See: `docs/sprint-artifacts/review-controlled-executor-refactor.md`
 ## Phase 4: DAG Suggester (P2 - Medium) ✅ COMPLETED
 
 ### Original: `src/graphrag/dag-suggester.ts` (2,023 lines)
+
 ### Current: `src/graphrag/dag-suggester.ts` (567 lines)
 
 **Identified Responsibilities:**
+
 1. DAG suggestion generation
 2. Confidence calculation
 3. Episodic memory integration
@@ -312,6 +331,7 @@ src/graphrag/
 ### Test Coverage (330 tests total)
 
 **Unit Tests:**
+
 - `tests/unit/graphrag/suggestion/confidence.test.ts` - 57 tests
 - `tests/unit/graphrag/suggestion/ranking.test.ts` - 43 tests
 - `tests/unit/graphrag/suggestion/rationale.test.ts` - 49 tests
@@ -323,6 +343,7 @@ src/graphrag/
 - `tests/unit/graphrag/clustering/boost-calculator.test.ts` - 23 tests
 
 **Existing Integration Tests (preserved):**
+
 - `tests/unit/graphrag/dag_suggester_test.ts` - 7 tests
 - `tests/unit/graphrag/dag_suggester_episodic_test.ts` - 6 tests
 
@@ -374,6 +395,7 @@ src/capabilities/
 ## Implementation Plan
 
 ### Sprint 1 (Week 1-2): Gateway Server
+
 - Day 1-2: Extract types and interfaces
 - Day 3-4: Extract stateless utilities (metrics, health)
 - Day 5-6: Extract connection management
@@ -381,15 +403,18 @@ src/capabilities/
 - Day 9-10: Integration testing and cleanup
 
 ### Sprint 2 (Week 3-4): Graph Engine + Controlled Executor
+
 - Parallel tracks for both files
 - Algorithm extraction first (pure functions)
 - Integration last
 
 ### Sprint 3 (Week 5): DAG Suggester + Sandbox Executor
+
 - Confidence calculation extraction
 - Prediction logic separation
 
 ### Sprint 4 (Week 6): Capability Store + Final Cleanup
+
 - Query separation
 - Final documentation
 
@@ -398,14 +423,17 @@ src/capabilities/
 ## Risk Mitigation
 
 ### Breaking Changes
+
 - **Mitigation**: Maintain facade pattern - public API unchanged
 - **Validation**: Integration tests before/after each phase
 
 ### Performance Regression
+
 - **Mitigation**: Benchmark critical paths before refactoring
 - **Validation**: Automated performance tests
 
 ### Test Coverage Gaps
+
 - **Mitigation**: Write tests for extracted modules BEFORE extraction
 - **Validation**: Coverage reports per module
 
@@ -431,15 +459,15 @@ Average file size:    ~300 lines (vs current ~2,000)
 
 ### Files to Create (Estimated)
 
-| Phase | New Files | Avg Lines | Status |
-|-------|-----------|-----------|--------|
-| Phase 1 | 12 | 270 | ✅ **COMPLETED** (30 files in modular structure) |
-| Phase 2 | 10 | 240 | ✅ **COMPLETED** (14 files created) |
-| Phase 3 | 11 | 210 | ✅ **COMPLETED** (12 files created) |
-| Phase 4 | 8 | 250 | ✅ **COMPLETED** (9 files created) |
-| Phase 5 | 6 | 200 | Pending |
-| Phase 6 | 5 | 210 | Pending |
-| **Total** | **52** | **~230** | **4/6 phases done** |
+| Phase     | New Files | Avg Lines | Status                                           |
+| --------- | --------- | --------- | ------------------------------------------------ |
+| Phase 1   | 12        | 270       | ✅ **COMPLETED** (30 files in modular structure) |
+| Phase 2   | 10        | 240       | ✅ **COMPLETED** (14 files created)              |
+| Phase 3   | 11        | 210       | ✅ **COMPLETED** (12 files created)              |
+| Phase 4   | 8         | 250       | ✅ **COMPLETED** (9 files created)               |
+| Phase 5   | 6         | 200       | Pending                                          |
+| Phase 6   | 5         | 210       | Pending                                          |
+| **Total** | **52**    | **~230**  | **4/6 phases done**                              |
 
 ---
 
@@ -447,18 +475,28 @@ Average file size:    ~300 lines (vs current ~2,000)
 
 ### HIGH Priority
 
-- [x] [AI-Review][HIGH] Remove duplicate `calculateAverageAlpha` - use exported version from `suggestion/ranking.ts` in `dag-suggester.ts:429-431`
-- [x] [AI-Review][HIGH] Add missing exports to `clustering/mod.ts` - `computeClusterBoosts` and `getCapabilityPageranks` should be re-exported (already exported)
-- [x] [AI-Review][HIGH] Add unit tests for `generatePredictionReasoning` in `tests/unit/graphrag/suggestion/rationale.test.ts` (49 tests exist)
-- [x] [AI-Review][HIGH] Mark Phase 1 AC as done or create tasks: "New unit tests for each extracted module (>80% coverage)" and "Performance: No regression in request latency"
+- [x] [AI-Review][HIGH] Remove duplicate `calculateAverageAlpha` - use exported version from
+      `suggestion/ranking.ts` in `dag-suggester.ts:429-431`
+- [x] [AI-Review][HIGH] Add missing exports to `clustering/mod.ts` - `computeClusterBoosts` and
+      `getCapabilityPageranks` should be re-exported (already exported)
+- [x] [AI-Review][HIGH] Add unit tests for `generatePredictionReasoning` in
+      `tests/unit/graphrag/suggestion/rationale.test.ts` (49 tests exist)
+- [x] [AI-Review][HIGH] Mark Phase 1 AC as done or create tasks: "New unit tests for each extracted
+      module (>80% coverage)" and "Performance: No regression in request latency"
 
 ### MEDIUM Priority
 
-- [x] [AI-Review][MEDIUM] Standardize log levels: Change `log.info` to `log.debug` in `pattern-io.ts:62-63` for consistency with other modules
-- [x] [AI-Review][MEDIUM] Consider extracting `adjustConfidenceFromEpisodes` to shared module to avoid `alternatives.ts` importing from `capabilities.ts` - **Decision: Keep as-is**. Function is already exported via `prediction/mod.ts`, import is internal to same module, no circular dependencies.
+- [x] [AI-Review][MEDIUM] Standardize log levels: Change `log.info` to `log.debug` in
+      `pattern-io.ts:62-63` for consistency with other modules
+- [x] [AI-Review][MEDIUM] Consider extracting `adjustConfidenceFromEpisodes` to shared module to
+      avoid `alternatives.ts` importing from `capabilities.ts` - **Decision: Keep as-is**. Function
+      is already exported via `prediction/mod.ts`, import is internal to same module, no circular
+      dependencies.
 
 ### LOW Priority
 
 - [x] [AI-Review][LOW] Remove empty line in Phase 1 target structure diagram (line 96-97)
-- [x] [AI-Review][LOW] Add runtime type guard for `episode.data.prediction` in `episodic-adapter.ts:103` - Added `hasPredictionData()` type guard
-- [x] [AI-Review][LOW] Extract magic number `pageRank * 2` to config in `confidence.ts:173` - Added `pagerankMultiplier` to `DagScoringCommunity` config
+- [x] [AI-Review][LOW] Add runtime type guard for `episode.data.prediction` in
+      `episodic-adapter.ts:103` - Added `hasPredictionData()` type guard
+- [x] [AI-Review][LOW] Extract magic number `pageRank * 2` to config in `confidence.ts:173` - Added
+      `pagerankMultiplier` to `DagScoringCommunity` config

@@ -1,10 +1,19 @@
 # Problem Solving Workflow Instructions
 
-<critical>The workflow execution engine is governed by: {project_root}/\_bmad/core/tasks/workflow.xml</critical>
-<critical>You MUST have already loaded and processed: {project_root}/\_bmad/cis/workflows/problem-solving/workflow.yaml</critical>
+<critical>The workflow execution engine is governed by:
+{project_root}/\_bmad/core/tasks/workflow.xml</critical>
+<critical>You MUST have already loaded and processed:
+{project_root}/\_bmad/cis/workflows/problem-solving/workflow.yaml</critical>
 <critical>Load and understand solving methods from: {solving_methods}</critical>
-<critical>⚠️ ABSOLUTELY NO TIME ESTIMATES - NEVER mention hours, days, weeks, months, or ANY time-based predictions. AI has fundamentally changed development speed - what once took teams weeks/months can now be done by one person in hours. DO NOT give ANY time estimates whatsoever.</critical>
-<critical>⚠️ CHECKPOINT PROTOCOL: After EVERY <template-output> tag, you MUST follow workflow.xml substep 2c: SAVE content to file immediately → SHOW checkpoint separator (━━━━━━━━━━━━━━━━━━━━━━━) → DISPLAY generated content → PRESENT options [a]Advanced Elicitation/[c]Continue/[p]Party-Mode/[y]YOLO → WAIT for user response. Never batch saves or skip checkpoints.</critical>
+<critical>⚠️ ABSOLUTELY NO TIME ESTIMATES - NEVER mention hours, days, weeks, months, or ANY
+time-based predictions. AI has fundamentally changed development speed - what once took teams
+weeks/months can now be done by one person in hours. DO NOT give ANY time estimates
+whatsoever.</critical>
+<critical>⚠️ CHECKPOINT PROTOCOL: After EVERY <template-output> tag, you MUST follow workflow.xml
+substep 2c: SAVE content to file immediately → SHOW checkpoint separator (━━━━━━━━━━━━━━━━━━━━━━━) →
+DISPLAY generated content → PRESENT options [a]Advanced
+Elicitation/[c]Continue/[p]Party-Mode/[y]YOLO → WAIT for user response. Never batch saves or skip
+checkpoints.</critical>
 
 <facilitation-principles>
   YOU ARE A SYSTEMATIC PROBLEM-SOLVING FACILITATOR:
@@ -32,7 +41,8 @@ Gather problem information by asking:
 - What's the impact or cost of this problem?
 - What would success look like?
 
-Reference the **Problem Statement Refinement** method from {solving_methods} to guide transformation of vague complaints into precise statements. Focus on:
+Reference the **Problem Statement Refinement** method from {solving_methods} to guide transformation
+of vague complaints into precise statements. Focus on:
 
 - What EXACTLY is wrong?
 - What's the gap between current and desired state?
@@ -64,7 +74,8 @@ Help identify patterns that emerge from these boundaries.
 <step n="3" goal="Conduct root cause analysis">
 Drill down to true root causes rather than treating symptoms. Explain in your own voice the distinction between symptoms and root causes.
 
-Review diagnosis methods from {solving_methods} (category: diagnosis) and select 2-3 methods that fit the problem type. Offer these to the user with brief descriptions of when each works best.
+Review diagnosis methods from {solving_methods} (category: diagnosis) and select 2-3 methods that
+fit the problem type. Offer these to the user with brief descriptions of when each works best.
 
 Common options include:
 
@@ -114,9 +125,11 @@ Synthesize key insights from analysis.
 Check in: "We've done solid diagnostic work. How's your energy? Ready to shift into solution generation, or want a quick break?"
 </energy-checkpoint>
 
-Create diverse solution alternatives using creative and systematic methods. Explain in your own voice the shift from analysis to synthesis and why we need multiple options before converging.
+Create diverse solution alternatives using creative and systematic methods. Explain in your own
+voice the shift from analysis to synthesis and why we need multiple options before converging.
 
-Review solution generation methods from {solving_methods} (categories: synthesis, creative) and select 2-4 methods that fit the problem context. Consider:
+Review solution generation methods from {solving_methods} (categories: synthesis, creative) and
+select 2-4 methods that fit the problem context. Consider:
 
 - Problem complexity (simple vs complex)
 - User preference (systematic vs creative)
@@ -151,7 +164,8 @@ Work with user to define evaluation criteria relevant to their context. Common c
 - Risk - What could go wrong?
 - Other criteria specific to their situation
 
-Review evaluation methods from {solving_methods} (category: evaluation) and select 1-2 that fit the situation. Options include:
+Review evaluation methods from {solving_methods} (category: evaluation) and select 1-2 that fit the
+situation. Options include:
 
 - **Decision Matrix** - Good for comparing multiple options across criteria
 - **Cost Benefit Analysis** - Good when financial impact is key
@@ -187,7 +201,8 @@ Create action plan:
 - Who's responsible for each?
 - What resources are needed?
 
-Reference **PDCA Cycle** and other implementation methods from {solving_methods} (category: implementation) to guide iterative thinking:
+Reference **PDCA Cycle** and other implementation methods from {solving_methods} (category:
+implementation) to guide iterative thinking:
 
 - How will we Plan, Do, Check, Act iteratively?
 - What milestones mark progress?

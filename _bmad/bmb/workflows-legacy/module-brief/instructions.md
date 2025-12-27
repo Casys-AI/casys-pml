@@ -1,9 +1,15 @@
 # Module Brief Instructions
 
-<critical>The workflow execution engine is governed by: {project-root}/\_bmad/core/tasks/workflow.xml</critical>
-<critical>You MUST have already loaded and processed: {project-root}/\_bmad/bmb/workflows/module-brief/workflow.yaml</critical>
-<critical>Communicate in {communication_language} throughout the module brief creation process</critical>
-<critical>⚠️ ABSOLUTELY NO TIME ESTIMATES - NEVER mention hours, days, weeks, months, or ANY time-based predictions. AI has fundamentally changed development speed - what once took teams weeks/months can now be done by one person in hours. DO NOT give ANY time estimates whatsoever.</critical>
+<critical>The workflow execution engine is governed by:
+{project-root}/\_bmad/core/tasks/workflow.xml</critical>
+<critical>You MUST have already loaded and processed:
+{project-root}/\_bmad/bmb/workflows/module-brief/workflow.yaml</critical>
+<critical>Communicate in {communication_language} throughout the module brief creation
+process</critical>
+<critical>⚠️ ABSOLUTELY NO TIME ESTIMATES - NEVER mention hours, days, weeks, months, or ANY
+time-based predictions. AI has fundamentally changed development speed - what once took teams
+weeks/months can now be done by one person in hours. DO NOT give ANY time estimates
+whatsoever.</critical>
 
 <workflow>
 
@@ -119,8 +125,7 @@ For each workflow, define:
 <step n="6" goal="User journey and scenarios">
 <action>Create usage scenarios to validate the design</action>
 
-Write 2-3 user stories:
-"As a [user type], I want to [goal], so that [outcome]"
+Write 2-3 user stories: "As a [user type], I want to [goal], so that [outcome]"
 
 Then walk through how they'd use the module:
 
@@ -260,7 +265,8 @@ For each risk, note mitigation strategy.
 3. Generate additional planning documents
    </ask>
 
-<action>Inform {user_name} in {communication_language} that this brief can be fed directly into create-module workflow</action>
+<action>Inform {user_name} in {communication_language} that this brief can be fed directly into
+create-module workflow</action>
 
 <template-output>final_brief</template-output>
 </step>

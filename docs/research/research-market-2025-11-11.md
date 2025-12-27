@@ -222,8 +222,8 @@ Cette recherche vise à évaluer la viabilité d'un modèle SaaS pour Casys PML 
 
 ### Scope and Boundaries
 
-- **Product/Service:** Casys PML - Gateway MCP intelligente avec context optimization (30-50% →
-  <5%) et parallélisation intelligente via DAG execution (speedup 5x)
+- **Product/Service:** Casys PML - Gateway MCP intelligente avec context optimization (30-50% → <5%)
+  et parallélisation intelligente via DAG execution (speedup 5x)
 - **Market Definition:**
   - **Primaire:** MCP Gateway et orchestration platforms
   - **Adjacent:** AI agent tooling, LLM context management, developer productivity tools pour AI
@@ -1290,7 +1290,7 @@ Productivity                │               Governance
 
 **Opportunités de différenciation :**
 
-| Dimension        | Compétiteurs                  | Casys PML Differentiation               |
+| Dimension        | Compétiteurs                  | Casys PML Differentiation                 |
 | ---------------- | ----------------------------- | ----------------------------------------- |
 | **Core Value**   | Routing, security, governance | **Context optimization + performance**    |
 | **Target User**  | Enterprise IT/Security        | **Developers & engineering teams**        |

@@ -1,22 +1,23 @@
 ---
-name: 'step-03-epic-coverage-validation'
-description: 'Validate that all PRD FRs are covered in epics and stories'
+name: "step-03-epic-coverage-validation"
+description: "Validate that all PRD FRs are covered in epics and stories"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmm/workflows/3-solutioning/implementation-readiness'
+workflow_path: "{project-root}/_bmad/bmm/workflows/3-solutioning/implementation-readiness"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-03-epic-coverage-validation.md'
-nextStepFile: '{workflow_path}/steps/step-04-ux-alignment.md'
-workflowFile: '{workflow_path}/workflow.md'
-outputFile: '{output_folder}/implementation-readiness-report-{{date}}.md'
+thisStepFile: "{workflow_path}/steps/step-03-epic-coverage-validation.md"
+nextStepFile: "{workflow_path}/steps/step-04-ux-alignment.md"
+workflowFile: "{workflow_path}/workflow.md"
+outputFile: "{output_folder}/implementation-readiness-report-{{date}}.md"
 ---
 
 # Step 3: Epic Coverage Validation
 
 ## STEP GOAL:
 
-To validate that all Functional Requirements from the PRD are captured in the epics and stories document, identifying any gaps in coverage.
+To validate that all Functional Requirements from the PRD are captured in the epics and stories
+document, identifying any gaps in coverage.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 

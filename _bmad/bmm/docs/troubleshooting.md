@@ -107,7 +107,8 @@ npx bmad-method@alpha install --skip-version-prompt
 
 **Solution:**
 
-1. **Override the suggestion** - workflow-init always asks for confirmation, just say "no" and choose correct level
+1. **Override the suggestion** - workflow-init always asks for confirmation, just say "no" and
+   choose correct level
 2. **Be specific in description** - Use level keywords when describing:
    - "fix bug" → Level 0
    - "add small feature" → Level 1
@@ -130,8 +131,7 @@ workflow-init: "Got it, creating Level 1 workflow"
 - Not sure if architecture needed
 - Story count uncertain
 
-**Solution:**
-**When in doubt, start smaller:**
+**Solution:** **When in doubt, start smaller:**
 
 - Choose Level 1 instead of Level 2
 - You can always run `create-prd` later if needed
@@ -153,8 +153,7 @@ workflow-init: "Got it, creating Level 1 workflow"
 - Working on new Level 0 bug fix
 - workflow-init suggests Level 3
 
-**Solution:**
-workflow-init asks: "Is this work in progress or previous effort?"
+**Solution:** workflow-init asks: "Is this work in progress or previous effort?"
 
 - Answer: "Previous effort"
 - Then describe your NEW work clearly
@@ -180,7 +179,8 @@ workflow-init asks: "Is this work in progress or previous effort?"
    - Phase 3 needs Phase 2 complete
    - Phase 4 needs Phase 3 complete (if Level 3-4)
 3. **Restart workflow** - Load agent in new chat and restart
-4. **Check status file** - Verify `bmm-workflow-status.md` or `sprint-status.yaml` is present and valid
+4. **Check status file** - Verify `bmm-workflow-status.md` or `sprint-status.yaml` is present and
+   valid
 
 ### Problem: Agent says "workflow not found"
 
@@ -253,16 +253,13 @@ workflow-init asks: "Is this work in progress or previous effort?"
 - AI agents still ask questions answered in docs
 - No docs/index.md file
 
-**Solution:**
-**Option 1: Quick fix (2-5min)**
-Run `index-docs` task:
+**Solution:** **Option 1: Quick fix (2-5min)** Run `index-docs` task:
 
 - Located at `bmad/core/tasks/index-docs.xml`
 - Scans existing docs and generates index.md
 - Lightweight, just creates navigation
 
-**Option 2: Comprehensive (10-30min)**
-Run document-project workflow:
+**Option 2: Comprehensive (10-30min)** Run document-project workflow:
 
 - Discovers existing docs in Step 2
 - Generates NEW AI-friendly documentation from codebase
@@ -277,12 +274,12 @@ Run document-project workflow:
 - Exhaustive scan running for hours
 - Impatient to start planning
 
-**Solution:**
-**Choose appropriate scan level:**
+**Solution:** **Choose appropriate scan level:**
 
 - **Quick (2-5min)** - Pattern analysis, no source reading - Good for initial overview
 - **Deep (10-30min)** - Reads critical paths - **Recommended for most brownfield projects**
-- **Exhaustive (30-120min)** - Reads all files - Only for migration planning or complete understanding
+- **Exhaustive (30-120min)** - Reads all files - Only for migration planning or complete
+  understanding
 
 For most brownfield projects, **Deep scan is sufficient**.
 
@@ -320,8 +317,7 @@ For most brownfield projects, **Deep scan is sufficient**.
 - Acceptance criteria harder than expected
 - Hidden complexity discovered
 
-**Solution:**
-**This is normal!** Estimates are estimates. To handle:
+**Solution:** **This is normal!** Estimates are estimates. To handle:
 
 1. **Continue until DoD met** - Don't compromise quality
 2. **Document learnings in retrospective**:
@@ -386,12 +382,11 @@ For most brownfield projects, **Deep scan is sufficient**.
 - Story files not where expected
 - Documentation scattered
 
-**Solution:**
-Check `bmad/bmm/config.yaml` for configured paths:
+**Solution:** Check `bmad/bmm/config.yaml` for configured paths:
 
 ```yaml
-output_folder: '{project-root}/docs'
-dev_story_location: '{project-root}/docs/stories'
+output_folder: "{project-root}/docs"
+dev_story_location: "{project-root}/docs/stories"
 ```
 
 Default locations:
@@ -613,33 +608,32 @@ If your issue isn't covered here:
 
 ### "No workflow status file found"
 
-**Cause:** Haven't run workflow-init yet
-**Fix:** Load Analyst agent → run workflow-init
+**Cause:** Haven't run workflow-init yet **Fix:** Load Analyst agent → run workflow-init
 
 ### "Epic file not found"
 
-**Cause:** PRD/epics not created, or wrong path
-**Fix:** Verify PRD/epics exist in output folder, check config.yaml paths
+**Cause:** PRD/epics not created, or wrong path **Fix:** Verify PRD/epics exist in output folder,
+check config.yaml paths
 
 ### "Story not in sprint-status.yaml"
 
-**Cause:** Sprint-planning not run, or story file not created
-**Fix:** Run sprint-planning workflow, verify story files exist
+**Cause:** Sprint-planning not run, or story file not created **Fix:** Run sprint-planning workflow,
+verify story files exist
 
 ### "Documentation insufficient for brownfield"
 
-**Cause:** No docs/index.md or document-project not run
-**Fix:** Run document-project workflow with Deep scan
+**Cause:** No docs/index.md or document-project not run **Fix:** Run document-project workflow with
+Deep scan
 
 ### "Level detection failed"
 
-**Cause:** Ambiguous project description
-**Fix:** Be more specific, use level keywords (fix, feature, platform, etc.)
+**Cause:** Ambiguous project description **Fix:** Be more specific, use level keywords (fix,
+feature, platform, etc.)
 
 ### "Context generation failed"
 
-**Cause:** Missing prerequisites (story file or docs)
-**Fix:** Verify story file exists, docs present
+**Cause:** Missing prerequisites (story file or docs) **Fix:** Verify story file exists, docs
+present
 
 ---
 
@@ -658,4 +652,5 @@ If your issue isn't covered here:
 
 ---
 
-**Issue not listed?** Please [report it](https://github.com/bmad-code-org/BMAD-METHOD/issues) so we can add it to this guide!
+**Issue not listed?** Please [report it](https://github.com/bmad-code-org/BMAD-METHOD/issues) so we
+can add it to this guide!

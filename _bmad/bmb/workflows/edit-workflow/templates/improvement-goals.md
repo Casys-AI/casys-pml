@@ -10,22 +10,19 @@
 
 {{#uxIssues}}
 
-- {{.}}
-  {{/uxIssues}}
+- {{.}} {{/uxIssues}}
 
 ### Performance Gaps
 
 {{#performanceGaps}}
 
-- {{.}}
-  {{/performanceGaps}}
+- {{.}} {{/performanceGaps}}
 
 ### Growth Opportunities
 
 {{#growthOpportunities}}
 
-- {{.}}
-  {{/growthOpportunities}}
+- {{.}} {{/growthOpportunities}}
 
 ### Instruction Style Considerations
 
@@ -39,29 +36,25 @@
 
 {{#criticalItems}}
 
-1. {{.}}
-   {{/criticalItems}}
+1. {{.}} {{/criticalItems}}
 
 #### Important (Should Fix)
 
 {{#importantItems}}
 
-1. {{.}}
-   {{/importantItems}}
+1. {{.}} {{/importantItems}}
 
 #### Nice-to-Have (Could Fix)
 
 {{#niceItems}}
 
-1. {{.}}
-   {{/niceItems}}
+1. {{.}} {{/niceItems}}
 
 ### Focus Areas for Next Step
 
 {{#focusAreas}}
 
-- {{.}}
-  {{/focusAreas}}
+- {{.}} {{/focusAreas}}
 
 ---
 

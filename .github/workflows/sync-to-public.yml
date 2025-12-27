@@ -8,16 +8,16 @@ on:
   push:
     branches: [main]
     paths:
-      - 'src/**'
-      - '!src/web/**'
-      - 'lib/**'
-      - 'config/**'
-      - 'README.md'
-      - 'LICENSE'
-      - 'deno.json'
-      - 'deno.lock'
-      - 'tests/**'
-      - 'scripts/**'
+      - "src/**"
+      - "!src/web/**"
+      - "lib/**"
+      - "config/**"
+      - "README.md"
+      - "LICENSE"
+      - "deno.json"
+      - "deno.lock"
+      - "tests/**"
+      - "scripts/**"
 
   # Allow manual trigger
   workflow_dispatch:

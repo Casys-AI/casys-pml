@@ -1,7 +1,6 @@
 # ADR-034: Native OpenTelemetry Integration (Deno 2.2+)
 
-**Status:** 📝 Draft
-**Date:** 2025-12-05 | **Deciders:** Architecture Team
+**Status:** 📝 Draft **Date:** 2025-12-05 | **Deciders:** Architecture Team
 
 ## Context
 
@@ -14,6 +13,7 @@ Casys PML dispose actuellement d'une infrastructure de télémétrie custom:
 - Stack monitoring: Prometheus + Grafana + Loki (`monitoring/`)
 
 **Problème:** Notre implémentation custom nécessite du code boilerplate pour:
+
 - Créer des spans manuellement
 - Propager le context entre services
 - Exporter vers différents backends
@@ -22,7 +22,8 @@ Casys PML dispose actuellement d'une infrastructure de télémétrie custom:
 
 ## Decision
 
-Adopter OpenTelemetry natif de Deno pour simplifier l'observabilité et améliorer la qualité des traces.
+Adopter OpenTelemetry natif de Deno pour simplifier l'observabilité et améliorer la qualité des
+traces.
 
 ### Fonctionnalités Deno OTEL
 
@@ -33,11 +34,13 @@ deno run --unstable-otel src/main.ts serve
 ```
 
 **Traces automatiques:**
+
 - HTTP requests (fetch, Deno.serve)
 - Database queries (si supporté)
 - Console logs convertis en OTEL logs
 
 **Configuration via variables d'environnement:**
+
 ```bash
 OTEL_SERVICE_NAME=pml
 OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
@@ -101,8 +104,8 @@ services:
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
     ports:
-      - "4317:4317"   # OTLP gRPC
-      - "4318:4318"   # OTLP HTTP
+      - "4317:4317" # OTLP gRPC
+      - "4318:4318" # OTLP HTTP
     volumes:
       - ./monitoring/otel-config.yaml:/etc/otelcol/config.yaml
 ```
@@ -118,7 +121,7 @@ const tracer = trace.getTracer("pml", "0.1.0");
 export function withSpan<T>(
   name: string,
   fn: () => Promise<T>,
-  attributes?: Record<string, string>
+  attributes?: Record<string, string>,
 ): Promise<T> {
   return tracer.startActiveSpan(name, async (span) => {
     if (attributes) {
@@ -144,6 +147,7 @@ await withSpan("dag.execute", async () => {
 #### Phase 3: Performance API Integration (Native Timing)
 
 Le codebase utilise **60+ occurrences** du pattern manuel:
+
 ```typescript
 const startTime = performance.now();
 await doWork();
@@ -157,7 +161,7 @@ Avec `performance.mark/measure` + OTEL, ces métriques sont auto-exportées:
 export function measureAsync<T>(
   name: string,
   fn: () => Promise<T>,
-  attributes?: Record<string, string>
+  attributes?: Record<string, string>,
 ): Promise<T> {
   const markStart = `${name}-start`;
   const markEnd = `${name}-end`;
@@ -175,7 +179,7 @@ export function measureAsync<T>(
           type: "measure",
           name,
           duration: measure.duration,
-          ...attributes
+          ...attributes,
         }));
       }
 
@@ -216,13 +220,13 @@ export { observer };
 
 **Fichiers à refactorer (priorité haute):**
 
-| Fichier | Occurrences | Impact |
-|---------|-------------|--------|
-| `src/sandbox/executor.ts` | 8 | Timing sandbox execution |
-| `src/graphrag/graph-engine.ts` | 6 | Graph sync/compute |
-| `src/sandbox/worker-bridge.ts` | 5 | RPC calls |
-| `src/vector/embeddings.ts` | 5 | Embedding generation |
-| `src/dag/streaming.ts` | 4 | Task streaming |
+| Fichier                        | Occurrences | Impact                   |
+| ------------------------------ | ----------- | ------------------------ |
+| `src/sandbox/executor.ts`      | 8           | Timing sandbox execution |
+| `src/graphrag/graph-engine.ts` | 6           | Graph sync/compute       |
+| `src/sandbox/worker-bridge.ts` | 5           | RPC calls                |
+| `src/vector/embeddings.ts`     | 5           | Embedding generation     |
+| `src/dag/streaming.ts`         | 4           | Task streaming           |
 
 #### Phase 4: Coexistence avec Sentry
 
@@ -232,20 +236,20 @@ export { observer };
 // Performance API pour métriques de timing
 
 // src/telemetry/index.ts
-export { initSentry } from "./sentry.ts";      // Garde Sentry
-export { withSpan } from "./otel.ts";          // Ajoute OTEL spans
-export { measureAsync } from "./perf.ts";      // Performance timing
+export { initSentry } from "./sentry.ts"; // Garde Sentry
+export { withSpan } from "./otel.ts"; // Ajoute OTEL spans
+export { measureAsync } from "./perf.ts"; // Performance timing
 ```
 
 ### Intégration Points Clés
 
-| Composant | Traces Automatiques | Spans Custom Recommandés |
-|-----------|---------------------|--------------------------|
-| `src/mcp/gateway-server.ts` | HTTP requests | Tool execution duration |
-| `src/dag/executor.ts` | - | Task execution, layer timing |
-| `src/sandbox/worker-bridge.ts` | - | Code execution, RPC calls |
-| `src/graphrag/graph-engine.ts` | - | Graph queries, suggestions |
-| `src/vector/search.ts` | - | Embedding generation, search |
+| Composant                      | Traces Automatiques | Spans Custom Recommandés     |
+| ------------------------------ | ------------------- | ---------------------------- |
+| `src/mcp/gateway-server.ts`    | HTTP requests       | Tool execution duration      |
+| `src/dag/executor.ts`          | -                   | Task execution, layer timing |
+| `src/sandbox/worker-bridge.ts` | -                   | Code execution, RPC calls    |
+| `src/graphrag/graph-engine.ts` | -                   | Graph queries, suggestions   |
+| `src/vector/search.ts`         | -                   | Embedding generation, search |
 
 ### Configuration Recommandée
 
@@ -308,11 +312,11 @@ service:
 
 ### Risks
 
-| Risk | Mitigation |
-|------|------------|
-| API unstable change | Pin Deno version, test avant upgrade |
-| Performance overhead | Sampling 10% en prod, 100% en dev |
-| Sentry duplication | Configurer Sentry pour ignorer les errors déjà tracées |
+| Risk                 | Mitigation                                             |
+| -------------------- | ------------------------------------------------------ |
+| API unstable change  | Pin Deno version, test avant upgrade                   |
+| Performance overhead | Sampling 10% en prod, 100% en dev                      |
+| Sentry duplication   | Configurer Sentry pour ignorer les errors déjà tracées |
 
 ## Implementation
 

@@ -25,7 +25,8 @@
 
 ## YOUR TASK:
 
-Discover the project's technology stack, existing patterns, and critical implementation rules that AI agents must follow when writing code.
+Discover the project's technology stack, existing patterns, and critical implementation rules that
+AI agents must follow when writing code.
 
 ## DISCOVERY SEQUENCE:
 
@@ -35,7 +36,8 @@ First, check if project context already exists:
 
 - Look for file at `{output_folder}/project-context.md`
 - If exists: Read complete file to understand existing rules
-- Present to user: "Found existing project context with {number_of_sections} sections. Would you like to update this or create a new one?"
+- Present to user: "Found existing project context with {number_of_sections} sections. Would you
+  like to update this or create a new one?"
 
 ### 2. Discover Project Technology Stack
 
@@ -122,8 +124,8 @@ Based on discovery, create or update the context document:
 
 #### A. Fresh Document Setup (if no existing context)
 
-Copy template from `{installed_path}/project-context-template.md` to `{output_folder}/project-context.md`
-Initialize frontmatter with:
+Copy template from `{installed_path}/project-context-template.md` to
+`{output_folder}/project-context.md` Initialize frontmatter with:
 
 ```yaml
 ---
@@ -137,17 +139,17 @@ existing_patterns_found: { { number_of_patterns_discovered } }
 
 #### B. Existing Document Update
 
-Load existing context and prepare for updates
-Set frontmatter `sections_completed` to track what will be updated
+Load existing context and prepare for updates Set frontmatter `sections_completed` to track what
+will be updated
 
 ### 6. Present Discovery Summary
 
 Report findings to user:
 
-"Welcome {{user_name}}! I've analyzed your project for {{project_name}} to discover the context that AI agents need.
+"Welcome {{user_name}}! I've analyzed your project for {{project_name}} to discover the context that
+AI agents need.
 
-**Technology Stack Discovered:**
-{{list_of_technologies_with_versions}}
+**Technology Stack Discovered:** {{list_of_technologies_with_versions}}
 
 **Existing Patterns Found:**
 
@@ -161,33 +163,31 @@ Report findings to user:
 - {{area_2}} (e.g., Testing patterns)
 - {{area_3}} (e.g., Code organization)
 
-{if_existing_context}
-**Existing Context:** Found {{sections}} sections already defined. We can update or add to these.
-{/if_existing_context}
+{if_existing_context} **Existing Context:** Found {{sections}} sections already defined. We can
+update or add to these. {/if_existing_context}
 
-Ready to create/update your project context. This will help AI agents implement code consistently with your project's standards.
+Ready to create/update your project context. This will help AI agents implement code consistently
+with your project's standards.
 
 [C] Continue to context generation"
 
 ## SUCCESS METRICS:
 
-✅ Existing project context properly detected and handled
-✅ Technology stack accurately identified with versions
-✅ Critical implementation patterns discovered
-✅ Project context document properly initialized
-✅ Discovery findings clearly presented to user
-✅ User ready to proceed with context generation
+✅ Existing project context properly detected and handled ✅ Technology stack accurately identified
+with versions ✅ Critical implementation patterns discovered ✅ Project context document properly
+initialized ✅ Discovery findings clearly presented to user ✅ User ready to proceed with context
+generation
 
 ## FAILURE MODES:
 
-❌ Not checking for existing project context before creating new one
-❌ Missing critical technology versions or configurations
-❌ Overlooking important coding patterns or conventions
-❌ Not initializing frontmatter properly
-❌ Not presenting clear discovery summary to user
+❌ Not checking for existing project context before creating new one ❌ Missing critical technology
+versions or configurations ❌ Overlooking important coding patterns or conventions ❌ Not
+initializing frontmatter properly ❌ Not presenting clear discovery summary to user
 
 ## NEXT STEP:
 
-After user selects [C] to continue, load `./step-02-generate.md` to collaboratively generate the specific project context rules.
+After user selects [C] to continue, load `./step-02-generate.md` to collaboratively generate the
+specific project context rules.
 
-Remember: Do NOT proceed to step-02 until user explicitly selects [C] from the menu and discovery is confirmed!
+Remember: Do NOT proceed to step-02 until user explicitly selects [C] from the menu and discovery is
+confirmed!

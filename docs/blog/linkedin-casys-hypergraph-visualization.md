@@ -1,7 +1,7 @@
 # Stop Visualizing Tools. Start Visualizing Skills.
 
-**Author:** Casys PML Team **Date:** December 2025 **Topics:** Data Visualization, SuperHyperGraphs, AI
-Architecture
+**Author:** Casys PML Team **Date:** December 2025 **Topics:** Data Visualization, SuperHyperGraphs,
+AI Architecture
 
 ---
 
@@ -9,14 +9,17 @@ We love our knowledge graphs. Nodes are tools, edges are connections. Simple. Bu
 building autonomous agents, we hit a wall.
 
 A "skill" (like deploying to production) isn't a connection between A and B. It's a complex recipe
-involving 5, 10, or 20 tools working in concert. And skills can contain other skills! Standard graphs can't show this. They show the ingredients, not the recipe.
+involving 5, 10, or 20 tools working in concert. And skills can contain other skills! Standard
+graphs can't show this. They show the ingredients, not the recipe.
 
 That's why we're using **SuperHyperGraphs** (ADR-029).
 
-In a SuperHyperGraph, an edge can connect any number of nodes—and edges can recursively contain other edges (meta-capabilities).
+In a SuperHyperGraph, an edge can connect any number of nodes—and edges can recursively contain
+other edges (meta-capabilities).
 
 - **Old Graph:** A links to B.
-- **SuperHyperGraph:** A, B, C, D, and E form a "SuperHyperedge" -> The "Deploy" Capability. And "Deploy" can be part of a larger "Release" meta-capability.
+- **SuperHyperGraph:** A, B, C, D, and E form a "SuperHyperedge" -> The "Deploy" Capability. And
+  "Deploy" can be part of a larger "Release" meta-capability.
 
 ## Why does this matter?
 

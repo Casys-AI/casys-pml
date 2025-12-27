@@ -1,9 +1,11 @@
 # Workflow Init - Project Setup Instructions
 
-<critical>The workflow execution engine is governed by: {project-root}/\_bmad/core/tasks/workflow.xml</critical>
+<critical>The workflow execution engine is governed by:
+{project-root}/\_bmad/core/tasks/workflow.xml</critical>
 <critical>You MUST have already loaded and processed: workflow-init/workflow.yaml</critical>
 <critical>Communicate in {communication_language} with {user_name}</critical>
-<critical>This workflow handles BOTH new projects AND legacy projects following the BMad Method</critical>
+<critical>This workflow handles BOTH new projects AND legacy projects following the BMad
+Method</critical>
 
 <workflow>
 
@@ -60,24 +62,24 @@ Happy building! 🚀</output>
 
 Choice [1-4]</ask>
 
-  <check if="choice == 1">
+<check if="choice == 1">
     <action>Set continuing_existing = true</action>
     <action>Store found artifacts</action>
     <action>Continue to step 7 (detect track from artifacts)</action>
   </check>
 
-  <check if="choice == 2">
+<check if="choice == 2">
     <ask>Archive existing work? (y/n)</ask>
     <action if="y">Move artifacts to {output_folder}/archive/</action>
     <output>Ready for fresh start!</output>
     <action>Continue to step 3</action>
   </check>
 
-  <check if="choice == 3">
+<check if="choice == 3">
     <action>Jump to step 3 (express path)</action>
   </check>
 
-  <check if="choice == 4">
+<check if="choice == 4">
     <action>Continue to step 4 (guided path)</action>
   </check>
 </check>
@@ -90,11 +92,11 @@ Choice [1-4]</ask>
 
 Choice [1 or 2]:</ask>
 
-  <check if="choice == 1">
+<check if="choice == 1">
     <action>Continue to step 3 (express)</action>
   </check>
 
-  <check if="choice == 2">
+<check if="choice == 2">
     <action>Continue to step 4 (guided)</action>
   </check>
 </check>
@@ -116,8 +118,8 @@ Choice [1/2]:</ask>
 Choice [1/2]:</ask>
 <action>Map to selected_track: method/enterprise</action>
 
-<output>🚀 **For Quick Flow (minimal planning, straight to code):**
-Load the **quick-flow-solo-dev** agent instead - use Quick Flow agent for faster development</output>
+<output>🚀 **For Quick Flow (minimal planning, straight to code):** Load the **quick-flow-solo-dev**
+agent instead - use Quick Flow agent for faster development</output>
 
 <template-output>field_type</template-output>
 <template-output>selected_track</template-output>
@@ -183,14 +185,13 @@ Continue with software workflows? (y/n)</output>
 - Best for: Enterprise, compliance, mission-critical
 - Benefit: Comprehensive planning for complex systems
 
-**🚀 For Quick Flow (minimal planning, straight to code):**
-Load the **quick-flow-solo-dev** agent instead - use Quick Flow agent for faster development
+**🚀 For Quick Flow (minimal planning, straight to code):** Load the **quick-flow-solo-dev** agent
+instead - use Quick Flow agent for faster development
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-{{#if brownfield}}
-💡 Architecture creates focused solution design from your codebase, keeping AI agents on track.
-{{/if}}</output>
+{{#if brownfield}} 💡 Architecture creates focused solution design from your codebase, keeping AI
+agents on track. {{/if}}</output>
 
 <ask>Which BMad Method approach fits best?
 
@@ -309,12 +310,10 @@ Choice:</ask>
 <step n="9" goal="Create tracking file">
 <output>Your BMad workflow path:
 
-**Track:** {{selected_track}}
-**Type:** {{field_type}}
-**Project:** {{project_name}}
+**Track:** {{selected_track}} **Type:** {{field_type}} **Project:** {{project_name}}
 
-{{#if brownfield}}Prerequisites: document-project{{/if}}
-{{#if has_discovery}}Discovery: {{list_selected_discovery}}{{/if}}
+{{#if brownfield}}Prerequisites: document-project{{/if}} {{#if has_discovery}}Discovery:
+{{list_selected_discovery}}{{/if}}
 
 {{workflow_path_summary}}
 </output>
@@ -328,12 +327,10 @@ Choice:</ask>
 
 <output>✅ **Created:** {output_folder}/bmm-workflow-status.yaml
 
-**Next:** {{next_workflow_name}}
-**Agent:** {{next_agent}}
-**Command:** /bmad:bmm:workflows:{{next_workflow_id}}
+**Next:** {{next_workflow_name}} **Agent:** {{next_agent}} **Command:**
+/bmad:bmm:workflows:{{next_workflow_id}}
 
-{{#if next_agent not in [analyst, pm]}}
-💡 Start new chat with **{{next_agent}}** agent first.
+{{#if next_agent not in [analyst, pm]}} 💡 Start new chat with **{{next_agent}}** agent first.
 {{/if}}
 
 To check progress: /bmad:bmm:workflows:workflow-status

@@ -1,7 +1,6 @@
 # ADR-012: MCP STDIO Logging Strategy
 
-**Status:** ✅ Implemented
-**Date:** 2025-11-21 | **Deciders:** Équipe Casys PML
+**Status:** ✅ Implemented **Date:** 2025-11-21 | **Deciders:** Équipe Casys PML
 
 ## Context
 

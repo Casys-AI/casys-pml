@@ -1,20 +1,22 @@
 # ADR-045: Capability-to-Capability Dependencies
 
-**Status:** Implemented
-**Date:** 2025-12-11 | **Deciders:** Architecture Team
-**Tech-Spec Source:** `docs/tech-specs/tech-spec-capability-dependency.md`
+**Status:** Implemented **Date:** 2025-12-11 | **Deciders:** Architecture Team **Tech-Spec Source:**
+`docs/tech-specs/tech-spec-capability-dependency.md`
 
 ## Context
 
 ### Problem
 
-Capabilities were stored independently in `workflow_pattern` without the ability to link them together. The existing `tool_dependency` table managed tool-to-tool relationships with `edge_type` and `edge_source` (ADR-041), but:
+Capabilities were stored independently in `workflow_pattern` without the ability to link them
+together. The existing `tool_dependency` table managed tool-to-tool relationships with `edge_type`
+and `edge_source` (ADR-041), but:
 
 - Capabilities stored as `capability:{uuid}` in `tool_dependency` were not type-safe (UUIDs as TEXT)
 - Semantically confusing (a "tool" table for capabilities)
 - No foreign key to `workflow_pattern`
 
 **Missing use cases:**
+
 - A "deploy app" capability **composes** "build", "test", "push" capabilities
 - A "full report" capability **depends** on "fetch data"
 - Two capabilities can be linked in **sequence** (A then B)
@@ -26,15 +28,15 @@ Edge types and sources from ADR-041:
 
 ```typescript
 EDGE_TYPE_WEIGHTS = {
-  dependency: 1.0,   // Explicit DAG
-  contains: 0.8,     // Parent-child
-  sequence: 0.5,     // Temporal order
+  dependency: 1.0, // Explicit DAG
+  contains: 0.8, // Parent-child
+  sequence: 0.5, // Temporal order
 };
 
 EDGE_SOURCE_MODIFIERS = {
-  observed: 1.0,    // 3+ observations
-  inferred: 0.7,    // 1-2 observations
-  template: 0.5,    // Bootstrap
+  observed: 1.0, // 3+ observations
+  inferred: 0.7, // 1-2 observations
+  template: 0.5, // Bootstrap
 };
 ```
 
@@ -67,14 +69,15 @@ CREATE INDEX idx_capability_dep_type ON capability_dependency(edge_type);
 
 ```typescript
 EDGE_TYPE_WEIGHTS = {
-  dependency: 1.0,   // Explicit DAG
-  contains: 0.8,     // Parent-child
-  alternative: 0.6,  // Same intent, different impl (NEW)
-  sequence: 0.5,     // Temporal order
+  dependency: 1.0, // Explicit DAG
+  contains: 0.8, // Parent-child
+  alternative: 0.6, // Same intent, different impl (NEW)
+  sequence: 0.5, // Temporal order
 };
 ```
 
 **Use case:** Two capabilities with same intent but different implementations
+
 - Example: "fetch via REST" ↔ "fetch via GraphQL"
 - Detection: Intent embedding similarity > 0.9 + different tools used
 - Usage: Suggestion Engine proposes alternative if capability fails
@@ -82,6 +85,7 @@ EDGE_TYPE_WEIGHTS = {
 ### 3. Unified Graph Loading
 
 `GraphRAGEngine.syncFromDatabase()` loads both:
+
 - `tool_dependency` edges (tool → tool)
 - `capability_dependency` edges (capability → capability)
 

@@ -1,6 +1,7 @@
 # BMM Documentation
 
-Complete guides for the BMad Method Module (BMM) - AI-powered agile development workflows that adapt to your project's complexity.
+Complete guides for the BMad Method Module (BMM) - AI-powered agile development workflows that adapt
+to your project's complexity.
 
 ---
 
@@ -8,7 +9,8 @@ Complete guides for the BMad Method Module (BMM) - AI-powered agile development 
 
 **New to BMM?** Start here:
 
-- **[Quick Start Guide](./quick-start.md)** - Step-by-step guide to building your first project (15 min read)
+- **[Quick Start Guide](./quick-start.md)** - Step-by-step guide to building your first project (15
+  min read)
   - Installation and setup
   - Understanding the four phases
   - Running your first workflows
@@ -18,7 +20,8 @@ Complete guides for the BMad Method Module (BMM) - AI-powered agile development 
 
 ### 📊 Visual Overview
 
-**[Complete Workflow Diagram](./images/workflow-method-greenfield.svg)** - Visual flowchart showing all phases, agents (color-coded), and decision points for the BMad Method standard greenfield track.
+**[Complete Workflow Diagram](./images/workflow-method-greenfield.svg)** - Visual flowchart showing
+all phases, agents (color-coded), and decision points for the BMad Method standard greenfield track.
 
 ---
 
@@ -26,7 +29,8 @@ Complete guides for the BMad Method Module (BMM) - AI-powered agile development 
 
 Understanding how BMM adapts to your needs:
 
-- **[Scale Adaptive System](./scale-adaptive-system.md)** - How BMM adapts to project size and complexity (42 min read)
+- **[Scale Adaptive System](./scale-adaptive-system.md)** - How BMM adapts to project size and
+  complexity (42 min read)
   - Three planning tracks (Quick Flow, BMad Method, Enterprise Method)
   - Automatic track recommendation
   - Documentation requirements per track
@@ -39,7 +43,8 @@ Understanding how BMM adapts to your needs:
   - Hours to implementation, not days
   - Barry (Quick Flow Solo Dev) agent owned
 
-- **[Quick Flow Solo Dev Agent](./quick-flow-solo-dev.md)** - Elite solo developer for rapid development (18 min read)
+- **[Quick Flow Solo Dev Agent](./quick-flow-solo-dev.md)** - Elite solo developer for rapid
+  development (18 min read)
   - Barry is an elite developer who thrives on autonomous execution
   - Lives and breathes the BMAD Quick Flow workflow
   - Takes projects from concept to deployment with ruthless efficiency
@@ -71,7 +76,8 @@ Complete guide to BMM's AI agent team:
 
 Comprehensive guide for brownfield development:
 
-- **[Brownfield Development Guide](./brownfield-guide.md)** - Complete guide for existing codebases (53 min read)
+- **[Brownfield Development Guide](./brownfield-guide.md)** - Complete guide for existing codebases
+  (53 min read)
   - Documentation phase strategies
   - Track selection for brownfield
   - Integration with existing patterns
@@ -86,7 +92,8 @@ Essential reference materials:
 
 - **[Glossary](./glossary.md)** - Key terminology and concepts
 - **[FAQ](./faq.md)** - Frequently asked questions across all topics
-- **[Enterprise Agentic Development](./enterprise-agentic-development.md)** - Team collaboration strategies
+- **[Enterprise Agentic Development](./enterprise-agentic-development.md)** - Team collaboration
+  strategies
 
 ---
 
@@ -94,23 +101,20 @@ Essential reference materials:
 
 ### I need to...
 
-**Build something new (greenfield)**
-→ Start with [Quick Start Guide](./quick-start.md)
-→ Then review [Scale Adaptive System](./scale-adaptive-system.md) to understand tracks
+**Build something new (greenfield)** → Start with [Quick Start Guide](./quick-start.md) → Then
+review [Scale Adaptive System](./scale-adaptive-system.md) to understand tracks
 
-**Fix a bug or add small feature**
-→ Go to [BMAD Quick Flow](./bmad-quick-flow.md) for rapid development
-→ Or use [Quick Flow Solo Dev](./quick-flow-solo-dev.md) directly
+**Fix a bug or add small feature** → Go to [BMAD Quick Flow](./bmad-quick-flow.md) for rapid
+development → Or use [Quick Flow Solo Dev](./quick-flow-solo-dev.md) directly
 
-**Work with existing codebase (brownfield)**
-→ Read [Brownfield Development Guide](./brownfield-guide.md)
-→ Pay special attention to documentation requirements for brownfield projects
+**Work with existing codebase (brownfield)** → Read
+[Brownfield Development Guide](./brownfield-guide.md) → Pay special attention to documentation
+requirements for brownfield projects
 
-**Understand planning tracks and methodology**
-→ See [Scale Adaptive System](./scale-adaptive-system.md)
+**Understand planning tracks and methodology** → See
+[Scale Adaptive System](./scale-adaptive-system.md)
 
-**Find specific commands or answers**
-→ Check [FAQ](./faq.md)
+**Find specific commands or answers** → Check [FAQ](./faq.md)
 
 ---
 
@@ -118,7 +122,8 @@ Essential reference materials:
 
 Comprehensive documentation for all BMM workflows organized by phase:
 
-- **[Phase 1: Analysis Workflows](./workflows-analysis.md)** - Optional exploration and research workflows (595 lines)
+- **[Phase 1: Analysis Workflows](./workflows-analysis.md)** - Optional exploration and research
+  workflows (595 lines)
   - brainstorm-project, product-brief, research, and more
   - When to use analysis workflows
   - Creative and strategic tools
@@ -128,18 +133,21 @@ Comprehensive documentation for all BMM workflows organized by phase:
   - Track-based planning approach (Quick Flow, BMad Method, Enterprise Method)
   - Which planning workflow to use
 
-- **[Phase 3: Solutioning Workflows](./workflows-solutioning.md)** - Architecture and validation (638 lines)
+- **[Phase 3: Solutioning Workflows](./workflows-solutioning.md)** - Architecture and validation
+  (638 lines)
   - architecture, create-epics-and-stories, implementation-readiness
   - V6: Epics created AFTER architecture for better quality
   - Required for BMad Method and Enterprise Method tracks
   - Preventing agent conflicts
 
-- **[Phase 4: Implementation Workflows](./workflows-implementation.md)** - Sprint-based development (1,634 lines)
+- **[Phase 4: Implementation Workflows](./workflows-implementation.md)** - Sprint-based development
+  (1,634 lines)
   - sprint-planning, create-story, dev-story, code-review
   - Complete story lifecycle
   - One-story-at-a-time discipline
 
-- **[Testing & QA Workflows](./test-architecture.md)** - Comprehensive quality assurance (1,420 lines)
+- **[Testing & QA Workflows](./test-architecture.md)** - Comprehensive quality assurance (1,420
+  lines)
   - Test strategy, automation, quality gates
   - TEA agent and test healing
   - BMad-integrated vs standalone modes
@@ -150,13 +158,15 @@ Comprehensive documentation for all BMM workflows organized by phase:
 
 For detailed technical documentation on specific complex workflows:
 
-- **[Document Project Workflow Reference](./workflow-document-project-reference.md)** - Technical deep-dive (445 lines)
+- **[Document Project Workflow Reference](./workflow-document-project-reference.md)** - Technical
+  deep-dive (445 lines)
   - v1.2.0 context-safe architecture
   - Scan levels, resumability, write-as-you-go
   - Multi-part project detection
   - Deep-dive mode for targeted analysis
 
-- **[Architecture Workflow Reference](./workflow-architecture-reference.md)** - Decision architecture guide (320 lines)
+- **[Architecture Workflow Reference](./workflow-architecture-reference.md)** - Decision
+  architecture guide (320 lines)
   - Starter template intelligence
   - Novel pattern design
   - Implementation patterns for agent consistency
@@ -190,8 +200,10 @@ Understanding BMM components:
 
 ### Community and Support
 
-- **[Discord Community](https://discord.gg/gk8jAdXWmj)** - Get help from the community (#general-dev, #bugs-issues)
-- **[GitHub Issues](https://github.com/bmad-code-org/BMAD-METHOD/issues)** - Report bugs or request features
+- **[Discord Community](https://discord.gg/gk8jAdXWmj)** - Get help from the community
+  (#general-dev, #bugs-issues)
+- **[GitHub Issues](https://github.com/bmad-code-org/BMAD-METHOD/issues)** - Report bugs or request
+  features
 - **[YouTube Channel](https://www.youtube.com/@BMadCode)** - Video tutorials and walkthroughs
 
 ### Additional Documentation

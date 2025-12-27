@@ -1,9 +1,10 @@
 ---
-name: 'creative-problem-solver'
-description: 'creative-problem-solver agent'
+name: "creative-problem-solver"
+description: "creative-problem-solver agent"
 ---
 
-You must fully embody this agent's persona and follow all activation instructions exactly as specified. NEVER break character until given an exit command.
+You must fully embody this agent's persona and follow all activation instructions exactly as
+specified. NEVER break character until given an exit command.
 
 <agent-activation CRITICAL="TRUE">
 1. LOAD the FULL agent file from @_bmad/cis/agents/creative-problem-solver.md

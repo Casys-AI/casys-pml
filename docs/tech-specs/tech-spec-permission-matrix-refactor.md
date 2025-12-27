@@ -1,17 +1,17 @@
 # Tech-Spec: Permission System Matrix Refactor
 
-**Created:** 2025-12-16
-**Status:** Completed
+**Created:** 2025-12-16 **Status:** Completed
 
 > **⚠️ PARTIALLY OBSOLETE (2025-12-19)**
 >
-> The `ffi` and `run` fields described in this spec have been **removed**.
-> The permission model was simplified to 2 axes:
+> The `ffi` and `run` fields described in this spec have been **removed**. The permission model was
+> simplified to 2 axes:
+>
 > - `scope`: metadata for audit/documentation
 > - `approvalMode`: `auto` (default) or `hil`
 >
-> Worker sandbox always runs with `permissions: "none"`. MCP servers run as
-> separate processes. See `config/mcp-permissions.yaml` for current format.
+> Worker sandbox always runs with `permissions: "none"`. MCP servers run as separate processes. See
+> `config/mcp-permissions.yaml` for current format.
 
 ## Overview
 
@@ -19,10 +19,14 @@
 
 The current permission system has two critical limitations:
 
-1. **Linear model is incorrect**: `minimal < readonly < filesystem < network-api < mcp-standard < trusted` treats `ffi` and `run` as "above" other permissions, when they are actually orthogonal
-2. **Hardcoded block**: `run` and `ffi` are hardcoded as blocked in `permission-escalation.ts:37` with no escalation path possible, even via HIL
+1. **Linear model is incorrect**:
+   `minimal < readonly < filesystem < network-api < mcp-standard < trusted` treats `ffi` and `run`
+   as "above" other permissions, when they are actually orthogonal
+2. **Hardcoded block**: `run` and `ffi` are hardcoded as blocked in `permission-escalation.ts:37`
+   with no escalation path possible, even via HIL
 
-This prevents legitimate use cases like Fermat MCP (NumPy/Python via FFI) from working in the sandbox.
+This prevents legitimate use cases like Fermat MCP (NumPy/Python via FFI) from working in the
+sandbox.
 
 ### Solution
 
@@ -47,6 +51,7 @@ Refactor to a **3-axis matrix model**:
 ### Scope
 
 **In Scope:**
+
 - Permission system refactor (types, escalation, inferrer)
 - New YAML config format with backward-compatible shorthand
 - Fermat MCP server integration
@@ -54,6 +59,7 @@ Refactor to a **3-axis matrix model**:
 - Primitives library refactor with battle-tested packages
 
 **Out of Scope:**
+
 - Pyodide WASM integration (future enhancement)
 - AI-based permission decision logic (using config-based auto-approve instead)
 
@@ -68,15 +74,15 @@ Refactor to a **3-axis matrix model**:
 
 ### Files to Reference
 
-| File | Purpose |
-|------|---------|
-| `src/capabilities/types.ts:39-45` | Current `PermissionSet` type definition |
-| `src/capabilities/permission-escalation.ts:37` | Hardcoded `SECURITY_CRITICAL_PERMISSIONS` |
-| `src/capabilities/permission-escalation-handler.ts:175-177` | HIL callback invocation |
-| `src/capabilities/permission-inferrer.ts` | YAML config loader |
-| `config/mcp-permissions.yaml` | Permission mappings config |
-| `config/.mcp-servers.json` | MCP server definitions |
-| `lib/mcp-tools.ts` | Primitives library (94 tools) |
+| File                                                        | Purpose                                   |
+| ----------------------------------------------------------- | ----------------------------------------- |
+| `src/capabilities/types.ts:39-45`                           | Current `PermissionSet` type definition   |
+| `src/capabilities/permission-escalation.ts:37`              | Hardcoded `SECURITY_CRITICAL_PERMISSIONS` |
+| `src/capabilities/permission-escalation-handler.ts:175-177` | HIL callback invocation                   |
+| `src/capabilities/permission-inferrer.ts`                   | YAML config loader                        |
+| `config/mcp-permissions.yaml`                               | Permission mappings config                |
+| `config/.mcp-servers.json`                                  | MCP server definitions                    |
+| `lib/mcp-tools.ts`                                          | Primitives library (94 tools)             |
 
 ### Technical Decisions
 
@@ -142,6 +148,7 @@ Refactor to a **3-axis matrix model**:
   ```
 
 > **Rejected packages:**
+>
 > - `fermat-mcp` - doesn't exist on PyPI
 > - `numpy-mcp` - no executable
 > - `mcp-pandas` - requires `--data-path` at startup (unusable dynamically)
@@ -218,11 +225,16 @@ Refactor to a **3-axis matrix model**:
 
 ### Acceptance Criteria
 
-- [x] **AC1:** Given a tool with `approvalMode: auto`, when permission error occurs, then escalation is auto-approved without HIL prompt
-- [x] **AC2:** Given a tool with `ffi: true`, when FFI permission is requested, then it is allowed (not hardcoded blocked)
-- [x] **AC3:** Given old YAML format `permissionSet: X`, when loaded, then it converts to `{ scope: X, ffi: false, run: false, approvalMode: hil }`
-- [x] **AC4:** Given `mcp-plots` configured with `ffi: true, approvalMode: auto`, when DAG uses `plots_*` tools, then FFI is auto-approved
-- [x] **AC5:** Given primitives library with npm packages, when bundle is built, then all 17 modules compile successfully
+- [x] **AC1:** Given a tool with `approvalMode: auto`, when permission error occurs, then escalation
+      is auto-approved without HIL prompt
+- [x] **AC2:** Given a tool with `ffi: true`, when FFI permission is requested, then it is allowed
+      (not hardcoded blocked)
+- [x] **AC3:** Given old YAML format `permissionSet: X`, when loaded, then it converts to
+      `{ scope: X, ffi: false, run: false, approvalMode: hil }`
+- [x] **AC4:** Given `mcp-plots` configured with `ffi: true, approvalMode: auto`, when DAG uses
+      `plots_*` tools, then FFI is auto-approved
+- [x] **AC5:** Given primitives library with npm packages, when bundle is built, then all 17 modules
+      compile successfully
 - [x] **AC6:** All existing tests pass after migration (39 tests pass)
 
 ## Additional Context

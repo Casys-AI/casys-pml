@@ -1,17 +1,18 @@
 # ADR-037: Deno KV as Cache Layer
 
-**Status:** ❌ Rejected
-**Date:** 2025-12-05 | **Deciders:** Architecture Team
+**Status:** ❌ Rejected **Date:** 2025-12-05 | **Deciders:** Architecture Team
 
 ## Rejection Reason
 
 **Overkill pour notre cas d'usage:**
+
 - PGlite gère déjà la persistence des données importantes
 - Les caches in-memory actuels suffisent (pas besoin de persistence cache)
 - Ajoute une couche de complexité sans bénéfice clair
 - Les restarts sont rares, reconstruire le cache n'est pas coûteux
 
-Ce ADR est conservé comme référence si le besoin évolue (ex: scaling horizontal, session state distribué).
+Ce ADR est conservé comme référence si le besoin évolue (ex: scaling horizontal, session state
+distribué).
 
 ---
 
@@ -19,24 +20,27 @@ Ce ADR est conservé comme référence si le besoin évolue (ex: scaling horizon
 
 Casys PML utilise plusieurs mécanismes de cache custom:
 
-| Fichier | Type | Persistence | TTL |
-|---------|------|-------------|-----|
-| `src/sandbox/cache.ts` | In-memory Map | ❌ Non | ✅ Manual |
-| `src/context/cache.ts` | In-memory Map | ❌ Non | ✅ Manual |
-| `src/speculation/speculative-executor.ts` | In-memory Map | ❌ Non | ✅ Manual |
-| `src/mcp/adaptive-threshold.ts` | In-memory | ❌ Non | ❌ Non |
+| Fichier                                   | Type          | Persistence | TTL       |
+| ----------------------------------------- | ------------- | ----------- | --------- |
+| `src/sandbox/cache.ts`                    | In-memory Map | ❌ Non      | ✅ Manual |
+| `src/context/cache.ts`                    | In-memory Map | ❌ Non      | ✅ Manual |
+| `src/speculation/speculative-executor.ts` | In-memory Map | ❌ Non      | ✅ Manual |
+| `src/mcp/adaptive-threshold.ts`           | In-memory     | ❌ Non      | ❌ Non    |
 
 **Problèmes actuels:**
+
 1. **Perte au restart:** Tous les caches sont perdus quand le serveur redémarre
 2. **Duplication de code:** Chaque module implémente sa propre logique de cache
 3. **TTL manuel:** Gestion expiration à la main avec `Date.now()` checks
 4. **Pas de limite mémoire:** Les caches peuvent grandir indéfiniment
 
 **Storage principal:**
+
 - PGlite avec pgvector pour les données persistantes et la recherche vectorielle
 - Les caches sont complémentaires, pas un remplacement
 
 **Opportunité:** `Deno.openKv()` offre un key-value store natif avec:
+
 - Persistence automatique (SQLite backend)
 - TTL natif via `expireIn`
 - API simple et typée
@@ -216,7 +220,7 @@ export class CapabilityCache {
     await this.kv.set(
       ["cap", "hash", capability.codeHash],
       capability,
-      { expireIn: this.TTL_MS }
+      { expireIn: this.TTL_MS },
     );
   }
 
@@ -248,7 +252,7 @@ export class SchemaCache {
     await this.kv.set(
       ["schema", serverId, toolId],
       schema,
-      { expireIn: this.TTL_MS }
+      { expireIn: this.TTL_MS },
     );
   }
 }
@@ -417,26 +421,26 @@ interface CacheStats {
 
 ### Trade-offs vs Alternatives
 
-| Feature | Deno KV | Redis | In-Memory Map |
-|---------|---------|-------|---------------|
-| **Setup** | Zero | Server needed | Zero |
-| **Persistence** | ✅ Yes | ✅ Yes | ❌ No |
-| **TTL** | ✅ Native | ✅ Native | ❌ Manual |
-| **Clustering** | ❌ No | ✅ Yes | ❌ No |
-| **Performance** | Fast | Fastest | Fastest |
-| **Deno Native** | ✅ Yes | ❌ No | ✅ Yes |
+| Feature         | Deno KV   | Redis         | In-Memory Map |
+| --------------- | --------- | ------------- | ------------- |
+| **Setup**       | Zero      | Server needed | Zero          |
+| **Persistence** | ✅ Yes    | ✅ Yes        | ❌ No         |
+| **TTL**         | ✅ Native | ✅ Native     | ❌ Manual     |
+| **Clustering**  | ❌ No     | ✅ Yes        | ❌ No         |
+| **Performance** | Fast      | Fastest       | Fastest       |
+| **Deno Native** | ✅ Yes    | ❌ No         | ✅ Yes        |
 
 ### When to Use What
 
-| Use Case | Storage |
-|----------|---------|
-| Vector search | PGlite (pgvector) |
-| Relational data | PGlite |
-| Permanent capabilities | PGlite |
-| Execution result cache | Deno KV |
-| Rate limiting | Deno KV |
-| Session state | Deno KV |
-| Schema cache | Deno KV |
+| Use Case               | Storage           |
+| ---------------------- | ----------------- |
+| Vector search          | PGlite (pgvector) |
+| Relational data        | PGlite            |
+| Permanent capabilities | PGlite            |
+| Execution result cache | Deno KV           |
+| Rate limiting          | Deno KV           |
+| Session state          | Deno KV           |
+| Schema cache           | Deno KV           |
 
 ## Implementation
 

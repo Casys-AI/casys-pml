@@ -1,24 +1,27 @@
 # ADR-046: BFF Pattern for Fresh Dashboard
 
-**Status:** Ready for Implementation
-**Date:** 2025-12-10 | **Deciders:** Architecture Team
+**Status:** Ready for Implementation **Date:** 2025-12-10 | **Deciders:** Architecture Team
 **Tech-Spec Source:** `docs/tech-specs/tech-spec-fresh-bff-refactoring.md`
 
 ## Context
 
 ### Problem
 
-When building the Fresh dashboard for production with Vite, PGLite gets bundled into the server output. PGLite's binary assets (`vector.tar.gz`, `pglite.data`) use relative paths that break after bundling:
+When building the Fresh dashboard for production with Vite, PGLite gets bundled into the server
+output. PGLite's binary assets (`vector.tar.gz`, `pglite.data`) use relative paths that break after
+bundling:
 
 ```
 Error: Extension bundle not found: file:///home/ubuntu/.../src/web/_fresh/vector.tar.gz
 ```
 
-**Root cause:** Fresh routes (`callback.ts`, `regenerate.ts`, etc.) import `getDb()` which pulls PGLite into the Vite bundle.
+**Root cause:** Fresh routes (`callback.ts`, `regenerate.ts`, etc.) import `getDb()` which pulls
+PGLite into the Vite bundle.
 
 ### Fresh Community Recommendation
 
 The Fresh community recommends the **BFF (Backend For Frontend) pattern** for database operations:
+
 - Fresh should be a thin UI layer
 - All database operations delegated to a backend API
 - No direct database imports in Fresh code
@@ -154,4 +157,5 @@ INTERNAL_API_SECRET=<64-char-hex-secret>
 
 - **Tech-Spec**: `docs/tech-specs/tech-spec-fresh-bff-refactoring.md`
 - **External**: [BFF Pattern | Auth0](https://auth0.com/blog/the-backend-for-frontend-pattern-bff/)
-- **External**: [Fresh Database Discussion | GitHub](https://github.com/denoland/fresh/discussions/436)
+- **External**:
+  [Fresh Database Discussion | GitHub](https://github.com/denoland/fresh/discussions/436)

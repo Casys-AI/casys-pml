@@ -4,8 +4,10 @@
 
 - 🛑 NEVER generate content without user input
 
-- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding leads to incomplete decisions
-- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before proceeding
+- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding
+  leads to incomplete decisions
+- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before
+  proceeding
 - ✅ ALWAYS treat this as collaborative discovery between UX facilitator and stakeholder
 - 📋 YOU ARE A UX FACILITATOR, not a content generator
 - 💬 FOCUS on defining the core user experience and platform
@@ -49,8 +51,8 @@ Define the core user experience, platform requirements, and what makes the inter
 
 ### 1. Define Core User Action
 
-Start by identifying the most important user interaction:
-"Now let's dig into the heart of the user experience for {{project_name}}.
+Start by identifying the most important user interaction: "Now let's dig into the heart of the user
+experience for {{project_name}}.
 
 **Core Experience Questions:**
 
@@ -63,8 +65,8 @@ Think about the core loop or primary action that defines your product's value."
 
 ### 2. Explore Platform Requirements
 
-Determine where and how users will interact:
-"Let's define the platform context for {{project_name}}:
+Determine where and how users will interact: "Let's define the platform context for
+{{project_name}}:
 
 **Platform Questions:**
 
@@ -76,8 +78,7 @@ Determine where and how users will interact:
 
 ### 3. Identify Effortless Interactions
 
-Surface what should feel magical or completely seamless:
-"**Effortless Experience Design:**
+Surface what should feel magical or completely seamless: "**Effortless Experience Design:**
 
 - What user actions should feel completely natural and require zero thought?
 - Where do users currently struggle with similar products?
@@ -87,8 +88,7 @@ Surface what should feel magical or completely seamless:
 
 ### 4. Define Critical Success Moments
 
-Identify the moments that determine success or failure:
-"**Critical Success Moments:**
+Identify the moments that determine success or failure: "**Critical Success Moments:**
 
 - What's the moment where users realize 'this is better'?
 - When does the user feel successful or accomplished?
@@ -98,8 +98,8 @@ Identify the moments that determine success or failure:
 
 ### 5. Synthesize Experience Principles
 
-Extract guiding principles from the conversation:
-"Based on our discussion, I'm hearing these core experience principles for {{project_name}}:
+Extract guiding principles from the conversation: "Based on our discussion, I'm hearing these core
+experience principles for {{project_name}}:
 
 **Experience Principles:**
 
@@ -144,23 +144,24 @@ When saving to document, append these Level 2 and Level 3 sections:
 
 ### 7. Present Content and Menu
 
-Show the generated core experience content and present choices:
-"I've defined the core user experience for {{project_name}} based on our conversation. This establishes the foundation for all our UX design decisions.
+Show the generated core experience content and present choices: "I've defined the core user
+experience for {{project_name}} based on our conversation. This establishes the foundation for all
+our UX design decisions.
 
 **Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 6]
 
-**What would you like to do?**
-[A] Advanced Elicitation - Let's refine the core experience definition
-[P] Party Mode - Bring different perspectives on the user experience
-[C] Continue - Save this to the document and move to emotional response definition"
+**What would you like to do?** [A] Advanced Elicitation - Let's refine the core experience
+definition [P] Party Mode - Bring different perspectives on the user experience [C] Continue - Save
+this to the document and move to emotional response definition"
 
 ### 8. Handle Menu Selection
 
 #### If 'A' (Advanced Elicitation):
 
-- Execute {project-root}/\_bmad/core/tasks/advanced-elicitation.xml with the current core experience content
+- Execute {project-root}/\_bmad/core/tasks/advanced-elicitation.xml with the current core experience
+  content
 - Process the enhanced experience insights that come back
 - Ask user: "Accept these improvements to the core experience definition? (y/n)"
 - If yes: Update content with improvements, then return to A/P/C menu
@@ -168,7 +169,8 @@ Show the generated core experience content and present choices:
 
 #### If 'P' (Party Mode):
 
-- Execute {project-root}/\_bmad/core/workflows/party-mode/workflow.md with the current core experience definition
+- Execute {project-root}/\_bmad/core/workflows/party-mode/workflow.md with the current core
+  experience definition
 - Process the collaborative experience improvements that come back
 - Ask user: "Accept these changes to the core experience definition? (y/n)"
 - If yes: Update content with improvements, then return to A/P/C menu
@@ -186,30 +188,27 @@ When user selects 'C', append the content directly to the document using the str
 
 ## SUCCESS METRICS:
 
-✅ Core user action clearly identified and defined
-✅ Platform requirements thoroughly explored
-✅ Effortless interaction areas identified
-✅ Critical success moments mapped out
-✅ Experience principles established as guiding framework
-✅ A/P/C menu presented and handled correctly
-✅ Content properly appended to document when C selected
+✅ Core user action clearly identified and defined ✅ Platform requirements thoroughly explored ✅
+Effortless interaction areas identified ✅ Critical success moments mapped out ✅ Experience
+principles established as guiding framework ✅ A/P/C menu presented and handled correctly ✅ Content
+properly appended to document when C selected
 
 ## FAILURE MODES:
 
-❌ Missing the core user action that defines the product
-❌ Not properly considering platform requirements
-❌ Overlooking what should be effortless for users
-❌ Not identifying critical make-or-break interactions
-❌ Experience principles too generic or not actionable
-❌ Not presenting A/P/C menu after content generation
-❌ Appending content without user selecting 'C'
+❌ Missing the core user action that defines the product ❌ Not properly considering platform
+requirements ❌ Overlooking what should be effortless for users ❌ Not identifying critical
+make-or-break interactions ❌ Experience principles too generic or not actionable ❌ Not presenting
+A/P/C menu after content generation ❌ Appending content without user selecting 'C'
 
-❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
-❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step file
-❌ **CRITICAL**: Making decisions without complete understanding of step requirements and protocols
+❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor
+decisions ❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step
+file ❌ **CRITICAL**: Making decisions without complete understanding of step requirements and
+protocols
 
 ## NEXT STEP:
 
-After user selects 'C' and content is saved to document, load `./step-04-emotional-response.md` to define desired emotional responses.
+After user selects 'C' and content is saved to document, load `./step-04-emotional-response.md` to
+define desired emotional responses.
 
-Remember: Do NOT proceed to step-04 until user explicitly selects 'C' from the A/P/C menu and content is saved!
+Remember: Do NOT proceed to step-04 until user explicitly selects 'C' from the A/P/C menu and
+content is saved!

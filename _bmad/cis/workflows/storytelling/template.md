@@ -1,8 +1,6 @@
 # Story Output
 
-**Created:** {{date}}
-**Storyteller:** {{agent_role}} {{agent_name}}
-**Author:** {{user_name}}
+**Created:** {{date}} **Storyteller:** {{agent_role}} {{agent_name}} **Author:** {{user_name}}
 
 ## Story Information
 

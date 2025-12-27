@@ -1,6 +1,7 @@
 # Standalone Workflow Builder Architecture
 
-This document describes the architecture of the standalone workflow builder system - a pure markdown approach to creating structured workflows.
+This document describes the architecture of the standalone workflow builder system - a pure markdown
+approach to creating structured workflows.
 
 ## Core Architecture Principles
 
@@ -69,11 +70,11 @@ workflow-folder/
 Standard variables in step files:
 
 ```yaml
-workflow_path: '{project-root}/_bmad/bmb/reference/workflows/[workflow-name]'
-thisStepFile: '{workflow_path}/steps/step-[N]-[name].md'
-nextStepFile: '{workflow_path}/steps/step-[N+1]-[name].md'
-workflowFile: '{workflow_path}/workflow.md'
-outputFile: '{output_folder}/[output-name]-{project_name}.md'
+workflow_path: "{project-root}/_bmad/bmb/reference/workflows/[workflow-name]"
+thisStepFile: "{workflow_path}/steps/step-[N]-[name].md"
+nextStepFile: "{workflow_path}/steps/step-[N+1]-[name].md"
+workflowFile: "{workflow_path}/workflow.md"
+outputFile: "{output_folder}/[output-name]-{project_name}.md"
 ```
 
 ## Execution Flow
@@ -217,4 +218,5 @@ meal_type,multi,"breakfast|lunch|dinner|snacks","Types of meals to plan"
 - User satisfied with collaborative process
 - Clean, maintainable file structure
 
-This architecture ensures disciplined, predictable workflow execution while maintaining flexibility for different use cases.
+This architecture ensures disciplined, predictable workflow execution while maintaining flexibility
+for different use cases.

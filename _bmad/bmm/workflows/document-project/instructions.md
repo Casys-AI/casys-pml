@@ -1,7 +1,9 @@
 # Document Project Workflow Router
 
-<critical>The workflow execution engine is governed by: {project-root}/\_bmad/core/tasks/workflow.xml</critical>
-<critical>You MUST have already loaded and processed: {project-root}/\_bmad/bmm/workflows/document-project/workflow.yaml</critical>
+<critical>The workflow execution engine is governed by:
+{project-root}/\_bmad/core/tasks/workflow.xml</critical>
+<critical>You MUST have already loaded and processed:
+{project-root}/\_bmad/bmm/workflows/document-project/workflow.yaml</critical>
 <critical>Communicate all responses in {communication_language}</critical>
 
 <workflow>
@@ -26,8 +28,8 @@
   <action>Store {{status_file_path}} for later updates</action>
   <action>Set status_file_found = true</action>
 
-  <!-- Extract brownfield/greenfield from status data -->
-  <check if="field_type == 'greenfield'">
+<!-- Extract brownfield/greenfield from status data -->
+<check if="field_type == 'greenfield'">
     <output>Note: This is a greenfield project. Documentation workflow is typically for brownfield projects.</output>
     <ask>Continue anyway to document planning artifacts? (y/n)</ask>
     <check if="n">
@@ -35,13 +37,13 @@
     </check>
   </check>
 
-  <!-- Now validate sequencing -->
-  <invoke-workflow path="{project-root}/_bmad/bmm/workflows/workflow-status">
+<!-- Now validate sequencing -->
+<invoke-workflow path="{project-root}/_bmad/bmm/workflows/workflow-status">
     <param>mode: validate</param>
     <param>calling_workflow: document-project</param>
   </invoke-workflow>
 
-  <check if="warning != ''">
+<check if="warning != ''">
     <output>{{warning}}</output>
     <output>Note: This may be auto-invoked by prd for brownfield documentation.</output>
     <ask>Continue with documentation? (y/n)</ask>
@@ -117,9 +119,9 @@ Your choice [1/2/3]:
       <action>Exit workflow</action>
     </check>
 
-  </check>
+</check>
 
-  <check if="state file age >= 24 hours">
+<check if="state file age >= 24 hours">
     <action>Display: "Found old state file (>24 hours). Starting fresh scan."</action>
     <action>Archive old state file to: {output_folder}/.archive/project-scan-report-{{timestamp}}.json</action>
     <action>Set resume_mode = false</action>
@@ -140,20 +142,21 @@ Your choice [1/2/3]:
 What would you like to do?
 
 1. **Re-scan entire project** - Update all documentation with latest changes
-2. **Deep-dive into specific area** - Generate detailed documentation for a particular feature/module/folder
+2. **Deep-dive into specific area** - Generate detailed documentation for a particular
+   feature/module/folder
 3. **Cancel** - Keep existing documentation as-is
 
 Your choice [1/2/3]:
 </ask>
 
-  <check if="user selects 1">
+<check if="user selects 1">
     <action>Set workflow_mode = "full_rescan"</action>
     <action>Display: "Starting full project rescan..."</action>
     <action>Load and execute: {installed_path}/workflows/full-scan-instructions.md</action>
     <action>After sub-workflow completes, continue to Step 4</action>
   </check>
 
-  <check if="user selects 2">
+<check if="user selects 2">
     <action>Set workflow_mode = "deep_dive"</action>
     <action>Set scan_level = "exhaustive"</action>
     <action>Display: "Starting deep-dive documentation mode..."</action>
@@ -161,7 +164,7 @@ Your choice [1/2/3]:
     <action>After sub-workflow completes, continue to Step 4</action>
   </check>
 
-  <check if="user selects 3">
+<check if="user selects 3">
     <action>Display message: "Keeping existing documentation. Exiting workflow."</action>
     <action>Exit workflow</action>
   </check>
@@ -185,7 +188,7 @@ Your choice [1/2/3]:
     <param>workflow_name: document-project</param>
   </invoke-workflow>
 
-  <check if="success == true">
+<check if="success == true">
     <output>Status updated!</output>
   </check>
 </check>
@@ -198,8 +201,7 @@ Your choice [1/2/3]:
 - Scan Level: {{scan_level}}
 - Output: {output_folder}/index.md and related files
 
-{{#if status_file_found}}
-**Status Updated:**
+{{#if status_file_found}} **Status Updated:**
 
 - Progress tracking updated
 
@@ -207,14 +209,11 @@ Your choice [1/2/3]:
 
 - **Next required:** {{next_workflow}} ({{next_agent}} agent)
 
-Check status anytime with: `workflow-status`
-{{else}}
-**Next Steps:**
-Since no workflow is in progress:
+Check status anytime with: `workflow-status` {{else}} **Next Steps:** Since no workflow is in
+progress:
 
 - Refer to the BMM workflow guide if unsure what to do next
-- Or run `workflow-init` to create a workflow path and get guided next steps
-  {{/if}}
+- Or run `workflow-init` to create a workflow path and get guided next steps {{/if}}
   </output>
 
 </step>

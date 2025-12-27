@@ -518,8 +518,8 @@ inclut:
 
 **Evidence:**
 
-| Tool                           | Schema Definition           | Handler Implementation                | Status |
-| ------------------------------ | --------------------------- | ------------------------------------- | ------ |
+| Tool                    | Schema Definition           | Handler Implementation                | Status |
+| ----------------------- | --------------------------- | ------------------------------------- | ------ |
 | `pml:continue`          | `gateway-server.ts:344-360` | `handleContinue():1157-1238`          | ✅     |
 | `pml:abort`             | `gateway-server.ts:364-380` | `handleAbort():1391-1465`             | ✅     |
 | `pml:replan`            | `gateway-server.ts:384-404` | `handleReplan():1475-1584`            | ✅     |
@@ -570,7 +570,7 @@ inclut:
 
 | Task                                              | Marked | Verified | Evidence                                          |
 | ------------------------------------------------- | ------ | -------- | ------------------------------------------------- |
-| `execute_workflow` → `execute` renamed            | [x]    | ✅       | Tool names use `pml:` prefix               |
+| `execute_workflow` → `execute` renamed            | [x]    | ✅       | Tool names use `pml:` prefix                      |
 | 4 MCP control tools implemented                   | [x]    | ✅       | AC1 evidence                                      |
 | Per-layer validation mode working                 | [x]    | ✅       | AC2 evidence                                      |
 | Migration 008: `workflow_dags` table              | [x]    | ✅       | `migrations/008_workflow_dags_migration.ts:14-26` |

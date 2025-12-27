@@ -4,22 +4,31 @@
 
 ## En bref
 
-La base de données de PML, c'est comme le **cerveau à trois parties** d'un système intelligent : une mémoire à long terme (PostgreSQL), une mémoire spatiale pour retrouver des souvenirs similaires (vecteurs), et une mémoire de travail rapide (cache KV).
+La base de données de PML, c'est comme le **cerveau à trois parties** d'un système intelligent : une
+mémoire à long terme (PostgreSQL), une mémoire spatiale pour retrouver des souvenirs similaires
+(vecteurs), et une mémoire de travail rapide (cache KV).
 
 **Pourquoi trois types de stockage ?**
 
 Imaginez un bibliothécaire expert :
-- **PGlite (PostgreSQL)** = Les fichiers d'archives organisés. Vous pouvez faire des recherches complexes : "Tous les livres de 2020 sur la cuisine française" → requêtes SQL structurées
-- **Vecteurs (pgvector)** = Le "feeling" du bibliothécaire. Vous demandez "un livre sur bien manger" et il trouve des livres sur nutrition, cuisine healthy, diététique... même si ces mots n'apparaissent pas dans votre requête
-- **Deno KV** = Le bureau du bibliothécaire avec les livres fréquemment demandés. Accès instantané, pas besoin d'aller aux archives
+
+- **PGlite (PostgreSQL)** = Les fichiers d'archives organisés. Vous pouvez faire des recherches
+  complexes : "Tous les livres de 2020 sur la cuisine française" → requêtes SQL structurées
+- **Vecteurs (pgvector)** = Le "feeling" du bibliothécaire. Vous demandez "un livre sur bien manger"
+  et il trouve des livres sur nutrition, cuisine healthy, diététique... même si ces mots
+  n'apparaissent pas dans votre requête
+- **Deno KV** = Le bureau du bibliothécaire avec les livres fréquemment demandés. Accès instantané,
+  pas besoin d'aller aux archives
 
 **Points clés :**
+
 - Données persistantes (survivent aux redémarrages)
 - Recherche sémantique via embeddings 1024 dimensions
 - Cache rapide pour les accès fréquents
 - Pas de serveur externe nécessaire (tout est embarqué)
 
 **Exemple concret :**
+
 ```
 Vous cherchez "lire un fichier" :
 1. KV Cache: Déjà cherché récemment? → Résultat instantané
@@ -31,6 +40,7 @@ Vous cherchez "lire un fichier" :
 ## Overview
 
 PML uses a hybrid storage approach combining:
+
 - **PGlite** - Embedded PostgreSQL for structured data
 - **Vector storage** - Embeddings for semantic search
 - **Deno KV** - Fast key-value cache
@@ -39,31 +49,33 @@ PML uses a hybrid storage approach combining:
 
 ## PGlite
 
-**PGlite** is an embedded PostgreSQL database that runs entirely in-process. No separate database server needed.
+**PGlite** is an embedded PostgreSQL database that runs entirely in-process. No separate database
+server needed.
 
 ### Why PGlite?
 
-| Feature | Benefit |
-|---------|---------|
-| **Embedded** | No external dependencies |
-| **PostgreSQL compatible** | Full SQL, JSON, extensions |
-| **pgvector** | Native vector similarity search |
-| **Persistent** | Data survives restarts |
+| Feature                   | Benefit                         |
+| ------------------------- | ------------------------------- |
+| **Embedded**              | No external dependencies        |
+| **PostgreSQL compatible** | Full SQL, JSON, extensions      |
+| **pgvector**              | Native vector similarity search |
+| **Persistent**            | Data survives restarts          |
 
 ### Main Tables
 
-| Table | Purpose |
-|-------|---------|
-| `tool_schema` | MCP tool definitions and schemas |
-| `tool_embedding` | Vector embeddings for tools |
-| `tool_dependency` | Learned relationships between tools |
-| `workflow_pattern` | Stored capabilities |
-| `capability_dependency` | Relationships between capabilities |
-| `workflow_execution` | Execution history for analytics |
+| Table                   | Purpose                             |
+| ----------------------- | ----------------------------------- |
+| `tool_schema`           | MCP tool definitions and schemas    |
+| `tool_embedding`        | Vector embeddings for tools         |
+| `tool_dependency`       | Learned relationships between tools |
+| `workflow_pattern`      | Stored capabilities                 |
+| `capability_dependency` | Relationships between capabilities  |
+| `workflow_execution`    | Execution history for analytics     |
 
 ## Embeddings Storage
 
-PML generates **vector embeddings** for semantic search. Each tool and capability gets an embedding based on its description.
+PML generates **vector embeddings** for semantic search. Each tool and capability gets an embedding
+based on its description.
 
 ### How Embeddings Work
 
@@ -88,11 +100,11 @@ When you search "get file contents", the query is also embedded and compared to 
 
 **Deno KV** provides fast key-value storage for:
 
-| Use Case | Example |
-|----------|---------|
+| Use Case    | Example                             |
+| ----------- | ----------------------------------- |
 | **Caching** | Recent search results, tool schemas |
-| **Session** | Current workflow state |
-| **Config** | Runtime configuration |
+| **Session** | Current workflow state              |
+| **Config**  | Runtime configuration               |
 
 KV is faster than PGlite for simple lookups but doesn't support complex queries.
 
@@ -115,6 +127,7 @@ KV is faster than PGlite for simple lookups but doesn't support complex queries.
 ## Persistence
 
 All data is persisted to disk:
+
 - PGlite: `~/.pml/data/pglite/`
 - Deno KV: `~/.pml/data/kv/`
 

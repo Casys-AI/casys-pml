@@ -1,12 +1,16 @@
 ## Epic 9: GitHub Authentication & Multi-Tenancy
 
-> **Tech-Spec:** [tech-spec-github-auth-multitenancy.md](./sprint-artifacts/tech-spec-github-auth-multitenancy.md)
-> **Status:** Proposed (2025-12-07)
-> **Author:** Erwan + BMAD Party Mode
+> **Tech-Spec:**
+> [tech-spec-github-auth-multitenancy.md](./sprint-artifacts/tech-spec-github-auth-multitenancy.md)
+> **Status:** Proposed (2025-12-07) **Author:** Erwan + BMAD Party Mode
 
 **Expanded Goal (2-3 sentences):**
 
-Implémenter un modèle d'authentification hybride supportant deux modes d'utilisation : **Cloud (SaaS)** avec GitHub OAuth et API Keys pour le multi-tenant, et **Self-hosted** sans authentification pour une utilisation locale offline single-user. Ce système permet de tracker les utilisateurs individuellement, d'appliquer le rate limiting par user_id, et d'isoler les données personnelles tout en gardant l'apprentissage GraphRAG global partagé.
+Implémenter un modèle d'authentification hybride supportant deux modes d'utilisation : **Cloud
+(SaaS)** avec GitHub OAuth et API Keys pour le multi-tenant, et **Self-hosted** sans
+authentification pour une utilisation locale offline single-user. Ce système permet de tracker les
+utilisateurs individuellement, d'appliquer le rate limiting par user_id, et d'isoler les données
+personnelles tout en gardant l'apprentissage GraphRAG global partagé.
 
 **Value Delivery:**
 
@@ -21,7 +25,6 @@ Implémenter un modèle d'authentification hybride supportant deux modes d'utili
 **Architecture Réelle (2 Serveurs):**
 
 ```
-
 ┌─────────────────────────────────────────────────────────────────┐
 │ AGENTCARDS - DUAL SERVER ARCHITECTURE │
 ├─────────────────────────────────────────────────────────────────┤
@@ -50,13 +53,11 @@ Implémenter un modèle d'authentification hybride supportant deux modes d'utili
 │ └─────────────────────────┘ │
 │ │
 └─────────────────────────────────────────────────────────────────┘
-
 ```
 
 **Mode Detection (les 2 serveurs):**
 
 ```
-
 GITHUB_CLIENT_ID défini ?
 │
 ┌───┴───┐
@@ -71,17 +72,16 @@ MODE MODE
 user_id Require
 ="local" API Key
 ou Session
-
-````
+```
 
 **Isolation des Données (Cloud Mode):**
 
 | Données ISOLÉES par user_id | Données GLOBALES |
-|------------------------------|------------------|
-| dag_executions | mcp_tools |
-| execution_traces | tool_graph |
-| user_preferences | embeddings |
-| (future) custom_tools | usage_patterns |
+| --------------------------- | ---------------- |
+| dag_executions              | mcp_tools        |
+| execution_traces            | tool_graph       |
+| user_preferences            | embeddings       |
+| (future) custom_tools       | usage_patterns   |
 
 **Estimation:** 5 stories, ~1-2 semaines
 
@@ -91,7 +91,8 @@ ou Session
 
 **Story 9.1: Infrastructure Auth - Schema & Helpers**
 
-As a system supporting multi-tenant authentication, I want a users table and API key helpers, So that I can persist user data and securely manage API keys.
+As a system supporting multi-tenant authentication, I want a users table and API key helpers, So
+that I can persist user data and securely manage API keys.
 
 **Acceptance Criteria:**
 
@@ -103,14 +104,15 @@ As a system supporting multi-tenant authentication, I want a users table and API
      username: text("username").notNull(),
      email: text("email"),
      avatar_url: text("avatar_url"),
-     api_key_hash: text("api_key_hash"),        // argon2 hash
-     api_key_prefix: text("api_key_prefix"),    // "ac_" + 8 chars
+     api_key_hash: text("api_key_hash"), // argon2 hash
+     api_key_prefix: text("api_key_prefix"), // "ac_" + 8 chars
      api_key_created_at: integer("api_key_created_at", { mode: "timestamp" }),
      created_at: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
      updated_at: integer("updated_at", { mode: "timestamp" }),
    });
-````
+   ```
 
+````
 2. API Key helpers créés (`src/lib/api-key.ts`):
    - `generateApiKey()` → `{ key: "ac_xxx", prefix: "ac_xxxxxxxx" }`
    - `hashApiKey(key)` → argon2 hash
@@ -532,4 +534,4 @@ SECRETS_MASTER_KEY=xxx  # 32 bytes, base64 encoded
 | FR19 | MCP Gateway key injection              | 9.6      |
 
 ---
-
+````

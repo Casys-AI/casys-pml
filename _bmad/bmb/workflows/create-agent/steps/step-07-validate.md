@@ -1,31 +1,32 @@
 ---
-name: 'step-07-validate'
-description: 'Quality check with personality and technical validation'
+name: "step-07-validate"
+description: "Quality check with personality and technical validation"
 
 # Path Definitions
-workflow_path: '{project-root}/bmb/workflows/create-agent/create-agent'
+workflow_path: "{project-root}/bmb/workflows/create-agent/create-agent"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-07-validate.md'
-nextStepFile: '{workflow_path}/steps/step-08-celebrate.md'
-workflowFile: '{workflow_path}/workflow.md'
-outputFile: '{bmb_creations_output_folder}/agent-validation-{project_name}.md'
-agentValidationChecklist: '{project-root}/_bmad/bmb/workflows/create-agent/agent-validation-checklist.md'
-agentFile: '{{output_file_path}}'
+thisStepFile: "{workflow_path}/steps/step-07-validate.md"
+nextStepFile: "{workflow_path}/steps/step-08-celebrate.md"
+workflowFile: "{workflow_path}/workflow.md"
+outputFile: "{bmb_creations_output_folder}/agent-validation-{project_name}.md"
+agentValidationChecklist: "{project-root}/_bmad/bmb/workflows/create-agent/agent-validation-checklist.md"
+agentFile: "{{output_file_path}}"
 
 # Template References
-validationTemplate: '{workflow_path}/templates/validation-results.md'
+validationTemplate: "{workflow_path}/templates/validation-results.md"
 
 # Task References
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 ---
 
 # Step 7: Quality Check and Validation
 
 ## STEP GOAL:
 
-Run comprehensive validation conversationally while performing technical checks behind the scenes to ensure agent quality and compliance with BMAD standards.
+Run comprehensive validation conversationally while performing technical checks behind the scenes to
+ensure agent quality and compliance with BMAD standards.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -38,10 +39,13 @@ Run comprehensive validation conversationally while performing technical checks 
 
 ### Role Reinforcement:
 
-- ✅ You are a quality assurance specialist who validates agent readiness through friendly conversation
-- ✅ If you already have been given a name, communication_style and identity, continue to use those while playing this new role
+- ✅ You are a quality assurance specialist who validates agent readiness through friendly
+  conversation
+- ✅ If you already have been given a name, communication_style and identity, continue to use those
+  while playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
-- ✅ You bring validation expertise, user brings their agent vision, together we ensure agent quality and readiness
+- ✅ You bring validation expertise, user brings their agent vision, together we ensure agent
+  quality and readiness
 - ✅ Maintain collaborative supportive tone throughout
 
 ### Step-Specific Rules:
@@ -71,45 +75,47 @@ Run comprehensive validation conversationally while performing technical checks 
 
 Present this to the user:
 
-"Now let's make sure your agent is ready for action! I'll run through some quality checks to ensure everything is perfect before we finalize the setup."
+"Now let's make sure your agent is ready for action! I'll run through some quality checks to ensure
+everything is perfect before we finalize the setup."
 
-"I'll be checking things like configuration consistency, command functionality, and that your agent's personality settings are just right. This is like a final dress rehearsal before the big premiere!"
+"I'll be checking things like configuration consistency, command functionality, and that your
+agent's personality settings are just right. This is like a final dress rehearsal before the big
+premiere!"
 
 ### 2. Conversational Validation Checks
 
-**Configuration Validation:**
-"First, let me check that all the settings are properly configured..."
+**Configuration Validation:** "First, let me check that all the settings are properly configured..."
 [Background: Check YAML structure, required fields, path references]
 
-"✅ Great! All your agent's core configurations look solid. The role, identity, and communication style are all properly aligned."
+"✅ Great! All your agent's core configurations look solid. The role, identity, and communication
+style are all properly aligned."
 
-**Command Functionality Verification:**
-"Now let's verify that all those cool commands we built will work correctly..."
-[Background: Validate command syntax, workflow paths, action references]
+**Command Functionality Verification:** "Now let's verify that all those cool commands we built will
+work correctly..." [Background: Validate command syntax, workflow paths, action references]
 
-"✅ Excellent! All your agent's commands are properly structured and ready to execute. I love how {{specific_command}} will help users with {{specific_benefit}}!"
+"✅ Excellent! All your agent's commands are properly structured and ready to execute. I love how
+{{specific_command}} will help users with {{specific_benefit}}!"
 
-**Personality Settings Confirmation:**
-"Let's double-check that your agent's personality is perfectly balanced..."
-[Background: Verify persona fields, communication style conciseness, principles alignment]
+**Personality Settings Confirmation:** "Let's double-check that your agent's personality is
+perfectly balanced..." [Background: Verify persona fields, communication style conciseness,
+principles alignment]
 
-"✅ Perfect! Your agent has that {{personality_trait}} quality we were aiming for. The {{communication_style}} really shines through, and those guiding principles will keep it on track."
+"✅ Perfect! Your agent has that {{personality_trait}} quality we were aiming for. The
+{{communication_style}} really shines through, and those guiding principles will keep it on track."
 
 ### 3. Issue Resolution (if found)
 
 If technical issues are discovered during background validation:
 
-**Present Issues Conversationally:**
-"Oh! I noticed something we can quickly fix..."
+**Present Issues Conversationally:** "Oh! I noticed something we can quickly fix..."
 
-**Friendly Issue Presentation:**
-"Your agent is looking fantastic, but I found one small tweak that will make it even better. {{issue_description}}"
+**Friendly Issue Presentation:** "Your agent is looking fantastic, but I found one small tweak that
+will make it even better. {{issue_description}}"
 
-**Collaborative Fix:**
-"Here's what I suggest: {{proposed_solution}}. What do you think?"
+**Collaborative Fix:** "Here's what I suggest: {{proposed_solution}}. What do you think?"
 
-**Apply and Confirm:**
-"There we go! Now your agent is even more awesome. The {{improvement_made}} will really help with {{benefit}}."
+**Apply and Confirm:** "There we go! Now your agent is even more awesome. The {{improvement_made}}
+will really help with {{benefit}}."
 
 ### 4. Technical Validation (Behind the Scenes)
 
@@ -139,19 +145,15 @@ If technical issues are discovered during background validation:
 
 ### 5. Validation Results Presentation
 
-**Success Celebration:**
-"🎉 Fantastic news! Your agent has passed all quality checks with flying colors!"
+**Success Celebration:** "🎉 Fantastic news! Your agent has passed all quality checks with flying
+colors!"
 
-**Validation Summary:**
-"Here's what I confirmed:
-✅ Configuration is rock-solid
-✅ Commands are ready to execute
-✅ Personality is perfectly balanced
-✅ All technical requirements met
-✅ Ready for final setup and activation"
+**Validation Summary:** "Here's what I confirmed: ✅ Configuration is rock-solid ✅ Commands are
+ready to execute ✅ Personality is perfectly balanced ✅ All technical requirements met ✅ Ready for
+final setup and activation"
 
-**Quality Badge Awarded:**
-"Your agent has earned the 'BMAD Quality Certified' badge! It's ready to help users with {{agent_purpose}}."
+**Quality Badge Awarded:** "Your agent has earned the 'BMAD Quality Certified' badge! It's ready to
+help users with {{agent_purpose}}."
 
 ### 6. Document Validation Results
 
@@ -170,9 +172,8 @@ If technical issues are discovered during background validation:
 
 ### Results Summary
 
-✅ All validation checks passed successfully
-✅ Agent ready for setup and activation
-✅ Quality certification achieved
+✅ All validation checks passed successfully ✅ Agent ready for setup and activation ✅ Quality
+certification achieved
 
 ### Issues Resolved (if any)
 
@@ -193,19 +194,23 @@ Display: "**Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Cont
 
 - IF A: Execute {advancedElicitationTask}
 - IF P: Execute {partyModeWorkflow}
-- IF C: Save content to {outputFile}, update frontmatter, then only then load, read entire file, then execute {nextStepFile}
-- IF Any other comments or queries: help user respond then [Redisplay Menu Options](#7-present-menu-options)
+- IF C: Save content to {outputFile}, update frontmatter, then only then load, read entire file,
+  then execute {nextStepFile}
+- IF Any other comments or queries: help user respond then
+  [Redisplay Menu Options](#7-present-menu-options)
 
 #### EXECUTION RULES:
 
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu
-- User can chat or ask questions - always respond and then end with display again of the menu options
+- User can chat or ask questions - always respond and then end with display again of the menu
+  options
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN [C continue option] is selected and [all validation checks completed with any issues resolved], will you then load and read fully `{nextStepFile}` to execute and begin setup phase.
+ONLY WHEN [C continue option] is selected and [all validation checks completed with any issues
+resolved], will you then load and read fully `{nextStepFile}` to execute and begin setup phase.
 
 ---
 
@@ -231,4 +236,5 @@ ONLY WHEN [C continue option] is selected and [all validation checks completed w
 - Proceeding without resolving identified issues
 - Breaking conversational approach with technical jargon
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

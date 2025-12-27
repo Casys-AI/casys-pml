@@ -3,15 +3,15 @@
 > **⚠️ DEPRECATED (2025-12-23):** Ce spike est supersédé par
 > [2025-12-23-mcp-sampling-agent-nodes.md](./2025-12-23-mcp-sampling-agent-nodes.md)
 >
-> **Raison:** La spec MCP de novembre 2025 introduit "Sampling with Tools" (SEP-1577) qui permet
-> aux serveurs MCP de faire des boucles agentiques via le protocol standard. Cela rend obsolète
+> **Raison:** La spec MCP de novembre 2025 introduit "Sampling with Tools" (SEP-1577) qui permet aux
+> serveurs MCP de faire des boucles agentiques via le protocol standard. Cela rend obsolète
 > l'approche "spawn Claude instance" proposée ici.
 >
 > **Ce qui reste pertinent:** Les concepts de design (AgentDelegationTask, tool filtering, budget,
 > GraphRAG integration) restent valides et sont repris dans le nouveau spike.
 
-**Date:** 2025-11-23 **Author:** Claude (Sonnet 4.5) **Status:** ❌ DEPRECATED **Estimated
-Effort:** 2-3 days research + 5-7 days implementation **Risk Level:** 🟡 Medium
+**Date:** 2025-11-23 **Author:** Claude (Sonnet 4.5) **Status:** ❌ DEPRECATED **Estimated Effort:**
+2-3 days research + 5-7 days implementation **Risk Level:** 🟡 Medium
 
 ---
 

@@ -40,7 +40,10 @@ export function MetricCard({ label, value, color, trend, compact }: MetricCardPr
       class="p-3 rounded-lg transition-all duration-200"
       style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}
     >
-      <span class="block text-[10px] uppercase tracking-wider mb-1" style={{ color: "var(--text-dim)" }}>
+      <span
+        class="block text-[10px] uppercase tracking-wider mb-1"
+        style={{ color: "var(--text-dim)" }}
+      >
         {label}
       </span>
       <span

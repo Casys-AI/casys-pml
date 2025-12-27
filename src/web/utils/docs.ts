@@ -177,7 +177,7 @@ function addHeadingIds(html: string): string {
     (_match, tag, content) => {
       const id = generateHeadingId(content);
       return `<${tag} id="${id}">${content}</${tag}>`;
-    }
+    },
   );
 }
 
@@ -251,7 +251,7 @@ function fixInternalLinks(html: string): string {
       }
 
       return `href="/docs/${cleanPath}"`;
-    }
+    },
   );
 }
 

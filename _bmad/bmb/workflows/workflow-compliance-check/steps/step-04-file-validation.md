@@ -1,31 +1,32 @@
 ---
-name: 'step-04-file-validation'
-description: 'Validate file sizes, markdown formatting, and CSV data files'
+name: "step-04-file-validation"
+description: "Validate file sizes, markdown formatting, and CSV data files"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmb/workflows/workflow-compliance-check'
+workflow_path: "{project-root}/_bmad/bmb/workflows/workflow-compliance-check"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-04-file-validation.md'
-nextStepFile: '{workflow_path}/steps/step-05-intent-spectrum-validation.md'
-workflowFile: '{workflow_path}/workflow.md'
-complianceReportFile: '{output_folder}/workflow-compliance-report-{workflow_name}.md'
-targetWorkflowPath: '{target_workflow_path}'
+thisStepFile: "{workflow_path}/steps/step-04-file-validation.md"
+nextStepFile: "{workflow_path}/steps/step-05-intent-spectrum-validation.md"
+workflowFile: "{workflow_path}/workflow.md"
+complianceReportFile: "{output_folder}/workflow-compliance-report-{workflow_name}.md"
+targetWorkflowPath: "{target_workflow_path}"
 
 # Template References
-complianceReportTemplate: '{workflow_path}/templates/compliance-report.md'
+complianceReportTemplate: "{workflow_path}/templates/compliance-report.md"
 
 # Documentation References
-stepTemplate: '{project-root}/_bmad/bmb/docs/workflows/templates/step-template.md'
-workflowTemplate: '{project-root}/_bmad/bmb/docs/workflows/templates/workflow-template.md'
-csvStandards: '{project-root}/_bmad/bmb/docs/workflows/csv-data-file-standards.md'
+stepTemplate: "{project-root}/_bmad/bmb/docs/workflows/templates/step-template.md"
+workflowTemplate: "{project-root}/_bmad/bmb/docs/workflows/templates/workflow-template.md"
+csvStandards: "{project-root}/_bmad/bmb/docs/workflows/csv-data-file-standards.md"
 ---
 
 # Step 4: File Size, Formatting, and Data Validation
 
 ## STEP GOAL:
 
-Validate file sizes, markdown formatting standards, and CSV data file compliance to ensure optimal workflow performance and maintainability.
+Validate file sizes, markdown formatting standards, and CSV data file compliance to ensure optimal
+workflow performance and maintainability.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -39,7 +40,8 @@ Validate file sizes, markdown formatting standards, and CSV data file compliance
 ### Role Reinforcement:
 
 - ✅ You are a compliance validator and quality assurance specialist
-- ✅ If you already have been given a name, communication_style, and persona, continue to use those while playing this new role
+- ✅ If you already have been given a name, communication_style, and persona, continue to use those
+  while playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You bring file optimization and formatting validation expertise
 - ✅ User brings their workflow files and needs performance optimization
@@ -53,7 +55,8 @@ Validate file sizes, markdown formatting standards, and CSV data file compliance
 
 ## EXECUTION PROTOCOLS:
 
-- 🎯 Validate file sizes against optimal ranges (≤5K best, 5-7K good, 7-10K acceptable, 10-12K concern, >15K action required)
+- 🎯 Validate file sizes against optimal ranges (≤5K best, 5-7K good, 7-10K acceptable, 10-12K
+  concern, >15K action required)
 - 💾 Check markdown formatting standards and conventions
 - 📖 Validate CSV files against csv-data-file-standards.md when present
 - 🚫 FORBIDDEN to overlook file optimization opportunities
@@ -69,8 +72,7 @@ Validate file sizes, markdown formatting standards, and CSV data file compliance
 
 ### 1. Initialize File Validation Phase
 
-"Beginning **File Size, Formatting, and Data Validation**
-Target: `{target_workflow_name}`
+"Beginning **File Size, Formatting, and Data Validation** Target: `{target_workflow_name}`
 
 Analyzing workflow files for:
 
@@ -81,8 +83,7 @@ Analyzing workflow files for:
 
 ### 2. File Size Analysis
 
-**A. Step File Size Validation:**
-For each step file:
+**A. Step File Size Validation:** For each step file:
 
 "**File Size Analysis:** `{step_filename}`"
 
@@ -107,8 +108,7 @@ For each step file:
 
 ### 3. Markdown Formatting Validation
 
-**A. Heading Structure Analysis:**
-"**Markdown Formatting Analysis:**"
+**A. Heading Structure Analysis:** "**Markdown Formatting Analysis:**"
 
 For each file:
 
@@ -128,16 +128,13 @@ For each file:
 
 ### 4. CSV Data File Validation (if present)
 
-**A. Identify CSV Files:**
-"**CSV Data File Analysis:**"
-Check for CSV files in workflow directory:
+**A. Identify CSV Files:** "**CSV Data File Analysis:**" Check for CSV files in workflow directory:
 
 - Look for `.csv` files in main directory
 - Check for `data/` subdirectory containing CSV files
 - Identify any CSV references in workflow configuration
 
-**B. Validate Against Standards:**
-For each CSV file found, validate against `{csvStandards}`:
+**B. Validate Against Standards:** For each CSV file found, validate against `{csvStandards}`:
 
 **Purpose Validation:**
 
@@ -263,13 +260,16 @@ For each file with issues:
 
 ## Menu Handling Logic:
 
-- IF C: Save file validation findings to report, update frontmatter, then load, read entire file, then execute {nextStepFile}
+- IF C: Save file validation findings to report, update frontmatter, then load, read entire file,
+  then execute {nextStepFile}
 - IF X: Save current findings and end with guidance for resuming
 - IF Any other comments or queries: respond and redisplay menu
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN [C continue option] is selected and [all file sizes analyzed, markdown formatting validated, and CSV files checked against standards], will you then load and read fully `{nextStepFile}` to execute and begin Intent Spectrum Validation phase.
+ONLY WHEN [C continue option] is selected and [all file sizes analyzed, markdown formatting
+validated, and CSV files checked against standards], will you then load and read fully
+`{nextStepFile}` to execute and begin Intent Spectrum Validation phase.
 
 ---
 
@@ -292,4 +292,5 @@ ONLY WHEN [C continue option] is selected and [all file sizes analyzed, markdown
 - Missing performance impact assessment
 - Overlooking critical file size violations (>15K)
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

@@ -1,7 +1,7 @@
 # 08 - Migration & Backward Compatibility
 
-**Parent**: [00-overview.md](./00-overview.md)
-**Depends on**: [01-data-model.md](./01-data-model.md)
+**Parent**: [00-overview.md](./00-overview.md) **Depends on**:
+[01-data-model.md](./01-data-model.md)
 
 ---
 
@@ -18,14 +18,14 @@ function migrateCapabilityNode(
     children: string[];
     embedding: number[];
     successRate: number;
-  }
+  },
 ): CapabilityNode {
   return {
     id: legacy.id,
     embedding: legacy.embedding,
     members: [
-      ...legacy.toolsUsed.map(id => ({ type: 'tool' as const, id })),
-      ...legacy.children.map(id => ({ type: 'capability' as const, id })),
+      ...legacy.toolsUsed.map((id) => ({ type: "tool" as const, id })),
+      ...legacy.children.map((id) => ({ type: "capability" as const, id })),
     ],
     hierarchyLevel: 0, // Will be recomputed
     successRate: legacy.successRate,
@@ -47,11 +47,11 @@ class SHGAT {
     id: string,
     embedding: number[],
     toolsUsed: string[],
-    children: string[] = []
+    children: string[] = [],
   ): void {
     const members: Member[] = [
-      ...toolsUsed.map(tid => ({ type: 'tool' as const, id: tid })),
-      ...children.map(cid => ({ type: 'capability' as const, id: cid })),
+      ...toolsUsed.map((tid) => ({ type: "tool" as const, id: tid })),
+      ...children.map((cid) => ({ type: "capability" as const, id: cid })),
     ];
 
     this.addCapability(id, embedding, members);
@@ -64,7 +64,7 @@ class SHGAT {
     id: string,
     embedding: number[],
     members: Member[],
-    successRate: number = 0.5
+    successRate: number = 0.5,
   ): void {
     this.capabilityNodes.set(id, {
       id,
@@ -103,8 +103,8 @@ ALTER TABLE execution_trace ADD COLUMN hierarchy_levels JSONB;
 
 ```typescript
 interface ExecutionTrace {
-  path: string[];  // Tool IDs only
-  outcome: 'success' | 'failure';
+  path: string[]; // Tool IDs only
+  outcome: "success" | "failure";
   // ... other fields
 }
 ```
@@ -127,7 +127,7 @@ interface ExecutionTrace {
   taskResults?: TaskResult[];
   priority: number;
 
-  parentTraceId?: string | null;  // NEW: Link to parent trace in hierarchy
+  parentTraceId?: string | null; // NEW: Link to parent trace in hierarchy
 
   userId?: string;
   createdBy: string;
@@ -274,11 +274,13 @@ The hierarchical message passing **complements** trace-based learning:
 - **Trace features**: Captures behavioral patterns (success rates, co-occurrence, recency)
 
 **Both are necessary**:
+
 - Structure alone (v1) lacks historical context
 - Traces alone (v2) lack compositional understanding
 - Hybrid (v3) combines both for optimal performance
 
 **Hierarchy preservation**:
+
 - `parentTraceId` preserves hierarchy WITHOUT breaking existing `executedPath` format
 - Reconstruction is opt-in (only when needed for analytics/debugging)
 - Training and inference continue to use flat `executedPath` (unchanged)

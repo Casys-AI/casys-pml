@@ -25,7 +25,8 @@
 
 ## YOUR TASK:
 
-Analyze session context and recommend optimal brainstorming techniques based on user's specific goals and constraints.
+Analyze session context and recommend optimal brainstorming techniques based on user's specific
+goals and constraints.
 
 ## AI RECOMMENDATION SEQUENCE:
 
@@ -33,7 +34,8 @@ Analyze session context and recommend optimal brainstorming techniques based on 
 
 Load techniques from CSV for analysis:
 
-"Great choice! Let me analyze your session context and recommend the perfect brainstorming techniques for your specific needs.
+"Great choice! Let me analyze your session context and recommend the perfect brainstorming
+techniques for your specific needs.
 
 **Analyzing Your Session Goals:**
 
@@ -47,7 +49,8 @@ Load techniques from CSV for analysis:
 **Load CSV and parse:**
 
 - Read `brain-methods.csv`
-- Parse: category, technique_name, description, facilitation_prompts, best_for, energy_level, typical_duration
+- Parse: category, technique_name, description, facilitation_prompts, best_for, energy_level,
+  typical_duration
 
 ### 2. Context Analysis for Technique Matching
 
@@ -79,7 +82,7 @@ Analyze user's session context across multiple dimensions:
 
 - <30 min → 1-2 focused techniques
 - 30-60 min → 2-3 complementary techniques
-- > 60 min → Multi-phase technique flow
+- 60 min → Multi-phase technique flow
 
 ### 3. Generate Technique Recommendations
 
@@ -89,26 +92,26 @@ Based on context analysis, create tailored recommendations:
 
 Based on your session context, I recommend this customized technique sequence:
 
-**Phase 1: Foundation Setting**
-**[Technique Name]** from [Category] (Duration: [time], Energy: [level])
+**Phase 1: Foundation Setting** **[Technique Name]** from [Category] (Duration: [time], Energy:
+[level])
 
 - **Why this fits:** [Specific connection to user's goals/context]
 - **Expected outcome:** [What this will accomplish for their session]
 
-**Phase 2: Idea Generation**
-**[Technique Name]** from [Category] (Duration: [time], Energy: [level])
+**Phase 2: Idea Generation** **[Technique Name]** from [Category] (Duration: [time], Energy:
+[level])
 
 - **Why this builds on Phase 1:** [Complementary effect explanation]
 - **Expected outcome:** [How this develops the foundation]
 
-**Phase 3: Refinement & Action** (If time allows)
-**[Technique Name]** from [Category] (Duration: [time], Energy: [level])
+**Phase 3: Refinement & Action** (If time allows) **[Technique Name]** from [Category] (Duration:
+[time], Energy: [level])
 
 - **Why this concludes effectively:** [Final phase rationale]
 - **Expected outcome:** [How this leads to actionable results]
 
-**Total Estimated Time:** [Sum of durations]
-**Session Focus:** [Primary benefit and outcome description]"
+**Total Estimated Time:** [Sum of durations] **Session Focus:** [Primary benefit and outcome
+description]"
 
 ### 4. Present Recommendation Details
 
@@ -141,15 +144,14 @@ Provide deeper insight into each recommended technique:
 
 ### 5. Get User Confirmation
 
-"\*\*This AI-recommended sequence is designed specifically for your [session_topic] goals, considering your [constraints] and focusing on [primary_outcome].
+"\*\*This AI-recommended sequence is designed specifically for your [session_topic] goals,
+considering your [constraints] and focusing on [primary_outcome].
 
 **Does this approach sound perfect for your session?**
 
-**Options:**
-[C] Continue - Begin with these recommended techniques
-[Modify] - I'd like to adjust the technique selection
-[Details] - Tell me more about any specific technique
-[Back] - Return to approach selection
+**Options:** [C] Continue - Begin with these recommended techniques [Modify] - I'd like to adjust
+the technique selection [Details] - Tell me more about any specific technique [Back] - Return to
+approach selection
 
 ### 6. Handle User Response
 
@@ -189,8 +191,8 @@ stepsCompleted: [1, 2]
 ```markdown
 ## Technique Selection
 
-**Approach:** AI-Recommended Techniques
-**Analysis Context:** [session_topic] with focus on [session_goals]
+**Approach:** AI-Recommended Techniques **Analysis Context:** [session_topic] with focus on
+[session_goals]
 
 **Recommended Techniques:**
 
@@ -201,25 +203,21 @@ stepsCompleted: [1, 2]
 **AI Rationale:** [Content based on context analysis and matching logic]
 ```
 
-**Route to execution:**
-Load `./step-03-technique-execution.md`
+**Route to execution:** Load `./step-03-technique-execution.md`
 
 ## SUCCESS METRICS:
 
-✅ Session context analyzed thoroughly across multiple dimensions
-✅ Technique recommendations clearly matched to user's specific needs
-✅ Detailed explanations provided for each recommended technique
-✅ User confirmation obtained before proceeding to execution
-✅ Frontmatter updated with AI-recommended techniques
-✅ Proper routing to technique execution or back navigation
+✅ Session context analyzed thoroughly across multiple dimensions ✅ Technique recommendations
+clearly matched to user's specific needs ✅ Detailed explanations provided for each recommended
+technique ✅ User confirmation obtained before proceeding to execution ✅ Frontmatter updated with
+AI-recommended techniques ✅ Proper routing to technique execution or back navigation
 
 ## FAILURE MODES:
 
-❌ Generic recommendations without specific context analysis
-❌ Not explaining rationale behind technique selections
-❌ Missing option for user to modify or question recommendations
-❌ Not loading techniques from CSV for accurate recommendations
-❌ Not updating frontmatter with selected techniques
+❌ Generic recommendations without specific context analysis ❌ Not explaining rationale behind
+technique selections ❌ Missing option for user to modify or question recommendations ❌ Not loading
+techniques from CSV for accurate recommendations ❌ Not updating frontmatter with selected
+techniques
 
 ## AI RECOMMENDATION PROTOCOLS:
 
@@ -231,6 +229,8 @@ Load `./step-03-technique-execution.md`
 
 ## NEXT STEP:
 
-After user confirmation, load `./step-03-technique-execution.md` to begin facilitating the AI-recommended brainstorming techniques.
+After user confirmation, load `./step-03-technique-execution.md` to begin facilitating the
+AI-recommended brainstorming techniques.
 
-Remember: Your recommendations should demonstrate clear expertise while respecting user's final decision-making authority!
+Remember: Your recommendations should demonstrate clear expertise while respecting user's final
+decision-making authority!

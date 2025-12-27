@@ -24,7 +24,8 @@
 
 ## YOUR TASK:
 
-Initialize the brainstorming workflow by detecting continuation state and setting up session context.
+Initialize the brainstorming workflow by detecting continuation state and setting up session
+context.
 
 ## INITIALIZATION SEQUENCE:
 
@@ -71,10 +72,11 @@ cp "{template_path}" "{output_folder}/analysis/brainstorming-session-{{date}}.md
 
 #### C. Session Context Gathering
 
-"Welcome {{user_name}}! I'm excited to facilitate your brainstorming session. I'll guide you through proven creativity techniques to generate innovative ideas and breakthrough solutions.
+"Welcome {{user_name}}! I'm excited to facilitate your brainstorming session. I'll guide you through
+proven creativity techniques to generate innovative ideas and breakthrough solutions.
 
-**Context Loading:** [If context_file provided, indicate context is loaded]
-**Context-Based Guidance:** [If context available, briefly mention focus areas]
+**Context Loading:** [If context_file provided, indicate context is loaded] **Context-Based
+Guidance:** [If context available, briefly mention focus areas]
 
 **Let's set up your session for maximum creativity and productivity:**
 
@@ -87,8 +89,8 @@ cp "{template_path}" "{output_folder}/analysis/brainstorming-session-{{date}}.md
 
 Wait for user responses, then:
 
-**Session Analysis:**
-"Based on your responses, I understand we're focusing on **[summarized topic]** with goals around **[summarized objectives]**.
+**Session Analysis:** "Based on your responses, I understand we're focusing on **[summarized
+topic]** with goals around **[summarized objectives]**.
 
 **Session Parameters:**
 
@@ -119,8 +121,7 @@ Append to document:
 ```markdown
 ## Session Overview
 
-**Topic:** [session_topic]
-**Goals:** [session_goals]
+**Topic:** [session_topic] **Goals:** [session_goals]
 
 ### Context Guidance
 
@@ -133,17 +134,18 @@ _[Content based on conversation about session parameters and facilitator approac
 
 ## APPEND TO DOCUMENT:
 
-When user selects approach, append the session overview content directly to `{output_folder}/analysis/brainstorming-session-{{date}}.md` using the structure from above.
+When user selects approach, append the session overview content directly to
+`{output_folder}/analysis/brainstorming-session-{{date}}.md` using the structure from above.
 
 ### E. Continue to Technique Selection
 
-"**Session setup complete!** I have a clear understanding of your goals and can select the perfect techniques for your brainstorming needs.
+"**Session setup complete!** I have a clear understanding of your goals and can select the perfect
+techniques for your brainstorming needs.
 
-**Ready to explore technique approaches?**
-[1] User-Selected Techniques - Browse our complete technique library
-[2] AI-Recommended Techniques - Get customized suggestions based on your goals
-[3] Random Technique Selection - Discover unexpected creative methods
-[4] Progressive Technique Flow - Start broad, then systematically narrow focus
+**Ready to explore technique approaches?** [1] User-Selected Techniques - Browse our complete
+technique library [2] AI-Recommended Techniques - Get customized suggestions based on your goals [3]
+Random Technique Selection - Discover unexpected creative methods [4] Progressive Technique Flow -
+Start broad, then systematically narrow focus
 
 Which approach appeals to you most? (Enter 1-4)"
 
@@ -151,7 +153,8 @@ Which approach appeals to you most? (Enter 1-4)"
 
 #### When user selects approach number:
 
-- **Append initial session overview to `{output_folder}/analysis/brainstorming-session-{{date}}.md`**
+- **Append initial session overview to
+  `{output_folder}/analysis/brainstorming-session-{{date}}.md`**
 - **Update frontmatter:** `stepsCompleted: [1]`, `selected_approach: '[selected approach]'`
 - **Load the appropriate step-02 file** based on selection
 
@@ -166,20 +169,16 @@ After user selects approach number:
 
 ## SUCCESS METRICS:
 
-✅ Existing workflow detected and continuation handled properly
-✅ Fresh workflow initialized with correct document structure
-✅ Session context gathered and understood clearly
-✅ User's approach selection captured and routed correctly
-✅ Frontmatter properly updated with session state
-✅ Document initialized with session overview section
+✅ Existing workflow detected and continuation handled properly ✅ Fresh workflow initialized with
+correct document structure ✅ Session context gathered and understood clearly ✅ User's approach
+selection captured and routed correctly ✅ Frontmatter properly updated with session state ✅
+Document initialized with session overview section
 
 ## FAILURE MODES:
 
-❌ Not checking for existing document before creating new one
-❌ Missing continuation detection leading to duplicate work
-❌ Insufficient session context gathering
-❌ Not properly routing user's approach selection
-❌ Frontmatter not updated with session parameters
+❌ Not checking for existing document before creating new one ❌ Missing continuation detection
+leading to duplicate work ❌ Insufficient session context gathering ❌ Not properly routing user's
+approach selection ❌ Frontmatter not updated with session parameters
 
 ## SESSION SETUP PROTOCOLS:
 
@@ -191,6 +190,8 @@ After user selects approach number:
 
 ## NEXT STEPS:
 
-Based on user's approach selection, load the appropriate step-02 file for technique selection and facilitation.
+Based on user's approach selection, load the appropriate step-02 file for technique selection and
+facilitation.
 
-Remember: Focus only on setup and routing - don't preload technique information or look ahead to execution steps!
+Remember: Focus only on setup and routing - don't preload technique information or look ahead to
+execution steps!

@@ -16,7 +16,8 @@ common tool sequences and speculate effectively.
 2. `pml workflows sync` CLI command imports YAML → DB
 3. Entries marked with `source: 'user'` in `tool_dependency` table
 4. Auto-sync on startup if file changed (checksum comparison)
-5. Validation: unknown tools cause errors (strict validation - workflows must reference only existing tools in tool_schema)
+5. Validation: unknown tools cause errors (strict validation - workflows must reference only
+   existing tools in tool_schema)
 6. Bootstrap: if graph empty (0 edges), sync runs automatically
 7. Tests cover parsing, sync, and bootstrap scenarios
 
@@ -196,7 +197,7 @@ N/A
 | AC                                        | Status  | Evidence                                                                            |
 | ----------------------------------------- | ------- | ----------------------------------------------------------------------------------- |
 | AC #1: Simple YAML format                 | ✅ PASS | `config/workflow-templates.yaml` (55 lines), format: `workflows: [{name, steps[]}]` |
-| AC #2: `pml workflows sync` CLI    | ✅ PASS | `src/cli/commands/workflows.ts:45-99` - createSyncSubcommand()                      |
+| AC #2: `pml workflows sync` CLI           | ✅ PASS | `src/cli/commands/workflows.ts:45-99` - createSyncSubcommand()                      |
 | AC #3: `source='user'` in tool_dependency | ✅ PASS | `workflow-sync.ts:161-166` - INSERT with `source='user'`, confidence=0.90           |
 | AC #4: Auto-sync on checksum change       | ✅ PASS | `workflow-sync.ts:57-70` - needsSync() compares SHA-256 checksums                   |
 | AC #5: Unknown tools logged as warnings   | ✅ PASS | `workflow-loader.ts` - setKnownTools() + validate() with warnings array             |

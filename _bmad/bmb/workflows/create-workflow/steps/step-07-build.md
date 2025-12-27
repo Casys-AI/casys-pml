@@ -1,23 +1,23 @@
 ---
-name: 'step-07-build'
-description: 'Generate all workflow files based on the approved plan'
+name: "step-07-build"
+description: "Generate all workflow files based on the approved plan"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmb/workflows/create-workflow'
+workflow_path: "{project-root}/_bmad/bmb/workflows/create-workflow"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-07-build.md'
-nextStepFile: '{workflow_path}/steps/step-08-review.md'
-workflowFile: '{workflow_path}/workflow.md'
+thisStepFile: "{workflow_path}/steps/step-07-build.md"
+nextStepFile: "{workflow_path}/steps/step-08-review.md"
+workflowFile: "{workflow_path}/workflow.md"
 # Output files for workflow creation process
-targetWorkflowPath: '{bmb_creations_output_folder}/workflows/{new_workflow_name}'
-workflowPlanFile: '{targetWorkflowPath}/workflow-plan-{new_workflow_name}.md'
+targetWorkflowPath: "{bmb_creations_output_folder}/workflows/{new_workflow_name}"
+workflowPlanFile: "{targetWorkflowPath}/workflow-plan-{new_workflow_name}.md"
 
 # Template References
-workflowTemplate: '{project-root}/_bmad/bmb/docs/workflows/templates/workflow-template.md'
-stepTemplate: '{project-root}/_bmad/bmb/docs/workflows/templates/step-template.md'
-stepInitContinuableTemplate: '{project-root}/_bmad/bmb/docs/workflows/templates/step-01-init-continuable-template.md'
-step1bTemplate: '{project-root}/_bmad/bmb/docs/workflows/templates/step-1b-template.md'
+workflowTemplate: "{project-root}/_bmad/bmb/docs/workflows/templates/workflow-template.md"
+stepTemplate: "{project-root}/_bmad/bmb/docs/workflows/templates/step-template.md"
+stepInitContinuableTemplate: "{project-root}/_bmad/bmb/docs/workflows/templates/step-01-init-continuable-template.md"
+step1bTemplate: "{project-root}/_bmad/bmb/docs/workflows/templates/step-1b-template.md"
 # No content templates needed - will create content as needed during build
 # No build summary template needed - will append summary directly to workflow plan
 ---
@@ -26,7 +26,8 @@ step1bTemplate: '{project-root}/_bmad/bmb/docs/workflows/templates/step-1b-templ
 
 ## STEP GOAL:
 
-To generate all the workflow files (workflow.md, step files, templates, and supporting files) based on the approved plan from the previous design step.
+To generate all the workflow files (workflow.md, step files, templates, and supporting files) based
+on the approved plan from the previous design step.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -40,7 +41,8 @@ To generate all the workflow files (workflow.md, step files, templates, and supp
 ### Role Reinforcement:
 
 - ✅ You are a workflow architect and systems designer
-- ✅ If you already have been given communication or persona patterns, continue to use those while playing this new role
+- ✅ If you already have been given communication or persona patterns, continue to use those while
+  playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You bring implementation expertise and best practices
 - ✅ User brings their specific requirements and design approvals
@@ -68,18 +70,23 @@ To generate all the workflow files (workflow.md, step files, templates, and supp
 
 ## BUILD REFERENCE MATERIALS:
 
-- When building each step file, you must follow template `{project-root}/_bmad/bmb/docs/workflows/templates/step-template.md`
-- When building continuable step-01-init.md files, use template `{project-root}/_bmad/bmb/docs/workflows/templates/step-01-init-continuable-template.md`
-- When building continuation steps, use template `{project-root}/_bmad/bmb/docs/workflows/templates/step-1b-template.md`
-- When building the main workflow.md file, you must follow template `{project-root}/_bmad/bmb/docs/workflows/templates/workflow-template.md`
-- Example step files from {project-root}/\_bmad/bmb/reference/workflows/meal-prep-nutrition/workflow.md for patterns
+- When building each step file, you must follow template
+  `{project-root}/_bmad/bmb/docs/workflows/templates/step-template.md`
+- When building continuable step-01-init.md files, use template
+  `{project-root}/_bmad/bmb/docs/workflows/templates/step-01-init-continuable-template.md`
+- When building continuation steps, use template
+  `{project-root}/_bmad/bmb/docs/workflows/templates/step-1b-template.md`
+- When building the main workflow.md file, you must follow template
+  `{project-root}/_bmad/bmb/docs/workflows/templates/workflow-template.md`
+- Example step files from
+  {project-root}/\_bmad/bmb/reference/workflows/meal-prep-nutrition/workflow.md for patterns
 
 ## FILE GENERATION SEQUENCE:
 
 ### 1. Confirm Build Readiness
 
-Based on the approved plan, confirm:
-"I have your approved plan and I'm ready to generate the workflow files. The plan specifies creating:
+Based on the approved plan, confirm: "I have your approved plan and I'm ready to generate the
+workflow files. The plan specifies creating:
 
 - Main workflow.md file
 - [Number] step files
@@ -108,8 +115,8 @@ Create the workflow folder structure in the target location:
     └── [as needed]
 ```
 
-For bmb module, this will be: `_bmad/custom/src/workflows/{workflow_name}/`
-For other modules, check their module.yaml for custom_workflow_location
+For bmb module, this will be: `_bmad/custom/src/workflows/{workflow_name}/` For other modules, check
+their module.yaml for custom_workflow_location
 
 ### 3. Generate workflow.md
 
@@ -279,12 +286,14 @@ Display: **Build Complete - Select an Option:** [C] Continue to Review
 
 #### Menu Handling Logic:
 
-- IF C: Save build summary to {workflowPlanFile}, update frontmatter, then load, read entire file, then execute {nextStepFile}
+- IF C: Save build summary to {workflowPlanFile}, update frontmatter, then load, read entire file,
+  then execute {nextStepFile}
 - IF Any other comments or queries: respond and redisplay menu
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN C is selected and content is saved to plan and frontmatter is updated, will you then load, read entire file, then execute {nextStepFile} to execute and begin workflow review step.
+ONLY WHEN C is selected and content is saved to plan and frontmatter is updated, will you then load,
+read entire file, then execute {nextStepFile} to execute and begin workflow review step.
 
 ---
 
@@ -305,4 +314,5 @@ ONLY WHEN C is selected and content is saved to plan and frontmatter is updated,
 - Creating files with incorrect paths
 - Not updating plan frontmatter
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

@@ -1,9 +1,8 @@
 ## 📊 Daily Nutrition Targets
 
-**Daily Calories:** [calculated amount]
-**Protein:** [grams]g ([percentage]% of calories)
-**Carbohydrates:** [grams]g ([percentage]% of calories)
-**Fat:** [grams]g ([percentage]% of calories)
+**Daily Calories:** [calculated amount] **Protein:** [grams]g ([percentage]% of calories)
+**Carbohydrates:** [grams]g ([percentage]% of calories) **Fat:** [grams]g ([percentage]% of
+calories)
 
 ---
 

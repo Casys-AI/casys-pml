@@ -1,14 +1,15 @@
 # Story 7.4: DAGSuggester Extension - Mixed DAG (Tools + Capabilities)
 
-> **Epic:** 7 - Emergent Capabilities & Learning System
-> **ADRs:** ADR-027 (Execute Code Graph Learning), ADR-028 (Emergent Capabilities), ADR-038 (Scoring Algorithms Reference), ADR-041 (Hierarchical Trace Tracking)
-> **Prerequisites:** Story 7.3b (Capability Injection - DONE, 298 tests passing)
-> **Status:** done
-> **Review Date:** 2025-12-10 (Adversarial code review completed, all issues fixed)
+> **Epic:** 7 - Emergent Capabilities & Learning System **ADRs:** ADR-027 (Execute Code Graph
+> Learning), ADR-028 (Emergent Capabilities), ADR-038 (Scoring Algorithms Reference), ADR-041
+> (Hierarchical Trace Tracking) **Prerequisites:** Story 7.3b (Capability Injection - DONE, 298
+> tests passing) **Status:** done **Review Date:** 2025-12-10 (Adversarial code review completed,
+> all issues fixed)
 
 ## User Story
 
-As an AI agent, I want DAGs that include both MCP tools AND capabilities, So that I can reuse learned patterns in larger workflows.
+As an AI agent, I want DAGs that include both MCP tools AND capabilities, So that I can reuse
+learned patterns in larger workflows.
 
 ## Problem Context
 
@@ -36,7 +37,8 @@ Le systeme a maintenant:
    - `searchCapabilities(intent)` -> Delègue à CapabilityMatcher
    - `predictNextNodes()` -> Tools uniquement
 
-**MAIS:** `suggestDAG()` et `predictNextNodes()` ne retournent que des **tools**. Les capabilities ne sont jamais suggerees dans les DAGs.
+**MAIS:** `suggestDAG()` et `predictNextNodes()` ne retournent que des **tools**. Les capabilities
+ne sont jamais suggerees dans les DAGs.
 
 ```
 Current Flow:
@@ -57,6 +59,7 @@ suggestDAG(intent) -> [ tool1, capability1, tool2 ] // Mixed!
 ### Impact
 
 Sans mixed DAG:
+
 - Les capabilities apprises ne sont jamais suggerees automatiquement
 - Claude doit explicitement appeler `search_capabilities` puis integrer manuellement
 - Pas de suggestion proactive de capabilities dans les workflows
@@ -67,8 +70,8 @@ Sans mixed DAG:
 
 ### Algorithm (from ADR-038)
 
-**Mode:** Passive Suggestion (Implicit Context)
-**Formule:** `Score = ToolsOverlap * (1 + SpectralClusterBoost)`
+**Mode:** Passive Suggestion (Implicit Context) **Formule:**
+`Score = ToolsOverlap * (1 + SpectralClusterBoost)`
 
 ### Architecture
 
@@ -112,7 +115,8 @@ Sans mixed DAG:
 
 ### Spectral Clustering Integration
 
-Spectral Clustering identifie les "clusters" de tools qui travaillent souvent ensemble. Une capability qui utilise des tools du cluster actif est plus susceptible d'etre pertinente.
+Spectral Clustering identifie les "clusters" de tools qui travaillent souvent ensemble. Une
+capability qui utilise des tools du cluster actif est plus susceptible d'etre pertinente.
 
 ```typescript
 // Hypergraph Bipartite: Tools ↔ Capabilities
@@ -241,7 +245,8 @@ Spectral Clustering identifie les "clusters" de tools qui travaillent souvent en
       .sort((a, b) => b.confidence - a.confidence);
   }
   ```
-- [x] `PredictedNode.source` updated: `"community" | "co-occurrence" | "capability"` (removed "adamic-adar" per ADR-038)
+- [x] `PredictedNode.source` updated: `"community" | "co-occurrence" | "capability"` (removed
+      "adamic-adar" per ADR-038)
 
 ### AC6: execute_dag Updated for Mixed Tasks
 
@@ -267,14 +272,14 @@ Spectral Clustering identifie les "clusters" de tools qui travaillent souvent en
   logger.info("Spectral cluster identified", {
     activeCluster,
     contextTools,
-    boostFactor
+    boostFactor,
   });
 
   logger.info("Capability ranked", {
     capability_id,
     overlapScore,
     spectralBoost,
-    finalScore
+    finalScore,
   });
   ```
 - [x] Future: structured traces per ADR-039 format
@@ -373,10 +378,14 @@ Spectral Clustering identifie les "clusters" de tools qui travaillent souvent en
   - [x] 8.4 Test cycle detection in mixed DAGs
 
 - [x] **Task 9: Naming Convention Fix** (ADR-041 + implementation-patterns.md)
-  - [x] 9.1 Convert all trace types to camelCase: `traceId`, `parentTraceId`, `durationMs`, `capabilityId`
-  - [x] 9.2 Update `src/sandbox/types.ts` - BaseTraceEvent, CapabilityTraceEvent, RPCCallMessage, InitMessage
-  - [x] 9.3 Update `src/sandbox/sandbox-worker.ts` - TraceContext, __trace(), __rpcCall(), handleInit()
-  - [x] 9.4 Update `src/sandbox/worker-bridge.ts` - handleRPCCall(), execute(), BroadcastChannel handler
+  - [x] 9.1 Convert all trace types to camelCase: `traceId`, `parentTraceId`, `durationMs`,
+        `capabilityId`
+  - [x] 9.2 Update `src/sandbox/types.ts` - BaseTraceEvent, CapabilityTraceEvent, RPCCallMessage,
+        InitMessage
+  - [x] 9.3 Update `src/sandbox/sandbox-worker.ts` - TraceContext, __trace(), __rpcCall(),
+        handleInit()
+  - [x] 9.4 Update `src/sandbox/worker-bridge.ts` - handleRPCCall(), execute(), BroadcastChannel
+        handler
   - [x] 9.5 Update `src/graphrag/graph-engine.ts` - updateFromCodeExecution()
   - [x] 9.6 Update `src/capabilities/code-generator.ts` - generateInlineCode()
   - [x] 9.7 Update `src/capabilities/matcher.ts` - eventBus payload
@@ -407,14 +416,15 @@ Spectral Clustering identifie les "clusters" de tools qui travaillent souvent en
 
    ```typescript
    function calculateOverlap(capTools: string[], contextTools: string[]): number {
-     const intersection = capTools.filter(t => contextTools.includes(t));
+     const intersection = capTools.filter((t) => contextTools.includes(t));
      return intersection.length / capTools.length;
    }
    ```
 
 3. **Unified Ranking**
 
-   Tools use `finalScore` from hybrid search. Capabilities use `overlapScore * (1 + spectralBoost)`. Both scores are in [0, 1] range, so they're directly comparable.
+   Tools use `finalScore` from hybrid search. Capabilities use `overlapScore * (1 + spectralBoost)`.
+   Both scores are in [0, 1] range, so they're directly comparable.
 
 4. **Capability Execution in execute_dag**
 
@@ -454,12 +464,12 @@ Spectral Clustering identifie les "clusters" de tools qui travaillent souvent en
 
    ```typescript
    // Capability → Tools (the tools used by capability)
-   edge_type: "contains"   // Parent-child relationship
-   edge_source: "observed" // Confirmed by execution
+   edge_type: "contains"; // Parent-child relationship
+   edge_source: "observed"; // Confirmed by execution
 
    // Capability → Capability (cap calls another cap)
-   edge_type: "sequence"   // Temporal order learned from execution
-   edge_source: "inferred" // Until confirmed 3+ times → "observed"
+   edge_type: "sequence"; // Temporal order learned from execution
+   edge_source: "inferred"; // Until confirmed 3+ times → "observed"
    ```
 
 7. **Multiplicative Formula for Capabilities (ADR-038)**
@@ -475,6 +485,7 @@ Spectral Clustering identifie les "clusters" de tools qui travaillent souvent en
 ### Project Structure Notes
 
 **Files to Create:**
+
 ```
 src/graphrag/
 ├── spectral-clustering.ts   # NEW: SpectralClusteringManager (~150 LOC)
@@ -489,6 +500,7 @@ tests/integration/
 ```
 
 **Files to Modify:**
+
 ```
 src/graphrag/types.ts           # Extend DAGTask, PredictedNode
 src/graphrag/dag-suggester.ts   # Extend suggestDAG, predictNextNodes (~100 LOC)
@@ -499,17 +511,20 @@ src/mcp/controlled-executor.ts  # Add capability execution (~50 LOC)
 ### Existing Code Patterns to Follow
 
 **DAGSuggester.suggestDAG()** (`src/graphrag/dag-suggester.ts:112-218`):
+
 - Hybrid search for candidates
 - Rank by finalScore + PageRank
 - Build DAG using graph topology
 - Already has `contextTools` pattern
 
 **CapabilityStore.searchByIntent()** (`src/capabilities/capability-store.ts:251-274`):
+
 - Vector search pattern
 - Returns `{ capability, similarity }` array
 - Good pattern for `searchByContext()`
 
 **Controlled Executor Pattern** (`src/mcp/controlled-executor.ts`):
+
 - Task execution loop
 - Result handling and traces
 - Integration point for capability execution
@@ -554,7 +569,7 @@ const result = await this.workerBridge.execute(
   code,
   toolDefinitions,
   context,
-  capabilityContext // From 7.3b
+  capabilityContext, // From 7.3b
 );
 ```
 
@@ -609,13 +624,15 @@ f7f2a7d feat(capabilities): Story 7.3b - Capability injection with nested tracin
 **Decision (2025-12-09):** Full Spectral Clustering + Hypergraph PageRank using `ml-matrix`
 
 **Library:** `ml-matrix` (npm: ml-matrix, Deno compatible)
+
 - Matrix operations: multiplication, transpose, inverse
 - Eigendecomposition: `EigenvalueDecomposition` class
 - Well-maintained, TypeScript types available
 
 **Algorithm Implementation:**
+
 ```typescript
-import { Matrix, EigenvalueDecomposition } from "ml-matrix";
+import { EigenvalueDecomposition, Matrix } from "ml-matrix";
 
 // 1. Build bipartite adjacency matrix (tools × capabilities)
 // 2. Compute normalized Laplacian: L = I - D^(-1/2) × A × D^(-1/2)
@@ -625,6 +642,7 @@ import { Matrix, EigenvalueDecomposition } from "ml-matrix";
 ```
 
 **Why not Louvain fallback?**
+
 - Spectral Clustering better detects "soft" relations in bipartite hypergraphs
 - Hypergraph PageRank gives importance per capability (not available in Louvain)
 - ADR-038 specifies Spectral for capabilities explicitly
@@ -646,16 +664,16 @@ import { Matrix, EigenvalueDecomposition } from "ml-matrix";
 
 Summary of decisions made during story review before implementation:
 
-| Topic | Decision | Rationale |
-|-------|----------|-----------|
-| **Algorithms** | Spectral Clustering + Hypergraph PageRank (both) | Full implementation per ADR-038, not MVP |
-| **Library** | `ml-matrix` for eigendecomposition | Deno compatible, TypeScript types |
-| **Adamic-Adar** | ❌ Not used for capabilities | ToolsOverlap + Spectral sufficient (ADR-038) |
-| **PredictedNode.source** | `"community" \| "co-occurrence" \| "capability"` | Removed "adamic-adar" |
-| **Edge Cap→Tools** | `type: "contains"` (ADR-041) | Parent-child relationship |
-| **Edge Cap→Cap** | `type: "sequence"` (ADR-041) | Temporal order from execution |
-| **Formula** | `ToolsOverlap × (1 + SpectralBoost)` | Multiplicative (strict) per ADR-038 |
-| **Task 0** | Non-regression tests before coding | Ensure backward compatibility |
+| Topic                    | Decision                                         | Rationale                                    |
+| ------------------------ | ------------------------------------------------ | -------------------------------------------- |
+| **Algorithms**           | Spectral Clustering + Hypergraph PageRank (both) | Full implementation per ADR-038, not MVP     |
+| **Library**              | `ml-matrix` for eigendecomposition               | Deno compatible, TypeScript types            |
+| **Adamic-Adar**          | ❌ Not used for capabilities                     | ToolsOverlap + Spectral sufficient (ADR-038) |
+| **PredictedNode.source** | `"community" \| "co-occurrence" \| "capability"` | Removed "adamic-adar"                        |
+| **Edge Cap→Tools**       | `type: "contains"` (ADR-041)                     | Parent-child relationship                    |
+| **Edge Cap→Cap**         | `type: "sequence"` (ADR-041)                     | Temporal order from execution                |
+| **Formula**              | `ToolsOverlap × (1 + SpectralBoost)`             | Multiplicative (strict) per ADR-038          |
+| **Task 0**               | Non-regression tests before coding               | Ensure backward compatibility                |
 
 ---
 
@@ -699,24 +717,23 @@ Summary of decisions made during story review before implementation:
 
 ## Senior Developer Review (AI)
 
-**Reviewer:** BMad Senior Developer (Adversarial Review)
-**Date:** 2025-12-10
-**Outcome:** ✅ APPROVED (all issues fixed)
+**Reviewer:** BMad Senior Developer (Adversarial Review) **Date:** 2025-12-10 **Outcome:** ✅
+APPROVED (all issues fixed)
 
 ### Issues Found and Fixed
 
-| # | Issue | Severity | Resolution |
-|---|-------|----------|------------|
-| 1 | AC#8 HypergraphPageRank not integrated | HIGH | ✅ Fixed: Added PageRank scoring in `dag-suggester.ts:1446-1455` |
-| 2 | `getCapabilityToolsUsed()` returning empty array | MEDIUM | ✅ Fixed: Added `toolsUsed` field to Capability type, extract from dag_structure |
-| 3 | Missing ControlledExecutor integration test | MEDIUM | ✅ Fixed: Added 2 integration tests in `mixed_dag_integration_test.ts` |
-| 4 | AC#11 Checkpoint test incomplete | LOW | ✅ Fixed: Added checkpoint persistence test with capability result validation |
-| 5 | SQL array handling needs validation | LOW | ✅ Fixed: Added input validation in `searchByContext()` (max 256 chars, max 100 tools) |
-| 6 | ADR-038 formula misalignment (additive vs multiplicative) | MEDIUM | ✅ Fixed: `injectMatchingCapabilities()` now uses `overlap * (1 + boost)` |
-| 7 | Spectral clustering recomputed each call | LOW | ✅ Fixed: Added TTL-based cache (5 min) in `SpectralClusteringManager` |
-| 8 | `predictCapabilities()` missing spectral boost | MEDIUM | ✅ Fixed: Added cluster boost calculation per ADR-038 Strategic Discovery |
-| 9 | Test files missing permission documentation | LOW | ✅ Fixed: Added `@requires` JSDoc to test files |
-| 10 | `searchByContext()` missing edge case tests | LOW | ✅ Fixed: Added 3 edge case tests (empty, invalid, threshold) |
+| #  | Issue                                                     | Severity | Resolution                                                                             |
+| -- | --------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------- |
+| 1  | AC#8 HypergraphPageRank not integrated                    | HIGH     | ✅ Fixed: Added PageRank scoring in `dag-suggester.ts:1446-1455`                       |
+| 2  | `getCapabilityToolsUsed()` returning empty array          | MEDIUM   | ✅ Fixed: Added `toolsUsed` field to Capability type, extract from dag_structure       |
+| 3  | Missing ControlledExecutor integration test               | MEDIUM   | ✅ Fixed: Added 2 integration tests in `mixed_dag_integration_test.ts`                 |
+| 4  | AC#11 Checkpoint test incomplete                          | LOW      | ✅ Fixed: Added checkpoint persistence test with capability result validation          |
+| 5  | SQL array handling needs validation                       | LOW      | ✅ Fixed: Added input validation in `searchByContext()` (max 256 chars, max 100 tools) |
+| 6  | ADR-038 formula misalignment (additive vs multiplicative) | MEDIUM   | ✅ Fixed: `injectMatchingCapabilities()` now uses `overlap * (1 + boost)`              |
+| 7  | Spectral clustering recomputed each call                  | LOW      | ✅ Fixed: Added TTL-based cache (5 min) in `SpectralClusteringManager`                 |
+| 8  | `predictCapabilities()` missing spectral boost            | MEDIUM   | ✅ Fixed: Added cluster boost calculation per ADR-038 Strategic Discovery              |
+| 9  | Test files missing permission documentation               | LOW      | ✅ Fixed: Added `@requires` JSDoc to test files                                        |
+| 10 | `searchByContext()` missing edge case tests               | LOW      | ✅ Fixed: Added 3 edge case tests (empty, invalid, threshold)                          |
 
 ### Files Modified in Review (Final)
 
@@ -758,10 +775,10 @@ Story is **COMPLETE**. All acceptance criteria validated, all review issues fixe
 
 ## Change Log
 
-| Date | Author | Change |
-|------|--------|--------|
-| 2025-12-09 | Dev Agent | Initial implementation: Spectral clustering, DAGSuggester extension, mixed DAG types |
-| 2025-12-10 | BMad Review | Fixed Issues #1-2 (HypergraphPageRank, toolsUsed) |
-| 2025-12-10 | BMad Review | Fixed Issues #3-5, #7 (integration tests, input validation, caching) |
+| Date       | Author             | Change                                                                                                                           |
+| ---------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| 2025-12-09 | Dev Agent          | Initial implementation: Spectral clustering, DAGSuggester extension, mixed DAG types                                             |
+| 2025-12-10 | BMad Review        | Fixed Issues #1-2 (HypergraphPageRank, toolsUsed)                                                                                |
+| 2025-12-10 | BMad Review        | Fixed Issues #3-5, #7 (integration tests, input validation, caching)                                                             |
 | 2025-12-10 | Adversarial Review | Fixed Issues #6, #8: ADR-038 multiplicative formula alignment in both `injectMatchingCapabilities()` and `predictCapabilities()` |
-| 2025-12-10 | Adversarial Review | Fixed Issues #9, #10: Test permission docs, searchByContext edge case tests |
+| 2025-12-10 | Adversarial Review | Fixed Issues #9, #10: Test permission docs, searchByContext edge case tests                                                      |

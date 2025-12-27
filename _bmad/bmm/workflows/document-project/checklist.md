@@ -116,7 +116,8 @@
 - [ ] All existing docs linked from index (if found)
 - [ ] Getting started section provides clear next steps
 - [ ] AI-assisted development guidance included
-- [ ] Navigation structure matches project complexity (simple for single-part, detailed for multi-part)
+- [ ] Navigation structure matches project complexity (simple for single-part, detailed for
+      multi-part)
 
 ## File Completeness
 

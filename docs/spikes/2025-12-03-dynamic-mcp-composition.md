@@ -33,7 +33,7 @@ ADR-027 (Execute Code Graph Learning)
 
 ### Comparaison avec Docker
 
-| Aspect    | Docker (mcp-find/mcp-add)        | Casys PML                         |
+| Aspect    | Docker (mcp-find/mcp-add)        | Casys PML                          |
 | --------- | -------------------------------- | ---------------------------------- |
 | Discovery | Catalog lookup runtime           | **Semantic search** (embeddings)   |
 | Quand     | PENDANT exécution                | **AVANT** exécution                |

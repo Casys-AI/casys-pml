@@ -1,12 +1,11 @@
 # Spike: agent_delegate et MCP Sampling - Problème de Support Client
 
-**Date**: 2025-12-24
-**Status**: Investigation terminée
-**Auteur**: Claude + User
+**Date**: 2025-12-24 **Status**: Investigation terminée **Auteur**: Claude + User
 
 ## Contexte
 
-Test de `agent_delegate` via PML en mode stdio. L'outil est implémenté dans `lib/std/agent.ts` et utilise le protocole MCP `sampling/createMessage` pour déléguer des tâches à un LLM.
+Test de `agent_delegate` via PML en mode stdio. L'outil est implémenté dans `lib/std/agent.ts` et
+utilise le protocole MCP `sampling/createMessage` pour déléguer des tâches à un LLM.
 
 ## Problème Identifié
 
@@ -46,24 +45,27 @@ private setupSamplingRelay(): void {
 }
 ```
 
-**`this.server.createMessage` n'existe que si le client MCP (Claude Code) déclare supporter la capability `sampling` lors du handshake MCP.**
+**`this.server.createMessage` n'existe que si le client MCP (Claude Code) déclare supporter la
+capability `sampling` lors du handshake MCP.**
 
 Claude Code **ne supporte pas** `sampling/createMessage` (feature MCP de Nov 2025, SEP-1577).
 
 ## Impact
 
-| Mode | Transport | Sampling Support | Status |
-|------|-----------|------------------|--------|
-| stdio | Claude Code → PML | `server.createMessage` | ❌ Non supporté par Claude Code |
-| HTTP | Navigateur/API → PML | Nécessite BYOK | ❌ Pas de fallback implémenté |
+| Mode  | Transport            | Sampling Support       | Status                          |
+| ----- | -------------------- | ---------------------- | ------------------------------- |
+| stdio | Claude Code → PML    | `server.createMessage` | ❌ Non supporté par Claude Code |
+| HTTP  | Navigateur/API → PML | Nécessite BYOK         | ❌ Pas de fallback implémenté   |
 
-**Conclusion**: `agent_delegate` et tous les outils `agent_*` ne fonctionnent dans aucun mode actuellement.
+**Conclusion**: `agent_delegate` et tous les outils `agent_*` ne fonctionnent dans aucun mode
+actuellement.
 
 ## Architecture Existante
 
 ### Implémentation des outils agent (lib/std/agent.ts)
 
 8 outils implémentés:
+
 - `agent_delegate` - Délégation de sous-tâche avec tools
 - `agent_decide` - Décision booléenne ou choix multiple
 - `agent_analyze` - Analyse de données structurée
@@ -78,11 +80,13 @@ Tous utilisent `getSamplingClient()` qui appelle `sampling/createMessage`.
 ### Sampling Relay (src/mcp/sampling/)
 
 Le relay est implémenté et fonctionnel:
+
 - `SamplingRelay` reçoit les requêtes des child servers
 - Forward vers `createMessageFn` (si configuré)
 - Retourne la réponse au child
 
-Le problème est que `createMessageFn` n'est jamais configuré car `server.createMessage` n'existe pas.
+Le problème est que `createMessageFn` n'est jamais configuré car `server.createMessage` n'existe
+pas.
 
 ## Solutions Proposées
 
@@ -111,11 +115,13 @@ private setupSamplingRelay(): void {
 ```
 
 **Avantages**:
+
 - Fonctionne immédiatement avec `ANTHROPIC_API_KEY` dans `.env`
 - Compatible stdio et HTTP
 - Code BYOK existe déjà dans `playground/lib/llm-provider.ts`
 
 **Inconvénients**:
+
 - Coût API Anthropic
 - Latence supplémentaire (appel API externe)
 
@@ -144,6 +150,7 @@ await mcp.std.agent_delegate({ goal: "...", allowedTools: [...] })
 **Avantages**: Utilise les capacités natives de Claude Code
 
 **Inconvénients**:
+
 - Change l'API
 - Moins d'encapsulation
 - Plus de tokens consommés
@@ -151,6 +158,7 @@ await mcp.std.agent_delegate({ goal: "...", allowedTools: [...] })
 ## Recommandation
 
 **Implémenter Option 1 (BYOK Fallback)** car:
+
 1. Permet de tester `agent_delegate` immédiatement
 2. Nécessaire de toute façon pour le mode cloud/HTTP
 3. Code LLM provider existe déjà
@@ -170,7 +178,7 @@ await mcp.std.agent_delegate({ goal: "...", allowedTools: [...] })
 const result = await mcp.std.agent_delegate({
   goal: "Analyze the project structure",
   allowedTools: ["filesystem_*"],
-  maxIterations: 3
+  maxIterations: 3,
 });
 // → MCP error -32601: Method not found
 ```

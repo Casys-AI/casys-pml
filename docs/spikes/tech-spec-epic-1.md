@@ -710,13 +710,12 @@ Total query-to-schema latency: <200ms
 | **MCP server isolation**        | Each MCP server runs in separate subprocess (stdio isolation)                  | 1.3      |
 | **Input validation**            | All CLI args validated via cliffy, MCP responses validated against JSON Schema | 1.7, 1.3 |
 | **SQL injection prevention**    | Parameterized queries only (PGlite prepared statements)                        | 1.2      |
-| **Filesystem access control**   | Limited to `~/.pml/` directory for database/logs/config                 | 1.2, 1.8 |
+| **Filesystem access control**   | Limited to `~/.pml/` directory for database/logs/config                        | 1.2, 1.8 |
 
 **Security Implementation Details:**
 
 - **Deno Security Model (Story 1.1):**
-  - Explicit permissions required: `--allow-read=~/.pml`, `--allow-net` (for model download
-    only)
+  - Explicit permissions required: `--allow-read=~/.pml`, `--allow-net` (for model download only)
   - No `eval()` or `Function()` constructor usage
   - Import map restrictions: Only trusted npm packages via Deno's npm: prefix
 
@@ -741,7 +740,7 @@ Total query-to-schema latency: <200ms
 | Threat                     | Mitigation                                           | Priority |
 | -------------------------- | ---------------------------------------------------- | -------- |
 | Malicious MCP server       | Schema validation, subprocess isolation              | High     |
-| Path traversal attack      | Restrict filesystem access to ~/.pml/         | Medium   |
+| Path traversal attack      | Restrict filesystem access to ~/.pml/                | Medium   |
 | Memory exhaustion          | Model size limits, HNSW index size monitoring        | Medium   |
 | Dependency vulnerabilities | Deno's built-in security audit, minimal dependencies | High     |
 | SQL injection              | Parameterized queries only                           | High     |
@@ -1007,13 +1006,13 @@ Expected addition in Epic 2:
 
 **Integration Points:**
 
-| Integration               | Direction                | Protocol                                                     | Story         |
-| ------------------------- | ------------------------ | ------------------------------------------------------------ | ------------- |
+| Integration               | Direction               | Protocol                                                     | Story         |
+| ------------------------- | ----------------------- | ------------------------------------------------------------ | ------------- |
 | **MCP Servers**           | Casys PML → MCP Servers | stdio (stdin/stdout)                                         | 1.3           |
-| **Claude Desktop Config** | Read-only                | JSON file read (~/.config/Claude/claude_desktop_config.json) | 1.7           |
-| **PGlite Database**       | Internal                 | SQL queries (parameterized)                                  | 1.2           |
-| **BGE Model Cache**       | HuggingFace Hub          | HTTP download (first time only)                              | 1.4           |
-| **Filesystem**            | Read/Write               | Deno file APIs (~/.pml/ directory)                    | 1.2, 1.7, 1.8 |
+| **Claude Desktop Config** | Read-only               | JSON file read (~/.config/Claude/claude_desktop_config.json) | 1.7           |
+| **PGlite Database**       | Internal                | SQL queries (parameterized)                                  | 1.2           |
+| **BGE Model Cache**       | HuggingFace Hub         | HTTP download (first time only)                              | 1.4           |
+| **Filesystem**            | Read/Write              | Deno file APIs (~/.pml/ directory)                           | 1.2, 1.7, 1.8 |
 
 **External System Dependencies:**
 
@@ -1183,7 +1182,7 @@ component(s), and test verification strategy.
 | 1.6     | 5     | Before/after comparison                 | Observability (Metrics: context_usage_pct)                              | src/telemetry/metrics.ts                      | Integration test: Log metrics, verify comparison logged              |
 | 1.6     | 6     | Cache hit optimization                  | Performance (Context Budget Management)                                 | src/vector/search.ts                          | Unit test: Repeat query, verify cache behavior                       |
 | 1.6     | 7     | <200ms P95 latency                      | Performance (Query-to-Schema Latency)                                   | tests/benchmark/context_optimization_bench.ts | Benchmark test: End-to-end P95 measurement                           |
-| **1.7** | **1** | **pml init command**             | **APIs (CLI Commands), Workflows (Workflow 1)**                         | **src/cli/commands/init.ts**                  | **Integration test: Run CLI, verify command executes**               |
+| **1.7** | **1** | **pml init command**                    | **APIs (CLI Commands), Workflows (Workflow 1)**                         | **src/cli/commands/init.ts**                  | **Integration test: Run CLI, verify command executes**               |
 | 1.7     | 2     | Auto-detect config path                 | Workflows (Workflow 1, step 1)                                          | src/cli/commands/init.ts                      | Unit test: Mock OS, verify correct path detection                    |
 | 1.7     | 3     | Parse mcp.json                          | Workflows (Workflow 1, step 2)                                          | src/config/loader.ts                          | Unit test: Sample mcp.json, verify parsing                           |
 | 1.7     | 4     | Generate config.yaml                    | APIs (ConfigAPI.save), Workflows (Workflow 1, step 3)                   | src/config/loader.ts                          | Integration test: Parse + generate, verify YAML output               |

@@ -4,7 +4,8 @@
 
 <critical>Communicate in {communication_language}, tailored to {user_skill_level}</critical>
 <critical>Generate documents in {document_output_language}</critical>
-<critical>Conversational spec engineering - ask questions, investigate code, produce complete spec</critical>
+<critical>Conversational spec engineering - ask questions, investigate code, produce complete
+spec</critical>
 <critical>Spec must contain ALL context a fresh dev agent needs to implement it</critical>
 
 <checkpoint-handlers>
@@ -17,7 +18,8 @@
 
 <action>Greet {user_name} and ask them to describe what they want to build or change.</action>
 
-<action>Ask clarifying questions: problem, who's affected, scope, constraints, existing code?</action>
+<action>Ask clarifying questions: problem, who's affected, scope, constraints, existing
+code?</action>
 
 <action>Check for existing context in {output_folder} and {sprint_artifacts}</action>
 
@@ -29,7 +31,8 @@
 
 <step n="2" goal="Investigate existing code (if applicable)">
 
-<action>If brownfield: get file paths, read code, identify patterns/conventions/dependencies</action>
+<action>If brownfield: get file paths, read code, identify
+patterns/conventions/dependencies</action>
 
 <action>Document: tech stack, code patterns, files to modify, test patterns</action>
 
@@ -46,8 +49,7 @@
 ```markdown
 # Tech-Spec: {title}
 
-**Created:** {date}
-**Status:** Ready for Development
+**Created:** {date} **Status:** Ready for Development
 
 ## Overview
 
@@ -100,10 +102,8 @@
 
 Saved to: {sprint_artifacts}/tech-spec-{slug}.md
 
-[a] Advanced Elicitation - refine further
-[b] Begin Development (not recommended - fresh context better)
-[d] Done - exit
-[p] Party Mode - get feedback
+[a] Advanced Elicitation - refine further [b] Begin Development (not recommended - fresh context
+better) [d] Done - exit [p] Party Mode - get feedback
 
 **Recommended:** Run `dev-spec {sprint_artifacts}/tech-spec-{slug}.md` in fresh context.
 </output>

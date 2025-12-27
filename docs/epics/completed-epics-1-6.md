@@ -324,8 +324,8 @@ interact with all my MCP servers via a single entry point.
 
 **Story 2.5: Health Checks & MCP Server Monitoring**
 
-As a developer, I want Casys PML to monitor MCP server health et report issues, So that I know
-which servers are down or misconfigured.
+As a developer, I want Casys PML to monitor MCP server health et report issues, So that I know which
+servers are down or misconfigured.
 
 **Acceptance Criteria:**
 
@@ -799,10 +799,11 @@ ensemble dans leurs workflows.
 
 > ADR-036 - Added 2025-12-08, requires Story 7.3b completion
 
-As a dashboard user, I want all system events (tools, DAG, graph, capabilities) streamed in real-time
-via a unified EventBus, So that I can monitor execution live without polling.
+As a dashboard user, I want all system events (tools, DAG, graph, capabilities) streamed in
+real-time via a unified EventBus, So that I can monitor execution live without polling.
 
 **Key Deliverables:**
+
 - Unified EventBus singleton using BroadcastChannel
 - Migration of all event sources (tools, DAG, graph, capabilities)
 - SSE Handler refactored to consume via EventBus

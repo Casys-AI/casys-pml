@@ -1,25 +1,28 @@
 # ADR-043: All Tools Must Succeed for Capability Save
 
-**Status:** Accepted
-**Date:** 2025-12-13
-**Related:** ADR-027 (Execute Code Graph Learning), ADR-041 (Hierarchical Traces), Story 7.2a
+**Status:** Accepted **Date:** 2025-12-13 **Related:** ADR-027 (Execute Code Graph Learning),
+ADR-041 (Hierarchical Traces), Story 7.2a
 
 ## Context
 
-Lors de l'exécution de code via PML (`execute_code`), le système utilise **eager learning** pour sauvegarder les capabilities après chaque exécution réussie (Story 7.2a).
+Lors de l'exécution de code via PML (`execute_code`), le système utilise **eager learning** pour
+sauvegarder les capabilities après chaque exécution réussie (Story 7.2a).
 
-Cependant, un workflow peut utiliser plusieurs MCP tools, et certains peuvent échouer (serveur non connecté, timeout, erreur d'API) pendant que d'autres réussissent.
+Cependant, un workflow peut utiliser plusieurs MCP tools, et certains peuvent échouer (serveur non
+connecté, timeout, erreur d'API) pendant que d'autres réussissent.
 
 ### Problème observé
 
-Un workflow appelant 4 tools (Gmail, Google Maps, Memory, Notion) a été sauvegardé avec seulement 2 tools dans `tools_used` car :
+Un workflow appelant 4 tools (Gmail, Google Maps, Memory, Notion) a été sauvegardé avec seulement 2
+tools dans `tools_used` car :
 
 1. `gmail:get_profile` → erreur "MCP server not connected"
 2. `google_maps:text_search` → erreur "MCP server not connected"
 3. `memory:search_nodes` → succès ✓
 4. `notion:notion-get-user` → erreur "server undefined"
 
-Le code actuel (`getToolsCalled()`) ne gardait que les tools avec `success: true`, créant une capability **incohérente** :
+Le code actuel (`getToolsCalled()`) ne gardait que les tools avec `success: true`, créant une
+capability **incohérente** :
 
 - Le `code_snippet` stocké contient les 4 appels tools
 - Le `tools_used` ne contient qu'un sous-ensemble
@@ -29,12 +32,12 @@ Le code actuel (`getToolsCalled()`) ne gardait que les tools avec `success: true
 
 Cette incohérence crée plusieurs problèmes :
 
-| Impact | Description |
-|--------|-------------|
+| Impact                  | Description                                               |
+| ----------------------- | --------------------------------------------------------- |
 | **Visualisation graph** | La capability montre 1-2 tools au lieu de 4 dans le graph |
-| **Semantic matching** | La recherche par tools overlap rate mal le workflow |
-| **Reproductibilité** | Réexécuter le code ne produit pas les mêmes résultats |
-| **Debugging** | Difficile de comprendre pourquoi un workflow échoue |
+| **Semantic matching**   | La recherche par tools overlap rate mal le workflow       |
+| **Reproductibilité**    | Réexécuter le code ne produit pas les mêmes résultats     |
+| **Debugging**           | Difficile de comprendre pourquoi un workflow échoue       |
 
 ## Decision
 
@@ -73,11 +76,11 @@ if (result.success && this.capabilityStore && this.lastIntent && !hasToolFailure
 
 ### Comportement résultant
 
-| Scénario | Résultat |
-|----------|----------|
-| Tous les tools réussissent | Capability sauvegardée avec tous les tools |
-| Un ou plusieurs tools échouent | Capability **non sauvegardée**, log informatif |
-| Code sans tools MCP | Capability sauvegardée (executor.ts, `toolsUsed: []`) |
+| Scénario                       | Résultat                                              |
+| ------------------------------ | ----------------------------------------------------- |
+| Tous les tools réussissent     | Capability sauvegardée avec tous les tools            |
+| Un ou plusieurs tools échouent | Capability **non sauvegardée**, log informatif        |
+| Code sans tools MCP            | Capability sauvegardée (executor.ts, `toolsUsed: []`) |
 
 ### Logging
 
@@ -109,8 +112,10 @@ Quand une capability n'est pas sauvegardée à cause d'échecs tools :
 ### Mitigation
 
 - Les traces d'exécution sont toujours stockées (pour debugging)
-- GraphRAG peut toujours apprendre des patterns tool→tool même si la capability n'est pas sauvegardée
-- Un futur flag `--allow-partial` pourrait permettre de sauvegarder les capabilities partielles (non implémenté)
+- GraphRAG peut toujours apprendre des patterns tool→tool même si la capability n'est pas
+  sauvegardée
+- Un futur flag `--allow-partial` pourrait permettre de sauvegarder les capabilities partielles (non
+  implémenté)
 
 ## Files Changed
 
@@ -127,7 +132,8 @@ Quand une capability n'est pas sauvegardée à cause d'échecs tools :
 
 ### Surfacing Tool Failures to Agent
 
-Même si le code JavaScript "réussit" (grâce aux try/catch), les échecs de tools sont maintenant explicitement surfacés dans la réponse:
+Même si le code JavaScript "réussit" (grâce aux try/catch), les échecs de tools sont maintenant
+explicitement surfacés dans la réponse:
 
 ```json
 {
@@ -140,7 +146,8 @@ Même si le code JavaScript "réussit" (grâce aux try/catch), les échecs de to
 }
 ```
 
-L'agent voit ainsi clairement quels tools ont échoué, même si `result` contient des données partielles.
+L'agent voit ainsi clairement quels tools ont échoué, même si `result` contient des données
+partielles.
 
 ## Test Cases
 
@@ -150,10 +157,13 @@ it("should not save capability when any tool fails", async () => {
   const bridge = new WorkerBridge(/* with capabilityStore */);
 
   // Execute code that calls 2 tools, 1 fails
-  await bridge.executeCode(`
+  await bridge.executeCode(
+    `
     await mcp.memory.search_nodes({ query: "test" }); // succeeds
     await mcp.gmail.get_profile({}); // fails - not connected
-  `, { intent: "test workflow" });
+  `,
+    { intent: "test workflow" },
+  );
 
   // Verify capability was NOT saved
   expect(capabilityStore.saveCapability).not.toHaveBeenCalled();
@@ -162,15 +172,18 @@ it("should not save capability when any tool fails", async () => {
 // Test: Capability saved when all tools succeed
 it("should save capability when all tools succeed", async () => {
   // ... setup all tools to succeed
-  await bridge.executeCode(`
+  await bridge.executeCode(
+    `
     await mcp.memory.search_nodes({ query: "test" });
     await mcp.memory.create_entities({ entities: [...] });
-  `, { intent: "memory workflow" });
+  `,
+    { intent: "memory workflow" },
+  );
 
   expect(capabilityStore.saveCapability).toHaveBeenCalledWith(
     expect.objectContaining({
       toolsUsed: ["memory:search_nodes", "memory:create_entities"],
-    })
+    }),
   );
 });
 ```

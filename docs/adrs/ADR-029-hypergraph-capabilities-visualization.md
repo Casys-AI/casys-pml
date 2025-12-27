@@ -1,11 +1,9 @@
 # ADR-029: Hypergraph Capabilities Visualization
 
-**Status:** ✅ Accepted (Superseded Decision)
-**Date:** 2025-12-04
-**Updated:** 2025-12-11
+**Status:** ✅ Accepted (Superseded Decision) **Date:** 2025-12-04 **Updated:** 2025-12-11
 
-> **Note:** The original decision chose Cytoscape.js compound graphs. After implementation,
-> we migrated to D3.js for better hyperedge support. See [Migration Notes](#migration-notes).
+> **Note:** The original decision chose Cytoscape.js compound graphs. After implementation, we
+> migrated to D3.js for better hyperedge support. See [Migration Notes](#migration-notes).
 
 ## Context
 
@@ -221,10 +219,10 @@ suivantes:
 
 ### Rationale (Updated December 2024)
 
-1. **Hyperedge Support:** Cytoscape.js compound nodes **ne supportent pas plusieurs parents**.
-   Un node enfant ne peut avoir qu'un seul parent, ce qui rend impossible la représentation
-   d'un tool partagé entre plusieurs capabilities. D3.js permet de dessiner manuellement des
-   liens multiples (hyperedges) sans cette limitation.
+1. **Hyperedge Support:** Cytoscape.js compound nodes **ne supportent pas plusieurs parents**. Un
+   node enfant ne peut avoir qu'un seul parent, ce qui rend impossible la représentation d'un tool
+   partagé entre plusieurs capabilities. D3.js permet de dessiner manuellement des liens multiples
+   (hyperedges) sans cette limitation.
 2. **Performance:** SVG-based rendering plus performant pour graphes dynamiques
 3. **Flexibilité:** Contrôle total sur le layout force-directed (d3-force)
 4. **Zoom/Pan natif:** d3-zoom offre une UX fluide
@@ -401,24 +399,27 @@ interface HypergraphResponse {
 **Commit:** `cb15d9e`
 
 **Files Changed:**
+
 - `src/web/islands/GraphVisualization.tsx` → Deleted (Cytoscape implementation)
 - `src/web/islands/D3GraphVisualization.tsx` → New (D3.js implementation)
 - `src/web/routes/dashboard.tsx` → Updated CDN from Cytoscape to D3.js
 - `src/capabilities/types.ts` → Added `GraphNode`/`GraphEdge` aliases
 
 **Key Differences:**
-| Aspect | Cytoscape.js | D3.js |
-|--------|--------------|-------|
-| Rendering | Canvas | SVG |
-| Layout | Built-in (cose) | d3-force |
-| Zoom/Pan | Built-in | d3-zoom |
-| Compound Nodes | Native support | Manual grouping |
-| Edge Markers | Built-in | SVG markers |
+
+| Aspect         | Cytoscape.js    | D3.js           |
+| -------------- | --------------- | --------------- |
+| Rendering      | Canvas          | SVG             |
+| Layout         | Built-in (cose) | d3-force        |
+| Zoom/Pan       | Built-in        | d3-zoom         |
+| Compound Nodes | Native support  | Manual grouping |
+| Edge Markers   | Built-in        | SVG markers     |
 
 **Why D3.js:**
-- **Critical:** Cytoscape.js compound nodes do NOT support multiple parents. A tool can only
-  belong to ONE capability in Cytoscape, but our data model requires tools to be shared across
-  multiple capabilities (hyperedges).
+
+- **Critical:** Cytoscape.js compound nodes do NOT support multiple parents. A tool can only belong
+  to ONE capability in Cytoscape, but our data model requires tools to be shared across multiple
+  capabilities (hyperedges).
 - D3.js allows manual hyperedge rendering where a tool node can visually connect to N capabilities
 - SVG allows per-element styling and interaction
 - d3-force more customizable for complex layouts

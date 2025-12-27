@@ -1,20 +1,20 @@
 # Operation Embeddings for SHGAT Learning
 
-**Created:** 2025-12-27
-**Status:** Implemented
-**Phase:** 2a - DAG Optimizer Integration
+**Created:** 2025-12-27 **Status:** Implemented **Phase:** 2a - DAG Optimizer Integration
 
 ---
 
 ## Overview
 
-This document describes how pure code operations (`code:filter`, `code:map`, etc.) are represented as semantic embeddings for SHGAT (Symbolic Hypergraph Attention) learning.
+This document describes how pure code operations (`code:filter`, `code:map`, etc.) are represented
+as semantic embeddings for SHGAT (Symbolic Hypergraph Attention) learning.
 
 ### Problem
 
 Prior to this implementation, pseudo-tools had **inconsistent representation** in the graph:
 
-- **MCP tools** (`github:create_issue`, `filesystem:read`) → Had embeddings in `tool_embedding` table
+- **MCP tools** (`github:create_issue`, `filesystem:read`) → Had embeddings in `tool_embedding`
+  table
 - **Pseudo-tools** (`code:filter`, `code:map`) → **NO embeddings**, only symbolic strings
 
 This created two issues:
@@ -95,9 +95,9 @@ External MCP tools with **potential side effects**:
 1. **Semantic Clarity**: Clear distinction between pure code vs external I/O
 2. **Filterable Queries**:
    ```typescript
-   graph.getNodesByType("operation")  // Only pure operations
-   graph.getNodesByType("tool")       // Only MCP tools
-   graph.getNodesByCategory("array")  // Only array operations
+   graph.getNodesByType("operation"); // Only pure operations
+   graph.getNodesByType("tool"); // Only MCP tools
+   graph.getNodesByCategory("array"); // Only array operations
    ```
 3. **SHGAT Learning**: Different patterns for pure chains vs I/O chains
 4. **Future Optimization**: Operations can be fused, tools cannot
@@ -107,6 +107,7 @@ External MCP tools with **potential side effects**:
 **Input**: Rich semantic descriptions from `operation-descriptions.ts`
 
 **Example** (`code:filter`):
+
 ```
 "Filter array elements by removing items that don't match a predicate condition.
 Returns new array with only elements where callback returns true.
@@ -114,11 +115,13 @@ Common for data selection, conditional filtering, and subset extraction."
 ```
 
 **Process**:
+
 1. Load BGE-M3 model (`@huggingface/transformers`)
 2. Encode description → 1024-dimensional vector
 3. Store in `tool_embedding` table with metadata
 
 **Storage** (`tool_embedding` schema):
+
 ```sql
 INSERT INTO tool_embedding (
   tool_id,        -- "code:filter"
@@ -138,6 +141,7 @@ With embeddings, SHGAT now uses **two complementary signals**:
 ### 1. Topological Structure (Graph Edges)
 
 Learns **co-occurrence patterns**:
+
 ```
 code:filter → code:map  (weight: 0.8, observed 20 times)
 code:map → code:reduce  (weight: 0.9, observed 30 times)
@@ -146,6 +150,7 @@ code:map → code:reduce  (weight: 0.9, observed 30 times)
 ### 2. Semantic Similarity (Node Embeddings)
 
 Learns **operation semantics**:
+
 ```python
 similarity("code:filter", "code:find") = 0.87  # Both are selection
 similarity("code:map", "code:flatMap") = 0.92  # Both are transformation
@@ -169,15 +174,15 @@ SHGAT reasoning:
 
 ### Files
 
-| File | Purpose |
-|------|---------|
-| `src/capabilities/operation-descriptions.ts` | Semantic descriptions (62 operations) + `getOperationCategory()` helper |
-| `scripts/seed-operation-embeddings.ts` | Generate and insert embeddings |
-| `src/capabilities/pure-operations.ts` | List of pure operations |
-| `src/graphrag/types.ts` | TypeScript types for `OperationNode` vs `ToolNode` |
-| `src/graphrag/dag/execution-learning.ts` | Creates nodes with `type="operation"` for code operations |
-| `src/graphrag/sync/db-sync.ts` | Loads nodes from DB with correct type distinction |
-| `tests/unit/graphrag/execution-learning.test.ts` | Unit tests for operation vs tool distinction |
+| File                                             | Purpose                                                                 |
+| ------------------------------------------------ | ----------------------------------------------------------------------- |
+| `src/capabilities/operation-descriptions.ts`     | Semantic descriptions (62 operations) + `getOperationCategory()` helper |
+| `scripts/seed-operation-embeddings.ts`           | Generate and insert embeddings                                          |
+| `src/capabilities/pure-operations.ts`            | List of pure operations                                                 |
+| `src/graphrag/types.ts`                          | TypeScript types for `OperationNode` vs `ToolNode`                      |
+| `src/graphrag/dag/execution-learning.ts`         | Creates nodes with `type="operation"` for code operations               |
+| `src/graphrag/sync/db-sync.ts`                   | Loads nodes from DB with correct type distinction                       |
+| `tests/unit/graphrag/execution-learning.test.ts` | Unit tests for operation vs tool distinction                            |
 
 ### Semantic Descriptions
 
@@ -193,6 +198,7 @@ Each operation has:
 ```
 
 **Description principles**:
+
 - **What** the operation does (transformation, filtering, aggregation)
 - **How** it works (element-wise, conditional, accumulative)
 - **Purpose** (common use cases)
@@ -205,6 +211,7 @@ deno run --allow-all scripts/seed-operation-embeddings.ts
 ```
 
 **Output**:
+
 ```
 🌱 Seeding operation embeddings for SHGAT learning
 🤖 Loading BGE-M3 embedding model...
@@ -268,7 +275,8 @@ for (const tool of tools) {
 }
 ```
 
-**Result**: All code operations (`code:*`) are consistently represented as `type="operation"` throughout the system.
+**Result**: All code operations (`code:*`) are consistently represented as `type="operation"`
+throughout the system.
 
 ---
 
@@ -317,7 +325,7 @@ With operation embeddings, the DAG Optimizer now generates **semantically-enrich
 ### Before (Symbols Only)
 
 ```typescript
-executedPath: ["code:filter", "code:map", "code:reduce"]
+executedPath: ["code:filter", "code:map", "code:reduce"];
 // SHGAT learns: Exact symbolic pattern
 // No generalization to similar operations
 ```
@@ -325,7 +333,7 @@ executedPath: ["code:filter", "code:map", "code:reduce"]
 ### After (Symbols + Embeddings)
 
 ```typescript
-executedPath: ["code:filter", "code:map", "code:reduce"]
+executedPath: ["code:filter", "code:map", "code:reduce"];
 // SHGAT learns:
 // 1. Symbolic pattern (exact match)
 // 2. Semantic pattern (selection → transformation → aggregation)
@@ -355,13 +363,13 @@ Combine **code structure + semantics**:
 
 ```typescript
 // Text embedding (current)
-text_emb = encode("Filter array elements...")
+text_emb = encode("Filter array elements...");
 
 // Code structure embedding (future)
-struct_emb = encode_ast(parse("arr.filter(x => x.active)"))
+struct_emb = encode_ast(parse("arr.filter(x => x.active)"));
 
 // Combined
-operation_emb = concat(text_emb, struct_emb)
+operation_emb = concat(text_emb, struct_emb);
 ```
 
 ---
@@ -405,6 +413,7 @@ const result = await graphEngine.searchToolsHybrid("select items", {
 ### Adding New Operations
 
 1. **Add description** to `operation-descriptions.ts`:
+
 ```typescript
 {
   toolId: "code:newOp",
@@ -415,11 +424,13 @@ const result = await graphEngine.searchToolsHybrid("select items", {
 ```
 
 2. **Re-run seeding**:
+
 ```bash
 deno run --allow-all scripts/seed-operation-embeddings.ts
 ```
 
 3. **Verify**:
+
 ```sql
 SELECT tool_id, tool_name FROM tool_embedding WHERE tool_id = 'code:newOp';
 ```

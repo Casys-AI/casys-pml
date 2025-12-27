@@ -12,16 +12,16 @@ import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { type GraphNodeData } from "../components/ui/mod.ts";
 import { GraphLegendPanel, GraphTooltip } from "../components/ui/mod.ts";
 import {
-  buildHierarchy,
-  type CapabilityEdge,
-  type HypergraphApiResponse,
-  type RootNodeData,
   // DAG mode (Force-Directed with FDEB bundling)
   BoundedForceLayout,
-  type SimulationNode,
-  type SimulationLink,
-  FDEBBundler,
+  buildHierarchy,
   type BundledEdge,
+  type CapabilityEdge,
+  FDEBBundler,
+  type HypergraphApiResponse,
+  type RootNodeData,
+  type SimulationLink,
+  type SimulationNode,
 } from "../utils/graph/index.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -269,7 +269,8 @@ export default function D3GraphVisualization({
     if (!graph) return;
 
     // 1. Build hierarchy from flat data
-    const { root, capabilityEdges, toolEdges, orphanTools, emptyCapabilities, stats } = buildHierarchy(data);
+    const { root, capabilityEdges, toolEdges, orphanTools, emptyCapabilities, stats } =
+      buildHierarchy(data);
 
     console.log("[RadialHEB] Built hierarchy:", stats);
 
@@ -340,7 +341,13 @@ export default function D3GraphVisualization({
     }
     setServers(serverSet);
 
-    console.log("[DAG] Data loaded:", root.children.length, "capabilities,", serverSet.size, "servers");
+    console.log(
+      "[DAG] Data loaded:",
+      root.children.length,
+      "capabilities,",
+      serverSet.size,
+      "servers",
+    );
 
     // 4. Render DAG
     renderDagGraph();
@@ -418,7 +425,7 @@ export default function D3GraphVisualization({
     }
 
     // Build set of existing node IDs for edge validation
-    const nodeIds = new Set(simNodes.map(n => n.id));
+    const nodeIds = new Set(simNodes.map((n) => n.id));
 
     // Add tool->tool edges (sequences) - only if both nodes exist
     for (const edge of toolEdgesRef.current) {
@@ -503,7 +510,13 @@ export default function D3GraphVisualization({
     // Render simple edges initially (will be bundled after simulation stabilizes)
     const edgePaths = edgeLayer
       .selectAll(".dag-edge")
-      .data(simLinks, (d: SimulationLink) => `${typeof d.source === 'string' ? d.source : d.source.id}-${typeof d.target === 'string' ? d.target : d.target.id}`)
+      .data(
+        simLinks,
+        (d: SimulationLink) =>
+          `${typeof d.source === "string" ? d.source : d.source.id}-${
+            typeof d.target === "string" ? d.target : d.target.id
+          }`,
+      )
       .enter()
       .append("path")
       .attr("class", "dag-edge")
@@ -578,8 +591,12 @@ export default function D3GraphVisualization({
 
       // Update edge positions
       edgePaths.attr("d", (d: SimulationLink) => {
-        const src = typeof d.source === 'string' ? simNodes.find(n => n.id === d.source) : d.source;
-        const tgt = typeof d.target === 'string' ? simNodes.find(n => n.id === d.target) : d.target;
+        const src = typeof d.source === "string"
+          ? simNodes.find((n) => n.id === d.source)
+          : d.source;
+        const tgt = typeof d.target === "string"
+          ? simNodes.find((n) => n.id === d.target)
+          : d.target;
         if (!src || !tgt) return "";
         return line([{ x: src.x, y: src.y }, { x: tgt.x, y: tgt.y }]);
       });
@@ -598,8 +615,12 @@ export default function D3GraphVisualization({
       // Build edges for bundler
       const edgesForBundler: Array<{ source: string; target: string }> = [];
       for (const link of simLinks) {
-        const srcId = typeof link.source === 'string' ? link.source : (link.source as SimulationNode).id;
-        const tgtId = typeof link.target === 'string' ? link.target : (link.target as SimulationNode).id;
+        const srcId = typeof link.source === "string"
+          ? link.source
+          : (link.source as SimulationNode).id;
+        const tgtId = typeof link.target === "string"
+          ? link.target
+          : (link.target as SimulationNode).id;
         edgesForBundler.push({ source: srcId, target: tgtId });
       }
 
@@ -637,21 +658,24 @@ export default function D3GraphVisualization({
         .transition()
         .duration(500)
         .attr("d", (d: SimulationLink) => {
-          const srcId = typeof d.source === 'string' ? d.source : (d.source as SimulationNode).id;
-          const tgtId = typeof d.target === 'string' ? d.target : (d.target as SimulationNode).id;
+          const srcId = typeof d.source === "string" ? d.source : (d.source as SimulationNode).id;
+          const tgtId = typeof d.target === "string" ? d.target : (d.target as SimulationNode).id;
           const bundled = bundledEdgeMap.get(`${srcId}-${tgtId}`);
 
           if (bundled && bundled.subdivisionPoints.length > 0) {
             return line(bundled.subdivisionPoints);
           }
           // Fallback to straight line
-          const src = typeof d.source === 'string' ? simNodes.find(n => n.id === d.source) : d.source;
-          const tgt = typeof d.target === 'string' ? simNodes.find(n => n.id === d.target) : d.target;
+          const src = typeof d.source === "string"
+            ? simNodes.find((n) => n.id === d.source)
+            : d.source;
+          const tgt = typeof d.target === "string"
+            ? simNodes.find((n) => n.id === d.target)
+            : d.target;
           if (!src || !tgt) return "";
           return line([{ x: src.x, y: src.y }, { x: tgt.x, y: tgt.y }]);
         });
     });
-
   }, [getServerColor, onCapabilitySelect, onToolSelect]);
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -757,14 +781,14 @@ export default function D3GraphVisualization({
     graph.edgeLayer.selectAll(edgeSelector)
       .transition().duration(duration)
       .attr("stroke-opacity", (d: SimulationLink) => {
-        const srcId = typeof d.source === 'string' ? d.source : (d.source as SimulationNode).id;
-        const tgtId = typeof d.target === 'string' ? d.target : (d.target as SimulationNode).id;
+        const srcId = typeof d.source === "string" ? d.source : (d.source as SimulationNode).id;
+        const tgtId = typeof d.target === "string" ? d.target : (d.target as SimulationNode).id;
         const inStack = connected.has(srcId) && connected.has(tgtId);
         return inStack ? 0.9 : 0.05;
       })
       .attr("stroke-width", (d: SimulationLink) => {
-        const srcId = typeof d.source === 'string' ? d.source : (d.source as SimulationNode).id;
-        const tgtId = typeof d.target === 'string' ? d.target : (d.target as SimulationNode).id;
+        const srcId = typeof d.source === "string" ? d.source : (d.source as SimulationNode).id;
+        const tgtId = typeof d.target === "string" ? d.target : (d.target as SimulationNode).id;
         const inStack = connected.has(srcId) && connected.has(tgtId);
         return inStack ? (isHover ? 2.5 : 3) : 1;
       });
@@ -854,7 +878,6 @@ export default function D3GraphVisualization({
     }
   }, [highlightedNodeId]);
 
-
   // ───────────────────────────────────────────────────────────────────────────
   // Render
   // ───────────────────────────────────────────────────────────────────────────
@@ -939,7 +962,7 @@ export default function D3GraphVisualization({
               {capabilityTooltip.data.toolsCount} tools •{" "}
               {Math.round(capabilityTooltip.data.successRate * 100)}% success
               {capabilityTooltip.data.communityId !== undefined && (
-                <> • C{capabilityTooltip.data.communityId}</>
+                <>• C{capabilityTooltip.data.communityId}</>
               )}
             </div>
           </div>

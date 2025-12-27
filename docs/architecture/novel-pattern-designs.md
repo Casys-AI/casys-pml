@@ -2,7 +2,8 @@
 
 ## Pattern 1: DAG Builder with JSON Schema Dependency Detection
 
-> **ADRs:** ADR-002 (Custom DAG), ADR-010 (Hybrid DAG Architecture), ADR-022 (Hybrid Search Integration)
+> **ADRs:** ADR-002 (Custom DAG), ADR-010 (Hybrid DAG Architecture), ADR-022 (Hybrid Search
+> Integration)
 
 **Problem:** Automatically detect dependencies between MCP tools to enable parallel execution
 without manual dependency specification.
@@ -105,6 +106,7 @@ async searchToolsHybrid(
 ```
 
 **Benefits:**
+
 - Finds implicit dependencies (e.g., `npm_install` between `git_clone` and `deploy`)
 - Graph intelligence bubbles related tools into candidates
 - Reduces "fragile DAGs" for complex intents
@@ -140,6 +142,7 @@ const META_TOOLS = [
 ```
 
 **Impact:**
+
 - Context reduced from 44.5k to ~500 tokens (99% reduction)
 - Forces intent-driven tool usage (better UX)
 - Tool schemas loaded dynamically only when needed
@@ -181,7 +184,8 @@ function loadTools(query: string, budget: ContextBudget): Tool[] {
 
 ## Pattern 3: Speculative Execution with GraphRAG (THE Feature)
 
-> **ADRs:** ADR-005 (Graphology), ADR-006 (Speculative Execution), ADR-010 (Hybrid DAG), ADR-030 (Gateway Real Execution)
+> **ADRs:** ADR-005 (Graphology), ADR-006 (Speculative Execution), ADR-010 (Hybrid DAG), ADR-030
+> (Gateway Real Execution)
 
 **Problem:** Reduce latency by executing workflows optimistically before Claude responds, when
 confidence is high enough.
@@ -340,10 +344,11 @@ not opt-in. Default mode with smart safeguards.
 
 ## Pattern 4: 3-Loop Learning Architecture (Adaptive DAG Feedback Loops)
 
-> **ADRs:** ADR-007 (Adaptive Feedback Loops), ADR-008 (Episodic Memory), ADR-020 (AIL Control Protocol)
+> **ADRs:** ADR-007 (Adaptive Feedback Loops), ADR-008 (Episodic Memory), ADR-020 (AIL Control
+> Protocol)
 >
-> **⚠️ UPDATE 2025-11-24:** AIL/HIL implementation uses ADR-020 unified command architecture (L1-L2).
-> ADR-019 superseded. HTTP response pattern (not SSE streaming) for MCP compatibility.
+> **⚠️ UPDATE 2025-11-24:** AIL/HIL implementation uses ADR-020 unified command architecture
+> (L1-L2). ADR-019 superseded. HTTP response pattern (not SSE streaming) for MCP compatibility.
 
 **Problem:** Enable truly adaptive workflows that learn and improve over time through
 agent-in-the-loop (AIL) and human-in-the-loop (HIL) decision points, with dynamic re-planning and
@@ -940,23 +945,24 @@ critical for understanding the architecture.
 
 ### Algorithms Matrix
 
-| Object Type     | Active Search (User Intent)                      | Passive Suggestion (Workflow Context)              |
-| :-------------- | :----------------------------------------------- | :------------------------------------------------- |
-| **Simple Tool** | Hybrid Search: `Semantic * α + Graph * (1-α)`    | Next Step: `Co-occurrence + Louvain + Recency`     |
-| **Capability**  | Capability Match: `Semantic * SuccessRate`       | Strategic Discovery: `ToolsOverlap * ClusterBoost` |
+| Object Type     | Active Search (User Intent)                   | Passive Suggestion (Workflow Context)              |
+| :-------------- | :-------------------------------------------- | :------------------------------------------------- |
+| **Simple Tool** | Hybrid Search: `Semantic * α + Graph * (1-α)` | Next Step: `Co-occurrence + Louvain + Recency`     |
+| **Capability**  | Capability Match: `Semantic * SuccessRate`    | Strategic Discovery: `ToolsOverlap * ClusterBoost` |
 
 ### Alpha Matrix (ADR-048)
 
-| Mode                | Type       | Algorithm              | Rationale                           |
-| :------------------ | :--------- | :--------------------- | :---------------------------------- |
-| Active Search       | Tool/Cap   | Embeddings Hybrides    | Compare semantic vs structure       |
-| Passive Suggestion  | Tool       | Heat Diffusion         | Propagation depuis le contexte      |
-| Passive Suggestion  | Capability | Heat Diffusion Hiérarch| Respecte Tool→Cap→Meta hierarchy    |
-| Cold Start (<5 obs) | All        | Bayesian Prior         | alpha=1.0 (semantic only)           |
+| Mode                | Type       | Algorithm               | Rationale                        |
+| :------------------ | :--------- | :---------------------- | :------------------------------- |
+| Active Search       | Tool/Cap   | Embeddings Hybrides     | Compare semantic vs structure    |
+| Passive Suggestion  | Tool       | Heat Diffusion          | Propagation depuis le contexte   |
+| Passive Suggestion  | Capability | Heat Diffusion Hiérarch | Respecte Tool→Cap→Meta hierarchy |
+| Cold Start (<5 obs) | All        | Bayesian Prior          | alpha=1.0 (semantic only)        |
 
 ### Key Formulas
 
 **1. Hybrid Search (Tools):**
+
 ```typescript
 const finalScore = alpha * semanticScore + (1 - alpha) * graphScore;
 
@@ -966,23 +972,25 @@ const finalScore = alpha * semanticScore + (1 - alpha) * graphScore;
 ```
 
 **2. Next Step Prediction:**
+
 ```typescript
-const toolScore =
-  cooccurrenceConfidence * 0.6 +  // Historique direct (A -> B)
-  communityBoost * 0.3 +           // Louvain (même cluster)
-  recencyBoost * 0.1 +             // Utilisé récemment
-  pageRank * 0.1;                  // Importance globale
+const toolScore = cooccurrenceConfidence * 0.6 + // Historique direct (A -> B)
+  communityBoost * 0.3 + // Louvain (même cluster)
+  recencyBoost * 0.1 + // Utilisé récemment
+  pageRank * 0.1; // Importance globale
 ```
 
 **3. Cold Start (ADR-026):**
+
 ```typescript
 // Bayesian approach quand observations < seuil
 const confidence = observations >= MIN_OBS
   ? empiricalConfidence
-  : bayesianPrior(observations, alpha=1.0);
+  : bayesianPrior(observations, alpha = 1.0);
 ```
 
 **4. Candidate Expansion (ADR-023):**
+
 ```typescript
 // Expansion 1.5-3x selon la densité
 const expandedK = Math.min(k * expansionFactor, maxCandidates);
@@ -1004,6 +1012,7 @@ Tools (co-occurrence, edges directs)
 ```
 
 **Heat Diffusion Formula:**
+
 ```typescript
 // Propagation depuis le contexte actuel
 heat[node] = Σ (neighbor_heat × edge_weight × decay_factor)
@@ -1019,29 +1028,32 @@ decay_factor = {
 ### Graph Structure (ADR-024)
 
 **Full Adjacency Matrix N×N:**
+
 - Stocke toutes les paires de tools observées
 - Cycle breaking automatique (DAG constraint)
 - Edge weights par type et source
 
 **Edge Types & Weights:**
+
 ```typescript
 const EDGE_TYPE_WEIGHTS = {
-  dependency: 1.0,   // A dépend de B
-  contains: 0.8,     // Capability contient Tool
-  sequence: 0.5,     // A suivi de B (observé)
-  alternative: 0.3,  // A ou B (interchangeable)
+  dependency: 1.0, // A dépend de B
+  contains: 0.8, // Capability contient Tool
+  sequence: 0.5, // A suivi de B (observé)
+  alternative: 0.3, // A ou B (interchangeable)
 };
 
 const EDGE_SOURCE_WEIGHTS = {
-  observed: 1.0,     // Vu en production
-  inferred: 0.7,     // Déduit par algo
-  template: 0.5,     // Bootstrap initial
+  observed: 1.0, // Vu en production
+  inferred: 0.7, // Déduit par algo
+  template: 0.5, // Bootstrap initial
 };
 ```
 
 **Affects Epics:** Epic 5 (Tools Scoring), Epic 7 (Capabilities Matching)
 
 **References:**
+
 - ADR-038: `docs/adrs/ADR-038-scoring-algorithms-reference.md`
 - ADR-048: `docs/adrs/ADR-048-hierarchical-heat-diffusion-alpha.md`
 - ADR-015: `docs/adrs/ADR-015-dynamic-alpha-graph-density.md`

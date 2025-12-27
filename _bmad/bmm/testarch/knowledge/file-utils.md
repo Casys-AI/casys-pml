@@ -2,7 +2,9 @@
 
 ## Principle
 
-Read and validate files (CSV, XLSX, PDF, ZIP) with automatic parsing, type-safe results, and download handling. Simplify file operations in Playwright tests with built-in format support and validation helpers.
+Read and validate files (CSV, XLSX, PDF, ZIP) with automatic parsing, type-safe results, and
+download handling. Simplify file operations in Playwright tests with built-in format support and
+validation helpers.
 
 ## Rationale
 
@@ -31,12 +33,12 @@ The `file-utils` module provides:
 **Implementation**:
 
 ```typescript
-import { handleDownload, readCSV } from '@seontechnologies/playwright-utils/file-utils';
-import path from 'node:path';
+import { handleDownload, readCSV } from "@seontechnologies/playwright-utils/file-utils";
+import path from "node:path";
 
-const DOWNLOAD_DIR = path.join(__dirname, '../downloads');
+const DOWNLOAD_DIR = path.join(__dirname, "../downloads");
 
-test('should download and validate CSV', async ({ page }) => {
+test("should download and validate CSV", async ({ page }) => {
   const downloadPath = await handleDownload({
     page,
     downloadDir: DOWNLOAD_DIR,
@@ -46,7 +48,7 @@ test('should download and validate CSV', async ({ page }) => {
   const { content } = await readCSV({ filePath: downloadPath });
 
   // Validate headers
-  expect(content.headers).toEqual(['ID', 'Name', 'Email', 'Role']);
+  expect(content.headers).toEqual(["ID", "Name", "Email", "Role"]);
 
   // Validate data
   expect(content.data).toHaveLength(10);
@@ -72,9 +74,9 @@ test('should download and validate CSV', async ({ page }) => {
 **Implementation**:
 
 ```typescript
-import { readXLSX } from '@seontechnologies/playwright-utils/file-utils';
+import { readXLSX } from "@seontechnologies/playwright-utils/file-utils";
 
-test('should read multi-sheet XLSX', async () => {
+test("should read multi-sheet XLSX", async () => {
   const downloadPath = await handleDownload({
     page,
     downloadDir: DOWNLOAD_DIR,
@@ -84,16 +86,16 @@ test('should read multi-sheet XLSX', async () => {
   const { content } = await readXLSX({ filePath: downloadPath });
 
   // Access specific sheets
-  const summarySheet = content.sheets.find((s) => s.name === 'Summary');
-  const detailsSheet = content.sheets.find((s) => s.name === 'Details');
+  const summarySheet = content.sheets.find((s) => s.name === "Summary");
+  const detailsSheet = content.sheets.find((s) => s.name === "Details");
 
   // Validate summary
   expect(summarySheet.data).toHaveLength(1);
-  expect(summarySheet.data[0].TotalRecords).toBe('150');
+  expect(summarySheet.data[0].TotalRecords).toBe("150");
 
   // Validate details
   expect(detailsSheet.data).toHaveLength(150);
-  expect(detailsSheet.headers).toContain('TransactionID');
+  expect(detailsSheet.headers).toContain("TransactionID");
 });
 ```
 
@@ -111,9 +113,9 @@ test('should read multi-sheet XLSX', async () => {
 **Implementation**:
 
 ```typescript
-import { readPDF } from '@seontechnologies/playwright-utils/file-utils';
+import { readPDF } from "@seontechnologies/playwright-utils/file-utils";
 
-test('should validate PDF report', async () => {
+test("should validate PDF report", async () => {
   const downloadPath = await handleDownload({
     page,
     downloadDir: DOWNLOAD_DIR,
@@ -123,8 +125,8 @@ test('should validate PDF report', async () => {
   const { content } = await readPDF({ filePath: downloadPath });
 
   // content.text is extracted text from all pages
-  expect(content.text).toContain('Financial Report Q4 2024');
-  expect(content.text).toContain('Total Revenue:');
+  expect(content.text).toContain("Financial Report Q4 2024");
+  expect(content.text).toContain("Total Revenue:");
 
   // Validate page count
   expect(content.numpages).toBeGreaterThan(10);
@@ -145,9 +147,9 @@ test('should validate PDF report', async () => {
 **Implementation**:
 
 ```typescript
-import { readZIP } from '@seontechnologies/playwright-utils/file-utils';
+import { readZIP } from "@seontechnologies/playwright-utils/file-utils";
 
-test('should validate ZIP archive', async () => {
+test("should validate ZIP archive", async () => {
   const downloadPath = await handleDownload({
     page,
     downloadDir: DOWNLOAD_DIR,
@@ -157,15 +159,15 @@ test('should validate ZIP archive', async () => {
   const { content } = await readZIP({ filePath: downloadPath });
 
   // Check file list
-  expect(content.files).toContain('data.csv');
-  expect(content.files).toContain('config.json');
-  expect(content.files).toContain('readme.txt');
+  expect(content.files).toContain("data.csv");
+  expect(content.files).toContain("config.json");
+  expect(content.files).toContain("readme.txt");
 
   // Read specific file from archive
-  const configContent = content.zip.readAsText('config.json');
+  const configContent = content.zip.readAsText("config.json");
   const config = JSON.parse(configContent);
 
-  expect(config.version).toBe('2.0');
+  expect(config.version).toBe("2.0");
 });
 ```
 
@@ -183,13 +185,13 @@ test('should validate ZIP archive', async () => {
 **Implementation**:
 
 ```typescript
-test('should download via API', async ({ page, request }) => {
+test("should download via API", async ({ page, request }) => {
   const downloadPath = await handleDownload({
     page,
     downloadDir: DOWNLOAD_DIR,
     trigger: async () => {
-      const response = await request.get('/api/export/csv', {
-        headers: { Authorization: 'Bearer token' },
+      const response = await request.get("/api/export/csv", {
+        headers: { Authorization: "Bearer token" },
       });
 
       if (!response.ok()) {
@@ -218,7 +220,7 @@ test('should download via API', async ({ page, request }) => {
 const { isValid, errors } = await validateCSV({
   filePath: downloadPath,
   expectedRowCount: 10,
-  requiredHeaders: ['ID', 'Name', 'Email'],
+  requiredHeaders: ["ID", "Name", "Email"],
 });
 
 expect(isValid).toBe(true);

@@ -1,23 +1,25 @@
 # Tech-Spec: Séparation Code Cloud vers Repo Privé
 
-**Created:** 2025-12-09
-**Status:** Ready for Development
-**Author:** Erwan + Claude
+**Created:** 2025-12-09 **Status:** Ready for Development **Author:** Erwan + Claude
 
 ## Overview
 
 ### Problem Statement
 
-Le code d'authentification cloud (GitHub OAuth, API keys, multi-tenancy) est actuellement dans le repo public `casys-pml`. Cela permet à n'importe qui de :
+Le code d'authentification cloud (GitHub OAuth, API keys, multi-tenancy) est actuellement dans le
+repo public `casys-pml`. Cela permet à n'importe qui de :
+
 1. Fork le repo
 2. Ajouter `GITHUB_CLIENT_ID` + `GITHUB_CLIENT_SECRET`
 3. Déployer sa propre version "enterprise" gratuitement
 
-De plus, le code de gestion des secrets utilisateurs (Story 9.6 - BYOK) présente des risques de sécurité s'il est exposé publiquement.
+De plus, le code de gestion des secrets utilisateurs (Story 9.6 - BYOK) présente des risques de
+sécurité s'il est exposé publiquement.
 
 ### Solution
 
 Créer un repo privé `casys-cloud` séparé qui :
+
 - Contient tout le code auth/secrets/multi-tenant
 - Importe le core public via chemins relatifs
 - Est le seul repo déployé sur la plateforme SaaS
@@ -27,6 +29,7 @@ Le repo public `casys-pml` reste fonctionnel en mode local (sans auth).
 ### Scope
 
 **In Scope:**
+
 - Création du repo `casys-cloud` avec structure de base
 - Déplacement des fichiers auth existants (Epic 9.1-9.4)
 - Création d'interfaces/hooks dans le core pour l'intégration
@@ -34,6 +37,7 @@ Le repo public `casys-pml` reste fonctionnel en mode local (sans auth).
 - Tests pour les deux modes (local sans cloud, cloud avec)
 
 **Out of Scope:**
+
 - Story 9.5 (Rate Limiting) - sera implémentée directement dans casys-cloud
 - Story 9.6 (Secrets Management) - sera implémentée directement dans casys-cloud
 - CI/CD pour le repo privé (future task)
@@ -44,11 +48,13 @@ Le repo public `casys-pml` reste fonctionnel en mode local (sans auth).
 ### Codebase Patterns
 
 **Import style:** Chemins relatifs depuis deno.json imports map
+
 ```typescript
 import { something } from "../lib/something.ts";
 ```
 
 **Auth pattern actuel:**
+
 - `isCloudMode()` check `GITHUB_CLIENT_ID` env var
 - `validateRequest()` retourne `{ user_id: string }` ou `null`
 - Mode local bypass tout avec `user_id = "local"`
@@ -58,6 +64,7 @@ import { something } from "../lib/something.ts";
 ### Files to Reference
 
 **À déplacer vers casys-cloud:**
+
 ```
 src/lib/auth.ts                          → casys-cloud/src/lib/auth.ts
 src/lib/api-key.ts                       → casys-cloud/src/lib/api-key.ts
@@ -73,6 +80,7 @@ tests/integration/auth/                  → casys-cloud/tests/
 ```
 
 **À modifier dans casys-pml:**
+
 ```
 src/mcp/gateway-server.ts    # Utiliser auth hooks au lieu d'import direct
 src/web/routes/_middleware.ts # Utiliser auth hooks
@@ -80,30 +88,31 @@ src/web/dev.ts               # Utiliser auth hooks
 ```
 
 **À créer dans casys-pml:**
+
 ```
 src/lib/auth-hooks.ts        # Interface + default local provider
 ```
 
 ### Technical Decisions
 
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| Import method | Chemins relatifs (`../casys-pml/...`) | Simple, pas de publish nécessaire |
-| Auth abstraction | Hooks/Provider pattern | Permet injection du cloud provider |
-| Workspace | Repos côte-à-côte dans `CascadeProjects/` | Un seul VS Code workspace |
-| Default mode | Local (no auth) | Le core fonctionne sans le repo cloud |
+| Decision         | Choice                                    | Rationale                             |
+| ---------------- | ----------------------------------------- | ------------------------------------- |
+| Import method    | Chemins relatifs (`../casys-pml/...`)     | Simple, pas de publish nécessaire     |
+| Auth abstraction | Hooks/Provider pattern                    | Permet injection du cloud provider    |
+| Workspace        | Repos côte-à-côte dans `CascadeProjects/` | Un seul VS Code workspace             |
+| Default mode     | Local (no auth)                           | Le core fonctionne sans le repo cloud |
 
 ## Pre-mortem: Risques Identifiés et Préventions
 
-*Analyse des scénarios d'échec potentiels (juin 2026) et actions préventives*
+_Analyse des scénarios d'échec potentiels (juin 2026) et actions préventives_
 
-| Risque | Scénario d'échec | Prévention | Priorité |
-|--------|------------------|------------|----------|
-| **Imports fragiles** | Refactors dans core cassent cloud à cause des imports `../` profonds | Créer `mod.ts` comme API publique stable, cloud importe uniquement depuis mod.ts | HIGH |
-| **Fresh routing** | Impossible de merger les routes auth dans le Fresh app existant | Tester le mounting de routes externes AVANT de commencer (Task 0) | HIGH |
-| **Context switch** | Productivité chute à cause du jonglage deux repos/terminaux | Préparer VS Code workspace multi-root + script `dev-all.sh` | MEDIUM |
-| **Tests intégration** | CI ne peut pas tester le flow complet OAuth→Dashboard | CI de casys-cloud clone casys-pml, tests E2E cross-repo | MEDIUM |
-| **Historique git** | Quelqu'un récupère le code auth depuis l'historique git | Décision : purger avec BFG ou accepter (protection future seulement) | LOW |
+| Risque                | Scénario d'échec                                                     | Prévention                                                                       | Priorité |
+| --------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------- | -------- |
+| **Imports fragiles**  | Refactors dans core cassent cloud à cause des imports `../` profonds | Créer `mod.ts` comme API publique stable, cloud importe uniquement depuis mod.ts | HIGH     |
+| **Fresh routing**     | Impossible de merger les routes auth dans le Fresh app existant      | Tester le mounting de routes externes AVANT de commencer (Task 0)                | HIGH     |
+| **Context switch**    | Productivité chute à cause du jonglage deux repos/terminaux          | Préparer VS Code workspace multi-root + script `dev-all.sh`                      | MEDIUM   |
+| **Tests intégration** | CI ne peut pas tester le flow complet OAuth→Dashboard                | CI de casys-cloud clone casys-pml, tests E2E cross-repo                          | MEDIUM   |
+| **Historique git**    | Quelqu'un récupère le code auth depuis l'historique git              | Décision : purger avec BFG ou accepter (protection future seulement)             | LOW      |
 
 ## Implementation Plan
 
@@ -208,10 +217,12 @@ src/lib/auth-hooks.ts        # Interface + default local provider
 ### Dependencies
 
 **casys-pml (public):**
+
 - Aucune nouvelle dépendance
 - Retrait de `@ts-rex/argon2` et `@deno/kv-oauth` (moved to cloud)
 
 **casys-cloud (private):**
+
 - `@ts-rex/argon2` - Hash API keys
 - `@deno/kv-oauth` - GitHub OAuth
 - `drizzle-orm` - Database (already in core)

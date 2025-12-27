@@ -4,8 +4,10 @@
 
 - 🛑 NEVER generate content without user input
 
-- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding leads to incomplete decisions
-- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before proceeding
+- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding
+  leads to incomplete decisions
+- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before
+  proceeding
 - ✅ ALWAYS treat this as collaborative discovery between architectural peers
 - 📋 YOU ARE A FACILITATOR, not a content generator
 - 💬 FOCUS on defining complete project structure and clear boundaries
@@ -25,7 +27,8 @@
 
 This step will generate content and present choices:
 
-- **A (Advanced Elicitation)**: Use discovery protocols to explore innovative project organization approaches
+- **A (Advanced Elicitation)**: Use discovery protocols to explore innovative project organization
+  approaches
 - **P (Party Mode)**: Bring multiple perspectives to evaluate project structure trade-offs
 - **C (Continue)**: Save the project structure and proceed to validation
 
@@ -45,7 +48,8 @@ This step will generate content and present choices:
 
 ## YOUR TASK:
 
-Define the complete project structure and architectural boundaries based on all decisions made, creating a concrete implementation guide for AI agents.
+Define the complete project structure and architectural boundaries based on all decisions made,
+creating a concrete implementation guide for AI agents.
 
 ## PROJECT STRUCTURE SEQUENCE:
 
@@ -53,15 +57,14 @@ Define the complete project structure and architectural boundaries based on all 
 
 Map project requirements to architectural components:
 
-**From Epics (if available):**
-"Epic: {{epic_name}} → Lives in {{module/directory/service}}"
+**From Epics (if available):** "Epic: {{epic_name}} → Lives in {{module/directory/service}}"
 
 - User stories within the epic
 - Cross-epic dependencies
 - Shared components needed
 
-**From FR Categories (if no epics):**
-"FR Category: {{fr_category_name}} → Lives in {{module/directory/service}}"
+**From FR Categories (if no epics):** "FR Category: {{fr_category_name}} → Lives in
+{{module/directory/service}}"
 
 - Related functional requirements
 - Shared functionality across categories
@@ -212,17 +215,15 @@ project-name/
 
 Create explicit mapping from project requirements to specific files/directories:
 
-**Epic/Feature Mapping:**
-"Epic: User Management
+**Epic/Feature Mapping:** "Epic: User Management
 
 - Components: src/components/features/users/
 - Services: src/services/users/
 - API Routes: src/app/api/users/
-- Database: prisma/migrations/_*users*_
+- Database: prisma/migrations/**users**
 - Tests: tests/features/users/"
 
-**Cross-Cutting Concerns:**
-"Authentication System
+**Cross-Cutting Concerns:** "Authentication System
 
 - Components: src/components/auth/
 - Services: src/services/auth/
@@ -245,7 +246,6 @@ Prepare the content to append to the document:
 {{complete_project_tree_with_all_files_and_directories}}
 
 ```
-
 ### Architectural Boundaries
 
 **API Boundaries:**
@@ -315,10 +315,9 @@ Show the generated project structure content and present choices:
 
 [Show the complete markdown content from step 6]
 
-**What would you like to do?**
-[A] Advanced Elicitation - Explore innovative project organization approaches
-[P] Party Mode - Review structure from different development perspectives
-[C] Continue - Save this structure and move to architecture validation"
+**What would you like to do?** [A] Advanced Elicitation - Explore innovative project organization
+approaches [P] Party Mode - Review structure from different development perspectives [C] Continue -
+Save this structure and move to architecture validation"
 
 ### 8. Handle Menu Selection
 
@@ -350,29 +349,27 @@ When user selects 'C', append the content directly to the document using the str
 
 ## SUCCESS METRICS:
 
-✅ Complete project tree defined with all files and directories
-✅ All architectural boundaries clearly documented
-✅ Requirements/epics mapped to specific locations
-✅ Integration points and communication patterns defined
-✅ Project structure aligned with chosen technology stack
-✅ A/P/C menu presented and handled correctly
-✅ Content properly appended to document when C selected
+✅ Complete project tree defined with all files and directories ✅ All architectural boundaries
+clearly documented ✅ Requirements/epics mapped to specific locations ✅ Integration points and
+communication patterns defined ✅ Project structure aligned with chosen technology stack ✅ A/P/C
+menu presented and handled correctly ✅ Content properly appended to document when C selected
 
 ## FAILURE MODES:
 
-❌ Creating generic placeholder structure instead of specific, complete tree
-❌ Not mapping requirements to specific files and directories
-❌ Missing important integration boundaries
-❌ Not considering the chosen technology stack in structure design
-❌ Not defining how components communicate across boundaries
-❌ Not presenting A/P/C menu after content generation
+❌ Creating generic placeholder structure instead of specific, complete tree ❌ Not mapping
+requirements to specific files and directories ❌ Missing important integration boundaries ❌ Not
+considering the chosen technology stack in structure design ❌ Not defining how components
+communicate across boundaries ❌ Not presenting A/P/C menu after content generation
 
-❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
-❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step file
-❌ **CRITICAL**: Making decisions without complete understanding of step requirements and protocols
+❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor
+decisions ❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step
+file ❌ **CRITICAL**: Making decisions without complete understanding of step requirements and
+protocols
 
 ## NEXT STEP:
 
-After user selects 'C' and content is saved to document, load `./step-07-validation.md` to validate architectural coherence and completeness.
+After user selects 'C' and content is saved to document, load `./step-07-validation.md` to validate
+architectural coherence and completeness.
 
-Remember: Do NOT proceed to step-07 until user explicitly selects 'C' from the A/P/C menu and content is saved!
+Remember: Do NOT proceed to step-07 until user explicitly selects 'C' from the A/P/C menu and
+content is saved!

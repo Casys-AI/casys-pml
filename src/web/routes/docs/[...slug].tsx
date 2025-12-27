@@ -2,12 +2,7 @@
 import { HttpError, page } from "fresh";
 import { Head } from "fresh/runtime";
 import { PRISM_THEME_CSS } from "../../utils/prism-theme.ts";
-import {
-  getDocPage,
-  getDocsNavigation,
-  type DocNavItem,
-  type DocPage,
-} from "../../utils/docs.ts";
+import { type DocNavItem, type DocPage, getDocPage, getDocsNavigation } from "../../utils/docs.ts";
 import DocsSidebar from "../../islands/DocsSidebar.tsx";
 import DocsToc from "../../islands/DocsToc.tsx";
 import MobileMenu from "../../islands/MobileMenu.tsx";
@@ -24,9 +19,7 @@ export const handler = {
       // slug can be undefined (root), string, or string[]
       const slugParam = ctx.params.slug;
       const slugParts: string[] = slugParam
-        ? Array.isArray(slugParam)
-          ? slugParam
-          : slugParam.split("/")
+        ? Array.isArray(slugParam) ? slugParam : slugParam.split("/")
         : [];
 
       const doc = await getDocPage(slugParts);
@@ -107,11 +100,9 @@ export default function DocsPage({ data }: { data: DocsPageData }) {
               {doc.breadcrumbs.map((crumb, index) => (
                 <span key={crumb.href}>
                   {index > 0 && <span class="breadcrumb-sep">/</span>}
-                  {index === doc.breadcrumbs.length - 1 ? (
-                    <span class="breadcrumb-current">{crumb.label}</span>
-                  ) : (
-                    <a href={crumb.href} class="breadcrumb-link">{crumb.label}</a>
-                  )}
+                  {index === doc.breadcrumbs.length - 1
+                    ? <span class="breadcrumb-current">{crumb.label}</span>
+                    : <a href={crumb.href} class="breadcrumb-link">{crumb.label}</a>}
                 </span>
               ))}
             </nav>

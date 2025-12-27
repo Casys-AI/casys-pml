@@ -1,43 +1,49 @@
 # Epic 11: Learning from Execution Traces
 
-> **Status:** Proposed (2025-12-18)
-> **Author:** Erwan + Claude
-> **Depends on:** Epic 10 (Capability Creation & Unified APIs)
+> **Status:** Proposed (2025-12-18) **Author:** Erwan + Claude **Depends on:** Epic 10 (Capability
+> Creation & Unified APIs)
 
 > **⚠️ CLARIFICATION ARCHITECTURE (2025-12-19)**
 >
-> **Source des traces:** Les traces d'exécution proviennent du **WorkerBridge RPC**, pas d'appels MCP directs.
+> **Source des traces:** Les traces d'exécution proviennent du **WorkerBridge RPC**, pas d'appels
+> MCP directs.
 >
 > **Pourquoi c'est important:**
+>
 > - Le Worker exécute avec `permissions: "none"` (sandbox isolée)
 > - Tous les appels MCP passent par le proxy RPC (`postMessage`)
 > - Cela garantit **100% traçabilité** - aucun appel ne bypass le système
 >
-> **Prérequis architectural:** Story 10.5 (Architecture Unifiée) doit être complétée
-> pour que `ControlledExecutor` utilise `WorkerBridge` au lieu d'appels directs.
+> **Prérequis architectural:** Story 10.5 (Architecture Unifiée) doit être complétée pour que
+> `ControlledExecutor` utilise `WorkerBridge` au lieu d'appels directs.
 >
 > Voir: `docs/sprint-artifacts/10-5-execute-code-via-dag.md#architecture-unifiée-2025-12-19`
 
 > **⚠️ SÉPARATION CAPABILITY vs TRACE (2025-12-19)**
 >
 > **Problème actuel:** `saveCapability()` mélange deux concepts distincts :
+>
 > ```typescript
 > // worker-bridge.ts - ACTUEL (mélange structure et trace)
 > await capabilityStore.saveCapability({
->   code, intent,                    // ← Structure (OK)
->   durationMs, success,             // ← Trace (MAUVAIS!)
->   toolsUsed, toolInvocations,      // ← Trace (MAUVAIS!)
+>   code,
+>   intent, // ← Structure (OK)
+>   durationMs,
+>   success, // ← Trace (MAUVAIS!)
+>   toolsUsed,
+>   toolInvocations, // ← Trace (MAUVAIS!)
 > });
 > ```
 >
 > **Séparation correcte (Epic 11):**
 >
-> | Concept | Table | Contenu | Lifecycle |
-> |---------|-------|---------|-----------|
-> | **Capability** | `workflow_pattern` | `code`, `intent`, `static_structure`, `parameters_schema` | Immutable après création |
-> | **Trace** | `execution_trace` (Story 11.2) | `executed_path`, `task_results`, `decisions`, `durationMs` | Créée à chaque exécution |
+> | Concept        | Table                          | Contenu                                                    | Lifecycle                |
+> | -------------- | ------------------------------ | ---------------------------------------------------------- | ------------------------ |
+> | **Capability** | `workflow_pattern`             | `code`, `intent`, `static_structure`, `parameters_schema`  | Immutable après création |
+> | **Trace**      | `execution_trace` (Story 11.2) | `executed_path`, `task_results`, `decisions`, `durationMs` | Créée à chaque exécution |
 >
 > **Actions Epic 11:**
+>
 > - Story 11.1: Capturer `result` dans les traces WorkerBridge
 > - Story 11.2: Créer `execution_trace` avec FK vers capability
 > - Refactor: `saveCapability()` ne stocke plus `toolsUsed`/`toolInvocations` (→ trace)
@@ -45,7 +51,9 @@
 
 **Expanded Goal (2-3 sentences):**
 
-Implémenter le système d'apprentissage basé sur les traces d'exécution. Capturer les résultats des tools/capabilities, stocker les traces avec priorité (PER), et entraîner SHGAT directement sur les traces avec TD error comme signal. Fournir des vues pour visualiser les patterns d'exécution.
+Implémenter le système d'apprentissage basé sur les traces d'exécution. Capturer les résultats des
+tools/capabilities, stocker les traces avec priorité (PER), et entraîner SHGAT directement sur les
+traces avec TD error comme signal. Fournir des vues pour visualiser les patterns d'exécution.
 
 **Architecture Learning Combinée (2025-12-22):**
 
@@ -75,31 +83,31 @@ Implémenter le système d'apprentissage basé sur les traces d'exécution. Capt
 
 **Rôle de chaque composant:**
 
-| Composant | Rôle | Ce qu'il produit |
-|-----------|------|------------------|
-| **TD Error** | Signal d'apprentissage | `|predicted - actual|` pour PER |
-| **PER** | Priorisation du replay | Traces pondérées par surprise |
-| **SHGAT** | Le modèle lui-même | Attention weights, scores de prédiction |
+| Composant    | Rôle                   | Ce qu'il produit                        |
+| ------------ | ---------------------- | --------------------------------------- |
+| **TD Error** | Signal d'apprentissage | `                                       |
+| **PER**      | Priorisation du replay | Traces pondérées par surprise           |
+| **SHGAT**    | Le modèle lui-même     | Attention weights, scores de prédiction |
 
 **⚠️ DÉPRÉCIATIONS (2025-12-22):**
 
-| Déprécié | Remplacé par | Raison |
-|----------|--------------|--------|
-| `CapabilityLearning` structure | SHGAT weights | SHGAT apprend directement des traces |
-| `workflow_pattern.learning` column | `execution_trace.priority` + SHGAT | Plus de stats intermédiaires |
-| `updateLearningTD()` → stats | `updatePriority()` → PER only | TD error = signal pour PER, pas stats |
-| `pathSuccessRate` calculé | SHGAT prédit directement | Le réseau apprend les patterns |
+| Déprécié                           | Remplacé par                       | Raison                                |
+| ---------------------------------- | ---------------------------------- | ------------------------------------- |
+| `CapabilityLearning` structure     | SHGAT weights                      | SHGAT apprend directement des traces  |
+| `workflow_pattern.learning` column | `execution_trace.priority` + SHGAT | Plus de stats intermédiaires          |
+| `updateLearningTD()` → stats       | `updatePriority()` → PER only      | TD error = signal pour PER, pas stats |
+| `pathSuccessRate` calculé          | SHGAT prédit directement           | Le réseau apprend les patterns        |
 
 **Problèmes Résolus:**
 
-| Problème | Solution | Story |
-|----------|----------|-------|
-| Schema DB avec dette technique | Cleanup complet (KV, FKs, duplications) | **11.0** |
-| Pas de capture des résultats d'exécution | Result tracing dans les events | 11.1 |
-| Traces non persistées | Table `execution_trace` avec FK capability | 11.2 |
-| Toutes les traces ont même importance | PER avec TD error comme priority | 11.3 |
-| Apprentissage batch (pas incrémental) | SHGAT training incrémental avec PER sampling | 11.3 + 11.6 |
-| Pas de vue sur les exécutions réelles | Definition vs Invocation views | 11.4 |
+| Problème                                 | Solution                                     | Story       |
+| ---------------------------------------- | -------------------------------------------- | ----------- |
+| Schema DB avec dette technique           | Cleanup complet (KV, FKs, duplications)      | **11.0**    |
+| Pas de capture des résultats d'exécution | Result tracing dans les events               | 11.1        |
+| Traces non persistées                    | Table `execution_trace` avec FK capability   | 11.2        |
+| Toutes les traces ont même importance    | PER avec TD error comme priority             | 11.3        |
+| Apprentissage batch (pas incrémental)    | SHGAT training incrémental avec PER sampling | 11.3 + 11.6 |
+| Pas de vue sur les exécutions réelles    | Definition vs Invocation views               | 11.4        |
 
 **Value Delivery:**
 
@@ -112,37 +120,39 @@ Implémenter le système d'apprentissage basé sur les traces d'exécution. Capt
 
 ## Relation avec Epic 10
 
-**Epic 10** crée les Capabilities (analyse statique) et les APIs unifiées.
-**Epic 11** apprend des exécutions pour enrichir les Capabilities.
+**Epic 10** crée les Capabilities (analyse statique) et les APIs unifiées. **Epic 11** apprend des
+exécutions pour enrichir les Capabilities.
 
 ### Décision Architecturale: DAG Complet vs Trace Exécutée
 
-| Couche | Stocke | Raison | Envoyé au LLM |
-|--------|--------|--------|---------------|
-| **Capability** (Epic 10) | DAG complet avec branches conditionnelles | Réutilisabilité, toutes les alternatives | ❌ Non (trop verbeux) |
-| **Trace** (Epic 11) | Chemin réellement exécuté | Learning, résultats concrets | ✅ Oui (minimal, pertinent) |
+| Couche                   | Stocke                                    | Raison                                   | Envoyé au LLM               |
+| ------------------------ | ----------------------------------------- | ---------------------------------------- | --------------------------- |
+| **Capability** (Epic 10) | DAG complet avec branches conditionnelles | Réutilisabilité, toutes les alternatives | ❌ Non (trop verbeux)       |
+| **Trace** (Epic 11)      | Chemin réellement exécuté                 | Learning, résultats concrets             | ✅ Oui (minimal, pertinent) |
 
 **Pourquoi stocker le DAG complet dans Capability ?**
+
 - Les conditions (`file.exists`, `response.status === 200`) ne sont évaluables qu'au runtime
 - On ne peut pas savoir à l'avance quel chemin sera pris
 - Stocker toutes les branches permet de réutiliser la capability dans différents contextes
 
 **Pourquoi ne retourner que la trace au LLM ?**
+
 - Évite la pollution du contexte avec des branches non prises
 - Le LLM n'a besoin que de ce qui s'est passé, pas de ce qui aurait pu se passer
 - La trace inclut les `decisions` (quelle branche prise et pourquoi)
 
 > **Note sur l'apprentissage des branches (2025-12-23):**
 >
-> Actuellement, on **n'apprend PAS sur les branches séparément**. SHGAT apprend sur la
-> capability entière (success/fail), pas sur chaque branche individuelle.
+> Actuellement, on **n'apprend PAS sur les branches séparément**. SHGAT apprend sur la capability
+> entière (success/fail), pas sur chaque branche individuelle.
 >
-> **Design voulu:** Les capabilities doivent être des **workflows linéaires**. Les if/else
-> dans le code généré sont des **gardes** (error handling, edge cases), pas des **options**
-> métier. L'adaptation se fait au niveau de la **sélection** de capability, pas dans les
-> branches internes.
+> **Design voulu:** Les capabilities doivent être des **workflows linéaires**. Les if/else dans le
+> code généré sont des **gardes** (error handling, edge cases), pas des **options** métier.
+> L'adaptation se fait au niveau de la **sélection** de capability, pas dans les branches internes.
 >
 > Exemple correct:
+>
 > ```typescript
 > // Garde (OK) - gestion d'erreur
 > const result = await mcp.fs.read({ path });
@@ -151,6 +161,7 @@ Implémenter le système d'apprentissage basé sur les traces d'exécution. Capt
 > ```
 >
 > Exemple à éviter:
+>
 > ```typescript
 > // Options métier (éviter) - devrait être 2 capabilities séparées
 > if (format === "json") {
@@ -160,10 +171,11 @@ Implémenter le système d'apprentissage basé sur les traces d'exécution. Capt
 > }
 > ```
 >
-> Pour le cas "options métier", préférer 2 capabilities distinctes (`parse_json`, `parse_csv`)
-> et laisser la sélection choisir la bonne selon le contexte.
+> Pour le cas "options métier", préférer 2 capabilities distinctes (`parse_json`, `parse_csv`) et
+> laisser la sélection choisir la bonne selon le contexte.
 
 **Flow d'exécution :**
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  1. Capability.static_structure (DAG complet)               │
@@ -218,13 +230,13 @@ Epic 10 (Capability Creation)          Epic 11 (Learning from Traces)
 
 ### Story 11.0: DB Schema Cleanup & Infrastructure ⭐ FOUNDATION
 
-As a developer, I want a clean database schema with proper separation of concerns,
-So that the learning system has solid infrastructure foundations.
+As a developer, I want a clean database schema with proper separation of concerns, So that the
+learning system has solid infrastructure foundations.
 
 **Context:**
 
-Audit complet du schéma DB (spike 2025-12-18) révèle plusieurs problèmes à corriger
-AVANT d'implémenter le learning :
+Audit complet du schéma DB (spike 2025-12-18) révèle plusieurs problèmes à corriger AVANT
+d'implémenter le learning :
 
 1. **`workflow_dags`** : état runtime temporaire stocké en PostgreSQL (overkill)
 2. **`tool_schema` vs `mcp_tool`** : duplication partielle
@@ -238,6 +250,7 @@ AVANT d'implémenter le learning :
 **1. Migrer `workflow_dags` → Deno KV (réactiver ADR-037)**
 
 **Infrastructure existante à réutiliser :**
+
 - `src/server/auth/kv.ts` - Singleton KV avec `getKv()` / `closeKv()`
 - Pattern déjà utilisé pour les sessions auth
 
@@ -247,7 +260,7 @@ await db.query(`INSERT INTO workflow_dags ...`, [workflowId, dag, intent]);
 await db.query(`SELECT dag FROM workflow_dags WHERE expires_at > NOW()`, [workflowId]);
 
 // APRÈS (Deno KV avec singleton existant)
-import { getKv } from "../server/auth/kv.ts";  // Réutiliser le singleton
+import { getKv } from "../server/auth/kv.ts"; // Réutiliser le singleton
 
 const kv = await getKv();
 await kv.set(["workflow", workflowId], { dag, intent }, { expireIn: 3600_000 }); // 1h TTL
@@ -322,6 +335,7 @@ END $$;
 ```
 
 **Pourquoi cette approche ?**
+
 - ✅ Fonctionne avec ou sans données existantes
 - ✅ Ne modifie pas les anciennes migrations (historique intact)
 - ✅ Idempotente (peut être rejouée sans erreur)
@@ -341,11 +355,13 @@ END $$;
 10. Migration rejouable sans erreur (idempotente)
 
 **Files to Create:**
+
 - `src/db/migrations/019_db_schema_cleanup.sql` (~40 LOC)
 - `src/cache/kv.ts` (~30 LOC) - Singleton KV
 - `src/cache/workflow-state-cache.ts` (~60 LOC) - Remplace workflow-dag-store
 
 **Files to Modify:**
+
 - `src/mcp/workflow-dag-store.ts` → utiliser KV
 - E2E tests utilisant `mcp_tool` → utiliser `tool_schema`
 - Code utilisant `tool_dependency.source` → utiliser `edge_source`
@@ -358,13 +374,14 @@ END $$;
 
 ### Story 11.1: Result Tracing - Capture des Résultats d'Exécution
 
-As a learning system, I want to capture the `result` of each tool and capability execution,
-So that I can store execution traces with actual outcomes for learning.
+As a learning system, I want to capture the `result` of each tool and capability execution, So that
+I can store execution traces with actual outcomes for learning.
 
 **Context:**
 
-Actuellement on trace `args` mais pas `result`. Pour apprendre des exécutions,
-on a besoin des résultats réels pour :
+Actuellement on trace `args` mais pas `result`. Pour apprendre des exécutions, on a besoin des
+résultats réels pour :
+
 - Valider que les provides edges fonctionnent
 - Calculer les success rates par chemin
 - Détecter les patterns de données
@@ -384,7 +401,7 @@ Elle est pour le **learning** basé sur les exécutions réelles.
      success: !isToolError,
      durationMs: durationMs,
      parentTraceId: parentTraceId,
-     result: result,  // ← NOUVEAU
+     result: result, // ← NOUVEAU
    });
    ```
 2. `capability_end` event inclut `result` dans `code-generator.ts`:
@@ -395,7 +412,7 @@ Elle est pour le **learning** basé sur les exécutions réelles.
      capabilityId: "${capability.id}",
      success: __capSuccess,
      error: __capError?.message,
-     result: __capResult,  // ← NOUVEAU
+     result: __capResult, // ← NOUVEAU
    });
    ```
 3. Types mis à jour dans `src/dag/types.ts`:
@@ -406,6 +423,7 @@ Elle est pour le **learning** basé sur les exécutions réelles.
 6. Tests: result is JSON-serializable (no circular refs)
 
 **Files to Modify:**
+
 - `src/sandbox/worker-bridge.ts` (~5 LOC)
 - `src/capabilities/code-generator.ts` (~5 LOC)
 - `src/dag/types.ts` (~10 LOC)
@@ -418,13 +436,13 @@ Elle est pour le **learning** basé sur les exécutions réelles.
 
 ### Story 11.2: Execution Trace Table & Store
 
-As a learning system, I want a unified `execution_trace` table that stores execution history,
-So that I can track execution patterns with proper FK to capabilities and learning-specific fields.
+As a learning system, I want a unified `execution_trace` table that stores execution history, So
+that I can track execution patterns with proper FK to capabilities and learning-specific fields.
 
 **Context:**
 
-Remplace `workflow_execution` (pas de FK, stocke dag_structure en dur) par
-`execution_trace` avec :
+Remplace `workflow_execution` (pas de FK, stocke dag_structure en dur) par `execution_trace` avec :
+
 - FK vers `workflow_pattern` (capability)
 - Champs learning (executed_path, decisions, priority)
 - Multi-tenancy (user_id, created_by)
@@ -502,7 +520,7 @@ DROP TABLE IF EXISTS workflow_execution CASCADE;
      id: string;
      capabilityId?: string;
      intentText?: string;
-     initialContext?: Record<string, JsonValue>;  // ← Epic 12 dependency
+     initialContext?: Record<string, JsonValue>; // ← Epic 12 dependency
      executedAt: Date;
      success: boolean;
      durationMs: number;
@@ -517,7 +535,7 @@ DROP TABLE IF EXISTS workflow_execution CASCADE;
    interface TraceTaskResult {
      taskId: string;
      tool: string;
-     args: Record<string, JsonValue>;  // ← Epic 12 dependency
+     args: Record<string, JsonValue>; // ← Epic 12 dependency
      result: JsonValue;
      success: boolean;
      durationMs: number;
@@ -541,17 +559,21 @@ DROP TABLE IF EXISTS workflow_execution CASCADE;
 10. `task_results[].args` stocke les arguments de chaque tâche (Epic 12 dependency)
 11. Data sanitization appliquée avant stockage (redact sensitive, truncate large payloads)
 12. **Refactor appels post-exécution (séparation Capability vs Trace):**
-   - `executor.ts:394` → utiliser `executionTraceStore.saveTrace()` au lieu de `saveCapability()`
-   - `worker-bridge.ts:300` → utiliser `executionTraceStore.saveTrace()` au lieu de `saveCapability()`
-   - `saveCapability()` signature nettoyée: retirer `durationMs`, `success`, `toolsUsed`, `toolInvocations`
-   - La Capability est créée via analyse statique (Story 10.1), la Trace est créée après exécution
+
+- `executor.ts:394` → utiliser `executionTraceStore.saveTrace()` au lieu de `saveCapability()`
+- `worker-bridge.ts:300` → utiliser `executionTraceStore.saveTrace()` au lieu de `saveCapability()`
+- `saveCapability()` signature nettoyée: retirer `durationMs`, `success`, `toolsUsed`,
+  `toolInvocations`
+- La Capability est créée via analyse statique (Story 10.1), la Trace est créée après exécution
 
 **Files to Create:**
+
 - `src/db/migrations/019_execution_trace.ts` (~100 LOC)
 - `src/capabilities/execution-trace-store.ts` (~150 LOC)
 - `src/utils/sanitize-for-storage.ts` (~50 LOC) - Shared with Epic 12
 
 **Files to Modify:**
+
 - `src/capabilities/types.ts` (~50 LOC)
 - `src/graphrag/sync/db-sync.ts` (~20 LOC)
 - `src/graphrag/metrics/collector.ts` (~15 LOC)
@@ -567,17 +589,19 @@ DROP TABLE IF EXISTS workflow_execution CASCADE;
 
 ### Story 11.3: TD Error + PER Priority (Refactoré 2025-12-22)
 
-As a learning system, I want to calculate TD error for PER priority,
-So that SHGAT can sample and learn from surprising traces efficiently.
+As a learning system, I want to calculate TD error for PER priority, So that SHGAT can sample and
+learn from surprising traces efficiently.
 
 **Context (Architecture Combinée TD+PER+SHGAT):**
 
 **AVANT (ancienne architecture - DÉPRÉCIÉE):**
+
 ```
 trace → TD Learning → CapabilityLearning (stats) → utilisé pour scoring
 ```
 
 **APRÈS (nouvelle architecture - style DQN/Rainbow):**
+
 ```
 trace → TD Error → PER priority → SHGAT sample + train
 ```
@@ -588,7 +612,7 @@ trace → TD Error → PER priority → SHGAT sample + train
 // Après exécution, calculer TD error via SHGAT
 async function storeTraceWithPriority(
   shgat: SHGAT,
-  trace: ExecutionTrace
+  trace: ExecutionTrace,
 ): Promise<void> {
   // 1. Get SHGAT prediction for this path
   const predicted = await shgat.predictPathSuccess(trace.executedPath);
@@ -603,7 +627,7 @@ async function storeTraceWithPriority(
   // 4. Store trace with PER priority
   await traceStore.save({
     ...trace,
-    priority,  // Utilisé par 11.6 pour PER sampling
+    priority, // Utilisé par 11.6 pour PER sampling
   });
 }
 ```
@@ -614,25 +638,28 @@ async function storeTraceWithPriority(
 // SHGAT sample traces weighted by PER priority
 async function sampleTracesForTraining(
   traceStore: ExecutionTraceStore,
-  batchSize: number = 32
+  batchSize: number = 32,
 ): Promise<ExecutionTrace[]> {
   // High priority first, with some randomness for exploration
-  return await traceStore.query(`
+  return await traceStore.query(
+    `
     SELECT * FROM execution_trace
     ORDER BY priority DESC, random()
     LIMIT $1
-  `, [batchSize]);
+  `,
+    [batchSize],
+  );
 }
 ```
 
 **⚠️ DÉPRÉCIATIONS:**
 
-| Ancien | Nouveau | Raison |
-|--------|---------|--------|
-| `CapabilityLearning` type | ❌ Supprimé | SHGAT apprend directement |
-| `updateLearningTD()` → stats | `storeTraceWithPriority()` | TD = signal PER |
-| `workflow_pattern.learning` col | ❌ Pas créée | Plus de stats intermédiaires |
-| `capabilityStore.updateLearning()` | ❌ Pas créée | SHGAT = le modèle |
+| Ancien                             | Nouveau                    | Raison                       |
+| ---------------------------------- | -------------------------- | ---------------------------- |
+| `CapabilityLearning` type          | ❌ Supprimé                | SHGAT apprend directement    |
+| `updateLearningTD()` → stats       | `storeTraceWithPriority()` | TD = signal PER              |
+| `workflow_pattern.learning` col    | ❌ Pas créée               | Plus de stats intermédiaires |
+| `capabilityStore.updateLearning()` | ❌ Pas créée               | SHGAT = le modèle            |
 
 **Acceptance Criteria:**
 
@@ -640,7 +667,7 @@ async function sampleTracesForTraining(
    ```typescript
    async function calculateTDError(
      shgat: SHGAT,
-     trace: { executedPath: string[]; success: boolean }
+     trace: { executedPath: string[]; success: boolean },
    ): Promise<number> {
      const predicted = await shgat.predictPathSuccess(trace.executedPath);
      const actual = trace.success ? 1.0 : 0.0;
@@ -656,9 +683,11 @@ async function sampleTracesForTraining(
 8. Tests: cold start → priority = 0.5
 
 **Files to Create:**
+
 - `src/capabilities/per-priority.ts` (~60 LOC)
 
 **Files to Modify:**
+
 - `src/capabilities/execution-trace-store.ts` (~20 LOC) - Add priority queries
 - `src/graphrag/algorithms/shgat.ts` (~10 LOC) - Add `predictPathSuccess()`
 
@@ -670,15 +699,15 @@ async function sampleTracesForTraining(
 
 ### Story 11.4: Definition vs Invocation Views
 
-As a user, I want to toggle between Definition view (structure) and Invocation view (executions),
-So that I can understand both the capability structure and its execution patterns.
+As a user, I want to toggle between Definition view (structure) and Invocation view (executions), So
+that I can understand both the capability structure and its execution patterns.
 
 **Context:**
 
-| Vue | Nœuds | Edges | Source |
-|-----|-------|-------|--------|
+| Vue            | Nœuds                | Edges                          | Source             |
+| -------------- | -------------------- | ------------------------------ | ------------------ |
 | **Definition** | Dédupliqués par type | dependency, provides, contains | `static_structure` |
-| **Invocation** | Par appel réel | sequence (temporel) | `execution_trace` |
+| **Invocation** | Par appel réel       | sequence (temporel)            | `execution_trace`  |
 
 **Acceptance Criteria:**
 
@@ -700,9 +729,11 @@ So that I can understand both the capability structure and its execution pattern
 7. Tests: exécution avec parallélisme visible en Invocation view
 
 **Files to Create:**
+
 - `src/web/islands/DefinitionInvocationToggle.tsx` (~80 LOC)
 
 **Files to Modify:**
+
 - `src/web/routes/dashboard.tsx` (~30 LOC)
 - `src/visualization/hypergraph-builder.ts` (~50 LOC)
 
@@ -714,13 +745,13 @@ So that I can understand both the capability structure and its execution pattern
 
 ### Story 11.5: Dry Run Mode (Optional)
 
-As a developer, I want to dry-run a capability without side effects,
-So that I can test and debug workflows before real execution.
+As a developer, I want to dry-run a capability without side effects, So that I can test and debug
+workflows before real execution.
 
 **Context:**
 
-Exécute la capability avec des mocks pour les tools à effets de bord.
-Utile pour debugging de workflows avec MCP connecteurs externes.
+Exécute la capability avec des mocks pour les tools à effets de bord. Utile pour debugging de
+workflows avec MCP connecteurs externes.
 
 **Acceptance Criteria:**
 
@@ -746,22 +777,22 @@ Utile pour debugging de workflows avec MCP connecteurs externes.
 
 ### Story 11.6: SHGAT Training avec PER Sampling (Refactoré 2025-12-22)
 
-As a learning system, I want to train SHGAT on path-level traces with PER sampling,
-So that SHGAT learns efficiently from surprising execution patterns.
+As a learning system, I want to train SHGAT on path-level traces with PER sampling, So that SHGAT
+learns efficiently from surprising execution patterns.
 
 **Context (Architecture Combinée TD+PER+SHGAT):**
 
-Story 11.3 calcule `priority = |td_error|` pour chaque trace.
-Cette story utilise PER sampling pour entraîner SHGAT sur les traces prioritaires.
+Story 11.3 calcule `priority = |td_error|` pour chaque trace. Cette story utilise PER sampling pour
+entraîner SHGAT sur les traces prioritaires.
 
 **Différence avec 10.7b (tool-level):**
 
-| Aspect | 10.7b (episodic_events) | 11.6 (execution_trace + PER) |
-|--------|-------------------------|------------------------------|
-| **Sampling** | Random/récent | PER (priority-weighted) |
-| **Granularité** | Par tool | Par path (séquence) |
-| **Label** | `wasCorrect` | `success` |
-| **Signal** | Binary | TD error (continuous) |
+| Aspect          | 10.7b (episodic_events) | 11.6 (execution_trace + PER) |
+| --------------- | ----------------------- | ---------------------------- |
+| **Sampling**    | Random/récent           | PER (priority-weighted)      |
+| **Granularité** | Par tool                | Par path (séquence)          |
+| **Label**       | `wasCorrect`            | `success`                    |
+| **Signal**      | Binary                  | TD error (continuous)        |
 
 **SHGAT Path Encoder:**
 
@@ -776,7 +807,7 @@ interface SHGATPathEncoder {
 
   // Train on batch with PER weights
   trainBatch(
-    traces: { path: string[]; success: boolean; priority: number }[]
+    traces: { path: string[]; success: boolean; priority: number }[],
   ): TrainingResult;
 }
 ```
@@ -826,8 +857,8 @@ interface SHGATPathEncoder {
      shgat: SHGAT,
      traceStore: ExecutionTraceStore,
      capabilityId: string,
-     options?: { minTraces?: number; maxTraces?: number }
-   ): Promise<TrainingResult>
+     options?: { minTraces?: number; maxTraces?: number },
+   ): Promise<TrainingResult>;
    ```
 4. Pipeline de training:
    - Au démarrage: charge traces récentes, train initial avec path features
@@ -839,9 +870,11 @@ interface SHGATPathEncoder {
 9. Benchmark: overhead du path-level training < 50ms
 
 **Files to Create:**
+
 - `src/graphrag/learning/path-level-features.ts` (~100 LOC)
 
 **Files to Modify:**
+
 - `src/graphrag/algorithms/shgat.ts` (~30 LOC) - Nouvelles dimensions features
 - `src/learning/episodic-adapter.ts` (~50 LOC) - Ajouter path-level training
 - `src/graphrag/dag-suggester.ts` (~20 LOC) - Utiliser training enrichi
@@ -854,15 +887,16 @@ interface SHGATPathEncoder {
 
 Story 11.6 replaced single-example `updateSHGAT()` with PER batch training:
 
-| Item | Status | Location | Notes |
-|------|--------|----------|-------|
-| `registerSHGATNodes()` | ✅ Implemented | `execute-handler.ts:531-571` | Registers capability + tools (no training) |
-| `runPERBatchTraining()` | ✅ Implemented | `execute-handler.ts:585-628` | PER-weighted path-level training |
-| `trainSHGATOnPathTraces()` | ✅ Implemented | `per-training.ts:127-270` | Core PER training logic |
-| `shgat.trainBatch()` | ✅ Implemented | `shgat.ts` | Batch training with path features |
-| Training lock | ✅ Implemented | `execute-handler.ts:576` | Prevents concurrent training |
+| Item                       | Status         | Location                     | Notes                                      |
+| -------------------------- | -------------- | ---------------------------- | ------------------------------------------ |
+| `registerSHGATNodes()`     | ✅ Implemented | `execute-handler.ts:531-571` | Registers capability + tools (no training) |
+| `runPERBatchTraining()`    | ✅ Implemented | `execute-handler.ts:585-628` | PER-weighted path-level training           |
+| `trainSHGATOnPathTraces()` | ✅ Implemented | `per-training.ts:127-270`    | Core PER training logic                    |
+| `shgat.trainBatch()`       | ✅ Implemented | `shgat.ts`                   | Batch training with path features          |
+| Training lock              | ✅ Implemented | `execute-handler.ts:576`     | Prevents concurrent training               |
 
 **Key changes from 10.7:**
+
 - ~~`updateSHGAT()` + `trainOnExample()`~~ → `registerSHGATNodes()` + `runPERBatchTraining()`
 - Single-example → Multi-example per trace (1 per node in path)
 - Tool-level → Path-level learning
@@ -933,35 +967,37 @@ Story 11.6 replaced single-example `updateSHGAT()` with PER batch training:
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Note:** 11.3 et 11.6 sont maintenant SÉQUENTIELLES (11.3 → 11.6) car 11.6 utilise les priorities de 11.3.
+**Note:** 11.3 et 11.6 sont maintenant SÉQUENTIELLES (11.3 → 11.6) car 11.6 utilise les priorities
+de 11.3.
 
 ---
 
 ## Epic 11 Estimation Summary (Révisé 2025-12-22)
 
-| Ordre | Story | Description | Effort | Cumulative |
-|-------|-------|-------------|--------|------------|
-| 0 | 11.0 | DB Schema Cleanup | 2-3j | 3j |
-| 1 | 11.1 | Result Tracing | 0.5-1j | 4j |
-| 2 | 11.2 | execution_trace Table (avec priority) | 2-3j | 7j |
-| 3 | **11.3** | **TD Error + PER Priority** (simplifié) | 1-2j | 9j |
-| 4 | **11.6** | **SHGAT Training avec PER** | 2-3j | 12j |
-| 5 | 11.4 | Definition/Invocation Views | 2-3j | 15j |
-| 6 | 11.5 | Dry Run (optional) | 3-4j | 19j |
+| Ordre | Story    | Description                             | Effort | Cumulative |
+| ----- | -------- | --------------------------------------- | ------ | ---------- |
+| 0     | 11.0     | DB Schema Cleanup                       | 2-3j   | 3j         |
+| 1     | 11.1     | Result Tracing                          | 0.5-1j | 4j         |
+| 2     | 11.2     | execution_trace Table (avec priority)   | 2-3j   | 7j         |
+| 3     | **11.3** | **TD Error + PER Priority** (simplifié) | 1-2j   | 9j         |
+| 4     | **11.6** | **SHGAT Training avec PER**             | 2-3j   | 12j        |
+| 5     | 11.4     | Definition/Invocation Views             | 2-3j   | 15j        |
+| 6     | 11.5     | Dry Run (optional)                      | 3-4j   | 19j        |
 
-**Total MVP (11.0-11.4 + 11.6): ~2-2.5 semaines** (réduit car 11.3 simplifié)
-**Total avec 11.5: ~3 semaines**
+**Total MVP (11.0-11.4 + 11.6): ~2-2.5 semaines** (réduit car 11.3 simplifié) **Total avec 11.5: ~3
+semaines**
 
 **Changements 2025-12-22 (Architecture TD+PER+SHGAT):**
 
-| Avant | Après | Impact |
-|-------|-------|--------|
-| 11.3 produisait `CapabilityLearning` | 11.3 produit `priority` pour PER | Simplifié |
-| 11.6 utilisait `CapabilityLearning` comme features | 11.6 utilise PER sampling + train SHGAT | Plus efficace |
-| 11.3 et 11.6 parallélisables | 11.3 → 11.6 séquentielles | 11.6 dépend de priority |
-| TD Learning → stats explicites | TD Error → signal pour PER | SHGAT apprend tout |
+| Avant                                              | Après                                   | Impact                  |
+| -------------------------------------------------- | --------------------------------------- | ----------------------- |
+| 11.3 produisait `CapabilityLearning`               | 11.3 produit `priority` pour PER        | Simplifié               |
+| 11.6 utilisait `CapabilityLearning` comme features | 11.6 utilise PER sampling + train SHGAT | Plus efficace           |
+| 11.3 et 11.6 parallélisables                       | 11.3 → 11.6 séquentielles               | 11.6 dépend de priority |
+| TD Learning → stats explicites                     | TD Error → signal pour PER              | SHGAT apprend tout      |
 
 **Dépréciations:**
+
 - `CapabilityLearning` type → supprimé
 - `workflow_pattern.learning` column → pas créée
 - `updateLearningTD()` → remplacé par `storeTraceWithPriority()`
@@ -971,13 +1007,13 @@ Story 11.6 replaced single-example `updateSHGAT()` with PER batch training:
 
 ## Breaking Changes Summary
 
-| Story | Change | Breaking? | Impact |
-|-------|--------|-----------|--------|
-| 11.1 | `result` in trace events | ❌ No | Additive |
-| 11.2 | DROP `workflow_execution` | ⚠️ **Yes** | Table supprimée |
-| 11.2 | CREATE `execution_trace` | ❌ No | Additive |
-| 11.3 | `learning` in dag_structure | ❌ No | Additive |
-| 11.4 | Toggle UI component | ❌ No | Additive |
+| Story | Change                      | Breaking?  | Impact          |
+| ----- | --------------------------- | ---------- | --------------- |
+| 11.1  | `result` in trace events    | ❌ No      | Additive        |
+| 11.2  | DROP `workflow_execution`   | ⚠️ **Yes** | Table supprimée |
+| 11.2  | CREATE `execution_trace`    | ❌ No      | Additive        |
+| 11.3  | `learning` in dag_structure | ❌ No      | Additive        |
+| 11.4  | Toggle UI component         | ❌ No      | Additive        |
 
 ---
 

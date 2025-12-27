@@ -12,14 +12,19 @@
  * @module web/islands/CodePanel
  */
 
-import { useEffect, useState, useRef, useCallback } from "preact/hooks";
-import { highlightCode, detectLanguage, syntaxHighlightStyles } from "../lib/syntax-highlight.ts";
-import type { CapabilityData, ToolData, ExecutionTrace, TraceTaskResult } from "./CytoscapeGraph.tsx";
+import { useCallback, useEffect, useRef, useState } from "preact/hooks";
+import { detectLanguage, highlightCode, syntaxHighlightStyles } from "../lib/syntax-highlight.ts";
+import type {
+  CapabilityData,
+  ExecutionTrace,
+  ToolData,
+  TraceTaskResult,
+} from "./CytoscapeGraph.tsx";
 import TraceSelector from "../components/ui/molecules/TraceSelector.tsx";
 import TraceTimeline from "../components/ui/molecules/TraceTimeline.tsx";
 
 // Re-export for convenience
-export type { CapabilityData, ToolData, ExecutionTrace, TraceTaskResult };
+export type { CapabilityData, ExecutionTrace, ToolData, TraceTaskResult };
 
 interface CodePanelProps {
   /** Capability data to display (null hides panel) */
@@ -38,8 +43,14 @@ interface CodePanelProps {
  * Default server color palette (matches D3GraphVisualization)
  */
 const DEFAULT_COLORS = [
-  "#FFB86F", "#FF6B6B", "#4ECDC4", "#FFE66D",
-  "#95E1D3", "#F38181", "#AA96DA", "#FCBAD3",
+  "#FFB86F",
+  "#FF6B6B",
+  "#4ECDC4",
+  "#FFE66D",
+  "#95E1D3",
+  "#F38181",
+  "#AA96DA",
+  "#FCBAD3",
 ];
 
 /**
@@ -169,7 +180,10 @@ export default function CodePanel({
 
     const currentY = "touches" in e ? e.touches[0].clientY : e.clientY;
     const deltaY = startYRef.current - currentY; // Negative = dragging down, Positive = dragging up
-    const newHeight = Math.min(getMaxPanelHeight(), Math.max(MIN_PANEL_HEIGHT, startHeightRef.current + deltaY));
+    const newHeight = Math.min(
+      getMaxPanelHeight(),
+      Math.max(MIN_PANEL_HEIGHT, startHeightRef.current + deltaY),
+    );
 
     setPanelHeight(newHeight);
   }, [isResizing]);
@@ -255,7 +269,8 @@ export default function CodePanel({
       <style>{syntaxHighlightStyles}</style>
 
       {/* Slide-up animation */}
-      <style>{`
+      <style>
+        {`
         @keyframes slideUp {
           from {
             transform: translateY(100%);
@@ -266,7 +281,8 @@ export default function CodePanel({
             opacity: 1;
           }
         }
-      `}</style>
+      `}
+      </style>
 
       <div
         ref={panelRef}
@@ -506,74 +522,74 @@ export default function CodePanel({
                 : "none",
             }}
           >
-
-          {/* Code Section */}
-          <div
-            style={{
-              background: "var(--bg, #0a0908)",
-              borderRadius: "8px",
-              border: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
-              overflow: "hidden",
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
-            {/* Code header with line numbers toggle */}
+            {/* Code Section */}
             <div
               style={{
-                padding: "8px 12px",
-                borderBottom: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
+                background: "var(--bg, #0a0908)",
+                borderRadius: "8px",
+                border: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
+                overflow: "hidden",
+                flex: 1,
                 display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                fontSize: "0.75rem",
-                color: "var(--text-dim, #8a8078)",
+                flexDirection: "column",
               }}
             >
-              <span style={{ textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                {displayMode === "tool" ? "Input Schema (JSON)" : contentLanguage}
-              </span>
-              <label
+              {/* Code header with line numbers toggle */}
+              <div
                 style={{
+                  padding: "8px 12px",
+                  borderBottom: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
                   display: "flex",
+                  justifyContent: "space-between",
                   alignItems: "center",
-                  gap: "6px",
-                  cursor: "pointer",
+                  fontSize: "0.75rem",
+                  color: "var(--text-dim, #8a8078)",
                 }}
               >
-                <input
-                  type="checkbox"
-                  checked={showLineNumbers}
-                  onChange={(e) => setShowLineNumbers((e.target as HTMLInputElement).checked)}
-                  style={{ accentColor: "var(--accent, #FFB86F)" }}
-                />
-                Line numbers
-              </label>
-            </div>
-
-            {/* Code content */}
-            <div
-              style={{
-                flex: 1,
-                overflow: "auto",
-                padding: "12px",
-              }}
-            >
-              {displayContent ? (
-                <pre
-                  class="code-block"
+                <span style={{ textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  {displayMode === "tool" ? "Input Schema (JSON)" : contentLanguage}
+                </span>
+                <label
                   style={{
-                    margin: 0,
-                    fontFamily:
-                      'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
-                    fontSize: "13px",
-                    lineHeight: "1.5",
-                    color: "var(--text, #f5f0ea)",
-                    whiteSpace: "pre",
-                    overflowX: "auto",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    cursor: "pointer",
                   }}
                 >
+                  <input
+                    type="checkbox"
+                    checked={showLineNumbers}
+                    onChange={(e) => setShowLineNumbers((e.target as HTMLInputElement).checked)}
+                    style={{ accentColor: "var(--accent, #FFB86F)" }}
+                  />
+                  Line numbers
+                </label>
+              </div>
+
+              {/* Code content */}
+              <div
+                style={{
+                  flex: 1,
+                  overflow: "auto",
+                  padding: "12px",
+                }}
+              >
+                {displayContent
+                  ? (
+                    <pre
+                      class="code-block"
+                      style={{
+                        margin: 0,
+                        fontFamily:
+                          'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
+                        fontSize: "13px",
+                        lineHeight: "1.5",
+                        color: "var(--text, #f5f0ea)",
+                        whiteSpace: "pre",
+                        overflowX: "auto",
+                      }}
+                    >
                   <code style={{ display: "table", width: "100%" }}>
                     {contentLines.map((line, index) => (
                       <div
@@ -603,237 +619,245 @@ export default function CodePanel({
                       </div>
                     ))}
                   </code>
-                </pre>
-              ) : (
-                <div
-                  style={{
-                    color: "var(--text-dim, #8a8078)",
-                    fontStyle: "italic",
-                    padding: "24px",
-                    textAlign: "center",
-                  }}
-                >
-                  {displayMode === "tool" ? "No input schema available" : "No code snippet available"}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Actions + Info Row */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-              gap: "16px",
-              flexWrap: "wrap",
-            }}
-          >
-            {/* Actions */}
-            <div style={{ display: "flex", gap: "8px" }}>
-              <button
-                onClick={handleCopy}
-                disabled={!displayContent}
-                style={{
-                  padding: "8px 16px",
-                  borderRadius: "8px",
-                  border: "none",
-                  background: copied
-                    ? "var(--success, #22c55e)"
-                    : "var(--accent, #FFB86F)",
-                  color: "var(--bg, #0a0908)",
-                  fontWeight: 600,
-                  fontSize: "0.875rem",
-                  cursor: displayContent ? "pointer" : "not-allowed",
-                  opacity: displayContent ? 1 : 0.5,
-                  transition: "all 0.15s ease",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                }}
-              >
-                {copied ? (
-                  <>
-                    <span>✓</span> Copied!
-                  </>
-                ) : (
-                  <>
-                    <span>📋</span> {displayMode === "tool" ? "Copy Schema" : "Copy Code"}
-                  </>
-                )}
-              </button>
-
-              {/* Run button - enabled for tools (future), disabled for capabilities */}
-              <button
-                disabled={displayMode !== "tool"}
-                title={displayMode === "tool" ? "Run this tool (Coming soon)" : "Coming soon - Story 8.5"}
-                style={{
-                  padding: "8px 16px",
-                  borderRadius: "8px",
-                  border: displayMode === "tool"
-                    ? "1px solid var(--accent, #FFB86F)"
-                    : "1px solid var(--border, rgba(255, 184, 111, 0.1))",
-                  background: displayMode === "tool"
-                    ? "var(--accent-dim, rgba(255, 184, 111, 0.1))"
-                    : "var(--bg-surface, #1a1816)",
-                  color: displayMode === "tool"
-                    ? "var(--accent, #FFB86F)"
-                    : "var(--text-dim, #8a8078)",
-                  fontWeight: 500,
-                  fontSize: "0.875rem",
-                  cursor: "not-allowed",
-                  opacity: displayMode === "tool" ? 0.8 : 0.6,
-                }}
-              >
-                ▶ {displayMode === "tool" ? "Run Tool" : "Try This"}
-              </button>
-            </div>
-
-            {/* Tool description (for tool mode) */}
-            {displayMode === "tool" && tool?.description && (
-              <div
-                style={{
-                  flex: 1,
-                  minWidth: "200px",
-                  padding: "8px 12px",
-                  background: "var(--bg-surface, #1a1816)",
-                  borderRadius: "6px",
-                  fontSize: "0.8125rem",
-                  color: "var(--text-muted, #d5c3b5)",
-                  lineHeight: "1.4",
-                }}
-              >
-                {tool.description}
-              </div>
-            )}
-
-            {/* Tools used (for capability mode) */}
-            {displayMode === "capability" && capability?.toolIds && capability.toolIds.length > 0 && (
-              <div
-                style={{
-                  display: "flex",
-                  gap: "6px",
-                  flexWrap: "wrap",
-                  alignItems: "center",
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: "0.75rem",
-                    color: "var(--text-dim, #8a8078)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em",
-                  }}
-                >
-                  Tools:
-                </span>
-                {capability.toolIds.map((toolId) => {
-                  const { server, name } = parseToolId(toolId);
-                  const color = getColor(server);
-
-                  return (
-                    <button
-                      key={toolId}
-                      onClick={() => onToolClick?.(toolId)}
-                      title={`${server}:${name} - Click to highlight in graph`}
+                    </pre>
+                  )
+                  : (
+                    <div
                       style={{
-                        padding: "4px 8px",
-                        borderRadius: "4px",
-                        border: `1px solid ${color}40`,
-                        background: `${color}15`,
-                        color: color,
-                        fontSize: "0.75rem",
-                        fontWeight: 500,
-                        cursor: onToolClick ? "pointer" : "default",
-                        transition: "all 0.15s ease",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "4px",
-                      }}
-                      onMouseOver={(e) => {
-                        if (onToolClick) {
-                          e.currentTarget.style.background = `${color}30`;
-                          e.currentTarget.style.transform = "translateY(-1px)";
-                        }
-                      }}
-                      onMouseOut={(e) => {
-                        e.currentTarget.style.background = `${color}15`;
-                        e.currentTarget.style.transform = "translateY(0)";
+                        color: "var(--text-dim, #8a8078)",
+                        fontStyle: "italic",
+                        padding: "24px",
+                        textAlign: "center",
                       }}
                     >
-                      <span
-                        style={{
-                          width: "6px",
-                          height: "6px",
-                          borderRadius: "50%",
-                          background: color,
-                        }}
-                      />
-                      {name}
-                    </button>
-                  );
-                })}
+                      {displayMode === "tool"
+                        ? "No input schema available"
+                        : "No code snippet available"}
+                    </div>
+                  )}
               </div>
-            )}
-          </div>
-
-          {/* Additional metadata */}
-          {displayMode === "capability" && capability && (capability.lastUsedAt || capability.createdAt) && (
-            <div
-              style={{
-                display: "flex",
-                gap: "16px",
-                fontSize: "0.75rem",
-                color: "var(--text-dim, #8a8078)",
-                paddingTop: "8px",
-                borderTop: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
-              }}
-            >
-              {capability.lastUsedAt && (
-                <span>Last used: {formatRelativeTime(capability.lastUsedAt)}</span>
-              )}
-              {capability.createdAt && (
-                <span>Created: {formatRelativeTime(capability.createdAt)}</span>
-              )}
             </div>
-          )}
-          {displayMode === "tool" && tool?.parentCapabilities && tool.parentCapabilities.length > 0 && (
+
+            {/* Actions + Info Row */}
             <div
               style={{
                 display: "flex",
-                gap: "8px",
-                alignItems: "center",
-                fontSize: "0.75rem",
-                color: "var(--text-dim, #8a8078)",
-                paddingTop: "8px",
-                borderTop: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                gap: "16px",
                 flexWrap: "wrap",
               }}
             >
-              <span style={{ textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                Used by:
-              </span>
-              {tool.parentCapabilities.slice(0, 5).map((capId) => (
-                <span
-                  key={capId}
+              {/* Actions */}
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button
+                  onClick={handleCopy}
+                  disabled={!displayContent}
                   style={{
-                    padding: "2px 6px",
-                    borderRadius: "4px",
-                    background: "rgba(34, 197, 94, 0.15)",
-                    color: "var(--success, #22c55e)",
-                    fontSize: "0.7rem",
+                    padding: "8px 16px",
+                    borderRadius: "8px",
+                    border: "none",
+                    background: copied ? "var(--success, #22c55e)" : "var(--accent, #FFB86F)",
+                    color: "var(--bg, #0a0908)",
+                    fontWeight: 600,
+                    fontSize: "0.875rem",
+                    cursor: displayContent ? "pointer" : "not-allowed",
+                    opacity: displayContent ? 1 : 0.5,
+                    transition: "all 0.15s ease",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
                   }}
                 >
-                  {capId.replace("cap:", "")}
-                </span>
-              ))}
-              {tool.parentCapabilities.length > 5 && (
-                <span style={{ color: "var(--text-dim, #8a8078)" }}>
-                  +{tool.parentCapabilities.length - 5} more
-                </span>
+                  {copied
+                    ? (
+                      <>
+                        <span>✓</span> Copied!
+                      </>
+                    )
+                    : (
+                      <>
+                        <span>📋</span> {displayMode === "tool" ? "Copy Schema" : "Copy Code"}
+                      </>
+                    )}
+                </button>
+
+                {/* Run button - enabled for tools (future), disabled for capabilities */}
+                <button
+                  disabled={displayMode !== "tool"}
+                  title={displayMode === "tool"
+                    ? "Run this tool (Coming soon)"
+                    : "Coming soon - Story 8.5"}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: "8px",
+                    border: displayMode === "tool"
+                      ? "1px solid var(--accent, #FFB86F)"
+                      : "1px solid var(--border, rgba(255, 184, 111, 0.1))",
+                    background: displayMode === "tool"
+                      ? "var(--accent-dim, rgba(255, 184, 111, 0.1))"
+                      : "var(--bg-surface, #1a1816)",
+                    color: displayMode === "tool"
+                      ? "var(--accent, #FFB86F)"
+                      : "var(--text-dim, #8a8078)",
+                    fontWeight: 500,
+                    fontSize: "0.875rem",
+                    cursor: "not-allowed",
+                    opacity: displayMode === "tool" ? 0.8 : 0.6,
+                  }}
+                >
+                  ▶ {displayMode === "tool" ? "Run Tool" : "Try This"}
+                </button>
+              </div>
+
+              {/* Tool description (for tool mode) */}
+              {displayMode === "tool" && tool?.description && (
+                <div
+                  style={{
+                    flex: 1,
+                    minWidth: "200px",
+                    padding: "8px 12px",
+                    background: "var(--bg-surface, #1a1816)",
+                    borderRadius: "6px",
+                    fontSize: "0.8125rem",
+                    color: "var(--text-muted, #d5c3b5)",
+                    lineHeight: "1.4",
+                  }}
+                >
+                  {tool.description}
+                </div>
+              )}
+
+              {/* Tools used (for capability mode) */}
+              {displayMode === "capability" && capability?.toolIds &&
+                capability.toolIds.length > 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "6px",
+                    flexWrap: "wrap",
+                    alignItems: "center",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: "0.75rem",
+                      color: "var(--text-dim, #8a8078)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    Tools:
+                  </span>
+                  {capability.toolIds.map((toolId) => {
+                    const { server, name } = parseToolId(toolId);
+                    const color = getColor(server);
+
+                    return (
+                      <button
+                        key={toolId}
+                        onClick={() => onToolClick?.(toolId)}
+                        title={`${server}:${name} - Click to highlight in graph`}
+                        style={{
+                          padding: "4px 8px",
+                          borderRadius: "4px",
+                          border: `1px solid ${color}40`,
+                          background: `${color}15`,
+                          color: color,
+                          fontSize: "0.75rem",
+                          fontWeight: 500,
+                          cursor: onToolClick ? "pointer" : "default",
+                          transition: "all 0.15s ease",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "4px",
+                        }}
+                        onMouseOver={(e) => {
+                          if (onToolClick) {
+                            e.currentTarget.style.background = `${color}30`;
+                            e.currentTarget.style.transform = "translateY(-1px)";
+                          }
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.background = `${color}15`;
+                          e.currentTarget.style.transform = "translateY(0)";
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: "6px",
+                            height: "6px",
+                            borderRadius: "50%",
+                            background: color,
+                          }}
+                        />
+                        {name}
+                      </button>
+                    );
+                  })}
+                </div>
               )}
             </div>
-          )}
+
+            {/* Additional metadata */}
+            {displayMode === "capability" && capability &&
+              (capability.lastUsedAt || capability.createdAt) && (
+              <div
+                style={{
+                  display: "flex",
+                  gap: "16px",
+                  fontSize: "0.75rem",
+                  color: "var(--text-dim, #8a8078)",
+                  paddingTop: "8px",
+                  borderTop: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
+                }}
+              >
+                {capability.lastUsedAt && (
+                  <span>Last used: {formatRelativeTime(capability.lastUsedAt)}</span>
+                )}
+                {capability.createdAt && (
+                  <span>Created: {formatRelativeTime(capability.createdAt)}</span>
+                )}
+              </div>
+            )}
+            {displayMode === "tool" && tool?.parentCapabilities &&
+              tool.parentCapabilities.length > 0 && (
+              <div
+                style={{
+                  display: "flex",
+                  gap: "8px",
+                  alignItems: "center",
+                  fontSize: "0.75rem",
+                  color: "var(--text-dim, #8a8078)",
+                  paddingTop: "8px",
+                  borderTop: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
+                  flexWrap: "wrap",
+                }}
+              >
+                <span style={{ textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Used by:
+                </span>
+                {tool.parentCapabilities.slice(0, 5).map((capId) => (
+                  <span
+                    key={capId}
+                    style={{
+                      padding: "2px 6px",
+                      borderRadius: "4px",
+                      background: "rgba(34, 197, 94, 0.15)",
+                      color: "var(--success, #22c55e)",
+                      fontSize: "0.7rem",
+                    }}
+                  >
+                    {capId.replace("cap:", "")}
+                  </span>
+                ))}
+                {tool.parentCapabilities.length > 5 && (
+                  <span style={{ color: "var(--text-dim, #8a8078)" }}>
+                    +{tool.parentCapabilities.length - 5} more
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Right Side: Invocation (trace selector + timeline) - Story 11.4 */}
@@ -848,7 +872,6 @@ export default function CodePanel({
                 gap: "12px",
               }}
             >
-
               <TraceSelector
                 traces={capability.traces}
                 selectedIndex={selectedTraceIndex}

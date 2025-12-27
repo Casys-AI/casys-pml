@@ -1,13 +1,13 @@
 # Story 8.2: Compound Graph Builder
 
-> **Epic:** 8 - Hypergraph Capabilities Visualization
-> **ADRs:** ADR-029 (Hypergraph Capabilities Visualization)
-> **Prerequisites:** Story 8.1 (Capability Data API - DONE), Epic 6 (D3.js Dashboard infrastructure)
-> **Status:** Done
+> **Epic:** 8 - Hypergraph Capabilities Visualization **ADRs:** ADR-029 (Hypergraph Capabilities
+> Visualization) **Prerequisites:** Story 8.1 (Capability Data API - DONE), Epic 6 (D3.js Dashboard
+> infrastructure) **Status:** Done
 
 ## User Story
 
-As a system architect, I want a HypergraphBuilder class that converts capabilities to D3.js graph nodes with hyperedge support, So that the visualization can represent N-ary relationships correctly.
+As a system architect, I want a HypergraphBuilder class that converts capabilities to D3.js graph
+nodes with hyperedge support, So that the visualization can represent N-ary relationships correctly.
 
 ## Problem Context
 
@@ -32,23 +32,25 @@ Le systeme dispose de:
 
 ### Gap Analysis
 
-| Feature | Existe? | Location |
-|---------|---------|----------|
-| Capability node structure | Oui | `types.ts` |
-| Tool node structure | Oui | `types.ts` |
-| Hierarchical edges | Oui | `types.ts` |
-| API `/api/graph/hypergraph` | Oui | `gateway-server.ts` |
-| HypergraphBuilder class | Non | **A extraire/creer (Story 8.2)** |
-| Shared tool handling | Partiel | Needs refinement |
+| Feature                     | Existe? | Location                         |
+| --------------------------- | ------- | -------------------------------- |
+| Capability node structure   | Oui     | `types.ts`                       |
+| Tool node structure         | Oui     | `types.ts`                       |
+| Hierarchical edges          | Oui     | `types.ts`                       |
+| API `/api/graph/hypergraph` | Oui     | `gateway-server.ts`              |
+| HypergraphBuilder class     | Non     | **A extraire/creer (Story 8.2)** |
+| Shared tool handling        | Partiel | Needs refinement                 |
 
 ### Impact
 
 Le buildHypergraphData() actuel dans data-service.ts:
+
 - Mélange data fetching et graph building
 - Crée des duplicate tool nodes quand un tool est dans plusieurs capabilities
 - Ne gère pas correctement les hyperedges (tool → multiple capabilities)
 
 Story 8.2 doit:
+
 1. Extraire la logique en HypergraphBuilder class dedicee
 2. Implementer le support correct des hyperedges D3.js
 3. Gerer les tools partages entre capabilities
@@ -84,7 +86,8 @@ Story 8.2 doit:
 
 ### Key Design Decision: Hyperedge Handling
 
-**Problem:** Un tool peut appartenir a plusieurs capabilities. Cytoscape compound nodes ne supportaient qu'un seul parent.
+**Problem:** Un tool peut appartenir a plusieurs capabilities. Cytoscape compound nodes ne
+supportaient qu'un seul parent.
 
 **Solution D3.js:** Utiliser un **array `parents[]`** au lieu d'un single `parent` string.
 
@@ -111,6 +114,7 @@ Story 8.2 doit:
 ```
 
 **Avantages:**
+
 - Relation hiérarchique directement dans le node (pas besoin de chercher dans les edges)
 - Plus intuitif pour le dev et le debug
 - `parents[]` = **source de vérité**, edges = **dérivés** pour D3 force layout
@@ -119,44 +123,47 @@ Story 8.2 doit:
 
 ### Visualisation: D3 Hull (Zones qui se chevauchent)
 
-**Décision:** Les capabilities sont visualisées comme des **ZONES** (pas des simples noeuds), en utilisant **D3 Hull** (convex hull).
+**Décision:** Les capabilities sont visualisées comme des **ZONES** (pas des simples noeuds), en
+utilisant **D3 Hull** (convex hull).
 
 ```
-    ┌────────────────────────┐
-    │     Capability 1       │
-    │   ┌────────────────────┼───────────────┐
-    │   │                    │               │
-    │   │  ○ tool-A          │   ○ tool-C    │  Capability 2
-    │   │  ○ tool-B          │               │
-    │   │         ○ tool-shared              │
-    │   │        (zone overlap)              │
-    └───┼────────────────────┘               │
-        │                    ○ tool-D        │
-        └────────────────────────────────────┘
+┌────────────────────────┐
+│     Capability 1       │
+│   ┌────────────────────┼───────────────┐
+│   │                    │               │
+│   │  ○ tool-A          │   ○ tool-C    │  Capability 2
+│   │  ○ tool-B          │               │
+│   │         ○ tool-shared              │
+│   │        (zone overlap)              │
+└───┼────────────────────┘               │
+    │                    ○ tool-D        │
+    └────────────────────────────────────┘
 ```
 
 **Pourquoi Hull et pas Voronoi:**
 
-| Critère | Hull ✅ | Voronoi ❌ |
-|---------|---------|-----------|
-| Zones qui se chevauchent | OUI | NON (partitionne l'espace) |
-| Grouper tools par capability | OUI | NON |
-| Tool dans plusieurs capabilities | Visible (overlap) | Impossible |
+| Critère                          | Hull ✅           | Voronoi ❌                 |
+| -------------------------------- | ----------------- | -------------------------- |
+| Zones qui se chevauchent         | OUI               | NON (partitionne l'espace) |
+| Grouper tools par capability     | OUI               | NON                        |
+| Tool dans plusieurs capabilities | Visible (overlap) | Impossible                 |
 
 **Comportement:**
+
 - Chaque capability = une zone (polygone convexe) englobant ses tools
 - Un tool avec `parents: ['cap-1', 'cap-2']` est dans les DEUX zones
 - Les zones se **chevauchent** là où les tools sont partagés → hyperedge visuel
 
 ### Edge Types Clarification
 
-| Edge Type | Tool → Tool | Cap → Tool | Cap → Cap |
-|-----------|-------------|------------|-----------|
-| `sequence` | ✅ A puis B | ❌ N/A | ✅ Cap A puis Cap B |
-| `dependency` | ✅ A dépend de B | ❌ N/A | ✅ Cap A dépend de Cap B |
-| `contains` | ❌ Pas de sens | ❌ **Remplacé par Hull** | ✅ Cap composite |
+| Edge Type    | Tool → Tool      | Cap → Tool               | Cap → Cap                |
+| ------------ | ---------------- | ------------------------ | ------------------------ |
+| `sequence`   | ✅ A puis B      | ❌ N/A                   | ✅ Cap A puis Cap B      |
+| `dependency` | ✅ A dépend de B | ❌ N/A                   | ✅ Cap A dépend de Cap B |
+| `contains`   | ❌ Pas de sens   | ❌ **Remplacé par Hull** | ✅ Cap composite         |
 
 **Important:** L'edge `contains` pour Cap → Tool est **remplacé par les Hull zones**.
+
 - Avant: edge vert "contains" entre capability et tool
 - Maintenant: le tool est **visuellement DANS** la zone Hull de la capability
 - Pas besoin d'edge explicite pour cette relation parent/child
@@ -165,10 +172,10 @@ Story 8.2 doit:
 
 **État actuel du code (`graph-engine.ts`):**
 
-| Composant | Location | Comportement |
-|-----------|----------|--------------|
-| `createOrUpdateEdge()` | :817-886 | Crée edges dans graphology (mémoire) |
-| `persistEdgesToDB()` | :960-987 | Persiste TOUS edges vers `tool_dependency` |
+| Composant                       | Location | Comportement                                  |
+| ------------------------------- | -------- | --------------------------------------------- |
+| `createOrUpdateEdge()`          | :817-886 | Crée edges dans graphology (mémoire)          |
+| `persistEdgesToDB()`            | :960-987 | Persiste TOUS edges vers `tool_dependency`    |
 | `persistCapabilityDependency()` | :899-950 | Persiste cap→cap vers `capability_dependency` |
 
 **Tables de persistance:**
@@ -194,11 +201,13 @@ capability_dependency (
 **Impact Hull Visualization:**
 
 Avec l'approche Hull, les edges **cap→tool "contains"** stockés dans `tool_dependency`:
+
 1. Ne sont plus utiles pour la visualisation (relation = visuelle via Hull)
 2. Peuvent être ignorés lors du rendu D3.js
 3. Option: les supprimer de `tool_dependency` ou filtrer lors du query
 
 **Décision de migration (FUTURE):**
+
 - Phase 1 (Story 8.2): Ignorer cap→tool edges lors du rendu, utiliser Hull
 - Phase 2 (optional): Nettoyer `tool_dependency` des cap→tool edges
 
@@ -214,13 +223,16 @@ Avec l'approche Hull, les edges **cap→tool "contains"** stockés dans `tool_de
 
 ### AC2: buildCompoundGraph Method Implemented
 
-- [x] Method `buildCompoundGraph(capabilities: CapabilityResponseInternal[], toolsSnapshot: GraphSnapshot)` → `HypergraphResult`
+- [x] Method
+      `buildCompoundGraph(capabilities: CapabilityResponseInternal[], toolsSnapshot: GraphSnapshot)`
+      → `HypergraphResult`
 - [x] Retourne structure D3.js-ready avec nodes et edges
 - [x] Accepte GraphSnapshot optionnel pour enrichir tool metadata (pagerank, degree)
 
 ### AC3: Capability Node Structure Correct
 
 - [x] Capability node structure:
+
 ```javascript
 {
   data: {
@@ -238,6 +250,7 @@ Avec l'approche Hull, les edges **cap→tool "contains"** stockés dans `tool_de
 ### AC4: Tool Node Structure Correct (Multi-Parent Array)
 
 - [x] Tool node structure with `parents[]` array:
+
 ```javascript
 {
   data: {
@@ -251,6 +264,7 @@ Avec l'approche Hull, les edges **cap→tool "contains"** stockés dans `tool_de
   }
 }
 ```
+
 - [x] Standalone tools (not in any capability) have `parents: []` (empty array)
 
 ### AC5: Hyperedge Support (Tool → Multiple Capabilities)
@@ -259,6 +273,7 @@ Avec l'approche Hull, les edges **cap→tool "contains"** stockés dans `tool_de
 - [x] `parents[]` array populated with ALL capability IDs that use this tool
 - [x] Hierarchical edges ALSO created (derived from parents[]) for D3 force layout
 - [x] Edge structure (generated from parents[]):
+
 ```javascript
 {
   data: {
@@ -275,8 +290,10 @@ Avec l'approche Hull, les edges **cap→tool "contains"** stockés dans `tool_de
 ### AC6: Cross-Capability Edges (Two Sources)
 
 **A. Shared Tools Links (inferred)**
+
 - [x] Edge creation between capabilities that share tools
 - [x] sharedTools count calculated correctly
+
 ```javascript
 {
   data: {
@@ -291,9 +308,11 @@ Avec l'approche Hull, les edges **cap→tool "contains"** stockés dans `tool_de
 ```
 
 **B. Capability Dependencies (from DB)**
+
 - [x] Query `capability_dependency` table for edges between capabilities
 - [x] Support edge_type: `contains`, `sequence`, `dependency`
 - [x] Support edge_source: `template`, `inferred`, `observed`
+
 ```javascript
 {
   data: {
@@ -318,20 +337,21 @@ Avec l'approche Hull, les edges **cap→tool "contains"** stockés dans `tool_de
   - Tools éloignés → hull s'étend pour tous les englober
   - Padding autour des tools (ex: 20px) pour lisibilité
   - Minimum size même pour 1-2 tools (éviter hull trop petit)
+
 ```javascript
 {
   capabilityZones: [
     {
-      id: 'cap-uuid-1',
-      label: 'Create Issue from File',
-      color: '#8b5cf6',  // violet
-      opacity: 0.3,      // semi-transparent pour voir overlaps
-      toolIds: ['filesystem:read', 'github:create_issue'],
-      padding: 20,       // px around tools
-      minRadius: 50,     // minimum hull size
+      id: "cap-uuid-1",
+      label: "Create Issue from File",
+      color: "#8b5cf6", // violet
+      opacity: 0.3, // semi-transparent pour voir overlaps
+      toolIds: ["filesystem:read", "github:create_issue"],
+      padding: 20, // px around tools
+      minRadius: 50, // minimum hull size
       // Tool positions calculated by D3 force, hull drawn around them
-    }
-  ]
+    },
+  ];
 }
 ```
 
@@ -383,10 +403,12 @@ Avec l'approche Hull, les edges **cap→tool "contains"** stockés dans `tool_de
   - [x] 4.1 Extract graph building logic from buildHypergraphData()
   - [x] 4.2 Integrate HypergraphBuilder
   - [x] 4.3 Ensure API response format unchanged
-  - [x] 4.4 **FIX BUG:** Remove duplicate graphSnapshot fetch - now fetched once and passed to builder
+  - [x] 4.4 **FIX BUG:** Remove duplicate graphSnapshot fetch - now fetched once and passed to
+        builder
 
 - [x] **Task 5: Update Types** (AC: #9)
-  - [x] 5.1 Change `parent?: string` to `parents: string[]` in ToolNode interface (`src/capabilities/types.ts`)
+  - [x] 5.1 Change `parent?: string` to `parents: string[]` in ToolNode interface
+        (`src/capabilities/types.ts`)
   - [x] 5.2 Update existing test assertions from `.parent` to `.parents[]`
   - [x] 5.3 Verify API response mapping handles new array field
 
@@ -449,7 +471,7 @@ for (let i = 0; i < capIds.length; i++) {
   for (let j = i + 1; j < capIds.length; j++) {
     const tools1 = capabilityToolsMap.get(capIds[i])!;
     const tools2 = capabilityToolsMap.get(capIds[j])!;
-    const sharedTools = [...tools1].filter(t => tools2.has(t)).length;
+    const sharedTools = [...tools1].filter((t) => tools2.has(t)).length;
     if (sharedTools > 0) {
       edges.push(createCapabilityLinkEdge(capIds[i], capIds[j], sharedTools));
     }
@@ -466,17 +488,18 @@ for (let i = 0; i < capIds.length; i++) {
 4. **GraphSnapshot Integration**
 
 Le HypergraphBuilder recoit un optional GraphSnapshot pour enrichir les tool nodes:
+
 - pagerank: importance score from GraphRAG
 - degree: connection count in tool graph
 
 ```typescript
 function enrichToolNode(toolId: string, snapshot?: GraphSnapshot): ToolNodeData {
-  const snapshotNode = snapshot?.nodes.find(n => n.id === toolId);
+  const snapshotNode = snapshot?.nodes.find((n) => n.id === toolId);
   return {
     id: toolId,
-    type: 'tool',
-    server: toolId.split(':')[0],
-    label: toolId.split(':').slice(1).join(':'),
+    type: "tool",
+    server: toolId.split(":")[0],
+    label: toolId.split(":").slice(1).join(":"),
     pagerank: snapshotNode?.pagerank ?? 0,
     degree: snapshotNode?.degree ?? 0,
   };
@@ -486,6 +509,7 @@ function enrichToolNode(toolId: string, snapshot?: GraphSnapshot): ToolNodeData 
 ### Project Structure Notes
 
 **Files to Create:**
+
 ```
 src/capabilities/
 └── hypergraph-builder.ts  # NEW: HypergraphBuilder class (~120-150 LOC)
@@ -495,6 +519,7 @@ tests/unit/capabilities/
 ```
 
 **Files to Modify:**
+
 ```
 src/capabilities/
 ├── mod.ts              # MODIFY: Export HypergraphBuilder
@@ -504,16 +529,19 @@ src/capabilities/
 ### Existing Code Patterns to Follow
 
 **CapabilityDataService.buildHypergraphData()** (`src/capabilities/data-service.ts:232-414`):
+
 - Current implementation has graph building logic mixed with data fetching
 - Extract to HypergraphBuilder, keep data fetching in service
 - Pattern: service calls builder, builder returns pure graph data
 
 **Type definitions** (`src/capabilities/types.ts:198-280`):
+
 - `CapabilityNode`, `ToolNode` - Use these interfaces
 - `CapabilityEdge`, `HierarchicalEdge` - Edge types
 - `GraphNode`, `GraphEdge` - Union types for D3.js
 
 **Test pattern** (`tests/unit/capabilities/data_service_test.ts`):
+
 - Shared DB setup pattern
 - Mock capabilities creation
 - Structure assertion patterns
@@ -533,22 +561,28 @@ src/capabilities/
 ### From Story 8.1 (Capability Data API) - CRITICAL
 
 **Key Learnings:**
-1. **Tool multi-membership issue identified:** Issue #25 documented that Cytoscape compound graphs don't support multiple parents. Decision: Use edges instead of parent relationships (implemented in Story 8.2)
+
+1. **Tool multi-membership issue identified:** Issue #25 documented that Cytoscape compound graphs
+   don't support multiple parents. Decision: Use edges instead of parent relationships (implemented
+   in Story 8.2)
 2. **Performance fix #24:** `getGraphSnapshot()` called once before loops, not N×M times
 3. **camelCase→snake_case mapping:** Internal uses camelCase, API boundary converts to snake_case
 4. **Community ID filtering:** Migration 015 added community_id column for Louvain clustering
 
 **Code Patterns Established:**
+
 - Shared DB test pattern (following dag_suggester_test.ts)
 - Intent preview truncation: SQL-based (97 chars + '...')
 - Sort field mapping: internal camelCase → DB snake_case
 
 **Files Created by 8.1:**
+
 - `src/capabilities/data-service.ts` - CapabilityDataService (370 LOC)
 - `src/db/migrations/015_capability_community_id.ts` - Migration
 - `tests/unit/capabilities/data_service_test.ts` - Unit tests (12 passing)
 
 **Modified by 8.1:**
+
 - `src/capabilities/types.ts` - Added 9 new API response types
 - `src/capabilities/mod.ts` - Export CapabilityDataService
 - `src/mcp/gateway-server.ts` - Added 2 API routes
@@ -556,12 +590,14 @@ src/capabilities/
 ### From Epic 6 (D3.js Migration)
 
 **Recent Commits:**
+
 ```
 c8d52df refactor: migrate visualization from Cytoscape.js to D3.js
 dd04aee fix: Correct test paths and D3 migration assertions
 ```
 
 **Key Changes:**
+
 - Cytoscape.js removed, D3.js force-directed graph implemented
 - `D3GraphVisualization.tsx` is the new visualization component
 - Type aliases `CytoscapeNode/CytoscapeEdge` kept for backward compat
@@ -669,10 +705,12 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 ### File List
 
 **Created:**
+
 - `src/capabilities/hypergraph-builder.ts` (~270 LOC)
 - `tests/unit/capabilities/hypergraph_builder_test.ts` (~340 LOC)
 
 **Modified:**
+
 - `src/capabilities/types.ts` - Added CapabilityZone, updated ToolNode with parents[]
 - `src/capabilities/data-service.ts` - Refactored to use HypergraphBuilder
 - `src/capabilities/mod.ts` - Export HypergraphBuilder and new types
@@ -680,7 +718,7 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Change Log
 
-| Date | Change |
-|------|--------|
-| 2025-12-11 | Story 8.2 implementation complete - HypergraphBuilder class with hyperedge support |
+| Date       | Change                                                                                     |
+| ---------- | ------------------------------------------------------------------------------------------ |
+| 2025-12-11 | Story 8.2 implementation complete - HypergraphBuilder class with hyperedge support         |
 | 2025-12-11 | Code review fixes: parents required (not optional), backward compat parent field, +2 tests |

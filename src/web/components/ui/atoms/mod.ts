@@ -21,12 +21,12 @@ export { default as TaskCard } from "./TaskCard.tsx";
 export { default as GraphNode, getNodeRadius, type GraphNodeData } from "./GraphNode.tsx";
 export {
   default as GraphEdge,
+  type EdgeSource,
+  type EdgeType,
   getEdgeColor,
   getEdgeOpacity,
   getEdgeStrokeDasharray,
   getEdgeWidth,
-  type EdgeSource,
-  type EdgeType,
   type GraphEdgeData,
 } from "./GraphEdge.tsx";
 export { default as GraphMarkers } from "./GraphMarkers.tsx";

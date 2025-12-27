@@ -1,5 +1,5 @@
 ---
-modulePlanFile: '{bmb_creations_output_folder}/{module_name}/module-plan-{module_name}.md'
+modulePlanFile: "{bmb_creations_output_folder}/{module_name}/module-plan-{module_name}.md"
 ---
 
 # Step 1b: Continue Module Creation
@@ -17,7 +17,8 @@ modulePlanFile: '{bmb_creations_output_folder}/{module_name}/module-plan-{module
 
 - ✅ You are a Module Architect and BMAD Systems Specialist
 - ✅ We engage in collaborative dialogue, not command-response
-- ✅ You bring expertise in BMAD architecture and module creation, user brings their module requirements
+- ✅ You bring expertise in BMAD architecture and module creation, user brings their module
+  requirements
 - ✅ Maintain collaborative, guiding tone throughout
 
 ### Step-Specific Rules:
@@ -43,15 +44,15 @@ modulePlanFile: '{bmb_creations_output_folder}/{module_name}/module-plan-{module
 
 ## STEP GOAL:
 
-To resume module creation by presenting current status, understanding what's been accomplished, and determining the next step in the process.
+To resume module creation by presenting current status, understanding what's been accomplished, and
+determining the next step in the process.
 
 ## CONTINUATION HANDLING SEQUENCE:
 
 ### 1. Load and Analyze Existing Module Plan
 
-Load module plan from: {modulePlanFile}
-Read entire document including frontmatter
-Extract current status from frontmatter fields:
+Load module plan from: {modulePlanFile} Read entire document including frontmatter Extract current
+status from frontmatter fields:
 
 - stepsCompleted array
 - lastStep (the final item in the stepsCompleted array)
@@ -90,8 +91,7 @@ Based on stepsCompleted, show:
 
 ### 3. Review What's Been Done
 
-Read content sections of module plan
-Summarize what's been accomplished:
+Read content sections of module plan Summarize what's been accomplished:
 
 "**Completed Work:**
 
@@ -101,12 +101,9 @@ Summarize what's been accomplished:
 
 ### 4. Determine Next Step
 
-Based on stepsCompleted array:
-Find highest completed step number
-Next step = highest completed + 1
+Based on stepsCompleted array: Find highest completed step number Next step = highest completed + 1
 
-"**Ready to Continue:**
-Your next step would be: **Step {nextStep} - [step name]**
+"**Ready to Continue:** Your next step would be: **Step {nextStep} - [step name]**
 
 What would you like to do?
 
@@ -162,8 +159,11 @@ Update modulePlanFile frontmatter:
 - Losing track of what's been done
 - Not offering appropriate continuation options
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN user selects 'C' (Continue) and appropriate updates are saved to modulePlanFile, will you then load, read entire file, then execute the determined next step file to resume the module creation workflow.
+ONLY WHEN user selects 'C' (Continue) and appropriate updates are saved to modulePlanFile, will you
+then load, read entire file, then execute the determined next step file to resume the module
+creation workflow.

@@ -1,26 +1,27 @@
 ---
-name: 'step-02-vision'
-description: 'Discover and define the core product vision, problem statement, and unique value proposition'
+name: "step-02-vision"
+description: "Discover and define the core product vision, problem statement, and unique value proposition"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmm/workflows/1-analysis/product-brief'
+workflow_path: "{project-root}/_bmad/bmm/workflows/1-analysis/product-brief"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-02-vision.md'
-nextStepFile: '{workflow_path}/steps/step-03-users.md'
-workflowFile: '{workflow_path}/workflow.md'
-outputFile: '{output_folder}/analysis/product-brief-{{project_name}}-{{date}}.md'
+thisStepFile: "{workflow_path}/steps/step-02-vision.md"
+nextStepFile: "{workflow_path}/steps/step-03-users.md"
+workflowFile: "{workflow_path}/workflow.md"
+outputFile: "{output_folder}/analysis/product-brief-{{project_name}}-{{date}}.md"
 
 # Task References
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 ---
 
 # Step 2: Product Vision Discovery
 
 ## STEP GOAL:
 
-Conduct comprehensive product vision discovery to define the core problem, solution, and unique value proposition through collaborative analysis.
+Conduct comprehensive product vision discovery to define the core problem, solution, and unique
+value proposition through collaborative analysis.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -34,9 +35,11 @@ Conduct comprehensive product vision discovery to define the core problem, solut
 ### Role Reinforcement:
 
 - ✅ You are a product-focused Business Analyst facilitator
-- ✅ If you already have been given a name, communication_style and persona, continue to use those while playing this new role
+- ✅ If you already have been given a name, communication_style and persona, continue to use those
+  while playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
-- ✅ You bring structured thinking and facilitation skills, while the user brings domain expertise and product vision
+- ✅ You bring structured thinking and facilitation skills, while the user brings domain expertise
+  and product vision
 - ✅ Maintain collaborative discovery tone throughout
 
 ### Step-Specific Rules:
@@ -55,7 +58,8 @@ Conduct comprehensive product vision discovery to define the core problem, solut
 
 ## CONTEXT BOUNDARIES:
 
-- Available context: Current document and frontmatter from step 1, input documents already loaded in memory
+- Available context: Current document and frontmatter from step 1, input documents already loaded in
+  memory
 - Focus: This will be the first content section appended to the document
 - Limits: Focus on clear, compelling product vision and problem statement
 - Dependencies: Document initialization from step-01 must be complete
@@ -64,8 +68,8 @@ Conduct comprehensive product vision discovery to define the core problem, solut
 
 ### 1. Begin Vision Discovery
 
-**Opening Conversation:**
-"As your PM peer, I'm excited to help you shape the vision for {{project_name}}. Let's start with the foundation.
+**Opening Conversation:** "As your PM peer, I'm excited to help you shape the vision for
+{{project_name}}. Let's start with the foundation.
 
 **Tell me about the product you envision:**
 
@@ -78,8 +82,7 @@ Let's start with the problem space before we get into solutions."
 
 ### 2. Deep Problem Understanding
 
-**Problem Discovery:**
-Explore the problem from multiple angles using targeted questions:
+**Problem Discovery:** Explore the problem from multiple angles using targeted questions:
 
 - How do people currently solve this problem?
 - What's frustrating about current solutions?
@@ -115,8 +118,7 @@ Explore the problem from multiple angles using targeted questions:
 
 ### 6. Generate Executive Summary Content
 
-**Content to Append:**
-Prepare the following structure for document append:
+**Content to Append:** Prepare the following structure for document append:
 
 ```markdown
 ## Executive Summary
@@ -150,31 +152,36 @@ Prepare the following structure for document append:
 
 ### 7. Present MENU OPTIONS
 
-**Content Presentation:**
-"I've drafted the executive summary and core vision based on our conversation. This captures the essence of {{project_name}} and what makes it special.
+**Content Presentation:** "I've drafted the executive summary and core vision based on our
+conversation. This captures the essence of {{project_name}} and what makes it special.
 
-**Here's what I'll add to the document:**
-[Show the complete markdown content from step 6]
+**Here's what I'll add to the document:** [Show the complete markdown content from step 6]
 
 **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Continue"
 
 #### Menu Handling Logic:
 
 - IF A: Execute {advancedElicitationTask} with current vision content to dive deeper and refine
-- IF P: Execute {partyModeWorkflow} to bring different perspectives to positioning and differentiation
-- IF C: Save content to {outputFile}, update frontmatter with stepsCompleted: [1, 2], then only then load, read entire file, then execute {nextStepFile}
-- IF Any other comments or queries: help user respond then [Redisplay Menu Options](#7-present-menu-options)
+- IF P: Execute {partyModeWorkflow} to bring different perspectives to positioning and
+  differentiation
+- IF C: Save content to {outputFile}, update frontmatter with stepsCompleted: [1, 2], then only then
+  load, read entire file, then execute {nextStepFile}
+- IF Any other comments or queries: help user respond then
+  [Redisplay Menu Options](#7-present-menu-options)
 
 #### EXECUTION RULES:
 
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu with updated content
-- User can chat or ask questions - always respond and then end with display again of the menu options
+- User can chat or ask questions - always respond and then end with display again of the menu
+  options
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN [C continue option] is selected and [vision content finalized and saved to document with frontmatter updated], will you then load and read fully `{nextStepFile}` to execute and begin target user discovery.
+ONLY WHEN [C continue option] is selected and [vision content finalized and saved to document with
+frontmatter updated], will you then load and read fully `{nextStepFile}` to execute and begin target
+user discovery.
 
 ---
 
@@ -200,4 +207,5 @@ ONLY WHEN [C continue option] is selected and [vision content finalized and save
 - Appending content without user selecting 'C'
 - Not updating frontmatter properly
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

@@ -4,8 +4,10 @@
 
 - 🛑 NEVER generate content without user input
 
-- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding leads to incomplete decisions
-- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before proceeding
+- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding
+  leads to incomplete decisions
+- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before
+  proceeding
 - ✅ ALWAYS treat this as collaborative discovery between UX facilitator and stakeholder
 - 📋 YOU ARE A UX FACILITATOR, not a content generator
 - 💬 FOCUS on defining desired emotional responses and user feelings
@@ -49,8 +51,8 @@ Define the desired emotional responses users should feel when using the product.
 
 ### 1. Explore Core Emotional Goals
 
-Start by understanding the emotional objectives:
-"Now let's think about how {{project_name}} should make users feel.
+Start by understanding the emotional objectives: "Now let's think about how {{project_name}} should
+make users feel.
 
 **Emotional Response Questions:**
 
@@ -59,12 +61,12 @@ Start by understanding the emotional objectives:
 - How should users feel after accomplishing their primary goal?
 - What feeling differentiates this from competitors?
 
-Common emotional goals: Empowered and in control? Delighted and surprised? Efficient and productive? Creative and inspired? Calm and focused? Connected and engaged?"
+Common emotional goals: Empowered and in control? Delighted and surprised? Efficient and productive?
+Creative and inspired? Calm and focused? Connected and engaged?"
 
 ### 2. Identify Emotional Journey Mapping
 
-Explore feelings at different stages:
-"**Emotional Journey Considerations:**
+Explore feelings at different stages: "**Emotional Journey Considerations:**
 
 - How should users feel when they first discover the product?
 - What emotion during the core experience/action?
@@ -74,8 +76,7 @@ Explore feelings at different stages:
 
 ### 3. Define Micro-Emotions
 
-Surface subtle but important emotional states:
-"**Micro-Emotions to Consider:**
+Surface subtle but important emotional states: "**Micro-Emotions to Consider:**
 
 - Confidence vs. Confusion
 - Trust vs. Skepticism
@@ -88,8 +89,7 @@ Which of these emotional states are most critical for your product's success?"
 
 ### 4. Connect Emotions to UX Decisions
 
-Link feelings to design implications:
-"**Design Implications:**
+Link feelings to design implications: "**Design Implications:**
 
 - If we want users to feel [emotional state], what UX choices support this?
 - What interactions might create negative emotions we want to avoid?
@@ -104,12 +104,11 @@ Link feelings to design implications:
 
 ### 5. Validate Emotional Goals
 
-Check if emotional goals align with product vision:
-"Let me make sure I understand the emotional vision for {{project_name}}:
+Check if emotional goals align with product vision: "Let me make sure I understand the emotional
+vision for {{project_name}}:
 
-**Primary Emotional Goal:** [Summarize main emotional response]
-**Secondary Feelings:** [List supporting emotional states]
-**Emotions to Avoid:** [List negative emotions to prevent]
+**Primary Emotional Goal:** [Summarize main emotional response] **Secondary Feelings:** [List
+supporting emotional states] **Emotions to Avoid:** [List negative emotions to prevent]
 
 Does this capture the emotional experience you want to create? Any adjustments needed?"
 
@@ -147,23 +146,24 @@ When saving to document, append these Level 2 and Level 3 sections:
 
 ### 7. Present Content and Menu
 
-Show the generated emotional response content and present choices:
-"I've defined the desired emotional responses for {{project_name}}. These emotional goals will guide our design decisions to create the right user experience.
+Show the generated emotional response content and present choices: "I've defined the desired
+emotional responses for {{project_name}}. These emotional goals will guide our design decisions to
+create the right user experience.
 
 **Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 6]
 
-**What would you like to do?**
-[A] Advanced Elicitation - Let's refine the emotional response definition
-[P] Party Mode - Bring different perspectives on user emotional needs
-[C] Continue - Save this to the document and move to inspiration analysis"
+**What would you like to do?** [A] Advanced Elicitation - Let's refine the emotional response
+definition [P] Party Mode - Bring different perspectives on user emotional needs [C] Continue - Save
+this to the document and move to inspiration analysis"
 
 ### 8. Handle Menu Selection
 
 #### If 'A' (Advanced Elicitation):
 
-- Execute {project-root}/\_bmad/core/tasks/advanced-elicitation.xml with the current emotional response content
+- Execute {project-root}/\_bmad/core/tasks/advanced-elicitation.xml with the current emotional
+  response content
 - Process the enhanced emotional insights that come back
 - Ask user: "Accept these improvements to the emotional response definition? (y/n)"
 - If yes: Update content with improvements, then return to A/P/C menu
@@ -171,7 +171,8 @@ Show the generated emotional response content and present choices:
 
 #### If 'P' (Party Mode):
 
-- Execute {project-root}/\_bmad/core/workflows/party-mode/workflow.md with the current emotional response definition
+- Execute {project-root}/\_bmad/core/workflows/party-mode/workflow.md with the current emotional
+  response definition
 - Process the collaborative emotional insights that come back
 - Ask user: "Accept these changes to the emotional response definition? (y/n)"
 - If yes: Update content with improvements, then return to A/P/C menu
@@ -189,30 +190,27 @@ When user selects 'C', append the content directly to the document using the str
 
 ## SUCCESS METRICS:
 
-✅ Primary emotional goals clearly defined
-✅ Emotional journey mapped across user experience
-✅ Micro-emotions identified and addressed
-✅ Design implications connected to emotional responses
-✅ Emotional design principles established
-✅ A/P/C menu presented and handled correctly
-✅ Content properly appended to document when C selected
+✅ Primary emotional goals clearly defined ✅ Emotional journey mapped across user experience ✅
+Micro-emotions identified and addressed ✅ Design implications connected to emotional responses ✅
+Emotional design principles established ✅ A/P/C menu presented and handled correctly ✅ Content
+properly appended to document when C selected
 
 ## FAILURE MODES:
 
-❌ Missing core emotional goals or being too generic
-❌ Not considering emotional journey across different stages
-❌ Overlooking micro-emotions that impact user satisfaction
-❌ Not connecting emotional goals to specific UX design choices
-❌ Emotional principles too vague or not actionable
-❌ Not presenting A/P/C menu after content generation
-❌ Appending content without user selecting 'C'
+❌ Missing core emotional goals or being too generic ❌ Not considering emotional journey across
+different stages ❌ Overlooking micro-emotions that impact user satisfaction ❌ Not connecting
+emotional goals to specific UX design choices ❌ Emotional principles too vague or not actionable ❌
+Not presenting A/P/C menu after content generation ❌ Appending content without user selecting 'C'
 
-❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
-❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step file
-❌ **CRITICAL**: Making decisions without complete understanding of step requirements and protocols
+❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor
+decisions ❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step
+file ❌ **CRITICAL**: Making decisions without complete understanding of step requirements and
+protocols
 
 ## NEXT STEP:
 
-After user selects 'C' and content is saved to document, load `./step-05-inspiration.md` to analyze UX patterns from inspiring products.
+After user selects 'C' and content is saved to document, load `./step-05-inspiration.md` to analyze
+UX patterns from inspiring products.
 
-Remember: Do NOT proceed to step-05 until user explicitly selects 'C' from the A/P/C menu and content is saved!
+Remember: Do NOT proceed to step-05 until user explicitly selects 'C' from the A/P/C menu and
+content is saved!

@@ -1,17 +1,17 @@
 ---
-name: 'step-01-init'
-description: 'Initialize the nutrition plan workflow by detecting continuation state and creating output document'
+name: "step-01-init"
+description: "Initialize the nutrition plan workflow by detecting continuation state and creating output document"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmb/reference/workflows/meal-prep-nutrition'
+workflow_path: "{project-root}/_bmad/bmb/reference/workflows/meal-prep-nutrition"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-01-init.md'
-nextStepFile: '{workflow_path}/steps/step-02-profile.md'
-workflowFile: '{workflow_path}/workflow.md'
-outputFile: '{output_folder}/nutrition-plan-{project_name}.md'
-templateFile: '{workflow_path}/templates/nutrition-plan.md'
-continueFile: '{workflow_path}/steps/step-01b-continue.md'
+thisStepFile: "{workflow_path}/steps/step-01-init.md"
+nextStepFile: "{workflow_path}/steps/step-02-profile.md"
+workflowFile: "{workflow_path}/workflow.md"
+outputFile: "{output_folder}/nutrition-plan-{project_name}.md"
+templateFile: "{workflow_path}/templates/nutrition-plan.md"
+continueFile: "{workflow_path}/steps/step-01b-continue.md"
 # Template References
 # This step doesn't use content templates, only the main template
 ---
@@ -31,7 +31,8 @@ continueFile: '{workflow_path}/steps/step-01b-continue.md'
 
 - ✅ You are a nutrition expert and meal planning specialist
 - ✅ We engage in collaborative dialogue, not command-response
-- ✅ You bring nutritional expertise and structured planning, user brings their personal preferences and lifestyle constraints
+- ✅ You bring nutritional expertise and structured planning, user brings their personal preferences
+  and lifestyle constraints
 - ✅ Together we produce something better than the sum of our own parts
 
 ### Step-Specific Rules:
@@ -57,7 +58,8 @@ continueFile: '{workflow_path}/steps/step-01b-continue.md'
 
 ## STEP GOAL:
 
-To initialize the Nutrition Plan workflow by detecting continuation state, creating the output document, and preparing for the first collaborative session.
+To initialize the Nutrition Plan workflow by detecting continuation state, creating the output
+document, and preparing for the first collaborative session.
 
 ## INITIALIZATION SEQUENCE:
 
@@ -93,8 +95,8 @@ If no document exists or no `stepsCompleted` in frontmatter:
 
 #### A. Input Document Discovery
 
-This workflow doesn't require input documents, but check for:
-**Existing Health Information (Optional):**
+This workflow doesn't require input documents, but check for: **Existing Health Information
+(Optional):**
 
 - Look for: `{output_folder}/*health*.md`
 - Look for: `{output_folder}/*goals*.md`
@@ -118,7 +120,8 @@ user_name: { user_name }
 
 #### C. Show Welcome Message
 
-"Welcome to your personalized nutrition planning journey! I'm excited to work with you to create a meal plan that fits your lifestyle, preferences, and health goals.
+"Welcome to your personalized nutrition planning journey! I'm excited to work with you to create a
+meal plan that fits your lifestyle, preferences, and health goals.
 
 Let's begin by getting to know you and your nutrition goals."
 
@@ -148,7 +151,8 @@ Display: **Proceeding to user profile collection...**
 
 #### Menu Handling Logic:
 
-- After setup completion, immediately load, read entire file, then execute `{workflow_path}/step-02-profile.md` to begin user profile collection
+- After setup completion, immediately load, read entire file, then execute
+  `{workflow_path}/step-02-profile.md` to begin user profile collection
 
 ---
 
@@ -163,7 +167,9 @@ Display: **Proceeding to user profile collection...**
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN initialization setup is complete and document is created, will you then immediately load, read entire file, then execute `{workflow_path}/step-02-profile.md` to begin user profile collection.
+ONLY WHEN initialization setup is complete and document is created, will you then immediately load,
+read entire file, then execute `{workflow_path}/step-02-profile.md` to begin user profile
+collection.
 
 ### ❌ SYSTEM FAILURE:
 
@@ -172,6 +178,7 @@ ONLY WHEN initialization setup is complete and document is created, will you the
 - Creating duplicate documents
 - Skipping welcome message
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.
 
 ---

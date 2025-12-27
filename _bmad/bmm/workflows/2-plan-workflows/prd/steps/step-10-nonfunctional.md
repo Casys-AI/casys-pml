@@ -1,19 +1,19 @@
 ---
-name: 'step-10-nonfunctional'
-description: 'Define quality attributes that matter for this specific product'
+name: "step-10-nonfunctional"
+description: "Define quality attributes that matter for this specific product"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmm/workflows/2-plan-workflows/prd'
+workflow_path: "{project-root}/_bmad/bmm/workflows/2-plan-workflows/prd"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-10-nonfunctional.md'
-nextStepFile: '{workflow_path}/steps/step-11-complete.md'
-workflowFile: '{workflow_path}/workflow.md'
-outputFile: '{output_folder}/prd.md'
+thisStepFile: "{workflow_path}/steps/step-10-nonfunctional.md"
+nextStepFile: "{workflow_path}/steps/step-11-complete.md"
+workflowFile: "{workflow_path}/workflow.md"
+outputFile: "{output_folder}/prd.md"
 
 # Task References
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 ---
 
 # Step 10: Non-Functional Requirements
@@ -24,8 +24,10 @@ partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 
 - 🛑 NEVER generate content without user input
 
-- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding leads to incomplete decisions
-- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before proceeding
+- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding
+  leads to incomplete decisions
+- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before
+  proceeding
 - ✅ ALWAYS treat this as collaborative discovery between PM peers
 - 📋 YOU ARE A FACILITATOR, not a content generator
 - 💬 FOCUS on quality attributes that matter for THIS specific product
@@ -63,7 +65,8 @@ This step will generate content and present choices:
 
 ## YOUR TASK:
 
-Define non-functional requirements that specify quality attributes for the product, focusing only on what matters for THIS specific product.
+Define non-functional requirements that specify quality attributes for the product, focusing only on
+what matters for THIS specific product.
 
 ## NON-FUNCTIONAL REQUIREMENTS SEQUENCE:
 
@@ -71,11 +74,12 @@ Define non-functional requirements that specify quality attributes for the produ
 
 Start by clarifying what NFRs are and why we're selective:
 
-**NFR Purpose:**
-NFRs define HOW WELL the system must perform, not WHAT it must do. They specify quality attributes like performance, security, scalability, etc.
+**NFR Purpose:** NFRs define HOW WELL the system must perform, not WHAT it must do. They specify
+quality attributes like performance, security, scalability, etc.
 
-**Selective Approach:**
-We only document NFRs that matter for THIS product. If a category doesn't apply, we skip it entirely. This prevents requirement bloat and focuses on what's actually important.
+**Selective Approach:** We only document NFRs that matter for THIS product. If a category doesn't
+apply, we skip it entirely. This prevents requirement bloat and focuses on what's actually
+important.
 
 ### 2. Assess Product Context for NFR Relevance
 
@@ -155,7 +159,8 @@ For each relevant NFR category, ensure criteria are testable:
 
 - NOT: "The system should be fast" → "User actions complete within 2 seconds"
 - NOT: "The system should be secure" → "All data is encrypted at rest and in transit"
-- NOT: "The system should scale" → "System supports 10x user growth with <10% performance degradation"
+- NOT: "The system should scale" → "System supports 10x user growth with <10% performance
+  degradation"
 
 ### 5. Generate NFR Content (Only Relevant Categories)
 
@@ -163,7 +168,8 @@ Prepare the content to append to the document:
 
 #### Content Structure (Dynamic based on relevance):
 
-When saving to document, append these Level 2 and Level 3 sections (only include sections that are relevant):
+When saving to document, append these Level 2 and Level 3 sections (only include sections that are
+relevant):
 
 ```markdown
 ## Non-Functional Requirements
@@ -191,8 +197,9 @@ When saving to document, append these Level 2 and Level 3 sections (only include
 
 ### 6. Present Content and Menu
 
-Show the generated NFR content and present choices:
-"I've defined the non-functional requirements that specify how well {{project_name}} needs to perform. I've only included categories that actually matter for this product.
+Show the generated NFR content and present choices: "I've defined the non-functional requirements
+that specify how well {{project_name}} needs to perform. I've only included categories that actually
+matter for this product.
 
 **Here's what I'll add to the document:**
 
@@ -200,10 +207,9 @@ Show the generated NFR content and present choices:
 
 **Note:** We've skipped categories that don't apply to avoid unnecessary requirements.
 
-**What would you like to do?**
-[A] Advanced Elicitation - Let's ensure we haven't missed critical quality attributes
-[P] Party Mode - Bring technical perspectives to validate NFR specifications
-[C] Continue - Save this and move to Complete PRD (Step 11 of 11)"
+**What would you like to do?** [A] Advanced Elicitation - Let's ensure we haven't missed critical
+quality attributes [P] Party Mode - Bring technical perspectives to validate NFR specifications [C]
+Continue - Save this and move to Complete PRD (Step 11 of 11)"
 
 ### 7. Handle Menu Selection
 
@@ -235,27 +241,22 @@ When user selects 'C', append the content directly to the document using the str
 
 ## SUCCESS METRICS:
 
-✅ Only relevant NFR categories documented (no requirement bloat)
-✅ Each NFR is specific and measurable
-✅ NFRs connected to actual user needs and business context
-✅ Vague requirements converted to testable criteria
-✅ Domain-specific compliance requirements included if relevant
-✅ A/P/C menu presented and handled correctly
-✅ Content properly appended to document when C selected
+✅ Only relevant NFR categories documented (no requirement bloat) ✅ Each NFR is specific and
+measurable ✅ NFRs connected to actual user needs and business context ✅ Vague requirements
+converted to testable criteria ✅ Domain-specific compliance requirements included if relevant ✅
+A/P/C menu presented and handled correctly ✅ Content properly appended to document when C selected
 
 ## FAILURE MODES:
 
-❌ Documenting NFR categories that don't apply to the product
-❌ Leaving requirements vague and unmeasurable
-❌ Not connecting NFRs to actual user or business needs
-❌ Missing domain-specific compliance requirements
-❌ Creating overly prescriptive technical requirements
-❌ Not presenting A/P/C menu after content generation
-❌ Appending content without user selecting 'C'
+❌ Documenting NFR categories that don't apply to the product ❌ Leaving requirements vague and
+unmeasurable ❌ Not connecting NFRs to actual user or business needs ❌ Missing domain-specific
+compliance requirements ❌ Creating overly prescriptive technical requirements ❌ Not presenting
+A/P/C menu after content generation ❌ Appending content without user selecting 'C'
 
-❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
-❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step file
-❌ **CRITICAL**: Making decisions without complete understanding of step requirements and protocols
+❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor
+decisions ❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step
+file ❌ **CRITICAL**: Making decisions without complete understanding of step requirements and
+protocols
 
 ## NFR CATEGORY GUIDANCE:
 
@@ -288,6 +289,9 @@ When user selects 'C', append the content directly to the document using the str
 
 ## NEXT STEP:
 
-After user selects 'C' and content is saved to document, load `{project-root}/_bmad/bmm/workflows/2-plan-workflows/prd/steps/step-11-complete.md` to finalize the PRD and complete the workflow.
+After user selects 'C' and content is saved to document, load
+`{project-root}/_bmad/bmm/workflows/2-plan-workflows/prd/steps/step-11-complete.md` to finalize the
+PRD and complete the workflow.
 
-Remember: Do NOT proceed to step-11 until user explicitly selects 'C' from the A/P/C menu and content is saved!
+Remember: Do NOT proceed to step-11 until user explicitly selects 'C' from the A/P/C menu and
+content is saved!

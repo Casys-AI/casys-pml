@@ -1,7 +1,7 @@
 # 04 - Multi-Level Message Passing
 
-**Parent**: [00-overview.md](./00-overview.md)
-**Depends on**: [03-incidence-structure.md](./03-incidence-structure.md)
+**Parent**: [00-overview.md](./00-overview.md) **Depends on**:
+[03-incidence-structure.md](./03-incidence-structure.md)
 
 ---
 
@@ -16,7 +16,7 @@ interface MultiLevelEmbeddings {
   E: Map<number, number[][]>;
 
   /** Attention weights for interpretability */
-  attentionUpward: Map<number, number[][][]>;   // [level][head][child][parent]
+  attentionUpward: Map<number, number[][][]>; // [level][head][child][parent]
   attentionDownward: Map<number, number[][][]>; // [level][head][parent][child]
 }
 ```
@@ -255,6 +255,7 @@ private propagateCapabilitiesToTools(
 ```
 
 Where:
+
 - `e_i`: Child embedding (from level k-1)
 - `e_j`: Parent embedding (from level k)
 - `||`: Concatenation

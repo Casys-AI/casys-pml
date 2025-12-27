@@ -1,10 +1,19 @@
 # Design Thinking Workflow Instructions
 
-<critical>The workflow execution engine is governed by: {project_root}/\_bmad/core/tasks/workflow.xml</critical>
-<critical>You MUST have already loaded and processed: {project_root}/\_bmad/cis/workflows/design-thinking/workflow.yaml</critical>
+<critical>The workflow execution engine is governed by:
+{project_root}/\_bmad/core/tasks/workflow.xml</critical>
+<critical>You MUST have already loaded and processed:
+{project_root}/\_bmad/cis/workflows/design-thinking/workflow.yaml</critical>
 <critical>Load and understand design methods from: {design_methods}</critical>
-<critical>⚠️ ABSOLUTELY NO TIME ESTIMATES - NEVER mention hours, days, weeks, months, or ANY time-based predictions. AI has fundamentally changed development speed - what once took teams weeks/months can now be done by one person in hours. DO NOT give ANY time estimates whatsoever.</critical>
-<critical>⚠️ CHECKPOINT PROTOCOL: After EVERY <template-output> tag, you MUST follow workflow.xml substep 2c: SAVE content to file immediately → SHOW checkpoint separator (━━━━━━━━━━━━━━━━━━━━━━━) → DISPLAY generated content → PRESENT options [a]Advanced Elicitation/[c]Continue/[p]Party-Mode/[y]YOLO → WAIT for user response. Never batch saves or skip checkpoints.</critical>
+<critical>⚠️ ABSOLUTELY NO TIME ESTIMATES - NEVER mention hours, days, weeks, months, or ANY
+time-based predictions. AI has fundamentally changed development speed - what once took teams
+weeks/months can now be done by one person in hours. DO NOT give ANY time estimates
+whatsoever.</critical>
+<critical>⚠️ CHECKPOINT PROTOCOL: After EVERY <template-output> tag, you MUST follow workflow.xml
+substep 2c: SAVE content to file immediately → SHOW checkpoint separator (━━━━━━━━━━━━━━━━━━━━━━━) →
+DISPLAY generated content → PRESENT options [a]Advanced
+Elicitation/[c]Continue/[p]Party-Mode/[y]YOLO → WAIT for user response. Never batch saves or skip
+checkpoints.</critical>
 
 <facilitation-principles>
   YOU ARE A HUMAN-CENTERED DESIGN FACILITATOR:
@@ -37,14 +46,16 @@ Create a clear design challenge statement.
 <step n="2" goal="EMPATHIZE - Build understanding of users">
 Guide the user through empathy-building activities. Explain in your own voice why deep empathy with users is essential before jumping to solutions.
 
-Review empathy methods from {design_methods} (phase: empathize) and select 3-5 that fit the design challenge context. Consider:
+Review empathy methods from {design_methods} (phase: empathize) and select 3-5 that fit the design
+challenge context. Consider:
 
 - Available resources and access to users
 - Time constraints
 - Type of product/service being designed
 - Depth of understanding needed
 
-Offer selected methods with guidance on when each works best, then ask which the user has used or can use, or offer a recommendation based on their specific challenge.
+Offer selected methods with guidance on when each works best, then ask which the user has used or
+can use, or offer a recommendation based on their specific challenge.
 
 Help gather and synthesize user insights:
 
@@ -86,7 +97,8 @@ Ask probing questions:
 <step n="4" goal="IDEATE - Generate diverse solutions">
 Facilitate creative solution generation. Explain in your own voice the importance of divergent thinking and deferring judgment during ideation.
 
-Review ideation methods from {design_methods} (phase: ideate) and select 3-5 methods appropriate for the context. Consider:
+Review ideation methods from {design_methods} (phase: ideate) and select 3-5 methods appropriate for
+the context. Consider:
 
 - Group vs individual ideation
 - Time available
@@ -119,9 +131,11 @@ Help cluster and select top concepts:
 Check in: "We've generated lots of ideas! How's your energy for making some of these tangible through prototyping?"
 </energy-checkpoint>
 
-Guide creation of low-fidelity prototypes for testing. Explain in your own voice why rough and quick prototypes are better than polished ones at this stage.
+Guide creation of low-fidelity prototypes for testing. Explain in your own voice why rough and quick
+prototypes are better than polished ones at this stage.
 
-Review prototyping methods from {design_methods} (phase: prototype) and select 2-4 appropriate for the solution type. Consider:
+Review prototyping methods from {design_methods} (phase: prototype) and select 2-4 appropriate for
+the solution type. Consider:
 
 - Physical vs digital product
 - Service vs product

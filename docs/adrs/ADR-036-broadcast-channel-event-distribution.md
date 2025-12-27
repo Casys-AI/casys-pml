@@ -1,7 +1,6 @@
 # ADR-036: BroadcastChannel for Event Distribution
 
-**Status:** Implemented
-**Date:** 2025-12-05 | **Deciders:** Architecture Team
+**Status:** Implemented **Date:** 2025-12-05 | **Deciders:** Architecture Team
 
 ## Context
 
@@ -25,6 +24,7 @@ Casys PML distribue des événements temps réel vers le dashboard via SSE:
 ```
 
 **Problèmes:**
+
 1. **Couplage fort:** L'émetteur doit connaître le gestionnaire de connexions
 2. **Single point of failure:** Si le SSE handler crash, tous les clients sont déconnectés
 3. **Scalabilité:** Difficile de distribuer sur plusieurs processus/workers
@@ -34,7 +34,8 @@ Casys PML distribue des événements temps réel vers le dashboard via SSE:
 
 ## Decision
 
-Adopter BroadcastChannel comme bus d'événements interne pour découpler les émetteurs des consommateurs.
+Adopter BroadcastChannel comme bus d'événements interne pour découpler les émetteurs des
+consommateurs.
 
 ### BroadcastChannel API
 
@@ -332,11 +333,11 @@ eventBus.on("capability.learned", (event) => {
 
 ### Risks
 
-| Risk | Probability | Impact | Mitigation |
-|------|-------------|--------|------------|
-| Event storm (too many events) | Medium | Medium | Throttling, sampling |
-| Memory leak (forgotten handlers) | Low | Low | WeakRef for handlers, auto-cleanup |
-| Message size limits | Low | Low | Summarize large payloads |
+| Risk                             | Probability | Impact | Mitigation                         |
+| -------------------------------- | ----------- | ------ | ---------------------------------- |
+| Event storm (too many events)    | Medium      | Medium | Throttling, sampling               |
+| Memory leak (forgotten handlers) | Low         | Low    | WeakRef for handlers, auto-cleanup |
+| Message size limits              | Low         | Low    | Summarize large payloads           |
 
 ## Implementation
 
@@ -396,6 +397,7 @@ function __trace(event: Partial<TraceEvent>): void {
 ```
 
 **Avantages:**
+
 - Validation du pattern BroadcastChannel cross-worker
 - Scope contrôlé, risque minimal
 - Base pour Phase 2
@@ -409,6 +411,7 @@ function __trace(event: Partial<TraceEvent>): void {
 **Scope:** Migration complète vers EventBus centralisé
 
 **Tasks:**
+
 1. Créer `src/events/types.ts` avec tous les types d'événements
 2. Créer `src/events/event-bus.ts` avec le singleton EventBus
 3. Migrer `tool_start/end` de WorkerBridge vers EventBus
@@ -426,8 +429,8 @@ function __trace(event: Partial<TraceEvent>): void {
 
 ~~**Story: Event Bus with BroadcastChannel**~~
 
-> ⚠️ Remplacée par le plan d'implémentation progressif ci-dessus.
-> Phase 1 (7.3b) puis Phase 2 (refactoring story).
+> ⚠️ Remplacée par le plan d'implémentation progressif ci-dessus. Phase 1 (7.3b) puis Phase 2
+> (refactoring story).
 
 ## References
 

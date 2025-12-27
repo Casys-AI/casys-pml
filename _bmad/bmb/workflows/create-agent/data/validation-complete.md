@@ -2,10 +2,9 @@
 
 ## Migration Summary
 
-**Legacy Workflow:** `bmb/workflows/create-agent-legacy/create-agent/workflow.yaml` + `instructions.md`
-**New Workflow:** `bmb/workflows/create-agent/create-agent/workflow.md` + 11 step files
-**Migration Date:** 2025-11-30T06:32:21.248Z
-**Migration Status:** ✅ COMPLETE
+**Legacy Workflow:** `bmb/workflows/create-agent-legacy/create-agent/workflow.yaml` +
+`instructions.md` **New Workflow:** `bmb/workflows/create-agent/create-agent/workflow.md` + 11 step
+files **Migration Date:** 2025-11-30T06:32:21.248Z **Migration Status:** ✅ COMPLETE
 
 ## Functionality Preservation Validation
 
@@ -294,7 +293,8 @@
 
 **✅ MIGRATION COMPLETE AND SUCCESSFUL**
 
-The create-agent workflow has been successfully migrated from the legacy XML format to the new standalone format with:
+The create-agent workflow has been successfully migrated from the legacy XML format to the new
+standalone format with:
 
 - **100% Functionality Preservation:** All original features maintained
 - **Significant Quality Improvements:** Better UX, validation, and documentation
@@ -302,4 +302,5 @@ The create-agent workflow has been successfully migrated from the legacy XML for
 - **Enhanced Maintainability:** Modular structure and clear separation of concerns
 - **Future-Ready Architecture:** Easy to extend and modify
 
-The new workflow is ready for production use and provides a solid foundation for future enhancements while maintaining complete backward compatibility with existing agent builder functionality.
+The new workflow is ready for production use and provides a solid foundation for future enhancements
+while maintaining complete backward compatibility with existing agent builder functionality.

@@ -1,16 +1,16 @@
 ---
-name: 'step-02-q1'
-description: 'Question 1 - Level 1 difficulty'
+name: "step-02-q1"
+description: "Question 1 - Level 1 difficulty"
 
 # Path Definitions
-workflow_path: '{project-root}/.bmad/custom/src/workflows/quiz-master'
+workflow_path: "{project-root}/.bmad/custom/src/workflows/quiz-master"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-02-q1.md'
-nextStepFile: '{workflow_path}/steps/step-03-q2.md'
-resultsStepFile: '{workflow_path}/steps/step-12-results.md'
-workflowFile: '{workflow_path}/workflow.md'
-csvFile: '{project-root}/BMad-quiz-results.csv'
+thisStepFile: "{workflow_path}/steps/step-02-q1.md"
+nextStepFile: "{workflow_path}/steps/step-03-q2.md"
+resultsStepFile: "{workflow_path}/steps/step-12-results.md"
+workflowFile: "{workflow_path}/workflow.md"
+csvFile: "{project-root}/BMad-quiz-results.csv"
 # Task References
 # No task references for this simple quiz workflow
 ---
@@ -19,7 +19,8 @@ csvFile: '{project-root}/BMad-quiz-results.csv'
 
 ## STEP GOAL:
 
-To present the first question (Level 1 difficulty), collect the user's answer, provide feedback, and update the CSV record.
+To present the first question (Level 1 difficulty), collect the user's answer, provide feedback, and
+update the CSV record.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -64,26 +65,23 @@ To present the first question (Level 1 difficulty), collect the user's answer, p
 
 Read the CSV file to get the category and game mode for the current game (last row).
 
-Present dramatic introduction:
-"🎵 QUESTION 1 - THE WARM-UP ROUND! 🎵
+Present dramatic introduction: "🎵 QUESTION 1 - THE WARM-UP ROUND! 🎵
 
-Let's start things off with a gentle warm-up in **[Category]**! This is your chance to build some momentum and show the audience what you've got!
+Let's start things off with a gentle warm-up in **[Category]**! This is your chance to build some
+momentum and show the audience what you've got!
 
 Level 1 difficulty - let's see if we can get off to a flying start!"
 
-Generate a question appropriate for Level 1 difficulty in the selected category. The question should:
+Generate a question appropriate for Level 1 difficulty in the selected category. The question
+should:
 
 - Be relatively easy/common knowledge
 - Have 4 clear multiple choice options
 - Only one clearly correct answer
 
-Present in format:
-"**QUESTION 1:** [Question text]
+Present in format: "**QUESTION 1:** [Question text]
 
-A) [Option A]
-B) [Option B]
-C) [Option C]
-D) [Option D]
+A) [Option A] B) [Option B] C) [Option C] D) [Option D]
 
 What's your answer? (A, B, C, or D)"
 
@@ -91,8 +89,8 @@ What's your answer? (A, B, C, or D)"
 
 Wait for user to enter A, B, C, or D.
 
-Accept case-insensitive answers. If invalid, prompt:
-"I need A, B, C, or D! Which option do you choose?"
+Accept case-insensitive answers. If invalid, prompt: "I need A, B, C, or D! Which option do you
+choose?"
 
 ### 3. Answer Evaluation
 
@@ -100,13 +98,11 @@ Determine if the answer is correct.
 
 ### 4. Feedback Presentation
 
-**IF CORRECT:**
-"🎉 **THAT'S CORRECT!** 🎉
-Excellent start, {user_name}! You're on the board! The crowd goes wild! Let's keep that momentum going!"
+**IF CORRECT:** "🎉 **THAT'S CORRECT!** 🎉 Excellent start, {user_name}! You're on the board! The
+crowd goes wild! Let's keep that momentum going!"
 
-**IF INCORRECT:**
-"😅 **OH, TOUGH BREAK!**
-Not quite right, but don't worry! In **[Mode Name]** mode, we [continue to next question / head to the results]!"
+**IF INCORRECT:** "😅 **OH, TOUGH BREAK!** Not quite right, but don't worry! In **[Mode Name]**
+mode, we [continue to next question / head to the results]!"
 
 ### 5. CSV Update
 
@@ -121,19 +117,19 @@ Update the CSV file's last row with:
 
 Read the game mode from the CSV.
 
-**IF GameMode = 1 (Sudden Death) AND answer was INCORRECT:**
-"Let's see how you did! Time for the results!"
+**IF GameMode = 1 (Sudden Death) AND answer was INCORRECT:** "Let's see how you did! Time for the
+results!"
 
 Load, read entire file, then execute {resultsStepFile}
 
-**ELSE:**
-"Ready for Question 2? It's going to be a little tougher!"
+**ELSE:** "Ready for Question 2? It's going to be a little tougher!"
 
 Load, read entire file, then execute {nextStepFile}
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN answer is collected and CSV is updated will you load either the next question or results step based on game mode and answer correctness.
+ONLY WHEN answer is collected and CSV is updated will you load either the next question or results
+step based on game mode and answer correctness.
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -152,4 +148,5 @@ ONLY WHEN answer is collected and CSV is updated will you load either the next q
 - Wrong routing decision
 - Losing gameshow persona
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

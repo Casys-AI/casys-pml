@@ -1,13 +1,14 @@
 # Tech-Spec: Smithery MCP Loader
 
-**Created:** 2025-12-12
-**Status:** Ready for Development
+**Created:** 2025-12-12 **Status:** Ready for Development
 
 ## Overview
 
 ### Problem Statement
 
-Actuellement, les serveurs MCP sont configurés manuellement dans un fichier local (`config/.mcp-servers.json`). Pour ajouter un nouveau serveur Smithery, il faut :
+Actuellement, les serveurs MCP sont configurés manuellement dans un fichier local
+(`config/.mcp-servers.json`). Pour ajouter un nouveau serveur Smithery, il faut :
+
 1. Aller sur smithery.ai configurer le serveur
 2. Copier la config dans le fichier local
 3. Redémarrer la gateway
@@ -16,7 +17,9 @@ Cette approche crée une duplication et une désynchronisation entre Smithery et
 
 ### Solution
 
-Ajouter la possibilité de charger dynamiquement les serveurs MCP depuis Smithery en utilisant l'API registry. La gateway PML chargera les serveurs depuis **deux sources** :
+Ajouter la possibilité de charger dynamiquement les serveurs MCP depuis Smithery en utilisant l'API
+registry. La gateway PML chargera les serveurs depuis **deux sources** :
+
 1. **Fichier local** (`config/.mcp-servers.json`) - pour les MCP locaux (playwright, etc.)
 2. **Smithery API** - pour les MCP distants configurés dans le profil utilisateur
 
@@ -25,6 +28,7 @@ Les serveurs Smithery seront connectés via le SDK Smithery qui gère le transpo
 ### Scope
 
 **In Scope:**
+
 - Nouveau module `SmitheryLoader` pour charger les serveurs depuis l'API Smithery
 - Nouveau client `SmitheryMCPClient` wrapper autour du SDK Smithery
 - Mise à jour de `MCPServerDiscovery` pour merger les deux sources
@@ -35,6 +39,7 @@ Les serveurs Smithery seront connectés via le SDK Smithery qui gère le transpo
 - **Flag `available` sur les tools** pour gérer la disponibilité sans suppression
 
 **Out of Scope:**
+
 - Interface utilisateur pour gérer les profils Smithery
 - Gestion des profils multiples (on utilise le profil par défaut lié à la clé)
 - Migration automatique des configs existantes
@@ -44,12 +49,12 @@ Les serveurs Smithery seront connectés via le SDK Smithery qui gère le transpo
 
 ### Codebase Patterns
 
-| Pattern | Exemple |
-|---------|---------|
-| Client MCP | `src/mcp/client.ts` - MCPClient avec connect/listTools/callTool |
-| Discovery | `src/mcp/discovery.ts` - MCPServerDiscovery.loadConfig() |
-| Types | `src/mcp/types.ts` - MCPServer, MCPConfig interfaces |
-| Entry point | `src/cli/commands/serve.ts` - orchestration au démarrage |
+| Pattern     | Exemple                                                         |
+| ----------- | --------------------------------------------------------------- |
+| Client MCP  | `src/mcp/client.ts` - MCPClient avec connect/listTools/callTool |
+| Discovery   | `src/mcp/discovery.ts` - MCPServerDiscovery.loadConfig()        |
+| Types       | `src/mcp/types.ts` - MCPServer, MCPConfig interfaces            |
+| Entry point | `src/cli/commands/serve.ts` - orchestration au démarrage        |
 
 ### Files to Reference
 
@@ -80,11 +85,14 @@ src/web/islands/
 
 ### Technical Decisions
 
-1. **SDK Smithery vs HTTP natif** → Utiliser `@smithery/sdk` car il gère le transport Streamable HTTP et l'authentification OAuth
+1. **SDK Smithery vs HTTP natif** → Utiliser `@smithery/sdk` car il gère le transport Streamable
+   HTTP et l'authentification OAuth
 2. **Merge strategy** → Fichier local prioritaire en cas de conflit d'ID (permet override local)
 3. **Lazy vs Eager loading** → Eager au démarrage (comme actuellement) pour découvrir tous les tools
-4. **Error handling** → Si Smithery échoue, continuer avec les serveurs locaux (graceful degradation)
-5. **Soft delete vs Hard delete** → Marquer `available = false` plutôt que supprimer les tools. Avantages:
+4. **Error handling** → Si Smithery échoue, continuer avec les serveurs locaux (graceful
+   degradation)
+5. **Soft delete vs Hard delete** → Marquer `available = false` plutôt que supprimer les tools.
+   Avantages:
    - Préserve l'historique des capabilities et edges du graph
    - Permet de réactiver un tool si le serveur revient
    - Évite les orphelins dans `tool_embedding` et `tool_dependency`
@@ -132,7 +140,8 @@ src/web/islands/
   - Test d'intégration avec serveur Smithery réel (optionnel, nécessite clé)
 
 - [ ] **Task 8: Sync des schémas Smithery dans la DB**
-  - **Objectif:** Les tools Smithery doivent être découvrables via `pml_search_tools` et suggérés par le DAGSuggester
+  - **Objectif:** Les tools Smithery doivent être découvrables via `pml_search_tools` et suggérés
+    par le DAGSuggester
   - **8.1 Ajouter colonne `available` à `tool_schema`**
     - Fichier: `src/db/migrations/` (nouvelle migration)
     - `ALTER TABLE tool_schema ADD COLUMN available BOOLEAN DEFAULT true`
@@ -165,26 +174,37 @@ src/web/islands/
 
 ### Acceptance Criteria
 
-- [ ] **AC 1:** Given `SMITHERY_API_KEY` is set, When gateway starts, Then servers from Smithery profile are loaded alongside local servers
-- [ ] **AC 2:** Given `SMITHERY_API_KEY` is NOT set, When gateway starts, Then only local servers are loaded (comportement actuel)
-- [ ] **AC 3:** Given a server exists dans les deux sources avec le même ID, When loading, Then la config locale est prioritaire
-- [ ] **AC 4:** Given Smithery API is unreachable, When gateway starts, Then local servers are still loaded and warning is logged
-- [ ] **AC 5:** Given a Smithery server is loaded, When calling a tool, Then the request goes through Smithery SDK HTTP transport
-- [ ] **AC 6:** Given Smithery tools are loaded, When gateway starts, Then their schemas are stored in `tool_schema` with `server_id` prefixed `smithery:`
-- [ ] **AC 7:** Given Smithery tools are in DB, When calling `pml_search_tools("airtable")`, Then Smithery tools matching the query are returned
-- [ ] **AC 8:** Given a Smithery server is removed from profile, When gateway restarts, Then its tools are marked `available = false` (not deleted)
-- [ ] **AC 9:** Given tools have `available = false`, When searching or suggesting DAGs, Then these tools are excluded from results
-- [ ] **AC 10:** Given a previously unavailable tool becomes available again, When gateway restarts, Then its `available` flag is set back to `true`
-- [ ] **AC 11:** Given tools have `available = false`, When viewing the D3 graph, Then these tools and their edges are not rendered
+- [ ] **AC 1:** Given `SMITHERY_API_KEY` is set, When gateway starts, Then servers from Smithery
+      profile are loaded alongside local servers
+- [ ] **AC 2:** Given `SMITHERY_API_KEY` is NOT set, When gateway starts, Then only local servers
+      are loaded (comportement actuel)
+- [ ] **AC 3:** Given a server exists dans les deux sources avec le même ID, When loading, Then la
+      config locale est prioritaire
+- [ ] **AC 4:** Given Smithery API is unreachable, When gateway starts, Then local servers are still
+      loaded and warning is logged
+- [ ] **AC 5:** Given a Smithery server is loaded, When calling a tool, Then the request goes
+      through Smithery SDK HTTP transport
+- [ ] **AC 6:** Given Smithery tools are loaded, When gateway starts, Then their schemas are stored
+      in `tool_schema` with `server_id` prefixed `smithery:`
+- [ ] **AC 7:** Given Smithery tools are in DB, When calling `pml_search_tools("airtable")`, Then
+      Smithery tools matching the query are returned
+- [ ] **AC 8:** Given a Smithery server is removed from profile, When gateway restarts, Then its
+      tools are marked `available = false` (not deleted)
+- [ ] **AC 9:** Given tools have `available = false`, When searching or suggesting DAGs, Then these
+      tools are excluded from results
+- [ ] **AC 10:** Given a previously unavailable tool becomes available again, When gateway restarts,
+      Then its `available` flag is set back to `true`
+- [ ] **AC 11:** Given tools have `available = false`, When viewing the D3 graph, Then these tools
+      and their edges are not rendered
 
 ## Additional Context
 
 ### Dependencies
 
-| Dépendance | Version | Usage |
-|------------|---------|-------|
-| `@smithery/sdk` | latest | Transport HTTP Streamable |
-| `@modelcontextprotocol/sdk` | ^1.15.1 | Client MCP standard |
+| Dépendance                  | Version | Usage                     |
+| --------------------------- | ------- | ------------------------- |
+| `@smithery/sdk`             | latest  | Transport HTTP Streamable |
+| `@modelcontextprotocol/sdk` | ^1.15.1 | Client MCP standard       |
 
 ### Testing Strategy
 
@@ -196,10 +216,10 @@ src/web/islands/
 
 Le système supporte des environnements distincts avec des clés Smithery différentes :
 
-| Variable | Description | Exemple |
-|----------|-------------|---------|
-| `SMITHERY_API_KEY` | Clé API Smithery (utilisée par défaut) | `5a44e00e-...` |
-| `NODE_ENV` ou `DENO_ENV` | Environnement actuel | `development` / `production` |
+| Variable                 | Description                            | Exemple                      |
+| ------------------------ | -------------------------------------- | ---------------------------- |
+| `SMITHERY_API_KEY`       | Clé API Smithery (utilisée par défaut) | `5a44e00e-...`               |
+| `NODE_ENV` ou `DENO_ENV` | Environnement actuel                   | `development` / `production` |
 
 **Comportement par environnement :**
 
@@ -229,7 +249,8 @@ SMITHERY_API_KEY=prod-key-yyy
 MCP_CONFIG_PATH=/etc/pml/mcp-servers.json
 ```
 
-**Note:** La clé Smithery détermine le profil chargé. Un profil dev peut avoir des serveurs de test, un profil prod les vrais services.
+**Note:** La clé Smithery détermine le profil chargé. Un profil dev peut avoir des serveurs de test,
+un profil prod les vrais services.
 
 ### Notes
 
@@ -266,6 +287,7 @@ MCP_CONFIG_PATH=/etc/pml/mcp-servers.json
 ### API Reference
 
 **Smithery Registry API:**
+
 ```http
 GET https://registry.smithery.ai/servers
 Authorization: Bearer {SMITHERY_API_KEY}
@@ -284,17 +306,18 @@ Response:
 ```
 
 **Smithery SDK Usage:**
+
 ```typescript
-import { createTransport } from "@smithery/sdk/transport.js"
-import { Client } from "@modelcontextprotocol/sdk/client/index.js"
+import { createTransport } from "@smithery/sdk/transport.js";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 
 const transport = createTransport(
   "https://server.smithery.ai/@domdomegg/airtable-mcp-server",
-  { airtableApiKey: "..." },  // config from profile
-  SMITHERY_API_KEY
-)
+  { airtableApiKey: "..." }, // config from profile
+  SMITHERY_API_KEY,
+);
 
-const client = new Client({ name: "pml-gateway", version: "1.0.0" })
-await client.connect(transport)
-const tools = await client.listTools()
+const client = new Client({ name: "pml-gateway", version: "1.0.0" });
+await client.connect(transport);
+const tools = await client.listTools();
 ```

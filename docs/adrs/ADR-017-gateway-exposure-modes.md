@@ -1,7 +1,6 @@
 # ADR-017: Gateway Exposure Modes
 
-**Status:** 📝 Draft
-**Date:** 2025-11-24 | **Deciders:** BMad | **Related:** ADR-013
+**Status:** 📝 Draft **Date:** 2025-11-24 | **Deciders:** BMad | **Related:** ADR-013
 
 ---
 

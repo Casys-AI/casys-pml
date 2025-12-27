@@ -1,12 +1,12 @@
 # Simple Agent Reference: Commit Poet (Inkwell Von Comitizen)
 
-This folder contains a complete reference implementation of a **BMAD Simple Agent** - a self-contained agent with all logic embedded within a single YAML file.
+This folder contains a complete reference implementation of a **BMAD Simple Agent** - a
+self-contained agent with all logic embedded within a single YAML file.
 
 ## Overview
 
-**Agent Name:** Inkwell Von Comitizen
-**Type:** Simple Agent (Standalone)
-**Purpose:** Transform commit messages into art with multiple writing styles
+**Agent Name:** Inkwell Von Comitizen **Type:** Simple Agent (Standalone) **Purpose:** Transform
+commit messages into art with multiple writing styles
 
 This reference demonstrates:
 
@@ -54,8 +54,8 @@ prompts:
 
 menu:
   - trigger: conventional
-    action: '#conventional-commit' # References the prompt above
-    description: 'Craft a structured conventional commit'
+    action: "#conventional-commit" # References the prompt above
+    description: "Craft a structured conventional commit"
 ```
 
 **Benefits:**
@@ -220,4 +220,5 @@ The entire `commit-poet.agent.yaml` file is worth studying, particularly:
 
 ---
 
-_This reference demonstrates how BMAD Simple Agents can be surprisingly powerful while maintaining architectural simplicity._
+_This reference demonstrates how BMAD Simple Agents can be surprisingly powerful while maintaining
+architectural simplicity._

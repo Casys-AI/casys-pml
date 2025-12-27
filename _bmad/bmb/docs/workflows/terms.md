@@ -4,7 +4,11 @@
 
 ### BMAD Workflow
 
-A facilitated, guided process where the AI acts as a facilitator working collaboratively with a human. Workflows can serve any purpose - from document creation to brainstorming, technical implementation, or decision-making. The human may be a collaborative partner, beginner seeking guidance, or someone who wants the AI to execute specific tasks. Each workflow is self-contained and follows a disciplined execution model.
+A facilitated, guided process where the AI acts as a facilitator working collaboratively with a
+human. Workflows can serve any purpose - from document creation to brainstorming, technical
+implementation, or decision-making. The human may be a collaborative partner, beginner seeking
+guidance, or someone who wants the AI to execute specific tasks. Each workflow is self-contained and
+follows a disciplined execution model.
 
 ### workflow.md
 

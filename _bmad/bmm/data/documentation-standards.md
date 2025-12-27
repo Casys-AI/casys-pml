@@ -1,7 +1,6 @@
 # Technical Documentation Standards for BMAD
 
-**For Agent: Technical Writer**
-**Purpose: Concise reference for documentation creation and review**
+**For Agent: Technical Writer** **Purpose: Concise reference for documentation creation and review**
 
 ---
 
@@ -13,7 +12,8 @@ ALL documentation MUST follow CommonMark specification exactly. No exceptions.
 
 ### Rule 2: NO TIME ESTIMATES
 
-NEVER document time estimates, durations, or completion times for any workflow, task, or activity. This includes:
+NEVER document time estimates, durations, or completion times for any workflow, task, or activity.
+This includes:
 
 - Workflow execution time (e.g., "30-60 min", "2-8 hours")
 - Task duration estimates
@@ -29,7 +29,8 @@ Time varies dramatically based on:
 - Context switching
 - Unforeseen blockers
 
-**Instead:** Focus on workflow steps, dependencies, and outputs. Let users determine their own timelines.
+**Instead:** Focus on workflow steps, dependencies, and outputs. Let users determine their own
+timelines.
 
 ### CommonMark Essentials
 
@@ -45,7 +46,7 @@ Time varies dramatically based on:
 - Use fenced blocks with language identifier:
   ````markdown
   ```javascript
-  const example = 'code';
+  const example = "code";
   ```
   ````
 - NOT indented code blocks (ambiguous)
@@ -239,8 +240,7 @@ Before finalizing ANY documentation:
 - Workflow-specific docs in workflow folder
 - Cross-references use relative paths
 
-**Frontmatter:**
-Use YAML frontmatter when appropriate:
+**Frontmatter:** Use YAML frontmatter when appropriate:
 
 ```yaml
 ---
@@ -259,4 +259,5 @@ date: YYYY-MM-DD
 
 ---
 
-**Remember: This is your foundation. Follow these rules consistently, and all documentation will be clear, accessible, and maintainable.**
+**Remember: This is your foundation. Follow these rules consistently, and all documentation will be
+clear, accessible, and maintainable.**

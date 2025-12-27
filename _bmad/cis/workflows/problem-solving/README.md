@@ -4,18 +4,21 @@ last-redoc-date: 2025-09-28
 
 # Problem Solving Workflow
 
-**Type:** Interactive Document Workflow
-**Module:** Creative Intelligence System (CIS)
+**Type:** Interactive Document Workflow **Module:** Creative Intelligence System (CIS)
 
 ## Purpose
 
-Applies systematic problem-solving methodologies to crack complex challenges. Guides through problem diagnosis, root cause analysis, creative solution generation, evaluation, and implementation planning using proven analytical frameworks.
+Applies systematic problem-solving methodologies to crack complex challenges. Guides through problem
+diagnosis, root cause analysis, creative solution generation, evaluation, and implementation
+planning using proven analytical frameworks.
 
 ## Distinctive Features
 
 - **Root Cause Focus**: Relentlessly drills past symptoms to identify true underlying issues
-- **Method Library**: Comprehensive solving methods in `solving-methods.csv` (TRIZ, Theory of Constraints, Systems Thinking, Five Whys)
-- **Detective Approach**: Methodical and curious investigation treating challenges as elegant puzzles
+- **Method Library**: Comprehensive solving methods in `solving-methods.csv` (TRIZ, Theory of
+  Constraints, Systems Thinking, Five Whys)
+- **Detective Approach**: Methodical and curious investigation treating challenges as elegant
+  puzzles
 - **Framework-Driven**: Combines divergent and convergent thinking systematically
 
 ## Usage

@@ -214,20 +214,20 @@ async function runMigrations(db: PGlite, migrations: Migration[]) {
 ### Summary
 
 Cette story 1.2 démontre une **implémentation robuste** de la fondation de base de données pour
-Casys PML. Tous les 6 critères d'acceptation sont **entièrement implémentés** avec une couverture
-de tests excellente (16+ tests) et une architecture bien pensée pour la scalabilité. La gestion des
+Casys PML. Tous les 6 critères d'acceptation sont **entièrement implémentés** avec une couverture de
+tests excellente (16+ tests) et une architecture bien pensée pour la scalabilité. La gestion des
 migrations et les opérations CRUD sont complètes et bien testées.
 
 ### Validation des Critères d'Acceptation
 
-| AC# | Description                                                      | Statut        | Évidence                                                                                |
-| --- | ---------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------- |
-| AC1 | PGlite database initialization dans ~/.pml/.pml.db | ✅ IMPLÉMENTÉ | PGliteClient.connect() crée le répertoire et initialise la DB (src/db/client.ts:40-54)  |
-| AC2 | pgvector extension loaded et operational                         | ✅ IMPLÉMENTÉ | Extension créée via `CREATE EXTENSION IF NOT EXISTS vector` (src/db/client.ts:51)       |
-| AC3 | Database schema: tool_embedding, tool_schema, config tables      | ✅ IMPLÉMENTÉ | Toutes 3 tables créées dans createInitialMigration() (src/db/migrations.ts:133-178)     |
-| AC4 | Vector index HNSW sur tool_embedding.embedding                   | ✅ IMPLÉMENTÉ | Index HNSW avec m=16, ef_construction=64 créé (src/db/migrations.ts:154-159)            |
-| AC5 | CRUD operations testés (insert, query, update, delete)           | ✅ IMPLÉMENTÉ | 5 tests (create, read, update, delete, transaction) dans client_test.ts                 |
-| AC6 | Database migration system pour schema evolution                  | ✅ IMPLÉMENTÉ | MigrationRunner avec up/down/rollback/getCurrentVersion() (src/db/migrations.ts:74-135) |
+| AC# | Description                                                 | Statut        | Évidence                                                                                |
+| --- | ----------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------- |
+| AC1 | PGlite database initialization dans ~/.pml/.pml.db          | ✅ IMPLÉMENTÉ | PGliteClient.connect() crée le répertoire et initialise la DB (src/db/client.ts:40-54)  |
+| AC2 | pgvector extension loaded et operational                    | ✅ IMPLÉMENTÉ | Extension créée via `CREATE EXTENSION IF NOT EXISTS vector` (src/db/client.ts:51)       |
+| AC3 | Database schema: tool_embedding, tool_schema, config tables | ✅ IMPLÉMENTÉ | Toutes 3 tables créées dans createInitialMigration() (src/db/migrations.ts:133-178)     |
+| AC4 | Vector index HNSW sur tool_embedding.embedding              | ✅ IMPLÉMENTÉ | Index HNSW avec m=16, ef_construction=64 créé (src/db/migrations.ts:154-159)            |
+| AC5 | CRUD operations testés (insert, query, update, delete)      | ✅ IMPLÉMENTÉ | 5 tests (create, read, update, delete, transaction) dans client_test.ts                 |
+| AC6 | Database migration system pour schema evolution             | ✅ IMPLÉMENTÉ | MigrationRunner avec up/down/rollback/getCurrentVersion() (src/db/migrations.ts:74-135) |
 
 **Résumé AC:** 6 of 6 critères d'acceptation entièrement implémentés ✅
 

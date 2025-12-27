@@ -22,7 +22,8 @@ author: Erwan Lee Pesle
 
 A **tool** is an atomic action: read a file, push to git, send a message.
 
-A **capability** is a coordinated pattern: "deploy to production" involves 5-10 tools working in sequence.
+A **capability** is a coordinated pattern: "deploy to production" involves 5-10 tools working in
+sequence.
 
 ![Tools vs Capability](excalidraw:src/web/assets/diagrams/emerge-tools-vs-capability.excalidraw)
 
@@ -40,12 +41,12 @@ Every workflow execution is recorded. Which tools were used? In what order? Did 
 
 Tools that frequently appear together get stronger edge weights in the graph.
 
-| Workflow | Tools Used |
-|----------|-----------|
+| Workflow  | Tools Used                              |
+| --------- | --------------------------------------- |
 | Monday AM | git_commit → github_push → slack_notify |
 | Monday PM | git_commit → github_push → slack_notify |
-| Tuesday | git_commit → github_push → slack_notify |
-| Wednesday | git_commit → github_push |
+| Tuesday   | git_commit → github_push → slack_notify |
+| Wednesday | git_commit → github_push                |
 
 After enough observations: `{git_commit, github_push, slack_notify}` becomes a pattern.
 
@@ -59,11 +60,11 @@ Spectral clustering on the graph Laplacian detects natural groupings:
 
 When a cluster is stable and confident enough, it becomes a named capability:
 
-| Metric | Threshold | Meaning |
-|--------|-----------|---------|
-| Co-occurrence count | ≥ 5 | Seen together enough times |
-| Cluster stability | ≥ 0.8 | Grouping is consistent |
-| Success rate | ≥ 0.7 | Pattern actually works |
+| Metric              | Threshold | Meaning                    |
+| ------------------- | --------- | -------------------------- |
+| Co-occurrence count | ≥ 5       | Seen together enough times |
+| Cluster stability   | ≥ 0.8     | Grouping is consistent     |
+| Success rate        | ≥ 0.7     | Pattern actually works     |
 
 The system names it based on the dominant tool or asks the user.
 
@@ -73,7 +74,8 @@ Here's where it gets interesting: **capabilities can contain other capabilities*
 
 ![Meta-Capabilities](excalidraw:src/web/assets/diagrams/emerge-meta-capabilities.excalidraw)
 
-When users repeatedly execute Git Workflow → Test Suite → Deploy in sequence, a meta-capability "Full Release" emerges.
+When users repeatedly execute Git Workflow → Test Suite → Deploy in sequence, a meta-capability
+"Full Release" emerges.
 
 This nesting is unbounded. Meta-meta-capabilities can form. That's why we use n-SuperHyperGraphs.
 
@@ -97,11 +99,11 @@ With emergence:
 
 Different users develop different capabilities based on their workflows:
 
-| User | Emerged Capability | Tools |
-|------|-------------------|-------|
-| DevOps Alice | "Quick Deploy" | docker_build → ecs_update |
-| Developer Bob | "Full CI/CD" | test → build → deploy → notify |
-| Data Scientist Carol | "Model Pipeline" | train → evaluate → register |
+| User                 | Emerged Capability | Tools                          |
+| -------------------- | ------------------ | ------------------------------ |
+| DevOps Alice         | "Quick Deploy"     | docker_build → ecs_update      |
+| Developer Bob        | "Full CI/CD"       | test → build → deploy → notify |
+| Data Scientist Carol | "Model Pipeline"   | train → evaluate → register    |
 
 Same system, different skills—based on usage.
 
@@ -113,6 +115,7 @@ Capabilities aren't static. As workflows change, capabilities evolve:
 - Unused patterns fade (confidence decay)
 
 **Future directions** we're exploring:
+
 - Capability merge (when two capabilities consistently co-occur)
 - Capability split (when a capability develops distinct sub-patterns)
 
@@ -133,23 +136,23 @@ Simplified view of how we detect capabilities:
 
 Key parameters:
 
-| Parameter | What It Controls |
-|-----------|-----------------|
-| Min cluster size | Ignore tiny patterns |
-| Stability threshold | How consistent must grouping be? |
-| Confidence decay | How fast do unused patterns fade? |
-| Merge threshold | When do similar capabilities combine? |
+| Parameter           | What It Controls                      |
+| ------------------- | ------------------------------------- |
+| Min cluster size    | Ignore tiny patterns                  |
+| Stability threshold | How consistent must grouping be?      |
+| Confidence decay    | How fast do unused patterns fade?     |
+| Merge threshold     | When do similar capabilities combine? |
 
 ## Real Examples
 
 Capabilities that emerged in our testing:
 
-| Emerged Capability | Detection Confidence | Tools |
-|-------------------|---------------------|-------|
-| "Git Commit Flow" | 94% | git_add, git_commit, git_push |
-| "PR Review Cycle" | 87% | github_pr_create, github_review, github_merge |
-| "Deploy Pipeline" | 91% | docker_build, ecr_push, ecs_update |
-| "Bug Investigation" | 78% | grep_search, file_read, git_blame |
+| Emerged Capability  | Detection Confidence | Tools                                         |
+| ------------------- | -------------------- | --------------------------------------------- |
+| "Git Commit Flow"   | 94%                  | git_add, git_commit, git_push                 |
+| "PR Review Cycle"   | 87%                  | github_pr_create, github_review, github_merge |
+| "Deploy Pipeline"   | 91%                  | docker_build, ecr_push, ecs_update            |
+| "Bug Investigation" | 78%                  | grep_search, file_read, git_blame             |
 
 None of these were programmed. All emerged from usage patterns.
 
@@ -168,7 +171,7 @@ The result: a system that learns your skills by watching you work.
 
 ## References
 
-- Von Luxburg, U. (2007). "A Tutorial on Spectral Clustering." *Statistics and Computing*.
+- Von Luxburg, U. (2007). "A Tutorial on Spectral Clustering." _Statistics and Computing_.
 - Blondel, V. et al. (2008). "Fast unfolding of communities in large networks." (Louvain method)
 
 #Emergence #Capabilities #MachineLearning #SelfOrganization

@@ -4,19 +4,26 @@
 
 ## En bref
 
-Un DAG (Directed Acyclic Graph) est la structure qui orchestre l'execution de vos workflows dans PML. Imaginez un plan de montage IKEA : chaque etape doit etre executee dans un ordre precis, certaines etapes peuvent etre faites en parallele (visser les pieds pendant que quelqu'un assemble le dos), et vous ne pouvez jamais revenir en arriere pour creer une boucle infinie. C'est exactement ce qu'est un DAG.
+Un DAG (Directed Acyclic Graph) est la structure qui orchestre l'execution de vos workflows dans
+PML. Imaginez un plan de montage IKEA : chaque etape doit etre executee dans un ordre precis,
+certaines etapes peuvent etre faites en parallele (visser les pieds pendant que quelqu'un assemble
+le dos), et vous ne pouvez jamais revenir en arriere pour creer une boucle infinie. C'est exactement
+ce qu'est un DAG.
 
 **Points cles :**
+
 - Structure de workflow avec dependances explicites
 - Execution dans un ordre logique (pas de boucles)
 - Parallelisation automatique des taches independantes
 - Gestion d'erreurs avec etats de taches
 
-**Analogie :** Plan de montage IKEA - Chaque etape numrotee, certaines peuvent etre faites en parallele, impossible de creer une boucle.
+**Analogie :** Plan de montage IKEA - Chaque etape numrotee, certaines peuvent etre faites en
+parallele, impossible de creer une boucle.
 
 ## What is a DAG?
 
 A **DAG** (Directed Acyclic Graph) is a structure that represents a workflow where:
+
 - **Directed**: Tasks have a clear direction (A → B means A runs before B)
 - **Acyclic**: No loops—a task can't depend on itself directly or indirectly
 - **Graph**: Tasks are nodes, dependencies are edges
@@ -24,6 +31,7 @@ A **DAG** (Directed Acyclic Graph) is a structure that represents a workflow whe
 ![DAG Model](excalidraw:src/web/assets/diagrams/dag-dag-model.excalidraw)
 
 DAGs are ideal for workflows because they:
+
 - Define clear execution order
 - Enable parallel execution of independent tasks
 - Prevent infinite loops
@@ -33,27 +41,27 @@ DAGs are ideal for workflows because they:
 
 A **task** is a unit of work in the DAG. Each task has:
 
-| Property | Description |
-|----------|-------------|
-| `id` | Unique identifier |
-| `toolName` | MCP tool to execute |
-| `serverHint` | Preferred MCP server |
-| `parameters` | Input values for the tool |
-| `dependsOn` | List of task IDs this task waits for |
-| `priority` | Execution priority (lower = higher priority) |
-| `checkpoint` | Whether to pause for approval |
+| Property     | Description                                  |
+| ------------ | -------------------------------------------- |
+| `id`         | Unique identifier                            |
+| `toolName`   | MCP tool to execute                          |
+| `serverHint` | Preferred MCP server                         |
+| `parameters` | Input values for the tool                    |
+| `dependsOn`  | List of task IDs this task waits for         |
+| `priority`   | Execution priority (lower = higher priority) |
+| `checkpoint` | Whether to pause for approval                |
 
 ### Task States
 
 Tasks progress through states:
 
-| State | Description |
-|-------|-------------|
-| `PENDING` | Waiting for dependencies |
-| `RUNNING` | Currently executing |
-| `COMPLETED` | Successfully finished |
-| `FAILED` | Execution error |
-| `SKIPPED` | Dependency failed |
+| State       | Description              |
+| ----------- | ------------------------ |
+| `PENDING`   | Waiting for dependencies |
+| `RUNNING`   | Currently executing      |
+| `COMPLETED` | Successfully finished    |
+| `FAILED`    | Execution error          |
+| `SKIPPED`   | Dependency failed        |
 
 ## Dependencies (dependsOn)
 
@@ -109,7 +117,8 @@ PML automatically creates:
 
 ## Validation
 
-Before execution, PML validates: No cycles (A → B → A invalid), valid task references, existing tools, required parameters.
+Before execution, PML validates: No cycles (A → B → A invalid), valid task references, existing
+tools, required parameters.
 
 ## Example
 
@@ -121,20 +130,22 @@ A complete DAG for processing a file:
 
 Voici un workflow reel de deploiement d'application web :
 
-| Layer | Tasks | Parallelism |
-|-------|-------|-------------|
-| **0: Preparation** | Run tests, Build assets, Lint code | ✅ Parallel |
-| **1: Build** | Create bundle | Sequential (waits for Layer 0) |
-| **2: Deploy** | Deploy API, Upload CDN, Update Database | ✅ Parallel |
-| **3: Verification** | Health check → Send notification | Sequential |
+| Layer               | Tasks                                   | Parallelism                    |
+| ------------------- | --------------------------------------- | ------------------------------ |
+| **0: Preparation**  | Run tests, Build assets, Lint code      | ✅ Parallel                    |
+| **1: Build**        | Create bundle                           | Sequential (waits for Layer 0) |
+| **2: Deploy**       | Deploy API, Upload CDN, Update Database | ✅ Parallel                    |
+| **3: Verification** | Health check → Send notification        | Sequential                     |
 
 **Comme un plan IKEA :**
+
 1. Préparez toutes les pièces (tests, build, lint)
 2. Assemblez le meuble (create bundle)
 3. Ajoutez les accessoires (deploy API, CDN, DB)
 4. Vérifiez la stabilité (health check)
 
 **Pourquoi cette structure ?**
+
 - Tests, build et lint peuvent s'executer en parallele (independants)
 - Le bundle necessite que tout soit valide (depend du Layer 0)
 - Les deployments peuvent etre paralleles (independants entre eux)

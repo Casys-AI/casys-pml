@@ -103,12 +103,12 @@ subagents:
 3. Implement required methods
 
 ```javascript
-const { BaseIdeSetup } = require('./_base-ide');
+const { BaseIdeSetup } = require("./_base-ide");
 
 class NewIdeSetup extends BaseIdeSetup {
   constructor() {
-    super('new-ide', 'New IDE Name', false); // name, display, preferred
-    this.configDir = '.new-ide';
+    super("new-ide", "New IDE Name", false); // name, display, preferred
+    this.configDir = ".new-ide";
   }
 
   async setup(projectDir, bmadDir, options = {}) {

@@ -6,8 +6,8 @@
 
 ```typescript
 const users = await mcp.db.query({ sql: "SELECT * FROM users" });
-const activeUsers = users.filter(u => u.status === 'active');
-const userNames = activeUsers.map(u => u.name);
+const activeUsers = users.filter((u) => u.status === "active");
+const userNames = activeUsers.map((u) => u.name);
 const sortedNames = userNames.sort();
 const uniqueNames = [...new Set(sortedNames)];
 return uniqueNames;
@@ -16,6 +16,7 @@ return uniqueNames;
 ### Décomposition en Tasks Modulaires
 
 #### **Task 1 : MCP Database Query**
+
 ```typescript
 {
   id: "task_n1",
@@ -27,6 +28,7 @@ return uniqueNames;
 ```
 
 #### **Task 2 : Filter (Computation)**
+
 ```typescript
 {
   id: "task_c1",
@@ -42,6 +44,7 @@ return uniqueNames;
 ```
 
 #### **Task 3 : Map (Computation)**
+
 ```typescript
 {
   id: "task_c2",
@@ -57,6 +60,7 @@ return uniqueNames;
 ```
 
 #### **Task 4 : Sort (Computation)**
+
 ```typescript
 {
   id: "task_c3",
@@ -72,6 +76,7 @@ return uniqueNames;
 ```
 
 #### **Task 5 : Deduplicate (Computation)**
+
 ```typescript
 {
   id: "task_c4",
@@ -105,12 +110,15 @@ return
 ## Bénéfices
 
 ### 1. HIL Granulaire
+
 Validation humaine possible après chaque étape :
+
 - ✅ "Les users sont-ils corrects ?" (après task_n1)
 - ✅ "Le filtre active est-il bon ?" (après task_c1)
 - ✅ "Les noms mappés sont corrects ?" (après task_c2)
 
 ### 2. Checkpoints et Resume
+
 ```typescript
 // Si erreur à task_c3, on peut reprendre depuis task_c2
 const checkpoint = await checkpointManager.loadCheckpoint(workflowId);
@@ -136,6 +144,7 @@ task_n1
 ### 4. Learning Patterns
 
 Le GraphRAG peut apprendre des patterns réutilisables :
+
 - "filter pattern" : Filtrage par statut
 - "map pattern" : Extraction de propriété
 - "deduplicate pattern" : Utilisation de Set
@@ -145,47 +154,60 @@ Ces patterns peuvent devenir des **capabilities** réutilisables.
 ## Challenges
 
 ### 1. Sérialisation
+
 Les données doivent être JSON-serializable entre tasks.
 
 ❌ **Ne marche pas :**
+
 ```typescript
-const fn = () => { /* closure */ };
+const fn = () => {/* closure */};
 const result = data.map(fn); // fn pas sérialisable
 ```
 
 ✅ **Marche :**
+
 ```typescript
-const result = data.map(u => u.name); // Lambda sérialisable
+const result = data.map((u) => u.name); // Lambda sérialisable
 ```
 
 ### 2. Scope Variables
+
 Les variables locales ne sont pas accessibles entre tasks.
 
 ❌ **Ne marche pas :**
+
 ```typescript
 const multiplier = 2;
-const result = data.map(x => x * multiplier); // multiplier pas accessible
+const result = data.map((x) => x * multiplier); // multiplier pas accessible
 ```
 
 ✅ **Solution :**
+
 ```typescript
 // Task 1 : Passer multiplier via context
-{ code: "const multiplier = 2; return multiplier;" }
+{
+  code: "const multiplier = 2; return multiplier;";
+}
 
 // Task 2 : Recevoir via deps
-{ code: "const mult = deps.task_1.output; return data.map(x => x * mult);" }
+{
+  code: "const mult = deps.task_1.output; return data.map(x => x * mult);";
+}
 ```
 
 ### 3. Side Effects
+
 Les side effects doivent être isolés.
 
 ❌ **Ne marche pas :**
+
 ```typescript
 let counter = 0;
-data.forEach(x => counter++); // Mutation externe
+data.forEach((x) => counter++); // Mutation externe
 ```
 
 ✅ **Solution :**
+
 ```typescript
 return data.reduce((count, _) => count + 1, 0); // Pure function
 ```
@@ -193,31 +215,33 @@ return data.reduce((count, _) => count + 1, 0); // Pure function
 ## Stratégie de Découpage
 
 ### Niveau 1 : Statement Boundaries (Simple)
+
 Découper au niveau des statements (lignes) :
 
 ```typescript
-const a = 1;           // task_1
-const b = a + 2;       // task_2 (dépend de task_1)
-const c = b * 3;       // task_3 (dépend de task_2)
+const a = 1; // task_1
+const b = a + 2; // task_2 (dépend de task_1)
+const c = b * 3; // task_3 (dépend de task_2)
 ```
 
-**Avantage :** Simple à implémenter
-**Inconvénient :** Trop granulaire (trop de tasks)
+**Avantage :** Simple à implémenter **Inconvénient :** Trop granulaire (trop de tasks)
 
 ### Niveau 2 : Operation Chains (Moyen)
+
 Découper les chaînes d'opérations :
 
 ```typescript
 const result = data
-  .filter(x => x.active)    // task_1
-  .map(x => x.name)         // task_2
-  .sort();                  // task_3
+  .filter((x) => x.active) // task_1
+  .map((x) => x.name) // task_2
+  .sort(); // task_3
 ```
 
-**Avantage :** Balance granularité/performance
-**Inconvénient :** Complexe à parser (CallExpression chains)
+**Avantage :** Balance granularité/performance **Inconvénient :** Complexe à parser (CallExpression
+chains)
 
 ### Niveau 3 : Logical Blocks (Complexe)
+
 Découper par blocs logiques (heuristiques) :
 
 ```typescript
@@ -238,8 +262,8 @@ const stats = enriched.map(u => ({
 }));
 ```
 
-**Avantage :** Optimal pour learning
-**Inconvénient :** Très complexe à implémenter (nécessite heuristiques)
+**Avantage :** Optimal pour learning **Inconvénient :** Très complexe à implémenter (nécessite
+heuristiques)
 
 ## Recommandation
 

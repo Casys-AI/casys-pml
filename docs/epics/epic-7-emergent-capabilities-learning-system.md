@@ -8,10 +8,10 @@
 
 Transformer Casys PML en système où les capabilities **émergent de l'usage** plutôt que d'être
 pré-définies. Implémenter un paradigme où Claude devient un **orchestrateur de haut niveau** qui
-délègue l'exécution à Casys PML, récupérant des capabilities apprises et des suggestions
-proactives. Ce système apprend continuellement des patterns d'exécution pour cristalliser des
-capabilities réutilisables, offrant une différenciation unique par rapport aux solutions
-concurrentes (Docker Dynamic MCP, Anthropic Programmatic Tool Calling).
+délègue l'exécution à Casys PML, récupérant des capabilities apprises et des suggestions proactives.
+Ce système apprend continuellement des patterns d'exécution pour cristalliser des capabilities
+réutilisables, offrant une différenciation unique par rapport aux solutions concurrentes (Docker
+Dynamic MCP, Anthropic Programmatic Tool Calling).
 
 **Value Delivery:**
 
@@ -384,6 +384,7 @@ await capabilities.deployProd({ image: "app:v1.0" });
 **Prerequisites:** Story 7.1b (Worker RPC Bridge), Story 7.3a (CapabilityMatcher)
 
 **ADR Integration (2025-12-08):**
+
 - **ADR-036 BroadcastChannel:** capability_start/end emitted in real-time (not batched)
 - This introduces the BroadcastChannel pattern, later generalized in Story 6.5 (Full EventBus)
 - See Pre-Implementation Review in story file for additional AC11-12 (orchestrator, E2E tests)
@@ -441,11 +442,11 @@ const capabilities = {
 
 **Story 7.4: DAGSuggester Extension - Mixed DAG (Tools + Capabilities)**
 
-As an AI agent, I want DAGs that include both MCP tools AND capabilities, So that I can
-reuse learned patterns in larger workflows.
+As an AI agent, I want DAGs that include both MCP tools AND capabilities, So that I can reuse
+learned patterns in larger workflows.
 
-**Context:**
-This story implements the "Strategic Discovery" mode (Passive Suggestion) defined in ADR-038.
+**Context:** This story implements the "Strategic Discovery" mode (Passive Suggestion) defined in
+ADR-038.
 
 **Algorithm (ADR-038):**
 
@@ -543,10 +544,11 @@ activé si le stockage devient un problème.
 
 **Story 7.6: Algorithm Observability Implementation (ADR-039)**
 
-As a system administrator, I want to trace algorithm decisions and outcomes, So that I can validatethe scoring weights and detect anomalies.
+As a system administrator, I want to trace algorithm decisions and outcomes, So that I can
+validatethe scoring weights and detect anomalies.
 
-**Context:**
-ADR-039 defines a logging structure for scoring algorithms. This story implements the persistence layer.
+**Context:** ADR-039 defines a logging structure for scoring algorithms. This story implements the
+persistence layer.
 
 **Acceptance Criteria:**
 
@@ -567,24 +569,23 @@ ADR-039 defines a logging structure for scoring algorithms. This story implement
 
 **Story 7.7a: Permission Inference - Analyse Automatique des Permissions (ADR-035)**
 
-As a system executing capabilities in sandbox, I want automatic permission inference from code analysis,
-So that capabilities run with minimal required permissions (principle of least privilege).
+As a system executing capabilities in sandbox, I want automatic permission inference from code
+analysis, So that capabilities run with minimal required permissions (principle of least privilege).
 
-**Context:**
-Deno demande actuellement des permissions globales pour tout le sandbox. Avec Deno 2.5+ Permission Sets,
-on peut définir des profils de permissions granulaires. Cette story infère automatiquement le profil
-approprié en analysant le code via SWC (réutilisation de Story 7.2b).
+**Context:** Deno demande actuellement des permissions globales pour tout le sandbox. Avec Deno 2.5+
+Permission Sets, on peut définir des profils de permissions granulaires. Cette story infère
+automatiquement le profil approprié en analysant le code via SWC (réutilisation de Story 7.2b).
 
 **Permission Profiles Définis:**
 
-| Profile | Read | Write | Net | Env | Use Case |
-|---------|------|-------|-----|-----|----------|
-| `minimal` | ❌ | ❌ | ❌ | ❌ | Pure computation, math |
-| `readonly` | `["./data"]` | ❌ | ❌ | ❌ | Data analysis |
-| `filesystem` | `["./"]` | `["/tmp"]` | ❌ | ❌ | File processing |
-| `network-api` | ❌ | ❌ | `["api.*"]` | ❌ | API calls (fetch) |
-| `mcp-standard` | ✅ | `["/tmp"]` | ✅ | Limited | Standard MCP tools |
-| `trusted` | ✅ | ✅ | ✅ | ✅ | Manual/verified capabilities |
+| Profile        | Read         | Write      | Net         | Env     | Use Case                     |
+| -------------- | ------------ | ---------- | ----------- | ------- | ---------------------------- |
+| `minimal`      | ❌           | ❌         | ❌          | ❌      | Pure computation, math       |
+| `readonly`     | `["./data"]` | ❌         | ❌          | ❌      | Data analysis                |
+| `filesystem`   | `["./"]`     | `["/tmp"]` | ❌          | ❌      | File processing              |
+| `network-api`  | ❌           | ❌         | `["api.*"]` | ❌      | API calls (fetch)            |
+| `mcp-standard` | ✅           | `["/tmp"]` | ✅          | Limited | Standard MCP tools           |
+| `trusted`      | ✅           | ✅         | ✅          | ✅      | Manual/verified capabilities |
 
 **Acceptance Criteria:**
 
@@ -597,9 +598,9 @@ approprié en analysant le code via SWC (réutilisation de Story 7.2b).
 4. Method `inferPermissions(code: string)` retourne:
    ```typescript
    interface InferredPermissions {
-     permissionSet: string;       // "minimal" | "readonly" | "network-api" | etc.
-     confidence: number;          // 0-1
-     detectedPatterns: string[];  // ["fetch", "mcp.filesystem"]
+     permissionSet: string; // "minimal" | "readonly" | "network-api" | etc.
+     confidence: number; // 0-1
+     detectedPatterns: string[]; // ["fetch", "mcp.filesystem"]
    }
    ```
 5. Migration DB ajoutée (012):
@@ -615,9 +616,11 @@ approprié en analysant le code via SWC (réutilisation de Story 7.2b).
 9. Tests: code sans I/O → permission_set = "minimal", confidence = 0.95
 
 **Files to Create:**
+
 - `src/capabilities/permission-inferrer.ts` (~120 LOC)
 
 **Files to Modify:**
+
 - `src/capabilities/capability-store.ts` - Appeler inferPermissions au save (~15 LOC)
 - `drizzle/migrations/` - Migration 012 (~20 LOC)
 
@@ -629,11 +632,10 @@ approprié en analysant le code via SWC (réutilisation de Story 7.2b).
 
 **Story 7.7b: Sandbox Permission Integration - Exécution avec Permissions Granulaires (ADR-035)**
 
-As a sandbox executor, I want to run capabilities with their inferred permission set,
-So that each capability has only the minimum permissions required.
+As a sandbox executor, I want to run capabilities with their inferred permission set, So that each
+capability has only the minimum permissions required.
 
-**Context:**
-Cette story modifie `SandboxExecutor` pour utiliser les permission sets stockés en DB.
+**Context:** Cette story modifie `SandboxExecutor` pour utiliser les permission sets stockés en DB.
 Inclut un fallback pour Deno < 2.5 avec les flags explicites.
 
 **Architecture:**
@@ -662,7 +664,12 @@ Inclut un fallback pour Deno < 2.5 avec les flags explicites.
        "readonly": { "read": ["./data", "/tmp"], "write": false, "net": false },
        "network-api": { "read": false, "write": false, "net": true },
        "filesystem": { "read": ["./"], "write": ["/tmp"], "net": false },
-       "mcp-standard": { "read": true, "write": ["/tmp", "./output"], "net": true, "env": ["HOME", "PATH"] },
+       "mcp-standard": {
+         "read": true,
+         "write": ["/tmp", "./output"],
+         "net": true,
+         "env": ["HOME", "PATH"]
+       },
        "trusted": { "read": true, "write": true, "net": true, "env": true }
      }
    }
@@ -676,6 +683,7 @@ Inclut un fallback pour Deno < 2.5 avec les flags explicites.
 9. Tests: fallback flags pour Deno 2.4
 
 **Files to Modify:**
+
 - `src/sandbox/executor.ts` - Ajout permission set support (~60 LOC)
 - `deno.json` - Permission sets configuration (~30 LOC)
 
@@ -687,12 +695,12 @@ Inclut un fallback pour Deno < 2.5 avec les flags explicites.
 
 **Story 7.7c: HIL Permission Escalation - Escalade avec Approbation Humaine (ADR-035)**
 
-As a user, I want to approve permission escalations when a capability needs more access,
-So that security is maintained while allowing legitimate operations.
+As a user, I want to approve permission escalations when a capability needs more access, So that
+security is maintained while allowing legitimate operations.
 
-**Context:**
-Quand une capability échoue avec PermissionDenied, le système peut demander à l'utilisateur
-d'approuver une escalade de permissions. Intégration avec le système HIL existant (DAG executor).
+**Context:** Quand une capability échoue avec PermissionDenied, le système peut demander à
+l'utilisateur d'approuver une escalade de permissions. Intégration avec le système HIL existant (DAG
+executor).
 
 **Flow:**
 
@@ -715,10 +723,10 @@ d'approuver une escalade de permissions. Intégration avec le système HIL exist
    ```typescript
    interface PermissionEscalationRequest {
      capabilityId: string;
-     currentSet: string;          // "minimal"
-     requestedSet: string;        // "network-api"
-     reason: string;              // "PermissionDenied: net access to api.example.com"
-     detectedOperation: string;   // "fetch"
+     currentSet: string; // "minimal"
+     requestedSet: string; // "network-api"
+     reason: string; // "PermissionDenied: net access to api.example.com"
+     detectedOperation: string; // "fetch"
    }
    ```
 2. `suggestEscalation(error: string)` analyse l'erreur et suggère le profil approprié
@@ -742,9 +750,11 @@ d'approuver une escalade de permissions. Intégration avec le système HIL exist
 10. Tests: audit log contient toutes les décisions
 
 **Files to Create:**
+
 - `src/capabilities/permission-escalation.ts` (~100 LOC)
 
 **Files to Modify:**
+
 - `src/dag/controlled-executor.ts` - Ajout type "permission_escalation" (~30 LOC)
 - `drizzle/migrations/` - Migration 013 permission_audit_log (~15 LOC)
 
@@ -814,7 +824,7 @@ d'approuver une escalade de permissions. Intégration avec le système HIL exist
 
 ## Epic 7 Market Comparison
 
-| Feature            | Docker Dynamic MCP | Anthropic PTC | **Casys PML Epic 7**       |
+| Feature            | Docker Dynamic MCP | Anthropic PTC | **Casys PML Epic 7**        |
 | ------------------ | ------------------ | ------------- | --------------------------- |
 | **Discovery**      | Runtime            | Pre-config    | Pre-exec + Capability Match |
 | **Learning**       | ❌ None            | ❌ None       | ✅ GraphRAG + Capabilities  |

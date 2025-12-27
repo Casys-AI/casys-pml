@@ -1,29 +1,30 @@
 ---
-name: 'step-05-shopping'
-description: 'Create a comprehensive shopping list that supports the meal strategy'
+name: "step-05-shopping"
+description: "Create a comprehensive shopping list that supports the meal strategy"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmb/reference/workflows/meal-prep-nutrition'
+workflow_path: "{project-root}/_bmad/bmb/reference/workflows/meal-prep-nutrition"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-05-shopping.md'
-nextStepFile: '{workflow_path}/steps/step-06-prep-schedule.md'
-workflowFile: '{workflow_path}/workflow.md'
-outputFile: '{output_folder}/nutrition-plan-{project_name}.md'
+thisStepFile: "{workflow_path}/steps/step-05-shopping.md"
+nextStepFile: "{workflow_path}/steps/step-06-prep-schedule.md"
+workflowFile: "{workflow_path}/workflow.md"
+outputFile: "{output_folder}/nutrition-plan-{project_name}.md"
 
 # Task References
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 
 # Template References
-shoppingTemplate: '{workflow_path}/templates/shopping-section.md'
+shoppingTemplate: "{workflow_path}/templates/shopping-section.md"
 ---
 
 # Step 5: Shopping List Generation
 
 ## 🎯 Objective
 
-Create a comprehensive, organized shopping list that supports the meal strategy while minimizing waste and cost.
+Create a comprehensive, organized shopping list that supports the meal strategy while minimizing
+waste and cost.
 
 ## 📋 MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -31,8 +32,7 @@ Create a comprehensive, organized shopping list that supports the meal strategy 
 - 📖 CRITICAL: Cross-reference with existing pantry items
 - 🔄 CRITICAL: Organize by store section for efficient shopping
 - ✅ Include quantities based on serving sizes and meal frequency
-- 🚫 DO NOT forget staples and seasonings
-  Only proceed if:
+- 🚫 DO NOT forget staples and seasonings Only proceed if:
 
 ```yaml
 cookingFrequency: "3-5x" OR "daily"
@@ -113,11 +113,11 @@ Based on:
 
 ## 💬 SAMPLE DIALOG STYLE:
 
-**✅ GOOD (Intent-based):**
-"Let's organize your shopping trip for maximum efficiency. I'll group items by store section. Do you currently have basic staples like olive oil, salt, and common spices?"
+**✅ GOOD (Intent-based):** "Let's organize your shopping trip for maximum efficiency. I'll group
+items by store section. Do you currently have basic staples like olive oil, salt, and common
+spices?"
 
-**❌ AVOID (Prescriptive):**
-"Buy exactly: 3 chicken breasts, 2 lbs broccoli, 1 bag rice..."
+**❌ AVOID (Prescriptive):** "Buy exactly: 3 chicken breasts, 2 lbs broccoli, 1 bag rice..."
 
 ## 📝 OUTPUT REQUIREMENTS:
 
@@ -144,14 +144,16 @@ pantryChecked: [yes/no]
 
 ### 5. Present MENU OPTIONS
 
-Display: **Select an Option:** [A] Budget Optimization Strategies [P] Shopping Perspectives [C] Continue to Prep Schedule
+Display: **Select an Option:** [A] Budget Optimization Strategies [P] Shopping Perspectives [C]
+Continue to Prep Schedule
 
 #### EXECUTION RULES:
 
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu
-- User can chat or ask questions - always respond and then end with display again of the menu options
+- User can chat or ask questions - always respond and then end with display again of the menu
+  options
 - Use menu handling logic section below
 
 #### Menu Handling Logic:
@@ -159,9 +161,14 @@ Display: **Select an Option:** [A] Budget Optimization Strategies [P] Shopping P
 - HALT and AWAIT ANSWER
 - IF A: Execute `{project-root}/_bmad/core/tasks/advanced-elicitation.xml`
 - IF P: Execute `{project-root}/_bmad/core/workflows/party-mode/workflow.md`
-- IF C: Save content to nutrition-plan.md, update frontmatter `stepsCompleted` to add 5 at the end of the array before loading next step, then load, read entire file, then execute `{workflow_path}/step-06-prep-schedule.md`
-- IF Any other comments or queries: help user respond then [Redisplay Menu Options](#5-present-menu-options)
+- IF C: Save content to nutrition-plan.md, update frontmatter `stepsCompleted` to add 5 at the end
+  of the array before loading next step, then load, read entire file, then execute
+  `{workflow_path}/step-06-prep-schedule.md`
+- IF Any other comments or queries: help user respond then
+  [Redisplay Menu Options](#5-present-menu-options)
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN C is selected and content is saved to document and frontmatter is updated, will you then load, read entire file, then execute `{workflow_path}/step-06-prep-schedule.md` to execute and begin meal prep schedule creation.
+ONLY WHEN C is selected and content is saved to document and frontmatter is updated, will you then
+load, read entire file, then execute `{workflow_path}/step-06-prep-schedule.md` to execute and begin
+meal prep schedule creation.

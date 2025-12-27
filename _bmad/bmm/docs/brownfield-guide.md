@@ -26,9 +26,11 @@ Brownfield projects involve working within existing codebases rather than starti
 - **Major integrations** - Complex architectural additions
 - **System expansions** - Enterprise-scale enhancements
 
-**Key Difference from Greenfield:** You must understand and respect existing patterns, architecture, and constraints.
+**Key Difference from Greenfield:** You must understand and respect existing patterns, architecture,
+and constraints.
 
-**Core Principle:** AI agents need comprehensive documentation to understand existing code before they can effectively plan or implement changes.
+**Core Principle:** AI agents need comprehensive documentation to understand existing code before
+they can effectively plan or implement changes.
 
 ---
 
@@ -68,7 +70,8 @@ When you run `workflow-init`, it handles brownfield intelligently:
 
 **Step 3: Analyzes your description**
 
-- Keywords: "fix", "bug" → Quick Flow, "dashboard", "platform" → BMad Method, "enterprise", "multi-tenant" → Enterprise Method
+- Keywords: "fix", "bug" → Quick Flow, "dashboard", "platform" → BMad Method, "enterprise",
+  "multi-tenant" → Enterprise Method
 - Complexity assessment
 - Confirms suggested track with you
 
@@ -95,7 +98,8 @@ You: "Yes"
 
 ### Default Recommendation: Run document-project
 
-**Best practice:** Run `document-project` workflow unless you have **confirmed, trusted, AI-optimized documentation**.
+**Best practice:** Run `document-project` workflow unless you have **confirmed, trusted,
+AI-optimized documentation**.
 
 ### Why Document-Project is Almost Always the Right Choice
 
@@ -150,7 +154,8 @@ If you have documentation but files are huge (>500 lines, 10+ level 2 sections):
    _bmad/core/tasks/index-docs.xml --directory ./docs
    ```
 
-3. **Finally:** Validate quality - if sharded docs still seem incomplete/outdated → Run `document-project`
+3. **Finally:** Validate quality - if sharded docs still seem incomplete/outdated → Run
+   `document-project`
 
 ### Four Real-World Scenarios
 
@@ -258,7 +263,8 @@ Without AI-optimized documentation, workflows fail:
 
 **When in doubt, run document-project.**
 
-It's better to spend 10-30 minutes generating fresh, accurate docs than to waste hours debugging AI agents working from bad documentation.
+It's better to spend 10-30 minutes generating fresh, accurate docs than to waste hours debugging AI
+agents working from bad documentation.
 
 ---
 
@@ -296,7 +302,8 @@ See the [Workflows section in BMM README](../README.md) for details.
 - Plans integration points
 - Epics+Stories created AFTER architecture phase
 
-**Brownfield-specific:** See [Scale Adaptive System](./scale-adaptive-system.md) for complete workflow paths by track.
+**Brownfield-specific:** See [Scale Adaptive System](./scale-adaptive-system.md) for complete
+workflow paths by track.
 
 ### Phase 3: Solutioning (BMad Method/Enterprise Only)
 
@@ -354,7 +361,8 @@ flowchart TD
 
 ### 1. Always Document First
 
-Even if you know the code, AI agents need `document-project` output for context. Run it before planning.
+Even if you know the code, AI agents need `document-project` output for context. Run it before
+planning.
 
 ### 2. Be Specific About Current Work
 
@@ -370,7 +378,8 @@ When workflow-init asks about your work:
 
 ### 4. Respect Existing Patterns
 
-Tech-spec and create-story workflows will detect conventions from existing documentation. Follow them unless explicitly modernizing.
+Tech-spec and create-story workflows will detect conventions from existing documentation. Follow
+them unless explicitly modernizing.
 
 ### 5. Plan Integration Points Explicitly
 
@@ -446,8 +455,7 @@ Document in tech-spec/architecture:
    - Analyzes existing auth patterns
    - Confirms conventions
    - Creates tech-spec.md + epic + 3-5 stories
-3. **Implement:** Load SM → `sprint-planning` → `create-story`
-   Load DEV → `dev-story` for each story
+3. **Implement:** Load SM → `sprint-planning` → `create-story` Load DEV → `dev-story` for each story
 4. **Review:** Load DEV → `code-review`
 
 **Time:** 1-3 days
@@ -462,10 +470,12 @@ Document in tech-spec/architecture:
 
 **Workflow:**
 
-1. **Document:** Run `document-project` (Deep scan) - Critical for understanding existing UI patterns
+1. **Document:** Run `document-project` (Deep scan) - Critical for understanding existing UI
+   patterns
 2. **Analyze:** Load Analyst → `research` (if evaluating analytics libraries)
 3. **Plan:** Load PM → `prd` (creates FRs/NFRs)
-4. **Solution:** Load Architect → `create-architecture` → `create-epics-and-stories` → `implementation-readiness`
+4. **Solution:** Load Architect → `create-architecture` → `create-epics-and-stories` →
+   `implementation-readiness`
 5. **Implement:** Sprint-based (10-15 stories)
    - Load SM → `sprint-planning`
    - Load SM → `create-story` per story
@@ -745,4 +755,5 @@ flowchart TD
 
 ---
 
-_Brownfield development is about understanding and respecting what exists while thoughtfully extending it._
+_Brownfield development is about understanding and respecting what exists while thoughtfully
+extending it._

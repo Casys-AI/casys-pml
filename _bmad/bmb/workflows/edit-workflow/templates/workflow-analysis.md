@@ -27,22 +27,19 @@
 
 {{#strengths}}
 
-- {{.}}
-  {{/strengths}}
+- {{.}} {{/strengths}}
 
 #### Potential Issues
 
 {{#issues}}
 
-- {{.}}
-  {{/issues}}
+- {{.}} {{/issues}}
 
 #### Format-Specific Notes
 
 {{#formatNotes}}
 
-- {{.}}
-  {{/formatNotes}}
+- {{.}} {{/formatNotes}}
 
 ### Best Practices Compliance
 

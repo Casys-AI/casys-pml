@@ -1,29 +1,30 @@
 ---
-name: 'step-01-validate-goal'
-description: 'Confirm workflow path and validation goals before proceeding'
+name: "step-01-validate-goal"
+description: "Confirm workflow path and validation goals before proceeding"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmb/workflows/workflow-compliance-check'
+workflow_path: "{project-root}/_bmad/bmb/workflows/workflow-compliance-check"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-01-validate-goal.md'
-nextStepFile: '{workflow_path}/steps/step-02-workflow-validation.md'
-workflowFile: '{workflow_path}/workflow.md'
-complianceReportFile: '{output_folder}/workflow-compliance-report-{workflow_name}.md'
+thisStepFile: "{workflow_path}/steps/step-01-validate-goal.md"
+nextStepFile: "{workflow_path}/steps/step-02-workflow-validation.md"
+workflowFile: "{workflow_path}/workflow.md"
+complianceReportFile: "{output_folder}/workflow-compliance-report-{workflow_name}.md"
 
 # Template References
-complianceReportTemplate: '{workflow_path}/templates/compliance-report.md'
+complianceReportTemplate: "{workflow_path}/templates/compliance-report.md"
 
 # Documentation References
-stepTemplate: '{project-root}/_bmad/bmb/docs/workflows/templates/step-template.md'
-workflowTemplate: '{project-root}/_bmad/bmb/docs/workflows/templates/workflow-template.md'
+stepTemplate: "{project-root}/_bmad/bmb/docs/workflows/templates/step-template.md"
+workflowTemplate: "{project-root}/_bmad/bmb/docs/workflows/templates/workflow-template.md"
 ---
 
 # Step 1: Goal Confirmation and Workflow Target
 
 ## STEP GOAL:
 
-Confirm the target workflow path and validation objectives before proceeding with systematic compliance analysis.
+Confirm the target workflow path and validation objectives before proceeding with systematic
+compliance analysis.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -37,7 +38,8 @@ Confirm the target workflow path and validation objectives before proceeding wit
 ### Role Reinforcement:
 
 - ✅ You are a compliance validator and quality assurance specialist
-- ✅ If you already have been given a name, communication_style and persona, continue to use those while playing this new role
+- ✅ If you already have been given a name, communication_style and persona, continue to use those
+  while playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You bring compliance expertise and systematic validation skills
 - ✅ User brings their workflow and specific compliance concerns
@@ -83,11 +85,10 @@ IF {user_provided_path} has NOT been provided, ask the user:
 
 Once user provides path:
 
-"Validating workflow path: `{user_provided_path}`"
-[Check if path exists and is readable]
+"Validating workflow path: `{user_provided_path}`" [Check if path exists and is readable]
 
-**If valid:** "✅ Workflow found and accessible. Ready to begin compliance analysis."
-**If invalid:** "❌ Cannot access workflow at that path. Please check the path and try again."
+**If valid:** "✅ Workflow found and accessible. Ready to begin compliance analysis." **If
+invalid:** "❌ Cannot access workflow at that path. Please check the path and try again."
 
 ### 3. Validation Scope Confirmation
 
@@ -122,13 +123,16 @@ Once user provides path:
 
 ## Menu Handling Logic:
 
-- IF C: Initialize compliance report, update frontmatter, then load, read entire file, then execute {nextStepFile}
+- IF C: Initialize compliance report, update frontmatter, then load, read entire file, then execute
+  {nextStepFile}
 - IF X: End workflow gracefully with guidance on running again later
-- IF Any other comments or queries: help user respond then [Redisplay Menu Options](#4-final-confirmation)
+- IF Any other comments or queries: help user respond then
+  [Redisplay Menu Options](#4-final-confirmation)
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN [C continue option] is selected and [workflow path validated and scope confirmed], will you then load and read fully `{nextStepFile}` to execute and begin workflow.md validation phase.
+ONLY WHEN [C continue option] is selected and [workflow path validated and scope confirmed], will
+you then load and read fully `{nextStepFile}` to execute and begin workflow.md validation phase.
 
 ---
 
@@ -149,4 +153,5 @@ ONLY WHEN [C continue option] is selected and [workflow path validated and scope
 - Starting compliance analysis without proper setup
 - Failing to establish clear reporting objectives
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

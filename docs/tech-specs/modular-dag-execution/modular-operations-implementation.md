@@ -28,11 +28,11 @@ Les opérations sont traitées comme des **tools** avec un préfixe spécial.
 
 ### **Avantages**
 
-✅ **Compatible avec l'existant** : Toutes les fonctions qui utilisent `task.tool` marchent
-✅ **Traces automatiques** : `executedPath` contient `["db:query", "code:filter", "code:map"]`
-✅ **SHGAT apprend** : Les pseudo-tools sont traités comme des tools normaux
-✅ **Pas de changement DB** : Schéma `execution_trace` inchangé
-✅ **Routing simple** : `task.type === "code_execution"` → CodeExecutor
+✅ **Compatible avec l'existant** : Toutes les fonctions qui utilisent `task.tool` marchent ✅
+**Traces automatiques** : `executedPath` contient `["db:query", "code:filter", "code:map"]` ✅
+**SHGAT apprend** : Les pseudo-tools sont traités comme des tools normaux ✅ **Pas de changement
+DB** : Schéma `execution_trace` inchangé ✅ **Routing simple** : `task.type === "code_execution"` →
+CodeExecutor
 
 ### **Modifications Nécessaires**
 
@@ -44,16 +44,16 @@ if (callee.type === "MemberExpression") {
   const chain = this.extractMemberChain(callee);
   const methodName = chain[chain.length - 1];
 
-  const arrayOps = ['filter', 'map', 'reduce', 'flatMap', 'find', 'some', 'every', 'sort'];
+  const arrayOps = ["filter", "map", "reduce", "flatMap", "find", "some", "every", "sort"];
 
   if (arrayOps.includes(methodName)) {
     const nodeId = this.generateNodeId("task");
     nodes.push({
       id: nodeId,
       type: "task",
-      tool: `code:${methodName}`,  // ← Pseudo-tool
+      tool: `code:${methodName}`, // ← Pseudo-tool
       position,
-      parentScope
+      parentScope,
     });
     return true;
   }
@@ -72,11 +72,11 @@ function convertNodeToTask(node: StaticStructureNode): Task {
     return {
       id: `task_${node.id}`,
       type: "code_execution",
-      tool: node.tool,  // ← "code:filter"
+      tool: node.tool, // ← "code:filter"
       code,
       arguments: {},
       dependsOn: inferDependencies(node),
-      sandboxConfig: { permissionSet: "minimal" }
+      sandboxConfig: { permissionSet: "minimal" },
     };
   }
 
@@ -86,7 +86,7 @@ function convertNodeToTask(node: StaticStructureNode): Task {
     type: "mcp_tool",
     tool: node.tool,
     arguments: node.arguments,
-    dependsOn: inferDependencies(node)
+    dependsOn: inferDependencies(node),
   };
 }
 ```
@@ -131,13 +131,15 @@ const executedPath = sortedTraces
 ### **Exemple Complet**
 
 **Code Agent :**
+
 ```typescript
 const users = await mcp.db.query({ sql: "SELECT * FROM users" });
-const active = users.filter(u => u.active);
-const names = active.map(u => u.name);
+const active = users.filter((u) => u.active);
+const names = active.map((u) => u.name);
 ```
 
 **DAG Généré :**
+
 ```typescript
 {
   tasks: [
@@ -146,29 +148,30 @@ const names = active.map(u => u.name);
       type: "mcp_tool",
       tool: "db:query",
       arguments: { sql: "SELECT * FROM users" },
-      dependsOn: []
+      dependsOn: [],
     },
     {
       id: "task_c1",
       type: "code_execution",
-      tool: "code:filter",  // ← Pseudo-tool
+      tool: "code:filter", // ← Pseudo-tool
       code: "const input = deps.task_n1.output; return input.filter(u => u.active);",
       arguments: {},
-      dependsOn: ["task_n1"]
+      dependsOn: ["task_n1"],
     },
     {
       id: "task_c2",
       type: "code_execution",
-      tool: "code:map",  // ← Pseudo-tool
+      tool: "code:map", // ← Pseudo-tool
       code: "const input = deps.task_c1.output; return input.map(u => u.name);",
       arguments: {},
-      dependsOn: ["task_c1"]
-    }
-  ]
+      dependsOn: ["task_c1"],
+    },
+  ];
 }
 ```
 
 **Trace Stockée :**
+
 ```typescript
 {
   executedPath: ["db:query", "code:filter", "code:map"],
@@ -182,6 +185,7 @@ const names = active.map(u => u.name);
 ```
 
 **SHGAT voit :**
+
 - Tool `"code:filter"` utilisé après `"db:query"`
 - Tool `"code:map"` utilisé après `"code:filter"`
 - Pattern : `db:query → code:filter → code:map`
@@ -212,15 +216,14 @@ Les opérations sont des `code_execution` tasks sans `tool` ID, avec metadata.
 
 ### **Avantages**
 
-✅ **Semantic clarity** : Les opérations ne sont pas des "tools"
-✅ **Metadata riche** : Plus d'informations sur l'opération
+✅ **Semantic clarity** : Les opérations ne sont pas des "tools" ✅ **Metadata riche** : Plus
+d'informations sur l'opération
 
 ### **Inconvénients**
 
-❌ **Pas de tool ID** : `executedPath` vide ou générique
-❌ **SHGAT ne voit pas** : Les opérations ne sont pas dans `toolsUsed`
-❌ **Changements DB** : Besoin d'ajouter `metadata` en JSONB
-❌ **Plus complexe** : Logique custom pour traces
+❌ **Pas de tool ID** : `executedPath` vide ou générique ❌ **SHGAT ne voit pas** : Les opérations
+ne sont pas dans `toolsUsed` ❌ **Changements DB** : Besoin d'ajouter `metadata` en JSONB ❌ **Plus
+complexe** : Logique custom pour traces
 
 ### **Modifications Nécessaires**
 
@@ -241,14 +244,14 @@ export interface Task {
 
 ```typescript
 // Au lieu de :
-executedPath: ["db:query", "code:filter", "code:map"]
+executedPath: ["db:query", "code:filter", "code:map"];
 
 // Devrait être :
-executedPath: ["db:query"]  // ← Seulement MCP tools
+executedPath: ["db:query"]; // ← Seulement MCP tools
 operations: [
   { operation: "filter", input: "db:query" },
-  { operation: "map", input: "filter" }
-]
+  { operation: "map", input: "filter" },
+];
 ```
 
 **3. SHGAT doit changer** :
@@ -276,29 +279,28 @@ Créer un nouveau type de task distinct.
 
 ### **Avantages**
 
-✅ **Typage fort** : Distinction claire computation vs tool
-✅ **Extensible** : Facile d'ajouter des champs spécifiques
+✅ **Typage fort** : Distinction claire computation vs tool ✅ **Extensible** : Facile d'ajouter des
+champs spécifiques
 
 ### **Inconvénients**
 
-❌ **Changements massifs** : Toutes les fonctions qui switch sur `type`
-❌ **Routing complexe** : Nouvelle branche dans `task-router.ts`
-❌ **Traces complexes** : Séparation tools vs computations
-❌ **DB changes** : Nouveau type à supporter partout
+❌ **Changements massifs** : Toutes les fonctions qui switch sur `type` ❌ **Routing complexe** :
+Nouvelle branche dans `task-router.ts` ❌ **Traces complexes** : Séparation tools vs computations ❌
+**DB changes** : Nouveau type à supporter partout
 
 ---
 
 ## 🎯 **Comparaison des Options**
 
-| Aspect | Option 1 (Pseudo-Tools) | Option 2 (Metadata) | Option 3 (Nouveau Type) |
-|--------|-------------------------|---------------------|-------------------------|
-| **Compatibilité** | ✅ 100% | ⚠️ 60% | ❌ 30% |
-| **Changements code** | ✅ Minimal | ⚠️ Moyen | ❌ Massif |
-| **SHGAT learning** | ✅ Auto | ❌ Custom | ❌ Custom |
-| **Traces** | ✅ Auto | ⚠️ Custom | ⚠️ Custom |
-| **Semantic clarity** | ⚠️ Moyennne | ✅ Haute | ✅ Haute |
-| **Extensibilité** | ✅ Bonne | ✅ Bonne | ✅ Excellente |
-| **Temps implem** | ✅ 1-2 jours | ⚠️ 3-5 jours | ❌ 1-2 semaines |
+| Aspect               | Option 1 (Pseudo-Tools) | Option 2 (Metadata) | Option 3 (Nouveau Type) |
+| -------------------- | ----------------------- | ------------------- | ----------------------- |
+| **Compatibilité**    | ✅ 100%                 | ⚠️ 60%              | ❌ 30%                  |
+| **Changements code** | ✅ Minimal              | ⚠️ Moyen            | ❌ Massif               |
+| **SHGAT learning**   | ✅ Auto                 | ❌ Custom           | ❌ Custom               |
+| **Traces**           | ✅ Auto                 | ⚠️ Custom           | ⚠️ Custom               |
+| **Semantic clarity** | ⚠️ Moyennne             | ✅ Haute            | ✅ Haute                |
+| **Extensibilité**    | ✅ Bonne                | ✅ Bonne            | ✅ Excellente           |
+| **Temps implem**     | ✅ 1-2 jours            | ⚠️ 3-5 jours        | ❌ 1-2 semaines         |
 
 ---
 
@@ -314,17 +316,18 @@ Créer un nouveau type de task distinct.
 
 ### **Convention de Nommage**
 
-| Opération | Tool ID | Type |
-|-----------|---------|------|
-| Array operations | `code:filter`, `code:map`, `code:reduce` | Array |
+| Opération         | Tool ID                                   | Type   |
+| ----------------- | ----------------------------------------- | ------ |
+| Array operations  | `code:filter`, `code:map`, `code:reduce`  | Array  |
 | String operations | `code:split`, `code:replace`, `code:trim` | String |
-| Object operations | `code:Object.keys`, `code:Object.values` | Object |
-| JSON operations | `code:JSON.parse`, `code:JSON.stringify` | JSON |
-| Math operations | `code:Math.max`, `code:Math.min` | Math |
+| Object operations | `code:Object.keys`, `code:Object.values`  | Object |
+| JSON operations   | `code:JSON.parse`, `code:JSON.stringify`  | JSON   |
+| Math operations   | `code:Math.max`, `code:Math.min`          | Math   |
 
 ### **Namespace Collision**
 
 Aucun risque de collision avec MCP tools car :
+
 - MCP tools : `server:tool` (ex: `db:query`, `filesystem:read`)
 - Code operations : `code:operation` (ex: `code:filter`, `code:map`)
 - Le préfixe `code:` est **réservé** pour les opérations
@@ -347,14 +350,14 @@ Avec cette convention, on peut facilement ajouter :
 
 ```typescript
 // Custom transformations
-"code:custom:myTransform"
+"code:custom:myTransform";
 
 // Async operations
-"code:Promise.race"
+"code:Promise.race";
 
 // Complex patterns
-"code:groupBy"
-"code:deduplicate"
+"code:groupBy";
+"code:deduplicate";
 ```
 
 ---
@@ -388,10 +391,10 @@ Avec cette convention, on peut facilement ajouter :
 
 ```typescript
 const users = await mcp.db.query({ sql: "SELECT * FROM users" });
-const active = users.filter(u => u.active && u.verified);
-const enriched = active.map(u => ({
+const active = users.filter((u) => u.active && u.verified);
+const enriched = active.map((u) => ({
   ...u,
-  displayName: `${u.firstName} ${u.lastName}`
+  displayName: `${u.firstName} ${u.lastName}`,
 }));
 const sorted = enriched.sort((a, b) => a.displayName.localeCompare(b.displayName));
 ```
@@ -407,7 +410,7 @@ const sorted = enriched.sort((a, b) => a.displayName.localeCompare(b.displayName
       type: "mcp_tool",
       tool: "db:query",
       arguments: { sql: "SELECT * FROM users" },
-      dependsOn: []
+      dependsOn: [],
     },
 
     // Pseudo-Tool 1 : filter
@@ -419,7 +422,7 @@ const sorted = enriched.sort((a, b) => a.displayName.localeCompare(b.displayName
         const input = deps.task_n1.output;
         return input.filter(u => u.active && u.verified);
       `,
-      dependsOn: ["task_n1"]
+      dependsOn: ["task_n1"],
     },
 
     // Pseudo-Tool 2 : map
@@ -434,7 +437,7 @@ const sorted = enriched.sort((a, b) => a.displayName.localeCompare(b.displayName
           displayName: \`\${u.firstName} \${u.lastName}\`
         }));
       `,
-      dependsOn: ["task_c1"]
+      dependsOn: ["task_c1"],
     },
 
     // Pseudo-Tool 3 : sort
@@ -446,9 +449,9 @@ const sorted = enriched.sort((a, b) => a.displayName.localeCompare(b.displayName
         const input = deps.task_c2.output;
         return input.sort((a, b) => a.displayName.localeCompare(b.displayName));
       `,
-      dependsOn: ["task_c2"]
-    }
-  ]
+      dependsOn: ["task_c2"],
+    },
+  ];
 }
 ```
 

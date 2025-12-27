@@ -215,8 +215,8 @@ understand what it does and how to start.
 
 **Goal:** Créer la séquence de notebooks propre (00-06) avec progression claire et checkpoints.
 
-**Value:** Un développeur comprend le paradigme Casys PML (exécution de code → capability learning
-→ réutilisation) en ~2h de travail interactif.
+**Value:** Un développeur comprend le paradigme Casys PML (exécution de code → capability learning →
+réutilisation) en ~2h de travail interactif.
 
 ---
 
@@ -352,8 +352,8 @@ understand the procedural memory system.
 
 ### Story 2.7: Notebook 06 - Emergent Capability Reuse
 
-**As a** user, **I want** to see how capabilities compose and adapt, **So that** I understand
-how the system gets smarter over time.
+**As a** user, **I want** to see how capabilities compose and adapt, **So that** I understand how
+the system gets smarter over time.
 
 **Acceptance Criteria:**
 
@@ -457,8 +457,8 @@ notebooks can use the production code instead of simulations.
 
 ### Story 3.2: WorkerBridge Helper pour Notebooks
 
-**As a** notebook author, **I want** a helper that exposes the real WorkerBridge with MCP client mocks,
-**So that** notebooks can execute code in the real sandbox with tool tracing.
+**As a** notebook author, **I want** a helper that exposes the real WorkerBridge with MCP client
+mocks, **So that** notebooks can execute code in the real sandbox with tool tracing.
 
 **Acceptance Criteria:**
 
@@ -516,8 +516,8 @@ capabilities vraiment persistées et recherchées.
 
 ### Story 3.5: Refaire Notebook 06 avec Vrai Matcher et Thresholds
 
-**As a** user, **I want** notebook 06 to use the real Matcher and AdaptiveThresholdManager,
-**So that** I see le vrai système de matching et d'adaptation.
+**As a** user, **I want** notebook 06 to use the real Matcher and AdaptiveThresholdManager, **So
+that** I see le vrai système de matching et d'adaptation.
 
 **Acceptance Criteria:**
 
@@ -587,52 +587,53 @@ So that [benefit/value].
 
 ## Summary
 
-| Epic                        | Stories        | Status                                   |
-| --------------------------- | -------------- | ---------------------------------------- |
-| Epic 1: Infrastructure      | 8 stories      | ✅ **8/8 DONE**                          |
-| Epic 2: Notebooks           | 8 stories      | ✅ **8/8 DONE**                          |
-| Epic 3: Vrai Système        | 5 stories      | ⬜ **0/5 BACKLOG**                       |
-| **Total**                   | **21 stories** | **16 done, 5 backlog**                   |
+| Epic                   | Stories        | Status                 |
+| ---------------------- | -------------- | ---------------------- |
+| Epic 1: Infrastructure | 8 stories      | ✅ **8/8 DONE**        |
+| Epic 2: Notebooks      | 8 stories      | ✅ **8/8 DONE**        |
+| Epic 3: Vrai Système   | 5 stories      | ⬜ **0/5 BACKLOG**     |
+| **Total**              | **21 stories** | **16 done, 5 backlog** |
 
 ### Epic 1 Status Detail ✅ COMPLETE
 
-| Story                  | Status     | Notes                                              |
-| ---------------------- | ---------- | -------------------------------------------------- |
-| 1.1 Devcontainer       | ✅ done    | Complet avec Dockerfile, post-create.sh            |
-| 1.2 MCP Config         | ✅ done    | `playground/config/mcp-servers.json` créé          |
-| 1.3 Workflow Templates | ✅ done    | `playground/config/workflow-templates.yaml` créé   |
-| 1.4 API Key Setup      | ✅ done    | .env.example + llm-provider.ts complets            |
-| 1.5 Init Helper        | ✅ done    | `ensurePlaygroundReady()` implémenté               |
-| 1.6 Mermaid Helper     | ✅ done    | `lib/viz.ts` complet (539 lignes)                  |
-| 1.7 Metrics Helper     | ✅ done    | progressBar, speedupChart implémentés              |
-| 1.8 README             | ✅ done    | README mis à jour avec nouvelle séquence           |
+| Story                  | Status  | Notes                                            |
+| ---------------------- | ------- | ------------------------------------------------ |
+| 1.1 Devcontainer       | ✅ done | Complet avec Dockerfile, post-create.sh          |
+| 1.2 MCP Config         | ✅ done | `playground/config/mcp-servers.json` créé        |
+| 1.3 Workflow Templates | ✅ done | `playground/config/workflow-templates.yaml` créé |
+| 1.4 API Key Setup      | ✅ done | .env.example + llm-provider.ts complets          |
+| 1.5 Init Helper        | ✅ done | `ensurePlaygroundReady()` implémenté             |
+| 1.6 Mermaid Helper     | ✅ done | `lib/viz.ts` complet (539 lignes)                |
+| 1.7 Metrics Helper     | ✅ done | progressBar, speedupChart implémentés            |
+| 1.8 README             | ✅ done | README mis à jour avec nouvelle séquence         |
 
 ### Epic 2 Status Detail ✅ COMPLETE
 
 > Updated 2025-12-15: All stories complete, retrospective done
 
-| Story                  | Status     | Notes                                              |
-| ---------------------- | ---------- | -------------------------------------------------- |
-| 2.1 Notebook 00        | ✅ done    | Introduction complète                              |
-| 2.2 Notebook 01        | ✅ done    | The Problem (context explosion + latency)          |
-| 2.3 Notebook 02        | ✅ done    | Context Optimization (vector search)               |
-| 2.4 Notebook 03        | ✅ done    | DAG Execution + transition to PML                  |
-| 2.5 Notebook 04        | ✅ done    | Code Execution & Worker RPC + trace→learning link  |
-| 2.6 Notebook 05        | ✅ done    | Capability Learning (eager + reliability)          |
-| 2.7 Notebook 06        | ✅ done    | Emergent Reuse (SECI + adaptive + wow moment)      |
-| 2.8 Cleanup            | ✅ done    | Old notebooks cleaned up                           |
+| Story           | Status  | Notes                                             |
+| --------------- | ------- | ------------------------------------------------- |
+| 2.1 Notebook 00 | ✅ done | Introduction complète                             |
+| 2.2 Notebook 01 | ✅ done | The Problem (context explosion + latency)         |
+| 2.3 Notebook 02 | ✅ done | Context Optimization (vector search)              |
+| 2.4 Notebook 03 | ✅ done | DAG Execution + transition to PML                 |
+| 2.5 Notebook 04 | ✅ done | Code Execution & Worker RPC + trace→learning link |
+| 2.6 Notebook 05 | ✅ done | Capability Learning (eager + reliability)         |
+| 2.7 Notebook 06 | ✅ done | Emergent Reuse (SECI + adaptive + wow moment)     |
+| 2.8 Cleanup     | ✅ done | Old notebooks cleaned up                          |
 
 ### Epic 3 Status Detail ⬜ BACKLOG
 
-> Created 2025-12-15: Issue discovered during Epic 2 retrospective - notebooks use simulations instead of real system
+> Created 2025-12-15: Issue discovered during Epic 2 retrospective - notebooks use simulations
+> instead of real system
 
-| Story                  | Status     | Notes                                              |
-| ---------------------- | ---------- | -------------------------------------------------- |
-| 3.1 Helper Capabilities| ⬜ backlog | `lib/capabilities.ts` - expose real system         |
-| 3.2 Notebook 04        | ⬜ backlog | Real WorkerBridge instead of SimulatedWorkerBridge |
-| 3.3 Notebook 05        | ⬜ backlog | Real CapabilityStore instead of Simulated          |
-| 3.4 Notebook 06        | ⬜ backlog | Real Matcher + AdaptiveThreshold                   |
-| 3.5 Integration Tests  | ⬜ backlog | `test-notebooks.ts` script                         |
+| Story                   | Status     | Notes                                              |
+| ----------------------- | ---------- | -------------------------------------------------- |
+| 3.1 Helper Capabilities | ⬜ backlog | `lib/capabilities.ts` - expose real system         |
+| 3.2 Notebook 04         | ⬜ backlog | Real WorkerBridge instead of SimulatedWorkerBridge |
+| 3.3 Notebook 05         | ⬜ backlog | Real CapabilityStore instead of Simulated          |
+| 3.4 Notebook 06         | ⬜ backlog | Real Matcher + AdaptiveThreshold                   |
+| 3.5 Integration Tests   | ⬜ backlog | `test-notebooks.ts` script                         |
 
 ### Bonus Already Implemented
 
@@ -647,25 +648,27 @@ So that [benefit/value].
 
 ### Key Insights
 
-1. **DAG is the means, not the end** - DAG execution enables structured tracing which feeds Capability Learning
+1. **DAG is the means, not the end** - DAG execution enables structured tracing which feeds
+   Capability Learning
 2. **Simulations work for pedagogy** - But at least one real demo would increase credibility
 3. **The "wow moment" matters** - Before/after comparison added to notebook 06 (5x speedup demo)
-4. **Transitions were missing** - Added explicit connections from notebooks 03-04 to the Learning system
+4. **Transitions were missing** - Added explicit connections from notebooks 03-04 to the Learning
+   system
 
 ### Improvements Applied (Post-Retro)
 
-| # | Action | Status |
-|---|--------|--------|
-| 1 | Added "Why This Matters for PML" section to notebook 03 | ✅ Done |
+| # | Action                                                     | Status  |
+| - | ---------------------------------------------------------- | ------- |
+| 1 | Added "Why This Matters for PML" section to notebook 03    | ✅ Done |
 | 2 | Added "From Traces to Capabilities" diagram to notebook 04 | ✅ Done |
-| 3 | Added "Wow Moment" before/after demo to notebook 06 | ✅ Done |
+| 3 | Added "Wow Moment" before/after demo to notebook 06        | ✅ Done |
 
 ### Future Improvements
 
-| # | Action | Status | Notes |
-|---|--------|--------|-------|
-| 1 | Replace all simulations with real system | 🟡 **Epic 3** | See stories 3.1-3.5 above |
-| 2 | External user testing | ⬜ Backlog | Validate assumptions with real devs |
+| # | Action                                   | Status        | Notes                               |
+| - | ---------------------------------------- | ------------- | ----------------------------------- |
+| 1 | Replace all simulations with real system | 🟡 **Epic 3** | See stories 3.1-3.5 above           |
+| 2 | External user testing                    | ⬜ Backlog    | Validate assumptions with real devs |
 
 ---
 

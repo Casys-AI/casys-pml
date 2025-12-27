@@ -17,17 +17,21 @@ This workflow uses a single comprehensive CSV file to intelligently document you
 
 **documentation-requirements.csv** ({documentation_requirements_csv})
 
-- Contains 12 project types (web, mobile, backend, cli, library, desktop, game, data, extension, infra, embedded)
+- Contains 12 project types (web, mobile, backend, cli, library, desktop, game, data, extension,
+  infra, embedded)
 - 24-column schema combining project type detection AND documentation requirements
-- **Detection columns**: project_type_id, key_file_patterns (used to identify project type from codebase)
+- **Detection columns**: project_type_id, key_file_patterns (used to identify project type from
+  codebase)
 - **Requirement columns**: requires_api_scan, requires_data_models, requires_ui_components, etc.
 - **Pattern columns**: critical_directories, test_file_patterns, config_patterns, etc.
 - Acts as a "scan guide" - tells the workflow WHERE to look and WHAT to document
-- Example: For project_type_id="web", key_file_patterns includes "package.json;tsconfig.json;\*.config.js" and requires_api_scan=true
+- Example: For project_type_id="web", key_file_patterns includes
+  "package.json;tsconfig.json;\*.config.js" and requires_api_scan=true
 
 **When Documentation Requirements are Loaded:**
 
-- **Fresh Start (initial_scan)**: Load all 12 rows → detect type using key_file_patterns → use that row's requirements
+- **Fresh Start (initial_scan)**: Load all 12 rows → detect type using key_file_patterns → use that
+  row's requirements
 - **Resume**: Load ONLY the doc requirements row(s) for cached project_type_id(s)
 - **Full Rescan**: Same as fresh start (may re-detect project type)
 - **Deep Dive**: Load ONLY doc requirements for the part being deep-dived
@@ -36,10 +40,13 @@ This workflow uses a single comprehensive CSV file to intelligently document you
 <action>Now loading documentation requirements data for fresh start...</action>
 
 <action>Load documentation-requirements.csv from: {documentation_requirements_csv}</action>
-<action>Store all 12 rows indexed by project_type_id for project detection and requirements lookup</action>
-<action>Display: "Loaded documentation requirements for 12 project types (web, mobile, backend, cli, library, desktop, game, data, extension, infra, embedded)"</action>
+<action>Store all 12 rows indexed by project_type_id for project detection and requirements
+lookup</action>
+<action>Display: "Loaded documentation requirements for 12 project types (web, mobile, backend, cli,
+library, desktop, game, data, extension, infra, embedded)"</action>
 
-<action>Display: "✓ Documentation requirements loaded successfully. Ready to begin project analysis."</action>
+<action>Display: "✓ Documentation requirements loaded successfully. Ready to begin project
+analysis."</action>
 </step>
 
 <step n="0.6" goal="Check for existing documentation and determine workflow mode">
@@ -54,25 +61,26 @@ This workflow uses a single comprehensive CSV file to intelligently document you
 What would you like to do?
 
 1. **Re-scan entire project** - Update all documentation with latest changes
-2. **Deep-dive into specific area** - Generate detailed documentation for a particular feature/module/folder
+2. **Deep-dive into specific area** - Generate detailed documentation for a particular
+   feature/module/folder
 3. **Cancel** - Keep existing documentation as-is
 
 Your choice [1/2/3]:
 </ask>
 
-  <check if="user selects 1">
+<check if="user selects 1">
     <action>Set workflow_mode = "full_rescan"</action>
     <action>Continue to scan level selection below</action>
   </check>
 
-  <check if="user selects 2">
+<check if="user selects 2">
     <action>Set workflow_mode = "deep_dive"</action>
     <action>Set scan_level = "exhaustive"</action>
     <action>Initialize state file with mode=deep_dive, scan_level=exhaustive</action>
     <action>Jump to Step 13</action>
   </check>
 
-  <check if="user selects 3">
+<check if="user selects 3">
     <action>Display message: "Keeping existing documentation. Exiting workflow."</action>
     <action>Exit workflow</action>
   </check>
@@ -112,37 +120,30 @@ Your choice [1/2/3]:
 Your choice [1/2/3] (default: 1):
 </ask>
 
-  <action if="user selects 1 OR user presses enter">
+<action if="user selects 1 OR user presses enter">
     <action>Set scan_level = "quick"</action>
     <action>Display: "Using Quick Scan (pattern-based, no source file reading)"</action>
   </action>
 
-  <action if="user selects 2">
+<action if="user selects 2">
     <action>Set scan_level = "deep"</action>
     <action>Display: "Using Deep Scan (reading critical files per project type)"</action>
   </action>
 
-  <action if="user selects 3">
+<action if="user selects 3">
     <action>Set scan_level = "exhaustive"</action>
     <action>Display: "Using Exhaustive Scan (reading all source files)"</action>
   </action>
 
 <action>Initialize state file: {output_folder}/project-scan-report.json</action>
-<critical>Every time you touch the state file, record: step id, human-readable summary (what you actually did), precise timestamp, and any outputs written. Vague phrases are unacceptable.</critical>
-<action>Write initial state:
-{
-"workflow_version": "1.2.0",
-"timestamps": {"started": "{{current_timestamp}}", "last_updated": "{{current_timestamp}}"},
-"mode": "{{workflow_mode}}",
-"scan_level": "{{scan_level}}",
-"project_root": "{{project_root_path}}",
-"output_folder": "{{output_folder}}",
-"completed_steps": [],
-"current_step": "step_1",
-"findings": {},
-"outputs_generated": ["project-scan-report.json"],
-"resume_instructions": "Starting from step 1"
-}
+<critical>Every time you touch the state file, record: step id, human-readable summary (what you
+actually did), precise timestamp, and any outputs written. Vague phrases are
+unacceptable.</critical>
+<action>Write initial state: { "workflow_version": "1.2.0", "timestamps": {"started":
+"{{current_timestamp}}", "last_updated": "{{current_timestamp}}"}, "mode": "{{workflow_mode}}",
+"scan_level": "{{scan_level}}", "project_root": "{{project_root_path}}", "output_folder":
+"{{output_folder}}", "completed_steps": [], "current_step": "step_1", "findings": {},
+"outputs_generated": ["project-scan-report.json"], "resume_instructions": "Starting from step 1" }
 </action>
 <action>Continue with standard workflow from Step 1</action>
 </check>
@@ -175,7 +176,8 @@ Is this correct? Should I document each part separately? [y/n]
 </ask>
 
 <action if="user confirms">Set repository_type = "monorepo" or "multi-part"</action>
-<action if="user confirms">For each detected part: - Identify root path - Run project type detection using key_file_patterns from documentation-requirements.csv - Store as part in project_parts array
+<action if="user confirms">For each detected part: - Identify root path - Run project type detection
+using key_file_patterns from documentation-requirements.csv - Store as part in project_parts array
 </action>
 
 <action if="user denies or corrects">Ask user to specify correct parts and their paths</action>
@@ -187,12 +189,12 @@ Is this correct? Should I document each part separately? [y/n]
   <action>Run project type detection using key_file_patterns from documentation-requirements.csv</action>
 </check>
 
-<action>For each part, match detected technologies and file patterns against key_file_patterns column in documentation-requirements.csv</action>
+<action>For each part, match detected technologies and file patterns against key_file_patterns
+column in documentation-requirements.csv</action>
 <action>Assign project_type_id to each part</action>
 <action>Load corresponding documentation_requirements row for each part</action>
 
-<ask>I've classified this project:
-{{project_classification_summary}}
+<ask>I've classified this project: {{project_classification_summary}}
 
 Does this look correct? [y/n/edit]
 </ask>
@@ -202,16 +204,20 @@ Does this look correct? [y/n/edit]
 
 <action>IMMEDIATELY update state file with step completion:
 
-- Add to completed_steps: {"step": "step_1", "status": "completed", "timestamp": "{{now}}", "summary": "Classified as {{repository_type}} with {{parts_count}} parts"}
+- Add to completed_steps: {"step": "step_1", "status": "completed", "timestamp": "{{now}}",
+  "summary": "Classified as {{repository_type}} with {{parts_count}} parts"}
 - Update current_step = "step_2"
 - Update findings.project_classification with high-level summary only
-- **CACHE project_type_id(s)**: Add project_types array: [{"part_id": "{{part_id}}", "project_type_id": "{{project_type_id}}", "display_name": "{{display_name}}"}]
-- This cached data prevents reloading all CSV files on resume - we can load just the needed documentation_requirements row(s)
+- **CACHE project_type_id(s)**: Add project_types array: [{"part_id": "{{part_id}}",
+  "project_type_id": "{{project_type_id}}", "display_name": "{{display_name}}"}]
+- This cached data prevents reloading all CSV files on resume - we can load just the needed
+  documentation_requirements row(s)
 - Update last_updated timestamp
 - Write state file
   </action>
 
-<action>PURGE detailed scan results from memory, keep only summary: "{{repository_type}}, {{parts_count}} parts, {{primary_tech}}"</action>
+<action>PURGE detailed scan results from memory, keep only summary: "{{repository_type}},
+{{parts_count}} parts, {{primary_tech}}"</action>
 </step>
 
 <step n="2" goal="Discover existing documentation and gather user context" if="workflow_mode != deep_dive">
@@ -231,10 +237,10 @@ Does this look correct? [y/n/edit]
 - Which part it belongs to (if multi-part)
   </action>
 
-<ask>I found these existing documentation files:
-{{existing_docs_list}}
+<ask>I found these existing documentation files: {{existing_docs_list}}
 
-Are there any other important documents or key areas I should focus on while analyzing this project? [Provide paths or guidance, or type 'none']
+Are there any other important documents or key areas I should focus on while analyzing this project?
+[Provide paths or guidance, or type 'none']
 </ask>
 
 <action>Store user guidance as {{user_context}}</action>
@@ -244,12 +250,14 @@ Are there any other important documents or key areas I should focus on while ana
 
 <action>Update state file:
 
-- Add to completed_steps: {"step": "step_2", "status": "completed", "timestamp": "{{now}}", "summary": "Found {{existing_docs_count}} existing docs"}
+- Add to completed_steps: {"step": "step_2", "status": "completed", "timestamp": "{{now}}",
+  "summary": "Found {{existing_docs_count}} existing docs"}
 - Update current_step = "step_3"
 - Update last_updated timestamp
   </action>
 
-<action>PURGE detailed doc contents from memory, keep only: "{{existing_docs_count}} docs found"</action>
+<action>PURGE detailed doc contents from memory, keep only: "{{existing_docs_count}} docs
+found"</action>
 </step>
 
 <step n="3" goal="Analyze technology stack for each part" if="workflow_mode != deep_dive">
@@ -263,7 +271,8 @@ Are there any other important documents or key areas I should focus on while ana
 
 <action>Determine architecture pattern based on detected tech stack:
 
-- Use project_type_id as primary indicator (e.g., "web" → layered/component-based, "backend" → service/API-centric)
+- Use project_type_id as primary indicator (e.g., "web" → layered/component-based, "backend" →
+  service/API-centric)
 - Consider framework patterns (e.g., React → component hierarchy, Express → middleware pipeline)
 - Note architectural style in technology table
 - Store as {{architecture_pattern}} for each part
@@ -274,13 +283,15 @@ Are there any other important documents or key areas I should focus on while ana
 
 <action>Update state file:
 
-- Add to completed_steps: {"step": "step_3", "status": "completed", "timestamp": "{{now}}", "summary": "Tech stack: {{primary_framework}}"}
+- Add to completed_steps: {"step": "step_3", "status": "completed", "timestamp": "{{now}}",
+  "summary": "Tech stack: {{primary_framework}}"}
 - Update current_step = "step_4"
 - Update findings.technology_stack with summary per part
 - Update last_updated timestamp
   </action>
 
-<action>PURGE detailed tech analysis from memory, keep only: "{{framework}} on {{language}}"</action>
+<action>PURGE detailed tech analysis from memory, keep only: "{{framework}} on
+{{language}}"</action>
 </step>
 
 <step n="4" goal="Perform conditional analysis based on project type requirements" if="workflow_mode != deep_dive">
@@ -290,16 +301,20 @@ Are there any other important documents or key areas I should focus on while ana
 <check if="scan_level == deep OR scan_level == exhaustive">
   <action>This step requires file reading. Apply batching strategy:</action>
 
-<action>Identify subfolders to process based on: - scan_level == "deep": Use critical_directories from documentation_requirements - scan_level == "exhaustive": Get ALL subfolders recursively (excluding node_modules, .git, dist, build, coverage)
+<action>Identify subfolders to process based on: - scan_level == "deep": Use critical_directories
+from documentation_requirements - scan_level == "exhaustive": Get ALL subfolders recursively
+(excluding node_modules, .git, dist, build, coverage)
 </action>
 
-<action>For each subfolder to scan: 1. Read all files in subfolder (consider file size - use judgment for files >5000 LOC) 2. Extract required information based on conditional flags below 3. IMMEDIATELY write findings to appropriate output file 4. Validate written document (section-level validation) 5. Update state file with batch completion 6. PURGE detailed findings from context, keep only 1-2 sentence summary 7. Move to next subfolder
+<action>For each subfolder to scan: 1. Read all files in subfolder (consider file size - use
+judgment for files >5000 LOC) 2. Extract required information based on conditional flags below 3.
+IMMEDIATELY write findings to appropriate output file 4. Validate written document (section-level
+validation) 5. Update state file with batch completion 6. PURGE detailed findings from context, keep
+only 1-2 sentence summary 7. Move to next subfolder
 </action>
 
-<action>Track batches in state file:
-findings.batches_completed: [
-{"path": "{{subfolder_path}}", "files_scanned": {{count}}, "summary": "{{brief_summary}}"}
-]
+<action>Track batches in state file: findings.batches_completed: [ {"path": "{{subfolder_path}}",
+"files_scanned": {{count}}, "summary": "{{brief_summary}}"} ]
 </action>
 </check>
 
@@ -309,17 +324,18 @@ findings.batches_completed: [
   <action>Extract information from filenames, directory structure, and config files only</action>
 </check>
 
-<action>For each part, check documentation_requirements boolean flags and execute corresponding scans:</action>
+<action>For each part, check documentation_requirements boolean flags and execute corresponding
+scans:</action>
 
 <check if="requires_api_scan == true">
   <action>Scan for API routes and endpoints using integration_scan_patterns</action>
   <action>Look for: controllers/, routes/, api/, handlers/, endpoints/</action>
 
-  <check if="scan_level == quick">
+<check if="scan_level == quick">
     <action>Use glob to find route files, extract patterns from filenames and folder structure</action>
   </check>
 
-  <check if="scan_level == deep OR scan_level == exhaustive">
+<check if="scan_level == deep OR scan_level == exhaustive">
     <action>Read files in batches (one subfolder at a time)</action>
     <action>Extract: HTTP methods, paths, request/response types from actual code</action>
   </check>
@@ -336,11 +352,11 @@ findings.batches_completed: [
   <action>Scan for data models using schema_migration_patterns</action>
   <action>Look for: models/, schemas/, entities/, migrations/, prisma/, ORM configs</action>
 
-  <check if="scan_level == quick">
+<check if="scan_level == quick">
     <action>Identify schema files via glob, parse migration file names for table discovery</action>
   </check>
 
-  <check if="scan_level == deep OR scan_level == exhaustive">
+<check if="scan_level == deep OR scan_level == exhaustive">
     <action>Read model files in batches (one subfolder at a time)</action>
     <action>Extract: table names, fields, relationships, constraints from actual code</action>
   </check>
@@ -379,7 +395,7 @@ findings.batches_completed: [
 If yes, please provide paths or links. [Provide paths or type 'none']
 </ask>
 <action>Store hardware docs references</action>
-<template-output>hardware*documentation*{part_id}</template-output>
+<template-output>hardware_documentation_{part_id}</template-output>
 </check>
 
 <check if="requires_asset_inventory == true">
@@ -400,13 +416,15 @@ If yes, please provide paths or links. [Provide paths or type 'none']
 - localization_patterns → i18n/l10n support
   </action>
 
-<action>Apply scan_level strategy to each pattern scan (quick=glob only, deep/exhaustive=read files)</action>
+<action>Apply scan_level strategy to each pattern scan (quick=glob only, deep/exhaustive=read
+files)</action>
 
-<template-output>comprehensive*analysis*{part_id}</template-output>
+<template-output>comprehensive_analysis_{part_id}</template-output>
 
 <action>Update state file:
 
-- Add to completed_steps: {"step": "step_4", "status": "completed", "timestamp": "{{now}}", "summary": "Conditional analysis complete, {{files_generated}} files written"}
+- Add to completed_steps: {"step": "step_4", "status": "completed", "timestamp": "{{now}}",
+  "summary": "Conditional analysis complete, {{files_generated}} files written"}
 - Update current_step = "step_5"
 - Update last_updated timestamp
 - List all outputs_generated
@@ -458,11 +476,13 @@ project-root/
 <action>Validate document structure</action>
 <action>Update state file:
 
-- Add to completed_steps: {"step": "step_5", "status": "completed", "timestamp": "{{now}}", "summary": "Source tree documented"}
+- Add to completed_steps: {"step": "step_5", "status": "completed", "timestamp": "{{now}}",
+  "summary": "Source tree documented"}
 - Update current_step = "step_6"
 - Add output: "source-tree-analysis.md"
   </action>
-  <action>PURGE detailed tree from context, keep only: "Source tree with {{folder_count}} critical folders"</action>
+  <action>PURGE detailed tree from context, keep only: "Source tree with {{folder_count}} critical
+  folders"</action>
   </step>
 
 <step n="6" goal="Extract development and operational information" if="workflow_mode != deep_dive">
@@ -499,7 +519,8 @@ project-root/
 
 <action>Update state file:
 
-- Add to completed_steps: {"step": "step_6", "status": "completed", "timestamp": "{{now}}", "summary": "Dev/deployment guides written"}
+- Add to completed_steps: {"step": "step_6", "status": "completed", "timestamp": "{{now}}",
+  "summary": "Dev/deployment guides written"}
 - Update current_step = "step_7"
 - Add generated outputs to list
   </action>
@@ -528,7 +549,8 @@ project-root/
 
 <action>Update state file:
 
-- Add to completed_steps: {"step": "step_7", "status": "completed", "timestamp": "{{now}}", "summary": "Integration architecture documented"}
+- Add to completed_steps: {"step": "step_7", "status": "completed", "timestamp": "{{now}}",
+  "summary": "Integration architecture documented"}
 - Update current_step = "step_8"
   </action>
   <action>PURGE integration details, keep only: "{{integration_count}} integration points"</action>
@@ -570,7 +592,8 @@ project-root/
 
 <action>Update state file:
 
-- Add to completed_steps: {"step": "step_8", "status": "completed", "timestamp": "{{now}}", "summary": "Architecture docs written for {{parts_count}} parts"}
+- Add to completed_steps: {"step": "step_8", "status": "completed", "timestamp": "{{now}}",
+  "summary": "Architecture docs written for {{parts_count}} parts"}
 - Update current_step = "step_9"
   </action>
   </step>
@@ -674,8 +697,7 @@ project-root/
       "repository_type": "monorepo",
       "parts": [ ... ],
       "integration_points": [ ... ]
-    }
-    `
+    }`
 </action>
 <action>IMMEDIATELY write to disk</action>
 </action>
@@ -684,7 +706,8 @@ project-root/
 
 <action>Update state file:
 
-- Add to completed_steps: {"step": "step_9", "status": "completed", "timestamp": "{{now}}", "summary": "All supporting docs written"}
+- Add to completed_steps: {"step": "step_9", "status": "completed", "timestamp": "{{now}}",
+  "summary": "All supporting docs written"}
 - Update current_step = "step_10"
 - List all newly generated outputs
   </action>
@@ -694,8 +717,8 @@ project-root/
 
 <step n="10" goal="Generate master index as primary AI retrieval source" if="workflow_mode != deep_dive">
 
-<critical>INCOMPLETE DOCUMENTATION MARKER CONVENTION:
-When a document SHOULD be generated but wasn't (due to quick scan, missing data, conditional requirements not met):
+<critical>INCOMPLETE DOCUMENTATION MARKER CONVENTION: When a document SHOULD be generated but wasn't
+(due to quick scan, missing data, conditional requirements not met):
 
 - Use EXACTLY this marker: _(To be generated)_
 - Place it at the end of the markdown link line
@@ -743,37 +766,39 @@ When a document SHOULD be generated but wasn't (due to quick scan, missing data,
 
 - **Tech Stack:** {{tech_stack_summary}}
 - **Entry Point:** {{entry_point}}
-- **Architecture Pattern:** {{architecture_pattern}}
-  {{else}}
-  {{#each parts}}
+- **Architecture Pattern:** {{architecture_pattern}} {{else}} {{#each parts}}
 
 #### {{part_name}} ({{part_id}})
 
 - **Type:** {{project_type}}
 - **Tech Stack:** {{tech_stack}}
-- **Root:** {{root_path}}
-  {{/each}}
-  {{/if}}
+- **Root:** {{root_path}} {{/each}} {{/if}}
 
 ### Generated Documentation
 
 - [Project Overview](./project-overview.md)
-- [Architecture](./architecture{{#if multi-part}}-{part\*id}{{/if}}.md){{#unless architecture_file_exists}} (To be generated) {{/unless}}
+- [Architecture](./architecture{{#if multi-part}}-{part\*id}{{/if}}.md){{#unless
+  architecture_file_exists}} (To be generated) {{/unless}}
 - [Source Tree Analysis](./source-tree-analysis.md)
-- [Component Inventory](./component-inventory{{#if multi-part}}-{part\*id}{{/if}}.md){{#unless component_inventory_exists}} (To be generated) {{/unless}}
-- [Development Guide](./development-guide{{#if multi-part}}-{part\*id}{{/if}}.md){{#unless dev_guide_exists}} (To be generated) {{/unless}}
-  {{#if deployment_found}}- [Deployment Guide](./deployment-guide.md){{#unless deployment_guide_exists}} (To be generated) {{/unless}}{{/if}}
-  {{#if contribution_found}}- [Contribution Guide](./contribution-guide.md){{/if}}
-  {{#if api_documented}}- [API Contracts](./api-contracts{{#if multi-part}}-{part_id}{{/if}}.md){{#unless api_contracts_exists}} (To be generated) {{/unless}}{{/if}}
-  {{#if data_models_documented}}- [Data Models](./data-models{{#if multi-part}}-{part_id}{{/if}}.md){{#unless data_models_exists}} (To be generated) {{/unless}}{{/if}}
-  {{#if multi-part}}- [Integration Architecture](./integration-architecture.md){{#unless integration_arch_exists}} (To be generated) {{/unless}}{{/if}}
+- [Component Inventory](./component-inventory{{#if multi-part}}-{part\*id}{{/if}}.md){{#unless
+  component_inventory_exists}} (To be generated) {{/unless}}
+- [Development Guide](./development-guide{{#if multi-part}}-{part\*id}{{/if}}.md){{#unless
+  dev_guide_exists}} (To be generated) {{/unless}} {{#if deployment_found}}-
+  [Deployment Guide](./deployment-guide.md){{#unless deployment_guide_exists}} (To be generated)
+  {{/unless}}{{/if}} {{#if contribution_found}}-
+  [Contribution Guide](./contribution-guide.md){{/if}} {{#if api_documented}}- [API
+  Contracts](./api-contracts{{#if multi-part}}-{part_id}{{/if}}.md){{#unless api_contracts_exists}}
+  (To be generated) {{/unless}}{{/if}} {{#if data_models_documented}}- [Data
+  Models](./data-models{{#if multi-part}}-{part_id}{{/if}}.md){{#unless data_models_exists}} (To be
+  generated) {{/unless}}{{/if}} {{#if multi-part}}-
+  [Integration Architecture](./integration-architecture.md){{#unless integration_arch_exists}} (To
+  be generated) {{/unless}}{{/if}}
 
 ### Existing Documentation
 
 {{#each existing_docs}}
 
-- [{{title}}]({{relative_path}}) - {{description}}
-  {{/each}}
+- [{{title}}]({{relative_path}}) - {{description}} {{/each}}
 
 ### Getting Started
 
@@ -788,14 +813,16 @@ When a document SHOULD be generated but wasn't (due to quick scan, missing data,
 - Track which files are missing in {{missing_docs_list}} for reporting
   </action>
 
-<action>IMMEDIATELY write index.md to disk with appropriate _(To be generated)_ markers for missing files</action>
+<action>IMMEDIATELY write index.md to disk with appropriate _(To be generated)_ markers for missing
+files</action>
 <action>Validate index has all required sections and links are valid</action>
 
 <template-output>index</template-output>
 
 <action>Update state file:
 
-- Add to completed_steps: {"step": "step_10", "status": "completed", "timestamp": "{{now}}", "summary": "Master index generated"}
+- Add to completed_steps: {"step": "step_10", "status": "completed", "timestamp": "{{now}}",
+  "summary": "Master index generated"}
 - Update current_step = "step_11"
 - Add output: "index.md"
   </action>
@@ -825,37 +852,30 @@ Generated in {{output_folder}}/:
 
 <action>Read {output_folder}/index.md</action>
 
-<action>Scan for incomplete documentation markers:
-Step 1: Search for exact pattern "_(To be generated)_" (case-sensitive)
-Step 2: For each match found, extract the entire line
-Step 3: Parse line to extract:
+<action>Scan for incomplete documentation markers: Step 1: Search for exact pattern "_(To be
+generated)_" (case-sensitive) Step 2: For each match found, extract the entire line Step 3: Parse
+line to extract:
 
 - Document title (text within [brackets] or **bold**)
 - File path (from markdown link or inferable from title)
-- Document type (infer from filename: architecture, api-contracts, data-models, component-inventory, development-guide, deployment-guide, integration-architecture)
+- Document type (infer from filename: architecture, api-contracts, data-models, component-inventory,
+  development-guide, deployment-guide, integration-architecture)
 - Part ID if applicable (extract from filename like "architecture-server.md" → part_id: "server")
   Step 4: Add to {{incomplete_docs_strict}} array
   </action>
 
-<action>Fallback fuzzy scan for alternate markers:
-Search for patterns: _(TBD)_, _(TODO)_, _(Coming soon)_, _(Not yet generated)_, _(Pending)_
-For each fuzzy match:
+<action>Fallback fuzzy scan for alternate markers: Search for patterns: _(TBD)_, _(TODO)_, _(Coming
+soon)_, _(Not yet generated)_, _(Pending)_ For each fuzzy match:
 
 - Extract same metadata as strict scan
 - Add to {{incomplete_docs_fuzzy}} array with fuzzy_match flag
   </action>
 
-<action>Combine results:
-Set {{incomplete_docs_list}} = {{incomplete_docs_strict}} + {{incomplete_docs_fuzzy}}
-For each item store structure:
-{
-"title": "Architecture – Server",
-"file\*path": "./architecture-server.md",
-"doc_type": "architecture",
-"part_id": "server",
-"line_text": "- [Architecture – Server](./architecture-server.md) (To be generated)",
-"fuzzy_match": false
-}
+<action>Combine results: Set {{incomplete_docs_list}} = {{incomplete_docs_strict}} +
+{{incomplete_docs_fuzzy}} For each item store structure: { "title": "Architecture – Server",
+"file\*path": "./architecture-server.md", "doc_type": "architecture", "part_id": "server",
+"line_text": "- [Architecture – Server](./architecture-server.md) (To be generated)", "fuzzy_match":
+false }
 </action>
 
 <ask>Documentation generation complete!
@@ -867,14 +887,12 @@ Summary:
 - Files Generated: {{files_count}}
 - Total Lines: {{total_lines}}
 
-{{#if incomplete_docs_list.length > 0}}
-⚠️ **Incomplete Documentation Detected:**
+{{#if incomplete_docs_list.length > 0}} ⚠️ **Incomplete Documentation Detected:**
 
 I found {{incomplete_docs_list.length}} item(s) marked as incomplete:
 
-{{#each incomplete_docs_list}}
-{{@index + 1}}. **{{title}}** ({{doc_type}}{{#if part_id}} for {{part_id}}{{/if}}){{#if fuzzy_match}} ⚠️ [non-standard marker]{{/if}}
-{{/each}}
+{{#each incomplete_docs_list}} {{@index + 1}}. **{{title}}** ({{doc_type}}{{#if part_id}} for
+{{part_id}}{{/if}}){{#if fuzzy_match}} ⚠️ [non-standard marker]{{/if}} {{/each}}
 
 {{/if}}
 
@@ -882,17 +900,16 @@ Would you like to:
 
 {{#if incomplete_docs_list.length > 0}}
 
-1. **Generate incomplete documentation** - Complete any of the {{incomplete_docs_list.length}} items above
+1. **Generate incomplete documentation** - Complete any of the {{incomplete_docs_list.length}} items
+   above
 2. Review any specific section [type section name]
 3. Add more detail to any area [type area name]
 4. Generate additional custom documentation [describe what]
-5. Finalize and complete [type 'done']
-   {{else}}
+5. Finalize and complete [type 'done'] {{else}}
 6. Review any specific section [type section name]
 7. Add more detail to any area [type area name]
 8. Generate additional documentation [describe what]
-9. Finalize and complete [type 'done']
-   {{/if}}
+9. Finalize and complete [type 'done'] {{/if}}
 
 Your choice:
 </ask>
@@ -900,10 +917,8 @@ Your choice:
 <check if="user selects option 1 (generate incomplete)">
   <ask>Which incomplete items would you like to generate?
 
-{{#each incomplete_docs_list}}
-{{@index + 1}}. {{title}} ({{doc_type}}{{#if part_id}} - {{part_id}}{{/if}})
-{{/each}}
-{{incomplete_docs_list.length + 1}}. All of them
+{{#each incomplete_docs_list}} {{@index + 1}}. {{title}} ({{doc_type}}{{#if part_id}} -
+{{part_id}}{{/if}}) {{/each}} {{incomplete_docs_list.length + 1}}. All of them
 
 Enter number(s) separated by commas (e.g., "1,3,5"), or type 'all':
 </ask>
@@ -1006,19 +1021,13 @@ Enter number(s) separated by commas (e.g., "1,3,5"), or type 'all':
 
 ✓ **Documentation Generation Complete!**
 
-**Successfully Generated:**
-{{#each newly_generated_docs}}
+**Successfully Generated:** {{#each newly_generated_docs}}
 
-- {{title}} → {{file_path}}
-  {{/each}}
+- {{title}} → {{file_path}} {{/each}}
 
-{{#if failed_generations.length > 0}}
-**Failed to Generate:**
-{{#each failed_generations}}
+{{#if failed_generations.length > 0}} **Failed to Generate:** {{#each failed_generations}}
 
-- {{title}} ({{error_message}})
-  {{/each}}
-  {{/if}}
+- {{title}} ({{error_message}}) {{/each}} {{/if}}
 
 **Updated:** index.md (removed incomplete markers)
 
@@ -1030,7 +1039,8 @@ Enter number(s) separated by commas (e.g., "1,3,5"), or type 'all':
 <action>Return to Step 11 menu (loop back to check for any remaining incomplete items)</action>
 </check>
 
-<action if="user requests other changes (options 2-3)">Make requested modifications and regenerate affected files</action>
+<action if="user requests other changes (options 2-3)">Make requested modifications and regenerate
+affected files</action>
 <action if="user selects finalize (option 4 or 5)">Proceed to Step 12 completion</action>
 
 <check if="not finalizing">
@@ -1067,11 +1077,10 @@ Enter number(s) separated by commas (e.g., "1,3,5"), or type 'all':
 
 **Location:** {{output_folder}}/
 
-**Master Index:** {{output_folder}}/index.md
-👆 This is your primary entry point for AI-assisted development
+**Master Index:** {{output_folder}}/index.md 👆 This is your primary entry point for AI-assisted
+development
 
-**Generated Documentation:**
-{{generated_files_list}}
+**Generated Documentation:** {{generated_files_list}}
 
 **Next Steps:**
 
@@ -1087,15 +1096,16 @@ Enter number(s) separated by commas (e.g., "1,3,5"), or type 'all':
 - Outstanding risks or follow-ups: {{open_risks}}
 - Recommended next checks before PR: {{next_checks}}
 
-**Brownfield PRD Command:**
-When ready to plan new features, run the PRD workflow and provide this index as input.
+**Brownfield PRD Command:** When ready to plan new features, run the PRD workflow and provide this
+index as input.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 </action>
 
 <action>FINALIZE state file:
 
-- Add to completed_steps: {"step": "step_12", "status": "completed", "timestamp": "{{now}}", "summary": "Workflow complete"}
+- Add to completed_steps: {"step": "step_12", "status": "completed", "timestamp": "{{now}}",
+  "summary": "Workflow complete"}
 - Update timestamps.completed = "{{now}}"
 - Update current_step = "completed"
 - Write final state file

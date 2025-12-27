@@ -2,7 +2,9 @@
 
 **Status:** 🟡 IN PROGRESS (Story 7.1 done, Story 7.1b planned)
 
-**Problem:** MCP client functions cannot be serialized to subprocess (`JSON.stringify(function) → undefined`). The original `wrapMCPClient()` approach silently failed. Additionally, stdout-based tracing (`__TRACE__`) is fragile and collides with user console.log.
+**Problem:** MCP client functions cannot be serialized to subprocess
+(`JSON.stringify(function) → undefined`). The original `wrapMCPClient()` approach silently failed.
+Additionally, stdout-based tracing (`__TRACE__`) is fragile and collides with user console.log.
 
 **Solution Architecture (ADR-032):**
 
@@ -94,14 +96,14 @@ PHASE 3: LAZY SUGGESTIONS
 
 **Key Components (Epic 7):**
 
-| Component | File | Purpose |
-|-----------|------|---------|
-| WorkerBridge | `src/sandbox/worker-bridge.ts` | RPC bridge, native tracing |
-| SandboxWorker | `src/sandbox/sandbox-worker.ts` | Isolated execution context |
-| CapabilityMatcher | `src/capabilities/matcher.ts` | Intent → capability matching |
-| SchemaInferrer | `src/capabilities/schema-inferrer.ts` | SWC-based parameter inference |
-| SuggestionEngine | `src/capabilities/suggestion-engine.ts` | Proactive recommendations |
-| CapabilityCodeGenerator | `src/capabilities/code-generator.ts` | Inline function generation |
+| Component               | File                                    | Purpose                       |
+| ----------------------- | --------------------------------------- | ----------------------------- |
+| WorkerBridge            | `src/sandbox/worker-bridge.ts`          | RPC bridge, native tracing    |
+| SandboxWorker           | `src/sandbox/sandbox-worker.ts`         | Isolated execution context    |
+| CapabilityMatcher       | `src/capabilities/matcher.ts`           | Intent → capability matching  |
+| SchemaInferrer          | `src/capabilities/schema-inferrer.ts`   | SWC-based parameter inference |
+| SuggestionEngine        | `src/capabilities/suggestion-engine.ts` | Proactive recommendations     |
+| CapabilityCodeGenerator | `src/capabilities/code-generator.ts`    | Inline function generation    |
 
 **Database Extensions (Migration 011):**
 
@@ -147,7 +149,7 @@ Les traces d'exécution supportent une hiérarchie parent/child pour le debuggin
 ```typescript
 interface TraceEntry {
   trace_id: string;
-  parent_trace_id?: string;  // NEW - Lien vers trace parente
+  parent_trace_id?: string; // NEW - Lien vers trace parente
   tool_id: string;
   started_at: Date;
   completed_at: Date;
@@ -166,16 +168,16 @@ Deux représentations complémentaires dans `dag_structure` :
 ```typescript
 interface DAGStructure {
   // Pour les algorithmes (scoring, matching) - DÉDUPLIQUÉ
-  tools_used: string[];  // ["read_file", "list_directory"]
+  tools_used: string[]; // ["read_file", "list_directory"]
 
   // Pour la visualisation et replay - SÉQUENCE COMPLÈTE
-  tool_invocations: ToolInvocation[];  // Avec timestamps et ordre
+  tool_invocations: ToolInvocation[]; // Avec timestamps et ordre
 }
 
 interface ToolInvocation {
-  id: string;           // "read_file#0", "read_file#1"
-  tool: string;         // "read_file"
-  ts: number;           // Timestamp
+  id: string; // "read_file#0", "read_file#1"
+  tool: string; // "read_file"
+  ts: number; // Timestamp
   sequenceIndex: number; // 0, 1, 2...
 }
 ```
@@ -186,7 +188,7 @@ Condition de sauvegarde d'une capability :
 
 ```typescript
 // Une capability n'est sauvegardée QUE si tous les tools ont réussi
-const canSaveCapability = execution.traces.every(t => t.success);
+const canSaveCapability = execution.traces.every((t) => t.success);
 
 if (!canSaveCapability) {
   // Log mais ne pas sauvegarder - évite les capabilities cassées
@@ -209,6 +211,7 @@ CREATE TABLE capability_dependency (
 ```
 
 **Edge Types:**
+
 - `dependency`: A requiert B pour fonctionner
 - `sequence`: A est généralement suivi de B
 - `alternative`: A et B sont interchangeables
@@ -228,6 +231,8 @@ CREATE TABLE capability_dependency (
 - ADR-047: Tool Sequence vs Deduplication
 - Research: `docs/research/research-technical-2025-12-03.md`
 
-**Design Philosophy:** Capabilities emerge from usage rather than being pre-defined. The system learns continuously from execution patterns to crystallize reusable capabilities, offering unique differentiation versus competitors.
+**Design Philosophy:** Capabilities emerge from usage rather than being pre-defined. The system
+learns continuously from execution patterns to crystallize reusable capabilities, offering unique
+differentiation versus competitors.
 
 ---

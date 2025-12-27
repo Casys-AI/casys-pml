@@ -115,7 +115,7 @@ export class BoundedForceLayout {
           .forceLink(links)
           .id((d: SimulationNode) => d.id)
           .distance(this.config.linkDistance)
-          .strength(0.3)
+          .strength(0.3),
       )
       // Charge force - node repulsion
       .force(
@@ -123,7 +123,7 @@ export class BoundedForceLayout {
         d3
           .forceManyBody()
           .strength(this.config.chargeStrength)
-          .distanceMax(300)
+          .distanceMax(300),
       )
       // Collision force - prevent overlap
       .force(
@@ -131,7 +131,7 @@ export class BoundedForceLayout {
         d3
           .forceCollide()
           .radius((d: SimulationNode) => (d.radius || 15) + 5)
-          .strength(0.8)
+          .strength(0.8),
       )
       // Custom boundary force
       .force("boundary", this.forceBoundary())
@@ -140,7 +140,7 @@ export class BoundedForceLayout {
         "center",
         d3
           .forceCenter(this.config.width / 2, this.config.height / 2)
-          .strength(0.02)
+          .strength(0.02),
       );
 
     // Add bipartite X-force if enabled
@@ -169,26 +169,22 @@ export class BoundedForceLayout {
 
         // Left boundary
         if (node.x < padding + radius) {
-          node.vx =
-            (node.vx || 0) +
+          node.vx = (node.vx || 0) +
             (padding + radius - node.x) * boundaryStrength * alpha;
         }
         // Right boundary
         if (node.x > width - padding - radius) {
-          node.vx =
-            (node.vx || 0) +
+          node.vx = (node.vx || 0) +
             (width - padding - radius - node.x) * boundaryStrength * alpha;
         }
         // Top boundary
         if (node.y < padding + radius) {
-          node.vy =
-            (node.vy || 0) +
+          node.vy = (node.vy || 0) +
             (padding + radius - node.y) * boundaryStrength * alpha;
         }
         // Bottom boundary
         if (node.y > height - padding - radius) {
-          node.vy =
-            (node.vy || 0) +
+          node.vy = (node.vy || 0) +
             (height - padding - radius - node.y) * boundaryStrength * alpha;
         }
       }
@@ -209,10 +205,8 @@ export class BoundedForceLayout {
 
     const force = (alpha: number) => {
       for (const node of this.nodes) {
-        const targetX =
-          node.nodeType === "capability" ? leftTarget : rightTarget;
-        node.vx =
-          (node.vx || 0) + (targetX - node.x) * bipartiteStrength * alpha;
+        const targetX = node.nodeType === "capability" ? leftTarget : rightTarget;
+        node.vx = (node.vx || 0) + (targetX - node.x) * bipartiteStrength * alpha;
       }
     };
 
@@ -238,7 +232,9 @@ export class BoundedForceLayout {
     let nodeClusterMap: Map<string, string> | null = null;
 
     const getClusterPositions = () => {
-      if (clusterPositions && nodeClusterMap) return { positions: clusterPositions, nodeMap: nodeClusterMap };
+      if (clusterPositions && nodeClusterMap) {
+        return { positions: clusterPositions, nodeMap: nodeClusterMap };
+      }
 
       // Count members per community
       const communityCount = new Map<string, number>();
@@ -264,9 +260,11 @@ export class BoundedForceLayout {
       }
 
       // Get unique cluster keys
-      const clusterKeys = [...new Set(
-        [...nodeClusterMap.values()].filter(k => k !== "capability")
-      )];
+      const clusterKeys = [
+        ...new Set(
+          [...nodeClusterMap.values()].filter((k) => k !== "capability"),
+        ),
+      ];
 
       clusterPositions = new Map();
 
@@ -292,10 +290,8 @@ export class BoundedForceLayout {
         const clusterKey = nodeMap.get(node.id) || "unknown";
         const target = positions.get(clusterKey);
         if (target) {
-          node.vx =
-            (node.vx || 0) + (target.x - node.x) * serverClusterStrength * alpha;
-          node.vy =
-            (node.vy || 0) + (target.y - node.y) * serverClusterStrength * alpha;
+          node.vx = (node.vx || 0) + (target.x - node.x) * serverClusterStrength * alpha;
+          node.vy = (node.vy || 0) + (target.y - node.y) * serverClusterStrength * alpha;
         }
       }
     };
@@ -346,7 +342,7 @@ export class BoundedForceLayout {
       // Update center force
       this.simulation.force(
         "center",
-        d3.forceCenter(width / 2, height / 2).strength(0.02)
+        d3.forceCenter(width / 2, height / 2).strength(0.02),
       );
 
       // Re-apply boundary force with new dimensions
@@ -414,7 +410,7 @@ export class BoundedForceLayout {
 export function createBoundedForceLayout(
   nodes: SimulationNode[],
   links: SimulationLink[],
-  config?: Partial<BoundedForceConfig>
+  config?: Partial<BoundedForceConfig>,
 ): {
   // deno-lint-ignore no-explicit-any
   simulation: any;

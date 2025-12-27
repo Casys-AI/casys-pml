@@ -4,35 +4,42 @@
 
 ## En bref
 
-Imaginez preter votre voiture sans manuel d'utilisation. Votre ami observe les commandes et deduit le "mode d'emploi" : ou est le frein a main, comment regler les retroviseurs, etc.
+Imaginez preter votre voiture sans manuel d'utilisation. Votre ami observe les commandes et deduit
+le "mode d'emploi" : ou est le frein a main, comment regler les retroviseurs, etc.
 
-Le schema inference de PML fonctionne pareil : il analyse le code pour comprendre automatiquement les parametres necessaires (nom, type, role). Pas besoin de documenter manuellement.
+Le schema inference de PML fonctionne pareil : il analyse le code pour comprendre automatiquement
+les parametres necessaires (nom, type, role). Pas besoin de documenter manuellement.
 
-**Exemple :** Script qui lit un fichier JSON. PML detecte automatiquement qu'il faut un parametre "path" (texte) et peut-etre "encoding" (optionnel). La prochaine fois, PML sait quoi demander.
+**Exemple :** Script qui lit un fichier JSON. PML detecte automatiquement qu'il faut un parametre
+"path" (texte) et peut-etre "encoding" (optionnel). La prochaine fois, PML sait quoi demander.
 
-**L'avantage :** Zero documentation manuelle. PML comprend automatiquement comment reutiliser vos solutions avec de nouveaux parametres.
+**L'avantage :** Zero documentation manuelle. PML comprend automatiquement comment reutiliser vos
+solutions avec de nouveaux parametres.
 
 ## How it Works
 
-When PML captures a capability, it doesn't just store the code—it analyzes it to understand what **parameters** the capability accepts.
+When PML captures a capability, it doesn't just store the code—it analyzes it to understand what
+**parameters** the capability accepts.
 
 ### Moteur d'analyse : SWC
 
 PML utilise **SWC** (Speedy Web Compiler), un parser AST base sur Rust :
 
-| Caracteristique | Valeur |
-|-----------------|--------|
-| **Performance** | 20x plus rapide que ts-morph |
-| **Compatibilite** | Deno-native (zero configuration) |
-| **Analyse** | TypeScript/JavaScript AST complet |
+| Caracteristique   | Valeur                            |
+| ----------------- | --------------------------------- |
+| **Performance**   | 20x plus rapide que ts-morph      |
+| **Compatibilite** | Deno-native (zero configuration)  |
+| **Analyse**       | TypeScript/JavaScript AST complet |
 
 **Flow d'inference :**
+
 ```
 Code TypeScript → SWC parse AST → Detecte args.xxx (MemberExpression)
     → Infere types depuis MCP schemas → Genere JSON Schema
 ```
 
-SWC permet d'analyser le code instantanement pour en extraire les parametres sans impacter les performances d'execution.
+SWC permet d'analyser le code instantanement pour en extraire les parametres sans impacter les
+performances d'execution.
 
 ### Exemple d'analyse
 
@@ -40,7 +47,8 @@ SWC permet d'analyser le code instantanement pour en extraire les parametres san
 
 This makes capabilities **generalizable**—they can be reused with different inputs.
 
-**Analogie :** Comme une recette de crepes ou "250ml de lait" est un parametre variable (300ml, lait d'amande, lait de soja). PML identifie ce qui est variable vs fixe dans le code.
+**Analogie :** Comme une recette de crepes ou "250ml de lait" est un parametre variable (300ml, lait
+d'amande, lait de soja). PML identifie ce qui est variable vs fixe dans le code.
 
 ## Parameter Extraction
 
@@ -91,27 +99,34 @@ Tracing:
 PML infers parameter types from usage:
 
 ### String Detection
-String operations, path/URL patterns, string-expecting tools → `mcp.read_file({ path: value })` identifies value as string.
+
+String operations, path/URL patterns, string-expecting tools → `mcp.read_file({ path: value })`
+identifies value as string.
 
 ### Number Detection
-Arithmetic operations, count/limit/offset patterns → `mcp.search({ limit: value })` identifies value as number.
+
+Arithmetic operations, count/limit/offset patterns → `mcp.search({ limit: value })` identifies value
+as number.
 
 ### Boolean Detection
-Conditions, boolean parameters, true/false literals → `mcp.list_files({ recursive: value })` identifies value as boolean.
+
+Conditions, boolean parameters, true/false literals → `mcp.list_files({ recursive: value })`
+identifies value as boolean.
 
 ### Object/Array Detection
+
 Destructured access, iteration patterns → `for (const item of value)` identifies value as array.
 
 ## Inference Confidence
 
 Not all inferences are equally reliable:
 
-| Source | Confidence | Example |
-|--------|------------|---------|
-| Tool schema | High | `read_file` requires `path: string` |
-| Type annotation | High | User wrote `path: string` |
-| Usage pattern | Medium | Variable used as string |
-| Heuristic | Low | Looks like a URL |
+| Source          | Confidence | Example                             |
+| --------------- | ---------- | ----------------------------------- |
+| Tool schema     | High       | `read_file` requires `path: string` |
+| Type annotation | High       | User wrote `path: string`           |
+| Usage pattern   | Medium     | Variable used as string             |
+| Heuristic       | Low        | Looks like a URL                    |
 
 ```
 Parameter: filePath
@@ -149,7 +164,8 @@ Inferred Schema:
 
 ## Schema Evolution
 
-Schemas improve over time as PML observes more executions, refining type detection and patterns for greater accuracy.
+Schemas improve over time as PML observes more executions, refining type detection and patterns for
+greater accuracy.
 
 ## Using Inferred Schemas
 
@@ -202,15 +218,21 @@ Process a file and generate output.
 
 ## Benefices concrets pour vous
 
-**Reutilisation intelligente :** Vous creez une solution une fois, PML la rend reutilisable automatiquement sans documentation manuelle.
+**Reutilisation intelligente :** Vous creez une solution une fois, PML la rend reutilisable
+automatiquement sans documentation manuelle.
 
-**Suggestions contextuelles :** Quand PML suggere une capability, il sait deja quoi demander ("cette solution a besoin d'un fichier d'entree et d'un nom de sortie").
+**Suggestions contextuelles :** Quand PML suggere une capability, il sait deja quoi demander ("cette
+solution a besoin d'un fichier d'entree et d'un nom de sortie").
 
-**Validation automatique :** PML detecte les erreurs avant execution ("vous avez fourni un nombre, ce parametre attend du texte").
+**Validation automatique :** PML detecte les erreurs avant execution ("vous avez fourni un nombre,
+ce parametre attend du texte").
 
-**Documentation auto-generee :** Chaque capability a sa documentation a jour automatiquement, utile pour revisiter un projet apres plusieurs mois.
+**Documentation auto-generee :** Chaque capability a sa documentation a jour automatiquement, utile
+pour revisiter un projet apres plusieurs mois.
 
-**Exemple vecu :** Script pour convertir PNG en JPG. Six mois plus tard, besoin de convertir WebP en PNG. PML adapte automatiquement en changeant les parametres sans que vous ayez a vous rappeler comment ca marche.
+**Exemple vecu :** Script pour convertir PNG en JPG. Six mois plus tard, besoin de convertir WebP en
+PNG. PML adapte automatiquement en changeant les parametres sans que vous ayez a vous rappeler
+comment ca marche.
 
 ## Next
 

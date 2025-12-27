@@ -95,7 +95,8 @@ When code changes, check these docs:
 
 ## Warning
 
-Some docs may be out of date - always verify against actual code behavior. When finding outdated docs, either:
+Some docs may be out of date - always verify against actual code behavior. When finding outdated
+docs, either:
 
 1. Update them immediately
 2. Note in Domain Memories for later

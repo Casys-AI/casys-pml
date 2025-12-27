@@ -2,25 +2,25 @@
 
 Status: done
 
-> **Epic:** 10 - DAG Capability Learning & Unified APIs
-> **Tech-Spec:** [tech-spec-dag-capability-learning.md](../tech-specs/tech-spec-dag-capability-learning.md)
-> **Prerequisites:** Story 10.1 (Static Structure Builder - DONE, 11 tests passing)
-> **Depends on:** Story 3.5-1 (Speculative Execution - DONE)
+> **Epic:** 10 - DAG Capability Learning & Unified APIs **Tech-Spec:**
+> [tech-spec-dag-capability-learning.md](../tech-specs/tech-spec-dag-capability-learning.md)
+> **Prerequisites:** Story 10.1 (Static Structure Builder - DONE, 11 tests passing) **Depends on:**
+> Story 3.5-1 (Speculative Execution - DONE)
 
 ---
 
 ## Story
 
-As a speculative execution system,
-I want to extract and store tool arguments from static code analysis,
-So that I can execute capabilities speculatively without requiring runtime argument inference.
+As a speculative execution system, I want to extract and store tool arguments from static code
+analysis, So that I can execute capabilities speculatively without requiring runtime argument
+inference.
 
 ---
 
 ## Context & Problem
 
-**Le problème actuel:**
-Story 10.1 parse le code et extrait les appels MCP tools, mais ne capture PAS les arguments passés:
+**Le problème actuel:** Story 10.1 parse le code et extrait les appels MCP tools, mais ne capture
+PAS les arguments passés:
 
 ```typescript
 // Code parsé :
@@ -41,8 +41,10 @@ const file = await mcp.fs.read({ path: "config.json" });
 ```
 
 **Pourquoi c'est important pour la spéculation:**
+
 - L'exécution spéculative a besoin des arguments pour vraiment exécuter
-- Les arguments peuvent être: littéraux, variables résolues via chaînage, ou paramètres de la capability
+- Les arguments peuvent être: littéraux, variables résolues via chaînage, ou paramètres de la
+  capability
 - Sans arguments, on ne peut que "préparer" l'exécution, pas l'exécuter
 
 ---
@@ -91,8 +93,8 @@ const parsed = await mcp.json.parse({ input: file.content });
 // → Dit "le tool json:parse reçoit input qui vient du résultat de file"
 ```
 
-**Le lien entre les deux:**
-Story 10.2 utilise `parametersSchema` pour classifier les Identifiers :
+**Le lien entre les deux:** Story 10.2 utilise `parametersSchema` pour classifier les Identifiers :
+
 - Si `filePath` est dans `parametersSchema.properties` → c'est un `parameter`
 - Si c'est une MemberExpression (`file.content`) → c'est une `reference`
 - Si c'est un literal (`"config.json"`) → c'est un `literal`
@@ -102,59 +104,71 @@ Story 10.2 utilise `parametersSchema` pour classifier les Identifiers :
 ## Acceptance Criteria
 
 ### AC1: ArgumentValue Type Defined
+
 - [x] New type `ArgumentValue` in `src/capabilities/types.ts`:
+
 ```typescript
 interface ArgumentValue {
   type: "literal" | "reference" | "parameter";
-  value?: unknown;           // For literal: the actual value
-  expression?: string;       // For reference: "file.content", "result.data"
-  parameterName?: string;    // For parameter: "userPath", "inputData"
+  value?: unknown; // For literal: the actual value
+  expression?: string; // For reference: "file.content", "result.data"
+  parameterName?: string; // For parameter: "userPath", "inputData"
 }
 ```
 
 ### AC2: ArgumentsStructure Type Defined
+
 - [x] New type `ArgumentsStructure` in `src/capabilities/types.ts`:
+
 ```typescript
 type ArgumentsStructure = Record<string, ArgumentValue>;
 ```
 
 ### AC3: StaticStructureNode Extended with Arguments
+
 - [x] Type `StaticStructureNode` (task variant) extended:
+
 ```typescript
-type StaticStructureNode =
-  | {
-      id: string;
-      type: "task";
-      tool: string;
-      arguments?: ArgumentsStructure;  // NEW
-    }
-  // ... other variants unchanged
+type StaticStructureNode = {
+  id: string;
+  type: "task";
+  tool: string;
+  arguments?: ArgumentsStructure; // NEW
+};
+// ... other variants unchanged
 ```
 
 ### AC4: Literal Argument Extraction
+
 - [x] Extract literal values from ObjectExpression arguments
 - [x] Support: strings, numbers, booleans, null
 - [x] Support: nested objects and arrays (JSON-serializable)
 - [x] Store as `{ type: "literal", value: <parsed_value> }`
 
 ### AC5: Reference Argument Detection
+
 - [x] Detect MemberExpression arguments (e.g., `file.content`)
 - [x] Extract expression as string representation
 - [x] Store as `{ type: "reference", expression: "file.content" }`
 - [x] Link to ProvidesEdge for resolution path (via existing edge generation)
 
 ### AC6: Parameter Argument Detection
+
 - [x] Detect Identifier arguments that are function parameters
 - [x] Check against known patterns: `args.X`, `params.X`, `input.X`
 - [x] Store as `{ type: "parameter", parameterName: "X" }`
 
 ### AC7: Integration with PredictedNode (Capability Prediction)
-- [x] In `predictCapabilities()` (extracted to `src/graphrag/prediction/capabilities.ts`), populate `PredictedNode.arguments` from capability's `static_structure`
-- [x] Literals copied directly as `Record<string, unknown>` via `extractArgumentsFromStaticStructure()`
+
+- [x] In `predictCapabilities()` (extracted to `src/graphrag/prediction/capabilities.ts`), populate
+      `PredictedNode.arguments` from capability's `static_structure`
+- [x] Literals copied directly as `Record<string, unknown>` via
+      `extractArgumentsFromStaticStructure()`
 - [x] References logged for future runtime resolution (not included in arguments)
 - [x] Parameters logged for future intent extraction (not included in arguments)
 
 ### AC8: Tests
+
 - [x] Test: literal string argument extracted correctly
 - [x] Test: literal number argument extracted correctly
 - [x] Test: literal boolean argument extracted correctly
@@ -193,7 +207,8 @@ type StaticStructureNode =
   - [x] Ensure backward compatibility (arguments is optional)
 
 - [x] **Task 5: Link to PredictedNode in DAGSuggester** (AC: 7) ✅
-  - [x] In `DAGSuggester.predictNextNodes()`, when source="capability", extract arguments from static_structure
+  - [x] In `DAGSuggester.predictNextNodes()`, when source="capability", extract arguments from
+        static_structure
   - [x] Resolve literals immediately to `PredictedNode.arguments`
   - [x] Mark references for runtime resolution (can log or skip for now)
   - [x] Mark parameters as "needs extraction from intent" (log or skip)
@@ -241,29 +256,34 @@ The call expression arguments in SWC are wrapped in a `{ spread, expression }` s
 }
 ```
 
-**Important:** SWC wraps CallExpression arguments in `{ spread, expression }` structure - see Story 10.1 `handlePromiseAll()` for the pattern.
+**Important:** SWC wraps CallExpression arguments in `{ spread, expression }` structure - see Story
+10.1 `handlePromiseAll()` for the pattern.
 
 ### SWC Literal Types
 
-| Code | SWC Type | Value Property |
-|------|----------|----------------|
-| `"hello"` | StringLiteral | `value: "hello"` |
-| `42` | NumericLiteral | `value: 42` |
-| `true` | BooleanLiteral | `value: true` |
-| `null` | NullLiteral | (no value) |
+| Code       | SWC Type         | Value Property      |
+| ---------- | ---------------- | ------------------- |
+| `"hello"`  | StringLiteral    | `value: "hello"`    |
+| `42`       | NumericLiteral   | `value: 42`         |
+| `true`     | BooleanLiteral   | `value: true`       |
+| `null`     | NullLiteral      | (no value)          |
 | `{ a: 1 }` | ObjectExpression | `properties: [...]` |
-| `[1, 2]` | ArrayExpression | `elements: [...]` |
+| `[1, 2]`   | ArrayExpression  | `elements: [...]`   |
 
 ### Reference Expression Examples
 
 ```typescript
 // Reference to previous result
-{ input: file.content }
+{
+  input: file.content;
+}
 // AST: MemberExpression { object: Identifier("file"), property: Identifier("content") }
 // Store as: { type: "reference", expression: "file.content" }
 
 // Chained reference
-{ data: result.items[0].value }
+{
+  data: result.items[0].value;
+}
 // Store as: { type: "reference", expression: "result.items[0].value" }
 // Note: Computed member access like [0] requires special handling
 ```
@@ -305,11 +325,13 @@ export interface PredictedNode {
   reasoning: string;
   source: "community" | "co-occurrence" | "capability" | "hint" | "learned";
   // ...
-  arguments?: Record<string, unknown>;  // ← ALREADY EXISTS
+  arguments?: Record<string, unknown>; // ← ALREADY EXISTS
 }
 ```
 
-The link is in `DAGSuggester.predictNextNodes()` at `src/graphrag/dag-suggester.ts:333`. When a capability is matched, we should extract its `static_structure` and populate `PredictedNode.arguments` from the task nodes.
+The link is in `DAGSuggester.predictNextNodes()` at `src/graphrag/dag-suggester.ts:333`. When a
+capability is matched, we should extract its `static_structure` and populate
+`PredictedNode.arguments` from the task nodes.
 
 ### Speculative Execution Flow
 
@@ -332,35 +354,38 @@ async executeSpeculation(prediction: PredictedNode, context: ExecutionContext) {
 
 ## Architecture Alignment
 
-| Pattern | Convention |
-|---------|------------|
-| SWC version | `https://deno.land/x/swc@0.2.1/mod.ts` (same as 10.1) |
-| Type location | `src/capabilities/types.ts` |
-| Implementation | `src/capabilities/static-structure-builder.ts` |
-| DAGSuggester integration | `src/graphrag/dag-suggester.ts` |
-| Error handling | Graceful (return empty arguments on parse error) |
-| Logging | `getLogger("default")` |
+| Pattern                  | Convention                                            |
+| ------------------------ | ----------------------------------------------------- |
+| SWC version              | `https://deno.land/x/swc@0.2.1/mod.ts` (same as 10.1) |
+| Type location            | `src/capabilities/types.ts`                           |
+| Implementation           | `src/capabilities/static-structure-builder.ts`        |
+| DAGSuggester integration | `src/graphrag/dag-suggester.ts`                       |
+| Error handling           | Graceful (return empty arguments on parse error)      |
+| Logging                  | `getLogger("default")`                                |
 
 ### Project Structure Notes
 
 **Files to Modify:**
+
 - `src/capabilities/types.ts` - Add ArgumentValue, ArgumentsStructure types (~20 LOC)
 - `src/capabilities/static-structure-builder.ts` - Add argument extraction (~100-150 LOC)
 - `src/capabilities/mod.ts` - Export new types
 - `src/graphrag/dag-suggester.ts` - Populate PredictedNode.arguments (~30 LOC)
 
 **Test Files:**
+
 - `tests/unit/capabilities/static_structure_builder_test.ts` - Add argument extraction tests
 
 ### Critical Implementation Pattern
 
-The key insight is that `ArgumentsStructure` stores **how to resolve** each argument, not the resolved value:
+The key insight is that `ArgumentsStructure` stores **how to resolve** each argument, not the
+resolved value:
 
-| Scenario | Storage | Resolution |
-|----------|---------|------------|
-| **Literal** | `{ type: "literal", value: "config.json" }` | Immediate - use value directly |
+| Scenario      | Storage                                             | Resolution                                           |
+| ------------- | --------------------------------------------------- | ---------------------------------------------------- |
+| **Literal**   | `{ type: "literal", value: "config.json" }`         | Immediate - use value directly                       |
 | **Reference** | `{ type: "reference", expression: "file.content" }` | Runtime - resolve via ProvidesEdge + previous result |
-| **Parameter** | `{ type: "parameter", parameterName: "filePath" }` | Runtime - extract from capability input |
+| **Parameter** | `{ type: "parameter", parameterName: "filePath" }`  | Runtime - extract from capability input              |
 
 For Story 10.2, we focus on **storage**. Resolution is handled by speculative execution.
 
@@ -369,6 +394,7 @@ For Story 10.2, we focus on **storage**. Resolution is handled by speculative ex
 ## References
 
 **Codebase Sources (CRITICAL - Read these first):**
+
 - `src/capabilities/static-structure-builder.ts:297-346` - `handleCallExpression()` to extend
 - `src/capabilities/static-structure-builder.ts:510-530` - `extractMemberChain()` to reuse
 - `src/capabilities/static-structure-builder.ts:535-580` - `extractConditionText()` pattern
@@ -378,20 +404,26 @@ For Story 10.2, we focus on **storage**. Resolution is handled by speculative ex
 - `tests/unit/capabilities/static_structure_builder_test.ts` - 11 existing tests as pattern
 
 **Epic & Tech Spec:**
-- [epic-10-dag-capability-learning-unified-apis.md](../epics/epic-10-dag-capability-learning-unified-apis.md) - Story 10.2 definition
-- [tech-spec-dag-capability-learning.md](../tech-specs/tech-spec-dag-capability-learning.md) - Overall architecture
+
+- [epic-10-dag-capability-learning-unified-apis.md](../epics/epic-10-dag-capability-learning-unified-apis.md) -
+  Story 10.2 definition
+- [tech-spec-dag-capability-learning.md](../tech-specs/tech-spec-dag-capability-learning.md) -
+  Overall architecture
 
 **SWC Documentation:**
+
 - [deno.land/x/swc@0.2.1](https://deno.land/x/swc@0.2.1) - Module homepage (LATEST)
 - [GitHub: littledivy/deno_swc](https://github.com/littledivy/deno_swc) - Source & README
 
 **Previous Story Learnings (10.1):**
+
 - SWC wraps arguments in `{ spread, expression }` structure - always unwrap
 - Use discriminated unions for node types (already established pattern)
 - Graceful error handling: return empty structure on errors, don't throw
 - Keep counters for unique node IDs (existing pattern)
 
 **ADRs:**
+
 - ADR-006: Speculative Execution as Default Mode
 - ADR-041: Hierarchical Trace Tracking (parentTraceId)
 
@@ -412,21 +444,29 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - ArgumentValue/ArgumentsStructure types added to types.ts with full JSDoc documentation
 - StaticStructureNode task variant extended with optional `arguments` field
 - extractArguments() and extractArgumentValue() methods added to StaticStructureBuilder
-- Handles: literals (string/number/boolean/null/object/array), references (MemberExpression), parameters (args.X/params.X/input.X)
-- Integration via CapabilityStore.getStaticStructure() → predictCapabilities() → PredictedNode.arguments
+- Handles: literals (string/number/boolean/null/object/array), references (MemberExpression),
+  parameters (args.X/params.X/input.X)
+- Integration via CapabilityStore.getStaticStructure() → predictCapabilities() →
+  PredictedNode.arguments
 - Spread operators gracefully skipped with debug logging
 
 ### Change Log
 
 - 2025-12-19: Story context created by BMM create-story workflow (Claude Opus 4.5)
 - 2025-12-19: Implementation completed (Claude Opus 4.5) - All AC met, 22 tests passing
-- 2025-12-19: Code review fixes - AC7 wording corrected, File List updated, checkboxes completed (Claude Opus 4.5)
+- 2025-12-19: Code review fixes - AC7 wording corrected, File List updated, checkboxes completed
+  (Claude Opus 4.5)
 
 ### File List
 
-- [x] `src/capabilities/types.ts` - MODIFY (add ArgumentValue, ArgumentsStructure types, extend StaticStructureNode)
-- [x] `src/capabilities/static-structure-builder.ts` - MODIFY (add argument extraction methods ~250 LOC)
+- [x] `src/capabilities/types.ts` - MODIFY (add ArgumentValue, ArgumentsStructure types, extend
+      StaticStructureNode)
+- [x] `src/capabilities/static-structure-builder.ts` - MODIFY (add argument extraction methods ~250
+      LOC)
 - [x] `src/capabilities/mod.ts` - MODIFY (export new types ArgumentValue, ArgumentsStructure)
-- [x] `src/capabilities/capability-store.ts` - MODIFY (add getStaticStructure() method for DAGSuggester integration)
-- [x] `src/graphrag/prediction/capabilities.ts` - MODIFY (add extractArgumentsFromStaticStructure(), populate PredictedNode.arguments)
-- [x] `tests/unit/capabilities/static_structure_builder_test.ts` - MODIFY (add 10 argument extraction tests)
+- [x] `src/capabilities/capability-store.ts` - MODIFY (add getStaticStructure() method for
+      DAGSuggester integration)
+- [x] `src/graphrag/prediction/capabilities.ts` - MODIFY (add extractArgumentsFromStaticStructure(),
+      populate PredictedNode.arguments)
+- [x] `tests/unit/capabilities/static_structure_builder_test.ts` - MODIFY (add 10 argument
+      extraction tests)

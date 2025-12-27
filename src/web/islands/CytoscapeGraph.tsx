@@ -159,7 +159,15 @@ interface ToolNode {
 interface Edge {
   source: string;
   target: string;
-  edgeType: "hierarchy" | "contains" | "sequence" | "dependency" | "capability_link" | "uses" | "provides" | "dependsOn";
+  edgeType:
+    | "hierarchy"
+    | "contains"
+    | "sequence"
+    | "dependency"
+    | "capability_link"
+    | "uses"
+    | "provides"
+    | "dependsOn";
   weight?: number;
   observedCount?: number;
   // Sequence edge specific
@@ -969,7 +977,9 @@ export default function CytoscapeGraph({
               group: "nodes",
               data: {
                 id: invId,
-                label: `L${layerIndex}#${i + 1} ${toolName.length > 12 ? toolName.slice(0, 10) + ".." : toolName}`,
+                label: `L${layerIndex}#${i + 1} ${
+                  toolName.length > 12 ? toolName.slice(0, 10) + ".." : toolName
+                }`,
                 type: "tool_invocation",
                 tool: task.tool,
                 server,
@@ -996,7 +1006,9 @@ export default function CytoscapeGraph({
               group: "nodes",
               data: {
                 id: invId,
-                label: `#${inv.sequenceIndex + 1} ${toolName.length > 12 ? toolName.slice(0, 10) + ".." : toolName}`,
+                label: `#${inv.sequenceIndex + 1} ${
+                  toolName.length > 12 ? toolName.slice(0, 10) + ".." : toolName
+                }`,
                 type: "tool_invocation",
                 tool: inv.tool,
                 server,
@@ -1029,7 +1041,9 @@ export default function CytoscapeGraph({
               group: "nodes",
               data: {
                 id: invId,
-                label: `#${i + 1} ${toolName.length > 12 ? toolName.slice(0, 10) + ".." : toolName}`,
+                label: `#${i + 1} ${
+                  toolName.length > 12 ? toolName.slice(0, 10) + ".." : toolName
+                }`,
                 type: "tool_invocation",
                 tool: toolId,
                 server,
@@ -1084,8 +1098,7 @@ export default function CytoscapeGraph({
             weight: edge.weight,
           },
         });
-      }
-      // Tool-to-tool edges (definition mode only)
+      } // Tool-to-tool edges (definition mode only)
       // Definition mode: show static data flow (provides), not execution patterns (sequence)
       else if (!sourceIsCap && !targetIsCap) {
         // Regular tool-to-tool edges (only in definition mode, only "provides" edges)

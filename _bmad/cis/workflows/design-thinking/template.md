@@ -1,8 +1,6 @@
 # Design Thinking Session: {{project_name}}
 
-**Date:** {{date}}
-**Facilitator:** {{user_name}}
-**Design Challenge:** {{design_challenge}}
+**Date:** {{date}} **Facilitator:** {{user_name}} **Design Challenge:** {{design_challenge}}
 
 ---
 

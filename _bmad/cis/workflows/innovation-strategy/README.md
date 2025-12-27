@@ -4,17 +4,19 @@ last-redoc-date: 2025-09-28
 
 # Innovation Strategy Workflow
 
-**Type:** Interactive Document Workflow
-**Module:** Creative Intelligence System (CIS)
+**Type:** Interactive Document Workflow **Module:** Creative Intelligence System (CIS)
 
 ## Purpose
 
-Identifies disruption opportunities and architects business model innovation through strategic analysis of markets, competitive dynamics, and value chain transformation. Uncovers sustainable competitive advantages and breakthrough opportunities using proven innovation frameworks.
+Identifies disruption opportunities and architects business model innovation through strategic
+analysis of markets, competitive dynamics, and value chain transformation. Uncovers sustainable
+competitive advantages and breakthrough opportunities using proven innovation frameworks.
 
 ## Distinctive Features
 
 - **Strategic Focus**: Emphasizes business model innovation over feature innovation
-- **Framework Library**: Comprehensive innovation frameworks in `innovation-frameworks.csv` (Jobs-to-be-Done, Blue Ocean, Disruptive Innovation)
+- **Framework Library**: Comprehensive innovation frameworks in `innovation-frameworks.csv`
+  (Jobs-to-be-Done, Blue Ocean, Disruptive Innovation)
 - **Market Analysis**: Systematic evaluation of disruption potential and competitive positioning
 - **Pragmatic Lens**: Ruthlessly focused on sustainable competitive advantage
 

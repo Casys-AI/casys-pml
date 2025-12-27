@@ -4,7 +4,8 @@ Use this template when creating workflow plans in step-07-workflows.md
 
 ## Template Structure
 
-Copy the content from step-07-workflows.md when creating workflow plans. The template is embedded in the step file as a code block under "Workflow plan template".
+Copy the content from step-07-workflows.md when creating workflow plans. The template is embedded in
+the step file as a code block under "Workflow plan template".
 
 ## Usage
 

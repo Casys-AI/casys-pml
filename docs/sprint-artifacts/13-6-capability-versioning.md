@@ -4,18 +4,22 @@ Status: deferred
 
 ## Deferral Reason
 
-**Deferred on 2025-12-26** - This story requires the ability to modify capability code, which doesn't exist yet.
+**Deferred on 2025-12-26** - This story requires the ability to modify capability code, which
+doesn't exist yet.
 
 **Prerequisites needed:**
+
 1. `cap:update` tool to modify code of an existing capability
 2. Dry-mode execution to validate new code before saving
 
 **Current state:**
+
 - Capabilities are created during execution (`pml_execute`)
 - Code is immutable after creation (deduplication by `code_hash`)
 - Only `display_name` and `description` can be modified (via `cap:rename` in Story 13.5)
 
-**Versioning without code modification has no value** - there's nothing to version if code can't change.
+**Versioning without code modification has no value** - there's nothing to version if code can't
+change.
 
 ---
 
@@ -23,18 +27,18 @@ Status: deferred
 
 ## Story
 
-As a **developer**,
-I want **to track capability versions and call specific versions**,
-So that **I can maintain backward compatibility and audit changes over time**.
+As a **developer**, I want **to track capability versions and call specific versions**, So that **I
+can maintain backward compatibility and audit changes over time**.
 
 ## Phase Context
 
-**Phase 3:** Versioning & History (Epic 13)
-**Dependencies:** Story 13.1 (Schema), Story 13.2 (pml_execute naming), Story 13.5 (cap:* tools)
+**Phase 3:** Versioning & History (Epic 13) **Dependencies:** Story 13.1 (Schema), Story 13.2
+(pml_execute naming), Story 13.5 (cap:* tools)
 
 ## Requirements Coverage
 
 This story implements **FR041-FR043** from Epic 13:
+
 - **FR041:** A `capability_versions` table must track version history
 - **FR042:** The system must support version specifiers: `@v1`, `@v1.2.0`, `@2025-12-22`
 - **FR043:** Default resolution must use `@latest`
@@ -42,9 +46,10 @@ This story implements **FR041-FR043** from Epic 13:
 ## Acceptance Criteria
 
 ### AC1: Version Table Creation
-**Given** migration 026 executed
-**When** schema applied
-**Then** `capability_versions` table created with columns:
+
+**Given** migration 026 executed **When** schema applied **Then** `capability_versions` table
+created with columns:
+
 - `id` (SERIAL PRIMARY KEY)
 - `capability_fqdn` (TEXT NOT NULL, FK to capability_records.id)
 - `version` (INTEGER NOT NULL)
@@ -56,51 +61,53 @@ This story implements **FR041-FR043** from Epic 13:
 - `change_summary` (TEXT)
 
 ### AC2: Auto-versioning on Update
-**Given** capability at version 2
-**When** `code_snippet` is updated via CapabilityRegistry
-**Then** version incremented to 3 AND previous version (v2 state) saved to capability_versions
+
+**Given** capability at version 2 **When** `code_snippet` is updated via CapabilityRegistry **Then**
+version incremented to 3 AND previous version (v2 state) saved to capability_versions
 
 ### AC3: Semantic Version Tags
-**Given** capability update with `version_tag: "v1.2.0"` provided
-**When** save executed
-**Then** `version_tag` stored alongside numeric version in both `capability_records` and `capability_versions`
+
+**Given** capability update with `version_tag: "v1.2.0"` provided **When** save executed **Then**
+`version_tag` stored alongside numeric version in both `capability_records` and
+`capability_versions`
 
 ### AC4: Version Specifier @v1 (Major)
-**Given** capability with versions 1, 2, 3 (all tagged v1.x.x)
-**When** `my-reader@v1` called via pml_execute
-**Then** executes highest version with v1.x.x tag (version 3)
+
+**Given** capability with versions 1, 2, 3 (all tagged v1.x.x) **When** `my-reader@v1` called via
+pml_execute **Then** executes highest version with v1.x.x tag (version 3)
 
 ### AC5: Version Specifier @v1.2.0 (Exact)
-**Given** capability with version_tag "v1.2.0" at version 2
-**When** `my-reader@v1.2.0` called via pml_execute
-**Then** executes exact version matching that tag (version 2 code)
+
+**Given** capability with version_tag "v1.2.0" at version 2 **When** `my-reader@v1.2.0` called via
+pml_execute **Then** executes exact version matching that tag (version 2 code)
 
 ### AC6: Version Specifier @latest (Default)
-**Given** capability with multiple versions (1, 2, 3)
-**When** `my-reader@latest` or `my-reader` called
-**Then** executes highest version number (version 3)
+
+**Given** capability with multiple versions (1, 2, 3) **When** `my-reader@latest` or `my-reader`
+called **Then** executes highest version number (version 3)
 
 ### AC7: Version Specifier @date
+
 **Given** capability versions created at different dates:
+
 - version 1: 2025-12-20
 - version 2: 2025-12-22
-- version 3: 2025-12-25
-**When** `my-reader@2025-12-22` called
-**Then** executes version 2 (the version current on that date)
+- version 3: 2025-12-25 **When** `my-reader@2025-12-22` called **Then** executes version 2 (the
+  version current on that date)
 
 ### AC8: Version Not Found Error
-**Given** capability without version 5
-**When** `my-reader@v5` called
-**Then** returns error: "Version v5 not found for 'my-reader'"
+
+**Given** capability without version 5 **When** `my-reader@v5` called **Then** returns error:
+"Version v5 not found for 'my-reader'"
 
 ### AC9: cap:history Tool
-**Given** capability with 5 versions
-**When** `cap:history({ name: "my-reader" })` called
-**Then** returns array of versions: `[{ version, versionTag, updatedAt, updatedBy, changeSummary }]`
+
+**Given** capability with 5 versions **When** `cap:history({ name: "my-reader" })` called **Then**
+returns array of versions: `[{ version, versionTag, updatedAt, updatedBy, changeSummary }]`
 
 ### AC10: Immutable Versions
-**Given** saved version in `capability_versions` table
-**When** any UPDATE attempted on that row
+
+**Given** saved version in `capability_versions` table **When** any UPDATE attempted on that row
 **Then** rejected (append-only table) - enforced via TRIGGER or application logic
 
 ## Architecture
@@ -108,6 +115,7 @@ This story implements **FR041-FR043** from Epic 13:
 ### Design Decision: Append-Only Version History
 
 The `capability_versions` table is **append-only**:
+
 - No UPDATE or DELETE allowed on historical versions
 - This provides audit trail and reproducibility
 - Enforced via database trigger (preferred) or application validation
@@ -130,8 +138,8 @@ pml_execute({ capability: "my-reader@v1.2.0" })
 
 ```typescript
 interface VersionSpecifier {
-  name: string;           // "my-reader"
-  specifier: string;      // "v1.2.0", "v1", "2025-12-22", "latest"
+  name: string; // "my-reader"
+  specifier: string; // "v1.2.0", "v1", "2025-12-22", "latest"
   type: "exact" | "major" | "date" | "latest";
 }
 
@@ -284,19 +292,19 @@ ORDER BY cv.version DESC;
 
 ### Files to Create
 
-| File | Description |
-|------|-------------|
-| `src/db/migrations/026_capability_versions.ts` | Migration for capability_versions table + trigger |
-| `src/capabilities/version-resolver.ts` | VersionResolver class + parseVersionSpecifier() |
-| `tests/unit/capabilities/version-resolver_test.ts` | Unit tests for version resolution |
+| File                                               | Description                                       |
+| -------------------------------------------------- | ------------------------------------------------- |
+| `src/db/migrations/026_capability_versions.ts`     | Migration for capability_versions table + trigger |
+| `src/capabilities/version-resolver.ts`             | VersionResolver class + parseVersionSpecifier()   |
+| `tests/unit/capabilities/version-resolver_test.ts` | Unit tests for version resolution                 |
 
 ### Files to Modify
 
-| File | Changes |
-|------|---------|
-| `src/capabilities/capability-registry.ts` | Add `saveVersion()`, modify update to auto-version |
-| `src/mcp/handlers/execute-handler.ts` | Parse version specifier, use VersionResolver |
-| `lib/std/cap.ts` | Add `handleHistory()` method, add cap:history to tools |
+| File                                      | Changes                                                |
+| ----------------------------------------- | ------------------------------------------------------ |
+| `src/capabilities/capability-registry.ts` | Add `saveVersion()`, modify update to auto-version     |
+| `src/mcp/handlers/execute-handler.ts`     | Parse version specifier, use VersionResolver           |
+| `lib/std/cap.ts`                          | Add `handleHistory()` method, add cap:history to tools |
 
 ### Previous Story Patterns (from 13.5)
 
@@ -307,7 +315,8 @@ ORDER BY cv.version DESC;
 
 ### Key Decisions
 
-1. **Immutability via trigger:** Using PostgreSQL trigger is more robust than application-level validation
+1. **Immutability via trigger:** Using PostgreSQL trigger is more robust than application-level
+   validation
 2. **Major version matching:** `@v1` matches any `v1.x.x` tag using LIKE pattern
 3. **Date resolution:** Uses end of day (+ 1 day interval) for inclusive matching
 4. **Code storage:** Version history stores full `code_snippet`, not diffs (simpler, more reliable)

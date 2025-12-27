@@ -2,10 +2,8 @@
 
 Status: draft
 
-> **Epic:** 12 - Advanced Capability Management (proposed)
-> **Related:** Story 10.7 (pml_execute), Story 10.6 (pml_discover)
-> **Author:** Erwan + BMad Master
-> **Date:** 2025-12-22
+> **Epic:** 12 - Advanced Capability Management (proposed) **Related:** Story 10.7 (pml_execute),
+> Story 10.6 (pml_discover) **Author:** Erwan + BMad Master **Date:** 2025-12-22
 
 ---
 
@@ -25,12 +23,12 @@ Quand `pml_discover` ou `pml_execute` retourne des capabilities, l'agent reçoit
 
 **Problèmes identifiés :**
 
-| Problème | Impact |
-|----------|--------|
-| Pas de nom callable | L'agent ne peut pas dire "exécute read_json_config" |
-| Doit recopier le code | Gaspillage de tokens, erreurs de copie |
-| Pas de paramétrage | Impossible de réutiliser avec args différents |
-| Pas de composition | Impossible de mixer des capabilities existantes |
+| Problème              | Impact                                              |
+| --------------------- | --------------------------------------------------- |
+| Pas de nom callable   | L'agent ne peut pas dire "exécute read_json_config" |
+| Doit recopier le code | Gaspillage de tokens, erreurs de copie              |
+| Pas de paramétrage    | Impossible de réutiliser avec args différents       |
+| Pas de composition    | Impossible de mixer des capabilities existantes     |
 
 ### Ce qui manque
 
@@ -54,6 +52,7 @@ Au lieu d'UUIDs opaques, un système de nommage hiérarchique complet avec méta
 ```
 
 **Exemples :**
+
 ```
 acme.webapp.fs.read_json.a7f3
 acme.webapp.api.fetch_user.b8e2
@@ -65,21 +64,21 @@ marketplace.public.fs.read_json.x9z1  # Capability publique
 ### Hiérarchie
 
 ```
-                    ┌─────────────────────────────────────┐
-                    │           PML SaaS                   │
-                    └─────────────────────────────────────┘
-                                    │
-            ┌───────────────────────┼───────────────────────┐
-            ▼                       ▼                       ▼
-         [acme]                 [stripe]             [marketplace]
-            │                       │                       │
-      ┌─────┴─────┐           ┌─────┴─────┐                 │
-      ▼           ▼           ▼           ▼                 ▼
-   [webapp]   [mobile]    [billing]   [api]            [public]
-      │           │           │           │                 │
-      ▼           ▼           ▼           ▼                 ▼
-   fs.read     api.fetch   api.create  db.query       fs.read_json
-   fs.write    api.post    api.update  db.insert      api.fetch
+                 ┌─────────────────────────────────────┐
+                 │           PML SaaS                   │
+                 └─────────────────────────────────────┘
+                                 │
+         ┌───────────────────────┼───────────────────────┐
+         ▼                       ▼                       ▼
+      [acme]                 [stripe]             [marketplace]
+         │                       │                       │
+   ┌─────┴─────┐           ┌─────┴─────┐                 │
+   ▼           ▼           ▼           ▼                 ▼
+[webapp]   [mobile]    [billing]   [api]            [public]
+   │           │           │           │                 │
+   ▼           ▼           ▼           ▼                 ▼
+fs.read     api.fetch   api.create  db.query       fs.read_json
+fs.write    api.post    api.update  db.insert      api.fetch
 ```
 
 ### Capability Record (comme DNS Record)
@@ -87,31 +86,31 @@ marketplace.public.fs.read_json.x9z1  # Capability publique
 ```typescript
 interface CapabilityRecord {
   // === Identité (comme A record) ===
-  fqdn: string;                    // "acme.webapp.fs.read_json.a7f3"
-  display_name: string;            // "fs:read_json"
+  fqdn: string; // "acme.webapp.fs.read_json.a7f3"
+  display_name: string; // "fs:read_json"
 
   // === Créateur (comme WHOIS) ===
-  created_by: string;              // "erwan@acme.io"
-  created_at: string;              // "2025-12-22T14:30:00Z"
+  created_by: string; // "erwan@acme.io"
+  created_at: string; // "2025-12-22T14:30:00Z"
 
   // === Versioning (comme SOA) ===
-  version: number;                 // 3
-  version_tag?: string;            // "v1.2.0" (semantic optional)
-  updated_by: string;              // "claude-agent-xyz"
-  updated_at: string;              // "2025-12-22T16:45:00Z"
+  version: number; // 3
+  version_tag?: string; // "v1.2.0" (semantic optional)
+  updated_by: string; // "claude-agent-xyz"
+  updated_at: string; // "2025-12-22T16:45:00Z"
 
   // === TTL & Cache (comme DNS TTL) ===
-  ttl?: number;                    // Cache duration en secondes
+  ttl?: number; // Cache duration en secondes
   cache_policy: "none" | "memoize" | "persistent";
 
   // === Provenance (comme CNAME/alias) ===
-  parent_id?: string;              // Si fork d'une autre capability
-  aliases: string[];               // Anciens noms
-  forked_from?: string;            // FQDN source si fork
+  parent_id?: string; // Si fork d'une autre capability
+  aliases: string[]; // Anciens noms
+  forked_from?: string; // FQDN source si fork
 
   // === Trust (comme DNSSEC) ===
-  verified: boolean;               // Testé et validé
-  signature?: string;              // Hash du code signé
+  verified: boolean; // Testé et validé
+  signature?: string; // Hash du code signé
 
   // === Stats (comme DNS analytics) ===
   usage_count: number;
@@ -119,8 +118,8 @@ interface CapabilityRecord {
   avg_latency_ms: number;
 
   // === Classification ===
-  namespace: string;               // "fs"
-  tags: string[];                  // ["io", "json", "read"]
+  namespace: string; // "fs"
+  tags: string[]; // ["io", "json", "read"]
   visibility: "private" | "project" | "org" | "public";
 }
 ```
@@ -226,7 +225,7 @@ Pas besoin d'`import` - tout est accessible via FQDN. On garde `fork` et `merge`
 // Copier une capability publique pour la customiser
 await mcp.call("dns:fork", {
   source: "marketplace.public.fs.read_json",
-  name: "fs:read_json_custom"
+  name: "fs:read_json_custom",
 });
 // → Crée acme.webapp.fs.read_json_custom.x1y2
 //   avec le code copié, modifiable localement
@@ -248,6 +247,7 @@ await mcp.call("dns:merge", {
 ```
 
 **Use case merge :**
+
 ```
 cap:fs:read_json          →  lit fichier JSON
 cap:transform:validate    →  valide contre schema
@@ -380,21 +380,26 @@ export class PmlStdServer implements MCPServer {
 
   async listTools(): Promise<Tool[]> {
     return [
-      ...this.cap.listTools(),    // cap:*
-      ...this.dns.listTools(),    // dns:*
-      ...this.meta.listTools(),   // meta:*
-      ...this.learn.listTools(),  // learn:*
+      ...this.cap.listTools(), // cap:*
+      ...this.dns.listTools(), // dns:*
+      ...this.meta.listTools(), // meta:*
+      ...this.learn.listTools(), // learn:*
     ];
   }
 
   async callTool(name: string, args: unknown): Promise<ToolResult> {
     const [prefix] = name.split(":");
     switch (prefix) {
-      case "cap": return this.cap.call(name, args);
-      case "dns": return this.dns.call(name, args);
-      case "meta": return this.meta.call(name, args);
-      case "learn": return this.learn.call(name, args);
-      default: throw new Error(`Unknown prefix: ${prefix}`);
+      case "cap":
+        return this.cap.call(name, args);
+      case "dns":
+        return this.dns.call(name, args);
+      case "meta":
+        return this.meta.call(name, args);
+      case "learn":
+        return this.learn.call(name, args);
+      default:
+        throw new Error(`Unknown prefix: ${prefix}`);
     }
   }
 }
@@ -462,7 +467,7 @@ export class GatewayServer {
 
   async handleCallTool(name: string, args: unknown): Promise<ToolResult> {
     // Route to stdlib if prefix matches
-    if (["cap", "dns", "meta", "learn"].some(p => name.startsWith(`${p}:`))) {
+    if (["cap", "dns", "meta", "learn"].some((p) => name.startsWith(`${p}:`))) {
       return this.stdlib.callTool(name, args);
     }
     // Route to real server
@@ -515,27 +520,27 @@ export class GatewayServer {
 
 **Exemples :**
 
-| Capability | Namespace | Name |
-|------------|-----------|------|
-| Lire un fichier JSON | `fs` | `fs:read_json` |
-| Écrire un fichier JSON | `fs` | `fs:write_json` |
-| Fetch API utilisateur | `api` | `api:fetch_user` |
-| Fetch API avec auth | `api` | `api:fetch_user_auth` |
-| Query SQL simple | `db` | `db:query_simple` |
-| Transform data | `transform` | `transform:json_to_csv` |
+| Capability             | Namespace   | Name                    |
+| ---------------------- | ----------- | ----------------------- |
+| Lire un fichier JSON   | `fs`        | `fs:read_json`          |
+| Écrire un fichier JSON | `fs`        | `fs:write_json`         |
+| Fetch API utilisateur  | `api`       | `api:fetch_user`        |
+| Fetch API avec auth    | `api`       | `api:fetch_user_auth`   |
+| Query SQL simple       | `db`        | `db:query_simple`       |
+| Transform data         | `transform` | `transform:json_to_csv` |
 
 **Namespaces proposés :**
 
-| Namespace | Domaine |
-|-----------|---------|
-| `fs` | Filesystem operations |
-| `api` | HTTP/REST calls |
-| `db` | Database queries |
-| `transform` | Data transformation |
-| `git` | Git operations |
-| `shell` | Shell commands |
-| `ai` | AI/LLM calls |
-| `util` | Utilities |
+| Namespace   | Domaine               |
+| ----------- | --------------------- |
+| `fs`        | Filesystem operations |
+| `api`       | HTTP/REST calls       |
+| `db`        | Database queries      |
+| `transform` | Data transformation   |
+| `git`       | Git operations        |
+| `shell`     | Shell commands        |
+| `ai`        | AI/LLM calls          |
+| `util`      | Utilities             |
 
 ---
 
@@ -543,16 +548,17 @@ export class GatewayServer {
 
 ### Pourquoi un serveur MCP virtuel ?
 
-Pour que les capabilities soient des **citoyens MCP de première classe**, elles doivent passer par le même flow que les tools normaux :
+Pour que les capabilities soient des **citoyens MCP de première classe**, elles doivent passer par
+le même flow que les tools normaux :
 
-| Aspect | Sans serveur virtuel | Avec serveur virtuel |
-|--------|---------------------|----------------------|
-| Découverte | `pml_discover` séparé | Apparaît dans `tools/list` |
-| Appel | `pml_execute({ capability })` | `mcp.call("cap:fs:read_json")` |
-| RPC | Flow custom | Même flow que tous les tools |
-| Permissions | Système séparé | Même système de permissions |
-| Tracking | Custom | `tool_usage` automatique |
-| Métriques | Custom | Observabilité unifiée |
+| Aspect      | Sans serveur virtuel          | Avec serveur virtuel           |
+| ----------- | ----------------------------- | ------------------------------ |
+| Découverte  | `pml_discover` séparé         | Apparaît dans `tools/list`     |
+| Appel       | `pml_execute({ capability })` | `mcp.call("cap:fs:read_json")` |
+| RPC         | Flow custom                   | Même flow que tous les tools   |
+| Permissions | Système séparé                | Même système de permissions    |
+| Tracking    | Custom                        | `tool_usage` automatique       |
+| Métriques   | Custom                        | Observabilité unifiée          |
 
 ### Architecture
 
@@ -606,14 +612,14 @@ export class CapabilityMCPServer implements MCPServer {
   async listTools(): Promise<Tool[]> {
     const capabilities = await this.capabilityStore.listNamed();
 
-    return capabilities.map(cap => ({
-      name: `cap:${cap.name}`,  // ex: "cap:fs:read_json"
+    return capabilities.map((cap) => ({
+      name: `cap:${cap.name}`, // ex: "cap:fs:read_json"
       description: cap.description ?? `Capability: ${cap.name}`,
       inputSchema: cap.parametersSchema ?? {
         type: "object",
         properties: {},
-        additionalProperties: true
-      }
+        additionalProperties: true,
+      },
     }));
   }
 
@@ -629,7 +635,7 @@ export class CapabilityMCPServer implements MCPServer {
     if (!capability) {
       return {
         isError: true,
-        content: [{ type: "text", text: `Capability not found: ${capName}` }]
+        content: [{ type: "text", text: `Capability not found: ${capName}` }],
       };
     }
 
@@ -647,8 +653,8 @@ export class CapabilityMCPServer implements MCPServer {
       isError: !result.success,
       content: [{
         type: "text",
-        text: JSON.stringify(result.value ?? result.error)
-      }]
+        text: JSON.stringify(result.value ?? result.error),
+      }],
     };
   }
 }
@@ -716,7 +722,7 @@ const tools = await mcp.listTools();
 
 // 2. L'agent appelle une capability comme un tool normal
 const result = await mcp.call("cap:fs:read_json", {
-  path: "config.json"
+  path: "config.json",
 });
 // → Passe par Gateway → CapabilityMCPServer → WorkerBridge → Result
 
@@ -726,7 +732,8 @@ const result = await mcp.call("cap:fs:read_json", {
 
 ### Résolution transparente : la magie du RPC
 
-L'agent appelle **toujours par nom**. Le système résout vers l'ID stable en interne. C'est transparent.
+L'agent appelle **toujours par nom**. Le système résout vers l'ID stable en interne. C'est
+transparent.
 
 ```
 ┌─────────────┐         ┌─────────────┐         ┌─────────────┐
@@ -742,10 +749,10 @@ L'agent appelle **toujours par nom**. Le système résout vers l'ID stable en in
 
 #### Principe (comme DNS)
 
-| Analogie | Nom | Résolution interne |
-|----------|-----|-------------------|
-| DNS | `google.com` | `142.250.x.x` |
-| Capabilities | `cap:fs:read_json` | `abc123` |
+| Analogie     | Nom                | Résolution interne |
+| ------------ | ------------------ | ------------------ |
+| DNS          | `google.com`       | `142.250.x.x`      |
+| Capabilities | `cap:fs:read_json` | `abc123`           |
 
 L'appelant utilise le nom, le système gère la stabilité.
 
@@ -813,6 +820,7 @@ await capabilityStore.rename(capabilityId, "fs:parse_json");
 ```
 
 **Résultat :**
+
 - Nouveau nom : `cap:fs:parse_json` (apparaît dans tools/list)
 - Ancien nom : `cap:fs:read_json` (fonctionne toujours via alias)
 - L'agent n'a rien à changer, ses appels continuent de marcher
@@ -833,14 +841,14 @@ await this.gateway.sendNotification("tools/list_changed", {});
 
 ### Avantages de cette architecture
 
-| Avantage | Description |
-|----------|-------------|
-| **Unified UX** | L'agent voit tools réels + capabilities dans la même liste |
-| **Zero friction** | Pas besoin d'API spéciale, juste `mcp.call()` |
-| **Permissions unifiées** | Même système que les autres tools |
-| **Tracking automatique** | `tool_usage` table capture tout |
-| **Observabilité** | Métriques, logs, traces unifiés |
-| **Extensible** | Facile d'ajouter d'autres serveurs virtuels |
+| Avantage                 | Description                                                |
+| ------------------------ | ---------------------------------------------------------- |
+| **Unified UX**           | L'agent voit tools réels + capabilities dans la même liste |
+| **Zero friction**        | Pas besoin d'API spéciale, juste `mcp.call()`              |
+| **Permissions unifiées** | Même système que les autres tools                          |
+| **Tracking automatique** | `tool_usage` table capture tout                            |
+| **Observabilité**        | Métriques, logs, traces unifiés                            |
+| **Extensible**           | Facile d'ajouter d'autres serveurs virtuels                |
 
 ---
 
@@ -909,11 +917,11 @@ pml_curate_capabilities({
 
 **Modes :**
 
-| Mode | Description |
-|------|-------------|
+| Mode      | Description                                  |
+| --------- | -------------------------------------------- |
 | `suggest` | Retourne suggestions de noms (LLM-generated) |
-| `auto` | Applique automatiquement les suggestions |
-| `apply` | Applique les renames fournis manuellement |
+| `auto`    | Applique automatiquement les suggestions     |
+| `apply`   | Applique les renames fournis manuellement    |
 
 ### 4. Lister les capabilities nommées
 
@@ -948,9 +956,8 @@ pml_list_capabilities({
 
 ```typescript
 async function suggestCapabilityNames(
-  capabilities: Capability[]
+  capabilities: Capability[],
 ): Promise<NameSuggestion[]> {
-
   // 1. Cluster par tools utilisés
   const clusters = clusterByToolsUsed(capabilities);
 
@@ -985,11 +992,11 @@ const NAMESPACE_RULES = [
 
 function inferNamespace(tools: string[]): string {
   for (const rule of NAMESPACE_RULES) {
-    if (tools.some(t => matchesPattern(t, rule.tools))) {
+    if (tools.some((t) => matchesPattern(t, rule.tools))) {
       return rule.namespace;
     }
   }
-  return "util";  // default
+  return "util"; // default
 }
 ```
 
@@ -1044,37 +1051,44 @@ CREATE TABLE capability_rename_history (
 ## Acceptance Criteria
 
 ### AC1: Création avec nom optionnel
+
 - [ ] `pml_execute` accepte paramètre `name` optionnel
 - [ ] Si `name` fourni, valider format `namespace:action_target`
 - [ ] Si collision, retourner erreur
 - [ ] Response inclut `capabilityName`
 
 ### AC2: Appel par nom
+
 - [ ] `pml_execute` accepte paramètre `capability` (nom)
 - [ ] Lookup capability par nom
 - [ ] Merge args avec paramètres par défaut
 - [ ] Exécute le code de la capability
 
 ### AC3: Auto-génération de noms
+
 - [ ] Capabilities créées sans nom reçoivent nom temporaire `unnamed_<hash>`
 - [ ] Trigger curation après N capabilities unnamed (configurable)
 
 ### AC4: Tool pml_curate_capabilities
+
 - [ ] Mode `suggest` : retourne suggestions via LLM + heuristiques
 - [ ] Mode `auto` : applique suggestions automatiquement
 - [ ] Mode `apply` : applique renames fournis
 - [ ] Validation des noms (format, unicité)
 
 ### AC5: Tool pml_list_capabilities
+
 - [ ] Liste toutes les capabilities avec leurs noms
 - [ ] Filtrage par namespace
 - [ ] Tri par usage/date/nom
 
 ### AC6: Intégration pml_discover
+
 - [ ] `pml_discover` retourne le `name` des capabilities
 - [ ] L'agent peut utiliser le nom pour appeler directement
 
 ### AC7: Virtual MCP Server (CapabilityMCPServer)
+
 - [ ] Créer `src/mcp/servers/capability-server.ts`
 - [ ] Implémenter `listTools()` → retourne capabilities nommées comme tools
 - [ ] Implémenter `callTool()` → exécute capability via WorkerBridge
@@ -1083,16 +1097,19 @@ CREATE TABLE capability_rename_history (
 - [ ] Intégrer dans `GatewayServer.handleCallTool()`
 
 ### AC8: Dynamic tools/list refresh
+
 - [ ] Notification `tools/list_changed` quand capability nommée/renommée
 - [ ] Clients MCP reçoivent la notification et refont `tools/list`
 - [ ] Capabilities nouvellement nommées apparaissent immédiatement
 
 ### AC9: Tracking unifié
+
 - [ ] Appels via `cap:*` trackés dans `tool_usage` table
 - [ ] Métriques unifiées avec les tools réels
 - [ ] `server_id = "pml-capabilities"` pour filtrage
 
 ### AC10: Résolution transparente (RPC magic)
+
 - [ ] Agent appelle par nom : `cap:fs:read_json`
 - [ ] Gateway résout nom → FQDN interne (transparent)
 - [ ] Fallback alias si nom renommé
@@ -1101,6 +1118,7 @@ CREATE TABLE capability_rename_history (
 - [ ] FQDN jamais exposé à l'agent (détail d'implémentation)
 
 ### AC11: Capability DNS System
+
 - [ ] Structure FQDN : `<org>.<project>.<namespace>.<action>.<hash>`
 - [ ] Table `capability_records` avec métadonnées complètes
 - [ ] Champs créateur : `created_by`, `created_at`
@@ -1109,23 +1127,27 @@ CREATE TABLE capability_rename_history (
 - [ ] Champs visibility : `private | project | org | public`
 
 ### AC12: Query API (DNS-like)
+
 - [ ] `pml.lookup(name)` → résolution simple
 - [ ] `pml.query({ created_by, tags, visibility, ... })` → recherche avancée
 - [ ] `pml.history(name)` → historique des versions
 - [ ] `pml.whois(fqdn)` → métadonnées complètes
 
 ### AC13: Versioning
+
 - [ ] Table `capability_versions` pour historique
 - [ ] Support `@v1`, `@v1.2.0`, `@2025-12-22` dans les appels
 - [ ] Résolution `@latest` par défaut
 
 ### AC14: Fork & Merge (future - Epic 13+)
+
 - [ ] `dns:fork` - copier une capability pour la modifier
 - [ ] `dns:merge` - combiner plusieurs capabilities en pipeline
 - [ ] Visibility `public` pour marketplace
 - [ ] `forked_from` tracking dans capability_records
 
 ### AC15: PML Standard Library (`lib/std/mcp/`)
+
 - [ ] Créer `lib/std/mcp/mod.ts` avec `PmlStdServer`
 - [ ] Module `cap.ts` - exécution capabilities dynamiques
 - [ ] Module `dns.ts` - registry (lookup, query, whois, history, fork, merge, rename, tag)
@@ -1139,16 +1161,19 @@ CREATE TABLE capability_rename_history (
 ## Migration Path
 
 ### Phase 1: Backward Compatible
+
 - `name` est optionnel
 - Anciennes capabilities sans nom continuent de fonctionner
 - `pml_execute({ capabilityId })` reste supporté
 
 ### Phase 2: Encourage Naming
+
 - Warnings pour capabilities unnamed très utilisées
 - Dashboard affiche "unnamed capabilities" count
 - Suggestion automatique dans UI
 
 ### Phase 3: Naming Required (future)
+
 - Nouvelles capabilities requièrent un nom
 - Migration tool pour nommer les anciennes
 
@@ -1180,96 +1205,96 @@ CREATE TABLE capability_rename_history (
 
 ### Phase 1 : Core (MVP)
 
-| Task | Effort |
-|------|--------|
-| Schema migration (capability_records) | 1 jour |
-| FQDN generation & resolution | 1 jour |
-| pml_execute name param | 1 jour |
-| pml_execute capability call | 1 jour |
-| CapabilityMCPServer | 2 jours |
-| Gateway integration | 1 jour |
-| tools/list_changed notifications | 0.5 jour |
-| Résolution transparente + alias | 0.5 jour |
-| Tests Phase 1 | 1.5 jour |
-| **Total Phase 1** | **9.5 jours** |
+| Task                                  | Effort        |
+| ------------------------------------- | ------------- |
+| Schema migration (capability_records) | 1 jour        |
+| FQDN generation & resolution          | 1 jour        |
+| pml_execute name param                | 1 jour        |
+| pml_execute capability call           | 1 jour        |
+| CapabilityMCPServer                   | 2 jours       |
+| Gateway integration                   | 1 jour        |
+| tools/list_changed notifications      | 0.5 jour      |
+| Résolution transparente + alias       | 0.5 jour      |
+| Tests Phase 1                         | 1.5 jour      |
+| **Total Phase 1**                     | **9.5 jours** |
 
 ### Phase 2 : Curation & Query
 
-| Task | Effort |
-|------|--------|
-| pml_curate_capabilities | 2 jours |
-| pml_list_capabilities | 0.5 jour |
-| Curation agent (LLM) | 2 jours |
-| Query API (lookup, query, whois) | 1.5 jour |
-| Tests Phase 2 | 1 jour |
-| **Total Phase 2** | **7 jours** |
+| Task                             | Effort      |
+| -------------------------------- | ----------- |
+| pml_curate_capabilities          | 2 jours     |
+| pml_list_capabilities            | 0.5 jour    |
+| Curation agent (LLM)             | 2 jours     |
+| Query API (lookup, query, whois) | 1.5 jour    |
+| Tests Phase 2                    | 1 jour      |
+| **Total Phase 2**                | **7 jours** |
 
 ### Phase 3 : Versioning & History
 
-| Task | Effort |
-|------|--------|
-| Table capability_versions | 0.5 jour |
-| Version resolution (@v1, @latest) | 1 jour |
-| pml.history() API | 1 jour |
-| Tests Phase 3 | 0.5 jour |
-| **Total Phase 3** | **3 jours** |
+| Task                              | Effort      |
+| --------------------------------- | ----------- |
+| Table capability_versions         | 0.5 jour    |
+| Version resolution (@v1, @latest) | 1 jour      |
+| pml.history() API                 | 1 jour      |
+| Tests Phase 3                     | 0.5 jour    |
+| **Total Phase 3**                 | **3 jours** |
 
 ### Phase 4 : Fork & Merge (Epic 13+)
 
-| Task | Effort |
-|------|--------|
-| Visibility levels | 1 jour |
-| dns:fork | 1 jour |
-| dns:merge (+ code generation) | 2 jours |
-| Marketplace integration | 2 jours |
-| Tests Phase 4 | 1 jour |
-| **Total Phase 4** | **7 jours** |
+| Task                          | Effort      |
+| ----------------------------- | ----------- |
+| Visibility levels             | 1 jour      |
+| dns:fork                      | 1 jour      |
+| dns:merge (+ code generation) | 2 jours     |
+| Marketplace integration       | 2 jours     |
+| Tests Phase 4                 | 1 jour      |
+| **Total Phase 4**             | **7 jours** |
 
 ### Phase 5 : PML Stdlib (`lib/std/mcp/`)
 
-| Task | Effort |
-|------|--------|
-| PmlStdServer architecture | 0.5 jour |
-| Module cap.ts | 1 jour |
-| Module dns.ts | 1.5 jour |
-| Module meta.ts | 0.5 jour |
-| Module learn.ts | 1 jour |
-| Gateway integration | 0.5 jour |
-| Tests Phase 5 | 1 jour |
-| **Total Phase 5** | **6 jours** |
+| Task                      | Effort      |
+| ------------------------- | ----------- |
+| PmlStdServer architecture | 0.5 jour    |
+| Module cap.ts             | 1 jour      |
+| Module dns.ts             | 1.5 jour    |
+| Module meta.ts            | 0.5 jour    |
+| Module learn.ts           | 1 jour      |
+| Gateway integration       | 0.5 jour    |
+| Tests Phase 5             | 1 jour      |
+| **Total Phase 5**         | **6 jours** |
 
 ### Résumé
 
-| Phase | Scope | Effort |
-|-------|-------|--------|
-| **Phase 1** | Core MVP | 9.5 jours |
-| **Phase 2** | Curation & Query | 7 jours |
-| **Phase 3** | Versioning | 3 jours |
-| **Phase 4** | Fork & Merge | 7 jours |
-| **Phase 5** | Stdlib `lib/std/mcp/` | 6 jours |
-| **Total** | Complet | **32.5 jours** |
+| Phase       | Scope                 | Effort         |
+| ----------- | --------------------- | -------------- |
+| **Phase 1** | Core MVP              | 9.5 jours      |
+| **Phase 2** | Curation & Query      | 7 jours        |
+| **Phase 3** | Versioning            | 3 jours        |
+| **Phase 4** | Fork & Merge          | 7 jours        |
+| **Phase 5** | Stdlib `lib/std/mcp/` | 6 jours        |
+| **Total**   | Complet               | **32.5 jours** |
 
 ### Files to Create
 
-| File | Description |
-|------|-------------|
-| `lib/std/mcp/mod.ts` | PmlStdServer (serveur unique stdlib) |
-| `lib/std/mcp/cap.ts` | Module cap:* (capabilities) |
-| `lib/std/mcp/dns.ts` | Module dns:* (registry) |
-| `lib/std/mcp/meta.ts` | Module meta:* (introspection) |
-| `lib/std/mcp/learn.ts` | Module learn:* (apprentissage) |
-| `lib/std/mcp/types.ts` | Types partagés (CapabilityRecord, etc.) |
-| `src/capabilities/fqdn.ts` | FQDN generation & parsing |
-| `tests/unit/lib/std/mcp_test.ts` | Unit tests stdlib |
+| File                             | Description                             |
+| -------------------------------- | --------------------------------------- |
+| `lib/std/mcp/mod.ts`             | PmlStdServer (serveur unique stdlib)    |
+| `lib/std/mcp/cap.ts`             | Module cap:* (capabilities)             |
+| `lib/std/mcp/dns.ts`             | Module dns:* (registry)                 |
+| `lib/std/mcp/meta.ts`            | Module meta:* (introspection)           |
+| `lib/std/mcp/learn.ts`           | Module learn:* (apprentissage)          |
+| `lib/std/mcp/types.ts`           | Types partagés (CapabilityRecord, etc.) |
+| `src/capabilities/fqdn.ts`       | FQDN generation & parsing               |
+| `tests/unit/lib/std/mcp_test.ts` | Unit tests stdlib                       |
 
 ### Files to Modify
 
-| File | Changes |
-|------|---------|
-| `src/mcp/gateway-server.ts` | Integrate CapabilityMCPServer |
-| `src/mcp/handlers/execute-handler.ts` | Add `name`, `capability`, `args` params |
+| File                                   | Changes                                      |
+| -------------------------------------- | -------------------------------------------- |
+| `src/mcp/gateway-server.ts`            | Integrate CapabilityMCPServer                |
+| `src/mcp/handlers/execute-handler.ts`  | Add `name`, `capability`, `args` params      |
 | `src/capabilities/capability-store.ts` | Add `getByName()`, `rename()`, `listNamed()` |
-| `src/db/migrations/` | Add name column migration |
+| `src/db/migrations/`                   | Add name column migration                    |
 
 ---
 

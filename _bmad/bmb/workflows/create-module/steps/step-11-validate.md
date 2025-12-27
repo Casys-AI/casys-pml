@@ -1,9 +1,9 @@
 ---
-workflowFile: '{installed_path}/workflow.md'
-modulePlanFile: '{bmb_creations_output_folder}/{module_name}/module-plan-{module_name}.md'
-validationChecklist: '{installed_path}/validation.md'
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+workflowFile: "{installed_path}/workflow.md"
+modulePlanFile: "{bmb_creations_output_folder}/{module_name}/module-plan-{module_name}.md"
+validationChecklist: "{installed_path}/validation.md"
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 ---
 
 # Step 11: Validate and Finalize Module
@@ -20,7 +20,8 @@ partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 ### Role Reinforcement:
 
 - ✅ You are a Module Architect and Quality Assurance Specialist
-- ✅ If you already have been given communication or persona patterns, continue to use those while playing this new role
+- ✅ If you already have been given communication or persona patterns, continue to use those while
+  playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You bring expertise in BMAD validation patterns, user brings their module knowledge
 - ✅ Maintain collaborative, thorough tone
@@ -48,13 +49,15 @@ partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 
 ## STEP GOAL:
 
-To validate the completed module structure, ensure all components are properly configured, and provide next steps for testing and deployment.
+To validate the completed module structure, ensure all components are properly configured, and
+provide next steps for testing and deployment.
 
 ## VALIDATION PROCESS:
 
 ### 1. Initialize Validation
 
-"Let's validate your {module_display_name} module to ensure it meets all BMAD standards and is ready for use.
+"Let's validate your {module_display_name} module to ensure it meets all BMAD standards and is ready
+for use.
 
 I'll run through a systematic validation checklist to verify everything is properly set up."
 
@@ -86,8 +89,7 @@ Expected Structure:
 
 "**2. Configuration Files Check**"
 
-**Install Configuration:**
-Validate module.yaml
+**Install Configuration:** Validate module.yaml
 
 - [ ] YAML syntax valid
 - [ ] Module code matches folder name
@@ -95,8 +97,7 @@ Validate module.yaml
 - [ ] Path templates use correct format
 - [ ] Configuration fields properly defined
 
-**Module Plan:**
-Review module-plan.md
+**Module Plan:** Review module-plan.md
 
 - [ ] All sections completed
 - [ ] stepsCompleted array includes all steps
@@ -107,16 +108,14 @@ Review module-plan.md
 
 "**3. Components Check**"
 
-**Agents:**
-Check agents folder
+**Agents:** Check agents folder
 
 - [ ] Agent files created (or placeholders with TODO)
 - [ ] YAML frontmatter valid (if created)
 - [ ] TODO flags used for missing workflows
 - [ ] Reference patterns followed
 
-**Workflows:**
-Check workflows folder
+**Workflows:** Check workflows folder
 
 - [ ] Folders created for planned workflows
 - [ ] workflow-plan.md files created (or placeholders)
@@ -127,8 +126,7 @@ Check workflows folder
 
 "**4. Documentation Check**"
 
-**README.md:**
-Review README.md content
+**README.md:** Review README.md content
 
 - [ ] All sections present
 - [ ] Installation instructions correct
@@ -136,8 +134,7 @@ Review README.md content
 - [ ] Development status accurate
 - [ ] Contact information included
 
-**TODO.md:**
-Review TODO.md
+**TODO.md:** Review TODO.md
 
 - [ ] Development phases defined
 - [ ] Tasks prioritized
@@ -171,8 +168,7 @@ Review integration requirements
 
 - [List critical issues that need fixing]
 
-**Overall Status:**
-[Ready for testing / Needs fixes before testing]"
+**Overall Status:** [Ready for testing / Needs fixes before testing]"
 
 ### 8. Handle Validation Issues
 
@@ -276,15 +272,11 @@ Create validation summary in module-plan.md:
 
 ### 12. Complete Workflow
 
-Mark workflow as complete:
-Update module-plan.md frontmatter:
-Add "step-11-validate" to stepsCompleted array
-Set lastStep to 'validate'
-Set status to 'complete'
-Add current date to completionDate
+Mark workflow as complete: Update module-plan.md frontmatter: Add "step-11-validate" to
+stepsCompleted array Set lastStep to 'validate' Set status to 'complete' Add current date to
+completionDate
 
 ```
-
 "**🎉 Congratulations!**
 
 Your {module_display_name} module has been successfully created and is ready for implementation. You now have a complete, installable BMAD module structure with everything needed to move forward.

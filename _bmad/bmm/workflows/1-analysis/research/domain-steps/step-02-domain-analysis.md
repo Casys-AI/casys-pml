@@ -4,8 +4,10 @@
 
 - 🛑 NEVER generate content without web search verification
 
-- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding leads to incomplete decisions
-- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before proceeding
+- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding
+  leads to incomplete decisions
+- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before
+  proceeding
 - ✅ Search the web to verify and supplement your knowledge with current facts
 - 📋 YOU ARE AN INDUSTRY ANALYST, not content generator
 - 💬 FOCUS on market size, growth, and industry dynamics
@@ -31,16 +33,18 @@
 
 ## YOUR TASK:
 
-Conduct industry analysis focusing on market size, growth, and industry dynamics. Search the web to verify and supplement current facts.
+Conduct industry analysis focusing on market size, growth, and industry dynamics. Search the web to
+verify and supplement current facts.
 
 ## INDUSTRY ANALYSIS SEQUENCE:
 
 ### 1. Begin Industry Analysis
 
-**UTILIZE SUBPROCESSES AND SUBAGENTS**: Use research subagents, subprocesses or parallel processing if available to thoroughly analyze different industry areas simultaneously and thoroughly.
+**UTILIZE SUBPROCESSES AND SUBAGENTS**: Use research subagents, subprocesses or parallel processing
+if available to thoroughly analyze different industry areas simultaneously and thoroughly.
 
-Start with industry research approach:
-"Now I'll conduct **industry analysis** for **{{research_topic}}** to understand market dynamics.
+Start with industry research approach: "Now I'll conduct **industry analysis** for
+**{{research_topic}}** to understand market dynamics.
 
 **Industry Analysis Focus:**
 
@@ -56,10 +60,9 @@ Start with industry research approach:
 
 **Execute multiple web searches simultaneously:**
 
-Search the web: "{{research_topic}} market size value"
-Search the web: "{{research_topic}} market growth rate dynamics"
-Search the web: "{{research_topic}} market segmentation structure"
-Search the web: "{{research_topic}} industry trends evolution"
+Search the web: "{{research_topic}} market size value" Search the web: "{{research_topic}} market
+growth rate dynamics" Search the web: "{{research_topic}} market segmentation structure" Search the
+web: "{{research_topic}} industry trends evolution"
 
 **Analysis approach:**
 
@@ -73,7 +76,8 @@ Search the web: "{{research_topic}} industry trends evolution"
 
 **Collect and analyze findings from all parallel searches:**
 
-"After executing comprehensive parallel web searches, let me analyze and aggregate industry findings:
+"After executing comprehensive parallel web searches, let me analyze and aggregate industry
+findings:
 
 **Research Coverage:**
 
@@ -82,11 +86,10 @@ Search the web: "{{research_topic}} industry trends evolution"
 - Market segmentation and structure
 - Industry trends and evolution patterns
 
-**Cross-Industry Analysis:**
-[Identify patterns connecting market dynamics, segmentation, and trends]
+**Cross-Industry Analysis:** [Identify patterns connecting market dynamics, segmentation, and
+trends]
 
-**Quality Assessment:**
-[Overall confidence levels and research gaps identified]"
+**Quality Assessment:** [Overall confidence levels and research gaps identified]"
 
 ### 4. Generate Industry Analysis Content
 
@@ -103,48 +106,36 @@ When saving to document, append these Level 2 and Level 3 sections:
 
 ### Market Size and Valuation
 
-[Market size analysis with source citations]
-_Total Market Size: [Current market valuation]_
-_Growth Rate: [CAGR and market growth projections]_
-_Market Segments: [Size and value of key market segments]_
-_Economic Impact: [Economic contribution and value creation]_
-_Source: [URL]_
+[Market size analysis with source citations] _Total Market Size: [Current market valuation]_ _Growth
+Rate: [CAGR and market growth projections]_ _Market Segments: [Size and value of key market
+segments]_ _Economic Impact: [Economic contribution and value creation]_ _Source: [URL]_
 
 ### Market Dynamics and Growth
 
-[Market dynamics analysis with source citations]
-_Growth Drivers: [Key factors driving market growth]_
-_Growth Barriers: [Factors limiting market expansion]_
-_Cyclical Patterns: [Industry seasonality and cycles]_
-_Market Maturity: [Life cycle stage and development phase]_
-_Source: [URL]_
+[Market dynamics analysis with source citations] _Growth Drivers: [Key factors driving market
+growth]_ _Growth Barriers: [Factors limiting market expansion]_ _Cyclical Patterns: [Industry
+seasonality and cycles]_ _Market Maturity: [Life cycle stage and development phase]_ _Source: [URL]_
 
 ### Market Structure and Segmentation
 
-[Market structure analysis with source citations]
-_Primary Segments: [Key market segments and their characteristics]_
-_Sub-segment Analysis: [Detailed breakdown of market sub-segments]_
-_Geographic Distribution: [Regional market variations and concentrations]_
-_Vertical Integration: [Supply chain and value chain structure]_
-_Source: [URL]_
+[Market structure analysis with source citations] _Primary Segments: [Key market segments and their
+characteristics]_ _Sub-segment Analysis: [Detailed breakdown of market sub-segments]_ _Geographic
+Distribution: [Regional market variations and concentrations]_ _Vertical Integration: [Supply chain
+and value chain structure]_ _Source: [URL]_
 
 ### Industry Trends and Evolution
 
-[Industry trends analysis with source citations]
-_Emerging Trends: [Current industry developments and transformations]_
-_Historical Evolution: [Industry development over recent years]_
-_Technology Integration: [How technology is changing the industry]_
-_Future Outlook: [Projected industry developments and changes]_
-_Source: [URL]_
+[Industry trends analysis with source citations] _Emerging Trends: [Current industry developments
+and transformations]_ _Historical Evolution: [Industry development over recent years]_ _Technology
+Integration: [How technology is changing the industry]_ _Future Outlook: [Projected industry
+developments and changes]_ _Source: [URL]_
 
 ### Competitive Dynamics
 
-[Competitive dynamics analysis with source citations]
-_Market Concentration: [Level of market consolidation and competition]_
-_Competitive Intensity: [Degree of competition and rivalry]_
-_Barriers to Entry: [Obstacles for new market entrants]_
-_Innovation Pressure: [Rate of innovation and change]_
-_Source: [URL]_
+[Competitive dynamics analysis with source citations] _Market Concentration: [Level of market
+consolidation and competition]_ _Competitive Intensity: [Degree of competition and rivalry]_
+_Barriers to Entry: [Obstacles for new market entrants]_ _Innovation Pressure: [Rate of innovation
+and change]_ _Source: [URL]_
 ```
 
 ### 5. Present Analysis and Continue Option
@@ -161,8 +152,8 @@ _Source: [URL]_
 - Competitive dynamics clearly mapped
 - Multiple sources verified for critical insights
 
-**Ready to proceed to competitive landscape analysis?**
-[C] Continue - Save this to document and proceed to competitive landscape
+**Ready to proceed to competitive landscape analysis?** [C] Continue - Save this to document and
+proceed to competitive landscape
 
 ### 6. Handle Continue Selection
 
@@ -178,29 +169,23 @@ Content is already written to document when generated in step 4. No additional a
 
 ## SUCCESS METRICS:
 
-✅ Market size and valuation thoroughly analyzed
-✅ Growth dynamics and market structure documented
-✅ Industry trends and evolution patterns identified
-✅ Competitive dynamics clearly mapped
-✅ Multiple sources verified for critical insights
-✅ Content written immediately to document
-✅ [C] continue option presented and handled correctly
-✅ Proper routing to next step (competitive landscape)
-✅ Research goals alignment maintained
+✅ Market size and valuation thoroughly analyzed ✅ Growth dynamics and market structure documented
+✅ Industry trends and evolution patterns identified ✅ Competitive dynamics clearly mapped ✅
+Multiple sources verified for critical insights ✅ Content written immediately to document ✅ [C]
+continue option presented and handled correctly ✅ Proper routing to next step (competitive
+landscape) ✅ Research goals alignment maintained
 
 ## FAILURE MODES:
 
-❌ Relying on training data instead of web search for current facts
-❌ Missing critical market size or growth data
-❌ Incomplete market structure analysis
-❌ Not identifying key industry trends
-❌ Not writing content immediately to document
-❌ Not presenting [C] continue option after content generation
-❌ Not routing to competitive landscape step
+❌ Relying on training data instead of web search for current facts ❌ Missing critical market size
+or growth data ❌ Incomplete market structure analysis ❌ Not identifying key industry trends ❌ Not
+writing content immediately to document ❌ Not presenting [C] continue option after content
+generation ❌ Not routing to competitive landscape step
 
-❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
-❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step file
-❌ **CRITICAL**: Making decisions without complete understanding of step requirements and protocols
+❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor
+decisions ❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step
+file ❌ **CRITICAL**: Making decisions without complete understanding of step requirements and
+protocols
 
 ## INDUSTRY RESEARCH PROTOCOLS:
 
@@ -223,6 +208,7 @@ Content is already written to document when generated in step 4. No additional a
 
 ## NEXT STEP:
 
-After user selects 'C', load `./step-03-competitive-landscape.md` to analyze competitive landscape, key players, and ecosystem analysis for {{research_topic}}.
+After user selects 'C', load `./step-03-competitive-landscape.md` to analyze competitive landscape,
+key players, and ecosystem analysis for {{research_topic}}.
 
 Remember: Always write research content to document immediately and search the web to verify facts!

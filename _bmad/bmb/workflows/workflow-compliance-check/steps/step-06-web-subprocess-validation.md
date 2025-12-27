@@ -1,31 +1,33 @@
 ---
-name: 'step-06-web-subprocess-validation'
-description: 'Analyze web search utilization and subprocess optimization opportunities across workflow steps'
+name: "step-06-web-subprocess-validation"
+description: "Analyze web search utilization and subprocess optimization opportunities across workflow steps"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmb/workflows/workflow-compliance-check'
+workflow_path: "{project-root}/_bmad/bmb/workflows/workflow-compliance-check"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-06-web-subprocess-validation.md'
-nextStepFile: '{workflow_path}/steps/step-07-holistic-analysis.md'
-workflowFile: '{workflow_path}/workflow.md'
-complianceReportFile: '{output_folder}/workflow-compliance-report-{workflow_name}.md'
-targetWorkflowStepsPath: '{target_workflow_steps_path}'
+thisStepFile: "{workflow_path}/steps/step-06-web-subprocess-validation.md"
+nextStepFile: "{workflow_path}/steps/step-07-holistic-analysis.md"
+workflowFile: "{workflow_path}/workflow.md"
+complianceReportFile: "{output_folder}/workflow-compliance-report-{workflow_name}.md"
+targetWorkflowStepsPath: "{target_workflow_steps_path}"
 
 # Template References
-complianceReportTemplate: '{workflow_path}/templates/compliance-report.md'
+complianceReportTemplate: "{workflow_path}/templates/compliance-report.md"
 
 # Documentation References
-stepTemplate: '{project-root}/_bmad/bmb/docs/workflows/templates/step-template.md'
-workflowTemplate: '{project-root}/_bmad/bmb/docs/workflows/templates/workflow-template.md'
-intentSpectrum: '{project-root}/_bmad/bmb/docs/workflows/intent-vs-prescriptive-spectrum.md'
+stepTemplate: "{project-root}/_bmad/bmb/docs/workflows/templates/step-template.md"
+workflowTemplate: "{project-root}/_bmad/bmb/docs/workflows/templates/workflow-template.md"
+intentSpectrum: "{project-root}/_bmad/bmb/docs/workflows/intent-vs-prescriptive-spectrum.md"
 ---
 
 # Step 6: Web Search & Subprocess Optimization Analysis
 
 ## STEP GOAL:
 
-Analyze each workflow step for optimal web search utilization and subprocess usage patterns, ensuring LLM resources are used efficiently while avoiding unnecessary searches or processing delays.
+Analyze each workflow step for optimal web search utilization and subprocess usage patterns,
+ensuring LLM resources are used efficiently while avoiding unnecessary searches or processing
+delays.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -39,7 +41,8 @@ Analyze each workflow step for optimal web search utilization and subprocess usa
 ### Role Reinforcement:
 
 - ✅ You are a performance optimization specialist and resource efficiency analyst
-- ✅ If you already have been given a name, communication_style, and persona, continue to use those while playing this new role
+- ✅ If you already have been given a name, communication_style, and persona, continue to use those
+  while playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You bring expertise in LLM optimization, web search strategy, and subprocess utilization
 - ✅ User brings their workflow and needs efficiency recommendations
@@ -69,8 +72,8 @@ Analyze each workflow step for optimal web search utilization and subprocess usa
 
 ### 1. Initialize Web Search & Subprocess Analysis
 
-"Beginning **Phase 5: Web Search & Subprocess Optimization Analysis**
-Target: `{target_workflow_name}`
+"Beginning **Phase 5: Web Search & Subprocess Optimization Analysis** Target:
+`{target_workflow_name}`
 
 Analyzing each workflow step for:
 
@@ -129,8 +132,8 @@ For each step file:
 
 **A. Subprocess Opportunity Identification:**
 
-"**Subprocess Optimization Analysis:**
-Looking for opportunities where multiple steps or analyses can run simultaneously..."
+"**Subprocess Optimization Analysis:** Looking for opportunities where multiple steps or analyses
+can run simultaneously..."
 
 **Analysis Categories:**
 
@@ -144,8 +147,8 @@ Looking for opportunities where multiple steps or analyses can run simultaneousl
 ```markdown
 **Subprocess Implementation Opportunities:**
 
-**Multi-Step Validation:**
-"Use subprocesses when checking 6+ validation items - just need results back"
+**Multi-Step Validation:** "Use subprocesses when checking 6+ validation items - just need results
+back"
 
 - Current: Sequential processing of all validation checks
 - Optimized: Parallel subprocess analysis for faster completion
@@ -165,8 +168,7 @@ Looking for opportunities where multiple steps or analyses can run simultaneousl
 
 **A. Context Window Optimization:**
 
-"**LLM Resource Efficiency Analysis:**
-Analyzing how each step uses LLM resources efficiently..."
+"**LLM Resource Efficiency Analysis:** Analyzing how each step uses LLM resources efficiently..."
 
 **Optimization Areas:**
 
@@ -195,10 +197,8 @@ Analyzing how each step uses LLM resources efficiently..."
 **1. Web Search Optimization:**
 
 ```markdown
-**Step:** {step_name}
-**Current Search Usage:** {current_search_instructions}
-**Intelligent Assessment:** {is_search_necessary}
-**Recommendation:**
+**Step:** {step_name} **Current Search Usage:** {current_search_instructions} **Intelligent
+Assessment:** {is_search_necessary} **Recommendation:**
 
 - **Keep essential searches:** {specific_searches_to_keep}
 - **Remove unnecessary searches:** {searches_to_remove}
@@ -281,28 +281,24 @@ Append to {complianceReportFile}:
 
 ### Web Search Optimization
 
-**Unnecessary Searches Identified:** [number]
-**Essential Searches to Keep:** [specific_list]
-**Optimization Recommendations:** [detailed_suggestions]
-**Estimated Time Savings:** [time_improvement]
+**Unnecessary Searches Identified:** [number] **Essential Searches to Keep:** [specific_list]
+**Optimization Recommendations:** [detailed_suggestions] **Estimated Time Savings:**
+[time_improvement]
 
 ### Subprocess Optimization Opportunities
 
-**Parallel Processing:** [number] opportunities identified
-**Batch Processing:** [number] grouping opportunities
-**Background Processing:** [number] background task opportunities
-**Performance Improvement:** [estimated_improvement_percentage]%
+**Parallel Processing:** [number] opportunities identified **Batch Processing:** [number] grouping
+opportunities **Background Processing:** [number] background task opportunities **Performance
+Improvement:** [estimated_improvement_percentage]%
 
 ### Resource Efficiency Analysis
 
-**Context Optimization:** [specific_improvements]
-**LLM Resource Usage:** [efficiency_gains]
-**User Experience Impact:** [positive_changes]
+**Context Optimization:** [specific_improvements] **LLM Resource Usage:** [efficiency_gains] **User
+Experience Impact:** [positive_changes]
 
 ### Implementation Recommendations
 
-**Immediate Actions:** [quick_improvements]
-**Strategic Improvements:** [major_optimizations]
+**Immediate Actions:** [quick_improvements] **Strategic Improvements:** [major_optimizations]
 **Future Enhancements:** [advanced_optimizations]
 ```
 
@@ -326,13 +322,16 @@ Append to {complianceReportFile}:
 
 ## Menu Handling Logic:
 
-- IF C: Save optimization findings to report, update frontmatter, then load, read entire file, then execute {nextStepFile}
+- IF C: Save optimization findings to report, update frontmatter, then load, read entire file, then
+  execute {nextStepFile}
 - IF X: Save current findings and end with guidance for resuming
 - IF Any other comments or queries: respond and redisplay menu
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN [C continue option] is selected and [web search and subprocess analysis complete with optimization recommendations documented], will you then load and read fully `{nextStepFile}` to execute and begin holistic analysis phase.
+ONLY WHEN [C continue option] is selected and [web search and subprocess analysis complete with
+optimization recommendations documented], will you then load and read fully `{nextStepFile}` to
+execute and begin holistic analysis phase.
 
 ---
 
@@ -357,4 +356,5 @@ ONLY WHEN [C continue option] is selected and [web search and subprocess analysi
 - Providing vague or non-actionable optimization recommendations
 - Failing to assess impact on user experience
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

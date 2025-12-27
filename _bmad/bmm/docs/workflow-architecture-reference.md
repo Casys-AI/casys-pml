@@ -1,21 +1,25 @@
 # Decision Architecture Workflow - Technical Reference
 
-**Module:** BMM (BMAD Method Module)
-**Type:** Solutioning Workflow
+**Module:** BMM (BMAD Method Module) **Type:** Solutioning Workflow
 
 ---
 
 ## Overview
 
-The Decision Architecture workflow is a complete reimagining of how architectural decisions are made in the BMAD Method. Instead of template-driven documentation, this workflow facilitates an intelligent conversation that produces a **decision-focused architecture document** optimized for preventing AI agent conflicts during implementation.
+The Decision Architecture workflow is a complete reimagining of how architectural decisions are made
+in the BMAD Method. Instead of template-driven documentation, this workflow facilitates an
+intelligent conversation that produces a **decision-focused architecture document** optimized for
+preventing AI agent conflicts during implementation.
 
 ---
 
 ## Core Philosophy
 
-**The Problem**: When multiple AI agents implement different parts of a system, they make conflicting technical decisions leading to incompatible implementations.
+**The Problem**: When multiple AI agents implement different parts of a system, they make
+conflicting technical decisions leading to incompatible implementations.
 
-**The Solution**: A "consistency contract" that documents all critical technical decisions upfront, ensuring every agent follows the same patterns and uses the same technologies.
+**The Solution**: A "consistency contract" that documents all critical technical decisions upfront,
+ensuring every agent follows the same patterns and uses the same technologies.
 
 ---
 

@@ -10,15 +10,12 @@
 
 #### Change #{{changeNumber}}
 
-**Issue**: {{issueDescription}}
-**Solution**: {{solutionDescription}}
-**Rationale**: {{changeRationale}}
+**Issue**: {{issueDescription}} **Solution**: {{solutionDescription}} **Rationale**:
+{{changeRationale}}
 
-**Files Modified**:
-{{#modifiedFiles}}
+**Files Modified**: {{#modifiedFiles}}
 
-- {{.}}
-  {{/modifiedFiles}}
+- {{.}} {{/modifiedFiles}}
 
 **Before**:
 
@@ -32,8 +29,7 @@
 {{afterContent}}
 ```
 
-**User Approval**: {{userApproval}}
-**Impact**: {{expectedImpact}}
+**User Approval**: {{userApproval}} **Impact**: {{expectedImpact}}
 
 ---
 

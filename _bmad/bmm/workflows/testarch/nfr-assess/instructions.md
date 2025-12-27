@@ -1,15 +1,17 @@
 # Non-Functional Requirements Assessment - Instructions v4.0
 
-**Workflow:** `testarch-nfr`
-**Purpose:** Assess non-functional requirements (performance, security, reliability, maintainability) before release with evidence-based validation
-**Agent:** Test Architect (TEA)
-**Format:** Pure Markdown v4.0 (no XML blocks)
+**Workflow:** `testarch-nfr` **Purpose:** Assess non-functional requirements (performance, security,
+reliability, maintainability) before release with evidence-based validation **Agent:** Test
+Architect (TEA) **Format:** Pure Markdown v4.0 (no XML blocks)
 
 ---
 
 ## Overview
 
-This workflow performs a comprehensive assessment of non-functional requirements (NFRs) to validate that the implementation meets performance, security, reliability, and maintainability standards before release. It uses evidence-based validation with deterministic PASS/CONCERNS/FAIL rules and provides actionable recommendations for remediation.
+This workflow performs a comprehensive assessment of non-functional requirements (NFRs) to validate
+that the implementation meets performance, security, reliability, and maintainability standards
+before release. It uses evidence-based validation with deterministic PASS/CONCERNS/FAIL rules and
+provides actionable recommendations for remediation.
 
 **Key Capabilities:**
 
@@ -51,11 +53,16 @@ This workflow performs a comprehensive assessment of non-functional requirements
 **Actions:**
 
 1. Load relevant knowledge fragments from `{project-root}/_bmad/bmm/testarch/tea-index.csv`:
-   - `nfr-criteria.md` - Non-functional requirements criteria and thresholds (security, performance, reliability, maintainability with code examples, 658 lines, 4 examples)
-   - `ci-burn-in.md` - CI/CD burn-in patterns for reliability validation (10-iteration detection, sharding, selective execution, 678 lines, 4 examples)
-   - `test-quality.md` - Test quality expectations for maintainability (deterministic, isolated, explicit assertions, length/time limits, 658 lines, 5 examples)
-   - `playwright-config.md` - Performance configuration patterns: parallelization, timeout standards, artifact output (722 lines, 5 examples)
-   - `error-handling.md` - Reliability validation patterns: scoped exceptions, retry validation, telemetry logging, graceful degradation (736 lines, 4 examples)
+   - `nfr-criteria.md` - Non-functional requirements criteria and thresholds (security, performance,
+     reliability, maintainability with code examples, 658 lines, 4 examples)
+   - `ci-burn-in.md` - CI/CD burn-in patterns for reliability validation (10-iteration detection,
+     sharding, selective execution, 678 lines, 4 examples)
+   - `test-quality.md` - Test quality expectations for maintainability (deterministic, isolated,
+     explicit assertions, length/time limits, 658 lines, 5 examples)
+   - `playwright-config.md` - Performance configuration patterns: parallelization, timeout
+     standards, artifact output (722 lines, 5 examples)
+   - `error-handling.md` - Reliability validation patterns: scoped exceptions, retry validation,
+     telemetry logging, graceful degradation (736 lines, 4 examples)
 
 2. Read story file (if provided):
    - Extract NFR requirements
@@ -75,7 +82,8 @@ This workflow performs a comprehensive assessment of non-functional requirements
 
 **Actions:**
 
-1. Determine which NFR categories to assess (default: performance, security, reliability, maintainability):
+1. Determine which NFR categories to assess (default: performance, security, reliability,
+   maintainability):
    - **Performance**: Response time, throughput, resource usage
    - **Security**: Authentication, authorization, data protection, vulnerability scanning
    - **Reliability**: Error handling, recovery, availability, fault tolerance
@@ -231,13 +239,13 @@ This workflow performs a comprehensive assessment of non-functional requirements
 
    ```yaml
    nfr_assessment:
-     date: '2025-10-14'
+     date: "2025-10-14"
      categories:
-       performance: 'PASS'
-       security: 'CONCERNS'
-       reliability: 'PASS'
-       maintainability: 'PASS'
-     overall_status: 'CONCERNS'
+       performance: "PASS"
+       security: "CONCERNS"
+       reliability: "PASS"
+       maintainability: "PASS"
+     overall_status: "CONCERNS"
      critical_issues: 0
      high_priority_issues: 1
      concerns: 2
@@ -262,7 +270,8 @@ This workflow performs a comprehensive assessment of non-functional requirements
 
 ## Non-Prescriptive Approach
 
-**Minimal Examples:** This workflow provides principles and patterns, not rigid templates. Teams should adapt NFR categories, thresholds, and assessment criteria to their needs.
+**Minimal Examples:** This workflow provides principles and patterns, not rigid templates. Teams
+should adapt NFR categories, thresholds, and assessment criteria to their needs.
 
 **Key Patterns to Follow:**
 
@@ -401,10 +410,7 @@ This workflow performs a comprehensive assessment of non-functional requirements
 **Example:**
 
 ```markdown
-NFR: Response Time p95
-Threshold: 500ms
-Evidence: Load test result shows 350ms p95
-Status: PASS ✅
+NFR: Response Time p95 Threshold: 500ms Evidence: Load test result shows 350ms p95 Status: PASS ✅
 ```
 
 ---
@@ -420,11 +426,8 @@ Status: PASS ✅
 **Example:**
 
 ```markdown
-NFR: Response Time p95
-Threshold: 500ms
-Evidence: Load test result shows 480ms p95 (96% of threshold)
-Status: CONCERNS ⚠️
-Recommendation: Optimize before production - very close to threshold
+NFR: Response Time p95 Threshold: 500ms Evidence: Load test result shows 480ms p95 (96% of
+threshold) Status: CONCERNS ⚠️ Recommendation: Optimize before production - very close to threshold
 ```
 
 ---
@@ -439,11 +442,8 @@ Recommendation: Optimize before production - very close to threshold
 **Example:**
 
 ```markdown
-NFR: Response Time p95
-Threshold: 500ms
-Evidence: Load test result shows 750ms p95 (150% of threshold)
-Status: FAIL ❌
-Recommendation: BLOCKER - optimize performance before release
+NFR: Response Time p95 Threshold: 500ms Evidence: Load test result shows 750ms p95 (150% of
+threshold) Status: FAIL ❌ Recommendation: BLOCKER - optimize performance before release
 ```
 
 ---
@@ -503,16 +503,12 @@ Recommendation: BLOCKER - optimize performance before release
 ````markdown
 # NFR Assessment - Story 1.3
 
-**Feature:** User Authentication
-**Date:** 2025-10-14
-**Overall Status:** CONCERNS ⚠️ (1 HIGH issue)
+**Feature:** User Authentication **Date:** 2025-10-14 **Overall Status:** CONCERNS ⚠️ (1 HIGH issue)
 
 ## Executive Summary
 
-**Assessment:** 3 PASS, 1 CONCERNS, 0 FAIL
-**Blockers:** None
-**High Priority Issues:** 1 (Security - MFA not enforced)
-**Recommendation:** Address security concern before release
+**Assessment:** 3 PASS, 1 CONCERNS, 0 FAIL **Blockers:** None **High Priority Issues:** 1
+(Security - MFA not enforced) **Recommendation:** Address security concern before release
 
 ## Performance Assessment
 
@@ -541,7 +537,8 @@ Recommendation: BLOCKER - optimize performance before release
 - **Actual:** MFA optional (not enforced)
 - **Evidence:** Security audit (security-audit-2025-10-14.md)
 - **Findings:** MFA is implemented but not enforced by default
-- **Recommendation:** HIGH - Enforce MFA for all new accounts, provide migration path for existing users
+- **Recommendation:** HIGH - Enforce MFA for all new accounts, provide migration path for existing
+  users
 
 ### Data Protection
 
@@ -625,21 +622,21 @@ Recommendation: BLOCKER - optimize performance before release
 
 ```yaml
 nfr_assessment:
-  date: '2025-10-14'
-  story_id: '1.3'
+  date: "2025-10-14"
+  story_id: "1.3"
   categories:
-    performance: 'PASS'
-    security: 'CONCERNS'
-    reliability: 'PASS'
-    maintainability: 'PASS'
-  overall_status: 'CONCERNS'
+    performance: "PASS"
+    security: "CONCERNS"
+    reliability: "PASS"
+    maintainability: "PASS"
+  overall_status: "CONCERNS"
   critical_issues: 0
   high_priority_issues: 1
   medium_priority_issues: 0
   concerns: 1
   blockers: false
   recommendations:
-    - 'Enforce MFA for all new accounts (HIGH - 4 hours)'
+    - "Enforce MFA for all new accounts (HIGH - 4 hours)"
   evidence_gaps: 2
 ```
 ````
@@ -652,7 +649,6 @@ nfr_assessment:
 - **Next Steps:** Address HIGH priority item, then proceed to gate workflow
 
 ```
-
 ---
 
 ## Validation Checklist

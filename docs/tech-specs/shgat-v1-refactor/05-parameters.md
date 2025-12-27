@@ -1,7 +1,7 @@
 # 05 - Learnable Parameters
 
-**Parent**: [00-overview.md](./00-overview.md)
-**Depends on**: [04-message-passing.md](./04-message-passing.md)
+**Parent**: [00-overview.md](./00-overview.md) **Depends on**:
+[04-message-passing.md](./04-message-passing.md)
 
 ---
 
@@ -12,12 +12,12 @@ For each hierarchy level k ∈ [0, L_max]:
 ```typescript
 interface LevelParams {
   /** Projection matrices per head */
-  W_child: number[][][];    // [head][headDim][inputDim]
-  W_parent: number[][][];   // [head][headDim][inputDim]
+  W_child: number[][][]; // [head][headDim][inputDim]
+  W_parent: number[][][]; // [head][headDim][inputDim]
 
   /** Attention vectors per head */
-  a_upward: number[][];     // [head][2*headDim] for upward pass
-  a_downward: number[][];   // [head][2*headDim] for downward pass
+  a_upward: number[][]; // [head][2*headDim] for upward pass
+  a_downward: number[][]; // [head][2*headDim] for downward pass
 }
 ```
 
@@ -93,10 +93,10 @@ Total all levels: (L_max + 1) × K × (2·headDim·embDim + 4·headDim)
 ### Example Calculation
 
 | L_max | K | headDim | embDim | Total Params |
-|-------|---|---------|--------|--------------|
-| 2 | 4 | 16 | 1024 | ~394K |
-| 3 | 8 | 16 | 1024 | ~1.05M |
-| 2 | 4 | 32 | 1024 | ~790K |
+| ----- | - | ------- | ------ | ------------ |
+| 2     | 4 | 16      | 1024   | ~394K        |
+| 3     | 8 | 16      | 1024   | ~1.05M       |
+| 2     | 4 | 32      | 1024   | ~790K        |
 
 ```
 Example (L_max=2, K=4, headDim=16, embDim=1024):

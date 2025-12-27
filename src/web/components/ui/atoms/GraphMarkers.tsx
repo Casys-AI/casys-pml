@@ -4,7 +4,7 @@
  */
 
 import type { JSX } from "preact";
-import { getEdgeColor, type EdgeType } from "./GraphEdge.tsx";
+import { type EdgeType, getEdgeColor } from "./GraphEdge.tsx";
 
 interface GraphMarkersProps {
   id: string;

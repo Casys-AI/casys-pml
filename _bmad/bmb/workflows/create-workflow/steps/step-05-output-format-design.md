@@ -1,27 +1,28 @@
 ---
-name: 'step-05-output-format-design'
-description: 'Design the output format for workflows that produce documents or files'
+name: "step-05-output-format-design"
+description: "Design the output format for workflows that produce documents or files"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmb/workflows/create-workflow'
+workflow_path: "{project-root}/_bmad/bmb/workflows/create-workflow"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-05-output-format-design.md'
-nextStepFile: '{workflow_path}/steps/step-06-design.md'
+thisStepFile: "{workflow_path}/steps/step-05-output-format-design.md"
+nextStepFile: "{workflow_path}/steps/step-06-design.md"
 
-targetWorkflowPath: '{bmb_creations_output_folder}/workflows/{new_workflow_name}'
-workflowPlanFile: '{targetWorkflowPath}/workflow-plan-{new_workflow_name}.md'
+targetWorkflowPath: "{bmb_creations_output_folder}/workflows/{new_workflow_name}"
+workflowPlanFile: "{targetWorkflowPath}/workflow-plan-{new_workflow_name}.md"
 
 # Task References
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 ---
 
 # Step 5: Output Format Design
 
 ## STEP GOAL:
 
-To design and document the output format for workflows that produce documents or files, determining whether they need strict templates or flexible formatting.
+To design and document the output format for workflows that produce documents or files, determining
+whether they need strict templates or flexible formatting.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -35,7 +36,8 @@ To design and document the output format for workflows that produce documents or
 ### Role Reinforcement:
 
 - ✅ You are a workflow architect and output format specialist
-- ✅ If you already have been given communication or persona patterns, continue to use those while playing this new role
+- ✅ If you already have been given communication or persona patterns, continue to use those while
+  playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You bring expertise in document design and template creation
 - ✅ User brings their specific output requirements and preferences
@@ -67,7 +69,8 @@ To design and document the output format for workflows that produce documents or
 
 "**Designing Your Output Format**
 
-Based on your approved plan, your workflow will produce output documents. Let's design how these outputs should be formatted."
+Based on your approved plan, your workflow will produce output documents. Let's design how these
+outputs should be formatted."
 
 ### 2. Present the Format Spectrum
 
@@ -120,11 +123,9 @@ Please choose 1-4:"
 
 You need exact formatting. Let's define your requirements:
 
-**Template Source Options:**
-A. Upload existing template/image to follow
-B. Create new template from scratch
-C. Use standard form (e.g., government, industry)
-D. AI proposes template based on your needs
+**Template Source Options:** A. Upload existing template/image to follow B. Create new template from
+scratch C. Use standard form (e.g., government, industry) D. AI proposes template based on your
+needs
 
 **Template Requirements:**
 
@@ -195,9 +196,8 @@ For Strict/Structured workflows:
 
 "**Template Creation Approach:**
 
-A. **Design Together** - We'll create the template step by step
-B. **AI Proposes** - I'll suggest a structure based on your needs
-C. **Import Existing** - Use/upload your existing template
+A. **Design Together** - We'll create the template step by step B. **AI Proposes** - I'll suggest a
+structure based on your needs C. **Import Existing** - Use/upload your existing template
 
 Which approach would you prefer?"
 
@@ -229,8 +229,7 @@ Append to {workflowPlanFile}:
 - File format: [PDF/MD/DOCX/etc]
 - Frequency: [single/batch/continuous]
 
-**Structure Specifications**:
-[Detailed structure based on format type]
+**Structure Specifications**: [Detailed structure based on format type]
 
 **Template Information**:
 
@@ -254,19 +253,23 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu
-- User can chat or ask questions - always respond and then end with display again of the menu options
+- User can chat or ask questions - always respond and then end with display again of the menu
+  options
 - Use menu handling logic section below
 
 #### Menu Handling Logic:
 
 - IF A: Execute {advancedElicitationTask}
 - IF P: Execute {partyModeWorkflow}
-- IF C: Save output format design to {workflowPlanFile}, update frontmatter, then load, read entire file, then execute {nextStepFile}
-- IF Any other comments or queries: help user respond then [Redisplay Menu Options](#7-present-menu-options)
+- IF C: Save output format design to {workflowPlanFile}, update frontmatter, then load, read entire
+  file, then execute {nextStepFile}
+- IF Any other comments or queries: help user respond then
+  [Redisplay Menu Options](#7-present-menu-options)
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN C is selected and output format is documented will you load {nextStepFile} to begin workflow step design.
+ONLY WHEN C is selected and output format is documented will you load {nextStepFile} to begin
+workflow step design.
 
 ---
 
@@ -286,4 +289,5 @@ ONLY WHEN C is selected and output format is documented will you load {nextStepF
 - Not documenting decisions in plan
 - Assuming format without asking
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

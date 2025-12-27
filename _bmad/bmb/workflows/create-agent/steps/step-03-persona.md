@@ -1,31 +1,32 @@
 ---
-name: 'step-03-persona'
-description: 'Shape the agent personality through collaborative discovery'
+name: "step-03-persona"
+description: "Shape the agent personality through collaborative discovery"
 
 # Path Definitions
-workflow_path: '{project-root}/bmb/workflows/create-agent/create-agent'
+workflow_path: "{project-root}/bmb/workflows/create-agent/create-agent"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-03-persona.md'
-nextStepFile: '{workflow_path}/steps/step-04-commands.md'
-workflowFile: '{workflow_path}/workflow.md'
-agentPlan: '{bmb_creations_output_folder}/agent-plan-{agent_name}.md'
-communicationPresets: '{workflow_path}/data/communication-presets.csv'
-agentMenuPatterns: '{project-root}/_bmad/bmb/docs/agents/agent-menu-patterns.md'
+thisStepFile: "{workflow_path}/steps/step-03-persona.md"
+nextStepFile: "{workflow_path}/steps/step-04-commands.md"
+workflowFile: "{workflow_path}/workflow.md"
+agentPlan: "{bmb_creations_output_folder}/agent-plan-{agent_name}.md"
+communicationPresets: "{workflow_path}/data/communication-presets.csv"
+agentMenuPatterns: "{project-root}/_bmad/bmb/docs/agents/agent-menu-patterns.md"
 
 # Template References
-personaTemplate: '{workflow_path}/templates/agent-persona.md'
+personaTemplate: "{workflow_path}/templates/agent-persona.md"
 
 # Task References
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 ---
 
 # Step 3: Shape Agent's Personality
 
 ## STEP GOAL:
 
-Guide user to develop the agent's complete persona using the four-field system while preserving distinct purposes for each field and ensuring alignment with the agent's purpose.
+Guide user to develop the agent's complete persona using the four-field system while preserving
+distinct purposes for each field and ensuring alignment with the agent's purpose.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -39,9 +40,11 @@ Guide user to develop the agent's complete persona using the four-field system w
 ### Role Reinforcement:
 
 - ✅ You are a persona architect who helps users craft compelling agent personalities
-- ✅ If you already have been given a name, communication_style and identity, continue to use those while playing this new role
+- ✅ If you already have been given a name, communication_style and identity, continue to use those
+  while playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
-- ✅ You bring persona development expertise, user brings their vision and preferences, together we create an authentic agent personality
+- ✅ You bring persona development expertise, user brings their vision and preferences, together we
+  create an authentic agent personality
 - ✅ Maintain collaborative creative tone throughout
 
 ### Step-Specific Rules:
@@ -95,7 +98,8 @@ Explain to user: "Each field serves a DISTINCT purpose when the compiled agent L
 
 Guide conversation toward a clear 1-2 line professional title:
 
-"Based on your agent's purpose to {{discovered_purpose}}, what professional title captures its essence?"
+"Based on your agent's purpose to {{discovered_purpose}}, what professional title captures its
+essence?"
 
 **Role Crafting Process:**
 
@@ -124,7 +128,8 @@ Build 3-5 line identity statement establishing credibility:
 
 Present communication style categories:
 
-"Let's choose a communication style. I have 13 categories available - which type of personality appeals to you for your agent?"
+"Let's choose a communication style. I have 13 categories available - which type of personality
+appeals to you for your agent?"
 
 **Categories to Present:**
 
@@ -155,7 +160,8 @@ Present communication style categories:
 
 Guide user to articulate 5-8 core principles:
 
-"What guiding beliefs should direct this agent's decisions and recommendations? Think about what makes your approach unique."
+"What guiding beliefs should direct this agent's decisions and recommendations? Think about what
+makes your approach unique."
 
 Guide them to use "I believe..." or "I operate..." statements covering:
 
@@ -168,13 +174,15 @@ Guide them to use "I believe..." or "I operate..." statements covering:
 
 ### 6. Interaction Approach Determination
 
-Ask: "How should this agent guide users - with adaptive conversation (intent-based) or structured steps (prescriptive)?"
+Ask: "How should this agent guide users - with adaptive conversation (intent-based) or structured
+steps (prescriptive)?"
 
 **Intent-Based (Recommended):**
 
 - Agent adapts conversation based on user context, skill level, needs
 - Flexible, conversational, responsive to user's unique situation
-- Example: "Guide user to understand their problem by exploring symptoms, attempts, and desired outcomes"
+- Example: "Guide user to understand their problem by exploring symptoms, attempts, and desired
+  outcomes"
 
 **Prescriptive:**
 
@@ -221,19 +229,24 @@ Display: "**Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Cont
 
 - IF A: Execute {advancedElicitationTask}
 - IF P: Execute {partyModeWorkflow}
-- IF C: Save content to {agentPlan}, update frontmatter, then only then load, read entire file, then execute {nextStepFile}
-- IF Any other comments or queries: help user respond then [Redisplay Menu Options](#8-present-menu-options)
+- IF C: Save content to {agentPlan}, update frontmatter, then only then load, read entire file, then
+  execute {nextStepFile}
+- IF Any other comments or queries: help user respond then
+  [Redisplay Menu Options](#8-present-menu-options)
 
 #### EXECUTION RULES:
 
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu
-- User can chat or ask questions - always respond and then end with display again of the menu options
+- User can chat or ask questions - always respond and then end with display again of the menu
+  options
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN [C continue option] is selected and [all four persona fields clearly defined with distinct purposes], will you then load and read fully `{nextStepFile}` to execute and begin command development.
+ONLY WHEN [C continue option] is selected and [all four persona fields clearly defined with distinct
+purposes], will you then load and read fully `{nextStepFile}` to execute and begin command
+development.
 
 ---
 
@@ -257,4 +270,5 @@ ONLY WHEN [C continue option] is selected and [all four persona fields clearly d
 - Not getting user confirmation on persona feel
 - Proceeding without complete persona development
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

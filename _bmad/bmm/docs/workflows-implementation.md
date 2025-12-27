@@ -2,15 +2,19 @@
 
 ## Overview
 
-Phase 4 (Implementation) workflows manage the iterative sprint-based development cycle using a **story-centric workflow** where each story moves through a defined lifecycle from creation to completion.
+Phase 4 (Implementation) workflows manage the iterative sprint-based development cycle using a
+**story-centric workflow** where each story moves through a defined lifecycle from creation to
+completion.
 
-**Key principle:** One story at a time, move it through the entire lifecycle before starting the next.
+**Key principle:** One story at a time, move it through the entire lifecycle before starting the
+next.
 
 ---
 
 ## Complete Workflow Context
 
-Phase 4 is the final phase of the BMad Method workflow. To see how implementation fits into the complete methodology:
+Phase 4 is the final phase of the BMad Method workflow. To see how implementation fits into the
+complete methodology:
 
 The BMad Method consists of four phases working in sequence:
 
@@ -19,9 +23,11 @@ The BMad Method consists of four phases working in sequence:
 3. **Phase 3 (Solutioning)** - Technical architecture and design decisions
 4. **Phase 4 (Implementation)** - Iterative sprint-based development with story-centric workflow
 
-Phase 4 focuses on the iterative epic and story cycles where stories are implemented, reviewed, and completed one at a time.
+Phase 4 focuses on the iterative epic and story cycles where stories are implemented, reviewed, and
+completed one at a time.
 
-For a visual representation of the complete workflow, see: [workflow-method-greenfield.excalidraw](./images/workflow-method-greenfield.excalidraw)
+For a visual representation of the complete workflow, see:
+[workflow-method-greenfield.excalidraw](./images/workflow-method-greenfield.excalidraw)
 
 ---
 
@@ -108,7 +114,8 @@ Stories move through these states in the sprint status file:
 
 **As Needed:**
 
-- Run `sprint-status` anytime in Phase 4 to inspect sprint-status.yaml and get the next implementation command
+- Run `sprint-status` anytime in Phase 4 to inspect sprint-status.yaml and get the next
+  implementation command
 - Run `workflow-status` for cross-phase routing and project-level paths
 - Run `correct-course` if significant changes needed
 
@@ -118,7 +125,8 @@ Stories move through these states in the sprint status file:
 
 ### One Story at a Time
 
-Complete each story's full lifecycle before starting the next. This prevents context switching and ensures quality.
+Complete each story's full lifecycle before starting the next. This prevents context switching and
+ensures quality.
 
 ### Quality Gates
 
@@ -163,11 +171,11 @@ See: [workflow-status instructions](../workflows/workflow-status/instructions.md
 
 ### document-project
 
-**Purpose:** Analyze and document brownfield projects by scanning codebase, architecture, and patterns.
+**Purpose:** Analyze and document brownfield projects by scanning codebase, architecture, and
+patterns.
 
-**Agent:** Analyst
-**Duration:** 1-3 hours
-**When to Use:** Brownfield projects without documentation
+**Agent:** Analyst **Duration:** 1-3 hours **When to Use:** Brownfield projects without
+documentation
 
 **How It Works:**
 
@@ -195,16 +203,17 @@ See: [document-project reference](./workflow-document-project-reference.md)
 
 ## Troubleshooting
 
-**Q: Which workflow should I run next?**
-A: Run `workflow-status` - it reads the sprint status file and tells you exactly what to do. During implementation (Phase 4) run `sprint-status` (fast check against sprint-status.yaml).
+**Q: Which workflow should I run next?** A: Run `workflow-status` - it reads the sprint status file
+and tells you exactly what to do. During implementation (Phase 4) run `sprint-status` (fast check
+against sprint-status.yaml).
 
-**Q: Story needs significant changes mid-implementation?**
-A: Run `correct-course` to analyze impact and route appropriately.
+**Q: Story needs significant changes mid-implementation?** A: Run `correct-course` to analyze impact
+and route appropriately.
 
-**Q: Can I work on multiple stories in parallel?**
-A: Not recommended. Complete one story's full lifecycle before starting the next. Prevents context switching and ensures quality.
+**Q: Can I work on multiple stories in parallel?** A: Not recommended. Complete one story's full
+lifecycle before starting the next. Prevents context switching and ensures quality.
 
-**Q: What if code review finds issues?**
-A: DEV runs `dev-story` to make fixes, re-runs tests, then runs `code-review` again until it passes.
+**Q: What if code review finds issues?** A: DEV runs `dev-story` to make fixes, re-runs tests, then
+runs `code-review` again until it passes.
 
 _Phase 4 Implementation - One story at a time, done right._

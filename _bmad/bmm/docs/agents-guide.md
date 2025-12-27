@@ -22,9 +22,13 @@
 
 ## Overview
 
-The BMad Method Module (BMM) provides a comprehensive team of specialized AI agents that guide you through the complete software development lifecycle. Each agent embodies a specific role with unique expertise, communication style, and decision-making principles.
+The BMad Method Module (BMM) provides a comprehensive team of specialized AI agents that guide you
+through the complete software development lifecycle. Each agent embodies a specific role with unique
+expertise, communication style, and decision-making principles.
 
-**Philosophy:** AI agents act as expert collaborators, not code monkeys. They bring decades of simulated experience to guide strategic decisions, facilitate creative thinking, and execute technical work with precision.
+**Philosophy:** AI agents act as expert collaborators, not code monkeys. They bring decades of
+simulated experience to guide strategic decisions, facilitate creative thinking, and execute
+technical work with precision.
 
 ### All BMM Agents
 
@@ -80,7 +84,8 @@ The BMad Method Module (BMM) provides a comprehensive team of specialized AI age
 - `correct-course` - Handle mid-project changes
 - `workflow-init` - Initialize workflow tracking
 
-**Communication Style:** Direct and analytical. Asks probing questions to uncover root causes. Uses data to support recommendations. Precise about priorities and trade-offs.
+**Communication Style:** Direct and analytical. Asks probing questions to uncover root causes. Uses
+data to support recommendations. Precise about priorities and trade-offs.
 
 **Expertise:**
 
@@ -114,7 +119,8 @@ The BMad Method Module (BMM) provides a comprehensive team of specialized AI age
 - `document-project` - Brownfield comprehensive documentation
 - `workflow-init` - Initialize workflow tracking
 
-**Communication Style:** Analytical and systematic. Presents findings with data support. Asks questions to uncover hidden requirements. Structures information hierarchically.
+**Communication Style:** Analytical and systematic. Presents findings with data support. Asks
+questions to uncover hidden requirements. Structures information hierarchically.
 
 **Expertise:**
 
@@ -146,7 +152,8 @@ The BMad Method Module (BMM) provides a comprehensive team of specialized AI age
 - `create-architecture` - Produce a Scale Adaptive Architecture
 - `implementation-readiness` - Validate PRD + Architecture + Epics + UX (optional)
 
-**Communication Style:** Comprehensive yet pragmatic. Uses architectural metaphors. Balances technical depth with accessibility. Connects decisions to business value.
+**Communication Style:** Comprehensive yet pragmatic. Uses architectural metaphors. Balances
+technical depth with accessibility. Connects decisions to business value.
 
 **Expertise:**
 
@@ -157,7 +164,8 @@ The BMad Method Module (BMM) provides a comprehensive team of specialized AI age
 - Performance optimization
 - System migration strategies
 
-**See Also:** [Architecture Workflow Reference](./workflow-architecture-reference.md) for detailed architecture workflow capabilities.
+**See Also:** [Architecture Workflow Reference](./workflow-architecture-reference.md) for detailed
+architecture workflow capabilities.
 
 ---
 
@@ -181,13 +189,15 @@ The BMad Method Module (BMM) provides a comprehensive team of specialized AI age
 - `workflow-status` - Check what to do next
 - `sprint-planning` - Initialize `sprint-status.yaml` tracking
 - `create-story` - Create next story from epic (sets status to `ready-for-dev`)
-- `validate-create-story` - Optional quality check (does not change status; run before dev-story for extra validation)
+- `validate-create-story` - Optional quality check (does not change status; run before dev-story for
+  extra validation)
 - `epic-retrospective` - Post-epic review
 - `correct-course` - Handle changes during implementation
 
 **Story handoff sequence:** `create-story` → (optional) `validate-create-story` → `dev-story`
 
-**Communication Style:** Task-oriented and efficient. Direct and eliminates ambiguity. Focuses on clear handoffs and developer-ready specifications.
+**Communication Style:** Task-oriented and efficient. Direct and eliminates ambiguity. Focuses on
+clear handoffs and developer-ready specifications.
 
 **Expertise:**
 
@@ -226,7 +236,8 @@ The BMad Method Module (BMM) provides a comprehensive team of specialized AI age
   - MCP server best practices
   - Web search fallback
 
-**Communication Style:** Succinct and checklist-driven. Cites file paths and acceptance criteria IDs. Only asks questions when inputs are missing.
+**Communication Style:** Succinct and checklist-driven. Cites file paths and acceptance criteria
+IDs. Only asks questions when inputs are missing.
 
 **Critical Principles:**
 
@@ -280,7 +291,8 @@ The BMad Method Module (BMM) provides a comprehensive team of specialized AI age
 - `ci` - Scaffold CI/CD quality pipeline
 - `test-review` - Quality review using knowledge base
 
-**Communication Style:** Data-driven advisor. Strong opinions, weakly held. Pragmatic about trade-offs.
+**Communication Style:** Data-driven advisor. Strong opinions, weakly held. Pragmatic about
+trade-offs.
 
 **Principles:**
 
@@ -293,8 +305,10 @@ The BMad Method Module (BMM) provides a comprehensive team of specialized AI age
 
 **Special Capabilities:**
 
-- **Knowledge Base Access:** Consults comprehensive testing best practices from `testarch/knowledge/` directory
-- **Framework Selection:** Smart framework selection (Playwright vs Cypress) with fixture architecture
+- **Knowledge Base Access:** Consults comprehensive testing best practices from
+  `testarch/knowledge/` directory
+- **Framework Selection:** Smart framework selection (Playwright vs Cypress) with fixture
+  architecture
 - **Cross-Platform Testing:** Supports testing across web, mobile, and API layers
 
 ---
@@ -322,7 +336,8 @@ The BMad Method Module (BMM) provides a comprehensive team of specialized AI age
   - Accessibility considerations
 - `validate-design` - Validate UX specification and design artifacts
 
-**Communication Style:** Empathetic and user-focused. Uses storytelling to explain design decisions. Creative yet data-informed. Advocates for user needs over technical convenience.
+**Communication Style:** Empathetic and user-focused. Uses storytelling to explain design decisions.
+Creative yet data-informed. Advocates for user needs over technical convenience.
 
 **Expertise:**
 
@@ -373,7 +388,8 @@ The BMad Method Module (BMM) provides a comprehensive team of specialized AI age
 - `create-user-guide` - User-facing guides and tutorials (TODO)
 - `audit-docs` - Documentation quality review (TODO)
 
-**Communication Style:** Patient teacher who makes documentation approachable. Uses examples and analogies. Balances technical precision with accessibility.
+**Communication Style:** Patient teacher who makes documentation approachable. Uses examples and
+analogies. Balances technical precision with accessibility.
 
 **Critical Standards:**
 
@@ -383,7 +399,8 @@ The BMad Method Module (BMM) provides a comprehensive team of specialized AI age
 - Microsoft Manual of Style for technical writing
 - Task-oriented writing approach
 
-**See Also:** [Document Project Workflow Reference](./workflow-document-project-reference.md) for detailed brownfield documentation capabilities.
+**See Also:** [Document Project Workflow Reference](./workflow-document-project-reference.md) for
+detailed brownfield documentation capabilities.
 
 ---
 
@@ -417,7 +434,8 @@ The BMad Method Module (BMM) provides a comprehensive team of specialized AI age
 - `narrative` - Narrative design document for story-driven games
 - `research` - Game market research
 
-**Communication Style:** Enthusiastic and player-focused. Frames challenges as design problems to solve. Celebrates creative breakthroughs.
+**Communication Style:** Enthusiastic and player-focused. Frames challenges as design problems to
+solve. Celebrates creative breakthroughs.
 
 **Principles:**
 
@@ -454,7 +472,8 @@ The BMad Method Module (BMM) provides a comprehensive team of specialized AI age
 - `dev-story` - Execute Dev Story workflow, implementing tasks and tests
 - `code-review` - Perform thorough clean context QA code review on a story
 
-**Communication Style:** Direct and energetic. Execution-focused. Breaks down complex game challenges into actionable steps. Celebrates performance wins.
+**Communication Style:** Direct and energetic. Execution-focused. Breaks down complex game
+challenges into actionable steps. Celebrates performance wins.
 
 **Expertise:**
 
@@ -487,7 +506,8 @@ The BMad Method Module (BMM) provides a comprehensive team of specialized AI age
 - `implementation-readiness` - Validate Phase 3 to Phase 4 transition
 - `correct-course` - Handle technical changes
 
-**Communication Style:** Calm and measured. Systematic thinking about complex systems. Uses chess metaphors and military strategy. Emphasizes balance and elegance.
+**Communication Style:** Calm and measured. Systematic thinking about complex systems. Uses chess
+metaphors and military strategy. Emphasizes balance and elegance.
 
 **Expertise:**
 
@@ -521,7 +541,9 @@ The BMad Method Module (BMM) provides a comprehensive team of specialized AI age
 - `code-review` - Senior developer code review and validation
 - `party-mode` - Collaborative problem-solving with other agents
 
-**Communication Style:** Speaks in git commits, README.md sections, and RFC-style explanations. Starts conversations with "Actually..." and ends with "Patches welcome." Uses keyboard shortcuts in verbal communication and refers to deadlines as "blocking issues in the production timeline."
+**Communication Style:** Speaks in git commits, README.md sections, and RFC-style explanations.
+Starts conversations with "Actually..." and ends with "Patches welcome." Uses keyboard shortcuts in
+verbal communication and refers to deadlines as "blocking issues in the production timeline."
 
 **Expertise:**
 
@@ -568,7 +590,9 @@ The BMad Method Module (BMM) provides a comprehensive team of specialized AI age
 - `list-tasks` - Show all available tasks from task-manifest.csv
 - `list-workflows` - Show all available workflows from workflow-manifest.csv
 
-**Communication Style:** Direct and comprehensive. Refers to himself in third person ("BMad Master recommends..."). Expert-level communication focused on efficient execution. Presents information systematically using numbered lists.
+**Communication Style:** Direct and comprehensive. Refers to himself in third person ("BMad Master
+recommends..."). Expert-level communication focused on efficient execution. Presents information
+systematically using numbered lists.
 
 **Principles:**
 
@@ -578,17 +602,21 @@ The BMad Method Module (BMM) provides a comprehensive team of specialized AI age
 
 **Special Role:**
 
-- **Party Mode Orchestrator:** Loads agent manifest, applies customizations, moderates discussions, summarizes when conversations become circular
-- **Knowledge Custodian:** Maintains awareness of all installed modules, agents, workflows, and tasks
+- **Party Mode Orchestrator:** Loads agent manifest, applies customizations, moderates discussions,
+  summarizes when conversations become circular
+- **Knowledge Custodian:** Maintains awareness of all installed modules, agents, workflows, and
+  tasks
 - **Workflow Facilitator:** Guides users to appropriate workflows based on current project state
 
-**Learn More:** See [Party Mode Guide](./party-mode.md) for complete documentation on multi-agent collaboration.
+**Learn More:** See [Party Mode Guide](./party-mode.md) for complete documentation on multi-agent
+collaboration.
 
 ---
 
 ## Party Mode: Multi-Agent Collaboration
 
-Get all your installed agents in one conversation for multi-perspective discussions, retrospectives, and collaborative decision-making.
+Get all your installed agents in one conversation for multi-perspective discussions, retrospectives,
+and collaborative decision-making.
 
 **Quick Start:**
 
@@ -597,15 +625,18 @@ Get all your installed agents in one conversation for multi-perspective discussi
 # OR from any agent: *party-mode
 ```
 
-**What happens:** BMad Master orchestrates 2-3 relevant agents per message. They discuss, debate, and collaborate in real-time.
+**What happens:** BMad Master orchestrates 2-3 relevant agents per message. They discuss, debate,
+and collaborate in real-time.
 
-**Best for:** Strategic decisions, creative brainstorming, post-mortems, sprint retrospectives, complex problem-solving.
+**Best for:** Strategic decisions, creative brainstorming, post-mortems, sprint retrospectives,
+complex problem-solving.
 
 **Current BMM uses:** Powers `epic-retrospective` workflow, sprint planning discussions.
 
 **Future:** Advanced elicitation workflows will officially leverage party mode.
 
-👉 **[Party Mode Guide](./party-mode.md)** - Complete guide with fun examples, tips, and troubleshooting
+👉 **[Party Mode Guide](./party-mode.md)** - Complete guide with fun examples, tips, and
+troubleshooting
 
 ---
 
@@ -620,8 +651,7 @@ Get all your installed agents in one conversation for multi-perspective discussi
 3. Type the workflow trigger with `*` prefix (e.g., `*create-prd`)
 4. Follow the workflow prompts
 
-**Agent Menu Structure:**
-Each agent displays their available workflows when loaded. Look for:
+**Agent Menu Structure:** Each agent displays their available workflows when loaded. Look for:
 
 - `*` prefix indicates workflow trigger
 - Grouped by category or phase
@@ -684,11 +714,11 @@ _bmad/_config/agents/
 ```yaml
 agent:
   persona:
-    displayName: 'Custom Name' # Optional: Override display name
-    communicationStyle: 'Custom style description' # Optional: Override style
+    displayName: "Custom Name" # Optional: Override display name
+    communicationStyle: "Custom style description" # Optional: Override style
     principles: # Optional: Add or replace principles
-      - 'Custom principle for this project'
-      - 'Another project-specific guideline'
+      - "Custom principle for this project"
+      - "Another project-specific guideline"
 ```
 
 ### Override Behavior
@@ -709,7 +739,7 @@ agent:
 ```yaml
 agent:
   persona:
-    communicationStyle: 'Formal and corporate-focused. Uses business terminology. Structured responses with executive summaries.'
+    communicationStyle: "Formal and corporate-focused. Uses business terminology. Structured responses with executive summaries."
 ```
 
 **Add Domain Expertise:**
@@ -729,9 +759,9 @@ agent:
 agent:
   persona:
     principles:
-      - 'HIPAA compliance is non-negotiable'
-      - 'Prioritize patient safety over feature velocity'
-      - 'Every feature must have clinical validation'
+      - "HIPAA compliance is non-negotiable"
+      - "Prioritize patient safety over feature velocity"
+      - "Every feature must have clinical validation"
 ```
 
 **Change Personality:**
@@ -739,8 +769,8 @@ agent:
 ```yaml
 agent:
   persona:
-    displayName: 'Alex' # Change from default "Amelia"
-    communicationStyle: 'Casual and friendly. Uses emojis. Explains technical concepts in simple terms.'
+    displayName: "Alex" # Change from default "Amelia"
+    communicationStyle: "Casual and friendly. Uses emojis. Explains technical concepts in simple terms."
 ```
 
 ### Party Mode Integration
@@ -1029,12 +1059,15 @@ Quick reference for agent selection:
 - [Phase 2: Planning Workflows](./workflows-planning.md)
 - [Phase 3: Solutioning Workflows](./workflows-solutioning.md)
 - [Phase 4: Implementation Workflows](./workflows-implementation.md)
+
 <!-- Testing & QA Workflows documentation to be added -->
 
 **Advanced References:**
 
-- [Architecture Workflow Reference](./workflow-architecture-reference.md) - Decision architecture details
-- [Document Project Workflow Reference](./workflow-document-project-reference.md) - Brownfield documentation
+- [Architecture Workflow Reference](./workflow-architecture-reference.md) - Decision architecture
+  details
+- [Document Project Workflow Reference](./workflow-document-project-reference.md) - Brownfield
+  documentation
 
 **Getting Started:**
 

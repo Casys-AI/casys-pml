@@ -1,22 +1,22 @@
 ---
-name: 'step-07-project-type'
-description: 'Conduct project-type specific discovery using CSV-driven guidance'
+name: "step-07-project-type"
+description: "Conduct project-type specific discovery using CSV-driven guidance"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmm/workflows/2-plan-workflows/prd'
+workflow_path: "{project-root}/_bmad/bmm/workflows/2-plan-workflows/prd"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-07-project-type.md'
-nextStepFile: '{workflow_path}/steps/step-08-scoping.md'
-workflowFile: '{workflow_path}/workflow.md'
-outputFile: '{output_folder}/prd.md'
+thisStepFile: "{workflow_path}/steps/step-07-project-type.md"
+nextStepFile: "{workflow_path}/steps/step-08-scoping.md"
+workflowFile: "{workflow_path}/workflow.md"
+outputFile: "{output_folder}/prd.md"
 
 # Data Files
-projectTypesCSV: '{workflow_path}/project-types.csv'
+projectTypesCSV: "{workflow_path}/project-types.csv"
 
 # Task References
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 ---
 
 # Step 7: Project-Type Deep Dive
@@ -27,8 +27,10 @@ partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 
 - 🛑 NEVER generate content without user input
 
-- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding leads to incomplete decisions
-- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before proceeding
+- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding
+  leads to incomplete decisions
+- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before
+  proceeding
 - ✅ ALWAYS treat this as collaborative discovery between PM peers
 - 📋 YOU ARE A FACILITATOR, not a content generator
 - 💬 FOCUS on project-type specific requirements and technical considerations
@@ -94,8 +96,8 @@ For each question in `key_questions` from CSV:
 - Listen for their response and ask clarifying follow-ups
 - Connect answers to product value proposition
 
-**Example Flow:**
-If key_questions = "Endpoints needed?;Authentication method?;Data formats?;Rate limits?;Versioning?;SDK needed?"
+**Example Flow:** If key_questions = "Endpoints needed?;Authentication method?;Data formats?;Rate
+limits?;Versioning?;SDK needed?"
 
 Ask naturally:
 
@@ -121,7 +123,8 @@ Skip areas indicated by `skip_sections` from CSV to avoid wasting time on irrele
 
 ### 4. Generate Dynamic Content Sections
 
-Parse `required_sections` list from the matched CSV row. For each section name, generate corresponding content:
+Parse `required_sections` list from the matched CSV row. For each section name, generate
+corresponding content:
 
 #### Common CSV Section Mappings:
 
@@ -166,23 +169,24 @@ When saving to document, append these Level 2 and Level 3 sections:
 
 ### 6. Present Content and Menu
 
-Show the generated project-type content and present choices:
-"I've documented the {project_type}-specific requirements for {{project_name}} based on our conversation and best practices for this type of product.
+Show the generated project-type content and present choices: "I've documented the
+{project_type}-specific requirements for {{project_name}} based on our conversation and best
+practices for this type of product.
 
 **Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 5]
 
-**What would you like to do?**
-[A] Advanced Elicitation - Let's dive deeper into these technical requirements
-[P] Party Mode - Bring technical expertise perspectives to validate requirements
-[C] Continue - Save this and move to Scoping (Step 8 of 11)"
+**What would you like to do?** [A] Advanced Elicitation - Let's dive deeper into these technical
+requirements [P] Party Mode - Bring technical expertise perspectives to validate requirements [C]
+Continue - Save this and move to Scoping (Step 8 of 11)"
 
 ### 7. Handle Menu Selection
 
 #### If 'A' (Advanced Elicitation):
 
-- Execute {project-root}/\_bmad/core/tasks/advanced-elicitation.xml with the current project-type content
+- Execute {project-root}/\_bmad/core/tasks/advanced-elicitation.xml with the current project-type
+  content
 - Process the enhanced technical insights that come back
 - Ask user: "Accept these improvements to the technical requirements? (y/n)"
 - If yes: Update content with improvements, then return to A/P/C menu
@@ -190,7 +194,8 @@ Show the generated project-type content and present choices:
 
 #### If 'P' (Party Mode):
 
-- Execute {project-root}/\_bmad/core/workflows/party-mode/workflow.md with the current project-type requirements
+- Execute {project-root}/\_bmad/core/workflows/party-mode/workflow.md with the current project-type
+  requirements
 - Process the collaborative technical expertise and validation
 - Ask user: "Accept these changes to the technical requirements? (y/n)"
 - If yes: Update content with improvements, then return to A/P/C menu
@@ -208,27 +213,22 @@ When user selects 'C', append the content directly to the document using the str
 
 ## SUCCESS METRICS:
 
-✅ Project-type configuration loaded and used effectively
-✅ All key questions from CSV explored with user input
-✅ Required sections generated per CSV configuration
-✅ Skip sections properly avoided to save time
-✅ Technical requirements connected to product value
-✅ A/P/C menu presented and handled correctly
-✅ Content properly appended to document when C selected
+✅ Project-type configuration loaded and used effectively ✅ All key questions from CSV explored
+with user input ✅ Required sections generated per CSV configuration ✅ Skip sections properly
+avoided to save time ✅ Technical requirements connected to product value ✅ A/P/C menu presented
+and handled correctly ✅ Content properly appended to document when C selected
 
 ## FAILURE MODES:
 
-❌ Not loading or using project-type CSV configuration
-❌ Missing key questions from CSV in discovery process
-❌ Not generating required sections per CSV configuration
-❌ Documenting sections that should be skipped per CSV
-❌ Creating generic content without project-type specificity
-❌ Not presenting A/P/C menu after content generation
-❌ Appending content without user selecting 'C'
+❌ Not loading or using project-type CSV configuration ❌ Missing key questions from CSV in
+discovery process ❌ Not generating required sections per CSV configuration ❌ Documenting sections
+that should be skipped per CSV ❌ Creating generic content without project-type specificity ❌ Not
+presenting A/P/C menu after content generation ❌ Appending content without user selecting 'C'
 
-❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
-❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step file
-❌ **CRITICAL**: Making decisions without complete understanding of step requirements and protocols
+❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor
+decisions ❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step
+file ❌ **CRITICAL**: Making decisions without complete understanding of step requirements and
+protocols
 
 ## PROJECT-TYPE EXAMPLES:
 
@@ -252,6 +252,9 @@ When user selects 'C', append the content directly to the document using the str
 
 ## NEXT STEP:
 
-After user selects 'C' and content is saved to document, load `{project-root}/_bmad/bmm/workflows/2-plan-workflows/prd/steps/step-08-scoping.md` to define project scope.
+After user selects 'C' and content is saved to document, load
+`{project-root}/_bmad/bmm/workflows/2-plan-workflows/prd/steps/step-08-scoping.md` to define project
+scope.
 
-Remember: Do NOT proceed to step-08 (Scoping) until user explicitly selects 'C' from the A/P/C menu and content is saved!
+Remember: Do NOT proceed to step-08 (Scoping) until user explicitly selects 'C' from the A/P/C menu
+and content is saved!

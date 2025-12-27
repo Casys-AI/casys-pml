@@ -19,12 +19,13 @@ d'amélioration.
 
 **Casys PML = "Procedural Memory Layer"** - ce nom révèle une dualité :
 
-| Niveau | Rôle de PML | Description |
-|--------|-------------|-------------|
-| **Macro (CoALA)** | PML **EST** une mémoire procédurale | Pour les agents LLM, PML stocke "comment faire" : capabilities, workflow patterns, DAGs |
-| **Micro (Interne)** | PML **A** ses propres mémoires | Working (WorkflowState), Episodic (Traces+PER), Semantic (Capabilities+GraphRAG), Procedural (DAGSuggester+TD) |
+| Niveau              | Rôle de PML                         | Description                                                                                                    |
+| ------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| **Macro (CoALA)**   | PML **EST** une mémoire procédurale | Pour les agents LLM, PML stocke "comment faire" : capabilities, workflow patterns, DAGs                        |
+| **Micro (Interne)** | PML **A** ses propres mémoires      | Working (WorkflowState), Episodic (Traces+PER), Semantic (Capabilities+GraphRAG), Procedural (DAGSuggester+TD) |
 
-**Implication:** Casys PML peut s'intégrer comme composant "Procedural Memory" d'un système CoALA plus large, tout en ayant sa propre architecture cognitive interne.
+**Implication:** Casys PML peut s'intégrer comme composant "Procedural Memory" d'un système CoALA
+plus large, tout en ayant sa propre architecture cognitive interne.
 
 ---
 
@@ -118,7 +119,7 @@ Experience trajectories → Reflect → Write to Long-term Memory → Improve fu
 
 ### 2.2 Notre Memory Architecture (Implicite)
 
-| Type           | Casys PML Équivalent                                 | Storage   | Scope            |
+| Type           | Casys PML Équivalent                                  | Storage   | Scope            |
 | -------------- | ----------------------------------------------------- | --------- | ---------------- |
 | **Working**    | `WorkflowState` (messages, tasks, decisions, context) | In-memory | Current workflow |
 | **Episodic**   | `state.tasks[]` + Checkpoints (PGlite)                | PGlite    | Current + resume |
@@ -144,7 +145,9 @@ Experience trajectories → Reflect → Write to Long-term Memory → Improve fu
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Note:** GraphRAG n'est pas purement sémantique. La partie "Graph" (edges, PageRank) est plutôt procédurale/épisodique (patterns appris des exécutions). La partie "RAG" est sémantique (retrieval par sens).
+**Note:** GraphRAG n'est pas purement sémantique. La partie "Graph" (edges, PageRank) est plutôt
+procédurale/épisodique (patterns appris des exécutions). La partie "RAG" est sémantique (retrieval
+par sens).
 
 ### 2.3 Notre Action Space
 
@@ -165,7 +168,7 @@ Experience trajectories → Reflect → Write to Long-term Memory → Improve fu
 
 ### 3.1 Feedback Loops Comparison
 
-| Aspect             | CoALA Decision Cycle                  | Casys PML Loop 1 (Execution)            |
+| Aspect             | CoALA Decision Cycle                  | Casys PML Loop 1 (Execution)             |
 | ------------------ | ------------------------------------- | ---------------------------------------- |
 | **Purpose**        | Make decisions with planning          | Execute DAG tasks with observability     |
 | **Components**     | Propose → Evaluate → Select → Execute | Event stream → Command queue → Execute   |
@@ -173,7 +176,7 @@ Experience trajectories → Reflect → Write to Long-term Memory → Improve fu
 | **Cycle time**     | Per-decision                          | Per-task                                 |
 | **Key difference** | ❌ No explicit evaluation step        | ✅ Event-driven, observable              |
 
-| Aspect             | CoALA Learning Loop               | Casys PML Loop 3 (Meta-Learning)     |
+| Aspect             | CoALA Learning Loop               | Casys PML Loop 3 (Meta-Learning)      |
 | ------------------ | --------------------------------- | ------------------------------------- |
 | **Purpose**        | Improve agent from trajectories   | Improve system from all workflows     |
 | **Memory**         | Episodic → Semantic → Procedural  | GraphRAG (edges, PageRank)            |
@@ -204,17 +207,19 @@ Casys PML: Execute task 1 → Discover XML → Replan → Add parse_xml → Cont
 
 ### 3.3 Memory Architecture Comparison
 
-| Memory         | CoALA                        | Casys PML                              | Gap/Opportunity                         |
-| -------------- | ---------------------------- | -------------------------------------- | --------------------------------------- |
-| **Working**    | Symbolic variables, goals    | WorkflowState                          | ⚠️ No explicit goals tracking           |
-| **Episodic**   | Training pairs, trajectories | Checkpoints + Execution Traces         | ✅ Epic 11 ajoute PER pour prioritization |
-| **Semantic**   | Facts, inferences            | Capabilities+Intent (pur) + GraphRAG (hybride) | ✅ Plus riche que CoALA!          |
-| **Procedural** | LLM + code                   | DAGSuggester + TD Learning             | ✅ Epic 11 ajoute TD Learning           |
+| Memory         | CoALA                        | Casys PML                                      | Gap/Opportunity                           |
+| -------------- | ---------------------------- | ---------------------------------------------- | ----------------------------------------- |
+| **Working**    | Symbolic variables, goals    | WorkflowState                                  | ⚠️ No explicit goals tracking             |
+| **Episodic**   | Training pairs, trajectories | Checkpoints + Execution Traces                 | ✅ Epic 11 ajoute PER pour prioritization |
+| **Semantic**   | Facts, inferences            | Capabilities+Intent (pur) + GraphRAG (hybride) | ✅ Plus riche que CoALA!                  |
+| **Procedural** | LLM + code                   | DAGSuggester + TD Learning                     | ✅ Epic 11 ajoute TD Learning             |
 
 **Clarification importante:**
+
 - **Semantic pure** = Capabilities + Intent (faits explicites sur les outils)
 - **Semantic hybride** = GraphRAG (Graph = patterns appris, RAG = retrieval sémantique)
-- **Episodic amélioré** = PER (Prioritized Experience Replay) priorise les traces surprenantes (Epic 11)
+- **Episodic amélioré** = PER (Prioritized Experience Replay) priorise les traces surprenantes
+  (Epic 11)
 - **Procedural amélioré** = TD Learning met à jour les poids du graphe incrémentalement (Epic 11)
 
 **Key Insight:** Notre checkpoints sont pour **resume**, pas pour **learning retrieval**. CoALA
@@ -723,7 +728,8 @@ identified as superior to CoALA's 2-loop model.
 
 **Date mise à jour:** 2025-12-18
 
-Depuis la rédaction initiale de ce spike, l'architecture a évolué avec l'ajout de mécanismes d'apprentissage avancés dans **Epic 11 - Learning from Traces**.
+Depuis la rédaction initiale de ce spike, l'architecture a évolué avec l'ajout de mécanismes
+d'apprentissage avancés dans **Epic 11 - Learning from Traces**.
 
 ### 9.1 TD Learning (Temporal Difference Learning)
 
@@ -738,7 +744,7 @@ Depuis la rédaction initiale de ce spike, l'architecture a évolué avec l'ajou
 interface TDUpdate {
   edge_id: string;
   old_weight: number;
-  reward: number;        // 1.0 = succès, 0.0 = échec
+  reward: number; // 1.0 = succès, 0.0 = échec
   learning_rate: number; // α = 0.1 par défaut
 }
 
@@ -762,8 +768,8 @@ interface ExecutionTrace {
   trace_id: string;
   capability_id: string;
   tool_sequence: string[];
-  outcome: 'success' | 'failure';
-  priority: number;  // Calculé par PER
+  outcome: "success" | "failure";
+  priority: number; // Calculé par PER
 }
 
 function calculatePriority(predicted: number, actual: number): number {
@@ -781,13 +787,14 @@ function calculatePriority(predicted: number, actual: number): number {
 
 ### 9.3 Impact sur l'Architecture CoALA Comparison
 
-| Aspect | Avant Epic 11 | Après Epic 11 | Comparaison CoALA |
-|--------|---------------|---------------|-------------------|
-| **Learning Loop** | Batch (GraphRAG.update) | Incrémental (TD Learning) | ✅ Plus réactif |
-| **Episodic Memory** | Checkpoints (resume only) | + PER (prioritized traces) | ✅ Retrieval actif |
-| **Procédural** | Code fixe | + TD weights adaptatifs | ✅ Auto-amélioration |
+| Aspect              | Avant Epic 11             | Après Epic 11              | Comparaison CoALA    |
+| ------------------- | ------------------------- | -------------------------- | -------------------- |
+| **Learning Loop**   | Batch (GraphRAG.update)   | Incrémental (TD Learning)  | ✅ Plus réactif      |
+| **Episodic Memory** | Checkpoints (resume only) | + PER (prioritized traces) | ✅ Retrieval actif   |
+| **Procédural**      | Code fixe                 | + TD weights adaptatifs    | ✅ Auto-amélioration |
 
-**Conclusion:** Epic 11 comble les gaps identifiés dans ce spike (sections 5.1, 5.2) avec des mécanismes issus du Reinforcement Learning.
+**Conclusion:** Epic 11 comble les gaps identifiés dans ce spike (sections 5.1, 5.2) avec des
+mécanismes issus du Reinforcement Learning.
 
 **Référence:** `docs/epics/epic-11-learning-from-traces.md` (Stories 11.2, 11.3)
 
@@ -811,6 +818,8 @@ function calculatePriority(predicted: number, actual: number): number {
 ---
 
 **Changelog:**
+
 - 2025-11-13: Spike initial - comparaison CoALA vs Casys PML
-- 2025-12-18: Ajout section 9 (TD Learning & PER), clarification mémoire sémantique (GraphRAG = hybride)
+- 2025-12-18: Ajout section 9 (TD Learning & PER), clarification mémoire sémantique (GraphRAG =
+  hybride)
 - 2025-12-18: Ajout "Mise en Abyme Architecturale" - PML est ET a une mémoire procédurale

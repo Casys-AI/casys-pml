@@ -15,7 +15,7 @@ async function install(options) {
   // eslint-disable-next-line no-unused-vars
   const { projectRoot, config, installedIDEs, logger } = options;
 
-  logger.log('Installing {module_display_name}...');
+  logger.log("Installing {module_display_name}...");
 
   try {
     // TODO: Add your custom installation logic here
@@ -35,7 +35,7 @@ async function install(options) {
     //   version: config.module_version
     // }, null, 2));
 
-    logger.log('{module_display_name} installation complete!');
+    logger.log("{module_display_name} installation complete!");
     return true;
   } catch (error) {
     logger.error(`Installation failed: ${error.message}`);

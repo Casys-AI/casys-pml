@@ -213,9 +213,9 @@ export default function LandingPage({ data }: { data: LandingPageData }) {
                 <span class="hero-title-accent">Then another agent used it.</span>
               </h1>
               <p class="hero-desc">
-                Casys PML captures emergent workflows — tool combinations that agents discover through
-                execution, not design. These patterns crystallize into reusable skills.
-                RAG gave agents knowledge. PML gives them skills.
+                Casys PML captures emergent workflows — tool combinations that agents discover
+                through execution, not design. These patterns crystallize into reusable skills. RAG
+                gave agents knowledge. PML gives them skills.
               </p>
               <div class="hero-actions">
                 <a href="#how" class="btn btn-primary">
@@ -435,7 +435,9 @@ export default function LandingPage({ data }: { data: LandingPageData }) {
                 </div>
                 <h4>SuperHyperGraph Structure</h4>
                 <p>
-                  Recursive n-ary relationships capture how tools combine into capabilities, and capabilities into meta-capabilities. Not just pairs — full patterns with unlimited nesting.
+                  Recursive n-ary relationships capture how tools combine into capabilities, and
+                  capabilities into meta-capabilities. Not just pairs — full patterns with unlimited
+                  nesting.
                 </p>
               </div>
 
@@ -538,8 +540,8 @@ export default function LandingPage({ data }: { data: LandingPageData }) {
             <div class="cta-content">
               <h2>Curious? Dive in.</h2>
               <p>
-                Casys PML is fully open source. Explore the code, run experiments, or contribute to the
-                research.
+                Casys PML is fully open source. Explore the code, run experiments, or contribute to
+                the research.
               </p>
               <div class="cta-actions">
                 <a

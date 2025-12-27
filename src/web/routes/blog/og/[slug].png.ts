@@ -18,12 +18,12 @@ let fontDataBold: ArrayBuffer | null = null;
 async function loadFonts() {
   if (!fontData) {
     fontData = await fetch(
-      "https://cdn.jsdelivr.net/fontsource/fonts/geist-sans@latest/latin-600-normal.woff"
+      "https://cdn.jsdelivr.net/fontsource/fonts/geist-sans@latest/latin-600-normal.woff",
     ).then((res) => res.arrayBuffer());
   }
   if (!fontDataBold) {
     fontDataBold = await fetch(
-      "https://cdn.jsdelivr.net/fontsource/fonts/geist-sans@latest/latin-700-normal.woff"
+      "https://cdn.jsdelivr.net/fontsource/fonts/geist-sans@latest/latin-700-normal.woff",
     ).then((res) => res.arrayBuffer());
   }
   return { fontData, fontDataBold };
@@ -46,7 +46,7 @@ export const handler = {
       if (!wasmInitialized) {
         try {
           await initWasm(
-            fetch("https://unpkg.com/@resvg/resvg-wasm@2.6.2/index_bg.wasm")
+            fetch("https://unpkg.com/@resvg/resvg-wasm@2.6.2/index_bg.wasm"),
           );
           wasmInitialized = true;
         } catch (e) {
@@ -231,7 +231,7 @@ export const handler = {
               style: "normal",
             },
           ],
-        }
+        },
       );
 
       // Convert SVG to PNG

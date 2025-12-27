@@ -1,10 +1,16 @@
 # Workflow Status Check - Multi-Mode Service
 
-<critical>The workflow execution engine is governed by: {project-root}/\_bmad/core/tasks/workflow.xml</critical>
-<critical>You MUST have already loaded and processed: {project-root}/\_bmad/bmm/workflows/workflow-status/workflow.yaml</critical>
-<critical>This workflow operates in multiple modes: interactive (default), validate, data, init-check, update</critical>
+<critical>The workflow execution engine is governed by:
+{project-root}/\_bmad/core/tasks/workflow.xml</critical>
+<critical>You MUST have already loaded and processed:
+{project-root}/\_bmad/bmm/workflows/workflow-status/workflow.yaml</critical>
+<critical>This workflow operates in multiple modes: interactive (default), validate, data,
+init-check, update</critical>
 <critical>Other workflows can call this as a service to avoid duplicating status logic</critical>
-<critical>⚠️ ABSOLUTELY NO TIME ESTIMATES - NEVER mention hours, days, weeks, months, or ANY time-based predictions. AI has fundamentally changed development speed - what once took teams weeks/months can now be done by one person in hours. DO NOT give ANY time estimates whatsoever.</critical>
+<critical>⚠️ ABSOLUTELY NO TIME ESTIMATES - NEVER mention hours, days, weeks, months, or ANY
+time-based predictions. AI has fundamentally changed development speed - what once took teams
+weeks/months can now be done by one person in hours. DO NOT give ANY time estimates
+whatsoever.</critical>
 
 <workflow>
 
@@ -12,23 +18,23 @@
   <action>Check for {{mode}} parameter passed by calling workflow</action>
   <action>Default mode = "interactive" if not specified</action>
 
-  <check if="mode == interactive">
+<check if="mode == interactive">
     <action>Continue to Step 1 for normal status check flow</action>
   </check>
 
-  <check if="mode == validate">
+<check if="mode == validate">
     <action>Jump to Step 10 for workflow validation service</action>
   </check>
 
-  <check if="mode == data">
+<check if="mode == data">
     <action>Jump to Step 20 for data extraction service</action>
   </check>
 
-  <check if="mode == init-check">
+<check if="mode == init-check">
     <action>Jump to Step 30 for simple init check</action>
   </check>
 
-  <check if="mode == update">
+<check if="mode == update">
     <action>Jump to Step 40 for status update service</action>
   </check>
 </step>
@@ -40,13 +46,13 @@
   <output>No workflow status found.</output>
   <ask>Would you like to run Workflow Init now? (y/n)</ask>
 
-  <check if="response == y OR response == yes">
+<check if="response == y OR response == yes">
     <action>Launching workflow-init to set up your project tracking...</action>
     <invoke-workflow path="{project-root}/_bmad/bmm/workflows/workflow-status/init/workflow.yaml"></invoke-workflow>
     <action>Exit workflow and let workflow-init take over</action>
   </check>
 
-  <check if="else">
+<check if="else">
     <output>No workflow status file. Run workflow-init when ready to enable progress tracking.</output>
     <action>Exit workflow</action>
   </check>
@@ -98,13 +104,9 @@ Parse these fields from YAML comments and metadata:
 
 **Progress:**
 
-{{#each phases}}
-{{phase_name}}:
-{{#each workflows_in_phase}}
+{{#each phases}} {{phase_name}}: {{#each workflows_in_phase}}
 
-- {{workflow_name}} ({{agent}}): {{status_display}}
-  {{/each}}
-  {{/each}}
+- {{workflow_name}} ({{agent}}): {{status_display}} {{/each}} {{/each}}
 
 ## 🎯 Next Steps
 
@@ -114,23 +116,18 @@ Parse these fields from YAML comments and metadata:
 
 **Command:** /bmad:bmm:workflows:{{next_workflow_id}}
 
-{{#if optional_workflows_available}}
-**Optional Workflows Available:**
-{{#each optional_workflows}}
+{{#if optional_workflows_available}} **Optional Workflows Available:** {{#each optional_workflows}}
 
-- {{workflow_name}} ({{agent}}) - {{status}}
-  {{/each}}
-  {{/if}}
+- {{workflow_name}} ({{agent}}) - {{status}} {{/each}} {{/if}}
   </output>
   </step>
 
 <step n="4" goal="Offer actions">
 <ask>What would you like to do?
 
-1. **Start next workflow** - {{next_workflow_name}} ({{next_agent}})
-   {{#if optional_workflows_available}}
-2. **Run optional workflow** - Choose from available options
-   {{/if}}
+1. **Start next workflow** - {{next_workflow_name}} ({{next_agent}}) {{#if
+   optional_workflows_available}}
+2. **Run optional workflow** - Choose from available options {{/if}}
 3. **View full status YAML** - See complete status file
 4. **Update workflow status** - Mark a workflow as completed or skipped
 5. **Exit** - Return to agent
@@ -146,9 +143,8 @@ Your choice:</ask>
 
 **Agent:** Load {{next_agent}} agent first
 
-{{#if next_agent !== current_agent}}
-Tip: Start a new chat and load the {{next_agent}} agent before running this workflow.
-{{/if}}
+{{#if next_agent !== current_agent}} Tip: Start a new chat and load the {{next_agent}} agent before
+running this workflow. {{/if}}
 </output>
 </check>
 
@@ -174,7 +170,7 @@ Your choice:</ask>
 
 Your choice:</ask>
 
-  <check if="update_choice == 1">
+<check if="update_choice == 1">
     <ask>Which workflow? (Enter workflow ID like 'prd' or 'create-architecture')</ask>
     <ask>File path created? (e.g., docs/prd.md)</ask>
     <critical>ONLY write the file path as the status value - no other text, notes, or metadata</critical>
@@ -183,7 +179,7 @@ Your choice:</ask>
     <output>✅ Updated {{workflow_id}} to completed: {{file_path}}</output>
   </check>
 
-  <check if="update_choice == 2">
+<check if="update_choice == 2">
     <ask>Which workflow to skip? (Enter workflow ID)</ask>
     <action>Update workflow_status in YAML file: {{workflow_id}}: skipped</action>
     <action>Save updated YAML file</action>
@@ -219,13 +215,13 @@ Your choice:</ask>
 <template-output>field_type = {{field_type}}</template-output>
 <template-output>next_workflow = {{next_workflow_id}}</template-output>
 
-  <check if="calling_workflow == next_workflow">
+<check if="calling_workflow == next_workflow">
     <template-output>should_proceed = true</template-output>
     <template-output>warning = ""</template-output>
     <template-output>suggestion = "Proceeding with planned next step"</template-output>
   </check>
 
-  <check if="calling_workflow in workflow_status list">
+<check if="calling_workflow in workflow_status list">
     <action>Check the status of calling_workflow in YAML</action>
 
     <check if="status is file path">
@@ -246,9 +242,9 @@ Your choice:</ask>
       <template-output>suggestion = "Consider running {{next_workflow}} instead, or continue if intentional"</template-output>
     </check>
 
-  </check>
+</check>
 
-  <check if="calling_workflow NOT in workflow_status list">
+<check if="calling_workflow NOT in workflow_status list">
     <template-output>should_proceed = true</template-output>
     <template-output>warning = "⚠️ Unknown workflow: {{calling_workflow}} not in workflow path"</template-output>
     <template-output>suggestion = "This workflow is not part of the defined path for this project"</template-output>
@@ -273,7 +269,7 @@ Your choice:</ask>
   <action>Parse YAML file completely</action>
   <template-output>status_exists = true</template-output>
 
-  <check if="data_request == project_config">
+<check if="data_request == project_config">
     <template-output>project_name = {{project}}</template-output>
     <template-output>project_type = {{project_type}}</template-output>
     <template-output>project_level = {{project_level}}</template-output>
@@ -281,7 +277,7 @@ Your choice:</ask>
     <template-output>workflow_path = {{workflow_path}}</template-output>
   </check>
 
-  <check if="data_request == workflow_status">
+<check if="data_request == workflow_status">
     <action>Parse workflow_status section and return all workflow: status pairs</action>
     <template-output>workflow_status = {{workflow_status_object}}</template-output>
     <action>Calculate completion stats:</action>
@@ -291,7 +287,7 @@ Your choice:</ask>
     <template-output>skipped_workflows = {{count skipped}}</template-output>
   </check>
 
-  <check if="data_request == all">
+<check if="data_request == all">
     <action>Return all parsed fields as template outputs</action>
     <template-output>project = {{project}}</template-output>
     <template-output>project_type = {{project_type}}</template-output>
@@ -338,10 +334,10 @@ Your choice:</ask>
   <action>Load workflow path file from workflow_path field</action>
   <action>Check {{action}} parameter to determine update type</action>
 
-  <!-- ============================================= -->
-  <!-- ACTION: complete_workflow -->
-  <!-- ============================================= -->
-  <check if="action == complete_workflow">
+<!-- ============================================= -->
+<!-- ACTION: complete_workflow -->
+<!-- ============================================= -->
+<check if="action == complete_workflow">
     <action>Get {{workflow_id}} parameter (required)</action>
     <action>Get {{output_file}} parameter (required - path to created file)</action>
 
@@ -361,12 +357,12 @@ Your choice:</ask>
     <template-output>completed_workflow = {{workflow_id}}</template-output>
     <template-output>output_file = {{output_file}}</template-output>
 
-  </check>
+</check>
 
-  <!-- ============================================= -->
-  <!-- ACTION: skip_workflow -->
-  <!-- ============================================= -->
-  <check if="action == skip_workflow">
+<!-- ============================================= -->
+<!-- ACTION: skip_workflow -->
+<!-- ============================================= -->
+<check if="action == skip_workflow">
     <action>Get {{workflow_id}} parameter (required)</action>
 
     <action>Update workflow status in YAML:</action>
@@ -377,12 +373,12 @@ Your choice:</ask>
     <template-output>success = true</template-output>
     <template-output>skipped_workflow = {{workflow_id}}</template-output>
 
-  </check>
+</check>
 
-  <!-- ============================================= -->
-  <!-- Unknown action -->
-  <!-- ============================================= -->
-  <check if="action not recognized">
+<!-- ============================================= -->
+<!-- Unknown action -->
+<!-- ============================================= -->
+<check if="action not recognized">
     <template-output>success = false</template-output>
     <template-output>error = "Unknown action: {{action}}. Valid actions: complete_workflow, skip_workflow"</template-output>
   </check>

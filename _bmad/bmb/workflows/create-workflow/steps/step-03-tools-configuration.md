@@ -1,23 +1,23 @@
 ---
-name: 'step-03-tools-configuration'
-description: 'Configure all required tools (core, memory, external) and installation requirements in one comprehensive step'
+name: "step-03-tools-configuration"
+description: "Configure all required tools (core, memory, external) and installation requirements in one comprehensive step"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmb/workflows/create-workflow'
+workflow_path: "{project-root}/_bmad/bmb/workflows/create-workflow"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-03-tools-configuration.md'
-nextStepFile: '{workflow_path}/steps/step-04-plan-review.md'
+thisStepFile: "{workflow_path}/steps/step-03-tools-configuration.md"
+nextStepFile: "{workflow_path}/steps/step-04-plan-review.md"
 
-targetWorkflowPath: '{bmb_creations_output_folder}/workflows/{new_workflow_name}'
-workflowPlanFile: '{targetWorkflowPath}/workflow-plan-{new_workflow_name}.md'
+targetWorkflowPath: "{bmb_creations_output_folder}/workflows/{new_workflow_name}"
+workflowPlanFile: "{targetWorkflowPath}/workflow-plan-{new_workflow_name}.md"
 
 # Documentation References
-commonToolsCsv: '{project-root}/_bmad/bmb/docs/workflows/common-workflow-tools.csv'
+commonToolsCsv: "{project-root}/_bmad/bmb/docs/workflows/common-workflow-tools.csv"
 
 # Task References
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 # Template References
 # No template needed - will append tools configuration directly to workflow plan
 ---
@@ -26,7 +26,8 @@ partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 
 ## STEP GOAL:
 
-To comprehensively configure all tools needed for the workflow (core tools, memory, external tools) and determine installation requirements.
+To comprehensively configure all tools needed for the workflow (core tools, memory, external tools)
+and determine installation requirements.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -40,7 +41,8 @@ To comprehensively configure all tools needed for the workflow (core tools, memo
 ### Role Reinforcement:
 
 - ✅ You are a workflow architect and integration specialist
-- ✅ If you already have been given communication or persona patterns, continue to use those while playing this new role
+- ✅ If you already have been given communication or persona patterns, continue to use those while
+  playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You bring expertise in BMAD tools and integration patterns
 - ✅ User brings their workflow requirements and preferences
@@ -72,7 +74,8 @@ To comprehensively configure all tools needed for the workflow (core tools, memo
 
 "Configuring **Tools and Integrations**
 
-Based on your workflow requirements, let's configure all the tools your workflow will need. This includes core BMAD tools, memory systems, and any external integrations."
+Based on your workflow requirements, let's configure all the tools your workflow will need. This
+includes core BMAD tools, memory systems, and any external integrations."
 
 ### 2. Load and Present Available Tools
 
@@ -88,7 +91,8 @@ Load `{commonToolsCsv}` and present tools by category:
 
 - [List tools from CSV where propose='example', with descriptions]
 
-_Note: I'm loading these dynamically from our tools database to ensure you have the most current options._"
+_Note: I'm loading these dynamically from our tools database to ensure you have the most current
+options._"
 
 ### 3. Configure Core BMAD Tools
 
@@ -214,19 +218,23 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu
-- User can chat or ask questions - always respond and then end with display again of the menu options
+- User can chat or ask questions - always respond and then end with display again of the menu
+  options
 - Use menu handling logic section below
 
 #### Menu Handling Logic:
 
 - IF A: Execute {advancedElicitationTask}
 - IF P: Execute {partyModeWorkflow}
-- IF C: Save tools configuration to {workflowPlanFile}, update frontmatter, then load, read entire file, then execute {nextStepFile}
-- IF Any other comments or queries: help user respond then [Redisplay Menu Options](#9-present-menu-options)
+- IF C: Save tools configuration to {workflowPlanFile}, update frontmatter, then load, read entire
+  file, then execute {nextStepFile}
+- IF Any other comments or queries: help user respond then
+  [Redisplay Menu Options](#9-present-menu-options)
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN C is selected and tools configuration is saved will you load {nextStepFile} to review the complete plan.
+ONLY WHEN C is selected and tools configuration is saved will you load {nextStepFile} to review the
+complete plan.
 
 ---
 
@@ -247,4 +255,5 @@ ONLY WHEN C is selected and tools configuration is saved will you load {nextStep
 - Not documenting user choices
 - Proceeding without user confirmation
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

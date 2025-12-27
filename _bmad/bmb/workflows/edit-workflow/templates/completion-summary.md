@@ -13,8 +13,7 @@
 {{#improvements}}
 
 - **{{area}}**: {{description}}
-  - **Impact**: {{impact}}
-    {{/improvements}}
+  - **Impact**: {{impact}} {{/improvements}}
 
 #### Key Changes
 
@@ -40,8 +39,7 @@
 
 {{#modifiedFiles}}
 
-- **{{type}}**: {{path}}
-  {{/modifiedFiles}}
+- **{{type}}**: {{path}} {{/modifiedFiles}}
 
 ### Next Steps
 
@@ -68,7 +66,8 @@
 
 ### Thank You!
 
-Thank you for collaboratively improving this workflow. Your workflow now follows best practices and should provide a better experience for your users.
+Thank you for collaboratively improving this workflow. Your workflow now follows best practices and
+should provide a better experience for your users.
 
 ---
 

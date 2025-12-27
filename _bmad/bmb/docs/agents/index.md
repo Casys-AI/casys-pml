@@ -6,10 +6,14 @@ Reference documentation for building BMAD agents and workflows.
 
 Comprehensive guides for each agent type (choose based on use case):
 
-- [Understanding Agent Types](./understanding-agent-types.md) - **START HERE** - Architecture vs capability, "The Same Agent, Three Ways"
-- [Simple Agent Architecture](./simple-agent-architecture.md) - Self-contained, optimized, personality-driven
-- [Expert Agent Architecture](./expert-agent-architecture.md) - Memory, sidecar files, domain restrictions
-- [Module Agent Architecture](./module-agent-architecture.md) - Workflow integration, professional tools
+- [Understanding Agent Types](./understanding-agent-types.md) - **START HERE** - Architecture vs
+  capability, "The Same Agent, Three Ways"
+- [Simple Agent Architecture](./simple-agent-architecture.md) - Self-contained, optimized,
+  personality-driven
+- [Expert Agent Architecture](./expert-agent-architecture.md) - Memory, sidecar files, domain
+  restrictions
+- [Module Agent Architecture](./module-agent-architecture.md) - Workflow integration, professional
+  tools
 
 ## Agent Design Patterns
 
@@ -50,6 +54,7 @@ Agents are authored in YAML with Handlebars templating. The compiler auto-inject
 3. **Menu Enhancement** - `*help` and `*exit` commands added automatically
 4. **Trigger Prefixing** - Your triggers auto-prefixed with `*`
 
-**Critical:** See [Agent Compilation](./agent-compilation.md) to avoid duplicating auto-injected content.
+**Critical:** See [Agent Compilation](./agent-compilation.md) to avoid duplicating auto-injected
+content.
 
 Source: `tools/cli/lib/agent/compiler.js`

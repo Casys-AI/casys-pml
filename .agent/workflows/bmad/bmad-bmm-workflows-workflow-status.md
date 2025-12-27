@@ -2,7 +2,8 @@
 description: 'Lightweight status checker - answers ""what should I do now?"" for any agent. Reads YAML status file for workflow tracking. Use workflow-init for new projects.'
 ---
 
-IT IS CRITICAL THAT YOU FOLLOW THESE STEPS - while staying in character as the current agent persona you may have loaded:
+IT IS CRITICAL THAT YOU FOLLOW THESE STEPS - while staying in character as the current agent persona
+you may have loaded:
 
 <steps CRITICAL="TRUE">
 1. Always LOAD the FULL @_bmad/core/tasks/workflow.xml

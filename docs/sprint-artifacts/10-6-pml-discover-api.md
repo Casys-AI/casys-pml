@@ -2,19 +2,18 @@
 
 Status: done
 
-> **Epic:** 10 - DAG Capability Learning & Unified APIs
-> **Tech-Spec:** [epic-10-dag-capability-learning-unified-apis.md](../epics/epic-10-dag-capability-learning-unified-apis.md)
-> **ADR:** [ADR-038 Scoring Algorithms](../adrs/ADR-038-scoring-algorithms-reference.md) - Mode **Active Search**
-> **Prerequisites:** Story 10.5 (Execute Code via DAG - DONE)
-> **Depends on:** VectorSearch, GraphRAGEngine, DAGSuggester, CapabilityStore
+> **Epic:** 10 - DAG Capability Learning & Unified APIs **Tech-Spec:**
+> [epic-10-dag-capability-learning-unified-apis.md](../epics/epic-10-dag-capability-learning-unified-apis.md)
+> **ADR:** [ADR-038 Scoring Algorithms](../adrs/ADR-038-scoring-algorithms-reference.md) - Mode
+> **Active Search** **Prerequisites:** Story 10.5 (Execute Code via DAG - DONE) **Depends on:**
+> VectorSearch, GraphRAGEngine, DAGSuggester, CapabilityStore
 
 ---
 
 ## Story
 
-As an AI agent,
-I want a single `pml_discover` tool to search both tools and capabilities,
-So that I have a simplified API for finding what I need instead of using multiple separate tools.
+As an AI agent, I want a single `pml_discover` tool to search both tools and capabilities, So that I
+have a simplified API for finding what I need instead of using multiple separate tools.
 
 ---
 
@@ -24,29 +23,31 @@ So that I have a simplified API for finding what I need instead of using multipl
 
 Claude doit actuellement choisir entre plusieurs tools de recherche :
 
-| Tool actuel | Ce qu'il fait | Quand l'utiliser |
-|-------------|---------------|------------------|
-| `pml_search_tools` | Recherche sémantique + graph sur les MCP tools | Quand on veut découvrir des tools |
-| `pml_search_capabilities` | Recherche de capabilities apprises | Quand on veut réutiliser du code éprouvé |
+| Tool actuel               | Ce qu'il fait                                  | Quand l'utiliser                         |
+| ------------------------- | ---------------------------------------------- | ---------------------------------------- |
+| `pml_search_tools`        | Recherche sémantique + graph sur les MCP tools | Quand on veut découvrir des tools        |
+| `pml_search_capabilities` | Recherche de capabilities apprises             | Quand on veut réutiliser du code éprouvé |
 
 **Problèmes :**
+
 1. **Fragmentation cognitive** - L'IA doit décider quel tool utiliser
 2. **Deux appels séparés** - Si l'IA veut les deux, elle fait 2 requêtes
 3. **Pas de ranking unifié** - Les scores ne sont pas comparables
 
 **Mode Active Search (ADR-038):**
 
-`pml_discover` implémente le mode **Active Search** - une recherche explicite par intent.
-C'est différent du mode **Passive Suggestion** qui suggère automatiquement pendant l'exécution.
+`pml_discover` implémente le mode **Active Search** - une recherche explicite par intent. C'est
+différent du mode **Passive Suggestion** qui suggère automatiquement pendant l'exécution.
 
-| Mode | Trigger | Algorithms | Implémentation |
-|------|---------|------------|----------------|
-| **Active Search** | `pml_discover({ intent })` | Hybrid Search + Capability Match | Cette story |
+| Mode                   | Trigger                         | Algorithms                                 | Implémentation                    |
+| ---------------------- | ------------------------------- | ------------------------------------------ | --------------------------------- |
+| **Active Search**      | `pml_discover({ intent })`      | Hybrid Search + Capability Match           | Cette story                       |
 | **Passive Suggestion** | Pendant workflow (contextTools) | Next Step Prediction + Strategic Discovery | `DAGSuggester.predictNextTools()` |
 
 **Solution : `pml_discover`**
 
 Un seul tool qui :
+
 - Cherche **à la fois** tools ET capabilities
 - Retourne un ranking **unifié** par score
 - Permet de **filtrer** par type si besoin
@@ -54,22 +55,24 @@ Un seul tool qui :
 
 **Migration:**
 
-| Phase | Changement |
-|-------|------------|
-| 10.6 | `pml_discover` créé, anciens tools **dépréciés** |
-| 10.7+ | Suppression des anciens tools |
+| Phase | Changement                                       |
+| ----- | ------------------------------------------------ |
+| 10.6  | `pml_discover` créé, anciens tools **dépréciés** |
+| 10.7+ | Suppression des anciens tools                    |
 
 ---
 
 ## Acceptance Criteria
 
 ### AC1: Handler pml_discover créé ✅
+
 - [x] Créer `src/mcp/handlers/discover-handler.ts`
 - [x] Handler `handleDiscover(args, vectorSearch, graphEngine, dagSuggester)`
 - [x] Input validation avec JSON Schema
 - [x] Export dans `src/mcp/handlers/mod.ts`
 
 ### AC2: Tool Definition créée ✅
+
 - [x] Ajouter `discoverTool` dans `src/mcp/tools/definitions.ts`
 - [x] Schema d'input :
   ```typescript
@@ -86,21 +89,23 @@ Un seul tool qui :
 - [x] Ajouter à `getMetaTools()` array
 
 ### AC3: Recherche unifiée implémentée ✅
+
 - [x] Vector search sur tools via `graphEngine.searchToolsHybrid()`
 - [x] Vector search sur capabilities via `dagSuggester.searchCapabilities()`
 - [x] Merge des résultats avec scores normalisés (0-1)
 - [x] Sort par `finalScore` décroissant
 
 ### AC4: Response format unifié ✅
+
 - [x] Structure de réponse :
   ```typescript
   interface DiscoverResponse {
     results: Array<{
       type: "tool" | "capability";
-      id: string;                    // tool_id ou capability_id
-      name: string;                  // Tool name ou capability name
+      id: string; // tool_id ou capability_id
+      name: string; // Tool name ou capability name
       description: string;
-      score: number;                 // Final score (0-1)
+      score: number; // Final score (0-1)
       // Tool-specific
       server_id?: string;
       input_schema?: JSONSchema;
@@ -109,7 +114,7 @@ Un seul tool qui :
       code_snippet?: string;
       success_rate?: number;
       usage_count?: number;
-      semantic_score?: number;       // For capabilities
+      semantic_score?: number; // For capabilities
     }>;
     meta: {
       query: string;
@@ -122,32 +127,38 @@ Un seul tool qui :
   ```
 
 ### AC5: Filtrage par type ✅
+
 - [x] `filter.type = "tool"` → uniquement des tools
 - [x] `filter.type = "capability"` → uniquement des capabilities
 - [x] `filter.type = "all"` (default) → mix trié par score
 - [x] `filter.minScore` → exclure les résultats sous le seuil
 
 ### AC6: Pagination ✅
+
 - [x] `limit` parameter (default: 10, max: 50)
 - [x] Résultats triés par score puis tronqués au limit
 
 ### AC7: Include Related Tools ✅
+
 - [x] Si `include_related = true`, ajouter `related_tools` pour chaque tool
 - [x] Réutiliser la logique existante de `handleSearchTools()`
 - [x] Les related tools ne comptent pas dans le `limit`
 
 ### AC8: Dépréciation des anciens tools ✅
+
 - [x] `pml_search_tools` : ajouter deprecation notice dans description
 - [x] `pml_search_capabilities` : ajouter deprecation notice dans description
 - [x] Log warning quand les anciens tools sont utilisés
 - [x] Les anciens tools continuent de fonctionner (backward compat)
 
 ### AC9: Enregistrement dans GatewayServer ✅
+
 - [x] Importer `handleDiscover` dans `gateway-server.ts`
 - [x] Ajouter case `"pml:discover"` dans `handleToolCall()`
 - [x] Passer les dépendances nécessaires (vectorSearch, graphEngine, dagSuggester)
 
 ### AC10: Tests unitaires ✅
+
 - [x] Test: search "read file" → retourne mix tools + capabilities
 - [x] Test: filter type="tool" → que des tools retournés
 - [x] Test: filter type="capability" → que des capabilities retournées
@@ -157,11 +168,13 @@ Un seul tool qui :
 - [x] Test: include_related ajoute related_tools
 
 ### AC11: Tests d'intégration ✅
+
 - [x] Test E2E: appel MCP `pml:discover` via gateway
 - [x] Test: dépréciation logged quand `pml_search_tools` utilisé
 - [x] Test: réponse backward compatible pour anciens tools
 
 ### AC12: Unified Search Algorithm Integration (ex-10.6a) ✅
+
 - [x] Formule simplifiée pour search sans contexte: `score = semantic × reliability`
 - [x] Pas d'alpha/graph quand `contextNodes.length === 0` (Adamic-Adar retourne 0)
 - [x] Appliquer `reliabilityFactor` aux tools (default successRate=1.0, boosted)
@@ -171,6 +184,7 @@ Un seul tool qui :
 - [x] Benchmark: unified-search.bench.ts exécuté
 
 ### AC13: Refactor discover-handler pour formule unifiée ✅
+
 - [x] Créer `computeDiscoverScore(semanticScore, successRate)` helper
 - [x] Appliquer formule `semantic × reliability` aux tools ET capabilities
 - [x] Utiliser `calculateReliabilityFactor()` de unified-search.ts (thresholds)
@@ -228,16 +242,23 @@ Un seul tool qui :
 
 ### Review Follow-ups (AI) - 2025-12-22
 
-- [x] [AI-Review][HIGH] AC11 Tests d'intégration manquants - FIXED: 5 E2E tests added in mcp_gateway_e2e_test.ts
+- [x] [AI-Review][HIGH] AC11 Tests d'intégration manquants - FIXED: 5 E2E tests added in
+      mcp_gateway_e2e_test.ts
 - [x] [AI-Review][MEDIUM] Documenter unified-search.ts dans File List - FIXED: Added to File List
-- [x] [AI-Review][MEDIUM] Valider intent non-vide - FIXED: Added trim() validation + test for whitespace-only intent
-- [x] [AI-Review][MEDIUM] Single-capability behavior - BY DESIGN: DAGSuggester.searchCapabilities returns best match only
-- [x] [AI-Review][MEDIUM] Simplifier searchTools() - BY DESIGN: API receives deps, forwards to engine (clean separation)
-- [x] [AI-Review][MEDIUM] Clarifier meta counts - FIXED: Added returned_count to meta (total_found vs returned_count)
+- [x] [AI-Review][MEDIUM] Valider intent non-vide - FIXED: Added trim() validation + test for
+      whitespace-only intent
+- [x] [AI-Review][MEDIUM] Single-capability behavior - BY DESIGN: DAGSuggester.searchCapabilities
+      returns best match only
+- [x] [AI-Review][MEDIUM] Simplifier searchTools() - BY DESIGN: API receives deps, forwards to
+      engine (clean separation)
+- [x] [AI-Review][MEDIUM] Clarifier meta counts - FIXED: Added returned_count to meta (total_found
+      vs returned_count)
 - [x] [AI-Review][LOW] transitiveReliability comment - VERIFIED: Implemented in matcher.ts:187-188
 - [x] [AI-Review][LOW] Change Log AC12-AC13 - Already documented in existing Change Log entry
-- [x] [AI-Review][LOW] Extraire GLOBAL_SCORE_CAP - FIXED: Added constant in unified-search.ts, exported and used
-- [x] [AI-Review][LOW] Tests dynamiques - FIXED: Tests now use computeDiscoverScore() and GLOBAL_SCORE_CAP
+- [x] [AI-Review][LOW] Extraire GLOBAL_SCORE_CAP - FIXED: Added constant in unified-search.ts,
+      exported and used
+- [x] [AI-Review][LOW] Tests dynamiques - FIXED: Tests now use computeDiscoverScore() and
+      GLOBAL_SCORE_CAP
 
 ---
 
@@ -245,10 +266,11 @@ Un seul tool qui :
 
 ### Unified Search Migration (AC12-13, 2025-12-22)
 
-**Motivation:** Actuellement deux formules différentes pour tools et capabilities.
-Migration vers une formule cohérente selon le contexte.
+**Motivation:** Actuellement deux formules différentes pour tools et capabilities. Migration vers
+une formule cohérente selon le contexte.
 
 **Avant (deux formules incohérentes):**
+
 ```typescript
 // Tools (graphEngine.searchToolsHybrid)
 finalScore = α × semantic + (1-α) × graph
@@ -258,6 +280,7 @@ score = semantic × reliability
 ```
 
 **Après (séparation claire):**
+
 ```typescript
 // pml_discover (recherche sans contexte)
 score = semantic × reliability
@@ -268,6 +291,7 @@ score = semantic × reliability
 ```
 
 **Pourquoi cette séparation:**
+
 - **pml_discover:** Recherche pure par intent, pas de contexte workflow
 - **predictNextNode:** Suggère le prochain nœud dans un workflow actif
   - Utilise DR-DSP pour pathfinding sur hypergraphe (remplace Dijkstra)
@@ -275,6 +299,7 @@ score = semantic × reliability
   - Story 10.7a (DR-DSP) + 10.7b (SHGAT)
 
 **Architecture des 4 modes:**
+
 - `pml_discover` → Cette story (formule simple `semantic × reliability`)
 - `suggestDAG` → Story 10.7a (DR-DSP pour pathfinding)
 - `predictNextNode` → Stories 10.7a/b (SHGAT + DR-DSP, **post-workflow** uniquement)
@@ -284,12 +309,14 @@ score = semantic × reliability
 L'intra-workflow utilise `speculateNextLayer` qui pré-exécute le DAG connu sans prédiction.
 
 **Modules existants à réutiliser:**
+
 - `src/graphrag/algorithms/unified-search.ts` → **UNIQUEMENT** `calculateReliabilityFactor()`
   - PAS le search algorithm complet (réservé pour future use)
   - PAS pour `predictNextNode` (utilise SHGAT + DR-DSP en 10.7a/b)
 - `src/graphrag/capability-store.ts` → `successRate` des capabilities
 
 **Architecture cible (simplifiée):**
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  handleDiscover(intent)                                      │
@@ -305,9 +332,9 @@ L'intra-workflow utilise `speculateNextLayer` qui pré-exécute le DAG connu san
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Note:** Le graph (alpha, Adamic-Adar) n'est PAS utilisé dans pml_discover
-car il n'y a pas de contexte. Pour `predictNextNode()` (workflow en cours),
-on utilise SHGAT + DR-DSP (stories 10.7a/b), pas unified-search.
+**Note:** Le graph (alpha, Adamic-Adar) n'est PAS utilisé dans pml_discover car il n'y a pas de
+contexte. Pour `predictNextNode()` (workflow en cours), on utilise SHGAT + DR-DSP (stories 10.7a/b),
+pas unified-search.
 
 **Estimation:** +0.5 jour sur story existante (formule simplifiée)
 
@@ -316,6 +343,7 @@ on utilise SHGAT + DR-DSP (stories 10.7a/b), pas unified-search.
 ### Architecture existante à réutiliser (ADR-038 Active Search)
 
 **Pour les tools - Hybrid Search (ADR-038 §2.1):**
+
 ```typescript
 // Formule: finalScore = alpha * semanticScore + (1 - alpha) * graphScore
 // Utilise graphEngine.searchToolsHybrid() qui retourne:
@@ -325,13 +353,14 @@ interface HybridSearchResult {
   description: string;
   schema?: { inputSchema: JSONSchema };
   semanticScore: number;
-  graphScore: number;      // Weighted Adamic-Adar
-  finalScore: number;      // Score normalisé 0-1
+  graphScore: number; // Weighted Adamic-Adar
+  finalScore: number; // Score normalisé 0-1
   relatedTools?: RelatedTool[];
 }
 ```
 
 **Pour les capabilities - searchByIntent + Capability Match (ADR-038 §3.1):**
+
 ```typescript
 // Flow: dagSuggester.searchCapabilities()
 //       → capabilityMatcher.findMatch()
@@ -341,13 +370,13 @@ interface HybridSearchResult {
 // capabilityStore.searchByIntent() retourne:
 interface CapabilitySearchResult {
   capability: Capability;
-  semanticScore: number;   // Cosine similarity (vector search)
+  semanticScore: number; // Cosine similarity (vector search)
 }
 
 // capabilityMatcher.findMatch() applique ADR-038 et retourne:
 interface CapabilityMatch {
   capability: Capability;
-  score: number;           // Final = semanticScore * reliabilityFactor
+  score: number; // Final = semanticScore * reliabilityFactor
   semanticScore: number;
   parametersSchema?: JSONSchema;
   thresholdUsed: number;
@@ -363,6 +392,7 @@ différents (Next Step Prediction, Strategic Discovery) - voir ADR-038 §2.2 et 
 ### Score Normalization
 
 Les scores des deux sources sont déjà normalisés entre 0 et 1 :
+
 - Tools: `finalScore` = weighted combination of semantic + graph scores
 - Capabilities: `score` = semantic × reliability
 
@@ -399,19 +429,19 @@ Les scores des deux sources sont déjà normalisés entre 0 et 1 :
 
 ### Files to Create
 
-| File | Description | LOC estimé |
-|------|-------------|------------|
-| `src/mcp/handlers/discover-handler.ts` | Handler principal | ~150 LOC |
-| `tests/mcp/handlers/discover-handler_test.ts` | Tests unitaires | ~200 LOC |
+| File                                          | Description       | LOC estimé |
+| --------------------------------------------- | ----------------- | ---------- |
+| `src/mcp/handlers/discover-handler.ts`        | Handler principal | ~150 LOC   |
+| `tests/mcp/handlers/discover-handler_test.ts` | Tests unitaires   | ~200 LOC   |
 
 ### Files to Modify
 
-| File | Changement | LOC estimé |
-|------|------------|------------|
-| `src/mcp/tools/definitions.ts` | Ajouter `discoverTool` + getMetaTools | ~40 LOC |
-| `src/mcp/handlers/mod.ts` | Export handleDiscover | ~2 LOC |
-| `src/mcp/handlers/search-handler.ts` | Deprecation warnings | ~15 LOC |
-| `src/mcp/gateway-server.ts` | Register discover handler | ~20 LOC |
+| File                                 | Changement                            | LOC estimé |
+| ------------------------------------ | ------------------------------------- | ---------- |
+| `src/mcp/tools/definitions.ts`       | Ajouter `discoverTool` + getMetaTools | ~40 LOC    |
+| `src/mcp/handlers/mod.ts`            | Export handleDiscover                 | ~2 LOC     |
+| `src/mcp/handlers/search-handler.ts` | Deprecation warnings                  | ~15 LOC    |
+| `src/mcp/gateway-server.ts`          | Register discover handler             | ~20 LOC    |
 
 ### Learnings from Previous Story (10.5)
 
@@ -420,7 +450,8 @@ Les scores des deux sources sont déjà normalisés entre 0 et 1 :
 3. **createToolExecutorViaWorker()** - Nouveau pattern pour exécution tools
 4. **Pas de fallback** - Un seul chemin d'exécution (simplicité)
 
-Ces patterns ne s'appliquent pas directement à cette story (recherche pure, pas d'exécution), mais le principe de **simplicité** s'applique : UN seul tool de découverte.
+Ces patterns ne s'appliquent pas directement à cette story (recherche pure, pas d'exécution), mais
+le principe de **simplicité** s'applique : UN seul tool de découverte.
 
 ### Git Intelligence (Recent Commits)
 
@@ -432,6 +463,7 @@ eb96cbb fix: resolve type errors and add MiniToolsClient after branch merge
 ```
 
 **Patterns observés :**
+
 - Ajout récent de ~120 tools dans `lib/std/` (docker, database, etc.)
 - Configuration scoring via `DagScoringConfig`
 - Tests mis à jour pour nouvelle tool library
@@ -439,6 +471,7 @@ eb96cbb fix: resolve type errors and add MiniToolsClient after branch merge
 ### Key References
 
 **Source Files:**
+
 - `src/mcp/handlers/search-handler.ts:28-119` - handleSearchTools (réutiliser)
 - `src/mcp/handlers/search-handler.ts:131-193` - handleSearchCapabilities (réutiliser)
 - `src/mcp/tools/definitions.ts:49-111` - searchToolsTool, searchCapabilitiesTool (déprécier)
@@ -446,6 +479,7 @@ eb96cbb fix: resolve type errors and add MiniToolsClient after branch merge
 - `src/graphrag/dag-suggester.ts` - searchCapabilities()
 
 **Epic & Previous Stories:**
+
 - [Epic 10](../epics/epic-10-dag-capability-learning-unified-apis.md) - Unified APIs goal
 - [Story 10.5](10-5-execute-code-via-dag.md) - Architecture Worker unifiée
 
@@ -475,8 +509,10 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 - 2025-12-20: Story context created via create-story workflow (Claude Opus 4.5)
 - 2025-12-21: Implementation completed (Claude Opus 4.5)
-- 2025-12-22: Code review - 1 HIGH, 5 MEDIUM, 4 LOW issues identified. 10 action items created. (Claude Opus 4.5)
-- 2025-12-22: All 10 review follow-ups completed - 5 E2E tests added, intent validation, GLOBAL_SCORE_CAP extracted, returned_count in meta, tests refactored (Claude Opus 4.5)
+- 2025-12-22: Code review - 1 HIGH, 5 MEDIUM, 4 LOW issues identified. 10 action items created.
+  (Claude Opus 4.5)
+- 2025-12-22: All 10 review follow-ups completed - 5 E2E tests added, intent validation,
+  GLOBAL_SCORE_CAP extracted, returned_count in meta, tests refactored (Claude Opus 4.5)
 
 ### File List
 

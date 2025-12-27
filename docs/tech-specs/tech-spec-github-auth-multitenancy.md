@@ -1,9 +1,7 @@
 # Tech-Spec: Authentification Hybride et Multi-Tenancy
 
-**Créé:** 2025-12-07
-**Mis à jour:** 2025-12-07 (Architecture dual-server documentée)
-**Statut:** Ready for Development
-**Auteur:** Erwan + BMAD Party Mode (Winston, Amelia, Sally, Murat)
+**Créé:** 2025-12-07 **Mis à jour:** 2025-12-07 (Architecture dual-server documentée) **Statut:**
+Ready for Development **Auteur:** Erwan + BMAD Party Mode (Winston, Amelia, Sally, Murat)
 
 ---
 
@@ -11,20 +9,23 @@
 
 ### Problème
 
-Le dashboard Casys PML est actuellement accessible sans authentification. Pour un produit destiné aux développeurs, il faut :
+Le dashboard Casys PML est actuellement accessible sans authentification. Pour un produit destiné
+aux développeurs, il faut :
+
 - Tracker chaque utilisateur individuellement
 - Appliquer le rate limiting par utilisateur (pas seulement par IP)
-- Séparer les données utilisateur (historique DAGs, préférences) tout en gardant l'apprentissage global (embeddings/GraphRAG partagés)
+- Séparer les données utilisateur (historique DAGs, préférences) tout en gardant l'apprentissage
+  global (embeddings/GraphRAG partagés)
 - Supporter deux modes : **Cloud** (SaaS multi-tenant) et **Self-hosted** (offline, single-tenant)
 
 ### Solution
 
 Implémenter un **modèle d'authentification hybride** :
 
-| Mode | Auth | Connectivité | Multi-tenant |
-|------|------|--------------|--------------|
-| **Cloud** | GitHub OAuth → API Key | Internet requis (setup) | Oui |
-| **Self-hosted** | Aucune (trusted) | 100% offline | Non (single-user) |
+| Mode            | Auth                   | Connectivité            | Multi-tenant      |
+| --------------- | ---------------------- | ----------------------- | ----------------- |
+| **Cloud**       | GitHub OAuth → API Key | Internet requis (setup) | Oui               |
+| **Self-hosted** | Aucune (trusted)       | 100% offline            | Non (single-user) |
 
 - **Mode Cloud** : API Key pour MCP Gateway, sessions Deno KV pour dashboard
 - **Mode Self-hosted** : Pas d'auth, toutes les requêtes sont du user "local"
@@ -35,6 +36,7 @@ Implémenter un **modèle d'authentification hybride** :
 ### Scope
 
 **In scope :**
+
 - Mode Cloud : GitHub OAuth + génération API Key
 - Mode Self-hosted : Aucune auth (trusted, single-user)
 - Table `users` avec support API Key (cloud)
@@ -45,6 +47,7 @@ Implémenter un **modèle d'authentification hybride** :
 - Anonymisation à la suppression de compte
 
 **Out of scope (MVP) :**
+
 - Autres providers OAuth (Google, X) - ajoutables plus tard
 - Scopes/permissions sur les API Keys
 - Gestion de rôles (admin, etc.)
@@ -160,36 +163,37 @@ Casys PML utilise **deux serveurs distincts** qui nécessitent chacun leur propr
 ```
 
 **Implications:**
+
 - L'auth API Key s'implémente dans `gateway-server.ts` (handler natif Deno)
 - L'auth Session/OAuth s'implémente dans Fresh middleware (`_middleware.ts`)
 - Le module `src/lib/auth.ts` est partagé par les deux serveurs
 
 ### Patterns du Codebase Existant
 
-| Pattern | Localisation | À réutiliser |
-|---------|--------------|--------------|
-| Rate limiting | `src/lib/rate-limiter.ts` | Adapter pour `user_id` |
-| Execution traces | `security-architecture.md` | Déjà un `user_session_id` |
-| Drizzle ORM | `src/db/` | Suivre les conventions existantes |
-| API routes | `src/mcp/gateway-server.ts` | Ajouter validation API Key |
-| Fresh routes | `src/web/routes/` | Landing, dashboard, auth OAuth |
-| Fresh middleware | `src/web/routes/_middleware.ts` | Session auth (à créer) |
+| Pattern          | Localisation                    | À réutiliser                      |
+| ---------------- | ------------------------------- | --------------------------------- |
+| Rate limiting    | `src/lib/rate-limiter.ts`       | Adapter pour `user_id`            |
+| Execution traces | `security-architecture.md`      | Déjà un `user_session_id`         |
+| Drizzle ORM      | `src/db/`                       | Suivre les conventions existantes |
+| API routes       | `src/mcp/gateway-server.ts`     | Ajouter validation API Key        |
+| Fresh routes     | `src/web/routes/`               | Landing, dashboard, auth OAuth    |
+| Fresh middleware | `src/web/routes/_middleware.ts` | Session auth (à créer)            |
 
 ### Décisions Techniques
 
-| Décision | Choix | Justification |
-|----------|-------|---------------|
-| Provider OAuth | GitHub uniquement | Public cible = développeurs |
-| Auth lib | Deno KV OAuth | Officiel Deno, PKCE auto, stable |
-| API Key format | `ac_xxx` (cloud only) | Simple, identifiable |
-| Mode local | Pas d'auth | Single-user, machine trusted |
-| Session storage | Deno KV | Intégration native |
-| User storage | SQLite (Drizzle) | Cohérent avec le projet |
-| Session lifetime | 30 jours | Équilibre UX/sécurité |
-| Suppression compte | Anonymisation | Garder les traces pour stats |
-| Scopes API Key | Non (MVP) | Full access, simplifier |
-| API Server auth | Header `x-api-key` | Standard REST, pas de cookie sur API |
-| Dashboard auth | Fresh middleware | Cookie session, UX browser standard |
+| Décision           | Choix                 | Justification                        |
+| ------------------ | --------------------- | ------------------------------------ |
+| Provider OAuth     | GitHub uniquement     | Public cible = développeurs          |
+| Auth lib           | Deno KV OAuth         | Officiel Deno, PKCE auto, stable     |
+| API Key format     | `ac_xxx` (cloud only) | Simple, identifiable                 |
+| Mode local         | Pas d'auth            | Single-user, machine trusted         |
+| Session storage    | Deno KV               | Intégration native                   |
+| User storage       | SQLite (Drizzle)      | Cohérent avec le projet              |
+| Session lifetime   | 30 jours              | Équilibre UX/sécurité                |
+| Suppression compte | Anonymisation         | Garder les traces pour stats         |
+| Scopes API Key     | Non (MVP)             | Full access, simplifier              |
+| API Server auth    | Header `x-api-key`    | Standard REST, pas de cookie sur API |
+| Dashboard auth     | Fresh middleware      | Cookie session, UX browser standard  |
 
 ---
 
@@ -209,8 +213,8 @@ export const users = sqliteTable("users", {
   avatar_url: text("avatar_url"),
 
   // API Key (pour MCP Gateway en mode cloud)
-  api_key_hash: text("api_key_hash"),        // argon2 hash
-  api_key_prefix: text("api_key_prefix"),    // "ac_" + 8 chars pour lookup
+  api_key_hash: text("api_key_hash"), // argon2 hash
+  api_key_prefix: text("api_key_prefix"), // "ac_" + 8 chars pour lookup
   api_key_created_at: integer("api_key_created_at", { mode: "timestamp" }),
 
   // Timestamps
@@ -329,26 +333,37 @@ Exemple: ac_a1b2c3d4e5f6g7h8i9j0k1l2
 
 ### Cloud Mode (GitHub OAuth)
 
-- [ ] **AC 1:** Given un utilisateur non authentifié, When il accède à `/dashboard`, Then il est redirigé vers la landing avec bouton GitHub
-- [ ] **AC 2:** Given un clic sur "Sign in with GitHub", When OAuth complète, Then un user est créé avec une API Key générée
-- [ ] **AC 3:** Given un utilisateur authentifié sur le dashboard, When il voit sa page profil, Then son API Key (masquée) et la config MCP sont affichées
-- [ ] **AC 4:** Given un utilisateur qui régénère son API Key, When il confirme, Then l'ancienne key est invalidée et une nouvelle est générée
+- [ ] **AC 1:** Given un utilisateur non authentifié, When il accède à `/dashboard`, Then il est
+      redirigé vers la landing avec bouton GitHub
+- [ ] **AC 2:** Given un clic sur "Sign in with GitHub", When OAuth complète, Then un user est créé
+      avec une API Key générée
+- [ ] **AC 3:** Given un utilisateur authentifié sur le dashboard, When il voit sa page profil, Then
+      son API Key (masquée) et la config MCP sont affichées
+- [ ] **AC 4:** Given un utilisateur qui régénère son API Key, When il confirme, Then l'ancienne key
+      est invalidée et une nouvelle est générée
 
 ### Self-hosted Mode (Local)
 
-- [ ] **AC 5:** Given Casys PML lancé sans `GITHUB_CLIENT_ID`, When il démarre, Then le mode local est activé (pas d'auth requise)
-- [ ] **AC 6:** Given le mode local, When une requête arrive, Then `user_id = "local"` est injecté automatiquement
+- [ ] **AC 5:** Given Casys PML lancé sans `GITHUB_CLIENT_ID`, When il démarre, Then le mode local
+      est activé (pas d'auth requise)
+- [ ] **AC 6:** Given le mode local, When une requête arrive, Then `user_id = "local"` est injecté
+      automatiquement
 
 ### Multi-tenant & Isolation
 
-- [ ] **AC 7:** Given un utilisateur A et B en mode cloud, When A exécute des DAGs, Then B ne voit pas les DAGs de A
-- [ ] **AC 8:** Given le rate limiter, When un user authentifié fait des requêtes, Then le limiting est basé sur son `user_id`
-- [ ] **AC 9:** Given une suppression de compte, When l'utilisateur confirme, Then ses données sont anonymisées (user_id → "deleted-xxx")
+- [ ] **AC 7:** Given un utilisateur A et B en mode cloud, When A exécute des DAGs, Then B ne voit
+      pas les DAGs de A
+- [ ] **AC 8:** Given le rate limiter, When un user authentifié fait des requêtes, Then le limiting
+      est basé sur son `user_id`
+- [ ] **AC 9:** Given une suppression de compte, When l'utilisateur confirme, Then ses données sont
+      anonymisées (user_id → "deleted-xxx")
 
 ### MCP Gateway
 
-- [ ] **AC 10:** Given une requête MCP avec API Key valide, When le Gateway la reçoit, Then le `user_id` est injecté dans le contexte d'exécution
-- [ ] **AC 11:** Given une requête MCP sans API Key ou invalide, When le Gateway la reçoit, Then une erreur 401 est retournée
+- [ ] **AC 10:** Given une requête MCP avec API Key valide, When le Gateway la reçoit, Then le
+      `user_id` est injecté dans le contexte d'exécution
+- [ ] **AC 11:** Given une requête MCP sans API Key ou invalide, When le Gateway la reçoit, Then une
+      erreur 401 est retournée
 
 ---
 
@@ -356,13 +371,13 @@ Exemple: ac_a1b2c3d4e5f6g7h8i9j0k1l2
 
 ### Dépendances
 
-| Package | Version | Usage |
-|---------|---------|-------|
-| `jsr:@deno/kv-oauth` | latest | OAuth GitHub |
-| `@ts-rex/argon2` | latest | Hash API Keys |
-| Drizzle ORM | existant | Schema users |
-| Fresh 2.x | existant | Dashboard UI + auth routes |
-| Deno.serve | natif | API Server (pas de framework) |
+| Package              | Version  | Usage                         |
+| -------------------- | -------- | ----------------------------- |
+| `jsr:@deno/kv-oauth` | latest   | OAuth GitHub                  |
+| `@ts-rex/argon2`     | latest   | Hash API Keys                 |
+| Drizzle ORM          | existant | Schema users                  |
+| Fresh 2.x            | existant | Dashboard UI + auth routes    |
+| Deno.serve           | natif    | API Server (pas de framework) |
 
 ### Variables d'Environnement
 
@@ -412,6 +427,7 @@ AUTH_REDIRECT_URL=http://localhost:8000/auth/callback
 ### UX Flows
 
 **Cloud - Premier login :**
+
 ```
 Landing → "Sign in with GitHub" → OAuth → Dashboard
                                             │
@@ -432,6 +448,7 @@ Landing → "Sign in with GitHub" → OAuth → Dashboard
 ```
 
 **Self-hosted - Aucun setup requis :**
+
 ```bash
 # Clone et lance, c'est tout !
 $ git clone github.com/xxx/pml && cd pml
@@ -457,5 +474,5 @@ $ deno task start
 
 ---
 
-*Tech-spec finalisée via BMAD Quick-Flow avec Party Mode*
-*Mise à jour 2025-12-07: Documentation architecture dual-server (Fresh + Deno.serve natif)*
+_Tech-spec finalisée via BMAD Quick-Flow avec Party Mode_ _Mise à jour 2025-12-07: Documentation
+architecture dual-server (Fresh + Deno.serve natif)_

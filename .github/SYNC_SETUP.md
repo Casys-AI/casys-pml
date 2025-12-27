@@ -2,7 +2,8 @@
 
 ## Prérequis
 
-Le workflow `sync-to-public.yml` synchronise automatiquement le code Core vers `Casys-AI/casys-pml` (public).
+Le workflow `sync-to-public.yml` synchronise automatiquement le code Core vers `Casys-AI/casys-pml`
+(public).
 
 ## Configuration des secrets GitHub
 
@@ -39,6 +40,7 @@ rm sync-deploy-key sync-deploy-key.pub
 ## Fichiers exclus de la synchronisation
 
 Le workflow exclut automatiquement :
+
 - `src/cloud/` - Code propriétaire cloud-only
 - `packages/mcp-connector/` - Package client premium
 - `.github/workflows/sync-to-public.yml` - Ce workflow lui-même
@@ -49,6 +51,7 @@ Le workflow exclut automatiquement :
 ## Test manuel
 
 Pour tester la synchronisation manuellement :
+
 1. Aller sur Actions dans le repo privé
 2. Sélectionner "Sync to Public Repo"
 3. Cliquer "Run workflow"
@@ -56,7 +59,9 @@ Pour tester la synchronisation manuellement :
 ## Troubleshooting
 
 ### "Permission denied (publickey)"
+
 → Vérifier que la clé publique est bien ajoutée au repo public avec write access
 
 ### "Nothing to commit"
+
 → Normal si aucun fichier Core n'a changé depuis le dernier sync

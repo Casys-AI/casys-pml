@@ -24,7 +24,8 @@ Most AI agents work like assembly lines:
 
 ![Static Pipeline](excalidraw:src/web/assets/diagrams/cas-static-pipeline.excalidraw)
 
-Every interaction starts from scratch. They don't learn from execution. They don't adapt to your patterns. They're **stateless by design**.
+Every interaction starts from scratch. They don't learn from execution. They don't adapt to your
+patterns. They're **stateless by design**.
 
 But real intelligence isn't a pipeline—it's a **living system**.
 
@@ -41,15 +42,17 @@ Examples in nature: ecosystems, immune systems, economies, ant colonies.
 
 ![Pipeline vs CAS](excalidraw:src/web/assets/diagrams/cas-pipeline-vs-adaptive.excalidraw)
 
-The difference? A pipeline *produces*. A CAS *evolves*.
+The difference? A pipeline _produces_. A CAS _evolves_.
 
 ## The Four Properties of CAS
 
 ### 1. Emergence
 
-Complex behaviors arise from simple rules. No central controller designs them—they **self-organize**.
+Complex behaviors arise from simple rules. No central controller designs them—they
+**self-organize**.
 
-In an AI agent context: capabilities emerge from repeated tool combinations, not from explicit programming.
+In an AI agent context: capabilities emerge from repeated tool combinations, not from explicit
+programming.
 
 ![Emergence](excalidraw:src/web/assets/diagrams/cas-emergence.excalidraw)
 
@@ -57,37 +60,40 @@ In an AI agent context: capabilities emerge from repeated tool combinations, not
 
 Actions influence future actions. The system learns from outcomes and adjusts behavior.
 
-| Loop Type | Timescale | Effect |
-|-----------|-----------|--------|
-| Positive | Fast | Amplifies successful patterns |
-| Negative | Slow | Dampens unsuccessful patterns |
-| Meta | Very slow | Changes how the system learns |
+| Loop Type | Timescale | Effect                        |
+| --------- | --------- | ----------------------------- |
+| Positive  | Fast      | Amplifies successful patterns |
+| Negative  | Slow      | Dampens unsuccessful patterns |
+| Meta      | Very slow | Changes how the system learns |
 
 ### 3. Adaptation
 
-The system modifies itself in response to environment changes. Not through reprogramming—through **learning**.
+The system modifies itself in response to environment changes. Not through reprogramming—through
+**learning**.
 
 ### 4. Non-linearity
 
-Small changes can have large effects (butterfly effect). The system is sensitive to initial conditions and history matters.
+Small changes can have large effects (butterfly effect). The system is sensitive to initial
+conditions and history matters.
 
 ## Why This Matters for AI Agents
 
-| Static Agent | Complex Adaptive Agent |
-|--------------|------------------------|
-| Forgets between sessions | Builds persistent memory |
+| Static Agent               | Complex Adaptive Agent            |
+| -------------------------- | --------------------------------- |
+| Forgets between sessions   | Builds persistent memory          |
 | Same output for same input | Personalized to context + history |
-| Brittle on edge cases | Gracefully adapts |
-| Capabilities are hardcoded | Capabilities emerge |
-| Performance is fixed | Performance improves over time |
+| Brittle on edge cases      | Gracefully adapts                 |
+| Capabilities are hardcoded | Capabilities emerge               |
+| Performance is fixed       | Performance improves over time    |
 
 ## The Paradigm Shift
 
-Traditional AI engineering asks: *"How do I program this behavior?"*
+Traditional AI engineering asks: _"How do I program this behavior?"_
 
-CAS thinking asks: *"How do I create conditions for this behavior to emerge?"*
+CAS thinking asks: _"How do I create conditions for this behavior to emerge?"_
 
-Instead of designing capabilities, you design **feedback loops**. Instead of coding rules, you create **environments where rules evolve**.
+Instead of designing capabilities, you design **feedback loops**. Instead of coding rules, you
+create **environments where rules evolve**.
 
 ![Design Comparison](excalidraw:src/web/assets/diagrams/cas-design-comparison.excalidraw)
 
@@ -95,13 +101,13 @@ Instead of designing capabilities, you design **feedback loops**. Instead of cod
 
 You can't improve what you can't measure. CAS requires new metrics:
 
-| Metric | What It Measures |
-|--------|-----------------|
-| **Graph Entropy** | Complexity of relationships |
-| **Cluster Stability** | How stable are emergent groupings? |
-| **Diversity Index** | Variety of emergent patterns |
-| **Adaptation Velocity** | Speed of learning |
-| **Phase Transitions** | Qualitative system changes |
+| Metric                  | What It Measures                   |
+| ----------------------- | ---------------------------------- |
+| **Graph Entropy**       | Complexity of relationships        |
+| **Cluster Stability**   | How stable are emergent groupings? |
+| **Diversity Index**     | Variety of emergent patterns       |
+| **Adaptation Velocity** | Speed of learning                  |
+| **Phase Transitions**   | Qualitative system changes         |
 
 When entropy suddenly shifts, the system is **reorganizing**—a sign of healthy adaptation.
 
@@ -114,14 +120,14 @@ Building AI agents as Complex Adaptive Systems means:
 3. **Measure adaptation**, not just accuracy
 4. **Expect surprises**—that's the system working
 
-The result? AI that doesn't just *execute*—it **evolves**.
+The result? AI that doesn't just _execute_—it **evolves**.
 
 ---
 
 ## References
 
-- Holland, J. H. (1992). "Complex Adaptive Systems." *Daedalus*, 121(1), 17-30.
-- Kauffman, S. (1995). *At Home in the Universe: The Search for Laws of Self-Organization*.
-- Mitchell, M. (2009). *Complexity: A Guided Tour*.
+- Holland, J. H. (1992). "Complex Adaptive Systems." _Daedalus_, 121(1), 17-30.
+- Kauffman, S. (1995). _At Home in the Universe: The Search for Laws of Self-Organization_.
+- Mitchell, M. (2009). _Complexity: A Guided Tour_.
 
 #ComplexSystems #AIArchitecture #Emergence #SystemsThinking

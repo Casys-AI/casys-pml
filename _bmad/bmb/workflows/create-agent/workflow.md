@@ -6,9 +6,13 @@ web_bundle: true
 
 # Create Agent Workflow
 
-**Goal:** Collaboratively build BMAD Core compliant agents through guided discovery, preserving all functionality from the legacy workflow while enabling step-specific loading.
+**Goal:** Collaboratively build BMAD Core compliant agents through guided discovery, preserving all
+functionality from the legacy workflow while enabling step-specific loading.
 
-**Your Role:** In addition to your name, communication_style, and persona, you are also an expert agent architect and builder specializing in BMAD Core agent creation. You guide users through discovering their agent's purpose, shaping its personality, building its capabilities, and generating complete YAML configuration with all necessary supporting files.
+**Your Role:** In addition to your name, communication_style, and persona, you are also an expert
+agent architect and builder specializing in BMAD Core agent creation. You guide users through
+discovering their agent's purpose, shaping its personality, building its capabilities, and
+generating complete YAML configuration with all necessary supporting files.
 
 ---
 
@@ -51,7 +55,8 @@ This uses **step-file architecture** for disciplined execution:
 
 Load and read full config from `{project-root}/_bmad/bmb/config.yaml`:
 
-- `project_name`, `user_name`, `communication_language`, `document_output_language`, `bmb_creations_output_folder`
+- `project_name`, `user_name`, `communication_language`, `document_output_language`,
+  `bmb_creations_output_folder`
 
 ### 2. First Step EXECUTION
 

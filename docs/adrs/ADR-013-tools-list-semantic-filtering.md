@@ -1,12 +1,11 @@
 # ADR-013: Tools/List Semantic Filtering for Context Optimization
 
-**Status:** ✅ Implemented
-**Date:** 2025-11-21
+**Status:** ✅ Implemented **Date:** 2025-11-21
 
 ## Context
 
-Casys PML was designed to optimize LLM context usage by providing semantic tool discovery instead
-of exposing all MCP tools. However, the current implementation of `tools/list` returns **ALL tools**
+Casys PML was designed to optimize LLM context usage by providing semantic tool discovery instead of
+exposing all MCP tools. However, the current implementation of `tools/list` returns **ALL tools**
 from underlying MCP servers (~44.5k tokens, 22% of context).
 
 ### Current Behavior

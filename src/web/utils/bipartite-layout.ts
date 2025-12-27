@@ -1,4 +1,3 @@
-
 import { GraphNodeData } from "../components/ui/mod.ts";
 import { CapabilityData } from "../islands/D3GraphVisualization.tsx";
 
@@ -26,12 +25,12 @@ export function computeBipartitePositions(
   tools: GraphNodeData[],
   width: number,
   height: number,
-  padding = 50
+  padding = 50,
 ): Map<string, NodePosition> {
   const positions = new Map<string, NodePosition>();
 
   // Proportional margins (not fixed pixels)
-  const leftX = width * 0.15;  // 15% from left
+  const leftX = width * 0.15; // 15% from left
   const rightX = width * 0.85; // 85% from left (15% from right)
   const centerX = width * 0.5;
 
@@ -51,7 +50,7 @@ export function computeBipartitePositions(
     positions.set(cap.id, {
       id: cap.id,
       x: leftX,
-      y: startY + (index + 0.5) * capSpacing
+      y: startY + (index + 0.5) * capSpacing,
     });
   });
 
@@ -63,7 +62,7 @@ export function computeBipartitePositions(
   const toolsByPrimaryCap = new Map<string, GraphNodeData[]>();
   const orphanTools: GraphNodeData[] = [];
 
-  tools.forEach(tool => {
+  tools.forEach((tool) => {
     const parents = tool.parents || [];
     if (parents.length === 0) {
       orphanTools.push(tool);
@@ -100,7 +99,7 @@ export function computeBipartitePositions(
         positions.set(tool.id, {
           id: tool.id,
           x: clusterCenterX,
-          y: clusterCenterY
+          y: clusterCenterY,
         });
       } else {
         // Multiple tools: arrange in vertical cluster with slight horizontal variation
@@ -113,7 +112,7 @@ export function computeBipartitePositions(
         positions.set(tool.id, {
           id: tool.id,
           x: clusterCenterX + xVariation,
-          y: clusterCenterY + yOffset
+          y: clusterCenterY + yOffset,
         });
       }
     });
@@ -125,7 +124,7 @@ export function computeBipartitePositions(
     positions.set(tool.id, {
       id: tool.id,
       x: centerX + Math.sin(i * 0.5) * 30,
-      y: Math.max(orphanStartY + i * nodeRadius * 2.5, startY)
+      y: Math.max(orphanStartY + i * nodeRadius * 2.5, startY),
     });
   });
 

@@ -8,15 +8,15 @@
 
 PML behavior can be customized via environment variables:
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PML_DB_PATH` | Path to PGlite database | `~/.pml/db` |
-| `PML_WORKFLOW_PATH` | Path to workflow templates | `~/.pml/workflows` |
-| `PML_NO_PII_PROTECTION` | Set to `1` to disable PII protection | `0` |
-| `PML_NO_CACHE` | Set to `1` to disable execution cache | `0` |
-| `LOG_LEVEL` | Log level: `debug`, `info`, `warn`, `error` | `info` |
-| `SENTRY_DSN` | Sentry DSN for error tracking (optional) | - |
-| `SENTRY_ENVIRONMENT` | Sentry environment name | `development` |
+| Variable                | Description                                 | Default            |
+| ----------------------- | ------------------------------------------- | ------------------ |
+| `PML_DB_PATH`           | Path to PGlite database                     | `~/.pml/db`        |
+| `PML_WORKFLOW_PATH`     | Path to workflow templates                  | `~/.pml/workflows` |
+| `PML_NO_PII_PROTECTION` | Set to `1` to disable PII protection        | `0`                |
+| `PML_NO_CACHE`          | Set to `1` to disable execution cache       | `0`                |
+| `LOG_LEVEL`             | Log level: `debug`, `info`, `warn`, `error` | `info`             |
+| `SENTRY_DSN`            | Sentry DSN for error tracking (optional)    | -                  |
+| `SENTRY_ENVIRONMENT`    | Sentry environment name                     | `development`      |
 
 ### Example
 
@@ -88,18 +88,18 @@ The primary configuration file defines which MCP servers PML will manage.
 
 ### Server Configuration Fields
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `command` | string | Yes | Executable to run (e.g., `npx`, `node`, `python`) |
-| `args` | string[] | Yes | Command-line arguments |
-| `env` | object | No | Environment variables for this server |
+| Field     | Type     | Required | Description                                       |
+| --------- | -------- | -------- | ------------------------------------------------- |
+| `command` | string   | Yes      | Executable to run (e.g., `npx`, `node`, `python`) |
+| `args`    | string[] | Yes      | Command-line arguments                            |
+| `env`     | object   | No       | Environment variables for this server             |
 
 ## Claude Code Integration
 
 To use PML with Claude Code, add it to your Claude configuration:
 
-**Linux/macOS:** `~/.config/Claude/claude_desktop_config.json`
-**Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+**Linux/macOS:** `~/.config/Claude/claude_desktop_config.json` **Windows:**
+`%APPDATA%\Claude\claude_desktop_config.json`
 
 ```json
 {
@@ -145,12 +145,12 @@ export PML_DB_PATH=/custom/path/db
 
 ### Log Levels
 
-| Level | Description |
-|-------|-------------|
+| Level   | Description                   |
+| ------- | ----------------------------- |
 | `debug` | Verbose debugging information |
-| `info` | General operational messages |
-| `warn` | Warning conditions |
-| `error` | Error conditions |
+| `info`  | General operational messages  |
+| `warn`  | Warning conditions            |
+| `error` | Error conditions              |
 
 ### Log Files
 
@@ -195,26 +195,28 @@ Controls the semantic vs graph balance per-node for DAG suggestions (ADR-048).
 **What is Alpha?**
 
 Alpha determines how much PML trusts the graph structure vs pure semantic similarity:
+
 - `alpha = 1.0` → Pure semantic (ignore graph structure entirely)
 - `alpha = 0.5` → Maximum graph influence (equal weight semantic/graph)
 
 **Four algorithms compute alpha based on context:**
 
-| Algorithm | Used For | Description |
-|-----------|----------|-------------|
-| **Embeddings Hybrides** | Active search | Compares semantic vs structural embeddings |
-| **Heat Diffusion** | Passive tools | Propagates "heat" through graph connectivity |
-| **Heat Diffusion Hierarchical** | Passive capabilities | Adds parent/child propagation |
-| **Bayesian** | Cold start | Explicit uncertainty when few observations exist |
+| Algorithm                       | Used For             | Description                                      |
+| ------------------------------- | -------------------- | ------------------------------------------------ |
+| **Embeddings Hybrides**         | Active search        | Compares semantic vs structural embeddings       |
+| **Heat Diffusion**              | Passive tools        | Propagates "heat" through graph connectivity     |
+| **Heat Diffusion Hierarchical** | Passive capabilities | Adds parent/child propagation                    |
+| **Bayesian**                    | Cold start           | Explicit uncertainty when few observations exist |
 
 #### Alpha Bounds
 
-Hard limits for alpha values across all algorithms. Tighter bounds = more predictable, wider = more adaptive.
+Hard limits for alpha values across all algorithms. Tighter bounds = more predictable, wider = more
+adaptive.
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `alpha_min` | Floor: maximum graph influence allowed | 0.5 |
-| `alpha_max` | Ceiling: pure semantic (no graph influence) | 1.0 |
+| Parameter   | Description                                 | Default |
+| ----------- | ------------------------------------------- | ------- |
+| `alpha_min` | Floor: maximum graph influence allowed      | 0.5     |
+| `alpha_max` | Ceiling: pure semantic (no graph influence) | 1.0     |
 
 #### Alpha Scaling Factor
 
@@ -222,74 +224,81 @@ Controls how aggressively alpha decreases when confidence is high.
 
 **Formula:** `alpha = max(alpha_min, alpha_max - confidence × alpha_scaling_factor)`
 
-| Value | Effect |
-|-------|--------|
-| Higher (0.8) | Alpha drops faster → more graph influence |
-| Lower (0.3) | Alpha drops slower → stays closer to semantic |
-| **Default: 0.5** | Balanced behavior |
+| Value            | Effect                                        |
+| ---------------- | --------------------------------------------- |
+| Higher (0.8)     | Alpha drops faster → more graph influence     |
+| Lower (0.3)      | Alpha drops slower → stays closer to semantic |
+| **Default: 0.5** | Balanced behavior                             |
 
 #### Cold Start (Bayesian Algorithm)
 
-When a node has few observations, we can't trust graph statistics. The Bayesian algorithm interpolates from prior (don't trust graph) to target (trust graph).
+When a node has few observations, we can't trust graph statistics. The Bayesian algorithm
+interpolates from prior (don't trust graph) to target (trust graph).
 
-**Formula:** `alpha = prior_alpha × (1 - confidence) + target_alpha × confidence`
-where `confidence = observations / threshold`
+**Formula:** `alpha = prior_alpha × (1 - confidence) + target_alpha × confidence` where
+`confidence = observations / threshold`
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `threshold` | Minimum observations before exiting cold start. Lower = trust graph sooner, higher = more conservative | 5 |
-| `prior_alpha` | Starting alpha (pure semantic - safest default) | 1.0 |
-| `target_alpha` | Alpha when exiting cold start (slight graph influence) | 0.7 |
+| Parameter      | Description                                                                                            | Default |
+| -------------- | ------------------------------------------------------------------------------------------------------ | ------- |
+| `threshold`    | Minimum observations before exiting cold start. Lower = trust graph sooner, higher = more conservative | 5       |
+| `prior_alpha`  | Starting alpha (pure semantic - safest default)                                                        | 1.0     |
+| `target_alpha` | Alpha when exiting cold start (slight graph influence)                                                 | 0.7     |
 
 #### Heat Diffusion (Passive Tools)
 
-Computes "heat" for each node based on graph connectivity. Well-connected nodes get more heat → lower alpha → trust graph more.
+Computes "heat" for each node based on graph connectivity. Well-connected nodes get more heat →
+lower alpha → trust graph more.
 
 **Formula:** `heat = intrinsic_weight × node_heat + neighbor_weight × avg_neighbor_heat`
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `intrinsic_weight` | Weight of node's own connectivity (degree-based) | 0.6 |
-| `neighbor_weight` | Weight of neighbors' connectivity (propagation) | 0.4 |
-| `common_neighbor_factor` | Bonus per common neighbor when no direct edge exists. Higher = value indirect connections more | 0.2 |
+| Parameter                | Description                                                                                    | Default |
+| ------------------------ | ---------------------------------------------------------------------------------------------- | ------- |
+| `intrinsic_weight`       | Weight of node's own connectivity (degree-based)                                               | 0.6     |
+| `neighbor_weight`        | Weight of neighbors' connectivity (propagation)                                                | 0.4     |
+| `common_neighbor_factor` | Bonus per common neighbor when no direct edge exists. Higher = value indirect connections more | 0.2     |
 
 #### Hierarchy Weights (Capabilities)
 
 For capability/meta nodes, heat combines three sources:
+
 - **intrinsic**: node's own graph connectivity
 - **neighbor**: heat from graph neighbors (same level)
 - **hierarchy**: heat from parent/children in Tool→Capability→Meta hierarchy
 
 **Important:** Sum of weights MUST equal 1.0 for each node type.
 
-| Node Type | Profile | intrinsic | neighbor | hierarchy |
-|-----------|---------|-----------|----------|-----------|
-| **tool** | Mostly intrinsic (leaf nodes, direct usage) | 0.5 | 0.3 | 0.2 |
-| **capability** | Balanced (middle of hierarchy) | 0.3 | 0.4 | 0.3 |
-| **meta** | Mostly hierarchy (abstract, defined by children) | 0.2 | 0.2 | 0.6 |
+| Node Type      | Profile                                          | intrinsic | neighbor | hierarchy |
+| -------------- | ------------------------------------------------ | --------- | -------- | --------- |
+| **tool**       | Mostly intrinsic (leaf nodes, direct usage)      | 0.5       | 0.3      | 0.2       |
+| **capability** | Balanced (middle of hierarchy)                   | 0.3       | 0.4      | 0.3       |
+| **meta**       | Mostly hierarchy (abstract, defined by children) | 0.2       | 0.2      | 0.6       |
 
 #### Hierarchy Inheritance Factors
 
-Controls top-down heat propagation. When computing a child's hierarchy heat, it inherits a fraction of its parent's heat.
+Controls top-down heat propagation. When computing a child's hierarchy heat, it inherits a fraction
+of its parent's heat.
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
+| Parameter            | Description                                             | Default   |
+| -------------------- | ------------------------------------------------------- | --------- |
 | `meta_to_capability` | Capability inherits X% of meta-capability parent's heat | 0.7 (70%) |
-| `capability_to_tool` | Tool inherits X% of capability parent's heat | 0.5 (50%) |
+| `capability_to_tool` | Tool inherits X% of capability parent's heat            | 0.5 (50%) |
 
-Lower values = children are more independent. Higher values = parent reputation strongly influences children.
+Lower values = children are more independent. Higher values = parent reputation strongly influences
+children.
 
 #### Structural Confidence Weights
 
-Combines multiple heat signals into a single "structural confidence" score, then used to compute alpha via the scaling factor. Sum should equal 1.0.
+Combines multiple heat signals into a single "structural confidence" score, then used to compute
+alpha via the scaling factor. Sum should equal 1.0.
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `target_heat` | Weight of target node's connectivity | 0.4 |
-| `context_heat` | Weight of context nodes' average connectivity | 0.3 |
-| `path_heat` | Weight of path strength (direct edges or common neighbors) | 0.3 |
+| Parameter      | Description                                                | Default |
+| -------------- | ---------------------------------------------------------- | ------- |
+| `target_heat`  | Weight of target node's connectivity                       | 0.4     |
+| `context_heat` | Weight of context nodes' average connectivity              | 0.3     |
+| `path_heat`    | Weight of path strength (direct edges or common neighbors) | 0.3     |
 
-**See also:** [Hybrid Search - Local Adaptive Alpha](../concepts/02-discovery/02-hybrid-search.md#local-adaptive-alpha-α---intelligence-contextuelle)
+**See also:**
+[Hybrid Search - Local Adaptive Alpha](../concepts/02-discovery/02-hybrid-search.md#local-adaptive-alpha-α---intelligence-contextuelle)
 
 ### Speculation Configuration
 
@@ -317,13 +326,13 @@ adaptive:
   max_threshold: 0.90
 ```
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `enabled` | Enable speculative execution | true |
-| `confidence_threshold` | Minimum confidence to speculate | 0.70 |
-| `max_concurrent_speculations` | Parallel speculation limit | 3 |
-| `speculation_timeout` | Max execution time (ms) | 10000 |
-| `adaptive.enabled` | Auto-adjust threshold based on success rate | true |
+| Parameter                     | Description                                 | Default |
+| ----------------------------- | ------------------------------------------- | ------- |
+| `enabled`                     | Enable speculative execution                | true    |
+| `confidence_threshold`        | Minimum confidence to speculate             | 0.70    |
+| `max_concurrent_speculations` | Parallel speculation limit                  | 3       |
+| `speculation_timeout`         | Max execution time (ms)                     | 10000   |
+| `adaptive.enabled`            | Auto-adjust threshold based on success rate | true    |
 
 **See also:** [Speculative Execution](../concepts/05-dag-execution/05-speculative-execution.md)
 
@@ -340,7 +349,8 @@ PML_NO_PII_PROTECTION=1 ./pml serve --config ...
 
 ### Sandbox Permissions
 
-The code execution sandbox runs with minimal permissions by default. Additional paths can be allowed per-execution via `sandbox_config.allowedReadPaths`.
+The code execution sandbox runs with minimal permissions by default. Additional paths can be allowed
+per-execution via `sandbox_config.allowedReadPaths`.
 
 ## See Also
 

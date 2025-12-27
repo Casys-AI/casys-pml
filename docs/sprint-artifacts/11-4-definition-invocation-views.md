@@ -4,13 +4,13 @@ Status: ready-for-dev
 
 ## Story
 
-As a user,
-I want the Invocation view to show real execution traces from database,
-So that I can see actual past executions with their real timestamps and results.
+As a user, I want the Invocation view to show real execution traces from database, So that I can see
+actual past executions with their real timestamps and results.
 
 ## Context & Background
 
-**Epic 11: Learning from Execution Traces** implements a learning system that stores execution traces. This story connects the existing Definition/Invocation toggle to real execution data.
+**Epic 11: Learning from Execution Traces** implements a learning system that stores execution
+traces. This story connects the existing Definition/Invocation toggle to real execution data.
 
 ### What Already Exists (DO NOT RECREATE)
 
@@ -23,12 +23,14 @@ So that I can see actual past executions with their real timestamps and results.
 The CodePanel only shows the code snippet. We need to add a toggle to also show execution traces.
 
 **Current flow:**
+
 ```
 Click capability → CodePanel shows code snippet only
 ```
 
 **Target flow:**
-```
+
+````
 Click capability → CodePanel shows split view:
   ┌─────────────────────────┬─────────────────────────────┐
   │ Definition              │ Trace: [▼ 2min ago ✅ 234ms]│
@@ -42,30 +44,32 @@ Click capability → CodePanel shows split view:
   │ Tools: read_file, grep  │ Priority: 0.45              │
   │ Success: 87% (26/30)    │                             │
   └─────────────────────────┴─────────────────────────────┘
-```
+````
 
 **Architecture Decision:**
+
 - Split layout in CodePanel: Definition (left) + Invocation (right)
 - Graph always shows structure (Definition mode)
 - Trace selector dropdown to switch between past executions
 - Shows ONE trace at a time (not a list)
 - Traces included in hypergraph response via `?include_traces=true`
 
-| CodePanel Side | Content | Source |
-|----------------|---------|--------|
-| **Left (Definition)** | Code snippet, tools list, stats | `capability.code_snippet` |
+| CodePanel Side         | Content                            | Source                             |
+| ---------------------- | ---------------------------------- | ---------------------------------- |
+| **Left (Definition)**  | Code snippet, tools list, stats    | `capability.code_snippet`          |
 | **Right (Invocation)** | Single trace detail, task timeline | `capability.traces[selectedIndex]` |
 
 **Graph Edge Types:**
 
-| Mode | Edge Type | Status | Meaning |
-|------|-----------|--------|---------|
-| **Definition** | `contains` | ✅ Done | compound nodes (bento boxes) |
-| **Definition** | `provides` | ❌ TODO | any → any (A.output feeds B.input, data flow) |
-| **Definition** | `dependsOn` | ❌ TODO | any → any (inferred from provides: B dependsOn A) |
-| **Invocation** | `sequence` | ⚠️ Fix | task → task (currently linear, needs fan-in/fan-out) |
+| Mode           | Edge Type   | Status  | Meaning                                              |
+| -------------- | ----------- | ------- | ---------------------------------------------------- |
+| **Definition** | `contains`  | ✅ Done | compound nodes (bento boxes)                         |
+| **Definition** | `provides`  | ❌ TODO | any → any (A.output feeds B.input, data flow)        |
+| **Definition** | `dependsOn` | ❌ TODO | any → any (inferred from provides: B dependsOn A)    |
+| **Invocation** | `sequence`  | ⚠️ Fix  | task → task (currently linear, needs fan-in/fan-out) |
 
 **Existing Code (CytoscapeGraph.tsx:954-986):**
+
 - Toggle `nodeMode` already switches between definition/invocation ✅
 - Invocation mode generates sequence edges BUT **linearly** (A→B→C→D)
 - Need to fix: use `layerIndex` for fan-in/fan-out edges
@@ -100,18 +104,20 @@ interface TraceTaskResult {
   result: JsonValue;
   success: boolean;
   durationMs: number;
-  layerIndex?: number;  // NEW: DAG layer for fan-in/fan-out detection
+  layerIndex?: number; // NEW: DAG layer for fan-in/fan-out detection
 }
 ```
 
 This enables edge reconstruction from traces:
+
 - Same `layerIndex` → parallel execution → fan-out from previous layer, fan-in to next layer
 - Sequential `layerIndex` → simple sequence edge
 
 **Why this matters:**
 
 - Definition: "What CAN this capability do?" → Static structure
-- Invocation: "What DID this capability do?" → Real past executions with actual timestamps, durations, success/failure
+- Invocation: "What DID this capability do?" → Real past executions with actual timestamps,
+  durations, success/failure
 
 **Previous Stories Intelligence:**
 
@@ -119,7 +125,8 @@ This enables edge reconstruction from traces:
 - **Story 11.3 (done)** - `priority` field for PER learning
 - **Epic 8 (done)** - Toggle UI already exists in `GraphLegendPanel.tsx`
 
-**Key Insight:** CodePanel becomes a split view: Definition (left) + Invocation (right) with trace selector dropdown. Both views visible simultaneously for better UX.
+**Key Insight:** CodePanel becomes a split view: Definition (left) + Invocation (right) with trace
+selector dropdown. Both views visible simultaneously for better UX.
 
 ## Acceptance Criteria
 
@@ -262,7 +269,7 @@ export interface TraceTaskResult {
   result: JsonValue;
   success: boolean;
   durationMs: number;
-  layerIndex?: number;  // NEW: DAG layer for fan-in/fan-out
+  layerIndex?: number; // NEW: DAG layer for fan-in/fan-out
 }
 ```
 
@@ -279,7 +286,7 @@ for (let i = 0; i < layer.length; i++) {
       status: "success",
       output: result.value.output,
       executionTimeMs: result.value.executionTimeMs,
-      layerIndex: layerIdx,  // NEW: track which layer this task belongs to
+      layerIndex: layerIdx, // NEW: track which layer this task belongs to
     });
   }
 }
@@ -287,14 +294,14 @@ for (let i = 0; i < layer.length; i++) {
 
 ```typescript
 // src/mcp/handlers/workflow-execution-handler.ts - Include layerIndex in trace
-const taskResults: TraceTaskResult[] = dagResult.results.map(r => ({
+const taskResults: TraceTaskResult[] = dagResult.results.map((r) => ({
   taskId: r.taskId,
   tool: taskToolMap.get(r.taskId) ?? "unknown",
   args: taskArgsMap.get(r.taskId) ?? {},
   result: r.output as JsonValue,
   success: r.status === "success",
   durationMs: r.executionTimeMs ?? 0,
-  layerIndex: r.layerIndex,  // NEW: propagate layer info to trace
+  layerIndex: r.layerIndex, // NEW: propagate layer info to trace
 }));
 ```
 
@@ -380,7 +387,7 @@ interface ApiCapabilityNode {
 interface ApiExecutionTrace {
   id: string;
   capability_id?: string;
-  executed_at: string;  // ISO date string
+  executed_at: string; // ISO date string
   success: boolean;
   duration_ms: number;
   error_message?: string;
@@ -395,7 +402,7 @@ interface ApiTraceTaskResult {
   result: JsonValue;
   success: boolean;
   duration_ms: number;
-  layer_index?: number;  // NEW: for fan-in/fan-out edge reconstruction
+  layer_index?: number; // NEW: for fan-in/fan-out edge reconstruction
 }
 ```
 
@@ -407,22 +414,22 @@ export interface CapabilityData {
   id: string;
   name: string;
   // ... existing fields
-  traces?: ExecutionTrace[];  // NEW
+  traces?: ExecutionTrace[]; // NEW
 }
 
 // Map traces when transforming API response
-const traces = d.traces?.map(t => ({
+const traces = d.traces?.map((t) => ({
   id: t.id,
   executedAt: new Date(t.executed_at),
   success: t.success,
   durationMs: t.duration_ms,
   errorMessage: t.error_message,
-  taskResults: t.task_results.map(r => ({
+  taskResults: t.task_results.map((r) => ({
     taskId: r.task_id,
     tool: r.tool,
     success: r.success,
     durationMs: r.duration_ms,
-    layerIndex: r.layer_index,  // NEW: for parallel task detection
+    layerIndex: r.layer_index, // NEW: for parallel task detection
   })),
   priority: t.priority,
 }));
@@ -454,11 +461,9 @@ export function CodePanel({ capability, onToolClick }: CodePanelProps) {
             onSelect={setSelectedTraceIndex}
           />
         </div>
-        {selectedTrace ? (
-          <TraceDetail trace={selectedTrace} onToolClick={onToolClick} />
-        ) : (
-          <div class="text-dim text-sm">No executions yet</div>
-        )}
+        {selectedTrace
+          ? <TraceDetail trace={selectedTrace} onToolClick={onToolClick} />
+          : <div class="text-dim text-sm">No executions yet</div>}
       </div>
     </div>
   );
@@ -547,54 +552,64 @@ function TraceDetail({ trace, onToolClick }: {
 
 ### Files to Create
 
-| File | Purpose | LOC |
-|------|---------|-----|
+| File                                           | Purpose                             | LOC |
+| ---------------------------------------------- | ----------------------------------- | --- |
 | `tests/unit/mcp/handlers/graph_traces_test.ts` | Unit tests for include_traces param | ~80 |
 
 ### Files to Modify
 
-| File | Changes | LOC |
-|------|---------|-----|
-| `src/capabilities/types.ts` | Add `layerIndex?: number` to `TraceTaskResult` | ~5 |
-| `src/dag/types.ts` | Add `layerIndex?: number` to `TaskResult` | ~5 |
-| `src/dag/executor.ts` | Populate `layerIndex` in task results | ~10 |
-| `src/mcp/handlers/workflow-execution-handler.ts` | Propagate `layerIndex` to trace | ~5 |
-| `src/graphrag/dag/execution-learning.ts` | Fix Phase 3: fan-in/fan-out edges using `layerIndex` | ~30 |
-| `src/mcp/routing/handlers/graph.ts` | Add `include_traces` query param to hypergraph | ~20 |
-| `src/capabilities/data-service.ts` | Fetch traces in `buildHypergraphData()` | ~30 |
-| `src/web/islands/CytoscapeGraph.tsx` | Add `?include_traces=true`, pass traces to CodePanel | ~30 |
-| `src/web/islands/CodePanel.tsx` | Split layout + TraceSelector + TraceDetail | ~100 |
+| File                                             | Changes                                              | LOC  |
+| ------------------------------------------------ | ---------------------------------------------------- | ---- |
+| `src/capabilities/types.ts`                      | Add `layerIndex?: number` to `TraceTaskResult`       | ~5   |
+| `src/dag/types.ts`                               | Add `layerIndex?: number` to `TaskResult`            | ~5   |
+| `src/dag/executor.ts`                            | Populate `layerIndex` in task results                | ~10  |
+| `src/mcp/handlers/workflow-execution-handler.ts` | Propagate `layerIndex` to trace                      | ~5   |
+| `src/graphrag/dag/execution-learning.ts`         | Fix Phase 3: fan-in/fan-out edges using `layerIndex` | ~30  |
+| `src/mcp/routing/handlers/graph.ts`              | Add `include_traces` query param to hypergraph       | ~20  |
+| `src/capabilities/data-service.ts`               | Fetch traces in `buildHypergraphData()`              | ~30  |
+| `src/web/islands/CytoscapeGraph.tsx`             | Add `?include_traces=true`, pass traces to CodePanel | ~30  |
+| `src/web/islands/CodePanel.tsx`                  | Split layout + TraceSelector + TraceDetail           | ~100 |
 
 ### References
 
 - [Epic 11: Learning from Traces](../epics/epic-11-learning-from-traces.md)
-- [Story 11.2: Execution Trace Table](./11-2-execution-trace-table.md) - DONE (provides ExecutionTraceStore)
+- [Story 11.2: Execution Trace Table](./11-2-execution-trace-table.md) - DONE (provides
+  ExecutionTraceStore)
 - [Story 11.3: TD Error + PER Priority](./11-3-td-error-per-priority.md) - DONE (priority field)
-- [Source: src/mcp/routing/handlers/graph.ts](../../src/mcp/routing/handlers/graph.ts) - Hypergraph endpoint to extend
-- [Source: src/capabilities/data-service.ts](../../src/capabilities/data-service.ts) - buildHypergraphData() to extend
-- [Source: src/capabilities/execution-trace-store.ts](../../src/capabilities/execution-trace-store.ts) - Trace store
-- [Source: src/web/islands/CytoscapeGraph.tsx](../../src/web/islands/CytoscapeGraph.tsx) - Graph component to modify
-- [Source: src/web/components/ui/molecules/GraphLegendPanel.tsx](../../src/web/components/ui/molecules/GraphLegendPanel.tsx) - Toggle UI exists
+- [Source: src/mcp/routing/handlers/graph.ts](../../src/mcp/routing/handlers/graph.ts) - Hypergraph
+  endpoint to extend
+- [Source: src/capabilities/data-service.ts](../../src/capabilities/data-service.ts) -
+  buildHypergraphData() to extend
+- [Source: src/capabilities/execution-trace-store.ts](../../src/capabilities/execution-trace-store.ts) -
+  Trace store
+- [Source: src/web/islands/CytoscapeGraph.tsx](../../src/web/islands/CytoscapeGraph.tsx) - Graph
+  component to modify
+- [Source: src/web/components/ui/molecules/GraphLegendPanel.tsx](../../src/web/components/ui/molecules/GraphLegendPanel.tsx) -
+  Toggle UI exists
 - [Project Context](../project-context.md) - Architecture patterns
 
 ### Previous Story Intelligence (11.2, 11.3)
 
 From Story 11.2 (Execution Trace Table):
+
 - `ExecutionTraceStore.getTraces(capabilityId)` returns traces ordered by `executed_at DESC`
 - `TraceTaskResult` includes `taskId`, `tool`, `args`, `result`, `success`, `durationMs`
 - `execution_trace.task_results` is JSONB array
 
 From Story 11.3 (TD Error + PER Priority):
+
 - `priority` field (0.0-1.0) indicates learning value
 - High priority traces = surprising executions
 - Can filter traces by priority for focused analysis
 
 **Existing Toggle UI (GraphLegendPanel.tsx:116-165):**
+
 - `NodeMode` type: `"definition" | "invocation"`
 - Toggle buttons already styled and functional
 - **NOT USED** - We're using split layout in CodePanel instead
 
 **Current Invocation Mode (CytoscapeGraph.tsx:831-966):**
+
 - Generates fake nodes from `capability.toolsUsed`
 - Does NOT fetch real traces from database
 - **REPLACED BY** split layout in CodePanel with real traces
@@ -612,6 +627,7 @@ Story 11.4 (Wire Invocation to Real Traces) - THIS STORY
 ```
 
 **This story provides:**
+
 - Extended hypergraph endpoint with `?include_traces=true` param
 - Split layout CodePanel: Definition (left) + Invocation (right)
 - TraceSelector dropdown to switch between past executions
@@ -623,6 +639,7 @@ Story 11.4 (Wire Invocation to Real Traces) - THIS STORY
 **Effort:** 1 day (simplified scope since UI already exists)
 
 **Breakdown:**
+
 - Task 1 (API endpoint): 1h
 - Task 2 (Wire CytoscapeGraph to API): 3h
 - Task 3 (Trace selector UI): 2h
@@ -630,6 +647,7 @@ Story 11.4 (Wire Invocation to Real Traces) - THIS STORY
 - Task 5 (Validation): 30min
 
 **Risk:**
+
 - None significant - straightforward wiring of existing components
 
 ## Dev Agent Record

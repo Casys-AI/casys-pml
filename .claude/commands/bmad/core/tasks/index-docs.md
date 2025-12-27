@@ -1,5 +1,5 @@
 ---
-description: 'Generates or updates an index.md of all documents in the specified directory'
+description: "Generates or updates an index.md of all documents in the specified directory"
 ---
 
 # Index Docs

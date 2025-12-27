@@ -1,23 +1,26 @@
 # Tech-Spec: Fresh BFF Refactoring - Separate DB Access from Frontend
 
-**Created:** 2025-12-10
-**Status:** Ready for Development
+**Created:** 2025-12-10 **Status:** Ready for Development
 
 ## Overview
 
 ### Problem Statement
 
-When building the Fresh dashboard for production with Vite, PGLite gets bundled into the server output. PGLite's binary assets (`vector.tar.gz`, `pglite.data`) use relative paths that break after bundling, causing runtime errors:
+When building the Fresh dashboard for production with Vite, PGLite gets bundled into the server
+output. PGLite's binary assets (`vector.tar.gz`, `pglite.data`) use relative paths that break after
+bundling, causing runtime errors:
 
 ```
 Error: Extension bundle not found: file:///home/ubuntu/CascadeProjects/Casys PML/src/web/_fresh/vector.tar.gz
 ```
 
-**Root cause:** Fresh routes (`callback.ts`, `regenerate.ts`, etc.) import `getDb()` which pulls PGLite into the Vite bundle.
+**Root cause:** Fresh routes (`callback.ts`, `regenerate.ts`, etc.) import `getDb()` which pulls
+PGLite into the Vite bundle.
 
 ### Solution
 
 Apply the **BFF (Backend For Frontend) pattern** recommended by the Fresh community:
+
 - Fresh remains a thin UI layer with OAuth and session management
 - All database operations are delegated to the Gateway API via HTTP calls
 - Fresh never imports PGLite directly
@@ -25,11 +28,13 @@ Apply the **BFF (Backend For Frontend) pattern** recommended by the Fresh commun
 ### Scope
 
 **In Scope:**
+
 - Create internal API endpoints on Gateway for user operations
 - Refactor Fresh routes to call Gateway instead of accessing DB directly
 - Remove all PGLite imports from Fresh codebase
 
 **Out of Scope:**
+
 - Changing the OAuth flow (stays on Fresh with `@deno/kv-oauth`)
 - Changing session storage (stays in Deno KV)
 - Modifying existing public Gateway API endpoints
@@ -66,12 +71,14 @@ Apply the **BFF (Backend For Frontend) pattern** recommended by the Fresh commun
 ### Codebase Patterns
 
 **Current Fresh OAuth flow (keep as-is):**
+
 - `src/server/auth/oauth.ts` - OAuth helpers using `@deno/kv-oauth`
 - `src/server/auth/session.ts` - Session management with Deno KV
 - `src/server/auth/kv.ts` - Shared KV singleton
 - `src/web/routes/_middleware.ts` - Auth middleware
 
 **Current problematic imports (to refactor):**
+
 - `src/web/routes/auth/callback.ts` → imports `getDb()` from `server/auth/db.ts`
 - `src/web/routes/auth/regenerate.ts` → imports `getDb()` from `server/auth/db.ts`
 - `src/web/routes/dashboard/settings.tsx` → imports `getDb()` from `server/auth/db.ts`
@@ -81,13 +88,13 @@ Apply the **BFF (Backend For Frontend) pattern** recommended by the Fresh commun
 
 ### Files to Reference
 
-| File | Purpose |
-|------|---------|
-| `src/mcp/gateway-server.ts` | Add new internal endpoints here |
-| `src/server/auth/db.ts` | Current DB access (will be unused by Fresh) |
-| `src/db/schema/users.ts` | User table schema |
-| `src/lib/api-key.ts` | API key generation/validation |
-| `src/web/routes/auth/callback.ts` | OAuth callback (needs refactoring) |
+| File                              | Purpose                                     |
+| --------------------------------- | ------------------------------------------- |
+| `src/mcp/gateway-server.ts`       | Add new internal endpoints here             |
+| `src/server/auth/db.ts`           | Current DB access (will be unused by Fresh) |
+| `src/db/schema/users.ts`          | User table schema                           |
+| `src/lib/api-key.ts`              | API key generation/validation               |
+| `src/web/routes/auth/callback.ts` | OAuth callback (needs refactoring)          |
 
 ### Technical Decisions
 
@@ -145,6 +152,7 @@ Add new endpoints:
 ```
 
 **Implementation details:**
+
 - Extract user operations from current route handlers
 - Reuse existing `getDb()` (stays in Gateway, no bundling issue)
 - Add localhost-only check for `/api/internal/*` routes
@@ -208,7 +216,7 @@ export async function deleteUser(userId: string): Promise<void> {
 
 export async function recordAlgorithmFeedback(
   userId: string,
-  feedback: FeedbackData
+  feedback: FeedbackData,
 ): Promise<void> {
   const response = await fetch(`${GATEWAY_URL}/api/internal/algorithm-feedback`, {
     method: "POST",
@@ -243,7 +251,7 @@ if (url.pathname.startsWith("/api/internal/")) {
   if (!validateInternalRequest(req)) {
     return new Response(
       JSON.stringify({ error: "Unauthorized", message: "Invalid internal secret" }),
-      { status: 401, headers: { "Content-Type": "application/json" } }
+      { status: 401, headers: { "Content-Type": "application/json" } },
     );
   }
   // ... handle internal routes
@@ -393,6 +401,7 @@ INTERNAL_API_SECRET=<your-64-char-hex-secret>
 ### Rollback Plan
 
 If issues arise:
+
 1. Revert to previous Fresh routes (git revert)
 2. Use quick-fix (externalize PGLite in vite.config.ts) as temporary measure
 
@@ -405,6 +414,8 @@ If issues arise:
 
 ### Notes
 
-- This refactoring follows the Fresh community recommendation: "API-first approach for DB operations"
-- The same pattern is used by the existing Islands (GraphExplorer, MetricsPanel) which already call Gateway API
+- This refactoring follows the Fresh community recommendation: "API-first approach for DB
+  operations"
+- The same pattern is used by the existing Islands (GraphExplorer, MetricsPanel) which already call
+  Gateway API
 - After this change, Fresh becomes a pure BFF: OAuth + Sessions + UI rendering only

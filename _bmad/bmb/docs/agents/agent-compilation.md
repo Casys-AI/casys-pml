@@ -14,7 +14,8 @@ Source: `tools/cli/lib/agent/compiler.js`
 
 **CRITICAL:** Agent filenames must be ROLE-BASED, not persona-based.
 
-**Why:** Users can customize the agent's persona name via `customize.yaml` config. The filename provides stable identity.
+**Why:** Users can customize the agent's persona name via `customize.yaml` config. The filename
+provides stable identity.
 
 **Correct:**
 
@@ -44,7 +45,7 @@ rex.agent.yaml           ← Persona name (users might rename to "Max")
 # File: presentation-master.agent.yaml
 agent:
   metadata:
-    id: '_bmad/cis/agents/presentation-master.md'
+    id: "_bmad/cis/agents/presentation-master.md"
     name: Caravaggio # ← Users can change this to "Pablo" or "Vince"
     title: Visual Communication & Presentation Expert
 ```
@@ -57,8 +58,8 @@ agent:
 
 ```yaml
 ---
-name: '{agent name from filename}'
-description: '{title from metadata}'
+name: "{agent name from filename}"
+description: "{title from metadata}"
 ---
 You must fully embody this agent's persona...
 ```
@@ -112,9 +113,9 @@ You must fully embody this agent's persona...
 # BAD - these are auto-injected
 menu:
   - trigger: help
-    description: 'Show help'
+    description: "Show help"
   - trigger: exit
-    description: 'Exit'
+    description: "Exit"
 ```
 
 ### 4. Menu Handlers
@@ -161,21 +162,21 @@ Compiler detects which handlers you use and ONLY includes those:
 ```yaml
 agent:
   metadata:
-    name: 'Persona Name'
-    title: 'Agent Title'
-    icon: 'emoji'
-    type: 'simple|expert' # or module: "bmm"
+    name: "Persona Name"
+    title: "Agent Title"
+    icon: "emoji"
+    type: "simple|expert" # or module: "bmm"
 
   persona:
-    role: '...'
-    identity: '...'
-    communication_style: '...'
+    role: "..."
+    identity: "..."
+    communication_style: "..."
     principles: [...]
 
   menu:
     - trigger: your-action
-      action: '#prompt-id'
-      description: 'What it does'
+      action: "#prompt-id"
+      description: "What it does"
 ```
 
 ### Optional (based on type)
@@ -183,13 +184,13 @@ agent:
 ```yaml
 # Expert agents only
 critical_actions:
-  - 'Load sidecar files...'
-  - 'Restrict access...'
+  - "Load sidecar files..."
+  - "Restrict access..."
 
 # Simple/Expert with embedded logic
 prompts:
   - id: prompt-id
-    content: '...'
+    content: "..."
 
 # Simple/Expert with customization
 install_config:
@@ -221,7 +222,7 @@ menu:
 ```yaml
 # BAD - compiler adds *
 menu:
-  - trigger: '*analyze' # Should be: analyze
+  - trigger: "*analyze" # Should be: analyze
 ```
 
 ### Documenting Handlers
@@ -247,9 +248,9 @@ agent:
 ```yaml
 agent:
   metadata:
-    name: 'Rex'
-    title: 'Code Reviewer'
-    icon: '🔍'
+    name: "Rex"
+    title: "Code Reviewer"
+    icon: "🔍"
     type: simple
 
   persona:
@@ -266,16 +267,16 @@ agent:
 
   menu:
     - trigger: review
-      action: '#review'
-      description: 'Review code'
+      action: "#review"
+      description: "Review code"
 ```
 
 **Compiled Output (.md):**
 
 ```markdown
 ---
-name: 'rex'
-description: 'Code Reviewer'
+name: "rex"
+description: "Code Reviewer"
 ---
 
 You must fully embody...
@@ -291,7 +292,7 @@ You must fully embody...
 <step n="6">STOP and WAIT...</step>
 <step n="7">Input resolution...</step>
 
-  <menu-handlers>
+<menu-handlers>
     <handlers>
       <handler type="action">
         action="#id" → Find prompt, execute
@@ -300,7 +301,7 @@ You must fully embody...
     </handlers>
   </menu-handlers>
 
-  <rules>
+<rules>
     - Stay in character...
     - Number lists...
     - Load files when executing...
@@ -336,5 +337,5 @@ Analyze code for issues...
 4. **Handlers auto-detected** - Only what you use is included
 5. **Rules standardized** - Consistent behavior across agents
 
-**Your job:** Define persona, prompts, menu actions
-**Compiler's job:** Activation, handlers, rules, help/exit, prefixes
+**Your job:** Define persona, prompts, menu actions **Compiler's job:** Activation, handlers, rules,
+help/exit, prefixes

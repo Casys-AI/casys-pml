@@ -1,7 +1,7 @@
 # 02 - Hierarchy Level Computation
 
-**Parent**: [00-overview.md](./00-overview.md)
-**Depends on**: [01-data-model.md](./01-data-model.md)
+**Parent**: [00-overview.md](./00-overview.md) **Depends on**:
+[01-data-model.md](./01-data-model.md)
 
 ---
 

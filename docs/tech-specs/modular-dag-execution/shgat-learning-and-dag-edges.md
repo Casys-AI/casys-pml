@@ -1,24 +1,27 @@
 # SHGAT Learning & DAG Dependencies avec Tasks Modulaires
 
-Analyse de ce que le **SHGAT** (Sparse Hierarchical Graph Attention Transformer) apprend et comment les **edges** (dépendances) sont suivies dans le DAG, avec impact des tasks code execution modulaires.
+Analyse de ce que le **SHGAT** (Sparse Hierarchical Graph Attention Transformer) apprend et comment
+les **edges** (dépendances) sont suivies dans le DAG, avec impact des tasks code execution
+modulaires.
 
 ## 🧠 Ce que SHGAT Apprend (Actuellement)
 
-SHGAT est un modèle de machine learning qui apprend des **traces d'exécution** pour prédire quelle capability utiliser pour un nouvel intent.
+SHGAT est un modèle de machine learning qui apprend des **traces d'exécution** pour prédire quelle
+capability utiliser pour un nouvel intent.
 
 ### **1. Données Apprises par Trace**
 
 Chaque trace d'exécution stocke :
 
-| Donnée | Type | Exemple | Usage SHGAT |
-|--------|------|---------|-------------|
-| **`intentEmbedding`** | `number[1024]` | BGE-M3 embedding | Input pour prédiction |
-| **`executedPath`** | `string[]` | `["filesystem:read", "slack:send"]` | Séquence d'outils |
-| **`decisions`** | `BranchDecision[]` | `[{nodeId: "d1", outcome: "true"}]` | Branches prises |
-| **`taskResults`** | `TraceTaskResult[]` | Résultats de chaque task | Outcome (success/fail) |
-| **`toolsUsed`** | `string[]` | `["filesystem:read", "slack:send"]` | Dédupliqué |
-| **`successRate`** | `number` | `0.85` | Reliability scoring |
-| **`durationMs`** | `number` | `150` | Performance |
+| Donnée                | Type                | Exemple                             | Usage SHGAT            |
+| --------------------- | ------------------- | ----------------------------------- | ---------------------- |
+| **`intentEmbedding`** | `number[1024]`      | BGE-M3 embedding                    | Input pour prédiction  |
+| **`executedPath`**    | `string[]`          | `["filesystem:read", "slack:send"]` | Séquence d'outils      |
+| **`decisions`**       | `BranchDecision[]`  | `[{nodeId: "d1", outcome: "true"}]` | Branches prises        |
+| **`taskResults`**     | `TraceTaskResult[]` | Résultats de chaque task            | Outcome (success/fail) |
+| **`toolsUsed`**       | `string[]`          | `["filesystem:read", "slack:send"]` | Dédupliqué             |
+| **`successRate`**     | `number`            | `0.85`                              | Reliability scoring    |
+| **`durationMs`**      | `number`            | `150`                               | Performance            |
 
 ### **2. Architecture SHGAT : Message Passing**
 
@@ -77,6 +80,7 @@ scores: Map<string, number>     // Probabilité par capability
 ```
 
 SHGAT apprend :
+
 - ✅ **Quels outils** sont souvent utilisés ensemble
 - ✅ **Quelle séquence** d'outils fonctionne
 - ✅ **Quelles décisions** (branches if/else) sont prises
@@ -101,15 +105,17 @@ Le DAG contient **4 types d'edges** qui définissent les dépendances entre task
 ```
 
 **Exemple :**
+
 ```typescript
-const file = await mcp.filesystem.read_file({ path });  // n1
-await mcp.slack.send({ content: file });               // n2
+const file = await mcp.filesystem.read_file({ path }); // n1
+await mcp.slack.send({ content: file }); // n2
 
 // Edge : n1 → n2 (sequence)
 // n2 ne peut s'exécuter qu'après n1
 ```
 
 **Impact modulaire :**
+
 ```typescript
 const users = await mcp.db.query(...);        // n1
 const active = users.filter(u => u.active);   // c1 (computation)
@@ -134,11 +140,12 @@ const names = active.map(u => u.name);        // c2 (computation)
 ```
 
 **Exemple :**
+
 ```typescript
-if (file.exists) {                           // d1
-  await mcp.filesystem.read({ path });       // n2
+if (file.exists) { // d1
+  await mcp.filesystem.read({ path }); // n2
 } else {
-  await mcp.filesystem.create({ path });     // n3
+  await mcp.filesystem.create({ path }); // n3
 }
 
 // Edges :
@@ -162,11 +169,12 @@ if (file.exists) {                           // d1
 ```
 
 **Exemple :**
+
 ```typescript
-const file = await mcp.fs.read({ path });  // n1 (produit: content, size)
+const file = await mcp.fs.read({ path }); // n1 (produit: content, size)
 await mcp.slack.send({
-  content: file.content  // ← Utilise "content" de n1
-});                                        // n2
+  content: file.content, // ← Utilise "content" de n1
+}); // n2
 
 // Edge : n1 → n2 (provides: ["content"])
 ```
@@ -174,6 +182,7 @@ await mcp.slack.send({
 **Détection automatique** : Compare `inputSchema` de n2 avec `outputSchema` de n1.
 
 **Impact modulaire :**
+
 ```typescript
 const users = await mcp.db.query(...);     // n1 (produit: users array)
 const active = users.filter(u => u.active); // c1 (utilise: users)
@@ -194,6 +203,7 @@ const active = users.filter(u => u.active); // c1 (utilise: users)
 ```
 
 **Exemple :**
+
 ```typescript
 // Capability "read-and-send"
 {
@@ -265,13 +275,13 @@ const sorted = names.sort();
 
 SHGAT peut maintenant apprendre des **micro-patterns réutilisables** :
 
-| Pattern | Executé Path | Réutilisable Pour |
-|---------|--------------|-------------------|
-| **ETL Pipeline** | `["db:query", "code:filter", "code:map", "code:sort"]` | Transformation de données |
-| **Parallel Aggregation** | `["db:query", "fork", "code:filter1", "code:filter2", "join"]` | Traitement parallèle |
-| **Search Pattern** | `["db:query", "code:filter", "code:find"]` | Recherche dans dataset |
-| **Validation Pattern** | `["db:query", "code:every"]` | Vérification qualité |
-| **Grouping Pattern** | `["db:query", "code:reduce:groupBy"]` | Agrégation par clé |
+| Pattern                  | Executé Path                                                   | Réutilisable Pour         |
+| ------------------------ | -------------------------------------------------------------- | ------------------------- |
+| **ETL Pipeline**         | `["db:query", "code:filter", "code:map", "code:sort"]`         | Transformation de données |
+| **Parallel Aggregation** | `["db:query", "fork", "code:filter1", "code:filter2", "join"]` | Traitement parallèle      |
+| **Search Pattern**       | `["db:query", "code:filter", "code:find"]`                     | Recherche dans dataset    |
+| **Validation Pattern**   | `["db:query", "code:every"]`                                   | Vérification qualité      |
+| **Grouping Pattern**     | `["db:query", "code:reduce:groupBy"]`                          | Agrégation par clé        |
 
 ### **Edges Détaillés pour Learning**
 
@@ -301,6 +311,7 @@ task_c3 (code:sort)
 Avec tasks modulaires, SHGAT peut scorer plus finement :
 
 **Sans modularité :**
+
 ```typescript
 intent: "get active users sorted by name"
 SHGAT.predict() → {
@@ -310,6 +321,7 @@ SHGAT.predict() → {
 ```
 
 **Avec modularité :**
+
 ```typescript
 intent: "get active users sorted by name"
 SHGAT.predict() → {
@@ -338,9 +350,10 @@ Dans certains cas, il peut y avoir **plusieurs edges** entre deux tasks :
 ```
 
 **Exemple :**
+
 ```typescript
-const file = await mcp.fs.read({ path });  // n1
-const upper = file.content.toUpperCase();  // c1 (computation)
+const file = await mcp.fs.read({ path }); // n1
+const upper = file.content.toUpperCase(); // c1 (computation)
 
 // Edges :
 // n1 → c1 : sequence (c1 après n1)
@@ -348,6 +361,7 @@ const upper = file.content.toUpperCase();  // c1 (computation)
 ```
 
 **SHGAT utilise :**
+
 - **sequence** : Pour ordre d'exécution et parallélisation
 - **provides** : Pour comprendre le data flow et prédire compatibilité
 
@@ -414,10 +428,10 @@ Avec edges riches, SHGAT peut suggérer parallélisation :
   executedPath: [
     "db:query",
     "fork",
-    "code:filter:active",      // Parallèle
-    "code:filter:premium",     // Parallèle
-    "join"
-  ]
+    "code:filter:active", // Parallèle
+    "code:filter:premium", // Parallèle
+    "join",
+  ];
 }
 
 // SHGAT suggère : "Utiliser fork/join pour filtres indépendants"
@@ -431,10 +445,10 @@ Avec edges riches, SHGAT peut suggérer parallélisation :
 
 ```typescript
 const users = await mcp.db.query({ sql: "SELECT * FROM users" });
-const active = users.filter(u => u.active && u.verified);
-const enriched = active.map(u => ({
+const active = users.filter((u) => u.active && u.verified);
+const enriched = active.map((u) => ({
   ...u,
-  displayName: `${u.firstName} ${u.lastName}`
+  displayName: `${u.firstName} ${u.lastName}`,
 }));
 const sorted = enriched.sort((a, b) => a.displayName.localeCompare(b.displayName));
 const top10 = sorted.slice(0, 10);
@@ -510,27 +524,25 @@ db:query → filter:premium → map:enrich → sort:signupDate → slice:5
 
 ### **Ce que SHGAT Apprend :**
 
-| Donnée | Actuel | Avec Tasks Modulaires |
-|--------|--------|----------------------|
+| Donnée             | Actuel                       | Avec Tasks Modulaires                                                |
+| ------------------ | ---------------------------- | -------------------------------------------------------------------- |
 | **Tools utilisés** | `["db:query", "slack:send"]` | `["db:query", "code:filter", "code:map", "code:sort", "slack:send"]` |
-| **Séquence** | Outils MCP seulement | Outils MCP + opérations code |
-| **Patterns** | Coarse-grained | Fine-grained (filter→map→sort) |
-| **Data flow** | Implicit | Explicit via provides edges |
-| **Granularité** | Capability-level | Operation-level |
+| **Séquence**       | Outils MCP seulement         | Outils MCP + opérations code                                         |
+| **Patterns**       | Coarse-grained               | Fine-grained (filter→map→sort)                                       |
+| **Data flow**      | Implicit                     | Explicit via provides edges                                          |
+| **Granularité**    | Capability-level             | Operation-level                                                      |
 
 ### **Edges Suivis :**
 
-| Edge Type | Usage | Exemple |
-|-----------|-------|---------|
-| **sequence** | Ordre d'exécution | `n1 → c1 → c2` |
-| **conditional** | Branches if/else | `d1 → n2 (if true)` |
-| **provides** | Data flow | `n1 → c1 (provides: ["array"])` |
-| **contains** | Hiérarchie | `cap → task` |
+| Edge Type       | Usage             | Exemple                         |
+| --------------- | ----------------- | ------------------------------- |
+| **sequence**    | Ordre d'exécution | `n1 → c1 → c2`                  |
+| **conditional** | Branches if/else  | `d1 → n2 (if true)`             |
+| **provides**    | Data flow         | `n1 → c1 (provides: ["array"])` |
+| **contains**    | Hiérarchie        | `cap → task`                    |
 
 ### **Impact Tasks Modulaires :**
 
-✅ **Pattern learning** : Micro-patterns réutilisables
-✅ **Better scoring** : Précision fine pour intents
-✅ **Compositional** : Apprendre compositions d'opérations
-✅ **Parallelization** : Détecter opportunités parallèles
-✅ **Debugging** : Savoir exactement quelle opération échoue
+✅ **Pattern learning** : Micro-patterns réutilisables ✅ **Better scoring** : Précision fine pour
+intents ✅ **Compositional** : Apprendre compositions d'opérations ✅ **Parallelization** : Détecter
+opportunités parallèles ✅ **Debugging** : Savoir exactement quelle opération échoue

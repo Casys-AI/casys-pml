@@ -1,31 +1,33 @@
 # Bug: Parallel Execution Not Properly Tracked
 
-**Severity**: Medium
-**Component**: GraphRAG / graph-engine.ts, gateway-server.ts
-**Discovered**: 2025-12-16
+**Severity**: Medium **Component**: GraphRAG / graph-engine.ts, gateway-server.ts **Discovered**:
+2025-12-16
 
 ## Summary
 
 Two related issues with parallel execution tracking:
 
 1. **DAG parallel tasks**: When a DAG has parallel tasks (no `dependsOn`), no edges are created
-2. **execute_code Promise.all**: Parallel tool calls are traced as sequential, corrupting the invocation view
+2. **execute_code Promise.all**: Parallel tool calls are traced as sequential, corrupting the
+   invocation view
 
 ## Root Cause
 
 ### Issue 1: DAG Parallel Tasks
 
-In `src/graphrag/graph-engine.ts:524-587`, the `updateFromExecution()` method only creates edges based on the `dependsOn` array:
+In `src/graphrag/graph-engine.ts:524-587`, the `updateFromExecution()` method only creates edges
+based on the `dependsOn` array:
 
 ```typescript
 for (const task of execution.dagStructure.tasks) {
-  for (const depTaskId of task.dependsOn) {  // <-- Empty for parallel tasks
+  for (const depTaskId of task.dependsOn) { // <-- Empty for parallel tasks
     // ... create edge from depTask.tool → task.tool
   }
 }
 ```
 
-If tasks have empty `dependsOn` arrays (parallel execution), the inner loop never executes, so no edges are learned.
+If tasks have empty `dependsOn` arrays (parallel execution), the inner loop never executes, so no
+edges are learned.
 
 ### Issue 2: execute_code Promise.all
 
@@ -42,7 +44,9 @@ const tracedDAG = {
 };
 ```
 
-Even when tools are called with `Promise.all()`, the tracing just records them in completion order as a flat array, losing the parallel structure. The invocation view then shows a false sequential flow.
+Even when tools are called with `Promise.all()`, the tracing just records them in completion order
+as a flat array, losing the parallel structure. The invocation view then shows a false sequential
+flow.
 
 ## Reproduction
 
@@ -77,7 +81,7 @@ await pml_execute_code({
       mcp.primitives.json_stringify({ value: {y:2} })
     ]);
     return { a, b };
-  `
+  `,
 });
 
 // Edge created as json_parse → json_stringify (sequential)
@@ -85,6 +89,7 @@ await pml_execute_code({
 ```
 
 **Actual behavior:**
+
 ```
 Code:       Promise.all([A, B, C])  // Parallel
 Traced:     [A, B, C]               // Flat array, order = completion
@@ -98,6 +103,7 @@ View:       A → B → C               // False sequential flow
 2. **execute_code**: Parallel calls should be detected and stored with `edge_type: "parallel"`
 
 This would enable:
+
 - Accurate invocation view showing real execution flow
 - Learning tool affinities from parallel usage patterns
 - Better DAG suggestions based on intent similarity
@@ -135,16 +141,16 @@ Add logic to create edges between all tools in a successful DAG:
 
 ```typescript
 // After dependency-based edges, add co-occurrence edges
-const toolsInDAG = execution.dagStructure.tasks.map(t => t.tool);
+const toolsInDAG = execution.dagStructure.tasks.map((t) => t.tool);
 for (let i = 0; i < toolsInDAG.length; i++) {
   for (let j = i + 1; j < toolsInDAG.length; j++) {
     const toolA = toolsInDAG[i];
     const toolB = toolsInDAG[j];
     if (toolA !== toolB) {
       await this.addEdge(toolA, toolB, {
-        weight: 0.3,  // Lower than dependency edges
+        weight: 0.3, // Lower than dependency edges
         edge_type: "co-occurrence",
-        edge_source: "inferred"
+        edge_source: "inferred",
       });
     }
   }

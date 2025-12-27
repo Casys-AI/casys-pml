@@ -1,18 +1,19 @@
 ---
-nextStepFile: '{installed_path}/steps/step-02-concept.md'
-continueFile: '{installed_path}/steps/step-01b-continue.md'
-modulePlanTemplate: '{installed_path}/templates/module-plan.template.md'
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
-customModuleLocation: '{bmb_creations_output_folder}'
-modulePlanFile: '{bmb_creations_output_folder}/{module_name}/module-plan-{module_name}.md'
+nextStepFile: "{installed_path}/steps/step-02-concept.md"
+continueFile: "{installed_path}/steps/step-01b-continue.md"
+modulePlanTemplate: "{installed_path}/templates/module-plan.template.md"
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
+customModuleLocation: "{bmb_creations_output_folder}"
+modulePlanFile: "{bmb_creations_output_folder}/{module_name}/module-plan-{module_name}.md"
 ---
 
 # Step 1: Workflow Initialization
 
 ## STEP GOAL:
 
-To initialize the create-module workflow by getting the module name from the user, checking for existing work, handling continuation if needed, and creating the initial module plan document.
+To initialize the create-module workflow by getting the module name from the user, checking for
+existing work, handling continuation if needed, and creating the initial module plan document.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -27,7 +28,8 @@ To initialize the create-module workflow by getting the module name from the use
 
 - ✅ You are a Module Architect and BMAD Systems Specialist
 - ✅ We engage in collaborative dialogue, not command-response
-- ✅ You bring expertise in BMAD architecture and module creation, user brings their module requirements
+- ✅ You bring expertise in BMAD architecture and module creation, user brings their module
+  requirements
 - ✅ Maintain collaborative, guiding tone throughout
 
 ### Step-Specific Rules:
@@ -55,7 +57,8 @@ To initialize the create-module workflow by getting the module name from the use
 
 ### 1. Welcome and Get Module Name
 
-Greet the user warmly by their {user_name}, welcoming them to the BMAD Module Creator. Through conversation, collaboratively work with them to:
+Greet the user warmly by their {user_name}, welcoming them to the BMAD Module Creator. Through
+conversation, collaboratively work with them to:
 
 - Understand what kind of module they want to create
 - Help them choose a good name in kebab-case (provide examples if needed)
@@ -101,8 +104,10 @@ If no supporting documents are found:
 If proceeding:
 
 - Create the module folder if needed
-- Create the initial module-plan-{module_name}.md document using the module plan template from {modulePlanTemplate}
-- Initialize proper frontmatter with current date, user name, and add "step-01-init" to stepsCompleted array
+- Create the initial module-plan-{module_name}.md document using the module plan template from
+  {modulePlanTemplate}
+- Initialize proper frontmatter with current date, user name, and add "step-01-init" to
+  stepsCompleted array
 - Add any discovered documents to inputDocuments field
 - Include a brief section about the legacy reference
 
@@ -124,7 +129,9 @@ Display: **Proceeding to define your module concept...**
 
 #### Menu Handling Logic:
 
-- After setup completion, add step-01-init to the end of the stepsCompleted array in module plan frontmatter, then load, read entire file, then execute `{nextStepFile}` to define the module concept
+- After setup completion, add step-01-init to the end of the stepsCompleted array in module plan
+  frontmatter, then load, read entire file, then execute `{nextStepFile}` to define the module
+  concept
 
 ---
 
@@ -148,8 +155,11 @@ Display: **Proceeding to define your module concept...**
 - Skipping folder creation
 - Not routing to step-01b-continue.md when appropriate
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN initialization setup is complete and module plan document is created (OR continuation is properly routed), will you then immediately load, read entire file, then execute `{nextStepFile}` to begin defining the module concept.
+ONLY WHEN initialization setup is complete and module plan document is created (OR continuation is
+properly routed), will you then immediately load, read entire file, then execute `{nextStepFile}` to
+begin defining the module concept.

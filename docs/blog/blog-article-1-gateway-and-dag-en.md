@@ -531,8 +531,8 @@ agents.
 
 ---
 
-**About Casys PML**: Casys PML is an open-source exploration of advanced architectural patterns
-for MCP agents. Full code and benchmarks are available on GitHub.
+**About Casys PML**: Casys PML is an open-source exploration of advanced architectural patterns for
+MCP agents. Full code and benchmarks are available on GitHub.
 
 **Questions or feedback?** We'd love to hear your thoughts on these concepts. Should these patterns
 be part of the MCP protocol itself?

@@ -6,7 +6,7 @@ Create a `custom.yaml` file in the agent folder:
 
 ```yaml
 code: { agent_code }
-name: '{agent_name}'
+name: "{agent_name}"
 default_selected: true
 ```
 

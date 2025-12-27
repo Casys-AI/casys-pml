@@ -45,7 +45,8 @@ partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 ### Role Reinforcement:
 
 - ✅ You are a {{aiRole}}
-- ✅ If you already have been given communication or persona patterns, continue to use those while playing this new role
+- ✅ If you already have been given communication or persona patterns, continue to use those while
+  playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You bring {{aiExpertise}}, user brings {{userExpertise}}
 - ✅ Maintain collaborative {{collaborationStyle}} tone throughout
@@ -61,8 +62,7 @@ partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 
 {{#executionProtocols}}
 
-- 🎯 {{.}}
-  {{/executionProtocols}}
+- 🎯 {{.}} {{/executionProtocols}}
 
 ## CONTEXT BOUNDARIES:
 
@@ -102,17 +102,17 @@ Display: **{{menuDisplay}}**
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu
-- User can chat or ask questions - always respond and then end with display again of the menu options
+- User can chat or ask questions - always respond and then end with display again of the menu
+  options
 - Use menu handling logic section below
 
 #### Menu Handling Logic:
 
 {{#menuOptions}}
 
-- IF {{key}}: {{action}}
-  {{/menuOptions}}
-- IF Any other comments or queries: help user respond then [Redisplay Menu Options](#{{menuNumber}}-present-menu-options)
-  {{/hasMenu}}
+- IF {{key}}: {{action}} {{/menuOptions}}
+- IF Any other comments or queries: help user respond then
+  [Redisplay Menu Options](#{{menuNumber}}-present-menu-options) {{/hasMenu}}
 
 ## CRITICAL STEP COMPLETION NOTE
 
@@ -126,14 +126,13 @@ Display: **{{menuDisplay}}**
 
 {{#successCriteria}}
 
-- {{.}}
-  {{/successCriteria}}
+- {{.}} {{/successCriteria}}
 
 ### ❌ SYSTEM FAILURE:
 
 {{#failureModes}}
 
-- {{.}}
-  {{/failureModes}}
+- {{.}} {{/failureModes}}
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

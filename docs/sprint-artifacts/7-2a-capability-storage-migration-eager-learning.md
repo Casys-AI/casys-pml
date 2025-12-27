@@ -381,4 +381,5 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - `src/capabilities/capability-store.ts` - Added error handling for embedding generation failure
 - `src/capabilities/types.ts` - Removed unused WorkflowPatternRow type
 - `src/capabilities/mod.ts` - Unexported hashCodeSync (internal use only)
-- `tests/unit/capabilities/capability_store_test.ts` - Added 5 new tests (searchByIntent, concurrent, embedding error)
+- `tests/unit/capabilities/capability_store_test.ts` - Added 5 new tests (searchByIntent,
+  concurrent, embedding error)

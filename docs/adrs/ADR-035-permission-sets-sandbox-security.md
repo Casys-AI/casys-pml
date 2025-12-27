@@ -1,7 +1,7 @@
 # ADR-035: Permission Sets for Sandbox Security (Deno 2.5+)
 
-**Status:** ✅ Accepted (Stories Created: 7.7a, 7.7b, 7.7c)
-**Date:** 2025-12-05 | **Updated:** 2025-12-16 | **Deciders:** Architecture Team
+**Status:** ✅ Accepted (Stories Created: 7.7a, 7.7b, 7.7c) **Date:** 2025-12-05 | **Updated:**
+2025-12-16 | **Deciders:** Architecture Team
 
 ## Context
 
@@ -19,15 +19,16 @@ Casys PML exécute du code généré par LLM dans un sandbox Deno isolé:
 const command = new Deno.Command("deno", {
   args: [
     "run",
-    "--allow-read",      // Tout fichier
-    "--allow-net",       // Tout réseau
-    "--allow-env",       // Toutes variables
+    "--allow-read", // Tout fichier
+    "--allow-net", // Tout réseau
+    "--allow-env", // Toutes variables
     // ... permissions larges
   ],
 });
 ```
 
 **Risques:**
+
 - Une capability malveillante peut lire n'importe quel fichier
 - Accès réseau non restreint
 - Pas de différenciation entre capabilities "trusted" et "untrusted"
@@ -111,14 +112,14 @@ deno run --permission-set=filesystem-readonly script.ts
 
 ### Permission Profiles
 
-| Profile | Read | Write | Net | Env | Use Case |
-|---------|------|-------|-----|-----|----------|
-| `minimal` | ❌ | ❌ | ❌ | ❌ | Pure computation, math |
-| `readonly` | `["./data"]` | ❌ | ❌ | ❌ | Data analysis |
-| `filesystem` | `["./"]` | `["/tmp"]` | ❌ | ❌ | File processing |
-| `network-api` | ❌ | ❌ | `["api.*"]` | ❌ | API calls only |
-| `mcp-standard` | ✅ | `["/tmp"]` | ✅ | Limited | Standard MCP tools |
-| `trusted` | ✅ | ✅ | ✅ | ✅ | Manual/verified capabilities |
+| Profile        | Read         | Write      | Net         | Env     | Use Case                     |
+| -------------- | ------------ | ---------- | ----------- | ------- | ---------------------------- |
+| `minimal`      | ❌           | ❌         | ❌          | ❌      | Pure computation, math       |
+| `readonly`     | `["./data"]` | ❌         | ❌          | ❌      | Data analysis                |
+| `filesystem`   | `["./"]`     | `["/tmp"]` | ❌          | ❌      | File processing              |
+| `network-api`  | ❌           | ❌         | `["api.*"]` | ❌      | API calls only               |
+| `mcp-standard` | ✅           | `["/tmp"]` | ✅          | Limited | Standard MCP tools           |
+| `trusted`      | ✅           | ✅         | ✅          | ✅      | Manual/verified capabilities |
 
 ### Inférence Automatique des Permissions
 
@@ -138,11 +139,11 @@ export async function inferPermissions(code: string): Promise<InferredPermission
 
   // Detect MCP tool usage patterns
   const usesFilesystem = detectPattern(ast, "mcp.filesystem") ||
-                         detectPattern(ast, "mcp.fs");
+    detectPattern(ast, "mcp.fs");
   const usesNetwork = detectPattern(ast, "fetch") ||
-                      detectPattern(ast, "mcp.api");
+    detectPattern(ast, "mcp.api");
   const usesEnv = detectPattern(ast, "Deno.env") ||
-                  detectPattern(ast, "process.env");
+    detectPattern(ast, "process.env");
 
   if (usesFilesystem) patterns.push("filesystem");
   if (usesNetwork) patterns.push("network");
@@ -163,7 +164,7 @@ export async function inferPermissions(code: string): Promise<InferredPermission
   return {
     permissionSet,
     confidence: patterns.length > 0 ? 0.8 : 0.95,
-    detectedPatterns: patterns
+    detectedPatterns: patterns,
   };
 }
 ```
@@ -293,7 +294,7 @@ interface PermissionEscalationRequest {
   capabilityId: string;
   currentSet: string;
   requestedSet: string;
-  reason: string;  // e.g., "PermissionDenied: read access to /etc/hosts"
+  reason: string; // e.g., "PermissionDenied: read access to /etc/hosts"
 }
 
 // In controlled-executor.ts
@@ -304,8 +305,8 @@ if (result.error?.includes("PermissionDenied")) {
       capabilityId: capability.id,
       currentSet: capability.permissionSet,
       requestedSet: suggestEscalation(result.error),
-      reason: result.error
-    }
+      reason: result.error,
+    },
   });
 }
 ```
@@ -328,11 +329,11 @@ if (result.error?.includes("PermissionDenied")) {
 
 ### Risks
 
-| Risk | Probability | Impact | Mitigation |
-|------|-------------|--------|------------|
-| Deno 2.5 delayed | Medium | High | Implement fallback with explicit flags |
-| Over-restriction breaks valid code | Medium | Medium | Start permissive, tighten based on data |
-| Permission inference incorrect | Low | Medium | Confidence threshold + HIL fallback |
+| Risk                               | Probability | Impact | Mitigation                              |
+| ---------------------------------- | ----------- | ------ | --------------------------------------- |
+| Deno 2.5 delayed                   | Medium      | High   | Implement fallback with explicit flags  |
+| Over-restriction breaks valid code | Medium      | Medium | Start permissive, tighten based on data |
+| Permission inference incorrect     | Low         | Medium | Confidence threshold + HIL fallback     |
 
 ## Implementation
 
@@ -340,15 +341,16 @@ if (result.error?.includes("PermissionDenied")) {
 
 > **Référence:** Voir `docs/epics.md` - Stories 7.7a, 7.7b, 7.7c
 
-| Story | Titre | Estimation | Prérequis |
-|-------|-------|------------|-----------|
-| **7.7a** | Permission Inference - Analyse Automatique des Permissions | 1-2j | Story 7.2b (SWC) |
-| **7.7b** | Sandbox Permission Integration - Exécution avec Permissions Granulaires | 1-2j | Story 7.7a |
-| **7.7c** | HIL Permission Escalation - Escalade avec Approbation Humaine | 1-1.5j | Story 7.7b |
+| Story    | Titre                                                                   | Estimation | Prérequis        |
+| -------- | ----------------------------------------------------------------------- | ---------- | ---------------- |
+| **7.7a** | Permission Inference - Analyse Automatique des Permissions              | 1-2j       | Story 7.2b (SWC) |
+| **7.7b** | Sandbox Permission Integration - Exécution avec Permissions Granulaires | 1-2j       | Story 7.7a       |
+| **7.7c** | HIL Permission Escalation - Escalade avec Approbation Humaine           | 1-1.5j     | Story 7.7b       |
 
 **Estimation totale:** 3.5-5.5 jours (après Story 7.2b)
 
 **Prerequisites:**
+
 - Story 7.2b (SWC parsing disponible)
 - Deno 2.5 release (ou fallback implémenté via 7.7b)
 

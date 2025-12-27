@@ -2,7 +2,8 @@
 
 ## Overview
 
-Casys PML is designed as a **local-first** tool with no cloud dependencies for the MVP. The architecture nevertheless supports evolution toward edge/cloud deployments.
+Casys PML is designed as a **local-first** tool with no cloud dependencies for the MVP. The
+architecture nevertheless supports evolution toward edge/cloud deployments.
 
 ## Deployment Architecture
 
@@ -44,6 +45,7 @@ pml serve    # Start gateway
 ```
 
 **Characteristics:**
+
 - Single compiled binary (~50MB with Deno runtime)
 - Zero external dependencies
 - Portable between machines
@@ -58,6 +60,7 @@ deno task serve:playground
 ```
 
 **Characteristics:**
+
 - Hot reload with `deno task dev`
 - Debug logs access
 - Tests and benchmarks available
@@ -77,14 +80,14 @@ CMD ["deno", "run", "-A", "src/main.ts", "serve"]
 
 ## Supported Platforms
 
-| Platform | Architecture | Status | Notes |
-|----------|-------------|--------|-------|
-| macOS | x64 (Intel) | ✅ Tested | Primary dev platform |
-| macOS | ARM64 (M1/M2) | ✅ Tested | Full support |
-| Linux | x64 | ✅ Tested | CI/CD environment |
-| Linux | ARM64 | 🟡 Not tested | Should work (Deno support) |
-| Windows | x64 | 🟡 Via WSL | Native Deno possible |
-| Windows | ARM64 | ❌ Not supported | Deno support limited |
+| Platform | Architecture  | Status           | Notes                      |
+| -------- | ------------- | ---------------- | -------------------------- |
+| macOS    | x64 (Intel)   | ✅ Tested        | Primary dev platform       |
+| macOS    | ARM64 (M1/M2) | ✅ Tested        | Full support               |
+| Linux    | x64           | ✅ Tested        | CI/CD environment          |
+| Linux    | ARM64         | 🟡 Not tested    | Should work (Deno support) |
+| Windows  | x64           | 🟡 Via WSL       | Native Deno possible       |
+| Windows  | ARM64         | ❌ Not supported | Deno support limited       |
 
 ---
 
@@ -92,21 +95,21 @@ CMD ["deno", "run", "-A", "src/main.ts", "serve"]
 
 ### Minimum
 
-| Resource | Value | Justification |
-|----------|-------|---------------|
-| RAM | 4 GB | BGE-M3 model (~2GB) + HNSW index |
-| Disk | 1 GB | Database + logs + model cache |
-| CPU | 2 cores | Parallel DAG execution |
-| Deno | 2.2+ LTS | Minimum stable version |
+| Resource | Value    | Justification                    |
+| -------- | -------- | -------------------------------- |
+| RAM      | 4 GB     | BGE-M3 model (~2GB) + HNSW index |
+| Disk     | 1 GB     | Database + logs + model cache    |
+| CPU      | 2 cores  | Parallel DAG execution           |
+| Deno     | 2.2+ LTS | Minimum stable version           |
 
 ### Recommended
 
-| Resource | Value | Benefit |
-|----------|-------|---------|
-| RAM | 8 GB | Margin for multiple MCP servers |
-| Disk | 5 GB | Execution history, episodic memory |
-| CPU | 4+ cores | Better DAG parallelism |
-| Deno | 2.5+ | Latest optimizations |
+| Resource | Value    | Benefit                            |
+| -------- | -------- | ---------------------------------- |
+| RAM      | 8 GB     | Margin for multiple MCP servers    |
+| Disk     | 5 GB     | Execution history, episodic memory |
+| CPU      | 4+ cores | Better DAG parallelism             |
+| Deno     | 2.5+     | Latest optimizations               |
 
 ---
 
@@ -139,6 +142,7 @@ CMD ["deno", "run", "-A", "src/main.ts", "serve"]
 ```
 
 **Protocol:** JSON-RPC 2.0 over stdio
+
 - No network port exposed
 - Bidirectional synchronous communication
 - Timeout: 30s per request
@@ -155,6 +159,7 @@ CMD ["deno", "run", "-A", "src/main.ts", "serve"]
 ```
 
 **Process Management:**
+
 - `Deno.Command` for spawning
 - Persistent connection pool
 - Automatic restart on crash
@@ -170,6 +175,7 @@ CMD ["deno", "run", "-A", "src/main.ts", "serve"]
 ```
 
 **Protocol:**
+
 - SSE (Server-Sent Events) for real-time streaming
 - REST for commands (approve, abort, replan)
 - WebSocket future option for bidirectional
@@ -196,12 +202,12 @@ logger.info("Tool call", {
 
 ### Metrics (Future: Epic 6)
 
-| Metric | Type | Description |
-|--------|------|-------------|
-| `dag_execution_duration_ms` | Histogram | Workflow execution time |
-| `tool_call_latency_ms` | Histogram | Latency per tool |
-| `speculation_success_rate` | Gauge | Speculation success rate |
-| `context_usage_percent` | Gauge | % LLM context used |
+| Metric                      | Type      | Description              |
+| --------------------------- | --------- | ------------------------ |
+| `dag_execution_duration_ms` | Histogram | Workflow execution time  |
+| `tool_call_latency_ms`      | Histogram | Latency per tool         |
+| `speculation_success_rate`  | Gauge     | Speculation success rate |
+| `context_usage_percent`     | Gauge     | % LLM context used       |
 
 ### Tracing (Sentry Optional)
 
@@ -226,11 +232,11 @@ Future: Shared PGlite via S3/GCS + PGlite-sync
 
 ### Vertical Scaling
 
-| Bottleneck | Solution |
-|------------|----------|
-| RAM (embeddings) | Quantized models (future) |
-| CPU (DAG) | Increase `maxConcurrency` config |
-| Disk I/O | SSD recommended, NVMe optimal |
+| Bottleneck       | Solution                         |
+| ---------------- | -------------------------------- |
+| RAM (embeddings) | Quantized models (future)        |
+| CPU (DAG)        | Increase `maxConcurrency` config |
+| Disk I/O         | SSD recommended, NVMe optimal    |
 
 ---
 
@@ -264,6 +270,7 @@ Deno.serve(caiHandler);
 
 ---
 
-*References:*
+_References:_
+
 - [Development Environment](./development-environment.md) - Developer setup
 - [Performance Considerations](./performance-considerations.md) - Optimizations

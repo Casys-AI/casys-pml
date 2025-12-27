@@ -1,13 +1,11 @@
 # ADR-051: Simplification de la Recherche Unifiée
 
-**Status:** Accepted
-**Date:** 2025-12-22 (Updated 2025-12-25 for v1 refactor)
-**Supersedes:**
+**Status:** Accepted **Date:** 2025-12-22 (Updated 2025-12-25 for v1 refactor) **Supersedes:**
+
 - ADR-015 (Dynamic Alpha)
 - ADR-022 (Hybrid Search Alpha)
 - ADR-038 (Scoring Algorithms Reference) - sections Search et alpha
-- ADR-048 (Local Adaptive Alpha)
-**Related:**
+- ADR-048 (Local Adaptive Alpha) **Related:**
 - spike `2025-12-21-capability-pathfinding-dijkstra.md`
 - tech-spec `docs/tech-specs/shgat-v1-refactor/` (multi-level architecture)
 
@@ -22,6 +20,7 @@ score = (semantic × α + graph × (1-α)) × reliability
 ```
 
 Où:
+
 - `semantic` = similarité cosinus avec la query (BGE-M3)
 - `graph` = Adamic-Adar relatedness avec les `contextNodes`
 - `α` = alpha adaptatif (global ou local via ADR-048)
@@ -35,12 +34,13 @@ L'utilisateur tape une query ("read file"), il n'a pas encore utilisé d'outils.
 
 ```typescript
 // Dans computeGraphRelatedness (adamic-adar.ts)
-if (contextNodes.length === 0) return 0;  // ← Toujours 0!
+if (contextNodes.length === 0) return 0; // ← Toujours 0!
 ```
 
 **Conséquence:** `graphScore = 0` pour toutes les queries de recherche.
 
 La formule devient:
+
 ```
 score = (semantic × α + 0 × (1-α)) × reliability
 score = semantic × α × reliability
@@ -50,16 +50,17 @@ L'alpha ne fait que **réduire** le score sémantique sans aucun bénéfice!
 
 ### Analyse des benchmarks
 
-| Configuration | Hit@1 | Observation |
-|---------------|-------|-------------|
-| α=1.0 (pure semantic) | 61.3% | Baseline |
-| α=0.5 (balanced) | 64.5% | Légère amélioration (queries avec context) |
-| α=0.3 (graph heavy) | 67.7% | Meilleur (mais seulement pour queries avec context) |
-| α=local (ADR-048) | 19.4% | **Pire!** Alphas variables perturbent le ranking |
+| Configuration         | Hit@1 | Observation                                         |
+| --------------------- | ----- | --------------------------------------------------- |
+| α=1.0 (pure semantic) | 61.3% | Baseline                                            |
+| α=0.5 (balanced)      | 64.5% | Légère amélioration (queries avec context)          |
+| α=0.3 (graph heavy)   | 67.7% | Meilleur (mais seulement pour queries avec context) |
+| α=local (ADR-048)     | 19.4% | **Pire!** Alphas variables perturbent le ranking    |
 
 Le benchmark mélangeait **Search** (sans context) et **Prediction** (avec context).
 
-Pour les queries **sans context**, un alpha < 1.0 ne fait que réduire les scores uniformément (ranking préservé) ou de façon variable (ranking perturbé avec local alpha).
+Pour les queries **sans context**, un alpha < 1.0 ne fait que réduire les scores uniformément
+(ranking préservé) ou de façon variable (ranking perturbé avec local alpha).
 
 ### Architecture cible (SHGAT + DR-DSP)
 
@@ -85,27 +86,31 @@ Le spike `2025-12-21-capability-pathfinding-dijkstra.md` définit l'architecture
 
 **Décision:** SHGAT n'utilise **pas** le context pour le scoring.
 
-Le papier original SHGAT (Fujita) ne traite pas du contexte externe. Les benchmarks
-de précision ont confirmé que le contextBoost (×0.3) n'apportait **aucune amélioration**
-(0% de différence en accuracy).
+Le papier original SHGAT (Fujita) ne traite pas du contexte externe. Les benchmarks de précision ont
+confirmé que le contextBoost (×0.3) n'apportait **aucune amélioration** (0% de différence en
+accuracy).
 
 ### Clarification: Tools vs Capabilities - V1 K-Head Architecture (2025-12-22, Updated 2025-12-26)
 
 **IMPORTANT:** Production uses SHGAT V1 with K adaptive heads (4-16 based on graph size):
 
-| Component | Description |
-|-----------|-------------|
+| Component       | Description                                                 |
+| --------------- | ----------------------------------------------------------- |
 | Message Passing | V → E^0 → E^1 → ... → E^L_max (upward) then back (downward) |
-| K-Head Scoring | `score = sigmoid(mean([Q[h]·K[h]/√dim for h in 0..K]))` |
-| Training | K-head backprop through W_q, W_k + levelParams + W_intent |
+| K-Head Scoring  | `score = sigmoid(mean([Q[h]·K[h]/√dim for h in 0..K]))`     |
+| Training        | K-head backprop through W_q, W_k + levelParams + W_intent   |
 
 **V1 won benchmark (MRR=0.214 vs V2=0.198)** - pure structural similarity outperforms TraceFeatures.
 
 **Interfaces séparées:**
-- `ToolGraphFeatures` : pour tools (`pageRank`, `louvainCommunity`, `adamicAdar`, `cooccurrence`, `recency`)
-- `HypergraphFeatures` : pour capabilities (`spectralCluster`, `hypergraphPageRank`, `heatDiffusion`, etc.)
+
+- `ToolGraphFeatures` : pour tools (`pageRank`, `louvainCommunity`, `adamicAdar`, `cooccurrence`,
+  `recency`)
+- `HypergraphFeatures` : pour capabilities (`spectralCluster`, `hypergraphPageRank`,
+  `heatDiffusion`, etc.)
 
 **Pour les tools (gateway-server.ts:populateToolFeaturesForSHGAT):**
+
 ```typescript
 // ToolGraphFeatures interface
 const features: ToolGraphFeatures = {
@@ -115,12 +120,13 @@ const features: ToolGraphFeatures = {
   adamicAdar: graphEngine.computeAdamicAdar(toolId, 1)[0]?.score / 2 ?? 0,
 
   // HEAD 3: Temporal (from execution_trace table)
-  cooccurrence: traceCount / maxTraceCount,  // Normalized frequency
+  cooccurrence: traceCount / maxTraceCount, // Normalized frequency
   recency: exp(-timeSinceLastUse / oneDayMs), // Exponential decay
 };
 ```
 
 **SHGAT V1 scoring (context-free, K adaptive heads):**
+
 ```typescript
 // K-head attention scoring (K = 4-16 based on graph size)
 const { E } = forwardMultiLevel();  // Message passing through hierarchy
@@ -137,10 +143,12 @@ score = sigmoid(mean(headScores));
 ```
 
 Le **context** (position actuelle) est géré par **DR-DSP**, pas SHGAT :
+
 - `DR-DSP.findShortestHyperpath(currentTool, targetTool)` utilise le context comme point de départ
 - SHGAT ne voit que l'intent et les features du graphe
 
 **Flow complet (Search + Prediction + Suggestion):**
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  1. SEARCH (Active) - unifiedSearch(intent)                 │
@@ -160,20 +168,22 @@ Le **context** (position actuelle) est géré par **DR-DSP**, pas SHGAT :
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Note:** SHGAT remplace `unifiedSearch` pour Prediction et Suggestion car il
-intègre les features du graphe (pageRank, cooccurrence, recency) en plus du
-semantic. `unifiedSearch` reste pour le mode Search (plus rapide, suffisant).
+**Note:** SHGAT remplace `unifiedSearch` pour Prediction et Suggestion car il intègre les features
+du graphe (pageRank, cooccurrence, recency) en plus du semantic. `unifiedSearch` reste pour le mode
+Search (plus rapide, suffisant).
 
 ## Decision
 
 ### 1. Simplifier la formule de Search
 
 **Avant:**
+
 ```typescript
 score = (semantic × α + graph × (1-α)) × reliability
 ```
 
 **Après:**
+
 ```typescript
 score = semantic × reliability
 ```
@@ -182,25 +192,28 @@ Pas d'alpha, pas de graph score (inutile sans context).
 
 ### 2. Réserver le graph pour Prediction
 
-Le graph score (Adamic-Adar, co-occurrence) n'a de sens que quand il y a un **contexte** (outils déjà utilisés). C'est le cas en mode **Prediction**, pas en mode **Search**.
+Le graph score (Adamic-Adar, co-occurrence) n'a de sens que quand il y a un **contexte** (outils
+déjà utilisés). C'est le cas en mode **Prediction**, pas en mode **Search**.
 
 ### 3. SHGAT remplace les heuristiques alpha
 
 Les algorithmes d'alpha (ADR-048) étaient des **heuristiques manuelles**:
+
 - EmbeddingsHybrides: "Si coherence haute → alpha bas"
 - Heat Diffusion: "Si heat haute → alpha bas"
 - Bayesian: "Si peu d'observations → alpha haut"
 
-SHGAT apprend ces patterns automatiquement via attention sur les traces épisodiques. Plus besoin de règles manuelles.
+SHGAT apprend ces patterns automatiquement via attention sur les traces épisodiques. Plus besoin de
+règles manuelles.
 
 ### 4. Statut des ADRs précédents
 
-| ADR | Nouveau statut |
-|-----|----------------|
-| **ADR-015** (Dynamic Alpha) | Superseded - remplacé par SHGAT |
-| **ADR-022** (Hybrid Search Alpha) | Superseded - formule simplifiée |
-| **ADR-038** (Scoring Algorithms) | Superseded - sections Search/alpha obsolètes, reste référence pour Prediction legacy |
-| **ADR-048** (Local Alpha) | Superseded - remplacé par SHGAT |
+| ADR                               | Nouveau statut                                                                       |
+| --------------------------------- | ------------------------------------------------------------------------------------ |
+| **ADR-015** (Dynamic Alpha)       | Superseded - remplacé par SHGAT                                                      |
+| **ADR-022** (Hybrid Search Alpha) | Superseded - formule simplifiée                                                      |
+| **ADR-038** (Scoring Algorithms)  | Superseded - sections Search/alpha obsolètes, reste référence pour Prediction legacy |
+| **ADR-048** (Local Alpha)         | Superseded - remplacé par SHGAT                                                      |
 
 ## Implementation
 
@@ -220,7 +233,7 @@ export async function unifiedSearch(
   vectorSearch: VectorSearch,
   nodes: Map<string, SearchableNode>,
   query: string,
-  options: { limit?: number; minScore?: number } = {}
+  options: { limit?: number; minScore?: number } = {},
 ): Promise<UnifiedSearchResult[]> {
   const { limit = 10, minScore = 0.5 } = options;
 
@@ -257,9 +270,9 @@ export async function unifiedSearch(
 
 ```typescript
 function calculateReliabilityFactor(successRate: number): number {
-  if (successRate < 0.5) return 0.1;      // Pénalité
-  if (successRate > 0.9) return 1.2;      // Boost
-  return 1.0;                              // Neutre
+  if (successRate < 0.5) return 0.1; // Pénalité
+  if (successRate > 0.9) return 1.2; // Boost
+  return 1.0; // Neutre
 }
 ```
 
@@ -284,7 +297,8 @@ function calculateReliabilityFactor(successRate: number): number {
 ## Migration
 
 1. Mettre à jour `src/graphrag/algorithms/unified-search.ts` avec la formule simplifiée
-2. Supprimer les paramètres `alpha`, `localAlphaCalculator`, `contextNodes` de `UnifiedSearchOptions`
+2. Supprimer les paramètres `alpha`, `localAlphaCalculator`, `contextNodes` de
+   `UnifiedSearchOptions`
 3. Mettre à jour les tests et benchmarks
 4. Marquer ADR-022 et ADR-048 comme obsolètes pour Search
 
@@ -312,17 +326,17 @@ Mode Direct réussi
     → Update priorities (TD error recalculé)
 ```
 
-**Story 11.6:** Remplace `updateSHGAT()` (single-example tool-level) par PER batch training (path-level).
-Un verrou empêche les trainings concurrents si plusieurs exécutions en parallèle.
+**Story 11.6:** Remplace `updateSHGAT()` (single-example tool-level) par PER batch training
+(path-level). Un verrou empêche les trainings concurrents si plusieurs exécutions en parallèle.
 
 **Méthodes SHGAT V1 - Scoring (K-head attention):**
 
-| Méthode | Input | Output | Usage |
-|---------|-------|--------|-------|
-| `scoreAllCapabilities(intentEmb)` | intent embedding | ranked capabilities with `hierarchyLevel` | Production (pml_execute) |
-| `scoreAllTools(intentEmb)` | intent embedding | ranked tools | Production (pml_execute) |
-| `trainBatchV1KHead(examples)` | TrainingExample[] | { loss, accuracy, tdErrors, gradNorm } | Batch training |
-| `trainSHGATOnExecution(...)` | single execution | { loss, accuracy, gradNorm } | Online learning |
+| Méthode                           | Input             | Output                                    | Usage                    |
+| --------------------------------- | ----------------- | ----------------------------------------- | ------------------------ |
+| `scoreAllCapabilities(intentEmb)` | intent embedding  | ranked capabilities with `hierarchyLevel` | Production (pml_execute) |
+| `scoreAllTools(intentEmb)`        | intent embedding  | ranked tools                              | Production (pml_execute) |
+| `trainBatchV1KHead(examples)`     | TrainingExample[] | { loss, accuracy, tdErrors, gradNorm }    | Batch training           |
+| `trainSHGATOnExecution(...)`      | single execution  | { loss, accuracy, gradNorm }              | Online learning          |
 
 **Multi-Level Scoring API (v1 Refactor - 2025-12-25):**
 
@@ -375,6 +389,7 @@ scoreAllCapabilities(intentEmbedding: number[]): AttentionResult[] {
 ```
 
 **Benchmark (V1 K-head wins):**
+
 ```
 v1 (message passing + K heads): MRR=0.214, Hit@3=23.3%
 v2 (direct + K heads + MLP):    MRR=0.198, Hit@3=20.9%
@@ -419,11 +434,13 @@ predictPathSuccess(intentEmbedding: number[], path: string[]): number {
 ```
 
 **Méthodes utilitaires ajoutées:**
+
 - `hasToolNode(toolId)` - vérifie si un tool est déjà enregistré
 - `hasCapabilityNode(capabilityId)` - vérifie si une capability existe
 - `trainBatch(examples)` - training batch sur plusieurs examples (utilisé par PER)
 
 **Flow complet (Story 11.6 + v1 Refactor):**
+
 1. Au démarrage: SHGAT initialisé avec capabilities existantes
    - `computeHierarchyLevels()` calcule les niveaux via tri topologique
    - `buildMultiLevelIncidence()` construit I₀, I_k sans fermeture transitive
@@ -438,6 +455,7 @@ predictPathSuccess(intentEmbedding: number[], path: string[]): number {
 ### SERVER_TITLE Update
 
 Description du serveur PML mise à jour:
+
 ```
 "PML - Orchestrate any MCP workflow. Use pml_execute with just an 'intent'
 (natural language) to auto-discover tools and execute. Or provide explicit

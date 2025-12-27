@@ -4,19 +4,25 @@
 
 ## En bref
 
-Les checkpoints sont comme les points de sauvegarde dans un jeu video : le workflow met en pause l'execution a des moments strategiques pour vous permettre de verifier ce qui s'est passe et de decider si vous voulez continuer. Vous pouvez approuver, rejeter, ou modifier les parametres avant que l'action critique ne soit executee. C'est votre filet de securite.
+Les checkpoints sont comme les points de sauvegarde dans un jeu video : le workflow met en pause
+l'execution a des moments strategiques pour vous permettre de verifier ce qui s'est passe et de
+decider si vous voulez continuer. Vous pouvez approuver, rejeter, ou modifier les parametres avant
+que l'action critique ne soit executee. C'est votre filet de securite.
 
 **Points cles :**
+
 - Points de pause pour revision humaine (HIL) ou par agent (AIL)
 - Controle des actions critiques ou irreversibles
 - Prevention des erreurs couteuses
 - Flexibilite d'ajuster le workflow en cours d'execution
 
-**Analogie :** Sauvegarde de jeu video - Avant un boss difficile, le jeu sauvegarde. Si vous echouez, vous revenez au checkpoint au lieu de tout recommencer.
+**Analogie :** Sauvegarde de jeu video - Avant un boss difficile, le jeu sauvegarde. Si vous
+echouez, vous revenez au checkpoint au lieu de tout recommencer.
 
 ## What Are Checkpoints?
 
-**Checkpoints** are points in a workflow where execution pauses for review or decision-making. They provide control over automated workflows, ensuring critical actions are verified before proceeding.
+**Checkpoints** are points in a workflow where execution pauses for review or decision-making. They
+provide control over automated workflows, ensuring critical actions are verified before proceeding.
 
 ![DAG Observability](excalidraw:src/web/assets/diagrams/dag-observability.excalidraw)
 
@@ -28,13 +34,13 @@ Les checkpoints sont comme les points de sauvegarde dans un jeu video : le workf
 
 ### When to Use HIL
 
-| Scenario | Example |
-|----------|---------|
-| **Destructive operations** | Deleting files, dropping tables |
-| **External actions** | Sending emails, creating issues |
-| **Cost implications** | API calls with billing |
-| **Sensitive data** | Accessing credentials, PII |
-| **Compliance requirements** | Audit trails, approvals |
+| Scenario                    | Example                         |
+| --------------------------- | ------------------------------- |
+| **Destructive operations**  | Deleting files, dropping tables |
+| **External actions**        | Sending emails, creating issues |
+| **Cost implications**       | API calls with billing          |
+| **Sensitive data**          | Accessing credentials, PII      |
+| **Compliance requirements** | Audit trails, approvals         |
 
 ### HIL Flow
 
@@ -65,13 +71,13 @@ Les checkpoints sont comme les points de sauvegarde dans un jeu video : le workf
 
 When a HIL checkpoint triggers, the human sees:
 
-| Information | Purpose |
-|-------------|---------|
-| **Task description** | What will happen |
-| **Parameters** | Specific values being used |
-| **Context** | Previous task results |
-| **Risk level** | Severity indicator |
-| **Alternatives** | Other options available |
+| Information          | Purpose                    |
+| -------------------- | -------------------------- |
+| **Task description** | What will happen           |
+| **Parameters**       | Specific values being used |
+| **Context**          | Previous task results      |
+| **Risk level**       | Severity indicator         |
+| **Alternatives**     | Other options available    |
 
 ## AIL (Agent-in-the-Loop)
 
@@ -79,11 +85,11 @@ When a HIL checkpoint triggers, the human sees:
 
 ### When to Use AIL
 
-| Scenario | Example |
-|----------|---------|
-| **Quality decisions** | Is this output good enough? |
-| **Routing logic** | Which path should we take? |
-| **Error recovery** | Should we retry or abort? |
+| Scenario                | Example                            |
+| ----------------------- | ---------------------------------- |
+| **Quality decisions**   | Is this output good enough?        |
+| **Routing logic**       | Which path should we take?         |
+| **Error recovery**      | Should we retry or abort?          |
 | **Dynamic adjustments** | Modify parameters based on results |
 
 ### AIL Flow
@@ -118,13 +124,13 @@ When a HIL checkpoint triggers, the human sees:
 
 An AIL checkpoint can:
 
-| Action | Description |
-|--------|-------------|
-| **Approve/Reject** | Binary decision on continuing |
-| **Modify parameters** | Adjust next task's inputs |
-| **Add tasks** | Insert new tasks dynamically |
-| **Skip tasks** | Remove unnecessary steps |
-| **Replan** | Restructure remaining workflow |
+| Action                | Description                    |
+| --------------------- | ------------------------------ |
+| **Approve/Reject**    | Binary decision on continuing  |
+| **Modify parameters** | Adjust next task's inputs      |
+| **Add tasks**         | Insert new tasks dynamically   |
+| **Skip tasks**        | Remove unnecessary steps       |
+| **Replan**            | Restructure remaining workflow |
 
 ## Combining HIL and AIL
 
@@ -152,7 +158,8 @@ Complex workflows can use both:
 
 **HIL:** Irreversible actions, external impact, compliance, sensitive data, high stakes.
 
-**AIL:** Routine context-dependent decisions, speed important, recoverable errors, objective criteria.
+**AIL:** Routine context-dependent decisions, speed important, recoverable errors, objective
+criteria.
 
 **None:** Read-only, easily reversible, tested workflow, low risk.
 

@@ -1,15 +1,13 @@
 # Story 7.7a: Permission Inference - Automatic Permissions Analysis
 
-> **Epic:** 7 - Emergent Capabilities & Learning System
-> **ADR:** ADR-035 (Permission Sets for Sandbox Security)
-> **Prerequisites:** Story 7.2b (SWC Schema Inference - DONE, 19 tests passing)
+> **Epic:** 7 - Emergent Capabilities & Learning System **ADR:** ADR-035 (Permission Sets for
+> Sandbox Security) **Prerequisites:** Story 7.2b (SWC Schema Inference - DONE, 19 tests passing)
 > **Status:** Done
 
 ## User Story
 
-As a system executing capabilities in sandbox,
-I want automatic permission inference from code analysis,
-So that capabilities run with minimal required permissions (principle of least privilege).
+As a system executing capabilities in sandbox, I want automatic permission inference from code
+analysis, So that capabilities run with minimal required permissions (principle of least privilege).
 
 ## Problem Context
 
@@ -22,22 +20,24 @@ The sandbox executor uses broad permissions for all code:
 const command = new Deno.Command("deno", {
   args: [
     "run",
-    "--allow-read",      // ALL files
-    "--allow-net",       // ALL network
-    "--allow-env",       // ALL env vars
+    "--allow-read", // ALL files
+    "--allow-net", // ALL network
+    "--allow-env", // ALL env vars
     // ... overly permissive
   ],
 });
 ```
 
 **Risks:**
+
 - Malicious capabilities can read sensitive files
 - Unrestricted network access
 - No differentiation between "trusted" and "untrusted" capabilities
 
 ### Solution: SWC-based Permission Inference
 
-Reuse the SWC AST parsing infrastructure from Story 7.2b (`SchemaInferrer`) to detect permission requirements from code patterns.
+Reuse the SWC AST parsing infrastructure from Story 7.2b (`SchemaInferrer`) to detect permission
+requirements from code patterns.
 
 **Architecture Decision (ADR-035):** Permission Sets with automatic inference.
 
@@ -56,9 +56,9 @@ Reuse the SWC AST parsing infrastructure from Story 7.2b (`SchemaInferrer`) to d
 - [x] Returns:
   ```typescript
   interface InferredPermissions {
-    permissionSet: string;       // "minimal" | "readonly" | "network-api" | etc.
-    confidence: number;          // 0-1 (based on pattern clarity)
-    detectedPatterns: string[];  // ["fetch", "mcp.filesystem"] for debugging
+    permissionSet: string; // "minimal" | "readonly" | "network-api" | etc.
+    confidence: number; // 0-1 (based on pattern clarity)
+    detectedPatterns: string[]; // ["fetch", "mcp.filesystem"] for debugging
   }
   ```
 
@@ -72,14 +72,14 @@ Reuse the SWC AST parsing infrastructure from Story 7.2b (`SchemaInferrer`) to d
 
 ### AC4: Permission Set Mapping
 
-| Profile | Read | Write | Net | Env | Detection Patterns |
-|---------|------|-------|-----|-----|-------------------|
-| `minimal` | ❌ | ❌ | ❌ | ❌ | No I/O patterns detected |
-| `readonly` | `["./data"]` | ❌ | ❌ | ❌ | `mcp.fs.read`, `Deno.readFile` |
-| `filesystem` | `["./"]` | `["/tmp"]` | ❌ | ❌ | `mcp.fs.write`, `Deno.writeFile` |
-| `network-api` | ❌ | ❌ | `["api.*"]` | ❌ | `fetch`, `mcp.api`, `mcp.github` |
-| `mcp-standard` | ✅ | `["/tmp"]` | ✅ | Limited | Mixed patterns or unknown MCP |
-| `trusted` | ✅ | ✅ | ✅ | ✅ | Manual/verified only (never inferred) |
+| Profile        | Read         | Write      | Net         | Env     | Detection Patterns                    |
+| -------------- | ------------ | ---------- | ----------- | ------- | ------------------------------------- |
+| `minimal`      | ❌           | ❌         | ❌          | ❌      | No I/O patterns detected              |
+| `readonly`     | `["./data"]` | ❌         | ❌          | ❌      | `mcp.fs.read`, `Deno.readFile`        |
+| `filesystem`   | `["./"]`     | `["/tmp"]` | ❌          | ❌      | `mcp.fs.write`, `Deno.writeFile`      |
+| `network-api`  | ❌           | ❌         | `["api.*"]` | ❌      | `fetch`, `mcp.api`, `mcp.github`      |
+| `mcp-standard` | ✅           | `["/tmp"]` | ✅          | Limited | Mixed patterns or unknown MCP         |
+| `trusted`      | ✅           | ✅         | ✅          | ✅      | Manual/verified only (never inferred) |
 
 ### AC5: Database Migration (017)
 
@@ -193,20 +193,23 @@ Reuse the SWC AST parsing infrastructure from Story 7.2b (`SchemaInferrer`) to d
    import { parse } from "https://deno.land/x/swc@0.2.1/mod.ts";
    ```
 
-2. **AST Traversal Pattern:** Copy recursive traversal from `SchemaInferrer.findArgsAccesses()` (schema-inferrer.ts:154-192)
+2. **AST Traversal Pattern:** Copy recursive traversal from `SchemaInferrer.findArgsAccesses()`
+   (schema-inferrer.ts:154-192)
 
-3. **Non-Critical Failure:** Permission inference failure should NOT fail capability save - fallback to "minimal" with confidence 0.0
+3. **Non-Critical Failure:** Permission inference failure should NOT fail capability save - fallback
+   to "minimal" with confidence 0.0
 
-4. **Trusted Never Inferred:** The "trusted" permission set is ONLY for manually verified capabilities, never auto-assigned
+4. **Trusted Never Inferred:** The "trusted" permission set is ONLY for manually verified
+   capabilities, never auto-assigned
 
 ### Pattern Detection Heuristics
 
-| Pattern | AST Node Type | Example Code |
-|---------|---------------|--------------|
-| `fetch` | CallExpression with Identifier | `fetch("https://api.example.com")` |
-| `mcp.fs.read` | MemberExpression chain | `await mcp.filesystem.read({ path })` |
-| `Deno.env` | MemberExpression | `Deno.env.get("HOME")` |
-| `mcp.github.*` | MemberExpression chain | `mcp.github.createIssue({...})` |
+| Pattern        | AST Node Type                  | Example Code                          |
+| -------------- | ------------------------------ | ------------------------------------- |
+| `fetch`        | CallExpression with Identifier | `fetch("https://api.example.com")`    |
+| `mcp.fs.read`  | MemberExpression chain         | `await mcp.filesystem.read({ path })` |
+| `Deno.env`     | MemberExpression               | `Deno.env.get("HOME")`                |
+| `mcp.github.*` | MemberExpression chain         | `mcp.github.createIssue({...})`       |
 
 ### MCP Tool → Permission Set Mapping
 
@@ -340,7 +343,8 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 ### File List
 
 - [x] `src/capabilities/permission-inferrer.ts` - NEW (~440 LOC)
-- [x] `src/capabilities/capability-store.ts` - MODIFIED (constructor + saveCapability + rowToCapability)
+- [x] `src/capabilities/capability-store.ts` - MODIFIED (constructor + saveCapability +
+      rowToCapability)
 - [x] `src/capabilities/types.ts` - MODIFIED (added PermissionSet type and Capability fields)
 - [x] `src/capabilities/mod.ts` - MODIFIED (export PermissionInferrer + types)
 - [x] `src/db/migrations/017_permission_inference.ts` - NEW (~60 LOC)
@@ -352,33 +356,32 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ## Senior Developer Review (AI)
 
-**Date:** 2025-12-16
-**Reviewer:** Claude Opus 4.5
-**Outcome:** ✅ APPROVED
+**Date:** 2025-12-16 **Reviewer:** Claude Opus 4.5 **Outcome:** ✅ APPROVED
 
 ### Review Summary
 
-| Category | Status |
-|----------|--------|
-| All ACs Implemented | ✅ 8/8 |
-| Tests Passing | ✅ 25/25 |
-| Code Quality | ✅ Good |
-| Security | ✅ No issues |
+| Category            | Status       |
+| ------------------- | ------------ |
+| All ACs Implemented | ✅ 8/8       |
+| Tests Passing       | ✅ 25/25     |
+| Code Quality        | ✅ Good      |
+| Security            | ✅ No issues |
 
 ### Issues Found & Fixed
 
-| # | Severity | Description | Resolution |
-|---|----------|-------------|------------|
-| 2 | HIGH | `PermissionSet` type defined twice (permission-inferrer.ts + types.ts) | Fixed: Import from types.ts, re-export |
-| 3 | HIGH | Wrong migration path in story (drizzle/ → src/db/) | Fixed: Corrected path |
-| 4 | MEDIUM | ADR-035 referenced Migration 012 instead of 017 | Fixed: Updated to 017 |
-| 5 | MEDIUM | LOC estimates incorrect (~120 vs ~510 actual) | Fixed: Updated estimates |
-| 6 | IMPROVEMENT | MCP tool permissions hardcoded in code | Fixed: Externalized to `config/mcp-permissions.yaml` |
-| 7 | NEW TESTS | YAML config loading needs test coverage | Added: 6 new tests for config-loaded tools (playwright, postgres, sqlite, brave_search, memory, context7) |
+| # | Severity    | Description                                                            | Resolution                                                                                                |
+| - | ----------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| 2 | HIGH        | `PermissionSet` type defined twice (permission-inferrer.ts + types.ts) | Fixed: Import from types.ts, re-export                                                                    |
+| 3 | HIGH        | Wrong migration path in story (drizzle/ → src/db/)                     | Fixed: Corrected path                                                                                     |
+| 4 | MEDIUM      | ADR-035 referenced Migration 012 instead of 017                        | Fixed: Updated to 017                                                                                     |
+| 5 | MEDIUM      | LOC estimates incorrect (~120 vs ~510 actual)                          | Fixed: Updated estimates                                                                                  |
+| 6 | IMPROVEMENT | MCP tool permissions hardcoded in code                                 | Fixed: Externalized to `config/mcp-permissions.yaml`                                                      |
+| 7 | NEW TESTS   | YAML config loading needs test coverage                                | Added: 6 new tests for config-loaded tools (playwright, postgres, sqlite, brave_search, memory, context7) |
 
 ### Skipped Issues (User Approved)
 
-- **Issue #1:** 9 files modified but not in File List - belong to Story 7.6 (Algorithm Observability), not 7.7a. User confirmed OK to leave uncommitted separately.
+- **Issue #1:** 9 files modified but not in File List - belong to Story 7.6 (Algorithm
+  Observability), not 7.7a. User confirmed OK to leave uncommitted separately.
 
 ### Notes
 

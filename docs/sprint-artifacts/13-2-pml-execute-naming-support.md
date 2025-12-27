@@ -4,56 +4,58 @@ Status: done
 
 ## Story
 
-As a **developer**,
-I want **capabilities to get auto-generated FQDNs and be callable by name**,
-So that **I can reuse capabilities without remembering code**.
+As a **developer**, I want **capabilities to get auto-generated FQDNs and be callable by name**, So
+that **I can reuse capabilities without remembering code**.
 
 ## Acceptance Criteria
 
 ### AC1: Auto-generated FQDN
-**Given** `pml_execute({ intent, code })`
-**When** executed successfully
-**Then** capability registered in `capability_records` with auto-generated FQDN like `local.default.filesystem.exec_a7f3b2c1.a7f3`
+
+**Given** `pml_execute({ intent, code })` **When** executed successfully **Then** capability
+registered in `capability_records` with auto-generated FQDN like
+`local.default.filesystem.exec_a7f3b2c1.a7f3`
 
 ### AC2: Deduplication by Code Hash
-**Given** same code executed twice
-**When** second pml_execute called
-**Then** existing capability reused (usage_count incremented), no duplicate created
+
+**Given** same code executed twice **When** second pml_execute called **Then** existing capability
+reused (usage_count incremented), no duplicate created
 
 ### AC3: Response Includes FQDN
-**Given** successful pml_execute
-**When** response returned
-**Then** includes `capabilityName` (auto-generated) and `capabilityFqdn` (full FQDN)
+
+**Given** successful pml_execute **When** response returned **Then** includes `capabilityName`
+(auto-generated) and `capabilityFqdn` (full FQDN)
 
 ### AC4: Auto-generated Display Name
-**Given** pml_execute without explicit naming
-**When** executed successfully
-**Then** capability receives display_name like `unnamed_<hash>` or inferred from intent
+
+**Given** pml_execute without explicit naming **When** executed successfully **Then** capability
+receives display_name like `unnamed_<hash>` or inferred from intent
 
 ### AC6: Call by Name
-**Given** existing capability `my-config-reader`
-**When** `pml_execute({ intent: "read config", capability: "my-config-reader", args: { path: "config.json" } })`
+
+**Given** existing capability `my-config-reader` **When**
+`pml_execute({ intent: "read config", capability: "my-config-reader", args: { path: "config.json" } })`
 **Then** capability code is executed with args merged into context
 
 ### AC7: Name Resolution
-**Given** capability name
-**When** lookup performed via `CapabilityRegistry.resolveByName()`
+
+**Given** capability name **When** lookup performed via `CapabilityRegistry.resolveByName()`
 **Then** resolves to full FQDN and retrieves `code_snippet` from `capability_records`
 
 ### AC8: Args Merging
+
 **Given** capability with default params `{ encoding: "utf-8" }` (from `parameters_schema.default`)
-**When** called with args `{ path: "x.json" }`
-**Then** execution context has `{ path: "x.json", encoding: "utf-8" }`
+**When** called with args `{ path: "x.json" }` **Then** execution context has
+`{ path: "x.json", encoding: "utf-8" }`
 
 ### AC9: Not Found Error
-**Given** non-existent capability name
-**When** pml_execute called with `capability: "non-existent"`
+
+**Given** non-existent capability name **When** pml_execute called with `capability: "non-existent"`
 **Then** returns error "Capability not found: non-existent"
 
 ### AC10: Usage Tracking
-**Given** capability called successfully by name
-**When** execution completes
-**Then** `usage_count` incremented in `capability_records` and `success_count` updated based on result
+
+**Given** capability called successfully by name **When** execution completes **Then** `usage_count`
+incremented in `capability_records` and `success_count` updated based on result
 
 ## Tasks / Subtasks
 
@@ -98,7 +100,8 @@ So that **I can reuse capabilities without remembering code**.
 
 ### Architecture: Dual-Table Strategy
 
-Story 13.1 introduced `capability_records` as a **registry** alongside `workflow_pattern`. Story 13.2 connects them:
+Story 13.1 introduced `capability_records` as a **registry** alongside `workflow_pattern`. Story
+13.2 connects them:
 
 ```
 ┌──────────────────────┐         ┌───────────────────────┐
@@ -113,8 +116,10 @@ Story 13.1 introduced `capability_records` as a **registry** alongside `workflow
 ```
 
 **Linking Strategy:**
+
 - When capability is named, find or create `capability_records` entry
-- Link via matching `code_hash` (capability_records.hash == workflow_pattern.code_hash first 4 chars)
+- Link via matching `code_hash` (capability_records.hash == workflow_pattern.code_hash first 4
+  chars)
 - `workflow_pattern` continues to store execution data (success_rate, avg_duration_ms)
 - `capability_records` stores naming metadata (display_name, visibility, tags)
 
@@ -193,36 +198,39 @@ function mergeArgs(
 
 ### Error Messages
 
-| Scenario | Error Message |
-|----------|---------------|
+| Scenario            | Error Message                                                                                         |
+| ------------------- | ----------------------------------------------------------------------------------------------------- |
 | Invalid name format | `Invalid capability name: "{name}". Must be alphanumeric with underscores, hyphens, and colons only.` |
-| Name collision | `Capability name '{name}' already exists in scope {org}.{project}` |
-| Not found | `Capability not found: {name}` |
-| Resolved via alias | `[WARN] Deprecated: Using alias "{alias}" for capability "{displayName}". Update your code.` |
+| Name collision      | `Capability name '{name}' already exists in scope {org}.{project}`                                    |
+| Not found           | `Capability not found: {name}`                                                                        |
+| Resolved via alias  | `[WARN] Deprecated: Using alias "{alias}" for capability "{displayName}". Update your code.`          |
 
 ### Project Structure Notes
 
-| File | Purpose |
-|------|---------|
-| `src/mcp/handlers/execute-handler.ts` | Main handler - extend `ExecuteArgs`, add call-by-name mode |
-| `src/capabilities/capability-registry.ts` | Already exists (Story 13.1) - use for name resolution |
-| `src/capabilities/fqdn.ts` | Already exists - use `isValidMCPName()` for validation |
-| `src/mcp/server/types.ts` | Add `capabilityRegistry` to gateway config if needed |
-| `tests/unit/mcp/execute_handler_naming_test.ts` | New unit tests |
-| `tests/integration/capability_naming_e2e_test.ts` | New E2E tests |
+| File                                              | Purpose                                                    |
+| ------------------------------------------------- | ---------------------------------------------------------- |
+| `src/mcp/handlers/execute-handler.ts`             | Main handler - extend `ExecuteArgs`, add call-by-name mode |
+| `src/capabilities/capability-registry.ts`         | Already exists (Story 13.1) - use for name resolution      |
+| `src/capabilities/fqdn.ts`                        | Already exists - use `isValidMCPName()` for validation     |
+| `src/mcp/server/types.ts`                         | Add `capabilityRegistry` to gateway config if needed       |
+| `tests/unit/mcp/execute_handler_naming_test.ts`   | New unit tests                                             |
+| `tests/integration/capability_naming_e2e_test.ts` | New E2E tests                                              |
 
 ### Existing Dependencies to Use
 
 From `src/capabilities/capability-registry.ts` (Story 13.1):
+
 - `CapabilityRegistry.create()` - Create named capability record
 - `CapabilityRegistry.resolveByName()` - Resolve name to FQDN
 - `CapabilityRegistry.recordUsage()` - Increment usage metrics
 
 From `src/capabilities/fqdn.ts` (Story 13.1):
+
 - `isValidMCPName()` - Validate MCP-compatible name format
 - `generateHash()` - Generate 4-char hash for FQDN
 
 From `src/capabilities/types.ts`:
+
 - `Scope` - org/project context
 - `CapabilityRecord` - Registry record type
 
@@ -233,19 +241,20 @@ From `src/capabilities/types.ts`:
 const response: ExecuteResponse = {
   status: "success",
   result: executionResult,
-  capabilityId: capability.id,           // UUID (existing)
-  capabilityName: record?.displayName,   // NEW: "my-config-reader"
-  capabilityFqdn: record?.id,            // NEW: "local.default.fs.read_json.a7f3"
+  capabilityId: capability.id, // UUID (existing)
+  capabilityName: record?.displayName, // NEW: "my-config-reader"
+  capabilityFqdn: record?.id, // NEW: "local.default.fs.read_json.a7f3"
   mode: "direct",
   executionTimeMs,
-  dag: { /* existing */ },
+  dag: {/* existing */},
 };
 ```
 
 ### References
 
 - [Story 13.1: Schema, FQDN & Aliases](./13-1-schema-fqdn-aliases.md) - Foundation for this story
-- [Epic 13: Capability Naming & Curation](../epics/epic-13-capability-naming-curation.md) - FR001-FR008
+- [Epic 13: Capability Naming & Curation](../epics/epic-13-capability-naming-curation.md) -
+  FR001-FR008
 - [execute-handler.ts](../../src/mcp/handlers/execute-handler.ts) - Main file to modify
 - [capability-registry.ts](../../src/capabilities/capability-registry.ts) - Name resolution
 - [capability-store.ts](../../src/capabilities/capability-store.ts) - Execution stats storage
@@ -270,16 +279,21 @@ Claude Opus 4.5
 - Implemented `executeByNameMode()` for call-by-name execution
 - Added `mergeArgsWithDefaults()` for args merging with schema defaults
 - Wired `CapabilityRegistry` into gateway-server.ts
-- Added 4 unit tests for Story 13.2 (mutual exclusivity, registry required, not found, mode priority)
+- Added 4 unit tests for Story 13.2 (mutual exclusivity, registry required, not found, mode
+  priority)
 - 18 total tests passing
 
 **Architecture Fix (Migration 022-023):**
-- Migration 022: Removed duplicated `workflow_pattern.name` column (unified naming via capability_records)
-- Migration 023: Added `workflow_pattern_id` FK to capability_records, removed duplicated columns (code_snippet, description, parameters_schema, tools_used)
+
+- Migration 022: Removed duplicated `workflow_pattern.name` column (unified naming via
+  capability_records)
+- Migration 023: Added `workflow_pattern_id` FK to capability_records, removed duplicated columns
+  (code_snippet, description, parameters_schema, tools_used)
 - Updated `CapabilityRegistry.create()` to use FK + hash instead of duplicating data
 - Updated `executeByNameMode()` to fetch code from workflow_pattern via FK
 - Updated `data-service.ts` JOIN to use FK instead of hash-based join
-- Final architecture: capability_records = registry (naming), workflow_pattern = source of truth (code/stats)
+- Final architecture: capability_records = registry (naming), workflow_pattern = source of truth
+  (code/stats)
 
 ### File List
 

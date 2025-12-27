@@ -1,21 +1,21 @@
 ---
-name: 'step-04-plan-review'
-description: 'Review complete workflow plan (requirements + tools) and get user approval before design'
+name: "step-04-plan-review"
+description: "Review complete workflow plan (requirements + tools) and get user approval before design"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmb/workflows/create-workflow'
+workflow_path: "{project-root}/_bmad/bmb/workflows/create-workflow"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-04-plan-review.md'
-nextStepFormDesign: '{workflow_path}/steps/step-05-output-format-design.md'
-nextStepDesign: '{workflow_path}/steps/step-06-design.md'
+thisStepFile: "{workflow_path}/steps/step-04-plan-review.md"
+nextStepFormDesign: "{workflow_path}/steps/step-05-output-format-design.md"
+nextStepDesign: "{workflow_path}/steps/step-06-design.md"
 
-targetWorkflowPath: '{bmb_creations_output_folder}/workflows/{new_workflow_name}'
-workflowPlanFile: '{targetWorkflowPath}/workflow-plan-{new_workflow_name}.md'
+targetWorkflowPath: "{bmb_creations_output_folder}/workflows/{new_workflow_name}"
+workflowPlanFile: "{targetWorkflowPath}/workflow-plan-{new_workflow_name}.md"
 
 # Task References
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 # Template References
 # No template needed - will append review summary directly to workflow plan
 ---
@@ -24,7 +24,8 @@ partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 
 ## STEP GOAL:
 
-To present the complete workflow plan (requirements and tools configuration) for user review and approval before proceeding to design.
+To present the complete workflow plan (requirements and tools configuration) for user review and
+approval before proceeding to design.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -38,7 +39,8 @@ To present the complete workflow plan (requirements and tools configuration) for
 ### Role Reinforcement:
 
 - ✅ You are a workflow architect and systems designer
-- ✅ If you already have been given communication or persona patterns, continue to use those while playing this new role
+- ✅ If you already have been given communication or persona patterns, continue to use those while
+  playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You bring expertise in workflow design review and quality assurance
 - ✅ User brings their specific requirements and approval authority
@@ -70,7 +72,8 @@ To present the complete workflow plan (requirements and tools configuration) for
 
 "**Workflow Plan Review**
 
-We've gathered all requirements and configured tools for your workflow. Let's review the complete plan to ensure it meets your needs before we start designing the workflow structure."
+We've gathered all requirements and configured tools for your workflow. Let's review the complete
+plan to ensure it meets your needs before we start designing the workflow structure."
 
 ### 2. Present Complete Plan Summary
 
@@ -163,11 +166,11 @@ Based on your requirements:
 - [Analyze if workflow produces documents/files]
 - Consider: Does it create reports, forms, stories, or any persistent output?"
 
-**If NO:**
-"Great! Your workflow focuses on actions/interactions without document output. We'll proceed directly to designing the workflow steps."
+**If NO:** "Great! Your workflow focuses on actions/interactions without document output. We'll
+proceed directly to designing the workflow steps."
 
-**If YES:**
-"Perfect! Let's design your output format to ensure your workflow produces exactly what you need."
+**If YES:** "Perfect! Let's design your output format to ensure your workflow produces exactly what
+you need."
 
 ### 7. Present MENU OPTIONS
 
@@ -178,7 +181,8 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu
-- User can chat or ask questions - always respond and then end with display again of the menu options
+- User can chat or ask questions - always respond and then end with display again of the menu
+  options
 - Use menu handling logic section below
 
 #### Menu Handling Logic:
@@ -188,11 +192,13 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 - IF C: Check if workflow produces documents:
   - If YES: Update frontmatter, then load nextStepFormDesign
   - If NO: Update frontmatter, then load nextStepDesign
-- IF Any other comments or queries: help user respond then [Redisplay Menu Options](#7-present-menu-options)
+- IF Any other comments or queries: help user respond then
+  [Redisplay Menu Options](#7-present-menu-options)
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN C is selected AND the user has explicitly approved the plan and the plan document is updated as needed, then you load either {nextStepFormDesign} or {nextStepDesign}
+ONLY WHEN C is selected AND the user has explicitly approved the plan and the plan document is
+updated as needed, then you load either {nextStepFormDesign} or {nextStepDesign}
 
 ---
 
@@ -213,4 +219,5 @@ ONLY WHEN C is selected AND the user has explicitly approved the plan and the pl
 - Proceeding without user approval
 - Not documenting refinements
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

@@ -1,11 +1,11 @@
 ---
-installed_path: '{project-root}/_bmad/bmb/workflows/create-module'
-nextStepFile: '{installed_path}/steps/step-07-workflows.md'
-modulePlanFile: '{bmb_creations_output_folder}/{module_name}/module-plan-{module_name}.md'
-agentTemplate: '{installed_path}/templates/agent.template.md'
-agent_examples_path: '{project-root}/bmb/reference/agents/module-examples'
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+installed_path: "{project-root}/_bmad/bmb/workflows/create-module"
+nextStepFile: "{installed_path}/steps/step-07-workflows.md"
+modulePlanFile: "{bmb_creations_output_folder}/{module_name}/module-plan-{module_name}.md"
+agentTemplate: "{installed_path}/templates/agent.template.md"
+agent_examples_path: "{project-root}/bmb/reference/agents/module-examples"
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 ---
 
 # Step 6: Create Module Agents
@@ -22,7 +22,8 @@ partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 ### Role Reinforcement:
 
 - ✅ You are a Module Architect and Agent Designer
-- ✅ If you already have been given communication or persona patterns, continue to use those while playing this new role
+- ✅ If you already have been given communication or persona patterns, continue to use those while
+  playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You bring expertise in BMAD agent patterns, user brings their domain requirements
 - ✅ Maintain collaborative, creative tone
@@ -50,7 +51,8 @@ partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 
 ## STEP GOAL:
 
-To create the primary agent(s) for the module using the proper agent template and create placeholder workflow folders for each agent.
+To create the primary agent(s) for the module using the proper agent template and create placeholder
+workflow folders for each agent.
 
 ## AGENT CREATION PROCESS:
 
@@ -63,12 +65,13 @@ From your component plan, you have:
 - [agent_count] agents planned
 - [list of agent types from plan]
 
-I'll create each agent following the proper BMAD template and set up placeholder workflow folders for them."
+I'll create each agent following the proper BMAD template and set up placeholder workflow folders
+for them."
 
 ### 2. Load Agent Template
 
-Load and study the agent template from {agentTemplate}
-Reference agent examples from {agent_examples_path} for patterns
+Load and study the agent template from {agentTemplate} Reference agent examples from
+{agent_examples_path} for patterns
 
 ### 3. Create Each Agent
 
@@ -147,29 +150,29 @@ Create hybrid agent file with only needed sections:
 ```yaml
 agent:
   metadata:
-    name: '[Agent Name]'
-    title: '[Agent Title]'
-    icon: '[Icon]'
-    module: '{module_code}'
+    name: "[Agent Name]"
+    title: "[Agent Title]"
+    icon: "[Icon]"
+    module: "{module_code}"
   persona:
-    role: '[Agent Role]'
+    role: "[Agent Role]"
     identity: |
       [Multi-line identity description]
     communication_style: |
       [Multi-line communication style]
     principles:
-      - '[Principle 1]'
-      - '[Principle 2]'
-      - '[Principle 3]'
+      - "[Principle 1]"
+      - "[Principle 2]"
+      - "[Principle 3]"
 
   # Only include if agent needs memory/persistence
   critical_actions:
-    - 'Load COMPLETE file ./[agent-name]-sidecar/memories.md and integrate all past interactions'
-    - 'ONLY read/write files in ./[agent-name]-sidecar/ - this is our private workspace'
+    - "Load COMPLETE file ./[agent-name]-sidecar/memories.md and integrate all past interactions"
+    - "ONLY read/write files in ./[agent-name]-sidecar/ - this is our private workspace"
 
   # Only include if agent has embedded prompts
   prompts:
-    - id: '[prompt-name]'
+    - id: "[prompt-name]"
       content: |
         <instructions>
         [How to use this prompt]
@@ -179,11 +182,11 @@ agent:
 
   menu:
     # Always include
-    - multi: '[CH] Chat with agent or [SPM] Start Party Mode'
+    - multi: "[CH] Chat with agent or [SPM] Start Party Mode"
       triggers:
         - party-mode:
           input: SPM
-          route: '{project-root}/_bmad/core/workflows/edit-agent/workflow.md'
+          route: "{project-root}/_bmad/core/workflows/edit-agent/workflow.md"
           type: exec
         - expert-chat:
           input: CH
@@ -191,26 +194,26 @@ agent:
           type: action
 
     # Group related functions
-    - multi: '[PF] Primary Function [QF] Quick Task'
+    - multi: "[PF] Primary Function [QF] Quick Task"
       triggers:
         - primary-function:
           input: PF
-          action: '#[prompt-id]'
+          action: "#[prompt-id]"
           type: action
         - quick-task:
           input: QF
-          route: '#[prompt-id]'
+          route: "#[prompt-id]"
           type: exec
 
     # Workflow only for complex processes
-    - trigger: 'complex-process'
-      route: '{project-root}/_bmad/{custom_module}/workflows/[workflow]/workflow.md'
-      description: 'Complex process [icon]'
+    - trigger: "complex-process"
+      route: "{project-root}/_bmad/{custom_module}/workflows/[workflow]/workflow.md"
+      description: "Complex process [icon]"
 
     # Quick inline actions
-    - trigger: 'save-item'
-      action: 'Save to ./[agent-name]-sidecar/file.md'
-      description: 'Save item 💾'
+    - trigger: "save-item"
+      action: "Save to ./[agent-name]-sidecar/file.md"
+      description: "Save item 💾"
 ```
 
 #### 3.4 Create Supporting Structure
@@ -225,15 +228,15 @@ agent:
    - sessions/ (subfolder for session records)
    - patterns.md (empty, for tracking patterns)
 
-**If agent has workflows:**
-For each workflow that needs separate file:
+**If agent has workflows:** For each workflow that needs separate file:
 
 1. Create folder: {bmb_creations_output_folder}/{module_name}/workflows/[workflow-name]/
 2. Create README.md with workflow plan
 
 ### 4. Repeat for All Agents
 
-Go through each agent from the component plan, presenting drafts and creating files with user confirmation.
+Go through each agent from the component plan, presenting drafts and creating files with user
+confirmation.
 
 ### 5. Document Agent Creation
 
@@ -260,7 +263,8 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 
 - IF A: Execute {advancedElicitationTask} to refine agent designs
 - IF P: Execute {partyModeWorkflow} to get creative input on agent personas
-- IF C: Save agent creation status to module-plan.md, add step-06-agents to the end of the stepsCompleted array in frontmatter, then load nextStepFile
+- IF C: Save agent creation status to module-plan.md, add step-06-agents to the end of the
+  stepsCompleted array in frontmatter, then load nextStepFile
 - IF Any other comments or queries: help user respond then redisplay menu
 
 #### EXECUTION RULES:
@@ -289,8 +293,11 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 - Not creating workflow placeholder folders
 - Skipping user confirmation on agent drafts
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN C is selected and all agents are created with placeholder workflows and stepsCompleted updated, will you then load, read entire file, then execute `{nextStepFile}` to begin workflow plan review.
+ONLY WHEN C is selected and all agents are created with placeholder workflows and stepsCompleted
+updated, will you then load, read entire file, then execute `{nextStepFile}` to begin workflow plan
+review.

@@ -4,21 +4,31 @@
 
 ## En bref
 
-Imaginez un assistant personnel qui observe tout ce que vous faites et prend des notes. Au lieu de vous demander "Est-ce que cette information est importante ?" avant de noter, il note TOUT ce qui fonctionne. Plus tard, quand vous avez besoin de quelque chose, il fouille dans ses notes et vous propose uniquement ce qui est pertinent et efficace.
+Imaginez un assistant personnel qui observe tout ce que vous faites et prend des notes. Au lieu de
+vous demander "Est-ce que cette information est importante ?" avant de noter, il note TOUT ce qui
+fonctionne. Plus tard, quand vous avez besoin de quelque chose, il fouille dans ses notes et vous
+propose uniquement ce qui est pertinent et efficace.
 
-C'est l'apprentissage eager (enthousiaste) de PML : tout capturer maintenant, filtrer au moment de suggerer.
+C'est l'apprentissage eager (enthousiaste) de PML : tout capturer maintenant, filtrer au moment de
+suggerer.
 
-**Exemple concret :** Vous creez une fois un script pour renommer des photos de vacances. PML sauvegarde cette solution meme si vous pensez ne jamais le refaire. Six mois plus tard, vous devez renommer des documents de travail - PML se souvient et adapte automatiquement la solution des photos.
+**Exemple concret :** Vous creez une fois un script pour renommer des photos de vacances. PML
+sauvegarde cette solution meme si vous pensez ne jamais le refaire. Six mois plus tard, vous devez
+renommer des documents de travail - PML se souvient et adapte automatiquement la solution des
+photos.
 
-**Pourquoi c'est utile pour vous :** Vous ne perdez jamais une solution qui a fonctionne. Meme les taches que vous faites "juste une fois" restent disponibles au cas ou.
+**Pourquoi c'est utile pour vous :** Vous ne perdez jamais une solution qui a fonctionne. Meme les
+taches que vous faites "juste une fois" restent disponibles au cas ou.
 
 ## Philosophy
 
-PML follows an **eager learning** philosophy: capture everything that works, then let usage patterns determine what's valuable.
+PML follows an **eager learning** philosophy: capture everything that works, then let usage patterns
+determine what's valuable.
 
 ![Eager Learning - Observation](excalidraw:src/web/assets/diagrams/emerge-observation.excalidraw)
 
-This approach is based on a key insight: **it's impossible to know in advance which patterns will be useful**.
+This approach is based on a key insight: **it's impossible to know in advance which patterns will be
+useful**.
 
 ## Why Eager?
 
@@ -52,11 +62,14 @@ With eager learning:
   • No cold start problem
 ```
 
-**Analogie du quotidien :** C'est comme garder les recettes de tous les plats que vous avez reussis, meme ceux que vous faites rarement. Quand des invites arrivent a l'improviste, vous avez deja un repertoire complet au lieu de devoir improviser.
+**Analogie du quotidien :** C'est comme garder les recettes de tous les plats que vous avez reussis,
+meme ceux que vous faites rarement. Quand des invites arrivent a l'improviste, vous avez deja un
+repertoire complet au lieu de devoir improviser.
 
 ### 3. Low Storage Cost
 
-Modern storage is cheap. The cost of storing extra patterns is negligible compared to the cost of losing useful ones.
+Modern storage is cheap. The cost of storing extra patterns is negligible compared to the cost of
+losing useful ones.
 
 ## How It Works
 
@@ -64,7 +77,8 @@ Modern storage is cheap. The cost of storing extra patterns is negligible compar
 
 Every successful execution is captured, with one important rule:
 
-**All-or-Nothing Rule**: A capability is saved only if **ALL tools called succeed**. If even one tool fails (server not connected, timeout, API error), the capability is not saved.
+**All-or-Nothing Rule**: A capability is saved only if **ALL tools called succeed**. If even one
+tool fails (server not connected, timeout, API error), the capability is not saved.
 
 ```
 Scenario 1: All tools succeed
@@ -80,9 +94,11 @@ Scenario 2: One tool fails
   → Capability NOT SAVED (incoherent)
 ```
 
-**Why this rule?** Without it, the saved code would contain 3 tool calls, but `tools_used` would only list 1. The graph would be incoherent and suggestions would be wrong.
+**Why this rule?** Without it, the saved code would contain 3 tool calls, but `tools_used` would
+only list 1. The graph would be incoherent and suggestions would be wrong.
 
 When tools fail, PML:
+
 - Logs failures for debugging
 - Returns `tool_failures` in the response
 - Does not save incomplete capabilities
@@ -131,13 +147,15 @@ ON CONFLICT (code_hash) DO UPDATE SET
 ```
 
 Cela signifie :
+
 - **1ere execution** : Le pattern est sauvegarde integralement
 - **Executions suivantes** : Seul le compteur d'usage est incremente
 - **Resultat** : Pas de doublons, mais l'historique d'usage est preserve
 
 ### Filter Phase (Lazy Suggestions)
 
-When suggesting capabilities, PML applies **lazy filtering** - the intelligence is at suggestion time, not storage time:
+When suggesting capabilities, PML applies **lazy filtering** - the intelligence is at suggestion
+time, not storage time:
 
 ```
 Query: "Process spreadsheet"
@@ -168,7 +186,8 @@ Eager Storage + Lazy Filtering = Best of Both Worlds
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-L'avantage : ce qui n'est pas pertinent aujourd'hui pourrait l'etre demain. En stockant tout et en filtrant au moment de la suggestion, PML peut s'adapter aux changements de contexte.
+L'avantage : ce qui n'est pas pertinent aujourd'hui pourrait l'etre demain. En stockant tout et en
+filtrant au moment de la suggestion, PML peut s'adapter aux changements de contexte.
 
 ## Deduplication
 
@@ -214,35 +233,41 @@ If intents are similar → Merge into single capability
 
 Not everything is kept forever:
 
-| Condition | Action |
-|-----------|--------|
-| Success rate < 20% after 10+ tries | Consider removal |
-| Not used in 90+ days | Reduce ranking weight |
-| Superseded by better pattern | Keep but deprioritize |
-| Manual user deletion | Remove immediately |
+| Condition                          | Action                |
+| ---------------------------------- | --------------------- |
+| Success rate < 20% after 10+ tries | Consider removal      |
+| Not used in 90+ days               | Reduce ranking weight |
+| Superseded by better pattern       | Keep but deprioritize |
+| Manual user deletion               | Remove immediately    |
 
 ## Benefits
 
-| Benefit | Description |
-|---------|-------------|
-| **No lost patterns** | Everything useful is captured |
-| **Natural selection** | Best patterns rise through usage |
-| **Fast learning** | No deliberation, just capture |
-| **User-driven curation** | Usage determines value |
+| Benefit                  | Description                      |
+| ------------------------ | -------------------------------- |
+| **No lost patterns**     | Everything useful is captured    |
+| **Natural selection**    | Best patterns rise through usage |
+| **Fast learning**        | No deliberation, just capture    |
+| **User-driven curation** | Usage determines value           |
 
 ## Ce que ca change pour vous
 
 Avec l'eager learning, vous beneficiez de :
 
-1. **Memoire parfaite** : PML se souvient de chaque solution qui a fonctionne, meme celles que vous avez utilisees une seule fois il y a des mois.
+1. **Memoire parfaite** : PML se souvient de chaque solution qui a fonctionne, meme celles que vous
+   avez utilisees une seule fois il y a des mois.
 
-2. **Pas de "demarrage a froid"** : Des la premiere semaine, PML commence a accumuler des solutions. Pas besoin d'attendre des mois pour avoir un assistant intelligent.
+2. **Pas de "demarrage a froid"** : Des la premiere semaine, PML commence a accumuler des solutions.
+   Pas besoin d'attendre des mois pour avoir un assistant intelligent.
 
-3. **Apprentissage passif** : Vous n'avez rien a faire. Travaillez normalement, PML apprend en arriere-plan.
+3. **Apprentissage passif** : Vous n'avez rien a faire. Travaillez normalement, PML apprend en
+   arriere-plan.
 
-4. **Selection naturelle** : Les meilleures solutions remontent naturellement au sommet grace a l'usage. Vous n'avez pas a juger manuellement ce qui est "important".
+4. **Selection naturelle** : Les meilleures solutions remontent naturellement au sommet grace a
+   l'usage. Vous n'avez pas a juger manuellement ce qui est "important".
 
-**Exemple concret :** Imaginez que vous travaillez sur plusieurs projets differents. Avec l'eager learning, PML capture les patterns de TOUS vos projets. Quand vous commencez un nouveau projet qui combine des elements de projets precedents, PML a deja toutes les pieces du puzzle.
+**Exemple concret :** Imaginez que vous travaillez sur plusieurs projets differents. Avec l'eager
+learning, PML capture les patterns de TOUS vos projets. Quand vous commencez un nouveau projet qui
+combine des elements de projets precedents, PML a deja toutes les pieces du puzzle.
 
 ## Next
 

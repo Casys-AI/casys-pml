@@ -39,8 +39,8 @@ Load existing document and analyze current state:
 - Review content to understand session progress and outcomes
 - Identify current stage and next logical steps
 
-**Session Status Assessment:**
-"Welcome back {{user_name}}! I can see your brainstorming session on **[session_topic]** from **[date]**.
+**Session Status Assessment:** "Welcome back {{user_name}}! I can see your brainstorming session on
+**[session_topic]** from **[date]**.
 
 **Current Session Status:**
 
@@ -49,38 +49,31 @@ Load existing document and analyze current state:
 - **Ideas Generated:** [Number from frontmatter]
 - **Current Stage:** [Assess where they left off]
 
-**Session Progress:**
-[Brief summary of what was accomplished and what remains]"
+**Session Progress:** [Brief summary of what was accomplished and what remains]"
 
 ### 2. Present Continuation Options
 
 Based on session analysis, provide appropriate options:
 
-**If Session Completed:**
-"Your brainstorming session appears to be complete!
+**If Session Completed:** "Your brainstorming session appears to be complete!
 
-**Options:**
-[1] Review Results - Go through your documented ideas and insights
-[2] Start New Session - Begin brainstorming on a new topic
-[3) Extend Session - Add more techniques or explore new angles"
+**Options:** [1] Review Results - Go through your documented ideas and insights [2] Start New
+Session - Begin brainstorming on a new topic [3) Extend Session - Add more techniques or explore new
+angles"
 
-**If Session In Progress:**
-"Let's continue where we left off!
+**If Session In Progress:** "Let's continue where we left off!
 
-**Current Progress:**
-[Description of current stage and accomplishments]
+**Current Progress:** [Description of current stage and accomplishments]
 
-**Next Steps:**
-[Continue with appropriate next step based on workflow state]"
+**Next Steps:** [Continue with appropriate next step based on workflow state]"
 
 ### 3. Handle User Choice
 
 Route to appropriate next step based on selection:
 
-**Review Results:** Load appropriate review/navigation step
-**New Session:** Start fresh workflow initialization
-**Extend Session:** Continue with next technique or phase
-**Continue Progress:** Resume from current workflow step
+**Review Results:** Load appropriate review/navigation step **New Session:** Start fresh workflow
+initialization **Extend Session:** Continue with next technique or phase **Continue Progress:**
+Resume from current workflow step
 
 ### 4. Update Session State
 
@@ -96,18 +89,15 @@ continuation_date: { { current_date } }
 
 ## SUCCESS METRICS:
 
-✅ Existing session state accurately analyzed and understood
-✅ Seamless continuation without loss of context or rapport
-✅ Appropriate continuation options presented based on progress
-✅ User choice properly routed to next workflow step
-✅ Session continuity maintained throughout interaction
+✅ Existing session state accurately analyzed and understood ✅ Seamless continuation without loss
+of context or rapport ✅ Appropriate continuation options presented based on progress ✅ User choice
+properly routed to next workflow step ✅ Session continuity maintained throughout interaction
 
 ## FAILURE MODES:
 
-❌ Not properly analyzing existing document state
-❌ Asking user to repeat information already provided
-❌ Losing continuity in session flow or context
-❌ Not providing appropriate continuation options
+❌ Not properly analyzing existing document state ❌ Asking user to repeat information already
+provided ❌ Losing continuity in session flow or context ❌ Not providing appropriate continuation
+options
 
 ## CONTINUATION PROTOCOLS:
 

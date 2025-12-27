@@ -1,7 +1,6 @@
 # ADR-019: Three-Level AIL Architecture - MCP Compatibility + Internal Agents
 
-**Status:** ⛔ Superseded
-**Date:** 2025-11-24 | **Superseded by:** ADR-020 (2025-11-25)
+**Status:** ⛔ Superseded **Date:** 2025-11-24 | **Superseded by:** ADR-020 (2025-11-25)
 
 > See **ADR-020: AIL Control Protocol** for the consolidated architecture.
 

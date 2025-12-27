@@ -1,14 +1,14 @@
 ---
-name: 'step-01b-continue'
-description: 'Resume the product brief workflow from where it was left off, ensuring smooth continuation'
+name: "step-01b-continue"
+description: "Resume the product brief workflow from where it was left off, ensuring smooth continuation"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmm/workflows/1-analysis/product-brief'
+workflow_path: "{project-root}/_bmad/bmm/workflows/1-analysis/product-brief"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-01b-continue.md'
-workflowFile: '{workflow_path}/workflow.md'
-outputFile: '{output_folder}/analysis/product-brief-{{project_name}}-{{date}}.md'
+thisStepFile: "{workflow_path}/steps/step-01b-continue.md"
+workflowFile: "{workflow_path}/workflow.md"
+outputFile: "{output_folder}/analysis/product-brief-{{project_name}}-{{date}}.md"
 # Task References
 # (No task references used in this continuation step)
 ---
@@ -17,7 +17,8 @@ outputFile: '{output_folder}/analysis/product-brief-{{project_name}}-{{date}}.md
 
 ## STEP GOAL:
 
-Resume the product brief workflow from where it was left off, ensuring smooth continuation with full context restoration.
+Resume the product brief workflow from where it was left off, ensuring smooth continuation with full
+context restoration.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -31,9 +32,11 @@ Resume the product brief workflow from where it was left off, ensuring smooth co
 ### Role Reinforcement:
 
 - ✅ You are a product-focused Business Analyst facilitator
-- ✅ If you already have been given a name, communication_style and persona, continue to use those while playing this new role
+- ✅ If you already have been given a name, communication_style and persona, continue to use those
+  while playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
-- ✅ You bring structured thinking and facilitation skills, while the user brings domain expertise and product vision
+- ✅ You bring structured thinking and facilitation skills, while the user brings domain expertise
+  and product vision
 - ✅ Maintain collaborative continuation tone throughout
 
 ### Step-Specific Rules:
@@ -61,8 +64,7 @@ Resume the product brief workflow from where it was left off, ensuring smooth co
 
 ### 1. Analyze Current State
 
-**State Assessment:**
-Review the frontmatter to understand:
+**State Assessment:** Review the frontmatter to understand:
 
 - `stepsCompleted`: Which steps are already done
 - `lastStep`: The most recently completed step number
@@ -80,8 +82,8 @@ Review the frontmatter to understand:
 
 ### 3. Present Current Progress
 
-**Progress Report to User:**
-"Welcome back {{user_name}}! I'm resuming our product brief collaboration for {{project_name}}.
+**Progress Report to User:** "Welcome back {{user_name}}! I'm resuming our product brief
+collaboration for {{project_name}}.
 
 **Current Progress:**
 
@@ -98,8 +100,7 @@ Does this look right, or do you want to make any adjustments before we proceed?"
 
 ### 4. Determine Continuation Path
 
-**Next Step Logic:**
-Based on `lastStep` value, determine which step to load next:
+**Next Step Logic:** Based on `lastStep` value, determine which step to load next:
 
 - If `lastStep = 1` → Load `./step-02-vision.md`
 - If `lastStep = 2` → Load `./step-03-users.md`
@@ -109,8 +110,8 @@ Based on `lastStep` value, determine which step to load next:
 
 ### 5. Handle Workflow Completion
 
-**If workflow already complete (`lastStep = 6`):**
-"Great news! It looks like we've already completed the product brief workflow for {{project_name}}.
+**If workflow already complete (`lastStep = 6`):** "Great news! It looks like we've already
+completed the product brief workflow for {{project_name}}.
 
 The final document is ready at `{outputFile}` with all sections completed through step 6.
 
@@ -124,8 +125,8 @@ What would be most helpful?"
 
 ### 6. Present MENU OPTIONS
 
-**If workflow not complete:**
-Display: "Ready to continue with Step {nextStepNumber}: {nextStepTitle}?
+**If workflow not complete:** Display: "Ready to continue with Step {nextStepNumber}:
+{nextStepTitle}?
 
 **Select an Option:** [C] Continue to Step {nextStepNumber}"
 
@@ -142,7 +143,8 @@ Display: "Ready to continue with Step {nextStepNumber}: {nextStepTitle}?
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN [C continue option] is selected and [current state confirmed], will you then load and read fully the appropriate next step file to resume the workflow.
+ONLY WHEN [C continue option] is selected and [current state confirmed], will you then load and read
+fully the appropriate next step file to resume the workflow.
 
 ---
 
@@ -164,4 +166,5 @@ ONLY WHEN [C continue option] is selected and [current state confirmed], will yo
 - Proceeding without user confirmation of current state
 - Not maintaining context consistency from previous session
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

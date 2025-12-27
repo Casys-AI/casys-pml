@@ -28,5 +28,5 @@ DC (from Wellness Companion agent)
 
 ## Notes
 
-This workflow will be implemented using the create-workflow workflow.
-Integration with wellness journal for data persistence.
+This workflow will be implemented using the create-workflow workflow. Integration with wellness
+journal for data persistence.

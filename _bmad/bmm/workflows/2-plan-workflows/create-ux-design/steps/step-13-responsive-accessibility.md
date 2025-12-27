@@ -4,8 +4,10 @@
 
 - 🛑 NEVER generate content without user input
 
-- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding leads to incomplete decisions
-- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before proceeding
+- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding
+  leads to incomplete decisions
+- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before
+  proceeding
 - ✅ ALWAYS treat this as collaborative discovery between UX facilitator and stakeholder
 - 📋 YOU ARE A UX FACILITATOR, not a content generator
 - 💬 FOCUS on responsive design strategy and accessibility compliance
@@ -16,14 +18,16 @@
 - 🎯 Show your analysis before taking any action
 - ⚠️ Present A/P/C menu after generating responsive/accessibility content
 - 💾 ONLY save when user chooses C (Continue)
-- 📖 Update frontmatter `stepsCompleted: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]` before loading next step
+- 📖 Update frontmatter `stepsCompleted: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]` before loading
+  next step
 - 🚫 FORBIDDEN to load next step until C is selected
 
 ## COLLABORATION MENUS (A/P/C):
 
 This step will generate content and present choices:
 
-- **A (Advanced Elicitation)**: Use discovery protocols to develop deeper responsive/accessibility insights
+- **A (Advanced Elicitation)**: Use discovery protocols to develop deeper responsive/accessibility
+  insights
 - **P (Party Mode)**: Bring multiple perspectives to define responsive/accessibility strategy
 - **C (Continue)**: Save the content to the document and proceed to final step
 
@@ -49,8 +53,8 @@ Define responsive design strategy and accessibility requirements for the product
 
 ### 1. Define Responsive Strategy
 
-Establish how the design adapts across devices:
-"Let's define how {{project_name}} adapts across different screen sizes and devices.
+Establish how the design adapts across devices: "Let's define how {{project_name}} adapts across
+different screen sizes and devices.
 
 **Responsive Design Questions:**
 
@@ -74,9 +78,8 @@ Establish how the design adapts across devices:
 
 ### 2. Establish Breakpoint Strategy
 
-Define when and how layouts change:
-"**Breakpoint Strategy:**
-We need to define screen size breakpoints where layouts adapt.
+Define when and how layouts change: "**Breakpoint Strategy:** We need to define screen size
+breakpoints where layouts adapt.
 
 **Common Breakpoints:**
 
@@ -92,9 +95,8 @@ We need to define screen size breakpoints where layouts adapt.
 
 ### 3. Design Accessibility Strategy
 
-Define accessibility requirements and compliance level:
-"**Accessibility Strategy:**
-What level of WCAG compliance does {{project_name}} need?
+Define accessibility requirements and compliance level: "**Accessibility Strategy:** What level of
+WCAG compliance does {{project_name}} need?
 
 **WCAG Levels:**
 
@@ -116,8 +118,7 @@ What level of WCAG compliance does {{project_name}} need?
 
 ### 4. Define Testing Strategy
 
-Plan how to ensure responsive design and accessibility:
-"**Testing Strategy:**
+Plan how to ensure responsive design and accessibility: "**Testing Strategy:**
 
 **Responsive Testing:**
 
@@ -140,8 +141,7 @@ Plan how to ensure responsive design and accessibility:
 
 ### 5. Document Implementation Guidelines
 
-Create specific guidelines for developers:
-"**Implementation Guidelines:**
+Create specific guidelines for developers: "**Implementation Guidelines:**
 
 **Responsive Development:**
 
@@ -192,23 +192,24 @@ When saving to document, append these Level 2 and Level 3 sections:
 
 ### 7. Present Content and Menu
 
-Show the generated responsive and accessibility content and present choices:
-"I've defined the responsive design and accessibility strategy for {{project_name}}. This ensures your product works beautifully across all devices and is accessible to all users.
+Show the generated responsive and accessibility content and present choices: "I've defined the
+responsive design and accessibility strategy for {{project_name}}. This ensures your product works
+beautifully across all devices and is accessible to all users.
 
 **Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 6]
 
-**What would you like to do?**
-[A] Advanced Elicitation - Let's refine our responsive/accessibility strategy
-[P] Party Mode - Bring different perspectives on inclusive design
-[C] Continue - Save this to the document and complete the workflow
+**What would you like to do?** [A] Advanced Elicitation - Let's refine our responsive/accessibility
+strategy [P] Party Mode - Bring different perspectives on inclusive design [C] Continue - Save this
+to the document and complete the workflow
 
 ### 8. Handle Menu Selection
 
 #### If 'A' (Advanced Elicitation):
 
-- Execute {project-root}/\_bmad/core/tasks/advanced-elicitation.xml with the current responsive/accessibility content
+- Execute {project-root}/\_bmad/core/tasks/advanced-elicitation.xml with the current
+  responsive/accessibility content
 - Process the enhanced insights that come back
 - Ask user: "Accept these improvements to the responsive/accessibility strategy? (y/n)"
 - If yes: Update content with improvements, then return to A/P/C menu
@@ -216,7 +217,8 @@ Show the generated responsive and accessibility content and present choices:
 
 #### If 'P' (Party Mode):
 
-- Execute {project-root}/\_bmad/core/workflows/party-mode/workflow.md with the current responsive/accessibility strategy
+- Execute {project-root}/\_bmad/core/workflows/party-mode/workflow.md with the current
+  responsive/accessibility strategy
 - Process the collaborative insights that come back
 - Ask user: "Accept these changes to the responsive/accessibility strategy? (y/n)"
 - If yes: Update content with improvements, then return to A/P/C menu
@@ -234,30 +236,27 @@ When user selects 'C', append the content directly to the document using the str
 
 ## SUCCESS METRICS:
 
-✅ Responsive strategy clearly defined for all device types
-✅ Appropriate breakpoint strategy established
-✅ Accessibility requirements determined and documented
-✅ Comprehensive testing strategy planned
-✅ Implementation guidelines provided for development team
-✅ A/P/C menu presented and handled correctly
-✅ Content properly appended to document when C selected
+✅ Responsive strategy clearly defined for all device types ✅ Appropriate breakpoint strategy
+established ✅ Accessibility requirements determined and documented ✅ Comprehensive testing
+strategy planned ✅ Implementation guidelines provided for development team ✅ A/P/C menu presented
+and handled correctly ✅ Content properly appended to document when C selected
 
 ## FAILURE MODES:
 
-❌ Not considering all device types and screen sizes
-❌ Accessibility requirements not properly researched
-❌ Testing strategy not comprehensive enough
-❌ Implementation guidelines too generic or unclear
-❌ Not addressing specific accessibility challenges for your product
-❌ Not presenting A/P/C menu after content generation
-❌ Appending content without user selecting 'C'
+❌ Not considering all device types and screen sizes ❌ Accessibility requirements not properly
+researched ❌ Testing strategy not comprehensive enough ❌ Implementation guidelines too generic or
+unclear ❌ Not addressing specific accessibility challenges for your product ❌ Not presenting A/P/C
+menu after content generation ❌ Appending content without user selecting 'C'
 
-❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
-❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step file
-❌ **CRITICAL**: Making decisions without complete understanding of step requirements and protocols
+❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor
+decisions ❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step
+file ❌ **CRITICAL**: Making decisions without complete understanding of step requirements and
+protocols
 
 ## NEXT STEP:
 
-After user selects 'C' and content is saved to document, load `./step-14-complete.md` to finalize the UX design workflow.
+After user selects 'C' and content is saved to document, load `./step-14-complete.md` to finalize
+the UX design workflow.
 
-Remember: Do NOT proceed to step-14 until user explicitly selects 'C' from the A/P/C menu and content is saved!
+Remember: Do NOT proceed to step-14 until user explicitly selects 'C' from the A/P/C menu and
+content is saved!

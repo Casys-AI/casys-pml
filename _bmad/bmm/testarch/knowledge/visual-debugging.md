@@ -2,13 +2,20 @@
 
 ## Principle
 
-Fast feedback loops and transparent debugging artifacts are critical for maintaining test reliability and developer confidence. Visual debugging tools (trace viewers, screenshots, videos, HAR files) turn cryptic test failures into actionable insights, reducing triage time from hours to minutes.
+Fast feedback loops and transparent debugging artifacts are critical for maintaining test
+reliability and developer confidence. Visual debugging tools (trace viewers, screenshots, videos,
+HAR files) turn cryptic test failures into actionable insights, reducing triage time from hours to
+minutes.
 
 ## Rationale
 
-**The Problem**: CI failures often provide minimal context—a timeout, a selector mismatch, or a network error—forcing developers to reproduce issues locally (if they can). This wastes time and discourages test maintenance.
+**The Problem**: CI failures often provide minimal context—a timeout, a selector mismatch, or a
+network error—forcing developers to reproduce issues locally (if they can). This wastes time and
+discourages test maintenance.
 
-**The Solution**: Capture rich debugging artifacts **only on failure** to balance storage costs with diagnostic value. Modern tools like Playwright Trace Viewer, Cypress Debug UI, and HAR recordings provide interactive, time-travel debugging that reveals exactly what the test saw at each step.
+**The Solution**: Capture rich debugging artifacts **only on failure** to balance storage costs with
+diagnostic value. Modern tools like Playwright Trace Viewer, Cypress Debug UI, and HAR recordings
+provide interactive, time-travel debugging that reveals exactly what the test saw at each step.
 
 **Why This Matters**:
 
@@ -27,17 +34,17 @@ Fast feedback loops and transparent debugging artifacts are critical for maintai
 
 ```typescript
 // playwright.config.ts
-import { defineConfig } from '@playwright/test';
+import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   use: {
     // Visual debugging artifacts (space-efficient)
-    trace: 'on-first-retry', // Only when test fails once
-    screenshot: 'only-on-failure', // Not on success
-    video: 'retain-on-failure', // Delete on pass
+    trace: "on-first-retry", // Only when test fails once
+    screenshot: "only-on-failure", // Not on success
+    video: "retain-on-failure", // Delete on pass
 
     // Context for debugging
-    baseURL: process.env.BASE_URL || 'http://localhost:3000',
+    baseURL: process.env.BASE_URL || "http://localhost:3000",
 
     // Timeout context
     actionTimeout: 15_000, // 15s for clicks/fills
@@ -46,9 +53,9 @@ export default defineConfig({
 
   // CI-specific artifact retention
   reporter: [
-    ['html', { outputFolder: 'playwright-report', open: 'never' }],
-    ['junit', { outputFile: 'results.xml' }],
-    ['list'], // Console output
+    ["html", { outputFolder: "playwright-report", open: "never" }],
+    ["junit", { outputFile: "results.xml" }],
+    ["list"], // Console output
   ],
 
   // Failure handling
@@ -93,26 +100,26 @@ npx playwright show-report
 
 ```typescript
 // tests/e2e/checkout-with-har.spec.ts
-import { test, expect } from '@playwright/test';
-import path from 'path';
+import { expect, test } from "@playwright/test";
+import path from "path";
 
-test.describe('Checkout Flow with HAR Recording', () => {
-  test('should complete payment with full network capture', async ({ page, context }) => {
+test.describe("Checkout Flow with HAR Recording", () => {
+  test("should complete payment with full network capture", async ({ page, context }) => {
     // Start HAR recording BEFORE navigation
-    await context.routeFromHAR(path.join(__dirname, '../fixtures/checkout.har'), {
-      url: '**/api/**', // Only capture API calls
+    await context.routeFromHAR(path.join(__dirname, "../fixtures/checkout.har"), {
+      url: "**/api/**", // Only capture API calls
       update: true, // Update HAR if file exists
     });
 
-    await page.goto('/checkout');
+    await page.goto("/checkout");
 
     // Interact with page
-    await page.getByTestId('payment-method').selectOption('credit-card');
-    await page.getByTestId('card-number').fill('4242424242424242');
-    await page.getByTestId('submit-payment').click();
+    await page.getByTestId("payment-method").selectOption("credit-card");
+    await page.getByTestId("card-number").fill("4242424242424242");
+    await page.getByTestId("submit-payment").click();
 
     // Wait for payment confirmation
-    await expect(page.getByTestId('success-message')).toBeVisible();
+    await expect(page.getByTestId("success-message")).toBeVisible();
 
     // HAR file saved to fixtures/checkout.har
     // Contains all network requests/responses for replay
@@ -124,24 +131,24 @@ test.describe('Checkout Flow with HAR Recording', () => {
 
 ```typescript
 // tests/e2e/checkout-replay-har.spec.ts
-import { test, expect } from '@playwright/test';
-import path from 'path';
+import { expect, test } from "@playwright/test";
+import path from "path";
 
-test('should replay checkout flow from HAR', async ({ page, context }) => {
+test("should replay checkout flow from HAR", async ({ page, context }) => {
   // Replay network from HAR (no real API calls)
-  await context.routeFromHAR(path.join(__dirname, '../fixtures/checkout.har'), {
-    url: '**/api/**',
+  await context.routeFromHAR(path.join(__dirname, "../fixtures/checkout.har"), {
+    url: "**/api/**",
     update: false, // Read-only mode
   });
 
-  await page.goto('/checkout');
+  await page.goto("/checkout");
 
   // Same test, but network responses come from HAR file
-  await page.getByTestId('payment-method').selectOption('credit-card');
-  await page.getByTestId('card-number').fill('4242424242424242');
-  await page.getByTestId('submit-payment').click();
+  await page.getByTestId("payment-method").selectOption("credit-card");
+  await page.getByTestId("card-number").fill("4242424242424242");
+  await page.getByTestId("submit-payment").click();
 
-  await expect(page.getByTestId('success-message')).toBeVisible();
+  await expect(page.getByTestId("success-message")).toBeVisible();
 });
 ```
 
@@ -169,9 +176,9 @@ test('should replay checkout flow from HAR', async ({ page, context }) => {
 
 ```typescript
 // playwright/support/fixtures/debug-fixture.ts
-import { test as base } from '@playwright/test';
-import fs from 'fs';
-import path from 'path';
+import { test as base } from "@playwright/test";
+import fs from "fs";
+import path from "path";
 
 type DebugFixture = {
   captureDebugArtifacts: () => Promise<void>;
@@ -183,12 +190,12 @@ export const test = base.extend<DebugFixture>({
     const networkRequests: Array<{ url: string; status: number; method: string }> = [];
 
     // Capture console messages
-    page.on('console', (msg) => {
+    page.on("console", (msg) => {
       consoleLogs.push(`[${msg.type()}] ${msg.text()}`);
     });
 
     // Capture network requests
-    page.on('request', (request) => {
+    page.on("request", (request) => {
       networkRequests.push({
         url: request.url(),
         method: request.method(),
@@ -196,7 +203,7 @@ export const test = base.extend<DebugFixture>({
       });
     });
 
-    page.on('response', (response) => {
+    page.on("response", (response) => {
       const req = networkRequests.find((r) => r.url === response.url());
       if (req) req.status = response.status();
     });
@@ -208,14 +215,18 @@ export const test = base.extend<DebugFixture>({
 
     // After test completes, save artifacts if failed
     if (testInfo.status !== testInfo.expectedStatus) {
-      const artifactDir = path.join(testInfo.outputDir, 'debug-artifacts');
+      const artifactDir = path.join(testInfo.outputDir, "debug-artifacts");
       fs.mkdirSync(artifactDir, { recursive: true });
 
       // Save console logs
-      fs.writeFileSync(path.join(artifactDir, 'console.log'), consoleLogs.join('\n'), 'utf-8');
+      fs.writeFileSync(path.join(artifactDir, "console.log"), consoleLogs.join("\n"), "utf-8");
 
       // Save network summary
-      fs.writeFileSync(path.join(artifactDir, 'network.json'), JSON.stringify(networkRequests, null, 2), 'utf-8');
+      fs.writeFileSync(
+        path.join(artifactDir, "network.json"),
+        JSON.stringify(networkRequests, null, 2),
+        "utf-8",
+      );
 
       console.log(`Debug artifacts saved to: ${artifactDir}`);
     }
@@ -227,14 +238,14 @@ export const test = base.extend<DebugFixture>({
 
 ```typescript
 // tests/e2e/payment-with-debug.spec.ts
-import { test, expect } from '../support/fixtures/debug-fixture';
+import { expect, test } from "../support/fixtures/debug-fixture";
 
-test('payment flow captures debug artifacts on failure', async ({ page, captureDebugArtifacts }) => {
-  await page.goto('/checkout');
+test("payment flow captures debug artifacts on failure", async ({ page, captureDebugArtifacts }) => {
+  await page.goto("/checkout");
 
   // Test will automatically capture console + network on failure
-  await page.getByTestId('submit-payment').click();
-  await expect(page.getByTestId('success-message')).toBeVisible({ timeout: 5000 });
+  await page.getByTestId("submit-payment").click();
+  await expect(page.getByTestId("success-message")).toBeVisible({ timeout: 5000 });
 
   // If this fails, console.log and network.json saved automatically
 });
@@ -254,7 +265,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version-file: '.nvmrc'
+          node-version-file: ".nvmrc"
 
       - name: Install dependencies
         run: npm ci
@@ -291,8 +302,8 @@ jobs:
 
 ```typescript
 // playwright/support/fixtures/a11y-fixture.ts
-import { test as base } from '@playwright/test';
-import AxeBuilder from '@axe-core/playwright';
+import { test as base } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 
 type A11yFixture = {
   checkA11y: () => Promise<void>;
@@ -323,13 +334,13 @@ export const test = base.extend<A11yFixture>({
 
 ```typescript
 // tests/e2e/checkout-a11y.spec.ts
-import { test, expect } from '../support/fixtures/a11y-fixture';
+import { expect, test } from "../support/fixtures/a11y-fixture";
 
-test('checkout page is accessible', async ({ page, checkA11y }) => {
-  await page.goto('/checkout');
+test("checkout page is accessible", async ({ page, checkA11y }) => {
+  await page.goto("/checkout");
 
   // Verify page loaded
-  await expect(page.getByRole('heading', { name: 'Checkout' })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Checkout" })).toBeVisible();
 
   // Run accessibility check
   await checkA11y();
@@ -352,24 +363,24 @@ test('checkout page is accessible', async ({ page, checkA11y }) => {
 
 ```javascript
 // cypress/support/commands.ts
-import 'cypress-axe';
+import "cypress-axe";
 
-Cypress.Commands.add('checkA11y', (context = null, options = {}) => {
+Cypress.Commands.add("checkA11y", (context = null, options = {}) => {
   cy.injectAxe(); // Inject axe-core
   cy.checkA11y(context, options, (violations) => {
     if (violations.length) {
-      cy.task('log', `Found ${violations.length} accessibility violations`);
+      cy.task("log", `Found ${violations.length} accessibility violations`);
       violations.forEach((violation) => {
-        cy.task('log', `- [${violation.impact}] ${violation.id}: ${violation.description}`);
+        cy.task("log", `- [${violation.impact}] ${violation.id}: ${violation.description}`);
       });
     }
   });
 });
 
 // tests/e2e/checkout-a11y.cy.ts
-describe('Checkout Accessibility', () => {
-  it('should have no a11y violations', () => {
-    cy.visit('/checkout');
+describe("Checkout Accessibility", () => {
+  it("should have no a11y violations", () => {
+    cy.visit("/checkout");
     cy.injectAxe();
     cy.checkA11y();
     // On failure, Cypress UI shows:
@@ -397,13 +408,13 @@ describe('Checkout Accessibility', () => {
 
 ```typescript
 // tests/e2e/checkout-debug.spec.ts
-import { test, expect } from '@playwright/test';
+import { expect, test } from "@playwright/test";
 
-test('debug checkout flow step-by-step', async ({ page }) => {
+test("debug checkout flow step-by-step", async ({ page }) => {
   // Set breakpoint by uncommenting this:
   // await page.pause()
 
-  await page.goto('/checkout');
+  await page.goto("/checkout");
 
   // Use Playwright Inspector to:
   // 1. Step through each action
@@ -411,15 +422,15 @@ test('debug checkout flow step-by-step', async ({ page }) => {
   // 3. View network calls per action
   // 4. Take screenshots manually
 
-  await page.getByTestId('payment-method').selectOption('credit-card');
+  await page.getByTestId("payment-method").selectOption("credit-card");
 
   // Pause here to inspect form state
   // await page.pause()
 
-  await page.getByTestId('card-number').fill('4242424242424242');
-  await page.getByTestId('submit-payment').click();
+  await page.getByTestId("card-number").fill("4242424242424242");
+  await page.getByTestId("submit-payment").click();
 
-  await expect(page.getByTestId('success-message')).toBeVisible();
+  await expect(page.getByTestId("success-message")).toBeVisible();
 });
 ```
 
@@ -452,8 +463,8 @@ PWDEBUG=1 npx playwright test
 
 ```typescript
 // Pattern 1: Debug selector issues
-test('debug selector', async ({ page }) => {
-  await page.goto('/dashboard');
+test("debug selector", async ({ page }) => {
+  await page.goto("/dashboard");
   await page.pause(); // Inspector opens
 
   // In Inspector console, test selectors:
@@ -463,12 +474,12 @@ test('debug selector', async ({ page }) => {
 });
 
 // Pattern 2: Debug timing issues
-test('debug network timing', async ({ page }) => {
-  await page.goto('/dashboard');
+test("debug network timing", async ({ page }) => {
+  await page.goto("/dashboard");
 
   // Set up network listener BEFORE interaction
-  const responsePromise = page.waitForResponse('**/api/users');
-  await page.getByTestId('load-users').click();
+  const responsePromise = page.waitForResponse("**/api/users");
+  await page.getByTestId("load-users").click();
 
   await page.pause(); // Check network panel for timing
 
@@ -477,19 +488,19 @@ test('debug network timing', async ({ page }) => {
 });
 
 // Pattern 3: Debug state changes
-test('debug state mutation', async ({ page }) => {
-  await page.goto('/cart');
+test("debug state mutation", async ({ page }) => {
+  await page.goto("/cart");
 
   // Check initial state
-  await expect(page.getByTestId('cart-count')).toHaveText('0');
+  await expect(page.getByTestId("cart-count")).toHaveText("0");
 
   await page.pause(); // Inspect DOM
 
-  await page.getByTestId('add-to-cart').click();
+  await page.getByTestId("add-to-cart").click();
 
   await page.pause(); // Inspect DOM again (compare state)
 
-  await expect(page.getByTestId('cart-count')).toHaveText('1');
+  await expect(page.getByTestId("cart-count")).toHaveText("1");
 });
 ```
 
@@ -506,19 +517,25 @@ test('debug state mutation', async ({ page }) => {
 
 Before deploying tests to CI, ensure:
 
-- [ ] **Artifact configuration**: `trace: 'on-first-retry'`, `screenshot: 'only-on-failure'`, `video: 'retain-on-failure'`
-- [ ] **CI artifact upload**: GitHub Actions/GitLab CI configured to upload `test-results/` and `playwright-report/`
+- [ ] **Artifact configuration**: `trace: 'on-first-retry'`, `screenshot: 'only-on-failure'`,
+      `video: 'retain-on-failure'`
+- [ ] **CI artifact upload**: GitHub Actions/GitLab CI configured to upload `test-results/` and
+      `playwright-report/`
 - [ ] **HAR recording**: Set up for flaky API tests (record once, replay deterministically)
 - [ ] **Custom debug fixtures**: Console logs + network summary captured on failure
 - [ ] **Accessibility integration**: axe-core violations visible in trace viewer
-- [ ] **Trace viewer docs**: README explains how to open traces locally (`npx playwright show-trace`)
+- [ ] **Trace viewer docs**: README explains how to open traces locally
+      (`npx playwright show-trace`)
 - [ ] **Inspector workflow**: Document `--debug` flag for interactive debugging
 - [ ] **Storage optimization**: Artifacts deleted after 30 days (CI retention policy)
 
 ## Integration Points
 
-- **Used in workflows**: `*framework` (initial setup), `*ci` (artifact upload), `*test-review` (validate artifact config)
-- **Related fragments**: `playwright-config.md` (artifact configuration), `ci-burn-in.md` (CI artifact upload), `test-quality.md` (debugging best practices)
+- **Used in workflows**: `*framework` (initial setup), `*ci` (artifact upload), `*test-review`
+  (validate artifact config)
+- **Related fragments**: `playwright-config.md` (artifact configuration), `ci-burn-in.md` (CI
+  artifact upload), `test-quality.md` (debugging best practices)
 - **Tools**: Playwright Trace Viewer, Cypress Debug UI, axe-core, HAR files
 
-_Source: Playwright official docs, Murat testing philosophy (visual debugging manifesto), SEON production debugging patterns_
+_Source: Playwright official docs, Murat testing philosophy (visual debugging manifesto), SEON
+production debugging patterns_

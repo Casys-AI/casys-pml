@@ -4,8 +4,10 @@
 
 - 🛑 NEVER generate content without user input
 
-- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding leads to incomplete decisions
-- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before proceeding
+- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding
+  leads to incomplete decisions
+- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before
+  proceeding
 - ✅ ALWAYS treat this as collaborative discovery between UX facilitator and stakeholder
 - 📋 YOU ARE A UX FACILITATOR, not a content generator
 - 💬 FOCUS on designing user flows and journey interactions
@@ -49,17 +51,17 @@ Design detailed user journey flows for critical user interactions.
 
 ### 1. Load PRD User Journeys as Foundation
 
-Start with user journeys already defined in the PRD:
-"Great! Since we have the PRD available, let's build on the user journeys already documented there.
+Start with user journeys already defined in the PRD: "Great! Since we have the PRD available, let's
+build on the user journeys already documented there.
 
-**Existing User Journeys from PRD:**
-I've already loaded these user journeys from your PRD:
-[Journey narratives from PRD input documents]
+**Existing User Journeys from PRD:** I've already loaded these user journeys from your PRD: [Journey
+narratives from PRD input documents]
 
-These journeys tell us **who** users are and **why** they take certain actions. Now we need to design **how** those journeys work in detail.
+These journeys tell us **who** users are and **why** they take certain actions. Now we need to
+design **how** those journeys work in detail.
 
-**Critical Journeys to Design Flows For:**
-Looking at the PRD journeys, I need to design detailed interaction flows for:
+**Critical Journeys to Design Flows For:** Looking at the PRD journeys, I need to design detailed
+interaction flows for:
 
 - [Critical journey 1 identified from PRD narratives]
 - [Critical journey 2 identified from PRD narratives]
@@ -71,8 +73,7 @@ The PRD gave us the stories - now we design the mechanics!"
 
 For each critical journey, design detailed flow:
 
-**For [Journey Name]:**
-"Let's design the flow for users accomplishing [journey goal].
+**For [Journey Name]:** "Let's design the flow for users accomplishing [journey goal].
 
 **Flow Design Questions:**
 
@@ -86,8 +87,8 @@ For each critical journey, design detailed flow:
 
 ### 3. Create Flow Diagrams
 
-Visualize each journey with Mermaid diagrams:
-"I'll create detailed flow diagrams for each journey showing:
+Visualize each journey with Mermaid diagrams: "I'll create detailed flow diagrams for each journey
+showing:
 
 **[Journey Name] Flow:**
 
@@ -101,9 +102,8 @@ Each diagram will map the complete user experience from start to finish."
 
 ### 4. Optimize for Efficiency and Delight
 
-Refine flows for optimal user experience:
-"**Flow Optimization:**
-For each journey, let's ensure we're:
+Refine flows for optimal user experience: "**Flow Optimization:** For each journey, let's ensure
+we're:
 
 - Minimizing steps to value (getting users to success quickly)
 - Reducing cognitive load at each decision point
@@ -119,9 +119,8 @@ For each journey, let's ensure we're:
 
 ### 5. Document Journey Patterns
 
-Extract reusable patterns across journeys:
-"**Journey Patterns:**
-Across these flows, I'm seeing some common patterns we can standardize:
+Extract reusable patterns across journeys: "**Journey Patterns:** Across these flows, I'm seeing
+some common patterns we can standardize:
 
 **Navigation Patterns:**
 
@@ -170,23 +169,23 @@ When saving to document, append these Level 2 and Level 3 sections:
 
 ### 7. Present Content and Menu
 
-Show the generated user journey content and present choices:
-"I've designed detailed user journey flows for {{project_name}}. These flows will guide the detailed design of each user interaction.
+Show the generated user journey content and present choices: "I've designed detailed user journey
+flows for {{project_name}}. These flows will guide the detailed design of each user interaction.
 
 **Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 6]
 
-**What would you like to do?**
-[A] Advanced Elicitation - Let's refine our user journey designs
-[P] Party Mode - Bring different perspectives on user flows
-[C] Continue - Save this to the document and move to component strategy
+**What would you like to do?** [A] Advanced Elicitation - Let's refine our user journey designs [P]
+Party Mode - Bring different perspectives on user flows [C] Continue - Save this to the document and
+move to component strategy
 
 ### 8. Handle Menu Selection
 
 #### If 'A' (Advanced Elicitation):
 
-- Execute {project-root}/\_bmad/core/tasks/advanced-elicitation.xml with the current user journey content
+- Execute {project-root}/\_bmad/core/tasks/advanced-elicitation.xml with the current user journey
+  content
 - Process the enhanced journey insights that come back
 - Ask user: "Accept these improvements to the user journeys? (y/n)"
 - If yes: Update content with improvements, then return to A/P/C menu
@@ -212,29 +211,27 @@ When user selects 'C', append the content directly to the document using the str
 
 ## SUCCESS METRICS:
 
-✅ Critical user journeys identified and designed
-✅ Detailed flow diagrams created for each journey
-✅ Flows optimized for efficiency and user delight
-✅ Common journey patterns extracted and documented
-✅ A/P/C menu presented and handled correctly
-✅ Content properly appended to document when C selected
+✅ Critical user journeys identified and designed ✅ Detailed flow diagrams created for each journey
+✅ Flows optimized for efficiency and user delight ✅ Common journey patterns extracted and
+documented ✅ A/P/C menu presented and handled correctly ✅ Content properly appended to document
+when C selected
 
 ## FAILURE MODES:
 
-❌ Not identifying all critical user journeys
-❌ Flows too complex or not optimized for user success
-❌ Missing error recovery paths
-❌ Not extracting reusable patterns across journeys
-❌ Flow diagrams unclear or incomplete
-❌ Not presenting A/P/C menu after content generation
-❌ Appending content without user selecting 'C'
+❌ Not identifying all critical user journeys ❌ Flows too complex or not optimized for user success
+❌ Missing error recovery paths ❌ Not extracting reusable patterns across journeys ❌ Flow diagrams
+unclear or incomplete ❌ Not presenting A/P/C menu after content generation ❌ Appending content
+without user selecting 'C'
 
-❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
-❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step file
-❌ **CRITICAL**: Making decisions without complete understanding of step requirements and protocols
+❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor
+decisions ❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step
+file ❌ **CRITICAL**: Making decisions without complete understanding of step requirements and
+protocols
 
 ## NEXT STEP:
 
-After user selects 'C' and content is saved to document, load `./step-11-component-strategy.md` to define component library strategy.
+After user selects 'C' and content is saved to document, load `./step-11-component-strategy.md` to
+define component library strategy.
 
-Remember: Do NOT proceed to step-11 until user explicitly selects 'C' from the A/P/C menu and content is saved!
+Remember: Do NOT proceed to step-11 until user explicitly selects 'C' from the A/P/C menu and
+content is saved!

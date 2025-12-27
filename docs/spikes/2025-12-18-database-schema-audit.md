@@ -1,27 +1,28 @@
 # Spike: Database Schema Audit — Complete Analysis
 
-**Date:** 2025-12-18
-**Author:** Architecture Review
-**Status:** Complete
-**Related:** Epic 10 (DAG Capability Learning), ADR-037 (Deno KV), ADR-041 (Trace Hierarchy)
+**Date:** 2025-12-18 **Author:** Architecture Review **Status:** Complete **Related:** Epic 10 (DAG
+Capability Learning), ADR-037 (Deno KV), ADR-041 (Trace Hierarchy)
 
 ---
 
 ## Executive Summary
 
-Audit complet du schéma PGlite de Casys PML. Identifie **20 tables** réparties sur **18 migrations**.
-Révèle des duplications, des FKs manquantes, et des clarifications nécessaires.
+Audit complet du schéma PGlite de Casys PML. Identifie **20 tables** réparties sur **18
+migrations**. Révèle des duplications, des FKs manquantes, et des clarifications nécessaires.
 
 **Actions immédiates (Epic 11 - Story 11.0):**
+
 - `workflow_dags` → Deno KV
 - Merger `tool_schema` et `mcp_tool`
 - Ajouter FK sur `permission_audit_log`
 - Supprimer colonne redondante `source` de `tool_dependency`
 
 **Actions Epic 11 (Stories 11.2+):**
+
 - `workflow_execution` → remplacée par `execution_trace` (Story 11.2)
 
 **Actions futures (hors Epic 11):**
+
 - Renommer `workflow_pattern` → `capability` (breaking change significatif)
 - Renommer `adaptive_config` → `default_thresholds`
 
@@ -31,11 +32,11 @@ Révèle des duplications, des FKs manquantes, et des clarifications nécessaire
 
 ### 1.1 Tables de Configuration (3)
 
-| Table | Migration | Description | Utilisée par |
-|-------|-----------|-------------|--------------|
-| `config` | 001 | Key-value store générique | Peu utilisée |
-| `adaptive_config` | 010 | Seuils **globaux** (speculative, suggestion, explicit) | `workflow-sync.ts` |
-| `adaptive_thresholds` | 007 | Seuils **par contexte** (context_hash → thresholds) | `adaptive-threshold.ts` |
+| Table                 | Migration | Description                                            | Utilisée par            |
+| --------------------- | --------- | ------------------------------------------------------ | ----------------------- |
+| `config`              | 001       | Key-value store générique                              | Peu utilisée            |
+| `adaptive_config`     | 010       | Seuils **globaux** (speculative, suggestion, explicit) | `workflow-sync.ts`      |
+| `adaptive_thresholds` | 007       | Seuils **par contexte** (context_hash → thresholds)    | `adaptive-threshold.ts` |
 
 **Clarification `adaptive_config` vs `adaptive_thresholds`:**
 
@@ -51,18 +52,19 @@ config_value: 0.70                    context_keys: {"domain": "finance"}
 - `adaptive_config` = defaults système (3 valeurs fixes)
 - `adaptive_thresholds` = apprentissage par contexte (N entrées dynamiques)
 
-**Verdict:** Pas de duplication, mais **naming confus**. Suggestion: renommer `adaptive_config` → `default_thresholds`.
+**Verdict:** Pas de duplication, mais **naming confus**. Suggestion: renommer `adaptive_config` →
+`default_thresholds`.
 
 ---
 
 ### 1.2 Tables MCP Tools (4)
 
-| Table | Migration | Description | Utilisée par |
-|-------|-----------|-------------|--------------|
-| `tool_schema` | 001 | Cache des définitions MCP tools | `schema-extractor.ts`, `db-sync.ts` |
-| `tool_embedding` | 001 | Embeddings vector(1024) des tools | `embeddings.ts`, `search.ts` |
-| `mcp_server` | 004 | Serveurs MCP enregistrés | `gateway-server.ts` |
-| `mcp_tool` | 004 | Tools MCP par serveur | E2E tests surtout |
+| Table            | Migration | Description                       | Utilisée par                        |
+| ---------------- | --------- | --------------------------------- | ----------------------------------- |
+| `tool_schema`    | 001       | Cache des définitions MCP tools   | `schema-extractor.ts`, `db-sync.ts` |
+| `tool_embedding` | 001       | Embeddings vector(1024) des tools | `embeddings.ts`, `search.ts`        |
+| `mcp_server`     | 004       | Serveurs MCP enregistrés          | `gateway-server.ts`                 |
+| `mcp_tool`       | 004       | Tools MCP par serveur             | E2E tests surtout                   |
 
 **Duplication identifiée:**
 
@@ -77,8 +79,8 @@ input_schema JSONB NOT NULL
 output_schema JSONB
 ```
 
-**Verdict:** `tool_schema` est la table principale (utilisée partout).
-`mcp_tool` a été créée pour les E2E tests avec un schéma différent.
+**Verdict:** `tool_schema` est la table principale (utilisée partout). `mcp_tool` a été créée pour
+les E2E tests avec un schéma différent.
 
 **Recommandation:** Merger vers `tool_schema`, adapter les tests E2E.
 
@@ -86,11 +88,11 @@ output_schema JSONB
 
 ### 1.3 Tables Capabilities / Patterns (3)
 
-| Table | Migration | Description | Utilisée par |
-|-------|-----------|-------------|--------------|
-| `workflow_pattern` | 010+011+15+17 | **Capabilities** (mal nommée) | `capability-store.ts`, `db-sync.ts` |
-| `capability_dependency` | 016 | Edges Capability→Capability | `capability-store.ts`, `data-service.ts` |
-| `permission_audit_log` | 018 | Audit des escalations de permissions | `permission-audit-store.ts` |
+| Table                   | Migration     | Description                          | Utilisée par                             |
+| ----------------------- | ------------- | ------------------------------------ | ---------------------------------------- |
+| `workflow_pattern`      | 010+011+15+17 | **Capabilities** (mal nommée)        | `capability-store.ts`, `db-sync.ts`      |
+| `capability_dependency` | 016           | Edges Capability→Capability          | `capability-store.ts`, `data-service.ts` |
+| `permission_audit_log`  | 018           | Audit des escalations de permissions | `permission-audit-store.ts`              |
 
 **Structure `workflow_pattern` après toutes les migrations:**
 
@@ -126,19 +128,19 @@ workflow_pattern (
 )
 ```
 
-**Naming:** `workflow_pattern` devrait s'appeler `capability`.
-**Action future:** Renommer (breaking change significatif).
+**Naming:** `workflow_pattern` devrait s'appeler `capability`. **Action future:** Renommer (breaking
+change significatif).
 
 ---
 
 ### 1.4 Tables Execution & Traces (4)
 
-| Table | Migration | Description | Utilisée par | Status |
-|-------|-----------|-------------|--------------|--------|
-| `workflow_execution` | 010+013 | Historique d'exécution | `db-sync.ts`, `collector.ts` | **À SUPPRIMER** |
-| `workflow_checkpoint` | 006 | Checkpoints pour resume | `checkpoint-manager.ts` | OK |
-| `workflow_dags` | 008 | État temporaire MCP continuation | `workflow-dag-store.ts` | **→ KV** |
-| `algorithm_traces` | 014 | Traces des décisions de scoring | `algorithm-tracer.ts` | OK |
+| Table                 | Migration | Description                      | Utilisée par                 | Status          |
+| --------------------- | --------- | -------------------------------- | ---------------------------- | --------------- |
+| `workflow_execution`  | 010+013   | Historique d'exécution           | `db-sync.ts`, `collector.ts` | **À SUPPRIMER** |
+| `workflow_checkpoint` | 006       | Checkpoints pour resume          | `checkpoint-manager.ts`      | OK              |
+| `workflow_dags`       | 008       | État temporaire MCP continuation | `workflow-dag-store.ts`      | **→ KV**        |
+| `algorithm_traces`    | 014       | Traces des décisions de scoring  | `algorithm-tracer.ts`        | OK              |
 
 **Problème `workflow_execution`:**
 
@@ -168,9 +170,9 @@ execution_trace (
 
 ### 1.5 Tables Episodic Memory (1)
 
-| Table | Migration | Description | Utilisée par |
-|-------|-----------|-------------|--------------|
-| `episodic_events` | 007 | Événements de workflow pour apprentissage | `episodic-memory-store.ts` |
+| Table             | Migration | Description                               | Utilisée par               |
+| ----------------- | --------- | ----------------------------------------- | -------------------------- |
+| `episodic_events` | 007       | Événements de workflow pour apprentissage | `episodic-memory-store.ts` |
 
 **Structure:**
 
@@ -188,12 +190,12 @@ episodic_events (
 
 **Distinction avec `algorithm_traces`:**
 
-| Aspect | `episodic_events` | `algorithm_traces` |
-|--------|-------------------|-------------------|
-| ADR | ADR-008 | ADR-039 |
-| Scope | Événements workflow | Décisions de scoring |
-| Contenu | task_complete, ail_decision, etc. | signals, params, final_score |
-| Usage | Retrieval pour context boosting | Observabilité des algorithmes |
+| Aspect  | `episodic_events`                 | `algorithm_traces`            |
+| ------- | --------------------------------- | ----------------------------- |
+| ADR     | ADR-008                           | ADR-039                       |
+| Scope   | Événements workflow               | Décisions de scoring          |
+| Contenu | task_complete, ail_decision, etc. | signals, params, final_score  |
+| Usage   | Retrieval pour context boosting   | Observabilité des algorithmes |
 
 **Verdict:** Pas de duplication, périmètres différents.
 
@@ -201,10 +203,10 @@ episodic_events (
 
 ### 1.6 Tables Graphs (2)
 
-| Table | Migration | Description | Utilisée par |
-|-------|-----------|-------------|--------------|
-| `tool_dependency` | 010+009+012 | Edges Tool→Tool | `db-sync.ts`, `workflow-sync.ts`, `alternatives.ts` |
-| `capability_dependency` | 016 | Edges Capability→Capability | `capability-store.ts` |
+| Table                   | Migration   | Description                 | Utilisée par                                        |
+| ----------------------- | ----------- | --------------------------- | --------------------------------------------------- |
+| `tool_dependency`       | 010+009+012 | Edges Tool→Tool             | `db-sync.ts`, `workflow-sync.ts`, `alternatives.ts` |
+| `capability_dependency` | 016         | Edges Capability→Capability | `capability-store.ts`                               |
 
 **Structure `tool_dependency`:**
 
@@ -223,20 +225,21 @@ tool_dependency (
 ```
 
 **Note:** `source` (mig 009) vs `edge_source` (mig 012) = redondance.
+
 - `source`: 'user' | 'learned' | 'hint'
 - `edge_source`: 'template' | 'inferred' | 'observed'
 
-**Clarification:** `source` = origine, `edge_source` = niveau de confiance.
-Pourrait être simplifié en gardant uniquement `edge_source`.
+**Clarification:** `source` = origine, `edge_source` = niveau de confiance. Pourrait être simplifié
+en gardant uniquement `edge_source`.
 
 ---
 
 ### 1.7 Tables Logging (2)
 
-| Table | Migration | Description | Utilisée par |
-|-------|-----------|-------------|--------------|
-| `metrics` | 002 | Telemetry metrics | `metrics.ts` |
-| `error_log` | 003 | Error logging | `sentry.ts` (optionnel) |
+| Table       | Migration | Description       | Utilisée par            |
+| ----------- | --------- | ----------------- | ----------------------- |
+| `metrics`   | 002       | Telemetry metrics | `metrics.ts`            |
+| `error_log` | 003       | Error logging     | `sentry.ts` (optionnel) |
 
 **Verdict:** OK, pas de problème.
 
@@ -246,10 +249,10 @@ Pourrait être simplifié en gardant uniquement `edge_source`.
 
 ### 2.1 Duplications
 
-| Problème | Tables | Sévérité | Action |
-|----------|--------|----------|--------|
-| MCP tools en double | `tool_schema` + `mcp_tool` | Moyenne | Merger vers `tool_schema` |
-| Source vs edge_source | `tool_dependency` colonnes | Faible | Garder `edge_source` uniquement |
+| Problème              | Tables                     | Sévérité | Action                          |
+| --------------------- | -------------------------- | -------- | ------------------------------- |
+| MCP tools en double   | `tool_schema` + `mcp_tool` | Moyenne  | Merger vers `tool_schema`       |
+| Source vs edge_source | `tool_dependency` colonnes | Faible   | Garder `edge_source` uniquement |
 
 ### 2.2 FKs Manquantes
 
@@ -272,19 +275,19 @@ ALTER TABLE mcp_tool
 
 ### 2.3 Naming Confus
 
-| Actuel | Devrait être | Breaking? |
-|--------|--------------|-----------|
-| `workflow_pattern` | `capability` | **Oui** |
-| `adaptive_config` | `default_thresholds` | Non |
-| `tool_dependency` | `tool_edge` | Faible |
+| Actuel             | Devrait être         | Breaking? |
+| ------------------ | -------------------- | --------- |
+| `workflow_pattern` | `capability`         | **Oui**   |
+| `adaptive_config`  | `default_thresholds` | Non       |
+| `tool_dependency`  | `tool_edge`          | Faible    |
 
 ### 2.4 Tables à Migrer (Epic 11)
 
-| Table | Action | Story | Raison |
-|-------|--------|-------|--------|
-| `workflow_dags` | → Deno KV | 11.0 | État temporaire, TTL natif |
-| `mcp_tool` | DROP (merge tool_schema) | 11.0 | Duplication |
-| `workflow_execution` | → `execution_trace` | 11.2 | FK capability, champs learning |
+| Table                | Action                   | Story | Raison                         |
+| -------------------- | ------------------------ | ----- | ------------------------------ |
+| `workflow_dags`      | → Deno KV                | 11.0  | État temporaire, TTL natif     |
+| `mcp_tool`           | DROP (merge tool_schema) | 11.0  | Duplication                    |
+| `workflow_execution` | → `execution_trace`      | 11.2  | FK capability, champs learning |
 
 ---
 
@@ -293,6 +296,7 @@ ALTER TABLE mcp_tool
 ### 3.1 Tables Critiques (haute utilisation)
 
 **`workflow_pattern` (Capability):**
+
 ```
 src/capabilities/capability-store.ts    -- CRUD principal
 src/capabilities/data-service.ts        -- Queries agrégées
@@ -301,6 +305,7 @@ src/graphrag/metrics/collector.ts      -- Métriques
 ```
 
 **`tool_schema`:**
+
 ```
 src/mcp/schema-extractor.ts            -- Extraction MCP
 src/graphrag/sync/db-sync.ts           -- Sync tools
@@ -309,6 +314,7 @@ src/capabilities/schema-inferrer.ts    -- Inférence schémas
 ```
 
 **`tool_dependency`:**
+
 ```
 src/graphrag/sync/db-sync.ts           -- Création edges
 src/graphrag/workflow-sync.ts          -- Sync workflows
@@ -318,16 +324,19 @@ src/graphrag/prediction/alternatives.ts -- Prédiction
 ### 3.2 Tables Moyennement Utilisées
 
 **`episodic_events`:**
+
 ```
 src/learning/episodic-memory-store.ts  -- Store principal
 ```
 
 **`adaptive_thresholds`:**
+
 ```
 src/mcp/adaptive-threshold.ts          -- Gestion seuils
 ```
 
 **`algorithm_traces`:**
+
 ```
 src/telemetry/algorithm-tracer.ts      -- Tracer ADR-039
 ```
@@ -335,6 +344,7 @@ src/telemetry/algorithm-tracer.ts      -- Tracer ADR-039
 ### 3.3 Tables Peu Utilisées
 
 **`mcp_tool` / `mcp_server`:**
+
 ```
 src/mcp/gateway-server.ts              -- Gateway MCP
 src/cli/commands/serve.ts              -- CLI serve
@@ -342,6 +352,7 @@ src/cli/commands/serve.ts              -- CLI serve
 ```
 
 **`config`:**
+
 ```
 -- Peu utilisée, remplacée par adaptive_config
 ```
@@ -352,25 +363,25 @@ src/cli/commands/serve.ts              -- CLI serve
 
 ### 4.1 Actions Immédiates (Epic 11 - Story 11.0)
 
-| Action | Story | Effort |
-|--------|-------|--------|
-| `workflow_dags` → Deno KV | 11.0 | 1j |
-| DROP `mcp_tool` (merger vers tool_schema) | 11.0 | 0.5j |
-| FK sur `permission_audit_log` | 11.0 | 0.5j |
-| DROP colonne `source` de `tool_dependency` | 11.0 | 0.5j |
+| Action                                     | Story | Effort |
+| ------------------------------------------ | ----- | ------ |
+| `workflow_dags` → Deno KV                  | 11.0  | 1j     |
+| DROP `mcp_tool` (merger vers tool_schema)  | 11.0  | 0.5j   |
+| FK sur `permission_audit_log`              | 11.0  | 0.5j   |
+| DROP colonne `source` de `tool_dependency` | 11.0  | 0.5j   |
 
 ### 4.2 Actions Epic 11 (Post-11.0)
 
-| Action | Story | Effort |
-|--------|-------|--------|
-| DROP `workflow_execution` + CREATE `execution_trace` | 11.2 | 2-3j |
+| Action                                               | Story | Effort |
+| ---------------------------------------------------- | ----- | ------ |
+| DROP `workflow_execution` + CREATE `execution_trace` | 11.2  | 2-3j   |
 
 ### 4.3 Actions Futures (Post-Epic 11)
 
-| Action | Effort | Breaking? |
-|--------|--------|-----------|
-| Renommer `workflow_pattern` → `capability` | 2-3j | **Oui** |
-| Renommer `adaptive_config` → `default_thresholds` | 0.5j | Non |
+| Action                                            | Effort | Breaking? |
+| ------------------------------------------------- | ------ | --------- |
+| Renommer `workflow_pattern` → `capability`        | 2-3j   | **Oui**   |
+| Renommer `adaptive_config` → `default_thresholds` | 0.5j   | Non       |
 
 ### 4.4 Schema Cible (Post-Cleanup)
 
@@ -479,10 +490,11 @@ DROP TABLE IF EXISTS mcp_tool CASCADE;
 
 ## 6. Conclusion
 
-Le schéma DB a évolué organiquement avec les epics, résultant en quelques incohérences.
-L'Epic 11 corrige tous les problèmes dans Story 11.0 (cleanup) et Story 11.2 (execution_trace).
+Le schéma DB a évolué organiquement avec les epics, résultant en quelques incohérences. L'Epic 11
+corrige tous les problèmes dans Story 11.0 (cleanup) et Story 11.2 (execution_trace).
 
 **Priorités:**
+
 1. **Story 11.0** - Cleanup complet : KV migration, merge mcp_tool, FK, drop source
 2. **Story 11.2** - `workflow_execution` → `execution_trace` avec FK capability
 3. **Post-Epic 11** - Rename `workflow_pattern` → `capability` (breaking change)

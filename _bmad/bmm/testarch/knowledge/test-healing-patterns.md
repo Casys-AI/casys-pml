@@ -2,13 +2,19 @@
 
 ## Principle
 
-Common test failures follow predictable patterns (stale selectors, race conditions, dynamic data assertions, network errors, hard waits). **Automated healing** identifies failure signatures and applies pattern-based fixes. Manual healing captures these patterns for future automation.
+Common test failures follow predictable patterns (stale selectors, race conditions, dynamic data
+assertions, network errors, hard waits). **Automated healing** identifies failure signatures and
+applies pattern-based fixes. Manual healing captures these patterns for future automation.
 
 ## Rationale
 
-**The Problem**: Test failures waste developer time on repetitive debugging. Teams manually fix the same selector issues, timing bugs, and data mismatches repeatedly across test suites.
+**The Problem**: Test failures waste developer time on repetitive debugging. Teams manually fix the
+same selector issues, timing bugs, and data mismatches repeatedly across test suites.
 
-**The Solution**: Catalog common failure patterns with diagnostic signatures and automated fixes. When a test fails, match the error message/stack trace against known patterns and apply the corresponding fix. This transforms test maintenance from reactive debugging to proactive pattern application.
+**The Solution**: Catalog common failure patterns with diagnostic signatures and automated fixes.
+When a test fails, match the error message/stack trace against known patterns and apply the
+corresponding fix. This transforms test maintenance from reactive debugging to proactive pattern
+application.
 
 **Why This Matters**:
 
@@ -71,23 +77,25 @@ export function extractSelector(errorMessage: string): string | null {
  */
 export function suggestBetterSelector(badSelector: string): string {
   // If using CSS class → suggest data-testid
-  if (badSelector.startsWith('.') || badSelector.includes('class=')) {
+  if (badSelector.startsWith(".") || badSelector.includes("class=")) {
     const elementName = badSelector.match(/class=["']([^"']+)["']/)?.[1] || badSelector.slice(1);
     return `page.getByTestId('${elementName}') // Prefer data-testid over CSS class`;
   }
 
   // If using ID → suggest data-testid
-  if (badSelector.startsWith('#')) {
+  if (badSelector.startsWith("#")) {
     return `page.getByTestId('${badSelector.slice(1)}') // Prefer data-testid over ID`;
   }
 
   // If using nth() → suggest filter() or more specific selector
-  if (badSelector.includes('.nth(')) {
-    return `page.locator('${badSelector.split('.nth(')[0]}').filter({ hasText: 'specific text' }) // Avoid brittle nth(), use filter()`;
+  if (badSelector.includes(".nth(")) {
+    return `page.locator('${
+      badSelector.split(".nth(")[0]
+    }').filter({ hasText: 'specific text' }) // Avoid brittle nth(), use filter()`;
   }
 
   // If using complex CSS → suggest ARIA role
-  if (badSelector.includes('>') || badSelector.includes('+')) {
+  if (badSelector.includes(">") || badSelector.includes("+")) {
     return `page.getByRole('button', { name: 'Submit' }) // Prefer ARIA roles over complex CSS`;
   }
 
@@ -99,37 +107,42 @@ export function suggestBetterSelector(badSelector: string): string {
 
 ```typescript
 // tests/healing/selector-healing.spec.ts
-import { test, expect } from '@playwright/test';
-import { isSelectorFailure, extractSelector, suggestBetterSelector } from '../../src/testing/healing/selector-healing';
+import { expect, test } from "@playwright/test";
+import {
+  extractSelector,
+  isSelectorFailure,
+  suggestBetterSelector,
+} from "../../src/testing/healing/selector-healing";
 
-test('heal stale selector failures automatically', async ({ page }) => {
-  await page.goto('/dashboard');
+test("heal stale selector failures automatically", async ({ page }) => {
+  await page.goto("/dashboard");
 
   try {
     // Original test with brittle CSS selector
-    await page.locator('.btn-primary').click();
+    await page.locator(".btn-primary").click();
   } catch (error: any) {
     if (isSelectorFailure(error)) {
       const badSelector = extractSelector(error.message);
       const suggestion = badSelector ? suggestBetterSelector(badSelector) : null;
 
-      console.log('HEALING SUGGESTION:', suggestion);
+      console.log("HEALING SUGGESTION:", suggestion);
 
       // Apply healed selector
-      await page.getByTestId('submit-button').click(); // Fixed!
+      await page.getByTestId("submit-button").click(); // Fixed!
     } else {
       throw error; // Not a selector issue, rethrow
     }
   }
 
-  await expect(page.getByText('Success')).toBeVisible();
+  await expect(page.getByText("Success")).toBeVisible();
 });
 ```
 
 **Key Points**:
 
 - Diagnosis: Error message contains "locator resolved to 0 elements" or "element not found"
-- Fix: Replace brittle selector (CSS class, ID, nth) with robust alternative (data-testid, ARIA role)
+- Fix: Replace brittle selector (CSS class, ID, nth) with robust alternative (data-testid, ARIA
+  role)
 - Prevention: Follow selector hierarchy (data-testid > ARIA > text > CSS)
 - Automation: Pattern matching on error message + stack trace
 
@@ -148,7 +161,7 @@ export type TimingFailure = {
   errorMessage: string;
   testFile: string;
   lineNumber: number;
-  actionType: 'click' | 'fill' | 'waitFor' | 'expect';
+  actionType: "click" | "fill" | "waitFor" | "expect";
 };
 
 /**
@@ -171,7 +184,12 @@ export function isTimingFailure(error: Error): boolean {
  * Detect hard wait anti-pattern
  */
 export function hasHardWait(testCode: string): boolean {
-  const hardWaitPatterns = [/page\.waitForTimeout\(/, /cy\.wait\(\d+\)/, /await.*sleep\(/, /setTimeout\(/];
+  const hardWaitPatterns = [
+    /page\.waitForTimeout\(/,
+    /cy\.wait\(\d+\)/,
+    /await.*sleep\(/,
+    /setTimeout\(/,
+  ];
 
   return hardWaitPatterns.some((pattern) => pattern.test(testCode));
 }
@@ -180,7 +198,7 @@ export function hasHardWait(testCode: string): boolean {
  * Suggest deterministic wait replacement
  */
 export function suggestDeterministicWait(testCode: string): string {
-  if (testCode.includes('page.waitForTimeout')) {
+  if (testCode.includes("page.waitForTimeout")) {
     return `
 // ❌ Bad: Hard wait (flaky)
 // await page.waitForTimeout(3000)
@@ -193,7 +211,7 @@ await page.getByTestId('loading-spinner').waitFor({ state: 'detached' })
     `.trim();
   }
 
-  if (testCode.includes('cy.wait(') && /cy\.wait\(\d+\)/.test(testCode)) {
+  if (testCode.includes("cy.wait(") && /cy\.wait\(\d+\)/.test(testCode)) {
     return `
 // ❌ Bad: Hard wait (flaky)
 // cy.wait(3000)
@@ -219,37 +237,41 @@ await responsePromise
 
 ```typescript
 // tests/healing/timing-healing.spec.ts
-import { test, expect } from '@playwright/test';
-import { isTimingFailure, hasHardWait, suggestDeterministicWait } from '../../src/testing/healing/timing-healing';
+import { expect, test } from "@playwright/test";
+import {
+  hasHardWait,
+  isTimingFailure,
+  suggestDeterministicWait,
+} from "../../src/testing/healing/timing-healing";
 
-test('heal race condition with network-first pattern', async ({ page, context }) => {
+test("heal race condition with network-first pattern", async ({ page, context }) => {
   // Setup interception BEFORE navigation (prevent race)
-  await context.route('**/api/products', (route) => {
+  await context.route("**/api/products", (route) => {
     route.fulfill({
       status: 200,
-      body: JSON.stringify({ products: [{ id: 1, name: 'Product A' }] }),
+      body: JSON.stringify({ products: [{ id: 1, name: "Product A" }] }),
     });
   });
 
-  const responsePromise = page.waitForResponse('**/api/products');
+  const responsePromise = page.waitForResponse("**/api/products");
 
-  await page.goto('/products');
+  await page.goto("/products");
   await responsePromise; // Deterministic wait
 
   // Element now reliably visible (no race condition)
-  await expect(page.getByText('Product A')).toBeVisible();
+  await expect(page.getByText("Product A")).toBeVisible();
 });
 
-test('heal hard wait with event-based wait', async ({ page }) => {
-  await page.goto('/dashboard');
+test("heal hard wait with event-based wait", async ({ page }) => {
+  await page.goto("/dashboard");
 
   // ❌ Original (flaky): await page.waitForTimeout(3000)
 
   // ✅ Healed: Wait for spinner to disappear
-  await page.getByTestId('loading-spinner').waitFor({ state: 'detached' });
+  await page.getByTestId("loading-spinner").waitFor({ state: "detached" });
 
   // Element now reliably visible
-  await expect(page.getByText('Dashboard loaded')).toBeVisible();
+  await expect(page.getByText("Dashboard loaded")).toBeVisible();
 });
 ```
 
@@ -348,10 +370,10 @@ await expect(page.getByText(\`Order #\${orderId} confirmed\`)).toBeVisible()
 
 ```typescript
 // tests/healing/data-healing.spec.ts
-import { test, expect } from '@playwright/test';
+import { expect, test } from "@playwright/test";
 
-test('heal dynamic ID assertion with regex', async ({ page }) => {
-  await page.goto('/users');
+test("heal dynamic ID assertion with regex", async ({ page }) => {
+  await page.goto("/users");
 
   // ❌ Original (fails with random IDs): await expect(page.getByText('User 123')).toBeVisible()
 
@@ -359,20 +381,20 @@ test('heal dynamic ID assertion with regex', async ({ page }) => {
   await expect(page.getByText(/User \d+/)).toBeVisible();
 });
 
-test('heal timestamp assertion with dynamic generation', async ({ page }) => {
-  await page.goto('/dashboard');
+test("heal timestamp assertion with dynamic generation", async ({ page }) => {
+  await page.goto("/dashboard");
 
   // ❌ Original (fails daily): await expect(page.getByText('2024-01-15')).toBeVisible()
 
   // ✅ Healed: Generate expected date dynamically
-  const today = new Date().toISOString().split('T')[0];
-  await expect(page.getByTestId('last-updated')).toContainText(today);
+  const today = new Date().toISOString().split("T")[0];
+  await expect(page.getByTestId("last-updated")).toContainText(today);
 });
 
-test('heal order ID assertion with capture', async ({ page, request }) => {
+test("heal order ID assertion with capture", async ({ page, request }) => {
   // Create order via API (dynamic ID)
-  const response = await request.post('/api/orders', {
-    data: { productId: '123', quantity: 1 },
+  const response = await request.post("/api/orders", {
+    data: { productId: "123", quantity: 1 },
   });
   const { orderId } = await response.json();
 
@@ -454,41 +476,41 @@ await page.goto('/page')
 
 ```typescript
 // tests/healing/network-healing.spec.ts
-import { test, expect } from '@playwright/test';
+import { expect, test } from "@playwright/test";
 
-test('heal network failure with route mocking', async ({ page, context }) => {
+test("heal network failure with route mocking", async ({ page, context }) => {
   // ✅ Healed: Mock API to prevent real network calls
-  await context.route('**/api/products', (route) => {
+  await context.route("**/api/products", (route) => {
     route.fulfill({
       status: 200,
-      contentType: 'application/json',
+      contentType: "application/json",
       body: JSON.stringify({
         products: [
-          { id: 1, name: 'Product A', price: 29.99 },
-          { id: 2, name: 'Product B', price: 49.99 },
+          { id: 1, name: "Product A", price: 29.99 },
+          { id: 2, name: "Product B", price: 49.99 },
         ],
       }),
     });
   });
 
-  await page.goto('/products');
+  await page.goto("/products");
 
   // Test now reliable (no external API dependency)
-  await expect(page.getByText('Product A')).toBeVisible();
-  await expect(page.getByText('$29.99')).toBeVisible();
+  await expect(page.getByText("Product A")).toBeVisible();
+  await expect(page.getByText("$29.99")).toBeVisible();
 });
 
-test('heal 500 error with error state mocking', async ({ page, context }) => {
+test("heal 500 error with error state mocking", async ({ page, context }) => {
   // Mock API failure scenario
-  await context.route('**/api/products', (route) => {
-    route.fulfill({ status: 500, body: JSON.stringify({ error: 'Internal Server Error' }) });
+  await context.route("**/api/products", (route) => {
+    route.fulfill({ status: 500, body: JSON.stringify({ error: "Internal Server Error" }) });
   });
 
-  await page.goto('/products');
+  await page.goto("/products");
 
   // Verify error handling (not crash)
-  await expect(page.getByText('Unable to load products')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Retry' })).toBeVisible();
+  await expect(page.getByText("Unable to load products")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
 });
 ```
 
@@ -514,11 +536,14 @@ test('heal 500 error with error state mocking', async ({ page, context }) => {
  * Detect hard wait anti-pattern in test code
  */
 export function detectHardWaits(testCode: string): Array<{ line: number; code: string }> {
-  const lines = testCode.split('\n');
+  const lines = testCode.split("\n");
   const violations: Array<{ line: number; code: string }> = [];
 
   lines.forEach((line, index) => {
-    if (line.includes('page.waitForTimeout(') || /cy\.wait\(\d+\)/.test(line) || line.includes('sleep(') || line.includes('setTimeout(')) {
+    if (
+      line.includes("page.waitForTimeout(") || /cy\.wait\(\d+\)/.test(line) ||
+      line.includes("sleep(") || line.includes("setTimeout(")
+    ) {
       violations.push({ line: index + 1, code: line.trim() });
     }
   });
@@ -530,7 +555,7 @@ export function detectHardWaits(testCode: string): Array<{ line: number; code: s
  * Suggest event-based wait replacement
  */
 export function suggestEventBasedWait(hardWaitLine: string): string {
-  if (hardWaitLine.includes('page.waitForTimeout')) {
+  if (hardWaitLine.includes("page.waitForTimeout")) {
     return `
 // ❌ Bad: Hard wait (flaky)
 ${hardWaitLine}
@@ -556,7 +581,7 @@ cy.wait('@getData') // Deterministic
     `.trim();
   }
 
-  return 'Replace hard waits with event-based waits (waitForResponse, waitFor state changes)';
+  return "Replace hard waits with event-based waits (waitForResponse, waitFor state changes)";
 }
 ```
 
@@ -564,32 +589,32 @@ cy.wait('@getData') // Deterministic
 
 ```typescript
 // tests/healing/hard-wait-healing.spec.ts
-import { test, expect } from '@playwright/test';
+import { expect, test } from "@playwright/test";
 
-test('heal hard wait with deterministic wait', async ({ page }) => {
-  await page.goto('/dashboard');
+test("heal hard wait with deterministic wait", async ({ page }) => {
+  await page.goto("/dashboard");
 
   // ❌ Original (flaky): await page.waitForTimeout(3000)
 
   // ✅ Healed: Wait for loading spinner to disappear
-  await page.getByTestId('loading-spinner').waitFor({ state: 'detached' });
+  await page.getByTestId("loading-spinner").waitFor({ state: "detached" });
 
   // OR wait for specific network response
-  await page.waitForResponse((resp) => resp.url().includes('/api/dashboard') && resp.ok());
+  await page.waitForResponse((resp) => resp.url().includes("/api/dashboard") && resp.ok());
 
-  await expect(page.getByText('Dashboard ready')).toBeVisible();
+  await expect(page.getByText("Dashboard ready")).toBeVisible();
 });
 
-test('heal implicit wait with explicit network wait', async ({ page }) => {
-  const responsePromise = page.waitForResponse('**/api/products');
+test("heal implicit wait with explicit network wait", async ({ page }) => {
+  const responsePromise = page.waitForResponse("**/api/products");
 
-  await page.goto('/products');
+  await page.goto("/products");
 
   // ❌ Original (race condition): await page.getByText('Product A').click()
 
   // ✅ Healed: Wait for network first
   await responsePromise;
-  await page.getByText('Product A').click();
+  await page.getByText("Product A").click();
 
   await expect(page).toHaveURL(/\/products\/\d+/);
 });
@@ -626,7 +651,8 @@ test('heal implicit wait with explicit network wait', async ({ page }) => {
 
 Before enabling auto-healing in workflows:
 
-- [ ] **Failure catalog documented**: Common patterns identified (selectors, timing, data, network, hard waits)
+- [ ] **Failure catalog documented**: Common patterns identified (selectors, timing, data, network,
+      hard waits)
 - [ ] **Diagnostic signatures defined**: Error message patterns for each failure type
 - [ ] **Healing strategies documented**: Fix patterns for each failure type
 - [ ] **Prevention patterns documented**: Best practices to avoid recurrence
@@ -637,8 +663,13 @@ Before enabling auto-healing in workflows:
 
 ## Integration Points
 
-- **Used in workflows**: `*automate` (auto-healing after test generation), `*atdd` (optional healing for acceptance tests)
-- **Related fragments**: `selector-resilience.md` (selector debugging), `timing-debugging.md` (race condition fixes), `network-first.md` (interception patterns), `data-factories.md` (dynamic data handling)
-- **Tools**: Error message parsing, AST analysis for code patterns, Playwright MCP (optional), pattern matching
+- **Used in workflows**: `*automate` (auto-healing after test generation), `*atdd` (optional healing
+  for acceptance tests)
+- **Related fragments**: `selector-resilience.md` (selector debugging), `timing-debugging.md` (race
+  condition fixes), `network-first.md` (interception patterns), `data-factories.md` (dynamic data
+  handling)
+- **Tools**: Error message parsing, AST analysis for code patterns, Playwright MCP (optional),
+  pattern matching
 
-_Source: Playwright test-healer patterns, production test failure analysis, common anti-patterns from test-resources-for-ai_
+_Source: Playwright test-healer patterns, production test failure analysis, common anti-patterns
+from test-resources-for-ai_

@@ -1,14 +1,14 @@
 ---
-name: 'step-06-complete'
-description: 'Complete the product brief workflow, update status files, and suggest next steps for the project'
+name: "step-06-complete"
+description: "Complete the product brief workflow, update status files, and suggest next steps for the project"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmm/workflows/1-analysis/product-brief'
+workflow_path: "{project-root}/_bmad/bmm/workflows/1-analysis/product-brief"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-06-complete.md'
-workflowFile: '{workflow_path}/workflow.md'
-outputFile: '{output_folder}/analysis/product-brief-{{project_name}}-{{date}}.md'
+thisStepFile: "{workflow_path}/steps/step-06-complete.md"
+workflowFile: "{workflow_path}/workflow.md"
+outputFile: "{output_folder}/analysis/product-brief-{{project_name}}-{{date}}.md"
 # Task References
 # (No task references used in this completion step)
 ---
@@ -17,7 +17,8 @@ outputFile: '{output_folder}/analysis/product-brief-{{project_name}}-{{date}}.md
 
 ## STEP GOAL:
 
-Complete the product brief workflow, update status files, and provide guidance on logical next steps for continued product development.
+Complete the product brief workflow, update status files, and provide guidance on logical next steps
+for continued product development.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -31,9 +32,11 @@ Complete the product brief workflow, update status files, and provide guidance o
 ### Role Reinforcement:
 
 - ✅ You are a product-focused Business Analyst facilitator
-- ✅ If you already have been given a name, communication_style and persona, continue to use those while playing this new role
+- ✅ If you already have been given a name, communication_style and persona, continue to use those
+  while playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
-- ✅ You bring structured thinking and facilitation skills, while the user brings domain expertise and product vision
+- ✅ You bring structured thinking and facilitation skills, while the user brings domain expertise
+  and product vision
 - ✅ Maintain collaborative completion tone throughout
 
 ### Step-Specific Rules:
@@ -52,7 +55,8 @@ Complete the product brief workflow, update status files, and provide guidance o
 
 ## CONTEXT BOUNDARIES:
 
-- Available context: Complete product brief document from all previous steps, workflow frontmatter shows all completed steps
+- Available context: Complete product brief document from all previous steps, workflow frontmatter
+  shows all completed steps
 - Focus: Completion validation, status updates, and next step guidance
 - Limits: No new content generation, only completion and wrap-up activities
 - Dependencies: All previous steps must be completed with content saved to document
@@ -61,10 +65,10 @@ Complete the product brief workflow, update status files, and provide guidance o
 
 ### 1. Announce Workflow Completion
 
-**Completion Announcement:**
-"🎉 **Product Brief Complete, {{user_name}}!**
+**Completion Announcement:** "🎉 **Product Brief Complete, {{user_name}}!**
 
-I've successfully collaborated with you to create a comprehensive Product Brief for {{project_name}}.
+I've successfully collaborated with you to create a comprehensive Product Brief for
+{{project_name}}.
 
 **What we've accomplished:**
 
@@ -77,12 +81,12 @@ I've successfully collaborated with you to create a comprehensive Product Brief 
 
 **The complete Product Brief is now available at:** `{outputFile}`
 
-This brief serves as the foundation for all subsequent product development activities and strategic decisions."
+This brief serves as the foundation for all subsequent product development activities and strategic
+decisions."
 
 ### 2. Workflow Status Update
 
-**Status File Management:**
-Update the main workflow status file:
+**Status File Management:** Update the main workflow status file:
 
 - Check if `{output_folder}/bmm-workflow-status.yaml` exists
 - If not, create it with basic structure
@@ -92,8 +96,7 @@ Update the main workflow status file:
 
 ### 3. Document Quality Check
 
-**Completeness Validation:**
-Perform final validation of the product brief:
+**Completeness Validation:** Perform final validation of the product brief:
 
 - Does the executive summary clearly communicate the vision and problem?
 - Are target users well-defined with compelling personas?
@@ -110,8 +113,7 @@ Perform final validation of the product brief:
 
 ### 4. Suggest Next Steps
 
-**Recommended Next Workflow:**
-Provide guidance on logical next workflows:
+**Recommended Next Workflow:** Provide guidance on logical next workflows:
 
 1. `workflow prd` - Create detailed Product Requirements Document
    - Brief provides foundation for detailed requirements
@@ -133,8 +135,8 @@ Provide guidance on logical next workflows:
 
 ### 5. Present MENU OPTIONS
 
-**Completion Confirmation:**
-"**Your Product Brief for {{project_name}} is now complete and ready for the next phase!**
+**Completion Confirmation:** "**Your Product Brief for {{project_name}} is now complete and ready
+for the next phase!**
 
 The brief captures everything needed to guide subsequent product development:
 
@@ -167,7 +169,9 @@ The brief captures everything needed to guide subsequent product development:
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN [completion confirmation is provided and workflow status updated], will you then mark the workflow as complete and end the session gracefully. No additional steps are loaded after this final completion step.
+ONLY WHEN [completion confirmation is provided and workflow status updated], will you then mark the
+workflow as complete and end the session gracefully. No additional steps are loaded after this final
+completion step.
 
 ---
 
@@ -192,10 +196,13 @@ ONLY WHEN [completion confirmation is provided and workflow status updated], wil
 - User unclear about what happens next or available options
 - Document quality issues not identified or addressed
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.
 
 ## FINAL WORKFLOW COMPLETION
 
-This product brief is now complete and serves as the strategic foundation for the entire product lifecycle. All subsequent design, architecture, and development work should trace back to the vision, user needs, and success criteria documented in this brief.
+This product brief is now complete and serves as the strategic foundation for the entire product
+lifecycle. All subsequent design, architecture, and development work should trace back to the
+vision, user needs, and success criteria documented in this brief.
 
 **Congratulations on completing the Product Brief for {{project_name}}!** 🎉

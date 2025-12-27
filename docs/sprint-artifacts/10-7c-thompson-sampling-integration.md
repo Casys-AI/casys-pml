@@ -2,9 +2,9 @@
 
 Status: done
 
-> **Epic:** 10 - DAG Capability Learning & Unified APIs
-> **Prerequisites:** Story 10.7 (pml_execute - DONE), Story 10.7b (SHGAT Persistence - DONE)
-> **ADR:** [ADR-049](../adrs/ADR-049-intelligent-adaptive-thresholds.md) - Intelligent Adaptive Thresholds
+> **Epic:** 10 - DAG Capability Learning & Unified APIs **Prerequisites:** Story 10.7 (pml_execute -
+> DONE), Story 10.7b (SHGAT Persistence - DONE) **ADR:**
+> [ADR-049](../adrs/ADR-049-intelligent-adaptive-thresholds.md) - Intelligent Adaptive Thresholds
 > **Depends on:** ThompsonSampler (POC), AdaptiveThresholdManager, ControlledExecutor
 > **Estimation:** 0.5-1 jour
 
@@ -12,9 +12,8 @@ Status: done
 
 ## Story
 
-As a decision system,
-I want to use Thompson Sampling for execution decisions,
-So that I balance exploration (trying uncertain tools) and exploitation (using reliable tools).
+As a decision system, I want to use Thompson Sampling for execution decisions, So that I balance
+exploration (trying uncertain tools) and exploitation (using reliable tools).
 
 ---
 
@@ -22,20 +21,22 @@ So that I balance exploration (trying uncertain tools) and exploitation (using r
 
 **Le gap actuel:**
 
-L'`AdaptiveThresholdManager` existant utilise un algorithme simple basé sur false positive/negative rates. Il ajuste les seuils globalement, pas par tool.
+L'`AdaptiveThresholdManager` existant utilise un algorithme simple basé sur false positive/negative
+rates. Il ajuste les seuils globalement, pas par tool.
 
-| Aspect | Avant (AdaptiveThresholdManager) | Après (Thompson Sampling) |
-|--------|-----------------------------------|---------------------------|
-| **Granularité** | Seuils globaux | Per-tool (`Beta(α,β)`) |
-| **Exploration** | Aucune | UCB bonus pour tools sous-explorés |
-| **Risque** | Non considéré | Basé sur `scope` (mcp-permissions.yaml) |
-| **Mode** | Un seul seuil | 3 modes: `active_search`/`passive_suggestion`/`speculation` |
-| **Decay** | Non | Oui (environnements non-stationnaires) |
+| Aspect          | Avant (AdaptiveThresholdManager) | Après (Thompson Sampling)                                   |
+| --------------- | -------------------------------- | ----------------------------------------------------------- |
+| **Granularité** | Seuils globaux                   | Per-tool (`Beta(α,β)`)                                      |
+| **Exploration** | Aucune                           | UCB bonus pour tools sous-explorés                          |
+| **Risque**      | Non considéré                    | Basé sur `scope` (mcp-permissions.yaml)                     |
+| **Mode**        | Un seul seuil                    | 3 modes: `active_search`/`passive_suggestion`/`speculation` |
+| **Decay**       | Non                              | Oui (environnements non-stationnaires)                      |
 
 **Solution : Thompson Sampling Integration**
 
-Le module `ThompsonSampler` (708 LOC) est déjà implémenté dans `src/graphrag/algorithms/thompson.ts`.
-Cette story **intègre** ce POC dans le flow de décision AIL/HIL.
+Le module `ThompsonSampler` (708 LOC) est déjà implémenté dans
+`src/graphrag/algorithms/thompson.ts`. Cette story **intègre** ce POC dans le flow de décision
+AIL/HIL.
 
 ---
 
@@ -53,7 +54,7 @@ class ThompsonSampler {
   getMean(toolId): number;
   getVariance(toolId): number;
   getConfidenceInterval(toolId): [number, number];
-  sampleBeta(alpha, beta): number;  // Joehnk's algorithm
+  sampleBeta(alpha, beta): number; // Joehnk's algorithm
 }
 
 // Factory functions
@@ -61,8 +62,8 @@ function createThompsonFromHistory(history): ThompsonSampler;
 function createThompsonForMode(mode): ThompsonSampler;
 
 // Risk classification (à remplacer par scope-based)
-function classifyToolRisk(toolName, serverReadOnly?): RiskCategory;  // DEPRECATED
-function getRiskFromScope(scope: PermissionScope): RiskCategory;     // NEW
+function classifyToolRisk(toolName, serverReadOnly?): RiskCategory; // DEPRECATED
+function getRiskFromScope(scope: PermissionScope): RiskCategory; // NEW
 
 // Decision functions
 function makeDecision(sampler, toolId, score, risk, mode, localAlpha): boolean;
@@ -75,7 +76,7 @@ function makeBatchDecision(sampler, tools, mode, localAlpha): Map<string, boolea
 class AdaptiveThresholdManager {
   // Current implementation: sliding window + false positive/negative rates
   recordExecution(record: ExecutionRecord): void;
-  getThresholds(): { explicitThreshold?, suggestionThreshold? };
+  getThresholds(): { explicitThreshold?; suggestionThreshold? };
   getMetrics(): SpeculativeMetrics;
 
   // PGlite persistence (Epic 4 Phase 1)
@@ -85,6 +86,7 @@ class AdaptiveThresholdManager {
 ```
 
 **ControlledExecutor (`src/dag/controlled-executor.ts`):**
+
 - Utilise `adaptiveThresholdManager.getThresholds()` pour décisions per-layer
 - Doit utiliser Thompson Sampling pour décisions per-tool
 
@@ -93,7 +95,8 @@ class AdaptiveThresholdManager {
 ## Design Principles
 
 1. **ThompsonSampler comme source primaire** - Remplace l'algorithme simple par Thompson
-2. **AdaptiveThresholdManager comme wrapper** - Conserve l'interface existante, délègue à ThompsonSampler
+2. **AdaptiveThresholdManager comme wrapper** - Conserve l'interface existante, délègue à
+   ThompsonSampler
 3. **Backward compatibility** - `getThresholds()` continue de fonctionner
 4. **Risk via scope** - `mcp-permissions.yaml` → `scope` → `RiskCategory`
 5. **HIL bypass** - `approvalMode: hil` déclenche per-layer validation, pas Thompson
@@ -104,12 +107,14 @@ class AdaptiveThresholdManager {
 ## Acceptance Criteria
 
 ### AC1: Intégration ThompsonSampler dans AdaptiveThresholdManager
+
 - [x] `AdaptiveThresholdManager` crée un `ThompsonSampler` en interne
 - [x] `getThreshold(toolId, mode)` délègue à `ThompsonSampler.getThreshold()`
 - [x] `recordExecution()` appelle `ThompsonSampler.recordOutcome()`
 - [x] Constructor prend `thompsonConfig` optionnel
 
 ### AC2: Risk Classification basée sur scope
+
 - [x] Charger `mcp-permissions.yaml` au démarrage
 - [x] Mapper `scope` → `RiskCategory` :
   - `minimal` / `readonly` → `safe`
@@ -118,6 +123,7 @@ class AdaptiveThresholdManager {
 - [x] **Note:** `approvalMode: hil` déclenche déjà per-layer validation (bypass Thompson)
 
 ### AC3: Mode-specific thresholds
+
 - [x] `getThreshold()` accepte `mode: ThresholdMode` (active_search, passive_suggestion)
 - [x] Mode `active_search` → seuil plus bas, UCB bonus appliqué
 - [x] Mode `passive_suggestion` → seuil standard (default)
@@ -125,28 +131,33 @@ class AdaptiveThresholdManager {
 - [x] **Note:** `per_layer_validation: true` bypass Thompson → HIL direct
 
 ### AC4: UCB Exploration Bonus
+
 - [x] `getThreshold()` en mode `active_search` inclut UCB bonus
 - [x] Bonus élevé pour tools sous-explorés (encourage exploration)
 - [x] Bonus diminue avec l'expérience
 
 ### AC5: Smart HIL - Arrêt avant tool risqué (pas tout le DAG)
+
 - [x] Modifier `workflow-execution-handler.ts` - added `smartHILCheck()` function
 - [x] Nouveau status `decision_required` avec détails du tool en attente
 - [x] `smartHILCheck()` returns detailed breakdown per tool
 - [x] Response inclut thresholdBreakdown avec tool details
 
 ### AC6: ControlledExecutor utilise seuils Thompson
+
 - [x] `getThresholdForTool(toolId, mode)` pour décision per-tool
 - [x] Score SHGAT vs threshold Thompson → execute ou decision_required
 - [x] Mode déterminé par context (speculation si review, active_search si exploration)
 
 ### AC6b: Capabilities héritent du risk des tools
+
 - [x] `calculateCapabilityRisk(toolsUsed)` calcule le max des risks des `toolsUsed`
 - [x] Hierarchy: `dangerous` > `moderate` > `safe`
 - [x] Risk calculé dynamiquement in `rowToCapability()` - no DB migration needed
 - [x] Added `riskCategory` field to Capability interface
 
 ### AC7: Tests unitaires
+
 - [x] Test: Thompson threshold valid range
 - [x] Test: UCB bonus élevé pour tool jamais utilisé
 - [x] Test: Scope classification: `minimal` → safe, `mcp-standard` → dangerous
@@ -157,6 +168,7 @@ class AdaptiveThresholdManager {
 - [x] Test: Reset clears Thompson sampler
 
 ### AC8: Pas de migration de données
+
 - [x] Thompson démarre avec prior uniforme `Beta(1,1)` pour tous les tools
 - [x] Les anciennes données `adaptive_thresholds` ne sont pas migrées
 - [x] riskCategory computed dynamically, no DB migration needed
@@ -276,13 +288,14 @@ function determineMode(context: ExecutionContext): ThresholdMode {
   // NOTE: speculation mode deferred to Story 12.1
 
   if (context.activeSearch) {
-    return "active_search";    // Exploration, UCB bonus, lower threshold
+    return "active_search"; // Exploration, UCB bonus, lower threshold
   }
   return "passive_suggestion"; // Default, standard threshold
 }
 ```
 
 **Bypass Thompson (HIL direct):**
+
 - `per_layer_validation: true` → pas de Thompson, HIL flow
 - `approvalMode: hil` → pas de Thompson, HIL flow
 - Tool inconnu → pas de Thompson, HIL flow
@@ -294,15 +307,15 @@ function getRiskFromScope(scope: PermissionScope): RiskCategory {
   switch (scope) {
     case "minimal":
     case "readonly":
-      return "safe";       // seuil 0.55
+      return "safe"; // seuil 0.55
 
     case "filesystem":
     case "network-api":
-      return "moderate";   // seuil 0.70
+      return "moderate"; // seuil 0.70
 
     case "mcp-standard":
     default:
-      return "dangerous";  // seuil 0.85
+      return "dangerous"; // seuil 0.85
   }
 }
 ```
@@ -317,6 +330,7 @@ DAG: [filesystem:read] → [json:parse] → [std:systemctl] → [filesystem:writ
 ```
 
 **Comportement Smart HIL :**
+
 1. Execute Layer 0 (`filesystem:read`) ✅
 2. Execute Layer 1 (`json:parse`) ✅
 3. **Stop avant Layer 2** (`std:systemctl` = unknown → RISKY)
@@ -341,14 +355,14 @@ DAG: [filesystem:read] → [json:parse] → [std:systemctl] → [filesystem:writ
 
 ### Thompson Threshold Examples
 
-| Tool | Scope | Risk | Score | Threshold | Decision |
-|------|-------|------|-------|-----------|----------|
-| `json:parse` | minimal | safe | 0.80 | 0.55 | ✅ Execute |
-| `git:commit` | filesystem | moderate | 0.65 | 0.70 | ❌ decision_required |
-| `git:commit` | filesystem | moderate | 0.75 | 0.70 | ✅ Execute |
-| `docker:run` | mcp-standard | dangerous | 0.80 | 0.85 | ❌ decision_required |
-| `std:systemctl` | (unknown) | — | — | — | ❌ HIL (bypass Thompson) |
-| `ssh:exec` | hil | — | — | — | ❌ HIL (bypass Thompson) |
+| Tool            | Scope        | Risk      | Score | Threshold | Decision                 |
+| --------------- | ------------ | --------- | ----- | --------- | ------------------------ |
+| `json:parse`    | minimal      | safe      | 0.80  | 0.55      | ✅ Execute               |
+| `git:commit`    | filesystem   | moderate  | 0.65  | 0.70      | ❌ decision_required     |
+| `git:commit`    | filesystem   | moderate  | 0.75  | 0.70      | ✅ Execute               |
+| `docker:run`    | mcp-standard | dangerous | 0.80  | 0.85      | ❌ decision_required     |
+| `std:systemctl` | (unknown)    | —         | —     | —         | ❌ HIL (bypass Thompson) |
+| `ssh:exec`      | hil          | —         | —     | —         | ❌ HIL (bypass Thompson) |
 
 ### Backward Compatibility
 
@@ -364,26 +378,28 @@ const canExecute = score >= result.threshold;
 
 ### Files to Modify
 
-| File | Changes | LOC |
-|------|---------|-----|
-| `src/mcp/adaptive-threshold.ts` | Add ThompsonSampler integration | ~80 |
-| `src/dag/controlled-executor.ts` | Use per-tool thresholds | ~30 |
-| `tests/unit/mcp/thompson_integration_test.ts` | New test file | ~150 |
+| File                                          | Changes                         | LOC  |
+| --------------------------------------------- | ------------------------------- | ---- |
+| `src/mcp/adaptive-threshold.ts`               | Add ThompsonSampler integration | ~80  |
+| `src/dag/controlled-executor.ts`              | Use per-tool thresholds         | ~30  |
+| `tests/unit/mcp/thompson_integration_test.ts` | New test file                   | ~150 |
 
 ### Files to Reference
 
-| File | Purpose |
-|------|---------|
-| `src/graphrag/algorithms/thompson.ts` | ThompsonSampler POC (708 LOC) |
-| `config/mcp-permissions.yaml` | Risk categories per server |
-| `docs/adrs/ADR-049-intelligent-adaptive-thresholds.md` | Design rationale |
+| File                                                   | Purpose                       |
+| ------------------------------------------------------ | ----------------------------- |
+| `src/graphrag/algorithms/thompson.ts`                  | ThompsonSampler POC (708 LOC) |
+| `config/mcp-permissions.yaml`                          | Risk categories per server    |
+| `docs/adrs/ADR-049-intelligent-adaptive-thresholds.md` | Design rationale              |
 
 ---
 
 ## References
 
-- [Source: src/graphrag/algorithms/thompson.ts](../../src/graphrag/algorithms/thompson.ts) - Thompson Sampling POC
-- [Source: src/mcp/adaptive-threshold.ts](../../src/mcp/adaptive-threshold.ts) - Current threshold manager
+- [Source: src/graphrag/algorithms/thompson.ts](../../src/graphrag/algorithms/thompson.ts) -
+  Thompson Sampling POC
+- [Source: src/mcp/adaptive-threshold.ts](../../src/mcp/adaptive-threshold.ts) - Current threshold
+  manager
 - [Source: src/dag/controlled-executor.ts](../../src/dag/controlled-executor.ts) - DAG executor
 - [Config: config/mcp-permissions.yaml](../../config/mcp-permissions.yaml) - Server permissions
 - [ADR-049](../adrs/ADR-049-intelligent-adaptive-thresholds.md) - Threshold design
@@ -420,12 +436,14 @@ const canSpeculate = bestCapability.score >= (thresholds?.suggestionThreshold ??
 ## Git Intelligence
 
 Recent commits (2025-12-23):
+
 ```
 18c1fd2 fix(10.7): code review fixes - E2E test and sprint status sync
 3f9c345 Update configuration files and introduce capability naming curation system
 ```
 
 Patterns observed:
+
 - Commit format: `feat(story-X.Y): description`
 - Test-first approach for algorithm changes
 - Story files include Dev Agent Record section
@@ -459,15 +477,14 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### File List
 
-| File | Changes |
-|------|---------|
-| `src/mcp/adaptive-threshold.ts` | +244 LOC - Thompson integration, getRiskFromScope, calculateCapabilityRisk |
-| `src/mcp/handlers/workflow-execution-handler.ts` | +101 LOC - smartHILCheck + Thompson update after execution |
-| `src/mcp/handlers/execute-handler.ts` | +77 LOC - updateThompsonSampling (exported) |
-| `src/mcp/handlers/workflow-handler-types.ts` | +3 LOC - adaptiveThresholdManager in deps |
-| `src/mcp/gateway-server.ts` | +1 LOC - pass adaptiveThresholdManager to workflow deps |
-| `src/capabilities/capability-store.ts` | +4 LOC - riskCategory in rowToCapability |
-| `src/capabilities/types.ts` | +9 LOC - riskCategory field in Capability |
-| `src/graphrag/types.ts` | +4 LOC - toolId in ExecutionRecord |
-| `tests/unit/mcp/adaptive_threshold_test.ts` | +146 LOC - 13 new Thompson tests |
-
+| File                                             | Changes                                                                    |
+| ------------------------------------------------ | -------------------------------------------------------------------------- |
+| `src/mcp/adaptive-threshold.ts`                  | +244 LOC - Thompson integration, getRiskFromScope, calculateCapabilityRisk |
+| `src/mcp/handlers/workflow-execution-handler.ts` | +101 LOC - smartHILCheck + Thompson update after execution                 |
+| `src/mcp/handlers/execute-handler.ts`            | +77 LOC - updateThompsonSampling (exported)                                |
+| `src/mcp/handlers/workflow-handler-types.ts`     | +3 LOC - adaptiveThresholdManager in deps                                  |
+| `src/mcp/gateway-server.ts`                      | +1 LOC - pass adaptiveThresholdManager to workflow deps                    |
+| `src/capabilities/capability-store.ts`           | +4 LOC - riskCategory in rowToCapability                                   |
+| `src/capabilities/types.ts`                      | +9 LOC - riskCategory field in Capability                                  |
+| `src/graphrag/types.ts`                          | +4 LOC - toolId in ExecutionRecord                                         |
+| `tests/unit/mcp/adaptive_threshold_test.ts`      | +146 LOC - 13 new Thompson tests                                           |

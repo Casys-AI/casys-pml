@@ -1,31 +1,33 @@
 ---
-name: 'step-07-holistic-analysis'
-description: 'Analyze workflow flow, goal alignment, and meta-workflow failures'
+name: "step-07-holistic-analysis"
+description: "Analyze workflow flow, goal alignment, and meta-workflow failures"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmb/workflows/workflow-compliance-check'
+workflow_path: "{project-root}/_bmad/bmb/workflows/workflow-compliance-check"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-07-holistic-analysis.md'
-nextStepFile: '{workflow_path}/steps/step-08-generate-report.md'
-workflowFile: '{workflow_path}/workflow.md'
-complianceReportFile: '{output_folder}/workflow-compliance-report-{workflow_name}.md'
-targetWorkflowFile: '{target_workflow_path}'
+thisStepFile: "{workflow_path}/steps/step-07-holistic-analysis.md"
+nextStepFile: "{workflow_path}/steps/step-08-generate-report.md"
+workflowFile: "{workflow_path}/workflow.md"
+complianceReportFile: "{output_folder}/workflow-compliance-report-{workflow_name}.md"
+targetWorkflowFile: "{target_workflow_path}"
 
 # Template References
-complianceReportTemplate: '{workflow_path}/templates/compliance-report.md'
+complianceReportTemplate: "{workflow_path}/templates/compliance-report.md"
 
 # Documentation References
-stepTemplate: '{project-root}/_bmad/bmb/docs/workflows/templates/step-template.md'
-workflowTemplate: '{project-root}/_bmad/bmb/docs/workflows/templates/workflow-template.md'
-intentSpectrum: '{project-root}/_bmad/bmb/docs/workflows/intent-vs-prescriptive-spectrum.md'
+stepTemplate: "{project-root}/_bmad/bmb/docs/workflows/templates/step-template.md"
+workflowTemplate: "{project-root}/_bmad/bmb/docs/workflows/templates/workflow-template.md"
+intentSpectrum: "{project-root}/_bmad/bmb/docs/workflows/intent-vs-prescriptive-spectrum.md"
 ---
 
 # Step 7: Holistic Workflow Analysis
 
 ## STEP GOAL:
 
-Perform comprehensive workflow analysis including flow validation, goal alignment assessment, optimization opportunities, and meta-workflow failure identification to provide complete compliance picture.
+Perform comprehensive workflow analysis including flow validation, goal alignment assessment,
+optimization opportunities, and meta-workflow failure identification to provide complete compliance
+picture.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -39,7 +41,8 @@ Perform comprehensive workflow analysis including flow validation, goal alignmen
 ### Role Reinforcement:
 
 - ✅ You are a compliance validator and quality assurance specialist
-- ✅ If you already have been given a name, communication_style and persona, continue to use those while playing this new role
+- ✅ If you already have been given a name, communication_style and persona, continue to use those
+  while playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You bring holistic workflow analysis and optimization expertise
 - ✅ User brings their workflow and needs comprehensive assessment
@@ -69,8 +72,7 @@ Perform comprehensive workflow analysis including flow validation, goal alignmen
 
 ### 1. Initialize Holistic Analysis
 
-"Beginning **Phase 3: Holistic Workflow Analysis**
-Target: `{target_workflow_name}`
+"Beginning **Phase 3: Holistic Workflow Analysis** Target: `{target_workflow_name}`
 
 Analyzing workflow from multiple perspectives:
 
@@ -81,8 +83,7 @@ Analyzing workflow from multiple perspectives:
 
 ### 2. Workflow Flow Validation
 
-**A. Completion Path Analysis:**
-Trace all possible paths through the workflow:
+**A. Completion Path Analysis:** Trace all possible paths through the workflow:
 
 "**Flow Validation Analysis:**"
 
@@ -97,8 +98,7 @@ Trace all possible paths through the workflow:
 - **Major:** Inconsistent menu handling or broken references
 - **Minor:** Inefficient flow patterns
 
-**B. Sequential Logic Validation:**
-Check step sequence logic:
+**B. Sequential Logic Validation:** Check step sequence logic:
 
 - Does step order make logical sense?
 - Are dependencies properly structured?
@@ -107,8 +107,7 @@ Check step sequence logic:
 
 ### 3. Goal Alignment Assessment
 
-**A. Stated Goal Analysis:**
-Compare workflow.md goal with actual implementation:
+**A. Stated Goal Analysis:** Compare workflow.md goal with actual implementation:
 
 "**Goal Alignment Analysis:**"
 
@@ -117,8 +116,7 @@ Compare workflow.md goal with actual implementation:
 - **Alignment Score:** [percentage match]
 - **Gap Analysis:** [specific misalignments]
 
-**B. User Experience Assessment:**
-Evaluate workflow from user perspective:
+**B. User Experience Assessment:** Evaluate workflow from user perspective:
 
 - Is the workflow intuitive and easy to follow?
 - Are user inputs appropriately requested?
@@ -127,8 +125,7 @@ Evaluate workflow from user perspective:
 
 ### 4. Optimization Opportunities
 
-**A. Efficiency Analysis:**
-"**Optimization Assessment:**"
+**A. Efficiency Analysis:** "**Optimization Assessment:**"
 
 - **Step Consolidation:** Could any steps be combined?
 - **Parallel Processing:** Could any operations run simultaneously?
@@ -146,8 +143,8 @@ Evaluate workflow from user perspective:
 
 **CRITICAL SECTION:** Identify what create/edit workflows should have caught
 
-"**Meta-Workflow Failure Analysis:**
-**Issues that should have been prevented by create-workflow/edit-workflow:**"
+"**Meta-Workflow Failure Analysis:** **Issues that should have been prevented by
+create-workflow/edit-workflow:**"
 
 **A. Create-Workflow Failures:**
 
@@ -164,8 +161,7 @@ Evaluate workflow from user perspective:
 - Inconsistent changes that weren't validated
 - Missing updates to dependent files/references
 
-**C. Systemic Process Improvements:**
-"**Recommended Improvements for Meta-Workflows:**"
+**C. Systemic Process Improvements:** "**Recommended Improvements for Meta-Workflows:**"
 
 **For create-workflow:**
 
@@ -226,13 +222,16 @@ Evaluate workflow from user perspective:
 
 ## Menu Handling Logic:
 
-- IF C: Save holistic analysis findings to report, update frontmatter, then load, read entire file, then execute {nextStepFile}
+- IF C: Save holistic analysis findings to report, update frontmatter, then load, read entire file,
+  then execute {nextStepFile}
 - IF X: Save current findings and end with guidance for resuming
 - IF Any other comments or queries: respond and redisplay menu
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN [C continue option] is selected and [holistic analysis complete with meta-workflow failures identified], will you then load and read fully `{nextStepFile}` to execute and begin comprehensive report generation.
+ONLY WHEN [C continue option] is selected and [holistic analysis complete with meta-workflow
+failures identified], will you then load and read fully `{nextStepFile}` to execute and begin
+comprehensive report generation.
 
 ---
 
@@ -255,4 +254,5 @@ ONLY WHEN [C continue option] is selected and [holistic analysis complete with m
 - Missing strategic prioritization of improvements
 - Providing superficial analysis without depth
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

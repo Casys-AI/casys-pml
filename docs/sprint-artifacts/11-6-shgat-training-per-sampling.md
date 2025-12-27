@@ -4,13 +4,14 @@ Status: done
 
 ## Story
 
-As a learning system,
-I want to train SHGAT on path-level traces with PER (Prioritized Experience Replay) sampling,
-So that SHGAT learns efficiently from surprising execution patterns.
+As a learning system, I want to train SHGAT on path-level traces with PER (Prioritized Experience
+Replay) sampling, So that SHGAT learns efficiently from surprising execution patterns.
 
 ## Context & Background
 
-**Epic 11: Learning from Execution Traces** implements a TD Error + PER + SHGAT learning system (DQN/Rainbow style). This story is the culmination: training SHGAT using PER-weighted sampling from `execution_trace`.
+**Epic 11: Learning from Execution Traces** implements a TD Error + PER + SHGAT learning system
+(DQN/Rainbow style). This story is the culmination: training SHGAT using PER-weighted sampling from
+`execution_trace`.
 
 **Architecture Overview (2025-12-22):**
 
@@ -36,17 +37,18 @@ So that SHGAT learns efficiently from surprising execution patterns.
 
 **Différence avec Story 10.7b (tool-level):**
 
-| Aspect | 10.7b (episodic_events) | 11.6 (execution_trace + PER) |
-|--------|-------------------------|------------------------------|
-| **Sampling** | Random/récent | PER (priority-weighted) |
-| **Granularité** | Par tool | Par path (séquence de nodes) |
-| **Label** | `wasCorrect` | `success` |
-| **Signal** | Binary | TD error (continuous) |
-| **Table** | N/A (in-memory) | `execution_trace` |
+| Aspect          | 10.7b (episodic_events) | 11.6 (execution_trace + PER) |
+| --------------- | ----------------------- | ---------------------------- |
+| **Sampling**    | Random/récent           | PER (priority-weighted)      |
+| **Granularité** | Par tool                | Par path (séquence de nodes) |
+| **Label**       | `wasCorrect`            | `success`                    |
+| **Signal**      | Binary                  | TD error (continuous)        |
+| **Table**       | N/A (in-memory)         | `execution_trace`            |
 
 **Current Implementation (execute-handler.ts:527-583):**
 
 Story 10.7 already implemented basic SHGAT online learning:
+
 ```typescript
 async function updateSHGAT(shgat, embeddingModel, capability, toolsCalled, intent, success) {
   // 1. Register new tools/capability
@@ -55,6 +57,7 @@ async function updateSHGAT(shgat, embeddingModel, capability, toolsCalled, inten
 ```
 
 **This story enhances with:**
+
 1. PER-weighted batch sampling from `execution_trace` table
 2. Path-level features (not just tool-level)
 3. Priority updates after training (TD error recalculated)
@@ -80,34 +83,39 @@ for (const example of examples) {
 }
 ```
 
-**Gap:** On PRÉDIT sur les paths (`predictPathSuccess`) mais on N'APPREND PAS des paths dans `trainBatch()`.
+**Gap:** On PRÉDIT sur les paths (`predictPathSuccess`) mais on N'APPREND PAS des paths dans
+`trainBatch()`.
 
-**Fix dans cette story:** Utiliser `contextTools` pour créer des training examples intermédiaires (multi-example per trace).
+**Fix dans cette story:** Utiliser `contextTools` pour créer des training examples intermédiaires
+(multi-example per trace).
 
 ### Clarification: Les 3 types de "Context"
 
-| Terme | Où | Contenu | Exemple |
-|-------|-----|---------|---------|
-| **`contextTools`** | TrainingExample | **Path = séquence de nodes exécutés** | `["fs:read", "json:parse", "slack:send"]` |
-| **`initialContext`** | ExecutionTrace | Params d'entrée du workflow | `{ path: "/config.json", channel: "#dev" }` |
-| **`taskResults[].args`** | ExecutionTrace | Args de chaque tool call | `{ path: "/config.json" }` pour fs:read |
+| Terme                    | Où              | Contenu                               | Exemple                                     |
+| ------------------------ | --------------- | ------------------------------------- | ------------------------------------------- |
+| **`contextTools`**       | TrainingExample | **Path = séquence de nodes exécutés** | `["fs:read", "json:parse", "slack:send"]`   |
+| **`initialContext`**     | ExecutionTrace  | Params d'entrée du workflow           | `{ path: "/config.json", channel: "#dev" }` |
+| **`taskResults[].args`** | ExecutionTrace  | Args de chaque tool call              | `{ path: "/config.json" }` pour fs:read     |
 
 ### Scope: 11.6 vs 12.7
 
-| Story | Données utilisées | Ce qu'on apprend |
-|-------|-------------------|------------------|
-| **11.6 (cette story)** | `contextTools` = **le path** | Transitions entre nodes |
-| **12.7 (Epic 12)** | `initialContext` + `taskResults[].args` | Patterns d'arguments |
+| Story                  | Données utilisées                       | Ce qu'on apprend        |
+| ---------------------- | --------------------------------------- | ----------------------- |
+| **11.6 (cette story)** | `contextTools` = **le path**            | Transitions entre nodes |
+| **12.7 (Epic 12)**     | `initialContext` + `taskResults[].args` | Patterns d'arguments    |
 
 **Dans Story 11.6, "context" = `contextTools` = le PATH (séquence de tools/capabilities exécutés).**
 
 Ce n'est PAS:
+
 - `initialContext` (les paramètres d'entrée du workflow)
 - `WorkflowPredictionState.context` (accumulation des résultats - Epic 12)
 
-**Note:** Story 12.7 (Argument-Aware Learning) est dans Epic 12 car elle dépend du stockage propre des `initialContext` et `taskResults[].args` (Stories 12.1-12.2).
+**Note:** Story 12.7 (Argument-Aware Learning) est dans Epic 12 car elle dépend du stockage propre
+des `initialContext` et `taskResults[].args` (Stories 12.1-12.2).
 
 **Prerequisites Completed:**
+
 - Story 11.2 (done) - `execution_trace` table with `priority` column
 - Story 11.3 (done) - `calculateTDError()`, `storeTraceWithPriority()`, `SHGAT.predictPathSuccess()`
 
@@ -116,15 +124,15 @@ Ce n'est PAS:
 1. **AC1:** `extractPathLevelFeatures(traces: ExecutionTrace[])` implemented:
    ```typescript
    interface PathLevelFeatures {
-     pathSuccessRate: number;      // success count / total for this exact path
-     pathFrequency: number;        // relative frequency of this path (0-1)
-     decisionSuccessRate: number;  // avg success rate at DecisionNodes
-     isDominantPath: boolean;      // is this the most frequent path?
+     pathSuccessRate: number; // success count / total for this exact path
+     pathFrequency: number; // relative frequency of this path (0-1)
+     decisionSuccessRate: number; // avg success rate at DecisionNodes
+     isDominantPath: boolean; // is this the most frequent path?
    }
 
    function extractPathLevelFeatures(
-     traces: ExecutionTrace[]
-   ): Map<string, PathLevelFeatures>  // key = path.join("->")
+     traces: ExecutionTrace[],
+   ): Map<string, PathLevelFeatures>; // key = path.join("->")
    ```
 
 2. **AC2:** `trainSHGATOnPathTraces()` created:
@@ -143,12 +151,12 @@ Ce n'est PAS:
      embeddingProvider: EmbeddingProvider,
      capabilityId: string,
      options?: {
-       minTraces?: number;    // Default: 20
-       maxTraces?: number;    // Default: 100
-       batchSize?: number;    // Default: 32
-       minPriority?: number;  // Default: 0.1 (skip near-0 priority)
-     }
-   ): Promise<PERTrainingResult>
+       minTraces?: number; // Default: 20
+       maxTraces?: number; // Default: 100
+       batchSize?: number; // Default: 32
+       minPriority?: number; // Default: 0.1 (skip near-0 priority)
+     },
+   ): Promise<PERTrainingResult>;
    ```
 
 3. **AC3:** PER-weighted sampling implemented via `ExecutionTraceStore.sampleByPriority()`:
@@ -201,8 +209,8 @@ Ce n'est PAS:
       for (let i = 0; i < path.length; i++) {
         examples.push({
           intentEmbedding: trace.intentEmbedding,
-          contextTools: path.slice(0, i),  // Les nodes AVANT ce point
-          candidateId: path[i],             // Le node actuel
+          contextTools: path.slice(0, i), // Les nodes AVANT ce point
+          candidateId: path[i], // Le node actuel
           outcome: trace.success ? 1 : 0,
         });
       }
@@ -212,7 +220,7 @@ Ce n'est PAS:
 
     // Option B: Context boost dans trainBatch (plus simple)
     // Dans trainBatch, vérifier si candidateId est connecté aux contextTools
-    const hasContextConnection = example.contextTools.some(t =>
+    const hasContextConnection = example.contextTools.some((t) =>
       this.hasEdge(t, example.candidateId)
     );
     const contextBoost = hasContextConnection ? 0.1 : 0;
@@ -225,7 +233,7 @@ Ce n'est PAS:
     // Cohérence avec SHGAT.collectTransitiveTools() qui aplatit la matrice d'incidence
     async function flattenExecutedPath(
       trace: ExecutionTrace,
-      traceStore: ExecutionTraceStore
+      traceStore: ExecutionTraceStore,
     ): Promise<string[]> {
       const flatPath: string[] = [];
 
@@ -234,7 +242,7 @@ Ce n'est PAS:
 
         // Si c'est une capability avec des enfants, récursivement aplatir
         const childTraces = await traceStore.getChildTraces(trace.id);
-        const childTrace = childTraces.find(t => t.capabilityId === nodeId);
+        const childTrace = childTraces.find((t) => t.capabilityId === nodeId);
 
         if (childTrace) {
           const childFlat = await flattenExecutedPath(childTrace, traceStore);
@@ -338,18 +346,18 @@ Ce n'est PAS:
 // src/capabilities/execution-trace-store.ts (verify exists from 11.2)
 // OR src/graphrag/learning/per-training.ts
 
-const PER_ALPHA = 0.6;  // Priority exponent (0 = uniform, 1 = fully prioritized)
+const PER_ALPHA = 0.6; // Priority exponent (0 = uniform, 1 = fully prioritized)
 
 function sampleByPriority(
   traces: ExecutionTrace[],
   n: number,
-  alpha: number = PER_ALPHA
+  alpha: number = PER_ALPHA,
 ): ExecutionTrace[] {
   // Calculate sampling probabilities
-  const priorities = traces.map(t => t.priority);
-  const powered = priorities.map(p => Math.pow(p, alpha));
+  const priorities = traces.map((t) => t.priority);
+  const powered = priorities.map((p) => Math.pow(p, alpha));
   const totalPower = powered.reduce((a, b) => a + b, 0);
-  const probs = powered.map(p => p / totalPower);
+  const probs = powered.map((p) => p / totalPower);
 
   // Weighted random sampling without replacement
   const sampled: ExecutionTrace[] = [];
@@ -386,7 +394,7 @@ interface PathLevelFeatures {
 }
 
 function extractPathLevelFeatures(
-  traces: ExecutionTrace[]
+  traces: ExecutionTrace[],
 ): Map<string, PathLevelFeatures> {
   const pathStats = new Map<string, { success: number; total: number }>();
 
@@ -426,7 +434,7 @@ function extractPathLevelFeatures(
 }
 
 function calculateDecisionSuccessRate(traces: ExecutionTrace[], pathKey: string): number {
-  const pathTraces = traces.filter(t => (t.executedPath ?? []).join("->") === pathKey);
+  const pathTraces = traces.filter((t) => (t.executedPath ?? []).join("->") === pathKey);
   if (pathTraces.length === 0) return 0.5;
 
   // Average success rate at decision points
@@ -447,19 +455,25 @@ function calculateDecisionSuccessRate(traces: ExecutionTrace[], pathKey: string)
 **3. Integration with Existing SHGAT Training**
 
 Current `execute-handler.ts:527-583` does:
+
 ```typescript
 // After execution
 await updateSHGAT(shgat, embeddingModel, capability, toolsCalled, intent, wasSuccessful);
 ```
 
 Enhanced flow:
+
 ```typescript
 // After execution
 await updateSHGAT(shgat, embeddingModel, capability, toolsCalled, intent, wasSuccessful);
 
 // NEW: PER-based batch training (if enough traces)
 const perResult = await trainSHGATOnPathTraces(
-  shgat, traceStore, embeddingModel, capability.id, { minTraces: 20 }
+  shgat,
+  traceStore,
+  embeddingModel,
+  capability.id,
+  { minTraces: 20 },
 );
 if (perResult.fallback) {
   log.debug("[pml:execute] PER training skipped", { reason: perResult.reason });
@@ -476,17 +490,18 @@ interface TrainingExample {
   intentEmbedding: number[];
   contextTools: string[];
   candidateId: string;
-  outcome: number;  // 0 or 1
+  outcome: number; // 0 or 1
 }
 
 // src/graphrag/learning/per-training.ts - NEW (extends for path-level)
 interface PathEnrichedExample extends TrainingExample {
   pathFeatures: PathLevelFeatures;
-  executedPath: string[];  // For weighting later nodes higher
+  executedPath: string[]; // For weighting later nodes higher
 }
 ```
 
 **Integration Strategy:** Do NOT modify TrainingExample interface. Instead:
+
 1. Use `PathEnrichedExample` internally in per-training.ts
 2. Map to standard `TrainingExample` when calling `shgat.trainBatch()`
 3. Path features influence `outcome` weighting, not SHGAT input shape
@@ -495,15 +510,15 @@ interface PathEnrichedExample extends TrainingExample {
 
 ```typescript
 // Import EmbeddingProvider from per-priority.ts (canonical location)
-import { EmbeddingProvider, calculateTDError } from "../../capabilities/per-priority.ts";
+import { calculateTDError, EmbeddingProvider } from "../../capabilities/per-priority.ts";
 
 // Batch embedding optimization (avoid N sequential calls)
 async function getEmbeddingsBatch(
   provider: EmbeddingProvider,
-  traces: ExecutionTrace[]
+  traces: ExecutionTrace[],
 ): Promise<Map<string, number[]>> {
   const embeddings = new Map<string, number[]>();
-  const uniqueIntents = [...new Set(traces.map(t => t.intentText ?? ""))];
+  const uniqueIntents = [...new Set(traces.map((t) => t.intentText ?? ""))];
 
   // Parallel batch for efficiency
   const results = await Promise.all(
@@ -514,7 +529,7 @@ async function getEmbeddingsBatch(
         log.warn("[PER-Training] Embedding failed", { intent, error: String(error) });
         return { intent, embedding: null };
       }
-    })
+    }),
   );
 
   for (const { intent, embedding } of results) {
@@ -534,25 +549,25 @@ The naive implementation has a distribution bug. Use reweighting after each sele
 function sampleByPriorityCorrect(
   traces: ExecutionTrace[],
   n: number,
-  alpha: number = 0.6
+  alpha: number = 0.6,
 ): ExecutionTrace[] {
   const available = [...traces];
   const sampled: ExecutionTrace[] = [];
 
   while (sampled.length < n && available.length > 0) {
     // Recalculate probabilities each iteration
-    const priorities = available.map(t => Math.pow(t.priority, alpha));
+    const priorities = available.map((t) => Math.pow(t.priority, alpha));
     const total = priorities.reduce((a, b) => a + b, 0);
 
     // Handle cold start: if all priorities near-equal, use uniform
-    if (total === 0 || priorities.every(p => Math.abs(p - priorities[0]) < 0.001)) {
+    if (total === 0 || priorities.every((p) => Math.abs(p - priorities[0]) < 0.001)) {
       const idx = Math.floor(Math.random() * available.length);
       sampled.push(available[idx]);
       available.splice(idx, 1);
       continue;
     }
 
-    const probs = priorities.map(p => p / total);
+    const probs = priorities.map((p) => p / total);
     const rand = Math.random();
     let cumSum = 0;
 
@@ -572,16 +587,17 @@ function sampleByPriorityCorrect(
 
 **7. ExecutionTraceStore.sampleByPriority() Clarification**
 
-The existing implementation (11.2) uses SQL approximation: `ORDER BY priority * random() DESC`.
-This is NOT true PER sampling (P(i) ∝ priority^α).
+The existing implementation (11.2) uses SQL approximation: `ORDER BY priority * random() DESC`. This
+is NOT true PER sampling (P(i) ∝ priority^α).
 
 **Decision:** For strict PER compliance, fetch traces then sample in TypeScript:
+
 ```typescript
 async function getTracesForPERTraining(
   traceStore: ExecutionTraceStore,
   capabilityId: string,
   limit: number = 100,
-  alpha: number = 0.6
+  alpha: number = 0.6,
 ): Promise<ExecutionTrace[]> {
   // Fetch more traces than needed, then PER sample
   const allTraces = await traceStore.getTraces(capabilityId, limit * 2);
@@ -596,7 +612,7 @@ The `executedPath` field comes from `taskResults[].tool` sequence during trace s
 ```typescript
 // In saveTrace flow (worker-bridge.ts or executor.ts)
 function buildExecutedPath(taskResults: TraceTaskResult[]): string[] {
-  return taskResults.map(r => r.tool);
+  return taskResults.map((r) => r.tool);
 }
 
 // Example:
@@ -608,26 +624,27 @@ function buildExecutedPath(taskResults: TraceTaskResult[]): string[] {
 
 Story 10.7 already implemented some SHGAT methods. Verify these work with PER:
 
-| Item | Status | Location | To Verify |
-|------|--------|----------|-----------|
-| `shgat.trainOnExample()` | ✅ Implemented | `shgat.ts:1480` | Works with path traces |
-| `shgat.trainBatch()` | ✅ Implemented | `shgat.ts:1489` | Works with enriched features |
-| `shgat.predictPathSuccess()` | ✅ Implemented | `shgat.ts:1302` | Used for TD error calculation |
-| `calculateTDError()` | ✅ Implemented | `per-priority.ts` | Used for priority updates |
-| `batchUpdatePriorities()` | ✅ Implemented | `per-priority.ts:266` | Use for priority updates |
+| Item                         | Status         | Location              | To Verify                     |
+| ---------------------------- | -------------- | --------------------- | ----------------------------- |
+| `shgat.trainOnExample()`     | ✅ Implemented | `shgat.ts:1480`       | Works with path traces        |
+| `shgat.trainBatch()`         | ✅ Implemented | `shgat.ts:1489`       | Works with enriched features  |
+| `shgat.predictPathSuccess()` | ✅ Implemented | `shgat.ts:1302`       | Used for TD error calculation |
+| `calculateTDError()`         | ✅ Implemented | `per-priority.ts`     | Used for priority updates     |
+| `batchUpdatePriorities()`    | ✅ Implemented | `per-priority.ts:266` | Use for priority updates      |
 
 ### Batch Training Performance
 
-| Batch Size | Memory | Latency | Use Case |
-|------------|--------|---------|----------|
-| 16 | Low | Fast | Incremental after each execution |
-| 32 | Medium | Medium | Default (balanced) |
-| 64 | Higher | Slower | Periodic bulk training |
-| 100 | Max | Slowest | Initial training with history |
+| Batch Size | Memory | Latency | Use Case                         |
+| ---------- | ------ | ------- | -------------------------------- |
+| 16         | Low    | Fast    | Incremental after each execution |
+| 32         | Medium | Medium  | Default (balanced)               |
+| 64         | Higher | Slower  | Periodic bulk training           |
+| 100        | Max    | Slowest | Initial training with history    |
 
 **Recommendation:** Use batchSize=32 for online learning, batchSize=100 for startup.
 
 **Performance Target: 50ms Rationale:**
+
 - Execution response time budget: 200ms
 - SHGAT scoring: ~30ms
 - PER training overhead: 50ms (25% of budget)
@@ -637,6 +654,7 @@ Story 10.7 already implemented some SHGAT methods. Verify these work with PER:
 ### Fallback to Tool-Level Training
 
 When traces < 20 (minTraces):
+
 1. Use existing `updateSHGAT()` from execute-handler.ts (lines 527-583)
 2. Continue single-example online learning until threshold reached
 3. Log warning: "PER training deferred: insufficient traces"
@@ -669,22 +687,22 @@ function shouldRunBatchTraining(): boolean {
 
 ### Files to Create
 
-| File | Purpose | LOC |
-|------|---------|-----|
-| `src/graphrag/learning/path-level-features.ts` | Path feature extraction | ~100 |
-| `src/graphrag/learning/per-training.ts` | PER sampling + batch training | ~150 |
-| `tests/unit/graphrag/learning/path_level_features_test.ts` | Feature extraction tests | ~80 |
-| `tests/unit/graphrag/learning/per_training_test.ts` | PER training tests | ~120 |
-| `tests/benchmarks/learning/per_training_bench.ts` | Performance benchmark | ~50 |
+| File                                                       | Purpose                       | LOC  |
+| ---------------------------------------------------------- | ----------------------------- | ---- |
+| `src/graphrag/learning/path-level-features.ts`             | Path feature extraction       | ~100 |
+| `src/graphrag/learning/per-training.ts`                    | PER sampling + batch training | ~150 |
+| `tests/unit/graphrag/learning/path_level_features_test.ts` | Feature extraction tests      | ~80  |
+| `tests/unit/graphrag/learning/per_training_test.ts`        | PER training tests            | ~120 |
+| `tests/benchmarks/learning/per_training_bench.ts`          | Performance benchmark         | ~50  |
 
 ### Files to Modify
 
-| File | Changes | LOC |
-|------|---------|-----|
-| `src/graphrag/algorithms/shgat.ts` | Verify trainBatch works with path features | ~10 |
-| `src/mcp/handlers/execute-handler.ts:~583` | Add PER training call after updateSHGAT | ~20 |
-| `src/capabilities/execution-trace-store.ts` | Verify/enhance sampleByPriority() | ~30 |
-| `src/graphrag/learning/mod.ts` | Export new modules | ~5 |
+| File                                        | Changes                                    | LOC |
+| ------------------------------------------- | ------------------------------------------ | --- |
+| `src/graphrag/algorithms/shgat.ts`          | Verify trainBatch works with path features | ~10 |
+| `src/mcp/handlers/execute-handler.ts:~583`  | Add PER training call after updateSHGAT    | ~20 |
+| `src/capabilities/execution-trace-store.ts` | Verify/enhance sampleByPriority()          | ~30 |
+| `src/graphrag/learning/mod.ts`              | Export new modules                         | ~5  |
 
 ### Architecture Compliance
 
@@ -701,15 +719,21 @@ function shouldRunBatchTraining(): boolean {
 - [Story 11.2: Execution Trace Table](./11-2-execution-trace-table.md) - PREREQUISITE (done)
 - [Story 11.3: TD Error + PER Priority](./11-3-td-error-per-priority.md) - PREREQUISITE (done)
 - [Story 10.7: pml_execute API](./10-7-pml-execute-api.md) - SHGAT integration base
-- [Source: src/graphrag/algorithms/shgat.ts:1480-1600](../../src/graphrag/algorithms/shgat.ts) - trainOnExample, trainBatch
-- [Source: src/mcp/handlers/execute-handler.ts:527-583](../../src/mcp/handlers/execute-handler.ts) - updateSHGAT
-- [Source: src/capabilities/per-priority.ts](../../src/capabilities/per-priority.ts) - calculateTDError
-- [Source: src/capabilities/execution-trace-store.ts](../../src/capabilities/execution-trace-store.ts) - ExecutionTraceStore
-- [ADR-050: Unified Search Simplification](../adrs/ADR-050-unified-search-simplification.md) - SHGAT architecture
+- [Source: src/graphrag/algorithms/shgat.ts:1480-1600](../../src/graphrag/algorithms/shgat.ts) -
+  trainOnExample, trainBatch
+- [Source: src/mcp/handlers/execute-handler.ts:527-583](../../src/mcp/handlers/execute-handler.ts) -
+  updateSHGAT
+- [Source: src/capabilities/per-priority.ts](../../src/capabilities/per-priority.ts) -
+  calculateTDError
+- [Source: src/capabilities/execution-trace-store.ts](../../src/capabilities/execution-trace-store.ts) -
+  ExecutionTraceStore
+- [ADR-050: Unified Search Simplification](../adrs/ADR-050-unified-search-simplification.md) - SHGAT
+  architecture
 
 ### Previous Story Intelligence
 
 **From Story 11.3 (TD Error + PER Priority - done 2025-12-23):**
+
 - `calculateTDError(shgat, embeddingProvider, trace)` requires `EmbeddingProvider` param
 - `SHGAT.predictPathSuccess(intentEmbedding, path)` uses multi-head architecture
 - `storeTraceWithPriority()` saves trace with `priority = |tdError|`
@@ -717,12 +741,15 @@ function shouldRunBatchTraining(): boolean {
 - 12 unit tests + 5 E2E tests established patterns
 
 **From Story 11.2 (Execution Trace Table - done 2025-12-23):**
-- `ExecutionTraceStore` class with `saveTrace()`, `getTraces()`, `getHighPriorityTraces()`, `updatePriority()`, `sampleByPriority()`
+
+- `ExecutionTraceStore` class with `saveTrace()`, `getTraces()`, `getHighPriorityTraces()`,
+  `updatePriority()`, `sampleByPriority()`
 - `execution_trace.priority` column (FLOAT, default 0.5)
 - `sanitizeForStorage()` for redacting sensitive data
 - 33 tests including `inferDecisions()` for branch tracking
 
 **From Story 10.7 (pml_execute - done 2025-12-23):**
+
 - `updateSHGAT()` function in execute-handler.ts:527-583
 - `shgat.trainOnExample()` for single-example online learning
 - `shgat.registerTool()` and `shgat.registerCapability()` for new nodes
@@ -730,12 +757,14 @@ function shouldRunBatchTraining(): boolean {
 ### Git Intelligence
 
 Recent commits (2025-12-23):
+
 ```
 2b6fb75 feat(story-11.3): TD Error + PER Priority - 12 tests passing
 xxxxxxx feat(story-11.2): execution_trace table + store - 33 tests passing
 ```
 
 Patterns observed:
+
 - Commit format: `feat(story-X.Y): description`
 - Tests in `tests/unit/` mirror `src/` structure
 - Learning-related code in `src/graphrag/learning/`
@@ -745,6 +774,7 @@ Patterns observed:
 **Effort:** 2-3 days
 
 **Breakdown:**
+
 - Task 1 (path-level-features.ts): 3h
 - Task 2 (PER sampling): 2h
 - Task 3 (trainSHGATOnPathTraces): 4h
@@ -755,6 +785,7 @@ Patterns observed:
 - Task 8 (validation): 1h
 
 **Risk:**
+
 - PER sampling correctness: need to verify weighted random sampling implementation
 - Performance: batch training on 100 traces must complete in < 50ms
 - Integration: must not break existing `updateSHGAT()` flow
@@ -785,6 +816,7 @@ Story 11.4 (Definition/Invocation Views) ← Next
 ### Completion Notes List
 
 **2025-12-24 - Unification PER Training:**
+
 - Supprimé `updateSHGAT()` (single-example tool-level)
 - Remplacé par `registerSHGATNodes()` + `runPERBatchTraining()`
 - Training à chaque exécution (était toutes les 10)
@@ -795,12 +827,16 @@ Story 11.4 (Definition/Invocation Views) ← Next
 ### File List
 
 **Created:**
+
 - `src/graphrag/learning/path-level-features.ts` - Path-level feature extraction (AC1)
 - `src/graphrag/learning/per-training.ts` - PER training pipeline (AC2-AC7, AC11-AC13)
 - `tests/unit/graphrag/per_training_test.ts` - Unit tests (19 tests, AC8-AC10, AC12, AC14)
 
 **Modified:**
+
 - `src/graphrag/learning/mod.ts` - Export new modules
-- `src/capabilities/execution-trace-store.ts` - Enhanced `sampleByPriority()` with true PER sampling (AC3)
+- `src/capabilities/execution-trace-store.ts` - Enhanced `sampleByPriority()` with true PER sampling
+  (AC3)
 - `src/graphrag/algorithms/shgat.ts` - Added `matVecMul`, `dotProduct`, learned multi-head attention
-- `src/mcp/handlers/execute-handler.ts` - Replaced `updateSHGAT()` with `registerSHGATNodes()` + `runPERBatchTraining()`, added training lock
+- `src/mcp/handlers/execute-handler.ts` - Replaced `updateSHGAT()` with `registerSHGATNodes()` +
+  `runPERBatchTraining()`, added training lock

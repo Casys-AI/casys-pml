@@ -4,8 +4,10 @@
 
 - 🛑 NEVER generate content without user input
 
-- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding leads to incomplete decisions
-- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before proceeding
+- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding
+  leads to incomplete decisions
+- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before
+  proceeding
 - ✅ ALWAYS treat this as collaborative discovery between architectural peers
 - 📋 YOU ARE A FACILITATOR, not a content generator
 - 💬 FOCUS on initialization and setup only - don't look ahead to future steps
@@ -28,7 +30,8 @@
 
 ## YOUR TASK:
 
-Initialize the Architecture workflow by detecting continuation state, discovering input documents, and setting up the document for collaborative architectural decision making.
+Initialize the Architecture workflow by detecting continuation state, discovering input documents,
+and setting up the document for collaborative architectural decision making.
 
 ## INITIALIZATION SEQUENCE:
 
@@ -98,7 +101,8 @@ Discover and load context documents using smart discovery:
 2. If exists: Load COMPLETE file contents - this contains critical rules for AI agents
 3. Add to frontmatter `hasProjectContext: true` and track file path
 4. Report to user: "Found existing project context with {number_of_rules} agent rules"
-5. This file contains language-specific patterns, testing rules, and implementation guidelines that must be followed
+5. This file contains language-specific patterns, testing rules, and implementation guidelines that
+   must be followed
 
 **Loading Rules:**
 
@@ -113,7 +117,8 @@ Before proceeding, verify we have the essential inputs:
 
 **PRD Validation:**
 
-- If no PRD found: "Architecture requires a PRD to work from. Please run the PRD workflow first or provide the PRD file path."
+- If no PRD found: "Architecture requires a PRD to work from. Please run the PRD workflow first or
+  provide the PRD file path."
 - Do NOT proceed without PRD
 
 **Other Inputs:**
@@ -122,8 +127,8 @@ Before proceeding, verify we have the essential inputs:
 
 #### C. Create Initial Document
 
-Copy the template from `{installed_path}/architecture-decision-template.md` to `{output_folder}/architecture.md`
-Initialize frontmatter with:
+Copy the template from `{installed_path}/architecture-decision-template.md` to
+`{output_folder}/architecture.md` Initialize frontmatter with:
 
 ```yaml
 ---
@@ -146,9 +151,8 @@ Complete setup and report to user:
 - Created: `{output_folder}/architecture.md` from template
 - Initialized frontmatter with workflow state
 
-**Input Documents Discovered:**
-Report what was found:
-"Welcome {{user_name}}! I've set up your Architecture workspace for {{project_name}}.
+**Input Documents Discovered:** Report what was found: "Welcome {{user_name}}! I've set up your
+Architecture workspace for {{project_name}}.
 
 **Documents Found:**
 
@@ -161,34 +165,34 @@ Report what was found:
 
 **Files loaded:** {list of specific file names or "No additional documents found"}
 
-Ready to begin architectural decision making. Do you have any other documents you'd like me to include?
+Ready to begin architectural decision making. Do you have any other documents you'd like me to
+include?
 
 [C] Continue to project context analysis
 
 ## SUCCESS METRICS:
 
-✅ Existing workflow detected and handed off to step-01b correctly
-✅ Fresh workflow initialized with template and frontmatter
-✅ Input documents discovered and loaded using sharded-first logic
-✅ All discovered files tracked in frontmatter `inputDocuments`
-✅ PRD requirement validated and communicated
-✅ User confirmed document setup and can proceed
+✅ Existing workflow detected and handed off to step-01b correctly ✅ Fresh workflow initialized
+with template and frontmatter ✅ Input documents discovered and loaded using sharded-first logic ✅
+All discovered files tracked in frontmatter `inputDocuments` ✅ PRD requirement validated and
+communicated ✅ User confirmed document setup and can proceed
 
 ## FAILURE MODES:
 
-❌ Proceeding with fresh initialization when existing workflow exists
-❌ Not updating frontmatter with discovered input documents
-❌ Creating document without proper template
-❌ Not checking sharded folders first before whole files
-❌ Not reporting what documents were found to user
-❌ Proceeding without validating PRD requirement
+❌ Proceeding with fresh initialization when existing workflow exists ❌ Not updating frontmatter
+with discovered input documents ❌ Creating document without proper template ❌ Not checking sharded
+folders first before whole files ❌ Not reporting what documents were found to user ❌ Proceeding
+without validating PRD requirement
 
-❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
-❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step file
-❌ **CRITICAL**: Making decisions without complete understanding of step requirements and protocols
+❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor
+decisions ❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step
+file ❌ **CRITICAL**: Making decisions without complete understanding of step requirements and
+protocols
 
 ## NEXT STEP:
 
-After user selects [C] to continue, load `./step-02-context.md` to analyze the project context and begin architectural decision making.
+After user selects [C] to continue, load `./step-02-context.md` to analyze the project context and
+begin architectural decision making.
 
-Remember: Do NOT proceed to step-02 until user explicitly selects [C] from the menu and setup is confirmed!
+Remember: Do NOT proceed to step-02 until user explicitly selects [C] from the menu and setup is
+confirmed!

@@ -1,25 +1,27 @@
 # ADR-050: SuperHyperGraph Edge Constraints
 
-**Status:** Accepted
-**Date:** 2025-12-17 (Updated 2025-12-25 for v1 refactor)
-**Relates to:** ADR-038 (Scoring Algorithms), ADR-042 (Capability Hyperedges), ADR-045 (Cap-to-Cap Dependencies)
-**Research:** `spikes/2025-12-17-superhypergraph-hierarchical-structures.md`
-**Tech Spec:** `docs/tech-specs/shgat-v1-refactor/` (multi-level architecture)
+**Status:** Accepted **Date:** 2025-12-17 (Updated 2025-12-25 for v1 refactor) **Relates to:**
+ADR-038 (Scoring Algorithms), ADR-042 (Capability Hyperedges), ADR-045 (Cap-to-Cap Dependencies)
+**Research:** `spikes/2025-12-17-superhypergraph-hierarchical-structures.md` **Tech Spec:**
+`docs/tech-specs/shgat-v1-refactor/` (multi-level architecture)
 
 ---
 
 ## Context
 
-Casys PML utilise un **n-SuperHyperGraph non-borné** pour représenter les relations entre tools, capabilities et meta-capabilities. Le système supporte 4 types d'edges avec des sémantiques différentes :
+Casys PML utilise un **n-SuperHyperGraph non-borné** pour représenter les relations entre tools,
+capabilities et meta-capabilities. Le système supporte 4 types d'edges avec des sémantiques
+différentes :
 
-| Edge Type | Sémantique | Exemple |
-|-----------|------------|---------|
-| `contains` | Composition (meta-capability) | "deploy-full" contains "build", "test", "deploy" |
-| `dependency` | Ordre d'exécution requis | "deploy" dependency "build" |
-| `provides` | Flux de données (paramètres) | "read_file" provides output to "parse_json" |
-| `sequence` | Co-occurrence temporelle observée | "read" souvent suivi de "write" |
+| Edge Type    | Sémantique                        | Exemple                                          |
+| ------------ | --------------------------------- | ------------------------------------------------ |
+| `contains`   | Composition (meta-capability)     | "deploy-full" contains "build", "test", "deploy" |
+| `dependency` | Ordre d'exécution requis          | "deploy" dependency "build"                      |
+| `provides`   | Flux de données (paramètres)      | "read_file" provides output to "parse_json"      |
+| `sequence`   | Co-occurrence temporelle observée | "read" souvent suivi de "write"                  |
 
-La théorie **DASH (Directed Acyclic SuperHyperGraphs)** de Fujita 2025 formalise les propriétés nécessaires pour garantir un ordonnancement topologique et éviter les deadlocks.
+La théorie **DASH (Directed Acyclic SuperHyperGraphs)** de Fujita 2025 formalise les propriétés
+nécessaires pour garantir un ordonnancement topologique et éviter les deadlocks.
 
 **Question :** Quelles contraintes de cyclicité appliquer à chaque type d'edge ?
 
@@ -29,12 +31,12 @@ La théorie **DASH (Directed Acyclic SuperHyperGraphs)** de Fujita 2025 formalis
 
 ### Contraintes par type d'edge
 
-| Edge Type | Contrainte | Enforcement | Justification |
-|-----------|-----------|-------------|---------------|
-| `contains` | **DAG strict** | Block at insertion | Impossibilité logique (A ne peut contenir B qui contient A) |
-| `dependency` | **DAG strict** | Block at insertion | Évite deadlocks à l'exécution |
-| `provides` | **Cycles autorisés** | None | Interdépendances fonctionnelles valides |
-| `sequence` | **Cycles autorisés** | None | Patterns temporels naturels (boucles d'usage) |
+| Edge Type    | Contrainte           | Enforcement        | Justification                                               |
+| ------------ | -------------------- | ------------------ | ----------------------------------------------------------- |
+| `contains`   | **DAG strict**       | Block at insertion | Impossibilité logique (A ne peut contenir B qui contient A) |
+| `dependency` | **DAG strict**       | Block at insertion | Évite deadlocks à l'exécution                               |
+| `provides`   | **Cycles autorisés** | None               | Interdépendances fonctionnelles valides                     |
+| `sequence`   | **Cycles autorisés** | None               | Patterns temporels naturels (boucles d'usage)               |
 
 ### Implémentation
 
@@ -50,7 +52,7 @@ export class DASHValidator {
   wouldCreateCycle(
     from: string,
     to: string,
-    edgeType: 'contains' | 'dependency'
+    edgeType: "contains" | "dependency",
   ): boolean {
     // Si "to" peut atteindre "from" via des edges du même type → cycle
     return this.isReachable(to, from, edgeType);
@@ -59,7 +61,7 @@ export class DASHValidator {
   private isReachable(
     source: string,
     target: string,
-    edgeType: string
+    edgeType: string,
   ): boolean {
     const visited = new Set<string>();
     const stack = [source];
@@ -82,16 +84,17 @@ export class DASHValidator {
   validateEdgeInsertion(
     from: string,
     to: string,
-    edgeType: EdgeType
+    edgeType: EdgeType,
   ): ValidationResult {
-    if (edgeType === 'contains' || edgeType === 'dependency') {
+    if (edgeType === "contains" || edgeType === "dependency") {
       if (this.wouldCreateCycle(from, to, edgeType)) {
         return {
           valid: false,
-          error: `Cycle detected: adding ${edgeType} edge ${from} → ${to} would violate DASH properties`,
-          suggestion: edgeType === 'dependency'
+          error:
+            `Cycle detected: adding ${edgeType} edge ${from} → ${to} would violate DASH properties`,
+          suggestion: edgeType === "dependency"
             ? 'Consider using "provides" for bidirectional data flow'
-            : 'Meta-capabilities cannot contain each other cyclically'
+            : "Meta-capabilities cannot contain each other cyclically",
         };
       }
     }
@@ -109,7 +112,7 @@ export class DASHValidator {
  */
 export function topologicalSort(
   capabilities: Capability[],
-  edgeType: 'contains' | 'dependency'
+  edgeType: "contains" | "dependency",
 ): Capability[] {
   const sorted: Capability[] = [];
   const visited = new Set<string>();
@@ -126,7 +129,7 @@ export function topologicalSort(
 
     const children = getEdgeTargets(cap.id, edgeType);
     for (const childId of children) {
-      const child = capabilities.find(c => c.id === childId);
+      const child = capabilities.find((c) => c.id === childId);
       if (child) visit(child);
     }
 
@@ -164,7 +167,8 @@ async addSequenceEdge(from: string, to: string, weight: number): Promise<void> {
 
 ### Pourquoi DAG strict pour `contains` ?
 
-C'est une **impossibilité logique** : si A contient B et B contient A, on a une récursion infinie. C'est comme une poupée russe qui se contiendrait elle-même.
+C'est une **impossibilité logique** : si A contient B et B contient A, on a une récursion infinie.
+C'est comme une poupée russe qui se contiendrait elle-même.
 
 ```
 ❌ Invalid:
@@ -195,7 +199,8 @@ Pour l'**exécution**, un cycle de dépendances crée un deadlock :
 
 ### Pourquoi autoriser les cycles pour `provides` ?
 
-`provides` représente un **flux de données**, pas un ordre d'exécution. Deux tools peuvent se fournir mutuellement des données dans des contextes différents :
+`provides` représente un **flux de données**, pas un ordre d'exécution. Deux tools peuvent se
+fournir mutuellement des données dans des contextes différents :
 
 ```
 ✅ Valid (contextes différents):
@@ -208,7 +213,8 @@ Ce n'est pas un cycle d'exécution, c'est une description des flux de données p
 
 ### Pourquoi autoriser les cycles pour `sequence` ?
 
-`sequence` capture des **patterns temporels observés**. Les boucles sont naturelles dans l'usage réel :
+`sequence` capture des **patterns temporels observés**. Les boucles sont naturelles dans l'usage
+réel :
 
 ```
 ✅ Natural pattern:
@@ -224,7 +230,8 @@ C'est un pattern d'usage, pas une contrainte d'exécution.
 
 ### Positives
 
-1. **Garantie DASH** : Les propriétés prouvées (topological ordering, sources) sont garanties pour `contains`/`dependency`
+1. **Garantie DASH** : Les propriétés prouvées (topological ordering, sources) sont garanties pour
+   `contains`/`dependency`
 2. **Pas de deadlocks** : L'exécution de DAGs est toujours possible
 3. **Flexibilité** : `provides` et `sequence` capturent la richesse des patterns réels
 4. **Messages d'erreur clairs** : Le système explique pourquoi un edge est rejeté
@@ -246,7 +253,8 @@ C'est un pattern d'usage, pas une contrainte d'exécution.
 
 ### Find Root Capabilities (Theorem 2.5)
 
-Tout DASH a au moins une "source" (vertex sans edges entrants). Utile pour trouver les points d'entrée.
+Tout DASH a au moins une "source" (vertex sans edges entrants). Utile pour trouver les points
+d'entrée.
 
 ```typescript
 /**
@@ -255,20 +263,19 @@ Tout DASH a au moins une "source" (vertex sans edges entrants). Utile pour trouv
  */
 function findRootCapabilities(
   capabilities: Capability[],
-  edgeType: 'contains' | 'dependency' = 'dependency'
+  edgeType: "contains" | "dependency" = "dependency",
 ): Capability[] {
-  return capabilities.filter(cap =>
-    !hasIncomingEdges(cap.id, edgeType)
-  );
+  return capabilities.filter((cap) => !hasIncomingEdges(cap.id, edgeType));
 }
 
 // Usage: points d'entrée pour exécution ou navigation UI
-const entryPoints = findRootCapabilities(allCaps, 'dependency');
+const entryPoints = findRootCapabilities(allCaps, "dependency");
 ```
 
 ### Ancestry Queries (Theorem 2.8)
 
-La relation de reachability forme un ordre partiel. Utile pour requêtes "qui utilise X" / "X utilise quoi".
+La relation de reachability forme un ordre partiel. Utile pour requêtes "qui utilise X" / "X utilise
+quoi".
 
 ```typescript
 /**
@@ -311,7 +318,7 @@ function getAncestors(capId: string, edgeType: EdgeType): string[] {
 }
 
 // Usage: UI "Show all capabilities that use tool X"
-const usedBy = getAncestors(toolId, 'contains');
+const usedBy = getAncestors(toolId, "contains");
 ```
 
 ---
@@ -320,38 +327,38 @@ const usedBy = getAncestors(toolId, 'contains');
 
 ### Fichiers à modifier
 
-| Fichier | Modification |
-|---------|--------------|
-| `src/graphrag/edge-validator.ts` | Nouveau - DASHValidator class |
-| `src/graphrag/graph-engine.ts` | Appeler DASHValidator avant insertion |
-| `src/capabilities/capability-store.ts` | Valider `contains` edges |
-| `src/graphrag/types.ts` | Ajouter `ValidationResult` type |
+| Fichier                                | Modification                          |
+| -------------------------------------- | ------------------------------------- |
+| `src/graphrag/edge-validator.ts`       | Nouveau - DASHValidator class         |
+| `src/graphrag/graph-engine.ts`         | Appeler DASHValidator avant insertion |
+| `src/capabilities/capability-store.ts` | Valider `contains` edges              |
+| `src/graphrag/types.ts`                | Ajouter `ValidationResult` type       |
 
 ### Tests requis
 
 ```typescript
-describe('DASHValidator', () => {
-  it('should reject cyclic contains edges', () => {
-    validator.addEdge('A', 'B', 'contains');
-    const result = validator.validateEdgeInsertion('B', 'A', 'contains');
+describe("DASHValidator", () => {
+  it("should reject cyclic contains edges", () => {
+    validator.addEdge("A", "B", "contains");
+    const result = validator.validateEdgeInsertion("B", "A", "contains");
     expect(result.valid).toBe(false);
   });
 
-  it('should reject cyclic dependency edges', () => {
-    validator.addEdge('A', 'B', 'dependency');
-    const result = validator.validateEdgeInsertion('B', 'A', 'dependency');
+  it("should reject cyclic dependency edges", () => {
+    validator.addEdge("A", "B", "dependency");
+    const result = validator.validateEdgeInsertion("B", "A", "dependency");
     expect(result.valid).toBe(false);
   });
 
-  it('should allow cyclic provides edges', () => {
-    validator.addEdge('A', 'B', 'provides');
-    const result = validator.validateEdgeInsertion('B', 'A', 'provides');
+  it("should allow cyclic provides edges", () => {
+    validator.addEdge("A", "B", "provides");
+    const result = validator.validateEdgeInsertion("B", "A", "provides");
     expect(result.valid).toBe(true);
   });
 
-  it('should allow cyclic sequence edges', () => {
-    validator.addEdge('A', 'B', 'sequence');
-    const result = validator.validateEdgeInsertion('B', 'A', 'sequence');
+  it("should allow cyclic sequence edges", () => {
+    validator.addEdge("A", "B", "sequence");
+    const result = validator.validateEdgeInsertion("B", "A", "sequence");
     expect(result.valid).toBe(true);
   });
 });
@@ -365,13 +372,13 @@ describe('DASHValidator', () => {
 
 Head count adapts to graph size (4-16 heads):
 
-| Graph Size | numHeads | hiddenDim | headDim |
-|------------|----------|-----------|---------|
-| < 50 nodes | 4 | 64 | 16 |
-| < 200 nodes | 6 | 96 | 16 |
-| < 500 nodes | 8 | 256 | 32 |
-| < 1000 nodes | 12 | 384 | 32 |
-| >= 1000 nodes | 16 | 512 | 32 |
+| Graph Size    | numHeads | hiddenDim | headDim |
+| ------------- | -------- | --------- | ------- |
+| < 50 nodes    | 4        | 64        | 16      |
+| < 200 nodes   | 6        | 96        | 16      |
+| < 500 nodes   | 8        | 256       | 32      |
+| < 1000 nodes  | 12       | 384       | 32      |
+| >= 1000 nodes | 16       | 512       | 32      |
 
 ### K-Head Scoring (Production)
 
@@ -388,52 +395,56 @@ for (h = 0; h < numHeads; h++) {
 
 ### Learnable Parameters (per head)
 
-| Parameter | Shape | Description |
-|-----------|-------|-------------|
-| W_q | [hiddenDim × embeddingDim] | Query projection |
-| W_k | [hiddenDim × embeddingDim] | Key projection |
-| W_v | [hiddenDim × embeddingDim] | Value projection (message passing) |
-| a | [2 × hiddenDim] | Attention vector |
+| Parameter | Shape                      | Description                        |
+| --------- | -------------------------- | ---------------------------------- |
+| W_q       | [hiddenDim × embeddingDim] | Query projection                   |
+| W_k       | [hiddenDim × embeddingDim] | Key projection                     |
+| W_v       | [hiddenDim × embeddingDim] | Value projection (message passing) |
+| a         | [2 × hiddenDim]            | Attention vector                   |
 
 **Initialization (critical for convergence):**
+
 ```typescript
 // Standard Xavier for W_v, a
-W_v = initMatrix(hiddenDim, embeddingDim)
+W_v = initMatrix(hiddenDim, embeddingDim);
 
 // Scaled Xavier (× 10) for W_q, W_k to escape sigmoid(0) = 0.5
-W_q = initMatrixScaled(hiddenDim, embeddingDim, 10)
-W_k = initMatrixScaled(hiddenDim, embeddingDim, 10)
+W_q = initMatrixScaled(hiddenDim, embeddingDim, 10);
+W_k = initMatrixScaled(hiddenDim, embeddingDim, 10);
 ```
 
-Without scaled init: gradNorm ≈ 0.002, scores stuck at 0.6
-With scaled init (× 10): gradNorm ≈ 0.023, scores diversified
+Without scaled init: gradNorm ≈ 0.002, scores stuck at 0.6 With scaled init (× 10): gradNorm ≈
+0.023, scores diversified
 
 ### HeatDiffusion for Tools vs Capabilities
 
-**Design Decision:** HeatDiffusion is computed for BOTH tools and capabilities, but with different semantics:
+**Design Decision:** HeatDiffusion is computed for BOTH tools and capabilities, but with different
+semantics:
 
-| Entity | Heat Computation | Rationale |
-|--------|------------------|-----------|
-| **Tools** | Simple graph heat: degree-based intrinsic heat + neighbor propagation | Tools have local heat based on connectivity in the tool graph |
+| Entity           | Heat Computation                                                                       | Rationale                                                        |
+| ---------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| **Tools**        | Simple graph heat: degree-based intrinsic heat + neighbor propagation                  | Tools have local heat based on connectivity in the tool graph    |
 | **Capabilities** | Hierarchical heat: aggregated from constituent tools + capability neighbor propagation | Capabilities inherit heat from their tools, weighted by position |
 
 ```typescript
 // Tool heat (simple)
-toolHeat = intrinsicWeight * (degree / maxDegree) + neighborWeight * avgNeighborHeat
+toolHeat = intrinsicWeight * (degree / maxDegree) + neighborWeight * avgNeighborHeat;
 
 // Capability heat (hierarchical)
-capHeat = Σ(toolHeat[i] * positionWeight[i]) / totalWeight
-propagatedCapHeat = intrinsicWeight * capHeat + neighborWeight * neighborCapHeat * hierarchyDecay
+capHeat = Σ(toolHeat[i] * positionWeight[i]) / totalWeight;
+propagatedCapHeat = intrinsicWeight * capHeat + neighborWeight * neighborCapHeat * hierarchyDecay;
 ```
 
 This allows:
+
 - Tools to have local connectivity signals (useful for tool graph navigation)
 - Capabilities to aggregate tool-level heat with hierarchical propagation
 - Different decay rates for tool vs capability heat propagation
 
 ### Multi-Level Message Passing (v1 Refactor - 2025-12-25)
 
-**Core mechanism:** n-SuperHyperGraph with hierarchical message passing. Unlike flat V→E→V, the refactored architecture propagates through **all hierarchy levels**.
+**Core mechanism:** n-SuperHyperGraph with hierarchical message passing. Unlike flat V→E→V, the
+refactored architecture propagates through **all hierarchy levels**.
 
 #### Data Model
 
@@ -444,8 +455,8 @@ type Member = { type: "tool"; id: string } | { type: "capability"; id: string };
 interface CapabilityNode {
   id: string;
   embedding: number[];
-  members: Member[];        // Direct children only (no transitive)
-  hierarchyLevel: number;   // Computed via topological sort
+  members: Member[]; // Direct children only (no transitive)
+  hierarchyLevel: number; // Computed via topological sort
   successRate: number;
 }
 ```
@@ -458,6 +469,7 @@ level(c) = 1 + max{level(c') | c' ∈ c}  otherwise
 ```
 
 Example:
+
 ```
 Level 2: release-cycle (contains deploy-full, rollback-plan)
 Level 1: deploy-full (contains build, test), rollback-plan (contains tools)
@@ -468,11 +480,11 @@ Level 0: build (tools only), test (tools only)
 
 **NO transitive closure.** Each mapping captures direct membership only:
 
-| Structure | Description |
-|-----------|-------------|
+| Structure                | Description                             |
+| ------------------------ | --------------------------------------- |
 | `I₀: toolToCapIncidence` | Tool → Level-0 Caps (direct membership) |
 | `I_k: capToCapIncidence` | Level-(k-1) Caps → Level-k Caps (k ≥ 1) |
-| `parentToChildIncidence` | Reverse mapping for downward pass |
+| `parentToChildIncidence` | Reverse mapping for downward pass       |
 
 #### Upward Phase: V → E^0 → E^1 → ... → E^L_max
 
@@ -516,10 +528,10 @@ For level k = L_max-1 down to 0:
 
 ```typescript
 interface LevelParams {
-  W_child: number[][][];    // [numHeads][headDim][inputDim]
-  W_parent: number[][][];   // [numHeads][headDim][inputDim]
-  a_upward: number[][];     // [numHeads][2*headDim]
-  a_downward: number[][];   // [numHeads][2*headDim]
+  W_child: number[][][]; // [numHeads][headDim][inputDim]
+  W_parent: number[][][]; // [numHeads][headDim][inputDim]
+  a_upward: number[][]; // [numHeads][2*headDim]
+  a_downward: number[][]; // [numHeads][2*headDim]
 }
 
 // Parameter count per level k:
@@ -581,14 +593,15 @@ backwardMultiLevel(dLoss, targetCapId, targetLevel, cache, ...)
 const { numHeads, hiddenDim, headDim } = getAdaptiveHeadsByGraphSize(
   numTools,
   numCaps,
-  maxHierarchyLevel
+  maxHierarchyLevel,
 );
 // 4 heads for small graphs → 16 heads for large/deep graphs
 ```
 
 ### Hierarchical Capabilities (n-SuperHyperGraph)
 
-Per n-SuperHyperGraph theory (Smarandache 2019), hyperedges can contain other hyperedges recursively:
+Per n-SuperHyperGraph theory (Smarandache 2019), hyperedges can contain other hyperedges
+recursively:
 
 ```
 E ⊆ P(V) ∪ P(E)  // Hyperedges can contain vertices OR other hyperedges
@@ -611,7 +624,8 @@ Level 0: Capability "build" → Tools: [compiler, linker]
 
 #### Direct Membership (NO Transitive Flattening)
 
-**Key change in v1 refactor:** We do NOT flatten the hierarchy. Instead, multi-level message passing propagates information through each level explicitly.
+**Key change in v1 refactor:** We do NOT flatten the hierarchy. Instead, multi-level message passing
+propagates information through each level explicitly.
 
 ```
 I₀ (Tools → Level-0 Caps):    I₁ (Level-0 → Level-1):
@@ -621,6 +635,7 @@ I₀ (Tools → Level-0 Caps):    I₁ (Level-0 → Level-1):
 ```
 
 **Benefits:**
+
 - Explicit hierarchy awareness in scoring
 - `hierarchyLevel` field enables level-filtered queries
 - Gradients flow through correct paths
@@ -628,19 +643,19 @@ I₀ (Tools → Level-0 Caps):    I₁ (Level-0 → Level-1):
 
 ### Implementation Files (v1 Refactor)
 
-| File | Content |
-|------|---------|
-| `src/graphrag/algorithms/shgat.ts` | SHGAT class orchestrator, backward-compat APIs |
-| `src/graphrag/algorithms/shgat/types.ts` | Types: Member, CapabilityNode, LevelParams, ForwardCache |
-| `src/graphrag/algorithms/shgat/graph/hierarchy.ts` | `computeHierarchyLevels()`, cycle detection |
-| `src/graphrag/algorithms/shgat/graph/incidence.ts` | Multi-level incidence: I₀, I_k, reverse mappings |
-| `src/graphrag/algorithms/shgat/graph/graph-builder.ts` | Node registration, incidence matrix building |
-| `src/graphrag/algorithms/shgat/initialization/parameters.ts` | Xavier init, `initializeLevelParameters()` |
-| `src/graphrag/algorithms/shgat/message-passing/multi-level-orchestrator.ts` | Upward + downward phases |
-| `src/graphrag/algorithms/shgat/scoring/multi-level-scorer.ts` | `MultiLevelScorer` with level filtering |
-| `src/graphrag/algorithms/shgat/training/multi-level-trainer.ts` | Backprop through all levels |
-| `tests/unit/graphrag/shgat/` | 36 unit tests for hierarchy, params, message passing |
-| `tests/benchmarks/strategic/shgat-v1-v2-v3-comparison.bench.ts` | Performance benchmarks |
+| File                                                                        | Content                                                  |
+| --------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `src/graphrag/algorithms/shgat.ts`                                          | SHGAT class orchestrator, backward-compat APIs           |
+| `src/graphrag/algorithms/shgat/types.ts`                                    | Types: Member, CapabilityNode, LevelParams, ForwardCache |
+| `src/graphrag/algorithms/shgat/graph/hierarchy.ts`                          | `computeHierarchyLevels()`, cycle detection              |
+| `src/graphrag/algorithms/shgat/graph/incidence.ts`                          | Multi-level incidence: I₀, I_k, reverse mappings         |
+| `src/graphrag/algorithms/shgat/graph/graph-builder.ts`                      | Node registration, incidence matrix building             |
+| `src/graphrag/algorithms/shgat/initialization/parameters.ts`                | Xavier init, `initializeLevelParameters()`               |
+| `src/graphrag/algorithms/shgat/message-passing/multi-level-orchestrator.ts` | Upward + downward phases                                 |
+| `src/graphrag/algorithms/shgat/scoring/multi-level-scorer.ts`               | `MultiLevelScorer` with level filtering                  |
+| `src/graphrag/algorithms/shgat/training/multi-level-trainer.ts`             | Backprop through all levels                              |
+| `tests/unit/graphrag/shgat/`                                                | 36 unit tests for hierarchy, params, message passing     |
+| `tests/benchmarks/strategic/shgat-v1-v2-v3-comparison.bench.ts`             | Performance benchmarks                                   |
 
 ### Benchmarking
 
@@ -662,7 +677,8 @@ deno bench --allow-all tests/benchmarks/strategic/shgat-v1-v2-v3-comparison.benc
 
 ## References
 
-- [DASH - Fujita 2025](https://www.researchgate.net/publication/392710720) - Directed Acyclic SuperHypergraphs
+- [DASH - Fujita 2025](https://www.researchgate.net/publication/392710720) - Directed Acyclic
+  SuperHypergraphs
 - [n-SuperHyperGraph - Smarandache 2019](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4317064)
 - ADR-038: Scoring Algorithms Reference
 - ADR-042: Capability Hyperedges

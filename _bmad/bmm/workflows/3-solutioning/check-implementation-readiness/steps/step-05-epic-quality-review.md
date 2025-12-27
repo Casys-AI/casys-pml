@@ -1,23 +1,24 @@
 ---
-name: 'step-05-epic-quality-review'
-description: 'Validate epics and stories against create-epics-and-stories best practices'
+name: "step-05-epic-quality-review"
+description: "Validate epics and stories against create-epics-and-stories best practices"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmm/workflows/3-solutioning/implementation-readiness'
+workflow_path: "{project-root}/_bmad/bmm/workflows/3-solutioning/implementation-readiness"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-05-epic-quality-review.md'
-nextStepFile: '{workflow_path}/steps/step-06-final-assessment.md'
-workflowFile: '{workflow_path}/workflow.md'
-outputFile: '{output_folder}/implementation-readiness-report-{{date}}.md'
-epicsBestPractices: '{project-root}/_bmad/bmm/workflows/3-solutioning/create-epics-and-stories'
+thisStepFile: "{workflow_path}/steps/step-05-epic-quality-review.md"
+nextStepFile: "{workflow_path}/steps/step-06-final-assessment.md"
+workflowFile: "{workflow_path}/workflow.md"
+outputFile: "{output_folder}/implementation-readiness-report-{{date}}.md"
+epicsBestPractices: "{project-root}/_bmad/bmm/workflows/3-solutioning/create-epics-and-stories"
 ---
 
 # Step 5: Epic Quality Review
 
 ## STEP GOAL:
 
-To validate epics and stories against the best practices defined in create-epics-and-stories workflow, focusing on user value, independence, dependencies, and implementation readiness.
+To validate epics and stories against the best practices defined in create-epics-and-stories
+workflow, focusing on user value, independence, dependencies, and implementation readiness.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -227,7 +228,8 @@ After completing epic quality review:
 
 ## CRITICAL STEP COMPLETION NOTE
 
-This step executes autonomously. Load {nextStepFile} only after complete epic quality review is documented.
+This step executes autonomously. Load {nextStepFile} only after complete epic quality review is
+documented.
 
 ---
 

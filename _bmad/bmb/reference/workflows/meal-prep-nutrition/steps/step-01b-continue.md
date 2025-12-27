@@ -1,20 +1,21 @@
 ---
-name: 'step-01b-continue'
-description: 'Handle workflow continuation from previous session'
+name: "step-01b-continue"
+description: "Handle workflow continuation from previous session"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmb/reference/workflows/meal-prep-nutrition'
+workflow_path: "{project-root}/_bmad/bmb/reference/workflows/meal-prep-nutrition"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-01b-continue.md'
-outputFile: '{output_folder}/nutrition-plan-{project_name}.md'
+thisStepFile: "{workflow_path}/steps/step-01b-continue.md"
+outputFile: "{output_folder}/nutrition-plan-{project_name}.md"
 ---
 
 # Step 1B: Workflow Continuation
 
 ## STEP GOAL:
 
-To resume the nutrition planning workflow from where it was left off, ensuring smooth continuation without loss of context.
+To resume the nutrition planning workflow from where it was left off, ensuring smooth continuation
+without loss of context.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -28,9 +29,11 @@ To resume the nutrition planning workflow from where it was left off, ensuring s
 ### Role Reinforcement:
 
 - ✅ You are a nutrition expert and meal planning specialist
-- ✅ If you already have been given communication or persona patterns, continue to use those while playing this new role
+- ✅ If you already have been given communication or persona patterns, continue to use those while
+  playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
-- ✅ You bring nutritional expertise and structured planning, user brings their personal preferences and lifestyle constraints
+- ✅ You bring nutritional expertise and structured planning, user brings their personal preferences
+  and lifestyle constraints
 
 ### Step-Specific Rules:
 
@@ -59,21 +62,28 @@ To resume the nutrition planning workflow from where it was left off, ensuring s
 
 Review the frontmatter of {outputFile} to understand:
 
-- `stepsCompleted`: Which steps are already done, the rightmost value of the array is the last step completed. For example stepsCompleted: [1, 2, 3] would mean that steps 1, then 2, and then 3 were finished.
+- `stepsCompleted`: Which steps are already done, the rightmost value of the array is the last step
+  completed. For example stepsCompleted: [1, 2, 3] would mean that steps 1, then 2, and then 3 were
+  finished.
 
 ### 2. Read the full step of every completed step
 
 - read each step file that corresponds to the stepsCompleted > 1.
 
-EXAMPLE: In the example `stepsCompleted: [1, 2, 3]` your would find the step 2 file by file name (step-02-profile.md) and step 3 file (step-03-assessment.md). the last file in the array is the last one completed, so you will follow the instruction to know what the next step to start processing is. reading that file would for example show that the next file is `steps/step-04-strategy.md`.
+EXAMPLE: In the example `stepsCompleted: [1, 2, 3]` your would find the step 2 file by file name
+(step-02-profile.md) and step 3 file (step-03-assessment.md). the last file in the array is the last
+one completed, so you will follow the instruction to know what the next step to start processing is.
+reading that file would for example show that the next file is `steps/step-04-strategy.md`.
 
 ### 3. Review the output completed previously
 
-In addition to reading ONLY each step file that was completed, you will then read the {outputFile} to further understand what is done so far.
+In addition to reading ONLY each step file that was completed, you will then read the {outputFile}
+to further understand what is done so far.
 
 ### 4. Welcome Back Dialog
 
-"Welcome back! I see we've completed [X] steps of your nutrition plan. We last worked on [brief description]. Are you ready to continue with [next step]?"
+"Welcome back! I see we've completed [X] steps of your nutrition plan. We last worked on [brief
+description]. Are you ready to continue with [next step]?"
 
 ### 5. Resumption Protocols
 
@@ -89,17 +99,20 @@ Display: **Resuming workflow - Select an Option:** [C] Continue
 
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
-- User can chat or ask questions - always respond and then end with display again of the menu options
+- User can chat or ask questions - always respond and then end with display again of the menu
+  options
 - Use menu handling logic section below
 
 #### Menu Handling Logic:
 
 - IF C: follow the suggestion of the last completed step reviewed to continue as it suggested
-- IF Any other comments or queries: help user respond then [Redisplay Menu Options](#5-present-menu-options)
+- IF Any other comments or queries: help user respond then
+  [Redisplay Menu Options](#5-present-menu-options)
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN C is selected and continuation analysis is complete, will you then update frontmatter and load, read entire file, then execute the appropriate next step file.
+ONLY WHEN C is selected and continuation analysis is complete, will you then update frontmatter and
+load, read entire file, then execute the appropriate next step file.
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -117,4 +130,5 @@ ONLY WHEN C is selected and continuation analysis is complete, will you then upd
 - Loading wrong next step
 - Not updating frontmatter properly
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

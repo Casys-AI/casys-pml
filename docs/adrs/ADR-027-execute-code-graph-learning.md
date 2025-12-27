@@ -1,10 +1,9 @@
 # ADR-027: Execute Code Graph Learning Integration
 
-**Status:** ⛔ Superseded
-**Date:** 2025-12-05 | **Superseded by:** ADR-032
+**Status:** ⛔ Superseded **Date:** 2025-12-05 | **Superseded by:** ADR-032
 
-> Tracing approach (`__TRACE__` stdout parsing) replaced by Worker RPC Bridge.
-> The rationale and vision remain valid; implementation changed.
+> Tracing approach (`__TRACE__` stdout parsing) replaced by Worker RPC Bridge. The rationale and
+> vision remain valid; implementation changed.
 >
 > **What is superseded:**
 >

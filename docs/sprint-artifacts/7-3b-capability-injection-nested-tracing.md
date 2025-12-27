@@ -1,13 +1,13 @@
 # Story 7.3b: Capability Injection - Inline Functions (Option B)
 
-> **Epic:** 7 - Emergent Capabilities & Learning System
-> **ADRs:** ADR-027 (Execute Code Graph Learning), ADR-028 (Emergent Capabilities), ADR-032 (Worker RPC Bridge)
-> **Prerequisites:** Story 7.1b (Worker RPC Bridge - DONE), Story 7.3a (CapabilityMatcher - DONE)
-> **Status:** done
+> **Epic:** 7 - Emergent Capabilities & Learning System **ADRs:** ADR-027 (Execute Code Graph
+> Learning), ADR-028 (Emergent Capabilities), ADR-032 (Worker RPC Bridge) **Prerequisites:** Story
+> 7.1b (Worker RPC Bridge - DONE), Story 7.3a (CapabilityMatcher - DONE) **Status:** done
 
 ## User Story
 
-As a code executor, I want capabilities injected as inline functions in the Worker context, So that code can call capabilities with zero RPC overhead and proper tracing.
+As a code executor, I want capabilities injected as inline functions in the Worker context, So that
+code can call capabilities with zero RPC overhead and proper tracing.
 
 ## Problem Context
 
@@ -20,7 +20,8 @@ The system has:
    - Native tracing dans le bridge (tool_start/tool_end)
    - Eager learning vers CapabilityStore
 
-2. **CapabilityMatcher** (`src/capabilities/matcher.ts`) - Trouve les capabilities correspondant à un intent:
+2. **CapabilityMatcher** (`src/capabilities/matcher.ts`) - Trouve les capabilities correspondant à
+   un intent:
    - `findMatch(intent)` → CapabilityMatch | null
    - Utilise adaptive thresholds (pas de valeurs hardcodées)
 
@@ -28,7 +29,8 @@ The system has:
    - `saveCapability()` - Eager learning (1ère exec)
    - `searchByIntent()` - Vector search
 
-**MAIS:** Les capabilities ne sont pas injectées dans le Worker context. Claude doit toujours générer du nouveau code même si une capability équivalente existe.
+**MAIS:** Les capabilities ne sont pas injectées dans le Worker context. Claude doit toujours
+générer du nouveau code même si une capability équivalente existe.
 
 ```
 Current Flow:
@@ -48,6 +50,7 @@ Claude → findMatch() → MATCH → buildCapabilityContext() → Worker exécut
 ### Impact
 
 Sans injection de capabilities :
+
 - Claude doit toujours générer du code (~2-5s par génération)
 - Les capabilities apprises ne sont jamais réutilisées automatiquement
 - Pas de benefit du learning system (Epic 7)
@@ -62,12 +65,12 @@ Sans injection de capabilities :
 > - **Simpler** - capabilities are just functions in the same Worker context
 > - **MCP tool calls** still go through RPC bridge (and get traced there natively)
 
-| Call Type               | Mechanism            | Tracing Location    |
-| ----------------------- | -------------------- | ------------------- |
-| Code → MCP tool         | RPC to bridge        | Bridge (native)     |
-| Code → Capability       | Direct function call | Worker (wrapper)    |
-| Capability → MCP tool   | RPC to bridge        | Bridge (native)     |
-| Capability → Capability | Direct function call | Worker (wrapper)    |
+| Call Type               | Mechanism            | Tracing Location |
+| ----------------------- | -------------------- | ---------------- |
+| Code → MCP tool         | RPC to bridge        | Bridge (native)  |
+| Code → Capability       | Direct function call | Worker (wrapper) |
+| Capability → MCP tool   | RPC to bridge        | Bridge (native)  |
+| Capability → Capability | Direct function call | Worker (wrapper) |
 
 ### Architecture
 
@@ -161,8 +164,8 @@ Sans injection de capabilities :
 - [x] Returns JavaScript code string defining `capabilities` object:
   ```javascript
   const capabilities = {
-    capName1: async (args) => { /* traced code */ },
-    capName2: async (args) => { /* traced code */ },
+    capName1: async (args) => {/* traced code */},
+    capName2: async (args) => {/* traced code */},
   };
   ```
 - [x] Each capability name derived from `capability.name` or `capability.id`
@@ -172,7 +175,8 @@ Sans injection de capabilities :
 
 - [x] `__trace()` function added to SandboxWorker (via BroadcastChannel - ADR-036)
 - [x] Trace events emitted in real-time via BroadcastChannel
-- [x] **EXACT types.ts modifications required (discriminated union - see Issue #3 in Pre-Implementation Review):**
+- [x] **EXACT types.ts modifications required (discriminated union - see Issue #3 in
+      Pre-Implementation Review):**
   ```typescript
   // REPLACE TraceEvent in src/sandbox/types.ts:227
 
@@ -294,9 +298,7 @@ Sans injection de capabilities :
     const mcp = generateToolProxies(toolDefinitions);
 
     // NEW: Inject capability context BEFORE user code
-    const fullCode = capabilityContext
-      ? `${capabilityContext}\n\n${code}`
-      : code;
+    const fullCode = capabilityContext ? `${capabilityContext}\n\n${code}` : code;
 
     const result = await executeCode(fullCode, mcp, context);
 
@@ -325,10 +327,12 @@ Sans injection de capabilities :
 
 ### AC9: Performance Requirements ✅
 
-- [x] Capability → capability call **overhead** < 1ms (direct function call, excludes actual code execution)
+- [x] Capability → capability call **overhead** < 1ms (direct function call, excludes actual code
+      execution)
 - [x] Code generation (buildCapabilityContext) < 10ms for 10 capabilities
 - [x] Trace merging < 5ms for 100 events
-- [x] **Note:** MCP tool calls within capabilities still incur RPC overhead (~10ms) - this is expected
+- [x] **Note:** MCP tool calls within capabilities still incur RPC overhead (~10ms) - this is
+      expected
 
 ### AC10: Cycle Detection (Prevent Infinite Recursion) ✅
 
@@ -337,7 +341,7 @@ Sans injection de capabilities :
 - [x] **Implementation in generated code:**
   ```typescript
   // Generated capability wrapper includes depth tracking
-  const __capabilityDepth = (globalThis.__capabilityDepth || 0);
+  const __capabilityDepth = globalThis.__capabilityDepth || 0;
   if (__capabilityDepth >= 3) {
     throw new Error("Capability call depth exceeded (max: 3). Possible cycle detected.");
   }
@@ -362,7 +366,8 @@ Sans injection de capabilities :
   - [x] 1.3 Handle code sanitization (see Dev Notes for rules)
   - [x] 1.4 Generate safe function names from capability.name (with collision handling)
   - [x] 1.5 Add cycle detection depth wrapper
-  - [x] 1.6 Export from `src/capabilities/mod.ts`: `export { CapabilityCodeGenerator } from "./code-generator.ts";`
+  - [x] 1.6 Export from `src/capabilities/mod.ts`:
+        `export { CapabilityCodeGenerator } from "./code-generator.ts";`
 
 - [x] **Task 2: Extend WorkerBridge** (AC: #2, #4)
   - [x] 2.1 Add `buildCapabilityContext(capabilities)` method
@@ -412,16 +417,16 @@ Sans injection de capabilities :
    ```typescript
    // src/capabilities/code-generator.ts
    const BLOCKED_PATTERNS = [
-     /\beval\s*\(/,              // Block eval()
-     /\bFunction\s*\(/,          // Block Function constructor
-     /\bimport\s*\(/,            // Block dynamic import()
-     /\bimport\s+/,              // Block static import
-     /\bexport\s+/,              // Block export
-     /\brequire\s*\(/,           // Block require()
-     /\b__proto__\b/,            // Block prototype pollution
-     /\bconstructor\s*\[/,       // Block constructor access
-     /\bDeno\b/,                 // Block Deno namespace access
-     /\bself\b/,                 // Block Worker self reference
+     /\beval\s*\(/, // Block eval()
+     /\bFunction\s*\(/, // Block Function constructor
+     /\bimport\s*\(/, // Block dynamic import()
+     /\bimport\s+/, // Block static import
+     /\bexport\s+/, // Block export
+     /\brequire\s*\(/, // Block require()
+     /\b__proto__\b/, // Block prototype pollution
+     /\bconstructor\s*\[/, // Block constructor access
+     /\bDeno\b/, // Block Deno namespace access
+     /\bself\b/, // Block Worker self reference
      /\bglobalThis\b(?!.__capabilityDepth)/, // Allow only depth tracking
    ];
 
@@ -448,11 +453,11 @@ Sans injection de capabilities :
    function normalizeCapabilityName(
      name: string,
      id: string,
-     usedNames: Set<string>
+     usedNames: Set<string>,
    ): string {
      let normalized = (name || id)
-       .replace(/[^a-zA-Z0-9_]/g, '_')
-       .replace(/^[0-9]/, '_$&'); // Can't start with number
+       .replace(/[^a-zA-Z0-9_]/g, "_")
+       .replace(/^[0-9]/, "_$&"); // Can't start with number
 
      // Handle collisions: append last 4 chars of UUID
      if (usedNames.has(normalized)) {
@@ -469,8 +474,8 @@ Sans injection de capabilities :
 
 4. **Cycle Detection via Depth Tracking**
 
-   Implemented via `globalThis.__capabilityDepth` (see AC10).
-   Max depth = 3 prevents infinite recursion A→B→A or A→A→A→A.
+   Implemented via `globalThis.__capabilityDepth` (see AC10). Max depth = 3 prevents infinite
+   recursion A→B→A or A→A→A→A.
 
 5. **CapabilityCodeGenerator Skeleton**
 
@@ -563,14 +568,17 @@ src/graphrag/
 ### Existing Code Patterns to Follow
 
 **WorkerBridge.execute()** (`src/sandbox/worker-bridge.ts:113-238`):
+
 - Spawns Worker, handles RPC, returns ExecutionResult
 - Story 7.3b extends this to inject capability context
 
 **SandboxWorker.handleInit()** (`src/sandbox/sandbox-worker.ts:157-181`):
+
 - Receives init message, generates tool proxies, executes code
 - Story 7.3b adds capability context injection here
 
 **Trace Event Structure** (`src/sandbox/types.ts`):
+
 ```typescript
 export interface TraceEvent {
   type: "tool_start" | "tool_end";
@@ -592,7 +600,8 @@ export interface TraceEvent {
 - **CapabilityStore:** `src/capabilities/capability-store.ts`
 - **Trace Types:** `src/sandbox/types.ts`
 - **GraphRAGEngine:** `src/graphrag/graph-engine.ts`
-- **Previous story (7.3a):** `docs/sprint-artifacts/7-3a-capability-matching-search-capabilities-tool.md`
+- **Previous story (7.3a):**
+  `docs/sprint-artifacts/7-3a-capability-matching-search-capabilities-tool.md`
 - **Epics doc:** `docs/epics.md` (Story 7.3b section)
 
 ---
@@ -680,26 +689,31 @@ b94e292 Adrs algos and landing
 ### Issues Identified
 
 #### Issue #1: File Name Correction ⚠️
+
 ```
 Story references:  src/graphrag/graph-rag-engine.ts  ← INCORRECT
 Actual file:       src/graphrag/graph-engine.ts      ← CORRECT
 ```
+
 **Action:** All references to `graph-rag-engine.ts` must use `graph-engine.ts`.
 
 #### Issue #2: GraphRAG API Incompatibility ⚠️
 
 **Story proposes (AC5):**
+
 ```typescript
 async updateFromCodeExecution(traces: TraceEvent[]): Promise<void>
 ```
 
 **Existing API (`graph-engine.ts:331`):**
+
 ```typescript
 async updateFromExecution(execution: WorkflowExecution): Promise<void>
 // WorkflowExecution = { dag_structure, success, intent_text, ... }
 ```
 
 **Resolution:** Create a NEW method `updateFromCodeExecution()` that:
+
 1. Converts TraceEvent[] to edge updates
 2. Does NOT replace existing `updateFromExecution()` (used by DAG workflows)
 
@@ -708,6 +722,7 @@ async updateFromExecution(execution: WorkflowExecution): Promise<void>
 **Current type has `tool: string` as required**, but capability events don't have a tool.
 
 **Recommended refactor for `src/sandbox/types.ts`:**
+
 ```typescript
 // Base interface for common fields
 interface BaseTraceEvent {
@@ -738,17 +753,19 @@ export type TraceEvent = ToolTraceEvent | CapabilityTraceEvent;
 #### Issue #4: Cycle Detection Security Risk ⚠️
 
 **Problem:** `globalThis.__capabilityDepth` can be manipulated by user code:
+
 ```typescript
 globalThis.__capabilityDepth = -999; // Bypasses depth check
 ```
 
 **Recommended fix:** Use a closure-scoped variable instead:
+
 ```typescript
 // In sandbox-worker.ts (not accessible to user code)
 let __capabilityDepth = 0;
 
 // Generated capability wrapper
-async (args) => {
+(async (args) => {
   if (__capabilityDepth >= 3) throw new Error("Depth exceeded");
   __capabilityDepth++;
   try {
@@ -756,7 +773,7 @@ async (args) => {
   } finally {
     __capabilityDepth--;
   }
-}
+});
 ```
 
 #### Issue #5: Missing Orchestration Layer ⚠️
@@ -764,6 +781,7 @@ async (args) => {
 **Gap:** No code connects CapabilityMatcher → CodeGenerator → WorkerBridge.
 
 **Add new task (Task 6):**
+
 ```
 - [ ] **Task 6: Create CapabilityExecutor Orchestrator** (NEW)
   - [ ] 6.1 Create `src/capabilities/executor.ts`
@@ -773,6 +791,7 @@ async (args) => {
 ```
 
 **Skeleton:**
+
 ```typescript
 // src/capabilities/executor.ts
 export class CapabilityExecutor {
@@ -807,19 +826,19 @@ export class CapabilityExecutor {
 
 ### Updated File List
 
-| File | Action | Notes |
-|------|--------|-------|
-| `src/capabilities/code-generator.ts` | NEW | CapabilityCodeGenerator class |
-| `src/capabilities/executor.ts` | NEW | **Orchestrator (added)** |
-| `src/capabilities/mod.ts` | MODIFY | Export CodeGenerator + Executor |
-| `src/sandbox/worker-bridge.ts` | MODIFY | Add buildCapabilityContext() |
-| `src/sandbox/sandbox-worker.ts` | MODIFY | Add __trace(), inject capabilities |
-| `src/sandbox/types.ts` | MODIFY | **Discriminated union TraceEvent** |
-| `src/graphrag/graph-engine.ts` | MODIFY | **Add updateFromCodeExecution()** |
-| `tests/unit/capabilities/code_generator_test.ts` | NEW | Unit tests |
-| `tests/unit/capabilities/executor_test.ts` | NEW | **Orchestrator tests (added)** |
-| `tests/unit/sandbox/capability_injection_test.ts` | NEW | Integration tests |
-| `tests/integration/capability_e2e_test.ts` | NEW | **E2E test (added)** |
+| File                                              | Action | Notes                              |
+| ------------------------------------------------- | ------ | ---------------------------------- |
+| `src/capabilities/code-generator.ts`              | NEW    | CapabilityCodeGenerator class      |
+| `src/capabilities/executor.ts`                    | NEW    | **Orchestrator (added)**           |
+| `src/capabilities/mod.ts`                         | MODIFY | Export CodeGenerator + Executor    |
+| `src/sandbox/worker-bridge.ts`                    | MODIFY | Add buildCapabilityContext()       |
+| `src/sandbox/sandbox-worker.ts`                   | MODIFY | Add __trace(), inject capabilities |
+| `src/sandbox/types.ts`                            | MODIFY | **Discriminated union TraceEvent** |
+| `src/graphrag/graph-engine.ts`                    | MODIFY | **Add updateFromCodeExecution()**  |
+| `tests/unit/capabilities/code_generator_test.ts`  | NEW    | Unit tests                         |
+| `tests/unit/capabilities/executor_test.ts`        | NEW    | **Orchestrator tests (added)**     |
+| `tests/unit/sandbox/capability_injection_test.ts` | NEW    | Integration tests                  |
+| `tests/integration/capability_e2e_test.ts`        | NEW    | **E2E test (added)**               |
 
 ### Revised Estimation
 
@@ -833,9 +852,11 @@ export class CapabilityExecutor {
 
 ### ADR-036: BroadcastChannel ✅ RECOMMENDED
 
-**Applicable à cette story:** Le tracing capability→Worker peut utiliser BroadcastChannel pour l'émission temps réel.
+**Applicable à cette story:** Le tracing capability→Worker peut utiliser BroadcastChannel pour
+l'émission temps réel.
 
 **Avantages:**
+
 - Traces émises **en temps réel** (pas batch à la fin)
 - Live monitoring du dashboard pendant l'exécution
 - API native Deno (pas de dépendance)
@@ -882,11 +903,13 @@ export class WorkerBridge {
 ```
 
 **Impact sur les AC:**
+
 - AC3 modifié: `__trace()` utilise BroadcastChannel au lieu de `__workerTraces[]`
 - AC4 simplifié: Plus besoin de merge manuel, traces arrivent en temps réel
 - AC6 modifié: `ExecutionCompleteMessage` n'a plus besoin de `workerTraces` field
 
 **Task additionnelle proposée:**
+
 ```
 - [ ] **Task 7: BroadcastChannel Integration** (AC: #3, #4) ← OPTIONAL
   - [ ] 7.1 Create trace channel in sandbox-worker.ts
@@ -899,11 +922,13 @@ export class WorkerBridge {
 ### ADR-034: OpenTelemetry ⏳ FUTURE ENHANCEMENT
 
 **Non recommandé pour cette story car:**
+
 - Requiert flag `--unstable-otel` (sera stable dans Deno 2.3+)
 - Plus gros refactoring de l'infrastructure de tracing
 - BroadcastChannel suffit pour les besoins actuels
 
 **Opportunité future:**
+
 - Convertir `TraceEvent` en OTEL spans
 - Activer distributed tracing avec parent/child automatique
 - Export vers Jaeger/Tempo pour visualisation
@@ -958,6 +983,7 @@ export class WorkerBridge {
    - 6 e2e integration tests
 
 **Test Command:**
+
 ```bash
 deno test tests/unit/capabilities/ tests/unit/sandbox/worker_bridge_test.ts tests/integration/capability_e2e_test.ts --allow-read --allow-write --allow-net --allow-env --allow-run --unstable-broadcast-channel --unstable-worker-options
 ```

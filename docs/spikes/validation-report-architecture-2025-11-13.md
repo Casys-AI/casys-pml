@@ -175,7 +175,7 @@ LTS_CONSIDERATIONS:
 | Requirement             | Status     | Evidence                              |
 | ----------------------- | ---------- | ------------------------------------- |
 | Starter template chosen | ✅ PASS    | "deno init" (ligne 12)                |
-| Initialization command  | ✅ PASS    | "deno init pml" avec flags     |
+| Initialization command  | ✅ PASS    | "deno init pml" avec flags            |
 | Template version        | ⚠️ PARTIAL | Deno 2.5/2.2, pas de version template |
 | Command search term     | ❌ FAIL    | Non fourni                            |
 
@@ -360,7 +360,7 @@ Section "Implementation Patterns" (lignes 906-1077) couvre 7 catégories:
 | 3. Format Patterns        | ⚠️ PARTIAL  | Dates, errors (pas d'API = CLI)  | 85%   |
 | 4. Communication Patterns | ⚠️ PARTIAL  | Implicite Pattern 4              | 70%   |
 | 5. Lifecycle Patterns     | ✅ COMPLETE | Error recovery, retry (956-1075) | 95%   |
-| 6. Location Patterns      | ⚠️ PARTIAL  | Config (~/.pml/)          | 85%   |
+| 6. Location Patterns      | ⚠️ PARTIAL  | Config (~/.pml/)                 | 85%   |
 | 7. Consistency Patterns   | ✅ COMPLETE | Dates, logging, errors           | 100%  |
 
 **Note:** Gaps pour API/URLs/UI justifiés (CLI tool local)

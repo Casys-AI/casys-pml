@@ -5,24 +5,25 @@ Status: done
 > **✅ REFACTORING DONE (2025-12-19)**
 >
 > Tasks 7-8 complétées:
+>
 > - `createToolExecutorViaWorker()` créé dans `src/dag/execution/workerbridge-executor.ts`
 > - 3 handlers (`workflow-execution`, `control-commands`, `code-execution`) utilisent WorkerBridge
 > - 6 tests unitaires passent
 >
 > **Restant:** Task 9 (AC13) - unifier `execute()` vers Worker only (benchmarks requis)
 
-> **Epic:** 10 - DAG Capability Learning & Unified APIs
-> **Tech-Spec:** [tech-spec-dag-capability-learning.md](../tech-specs/tech-spec-dag-capability-learning.md)
-> **Prerequisites:** Story 10.1 (Static Structure Builder - DONE), Story 10.2 (Argument Extraction - DONE)
-> **Depends on:** ControlledExecutor (Epic 2.5), static_structure types
+> **Epic:** 10 - DAG Capability Learning & Unified APIs **Tech-Spec:**
+> [tech-spec-dag-capability-learning.md](../tech-specs/tech-spec-dag-capability-learning.md)
+> **Prerequisites:** Story 10.1 (Static Structure Builder - DONE), Story 10.2 (Argument Extraction -
+> DONE) **Depends on:** ControlledExecutor (Epic 2.5), static_structure types
 
 ---
 
 ## Story
 
-As an execution system,
-I want to execute code via its inferred DAG structure,
-So that code execution benefits from DAG features (per-layer validation, parallel execution, checkpoints, SSE streaming).
+As an execution system, I want to execute code via its inferred DAG structure, So that code
+execution benefits from DAG features (per-layer validation, parallel execution, checkpoints, SSE
+streaming).
 
 ---
 
@@ -46,23 +47,24 @@ Code → static_structure → DAGStructure → ControlledExecutor → Result
 
 **Pourquoi c'est important:**
 
-| Feature | execute_code actuel | execute_dag | Après cette story |
-|---------|---------------------|-------------|-------------------|
-| Per-layer validation (HIL) | ❌ | ✅ | ✅ |
-| Parallel execution | ❌ | ✅ | ✅ |
-| Checkpoints/resume | ❌ | ✅ | ✅ |
-| SSE streaming | ❌ | ✅ | ✅ |
-| Safe-to-fail branches | ❌ | ✅ | ✅ |
-| Capability learning | ✅ | ❌ | ✅ |
+| Feature                    | execute_code actuel | execute_dag | Après cette story |
+| -------------------------- | ------------------- | ----------- | ----------------- |
+| Per-layer validation (HIL) | ❌                  | ✅          | ✅                |
+| Parallel execution         | ❌                  | ✅          | ✅                |
+| Checkpoints/resume         | ❌                  | ✅          | ✅                |
+| SSE streaming              | ❌                  | ✅          | ✅                |
+| Safe-to-fail branches      | ❌                  | ✅          | ✅                |
+| Capability learning        | ✅                  | ❌          | ✅                |
 
-**Code-first principle:**
-L'IA écrit du code TypeScript. Le système infère le DAG et l'exécute avec toutes les features.
+**Code-first principle:** L'IA écrit du code TypeScript. Le système infère le DAG et l'exécute avec
+toutes les features.
 
 ---
 
 ## Acceptance Criteria
 
 ### AC1: StaticStructure to DAGStructure Converter ✅
+
 - [x] Create `staticStructureToDag(structure: StaticStructure): DAGStructure`
 - [x] Map `StaticStructureNode` → `Task`:
   - `type: "task"` → `Task { tool, arguments, type: "mcp_tool" }`
@@ -75,6 +77,7 @@ L'IA écrit du code TypeScript. Le système infère le DAG et l'exécute avec to
   - `type: "provides"` → Data flow dependency
 
 ### AC2: Code Execution Handler Uses DAG ✅
+
 - [x] Modify `handleExecuteCode()` to:
   1. Build `static_structure` via `StaticStructureBuilder`
   2. Convert to `DAGStructure` via `staticStructureToDag()`
@@ -82,40 +85,46 @@ L'IA écrit du code TypeScript. Le système infère le DAG et l'exécute avec to
   4. Return unified response format
 
 ### AC3: Arguments Resolution at Runtime ✅
+
 - [x] For each task in DAG:
   - `ArgumentValue.type = "literal"` → Use value directly
   - `ArgumentValue.type = "reference"` → Resolve from previous task result
   - `ArgumentValue.type = "parameter"` → Extract from execution context
-- [x] Create `resolveArguments(args: ArgumentsStructure, context: ExecutionContext): Record<string, unknown>`
+- [x] Create
+      `resolveArguments(args: ArgumentsStructure, context: ExecutionContext): Record<string, unknown>`
 
 ### AC4: Conditional Execution Support ✅ ⚠️
+
 - [x] Decision nodes create conditional branches in DAG
 - [x] At runtime, evaluate condition and skip/include tasks
 - [x] Support `outcome: "true" | "false"` for if/else branches
 
-> **⚠️ À vérifier (M3):** Validation manquante que `task.condition` est évalué runtime.
-> Test recommandé: créer un DAG conditionnel et vérifier les branches skip/include.
+> **⚠️ À vérifier (M3):** Validation manquante que `task.condition` est évalué runtime. Test
+> recommandé: créer un DAG conditionnel et vérifier les branches skip/include.
 
 ### AC5: Parallel Execution from Fork/Join ✅
+
 - [x] Fork nodes → tasks without dependencies (parallel)
 - [x] Join nodes → task depends on all fork children
 - [x] Preserve parallel execution speedup
 
 ### AC6: Per-Layer Validation for Code ✅
+
 - [x] Code execution now gets per-layer validation via ControlledExecutor
 - [x] HIL approval for tools with elevated permissions (via existing escalation handler)
 - [x] Reuse existing `requiresValidation()` logic via ControlledExecutor
 
 ### AC7: ~~Fallback to Direct Execution~~ → Unified Execution ⚠️
+
 - [ ] ~~If `static_structure` is empty or invalid → fallback to direct sandbox~~
 - [ ] ~~Log warning when fallback occurs~~
 - [ ] ~~Graceful degradation, no breaking change~~
 
-> **⚠️ OBSOLÈTE (2025-12-19):** Le concept de "fallback" est supprimé.
-> ControlledExecutor utilise TOUJOURS WorkerBridge pour l'exécution.
-> Voir "Architecture Unifiée" ci-dessous.
+> **⚠️ OBSOLÈTE (2025-12-19):** Le concept de "fallback" est supprimé. ControlledExecutor utilise
+> TOUJOURS WorkerBridge pour l'exécution. Voir "Architecture Unifiée" ci-dessous.
 
 ### AC8: Unified Response Format ✅
+
 - [x] Response matches current `execute_code` format
 - [x] Add optional DAG execution metadata:
   ```typescript
@@ -131,6 +140,7 @@ L'IA écrit du code TypeScript. Le système infère le DAG et l'exécute avec to
   ```
 
 ### AC9: Tests ✅
+
 - [x] Test: simple code (1 tool) → DAG with 1 task → executes correctly (12 tests)
 - [x] Test: sequential code (A → B → C) → DAG with dependencies
 - [x] Test: parallel code (Promise.all) → parallel DAG execution
@@ -140,6 +150,7 @@ L'IA écrit du code TypeScript. Le système infère le DAG et l'exécute avec to
 - [x] Total: 23 tests passing
 
 ### AC10: WorkerBridge Integration (Architecture Unifiée) ✅
+
 > **Objectif:** Éliminer le bypass sandbox dans `createToolExecutor()` pour 100% traçabilité RPC.
 
 - [x] `createToolExecutor()` utilise `WorkerBridge` au lieu de `client.callTool()` direct
@@ -151,6 +162,7 @@ L'IA écrit du code TypeScript. Le système infère le DAG et l'exécute avec to
   - [x] `control-commands-handler.ts` : `createToolExecutor()` → WorkerBridge
 
 ### AC11: Signature createToolExecutor Refactorisée ✅
+
 - [x] Nouvelle signature : `createToolExecutorViaWorker({ mcpClients, toolDefinitions, ... })`
 - [x] Génère du code TypeScript pour chaque appel tool :
   ```typescript
@@ -160,15 +172,18 @@ L'IA écrit du code TypeScript. Le système infère le DAG et l'exécute avec to
 - [x] Retourne le résultat via RPC (tracé)
 
 ### AC12: Tests WorkerBridge Integration ✅
+
 - [x] Test: `createToolExecutorViaWorker()` crée executor et context (6 tests)
 - [x] Test: Format invalide tool rejeté ("invalid_no_colon")
 - [x] Test: Cleanup libère les ressources correctement
 - [x] Test: Integration avec tool definitions
 
 ### AC13: Unification execute() → Worker Only ✅
+
 > **Objectif:** Supprimer le chemin subprocess pour 100% traçabilité, même pour code sans tools.
 >
-> **Benchmark (2025-12-20):** Worker ~31ms vs subprocess ~53ms (**1.7x speedup**). Traçabilité 100% RPC + performance.
+> **Benchmark (2025-12-20):** Worker ~31ms vs subprocess ~53ms (**1.7x speedup**). Traçabilité 100%
+> RPC + performance.
 
 - [x] `DenoSandboxExecutor.execute()` utilise `WorkerBridge` (pas subprocess) par défaut
 - [x] Ancien code subprocess conservé via `useWorkerForExecute: false` pour features spécifiques
@@ -178,6 +193,7 @@ L'IA écrit du code TypeScript. Le système infère le DAG et l'exécute avec to
 - [x] Tests mis à jour (268 tests sandbox passent)
 
 **Avantages :**
+
 - ✅ 100% traçabilité même pour code pur (math, transformations)
 - ✅ Un seul chemin d'exécution (simplicité)
 - ✅ Plus rapide (Worker thread vs process spawn)
@@ -185,18 +201,21 @@ L'IA écrit du code TypeScript. Le système infère le DAG et l'exécute avec to
 
 **⚠️ Analyse des features subprocess à vérifier (2025-12-19) :**
 
-| Feature subprocess | Nécessaire pour Worker ? | Conclusion |
-|--------------------|-------------------------|------------|
-| **REPL auto-return** (`wrapCode()`) | ❌ Non | Code DAG est généré avec `return` explicite |
-| **Cache** (`this.cache.get/set`) | ❌ Non | MCP non-déterministe (fichiers changent) |
-| **V8 memory limit** (`--max-old-space-size`) | ❌ Non applicable | Workers Deno n'ont pas de limite mémoire individuelle ([issue #26202](https://github.com/denoland/deno/issues/26202)). Timeout suffit. |
-| Security validation | ✅ Déjà dans `executeWithTools()` | OK |
-| Resource limiting | ✅ Déjà dans `executeWithTools()` | OK |
+| Feature subprocess                           | Nécessaire pour Worker ?          | Conclusion                                                                                                                             |
+| -------------------------------------------- | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| **REPL auto-return** (`wrapCode()`)          | ❌ Non                            | Code DAG est généré avec `return` explicite                                                                                            |
+| **Cache** (`this.cache.get/set`)             | ❌ Non                            | MCP non-déterministe (fichiers changent)                                                                                               |
+| **V8 memory limit** (`--max-old-space-size`) | ❌ Non applicable                 | Workers Deno n'ont pas de limite mémoire individuelle ([issue #26202](https://github.com/denoland/deno/issues/26202)). Timeout suffit. |
+| Security validation                          | ✅ Déjà dans `executeWithTools()` | OK                                                                                                                                     |
+| Resource limiting                            | ✅ Déjà dans `executeWithTools()` | OK                                                                                                                                     |
 
 **Vérifications effectuées (2025-12-20 Code Review) :**
+
 - [x] Vérifier que TOUS les tests `execute()` passent avec Worker → **268 tests passent**
-- [x] Benchmark latence Worker vs subprocess → **Worker ~31ms, Subprocess ~53ms (1.7x speedup confirmé)**
-- [x] Vérifier qu'aucun code externe n'utilise `execute()` pour du REPL → **Vérifié: tests utilisent `return` explicite**
+- [x] Benchmark latence Worker vs subprocess → **Worker ~31ms, Subprocess ~53ms (1.7x speedup
+      confirmé)**
+- [x] Vérifier qu'aucun code externe n'utilise `execute()` pour du REPL → **Vérifié: tests utilisent
+      `return` explicite**
 - [x] S'assurer que le timeout Worker est suffisant → **Timeout config propagé à WorkerBridge**
 
 ---
@@ -271,26 +290,45 @@ L'IA écrit du code TypeScript. Le système infère le DAG et l'exécute avec to
 ### Review Follow-ups (AI)
 
 **🔴 HIGH Priority:**
-- [x] ~~[AI-Review][HIGH] H1: AC3 broken - resolveDAGArguments() uses empty previousResults Map~~ → **FIXED**: Refactoré `executor.ts` pour supporter le format structuré avec `staticArguments`, résolution runtime via `resolveStructuredReference()`
-- [x] ~~[AI-Review][HIGH] H2: Arguments not propagated~~ → **FAUX POSITIF**: Les arguments SONT utilisés, juste via différents chemins selon le type de task
-- [x] ~~[AI-Review][HIGH] H3: Missing integration test~~ → **FIXED**: Créé `tests/integration/code-to-dag-execution_test.ts` avec 7 tests validant le flow complet Code→DAG→Result
-- [x] ~~[AI-Review][HIGH] H4: Sandbox Bypass~~ → **FIXED**: Task 7/8 - `createToolExecutorViaWorker()` utilise WorkerBridge, 6 tests passent
+
+- [x] ~~[AI-Review][HIGH] H1: AC3 broken - resolveDAGArguments() uses empty previousResults Map~~ →
+      **FIXED**: Refactoré `executor.ts` pour supporter le format structuré avec `staticArguments`,
+      résolution runtime via `resolveStructuredReference()`
+- [x] ~~[AI-Review][HIGH] H2: Arguments not propagated~~ → **FAUX POSITIF**: Les arguments SONT
+      utilisés, juste via différents chemins selon le type de task
+- [x] ~~[AI-Review][HIGH] H3: Missing integration test~~ → **FIXED**: Créé
+      `tests/integration/code-to-dag-execution_test.ts` avec 7 tests validant le flow complet
+      Code→DAG→Result
+- [x] ~~[AI-Review][HIGH] H4: Sandbox Bypass~~ → **FIXED**: Task 7/8 -
+      `createToolExecutorViaWorker()` utilise WorkerBridge, 6 tests passent
 
 **🟡 MEDIUM Priority:**
-- [x] ~~[AI-Review][MEDIUM] M1: Argument resolution timing~~ → **FIXED**: Résolu par le refacto H1, résolution per-task avec `previousResults`
-- [x] ~~[AI-Review][MEDIUM] M2: Silent fallback~~ → **DESIGN DECISION**: Le fallback silencieux est intentionnel - stratégie "try DAG first, fallback to sandbox" pour robustesse. L'utilisateur obtient son résultat dans tous les cas.
-- [x] ~~[AI-Review][MEDIUM] M3: Type mismatch ConditionalDAGStructure vs DAGStructure~~ → **ACCEPTABLE**: `ConditionalTask extends Task`, donc structurellement compatible. Pas de problème runtime.
+
+- [x] ~~[AI-Review][MEDIUM] M1: Argument resolution timing~~ → **FIXED**: Résolu par le refacto H1,
+      résolution per-task avec `previousResults`
+- [x] ~~[AI-Review][MEDIUM] M2: Silent fallback~~ → **DESIGN DECISION**: Le fallback silencieux est
+      intentionnel - stratégie "try DAG first, fallback to sandbox" pour robustesse. L'utilisateur
+      obtient son résultat dans tous les cas.
+- [x] ~~[AI-Review][MEDIUM] M3: Type mismatch ConditionalDAGStructure vs DAGStructure~~ →
+      **ACCEPTABLE**: `ConditionalTask extends Task`, donc structurellement compatible. Pas de
+      problème runtime.
 
 **🟢 LOW Priority:**
-- [x] ~~[AI-Review][LOW] L1: Magic number 240~~ → **FIXED**: Ajouté `RESULT_PREVIEW_MAX_LENGTH = 240` constante exportée dans controlled-executor.ts
-- [x] ~~[AI-Review][LOW] L2: Test comment unclear~~ → **FIXED**: Commentaire clarifié avec explication détaillée des layers (fork parallel → join)
-- [x] ~~[AI-Review][LOW] L3: Missing JSDoc - resolveDAGArguments() lacks documentation~~ → Déjà documenté (lignes 300-318)
+
+- [x] ~~[AI-Review][LOW] L1: Magic number 240~~ → **FIXED**: Ajouté
+      `RESULT_PREVIEW_MAX_LENGTH = 240` constante exportée dans controlled-executor.ts
+- [x] ~~[AI-Review][LOW] L2: Test comment unclear~~ → **FIXED**: Commentaire clarifié avec
+      explication détaillée des layers (fork parallel → join)
+- [x] ~~[AI-Review][LOW] L3: Missing JSDoc - resolveDAGArguments() lacks documentation~~ → Déjà
+      documenté (lignes 300-318)
 
 ### Corrections appliquées
 
 1. **Refacto `executor.ts`** : Support du format structuré `staticArguments` avec résolution runtime
-2. **Dépréciation `$OUTPUT[...]`** : Format legacy marqué deprecated, nouveau format `{ type: "reference", expression: "n1.content" }`
-3. **Mapping variable→nodeId** : `StaticStructureBuilder` convertit `file.content` → `n1.content` pour les références
+2. **Dépréciation `$OUTPUT[...]`** : Format legacy marqué deprecated, nouveau format
+   `{ type: "reference", expression: "n1.content" }`
+3. **Mapping variable→nodeId** : `StaticStructureBuilder` convertit `file.content` → `n1.content`
+   pour les références
 
 ---
 
@@ -328,13 +366,13 @@ if (staticStructure.nodes.length > 0) {
 
 ### StaticStructureNode → Task Mapping
 
-| StaticStructureNode | Task |
-|---------------------|------|
-| `{ type: "task", tool: "fs:read" }` | `{ id, tool: "fs:read", type: "mcp_tool" }` |
-| `{ type: "capability", capabilityId }` | `{ id, capabilityId, type: "capability" }` |
-| `{ type: "fork" }` | Marker for parallel start |
-| `{ type: "join" }` | Task depends on all fork children |
-| `{ type: "decision" }` | Creates conditional edges |
+| StaticStructureNode                    | Task                                        |
+| -------------------------------------- | ------------------------------------------- |
+| `{ type: "task", tool: "fs:read" }`    | `{ id, tool: "fs:read", type: "mcp_tool" }` |
+| `{ type: "capability", capabilityId }` | `{ id, capabilityId, type: "capability" }`  |
+| `{ type: "fork" }`                     | Marker for parallel start                   |
+| `{ type: "join" }`                     | Task depends on all fork children           |
+| `{ type: "decision" }`                 | Creates conditional edges                   |
 
 ### Edge → dependsOn Mapping
 
@@ -393,6 +431,7 @@ const resolvedArgs = {
 ### References
 
 **Source Files:**
+
 - `src/capabilities/static-structure-builder.ts` - Builds static_structure
 - `src/capabilities/types.ts:440-498` - StaticStructure types
 - `src/dag/controlled-executor.ts` - DAG executor with features
@@ -400,6 +439,7 @@ const resolvedArgs = {
 - `src/dag/execution/task-router.ts` - Task type routing
 
 **Previous Stories:**
+
 - [Story 10.1](10-1-static-analysis-capability-creation.md) - Static structure builder
 - [Story 10.2](10-2-static-argument-extraction.md) - Argument extraction
 
@@ -432,13 +472,21 @@ N/A
 
 - 2025-12-19: Story redefined - focus on executing code via inferred DAG (Claude Opus 4.5)
 - 2025-12-19: Development complete - 23 tests passing (Claude Opus 4.5)
-- 2025-12-20: Task 9 (AC13) complete - execute() now uses Worker by default, 268 sandbox tests passing (Claude Opus 4.5)
-- 2025-12-19: Code review - 4 HIGH, 3 MEDIUM, 3 LOW issues found, action items created (Claude Opus 4.5)
+- 2025-12-20: Task 9 (AC13) complete - execute() now uses Worker by default, 268 sandbox tests
+  passing (Claude Opus 4.5)
+- 2025-12-19: Code review - 4 HIGH, 3 MEDIUM, 3 LOW issues found, action items created (Claude Opus
+  4.5)
 - 2025-12-19: **DESIGN GAP DISCOVERED** - Sandbox/DAG execution unification needed
-- 2025-12-19: **CODE REVIEW CLARIFICATION** - Le fallback sandbox est une feature (pas un bug). DAG mode pour pure MCP, sandbox pour JS complexe. Documenté la compréhension architecture complète.
-- 2025-12-19: **DECISION WORKER PERMISSIONS = "none"** - Après analyse, les permissions granulaires Worker sont inutiles car tous les appels I/O passent par MCP RPC. Worker forcé à "none" pour 100% traçabilité. PermissionSet dans YAML = metadata uniquement (inférence, HIL, audit).
-- 2025-12-19: **SM VALIDATION** - 18/23 critères passés (78%). Améliorations appliquées: nettoyage fallback obsolète, priorisation Tasks 7-9, notes AC4/AC13, clarification H3.
-- 2025-12-20: **CODE REVIEW FIX** - H4 double-release bug corrigé (resourceToken=null après release). Benchmark fixture corrigée (manquait useWorkerForExecute:false). Résultat réel: Worker ~31ms, Subprocess ~53ms (1.7x speedup). File List mis à jour. 268 tests vérifié.
+- 2025-12-19: **CODE REVIEW CLARIFICATION** - Le fallback sandbox est une feature (pas un bug). DAG
+  mode pour pure MCP, sandbox pour JS complexe. Documenté la compréhension architecture complète.
+- 2025-12-19: **DECISION WORKER PERMISSIONS = "none"** - Après analyse, les permissions granulaires
+  Worker sont inutiles car tous les appels I/O passent par MCP RPC. Worker forcé à "none" pour 100%
+  traçabilité. PermissionSet dans YAML = metadata uniquement (inférence, HIL, audit).
+- 2025-12-19: **SM VALIDATION** - 18/23 critères passés (78%). Améliorations appliquées: nettoyage
+  fallback obsolète, priorisation Tasks 7-9, notes AC4/AC13, clarification H3.
+- 2025-12-20: **CODE REVIEW FIX** - H4 double-release bug corrigé (resourceToken=null après
+  release). Benchmark fixture corrigée (manquait useWorkerForExecute:false). Résultat réel: Worker
+  ~31ms, Subprocess ~53ms (1.7x speedup). File List mis à jour. 268 tests vérifié.
 
 ---
 
@@ -478,19 +526,21 @@ RPC Proxy → client.callTool()
 
 ### Rôles clarifiés
 
-| Composant | Rôle |
-|-----------|------|
-| `StaticStructureBuilder` | Parse le code → extrait le DAG statique |
-| `ControlledExecutor` | **Orchestration** : layers, checkpoints, HIL |
-| `WorkerBridge` | **Exécution** : sandbox isolée, RPC tracing |
+| Composant                | Rôle                                         |
+| ------------------------ | -------------------------------------------- |
+| `StaticStructureBuilder` | Parse le code → extrait le DAG statique      |
+| `ControlledExecutor`     | **Orchestration** : layers, checkpoints, HIL |
+| `WorkerBridge`           | **Exécution** : sandbox isolée, RPC tracing  |
 
 ### ~~Fallback~~ → Plus de fallback
 
 **AVANT (incorrect):**
+
 - Mode DAG = appels directs `client.callTool()` (pas de trace)
 - Mode Sandbox = fallback quand DAG échoue
 
 **APRÈS (correct):**
+
 - UN seul chemin d'exécution
 - ControlledExecutor orchestrate
 - WorkerBridge exécute chaque task
@@ -516,40 +566,45 @@ function createToolExecutor(workerBridge, toolDefs) {
 
 ### Fichiers à modifier
 
-| Fichier | Changement |
-|---------|------------|
-| `workflow-execution-handler.ts` | `createToolExecutor()` → utiliser `WorkerBridge` |
-| `code-execution-handler.ts` | `createMcpToolExecutor()` → utiliser `WorkerBridge` |
-| `control-commands-handler.ts` | `createToolExecutor()` → utiliser `WorkerBridge` |
+| Fichier                         | Changement                                          |
+| ------------------------------- | --------------------------------------------------- |
+| `workflow-execution-handler.ts` | `createToolExecutor()` → utiliser `WorkerBridge`    |
+| `code-execution-handler.ts`     | `createMcpToolExecutor()` → utiliser `WorkerBridge` |
+| `control-commands-handler.ts`   | `createToolExecutor()` → utiliser `WorkerBridge`    |
 
 ### Décision Architecture : Worker permissions = "none" (2025-12-19)
 
-**Contexte :**
-Le Worker utilise le pattern RPC : le code s'exécute dans le Worker, mais tous les appels MCP passent par le main process via `postMessage`. Le Worker ne fait pas d'appels directs au réseau ou au filesystem.
+**Contexte :** Le Worker utilise le pattern RPC : le code s'exécute dans le Worker, mais tous les
+appels MCP passent par le main process via `postMessage`. Le Worker ne fait pas d'appels directs au
+réseau ou au filesystem.
 
-**Décision :**
-Worker permissions = `"none"` toujours. Cela force TOUT à passer par MCP RPC.
+**Décision :** Worker permissions = `"none"` toujours. Cela force TOUT à passer par MCP RPC.
 
 **Avantages :**
+
 1. **100% traçable** - Tous les appels passent par le proxy RPC
 2. **Contrôle centralisé** - Le main process contrôle les permissions
 3. **Pas de bypass** - Le code ne peut pas utiliser `Deno.readFile()` ou `fetch()` directement
 
-**PermissionSet dans mcp-permissions.yaml :**
-Le fichier YAML est utilisé pour **metadata uniquement** :
+**PermissionSet dans mcp-permissions.yaml :** Le fichier YAML est utilisé pour **metadata
+uniquement** :
+
 - Inférence de permissions pour les capabilities
 - Détection HIL (`requiresValidation()` côté serveur)
 - Audit/UI
 
 **Ce n'est PAS de l'enforcement** - les vraies permissions sont :
+
 - Deno Worker = "none" (forcé)
 - MCP servers = gèrent leur propre auth (tokens, scopes)
 
 **Fichiers modifiés :**
+
 - `src/sandbox/worker-bridge.ts` - Constante `WORKER_PERMISSIONS = "none"`
 - `src/sandbox/executor.ts` - Suppression du passage de permissionSet au bridge
 
 **Références :**
+
 - `docs/spikes/2025-12-19-capability-vs-trace-clarification.md`
 - `docs/tech-specs/tech-spec-hil-permission-escalation-fix.md`
 
@@ -573,17 +628,17 @@ Le fichier YAML est utilisé pour **metadata uniquement** :
 
 ### Inventaire des Méthodes Execute
 
-| Fichier | Méthode | Rôle | Action |
-|---------|---------|------|--------|
-| `sandbox/executor.ts:191` | `DenoSandboxExecutor.execute()` | Subprocess Deno direct (sans tools) | **SUPPRIMER** (AC13) - remplacé par Worker |
-| `sandbox/executor.ts:1009` | `DenoSandboxExecutor.executeWithTools()` | Wrapper → WorkerBridge | **RENOMMER** → `execute()` (AC13) |
-| `sandbox/worker-bridge.ts:208` | `WorkerBridge.execute()` | RPC Bridge Worker (canonical) | **GARDER** - chemin principal ✅ |
-| `dag/executor.ts:72` | `ParallelExecutor.execute()` | DAG avec topological sort | **GARDER** - classe de base |
-| `dag/controlled-executor.ts:273` | `ControlledExecutor.executeStream()` | DAG avec events/checkpoints | **GARDER** - chemin principal ✅ |
-| `dag/controlled-executor.ts:441` | `ControlledExecutor.execute()` | Override qui wrappe executeStream | **GARDER** |
-| `mcp/handlers/code-execution-handler.ts:317` | `createMcpToolExecutor()` | **BUG** - bypass WorkerBridge! | **FIX** (AC10) |
-| `mcp/handlers/workflow-execution-handler.ts` | `createToolExecutor()` | **BUG** - bypass WorkerBridge! | **FIX** (AC10) |
-| `mcp/handlers/control-commands-handler.ts` | `createToolExecutor()` | **BUG** - bypass WorkerBridge! | **FIX** (AC10) |
+| Fichier                                      | Méthode                                  | Rôle                                | Action                                     |
+| -------------------------------------------- | ---------------------------------------- | ----------------------------------- | ------------------------------------------ |
+| `sandbox/executor.ts:191`                    | `DenoSandboxExecutor.execute()`          | Subprocess Deno direct (sans tools) | **SUPPRIMER** (AC13) - remplacé par Worker |
+| `sandbox/executor.ts:1009`                   | `DenoSandboxExecutor.executeWithTools()` | Wrapper → WorkerBridge              | **RENOMMER** → `execute()` (AC13)          |
+| `sandbox/worker-bridge.ts:208`               | `WorkerBridge.execute()`                 | RPC Bridge Worker (canonical)       | **GARDER** - chemin principal ✅           |
+| `dag/executor.ts:72`                         | `ParallelExecutor.execute()`             | DAG avec topological sort           | **GARDER** - classe de base                |
+| `dag/controlled-executor.ts:273`             | `ControlledExecutor.executeStream()`     | DAG avec events/checkpoints         | **GARDER** - chemin principal ✅           |
+| `dag/controlled-executor.ts:441`             | `ControlledExecutor.execute()`           | Override qui wrappe executeStream   | **GARDER**                                 |
+| `mcp/handlers/code-execution-handler.ts:317` | `createMcpToolExecutor()`                | **BUG** - bypass WorkerBridge!      | **FIX** (AC10)                             |
+| `mcp/handlers/workflow-execution-handler.ts` | `createToolExecutor()`                   | **BUG** - bypass WorkerBridge!      | **FIX** (AC10)                             |
+| `mcp/handlers/control-commands-handler.ts`   | `createToolExecutor()`                   | **BUG** - bypass WorkerBridge!      | **FIX** (AC10)                             |
 
 ### Verdict : Unification vers Worker (AC13)
 
@@ -634,6 +689,7 @@ function createMcpToolExecutor(mcpClients): ToolExecutor {
 ```
 
 **Conséquences :**
+
 1. ❌ Permissions sandbox ignorées
 2. ❌ Traces RPC non capturées
 3. ❌ Exécution DAG bypass le Worker
@@ -676,20 +732,22 @@ export function createToolExecutorViaWorker(
 
 ### Progression Tasks 7-8-9
 
-| Task | Status | Notes |
-|------|--------|-------|
-| **Task 7: AC10/AC11** | ✅ DONE | `createToolExecutorViaWorker()` créé, 3 handlers refactorisés |
-| **Task 8: AC12** | ✅ DONE | 6 tests WorkerBridge passent |
-| **Task 9: AC13** | ⬜ IN PROGRESS | Benchmarks Worker vs subprocess en cours |
+| Task                  | Status         | Notes                                                         |
+| --------------------- | -------------- | ------------------------------------------------------------- |
+| **Task 7: AC10/AC11** | ✅ DONE        | `createToolExecutorViaWorker()` créé, 3 handlers refactorisés |
+| **Task 8: AC12**      | ✅ DONE        | 6 tests WorkerBridge passent                                  |
+| **Task 9: AC13**      | ⬜ IN PROGRESS | Benchmarks Worker vs subprocess en cours                      |
 
 ### Fichiers créés/modifiés
 
 **Nouveaux fichiers:**
+
 - `src/dag/execution/workerbridge-executor.ts` - WorkerBridge-based ToolExecutor
 - `tests/dag/workerbridge-executor_test.ts` - 6 tests unitaires
 - `tests/integration/code-to-dag-execution_test.ts` - 7 tests integration (H3)
 
 **Fichiers modifiés:**
+
 - `src/dag/mod.ts` - Export des nouvelles fonctions
 - `src/dag/controlled-executor.ts` - Ajout RESULT_PREVIEW_MAX_LENGTH constante (L1)
 - `src/mcp/handlers/workflow-execution-handler.ts` - Utilise WorkerBridge
@@ -700,18 +758,19 @@ export function createToolExecutorViaWorker(
 
 ### Issues résolues (session 2025-12-19)
 
-| Priority | Issue | Status |
-|----------|-------|--------|
-| H3 | Create integration test | ✅ DONE - 7 tests |
-| H4 | Sandbox bypass | ✅ DONE - Task 7/8 |
-| M2 | Silent fallback design | ✅ DESIGN DECISION |
-| M3 | Type mismatch | ✅ ACCEPTABLE |
-| L1 | resultPreview configurable | ✅ DONE |
-| L2 | Clarify test comment | ✅ DONE |
+| Priority | Issue                      | Status             |
+| -------- | -------------------------- | ------------------ |
+| H3       | Create integration test    | ✅ DONE - 7 tests  |
+| H4       | Sandbox bypass             | ✅ DONE - Task 7/8 |
+| M2       | Silent fallback design     | ✅ DESIGN DECISION |
+| M3       | Type mismatch              | ✅ ACCEPTABLE      |
+| L1       | resultPreview configurable | ✅ DONE            |
+| L2       | Clarify test comment       | ✅ DONE            |
 
 ### Prochaine étape
 
 **Task 9 (AC13)** - Unifier execute() vers Worker:
+
 1. ✅ Benchmark Worker vs subprocess latence
    - Subprocess (no cache): **58.47ms**
    - Worker: **34.06ms**

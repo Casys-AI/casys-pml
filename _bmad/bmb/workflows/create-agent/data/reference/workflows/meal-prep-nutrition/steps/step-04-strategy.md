@@ -1,33 +1,34 @@
 ---
-name: 'step-04-strategy'
-description: 'Design a personalized meal strategy that meets nutritional needs and fits lifestyle'
+name: "step-04-strategy"
+description: "Design a personalized meal strategy that meets nutritional needs and fits lifestyle"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmb/reference/workflows/meal-prep-nutrition'
+workflow_path: "{project-root}/_bmad/bmb/reference/workflows/meal-prep-nutrition"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-04-strategy.md'
-nextStepFile: '{workflow_path}/steps/step-05-shopping.md'
-alternateNextStepFile: '{workflow_path}/steps/step-06-prep-schedule.md'
-workflowFile: '{workflow_path}/workflow.md'
-outputFile: '{output_folder}/nutrition-plan-{project_name}.md'
+thisStepFile: "{workflow_path}/steps/step-04-strategy.md"
+nextStepFile: "{workflow_path}/steps/step-05-shopping.md"
+alternateNextStepFile: "{workflow_path}/steps/step-06-prep-schedule.md"
+workflowFile: "{workflow_path}/workflow.md"
+outputFile: "{output_folder}/nutrition-plan-{project_name}.md"
 
 # Task References
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 
 # Data References
-recipeDatabase: '{workflow_path}/data/recipe-database.csv'
+recipeDatabase: "{workflow_path}/data/recipe-database.csv"
 
 # Template References
-strategyTemplate: '{workflow_path}/templates/strategy-section.md'
+strategyTemplate: "{workflow_path}/templates/strategy-section.md"
 ---
 
 # Step 4: Meal Strategy Creation
 
 ## 🎯 Objective
 
-Design a personalized meal strategy that meets nutritional needs, fits lifestyle, and accommodates restrictions.
+Design a personalized meal strategy that meets nutritional needs, fits lifestyle, and accommodates
+restrictions.
 
 ## 📋 MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -121,11 +122,12 @@ Load recipe-database.csv for:
 
 ## 💬 SAMPLE DIALOG STYLE:
 
-**✅ GOOD (Intent-based):**
-"Looking at your goals and love for Mediterranean flavors, we could create a weekly rotation featuring grilled chicken, fish, and plant proteins. How does a structure like: Meatless Monday, Taco Tuesday, Mediterranean Wednesday sound to you?"
+**✅ GOOD (Intent-based):** "Looking at your goals and love for Mediterranean flavors, we could
+create a weekly rotation featuring grilled chicken, fish, and plant proteins. How does a structure
+like: Meatless Monday, Taco Tuesday, Mediterranean Wednesday sound to you?"
 
-**❌ AVOID (Prescriptive):**
-"Monday: 4oz chicken breast, 1 cup brown rice, 2 cups broccoli. Tuesday: 4oz salmon..."
+**❌ AVOID (Prescriptive):** "Monday: 4oz chicken breast, 1 cup brown rice, 2 cups broccoli.
+Tuesday: 4oz salmon..."
 
 ## 📊 APPEND TO TEMPLATE:
 
@@ -154,14 +156,16 @@ mealStrategy:
 
 ### 5. Present MENU OPTIONS
 
-Display: **Select an Option:** [A] Meal Variety Optimization [P] Chef & Dietitian Collaboration [C] Continue
+Display: **Select an Option:** [A] Meal Variety Optimization [P] Chef & Dietitian Collaboration [C]
+Continue
 
 #### EXECUTION RULES:
 
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu
-- User can chat or ask questions - always respond and then end with display again of the menu options
+- User can chat or ask questions - always respond and then end with display again of the menu
+  options
 - Use menu handling logic section below
 
 #### Menu Handling Logic:
@@ -170,13 +174,18 @@ Display: **Select an Option:** [A] Meal Variety Optimization [P] Chef & Dietitia
 - IF A: Execute `{project-root}/_bmad/core/tasks/advanced-elicitation.xml`
 - IF P: Execute `{project-root}/_bmad/core/workflows/party-mode/workflow.md`
 - IF C: Save content to nutrition-plan.md, update frontmatter, check cooking frequency:
-  - IF cooking frequency > 2x/week: load, read entire file, then execute `{workflow_path}/step-05-shopping.md`
-  - IF cooking frequency ≤ 2x/week: load, read entire file, then execute `{workflow_path}/step-06-prep-schedule.md`
-- IF Any other comments or queries: help user respond then [Redisplay Menu Options](#5-present-menu-options)
+  - IF cooking frequency > 2x/week: load, read entire file, then execute
+    `{workflow_path}/step-05-shopping.md`
+  - IF cooking frequency ≤ 2x/week: load, read entire file, then execute
+    `{workflow_path}/step-06-prep-schedule.md`
+- IF Any other comments or queries: help user respond then
+  [Redisplay Menu Options](#5-present-menu-options)
 
 ## CRITICAL STEP COMPLETION NOTE
 
 ONLY WHEN C is selected and content is saved to document and frontmatter is updated:
 
-- IF cooking frequency > 2x/week: load, read entire file, then execute `{workflow_path}/step-05-shopping.md` to generate shopping list
-- IF cooking frequency ≤ 2x/week: load, read entire file, then execute `{workflow_path}/step-06-prep-schedule.md` to skip shopping list
+- IF cooking frequency > 2x/week: load, read entire file, then execute
+  `{workflow_path}/step-05-shopping.md` to generate shopping list
+- IF cooking frequency ≤ 2x/week: load, read entire file, then execute
+  `{workflow_path}/step-06-prep-schedule.md` to skip shopping list

@@ -4,8 +4,10 @@
 
 - 🛑 NEVER generate content without user input
 
-- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding leads to incomplete decisions
-- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before proceeding
+- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding
+  leads to incomplete decisions
+- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before
+  proceeding
 - ✅ ALWAYS treat this as collaborative discovery between architectural peers
 - 📋 YOU ARE A FACILITATOR, not a content generator
 - 💬 FOCUS on patterns that prevent AI agent implementation conflicts
@@ -25,7 +27,8 @@
 
 This step will generate content and present choices:
 
-- **A (Advanced Elicitation)**: Use discovery protocols to develop comprehensive consistency patterns
+- **A (Advanced Elicitation)**: Use discovery protocols to develop comprehensive consistency
+  patterns
 - **P (Party Mode)**: Bring multiple perspectives to identify potential conflict points
 - **C (Continue)**: Save the patterns and proceed to project structure
 
@@ -45,13 +48,15 @@ This step will generate content and present choices:
 
 ## YOUR TASK:
 
-Define implementation patterns and consistency rules that ensure multiple AI agents write compatible, consistent code that works together seamlessly.
+Define implementation patterns and consistency rules that ensure multiple AI agents write
+compatible, consistent code that works together seamlessly.
 
 ## PATTERNS DEFINITION SEQUENCE:
 
 ### 1. Identify Potential Conflict Points
 
-Based on the chosen technology stack and decisions, identify where AI agents could make different choices:
+Based on the chosen technology stack and decisions, identify where AI agents could make different
+choices:
 
 **Naming Conflicts:**
 
@@ -97,15 +102,15 @@ Based on the chosen technology stack and decisions, identify where AI agents cou
 
 For each conflict category, facilitate collaborative pattern definition:
 
-**Present the Conflict Point:**
-"Given that we're using {{tech_stack}}, different AI agents might handle {{conflict_area}} differently.
+**Present the Conflict Point:** "Given that we're using {{tech_stack}}, different AI agents might
+handle {{conflict_area}} differently.
 
-For example, one agent might name database tables 'users' while another uses 'Users' - this would cause conflicts.
+For example, one agent might name database tables 'users' while another uses 'Users' - this would
+cause conflicts.
 
 We need to establish consistent patterns that all agents follow."
 
-**Show Options and Trade-offs:**
-"Common approaches for {{pattern_category}}:
+**Show Options and Trade-offs:** "Common approaches for {{pattern_category}}:
 
 1. {{option_1}} - {{pros_and_cons}}
 2. {{option_2}} - {{pros_and_cons}}
@@ -113,8 +118,7 @@ We need to establish consistent patterns that all agents follow."
 
 Which approach makes the most sense for our project?"
 
-**Get User Decision:**
-"What's your preference for this pattern? (or discuss the trade-offs more)"
+**Get User Decision:** "What's your preference for this pattern? (or discuss the trade-offs more)"
 
 ### 3. Define Pattern Categories
 
@@ -216,51 +220,40 @@ Prepare the content to append to the document:
 
 ### Pattern Categories Defined
 
-**Critical Conflict Points Identified:**
-{{number_of_potential_conflicts}} areas where AI agents could make different choices
+**Critical Conflict Points Identified:** {{number_of_potential_conflicts}} areas where AI agents
+could make different choices
 
 ### Naming Patterns
 
-**Database Naming Conventions:**
-{{database_naming_rules_with_examples}}
+**Database Naming Conventions:** {{database_naming_rules_with_examples}}
 
-**API Naming Conventions:**
-{{api_naming_rules_with_examples}}
+**API Naming Conventions:** {{api_naming_rules_with_examples}}
 
-**Code Naming Conventions:**
-{{code_naming_rules_with_examples}}
+**Code Naming Conventions:** {{code_naming_rules_with_examples}}
 
 ### Structure Patterns
 
-**Project Organization:**
-{{project_structure_rules_with_examples}}
+**Project Organization:** {{project_structure_rules_with_examples}}
 
-**File Structure Patterns:**
-{{file_organization_rules_with_examples}}
+**File Structure Patterns:** {{file_organization_rules_with_examples}}
 
 ### Format Patterns
 
-**API Response Formats:**
-{{api_response_structure_rules}}
+**API Response Formats:** {{api_response_structure_rules}}
 
-**Data Exchange Formats:**
-{{data_format_rules_with_examples}}
+**Data Exchange Formats:** {{data_format_rules_with_examples}}
 
 ### Communication Patterns
 
-**Event System Patterns:**
-{{event_naming_and_structure_rules}}
+**Event System Patterns:** {{event_naming_and_structure_rules}}
 
-**State Management Patterns:**
-{{state_update_and_organization_rules}}
+**State Management Patterns:** {{state_update_and_organization_rules}}
 
 ### Process Patterns
 
-**Error Handling Patterns:**
-{{consistent_error_handling_approaches}}
+**Error Handling Patterns:** {{consistent_error_handling_approaches}}
 
-**Loading State Patterns:**
-{{loading_state_management_rules}}
+**Loading State Patterns:** {{loading_state_management_rules}}
 
 ### Enforcement Guidelines
 
@@ -278,27 +271,25 @@ Prepare the content to append to the document:
 
 ### Pattern Examples
 
-**Good Examples:**
-{{concrete_examples_of_correct_pattern_usage}}
+**Good Examples:** {{concrete_examples_of_correct_pattern_usage}}
 
-**Anti-Patterns:**
-{{examples_of_what_to_avoid}}
+**Anti-Patterns:** {{examples_of_what_to_avoid}}
 ```
 
 ### 5. Present Content and Menu
 
 Show the generated patterns content and present choices:
 
-"I've documented implementation patterns that will prevent conflicts between AI agents working on this project.
+"I've documented implementation patterns that will prevent conflicts between AI agents working on
+this project.
 
 **Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 4]
 
-**What would you like to do?**
-[A] Advanced Elicitation - Explore additional consistency patterns
-[P] Party Mode - Review patterns from different implementation perspectives
-[C] Continue - Save these patterns and move to project structure"
+**What would you like to do?** [A] Advanced Elicitation - Explore additional consistency patterns
+[P] Party Mode - Review patterns from different implementation perspectives [C] Continue - Save
+these patterns and move to project structure"
 
 ### 6. Handle Menu Selection
 
@@ -312,7 +303,8 @@ Show the generated patterns content and present choices:
 
 #### If 'P' (Party Mode):
 
-- Execute {project-root}/\_bmad/core/workflows/party-mode/workflow.md with implementation patterns context
+- Execute {project-root}/\_bmad/core/workflows/party-mode/workflow.md with implementation patterns
+  context
 - Process collaborative insights about potential conflicts
 - Ask user: "Accept these changes to the implementation patterns? (y/n)"
 - If yes: Update content, then return to A/P/C menu
@@ -330,29 +322,29 @@ When user selects 'C', append the content directly to the document using the str
 
 ## SUCCESS METRICS:
 
-✅ All potential AI agent conflict points identified and addressed
-✅ Comprehensive patterns defined for naming, structure, and communication
-✅ Concrete examples provided for each pattern
-✅ Enforcement guidelines clearly documented
-✅ User collaborated on pattern decisions rather than receiving recommendations
-✅ A/P/C menu presented and handled correctly
-✅ Content properly appended to document when C selected
+✅ All potential AI agent conflict points identified and addressed ✅ Comprehensive patterns defined
+for naming, structure, and communication ✅ Concrete examples provided for each pattern ✅
+Enforcement guidelines clearly documented ✅ User collaborated on pattern decisions rather than
+receiving recommendations ✅ A/P/C menu presented and handled correctly ✅ Content properly appended
+to document when C selected
 
 ## FAILURE MODES:
 
-❌ Missing potential conflict points that could cause agent conflicts
-❌ Being too prescriptive about implementation details instead of focusing on consistency
-❌ Not providing concrete examples for each pattern
-❌ Failing to address cross-cutting concerns like error handling
-❌ Not considering the chosen technology stack when defining patterns
-❌ Not presenting A/P/C menu after content generation
+❌ Missing potential conflict points that could cause agent conflicts ❌ Being too prescriptive
+about implementation details instead of focusing on consistency ❌ Not providing concrete examples
+for each pattern ❌ Failing to address cross-cutting concerns like error handling ❌ Not considering
+the chosen technology stack when defining patterns ❌ Not presenting A/P/C menu after content
+generation
 
-❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
-❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step file
-❌ **CRITICAL**: Making decisions without complete understanding of step requirements and protocols
+❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor
+decisions ❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step
+file ❌ **CRITICAL**: Making decisions without complete understanding of step requirements and
+protocols
 
 ## NEXT STEP:
 
-After user selects 'C' and content is saved to document, load `./step-06-structure.md` to define the complete project structure.
+After user selects 'C' and content is saved to document, load `./step-06-structure.md` to define the
+complete project structure.
 
-Remember: Do NOT proceed to step-06 until user explicitly selects 'C' from the A/P/C menu and content is saved!
+Remember: Do NOT proceed to step-06 until user explicitly selects 'C' from the A/P/C menu and
+content is saved!

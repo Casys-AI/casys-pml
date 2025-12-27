@@ -33,7 +33,8 @@ Load the complete agent roster from manifest and initialize party mode with enga
 
 Begin agent loading process:
 
-"Now initializing **Party Mode** with our complete BMAD agent roster! Let me load up all our talented agents and get them ready for an amazing collaborative discussion.
+"Now initializing **Party Mode** with our complete BMAD agent roster! Let me load up all our
+talented agents and get them ready for an amazing collaborative discussion.
 
 **Agent Manifest Loading:**"
 
@@ -73,7 +74,9 @@ Generate enthusiastic party mode introduction:
 
 "🎉 PARTY MODE ACTIVATED! 🎉
 
-Welcome {{user_name}}! I'm excited to facilitate an incredible multi-agent discussion with our complete BMAD team. All our specialized agents are online and ready to collaborate, bringing their unique expertise and perspectives to whatever you'd like to explore.
+Welcome {{user_name}}! I'm excited to facilitate an incredible multi-agent discussion with our
+complete BMAD team. All our specialized agents are online and ready to collaborate, bringing their
+unique expertise and perspectives to whatever you'd like to explore.
 
 **Our Collaborating Agents Include:**
 
@@ -93,8 +96,7 @@ After agent loading and introduction:
 
 "**Agent roster loaded successfully!** All our BMAD experts are excited to collaborate with you.
 
-**Ready to start the discussion?**
-[C] Continue - Begin multi-agent conversation
+**Ready to start the discussion?** [C] Continue - Begin multi-agent conversation
 
 ### 6. Handle Continue Selection
 
@@ -106,22 +108,16 @@ After agent loading and introduction:
 
 ## SUCCESS METRICS:
 
-✅ Agent manifest successfully loaded and parsed
-✅ Complete agent roster built with merged personalities
-✅ Engaging party mode introduction created
-✅ Diverse agent sample showcased for user
-✅ [C] continue option presented and handled correctly
-✅ Frontmatter updated with agent loading status
-✅ Proper routing to discussion orchestration step
+✅ Agent manifest successfully loaded and parsed ✅ Complete agent roster built with merged
+personalities ✅ Engaging party mode introduction created ✅ Diverse agent sample showcased for user
+✅ [C] continue option presented and handled correctly ✅ Frontmatter updated with agent loading
+status ✅ Proper routing to discussion orchestration step
 
 ## FAILURE MODES:
 
-❌ Failed to load or parse agent manifest CSV
-❌ Incomplete agent data extraction or roster building
-❌ Generic or unengaging party mode introduction
-❌ Not showcasing diverse agent capabilities
-❌ Not presenting [C] continue option after loading
-❌ Starting conversation without user selection
+❌ Failed to load or parse agent manifest CSV ❌ Incomplete agent data extraction or roster building
+❌ Generic or unengaging party mode introduction ❌ Not showcasing diverse agent capabilities ❌ Not
+presenting [C] continue option after loading ❌ Starting conversation without user selection
 
 ## AGENT LOADING PROTOCOLS:
 
@@ -133,6 +129,8 @@ After agent loading and introduction:
 
 ## NEXT STEP:
 
-After user selects 'C', load `./step-02-discussion-orchestration.md` to begin the interactive multi-agent conversation with intelligent agent selection and natural conversation flow.
+After user selects 'C', load `./step-02-discussion-orchestration.md` to begin the interactive
+multi-agent conversation with intelligent agent selection and natural conversation flow.
 
-Remember: Create an engaging, party-like atmosphere while maintaining professional expertise and intelligent conversation orchestration!
+Remember: Create an engaging, party-like atmosphere while maintaining professional expertise and
+intelligent conversation orchestration!

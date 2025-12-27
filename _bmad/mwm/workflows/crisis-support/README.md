@@ -27,5 +27,6 @@ Crisis trigger from any agent (emergency response)
 
 ## Notes
 
-This workflow will be implemented using the create-workflow workflow.
-IMPORTANT: NOT a substitute for professional crisis intervention. Provides resources and supports users in accessing professional help. Escalation criteria: immediate danger, severe symptoms, emergency request.
+This workflow will be implemented using the create-workflow workflow. IMPORTANT: NOT a substitute
+for professional crisis intervention. Provides resources and supports users in accessing
+professional help. Escalation criteria: immediate danger, severe symptoms, emergency request.

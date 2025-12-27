@@ -1,18 +1,25 @@
-<tool id="_bmad/core/tasks/shard-doc" name="Shard Document"
-  description="Splits large markdown documents into smaller, organized files based on level 2 (default) sections" webskip="true"
-  standalone="true">
-  <objective>Split large markdown documents into smaller, organized files based on level 2 sections using @kayvan/markdown-tree-parser tool</objective>
+<tool
+  id="_bmad/core/tasks/shard-doc"
+  name="Shard Document"
+  description="Splits large markdown documents into smaller, organized files based on level 2 (default) sections"
+  webskip="true"
+  standalone="true"
+>
+  <objective
+  >Split large markdown documents into smaller, organized files based on level 2 sections using @kayvan/markdown-tree-parser tool</objective>
 
   <llm critical="true">
     <i>MANDATORY: Execute ALL steps in the flow section IN EXACT ORDER</i>
     <i>DO NOT skip steps or change the sequence</i>
     <i>HALT immediately when halt-conditions are met</i>
     <i>Each action xml tag within step xml tag is a REQUIRED action to complete that step</i>
-    <i>Sections outside flow (validation, output, critical-context) provide essential context - review and apply throughout execution</i>
+    <i
+    >Sections outside flow (validation, output, critical-context) provide essential context - review and apply throughout execution</i>
   </llm>
 
   <critical-context>
-    <i>Uses `npx @kayvan/markdown-tree-parser` to automatically shard documents by level 2 headings and generate an index</i>
+    <i
+    >Uses `npx @kayvan/markdown-tree-parser` to automatically shard documents by level 2 headings and generate an index</i>
   </critical-context>
 
   <flow>
@@ -24,9 +31,11 @@
     </step>
 
     <step n="2" title="Get Destination Folder">
-      <action>Determine default destination: same location as source file, folder named after source file without .md extension</action>
+      <action
+      >Determine default destination: same location as source file, folder named after source file without .md extension</action>
       <action>Example: /path/to/architecture.md → /path/to/architecture/</action>
-      <action>Ask user for the destination folder path ([y] to confirm use of default: [suggested-path], else enter a new path)</action>
+      <action
+      >Ask user for the destination folder path ([y] to confirm use of default: [suggested-path], else enter a new path)</action>
       <action if="user accepts default">Use the suggested destination path</action>
       <action if="user provides custom path">Use the custom destination path</action>
       <action>Verify destination folder exists or can be created</action>
@@ -36,7 +45,8 @@
 
     <step n="3" title="Execute Sharding">
       <action>Inform user that sharding is beginning</action>
-      <action>Execute command: `npx @kayvan/markdown-tree-parser explode [source-document] [destination-folder]`</action>
+      <action
+      >Execute command: `npx @kayvan/markdown-tree-parser explode [source-document] [destination-folder]`</action>
       <action>Capture command output and any errors</action>
       <action if="command fails">HALT and display error to user</action>
     </step>
@@ -59,10 +69,12 @@
     </step>
 
     <step n="6" title="Handle Original Document">
-      <critical>Keeping both the original and sharded versions defeats the purpose of sharding and can cause confusion</critical>
+      <critical
+      >Keeping both the original and sharded versions defeats the purpose of sharding and can cause confusion</critical>
       <action>Present user with options for the original document:</action>
 
-      <ask>What would you like to do with the original document `[source-document-name]`?
+      <ask
+      >What would you like to do with the original document `[source-document-name]`?
 
         Options:
         [d] Delete - Remove the original (recommended - shards can always be recombined)
@@ -73,14 +85,18 @@
 
       <check if="user selects 'd' (delete)">
         <action>Delete the original source document file</action>
-        <action>Confirm deletion to user: "✓ Original document deleted: [source-document-path]"</action>
-        <note>The document can be reconstructed from shards by concatenating all section files in order</note>
+        <action
+        >Confirm deletion to user: "✓ Original document deleted: [source-document-path]"</action>
+        <note
+        >The document can be reconstructed from shards by concatenating all section files in order</note>
       </check>
 
       <check if="user selects 'm' (move)">
-        <action>Determine default archive location: same directory as source, in an "archive" subfolder</action>
+        <action
+        >Determine default archive location: same directory as source, in an "archive" subfolder</action>
         <action>Example: /path/to/architecture.md → /path/to/archive/architecture.md</action>
-        <ask>Archive location ([y] to use default: [default-archive-path], or provide custom path):</ask>
+        <ask
+        >Archive location ([y] to use default: [default-archive-path], or provide custom path):</ask>
         <action if="user accepts default">Use default archive path</action>
         <action if="user provides custom path">Use custom archive path</action>
         <action>Create archive directory if it doesn't exist</action>
@@ -90,7 +106,8 @@
 
       <check if="user selects 'k' (keep)">
         <action>Display warning to user:</action>
-        <output>⚠️ WARNING: Keeping both original and sharded versions is NOT recommended.
+        <output
+        >⚠️ WARNING: Keeping both original and sharded versions is NOT recommended.
 
           This creates confusion because:
           - The discover_inputs protocol may load the wrong version

@@ -1,23 +1,27 @@
 # Quick Flow Solo Dev Agent (Barry)
 
-**Agent ID:** `_bmad/bmm/agents/quick-flow-solo-dev.md`
-**Icon:** 🚀
-**Module:** BMM
+**Agent ID:** `_bmad/bmm/agents/quick-flow-solo-dev.md` **Icon:** 🚀 **Module:** BMM
 
 ---
 
 ## Overview
 
-Barry is the elite solo developer who lives and breathes the BMAD Quick Flow workflow. He takes projects from concept to deployment with ruthless efficiency - no handoffs, no delays, just pure focused development. Barry architects specs, writes the code, and ships features faster than entire teams. When you need it done right and done now, Barry's your dev.
+Barry is the elite solo developer who lives and breathes the BMAD Quick Flow workflow. He takes
+projects from concept to deployment with ruthless efficiency - no handoffs, no delays, just pure
+focused development. Barry architects specs, writes the code, and ships features faster than entire
+teams. When you need it done right and done now, Barry's your dev.
 
 ### Agent Persona
 
-**Name:** Barry
-**Title:** Quick Flow Solo Dev
+**Name:** Barry **Title:** Quick Flow Solo Dev
 
-**Identity:** Barry is an elite developer who thrives on autonomous execution. He lives and breathes the BMAD Quick Flow workflow, taking projects from concept to deployment with ruthless efficiency. No handoffs, no delays - just pure, focused development. He architects specs, writes the code, and ships features faster than entire teams.
+**Identity:** Barry is an elite developer who thrives on autonomous execution. He lives and breathes
+the BMAD Quick Flow workflow, taking projects from concept to deployment with ruthless efficiency.
+No handoffs, no delays - just pure, focused development. He architects specs, writes the code, and
+ships features faster than entire teams.
 
-**Communication Style:** Direct, confident, and implementation-focused. Uses tech slang and gets straight to the point. No fluff, just results. Every response moves the project forward.
+**Communication Style:** Direct, confident, and implementation-focused. Uses tech slang and gets
+straight to the point. No fluff, just results. Every response moves the project forward.
 
 **Core Principles:**
 
@@ -32,7 +36,8 @@ Barry is the elite solo developer who lives and breathes the BMAD Quick Flow wor
 
 ## Menu Commands
 
-Barry owns the entire BMAD Quick Flow path, providing a streamlined 3-step development process that eliminates handoffs and maximizes velocity.
+Barry owns the entire BMAD Quick Flow path, providing a streamlined 3-step development process that
+eliminates handoffs and maximizes velocity.
 
 ### 1. **create-tech-spec**
 
@@ -248,14 +253,14 @@ In party mode, Barry often acts as:
 ```markdown
 # Tech-Spec: User Authentication System
 
-**Created:** 2025-01-15
-**Status:** Ready for Development
+**Created:** 2025-01-15 **Status:** Ready for Development
 
 ## Overview
 
 ### Problem Statement
 
-Users cannot securely access the application, and we need role-based permissions for enterprise features.
+Users cannot securely access the application, and we need role-based permissions for enterprise
+features.
 
 ### Solution
 
@@ -263,8 +268,8 @@ Implement OAuth 2.0 authentication with JWT tokens and role-based access control
 
 ### Scope (In/Out)
 
-**In:** Login, logout, password reset, role management
-**Out:** Social login, SSO, multi-factor authentication (Phase 2)
+**In:** Login, logout, password reset, role management **Out:** Social login, SSO, multi-factor
+authentication (Phase 2)
 
 ## Context for Development
 
@@ -317,20 +322,23 @@ Implement OAuth 2.0 authentication with JWT tokens and role-based access control
 
 ## Frequently Asked Questions
 
-**Q: When should I use Barry vs other agents?**
-A: Use Barry for Quick Flow development (small to medium features), rapid prototyping, or when you need elite solo development. For large, complex projects requiring full team collaboration, consider the full BMad Method with specialized agents.
+**Q: When should I use Barry vs other agents?** A: Use Barry for Quick Flow development (small to
+medium features), rapid prototyping, or when you need elite solo development. For large, complex
+projects requiring full team collaboration, consider the full BMad Method with specialized agents.
 
-**Q: Is the code review step mandatory?**
-A: No, it's optional but highly recommended for critical features, team projects, or when learning best practices.
+**Q: Is the code review step mandatory?** A: No, it's optional but highly recommended for critical
+features, team projects, or when learning best practices.
 
-**Q: Can I skip the tech spec step?**
-A: Yes, the quick-dev workflow accepts direct instructions. However, tech specs are recommended for complex features or team collaboration.
+**Q: Can I skip the tech spec step?** A: Yes, the quick-dev workflow accepts direct instructions.
+However, tech specs are recommended for complex features or team collaboration.
 
-**Q: How does Barry differ from the Dev agent?**
-A: Barry handles the complete Quick Flow process (spec → dev → review) with elite architectural expertise, while the Dev agent specializes in pure implementation tasks. Barry is your autonomous end-to-end solution.
+**Q: How does Barry differ from the Dev agent?** A: Barry handles the complete Quick Flow process
+(spec → dev → review) with elite architectural expertise, while the Dev agent specializes in pure
+implementation tasks. Barry is your autonomous end-to-end solution.
 
-**Q: Can Barry handle enterprise-scale projects?**
-A: For enterprise-scale projects requiring full team collaboration, consider using the Enterprise Method track. Barry is optimized for rapid delivery in the Quick Flow track where solo execution wins.
+**Q: Can Barry handle enterprise-scale projects?** A: For enterprise-scale projects requiring full
+team collaboration, consider using the Enterprise Method track. Barry is optimized for rapid
+delivery in the Quick Flow track where solo execution wins.
 
 ---
 

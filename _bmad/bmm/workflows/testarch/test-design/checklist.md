@@ -16,7 +16,8 @@
 - [ ] Story markdown with acceptance criteria analyzed
 - [ ] Architecture documents reviewed (if available)
 - [ ] Existing test coverage analyzed
-- [ ] Knowledge base fragments loaded (risk-governance, probability-impact, test-levels, test-priorities)
+- [ ] Knowledge base fragments loaded (risk-governance, probability-impact, test-levels,
+      test-priorities)
 
 ### Step 2: Risk Assessment
 
@@ -228,7 +229,4 @@ If workflow fails:
 
 **Checklist Complete**: Sign off when all items validated.
 
-**Completed by:** {name}
-**Date:** {date}
-**Epic:** {epic title}
-**Notes:** {additional notes}
+**Completed by:** {name} **Date:** {date} **Epic:** {epic title} **Notes:** {additional notes}

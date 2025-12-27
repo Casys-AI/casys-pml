@@ -1,8 +1,6 @@
 # Spike: Package JSR avec Routing Local/Cloud des MCPs
 
-**Date:** 2025-12-23
-**Status:** Draft
-**Author:** Erwan + Claude
+**Date:** 2025-12-23 **Status:** Draft **Author:** Erwan + Claude
 
 ---
 
@@ -10,13 +8,16 @@
 
 ### Problème
 
-Quand un utilisateur utilise la gateway PML cloud (`pml.casys.ai`), les MCPs configurés sur le serveur utilisent :
+Quand un utilisateur utilise la gateway PML cloud (`pml.casys.ai`), les MCPs configurés sur le
+serveur utilisent :
+
 - Le filesystem du **serveur** (pas celui de l'utilisateur)
 - Les clés API du **serveur** (pas celles de l'utilisateur)
 
 ### Solution proposée
 
 Un package JSR léger (`jsr:@casys/pml`) qui :
+
 1. S'installe localement chez l'utilisateur
 2. Télécharge dynamiquement le code des MCPs depuis le serveur PML
 3. Exécute les MCPs "locaux" (filesystem, shell) sur la machine de l'utilisateur
@@ -59,19 +60,20 @@ jsr:@casys/pml (package léger, ~quelques KB)
 ### Comment définir le chemin du workspace ?
 
 Le workspace détermine :
+
 - Où `filesystem:read/write` peut accéder
 - Le CWD pour `shell:exec`
 - Les permissions sandbox Deno
 
 ### Options
 
-| Option | Description | Avantages | Inconvénients |
-|--------|-------------|-----------|---------------|
-| **A. CWD** | `Deno.cwd()` au lancement | Simple, naturel | Peut changer si mal lancé |
-| **B. Config explicite** | `pml init --workspace=/path` | Explicite, contrôlé | Config supplémentaire |
-| **C. Détection auto** | Remonte jusqu'à `.git` ou `deno.json` | Intelligent | Peut se tromper |
-| **D. Env var** | `PML_WORKSPACE=/path` | Flexible | Pas toujours défini |
-| **E. Paramètre MCP** | Passé dans `.mcp.json` | Standard MCP | Verbeux |
+| Option                  | Description                           | Avantages           | Inconvénients             |
+| ----------------------- | ------------------------------------- | ------------------- | ------------------------- |
+| **A. CWD**              | `Deno.cwd()` au lancement             | Simple, naturel     | Peut changer si mal lancé |
+| **B. Config explicite** | `pml init --workspace=/path`          | Explicite, contrôlé | Config supplémentaire     |
+| **C. Détection auto**   | Remonte jusqu'à `.git` ou `deno.json` | Intelligent         | Peut se tromper           |
+| **D. Env var**          | `PML_WORKSPACE=/path`                 | Flexible            | Pas toujours défini       |
+| **E. Paramètre MCP**    | Passé dans `.mcp.json`                | Standard MCP        | Verbeux                   |
 
 ### Recommandation : Option A + C (fallback)
 
@@ -87,7 +89,7 @@ function resolveWorkspace(): string {
     "deno.json",
     "deno.jsonc",
     "package.json",
-    ".pml.json",  // Notre propre marqueur
+    ".pml.json", // Notre propre marqueur
   ]);
   if (detected) return detected;
 
@@ -122,7 +124,7 @@ function resolveWorkspace(): string {
 filesystem:
   scope: filesystem
   approvalMode: auto
-  routing: local          # ← NOUVEAU
+  routing: local # ← NOUVEAU
 
 shell:
   scope: filesystem
@@ -160,14 +162,14 @@ export type McpRouting = "local" | "cloud";
 interface McpPermissionConfigExplicit {
   scope: PermissionScope;
   approvalMode?: ApprovalMode;
-  routing?: McpRouting;  // ← NOUVEAU
+  routing?: McpRouting; // ← NOUVEAU
   isReadOnly?: boolean;
 }
 
 // Nouvelle fonction exportée
 export function getToolRouting(toolPrefix: string): McpRouting {
   const cache = getMcpPermissions();
-  return cache[toolPrefix]?.routing ?? "cloud";  // Default: cloud
+  return cache[toolPrefix]?.routing ?? "cloud"; // Default: cloud
 }
 ```
 
@@ -391,6 +393,7 @@ GET https://pml.casys.ai/mcps/fetch/mod.ts
 ```
 
 Ces fichiers sont :
+
 - Du code TypeScript/Deno standard
 - Exécutés localement chez l'utilisateur
 - Mis en cache par Deno (pas de re-téléchargement)

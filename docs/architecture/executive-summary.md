@@ -4,27 +4,28 @@ _Updated: December 2025_
 
 ## Vision
 
-**Casys PML** (PML) is an **intelligent MCP gateway** that solves two critical problems
-in MCP ecosystems:
+**Casys PML** (PML) is an **intelligent MCP gateway** that solves two critical problems in MCP
+ecosystems:
 
-1. **LLM context saturation** — Tool schemas consume 30-50% of the context window
-   → reduced to **<5%**
-2. **Sequential latency** — Multi-tool workflows run serially → parallelized via
-   **DAG execution** (5x speedup)
+1. **LLM context saturation** — Tool schemas consume 30-50% of the context window → reduced to
+   **<5%**
+2. **Sequential latency** — Multi-tool workflows run serially → parallelized via **DAG execution**
+   (5x speedup)
 
 ## Key Differentiation
 
-| Problem                   | PML Solution                                | Benefit               |
-| ------------------------- | ------------------------------------------- | --------------------- |
+| Problem                        | PML Solution                                | Benefit               |
+| ------------------------------ | ------------------------------------------- | --------------------- |
 | 100+ tools = saturated context | Meta-tools only + semantic search on-demand | <5% context used      |
-| Sequential workflows      | DAG with automatic dependency detection     | 5x speedup            |
-| Static suggestions        | GraphRAG (PageRank, Louvain, Adamic-Adar)   | Continuous learning   |
-| Manual execution          | Speculative Execution (confidence > 0.85)   | 0ms perceived latency |
-| Code isolated from tools  | Sandbox with MCP injection                  | Hybrid orchestration  |
+| Sequential workflows           | DAG with automatic dependency detection     | 5x speedup            |
+| Static suggestions             | GraphRAG (PageRank, Louvain, Adamic-Adar)   | Continuous learning   |
+| Manual execution               | Speculative Execution (confidence > 0.85)   | 0ms perceived latency |
+| Code isolated from tools       | Sandbox with MCP injection                  | Hybrid orchestration  |
 
 ## 3-Layer Architecture
 
-> **Interactive diagram:** [architecture-overview.excalidraw](../diagrams/architecture-overview.excalidraw)
+> **Interactive diagram:**
+> [architecture-overview.excalidraw](../diagrams/architecture-overview.excalidraw)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -55,27 +56,27 @@ in MCP ecosystems:
 
 ## Technology Stack
 
-| Component      | Technology                   | Justification                                |
-| -------------- | ---------------------------- | -------------------------------------------- |
-| Runtime        | Deno 2.x                     | Native TypeScript, secure by default         |
-| Database       | PGlite (PostgreSQL WASM)     | Portable single-file, built-in pgvector      |
-| ORM            | Drizzle ORM                  | Type-safe, migrations, users table           |
-| Vector Search  | pgvector HNSW                | <100ms P95, 1024-dim embeddings              |
-| Embeddings     | BGE-M3 (Transformers.js)     | 100% local, multilingual, SOTA open          |
-| Graph Algorithms | Graphology                 | PageRank, Louvain, bidirectional search      |
-| MCP Protocol   | @modelcontextprotocol/sdk    | Official SDK, stdio + HTTP transport         |
-| Web UI         | Fresh 2 + Vite + Preact      | SSR, islands architecture, Tailwind 4        |
-| Auth           | GitHub OAuth + API Keys      | Deno KV sessions, Argon2id hashing           |
+| Component        | Technology                | Justification                           |
+| ---------------- | ------------------------- | --------------------------------------- |
+| Runtime          | Deno 2.x                  | Native TypeScript, secure by default    |
+| Database         | PGlite (PostgreSQL WASM)  | Portable single-file, built-in pgvector |
+| ORM              | Drizzle ORM               | Type-safe, migrations, users table      |
+| Vector Search    | pgvector HNSW             | <100ms P95, 1024-dim embeddings         |
+| Embeddings       | BGE-M3 (Transformers.js)  | 100% local, multilingual, SOTA open     |
+| Graph Algorithms | Graphology                | PageRank, Louvain, bidirectional search |
+| MCP Protocol     | @modelcontextprotocol/sdk | Official SDK, stdio + HTTP transport    |
+| Web UI           | Fresh 2 + Vite + Preact   | SSR, islands architecture, Tailwind 4   |
+| Auth             | GitHub OAuth + API Keys   | Deno KV sessions, Argon2id hashing      |
 
 ## Target Metrics
 
-| Metric                     | Target         | Status     |
-| -------------------------- | -------------- | ---------- |
-| Context usage              | <5%            | ✅ Achieved |
-| Vector search P95          | <100ms         | ✅ Achieved |
-| 5-tool workflow P95        | <3s            | ✅ Achieved |
-| DAG speedup                | 5x vs sequential | ✅ Achieved |
-| Speculation success rate   | >85%           | 🟡 In progress |
+| Metric                   | Target           | Status         |
+| ------------------------ | ---------------- | -------------- |
+| Context usage            | <5%              | ✅ Achieved    |
+| Vector search P95        | <100ms           | ✅ Achieved    |
+| 5-tool workflow P95      | <3s              | ✅ Achieved    |
+| DAG speedup              | 5x vs sequential | ✅ Achieved    |
+| Speculation success rate | >85%             | 🟡 In progress |
 
 ## Epic Roadmap
 
@@ -92,13 +93,13 @@ Epic 9     🟡 PROGRESS  Authentication & Multi-tenancy (4/5 stories done)
 
 ### Epic 9 - Authentication (Current Focus)
 
-| Story | Description                              | Status |
-| ----- | ---------------------------------------- | ------ |
-| 9.1   | Infrastructure Auth - Schema & Helpers   | ✅ Done |
-| 9.2   | GitHub OAuth & Auth Routes               | ✅ Done |
-| 9.3   | Auth Middleware & Mode Detection         | ✅ Done |
-| 9.4   | Landing Page & Dashboard UI Auth         | ✅ Done |
-| 9.5   | Rate Limiting & Data Isolation           | 📋 Backlog |
+| Story | Description                            | Status     |
+| ----- | -------------------------------------- | ---------- |
+| 9.1   | Infrastructure Auth - Schema & Helpers | ✅ Done    |
+| 9.2   | GitHub OAuth & Auth Routes             | ✅ Done    |
+| 9.3   | Auth Middleware & Mode Detection       | ✅ Done    |
+| 9.4   | Landing Page & Dashboard UI Auth       | ✅ Done    |
+| 9.5   | Rate Limiting & Data Isolation         | 📋 Backlog |
 
 ## Authentication Architecture
 

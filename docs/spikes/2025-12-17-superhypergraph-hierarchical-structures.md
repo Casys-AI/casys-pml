@@ -1,18 +1,20 @@
 # Spike: SuperHyperGraphs et Structures Hiérarchiques Récursives
 
-**Date:** 2025-12-17
-**Author:** Research Analysis
-**Status:** Research Complete
-**Related:** Epic 7 (Emergent Capabilities), ADR-042 (Cap→Cap edges)
-**Complements:** `2025-12-17-complex-adaptive-systems-research.md`
+**Date:** 2025-12-17 **Author:** Research Analysis **Status:** Research Complete **Related:** Epic 7
+(Emergent Capabilities), ADR-042 (Cap→Cap edges) **Complements:**
+`2025-12-17-complex-adaptive-systems-research.md`
 
 ---
 
 ## Executive Summary
 
-Ce spike explore les **SuperHyperGraphs** - une généralisation des hypergraphes permettant des **structures récursives imbriquées**. Cette théorie formalise exactement ce que Casys PML fait avec les **meta-capabilities** (capabilities composées d'autres capabilities via l'edge type `contains`).
+Ce spike explore les **SuperHyperGraphs** - une généralisation des hypergraphes permettant des
+**structures récursives imbriquées**. Cette théorie formalise exactement ce que Casys PML fait avec
+les **meta-capabilities** (capabilities composées d'autres capabilities via l'edge type `contains`).
 
-**Découverte clé:** Le papier DASH (Directed Acyclic SuperHypergraphs) de 2025 fournit une formalisation théorique complète avec preuves de topological ordering - directement applicable à notre DAG de capabilities.
+**Découverte clé:** Le papier DASH (Directed Acyclic SuperHypergraphs) de 2025 fournit une
+formalisation théorique complète avec preuves de topological ordering - directement applicable à
+notre DAG de capabilities.
 
 ---
 
@@ -31,18 +33,19 @@ A ── B             {A,B,C}              {{A,B}, {C,{D,E}}}
 
 ### 1.2 Définition Formelle (Smarandache 2019-2020)
 
-**Source:** [Introduction to n-SuperHyperGraph](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4317064)
+**Source:**
+[Introduction to n-SuperHyperGraph](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4317064)
 
 Un **n-SuperHyperGraph** est défini sur Pⁿ(V) (n-ième powerset de V) :
 
 ```typescript
 // Casys PML mapping
-type SuperVertex = Tool | Capability | MetaCapability;  // Niveaux récursifs
+type SuperVertex = Tool | Capability | MetaCapability; // Niveaux récursifs
 
 interface SuperHyperEdge {
   id: string;
-  members: (SuperVertex | SuperHyperEdge)[];  // Récursif !
-  type: 'uses' | 'contains' | 'dependency';
+  members: (SuperVertex | SuperHyperEdge)[]; // Récursif !
+  type: "uses" | "contains" | "dependency";
 }
 
 interface SuperHyperGraph {
@@ -54,21 +57,24 @@ interface SuperHyperGraph {
 ```
 
 **Propriétés clés:**
+
 - **SuperVertices:** Groupes de groupes de vertices (nos meta-capabilities)
 - **SuperHyperEdges:** Arêtes connectant des groupes de groupes
 - **n-levels:** Profondeur de récursion arbitraire
 
 ### 1.3 Comparaison avec Casys PML Actuel
 
-| Concept SuperHyperGraph | Casys PML Actuel | Location |
-|------------------------|------------------|----------|
-| SuperVertex niveau 0 | Tool | `tool-discovery.ts` |
-| SuperVertex niveau 1 | Capability | `capability-learner.ts` |
-| SuperVertex niveau 2+ | Meta-Capability | ADR-042 `contains` edge |
-| SuperHyperEdge | `contains` + `dependency` | `spectral-clustering.ts` |
-| n-SuperHyperGraph | Hypergraph bipartite récursif | ADR-038 Strategic Layer |
+| Concept SuperHyperGraph | Casys PML Actuel              | Location                 |
+| ----------------------- | ----------------------------- | ------------------------ |
+| SuperVertex niveau 0    | Tool                          | `tool-discovery.ts`      |
+| SuperVertex niveau 1    | Capability                    | `capability-learner.ts`  |
+| SuperVertex niveau 2+   | Meta-Capability               | ADR-042 `contains` edge  |
+| SuperHyperEdge          | `contains` + `dependency`     | `spectral-clustering.ts` |
+| n-SuperHyperGraph       | Hypergraph bipartite récursif | ADR-038 Strategic Layer  |
 
-**Conclusion:** Casys PML implémente un **n-SuperHyperGraph non-borné** (Tools → Capabilities → Meta-Caps → Meta-Meta-Caps → ...). La profondeur n'est pas limitée, elle émerge selon les patterns d'usage.
+**Conclusion:** Casys PML implémente un **n-SuperHyperGraph non-borné** (Tools → Capabilities →
+Meta-Caps → Meta-Meta-Caps → ...). La profondeur n'est pas limitée, elle émerge selon les patterns
+d'usage.
 
 ---
 
@@ -76,9 +82,11 @@ interface SuperHyperGraph {
 
 ### 2.1 Papier Principal
 
-**Source:** [Fujita 2025 - DASH Framework](https://www.researchgate.net/publication/392710720_Directed_Acyclic_SuperHypergraphs_DASH_A_General_Framework_for_Hierarchical_Dependency_Modeling)
+**Source:**
+[Fujita 2025 - DASH Framework](https://www.researchgate.net/publication/392710720_Directed_Acyclic_SuperHypergraphs_DASH_A_General_Framework_for_Hierarchical_Dependency_Modeling)
 
 DASH unifie :
+
 - **DAG** (Directed Acyclic Graph) - notre DAG executor
 - **DAH** (Directed Acyclic Hypergraph) - notre hypergraph capabilities
 - **SuperHyperGraph** - notre meta-capabilities récursives
@@ -89,7 +97,7 @@ DASH unifie :
 // Théorème 2.5: Existence d'une Source
 // Dans tout DASH fini, ∃ au moins un supervertex v avec In(v) = ∅
 function findSources(dash: DASH): SuperVertex[] {
-  return dash.vertices.filter(v => getIncomingEdges(v).length === 0);
+  return dash.vertices.filter((v) => getIncomingEdges(v).length === 0);
 }
 
 // Théorème 2.6: Topological Ordering
@@ -147,7 +155,7 @@ class DASHValidator {
     const inStack = new Set<string>();
 
     const hasCycle = (cap: Capability): boolean => {
-      if (inStack.has(cap.id)) return true;  // Cycle détecté
+      if (inStack.has(cap.id)) return true; // Cycle détecté
       if (visited.has(cap.id)) return false;
 
       visited.add(cap.id);
@@ -180,7 +188,8 @@ class DASHValidator {
 
 ### 3.1 Concept
 
-**Source:** [Fujita - SuperHyperGraph Attention Networks](https://engrxiv.org/preprint/download/4994/8515)
+**Source:**
+[Fujita - SuperHyperGraph Attention Networks](https://engrxiv.org/preprint/download/4994/8515)
 
 Extension de GAT pour SuperHyperGraphs : l'attention se propage à travers les niveaux de récursion.
 
@@ -189,22 +198,22 @@ Extension de GAT pour SuperHyperGraphs : l'attention se propage à travers les n
 ```typescript
 interface SHGATLayer {
   // Attention à 3 niveaux
-  toolAttention: AttentionHead[];      // Niveau 0: Tools
+  toolAttention: AttentionHead[]; // Niveau 0: Tools
   capabilityAttention: AttentionHead[]; // Niveau 1: Capabilities
-  metaAttention: AttentionHead[];       // Niveau 2+: Meta-Capabilities
+  metaAttention: AttentionHead[]; // Niveau 2+: Meta-Capabilities
 }
 
 class SuperHyperGraphAttention {
   constructor(
     private spectralClustering: SpectralClusteringManager,
     private embedder: Embedder,
-    private maxDepth: number = 3
+    private maxDepth: number = 3,
   ) {}
 
   async computeRecursiveScore(
     query: string,
     superVertex: SuperVertex,
-    depth: number = 0
+    depth: number = 0,
   ): Promise<number> {
     if (depth > this.maxDepth) return 0;
 
@@ -217,12 +226,12 @@ class SuperHyperGraphAttention {
     // Si c'est un SuperVertex composé, agréger récursivement
     if (this.isComposite(superVertex)) {
       const childScores = await Promise.all(
-        superVertex.members.map(async child => {
+        superVertex.members.map(async (child) => {
           const childScore = await this.computeRecursiveScore(query, child, depth + 1);
           const childEmbed = await this.getEmbedding(child);
           const childAttention = cosineSimilarity(queryEmbed, childEmbed);
           return childScore * childAttention;
-        })
+        }),
       );
 
       // Agrégation pondérée par attention
@@ -254,9 +263,11 @@ class SuperHyperGraphAttention {
 
 ### 3.3 Contexte: Non Utilisé dans SHGAT (Décision 2025-12-22)
 
-> **Note 2025-12-21:** Le papier SHGAT de Fujita est purement théorique et ne traite PAS du contexte externe (outils récemment utilisés, conversation active).
+> **Note 2025-12-21:** Le papier SHGAT de Fujita est purement théorique et ne traite PAS du contexte
+> externe (outils récemment utilisés, conversation active).
 
 **Analyse du papier original:**
+
 - L'attention SHGAT ne considère que les relations **supervertex ↔ superedge** au sein du graphe
 - Deux phases d'attention: Vertex→Hyperedge et Hyperedge→Vertex
 - Aucun mécanisme pour injecter du contexte externe
@@ -265,13 +276,14 @@ class SuperHyperGraphAttention {
 
 Les benchmarks de précision ont testé l'impact du contextBoost sur les scores SHGAT:
 
-| Mode | Top-1 Accuracy | Top-3 Accuracy | MRR |
-|------|---------------|----------------|-----|
-| Forward (avec context) | 88.9% | 100% | 0.944 |
-| Backward (sans context) | 88.9% | 100% | 0.944 |
-| **Différence** | **0%** | **0%** | **0.0** |
+| Mode                    | Top-1 Accuracy | Top-3 Accuracy | MRR     |
+| ----------------------- | -------------- | -------------- | ------- |
+| Forward (avec context)  | 88.9%          | 100%           | 0.944   |
+| Backward (sans context) | 88.9%          | 100%           | 0.944   |
+| **Différence**          | **0%**         | **0%**         | **0.0** |
 
-**Conclusion:** Le contextBoost n'apporte **aucune amélioration** mesurable. Le context est donc retiré de SHGAT.
+**Conclusion:** Le contextBoost n'apporte **aucune amélioration** mesurable. Le context est donc
+retiré de SHGAT.
 
 **Architecture finale (ADR-050):**
 
@@ -296,7 +308,9 @@ scoreAllCapabilities(
 ```
 
 **Où le contexte EST utilisé:**
-- **DR-DSP pathfinding**: `findShortestHyperpath(currentTool, targetTool)` utilise le contexte comme point de départ
+
+- **DR-DSP pathfinding**: `findShortestHyperpath(currentTool, targetTool)` utilise le contexte comme
+  point de départ
 - **SHGAT**: Ne voit que l'intent et les features du graphe (context-free)
 
 ### 3.4 Intégration avec Stack Existante
@@ -334,7 +348,8 @@ async suggestCapabilities(query: string): Promise<ScoredCapability[]> {
 
 **Source:** [H2GNN - arxiv:2412.12158](https://arxiv.org/abs/2412.12158)
 
-Les structures **arborescentes/hiérarchiques** se représentent mieux en espace hyperbolique qu'euclidien :
+Les structures **arborescentes/hiérarchiques** se représentent mieux en espace hyperbolique
+qu'euclidien :
 
 ```
 Espace Euclidien:           Espace Hyperbolique:
@@ -349,8 +364,8 @@ H2GNN utilise un schéma de message passing en "étoile" qui expand les hyperedg
 
 ```typescript
 interface HyperStarMessage {
-  center: SuperVertex;      // Centre de l'étoile (capability)
-  rays: SuperVertex[];      // Rayons (tools ou sub-capabilities)
+  center: SuperVertex; // Centre de l'étoile (capability)
+  rays: SuperVertex[]; // Rayons (tools ou sub-capabilities)
   hyperbolicDistance: number;
 }
 
@@ -360,7 +375,7 @@ class H2GNNLayer {
     const norm = vectorNorm(embedding);
     if (norm >= 1) {
       // Clamp to Poincaré ball
-      return embedding.map(x => x * 0.99 / norm);
+      return embedding.map((x) => x * 0.99 / norm);
     }
     return embedding;
   }
@@ -373,7 +388,7 @@ class H2GNNLayer {
     const normDiff = vectorNorm(diff);
 
     return Math.acosh(
-      1 + 2 * (normDiff * normDiff) / ((1 - normA * normA) * (1 - normB * normB))
+      1 + 2 * (normDiff * normDiff) / ((1 - normA * normA) * (1 - normB * normB)),
     );
   }
 
@@ -387,7 +402,7 @@ class H2GNNLayer {
     // Chaque rayon reçoit un message du centre pondéré par distance hyperbolique
     for (const ray of rays) {
       const dist = this.hyperbolicDistance(center.embedding, ray.embedding);
-      const attention = Math.exp(-dist);  // Proche = plus d'attention
+      const attention = Math.exp(-dist); // Proche = plus d'attention
       messages.set(ray.id, this.scaleMessage(center.embedding, attention));
     }
 
@@ -398,11 +413,11 @@ class H2GNNLayer {
 
 ### 4.3 Pertinence pour Casys PML
 
-| Aspect | Pertinence | Justification |
-|--------|-----------|---------------|
-| Hiérarchie Tools→Caps→MetaCaps | ⭐⭐⭐ | Structure arborescente naturelle |
-| Distance sémantique | ⭐⭐ | Embeddings déjà euclidiens, conversion possible |
-| Complexité | ⭐ | Ajoute du calcul hyperbolique |
+| Aspect                         | Pertinence | Justification                                   |
+| ------------------------------ | ---------- | ----------------------------------------------- |
+| Hiérarchie Tools→Caps→MetaCaps | ⭐⭐⭐     | Structure arborescente naturelle                |
+| Distance sémantique            | ⭐⭐       | Embeddings déjà euclidiens, conversion possible |
+| Complexité                     | ⭐         | Ajoute du calcul hyperbolique                   |
 
 **Recommandation:** P3 - Intéressant mais pas prioritaire. SHGAT simple suffit d'abord.
 
@@ -449,8 +464,8 @@ class HierarchicalPartitioner implements MultilevelPartitioner {
     for (const [v1, v2] of pairs) {
       const merged: SuperVertex = {
         id: `${v1.id}+${v2.id}`,
-        members: [v1, v2],  // SuperVertex !
-        embedding: averageEmbeddings(v1.embedding, v2.embedding)
+        members: [v1, v2], // SuperVertex !
+        embedding: averageEmbeddings(v1.embedding, v2.embedding),
       };
       contracted.set(merged.id, merged);
     }
@@ -471,15 +486,15 @@ class HierarchicalSpectralClustering extends SpectralClusteringManager {
 
     // Niveau 0: Clusters de tools
     const toolClusters = await this.clusterTools();
-    levels.push({ level: 0, type: 'tools', clusters: toolClusters });
+    levels.push({ level: 0, type: "tools", clusters: toolClusters });
 
     // Niveau 1: Clusters de capabilities (basés sur tools partagés)
     const capClusters = await this.clusterCapabilities();
-    levels.push({ level: 1, type: 'capabilities', clusters: capClusters });
+    levels.push({ level: 1, type: "capabilities", clusters: capClusters });
 
     // Niveau 2: Clusters de meta-capabilities
     const metaClusters = await this.clusterMetaCapabilities();
-    levels.push({ level: 2, type: 'meta-capabilities', clusters: metaClusters });
+    levels.push({ level: 2, type: "meta-capabilities", clusters: metaClusters });
 
     return { levels, crossLevelEdges: await this.computeCrossLevelEdges(levels) };
   }
@@ -490,13 +505,13 @@ class HierarchicalSpectralClustering extends SpectralClusteringManager {
 
 ## 6. Comparaison des Approches
 
-| Approche | Type | Récursion | Complexité | Maturité | Pertinence |
-|----------|------|-----------|------------|----------|------------|
-| **DASH** | Théorie | ✅ Native | O(V+E) | 2025 | ⭐⭐⭐ Formalisation |
-| **SHGAT** | Attention | ✅ Native | O(V×d×L) | 2024 | ⭐⭐⭐ Implémentation |
-| **H2GNN** | Hyperbolic | ⚠️ Via expansion | O(V×d²) | 2024 | ⭐⭐ Optionnel |
-| **HeIHNN** | Interaction | ❌ Flat | O(E²) | 2024 | ⭐ Non adapté |
-| **Multi-level** | Partitioning | ✅ Coarsening | O(V log V) | Mature | ⭐⭐ Scaling |
+| Approche        | Type         | Récursion        | Complexité | Maturité | Pertinence            |
+| --------------- | ------------ | ---------------- | ---------- | -------- | --------------------- |
+| **DASH**        | Théorie      | ✅ Native        | O(V+E)     | 2025     | ⭐⭐⭐ Formalisation  |
+| **SHGAT**       | Attention    | ✅ Native        | O(V×d×L)   | 2024     | ⭐⭐⭐ Implémentation |
+| **H2GNN**       | Hyperbolic   | ⚠️ Via expansion | O(V×d²)    | 2024     | ⭐⭐ Optionnel        |
+| **HeIHNN**      | Interaction  | ❌ Flat          | O(E²)      | 2024     | ⭐ Non adapté         |
+| **Multi-level** | Partitioning | ✅ Coarsening    | O(V log V) | Mature   | ⭐⭐ Scaling          |
 
 **Recommandation:** DASH (théorie) + SHGAT (implémentation) + Multi-level (scaling)
 
@@ -521,9 +536,12 @@ story:
 
 ### 7.2 Phase 2: Full SHGAT avec Attention Apprise (2 semaines)
 
-> **Décision 2025-12-21:** Implémenter le Full SHGAT dès le départ plutôt que la version simplifiée (cosine similarity).
+> **Décision 2025-12-21:** Implémenter le Full SHGAT dès le départ plutôt que la version simplifiée
+> (cosine similarity).
 >
-> **Rationale:** Les traces épisodiques existantes fournissent déjà les données d'entraînement nécessaires :
+> **Rationale:** Les traces épisodiques existantes fournissent déjà les données d'entraînement
+> nécessaires :
+>
 > - `episodic_events` : intent, context, tool choisi, outcome (success/failure)
 > - Signal supervisé : "quel next step mène au succès ?"
 > - Valeur cumulative : l'attention s'améliore avec chaque trace
@@ -585,28 +603,37 @@ story:
 ## 8. Références
 
 ### Papiers Fondamentaux
-- [Smarandache 2019 - n-SuperHyperGraph](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4317064) - Théorie fondatrice
+
+- [Smarandache 2019 - n-SuperHyperGraph](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4317064) -
+  Théorie fondatrice
 - [Fujita 2025 - DASH](https://www.researchgate.net/publication/392710720) - DAG + SuperHyperGraph
 - [Fujita - SHGAT](https://engrxiv.org/preprint/download/4994/8515) - Attention sur SuperHyperGraphs
 
 ### Papiers Complémentaires
+
 - [H2GNN - arxiv:2412.12158](https://arxiv.org/abs/2412.12158) - Hyperbolic Hypergraph NN
 - [HeIHNN - arxiv:2401.15587](https://arxiv.org/abs/2401.15587) - Hyperedge Interactions
 - [Hierarchical Message-Passing GNN - arxiv:2009.03717](https://arxiv.org/abs/2009.03717)
 
 ### Ressources
-- [Awesome-Hypergraph-Network](https://github.com/gzcsudo/Awesome-Hypergraph-Network) - Liste curated
+
+- [Awesome-Hypergraph-Network](https://github.com/gzcsudo/Awesome-Hypergraph-Network) - Liste
+  curated
 - [Fujita & Smarandache - SuperHyperGraph Classes](https://digitalrepository.unm.edu/nss_journal/vol77/iss1/29/)
 
 ---
 
 ## 9. Conclusion
 
-Casys PML implémente un **n-SuperHyperGraph non-borné** via les meta-capabilities récursives (ADR-042 `contains`). La théorie DASH de 2025 formalise exactement cette structure avec des preuves de propriétés (topological ordering, sources, ordre partiel).
+Casys PML implémente un **n-SuperHyperGraph non-borné** via les meta-capabilities récursives
+(ADR-042 `contains`). La théorie DASH de 2025 formalise exactement cette structure avec des preuves
+de propriétés (topological ordering, sources, ordre partiel).
 
 **Actions immédiates:**
+
 1. Valider que notre implémentation respecte DASH (acyclicité garantie)
 2. Implémenter SHGAT pour attention récursive sur meta-capabilities
 3. Documenter notre système comme un "Directed Acyclic n-SuperHyperGraph"
 
-**Positionnement:** Nous sommes parmi les premiers à appliquer SuperHyperGraph + Attention à un système de production (vs théorie pure des papiers).
+**Positionnement:** Nous sommes parmi les premiers à appliquer SuperHyperGraph + Attention à un
+système de production (vs théorie pure des papiers).

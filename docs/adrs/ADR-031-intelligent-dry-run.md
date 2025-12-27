@@ -1,7 +1,6 @@
 # ADR-031: Intelligent Dry-Run with MCP Mocking
 
-**Status:** 📝 Draft
-**Date:** 2025-12-05 | **Depends on:** ADR-032
+**Status:** 📝 Draft **Date:** 2025-12-05 | **Depends on:** ADR-032
 
 > Assumes Worker RPC Bridge from ADR-032 is implemented.
 
@@ -66,11 +65,11 @@ Agent: execute_dag(intent, dry_run=true)
 
 ### Data Sources
 
-| Epic 7 Story       | Data                      | Dry-run Usage                    |
-| ------------------ | ------------------------- | -------------------------------- |
-| **7.1b** (ADR-032) | Native bridge traces      | See which tools would be called  |
-| **7.2b**           | JSON schemas from SWC     | Type-check args before execution |
-| **7.5a**           | `capability_cache` table  | Return REAL recorded responses   |
+| Epic 7 Story       | Data                     | Dry-run Usage                    |
+| ------------------ | ------------------------ | -------------------------------- |
+| **7.1b** (ADR-032) | Native bridge traces     | See which tools would be called  |
+| **7.2b**           | JSON schemas from SWC    | Type-check args before execution |
+| **7.5a**           | `capability_cache` table | Return REAL recorded responses   |
 
 ### Mock Strategy (Priority Order)
 

@@ -4,8 +4,10 @@
 
 - 🛑 NEVER generate content without user confirmation
 
-- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding leads to incomplete decisions
-- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before proceeding
+- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding
+  leads to incomplete decisions
+- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before
+  proceeding
 - ✅ FOCUS EXCLUSIVELY on confirming technical research scope and approach
 - 📋 YOU ARE A TECHNICAL RESEARCH PLANNER, not content generator
 - 💬 ACKNOWLEDGE and CONFIRM understanding of technical research goals
@@ -29,14 +31,15 @@
 
 ## YOUR TASK:
 
-Confirm technical research scope and approach for **{{research_topic}}** with the user's goals in mind.
+Confirm technical research scope and approach for **{{research_topic}}** with the user's goals in
+mind.
 
 ## TECHNICAL SCOPE CONFIRMATION:
 
 ### 1. Begin Scope Confirmation
 
-Start with technical scope understanding:
-"I understand you want to conduct **technical research** for **{{research_topic}}** with these goals: {{research_goals}}
+Start with technical scope understanding: "I understand you want to conduct **technical research**
+for **{{research_topic}}** with these goals: {{research_goals}}
 
 **Technical Research Scope:**
 
@@ -55,21 +58,19 @@ Start with technical scope understanding:
 
 ### 2. Scope Confirmation
 
-Present clear scope confirmation:
-"**Technical Research Scope Confirmation:**
+Present clear scope confirmation: "**Technical Research Scope Confirmation:**
 
 For **{{research_topic}}**, I will research:
 
-✅ **Architecture Analysis** - design patterns, frameworks, system architecture
-✅ **Implementation Approaches** - development methodologies, coding patterns
-✅ **Technology Stack** - languages, frameworks, tools, platforms
-✅ **Integration Patterns** - APIs, protocols, interoperability
-✅ **Performance Considerations** - scalability, optimization, patterns
+✅ **Architecture Analysis** - design patterns, frameworks, system architecture ✅ **Implementation
+Approaches** - development methodologies, coding patterns ✅ **Technology Stack** - languages,
+frameworks, tools, platforms ✅ **Integration Patterns** - APIs, protocols, interoperability ✅
+**Performance Considerations** - scalability, optimization, patterns
 
 **All claims verified against current public sources.**
 
-**Does this technical research scope and approach align with your goals?**
-[C] Continue - Begin technical research with this scope
+**Does this technical research scope and approach align with your goals?** [C] Continue - Begin
+technical research with this scope
 
 ### 3. Handle Continue Selection
 
@@ -86,8 +87,7 @@ When user selects 'C', append scope confirmation:
 ```markdown
 ## Technical Research Scope Confirmation
 
-**Research Topic:** {{research_topic}}
-**Research Goals:** {{research_goals}}
+**Research Topic:** {{research_topic}} **Research Goals:** {{research_goals}}
 
 **Technical Research Scope:**
 
@@ -109,28 +109,25 @@ When user selects 'C', append scope confirmation:
 
 ## SUCCESS METRICS:
 
-✅ Technical research scope clearly confirmed with user
-✅ All technical analysis areas identified and explained
-✅ Research methodology emphasized
-✅ [C] continue option presented and handled correctly
-✅ Scope confirmation documented when user proceeds
-✅ Proper routing to next technical research step
+✅ Technical research scope clearly confirmed with user ✅ All technical analysis areas identified
+and explained ✅ Research methodology emphasized ✅ [C] continue option presented and handled
+correctly ✅ Scope confirmation documented when user proceeds ✅ Proper routing to next technical
+research step
 
 ## FAILURE MODES:
 
-❌ Not clearly confirming technical research scope with user
-❌ Missing critical technical analysis areas
-❌ Not explaining that web search is required for current facts
-❌ Not presenting [C] continue option
-❌ Proceeding without user scope confirmation
-❌ Not routing to next technical research step
+❌ Not clearly confirming technical research scope with user ❌ Missing critical technical analysis
+areas ❌ Not explaining that web search is required for current facts ❌ Not presenting [C] continue
+option ❌ Proceeding without user scope confirmation ❌ Not routing to next technical research step
 
-❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
-❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step file
-❌ **CRITICAL**: Making decisions without complete understanding of step requirements and protocols
+❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor
+decisions ❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step
+file ❌ **CRITICAL**: Making decisions without complete understanding of step requirements and
+protocols
 
 ## NEXT STEP:
 
 After user selects 'C', load `./step-02-technical-overview.md` to begin technology stack analysis.
 
-Remember: This is SCOPE CONFIRMATION ONLY - no actual technical research yet, just confirming the research approach and scope!
+Remember: This is SCOPE CONFIRMATION ONLY - no actual technical research yet, just confirming the
+research approach and scope!

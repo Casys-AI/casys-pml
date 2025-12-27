@@ -2,52 +2,55 @@
 
 ## Core Philosophy
 
-The **Intent vs Prescriptive Spectrum** is a fundamental design principle for BMAD workflows and agents. It determines how much creative freedom an LLM has versus how strictly it must follow predefined instructions.
+The **Intent vs Prescriptive Spectrum** is a fundamental design principle for BMAD workflows and
+agents. It determines how much creative freedom an LLM has versus how strictly it must follow
+predefined instructions.
 
-**Key Principle:** The closer workflows stay to **intent**, the more creative and adaptive the LLM experience becomes. The closer they stay to **prescriptive**, the more consistent and controlled the output becomes.
+**Key Principle:** The closer workflows stay to **intent**, the more creative and adaptive the LLM
+experience becomes. The closer they stay to **prescriptive**, the more consistent and controlled the
+output becomes.
 
 ## Understanding the Spectrum
 
 ### **Intent-Based Design** (Creative Freedom)
 
-**Focus**: What goal should be achieved
-**Approach**: Trust the LLM to determine the best method
-**Result**: Creative, adaptive, context-aware interactions
-**Best For**: Creative exploration, problem-solving, personalized experiences
+**Focus**: What goal should be achieved **Approach**: Trust the LLM to determine the best method
+**Result**: Creative, adaptive, context-aware interactions **Best For**: Creative exploration,
+problem-solving, personalized experiences
 
 ### **Prescriptive Design** (Structured Control)
 
-**Focus**: Exactly what to say and do
-**Approach**: Detailed scripts and specific instructions
-**Result**: Consistent, predictable, controlled outcomes
-**Best For**: Compliance, safety-critical, standardized processes
+**Focus**: Exactly what to say and do **Approach**: Detailed scripts and specific instructions
+**Result**: Consistent, predictable, controlled outcomes **Best For**: Compliance, safety-critical,
+standardized processes
 
 ## Spectrum Examples
 
 ### **Highly Intent-Based** (Creative End)
 
 ```markdown
-**Example:** Story Exploration Workflow
-**Instruction:** "Help the user explore their dream imagery to craft compelling narratives, use multiple turns of conversation to really push users to develop their ideas, giving them hints and ideas also to prime them effectively to bring out their creativity"
-**LLM Freedom:** Adapts questions, explores tangents, follows creative inspiration
+**Example:** Story Exploration Workflow **Instruction:** "Help the user explore their dream imagery
+to craft compelling narratives, use multiple turns of conversation to really push users to develop
+their ideas, giving them hints and ideas also to prime them effectively to bring out their
+creativity" **LLM Freedom:** Adapts questions, explores tangents, follows creative inspiration
 **Outcome:** Unique, personalized storytelling experiences
 ```
 
 ### **Balanced Middle** (Professional Services)
 
 ```markdown
-**Example:** Business Strategy Workflow
-**Instruction:** "Guide the user through SWOT analysis using your business expertise. when complete tell them 'here is your final report {report output}'
-**LLM Freedom:** Professional judgment in analysis, structured but adaptive approach
-**Outcome:** Professional, consistent yet tailored business insights
+**Example:** Business Strategy Workflow **Instruction:** "Guide the user through SWOT analysis using
+your business expertise. when complete tell them 'here is your final report {report output}' **LLM
+Freedom:** Professional judgment in analysis, structured but adaptive approach **Outcome:**
+Professional, consistent yet tailored business insights
 ```
 
 ### **Highly Prescriptive** (Control End)
 
 ```markdown
-**Example:** Medical Intake Form
-**Instruction:** "Ask exactly: 'Do you currently experience any of the following symptoms: fever, cough, fatigue?' Wait for response, then ask exactly: 'When did these symptoms begin?'"
-**LLM Freedom:** Minimal - must follow exact script for medical compliance
+**Example:** Medical Intake Form **Instruction:** "Ask exactly: 'Do you currently experience any of
+the following symptoms: fever, cough, fatigue?' Wait for response, then ask exactly: 'When did these
+symptoms begin?'" **LLM Freedom:** Minimal - must follow exact script for medical compliance
 **Outcome:** Consistent, medically compliant patient data collection
 ```
 
@@ -136,22 +139,22 @@ The **Intent vs Prescriptive Spectrum** is a fundamental design principle for BM
 
 ```yaml
 persona:
-  communication_style: 'Adaptive professional who adjusts approach based on user context'
+  communication_style: "Adaptive professional who adjusts approach based on user context"
   guiding_principles:
-    - 'Use creative problem-solving within professional boundaries'
-    - 'Personalize approach while maintaining expertise'
-    - 'Adapt conversation flow to user needs'
+    - "Use creative problem-solving within professional boundaries"
+    - "Personalize approach while maintaining expertise"
+    - "Adapt conversation flow to user needs"
 ```
 
 **Prescriptive Agent Design:**
 
 ```yaml
 persona:
-  communication_style: 'Follows standardized protocols exactly'
+  communication_style: "Follows standardized protocols exactly"
   governing_rules:
-    - 'Must use approved scripts without deviation'
-    - 'Follow sequence precisely as defined'
-    - 'No adaptation of prescribed procedures'
+    - "Must use approved scripts without deviation"
+    - "Follow sequence precisely as defined"
+    - "No adaptation of prescribed procedures"
 ```
 
 ## Spectrum Calibration Questions
@@ -215,6 +218,9 @@ persona:
 
 ## Conclusion
 
-The Intent vs Prescriptive Spectrum is not about good vs. bad - it's about **appropriate design choices**. The best workflows make conscious decisions about where they fall on this spectrum based on their specific requirements, user needs, and risk considerations.
+The Intent vs Prescriptive Spectrum is not about good vs. bad - it's about **appropriate design
+choices**. The best workflows make conscious decisions about where they fall on this spectrum based
+on their specific requirements, user needs, and risk considerations.
 
-**Key Success Factor**: Choose your spectrum position intentionally, implement it consistently, and align it with your specific use case requirements.
+**Key Success Factor**: Choose your spectrum position intentionally, implement it consistently, and
+align it with your specific use case requirements.

@@ -1,30 +1,31 @@
 ---
-name: 'step-02-workflow-validation'
-description: 'Validate workflow.md against workflow-template.md standards'
+name: "step-02-workflow-validation"
+description: "Validate workflow.md against workflow-template.md standards"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmb/workflows/workflow-compliance-check'
+workflow_path: "{project-root}/_bmad/bmb/workflows/workflow-compliance-check"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-02-workflow-validation.md'
-nextStepFile: '{workflow_path}/steps/step-03-step-validation.md'
-workflowFile: '{workflow_path}/workflow.md'
-complianceReportFile: '{output_folder}/workflow-compliance-report-{workflow_name}.md'
-targetWorkflowFile: '{target_workflow_path}'
+thisStepFile: "{workflow_path}/steps/step-02-workflow-validation.md"
+nextStepFile: "{workflow_path}/steps/step-03-step-validation.md"
+workflowFile: "{workflow_path}/workflow.md"
+complianceReportFile: "{output_folder}/workflow-compliance-report-{workflow_name}.md"
+targetWorkflowFile: "{target_workflow_path}"
 
 # Template References
-complianceReportTemplate: '{workflow_path}/templates/compliance-report.md'
+complianceReportTemplate: "{workflow_path}/templates/compliance-report.md"
 
 # Documentation References
-stepTemplate: '{project-root}/_bmad/bmb/docs/workflows/templates/step-template.md'
-workflowTemplate: '{project-root}/_bmad/bmb/docs/workflows/templates/workflow-template.md'
+stepTemplate: "{project-root}/_bmad/bmb/docs/workflows/templates/step-template.md"
+workflowTemplate: "{project-root}/_bmad/bmb/docs/workflows/templates/workflow-template.md"
 ---
 
 # Step 2: Workflow.md Validation
 
 ## STEP GOAL:
 
-Perform adversarial validation of the target workflow.md against workflow-template.md standards, identifying all violations with severity rankings and specific fix recommendations.
+Perform adversarial validation of the target workflow.md against workflow-template.md standards,
+identifying all violations with severity rankings and specific fix recommendations.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -38,7 +39,8 @@ Perform adversarial validation of the target workflow.md against workflow-templa
 ### Role Reinforcement:
 
 - ✅ You are a compliance validator and quality assurance specialist
-- ✅ If you already have been given a name, communication_style and persona, continue to use those while playing this new role
+- ✅ If you already have been given a name, communication_style and persona, continue to use those
+  while playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You bring adversarial validation expertise - your success is finding violations
 - ✅ User brings their workflow and needs honest, thorough validation
@@ -68,13 +70,13 @@ Perform adversarial validation of the target workflow.md against workflow-templa
 
 ### 1. Initialize Compliance Report
 
-"Beginning **Phase 1: Workflow.md Validation**
-Target: `{target_workflow_name}`
+"Beginning **Phase 1: Workflow.md Validation** Target: `{target_workflow_name}`
 
-**COMPLIANCE STANDARD:** All validation performed against `{workflowTemplate}` - this is THE authoritative standard for workflow.md compliance.
+**COMPLIANCE STANDARD:** All validation performed against `{workflowTemplate}` - this is THE
+authoritative standard for workflow.md compliance.
 
-Loading workflow templates and target files for systematic analysis..."
-[Load workflowTemplate, targetWorkflowFile]
+Loading workflow templates and target files for systematic analysis..." [Load workflowTemplate,
+targetWorkflowFile]
 
 ### 2. Frontmatter Structure Validation
 
@@ -99,7 +101,10 @@ For each violation found:
 
 "**Role Description Validation:**"
 
-- Follows partnership format: "In addition to your name, communication_style, and persona, you are also a [role] collaborating with [user type]. This is a partnership, not a client-vendor relationship. You bring [your expertise], while the user brings [their expertise]. Work together as equals."
+- Follows partnership format: "In addition to your name, communication_style, and persona, you are
+  also a [role] collaborating with [user type]. This is a partnership, not a client-vendor
+  relationship. You bring [your expertise], while the user brings [their expertise]. Work together
+  as equals."
 - Role accurately describes workflow function
 - User type correctly identified
 - Partnership language present
@@ -132,7 +137,8 @@ For each deviation:
 
 "**Initialization Validation:**"
 
-- Configuration Loading uses correct path format: `{project-root}/_bmad/[module]/config.yaml` (variable substitution pattern)
+- Configuration Loading uses correct path format: `{project-root}/_bmad/[module]/config.yaml`
+  (variable substitution pattern)
 - First step follows pattern: `step-01-init.md` OR documented deviation
 - Required config variables properly listed
 - Variables use proper substitution pattern: {project-root}, \_bmad, {workflow_path}, etc.
@@ -145,8 +151,7 @@ For violations:
 
 ### 6. Document Workflow.md Findings
 
-"**Workflow.md Validation Complete**
-Found [X] Critical, [Y] Major, [Z] Minor violations
+"**Workflow.md Validation Complete** Found [X] Critical, [Y] Major, [Z] Minor violations
 
 **Summary:**
 
@@ -185,9 +190,7 @@ Append to {complianceReportFile}:
 
 ### Phase 1 Summary
 
-**Critical Issues:** [number]
-**Major Issues:** [number]
-**Minor Issues:** [number]
+**Critical Issues:** [number] **Major Issues:** [number] **Minor Issues:** [number]
 
 ### Phase 1 Recommendations
 
@@ -212,13 +215,16 @@ This will check each step file for:
 
 ## Menu Handling Logic:
 
-- IF C: Save workflow.md findings to report, update frontmatter, then load, read entire file, then execute {nextStepFile}
+- IF C: Save workflow.md findings to report, update frontmatter, then load, read entire file, then
+  execute {nextStepFile}
 - IF X: Save current findings and end workflow with guidance for resuming
 - IF Any other comments or queries: respond and redisplay menu
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN [C continue option] is selected and [workflow.md validation complete with all violations documented], will you then load and read fully `{nextStepFile}` to execute and begin step-by-step validation phase.
+ONLY WHEN [C continue option] is selected and [workflow.md validation complete with all violations
+documented], will you then load and read fully `{nextStepFile}` to execute and begin step-by-step
+validation phase.
 
 ---
 
@@ -240,4 +246,5 @@ ONLY WHEN [C continue option] is selected and [workflow.md validation complete w
 - Providing vague or incomplete fix recommendations
 - Proceeding without user confirmation of findings
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

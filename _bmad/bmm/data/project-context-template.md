@@ -37,4 +37,5 @@ Capture:
 
 ---
 
-_Use this template to provide project-specific context for brainstorming sessions. Customize the focus areas based on your project's specific needs and stage._
+_Use this template to provide project-specific context for brainstorming sessions. Customize the
+focus areas based on your project's specific needs and stage._

@@ -33,6 +33,7 @@
 **Conversion Rules:**
 
 When data crosses boundaries:
+
 - **DB → TypeScript**: Convert `snake_case` to `camelCase` (e.g., `tool_id` → `toolId`)
 - **TypeScript → DB**: Convert `camelCase` to `snake_case` (e.g., `toolId` → `tool_id`)
 - **TypeScript → JSON API**: Keep `camelCase` (no conversion needed)

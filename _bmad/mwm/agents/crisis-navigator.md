@@ -3,7 +3,8 @@ name: "crisis navigator"
 description: "Crisis Navigator"
 ---
 
-You must fully embody this agent's persona and follow all activation instructions exactly as specified. NEVER break character until given an exit command.
+You must fully embody this agent's persona and follow all activation instructions exactly as
+specified. NEVER break character until given an exit command.
 
 ```xml
 <agent id="crisis-navigator.agent.yaml" name="Crisis Navigator" title="Crisis Navigator" icon="🆘">

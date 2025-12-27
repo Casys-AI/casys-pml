@@ -1,9 +1,7 @@
 # Tech Spec: MCP Agent Nodes via Sampling
 
-**Date**: 2025-12-23
-**Status**: Draft
-**Priority**: Medium
-**Spike**: [2025-12-23-mcp-sampling-agent-nodes.md](../spikes/2025-12-23-mcp-sampling-agent-nodes.md)
+**Date**: 2025-12-23 **Status**: Draft **Priority**: Medium **Spike**:
+[2025-12-23-mcp-sampling-agent-nodes.md](../spikes/2025-12-23-mcp-sampling-agent-nodes.md)
 
 ## Objectif
 
@@ -11,7 +9,8 @@ Ajouter un type de nœud `agent` dans les DAGs qui peut faire des décisions run
 
 ## Contexte
 
-La spec MCP de novembre 2025 (SEP-1577) permet aux serveurs MCP de faire des boucles agentiques via `sampling/createMessage` avec tools.
+La spec MCP de novembre 2025 (SEP-1577) permet aux serveurs MCP de faire des boucles agentiques via
+`sampling/createMessage` avec tools.
 
 ## Scope
 
@@ -30,8 +29,8 @@ La spec MCP de novembre 2025 (SEP-1577) permet aux serveurs MCP de faire des bou
 
 ## Architecture
 
-**Point clé:** Per MCP spec (SEP-1577), le **CLIENT** gère la boucle agentique, pas le serveur.
-Cela garantit que les tool calls sont tracés via le RPC normal du client.
+**Point clé:** Per MCP spec (SEP-1577), le **CLIENT** gère la boucle agentique, pas le serveur. Cela
+garantit que les tool calls sont tracés via le RPC normal du client.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -76,6 +75,7 @@ Cela garantit que les tool calls sont tracés via le RPC normal du client.
 ### Traçage garanti
 
 Parce que le CLIENT gère la boucle et l'exécution des tools :
+
 - Chaque tool call passe par le RPC normal du client
 - WorkerBridge/Gateway voit tous les appels
 - Les traces incluent tous les tools utilisés par l'agent
@@ -112,7 +112,7 @@ export const agentTools: MiniTool[] = [
         messages: [{ role: "user", content: buildPrompt(goal, context) }],
         toolChoice: "auto",
         maxTokens: 4096,
-        maxIterations: maxIterations as number,      // Hint pour le client
+        maxIterations: maxIterations as number, // Hint pour le client
         allowedToolPatterns: allowedTools as string[], // Filtre pour le client
       });
 
@@ -130,6 +130,7 @@ export const agentTools: MiniTool[] = [
 ```
 
 **8 tools implémentés dans `lib/std/agent.ts`:**
+
 - `agent_delegate` - Délégation de sous-tâche avec tools
 - `agent_decide` - Décision booléenne ou choix multiple
 - `agent_analyze` - Analyse de données structurée
@@ -149,13 +150,13 @@ import { agentTools } from "./agent.ts";
 // Dans systemTools
 export const systemTools = [
   ...existingTools,
-  ...agentTools,  // ✅ Ajouté
+  ...agentTools, // ✅ Ajouté
 ];
 
 // Dans toolsByCategory
 export const toolsByCategory = {
   ...existing,
-  agent: agentTools,  // ✅ Ajouté
+  agent: agentTools, // ✅ Ajouté
 };
 ```
 
@@ -172,6 +173,7 @@ export type ToolCategory =
 Le MCP Client (Gateway ou Claude Code) doit implémenter le handler pour `sampling/createMessage`.
 
 **Responsabilités du client:**
+
 1. Recevoir la requête sampling du serveur
 2. Filtrer les tools selon `allowedToolPatterns`
 3. Gérer la boucle agentique (LLM → tool_use → execute → repeat)
@@ -236,12 +238,12 @@ Variables d'environnement dans `mcp-servers.json` :
 }
 ```
 
-| Variable | Valeurs | Description |
-|----------|---------|-------------|
-| `SAMPLING_PROVIDER` | `native`, `anthropic`, `openai`, `ollama` | Provider LLM |
-| `SAMPLING_API_KEY` | string | Clé API (anthropic, openai) |
-| `SAMPLING_ENDPOINT` | URL | Endpoint custom (ollama) |
-| `SAMPLING_MODEL` | string | Modèle à utiliser |
+| Variable            | Valeurs                                   | Description                 |
+| ------------------- | ----------------------------------------- | --------------------------- |
+| `SAMPLING_PROVIDER` | `native`, `anthropic`, `openai`, `ollama` | Provider LLM                |
+| `SAMPLING_API_KEY`  | string                                    | Clé API (anthropic, openai) |
+| `SAMPLING_ENDPOINT` | URL                                       | Endpoint custom (ollama)    |
+| `SAMPLING_MODEL`    | string                                    | Modèle à utiliser           |
 
 ## Traçage
 
@@ -269,11 +271,11 @@ Les appels sampling doivent être tracés comme les autres tools :
 
 ## Limites et sécurité
 
-| Limite | Défaut | Description |
-|--------|--------|-------------|
-| `maxIterations` | 5 | Prévient les boucles infinies |
-| `timeout` | 60s | Timeout global pour l'agent |
-| `allowedTools` | tous | Whitelist de tools autorisés |
+| Limite          | Défaut | Description                   |
+| --------------- | ------ | ----------------------------- |
+| `maxIterations` | 5      | Prévient les boucles infinies |
+| `timeout`       | 60s    | Timeout global pour l'agent   |
+| `allowedTools`  | tous   | Whitelist de tools autorisés  |
 
 ## Tests
 
@@ -282,7 +284,7 @@ Les appels sampling doivent être tracés comme les autres tools :
 Deno.test("agent_delegate - simple goal", async () => {
   // Mock sampling client
   const mockSampling = createMockSamplingClient([
-    { stopReason: "end_turn", content: [{ type: "text", text: "Done" }] }
+    { stopReason: "end_turn", content: [{ type: "text", text: "Done" }] },
   ]);
 
   const result = await agentTools[0].handler({
@@ -296,7 +298,7 @@ Deno.test("agent_delegate - simple goal", async () => {
 Deno.test("agent_delegate - with tool calls", async () => {
   const mockSampling = createMockSamplingClient([
     { stopReason: "tool_use", content: [{ type: "tool_use", name: "git_status" }] },
-    { stopReason: "end_turn", content: [{ type: "text", text: "Status checked" }] }
+    { stopReason: "end_turn", content: [{ type: "text", text: "Status checked" }] },
   ]);
 
   const result = await agentTools[0].handler({
@@ -311,13 +313,13 @@ Deno.test("agent_delegate - with tool calls", async () => {
 Deno.test("agent_delegate - max iterations", async () => {
   const mockSampling = createMockSamplingClient([
     // Always returns tool_use, never ends
-    ...Array(10).fill({ stopReason: "tool_use", content: [] })
+    ...Array(10).fill({ stopReason: "tool_use", content: [] }),
   ]);
 
   await assertRejects(
     () => agentTools[0].handler({ goal: "Loop forever", maxIterations: 3 }),
     Error,
-    "exceeded max iterations"
+    "exceeded max iterations",
   );
 });
 ```
@@ -334,10 +336,10 @@ Deno.test("agent_delegate - max iterations", async () => {
 
 ## Estimation
 
-| Tâche | Effort |
-|-------|--------|
-| Tool agent_delegate | 0.5j |
-| Sampling handler | 1j |
-| Intégration serveur | 0.5j |
-| Tests | 0.5j |
-| **Total** | **2.5j** |
+| Tâche               | Effort   |
+| ------------------- | -------- |
+| Tool agent_delegate | 0.5j     |
+| Sampling handler    | 1j       |
+| Intégration serveur | 0.5j     |
+| Tests               | 0.5j     |
+| **Total**           | **2.5j** |

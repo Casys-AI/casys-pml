@@ -1,23 +1,24 @@
 ---
-name: 'step-03-q2'
-description: 'Question 2 - Level 2 difficulty'
+name: "step-03-q2"
+description: "Question 2 - Level 2 difficulty"
 
 # Path Definitions
-workflow_path: '{project-root}/.bmad/custom/src/workflows/quiz-master'
+workflow_path: "{project-root}/.bmad/custom/src/workflows/quiz-master"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-03-q2.md'
-nextStepFile: '{workflow_path}/steps/step-04-q3.md'
-resultsStepFile: '{workflow_path}/steps/step-12-results.md'
-workflowFile: '{workflow_path}/workflow.md'
-csvFile: '{project-root}/BMad-quiz-results.csv'
+thisStepFile: "{workflow_path}/steps/step-03-q2.md"
+nextStepFile: "{workflow_path}/steps/step-04-q3.md"
+resultsStepFile: "{workflow_path}/steps/step-12-results.md"
+workflowFile: "{workflow_path}/workflow.md"
+csvFile: "{project-root}/BMad-quiz-results.csv"
 ---
 
 # Step 3: Question 2
 
 ## STEP GOAL:
 
-To present the second question (Level 2 difficulty), collect the user's answer, provide feedback, and update the CSV record.
+To present the second question (Level 2 difficulty), collect the user's answer, provide feedback,
+and update the CSV record.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -55,14 +56,12 @@ To present the second question (Level 2 difficulty), collect the user's answer, 
 
 Read CSV to get category, game mode, and Q1 result.
 
-Present based on previous performance:
-**IF Q1 CORRECT:**
-"🔥 **YOU'RE ON FIRE!** 🔥
-Question 2 is coming up! You got the first one right, can you keep the streak alive? This one's a little trickier - Level 2 difficulty in **[Category]**!"
+Present based on previous performance: **IF Q1 CORRECT:** "🔥 **YOU'RE ON FIRE!** 🔥 Question 2 is
+coming up! You got the first one right, can you keep the streak alive? This one's a little
+trickier - Level 2 difficulty in **[Category]**!"
 
-**IF Q1 INCORRECT (Marathon mode):**
-"💪 **TIME TO BOUNCE BACK!** 💪
-Question 2 is here! You've got this! Level 2 is waiting, and I know you can turn things around in **[Category]**!"
+**IF Q1 INCORRECT (Marathon mode):** "💪 **TIME TO BOUNCE BACK!** 💪 Question 2 is here! You've got
+this! Level 2 is waiting, and I know you can turn things around in **[Category]**!"
 
 Generate Level 2 question and present 4 options.
 
@@ -70,8 +69,7 @@ Generate Level 2 question and present 4 options.
 
 (Collect answer, validate, provide feedback, update CSV, route based on mode and correctness)
 
-Update CSV with Q2 fields.
-Route to next step or results based on game mode and answer.
+Update CSV with Q2 fields. Route to next step or results based on game mode and answer.
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 

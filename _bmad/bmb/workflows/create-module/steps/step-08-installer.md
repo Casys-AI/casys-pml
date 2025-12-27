@@ -1,11 +1,11 @@
 ---
-installed_path: '{project-root}/_bmad/bmb/workflows/create-module'
-nextStepFile: '{installed_path}/steps/step-09-documentation.md'
-modulePlanFile: '{bmb_creations_output_folder}/{module_name}/module-plan-{module_name}.md'
-installerTemplate: '{installed_path}/templates/installer.template.js'
-installConfigTemplate: '{installed_path}/templates/install-config.template.yaml'
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+installed_path: "{project-root}/_bmad/bmb/workflows/create-module"
+nextStepFile: "{installed_path}/steps/step-09-documentation.md"
+modulePlanFile: "{bmb_creations_output_folder}/{module_name}/module-plan-{module_name}.md"
+installerTemplate: "{installed_path}/templates/installer.template.js"
+installConfigTemplate: "{installed_path}/templates/install-config.template.yaml"
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 ---
 
 # Step 8: Setup Module Installer
@@ -22,7 +22,8 @@ partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 ### Role Reinforcement:
 
 - ✅ You are a Module Architect and Installation Specialist
-- ✅ If you already have been given communication or persona patterns, continue to use those while playing this new role
+- ✅ If you already have been given communication or persona patterns, continue to use those while
+  playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You bring expertise in BMAD installation patterns, user brings their module requirements
 - ✅ Maintain collaborative, technical tone
@@ -50,7 +51,8 @@ partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 
 ## STEP GOAL:
 
-To create the module installer configuration (module.yaml) that defines how users will install and configure the module.
+To create the module installer configuration (module.yaml) that defines how users will install and
+configure the module.
 
 ## INSTALLER SETUP PROCESS:
 
@@ -71,14 +73,16 @@ From step 5, we planned these configuration fields:
 
 ### 2. Create Installer Directory
 
-Ensure \_module-installer directory exists
-Directory: {bmb_creations_output_folder}/{module_name}/\_module-installer/
+Ensure \_module-installer directory exists Directory:
+{bmb_creations_output_folder}/{module_name}/\_module-installer/
 
 ### 3. Create module.yaml
 
-"I'll create the module.yaml file based on your configuration plan. This is the core installer configuration file."
+"I'll create the module.yaml file based on your configuration plan. This is the core installer
+configuration file."
 
-Create file: {bmb_creations_output_folder}/{module_name}/module.yaml from template {installConfigTemplate}
+Create file: {bmb_creations_output_folder}/{module_name}/module.yaml from template
+{installConfigTemplate}
 
 ### 4. Handle Custom Installation Logic
 
@@ -95,7 +99,8 @@ Does your module need any special setup during installation? For example:
 
 "I'll create an installer.js file for custom logic."
 
-Create file: {bmb_creations_output_folder}/{module_name}/\_module-installer/installer.js from {installerTemplate}
+Create file: {bmb_creations_output_folder}/{module_name}/\_module-installer/installer.js from
+{installerTemplate}
 
 Update installer.js with module-specific logic
 
@@ -103,10 +108,10 @@ Update installer.js with module-specific logic
 
 "**Installer Assets:**
 
-If your module needs to copy files during installation (templates, examples, documentation), we can add them to the assets directory."
+If your module needs to copy files during installation (templates, examples, documentation), we can
+add them to the assets directory."
 
-Create directory: \_module-installer/assets/
-Add note about what assets to include
+Create directory: \_module-installer/assets/ Add note about what assets to include
 
 ### 6. Document Installer Setup
 
@@ -150,7 +155,8 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 
 - IF A: Execute {advancedElicitationTask} to review installer configuration
 - IF P: Execute {partyModeWorkflow} to get input on user experience
-- IF C: Save installer info to module-plan.md, add step-08-installer to the end of the stepsCompleted array in frontmatter, then load nextStepFile
+- IF C: Save installer info to module-plan.md, add step-08-installer to the end of the
+  stepsCompleted array in frontmatter, then load nextStepFile
 - IF Any other comments or queries: help user respond then redisplay menu
 
 #### EXECUTION RULES:
@@ -179,8 +185,11 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 - Missing required fields
 - Not using proper path templates
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN C is selected and installer info is saved to module-plan.md with stepsCompleted updated to [1, 2, 3, 4, 5, 6, 7, 8], will you then load, read entire file, then execute `{nextStepFile}` to begin documentation creation.
+ONLY WHEN C is selected and installer info is saved to module-plan.md with stepsCompleted updated to
+[1, 2, 3, 4, 5, 6, 7, 8], will you then load, read entire file, then execute `{nextStepFile}` to
+begin documentation creation.

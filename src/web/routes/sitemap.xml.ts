@@ -4,7 +4,7 @@
  */
 
 import { getPosts } from "../utils/posts.ts";
-import { getDocsNavigation, type DocNavItem } from "../utils/docs.ts";
+import { type DocNavItem, getDocsNavigation } from "../utils/docs.ts";
 
 const SITE_URL = "https://pml.casys.ai";
 
@@ -91,12 +91,13 @@ export const handler = {
       // Generate XML
       const urlEntries = urls
         .map(
-          (url) => `  <url>
+          (url) =>
+            `  <url>
     <loc>${escapeXml(url.loc)}</loc>
     <lastmod>${url.lastmod}</lastmod>
     <changefreq>${url.changefreq}</changefreq>
     <priority>${url.priority}</priority>
-  </url>`
+  </url>`,
         )
         .join("\n");
 

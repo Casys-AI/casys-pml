@@ -4,19 +4,20 @@ Status: done
 
 ## Story
 
-As a **MCP client (Claude)**,
-I want **capabilities to appear as MCP tools in the unified tool list**,
-So that **I can discover and call them like any other MCP tool**.
+As a **MCP client (Claude)**, I want **capabilities to appear as MCP tools in the unified tool
+list**, So that **I can discover and call them like any other MCP tool**.
 
 ## Design Decisions (2025-12-24)
 
 **Core Architecture:**
+
 - **Format:** `mcp__<namespace>__<action>` (indistinguable des outils MCP natifs)
 - **Pattern:** CapabilityMCPServer implémente `MCPClientBase` (même interface que vrais MCPs)
 - **Architecture:** Suivre les nouveaux Architecture Patterns de project-context.md
 - **Structure:** Feature Module Pattern avec vertical slices
 
 **Exemple:**
+
 ```
 Capability: namespace=code, action=analyze
 → MCP tool: mcp__code__analyze
@@ -28,39 +29,40 @@ Capability: namespace=code, action=analyze
 ## Acceptance Criteria
 
 ### AC1: Tool Listing
-**Given** 5 capabilities: `code:analyze`, `code:refactor`, `data:transform`
-**When** `tools/list` appelé sur Gateway
-**Then** retourne tools `mcp__code__analyze`, `mcp__code__refactor`, `mcp__data__transform` avec inputSchema
+
+**Given** 5 capabilities: `code:analyze`, `code:refactor`, `data:transform` **When** `tools/list`
+appelé sur Gateway **Then** retourne tools `mcp__code__analyze`, `mcp__code__refactor`,
+`mcp__data__transform` avec inputSchema
 
 ### AC2: Tool Execution
-**Given** tool call `mcp__code__analyze` avec args `{ file: "src/main.ts" }`
-**When** `tools/call` exécuté
-**Then** capability code exécuté via sandbox et résultat retourné format MCP
+
+**Given** tool call `mcp__code__analyze` avec args `{ file: "src/main.ts" }` **When** `tools/call`
+exécuté **Then** capability code exécuté via sandbox et résultat retourné format MCP
 
 ### AC3: Error Handling
-**Given** tool call pour capability inexistante
-**When** exécuté
-**Then** retourne `{ isError: true, content: [{ type: "text", text: "Capability not found" }] }`
+
+**Given** tool call pour capability inexistante **When** exécuté **Then** retourne
+`{ isError: true, content: [{ type: "text", text: "Capability not found" }] }`
 
 ### AC4: InputSchema from parameters_schema
-**Given** capability avec `parameters_schema` dans workflow_pattern
-**When** listé comme tool
+
+**Given** capability avec `parameters_schema` dans workflow_pattern **When** listé comme tool
 **Then** tool.inputSchema = capability.parameters_schema
 
 ### AC5: Usage Tracking
-**Given** capability appelée avec succès
-**When** exécution complète
-**Then** `usage_count` et `success_count` incrémentés via `CapabilityRegistry.recordUsage()`
+
+**Given** capability appelée avec succès **When** exécution complète **Then** `usage_count` et
+`success_count` incrémentés via `CapabilityRegistry.recordUsage()`
 
 ### AC6: Gateway Integration
-**Given** Gateway avec 3 vrais MCPs + 5 capabilities
-**When** `handleListTools()` appelé
-**Then** retourne tous les tools (meta-tools + capability tools) dans une liste unifiée
+
+**Given** Gateway avec 3 vrais MCPs + 5 capabilities **When** `handleListTools()` appelé **Then**
+retourne tous les tools (meta-tools + capability tools) dans une liste unifiée
 
 ### AC7: Immediate Visibility
-**Given** nouvelle capability créée
-**When** prochain `tools/list` appelé
-**Then** capability apparaît immédiatement (query DB, pas de cache)
+
+**Given** nouvelle capability créée **When** prochain `tools/list` appelé **Then** capability
+apparaît immédiatement (query DB, pas de cache)
 
 ## Architecture
 
@@ -120,9 +122,9 @@ export class CapabilityMCPServer implements MCPClientBase {
     private registry: CapabilityRegistry,
   ) {}
 
-  async connect(): Promise<void> { /* no-op */ }
-  async disconnect(): Promise<void> { /* no-op */ }
-  async close(): Promise<void> { /* no-op */ }
+  async connect(): Promise<void> {/* no-op */}
+  async disconnect(): Promise<void> {/* no-op */}
+  async close(): Promise<void> {/* no-op */}
 
   async listTools(): Promise<MCPTool[]> {
     return this.lister.listTools();
@@ -375,16 +377,16 @@ Claude: tools/call mcp__code__analyze {file: "x.ts"}
 
 ### Files to Create/Modify
 
-| File | Type | Description |
-|------|------|-------------|
-| `src/mcp/capability-server/mod.ts` | NEW | Public exports |
-| `src/mcp/capability-server/interfaces.ts` | NEW | Interfaces |
-| `src/mcp/capability-server/server.ts` | NEW | CapabilityMCPServer class |
-| `src/mcp/capability-server/services/capability-lister.ts` | NEW | Lister service |
-| `src/mcp/capability-server/services/capability-executor.ts` | NEW | Executor service |
-| `src/capabilities/capability-store.ts` | MODIFY | Add listWithSchemas() |
-| `src/mcp/gateway-server.ts` | MODIFY | Integration |
-| `tests/unit/mcp/capability-server/` | NEW | Unit tests |
+| File                                                        | Type   | Description               |
+| ----------------------------------------------------------- | ------ | ------------------------- |
+| `src/mcp/capability-server/mod.ts`                          | NEW    | Public exports            |
+| `src/mcp/capability-server/interfaces.ts`                   | NEW    | Interfaces                |
+| `src/mcp/capability-server/server.ts`                       | NEW    | CapabilityMCPServer class |
+| `src/mcp/capability-server/services/capability-lister.ts`   | NEW    | Lister service            |
+| `src/mcp/capability-server/services/capability-executor.ts` | NEW    | Executor service          |
+| `src/capabilities/capability-store.ts`                      | MODIFY | Add listWithSchemas()     |
+| `src/mcp/gateway-server.ts`                                 | MODIFY | Integration               |
+| `tests/unit/mcp/capability-server/`                         | NEW    | Unit tests                |
 
 ### References
 
@@ -396,9 +398,11 @@ Claude: tools/call mcp__code__analyze {file: "x.ts"}
 ## Dev Agent Record
 
 ### Agent Model Used
+
 Claude Opus 4.5
 
 ### Debug Log References
+
 N/A
 
 ### Completion Notes List
@@ -440,12 +444,14 @@ Implementation following the Feature Module Pattern:
 **Total: 31 unit tests + 2 e2e tests passing**
 
 **2025-12-26: E2E Integration Tests Added**
+
 - Created `tests/integration/capability_server_e2e_test.ts`
 - Test 1: Full integration - capability found, resolved, executed via WorkerBridge
 - Test 2: Unknown capability - returns proper "not found" error
 - Both tests validate complete flow: Gateway → CapabilityMCPServer → WorkerBridge
 
 ### File List
+
 - `src/mcp/capability-server/interfaces.ts` - Interfaces and utilities
 - `src/mcp/capability-server/mod.ts` - Module exports
 - `src/mcp/capability-server/server.ts` - CapabilityMCPServer class
@@ -460,4 +466,3 @@ Implementation following the Feature Module Pattern:
 - `tests/unit/mcp/capability-server/capability-executor_test.ts` - 7 tests
 - `tests/unit/mcp/capability-server/server_test.ts` - 8 tests
 - `tests/integration/capability_server_e2e_test.ts` - 2 e2e tests
-

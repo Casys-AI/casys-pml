@@ -4,27 +4,32 @@
 
 ## En bref
 
-La visualisation dans PML, c'est comme le **tableau de bord de votre voiture** : un coup d'œil suffit pour comprendre ce qui se passe sans lire des pages de logs.
+La visualisation dans PML, c'est comme le **tableau de bord de votre voiture** : un coup d'œil
+suffit pour comprendre ce qui se passe sans lire des pages de logs.
 
 **Pourquoi c'est important ?**
 
-- **Compréhension immédiate** : Voyez d'un coup d'œil comment les outils s'organisent et communiquent
+- **Compréhension immédiate** : Voyez d'un coup d'œil comment les outils s'organisent et
+  communiquent
 - **Exploration intuitive** : Découvrez des capacités que vous ne soupçonniez pas
 - **Debugging visuel** : Tracez le chemin d'exécution, identifiez les blocages
 - **Apprentissage facilité** : Observez en temps réel comment PML apprend et crée des connections
 
 **L'analogie du tableau de bord :**
 
-- Les **jauges** (vitesse, carburant, température) = les métriques de vos outils (fréquence d'usage, taux de succès)
+- Les **jauges** (vitesse, carburant, température) = les métriques de vos outils (fréquence d'usage,
+  taux de succès)
 - Les **voyants lumineux** = les animations qui montrent l'activité en cours
 - La **disposition** = le layout intelligent qui place les éléments liés ensemble
 - Les **alertes** = les changements visuels quand quelque chose nécessite votre attention
 
-Tout comme vous conduisez en regardant le tableau de bord plutôt qu'en ouvrant le capot, vous pilotez PML en regardant sa visualisation plutôt qu'en lisant les logs bruts.
+Tout comme vous conduisez en regardant le tableau de bord plutôt qu'en ouvrant le capot, vous
+pilotez PML en regardant sa visualisation plutôt qu'en lisant les logs bruts.
 
 ## The SuperHyperGraph View
 
-PML provides a visual representation of its knowledge graph—a **SuperHyperGraph** showing tools, capabilities, meta-capabilities, and their recursive relationships.
+PML provides a visual representation of its knowledge graph—a **SuperHyperGraph** showing tools,
+capabilities, meta-capabilities, and their recursive relationships.
 
 ![Knowledge Graph Visualization](excalidraw:src/web/assets/diagrams/dashboard-visualization.excalidraw)
 
@@ -32,35 +37,47 @@ PML provides a visual representation of its knowledge graph—a **SuperHyperGrap
 
 The visualization helps users:
 
-| Purpose | Value |
-|---------|-------|
+| Purpose        | Value                              |
+| -------------- | ---------------------------------- |
 | **Understand** | See how tools relate to each other |
-| **Explore** | Discover available capabilities |
-| **Debug** | Trace execution paths visually |
-| **Monitor** | Watch learning happen in real-time |
-| **Optimize** | Identify frequently used patterns |
+| **Explore**    | Discover available capabilities    |
+| **Debug**      | Trace execution paths visually     |
+| **Monitor**    | Watch learning happen in real-time |
+| **Optimize**   | Identify frequently used patterns  |
 
 ### Cas d'usage concrets par profil
 
 **Développeur débutant avec PML :**
+
 > "J'ai configuré 3 serveurs MCP, mais je ne sais pas vraiment quels outils sont disponibles."
 
-La visualisation vous montre tous les outils organisés par serveur. En cliquant sur un nœud, vous voyez immédiatement sa description, ses paramètres, et les outils avec lesquels il est souvent utilisé.
+La visualisation vous montre tous les outils organisés par serveur. En cliquant sur un nœud, vous
+voyez immédiatement sa description, ses paramètres, et les outils avec lesquels il est souvent
+utilisé.
 
 **Data scientist qui optimise un workflow :**
+
 > "Mon pipeline de traitement de données est lent, je ne sais pas où est le goulot."
 
-En regardant les edges (liens), vous identifiez visuellement quels outils sont appelés en séquence. Les nodes plus gros indiquent les outils fréquemment utilisés. Vous repérez facilement qu'un outil de parsing est appelé 10 fois alors qu'une fois suffirait.
+En regardant les edges (liens), vous identifiez visuellement quels outils sont appelés en séquence.
+Les nodes plus gros indiquent les outils fréquemment utilisés. Vous repérez facilement qu'un outil
+de parsing est appelé 10 fois alors qu'une fois suffirait.
 
 **Architecte qui explore les capacités :**
+
 > "Je veux savoir si PML a déjà appris à faire ce type de tâche."
 
-Les capability zones vous montrent les patterns appris. Au lieu de fouiller dans les logs, vous voyez visuellement qu'une capability "file_to_github_issue" existe déjà avec un taux de succès de 94%.
+Les capability zones vous montrent les patterns appris. Au lieu de fouiller dans les logs, vous
+voyez visuellement qu'une capability "file_to_github_issue" existe déjà avec un taux de succès de
+94%.
 
 **DevOps qui monitore la production :**
+
 > "Je veux surveiller que le système fonctionne normalement."
 
-Les animations en temps réel vous alertent : un nœud qui pulse montre une exécution en cours, une edge qui s'épaissit montre un pattern qui se renforce. Si quelque chose cloche, vous le voyez immédiatement.
+Les animations en temps réel vous alertent : un nœud qui pulse montre une exécution en cours, une
+edge qui s'épaissit montre un pattern qui se renforce. Si quelque chose cloche, vous le voyez
+immédiatement.
 
 ## Nodes and Edges
 
@@ -121,20 +138,20 @@ Edges show relationships between nodes:
 
 ### Visual Properties
 
-| Property | Meaning |
-|----------|---------|
-| **Node size** | Usage frequency (bigger = more used) |
-| **Node color** | Server/category |
-| **Edge thickness** | Relationship strength |
-| **Edge opacity** | Confidence level |
-| **Animation** | Recent activity |
+| Property           | Meaning                              |
+| ------------------ | ------------------------------------ |
+| **Node size**      | Usage frequency (bigger = more used) |
+| **Node color**     | Server/category                      |
+| **Edge thickness** | Relationship strength                |
+| **Edge opacity**   | Confidence level                     |
+| **Animation**      | Recent activity                      |
 
 ### Current Implementation
 
 The visualization uses two main structures:
 
-**Compound Nodes (Contains)**
-Capabilities are rendered as compound nodes that visually contain their tools. This shows the "contains" relationship without explicit edges.
+**Compound Nodes (Contains)** Capabilities are rendered as compound nodes that visually contain
+their tools. This shows the "contains" relationship without explicit edges.
 
 ```
 ╔═══════════════════════════════════════╗
@@ -146,26 +163,26 @@ Capabilities are rendered as compound nodes that visually contain their tools. T
 ╚═══════════════════════════════════════╝
 ```
 
-**Sequence Edges**
-Edges between tools show temporal sequences (tool A followed by tool B):
+**Sequence Edges** Edges between tools show temporal sequences (tool A followed by tool B):
 
-| Visual | Meaning |
-|--------|---------|
+| Visual        | Meaning                             |
+| ------------- | ----------------------------------- |
 | **Thickness** | Frequency (thicker = more observed) |
-| **Opacity** | Confidence level |
-| **Direction** | Arrow shows execution order |
+| **Opacity**   | Confidence level                    |
+| **Direction** | Arrow shows execution order         |
 
 ### Edge Styles by Source
 
 Line style indicates how the relationship was learned:
 
-| Source | Style | Opacity | Meaning |
-|--------|-------|---------|---------|
-| `observed` | Solid | 90% | Confirmed 3+ times |
-| `inferred` | Dashed | 60% | Observed 1-2 times |
-| `template` | Dotted | 40% | User-defined, not yet validated |
+| Source     | Style  | Opacity | Meaning                         |
+| ---------- | ------ | ------- | ------------------------------- |
+| `observed` | Solid  | 90%     | Confirmed 3+ times              |
+| `inferred` | Dashed | 60%     | Observed 1-2 times              |
+| `template` | Dotted | 40%     | User-defined, not yet validated |
 
 **Quick reading guide:**
+
 - Solid thick line = frequently observed sequence (reliable)
 - Dashed line = sequence seen a few times (promising)
 - Dotted line = defined but not yet validated in practice
@@ -196,13 +213,13 @@ Capabilities are visualized as **zones** that group their component tools:
 
 ### Zone Features
 
-| Feature | Description |
-|---------|-------------|
-| **Boundary** | Shows which tools belong together |
-| **Label** | Intent description |
-| **Stats** | Success rate, usage count |
-| **Collapse** | Hide internal details |
-| **Highlight** | Glow when recently used |
+| Feature       | Description                       |
+| ------------- | --------------------------------- |
+| **Boundary**  | Shows which tools belong together |
+| **Label**     | Intent description                |
+| **Stats**     | Success rate, usage count         |
+| **Collapse**  | Hide internal details             |
+| **Highlight** | Glow when recently used           |
 
 ## Interactivity
 
@@ -265,15 +282,19 @@ Click on Edge:
 ### Première visite du graphe
 
 **Étape 1 : Vue d'ensemble**
+
 - Zoomez pour voir tout le graphe
-- Identifiez les clusters (groupes de nœuds proches) : ce sont les outils qui travaillent souvent ensemble
+- Identifiez les clusters (groupes de nœuds proches) : ce sont les outils qui travaillent souvent
+  ensemble
 - Repérez les nœuds isolés : ce sont des outils peu utilisés ou récemment découverts
 
 **Étape 2 : Identifier les hubs**
+
 - Les gros nœuds = outils très utilisés, probablement critiques pour votre système
 - Beaucoup de connections = outils polyvalents qui s'intègrent dans plusieurs workflows
 
 **Étape 3 : Tracer un workflow**
+
 - Suivez les flèches d'un nœud à l'autre
 - Les liens épais = séquences fréquentes, patterns fiables
 - Les capability zones montrent les workflows complets déjà appris
@@ -281,11 +302,13 @@ Click on Edge:
 ### Signaux à surveiller
 
 **Bon signe :**
+
 - Clusters bien formés : les outils sont organisés logiquement
 - Edges épaisses entre outils liés : PML a confiance dans ces patterns
 - Capability zones nombreuses : le système a beaucoup appris
 
 **Attention :**
+
 - Nœud isolé mais souvent utilisé : peut indiquer un outil qui échoue à se connecter
 - Trop de connections sur un seul nœud : possible goulot d'étranglement
 - Edge fine malgré usage répété : faible confiance, peut nécessiter investigation
@@ -328,6 +351,7 @@ During DAG execution:
 ## Layout Algorithms
 
 The graph uses **force-directed layout** with multiple forces applied simultaneously:
+
 - **Repulsion**: Nodes push away from each other
 - **Attraction**: Connected nodes pull together
 - **Centering**: Graph stays centered in view

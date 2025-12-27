@@ -4,16 +4,16 @@ Status: done
 
 ## Story
 
-As a system supporting multi-tenant authentication,
-I want a users table and API key helpers,
-So that I can persist user data and securely manage API keys.
+As a system supporting multi-tenant authentication, I want a users table and API key helpers, So
+that I can persist user data and securely manage API keys.
 
 ## Acceptance Criteria
 
 1. **AC1:** Drizzle ORM integrated with existing PGlite client
 2. **AC2:** `users` table schema defined with Drizzle (`src/db/schema/users.ts`)
 3. **AC3:** Drizzle migration creates `users` table in PGlite
-4. **AC4:** API Key helpers (`src/lib/api-key.ts`) implement `generateApiKey()`, `hashApiKey()`, `verifyApiKey()`, `getApiKeyPrefix()`
+4. **AC4:** API Key helpers (`src/lib/api-key.ts`) implement `generateApiKey()`, `hashApiKey()`,
+   `verifyApiKey()`, `getApiKeyPrefix()`
 5. **AC5:** API Key format is `ac_` + 24 random chars (crypto-safe)
 6. **AC6:** Argon2 hashing via `@ts-rex/argon2` for secure key storage
 7. **AC7:** Unit tests validate schema, API Key format, hash/verify roundtrip
@@ -152,13 +152,12 @@ export async function runDrizzleMigrations(db: DrizzleDB): Promise<void> {
 
 ### Context Reference
 
-Story context created by create-story workflow on 2025-12-07.
-Updated 2025-12-07: Switched from manual migrations to Drizzle ORM (hybrid approach).
+Story context created by create-story workflow on 2025-12-07. Updated 2025-12-07: Switched from
+manual migrations to Drizzle ORM (hybrid approach).
 
 ### Agent Model Used
 
-claude-opus-4-5-20251101 (Claude Opus 4.5)
-Antigravity (2025-12-08) - Implementation
+claude-opus-4-5-20251101 (Claude Opus 4.5) Antigravity (2025-12-08) - Implementation
 
 ### Debug Log References
 
@@ -169,12 +168,13 @@ Antigravity (2025-12-08) - Implementation
 - **ARCHITECTURE DECISION:** Use Drizzle ORM for Epic 9+ tables, keep existing manual migrations
 - Drizzle migrations generated in `./drizzle/`
 - All tests passed (7/7)
-- Code review fixes applied 2025-12-08: Added `runDrizzleMigrations()` function, fixed lint, updated tests
+- Code review fixes applied 2025-12-08: Added `runDrizzleMigrations()` function, fixed lint, updated
+  tests
 
 ## Senior Developer Review (AI)
 
-**Date:** 2025-12-08  
-**Reviewer:** Cascade  
+**Date:** 2025-12-08\
+**Reviewer:** Cascade\
 **Verdict:** ✅ APPROVED
 
 ### Issues Found & Fixed
@@ -240,11 +240,10 @@ const LOOKUP_PREFIX_LENGTH = 11; // "ac_" + 8 chars
  */
 export function generateApiKey(): { key: string; prefix: string } {
   // Generate 24 random alphanumeric characters
-  const chars =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   const randomPart = Array.from(
     crypto.getRandomValues(new Uint8Array(API_KEY_LENGTH)),
-    (byte) => chars[byte % chars.length]
+    (byte) => chars[byte % chars.length],
   ).join("");
 
   const key = `${API_KEY_PREFIX}${randomPart}`;
@@ -273,7 +272,7 @@ export async function hashApiKey(key: string): Promise<string> {
  */
 export async function verifyApiKey(
   key: string,
-  hashedKey: string
+  hashedKey: string,
 ): Promise<boolean> {
   try {
     return await verify(hashedKey, key);
@@ -304,9 +303,9 @@ export function getApiKeyPrefix(key: string): string {
 import { assertEquals, assertMatch, assertNotEquals } from "@std/assert";
 import {
   generateApiKey,
+  getApiKeyPrefix,
   hashApiKey,
   verifyApiKey,
-  getApiKeyPrefix,
 } from "../../../src/lib/api-key.ts";
 
 Deno.test("generateApiKey - format correct", () => {
@@ -347,7 +346,7 @@ Deno.test("hashApiKey/verifyApiKey - wrong key fails", async () => {
   // Verify fails with wrong key
   assertEquals(
     await verifyApiKey("ac_wrongkey12345678901234", hashedKey),
-    false
+    false,
   );
 });
 
@@ -363,10 +362,7 @@ Deno.test("getApiKeyPrefix - extraction", () => {
 ```typescript
 import { assertEquals, assertExists } from "@std/assert";
 import { PGlite } from "@electric-sql/pglite";
-import {
-  createDrizzleClient,
-  runDrizzleMigrations,
-} from "../../../src/db/drizzle.ts";
+import { createDrizzleClient, runDrizzleMigrations } from "../../../src/db/drizzle.ts";
 import { users } from "../../../src/db/schema/users.ts";
 import { eq } from "drizzle-orm";
 

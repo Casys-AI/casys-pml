@@ -2,9 +2,12 @@
 
 ## Overview
 
-Phase 3 (Solutioning) workflows translate **what** to build (from Planning) into **how** to build it (technical design). This phase prevents agent conflicts in multi-epic projects by documenting architectural decisions before implementation begins.
+Phase 3 (Solutioning) workflows translate **what** to build (from Planning) into **how** to build it
+(technical design). This phase prevents agent conflicts in multi-epic projects by documenting
+architectural decisions before implementation begins.
 
-**Key principle:** Make technical decisions explicit and documented so all agents implement consistently. Prevent one agent choosing REST while another chooses GraphQL.
+**Key principle:** Make technical decisions explicit and documented so all agents implement
+consistently. Prevent one agent choosing REST while another chooses GraphQL.
 
 **Required for:** BMad Method (complex projects), Enterprise Method
 
@@ -55,7 +58,8 @@ Phase 3 Solutioning has different paths based on the planning track selected:
 **When Solutioning is Required:**
 
 - **BMad Method:** Multi-epic projects need architecture to prevent conflicts
-- **Enterprise:** Same as BMad Method, plus optional extended workflows (test architecture, security architecture, devops strategy) added AFTER architecture but BEFORE gate check
+- **Enterprise:** Same as BMad Method, plus optional extended workflows (test architecture, security
+  architecture, devops strategy) added AFTER architecture but BEFORE gate check
 
 ---
 
@@ -94,7 +98,8 @@ Result: Consistent implementation, no conflicts
 
 ### architecture
 
-**Purpose:** Make technical decisions explicit to prevent agent conflicts. Produces decision-focused architecture document optimized for AI consistency.
+**Purpose:** Make technical decisions explicit to prevent agent conflicts. Produces decision-focused
+architecture document optimized for AI consistency.
 
 **Agent:** Architect
 
@@ -129,13 +134,17 @@ This is NOT a template filler. The architecture workflow:
 2. **System Architecture** - High-level diagram, component interactions, communication patterns
 3. **Data Architecture** - Database design, state management, caching, data flow
 4. **API Architecture** - API style (REST/GraphQL/gRPC), auth, versioning, error handling
-5. **Frontend Architecture** (if applicable) - Framework, state management, component architecture, routing
+5. **Frontend Architecture** (if applicable) - Framework, state management, component architecture,
+   routing
 6. **Integration Architecture** - Third-party integrations, message queuing, event-driven patterns
 7. **Security Architecture** - Auth/authorization, data protection, security boundaries
 8. **Deployment Architecture** - Deployment model, CI/CD, environment strategy, monitoring
-9. **Architecture Decision Records (ADRs)** - Key decisions with context, options, trade-offs, rationale
-10. **FR/NFR-Specific Guidance** - Technical approach per functional requirement, implementation priorities, dependencies
-11. **Standards and Conventions** - Directory structure, naming conventions, code organization, testing
+9. **Architecture Decision Records (ADRs)** - Key decisions with context, options, trade-offs,
+   rationale
+10. **FR/NFR-Specific Guidance** - Technical approach per functional requirement, implementation
+    priorities, dependencies
+11. **Standards and Conventions** - Directory structure, naming conventions, code organization,
+    testing
 
 **ADR Format (Brief):**
 
@@ -172,15 +181,20 @@ This is NOT a template filler. The architecture workflow:
 - FR-002: Mobile App → Optimized queries
 ```
 
-**Example:** E-commerce platform → Monolith + PostgreSQL + Redis + Next.js + GraphQL, with ADRs explaining each choice and FR/NFR-specific guidance.
+**Example:** E-commerce platform → Monolith + PostgreSQL + Redis + Next.js + GraphQL, with ADRs
+explaining each choice and FR/NFR-specific guidance.
 
-**Integration:** Feeds into create-epics-and-stories workflow. Architecture provides the technical context needed for breaking FRs/NFRs into implementable epics and stories. All dev agents reference architecture during Phase 4 implementation.
+**Integration:** Feeds into create-epics-and-stories workflow. Architecture provides the technical
+context needed for breaking FRs/NFRs into implementable epics and stories. All dev agents reference
+architecture during Phase 4 implementation.
 
 ---
 
 ### create-epics-and-stories
 
-**Purpose:** Transform PRD's functional and non-functional requirements into bite-sized stories organized into deliverable functional epics. This workflow runs AFTER architecture so epics/stories are informed by technical decisions.
+**Purpose:** Transform PRD's functional and non-functional requirements into bite-sized stories
+organized into deliverable functional epics. This workflow runs AFTER architecture so epics/stories
+are informed by technical decisions.
 
 **Agent:** PM (Product Manager)
 
@@ -200,7 +214,8 @@ This is NOT a template filler. The architecture workflow:
 
 The create-epics-and-stories workflow runs AFTER architecture because:
 
-1. **Informed Story Sizing:** Architecture decisions (database choice, API style, etc.) affect story complexity
+1. **Informed Story Sizing:** Architecture decisions (database choice, API style, etc.) affect story
+   complexity
 2. **Dependency Awareness:** Architecture reveals technical dependencies between stories
 3. **Technical Feasibility:** Stories can be properly scoped knowing the tech stack
 4. **Consistency:** All stories align with documented architectural patterns
@@ -215,13 +230,15 @@ Epic files (one per epic) containing:
 4. Dependencies between stories
 5. Technical notes referencing architecture decisions
 
-**Example:** E-commerce PRD with FR-001 (User Registration), FR-002 (Product Catalog) → Epic 1: User Management (3 stories), Epic 2: Product Display (4 stories), each story referencing relevant ADRs.
+**Example:** E-commerce PRD with FR-001 (User Registration), FR-002 (Product Catalog) → Epic 1: User
+Management (3 stories), Epic 2: Product Display (4 stories), each story referencing relevant ADRs.
 
 ---
 
 ### implementation-readiness
 
-**Purpose:** Systematically validate that planning and solutioning are complete and aligned before Phase 4 implementation. Ensures PRD, architecture, and epics are cohesive with no gaps.
+**Purpose:** Systematically validate that planning and solutioning are complete and aligned before
+Phase 4 implementation. Ensures PRD, architecture, and epics are cohesive with no gaps.
 
 **Agent:** Architect
 
@@ -323,7 +340,9 @@ Epic files (one per epic) containing:
 6. Gate Decision with rationale
 7. Next Steps
 
-**Example:** E-commerce platform → CONCERNS ⚠️ due to missing security architecture and undefined payment gateway. Recommendation: Complete security section and add payment gateway ADR before proceeding.
+**Example:** E-commerce platform → CONCERNS ⚠️ due to missing security architecture and undefined
+payment gateway. Recommendation: Complete security section and add payment gateway ADR before
+proceeding.
 
 ---
 
@@ -363,9 +382,13 @@ Planning (prd by PM - FRs/NFRs only)
   → Phase 4 (Implementation)
 ```
 
-**Note on TEA (Test Architect):** TEA is fully operational with 8 workflows across all phases. TEA validates architecture testability during Phase 3 reviews but does not have a dedicated solutioning workflow. TEA's primary setup occurs in Phase 2 (`*framework`, `*ci`, `*test-design`) and testing execution in Phase 4 (`*atdd`, `*automate`, `*test-review`, `*trace`, `*nfr-assess`).
+**Note on TEA (Test Architect):** TEA is fully operational with 8 workflows across all phases. TEA
+validates architecture testability during Phase 3 reviews but does not have a dedicated solutioning
+workflow. TEA's primary setup occurs in Phase 2 (`*framework`, `*ci`, `*test-design`) and testing
+execution in Phase 4 (`*atdd`, `*automate`, `*test-review`, `*trace`, `*nfr-assess`).
 
-**Note:** Enterprise uses the same planning and architecture as BMad Method. The only difference is optional extended workflows added AFTER architecture but BEFORE create-epics-and-stories.
+**Note:** Enterprise uses the same planning and architecture as BMad Method. The only difference is
+optional extended workflows added AFTER architecture but BEFORE create-epics-and-stories.
 
 ### Solutioning → Implementation Handoff
 
@@ -388,11 +411,13 @@ Planning (prd by PM - FRs/NFRs only)
 
 ### 1. Make Decisions Explicit
 
-Don't leave technology choices implicit. Document decisions with rationale in ADRs so agents understand context.
+Don't leave technology choices implicit. Document decisions with rationale in ADRs so agents
+understand context.
 
 ### 2. Focus on Agent Conflicts
 
-Architecture's primary job is preventing conflicting implementations. Focus on cross-cutting concerns.
+Architecture's primary job is preventing conflicting implementations. Focus on cross-cutting
+concerns.
 
 ### 3. Use ADRs for Key Decisions
 
@@ -423,18 +448,24 @@ Architecture documents are living. Update them as you learn during implementatio
 ### BMad Method
 
 - **Planning:** prd (PM) - creates FRs/NFRs only, NOT epics
-- **Solutioning:** Optional UX → architecture (Architect) → create-epics-and-stories (PM) → implementation-readiness (Architect)
+- **Solutioning:** Optional UX → architecture (Architect) → create-epics-and-stories (PM) →
+  implementation-readiness (Architect)
 - **Implementation:** sprint-planning → create-story → dev-story
 
 ### Enterprise
 
 - **Planning:** prd (PM) - creates FRs/NFRs only (same as BMad Method)
-- **Solutioning:** Optional UX → architecture (Architect) → Optional extended workflows (security-architecture, devops-strategy) → create-epics-and-stories (PM) → implementation-readiness (Architect)
+- **Solutioning:** Optional UX → architecture (Architect) → Optional extended workflows
+  (security-architecture, devops-strategy) → create-epics-and-stories (PM) →
+  implementation-readiness (Architect)
 - **Implementation:** sprint-planning → create-story → dev-story
 
-**Key Difference:** Enterprise adds optional extended workflows AFTER architecture but BEFORE create-epics-and-stories. Everything else is identical to BMad Method.
+**Key Difference:** Enterprise adds optional extended workflows AFTER architecture but BEFORE
+create-epics-and-stories. Everything else is identical to BMad Method.
 
-**Note:** TEA (Test Architect) operates across all phases and validates architecture testability but is not a Phase 3-specific workflow. See [Test Architecture Guide](./test-architecture.md) for TEA's full lifecycle integration.
+**Note:** TEA (Test Architect) operates across all phases and validates architecture testability but
+is not a Phase 3-specific workflow. See [Test Architecture Guide](./test-architecture.md) for TEA's
+full lifecycle integration.
 
 ---
 
@@ -442,23 +473,23 @@ Architecture documents are living. Update them as you learn during implementatio
 
 ### ❌ Skipping Architecture for Complex Projects
 
-"Architecture slows us down, let's just start coding."
-**Result:** Agent conflicts, inconsistent design, massive rework
+"Architecture slows us down, let's just start coding." **Result:** Agent conflicts, inconsistent
+design, massive rework
 
 ### ❌ Over-Engineering Simple Projects
 
-"Let me design this simple feature like a distributed system."
-**Result:** Wasted time, over-engineering, analysis paralysis
+"Let me design this simple feature like a distributed system." **Result:** Wasted time,
+over-engineering, analysis paralysis
 
 ### ❌ Template-Driven Architecture
 
-"Fill out every section of this architecture template."
-**Result:** Documentation theater, no real decisions made
+"Fill out every section of this architecture template." **Result:** Documentation theater, no real
+decisions made
 
 ### ❌ Skipping Gate Check
 
-"PRD and architecture look good enough, let's start."
-**Result:** Gaps discovered mid-sprint, wasted implementation time
+"PRD and architecture look good enough, let's start." **Result:** Gaps discovered mid-sprint, wasted
+implementation time
 
 ### ✅ Correct Approach
 
@@ -480,29 +511,31 @@ Architecture documents are living. Update them as you learn during implementatio
 
 ## Troubleshooting
 
-**Q: Do I always need architecture?**
-A: No. Quick Flow skips it. BMad Method and Enterprise both require it.
+**Q: Do I always need architecture?** A: No. Quick Flow skips it. BMad Method and Enterprise both
+require it.
 
-**Q: How do I know if I need architecture?**
-A: If you chose BMad Method or Enterprise track in planning (workflow-init), you need architecture to prevent agent conflicts.
+**Q: How do I know if I need architecture?** A: If you chose BMad Method or Enterprise track in
+planning (workflow-init), you need architecture to prevent agent conflicts.
 
-**Q: What's the difference between architecture and tech-spec?**
-A: Tech-spec is implementation-focused for simple changes. Architecture is system design for complex multi-epic projects.
+**Q: What's the difference between architecture and tech-spec?** A: Tech-spec is
+implementation-focused for simple changes. Architecture is system design for complex multi-epic
+projects.
 
-**Q: Can I skip gate check?**
-A: Only for Quick Flow. BMad Method and Enterprise both require gate check before Phase 4.
+**Q: Can I skip gate check?** A: Only for Quick Flow. BMad Method and Enterprise both require gate
+check before Phase 4.
 
-**Q: What if gate check fails?**
-A: Resolve the identified gaps (missing architecture sections, conflicting requirements) and re-run gate check.
+**Q: What if gate check fails?** A: Resolve the identified gaps (missing architecture sections,
+conflicting requirements) and re-run gate check.
 
-**Q: How long should architecture take?**
-A: BMad Method: 1-2 days for architecture. Enterprise: 2-3 days total (1-2 days architecture + 0.5-1 day optional extended workflows). If taking longer, you may be over-documenting.
+**Q: How long should architecture take?** A: BMad Method: 1-2 days for architecture. Enterprise: 2-3
+days total (1-2 days architecture + 0.5-1 day optional extended workflows). If taking longer, you
+may be over-documenting.
 
-**Q: Do ADRs need to be perfect?**
-A: No. ADRs capture key decisions with rationale. They should be concise (1 page max per ADR).
+**Q: Do ADRs need to be perfect?** A: No. ADRs capture key decisions with rationale. They should be
+concise (1 page max per ADR).
 
-**Q: Can I update architecture during implementation?**
-A: Yes! Architecture is living. Update it as you learn. Use `correct-course` workflow for significant changes.
+**Q: Can I update architecture during implementation?** A: Yes! Architecture is living. Update it as
+you learn. Use `correct-course` workflow for significant changes.
 
 ---
 

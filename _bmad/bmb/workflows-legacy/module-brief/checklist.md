@@ -112,5 +112,4 @@
 
 **Validation Complete:** ⬜ Yes / ⬜ With Issues / ⬜ Needs Revision
 
-**Validated By:** {name}
-**Date:** {date}
+**Validated By:** {name} **Date:** {date}

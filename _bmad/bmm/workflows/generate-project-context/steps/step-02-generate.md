@@ -42,7 +42,8 @@ This step will generate content and present choices for each rule category:
 
 ## YOUR TASK:
 
-Collaboratively generate specific, critical rules that AI agents must follow when implementing code in this project.
+Collaboratively generate specific, critical rules that AI agents must follow when implementing code
+in this project.
 
 ## CONTEXT GENERATION SEQUENCE:
 
@@ -50,34 +51,26 @@ Collaboratively generate specific, critical rules that AI agents must follow whe
 
 Document the exact technology stack from discovery:
 
-**Core Technologies:**
-Based on user skill level, present findings:
+**Core Technologies:** Based on user skill level, present findings:
 
-**Expert Mode:**
-"Technology stack from your architecture and package files:
+**Expert Mode:** "Technology stack from your architecture and package files:
 {{exact_technologies_with_versions}}
 
 Any critical version constraints I should document for agents?"
 
-**Intermediate Mode:**
-"I found your technology stack:
+**Intermediate Mode:** "I found your technology stack:
 
-**Core Technologies:**
-{{main_technologies_with_versions}}
+**Core Technologies:** {{main_technologies_with_versions}}
 
-**Key Dependencies:**
-{{important_dependencies_with_versions}}
+**Key Dependencies:** {{important_dependencies_with_versions}}
 
 Are there any version constraints or compatibility notes agents should know about?"
 
-**Beginner Mode:**
-"Here are the technologies you're using:
+**Beginner Mode:** "Here are the technologies you're using:
 
-**Main Technologies:**
-{{friendly_description_of_tech_stack}}
+**Main Technologies:** {{friendly_description_of_tech_stack}}
 
-**Important Notes:**
-{{key_things_agents_need_to_know_about_versions}}
+**Important Notes:** {{key_things_agents_need_to_know_about_versions}}
 
 Should I document any special version rules or compatibility requirements?"
 
@@ -85,65 +78,50 @@ Should I document any special version rules or compatibility requirements?"
 
 Focus on unobvious language patterns agents might miss:
 
-**TypeScript/JavaScript Rules:**
-"Based on your codebase, I notice some specific patterns:
+**TypeScript/JavaScript Rules:** "Based on your codebase, I notice some specific patterns:
 
-**Configuration Requirements:**
-{{typescript_config_rules}}
+**Configuration Requirements:** {{typescript_config_rules}}
 
-**Import/Export Patterns:**
-{{import_export_conventions}}
+**Import/Export Patterns:** {{import_export_conventions}}
 
-**Error Handling Patterns:**
-{{error_handling_requirements}}
+**Error Handling Patterns:** {{error_handling_requirements}}
 
 Are these patterns correct? Any other language-specific rules agents should follow?"
 
-**Python/Ruby/Other Language Rules:**
-Adapt to the actual language in use with similar focused questions.
+**Python/Ruby/Other Language Rules:** Adapt to the actual language in use with similar focused
+questions.
 
 ### 3. Framework-Specific Rules
 
 Document framework-specific patterns:
 
-**React Rules (if applicable):**
-"For React development, I see these patterns:
+**React Rules (if applicable):** "For React development, I see these patterns:
 
-**Hooks Usage:**
-{{hooks_usage_patterns}}
+**Hooks Usage:** {{hooks_usage_patterns}}
 
-**Component Structure:**
-{{component_organization_rules}}
+**Component Structure:** {{component_organization_rules}}
 
-**State Management:**
-{{state_management_patterns}}
+**State Management:** {{state_management_patterns}}
 
-**Performance Rules:**
-{{performance_optimization_requirements}}
+**Performance Rules:** {{performance_optimization_requirements}}
 
 Should I add any other React-specific rules?"
 
-**Other Framework Rules:**
-Adapt for Vue, Angular, Next.js, Express, etc.
+**Other Framework Rules:** Adapt for Vue, Angular, Next.js, Express, etc.
 
 ### 4. Testing Rules
 
 Focus on testing patterns that ensure consistency:
 
-**Test Structure Rules:**
-"Your testing setup shows these patterns:
+**Test Structure Rules:** "Your testing setup shows these patterns:
 
-**Test Organization:**
-{{test_file_organization}}
+**Test Organization:** {{test_file_organization}}
 
-**Mock Usage:**
-{{mock_patterns_and_conventions}}
+**Mock Usage:** {{mock_patterns_and_conventions}}
 
-**Test Coverage Requirements:**
-{{coverage_expectations}}
+**Test Coverage Requirements:** {{coverage_expectations}}
 
-**Integration vs Unit Test Rules:**
-{{test_boundary_patterns}}
+**Integration vs Unit Test Rules:** {{test_boundary_patterns}}
 
 Are there testing rules agents should always follow?"
 
@@ -151,20 +129,15 @@ Are there testing rules agents should always follow?"
 
 Document critical style and quality rules:
 
-**Linting/Formatting:**
-"Your code style configuration requires:
+**Linting/Formatting:** "Your code style configuration requires:
 
-**ESLint/Prettier Rules:**
-{{specific_linting_rules}}
+**ESLint/Prettier Rules:** {{specific_linting_rules}}
 
-**Code Organization:**
-{{file_and_folder_structure_rules}}
+**Code Organization:** {{file_and_folder_structure_rules}}
 
-**Naming Conventions:**
-{{naming_patterns_agents_must_follow}}
+**Naming Conventions:** {{naming_patterns_agents_must_follow}}
 
-**Documentation Requirements:**
-{{comment_and_documentation_patterns}}
+**Documentation Requirements:** {{comment_and_documentation_patterns}}
 
 Any additional code quality rules?"
 
@@ -172,20 +145,15 @@ Any additional code quality rules?"
 
 Document workflow patterns that affect implementation:
 
-**Git/Repository Rules:**
-"Your project uses these patterns:
+**Git/Repository Rules:** "Your project uses these patterns:
 
-**Branch Naming:**
-{{branch_naming_conventions}}
+**Branch Naming:** {{branch_naming_conventions}}
 
-**Commit Message Format:**
-{{commit_message_patterns}}
+**Commit Message Format:** {{commit_message_patterns}}
 
-**PR Requirements:**
-{{pull_request_checklist}}
+**PR Requirements:** {{pull_request_checklist}}
 
-**Deployment Patterns:**
-{{deployment_considerations}}
+**Deployment Patterns:** {{deployment_considerations}}
 
 Should I document any other workflow rules?"
 
@@ -193,19 +161,15 @@ Should I document any other workflow rules?"
 
 Identify rules that prevent common mistakes:
 
-**Anti-Patterns to Avoid:**
-"Based on your codebase, here are critical things agents must NOT do:
+**Anti-Patterns to Avoid:** "Based on your codebase, here are critical things agents must NOT do:
 
 {{critical_anti_patterns_with_examples}}
 
-**Edge Cases:**
-{{specific_edge_cases_agents_should_handle}}
+**Edge Cases:** {{specific_edge_cases_agents_should_handle}}
 
-**Security Rules:**
-{{security_considerations_agents_must_follow}}
+**Security Rules:** {{security_considerations_agents_must_follow}}
 
-**Performance Gotchas:**
-{{performance_patterns_to_avoid}}
+**Performance Gotchas:** {{performance_patterns_to_avoid}}
 
 Are there other 'gotchas' agents should know about?"
 
@@ -257,10 +221,9 @@ After each category, show the generated rules and present choices:
 
 [Show the complete markdown content for this category]
 
-**What would you like to do?**
-[A] Advanced Elicitation - Explore nuanced rules for this category
-[P] Party Mode - Review from different implementation perspectives
-[C] Continue - Save these rules and move to next category"
+**What would you like to do?** [A] Advanced Elicitation - Explore nuanced rules for this category
+[P] Party Mode - Review from different implementation perspectives [C] Continue - Save these rules
+and move to next category"
 
 ### 10. Handle Menu Selection
 
@@ -288,30 +251,28 @@ After each category, show the generated rules and present choices:
 
 ## APPEND TO PROJECT CONTEXT:
 
-When user selects 'C' for a category, append the content directly to `{output_folder}/project-context.md` using the structure from step 8.
+When user selects 'C' for a category, append the content directly to
+`{output_folder}/project-context.md` using the structure from step 8.
 
 ## SUCCESS METRICS:
 
-✅ All critical technology versions accurately documented
-✅ Language-specific rules cover unobvious patterns
-✅ Framework rules capture project-specific conventions
-✅ Testing rules ensure consistent test quality
-✅ Code quality rules maintain project standards
-✅ Workflow rules prevent implementation conflicts
-✅ Content is lean and optimized for LLM context
-✅ A/P/C menu presented and handled correctly for each category
+✅ All critical technology versions accurately documented ✅ Language-specific rules cover unobvious
+patterns ✅ Framework rules capture project-specific conventions ✅ Testing rules ensure consistent
+test quality ✅ Code quality rules maintain project standards ✅ Workflow rules prevent
+implementation conflicts ✅ Content is lean and optimized for LLM context ✅ A/P/C menu presented
+and handled correctly for each category
 
 ## FAILURE MODES:
 
-❌ Including obvious rules that agents already know
-❌ Making content too verbose for LLM context efficiency
-❌ Missing critical anti-patterns or edge cases
-❌ Not getting user validation for each rule category
-❌ Not documenting exact versions and configurations
-❌ Not presenting A/P/C menu after content generation
+❌ Including obvious rules that agents already know ❌ Making content too verbose for LLM context
+efficiency ❌ Missing critical anti-patterns or edge cases ❌ Not getting user validation for each
+rule category ❌ Not documenting exact versions and configurations ❌ Not presenting A/P/C menu
+after content generation
 
 ## NEXT STEP:
 
-After completing all rule categories and user selects 'C' for the final category, load `./step-03-complete.md` to finalize the project context file.
+After completing all rule categories and user selects 'C' for the final category, load
+`./step-03-complete.md` to finalize the project context file.
 
-Remember: Do NOT proceed to step-03 until all categories are complete and user explicitly selects 'C' for each!
+Remember: Do NOT proceed to step-03 until all categories are complete and user explicitly selects
+'C' for each!

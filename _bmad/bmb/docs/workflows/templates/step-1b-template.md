@@ -1,15 +1,18 @@
 # BMAD Workflow Step 1B Continuation Template
 
-This template provides the standard structure for workflow continuation steps. It handles resuming workflows that were started but not completed, ensuring seamless continuation across multiple sessions.
+This template provides the standard structure for workflow continuation steps. It handles resuming
+workflows that were started but not completed, ensuring seamless continuation across multiple
+sessions.
 
-Use this template alongside **step-01-init-continuable-template.md** to create workflows that can be paused and resumed. The init template handles the detection and routing logic, while this template handles the resumption logic.
+Use this template alongside **step-01-init-continuable-template.md** to create workflows that can be
+paused and resumed. The init template handles the detection and routing logic, while this template
+handles the resumption logic.
 
 <!-- TEMPLATE START -->
 
 ---
 
-name: 'step-01b-continue'
-description: 'Handle workflow continuation from previous session'
+name: 'step-01b-continue' description: 'Handle workflow continuation from previous session'
 
 <!-- Path Definitions -->
 
@@ -17,9 +20,8 @@ workflow\*path: '{project-root}/\_bmad/[module-path]/workflows/[workflow-name]'
 
 # File References (all use {variable} format in file)
 
-thisStepFile: '{workflow_path}/steps/step-01b-continue.md'
-outputFile: '{output_folder}/[output-file-name]-{project_name}.md'
-workflowFile: '{workflow_path}/workflow.md'
+thisStepFile: '{workflow_path}/steps/step-01b-continue.md' outputFile:
+'{output_folder}/[output-file-name]-{project_name}.md' workflowFile: '{workflow_path}/workflow.md'
 
 # Template References (if needed for analysis)
 
@@ -29,7 +31,8 @@ workflowFile: '{workflow_path}/workflow.md'
 
 ## STEP GOAL:
 
-To resume the [workflow-type] workflow from where it was left off, ensuring smooth continuation without loss of context or progress.
+To resume the [workflow-type] workflow from where it was left off, ensuring smooth continuation
+without loss of context or progress.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -43,9 +46,11 @@ To resume the [workflow-type] workflow from where it was left off, ensuring smoo
 ### Role Reinforcement:
 
 - ✅ You are a [specific role, e.g., "business analyst" or "technical architect"]
-- ✅ If you already have been given a name, communication_style and identity, continue to use those while playing this new role
+- ✅ If you already have been given a name, communication_style and identity, continue to use those
+  while playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
-- ✅ You bring [your expertise], user brings [their expertise], and together we produce something better than we could on our own
+- ✅ You bring [your expertise], user brings [their expertise], and together we produce something
+  better than we could on our own
 - ✅ Maintain collaborative [adjective] tone throughout
 
 ### Step-Specific Rules:
@@ -133,9 +138,9 @@ Are you ready to continue where we left off?"
 
 Ask confirmation questions if needed:
 
-"Has anything changed since our last session that might affect our approach?"
-"Are you still aligned with the goals and decisions we made earlier?"
-"Would you like to review what we've accomplished so far?"
+"Has anything changed since our last session that might affect our approach?" "Are you still aligned
+with the goals and decisions we made earlier?" "Would you like to review what we've accomplished so
+far?"
 
 ### 7. Present MENU OPTIONS
 
@@ -145,7 +150,8 @@ Display: "**Resuming workflow - Select an Option:** [C] Continue to [Next Step N
 
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
-- User can chat or ask questions - always respond and then end with display again of the menu options
+- User can chat or ask questions - always respond and then end with display again of the menu
+  options
 - Update frontmatter with continuation timestamp when 'C' is selected
 
 #### Menu Handling Logic:
@@ -153,7 +159,8 @@ Display: "**Resuming workflow - Select an Option:** [C] Continue to [Next Step N
 - IF C:
   1. Update frontmatter: add `lastContinued: [current date]`
   2. Load, read entire file, then execute the appropriate next step file (determined in section 4)
-- IF Any other comments or queries: help user respond then [Redisplay Menu Options](#7-present-menu-options)
+- IF Any other comments or queries: help user respond then
+  [Redisplay Menu Options](#7-present-menu-options)
 
 ## CRITICAL STEP COMPLETION NOTE
 
@@ -182,7 +189,8 @@ Do NOT modify any other content in the output document during this continuation 
 - Not updating frontmatter with continuation info
 - Proceeding without user confirmation
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.
 
 <!-- TEMPLATE END -->
 
@@ -204,7 +212,8 @@ Replace bracketed placeholders with your specific values:
 
 ### 2. Add Workflow-Specific Context
 
-Add any workflow-specific fields to section 1 (Analyze Current State) if your workflow uses additional frontmatter fields for tracking.
+Add any workflow-specific fields to section 1 (Analyze Current State) if your workflow uses
+additional frontmatter fields for tracking.
 
 ### 3. Customize Welcome Message
 

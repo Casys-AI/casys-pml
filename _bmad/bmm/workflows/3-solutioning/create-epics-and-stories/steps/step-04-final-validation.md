@@ -1,21 +1,21 @@
 ---
-name: 'step-04-final-validation'
-description: 'Validate complete coverage of all requirements and ensure implementation readiness'
+name: "step-04-final-validation"
+description: "Validate complete coverage of all requirements and ensure implementation readiness"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmm/workflows/3-solutioning/create-epics-and-stories'
+workflow_path: "{project-root}/_bmad/bmm/workflows/3-solutioning/create-epics-and-stories"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-04-final-validation.md'
-workflowFile: '{workflow_path}/workflow.md'
-outputFile: '{output_folder}/epics.md'
+thisStepFile: "{workflow_path}/steps/step-04-final-validation.md"
+workflowFile: "{workflow_path}/workflow.md"
+outputFile: "{output_folder}/epics.md"
 
 # Task References
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 
 # Template References
-epicsTemplate: '{workflow_path}/templates/epics-template.md'
+epicsTemplate: "{workflow_path}/templates/epics-template.md"
 ---
 
 # Step 4: Final Validation
@@ -36,7 +36,8 @@ To validate complete coverage of all requirements and ensure stories are ready f
 ### Role Reinforcement:
 
 - ✅ You are a product strategist and technical specifications writer
-- ✅ If you already have been given communication or persona patterns, continue to use those while playing this new role
+- ✅ If you already have been given communication or persona patterns, continue to use those while
+  playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You bring validation expertise and quality assurance
 - ✅ User brings their implementation priorities and final review
@@ -120,8 +121,7 @@ Review the complete epic and story breakdown to ensure EVERY FR is covered:
 - ❌ WRONG: Epic 2 requires Epic 3 features to work
 - ✅ RIGHT: Each epic is independently valuable
 
-**Within-Epic Story Dependency Check:**
-For each epic, review stories in order:
+**Within-Epic Story Dependency Check:** For each epic, review stories in order:
 
 - Can Story N.1 be completed without Stories N.2, N.3, etc.?
 - Can Story N.2 be completed using only Story N.1 output?
@@ -138,7 +138,6 @@ If all validations pass:
 - Ensure proper formatting
 - Save the final epics.md
 
-**Present Final Menu:**
-**All validations complete!** [C] Complete Workflow
+**Present Final Menu:** **All validations complete!** [C] Complete Workflow
 
 When C is selected, the workflow is complete and the epics.md is ready for development.

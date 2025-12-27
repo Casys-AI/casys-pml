@@ -15,8 +15,7 @@ Effort:** 6-8 heures (Actual: ~6h)
 ## Acceptance Criteria
 
 1. ✅ Sandbox module créé (`src/sandbox/executor.ts`)
-2. ✅ Deno subprocess spawned avec permissions explicites (`--allow-env`,
-   `--allow-read=~/.pml`)
+2. ✅ Deno subprocess spawned avec permissions explicites (`--allow-env`, `--allow-read=~/.pml`)
 3. ✅ Code execution isolée (no access to filesystem outside allowed paths)
 4. ✅ Timeout enforcement (default 30s, configurable)
 5. ✅ Memory limits enforcement (default 512MB heap)
@@ -142,8 +141,7 @@ src/sandbox/
 
 **Integration Points:**
 
-- `src/mcp/gateway-server.ts`: Will invoke sandbox via new `pml:execute_code` tool (Story
-  3.4)
+- `src/mcp/gateway-server.ts`: Will invoke sandbox via new `pml:execute_code` tool (Story 3.4)
 - `src/dag/executor.ts`: Code execution can be DAG task type (Story 3.3)
 - `src/telemetry/`: Log sandbox metrics (execution time, errors, resource usage)
 
@@ -505,8 +503,8 @@ standards. Zero critical issues identified. Ready for production integration.
 **Integration Readiness:**
 
 - ✅ Ready for Story 3.2 (MCP Tools Injection): DenoSandboxExecutor can be wrapped in MCP tool
-- ✅ Ready for Story 3.4 (pml:execute_code): ExecutionResult directly compatible with MCP
-  response format
+- ✅ Ready for Story 3.4 (pml:execute_code): ExecutionResult directly compatible with MCP response
+  format
 - ✅ Security event logging: WARN level for permission violations, INFO for success
 - ✅ Performance tracking: executionTimeMs included in all results
 

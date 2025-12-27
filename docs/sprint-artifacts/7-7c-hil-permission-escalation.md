@@ -1,22 +1,22 @@
 # Story 7.7c: HIL Permission Escalation - Human Approval for Permission Upgrades
 
-> **Epic:** 7 - Emergent Capabilities & Learning System
-> **ADR:** ADR-035 (Permission Sets for Sandbox Security)
-> **Prerequisites:** Story 7.7b (Sandbox Permission Integration - DONE, 37 tests passing)
-> **Status:** review-ready
+> **Epic:** 7 - Emergent Capabilities & Learning System **ADR:** ADR-035 (Permission Sets for
+> Sandbox Security) **Prerequisites:** Story 7.7b (Sandbox Permission Integration - DONE, 37 tests
+> passing) **Status:** review-ready
 
 ## User Story
 
-As a user,
-I want to approve permission escalations when a capability needs more access,
-So that security is maintained while allowing legitimate operations.
+As a user, I want to approve permission escalations when a capability needs more access, So that
+security is maintained while allowing legitimate operations.
 
 ## Problem Context
 
 ### Current State (After Story 7.7b)
 
 Story 7.7b implemented granular permission enforcement:
-- Capabilities execute with their inferred `permission_set` (minimal, readonly, filesystem, network-api, mcp-standard)
+
+- Capabilities execute with their inferred `permission_set` (minimal, readonly, filesystem,
+  network-api, mcp-standard)
 - Low confidence inferences (< 0.7) fallback to `minimal` for safety
 - `--deny-run` and `--deny-ffi` always enforced (security-critical)
 
@@ -33,6 +33,7 @@ if (!result.success && result.error?.message.includes("PermissionDenied")) {
 ```
 
 **Problem:** Legitimate capabilities can fail if:
+
 1. Permission inference confidence was low (forced to minimal)
 2. Inference missed a pattern (e.g., dynamic URL construction)
 3. Capability was updated but permissions weren't re-inferred
@@ -40,6 +41,7 @@ if (!result.success && result.error?.message.includes("PermissionDenied")) {
 ### Solution: HIL Permission Escalation
 
 When a capability fails with `PermissionDenied`, the system:
+
 1. Detects the error type (read, write, net, env)
 2. Suggests appropriate permission escalation (e.g., minimal -> network-api)
 3. Requests human approval via existing HIL mechanism (ControlledExecutor)
@@ -82,26 +84,27 @@ Request HIL approval via ControlledExecutor
   ```typescript
   interface PermissionEscalationRequest {
     capabilityId: string;
-    currentSet: PermissionSet;          // "minimal"
-    requestedSet: PermissionSet;        // "network-api"
-    reason: string;                     // "PermissionDenied: net access to api.example.com"
-    detectedOperation: string;          // "fetch"
-    confidence: number;                 // 0.85 (how confident we are this is the right escalation)
+    currentSet: PermissionSet; // "minimal"
+    requestedSet: PermissionSet; // "network-api"
+    reason: string; // "PermissionDenied: net access to api.example.com"
+    detectedOperation: string; // "fetch"
+    confidence: number; // 0.85 (how confident we are this is the right escalation)
   }
   ```
 
 ### AC2: suggestEscalation() Function Implemented
 
-- [x] Function `suggestEscalation(error: string): PermissionEscalationRequest | null` in `src/capabilities/permission-escalation.ts`
+- [x] Function `suggestEscalation(error: string): PermissionEscalationRequest | null` in
+      `src/capabilities/permission-escalation.ts`
 - [x] Parses Deno PermissionDenied error messages to determine required permissions:
-  | Error Pattern | Detected Operation | Suggested Set |
-  |--------------|-------------------|---------------|
-  | `Requires read access to` | `read` | `readonly` -> `filesystem` |
-  | `Requires write access to` | `write` | `filesystem` |
-  | `Requires net access to` | `net` | `network-api` |
-  | `Requires env access to` | `env` | `mcp-standard` |
-  | `Requires run access to` | `run` | **REJECT** (security-critical) |
-  | `Requires ffi access` | `ffi` | **REJECT** (security-critical) |
+  | Error Pattern              | Detected Operation | Suggested Set                  |
+  | -------------------------- | ------------------ | ------------------------------ |
+  | `Requires read access to`  | `read`             | `readonly` -> `filesystem`     |
+  | `Requires write access to` | `write`            | `filesystem`                   |
+  | `Requires net access to`   | `net`              | `network-api`                  |
+  | `Requires env access to`   | `env`              | `mcp-standard`                 |
+  | `Requires run access to`   | `run`              | **REJECT** (security-critical) |
+  | `Requires ffi access`      | `ffi`              | **REJECT** (security-critical) |
 - [x] Returns `null` for run/ffi requests (cannot escalate security-critical permissions)
 - [x] Confidence scoring based on error specificity (exact path vs general)
 
@@ -141,11 +144,11 @@ Request HIL approval via ControlledExecutor
     id: text("id").primaryKey(),
     timestamp: integer("timestamp", { mode: "timestamp" }).notNull(),
     capabilityId: text("capability_id").notNull(),
-    fromSet: text("from_set").notNull(),    // "minimal"
-    toSet: text("to_set").notNull(),        // "network-api"
+    fromSet: text("from_set").notNull(), // "minimal"
+    toSet: text("to_set").notNull(), // "network-api"
     approved: integer("approved", { mode: "boolean" }).notNull(),
-    approvedBy: text("approved_by"),        // user_id or "system"
-    reason: text("reason"),                 // Original error message
+    approvedBy: text("approved_by"), // user_id or "system"
+    reason: text("reason"), // Original error message
     detectedOperation: text("detected_operation"), // "fetch", "read", etc.
   });
   ```
@@ -160,11 +163,16 @@ Request HIL approval via ControlledExecutor
 
 ### AC8: Unit Tests - Error Parsing
 
-- [x] Test: `suggestEscalation("PermissionDenied: Requires read access to /etc/passwd")` -> `{ requestedSet: "filesystem", detectedOperation: "read" }`
-- [x] Test: `suggestEscalation("PermissionDenied: Requires net access to api.example.com:443")` -> `{ requestedSet: "network-api", detectedOperation: "net" }`
-- [x] Test: `suggestEscalation("PermissionDenied: Requires write access to /tmp/output.txt")` -> `{ requestedSet: "filesystem", detectedOperation: "write" }`
-- [x] Test: `suggestEscalation("PermissionDenied: Requires run access to /bin/sh")` -> `null` (security-critical)
-- [x] Test: `suggestEscalation("PermissionDenied: Requires ffi access")` -> `null` (security-critical)
+- [x] Test: `suggestEscalation("PermissionDenied: Requires read access to /etc/passwd")` ->
+      `{ requestedSet: "filesystem", detectedOperation: "read" }`
+- [x] Test: `suggestEscalation("PermissionDenied: Requires net access to api.example.com:443")` ->
+      `{ requestedSet: "network-api", detectedOperation: "net" }`
+- [x] Test: `suggestEscalation("PermissionDenied: Requires write access to /tmp/output.txt")` ->
+      `{ requestedSet: "filesystem", detectedOperation: "write" }`
+- [x] Test: `suggestEscalation("PermissionDenied: Requires run access to /bin/sh")` -> `null`
+      (security-critical)
+- [x] Test: `suggestEscalation("PermissionDenied: Requires ffi access")` -> `null`
+      (security-critical)
 - [x] Test: `suggestEscalation("Some other error")` -> `null` (not a permission error)
 
 ### AC9: Integration Tests - Full Escalation Flow
@@ -237,7 +245,8 @@ Request HIL approval via ControlledExecutor
 
 ### Task 8: Write Integration Tests (AC: #9)
 
-- [x] 8.1 Create `tests/integration/capabilities/permission_escalation_integration_test.ts` (12 tests)
+- [x] 8.1 Create `tests/integration/capabilities/permission_escalation_integration_test.ts` (12
+      tests)
 - [x] 8.2 Test full escalation flow with mocked HIL approval
 - [x] 8.3 Test rejection flow with mocked HIL rejection
 - [x] 8.4 Test audit log persistence
@@ -265,10 +274,10 @@ Request HIL approval via ControlledExecutor
    ```
    Use regex to extract permission type and resource.
 
-2. **Security-Critical Permissions:** NEVER allow escalation to permissions that could escape sandbox:
+2. **Security-Critical Permissions:** NEVER allow escalation to permissions that could escape
+   sandbox:
    - `run` - Could spawn arbitrary processes
-   - `ffi` - Could call native code
-   These are hardcoded rejections, no HIL override possible.
+   - `ffi` - Could call native code These are hardcoded rejections, no HIL override possible.
 
 3. **Escalation Path Logic:**
    ```
@@ -281,8 +290,7 @@ Request HIL approval via ControlledExecutor
    * -> trusted (only via manual override, not escalation)
    ```
 
-4. **Integration with Existing HIL:**
-   The `ControlledExecutor` already has HIL infrastructure:
+4. **Integration with Existing HIL:** The `ControlledExecutor` already has HIL infrastructure:
    - `waitForDecisionCommand(type, timeout)` - waits for human response
    - `captureHILDecision()` - episodic memory capture
    - `CommandQueue` - for receiving approval commands
@@ -383,16 +391,20 @@ Approving will permanently upgrade the capability's permission set.
 ## References
 
 - [ADR-035: Permission Sets for Sandbox Security](../adrs/ADR-035-permission-sets-sandbox-security.md)
-- [Story 7.7a: Permission Inference](./7-7a-permission-inference-automatic-analysis.md) - Permission inference
-- [Story 7.7b: Sandbox Permission Integration](./7-7b-sandbox-permission-integration.md) - Permission enforcement
-- [Story 2.5-3: AIL/HIL Integration](./2.5-3-ail-hil-integration-dag-replanning.md) - HIL pattern reference
+- [Story 7.7a: Permission Inference](./7-7a-permission-inference-automatic-analysis.md) - Permission
+  inference
+- [Story 7.7b: Sandbox Permission Integration](./7-7b-sandbox-permission-integration.md) -
+  Permission enforcement
+- [Story 2.5-3: AIL/HIL Integration](./2.5-3-ail-hil-integration-dag-replanning.md) - HIL pattern
+  reference
 - [ControlledExecutor](../../src/dag/controlled-executor.ts) - HIL implementation
 - [Deno Permissions Documentation](https://docs.deno.com/runtime/fundamentals/permissions/)
 
 ## Estimation
 
 - **Effort:** 1-1.5 days
-- **LOC:** ~120 (permission-escalation.ts) + ~80 (audit-store.ts) + ~40 (migration) + ~60 (controlled-executor changes) + ~450 (tests) = ~750 total
+- **LOC:** ~120 (permission-escalation.ts) + ~80 (audit-store.ts) + ~40 (migration) + ~60
+  (controlled-executor changes) + ~450 (tests) = ~750 total
 - **Risk:** Low (leverages existing HIL infrastructure from Story 2.5-3)
 
 ---
@@ -422,10 +434,13 @@ Approving will permanently upgrade the capability's permission set.
 **Implementation Summary (2024-12-16):**
 
 1. **Core Implementation:**
-   - `suggestEscalation()` parses Deno PermissionDenied errors with regex and suggests appropriate permission set escalations
-   - `PermissionEscalationHandler` orchestrates the full escalation flow: detect → suggest → HIL request → approve/reject → update DB
+   - `suggestEscalation()` parses Deno PermissionDenied errors with regex and suggests appropriate
+     permission set escalations
+   - `PermissionEscalationHandler` orchestrates the full escalation flow: detect → suggest → HIL
+     request → approve/reject → update DB
    - `PermissionAuditStore` provides persistent audit logging with filtering capabilities
-   - Security-critical permissions (`run`, `ffi`) are blocked at the suggestion level - no HIL override possible
+   - Security-critical permissions (`run`, `ffi`) are blocked at the suggestion level - no HIL
+     override possible
 
 2. **ControlledExecutor Integration:**
    - Added `setPermissionEscalationDependencies(auditStore)` method to configure the handler
@@ -434,7 +449,8 @@ Approving will permanently upgrade the capability's permission set.
    - After approval, capability is automatically retried with updated permissions
 
 3. **Test Coverage:**
-   - 28 unit tests covering error parsing, security-critical blocking, escalation paths, confidence scoring
+   - 28 unit tests covering error parsing, security-critical blocking, escalation paths, confidence
+     scoring
    - 12 integration tests covering full escalation flow, rejection flow, audit log persistence
    - 8 E2E tests covering ControlledExecutor integration, capability execution with permissions
 
@@ -448,25 +464,29 @@ Approving will permanently upgrade the capability's permission set.
 ### File List
 
 - [x] `src/capabilities/permission-escalation.ts` - NEW (~200 LOC)
-- [x] `src/capabilities/permission-escalation-handler.ts` - NEW (~350 LOC) - Orchestrates escalation flow
+- [x] `src/capabilities/permission-escalation-handler.ts` - NEW (~350 LOC) - Orchestrates escalation
+      flow
 - [x] `src/capabilities/permission-audit-store.ts` - NEW (~140 LOC)
-- [x] `src/capabilities/types.ts` - MODIFIED (add PermissionEscalationRequest, PermissionAuditLogEntry interfaces)
+- [x] `src/capabilities/types.ts` - MODIFIED (add PermissionEscalationRequest,
+      PermissionAuditLogEntry interfaces)
 - [x] `src/capabilities/capability-store.ts` - MODIFIED (add updatePermissionSet, isValidEscalation)
 - [x] `src/capabilities/mod.ts` - MODIFIED (exports)
-- [x] `src/dag/controlled-executor.ts` - MODIFIED (~120 LOC added: requestPermissionEscalation, setPermissionEscalationDependencies, executeCapabilityTask error handling)
+- [x] `src/dag/controlled-executor.ts` - MODIFIED (~120 LOC added: requestPermissionEscalation,
+      setPermissionEscalationDependencies, executeCapabilityTask error handling)
 - [x] `src/dag/types.ts` - MODIFIED (add permission_escalation_response command type)
 - [x] `src/db/migrations/018_permission_audit_log.ts` - NEW (~60 LOC)
 - [x] `src/db/migrations.ts` - MODIFIED (register migration)
 - [x] `tests/unit/capabilities/permission_escalation_test.ts` - NEW (28 tests, ~230 LOC)
-- [x] `tests/integration/capabilities/permission_escalation_integration_test.ts` - NEW (12 tests, ~540 LOC)
+- [x] `tests/integration/capabilities/permission_escalation_integration_test.ts` - NEW (12 tests,
+      ~540 LOC)
 - [x] `tests/e2e/permission_escalation_e2e_test.ts` - NEW (8 tests, ~420 LOC)
 - [x] `src/graphrag/types.ts` - MODIFIED (add permissionSet to Task.sandboxConfig) - 2025-12-16
 
 ## Change Log
 
-| Date | Change | Author |
-|------|--------|--------|
-| 2024-12-16 | Initial implementation - 48 tests passing | Claude |
+| Date       | Change                                                    | Author          |
+| ---------- | --------------------------------------------------------- | --------------- |
+| 2024-12-16 | Initial implementation - 48 tests passing                 | Claude          |
 | 2025-12-16 | Extended HIL escalation to `code_execution` tasks in DAGs | Claude Opus 4.5 |
 
 ---
@@ -475,9 +495,12 @@ Approving will permanently upgrade the capability's permission set.
 
 ### Problem
 
-The original 7.7c implementation only supported permission escalation for **capability** tasks (tasks with `capabilityId`). When `code_execution` tasks in DAGs failed with `PermissionDenied` errors, they would fail without any HIL escalation opportunity.
+The original 7.7c implementation only supported permission escalation for **capability** tasks
+(tasks with `capabilityId`). When `code_execution` tasks in DAGs failed with `PermissionDenied`
+errors, they would fail without any HIL escalation opportunity.
 
 **Gap identified:**
+
 - `code_execution` tasks don't have `capabilityId`
 - The existing HIL check required `task.capabilityId` to trigger escalation
 - Result: `fetch()` in code execution tasks would fail silently with no recovery path
@@ -486,20 +509,24 @@ The original 7.7c implementation only supported permission escalation for **capa
 
 Extended `executeCodeTask()` in `controlled-executor.ts` to:
 
-1. **Accept `permissionSet` parameter**: Either from `task.sandboxConfig.permissionSet`, explicit parameter, or default to "minimal"
+1. **Accept `permissionSet` parameter**: Either from `task.sandboxConfig.permissionSet`, explicit
+   parameter, or default to "minimal"
 2. **Pass `permissionSet` to `executor.execute()`**: Sandbox now respects permission configuration
-3. **Detect permission errors**: Catch `PermissionError`, `PermissionDenied`, `NotCapable` in error messages
-4. **Trigger HIL escalation**: Use existing `suggestEscalation()` to parse error and `waitForDecisionCommand()` for approval
-5. **Retry on approval**: If approved, recursively call `executeCodeTask()` with the escalated permission set
+3. **Detect permission errors**: Catch `PermissionError`, `PermissionDenied`, `NotCapable` in error
+   messages
+4. **Trigger HIL escalation**: Use existing `suggestEscalation()` to parse error and
+   `waitForDecisionCommand()` for approval
+5. **Retry on approval**: If approved, recursively call `executeCodeTask()` with the escalated
+   permission set
 
 ### Key Differences from Capability Escalation
 
-| Aspect | Capability Tasks | Code Execution Tasks |
-|--------|-----------------|---------------------|
-| ID used | `task.capabilityId` | `task.id` (placeholder) |
+| Aspect         | Capability Tasks                                | Code Execution Tasks                   |
+| -------------- | ----------------------------------------------- | -------------------------------------- |
+| ID used        | `task.capabilityId`                             | `task.id` (placeholder)                |
 | DB persistence | Yes - updates `workflow_pattern.permission_set` | No - ephemeral for this execution only |
-| Audit log | Yes - via `PermissionAuditStore` | No - only logged, not persisted |
-| Retry | Uses same capability | Passes new permissionSet parameter |
+| Audit log      | Yes - via `PermissionAuditStore`                | No - only logged, not persisted        |
+| Retry          | Uses same capability                            | Passes new permissionSet parameter     |
 
 ### Type Changes
 
@@ -529,9 +556,9 @@ const dag = {
     `,
     dependsOn: [],
     sandboxConfig: {
-      permissionSet: "network-api"  // Pre-configure, or let HIL escalate
-    }
-  }]
+      permissionSet: "network-api", // Pre-configure, or let HIL escalate
+    },
+  }],
 };
 ```
 

@@ -174,7 +174,7 @@ export class EdgeRenderer {
    * Update edge positions (e.g., during simulation tick)
    */
   updatePositions(
-    getPosition: (nodeId: string) => Point | undefined
+    getPosition: (nodeId: string) => Point | undefined,
   ): void {
     // Update edge endpoints based on current node positions
     for (const edge of this.edges) {
@@ -273,41 +273,44 @@ export class EdgeRenderer {
         .duration(this.config.animationDuration)
         .attr("stroke", (d: BundledEdge) =>
           d.sourceId === this.highlightedNodeId ||
-          d.targetId === this.highlightedNodeId
+            d.targetId === this.highlightedNodeId
             ? this.config.highlightColor
-            : this.config.strokeColor
-        )
+            : this.config.strokeColor)
         .attr("stroke-opacity", (d: BundledEdge) =>
           d.sourceId === this.highlightedNodeId ||
-          d.targetId === this.highlightedNodeId
+            d.targetId === this.highlightedNodeId
             ? this.config.highlightOpacity
-            : this.config.strokeOpacity * 0.5
-        )
+            : this.config.strokeOpacity * 0.5)
         .attr("stroke-width", (d: BundledEdge) =>
           d.sourceId === this.highlightedNodeId ||
-          d.targetId === this.highlightedNodeId
+            d.targetId === this.highlightedNodeId
             ? this.config.strokeWidth * 2
-            : this.config.strokeWidth
-        );
+            : this.config.strokeWidth);
     } else if (this.highlightedEdgeKey) {
       // Highlight specific edge
       paths
         .transition()
         .duration(this.config.animationDuration)
-        .attr("stroke", (d: BundledEdge) =>
-          `${d.sourceId}-${d.targetId}` === this.highlightedEdgeKey
-            ? this.config.highlightColor
-            : this.config.strokeColor
+        .attr(
+          "stroke",
+          (d: BundledEdge) =>
+            `${d.sourceId}-${d.targetId}` === this.highlightedEdgeKey
+              ? this.config.highlightColor
+              : this.config.strokeColor,
         )
-        .attr("stroke-opacity", (d: BundledEdge) =>
-          `${d.sourceId}-${d.targetId}` === this.highlightedEdgeKey
-            ? this.config.highlightOpacity
-            : this.config.strokeOpacity * 0.5
+        .attr(
+          "stroke-opacity",
+          (d: BundledEdge) =>
+            `${d.sourceId}-${d.targetId}` === this.highlightedEdgeKey
+              ? this.config.highlightOpacity
+              : this.config.strokeOpacity * 0.5,
         )
-        .attr("stroke-width", (d: BundledEdge) =>
-          `${d.sourceId}-${d.targetId}` === this.highlightedEdgeKey
-            ? this.config.strokeWidth * 2
-            : this.config.strokeWidth
+        .attr(
+          "stroke-width",
+          (d: BundledEdge) =>
+            `${d.sourceId}-${d.targetId}` === this.highlightedEdgeKey
+              ? this.config.strokeWidth * 2
+              : this.config.strokeWidth,
         );
     } else {
       // Clear all highlights
@@ -330,7 +333,7 @@ export function renderSimpleEdges(
   svgGroup: any,
   edges: Array<{ source: string; target: string }>,
   getPosition: (nodeId: string) => Point | undefined,
-  config?: Partial<EdgeRenderConfig>
+  config?: Partial<EdgeRenderConfig>,
 ): void {
   const mergedConfig = { ...DEFAULT_CONFIG, ...config };
 

@@ -126,35 +126,39 @@ docs/
 
 ## Key Files to Know
 
-| File | Purpose |
-|------|---------|
-| `deno.json` | Tasks, imports, compiler options |
-| `src/main.ts` | Application entry point |
-| `src/mcp/gateway-server.ts` | MCP Gateway (8 meta-tools) |
-| `src/web/routes/` | Dashboard routes (BFF pattern) |
-| `docs/project_context.md` | AI agent rules |
-| `docs/project-overview.md` | Full project overview |
+| File                        | Purpose                          |
+| --------------------------- | -------------------------------- |
+| `deno.json`                 | Tasks, imports, compiler options |
+| `src/main.ts`               | Application entry point          |
+| `src/mcp/gateway-server.ts` | MCP Gateway (8 meta-tools)       |
+| `src/web/routes/`           | Dashboard routes (BFF pattern)   |
+| `docs/project_context.md`   | AI agent rules                   |
+| `docs/project-overview.md`  | Full project overview            |
 
 ---
 
 ## Common Tasks
 
 ### Add a new MCP tool
+
 1. Add tool definition in `src/mcp/gateway-server.ts`
 2. Implement handler in `src/mcp/gateway-handler.ts`
 3. Add tests in `tests/unit/mcp/`
 
 ### Add a new database table
+
 1. Create migration in `src/db/migrations/XXX_name.ts`
 2. Register in `src/db/migrations.ts`
 3. Run `deno task db:generate`
 
 ### Add a new dashboard page
+
 1. Create route in `src/web/routes/your-page.tsx`
 2. For interactivity, create island in `src/web/islands/`
 3. Use existing components from `src/web/components/ui/`
 
 ### Add a new ADR
+
 1. Create `docs/adrs/ADR-XXX-title.md`
 2. Follow format: Context → Decision → Consequences
 
@@ -162,12 +166,12 @@ docs/
 
 ## Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT_API` | 3003 | API Gateway port |
-| `FRESH_PORT` | 8081 | Dashboard port |
-| `PML_DB_PATH` | .pml-dev.db | Database path |
-| `SENTRY_DSN` | (optional) | Error tracking |
+| Variable      | Default     | Description      |
+| ------------- | ----------- | ---------------- |
+| `PORT_API`    | 3003        | API Gateway port |
+| `FRESH_PORT`  | 8081        | Dashboard port   |
+| `PML_DB_PATH` | .pml-dev.db | Database path    |
+| `SENTRY_DSN`  | (optional)  | Error tracking   |
 
 ---
 
@@ -183,6 +187,7 @@ docs/
 ## Troubleshooting
 
 ### Port already in use
+
 ```bash
 # Find and kill process on port 3003
 lsof -i :3003
@@ -190,6 +195,7 @@ kill -9 <PID>
 ```
 
 ### Database issues
+
 ```bash
 # Reset dev database
 rm -rf .pml-dev.db
@@ -197,6 +203,7 @@ deno task cli init
 ```
 
 ### Type errors
+
 ```bash
 # Clear Deno cache and recheck
 deno cache --reload src/main.ts

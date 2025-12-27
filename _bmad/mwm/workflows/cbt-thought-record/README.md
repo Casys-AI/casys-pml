@@ -27,5 +27,6 @@ TR (from CBT Coach agent)
 
 ## Notes
 
-This workflow will be implemented using the create-workflow workflow.
-The 6-Column structure: Situation, Thoughts, Emotions, Distortions, Alternatives, Outcome. Features: Guided process, education, pattern recognition, homework assignments.
+This workflow will be implemented using the create-workflow workflow. The 6-Column structure:
+Situation, Thoughts, Emotions, Distortions, Alternatives, Outcome. Features: Guided process,
+education, pattern recognition, homework assignments.

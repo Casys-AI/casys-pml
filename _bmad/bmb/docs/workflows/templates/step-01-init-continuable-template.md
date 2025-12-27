@@ -1,15 +1,18 @@
 # BMAD Continuable Step 01 Init Template
 
-This template provides the standard structure for step-01-init files that support workflow continuation. It includes logic to detect existing workflows and route to step-01b-continue.md for resumption.
+This template provides the standard structure for step-01-init files that support workflow
+continuation. It includes logic to detect existing workflows and route to step-01b-continue.md for
+resumption.
 
-Use this template when creating workflows that generate output documents and might take multiple sessions to complete.
+Use this template when creating workflows that generate output documents and might take multiple
+sessions to complete.
 
 <!-- TEMPLATE START -->
 
 ---
 
-name: 'step-01-init'
-description: 'Initialize the [workflow-type] workflow by detecting continuation state and creating output document'
+name: 'step-01-init' description: 'Initialize the [workflow-type] workflow by detecting continuation
+state and creating output document'
 
 <!-- Path Definitions -->
 
@@ -17,12 +20,11 @@ workflow\*path: '{project-root}/\_bmad/[module-path]/workflows/[workflow-name]'
 
 # File References (all use {variable} format in file)
 
-thisStepFile: '{workflow_path}/steps/step-01-init.md'
-nextStepFile: '{workflow_path}/steps/step-02-[step-name].md'
-workflowFile: '{workflow_path}/workflow.md'
-outputFile: '{output_folder}/[output-file-name]-{project_name}.md'
-continueFile: '{workflow_path}/steps/step-01b-continue.md'
-templateFile: '{workflow_path}/templates/[main-template].md'
+thisStepFile: '{workflow_path}/steps/step-01-init.md' nextStepFile:
+'{workflow_path}/steps/step-02-[step-name].md' workflowFile: '{workflow_path}/workflow.md'
+outputFile: '{output_folder}/[output-file-name]-{project_name}.md' continueFile:
+'{workflow_path}/steps/step-01b-continue.md' templateFile:
+'{workflow_path}/templates/[main-template].md'
 
 # Template References
 
@@ -45,7 +47,8 @@ templateFile: '{workflow_path}/templates/[main-template].md'
 
 - ✅ You are a [specific role, e.g., "business analyst" or "technical architect"]
 - ✅ We engage in collaborative dialogue, not command-response
-- ✅ You bring [your expertise], user brings [their expertise], and together we produce something better than we could on our own
+- ✅ You bring [your expertise], user brings [their expertise], and together we produce something
+  better than we could on our own
 - ✅ Maintain collaborative [adjective] tone throughout
 
 ### Step-Specific Rules:
@@ -71,7 +74,8 @@ templateFile: '{workflow_path}/templates/[main-template].md'
 
 ## STEP GOAL:
 
-To initialize the [workflow-type] workflow by detecting continuation state, creating the output document, and preparing for the first collaborative session.
+To initialize the [workflow-type] workflow by detecting continuation state, creating the output
+document, and preparing for the first collaborative session.
 
 ## INITIALIZATION SEQUENCE:
 
@@ -166,7 +170,8 @@ Display: **Proceeding to [next step description]...**
 
 #### Menu Handling Logic:
 
-- After setup completion, immediately load, read entire file, then execute `{nextStepFile}` to begin [next step description]
+- After setup completion, immediately load, read entire file, then execute `{nextStepFile}` to begin
+  [next step description]
 
 ---
 
@@ -189,11 +194,14 @@ Display: **Proceeding to [next step description]...**
 - Skipping welcome message
 - Not routing to step-01b-continue.md when appropriate
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN initialization setup is complete and document is created (OR continuation is properly routed), will you then immediately load, read entire file, then execute `{nextStepFile}` to begin [next step description].
+ONLY WHEN initialization setup is complete and document is created (OR continuation is properly
+routed), will you then immediately load, read entire file, then execute `{nextStepFile}` to begin
+[next step description].
 
 <!-- TEMPLATE END -->
 
@@ -233,9 +241,11 @@ Update `{nextStepFile}` to point to your actual step 2 file.
 1. **This step MUST include continuation detection logic** - this is the key pattern
 2. **Always include `continueFile` reference** in frontmatter
 3. **Proper frontmatter initialization** is critical for continuation tracking
-4. **Auto-proceed pattern** - this step should not have user choice menus (except for completed workflow handling)
+4. **Auto-proceed pattern** - this step should not have user choice menus (except for completed
+   workflow handling)
 5. **Template-based document creation** - ensures consistent output structure
 
 ## Integration with step-01b-continue.md
 
-This template is designed to work seamlessly with the step-01b-template.md continuation step. The two steps together provide a complete pause/resume workflow capability.
+This template is designed to work seamlessly with the step-01b-template.md continuation step. The
+two steps together provide a complete pause/resume workflow capability.

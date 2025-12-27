@@ -1,24 +1,24 @@
 # Story 7.7b: Sandbox Permission Integration - Execute with Granular Permissions
 
-> **Epic:** 7 - Emergent Capabilities & Learning System
-> **ADR:** ADR-035 (Permission Sets for Sandbox Security)
-> **Prerequisites:** Story 7.7a (Permission Inference - DONE, 25 tests passing)
+> **Epic:** 7 - Emergent Capabilities & Learning System **ADR:** ADR-035 (Permission Sets for
+> Sandbox Security) **Prerequisites:** Story 7.7a (Permission Inference - DONE, 25 tests passing)
 > **Status:** Done
 
 ## User Story
 
-As a sandbox executor,
-I want to run capabilities with their inferred permission set,
-So that each capability has only the minimum permissions required (principle of least privilege).
+As a sandbox executor, I want to run capabilities with their inferred permission set, So that each
+capability has only the minimum permissions required (principle of least privilege).
 
 ## Problem Context
 
 ### Current State (After Story 7.7a)
 
 Story 7.7a implemented the permission inference system:
+
 - `PermissionInferrer` class analyzes code via SWC AST parsing
 - `permission_set` and `permission_confidence` columns added to `workflow_pattern` table
-- Capabilities are tagged with inferred permissions on save (`minimal`, `readonly`, `filesystem`, `network-api`, `mcp-standard`)
+- Capabilities are tagged with inferred permissions on save (`minimal`, `readonly`, `filesystem`,
+  `network-api`, `mcp-standard`)
 
 **However, the sandbox executor still ignores these permissions:**
 
@@ -36,11 +36,13 @@ private buildCommand(code: string): { command: Deno.Command; tempFilePath: strin
 }
 ```
 
-**Problem:** A capability tagged `permission_set = "network-api"` will still fail with `PermissionDenied` when calling `fetch()`.
+**Problem:** A capability tagged `permission_set = "network-api"` will still fail with
+`PermissionDenied` when calling `fetch()`.
 
 ### Solution: Permission Set Integration
 
-This story modifies `DenoSandboxExecutor` to use the stored `permission_set` when executing capabilities.
+This story modifies `DenoSandboxExecutor` to use the stored `permission_set` when executing
+capabilities.
 
 **Architecture (from ADR-035):**
 
@@ -62,14 +64,17 @@ This story modifies `DenoSandboxExecutor` to use the stored `permission_set` whe
 ### AC1: Permission Set Parameter in execute()
 
 - [x] `DenoSandboxExecutor.execute()` accepts optional parameter `permissionSet?: PermissionSet`
-- [x] `DenoSandboxExecutor.executeWithTools()` accepts optional parameter `permissionSet?: PermissionSet`
+- [x] `DenoSandboxExecutor.executeWithTools()` accepts optional parameter
+      `permissionSet?: PermissionSet`
 - [x] Default value: `"minimal"` (most restrictive, backward compatible)
 - [x] Type uses `PermissionSet` from `src/capabilities/types.ts`
 
 ### AC2: Permission Sets in deno.json
 
-- [x] Add `_sandboxPermissions` section to `deno.json` with all 6 profiles (using underscore prefix as documentation)
-- [x] Note: `deno.json` permission sets are Deno 2.5+ feature - using flags fallback for all versions
+- [x] Add `_sandboxPermissions` section to `deno.json` with all 6 profiles (using underscore prefix
+      as documentation)
+- [x] Note: `deno.json` permission sets are Deno 2.5+ feature - using flags fallback for all
+      versions
 
 ### AC3: Deno 2.5+ Permission Set Support
 
@@ -81,14 +86,14 @@ This story modifies `DenoSandboxExecutor` to use the stored `permission_set` whe
 
 - [x] Method `permissionSetToFlags(set: PermissionSet): string[]` implemented
 - [x] Maps each permission set to equivalent explicit flags:
-  | Set | Flags |
-  |-----|-------|
-  | `minimal` | `[]` (deny all) |
-  | `readonly` | `["--allow-read=./data,/tmp"]` |
-  | `filesystem` | `["--allow-read", "--allow-write=/tmp"]` |
-  | `network-api` | `["--allow-net"]` |
+  | Set            | Flags                                                                                     |
+  | -------------- | ----------------------------------------------------------------------------------------- |
+  | `minimal`      | `[]` (deny all)                                                                           |
+  | `readonly`     | `["--allow-read=./data,/tmp"]`                                                            |
+  | `filesystem`   | `["--allow-read", "--allow-write=/tmp"]`                                                  |
+  | `network-api`  | `["--allow-net"]`                                                                         |
   | `mcp-standard` | `["--allow-read", "--allow-write=/tmp,./output", "--allow-net", "--allow-env=HOME,PATH"]` |
-  | `trusted` | `["--allow-all"]` |
+  | `trusted`      | `["--allow-all"]`                                                                         |
 - [x] Fallback used for all versions (primary implementation)
 
 ### AC5: --no-prompt Always Added
@@ -106,7 +111,8 @@ This story modifies `DenoSandboxExecutor` to use the stored `permission_set` whe
 ### AC7: WorkerBridge Permission Support
 
 - [x] `executeWithTools()` accepts permission set parameter (informational in Worker mode)
-- [x] Note: Worker mode uses `permissions: "none"` by default - permission set affects subprocess mode only
+- [x] Note: Worker mode uses `permissions: "none"` by default - permission set affects subprocess
+      mode only
 - [x] Log warning if permission set != "minimal" used with Worker mode (Worker is always sandboxed)
 
 ### AC8: Confidence Threshold Check
@@ -171,7 +177,8 @@ This story modifies `DenoSandboxExecutor` to use the stored `permission_set` whe
 - [x] 4.1 Update signature: `buildCommand(code: string, permissionSet: PermissionSet = "minimal")`
 - [x] 4.2 Using explicit flags fallback (Deno 2.5 --permission-set not yet available)
 - [x] 4.3 Always add `--no-prompt`
-- [x] 4.4 Remove hardcoded deny flags, controlled by permission set (except --deny-run and --deny-ffi)
+- [x] 4.4 Remove hardcoded deny flags, controlled by permission set (except --deny-run and
+      --deny-ffi)
 - [x] 4.5 Keep `--allow-read=${tempFile}` for the temp code file (always needed)
 - [x] 4.6 Keep `--v8-flags=--max-old-space-size=${memoryLimit}` (independent of permissions)
 
@@ -179,7 +186,8 @@ This story modifies `DenoSandboxExecutor` to use the stored `permission_set` whe
 
 - [x] 5.1 Create helper function `determinePermissionSet(capability): PermissionSet`
 - [x] 5.2 Implement logic as specified
-- [x] 5.3 Export function and `PERMISSION_CONFIDENCE_THRESHOLD = 0.7` constant from `src/sandbox/mod.ts`
+- [x] 5.3 Export function and `PERMISSION_CONFIDENCE_THRESHOLD = 0.7` constant from
+      `src/sandbox/mod.ts`
 
 ### Task 6: WorkerBridge Permission Logging (AC: #7) ✅
 
@@ -218,14 +226,16 @@ This story modifies `DenoSandboxExecutor` to use the stored `permission_set` whe
 ### Task 10: Documentation and Exports (AC: all) ✅
 
 - [x] 10.1 Add JSDoc comments to all new public methods
-- [x] 10.2 Export `determinePermissionSet` and `PERMISSION_CONFIDENCE_THRESHOLD` from `src/sandbox/mod.ts`
+- [x] 10.2 Export `determinePermissionSet` and `PERMISSION_CONFIDENCE_THRESHOLD` from
+      `src/sandbox/mod.ts`
 - [x] 10.3 Update this story file with completion notes
 
 ## Dev Notes
 
 ### Critical Implementation Details
 
-1. **Backward Compatibility:** Default to `"minimal"` permission set - existing code should work unchanged
+1. **Backward Compatibility:** Default to `"minimal"` permission set - existing code should work
+   unchanged
 
 2. **Deno Version Detection:**
    ```typescript
@@ -238,7 +248,7 @@ This story modifies `DenoSandboxExecutor` to use the stored `permission_set` whe
 
 3. **Always Allow Temp File Read:** The temp file for code execution must always be readable:
    ```typescript
-   args.push(`--allow-read=${tempFile}`);  // Always add this
+   args.push(`--allow-read=${tempFile}`); // Always add this
    // Then add permission set flags
    ```
 
@@ -291,14 +301,16 @@ deno.json                 # MODIFY: Add permissions section (documentation)
 ## References
 
 - [ADR-035: Permission Sets for Sandbox Security](../adrs/ADR-035-permission-sets-sandbox-security.md)
-- [Story 7.7a: Permission Inference](./7-7a-permission-inference-automatic-analysis.md) - Prerequisite (DONE)
+- [Story 7.7a: Permission Inference](./7-7a-permission-inference-automatic-analysis.md) -
+  Prerequisite (DONE)
 - [Deno Permissions Documentation](https://docs.deno.com/runtime/fundamentals/permissions/)
 - [Deno 2.5 Release Notes](https://deno.com/blog) - Permission sets feature
 
 ## Estimation
 
 - **Effort:** 1-2 days
-- **LOC:** ~100 (executor.ts) + ~10 (worker-bridge.ts) + ~200 (unit tests) + ~150 (e2e tests) = ~460 total
+- **LOC:** ~100 (executor.ts) + ~10 (worker-bridge.ts) + ~200 (unit tests) + ~150 (e2e tests) = ~460
+  total
 - **Risk:** Low (leverages existing permission inference from 7.7a)
 
 ---
@@ -325,11 +337,16 @@ Claude Opus 4.5
 
 ### Completion Notes List
 
-1. **Implementation Approach**: Used explicit flags fallback for all Deno versions since Deno 2.5 `--permission-set` flag is not yet available. The `supportsPermissionSets()` method is ready for future when native support is added.
+1. **Implementation Approach**: Used explicit flags fallback for all Deno versions since Deno 2.5
+   `--permission-set` flag is not yet available. The `supportsPermissionSets()` method is ready for
+   future when native support is added.
 
-2. **Security Enhancement**: Always apply `--deny-run` and `--deny-ffi` regardless of permission set. Even "trusted" permission cannot spawn subprocesses or use FFI - these are considered security-critical.
+2. **Security Enhancement**: Always apply `--deny-run` and `--deny-ffi` regardless of permission
+   set. Even "trusted" permission cannot spawn subprocesses or use FFI - these are considered
+   security-critical.
 
-3. **Worker Mode Note**: Worker mode (`executeWithTools()`) inherently uses `permissions: "none"`. The permission set parameter is informational only and logs a warning if not "minimal".
+3. **Worker Mode Note**: Worker mode (`executeWithTools()`) inherently uses `permissions: "none"`.
+   The permission set parameter is informational only and logs a warning if not "minimal".
 
 4. **Test Coverage**: 37 new tests (24 unit + 13 E2E) covering:
    - All 6 permission set mappings
@@ -342,47 +359,48 @@ Claude Opus 4.5
 
 ### File List
 
-- [x] `src/sandbox/executor.ts` - MODIFIED (~130 LOC added: permission methods + determinePermissionSet)
-- [x] `src/sandbox/mod.ts` - MODIFIED (exports determinePermissionSet, PERMISSION_CONFIDENCE_THRESHOLD)
+- [x] `src/sandbox/executor.ts` - MODIFIED (~130 LOC added: permission methods +
+      determinePermissionSet)
+- [x] `src/sandbox/mod.ts` - MODIFIED (exports determinePermissionSet,
+      PERMISSION_CONFIDENCE_THRESHOLD)
 - [x] `tests/unit/sandbox/permission_integration_test.ts` - NEW (24 tests, ~250 LOC)
 - [x] `tests/integration/permission_enforcement_test.ts` - NEW (13 tests, ~340 LOC)
 - [x] `deno.json` - MODIFIED (added _sandboxPermissions section)
 
 ### Test Summary
 
-| Test Type | Count | Status |
-|-----------|-------|--------|
-| Unit Tests | 24 | ✅ PASS |
-| E2E Tests | 13 | ✅ PASS |
-| Existing Sandbox Tests | 251 | ✅ PASS (no regression) |
-| **Total** | **288** | **✅ PASS** |
+| Test Type              | Count   | Status                  |
+| ---------------------- | ------- | ----------------------- |
+| Unit Tests             | 24      | ✅ PASS                 |
+| E2E Tests              | 13      | ✅ PASS                 |
+| Existing Sandbox Tests | 251     | ✅ PASS (no regression) |
+| **Total**              | **288** | **✅ PASS**             |
 
 ---
 
 ## Senior Developer Review (AI)
 
-**Reviewer:** Claude Opus 4.5
-**Date:** 2025-12-16
-**Outcome:** ✅ APPROVED
+**Reviewer:** Claude Opus 4.5 **Date:** 2025-12-16 **Outcome:** ✅ APPROVED
 
 ### Review Summary
 
-All 11 Acceptance Criteria verified against implementation. All tasks marked `[x]` confirmed complete.
+All 11 Acceptance Criteria verified against implementation. All tasks marked `[x]` confirmed
+complete.
 
 ### Issues Found & Fixed
 
-| Severity | Issue | Resolution |
-|----------|-------|------------|
-| MEDIUM | Unused import `assertStringIncludes` in E2E test (TS6133) | ✅ Fixed - Removed unused import |
-| MEDIUM | Flaky unit test using unreliable `httpbin.org` endpoint | ✅ Fixed - Changed to resilient `google.com/robots.txt` pattern |
+| Severity | Issue                                                     | Resolution                                                      |
+| -------- | --------------------------------------------------------- | --------------------------------------------------------------- |
+| MEDIUM   | Unused import `assertStringIncludes` in E2E test (TS6133) | ✅ Fixed - Removed unused import                                |
+| MEDIUM   | Flaky unit test using unreliable `httpbin.org` endpoint   | ✅ Fixed - Changed to resilient `google.com/robots.txt` pattern |
 
 ### Test Results After Fixes
 
-| Test Type | Count | Status |
-|-----------|-------|--------|
+| Test Type  | Count | Status  |
+| ---------- | ----- | ------- |
 | Unit Tests | 24/24 | ✅ PASS |
-| E2E Tests | 13/13 | ✅ PASS |
-| Type Check | All | ✅ PASS |
+| E2E Tests  | 13/13 | ✅ PASS |
+| Type Check | All   | ✅ PASS |
 
 ### Files Modified During Review
 

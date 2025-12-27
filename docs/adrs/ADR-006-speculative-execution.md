@@ -1,18 +1,21 @@
 # ADR-006: Speculative Execution as Default Mode
 
-**Status:** accepted
-**Date:** 2025-11-03
-**Implementation:** partial (Epic 4)
+**Status:** accepted **Date:** 2025-11-03 **Implementation:** partial (Epic 4)
 
 ## Decision
 
-Make speculative execution the default mode for high-confidence workflows (>0.85), not an optional feature.
+Make speculative execution the default mode for high-confidence workflows (>0.85), not an optional
+feature.
 
 ## Context
 
-User insight: "et donc les algo graph aident la gateway a performer l action avant meme l appel de claude non ? cetait l idee" (so the graph algorithms help the gateway perform the action even before Claude's call, right? That was the idea)
+User insight: "et donc les algo graph aident la gateway a performer l action avant meme l appel de
+claude non ? cetait l idee" (so the graph algorithms help the gateway perform the action even before
+Claude's call, right? That was the idea)
 
-User confirmation: "Ouai on peut essayer sans speculative mais on va pas se mentir, speculative c est THE feature" (Yeah we can try without speculative but let's be honest, speculative IS THE feature)
+User confirmation: "Ouai on peut essayer sans speculative mais on va pas se mentir, speculative c
+est THE feature" (Yeah we can try without speculative but let's be honest, speculative IS THE
+feature)
 
 ## Rationale
 
@@ -33,11 +36,13 @@ User confirmation: "Ouai on peut essayer sans speculative mais on va pas se ment
 ## Consequences
 
 ### Positive
+
 - Dramatic improvement in perceived performance
 - Results ready before user confirms
 - Competitive differentiator
 
 ### Negative
+
 - Requires adaptive threshold learning (start conservative at 0.92)
 - Need comprehensive safety checks for dangerous operations
 - Metrics tracking for success/acceptance/waste rates

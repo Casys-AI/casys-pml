@@ -1,13 +1,13 @@
 # Story 8.3: Hypergraph View Mode
 
-> **Epic:** 8 - Hypergraph Capabilities Visualization
-> **ADRs:** ADR-029 (Hypergraph Capabilities Visualization)
-> **Prerequisites:** Story 8.2 (HypergraphBuilder - DONE), Epic 6 (D3.js Dashboard infrastructure)
-> **Status:** done
+> **Epic:** 8 - Hypergraph Capabilities Visualization **ADRs:** ADR-029 (Hypergraph Capabilities
+> Visualization) **Prerequisites:** Story 8.2 (HypergraphBuilder - DONE), Epic 6 (D3.js Dashboard
+> infrastructure) **Status:** done
 
 ## User Story
 
-As a power user, I want a "Hypergraph" view mode in the dashboard, So that I can visualize capabilities as compound nodes containing their tools.
+As a power user, I want a "Hypergraph" view mode in the dashboard, So that I can visualize
+capabilities as compound nodes containing their tools.
 
 ## Problem Context
 
@@ -33,20 +33,21 @@ Le systeme dispose de:
 
 ### Gap Analysis
 
-| Feature | Existe? | Location |
-|---------|---------|----------|
-| Capability node structure | Oui | `types.ts` (Story 8.2) |
-| Tool node with parents[] | Oui | `types.ts` (Story 8.2) |
-| HypergraphBuilder class | Oui | `hypergraph-builder.ts` (Story 8.2) |
-| API `/api/graph/hypergraph` | Oui | `gateway-server.ts` (Story 8.1) |
-| capabilityZones[] for Hull | Oui | `types.ts` (Story 8.2) |
-| View mode toggle [Tools/Hypergraph] | Non | **Story 8.3** |
-| D3 Hull rendering for capabilities | Non | **Story 8.3** |
-| Capability node styling | Non | **Story 8.3** |
+| Feature                             | Existe? | Location                            |
+| ----------------------------------- | ------- | ----------------------------------- |
+| Capability node structure           | Oui     | `types.ts` (Story 8.2)              |
+| Tool node with parents[]            | Oui     | `types.ts` (Story 8.2)              |
+| HypergraphBuilder class             | Oui     | `hypergraph-builder.ts` (Story 8.2) |
+| API `/api/graph/hypergraph`         | Oui     | `gateway-server.ts` (Story 8.1)     |
+| capabilityZones[] for Hull          | Oui     | `types.ts` (Story 8.2)              |
+| View mode toggle [Tools/Hypergraph] | Non     | **Story 8.3**                       |
+| D3 Hull rendering for capabilities  | Non     | **Story 8.3**                       |
+| Capability node styling             | Non     | **Story 8.3**                       |
 
 ### Impact
 
 Sans le mode Hypergraph:
+
 - Les utilisateurs ne peuvent pas visualiser les capabilities apprises par le systeme
 - Les relations N-aires (hyperedges) restent invisibles
 - L'exploration du code reutilisable (Story 8.5) est impossible
@@ -84,23 +85,25 @@ Sans le mode Hypergraph:
 
 ### Key Design Decision: D3 Hull Visualization
 
-**Decision from Story 8.2:** Les capabilities sont visualisees comme des **ZONES** (pas des simples noeuds), en utilisant **D3 Hull** (convex hull).
+**Decision from Story 8.2:** Les capabilities sont visualisees comme des **ZONES** (pas des simples
+noeuds), en utilisant **D3 Hull** (convex hull).
 
 ```
-    ┌────────────────────────┐
-    │     Capability 1       │
-    │   ┌────────────────────┼───────────────┐
-    │   │                    │               │
-    │   │  ○ tool-A          │   ○ tool-C    │  Capability 2
-    │   │  ○ tool-B          │               │
-    │   │         ○ tool-shared              │
-    │   │        (zone overlap)              │
-    └───┼────────────────────┘               │
-        │                    ○ tool-D        │
-        └────────────────────────────────────┘
+┌────────────────────────┐
+│     Capability 1       │
+│   ┌────────────────────┼───────────────┐
+│   │                    │               │
+│   │  ○ tool-A          │   ○ tool-C    │  Capability 2
+│   │  ○ tool-B          │               │
+│   │         ○ tool-shared              │
+│   │        (zone overlap)              │
+└───┼────────────────────┘               │
+    │                    ○ tool-D        │
+    └────────────────────────────────────┘
 ```
 
 **Comportement:**
+
 - Chaque capability = une zone (polygone convexe) englobant ses tools
 - Un tool avec `parents: ['cap-1', 'cap-2']` est dans les DEUX zones
 - Les zones se **chevauchent** la ou les tools sont partages → hyperedge visuel
@@ -180,7 +183,7 @@ D3 renders:
 - [x] Click on hull zone → selects that capability
 - [x] Selected capability: hull stroke highlighted (white or accent color)
 - [x] Selected capability shows details panel (Story 8.4 integration point)
-- [ ] Double-click on hull → centers view on that capability *(deferred to 8.4)*
+- [ ] Double-click on hull → centers view on that capability _(deferred to 8.4)_
 - [x] Hover on hull → shows capability tooltip (name, success_rate, usage_count)
 
 ### AC6: Performance Requirements
@@ -198,7 +201,8 @@ D3 renders:
   - [x] Subscribe to channel `"casys-pml-events"` (EventBus unified channel)
   - [x] Emits `capability.selected` events → for cross-tab sync
   - [x] Emits `graph.viewMode.changed` events → sync view mode across tabs
-  - [ ] Subscribe to `capability.learned` / `capability.matched` events *(deferred - needs EventBus integration)*
+  - [ ] Subscribe to `capability.learned` / `capability.matched` events _(deferred - needs EventBus
+        integration)_
 - [x] Real-time hull zone updates when capability tools change
 - [x] SSE fallback for browsers without BroadcastChannel support
 
@@ -211,9 +215,9 @@ D3 renders:
 
 ### AC9: Mobile Responsiveness (Nice-to-Have)
 
-- [ ] Toggle button group responsive on mobile *(deferred)*
-- [ ] Touch gestures for pan/zoom work correctly *(existing from Epic 6)*
-- [ ] Hull zones touchable for selection *(deferred)*
+- [ ] Toggle button group responsive on mobile _(deferred)_
+- [ ] Touch gestures for pan/zoom work correctly _(existing from Epic 6)_
+- [ ] Hull zones touchable for selection _(deferred)_
 
 ---
 
@@ -234,7 +238,8 @@ D3 renders:
   - [x] 2.5 Store capability metadata alongside nodes
 
 - [x] **Task 3: Implement D3 Hull Zone Rendering** (AC: #3, #6)
-  - [x] 3.1 Create `hullLayer` SVG group in D3GraphVisualization (below node layer, above edge layer)
+  - [x] 3.1 Create `hullLayer` SVG group in D3GraphVisualization (below node layer, above edge
+        layer)
   - [x] 3.2 Implement `drawCapabilityHulls()` using `d3.polygonHull()`
   - [x] 3.3 Implement `expandHull()` helper for padding around tools
   - [x] 3.4 Implement `createEllipsePath()` fallback for 2-point zones
@@ -247,7 +252,7 @@ D3 renders:
   - [x] 4.1 Add click handler on hull polygons
   - [x] 4.2 Implement selected capability highlighting (opacity change on hover)
   - [x] 4.3 Add hover tooltip for capabilities (label, tools count)
-  - [ ] 4.4 Implement double-click to center on capability *(deferred to 8.4)*
+  - [ ] 4.4 Implement double-click to center on capability _(deferred to 8.4)_
   - [x] 4.5 Integrate with `onCapabilitySelect` callback (for Story 8.4)
 
 - [x] **Task 5: Update Tool Node Rendering** (AC: #4)
@@ -265,7 +270,7 @@ D3 renders:
   - [x] 6.6 **BroadcastChannel**: Emit `capability.selected` on hull click
   - [x] 6.7 Listen for view mode changes from other tabs
   - [x] 6.8 Keep SSE as fallback for `graph.edge.*` events (existing)
-  - [ ] 6.9 Full EventBus integration for `capability.learned`/`matched` *(deferred)*
+  - [ ] 6.9 Full EventBus integration for `capability.learned`/`matched` _(deferred)_
 
 - [x] **Task 7: Unit & Integration Tests** (AC: all)
   - [x] 7.1 Create `tests/web/hypergraph-view-mode.test.ts`
@@ -283,23 +288,28 @@ D3 renders:
 
 ### Files Created/Modified
 
-| File | Action | Description |
-|------|--------|-------------|
-| `src/web/components/ui/atoms/ViewModeToggle.tsx` | Created | Segmented control atom for view mode |
-| `src/web/components/ui/atoms/mod.ts` | Modified | Export ViewModeToggle |
-| `src/web/islands/GraphExplorer.tsx` | Modified | Add viewMode state, localStorage persistence, BroadcastChannel |
-| `src/web/islands/D3GraphVisualization.tsx` | Modified | Add viewMode prop, loadHypergraphData(), hull rendering |
-| `tests/web/hypergraph-view-mode.test.ts` | Created | 25 unit tests for Story 8.3 |
+| File                                             | Action   | Description                                                    |
+| ------------------------------------------------ | -------- | -------------------------------------------------------------- |
+| `src/web/components/ui/atoms/ViewModeToggle.tsx` | Created  | Segmented control atom for view mode                           |
+| `src/web/components/ui/atoms/mod.ts`             | Modified | Export ViewModeToggle                                          |
+| `src/web/islands/GraphExplorer.tsx`              | Modified | Add viewMode state, localStorage persistence, BroadcastChannel |
+| `src/web/islands/D3GraphVisualization.tsx`       | Modified | Add viewMode prop, loadHypergraphData(), hull rendering        |
+| `tests/web/hypergraph-view-mode.test.ts`         | Created  | 25 unit tests for Story 8.3                                    |
 
 ### Key Implementation Decisions
 
-1. **Hull rendering inline vs atoms**: Implemented hull rendering as D3 data-join directly in `D3GraphVisualization.tsx` rather than separate Preact atoms. This avoids React/D3 reconciliation issues and gives D3 full control over SVG lifecycle.
+1. **Hull rendering inline vs atoms**: Implemented hull rendering as D3 data-join directly in
+   `D3GraphVisualization.tsx` rather than separate Preact atoms. This avoids React/D3 reconciliation
+   issues and gives D3 full control over SVG lifecycle.
 
-2. **Multi-parent badge**: Added visual badge (number) on tool nodes showing count of parent capabilities when > 1, positioned at top-right of node circle.
+2. **Multi-parent badge**: Added visual badge (number) on tool nodes showing count of parent
+   capabilities when > 1, positioned at top-right of node circle.
 
-3. **BroadcastChannel channel name**: Using `"casys-pml-events"` as the channel name for consistency with other components.
+3. **BroadcastChannel channel name**: Using `"casys-pml-events"` as the channel name for consistency
+   with other components.
 
-4. **Deferred features**: Double-click centering and full EventBus subscription for capability events deferred to Story 8.4 to keep scope manageable.
+4. **Deferred features**: Double-click centering and full EventBus subscription for capability
+   events deferred to Story 8.4 to keep scope manageable.
 
 ### Test Results
 
@@ -323,17 +333,17 @@ D3 renders:
 1. **Hull Calculation with D3**
 
 ```typescript
-import { polygonHull, polygonCentroid } from "d3-polygon";
+import { polygonCentroid, polygonHull } from "d3-polygon";
 
 function drawCapabilityHulls(
   hullLayer: d3.Selection<SVGGElement, unknown, null, undefined>,
   zones: CapabilityZone[],
   nodes: SimNode[],
 ) {
-  const hullData = zones.map(zone => {
+  const hullData = zones.map((zone) => {
     // Get positions of tools in this capability
-    const toolNodes = nodes.filter(n => zone.toolIds.includes(n.id));
-    const points: [number, number][] = toolNodes.map(n => [n.x, n.y]);
+    const toolNodes = nodes.filter((n) => zone.toolIds.includes(n.id));
+    const points: [number, number][] = toolNodes.map((n) => [n.x, n.y]);
 
     // Need at least 3 points for hull
     if (points.length < 3) {
@@ -348,7 +358,7 @@ function drawCapabilityHulls(
 
   // Render hulls
   const hulls = hullLayer.selectAll(".capability-hull")
-    .data(hullData, d => d.zone.id);
+    .data(hullData, (d) => d.zone.id);
 
   hulls.exit().remove();
 
@@ -359,16 +369,16 @@ function drawCapabilityHulls(
   // Hull polygon
   hullEnter.append("path")
     .attr("class", "hull-path")
-    .attr("fill", d => d.zone.color)
+    .attr("fill", (d) => d.zone.color)
     .attr("fill-opacity", 0.2)
-    .attr("stroke", d => d.zone.color)
+    .attr("stroke", (d) => d.zone.color)
     .attr("stroke-opacity", 0.6)
     .attr("stroke-width", 2);
 
   // Hull label
   hullEnter.append("text")
     .attr("class", "hull-label")
-    .attr("fill", d => d.zone.color)
+    .attr("fill", (d) => d.zone.color)
     .attr("font-size", 12)
     .attr("font-weight", 600)
     .attr("text-anchor", "middle");
@@ -377,7 +387,7 @@ function drawCapabilityHulls(
 
   // Update hull paths
   hullMerge.select(".hull-path")
-    .attr("d", d => {
+    .attr("d", (d) => {
       if (d.hull) {
         // Add padding around hull
         const paddedHull = expandHull(d.hull, d.zone.padding || 20);
@@ -387,7 +397,7 @@ function drawCapabilityHulls(
       if (d.points.length === 1) {
         const [x, y] = d.points[0];
         const r = d.zone.minRadius || 50;
-        return `M${x-r},${y}A${r},${r} 0 1,0 ${x+r},${y}A${r},${r} 0 1,0 ${x-r},${y}`;
+        return `M${x - r},${y}A${r},${r} 0 1,0 ${x + r},${y}A${r},${r} 0 1,0 ${x - r},${y}`;
       }
       // 2 points: ellipse
       return createEllipsePath(d.points, d.zone.minRadius || 50);
@@ -395,19 +405,19 @@ function drawCapabilityHulls(
 
   // Update label positions
   hullMerge.select(".hull-label")
-    .attr("x", d => {
+    .attr("x", (d) => {
       const centroid = d.hull
         ? polygonCentroid(d.hull)
         : [d.points[0]?.[0] || 0, d.points[0]?.[1] || 0];
       return centroid[0];
     })
-    .attr("y", d => {
+    .attr("y", (d) => {
       const centroid = d.hull
         ? polygonCentroid(d.hull)
         : [d.points[0]?.[0] || 0, d.points[0]?.[1] || 0];
       return centroid[1] - 30; // Label above hull
     })
-    .text(d => d.zone.label);
+    .text((d) => d.zone.label);
 }
 
 function expandHull(hull: [number, number][], padding: number): [number, number][] {
@@ -463,13 +473,13 @@ useEffect(() => {
 
 ```typescript
 interface CapabilityZone {
-  id: string;           // 'cap-{uuid}'
-  label: string;        // Capability name or intent preview
-  color: string;        // '#8b5cf6' (from 8-color palette)
-  opacity: number;      // 0.3 (semi-transparent)
-  toolIds: string[];    // ['filesystem:read', 'github:create_issue']
-  padding: number;      // 20px around tools
-  minRadius: number;    // 50px minimum hull size
+  id: string; // 'cap-{uuid}'
+  label: string; // Capability name or intent preview
+  color: string; // '#8b5cf6' (from 8-color palette)
+  opacity: number; // 0.3 (semi-transparent)
+  toolIds: string[]; // ['filesystem:read', 'github:create_issue']
+  padding: number; // 20px around tools
+  minRadius: number; // 50px minimum hull size
 }
 ```
 
@@ -510,9 +520,9 @@ Le dashboard DOIT recevoir les updates en temps réel via BroadcastChannel (pas 
 
 **Channel:** `"pml-events"` (EventBus unifié - voir `src/events/event-bus.ts`)
 
-> ⚠️ **Tech Debt:** Le channel s'appelle encore `"pml-events"` (legacy PML naming).
-> Migration vers `"pml-events"` à faire dans une story séparée (impact: EventBus, sandbox-worker, worker-bridge, tous les listeners).
-> Pour Story 8.3: utiliser le nom actuel `"pml-events"`.
+> ⚠️ **Tech Debt:** Le channel s'appelle encore `"pml-events"` (legacy PML naming). Migration vers
+> `"pml-events"` à faire dans une story séparée (impact: EventBus, sandbox-worker, worker-bridge,
+> tous les listeners). Pour Story 8.3: utiliser le nom actuel `"pml-events"`.
 
 ```typescript
 // In D3GraphVisualization.tsx - Setup BroadcastChannel
@@ -573,7 +583,7 @@ useEffect(() => {
 
 // Handler for new capability learned (CapabilityLearnedPayload)
 function handleCapabilityLearned(payload: {
-  capabilityId: string;  // code hash
+  capabilityId: string; // code hash
   name: string;
   intent: string;
   toolsUsed: string[];
@@ -602,7 +612,7 @@ function handleCapabilityLearned(payload: {
     highlightZone(newZone.id, 2000); // Flash for 2s
   } else {
     // Update existing zone stats
-    const zone = capabilityZonesRef.current.find(z => z.id === `cap-${payload.capabilityId}`);
+    const zone = capabilityZonesRef.current.find((z) => z.id === `cap-${payload.capabilityId}`);
     if (zone) {
       zone.successRate = payload.successRate;
       zone.usageCount = payload.usageCount;
@@ -635,14 +645,14 @@ function flashToolNode(toolId: string, duration: number) {
 
 **Event Types à écouter (from `src/events/types.ts`):**
 
-| Event | Source | Payload Type | Action |
-|-------|--------|--------------|--------|
-| `capability.learned` | CapabilityStore | `CapabilityLearnedPayload` | Add/update hull zone |
-| `capability.matched` | CapabilityStore | `CapabilityMatchedPayload` | Highlight matched zone |
-| `tool.start` | WorkerBridge | `ToolStartPayload` | Flash tool node (orange) |
-| `tool.end` | WorkerBridge | `ToolEndPayload` | Update node state (green/red) |
-| `graph.edge.created` | GraphEngine | `GraphEdgeCreatedPayload` | Add edge (existing) |
-| `graph.edge.updated` | GraphEngine | `GraphEdgeUpdatedPayload` | Update edge (existing) |
+| Event                | Source          | Payload Type               | Action                        |
+| -------------------- | --------------- | -------------------------- | ----------------------------- |
+| `capability.learned` | CapabilityStore | `CapabilityLearnedPayload` | Add/update hull zone          |
+| `capability.matched` | CapabilityStore | `CapabilityMatchedPayload` | Highlight matched zone        |
+| `tool.start`         | WorkerBridge    | `ToolStartPayload`         | Flash tool node (orange)      |
+| `tool.end`           | WorkerBridge    | `ToolEndPayload`           | Update node state (green/red) |
+| `graph.edge.created` | GraphEngine     | `GraphEdgeCreatedPayload`  | Add edge (existing)           |
+| `graph.edge.updated` | GraphEngine     | `GraphEdgeUpdatedPayload`  | Update edge (existing)        |
 
 **Références Types:** `src/events/types.ts:117-220` pour les payloads détaillés.
 
@@ -650,7 +660,8 @@ function flashToolNode(toolId: string, duration: number) {
 
 **🔥 CRITICAL: Atomic Design Architecture**
 
-Le projet utilise une architecture **Atomic Design** stricte. Tous les nouveaux composants DOIVENT respecter cette hiérarchie:
+Le projet utilise une architecture **Atomic Design** stricte. Tous les nouveaux composants DOIVENT
+respecter cette hiérarchie:
 
 ```
 src/web/components/ui/
@@ -660,12 +671,14 @@ src/web/components/ui/
 ```
 
 **Règles Atomic Design:**
+
 1. **Atoms:** Composants indivisibles, sans dépendances internes (Button, Input, Badge)
 2. **Molecules:** Combinaisons d'atoms pour fonctionnalité spécifique (SearchBar = Input + Button)
 3. **Organisms:** Combinaisons de molecules (non utilisé actuellement, islands = organisms)
 4. **Exports:** Chaque niveau a son `mod.ts`, le root `ui/mod.ts` réexporte tout
 
 **Files to Create (following Atomic Design):**
+
 ```
 src/web/components/ui/atoms/
 ├── ViewModeToggle.tsx        # NEW: Atom - segmented control (~40 LOC)
@@ -682,6 +695,7 @@ tests/unit/web/
 ```
 
 **Files to Modify:**
+
 ```
 src/web/components/ui/atoms/mod.ts     # MODIFY: Export new atoms
 src/web/components/ui/molecules/mod.ts # MODIFY: Export new molecules
@@ -697,6 +711,7 @@ src/web/routes/
 ### Existing Code Patterns to Follow
 
 **D3GraphVisualization.tsx** (`src/web/islands/D3GraphVisualization.tsx`):
+
 - Current implementation: ~843 LOC
 - Uses d3-force for layout, d3-zoom for pan/zoom
 - Layers: `edgeLayer` → `nodeLayer` (need to add `hullLayer` between them)
@@ -704,11 +719,13 @@ src/web/routes/
 - SSE integration: EventSource for real-time updates
 
 **Dashboard Header** (`src/web/routes/dashboard.tsx`):
+
 - Search bar and filter controls in header
 - GraphExplorer with MetricsPanel integration
 - Style: dark theme with `--accent: #FFB86F`
 
 **HypergraphBuilder Output** (from Story 8.2):
+
 - `capabilityZones[]` array with zone metadata
 - Tool nodes have `parents: string[]` array
 - 8-color palette for capability differentiation
@@ -728,27 +745,32 @@ src/web/routes/
 ### From Story 8.2 (Compound Graph Builder) - CRITICAL
 
 **Key Learnings:**
+
 1. **Multi-parent hyperedge support:** Tool nodes now have `parents: string[]` array
 2. **Hull zone metadata:** `capabilityZones[]` array with color, opacity, toolIds
 3. **8-color palette:** Predefined colors for visual differentiation
 4. **Performance:** HypergraphBuilder generates data in ~50ms for 100 capabilities
 
 **Code Patterns Established:**
+
 - Tool deduplication: each tool appears once with all parent capability IDs
 - Hierarchical edges: derived from parents[] for D3 force layout
 - Zone structure: id, label, color, opacity, toolIds, padding, minRadius
 
 **Files Created by 8.2:**
+
 - `src/capabilities/hypergraph-builder.ts` (~270 LOC)
 - `tests/unit/capabilities/hypergraph_builder_test.ts` (~340 LOC)
 
 ### From Story 8.1 (Capability Data API)
 
 **API Endpoints:**
+
 - `GET /api/capabilities` - List with filters (community_id, min_success_rate, etc.)
 - `GET /api/graph/hypergraph` - Full hypergraph data with capabilityZones
 
 **Response Format:**
+
 ```typescript
 interface HypergraphResponse {
   nodes: GraphNode[];
@@ -756,19 +778,21 @@ interface HypergraphResponse {
   capabilities_count: number;
   tools_count: number;
   capabilityZones?: CapabilityZone[];
-  metadata: { generated_at: string; version: string; };
+  metadata: { generated_at: string; version: string };
 }
 ```
 
 ### From Epic 6 (D3.js Migration)
 
 **Recent Commits:**
+
 ```
 c8d52df refactor: migrate visualization from Cytoscape.js to D3.js
 dd04aee fix: Correct test paths and D3 migration assertions
 ```
 
 **Key Changes:**
+
 - Cytoscape.js removed, D3.js force-directed graph implemented
 - SVG-based rendering with d3-zoom for pan/zoom
 - `D3GraphVisualization.tsx` is the main visualization component
@@ -840,6 +864,7 @@ deno task dev:web
 ## UX Design Considerations (a valider)
 
 **Questions to resolve before implementation:**
+
 1. Toggle button design: segmented control or icon buttons?
 2. Transition animation: fade crossfade or morph?
 3. Empty state: what message if no capabilities?
@@ -847,6 +872,7 @@ deno task dev:web
 5. Color scheme: capability colors vs server colors priority?
 
 **Proposed answers (defaults if not overridden):**
+
 1. Segmented control matching existing filter style
 2. Fade transition (300ms)
 3. "No capabilities learned yet. Execute code workflows to build capability graph."
@@ -882,14 +908,14 @@ N/A
 
 ### File List
 
-| File | Action | Description |
-|------|--------|-------------|
-| `src/web/components/ui/atoms/ViewModeToggle.tsx` | Created | Segmented control atom for view mode |
-| `src/web/components/ui/atoms/mod.ts` | Modified | Export ViewModeToggle |
-| `src/web/islands/GraphExplorer.tsx` | Modified | Add viewMode state, localStorage, BroadcastChannel |
-| `src/web/islands/D3GraphVisualization.tsx` | Modified | Add viewMode prop, loadHypergraphData(), hull rendering |
-| `src/mcp/gateway-server.ts` | Modified | Add capability_zones and parents[] to API response |
-| `tests/web/hypergraph-view-mode.test.ts` | Created | 25 unit tests for Story 8.3 |
+| File                                             | Action   | Description                                             |
+| ------------------------------------------------ | -------- | ------------------------------------------------------- |
+| `src/web/components/ui/atoms/ViewModeToggle.tsx` | Created  | Segmented control atom for view mode                    |
+| `src/web/components/ui/atoms/mod.ts`             | Modified | Export ViewModeToggle                                   |
+| `src/web/islands/GraphExplorer.tsx`              | Modified | Add viewMode state, localStorage, BroadcastChannel      |
+| `src/web/islands/D3GraphVisualization.tsx`       | Modified | Add viewMode prop, loadHypergraphData(), hull rendering |
+| `src/mcp/gateway-server.ts`                      | Modified | Add capability_zones and parents[] to API response      |
+| `tests/web/hypergraph-view-mode.test.ts`         | Created  | 25 unit tests for Story 8.3                             |
 
 ---
 
@@ -897,12 +923,12 @@ N/A
 
 ### Issues Found & Fixed
 
-| Severity | Issue | Fix Applied |
-|----------|-------|-------------|
-| **HIGH** | API `/api/graph/hypergraph` missing `capability_zones` in response | Added `capability_zones: result.capabilityZones \|\| []` to gateway response |
-| **MEDIUM** | API missing `parents[]` array for tool nodes | Added `parents: node.data.parents` to tool node mapping |
-| **MEDIUM** | BroadcastChannel name mismatch (`casys-pml-events` vs `pml-events`) | Changed to `pml-events` to match EventBus |
-| **LOW** | Export JSON missing capability zones | Added capabilityZones to JSON export in hypergraph mode |
+| Severity   | Issue                                                               | Fix Applied                                                                  |
+| ---------- | ------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| **HIGH**   | API `/api/graph/hypergraph` missing `capability_zones` in response  | Added `capability_zones: result.capabilityZones \|\| []` to gateway response |
+| **MEDIUM** | API missing `parents[]` array for tool nodes                        | Added `parents: node.data.parents` to tool node mapping                      |
+| **MEDIUM** | BroadcastChannel name mismatch (`casys-pml-events` vs `pml-events`) | Changed to `pml-events` to match EventBus                                    |
+| **LOW**    | Export JSON missing capability zones                                | Added capabilityZones to JSON export in hypergraph mode                      |
 
 ### Verification
 

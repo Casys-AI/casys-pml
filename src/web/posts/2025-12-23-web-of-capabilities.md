@@ -31,7 +31,8 @@ Today, when an AI agent discovers a useful capability, it gets an opaque ID:
 }
 ```
 
-This is like the early internet before DNS—when you had to remember `142.250.80.46` instead of `google.com`.
+This is like the early internet before DNS—when you had to remember `142.250.80.46` instead of
+`google.com`.
 
 **We need names.**
 
@@ -44,6 +45,7 @@ stripe.billing.api.create_invoice
 ```
 
 Just like domain names, capability names are:
+
 - **Hierarchical**: Organization → Project → Namespace → Action
 - **Human-readable**: `stripe.billing` beats `abc123`
 - **Unique**: No collisions, clear ownership
@@ -51,13 +53,13 @@ Just like domain names, capability names are:
 
 ## Why Blockchain?
 
-| Problem | Traditional DB | Blockchain |
-|---------|---------------|------------|
-| "Who owns 'stripe'?" | Trust us | Cryptographic proof |
-| Transferring ownership | Manual process | Instant, self-service |
-| Selling a namespace | Complex escrow | Native smart contracts |
-| History | Modifiable | Immutable |
-| Lock-in | Possible | Data is open |
+| Problem                | Traditional DB | Blockchain             |
+| ---------------------- | -------------- | ---------------------- |
+| "Who owns 'stripe'?"   | Trust us       | Cryptographic proof    |
+| Transferring ownership | Manual process | Instant, self-service  |
+| Selling a namespace    | Complex escrow | Native smart contracts |
+| History                | Modifiable     | Immutable              |
+| Lock-in                | Possible       | Data is open           |
 
 The registry lives on **Base** (Coinbase's L2)—low fees, high credibility.
 
@@ -69,15 +71,15 @@ The registry lives on **Base** (Coinbase's L2)—low fees, high credibility.
 
 PML ships with **200+ tools** ready to use under the `pml.*` namespace:
 
-| Namespace | Examples |
-|-----------|----------|
-| `pml.json.*` | parse, query, merge, diff |
-| `pml.crypto.*` | hash, encrypt, sign, verify |
-| `pml.transform.*` | csv_to_json, xml_parse, yaml |
-| `pml.datetime.*` | format, diff, timezone |
-| `pml.geo.*` | distance, geocode, coordinates |
-| `pml.faker.*` | users, companies, addresses |
-| `pml.validation.*` | email, url, schema |
+| Namespace          | Examples                       |
+| ------------------ | ------------------------------ |
+| `pml.json.*`       | parse, query, merge, diff      |
+| `pml.crypto.*`     | hash, encrypt, sign, verify    |
+| `pml.transform.*`  | csv_to_json, xml_parse, yaml   |
+| `pml.datetime.*`   | format, diff, timezone         |
+| `pml.geo.*`        | distance, geocode, coordinates |
+| `pml.faker.*`      | users, companies, addresses    |
+| `pml.validation.*` | email, url, schema             |
 
 These are **free**—the foundation layer everyone builds on.
 
@@ -95,7 +97,8 @@ Stripe publishes:
 └── stripe.connect.api.create_account
 ```
 
-**Stripe controls their own billing**—API keys, subscriptions, whatever they want. PML just handles the names.
+**Stripe controls their own billing**—API keys, subscriptions, whatever they want. PML just handles
+the names.
 
 ## The Superhypergraph
 
@@ -104,26 +107,28 @@ Capabilities don't live in isolation. They form a **web of relationships**:
 ![Capability Relationships](excalidraw:src/web/assets/diagrams/cap-dns-superhypergraph.excalidraw)
 
 This graph enables:
+
 - **Smart discovery**: "Find capabilities similar to X"
 - **Dependency resolution**: "What else do I need?"
 - **Quality signals**: "What do successful workflows use?"
 
 ## Pricing
 
-| Action | Cost | Frequency |
-|--------|------|-----------|
-| Register 3-char namespace | 0.1 ETH | Once |
-| Register 4-5 char | 0.05 ETH | Once |
-| Register 6-8 char | 0.02 ETH | Once |
-| Register 9+ char | 0.01 ETH | Once |
-| Annual renewal | 0.005 ETH | Yearly |
-| Transfer | Gas only (~$0.01) | Per transfer |
+| Action                    | Cost              | Frequency    |
+| ------------------------- | ----------------- | ------------ |
+| Register 3-char namespace | 0.1 ETH           | Once         |
+| Register 4-5 char         | 0.05 ETH          | Once         |
+| Register 6-8 char         | 0.02 ETH          | Once         |
+| Register 9+ char          | 0.01 ETH          | Once         |
+| Annual renewal            | 0.005 ETH         | Yearly       |
+| Transfer                  | Gas only (~$0.01) | Per transfer |
 
 **Usage is free.** Publishers handle their own monetization.
 
 ## Why "Web of Capabilities"?
 
 Because it's literally a web:
+
 - **Nodes**: Capabilities (skills, tools, actions)
 - **Edges**: Dependencies, compositions, similarities
 - **Namespaces**: Ownership and trust boundaries
@@ -134,27 +139,32 @@ Just as the web connected documents, the Web of Capabilities connects AI skills.
 ## What This Enables
 
 ### For Publishers
+
 - **Own your namespace**: `yourcompany.*` is yours
 - **Build reputation**: Quality scores, usage stats
 - **Monetize directly**: Your API keys, your billing
 
 ### For Developers
+
 - **Discover capabilities**: Search by name, not by ID
 - **Trust signals**: Verified owner, success rates
 - **Composability**: Build on top of existing capabilities
 
 ### For Agents
+
 - **Callable names**: `stripe.billing.create_invoice` not `abc123`
 - **Predictable structure**: Know what to expect from `*.api.*`
 - **Cross-org discovery**: Find the best tool for the job
 
 ## Resolution: The Magic of RPC
 
-When an agent calls `stripe.billing.create_invoice`, it doesn't need to know the internal ID. The system resolves it transparently:
+When an agent calls `stripe.billing.create_invoice`, it doesn't need to know the internal ID. The
+system resolves it transparently:
 
 ![Name Resolution Flow](excalidraw:src/web/assets/diagrams/cap-dns-resolution.excalidraw)
 
-Like DNS, the caller uses **names**, the system handles **routing**. If a capability is renamed, old names become aliases—backward compatibility for free.
+Like DNS, the caller uses **names**, the system handles **routing**. If a capability is renamed, old
+names become aliases—backward compatibility for free.
 
 ## Query API: Like nslookup for Skills
 
@@ -196,4 +206,5 @@ Future:  AI agents discover and compose capabilities
 
 ---
 
-*Building the Web of Capabilities at [PML](https://pml.cloud). Want to reserve your namespace? [Join the waitlist](#).*
+_Building the Web of Capabilities at [PML](https://pml.cloud). Want to reserve your namespace?
+[Join the waitlist](#)._

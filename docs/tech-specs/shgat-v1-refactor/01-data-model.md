@@ -16,8 +16,8 @@
  * can contain capabilities from level k-1 OR tools from V₀.
  */
 export type Member =
-  | { type: 'tool'; id: string }
-  | { type: 'capability'; id: string };
+  | { type: "tool"; id: string }
+  | { type: "capability"; id: string };
 ```
 
 ### CapabilityNode
@@ -80,16 +80,16 @@ class SHGAT {
   getDirectTools(capId: string): string[] {
     const cap = this.capabilityNodes.get(capId);
     return cap?.members
-      .filter(m => m.type === 'tool')
-      .map(m => m.id) ?? [];
+      .filter((m) => m.type === "tool")
+      .map((m) => m.id) ?? [];
   }
 
   /** Get direct child capabilities only */
   getDirectCapabilities(capId: string): string[] {
     const cap = this.capabilityNodes.get(capId);
     return cap?.members
-      .filter(m => m.type === 'capability')
-      .map(m => m.id) ?? [];
+      .filter((m) => m.type === "capability")
+      .map((m) => m.id) ?? [];
   }
 
   /** Get ALL transitive tools (for legacy API only) */
@@ -107,10 +107,10 @@ class SHGAT {
 
 ### File Changes
 
-| File | Change |
-|------|--------|
+| File                                     | Change                                     |
+| ---------------------------------------- | ------------------------------------------ |
 | `src/graphrag/algorithms/shgat/types.ts` | Add `Member` type, update `CapabilityNode` |
-| `src/graphrag/algorithms/shgat.ts` | Add helper methods |
+| `src/graphrag/algorithms/shgat.ts`       | Add helper methods                         |
 
 ### Migration from Old Format
 
@@ -127,8 +127,8 @@ interface LegacyCapabilityNode {
 // New format
 interface CapabilityNode {
   id: string;
-  members: Member[];  // Unified
-  hierarchyLevel: number;  // Computed
+  members: Member[]; // Unified
+  hierarchyLevel: number; // Computed
   embedding: number[];
   successRate: number;
 }

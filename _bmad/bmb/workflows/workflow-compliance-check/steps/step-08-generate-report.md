@@ -1,29 +1,30 @@
 ---
-name: 'step-08-generate-report'
-description: 'Generate comprehensive compliance report with fix recommendations'
+name: "step-08-generate-report"
+description: "Generate comprehensive compliance report with fix recommendations"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmb/workflows/workflow-compliance-check'
+workflow_path: "{project-root}/_bmad/bmb/workflows/workflow-compliance-check"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-08-generate-report.md'
-workflowFile: '{workflow_path}/workflow.md'
-complianceReportFile: '{output_folder}/workflow-compliance-report-{workflow_name}.md'
-targetWorkflowFile: '{target_workflow_path}'
+thisStepFile: "{workflow_path}/steps/step-08-generate-report.md"
+workflowFile: "{workflow_path}/workflow.md"
+complianceReportFile: "{output_folder}/workflow-compliance-report-{workflow_name}.md"
+targetWorkflowFile: "{target_workflow_path}"
 
 # Template References
-complianceReportTemplate: '{workflow_path}/templates/compliance-report.md'
+complianceReportTemplate: "{workflow_path}/templates/compliance-report.md"
 
 # Documentation References
-stepTemplate: '{project-root}/_bmad/bmb/docs/workflows/templates/step-template.md'
-workflowTemplate: '{project-root}/_bmad/bmb/docs/workflows/templates/workflow-template.md'
+stepTemplate: "{project-root}/_bmad/bmb/docs/workflows/templates/step-template.md"
+workflowTemplate: "{project-root}/_bmad/bmb/docs/workflows/templates/workflow-template.md"
 ---
 
 # Step 8: Comprehensive Compliance Report Generation
 
 ## STEP GOAL:
 
-Generate comprehensive compliance report compiling all validation findings, provide severity-ranked fix recommendations, and offer concrete next steps for achieving full compliance.
+Generate comprehensive compliance report compiling all validation findings, provide severity-ranked
+fix recommendations, and offer concrete next steps for achieving full compliance.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -36,7 +37,8 @@ Generate comprehensive compliance report compiling all validation findings, prov
 ### Role Reinforcement:
 
 - ✅ You are a compliance validator and quality assurance specialist
-- ✅ If you already have been given a name, communication_style and persona, continue to use those while playing this new role
+- ✅ If you already have been given a name, communication_style and persona, continue to use those
+  while playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You bring report generation and strategic recommendation expertise
 - ✅ User brings their validated workflow and needs actionable improvement plan
@@ -66,10 +68,10 @@ Generate comprehensive compliance report compiling all validation findings, prov
 
 ### 1. Initialize Report Generation
 
-"**Phase 5: Comprehensive Compliance Report Generation**
-Target: `{target_workflow_name}`
+"**Phase 5: Comprehensive Compliance Report Generation** Target: `{target_workflow_name}`
 
-Compiling all validation findings into structured compliance report with actionable recommendations..."
+Compiling all validation findings into structured compliance report with actionable
+recommendations..."
 
 ### 2. Generate Compliance Report Structure
 
@@ -78,18 +80,16 @@ Create comprehensive report at {complianceReportFile}:
 ```markdown
 # Workflow Compliance Report
 
-**Workflow:** {target_workflow_name}
-**Date:** {current_date}
-**Standards:** BMAD workflow-template.md and step-template.md
+**Workflow:** {target_workflow_name} **Date:** {current_date} **Standards:** BMAD
+workflow-template.md and step-template.md
 
 ---
 
 ## Executive Summary
 
-**Overall Compliance Status:** [PASS/FAIL/PARTIAL]
-**Critical Issues:** [number] - Must be fixed immediately
-**Major Issues:** [number] - Significantly impacts quality/maintainability
-**Minor Issues:** [number] - Standards compliance improvements
+**Overall Compliance Status:** [PASS/FAIL/PARTIAL] **Critical Issues:** [number] - Must be fixed
+immediately **Major Issues:** [number] - Significantly impacts quality/maintainability **Minor
+Issues:** [number] - Standards compliance improvements
 
 **Compliance Score:** [percentage]% based on template adherence
 
@@ -125,9 +125,8 @@ Create comprehensive report at {complianceReportFile}:
 
 ### Workflow Type Assessment
 
-**Workflow Type:** [editing/creation/validation/etc.]
-**Template Appropriateness:** [appropriate/needs improvement]
-**Recommendations:** [specific suggestions]
+**Workflow Type:** [editing/creation/validation/etc.] **Template Appropriateness:**
+[appropriate/needs improvement] **Recommendations:** [specific suggestions]
 
 ---
 
@@ -139,8 +138,7 @@ Create comprehensive report at {complianceReportFile}:
 
 ### Goal Alignment
 
-**Alignment Score:** [percentage]%
-**Stated vs. Actual:** [comparison with gaps]
+**Alignment Score:** [percentage]% **Stated vs. Actual:** [comparison with gaps]
 
 ### Optimization Opportunities
 
@@ -247,8 +245,8 @@ Create comprehensive report at {complianceReportFile}:
 
 ### 4. Offer Next Steps
 
-"**Phase 6 Complete:** Comprehensive compliance analysis finished
-All 8 validation phases completed with full report generation
+"**Phase 6 Complete:** Comprehensive compliance analysis finished All 8 validation phases completed
+with full report generation
 
 **Compliance Analysis Complete. What would you like to do next?**"
 
@@ -259,11 +257,13 @@ All 8 validation phases completed with full report generation
 - **[C] Manual Review** - Use the report for manual fixes at your pace
 - **[D] Update Meta-Workflows** - Strengthen create/edit workflows with identified improvements
 
-**Recommendation:** Start with Critical issues, then proceed through High and Medium priority items systematically."
+**Recommendation:** Start with Critical issues, then proceed through High and Medium priority items
+systematically."
 
 ### 5. Report Completion Options
 
-Display: "**Select an Option:** [A] Apply Automated Fixes [B] Launch Edit-Agent [C] Manual Review [D] Update Meta-Workflows [X] Exit"
+Display: "**Select an Option:** [A] Apply Automated Fixes [B] Launch Edit-Agent [C] Manual Review
+[D] Update Meta-Workflows [X] Exit"
 
 ## Menu Handling Logic:
 
@@ -275,7 +275,9 @@ Display: "**Select an Option:** [A] Apply Automated Fixes [B] Launch Edit-Agent 
 
 ## CRITICAL STEP COMPLETION NOTE
 
-The workflow is complete when the comprehensive compliance report has been generated and the user has selected their preferred next step. The report contains all findings, recommendations, and strategic guidance needed to achieve full BMAD compliance.
+The workflow is complete when the comprehensive compliance report has been generated and the user
+has selected their preferred next step. The report contains all findings, recommendations, and
+strategic guidance needed to achieve full BMAD compliance.
 
 ---
 
@@ -298,4 +300,5 @@ The workflow is complete when the comprehensive compliance report has been gener
 - Failing to include meta-workflow improvement suggestions
 - Creating report that is not immediately actionable
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

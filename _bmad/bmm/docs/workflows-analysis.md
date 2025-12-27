@@ -2,13 +2,17 @@
 
 ## Overview
 
-Phase 1 (Analysis) workflows are **optional** exploration and discovery tools that help validate ideas, understand markets, and generate strategic context before planning begins.
+Phase 1 (Analysis) workflows are **optional** exploration and discovery tools that help validate
+ideas, understand markets, and generate strategic context before planning begins.
 
-**Key principle:** Analysis workflows help you think strategically before committing to implementation. Skip them if your requirements are already clear.
+**Key principle:** Analysis workflows help you think strategically before committing to
+implementation. Skip them if your requirements are already clear.
 
-**When to use:** Starting new projects, exploring opportunities, validating market fit, generating ideas, understanding problem spaces.
+**When to use:** Starting new projects, exploring opportunities, validating market fit, generating
+ideas, understanding problem spaces.
 
-**When to skip:** Continuing existing projects with clear requirements, well-defined features with known solutions, strict constraints where discovery is complete.
+**When to skip:** Continuing existing projects with clear requirements, well-defined features with
+known solutions, strict constraints where discovery is complete.
 
 ---
 
@@ -48,7 +52,8 @@ These workflows feed into Phase 2 (Planning) workflows, particularly the `prd` w
 
 ### brainstorm-project
 
-**Purpose:** Generate multiple solution approaches through parallel ideation tracks (architecture, UX, integration, value).
+**Purpose:** Generate multiple solution approaches through parallel ideation tracks (architecture,
+UX, integration, value).
 
 **Agent:** Analyst
 
@@ -66,13 +71,15 @@ These workflows feed into Phase 2 (Planning) workflows, particularly the `prd` w
 - Risk analysis (dependencies, challenges)
 - Strategic recommendation with rationale
 
-**Example:** "We need a customer dashboard" → Options: Monolith SSR (faster), Microservices SPA (scalable), Hybrid (balanced) with recommendation.
+**Example:** "We need a customer dashboard" → Options: Monolith SSR (faster), Microservices SPA
+(scalable), Hybrid (balanced) with recommendation.
 
 ---
 
 ### research
 
-**Purpose:** Comprehensive multi-type research system consolidating market, technical, competitive, user, and domain analysis.
+**Purpose:** Comprehensive multi-type research system consolidating market, technical, competitive,
+user, and domain analysis.
 
 **Agent:** Analyst
 
@@ -94,7 +101,8 @@ These workflows feed into Phase 2 (Planning) workflows, particularly the `prd` w
 - Platform-specific optimization for deep_prompt type
 - Configurable research depth (quick/standard/comprehensive)
 
-**Example (market):** "SaaS project management tool" → TAM $50B, SAM $5B, SOM $50M, top competitors (Asana, Monday), positioning recommendation.
+**Example (market):** "SaaS project management tool" → TAM $50B, SAM $5B, SOM $50M, top competitors
+(Asana, Monday), positioning recommendation.
 
 ---
 
@@ -243,23 +251,23 @@ Use analysis workflows to align stakeholders before committing to detailed plann
 
 ## Troubleshooting
 
-**Q: Do I need to run all analysis workflows?**
-A: No! Analysis is entirely optional. Use only workflows that help you think through your problem.
+**Q: Do I need to run all analysis workflows?** A: No! Analysis is entirely optional. Use only
+workflows that help you think through your problem.
 
-**Q: Which workflow should I start with?**
-A: If unsure, start with `research` (market type) to validate viability, then move to `product-brief`.
+**Q: Which workflow should I start with?** A: If unsure, start with `research` (market type) to
+validate viability, then move to `product-brief`.
 
-**Q: Can I skip straight to Planning?**
-A: Yes! If you know what you're building and why, skip Phase 1 entirely and start with Phase 2 (prd/tech-spec).
+**Q: Can I skip straight to Planning?** A: Yes! If you know what you're building and why, skip Phase
+1 entirely and start with Phase 2 (prd/tech-spec).
 
-**Q: How long should Analysis take?**
-A: Typically hours to 1-2 days. If taking longer, you may be over-analyzing. Move to Planning.
+**Q: How long should Analysis take?** A: Typically hours to 1-2 days. If taking longer, you may be
+over-analyzing. Move to Planning.
 
-**Q: What if I discover problems during Analysis?**
-A: That's the point! Analysis helps you fail fast and pivot before heavy planning investment.
+**Q: What if I discover problems during Analysis?** A: That's the point! Analysis helps you fail
+fast and pivot before heavy planning investment.
 
-**Q: Should brownfield projects do Analysis?**
-A: Usually no. Start with `document-project` (Documentation prerequisite), then skip to Planning (Phase 2).
+**Q: Should brownfield projects do Analysis?** A: Usually no. Start with `document-project`
+(Documentation prerequisite), then skip to Planning (Phase 2).
 
 ---
 

@@ -1,6 +1,7 @@
 # BMB - BMad Builder Module
 
-Specialized tools and workflows for creating, customizing, and extending BMad components including agents, workflows, and complete modules.
+Specialized tools and workflows for creating, customizing, and extending BMad components including
+agents, workflows, and complete modules.
 
 ## Table of Contents
 
@@ -16,7 +17,8 @@ Specialized tools and workflows for creating, customizing, and extending BMad co
 
 ### 🤖 Agents
 
-**BMad Builder** - Master builder agent orchestrating all creation workflows with deep knowledge of BMad architecture and conventions.
+**BMad Builder** - Master builder agent orchestrating all creation workflows with deep knowledge of
+BMad architecture and conventions.
 
 - Install Location: `_bmad/bmb/agents/bmad-builder.md`
 
@@ -40,7 +42,8 @@ Specialized tools and workflows for creating, customizing, and extending BMad co
 - **[Agent Index](./agents/index.md)** - Complete agent architecture guide
 - **[Agent Types Guide](./agents/understanding-agent-types.md)** - Simple vs Expert vs Module agents
 - **[Menu Patterns](./agents/agent-menu-patterns.md)** - YAML menu design and handler types
-- **[Agent Compilation](./agents/agent-compilation.md)** - Auto-injection rules and compilation process
+- **[Agent Compilation](./agents/agent-compilation.md)** - Auto-injection rules and compilation
+  process
 
 ### 📋 Workflow Documentation
 
@@ -53,13 +56,17 @@ Specialized tools and workflows for creating, customizing, and extending BMad co
 
 ### 🤖 Agent Examples
 
-- **[Simple Agent Example](../reference/agents/simple-examples/commit-poet.agent.yaml)** - Self-contained agent
-- **[Expert Agent Example](../reference/agents/expert-examples/journal-keeper/journal-keeper.agent.yaml)** - Agent with persistent memory
-- **[Module Add On Agent Examples](../reference/agents/module-examples/security-engineer.agent.yaml)** - Integration patterns (BMM, CIS)
+- **[Simple Agent Example](../reference/agents/simple-examples/commit-poet.agent.yaml)** -
+  Self-contained agent
+- **[Expert Agent Example](../reference/agents/expert-examples/journal-keeper/journal-keeper.agent.yaml)** -
+  Agent with persistent memory
+- **[Module Add On Agent Examples](../reference/agents/module-examples/security-engineer.agent.yaml)** -
+  Integration patterns (BMM, CIS)
 
 ### 📋 Workflow Examples
 
-- **[Meal Prep & Nutrition](./reference/workflows/meal-prep-nutrition/)** - Complete step-file workflow demonstration
+- **[Meal Prep & Nutrition](./reference/workflows/meal-prep-nutrition/)** - Complete step-file
+  workflow demonstration
 - **Template patterns** for document generation and state management
 
 ## Core Workflows
@@ -246,4 +253,5 @@ BMB components integrate with:
 
 ---
 
-BMB provides a complete toolkit for extending BMad Method with disciplined, systematic approaches to agent and workflow development while maintaining framework consistency and power.
+BMB provides a complete toolkit for extending BMad Method with disciplined, systematic approaches to
+agent and workflow development while maintaining framework consistency and power.

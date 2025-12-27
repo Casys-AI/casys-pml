@@ -4,15 +4,16 @@ Status: Done
 
 ## Story
 
-As a system administrator,
-I want automatic mode detection based on environment,
-So that self-hosted deployments work without any auth configuration.
+As a system administrator, I want automatic mode detection based on environment, So that self-hosted
+deployments work without any auth configuration.
 
 ## Acceptance Criteria
 
 1. **AC1:** Mode detection + validation helpers created (`src/lib/auth.ts` - shared module)
-2. **AC2:** Fresh Dashboard auth middleware (`src/web/routes/_middleware.ts`) validates sessions in cloud mode, bypasses in local mode
-3. **AC3:** API Server auth (`src/mcp/gateway-server.ts`) validates API Key header in cloud mode, bypasses in local mode
+2. **AC2:** Fresh Dashboard auth middleware (`src/web/routes/_middleware.ts`) validates sessions in
+   cloud mode, bypasses in local mode
+3. **AC3:** API Server auth (`src/mcp/gateway-server.ts`) validates API Key header in cloud mode,
+   bypasses in local mode
 4. **AC4:** Protected routes enforced per server (see table below)
 5. **AC5:** Mode detection logs at INFO level on server startup
 6. **AC6:** Tests cover both modes for both servers
@@ -164,7 +165,7 @@ export interface AuthResult {
  * @returns AuthResult if valid, null if invalid/missing
  */
 export async function validateRequest(
-  req: Request
+  req: Request,
 ): Promise<AuthResult | null> {
   // Local mode: bypass auth, return default user
   if (!isCloudMode()) {
@@ -192,7 +193,7 @@ export async function validateRequest(
  * @returns AuthResult if valid, null if invalid
  */
 export async function validateApiKeyFromDb(
-  apiKey: string
+  apiKey: string,
 ): Promise<AuthResult | null> {
   try {
     // Validate format before DB lookup (fail fast)
@@ -250,7 +251,7 @@ export function logAuthMode(serverName: string): void {
   log.info(`[${serverName}] Auth mode: ${mode}`);
   if (!isCloudMode()) {
     log.info(
-      `[${serverName}] Running in local mode - auth bypassed, user_id = "local"`
+      `[${serverName}] Running in local mode - auth bypassed, user_id = "local"`,
     );
   }
 }
@@ -333,7 +334,7 @@ Add after CORS preflight handling (approximately line 200-220 in the HTTP handle
 
 ```typescript
 // Story 9.3: Auth validation for protected routes
-import { validateRequest, logAuthMode } from "../lib/auth.ts";
+import { logAuthMode, validateRequest } from "../lib/auth.ts";
 
 // In startHttpServer() or constructor:
 logAuthMode("API Server");
@@ -352,7 +353,7 @@ if (!PUBLIC_ROUTES.includes(url.pathname)) {
       {
         status: 401,
         headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
+      },
     );
   }
   // TODO (Story 9.5): Propagate auth.user_id into execution context for data isolation
@@ -393,11 +394,7 @@ if (Deno.args.includes("build")) {
 
 ```typescript
 import { assertEquals, assertExists } from "@std/assert";
-import {
-  isCloudMode,
-  getDefaultUserId,
-  validateRequest,
-} from "../../../src/lib/auth.ts";
+import { getDefaultUserId, isCloudMode, validateRequest } from "../../../src/lib/auth.ts";
 
 Deno.test("isCloudMode - returns false when GITHUB_CLIENT_ID not set", () => {
   // Ensure env var is not set for this test
@@ -470,7 +467,7 @@ Deno.test(
     } else {
       Deno.env.delete("GITHUB_CLIENT_ID");
     }
-  }
+  },
 );
 ```
 
@@ -530,7 +527,7 @@ Deno.test(
 
     // Make request without API key
     // Verify 401 response
-  }
+  },
 );
 
 Deno.test("API Server - allows request in local mode", async () => {
@@ -603,8 +600,10 @@ tests/
 
 ### Integration Notes
 
-- **Rate limiting:** Auth validation happens BEFORE rate limiting in request flow. Story 9.5 will add user-based rate limiting using `auth.user_id`.
-- **Request context:** Consider caching `AuthResult` on request to avoid re-validation if multiple handlers need it.
+- **Rate limiting:** Auth validation happens BEFORE rate limiting in request flow. Story 9.5 will
+  add user-based rate limiting using `auth.user_id`.
+- **Request context:** Consider caching `AuthResult` on request to avoid re-validation if multiple
+  handlers need it.
 
 ---
 
@@ -623,10 +622,12 @@ GITHUB_CLIENT_SECRET=xxx
 
 ### References
 
-- **Tech-Spec:** [tech-spec-github-auth-multitenancy.md](tech-spec-github-auth-multitenancy.md#phase-3-mode-detection)
+- **Tech-Spec:**
+  [tech-spec-github-auth-multitenancy.md](tech-spec-github-auth-multitenancy.md#phase-3-mode-detection)
 - **Epic Definition:** [docs/epics.md#story-93](../epics.md) - Story 9.3
 - **Previous Story:** [9-2-github-oauth-auth-routes.md](9-2-github-oauth-auth-routes.md)
-- **API Key Helpers:** [9-1-infrastructure-auth-schema-helpers.md](9-1-infrastructure-auth-schema-helpers.md)
+- **API Key Helpers:**
+  [9-1-infrastructure-auth-schema-helpers.md](9-1-infrastructure-auth-schema-helpers.md)
 
 ## Dev Agent Record
 
@@ -644,10 +645,14 @@ N/A - Clean implementation with no debug issues.
 
 ### Completion Notes List
 
-- ✅ Created `src/lib/auth.ts` shared auth module with `isCloudMode()`, `getDefaultUserId()`, `validateRequest()`, `validateApiKeyFromDb()`, and `logAuthMode()` functions
-- ✅ Created `src/web/routes/_middleware.ts` Fresh middleware for session-based auth with cloud/local mode support
-- ✅ Created `src/web/route-guards.ts` for testable route classification functions (`isProtectedRoute()`, `isPublicRoute()`)
-- ✅ Added auth validation in `gateway-server.ts` after CORS preflight (~20 lines), skipping `/health` endpoint
+- ✅ Created `src/lib/auth.ts` shared auth module with `isCloudMode()`, `getDefaultUserId()`,
+  `validateRequest()`, `validateApiKeyFromDb()`, and `logAuthMode()` functions
+- ✅ Created `src/web/routes/_middleware.ts` Fresh middleware for session-based auth with
+  cloud/local mode support
+- ✅ Created `src/web/route-guards.ts` for testable route classification functions
+  (`isProtectedRoute()`, `isPublicRoute()`)
+- ✅ Added auth validation in `gateway-server.ts` after CORS preflight (~20 lines), skipping
+  `/health` endpoint
 - ✅ Added startup logging in both API Server and Fresh Dashboard
 - ✅ 37 tests passing: 11 auth unit tests, 16 middleware tests, 10 integration tests
 - ✅ All 7 ACs validated
@@ -669,9 +674,11 @@ N/A - Clean implementation with no debug issues.
 - `src/web/dev.ts` - Added auth mode startup logging
 - `.env.example` - Added GitHub OAuth documentation and renamed PORT_DASHBOARD to FRESH_PORT
 - `tests/integration/dashboard_endpoints_test.ts` - Port change 3001→3006, constructor fix
-- `tests/integration/mcp_gateway_e2e_test.ts` - Constructor fix for capabilityStore/adaptiveThresholdManager
+- `tests/integration/mcp_gateway_e2e_test.ts` - Constructor fix for
+  capabilityStore/adaptiveThresholdManager
 - `tests/unit/mcp/gateway_server_test.ts` - Constructor fix, meta-tools count 7→8
 
 ## Change Log
 
-- 2025-12-08: Story 9.3 implemented - Auth middleware & mode detection for dual-server architecture (37 tests passing)
+- 2025-12-08: Story 9.3 implemented - Auth middleware & mode detection for dual-server architecture
+  (37 tests passing)

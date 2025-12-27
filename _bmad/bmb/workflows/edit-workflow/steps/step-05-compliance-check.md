@@ -1,26 +1,27 @@
 ---
-name: 'step-05-compliance-check'
-description: 'Run comprehensive compliance validation on the edited workflow'
+name: "step-05-compliance-check"
+description: "Run comprehensive compliance validation on the edited workflow"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmb/workflows/edit-workflow'
+workflow_path: "{project-root}/_bmad/bmb/workflows/edit-workflow"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-05-compliance-check.md'
-workflowFile: '{workflow_path}/workflow.md'
-editedWorkflowPath: '{target_workflow_path}'
-complianceCheckWorkflow: '{project-root}/_bmad/bmb/workflows/workflow-compliance-check/workflow.md'
-outputFile: '{output_folder}/workflow-edit-{target_workflow_name}.md'
+thisStepFile: "{workflow_path}/steps/step-05-compliance-check.md"
+workflowFile: "{workflow_path}/workflow.md"
+editedWorkflowPath: "{target_workflow_path}"
+complianceCheckWorkflow: "{project-root}/_bmad/bmb/workflows/workflow-compliance-check/workflow.md"
+outputFile: "{output_folder}/workflow-edit-{target_workflow_name}.md"
 
 # Task References
-complianceCheckTask: '{project-root}/_bmad/bmb/workflows/workflow-compliance-check/workflow.md'
+complianceCheckTask: "{project-root}/_bmad/bmb/workflows/workflow-compliance-check/workflow.md"
 ---
 
 # Step 5: Compliance Validation
 
 ## STEP GOAL:
 
-Run comprehensive compliance validation on the edited workflow using the workflow-compliance-check workflow to ensure it meets all BMAD standards before completion.
+Run comprehensive compliance validation on the edited workflow using the workflow-compliance-check
+workflow to ensure it meets all BMAD standards before completion.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -33,7 +34,8 @@ Run comprehensive compliance validation on the edited workflow using the workflo
 ### Role Reinforcement:
 
 - ✅ You are a workflow editor and quality assurance specialist
-- ✅ If you already have been given a name, communication_style, and persona, continue to use those while playing this new role
+- ✅ If you already have been given a name, communication_style, and persona, continue to use those
+  while playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You bring expertise in BMAD standards and workflow validation
 - ✅ User brings their edited workflow and needs quality assurance
@@ -65,7 +67,8 @@ Run comprehensive compliance validation on the edited workflow using the workflo
 
 "**Final Quality Check: Workflow Compliance Validation**
 
-Your workflow has been edited! Now let's run a comprehensive compliance check to ensure it meets all BMAD standards and follows best practices.
+Your workflow has been edited! Now let's run a comprehensive compliance check to ensure it meets all
+BMAD standards and follows best practices.
 
 This validation will check:
 
@@ -80,11 +83,10 @@ This validation will check:
 
 **A. Execute Compliance Validation:**
 
-"Running comprehensive compliance validation on your edited workflow...
-Target: `{editedWorkflowPath}`
+"Running comprehensive compliance validation on your edited workflow... Target:
+`{editedWorkflowPath}`
 
-**Executing:** {complianceCheckTask}
-**Validation Scope:** Full 8-phase compliance analysis
+**Executing:** {complianceCheckTask} **Validation Scope:** Full 8-phase compliance analysis
 **Expected Duration:** Thorough validation may take several minutes"
 
 **B. Monitor Validation Progress:**
@@ -125,17 +127,13 @@ Provide updates as the validation progresses:
 
 **A. Review Compliance Issues:**
 
-If issues are found:
-"**Issues Requiring Attention:**
+If issues are found: "**Issues Requiring Attention:**
 
-**Critical Issues (Must Fix):**
-[List any critical violations that prevent workflow functionality]
+**Critical Issues (Must Fix):** [List any critical violations that prevent workflow functionality]
 
-**Major Issues (Should Fix):**
-[List major issues that impact quality or maintainability]
+**Major Issues (Should Fix):** [List major issues that impact quality or maintainability]
 
-**Minor Issues (Nice to Fix):**
-[List minor standards compliance issues]"
+**Minor Issues (Nice to Fix):** [List minor standards compliance issues]"
 
 **B. Resolution Options:**
 
@@ -219,7 +217,8 @@ Document final compliance status in {outputFile}:
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN compliance validation is complete and user confirms final workflow status, will the workflow editing process be considered successfully finished.
+ONLY WHEN compliance validation is complete and user confirms final workflow status, will the
+workflow editing process be considered successfully finished.
 
 ---
 
@@ -242,4 +241,5 @@ ONLY WHEN compliance validation is complete and user confirms final workflow sta
 - Declaring workflow complete without ensuring standards compliance
 - Not documenting final compliance status for future reference
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

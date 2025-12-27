@@ -1,29 +1,30 @@
 ---
-name: 'step-03-propose-changes'
-description: 'Propose specific changes and get approval'
+name: "step-03-propose-changes"
+description: "Propose specific changes and get approval"
 
 # Path Definitions
-workflow_path: '{project-root}/bmb/workflows/create-agent/edit-agent'
+workflow_path: "{project-root}/bmb/workflows/create-agent/edit-agent"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-03-propose-changes.md'
-nextStepFile: '{workflow_path}/steps/step-04-apply-changes.md'
-agentFile: '{{agent_path}}'
+thisStepFile: "{workflow_path}/steps/step-03-propose-changes.md"
+nextStepFile: "{workflow_path}/steps/step-04-apply-changes.md"
+agentFile: "{{agent_path}}"
 
 # Task References
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 
 # Documentation References (load JIT if needed)
-communication_presets: '{project-root}/_bmad/bmb/workflows/create-agent/data/communication-presets.csv'
-agent_compilation: '{project-root}/_bmad/bmb/docs/agents/agent-compilation.md'
+communication_presets: "{project-root}/_bmad/bmb/workflows/create-agent/data/communication-presets.csv"
+agent_compilation: "{project-root}/_bmad/bmb/docs/agents/agent-compilation.md"
 ---
 
 # Step 3: Propose Changes
 
 ## STEP GOAL:
 
-Propose specific, targeted changes based on analysis and get user approval before applying them to the agent.
+Propose specific, targeted changes based on analysis and get user approval before applying them to
+the agent.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -37,9 +38,11 @@ Propose specific, targeted changes based on analysis and get user approval befor
 ### Role Reinforcement:
 
 - ✅ You are an agent editor who helps users improve their BMAD agents through targeted changes
-- ✅ If you already have a name, communication_style and identity, continue to use those while playing this new role
+- ✅ If you already have a name, communication_style and identity, continue to use those while
+  playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
-- ✅ You bring agent architecture expertise, user brings their agent and goals, together we improve the agent
+- ✅ You bring agent architecture expertise, user brings their agent and goals, together we improve
+  the agent
 - ✅ Maintain collaborative guiding tone throughout
 
 ### Step-Specific Rules:
@@ -100,8 +103,7 @@ This will help with {{benefit}}."
 
 ### 4. Get User Approval
 
-"Does this change look good? Should I apply it?"
-Wait for explicit user approval before proceeding.
+"Does this change look good? Should I apply it?" Wait for explicit user approval before proceeding.
 
 ### 5. Repeat for Each Issue
 
@@ -120,19 +122,24 @@ Display: "**Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Cont
 
 - IF A: Execute {advancedElicitationTask}
 - IF P: Execute {partyModeWorkflow}
-- IF C: Save approved changes list to context, then only then load, read entire file, then execute {nextStepFile}
-- IF Any other comments or queries: help user respond then [Redisplay Menu Options](#6-present-menu-options)
+- IF C: Save approved changes list to context, then only then load, read entire file, then execute
+  {nextStepFile}
+- IF Any other comments or queries: help user respond then
+  [Redisplay Menu Options](#6-present-menu-options)
 
 #### EXECUTION RULES:
 
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu
-- User can chat or ask questions - always respond and then end with display again of the menu options
+- User can chat or ask questions - always respond and then end with display again of the menu
+  options
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN [C continue option] is selected and [all proposed changes reviewed and user approvals obtained], will you then load and read fully `{nextStepFile}` to execute and begin applying approved changes.
+ONLY WHEN [C continue option] is selected and [all proposed changes reviewed and user approvals
+obtained], will you then load and read fully `{nextStepFile}` to execute and begin applying approved
+changes.
 
 ---
 
@@ -154,4 +161,5 @@ ONLY WHEN [C continue option] is selected and [all proposed changes reviewed and
 - Proceeding without tracking which changes were approved
 - Loading references when not needed for current proposal
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

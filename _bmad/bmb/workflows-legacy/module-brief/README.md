@@ -2,13 +2,17 @@
 
 ## Overview
 
-The Module Brief workflow creates comprehensive blueprints for building new BMAD modules using strategic analysis and creative vision. It serves as the essential planning phase that transforms initial ideas into detailed, actionable specifications ready for implementation with the create-module workflow.
+The Module Brief workflow creates comprehensive blueprints for building new BMAD modules using
+strategic analysis and creative vision. It serves as the essential planning phase that transforms
+initial ideas into detailed, actionable specifications ready for implementation with the
+create-module workflow.
 
 ## Key Features
 
 - **Strategic Module Planning** - Comprehensive analysis from concept to implementation roadmap
 - **Multi-Mode Operation** - Interactive, Express, and YOLO modes for different planning needs
-- **Creative Vision Development** - Guided process for innovative module concepts and unique value propositions
+- **Creative Vision Development** - Guided process for innovative module concepts and unique value
+  propositions
 - **Architecture Design** - Detailed agent and workflow ecosystem planning with interaction models
 - **User Journey Mapping** - Scenario-based validation ensuring practical usability
 - **Technical Planning** - Infrastructure requirements, dependencies, and complexity assessment
@@ -160,7 +164,8 @@ module-brief/
 
 ### Generated Files
 
-- **Module Brief Document**: Comprehensive planning document at `{output_folder}/module-brief-{module_code}-{date}.md`
+- **Module Brief Document**: Comprehensive planning document at
+  `{output_folder}/module-brief-{module_code}-{date}.md`
 - **Strategic Specifications**: Ready-to-implement blueprint for create-module workflow
 
 ### Output Structure
@@ -254,7 +259,8 @@ To customize this workflow:
 
 For issues or questions:
 
-- Review the workflow creation guide at `/_bmad/bmb/workflows/create-workflow/workflow-creation-guide.md`
+- Review the workflow creation guide at
+  `/_bmad/bmb/workflows/create-workflow/workflow-creation-guide.md`
 - Study existing module examples in `/_bmad/` for patterns and inspiration
 - Validate output using `checklist.md`
 - Consult module structure guide at `create-module/module-structure.md`

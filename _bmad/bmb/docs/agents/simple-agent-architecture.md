@@ -139,8 +139,8 @@ Menu items reference these:
 ```yaml
 menu:
   - trigger: analyze
-    action: '#analyze-code'
-    description: 'Analyze code patterns'
+    action: "#analyze-code"
+    description: "Analyze code patterns"
 ```
 
 ### Menu Actions

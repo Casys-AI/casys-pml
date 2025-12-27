@@ -1,14 +1,15 @@
 # ADR-044: JSON-RPC Multiplexer Pattern for MCP Client
 
-**Status:** Implemented
-**Date:** 2025-12-11 | **Deciders:** Architecture Team
-**Tech-Spec Source:** `docs/tech-specs/tech-spec-dag-code-execution-integration.md`
+**Status:** Implemented **Date:** 2025-12-11 | **Deciders:** Architecture Team **Tech-Spec Source:**
+`docs/tech-specs/tech-spec-dag-code-execution-integration.md`
 
 ## Context
 
 ### Problem
 
-The `MCPClient.sendRequest()` had a critical concurrency bug that caused parallel MCP requests to timeout. The implementation used a single shared reader that blocked concurrent requests, and responses were not matched by request ID.
+The `MCPClient.sendRequest()` had a critical concurrency bug that caused parallel MCP requests to
+timeout. The implementation used a single shared reader that blocked concurrent requests, and
+responses were not matched by request ID.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -25,6 +26,7 @@ The `MCPClient.sendRequest()` had a critical concurrency bug that caused paralle
 ```
 
 **Root Causes:**
+
 1. **Shared reader**: `this.reader` was shared across all concurrent `sendRequest()` calls
 2. **Blocking loop**: Each request did `while(true) { reader.read() }` blocking the stream
 3. **No ID matching**: First response received was returned, regardless of `response.id`
@@ -127,9 +129,11 @@ class MCPClient {
 
 ## Acceptance Criteria (Verified)
 
-- [x] AC6: Given 4 parallel MCP requests to same server, when executed, then all 4 complete successfully without timeout
+- [x] AC6: Given 4 parallel MCP requests to same server, when executed, then all 4 complete
+      successfully without timeout
 - [x] AC7: Given parallel requests, when one times out, then other pending requests are not affected
-- [x] AC8: Given MCPClient with multiplexer, when response arrives, then it is matched to correct pending request by ID
+- [x] AC8: Given MCPClient with multiplexer, when response arrives, then it is matched to correct
+      pending request by ID
 
 ## Related
 

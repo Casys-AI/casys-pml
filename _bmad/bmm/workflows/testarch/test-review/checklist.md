@@ -1,6 +1,7 @@
 # Test Quality Review - Validation Checklist
 
-Use this checklist to validate that the test quality review workflow completed successfully and all quality criteria were properly evaluated.
+Use this checklist to validate that the test quality review workflow completed successfully and all
+quality criteria were properly evaluated.
 
 ---
 

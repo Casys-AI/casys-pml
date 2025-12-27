@@ -7,7 +7,9 @@ inputDocuments: []
 
 ## Overview
 
-This document provides the complete epic and story breakdown for {{project_name}}, decomposing the requirements from the PRD, UX Design if it exists, and Architecture requirements into implementable stories.
+This document provides the complete epic and story breakdown for {{project_name}}, decomposing the
+requirements from the PRD, UX Design if it exists, and Architecture requirements into implementable
+stories.
 
 ## Requirements Inventory
 
@@ -41,17 +43,13 @@ This document provides the complete epic and story breakdown for {{project_name}
 
 ### Story {{N}}.{{M}}: {{story_title_N_M}}
 
-As a {{user_type}},
-I want {{capability}},
-So that {{value_benefit}}.
+As a {{user_type}}, I want {{capability}}, So that {{value_benefit}}.
 
 **Acceptance Criteria:**
 
 <!-- for each AC on this story -->
 
-**Given** {{precondition}}
-**When** {{action}}
-**Then** {{expected_outcome}}
-**And** {{additional_criteria}}
+**Given** {{precondition}} **When** {{action}} **Then** {{expected_outcome}} **And**
+{{additional_criteria}}
 
 <!-- End story repeat -->

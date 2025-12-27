@@ -107,7 +107,6 @@ export default function GraphLegendPanel({
         </>
       )}
 
-
       {/* MCP Servers */}
       <h3
         class="text-xs font-semibold uppercase tracking-widest mb-3"

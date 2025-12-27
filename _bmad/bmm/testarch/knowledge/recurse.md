@@ -2,11 +2,14 @@
 
 ## Principle
 
-Use Cypress-style polling with Playwright's `expect.poll` to wait for asynchronous conditions. Provides configurable timeout, interval, logging, and post-polling callbacks with enhanced error categorization.
+Use Cypress-style polling with Playwright's `expect.poll` to wait for asynchronous conditions.
+Provides configurable timeout, interval, logging, and post-polling callbacks with enhanced error
+categorization.
 
 ## Rationale
 
-Testing async operations (background jobs, eventual consistency, webhook processing) requires polling:
+Testing async operations (background jobs, eventual consistency, webhook processing) requires
+polling:
 
 - Vanilla `expect.poll` is verbose
 - No built-in logging for debugging
@@ -30,24 +33,24 @@ The `recurse` utility provides:
 **Implementation**:
 
 ```typescript
-import { test } from '@seontechnologies/playwright-utils/recurse/fixtures';
+import { test } from "@seontechnologies/playwright-utils/recurse/fixtures";
 
-test('should wait for job completion', async ({ recurse, apiRequest }) => {
+test("should wait for job completion", async ({ recurse, apiRequest }) => {
   // Start job
   const { body } = await apiRequest({
-    method: 'POST',
-    path: '/api/jobs',
-    body: { type: 'export' },
+    method: "POST",
+    path: "/api/jobs",
+    body: { type: "export" },
   });
 
   // Poll until ready
   const result = await recurse(
-    () => apiRequest({ method: 'GET', path: `/api/jobs/${body.id}` }),
-    (response) => response.body.status === 'completed',
+    () => apiRequest({ method: "GET", path: `/api/jobs/${body.id}` }),
+    (response) => response.body.status === "completed",
     {
       timeout: 60000, // 60 seconds max
       interval: 2000, // Check every 2 seconds
-      log: 'Waiting for export job to complete',
+      log: "Waiting for export job to complete",
     },
   );
 
@@ -69,17 +72,17 @@ test('should wait for job completion', async ({ recurse, apiRequest }) => {
 **Implementation**:
 
 ```typescript
-test('should poll with assertions', async ({ recurse, apiRequest }) => {
+test("should poll with assertions", async ({ recurse, apiRequest }) => {
   await apiRequest({
-    method: 'POST',
-    path: '/api/events',
-    body: { type: 'user-created', userId: '123' },
+    method: "POST",
+    path: "/api/events",
+    body: { type: "user-created", userId: "123" },
   });
 
   // Poll with assertions in predicate
   await recurse(
     async () => {
-      const { body } = await apiRequest({ method: 'GET', path: '/api/events/123' });
+      const { body } = await apiRequest({ method: "GET", path: "/api/events/123" });
       return body;
     },
     (event) => {
@@ -107,19 +110,19 @@ test('should poll with assertions', async ({ recurse, apiRequest }) => {
 **Implementation**:
 
 ```typescript
-test('custom error on timeout', async ({ recurse, apiRequest }) => {
+test("custom error on timeout", async ({ recurse, apiRequest }) => {
   try {
     await recurse(
-      () => apiRequest({ method: 'GET', path: '/api/status' }),
+      () => apiRequest({ method: "GET", path: "/api/status" }),
       (res) => res.body.ready === true,
       {
         timeout: 10000,
-        error: 'System failed to become ready within 10 seconds - check background workers',
+        error: "System failed to become ready within 10 seconds - check background workers",
       },
     );
   } catch (error) {
     // Error message includes custom context
-    expect(error.message).toContain('check background workers');
+    expect(error.message).toContain("check background workers");
     throw error;
   }
 });
@@ -139,10 +142,10 @@ test('custom error on timeout', async ({ recurse, apiRequest }) => {
 **Implementation**:
 
 ```typescript
-test('post-poll processing', async ({ recurse, apiRequest }) => {
+test("post-poll processing", async ({ recurse, apiRequest }) => {
   const finalResult = await recurse(
-    () => apiRequest({ method: 'GET', path: '/api/batch-job/123' }),
-    (res) => res.body.status === 'completed',
+    () => apiRequest({ method: "GET", path: "/api/batch-job/123" }),
+    (res) => res.body.status === "completed",
     {
       timeout: 60000,
       post: (result) => {
@@ -172,22 +175,22 @@ test('post-poll processing', async ({ recurse, apiRequest }) => {
 **Implementation**:
 
 ```typescript
-import { test } from '@seontechnologies/playwright-utils/fixtures';
+import { test } from "@seontechnologies/playwright-utils/fixtures";
 
-test('end-to-end polling', async ({ apiRequest, recurse }) => {
+test("end-to-end polling", async ({ apiRequest, recurse }) => {
   // Trigger async operation
   const { body: createResp } = await apiRequest({
-    method: 'POST',
-    path: '/api/data-import',
-    body: { source: 's3://bucket/data.csv' },
+    method: "POST",
+    path: "/api/data-import",
+    body: { source: "s3://bucket/data.csv" },
   });
 
   // Poll until import completes
   const importResult = await recurse(
-    () => apiRequest({ method: 'GET', path: `/api/data-import/${createResp.importId}` }),
+    () => apiRequest({ method: "GET", path: `/api/data-import/${createResp.importId}` }),
     (response) => {
       const { status, rowsImported } = response.body;
-      return status === 'completed' && rowsImported > 0;
+      return status === "completed" && rowsImported > 0;
     },
     {
       timeout: 120000, // 2 minutes for large imports
@@ -259,18 +262,18 @@ Error: Predicate failed: Cannot read property 'status' of undefined
 **❌ Using hard waits instead of polling:**
 
 ```typescript
-await page.click('#export');
+await page.click("#export");
 await page.waitForTimeout(5000); // Arbitrary wait
-expect(await page.textContent('#status')).toBe('Ready');
+expect(await page.textContent("#status")).toBe("Ready");
 ```
 
 **✅ Poll for actual condition:**
 
 ```typescript
-await page.click('#export');
+await page.click("#export");
 await recurse(
-  () => page.textContent('#status'),
-  (status) => status === 'Ready',
+  () => page.textContent("#status"),
+  (status) => status === "Ready",
   { timeout: 10000 },
 );
 ```
@@ -279,7 +282,7 @@ await recurse(
 
 ```typescript
 await recurse(
-  () => apiRequest({ method: 'GET', path: '/status' }),
+  () => apiRequest({ method: "GET", path: "/status" }),
   (res) => res.body.ready,
   { interval: 100 }, // Hammers API every 100ms!
 );
@@ -289,7 +292,7 @@ await recurse(
 
 ```typescript
 await recurse(
-  () => apiRequest({ method: 'GET', path: '/status' }),
+  () => apiRequest({ method: "GET", path: "/status" }),
   (res) => res.body.ready,
   { interval: 2000 }, // Check every 2 seconds (reasonable)
 );

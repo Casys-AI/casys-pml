@@ -1,9 +1,7 @@
 # Tech-Spec: HIL Permission Escalation Architecture Fix
 
-**Created:** 2025-12-16
-**Status:** ✅ Phase 1-2 Complete, Phase 3-4 Superseded
-**Updated:** 2025-12-19
-**Related Stories:** 2.5-3, 7.7a, 7.7b, 7.7c
+**Created:** 2025-12-16 **Status:** ✅ Phase 1-2 Complete, Phase 3-4 Superseded **Updated:**
+2025-12-19 **Related Stories:** 2.5-3, 7.7a, 7.7b, 7.7c
 
 > **⚠️ PARTIALLY OBSOLETE (2025-12-19)**
 >
@@ -12,6 +10,7 @@
 > - **ffi/run validation**: Removed - these fields no longer exist in config
 >
 > Current validation triggers (see `requiresValidation()` in workflow-execution-handler.ts):
+>
 > - Unknown MCP tools (not in mcp-permissions.yaml)
 > - Tools with `approvalMode: "hil"`
 > - `code_execution` with non-minimal permissions
@@ -20,24 +19,32 @@
 
 ### Problem Statement
 
-The Human-in-the-Loop (HIL) mechanism for permission escalation in DAG execution had multiple architectural issues:
+The Human-in-the-Loop (HIL) mechanism for permission escalation in DAG execution had multiple
+architectural issues:
 
-1. **Deadlock Bug**: Tasks execute inside `Promise.allSettled()`, so the generator cannot `yield` events while waiting. `waitForDecisionCommand()` blocks indefinitely waiting for a response that can never arrive.
+1. **Deadlock Bug**: Tasks execute inside `Promise.allSettled()`, so the generator cannot `yield`
+   events while waiting. `waitForDecisionCommand()` blocks indefinitely waiting for a response that
+   can never arrive.
 
-2. **Dual Execution Paths**: `execute()` (non-interactive) and `executeStream()` (generator) had separate implementations, causing HIL to only work with `executeStream()`.
+2. **Dual Execution Paths**: `execute()` (non-interactive) and `executeStream()` (generator) had
+   separate implementations, causing HIL to only work with `executeStream()`.
 
-3. **Client-Controlled Security**: `per_layer_validation` was controlled by the client, allowing potential bypass of security checks.
+3. **Client-Controlled Security**: `per_layer_validation` was controlled by the client, allowing
+   potential bypass of security checks.
 
-4. **Invisible Errors**: MCP tool errors used JSON-RPC format `{ error: {...} }` instead of MCP tool format `{ isError: true, content: [...] }`, making errors invisible to LLM clients.
+4. **Invisible Errors**: MCP tool errors used JSON-RPC format `{ error: {...} }` instead of MCP tool
+   format `{ isError: true, content: [...] }`, making errors invisible to LLM clients.
 
 ### Solution Implemented
 
 **Phase 1: Unified Execution (Completed)**
+
 - `execute()` now wraps `executeStream()` - single code path
 - Non-interactive mode returns errors in result instead of deadlocking
 - Permission errors provide helpful suggestions (use `primitives:http_get`)
 
 **Phase 2: Server-Side Validation Detection (Completed)**
+
 - Server auto-detects if DAG requires validation based on:
   - `code_execution` with `permissionSet !== "minimal"`
   - `capability` with non-minimal permissions
@@ -46,15 +53,18 @@ The Human-in-the-Loop (HIL) mechanism for permission escalation in DAG execution
 - MCP tool errors now use correct format and are logged for observability
 
 **Phase 3: Legacy Cleanup (Pending)**
+
 - Remove deprecated `sideEffects` mechanism
 - Clean up unused HIL config
 
 **Phase 4: Per-Task HIL (Future)**
+
 - True HIL with pause BEFORE executing specific tasks marked `approvalMode: "hil"`
 
 ### Scope
 
 **In Scope:**
+
 - Fix HIL for `code_execution` tasks
 - Fix HIL for `capability` tasks
 - Remove `sideEffects` flag and related code
@@ -63,6 +73,7 @@ The Human-in-the-Loop (HIL) mechanism for permission escalation in DAG execution
 - Update gateway-server.ts to remove HIL config
 
 **Out of Scope:**
+
 - AIL (Agent-in-the-Loop) mechanism - unchanged
 - Checkpoint/resume functionality - unchanged
 - Permission escalation logic itself - only the delivery mechanism changes
@@ -72,6 +83,7 @@ The Human-in-the-Loop (HIL) mechanism for permission escalation in DAG execution
 ### Codebase Patterns
 
 **Event Emission Pattern (current - broken for mid-task):**
+
 ```typescript
 // In executeStream() - this works
 const event: ExecutionEvent = { type: "task_complete", ... };
@@ -84,6 +96,7 @@ const command = await this.waitForDecisionCommand();  // ❌ BLOCKS - generator 
 ```
 
 **Deferred Escalation Pattern (new - solution):**
+
 ```typescript
 // In executeCodeTask() - throw instead of block
 throw new PermissionEscalationNeeded({
@@ -112,33 +125,33 @@ for (const escalation of escalationsNeeded) {
 
 #### Already Modified (Pre-Spec Implementation)
 
-| File | Changes Made | Status |
-|------|--------------|--------|
-| `src/dag/controlled-executor.ts` | HIL logic in executeCodeTask, ~120 lines | 🔄 Needs refactor (throw instead of block) |
-| `src/dag/types.ts` | checkpointId + context on decision_required event | ✅ Keep |
-| `src/mcp/gateway-server.ts` | decision_required handler + hil config | 🔄 Keep handler, remove hil config |
-| `src/events/types.ts` | capability.permission.updated event | ✅ Keep |
-| `docs/epics.md` | Stories 7.7a/b/c documentation | ✅ Keep |
-| `docs/sprint-artifacts/sprint-status.yaml` | Story 7.7c status | 🔄 Update |
-| `docs/sprint-artifacts/story-2.5-3.md` | Bug documentation | ✅ Keep |
+| File                                       | Changes Made                                      | Status                                     |
+| ------------------------------------------ | ------------------------------------------------- | ------------------------------------------ |
+| `src/dag/controlled-executor.ts`           | HIL logic in executeCodeTask, ~120 lines          | 🔄 Needs refactor (throw instead of block) |
+| `src/dag/types.ts`                         | checkpointId + context on decision_required event | ✅ Keep                                    |
+| `src/mcp/gateway-server.ts`                | decision_required handler + hil config            | 🔄 Keep handler, remove hil config         |
+| `src/events/types.ts`                      | capability.permission.updated event               | ✅ Keep                                    |
+| `docs/epics.md`                            | Stories 7.7a/b/c documentation                    | ✅ Keep                                    |
+| `docs/sprint-artifacts/sprint-status.yaml` | Story 7.7c status                                 | 🔄 Update                                  |
+| `docs/sprint-artifacts/story-2.5-3.md`     | Bug documentation                                 | ✅ Keep                                    |
 
 #### To Modify (Implementation Phase)
 
-| File | Purpose |
-|------|---------|
-| `src/dag/controlled-executor.ts` | Refactor to Option A/B pattern |
-| `src/dag/types.ts` | Add PermissionEscalationNeeded error, remove sideEffects from ExecutorConfig |
-| `src/mcp/gateway-server.ts` | Remove hil config from ControlledExecutor instantiation |
-| `src/graphrag/types.ts` | Remove Task.sideEffects field |
-| `src/capabilities/permission-escalation-handler.ts` | Update HIL callback interface (if Option B) |
+| File                                                | Purpose                                                                      |
+| --------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `src/dag/controlled-executor.ts`                    | Refactor to Option A/B pattern                                               |
+| `src/dag/types.ts`                                  | Add PermissionEscalationNeeded error, remove sideEffects from ExecutorConfig |
+| `src/mcp/gateway-server.ts`                         | Remove hil config from ControlledExecutor instantiation                      |
+| `src/graphrag/types.ts`                             | Remove Task.sideEffects field                                                |
+| `src/capabilities/permission-escalation-handler.ts` | Update HIL callback interface (if Option B)                                  |
 
 #### Reference Only (No Changes)
 
-| File | Purpose |
-|------|---------|
-| `src/dag/event-stream.ts` | Event streaming architecture reference |
-| `src/sandbox/executor.ts` | DenoSandboxExecutor reference |
-| `src/capabilities/permission-escalation.ts` | suggestEscalation() reference |
+| File                                        | Purpose                                |
+| ------------------------------------------- | -------------------------------------- |
+| `src/dag/event-stream.ts`                   | Event streaming architecture reference |
+| `src/sandbox/executor.ts`                   | DenoSandboxExecutor reference          |
+| `src/capabilities/permission-escalation.ts` | suggestEscalation() reference          |
 
 ### Technical Decisions
 
@@ -150,13 +163,17 @@ for (const escalation of escalationsNeeded) {
 
 ### Context
 
-The HIL mechanism for permission escalation in DAG execution has a deadlock bug. When a task needs permission escalation, it emits a `decision_required` event and waits for approval. However, the event never reaches the client because the generator cannot yield while `Promise.allSettled()` is waiting.
+The HIL mechanism for permission escalation in DAG execution has a deadlock bug. When a task needs
+permission escalation, it emits a `decision_required` event and waits for approval. However, the
+event never reaches the client because the generator cannot yield while `Promise.allSettled()` is
+waiting.
 
 ### Options
 
 #### Option A: Deferred Escalation Pattern (Error-Based)
 
-**Approach:** Tasks throw `PermissionEscalationNeeded` error, handled at layer boundary after `Promise.allSettled`.
+**Approach:** Tasks throw `PermissionEscalationNeeded` error, handled at layer boundary after
+`Promise.allSettled`.
 
 ```typescript
 // In executeCodeTask() - throw instead of block
@@ -174,22 +191,23 @@ for (const escalation of escalationsNeeded) {
 }
 ```
 
-| Aspect | Assessment |
-|--------|------------|
-| **Complexity** | Low - ~200 lines |
-| **Risk** | Low - uses existing error handling |
-| **UX** | Prompt after layer tasks attempt execution |
-| **Concurrency** | Preserved via Promise.allSettled |
-| **Multiple Escalations** | ✅ Handles multiple in same layer |
+| Aspect                   | Assessment                                 |
+| ------------------------ | ------------------------------------------ |
+| **Complexity**           | Low - ~200 lines                           |
+| **Risk**                 | Low - uses existing error handling         |
+| **UX**                   | Prompt after layer tasks attempt execution |
+| **Concurrency**          | Preserved via Promise.allSettled           |
+| **Multiple Escalations** | ✅ Handles multiple in same layer          |
 
-**Pros:** Simple, low risk, fits existing architecture
-**Cons:** Slight delay before user sees approval request
+**Pros:** Simple, low risk, fits existing architecture **Cons:** Slight delay before user sees
+approval request
 
 ---
 
 #### Option B: Async Event Buffer with Custom Executor
 
-**Approach:** Replace `Promise.allSettled` with a custom concurrent executor that can yield events mid-execution.
+**Approach:** Replace `Promise.allSettled` with a custom concurrent executor that can yield events
+mid-execution.
 
 ```typescript
 // Custom executor that yields events as they happen
@@ -204,16 +222,16 @@ for await (const event of concurrentTaskExecutor(layer)) {
 }
 ```
 
-| Aspect | Assessment |
-|--------|------------|
-| **Complexity** | High - ~400-500 lines, new abstraction |
-| **Risk** | Medium - new execution model |
-| **UX** | Prompt immediately when needed |
-| **Concurrency** | Preserved with fine-grained control |
-| **Multiple Escalations** | ✅ Handles with proper ordering |
+| Aspect                   | Assessment                             |
+| ------------------------ | -------------------------------------- |
+| **Complexity**           | High - ~400-500 lines, new abstraction |
+| **Risk**                 | Medium - new execution model           |
+| **UX**                   | Prompt immediately when needed         |
+| **Concurrency**          | Preserved with fine-grained control    |
+| **Multiple Escalations** | ✅ Handles with proper ordering        |
 
-**Pros:** Clean event-driven design, immediate UX, extensible for future mid-task events
-**Cons:** More code, new patterns to learn, potential race conditions
+**Pros:** Clean event-driven design, immediate UX, extensible for future mid-task events **Cons:**
+More code, new patterns to learn, potential race conditions
 
 ---
 
@@ -228,10 +246,10 @@ for (const task of layer) {
 }
 ```
 
-| Aspect | Assessment |
-|--------|------------|
-| **Complexity** | Low |
-| **Risk** | Low |
+| Aspect          | Assessment                                         |
+| --------------- | -------------------------------------------------- |
+| **Complexity**  | Low                                                |
+| **Risk**        | Low                                                |
 | **Performance** | ❌ **Terrible** - loses 5x parallelization speedup |
 
 **Verdict:** ❌ Rejected - defeats the purpose of DAG parallelization
@@ -240,7 +258,8 @@ for (const task of layer) {
 
 #### Option D: Hybrid - Isolate Permission-Sensitive Tasks
 
-**Approach:** Tasks with `sandboxConfig.permissionSet !== "trusted"` execute sequentially, others in parallel.
+**Approach:** Tasks with `sandboxConfig.permissionSet !== "trusted"` execute sequentially, others in
+parallel.
 
 ```typescript
 const [trustedTasks, riskyTasks] = partition(layer, t => t.sandboxConfig?.permissionSet === "trusted");
@@ -261,34 +280,35 @@ for (const task of riskyTasks) {
 }
 ```
 
-| Aspect | Assessment |
-|--------|------------|
-| **Complexity** | Medium - ~300 lines |
-| **Risk** | Medium |
-| **UX** | Immediate for risky tasks only |
+| Aspect          | Assessment                                         |
+| --------------- | -------------------------------------------------- |
+| **Complexity**  | Medium - ~300 lines                                |
+| **Risk**        | Medium                                             |
+| **UX**          | Immediate for risky tasks only                     |
 | **Concurrency** | Partial - trusted tasks parallel, risky sequential |
 
-**Pros:** Compromise between A and B, targets the problem specifically
-**Cons:** Two execution paths to maintain, "risky" classification may be wrong
+**Pros:** Compromise between A and B, targets the problem specifically **Cons:** Two execution paths
+to maintain, "risky" classification may be wrong
 
 ---
 
 ### Decision Matrix
 
-| Criteria (Weight) | Option A | Option B | Option C | Option D |
-|-------------------|----------|----------|----------|----------|
-| Implementation Effort (20%) | ⭐⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ |
-| Risk (25%) | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
-| Performance (25%) | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐ | ⭐⭐⭐ |
-| Maintainability (15%) | ⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ |
-| UX Quality (15%) | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
-| **Weighted Score** | **4.1** | **3.4** | **3.2** | **3.4** |
+| Criteria (Weight)           | Option A   | Option B   | Option C   | Option D |
+| --------------------------- | ---------- | ---------- | ---------- | -------- |
+| Implementation Effort (20%) | ⭐⭐⭐⭐⭐ | ⭐⭐       | ⭐⭐⭐⭐⭐ | ⭐⭐⭐   |
+| Risk (25%)                  | ⭐⭐⭐⭐⭐ | ⭐⭐⭐     | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
+| Performance (25%)           | ⭐⭐⭐⭐   | ⭐⭐⭐⭐   | ⭐         | ⭐⭐⭐   |
+| Maintainability (15%)       | ⭐⭐⭐⭐   | ⭐⭐⭐     | ⭐⭐⭐⭐⭐ | ⭐⭐⭐   |
+| UX Quality (15%)            | ⭐⭐⭐     | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐   | ⭐⭐⭐⭐ |
+| **Weighted Score**          | **4.1**    | **3.4**    | **3.2**    | **3.4**  |
 
 ### Decision
 
 **✅ Option A Selected** - Deferred Escalation Pattern
 
 Rationale:
+
 - Low risk, fits existing architecture
 - Single execution path: `execute()` wraps `executeStream()`
 - Clear error messages guide users to authorized tools
@@ -348,8 +368,9 @@ Rationale:
 
 ### Phase 3: Legacy Cleanup (Pending)
 
-> **Note:** On garde le code HIL existant (`shouldRequireApproval`, `generateHILSummary`, `hil` config)
-> car il sera réutilisé/adapté pour Phase 4 (per-task HIL). On nettoie seulement `sideEffects`.
+> **Note:** On garde le code HIL existant (`shouldRequireApproval`, `generateHILSummary`, `hil`
+> config) car il sera réutilisé/adapté pour Phase 4 (per-task HIL). On nettoie seulement
+> `sideEffects`.
 
 - [ ] **Task 3.1**: Remove legacy `sideEffects` mechanism only
   - Remove `sideEffects` from Task type in `src/graphrag/types.ts`
@@ -368,7 +389,8 @@ Rationale:
 ### Phase 4: Per-Task HIL (Future)
 
 - [ ] **Task 4.1**: Implement task-level HIL detection
-  - Before executing a task with `task.tool`, check `getToolPermissionConfig(toolPrefix).approvalMode === "hil"`
+  - Before executing a task with `task.tool`, check
+    `getToolPermissionConfig(toolPrefix).approvalMode === "hil"`
   - If true, yield `decision_required` event and wait for approval
   - Different from per-layer validation: pauses BEFORE task execution, not after layer
 
@@ -430,18 +452,19 @@ async function requiresValidation(
 
 ### Detection Rules
 
-| Task Type | Condition | Validation Required |
-|-----------|-----------|---------------------|
-| `code_execution` | `permissionSet === "minimal"` | ❌ No |
-| `code_execution` | `permissionSet !== "minimal"` | ✅ Yes |
-| `capability` | Stored `permissionSet === "minimal"` | ❌ No |
-| `capability` | Stored `permissionSet !== "minimal"` | ✅ Yes |
-| `mcp_tool` | `approvalMode: "auto"` in yaml | ❌ No |
-| `mcp_tool` | `approvalMode: "hil"` in yaml | ✅ Yes |
+| Task Type        | Condition                            | Validation Required |
+| ---------------- | ------------------------------------ | ------------------- |
+| `code_execution` | `permissionSet === "minimal"`        | ❌ No               |
+| `code_execution` | `permissionSet !== "minimal"`        | ✅ Yes              |
+| `capability`     | Stored `permissionSet === "minimal"` | ❌ No               |
+| `capability`     | Stored `permissionSet !== "minimal"` | ✅ Yes              |
+| `mcp_tool`       | `approvalMode: "auto"` in yaml       | ❌ No               |
+| `mcp_tool`       | `approvalMode: "hil"` in yaml        | ✅ Yes              |
 
 ### Permission Sets
 
 From `src/capabilities/types.ts`:
+
 - `"minimal"` - No special permissions (safe to run)
 - `"readonly"` - Read-only filesystem access
 - `"filesystem"` - Read/write filesystem access
@@ -464,10 +487,11 @@ servers:
       write_file:
         permissions:
           scope: full
-        approvalMode: hil  # Requires human approval
+        approvalMode: hil # Requires human approval
 ```
 
 The 3-axis permission model:
+
 - `scope`: `read` | `full` | `none`
 - `ffi`: `true` | `false` - Foreign Function Interface
 - `run`: `true` | `false` - Subprocess execution
@@ -518,9 +542,11 @@ The 3-axis permission model:
 
 ## Changes Already Made (Pre-Spec)
 
-These changes were made during initial debugging before this spec was created. They are **partial fixes** that need to be completed or revised:
+These changes were made during initial debugging before this spec was created. They are **partial
+fixes** that need to be completed or revised:
 
 ### 1. `src/dag/controlled-executor.ts` (~120 lines added)
+
 - Extended `executeCodeTask()` to accept `permissionSet` parameter
 - Added permission error detection (PermissionError, PermissionDenied, NotCapable)
 - Integration with `suggestEscalation()` to determine needed permissions
@@ -529,11 +555,13 @@ These changes were made during initial debugging before this spec was created. T
 - **ACTION**: Refactor to throw `PermissionEscalationNeeded` instead
 
 ### 2. `src/dag/types.ts` (~4 lines added)
+
 - Added `checkpointId?: string` to ExecutionEvent `decision_required` type
 - Added `context?: Record<string, unknown>` for escalation details
 - **STATUS**: Keep - these additions are needed for the fix
 
 ### 3. `src/mcp/gateway-server.ts` (~80 lines added)
+
 - Added `decision_required` event handler in both event loops (lines ~940 and ~1730)
 - Returns `approval_required` status to client with checkpoint_id and context
 - Added `"awaiting_approval"` to `ActiveWorkflow.status` union type
@@ -541,31 +569,35 @@ These changes were made during initial debugging before this spec was created. T
 - **STATUS**: Keep decision_required handlers, **REMOVE** hil config (sideEffects mechanism)
 
 ### 4. `src/events/types.ts` (~1 line added)
+
 - New event type: `capability.permission.updated`
 - **STATUS**: Keep - useful for observability
 
 ### 5. `docs/epics.md` (~189 lines added)
+
 - Full documentation for Stories 7.7a, 7.7b, 7.7c
 - **STATUS**: Keep - update after fix complete
 
 ### 6. `docs/sprint-artifacts/sprint-status.yaml` (~1 line changed)
+
 - Story 7.7c status: backlog → review
 - **STATUS**: Update to reflect this spec
 
 ### 7. `docs/sprint-artifacts/story-2.5-3.md` (~144 lines added)
+
 - Critical bug documentation discovered during debugging
 - Documents that `decision_required` events were never wired up
 - **STATUS**: Keep as historical record, update with resolution
 
 ### Summary of Pre-Spec State
 
-| Change | Keep/Remove/Modify |
-|--------|-------------------|
-| decision_required handler in gateway-server | ✅ Keep |
-| checkpointId/context in types | ✅ Keep |
-| executeCodeTask HIL logic | 🔄 Modify (throw instead of block) |
-| hil config in gateway-server | ❌ Remove |
-| capability.permission.updated event | ✅ Keep |
+| Change                                      | Keep/Remove/Modify                 |
+| ------------------------------------------- | ---------------------------------- |
+| decision_required handler in gateway-server | ✅ Keep                            |
+| checkpointId/context in types               | ✅ Keep                            |
+| executeCodeTask HIL logic                   | 🔄 Modify (throw instead of block) |
+| hil config in gateway-server                | ❌ Remove                          |
+| capability.permission.updated event         | ✅ Keep                            |
 
 ## Additional Context
 
@@ -603,20 +635,23 @@ These changes were made during initial debugging before this spec was created. T
 ### Rollback Plan
 
 If issues arise:
+
 1. Revert to blocking pattern (current broken state)
 2. Add `--allow-all` flag to sandbox as temporary workaround
 3. Use `approvalMode: "auto"` in PermissionConfig for trusted capabilities
 
 ### Notes
 
-**Why not use EventStream.subscribe()?**
-The EventStream's `subscribe()` method returns an async iterator, but the problem is that `executeStream()` IS the generator - we can't have a generator yield from events that happen inside its own synchronous execution. The deferred pattern solves this by moving HIL handling to a point where the generator has control.
+**Why not use EventStream.subscribe()?** The EventStream's `subscribe()` method returns an async
+iterator, but the problem is that `executeStream()` IS the generator - we can't have a generator
+yield from events that happen inside its own synchronous execution. The deferred pattern solves this
+by moving HIL handling to a point where the generator has control.
 
-**Performance Impact:**
-Minimal. The extra error handling and re-execution only happens on permission errors, which should be rare in production after initial capability learning.
+**Performance Impact:** Minimal. The extra error handling and re-execution only happens on
+permission errors, which should be rare in production after initial capability learning.
 
-**Migration:**
-No migration needed. The `sideEffects` field was never widely used. Capabilities continue to work with their stored `permissionSet`.
+**Migration:** No migration needed. The `sideEffects` field was never widely used. Capabilities
+continue to work with their stored `permissionSet`.
 
 ---
 
@@ -630,15 +665,15 @@ No migration needed. The `sideEffects` field was never widely used. Capabilities
 
 **Files Modified:**
 
-| File | Changes |
-|------|---------|
-| `src/mcp/server/responses.ts` | Added `formatMCPToolError()` with logging |
-| `src/mcp/server/mod.ts` | Export `formatMCPToolError` |
-| `src/mcp/handlers/control-commands-handler.ts` | Converted all errors to new format |
-| `src/mcp/handlers/workflow-execution-handler.ts` | Converted parameter errors |
-| `src/mcp/handlers/search-handler.ts` | Converted search failures |
-| `src/mcp/handlers/code-execution-handler.ts` | Converted execution failures |
-| `src/mcp/gateway-server.ts` | Converted tool call errors |
+| File                                             | Changes                                   |
+| ------------------------------------------------ | ----------------------------------------- |
+| `src/mcp/server/responses.ts`                    | Added `formatMCPToolError()` with logging |
+| `src/mcp/server/mod.ts`                          | Export `formatMCPToolError`               |
+| `src/mcp/handlers/control-commands-handler.ts`   | Converted all errors to new format        |
+| `src/mcp/handlers/workflow-execution-handler.ts` | Converted parameter errors                |
+| `src/mcp/handlers/search-handler.ts`             | Converted search failures                 |
+| `src/mcp/handlers/code-execution-handler.ts`     | Converted execution failures              |
+| `src/mcp/gateway-server.ts`                      | Converted tool call errors                |
 
 **Error Format Comparison:**
 
@@ -655,6 +690,7 @@ formatMCPToolError("Workflow not found", { workflow_id });
 **Logging:**
 
 All tool errors are now logged server-side for observability:
+
 ```
 ERROR [MCP_TOOL_ERROR] Workflow xyz not found or expired { data: { workflow_id: "xyz" } }
 ```
@@ -668,42 +704,45 @@ Filter in Loki: `{job="pml-server"} |= "MCP_TOOL_ERROR"`
 ```typescript
 // MCP tool with elevated permissions → needs validation
 if (taskType === "mcp_tool" && task.tool) {
-  const toolPrefix = task.tool.split(":")[0];  // "github:create_issue" → "github"
+  const toolPrefix = task.tool.split(":")[0]; // "github:create_issue" → "github"
   const permConfig = getToolPermissionConfig(toolPrefix);
 
   if (permConfig) {
-    if (permConfig.scope !== "minimal") return true;      // elevated scope
-    if (permConfig.approvalMode === "hil") return true;   // human approval required
-    if (permConfig.ffi || permConfig.run) return true;    // dangerous permissions
+    if (permConfig.scope !== "minimal") return true; // elevated scope
+    if (permConfig.approvalMode === "hil") return true; // human approval required
+    if (permConfig.ffi || permConfig.run) return true; // dangerous permissions
   }
 }
 ```
 
 **Validation Triggers:**
 
-| Condition | Validation Required | Reason |
-|-----------|---------------------|--------|
-| `scope: "minimal"` | No | Safe by default |
-| `scope: "filesystem"` | Yes | File system access |
-| `scope: "network-api"` | Yes | Network access |
-| `approvalMode: "hil"` | Yes | Human approval required |
-| `ffi: true` | Yes | Foreign function interface |
-| `run: true` | Yes | Subprocess execution |
-| Tool not in YAML | No | Permissive default |
+| Condition              | Validation Required | Reason                     |
+| ---------------------- | ------------------- | -------------------------- |
+| `scope: "minimal"`     | No                  | Safe by default            |
+| `scope: "filesystem"`  | Yes                 | File system access         |
+| `scope: "network-api"` | Yes                 | Network access             |
+| `approvalMode: "hil"`  | Yes                 | Human approval required    |
+| `ffi: true`            | Yes                 | Foreign function interface |
+| `run: true`            | Yes                 | Subprocess execution       |
+| Tool not in YAML       | No                  | Permissive default         |
 
 ### AIL Implicite via Layer Results
 
 **Pattern actuel (recommandé):**
+
 1. Workflow s'exécute et retourne `layer_complete` avec `resultPreview`
 2. Claude (l'agent) voit les résultats et décide
 3. Claude fait un appel séparé : `pml_continue`, `pml_abort`, ou `pml_replan`
 
 **Avantages:**
+
 - Pas de deadlock (pas de `waitForDecisionCommand` bloquant)
 - Claude a le contexte pour décider (preview des résultats)
 - Architecture simple et robuste
 
 **Layer Results Format:**
+
 ```json
 {
   "layer_results": [
@@ -721,16 +760,19 @@ if (taskType === "mcp_tool" && task.tool) {
 }
 ```
 
-**Future:** Tool `pml_get_task_result` pour récupérer le résultat complet si le preview ne suffit pas.
+**Future:** Tool `pml_get_task_result` pour récupérer le résultat complet si le preview ne suffit
+pas.
 
 ### Current vs Future HIL Behavior
 
 **Current (Phase 2):** Per-layer validation + AIL implicite
+
 - Tools avec permissions élevées triggent `per_layer_validation` mode
 - Workflow pause APRÈS chaque layer avec `resultPreview`
 - Claude review les résultats et décide via appel séparé
 
 **Future (Phase 4):** Per-task HIL
+
 - Tools with `approvalMode: "hil"` trigger pause BEFORE execution
 - User explicitly approves each sensitive operation
 - Requires architectural changes to handle mid-layer yields

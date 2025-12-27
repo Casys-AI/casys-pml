@@ -6,9 +6,9 @@ Live updates and visualization.
 
 ## Topics
 
-| Document | Description |
-|----------|-------------|
-| [Events](./01-events.md) | SSE and EventBus architecture |
+| Document                               | Description                         |
+| -------------------------------------- | ----------------------------------- |
+| [Events](./01-events.md)               | SSE and EventBus architecture       |
 | [Visualization](./02-visualization.md) | SuperHyperGraph and D3.js rendering |
 
 ---

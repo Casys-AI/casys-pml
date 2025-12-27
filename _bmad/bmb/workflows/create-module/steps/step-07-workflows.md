@@ -1,10 +1,10 @@
 ---
-installed_path: '{project-root}/_bmad/bmb/workflows/create-module'
-nextStepFile: '{installed_path}/steps/step-08-installer.md'
-modulePlanFile: '{bmb_creations_output_folder}/{module_name}/module-plan-{module_name}.md'
-workflowPlanTemplate: '{installed_path}/templates/workflow-plan-template.md'
-advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+installed_path: "{project-root}/_bmad/bmb/workflows/create-module"
+nextStepFile: "{installed_path}/steps/step-08-installer.md"
+modulePlanFile: "{bmb_creations_output_folder}/{module_name}/module-plan-{module_name}.md"
+workflowPlanTemplate: "{installed_path}/templates/workflow-plan-template.md"
+advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 ---
 
 # Step 7: Review Workflow Plans
@@ -21,7 +21,8 @@ partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 ### Role Reinforcement:
 
 - ✅ You are a Module Architect and Workflow Designer
-- ✅ If you already have been given communication or persona patterns, continue to use those while playing this new role
+- ✅ If you already have been given communication or persona patterns, continue to use those while
+  playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
 - ✅ You bring expertise in BMAD workflow patterns, user brings their workflow requirements
 - ✅ Maintain collaborative, review-focused tone
@@ -49,7 +50,8 @@ partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 
 ## STEP GOAL:
 
-To review and refine the workflow README files created in Step 6, ensuring they have clear plans for later implementation with the create-workflow workflow.
+To review and refine the workflow README files created in Step 6, ensuring they have clear plans for
+later implementation with the create-workflow workflow.
 
 ## WORKFLOW REVIEW PROCESS:
 
@@ -81,12 +83,7 @@ For each workflow README file:
 
 Reading the README.md from: [workflow-folder]/README.md
 
-**Current Plan:**
-[Purpose]
-[Trigger]
-[Key Steps]
-[Expected Output]
-[Notes]
+**Current Plan:** [Purpose] [Trigger] [Key Steps] [Expected Output] [Notes]
 
 How does this plan look? Should we:
 
@@ -130,8 +127,8 @@ Ensure each README has:
 
 ## Notes
 
-This workflow will be implemented using the create-workflow workflow.
-(Optional: Any special considerations or requirements)
+This workflow will be implemented using the create-workflow workflow. (Optional: Any special
+considerations or requirements)
 ```
 
 ### 3. Link Workflows to Agents
@@ -192,7 +189,8 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 
 - IF A: Execute {advancedElicitationTask} to refine workflow designs
 - IF P: Execute {partyModeWorkflow} to get creative input on workflow processes
-- IF C: Save workflow plan status to module-plan.md, add step-07-workflows to the end of the stepsCompleted array in frontmatter, then load nextStepFile
+- IF C: Save workflow plan status to module-plan.md, add step-07-workflows to the end of the
+  stepsCompleted array in frontmatter, then load nextStepFile
 - IF Any other comments or queries: help user respond then redisplay menu
 
 #### EXECUTION RULES:
@@ -221,8 +219,11 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 - Missing critical information in README files
 - Not verifying workflow-agent mappings
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN C is selected and all workflow plans are reviewed and documented and stepsCompleted updated, will you then load, read entire file, then execute `{nextStepFile}` to begin installer setup.
+ONLY WHEN C is selected and all workflow plans are reviewed and documented and stepsCompleted
+updated, will you then load, read entire file, then execute `{nextStepFile}` to begin installer
+setup.

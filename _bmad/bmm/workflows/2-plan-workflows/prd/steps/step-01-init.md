@@ -1,19 +1,19 @@
 ---
-name: 'step-01-init'
-description: 'Initialize the PRD workflow by detecting continuation state and setting up the document'
+name: "step-01-init"
+description: "Initialize the PRD workflow by detecting continuation state and setting up the document"
 
 # Path Definitions
-workflow_path: '{project-root}/_bmad/bmm/workflows/2-plan-workflows/prd'
+workflow_path: "{project-root}/_bmad/bmm/workflows/2-plan-workflows/prd"
 
 # File References
-thisStepFile: '{workflow_path}/steps/step-01-init.md'
-nextStepFile: '{workflow_path}/steps/step-02-discovery.md'
-continueStepFile: '{workflow_path}/steps/step-01b-continue.md'
-workflowFile: '{workflow_path}/workflow.md'
-outputFile: '{output_folder}/prd.md'
+thisStepFile: "{workflow_path}/steps/step-01-init.md"
+nextStepFile: "{workflow_path}/steps/step-02-discovery.md"
+continueStepFile: "{workflow_path}/steps/step-01b-continue.md"
+workflowFile: "{workflow_path}/workflow.md"
+outputFile: "{output_folder}/prd.md"
 
 # Template References
-prdTemplate: '{workflow_path}/prd-template.md'
+prdTemplate: "{workflow_path}/prd-template.md"
 ---
 
 # Step 1: Workflow Initialization
@@ -22,7 +22,8 @@ prdTemplate: '{workflow_path}/prd-template.md'
 
 ## STEP GOAL:
 
-Initialize the PRD workflow by detecting continuation state, discovering input documents, and setting up the document structure for collaborative product requirement discovery.
+Initialize the PRD workflow by detecting continuation state, discovering input documents, and
+setting up the document structure for collaborative product requirement discovery.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -36,9 +37,11 @@ Initialize the PRD workflow by detecting continuation state, discovering input d
 ### Role Reinforcement:
 
 - ✅ You are a product-focused PM facilitator collaborating with an expert peer
-- ✅ If you already have been given a name, communication_style and persona, continue to use those while playing this new role
+- ✅ If you already have been given a name, communication_style and persona, continue to use those
+  while playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
-- ✅ You bring structured thinking and facilitation skills, while the user brings domain expertise and product vision
+- ✅ You bring structured thinking and facilitation skills, while the user brings domain expertise
+  and product vision
 
 ### Step-Specific Rules:
 
@@ -183,14 +186,16 @@ date: '{{date}}'
 
 - Product briefs: {{briefCount}} files {if briefCount > 0}✓ loaded{else}(none found){/if}
 - Research: {{researchCount}} files {if researchCount > 0}✓ loaded{else}(none found){/if}
-- Brainstorming: {{brainstormingCount}} files {if brainstormingCount > 0}✓ loaded{else}(none found){/if}
-- Project docs: {{projectDocsCount}} files {if projectDocsCount > 0}✓ loaded (brownfield project){else}(none found - greenfield project){/if}
+- Brainstorming: {{brainstormingCount}} files {if brainstormingCount > 0}✓ loaded{else}(none
+  found){/if}
+- Project docs: {{projectDocsCount}} files {if projectDocsCount > 0}✓ loaded (brownfield
+  project){else}(none found - greenfield project){/if}
 
 **Files loaded:** {list of specific file names or "No additional documents found"}
 
-{if projectDocsCount > 0}
-📋 **Note:** This is a **brownfield project**. Your existing project documentation has been loaded. In the next step, I'll ask specifically about what new features or changes you want to add to your existing system.
-{/if}
+{if projectDocsCount > 0} 📋 **Note:** This is a **brownfield project**. Your existing project
+documentation has been loaded. In the next step, I'll ask specifically about what new features or
+changes you want to add to your existing system. {/if}
 
 Do you have any other documents you'd like me to include, or shall we continue to the next step?"
 
@@ -202,8 +207,10 @@ Display menu after setup report:
 
 #### Menu Handling Logic:
 
-- IF C: Update frontmatter with `stepsCompleted: [1]`, then load, read entire file, then execute {nextStepFile}
-- IF user provides additional files: Load them, update inputDocuments and documentCounts, redisplay report
+- IF C: Update frontmatter with `stepsCompleted: [1]`, then load, read entire file, then execute
+  {nextStepFile}
+- IF user provides additional files: Load them, update inputDocuments and documentCounts, redisplay
+  report
 - IF user asks questions: Answer and redisplay menu
 
 #### EXECUTION RULES:
@@ -213,7 +220,9 @@ Display menu after setup report:
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN [C continue option] is selected and [frontmatter properly updated with stepsCompleted: [1] and documentCounts], will you then load and read fully `{nextStepFile}` to execute and begin project discovery.
+ONLY WHEN [C continue option] is selected and [frontmatter properly updated with stepsCompleted: [1]
+and documentCounts], will you then load and read fully `{nextStepFile}` to execute and begin project
+discovery.
 
 ---
 
@@ -240,4 +249,5 @@ ONLY WHEN [C continue option] is selected and [frontmatter properly updated with
 - Not reporting discovered documents to user clearly
 - Proceeding without user selecting 'C' (Continue)
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
+FORBIDDEN and constitutes SYSTEM FAILURE.

@@ -1192,9 +1192,11 @@ _End of Code Review Record_
 
 ### Problem Discovered
 
-During Story 7.7c implementation (HIL Permission Escalation), it was discovered that the HIL mechanism from Story 2.5-3 was **never fully wired up** in `gateway-server.ts`.
+During Story 7.7c implementation (HIL Permission Escalation), it was discovered that the HIL
+mechanism from Story 2.5-3 was **never fully wired up** in `gateway-server.ts`.
 
 **Symptoms:**
+
 - `decision_required` events are emitted by ControlledExecutor
 - Executor blocks waiting for `approval_response` command via `waitForDecisionCommand()`
 - But `gateway-server.ts` **ignores** `decision_required` events in its event loops
@@ -1203,10 +1205,12 @@ During Story 7.7c implementation (HIL Permission Escalation), it was discovered 
 **Root Cause:**
 
 In `gateway-server.ts`, the `for await (const event of generator)` loops in:
+
 - `executeWithPerLayerValidation()` (line ~924)
 - `continueNextLayer()` (line ~1673)
 
 Only handle these event types:
+
 - `workflow_start`
 - `task_complete` / `task_error`
 - `checkpoint`
@@ -1217,6 +1221,7 @@ Only handle these event types:
 ### Design vs Implementation Gap
 
 The **design in Story 2.5-3** (lines 670-682) specified:
+
 ```typescript
 yield {
   type: "decision_required",
@@ -1227,7 +1232,8 @@ yield {
 const response = await this.waitForCheckpointResponse();
 ```
 
-The executor correctly yields the event and waits. But gateway-server.ts never returns it to the client, so `pml:approval_response` is never called.
+The executor correctly yields the event and waits. But gateway-server.ts never returns it to the
+client, so `pml:approval_response` is never called.
 
 ### Fix Plan
 
@@ -1260,6 +1266,7 @@ The executor correctly yields the event and waits. But gateway-server.ts never r
 **File: `src/mcp/gateway-server.ts`**
 
 Add in both event loops (after `task_error` handler):
+
 ```typescript
 if (event.type === "decision_required") {
   // Store workflow for approval_response
@@ -1282,15 +1289,19 @@ if (event.type === "decision_required") {
   return {
     content: [{
       type: "text",
-      text: JSON.stringify({
-        status: "approval_required",
-        workflow_id: workflowId,
-        checkpoint_id: event.checkpointId,
-        decision_type: event.decisionType,
-        description: event.description,
-        context: event.context,
-        options: ["approve", "reject"],
-      }, null, 2),
+      text: JSON.stringify(
+        {
+          status: "approval_required",
+          workflow_id: workflowId,
+          checkpoint_id: event.checkpointId,
+          decision_type: event.decisionType,
+          description: event.description,
+          context: event.context,
+          options: ["approve", "reject"],
+        },
+        null,
+        2,
+      ),
     }],
   };
 }
@@ -1299,6 +1310,7 @@ if (event.type === "decision_required") {
 ### Testing
 
 After fix, test with:
+
 ```typescript
 // 1. Execute DAG with code_execution task that needs network
 await pml.execute_dag({
@@ -1306,8 +1318,8 @@ await pml.execute_dag({
     id: "fetch_test",
     type: "code_execution",
     code: "const r = await fetch('https://api.example.com'); return r.json();",
-    dependsOn: []
-  }]
+    dependsOn: [],
+  }],
 });
 // Should return: { status: "approval_required", workflow_id: "...", checkpoint_id: "perm-esc-fetch_test", ... }
 
@@ -1315,7 +1327,7 @@ await pml.execute_dag({
 await pml.approval_response({
   workflow_id: "...",
   checkpoint_id: "perm-esc-fetch_test",
-  approved: true
+  approved: true,
 });
 // Should continue execution with escalated permissions
 ```
