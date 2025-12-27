@@ -1,7 +1,7 @@
 # Tech-Spec: Modular DAG Code Execution
 
 **Created:** 2025-12-26
-**Updated:** 2025-12-26
+**Updated:** 2025-12-27
 **Status:** Ready for Development
 **Author:** Erwan / Claude
 
@@ -138,7 +138,7 @@ const code = originalCode.substring(span.start, span.end);
 - [parseable-code-patterns.md](./parseable-code-patterns.md) - All detectable JS patterns
 - [modular-operations-implementation.md](./modular-operations-implementation.md) - Pseudo-tools implementation
 - [pure-operations-permissions.md](./pure-operations-permissions.md) - HIL bypass for pure ops
-- [two-level-dag-architecture.md](./two-level-dag-architecture.md) - Logical vs Physical DAG (Phase 2+)
+- [two-level-dag-architecture.md](./two-level-dag-architecture.md) - Logical vs Physical DAG + UI Fusion Display (Phase 2a)
 - [operation-embeddings.md](./operation-embeddings.md) - Operation embeddings for SHGAT learning (Phase 2a)
 - [shgat-learning-and-dag-edges.md](./shgat-learning-and-dag-edges.md) - Learning impact
 - [modular-code-execution.md](./modular-code-execution.md) - Examples
