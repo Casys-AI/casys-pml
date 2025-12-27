@@ -696,6 +696,415 @@ executedPath: [
 
 ---
 
+## 🎨 **Affichage UI : Visualisation des Tâches Fusionnées**
+
+### **Problématique**
+
+Avec le DAG physique, l'interface affichait seulement les tâches fusionnées :
+
+```
+Layer 0: db:query (20ms)
+Layer 1: computation (45ms)  ← Que s'est-il passé dedans ?
+```
+
+**Problème :** L'utilisateur ne voit pas les opérations atomiques qui ont été fusionnées.
+
+**Solution :** Affichage deux niveaux dans le CodePanel/TraceTimeline.
+
+---
+
+### **Architecture d'Affichage**
+
+```
+Backend (Enrichissement des Traces)
+    ↓
+TraceTaskResult + Fusion Metadata
+    ↓
+    {
+      taskId: "task_fused_1",
+      tool: "code:computation",
+      isFused: true,
+      logicalOperations: [
+        { toolId: "code:filter", durationMs: 15 },
+        { toolId: "code:reduce", durationMs: 15 },
+        { toolId: "code:Math.round", durationMs: 15 }
+      ]
+    }
+    ↓
+Frontend (Composants React)
+    ↓
+FusedTaskCard (Expandable)
+    ↓
+Affichage Hiérarchique
+```
+
+---
+
+### **Implémentation Backend**
+
+#### **1. Types TypeScript** (`src/capabilities/types.ts`)
+
+```typescript
+export interface LogicalOperation {
+  /** Tool ID de l'opération logique (ex: "code:filter") */
+  toolId: string;
+
+  /** Durée estimée en ms (durée physique / nb opérations) */
+  durationMs?: number;
+}
+
+export interface TraceTaskResult {
+  taskId: string;
+  tool: string;
+  args: Record<string, JsonValue>;
+  result: JsonValue;
+  success: boolean;
+  durationMs: number;
+  layerIndex?: number;
+
+  // Phase 2a: Métadonnées de fusion
+  /** true si cette tâche physique contient plusieurs opérations logiques */
+  isFused?: boolean;
+
+  /** Opérations atomiques fusionnées dans cette tâche */
+  logicalOperations?: LogicalOperation[];
+}
+```
+
+#### **2. Enrichissement des Traces** (`src/mcp/handlers/execute-handler.ts`)
+
+```typescript
+// Build task results for trace (using physical tasks with logical detail)
+// Phase 2a: Include fusion metadata for UI display
+const taskResults: TraceTaskResult[] = physicalResults.results.map((physicalResult) => {
+  const physicalTask = optimizedDAG.tasks.find(t => t.id === physicalResult.taskId);
+  const logicalTaskIds = optimizedDAG.physicalToLogical.get(physicalResult.taskId) || [];
+  const fused = logicalTaskIds.length > 1;
+
+  let logicalOps: LogicalOperation[] | undefined;
+  if (fused) {
+    // Extraction des opérations logiques pour les tâches fusionnées
+    const estimatedDuration = (physicalResult.executionTime || 0) / logicalTaskIds.length;
+    logicalOps = logicalTaskIds.map(logicalId => {
+      const logicalTask = optimizedDAG.logicalDAG.tasks.find(t => t.id === logicalId);
+      return {
+        toolId: logicalTask?.tool || "unknown",
+        durationMs: estimatedDuration
+      };
+    });
+  }
+
+  return {
+    taskId: physicalResult.taskId,
+    tool: physicalTask?.tool || "unknown",
+    args: {} as Record<string, JsonValue>,
+    result: physicalResult.output as JsonValue ?? null,
+    success: physicalResult.status === "success",
+    durationMs: physicalResult.executionTime || 0,
+    layerIndex: physicalResult.layerIndex,
+    // Phase 2a: Métadonnées de fusion
+    isFused: fused,
+    logicalOperations: logicalOps
+  };
+});
+```
+
+#### **3. Mapping snake_case ↔ camelCase** (`src/capabilities/execution-trace-store.ts`)
+
+**TypeScript interne** : `camelCase` (isFused, logicalOperations)
+**PostgreSQL/API** : `snake_case` (is_fused, logical_operations)
+
+```typescript
+// SAVE: camelCase → snake_case
+const sanitizedResults = trace.taskResults.map((r) => ({
+  task_id: r.taskId,
+  tool: r.tool,
+  args: sanitizeForStorage(r.args) as Record<string, JsonValue>,
+  result: sanitizeForStorage(r.result),
+  success: r.success,
+  duration_ms: r.durationMs,
+  layer_index: r.layerIndex,
+  // Phase 2a: Fusion metadata
+  is_fused: r.isFused,
+  logical_operations: r.logicalOperations?.map(op => ({
+    tool_id: op.toolId,
+    duration_ms: op.durationMs
+  }))
+}));
+
+// LOAD: snake_case → camelCase
+taskResults = (rawResults as any[]).map((r: any) => ({
+  taskId: r.task_id,
+  tool: r.tool,
+  args: r.args || {},
+  result: r.result,
+  success: r.success,
+  durationMs: r.duration_ms,
+  layerIndex: r.layer_index,
+  // Phase 2a: Fusion metadata
+  isFused: r.is_fused,
+  logicalOperations: r.logical_operations?.map((op: any) => ({
+    toolId: op.tool_id,
+    durationMs: op.duration_ms
+  }))
+}));
+```
+
+**Note :** Pas de migration DB nécessaire, les données sont en JSONB.
+
+---
+
+### **Implémentation Frontend**
+
+#### **1. Composant FusedTaskCard** (`src/web/components/ui/atoms/FusedTaskCard.tsx`)
+
+```typescript
+interface FusedTaskCardProps {
+  logicalOps: LogicalOperation[];
+  durationMs: number;
+  success: boolean;
+  color: string;
+}
+
+export default function FusedTaskCard({
+  logicalOps,
+  durationMs,
+  success,
+  color,
+}: FusedTaskCardProps) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div
+      onClick={() => setExpanded(!expanded)}
+      style={{
+        border: `2px solid ${color}`,
+        borderRadius: "8px",
+        padding: "8px 12px",
+        backgroundColor: success ? "#f0fff4" : "#fff5f5",
+        cursor: "pointer",
+        minWidth: "200px",
+      }}
+    >
+      {/* Header - Tâche Physique */}
+      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <span>📦</span>
+        <span style={{ fontWeight: 600 }}>
+          Fused ({logicalOps.length} ops)
+        </span>
+        <span style={{ marginLeft: "auto", fontSize: "12px", color: "#666" }}>
+          {Math.round(durationMs)}ms
+        </span>
+        <span style={{ fontSize: "12px" }}>
+          {expanded ? "▼" : "▶"}
+        </span>
+      </div>
+
+      {/* Expandable - Opérations Logiques */}
+      {expanded && (
+        <div style={{ marginTop: "8px", paddingLeft: "16px" }}>
+          {logicalOps.map((op, idx) => {
+            const toolName = op.toolId.replace("code:", "");
+            const isLast = idx === logicalOps.length - 1;
+            return (
+              <div
+                key={idx}
+                style={{
+                  fontSize: "12px",
+                  color: "#555",
+                  fontFamily: "monospace",
+                  marginTop: "4px",
+                }}
+              >
+                <span style={{ color: "#999" }}>
+                  {isLast ? "└─" : "├─"}
+                </span>{" "}
+                <span style={{ fontWeight: 500 }}>{toolName}</span>
+                {op.durationMs && (
+                  <span style={{ color: "#888", marginLeft: "8px" }}>
+                    ({Math.round(op.durationMs)}ms)
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+#### **2. Intégration dans TraceTimeline** (`src/web/components/ui/molecules/TraceTimeline.tsx`)
+
+```typescript
+{tasks.map((task, taskIdx) => {
+  const [server = "unknown", ...nameParts] = task.tool.split(":");
+  const toolName = nameParts.join(":") || task.tool;
+  const color = getServerColor?.(server) ||
+    DEFAULT_COLORS[server.charCodeAt(0) % DEFAULT_COLORS.length];
+
+  // Phase 2a: Render fused tasks with expandable logical operations
+  if (task.isFused && task.logicalOperations) {
+    return (
+      <FusedTaskCard
+        key={`${layerIdx}-${taskIdx}`}
+        logicalOps={task.logicalOperations}
+        durationMs={task.durationMs}
+        success={task.success}
+        color={color}
+      />
+    );
+  }
+
+  // Regular task card
+  return (
+    <TaskCard
+      key={`${layerIdx}-${taskIdx}`}
+      toolName={toolName}
+      server={server}
+      durationMs={task.durationMs}
+      success={task.success}
+      color={color}
+    />
+  );
+})}
+```
+
+---
+
+### **Exemple Visuel**
+
+#### **État Collapsed (Par défaut)**
+
+```
+┌─────────────────────────────┐
+│ 📦 Fused (5 ops) 45ms      ▶│
+└─────────────────────────────┘
+```
+
+#### **État Expanded (Après clic)**
+
+```
+┌─────────────────────────────┐
+│ 📦 Fused (5 ops) 45ms      ▼│
+│   ├─ filter (9ms)           │
+│   ├─ reduce (9ms)           │
+│   ├─ get_length (9ms)       │
+│   ├─ divide (9ms)           │
+│   └─ Math.round (9ms)       │
+└─────────────────────────────┘
+```
+
+---
+
+### **Bénéfices**
+
+| Aspect | Avant | Après |
+|--------|-------|-------|
+| **Visibilité** | ❌ Tâches fusionnées opaques | ✅ Détail des opérations atomiques |
+| **Debug** | ❌ Impossible de voir ce qui a été fusionné | ✅ Vue hiérarchique claire |
+| **Performance** | ✅ DAG physique compact | ✅ Maintenu (affichage optionnel) |
+| **Learning** | ✅ Traces logiques pour SHGAT | ✅ + Visibilité utilisateur |
+| **UX** | ⚠️ Confusion sur fusion | ✅ Transparence totale |
+
+---
+
+### **Estimation des Durées**
+
+**Durée physique :** Mesurée réellement lors de l'exécution
+**Durée logique :** Estimée par `durationPhysique / nbOpérations`
+
+**Exemple :**
+- Tâche fusionnée : 45ms (mesuré)
+- 5 opérations logiques
+- Durée estimée par opération : 45 / 5 = 9ms
+
+**Note :** C'est une estimation (les opérations peuvent avoir des coûts différents), mais suffisante pour la visualisation.
+
+---
+
+### **Architecture Complète End-to-End**
+
+```
+1. DAG Optimizer
+   └─ Fusionne tasks → Crée mapping physicalToLogical
+
+2. ControlledExecutor
+   └─ Exécute DAG physique → Mesure durées réelles
+
+3. Execute Handler
+   └─ Enrichit traces avec metadata fusion
+      └─ isFused: true
+      └─ logicalOperations: [{ toolId, durationMs }]
+
+4. Execution Trace Store
+   └─ Sauvegarde en PostgreSQL (snake_case)
+      └─ task_results JSONB: { is_fused, logical_operations }
+
+5. API / Frontend Load
+   └─ Charge traces (camelCase mapping)
+      └─ TraceTaskResult: { isFused, logicalOperations }
+
+6. TraceTimeline Component
+   └─ Détecte isFused
+      └─ Regular TaskCard (si isFused = false)
+      └─ FusedTaskCard (si isFused = true)
+         └─ Header: Tâche physique (📦)
+         └─ Expandable: Opérations logiques (├─ └─)
+```
+
+---
+
+### **Tests End-to-End**
+
+```typescript
+// Test : Fusion de 3 opérations
+const code = `
+  const data = [1, 2, 3, 4, 5];
+  const doubled = data.map(x => x * 2);
+  const sum = doubled.reduce((a, b) => a + b, 0);
+  return sum;
+`;
+
+// DAG Logique attendu :
+// - task_c1: code:map
+// - task_c2: code:reduce
+
+// DAG Physique attendu :
+// - task_fused_1: code:computation (map + reduce)
+
+// Trace attendue :
+{
+  taskResults: [
+    {
+      taskId: "task_fused_1",
+      tool: "code:computation",
+      durationMs: 10,
+      isFused: true,
+      logicalOperations: [
+        { toolId: "code:map", durationMs: 5 },
+        { toolId: "code:reduce", durationMs: 5 }
+      ]
+    }
+  ]
+}
+
+// UI attendue :
+// ┌─────────────────────┐
+// │ 📦 Fused (2 ops) 10ms ▶│
+// └─────────────────────┘
+//
+// Après clic :
+// ┌─────────────────────┐
+// │ 📦 Fused (2 ops) 10ms ▼│
+// │   ├─ map (5ms)       │
+// │   └─ reduce (5ms)    │
+// └─────────────────────┘
+```
+
+---
+
 ## ✅ **Conclusion**
 
 **Two-level architecture** = Solution optimale :
@@ -705,5 +1114,6 @@ executedPath: [
 - ✅ Traces complètes → Chemins réutilisables
 - ✅ Fusion intelligente → Moins de layers/HIL
 - ✅ Parallélisation auto → Gain de perf
+- ✅ **UI transparente** → Visibilité totale pour l'utilisateur
 
 **Prêt pour implémentation !**
