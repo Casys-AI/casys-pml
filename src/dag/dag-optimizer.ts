@@ -16,7 +16,6 @@
 
 import type { Task, DAGStructure } from "../graphrag/types.ts";
 import { getLogger } from "../telemetry/logger.ts";
-import { isPureOperation } from "../capabilities/pure-operations.ts";
 
 const log = getLogger("dag-optimizer");
 
@@ -243,8 +242,8 @@ export function canFuseTasks(tasks: Task[]): boolean {
     return false;
   }
 
-  // Rule 2: All must be pure operations
-  if (!tasks.every(t => t.tool && isPureOperation(t.tool))) {
+  // Rule 2: All must be pure operations (Phase 2a: checked via metadata)
+  if (!tasks.every(t => t.metadata?.pure === true)) {
     return false;
   }
 
