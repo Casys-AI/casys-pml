@@ -131,6 +131,7 @@ export async function handleDiscover(
 ): Promise<MCPToolResponse | MCPErrorResponse> {
   const transaction = startTransaction("mcp.discover", "mcp");
   const startTime = performance.now();
+  const correlationId = crypto.randomUUID();
 
   try {
     const params = args as DiscoverArgs;
@@ -184,7 +185,7 @@ export async function handleDiscover(
 
     // Search capabilities if filter allows
     if (filterType === "all" || filterType === "capability") {
-      const capabilityResult = await searchCapability(intent, dagSuggester);
+      const capabilityResult = await searchCapability(intent, dagSuggester, correlationId);
       if (capabilityResult && capabilityResult.score >= minScore) {
         results.push(capabilityResult);
         capabilitiesCount++;
@@ -303,8 +304,9 @@ async function searchTools(
 async function searchCapability(
   intent: string,
   dagSuggester: DAGSuggester,
+  correlationId?: string,
 ): Promise<DiscoverResultItem | null> {
-  const match: CapabilityMatch | null = await dagSuggester.searchCapabilities(intent);
+  const match: CapabilityMatch | null = await dagSuggester.searchCapabilities(intent, correlationId);
 
   if (!match) {
     return null;

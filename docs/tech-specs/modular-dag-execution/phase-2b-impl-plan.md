@@ -744,3 +744,113 @@ executedPath: [
 ❌ **Backend traces** : Juste ajout fusionPattern (optionnel)
 
 **Phase 2b = Pure optimisation exécution, zéro impact learning ! 🚀**
+
+---
+
+## 11. Fixes Implémentés (2025-12-27)
+
+### Fix 1: Nested Operations Not Executable
+
+**Problème**: SWC extrait des opérations imbriquées dans les callbacks qui génèrent du code invalide.
+
+```typescript
+// Code utilisateur
+[1,2,3].map(n => n * 2)
+
+// Bug: Crée 2 tasks
+// - code:map (executable ✓)
+// - code:multiply (non-executable ✗) → `n * 2` invalide hors contexte callback
+```
+
+**Solution**: Metadata `executable: false` pour les opérations imbriquées.
+
+```typescript
+// static-structure-builder.ts
+nodes.push({
+  id,
+  type: "task",
+  tool: toolId,
+  metadata: {
+    executable: nestingLevel === 0, // false si dans un callback
+    nestingLevel,
+    parentOperation: currentParentOp, // "map", "filter", etc.
+  },
+});
+
+// static-to-dag-converter.ts - Option B: Filter non-executable
+const executableTasks = layer.filter(t => t.metadata?.executable !== false);
+```
+
+### Fix 2: Pre-Execution HIL (Human-in-the-Loop)
+
+**Problème**: HIL demandait "continue?" APRÈS l'exécution, pas avant.
+
+```
+// AVANT (broken)
+Execute task → SUCCESS → "continue/abort?" → (inutile, c'est fait)
+
+// APRÈS (correct)
+"About to execute X. Continue?" → (user: yes) → Execute task → return result
+```
+
+**Solution**: Check HIL AVANT `Promise.allSettled` dans `controlled-executor.ts`:
+
+```typescript
+// controlled-executor.ts ~ligne 427
+const hilTasks = executableTasks.filter(taskRequiresHIL);
+if (hilTasks.length > 0) {
+  yield { type: "decision_required", tasks: hilTasks, ... };
+  const cmd = await waitForDecisionCommand(...);
+  if (cmd.type === "abort") return;
+}
+// Seulement APRÈS approbation
+let layerResults = await Promise.allSettled(...);
+```
+
+**Helper**:
+```typescript
+function taskRequiresHIL(task: Task): boolean {
+  if (!task.tool) return false;
+  const prefix = task.tool.split(":")[0];
+  const config = getToolPermissionConfig(prefix);
+  return !config || config.approvalMode === "hil";
+}
+```
+
+### Fix 3: MCP Permissions Init
+
+**Problème**: `mcp-permissions.yaml` n'était pas chargé au démarrage → tous les tools considérés "unknown" → HIL partout.
+
+**Solution**: Appeler `initMcpPermissions()` au démarrage du gateway:
+
+```typescript
+// gateway-server.ts
+async start(): Promise<void> {
+  await initMcpPermissions(); // Load mcp-permissions.yaml
+  await this.initializeAlgorithms();
+  ...
+}
+```
+
+### Fix 4: Capabilities Calling Conventions
+
+**Syntaxes supportées**:
+
+| Syntaxe | Format Généré | Handler | Status |
+|---------|---------------|---------|--------|
+| `mcp.filesystem.read()` | `filesystem:read` | mcpClients proxy | ✓ Works |
+| `mcp.std.cap_list()` | `std:cap_list` | PmlStdServer | ✓ Works |
+| `capabilities.double_array()` | node `type: "capability"` | CapabilityExecutor | ✓ Works |
+| `mcp.cap.double_array()` | `cap:double_array` | ❌ Pas de handler | 🔧 TODO |
+
+**TODO**: Router `cap:xxx` vers CapabilityMCPServer ou convertir en `mcp__cap__xxx`.
+
+### Fichiers Modifiés
+
+| Fichier | Changement |
+|---------|------------|
+| `src/dag/controlled-executor.ts` | `taskRequiresHIL()` + pre-exec HIL check |
+| `src/dag/types.ts` | Ajout `workflow_abort` event type |
+| `src/capabilities/permission-inferrer.ts` | Export `initMcpPermissions()` |
+| `src/mcp/gateway-server.ts` | Appel `initMcpPermissions()` au start |
+| `config/mcp-permissions.yaml` | Ajout `std: approvalMode: auto` |

@@ -40,21 +40,21 @@ export default function Dashboard({ data }: { data: DashboardData }) {
           href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
           rel="stylesheet"
         />
-        {/* Cytoscape.js for graph visualization */}
-        <script src="https://cdn.jsdelivr.net/npm/cytoscape@3.30.4/dist/cytoscape.min.js"></script>
+        {/* Cytoscape.js for graph visualization - defer to not block render */}
+        <script defer src="https://cdn.jsdelivr.net/npm/cytoscape@3.30.4/dist/cytoscape.min.js"></script>
         {/* Dagre layout for hierarchical graphs */}
-        <script src="https://cdn.jsdelivr.net/npm/dagre@0.8.5/dist/dagre.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/cytoscape-dagre@2.5.0/cytoscape-dagre.min.js">
+        <script defer src="https://cdn.jsdelivr.net/npm/dagre@0.8.5/dist/dagre.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/cytoscape-dagre@2.5.0/cytoscape-dagre.min.js">
         </script>
         {/* Layout base dependencies */}
-        <script src="https://unpkg.com/layout-base/layout-base.js"></script>
-        <script src="https://unpkg.com/cose-base/cose-base.js"></script>
+        <script defer src="https://unpkg.com/layout-base/layout-base.js"></script>
+        <script defer src="https://unpkg.com/cose-base/cose-base.js"></script>
         {/* Cose-Bilkent layout for compound nodes */}
-        <script src="https://unpkg.com/cytoscape-cose-bilkent@4.1.0/cytoscape-cose-bilkent.js">
+        <script defer src="https://unpkg.com/cytoscape-cose-bilkent@4.1.0/cytoscape-cose-bilkent.js">
         </script>
         {/* fCoSE layout - faster with better component packing */}
-        <script src="https://unpkg.com/cytoscape-fcose@2.2.0/cytoscape-fcose.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+        <script defer src="https://unpkg.com/cytoscape-fcose@2.2.0/cytoscape-fcose.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
         <style>
           {`
           * {

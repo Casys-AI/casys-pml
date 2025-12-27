@@ -19,7 +19,7 @@ import { destroySession } from "../../../../server/auth/session.ts";
 import { getSessionId } from "../../../../server/auth/oauth.ts";
 import { getKv } from "../../../../server/auth/kv.ts";
 import type { AuthState } from "../../_middleware.ts";
-import { getDb as getPGliteDb } from "../../../../db/client.ts"; // Story 9.5: workflow_execution anonymization
+import { getDb as getMainDb } from "../../../../db/mod.ts"; // Story 9.5: workflow_execution anonymization
 
 export const handler = {
   /**
@@ -81,8 +81,8 @@ export const handler = {
       // Story 9.5 AC #5, #8: Anonymize workflow_execution BEFORE deleting user
       // Preserves execution history for analytics while removing user linkage
       try {
-        const pgliteDb = await getPGliteDb();
-        await pgliteDb.query(
+        const mainDb = await getMainDb();
+        await mainDb.query(
           `UPDATE workflow_execution
            SET user_id = $1, updated_by = $1
            WHERE user_id = $2`,
@@ -95,8 +95,8 @@ export const handler = {
 
       // Story 11.2: Anonymize execution_trace table (new trace table)
       try {
-        const pgliteDb = await getPGliteDb();
-        await pgliteDb.query(
+        const mainDb = await getMainDb();
+        await mainDb.query(
           `UPDATE execution_trace
            SET user_id = $1, created_by = $1, updated_by = $1, intent_text = NULL, initial_context = '{}'::jsonb
            WHERE user_id = $2`,

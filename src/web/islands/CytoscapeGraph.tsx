@@ -1239,11 +1239,11 @@ export default function CytoscapeGraph({
       cy.layout({
         name: "fcose",
         animate: true,
-        animationDuration: fit ? 500 : 250,
+        animationDuration: fit ? 300 : 150,
         fit,
         padding: 20,
-        // Quality: proof for best results
-        quality: "proof",
+        // Quality: default is much faster than "proof"
+        quality: "default",
         nodeDimensionsIncludeLabels: true,
         // Node spacing
         nodeRepulsion: 4500,
@@ -1256,8 +1256,8 @@ export default function CytoscapeGraph({
         gravityRange: 3.8,
         gravityCompound: 1.0,
         gravityRangeCompound: 1.5,
-        // Iterations
-        numIter: 2500,
+        // Iterations - reduced from 2500 for faster layout
+        numIter: 500,
         // Pack disconnected components tightly together
         packComponents: true,
         // Tiling for degree-zero nodes

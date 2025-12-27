@@ -35,7 +35,7 @@ import { WorkerBridge } from "../sandbox/worker-bridge.ts";
 import { addBreadcrumb, captureError, startTransaction } from "../telemetry/sentry.ts";
 import type { CapabilityStore } from "../capabilities/capability-store.ts";
 import type { AdaptiveThresholdManager } from "./adaptive-threshold.ts";
-import { CapabilityDataService } from "../capabilities/mod.ts";
+import { CapabilityDataService, initMcpPermissions } from "../capabilities/mod.ts";
 import { CapabilityRegistry } from "../capabilities/capability-registry.ts";
 import { CapabilityMCPServer } from "./capability-server/mod.ts";
 // TraceFeatureExtractor removed - V1 uses message passing, not TraceFeatures
@@ -192,7 +192,8 @@ export class PMLGatewayServer {
     }
 
     // Story 13.5: Initialize PmlStdServer for cap:* management tools
-    this.pmlStdServer = new PmlStdServer(this.capabilityRegistry, this.db);
+    // Pass embeddingModel for embedding updates on rename
+    this.pmlStdServer = new PmlStdServer(this.capabilityRegistry, this.db, this.embeddingModel ?? undefined);
     log.info("[Gateway] PmlStdServer initialized (Story 13.5)");
 
     // Story 13.3: Initialize CapabilityMCPServer for capability-as-tool execution
@@ -953,6 +954,7 @@ export class PMLGatewayServer {
   }
 
   async start(): Promise<void> {
+    await initMcpPermissions(); // Load mcp-permissions.yaml for HIL detection
     await this.initializeAlgorithms();
     await this.healthChecker.initialHealthCheck();
     this.healthChecker.startPeriodicChecks();
@@ -965,7 +967,8 @@ export class PMLGatewayServer {
    * Uses extracted HTTP server module for cleaner architecture.
    */
   async startHttp(port: number): Promise<void> {
-    // Initialize algorithms before starting server
+    // Initialize MCP permissions and algorithms before starting server
+    await initMcpPermissions(); // Load mcp-permissions.yaml for HIL detection
     await this.initializeAlgorithms();
 
     // Prepare dependencies for HTTP server

@@ -32,6 +32,7 @@ import type { DagScoringConfig } from "../../graphrag/dag-scoring-config.ts";
 import type { EmbeddingModelInterface } from "../../vector/embeddings.ts";
 import type { ExecutionTraceStore } from "../../capabilities/execution-trace-store.ts";
 import type { CapabilityRegistry, Scope } from "../../capabilities/capability-registry.ts";
+import type { AlgorithmTracer } from "../../telemetry/algorithm-tracer.ts";
 
 import { formatMCPToolError } from "../server/responses.ts";
 import { ServerDefaults } from "../server/constants.ts";
@@ -86,6 +87,8 @@ export interface ExecuteDependencies {
   traceStore?: ExecutionTraceStore;
   /** Capability registry for naming support (Story 13.2) */
   capabilityRegistry?: CapabilityRegistry;
+  /** Algorithm tracer for observability (Story 7.6+) */
+  algorithmTracer?: AlgorithmTracer;
 }
 
 /**
@@ -663,9 +666,24 @@ async function executeDirectMode(
         }
 
         // Build response - unwrap code execution results from {result, state, executionTimeMs} wrapper
+        log.info("[DEBUG] physicalResults.results raw:", {
+          count: physicalResults.results.length,
+          results: physicalResults.results.map((r) => ({
+            taskId: r.taskId,
+            status: r.status,
+            outputType: typeof r.output,
+            outputKeys: r.output && typeof r.output === "object"
+              ? Object.keys(r.output as object)
+              : null,
+            output: r.output,
+          })),
+        });
+
         const successOutputs = physicalResults.results
           .filter((r) => r.status === "success")
           .map((r) => unwrapCodeResult(r.output));
+
+        log.info("[DEBUG] successOutputs after unwrap:", { successOutputs });
 
         const response: ExecuteResponse = {
           status: "success",
@@ -1178,7 +1196,11 @@ async function executeSuggestionMode(
   deps: ExecuteDependencies,
   startTime: number,
 ): Promise<MCPToolResponse | MCPErrorResponse> {
+  // Generate correlationId to group all traces from this operation
+  const correlationId = crypto.randomUUID();
+
   log.info("[pml:execute] Mode Suggestion - SHGAT + DR-DSP search", {
+    correlationId,
     intent: intent.substring(0, 50),
     hasSHGAT: !!deps.shgat,
     hasDRDSP: !!deps.drdsp,
@@ -1233,9 +1255,64 @@ async function executeSuggestionMode(
     })),
   });
 
+  // Story 7.6+: Trace SHGAT scoring decisions with rich K-head info
+  for (const cap of shgatCapabilities.slice(0, 10)) {
+    const threshold = deps.adaptiveThresholdManager?.getThresholds().explicitThreshold ?? 0.6;
+    // Lookup capability for additional context
+    const capInfo = await deps.capabilityStore.findById(cap.capabilityId);
+    const numHeads = cap.headScores?.length ?? 0;
+    const avgHeadScore = numHeads > 0
+      ? cap.headScores!.reduce((a, b) => a + b, 0) / numHeads
+      : 0;
+
+    deps.algorithmTracer?.logTrace({
+      correlationId,
+      algorithmName: "SHGAT",
+      algorithmMode: "active_search",
+      targetType: "capability",
+      intent: intent.substring(0, 200),
+      signals: {
+        semanticScore: avgHeadScore, // Raw avg before reliability
+        graphDensity: 0, // N/A for SHGAT V1
+        spectralClusterMatch: false, // N/A for SHGAT V1
+        // SHGAT V1 K-head attention details
+        numHeads,
+        avgHeadScore,
+        headScores: cap.headScores, // All K individual scores
+        headWeights: cap.headWeights, // Per-head fusion weights
+        recursiveContribution: cap.recursiveContribution,
+        // Feature contributions (if available)
+        featureContribSemantic: cap.featureContributions?.semantic,
+        featureContribStructure: cap.featureContributions?.structure,
+        featureContribTemporal: cap.featureContributions?.temporal,
+        featureContribReliability: cap.featureContributions?.reliability,
+        // Target identification
+        targetId: cap.capabilityId,
+        targetName: capInfo?.name ?? cap.capabilityId.substring(0, 8),
+        // Reliability context
+        targetSuccessRate: capInfo?.successRate,
+        targetUsageCount: capInfo?.usageCount,
+      },
+      params: {
+        alpha: 0, // N/A - SHGAT uses learned K-head attention, not alpha blending
+        reliabilityFactor: capInfo?.successRate ?? 1.0,
+        structuralBoost: cap.recursiveContribution ?? 0,
+      },
+      finalScore: cap.score,
+      thresholdUsed: threshold,
+      decision: cap.score >= threshold ? "accepted" : "rejected_by_threshold",
+    });
+  }
+
   if (shgatCapabilities.length === 0) {
     log.info("[pml:execute] No capabilities found - returning tool suggestions");
-    const suggestions = await getSuggestions(deps, intent, { shgatCapabilities });
+    const suggestions = await getSuggestions(
+      deps,
+      intent,
+      { shgatCapabilities },
+      undefined,
+      correlationId,
+    );
     return {
       content: [{
         type: "text",
@@ -1266,7 +1343,7 @@ async function executeSuggestionMode(
     const suggestions = await getSuggestions(deps, intent, { shgatCapabilities }, {
       id: bestMatch.capabilityId,
       score: bestMatch.score,
-    });
+    }, correlationId);
     return {
       content: [{
         type: "text",
@@ -1308,6 +1385,30 @@ async function executeSuggestionMode(
         found: pathResult.found,
         weight: pathResult.found ? pathResult.totalWeight : null,
       });
+
+      // Story 7.6: Trace DRDSP path validation
+      deps.algorithmTracer?.logTrace({
+        correlationId,
+        algorithmName: "DRDSP",
+        algorithmMode: "active_search",
+        targetType: "tool",
+        intent: intent.substring(0, 200),
+        signals: {
+          graphDensity: 0,
+          spectralClusterMatch: false,
+          pathFound: pathResult.found,
+          pathLength: pathResult.found ? pathResult.nodeSequence.length : 0,
+          pathWeight: pathResult.found ? pathResult.totalWeight : 0,
+        },
+        params: {
+          alpha: 0, // N/A for pathfinding
+          reliabilityFactor: 1.0,
+          structuralBoost: 0,
+        },
+        finalScore: pathResult.found ? (1.0 / (1 + pathResult.totalWeight)) : 0,
+        thresholdUsed: 0,
+        decision: pathResult.found ? "accepted" : "rejected_by_threshold",
+      });
     }
 
     // TODO(Epic-12): Speculative execution disabled - no context/cache for argument resolution
@@ -1323,7 +1424,7 @@ async function executeSuggestionMode(
     const suggestions = await getSuggestions(deps, intent, { shgatCapabilities }, {
       id: bestMatch.capabilityId,
       score: bestMatch.score,
-    });
+    }, correlationId);
 
     const response: ExecuteResponse = {
       status: "suggestions",
@@ -1356,7 +1457,7 @@ async function executeSuggestionMode(
   const suggestions = await getSuggestions(deps, intent, { shgatCapabilities }, {
     id: bestMatch.capabilityId,
     score: bestMatch.score,
-  });
+  }, correlationId);
 
   const response: ExecuteResponse = {
     status: "suggestions",
@@ -1394,6 +1495,7 @@ async function getSuggestions(
     shgatCapabilities: Array<{ capabilityId: string; score: number }>;
   },
   bestCapability?: { id: string; score: number },
+  correlationId?: string,
 ): Promise<{
   tools?: Array<
     {
@@ -1482,6 +1584,30 @@ async function getSuggestions(
           pathLength: pathResult.nodeSequence.length,
           pathWeight: pathResult.totalWeight,
           tools: pathResult.nodeSequence,
+        });
+
+        // Story 7.6: Trace DRDSP backward pathfinding
+        deps.algorithmTracer?.logTrace({
+          correlationId,
+          algorithmName: "DRDSP",
+          algorithmMode: "passive_suggestion",
+          targetType: "capability",
+          intent: intent.substring(0, 200),
+          signals: {
+            graphDensity: 0,
+            spectralClusterMatch: false,
+            pathFound: true,
+            pathLength: pathResult.nodeSequence.length,
+            pathWeight: pathResult.totalWeight,
+          },
+          params: {
+            alpha: 0, // N/A for pathfinding
+            reliabilityFactor: 1.0,
+            structuralBoost: 0,
+          },
+          finalScore: 1.0 / (1 + pathResult.totalWeight),
+          thresholdUsed: 0,
+          decision: "accepted",
         });
       }
     }

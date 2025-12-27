@@ -10,7 +10,7 @@
  */
 
 import type { Context } from "fresh";
-import { getDb } from "../../../db/client.ts";
+import { getDb } from "../../../db/mod.ts";
 import { AlgorithmTracer, type UserAction } from "../../../telemetry/algorithm-tracer.ts";
 import type { AuthState } from "../_middleware.ts";
 
@@ -142,11 +142,14 @@ export const handler = {
   },
 
   /**
-   * Get algorithm metrics
+   * Get algorithm metrics or traces
    *
    * Query params:
-   * - windowHours: number (default: 24)
+   * - type: "metrics" (default) | "traces"
+   * - windowHours: number (default: 24) - for metrics
    * - mode: "active_search" | "passive_suggestion" (optional filter)
+   * - limit: number (default: 50) - for traces
+   * - since: ISO timestamp - for traces (only return newer)
    *
    * Protection: In cloud mode, requires authenticated user
    */
@@ -166,6 +169,93 @@ export const handler = {
 
     try {
       const url = new URL(ctx.req.url);
+      const typeParam = url.searchParams.get("type") || "metrics";
+
+      const db = await getDb();
+      const tracer = new AlgorithmTracer(db);
+
+      // Return traces list
+      if (typeParam === "traces") {
+        const limitParam = url.searchParams.get("limit");
+        const sinceParam = url.searchParams.get("since");
+        const limit = limitParam ? Math.min(parseInt(limitParam, 10), 100) : 50;
+
+        const traces = await tracer.getRecentTraces(limit, sinceParam || undefined);
+
+        // Map to snake_case for external API
+        const mappedTraces = traces.map((t) => ({
+          trace_id: t.traceId,
+          timestamp: t.timestamp.toISOString(),
+          correlation_id: t.correlationId ?? null,
+          algorithm_name: t.algorithmName ?? null,
+          algorithm_mode: t.algorithmMode,
+          target_type: t.targetType,
+          intent: t.intent,
+          context_hash: t.contextHash,
+          signals: {
+            semantic_score: t.signals.semanticScore,
+            graph_score: t.signals.graphScore,
+            success_rate: t.signals.successRate,
+            pagerank: t.signals.pagerank,
+            graph_density: t.signals.graphDensity,
+            spectral_cluster_match: t.signals.spectralClusterMatch,
+            adamic_adar: t.signals.adamicAdar,
+            local_alpha: t.signals.localAlpha,
+            alpha_algorithm: t.signals.alphaAlgorithm,
+            cold_start: t.signals.coldStart,
+            // SHGAT V1 K-head attention signals
+            num_heads: t.signals.numHeads,
+            avg_head_score: t.signals.avgHeadScore,
+            head_scores: t.signals.headScores,
+            head_weights: t.signals.headWeights,
+            recursive_contribution: t.signals.recursiveContribution,
+            // Feature contributions
+            feature_contrib_semantic: t.signals.featureContribSemantic,
+            feature_contrib_structure: t.signals.featureContribStructure,
+            feature_contrib_temporal: t.signals.featureContribTemporal,
+            feature_contrib_reliability: t.signals.featureContribReliability,
+            // Target identification
+            target_id: t.signals.targetId,
+            target_name: t.signals.targetName,
+            target_success_rate: t.signals.targetSuccessRate,
+            target_usage_count: t.signals.targetUsageCount,
+            reliability_mult: t.signals.reliabilityMult,
+            // DRDSP pathfinding signals
+            path_found: t.signals.pathFound,
+            path_length: t.signals.pathLength,
+            path_weight: t.signals.pathWeight,
+          },
+          params: {
+            alpha: t.params.alpha,
+            reliability_factor: t.params.reliabilityFactor,
+            structural_boost: t.params.structuralBoost,
+          },
+          final_score: t.finalScore,
+          threshold_used: t.thresholdUsed,
+          decision: t.decision,
+          outcome: t.outcome
+            ? {
+              user_action: t.outcome.userAction,
+              execution_success: t.outcome.executionSuccess,
+              duration_ms: t.outcome.durationMs,
+            }
+            : null,
+        }));
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            traces: mappedTraces,
+            count: mappedTraces.length,
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      }
+
+      // Return metrics (default)
       const windowHoursParam = url.searchParams.get("windowHours");
       const modeParam = url.searchParams.get("mode");
 
@@ -196,9 +286,6 @@ export const handler = {
         );
       }
 
-      const db = await getDb();
-      const tracer = new AlgorithmTracer(db);
-
       const metrics = await tracer.getMetrics(
         windowHours,
         modeParam as "active_search" | "passive_suggestion" | undefined,
@@ -217,9 +304,9 @@ export const handler = {
         },
       );
     } catch (error) {
-      console.error("Error getting algorithm metrics:", error);
+      console.error("Error getting algorithm data:", error);
       return new Response(
-        JSON.stringify({ error: "Failed to get metrics" }),
+        JSON.stringify({ error: "Failed to get data" }),
         {
           status: 500,
           headers: { "Content-Type": "application/json" },

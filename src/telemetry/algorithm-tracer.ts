@@ -30,6 +30,7 @@
 
 import type { DbClient } from "../db/types.ts";
 import { getLogger } from "./logger.ts";
+import { eventBus } from "../events/mod.ts";
 
 const logger = getLogger("default");
 
@@ -52,6 +53,18 @@ export type DecisionType = "accepted" | "rejected_by_threshold" | "filtered_by_r
  * User action outcome
  */
 export type UserAction = "selected" | "ignored" | "explicit_rejection";
+
+/**
+ * Known algorithm names for tracing
+ */
+export type AlgorithmName =
+  | "CapabilityMatcher"
+  | "DAGSuggester"
+  | "HybridSearch"
+  | "SHGAT"
+  | "DRDSP"
+  | "AlternativesPrediction"
+  | "CapabilitiesPrediction";
 
 /**
  * Input signals for algorithm tracing (camelCase - internal TypeScript)
@@ -77,6 +90,28 @@ export interface AlgorithmSignals {
     | "bayesian"
     | "none";
   coldStart?: boolean;
+  // SHGAT V1 K-head attention signals
+  numHeads?: number;
+  avgHeadScore?: number;
+  headScores?: number[]; // Individual K head scores
+  headWeights?: number[]; // Per-head fusion weights
+  recursiveContribution?: number; // Contribution from parent capabilities
+  // Feature contributions (interpretability)
+  featureContribSemantic?: number;
+  featureContribStructure?: number;
+  featureContribTemporal?: number;
+  featureContribReliability?: number;
+  // Target identification
+  targetId?: string; // capability/tool ID being scored
+  targetName?: string; // human-readable name
+  // Reliability signals
+  targetSuccessRate?: number; // historical success rate
+  targetUsageCount?: number; // how often used
+  reliabilityMult?: number; // multiplier applied based on success rate
+  // DRDSP pathfinding signals
+  pathFound?: boolean;
+  pathLength?: number;
+  pathWeight?: number;
 }
 
 /**
@@ -111,6 +146,8 @@ export interface TraceOutcome {
 export interface AlgorithmTraceRecord {
   traceId: string;
   timestamp: Date;
+  correlationId?: string; // Groups traces from same operation (e.g., pml:execute)
+  algorithmName?: AlgorithmName;
   algorithmMode: AlgorithmMode;
   targetType: TargetType;
   intent?: string;
@@ -257,6 +294,21 @@ export class AlgorithmTracer {
       this.scheduleFlush();
     }
 
+    // Emit SSE event for real-time dashboard updates (Story 7.6)
+    eventBus.emit({
+      type: "algorithm.scored",
+      source: "algorithm-tracer",
+      payload: {
+        traceId,
+        algorithmName: record.algorithmName,
+        algorithmMode: record.algorithmMode,
+        targetType: record.targetType,
+        finalScore: record.finalScore,
+        decision: record.decision,
+        correlationId: record.correlationId,
+      },
+    });
+
     logger.debug("Algorithm trace buffered", {
       traceId,
       mode: record.algorithmMode,
@@ -304,6 +356,8 @@ export class AlgorithmTracer {
         return `(
           '${t.traceId}',
           '${t.timestamp.toISOString()}',
+          ${t.correlationId ? `'${t.correlationId}'` : "NULL"},
+          ${t.algorithmName ? `'${t.algorithmName}'` : "NULL"},
           '${t.algorithmMode}',
           '${t.targetType}',
           ${t.intent ? `'${escapeSql(t.intent)}'` : "NULL"},
@@ -320,7 +374,7 @@ export class AlgorithmTracer {
       // DB columns are snake_case
       await this.db.exec(`
         INSERT INTO algorithm_traces (
-          trace_id, timestamp, algorithm_mode, target_type,
+          trace_id, timestamp, correlation_id, algorithm_name, algorithm_mode, target_type,
           intent, context_hash, signals, params,
           final_score, threshold_used, decision, outcome
         ) VALUES ${values.join(",\n")}
@@ -683,5 +737,63 @@ export class AlgorithmTracer {
    */
   getBufferSize(): number {
     return this.buffer.length;
+  }
+
+  /**
+   * Get recent traces for UI display
+   *
+   * @param limit - Max number of traces to return (default: 50)
+   * @param since - Only return traces after this timestamp (ISO string)
+   * @returns Array of trace records
+   */
+  async getRecentTraces(
+    limit: number = 50,
+    since?: string,
+  ): Promise<AlgorithmTraceRecord[]> {
+    try {
+      const sinceClause = since ? `AND timestamp > '${since}'::timestamptz` : "";
+
+      const result = await this.db.query(`
+        SELECT
+          trace_id,
+          timestamp,
+          correlation_id,
+          algorithm_name,
+          algorithm_mode,
+          target_type,
+          intent,
+          context_hash,
+          signals,
+          params,
+          final_score,
+          threshold_used,
+          decision,
+          outcome
+        FROM algorithm_traces
+        WHERE 1=1 ${sinceClause}
+        ORDER BY timestamp DESC
+        LIMIT ${limit}
+      `);
+
+      return result.map((row) => ({
+        traceId: row.trace_id as string,
+        timestamp: new Date(row.timestamp as string),
+        correlationId: row.correlation_id as string | undefined,
+        algorithmName: row.algorithm_name as AlgorithmName | undefined,
+        algorithmMode: row.algorithm_mode as AlgorithmMode,
+        targetType: row.target_type as TargetType,
+        intent: row.intent as string | undefined,
+        contextHash: row.context_hash as string | undefined,
+        signals: row.signals as AlgorithmSignals,
+        params: row.params as AlgorithmParams,
+        finalScore: row.final_score as number,
+        thresholdUsed: row.threshold_used as number,
+        decision: row.decision as DecisionType,
+        outcome: row.outcome as TraceOutcome | undefined,
+      }));
+    } catch (error) {
+      logger.error("Failed to get recent traces", { error });
+      return [];
+    }
   }
 }

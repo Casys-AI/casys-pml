@@ -212,6 +212,7 @@ export async function searchToolsHybrid(
         };
 
         algorithmTracer.logTrace({
+          algorithmName: "HybridSearch",
           algorithmMode: "active_search",
           targetType: "tool",
           intent: query.substring(0, 200),

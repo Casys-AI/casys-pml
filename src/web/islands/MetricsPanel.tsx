@@ -145,12 +145,34 @@ export default function MetricsPanel({ apiBase: apiBaseProp }: MetricsPanelProps
     // Initial fetch
     fetchMetrics();
 
-    // Poll every 5 seconds
-    const interval = setInterval(fetchMetrics, 5000);
+    // SSE trigger for refresh (instead of polling)
+    let eventSource: EventSource | null = null;
+    try {
+      eventSource = new EventSource(`${apiBase}/events/stream?filter=graph.*,workflow.*`);
+
+      eventSource.onopen = () => {
+        console.log("[MetricsPanel] SSE connected");
+      };
+
+      // Refetch on graph or workflow events
+      const handleEvent = () => {
+        if (isMounted) fetchMetrics();
+      };
+
+      eventSource.addEventListener("graph.updated", handleEvent);
+      eventSource.addEventListener("workflow.completed", handleEvent);
+      eventSource.addEventListener("capability.learned", handleEvent);
+
+      eventSource.onerror = () => {
+        // Silent reconnect handled by browser
+      };
+    } catch (err) {
+      console.warn("[MetricsPanel] SSE not available:", err);
+    }
 
     return () => {
       isMounted = false;
-      clearInterval(interval);
+      eventSource?.close();
       abortController.abort();
     };
   }, [apiBase, dateRange]);

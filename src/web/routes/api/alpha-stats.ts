@@ -10,7 +10,7 @@
  */
 
 import type { Context } from "fresh";
-import { getDb } from "../../../db/client.ts";
+import { getDb } from "../../../db/mod.ts";
 import { AlgorithmTracer } from "../../../telemetry/algorithm-tracer.ts";
 import type { AuthState } from "../_middleware.ts";
 
