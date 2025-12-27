@@ -250,9 +250,13 @@ export class WorkerBridge {
     context?: Record<string, unknown>,
     capabilityContext?: string,
     parentTraceId?: string,
+    options?: { preserveTraces?: boolean },
   ): Promise<ExecutionResult> {
     this.startTime = performance.now();
-    this.traces = []; // Reset traces for new execution
+    // Reset traces for new execution (unless preserveTraces is set)
+    if (!options?.preserveTraces) {
+      this.traces = [];
+    }
     this.lastExecutedCode = code;
     this.lastIntent = context?.intent as string | undefined;
     this.lastContext = context; // Story 11.2: Store for traceData
@@ -498,8 +502,15 @@ export class WorkerBridge {
     logger.debug(`Trace: tool_start for ${toolName}`, { traceId });
 
     try {
-      // Execute code via Worker
-      const result = await this.execute(code, toolDefinitions, context);
+      // Execute code via Worker with preserveTraces to accumulate traces
+      const result = await this.execute(
+        code,
+        toolDefinitions,
+        context,
+        undefined, // capabilityContext
+        undefined, // parentTraceId
+        { preserveTraces: true }, // Don't reset traces
+      );
 
       const endTime = Date.now();
       const durationMs = endTime - startTime;

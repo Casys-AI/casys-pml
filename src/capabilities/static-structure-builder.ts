@@ -132,6 +132,26 @@ export class StaticStructureBuilder {
    */
   private originalCode = "";
 
+  /**
+   * SWC span base offset
+   * SWC accumulates spans globally across parses, so we need to track the base offset
+   */
+  private spanBaseOffset = 0;
+
+  /**
+   * Extract code from SWC span
+   * SWC spans use 1-based byte offsets that accumulate globally,
+   * so we subtract the base offset to get the relative position
+   */
+  private extractCodeFromSpan(span: { start: number; end: number } | undefined): string | undefined {
+    if (!span || !this.originalCode) return undefined;
+    // Adjust for SWC global offset accumulation
+    const relativeStart = span.start - this.spanBaseOffset;
+    const relativeEnd = span.end - this.spanBaseOffset;
+    // SWC uses 1-based positions, JavaScript substring uses 0-based
+    return this.originalCode.substring(relativeStart - 1, relativeEnd - 1);
+  }
+
   constructor(private db: DbClient) {
     logger.debug("StaticStructureBuilder initialized");
   }
@@ -146,12 +166,12 @@ export class StaticStructureBuilder {
     // Reset counters for fresh analysis
     this.resetCounters();
 
-    // Store original code for span extraction
-    this.originalCode = code;
-
     try {
       // Wrap code in function if not already (for valid parsing)
       const wrappedCode = this.wrapCodeIfNeeded(code);
+
+      // Store wrapped code for span extraction (SWC spans are relative to wrapped code)
+      this.originalCode = wrappedCode;
 
       // Parse with SWC
       const ast = await parse(wrappedCode, {
@@ -160,8 +180,14 @@ export class StaticStructureBuilder {
         script: true,
       });
 
+      // SWC accumulates spans globally, so we need the base offset for this parse
+      // The script's first span starts at 1 for a fresh parse, but accumulates
+      const scriptSpan = (ast as { span?: { start: number } }).span;
+      this.spanBaseOffset = scriptSpan ? scriptSpan.start - 1 : 0;
+
       logger.debug("Code parsed for static structure", {
         codeLength: code.length,
+        spanBaseOffset: this.spanBaseOffset,
       });
 
       // Extract nodes from AST
@@ -365,9 +391,7 @@ export class StaticStructureBuilder {
 
         // Extract code via SWC span
         const span = n.span as { start: number; end: number } | undefined;
-        const code = span
-          ? this.originalCode.substring(span.start, span.end)
-          : undefined;
+        const code = this.extractCodeFromSpan(span);
 
         nodes.push({
           id: nodeId,
@@ -393,7 +417,7 @@ export class StaticStructureBuilder {
         // Extract code via SWC span
         const span = n.span as { start: number; end: number } | undefined;
         const code = span
-          ? this.originalCode.substring(span.start, span.end)
+          ? this.extractCodeFromSpan(span)
           : undefined;
 
         nodes.push({
@@ -416,7 +440,7 @@ export class StaticStructureBuilder {
         // Extract code via SWC span
         const span = n.span as { start: number; end: number } | undefined;
         const code = span
-          ? this.originalCode.substring(span.start, span.end)
+          ? this.extractCodeFromSpan(span)
           : undefined;
 
         nodes.push({
@@ -439,7 +463,7 @@ export class StaticStructureBuilder {
         // Extract code via SWC span
         const span = n.span as { start: number; end: number } | undefined;
         const code = span
-          ? this.originalCode.substring(span.start, span.end)
+          ? this.extractCodeFromSpan(span)
           : undefined;
 
         nodes.push({
@@ -462,7 +486,7 @@ export class StaticStructureBuilder {
         // Extract code via SWC span
         const span = n.span as { start: number; end: number } | undefined;
         const code = span
-          ? this.originalCode.substring(span.start, span.end)
+          ? this.extractCodeFromSpan(span)
           : undefined;
 
         nodes.push({
@@ -925,7 +949,7 @@ export class StaticStructureBuilder {
     // Extract code via SWC span
     const span = n.span as { start: number; end: number } | undefined;
     const code = span
-      ? this.originalCode.substring(span.start, span.end)
+      ? this.extractCodeFromSpan(span)
       : undefined;
 
     nodes.push({
