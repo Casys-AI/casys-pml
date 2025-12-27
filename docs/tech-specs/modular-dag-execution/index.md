@@ -139,6 +139,7 @@ const code = originalCode.substring(span.start, span.end);
 - [modular-operations-implementation.md](./modular-operations-implementation.md) - Pseudo-tools implementation
 - [pure-operations-permissions.md](./pure-operations-permissions.md) - HIL bypass for pure ops
 - [two-level-dag-architecture.md](./two-level-dag-architecture.md) - Logical vs Physical DAG (Phase 2+)
+- [operation-embeddings.md](./operation-embeddings.md) - Operation embeddings for SHGAT learning (Phase 2a)
 - [shgat-learning-and-dag-edges.md](./shgat-learning-and-dag-edges.md) - Learning impact
 - [modular-code-execution.md](./modular-code-execution.md) - Examples
 
