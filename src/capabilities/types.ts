@@ -596,6 +596,13 @@ export type StaticStructureNode =
        * - Parameters reference capability input
        */
       arguments?: ArgumentsStructure;
+      /**
+       * Original source code extracted via SWC span (Phase 1)
+       *
+       * For code operations (tool: "code:*"), this contains the actual
+       * JavaScript code to execute, preserving callbacks and variable references.
+       */
+      code?: string;
     }
   | { id: string; type: "decision"; condition: string }
   | { id: string; type: "capability"; capabilityId: string }

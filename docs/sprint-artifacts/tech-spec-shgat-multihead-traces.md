@@ -776,3 +776,351 @@ _Code review performed 2025-12-24 by Senior Developer AI_
 
 - [x] [AI-Review][LOW] ~~Extract `numTraceStats` to derived constant~~ **IMPLEMENTED 2025-12-24**: Added `NUM_TRACE_STATS` constant in shgat-types.ts, derived from `DEFAULT_TRACE_STATS`. Replaced magic number 17 in shgat.ts.
 - [x] [AI-Review][LOW] ~~Deduplicate TraceStats documentation~~ **IMPLEMENTED 2025-12-24**: Simplified tech-spec Section 3.2 to reference `shgat-types.ts` as source of truth.
+
+## 13. Phase 0: Modular Code Operations Tracing (PREREQUISITE)
+
+**Status:** ✅ COMPLETE (2025-12-26)
+**Dependencies:** Phase 1-5 require this for complete SHGAT learning
+**Problem:** Code operations (code:filter, code:map, etc.) weren't traced, so SHGAT couldn't learn from them
+
+### 13.1 Motivation
+
+Before implementing multi-head SHGAT with TraceFeatures, we discovered a **critical gap**: modular code operations created by static structure builder (e.g., `code:filter`, `code:map`, `code:reduce`) were **not appearing in execution traces**.
+
+**Impact on SHGAT Learning:**
+```typescript
+// BEFORE: Missing code operations
+executed_path = ["db:query"]
+// ❌ SHGAT can't learn "query → filter → map → reduce" patterns
+
+// AFTER: Complete traces
+executed_path = ["db:query", "code:filter", "code:map", "code:reduce"]
+// ✅ SHGAT learns full pipeline patterns
+```
+
+This was blocking Phase 2 (Feature Extraction) because `executedPath` was incomplete.
+
+### 13.2 Root Cause Analysis
+
+**Execution Flow:**
+```
+MCP Tools:     ToolExecutor → WorkerBridge.callTool() → emits traces ✅
+Code Tasks:    code-executor → DenoSandboxExecutor → NO traces ❌
+```
+
+**Why code tasks weren't traced:**
+- `code-executor.ts` executes code via `DenoSandboxExecutor` directly
+- `DenoSandboxExecutor` is a low-level execution primitive (no tracing)
+- Only `WorkerBridge` emits `tool_start`/`tool_end` traces
+- Code tasks bypassed WorkerBridge entirely
+
+### 13.3 Solution Architecture
+
+**Option B: ControlledExecutor Routes to WorkerBridge**
+
+```
+workflow-execution-handler
+  ↓ creates WorkerBridge
+  ↓ passes to ControlledExecutor
+ControlledExecutor.executeTask()
+  ↓ detects code_execution task
+  ↓ routes to WorkerBridge.executeCodeTask()
+WorkerBridge.executeCodeTask(tool, code, context)
+  ↓ emits tool_start("code:filter")
+  ↓ executes code in Worker sandbox
+  ↓ emits tool_end("code:filter", result, duration)
+Traces collected
+  ↓ tool_end events extracted
+executedPath = ["db:query", "code:filter", "code:map"]
+  ↓
+SHGAT learns from complete traces ✅
+```
+
+**Why Option B (not A or 1a):**
+- **Option A:** Emit traces in code-executor.ts → merge conflicts when combining MCP + code traces chronologically
+- **Option 1a:** WorkerBridge.executeCodeTask() method → good, but needs integration point
+- **Option B:** ControlledExecutor manages WorkerBridge → centralized, all traces in one place
+
+### 13.4 Implementation Details
+
+#### File: `src/sandbox/worker-bridge.ts`
+
+**New Method: `executeCodeTask()`** (lines 454-543)
+
+```typescript
+/**
+ * Execute code task with pseudo-tool tracing (Phase 0)
+ *
+ * This method executes code_execution tasks (e.g., code:filter, code:map)
+ * and emits tool_start/tool_end traces so they appear in executedPath
+ * alongside MCP tools for SHGAT learning.
+ */
+async executeCodeTask(
+  toolName: string,      // "code:filter", "code:map", etc.
+  code: string,          // TypeScript code to execute
+  context?: Record<string, unknown>,
+  toolDefinitions: ToolDefinition[] = [],
+): Promise<ExecutionResult> {
+  const traceId = `code-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  const startTime = Date.now();
+
+  // Phase 0: Emit tool_start trace for pseudo-tool
+  this.traces.push({
+    type: "tool_start",
+    tool: toolName,
+    traceId,
+    ts: startTime,
+  });
+
+  try {
+    // Execute code via Worker (same sandbox as MCP tools)
+    const result = await this.execute(code, toolDefinitions, context);
+    const endTime = Date.now();
+
+    // Phase 0: Emit tool_end trace for successful execution
+    this.traces.push({
+      type: "tool_end",
+      tool: toolName,
+      traceId,
+      ts: endTime,
+      success: result.success,
+      durationMs: endTime - startTime,
+      result: result.result,
+    });
+
+    return result;
+  } catch (error) {
+    // Emit tool_end trace for errors
+    this.traces.push({
+      type: "tool_end",
+      tool: toolName,
+      traceId,
+      ts: endTime,
+      success: false,
+      durationMs: endTime - startTime,
+      error: errorMessage,
+    });
+    throw error;
+  }
+}
+```
+
+**How traces become executedPath** (lines 354-361):
+
+```typescript
+// Build executedPath from traces (tool and capability nodes in execution order)
+const executedPath = sortedTraces
+  .filter((t): t is ToolTraceEvent | CapabilityTraceEvent =>
+    t.type === "tool_end" || t.type === "capability_end"
+  )
+  .map((t) => {
+    if (t.type === "tool_end") return t.tool;  // ← "code:filter" appears here!
+    return (t as CapabilityTraceEvent).capability;
+  });
+```
+
+#### File: `src/dag/controlled-executor.ts`
+
+**Added WorkerBridge Integration** (lines 100-144):
+
+```typescript
+// Field (line 101)
+private workerBridge: import("../sandbox/worker-bridge.ts").WorkerBridge | null = null;
+
+// Setter (lines 132-143)
+/**
+ * Set WorkerBridge for code execution task tracing (Phase 0)
+ */
+setWorkerBridge(workerBridge: import("../sandbox/worker-bridge.ts").WorkerBridge): void {
+  this.workerBridge = workerBridge;
+  log.debug("WorkerBridge set for code execution tracing");
+}
+```
+
+**Modified Task Execution** (lines 726-728):
+
+```typescript
+if (taskType === "code_execution") {
+  // Phase 0: Use WorkerBridge for pseudo-tool tracing if available
+  if (this.workerBridge && task.tool) {
+    return await this.executeCodeTaskViaWorkerBridge(task, previousResults);
+  }
+
+  // Fallback: Use DenoSandboxExecutor (no tracing, for tasks without tool names)
+  // ...
+}
+```
+
+**New Method: `executeCodeTaskViaWorkerBridge()`** (lines 761-813):
+
+```typescript
+/**
+ * Execute code task via WorkerBridge for pseudo-tool tracing (Phase 0)
+ */
+private async executeCodeTaskViaWorkerBridge(
+  task: Task,
+  previousResults: Map<string, TaskResult>,
+): Promise<{ output: unknown; executionTimeMs: number }> {
+  if (!task.code) {
+    throw new Error(`Code execution task ${task.id} missing required 'code' field`);
+  }
+  if (!task.tool) {
+    throw new Error(`Code execution task ${task.id} missing required 'tool' field for tracing`);
+  }
+
+  // Build execution context with dependencies
+  const executionContext: Record<string, unknown> = {
+    ...task.arguments,
+  };
+  executionContext.deps = resolveDependencies(task.dependsOn, previousResults);
+
+  log.debug(`Executing code task via WorkerBridge`, {
+    taskId: task.id,
+    tool: task.tool,
+    hasDeps: task.dependsOn.length > 0,
+  });
+
+  // Execute via WorkerBridge (emits tool_start/tool_end traces)
+  const result = await this.workerBridge!.executeCodeTask(
+    task.tool,     // "code:filter", "code:map", etc.
+    task.code,     // Extracted code from SWC span
+    executionContext,
+    [],            // No tool definitions needed for pure code execution
+  );
+
+  if (!result.success) {
+    const error = result.error!;
+    throw new Error(`${error.type}: ${error.message}`);
+  }
+
+  return {
+    output: {
+      result: result.result,
+      state: executionContext,
+      executionTimeMs: result.executionTimeMs,
+    },
+    executionTimeMs: result.executionTimeMs,
+  };
+}
+```
+
+#### File: `src/mcp/handlers/workflow-execution-handler.ts`
+
+**Pass WorkerBridge to ControlledExecutor** (line 398):
+
+```typescript
+controlledExecutor.setDAGSuggester(deps.dagSuggester);
+controlledExecutor.setLearningDependencies(deps.capabilityStore, deps.graphEngine);
+// Phase 0: Set WorkerBridge for code execution task tracing
+controlledExecutor.setWorkerBridge(context.bridge);
+```
+
+### 13.5 Impact on SHGAT Learning
+
+**Graph Construction:**
+
+```typescript
+// updateFromCodeExecution() now sees ALL operations
+traces = [
+  { type: "tool_end", tool: "db:query", ts: 1100 },
+  { type: "tool_end", tool: "code:filter", ts: 1200 },  // ← Now visible!
+  { type: "tool_end", tool: "code:map", ts: 1210 },     // ← Now visible!
+  { type: "tool_end", tool: "code:reduce", ts: 1300 },  // ← Now visible!
+];
+
+// Graph nodes created
+graph.addNode("db:query", { type: "tool" });
+graph.addNode("code:filter", { type: "tool" });
+graph.addNode("code:map", { type: "tool" });
+graph.addNode("code:reduce", { type: "tool" });
+
+// Edges created (sequence)
+graph.addEdge("db:query", "code:filter", { type: "sequence", weight: 1.0 });
+graph.addEdge("code:filter", "code:map", { type: "sequence", weight: 1.0 });
+graph.addEdge("code:map", "code:reduce", { type: "sequence", weight: 1.0 });
+```
+
+**SHGAT Message Passing:**
+
+```typescript
+// Incidence matrix now includes code operations
+connectivity = [
+  //         cap_transform_data
+  db:query:      1
+  code:filter:   1  // ← SHGAT learns from this
+  code:map:      1  // ← SHGAT learns from this
+  code:reduce:   1  // ← SHGAT learns from this
+];
+
+// K-head attention learns patterns
+Head 1: "db → filter" pattern
+Head 2: "filter+map parallel branches" pattern
+Head 3: "map → reduce aggregation" pattern
+Head K: Other learned patterns
+```
+
+**Feature Extraction (Phase 2):**
+
+```typescript
+// executedPath is now complete
+executedPath = ["db:query", "code:filter", "code:map", "code:reduce"];
+
+// TraceStats can be computed for ALL operations
+const stats = await extractTraceFeatures(db, "code:filter", intent, context);
+// historicalSuccessRate: 0.85  (code:filter has execution history)
+// cooccurrenceWithContext: 0.6  (appears after db:query)
+// sequencePosition: 0.5  (middle of execution path)
+```
+
+### 13.6 Files Modified
+
+| File | Changes | Lines |
+|------|---------|-------|
+| `src/sandbox/worker-bridge.ts` | Added `executeCodeTask()` method | 454-543 |
+| `src/dag/controlled-executor.ts` | Added WorkerBridge field, `setWorkerBridge()`, `executeCodeTaskViaWorkerBridge()` | 101, 132-144, 761-813 |
+| `src/mcp/handlers/workflow-execution-handler.ts` | Pass WorkerBridge to ControlledExecutor | 398 |
+
+### 13.7 Testing
+
+**Manual verification:**
+```bash
+# Execute workflow with code operations
+pml_execute '{"intent": "fetch users and filter active ones"}'
+
+# Check traces include code operations
+SELECT executed_path FROM execution_trace ORDER BY executed_at DESC LIMIT 1;
+-- Result: ["db:query", "code:filter", "code:map"]  ✅
+```
+
+**Expected behavior:**
+- ✅ code:filter, code:map, etc. appear in `executed_path`
+- ✅ Traces have correct timestamps (chronological order)
+- ✅ Graph contains nodes for code operations
+- ✅ SHGAT can extract TraceStats for code operations
+
+### 13.8 Fallback Behavior
+
+If `task.tool` is not set (e.g., legacy code_execution tasks):
+- Falls back to `DenoSandboxExecutor` (no tracing)
+- Ensures backward compatibility
+- Logs debug message: "Code task missing tool name, using executor without tracing"
+
+### 13.9 Related Work
+
+**Prerequisite for:**
+- Phase 2: Feature Extraction (needs complete executedPath)
+- Phase 3: Training Pipeline (needs traces from code operations)
+- Phase 4: Integration (needs SHGAT to learn from code patterns)
+
+**Related implementations:**
+- Span extraction (commit edf2d40): Extracts original code via SWC spans
+- Pure operations bypass (commit d878ed8): Skips HIL validation for safe ops
+- Static structure builder: Detects modular operations and assigns pseudo-tool IDs
+
+### 13.10 Commits
+
+1. **c348a58** - Initial modular DAG code execution
+2. **edf2d40** - Span extraction for code operations
+3. **d878ed8** - Pure operations validation bypass
+4. **438f01e** - Add executeCodeTask to WorkerBridge
+5. **0fb74b8** - Route code tasks through WorkerBridge (Phase 0 COMPLETE)
