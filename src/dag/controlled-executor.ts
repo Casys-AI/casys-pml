@@ -777,10 +777,26 @@ export class ControlledExecutor extends ParallelExecutor {
     // Resolve dependencies: $OUTPUT[dep_id] → actual results
     executionContext.deps = resolveDependencies(task.dependsOn, previousResults);
 
+    // Inject variables from variableBindings (Phase 1 Modular Execution)
+    // Maps variable names (e.g., "users") to previous task outputs (e.g., n1 → task_n1)
+    if (task.variableBindings) {
+      for (const [varName, nodeId] of Object.entries(task.variableBindings)) {
+        const taskId = `task_${nodeId}`;
+        const depResult = previousResults.get(taskId);
+        if (depResult?.output !== undefined) {
+          // Inject the variable into execution context
+          // The Worker will make this available as `const varName = value;`
+          executionContext[varName] = depResult.output;
+          log.debug(`Injected variable binding: ${varName} from ${taskId}`);
+        }
+      }
+    }
+
     log.debug(`Executing code task via WorkerBridge`, {
       taskId: task.id,
       tool: task.tool,
       hasDeps: task.dependsOn.length > 0,
+      injectedVars: task.variableBindings ? Object.keys(task.variableBindings) : [],
     });
 
     // Execute via WorkerBridge (emits tool_start/tool_end traces)

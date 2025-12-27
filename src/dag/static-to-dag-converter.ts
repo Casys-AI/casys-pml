@@ -113,6 +113,7 @@ export function staticStructureToDag(
   logger.debug("Converting static structure to DAG", {
     nodeCount: structure.nodes.length,
     edgeCount: structure.edges.length,
+    variableBindingsCount: Object.keys(structure.variableBindings ?? {}).length,
   });
 
   // Phase 1: Create task map from nodes
@@ -121,7 +122,7 @@ export function staticStructureToDag(
   const forkChildren = new Map<string, string[]>(); // fork.id -> child task IDs
 
   for (const node of structure.nodes) {
-    const task = nodeToTask(node, taskIdPrefix, includeDecisionTasks);
+    const task = nodeToTask(node, taskIdPrefix, includeDecisionTasks, structure.variableBindings);
     if (task) {
       tasks.push(task);
       nodeToTaskId.set(node.id, task.id);
@@ -226,12 +227,14 @@ export function staticStructureToDag(
  * @param node The node to convert
  * @param prefix Task ID prefix
  * @param includeDecisions Whether to include decision nodes as tasks
+ * @param variableBindings Variable to node ID mappings for code task context injection
  * @returns Task or null if node should not become a task
  */
 function nodeToTask(
   node: StaticStructureNode,
   prefix: string,
   includeDecisions: boolean,
+  variableBindings?: Record<string, string>,
 ): ConditionalTask | null {
   const taskId = `${prefix}${node.id}`;
 
@@ -262,6 +265,8 @@ function nodeToTask(
           },
           metadata: { pure: isPureOperation(node.tool) },
           staticArguments: node.arguments,
+          // Pass variable bindings for context injection at runtime
+          variableBindings,
         };
       }
 

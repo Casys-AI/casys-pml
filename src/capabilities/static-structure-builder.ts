@@ -204,19 +204,23 @@ export class StaticStructureBuilder {
       const edges: StaticStructureEdge[] = [];
       await this.generateEdges(internalNodes, edges);
 
+      // Export variable bindings for code task context injection
+      const variableBindings = Object.fromEntries(this.variableToNodeId);
+
       logger.debug("Static structure built", {
         nodeCount: nodes.length,
         edgeCount: edges.length,
+        variableBindingsCount: Object.keys(variableBindings).length,
       });
 
-      return { nodes, edges };
+      return { nodes, edges, variableBindings };
     } catch (error) {
       // Non-critical: return empty structure on parse errors
       logger.warn("Static structure analysis failed, returning empty", {
         error: error instanceof Error ? error.message : String(error),
       });
 
-      return { nodes: [], edges: [] };
+      return { nodes: [], edges: [], variableBindings: {} };
     }
   }
 

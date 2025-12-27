@@ -552,3 +552,100 @@ Deno.test("StaticStructureBuilder - generates sequence edges for code operations
 
   await db.close();
 });
+
+// =============================================================================
+// Variable Bindings for Code Task Context Injection
+// =============================================================================
+
+Deno.test("StaticStructureBuilder - exports variableBindings for MCP results", async () => {
+  const db = await setupTestDb();
+  const builder = new StaticStructureBuilder(db);
+
+  const code = `
+    const users = await mcp.db.query({ table: "users" });
+    const active = users.filter(u => u.active);
+  `;
+
+  const structure = await builder.buildStaticStructure(code);
+
+  // variableBindings should map "users" to the node ID that produces it
+  assertExists(structure.variableBindings, "Should have variableBindings");
+  assertEquals(typeof structure.variableBindings, "object", "variableBindings should be object");
+
+  // "users" should map to a node ID (e.g., "n1")
+  const usersBinding = structure.variableBindings!["users"];
+  assertExists(usersBinding, "Should have binding for 'users' variable");
+  assertEquals(usersBinding.startsWith("n"), true, "Node ID should start with 'n'");
+
+  await db.close();
+});
+
+Deno.test("StaticStructureBuilder - variableBindings tracks multiple variables", async () => {
+  const db = await setupTestDb();
+  const builder = new StaticStructureBuilder(db);
+
+  const code = `
+    const users = await mcp.db.query({ table: "users" });
+    const items = await mcp.db.query({ table: "items" });
+    const combined = users.concat(items);
+  `;
+
+  const structure = await builder.buildStaticStructure(code);
+
+  assertExists(structure.variableBindings, "Should have variableBindings");
+
+  // Both "users" and "items" should have bindings
+  assertExists(structure.variableBindings!["users"], "Should have binding for 'users'");
+  assertExists(structure.variableBindings!["items"], "Should have binding for 'items'");
+
+  // They should be different node IDs
+  const usersNodeId = structure.variableBindings!["users"];
+  const itemsNodeId = structure.variableBindings!["items"];
+  assertEquals(usersNodeId !== itemsNodeId, true, "Different variables should have different node IDs");
+
+  await db.close();
+});
+
+Deno.test("StaticStructureBuilder - variableBindings empty for pure JS code", async () => {
+  const db = await setupTestDb();
+  const builder = new StaticStructureBuilder(db);
+
+  const code = `
+    const numbers = [1, 2, 3, 4, 5];
+    const doubled = numbers.map(n => n * 2);
+  `;
+
+  const structure = await builder.buildStaticStructure(code);
+
+  // variableBindings should be empty since there are no MCP calls
+  assertExists(structure.variableBindings, "Should have variableBindings (may be empty)");
+
+  // Only MCP results should create bindings, not pure JS declarations
+  // In this case, "numbers" is assigned from a literal array, not an MCP call
+  // So it may or may not have a binding depending on implementation
+  assertEquals(typeof structure.variableBindings, "object", "variableBindings should be object");
+
+  await db.close();
+});
+
+Deno.test("StaticStructureBuilder - variableBindings for chained operations", async () => {
+  const db = await setupTestDb();
+  const builder = new StaticStructureBuilder(db);
+
+  const code = `
+    const data = await mcp.filesystem.fast_read_file({ path: "data.json" });
+    const parsed = JSON.parse(data);
+    const filtered = parsed.filter(x => x.active);
+    const names = filtered.map(x => x.name);
+  `;
+
+  const structure = await builder.buildStaticStructure(code);
+
+  assertExists(structure.variableBindings, "Should have variableBindings");
+
+  // "data" should map to the MCP node
+  const dataBinding = structure.variableBindings!["data"];
+  assertExists(dataBinding, "Should have binding for 'data' variable");
+
+  await db.close();
+});

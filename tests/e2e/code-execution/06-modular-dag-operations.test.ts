@@ -90,15 +90,15 @@ Deno.test({
       // Should detect: filter, map, sort, slice, reduce, trim, toLowerCase, multiply
       assertEquals(codeNodes.length >= 5, true, `Should detect at least 5 code operations (found ${codeNodes.length})`);
 
-      // Verify specific operations
-      const tools = codeNodes.map((n) => n.tool);
+      // Verify specific operations (type assertion since we filtered for task nodes)
+      const tools = codeNodes.map((n) => (n as { tool: string }).tool);
       assertEquals(tools.includes("code:filter"), true, "Should detect filter");
       assertEquals(tools.includes("code:map"), true, "Should detect map");
       assertEquals(tools.includes("code:sort"), true, "Should detect sort");
       assertEquals(tools.includes("code:slice"), true, "Should detect slice");
       assertEquals(tools.includes("code:reduce"), true, "Should detect reduce");
 
-      console.log("  ✓ Detected MCP tools:", mcpNodes.map(n => n.tool).join(", "));
+      console.log("  ✓ Detected MCP tools:", mcpNodes.map(n => (n as { tool: string }).tool).join(", "));
       console.log("  ✓ Detected code operations:", tools.join(", "));
     } finally {
       await db.close();
@@ -330,10 +330,10 @@ Deno.test({
         (n) => n.type === "task" && n.tool?.startsWith("code:")
       );
 
-      // Expect multiple filter, map, reduce, sort, slice operations
-      const filterCount = codeNodes.filter((n) => n.tool === "code:filter").length;
-      const mapCount = codeNodes.filter((n) => n.tool === "code:map").length;
-      const reduceCount = codeNodes.filter((n) => n.tool === "code:reduce").length;
+      // Expect multiple filter, map, reduce, sort, slice operations (type assertion for task nodes)
+      const filterCount = codeNodes.filter((n) => (n as { tool: string }).tool === "code:filter").length;
+      const mapCount = codeNodes.filter((n) => (n as { tool: string }).tool === "code:map").length;
+      const reduceCount = codeNodes.filter((n) => (n as { tool: string }).tool === "code:reduce").length;
 
       assertEquals(filterCount >= 2, true, "Should detect at least 2 filter operations");
       assertEquals(mapCount >= 1, true, "Should detect at least 1 map operation");
@@ -384,7 +384,7 @@ Deno.test({
         (n) => n.type === "task" && n.tool?.startsWith("code:")
       );
 
-      const tools = codeNodes.map((n) => n.tool);
+      const tools = codeNodes.map((n) => (n as { tool: string }).tool);
 
       // Verify Object operations
       assertEquals(tools.includes("code:Object.keys"), true, "Should detect Object.keys");
@@ -404,6 +404,182 @@ Deno.test({
       console.log("  ✓ Math operations: Math.max, Math.min, Math.abs");
     } finally {
       await db.close();
+    }
+  },
+});
+
+// =============================================================================
+// E2E: Variable Bindings for Code Task Context Injection
+// =============================================================================
+
+Deno.test({
+  name: "E2E Modular DAG: variableBindings are propagated to DAG tasks",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const db = await setupTestDb();
+
+    try {
+      const builder = new StaticStructureBuilder(db);
+
+      const code = `
+        const users = await mcp.db.query({ table: "users" });
+        const active = users.filter(u => u.active);
+        const names = active.map(u => u.name);
+      `;
+
+      const structure = await builder.buildStaticStructure(code);
+
+      // Verify variableBindings exist
+      assertExists(structure.variableBindings, "Should have variableBindings");
+      assertExists(structure.variableBindings!["users"], "Should have 'users' binding");
+
+      // Convert to DAG
+      const dag = staticStructureToDag(structure);
+
+      // Find code operation tasks
+      const codeTasks = dag.tasks.filter((t) => t.tool?.startsWith("code:"));
+      assertEquals(codeTasks.length >= 1, true, "Should have code tasks");
+
+      // All code tasks should have variableBindings
+      for (const task of codeTasks) {
+        assertExists(task.variableBindings, `Task ${task.id} should have variableBindings`);
+        assertEquals(
+          typeof task.variableBindings,
+          "object",
+          "variableBindings should be object"
+        );
+      }
+
+      console.log("  ✓ variableBindings exported from StaticStructure");
+      console.log("  ✓ variableBindings propagated to DAG tasks");
+      console.log(`  ✓ Bindings: ${JSON.stringify(structure.variableBindings)}`);
+    } finally {
+      await db.close();
+    }
+  },
+});
+
+Deno.test({
+  name: "E2E Modular DAG: WorkerBridge injects variables from context",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const mcpClients = new Map<string, MCPClientBase>();
+    const bridge = new WorkerBridge(mcpClients, { timeout: 10000 });
+
+    try {
+      // Simulate what the executor does: inject variables from previous task results
+      // In real execution, this would come from previousResults via variableBindings
+      const context = {
+        users: [
+          { id: 1, name: "Alice", active: true },
+          { id: 2, name: "Bob", active: false },
+          { id: 3, name: "Charlie", active: true },
+        ],
+      };
+
+      // Execute filter - the code references "users" which is injected from context
+      const filterResult = await bridge.executeCodeTask(
+        "code:filter",
+        "return users.filter(u => u.active);",
+        context,
+        [],
+      );
+
+      assertEquals(filterResult.success, true, "Filter should succeed with injected context");
+      assertEquals((filterResult.result as unknown[]).length, 2, "Should filter to 2 active users");
+
+      // Chain: use filtered result
+      const mapContext = {
+        filtered: filterResult.result,
+      };
+
+      const mapResult = await bridge.executeCodeTask(
+        "code:map",
+        "return filtered.map(u => u.name);",
+        mapContext,
+        [],
+      );
+
+      assertEquals(mapResult.success, true, "Map should succeed");
+      assertEquals(
+        JSON.stringify(mapResult.result),
+        '["Alice","Charlie"]',
+        "Should map to names"
+      );
+
+      console.log("  ✓ Variables injected from context successfully");
+      console.log("  ✓ Chained operations work with injected context");
+    } finally {
+      await bridge.terminate();
+    }
+  },
+});
+
+Deno.test({
+  name: "E2E Modular DAG: Variable injection resolves cross-task dependencies",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const mcpClients = new Map<string, MCPClientBase>();
+    const bridge = new WorkerBridge(mcpClients, { timeout: 10000 });
+
+    try {
+      // Simulate a complete workflow where:
+      // Task 1 (n1): MCP call returns data → assigns to "data"
+      // Task 2 (n2): code:filter uses "data"
+      // Task 3 (n3): code:map uses filtered result
+      // Task 4 (n4): code:reduce aggregates
+
+      // Step 1: Simulate MCP result (in real flow, this would be from mcp.db.query)
+      const mcpResult = [
+        { id: 1, value: 100, category: "A" },
+        { id: 2, value: 200, category: "B" },
+        { id: 3, value: 150, category: "A" },
+        { id: 4, value: 50, category: "C" },
+      ];
+
+      // Step 2: Filter - inject "data" from MCP result (via variableBindings)
+      const filterContext = { data: mcpResult };
+      const filterResult = await bridge.executeCodeTask(
+        "code:filter",
+        'return data.filter(item => item.category === "A");',
+        filterContext,
+        [],
+      );
+
+      assertEquals(filterResult.success, true);
+      assertEquals((filterResult.result as unknown[]).length, 2);
+
+      // Step 3: Map - inject "filtered" from filter result
+      const mapContext = { filtered: filterResult.result };
+      const mapResult = await bridge.executeCodeTask(
+        "code:map",
+        "return filtered.map(item => item.value);",
+        mapContext,
+        [],
+      );
+
+      assertEquals(mapResult.success, true);
+      assertEquals(JSON.stringify(mapResult.result), "[100,150]");
+
+      // Step 4: Reduce - inject "values" from map result
+      const reduceContext = { values: mapResult.result };
+      const reduceResult = await bridge.executeCodeTask(
+        "code:reduce",
+        "return values.reduce((sum, v) => sum + v, 0);",
+        reduceContext,
+        [],
+      );
+
+      assertEquals(reduceResult.success, true);
+      assertEquals(reduceResult.result, 250);
+
+      console.log("  ✓ Complete workflow with cross-task variable injection");
+      console.log("  ✓ MCP result → filter → map → reduce = 250");
+    } finally {
+      await bridge.terminate();
     }
   },
 });

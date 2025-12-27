@@ -647,6 +647,21 @@ export interface StaticStructureEdge {
 export interface StaticStructure {
   nodes: StaticStructureNode[];
   edges: StaticStructureEdge[];
+  /**
+   * Variable to node ID bindings for code task context injection.
+   *
+   * Maps variable names to the node IDs that produce their values.
+   * Used to inject variables into code task execution context.
+   *
+   * @example
+   * ```typescript
+   * // Code: const users = await mcp.db.query(...);
+   * //       const active = users.filter(u => u.active);
+   * // Produces: { "users": "n1" }
+   * // At runtime: inject `const users = deps.task_n1.output;`
+   * ```
+   */
+  variableBindings?: Record<string, string>;
 }
 
 /**
