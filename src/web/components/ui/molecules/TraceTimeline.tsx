@@ -1,9 +1,16 @@
 /**
  * TraceTimeline Molecule - Execution trace timeline grouped by DAG layer
  * Used for: Fan-in/fan-out visualization of parallel tasks (Story 11.4)
+ * Phase 2a: Displays fused tasks with expandable logical operations
  */
 
 import TaskCard from "../atoms/TaskCard.tsx";
+import FusedTaskCard from "../atoms/FusedTaskCard.tsx";
+
+interface LogicalOperation {
+  toolId: string;
+  durationMs?: number;
+}
 
 interface TaskResult {
   taskId: string;
@@ -11,6 +18,9 @@ interface TaskResult {
   success: boolean;
   durationMs: number;
   layerIndex?: number;
+  // Phase 2a: Fusion metadata
+  isFused?: boolean;
+  logicalOperations?: LogicalOperation[];
 }
 
 interface ExecutionTrace {
@@ -141,6 +151,20 @@ export default function TraceTimeline({
                   const color = getServerColor?.(server) ||
                     DEFAULT_COLORS[server.charCodeAt(0) % DEFAULT_COLORS.length];
 
+                  // Phase 2a: Render fused tasks with expandable logical operations
+                  if (task.isFused && task.logicalOperations) {
+                    return (
+                      <FusedTaskCard
+                        key={`${layerIdx}-${taskIdx}`}
+                        logicalOps={task.logicalOperations}
+                        durationMs={task.durationMs}
+                        success={task.success}
+                        color={color}
+                      />
+                    );
+                  }
+
+                  // Regular task card
                   return (
                     <TaskCard
                       key={`${layerIdx}-${taskIdx}`}

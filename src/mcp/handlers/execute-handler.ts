@@ -27,7 +27,7 @@ import type { DbClient } from "../../db/types.ts";
 import type { ContextBuilder } from "../../sandbox/context-builder.ts";
 import type { DRDSP } from "../../graphrag/algorithms/dr-dsp.ts";
 import type { SHGAT } from "../../graphrag/algorithms/shgat.ts";
-import type { JsonValue, TraceTaskResult } from "../../capabilities/types.ts";
+import type { JsonValue, TraceTaskResult, LogicalOperation } from "../../capabilities/types.ts";
 import type { DagScoringConfig } from "../../graphrag/dag-scoring-config.ts";
 import type { EmbeddingModelInterface } from "../../vector/embeddings.ts";
 import type { ExecutionTraceStore } from "../../capabilities/execution-trace-store.ts";
@@ -485,16 +485,39 @@ async function executeDirectMode(
         // Extract tool calls from logical trace (for SHGAT learning)
         const toolsCalled = logicalTrace.executedPath;
 
-        // Build task results for trace (using logical tasks)
-        const taskResults: TraceTaskResult[] = logicalTrace.taskResults.map((r) => ({
-          taskId: r.taskId,
-          tool: r.tool,
-          args: {} as Record<string, JsonValue>, // Args not captured in fusion
-          result: r.output as JsonValue ?? null,
-          success: r.success,
-          durationMs: r.durationMs,
-          layerIndex: undefined, // Layer info lost in fusion
-        }));
+        // Build task results for trace (using physical tasks with logical detail)
+        // Phase 2a: Include fusion metadata for UI display
+        const taskResults: TraceTaskResult[] = physicalResults.results.map((physicalResult) => {
+          const physicalTask = optimizedDAG.tasks.find(t => t.id === physicalResult.taskId);
+          const logicalTaskIds = optimizedDAG.physicalToLogical.get(physicalResult.taskId) || [];
+          const fused = logicalTaskIds.length > 1;
+
+          let logicalOps: LogicalOperation[] | undefined;
+          if (fused) {
+            // Extract logical operations for fused task
+            const estimatedDuration = (physicalResult.executionTime || 0) / logicalTaskIds.length;
+            logicalOps = logicalTaskIds.map(logicalId => {
+              const logicalTask = optimizedDAG.logicalDAG.tasks.find(t => t.id === logicalId);
+              return {
+                toolId: logicalTask?.tool || "unknown",
+                durationMs: estimatedDuration
+              };
+            });
+          }
+
+          return {
+            taskId: physicalResult.taskId,
+            tool: physicalTask?.tool || "unknown",
+            args: {} as Record<string, JsonValue>,
+            result: physicalResult.output as JsonValue ?? null,
+            success: physicalResult.status === "success",
+            durationMs: physicalResult.executionTime || 0,
+            layerIndex: physicalResult.layerIndex,
+            // Phase 2a: Fusion metadata
+            isFused: fused,
+            logicalOperations: logicalOps
+          };
+        });
 
         // Handle execution failure
         if (physicalResults.failedTasks > 0 && physicalResults.successfulTasks === 0) {
