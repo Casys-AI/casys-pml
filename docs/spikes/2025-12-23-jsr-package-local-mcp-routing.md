@@ -462,6 +462,6 @@ export async function callTool(
 
 - [ADR-040: Multi-tenant MCP & Secrets Management](../adrs/ADR-040-multi-tenant-mcp-secrets-management.md)
 - [Tech-spec: Open Core Workspace](../tech-specs/tech-spec-open-core-workspace.md)
-- [SWC Static Structure Detection](../tech-specs/swc-static-structure-detection.md)
+- [SWC Static Structure Detection](../architecture/swc-static-structure-detection.md)
 - [Permission Inferrer](../../src/capabilities/permission-inferrer.ts)
 - [Deno Permissions](https://docs.deno.com/runtime/fundamentals/security/)
