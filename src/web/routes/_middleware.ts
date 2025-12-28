@@ -21,6 +21,10 @@ import { isCloudMode } from "../../lib/auth.ts";
 import { getSessionFromRequest } from "../../server/auth/session.ts";
 import { isProtectedRoute, isPublicRoute } from "../route-guards.ts";
 
+// Dev mode detection (Deno.env is available at runtime)
+const isDev = Deno.env.get("DENO_ENV") !== "production" &&
+  !Deno.env.get("DENO_DEPLOYMENT_ID");
+
 /**
  * User state injected into Fresh context
  */
@@ -88,5 +92,21 @@ export async function handler(
     }
   }
 
-  return ctx.next();
+  const response = await ctx.next();
+
+  // In dev mode, add anti-cache headers to prevent stale content issues
+  // This helps with port forwarding scenarios and HMR
+  if (isDev && response.headers.get("Content-Type")?.includes("text/html")) {
+    const headers = new Headers(response.headers);
+    headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
+    headers.set("Pragma", "no-cache");
+    headers.set("Expires", "0");
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  }
+
+  return response;
 }

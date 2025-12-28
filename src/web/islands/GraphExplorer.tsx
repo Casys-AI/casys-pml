@@ -121,7 +121,7 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
 
   // SSE listener for incremental graph updates (Story 8.3)
   // With debouncing to prevent rapid refresh loops
-  // Enhanced: exponential backoff reconnection for HMR resilience
+  // Enhanced: exponential backoff reconnection, visibility handling, online detection
   useEffect(() => {
     // Close any existing connection first (handles HMR leaks)
     if (sseRef.current) {
@@ -133,14 +133,33 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
     let refreshTimeout: number | null = null;
     let reconnectTimeout: number | null = null;
     let reconnectAttempts = 0;
+    let isVisible = !document.hidden;
+    let intentionalClose = false;
     const MAX_RECONNECT_ATTEMPTS = 30;
     const BASE_RECONNECT_DELAY = 1000;
     const MAX_RECONNECT_DELAY = 30000;
 
-    const connect = () => {
+    const closeConnection = () => {
       if (sseRef.current) {
+        intentionalClose = true;
         sseRef.current.close();
+        sseRef.current = null;
+        intentionalClose = false;
       }
+    };
+
+    const connect = () => {
+      // Don't connect if offline or tab hidden
+      if (!navigator.onLine) {
+        console.log("[SSE] Offline, waiting for network...");
+        return;
+      }
+      if (document.hidden) {
+        console.log("[SSE] Tab hidden, deferring connection...");
+        return;
+      }
+
+      closeConnection();
 
       const eventSource = new EventSource(`${apiBase}/events/stream`);
       sseRef.current = eventSource;
@@ -169,6 +188,13 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
         if (sseRef.current === eventSource) {
           sseRef.current = null;
         }
+
+        // Don't reconnect if intentionally closed or offline
+        if (intentionalClose || !navigator.onLine || document.hidden) {
+          console.log("[SSE] Skipping reconnect (intentional close, offline, or hidden)");
+          return;
+        }
+
         reconnectAttempts++;
 
         if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
@@ -188,15 +214,65 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
       };
     };
 
+    // Handle tab visibility changes - close when hidden, reconnect when visible
+    const handleVisibilityChange = () => {
+      const wasVisible = isVisible;
+      isVisible = !document.hidden;
+
+      if (!isVisible && wasVisible) {
+        // Tab became hidden - close connection to free resources
+        console.log("[SSE] Tab hidden, closing connection");
+        if (reconnectTimeout) {
+          clearTimeout(reconnectTimeout);
+          reconnectTimeout = null;
+        }
+        closeConnection();
+      } else if (isVisible && !wasVisible) {
+        // Tab became visible - reconnect
+        console.log("[SSE] Tab visible, reconnecting...");
+        reconnectAttempts = 0; // Reset attempts on visibility restore
+        connect();
+      }
+    };
+
+    // Handle online/offline events
+    const handleOnline = () => {
+      console.log("[SSE] Network online, reconnecting...");
+      reconnectAttempts = 0;
+      connect();
+    };
+
+    const handleOffline = () => {
+      console.log("[SSE] Network offline, closing connection");
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+        reconnectTimeout = null;
+      }
+      closeConnection();
+    };
+
+    // Handle page unload - ensure clean disconnect
+    const handleBeforeUnload = () => {
+      closeConnection();
+    };
+
+    // Add event listeners
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    globalThis.addEventListener("online", handleOnline);
+    globalThis.addEventListener("offline", handleOffline);
+    globalThis.addEventListener("beforeunload", handleBeforeUnload);
+
+    // Initial connect
     connect();
 
     return () => {
       if (refreshTimeout) clearTimeout(refreshTimeout);
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
-      if (sseRef.current) {
-        sseRef.current.close();
-        sseRef.current = null;
-      }
+      closeConnection();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      globalThis.removeEventListener("online", handleOnline);
+      globalThis.removeEventListener("offline", handleOffline);
+      globalThis.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [apiBase]);
 

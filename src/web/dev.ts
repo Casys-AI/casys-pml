@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run -A --watch=static/,routes/,islands/,components/
+#!/usr/bin/env -S deno run -A
 /**
  * Fresh 2.x Development Server
  *
