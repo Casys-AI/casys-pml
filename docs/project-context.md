@@ -16,8 +16,8 @@ sections_completed: [
 ]
 status: complete
 last_scan: "exhaustive"
-last_update: "2025-12-21"
-rule_count: 185
+last_update: "2025-12-28"
+rule_count: 192
 optimized_for_llm: true
 ---
 
@@ -58,21 +58,28 @@ this project. Focus on unobvious details that agents might otherwise miss._
 - **Graphology ^0.25.4** — Structure de graphe
 - **ml-matrix ^6.11.1** — Opérations matricielles (eigendecomposition)
 
-### Hypergraph Algorithms (Custom Implementation)
+### Graph Algorithms (Non-SHGAT)
 
-- **Spectral Clustering** — `src/graphrag/spectral-clustering.ts` — Clustering biparti
-  tools↔capabilities
-- **Hypergraph PageRank** — Ranking d'importance des capabilities (hyperedges)
-- **PageRank** — `src/graphrag/graph-engine.ts` — Centralité des nœuds
-- **Adamic-Adar** — Similarité via voisins communs
+> **Note:** Ces algos sont utilisés pour clustering, suggestions, local-alpha — **PAS** pour le scoring SHGAT K-head.
+
+- **Spectral Clustering** — `src/graphrag/spectral-clustering.ts` — dag-suggester, clustering
+- **PageRank** — `src/graphrag/graph-engine.ts` — Centralité, metrics
+- **Adamic-Adar** — `src/graphrag/algorithms/adamic-adar.ts` — Suggestions, confidence scoring
+- **Louvain** — via graphology-communities-louvain — Community detection
+- **Heat Diffusion** — `src/graphrag/local-alpha.ts` — Local alpha adaptif (ADR-048)
+- **Thompson Sampling** — `src/learning/thompson-threshold.ts` — Thresholds adaptatifs (ADR-049)
 - **K-means++** — Clustering sur vecteurs propres
-- **Eigengap Heuristic** — Auto-détection nombre optimal de clusters
 - **Dijkstra** — via graphology-shortest-path
-- **Louvain** — via graphology-communities-louvain
-- **Heat Diffusion** — `src/graphrag/local-alpha.ts` — Propagation hiérarchique (ADR-048)
-- **Thompson Sampling** — `src/learning/thompson-threshold.ts` — Thresholds adaptatifs per-tool
-  (ADR-049)
-- **Local Alpha** — Confiance adaptative par zone du graphe (cold start vs dense)
+
+### SHGAT Modular Architecture (`src/graphrag/algorithms/shgat/`)
+
+- **graph/** — Construction de graphe, matrices d'incidence
+- **initialization/** — Initialisation des paramètres (W_q, W_k per head)
+- **message-passing/** — Phases V→E, E→E, E→V pour n-SuperHyperGraph
+- **scoring/** — K-head attention unifié (capabilities, tools, operations)
+- **training/** — K-head trainer avec backprop sur W_q, W_k
+- **utils/** — Softmax, cosine similarity, opérations matricielles
+- **Production** — K-head: `score = sigmoid(Q·K/√d)`, fusion = moyenne
 
 ### MiniTools Library (`lib/std/`)
 
@@ -495,9 +502,12 @@ src/
 #### 🔄 DAG Execution
 
 - **AIL (Agent-in-the-Loop)** — Décisions automatiques avec validation par layer
-- **HIL (Human-in-the-Loop)** — Checkpoints d'approbation pour opérations critiques
+- **HIL (Human-in-the-Loop)** — Checkpoints d'approbation **PRE-EXECUTION** (pas après)
 - **Checkpoint/Resume** — Workflows interruptibles avec persistence d'état
 - **$OUTPUT resolution** — Référencer outputs des tasks précédentes
+- **Two-Level DAG (Phase 2a)** — Logical DAG (SHGAT learning) + Physical DAG (fused execution)
+- **Sequential Fusion** — Tasks pures sans MCP calls fusionnées automatiquement
+- **Option B Nested Ops** — `executable: false` pour opérations inside callbacks (.map, .filter)
 
 #### 🛠️ MiniTools (`lib/std/`)
 
@@ -513,7 +523,7 @@ src/
 - **Sections YAML** — `limits`, `weights`, `thresholds`, `caps`, `reliability`, `defaults`
 - **Schémas JSON** — `*.schema.json` pour validation (yaml-language-server)
 
-#### 📈 Adaptive Learning (ADR-048, ADR-049)
+#### 📈 Adaptive Learning (ADR-048, ADR-049, ADR-053)
 
 - **Local Alpha** — `alpha ∈ [0.5, 1.0]` — 0.5 = trust graph, 1.0 = semantic only
 - **Heat Diffusion** — Propagation de confiance par connectivité graphe
@@ -521,6 +531,14 @@ src/
 - **Thompson Sampling** — Distribution `Beta(α,β)` per-tool pour thresholds adaptatifs
 - **Risk Categories** — `safe` (0.55), `moderate` (0.70), `dangerous` (0.85) via
   `mcp-permissions.yaml`
+- **SHGAT Subprocess Training** — Entraînement non-bloquant via subprocess Deno
+- **PER (Prioritized Experience Replay)** — TD errors pour échantillonnage prioritaire
+
+#### 🔀 Dynamic Capability Routing (ADR-052)
+
+- **Résolution statique** — Capabilities découvertes à l'analyse SWC, pas au runtime
+- **Proxy transparent** — `mcp.math.sum()` route vers capability `math:sum`
+- **Isolation ré-entrance** — Nouveau WorkerBridge par appel de capability
 
 ---
 
@@ -542,4 +560,4 @@ src/
 
 ---
 
-_Last Updated: 2025-12-21_
+_Last Updated: 2025-12-28_

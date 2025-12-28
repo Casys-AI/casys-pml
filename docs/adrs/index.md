@@ -42,7 +42,7 @@ Index des décisions d'architecture du projet Casys PML.
 | 012  | [MCP STDIO Logging](./ADR-012-mcp-stdio-logging.md)                                         | accepted   | done           | Stratégie logging stdio MCP                           |
 | 013  | [Tools/List Semantic Filtering](./ADR-013-tools-list-semantic-filtering.md)                 | accepted   | done           | Filtrage sémantique tools/list                        |
 | 014  | [HTTP/SSE Transport](./ADR-014-http-sse-transport.md)                                       | accepted   | done           | Transport SSE pour gateway                            |
-| 015  | [Dynamic Alpha Graph Density](./ADR-015-dynamic-alpha-graph-density.md)                     | accepted   | done           | Alpha dynamique selon densité                         |
+| 015  | [Dynamic Alpha Graph Density](./ADR-015-dynamic-alpha-graph-density.md)                     | superseded | done           | → ADR-051 (SHGAT replaces alpha)                      |
 | 016  | [REPL-Style Auto-Return](./ADR-016-repl-style-auto-return.md)                               | accepted   | done           | Auto-return code execution                            |
 | 017  | [Gateway Exposure Modes](./ADR-017-gateway-exposure-modes.md)                               | draft      | partial        | Modes d'exposition gateway (meta_only actif)          |
 | 018  | [Command Handlers Minimalism](./ADR-018-command-handlers-minimalism.md)                     | superseded | done           | → ADR-020                                             |
@@ -51,7 +51,7 @@ Index des décisions d'architecture du projet Casys PML.
 | 020b | [Graceful Shutdown Timeout](./ADR-020-graceful-shutdown-timeout.md)                         | accepted   | done           | Timeout guard shutdown 10s                            |
 | 021  | [Configurable Database Path](./ADR-021-configurable-database-path.md)                       | accepted   | done           | CAI_DB_PATH env var                                   |
 | 021b | [Workflow Sync Missing Nodes](./ADR-021-workflow-sync-missing-nodes.md)                     | accepted   | done           | Création nœuds manquants                              |
-| 022  | [Hybrid Search Integration](./ADR-022-hybrid-search-integration.md)                         | accepted   | done           | Hybrid search DAG suggester                           |
+| 022  | [Hybrid Search Integration](./ADR-022-hybrid-search-integration.md)                         | superseded | done           | → ADR-051 (simplified formula)                        |
 | 023  | [Dynamic Candidate Expansion](./ADR-023-dynamic-candidate-expansion.md)                     | accepted   | done           | Expansion candidats 1.5-3x                            |
 | 024  | [Full Adjacency Matrix](./ADR-024-adjacency-matrix-dependencies.md)                         | accepted   | done           | Matrice N×N, cycle breaking                           |
 | 025  | [MCP Streamable HTTP](./ADR-025-mcp-streamable-http-transport.md)                           | accepted   | done           | Transport HTTP /mcp endpoint                          |
@@ -67,7 +67,7 @@ Index des décisions d'architecture du projet Casys PML.
 | 035  | [Permission Sets Sandbox](./ADR-035-permission-sets-sandbox-security.md)                    | proposed   | not_started    | Permission sets Deno 2.5+                             |
 | 036  | [BroadcastChannel Events](./ADR-036-broadcast-channel-event-distribution.md)                | accepted   | done           | Distribution events broadcast                         |
 | 037  | [Deno KV Cache Layer](./ADR-037-deno-kv-cache-layer.md)                                     | rejected   | not_started    | Cache layer Deno KV (overkill)                        |
-| 038  | [Scoring Algorithms & Formulas Reference](./ADR-038-scoring-algorithms-reference.md)        | accepted   | partial        | Référence des algorithmes de scoring                  |
+| 038  | [Scoring Algorithms & Formulas Reference](./ADR-038-scoring-algorithms-reference.md)        | superseded | done           | → ADR-051 (Search sections obsolete)                  |
 | 039  | [Algorithm Observability & Adaptive Weights](./ADR-039-algorithm-observability-tracking.md) | proposed   | not_started    | Observabilité des algos & préparation des poids       |
 | 040  | [Multi-tenant MCP & Secrets](./ADR-040-multi-tenant-mcp-secrets-management.md)              | accepted   | not_started    | Gestion secrets multi-tenant cloud                    |
 | 041  | [Hierarchical Trace Tracking](./ADR-041-hierarchical-trace-tracking.md)                     | accepted   | done           | parent_trace_id pour hiérarchie traces                |
@@ -77,20 +77,21 @@ Index des décisions d'architecture du projet Casys PML.
 | 045  | [Capability-to-Capability Dependencies](./ADR-045-capability-to-capability-dependencies.md) | accepted   | done           | Table dédiée + edge type `alternative`                |
 | 046  | [Fresh BFF Pattern](./ADR-046-fresh-bff-pattern.md)                                         | accepted   | not_started    | Pattern BFF: Fresh → Gateway pour DB                  |
 | 047  | [Tool Sequence vs Deduplication](./ADR-047-tool-sequence-vs-deduplication.md)               | accepted   | done           | tool_invocations pour séquence, tools_used dédupliqué |
-| 048  | [Local Adaptive Alpha](./ADR-048-hierarchical-heat-diffusion-alpha.md)                      | accepted   | done           | Alpha local par mode (tool/capability/meta)           |
+| 048  | [Local Adaptive Alpha](./ADR-048-hierarchical-heat-diffusion-alpha.md)                      | superseded | done           | → ADR-051 (SHGAT replaces heuristics)                 |
 | 049  | [Intelligent Adaptive Thresholds](./ADR-049-intelligent-adaptive-thresholds.md)             | proposed   | not_started    | Seuils adaptatifs intelligents par contexte           |
 | 050  | [Superhypergraph Edge Constraints](./ADR-050-superhypergraph-edge-constraints.md)           | accepted   | done           | Contraintes edges superhypergraph                     |
 | 051  | [Unified Search Simplification](./ADR-051-unified-search-simplification.md)                 | accepted   | done           | Simplification recherche unifiée (SHGAT v1)           |
 | 052  | [Dynamic Capability Routing](./ADR-052-dynamic-capability-routing.md)                       | accepted   | done           | Routing capabilities via MCP proxy                    |
+| 053  | [SHGAT Subprocess Training](./ADR-053-shgat-subprocess-per-training.md)                     | accepted   | done           | Subprocess non-blocking training + PER                |
 
 ---
 
 ## By Status
 
-### Accepted (37)
+### Accepted (35)
 
-ADR-001, 002, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 020, 020b, 021,
-021b, 022, 023, 024, 025, 026, 028, 030, 032, 036, 038, 040, 041, 042, 043, 044, 045, 046, 047, 048
+ADR-001, 002, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 016, 020, 020b, 021,
+021b, 023, 024, 025, 026, 028, 030, 032, 036, 040, 041, 042, 043, 044, 045, 046, 047, 050, 051, 052, 053
 
 ### Draft (3)
 
@@ -100,11 +101,15 @@ ADR-017, ADR-029, ADR-031
 
 ADR-033, ADR-034, ADR-035, ADR-039, ADR-049
 
-### Superseded (3)
+### Superseded (7)
 
+- ADR-015 → remplacé par ADR-051 (SHGAT replaces alpha)
 - ADR-018 → consolidé dans ADR-020
 - ADR-019 → remplacé par ADR-020
+- ADR-022 → remplacé par ADR-051 (simplified formula)
 - ADR-027 → remplacé par ADR-028, ADR-032
+- ADR-038 → remplacé par ADR-051 (Search sections obsolete)
+- ADR-048 → remplacé par ADR-051 (SHGAT replaces heuristics)
 
 ### Rejected (1)
 
@@ -114,20 +119,20 @@ ADR-033, ADR-034, ADR-035, ADR-039, ADR-049
 
 ## By Implementation Status
 
-### Done (33)
+### Done (38)
 
 ADR-001, 002, 003, 004, 005, 007, 008, 009, 010, 011, 012, 013, 014, 015, 016, 018, 019, 020, 020b,
-021, 021b, 022, 023, 024, 025, 026, 030, 036, 041, 042, 043, 044, 045, 047, 048
+021, 021b, 022, 023, 024, 025, 026, 030, 036, 038, 041, 042, 043, 044, 045, 047, 048, 050, 051, 052, 053
 
 ### In Progress (2)
 
 ADR-028, ADR-032
 
-### Partial (3)
+### Partial (2)
 
-ADR-006, ADR-017, ADR-038
+ADR-006, ADR-017
 
-### Not Started (11)
+### Not Started (9)
 
 ADR-027, 029, 031, 033, 034, 035, 037, 039, 040, 046, 049
 
@@ -139,4 +144,4 @@ ADR-027, 029, 031, 033, 034, 035, 037, 039, 040, 046, 049
   [architecture-decision-records-adrs.md](../architecture/architecture-decision-records-adrs.md)
 - **Numérotation dupliquée** : ADR-020 et ADR-021 ont des doublons (020b, 021b) - à renommer
 - Pour changer un status, éditer ce fichier ET ajouter frontmatter YAML dans l'ADR
-- **Couverture implémentation** : 33/49 (67%) done, 38/49 (78%) avec travail commencé ou terminé
+- **Couverture implémentation** : 38/53 (72%) done, 42/53 (79%) avec travail commencé ou terminé

@@ -1464,7 +1464,7 @@ const stats = await extractTraceFeatures(db, "code:filter", intent, context);
 #### Documentation
 
 - **Tech Spec (SHGAT):** `docs/sprint-artifacts/tech-spec-shgat-multihead-traces.md` (Section 13)
-- **Tech Spec (SWC):** `docs/tech-specs/swc-static-structure-detection.md` (Modular Code Operations)
+- **Architecture (SWC):** `docs/architecture/swc-static-structure-detection.md` (Core SWC, Literal Bindings)
 - **ADR-032:** Sandbox Worker RPC Bridge
 
 #### Bénéfices

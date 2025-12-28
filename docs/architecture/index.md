@@ -15,29 +15,38 @@
 
 ## Patterns
 
-### Novel Patterns (1-5)
+→ **[All Patterns Index](./patterns/index.md)**
 
-- [Novel Pattern Designs](./novel-pattern-designs.md)
-  - Pattern 1: DAG Builder with JSON Schema Dependency Detection
-  - Pattern 2: Context Budget Management
-  - Pattern 3: Speculative Execution with GraphRAG
-  - Pattern 4: 3-Loop Learning Architecture
-  - Pattern 5: Scoring Algorithms & Adaptive Alpha (ADR-015, 023, 024, 026, 038, 048)
+### Core Patterns (1-7)
 
-### Epic-Specific Patterns
+- [01 - DAG Builder JSON Schema](./patterns/01-dag-builder-json-schema.md)
+- [02 - Context Budget Management](./patterns/02-context-budget-management.md)
+- [03 - Speculative Execution](./patterns/03-speculative-execution-graphrag.md) - THE Feature
+- [04 - 3-Loop Learning](./patterns/04-3-loop-learning.md) - AIL/HIL
+- [05 - Scoring & Alpha](./patterns/05-scoring-algorithms-alpha.md)
+- [06 - Two-Level DAG](./patterns/06-two-level-dag.md) - Phase 2a
+- [07 - SHGAT Architecture](./patterns/07-shgat-architecture.md) - Modular
 
-- [Agent Code Execution (Epic 3)](./pattern-5-agent-code-execution-local-processing-epic-3.md) -
-  Sandbox, safe-to-fail
-- [Worker RPC Bridge (Epic 7)](./pattern-6-worker-rpc-bridge-emergent-capabilities-epic-7.md) -
-  Capabilities learning
-- [Hypergraph Visualization (Epic 8)](./pattern-7-hypergraph-capabilities-visualization-epic-8.md) -
-  Compound graphs
+### Epic-Specific Patterns (8-10)
+
+- [08 - Agent Code Execution](./patterns/08-agent-code-execution.md) - Epic 3
+- [09 - Worker RPC Bridge](./patterns/09-worker-rpc-bridge.md) - Epic 7
+- [10 - Hypergraph Visualization](./patterns/10-hypergraph-visualization.md) - Epic 8
 
 ## Implementation
 
 - [Implementation Patterns](./implementation-patterns.md) - Naming, code organization, error
   handling, logging
 - [Project Structure](./project-structure.md) - Directory layout, module boundaries
+
+## Static Analysis
+
+- [SWC Static Structure Detection](./swc-static-structure-detection.md) - ⭐ Core: AST parsing, code
+  operations, literal bindings, argument extraction
+
+## Tech-Specs
+
+- [Modular DAG Execution](../tech-specs/modular-dag-execution/index.md) - Phase 1/2, Two-Level DAG, SHGAT Learning
 
 ## Decisions
 
@@ -53,10 +62,12 @@
 | What is PML?         | [Executive Summary](./executive-summary.md)             |
 | What tech do we use? | [Technology Stack](./technology-stack-details.md)       |
 | Database schema?     | [Data Architecture](./data-architecture.md)             |
+| Architecture pattern?| [Patterns Index](./patterns/index.md)                   |
+| DAG/SHGAT details?   | [Tech-Specs](../tech-specs/modular-dag-execution/index.md) |
 | How to name things?  | [Implementation Patterns](./implementation-patterns.md) |
 | Why this decision?   | [ADR Index](../adrs/index.md)                           |
 | Epic status?         | [Epic Mapping](./epic-to-architecture-mapping.md)       |
 
 ---
 
-_Updated: 2025-12-17_
+_Updated: 2025-12-28_

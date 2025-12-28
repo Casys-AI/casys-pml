@@ -77,6 +77,92 @@ extract control flow, MCP tool calls, and parallel execution patterns.
 | Previous output: `{ content: file.content }` | ✅ Extracted | `type: "reference"` with node ID substitution |
 | Template literal: `` `${x}` ``               | ✅ Extracted | `type: "reference"`                           |
 
+### Literal Bindings (Story 10.2b - Option B)
+
+**Status:** ✅ IMPLEMENTED (2025-12-28)
+
+**Problem:** Local variable declarations with literal values were not tracked, causing argument resolution to fail for shorthand properties.
+
+```typescript
+// This code FAILED before the fix:
+const numbers = [10, 20, 30];     // ← VariableDeclaration NOT tracked
+mcp.math.sum({ numbers })         // ← { numbers: { type: "reference", expression: "numbers" }}
+
+// At runtime:
+resolveReference("numbers") → undefined  // ❌ ReferenceError
+```
+
+**Root Cause:** `handleVariableDeclarator` only tracked variables assigned from MCP calls (creating `variableBindings`), not literals.
+
+**Solution (Option B):** Track literal values separately in `literalBindings` and pass them to the execution context.
+
+#### Implementation
+
+| File | Change |
+|------|--------|
+| `src/capabilities/types.ts` | Added `literalBindings?: Record<string, JsonValue>` to `StaticStructure` |
+| `src/capabilities/static-structure-builder.ts` | Added `literalBindings` map + `isLiteralExpression()` + tracking in `handleVariableDeclarator` |
+| `src/mcp/handlers/code-execution-handler.ts` | Spread `staticStructure.literalBindings` into `executionContext` |
+
+#### How It Works
+
+```typescript
+// 1. static-structure-builder detects the literal:
+private handleVariableDeclarator(n, nodes, position, ...) {
+  const init = n.init;
+  if (variableName && init && this.isLiteralExpression(init)) {
+    const literalValue = this.extractLiteralValue(init);
+    this.literalBindings.set(variableName, literalValue);
+    return; // Don't recurse - no nodes to create
+  }
+  // ... existing logic for MCP results
+}
+
+// 2. buildStaticStructure returns literalBindings:
+return { nodes, edges, variableBindings, literalBindings };
+
+// 3. code-execution-handler passes to context:
+const executionContext = {
+  parameters: request.context || {},
+  ...staticStructure.literalBindings,  // ← { numbers: [10, 20, 30] }
+};
+
+// 4. argument-resolver uses existing fallback (line 182-189):
+if (rootPart in context) {
+  return context[rootPart];  // ← context["numbers"] → [10, 20, 30] ✅
+}
+```
+
+#### Supported Literal Types
+
+| Type | Example | Tracked |
+|------|---------|---------|
+| Array literal | `const arr = [1, 2, 3]` | ✅ |
+| Object literal | `const obj = { a: 1 }` | ✅ |
+| Nested arrays | `const m = [[1,2], [3,4]]` | ✅ |
+| String | `const s = "hello"` | ✅ |
+| Number | `const n = 42` | ✅ |
+| Boolean | `const b = true` | ✅ |
+| Null | `const x = null` | ✅ |
+
+#### NOT Supported (v1)
+
+| Type | Example | Reason |
+|------|---------|--------|
+| Computed expressions | `const x = a + b` | Requires evaluation |
+| Function calls | `const x = foo()` | Runtime-only |
+| `let` mutations | `let x = 1; x++` | Dynamic value |
+| Async/await | `const x = await fn()` | Runtime-only (unless MCP call) |
+
+#### Tests
+
+See `tests/unit/capabilities/static-structure-code-ops.test.ts`:
+- `literalBindings tracks array literals`
+- `literalBindings tracks object literals`
+- `literalBindings tracks primitive literals`
+- `literalBindings does NOT track MCP results`
+- `literalBindings works with nested arrays`
+
 ## Not Detected (TODO)
 
 ### Loops
@@ -475,6 +561,7 @@ graph.addEdge("code:map", "code:sort", { type: "sequence" });
 
 ## Changelog
 
+- **2025-12-28:** Added Literal Bindings (Story 10.2b - Option B) for local variable resolution
 - **2025-12-26:** Added modular code operations detection with WorkerBridge tracing (Phase 1)
 - **2025-12-26:** Added Array Operations (Phase 1 - Planned) section with `code:*` pseudo-tools
 - **2025-12-22:** Added `Promise.all(arr.map(fn))` detection with literal array unrolling

@@ -138,8 +138,8 @@ const code = originalCode.substring(span.start, span.end);
 **Design Documents (this folder):**
 
 - [impact-analysis.md](./impact-analysis.md) - Detailed code impact analysis
-- [swc-static-structure-detection.md](./swc-static-structure-detection.md) - Current SWC detection
-  patterns
+- [swc-static-structure-detection.md](../../architecture/swc-static-structure-detection.md) - ⭐
+  **Moved to Architecture** - Core SWC detection patterns, literal bindings
 - [parseable-code-patterns.md](./parseable-code-patterns.md) - All detectable JS patterns
 - [modular-operations-implementation.md](./modular-operations-implementation.md) - Pseudo-tools
   implementation
