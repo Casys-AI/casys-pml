@@ -452,10 +452,107 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Change Log
 
+- 2025-12-28: **Story 10.2b Extension** - Literal Bindings for local variable resolution (Claude Opus 4.5)
 - 2025-12-19: Story context created by BMM create-story workflow (Claude Opus 4.5)
 - 2025-12-19: Implementation completed (Claude Opus 4.5) - All AC met, 22 tests passing
 - 2025-12-19: Code review fixes - AC7 wording corrected, File List updated, checkboxes completed
   (Claude Opus 4.5)
+
+---
+
+## Extension: Story 10.2b - Literal Bindings (Option B)
+
+**Status:** ✅ IMPLEMENTED (2025-12-28)
+
+### Problem Discovered
+
+After Story 10.2 implementation, a critical gap was discovered: **local variable declarations with
+literal values were not tracked**, causing argument resolution to fail for shorthand properties:
+
+```typescript
+// This code FAILED:
+const numbers = [10, 20, 30];     // ← VariableDeclaration NOT tracked
+mcp.math.sum({ numbers })         // ← { numbers: { type: "reference", expression: "numbers" }}
+
+// At runtime:
+resolveReference("numbers") → undefined  // ❌ Bug!
+```
+
+**Root Cause:** `handleVariableDeclarator` only tracked variables assigned from MCP calls (creating
+`variableBindings` → node ID mapping), not literals.
+
+### Solution: Option B - literalBindings
+
+Instead of inlining literals at static analysis time (Option A), we chose **Option B**: track
+literal values separately and pass them to the execution context.
+
+**Why Option B:**
+- More extensible for future features (mutations, reassignments)
+- Follows existing design intent (argument-resolver already has fallback for local variables)
+- Cleaner separation of concerns
+
+### Implementation
+
+| File | Change |
+|------|--------|
+| `src/capabilities/types.ts` | `literalBindings?: Record<string, JsonValue>` already existed (Story 10.2) |
+| `src/capabilities/static-structure-builder.ts` | Added `literalBindings` map, `isLiteralExpression()`, tracking in `handleVariableDeclarator` |
+| `src/mcp/handlers/code-execution-handler.ts` | Spread `staticStructure.literalBindings` into `executionContext` |
+
+### Flow
+
+```typescript
+// 1. static-structure-builder detects the literal:
+if (variableName && init && this.isLiteralExpression(init)) {
+  this.literalBindings.set(variableName, this.extractLiteralValue(init));
+}
+
+// 2. buildStaticStructure returns:
+{ nodes, edges, variableBindings, literalBindings }
+
+// 3. code-execution-handler passes to context:
+const executionContext = {
+  parameters: request.context || {},
+  ...staticStructure.literalBindings,  // ← { numbers: [10, 20, 30] }
+};
+
+// 4. argument-resolver uses existing fallback (line 182-189):
+if (rootPart in context) {
+  return context[rootPart];  // ← Works! ✅
+}
+```
+
+### Supported Types
+
+| Type | Example | Tracked |
+|------|---------|---------|
+| Array | `[1, 2, 3]` | ✅ |
+| Object | `{ a: 1 }` | ✅ |
+| String/Number/Boolean | `"test"`, `42`, `true` | ✅ |
+| Nested structures | `[[1,2], [3,4]]` | ✅ |
+
+### NOT Supported (v1)
+
+| Type | Reason |
+|------|--------|
+| Computed expressions (`a + b`) | Requires evaluation |
+| Function calls (`foo()`) | Runtime-only |
+| `let` mutations | Dynamic value |
+
+### Tests Added
+
+See `tests/unit/capabilities/static-structure-code-ops.test.ts`:
+- `literalBindings tracks array literals`
+- `literalBindings tracks object literals`
+- `literalBindings tracks primitive literals`
+- `literalBindings does NOT track MCP results`
+- `literalBindings works with nested arrays`
+
+### Documentation
+
+Full technical details: [SWC Static Structure Detection](../architecture/swc-static-structure-detection.md#literal-bindings-story-102b---option-b)
+
+---
 
 ### File List
 
