@@ -54,6 +54,9 @@ export default function Dashboard({ data }: { data: DashboardData }) {
         </script>
         {/* fCoSE layout - faster with better component packing */}
         <script defer src="https://unpkg.com/cytoscape-fcose@2.2.0/cytoscape-fcose.js"></script>
+        {/* Cola layout - D3-like force simulation with live physics */}
+        <script defer src="https://unpkg.com/webcola@3.4.0/WebCola/cola.min.js"></script>
+        <script defer src="https://unpkg.com/cytoscape-cola@2.5.1/cytoscape-cola.js"></script>
         <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
         <style>
           {`

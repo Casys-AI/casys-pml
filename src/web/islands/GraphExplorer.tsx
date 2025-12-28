@@ -353,11 +353,40 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
     }
   };
 
-  const selectSearchResult = (result: ToolSearchResult) => {
-    setHighlightedNode(result.tool_id);
+  const selectSearchResult = async (result: ToolSearchResult) => {
     setShowResults(false);
     setSearchQuery("");
 
+    // In Capabilities mode, find which capability contains this tool and highlight it
+    if (viewMode === "capabilities") {
+      try {
+        // Fetch capability that contains this tool
+        const response = await fetch(
+          `${apiBase}/api/capabilities/by-tool?tool_id=${encodeURIComponent(result.tool_id)}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          if (data.capability_id) {
+            setHighlightedNode(data.capability_id);
+            setBreadcrumbs((prev) => {
+              const existing = prev.findIndex((b) => b.id === data.capability_id);
+              if (existing >= 0) return prev.slice(0, existing + 1);
+              return [...prev, {
+                id: data.capability_id,
+                label: data.capability_name || result.name,
+                server: result.server
+              }];
+            });
+            return;
+          }
+        }
+      } catch (error) {
+        console.error("[Search] Failed to find capability for tool:", error);
+      }
+    }
+
+    // Fallback: highlight the tool directly (works in Tools mode)
+    setHighlightedNode(result.tool_id);
     setBreadcrumbs((prev) => {
       const existing = prev.findIndex((b) => b.id === result.tool_id);
       if (existing >= 0) return prev.slice(0, existing + 1);

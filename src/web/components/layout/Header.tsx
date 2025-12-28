@@ -22,6 +22,8 @@ export default function Header({ user, isCloudMode, children }: HeaderProps) {
         background: "rgba(10, 9, 8, 0.9)",
         backdropFilter: "blur(12px)",
         borderBottom: "1px solid var(--border, rgba(255, 184, 111, 0.1))",
+        position: "relative",
+        zIndex: 100,
       }}
     >
       {/* Left: Back to Home */}

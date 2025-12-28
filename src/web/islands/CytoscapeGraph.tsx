@@ -143,6 +143,7 @@ interface CapabilityNode {
   toolInvocations?: ToolInvocation[]; // Full sequence with timestamps
   parentCapabilityId?: string;
   traces?: ExecutionTrace[]; // Story 11.4: Recent execution traces
+  pagerank?: number; // Hypergraph pagerank for importance sizing
 }
 
 interface ToolNode {
@@ -209,7 +210,7 @@ export interface ToolData {
 }
 
 /** View mode for the graph */
-export type ViewMode = "capabilities" | "tools";
+export type ViewMode = "capabilities" | "tools" | "graph";
 
 /** Node mode - definition (generic tools) vs invocation (actual calls) */
 export type NodeMode = "definition" | "invocation";
@@ -449,6 +450,50 @@ export default function CytoscapeGraph({
         "text-margin-y": 5,
         width: "mapData(pagerank, 0, 0.1, 20, 45)",
         height: "mapData(pagerank, 0, 0.1, 20, 45)",
+        shape: "ellipse",
+      },
+    },
+    // Capability hub nodes (for Graph mode - regular nodes, not compound)
+    // Color darkness based on hierarchy level (meta-capabilities = darker)
+    // Size based on pagerank (importance in graph)
+    {
+      selector: 'node[type="capability_hub"]',
+      style: {
+        "background-color": "data(color)",
+        // Opacity based on hierarchy level: level 1=0.5, higher=darker (up to 1.0)
+        "background-opacity": "mapData(levelNorm, 0, 1, 0.5, 1.0)",
+        "border-color": "#fff",
+        "border-width": 2,
+        label: "data(label)",
+        "text-valign": "bottom",
+        "text-halign": "center",
+        "font-size": "10px",
+        "font-weight": "bold",
+        color: "#fff",
+        "text-margin-y": 6,
+        // Size based on pagerank (hypergraph importance)
+        width: "mapData(pagerank, 0, 0.15, 35, 80)",
+        height: "mapData(pagerank, 0, 0.15, 35, 80)",
+        shape: "ellipse",
+      },
+    },
+    // Tool nodes in Graph mode (pale/light colors)
+    {
+      selector: 'node[type="tool_light"]',
+      style: {
+        "background-color": "data(color)",
+        "background-opacity": 0.35, // Very pale
+        "border-color": "data(color)",
+        "border-width": 1,
+        "border-opacity": 0.6,
+        label: "data(label)",
+        "text-valign": "bottom",
+        "text-halign": "center",
+        "font-size": "8px",
+        color: "#a0a0a0",
+        "text-margin-y": 4,
+        width: "mapData(pagerank, 0, 0.1, 15, 35)",
+        height: "mapData(pagerank, 0, 0.1, 15, 35)",
         shape: "ellipse",
       },
     },
@@ -754,6 +799,7 @@ export default function CytoscapeGraph({
               codeSnippet: d.code_snippet,
               communityId: d.community_id,
               traces, // Story 11.4
+              pagerank: d.pagerank ?? 0, // Hypergraph pagerank for importance sizing
             });
           }
         } else if (d.type === "tool") {
@@ -898,6 +944,9 @@ export default function CytoscapeGraph({
     if (viewMode === "capabilities") {
       // Capabilities mode: hierarchical with expand/collapse
       renderCapabilitiesMode(elements, data, nodeMode);
+    } else if (viewMode === "graph") {
+      // Graph mode: true force-directed with deduplicated tools and all edges
+      renderGraphMode(elements, data);
     } else {
       // Tools mode: flat tools with capability badges
       renderToolsMode(elements, data);
@@ -1259,6 +1308,161 @@ export default function CytoscapeGraph({
     }
   };
 
+  /**
+   * Graph mode: True force-directed graph with deduplicated tools
+   * Shows tools as single nodes connected by edges (capability-tool and tool-tool)
+   * Capabilities are regular nodes (not compound containers)
+   * Color gradient: tools=pale, capabilities darker based on hierarchy level
+   */
+  const renderGraphMode = (
+    elements: Array<{ group: "nodes" | "edges"; data: Record<string, unknown> }>,
+    data: TransformedData,
+  ) => {
+    // Calculate hierarchy level for each capability
+    // Level 1 = calls only tools, Level 2+ = calls other capabilities
+    const capabilityIds = new Set(data.capabilities.map((c) => c.id));
+    const capabilityChildren = new Map<string, Set<string>>(); // cap -> child caps
+
+    // Build cap→cap relationships from edges
+    for (const edge of data.edges) {
+      if (capabilityIds.has(edge.source) && capabilityIds.has(edge.target)) {
+        if (!capabilityChildren.has(edge.source)) {
+          capabilityChildren.set(edge.source, new Set());
+        }
+        capabilityChildren.get(edge.source)!.add(edge.target);
+      }
+    }
+
+    // Calculate level for each capability (recursive)
+    const levelCache = new Map<string, number>();
+    const getCapabilityLevel = (capId: string, visited: Set<string> = new Set()): number => {
+      if (levelCache.has(capId)) return levelCache.get(capId)!;
+      if (visited.has(capId)) return 1; // Cycle protection
+
+      visited.add(capId);
+      const children = capabilityChildren.get(capId);
+
+      if (!children || children.size === 0) {
+        // No child capabilities = simple capability (level 1)
+        levelCache.set(capId, 1);
+        return 1;
+      }
+
+      // Has child capabilities = meta-capability (level = 1 + max child level)
+      let maxChildLevel = 0;
+      for (const childId of children) {
+        maxChildLevel = Math.max(maxChildLevel, getCapabilityLevel(childId, visited));
+      }
+      const level = 1 + maxChildLevel;
+      levelCache.set(capId, level);
+      return level;
+    };
+
+    // Compute all levels
+    for (const cap of data.capabilities) {
+      getCapabilityLevel(cap.id);
+    }
+    const maxLevel = Math.max(1, ...Array.from(levelCache.values()));
+
+    // Add capability nodes with hierarchy level for color gradient
+    for (const cap of data.capabilities) {
+      const baseColor = getCapabilityColor(cap.id, cap.communityId);
+      const shortName = cap.name.length > 12 ? cap.name.slice(0, 10) + "..." : cap.name;
+      const level = levelCache.get(cap.id) || 1;
+      // Logarithmic normalization for better distinction with many levels
+      // log(level+1) / log(maxLevel+1) gives smoother gradient for deep hierarchies
+      const levelNorm = Math.log(level + 1) / Math.log(maxLevel + 1);
+
+      elements.push({
+        group: "nodes",
+        data: {
+          id: cap.id,
+          label: shortName,
+          type: "capability_hub",
+          usageCount: cap.usageCount,
+          successRate: cap.successRate,
+          color: baseColor,
+          level, // Hierarchy level
+          levelNorm, // Normalized for styling
+          pagerank: cap.pagerank || 0,
+        },
+      });
+    }
+
+    // Add deduplicated tool nodes (level 0 = palest)
+    for (const tool of data.tools) {
+      const color = getServerColor(tool.server);
+
+      elements.push({
+        group: "nodes",
+        data: {
+          id: tool.id,
+          label: tool.name,
+          type: "tool_light", // Pale style for graph mode
+          server: tool.server,
+          pagerank: tool.pagerank,
+          color,
+          level: 0,
+          capabilities: tool.parentCapabilities,
+        },
+      });
+    }
+
+    // Add capability-to-tool edges
+    for (const tool of data.tools) {
+      for (const capId of tool.parentCapabilities) {
+        elements.push({
+          group: "edges",
+          data: {
+            id: `cap-tool-${capId}-${tool.id}`,
+            source: capId,
+            target: tool.id,
+            edgeType: "hierarchy",
+            weight: 1,
+          },
+        });
+      }
+    }
+
+    // Add all tool-to-tool edges (sequence, provides, dependency)
+    for (const edge of data.edges) {
+      const sourceIsTool = data.tools.some((t) => t.id === edge.source);
+      const targetIsTool = data.tools.some((t) => t.id === edge.target);
+
+      if (sourceIsTool && targetIsTool) {
+        elements.push({
+          group: "edges",
+          data: {
+            id: `tool-${edge.source}-${edge.target}`,
+            source: edge.source,
+            target: edge.target,
+            edgeType: edge.edgeType,
+            weight: edge.weight,
+          },
+        });
+      }
+    }
+
+    // Add capability-to-capability edges
+    for (const edge of data.edges) {
+      const sourceIsCap = data.capabilities.some((c) => c.id === edge.source);
+      const targetIsCap = data.capabilities.some((c) => c.id === edge.target);
+
+      if (sourceIsCap && targetIsCap) {
+        elements.push({
+          group: "edges",
+          data: {
+            id: `cap-${edge.source}-${edge.target}`,
+            source: edge.source,
+            target: edge.target,
+            edgeType: edge.edgeType || "dependency",
+            weight: edge.weight,
+          },
+        });
+      }
+    }
+  };
+
   const runLayout = (fit = true) => {
     const cy = cyRef.current;
     if (!cy) return;
@@ -1294,6 +1498,27 @@ export default function CytoscapeGraph({
         tilingPaddingVertical: 10,
         tilingPaddingHorizontal: 10,
         // Randomize for consistent results
+        randomize: true,
+      }).run();
+    } else if (viewMode === "graph") {
+      // Graph mode: cola layout with live forces (D3-like simulation)
+      cy.layout({
+        name: "cola",
+        animate: true,
+        refresh: 1, // Refresh rate for live simulation
+        maxSimulationTime: 4000, // Run simulation for 4 seconds
+        ungrabifyWhileSimulating: false, // Allow dragging during simulation
+        fit,
+        padding: 30,
+        nodeDimensionsIncludeLabels: true,
+        // Force parameters
+        nodeSpacing: 40,
+        edgeLength: 120,
+        // Prevent overlap
+        avoidOverlap: true,
+        // Handle disconnected components
+        handleDisconnected: true,
+        // Randomize initial positions
         randomize: true,
       }).run();
     } else {
@@ -1453,13 +1678,18 @@ export default function CytoscapeGraph({
   };
 
   // Handle external highlight changes
+  // Re-apply highlight when viewMode changes (after graph rebuild)
   useEffect(() => {
     if (highlightedNodeId) {
-      highlightNode(highlightedNodeId);
+      // Small delay to ensure graph is rebuilt after viewMode change
+      const timer = setTimeout(() => {
+        highlightNode(highlightedNodeId);
+      }, 100);
+      return () => clearTimeout(timer);
     } else {
       clearHighlight();
     }
-  }, [highlightedNodeId, highlightDepth]);
+  }, [highlightedNodeId, highlightDepth, viewMode]);
 
   // Handle path highlighting
   useEffect(() => {
