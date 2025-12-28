@@ -562,12 +562,27 @@ async function executeDirectMode(
         ).length;
         const hasAnyFailure = physicalResults.failedTasks > 0 || failedSafeTasks > 0;
 
-        if (failedSafeTasks > 0) {
-          log.info(
-            "[pml:execute] Code tasks failed (safe-to-fail), capability will be saved with success=false",
+        // Fix: Do NOT save capability when any task fails (including safe-to-fail)
+        // Capabilities should only be saved for successful executions
+        if (hasAnyFailure) {
+          const failedResults = physicalResults.results.filter(
+            (r) => r.status === "error" || r.status === "failed_safe",
+          );
+          const firstError = failedResults[0]?.error ?? physicalResults.errors[0]?.error ?? "Unknown error";
+
+          log.info("[pml:execute] Execution failed, NOT saving capability", {
+            failedSafeTasks,
+            failedTasks: physicalResults.failedTasks,
+            firstError,
+          });
+
+          return formatMCPToolError(
+            `Code execution failed: ${firstError}`,
             {
-              failedSafeTasks,
               failedTasks: physicalResults.failedTasks,
+              failedSafeTasks,
+              errors: physicalResults.errors,
+              executionTimeMs,
             },
           );
         }
@@ -591,11 +606,12 @@ async function executeDirectMode(
           }
         }
 
+        // At this point, all tasks succeeded (we returned early on failure above)
         const { capability, trace } = await deps.capabilityStore.saveCapability({
           code,
           intent,
           durationMs: Math.round(executionTimeMs),
-          success: !hasAnyFailure,
+          success: true, // Only save successful executions
           toolsUsed: toolsCalled,
           traceData: {
             executedPath: toolsCalled,
