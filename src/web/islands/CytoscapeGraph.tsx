@@ -1364,14 +1364,16 @@ export default function CytoscapeGraph({
     }
     const maxLevel = Math.max(1, ...Array.from(levelCache.values()));
 
+    // Base color for hierarchy gradient (same for all nodes in graph mode)
+    const HIERARCHY_BASE_COLOR = "#8b5cf6"; // Violet base
+
     // Add capability nodes with hierarchy level for color gradient
     for (const cap of data.capabilities) {
-      const baseColor = getCapabilityColor(cap.id, cap.communityId);
       const shortName = cap.name.length > 12 ? cap.name.slice(0, 10) + "..." : cap.name;
       const level = levelCache.get(cap.id) || 1;
-      // Logarithmic normalization for better distinction with many levels
-      // log(level+1) / log(maxLevel+1) gives smoother gradient for deep hierarchies
-      const levelNorm = Math.log(level + 1) / Math.log(maxLevel + 1);
+      // Normalize level: tools=0, caps start at 1, so we normalize including tools
+      // levelNorm goes from ~0.3 (level 1) to 1.0 (maxLevel)
+      const levelNorm = (level) / (maxLevel + 1);
 
       elements.push({
         group: "nodes",
@@ -1381,18 +1383,16 @@ export default function CytoscapeGraph({
           type: "capability_hub",
           usageCount: cap.usageCount,
           successRate: cap.successRate,
-          color: baseColor,
+          color: HIERARCHY_BASE_COLOR,
           level, // Hierarchy level
-          levelNorm, // Normalized for styling
+          levelNorm, // Normalized for styling (0.3-1.0 range for caps)
           pagerank: cap.pagerank || 0,
         },
       });
     }
 
-    // Add deduplicated tool nodes (level 0 = palest)
+    // Add deduplicated tool nodes (level 0 = palest in hierarchy gradient)
     for (const tool of data.tools) {
-      const color = getServerColor(tool.server);
-
       elements.push({
         group: "nodes",
         data: {
@@ -1401,8 +1401,9 @@ export default function CytoscapeGraph({
           type: "tool_light", // Pale style for graph mode
           server: tool.server,
           pagerank: tool.pagerank,
-          color,
+          color: HIERARCHY_BASE_COLOR,
           level: 0,
+          levelNorm: 0, // Tools are level 0
           capabilities: tool.parentCapabilities,
         },
       });
@@ -1424,12 +1425,13 @@ export default function CytoscapeGraph({
       }
     }
 
-    // Add all tool-to-tool edges (sequence, provides, dependency)
+    // Add tool-to-tool edges (only "provides" - skip "sequence" which is execution-time)
     for (const edge of data.edges) {
       const sourceIsTool = data.tools.some((t) => t.id === edge.source);
       const targetIsTool = data.tools.some((t) => t.id === edge.target);
 
-      if (sourceIsTool && targetIsTool) {
+      // Only show static data flow edges, not execution sequence
+      if (sourceIsTool && targetIsTool && edge.edgeType === "provides") {
         elements.push({
           group: "edges",
           data: {
@@ -1443,19 +1445,21 @@ export default function CytoscapeGraph({
       }
     }
 
-    // Add capability-to-capability edges
+    // Add capability-to-capability edges (only structural: contains, dependency)
     for (const edge of data.edges) {
       const sourceIsCap = data.capabilities.some((c) => c.id === edge.source);
       const targetIsCap = data.capabilities.some((c) => c.id === edge.target);
 
-      if (sourceIsCap && targetIsCap) {
+      // Only show structural edges, not execution sequence
+      const edgeType = edge.edgeType || "dependency";
+      if (sourceIsCap && targetIsCap && (edgeType === "contains" || edgeType === "dependency")) {
         elements.push({
           group: "edges",
           data: {
             id: `cap-${edge.source}-${edge.target}`,
             source: edge.source,
             target: edge.target,
-            edgeType: edge.edgeType || "dependency",
+            edgeType,
             weight: edge.weight,
           },
         });

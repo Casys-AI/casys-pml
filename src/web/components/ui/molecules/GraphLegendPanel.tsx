@@ -143,24 +143,82 @@ export default function GraphLegendPanel({
         </>
       )}
 
-      {/* MCP Servers */}
-      <h3
-        class="text-xs font-semibold uppercase tracking-widest mb-3"
-        style={{ color: "var(--text-dim)" }}
-      >
-        MCP Servers
-      </h3>
-      {Array.from(servers).map((server) => (
-        <Badge
-          key={server}
-          color={getServerColor(server)}
-          label={server}
-          active={!hiddenServers.has(server)}
-          onClick={() => onToggleServer(server)}
-        />
-      ))}
+      {/* Hierarchy Legend (Graph mode) */}
+      {viewMode === "graph" && (
+        <>
+          <h3
+            class="text-xs font-semibold uppercase tracking-widest mb-3"
+            style={{ color: "var(--text-dim)" }}
+          >
+            Hierarchy Level
+          </h3>
+          <div class="flex flex-col gap-2 mb-3">
+            {/* Level 0 - Tools */}
+            <div class="flex items-center gap-2">
+              <div
+                class="w-4 h-4 rounded-full"
+                style={{ background: "#8b5cf6", opacity: 0.35 }}
+              />
+              <span class="text-xs" style={{ color: "var(--text-muted)" }}>
+                Tools (level 0)
+              </span>
+            </div>
+            {/* Level 1 - Capabilities */}
+            <div class="flex items-center gap-2">
+              <div
+                class="w-4 h-4 rounded-full"
+                style={{ background: "#8b5cf6", opacity: 0.6 }}
+              />
+              <span class="text-xs" style={{ color: "var(--text-muted)" }}>
+                Capabilities (level 1)
+              </span>
+            </div>
+            {/* Level 2 - Meta-capabilities */}
+            <div class="flex items-center gap-2">
+              <div
+                class="w-4 h-4 rounded-full"
+                style={{ background: "#8b5cf6", opacity: 0.8 }}
+              />
+              <span class="text-xs" style={{ color: "var(--text-muted)" }}>
+                Meta-caps (level 2)
+              </span>
+            </div>
+            {/* Level 3+ - Deep meta */}
+            <div class="flex items-center gap-2">
+              <div
+                class="w-4 h-4 rounded-full"
+                style={{ background: "#8b5cf6", opacity: 1.0 }}
+              />
+              <span class="text-xs" style={{ color: "var(--text-muted)" }}>
+                Deep meta (level 3+)
+              </span>
+            </div>
+          </div>
+          <Divider />
+        </>
+      )}
 
-      <Divider />
+      {/* MCP Servers (Capabilities/Tools modes only) */}
+      {viewMode !== "graph" && (
+        <>
+          <h3
+            class="text-xs font-semibold uppercase tracking-widest mb-3"
+            style={{ color: "var(--text-dim)" }}
+          >
+            MCP Servers
+          </h3>
+          {Array.from(servers).map((server) => (
+            <Badge
+              key={server}
+              color={getServerColor(server)}
+              label={server}
+              active={!hiddenServers.has(server)}
+              onClick={() => onToggleServer(server)}
+            />
+          ))}
+          <Divider />
+        </>
+      )}
 
       {/* Orphan toggle */}
       <Badge
