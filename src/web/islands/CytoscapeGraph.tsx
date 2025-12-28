@@ -65,6 +65,8 @@ interface ApiNodeData {
   ts?: number; // Timestamp when invocation started
   duration_ms?: number; // Execution duration
   sequence_index?: number; // Sequence index within capability
+  // Timeline fields
+  last_used?: string; // ISO timestamp for timeline sorting
 }
 
 interface ApiNode {
@@ -144,6 +146,7 @@ interface CapabilityNode {
   parentCapabilityId?: string;
   traces?: ExecutionTrace[]; // Story 11.4: Recent execution traces
   pagerank?: number; // Hypergraph pagerank for importance sizing
+  lastUsed?: string; // ISO timestamp for timeline sorting
 }
 
 interface ToolNode {
@@ -265,6 +268,41 @@ const CAPABILITY_COLORS = [
   "#06b6d4", // cyan
   "#84cc16", // lime
 ];
+
+/**
+ * Timeline bucket for capability grouping by last used date
+ */
+type TimelineBucket = "today" | "yesterday" | "this_week" | "this_month" | "older";
+
+const TIMELINE_LABELS: Record<TimelineBucket, string> = {
+  today: "Aujourd'hui",
+  yesterday: "Hier",
+  this_week: "Cette semaine",
+  this_month: "Ce mois",
+  older: "Plus ancien",
+};
+
+const TIMELINE_ORDER: TimelineBucket[] = ["today", "yesterday", "this_week", "this_month", "older"];
+
+/**
+ * Classify an ISO date string into a timeline bucket
+ */
+function getTimelineBucket(isoDate: string | undefined): TimelineBucket {
+  if (!isoDate) return "older";
+
+  const date = new Date(isoDate);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+  const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  if (date >= today) return "today";
+  if (date >= yesterday) return "yesterday";
+  if (date >= weekAgo) return "this_week";
+  if (date >= monthAgo) return "this_month";
+  return "older";
+}
 
 export default function CytoscapeGraph({
   apiBase,
@@ -513,6 +551,25 @@ export default function CytoscapeGraph({
         width: 28,
         height: 28,
         shape: "diamond", // Diamond shape to distinguish from regular tools
+      },
+    },
+    // Timeline separator nodes (horizontal dividers between time periods)
+    {
+      selector: 'node[type="timeline_separator"]',
+      style: {
+        "background-color": "transparent",
+        "background-opacity": 0,
+        "border-width": 0,
+        label: "data(label)",
+        "text-valign": "center",
+        "text-halign": "center",
+        "font-size": "11px",
+        "font-weight": "bold",
+        color: "var(--text-dim, #8b8685)",
+        width: 200,
+        height: 24,
+        shape: "rectangle",
+        "text-wrap": "none",
       },
     },
     // Edges - hierarchy (capability → tool)
@@ -800,6 +857,7 @@ export default function CytoscapeGraph({
               communityId: d.community_id,
               traces, // Story 11.4
               pagerank: d.pagerank ?? 0, // Hypergraph pagerank for importance sizing
+              lastUsed: d.last_used, // ISO timestamp for timeline sorting
             });
           }
         } else if (d.type === "tool") {
@@ -975,27 +1033,65 @@ export default function CytoscapeGraph({
     // All capabilities are always expanded (bento mode)
     const allCapabilities = new Set(data.capabilities.map((c) => c.id));
 
-    // Add all capability nodes (always expanded style)
-    for (const cap of data.capabilities) {
-      const { tools, caps } = countChildren(cap.id);
-      const color = getCapabilityColor(cap.id, cap.communityId);
-      const shortName = cap.name.length > 20 ? cap.name.slice(0, 17) + "..." : cap.name;
+    // Sort capabilities by lastUsed date (most recent first)
+    const sortedCapabilities = [...data.capabilities].sort((a, b) => {
+      const dateA = a.lastUsed ? new Date(a.lastUsed).getTime() : 0;
+      const dateB = b.lastUsed ? new Date(b.lastUsed).getTime() : 0;
+      return dateB - dateA; // Descending (newest first)
+    });
 
+    // Group capabilities by timeline bucket
+    const bucketedCaps = new Map<TimelineBucket, CapabilityNode[]>();
+    for (const bucket of TIMELINE_ORDER) {
+      bucketedCaps.set(bucket, []);
+    }
+    for (const cap of sortedCapabilities) {
+      const bucket = getTimelineBucket(cap.lastUsed);
+      bucketedCaps.get(bucket)!.push(cap);
+    }
+
+    // Add timeline separator nodes and capability nodes in order
+    let separatorIndex = 0;
+    for (const bucket of TIMELINE_ORDER) {
+      const capsInBucket = bucketedCaps.get(bucket)!;
+      if (capsInBucket.length === 0) continue;
+
+      // Add timeline separator node (horizontal divider)
+      const separatorId = `timeline-${bucket}`;
       elements.push({
         group: "nodes",
         data: {
-          id: cap.id,
-          label: shortName,
-          type: "capability",
-          usageCount: cap.usageCount,
-          successRate: cap.successRate,
-          color,
-          bgColor: color,
-          childCount: tools + caps,
-          // Nested capabilities via contains edges
-          ...(cap.parentCapabilityId ? { parent: cap.parentCapabilityId } : {}),
+          id: separatorId,
+          label: `── ${TIMELINE_LABELS[bucket]} ──`,
+          type: "timeline_separator",
+          bucket,
+          order: separatorIndex++,
         },
       });
+
+      // Add capabilities in this bucket
+      for (const cap of capsInBucket) {
+        const { tools, caps } = countChildren(cap.id);
+        const color = getCapabilityColor(cap.id, cap.communityId);
+        const shortName = cap.name.length > 20 ? cap.name.slice(0, 17) + "..." : cap.name;
+
+        elements.push({
+          group: "nodes",
+          data: {
+            id: cap.id,
+            label: shortName,
+            type: "capability",
+            usageCount: cap.usageCount,
+            successRate: cap.successRate,
+            color,
+            bgColor: color,
+            childCount: tools + caps,
+            timelineBucket: bucket, // For layout grouping
+            // Nested capabilities via contains edges
+            ...(cap.parentCapabilityId ? { parent: cap.parentCapabilityId } : {}),
+          },
+        });
+      }
     }
 
     // Add tool nodes only in "definition" mode
@@ -1471,39 +1567,87 @@ export default function CytoscapeGraph({
     const cy = cyRef.current;
     if (!cy) return;
 
-    // Use fcose layout for capabilities (fast, good compound support, tight packing)
+    // Use grid layout for capabilities (timeline-sorted bento view)
     if (viewMode === "capabilities") {
+      // Get viewport dimensions for grid calculation
+      const width = cy.width();
+      const nodeWidth = 180; // Approximate capability node width
+      const nodeHeight = 100; // Approximate capability node height
+      const separatorHeight = 30;
+      const padding = 20;
+      const cols = Math.max(2, Math.floor((width - padding * 2) / (nodeWidth + padding)));
+
+      // Calculate positions for timeline-based grid layout
+      let currentY = padding;
+      const positions: Record<string, { x: number; y: number }> = {};
+
+      // Process nodes in order (separators followed by their capabilities)
+      const nodes = cy.nodes();
+      let currentBucket: string | null = null;
+      let colIndex = 0;
+
+      nodes.forEach((node: { data: (key: string) => unknown; id: () => string }) => {
+        const type = node.data("type") as string;
+        const id = node.id();
+
+        if (type === "timeline_separator") {
+          // Start new row for separator
+          if (currentBucket !== null) {
+            // Add space before new section
+            currentY += nodeHeight + padding * 2;
+          }
+          currentBucket = node.data("bucket") as string;
+          colIndex = 0;
+
+          // Center separator horizontally
+          positions[id] = {
+            x: width / 2,
+            y: currentY + separatorHeight / 2,
+          };
+          currentY += separatorHeight + padding;
+        } else if (type === "capability" && !node.data("parent")) {
+          // Position capability in grid
+          const x = padding + (colIndex % cols) * (nodeWidth + padding) + nodeWidth / 2;
+          const row = Math.floor(colIndex / cols);
+          const y = currentY + row * (nodeHeight + padding) + nodeHeight / 2;
+
+          positions[id] = { x, y };
+          colIndex++;
+
+          // Update currentY if we moved to a new row
+          const nextRow = Math.floor(colIndex / cols);
+          if (nextRow > row) {
+            currentY = y + nodeHeight / 2 + padding;
+          }
+        }
+      });
+
+      // Apply preset layout with calculated positions
       cy.layout({
-        name: "fcose",
+        name: "preset",
+        positions: (node: { id: () => string }) => positions[node.id()] || { x: 0, y: 0 },
         animate: true,
         animationDuration: fit ? 300 : 150,
         fit,
         padding: 20,
-        // Quality: default is much faster than "proof"
-        quality: "default",
-        nodeDimensionsIncludeLabels: true,
-        // Node spacing
-        nodeRepulsion: 4500,
-        idealEdgeLength: 50,
-        edgeElasticity: 0.45,
-        // Nesting for compound nodes
-        nestingFactor: 0.1,
-        // Gravity to pull nodes together
-        gravity: 0.25,
-        gravityRange: 3.8,
-        gravityCompound: 1.0,
-        gravityRangeCompound: 1.5,
-        // Iterations - reduced from 2500 for faster layout
-        numIter: 500,
-        // Pack disconnected components tightly together
-        packComponents: true,
-        // Tiling for degree-zero nodes
-        tile: true,
-        tilingPaddingVertical: 10,
-        tilingPaddingHorizontal: 10,
-        // Randomize for consistent results
-        randomize: true,
       }).run();
+
+      // Run grid on compound nodes (tools inside capabilities) after preset
+      setTimeout(() => {
+        // deno-lint-ignore no-explicit-any
+        cy.nodes('node[type="capability"]').forEach((capNode: any) => {
+          const children = capNode.children();
+          if (children.length > 0) {
+            children.layout({
+              name: "grid",
+              fit: false,
+              padding: 5,
+              avoidOverlap: true,
+              condense: true,
+            }).run();
+          }
+        });
+      }, 350);
     } else if (viewMode === "graph") {
       // Graph mode: cola layout with live forces (D3-like simulation)
       cy.layout({

@@ -808,6 +808,8 @@ export interface CapabilityNode {
     toolInvocations?: CapabilityToolInvocation[]; // Full sequence with timestamps (for invocation mode)
     /** Execution traces (Story 11.4) - included when includeTraces=true */
     traces?: ExecutionTrace[];
+    /** Last used timestamp (ISO format) for timeline sorting */
+    lastUsed?: string;
   };
 }
 
