@@ -84,11 +84,7 @@ import {
   saveCheckpointAfterLayer,
 } from "./checkpoints/integration.ts";
 import { getTaskType, isSafeToFail } from "./execution/task-router.ts";
-import {
-  type CodeExecutorDeps,
-  executeCodeTask,
-  executeWithRetry,
-} from "./execution/code-executor.ts";
+import { type CodeExecutorDeps } from "./execution/code-executor.ts";
 import {
   executeCapabilityTask,
   getCapabilityPermissionSet,
@@ -873,7 +869,16 @@ export class ControlledExecutor extends ParallelExecutor {
           `Code execution task ${task.id} missing required 'tool' field`
         );
       }
-      return await this.executeCodeTaskViaWorkerBridge(task, previousResults);
+      try {
+        return await this.executeCodeTaskViaWorkerBridge(task, previousResults);
+      } catch (error) {
+        // Convert permission errors to PermissionEscalationNeeded for layer-level handling
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (isPermissionError(errorMessage)) {
+          this.handleCodeTaskPermissionEscalation(task, errorMessage);
+        }
+        throw error;
+      }
     } else if (taskType === "capability") {
       return await this.executeCapabilityTaskWithEscalation(task, previousResults, deps);
     } else {

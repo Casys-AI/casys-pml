@@ -421,6 +421,9 @@ async function executeDirectMode(
           taskTimeout: options?.timeout ?? 30000,
         });
 
+        // Set WorkerBridge for code execution tracing (Story 10.5)
+        controlledExecutor.setWorkerBridge(executorContext.bridge);
+
         // Set up checkpoint manager for per-layer validation
         if (deps.checkpointManager) {
           controlledExecutor.setCheckpointManager(deps.db, true);
@@ -917,6 +920,9 @@ async function executeByNameMode(
           maxConcurrency: 5,
           taskTimeout: options?.timeout ?? 30000,
         });
+
+        // Set WorkerBridge for code execution tracing (Story 10.5)
+        controlledExecutor.setWorkerBridge(executorContext.bridge);
 
         // Per-layer validation check
         if (perLayerValidation && deps.workflowDeps) {
