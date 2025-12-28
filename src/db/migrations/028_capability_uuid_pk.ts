@@ -121,16 +121,14 @@ export function createCapabilityUuidPkMigration(): Migration {
       // 8. Update table comment
       // ============================================
       try {
-        await db.exec(`
-          COMMENT ON TABLE capability_records IS
-            'Capability registry with UUID PK. FQDN computed from org.project.namespace.action.hash. Epic 13 refactor.'
-        `);
-        await db.exec(`
-          COMMENT ON COLUMN capability_records.id IS
-            'Immutable UUID primary key - used in code references as mcp["$cap:<uuid>"]'
-        `);
+        await db.exec(
+          `COMMENT ON TABLE capability_records IS 'Capability registry with UUID PK. FQDN computed from org.project.namespace.action.hash. Epic 13 refactor.'`,
+        );
+        await db.exec(
+          `COMMENT ON COLUMN capability_records.id IS 'Immutable UUID primary key for stable code references'`,
+        );
       } catch {
-        // Comments are optional
+        // Comments are optional, may fail on PGlite
       }
 
       log.info("✓ Migration 028 complete: capability_records now uses UUID PK");
