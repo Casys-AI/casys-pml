@@ -579,8 +579,78 @@ graph.addEdge("code:map", "code:sort", { type: "sequence" });
 
 ---
 
+## Method Chaining Support (Story 10.2c)
+
+**Status:** ✅ IMPLEMENTED (2025-12-28)
+
+**Problem:** Only the outermost call was detected in chained method calls.
+
+```typescript
+// Only sort() was detected, filter() and map() were invisible
+const result = numbers.filter(x => x > 0).map(x => x * 2).sort();
+```
+
+**Solution:** Recursively process CallExpression nodes when `callee.object` is also a CallExpression.
+
+### Implementation
+
+**Key changes in `handleCallExpression()`:**
+
+1. **Span tracking** - Track processed spans to prevent duplicates
+2. **Recursive processing** - Process chained call BEFORE creating current node
+3. **Method code extraction** - Extract just `map(x => x * 2)`, not the whole chain
+4. **Edge metadata** - Store `chainedFrom` in node metadata for edge generation
+
+```typescript
+// Story 10.2c: Process chained call BEFORE creating current node
+let chainedInputNodeId: string | undefined;
+if (callee.type === "MemberExpression") {
+  const objectExpr = callee.object;
+  if (objectExpr?.type === "CallExpression") {
+    // Recursively process the chained call
+    const chainedResult = this.handleCallExpression(objectExpr, nodes, ...);
+    chainedInputNodeId = chainedResult.nodeId;
+  }
+}
+
+// When creating node, store chainedFrom in metadata
+metadata: {
+  chainedFrom: chainedInputNodeId, // For edge generation
+}
+```
+
+### Example
+
+```typescript
+// Input code
+const result = numbers.filter(n => n > 2).map(n => n * 2).sort();
+
+// Static structure detected (Story 10.2c)
+{
+  nodes: [
+    { id: "n1", type: "task", tool: "code:filter", code: "filter(n => n > 2)" },
+    { id: "n2", type: "task", tool: "code:map", code: "map(n => n * 2)" },
+    { id: "n3", type: "task", tool: "code:sort", code: "sort()" }
+  ],
+  edges: [
+    { from: "n1", to: "n2", type: "sequence" },  // filter → map
+    { from: "n2", to: "n3", type: "sequence" }   // map → sort
+  ]
+}
+```
+
+### Benefits
+
+- ✅ All operations in a chained call are detected
+- ✅ Proper edges created between chained operations
+- ✅ Code extraction shows just the method call, not the whole chain
+- ✅ SHGAT can learn from complete chained patterns
+
+---
+
 ## Changelog
 
+- **2025-12-28:** Added Method Chaining Support (Story 10.2c) - detects all operations in chained calls
 - **2025-12-28:** Added computed expression evaluation (a + b, -x, !flag, etc.) for literal bindings
 - **2025-12-28:** Added Literal Bindings (Story 10.2b - Option B) for local variable resolution
 - **2025-12-26:** Added modular code operations detection with WorkerBridge tracing (Phase 1)

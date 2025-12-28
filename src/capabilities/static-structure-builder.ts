@@ -68,6 +68,8 @@ interface NodeMetadata {
   nestingLevel?: number;
   /** Parent operation that contains this nested op (e.g., "code:map") */
   parentOperation?: string;
+  /** Story 10.2c: Node ID of the chained input (for method chaining) */
+  chainedFrom?: string;
 }
 
 type InternalNode =
@@ -154,6 +156,20 @@ export class StaticStructureBuilder {
   private literalBindings = new Map<string, JsonValue>();
 
   /**
+   * Tracks processed CallExpression spans to prevent double-processing
+   * (Story 10.2c - Method chaining support)
+   *
+   * When we recursively process chained calls like numbers.filter().map().sort(),
+   * we visit each CallExpression twice:
+   * - Once via normal AST traversal
+   * - Once via recursion from the parent chained call
+   *
+   * This set stores "start-end" keys to return the existing nodeId instead
+   * of creating duplicates.
+   */
+  private processedSpans = new Map<string, string>();
+
+  /**
    * Original source code for span extraction
    * Used to extract code operations via SWC spans
    */
@@ -179,6 +195,46 @@ export class StaticStructureBuilder {
     const relativeEnd = span.end - this.spanBaseOffset;
     // SWC uses 1-based positions, JavaScript substring uses 0-based
     return this.originalCode.substring(relativeStart - 1, relativeEnd - 1);
+  }
+
+  /**
+   * Extract just the method name and arguments from a CallExpression
+   * (Story 10.2c - Method chaining support)
+   *
+   * For chained calls like `numbers.filter(x => x > 0).map(x => x * 2).sort()`,
+   * we want to extract just `sort()` for the sort node, not the whole chain.
+   *
+   * @param callExpr The CallExpression AST node
+   * @param methodName The method name (e.g., "sort", "map", "filter")
+   * @returns Just the method call code (e.g., "sort()" or "map(x => x * 2)")
+   */
+  private extractMethodCode(
+    callExpr: Record<string, unknown>,
+    methodName: string,
+  ): string | undefined {
+    // Extract arguments code
+    const args = callExpr.arguments as Array<Record<string, unknown>> | undefined;
+    if (!args || args.length === 0) {
+      return `${methodName}()`;
+    }
+
+    // Try to extract each argument
+    const argStrings: string[] = [];
+    for (const arg of args) {
+      const argExpr = (arg?.expression as Record<string, unknown>) ?? arg;
+      const argSpan = argExpr?.span as { start: number; end: number } | undefined;
+      const argCode = this.extractCodeFromSpan(argSpan);
+      if (argCode) {
+        argStrings.push(argCode);
+      }
+    }
+
+    if (argStrings.length > 0) {
+      return `${methodName}(${argStrings.join(", ")})`;
+    }
+
+    // Fallback: just the method name with empty parens
+    return `${methodName}()`;
   }
 
   constructor(private db: DbClient) {
@@ -294,6 +350,7 @@ export class StaticStructureBuilder {
     };
     this.variableToNodeId.clear();
     this.literalBindings.clear();
+    this.processedSpans.clear();
   }
 
   /**
@@ -380,7 +437,7 @@ export class StaticStructureBuilder {
 
     // Check for MCP tool calls: mcp.server.tool()
     if (n.type === "CallExpression") {
-      const fullyHandled = this.handleCallExpression(
+      const result = this.handleCallExpression(
         n,
         nodes,
         position,
@@ -388,7 +445,7 @@ export class StaticStructureBuilder {
         nestingLevel,
         currentParentOp,
       );
-      if (fullyHandled) return; // Promise.all etc. handle their own children
+      if (result.handled) return; // Promise.all etc. handle their own children
     }
 
     // Check for binary operations (arithmetic, comparison, logical)
@@ -442,7 +499,12 @@ export class StaticStructureBuilder {
    * Option B: Accepts nestingLevel and currentParentOp for executable tracking.
    * Sets currentParentOp when entering array operations with callbacks.
    *
-   * @returns true if this node was fully handled (don't recurse into children)
+   * Story 10.2c: Supports method chaining by recursively processing chained calls
+   * BEFORE creating the current node, then creating edges between them.
+   *
+   * @returns Object with:
+   *   - nodeId: ID of the created task node (undefined if no task created)
+   *   - handled: true if children were fully handled (don't recurse further)
    */
   private handleCallExpression(
     n: Record<string, unknown>,
@@ -451,9 +513,37 @@ export class StaticStructureBuilder {
     parentScope?: string,
     nestingLevel: number = 0,
     currentParentOp?: string,
-  ): boolean {
+  ): { nodeId?: string; handled: boolean } {
     const callee = n.callee as Record<string, unknown> | undefined;
-    if (!callee) return false;
+    if (!callee) return { handled: false };
+
+    // Story 10.2c: Check if already processed (prevent duplicates from AST + recursion)
+    const span = n.span as { start: number; end: number } | undefined;
+    if (span) {
+      const spanKey = `${span.start}-${span.end}`;
+      const existingNodeId = this.processedSpans.get(spanKey);
+      if (existingNodeId !== undefined) {
+        return { nodeId: existingNodeId || undefined, handled: true };
+      }
+    }
+
+    // Story 10.2c: Process chained call BEFORE creating current node
+    let chainedInputNodeId: string | undefined;
+    if (callee.type === "MemberExpression") {
+      const objectExpr = (callee as Record<string, unknown>).object as Record<string, unknown>;
+      if (objectExpr?.type === "CallExpression") {
+        // Recursively process the chained call
+        const chainedResult = this.handleCallExpression(
+          objectExpr,
+          nodes,
+          position,
+          parentScope,
+          nestingLevel,
+          currentParentOp,
+        );
+        chainedInputNodeId = chainedResult.nodeId;
+      }
+    }
 
     // Check for Promise.all / Promise.allSettled
     if (callee.type === "MemberExpression") {
@@ -462,7 +552,11 @@ export class StaticStructureBuilder {
       // Promise.all or Promise.allSettled - handles its own children
       if (chain[0] === "Promise" && (chain[1] === "all" || chain[1] === "allSettled")) {
         this.handlePromiseAll(n, nodes, position, parentScope, nestingLevel, currentParentOp);
-        return true; // Fully handled, don't recurse
+        // Mark as processed but no chainable nodeId
+        if (span) {
+          this.processedSpans.set(`${span.start}-${span.end}`, "");
+        }
+        return { handled: true }; // Fully handled, don't recurse
       }
 
       // Array operations (filter, map, reduce, etc.) - Phase 1
@@ -489,9 +583,8 @@ export class StaticStructureBuilder {
       if (arrayOps.includes(methodName)) {
         const nodeId = this.generateNodeId("task");
 
-        // Extract code via SWC span
-        const span = n.span as { start: number; end: number } | undefined;
-        const code = this.extractCodeFromSpan(span);
+        // Story 10.2c: Extract just the method code, not the whole chain
+        const methodCode = this.extractMethodCode(n, methodName);
 
         // Option B: Determine if this task is executable
         const isExecutable = nestingLevel === 0;
@@ -502,7 +595,7 @@ export class StaticStructureBuilder {
           tool: `code:${methodName}`,
           position,
           parentScope,
-          code, // Original code extracted via span
+          code: methodCode,
           // Option B: Add execution metadata
           metadata: {
             executable: isExecutable,
@@ -510,13 +603,34 @@ export class StaticStructureBuilder {
             parentOperation: currentParentOp,
           },
         });
+
+        // Story 10.2c: Create edge from chained input to this node
+        if (chainedInputNodeId) {
+          // Add edge directly to nodes array for now (will be processed later)
+          // Actually we need to return this info... let's track it differently
+          // For simplicity, we'll add to a temporary edges list that buildStaticStructure merges
+          // OR we can create the edge here if we have access to edges
+          // For now, store the relationship in metadata
+          const existingNode = nodes.find((node) => node.id === nodeId);
+          if (existingNode && existingNode.metadata) {
+            (existingNode.metadata as NodeMetadata & { chainedFrom?: string }).chainedFrom =
+              chainedInputNodeId;
+          }
+        }
+
         logger.debug("Detected array operation", {
           operation: methodName,
           nodeId,
-          codeExtracted: !!code,
+          codeExtracted: !!methodCode,
           executable: isExecutable,
           nestingLevel,
+          chainedFrom: chainedInputNodeId,
         });
+
+        // Mark as processed
+        if (span) {
+          this.processedSpans.set(`${span.start}-${span.end}`, nodeId);
+        }
 
         // Option B: When recursing into callback arguments, set currentParentOp
         // so nested operations know their parent
@@ -535,7 +649,7 @@ export class StaticStructureBuilder {
             );
           }
         }
-        return true; // Fully handled (we recursed into args ourselves)
+        return { nodeId, handled: true }; // Fully handled (we recursed into args ourselves)
       }
 
       // String operations
@@ -556,8 +670,7 @@ export class StaticStructureBuilder {
 
       if (stringOps.includes(methodName)) {
         const nodeId = this.generateNodeId("task");
-        const span = n.span as { start: number; end: number } | undefined;
-        const code = span ? this.extractCodeFromSpan(span) : undefined;
+        const methodCode = this.extractMethodCode(n, methodName);
         const isExecutable = nestingLevel === 0;
 
         nodes.push({
@@ -566,16 +679,28 @@ export class StaticStructureBuilder {
           tool: `code:${methodName}`,
           position,
           parentScope,
-          code,
-          metadata: { executable: isExecutable, nestingLevel, parentOperation: currentParentOp },
+          code: methodCode,
+          metadata: {
+            executable: isExecutable,
+            nestingLevel,
+            parentOperation: currentParentOp,
+            ...(chainedInputNodeId ? { chainedFrom: chainedInputNodeId } : {}),
+          },
         });
+
+        // Mark as processed
+        if (span) {
+          this.processedSpans.set(`${span.start}-${span.end}`, nodeId);
+        }
+
         logger.debug("Detected string operation", {
           operation: methodName,
           nodeId,
-          codeExtracted: !!code,
+          codeExtracted: !!methodCode,
           executable: isExecutable,
+          chainedFrom: chainedInputNodeId,
         });
-        return false;
+        return { nodeId, handled: false };
       }
 
       // Object operations (Object.keys, Object.values, etc.)
@@ -585,7 +710,6 @@ export class StaticStructureBuilder {
       ) {
         const nodeId = this.generateNodeId("task");
         const operation = chain[1];
-        const span = n.span as { start: number; end: number } | undefined;
         const code = span ? this.extractCodeFromSpan(span) : undefined;
         const isExecutable = nestingLevel === 0;
 
@@ -598,13 +722,18 @@ export class StaticStructureBuilder {
           code,
           metadata: { executable: isExecutable, nestingLevel, parentOperation: currentParentOp },
         });
+
+        if (span) {
+          this.processedSpans.set(`${span.start}-${span.end}`, nodeId);
+        }
+
         logger.debug("Detected Object operation", {
           operation,
           nodeId,
           codeExtracted: !!code,
           executable: isExecutable,
         });
-        return false;
+        return { nodeId, handled: false };
       }
 
       // Math operations
@@ -613,7 +742,6 @@ export class StaticStructureBuilder {
       ) {
         const nodeId = this.generateNodeId("task");
         const operation = chain[1];
-        const span = n.span as { start: number; end: number } | undefined;
         const code = span ? this.extractCodeFromSpan(span) : undefined;
         const isExecutable = nestingLevel === 0;
 
@@ -626,20 +754,24 @@ export class StaticStructureBuilder {
           code,
           metadata: { executable: isExecutable, nestingLevel, parentOperation: currentParentOp },
         });
+
+        if (span) {
+          this.processedSpans.set(`${span.start}-${span.end}`, nodeId);
+        }
+
         logger.debug("Detected Math operation", {
           operation,
           nodeId,
           codeExtracted: !!code,
           executable: isExecutable,
         });
-        return false;
+        return { nodeId, handled: false };
       }
 
       // JSON operations
       if (chain[0] === "JSON" && ["parse", "stringify"].includes(chain[1])) {
         const nodeId = this.generateNodeId("task");
         const operation = chain[1];
-        const span = n.span as { start: number; end: number } | undefined;
         const code = span ? this.extractCodeFromSpan(span) : undefined;
         const isExecutable = nestingLevel === 0;
 
@@ -652,24 +784,29 @@ export class StaticStructureBuilder {
           code,
           metadata: { executable: isExecutable, nestingLevel, parentOperation: currentParentOp },
         });
+
+        if (span) {
+          this.processedSpans.set(`${span.start}-${span.end}`, nodeId);
+        }
+
         logger.debug("Detected JSON operation", {
           operation,
           nodeId,
           codeExtracted: !!code,
           executable: isExecutable,
         });
-        return false;
+        return { nodeId, handled: false };
       }
 
       // mcp.server.tool pattern - MCP tools are always executable (they handle their own context)
       if (chain[0] === "mcp" && chain.length >= 3) {
         const toolId = `${chain[1]}:${chain[2]}`;
-        const id = this.generateNodeId("task");
+        const nodeId = this.generateNodeId("task");
         const args = n.arguments as Array<Record<string, unknown>> | undefined;
         const extractedArgs = this.extractArguments(args);
 
         nodes.push({
-          id,
+          id: nodeId,
           type: "task",
           tool: toolId,
           position,
@@ -678,25 +815,35 @@ export class StaticStructureBuilder {
           // MCP tools are always executable - they're self-contained
           metadata: { executable: true, nestingLevel, parentOperation: currentParentOp },
         });
-        return false;
+
+        if (span) {
+          this.processedSpans.set(`${span.start}-${span.end}`, nodeId);
+        }
+
+        return { nodeId, handled: false };
       }
 
       // capabilities.name pattern
       if (chain[0] === "capabilities" && chain.length >= 2) {
         const capabilityId = chain[1];
-        const id = this.generateNodeId("capability");
+        const nodeId = this.generateNodeId("capability");
         nodes.push({
-          id,
+          id: nodeId,
           type: "capability",
           capabilityId,
           position,
           parentScope,
         });
-        return false;
+
+        if (span) {
+          this.processedSpans.set(`${span.start}-${span.end}`, nodeId);
+        }
+
+        return { nodeId, handled: false };
       }
     }
 
-    return false;
+    return { handled: false };
   }
 
   /**
@@ -1796,8 +1943,15 @@ export class StaticStructureBuilder {
     // Sort nodes by position
     const sortedNodes = [...nodes].sort((a, b) => a.position - b.position);
 
+    // Track already created edges to prevent duplicates
+    const edgeSet = new Set<string>();
+
+    // Story 10.2c: Generate chained edges FIRST (before sequence edges)
+    // These take priority over position-based sequence edges
+    this.generateChainedEdges(sortedNodes, edges, edgeSet);
+
     // Generate sequence edges (between sequential nodes in same scope)
-    this.generateSequenceEdges(sortedNodes, edges);
+    this.generateSequenceEdges(sortedNodes, edges, edgeSet);
 
     // Generate conditional edges (from decision nodes to their branches)
     this.generateConditionalEdges(sortedNodes, edges);
@@ -1810,11 +1964,52 @@ export class StaticStructureBuilder {
   }
 
   /**
+   * Generate edges for method chaining (Story 10.2c)
+   *
+   * Creates sequence edges based on the chainedFrom metadata set during
+   * CallExpression processing. These edges represent data flow in
+   * chained method calls like: numbers.filter().map().sort()
+   */
+  private generateChainedEdges(
+    nodes: InternalNode[],
+    edges: StaticStructureEdge[],
+    edgeSet: Set<string>,
+  ): void {
+    for (const node of nodes) {
+      if (node.type === "task" && node.metadata?.chainedFrom) {
+        const fromNodeId = node.metadata.chainedFrom;
+        const toNodeId = node.id;
+        const edgeKey = `${fromNodeId}->${toNodeId}:sequence`;
+
+        // Skip if already exists
+        if (edgeSet.has(edgeKey)) continue;
+
+        // Verify the source node exists
+        const sourceExists = nodes.some((n) => n.id === fromNodeId);
+        if (sourceExists) {
+          edges.push({
+            from: fromNodeId,
+            to: toNodeId,
+            type: "sequence",
+          });
+          edgeSet.add(edgeKey);
+
+          logger.debug("Created chained edge", {
+            from: fromNodeId,
+            to: toNodeId,
+          });
+        }
+      }
+    }
+  }
+
+  /**
    * Generate sequence edges between consecutive await statements
    */
   private generateSequenceEdges(
     nodes: InternalNode[],
     edges: StaticStructureEdge[],
+    edgeSet: Set<string>,
   ): void {
     // Group nodes by scope
     const scopeGroups = new Map<string | undefined, InternalNode[]>();
@@ -1842,11 +2037,16 @@ export class StaticStructureBuilder {
           continue;
         }
 
+        // Skip if already exists (e.g., from chained edges)
+        const edgeKey = `${from.id}->${to.id}:sequence`;
+        if (edgeSet.has(edgeKey)) continue;
+
         edges.push({
           from: from.id,
           to: to.id,
           type: "sequence",
         });
+        edgeSet.add(edgeKey);
       }
     }
   }
