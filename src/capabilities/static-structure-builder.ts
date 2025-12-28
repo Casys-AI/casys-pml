@@ -198,6 +198,53 @@ export class StaticStructureBuilder {
   }
 
   /**
+   * Extract full method chain span (from source to final call)
+   * (Story 10.2c - Method chaining regression fix)
+   *
+   * For: numbers.filter(...).map(...).sort()
+   * Returns span from "numbers" to "sort()"
+   *
+   * This ensures executable nodes have the complete chain code for execution,
+   * not just the isolated method fragment.
+   *
+   * @param node The CallExpression AST node
+   * @returns Full chain span { start, end } or undefined
+   */
+  private extractFullChainSpan(
+    node: Record<string, unknown>,
+  ): { start: number; end: number } | undefined {
+    const nodeSpan = node.span as { start: number; end: number } | undefined;
+    if (!nodeSpan) return undefined;
+
+    // End = current node's end (the end of the chain)
+    const end = nodeSpan.end;
+
+    // Start = walk to the deepest object in callee chain
+    let start = nodeSpan.start;
+    let current: Record<string, unknown> | undefined = node;
+
+    while (current) {
+      const callee = current.callee as Record<string, unknown> | undefined;
+      if (!callee || callee.type !== "MemberExpression") break;
+
+      const object = callee.object as Record<string, unknown> | undefined;
+      if (!object) break;
+
+      const objSpan = object.span as { start: number; end: number } | undefined;
+      if (objSpan) start = objSpan.start;
+
+      // Continue only if object is also a CallExpression
+      if (object.type === "CallExpression") {
+        current = object;
+      } else {
+        break; // Reached source (Identifier, ArrayExpression, etc.)
+      }
+    }
+
+    return { start, end };
+  }
+
+  /**
    * Extract just the method name and arguments from a CallExpression
    * (Story 10.2c - Method chaining support)
    *
@@ -583,11 +630,15 @@ export class StaticStructureBuilder {
       if (arrayOps.includes(methodName)) {
         const nodeId = this.generateNodeId("task");
 
-        // Story 10.2c: Extract just the method code, not the whole chain
-        const methodCode = this.extractMethodCode(n, methodName);
-
         // Option B: Determine if this task is executable
         const isExecutable = nestingLevel === 0;
+
+        // Story 10.2c fix: If this node is part of a chain (has chainedInputNodeId),
+        // extract the FULL chain code from source to this node.
+        // Otherwise, extract just the method code for this operation.
+        const code = chainedInputNodeId
+          ? this.extractCodeFromSpan(this.extractFullChainSpan(n)) // Full chain
+          : this.extractMethodCode(n, methodName); // Just this method
 
         nodes.push({
           id: nodeId,
@@ -595,7 +646,7 @@ export class StaticStructureBuilder {
           tool: `code:${methodName}`,
           position,
           parentScope,
-          code: methodCode,
+          code,
           // Option B: Add execution metadata
           metadata: {
             executable: isExecutable,
@@ -606,22 +657,25 @@ export class StaticStructureBuilder {
 
         // Story 10.2c: Create edge from chained input to this node
         if (chainedInputNodeId) {
-          // Add edge directly to nodes array for now (will be processed later)
-          // Actually we need to return this info... let's track it differently
-          // For simplicity, we'll add to a temporary edges list that buildStaticStructure merges
-          // OR we can create the edge here if we have access to edges
-          // For now, store the relationship in metadata
+          // Store the relationship in metadata for edge generation
           const existingNode = nodes.find((node) => node.id === nodeId);
           if (existingNode && existingNode.metadata) {
             (existingNode.metadata as NodeMetadata & { chainedFrom?: string }).chainedFrom =
               chainedInputNodeId;
+          }
+
+          // Story 10.2c fix: Mark the INPUT node as non-executable (it's intermediate in chain)
+          // The current node (this one) is the final/executable one
+          const inputNode = nodes.find((node) => node.id === chainedInputNodeId);
+          if (inputNode && inputNode.metadata) {
+            (inputNode.metadata as NodeMetadata).executable = false;
           }
         }
 
         logger.debug("Detected array operation", {
           operation: methodName,
           nodeId,
-          codeExtracted: !!methodCode,
+          codeExtracted: !!code,
           executable: isExecutable,
           nestingLevel,
           chainedFrom: chainedInputNodeId,
@@ -670,8 +724,12 @@ export class StaticStructureBuilder {
 
       if (stringOps.includes(methodName)) {
         const nodeId = this.generateNodeId("task");
-        const methodCode = this.extractMethodCode(n, methodName);
         const isExecutable = nestingLevel === 0;
+
+        // Story 10.2c fix: If this node is part of a chain, extract full chain code
+        const code = chainedInputNodeId
+          ? this.extractCodeFromSpan(this.extractFullChainSpan(n)) // Full chain
+          : this.extractMethodCode(n, methodName); // Just this method
 
         nodes.push({
           id: nodeId,
@@ -679,7 +737,7 @@ export class StaticStructureBuilder {
           tool: `code:${methodName}`,
           position,
           parentScope,
-          code: methodCode,
+          code,
           metadata: {
             executable: isExecutable,
             nestingLevel,
@@ -687,6 +745,14 @@ export class StaticStructureBuilder {
             ...(chainedInputNodeId ? { chainedFrom: chainedInputNodeId } : {}),
           },
         });
+
+        // Story 10.2c fix: Mark the INPUT node as non-executable (it's intermediate in chain)
+        if (chainedInputNodeId) {
+          const inputNode = nodes.find((node) => node.id === chainedInputNodeId);
+          if (inputNode && inputNode.metadata) {
+            (inputNode.metadata as NodeMetadata).executable = false;
+          }
+        }
 
         // Mark as processed
         if (span) {
@@ -696,7 +762,7 @@ export class StaticStructureBuilder {
         logger.debug("Detected string operation", {
           operation: methodName,
           nodeId,
-          codeExtracted: !!methodCode,
+          codeExtracted: !!code,
           executable: isExecutable,
           chainedFrom: chainedInputNodeId,
         });
@@ -2024,8 +2090,11 @@ export class StaticStructureBuilder {
 
     // Create sequence edges within each scope
     for (const [_scope, scopeNodes] of scopeGroups) {
+      // Filter to executable nodes only (skip nested operations in callbacks)
       const taskNodes = scopeNodes.filter(
-        (n) => n.type === "task" || n.type === "capability" || n.type === "decision",
+        (n) =>
+          (n.type === "task" || n.type === "capability" || n.type === "decision") &&
+          (n.metadata?.executable !== false), // Skip non-executable nested operations
       );
 
       for (let i = 0; i < taskNodes.length - 1; i++) {
