@@ -145,11 +145,25 @@ if (rootPart in context) {
 | Boolean | `const b = true` | ✅ |
 | Null | `const x = null` | ✅ |
 
+#### Computed Expressions (Extended 2025-12-28)
+
+When operands are known literals or tracked variables, expressions are evaluated statically:
+
+| Expression | Example | Result |
+|------------|---------|--------|
+| Arithmetic | `const sum = a + b` (a=10, b=5) | `15` |
+| String concat | `firstName + " " + lastName` | `"John Doe"` |
+| Comparison | `x > y`, `a === b` | `true/false` |
+| Logical | `a && b`, `a \|\| b` | Evaluated |
+| Unary | `-x`, `!flag`, `+num` | Evaluated |
+
+**Supported operators:** `+`, `-`, `*`, `/`, `%`, `**`, `==`, `===`, `!=`, `!==`, `<`, `>`, `<=`, `>=`, `&&`, `||`, `-` (unary), `+` (unary), `!`, `typeof`
+
 #### NOT Supported (v1)
 
 | Type | Example | Reason |
 |------|---------|--------|
-| Computed expressions | `const x = a + b` | Requires evaluation |
+| Unknown operands | `known + getData()` | Can't resolve runtime values |
 | Function calls | `const x = foo()` | Runtime-only |
 | `let` mutations | `let x = 1; x++` | Dynamic value |
 | Async/await | `const x = await fn()` | Runtime-only (unless MCP call) |
@@ -162,6 +176,12 @@ See `tests/unit/capabilities/static-structure-code-ops.test.ts`:
 - `literalBindings tracks primitive literals`
 - `literalBindings does NOT track MCP results`
 - `literalBindings works with nested arrays`
+- `literalBindings evaluates arithmetic expressions`
+- `literalBindings evaluates string concatenation`
+- `literalBindings evaluates comparison expressions`
+- `literalBindings evaluates unary expressions`
+- `literalBindings handles complex expressions`
+- `literalBindings skips expressions with unknown variables`
 
 ## Not Detected (TODO)
 
@@ -561,6 +581,7 @@ graph.addEdge("code:map", "code:sort", { type: "sequence" });
 
 ## Changelog
 
+- **2025-12-28:** Added computed expression evaluation (a + b, -x, !flag, etc.) for literal bindings
 - **2025-12-28:** Added Literal Bindings (Story 10.2b - Option B) for local variable resolution
 - **2025-12-26:** Added modular code operations detection with WorkerBridge tracing (Phase 1)
 - **2025-12-26:** Added Array Operations (Phase 1 - Planned) section with `code:*` pseudo-tools
