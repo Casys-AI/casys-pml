@@ -62,6 +62,26 @@ export default function LandingPage({ data }: { data: LandingPageData }) {
           name="description"
           content="An open-source Procedural Memory Layer for AI agents. Casys PML captures emergent workflows and crystallizes them into reusable skills. RAG gave agents knowledge. PML gives them skills."
         />
+        {/* Open Graph / LinkedIn */}
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://pml.casys.ai/" />
+        <meta property="og:title" content="Casys PML - Procedural Memory Layer" />
+        <meta
+          property="og:description"
+          content="An open-source Procedural Memory Layer for AI agents. RAG gave agents knowledge. PML gives them skills."
+        />
+        <meta property="og:image" content="https://pml.casys.ai/og/home.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:site_name" content="Casys PML" />
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Casys PML - Procedural Memory Layer" />
+        <meta
+          name="twitter:description"
+          content="An open-source Procedural Memory Layer for AI agents. RAG gave agents knowledge. PML gives them skills."
+        />
+        <meta name="twitter:image" content="https://pml.casys.ai/og/home.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
         <link

@@ -30,6 +30,26 @@ export default function BlogIndex({ data }: { data: { posts: Post[] } }) {
           name="description"
           content="Engineering insights, technical deep-dives, and lessons learned building Casys PML - a Procedural Memory Layer for AI agents."
         />
+        {/* Open Graph / LinkedIn */}
+        <meta property="og:type" content="blog" />
+        <meta property="og:url" content="https://pml.casys.ai/blog" />
+        <meta property="og:title" content="Blog - Casys PML" />
+        <meta
+          property="og:description"
+          content="Engineering insights, technical deep-dives, and lessons learned building Casys PML - a Procedural Memory Layer for AI agents."
+        />
+        <meta property="og:image" content="https://pml.casys.ai/blog/og/index.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:site_name" content="Casys PML" />
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Blog - Casys PML" />
+        <meta
+          name="twitter:description"
+          content="Engineering insights, technical deep-dives, and lessons learned building Casys PML."
+        />
+        <meta name="twitter:image" content="https://pml.casys.ai/blog/og/index.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
         <link
