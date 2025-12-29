@@ -44,3 +44,35 @@ export async function closeDb(): Promise<void> {
     db = null;
   }
 }
+
+/**
+ * Get raw PGlite instance for SQL queries
+ * Used by admin analytics which needs complex aggregations.
+ * Returns a DbClient-compatible interface.
+ */
+export async function getRawDb(): Promise<{
+  query: <T>(sql: string, params?: unknown[]) => Promise<T[]>;
+  queryOne: <T>(sql: string, params?: unknown[]) => Promise<T | null>;
+}> {
+  // Ensure DB is initialized
+  await getDb();
+
+  if (!pgliteInstance) {
+    throw new Error("Database not initialized");
+  }
+
+  const pg = pgliteInstance;
+
+  return {
+    async query<T>(sql: string, params?: unknown[]): Promise<T[]> {
+      const result = params && params.length > 0
+        ? await (pg as any).query(sql, params)
+        : await (pg as any).query(sql);
+      return result.rows as T[];
+    },
+    async queryOne<T>(sql: string, params?: unknown[]): Promise<T | null> {
+      const rows = await this.query<T>(sql, params);
+      return rows[0] || null;
+    },
+  };
+}

@@ -138,7 +138,7 @@ development_status:
   6-3-live-metrics-analytics-panel: done # Code Review APPROVED 2025-12-02, 23 tests passing, Quality Score: 95/100
   6-4-graph-explorer-search-interface: done # Code Review APPROVED 2025-12-04, 11 tests passing, all 11 ACs validated
   6-5-eventbus-broadcast-channel: done # Code review PASSED 2025-12-09, ADR-036, 43 tests
-  6-6-admin-analytics-dashboard: backlog # User activity, errors, system health - admin only
+  6-6-admin-analytics-dashboard: in-progress # User activity, errors, system health - cloud-only (src/cloud/admin/)
   epic-6-retrospective: optional
 
   # Epic 7: Emergent Capabilities & Learning System
