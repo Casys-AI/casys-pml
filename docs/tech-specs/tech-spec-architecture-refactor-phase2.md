@@ -611,6 +611,596 @@ graph TD
 
 ---
 
+## Phase 2.5: Architectural Patterns & Best Practices (P1 - High)
+
+### Problem: Missing Design Patterns
+
+Current codebase has **ad-hoc architecture** with inconsistent patterns:
+
+#### Anti-Pattern 1: Constructor Injection Hell
+
+**Current: `PMLGatewayServer` constructor (10 parameters)**
+
+```typescript
+constructor(
+  private db: DbClient,
+  private vectorSearch: VectorSearch,
+  private graphEngine: GraphRAGEngine,
+  private dagSuggester: DAGSuggester,
+  private _executor: ParallelExecutor,
+  private mcpClients: Map<string, MCPClientBase>,
+  private capabilityStore?: CapabilityStore,
+  private adaptiveThresholdManager?: AdaptiveThresholdManager,
+  config?: GatewayServerConfig,
+  embeddingModel?: EmbeddingModelInterface,
+) {
+  // 80+ lines of initialization logic
+  this.contextBuilder = new ContextBuilder(this.vectorSearch, this.mcpClients);
+  this.checkpointManager = new CheckpointManager(this.db, true);
+  this.capabilityDataService = new CapabilityDataService(this.db, this.graphEngine);
+  // ... 15+ more manual instantiations
+}
+```
+
+**Problems:**
+- Impossible to test (need 10 mocks)
+- Violates Single Responsibility (construction + initialization)
+- Hidden dependencies (instantiates 15+ objects internally)
+- No lifecycle management
+
+**Solution: Builder + Factory Pattern**
+
+```typescript
+// Gateway Factory
+export class GatewayFactory {
+  static create(config: GatewayConfig): PMLGatewayServer {
+    const container = DIContainer.getInstance();
+
+    return new PMLGatewayServer(
+      container.resolve<IVectorSearch>("vector-search"),
+      container.resolve<IGraphEngine>("graph-engine"),
+      container.resolve<IDAGSuggester>("dag-suggester"),
+      config
+    );
+  }
+}
+
+// Gateway Builder (for complex setup)
+export class GatewayBuilder {
+  private config: Partial<GatewayConfig> = {};
+
+  withSpeculation(enabled: boolean): this {
+    this.config.enableSpeculative = enabled;
+    return this;
+  }
+
+  withPIIProtection(enabled: boolean): this {
+    this.config.piiProtection = { enabled };
+    return this;
+  }
+
+  build(): PMLGatewayServer {
+    return GatewayFactory.create(this.config as GatewayConfig);
+  }
+}
+
+// Usage
+const gateway = new GatewayBuilder()
+  .withSpeculation(true)
+  .withPIIProtection(true)
+  .build();
+```
+
+**Benefits:**
+- Fluent API for configuration
+- Single responsibility (builder vs gateway)
+- Easy testing (mock DI container)
+
+#### Anti-Pattern 2: Service Locator (Passed Everywhere)
+
+**Current:**
+```typescript
+// gateway-server.ts line 135
+private mcpClients: Map<string, MCPClientBase>
+
+// Passed to 10+ classes
+this.contextBuilder = new ContextBuilder(this.vectorSearch, this.mcpClients);
+this.healthChecker = new HealthChecker(this.mcpClients);
+this.gatewayHandler = new GatewayHandler(..., this.mcpClients);
+```
+
+**Problem:** `mcpClients` is a service locator anti-pattern
+
+**Solution: Registry Pattern + Facade**
+
+```typescript
+// Create a proper MCP Client Registry
+export interface IMCPClientRegistry {
+  getClient(serverId: string): IMCPClient;
+  getAllClients(): IMCPClient[];
+  register(serverId: string, client: IMCPClient): void;
+}
+
+export class MCPClientRegistry implements IMCPClientRegistry {
+  private clients = new Map<string, IMCPClient>();
+
+  getClient(serverId: string): IMCPClient {
+    const client = this.clients.get(serverId);
+    if (!client) throw new Error(`MCP client not found: ${serverId}`);
+    return client;
+  }
+
+  // ... other methods
+}
+
+// Usage: Inject registry, not Map
+class ContextBuilder {
+  constructor(
+    private vectorSearch: IVectorSearch,
+    private mcpRegistry: IMCPClientRegistry  // ✓ Interface, not Map
+  ) {}
+}
+```
+
+#### Anti-Pattern 3: Business Logic in Handlers
+
+**Current:** `mcp/handlers/workflow-execution-handler.ts` contains:
+- Validation logic
+- Orchestration logic
+- Error handling
+- Response formatting
+
+**Solution: Use Cases (Application Layer)**
+
+```typescript
+// src/application/use-cases/execute-workflow.ts
+export class ExecuteWorkflowUseCase {
+  constructor(
+    private dagExecutor: IDAGExecutor,
+    private workflowRepo: IWorkflowRepository,
+    private eventBus: IEventBus
+  ) {}
+
+  async execute(request: ExecuteWorkflowRequest): Promise<ExecuteWorkflowResult> {
+    // 1. Validate
+    const validation = this.validate(request);
+    if (!validation.isValid) {
+      return { success: false, errors: validation.errors };
+    }
+
+    // 2. Business logic
+    const workflow = await this.workflowRepo.findByIntent(request.intent);
+    const result = await this.dagExecutor.execute(workflow.dag);
+
+    // 3. Side effects
+    await this.eventBus.emit({ type: 'workflow.completed', payload: result });
+
+    return { success: true, data: result };
+  }
+}
+
+// Handler becomes thin wrapper
+export async function handleWorkflowExecution(request: WorkflowExecutionRequest) {
+  const useCase = DIContainer.resolve<ExecuteWorkflowUseCase>("execute-workflow");
+  return useCase.execute(request);
+}
+```
+
+**Benefits:**
+- Testable without MCP layer
+- Reusable across handlers (HTTP, CLI, etc.)
+- Clear separation of concerns
+
+#### Anti-Pattern 4: Event Bus Under-utilized
+
+**Current Status:**
+- Event bus exists (ADR-036)
+- Only 35 usages in entire codebase
+- Direct coupling instead of events
+
+**Example of tight coupling:**
+```typescript
+// dag/controlled-executor.ts
+await this.episodicMemory.capture(event);  // Direct call
+```
+
+**Should be:**
+```typescript
+// dag/controlled-executor.ts
+this.eventBus.emit({ type: 'task.completed', payload: event });
+
+// episodic/listener.ts (separate)
+eventBus.on('task.completed', async (event) => {
+  await episodicMemory.capture(event);
+});
+```
+
+**Benefits:**
+- Decoupling (executor doesn't know about episodic memory)
+- Extensibility (add more listeners without changing executor)
+- Testability (mock event bus)
+
+**Expand Event Bus Usage:**
+
+```typescript
+// src/events/domain-events.ts
+export type DomainEvent =
+  | { type: 'workflow.started'; payload: { workflowId: string; dag: DAGStructure } }
+  | { type: 'workflow.completed'; payload: { workflowId: string; result: DAGExecutionResult } }
+  | { type: 'task.started'; payload: { taskId: string; tool: string } }
+  | { type: 'task.completed'; payload: { taskId: string; result: TaskResult } }
+  | { type: 'capability.learned'; payload: { capabilityId: string; code: string } }
+  | { type: 'permission.escalated'; payload: { from: PermissionSet; to: PermissionSet } };
+
+// Event-driven architecture
+export class EventDrivenExecutor {
+  async execute(dag: DAGStructure): Promise<DAGExecutionResult> {
+    this.eventBus.emit({ type: 'workflow.started', payload: { workflowId, dag } });
+
+    // ... execution logic
+
+    this.eventBus.emit({ type: 'workflow.completed', payload: { workflowId, result } });
+  }
+}
+
+// Listeners (completely decoupled)
+eventBus.on('workflow.completed', episodicMemoryListener);
+eventBus.on('workflow.completed', metricsCollectorListener);
+eventBus.on('workflow.completed', dashboardUpdateListener);
+```
+
+#### Anti-Pattern 5: No State Machine for Workflows
+
+**Current:** Workflow state managed with string flags
+```typescript
+type WorkflowStatus = "running" | "paused" | "completed" | "failed";
+```
+
+**Problem:** No validation of state transitions
+
+**Solution: State Machine Pattern**
+
+```typescript
+// src/domain/workflow/state-machine.ts
+export enum WorkflowState {
+  CREATED = 'created',
+  RUNNING = 'running',
+  PAUSED = 'paused',
+  AWAITING_APPROVAL = 'awaiting_approval',
+  COMPLETED = 'completed',
+  FAILED = 'failed',
+  ABORTED = 'aborted'
+}
+
+export class WorkflowStateMachine {
+  private static transitions: Record<WorkflowState, WorkflowState[]> = {
+    [WorkflowState.CREATED]: [WorkflowState.RUNNING],
+    [WorkflowState.RUNNING]: [
+      WorkflowState.PAUSED,
+      WorkflowState.AWAITING_APPROVAL,
+      WorkflowState.COMPLETED,
+      WorkflowState.FAILED,
+      WorkflowState.ABORTED
+    ],
+    [WorkflowState.PAUSED]: [WorkflowState.RUNNING, WorkflowState.ABORTED],
+    [WorkflowState.AWAITING_APPROVAL]: [WorkflowState.RUNNING, WorkflowState.ABORTED],
+    [WorkflowState.COMPLETED]: [],
+    [WorkflowState.FAILED]: [],
+    [WorkflowState.ABORTED]: []
+  };
+
+  constructor(private currentState: WorkflowState) {}
+
+  canTransitionTo(nextState: WorkflowState): boolean {
+    return WorkflowStateMachine.transitions[this.currentState].includes(nextState);
+  }
+
+  transition(nextState: WorkflowState): void {
+    if (!this.canTransitionTo(nextState)) {
+      throw new Error(`Invalid transition: ${this.currentState} -> ${nextState}`);
+    }
+    this.currentState = nextState;
+  }
+}
+```
+
+#### Anti-Pattern 6: No CQRS Separation
+
+**Current:** Read and write operations mixed in same classes
+
+**Example:**
+```typescript
+class CapabilityStore {
+  save(capability: Capability): Promise<void> { }         // Write
+  findById(id: string): Promise<Capability | null> { }    // Read
+  updateUsage(id: string): Promise<void> { }              // Write
+  searchByIntent(intent: string): Promise<Capability[]> { } // Read
+}
+```
+
+**Solution: CQRS Pattern**
+
+```typescript
+// Write side (Commands)
+export interface ICapabilityCommandRepository {
+  save(capability: Capability): Promise<void>;
+  update(id: string, updates: Partial<Capability>): Promise<void>;
+  delete(id: string): Promise<void>;
+}
+
+// Read side (Queries)
+export interface ICapabilityQueryRepository {
+  findById(id: string): Promise<CapabilityReadModel | null>;
+  searchByIntent(intent: string): Promise<CapabilityReadModel[]>;
+  getStatistics(): Promise<CapabilityStats>;
+}
+
+// Separate implementations
+class CapabilityCommandRepository implements ICapabilityCommandRepository {
+  // Optimized for writes
+}
+
+class CapabilityQueryRepository implements ICapabilityQueryRepository {
+  // Optimized for reads (could use different storage, caching, etc.)
+}
+```
+
+**Benefits:**
+- Independent scaling (read replicas)
+- Different optimization strategies
+- Clear intent (command vs query)
+
+#### Anti-Pattern 7: Manual Lifecycle Management
+
+**Current:** Manual start/stop everywhere
+```typescript
+const db = createDefaultClient();
+await db.connect();
+// ... do work
+await db.close();
+```
+
+**Solution: Resource Manager Pattern**
+
+```typescript
+// src/infrastructure/lifecycle/resource-manager.ts
+export class ResourceManager {
+  private resources: IDisposable[] = [];
+
+  register<T extends IDisposable>(resource: T): T {
+    this.resources.push(resource);
+    return resource;
+  }
+
+  async startAll(): Promise<void> {
+    for (const resource of this.resources) {
+      await resource.start?.();
+    }
+  }
+
+  async stopAll(): Promise<void> {
+    for (const resource of this.resources.reverse()) {
+      await resource.stop?.();
+    }
+  }
+}
+
+// Usage
+const resourceManager = new ResourceManager();
+const db = resourceManager.register(createDefaultClient());
+const server = resourceManager.register(new HTTPServer());
+
+await resourceManager.startAll();  // Start all in order
+// ... application runs
+await resourceManager.stopAll();   // Stop all in reverse order
+```
+
+### Phase 2.5 Implementation Plan
+
+#### Step 1: Introduce Design Patterns (Week 1-2)
+
+**Create:** `src/infrastructure/patterns/`
+
+```
+src/infrastructure/patterns/
+├── builder/
+│   ├── gateway-builder.ts        # Builder pattern for PMLGatewayServer
+│   ├── executor-builder.ts       # Builder pattern for ControlledExecutor
+│   └── mod.ts
+├── factory/
+│   ├── gateway-factory.ts        # Factory for gateway creation
+│   ├── client-factory.ts         # Factory for MCP client creation
+│   └── mod.ts
+├── registry/
+│   ├── mcp-client-registry.ts    # Replace Map<string, MCPClientBase>
+│   ├── capability-registry.ts    # Already exists, formalize interface
+│   └── mod.ts
+└── lifecycle/
+    ├── resource-manager.ts       # Centralized lifecycle
+    └── mod.ts
+```
+
+**Deliverables:**
+- [ ] Builder pattern for top 3 complex classes
+- [ ] Factory pattern for all constructors
+- [ ] Registry pattern for MCP clients
+- [ ] Resource manager for lifecycle
+
+#### Step 2: Extract Use Cases (Week 3-4)
+
+**Create:** `src/application/use-cases/`
+
+```
+src/application/use-cases/
+├── workflows/
+│   ├── execute-workflow.ts       # From workflow-execution-handler.ts
+│   ├── resume-workflow.ts        # From control-commands-handler.ts
+│   ├── abort-workflow.ts
+│   └── replan-workflow.ts
+├── capabilities/
+│   ├── learn-capability.ts       # From capability-store.ts save logic
+│   ├── search-capabilities.ts    # From search-handler.ts
+│   └── execute-capability.ts
+├── code/
+│   ├── execute-code.ts           # From code-execution-handler.ts
+│   └── validate-code.ts
+└── tools/
+    ├── search-tools.ts           # From search-handler.ts
+    └── discover-tools.ts
+```
+
+**Benefits:**
+- Testable without infrastructure
+- Reusable across CLI, HTTP, MCP handlers
+- Clear business logic separation
+
+#### Step 3: Expand Event Bus Usage (Week 5)
+
+**Refactor:** Move all side effects to event listeners
+
+**Current direct calls → Events:**
+
+| Direct Call | Replace With Event |
+|-------------|-------------------|
+| `episodicMemory.capture(event)` | `eventBus.emit('task.completed')` |
+| `metricsCollector.record(metrics)` | `eventBus.emit('workflow.completed')` |
+| `dashboard.updateGraph(graph)` | `eventBus.emit('graph.updated')` |
+| `capabilityStore.save(capability)` | `eventBus.emit('capability.learned')` |
+
+**Create event listeners:**
+
+```
+src/application/listeners/
+├── episodic-memory-listener.ts
+├── metrics-collector-listener.ts
+├── dashboard-update-listener.ts
+└── capability-learning-listener.ts
+```
+
+#### Step 4: Implement State Machine (Week 6)
+
+**Create:** `src/domain/workflow/state-machine.ts`
+
+**Integrate into:**
+- `ControlledExecutor` (validate state transitions)
+- `CheckpointManager` (save state in checkpoints)
+- Dashboard (visualize state)
+
+#### Step 5: CQRS Separation (Week 7-8)
+
+**Split repositories:**
+- `CapabilityCommandRepository` (write)
+- `CapabilityQueryRepository` (read)
+- `WorkflowCommandRepository`
+- `WorkflowQueryRepository`
+
+**Benefits:**
+- Read models optimized for queries
+- Write models optimized for commands
+- Future: Event sourcing ready
+
+---
+
+## Phase 2.6: Testing Architecture (P2 - Medium)
+
+### Problem: No Testing Strategy
+
+**Current:**
+- Some unit tests exist
+- No integration test strategy
+- No architecture tests
+- Manual testing
+
+### Solution: Test Pyramid + Architecture Tests
+
+```
+src/tests/
+├── unit/                          # Fast, isolated
+│   ├── domain/                    # Pure business logic
+│   ├── use-cases/                 # Use cases with mocked deps
+│   └── utils/
+├── integration/                   # Medium speed, real deps
+│   ├── repositories/              # Test with real DB
+│   ├── workflows/                 # End-to-end workflow tests
+│   └── api/
+├── architecture/                  # Validate architecture rules
+│   ├── layering.test.ts           # No upward dependencies
+│   ├── circular-deps.test.ts      # No circular dependencies
+│   ├── naming.test.ts             # Naming conventions
+│   └── file-size.test.ts          # Max file size limits
+└── e2e/                           # Slow, full system
+    └── scenarios/
+```
+
+**Architecture Tests Example:**
+
+```typescript
+// tests/architecture/layering.test.ts
+import { assertEquals } from "@std/assert";
+
+Deno.test("Infrastructure cannot import from Application", () => {
+  const infraFiles = Glob.sync("src/infrastructure/**/*.ts");
+  const violations: string[] = [];
+
+  for (const file of infraFiles) {
+    const content = Deno.readTextFileSync(file);
+    if (content.includes('from "@/application/')) {
+      violations.push(file);
+    }
+  }
+
+  assertEquals(violations, [], `Layer violation: ${violations.join(', ')}`);
+});
+
+Deno.test("No circular dependencies", async () => {
+  const result = await runCommand("deno info --json src/main.ts");
+  const deps = JSON.parse(result);
+
+  const cycles = findCycles(deps);
+  assertEquals(cycles, [], `Circular dependencies found: ${cycles.join(', ')}`);
+});
+
+Deno.test("No file exceeds 600 lines", () => {
+  const largeFiles = findFilesExceeding(600);
+  assertEquals(largeFiles, [], `Large files: ${largeFiles.join(', ')}`);
+});
+```
+
+**Benefits:**
+- Prevent regressions
+- Enforce architecture rules
+- Document constraints
+
+---
+
+## Updated Success Metrics
+
+| Metric | Current | Target | Validation |
+|--------|---------|--------|------------|
+| **Design Patterns** | Ad-hoc | 8+ patterns | Code review |
+| **Use Cases** | 0 | 15+ | File count |
+| **Event Bus Usage** | 35 events | 100+ events | Grep count |
+| **Test Coverage** | ~60% | >85% | `deno task coverage` |
+| **Architecture Tests** | 0 | 5+ test files | Test execution |
+| **CQRS Separation** | 0% | 100% repos | Code review |
+
+---
+
+## Updated Timeline (12 weeks total)
+
+### Sprint 1-4: Phase 2.1-2.4 (Weeks 1-8)
+[As previously defined]
+
+### Sprint 5: Phase 2.5 (Weeks 9-10)
+- Week 9: Design patterns (Builder, Factory, Registry)
+- Week 10: Use Cases extraction
+
+### Sprint 6: Phase 2.5-2.6 (Weeks 11-12)
+- Week 11: Event Bus expansion + State Machine
+- Week 12: CQRS + Architecture tests
+
+---
+
 ## Next Steps
 
 1. **Review & Approve**: Team reviews this spec
@@ -627,3 +1217,6 @@ graph TD
 - **Architecture Audit**: [Generated 2025-12-29 by Claude Code]
 - **ADR-036**: Event Bus pattern (for breaking cycles)
 - **ADR-052**: Two-level DAG (logical/physical separation)
+- **Patterns**: Gang of Four Design Patterns
+- **Clean Architecture**: Robert C. Martin
+- **CQRS**: Greg Young
