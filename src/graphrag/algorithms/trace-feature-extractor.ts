@@ -415,7 +415,9 @@ export class TraceFeatureExtractor {
           array_position(executed_path, $1) as pos,
           array_length(executed_path, 1) as total_len
         FROM execution_trace
-        WHERE $1 = ANY(executed_path)
+        WHERE executed_path IS NOT NULL
+          AND cardinality(executed_path) > 0
+          AND $1 = ANY(executed_path)
           AND array_length(executed_path, 1) > 0
       )
       SELECT AVG((pos - 1.0) / NULLIF(total_len - 1, 0)) as avg_position
@@ -489,7 +491,9 @@ export class TraceFeatureExtractor {
         SELECT
           array_length(executed_path, 1) - array_position(executed_path, $1) + 1 as steps_to_end
         FROM execution_trace
-        WHERE success = true
+        WHERE executed_path IS NOT NULL
+          AND cardinality(executed_path) > 0
+          AND success = true
           AND $1 = ANY(executed_path)
           AND array_length(executed_path, 1) > 0
       )
@@ -678,7 +682,9 @@ export class TraceFeatureExtractor {
         MAX(executed_at) as last_used,
         AVG(duration_ms) as avg_duration
       FROM execution_trace, UNNEST(executed_path) as tool_id
-      WHERE tool_id = ANY($1::text[])
+      WHERE executed_path IS NOT NULL
+        AND cardinality(executed_path) > 0
+        AND tool_id = ANY($1::text[])
       GROUP BY tool_id
     `,
       [toolIds],
@@ -698,7 +704,9 @@ export class TraceFeatureExtractor {
           array_position(executed_path, tool_id) as pos,
           array_length(executed_path, 1) as total_len
         FROM execution_trace, UNNEST(executed_path) as tool_id
-        WHERE tool_id = ANY($1::text[])
+        WHERE executed_path IS NOT NULL
+          AND cardinality(executed_path) > 0
+          AND tool_id = ANY($1::text[])
           AND array_length(executed_path, 1) > 1
       )
       SELECT
@@ -727,7 +735,9 @@ export class TraceFeatureExtractor {
           tool_id,
           array_length(executed_path, 1) - array_position(executed_path, tool_id) + 1 as steps_to_end
         FROM execution_trace, UNNEST(executed_path) as tool_id
-        WHERE success = true
+        WHERE executed_path IS NOT NULL
+          AND cardinality(executed_path) > 0
+          AND success = true
           AND tool_id = ANY($1::text[])
           AND array_length(executed_path, 1) > 0
       )
@@ -826,6 +836,7 @@ export class TraceFeatureExtractor {
           COUNT(*) as usage_count,
           MAX(duration_ms) as duration_ms
         FROM execution_trace, UNNEST(executed_path) as tool_id
+        WHERE executed_path IS NOT NULL AND cardinality(executed_path) > 0
         GROUP BY tool_id
       ) tool_stats
     `) as Row | null;

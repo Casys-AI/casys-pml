@@ -42,6 +42,7 @@ import { CapabilityMCPServer } from "./capability-server/mod.ts";
 import { CheckpointManager } from "../dag/checkpoint-manager.ts";
 import { EventsStreamManager } from "../server/events-stream.ts";
 import { PmlStdServer } from "../../lib/std/cap.ts";
+import type { AlgorithmTracer } from "../telemetry/algorithm-tracer.ts";
 
 // Server types, constants, lifecycle, and HTTP server
 import {
@@ -121,6 +122,7 @@ export class PMLGatewayServer {
   private capabilityMCPServer: CapabilityMCPServer | null = null; // Story 13.3
   // traceFeatureExtractor removed - V1 uses message passing, not TraceFeatures
   private pmlStdServer: PmlStdServer | null = null; // Story 13.5: cap:* management tools
+  private algorithmTracer: AlgorithmTracer | null = null; // Story 7.6: Observability
 
   constructor(
     // @ts-ignore: db kept for future use (direct queries)
@@ -245,6 +247,15 @@ export class PMLGatewayServer {
         log.debug(`[Gateway] Sampling handler configured for ${serverId}`);
       }
     }
+  }
+
+  /**
+   * Set AlgorithmTracer for observability (Story 7.6)
+   * Called from serve.ts after gateway construction.
+   */
+  setAlgorithmTracer(tracer: AlgorithmTracer): void {
+    this.algorithmTracer = tracer;
+    log.debug("[Gateway] AlgorithmTracer configured for observability");
   }
 
   /**
@@ -403,7 +414,7 @@ export class PMLGatewayServer {
 
     // Unified discover (Story 10.6)
     if (name === "pml:discover") {
-      return await handleDiscover(args, this.vectorSearch, this.graphEngine, this.dagSuggester);
+      return await handleDiscover(args, this.vectorSearch, this.graphEngine, this.dagSuggester, this.capabilityRegistry ?? undefined);
     }
 
     // Unified execute (Story 10.7)
@@ -539,6 +550,7 @@ export class PMLGatewayServer {
       capabilityRegistry: this.capabilityRegistry ?? undefined, // Story 13.2
       traceStore: this.capabilityStore?.getTraceStore(), // Story 11.6: PER training
       onSHGATParamsUpdated: () => this.saveSHGATParams(), // Save after PER training
+      algorithmTracer: this.algorithmTracer ?? undefined, // Story 7.6: Observability
     };
   }
 
@@ -648,7 +660,11 @@ export class PMLGatewayServer {
         parents.push(edge.from_capability_id);
         parentsMap.set(edge.to_capability_id, parents);
       }
-      log.debug(`[Gateway] Loaded ${containsEdges.length} contains edges for SHGAT hierarchy`);
+      // Count cap→tool edges from tools_used arrays
+      const toolEdgesCount = rows.reduce((acc, c) => acc + (c.tools_used?.length ?? 0), 0);
+      log.debug(
+        `[Gateway] Loaded SHGAT hierarchy: ${containsEdges.length} cap→cap edges, ${toolEdgesCount} cap→tool edges (from tools_used)`,
+      );
 
       // Initialize SHGAT with capabilities that have embeddings (or empty)
       // Note: pgvector returns string like "[0.1,0.2,...]", pglite returns array
