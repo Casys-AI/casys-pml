@@ -1213,13 +1213,43 @@ Deno.test("No file exceeds 600 lines", () => {
 
 ## Phase 2.7: Deno-Native Patterns (Bonus - Use Native APIs)
 
+### Verification Status (2025-12-29)
+
+**✅ Already Implemented:**
+
+| Feature | Status | Location | Notes |
+|---------|--------|----------|-------|
+| **deno task test** | ✅ Implemented | `deno.json:48-55` | Comprehensive test tasks with permissions |
+| **Deno.bench** | ✅ Implemented | `deno.json:56`, `tests/benchmarks/` | Multiple .bench.ts files exist |
+| **BroadcastChannel** | ✅ Implemented | `src/events/event-bus.ts` | Used for cross-process events & SSE |
+| **Deno.Kv** | ✅ Implemented | `src/cache/kv.ts` | Session storage, cross-process signals |
+| **Web Crypto API** | ✅ Implemented | `lib/std/crypto.ts`, `src/capabilities/hash.ts` | SHA-256 hashing, HMAC, TOTP, etc. |
+| **Import Maps** | ✅ Configured | `deno.json:89-151` | Comprehensive dependency mapping |
+
+**❌ Not Yet Implemented:**
+
+| Feature | Status | Reason |
+|---------|--------|--------|
+| **Symbol.dispose** | ❌ Not found | TC39 Stage 3 - not yet adopted |
+| **EventTarget** | ❌ Not used | Custom EventBus class instead |
+| **Deno.test with .step()** | ❌ Not found | Tests use standard Deno.test() |
+
+**🔄 Could Be Extended:**
+
+- **EventBus**: Evaluate EventTarget vs custom class trade-offs
+- **Architecture Tests**: Add specific validation tests with Deno.test
+- **Symbol.dispose**: Adopt when stabilized in Deno
+
 ### Leverage Deno's Built-in Features
 
 Instead of reinventing patterns, **use Deno's Web Standard APIs** and native tooling.
 
-#### 1. EventTarget (Native Event Bus)
+#### 1. EventTarget (Native Event Bus) 🔄 **EVALUATE**
 
-**Current:** Custom EventBus implementation (ADR-036)
+**Current:** ✅ Custom EventBus implementation (ADR-036) - `src/events/event-bus.ts`
+- Uses BroadcastChannel for cross-process communication
+- Custom Map-based handler registry
+- Works well for current SSE/dashboard use case
 
 **Deno Alternative:** Use Web Standard `EventTarget`
 
@@ -1251,11 +1281,14 @@ eventBus.emit('workflow.completed', { workflowId: '123', result: {} });
 - Familiar API for web developers
 - Works in browser too (code portability)
 
-#### 2. Symbol.dispose for Resource Management
+#### 2. Symbol.dispose for Resource Management ❌ **NOT IMPLEMENTED**
 
-**Current:** Manual lifecycle management
+**Current:** ✅ Manual lifecycle management via close() methods
+- `closeKv()` in `src/cache/kv.ts`
+- `EventBus.close()` in `src/events/event-bus.ts`
+- Explicit cleanup in tests
 
-**Deno Alternative:** Use `Symbol.dispose` (TC39 Stage 3)
+**Deno Alternative:** Use `Symbol.dispose` (TC39 Stage 3, not yet adopted)
 
 ```typescript
 // src/infrastructure/lifecycle/resource.ts
@@ -1296,9 +1329,14 @@ export class ResourceManager {
 }
 ```
 
-#### 3. Import Maps for Abstraction Layers
+#### 3. Import Maps for Abstraction Layers ✅ **ALREADY CONFIGURED**
 
-**Use `deno.json` import maps** to define clean architecture boundaries:
+**Current:** ✅ Comprehensive import maps in `deno.json:89-151`
+- 60+ package mappings configured
+- Using JSR (@std/*, @cliffy/*) and npm packages
+- Module exports configured (lines 5-14)
+
+**Enhancement:** Add architecture-specific import aliases:
 
 ```json
 {
@@ -1323,9 +1361,14 @@ export class ResourceManager {
 - Easy refactoring (change path in one place)
 - Layer enforcement (can grep for violations)
 
-#### 4. Deno.test for Architecture Tests
+#### 4. Deno.test for Architecture Tests 🔄 **EXTEND USAGE**
 
-**Use Deno's native test runner** with subtests for architecture validation:
+**Current:** ✅ Using `Deno.test` extensively
+- 60+ test files in `tests/` directory
+- Standard Deno.test() format (no .step() usage yet)
+- Task: `deno task test` with comprehensive flags
+
+**Enhancement:** Add architecture validation tests with subtests:
 
 ```typescript
 // tests/architecture/rules.test.ts
@@ -1372,9 +1415,16 @@ Deno.test("Architecture Rules", async (t) => {
 deno task test:architecture
 ```
 
-#### 5. Deno.bench for Performance Validation
+#### 5. Deno.bench for Performance Validation ✅ **ALREADY IMPLEMENTED**
 
-**Add performance regression tests:**
+**Current:** ✅ Benchmarks exist in `tests/benchmarks/`
+- `performance.bench.ts`
+- `pathfinding/dr-dsp.bench.ts`
+- `pathfinding/dijkstra.bench.ts`
+- `strategic/shgat.bench.ts`
+- Task: `deno task bench` configured
+
+**Enhancement:** Add refactoring-specific performance regression tests:
 
 ```typescript
 // tests/benchmarks/executor.bench.ts
@@ -1395,11 +1445,15 @@ Deno.bench("DAG Execution - 10 sequential tasks", async () => {
 // deno bench --compare baseline.json
 ```
 
-#### 6. Web Crypto API for Security
+#### 6. Web Crypto API for Security ✅ **ALREADY IMPLEMENTED**
 
-**Current:** Using `@ts-rex/argon2` for hashing
+**Current:** ✅ Extensive Web Crypto usage
+- `lib/std/crypto.ts` - 1,262 lines of crypto tools (SHA, HMAC, TOTP, etc.)
+- `src/capabilities/hash.ts` - SHA-256 for code hashing
+- Using `crypto.subtle.digest()`, `crypto.subtle.sign()`, etc.
+- **AND** using `@ts-rex/argon2` for password hashing (secure choice)
 
-**Also use:** Built-in Web Crypto for other operations
+**Note:** Already using native Web Crypto extensively:
 
 ```typescript
 // src/infrastructure/crypto/hash.ts
@@ -1414,9 +1468,15 @@ export async function hashCode(code: string): Promise<string> {
 // Zero dependencies, native speed
 ```
 
-#### 7. Deno KV for Caching & State
+#### 7. Deno KV for Caching & State ✅ **ALREADY IMPLEMENTED**
 
-**Already using Deno KV** for sessions (ADR-037), expand usage:
+**Current:** ✅ Deno KV in use (`src/cache/kv.ts`)
+- Lazy singleton pattern (`getKv()`)
+- Cross-process event signaling (`signalEvent()`, `watchEvents()`)
+- Session storage (`src/server/auth/session.ts`)
+- Enabled via `--unstable-kv` flag
+
+**Enhancement:** Expand usage for caching:
 
 ```typescript
 // src/infrastructure/cache/kv-cache.ts
@@ -1452,9 +1512,15 @@ export class DenoKVCache<T> {
 // - Distributed locks for multi-instance deployments
 ```
 
-#### 8. BroadcastChannel for Cross-Process Events
+#### 8. BroadcastChannel for Cross-Process Events ✅ **ALREADY IMPLEMENTED**
 
-**Already using** for dashboard updates, expand to:
+**Current:** ✅ BroadcastChannel in EventBus (`src/events/event-bus.ts`)
+- `PML_EVENTS_CHANNEL` and `PML_TRACES_CHANNEL` constants
+- Cross-worker/cross-tab communication
+- Dashboard real-time updates (SSE)
+- Enabled via `--unstable-broadcast-channel` flag
+
+**Enhancement:** Document current usage:
 
 ```typescript
 // src/events/broadcast-event-bus.ts
@@ -1488,9 +1554,16 @@ export class BroadcastEventBus {
 // - Cache invalidation across instances
 ```
 
-#### 9. Deno Tasks for Development Workflow
+#### 9. Deno Tasks for Development Workflow ✅ **ALREADY CONFIGURED**
 
-**Add to `deno.json`:**
+**Current:** ✅ Comprehensive task setup in `deno.json:21-70`
+- `test`, `test:unit`, `test:integration`, `test:e2e`
+- `bench`, `bench:shgat`
+- `lint`, `fmt`, `check`
+- `dev`, `dev:api`, `dev:fresh`
+- Production deployment tasks
+
+**Enhancement:** Add architecture-specific tasks:
 
 ```json
 {
@@ -1550,26 +1623,40 @@ export class BroadcastEventBus {
 
 **Phase 2.7 Deliverables:**
 
-- [ ] Replace custom EventBus with `EventTarget` (1 day)
-- [ ] Add `Symbol.dispose` to all resources (2 days)
-- [ ] Setup import maps for layer boundaries (1 day)
-- [ ] Create architecture test suite with `Deno.test` (3 days)
-- [ ] Add performance benchmarks with `Deno.bench` (2 days)
-- [ ] Expand Deno KV usage for caching (2 days)
-- [ ] Use BroadcastChannel for cross-process events (1 day)
-- [ ] Document all Deno-native patterns (1 day)
+**Already Completed (✅):**
+- [x] ✅ **Deno.bench** - Benchmarks exist in `tests/benchmarks/`
+- [x] ✅ **Web Crypto API** - Extensively used in `lib/std/crypto.ts` and `src/capabilities/hash.ts`
+- [x] ✅ **Deno KV** - Implemented in `src/cache/kv.ts` for sessions and event signals
+- [x] ✅ **BroadcastChannel** - Used in `src/events/event-bus.ts` for cross-process events
+- [x] ✅ **Import Maps** - Configured in `deno.json:89-151`
+- [x] ✅ **Deno Tasks** - Comprehensive setup in `deno.json:21-70`
 
-**Timeline:** 2 weeks (overlaps with Phase 2.5)
+**To Evaluate (🔄):**
+- [ ] 🔄 **EventBus vs EventTarget** - Evaluate trade-offs (custom class vs native API) (2 days)
+- [ ] 🔄 **Architecture Tests** - Add validation suite with `Deno.test` subtests (3 days)
+- [ ] 🔄 **Import Maps for Layers** - Add `@/domain/`, `@/application/` aliases (1 day)
+
+**Optional (❌):**
+- [ ] ❌ **Symbol.dispose** - Adopt when stabilized in Deno (not yet available)
+
+**New Deliverables:**
+- [ ] Document existing Deno-native patterns in architecture guide (1 day)
+- [ ] Expand Deno KV usage for CQRS read-side caching (2 days)
+- [ ] Create performance baseline with `deno bench --save` (0.5 days)
+
+**Timeline:** 1 week (most items already done, focus on enhancements)
 
 ---
 
 ## Updated Success Metrics (Including Deno Native)
 
-| Metric | Current | Target | Validation |
-|--------|---------|--------|------------|
-| **Native APIs Used** | 2 (KV, BroadcastChannel) | 8+ APIs | Code review |
-| **Custom Code Replaced** | 0 LOC | 500+ LOC | Diff analysis |
-| **Web Standard Compatibility** | 60% | 95% | Browser compatibility check |
+| Metric | Current (Verified 2025-12-29) | Target | Status |
+|--------|-------------------------------|--------|--------|
+| **Native APIs Used** | ✅ 6 APIs (Deno.test, Deno.bench, BroadcastChannel, Deno.Kv, Web Crypto, Import Maps) | 8+ APIs | 75% done |
+| **Deno Tasks Configured** | ✅ 50+ tasks | 50+ tasks | ✅ Complete |
+| **Benchmarks** | ✅ 4+ benchmark files | 10+ files | 40% done |
+| **Web Standard Compatibility** | ✅ ~80% (EventBus uses BroadcastChannel + custom) | 95% | Good |
+| **Test Files** | ✅ 60+ test files | 100+ files | 60% done |
 
 ---
 
