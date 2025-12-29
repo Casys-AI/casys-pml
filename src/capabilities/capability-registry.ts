@@ -159,6 +159,25 @@ export class CapabilityRegistry {
   }
 
   /**
+   * Get a capability record by workflow_pattern_id (foreign key)
+   *
+   * @param workflowPatternId - The workflow_pattern.pattern_id
+   * @returns The record or null if not found
+   */
+  async getByWorkflowPatternId(workflowPatternId: string): Promise<CapabilityRecord | null> {
+    const rows = await this.db.query(
+      `SELECT * FROM capability_records WHERE workflow_pattern_id = $1`,
+      [workflowPatternId],
+    );
+
+    if (rows.length === 0) {
+      return null;
+    }
+
+    return this.rowToRecord(rows[0]);
+  }
+
+  /**
    * Get a capability record by FQDN components
    *
    * @param org - Organization
