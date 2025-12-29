@@ -127,16 +127,18 @@ development_status:
   epic-5-retrospective: optional
 
   # Epic 6: Real-time Graph Monitoring & Observability
-  # 5 stories (4 original + 6-5 added 2025-12-08), ~10-14h
+  # 6 stories (4 original + 6-5 added 2025-12-08 + 6-6 added 2025-12-29), ~12-17h
   # Dashboard interactif avec SSE pour visualiser et explorer le graphe
   # Live metrics, PageRank viz, Adamic-Adar tooltips, graph export
   # 6-5 added for unified EventBus (ADR-036) - prerequisite: 7.3b
-  epic-6: done # Completed 2025-12-09 (5/5 stories done)
+  # 6-6 added for Admin Analytics Dashboard (user activity, errors, system health)
+  epic-6: in-progress # 5/6 stories done, 6-6 added 2025-12-29
   6-1-real-time-events-stream-sse: done # Code Review APPROVED 2025-12-01, 12 tests passing, Quality Score: 100/100
   6-2-interactive-graph-visualization-dashboard: done # Code Review APPROVED 2025-12-02, 7 tests passing, Quality Score: 95/100
   6-3-live-metrics-analytics-panel: done # Code Review APPROVED 2025-12-02, 23 tests passing, Quality Score: 95/100
   6-4-graph-explorer-search-interface: done # Code Review APPROVED 2025-12-04, 11 tests passing, all 11 ACs validated
   6-5-eventbus-broadcast-channel: done # Code review PASSED 2025-12-09, ADR-036, 43 tests
+  6-6-admin-analytics-dashboard: backlog # User activity, errors, system health - admin only
   epic-6-retrospective: optional
 
   # Epic 7: Emergent Capabilities & Learning System
