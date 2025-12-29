@@ -35,7 +35,6 @@ import type { PermissionInferrer } from "./permission-inferrer.ts";
 import type { StaticStructureBuilder } from "./static-structure-builder.ts";
 import type { CapabilityRegistry } from "./capability-registry.ts";
 import { transformCapabilityRefs, transformLiteralsToArgs } from "./code-transformer.ts";
-import { isCloudMode } from "../db/mod.ts";
 // Story 6.5: EventBus integration (ADR-036)
 import { eventBus } from "../events/mod.ts";
 // Story 10.7c: Thompson Sampling risk classification
@@ -158,10 +157,10 @@ export class CapabilityStore {
       }
     }
 
-    // Cloud mode: Transform literals to args.xxx for shareable capabilities
-    // This removes hardcoded values (tokens, paths, etc.) and makes code parameterized
+    // Transform literals to args.xxx for reusable capabilities
+    // Always parameterize - never store hardcoded values (tokens, paths, secrets, etc.)
     let literalTransformSchema: Capability["parametersSchema"] | undefined;
-    if (isCloudMode() && staticStructure?.literalBindings) {
+    if (staticStructure?.literalBindings) {
       const literalBindings = staticStructure.literalBindings;
       if (Object.keys(literalBindings).length > 0) {
         try {
@@ -169,7 +168,7 @@ export class CapabilityStore {
           if (literalResult.replacedCount > 0) {
             code = literalResult.code;
             literalTransformSchema = literalResult.parametersSchema;
-            logger.info("Transformed literals to args for cloud mode", {
+            logger.info("Transformed literals to args for reusable capability", {
               replacedCount: literalResult.replacedCount,
               parameters: Object.keys(literalBindings),
             });
@@ -202,7 +201,7 @@ export class CapabilityStore {
     const embeddingStr = `[${embedding.join(",")}]`;
 
     // Infer parameters schema from code (Story 7.2b)
-    // In cloud mode, start with schema from literal transformation, then merge with inferred
+    // Start with schema from literal transformation (if any), then merge with inferred
     let parametersSchema: Capability["parametersSchema"] | undefined = literalTransformSchema;
     if (this.schemaInferrer) {
       try {
