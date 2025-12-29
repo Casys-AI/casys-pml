@@ -143,7 +143,7 @@ export const handler = {
                           lineHeight: 1.4,
                           maxWidth: "800px",
                         },
-                        children: "RAG gave agents knowledge. PML gives them skills.",
+                        children: "RAG gave agents knowledge. PML gives them capabilities.",
                       },
                     },
                   ],

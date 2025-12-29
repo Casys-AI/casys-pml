@@ -60,7 +60,7 @@ export default function LandingPage({ data }: { data: LandingPageData }) {
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta
           name="description"
-          content="An open-source Procedural Memory Layer for AI agents. Casys PML captures emergent workflows and crystallizes them into reusable skills. RAG gave agents knowledge. PML gives them skills."
+          content="An open-source Procedural Memory Layer for AI agents. Casys PML captures emergent workflows and crystallizes them into reusable procedures. RAG gave agents knowledge. PML gives them capabilities."
         />
         {/* Open Graph / LinkedIn */}
         <meta property="og:type" content="website" />
@@ -68,7 +68,7 @@ export default function LandingPage({ data }: { data: LandingPageData }) {
         <meta property="og:title" content="Casys PML - Procedural Memory Layer" />
         <meta
           property="og:description"
-          content="An open-source Procedural Memory Layer for AI agents. RAG gave agents knowledge. PML gives them skills."
+          content="An open-source Procedural Memory Layer for AI agents. RAG gave agents knowledge. PML gives them capabilities."
         />
         <meta property="og:image" content="https://pml.casys.ai/og/home.png" />
         <meta property="og:image:width" content="1200" />
@@ -79,7 +79,7 @@ export default function LandingPage({ data }: { data: LandingPageData }) {
         <meta name="twitter:title" content="Casys PML - Procedural Memory Layer" />
         <meta
           name="twitter:description"
-          content="An open-source Procedural Memory Layer for AI agents. RAG gave agents knowledge. PML gives them skills."
+          content="An open-source Procedural Memory Layer for AI agents. RAG gave agents knowledge. PML gives them capabilities."
         />
         <meta name="twitter:image" content="https://pml.casys.ai/og/home.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
