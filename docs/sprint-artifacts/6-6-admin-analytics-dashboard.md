@@ -110,9 +110,19 @@ This is a **cloud-only** feature. Files are excluded from the public sync via:
    - not_found: ILIKE '%not found%'
    - runtime: default
 
-4. **Admin Detection**:
+4. **Admin Detection** (priority order):
    - Local mode: user "local" is always admin
-   - Cloud mode: check `users.role = 'admin'`
+   - Cloud mode: `ADMIN_USERNAMES` env var (comma-separated list)
+   - Cloud mode: check `users.role = 'admin'` in database
+
+5. **Dual Database Support**:
+   - `getRawDb()` uses DbClient from `db/mod.ts`
+   - Works with both PGlite (local) and PostgreSQL (cloud)
+
+6. **Technical Metrics** (for ops, not marketing):
+   - SHGAT: trained status, users with params, last updated
+   - Algorithm Decisions: total traces, avg score/threshold, accept rate, by mode/decision
+   - Capability Registry: total records, verified, usage stats, by visibility/routing
 
 ### Project Structure Notes
 
@@ -158,17 +168,20 @@ N/A - implementation straightforward
 - Tests written (17 test cases)
 - Added to deno.json test:unit:fast task
 - Committed: feat(admin): implement Story 6.6 Admin Analytics Dashboard
+- Improved: getRawDb() now works with PGlite AND PostgreSQL
+- Added: ADMIN_USERNAMES env var for cloud admin config
+- Added: Technical/ML metrics section (SHGAT, Algorithm Decisions, Capability Registry)
 
 ### File List
 
-- src/cloud/admin/types.ts (124 lines)
-- src/cloud/admin/analytics-queries.ts (312 lines)
-- src/cloud/admin/analytics-service.ts (126 lines)
-- src/cloud/admin/mod.ts (39 lines)
-- src/server/auth/db.ts (modified - added getRawDb)
-- src/web/routes/api/admin/analytics.ts (86 lines)
-- src/web/routes/dashboard/admin.tsx (133 lines)
-- src/web/islands/AdminDashboardIsland.tsx (339 lines)
-- tests/unit/cloud/admin/analytics_test.ts (384 lines)
+- src/cloud/admin/types.ts (~180 lines - added TechnicalMetrics)
+- src/cloud/admin/analytics-queries.ts (~510 lines - added queryTechnical)
+- src/cloud/admin/analytics-service.ts (~145 lines - added technical metrics)
+- src/cloud/admin/mod.ts (~45 lines - added exports)
+- src/server/auth/db.ts (modified - getRawDb uses DbClient from db/mod.ts)
+- src/web/routes/api/admin/analytics.ts (~87 lines)
+- src/web/routes/dashboard/admin.tsx (~134 lines)
+- src/web/islands/AdminDashboardIsland.tsx (~507 lines - added Technical section)
+- tests/unit/cloud/admin/analytics_test.ts (~384 lines)
 - deno.json (modified - added tests/unit/cloud/)
 - docs/epics/completed-epics-1-6.md (modified - Story 6.6 details)
