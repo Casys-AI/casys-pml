@@ -5,7 +5,7 @@
 
 import { Head } from "fresh/runtime";
 
-const GA_MEASUREMENT_ID = "G-M30WHH16YF";
+const GA_MEASUREMENT_ID = "G-FR86NHGK8Y";
 
 export function GoogleAnalytics() {
   return (

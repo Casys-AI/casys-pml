@@ -38,7 +38,7 @@ export default function BlogIndex({ data }: { data: { posts: Post[] } }) {
           property="og:description"
           content="Engineering insights, technical deep-dives, and lessons learned building Casys PML - a Procedural Memory Layer for AI agents."
         />
-        <meta property="og:image" content="https://pml.casys.ai/blog/og/index.png" />
+        <meta property="og:image" content="https://pml.casys.ai/assets/og/blog-index.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:site_name" content="Casys PML" />
@@ -49,7 +49,7 @@ export default function BlogIndex({ data }: { data: { posts: Post[] } }) {
           name="twitter:description"
           content="Engineering insights, technical deep-dives, and lessons learned building Casys PML."
         />
-        <meta name="twitter:image" content="https://pml.casys.ai/blog/og/index.png" />
+        <meta name="twitter:image" content="https://pml.casys.ai/assets/og/blog-index.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
         <link

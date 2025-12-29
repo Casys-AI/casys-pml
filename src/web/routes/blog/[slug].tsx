@@ -41,7 +41,7 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
         <meta property="og:title" content={post.title} />
         <meta property="og:description" content={post.snippet} />
         <meta property="og:type" content="article" />
-        <meta property="og:image" content={`https://pml.casys.ai/blog/og/${post.slug}.png`} />
+        <meta property="og:image" content={`https://pml.casys.ai/assets/og/${post.slug}.png`} />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:url" content={`https://pml.casys.ai/blog/${post.slug}`} />
@@ -49,7 +49,7 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={post.title} />
         <meta name="twitter:description" content={post.snippet} />
-        <meta name="twitter:image" content={`https://pml.casys.ai/blog/og/${post.slug}.png`} />
+        <meta name="twitter:image" content={`https://pml.casys.ai/assets/og/${post.slug}.png`} />
         <meta property="article:published_time" content={post.date.toISOString()} />
         <meta property="article:author" content={post.author} />
         {post.tags.map((tag) => <meta property="article:tag" content={tag} key={tag} />)}

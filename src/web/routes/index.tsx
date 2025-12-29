@@ -70,7 +70,7 @@ export default function LandingPage({ data }: { data: LandingPageData }) {
           property="og:description"
           content="An open-source Procedural Memory Layer for AI agents. RAG gave agents knowledge. PML gives them capabilities."
         />
-        <meta property="og:image" content="https://pml.casys.ai/og/home.png" />
+        <meta property="og:image" content="https://pml.casys.ai/assets/og/home.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:site_name" content="Casys PML" />
@@ -81,7 +81,7 @@ export default function LandingPage({ data }: { data: LandingPageData }) {
           name="twitter:description"
           content="An open-source Procedural Memory Layer for AI agents. RAG gave agents knowledge. PML gives them capabilities."
         />
-        <meta name="twitter:image" content="https://pml.casys.ai/og/home.png" />
+        <meta name="twitter:image" content="https://pml.casys.ai/assets/og/home.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
         <link
