@@ -8,7 +8,7 @@ tags:
   - two-layer
   - tactical
   - strategic
-snippet: "One layer thinks fast about tools. Another thinks slow about skills. Separating tactical from strategic intelligence is how we scaled from 10 to 10,000 tools."
+snippet: "One layer thinks fast about tools. Another thinks slow about capabilities. Separating tactical from strategic intelligence is how we scaled from 10 to 10,000 tools."
 format: article
 language: en
 author: Erwan Lee Pesle

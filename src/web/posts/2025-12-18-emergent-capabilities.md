@@ -1,5 +1,5 @@
 ---
-title: "Emergent Capabilities: Skills Nobody Programmed"
+title: "Emergent Capabilities: Procedures Nobody Programmed"
 slug: emergent-capabilities
 date: 2025-12-18
 category: architecture
@@ -8,15 +8,15 @@ tags:
   - capabilities
   - learning
   - self-organization
-snippet: "We didn't define 'deploy to production' as a capability. The system discovered it by watching patterns. Here's how skills emerge from usage—without explicit programming."
+snippet: "We didn't define 'deploy to production' as a capability. The system discovered it by watching patterns. Here's how capabilities emerge from usage—without explicit programming."
 format: article
 language: en
 author: Erwan Lee Pesle
 ---
 
-# Emergent Capabilities: Skills Nobody Programmed
+# Emergent Capabilities: Procedures Nobody Programmed
 
-> The system learns skills by watching you work
+> The system learns procedures by watching you work
 
 ## Tools vs Capabilities
 
@@ -105,7 +105,7 @@ Different users develop different capabilities based on their workflows:
 | Developer Bob        | "Full CI/CD"       | test → build → deploy → notify |
 | Data Scientist Carol | "Model Pipeline"   | train → evaluate → register    |
 
-Same system, different skills—based on usage.
+Same system, different capabilities—based on usage.
 
 ### Continuous Evolution
 
@@ -165,7 +165,7 @@ The magic isn't in any single algorithm. It's in the combination:
 3. **Spectral methods** that find natural clusters
 4. **Continuous learning** that adapts over time
 
-The result: a system that learns your skills by watching you work.
+The result: a system that learns your procedures by watching you work.
 
 ---
 

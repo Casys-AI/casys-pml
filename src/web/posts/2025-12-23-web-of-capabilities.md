@@ -1,5 +1,5 @@
 ---
-title: "The Web of Capabilities: DNS for AI Skills"
+title: "The Web of Capabilities: DNS for AI Capabilities"
 slug: web-of-capabilities
 date: 2025-12-23
 category: vision
@@ -9,13 +9,13 @@ tags:
   - capabilities
   - web3
   - naming
-snippet: "What if AI capabilities had addresses like websites? We're building a DNS for skills—where 'stripe.billing.create_invoice' is as discoverable as 'stripe.com'. Ownership on-chain, execution everywhere."
+snippet: "What if AI capabilities had addresses like websites? We're building a DNS for capabilities—where 'stripe.billing.create_invoice' is as discoverable as 'stripe.com'. Ownership on-chain, execution everywhere."
 format: article
 language: en
 author: Erwan Lee Pesle
 ---
 
-# The Web of Capabilities: DNS for AI Skills
+# The Web of Capabilities: DNS for AI Capabilities
 
 > What DNS did for websites, we're doing for AI capabilities
 
@@ -129,12 +129,12 @@ This graph enables:
 
 Because it's literally a web:
 
-- **Nodes**: Capabilities (skills, tools, actions)
+- **Nodes**: Capabilities (procedures, tools, actions)
 - **Edges**: Dependencies, compositions, similarities
 - **Namespaces**: Ownership and trust boundaries
-- **Discovery**: Like browsing, but for skills
+- **Discovery**: Like browsing, but for capabilities
 
-Just as the web connected documents, the Web of Capabilities connects AI skills.
+Just as the web connected documents, the Web of Capabilities connects AI capabilities.
 
 ## What This Enables
 
@@ -166,7 +166,7 @@ system resolves it transparently:
 Like DNS, the caller uses **names**, the system handles **routing**. If a capability is renamed, old
 names become aliases—backward compatibility for free.
 
-## Query API: Like nslookup for Skills
+## Query API: Like nslookup for Capabilities
 
 ```typescript
 // Simple lookup
@@ -202,7 +202,7 @@ Future:  AI agents discover and compose capabilities
               → Composes optimal workflow
 ```
 
-**DNS made the internet navigable. Capability DNS makes AI skills navigable.**
+**DNS made the internet navigable. Capability DNS makes AI capabilities navigable.**
 
 ---
 

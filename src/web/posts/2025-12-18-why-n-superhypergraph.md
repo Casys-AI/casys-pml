@@ -8,7 +8,7 @@ tags:
   - superhypergraph
   - capabilities
   - data-structures
-snippet: "Standard graphs can't represent skills that contain other skills. We needed recursive structures, so we turned to n-SuperHyperGraphs—a mathematical framework that finally matches how AI agents actually learn."
+snippet: "Standard graphs can't represent capabilities that contain other capabilities. We needed recursive structures, so we turned to n-SuperHyperGraphs—a mathematical framework that finally matches how AI agents actually learn."
 format: article
 language: en
 author: Erwan Lee Pesle
@@ -19,7 +19,7 @@ author: Erwan Lee Pesle
 > From simple edges to recursive hyperedges: the data structure journey that changed how we model AI
 > learning
 
-## Skills Aren't Edges
+## Capabilities Aren't Edges
 
 When an AI agent learns to "deploy to production," it's not learning that GitHub connects to AWS.
 It's learning an entire **orchestration**—a coordinated sequence involving 5, 10, maybe 20 tools
@@ -28,7 +28,7 @@ working together.
 And sometimes, that orchestration is part of an even bigger one.
 
 Standard knowledge graphs can't represent this. They give you nodes and edges—pairs of connected
-things. But skills are _containers_. They hold tools, sequences, and sometimes _other skills_.
+things. But capabilities are _containers_. They hold tools, sequences, and sometimes _other capabilities_.
 
 ![Standard Graph vs What We Need](excalidraw:src/web/assets/diagrams/shg-standard-vs-needed.excalidraw)
 
@@ -75,7 +75,7 @@ The "n" in n-SuperHyperGraph means the depth is unlimited. Perfect for emergent,
 ## Why This Matters for AI Agents
 
 Traditional RAG (Retrieval-Augmented Generation) stores facts. But an AI agent doesn't just need
-facts—it needs **skills**. And skills are hierarchical.
+facts—it needs **capabilities**. And capabilities are hierarchical.
 
 With n-SuperHyperGraphs:
 
