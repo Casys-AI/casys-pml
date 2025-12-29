@@ -204,7 +204,7 @@ export default function AdminDashboardIsland({
       {/* System Usage Section */}
       <section class="mb-8">
         <SectionHeader title="System Usage" />
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
           <MetricCard
             label="Total Executions"
             value={formatNumber(systemUsage.totalExecutions)}
@@ -216,9 +216,14 @@ export default function AdminDashboardIsland({
             color="green"
           />
           <MetricCard
+            label="DAG Executions"
+            value={formatNumber(systemUsage.dagExecutions)}
+            color="purple"
+          />
+          <MetricCard
             label="Unique Capabilities"
             value={formatNumber(systemUsage.uniqueCapabilities)}
-            color="purple"
+            color="blue"
           />
           <MetricCard
             label="Avg per User"

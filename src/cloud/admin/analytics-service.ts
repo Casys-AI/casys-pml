@@ -34,9 +34,12 @@ const cache = new Map<string, CacheEntry<AdminAnalytics>>();
 /** Default cache TTL in milliseconds (2 minutes) */
 const DEFAULT_CACHE_TTL_MS = 2 * 60 * 1000;
 
-/** Generate cache key for options */
+/** Generate cache key for options (includes all options to prevent cache pollution) */
 function getCacheKey(options: AnalyticsOptions): string {
-  return `analytics:${options.timeRange || "24h"}:${options.topUsersLimit || 10}`;
+  const timeRange = options.timeRange || "24h";
+  const topUsersLimit = options.topUsersLimit || 10;
+  const includeTopUsers = options.includeTopUsers !== false; // default true
+  return `analytics:${timeRange}:${topUsersLimit}:${includeTopUsers}`;
 }
 
 /**

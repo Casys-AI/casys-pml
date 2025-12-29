@@ -10,6 +10,7 @@
 import { page } from "fresh";
 import type { FreshContext } from "fresh";
 import { Head } from "fresh/runtime";
+import * as log from "@std/log";
 import type { AuthState } from "../_middleware.ts";
 import { getRawDb } from "../../../server/auth/db.ts";
 import {
@@ -22,7 +23,7 @@ import AdminDashboardIsland from "../../islands/AdminDashboardIsland.tsx";
 
 interface AdminPageData {
   user: NonNullable<AuthState["user"]>;
-  analytics: AdminAnalytics;
+  analytics: AdminAnalytics | null;
   timeRange: TimeRange;
   error?: string;
 }
@@ -52,6 +53,9 @@ export const handler = {
       // Check admin access (pass username for ADMIN_USERNAMES env check)
       const isAdmin = await isAdminUser(db, user.id, user.username);
       if (!isAdmin) {
+        log.warn(
+          `[AdminPage] Admin access denied for user: ${user.username} (${user.id})`,
+        );
         return new Response(null, {
           status: 302,
           headers: { Location: "/dashboard?error=admin_required" },
@@ -85,10 +89,7 @@ export default function AdminPage({ data }: { data: AdminPageData }) {
     <>
       <Head>
         <title>Admin Analytics | Casys PML</title>
-        <link
-          rel="stylesheet"
-          href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2/dist/tailwind.min.css"
-        />
+        <link rel="stylesheet" href="/styles.css" />
       </Head>
       <div class="min-h-screen bg-gray-900 text-white">
         {/* Header */}
@@ -115,10 +116,16 @@ export default function AdminPage({ data }: { data: AdminPageData }) {
 
         {/* Main Content */}
         <main class="p-6">
-          {error ? (
+          {error || !analytics ? (
             <div class="bg-red-900/20 border border-red-500 rounded-lg p-4 mb-6">
               <h2 class="text-red-500 font-bold">Error loading analytics</h2>
-              <p class="text-gray-400">{error}</p>
+              <p class="text-gray-400">{error || "Analytics data unavailable"}</p>
+              <a
+                href="/dashboard/admin"
+                class="mt-4 inline-block text-blue-400 hover:text-blue-300"
+              >
+                Try again
+              </a>
             </div>
           ) : (
             <AdminDashboardIsland

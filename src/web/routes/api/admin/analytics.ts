@@ -10,6 +10,7 @@
  */
 
 import type { FreshContext } from "fresh";
+import * as log from "@std/log";
 import { getRawDb } from "../../../../server/auth/db.ts";
 import { getAdminAnalytics, isAdminUser } from "../../../../cloud/admin/mod.ts";
 import type { AuthState } from "../../_middleware.ts";
@@ -31,6 +32,7 @@ export const handler = {
 
     // Require authentication
     if (!user) {
+      log.warn("[AdminAPI] Unauthorized access attempt to /api/admin/analytics");
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         {
@@ -46,6 +48,9 @@ export const handler = {
       // Check admin access (pass username for ADMIN_USERNAMES env check)
       const isAdmin = await isAdminUser(db, user.id, user.username);
       if (!isAdmin) {
+        log.warn(
+          `[AdminAPI] Admin access denied for user: ${user.username} (${user.id})`,
+        );
         return new Response(
           JSON.stringify({ error: "Forbidden: Admin access required" }),
           {

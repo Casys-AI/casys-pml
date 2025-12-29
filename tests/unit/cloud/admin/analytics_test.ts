@@ -136,6 +136,48 @@ Deno.test("isAdminUser - returns false for non-existent user", async () => {
   await db.close();
 });
 
+Deno.test("isAdminUser - returns true for user in ADMIN_USERNAMES env var", async () => {
+  const db = await setupTestDb();
+  await seedTestData(db);
+
+  // Set ADMIN_USERNAMES env var
+  const originalEnv = Deno.env.get("ADMIN_USERNAMES");
+  Deno.env.set("ADMIN_USERNAMES", "normal_user,another_admin");
+
+  try {
+    // normal_user is not admin role, but is in ADMIN_USERNAMES
+    const result = await isAdminUser(db, "some_id", "normal_user");
+    assertEquals(result, true);
+  } finally {
+    // Restore original env
+    if (originalEnv) {
+      Deno.env.set("ADMIN_USERNAMES", originalEnv);
+    } else {
+      Deno.env.delete("ADMIN_USERNAMES");
+    }
+    await db.close();
+  }
+});
+
+Deno.test("isAdminUser - ADMIN_USERNAMES is case insensitive", async () => {
+  const db = await setupTestDb();
+
+  const originalEnv = Deno.env.get("ADMIN_USERNAMES");
+  Deno.env.set("ADMIN_USERNAMES", "TestAdmin,AnotherUser");
+
+  try {
+    const result = await isAdminUser(db, "some_id", "testadmin");
+    assertEquals(result, true);
+  } finally {
+    if (originalEnv) {
+      Deno.env.set("ADMIN_USERNAMES", originalEnv);
+    } else {
+      Deno.env.delete("ADMIN_USERNAMES");
+    }
+    await db.close();
+  }
+});
+
 // ============================================
 // queryUserActivity Tests
 // ============================================

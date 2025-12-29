@@ -42,6 +42,8 @@ export interface SystemUsageMetrics {
   totalExecutions: number;
   /** Capability executions */
   capabilityExecutions: number;
+  /** DAG/workflow executions (multi-step) */
+  dagExecutions: number;
   /** Unique capabilities used */
   uniqueCapabilities: number;
   /** Average executions per user */

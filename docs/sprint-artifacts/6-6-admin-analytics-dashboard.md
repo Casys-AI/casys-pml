@@ -1,6 +1,6 @@
 # Story 6.6: Admin Analytics Dashboard
 
-Status: ready-for-dev
+Status: in-review
 
 <!-- Note: Cloud-only implementation. Code is excluded from public sync via src/cloud/ and src/web/. -->
 
@@ -86,6 +86,17 @@ As a platform admin, I want a technical analytics dashboard showing user activit
 - [x] Task 7: Add getRawDb() to auth/db.ts
   - [x] Expose raw SQL query interface for analytics
 
+### Review Follow-ups (User)
+
+These items were identified during code review and deferred for later:
+
+- [ ] [L1] Update story status from "ready-for-dev" to "done" when complete
+- [ ] [L2] Consistent query param naming: API uses `?timeRange=` but dashboard uses `?range=`
+- [ ] [L3] Import `queryTechnical` in tests/unit/cloud/admin/analytics_test.ts
+- [ ] [L4] Add test for cache TTL expiration (verify cache expires after 2 minutes)
+- [ ] [H4] Add tests for `queryTechnical`, `querySHGATMetrics`, `queryAlgorithmMetrics`, `queryCapabilityRegistryMetrics`
+- [ ] [M1] Remove unused `isCloudMode` variable in analytics.ts:23
+
 ## Dev Notes
 
 ### Architecture
@@ -165,12 +176,22 @@ N/A - implementation straightforward
 ### Completion Notes List
 
 - All files created and functional
-- Tests written (17 test cases)
+- Tests written (19 test cases - added ADMIN_USERNAMES tests)
 - Added to deno.json test:unit:fast task
 - Committed: feat(admin): implement Story 6.6 Admin Analytics Dashboard
 - Improved: getRawDb() now works with PGlite AND PostgreSQL
 - Added: ADMIN_USERNAMES env var for cloud admin config
 - Added: Technical/ML metrics section (SHGAT, Algorithm Decisions, Capability Registry)
+
+**Code Review Fixes Applied:**
+- [H1] SQL queries now use buildTimeFilter() for safe interval interpolation
+- [H2] Rate limit hits now tracked via error_message pattern matching
+- [H3] Added dagExecutions metric to SystemUsageMetrics
+- [H5] Added tests for ADMIN_USERNAMES env var (including case insensitivity)
+- [H6] AdminPageData.analytics now allows null, with proper error handling
+- [M2] Replaced CDN Tailwind with local /styles.css
+- [M3] Added log.warn() on admin access denial (security audit)
+- [M4] getCacheKey() now includes all options (timeRange, topUsersLimit, includeTopUsers)
 
 ### File List
 

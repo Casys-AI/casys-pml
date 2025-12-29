@@ -26,6 +26,7 @@ import type {
 
 /** Get interval string for time range */
 function getIntervalString(timeRange: TimeRange): string {
+  // These are safe, fixed values - no user input
   switch (timeRange) {
     case "24h":
       return "1 day";
@@ -36,19 +37,30 @@ function getIntervalString(timeRange: TimeRange): string {
   }
 }
 
+/**
+ * Build a safe WHERE clause for time-based filtering.
+ * Uses INTERVAL literals which are safe since timeRange is a union type.
+ */
+function buildTimeFilter(column: string, timeRange: TimeRange): string {
+  const interval = getIntervalString(timeRange);
+  // Safe: interval comes from getIntervalString which only returns fixed strings
+  return `${column} > NOW() - INTERVAL '${interval}'`;
+}
+
 /** Query user activity metrics */
 export async function queryUserActivity(
   db: DbClient,
   timeRange: TimeRange,
   topUsersLimit = 10,
 ): Promise<UserActivityMetrics> {
-  const interval = getIntervalString(timeRange);
+  const timeFilter = buildTimeFilter("executed_at", timeRange);
+  const userTimeFilter = buildTimeFilter("created_at", timeRange);
 
   // Active users in time range
   const activeResult = await db.queryOne<{ count: number }>(`
     SELECT COUNT(DISTINCT user_id) as count
     FROM execution_trace
-    WHERE executed_at > NOW() - INTERVAL '${interval}'
+    WHERE ${timeFilter}
   `);
 
   // DAU (last 24h)
@@ -76,14 +88,15 @@ export async function queryUserActivity(
   const newUsersResult = await db.queryOne<{ count: number }>(`
     SELECT COUNT(*) as count
     FROM users
-    WHERE created_at > NOW() - INTERVAL '${interval}'
+    WHERE ${userTimeFilter}
   `);
 
   // Returning users (had activity before time range AND during)
+  const interval = getIntervalString(timeRange);
   const returningResult = await db.queryOne<{ count: number }>(`
     SELECT COUNT(DISTINCT et.user_id) as count
     FROM execution_trace et
-    WHERE et.executed_at > NOW() - INTERVAL '${interval}'
+    WHERE ${timeFilter.replace("executed_at", "et.executed_at")}
     AND EXISTS (
       SELECT 1 FROM execution_trace et2
       WHERE et2.user_id = et.user_id
@@ -105,7 +118,7 @@ export async function queryUserActivity(
       MAX(et.executed_at) as last_active
     FROM execution_trace et
     LEFT JOIN users u ON u.id::text = et.user_id OR u.username = et.user_id
-    WHERE et.executed_at > NOW() - INTERVAL '${interval}'
+    WHERE ${timeFilter.replace("executed_at", "et.executed_at")}
     GROUP BY et.user_id, u.username
     ORDER BY execution_count DESC
     LIMIT ${topUsersLimit}
@@ -134,20 +147,20 @@ export async function querySystemUsage(
   db: DbClient,
   timeRange: TimeRange,
 ): Promise<SystemUsageMetrics> {
-  const interval = getIntervalString(timeRange);
+  const timeFilter = buildTimeFilter("executed_at", timeRange);
 
   // Total executions
   const totalResult = await db.queryOne<{ count: number }>(`
     SELECT COUNT(*) as count
     FROM execution_trace
-    WHERE executed_at > NOW() - INTERVAL '${interval}'
+    WHERE ${timeFilter}
   `);
 
   // Capability executions (with capability_id)
   const capabilityResult = await db.queryOne<{ count: number }>(`
     SELECT COUNT(*) as count
     FROM execution_trace
-    WHERE executed_at > NOW() - INTERVAL '${interval}'
+    WHERE ${timeFilter}
     AND capability_id IS NOT NULL
   `);
 
@@ -155,15 +168,23 @@ export async function querySystemUsage(
   const uniqueCapResult = await db.queryOne<{ count: number }>(`
     SELECT COUNT(DISTINCT capability_id) as count
     FROM execution_trace
-    WHERE executed_at > NOW() - INTERVAL '${interval}'
+    WHERE ${timeFilter}
     AND capability_id IS NOT NULL
+  `);
+
+  // DAG/workflow executions (multi-step executions with workflow_id or parent trace)
+  const dagResult = await db.queryOne<{ count: number }>(`
+    SELECT COUNT(*) as count
+    FROM execution_trace
+    WHERE ${timeFilter}
+    AND (workflow_id IS NOT NULL OR parent_trace_id IS NOT NULL)
   `);
 
   // Active users for avg calculation
   const activeUsersResult = await db.queryOne<{ count: number }>(`
     SELECT COUNT(DISTINCT user_id) as count
     FROM execution_trace
-    WHERE executed_at > NOW() - INTERVAL '${interval}'
+    WHERE ${timeFilter}
   `);
 
   const totalExecutions = Number(totalResult?.count || 0);
@@ -175,7 +196,7 @@ export async function querySystemUsage(
       DATE(executed_at) as date,
       COUNT(*) as count
     FROM execution_trace
-    WHERE executed_at > NOW() - INTERVAL '${interval}'
+    WHERE ${timeFilter}
     GROUP BY DATE(executed_at)
     ORDER BY date ASC
   `);
@@ -188,6 +209,7 @@ export async function querySystemUsage(
   return {
     totalExecutions,
     capabilityExecutions: Number(capabilityResult?.count || 0),
+    dagExecutions: Number(dagResult?.count || 0),
     uniqueCapabilities: Number(uniqueCapResult?.count || 0),
     avgExecutionsPerUser: activeUsers > 0
       ? Math.round(totalExecutions / activeUsers)
@@ -201,7 +223,7 @@ export async function queryErrorHealth(
   db: DbClient,
   timeRange: TimeRange,
 ): Promise<ErrorHealthMetrics> {
-  const interval = getIntervalString(timeRange);
+  const timeFilter = buildTimeFilter("executed_at", timeRange);
 
   // Total and failed executions
   const execResult = await db.queryOne<{
@@ -212,7 +234,7 @@ export async function queryErrorHealth(
       COUNT(*) as total,
       COUNT(*) FILTER (WHERE success = false) as failed
     FROM execution_trace
-    WHERE executed_at > NOW() - INTERVAL '${interval}'
+    WHERE ${timeFilter}
   `);
 
   const total = Number(execResult?.total || 0);
@@ -230,7 +252,7 @@ export async function queryErrorHealth(
       END as error_type,
       COUNT(*) as count
     FROM execution_trace
-    WHERE executed_at > NOW() - INTERVAL '${interval}'
+    WHERE ${timeFilter}
     AND success = false
     AND error_message IS NOT NULL
     GROUP BY error_type
@@ -255,7 +277,7 @@ export async function queryErrorHealth(
       PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY duration_ms) as p99,
       AVG(duration_ms) as avg
     FROM execution_trace
-    WHERE executed_at > NOW() - INTERVAL '${interval}'
+    WHERE ${timeFilter}
     AND duration_ms > 0
   `);
 
@@ -266,8 +288,15 @@ export async function queryErrorHealth(
     avg: Math.round(Number(latencyResult?.avg || 0)),
   };
 
-  // Rate limit hits (placeholder - needs rate_limit tracking table)
-  const rateLimitHits = 0;
+  // Rate limit hits (count errors with rate_limit pattern)
+  const rateLimitResult = await db.queryOne<{ count: number }>(`
+    SELECT COUNT(*) as count
+    FROM execution_trace
+    WHERE ${timeFilter}
+    AND success = false
+    AND error_message ILIKE '%rate%limit%'
+  `);
+  const rateLimitHits = Number(rateLimitResult?.count || 0);
 
   return {
     totalExecutions: total,
@@ -320,12 +349,12 @@ export async function queryTechnical(
   db: DbClient,
   timeRange: TimeRange,
 ): Promise<TechnicalMetrics> {
-  const interval = getIntervalString(timeRange);
+  const timeFilter = buildTimeFilter("timestamp", timeRange);
 
   // Run SHGAT, Algorithm, and Capability queries in parallel
   const [shgat, algorithms, capabilities] = await Promise.all([
     querySHGATMetrics(db),
-    queryAlgorithmMetrics(db, interval),
+    queryAlgorithmMetrics(db, timeFilter),
     queryCapabilityRegistryMetrics(db),
   ]);
 
@@ -364,21 +393,21 @@ async function querySHGATMetrics(db: DbClient): Promise<SHGATMetrics> {
 /** Query algorithm decision metrics */
 async function queryAlgorithmMetrics(
   db: DbClient,
-  interval: string,
+  timeFilter: string,
 ): Promise<AlgorithmMetrics> {
   try {
     // Total traces
     const totalResult = await db.queryOne<{ count: number }>(`
       SELECT COUNT(*) as count
       FROM algorithm_traces
-      WHERE timestamp > NOW() - INTERVAL '${interval}'
+      WHERE ${timeFilter}
     `);
 
     // By mode (active_search, passive_suggestion)
     const modeRows = await db.query<{ mode: string; count: number }>(`
       SELECT algorithm_mode as mode, COUNT(*) as count
       FROM algorithm_traces
-      WHERE timestamp > NOW() - INTERVAL '${interval}'
+      WHERE ${timeFilter}
       GROUP BY algorithm_mode
       ORDER BY count DESC
     `);
@@ -387,7 +416,7 @@ async function queryAlgorithmMetrics(
     const targetRows = await db.query<{ target_type: string; count: number }>(`
       SELECT target_type, COUNT(*) as count
       FROM algorithm_traces
-      WHERE timestamp > NOW() - INTERVAL '${interval}'
+      WHERE ${timeFilter}
       GROUP BY target_type
       ORDER BY count DESC
     `);
@@ -396,7 +425,7 @@ async function queryAlgorithmMetrics(
     const decisionRows = await db.query<{ decision: string; count: number }>(`
       SELECT decision, COUNT(*) as count
       FROM algorithm_traces
-      WHERE timestamp > NOW() - INTERVAL '${interval}'
+      WHERE ${timeFilter}
       GROUP BY decision
       ORDER BY count DESC
     `);
@@ -410,7 +439,7 @@ async function queryAlgorithmMetrics(
         AVG(final_score) as avg_score,
         AVG(threshold_used) as avg_threshold
       FROM algorithm_traces
-      WHERE timestamp > NOW() - INTERVAL '${interval}'
+      WHERE ${timeFilter}
     `);
 
     return {
