@@ -33,7 +33,7 @@ user's local resources.
   detection → CWD fallback
 - **FR14-3:** The system must route MCP calls based on `routing: local | cloud` configuration in
   `mcp-permissions.yaml`
-- **FR14-4:** The system must dynamically import MCP code from registry (JSR or configured source)
+- **FR14-4:** The system must dynamically import MCP code from unified PML registry (`pml.casys.ai/mcp/{fqdn}`)
 - **FR14-5:** The system must execute local MCPs (filesystem, shell, sqlite) in Deno sandbox with
   scoped permissions
 - **FR14-6:** The system must forward cloud MCPs (pml:search, GraphRAG, tavily) via HTTP RPC to
@@ -83,20 +83,20 @@ user's local resources.
 
 ### FR Coverage Map
 
-| FR      | Epic    | Story      | Description                                  |
-| ------- | ------- | ---------- | -------------------------------------------- |
-| FR14-1  | Epic 14 | 14.1       | Package JSR installable via `deno install`   |
-| FR14-2  | Epic 14 | 14.2       | Workspace resolution (ENV → detection → CWD) |
-| FR14-3  | Epic 14 | 14.3       | Routing based on `mcp-permissions.yaml`      |
-| FR14-4  | Epic 14 | 14.4, 14.7 | Dynamic MCP import from registry             |
-| FR14-5  | Epic 14 | 14.5       | Sandboxed local MCP execution                |
-| FR14-6  | Epic 14 | 14.6       | Forward cloud MCPs via HTTP RPC              |
-| FR14-7  | Epic 14 | 14.6       | HTTP Streamable server local                 |
-| FR14-8  | Epic 14 | 14.6       | BYOK support via local env vars              |
-| FR14-9  | Epic 14 | 14.1       | `.mcp.json` generation via `pml init`        |
-| FR14-10 | Epic 14 | 14.4       | MCP code caching via Deno                    |
-| FR14-11 | Epic 14 | 14.6       | Local and Cloud mode support                 |
-| FR14-12 | Epic 14 | 14.6       | Local API keys never stored on cloud         |
+| FR      | Epic    | Story      | Description                                           |
+| ------- | ------- | ---------- | ----------------------------------------------------- |
+| FR14-1  | Epic 14 | 14.1       | Package JSR installable via `deno install`            |
+| FR14-2  | Epic 14 | 14.2       | Workspace resolution (ENV → detection → CWD)          |
+| FR14-3  | Epic 14 | 14.3       | Routing based on `mcp-permissions.yaml`               |
+| FR14-4  | Epic 14 | 14.4, 14.7 | Dynamic MCP import from unified registry              |
+| FR14-5  | Epic 14 | 14.5       | Sandboxed local MCP execution                         |
+| FR14-6  | Epic 14 | 14.6       | Forward cloud MCPs via HTTP RPC                       |
+| FR14-7  | Epic 14 | 14.6       | HTTP Streamable server local                          |
+| FR14-8  | Epic 14 | 14.6       | BYOK support via local env vars                       |
+| FR14-9  | Epic 14 | 14.1       | `.mcp.json` generation via `pml init`                 |
+| FR14-10 | Epic 14 | 14.4       | MCP code caching via Deno HTTP cache                  |
+| FR14-11 | Epic 14 | 14.6       | Local and Cloud mode support                          |
+| FR14-12 | Epic 14 | 14.6       | Local API keys never stored on cloud                  |
 
 ## Epic List
 
@@ -127,10 +127,24 @@ jsr:@casys/pml (lightweight local package)
     │
     ├─► Local MCPs (routing: local)
     │     └─► Sandboxed Deno execution with workspace-scoped permissions
-    │     └─► Code loaded from JSR: jsr:@casys/pml-mcp-{name}
+    │     └─► Code loaded from: pml.casys.ai/mcp/{fqdn}
     │
     └─► Cloud MCPs (routing: cloud)
-          └─► HTTP RPC to pml.casys.ai + BYOK injection
+          └─► HTTP RPC to pml.casys.ai/mcp + BYOK injection
+```
+
+**Unified Registry (Story 13.8):**
+
+```
+pml.casys.ai/mcp/{fqdn}
+        │
+        ├─► Lookup in pml_registry table
+        │     record_type = 'capability' | 'mcp-server'
+        │
+        ├─► If 'mcp-server' → serve native MCP code
+        └─► If 'capability' → serve learned capability code (same MCP interface)
+
+External clients see only standard MCP - internal distinction is transparent.
 ```
 
 **Prerequisites:**
@@ -219,26 +233,37 @@ pml:
 
 ---
 
-### Story 14.4: Dynamic MCP Loader from Registry
+### Story 14.4: Dynamic MCP Loader from Unified Registry
 
-As a developer, I want local MCPs to be loaded from JSR registry and cached, So that I always have
-versioned, cacheable MCP implementations.
+As a developer, I want local MCPs and capabilities to be loaded from the unified PML registry, So
+that I get consistent MCP implementations whether they are native servers or learned capabilities.
 
 **Acceptance Criteria:**
 
 **Given** a local MCP call (e.g., `filesystem:read_file`) **When** the MCP code is not yet cached
-**Then** it is dynamically imported from `jsr:@casys/pml-mcp-filesystem` **And** Deno's module cache
-stores it for future use
+**Then** the package fetches `code_url` from `pml_registry` via `pml.casys.ai/mcp/{fqdn}` **And**
+dynamically imports the module **And** Deno's module cache stores it for future use
+
+**Given** a capability call (e.g., `fs:read_json`) **When** the code is requested **Then** the same
+endpoint `pml.casys.ai/mcp/{fqdn}` returns the capability code **And** external clients see standard
+MCP interface (internal `record_type` distinction is transparent)
 
 **Given** a previously cached MCP module **When** the same MCP is called again **Then** no network
-request is made **And** execution uses the cached version
+request is made **And** execution uses the cached version (HTTP cache headers respected)
 
 **Given** the registry is unreachable **When** a local MCP is called with cached code **Then**
 execution proceeds using the cache **And** a warning is logged about offline mode
 
 **Given** the registry is unreachable **When** a local MCP is called without cached code **Then** an
-error is returned with instructions to restore connectivity **And** the error suggests `deno cache`
-command for pre-caching
+error is returned with instructions to restore connectivity **And** the error suggests pre-caching
+essential MCPs
+
+**Technical Note:**
+
+> This story uses `pml_registry` from Story 13.8. The registry stores both `mcp-server` and
+> `capability` records with their `code_url`. The `/mcp/{fqdn}` endpoint resolves the FQDN, looks up
+> the record, and serves the appropriate code. Clients don't need to know if it's a native MCP or a
+> learned capability.
 
 ---
 
@@ -337,42 +362,39 @@ server **And** see `lib/README.md` "Agent Tools & MCP Sampling" section
 
 ---
 
-### Story 14.7: MCP Source Resolution (Depends on Registry Decision)
+### Story 14.7: MCP Registry Endpoint (Server-Side)
 
-As a developer using the PML package, I want local MCPs to be loaded from the configured source, So
-that I get the correct MCP implementations regardless of the registry strategy chosen.
+As a platform operator, I want the PML cloud to expose a `/mcp/{fqdn}` endpoint that serves MCP code
+from the unified registry, So that the local package can dynamically load any MCP or capability.
 
 **Acceptance Criteria:**
 
-**Given** the registry decision made (Epic 13 or other) **When** the package needs to load a local
-MCP **Then** it resolves the source according to the defined strategy:
+**Given** a request to `pml.casys.ai/mcp/filesystem` **When** the endpoint processes it **Then** it
+looks up `filesystem` in `pml_registry` **And** returns the MCP server code as a Deno module
 
-- JSR: `jsr:@casys/pml-mcp-{name}`
-- Hosted: `https://pml.casys.ai/mcps/{name}/mod.ts`
-- Custom registry: configurable URL in `.pml.json`
+**Given** a request to `pml.casys.ai/mcp/fs:read_json` **When** the endpoint processes it **Then** it
+looks up the capability in `pml_registry` **And** returns the capability code wrapped as MCP
+interface **And** the response is indistinguishable from a native MCP server
 
-**Given** a source configured in `.pml.json`
+**Given** an unknown FQDN **When** requested **Then** a 404 error is returned with helpful message
 
-```json
-{
-  "mcpRegistry": "jsr:@casys/pml-mcp-{name}"
-}
-```
+**Given** any MCP request **When** served **Then** appropriate HTTP cache headers are set
+(`Cache-Control`, `ETag`) **And** Deno can cache the module locally
 
-**When** an MCP is requested **Then** the pattern is used to construct the import URL
-
-**Given** no explicit config **When** an MCP is requested **Then** uses the default (to be defined
-per Epic 13)
+**Given** a capability with `routing: local` **When** code is served **Then** the code includes
+necessary sandbox-compatible imports **And** no cloud-only dependencies are included
 
 **Technical Note:**
 
-> This story depends on **Epic 13 Stories 13.8-13.9** (MCP Server Registry & Routing Inheritance).
-> Once those are complete, this story uses `cap:lookup("mcp:{name}")` to resolve MCP code URLs.
+> This is the server-side complement to Story 14.4. The endpoint reads from `pml_registry` (Story
+> 13.8) and uses `routing` field (Story 13.9) to determine if additional metadata should be included.
+> Both MCP servers and capabilities are served through the same endpoint - the `record_type`
+> distinction is internal only.
 
 **Dependencies:**
 
-- Story 13.8: MCP Server Registry (provides `cap:lookup` for MCPs)
-- Story 13.9: Routing Inheritance (provides `routing` field in responses)
+- Story 13.8: Unified PML Registry (`pml_registry` table with `record_type`, `code_url`)
+- Story 13.9: Routing Inheritance (`routing` field populated)
 
 ---
 
@@ -425,7 +447,9 @@ packages/pml/
 
 - `@modelcontextprotocol/sdk` - MCP HTTP server implementation
 - Deno native `Worker` API - Sandbox isolation
-- Deno native `fetch` - Cloud RPC calls
+- Deno native `fetch` - Cloud RPC calls + registry fetching
+- Story 13.8 - `pml_registry` table for unified MCP/capability storage
+- Story 13.9 - `routing` field for local/cloud decisions
 
 ### Related ADRs
 
@@ -433,21 +457,30 @@ packages/pml/
 - ADR-040: Multi-tenant MCP & Secrets Management
 - ADR-044: JSON-RPC Multiplexer
 
-### MCP Packages (to be published)
+### Unified Registry Endpoint
+
+All MCP code (native servers AND learned capabilities) served from single endpoint:
 
 ```
-jsr:@casys/pml-mcp-filesystem
-jsr:@casys/pml-mcp-shell
-jsr:@casys/pml-mcp-sqlite
+pml.casys.ai/mcp/{fqdn}
+
+Examples:
+  /mcp/filesystem        → Native MCP server code
+  /mcp/fs:read_json      → Learned capability (same MCP interface)
+  /mcp/data:transform    → Learned capability
 ```
+
+Internal distinction via `pml_registry.record_type`:
+- `mcp-server` - Native MCP server implementations
+- `capability` - Learned capabilities wrapped as MCP
+
+External clients see only standard MCP protocol - no distinction visible.
 
 ---
 
-## Open Questions (Deferred to Epic 13)
+## Open Questions (Resolved)
 
-1. **Registry Strategy**: JSR vs hosted vs hybrid - decision pending Epic 13
-2. **Versioning**: How to handle MCP version updates and breaking changes
-3. **Custom MCPs**: Can users add their own local MCPs beyond PML-provided ones?
-4. **Offline Fallback**: What subset of functionality is available fully offline?
-
-These questions will be addressed in Epic 13 (Capability Naming & Curation).
+1. **Registry Strategy**: ✅ Resolved - Unified `pml.casys.ai/mcp/{fqdn}` endpoint (not JSR)
+2. **Versioning**: Handled via `pml_registry.version` and `version_tag` fields
+3. **Custom MCPs**: Can be added to `pml_registry` with `record_type='mcp-server'`
+4. **Offline Fallback**: Deno HTTP cache + optional pre-bundled essential MCPs in package
