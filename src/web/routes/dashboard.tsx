@@ -41,23 +41,31 @@ export default function Dashboard({ data }: { data: DashboardData }) {
           rel="stylesheet"
         />
         {/* Cytoscape.js for graph visualization - defer to not block render */}
-        <script defer src="https://cdn.jsdelivr.net/npm/cytoscape@3.30.4/dist/cytoscape.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/cytoscape@3.30.4/dist/cytoscape.min.js">
+        </script>
         {/* Dagre layout for hierarchical graphs */}
         <script defer src="https://cdn.jsdelivr.net/npm/dagre@0.8.5/dist/dagre.min.js"></script>
-        <script defer src="https://cdn.jsdelivr.net/npm/cytoscape-dagre@2.5.0/cytoscape-dagre.min.js">
+        <script
+          defer
+          src="https://cdn.jsdelivr.net/npm/cytoscape-dagre@2.5.0/cytoscape-dagre.min.js"
+        >
         </script>
         {/* Layout base dependencies */}
         <script defer src="https://unpkg.com/layout-base/layout-base.js"></script>
         <script defer src="https://unpkg.com/cose-base/cose-base.js"></script>
         {/* Cose-Bilkent layout for compound nodes */}
-        <script defer src="https://unpkg.com/cytoscape-cose-bilkent@4.1.0/cytoscape-cose-bilkent.js">
+        <script
+          defer
+          src="https://unpkg.com/cytoscape-cose-bilkent@4.1.0/cytoscape-cose-bilkent.js"
+        >
         </script>
         {/* fCoSE layout - faster with better component packing */}
         <script defer src="https://unpkg.com/cytoscape-fcose@2.2.0/cytoscape-fcose.js"></script>
         {/* Cola layout - D3-like force simulation with live physics */}
         <script defer src="https://unpkg.com/webcola@3.4.0/WebCola/cola.min.js"></script>
         <script defer src="https://unpkg.com/cytoscape-cola@2.5.1/cytoscape-cola.js"></script>
-        <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js">
+        </script>
         <style>
           {`
           * {

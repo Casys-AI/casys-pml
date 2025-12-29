@@ -626,9 +626,7 @@ export async function trainSHGATOnPathTracesSubprocess(
   // Ensure first capability includes all tools
   const capsForWorker = capabilities.map((c, i) => ({
     ...c,
-    toolsUsed: i === 0
-      ? [...new Set([...c.toolsUsed, ...allToolsFromExamples])]
-      : c.toolsUsed,
+    toolsUsed: i === 0 ? [...new Set([...c.toolsUsed, ...allToolsFromExamples])] : c.toolsUsed,
   }));
 
   // Step 6: Train in subprocess

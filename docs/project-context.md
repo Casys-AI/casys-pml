@@ -61,7 +61,8 @@ this project. Focus on unobvious details that agents might otherwise miss._
 
 ### Graph Algorithms (Non-SHGAT)
 
-> **Note:** Ces algos sont utilisés pour clustering, suggestions, local-alpha — **PAS** pour le scoring SHGAT K-head.
+> **Note:** Ces algos sont utilisés pour clustering, suggestions, local-alpha — **PAS** pour le
+> scoring SHGAT K-head.
 
 - **Spectral Clustering** — `src/graphrag/spectral-clustering.ts` — dag-suggester, clustering
 - **PageRank** — `src/graphrag/graph-engine.ts` — Centralité, metrics
@@ -140,7 +141,8 @@ this project. Focus on unobvious details that agents might otherwise miss._
 
 #### Databases (Dual-Mode)
 
-- **PGlite / PostgreSQL** — PGlite (dev/embedded) ou PostgreSQL Docker (prod) pour données persistantes (GraphRAG, capabilities, workflows)
+- **PGlite / PostgreSQL** — PGlite (dev/embedded) ou PostgreSQL Docker (prod) pour données
+  persistantes (GraphRAG, capabilities, workflows)
 - **Deno KV** — Key-value store pour sessions, cache, OAuth tokens
 - **Architecture Open Core** — Version cloud en préparation, garder le code compatible multi-tenant
 

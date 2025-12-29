@@ -60,7 +60,9 @@ export const databaseTools: MiniTool[] = [
       },
       required: ["database", "query"],
     },
-    handler: async ({ host = "localhost", port = 5432, database, user = "postgres", password, query }) => {
+    handler: async (
+      { host = "localhost", port = 5432, database, user = "postgres", password, query },
+    ) => {
       // Use npm:postgres library instead of CLI
       const postgres = (await import("postgres")).default;
       const connectionString = password
@@ -71,7 +73,7 @@ export const databaseTools: MiniTool[] = [
       try {
         const result = await sql.unsafe(query as string);
         // Convert postgres result to plain array (it's a special object)
-        const rows = [...result].map(row => ({ ...row }));
+        const rows = [...result].map((row) => ({ ...row }));
         return { rows, rowCount: rows.length };
       } finally {
         await sql.end();
@@ -234,7 +236,9 @@ export const databaseTools: MiniTool[] = [
       },
       required: ["database"],
     },
-    handler: async ({ host = "localhost", port = 5432, database, user = "postgres", password, schema = "public" }) => {
+    handler: async (
+      { host = "localhost", port = 5432, database, user = "postgres", password, schema = "public" },
+    ) => {
       const postgres = (await import("postgres")).default;
       const connectionString = password
         ? `postgres://${user}:${password}@${host}:${port}/${database}`
@@ -275,7 +279,9 @@ export const databaseTools: MiniTool[] = [
       },
       required: ["database", "table"],
     },
-    handler: async ({ host = "localhost", port = 5432, database, user = "postgres", password, table }) => {
+    handler: async (
+      { host = "localhost", port = 5432, database, user = "postgres", password, table },
+    ) => {
       const postgres = (await import("postgres")).default;
       const connectionString = password
         ? `postgres://${user}:${password}@${host}:${port}/${database}`

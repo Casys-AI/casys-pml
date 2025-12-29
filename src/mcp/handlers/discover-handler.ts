@@ -196,7 +196,12 @@ export async function handleDiscover(
 
     // Search capabilities if filter allows
     if (filterType === "all" || filterType === "capability") {
-      const capabilityResult = await searchCapability(intent, dagSuggester, capabilityRegistry, correlationId);
+      const capabilityResult = await searchCapability(
+        intent,
+        dagSuggester,
+        capabilityRegistry,
+        correlationId,
+      );
       if (capabilityResult && capabilityResult.score >= minScore) {
         results.push(capabilityResult);
         capabilitiesCount++;
@@ -321,7 +326,10 @@ async function searchCapability(
   capabilityRegistry?: CapabilityRegistry,
   correlationId?: string,
 ): Promise<DiscoverResultItem | null> {
-  const match: CapabilityMatch | null = await dagSuggester.searchCapabilities(intent, correlationId);
+  const match: CapabilityMatch | null = await dagSuggester.searchCapabilities(
+    intent,
+    correlationId,
+  );
 
   if (!match) {
     return null;

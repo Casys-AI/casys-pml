@@ -1,19 +1,19 @@
 # Spike: BM25 + RRF Hybrid Search
 
-**Date:** 2025-12-28
-**Status:** Exploration
-**Author:** Erwan + Claude
+**Date:** 2025-12-28 **Status:** Exploration **Author:** Erwan + Claude
 
 ## Problem Statement
 
 Current `pml:discover` uses embeddings (BGE-M3) for semantic search but lexical matching is weak:
+
 - Exact tool names like `mcp__filesystem__read` don't always rank highest
 - FQDN matching relies on semantic similarity which can be fuzzy
 - Current fallback is ILIKE with fixed score=0.5 (no ranking)
 
 ## Proposed Solution
 
-Add **BM25** (lexical search) alongside embeddings, fuse results with **Reciprocal Rank Fusion (RRF)**.
+Add **BM25** (lexical search) alongside embeddings, fuse results with **Reciprocal Rank Fusion
+(RRF)**.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -49,6 +49,7 @@ BM25(D, Q) = Σ IDF(qi) × (f(qi, D) × (k1 + 1)) / (f(qi, D) + k1 × (1 - b + b
 ```
 
 Where:
+
 - `f(qi, D)` = term frequency of qi in document D
 - `|D|` = document length
 - `avgdl` = average document length in corpus
@@ -81,12 +82,12 @@ function rrf(rankings: Map<string, number>[], k = 60): Map<string, number> {
 
 ### What exists
 
-| Component | File | Current Logic |
-|-----------|------|---------------|
-| Vector Search | `src/vector/search.ts` | BGE-M3 cosine similarity |
-| Hybrid Search | `src/graphrag/search/hybrid-search.ts` | semantic + graph (Adamic-Adar) |
-| Discover Handler | `src/mcp/handlers/discover-handler.ts` | Final scoring + merging |
-| Fallback | `src/vector/search.ts:162-201` | ILIKE with score=0.5 |
+| Component        | File                                   | Current Logic                  |
+| ---------------- | -------------------------------------- | ------------------------------ |
+| Vector Search    | `src/vector/search.ts`                 | BGE-M3 cosine similarity       |
+| Hybrid Search    | `src/graphrag/search/hybrid-search.ts` | semantic + graph (Adamic-Adar) |
+| Discover Handler | `src/mcp/handlers/discover-handler.ts` | Final scoring + merging        |
+| Fallback         | `src/vector/search.ts:162-201`         | ILIKE with score=0.5           |
 
 ### Database indexes (current)
 
@@ -122,11 +123,13 @@ ORDER BY bm25_score DESC;
 ```
 
 **Pros:**
+
 - No external dependencies
 - Built into PostgreSQL
 - GIN index is fast
 
 **Cons:**
+
 - Not exactly BM25 (ts_rank uses different formula)
 - Less tunability than pure BM25
 
@@ -138,22 +141,24 @@ Implement BM25 in TypeScript, load all documents in memory.
 // src/search/bm25.ts
 interface BM25Index {
   documents: Map<string, string[]>; // docId -> tokens
-  idf: Map<string, number>;         // term -> IDF score
+  idf: Map<string, number>; // term -> IDF score
   avgDocLength: number;
-  k1: number;  // 1.5
-  b: number;   // 0.75
+  k1: number; // 1.5
+  b: number; // 0.75
 }
 
-function buildBM25Index(docs: {id: string, text: string}[]): BM25Index;
-function searchBM25(index: BM25Index, query: string, topK: number): {id: string, score: number}[];
+function buildBM25Index(docs: { id: string; text: string }[]): BM25Index;
+function searchBM25(index: BM25Index, query: string, topK: number): { id: string; score: number }[];
 ```
 
 **Pros:**
+
 - Exact BM25 algorithm
 - Full control over tokenization
 - Works with any DB
 
 **Cons:**
+
 - Memory overhead (all docs in RAM)
 - Need to sync index with DB
 
@@ -207,21 +212,24 @@ export interface BM25Result {
 export async function searchToolsBM25(
   db: PGlite,
   query: string,
-  topK: number = 20
+  topK: number = 20,
 ): Promise<BM25Result[]> {
-  const result = await db.query(`
+  const result = await db.query(
+    `
     SELECT tool_id, name, ts_rank(fts, plainto_tsquery($1)) AS score
     FROM tool_schema
     WHERE fts @@ plainto_tsquery($1)
     ORDER BY score DESC
     LIMIT $2
-  `, [query, topK]);
+  `,
+    [query, topK],
+  );
 
   return result.rows.map((row, idx) => ({
     id: row.tool_id,
     name: row.name,
     score: row.score,
-    rank: idx + 1
+    rank: idx + 1,
   }));
 }
 ```
@@ -249,7 +257,7 @@ export interface RankedResult {
 export function fuseWithRRF(
   bm25Results: BM25Result[],
   embeddingResults: VectorSearchResult[],
-  k: number = 60
+  k: number = 60,
 ): RankedResult[] {
   const scores = new Map<string, RankedResult>();
 
@@ -285,16 +293,16 @@ async function searchTools(intent: string): Promise<DiscoverResultItem[]> {
   // Parallel search
   const [embeddingResults, bm25Results] = await Promise.all([
     graphEngine.searchToolsHybrid(intent, contextTools, topK),
-    searchToolsBM25(db, intent, topK)
+    searchToolsBM25(db, intent, topK),
   ]);
 
   // RRF fusion
   const fusedResults = fuseWithRRF(bm25Results, embeddingResults);
 
   // Apply reliability factor (existing logic)
-  return fusedResults.map(r => ({
+  return fusedResults.map((r) => ({
     ...r,
-    score: Math.min(r.rrfScore * reliabilityFactor, 0.95) // ADR-038 cap
+    score: Math.min(r.rrfScore * reliabilityFactor, 0.95), // ADR-038 cap
   }));
 }
 ```

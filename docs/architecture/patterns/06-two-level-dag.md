@@ -1,10 +1,12 @@
 ## Pattern 6: Two-Level DAG Architecture (Phase 2a)
 
 > **Source:** `src/dag/dag-optimizer.ts`, `src/capabilities/static-structure-builder.ts`
-> **Tech-Spec:** [`docs/tech-specs/modular-dag-execution/`](../../tech-specs/modular-dag-execution/index.md)
+> **Tech-Spec:**
+> [`docs/tech-specs/modular-dag-execution/`](../../tech-specs/modular-dag-execution/index.md)
 > **Related:** ADR-052 (Dynamic Capability Routing), ADR-053 (SHGAT Subprocess Training)
 
-**Problem:** Le DAG logique contient toutes les opérations comme tâches séparées (pour que SHGAT apprenne chaque opération), mais l'exécution devient inefficace avec beaucoup de layers.
+**Problem:** Le DAG logique contient toutes les opérations comme tâches séparées (pour que SHGAT
+apprenne chaque opération), mais l'exécution devient inefficace avec beaucoup de layers.
 
 **Solution Architecture:**
 
@@ -23,7 +25,8 @@ Logical DAG (SHGAT learning)         Physical DAG (Execution)
 
 - **Logical DAG:** Toutes les opérations séparées → SHGAT voit la granularité complète
 - **Physical DAG:** Tâches fusionnées → Moins de layers, exécution efficace
-- **Mapping:** `physicalToLogical` permet de générer les traces pour SHGAT depuis les résultats physiques
+- **Mapping:** `physicalToLogical` permet de générer les traces pour SHGAT depuis les résultats
+  physiques
 
 ### Phase 2a: Sequential Fusion
 
@@ -46,7 +49,8 @@ const optimized = optimizeDAG(logicalDAG, {
 
 ### Option B: Nested Operations (Non-Executable)
 
-Les opérations imbriquées dans des callbacks (ex: inside `.map()`, `.filter()`) sont marquées comme `executable: false`:
+Les opérations imbriquées dans des callbacks (ex: inside `.map()`, `.filter()`) sont marquées comme
+`executable: false`:
 
 ```typescript
 // Code: array.map(x => x * 2)
@@ -64,6 +68,7 @@ Les opérations imbriquées dans des callbacks (ex: inside `.map()`, `.filter()`
 ```
 
 Ces tâches:
+
 - Sont **exclues** de la Physical DAG (non exécutées séparément)
 - Sont **incluses** dans la Logical DAG (SHGAT les voit pour apprendre)
 - Sont **exécutées** comme partie du parent operation
@@ -86,13 +91,14 @@ L'approbation HIL se fait **AVANT** l'exécution, pas après:
 
 Séparation claire dans le graphe:
 
-| Node Type   | Description                        | Example                |
-| ----------- | ---------------------------------- | ---------------------- |
-| `tool`      | MCP tool avec side effects         | `filesystem:read_file` |
-| `operation` | Code operation pure                | `code:filter`          |
-| `task`      | Generic task in workflow           | Fused code block       |
+| Node Type   | Description                | Example                |
+| ----------- | -------------------------- | ---------------------- |
+| `tool`      | MCP tool avec side effects | `filesystem:read_file` |
+| `operation` | Code operation pure        | `code:filter`          |
+| `task`      | Generic task in workflow   | Fused code block       |
 
 Cette séparation permet:
+
 - SHGAT d'apprendre les patterns d'opérations distinctement des tools
 - L'optimizer de savoir quelles tâches peuvent être fusionnées
 - La UI d'afficher les détails de fusion
@@ -114,4 +120,3 @@ Le dashboard affiche les détails de fusion pour chaque tâche physique:
 **Affects:** Epic 10 (Static Analysis), Epic 11 (SHGAT Learning)
 
 ---
-

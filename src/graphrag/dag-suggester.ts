@@ -195,7 +195,10 @@ export class DAGSuggester {
     this.spectralClustering = clusterResult.spectralClustering;
   }
 
-  async searchCapabilities(intent: string, correlationId?: string): Promise<CapabilityMatch | null> {
+  async searchCapabilities(
+    intent: string,
+    correlationId?: string,
+  ): Promise<CapabilityMatch | null> {
     if (!this.capabilityMatcher) {
       log.debug("[DAGSuggester] searchCapabilities called but CapabilityMatcher not configured");
       return null;

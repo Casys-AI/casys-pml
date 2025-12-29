@@ -194,7 +194,11 @@ export class PMLGatewayServer {
 
     // Story 13.5: Initialize PmlStdServer for cap:* management tools
     // Pass embeddingModel for embedding updates on rename
-    this.pmlStdServer = new PmlStdServer(this.capabilityRegistry, this.db, this.embeddingModel ?? undefined);
+    this.pmlStdServer = new PmlStdServer(
+      this.capabilityRegistry,
+      this.db,
+      this.embeddingModel ?? undefined,
+    );
     log.info("[Gateway] PmlStdServer initialized (Story 13.5)");
 
     // Story 13.3: Initialize CapabilityMCPServer for capability-as-tool execution
@@ -414,7 +418,13 @@ export class PMLGatewayServer {
 
     // Unified discover (Story 10.6)
     if (name === "pml:discover") {
-      return await handleDiscover(args, this.vectorSearch, this.graphEngine, this.dagSuggester, this.capabilityRegistry ?? undefined);
+      return await handleDiscover(
+        args,
+        this.vectorSearch,
+        this.graphEngine,
+        this.dagSuggester,
+        this.capabilityRegistry ?? undefined,
+      );
     }
 
     // Unified execute (Story 10.7)
@@ -720,7 +730,9 @@ export class PMLGatewayServer {
           log.warn(`[Gateway] Background SHGAT training failed: ${err}`)
         );
       } else if (paramsLoaded) {
-        log.info(`[Gateway] SHGAT params loaded from DB - skipping batch training (PER handles updates)`);
+        log.info(
+          `[Gateway] SHGAT params loaded from DB - skipping batch training (PER handles updates)`,
+        );
       }
 
       // TraceFeatureExtractor removed - V1 uses message passing, not TraceFeatures
@@ -839,9 +851,7 @@ export class PMLGatewayServer {
         id: c.id,
         embedding: c.embedding,
         // First capability gets all tools from examples to ensure they're registered
-        toolsUsed: i === 0
-          ? [...new Set([...c.toolsUsed, ...allToolsFromExamples])]
-          : c.toolsUsed,
+        toolsUsed: i === 0 ? [...new Set([...c.toolsUsed, ...allToolsFromExamples])] : c.toolsUsed,
         successRate: c.successRate,
       }));
 
@@ -1202,5 +1212,4 @@ export class PMLGatewayServer {
       log.warn(`[Gateway] Could not save SHGAT params: ${error}`);
     }
   }
-
 }

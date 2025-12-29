@@ -1,8 +1,7 @@
 # ADR-052: Dynamic Capability Routing via MCP Proxy
 
-**Status:** Accepted
-**Date:** 2025-12-27
-**Related:**
+**Status:** Accepted **Date:** 2025-12-27 **Related:**
+
 - ADR-032 (Worker RPC Bridge)
 - ADR-036 (BroadcastChannel Tracing)
 - ADR-041 (Hierarchical Trace Tracking)
@@ -12,18 +11,22 @@
 
 ### Problème
 
-Les capabilities apprises sont stockées avec un format `namespace:action` (ex: `math:sum`, `fs:ls`). L'utilisateur veut pouvoir appeler ces capabilities comme des outils MCP normaux:
+Les capabilities apprises sont stockées avec un format `namespace:action` (ex: `math:sum`, `fs:ls`).
+L'utilisateur veut pouvoir appeler ces capabilities comme des outils MCP normaux:
 
 ```typescript
 // Appel d'une capability comme un MCP tool
 const result = await mcp.math.sum();
 ```
 
-Mais le Worker sandbox ne connaît que les serveurs MCP réels (filesystem, playwright, etc.). Quand le code appelle `mcp.math.sum()`, le Worker envoie un RPC au Bridge qui cherche un client MCP "math" - qui n'existe pas.
+Mais le Worker sandbox ne connaît que les serveurs MCP réels (filesystem, playwright, etc.). Quand
+le code appelle `mcp.math.sum()`, le Worker envoie un RPC au Bridge qui cherche un client MCP
+"math" - qui n'existe pas.
 
 ### Solution précédente (échouée)
 
-Ajouter un Proxy catch-all dans `sandbox-worker.ts` qui route tous les serveurs inconnus vers le Bridge:
+Ajouter un Proxy catch-all dans `sandbox-worker.ts` qui route tous les serveurs inconnus vers le
+Bridge:
 
 ```typescript
 // PROBLÈME: Route TOUT serveur inconnu, pas seulement les capabilities
@@ -35,6 +38,7 @@ return new Proxy({}, {
 ```
 
 **Problèmes:**
+
 1. Pas de validation - n'importe quel appel est accepté
 2. Pas de schema - le Worker ne connaît pas les paramètres attendus
 3. Timeout de 30s si la capability n'existe pas
@@ -43,7 +47,8 @@ return new Proxy({}, {
 
 ### Architecture: Résolution dynamique à l'analyse statique
 
-Au lieu de router aveuglément au runtime, on résout les capabilities **pendant l'analyse statique** du code:
+Au lieu de router aveuglément au runtime, on résout les capabilities **pendant l'analyse statique**
+du code:
 
 ```
 Code: "mcp.math.sum()"
@@ -80,6 +85,7 @@ Bridge.handleRPCCall():
 ### Fichiers modifiés
 
 1. **`src/sandbox/types.ts`** - Extension de `ToolDefinition`:
+
 ```typescript
 export interface ToolDefinition {
   server: string;
@@ -93,18 +99,20 @@ export interface ToolDefinition {
 ```
 
 2. **`src/mcp/handlers/shared/tool-definitions.ts`** - Résolution dynamique:
+
 ```typescript
 export interface ToolDefinitionDeps {
   mcpClients: Map<string, MCPClientBase>;
-  capabilityRegistry?: CapabilityRegistry;  // NEW
-  capabilityStore?: CapabilityStore;        // NEW
-  scope?: Scope;                            // NEW
+  capabilityRegistry?: CapabilityRegistry; // NEW
+  capabilityStore?: CapabilityStore; // NEW
+  scope?: Scope; // NEW
 }
 
 // Dans buildToolDefinitionsFromStaticStructure:
 if (!client && deps.capabilityRegistry) {
   const record = await deps.capabilityRegistry.resolveByName(
-    `${serverId}:${toolName}`, scope
+    `${serverId}:${toolName}`,
+    scope,
   );
   if (record) {
     toolDefs.push({
@@ -119,14 +127,16 @@ if (!client && deps.capabilityRegistry) {
 ```
 
 3. **`src/dag/execution/workerbridge-executor.ts`** - Propagation du registry:
+
 ```typescript
 export interface WorkerBridgeExecutorConfig {
   // ... existing fields
-  capabilityRegistry?: WorkerBridgeConfig["capabilityRegistry"];  // NEW
+  capabilityRegistry?: WorkerBridgeConfig["capabilityRegistry"]; // NEW
 }
 ```
 
 4. **`src/sandbox/worker-bridge.ts`** - Fix du bug de ré-entrance:
+
 ```typescript
 // AVANT (bug): this.execute() écrase this.worker
 const capResult = await this.execute(pattern.codeSnippet, []);
@@ -172,7 +182,7 @@ Créer un **nouveau** `WorkerBridge` pour l'exécution de la capability:
 const capBridge = new WorkerBridge(this.mcpClients, config);
 try {
   const result = await capBridge.execute(code);
-  this.worker?.postMessage(response);  // Worker1 reçoit sa réponse
+  this.worker?.postMessage(response); // Worker1 reçoit sa réponse
 } finally {
   capBridge.cleanup();
 }
@@ -185,12 +195,14 @@ try {
 1. **Transparence** - Les capabilities s'appellent comme des MCP tools
 2. **Validation** - Seules les capabilities découvertes à l'analyse statique sont routées
 3. **Schema** - Le Worker connaît les paramètres attendus (via workflow_pattern)
-4. **Composabilité** - Une capability peut appeler des MCP tools (mais pas d'autres capabilities pour éviter la récursion)
+4. **Composabilité** - Une capability peut appeler des MCP tools (mais pas d'autres capabilities
+   pour éviter la récursion)
 
 ### Négatives
 
 1. **Overhead** - Création d'un nouveau WorkerBridge par appel de capability
-2. **Pas de récursion** - Une capability ne peut pas appeler une autre capability (capabilityRegistry non propagé)
+2. **Pas de récursion** - Une capability ne peut pas appeler une autre capability
+   (capabilityRegistry non propagé)
 
 ### Limitations actuelles
 
@@ -203,7 +215,7 @@ try {
 // Capability "math:sum" avec code: "return [1,2,3,4,5].reduce((a,n) => a+n, 0);"
 pml_execute({
   intent: "calculate sum",
-  code: "return await mcp.math.sum()"
-})
+  code: "return await mcp.math.sum()",
+});
 // → { result: 15 }
 ```

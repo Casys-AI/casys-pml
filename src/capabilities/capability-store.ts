@@ -131,7 +131,7 @@ export class CapabilityStore {
       toolsUsed,
       toolInvocations,
       traceData,
-  staticStructure,
+      staticStructure,
     } = input;
 
     // Transform capability references: display_name → FQDN (makes code robust to renames)
@@ -238,7 +238,10 @@ export class CapabilityStore {
     };
 
     // Story 10.1: Add static_structure to dag_structure if available
-    if (finalStaticStructure && (finalStaticStructure.nodes.length > 0 || finalStaticStructure.edges.length > 0)) {
+    if (
+      finalStaticStructure &&
+      (finalStaticStructure.nodes.length > 0 || finalStaticStructure.edges.length > 0)
+    ) {
       dagStructure.static_structure = finalStaticStructure;
     }
 
@@ -386,17 +389,14 @@ export class CapabilityStore {
 
     if (finalStaticStructure) {
       const taskNodes = finalStaticStructure.nodes.filter(
-        (node): node is { id: string; type: "task"; tool: string } =>
-          node.type === "task",
+        (node): node is { id: string; type: "task"; tool: string } => node.type === "task",
       );
 
       for (const taskNode of taskNodes) {
         // Tool format is "namespace:action" (e.g., "cap:math_array_sum")
         // Check if this tool matches an existing capability in DB
         const toolId = taskNode.tool;
-        const [namespace, action] = toolId.includes(":")
-          ? toolId.split(":", 2)
-          : ["", toolId];
+        const [namespace, action] = toolId.includes(":") ? toolId.split(":", 2) : ["", toolId];
 
         try {
           // Query DB to check if this tool is an existing capability

@@ -16,9 +16,9 @@
 
 import {
   type CapabilityRegistry,
-  type Scope,
   getCapabilityDisplayName,
   getCapabilityFqdn,
+  type Scope,
 } from "../../src/capabilities/capability-registry.ts";
 import type { DbClient } from "../../src/db/mod.ts";
 import type { EmbeddingModelInterface } from "../../src/vector/embeddings.ts";
@@ -634,7 +634,8 @@ export class CapModule {
     // Compute final values
     const finalNamespace = namespace ?? record.namespace;
     const finalAction = action ?? record.action;
-    const newFqdn = `${record.org}.${record.project}.${finalNamespace}.${finalAction}.${record.hash}`;
+    const newFqdn =
+      `${record.org}.${record.project}.${finalNamespace}.${finalAction}.${record.hash}`;
     const newDisplayName = `${finalNamespace}:${finalAction}`;
 
     const response: CapRenameResponse = {
@@ -972,11 +973,19 @@ export class PmlStdServer {
   readonly serverId = "pml-std";
   private cap: CapModule;
 
-  constructor(registry: CapabilityRegistry, db: DbClient, embeddingModel?: EmbeddingModelInterface) {
+  constructor(
+    registry: CapabilityRegistry,
+    db: DbClient,
+    embeddingModel?: EmbeddingModelInterface,
+  ) {
     this.cap = new CapModule(registry, db, embeddingModel);
     // Set global CapModule for pmlTools discovery
     setCapModule(this.cap);
-    log.info(`[PmlStdServer] Initialized with cap:* tools${embeddingModel ? " (embedding support enabled)" : ""}`);
+    log.info(
+      `[PmlStdServer] Initialized with cap:* tools${
+        embeddingModel ? " (embedding support enabled)" : ""
+      }`,
+    );
   }
 
   /** Get the underlying CapModule */

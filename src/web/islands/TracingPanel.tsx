@@ -208,7 +208,7 @@ export default function TracingPanel({ apiBase }: TracingPanelProps) {
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!panelRef.current) return;
-      const newWidth = window.innerWidth - e.clientX;
+      const newWidth = globalThis.innerWidth - e.clientX;
       setPanelWidth(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, newWidth)));
     };
 
@@ -508,6 +508,7 @@ export default function TracingPanel({ apiBase }: TracingPanelProps) {
         </h2>
         <div class="flex gap-1">
           <button
+            type="button"
             class="p-1.5 rounded-lg transition-all duration-200"
             style={styles.button}
             onClick={refreshEvents}
@@ -536,6 +537,7 @@ export default function TracingPanel({ apiBase }: TracingPanelProps) {
             </svg>
           </button>
           <button
+            type="button"
             class="p-1.5 rounded-lg transition-all duration-200"
             style={paused ? styles.buttonActive : styles.button}
             onClick={() => setPaused(!paused)}
@@ -554,6 +556,7 @@ export default function TracingPanel({ apiBase }: TracingPanelProps) {
               )}
           </button>
           <button
+            type="button"
             class="p-1.5 rounded-lg transition-all duration-200"
             style={styles.button}
             onClick={clearEvents}
@@ -577,6 +580,7 @@ export default function TracingPanel({ apiBase }: TracingPanelProps) {
             </svg>
           </button>
           <button
+            type="button"
             class="p-1.5 rounded-lg transition-all duration-200"
             style={styles.button}
             onClick={() => setCollapsed(true)}
@@ -907,6 +911,7 @@ export default function TracingPanel({ apiBase }: TracingPanelProps) {
               {selectedEvent.algorithmName || "Unknown"} Details
             </span>
             <button
+              type="button"
               class="text-[10px] px-1.5 py-0.5 rounded"
               style={{
                 background: "var(--bg-elevated)",

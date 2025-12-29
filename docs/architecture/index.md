@@ -46,7 +46,8 @@
 
 ## Tech-Specs
 
-- [Modular DAG Execution](../tech-specs/modular-dag-execution/index.md) - Phase 1/2, Two-Level DAG, SHGAT Learning
+- [Modular DAG Execution](../tech-specs/modular-dag-execution/index.md) - Phase 1/2, Two-Level DAG,
+  SHGAT Learning
 
 ## Decisions
 
@@ -57,16 +58,16 @@
 
 ## Quick Links
 
-| Need                 | Document                                                |
-| -------------------- | ------------------------------------------------------- |
-| What is PML?         | [Executive Summary](./executive-summary.md)             |
-| What tech do we use? | [Technology Stack](./technology-stack-details.md)       |
-| Database schema?     | [Data Architecture](./data-architecture.md)             |
-| Architecture pattern?| [Patterns Index](./patterns/index.md)                   |
-| DAG/SHGAT details?   | [Tech-Specs](../tech-specs/modular-dag-execution/index.md) |
-| How to name things?  | [Implementation Patterns](./implementation-patterns.md) |
-| Why this decision?   | [ADR Index](../adrs/index.md)                           |
-| Epic status?         | [Epic Mapping](./epic-to-architecture-mapping.md)       |
+| Need                  | Document                                                   |
+| --------------------- | ---------------------------------------------------------- |
+| What is PML?          | [Executive Summary](./executive-summary.md)                |
+| What tech do we use?  | [Technology Stack](./technology-stack-details.md)          |
+| Database schema?      | [Data Architecture](./data-architecture.md)                |
+| Architecture pattern? | [Patterns Index](./patterns/index.md)                      |
+| DAG/SHGAT details?    | [Tech-Specs](../tech-specs/modular-dag-execution/index.md) |
+| How to name things?   | [Implementation Patterns](./implementation-patterns.md)    |
+| Why this decision?    | [ADR Index](../adrs/index.md)                              |
+| Epic status?          | [Epic Mapping](./epic-to-architecture-mapping.md)          |
 
 ---
 

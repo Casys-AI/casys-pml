@@ -139,7 +139,10 @@ const DEFAULTS = {
  * ```
  */
 export class WorkerBridge {
-  private config: Omit<Required<WorkerBridgeConfig>, "capabilityStore" | "graphRAG" | "capabilityRegistry">;
+  private config: Omit<
+    Required<WorkerBridgeConfig>,
+    "capabilityStore" | "graphRAG" | "capabilityRegistry"
+  >;
   private capabilityStore?: CapabilityStore;
   private graphRAG?: GraphRAGEngine;
   private capabilityRegistry?: import("../capabilities/capability-registry.ts").CapabilityRegistry;
@@ -728,7 +731,11 @@ export class WorkerBridge {
           // Found capability - execute via NEW WorkerBridge (avoid re-entrance bug)
           const pattern = await this.capabilityStore.findById(record.workflowPatternId);
           if (pattern?.codeSnippet) {
-            logger.info("Routing to capability (unified)", { server, tool, fqdn: getCapabilityFqdn(record) });
+            logger.info("Routing to capability (unified)", {
+              server,
+              tool,
+              fqdn: getCapabilityFqdn(record),
+            });
 
             // Create NEW WorkerBridge for capability execution
             // IMPORTANT: Cannot use this.execute() - it would overwrite this.worker!
@@ -776,7 +783,9 @@ export class WorkerBridge {
       // No capability found - route to MCP server
       const client = this.mcpClients.get(server);
       if (!client) {
-        throw new Error(`MCP server "${server}" not connected and no capability "${server}:${tool}" found`);
+        throw new Error(
+          `MCP server "${server}" not connected and no capability "${server}:${tool}" found`,
+        );
       }
 
       const result = await client.callTool(tool, args || {});

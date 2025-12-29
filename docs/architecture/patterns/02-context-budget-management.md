@@ -64,4 +64,3 @@ function loadTools(query: string, budget: ContextBudget): Tool[] {
 **Affects Epics:** Epic 1 (Story 1.6)
 
 ---
-

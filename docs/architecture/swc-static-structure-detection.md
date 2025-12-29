@@ -81,7 +81,8 @@ extract control flow, MCP tool calls, and parallel execution patterns.
 
 **Status:** ✅ IMPLEMENTED (2025-12-28)
 
-**Problem:** Local variable declarations with literal values were not tracked, causing argument resolution to fail for shorthand properties.
+**Problem:** Local variable declarations with literal values were not tracked, causing argument
+resolution to fail for shorthand properties.
 
 ```typescript
 // This code FAILED before the fix:
@@ -92,17 +93,19 @@ mcp.math.sum({ numbers })         // ← { numbers: { type: "reference", express
 resolveReference("numbers") → undefined  // ❌ ReferenceError
 ```
 
-**Root Cause:** `handleVariableDeclarator` only tracked variables assigned from MCP calls (creating `variableBindings`), not literals.
+**Root Cause:** `handleVariableDeclarator` only tracked variables assigned from MCP calls (creating
+`variableBindings`), not literals.
 
-**Solution (Option B):** Track literal values separately in `literalBindings` and pass them to the execution context.
+**Solution (Option B):** Track literal values separately in `literalBindings` and pass them to the
+execution context.
 
 #### Implementation
 
-| File | Change |
-|------|--------|
-| `src/capabilities/types.ts` | Added `literalBindings?: Record<string, JsonValue>` to `StaticStructure` |
+| File                                           | Change                                                                                         |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `src/capabilities/types.ts`                    | Added `literalBindings?: Record<string, JsonValue>` to `StaticStructure`                       |
 | `src/capabilities/static-structure-builder.ts` | Added `literalBindings` map + `isLiteralExpression()` + tracking in `handleVariableDeclarator` |
-| `src/mcp/handlers/code-execution-handler.ts` | Spread `staticStructure.literalBindings` into `executionContext` |
+| `src/mcp/handlers/code-execution-handler.ts`   | Spread `staticStructure.literalBindings` into `executionContext`                               |
 
 #### How It Works
 
@@ -135,42 +138,44 @@ if (rootPart in context) {
 
 #### Supported Literal Types
 
-| Type | Example | Tracked |
-|------|---------|---------|
-| Array literal | `const arr = [1, 2, 3]` | ✅ |
-| Object literal | `const obj = { a: 1 }` | ✅ |
-| Nested arrays | `const m = [[1,2], [3,4]]` | ✅ |
-| String | `const s = "hello"` | ✅ |
-| Number | `const n = 42` | ✅ |
-| Boolean | `const b = true` | ✅ |
-| Null | `const x = null` | ✅ |
+| Type           | Example                    | Tracked |
+| -------------- | -------------------------- | ------- |
+| Array literal  | `const arr = [1, 2, 3]`    | ✅      |
+| Object literal | `const obj = { a: 1 }`     | ✅      |
+| Nested arrays  | `const m = [[1,2], [3,4]]` | ✅      |
+| String         | `const s = "hello"`        | ✅      |
+| Number         | `const n = 42`             | ✅      |
+| Boolean        | `const b = true`           | ✅      |
+| Null           | `const x = null`           | ✅      |
 
 #### Computed Expressions (Extended 2025-12-28)
 
 When operands are known literals or tracked variables, expressions are evaluated statically:
 
-| Expression | Example | Result |
-|------------|---------|--------|
-| Arithmetic | `const sum = a + b` (a=10, b=5) | `15` |
-| String concat | `firstName + " " + lastName` | `"John Doe"` |
-| Comparison | `x > y`, `a === b` | `true/false` |
-| Logical | `a && b`, `a \|\| b` | Evaluated |
-| Unary | `-x`, `!flag`, `+num` | Evaluated |
+| Expression    | Example                         | Result       |
+| ------------- | ------------------------------- | ------------ |
+| Arithmetic    | `const sum = a + b` (a=10, b=5) | `15`         |
+| String concat | `firstName + " " + lastName`    | `"John Doe"` |
+| Comparison    | `x > y`, `a === b`              | `true/false` |
+| Logical       | `a && b`, `a \|\| b`            | Evaluated    |
+| Unary         | `-x`, `!flag`, `+num`           | Evaluated    |
 
-**Supported operators:** `+`, `-`, `*`, `/`, `%`, `**`, `==`, `===`, `!=`, `!==`, `<`, `>`, `<=`, `>=`, `&&`, `||`, `-` (unary), `+` (unary), `!`, `typeof`
+**Supported operators:** `+`, `-`, `*`, `/`, `%`, `**`, `==`, `===`, `!=`, `!==`, `<`, `>`, `<=`,
+`>=`, `&&`, `||`, `-` (unary), `+` (unary), `!`, `typeof`
 
 #### NOT Supported (v1)
 
-| Type | Example | Reason |
-|------|---------|--------|
-| Unknown operands | `known + getData()` | Can't resolve runtime values |
-| Function calls | `const x = foo()` | Runtime-only |
-| `let` mutations | `let x = 1; x++` | Dynamic value |
-| Async/await | `const x = await fn()` | Runtime-only (unless MCP call) |
+| Type             | Example                | Reason                         |
+| ---------------- | ---------------------- | ------------------------------ |
+| Unknown operands | `known + getData()`    | Can't resolve runtime values   |
+| Function calls   | `const x = foo()`      | Runtime-only                   |
+| `let` mutations  | `let x = 1; x++`       | Dynamic value                  |
+| Async/await      | `const x = await fn()` | Runtime-only (unless MCP call) |
 
 #### Tests
 
 See `tests/unit/capabilities/static-structure-code-ops.test.ts`:
+
 - `literalBindings tracks array literals`
 - `literalBindings tracks object literals`
 - `literalBindings tracks primitive literals`
@@ -587,10 +592,11 @@ graph.addEdge("code:map", "code:sort", { type: "sequence" });
 
 ```typescript
 // Only sort() was detected, filter() and map() were invisible
-const result = numbers.filter(x => x > 0).map(x => x * 2).sort();
+const result = numbers.filter((x) => x > 0).map((x) => x * 2).sort();
 ```
 
-**Solution:** Recursively process CallExpression nodes when `callee.object` is also a CallExpression.
+**Solution:** Recursively process CallExpression nodes when `callee.object` is also a
+CallExpression.
 
 ### Implementation
 
@@ -650,7 +656,8 @@ const result = numbers.filter(n => n > 2).map(n => n * 2).sort();
 
 ## Changelog
 
-- **2025-12-28:** Added Method Chaining Support (Story 10.2c) - detects all operations in chained calls
+- **2025-12-28:** Added Method Chaining Support (Story 10.2c) - detects all operations in chained
+  calls
 - **2025-12-28:** Added computed expression evaluation (a + b, -x, !flag, etc.) for literal bindings
 - **2025-12-28:** Added Literal Bindings (Story 10.2b - Option B) for local variable resolution
 - **2025-12-26:** Added modular code operations detection with WorkerBridge tracing (Phase 1)

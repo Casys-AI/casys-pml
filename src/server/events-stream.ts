@@ -203,7 +203,9 @@ export class EventsStreamManager {
       if (!this.matchesFilters(event.type, client.filters)) {
         if (event.type.startsWith("algorithm.")) {
           log.debug(
-            `[SSE-DEBUG] ${event.type} skipped for client ${clientId.substring(0, 8)} (filters: ${client.filters.join(",")})`,
+            `[SSE-DEBUG] ${event.type} skipped for client ${clientId.substring(0, 8)} (filters: ${
+              client.filters.join(",")
+            })`,
           );
         }
         continue; // Skip this client

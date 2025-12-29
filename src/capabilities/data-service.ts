@@ -264,7 +264,11 @@ export class CapabilityDataService {
   async findCoOccurringCapabilities(
     capabilityId: string,
     limit: number = 10,
-  ): Promise<Array<{ capabilityId: string; name: string | null; cooccurrenceCount: number; lastSeen: string }>> {
+  ): Promise<
+    Array<
+      { capabilityId: string; name: string | null; cooccurrenceCount: number; lastSeen: string }
+    >
+  > {
     try {
       // Find capabilities that appear in traces within 1 hour of source capability's traces
       // or share the same parent_trace_id

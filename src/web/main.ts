@@ -6,6 +6,7 @@
 
 import { App, staticFiles } from "fresh";
 import type { FreshContext } from "fresh";
+import process from "node:process";
 
 // ANSI colors
 const colors = {

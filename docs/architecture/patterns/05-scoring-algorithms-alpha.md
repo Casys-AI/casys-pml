@@ -1,7 +1,7 @@
 ## Pattern 5: Scoring Algorithms (Unified)
 
-> **ADRs:** ADR-051 (Unified Search Simplification) - supersedes ADR-015, 022, 038, 048
-> **Related:** ADR-023 (Candidate Expansion), ADR-024 (Adjacency Matrix), ADR-026 (Cold Start)
+> **ADRs:** ADR-051 (Unified Search Simplification) - supersedes ADR-015, 022, 038, 048 **Related:**
+> ADR-023 (Candidate Expansion), ADR-024 (Adjacency Matrix), ADR-026 (Cold Start)
 
 **Problem:** Le scoring des outils et capabilities nécessite différents algorithmes selon le mode
 (recherche active vs suggestion passive) et le type d'objet (Tool vs Capability).
@@ -36,7 +36,9 @@
 score = semantic × reliability
 ```
 
-**Rationale:** En mode Search (Active), il n'y a PAS de contexte. L'utilisateur tape une query ("read file"), il n'a pas encore utilisé d'outils. Donc le graph score (Adamic-Adar, co-occurrence) serait toujours 0.
+**Rationale:** En mode Search (Active), il n'y a PAS de contexte. L'utilisateur tape une query
+("read file"), il n'a pas encore utilisé d'outils. Donc le graph score (Adamic-Adar, co-occurrence)
+serait toujours 0.
 
 L'alpha **n'apportait rien** sans contexte - il ne faisait que réduire le score sémantique.
 
@@ -59,6 +61,7 @@ score = sigmoid(mean(headScores));
 ```
 
 **SHGAT est context-free** - le contexte (position actuelle) est géré par **DR-DSP**:
+
 - `DR-DSP.findShortestHyperpath(currentTool, targetTool)` utilise le context comme point de départ
 - SHGAT ne voit que l'intent et les features du graphe
 
@@ -66,9 +69,9 @@ score = sigmoid(mean(headScores));
 
 ```typescript
 function calculateReliabilityFactor(successRate: number): number {
-  if (successRate < 0.5) return 0.1;  // Pénalité
-  if (successRate > 0.9) return 1.2;  // Boost
-  return 1.0;                         // Neutre
+  if (successRate < 0.5) return 0.1; // Pénalité
+  if (successRate > 0.9) return 1.2; // Boost
+  return 1.0; // Neutre
 }
 ```
 
@@ -101,16 +104,16 @@ const expansionFactor = 1.5 + (1 - density) * 1.5; // 1.5x dense → 3x sparse
 
 ```typescript
 const EDGE_TYPE_WEIGHTS = {
-  dependency: 1.0,   // A dépend de B
-  contains: 0.8,     // Capability contient Tool
-  sequence: 0.5,     // A suivi de B (observé)
-  alternative: 0.3,  // A ou B (interchangeable)
+  dependency: 1.0, // A dépend de B
+  contains: 0.8, // Capability contient Tool
+  sequence: 0.5, // A suivi de B (observé)
+  alternative: 0.3, // A ou B (interchangeable)
 };
 
 const EDGE_SOURCE_WEIGHTS = {
-  observed: 1.0,   // Vu en production
-  inferred: 0.7,   // Déduit par algo
-  template: 0.5,   // Bootstrap initial
+  observed: 1.0, // Vu en production
+  inferred: 0.7, // Déduit par algo
+  template: 0.5, // Bootstrap initial
 };
 ```
 
@@ -128,6 +131,7 @@ score = (semantic × α + graph × (1-α)) × reliability
 ```
 
 Les algorithmes d'alpha (ADR-048) étaient des **heuristiques manuelles**:
+
 - EmbeddingsHybrides: "Si coherence haute → alpha bas"
 - Heat Diffusion: "Si heat haute → alpha bas"
 - Bayesian: "Si peu d'observations → alpha haut"
@@ -155,4 +159,3 @@ Les algorithmes d'alpha (ADR-048) étaient des **heuristiques manuelles**:
 - ADR-026: Cold Start
 
 ---
-

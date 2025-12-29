@@ -33,9 +33,9 @@ import type { EmbeddingModelInterface } from "../../vector/embeddings.ts";
 import type { ExecutionTraceStore } from "../../capabilities/execution-trace-store.ts";
 import {
   type CapabilityRegistry,
-  type Scope,
   getCapabilityDisplayName,
   getCapabilityFqdn,
+  type Scope,
 } from "../../capabilities/capability-registry.ts";
 import type { AlgorithmTracer } from "../../telemetry/algorithm-tracer.ts";
 
@@ -576,7 +576,8 @@ async function executeDirectMode(
           const failedResults = physicalResults.results.filter(
             (r) => r.status === "error" || r.status === "failed_safe",
           );
-          const firstError = failedResults[0]?.error ?? physicalResults.errors[0]?.error ?? "Unknown error";
+          const firstError = failedResults[0]?.error ?? physicalResults.errors[0]?.error ??
+            "Unknown error";
 
           log.info("[pml:execute] Execution failed, NOT saving capability", {
             failedSafeTasks,
@@ -1401,7 +1402,8 @@ async function executeSuggestionMode(
         featureContribReliability: cap.featureContributions?.reliability,
         // Target identification
         targetId: cap.capabilityId,
-        targetName: capInfo?.name ?? capInfo?.description?.substring(0, 30) ?? cap.capabilityId.substring(0, 8),
+        targetName: capInfo?.name ?? capInfo?.description?.substring(0, 30) ??
+          cap.capabilityId.substring(0, 8),
         // Reliability context
         targetSuccessRate: capInfo?.successRate,
         targetUsageCount: capInfo?.usageCount,

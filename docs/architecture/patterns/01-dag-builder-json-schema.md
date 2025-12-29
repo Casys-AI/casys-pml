@@ -112,4 +112,3 @@ async searchToolsHybrid(
 **Affects Epics:** Epic 2 (Story 2.1, 2.2), Epic 5 (Story 5.1)
 
 ---
-

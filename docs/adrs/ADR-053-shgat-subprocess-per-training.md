@@ -1,8 +1,7 @@
 # ADR-053: SHGAT Subprocess Training with PER
 
-**Status:** Accepted
-**Date:** 2025-12-27
-**Related:**
+**Status:** Accepted **Date:** 2025-12-27 **Related:**
+
 - ADR-027 (Execute Code Graph Learning)
 - ADR-041 (Hierarchical Trace Tracking)
 - Story 10.7 (SHGAT Multi-Head Attention)
@@ -87,6 +86,7 @@ Main Process                    Subprocess
 ### Fichiers
 
 1. **`src/graphrag/algorithms/shgat/train-worker.ts`** - Worker subprocess:
+
 ```typescript
 interface WorkerInput {
   capabilities: Array<{
@@ -105,11 +105,12 @@ interface WorkerOutput {
   finalLoss?: number;
   finalAccuracy?: number;
   params?: Record<string, unknown>;
-  tdErrors?: number[];  // Pour PER priority updates
+  tdErrors?: number[]; // Pour PER priority updates
 }
 ```
 
 2. **`src/graphrag/algorithms/shgat/spawn-training.ts`** - Spawning logic:
+
 ```typescript
 export async function spawnSHGATTraining(opts: SpawnOptions): Promise<SpawnResult> {
   const process = new Deno.Command(Deno.execPath(), {
@@ -137,6 +138,7 @@ export async function spawnSHGATTraining(opts: SpawnOptions): Promise<SpawnResul
 ```
 
 3. **`src/graphrag/learning/per-training.ts`** - PER subprocess wrapper:
+
 ```typescript
 export async function trainSHGATOnPathTracesSubprocess(
   shgat: SHGAT,
@@ -179,22 +181,21 @@ export async function trainSHGATOnPathTracesSubprocess(
 ```
 
 4. **`src/mcp/handlers/execute-handler.ts`** - PER après exécution:
+
 ```typescript
 // Après chaque exécution réussie avec code
 if (deps.shgat && deps.traceStore && deps.embeddingModel) {
   // Background PER training (non-blocking)
-  runPERBatchTraining(deps).catch((err) =>
-    log.warn(`PER training failed: ${err}`)
-  );
+  runPERBatchTraining(deps).catch((err) => log.warn(`PER training failed: ${err}`));
 }
 ```
 
 ### Modes d'entraînement
 
-| Mode | Epochs | Traces | Trigger |
-|------|--------|--------|---------|
-| **Batch** | 3-5 | 500 max | Démarrage serveur |
-| **Live/PER** | 1 | 50 max | Après chaque exécution |
+| Mode         | Epochs | Traces  | Trigger                |
+| ------------ | ------ | ------- | ---------------------- |
+| **Batch**    | 3-5    | 500 max | Démarrage serveur      |
+| **Live/PER** | 1      | 50 max  | Après chaque exécution |
 
 Les deux modes utilisent PER + TD errors - la seule différence est le nombre d'epochs.
 
@@ -218,9 +219,11 @@ if (!paramsAreRecent) {
 
 ### 1. Stderr lock conflict
 
-**Problème:** `process.stderr.getReader()` puis `process.output()` = "Cannot collect output: 'stderr' is locked"
+**Problème:** `process.stderr.getReader()` puis `process.output()` = "Cannot collect output:
+'stderr' is locked"
 
 **Solution:** Collecter stdout et stderr manuellement en parallèle:
+
 ```typescript
 const stdoutPromise = collectStream(process.stdout);
 const stderrPromise = collectStream(process.stderr);
@@ -229,9 +232,11 @@ await Promise.all([stdoutPromise, stderrPromise]);
 
 ### 2. Empty toolsUsed
 
-**Problème:** `toolsUsed: []` passé au worker = SHGAT ne peut pas enregistrer les tools = crash silencieux
+**Problème:** `toolsUsed: []` passé au worker = SHGAT ne peut pas enregistrer les tools = crash
+silencieux
 
 **Solution:** Collecter les tools depuis les examples:
+
 ```typescript
 const allToolsFromExamples = new Set<string>();
 for (const ex of examples) {
@@ -248,6 +253,7 @@ capabilities[0].toolsUsed = [...allToolsFromExamples];
 **Problème:** `traceStore` absent de `getExecuteDeps()` = PER jamais déclenché
 
 **Solution:** Ajouter le getter dans CapabilityStore et le passer:
+
 ```typescript
 // capability-store.ts
 getTraceStore(): ExecutionTraceStore | undefined {
@@ -265,9 +271,12 @@ private getExecuteDeps(): ExecuteDependencies {
 
 ### 4. Migration manquante
 
-**Problème:** Le fichier SQL `010_shgat_params.sql` existait mais n'était pas enregistré dans le migration runner = table jamais créée = params jamais sauvegardés = batch training à chaque démarrage
+**Problème:** Le fichier SQL `010_shgat_params.sql` existait mais n'était pas enregistré dans le
+migration runner = table jamais créée = params jamais sauvegardés = batch training à chaque
+démarrage
 
 **Solution:** Créer migration TypeScript `027_shgat_params.ts`:
+
 ```typescript
 export function createSHGATParamsMigration(): Migration {
   return {
@@ -306,7 +315,8 @@ export function createSHGATParamsMigration(): Migration {
 
 ### Métriques
 
-- **Batch training (500 traces, 3 epochs):** ~30s en subprocess vs ~30s en main (même durée, mais non-bloquant)
+- **Batch training (500 traces, 3 epochs):** ~30s en subprocess vs ~30s en main (même durée, mais
+  non-bloquant)
 - **Live PER (50 traces, 1 epoch):** ~2-3s en subprocess
 - **Spawn overhead:** ~50-100ms
 

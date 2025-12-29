@@ -80,3 +80,17 @@ export {
   type RadialLayoutResult,
   updateBundleTension,
 } from "./radial-heb-layout.ts";
+
+// Convex Hull & Cluster Visualization
+export {
+  type ClusterVizConfig,
+  type ClusterVizType,
+  computeConvexHull,
+  drawAnimatedHull,
+  drawFlowPath,
+  drawSmoothHull,
+  expandHull,
+  hullsIntersect,
+  mergeIntersectingHulls,
+  type Point as HullPoint,
+} from "./convex-hull.ts";

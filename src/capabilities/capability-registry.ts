@@ -12,12 +12,7 @@
  */
 
 import type { DbClient } from "../db/types.ts";
-import type {
-  CapabilityRecord,
-  CapabilityRouting,
-  CapabilityVisibility,
-  Scope,
-} from "./types.ts";
+import type { CapabilityRecord, CapabilityRouting, CapabilityVisibility, Scope } from "./types.ts";
 import { getCapabilityDisplayName, getCapabilityFqdn } from "./types.ts";
 import { isValidMCPName } from "./fqdn.ts";
 import * as log from "@std/log";

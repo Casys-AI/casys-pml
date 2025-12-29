@@ -1,7 +1,7 @@
 ## Pattern 7: SHGAT Modular Architecture & Subprocess Training
 
-> **Source:** `src/graphrag/algorithms/shgat/`
-> **Tech-Specs:**
+> **Source:** `src/graphrag/algorithms/shgat/` **Tech-Specs:**
+>
 > - [`shgat-learning-and-dag-edges.md`](../../tech-specs/modular-dag-execution/shgat-learning-and-dag-edges.md)
 > - [`operation-embeddings.md`](../../tech-specs/modular-dag-execution/operation-embeddings.md)
 >
@@ -69,11 +69,11 @@ finalScore = Σ(score_h) / K
 
 ### Node Types in Graph
 
-| Type | Prefix | Scoring | Example |
-|------|--------|---------|---------|
-| **capability** | - | K-head attention | `local.default.math.sum` |
-| **tool** | `server:` | K-head attention | `filesystem:read_file` |
-| **operation** | `code:` | K-head attention | `code:filter`, `code:map` |
+| Type           | Prefix    | Scoring          | Example                   |
+| -------------- | --------- | ---------------- | ------------------------- |
+| **capability** | -         | K-head attention | `local.default.math.sum`  |
+| **tool**       | `server:` | K-head attention | `filesystem:read_file`    |
+| **operation**  | `code:`   | K-head attention | `code:filter`, `code:map` |
 
 ### Operation Embeddings (Phase 2a)
 
@@ -89,18 +89,19 @@ code:reduce  → embedding[1024]  // Semantic: "aggregate to single value"
 ```
 
 **Bénéfices:**
+
 - Similarité sémantique entre `code:filter` et `code:select`
 - Message passing uniforme (operations participent au graphe)
 - Catégories: `array`, `string`, `object`, `math`, `json`, `binary`
 
 ### Scorer Versions (historical)
 
-| Version | Architecture | Status |
-|---------|-------------|--------|
-| **v1 (current)** | K-head attention unified | **Production** |
-| v1-legacy | 3-head (Semantic/Structure/Temporal) | Deprecated |
-| v2 | TraceFeatures-based | Experimental |
-| v3 | Hybrid | Planned |
+| Version          | Architecture                         | Status         |
+| ---------------- | ------------------------------------ | -------------- |
+| **v1 (current)** | K-head attention unified             | **Production** |
+| v1-legacy        | 3-head (Semantic/Structure/Temporal) | Deprecated     |
+| v2               | TraceFeatures-based                  | Experimental   |
+| v3               | Hybrid                               | Planned        |
 
 ### Message Passing Flow (n-SuperHyperGraph)
 
@@ -135,9 +136,12 @@ for (head h in [0..K-1]):
 finalScore = mean(score[0..K-1])
 ```
 
-**Note:** Le 3-head legacy (Semantic/Structure/Temporal avec PageRank, Adamic-Adar, HeatDiffusion) a été remplacé par K-head unifié qui utilise **uniquement les embeddings propagés** via message passing.
+**Note:** Le 3-head legacy (Semantic/Structure/Temporal avec PageRank, Adamic-Adar, HeatDiffusion) a
+été remplacé par K-head unifié qui utilise **uniquement les embeddings propagés** via message
+passing.
 
-Les features graph (PageRank, Adamic-Adar, etc.) sont toujours calculées mais utilisées par d'autres modules (local-alpha, suggestions, clustering) — pas par SHGAT K-head scoring.
+Les features graph (PageRank, Adamic-Adar, etc.) sont toujours calculées mais utilisées par d'autres
+modules (local-alpha, suggestions, clustering) — pas par SHGAT K-head scoring.
 
 ### Subprocess Training (ADR-053)
 

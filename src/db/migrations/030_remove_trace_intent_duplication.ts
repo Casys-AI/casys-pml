@@ -63,7 +63,9 @@ export function createRemoveTraceIntentDuplicationMigration(): Migration {
       }
 
       log.info("✓ Migration 030 complete: intent duplication removed");
-      log.info("  → Use LEFT JOIN workflow_pattern ON pattern_id = capability_id to get intent data");
+      log.info(
+        "  → Use LEFT JOIN workflow_pattern ON pattern_id = capability_id to get intent data",
+      );
     },
     down: async (db: DbClient) => {
       log.info("Migration 030 rollback: Restoring intent columns...");

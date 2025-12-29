@@ -70,7 +70,10 @@ Deno.test("AlgorithmTracer - logTrace() writes to DB and returns traceId", async
   assertEquals(tracer.getBufferSize(), 0);
 
   // Verify trace was written to DB
-  const result = await db.query("SELECT COUNT(*) as count FROM algorithm_traces WHERE trace_id = $1", [traceId]);
+  const result = await db.query(
+    "SELECT COUNT(*) as count FROM algorithm_traces WHERE trace_id = $1",
+    [traceId],
+  );
   assertEquals(Number(result[0]?.count), 1);
 
   await tracer.stop();
