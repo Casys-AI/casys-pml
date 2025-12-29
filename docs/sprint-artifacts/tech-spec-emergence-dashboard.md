@@ -17,6 +17,9 @@ Replace the `Tools` mode with an `Emergence` mode that displays real-time CAS me
 - **Learning velocity** (graph update rate)
 - **Speculation accuracy** (prediction hit rate)
 - **Threshold convergence** (adaptive threshold stability)
+- **Phase transition detection** (qualitative system changes)
+- **Trend indicators** (↑↓→ per metric)
+- **Recommendations** (auto-generated insights)
 
 ### Scope
 
@@ -62,10 +65,11 @@ src/web/
 ### Technical Decisions
 
 1. **ViewMode enum change:** `"tools"` → `"emergence"` in CytoscapeGraph.tsx
-2. **New endpoint:** `GET /api/metrics/emergence?range=1h|24h|7d`
+2. **New endpoint:** `GET /api/metrics/emergence?range=1h|24h|7d|30d`
 3. **Compute metrics from existing data:** No new DB tables, aggregate from `edges`, `workflow_executions`, `capabilities`
 4. **Chart library:** Chart.js (already used in MetricsPanel)
 5. **Atomic design:** Reuse `MetricCard`, `ProgressBar`, `SectionCard` from atoms
+6. **SYMBIOSIS/ODI alignment:** Include phase transitions, trends, and recommendations per arxiv:2503.13754
 
 ## Implementation Plan
 
@@ -104,9 +108,11 @@ src/web/
 
 - [ ] **Task 4: Create emergence metrics API**
   - File: `src/pml/api/metrics-emergence.ts` (new)
-  - Endpoint: `GET /api/metrics/emergence`
+  - Endpoint: `GET /api/metrics/emergence?range=1h|24h|7d|30d`
   - Response type:
     ```typescript
+    type Trend = "rising" | "falling" | "stable";
+
     interface EmergenceMetricsResponse {
       current: {
         graphEntropy: number;        // 0-1, Shannon entropy of edge distribution
@@ -118,6 +124,28 @@ src/web/
         capabilityCount: number;
         parallelizationRate: number;
       };
+      // SYMBIOSIS: Trend indicators per metric (↑↓→)
+      trends: {
+        graphEntropy: Trend;
+        clusterStability: Trend;
+        capabilityDiversity: Trend;
+        learningVelocity: Trend;
+        speculationAccuracy: Trend;
+      };
+      // SYMBIOSIS: Phase transition detection
+      phaseTransition: {
+        detected: boolean;           // true if entropy changed > 0.2 between periods
+        type: "expansion" | "consolidation" | "none";
+        confidence: number;          // 0-1
+        description: string;         // e.g. "System entering consolidation phase"
+      };
+      // SYMBIOSIS: Auto-generated recommendations
+      recommendations: Array<{
+        type: "warning" | "info" | "success";
+        metric: string;
+        message: string;             // e.g. "Entropy too high (0.85), consider pruning stale edges"
+        action?: string;             // optional suggested action
+      }>;
       timeseries: {
         entropy: Array<{ timestamp: string; value: number }>;
         stability: Array<{ timestamp: string; value: number }>;
@@ -164,14 +192,127 @@ src/web/
   - File: `src/pml/api/mod.ts`
   - Add: `router.get("/api/metrics/emergence", handleEmergenceMetrics)`
 
+- [ ] **Task 11: Implement trend computation (SYMBIOSIS)**
+  - File: `src/pml/services/emergence-metrics.ts`
+  - Algorithm: Compare current vs previous period average
+    ```typescript
+    function computeTrend(current: number, previous: number): Trend {
+      const delta = current - previous;
+      const threshold = 0.05; // 5% change threshold
+      if (delta > threshold) return "rising";
+      if (delta < -threshold) return "falling";
+      return "stable";
+    }
+    ```
+  - Apply to all 5 main metrics
+  - Store historical snapshots for comparison (last 10 periods)
+
+- [ ] **Task 12: Implement phase transition detection (SYMBIOSIS)**
+  - File: `src/pml/services/emergence-metrics.ts`
+  - Algorithm per ODI paper (arxiv:2503.13754):
+    ```typescript
+    async function detectPhaseTransition(history: EmergenceSnapshot[]): PhaseTransition {
+      if (history.length < 10) return { detected: false, type: "none", confidence: 0 };
+
+      const recent = history.slice(-5);
+      const older = history.slice(-10, -5);
+
+      const recentAvg = average(recent.map(m => m.graphEntropy));
+      const olderAvg = average(older.map(m => m.graphEntropy));
+      const entropyDelta = recentAvg - olderAvg;
+
+      if (Math.abs(entropyDelta) > 0.2) {
+        return {
+          detected: true,
+          type: entropyDelta > 0 ? "expansion" : "consolidation",
+          confidence: Math.min(Math.abs(entropyDelta) / 0.3, 1),
+          description: entropyDelta > 0
+            ? "System expanding - new patterns emerging"
+            : "System consolidating - patterns stabilizing"
+        };
+      }
+      return { detected: false, type: "none", confidence: 0, description: "" };
+    }
+    ```
+
+- [ ] **Task 13: Implement recommendations engine (SYMBIOSIS)**
+  - File: `src/pml/services/emergence-recommendations.ts` (new)
+  - Rules-based recommendations:
+    ```typescript
+    function generateRecommendations(metrics: EmergenceMetrics): Recommendation[] {
+      const recs: Recommendation[] = [];
+
+      // Entropy warnings
+      if (metrics.graphEntropy > 0.7) {
+        recs.push({
+          type: "warning",
+          metric: "graphEntropy",
+          message: `Entropy high (${metrics.graphEntropy.toFixed(2)}), system may be chaotic`,
+          action: "Consider pruning stale edges or consolidating capabilities"
+        });
+      }
+      if (metrics.graphEntropy < 0.3) {
+        recs.push({
+          type: "warning",
+          metric: "graphEntropy",
+          message: `Entropy low (${metrics.graphEntropy.toFixed(2)}), system may be rigid`,
+          action: "Encourage exploration of new tool combinations"
+        });
+      }
+
+      // Stability warnings
+      if (metrics.clusterStability < 0.8) {
+        recs.push({
+          type: "warning",
+          metric: "clusterStability",
+          message: `Cluster stability low (${metrics.clusterStability.toFixed(2)})`,
+          action: "Patterns not yet mature, continue observation"
+        });
+      }
+
+      // Success indicators
+      if (metrics.speculationAccuracy > 0.8) {
+        recs.push({
+          type: "success",
+          metric: "speculationAccuracy",
+          message: `Speculation accuracy excellent (${(metrics.speculationAccuracy * 100).toFixed(0)}%)`,
+        });
+      }
+
+      return recs;
+    }
+    ```
+
+- [ ] **Task 14: Add TrendIndicator atom component**
+  - File: `src/web/components/ui/atoms/TrendIndicator.tsx` (new)
+  - Props: `{ trend: Trend, size?: "sm" | "md" }`
+  - Display: ↑ (green), ↓ (red), → (gray)
+  - Integrate with MetricCard
+
+- [ ] **Task 15: Add PhaseTransitionBanner component**
+  - File: `src/web/components/ui/molecules/PhaseTransitionBanner.tsx` (new)
+  - Display when `phaseTransition.detected === true`
+  - Animated banner with type icon and description
+  - Auto-dismiss after 10 seconds or on click
+
+- [ ] **Task 16: Add RecommendationsPanel component**
+  - File: `src/web/components/ui/molecules/RecommendationsPanel.tsx` (new)
+  - Collapsible list of recommendations
+  - Color-coded by type (warning/info/success)
+  - Position: Bottom of EmergencePanel
+
 ### Acceptance Criteria
 
 - [ ] **AC1:** Given user clicks "Emergence" tab, When the mode switches, Then EmergencePanel displays with all 6 KPIs visible
 - [ ] **AC2:** Given emergence mode is active, When graph entropy is below 0.3 or above 0.7, Then the entropy card shows warning color
 - [ ] **AC3:** Given new capabilities are learned, When SSE event fires, Then metrics refresh automatically within 500ms
-- [ ] **AC4:** Given user selects different time ranges (1h/24h/7d), When range changes, Then timeseries charts update accordingly
+- [ ] **AC4:** Given user selects different time ranges (1h/24h/7d/30d), When range changes, Then timeseries charts update accordingly
 - [ ] **AC5:** Given cluster stability drops below 0.8, When displayed, Then progress bar shows warning state
 - [ ] **AC6:** Given the dashboard loads, When emergence mode selected, Then API call completes in < 200ms
+- [ ] **AC7 (SYMBIOSIS):** Given metrics are displayed, When trend changes, Then each KPI shows ↑/↓/→ indicator with appropriate color
+- [ ] **AC8 (SYMBIOSIS):** Given entropy changes > 0.2 between periods, When phase transition detected, Then banner displays with type (expansion/consolidation) and description
+- [ ] **AC9 (SYMBIOSIS):** Given metrics outside healthy thresholds, When recommendations generated, Then panel shows actionable warnings/info
+- [ ] **AC10 (SYMBIOSIS):** Given phase transition banner appears, When user clicks or 10s passes, Then banner auto-dismisses
 
 ## Additional Context
 
@@ -186,16 +327,23 @@ src/web/
 1. **Unit tests:**
    - `computeGraphEntropy()` with known distributions
    - `computeClusterStability()` with mock community data
+   - `computeTrend()` with delta scenarios
+   - `detectPhaseTransition()` with history mock (< 10 entries, > 0.2 delta, etc.)
+   - `generateRecommendations()` with boundary metrics
    - API response shape validation
 
 2. **Integration tests:**
-   - `/api/metrics/emergence` returns valid data
+   - `/api/metrics/emergence` returns valid data with all SYMBIOSIS fields
    - EmergencePanel renders without errors
+   - Trend indicators update when data changes
+   - Phase transition banner appears/dismisses correctly
 
 3. **Manual testing:**
    - Toggle between 3 modes (Capabilities/Emergence/Graph)
    - Verify charts animate on data change
    - Check responsive layout on mobile
+   - Verify 30d range loads without timeout
+   - Confirm recommendations panel is collapsible
 
 ### Notes
 
@@ -215,3 +363,11 @@ src/web/
 - Cache entropy/stability calculations (expensive)
 - Debounce SSE refresh to max 1/second
 - Use `useMemo` for derived values in React
+- 30d range may require pagination or sampling for timeseries
+
+**SYMBIOSIS/ODI Framework (arxiv:2503.13754):**
+- **Phase Transitions:** Qualitative system changes detected via entropy delta > 0.2
+- **Expansion phase:** New patterns emerging, entropy rising
+- **Consolidation phase:** Patterns stabilizing, entropy falling
+- **Recommendations:** Rules-based engine, not ML (keeps it deterministic and explainable)
+- **Trends:** 5% threshold for rising/falling, avoids noise from small fluctuations
