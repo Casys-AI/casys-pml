@@ -19,6 +19,14 @@ import type {
 } from "../../../capabilities/types.ts";
 import { toolsByCategory } from "../../../../lib/std/mod.ts";
 
+// Build lookup: tool name -> category (module) for std tools
+const stdToolCategoryMap = new Map<string, string>();
+for (const [category, tools] of Object.entries(toolsByCategory)) {
+  for (const tool of tools) {
+    stdToolCategoryMap.set(tool.name, category);
+  }
+}
+
 // =============================================================================
 // Types for /api/graph/insights unified endpoint
 // =============================================================================
@@ -46,35 +54,6 @@ interface InsightsResponse {
   nodeType: "tool" | "capability";
   items: InsightItem[];
   algorithmStats: Record<string, { count: number; avgScore: number }>;
-}
-
-// Build lookup: tool name -> category (module) for std tools
-const stdToolCategoryMap = new Map<string, string>();
-for (const [category, tools] of Object.entries(toolsByCategory)) {
-  for (const tool of tools) {
-    stdToolCategoryMap.set(tool.name, category);
-  }
-}
-
-/**
- * Parse tool ID into server/module and name
- * For std tools, returns the module (e.g., "database") instead of "std"
- */
-function parseToolId(toolId: string): { server: string; name: string } {
-  if (!toolId.includes(":")) {
-    return { server: "unknown", name: toolId };
-  }
-  const colonIndex = toolId.indexOf(":");
-  const rawServer = toolId.substring(0, colonIndex);
-  const name = toolId.substring(colonIndex + 1);
-
-  // For std tools, use the module name instead of "std"
-  if (rawServer === "std") {
-    const module = stdToolCategoryMap.get(name);
-    return { server: module || "std", name };
-  }
-
-  return { server: rawServer, name };
 }
 
 /**
@@ -176,7 +155,13 @@ export function handleGraphRelated(
         ctx.graphEngine.getEdgeData(r.toolId, toolId);
 
       // Extract server and name from tool_id
-      const { server, name } = parseToolId(r.toolId);
+      let server = "unknown";
+      let name = r.toolId;
+      if (r.toolId.includes(":")) {
+        const colonIndex = r.toolId.indexOf(":");
+        server = r.toolId.substring(0, colonIndex);
+        name = r.toolId.substring(colonIndex + 1);
+      }
 
       return {
         tool_id: r.toolId,
@@ -251,7 +236,13 @@ export function handleGraphCommunity(
       .filter((id) => id !== nodeId) // Exclude the source node
       .map((memberId) => {
         const pagerank = ctx.graphEngine.getPageRank(memberId);
-        const { server, name } = parseToolId(memberId);
+        let server = "unknown";
+        let name = memberId;
+        if (memberId.includes(":")) {
+          const colonIndex = memberId.indexOf(":");
+          server = memberId.substring(0, colonIndex);
+          name = memberId.substring(colonIndex + 1);
+        }
         return {
           id: memberId,
           name,
@@ -314,7 +305,14 @@ export function handleGraphNeighbors(
         const pagerank = ctx.graphEngine.getPageRank(neighborId);
         const edgeData = ctx.graphEngine.getEdgeData(nodeId, neighborId) ||
           ctx.graphEngine.getEdgeData(neighborId, nodeId);
-        const { server, name } = parseToolId(neighborId);
+
+        let server = "unknown";
+        let name = neighborId;
+        if (neighborId.includes(":")) {
+          const colonIndex = neighborId.indexOf(":");
+          server = neighborId.substring(0, colonIndex);
+          name = neighborId.substring(colonIndex + 1);
+        }
 
         return {
           id: neighborId,
@@ -539,8 +537,43 @@ export async function handleGraphInsights(
       }
     };
 
-    // Use global parseToolId for std: -> module mapping
-    const parseNodeId = parseToolId;
+    // Helper to extract server and name from node ID (for tools)
+    const parseNodeId = (id: string): { server: string; name: string } => {
+      if (id.includes(":")) {
+        const colonIndex = id.indexOf(":");
+        return {
+          server: id.substring(0, colonIndex),
+          name: id.substring(colonIndex + 1),
+        };
+      }
+      return { server: "unknown", name: id };
+    };
+
+    // Build capability displayName lookup map (id -> displayName)
+    // This ensures we show proper names instead of raw IDs
+    const capabilityNames = new Map<string, string>();
+    if (ctx.capabilityDataService) {
+      try {
+        const capList = await ctx.capabilityDataService.listCapabilities({ limit: 200 });
+        for (const cap of capList.capabilities) {
+          // Use name (displayName) if available, fallback to id
+          const displayName = cap.name || cap.id;
+          capabilityNames.set(cap.id, displayName);
+        }
+      } catch (e) {
+        log.warn(`Failed to build capability names lookup: ${e}`);
+      }
+    }
+
+    // Helper to get display name for a node (uses lookup for capabilities)
+    const getNodeDisplayName = (id: string, type: "tool" | "capability"): string => {
+      if (type === "capability") {
+        return capabilityNames.get(id) || id.replace(/^cap:/, "");
+      }
+      // For tools, parse server:name format
+      const { name } = parseNodeId(id);
+      return name;
+    };
 
     // =========================================================================
     // 1. Louvain Community Members
@@ -559,13 +592,16 @@ export async function handleGraphInsights(
           .slice(0, limit);
 
         members.forEach((member, idx) => {
-          const { server, name } = parseNodeId(member.id);
-          const memberType = member.id.startsWith("cap:") ? "capability" : "tool";
+          const { server } = parseNodeId(member.id);
+          const memberType: "tool" | "capability" = member.id.startsWith("cap:")
+            ? "capability"
+            : "tool";
+          const displayName = getNodeDisplayName(member.id, memberType);
           addResult(
             member.id,
-            name,
+            displayName,
             memberType,
-            server,
+            memberType === "capability" ? undefined : server,
             "louvain",
             member.pagerank,
             idx + 1,
@@ -593,13 +629,16 @@ export async function handleGraphInsights(
         .slice(0, limit);
 
       neighbors.forEach((neighbor, idx) => {
-        const { server, name } = parseNodeId(neighbor.id);
-        const neighborType = neighbor.id.startsWith("cap:") ? "capability" : "tool";
+        const { server } = parseNodeId(neighbor.id);
+        const neighborType: "tool" | "capability" = neighbor.id.startsWith("cap:")
+          ? "capability"
+          : "tool";
+        const displayName = getNodeDisplayName(neighbor.id, neighborType);
         addResult(
           neighbor.id,
-          name,
+          displayName,
           neighborType,
-          server,
+          neighborType === "capability" ? undefined : server,
           "neighbors",
           neighbor.pagerank,
           idx + 1,

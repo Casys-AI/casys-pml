@@ -12,6 +12,16 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
+import type { PinnedSet } from "./GraphInsightsPanel.tsx";
+import {
+  type ClusterVizConfig,
+  computeConvexHull,
+  drawAnimatedHull,
+  drawFlowPath,
+  drawSmoothHull,
+  expandHull,
+  type HullPoint,
+} from "../utils/graph/index.ts";
 
 // Tool invocation from API (snake_case)
 interface ApiToolInvocation {
@@ -56,6 +66,7 @@ interface ApiNodeData {
   }>;
   // Tool fields
   server?: string;
+  module?: string; // Category/module for std tools (e.g., "crypto", "json")
   parent?: string;
   parents?: string[];
   degree?: number;
@@ -156,6 +167,7 @@ interface ToolNode {
   server: string;
   pagerank: number;
   parentCapabilities: string[];
+  communityId?: number;
   inputSchema?: Record<string, unknown>;
   description?: string;
 }
@@ -222,8 +234,14 @@ interface CytoscapeGraphProps {
   apiBase: string;
   onCapabilitySelect?: (capability: CapabilityData | null) => void;
   onToolSelect?: (tool: ToolData | null) => void;
-  onNodeSelect?: (node: { id: string; label: string; server: string } | null) => void;
+  onNodeSelect?: (
+    node: { id: string; label: string; server: string; type?: "tool" | "capability" } | null,
+  ) => void;
   highlightedNodeId?: string | null;
+  /** Preview node ID (from sidebar hover) */
+  previewNodeId?: string | null;
+  /** Section ID for preview color (community=blue, neighbors=cyan, adamic-adar=green) */
+  previewSectionId?: string | null;
   pathNodes?: string[] | null;
   /** Highlight depth (1 = direct connections, Infinity = full stack) */
   highlightDepth?: number;
@@ -239,6 +257,12 @@ interface CytoscapeGraphProps {
   refreshKey?: number;
   /** Callback when server list is discovered from graph data (eliminates redundant fetch) */
   onServersDiscovered?: (servers: Set<string>) => void;
+  /** Pinned sets for multi-selection visualization */
+  pinnedSets?: PinnedSet[];
+  /** Cluster visualization config (for algorithm hover) */
+  clusterViz?: ClusterVizConfig | null;
+  /** Whether breadcrumbs have items (prevents panel close on background click) */
+  hasBreadcrumbs?: boolean;
 }
 
 // Color palette for servers
@@ -269,12 +293,30 @@ const CAPABILITY_COLORS = [
   "#84cc16", // lime
 ];
 
+// Community colors for Louvain clustering (graph mode)
+const COMMUNITY_COLORS = [
+  "#3b82f6", // blue
+  "#10b981", // emerald
+  "#f59e0b", // amber
+  "#ef4444", // red
+  "#8b5cf6", // violet
+  "#ec4899", // pink
+  "#06b6d4", // cyan
+  "#84cc16", // lime
+  "#6366f1", // indigo
+  "#14b8a6", // teal
+  "#f97316", // orange
+  "#a855f7", // purple
+];
+
 export default function CytoscapeGraph({
   apiBase,
   onCapabilitySelect,
   onToolSelect,
   onNodeSelect,
   highlightedNodeId,
+  previewNodeId,
+  previewSectionId,
   pathNodes,
   highlightDepth = 1,
   viewMode = "capabilities",
@@ -283,10 +325,15 @@ export default function CytoscapeGraph({
   expandedNodes: externalExpandedNodes,
   refreshKey = 0,
   onServersDiscovered,
+  pinnedSets,
+  clusterViz,
+  hasBreadcrumbs = false,
 }: CytoscapeGraphProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   // deno-lint-ignore no-explicit-any
   const cyRef = useRef<any>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animationFrameRef = useRef<number | null>(null);
   const serverColorsRef = useRef<Map<string, string>>(new Map());
   const capabilityColorsRef = useRef<Map<string, string>>(new Map());
 
@@ -312,6 +359,19 @@ export default function CytoscapeGraph({
   const capabilityDataRef = useRef<Map<string, CapabilityData>>(new Map());
   const toolDataRef = useRef<Map<string, ToolData>>(new Map());
   const rawDataRef = useRef<TransformedData | null>(null);
+
+  // Ref to track highlighted node for event handlers (closure-safe)
+  const highlightedNodeIdRef = useRef<string | null>(null);
+  // Ref to track breadcrumbs state for event handlers (closure-safe)
+  const hasBreadcrumbsRef = useRef(hasBreadcrumbs);
+
+  // Timeline layout: store calculated positions for preset layout
+  const timelinePositionsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
+  // Timeline separators: model coordinates (from calculation) and rendered coordinates (for display)
+  const timelineSeparatorsModelRef = useRef<Array<{ label: string; y: number }>>([]);
+  const [renderedSeparators, setRenderedSeparators] = useState<
+    Array<{ label: string; y: number; visible: boolean }>
+  >([]);
 
   const getServerColor = useCallback((server: string): string => {
     if (server === "unknown") return "#8a8078";
@@ -339,6 +399,151 @@ export default function CytoscapeGraph({
     const caps = data.capabilities.filter((c) => c.parentCapabilityId === capId).length;
     return { tools, caps };
   }, []);
+
+  /**
+   * Calculate timeline positions for capabilities mode
+   * Uses logarithmic scale: recent items spread out, older items compressed
+   * Returns positions map and separator positions for overlay
+   */
+  const calculateTimelinePositions = useCallback(
+    (
+      capabilities: CapabilityNode[],
+      tools: ToolNode[],
+      containerWidth: number,
+    ): {
+      positions: Map<string, { x: number; y: number }>;
+      separators: Array<{ label: string; y: number }>;
+    } => {
+      const positions = new Map<string, { x: number; y: number }>();
+      const now = Date.now();
+
+      // Time thresholds in milliseconds
+      const DAY = 24 * 60 * 60 * 1000;
+      const WEEK = 7 * DAY;
+      const MONTH = 30 * DAY;
+
+      // Sort capabilities by lastUsed (most recent first)
+      const sortedCaps = [...capabilities].sort((a, b) => {
+        const dateA = a.lastUsed ? new Date(a.lastUsed).getTime() : 0;
+        const dateB = b.lastUsed ? new Date(b.lastUsed).getTime() : 0;
+        return dateB - dateA;
+      });
+
+      // Layout constants
+      const BASE_Y = 80; // Starting Y offset
+      const ROW_HEIGHT = 180; // Min vertical spacing between capabilities
+      const CARD_WIDTH = 200; // Approximate capability card width
+      const CARDS_PER_ROW = Math.max(1, Math.floor(containerWidth / CARD_WIDTH));
+
+      // Group capabilities by time period for layout
+      interface TimeGroup {
+        label: string;
+        threshold: number;
+        capabilities: CapabilityNode[];
+        startY: number;
+      }
+
+      const groups: TimeGroup[] = [
+        { label: "Aujourd'hui", threshold: DAY, capabilities: [], startY: 0 },
+        { label: "Cette semaine", threshold: WEEK, capabilities: [], startY: 0 },
+        { label: "Ce mois", threshold: MONTH, capabilities: [], startY: 0 },
+        { label: "Plus ancien", threshold: Infinity, capabilities: [], startY: 0 },
+      ];
+
+      // Assign capabilities to groups
+      for (const cap of sortedCaps) {
+        const lastUsedTime = cap.lastUsed ? new Date(cap.lastUsed).getTime() : 0;
+        const age = now - lastUsedTime;
+
+        for (const group of groups) {
+          if (age < group.threshold) {
+            group.capabilities.push(cap);
+            break;
+          }
+        }
+      }
+
+      // Calculate positions per group (grid within each group)
+      let currentY = BASE_Y;
+      const separators: Array<{ label: string; y: number }> = [];
+
+      for (const group of groups) {
+        if (group.capabilities.length === 0) continue;
+
+        // Add separator at group start
+        separators.push({ label: group.label, y: currentY - 30 });
+        group.startY = currentY;
+
+        // Position capabilities in a grid within this group
+        for (let i = 0; i < group.capabilities.length; i++) {
+          const cap = group.capabilities[i];
+          const col = i % CARDS_PER_ROW;
+          const row = Math.floor(i / CARDS_PER_ROW);
+
+          const x = 100 + col * CARD_WIDTH;
+          const y = currentY + row * ROW_HEIGHT;
+
+          positions.set(cap.id, { x, y });
+
+          // Position tools inside this capability (relative positions handled by compound)
+          const capTools = tools.filter((t) => t.parentCapabilities.includes(cap.id));
+          const toolsPerRow = Math.ceil(Math.sqrt(capTools.length));
+          for (let j = 0; j < capTools.length; j++) {
+            const tool = capTools[j];
+            const toolCol = j % toolsPerRow;
+            const toolRow = Math.floor(j / toolsPerRow);
+            const isShared = tool.parentCapabilities.length > 1;
+            const toolId = isShared ? `${tool.id}__${cap.id}` : tool.id;
+
+            // Tools positioned relative to their parent capability center
+            positions.set(toolId, {
+              x: x + 20 + toolCol * 35,
+              y: y + 40 + toolRow * 35,
+            });
+          }
+        }
+
+        // Move to next group
+        const rowsInGroup = Math.ceil(group.capabilities.length / CARDS_PER_ROW);
+        currentY += rowsInGroup * ROW_HEIGHT + 60; // Extra spacing between groups
+      }
+
+      return { positions, separators };
+    },
+    [],
+  );
+
+  /**
+   * Update rendered separator positions based on Cytoscape pan/zoom
+   * Converts model coordinates to screen coordinates
+   */
+  const updateRenderedSeparators = useCallback(() => {
+    const cy = cyRef.current;
+    if (!cy || viewMode !== "capabilities") {
+      setRenderedSeparators([]);
+      return;
+    }
+
+    const modelSeparators = timelineSeparatorsModelRef.current;
+    if (modelSeparators.length === 0) {
+      setRenderedSeparators([]);
+      return;
+    }
+
+    const containerHeight = containerRef.current?.clientHeight || 600;
+    const pan = cy.pan();
+    const zoom = cy.zoom();
+
+    const rendered = modelSeparators.map((sep) => {
+      // Convert model Y to rendered Y: renderedY = modelY * zoom + panY
+      const renderedY = sep.y * zoom + pan.y;
+      // Check if visible in viewport
+      const visible = renderedY > -50 && renderedY < containerHeight + 50;
+      return { label: sep.label, y: renderedY, visible };
+    });
+
+    setRenderedSeparators(rendered);
+  }, [viewMode]);
 
   // Initialize Cytoscape
   useEffect(() => {
@@ -372,12 +577,33 @@ export default function CytoscapeGraph({
     };
   }, []);
 
+  // Setup pan/zoom listeners for timeline separators
+  useEffect(() => {
+    const cy = cyRef.current;
+    if (!cy) return;
+
+    // Update separators on pan/zoom
+    const handleViewport = () => {
+      if (viewMode === "capabilities") {
+        updateRenderedSeparators();
+      }
+    };
+
+    cy.on("pan zoom", handleViewport);
+
+    return () => {
+      cy.off("pan zoom", handleViewport);
+    };
+  }, [viewMode, updateRenderedSeparators]);
+
   // Refetch data when refreshKey changes (for SSE incremental updates)
   const prevRefreshKeyRef = useRef(refreshKey);
   useEffect(() => {
     // Skip initial render (loadData already called in init useEffect)
     if (prevRefreshKeyRef.current === refreshKey) return;
-    console.log(`[CytoscapeGraph] refreshKey changed: ${prevRefreshKeyRef.current} -> ${refreshKey}`);
+    console.log(
+      `[CytoscapeGraph] refreshKey changed: ${prevRefreshKeyRef.current} -> ${refreshKey}`,
+    );
     prevRefreshKeyRef.current = refreshKey;
 
     // Refetch data silently (no loading indicator) - Cytoscape instance already exists
@@ -457,27 +683,35 @@ export default function CytoscapeGraph({
       },
     },
     // Capability hub nodes (for Graph mode - regular nodes, not compound)
-    // Color darkness based on hierarchy level (meta-capabilities = darker)
-    // Size based on pagerank (importance in graph)
+    // Simple capabilities: lighter amber
     {
       selector: 'node[type="capability_hub"]',
       style: {
-        "background-color": "data(color)",
-        // Opacity based on hierarchy level: level 1=0.5, higher=darker (up to 1.0)
-        "background-opacity": "mapData(levelNorm, 0, 1, 0.5, 1.0)",
-        "border-color": "#fff",
+        "background-color": "#FFB86F", // Theme amber
+        "background-opacity": 0.6,
+        "border-color": "#E89B4F", // Darker amber border
         "border-width": 2,
         label: "data(label)",
         "text-valign": "bottom",
         "text-halign": "center",
         "font-size": "10px",
         "font-weight": "bold",
-        color: "#fff",
+        color: "#92400E", // Dark amber text
         "text-margin-y": 6,
-        // Size based on pagerank (hypergraph importance)
-        width: "mapData(pagerank, 0, 0.15, 35, 80)",
-        height: "mapData(pagerank, 0, 0.15, 35, 80)",
+        width: "mapData(levelNorm, 0, 1, 40, 70)",
+        height: "mapData(levelNorm, 0, 1, 40, 70)",
         shape: "ellipse",
+      },
+    },
+    // Meta-capabilities (level > 1) - richer orange, more prominent
+    {
+      selector: 'node[type="capability_hub"][level > 1]',
+      style: {
+        "background-color": "#FF9933", // Deeper orange
+        "background-opacity": 0.9,
+        "border-color": "#CC6600", // Dark burnt orange
+        "border-width": 3,
+        color: "#7C2D12", // Deep brown text
       },
     },
     // Tool nodes in Graph mode (pale/light colors)
@@ -663,6 +897,45 @@ export default function CytoscapeGraph({
         "z-index": 1000,
       },
     },
+    // Preview node - default/adamic-adar (green)
+    {
+      selector: "node.preview",
+      style: {
+        "border-color": "#10b981", // Emerald green
+        "border-width": 3,
+        "border-style": "dashed",
+        "overlay-color": "#10b981",
+        "overlay-padding": 6,
+        "overlay-opacity": 0.2,
+        "z-index": 998,
+      },
+    },
+    // Preview node - community section (blue)
+    {
+      selector: "node.preview-community",
+      style: {
+        "border-color": "#3b82f6", // Blue
+        "border-width": 3,
+        "border-style": "dashed",
+        "overlay-color": "#3b82f6",
+        "overlay-padding": 6,
+        "overlay-opacity": 0.2,
+        "z-index": 998,
+      },
+    },
+    // Preview node - neighbors section (cyan)
+    {
+      selector: "node.preview-neighbors",
+      style: {
+        "border-color": "#06b6d4", // Cyan
+        "border-width": 3,
+        "border-style": "dashed",
+        "overlay-color": "#06b6d4",
+        "overlay-padding": 6,
+        "overlay-opacity": 0.2,
+        "z-index": 998,
+      },
+    },
     // Connected to highlighted
     {
       selector: "node.connected",
@@ -692,6 +965,129 @@ export default function CytoscapeGraph({
         "target-arrow-color": "#FFB86F",
         "z-index": 999,
       },
+    },
+    // Preview edges - default/adamic-adar (green)
+    {
+      selector: "edge.edge-preview",
+      style: {
+        opacity: 1,
+        width: 3,
+        "line-color": "#10b981",
+        "target-arrow-color": "#10b981",
+        "z-index": 999,
+      },
+    },
+    // Preview edges - community (blue)
+    {
+      selector: "edge.edge-preview-community",
+      style: {
+        opacity: 1,
+        width: 3,
+        "line-color": "#3b82f6",
+        "target-arrow-color": "#3b82f6",
+        "z-index": 999,
+      },
+    },
+    // Preview edges - neighbors (cyan)
+    {
+      selector: "edge.edge-preview-neighbors",
+      style: {
+        opacity: 1,
+        width: 3,
+        "line-color": "#06b6d4",
+        "target-arrow-color": "#06b6d4",
+        "z-index": 999,
+      },
+    },
+    // Preview connected nodes - default/adamic-adar (green)
+    {
+      selector: "node.node-preview",
+      style: {
+        "border-color": "#10b981",
+        "border-width": 2,
+        "z-index": 998,
+      },
+    },
+    // Preview connected nodes - community (blue)
+    {
+      selector: "node.node-preview-community",
+      style: {
+        "border-color": "#3b82f6",
+        "border-width": 2,
+        "z-index": 998,
+      },
+    },
+    // Preview connected nodes - neighbors (cyan)
+    {
+      selector: "node.node-preview-neighbors",
+      style: {
+        "border-color": "#06b6d4",
+        "border-width": 2,
+        "z-index": 998,
+      },
+    },
+    // Algorithm-specific preview styles
+    // co_occurrence (emerald)
+    {
+      selector: "node.preview-co_occurrence",
+      style: { "border-color": "#10b981", "border-width": 3 },
+    },
+    {
+      selector: "node.node-preview-co_occurrence",
+      style: { "border-color": "#10b981", "border-width": 2 },
+    },
+    {
+      selector: "edge.edge-preview-co_occurrence",
+      style: { "line-color": "#10b981", opacity: 1, width: 3 },
+    },
+    // louvain (violet)
+    { selector: "node.preview-louvain", style: { "border-color": "#8b5cf6", "border-width": 3 } },
+    {
+      selector: "node.node-preview-louvain",
+      style: { "border-color": "#8b5cf6", "border-width": 2 },
+    },
+    {
+      selector: "edge.edge-preview-louvain",
+      style: { "line-color": "#8b5cf6", opacity: 1, width: 3 },
+    },
+    // adamic_adar (amber)
+    {
+      selector: "node.preview-adamic_adar",
+      style: { "border-color": "#f59e0b", "border-width": 3 },
+    },
+    {
+      selector: "node.node-preview-adamic_adar",
+      style: { "border-color": "#f59e0b", "border-width": 2 },
+    },
+    {
+      selector: "edge.edge-preview-adamic_adar",
+      style: { "line-color": "#f59e0b", opacity: 1, width: 3 },
+    },
+    // hyperedge (pink)
+    { selector: "node.preview-hyperedge", style: { "border-color": "#ec4899", "border-width": 3 } },
+    {
+      selector: "node.node-preview-hyperedge",
+      style: { "border-color": "#ec4899", "border-width": 2 },
+    },
+    {
+      selector: "edge.edge-preview-hyperedge",
+      style: { "line-color": "#ec4899", opacity: 1, width: 3 },
+    },
+    // spectral (cyan)
+    { selector: "node.preview-spectral", style: { "border-color": "#06b6d4", "border-width": 3 } },
+    {
+      selector: "node.node-preview-spectral",
+      style: { "border-color": "#06b6d4", "border-width": 2 },
+    },
+    {
+      selector: "edge.edge-preview-spectral",
+      style: { "line-color": "#06b6d4", opacity: 1, width: 3 },
+    },
+    // neighbors (blue) - additional for consistency
+    { selector: "node.preview-neighbors", style: { "border-color": "#3b82f6", "border-width": 3 } },
+    {
+      selector: "edge.edge-preview-neighbors",
+      style: { "line-color": "#3b82f6", opacity: 1, width: 3 },
     },
     // Path highlighting
     {
@@ -790,6 +1186,13 @@ export default function CytoscapeGraph({
               })),
             }));
 
+            // Determine lastUsed: prefer last_used field, fallback to most recent trace
+            let lastUsed = d.last_used;
+            if (!lastUsed && traces && traces.length > 0) {
+              // Use the most recent trace's executedAt as lastUsed
+              lastUsed = traces[0].executedAt;
+            }
+
             capabilities.push({
               id: d.id,
               name: d.label,
@@ -803,20 +1206,26 @@ export default function CytoscapeGraph({
               communityId: d.community_id,
               traces, // Story 11.4
               pagerank: d.pagerank ?? 0, // Hypergraph pagerank for importance sizing
-              lastUsed: d.last_used, // ISO timestamp for timeline sorting
+              lastUsed, // ISO timestamp for timeline sorting (from last_used or latest trace)
             });
           }
         } else if (d.type === "tool") {
           const parents = d.parents ?? (d.parent ? [d.parent] : []);
           // Only include tools that have been used (have at least one parent capability)
           if (parents.length > 0) {
+            // Build server identifier: "std/module" for std tools, otherwise just server
+            const baseServer = d.server ?? "unknown";
+            const module = d.module;
+            const serverDisplay = baseServer === "std" && module ? `std/${module}` : baseServer;
+
             tools.push({
               id: d.id,
               name: d.label,
               type: "tool",
-              server: d.server ?? "unknown",
+              server: serverDisplay,
               pagerank: d.pagerank ?? 0,
               parentCapabilities: parents,
+              communityId: d.community_id,
             });
           }
         }
@@ -836,13 +1245,15 @@ export default function CytoscapeGraph({
 
       // Derive parent-child relationships from "contains" edges
       // If A --contains--> B, then B is a child of A (nested inside when expanded)
+      // Note: Capability IDs are UUIDs, not "cap-" prefixed. Build set to check membership.
+      const capabilityIds = new Set(capabilities.map((c) => c.id));
       const capabilityParentMap = new Map<string, string>();
       for (const edge of edges) {
         if (edge.edgeType === "contains") {
           const parentId = edge.source;
           const childId = edge.target;
-          // Only if both are capabilities
-          if (parentId.startsWith("cap-") && childId.startsWith("cap-")) {
+          // Only if both are capabilities (check against our parsed capability set)
+          if (capabilityIds.has(parentId) && capabilityIds.has(childId)) {
             if (!capabilityParentMap.has(childId)) {
               capabilityParentMap.set(childId, parentId);
             }
@@ -922,7 +1333,9 @@ export default function CytoscapeGraph({
       // Retry with exponential backoff
       if (retryCount < MAX_RETRIES) {
         const delay = BASE_DELAY * Math.pow(2, retryCount);
-        console.warn(`[Graph] Retrying in ${delay / 1000}s (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+        console.warn(
+          `[Graph] Retrying in ${delay / 1000}s (attempt ${retryCount + 1}/${MAX_RETRIES})`,
+        );
         setTimeout(() => loadData(retryCount + 1, silent), delay);
         return; // Don't set error yet, still retrying
       }
@@ -1384,7 +1797,7 @@ export default function CytoscapeGraph({
       const level = levelCache.get(cap.id) || 1;
       // Normalize level: tools=0, caps start at 1, so we normalize including tools
       // levelNorm goes from ~0.3 (level 1) to 1.0 (maxLevel)
-      const levelNorm = (level) / (maxLevel + 1);
+      const levelNorm = level / (maxLevel + 1);
 
       elements.push({
         group: "nodes",
@@ -1402,8 +1815,17 @@ export default function CytoscapeGraph({
       });
     }
 
-    // Add deduplicated tool nodes (level 0 = palest in hierarchy gradient)
+    // Helper to get community color
+    const getCommunityColor = (communityId?: number): string => {
+      if (communityId === undefined || communityId === null) {
+        return HIERARCHY_BASE_COLOR; // Fallback for nodes without community
+      }
+      return COMMUNITY_COLORS[communityId % COMMUNITY_COLORS.length];
+    };
+
+    // Add deduplicated tool nodes colored by community
     for (const tool of data.tools) {
+      const communityColor = getCommunityColor(tool.communityId);
       elements.push({
         group: "nodes",
         data: {
@@ -1412,7 +1834,8 @@ export default function CytoscapeGraph({
           type: "tool_light", // Pale style for graph mode
           server: tool.server,
           pagerank: tool.pagerank,
-          color: HIERARCHY_BASE_COLOR,
+          color: communityColor,
+          communityId: tool.communityId,
           level: 0,
           levelNorm: 0, // Tools are level 0
           capabilities: tool.parentCapabilities,
@@ -1480,33 +1903,49 @@ export default function CytoscapeGraph({
 
   const runLayout = (fit = true) => {
     const cy = cyRef.current;
-    if (!cy) return;
+    const data = rawDataRef.current;
+    if (!cy || !data) return;
 
-    // Use fcose layout for capabilities (timeline-sorted bento view)
+    // Use preset layout for capabilities (timeline view with time-based positioning)
     if (viewMode === "capabilities") {
+      // Calculate timeline positions based on lastUsed
+      const containerWidth = containerRef.current?.clientWidth || 800;
+      const { positions, separators } = calculateTimelinePositions(
+        data.capabilities,
+        data.tools,
+        containerWidth,
+      );
+
+      // Store positions and separators for reference
+      timelinePositionsRef.current = positions;
+      timelineSeparatorsModelRef.current = separators;
+
+      // Use preset layout with calculated positions
       cy.layout({
-        name: "fcose",
+        name: "preset",
+        positions: (node: { id: () => string }) => {
+          const pos = positions.get(node.id());
+          return pos || { x: 0, y: 0 };
+        },
         animate: true,
-        animationDuration: fit ? 300 : 150,
-        fit,
+        animationDuration: fit ? 400 : 250,
+        fit: false, // Don't auto-fit, we control the view
         padding: 20,
-        quality: "default",
-        nodeDimensionsIncludeLabels: true,
-        nodeRepulsion: 4500,
-        idealEdgeLength: 50,
-        edgeElasticity: 0.45,
-        nestingFactor: 0.1,
-        gravity: 0.25,
-        gravityRange: 3.8,
-        gravityCompound: 1.0,
-        gravityRangeCompound: 1.5,
-        numIter: 500,
-        packComponents: true,
-        tile: true,
-        tilingPaddingVertical: 10,
-        tilingPaddingHorizontal: 10,
-        randomize: false, // Keep order from elements array (sorted by lastUsed)
       }).run();
+
+      // After layout, fit to show all content with padding
+      if (fit) {
+        setTimeout(() => {
+          cy.fit(undefined, 50);
+          // Pan to show top of timeline
+          cy.pan({ x: cy.pan().x, y: 50 });
+          // Update separator positions after fit
+          updateRenderedSeparators();
+        }, 450);
+      } else {
+        // Update separators immediately for incremental updates
+        setTimeout(() => updateRenderedSeparators(), 300);
+      }
     } else if (viewMode === "graph") {
       // Graph mode: cola layout with live forces (D3-like simulation)
       cy.layout({
@@ -1558,8 +1997,8 @@ export default function CytoscapeGraph({
       const nodeId = node.data("id") as string;
       const nodeType = node.data("type") as string;
 
-      if (nodeType === "capability") {
-        // Zoom to fit this capability and its children
+      if (nodeType === "capability" || nodeType === "capability_hub") {
+        // Zoom to fit this capability and its children (for compound mode)
         const capNode = cy.getElementById(nodeId);
         const children = capNode.descendants();
         const toFit = children.length > 0 ? capNode.union(children) : capNode;
@@ -1575,12 +2014,28 @@ export default function CytoscapeGraph({
         if (capData) {
           onCapabilitySelect?.(capData);
           onToolSelect?.(null);
+          // Notify GraphExplorer for insights panel (same as tools)
+          onNodeSelect?.({
+            id: nodeId,
+            label: capData.label,
+            server: "capability",
+            type: "capability",
+          });
         }
       } else {
         // Tool selected - use toolId for shared tools (nodeId may have __capId suffix)
         const toolId = (node.data("toolId") as string) || nodeId;
         const toolData = toolDataRef.current.get(toolId);
         if (toolData) {
+          // Center on tool without changing zoom level
+          const toolNode = cy.getElementById(nodeId);
+
+          cy.animate({
+            center: { eles: toolNode },
+            duration: 300,
+            easing: "ease-out",
+          });
+
           onToolSelect?.(toolData);
           onCapabilitySelect?.(null);
           onNodeSelect?.({
@@ -1594,12 +2049,16 @@ export default function CytoscapeGraph({
       highlightNode(nodeId);
     });
 
-    // Background click - clear selection
+    // Background click - clear selection (but keep panel if breadcrumbs exist)
     cy.on("tap", (evt: { target: { isNode?: () => boolean } }) => {
       if (!evt.target.isNode?.()) {
         clearHighlight();
         onCapabilitySelect?.(null);
         onToolSelect?.(null);
+        // Only close panel if no breadcrumbs (user's working memory is empty)
+        if (!hasBreadcrumbsRef.current) {
+          onNodeSelect?.(null);
+        }
       }
     });
 
@@ -1610,8 +2069,10 @@ export default function CytoscapeGraph({
     });
 
     cy.on("mouseout", "node", () => {
-      if (highlightedNodeId) {
-        highlightNode(highlightedNodeId);
+      // Use ref to get current highlighted node (closure-safe)
+      const lockedNodeId = highlightedNodeIdRef.current;
+      if (lockedNodeId) {
+        highlightNode(lockedNodeId);
       } else {
         clearHighlight();
       }
@@ -1685,8 +2146,16 @@ export default function CytoscapeGraph({
   };
 
   // Handle external highlight changes
+  // Keep breadcrumbs ref in sync (closure-safe for event handlers)
+  useEffect(() => {
+    hasBreadcrumbsRef.current = hasBreadcrumbs;
+  }, [hasBreadcrumbs]);
+
   // Re-apply highlight when viewMode changes (after graph rebuild)
   useEffect(() => {
+    // Keep ref in sync for event handlers (closure-safe)
+    highlightedNodeIdRef.current = highlightedNodeId ?? null;
+
     if (highlightedNodeId) {
       // Small delay to ensure graph is rebuilt after viewMode change
       const timer = setTimeout(() => {
@@ -1697,6 +2166,79 @@ export default function CytoscapeGraph({
       clearHighlight();
     }
   }, [highlightedNodeId, highlightDepth, viewMode]);
+
+  // Handle preview (sidebar hover) - overlay on top of existing highlight
+  useEffect(() => {
+    const cy = cyRef.current;
+    if (!cy) return;
+
+    // All possible preview classes to clear
+    const allPreviewClasses = [
+      "preview",
+      "preview-community",
+      "preview-neighbors",
+      "preview-co_occurrence",
+      "preview-louvain",
+      "preview-adamic_adar",
+      "preview-hyperedge",
+      "preview-spectral",
+      "node-preview",
+      "node-preview-community",
+      "node-preview-neighbors",
+      "node-preview-co_occurrence",
+      "node-preview-louvain",
+      "node-preview-adamic_adar",
+      "node-preview-hyperedge",
+      "node-preview-spectral",
+      "edge-preview",
+      "edge-preview-community",
+      "edge-preview-neighbors",
+      "edge-preview-co_occurrence",
+      "edge-preview-louvain",
+      "edge-preview-adamic_adar",
+      "edge-preview-hyperedge",
+      "edge-preview-spectral",
+    ].join(" ");
+
+    cy.elements().removeClass(allPreviewClasses);
+
+    if (previewNodeId) {
+      const node = cy.getElementById(previewNodeId);
+      if (!node.length) return;
+
+      // Map algoId to CSS class suffix (use algoId directly if it has a style defined)
+      const validAlgos = [
+        "neighbors",
+        "co_occurrence",
+        "louvain",
+        "adamic_adar",
+        "hyperedge",
+        "spectral",
+        "community",
+      ];
+      const algoSuffix = previewSectionId && validAlgos.includes(previewSectionId)
+        ? previewSectionId
+        : null;
+
+      // Get algo-specific classes
+      const previewClass = algoSuffix ? `preview-${algoSuffix}` : "preview";
+      const connectedClass = algoSuffix ? `node-preview-${algoSuffix}` : "node-preview";
+      const edgeClass = algoSuffix ? `edge-preview-${algoSuffix}` : "edge-preview";
+
+      // Add preview class to the node (overlays on existing highlight)
+      node.addClass(previewClass);
+
+      // Get connected nodes and edges
+      const connectedNodes = getConnectedNodes(node, highlightDepth);
+      const connectedEdges = getConnectedEdges(node, connectedNodes);
+
+      // Add preview classes to connected nodes and edges
+      connectedNodes.addClass(connectedClass);
+      connectedEdges.addClass(edgeClass);
+    }
+    // No else needed - when preview ends, we just remove preview classes above
+    // The existing highlight remains untouched
+  }, [previewNodeId, previewSectionId, highlightDepth]);
 
   // Handle path highlighting
   useEffect(() => {
@@ -1724,6 +2266,307 @@ export default function CytoscapeGraph({
     }
   }, [pathNodes]);
 
+  // Handle cluster visualization overlay (hulls, zones, animated paths, nodes-edges)
+  useEffect(() => {
+    const cy = cyRef.current;
+    const canvas = canvasRef.current;
+    if (!cy) return;
+
+    // Cancel any running animation
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+
+    // Clear previous Cytoscape highlights (only elements we marked)
+    const prevHighlighted = cy.elements(".algo-highlight");
+    prevHighlighted.removeStyle("overlay-color overlay-opacity line-color opacity width");
+    prevHighlighted.removeClass("algo-highlight");
+
+    // Clear canvas
+    if (canvas) {
+      const ctx = canvas.getContext("2d");
+      if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // No viz config - done
+    if (!clusterViz || !clusterViz.nodeIds || clusterViz.nodeIds.length === 0) {
+      return;
+    }
+
+    // Handle "nodes-edges" type - use Cytoscape styling directly
+    if (clusterViz.type === "nodes-edges") {
+      const nodeIdSet = new Set(clusterViz.nodeIds);
+
+      // Helper to find nodes by ID (handles shared tools with __capId suffix)
+      const findNodes = (nodeId: string) => {
+        let nodes = cy.getElementById(nodeId);
+        if (nodes.length === 0) {
+          nodes = cy.nodes(`[toolId = "${nodeId}"]`);
+        }
+        if (nodes.length === 0) {
+          nodes = cy.nodes().filter((n: any) => (n.id() as string).startsWith(nodeId + "__"));
+        }
+        return nodes;
+      };
+
+      // Collect all matching node IDs (including shared tool instances)
+      const matchingNodeIds = new Set<string>();
+
+      // Highlight nodes with algo color overlay
+      for (const nodeId of clusterViz.nodeIds) {
+        const nodes = findNodes(nodeId);
+        nodes.forEach((node: any) => {
+          matchingNodeIds.add(node.id());
+          node.addClass("algo-highlight");
+          node.style({
+            "overlay-color": clusterViz.color,
+            "overlay-opacity": 0.3,
+          });
+        });
+      }
+
+      // Highlight edges between these nodes
+      cy.edges().forEach((edge: any) => {
+        const sourceId = edge.source().id();
+        const targetId = edge.target().id();
+        // Check if both endpoints match (either direct ID or shared tool instance)
+        const sourceMatches = matchingNodeIds.has(sourceId) || nodeIdSet.has(sourceId);
+        const targetMatches = matchingNodeIds.has(targetId) || nodeIdSet.has(targetId);
+        if (sourceMatches && targetMatches) {
+          edge.addClass("algo-highlight");
+          edge.style({
+            "line-color": clusterViz.color,
+            "opacity": 0.8,
+            "width": 3,
+          });
+        }
+      });
+
+      return;
+    }
+
+    // For canvas-based visualizations
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // Get node positions from Cytoscape (rendered coordinates)
+    // Handles shared tools which have IDs like "tool_id__cap_id" in capabilities mode
+    const getNodePositions = (): HullPoint[] => {
+      const points: HullPoint[] = [];
+      for (const nodeId of clusterViz.nodeIds) {
+        // Try direct ID match first
+        let node = cy.getElementById(nodeId);
+
+        // If not found, try finding by toolId data attribute (for shared tools)
+        if (node.length === 0) {
+          node = cy.nodes(`[toolId = "${nodeId}"]`);
+        }
+
+        // If still not found, try partial match (nodeId is prefix of actual ID)
+        if (node.length === 0) {
+          node = cy.nodes().filter((n: any) => {
+            const id = n.id() as string;
+            return id.startsWith(nodeId + "__");
+          });
+        }
+
+        // Add positions for all matching nodes
+        if (node.length > 0) {
+          node.forEach((n: any) => {
+            const pos = n.renderedPosition();
+            points.push({ x: pos.x, y: pos.y });
+          });
+        }
+      }
+      return points;
+    };
+
+    // Draw function
+    const draw = (phase: number = 0) => {
+      // Resize canvas to match container
+      const container = containerRef.current;
+      if (container) {
+        const rect = container.getBoundingClientRect();
+        if (canvas.width !== rect.width || canvas.height !== rect.height) {
+          canvas.width = rect.width;
+          canvas.height = rect.height;
+        }
+      }
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const points = getNodePositions();
+      if (points.length < 2) return;
+
+      switch (clusterViz.type) {
+        case "hull": {
+          // Compute and draw convex hull for cluster
+          const hull = computeConvexHull(points);
+          const expandedHull = expandHull(hull, 25); // 25px padding
+
+          if (clusterViz.animated) {
+            drawAnimatedHull(ctx, expandedHull, {
+              baseColor: clusterViz.color,
+              phase,
+              strokeWidth: 2,
+            });
+          } else {
+            drawSmoothHull(ctx, expandedHull, {
+              fillColor: `${clusterViz.color}20`, // 12% opacity
+              strokeColor: `${clusterViz.color}60`, // 37% opacity
+              strokeWidth: 2,
+            });
+          }
+          break;
+        }
+
+        case "highlight": {
+          // Draw circles around each node
+          for (const point of points) {
+            ctx.beginPath();
+            ctx.arc(point.x, point.y, 30, 0, Math.PI * 2);
+            ctx.fillStyle = `${clusterViz.color}15`;
+            ctx.fill();
+            ctx.strokeStyle = `${clusterViz.color}50`;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+          }
+          break;
+        }
+
+        case "edges": {
+          // Draw edge weight visualization (for SHGAT attention)
+          if (points.length >= 2) {
+            for (let i = 0; i < points.length - 1; i++) {
+              for (let j = i + 1; j < points.length; j++) {
+                ctx.beginPath();
+                ctx.moveTo(points[i].x, points[i].y);
+                ctx.lineTo(points[j].x, points[j].y);
+                ctx.strokeStyle = `${clusterViz.color}40`;
+                ctx.lineWidth = 3;
+                ctx.stroke();
+              }
+            }
+          }
+          break;
+        }
+
+        case "animated-path": {
+          // Draw animated flow paths (for co-occurrence)
+          if (points.length >= 2) {
+            drawFlowPath(ctx, points, {
+              color: clusterViz.color,
+              phase,
+              strokeWidth: 3,
+            });
+          }
+          break;
+        }
+      }
+    };
+
+    // Initial draw
+    draw(0);
+
+    // Setup animation loop if animated
+    if (clusterViz.animated || clusterViz.type === "animated-path") {
+      let startTime: number | null = null;
+      const animate = (timestamp: number) => {
+        if (!startTime) startTime = timestamp;
+        const elapsed = timestamp - startTime;
+        const phase = (elapsed % 2000) / 2000; // 2 second cycle
+
+        draw(phase);
+        animationFrameRef.current = requestAnimationFrame(animate);
+      };
+      animationFrameRef.current = requestAnimationFrame(animate);
+    }
+
+    // Redraw on pan/zoom
+    const handleViewport = () => draw(clusterViz.phase ?? 0);
+    cy.on("pan zoom", handleViewport);
+
+    return () => {
+      cy.off("pan zoom", handleViewport);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      // Clean up Cytoscape highlights (only elements we marked)
+      const highlighted = cy.elements(".algo-highlight");
+      highlighted.removeStyle("overlay-color overlay-opacity line-color opacity width");
+      highlighted.removeClass("algo-highlight");
+    };
+  }, [clusterViz]);
+
+  // Render pinned sets as persistent visualizations
+  useEffect(() => {
+    const cy = cyRef.current;
+    if (!cy) return;
+
+    // Clear previous pinned highlights
+    const prevPinned = cy.elements(".pinned-highlight");
+    prevPinned.removeStyle("overlay-color overlay-opacity line-color opacity width");
+    prevPinned.removeClass("pinned-highlight");
+
+    // No pinned sets - done
+    if (!pinnedSets || pinnedSets.length === 0) {
+      return;
+    }
+
+    // Helper to find nodes by ID (handles shared tools with __capId suffix)
+    const findNodes = (nodeId: string) => {
+      let nodes = cy.getElementById(nodeId);
+      if (nodes.length === 0) {
+        nodes = cy.nodes(`[toolId = "${nodeId}"]`);
+      }
+      if (nodes.length === 0) {
+        // deno-lint-ignore no-explicit-any
+        nodes = cy.nodes().filter((n: any) => (n.id() as string).startsWith(nodeId + "__"));
+      }
+      return nodes;
+    };
+
+    // For each pinned set, highlight nodes and edges
+    for (const pinSet of pinnedSets) {
+      const matchingNodeIds = new Set<string>();
+      const nodeIdSet = new Set(pinSet.nodeIds);
+
+      // Highlight nodes with pin color overlay
+      for (const nodeId of pinSet.nodeIds) {
+        const nodes = findNodes(nodeId);
+        // deno-lint-ignore no-explicit-any
+        nodes.forEach((node: any) => {
+          matchingNodeIds.add(node.id());
+          node.addClass("pinned-highlight");
+          node.style({
+            "overlay-color": pinSet.color,
+            "overlay-opacity": 0.25,
+          });
+        });
+      }
+
+      // Highlight edges between these nodes
+      // deno-lint-ignore no-explicit-any
+      cy.edges().forEach((edge: any) => {
+        const sourceId = edge.source().id();
+        const targetId = edge.target().id();
+        const sourceMatches = matchingNodeIds.has(sourceId) || nodeIdSet.has(sourceId);
+        const targetMatches = matchingNodeIds.has(targetId) || nodeIdSet.has(targetId);
+        if (sourceMatches && targetMatches) {
+          edge.addClass("pinned-highlight");
+          edge.style({
+            "line-color": pinSet.color,
+            "opacity": 0.7,
+            "width": 2.5,
+          });
+        }
+      });
+    }
+  }, [pinnedSets]);
+
   // Expand all capabilities
   const expandAll = useCallback(() => {
     const allCapIds = Array.from(capabilityDataRef.current.keys());
@@ -1749,6 +2592,61 @@ export default function CytoscapeGraph({
     <div class="w-full h-full relative" style={{ background: "var(--bg, #0a0908)" }}>
       {/* Cytoscape container */}
       <div ref={containerRef} class="w-full h-full" />
+
+      {/* Cluster visualization canvas overlay */}
+      <canvas
+        ref={canvasRef}
+        class="absolute top-0 left-0 w-full h-full pointer-events-none z-5"
+        style={{ opacity: clusterViz ? 1 : 0, transition: "opacity 0.2s ease-out" }}
+      />
+
+      {/* Timeline separators overlay (only in capabilities mode) */}
+      {viewMode === "capabilities" && renderedSeparators.length > 0 && (
+        <div
+          class="absolute top-0 left-0 pointer-events-none z-10 overflow-hidden"
+          style={{ width: "100%", height: "100%" }}
+        >
+          {renderedSeparators
+            .filter((sep) => sep.visible)
+            .map((sep, i) => (
+              <div
+                key={`sep-${i}`}
+                class="absolute left-0 right-0 flex items-center gap-3 px-4"
+                style={{
+                  top: `${sep.y}px`,
+                  transform: "translateY(-50%)",
+                  transition: "top 0.1s ease-out",
+                }}
+              >
+                <div
+                  class="h-px flex-1"
+                  style={{
+                    background:
+                      "linear-gradient(to right, transparent, var(--border, #3a3631) 20%, var(--border, #3a3631) 80%, transparent)",
+                  }}
+                />
+                <span
+                  class="text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap"
+                  style={{
+                    background: "var(--bg-elevated, #12110f)",
+                    color: "var(--text-muted, #a0a0a0)",
+                    border: "1px solid var(--border, #3a3631)",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+                  }}
+                >
+                  {sep.label}
+                </span>
+                <div
+                  class="h-px flex-1"
+                  style={{
+                    background:
+                      "linear-gradient(to left, transparent, var(--border, #3a3631) 20%, var(--border, #3a3631) 80%, transparent)",
+                  }}
+                />
+              </div>
+            ))}
+        </div>
+      )}
 
       {/* Loading spinner */}
       {isLoading && (
