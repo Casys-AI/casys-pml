@@ -4,6 +4,7 @@ import { Head } from "fresh/runtime";
 import { PRISM_THEME_CSS } from "../../utils/prism-theme.ts";
 import { formatDate, getPost, type Post } from "../../utils/posts.ts";
 import ArchitectureDiagram from "../../components/ArchitectureDiagram.tsx";
+import { GoogleAnalytics } from "../../components/GoogleAnalytics.tsx";
 import MobileMenu from "../../islands/MobileMenu.tsx";
 
 export const handler = {
@@ -32,6 +33,7 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
 
   return (
     <>
+      <GoogleAnalytics />
       <Head>
         <title>{post.title} - Casys PML Blog</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />

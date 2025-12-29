@@ -5,6 +5,7 @@ import { PRISM_THEME_CSS } from "../../utils/prism-theme.ts";
 import { type DocNavItem, type DocPage, getDocPage, getDocsNavigation } from "../../utils/docs.ts";
 import DocsSidebar from "../../islands/DocsSidebar.tsx";
 import DocsToc from "../../islands/DocsToc.tsx";
+import { GoogleAnalytics } from "../../components/GoogleAnalytics.tsx";
 import MobileMenu from "../../islands/MobileMenu.tsx";
 
 interface DocsPageData {
@@ -49,6 +50,7 @@ export default function DocsPage({ data }: { data: DocsPageData }) {
 
   return (
     <>
+      <GoogleAnalytics />
       <Head>
         <title>{doc.title} - Casys PML Docs</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />

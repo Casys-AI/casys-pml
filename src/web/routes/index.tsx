@@ -14,6 +14,7 @@ import {
   StructuralEmergenceIllustration,
   ThreeLoopIllustration,
 } from "../components/FeatureIllustrations.tsx";
+import { GoogleAnalytics } from "../components/GoogleAnalytics.tsx";
 import { HeroRepl } from "../islands/HeroRepl.tsx";
 import MobileMenu from "../islands/MobileMenu.tsx";
 
@@ -53,6 +54,7 @@ export default function LandingPage({ data }: { data: LandingPageData }) {
 
   return (
     <>
+      <GoogleAnalytics />
       <Head>
         <title>Casys PML - Procedural Memory Layer</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />

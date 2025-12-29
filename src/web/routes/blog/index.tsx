@@ -2,6 +2,7 @@
 import { page } from "fresh";
 import { Head } from "fresh/runtime";
 import { formatDate, getPosts, type Post } from "../../utils/posts.ts";
+import { GoogleAnalytics } from "../../components/GoogleAnalytics.tsx";
 import MobileMenu from "../../islands/MobileMenu.tsx";
 
 export const handler = {
@@ -21,6 +22,7 @@ export default function BlogIndex({ data }: { data: { posts: Post[] } }) {
 
   return (
     <>
+      <GoogleAnalytics />
       <Head>
         <title>Blog - Casys PML</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />

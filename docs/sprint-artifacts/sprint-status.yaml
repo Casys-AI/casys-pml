@@ -256,7 +256,7 @@ development_status:
   # Phase 3: Versioning (~2 days)
   13-6-capability-versioning: deferred # Requires cap:update + dry-mode first. Rename/description already in 13.5
   # Phase 4: Stdlib & Registry (~7 days)
-  13-7-pml-stdlib-unification: backlog # lib/std/mcp/ - cap.ts + meta.ts (simplified, no dns/learn)
+  13-7-pml-stdlib-unification: done # lib/std/cap.ts - PmlStdServer + CapModule (cap:list, cap:lookup, cap:rename, cap:whois)
   13-8-mcp-server-registry: backlog # record_type=mcp-server, cap:lookup("mcp:*")
   13-9-routing-inheritance: backlog # tools_used tracking, local/cloud inheritance
   epic-13-retrospective: optional
@@ -270,9 +270,9 @@ development_status:
   # Solves: cloud gateway uses server filesystem instead of user's local resources
   # Architecture: Local MCPs (sandbox) + Cloud MCPs (HTTP RPC) + BYOK
   # Depends on: Epic 9 (Auth), Epic 13 (Registry strategy for 14.7)
-  epic-14: backlog
+  epic-14: in-progress
   # Phase 1: Package Foundation (~4 days)
-  14-1-package-scaffolding-cli-init: backlog # deno install, pml init, .mcp.json generation
+  14-1-package-scaffolding-cli-init: ready-for-dev # Story created 2025-12-29, deno install, pml init, .mcp.json generation
   14-2-workspace-resolution-system: backlog # ENV → project root detection → CWD fallback
   14-3-routing-config-permission-inferrer: backlog # mcp-permissions.yaml routing: local|cloud
   # Phase 2: Local Execution (~5 days)
@@ -282,5 +282,5 @@ development_status:
   14-6-http-streamable-server-byok: backlog # MCP HTTP server, cloud RPC, BYOK API key injection
   14-7-mcp-source-resolution: backlog # Registry strategy (depends on 13.8 MCP Server Registry)
   # Phase 4: Quality (~3 days)
-  14-8-e2e-integration-testing: backlog # Full flow tests, offline mode, permission boundaries
+  14-8-e2e-integration-testing: backlog # Full flow tests,  offline mode, permission boundaries
   epic-14-retrospective: optional
