@@ -57,6 +57,27 @@ for (const [category, tools] of Object.entries(toolsByCategory)) {
 }
 
 /**
+ * Parse tool ID into server/module and name
+ * For std tools, returns the module (e.g., "database") instead of "std"
+ */
+function parseToolId(toolId: string): { server: string; name: string } {
+  if (!toolId.includes(":")) {
+    return { server: "unknown", name: toolId };
+  }
+  const colonIndex = toolId.indexOf(":");
+  const rawServer = toolId.substring(0, colonIndex);
+  const name = toolId.substring(colonIndex + 1);
+
+  // For std tools, use the module name instead of "std"
+  if (rawServer === "std") {
+    const module = stdToolCategoryMap.get(name);
+    return { server: module || "std", name };
+  }
+
+  return { server: rawServer, name };
+}
+
+/**
  * GET /api/graph/snapshot
  *
  * Returns the current graph snapshot for visualization (Story 6.2)
@@ -155,13 +176,7 @@ export function handleGraphRelated(
         ctx.graphEngine.getEdgeData(r.toolId, toolId);
 
       // Extract server and name from tool_id
-      let server = "unknown";
-      let name = r.toolId;
-      if (r.toolId.includes(":")) {
-        const colonIndex = r.toolId.indexOf(":");
-        server = r.toolId.substring(0, colonIndex);
-        name = r.toolId.substring(colonIndex + 1);
-      }
+      const { server, name } = parseToolId(r.toolId);
 
       return {
         tool_id: r.toolId,
@@ -236,13 +251,7 @@ export function handleGraphCommunity(
       .filter((id) => id !== nodeId) // Exclude the source node
       .map((memberId) => {
         const pagerank = ctx.graphEngine.getPageRank(memberId);
-        let server = "unknown";
-        let name = memberId;
-        if (memberId.includes(":")) {
-          const colonIndex = memberId.indexOf(":");
-          server = memberId.substring(0, colonIndex);
-          name = memberId.substring(colonIndex + 1);
-        }
+        const { server, name } = parseToolId(memberId);
         return {
           id: memberId,
           name,
@@ -305,14 +314,7 @@ export function handleGraphNeighbors(
         const pagerank = ctx.graphEngine.getPageRank(neighborId);
         const edgeData = ctx.graphEngine.getEdgeData(nodeId, neighborId) ||
           ctx.graphEngine.getEdgeData(neighborId, nodeId);
-
-        let server = "unknown";
-        let name = neighborId;
-        if (neighborId.includes(":")) {
-          const colonIndex = neighborId.indexOf(":");
-          server = neighborId.substring(0, colonIndex);
-          name = neighborId.substring(colonIndex + 1);
-        }
+        const { server, name } = parseToolId(neighborId);
 
         return {
           id: neighborId,
@@ -537,17 +539,8 @@ export async function handleGraphInsights(
       }
     };
 
-    // Helper to extract server and name from node ID
-    const parseNodeId = (id: string): { server: string; name: string } => {
-      if (id.includes(":")) {
-        const colonIndex = id.indexOf(":");
-        return {
-          server: id.substring(0, colonIndex),
-          name: id.substring(colonIndex + 1),
-        };
-      }
-      return { server: "unknown", name: id };
-    };
+    // Use global parseToolId for std: -> module mapping
+    const parseNodeId = parseToolId;
 
     // =========================================================================
     // 1. Louvain Community Members
