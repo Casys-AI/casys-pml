@@ -1211,6 +1211,368 @@ Deno.test("No file exceeds 600 lines", () => {
 
 ---
 
+## Phase 2.7: Deno-Native Patterns (Bonus - Use Native APIs)
+
+### Leverage Deno's Built-in Features
+
+Instead of reinventing patterns, **use Deno's Web Standard APIs** and native tooling.
+
+#### 1. EventTarget (Native Event Bus)
+
+**Current:** Custom EventBus implementation (ADR-036)
+
+**Deno Alternative:** Use Web Standard `EventTarget`
+
+```typescript
+// src/events/domain-event-bus.ts
+export class DomainEventBus extends EventTarget {
+  emit<T>(eventType: string, detail: T): void {
+    this.dispatchEvent(new CustomEvent(eventType, { detail }));
+  }
+
+  on<T>(eventType: string, handler: (event: CustomEvent<T>) => void): void {
+    this.addEventListener(eventType, handler as EventListener);
+  }
+
+  off<T>(eventType: string, handler: (event: CustomEvent<T>) => void): void {
+    this.removeEventListener(eventType, handler as EventListener);
+  }
+}
+
+// Usage (100% Web Standard API)
+const eventBus = new DomainEventBus();
+eventBus.on('workflow.completed', (e) => console.log(e.detail));
+eventBus.emit('workflow.completed', { workflowId: '123', result: {} });
+```
+
+**Benefits:**
+- Zero dependencies (built into Deno)
+- Type-safe with TypeScript
+- Familiar API for web developers
+- Works in browser too (code portability)
+
+#### 2. Symbol.dispose for Resource Management
+
+**Current:** Manual lifecycle management
+
+**Deno Alternative:** Use `Symbol.dispose` (TC39 Stage 3)
+
+```typescript
+// src/infrastructure/lifecycle/resource.ts
+export interface IResource {
+  [Symbol.dispose](): Promise<void>;
+}
+
+export class DatabaseConnection implements IResource {
+  constructor(private client: DbClient) {}
+
+  async [Symbol.dispose](): Promise<void> {
+    await this.client.close();
+    console.log("DB connection closed");
+  }
+}
+
+// Usage with using keyword (when available)
+{
+  using db = new DatabaseConnection(client);
+  // ... use db
+  // Automatically disposed at end of block
+}
+
+// Current polyfill pattern
+export class ResourceManager {
+  private resources: IResource[] = [];
+
+  register<T extends IResource>(resource: T): T {
+    this.resources.push(resource);
+    return resource;
+  }
+
+  async [Symbol.dispose](): Promise<void> {
+    for (const resource of this.resources.reverse()) {
+      await resource[Symbol.dispose]();
+    }
+  }
+}
+```
+
+#### 3. Import Maps for Abstraction Layers
+
+**Use `deno.json` import maps** to define clean architecture boundaries:
+
+```json
+{
+  "imports": {
+    "@/domain/": "./src/domain/",
+    "@/application/": "./src/application/",
+    "@/infrastructure/": "./src/infrastructure/",
+
+    "@/interfaces/capability": "./src/domain/interfaces/capability-repository.ts",
+    "@/interfaces/executor": "./src/domain/interfaces/dag-executor.ts",
+    "@/interfaces/graph": "./src/domain/interfaces/graph-engine.ts",
+
+    "@/types/capability": "./src/domain/types/capability.ts",
+    "@/types/workflow": "./src/domain/types/workflow.ts",
+    "@/types/permission": "./src/domain/types/permission.ts"
+  }
+}
+```
+
+**Benefits:**
+- Clean imports: `import { ICapabilityRepo } from "@/interfaces/capability"`
+- Easy refactoring (change path in one place)
+- Layer enforcement (can grep for violations)
+
+#### 4. Deno.test for Architecture Tests
+
+**Use Deno's native test runner** with subtests for architecture validation:
+
+```typescript
+// tests/architecture/rules.test.ts
+Deno.test("Architecture Rules", async (t) => {
+  await t.step("No circular dependencies", async () => {
+    const result = await new Deno.Command("deno", {
+      args: ["info", "--json", "src/main.ts"],
+    }).output();
+
+    const deps = JSON.parse(new TextDecoder().decode(result.stdout));
+    const cycles = findCircularDeps(deps);
+
+    assertEquals(cycles.length, 0, `Circular deps: ${cycles.join(', ')}`);
+  });
+
+  await t.step("No upward layer dependencies", () => {
+    const violations = checkLayerDependencies();
+    assertEquals(violations, [], `Layer violations: ${violations.join(', ')}`);
+  });
+
+  await t.step("File size limits", () => {
+    const largeFiles = Array.from(Deno.readDirSync("src"))
+      .filter(entry => entry.isFile && entry.name.endsWith(".ts"))
+      .map(entry => {
+        const path = `src/${entry.name}`;
+        const lines = Deno.readTextFileSync(path).split('\n').length;
+        return { path, lines };
+      })
+      .filter(file => file.lines > 600);
+
+    assertEquals(largeFiles, [], `Large files: ${largeFiles.map(f => `${f.path} (${f.lines}L)`).join(', ')}`);
+  });
+
+  await t.step("Naming conventions", () => {
+    // Check *Repository.ts files implement IRepository interface
+    // Check *Service.ts files have Service suffix
+    // etc.
+  });
+});
+```
+
+**Run with:**
+```bash
+deno task test:architecture
+```
+
+#### 5. Deno.bench for Performance Validation
+
+**Add performance regression tests:**
+
+```typescript
+// tests/benchmarks/executor.bench.ts
+import { DAGExecutor } from "@/dag/executor.ts";
+
+Deno.bench("DAG Execution - 5 parallel tasks", async () => {
+  const executor = new DAGExecutor(mockToolExecutor);
+  await executor.execute(createDAGWith5Tasks());
+});
+
+Deno.bench("DAG Execution - 10 sequential tasks", async () => {
+  const executor = new DAGExecutor(mockToolExecutor);
+  await executor.execute(createDAGWith10SequentialTasks());
+});
+
+// Run with baseline comparison
+// deno bench --save baseline.json
+// deno bench --compare baseline.json
+```
+
+#### 6. Web Crypto API for Security
+
+**Current:** Using `@ts-rex/argon2` for hashing
+
+**Also use:** Built-in Web Crypto for other operations
+
+```typescript
+// src/infrastructure/crypto/hash.ts
+export async function hashCode(code: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(code);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Zero dependencies, native speed
+```
+
+#### 7. Deno KV for Caching & State
+
+**Already using Deno KV** for sessions (ADR-037), expand usage:
+
+```typescript
+// src/infrastructure/cache/kv-cache.ts
+export class DenoKVCache<T> {
+  constructor(private kv: Deno.Kv, private prefix: string) {}
+
+  async get(key: string): Promise<T | null> {
+    const result = await this.kv.get<T>([this.prefix, key]);
+    return result.value;
+  }
+
+  async set(key: string, value: T, ttl?: number): Promise<void> {
+    await this.kv.set([this.prefix, key], value, { expireIn: ttl });
+  }
+
+  async delete(key: string): Promise<void> {
+    await this.kv.delete([this.prefix, key]);
+  }
+
+  // Atomic operations
+  async compareAndSwap(key: string, oldValue: T, newValue: T): Promise<boolean> {
+    const result = await this.kv.atomic()
+      .check({ key: [this.prefix, key], versionstamp: null })
+      .set([this.prefix, key], newValue)
+      .commit();
+    return result.ok;
+  }
+}
+
+// Use cases:
+// - Workflow state cache
+// - Capability query cache (CQRS read side)
+// - Distributed locks for multi-instance deployments
+```
+
+#### 8. BroadcastChannel for Cross-Process Events
+
+**Already using** for dashboard updates, expand to:
+
+```typescript
+// src/events/broadcast-event-bus.ts
+export class BroadcastEventBus {
+  private channel: BroadcastChannel;
+
+  constructor(channelName: string) {
+    this.channel = new BroadcastChannel(channelName);
+  }
+
+  emit<T>(eventType: string, detail: T): void {
+    this.channel.postMessage({ type: eventType, detail });
+  }
+
+  on<T>(eventType: string, handler: (detail: T) => void): void {
+    this.channel.addEventListener('message', (event) => {
+      if (event.data.type === eventType) {
+        handler(event.data.detail);
+      }
+    });
+  }
+
+  close(): void {
+    this.channel.close();
+  }
+}
+
+// Use for:
+// - Multi-worker coordination
+// - Dashboard real-time updates
+// - Cache invalidation across instances
+```
+
+#### 9. Deno Tasks for Development Workflow
+
+**Add to `deno.json`:**
+
+```json
+{
+  "tasks": {
+    "test": "deno test --allow-all",
+    "test:unit": "deno test tests/unit/",
+    "test:integration": "deno test tests/integration/",
+    "test:architecture": "deno test tests/architecture/",
+    "test:coverage": "deno test --coverage=coverage/ && deno coverage coverage/",
+
+    "bench": "deno bench tests/benchmarks/",
+    "bench:baseline": "deno bench --save baseline.json tests/benchmarks/",
+    "bench:compare": "deno bench --compare baseline.json tests/benchmarks/",
+
+    "lint": "deno lint",
+    "lint:fix": "deno lint --fix",
+    "fmt": "deno fmt",
+    "fmt:check": "deno fmt --check",
+
+    "typecheck": "deno check src/**/*.ts",
+
+    "architecture:check": "deno run --allow-read scripts/check-architecture.ts",
+    "architecture:graph": "deno run --allow-read --allow-write scripts/generate-dep-graph.ts",
+
+    "refactor:update-imports": "deno run --allow-read --allow-write scripts/update-imports.ts"
+  }
+}
+```
+
+#### 10. JSR for Package Publishing
+
+**When extracting reusable modules:**
+
+```typescript
+// Publish to JSR (Deno registry)
+// Example: @casys/dag-executor, @casys/graphrag
+
+// jsr.json
+{
+  "name": "@casys/dag-executor",
+  "version": "1.0.0",
+  "exports": {
+    ".": "./src/dag/executor.ts",
+    "./types": "./src/dag/types.ts"
+  }
+}
+
+// Benefits:
+// - Type-safe imports
+// - Versioning
+// - Reusable across projects
+```
+
+---
+
+### Deno-Specific Implementation Checklist
+
+**Phase 2.7 Deliverables:**
+
+- [ ] Replace custom EventBus with `EventTarget` (1 day)
+- [ ] Add `Symbol.dispose` to all resources (2 days)
+- [ ] Setup import maps for layer boundaries (1 day)
+- [ ] Create architecture test suite with `Deno.test` (3 days)
+- [ ] Add performance benchmarks with `Deno.bench` (2 days)
+- [ ] Expand Deno KV usage for caching (2 days)
+- [ ] Use BroadcastChannel for cross-process events (1 day)
+- [ ] Document all Deno-native patterns (1 day)
+
+**Timeline:** 2 weeks (overlaps with Phase 2.5)
+
+---
+
+## Updated Success Metrics (Including Deno Native)
+
+| Metric | Current | Target | Validation |
+|--------|---------|--------|------------|
+| **Native APIs Used** | 2 (KV, BroadcastChannel) | 8+ APIs | Code review |
+| **Custom Code Replaced** | 0 LOC | 500+ LOC | Diff analysis |
+| **Web Standard Compatibility** | 60% | 95% | Browser compatibility check |
+
+---
+
 ## References
 
 - **Phase 1 Spec**: `docs/tech-specs/tech-spec-large-files-refactoring.md`
@@ -1220,3 +1582,6 @@ Deno.test("No file exceeds 600 lines", () => {
 - **Patterns**: Gang of Four Design Patterns
 - **Clean Architecture**: Robert C. Martin
 - **CQRS**: Greg Young
+- **Deno Manual**: https://docs.deno.com/runtime/manual/
+- **Web APIs**: https://developer.mozilla.org/en-US/docs/Web/API
+- **TC39 Disposables**: https://github.com/tc39/proposal-explicit-resource-management
