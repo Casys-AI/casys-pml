@@ -100,6 +100,60 @@ export interface ResourceMetrics {
   graphEdges: number;
 }
 
+/** Technical/ML metrics */
+export interface TechnicalMetrics {
+  /** SHGAT training status */
+  shgat: SHGATMetrics;
+  /** Algorithm decision stats */
+  algorithms: AlgorithmMetrics;
+  /** Capability registry stats */
+  capabilities: CapabilityRegistryMetrics;
+}
+
+/** SHGAT model metrics */
+export interface SHGATMetrics {
+  /** Is SHGAT initialized for any user */
+  hasParams: boolean;
+  /** Number of users with SHGAT params */
+  usersWithParams: number;
+  /** Last update timestamp */
+  lastUpdated: Date | null;
+}
+
+/** Algorithm tracing metrics */
+export interface AlgorithmMetrics {
+  /** Total algorithm traces in time range */
+  totalTraces: number;
+  /** Traces by algorithm mode (active_search, passive_suggestion) */
+  byMode: { mode: string; count: number }[];
+  /** Traces by target type (tool, capability) */
+  byTargetType: { targetType: string; count: number }[];
+  /** Traces by decision (accept, reject, defer) */
+  byDecision: { decision: string; count: number }[];
+  /** Average final score */
+  avgFinalScore: number;
+  /** Average threshold */
+  avgThreshold: number;
+}
+
+/** Capability registry metrics */
+export interface CapabilityRegistryMetrics {
+  /** Total capability records */
+  totalRecords: number;
+  /** Verified capabilities */
+  verifiedCount: number;
+  /** By visibility level */
+  byVisibility: { visibility: string; count: number }[];
+  /** By routing (local vs cloud) */
+  byRouting: { routing: string; count: number }[];
+  /** Total usage count (all capabilities) */
+  totalUsageCount: number;
+  /** Total success count */
+  totalSuccessCount: number;
+  /** Overall success rate */
+  successRate: number;
+}
+
 /** Complete analytics response */
 export interface AdminAnalytics {
   /** Time range used for queries */
@@ -114,6 +168,8 @@ export interface AdminAnalytics {
   errorHealth: ErrorHealthMetrics;
   /** Resource metrics */
   resources: ResourceMetrics;
+  /** Technical/ML metrics */
+  technical: TechnicalMetrics;
 }
 
 /** Analytics request options */

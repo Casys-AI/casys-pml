@@ -10,13 +10,17 @@
 // Types
 export type {
   AdminAnalytics,
+  AlgorithmMetrics,
   AnalyticsOptions,
+  CapabilityRegistryMetrics,
   DailyCount,
   ErrorHealthMetrics,
   ErrorTypeCount,
   LatencyPercentiles,
   ResourceMetrics,
+  SHGATMetrics,
   SystemUsageMetrics,
+  TechnicalMetrics,
   TimeRange,
   TopUser,
   UserActivityMetrics,
@@ -35,5 +39,6 @@ export {
   queryErrorHealth,
   queryResources,
   querySystemUsage,
+  queryTechnical,
   queryUserActivity,
 } from "./analytics-queries.ts";

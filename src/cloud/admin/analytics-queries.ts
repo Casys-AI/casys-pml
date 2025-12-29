@@ -9,12 +9,16 @@
 
 import type { DbClient } from "../../db/types.ts";
 import type {
+  AlgorithmMetrics,
+  CapabilityRegistryMetrics,
   DailyCount,
   ErrorHealthMetrics,
   ErrorTypeCount,
   LatencyPercentiles,
   ResourceMetrics,
+  SHGATMetrics,
   SystemUsageMetrics,
+  TechnicalMetrics,
   TimeRange,
   TopUser,
   UserActivityMetrics,
@@ -309,4 +313,200 @@ export async function queryResources(db: DbClient): Promise<ResourceMetrics> {
     graphNodes: Number(nodesResult?.count || 0),
     graphEdges: Number(edgesResult?.count || 0),
   };
+}
+
+/** Query technical/ML metrics */
+export async function queryTechnical(
+  db: DbClient,
+  timeRange: TimeRange,
+): Promise<TechnicalMetrics> {
+  const interval = getIntervalString(timeRange);
+
+  // Run SHGAT, Algorithm, and Capability queries in parallel
+  const [shgat, algorithms, capabilities] = await Promise.all([
+    querySHGATMetrics(db),
+    queryAlgorithmMetrics(db, interval),
+    queryCapabilityRegistryMetrics(db),
+  ]);
+
+  return { shgat, algorithms, capabilities };
+}
+
+/** Query SHGAT model metrics */
+async function querySHGATMetrics(db: DbClient): Promise<SHGATMetrics> {
+  // Check if shgat_params table exists and has data
+  try {
+    const result = await db.queryOne<{
+      count: number;
+      last_updated: Date | null;
+    }>(`
+      SELECT
+        COUNT(*) as count,
+        MAX(updated_at) as last_updated
+      FROM shgat_params
+    `);
+
+    return {
+      hasParams: Number(result?.count || 0) > 0,
+      usersWithParams: Number(result?.count || 0),
+      lastUpdated: result?.last_updated ? new Date(result.last_updated) : null,
+    };
+  } catch {
+    // Table might not exist yet
+    return {
+      hasParams: false,
+      usersWithParams: 0,
+      lastUpdated: null,
+    };
+  }
+}
+
+/** Query algorithm decision metrics */
+async function queryAlgorithmMetrics(
+  db: DbClient,
+  interval: string,
+): Promise<AlgorithmMetrics> {
+  try {
+    // Total traces
+    const totalResult = await db.queryOne<{ count: number }>(`
+      SELECT COUNT(*) as count
+      FROM algorithm_traces
+      WHERE timestamp > NOW() - INTERVAL '${interval}'
+    `);
+
+    // By mode (active_search, passive_suggestion)
+    const modeRows = await db.query<{ mode: string; count: number }>(`
+      SELECT algorithm_mode as mode, COUNT(*) as count
+      FROM algorithm_traces
+      WHERE timestamp > NOW() - INTERVAL '${interval}'
+      GROUP BY algorithm_mode
+      ORDER BY count DESC
+    `);
+
+    // By target type (tool, capability)
+    const targetRows = await db.query<{ target_type: string; count: number }>(`
+      SELECT target_type, COUNT(*) as count
+      FROM algorithm_traces
+      WHERE timestamp > NOW() - INTERVAL '${interval}'
+      GROUP BY target_type
+      ORDER BY count DESC
+    `);
+
+    // By decision (accept, reject, defer)
+    const decisionRows = await db.query<{ decision: string; count: number }>(`
+      SELECT decision, COUNT(*) as count
+      FROM algorithm_traces
+      WHERE timestamp > NOW() - INTERVAL '${interval}'
+      GROUP BY decision
+      ORDER BY count DESC
+    `);
+
+    // Average scores
+    const scoresResult = await db.queryOne<{
+      avg_score: number;
+      avg_threshold: number;
+    }>(`
+      SELECT
+        AVG(final_score) as avg_score,
+        AVG(threshold_used) as avg_threshold
+      FROM algorithm_traces
+      WHERE timestamp > NOW() - INTERVAL '${interval}'
+    `);
+
+    return {
+      totalTraces: Number(totalResult?.count || 0),
+      byMode: modeRows.map((r) => ({ mode: r.mode, count: Number(r.count) })),
+      byTargetType: targetRows.map((r) => ({
+        targetType: r.target_type,
+        count: Number(r.count),
+      })),
+      byDecision: decisionRows.map((r) => ({
+        decision: r.decision,
+        count: Number(r.count),
+      })),
+      avgFinalScore: Number(scoresResult?.avg_score || 0),
+      avgThreshold: Number(scoresResult?.avg_threshold || 0),
+    };
+  } catch {
+    // Table might not exist yet
+    return {
+      totalTraces: 0,
+      byMode: [],
+      byTargetType: [],
+      byDecision: [],
+      avgFinalScore: 0,
+      avgThreshold: 0,
+    };
+  }
+}
+
+/** Query capability registry metrics */
+async function queryCapabilityRegistryMetrics(
+  db: DbClient,
+): Promise<CapabilityRegistryMetrics> {
+  try {
+    // Total and verified counts
+    const countsResult = await db.queryOne<{
+      total: number;
+      verified: number;
+      usage: number;
+      success: number;
+    }>(`
+      SELECT
+        COUNT(*) as total,
+        COUNT(*) FILTER (WHERE verified = true) as verified,
+        SUM(usage_count) as usage,
+        SUM(success_count) as success
+      FROM capability_records
+    `);
+
+    // By visibility
+    const visibilityRows = await db.query<{
+      visibility: string;
+      count: number;
+    }>(`
+      SELECT visibility, COUNT(*) as count
+      FROM capability_records
+      GROUP BY visibility
+      ORDER BY count DESC
+    `);
+
+    // By routing
+    const routingRows = await db.query<{ routing: string; count: number }>(`
+      SELECT routing, COUNT(*) as count
+      FROM capability_records
+      GROUP BY routing
+      ORDER BY count DESC
+    `);
+
+    const totalUsage = Number(countsResult?.usage || 0);
+    const totalSuccess = Number(countsResult?.success || 0);
+
+    return {
+      totalRecords: Number(countsResult?.total || 0),
+      verifiedCount: Number(countsResult?.verified || 0),
+      byVisibility: visibilityRows.map((r) => ({
+        visibility: r.visibility,
+        count: Number(r.count),
+      })),
+      byRouting: routingRows.map((r) => ({
+        routing: r.routing,
+        count: Number(r.count),
+      })),
+      totalUsageCount: totalUsage,
+      totalSuccessCount: totalSuccess,
+      successRate: totalUsage > 0 ? totalSuccess / totalUsage : 0,
+    };
+  } catch {
+    // Table might not exist yet
+    return {
+      totalRecords: 0,
+      verifiedCount: 0,
+      byVisibility: [],
+      byRouting: [],
+      totalUsageCount: 0,
+      totalSuccessCount: 0,
+      successRate: 0,
+    };
+  }
 }

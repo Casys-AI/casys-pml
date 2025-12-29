@@ -46,33 +46,26 @@ export async function closeDb(): Promise<void> {
 }
 
 /**
- * Get raw PGlite instance for SQL queries
+ * Get raw database client for SQL queries
  * Used by admin analytics which needs complex aggregations.
- * Returns a DbClient-compatible interface.
+ * Works with both PGlite (local) and PostgreSQL (cloud).
+ *
+ * @returns DbClient interface (query, queryOne)
  */
 export async function getRawDb(): Promise<{
   query: <T>(sql: string, params?: unknown[]) => Promise<T[]>;
   queryOne: <T>(sql: string, params?: unknown[]) => Promise<T | null>;
 }> {
-  // Ensure DB is initialized
-  await getDb();
-
-  if (!pgliteInstance) {
-    throw new Error("Database not initialized");
-  }
-
-  const pg = pgliteInstance;
+  // Use the dual-mode database client from db/mod.ts
+  const { getDb: getDbClient } = await import("../../db/mod.ts");
+  const client = await getDbClient();
 
   return {
     async query<T>(sql: string, params?: unknown[]): Promise<T[]> {
-      const result = params && params.length > 0
-        ? await (pg as any).query(sql, params)
-        : await (pg as any).query(sql);
-      return result.rows as T[];
+      return client.query(sql, params) as Promise<T[]>;
     },
     async queryOne<T>(sql: string, params?: unknown[]): Promise<T | null> {
-      const rows = await this.query<T>(sql, params);
-      return rows[0] || null;
+      return client.queryOne(sql, params) as Promise<T | null>;
     },
   };
 }

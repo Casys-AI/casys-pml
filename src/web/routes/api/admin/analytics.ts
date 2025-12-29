@@ -43,8 +43,8 @@ export const handler = {
     try {
       const db = await getRawDb();
 
-      // Check admin access
-      const isAdmin = await isAdminUser(db, user.id);
+      // Check admin access (pass username for ADMIN_USERNAMES env check)
+      const isAdmin = await isAdminUser(db, user.id, user.username);
       if (!isAdmin) {
         return new Response(
           JSON.stringify({ error: "Forbidden: Admin access required" }),

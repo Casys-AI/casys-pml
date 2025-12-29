@@ -103,7 +103,8 @@ export default function AdminDashboardIsland({
     }
   }
 
-  const { userActivity, systemUsage, errorHealth, resources } = analytics;
+  const { userActivity, systemUsage, errorHealth, resources, technical } =
+    analytics;
 
   return (
     <div class={loading ? "opacity-50 pointer-events-none" : ""}>
@@ -304,7 +305,7 @@ export default function AdminDashboardIsland({
       </section>
 
       {/* Resources Section */}
-      <section>
+      <section class="mb-8">
         <SectionHeader title="Resources" />
         <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
           <MetricCard
@@ -332,6 +333,173 @@ export default function AdminDashboardIsland({
             value={formatNumber(resources.graphEdges)}
             color="blue"
           />
+        </div>
+      </section>
+
+      {/* Technical/ML Section */}
+      <section class="mb-8">
+        <SectionHeader title="Technical / ML" />
+
+        {/* SHGAT Status */}
+        <div class="mb-4">
+          <h3 class="text-sm font-medium text-gray-400 mb-2">SHGAT Model</h3>
+          <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <MetricCard
+              label="Status"
+              value={technical.shgat.hasParams ? "Trained" : "Not trained"}
+              color={technical.shgat.hasParams ? "green" : "yellow"}
+            />
+            <MetricCard
+              label="Users with Params"
+              value={formatNumber(technical.shgat.usersWithParams)}
+              color="blue"
+            />
+            <MetricCard
+              label="Last Updated"
+              value={
+                technical.shgat.lastUpdated
+                  ? new Date(technical.shgat.lastUpdated).toLocaleDateString()
+                  : "Never"
+              }
+              color="purple"
+            />
+          </div>
+        </div>
+
+        {/* Algorithm Traces */}
+        <div class="mb-4">
+          <h3 class="text-sm font-medium text-gray-400 mb-2">
+            Algorithm Decisions
+          </h3>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <MetricCard
+              label="Total Traces"
+              value={formatNumber(technical.algorithms.totalTraces)}
+              color="blue"
+            />
+            <MetricCard
+              label="Avg Score"
+              value={technical.algorithms.avgFinalScore.toFixed(3)}
+              color="purple"
+            />
+            <MetricCard
+              label="Avg Threshold"
+              value={technical.algorithms.avgThreshold.toFixed(3)}
+              color="yellow"
+            />
+            <MetricCard
+              label="Accept Rate"
+              value={formatPercent(
+                technical.algorithms.byDecision.find((d) =>
+                  d.decision === "accept"
+                )
+                    ?.count /
+                    Math.max(technical.algorithms.totalTraces, 1) || 0,
+              )}
+              color="green"
+            />
+          </div>
+
+          {/* By Mode & Decision breakdown */}
+          {(technical.algorithms.byMode.length > 0 ||
+            technical.algorithms.byDecision.length > 0) && (
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              {technical.algorithms.byMode.length > 0 && (
+                <div class="bg-gray-800/50 rounded-lg p-4">
+                  <h4 class="text-xs font-medium text-gray-500 mb-2">By Mode</h4>
+                  <div class="space-y-1">
+                    {technical.algorithms.byMode.map((m, i) => (
+                      <div key={i} class="flex justify-between text-sm">
+                        <span class="text-gray-300">{m.mode}</span>
+                        <span class="text-gray-400 font-mono">{m.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {technical.algorithms.byDecision.length > 0 && (
+                <div class="bg-gray-800/50 rounded-lg p-4">
+                  <h4 class="text-xs font-medium text-gray-500 mb-2">
+                    By Decision
+                  </h4>
+                  <div class="space-y-1">
+                    {technical.algorithms.byDecision.map((d, i) => (
+                      <div key={i} class="flex justify-between text-sm">
+                        <span class="text-gray-300">{d.decision}</span>
+                        <span class="text-gray-400 font-mono">{d.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Capability Registry */}
+        <div>
+          <h3 class="text-sm font-medium text-gray-400 mb-2">
+            Capability Registry
+          </h3>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <MetricCard
+              label="Total Records"
+              value={formatNumber(technical.capabilities.totalRecords)}
+              color="purple"
+            />
+            <MetricCard
+              label="Verified"
+              value={formatNumber(technical.capabilities.verifiedCount)}
+              color="green"
+            />
+            <MetricCard
+              label="Total Usage"
+              value={formatNumber(technical.capabilities.totalUsageCount)}
+              color="blue"
+            />
+            <MetricCard
+              label="Success Rate"
+              value={formatPercent(technical.capabilities.successRate)}
+              color={technical.capabilities.successRate > 0.8 ? "green" : "yellow"}
+            />
+          </div>
+
+          {/* By Visibility & Routing */}
+          {(technical.capabilities.byVisibility.length > 0 ||
+            technical.capabilities.byRouting.length > 0) && (
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              {technical.capabilities.byVisibility.length > 0 && (
+                <div class="bg-gray-800/50 rounded-lg p-4">
+                  <h4 class="text-xs font-medium text-gray-500 mb-2">
+                    By Visibility
+                  </h4>
+                  <div class="space-y-1">
+                    {technical.capabilities.byVisibility.map((v, i) => (
+                      <div key={i} class="flex justify-between text-sm">
+                        <span class="text-gray-300">{v.visibility}</span>
+                        <span class="text-gray-400 font-mono">{v.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {technical.capabilities.byRouting.length > 0 && (
+                <div class="bg-gray-800/50 rounded-lg p-4">
+                  <h4 class="text-xs font-medium text-gray-500 mb-2">
+                    By Routing
+                  </h4>
+                  <div class="space-y-1">
+                    {technical.capabilities.byRouting.map((r, i) => (
+                      <div key={i} class="flex justify-between text-sm">
+                        <span class="text-gray-300">{r.routing}</span>
+                        <span class="text-gray-400 font-mono">{r.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </section>
     </div>
