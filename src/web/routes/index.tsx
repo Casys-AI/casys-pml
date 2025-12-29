@@ -236,8 +236,8 @@ export default function LandingPage({ data }: { data: LandingPageData }) {
               </h1>
               <p class="hero-desc">
                 Casys PML captures emergent workflows — tool combinations that agents discover
-                through execution, not design. These patterns crystallize into reusable skills. RAG
-                gave agents knowledge. PML gives them skills.
+                through execution, not design. These patterns crystallize into reusable capabilities. RAG
+                gave agents knowledge. PML gives them capabilities.
               </p>
               <div class="hero-actions">
                 <a href="#how" class="btn btn-primary">
