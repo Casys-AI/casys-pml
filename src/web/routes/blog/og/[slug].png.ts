@@ -49,7 +49,7 @@ export const handler = {
             fetch("https://unpkg.com/@resvg/resvg-wasm@2.6.2/index_bg.wasm"),
           );
           wasmInitialized = true;
-        } catch (e) {
+        } catch (_e) {
           // Already initialized
           wasmInitialized = true;
         }

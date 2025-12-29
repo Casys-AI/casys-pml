@@ -41,7 +41,6 @@ export interface BoundedForceConfig {
   serverClusterStrength: number;
 }
 
-// deno-lint-ignore no-explicit-any
 export interface SimulationNode {
   id: string;
   x: number;
@@ -58,7 +57,6 @@ export interface SimulationNode {
   community?: string;
 }
 
-// deno-lint-ignore no-explicit-any
 export interface SimulationLink {
   source: string | SimulationNode;
   target: string | SimulationNode;

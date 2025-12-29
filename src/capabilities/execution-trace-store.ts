@@ -593,6 +593,7 @@ export class ExecutionTraceStore {
           : (row.task_results as unknown[]);
 
         // Map snake_case → camelCase (Phase 2a)
+        // deno-lint-ignore no-explicit-any
         taskResults = (rawResults as any[]).map((r: any) => ({
           taskId: r.task_id, // snake_case → camelCase
           tool: r.tool,
@@ -603,6 +604,7 @@ export class ExecutionTraceStore {
           layerIndex: r.layer_index, // snake_case → camelCase
           // Phase 2a: Fusion metadata
           isFused: r.is_fused, // snake_case → camelCase
+          // deno-lint-ignore no-explicit-any
           logicalOperations: r.logical_operations?.map((op: any) => ({
             toolId: op.tool_id, // snake_case → camelCase
             durationMs: op.duration_ms, // snake_case → camelCase
