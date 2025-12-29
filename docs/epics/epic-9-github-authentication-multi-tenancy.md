@@ -83,7 +83,7 @@ ou Session
 | user_preferences            | embeddings       |
 | (future) custom_tools       | usage_patterns   |
 
-**Estimation:** 5 stories, ~1-2 semaines
+**Estimation:** 7 stories, ~2 semaines
 
 ---
 
@@ -437,6 +437,87 @@ As a cloud user, I want to configure my API keys for third-party MCPs via the da
 
 ---
 
+**Story 9.7: SHGAT Prediction Visibility Filtering**
+
+As a cloud user, I want SHGAT predictions to respect capability visibility rules, So that I only see suggestions for capabilities I have access to.
+
+**Context:**
+
+Le SHGAT est entraîné sur les traces agrégées de tous les utilisateurs (apprentissage global partagé).
+Cependant, les **prédictions** doivent être filtrées selon les règles de visibilité des capabilities :
+
+- `visibility = 'public'` → visible par tous
+- `visibility = 'org'` → visible si `user.org == capability.org`
+- `visibility = 'project'` → visible si `user.project == capability.project`
+- `visibility = 'private'` → visible seulement par `capability.created_by`
+
+**Acceptance Criteria:**
+
+1. **Prediction filtering** (`src/graphrag/prediction/`):
+   ```typescript
+   interface PredictionContext {
+     userId: string;
+     userOrg: string;
+     userProject?: string;
+   }
+
+   function filterPredictionsByVisibility(
+     predictions: PredictedNode[],
+     context: PredictionContext
+   ): PredictedNode[] {
+     return predictions.filter(p => canUserSeeCapability(p, context));
+   }
+   ```
+
+2. **Visibility check helper** (`src/capabilities/visibility.ts`):
+   ```typescript
+   function canUserSeeCapability(
+     capability: { visibility: string; org: string; project: string; createdBy: string },
+     user: { id: string; org: string; project?: string }
+   ): boolean {
+     switch (capability.visibility) {
+       case 'public': return true;
+       case 'org': return capability.org === user.org;
+       case 'project': return capability.project === user.project;
+       case 'private': return capability.createdBy === user.id;
+       default: return false;
+     }
+   }
+   ```
+
+3. **DAG Suggester integration** (`src/graphrag/dag-suggester.ts`):
+   - Accept `userId` in suggestion context
+   - Filter capability predictions before returning
+   - MCP servers (public) always visible
+
+4. **Trace isolation** (`execution_trace` table):
+   - User can only see their own traces: `WHERE user_id = $me`
+   - SHGAT training uses all traces (anonymized aggregation)
+   - Trace stats for predictions use only user's traces
+
+5. **Local mode behavior**:
+   - `user_id = "local"` sees everything (single user)
+   - No visibility filtering applied
+
+6. **Tests:**
+   - User A cannot see User B's private capabilities in predictions
+   - Org capabilities visible to org members only
+   - Public capabilities visible to everyone
+   - Local mode bypasses filtering
+
+**Technical Notes:**
+
+- SHGAT model weights remain GLOBAL (shared learning benefit)
+- Only the **output predictions** are filtered per user
+- Performance: filter after scoring (not during graph traversal)
+- Consider caching visibility decisions per user session
+
+**Prerequisites:** Story 9.5 (user_id FK), Story 13.8 (pml_registry with visibility)
+
+**Estimation:** 1-1.5 jours
+
+---
+
 ### Epic 9 Acceptance Criteria Summary
 
 **Cloud Mode (GitHub OAuth):**
@@ -457,11 +538,13 @@ As a cloud user, I want to configure my API keys for third-party MCPs via the da
 
 **Multi-tenant & Isolation:**
 
-| AC  | Description                        | Story    |
-| --- | ---------------------------------- | -------- |
-| AC7 | User A can't see User B's DAGs     | 9.5      |
-| AC8 | Rate limiting by user_id (cloud)   | 9.5      |
-| AC9 | Account deletion → data anonymized | 9.4, 9.5 |
+| AC   | Description                                        | Story    |
+| ---- | -------------------------------------------------- | -------- |
+| AC7  | User A can't see User B's DAGs                     | 9.5      |
+| AC8  | Rate limiting by user_id (cloud)                   | 9.5      |
+| AC9  | Account deletion → data anonymized                 | 9.4, 9.5 |
+| AC16 | SHGAT predictions filtered by capability visibility | 9.7      |
+| AC17 | Users only see traces they own                     | 9.7      |
 
 **MCP Config & Secrets (BYOK):**
 
@@ -532,6 +615,8 @@ SECRETS_MASTER_KEY=xxx  # 32 bytes, base64 encoded
 | FR17 | Secrets encryption (AES-256-GCM)       | 9.6      |
 | FR18 | MCP config via Dashboard               | 9.6      |
 | FR19 | MCP Gateway key injection              | 9.6      |
+| FR20 | SHGAT prediction visibility filtering  | 9.7      |
+| FR21 | Trace isolation by user_id             | 9.7      |
 
 ---
 ````
