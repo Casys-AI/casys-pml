@@ -16,7 +16,8 @@
  * @module graphrag/algorithms/trace-feature-extractor
  */
 
-import type { PGliteClient, Row } from "../../db/client.ts";
+import type { DbClient } from "../../db/types.ts";
+import type { Row } from "../../db/client.ts";
 import { DEFAULT_TRACE_STATS, type TraceFeatures, type TraceStats } from "./shgat.ts";
 import { ERROR_TYPES } from "../../db/migrations/024_error_type_column.ts";
 import { getLogger } from "../../telemetry/logger.ts";
@@ -531,19 +532,21 @@ export class TraceFeatureExtractor {
       const embeddingStr = `[${intentEmbedding.join(",")}]`;
 
       // Use vector cosine similarity search to find similar intents
-      // Filter by: has intent_embedding, tool in executed_path, similarity >= threshold
+      // Filter by: has intent_embedding via JOIN, tool in executed_path, similarity >= threshold
+      // Note: Since migration 030, intent_embedding comes from workflow_pattern via capability_id FK
       const result = await this.db.queryOne(
         `
         WITH similar_traces AS (
           SELECT
-            id,
-            success,
-            1 - (intent_embedding <=> $1::vector) as similarity
-          FROM execution_trace
-          WHERE intent_embedding IS NOT NULL
-            AND $2 = ANY(executed_path)
-            AND 1 - (intent_embedding <=> $1::vector) >= $3
-          ORDER BY intent_embedding <=> $1::vector
+            et.id,
+            et.success,
+            1 - (wp.intent_embedding <=> $1::vector) as similarity
+          FROM execution_trace et
+          JOIN workflow_pattern wp ON wp.pattern_id = et.capability_id
+          WHERE wp.intent_embedding IS NOT NULL
+            AND $2 = ANY(et.executed_path)
+            AND 1 - (wp.intent_embedding <=> $1::vector) >= $3
+          ORDER BY wp.intent_embedding <=> $1::vector
           LIMIT $4
         )
         SELECT

@@ -94,11 +94,12 @@ export const handler = {
       }
 
       // Story 11.2: Anonymize execution_trace table (new trace table)
+      // Note: intent_text column removed in migration 030 (now from workflow_pattern via JOIN)
       try {
         const mainDb = await getMainDb();
         await mainDb.query(
           `UPDATE execution_trace
-           SET user_id = $1, created_by = $1, updated_by = $1, intent_text = NULL, initial_context = '{}'::jsonb
+           SET user_id = $1, created_by = $1, updated_by = $1, initial_context = '{}'::jsonb
            WHERE user_id = $2`,
           [anonymizedId, user.id],
         );

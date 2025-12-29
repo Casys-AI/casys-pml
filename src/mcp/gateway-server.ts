@@ -624,6 +624,32 @@ export class PMLGatewayServer {
         LIMIT 1000`,
       ) as unknown as CapRow[];
 
+      // Story 10.1: Load capability-to-capability "contains" edges for hierarchy
+      interface ContainsEdge {
+        from_capability_id: string;
+        to_capability_id: string;
+      }
+      const containsEdges = await this.db.query(
+        `SELECT from_capability_id, to_capability_id
+         FROM capability_dependency
+         WHERE edge_type = 'contains'`,
+      ) as unknown as ContainsEdge[];
+
+      // Build children/parents maps from contains edges
+      const childrenMap = new Map<string, string[]>();
+      const parentsMap = new Map<string, string[]>();
+      for (const edge of containsEdges) {
+        // Parent -> Children
+        const children = childrenMap.get(edge.from_capability_id) || [];
+        children.push(edge.to_capability_id);
+        childrenMap.set(edge.from_capability_id, children);
+        // Child -> Parents
+        const parents = parentsMap.get(edge.to_capability_id) || [];
+        parents.push(edge.from_capability_id);
+        parentsMap.set(edge.to_capability_id, parents);
+      }
+      log.debug(`[Gateway] Loaded ${containsEdges.length} contains edges for SHGAT hierarchy`);
+
       // Initialize SHGAT with capabilities that have embeddings (or empty)
       // Note: pgvector returns string like "[0.1,0.2,...]", pglite returns array
       const capabilitiesWithEmbeddings = rows
@@ -651,6 +677,9 @@ export class PMLGatewayServer {
           embedding: c.embedding,
           toolsUsed: c.tools_used ?? [],
           successRate: c.success_rate,
+          // Story 10.1: Include children/parents for capability hierarchy
+          children: childrenMap.get(c.id),
+          parents: parentsMap.get(c.id),
         }));
 
       // Always create SHGAT - even empty, capabilities added dynamically
@@ -711,20 +740,28 @@ export class PMLGatewayServer {
     }
 
     try {
-      // Query execution_trace for traces with capability_id
+      // Query execution_trace with JOIN on workflow_pattern for intent data
+      // Since migration 030, intent_text and intent_embedding come from workflow_pattern
       interface TraceRow {
         capability_id: string;
         intent_text: string | null;
+        intent_embedding: string | null; // PostgreSQL vector format "[0.1,0.2,...]"
         success: boolean;
         executed_path: string[] | null;
       }
 
       const traces = await this.db.query(`
-        SELECT capability_id, intent_text, success, executed_path
-        FROM execution_trace
-        WHERE capability_id IS NOT NULL
-          AND intent_text IS NOT NULL
-        ORDER BY priority DESC
+        SELECT
+          et.capability_id,
+          wp.description AS intent_text,
+          wp.intent_embedding,
+          et.success,
+          et.executed_path
+        FROM execution_trace et
+        JOIN workflow_pattern wp ON wp.pattern_id = et.capability_id
+        WHERE et.capability_id IS NOT NULL
+          AND wp.intent_embedding IS NOT NULL
+        ORDER BY et.priority DESC
         LIMIT 500
       `) as unknown as TraceRow[];
 
@@ -742,13 +779,22 @@ export class PMLGatewayServer {
       }
 
       // Convert traces to TrainingExamples
+      // Since migration 030, intentEmbedding comes from workflow_pattern via JOIN
       const examples: TrainingExample[] = [];
       for (const trace of traces) {
         // Skip if capability not in our set
         if (!capEmbeddings.has(trace.capability_id)) continue;
 
-        // Generate intent embedding
-        const intentEmbedding = await this.embeddingModel.encode(trace.intent_text!);
+        // Parse intent embedding from PostgreSQL vector format
+        if (!trace.intent_embedding) continue;
+        let intentEmbedding: number[];
+        try {
+          const embStr = trace.intent_embedding;
+          const cleaned = embStr.replace(/^\[|\]$/g, "");
+          intentEmbedding = cleaned.split(",").map(Number);
+        } catch {
+          continue; // Skip traces with invalid embedding format
+        }
 
         examples.push({
           intentEmbedding,

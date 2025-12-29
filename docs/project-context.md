@@ -45,7 +45,8 @@ this project. Focus on unobvious details that agents might otherwise miss._
 
 ### Backend & Data
 
-- **PGlite 0.3.14** — PostgreSQL WASM (local-first)
+- **PGlite 0.3.14** — PostgreSQL WASM (local-first, dev/embedded)
+- **PostgreSQL 16+** — Via Docker pour production/cloud
 - **Deno KV** — Key-value store pour sessions, cache, OAuth tokens
 - **Drizzle ORM ^0.39.1** — TypeScript ORM
 - **@huggingface/transformers 3.7.6** — Embeddings BGE-M3 locaux
@@ -115,7 +116,8 @@ this project. Focus on unobvious details that agents might otherwise miss._
 
 - **Preact, pas React** — JSX doit utiliser `jsxImportSource: "preact"`
 - **TailwindCSS v4** — Syntaxe différente de v3
-- **PGlite 0.3.14** — Version spécifique pour compatibilité vector extension
+- **PGlite 0.3.14** — Version spécifique pour compatibilité vector extension (dev/embedded)
+- **PostgreSQL 16+ (Docker)** — Production, supporte pgvector nativement
 
 ---
 
@@ -138,7 +140,7 @@ this project. Focus on unobvious details that agents might otherwise miss._
 
 #### Databases (Dual-Mode)
 
-- **PGlite** — PostgreSQL WASM pour données persistantes (GraphRAG, capabilities, workflows)
+- **PGlite / PostgreSQL** — PGlite (dev/embedded) ou PostgreSQL Docker (prod) pour données persistantes (GraphRAG, capabilities, workflows)
 - **Deno KV** — Key-value store pour sessions, cache, OAuth tokens
 - **Architecture Open Core** — Version cloud en préparation, garder le code compatible multi-tenant
 
@@ -487,7 +489,7 @@ src/
 
 #### 🗄️ Base de Données
 
-- **PGlite pour persistance** — GraphRAG, capabilities, workflows
+- **PGlite / PostgreSQL Docker** — PGlite (dev), PostgreSQL 16+ Docker (prod)
 - **Deno KV pour sessions** — OAuth, cache, tokens
 - **Migrations Drizzle** — `src/db/migrations/` numérotées séquentiellement
 - **Multi-tenant ready** — Préparer pour version cloud
