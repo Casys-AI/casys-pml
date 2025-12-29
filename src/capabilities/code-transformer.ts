@@ -357,69 +357,127 @@ export async function transformLiteralsToArgs(
 }
 
 /**
- * Find all identifier positions in AST that match literal binding names
+ * Two-pass approach for finding identifier positions:
+ * Pass 1: Find all declarations to remove
+ * Pass 2: Find all usages (independently of declarations)
+ *
+ * This is more robust than a single-pass approach because:
+ * - No dependency on AST traversal order
+ * - Clear separation of concerns
+ * - Handles edge cases like `const b = a + "world"` correctly
  */
 function findIdentifierPositions(
   // deno-lint-ignore no-explicit-any
   node: any,
   literalNames: Set<string>,
   positions: IdentifierPosition[],
-  inDeclaration = false,
 ): void {
-  if (!node || typeof node !== "object") return;
+  // Pass 1: Find declarations
+  const declarations = findLiteralDeclarations(node, literalNames);
 
-  // Check for VariableDeclarator: const x = ...
+  // Pass 2: Find all usages (skip declaration positions)
+  const declarationSpans = new Set(
+    declarations.map((d) => `${d.start}-${d.end}`)
+  );
+  const usages = findAllUsages(node, literalNames, declarationSpans);
+
+  // Combine results
+  positions.push(...declarations, ...usages);
+}
+
+/**
+ * Pass 1: Find all variable declarations for literals we want to remove
+ */
+function findLiteralDeclarations(
+  // deno-lint-ignore no-explicit-any
+  node: any,
+  literalNames: Set<string>,
+  results: IdentifierPosition[] = [],
+): IdentifierPosition[] {
+  if (!node || typeof node !== "object") return results;
+
   if (node.type === "VariableDeclarator") {
     const id = node.id;
     if (id?.type === "Identifier" && literalNames.has(id.value)) {
-      positions.push({
+      results.push({
         name: id.value,
         start: id.span?.start ?? 0,
         end: id.span?.end ?? 0,
         isDeclaration: true,
       });
     }
-    // Don't recurse into init for declarations we're removing
-    return;
   }
 
-  // Check for Identifier usage (not in declaration context)
-  if (node.type === "Identifier" && !inDeclaration) {
-    const name = node.value;
-    if (literalNames.has(name)) {
-      // Check if this is part of a member expression (args.xxx) - skip those
-      // We only want standalone identifiers
-      positions.push({
-        name,
-        start: node.span?.start ?? 0,
-        end: node.span?.end ?? 0,
-        isDeclaration: false,
-      });
+  // Recurse through all properties
+  for (const key of Object.keys(node)) {
+    if (key === "span") continue;
+    const value = node[key];
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        findLiteralDeclarations(item, literalNames, results);
+      }
+    } else if (value && typeof value === "object") {
+      findLiteralDeclarations(value, literalNames, results);
     }
   }
 
-  // Check for MemberExpression: skip if it's already args.xxx
+  return results;
+}
+
+/**
+ * Pass 2: Find all usages of literal names (excluding declarations and args.xxx)
+ */
+function findAllUsages(
+  // deno-lint-ignore no-explicit-any
+  node: any,
+  literalNames: Set<string>,
+  declarationSpans: Set<string>,
+  results: IdentifierPosition[] = [],
+): IdentifierPosition[] {
+  if (!node || typeof node !== "object") return results;
+
+  // Skip args.xxx member expressions entirely
   if (node.type === "MemberExpression") {
     const obj = node.object;
     if (obj?.type === "Identifier" && obj?.value === "args") {
-      // Don't process args.xxx - it's already parameterized
-      return;
+      return results;
+    }
+  }
+
+  // Check for identifier usage
+  if (node.type === "Identifier") {
+    const name = node.value;
+    if (literalNames.has(name)) {
+      const start = node.span?.start ?? 0;
+      const end = node.span?.end ?? 0;
+      const spanKey = `${start}-${end}`;
+
+      // Skip if this is a declaration position
+      if (!declarationSpans.has(spanKey)) {
+        results.push({
+          name,
+          start,
+          end,
+          isDeclaration: false,
+        });
+      }
     }
   }
 
   // Recurse through all properties
   for (const key of Object.keys(node)) {
-    if (key === "span") continue; // Skip span metadata
-
+    if (key === "span") continue;
     const value = node[key];
     if (Array.isArray(value)) {
       for (const item of value) {
-        findIdentifierPositions(item, literalNames, positions, inDeclaration);
+        findAllUsages(item, literalNames, declarationSpans, results);
       }
     } else if (value && typeof value === "object") {
-      findIdentifierPositions(value, literalNames, positions, inDeclaration);
+      findAllUsages(value, literalNames, declarationSpans, results);
     }
   }
+
+  return results;
 }
 
 /**
