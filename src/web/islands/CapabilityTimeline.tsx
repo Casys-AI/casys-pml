@@ -57,6 +57,7 @@ export interface TimelineCapability {
     server: string;
   }>;
   traces?: ExecutionTrace[];
+  codeSnippet?: string;
 }
 
 interface CapabilityTimelineProps {
@@ -261,6 +262,7 @@ export default function CapabilityTimeline({
             parentId: parentMap.get(node.data.id),
             tools: capTools,
             traces,
+            codeSnippet: node.data.code_snippet,
           });
         }
       }
