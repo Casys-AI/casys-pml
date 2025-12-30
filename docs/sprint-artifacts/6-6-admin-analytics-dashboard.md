@@ -193,6 +193,42 @@ N/A - implementation straightforward
 - [M3] Added log.warn() on admin access denial (security audit)
 - [M4] getCacheKey() now includes all options (timeRange, topUsersLimit, includeTopUsers)
 
+### Emergence Metrics Refactoring (2025-12-30)
+
+**Problem Identified**: The EmergencePanel graphs show entropy values always ~1.0 because:
+- Shannon entropy normalized by log2(N) approaches 1.0 for large graphs
+- With 131+ edges, any reasonable weight distribution gives entropy ~0.99
+
+**Solution Implemented**: Tensor Entropy (spike in `src/graphrag/algorithms/tensor-entropy.ts`)
+- Von Neumann entropy via Laplacian spectrum (Chen & Rajapakse 2020)
+- Structural entropy (Li Angsheng approximation) - O(n) complexity
+- Multi-order hyperedge support (capabilities as order-3+ hyperedges)
+
+**Dashboard Graphs to Replace**:
+1. **Graph Entropy chart** - Currently shows flat line at ~1.0
+   - Replace with: Von Neumann entropy (already integrated in emergence.ts)
+   - Add: Size-adjusted thresholds for health classification
+
+2. **Cluster Stability chart** - Uses Jaccard similarity (correct implementation)
+   - Keep as-is, but add historical persistence for meaningful trends
+
+3. **Velocity timeseries** - Currently mock data
+   - Fixed: Now queries execution_trace for real data
+
+4. **Stability timeseries** - Uses algorithm_traces acceptance rate
+   - Keep but validate data quality
+
+**Next Steps for Full Fix**:
+- [ ] Implement size-adjusted entropy thresholds
+- [ ] Add semantic entropy (embedding space diversity)
+- [ ] Persist entropy history to database for trends
+- [ ] Update EmergencePanel UI to show new metrics
+
+**References**:
+- [Chen & Rajapakse 2020](https://ieeexplore.ieee.org/document/9119161/) - Tensor Entropy for Hypergraphs
+- [arxiv:2503.18852](https://arxiv.org/html/2503.18852) - Structural + Semantic dual entropy
+- [Li Angsheng AAAI 2024](https://ojs.aaai.org/index.php/AAAI/article/view/28679) - Structural Entropy
+
 ### File List
 
 - src/cloud/admin/types.ts (~180 lines - added TechnicalMetrics)
