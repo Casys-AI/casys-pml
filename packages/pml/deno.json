@@ -1,0 +1,21 @@
+{
+  "name": "@casys/pml",
+  "version": "0.1.0",
+  "exports": {
+    ".": "./mod.ts",
+    "./cli": "./src/cli/mod.ts"
+  },
+  "publish": {
+    "include": ["mod.ts", "src/**/*.ts", "README.md"]
+  },
+  "imports": {
+    "@cliffy/command": "jsr:@cliffy/command@1.0.0-rc.8",
+    "@std/fs": "jsr:@std/fs@1.0.19",
+    "@std/path": "jsr:@std/path@^1",
+    "@std/fmt": "jsr:@std/fmt@^1"
+  },
+  "tasks": {
+    "dev": "deno run -A src/cli/mod.ts",
+    "install-local": "deno install -A -n pml --force ./src/cli/mod.ts"
+  }
+}

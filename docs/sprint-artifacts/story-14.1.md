@@ -1,6 +1,6 @@
 # Story 14.1: Package Scaffolding & CLI Init Command
 
-Status: ready-for-dev
+Status: in-progress
 
 ## Story
 
@@ -41,71 +41,71 @@ package version is displayed (e.g., "0.1.0")
 
 ### Phase 1: Package Structure (~2h)
 
-- [ ] Task 1: Create package directory structure (AC: #1)
-  - [ ] Create `packages/pml/` directory
-  - [ ] Create `packages/pml/deno.json` with JSR config
-  - [ ] Create `packages/pml/mod.ts` entry point
-  - [ ] Create `packages/pml/src/` source directory
-  - [ ] Verify exports field follows JSR best practices
+- [x] Task 1: Create package directory structure (AC: #1)
+  - [x] Create `packages/pml/` directory
+  - [x] Create `packages/pml/deno.json` with JSR config
+  - [x] Create `packages/pml/mod.ts` entry point
+  - [x] Create `packages/pml/src/` source directory
+  - [x] Verify exports field follows JSR best practices
 
-- [ ] Task 2: Implement CLI commands (AC: #1, #5)
-  - [ ] Create `src/cli/mod.ts` with @cliffy/command
-  - [ ] Add `pml init` command
-  - [ ] Add `pml serve` command
-  - [ ] Add `pml --version` flag
-  - [ ] Add `pml --help` output
+- [x] Task 2: Implement CLI commands (AC: #1, #5)
+  - [x] Create `src/cli/mod.ts` with @cliffy/command
+  - [x] Add `pml init` command
+  - [x] Add `pml serve` command
+  - [x] Add `pml --version` flag
+  - [x] Add `pml --help` output
 
 ### Phase 2: Init Command (~3h)
 
-- [ ] Task 3: Implement init workflow (AC: #2)
-  - [ ] Create `src/init/mod.ts`
-  - [ ] Prompt for PML API key (with skip option)
-  - [ ] Validate API key format (if provided)
-  - [ ] Create `.pml.json` config file
-  - [ ] Create `.mcp.json` file
+- [x] Task 3: Implement init workflow (AC: #2)
+  - [x] Create `src/init/mod.ts`
+  - [x] Prompt for PML API key (with skip option)
+  - [x] Validate API key format (if provided)
+  - [x] Create `.pml.json` config file
+  - [x] Create `.mcp.json` file
 
-- [ ] Task 4: Handle existing config (AC: #3)
-  - [ ] Check if `.mcp.json` exists
-  - [ ] Prompt for confirmation before overwrite
-  - [ ] Create `.mcp.json.backup` if overwriting
-  - [ ] Merge with existing config if requested
+- [x] Task 4: Handle existing config (AC: #3)
+  - [x] Check if `.mcp.json` exists
+  - [x] Prompt for confirmation before overwrite
+  - [x] Create `.mcp.json.backup` if overwriting
+  - [ ] Merge with existing config if requested (deferred - not critical)
 
-- [ ] Task 5: Generate .mcp.json (AC: #2)
-  - [ ] Use MCP HTTP Streamable transport format
-  - [ ] Include BYOK env var placeholders
-  - [ ] Set correct localhost URL and port
-  - [ ] Validate JSON output
+- [x] Task 5: Generate .mcp.json (AC: #2)
+  - [x] Use MCP HTTP Streamable transport format
+  - [x] Include BYOK env var placeholders
+  - [x] Set correct localhost URL and port
+  - [x] Validate JSON output
 
 ### Phase 3: Serve Command Stub (~1h)
 
-- [ ] Task 6: Create serve command skeleton (AC: #4)
-  - [ ] Create `src/server/mod.ts` placeholder
-  - [ ] Import MCP SDK for HTTP server
-  - [ ] Add startup logging
-  - [ ] Return stub response for tool calls
-  - [ ] Note: Full implementation in Story 14.6
+- [x] Task 6: Create serve command skeleton (AC: #4)
+  - [x] Create `src/cli/serve-command.ts`
+  - [x] Simple HTTP stub server (Deno.serve)
+  - [x] Add startup logging
+  - [x] Return stub JSON-RPC response
+  - [x] Note: Full implementation in Story 14.6
 
 ### Phase 4: Package Publishing Prep (~1h)
 
-- [ ] Task 7: Prepare for JSR publishing (AC: #1)
-  - [ ] Add README.md with usage instructions
-  - [ ] Configure publish.include/exclude
-  - [ ] Test local install: `deno install -A -n pml ./mod.ts`
-  - [ ] Verify bundle size < 50KB
-  - [ ] Note: Actual publish deferred until Epic 14 complete
+- [x] Task 7: Prepare for JSR publishing (AC: #1)
+  - [x] Add README.md with usage instructions
+  - [x] Configure publish.include/exclude
+  - [ ] Test local install: `deno install -A -n pml ./mod.ts` (manual)
+  - [ ] Verify bundle size < 50KB (manual)
+  - [x] Note: Actual publish deferred until Epic 14 complete
 
 ### Phase 5: Tests (~1h)
 
-- [ ] Task 8: Unit tests
-  - [ ] Test init config generation
-  - [ ] Test backup creation
-  - [ ] Test CLI argument parsing
-  - [ ] Test version output
+- [x] Task 8: Unit tests
+  - [x] Test init config generation
+  - [x] Test backup creation
+  - [x] Test CLI argument parsing
+  - [x] Test version output
 
-- [ ] Task 9: Integration tests
-  - [ ] Test full init workflow
-  - [ ] Test serve command starts
-  - [ ] Test with existing .mcp.json
+- [x] Task 9: Integration tests
+  - [x] Test full init workflow
+  - [x] Test serve command starts
+  - [x] Test with existing .mcp.json
 
 ## Dev Notes
 
@@ -231,10 +231,30 @@ await main.parse(Deno.args);
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Debug Log References
 
+N/A
+
 ### Completion Notes List
 
+- Package structure created in `packages/pml/` (cloud-only, excluded from public sync)
+- CLI uses @cliffy/command with init, serve, --version
+- Init generates .mcp.json (HTTP transport) and .pml.json (workspace config)
+- Backup mechanism for existing .mcp.json with user prompt
+- Serve command is a stub - full implementation in Story 14.6
+- Tests written but require Deno runtime to execute
+
 ### File List
+
+- `packages/pml/deno.json` - JSR package config
+- `packages/pml/mod.ts` - Package entry point
+- `packages/pml/README.md` - Usage documentation
+- `packages/pml/src/types.ts` - TypeScript types
+- `packages/pml/src/cli/mod.ts` - CLI entry point
+- `packages/pml/src/cli/init-command.ts` - Init command
+- `packages/pml/src/cli/serve-command.ts` - Serve command stub
+- `packages/pml/src/init/mod.ts` - Init logic
+- `packages/pml/tests/init_test.ts` - Init unit tests
+- `packages/pml/tests/cli_test.ts` - CLI unit tests

@@ -127,16 +127,18 @@ development_status:
   epic-5-retrospective: optional
 
   # Epic 6: Real-time Graph Monitoring & Observability
-  # 5 stories (4 original + 6-5 added 2025-12-08), ~10-14h
+  # 6 stories (4 original + 6-5 added 2025-12-08 + 6-6 added 2025-12-29), ~12-17h
   # Dashboard interactif avec SSE pour visualiser et explorer le graphe
   # Live metrics, PageRank viz, Adamic-Adar tooltips, graph export
   # 6-5 added for unified EventBus (ADR-036) - prerequisite: 7.3b
-  epic-6: done # Completed 2025-12-09 (5/5 stories done)
+  # 6-6 added for Admin Analytics Dashboard (user activity, errors, system health)
+  epic-6: in-progress # 5/6 stories done, 6-6 added 2025-12-29
   6-1-real-time-events-stream-sse: done # Code Review APPROVED 2025-12-01, 12 tests passing, Quality Score: 100/100
   6-2-interactive-graph-visualization-dashboard: done # Code Review APPROVED 2025-12-02, 7 tests passing, Quality Score: 95/100
   6-3-live-metrics-analytics-panel: done # Code Review APPROVED 2025-12-02, 23 tests passing, Quality Score: 95/100
   6-4-graph-explorer-search-interface: done # Code Review APPROVED 2025-12-04, 11 tests passing, all 11 ACs validated
   6-5-eventbus-broadcast-channel: done # Code review PASSED 2025-12-09, ADR-036, 43 tests
+  6-6-admin-analytics-dashboard: ready-for-dev # User activity, errors, system health - cloud-only (src/cloud/admin/)
   epic-6-retrospective: optional
 
   # Epic 7: Emergent Capabilities & Learning System
@@ -174,7 +176,7 @@ development_status:
 
   # Epic 9: GitHub Authentication & Multi-Tenancy
   # Tech-Spec: tech-spec-github-auth-multitenancy.md
-  # 5 stories, ~1-2 semaines
+  # 7 stories, ~2 semaines
   # Hybrid auth model: Cloud (GitHub OAuth + API Key) vs Self-hosted (zero-auth)
   # Dual-server architecture: API Server (prod:3001/dev:3003) + Fresh Dashboard (prod:8080/dev:8081)
   epic-9: contexted
@@ -184,7 +186,7 @@ development_status:
   9-4-landing-page-dashboard-ui-auth-additions: done # Code Review APPROVED 2025-12-09, 24 tests passing, 9 issues fixed (3 HIGH, 4 MEDIUM, 2 LOW)
   9-5-rate-limiting-data-isolation: done # Code Review APPROVED 2025-12-10, 21 tests passing, Score: 98/100, Full userId propagation complete
   9-6-mcp-config-secrets-management: backlog # ADR-040 - DEFERRED: Requires workspace refacto (open-core + SaaS repos) first
-  9-7-user-analytics-metrics: backlog # Track user activity and usage metrics for dashboard analytics
+  9-7-shgat-prediction-visibility-filtering: backlog # SHGAT predictions filtered by capability visibility (public/org/project/private)
   epic-9-retrospective: optional
 
   # Epic 10: DAG Capability Learning & Unified APIs

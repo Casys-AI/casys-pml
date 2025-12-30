@@ -746,7 +746,7 @@ une requête).
 
 ## Epic 6: Real-time Graph Monitoring & Observability
 
-**Status:** 🔄 IN-PROGRESS (4/5 stories done, 6-5 added 2025-12-08) **Retrospective:** Optional
+**Status:** 🔄 IN-PROGRESS (5/6 stories done, 6-6 added 2025-12-29) **Retrospective:** Optional
 
 ### Vision
 
@@ -812,3 +812,76 @@ real-time via a unified EventBus, So that I can monitor execution live without p
 **Prerequisites:** Story 7.3b (introduces BroadcastChannel for capability traces)
 
 **Story file:** `docs/sprint-artifacts/6-5-eventbus-broadcast-channel.md`
+
+---
+
+**Story 6.6: Admin Analytics Dashboard (Cloud-Only)** 🔄 IN-PROGRESS
+
+As a platform admin, I want a technical analytics dashboard showing user activity, system health, and error rates, So that I can monitor platform usage and diagnose issues.
+
+**Context:**
+
+Ce dashboard est destiné aux admins/opérateurs, pas aux utilisateurs normaux. Il expose des métriques techniques pour surveiller la santé de la plateforme en mode cloud.
+
+**⚠️ Cloud-Only:** Ce code est exclu du sync public via `src/cloud/` et `src/web/`.
+
+**Acceptance Criteria:**
+
+1. **User Activity Metrics** (`/api/admin/analytics`):
+   - Active users (daily/weekly/monthly)
+   - New registrations over time
+   - User retention (returning users)
+   - Top users by usage (anonymized or by consent)
+
+2. **System Usage Metrics**:
+   - Total MCP calls (per day/week)
+   - Capability executions count
+   - DAG executions count
+   - Average calls per user
+
+3. **Error & Health Metrics**:
+   - Error rate (% of failed executions)
+   - Errors by type (timeout, permission, runtime)
+   - Latency percentiles (p50, p95, p99)
+   - Rate limit hits count
+
+4. **Resource Metrics**:
+   - SHGAT training frequency
+   - PER buffer size
+   - Graph node/edge counts
+   - DB storage usage
+
+5. **Admin-only Access**:
+   - Route protected by admin role check
+   - Returns 403 for non-admin users
+   - Local mode: accessible by default (single user = admin)
+
+6. **Dashboard UI** (`/dashboard/admin`):
+   - Time range selector (24h, 7d, 30d)
+   - Charts for trends (usage over time, error rates)
+   - Tables for top users, frequent errors
+   - Real-time updates via SSE (optional)
+
+**File Structure (Cloud-Only):**
+
+```
+src/cloud/admin/
+├── mod.ts                 # Export public API
+├── analytics-service.ts   # Service layer
+├── analytics-queries.ts   # SQL aggregations
+└── types.ts              # Analytics types
+
+src/web/routes/dashboard/
+└── admin.tsx             # Fresh UI (already excluded via src/web/)
+```
+
+**Technical Notes:**
+
+- Data aggregation from: `execution_trace`, `dag_executions`, `users`
+- Consider materialized views for expensive queries
+- Cache dashboard data (1-5 min TTL)
+- Admin role: `users.role = 'admin'` or env-based allowlist
+
+**Prerequisites:** Story 9.5 (user_id FK), Story 6.1 (SSE events)
+
+**Estimation:** 2-3 jours
