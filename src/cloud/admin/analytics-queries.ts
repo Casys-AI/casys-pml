@@ -110,31 +110,57 @@ export async function queryUserActivity(
   `);
 
   // Top users by execution count
-  const topUsersRows = await db.query<{
-    user_id: string;
-    username: string;
-    execution_count: number;
-    last_active: Date;
-  }>(`
-    SELECT
-      et.user_id,
-      COALESCE(u.username, et.user_id) as username,
-      COUNT(*) as execution_count,
-      MAX(et.executed_at) as last_active
-    FROM execution_trace et
-    LEFT JOIN users u ON u.id::text = et.user_id OR u.username = et.user_id
-    WHERE ${timeFilter.replace("executed_at", "et.executed_at")}
-    GROUP BY et.user_id, u.username
-    ORDER BY execution_count DESC
-    LIMIT ${topUsersLimit}
-  `);
-
-  const topUsers: TopUser[] = topUsersRows.map((row) => ({
-    userId: row.user_id,
-    username: row.username,
-    executionCount: Number(row.execution_count),
-    lastActive: new Date(row.last_active),
-  }));
+  // Try with users join first, fallback to without users table
+  let topUsers: TopUser[] = [];
+  try {
+    const topUsersRows = await db.query<{
+      user_id: string;
+      username: string;
+      execution_count: number;
+      last_active: Date;
+    }>(`
+      SELECT
+        et.user_id,
+        COALESCE(u.username, et.user_id) as username,
+        COUNT(*) as execution_count,
+        MAX(et.executed_at) as last_active
+      FROM execution_trace et
+      LEFT JOIN users u ON u.id::text = et.user_id OR u.username = et.user_id
+      WHERE ${timeFilter.replace("executed_at", "et.executed_at")}
+      GROUP BY et.user_id, u.username
+      ORDER BY execution_count DESC
+      LIMIT ${topUsersLimit}
+    `);
+    topUsers = topUsersRows.map((row) => ({
+      userId: row.user_id,
+      username: row.username,
+      executionCount: Number(row.execution_count),
+      lastActive: new Date(row.last_active),
+    }));
+  } catch {
+    // users table doesn't exist - query without join
+    const topUsersRows = await db.query<{
+      user_id: string;
+      execution_count: number;
+      last_active: Date;
+    }>(`
+      SELECT
+        user_id,
+        COUNT(*) as execution_count,
+        MAX(executed_at) as last_active
+      FROM execution_trace
+      WHERE ${timeFilter}
+      GROUP BY user_id
+      ORDER BY execution_count DESC
+      LIMIT ${topUsersLimit}
+    `);
+    topUsers = topUsersRows.map((row) => ({
+      userId: row.user_id,
+      username: row.user_id, // Use user_id as username fallback
+      executionCount: Number(row.execution_count),
+      lastActive: new Date(row.last_active),
+    }));
+  }
 
   return {
     activeUsers: Number(activeResult?.count || 0),

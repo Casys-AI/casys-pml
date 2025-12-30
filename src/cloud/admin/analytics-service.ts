@@ -71,12 +71,16 @@ export async function isAdminUser(
   }
 
   // Check admin role in users table
-  const result = await db.queryOne<{ role: string }>(`
-    SELECT role FROM users
-    WHERE id::text = $1 OR username = $1
-  `, [userId]);
-
-  return result?.role === "admin";
+  try {
+    const result = await db.queryOne<{ role: string }>(`
+      SELECT role FROM users
+      WHERE id::text = $1 OR username = $1
+    `, [userId]);
+    return result?.role === "admin";
+  } catch {
+    // users table doesn't exist - not admin
+    return false;
+  }
 }
 
 /** Get admin analytics with caching */
