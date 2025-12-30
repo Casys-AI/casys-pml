@@ -29,6 +29,7 @@ import type { ToolExecutor } from "../../dag/types.ts";
 import { CapabilityMatcher } from "../../capabilities/matcher.ts";
 import { CapabilityStore } from "../../capabilities/capability-store.ts";
 import { SchemaInferrer } from "../../capabilities/schema-inferrer.ts";
+import { checkAndSyncRouting } from "../../capabilities/routing-resolver.ts";
 import { StaticStructureBuilder } from "../../capabilities/static-structure-builder.ts";
 import { AdaptiveThresholdManager } from "../../mcp/adaptive-threshold.ts";
 import { AlgorithmTracer } from "../../telemetry/algorithm-tracer.ts";
@@ -252,6 +253,14 @@ export function createServeCommand() {
 
         // Run Drizzle migrations (users table, etc.)
         await runDrizzleMigrationsAuto();
+
+        // Story 13.9: Sync capability routing if config changed
+        const routingResult = await checkAndSyncRouting(db);
+        if (routingResult.synced) {
+          log.info(
+            `✓ Routing sync: ${routingResult.updated} capabilities updated`,
+          );
+        }
 
         // 2.5 Auto-init if config changed (discovers tools & generates embeddings)
         const autoInitResult = await autoInitIfConfigChanged(configPath, db, {

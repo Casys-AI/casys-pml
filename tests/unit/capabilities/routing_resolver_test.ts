@@ -169,3 +169,53 @@ Deno.test("reloadRoutingConfig: clears cache", async () => {
   const result2 = resolveRouting(["memory:store"]);
   assertEquals(result2, "cloud");
 });
+
+// ============================================
+// Edge case tests (Problem 5 fixes)
+// ============================================
+
+Deno.test("extractServerName: empty string -> empty string", () => {
+  assertEquals(extractServerName(""), "");
+});
+
+Deno.test("extractServerName: tool with multiple colons", () => {
+  // Takes first segment before colon
+  assertEquals(extractServerName("server:sub:action"), "server");
+});
+
+Deno.test("extractServerName: colon only", () => {
+  // colonIndex is 0, not > 0, so returns original
+  assertEquals(extractServerName(":action"), ":action");
+});
+
+Deno.test("resolveRouting: null/undefined in array filtered out", () => {
+  // @ts-ignore - testing runtime behavior with bad data
+  const result = resolveRouting([null, "memory:store", undefined, ""]);
+  // memory:store is cloud, invalid entries filtered
+  assertEquals(result, "cloud");
+});
+
+Deno.test("resolveRouting: all invalid entries -> cloud (pure compute)", () => {
+  // @ts-ignore - testing runtime behavior with bad data
+  const result = resolveRouting([null, undefined, ""]);
+  // All filtered out = no tools = cloud
+  assertEquals(result, "cloud");
+});
+
+Deno.test("isLocalServer: empty string -> local (safe default)", () => {
+  assertEquals(isLocalServer(""), true);
+});
+
+Deno.test("isCloudServer: empty string -> false (not cloud)", () => {
+  assertEquals(isCloudServer(""), false);
+});
+
+Deno.test("getToolRouting: empty string -> local", () => {
+  assertEquals(getToolRouting(""), "local");
+});
+
+Deno.test("resolveRouting: mixed valid/invalid with local tool -> local", () => {
+  // @ts-ignore - testing runtime behavior
+  const result = resolveRouting([null, "filesystem:read", "memory:store"]);
+  assertEquals(result, "local");
+});
