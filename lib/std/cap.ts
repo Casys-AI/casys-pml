@@ -274,6 +274,12 @@ export interface CapMergeResponse {
   targetDisplayName: string;
   /** UUID of deleted source */
   deletedSourceId: string;
+  /** Display name of deleted source */
+  deletedSourceName: string;
+  /** workflow_pattern ID of deleted source (for graph invalidation) */
+  deletedSourcePatternId: string | null;
+  /** workflow_pattern ID of target */
+  targetPatternId: string | null;
   /** Merged statistics summary */
   mergedStats: {
     usageCount: number;
@@ -283,6 +289,12 @@ export interface CapMergeResponse {
   /** Which code_snippet was kept */
   codeSource: "source" | "target";
 }
+
+/**
+ * Callback type for merge events
+ * Used to emit events after successful merge
+ */
+export type OnCapabilityMerged = (response: CapMergeResponse) => void | Promise<void>;
 
 /**
  * MCP Tool definition for cap:* tools
@@ -360,11 +372,21 @@ export function globToSqlLike(pattern: string): string {
  * - Getting full metadata (whois)
  */
 export class CapModule {
+  private onMergedCallback?: OnCapabilityMerged;
+
   constructor(
     private registry: CapabilityRegistry,
     private db: DbClient,
     private embeddingModel?: EmbeddingModelInterface,
   ) {}
+
+  /**
+   * Set callback for merge events
+   * Used to emit capability.merged events for graph invalidation
+   */
+  setOnMerged(callback: OnCapabilityMerged): void {
+    this.onMergedCallback = callback;
+  }
 
   /**
    * List available cap:* tools
@@ -1010,7 +1032,47 @@ export class CapModule {
         );
       }
 
-      // AC6: Delete source
+      // Redirect capability_dependency edges from source to target workflow_pattern
+      // This preserves graph relationships after merge
+      if (sourceRecord.workflowPatternId && targetRecord.workflowPatternId) {
+        // Redirect outgoing edges (source → X becomes target → X)
+        await tx.exec(
+          `UPDATE capability_dependency SET from_capability_id = $1
+           WHERE from_capability_id = $2
+           AND NOT EXISTS (
+             SELECT 1 FROM capability_dependency cd2
+             WHERE cd2.from_capability_id = $1 AND cd2.to_capability_id = capability_dependency.to_capability_id
+           )`,
+          [targetRecord.workflowPatternId, sourceRecord.workflowPatternId],
+        );
+
+        // Redirect incoming edges (X → source becomes X → target)
+        await tx.exec(
+          `UPDATE capability_dependency SET to_capability_id = $1
+           WHERE to_capability_id = $2
+           AND NOT EXISTS (
+             SELECT 1 FROM capability_dependency cd2
+             WHERE cd2.from_capability_id = capability_dependency.from_capability_id AND cd2.to_capability_id = $1
+           )`,
+          [targetRecord.workflowPatternId, sourceRecord.workflowPatternId],
+        );
+
+        // Delete any remaining edges to/from source (duplicates after redirect)
+        await tx.exec(
+          `DELETE FROM capability_dependency
+           WHERE from_capability_id = $1 OR to_capability_id = $1`,
+          [sourceRecord.workflowPatternId],
+        );
+
+        // Delete source workflow_pattern (orphaned after merge)
+        // This also cascades to delete any remaining capability_dependency edges
+        await tx.exec(
+          `DELETE FROM workflow_pattern WHERE pattern_id = $1`,
+          [sourceRecord.workflowPatternId],
+        );
+      }
+
+      // AC6: Delete source capability_records
       await tx.exec(`DELETE FROM capability_records WHERE id = $1`, [
         sourceRecord.id,
       ]);
@@ -1022,6 +1084,9 @@ export class CapModule {
       targetFqdn: getCapabilityFqdn(targetRecord),
       targetDisplayName: getCapabilityDisplayName(targetRecord),
       deletedSourceId: sourceRecord.id,
+      deletedSourceName: getCapabilityDisplayName(sourceRecord),
+      deletedSourcePatternId: sourceRecord.workflowPatternId ?? null,
+      targetPatternId: targetRecord.workflowPatternId ?? null,
       mergedStats: {
         usageCount: mergedUsageCount,
         successCount: mergedSuccessCount,
@@ -1033,6 +1098,17 @@ export class CapModule {
     log.info(
       `[CapModule] cap:merge ${getCapabilityDisplayName(sourceRecord)} -> ${getCapabilityDisplayName(targetRecord)} (usage: ${mergedUsageCount})`,
     );
+
+    // Emit merge event for graph cache invalidation
+    if (this.onMergedCallback) {
+      try {
+        await this.onMergedCallback(response);
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        log.warn(`[CapModule] onMerged callback failed: ${msg}`);
+      }
+    }
+
     return this.successResult(response);
   }
 
