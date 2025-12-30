@@ -205,8 +205,9 @@ function computeVonNeumannEntropyApprox(
  * Extract hyperedges from capability→tool relationships
  *
  * In our graph structure:
- * - Nodes with type="capability" that have "contains" edges to tools
- *   form hyperedges of order k (where k = number of contained tools)
+ * - Nodes with type="capability" that have "contains" or "provides" edges to tools
+ *   form hyperedges of order k (where k = number of connected tools)
+ * - Also groups tools that share common sources (co-occurrence patterns)
  */
 function extractHyperedges(
   graph: EntropyGraphInput,
@@ -220,24 +221,47 @@ function extractHyperedges(
     }));
   }
 
-  // Otherwise, infer from capability→tool "contains" edges
   const hyperedges: Array<{ id: string; members: string[]; order: number }> = [];
 
-  // Find capability nodes
+  // Method 1: Capability nodes with outgoing edges (contains, provides)
   const capabilities = graph.nodes.filter((n) => n.type === "capability");
+  const groupingEdgeTypes = new Set(["contains", "provides"]);
 
   for (const cap of capabilities) {
-    // Find all tools this capability contains
-    const containedTools = graph.edges
-      .filter((e) => e.source === cap.id && e.edge_type === "contains")
+    const connectedTools = graph.edges
+      .filter((e) => e.source === cap.id && groupingEdgeTypes.has(e.edge_type || ""))
       .map((e) => e.target);
 
-    if (containedTools.length >= 2) {
+    if (connectedTools.length >= 2) {
       hyperedges.push({
         id: cap.id,
-        members: containedTools,
-        order: containedTools.length,
+        members: connectedTools,
+        order: connectedTools.length,
       });
+    }
+  }
+
+  // Method 2: Group by source node (any node with multiple outgoing "provides" edges)
+  // This catches tool groupings even without explicit capability nodes
+  if (hyperedges.length === 0) {
+    const sourceToTargets = new Map<string, string[]>();
+
+    for (const edge of graph.edges) {
+      if (edge.edge_type === "provides" || edge.edge_type === "contains") {
+        const targets = sourceToTargets.get(edge.source) || [];
+        targets.push(edge.target);
+        sourceToTargets.set(edge.source, targets);
+      }
+    }
+
+    for (const [source, targets] of sourceToTargets) {
+      if (targets.length >= 2) {
+        hyperedges.push({
+          id: source,
+          members: targets,
+          order: targets.length,
+        });
+      }
     }
   }
 
