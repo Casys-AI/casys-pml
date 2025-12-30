@@ -693,6 +693,19 @@ function findMcpCallInlineLiterals(
         literalValue = valueNode.value as number;
       } else if (valueNode.type === "BooleanLiteral") {
         literalValue = valueNode.value as boolean;
+      } else if (valueNode.type === "TemplateLiteral") {
+        // Handle template literals like `SELECT * FROM users`
+        const quasis = valueNode.quasis as Array<Record<string, unknown>> | undefined;
+        if (quasis && quasis.length > 0) {
+          // For simple templates (no interpolation), get the raw content
+          // Note: cooked is directly a string, not { value: string }
+          const templateContent = quasis
+            .map((q) => (q.cooked as string) ?? "")
+            .join("");
+          if (templateContent.length > 0) {
+            literalValue = templateContent;
+          }
+        }
       } else if (valueNode.type === "ArrayExpression") {
         // Handle array literals like [1, 2, 3]
         const elements = valueNode.elements;
