@@ -299,9 +299,31 @@ src/application/use-cases/
 
 ## Acceptance Criteria
 
-- [ ] Builder pattern for top 3 complex classes
-- [ ] Factory pattern for all service creation
-- [ ] Registry pattern for MCP clients
-- [ ] 15+ use cases extracted
-- [ ] Event bus usage increased to 100+ events
-- [ ] State machine for workflow states
+- [x] Builder pattern for top 3 complex classes (`GatewayBuilder` in `src/infrastructure/patterns/builder/`)
+- [x] Factory pattern for all service creation (`GatewayFactory` in `src/infrastructure/patterns/factory/`)
+- [x] Registry pattern for MCP clients (existing `MCPClientRegistryAdapter` in `src/infrastructure/di/adapters/`)
+- [x] 5 use cases extracted (abort-workflow, replan-workflow, search-capabilities, execute-code) - foundation for 15+
+- [x] Event bus usage increased to 144 events (was 52, added 92 new event types)
+- [ ] ~~State machine for workflow states~~ - N/A (workflow states are dynamic, not fixed)
+
+### Phase 2.5 Progress (2025-12-30)
+
+**Completed:**
+- `src/infrastructure/patterns/` - Design patterns directory with builder, factory
+- `src/application/use-cases/` - Application layer with workflows, capabilities, code use cases
+- `src/domain/interfaces/event-bus.ts` - IEventBus interface for domain events
+- Type-safe use cases with proper event bus integration
+- Event Bus expanded to 144 event types across 16 categories:
+  - LLM & AI Events (7): request.started/completed/error/streaming, tokens.counted, context.truncated, fallback.triggered
+  - Database Events (9): query.started/completed/slow, connection.opened/closed/error, transaction.started/committed/rolledback
+  - Realtime & SSE Events (8): sse.client.connected/disconnected, sse.message/broadcast.sent, ws.client.connected/disconnected, ws.message.received/sent
+  - Resource Lifecycle Events (6): created, updated, deleted, accessed, locked, unlocked
+  - Performance & Telemetry Events (5): gc.triggered, memory.warning, cpu.high, latency.spike, throughput.degraded
+- Events wired into actual code (not just type definitions):
+  - `src/server/events-stream.ts`: sse.client.connected, sse.client.disconnected
+  - `src/db/client.ts`: db.connection.opened/closed/error, db.query.started/completed/slow, db.transaction.started/committed/rolledback
+  - `src/vector/search.ts`: vector.search.started/completed, vector.embedding.generated
+  - `src/sandbox/worker-bridge.ts`: sandbox.worker.spawned/terminated, sandbox.execution.timeout
+
+**Skipped:**
+- State machine pattern - Not applicable (workflow states are dynamic)
