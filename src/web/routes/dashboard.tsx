@@ -64,7 +64,8 @@ export default function Dashboard({ data }: { data: DashboardData }) {
         {/* Cola layout - D3-like force simulation with live physics */}
         <script defer src="https://unpkg.com/webcola@3.4.0/WebCola/cola.min.js"></script>
         <script defer src="https://unpkg.com/cytoscape-cola@2.5.1/cytoscape-cola.js"></script>
-        <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js">
+        {/* ECharts for emergence metrics visualization */}
+        <script defer src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js">
         </script>
         <style>
           {`

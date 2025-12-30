@@ -57,7 +57,7 @@ src/web/
 |------|---------|
 | `src/web/islands/GraphExplorer.tsx:111` | ViewMode state definition |
 | `src/web/islands/ExplorerSidebar.tsx` | View toggle UI |
-| `src/web/islands/MetricsPanel.tsx` | Chart.js patterns, atomic components |
+| `src/web/islands/MetricsPanel.tsx` | ECharts patterns, atomic components |
 | `src/web/components/ui/atoms/mod.ts` | MetricCard, ProgressBar reuse |
 | `src/pml/api/metrics.ts` | Existing metrics endpoint |
 | `docs/spikes/2025-12-17-complex-adaptive-systems-research.md` | CAS theory reference |
@@ -67,7 +67,7 @@ src/web/
 1. **ViewMode enum change:** `"tools"` → `"emergence"` in CytoscapeGraph.tsx
 2. **New endpoint:** `GET /api/metrics/emergence?range=1h|24h|7d|30d`
 3. **Compute metrics from existing data:** No new DB tables, aggregate from `edges`, `workflow_executions`, `capabilities`
-4. **Chart library:** Chart.js (already used in MetricsPanel)
+4. **Chart library:** ECharts (CDN loaded in dashboard.tsx)
 5. **Atomic design:** Reuse `MetricCard`, `ProgressBar`, `SectionCard` from atoms
 6. **SYMBIOSIS/ODI alignment:** Include phase transitions, trends, and recommendations per arxiv:2503.13754
 
@@ -318,7 +318,7 @@ src/web/
 
 ### Dependencies
 
-- Chart.js (already installed)
+- ECharts (CDN: `https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js`)
 - Existing Louvain algorithm in `src/pml/algorithms/louvain.ts`
 - SSE infrastructure at `/events/stream`
 
