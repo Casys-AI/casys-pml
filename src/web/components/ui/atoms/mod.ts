@@ -14,6 +14,10 @@ export { ProgressBar } from "./ProgressBar.tsx";
 export { RankItem } from "./RankItem.tsx";
 export { SectionCard } from "./SectionCard.tsx";
 
+// Emergence atoms (CAS metrics)
+export { TrendIndicator } from "./TrendIndicator.tsx";
+export { GaugeChart } from "./GaugeChart.tsx";
+
 // Trace atoms
 export { default as TaskCard } from "./TaskCard.tsx";
 

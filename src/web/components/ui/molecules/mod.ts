@@ -15,3 +15,7 @@ export {
   type ViewMode,
 } from "./GraphLegendPanel.tsx";
 export { default as NodeDetailsPanel } from "./NodeDetailsPanel.tsx";
+
+// Emergence molecules (CAS metrics)
+export { PhaseTransitionBanner } from "./PhaseTransitionBanner.tsx";
+export { RecommendationsPanel } from "./RecommendationsPanel.tsx";

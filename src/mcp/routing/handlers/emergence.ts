@@ -389,3 +389,12 @@ export async function handleEmergenceRoutes(
   }
   return null;
 }
+
+// Export pure functions for testing
+export const _internals = {
+  computeGraphEntropy,
+  computeJaccardStability,
+  computeTrend,
+  detectPhaseTransition,
+  generateRecommendations,
+};

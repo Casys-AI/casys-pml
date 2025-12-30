@@ -8,13 +8,20 @@
  */
 
 import { useEffect, useRef, useState } from "preact/hooks";
-import { MetricCard, ProgressBar, SectionCard } from "../components/ui/atoms/mod.ts";
+import {
+  GaugeChart,
+  MetricCard,
+  ProgressBar,
+  SectionCard,
+  TrendIndicator,
+} from "../components/ui/atoms/mod.ts";
+import {
+  PhaseTransitionBanner,
+  RecommendationsPanel,
+} from "../components/ui/molecules/mod.ts";
 import type {
   EmergenceMetricsResponse,
   EmergenceTimeRange,
-  PhaseTransition,
-  Recommendation,
-  Trend,
 } from "../../shared/emergence.types.ts";
 
 interface EmergencePanelProps {
@@ -24,189 +31,6 @@ interface EmergencePanelProps {
 // Use shared types - alias for backward compatibility
 type TimeRange = EmergenceTimeRange;
 type EmergenceMetrics = EmergenceMetricsResponse;
-
-// Trend indicator component
-// CR-5: Could be extracted to atoms/TrendIndicator.tsx for reuse
-function TrendIndicator({ trend, size = "sm" }: { trend: Trend; size?: "sm" | "md" }) {
-  const sizeClass = size === "sm" ? "text-xs" : "text-sm";
-  const colors = {
-    rising: "var(--success, #4ade80)",
-    falling: "var(--error, #f87171)",
-    stable: "var(--text-dim, #8a8078)",
-  };
-  const arrows = { rising: "↑", falling: "↓", stable: "→" };
-
-  return (
-    <span class={`font-bold ${sizeClass}`} style={{ color: colors[trend] }}>
-      {arrows[trend]}
-    </span>
-  );
-}
-
-// CR-6: Gauge component for speculation accuracy visualization
-function GaugeChart({ value, label, color }: { value: number; label: string; color: string }) {
-  const percentage = Math.round(value * 100);
-  const rotation = (value * 180) - 90; // -90 to 90 degrees
-
-  return (
-    <div class="flex flex-col items-center">
-      <div class="relative w-24 h-12 overflow-hidden">
-        {/* Background arc */}
-        <div
-          class="absolute w-24 h-24 rounded-full"
-          style={{
-            background: `conic-gradient(
-              ${color} 0deg,
-              ${color} ${value * 180}deg,
-              var(--bg-surface, #1a1816) ${value * 180}deg,
-              var(--bg-surface, #1a1816) 180deg,
-              transparent 180deg
-            )`,
-            transform: "rotate(-90deg)",
-            clipPath: "inset(0 0 50% 0)",
-          }}
-        />
-        {/* Center cutout */}
-        <div
-          class="absolute top-2 left-2 w-20 h-20 rounded-full"
-          style={{ background: "var(--bg-elevated, #12110f)" }}
-        />
-        {/* Needle */}
-        <div
-          class="absolute bottom-0 left-1/2 w-0.5 h-10 origin-bottom"
-          style={{
-            background: "var(--text, #f5f0e8)",
-            transform: `translateX(-50%) rotate(${rotation}deg)`,
-            transition: "transform 0.5s ease-out",
-          }}
-        />
-        {/* Center dot */}
-        <div
-          class="absolute bottom-0 left-1/2 w-2 h-2 rounded-full -translate-x-1/2 translate-y-1/2"
-          style={{ background: "var(--text, #f5f0e8)" }}
-        />
-      </div>
-      <div class="text-lg font-bold mt-1" style={{ color }}>
-        {percentage}%
-      </div>
-      <div class="text-xs" style={{ color: "var(--text-muted)" }}>
-        {label}
-      </div>
-    </div>
-  );
-}
-
-// Phase transition banner
-// CR-3: Auto-dismiss after 10 seconds per AC10
-function PhaseTransitionBanner({
-  transition,
-  onDismiss,
-}: {
-  transition: PhaseTransition;
-  onDismiss: () => void;
-}) {
-  // CR-3: Auto-dismiss after 10 seconds
-  useEffect(() => {
-    if (!transition.detected) return;
-    const timer = setTimeout(() => {
-      onDismiss();
-    }, 10000); // 10 seconds
-    return () => clearTimeout(timer);
-  }, [transition.detected, onDismiss]);
-
-  if (!transition.detected) return null;
-
-  const bgColor = transition.type === "expansion"
-    ? "rgba(74, 222, 128, 0.15)"
-    : "rgba(251, 191, 36, 0.15)";
-  const borderColor = transition.type === "expansion"
-    ? "rgba(74, 222, 128, 0.3)"
-    : "rgba(251, 191, 36, 0.3)";
-  const icon = transition.type === "expansion" ? "🌱" : "🔮";
-
-  return (
-    <div
-      class="p-3 rounded-lg mb-4 flex items-center justify-between animate-pulse"
-      style={{ background: bgColor, border: `1px solid ${borderColor}` }}
-    >
-      <div class="flex items-center gap-2">
-        <span class="text-lg">{icon}</span>
-        <div>
-          <div class="font-semibold text-sm" style={{ color: "var(--text)" }}>
-            Phase Transition: {transition.type.charAt(0).toUpperCase() + transition.type.slice(1)}
-          </div>
-          <div class="text-xs" style={{ color: "var(--text-muted)" }}>
-            {transition.description} ({(transition.confidence * 100).toFixed(0)}% confidence)
-          </div>
-        </div>
-      </div>
-      <button
-        type="button"
-        class="p-1 rounded hover:bg-white/10 transition-colors"
-        style={{ color: "var(--text-dim)" }}
-        onClick={onDismiss}
-      >
-        ✕
-      </button>
-    </div>
-  );
-}
-
-// Recommendations panel
-function RecommendationsPanel({ recommendations }: { recommendations: Recommendation[] }) {
-  const [collapsed, setCollapsed] = useState(recommendations.length === 0);
-
-  if (recommendations.length === 0) return null;
-
-  const typeColors = {
-    warning: { bg: "rgba(251, 191, 36, 0.1)", border: "#fbbf24", icon: "⚠️" },
-    info: { bg: "rgba(96, 165, 250, 0.1)", border: "#60a5fa", icon: "ℹ️" },
-    success: { bg: "rgba(74, 222, 128, 0.1)", border: "#4ade80", icon: "✓" },
-  };
-
-  return (
-    <div
-      class="rounded-lg overflow-hidden"
-      style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}
-    >
-      <button
-        type="button"
-        class="w-full p-2 flex items-center justify-between text-sm font-semibold"
-        style={{ color: "var(--text)" }}
-        onClick={() => setCollapsed(!collapsed)}
-      >
-        <span>Recommendations ({recommendations.length})</span>
-        <span style={{ color: "var(--text-dim)" }}>{collapsed ? "▶" : "▼"}</span>
-      </button>
-      {!collapsed && (
-        <div class="px-2 pb-2 space-y-2">
-          {recommendations.map((rec, idx) => {
-            const style = typeColors[rec.type];
-            return (
-              <div
-                key={idx}
-                class="p-2 rounded text-xs"
-                style={{ background: style.bg, borderLeft: `3px solid ${style.border}` }}
-              >
-                <div class="flex items-start gap-1.5">
-                  <span>{style.icon}</span>
-                  <div>
-                    <div style={{ color: "var(--text)" }}>{rec.message}</div>
-                    {rec.action && (
-                      <div class="mt-1" style={{ color: "var(--text-muted)" }}>
-                        → {rec.action}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
 
 export default function EmergencePanel({ apiBase: apiBaseProp }: EmergencePanelProps) {
   const apiBase = apiBaseProp || "http://localhost:3003";
