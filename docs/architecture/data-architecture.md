@@ -205,6 +205,20 @@ Indexes: `idx_capability_records_workflow_pattern`, unique constraint on `(org, 
 
 **Important:** Migration 023 removed duplicated columns (`code_snippet`, `description`, `parameters_schema`, `tools_used`) from `capability_records`. These are now accessed via FK join to `workflow_pattern`.
 
+> ⚠️ **Critical ID Relationship:**
+> - Graph nodes use `capability:${capability_records.id}` (capability UUID)
+> - `workflow_pattern.pattern_id` is a **different** UUID
+> - Link: `capability_records.workflow_pattern_id` → `workflow_pattern.pattern_id`
+>
+> **When querying embeddings** (e.g., for semantic entropy), you MUST join via the FK:
+> ```sql
+> SELECT cr.id, wp.intent_embedding
+> FROM capability_records cr
+> JOIN workflow_pattern wp ON cr.workflow_pattern_id = wp.pattern_id
+> WHERE cr.id = ANY($1::uuid[])
+> ```
+> Do NOT assume `pattern_id = capability_records.id` - this was a bug fixed in Dec 2024.
+
 #### `workflow_pattern.dag_structure` JSONB Schema
 
 The `dag_structure` JSONB field contains:

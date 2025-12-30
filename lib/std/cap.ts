@@ -23,8 +23,41 @@ import {
 import type { DbClient } from "../../src/db/mod.ts";
 import type { EmbeddingModelInterface } from "../../src/vector/embeddings.ts";
 import { parseFQDN } from "../../src/capabilities/fqdn.ts";
+import { eventBus } from "../../src/events/mod.ts";
 import * as log from "@std/log";
 import { z } from "zod";
+
+// =============================================================================
+// Validation Schemas
+// =============================================================================
+
+/**
+ * Namespace must be lowercase letters/numbers, start with letter.
+ * Examples: "fs", "api", "math", "db"
+ * Invalid: "Fs", "api_v2", "my:ns"
+ */
+export const NamespaceSchema = z
+  .string()
+  .min(1, "Namespace cannot be empty")
+  .max(20, "Namespace too long (max 20 chars)")
+  .regex(/^[a-z][a-z0-9]*$/, "Namespace must be lowercase letters/numbers, start with letter")
+  .refine((s) => !s.includes("_") && !s.includes(":"), "No underscores or colons allowed");
+
+/**
+ * Action must be camelCase or snake_case, no auto-generated prefixes.
+ * Examples: "readFile", "list_users", "analyze"
+ * Invalid: "exec_abc123", "my:action", "123start"
+ */
+export const ActionSchema = z
+  .string()
+  .min(1, "Action cannot be empty")
+  .max(50, "Action too long (max 50 chars)")
+  .regex(/^[a-zA-Z][a-zA-Z0-9_]*$/, "Action must be alphanumeric (camelCase/snake_case), start with letter")
+  .refine((s) => !s.includes(":"), "No colons allowed in action")
+  .refine(
+    (s) => !s.startsWith("exec_") && !s.match(/^exec[0-9a-f]{6,}/i),
+    "Auto-generated names like 'exec_...' not allowed. Use a descriptive name."
+  );
 
 // =============================================================================
 // Embedding Text Builder
@@ -110,9 +143,9 @@ export interface CapListResponse {
 export interface CapRenameOptions {
   /** Current name (namespace:action) or UUID to update */
   name: string;
-  /** New namespace (e.g., "fs", "api", "data") */
+  /** New namespace - must be a clean identifier (lowercase, no special chars) */
   namespace?: string;
-  /** New action name (e.g., "read_json", "fetch_user") */
+  /** New action - must be a clean identifier (camelCase or snake_case, no prefixes like exec_) */
   action?: string;
   /** Optional description update */
   description?: string;
@@ -645,6 +678,22 @@ export class CapModule {
   private async handleRename(options: CapRenameOptions): Promise<CapToolResult> {
     const { name, namespace, action, description, tags, visibility } = options;
 
+    // Validate namespace with Zod
+    if (namespace !== undefined) {
+      const nsResult = NamespaceSchema.safeParse(namespace);
+      if (!nsResult.success) {
+        return this.errorResult(`Invalid namespace: ${nsResult.error.errors[0].message}`);
+      }
+    }
+
+    // Validate action with Zod
+    if (action !== undefined) {
+      const actionResult = ActionSchema.safeParse(action);
+      if (!actionResult.success) {
+        return this.errorResult(`Invalid action: ${actionResult.error.errors[0].message}`);
+      }
+    }
+
     // Resolve the capability by name (namespace:action) or UUID
     let record = await this.registry.resolveByName(name, DEFAULT_SCOPE);
     if (!record) {
@@ -697,23 +746,39 @@ export class CapModule {
       log.info(`[CapModule] Updated capability_records for ${record.id}`);
     }
 
-    // Update description in workflow_pattern if provided
-    if (description !== undefined && record.workflowPatternId) {
-      await this.db.query(
-        `UPDATE workflow_pattern
-         SET description = $2
-         WHERE pattern_id = $1`,
-        [record.workflowPatternId, description],
-      );
+    // Check if name or description changed - need to update embedding
+    const nameChanged = namespace !== undefined || action !== undefined;
+    const descriptionChanged = description !== undefined;
 
-      // Recalculate embedding with updated description
+    if ((nameChanged || descriptionChanged) && record.workflowPatternId) {
+      // Update description in workflow_pattern if provided
+      if (descriptionChanged) {
+        await this.db.query(
+          `UPDATE workflow_pattern
+           SET description = $2
+           WHERE pattern_id = $1`,
+          [record.workflowPatternId, description],
+        );
+      }
+
+      // Recalculate embedding with new name and/or description
       const newNamespace = namespace ?? record.namespace;
       const newAction = action ?? record.action;
       const newDisplayName = `${newNamespace}:${newAction}`;
 
+      // Get current description if not changing it
+      let finalDescription = description;
+      if (!descriptionChanged) {
+        const wpResult = await this.db.query<{ description: string | null }>(
+          `SELECT description FROM workflow_pattern WHERE pattern_id = $1`,
+          [record.workflowPatternId],
+        );
+        finalDescription = wpResult.rows[0]?.description ?? undefined;
+      }
+
       if (this.embeddingModel) {
         try {
-          const embeddingText = buildEmbeddingText(newDisplayName, description);
+          const embeddingText = buildEmbeddingText(newDisplayName, finalDescription);
           const newEmbedding = await this.embeddingModel.encode(embeddingText);
           const embeddingStr = `[${newEmbedding.join(",")}]`;
 
@@ -744,6 +809,19 @@ export class CapModule {
       fqdn: newFqdn,
       displayName: newDisplayName,
     };
+
+    // Emit SSE event for dashboard refresh
+    eventBus.emit({
+      type: "capability.zone.updated",
+      source: "cap-module",
+      payload: {
+        capabilityId: record.id,
+        label: newDisplayName,
+        toolIds: [], // Dashboard will refetch full data
+        successRate: record.successCount / Math.max(record.usageCount, 1),
+        usageCount: record.usageCount,
+      },
+    });
 
     log.info(`[CapModule] cap:rename ${oldDisplayName} -> ${newDisplayName}`);
     return this.successResult(response);
@@ -1201,7 +1279,7 @@ export const pmlTools: MiniTool[] = [
   {
     name: "cap_rename",
     description:
-      "Update a capability's namespace, action, description, tags, or visibility. UUID stays immutable.",
+      "Update a capability's namespace, action, description, tags, or visibility. UUID stays immutable. Validates that namespace/action are clean identifiers.",
     category: "pml",
     inputSchema: {
       type: "object",
@@ -1212,11 +1290,11 @@ export const pmlTools: MiniTool[] = [
         },
         namespace: {
           type: "string",
-          description: "New namespace (e.g., 'fs', 'api', 'data')",
+          description: "New namespace - lowercase letters/numbers only (e.g., 'fs', 'api', 'math')",
         },
         action: {
           type: "string",
-          description: "New action name (e.g., 'read_json', 'fetch_user')",
+          description: "New action - camelCase/snake_case, no 'exec_' prefix (e.g., 'readFile', 'list_users')",
         },
         description: {
           type: "string",
