@@ -259,8 +259,8 @@ development_status:
   13-6-capability-versioning: deferred # Requires cap:update + dry-mode first. Rename/description already in 13.5
   # Phase 4: Stdlib & Registry (~7 days)
   13-7-pml-stdlib-unification: done # lib/std/cap.ts - PmlStdServer + CapModule (cap:list, cap:lookup, cap:rename, cap:whois)
-  13-8-mcp-server-registry: backlog # record_type=mcp-server, cap:lookup("mcp:*")
-  13-9-routing-inheritance: backlog # tools_used tracking, local/cloud inheritance
+  13-8-mcp-server-registry: ready-for-dev # record_type=mcp-server, cap:lookup("mcp:*")
+  13-9-routing-inheritance: ready-for-dev # tools_used tracking, local/cloud inheritance
   epic-13-retrospective: optional
   # NOTE: Fork & Merge (cap:fork, cap:merge) deferred to Epic 14+
 

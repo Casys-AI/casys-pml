@@ -171,11 +171,47 @@ packages/pml/
 {
   "version": "0.1.0",
   "workspace": "/path/to/project",
-  "cloudUrl": "https://pml.casys.ai",
-  "port": 3003,
-  "mcpRegistry": "jsr:@casys/pml-mcp-{name}"
+
+  "cloud": {
+    "url": "https://pml.casys.ai",
+    "apiKey": "${PML_API_KEY}"
+  },
+
+  "server": {
+    "port": 3003
+  },
+
+  "permissions": {
+    "allow": [
+      "json:*",
+      "math:*",
+      "datetime:*",
+      "crypto:*",
+      "collections:*",
+      "validation:*",
+      "format:*",
+      "transform:*",
+      "string:*",
+      "path:*"
+    ],
+    "deny": [],
+    "ask": [
+      "filesystem:*",
+      "github:*",
+      "docker:*",
+      "database:*",
+      "ssh:*",
+      "process:*",
+      "cloud:*"
+    ]
+  }
 }
 ```
+
+**Permission categories:**
+- `allow`: Auto-approved, no prompt (safe tools: pure computation)
+- `deny`: Always refused
+- `ask`: Requires user confirmation (I/O, network, system tools)
 
 ### CLI Implementation Pattern
 
