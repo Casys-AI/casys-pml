@@ -24,8 +24,8 @@ export const handler = {
     const { user } = ctx.state;
     const url = new URL(ctx.req.url);
 
-    // Parse query parameters
-    const timeRangeParam = url.searchParams.get("timeRange") || "24h";
+    // Parse query parameters (use "range" for consistency with other APIs)
+    const timeRangeParam = url.searchParams.get("range") || "24h";
     const timeRange: TimeRange = ["24h", "7d", "30d"].includes(timeRangeParam)
       ? (timeRangeParam as TimeRange)
       : "24h";

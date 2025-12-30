@@ -1,6 +1,6 @@
 # Story 6.6: Admin Analytics Dashboard
 
-Status: in-review
+Status: done
 
 <!-- Note: Cloud-only implementation. Code is excluded from public sync via src/cloud/ and src/web/. -->
 
@@ -90,12 +90,12 @@ As a platform admin, I want a technical analytics dashboard showing user activit
 
 These items were identified during code review and deferred for later:
 
-- [ ] [L1] Update story status from "ready-for-dev" to "done" when complete
-- [ ] [L2] Consistent query param naming: API uses `?timeRange=` but dashboard uses `?range=`
-- [ ] [L3] Import `queryTechnical` in tests/unit/cloud/admin/analytics_test.ts
-- [ ] [L4] Add test for cache TTL expiration (verify cache expires after 2 minutes)
-- [ ] [H4] Add tests for `queryTechnical`, `querySHGATMetrics`, `queryAlgorithmMetrics`, `queryCapabilityRegistryMetrics`
-- [ ] [M1] Remove unused `isCloudMode` variable in analytics.ts:23
+- [x] [L1] Update story status from "ready-for-dev" to "done" when complete
+- [x] [L2] Consistent query param naming: API now uses `?range=` (fixed in analytics.ts)
+- [x] [L3] Import `queryTechnical` in tests/unit/cloud/admin/analytics_test.ts
+- [x] [L4] Add test for cache TTL expiration (verify cache expires after 2 minutes)
+- [x] [H4] Add tests for `queryTechnical` (SHGAT metrics, algorithm metrics, capability registry metrics, empty DB handling)
+- [x] [M1] Remove unused `isCloudMode` variable in analytics.ts:23 (already removed)
 
 ## Dev Notes
 
@@ -219,10 +219,10 @@ N/A - implementation straightforward
    - Keep but validate data quality
 
 **Next Steps for Full Fix**:
-- [ ] Implement size-adjusted entropy thresholds
-- [ ] Add semantic entropy (embedding space diversity)
-- [ ] Persist entropy history to database for trends
-- [ ] Update EmergencePanel UI to show new metrics
+- [x] Implement size-adjusted entropy thresholds (tensor-entropy.ts:315)
+- [x] Add semantic entropy (embedding space diversity) (emergence.ts:566)
+- [x] Persist entropy history to database for trends (entropy_history table + saveEntropySnapshot)
+- [x] Update EmergencePanel UI to show new metrics (Structural/Semantic/Dual + time axis fix)
 
 **References**:
 - [Chen & Rajapakse 2020](https://ieeexplore.ieee.org/document/9119161/) - Tensor Entropy for Hypergraphs
