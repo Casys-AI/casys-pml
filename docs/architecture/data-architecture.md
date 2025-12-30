@@ -167,10 +167,65 @@ workflow.
 
 Index: `idx_workflow_dags_expires`.
 
-### 1.5 Capabilities (Epic 7)
+### 1.5 Capabilities (Epic 7 + Epic 13)
 
-The additional columns in `workflow_pattern` (cf. §1.2) serve as the main storage for capabilities
-(code, parameters, TTL, stats). No additional dedicated table until ADR-038 requires `capabilities`.
+#### `capability_records` (Epic 13)
+
+Registry table for capability metadata. Links to `workflow_pattern` via FK for code/embedding/stats.
+
+| Column                | Type                           | Notes                                        |
+| --------------------- | ------------------------------ | -------------------------------------------- |
+| `id`                  | `UUID PRIMARY KEY`             | Immutable identifier.                        |
+| `org`                 | `TEXT NOT NULL`                | Organization scope (default: "local").       |
+| `project`             | `TEXT NOT NULL`                | Project scope (default: "default").          |
+| `namespace`           | `TEXT NOT NULL`                | Capability namespace (e.g., "fs", "math").   |
+| `action`              | `TEXT NOT NULL`                | Capability action (e.g., "read_json").       |
+| `hash`                | `TEXT NOT NULL`                | 4-char code hash prefix for FQDN.            |
+| `workflow_pattern_id` | `UUID REFERENCES workflow_pattern(pattern_id)` | FK to code/embedding/stats. |
+| `created_by`          | `TEXT DEFAULT 'local'`         | Creator identifier.                          |
+| `created_at`          | `TIMESTAMPTZ DEFAULT NOW()`    | Creation timestamp.                          |
+| `updated_by`          | `TEXT`                         | Last updater.                                |
+| `updated_at`          | `TIMESTAMPTZ`                  | Last update timestamp.                       |
+| `version`             | `INTEGER DEFAULT 1`            | Version number.                              |
+| `version_tag`         | `TEXT`                         | Semantic version tag.                        |
+| `verified`            | `BOOLEAN DEFAULT false`        | Verification status.                         |
+| `signature`           | `TEXT`                         | Cryptographic signature.                     |
+| `usage_count`         | `INTEGER DEFAULT 0`            | Total invocations.                           |
+| `success_count`       | `INTEGER DEFAULT 0`            | Successful invocations.                      |
+| `total_latency_ms`    | `BIGINT DEFAULT 0`             | Cumulative latency.                          |
+| `tags`                | `TEXT[] DEFAULT '{}'`          | User-defined tags.                           |
+| `visibility`          | `TEXT DEFAULT 'private'`       | `private`, `project`, `org`, `public`.       |
+| `routing`             | `TEXT DEFAULT 'local'`         | `local` or `cloud` execution.                |
+
+**FQDN Format:** `{org}.{project}.{namespace}.{action}.{hash}` (e.g., `local.default.fs.read_json.a7f3`)
+
+**Display Name:** `{namespace}:{action}` (e.g., `fs:read_json`)
+
+Indexes: `idx_capability_records_workflow_pattern`, unique constraint on `(org, project, namespace, action, hash)`.
+
+**Important:** Migration 023 removed duplicated columns (`code_snippet`, `description`, `parameters_schema`, `tools_used`) from `capability_records`. These are now accessed via FK join to `workflow_pattern`.
+
+#### `workflow_pattern.dag_structure` JSONB Schema
+
+The `dag_structure` JSONB field contains:
+
+```json
+{
+  "type": "code_execution",
+  "tools_used": ["filesystem:fast_read_file", "std:cap_list"],
+  "intent_text": "Read deno.json and list all task names",
+  "tool_invocations": []
+}
+```
+
+| Field              | Type       | Description                                      |
+| ------------------ | ---------- | ------------------------------------------------ |
+| `type`             | `string`   | Execution type (`code_execution`, `dag`, etc.).  |
+| `tools_used`       | `string[]` | MCP tools invoked by this capability.            |
+| `intent_text`      | `string`   | Original user intent.                            |
+| `tool_invocations` | `array`    | Detailed invocation records (optional).          |
+
+**Note:** `tools_used` is extracted from `dag_structure->'tools_used'` for operations like `cap:merge`.
 
 ### 1.6 Telemetry & Operational Logging
 
