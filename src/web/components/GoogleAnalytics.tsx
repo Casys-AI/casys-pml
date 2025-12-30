@@ -10,7 +10,13 @@ const GA_MEASUREMENT_ID = "G-FR86NHGK8Y";
 export function GoogleAnalytics() {
   return (
     <Head>
-      <script async src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`} />
+      {/* External gtag.js script - async loading */}
+      <script
+        async={true}
+        src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+      >
+      </script>
+      {/* GA4 initialization */}
       <script
         dangerouslySetInnerHTML={{
           __html: `
