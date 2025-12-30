@@ -536,6 +536,51 @@ External clients see only standard MCP protocol - no distinction visible.
 
 ---
 
+## Related Improvements (Post Story 13.8)
+
+### Use `pml_registry` VIEW for Unified Tool/Capability Lookup
+
+**Context:** When SWC parses `mcp.namespace.action()`, we need to determine if it's:
+- A real MCP tool (in `tool_schema`)
+- Or a learned capability (in `capability_records`)
+
+**Current State:** Code in `capability-store.ts:422-438` queries only `capability_records`:
+
+```typescript
+const capResult = await this.db.query(
+  `SELECT wp.pattern_id, cr.hierarchy_level
+   FROM workflow_pattern wp
+   INNER JOIN capability_records cr ON cr.workflow_pattern_id = wp.pattern_id
+   WHERE (cr.namespace = $1 AND cr.action = $2)
+      OR (cr.namespace || ':' || cr.action) = $3`,
+  [namespace, action, toolId],
+);
+```
+
+**Proposed Improvement:** Use `pml_registry` VIEW (Story 13.8) for unified lookup:
+
+```sql
+SELECT record_type, id, name, routing
+FROM pml_registry
+WHERE name = $1 OR id = $1
+LIMIT 1
+```
+
+The `record_type` field (`'mcp-tool'` | `'capability'`) directly tells us the type.
+
+**Files to update:**
+- `src/capabilities/capability-store.ts:422-438` - dependency tracking
+- `src/capabilities/code-transformer.ts:101-102` - capability resolution
+- `src/capabilities/schema-inferrer.ts:427-429` - schema lookup
+
+**Benefits:**
+- Single query instead of separate table checks
+- Consistent behavior for MCP tools and capabilities
+- `routing` field available for local/cloud decisions
+- Cleaner code, less fallback logic
+
+---
+
 ## Open Questions (Resolved)
 
 1. **Registry Strategy**: ✅ Resolved - Unified `pml.casys.ai/mcp/{fqdn}` endpoint (not JSR)

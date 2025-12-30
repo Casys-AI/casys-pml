@@ -187,7 +187,7 @@ development_status:
   9-5-rate-limiting-data-isolation: done # Code Review APPROVED 2025-12-10, 21 tests passing, Score: 98/100, Full userId propagation complete
   9-6-mcp-config-secrets-management: backlog # ADR-040 - DEFERRED: Requires workspace refacto (open-core + SaaS repos) first
   9-7-shgat-prediction-visibility-filtering: backlog # SHGAT predictions filtered by capability visibility (public/org/project/private)
-  9-8-per-user-dashboard-metrics: drafted # Dashboard metrics filtered by user's actual tool usage (emergence, graph stats)
+  9-8-per-user-dashboard-metrics: ready-for-dev # Dashboard metrics filtered by user's actual tool usage (emergence, graph stats)
   epic-9-retrospective: optional
 
   # Epic 10: DAG Capability Learning & Unified APIs
@@ -260,7 +260,7 @@ development_status:
   13-6-capability-versioning: deferred # Requires cap:update + dry-mode first. Rename/description already in 13.5
   # Phase 4: Stdlib & Registry (~7 days)
   13-7-pml-stdlib-unification: done # lib/std/cap.ts - PmlStdServer + CapModule (cap:list, cap:lookup, cap:rename, cap:whois)
-  13-8-mcp-server-registry: ready-for-dev # record_type=mcp-server, cap:lookup("mcp:*")
+  13-8-unified-pml-registry-view: done # VIEW pml_registry, record_type in pml:discover, migration 031
   13-9-routing-inheritance: ready-for-dev # tools_used tracking, local/cloud inheritance
   epic-13-retrospective: optional
   # NOTE: Fork & Merge (cap:fork, cap:merge) deferred to Epic 14+
