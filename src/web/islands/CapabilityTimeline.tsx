@@ -731,6 +731,7 @@ export default function CapabilityTimeline({
                 fqdn={cap.fqdn}
                 pagerank={cap.pagerank}
                 communityId={cap.communityId}
+                codeSnippet={cap.codeSnippet}
               />
             );
           })}
