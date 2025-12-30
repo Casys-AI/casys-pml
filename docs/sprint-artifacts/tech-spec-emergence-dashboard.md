@@ -382,14 +382,18 @@ src/web/
 - [x] **[CR-3]** ~~AC10 auto-dismiss 10s not implemented~~ → useEffect with setTimeout in PhaseTransitionBanner `EmergencePanel.tsx:141-147`
 - [x] **[CR-4]** ~~Trends hardcoded to "stable"~~ → All 5 trends computed from history `emergence.ts:337-345`
 
-### 🟡 MEDIUM (partially fixed)
-- [ ] **[CR-5]** TrendIndicator, PhaseTransitionBanner, RecommendationsPanel not extracted as atoms/molecules
-- [x] **[CR-6]** ~~Missing gauge visualization~~ → GaugeChart component added `EmergencePanel.tsx:78-129, 544-551`
+### 🟡 MEDIUM (fixed)
+- [x] **[CR-5]** ~~Components not extracted~~ → Extracted to atoms/molecules:
+  - `src/web/components/ui/atoms/TrendIndicator.tsx`
+  - `src/web/components/ui/atoms/GaugeChart.tsx`
+  - `src/web/components/ui/molecules/PhaseTransitionBanner.tsx`
+  - `src/web/components/ui/molecules/RecommendationsPanel.tsx`
+- [x] **[CR-6]** ~~Missing gauge visualization~~ → GaugeChart component added
 - [x] **[CR-7]** ~~parallelizationRate hardcoded~~ → Documented with TODO `emergence.ts:307-310`
 - [x] **[CR-8]** ~~Types duplicated~~ → Shared types created `src/shared/emergence.types.ts`
 
-### 🟢 LOW (documentation)
-- [ ] **[CR-9]** No unit tests created per Testing Strategy
+### 🟢 LOW (fixed)
+- [x] **[CR-9]** ~~No unit tests~~ → Created `tests/unit/mcp/routing/emergence.test.ts`
 - [x] **[CR-10]** ~~Tech-spec file paths outdated~~ → Updated in Implementation Notes below
 
 ### Implementation Notes
@@ -398,9 +402,10 @@ src/web/
 - Route registration: `src/mcp/routing/router.ts`
 - Frontend panel: `src/web/islands/EmergencePanel.tsx`
 - Shared types: `src/shared/emergence.types.ts`
+- UI atoms: `src/web/components/ui/atoms/{TrendIndicator,GaugeChart}.tsx`
+- UI molecules: `src/web/components/ui/molecules/{PhaseTransitionBanner,RecommendationsPanel}.tsx`
+- Unit tests: `tests/unit/mcp/routing/emergence.test.ts`
 - ViewMode update: `src/web/islands/CytoscapeGraph.tsx`, `ExplorerSidebar.tsx`, `GraphLegendPanel.tsx`
 - GraphExplorer integration: `src/web/islands/GraphExplorer.tsx`
 
-**Remaining work:**
-- CR-5: Extract TrendIndicator, PhaseTransitionBanner, RecommendationsPanel to atoms/molecules
-- CR-9: Write unit tests for computeGraphEntropy, computeJaccardStability, computeTrend, detectPhaseTransition, generateRecommendations
+**All code review issues resolved ✅**
