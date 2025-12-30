@@ -540,8 +540,8 @@ export default function MetricsPanel({ apiBase: apiBaseProp }: MetricsPanelProps
   if (viewMode === "dashboard") {
     return (
       <div
-        class="fixed inset-0 z-50 overflow-auto"
-        style={{ background: "var(--bg)", backdropFilter: "blur(8px)" }}
+        class="fixed inset-0 overflow-auto"
+        style={{ background: "var(--bg)", backdropFilter: "blur(8px)", zIndex: 110 }}
       >
         <div class="p-6 max-w-7xl mx-auto">
           {/* Header */}

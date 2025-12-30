@@ -99,44 +99,30 @@ export interface CapabilityCardProps {
   description?: string;
 }
 
-// Format relative time (short)
-function formatRelativeTime(iso: string | undefined): string {
+// Format full date + time for last used display
+// compact: always show date (no "Aujourd'hui"/"Hier")
+function formatFullDateTime(iso: string | undefined, compact = false): string {
   if (!iso) return "—";
   const date = new Date(iso);
   const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffMins < 1) return "now";
-  if (diffMins < 60) return `${diffMins}m`;
-  if (diffHours < 24) return `${diffHours}h`;
-  if (diffDays < 7) return `${diffDays}d`;
-  return date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
-}
-
-// Format full date + time (for extended mode)
-function formatFullDateTime(iso: string | undefined): string {
-  if (!iso) return "—";
-  const date = new Date(iso);
-  const now = new Date();
-  const isToday = date.toDateString() === now.toDateString();
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const isYesterday = date.toDateString() === yesterday.toDateString();
-
   const timeStr = date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 
-  if (isToday) return `Aujourd'hui à ${timeStr}`;
-  if (isYesterday) return `Hier à ${timeStr}`;
+  if (!compact) {
+    const isToday = date.toDateString() === now.toDateString();
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const isYesterday = date.toDateString() === yesterday.toDateString();
+
+    if (isToday) return `Aujourd'hui ${timeStr}`;
+    if (isYesterday) return `Hier ${timeStr}`;
+  }
 
   const dateStr = date.toLocaleDateString("fr-FR", {
-    day: "numeric",
-    month: "short",
-    year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
+    day: "2-digit",
+    month: "2-digit",
+    year: date.getFullYear() !== now.getFullYear() ? "2-digit" : undefined,
   });
-  return `${dateStr} à ${timeStr}`;
+  return `${dateStr} ${timeStr}`;
 }
 
 // Success rate color
@@ -384,9 +370,9 @@ function CompactRow({
           {usageCount}×
         </span>
 
-        {/* Age */}
-        <span class="w-10 text-right tabular-nums shrink-0" style={{ color: "var(--text-dim)" }}>
-          {formatRelativeTime(lastUsed)}
+        {/* Last used date/time (compact: no "Aujourd'hui") */}
+        <span class="w-28 text-right tabular-nums shrink-0 truncate" style={{ color: "var(--text-dim)" }} title={lastUsed}>
+          {formatFullDateTime(lastUsed, true)}
         </span>
       </div>
     </>
@@ -435,6 +421,7 @@ function NormalCard({
   isSelected,
   isNew,
   onClick,
+  description,
 }: CapabilityCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const hasChildren = children.length > 0;
@@ -492,6 +479,17 @@ function NormalCard({
             {health.label}
           </span>
         </div>
+
+        {/* Description / Intent */}
+        {description && (
+          <p
+            class="text-xs mb-3 line-clamp-2"
+            style={{ color: "var(--text-dim, #6a6560)" }}
+            title={description}
+          >
+            {description}
+          </p>
+        )}
 
         {/* Flow with tool names: [toolA, toolB] → [child: toolC→toolD] → [toolE] */}
         {(layers.length > 0 || hasChildren) && (
@@ -579,14 +577,14 @@ function NormalCard({
           </div>
         )}
 
-        {/* Footer: usage count + age (minimal metrics) */}
+        {/* Footer: usage count + last used date */}
         <div
           class="flex items-center gap-2 text-[10px]"
           style={{ color: "var(--text-dim, #6a6560)" }}
         >
           <span>{usageCount} runs</span>
           <span>•</span>
-          <span>{formatRelativeTime(lastUsed)}</span>
+          <span title={lastUsed}>{formatFullDateTime(lastUsed)}</span>
         </div>
       </div>
     </div>

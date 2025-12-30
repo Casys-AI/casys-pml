@@ -218,7 +218,7 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
         refreshTimeout = setTimeout(() => {
           console.log("[SSE] Capability event received, refreshing graph...");
           setGraphRefreshKey((prev) => prev + 1);
-        }, 500) as unknown as number;
+        }, 150) as unknown as number; // Reduced from 500ms for snappier UX
       };
 
       eventSource.addEventListener("capability.zone.created", handleCapabilityEvent);

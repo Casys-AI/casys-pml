@@ -18,3 +18,6 @@ export { default as NodeDetailsPanel } from "./NodeDetailsPanel.tsx";
 // Emergence molecules (CAS metrics)
 export { PhaseTransitionBanner } from "./PhaseTransitionBanner.tsx";
 export { RecommendationsPanel } from "./RecommendationsPanel.tsx";
+
+// Story 9.8: Scope filtering
+export { default as ScopeToggle, type Scope } from "./ScopeToggle.tsx";

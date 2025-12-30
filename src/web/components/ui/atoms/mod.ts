@@ -17,6 +17,7 @@ export { SectionCard } from "./SectionCard.tsx";
 // Emergence atoms (CAS metrics)
 export { TrendIndicator } from "./TrendIndicator.tsx";
 export { GaugeChart } from "./GaugeChart.tsx";
+export { LegendItem } from "./LegendItem.tsx";
 
 // Trace atoms
 export { default as TaskCard } from "./TaskCard.tsx";
