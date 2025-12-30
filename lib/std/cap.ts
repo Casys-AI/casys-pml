@@ -162,6 +162,8 @@ export interface CapLookupResponse {
   action: string;
   /** Description from workflow_pattern */
   description: string | null;
+  /** Tools used by this capability (from dag_structure) */
+  toolsUsed: string[] | null;
   /** Total usage count */
   usageCount: number;
   /** Success rate (0-1) */
@@ -230,6 +232,8 @@ export interface CapWhoisResponse {
   description?: string | null;
   /** Input parameters schema (JSON Schema) */
   parametersSchema?: Record<string, unknown> | null;
+  /** Tools used by this capability (from dag_structure) */
+  toolsUsed?: string[] | null;
 }
 
 /**
@@ -738,18 +742,22 @@ export class CapModule {
       return this.errorResult(`Capability not found: ${name}`);
     }
 
-    // Get description from workflow_pattern
-    interface DescRow {
+    // Get description and tools_used from workflow_pattern
+    interface PatternRow {
       description: string | null;
+      tools_used: string[] | null;
     }
     let description: string | null = null;
+    let toolsUsed: string[] | null = null;
     if (record.workflowPatternId) {
-      const descRows = (await this.db.query(
-        `SELECT description FROM workflow_pattern WHERE pattern_id = $1`,
+      const patternRows = (await this.db.query(
+        `SELECT description, dag_structure->'tools_used' as tools_used
+         FROM workflow_pattern WHERE pattern_id = $1`,
         [record.workflowPatternId],
-      )) as unknown as DescRow[];
-      if (descRows.length > 0) {
-        description = descRows[0].description;
+      )) as unknown as PatternRow[];
+      if (patternRows.length > 0) {
+        description = patternRows[0].description;
+        toolsUsed = patternRows[0].tools_used;
       }
     }
 
@@ -760,6 +768,7 @@ export class CapModule {
       namespace: record.namespace,
       action: record.action,
       description,
+      toolsUsed,
       usageCount: record.usageCount,
       successRate: record.usageCount > 0 ? record.successCount / record.usageCount : 0,
     };
@@ -804,21 +813,25 @@ export class CapModule {
       return this.errorResult(`Capability not found: ${id}`);
     }
 
-    // Get description and parameters_schema from workflow_pattern
+    // Get description, parameters_schema, and tools_used from workflow_pattern
     interface PatternRow {
       description: string | null;
       parameters_schema: Record<string, unknown> | null;
+      tools_used: string[] | null;
     }
     let description: string | null = null;
     let parametersSchema: Record<string, unknown> | null = null;
+    let toolsUsed: string[] | null = null;
     if (record.workflowPatternId) {
       const patternRows = (await this.db.query(
-        `SELECT description, parameters_schema FROM workflow_pattern WHERE pattern_id = $1`,
+        `SELECT description, parameters_schema, dag_structure->'tools_used' as tools_used
+         FROM workflow_pattern WHERE pattern_id = $1`,
         [record.workflowPatternId],
       )) as unknown as PatternRow[];
       if (patternRows.length > 0) {
         description = patternRows[0].description;
         parametersSchema = patternRows[0].parameters_schema;
+        toolsUsed = patternRows[0].tools_used;
       }
     }
 
@@ -848,6 +861,7 @@ export class CapModule {
       routing: record.routing,
       description,
       parametersSchema,
+      toolsUsed,
     };
 
     log.info(`[CapModule] cap:whois ${id} -> ${record.id}`);
