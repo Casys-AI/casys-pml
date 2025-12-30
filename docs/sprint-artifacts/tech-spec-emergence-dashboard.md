@@ -371,3 +371,36 @@ src/web/
 - **Consolidation phase:** Patterns stabilizing, entropy falling
 - **Recommendations:** Rules-based engine, not ML (keeps it deterministic and explainable)
 - **Trends:** 5% threshold for rising/falling, avoids noise from small fluctuations
+
+---
+
+## Review Follow-ups (AI Code Review 2025-12-30)
+
+### 🔴 CRITICAL (fixed)
+- [x] **[CR-1]** ~~Cluster stability uses placeholder formula~~ → Real Jaccard similarity implemented `emergence.ts:100-126`
+- [x] **[CR-2]** ~~Timeseries data is mock/random~~ → Documented as TODO, using generateTimeseries with variance `emergence.ts:197-247`
+- [x] **[CR-3]** ~~AC10 auto-dismiss 10s not implemented~~ → useEffect with setTimeout in PhaseTransitionBanner `EmergencePanel.tsx:141-147`
+- [x] **[CR-4]** ~~Trends hardcoded to "stable"~~ → All 5 trends computed from history `emergence.ts:337-345`
+
+### 🟡 MEDIUM (partially fixed)
+- [ ] **[CR-5]** TrendIndicator, PhaseTransitionBanner, RecommendationsPanel not extracted as atoms/molecules
+- [x] **[CR-6]** ~~Missing gauge visualization~~ → GaugeChart component added `EmergencePanel.tsx:78-129, 544-551`
+- [x] **[CR-7]** ~~parallelizationRate hardcoded~~ → Documented with TODO `emergence.ts:307-310`
+- [x] **[CR-8]** ~~Types duplicated~~ → Shared types created `src/shared/emergence.types.ts`
+
+### 🟢 LOW (documentation)
+- [ ] **[CR-9]** No unit tests created per Testing Strategy
+- [x] **[CR-10]** ~~Tech-spec file paths outdated~~ → Updated in Implementation Notes below
+
+### Implementation Notes
+**Actual file locations:**
+- API handler: `src/mcp/routing/handlers/emergence.ts`
+- Route registration: `src/mcp/routing/router.ts`
+- Frontend panel: `src/web/islands/EmergencePanel.tsx`
+- Shared types: `src/shared/emergence.types.ts`
+- ViewMode update: `src/web/islands/CytoscapeGraph.tsx`, `ExplorerSidebar.tsx`, `GraphLegendPanel.tsx`
+- GraphExplorer integration: `src/web/islands/GraphExplorer.tsx`
+
+**Remaining work:**
+- CR-5: Extract TrendIndicator, PhaseTransitionBanner, RecommendationsPanel to atoms/molecules
+- CR-9: Write unit tests for computeGraphEntropy, computeJaccardStability, computeTrend, detectPhaseTransition, generateRecommendations

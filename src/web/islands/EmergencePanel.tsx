@@ -9,55 +9,24 @@
 
 import { useEffect, useRef, useState } from "preact/hooks";
 import { MetricCard, ProgressBar, SectionCard } from "../components/ui/atoms/mod.ts";
+import type {
+  EmergenceMetricsResponse,
+  EmergenceTimeRange,
+  PhaseTransition,
+  Recommendation,
+  Trend,
+} from "../../shared/emergence.types.ts";
 
 interface EmergencePanelProps {
   apiBase: string;
 }
 
-type TimeRange = "1h" | "24h" | "7d" | "30d";
-type Trend = "rising" | "falling" | "stable";
-
-interface PhaseTransition {
-  detected: boolean;
-  type: "expansion" | "consolidation" | "none";
-  confidence: number;
-  description: string;
-}
-
-interface Recommendation {
-  type: "warning" | "info" | "success";
-  metric: string;
-  message: string;
-  action?: string;
-}
-
-interface EmergenceMetrics {
-  current: {
-    graphEntropy: number;
-    clusterStability: number;
-    capabilityDiversity: number;
-    learningVelocity: number;
-    speculationAccuracy: number;
-    thresholdConvergence: number;
-    capabilityCount: number;
-    parallelizationRate: number;
-  };
-  trends: Record<string, Trend>;
-  phaseTransition: PhaseTransition;
-  recommendations: Recommendation[];
-  timeseries: {
-    entropy: Array<{ timestamp: string; value: number }>;
-    stability: Array<{ timestamp: string; value: number }>;
-    velocity: Array<{ timestamp: string; value: number }>;
-  };
-  thresholds: {
-    entropyHealthy: [number, number];
-    stabilityHealthy: number;
-    diversityHealthy: number;
-  };
-}
+// Use shared types - alias for backward compatibility
+type TimeRange = EmergenceTimeRange;
+type EmergenceMetrics = EmergenceMetricsResponse;
 
 // Trend indicator component
+// CR-5: Could be extracted to atoms/TrendIndicator.tsx for reuse
 function TrendIndicator({ trend, size = "sm" }: { trend: Trend; size?: "sm" | "md" }) {
   const sizeClass = size === "sm" ? "text-xs" : "text-sm";
   const colors = {
@@ -74,7 +43,61 @@ function TrendIndicator({ trend, size = "sm" }: { trend: Trend; size?: "sm" | "m
   );
 }
 
+// CR-6: Gauge component for speculation accuracy visualization
+function GaugeChart({ value, label, color }: { value: number; label: string; color: string }) {
+  const percentage = Math.round(value * 100);
+  const rotation = (value * 180) - 90; // -90 to 90 degrees
+
+  return (
+    <div class="flex flex-col items-center">
+      <div class="relative w-24 h-12 overflow-hidden">
+        {/* Background arc */}
+        <div
+          class="absolute w-24 h-24 rounded-full"
+          style={{
+            background: `conic-gradient(
+              ${color} 0deg,
+              ${color} ${value * 180}deg,
+              var(--bg-surface, #1a1816) ${value * 180}deg,
+              var(--bg-surface, #1a1816) 180deg,
+              transparent 180deg
+            )`,
+            transform: "rotate(-90deg)",
+            clipPath: "inset(0 0 50% 0)",
+          }}
+        />
+        {/* Center cutout */}
+        <div
+          class="absolute top-2 left-2 w-20 h-20 rounded-full"
+          style={{ background: "var(--bg-elevated, #12110f)" }}
+        />
+        {/* Needle */}
+        <div
+          class="absolute bottom-0 left-1/2 w-0.5 h-10 origin-bottom"
+          style={{
+            background: "var(--text, #f5f0e8)",
+            transform: `translateX(-50%) rotate(${rotation}deg)`,
+            transition: "transform 0.5s ease-out",
+          }}
+        />
+        {/* Center dot */}
+        <div
+          class="absolute bottom-0 left-1/2 w-2 h-2 rounded-full -translate-x-1/2 translate-y-1/2"
+          style={{ background: "var(--text, #f5f0e8)" }}
+        />
+      </div>
+      <div class="text-lg font-bold mt-1" style={{ color }}>
+        {percentage}%
+      </div>
+      <div class="text-xs" style={{ color: "var(--text-muted)" }}>
+        {label}
+      </div>
+    </div>
+  );
+}
+
 // Phase transition banner
+// CR-3: Auto-dismiss after 10 seconds per AC10
 function PhaseTransitionBanner({
   transition,
   onDismiss,
@@ -82,6 +105,15 @@ function PhaseTransitionBanner({
   transition: PhaseTransition;
   onDismiss: () => void;
 }) {
+  // CR-3: Auto-dismiss after 10 seconds
+  useEffect(() => {
+    if (!transition.detected) return;
+    const timer = setTimeout(() => {
+      onDismiss();
+    }, 10000); // 10 seconds
+    return () => clearTimeout(timer);
+  }, [transition.detected, onDismiss]);
+
   if (!transition.detected) return null;
 
   const bgColor = transition.type === "expansion"
@@ -470,32 +502,43 @@ export default function EmergencePanel({ apiBase: apiBaseProp }: EmergencePanelP
         </div>
       </div>
 
-      {/* Secondary metrics */}
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <MetricCard
-          label="Capabilities"
-          value={current.capabilityCount}
-          color="var(--accent)"
-          compact
-        />
-        <MetricCard
-          label="Speculation"
-          value={`${(current.speculationAccuracy * 100).toFixed(0)}%`}
-          color={current.speculationAccuracy > 0.7 ? "var(--success)" : "var(--text-muted)"}
-          compact
-        />
-        <MetricCard
-          label="Threshold α"
-          value={current.thresholdConvergence.toFixed(2)}
-          color="var(--accent)"
-          compact
-        />
-        <MetricCard
-          label="Parallel Rate"
-          value={`${(current.parallelizationRate * 100).toFixed(0)}%`}
-          color="var(--info)"
-          compact
-        />
+      {/* Secondary metrics with Speculation Gauge (CR-6) */}
+      <div class="flex flex-wrap gap-3 mb-4 items-center">
+        {/* Gauge for speculation accuracy */}
+        <div
+          class="p-3 rounded-lg flex-shrink-0 relative"
+          style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}
+        >
+          <GaugeChart
+            value={current.speculationAccuracy}
+            label="Speculation Accuracy"
+            color={current.speculationAccuracy > 0.8 ? "#4ade80" : current.speculationAccuracy > 0.5 ? "#fbbf24" : "#f87171"}
+          />
+          <div class="absolute top-1 right-1">
+            <TrendIndicator trend={trends.speculationAccuracy || "stable"} />
+          </div>
+        </div>
+        {/* Other secondary metrics */}
+        <div class="grid grid-cols-3 gap-3 flex-1">
+          <MetricCard
+            label="Capabilities"
+            value={current.capabilityCount}
+            color="var(--accent)"
+            compact
+          />
+          <MetricCard
+            label="Threshold α"
+            value={current.thresholdConvergence.toFixed(2)}
+            color="var(--accent)"
+            compact
+          />
+          <MetricCard
+            label="Parallel Rate"
+            value={`${(current.parallelizationRate * 100).toFixed(0)}%`}
+            color="var(--info)"
+            compact
+          />
+        </div>
       </div>
 
       {/* Charts */}

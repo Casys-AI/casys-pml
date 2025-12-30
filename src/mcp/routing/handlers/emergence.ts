@@ -10,75 +10,72 @@
 import * as log from "@std/log";
 import type { RouteContext } from "../types.ts";
 import { errorResponse, jsonResponse } from "../types.ts";
+import type {
+  EmergenceCurrentMetrics,
+  EmergenceMetricsResponse,
+  EmergenceTimeRange,
+  PhaseTransition,
+  Recommendation,
+  Trend,
+} from "../../../shared/emergence.types.ts";
 
-/**
- * Time range for emergence metrics
- */
-export type EmergenceTimeRange = "1h" | "24h" | "7d" | "30d";
+// Re-export types for consumers of this module
+export type {
+  EmergenceMetricsResponse,
+  EmergenceTimeRange,
+  PhaseTransition,
+  Recommendation,
+  Trend,
+} from "../../../shared/emergence.types.ts";
 
-/**
- * Trend direction for metrics
- */
-export type Trend = "rising" | "falling" | "stable";
-
-/**
- * Phase transition type per SYMBIOSIS/ODI
- */
-export interface PhaseTransition {
-  detected: boolean;
-  type: "expansion" | "consolidation" | "none";
-  confidence: number;
-  description: string;
+// History for phase transition detection and trend computation (in-memory, resets on restart)
+// CR-2: TODO - Persist to database for real historical data across restarts
+interface EmergenceSnapshot {
+  timestamp: number;
+  entropy: number;
+  stability: number;
+  diversity: number;
+  velocity: number;
+  accuracy: number;
 }
-
-/**
- * Recommendation from emergence analysis
- */
-export interface Recommendation {
-  type: "warning" | "info" | "success";
-  metric: string;
-  message: string;
-  action?: string;
-}
-
-/**
- * Emergence metrics response (SYMBIOSIS-aligned)
- */
-export interface EmergenceMetricsResponse {
-  current: {
-    graphEntropy: number;
-    clusterStability: number;
-    capabilityDiversity: number;
-    learningVelocity: number;
-    speculationAccuracy: number;
-    thresholdConvergence: number;
-    capabilityCount: number;
-    parallelizationRate: number;
-  };
-  trends: {
-    graphEntropy: Trend;
-    clusterStability: Trend;
-    capabilityDiversity: Trend;
-    learningVelocity: Trend;
-    speculationAccuracy: Trend;
-  };
-  phaseTransition: PhaseTransition;
-  recommendations: Recommendation[];
-  timeseries: {
-    entropy: Array<{ timestamp: string; value: number }>;
-    stability: Array<{ timestamp: string; value: number }>;
-    velocity: Array<{ timestamp: string; value: number }>;
-  };
-  thresholds: {
-    entropyHealthy: [number, number];
-    stabilityHealthy: number;
-    diversityHealthy: number;
-  };
-}
-
-// History for phase transition detection (in-memory, resets on restart)
-const emergenceHistory: Array<{ timestamp: number; entropy: number; stability: number }> = [];
+const emergenceHistory: EmergenceSnapshot[] = [];
 const MAX_HISTORY_SIZE = 20;
+
+// Previous community assignments for Jaccard stability calculation
+let previousCommunities: Map<string, number> = new Map();
+
+/**
+ * Compute Jaccard similarity between two community assignments
+ * Used for cluster stability: how consistent are community groupings over time?
+ * CR-1: Real Jaccard implementation replacing placeholder formula
+ */
+function computeJaccardStability(
+  currentCommunities: Map<string, number>,
+  prevCommunities: Map<string, number>,
+): number {
+  if (prevCommunities.size === 0) return 1.0; // First run, assume stable
+
+  // Count pairs that are in same community in both assignments
+  const nodes = Array.from(currentCommunities.keys());
+  let sameInBoth = 0;
+  let sameInEither = 0;
+
+  for (let i = 0; i < nodes.length; i++) {
+    for (let j = i + 1; j < nodes.length; j++) {
+      const nodeA = nodes[i];
+      const nodeB = nodes[j];
+
+      const currSame = currentCommunities.get(nodeA) === currentCommunities.get(nodeB);
+      const prevSame = prevCommunities.get(nodeA) === prevCommunities.get(nodeB);
+
+      if (currSame && prevSame) sameInBoth++;
+      if (currSame || prevSame) sameInEither++;
+    }
+  }
+
+  // Jaccard index: intersection / union
+  return sameInEither > 0 ? sameInBoth / sameInEither : 1.0;
+}
 
 /**
  * Compute Shannon entropy of edge weight distribution
@@ -144,7 +141,7 @@ function detectPhaseTransition(
  * Generate recommendations based on metrics
  */
 function generateRecommendations(
-  metrics: EmergenceMetricsResponse["current"],
+  metrics: EmergenceCurrentMetrics,
 ): Recommendation[] {
   const recs: Recommendation[] = [];
 
@@ -287,9 +284,20 @@ export async function handleEmergenceMetrics(
 
     // Compute emergence metrics
     const graphEntropy = computeGraphEntropy(edgeWeights);
-    const clusterStability = baseMetrics.current?.communitiesCount
-      ? Math.min(1, 0.5 + baseMetrics.current.communitiesCount * 0.05)
-      : 0.75; // Placeholder
+
+    // CR-1: Real cluster stability using Jaccard similarity
+    // Build current community assignments from snapshot
+    const currentCommunities = new Map<string, number>();
+    if (snapshot.nodes && Array.isArray(snapshot.nodes)) {
+      for (const node of snapshot.nodes) {
+        if (node.id && typeof node.community === "number") {
+          currentCommunities.set(node.id, node.community);
+        }
+      }
+    }
+    const clusterStability = computeJaccardStability(currentCommunities, previousCommunities);
+    // Update previous for next call
+    previousCommunities = currentCommunities;
 
     const capabilityCount = baseMetrics.current?.capabilitiesCount || 0;
     const nodeCount = baseMetrics.current?.nodeCount || 1;
@@ -298,7 +306,10 @@ export async function handleEmergenceMetrics(
     const learningVelocity = baseMetrics.period?.newEdgesCreated || 0;
     const speculationAccuracy = baseMetrics.algorithm?.acceptanceRate || 0;
     const thresholdConvergence = baseMetrics.current?.adaptiveAlpha || 0.5;
-    const parallelizationRate = 0.3; // Placeholder - would need workflow execution data
+    // CR-7: TODO - Compute from workflow_executions table when available
+    const parallelizationRate = baseMetrics.period?.parallelWorkflows
+      ? baseMetrics.period.parallelWorkflows / (baseMetrics.period.totalWorkflows || 1)
+      : 0.3;
 
     const currentMetrics = {
       graphEntropy,
@@ -311,27 +322,28 @@ export async function handleEmergenceMetrics(
       parallelizationRate,
     };
 
-    // Update history for phase transition detection
+    // Update history for phase transition detection and trend computation
+    // CR-4: Store all metrics for comprehensive trend analysis
     emergenceHistory.push({
       timestamp: Date.now(),
       entropy: graphEntropy,
       stability: clusterStability,
+      diversity: capabilityDiversity,
+      velocity: learningVelocity,
+      accuracy: speculationAccuracy,
     });
     if (emergenceHistory.length > MAX_HISTORY_SIZE) {
       emergenceHistory.shift();
     }
 
-    // Get previous values for trend computation
+    // CR-4: Compute trends for ALL 5 main metrics (not just 2)
     const prevEntry = emergenceHistory[emergenceHistory.length - 2];
-    const prevEntropy = prevEntry?.entropy ?? graphEntropy;
-    const prevStability = prevEntry?.stability ?? clusterStability;
-
     const trends = {
-      graphEntropy: computeTrend(graphEntropy, prevEntropy),
-      clusterStability: computeTrend(clusterStability, prevStability),
-      capabilityDiversity: "stable" as Trend,
-      learningVelocity: "stable" as Trend,
-      speculationAccuracy: "stable" as Trend,
+      graphEntropy: computeTrend(graphEntropy, prevEntry?.entropy ?? graphEntropy),
+      clusterStability: computeTrend(clusterStability, prevEntry?.stability ?? clusterStability),
+      capabilityDiversity: computeTrend(capabilityDiversity, prevEntry?.diversity ?? capabilityDiversity),
+      learningVelocity: computeTrend(learningVelocity, prevEntry?.velocity ?? learningVelocity),
+      speculationAccuracy: computeTrend(speculationAccuracy, prevEntry?.accuracy ?? speculationAccuracy),
     };
 
     const phaseTransition = detectPhaseTransition(emergenceHistory);
