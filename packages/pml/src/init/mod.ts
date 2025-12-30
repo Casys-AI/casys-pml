@@ -2,6 +2,7 @@
  * Init Module
  *
  * Handles project initialization and config file generation.
+ * Uses workspace resolution to detect project root.
  *
  * @module init
  */
@@ -9,7 +10,16 @@
 import { exists } from "@std/fs";
 import { join } from "@std/path";
 import * as colors from "@std/fmt/colors";
-import type { InitOptions, InitResult, McpConfig, PmlConfig } from "../types.ts";
+import type {
+  InitOptions,
+  InitResult,
+  McpConfig,
+  PmlConfig,
+} from "../types.ts";
+import {
+  getWorkspaceSourceDescription,
+  resolveWorkspaceWithDetails,
+} from "../workspace.ts";
 
 const VERSION = "0.1.0";
 const MCP_CONFIG_FILE = ".mcp.json";
@@ -26,15 +36,42 @@ const DEFAULT_ENV_VARS: Record<string, string> = {
 };
 
 /**
- * Initialize PML in the current directory
+ * Silent logger for init (we display our own messages)
+ */
+const silentLogger = {
+  info: () => {},
+  warn: () => {},
+};
+
+/**
+ * Initialize PML in the detected workspace
  *
  * Creates .mcp.json and .pml.json configuration files.
  * Backs up existing .mcp.json if present.
+ *
+ * Uses workspace resolution:
+ * 1. PML_WORKSPACE env var
+ * 2. Project root detection (markers)
+ * 3. Current directory fallback
  */
-export async function initProject(options: InitOptions = {}): Promise<InitResult> {
-  const cwd = Deno.cwd();
-  const mcpConfigPath = join(cwd, MCP_CONFIG_FILE);
-  const pmlConfigPath = join(cwd, PML_CONFIG_FILE);
+export async function initProject(
+  options: InitOptions = {},
+): Promise<InitResult> {
+  // Resolve workspace using priority system
+  const workspaceResult = resolveWorkspaceWithDetails(silentLogger);
+  const workspace = workspaceResult.path;
+
+  // Display workspace info
+  console.log(`  ${colors.dim("Workspace:")} ${workspace}`);
+  console.log(
+    `  ${colors.dim("Detected via:")} ${
+      getWorkspaceSourceDescription(workspaceResult)
+    }`,
+  );
+  console.log();
+
+  const mcpConfigPath = join(workspace, MCP_CONFIG_FILE);
+  const pmlConfigPath = join(workspace, PML_CONFIG_FILE);
 
   const port = options.port ?? 3003;
   const cloudUrl = options.cloudUrl ?? "https://pml.casys.ai";
@@ -60,12 +97,18 @@ export async function initProject(options: InitOptions = {}): Promise<InitResult
 
     // Generate .mcp.json
     const mcpConfig = generateMcpConfig(port, options.apiKey);
-    await Deno.writeTextFile(mcpConfigPath, JSON.stringify(mcpConfig, null, 2) + "\n");
+    await Deno.writeTextFile(
+      mcpConfigPath,
+      JSON.stringify(mcpConfig, null, 2) + "\n",
+    );
     console.log(`  ${colors.green("✓")} Created ${MCP_CONFIG_FILE}`);
 
     // Generate .pml.json
-    const pmlConfig = generatePmlConfig(cwd, port, cloudUrl);
-    await Deno.writeTextFile(pmlConfigPath, JSON.stringify(pmlConfig, null, 2) + "\n");
+    const pmlConfig = generatePmlConfig(workspace, port, cloudUrl);
+    await Deno.writeTextFile(
+      pmlConfigPath,
+      JSON.stringify(pmlConfig, null, 2) + "\n",
+    );
     console.log(`  ${colors.green("✓")} Created ${PML_CONFIG_FILE}`);
 
     return {
@@ -104,7 +147,9 @@ async function handleExistingConfig(
   console.log(colors.yellow(`\n⚠ Existing ${MCP_CONFIG_FILE} found.\n`));
 
   // Simple prompt without external dependencies
-  const response = prompt("  [b]ackup and continue, [o]verwrite, or [a]bort? (b/o/a)");
+  const response = prompt(
+    "  [b]ackup and continue, [o]verwrite, or [a]bort? (b/o/a)",
+  );
 
   switch (response?.toLowerCase()) {
     case "b":
@@ -187,11 +232,18 @@ const DEFAULT_ASK_TOOLS = [
 
 /**
  * Generate .pml.json configuration
+ *
+ * Note: workspace is stored as "." to indicate dynamic detection.
+ * This makes the config portable (works after clone/move).
  */
-function generatePmlConfig(workspace: string, port: number, cloudUrl: string): PmlConfig {
+function generatePmlConfig(
+  _workspace: string, // Unused - we store "." for portability
+  port: number,
+  cloudUrl: string,
+): PmlConfig {
   return {
     version: VERSION,
-    workspace,
+    workspace: ".", // Dynamic detection via resolveWorkspace() - portable!
     cloud: {
       url: cloudUrl,
       apiKey: "${PML_API_KEY}",

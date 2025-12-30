@@ -56,14 +56,18 @@ Deno.test("init - .pml.json has correct structure", async () => {
   try {
     Deno.chdir(testDir);
 
-    await initProject({ yes: true, port: 5000, cloudUrl: "https://custom.pml.ai" });
+    await initProject({
+      yes: true,
+      port: 5000,
+      cloudUrl: "https://custom.pml.ai",
+    });
 
     const content = await Deno.readTextFile(join(testDir, ".pml.json"));
     const config = JSON.parse(content);
 
     // Basic structure
     assertEquals(config.version, "0.1.0");
-    assertEquals(config.workspace, testDir);
+    assertEquals(config.workspace, "."); // Portable - dynamic detection via resolveWorkspace()
 
     // Cloud config
     assertEquals(config.cloud.url, "https://custom.pml.ai");
@@ -109,7 +113,9 @@ Deno.test("init - backs up existing .mcp.json with --yes", async () => {
     assertEquals(await exists(join(testDir, ".mcp.json.backup")), true);
 
     // Verify backup contains original content
-    const backupContent = await Deno.readTextFile(join(testDir, ".mcp.json.backup"));
+    const backupContent = await Deno.readTextFile(
+      join(testDir, ".mcp.json.backup"),
+    );
     assertEquals(JSON.parse(backupContent), existingConfig);
   } finally {
     Deno.chdir(originalCwd);

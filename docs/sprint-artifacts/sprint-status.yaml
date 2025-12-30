@@ -179,7 +179,7 @@ development_status:
   # 7 stories, ~2 semaines
   # Hybrid auth model: Cloud (GitHub OAuth + API Key) vs Self-hosted (zero-auth)
   # Dual-server architecture: API Server (prod:3001/dev:3003) + Fresh Dashboard (prod:8080/dev:8081)
-  epic-9: contexted
+  epic-9: In progress
   9-1-infrastructure-auth-schema-helpers: done # Code Review APPROVED 2025-12-08, 7 tests passing, all 7 ACs validated
   9-2-github-oauth-auth-routes: done # Code Review APPROVED 2025-12-08, 25 tests passing, 4 issues fixed
   9-3-auth-middleware-mode-detection: done # Code Review APPROVED 2025-12-08, 37 tests passing, all 7 ACs validated
@@ -187,7 +187,7 @@ development_status:
   9-5-rate-limiting-data-isolation: done # Code Review APPROVED 2025-12-10, 21 tests passing, Score: 98/100, Full userId propagation complete
   9-6-mcp-config-secrets-management: backlog # ADR-040 - DEFERRED: Requires workspace refacto (open-core + SaaS repos) first
   9-7-shgat-prediction-visibility-filtering: backlog # SHGAT predictions filtered by capability visibility (public/org/project/private)
-  9-8-per-user-dashboard-metrics: ready-for-dev # Dashboard metrics filtered by user's actual tool usage (emergence, graph stats)
+  9-8-per-user-dashboard-metrics: in progress # Dashboard metrics filtered by user's actual tool usage (emergence, graph stats)
   epic-9-retrospective: optional
 
   # Epic 10: DAG Capability Learning & Unified APIs
@@ -196,7 +196,7 @@ development_status:
   # Unified learning model: Code & DAG create capabilities via static analysis
   # Simplified APIs: pml_discover + pml_execute
   # Depends on: Epic 7 (Emergent Capabilities)
-  epic-10: in-progress
+  epic-10: partial
   10-1-static-analysis-capability-creation: done # Code Review APPROVED 2025-12-18, 11 tests passing, StaticStructureBuilder implemented
   10-2-static-argument-extraction: done # Dev completed 2025-12-19, 22 tests passing, ArgumentsStructure types implemented
   10-3-provides-edge-type: done # Code Review APPROVED + AC10 added 2025-12-18, 37 tests passing, DB persistence for scalability
@@ -215,7 +215,7 @@ development_status:
   # Architecture: TD Error + PER + SHGAT (style DQN/Rainbow) - 2025-12-22
   # DÉPRÉCIATIONS: CapabilityLearning supprimé, SHGAT apprend directement
   # Depends on: Epic 10
-  epic-11: in-progress
+  epic-11: done
   11-0-db-schema-cleanup: done # 2025-12-22: KV singleton, workflow-state-cache, migration 019, mcp_tool removed - Code Review APPROVED (11 tests added)
   11-1-result-tracing: done # Code Review APPROVED 2025-12-22: 9 tests passing, null handling bug fixed, parentTraceId types added
   11-2-execution-trace-table: done # 33 tests passing, decisions[] inference implemented via StaticStructureBuilder.inferDecisions()
@@ -248,7 +248,7 @@ development_status:
   # Architecture: cap:* (management), meta:* (optional introspection), free naming for capabilities
   # No dns:* (confusing), no learn:* (redundant)
   # Depends on: Epic 7 (Emergent Capabilities), Epic 10 (pml_execute)
-  epic-13: in-progress
+  epic-13: partial
   # Phase 1: Core MVP (~6 days)
   13-1-schema-fqdn-aliases: done # FQDN structure, metadata, aliases (merged 13.1+13.2+part 13.7) - Code Review APPROVED 2025-12-24, 66 tests
   13-2-pml-execute-naming-support: done # Name param + call by name (merged 13.3+13.4) - Code Review APPROVED 2024-12-24, 20 tests
@@ -261,7 +261,7 @@ development_status:
   # Phase 4: Stdlib & Registry (~7 days)
   13-7-pml-stdlib-unification: done # lib/std/cap.ts - PmlStdServer + CapModule (cap:list, cap:lookup, cap:rename, cap:whois)
   13-8-unified-pml-registry-view: done # VIEW pml_registry, record_type in pml:discover, migration 031
-  13-9-routing-inheritance: ready-for-dev # tools_used tracking, local/cloud inheritance
+  13-9-routing-inheritance: done # Code Review 2025-12-30, 24 tests passing, routing inferred from tools_used
   epic-13-retrospective: optional
   # NOTE: Fork & Merge (cap:fork, cap:merge) deferred to Epic 14+
 
@@ -275,8 +275,8 @@ development_status:
   # Depends on: Epic 9 (Auth), Epic 13 (Registry strategy for 14.7)
   epic-14: in-progress
   # Phase 1: Package Foundation (~4 days)
-  14-1-package-scaffolding-cli-init: ready-for-dev # Story created 2025-12-29, deno install, pml init, .mcp.json generation
-  14-2-workspace-resolution-system: backlog # ENV → project root detection → CWD fallback
+  14-1-package-scaffolding-cli-init: done # Story created 2025-12-29, deno install, pml init, .mcp.json generation
+  14-2-workspace-resolution-system: done # Code Review APPROVED 2025-12-30, 74 tests passing, 7/7 issues fixed
   14-3-routing-config-permission-inferrer: backlog # mcp-permissions.yaml routing: local|cloud
   # Phase 2: Local Execution (~5 days)
   14-4-dynamic-mcp-loader-registry: backlog # Dynamic import from JSR, Deno cache

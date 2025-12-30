@@ -21,6 +21,48 @@
  * ```
  */
 
+// CLI
 export { main } from "./src/cli/mod.ts";
 export { initProject } from "./src/init/mod.ts";
-export type { PmlConfig, McpConfig } from "./src/types.ts";
+
+// Workspace resolution (Story 14.2)
+export {
+  findProjectRoot,
+  getWorkspaceSourceDescription,
+  isValidWorkspace,
+  PROJECT_MARKERS,
+  resolveWorkspace,
+  resolveWorkspaceWithDetails,
+} from "./src/workspace.ts";
+export type { WorkspaceLogger, WorkspaceResult } from "./src/workspace.ts";
+
+// Security - Path validation (Story 14.2)
+export {
+  createPathValidator,
+  validatePath,
+  validatePathSync,
+} from "./src/security/mod.ts";
+
+// Permissions (Story 14.2)
+export {
+  checkPermission,
+  createPermissionChecker,
+  getPermissionsSummary,
+  loadUserPermissions,
+  loadUserPermissionsSync,
+  matchesPattern,
+} from "./src/permissions/mod.ts";
+
+// Types
+export type {
+  McpConfig,
+  PathValidationError,
+  PathValidationErrorCode,
+  PathValidationResult,
+  PermissionCheckResult,
+  PermissionLoadResult,
+  PmlConfig,
+  PmlPermissions,
+  WorkspaceConfig,
+  WorkspaceSource,
+} from "./src/types.ts";

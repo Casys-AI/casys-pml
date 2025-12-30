@@ -40,8 +40,12 @@ export interface PmlPermissions {
 export interface PmlConfig {
   /** Package version */
   version: string;
-  /** Workspace root path */
-  workspace: string;
+  /**
+   * Workspace root path.
+   * Use "." to indicate dynamic detection via resolveWorkspace().
+   * Absolute paths are supported but not recommended (breaks on clone/move).
+   */
+  workspace?: string;
   /** Cloud configuration */
   cloud: PmlCloudConfig;
   /** Server configuration */
@@ -98,4 +102,86 @@ export interface InitResult {
   pmlConfigPath: string;
   backedUp?: string;
   error?: string;
+}
+
+// ============================================================================
+// Workspace Types (Story 14.2)
+// ============================================================================
+
+/**
+ * Workspace configuration
+ */
+export interface WorkspaceConfig {
+  /** Resolved workspace root path */
+  root: string;
+  /** How the workspace was resolved */
+  source: WorkspaceSource;
+  /** Project marker that was found (if source is "detected") */
+  marker?: string;
+}
+
+/**
+ * How the workspace was resolved
+ */
+export type WorkspaceSource = "env" | "detected" | "fallback";
+
+// ============================================================================
+// Path Validation Types (Story 14.2)
+// ============================================================================
+
+/**
+ * Error codes for path validation failures
+ */
+export type PathValidationErrorCode =
+  | "PATH_OUTSIDE_WORKSPACE"
+  | "PATH_TRAVERSAL_ATTACK"
+  | "PATH_NOT_FOUND"
+  | "PATH_INVALID"
+  | "WORKSPACE_INVALID";
+
+/**
+ * Path validation error details
+ */
+export interface PathValidationError {
+  /** Error code for programmatic handling */
+  code: PathValidationErrorCode;
+  /** Human-readable error message */
+  message: string;
+  /** Original path that was validated */
+  path: string;
+  /** Workspace path used for validation */
+  workspace: string;
+}
+
+/**
+ * Path validation result
+ */
+export interface PathValidationResult {
+  /** Whether the path is valid and within workspace */
+  valid: boolean;
+  /** Normalized absolute path (if valid) */
+  normalizedPath?: string;
+  /** Error details (if invalid) */
+  error?: PathValidationError;
+}
+
+// ============================================================================
+// Permission Types (Story 14.2)
+// ============================================================================
+
+/**
+ * Permission check result
+ */
+export type PermissionCheckResult = "allowed" | "denied" | "ask";
+
+/**
+ * Permission loader result
+ */
+export interface PermissionLoadResult {
+  /** Loaded permissions */
+  permissions: PmlPermissions;
+  /** Source of permissions */
+  source: "config" | "defaults";
+  /** Config file path (if loaded from config) */
+  configPath?: string;
 }
