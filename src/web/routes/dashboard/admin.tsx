@@ -90,6 +90,8 @@ export default function AdminPage({ data }: { data: AdminPageData }) {
       <Head>
         <title>Admin Analytics | Casys PML</title>
         <link rel="stylesheet" href="/styles.css" />
+        {/* ECharts for analytics visualizations */}
+        <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
       </Head>
       <div class="min-h-screen bg-gray-900 text-white">
         {/* Header */}

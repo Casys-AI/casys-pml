@@ -3,13 +3,16 @@
  *
  * Story 6.6 - Cloud-only admin analytics dashboard.
  * Displays user activity, system usage, errors, and resource metrics.
+ * Uses ECharts for data visualization.
  */
 
 import { useState } from "preact/hooks";
-import type {
-  AdminAnalytics,
-  TimeRange,
-} from "../../cloud/admin/types.ts";
+import type { AdminAnalytics, TimeRange } from "../../cloud/admin/types.ts";
+import {
+  ErrorsByTypeChart,
+  ExecutionsByDayChart,
+  LatencyGaugeChart,
+} from "../components/ui/molecules/charts/mod.ts";
 
 interface AdminDashboardProps {
   analytics: AdminAnalytics;
@@ -232,36 +235,13 @@ export default function AdminDashboardIsland({
           />
         </div>
 
-        {/* Daily Chart (simple bar representation) */}
+        {/* Daily Chart (ECharts bar chart) */}
         {systemUsage.executionsByDay.length > 0 && (
           <div class="mt-4 bg-gray-800/50 rounded-lg p-4">
             <h3 class="text-sm font-medium text-gray-400 mb-3">
               Executions by Day
             </h3>
-            <div class="flex items-end gap-1 h-24">
-              {systemUsage.executionsByDay.map((day, i) => {
-                const max = Math.max(
-                  ...systemUsage.executionsByDay.map((d) => d.count),
-                );
-                const height = max > 0 ? (day.count / max) * 100 : 0;
-                return (
-                  <div
-                    key={i}
-                    class="flex-1 bg-blue-500/50 hover:bg-blue-500 transition-colors rounded-t"
-                    style={{ height: `${height}%` }}
-                    title={`${day.date}: ${day.count} executions`}
-                  />
-                );
-              })}
-            </div>
-            <div class="flex justify-between text-xs text-gray-500 mt-1">
-              <span>{systemUsage.executionsByDay[0]?.date}</span>
-              <span>
-                {systemUsage.executionsByDay[
-                  systemUsage.executionsByDay.length - 1
-                ]?.date}
-              </span>
-            </div>
+            <ExecutionsByDayChart data={systemUsage.executionsByDay} />
           </div>
         )}
       </section>
@@ -293,20 +273,22 @@ export default function AdminDashboardIsland({
           />
         </div>
 
-        {/* Errors by Type */}
+        {/* Errors by Type (ECharts pie chart) */}
         {errorHealth.errorsByType.length > 0 && (
           <div class="mt-4 bg-gray-800/50 rounded-lg p-4">
             <h3 class="text-sm font-medium text-gray-400 mb-3">Errors by Type</h3>
-            <div class="space-y-2">
-              {errorHealth.errorsByType.map((err, i) => (
-                <div key={i} class="flex items-center justify-between">
-                  <span class="text-gray-300 capitalize">{err.errorType}</span>
-                  <span class="text-red-400 font-mono">{err.count}</span>
-                </div>
-              ))}
-            </div>
+            <ErrorsByTypeChart data={errorHealth.errorsByType} />
           </div>
         )}
+
+        {/* Latency Gauge */}
+        <div class="mt-4">
+          <LatencyGaugeChart
+            p50={errorHealth.latencyPercentiles.p50}
+            p95={errorHealth.latencyPercentiles.p95}
+            p99={errorHealth.latencyPercentiles.p99}
+          />
+        </div>
       </section>
 
       {/* Resources Section */}

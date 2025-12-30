@@ -15,3 +15,6 @@ export {
   type ViewMode,
 } from "./GraphLegendPanel.tsx";
 export { default as NodeDetailsPanel } from "./NodeDetailsPanel.tsx";
+
+// Charts (ECharts-based)
+export * from "./charts/mod.ts";
