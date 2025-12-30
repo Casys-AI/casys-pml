@@ -78,7 +78,8 @@ export async function isAdminUser(
     `, [userId]);
     return result?.role === "admin";
   } catch {
-    // users table doesn't exist - not admin
+    // users table doesn't exist (cloud auth not implemented) - not admin
+    log.debug("[AdminAnalytics] users table not found - defaulting to non-admin");
     return false;
   }
 }

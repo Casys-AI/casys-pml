@@ -23,6 +23,7 @@ import type {
   TopUser,
   UserActivityMetrics,
 } from "./types.ts";
+import * as log from "@std/log";
 
 /** Get interval string for time range */
 function getIntervalString(timeRange: TimeRange): string {
@@ -84,7 +85,7 @@ export async function queryUserActivity(
     WHERE executed_at > NOW() - INTERVAL '30 days'
   `);
 
-  // New registrations (users table may not exist in local mode)
+  // New registrations (users table only exists with cloud auth)
   let newUsersResult: { count: number } | null = null;
   try {
     newUsersResult = await db.queryOne<{ count: number }>(`
@@ -93,7 +94,7 @@ export async function queryUserActivity(
       WHERE ${userTimeFilter}
     `);
   } catch {
-    // users table doesn't exist in local mode
+    log.debug("[Analytics] users table not found for new registrations");
   }
 
   // Returning users (had activity before time range AND during)
@@ -138,7 +139,8 @@ export async function queryUserActivity(
       lastActive: new Date(row.last_active),
     }));
   } catch {
-    // users table doesn't exist - query without join
+    // users table doesn't exist - fallback to query without join
+    log.debug("[Analytics] users table not found, using user_id as username");
     const topUsersRows = await db.query<{
       user_id: string;
       execution_count: number;
@@ -342,55 +344,36 @@ export async function queryErrorHealth(
 
 /** Query resource metrics */
 export async function queryResources(db: QueryClient): Promise<ResourceMetrics> {
-  // Total users (users table may not exist in local mode)
+  // Total users (users table only exists with cloud auth - not yet implemented)
   let usersResult: { count: number } | null = null;
   try {
     usersResult = await db.queryOne<{ count: number }>(`
       SELECT COUNT(*) as count FROM users
     `);
   } catch {
-    // users table doesn't exist in local mode
+    // users table doesn't exist - cloud auth not implemented yet
+    log.debug("[Analytics] users table not found - cloud auth not implemented");
   }
 
   // Total capabilities (workflow_pattern)
-  let capResult: { count: number } | null = null;
-  try {
-    capResult = await db.queryOne<{ count: number }>(`
-      SELECT COUNT(*) as count FROM workflow_pattern
-    `);
-  } catch {
-    // workflow_pattern table may not exist
-  }
+  const capResult = await db.queryOne<{ count: number }>(`
+    SELECT COUNT(*) as count FROM workflow_pattern
+  `);
 
   // Total traces
-  let tracesResult: { count: number } | null = null;
-  try {
-    tracesResult = await db.queryOne<{ count: number }>(`
-      SELECT COUNT(*) as count FROM execution_trace
-    `);
-  } catch {
-    // execution_trace table may not exist
-  }
+  const tracesResult = await db.queryOne<{ count: number }>(`
+    SELECT COUNT(*) as count FROM execution_trace
+  `);
 
-  // Graph nodes (mcp_tool count)
-  let nodesResult: { count: number } | null = null;
-  try {
-    nodesResult = await db.queryOne<{ count: number }>(`
-      SELECT COUNT(*) as count FROM mcp_tool
-    `);
-  } catch {
-    // mcp_tool table may not exist (not migrated)
-  }
+  // Graph nodes (tool_schema count - mcp_tool was merged into tool_schema in migration 019)
+  const nodesResult = await db.queryOne<{ count: number }>(`
+    SELECT COUNT(*) as count FROM tool_schema
+  `);
 
-  // Graph edges (tool_edge count)
-  let edgesResult: { count: number } | null = null;
-  try {
-    edgesResult = await db.queryOne<{ count: number }>(`
-      SELECT COUNT(*) as count FROM tool_edge
-    `);
-  } catch {
-    // tool_edge table may not exist (not migrated)
-  }
+  // Graph edges (tool_dependency count)
+  const edgesResult = await db.queryOne<{ count: number }>(`
+    SELECT COUNT(*) as count FROM tool_dependency
+  `);
 
   return {
     totalUsers: Number(usersResult?.count || 0),
