@@ -48,7 +48,7 @@ async function setupTestDb(): Promise<PGliteClient> {
       output JSONB,
       success BOOLEAN DEFAULT true,
       error_message TEXT,
-      latency_ms INTEGER,
+      duration_ms INTEGER,
       executed_at TIMESTAMPTZ DEFAULT NOW(),
       parent_trace_id UUID
     );
@@ -145,7 +145,7 @@ async function seedTestData(db: PGliteClient): Promise<void> {
 
   // Create execution traces with various timestamps
   await db.query(`
-    INSERT INTO execution_trace (id, user_id, tool_name, success, latency_ms, executed_at)
+    INSERT INTO execution_trace (id, user_id, tool_name, success, duration_ms, executed_at)
     VALUES
       -- Today's executions
       (gen_random_uuid(), 'admin_user', 'test_tool', true, 100, NOW() - INTERVAL '1 hour'),

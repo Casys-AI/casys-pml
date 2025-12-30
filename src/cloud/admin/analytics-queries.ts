@@ -278,13 +278,13 @@ export async function queryErrorHealth(
     avg: number;
   }>(`
     SELECT
-      PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY latency_ms) as p50,
-      PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY latency_ms) as p95,
-      PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY latency_ms) as p99,
-      AVG(latency_ms) as avg
+      PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY duration_ms) as p50,
+      PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_ms) as p95,
+      PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY duration_ms) as p99,
+      AVG(duration_ms) as avg
     FROM execution_trace
     WHERE ${timeFilter}
-    AND latency_ms > 0
+    AND duration_ms > 0
   `);
 
   const latencyPercentiles: LatencyPercentiles = {
@@ -327,24 +327,44 @@ export async function queryResources(db: QueryClient): Promise<ResourceMetrics> 
   }
 
   // Total capabilities (workflow_pattern)
-  const capResult = await db.queryOne<{ count: number }>(`
-    SELECT COUNT(*) as count FROM workflow_pattern
-  `);
+  let capResult: { count: number } | null = null;
+  try {
+    capResult = await db.queryOne<{ count: number }>(`
+      SELECT COUNT(*) as count FROM workflow_pattern
+    `);
+  } catch {
+    // workflow_pattern table may not exist
+  }
 
   // Total traces
-  const tracesResult = await db.queryOne<{ count: number }>(`
-    SELECT COUNT(*) as count FROM execution_trace
-  `);
+  let tracesResult: { count: number } | null = null;
+  try {
+    tracesResult = await db.queryOne<{ count: number }>(`
+      SELECT COUNT(*) as count FROM execution_trace
+    `);
+  } catch {
+    // execution_trace table may not exist
+  }
 
   // Graph nodes (mcp_tool count)
-  const nodesResult = await db.queryOne<{ count: number }>(`
-    SELECT COUNT(*) as count FROM mcp_tool
-  `);
+  let nodesResult: { count: number } | null = null;
+  try {
+    nodesResult = await db.queryOne<{ count: number }>(`
+      SELECT COUNT(*) as count FROM mcp_tool
+    `);
+  } catch {
+    // mcp_tool table may not exist (not migrated)
+  }
 
   // Graph edges (tool_edge count)
-  const edgesResult = await db.queryOne<{ count: number }>(`
-    SELECT COUNT(*) as count FROM tool_edge
-  `);
+  let edgesResult: { count: number } | null = null;
+  try {
+    edgesResult = await db.queryOne<{ count: number }>(`
+      SELECT COUNT(*) as count FROM tool_edge
+    `);
+  } catch {
+    // tool_edge table may not exist (not migrated)
+  }
 
   return {
     totalUsers: Number(usersResult?.count || 0),
