@@ -34,6 +34,7 @@ import { StaticStructureBuilder } from "../../capabilities/static-structure-buil
 import { AdaptiveThresholdManager } from "../../mcp/adaptive-threshold.ts";
 import { AlgorithmTracer } from "../../telemetry/algorithm-tracer.ts";
 import { ensureStdBundle } from "../../lib/std-loader.ts";
+import { bootstrapDI } from "../../infrastructure/di/mod.ts";
 
 /**
  * Find and validate config file
@@ -330,6 +331,19 @@ export function createServeCommand() {
         dagSuggester.setAlgorithmTracer(algorithmTracer);
         graphEngine.setAlgorithmTracer(algorithmTracer);
         log.info("✓ Algorithm tracing enabled");
+
+        // Phase 2.2: Bootstrap DI container with real implementations
+        // Container available for future DI-aware components
+        const { container: _diContainer, mcpRegistry } = bootstrapDI({
+          db,
+          embeddingModel,
+          vectorSearch,
+          graphEngine,
+          capabilityStore,
+          mcpClients,
+        });
+        await mcpRegistry.refreshTools();
+        log.info(`✓ DI container initialized (${mcpRegistry.getAllTools().length} tools registered)`);
 
         // Create tool executor with tracking callback (Story 3.7)
         // Gateway reference will be set after gateway is created
