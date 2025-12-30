@@ -97,8 +97,6 @@ export interface CapabilityCardProps {
   communityId?: number;
   /** Description/intent of the capability (Extended mode) */
   description?: string;
-  /** Code snippet for the capability */
-  codeSnippet?: string;
 }
 
 // Format full date + time for last used display
@@ -616,7 +614,6 @@ function ExtendedPanel({
   pagerank,
   communityId,
   description,
-  codeSnippet,
 }: CapabilityCardProps) {
   const [expanded, setExpanded] = useState(true);
   const hasChildren = children.length > 0;
@@ -793,230 +790,195 @@ function ExtendedPanel({
             </div>
           )}
 
-          {/* Two-column layout: Details + Code Snippet */}
-          <div class="grid gap-4" style={{ gridTemplateColumns: codeSnippet ? "1fr 1fr" : "1fr" }}>
-            {/* Left column: Flow, Tools, Graph */}
-            <div>
-              {/* Layer Breakdown - Visual execution flow */}
-              {layers.length > 0 && (
-                <div class="mb-4 pt-3 border-t" style={{ borderColor: `${color}15` }}>
-                  <div
-                    class="text-[10px] uppercase tracking-wide mb-2"
-                    style={{ color: "var(--text-dim)" }}
-                  >
-                    Execution Flow ({layers.length} layer{layers.length > 1 ? "s" : ""})
-                  </div>
-                  <div class="flex items-start gap-2 flex-wrap">
-                    {layers.map(([layerIndex, layerTools], i) => (
-                      <div key={layerIndex} class="flex items-center gap-2">
-                        <div
-                          class="rounded-lg p-2"
-                          style={{ background: `${color}08`, border: `1px solid ${color}20` }}
-                        >
-                          <div class="text-[9px] uppercase mb-1.5" style={{ color: "var(--text-dim)" }}>
-                            L{layerIndex}
-                          </div>
-                          <div class="flex flex-col gap-1">
-                            {layerTools.map((tool) => (
-                              <div
-                                key={tool.id}
-                                class="flex items-center gap-1.5 text-[11px]"
-                                style={{ color: tool.color || "#FFB86F" }}
-                              >
-                                <span
-                                  class="w-2 h-2 rounded-full"
-                                  style={{ background: tool.color || "#FFB86F" }}
-                                />
-                                <span>{tool.name}</span>
-                                <span class="text-[9px]" style={{ color: "var(--text-dim)" }}>
-                                  ({tool.server})
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        {(i < layers.length - 1 || hasChildren) && (
-                          <span class="text-lg" style={{ color: `${color}50` }}>→</span>
-                        )}
-                      </div>
-                    ))}
-                    {/* Children as nested flows */}
-                    {children.slice(0, 2).map((child, ci) => {
-                      const childLayers = child.toolsByLayer && child.toolsByLayer.size > 0
-                        ? Array.from(child.toolsByLayer.entries()).sort((a, b) =>
-                          a[0] - b[0]
-                        )
-                        : [[0, child.tools] as [number, ToolInfo[]]];
-                      return (
-                        <div key={child.id} class="flex items-center gap-2">
-                          <div
-                            class="rounded-lg p-2"
-                            style={{
-                              background: `${child.color}08`,
-                              border: `1px dashed ${child.color}30`,
-                            }}
-                            title={child.name}
-                          >
-                            <div class="text-[9px] uppercase mb-1" style={{ color: child.color }}>
-                              ↳ {child.name}
-                            </div>
-                            <div class="flex items-center gap-1">
-                              {childLayers.map(([li, lt], idx) => (
-                                <div key={li} class="flex items-center gap-1">
-                                  {lt.slice(0, 3).map((t) => (
-                                    <span
-                                      key={t.id}
-                                      class="w-2 h-2 rounded-full"
-                                      style={{ background: t.color || "#FFB86F" }}
-                                      title={`${t.name} (${t.server})`}
-                                    />
-                                  ))}
-                                  {idx < childLayers.length - 1 && (
-                                    <span class="text-[10px]" style={{ color: "var(--text-dim)" }}>
-                                      →
-                                    </span>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                          {ci < Math.min(children.length, 2) - 1 && (
-                            <span class="text-lg" style={{ color: `${color}50` }}>→</span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Tools by Server */}
-              {toolsByServer.size > 0 && (
-                <div class="pt-3 border-t" style={{ borderColor: `${color}15` }}>
-                  <div
-                    class="text-[10px] uppercase tracking-wide mb-2"
-                    style={{ color: "var(--text-dim)" }}
-                  >
-                    Tools by Server ({tools.length} tools)
-                  </div>
-                  <div class="grid grid-cols-2 gap-2">
-                    {Array.from(toolsByServer.entries()).map(([server, serverTools]) => (
-                      <div
-                        key={server}
-                        class="rounded-lg p-2"
-                        style={{ background: `${serverTools[0].color}08` }}
-                      >
-                        <div
-                          class="text-[10px] font-semibold mb-1 flex items-center gap-1"
-                          style={{ color: serverTools[0].color }}
-                        >
-                          <span
-                            class="w-2 h-2 rounded-full"
-                            style={{ background: serverTools[0].color }}
-                          />
-                          {server}
-                        </div>
-                        <div class="flex flex-wrap gap-1">
-                          {serverTools.map((tool) => (
-                            <span
-                              key={tool.id}
-                              class="text-[10px] px-1.5 py-0.5 rounded"
-                              style={{ background: `${tool.color}15`, color: tool.color }}
-                            >
-                              {tool.name}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Graph Position - PageRank, Community, FQDN */}
-              {(pagerank !== undefined || communityId !== undefined || fqdn) && (
-                <div class="pt-3 border-t" style={{ borderColor: `${color}15` }}>
-                  <div
-                    class="text-[10px] uppercase tracking-wide mb-2"
-                    style={{ color: "var(--text-dim)" }}
-                  >
-                    Graph Position
-                  </div>
-                  <div class="flex flex-wrap items-center gap-3">
-                    {/* PageRank gauge */}
-                    {pagerank !== undefined && (
-                      <div class="flex items-center gap-2">
-                        <div class="flex gap-0.5">
-                          {Array.from({ length: 10 }).map((_, i) => (
-                            <span
-                              key={i}
-                              class="w-1.5 h-3 rounded-sm"
-                              style={{
-                                background: i < Math.round(pagerank * 10) ? color : `${color}20`,
-                              }}
-                            />
-                          ))}
-                        </div>
-                        <span class="text-[11px] tabular-nums" style={{ color }}>
-                          PR {pagerank.toFixed(2)}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Community badge */}
-                    {communityId !== undefined && (
-                      <span
-                        class="text-[10px] px-2 py-0.5 rounded-full font-semibold"
-                        style={{ background: `${color}20`, color }}
-                      >
-                        C{communityId}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* FQDN */}
-                  {fqdn && (
+          {/* Execution Flow - full width */}
+          {layers.length > 0 && (
+            <div class="mb-4 pt-3 border-t" style={{ borderColor: `${color}15` }}>
+              <div
+                class="text-[10px] uppercase tracking-wide mb-2"
+                style={{ color: "var(--text-dim)" }}
+              >
+                Execution Flow ({layers.length} layer{layers.length > 1 ? "s" : ""})
+              </div>
+              <div class="flex items-start gap-2 flex-wrap">
+                {layers.map(([layerIndex, layerTools], i) => (
+                  <div key={layerIndex} class="flex items-center gap-2">
                     <div
-                      class="mt-2 text-[10px] truncate font-mono"
-                      style={{ color: "var(--text-dim)" }}
-                      title={fqdn}
+                      class="rounded-lg p-2"
+                      style={{ background: `${color}08`, border: `1px solid ${color}20` }}
                     >
-                      {fqdn}
+                      <div class="text-[9px] uppercase mb-1.5" style={{ color: "var(--text-dim)" }}>
+                        L{layerIndex}
+                      </div>
+                      <div class="flex flex-col gap-1">
+                        {layerTools.map((tool) => (
+                          <div
+                            key={tool.id}
+                            class="flex items-center gap-1.5 text-[11px]"
+                            style={{ color: tool.color || "#FFB86F" }}
+                          >
+                            <span
+                              class="w-2 h-2 rounded-full"
+                              style={{ background: tool.color || "#FFB86F" }}
+                            />
+                            <span>{tool.name}</span>
+                            <span class="text-[9px]" style={{ color: "var(--text-dim)" }}>
+                              ({tool.server})
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  )}
+                    {(i < layers.length - 1 || hasChildren) && (
+                      <span class="text-lg" style={{ color: `${color}50` }}>→</span>
+                    )}
+                  </div>
+                ))}
+                {/* Children as nested flows */}
+                {children.slice(0, 2).map((child, ci) => {
+                  const childLayers = child.toolsByLayer && child.toolsByLayer.size > 0
+                    ? Array.from(child.toolsByLayer.entries()).sort((a, b) =>
+                      a[0] - b[0]
+                    )
+                    : [[0, child.tools] as [number, ToolInfo[]]];
+                  return (
+                    <div key={child.id} class="flex items-center gap-2">
+                      <div
+                        class="rounded-lg p-2"
+                        style={{
+                          background: `${child.color}08`,
+                          border: `1px dashed ${child.color}30`,
+                        }}
+                        title={child.name}
+                      >
+                        <div class="text-[9px] uppercase mb-1" style={{ color: child.color }}>
+                          ↳ {child.name}
+                        </div>
+                        <div class="flex items-center gap-1">
+                          {childLayers.map(([li, lt], idx) => (
+                            <div key={li} class="flex items-center gap-1">
+                              {lt.slice(0, 3).map((t) => (
+                                <span
+                                  key={t.id}
+                                  class="w-2 h-2 rounded-full"
+                                  style={{ background: t.color || "#FFB86F" }}
+                                  title={`${t.name} (${t.server})`}
+                                />
+                              ))}
+                              {idx < childLayers.length - 1 && (
+                                <span class="text-[10px]" style={{ color: "var(--text-dim)" }}>
+                                  →
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      {ci < Math.min(children.length, 2) - 1 && (
+                        <span class="text-lg" style={{ color: `${color}50` }}>→</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Tools by Server */}
+          {toolsByServer.size > 0 && (
+            <div class="pt-3 border-t" style={{ borderColor: `${color}15` }}>
+              <div
+                class="text-[10px] uppercase tracking-wide mb-2"
+                style={{ color: "var(--text-dim)" }}
+              >
+                Tools by Server ({tools.length} tools)
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                {Array.from(toolsByServer.entries()).map(([server, serverTools]) => (
+                  <div
+                    key={server}
+                    class="rounded-lg p-2"
+                    style={{ background: `${serverTools[0].color}08` }}
+                  >
+                    <div
+                      class="text-[10px] font-semibold mb-1 flex items-center gap-1"
+                      style={{ color: serverTools[0].color }}
+                    >
+                      <span
+                        class="w-2 h-2 rounded-full"
+                        style={{ background: serverTools[0].color }}
+                      />
+                      {server}
+                    </div>
+                    <div class="flex flex-wrap gap-1">
+                      {serverTools.map((tool) => (
+                        <span
+                          key={tool.id}
+                          class="text-[10px] px-1.5 py-0.5 rounded"
+                          style={{ background: `${tool.color}15`, color: tool.color }}
+                        >
+                          {tool.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Graph Position - PageRank, Community, FQDN */}
+          {(pagerank !== undefined || communityId !== undefined || fqdn) && (
+            <div class="pt-3 border-t" style={{ borderColor: `${color}15` }}>
+              <div
+                class="text-[10px] uppercase tracking-wide mb-2"
+                style={{ color: "var(--text-dim)" }}
+              >
+                Graph Position
+              </div>
+              <div class="flex flex-wrap items-center gap-3">
+                {/* PageRank gauge */}
+                {pagerank !== undefined && (
+                  <div class="flex items-center gap-2">
+                    <div class="flex gap-0.5">
+                      {Array.from({ length: 10 }).map((_, i) => (
+                        <span
+                          key={i}
+                          class="w-1.5 h-3 rounded-sm"
+                          style={{
+                            background: i < Math.round(pagerank * 10) ? color : `${color}20`,
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <span class="text-[11px] tabular-nums" style={{ color }}>
+                      PR {pagerank.toFixed(2)}
+                    </span>
+                  </div>
+                )}
+
+                {/* Community badge */}
+                {communityId !== undefined && (
+                  <span
+                    class="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+                    style={{ background: `${color}20`, color }}
+                  >
+                    C{communityId}
+                  </span>
+                )}
+              </div>
+
+              {/* FQDN */}
+              {fqdn && (
+                <div
+                  class="mt-2 text-[10px] truncate font-mono"
+                  style={{ color: "var(--text-dim)" }}
+                  title={fqdn}
+                >
+                  {fqdn}
                 </div>
               )}
             </div>
-
-            {/* Right column: Code Snippet */}
-            {codeSnippet && (
-              <div class="pt-3 border-t" style={{ borderColor: `${color}15` }}>
-                <div
-                  class="text-[10px] uppercase tracking-wide mb-2"
-                  style={{ color: "var(--text-dim)" }}
-                >
-                  Code Snippet
-                </div>
-                <div
-                  class="rounded-lg p-3 overflow-auto max-h-64"
-                  style={{
-                    background: "var(--bg, #0a0908)",
-                    border: `1px solid ${color}20`,
-                    fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-                    fontSize: "11px",
-                    lineHeight: "1.5",
-                  }}
-                >
-                  <pre
-                    class="whitespace-pre-wrap break-words"
-                    style={{ color: "var(--text, #f5f0ea)" }}
-                  >
-                    {codeSnippet}
-                  </pre>
-                </div>
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </div>
 
