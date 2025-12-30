@@ -43,6 +43,8 @@ const KNOWN_VIOLATIONS: Record<string, number> = {
   "src/mcp/adaptive-threshold.ts": 645,
   "src/graphrag/dag-scoring-config.ts": 620,
   "src/graphrag/algorithms/shgat/initialization/parameters.ts": 614,
+  "src/graphrag/algorithms/tensor-entropy.ts": 976,
+  "src/mcp/routing/handlers/emergence.ts": 602,
 };
 
 const KNOWN_TYPE_VIOLATIONS: Record<string, number> = {

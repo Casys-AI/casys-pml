@@ -6,7 +6,7 @@
  * @module tests/unit/infrastructure/di_container_test
  */
 
-import { assertEquals, assertExists, assertThrows } from "@std/assert";
+import { assertEquals, assertExists } from "@std/assert";
 import {
   buildTestContainer,
   createMockCapabilityRepo,
@@ -53,14 +53,14 @@ Deno.test("DI Container - mocks have default implementations", async () => {
   // Test capability repo mock
   const saveResult = await capRepo.saveCapability({
     intent: "test",
-    code: "test",
-    codeHash: "abc",
+    code: "test code",
+    durationMs: 100,
   });
   assertEquals(saveResult.capabilityId, "test-id");
   assertEquals(saveResult.isNew, true);
 
   // Test DAG executor mock
-  const dagResult = await dagExec.execute({ tasks: [], dependencies: {} });
+  const dagResult = await dagExec.execute({ tasks: [], dependencies: [] });
   assertEquals(dagResult.success, true);
 
   // Test graph engine mock
@@ -69,18 +69,21 @@ Deno.test("DI Container - mocks have default implementations", async () => {
 });
 
 Deno.test("DI Container - overrides work correctly", async () => {
-  const customFindById = async () => ({
+  const customFindById = async (_id: string) => ({
     id: "custom-id",
-    intent: "custom intent",
-    code: "custom code",
+    codeSnippet: "custom code",
     codeHash: "xyz",
-    version: 1,
-    scope: "user" as const,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    intentEmbedding: new Float32Array(1024),
+    cacheConfig: { ttl_ms: 3600000, cacheable: true },
+    successRate: 0.8,
     usageCount: 5,
     successCount: 4,
     avgDurationMs: 100,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    lastUsed: new Date(),
+    source: "emergent" as const,
+    toolsUsed: [] as string[],
   });
 
   const container = buildTestContainer({
