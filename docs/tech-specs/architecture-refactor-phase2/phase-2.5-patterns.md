@@ -325,5 +325,20 @@ src/application/use-cases/
   - `src/vector/search.ts`: vector.search.started/completed, vector.embedding.generated
   - `src/sandbox/worker-bridge.ts`: sandbox.worker.spawned/terminated, sandbox.execution.timeout
 
+**Use Cases Wired into Handlers (2025-12-30):**
+- `SearchCapabilitiesUseCase` → `src/mcp/handlers/search-handler.ts`
+  - Thin handler delegates to use case
+  - MCP protocol concerns (validation, snake_case params, telemetry) stay in handler
+- `AbortWorkflowUseCase` → `src/mcp/handlers/control-commands-handler.ts`
+  - Adapter pattern: `createAbortWorkflowRepoAdapter()` bridges deps to interface
+- `ReplanWorkflowUseCase` → `src/mcp/handlers/control-commands-handler.ts`
+  - Adapters: `createReplanWorkflowRepoAdapter()`, `createReplanDAGSuggesterAdapter()`
+- `ExecuteCodeUseCase` refactored with Clean Architecture interfaces:
+  - `ISandboxExecutor`, `IToolDiscovery`, `ICapabilityMatcher`, `IGraphUpdater`, `ICapabilityFeedback`
+  - Rich types: `ToolDefinition`, `MatchedCapability`, `ExecutionMetrics`, `ToolFailure`
+  - Marked `@deprecated` (pml:execute_code → pml:execute migration)
+
+**Pattern Applied:** Thin handlers + Adapter pattern for dependency bridging
+
 **Skipped:**
 - State machine pattern - Not applicable (workflow states are dynamic)
