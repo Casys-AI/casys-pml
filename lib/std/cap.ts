@@ -895,18 +895,31 @@ export class CapModule {
       return this.errorResult(`Target capability not found: ${target}`);
     }
 
-    // Get tools_used from both capabilities
+    // Get tools_used from workflow_pattern.dag_structure and code_snippet
+    // Migration 023 moved these columns from capability_records to workflow_pattern
     interface CapRow {
-      tools_used: string[];
+      tools_used: string[] | null;
       code_snippet: string | null;
       updated_at: Date | null;
     }
     const sourceRows = (await this.db.query(
-      `SELECT tools_used, code_snippet, updated_at FROM capability_records WHERE id = $1`,
+      `SELECT
+         wp.dag_structure->'tools_used' as tools_used,
+         wp.code_snippet,
+         cr.updated_at
+       FROM capability_records cr
+       LEFT JOIN workflow_pattern wp ON cr.workflow_pattern_id = wp.pattern_id
+       WHERE cr.id = $1`,
       [sourceRecord.id],
     )) as unknown as CapRow[];
     const targetRows = (await this.db.query(
-      `SELECT tools_used, code_snippet, updated_at FROM capability_records WHERE id = $1`,
+      `SELECT
+         wp.dag_structure->'tools_used' as tools_used,
+         wp.code_snippet,
+         cr.updated_at
+       FROM capability_records cr
+       LEFT JOIN workflow_pattern wp ON cr.workflow_pattern_id = wp.pattern_id
+       WHERE cr.id = $1`,
       [targetRecord.id],
     )) as unknown as CapRow[];
 
@@ -954,26 +967,34 @@ export class CapModule {
     // Execute merge in a real transaction for atomicity
     // If DELETE fails, UPDATE is rolled back
     await this.db.transaction(async (tx) => {
-      // Update target with merged values
+      // Update target capability_records with merged stats
       await tx.exec(
         `UPDATE capability_records SET
           usage_count = $1,
           success_count = $2,
           total_latency_ms = $3,
           created_at = $4,
-          code_snippet = $5,
           updated_at = NOW(),
           updated_by = 'cap:merge'
-        WHERE id = $6`,
+        WHERE id = $5`,
         [
           mergedUsageCount,
           mergedSuccessCount,
           mergedLatencyMs,
           mergedCreatedAt,
-          finalCodeSnippet,
           targetRecord.id,
         ],
       );
+
+      // Update workflow_pattern code_snippet if target has one and we chose source code
+      if (targetRecord.workflowPatternId && finalCodeSnippet !== null) {
+        await tx.exec(
+          `UPDATE workflow_pattern SET
+            code_snippet = $1
+          WHERE pattern_id = $2`,
+          [finalCodeSnippet, targetRecord.workflowPatternId],
+        );
+      }
 
       // AC6: Delete source
       await tx.exec(`DELETE FROM capability_records WHERE id = $1`, [
