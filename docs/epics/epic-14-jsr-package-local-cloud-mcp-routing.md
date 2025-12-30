@@ -207,34 +207,45 @@ determines HIL behavior
 As a platform maintainer, I want MCP routing decisions based on declarative configuration, So that
 routing logic is consistent and auditable.
 
+**Note (2025-12-30):** The original routing AC (schema extension, `getToolRouting()`) was implemented
+in Story 13.9 (`src/capabilities/routing-resolver.ts`, `config/mcp-routing.json`). Story 14.3 now
+focuses on PML package integration and capability permission inference.
+
 **Acceptance Criteria:**
 
-**Given** the existing `mcp-permissions.yaml` configuration **When** the schema is extended **Then**
+**AC1-3 (Routing - DONE via Story 13.9):**
+
+~~**Given** the existing `mcp-permissions.yaml` configuration **When** the schema is extended **Then**
 each MCP entry supports a `routing: local | cloud` field **And** the default is `cloud` if not
-specified
+specified~~ → **DONE:** `config/mcp-routing.json` exists with cloud list, default is local.
 
-**Given** the PermissionInferrer module **When** a new function `getToolRouting(mcpName: string)` is
+~~**Given** the PermissionInferrer module **When** a new function `getToolRouting(mcpName: string)` is
 called **Then** it returns the routing mode from configuration **And** caches the result for
-performance
+performance~~ → **DONE:** `src/capabilities/routing-resolver.ts:getToolRouting()`
 
-**Given** the following default routing:
+~~**Given** the default routing config **When** tool calls are processed **Then** each is routed
+according to its configuration~~ → **DONE:** `resolveRouting()` with cache + pattern matching.
 
-```yaml
-filesystem:
-  routing: local
-shell:
-  routing: local
-sqlite:
-  routing: local
-tavily:
-  routing: cloud
-github:
-  routing: cloud
-pml:
-  routing: cloud
-```
+**AC4-6 (NEW - PML Package Integration + Permission Inference):**
 
-**When** tool calls are processed **Then** each is routed according to its configuration
+**Given** the PML package (`packages/pml`) **When** it needs to determine routing **Then** it has an
+embedded routing resolver matching `config/mcp-routing.json` **And** returns `"local"` for unknown
+tools (security-first)
+
+**Given** a capability with `tools_used = ["filesystem:read", "tavily:search"]` **And** user's
+permissions from `.pml.json`: `{ allow: ["tavily:*"], ask: ["filesystem:*"] }` **When**
+`inferCapabilityApprovalMode(toolsUsed, permissions)` is called **Then** it returns `"hil"` because
+`filesystem:read` requires ask
+
+**Given** a capability's tools_used list **When** inferring approval mode at runtime **Then** the
+following precedence applies:
+  1. If ANY tool is `denied` → throw error (capability blocked)
+  2. If ANY tool is `ask` → return `"hil"`
+  3. If ALL tools are `allow` → return `"auto"`
+  4. Unknown tools → `"hil"` (safe default)
+
+**Key Insight:** `routing` is platform-defined (stored in DB), `approval_mode` is user-specific
+(computed at runtime from `tools_used` + user's `.pml.json` permissions)
 
 ---
 
