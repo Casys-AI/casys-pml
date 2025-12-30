@@ -56,11 +56,11 @@ Deno.test("DI Container - mocks have default implementations", async () => {
     code: "test code",
     durationMs: 100,
   });
-  assertEquals(saveResult.capabilityId, "test-id");
-  assertEquals(saveResult.isNew, true);
+  assertEquals(saveResult.capability.id, "test-id");
+  assertExists(saveResult.capability);
 
   // Test DAG executor mock
-  const dagResult = await dagExec.execute({ tasks: [], dependencies: [] });
+  const dagResult = await dagExec.execute({ tasks: [] });
   assertEquals(dagResult.success, true);
 
   // Test graph engine mock
@@ -152,13 +152,13 @@ Deno.test("DI Container - GraphEngine mock methods", () => {
   const stats = graph.getStats();
   assertEquals(stats.nodeCount, 0);
   assertEquals(stats.edgeCount, 0);
-  assertEquals(stats.density, 0);
+  assertEquals(stats.avgPageRank, 0);
   assertEquals(stats.communities, 0);
 
   const snapshot = graph.getGraphSnapshot();
   assertEquals(snapshot.nodes, []);
   assertEquals(snapshot.edges, []);
-  assertExists(snapshot.timestamp);
+  assertExists(snapshot.metadata);
 });
 
 Deno.test("DI Container - MCPClientRegistry mock methods", async () => {
