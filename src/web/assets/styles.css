@@ -89,3 +89,13 @@
     transform: translateY(0);
   }
 }
+
+/* Page transition - mask white flash */
+body {
+  animation: pageLoad 0.15s ease-out;
+}
+
+@keyframes pageLoad {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
