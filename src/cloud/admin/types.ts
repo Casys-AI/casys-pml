@@ -14,6 +14,9 @@
 export interface QueryClient {
   query<T>(sql: string, params?: unknown[]): Promise<T[]>;
   queryOne<T>(sql: string, params?: unknown[]): Promise<T | null>;
+  /** Try query without logging errors - for optional tables */
+  tryQuery?<T>(sql: string, params?: unknown[]): Promise<T[] | null>;
+  tryQueryOne?<T>(sql: string, params?: unknown[]): Promise<T | null>;
 }
 
 /** Time range for analytics queries */

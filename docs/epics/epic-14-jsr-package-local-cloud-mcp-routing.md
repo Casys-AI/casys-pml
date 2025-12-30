@@ -195,6 +195,11 @@ back to the current working directory **And** logs a warning suggesting explicit
 path is validated to be within the workspace **And** operations outside workspace are rejected with
 clear error message
 
+**Given** a `.pml.json` file exists in the workspace **When** PML loads permissions **Then** the
+user's `permissions` section (`allow`/`deny`/`ask`) is used as THE source of truth **And** our
+default `config/mcp-permissions.json` is NOT used as fallback **And** only the user's config
+determines HIL behavior
+
 ---
 
 ### Story 14.3: Routing Configuration & Permission Inferrer Integration

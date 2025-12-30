@@ -85,16 +85,14 @@ export async function queryUserActivity(
     WHERE executed_at > NOW() - INTERVAL '30 days'
   `);
 
-  // New registrations (users table only exists with cloud auth)
+  // New registrations (users table requires cloud auth - not yet implemented)
   let newUsersResult: { count: number } | null = null;
   try {
     newUsersResult = await db.queryOne<{ count: number }>(`
-      SELECT COUNT(*) as count
-      FROM users
-      WHERE ${userTimeFilter}
+      SELECT COUNT(*) as count FROM users WHERE ${userTimeFilter}
     `);
   } catch {
-    log.debug("[Analytics] users table not found for new registrations");
+    // Expected: users table doesn't exist until cloud auth is implemented
   }
 
   // Returning users (had activity before time range AND during)
@@ -111,36 +109,38 @@ export async function queryUserActivity(
   `);
 
   // Top users by execution count
-  // Try with users join first, fallback to without users table
+  // Try with users join first (if tryQuery available), fallback to without users table
   let topUsers: TopUser[] = [];
-  try {
-    const topUsersRows = await db.query<{
-      user_id: string;
-      username: string;
-      execution_count: number;
-      last_active: Date;
-    }>(`
-      SELECT
-        et.user_id,
-        COALESCE(u.username, et.user_id) as username,
-        COUNT(*) as execution_count,
-        MAX(et.executed_at) as last_active
-      FROM execution_trace et
-      LEFT JOIN users u ON u.id::text = et.user_id OR u.username = et.user_id
-      WHERE ${timeFilter.replace("executed_at", "et.executed_at")}
-      GROUP BY et.user_id, u.username
-      ORDER BY execution_count DESC
-      LIMIT ${topUsersLimit}
-    `);
-    topUsers = topUsersRows.map((row) => ({
+  const topUsersWithJoin = db.tryQuery
+    ? await db.tryQuery<{
+        user_id: string;
+        username: string;
+        execution_count: number;
+        last_active: Date;
+      }>(`
+        SELECT
+          et.user_id,
+          COALESCE(u.username, et.user_id) as username,
+          COUNT(*) as execution_count,
+          MAX(et.executed_at) as last_active
+        FROM execution_trace et
+        LEFT JOIN users u ON u.id::text = et.user_id OR u.username = et.user_id
+        WHERE ${timeFilter.replace("executed_at", "et.executed_at")}
+        GROUP BY et.user_id, u.username
+        ORDER BY execution_count DESC
+        LIMIT ${topUsersLimit}
+      `)
+    : null;
+
+  if (topUsersWithJoin) {
+    topUsers = topUsersWithJoin.map((row) => ({
       userId: row.user_id,
       username: row.username,
       executionCount: Number(row.execution_count),
       lastActive: new Date(row.last_active),
     }));
-  } catch {
-    // users table doesn't exist - fallback to query without join
-    log.debug("[Analytics] users table not found, using user_id as username");
+  } else {
+    // users table doesn't exist - query without join
     const topUsersRows = await db.query<{
       user_id: string;
       execution_count: number;
@@ -158,7 +158,7 @@ export async function queryUserActivity(
     `);
     topUsers = topUsersRows.map((row) => ({
       userId: row.user_id,
-      username: row.user_id, // Use user_id as username fallback
+      username: row.user_id,
       executionCount: Number(row.execution_count),
       lastActive: new Date(row.last_active),
     }));
