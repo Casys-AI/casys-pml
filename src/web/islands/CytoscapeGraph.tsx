@@ -225,7 +225,7 @@ export interface ToolData {
 }
 
 /** View mode for the graph */
-export type ViewMode = "capabilities" | "tools" | "graph";
+export type ViewMode = "capabilities" | "emergence" | "graph";
 
 /** Node mode - definition (generic tools) vs invocation (actual calls) */
 export type NodeMode = "definition" | "invocation";

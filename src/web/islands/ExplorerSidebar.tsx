@@ -12,7 +12,7 @@ import Badge from "../components/ui/atoms/Badge.tsx";
 import Divider from "../components/ui/atoms/Divider.tsx";
 
 /** View mode for the graph */
-export type ViewMode = "capabilities" | "tools" | "graph";
+export type ViewMode = "capabilities" | "emergence" | "graph";
 
 /** Sort options for capabilities */
 export type SortBy = "date" | "usage" | "success";
@@ -277,21 +277,21 @@ export default function ExplorerSidebar({
                   <rect x="14" y="14" width="7" height="7" rx="1" />
                 </svg>
               </button>
-              {/* Tools */}
+              {/* Emergence - CAS metrics dashboard */}
               <button
                 type="button"
                 class="flex-1 p-2 rounded-lg transition-all flex items-center justify-center"
                 style={{
-                  background: viewMode === "tools"
+                  background: viewMode === "emergence"
                     ? "var(--accent, #FFB86F)"
                     : "var(--bg-surface, #1a1816)",
-                  color: viewMode === "tools" ? "var(--bg, #0a0908)" : "var(--text-muted)",
-                  border: viewMode === "tools"
+                  color: viewMode === "emergence" ? "var(--bg, #0a0908)" : "var(--text-muted)",
+                  border: viewMode === "emergence"
                     ? "1px solid var(--accent)"
                     : "1px solid var(--border)",
                 }}
-                onClick={() => onViewModeChange("tools")}
-                title="Tools"
+                onClick={() => onViewModeChange("emergence")}
+                title="Emergence - CAS metrics"
               >
                 <svg
                   width="14"
@@ -301,7 +301,9 @@ export default function ExplorerSidebar({
                   stroke="currentColor"
                   stroke-width="2"
                 >
-                  <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                  {/* Sparkles icon for emergence */}
+                  <path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707" />
+                  <circle cx="12" cy="12" r="4" />
                 </svg>
               </button>
               {/* Graph */}

@@ -17,6 +17,7 @@ import CytoscapeGraph, {
 import type { ClusterVizConfig } from "../utils/graph/index.ts";
 import CapabilityTimeline, { type TimelineCapability } from "./CapabilityTimeline.tsx";
 import CodePanel from "./CodePanel.tsx";
+import EmergencePanel from "./EmergencePanel.tsx";
 import ExplorerSidebar, {
   type CardDensity,
   type SortBy,
@@ -1244,65 +1245,68 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
           onDepthChange={setHighlightDepth}
         />
 
-        {/* Graph Visualization - Cytoscape for tools/graph, Timeline for capabilities */}
+        {/* Graph Visualization - view mode dependent */}
         <div ref={graphRef} style={{ flex: 1, position: "relative", minHeight: 0 }}>
-          {viewMode === "capabilities"
-            ? (
-              /* Timeline view for capabilities (scrollable HTML) */
-              <CapabilityTimeline
-                apiBase={apiBase}
-                onCapabilitySelect={(cap) => {
-                  if (cap) {
-                    // Convert TimelineCapability to CapabilityData format
-                    setSelectedCapability({
-                      id: cap.id,
-                      label: cap.name,
-                      successRate: cap.successRate,
-                      usageCount: cap.usageCount,
-                      toolsCount: cap.tools.length,
-                      toolIds: cap.tools.map((t) => t.id),
-                      traces: cap.traces ?? [], // Pass traces for CodePanel
-                      codeSnippet: cap.codeSnippet, // Pass code snippet for CodePanel
-                    });
-                  } else {
-                    setSelectedCapability(null);
-                  }
-                }}
-                onToolSelect={(toolId) => {
-                  if (toolId) {
-                    setHighlightedNode(toolId);
-                  }
-                }}
-                refreshKey={graphRefreshKey}
-                onServersDiscovered={handleServersDiscovered}
-                onCapabilitiesLoaded={setAllCapabilities}
-                density={density}
-                searchQuery={searchQuery}
-              />
-            )
-            : (
-              /* Cytoscape graph for tools and graph modes */
-              <CytoscapeGraph
-                apiBase={apiBase}
-                onNodeSelect={handleNodeSelect}
-                onCapabilitySelect={handleCapabilitySelect}
-                onToolSelect={handleToolSelect}
-                highlightedNodeId={highlightedNode}
-                previewNodeId={hoveredNodeId}
-                previewSectionId={previewSectionId}
-                pathNodes={pathNodes}
-                highlightDepth={highlightDepth}
-                viewMode={viewMode}
-                expandedNodes={expandedNodes}
-                onExpandedNodesChange={setExpandedNodes}
-                nodeMode={nodeMode}
-                refreshKey={graphRefreshKey}
-                onServersDiscovered={handleServersDiscovered}
-                pinnedSets={pinnedSets}
-                clusterViz={clusterViz}
-                hasBreadcrumbs={breadcrumbs.length > 0}
-              />
-            )}
+          {viewMode === "capabilities" && (
+            /* Timeline view for capabilities (scrollable HTML) */
+            <CapabilityTimeline
+              apiBase={apiBase}
+              onCapabilitySelect={(cap) => {
+                if (cap) {
+                  // Convert TimelineCapability to CapabilityData format
+                  setSelectedCapability({
+                    id: cap.id,
+                    label: cap.name,
+                    successRate: cap.successRate,
+                    usageCount: cap.usageCount,
+                    toolsCount: cap.tools.length,
+                    toolIds: cap.tools.map((t) => t.id),
+                    traces: cap.traces ?? [], // Pass traces for CodePanel
+                    codeSnippet: cap.codeSnippet, // Pass code snippet for CodePanel
+                  });
+                } else {
+                  setSelectedCapability(null);
+                }
+              }}
+              onToolSelect={(toolId) => {
+                if (toolId) {
+                  setHighlightedNode(toolId);
+                }
+              }}
+              refreshKey={graphRefreshKey}
+              onServersDiscovered={handleServersDiscovered}
+              onCapabilitiesLoaded={setAllCapabilities}
+              density={density}
+              searchQuery={searchQuery}
+            />
+          )}
+          {viewMode === "emergence" && (
+            /* EmergencePanel for CAS metrics dashboard */
+            <EmergencePanel apiBase={apiBase} />
+          )}
+          {viewMode === "graph" && (
+            /* Cytoscape graph for graph mode */
+            <CytoscapeGraph
+              apiBase={apiBase}
+              onNodeSelect={handleNodeSelect}
+              onCapabilitySelect={handleCapabilitySelect}
+              onToolSelect={handleToolSelect}
+              highlightedNodeId={highlightedNode}
+              previewNodeId={hoveredNodeId}
+              previewSectionId={previewSectionId}
+              pathNodes={pathNodes}
+              highlightDepth={highlightDepth}
+              viewMode={viewMode}
+              expandedNodes={expandedNodes}
+              onExpandedNodesChange={setExpandedNodes}
+              nodeMode={nodeMode}
+              refreshKey={graphRefreshKey}
+              onServersDiscovered={handleServersDiscovered}
+              pinnedSets={pinnedSets}
+              clusterViz={clusterViz}
+              hasBreadcrumbs={breadcrumbs.length > 0}
+            />
+          )}
         </div>
       </div>
 
