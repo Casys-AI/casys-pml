@@ -428,6 +428,59 @@ operation is blocked **And** security audit log captures the attempt
 
 ---
 
+### Story 14.9: Custom MCP Servers Support (User's `.mcp-servers.json`)
+
+As a power user, I want to add my own custom MCP servers to the PML ecosystem, So that I can use
+specialized tools not provided by the default registry.
+
+**Context:**
+
+Currently (Stories 14.1-14.8), all MCP servers (filesystem, shell, sqlite, etc.) are provided by
+the PML registry via dynamic import from `pml.casys.ai/mcp/{fqdn}`. Users don't need to configure
+local MCP servers - they're automatically available.
+
+However, power users may want to:
+- Add custom MCP servers (e.g., company-internal tools)
+- Override default MCP behavior with custom implementations
+- Use third-party MCP servers not in our registry
+
+**Current State (Stories 14.1-14.8):**
+- `.mcp-servers.json` is generated but NOT used
+- File is added to `.gitignore`
+- All MCPs come from PML registry
+
+**Acceptance Criteria:**
+
+**Given** a user with a `.mcp-servers.json` file containing custom MCP definitions **When** `pml
+serve` starts **Then** custom MCPs are loaded alongside registry MCPs **And** custom MCPs are
+indexed in local capability store for discovery
+
+**Given** a custom MCP with the same name as a registry MCP (e.g., `filesystem`) **When** tool
+routing is resolved **Then** a clear conflict resolution strategy is applied:
+- Option A: User's custom MCP takes precedence (override)
+- Option B: Error with clear message asking user to rename
+- Option C: Namespace prefix required (e.g., `custom:filesystem` vs `pml:filesystem`)
+
+**Given** a custom MCP server **When** it fails to connect **Then** PML continues with registry
+MCPs **And** a warning is logged about the unavailable custom server
+
+**Given** a custom MCP server **When** `pml:discover` is called **Then** custom MCPs appear in
+search results **And** they're clearly marked as "custom" vs "registry"
+
+**Technical Notes:**
+
+- Requires decision on conflict resolution strategy (override vs namespace vs error)
+- Custom MCPs should respect user's `.pml.json` permissions (allow/deny/ask)
+- Custom MCPs execute locally by default (user's machine, user's permissions)
+- May need `routing` field in `.mcp-servers.json` for cloud-hosted custom MCPs
+
+**Dependencies:**
+
+- Stories 14.1-14.8 (complete Epic 14 foundation)
+- Story 13.8: Unified PML Registry (for indexing strategy)
+
+---
+
 ## Technical Notes
 
 ### Package Structure
@@ -487,5 +540,47 @@ External clients see only standard MCP protocol - no distinction visible.
 
 1. **Registry Strategy**: ✅ Resolved - Unified `pml.casys.ai/mcp/{fqdn}` endpoint (not JSR)
 2. **Versioning**: Handled via `pml_registry.version` and `version_tag` fields
-3. **Custom MCPs**: Can be added to `pml_registry` with `record_type='mcp-server'`
+3. **Custom MCPs**: ✅ Deferred to Story 14.9 - `.mcp-servers.json` parked (gitignored) until 14.1-14.8 complete
 4. **Offline Fallback**: Deno HTTP cache + optional pre-bundled essential MCPs in package
+5. **Organization**: User's GitHub username (can have multiple projects under it)
+6. **Routing Decision**: ✅ Platform decides, not user. See below.
+
+---
+
+## Routing Architecture (Platform Decision)
+
+**Who decides routing?** → **Us (platform)**, not the user.
+
+The `routing` field in `tool_schema` is set by **us** when we seed MCPs. Users cannot change it.
+
+### Routing Rules
+
+| Routing | Critère | Exemples |
+|---------|---------|----------|
+| **local** | MUST access user's workspace/files | `filesystem`, `shell`, `sqlite`, `git` |
+| **cloud** | API-based, can proxy or BYOK | `tavily`, `github`, `slack`, `pml:*` |
+
+### What the user controls
+
+| User Config | Purpose |
+|-------------|---------|
+| `.pml.json` permissions | `allow/deny/ask` - HIL behavior |
+| `.env` API keys | BYOK for cloud MCPs (TAVILY_API_KEY, etc.) |
+
+### What the user does NOT control
+
+- `routing` field - fixed by platform
+- Which MCPs are local vs cloud - platform decision
+- MCP code source - always from `pml.casys.ai/mcp/{fqdn}`
+
+### Cloud MCP Flow (BYOK)
+
+```
+User calls tavily:search
+    │
+    ├─► PML package reads TAVILY_API_KEY from user's .env
+    │
+    ├─► Forwards request to pml.casys.ai with BYOK injection
+    │
+    └─► Cloud executes with user's API key (never stored)
+```

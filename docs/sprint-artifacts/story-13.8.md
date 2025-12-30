@@ -1,190 +1,185 @@
-# Story 13.8: Unified PML Registry (MCP + Capabilities)
+# Story 13.8: Unified PML Registry (VIEW approach)
 
 **Epic:** 13 - Capability Naming & Curation **Story ID:** 13.8 **Status:** ready-for-dev **Estimated
-Effort:** 4-6 heures
+Effort:** 2-3 heures (réduit grâce à l'approche VIEW)
 
 ---
 
 ## User Story
 
-**As a** platform developer, **I want** a unified registry for MCP servers and capabilities, **So
-that** I can manage both types uniformly and support cloud/local routing decisions.
+**As a** platform developer, **I want** a unified registry view for MCP tools and capabilities, **So
+that** `pml:discover` can search both uniformly and support dynamic import via `code_url`.
 
 ---
 
 ## Context
 
-Aujourd'hui :
+### Situation actuelle
 
-- **Capabilities** → stockées dans `capability_records`
-- **MCP servers** → configurés dans `mcp-permissions.yaml` (pas de table)
+- **Capabilities** → `capability_records` (+ FK vers `workflow_pattern`)
+- **MCP tools** → `tool_schema` (définitions des outils MCP)
 
-Problème : incohérence. On veut gérer les deux de manière uniforme.
+Ces deux tables ont des rôles différents :
+- `capability_records` = code appris qui UTILISE les outils MCP
+- `tool_schema` = définitions des outils MCP externes
 
-Solution : Renommer `capability_records` → `pml_registry` et ajouter `record_type` pour distinguer
-capabilities des MCP servers.
+### Décision architecturale
+
+**❌ Ancienne approche** : Renommer `capability_records` → `pml_registry` (risqué, 32 fichiers à modifier)
+
+**✅ Nouvelle approche** : Créer une VIEW `pml_registry` qui UNION les deux tables
+- Pas de migration destructive
+- Chaque table garde sa logique métier
+- Interface unifiée pour discovery
 
 ---
 
 ## Acceptance Criteria
 
-1. **AC1: Table renommée**
-   - `capability_records` → `pml_registry`
-   - Tous les index et contraintes migrés
+1. **AC1: Colonnes ajoutées à tool_schema**
+   - `code_url TEXT` - URL pour dynamic import (`pml.casys.ai/mcp/{fqdn}`)
+   - `routing TEXT DEFAULT 'cloud'` - `local` ou `cloud`
 
-2. **AC2: Colonnes ajoutées**
-   - `record_type TEXT DEFAULT 'capability' CHECK (record_type IN ('capability', 'mcp-server'))`
-   - `code_url TEXT` (optionnel, pour futur téléchargement dynamique)
+2. **AC2: VIEW pml_registry créée**
+   - UNION de `tool_schema` et `capability_records`
+   - Expose `record_type`, `id`, `name`, `description`, `code_url`, `routing`
 
-3. **AC3: Code mis à jour**
-   - Tous les fichiers référençant `capability_records` mis à jour vers `pml_registry`
-   - Tests passent
+3. **AC3: pml:discover utilise la VIEW**
+   - Recherche dans `pml_registry` (unifié)
+   - Résultats incluent `record_type` ('mcp-tool' | 'capability')
 
-4. __AC4: cap:_ tools fonctionnent_*
-   - `cap:list`, `cap:lookup`, `cap:whois`, `cap:rename` fonctionnent avec la nouvelle table
-   - Réponses incluent `record_type` dans les métadonnées
+4. **AC4: Tests passent**
+   - `deno task test` passe
+   - `deno task check` passe
 
 ---
 
 ## Out of Scope (Différé)
 
-- ❌ Seeding des MCP servers (sera fait quand on voudra gérer via API)
-- ❌ Versioning `@v1.2.0` (Story 13.6)
-- ❌ Visibility enforcement cross-org (Epic 14)
-- ❌ Installation dynamique de MCPs via `code_url`
+- ❌ Seeding des MCP servers avec `code_url` (sera fait dans Epic 14)
+- ❌ Renommer `capability_records` (plus nécessaire)
+- ❌ Modifier cap:* tools (ils continuent à utiliser `capability_records` directement)
 
 ---
 
 ## Tasks / Subtasks
 
-### Phase 1: Migration DB (1-2h)
+### Phase 1: Migration DB (1h)
 
 - [ ] **Task 1: Créer migration 029** (AC: #1, #2)
-  - [ ] `ALTER TABLE capability_records RENAME TO pml_registry`
-  - [ ] Ajouter colonne `record_type`
-  - [ ] Ajouter colonne `code_url`
-  - [ ] Mettre à jour les index si nécessaire
-  - [ ] Rollback: rename inverse + drop colonnes
+  - [ ] Ajouter `code_url TEXT` à `tool_schema`
+  - [ ] Ajouter `routing TEXT DEFAULT 'cloud'` à `tool_schema`
+  - [ ] Créer VIEW `pml_registry`
+  - [ ] Rollback: DROP VIEW, DROP colonnes
 
-### Phase 2: Mise à jour du code (2-3h)
+### Phase 2: Mise à jour du code (1h)
 
-- [ ] **Task 2: Mettre à jour capability-registry.ts** (AC: #3)
-  - [ ] Remplacer toutes les références `capability_records` → `pml_registry`
-  - [ ] Tests unitaires passent
+- [ ] **Task 2: Mettre à jour discover-handler.ts** (AC: #3)
+  - [ ] Utiliser la VIEW `pml_registry` pour les recherches unifiées
+  - [ ] Ajouter `recordType` dans les résultats
 
-- [ ] **Task 3: Mettre à jour capability-store.ts** (AC: #3)
-  - [ ] Remplacer les requêtes SQL
-  - [ ] Tests unitaires passent
+- [ ] **Task 3: Mettre à jour les types** (AC: #3)
+  - [ ] Ajouter `PmlRegistryRecord` type
+  - [ ] Ajouter `recordType: 'mcp-tool' | 'capability'`
 
-- [ ] **Task 4: Mettre à jour lib/std/cap.ts** (AC: #3, #4)
-  - [ ] Remplacer les requêtes SQL
-  - [ ] Ajouter `recordType` dans les réponses de cap:whois
-  - [ ] Tests unitaires passent
+### Phase 3: Tests (30min)
 
-- [ ] **Task 5: Mettre à jour les autres fichiers** (AC: #3)
-  - [ ] `execute-handler.ts`
-  - [ ] `discover-handler.ts`
-  - [ ] `capability-executor.ts`
-  - [ ] `capability-server.ts`
-  - [ ] `types.ts`
-  - [ ] `data-service.ts`
-
-- [ ] **Task 6: Mettre à jour les migrations existantes** (AC: #3)
-  - [ ] Vérifier que les migrations 021-028 référencent le bon nom
-  - [ ] Note: Les anciennes migrations gardent `capability_records` (c'était le nom à l'époque)
-
-### Phase 3: Tests (1h)
-
-- [ ] **Task 7: Tests d'intégration** (AC: #4)
-  - [ ] Tester cap:list avec la nouvelle table
-  - [ ] Tester cap:lookup
-  - [ ] Tester cap:whois (vérifier recordType dans réponse)
-  - [ ] Tester cap:rename
-
-- [ ] **Task 8: Validation manuelle**
-  - [ ] Lancer le serveur
-  - [ ] Exécuter des requêtes via pml:execute
-  - [ ] Vérifier les 107 capabilities existantes sont accessibles
+- [ ] **Task 4: Tests d'intégration** (AC: #4)
+  - [ ] Tester la VIEW retourne les deux types
+  - [ ] Tester pml:discover trouve MCP tools ET capabilities
 
 ---
 
 ## Files to Update
 
 ```
-src/capabilities/capability-registry.ts
-src/capabilities/capability-store.ts
-src/capabilities/types.ts
-src/capabilities/data-service.ts
-src/mcp/handlers/execute-handler.ts
+src/db/migrations/029_pml_registry_view.ts  # NEW
 src/mcp/handlers/discover-handler.ts
-src/mcp/capability-server/services/capability-executor.ts
-src/mcp/capability-server/server.ts
-lib/std/cap.ts
-tests/unit/lib/std/cap_test.ts
+src/capabilities/types.ts
+tests/unit/mcp/discover_handler_test.ts
 ```
+
+**Files NOT modified** (inchangés):
+- `capability-registry.ts` - continue à utiliser `capability_records`
+- `capability-store.ts` - continue à utiliser `capability_records`
+- `lib/std/cap.ts` - continue à utiliser `capability_records`
 
 ---
 
 ## Technical Notes
 
-### Nouvelle structure de `pml_registry`
+### Migration 029: pml_registry VIEW
 
 ```sql
-CREATE TABLE pml_registry (
-  -- Identity (inchangé)
-  id UUID PRIMARY KEY,
-  org TEXT NOT NULL,
-  project TEXT NOT NULL,
-  namespace TEXT NOT NULL,
-  action TEXT NOT NULL,
-  hash TEXT NOT NULL,
+-- Ajouter colonnes à tool_schema
+ALTER TABLE tool_schema ADD COLUMN code_url TEXT;
+ALTER TABLE tool_schema ADD COLUMN routing TEXT DEFAULT 'cloud'
+  CHECK (routing IN ('local', 'cloud'));
 
-  -- Type discrimination (NOUVEAU)
-  record_type TEXT DEFAULT 'capability'
-    CHECK (record_type IN ('capability', 'mcp-server')),
-  code_url TEXT,  -- URL pour MCP servers (futur)
+-- Créer la VIEW unifiée
+CREATE VIEW pml_registry AS
+  -- MCP Tools
+  SELECT
+    'mcp-tool'::text as record_type,
+    tool_id as id,
+    name,
+    description,
+    code_url,
+    routing,
+    server_id,
+    NULL::uuid as workflow_pattern_id,
+    NULL::text as org,
+    NULL::text as project,
+    NULL::text as namespace,
+    NULL::text as action
+  FROM tool_schema
 
-  -- Provenance (inchangé)
-  created_by TEXT NOT NULL DEFAULT 'local',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_by TEXT,
-  updated_at TIMESTAMPTZ,
+  UNION ALL
 
-  -- Versioning (inchangé)
-  version INTEGER NOT NULL DEFAULT 1,
-  version_tag TEXT,
-
-  -- Trust (inchangé)
-  verified BOOLEAN NOT NULL DEFAULT FALSE,
-  signature TEXT,
-
-  -- Metrics (inchangé)
-  usage_count INTEGER NOT NULL DEFAULT 0,
-  success_count INTEGER NOT NULL DEFAULT 0,
-  total_latency_ms BIGINT NOT NULL DEFAULT 0,
-
-  -- Metadata (inchangé)
-  tags TEXT[] DEFAULT '{}',
-  visibility TEXT NOT NULL DEFAULT 'private'
-    CHECK (visibility IN ('private', 'project', 'org', 'public')),
-  routing TEXT NOT NULL DEFAULT 'local'
-    CHECK (routing IN ('local', 'cloud')),
-  tools_used TEXT[] DEFAULT '{}',
-
-  -- FK (inchangé)
-  workflow_pattern_id UUID REFERENCES workflow_pattern(pattern_id)
-);
+  -- Capabilities
+  SELECT
+    'capability'::text as record_type,
+    cr.id::text,
+    cr.namespace || ':' || cr.action as name,
+    wp.description,
+    NULL as code_url,  -- capabilities n'ont pas de code_url (code dans workflow_pattern)
+    cr.routing,
+    NULL as server_id,
+    cr.workflow_pattern_id,
+    cr.org,
+    cr.project,
+    cr.namespace,
+    cr.action
+  FROM capability_records cr
+  LEFT JOIN workflow_pattern wp ON cr.workflow_pattern_id = wp.pattern_id;
 ```
 
-### Exemples après migration
+### Schéma de la VIEW
 
-```
--- Capability existante
-namespace="fs", action="read_json", record_type="capability", routing="local"
+| Colonne | Type | Source (mcp-tool) | Source (capability) |
+|---------|------|-------------------|---------------------|
+| `record_type` | TEXT | 'mcp-tool' | 'capability' |
+| `id` | TEXT | tool_id | cr.id::text |
+| `name` | TEXT | name | namespace:action |
+| `description` | TEXT | description | wp.description |
+| `code_url` | TEXT | code_url | NULL |
+| `routing` | TEXT | routing | cr.routing |
+| `server_id` | TEXT | server_id | NULL |
+| `workflow_pattern_id` | UUID | NULL | cr.workflow_pattern_id |
+| `org`, `project`, `namespace`, `action` | TEXT | NULL | cr.* |
 
--- Futur MCP server (après seeding)
-namespace="mcp", action="filesystem", record_type="mcp-server", routing="local"
-namespace="mcp", action="tavily", record_type="mcp-server", routing="cloud"
+### Exemples de requêtes
+
+```sql
+-- Chercher tout (MCP tools + capabilities)
+SELECT * FROM pml_registry WHERE name ILIKE '%file%';
+
+-- Filtrer par type
+SELECT * FROM pml_registry WHERE record_type = 'mcp-tool';
+SELECT * FROM pml_registry WHERE record_type = 'capability';
+
+-- Pour routing
+SELECT * FROM pml_registry WHERE routing = 'local';
 ```
 
 ---
@@ -192,8 +187,7 @@ namespace="mcp", action="tavily", record_type="mcp-server", routing="cloud"
 ## Definition of Done
 
 - [ ] Migration 029 créée et testée (up + down)
-- [ ] Tous les fichiers mis à jour
+- [ ] VIEW `pml_registry` fonctionne
 - [ ] `deno task test` passe
 - [ ] `deno task check` passe
-- [ ] cap:list, cap:lookup, cap:whois fonctionnent
-- [ ] Les 107 capabilities existantes accessibles
+- [ ] pml:discover trouve MCP tools ET capabilities

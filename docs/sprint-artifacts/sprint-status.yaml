@@ -187,6 +187,7 @@ development_status:
   9-5-rate-limiting-data-isolation: done # Code Review APPROVED 2025-12-10, 21 tests passing, Score: 98/100, Full userId propagation complete
   9-6-mcp-config-secrets-management: backlog # ADR-040 - DEFERRED: Requires workspace refacto (open-core + SaaS repos) first
   9-7-shgat-prediction-visibility-filtering: backlog # SHGAT predictions filtered by capability visibility (public/org/project/private)
+  9-8-per-user-dashboard-metrics: drafted # Dashboard metrics filtered by user's actual tool usage (emergence, graph stats)
   epic-9-retrospective: optional
 
   # Epic 10: DAG Capability Learning & Unified APIs
@@ -285,4 +286,5 @@ development_status:
   14-7-mcp-source-resolution: backlog # Registry strategy (depends on 13.8 MCP Server Registry)
   # Phase 4: Quality (~3 days)
   14-8-e2e-integration-testing: backlog # Full flow tests,  offline mode, permission boundaries
+  14-9-custom-mcp-servers-support: backlog # User's .mcp-servers.json - deferred until 14.1-14.8 complete
   epic-14-retrospective: optional
