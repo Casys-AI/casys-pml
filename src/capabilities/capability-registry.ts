@@ -324,7 +324,10 @@ export class CapabilityRegistry {
   /**
    * Increment usage metrics for a capability
    *
-   * @param id - The UUID of the capability
+   * Updates workflow_pattern table (the single source of truth for usage stats).
+   * Migration 034 removed unused columns from capability_records.
+   *
+   * @param id - The UUID of the capability (capability_records.id)
    * @param success - Whether execution was successful
    * @param latencyMs - Execution latency in milliseconds
    */
@@ -333,15 +336,26 @@ export class CapabilityRegistry {
     success: boolean,
     latencyMs: number,
   ): Promise<void> {
+    // Update workflow_pattern via the FK relationship
+    // This is the single source of truth for usage stats
     await this.db.query(
-      `UPDATE capability_records
+      `UPDATE workflow_pattern wp
        SET
          usage_count = usage_count + 1,
          success_count = success_count + CASE WHEN $2 THEN 1 ELSE 0 END,
-         total_latency_ms = total_latency_ms + $3,
-         updated_at = NOW()
-       WHERE id = $1`,
+         success_rate = (success_count + CASE WHEN $2 THEN 1 ELSE 0 END)::real / (usage_count + 1)::real,
+         avg_duration_ms = ((COALESCE(avg_duration_ms, 0) * usage_count) + $3) / (usage_count + 1),
+         last_used = NOW()
+       FROM capability_records cr
+       WHERE cr.workflow_pattern_id = wp.pattern_id
+         AND cr.id = $1`,
       [id, success, latencyMs],
+    );
+
+    // Also update capability_records.updated_at for tracking
+    await this.db.query(
+      `UPDATE capability_records SET updated_at = NOW() WHERE id = $1`,
+      [id],
     );
   }
 
@@ -393,7 +407,8 @@ export class CapabilityRegistry {
       signature: row.signature as string | undefined,
       usageCount,
       successCount,
-      totalLatencyMs: row.total_latency_ms as number,
+      // totalLatencyMs removed in migration 034, use avg_duration_ms from workflow_pattern
+      totalLatencyMs: row.total_latency_ms as number | undefined,
       tags: (row.tags as string[]) || [],
       visibility: row.visibility as CapabilityVisibility,
       routing: row.routing as CapabilityRouting,

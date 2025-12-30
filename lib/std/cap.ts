@@ -253,8 +253,8 @@ export interface CapWhoisResponse {
   usageCount: number;
   /** Success count */
   successCount: number;
-  /** Total latency in ms */
-  totalLatencyMs: number;
+  /** @deprecated Total latency in ms - removed in migration 034 */
+  totalLatencyMs?: number;
   /** Tags */
   tags: string[];
   /** Visibility level */
@@ -1062,7 +1062,8 @@ export class CapModule {
     // Calculate merged stats
     const mergedUsageCount = sourceRecord.usageCount + targetRecord.usageCount;
     const mergedSuccessCount = sourceRecord.successCount + targetRecord.successCount;
-    const mergedLatencyMs = sourceRecord.totalLatencyMs + targetRecord.totalLatencyMs;
+    // totalLatencyMs deprecated (migration 034), use 0 as fallback
+    const mergedLatencyMs = (sourceRecord.totalLatencyMs ?? 0) + (targetRecord.totalLatencyMs ?? 0);
     const mergedCreatedAt =
       sourceRecord.createdAt < targetRecord.createdAt
         ? sourceRecord.createdAt

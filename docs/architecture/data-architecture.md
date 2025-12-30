@@ -219,6 +219,21 @@ Indexes: `idx_capability_records_workflow_pattern`, unique constraint on `(org, 
 > ```
 > Do NOT assume `pattern_id = capability_records.id` - this was a bug fixed in Dec 2024.
 
+> ⚠️ **Usage Metrics - Two Different Concepts:**
+>
+> | Metric | Table | What it measures |
+> |--------|-------|------------------|
+> | `workflow_pattern.usage_count` | workflow_pattern | Code reuse (same code_hash executed again) |
+> | `COUNT(*) FROM execution_trace` | execution_trace | Tool activity (for SHGAT frequency features) |
+>
+> - **workflow_pattern.usage_count**: Incremented when capability code is matched and reused
+> - **execution_trace**: Counts individual tool invocations in traces (used by SHGAT for ML)
+>
+> These are NOT the same metric. Do not consolidate them.
+>
+> **Migration 034** removed unused `usage_count`/`success_count`/`total_latency_ms` columns
+> from `capability_records`. All queries now JOIN with `workflow_pattern` for accurate stats.
+
 #### `workflow_pattern.dag_structure` JSONB Schema
 
 The `dag_structure` JSONB field contains:
