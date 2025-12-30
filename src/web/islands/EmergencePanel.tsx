@@ -41,8 +41,8 @@ export default function EmergencePanel({ apiBase: apiBaseProp }: EmergencePanelP
   const [timeRange, setTimeRange] = useState<TimeRange>("24h");
   const [showPhaseTransition, setShowPhaseTransition] = useState(true);
 
-  const entropyChartRef = useRef<HTMLCanvasElement>(null);
-  const stabilityChartRef = useRef<HTMLCanvasElement>(null);
+  const entropyChartRef = useRef<HTMLDivElement>(null);
+  const stabilityChartRef = useRef<HTMLDivElement>(null);
   const chartInstances = useRef<Record<string, unknown>>({});
 
   // Fetch metrics
@@ -86,121 +86,173 @@ export default function EmergencePanel({ apiBase: apiBaseProp }: EmergencePanelP
     };
   }, [apiBase, timeRange]);
 
-  // Render charts
+  // Render ECharts
   useEffect(() => {
     if (!metrics?.timeseries) return;
 
-    const Chart = (globalThis as unknown as { Chart?: unknown }).Chart;
-    if (!Chart) return;
+    const echarts = (globalThis as unknown as { echarts?: unknown }).echarts as {
+      init: (el: HTMLElement) => {
+        setOption: (opt: unknown) => void;
+        dispose: () => void;
+        resize: () => void;
+      };
+    } | undefined;
 
-    // Cleanup
+    if (!echarts) return;
+
+    // Cleanup previous instances
     Object.values(chartInstances.current).forEach((c: unknown) => {
-      if (c && typeof c === "object" && "destroy" in c) {
-        (c as { destroy: () => void }).destroy();
+      if (c && typeof c === "object" && "dispose" in c) {
+        (c as { dispose: () => void }).dispose();
       }
     });
     chartInstances.current = {};
 
-    const baseOptions = {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: "rgba(30, 27, 24, 0.95)",
-          titleColor: "#f5f0e8",
-          bodyColor: "#c9c2b8",
-          padding: 8,
-          cornerRadius: 6,
-        },
+    // Common chart options for dark theme
+    const baseOption = {
+      backgroundColor: "transparent",
+      grid: {
+        top: 20,
+        right: 20,
+        bottom: 30,
+        left: 40,
+        containLabel: true,
       },
-      scales: {
-        x: {
-          grid: { color: "rgba(255,184,111,0.08)" },
-          ticks: { color: "#8a8078", maxRotation: 45, font: { size: 10 } },
-        },
-        y: {
-          grid: { color: "rgba(255,184,111,0.08)" },
-          ticks: { color: "#8a8078", font: { size: 10 } },
-          beginAtZero: true,
-          max: 1,
-        },
+      tooltip: {
+        trigger: "axis",
+        backgroundColor: "rgba(30, 27, 24, 0.95)",
+        borderColor: "rgba(255, 184, 111, 0.2)",
+        textStyle: { color: "#f5f0e8", fontSize: 12 },
+        axisPointer: { type: "line", lineStyle: { color: "rgba(255, 184, 111, 0.3)" } },
+      },
+      xAxis: {
+        type: "category",
+        boundaryGap: false,
+        axisLine: { lineStyle: { color: "rgba(255, 184, 111, 0.2)" } },
+        axisLabel: { color: "#8a8078", fontSize: 10 },
+        splitLine: { show: false },
+      },
+      yAxis: {
+        type: "value",
+        min: 0,
+        max: 1,
+        axisLine: { show: false },
+        axisLabel: { color: "#8a8078", fontSize: 10 },
+        splitLine: { lineStyle: { color: "rgba(255, 184, 111, 0.08)" } },
       },
     };
 
     // Entropy chart
     if (entropyChartRef.current) {
-      const ChartClass = Chart as new (ctx: CanvasRenderingContext2D | null, config: unknown) => unknown;
-      chartInstances.current.entropy = new ChartClass(entropyChartRef.current.getContext("2d"), {
-        type: "line",
-        data: {
-          labels: metrics.timeseries.entropy.map((p) =>
+      const chart = echarts.init(entropyChartRef.current);
+      chartInstances.current.entropy = chart;
+
+      chart.setOption({
+        ...baseOption,
+        xAxis: {
+          ...baseOption.xAxis,
+          data: metrics.timeseries.entropy.map((p) =>
             new Date(p.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
           ),
-          datasets: [
-            {
-              label: "Graph Entropy",
-              data: metrics.timeseries.entropy.map((p) => p.value),
-              borderColor: "#ffb86f",
-              backgroundColor: "rgba(255, 184, 111, 0.1)",
-              fill: true,
-              tension: 0.3,
-              borderWidth: 2,
-              pointRadius: 2,
-            },
-          ],
         },
-        options: {
-          ...baseOptions,
-          plugins: {
-            ...baseOptions.plugins,
-            annotation: {
-              annotations: {
-                healthyZone: {
-                  type: "box",
-                  yMin: metrics.thresholds.entropyHealthy[0],
-                  yMax: metrics.thresholds.entropyHealthy[1],
-                  backgroundColor: "rgba(74, 222, 128, 0.05)",
-                  borderColor: "rgba(74, 222, 128, 0.2)",
-                  borderWidth: 1,
-                },
+        series: [
+          // Healthy zone (markArea)
+          {
+            type: "line",
+            data: [],
+            markArea: {
+              silent: true,
+              itemStyle: {
+                color: "rgba(74, 222, 128, 0.05)",
+                borderColor: "rgba(74, 222, 128, 0.2)",
+                borderWidth: 1,
               },
+              data: [
+                [
+                  { yAxis: metrics.thresholds.entropyHealthy[0] },
+                  { yAxis: metrics.thresholds.entropyHealthy[1] },
+                ],
+              ],
             },
           },
-        },
+          // Main line
+          {
+            name: "Graph Entropy",
+            type: "line",
+            smooth: 0.3,
+            symbol: "circle",
+            symbolSize: 4,
+            lineStyle: { color: "#ffb86f", width: 2 },
+            itemStyle: { color: "#ffb86f" },
+            areaStyle: {
+              color: {
+                type: "linear",
+                x: 0, y: 0, x2: 0, y2: 1,
+                colorStops: [
+                  { offset: 0, color: "rgba(255, 184, 111, 0.3)" },
+                  { offset: 1, color: "rgba(255, 184, 111, 0.02)" },
+                ],
+              },
+            },
+            data: metrics.timeseries.entropy.map((p) => p.value),
+          },
+        ],
       });
     }
 
     // Stability chart
     if (stabilityChartRef.current) {
-      const ChartClass = Chart as new (ctx: CanvasRenderingContext2D | null, config: unknown) => unknown;
-      chartInstances.current.stability = new ChartClass(stabilityChartRef.current.getContext("2d"), {
-        type: "line",
-        data: {
-          labels: metrics.timeseries.stability.map((p) =>
+      const chart = echarts.init(stabilityChartRef.current);
+      chartInstances.current.stability = chart;
+
+      chart.setOption({
+        ...baseOption,
+        xAxis: {
+          ...baseOption.xAxis,
+          data: metrics.timeseries.stability.map((p) =>
             new Date(p.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
           ),
-          datasets: [
-            {
-              label: "Cluster Stability",
-              data: metrics.timeseries.stability.map((p) => p.value),
-              borderColor: "#4ade80",
-              backgroundColor: "rgba(74, 222, 128, 0.1)",
-              fill: true,
-              tension: 0.3,
-              borderWidth: 2,
-              pointRadius: 2,
-            },
-          ],
         },
-        options: baseOptions,
+        series: [
+          {
+            name: "Cluster Stability",
+            type: "line",
+            smooth: 0.3,
+            symbol: "circle",
+            symbolSize: 4,
+            lineStyle: { color: "#4ade80", width: 2 },
+            itemStyle: { color: "#4ade80" },
+            areaStyle: {
+              color: {
+                type: "linear",
+                x: 0, y: 0, x2: 0, y2: 1,
+                colorStops: [
+                  { offset: 0, color: "rgba(74, 222, 128, 0.3)" },
+                  { offset: 1, color: "rgba(74, 222, 128, 0.02)" },
+                ],
+              },
+            },
+            data: metrics.timeseries.stability.map((p) => p.value),
+          },
+        ],
       });
     }
 
-    return () => {
+    // Handle resize
+    const handleResize = () => {
       Object.values(chartInstances.current).forEach((c: unknown) => {
-        if (c && typeof c === "object" && "destroy" in c) {
-          (c as { destroy: () => void }).destroy();
+        if (c && typeof c === "object" && "resize" in c) {
+          (c as { resize: () => void }).resize();
+        }
+      });
+    };
+    globalThis.addEventListener("resize", handleResize);
+
+    return () => {
+      globalThis.removeEventListener("resize", handleResize);
+      Object.values(chartInstances.current).forEach((c: unknown) => {
+        if (c && typeof c === "object" && "dispose" in c) {
+          (c as { dispose: () => void }).dispose();
         }
       });
     };
@@ -365,12 +417,10 @@ export default function EmergencePanel({ apiBase: apiBaseProp }: EmergencePanelP
         </div>
       </div>
 
-      {/* Charts */}
+      {/* Charts (ECharts) */}
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <SectionCard title="Graph Entropy" badge="over time">
-          <div class="h-40">
-            <canvas ref={entropyChartRef} />
-          </div>
+          <div ref={entropyChartRef} class="h-40 w-full" />
           <div class="mt-2 flex justify-between text-xs" style={{ color: "var(--text-dim)" }}>
             <span>Healthy: {thresholds.entropyHealthy[0]} - {thresholds.entropyHealthy[1]}</span>
             <span>Current: {current.graphEntropy.toFixed(2)}</span>
@@ -378,9 +428,7 @@ export default function EmergencePanel({ apiBase: apiBaseProp }: EmergencePanelP
         </SectionCard>
 
         <SectionCard title="Cluster Stability" badge="Louvain">
-          <div class="h-40">
-            <canvas ref={stabilityChartRef} />
-          </div>
+          <div ref={stabilityChartRef} class="h-40 w-full" />
           <div class="mt-2">
             <ProgressBar
               value={current.clusterStability}
