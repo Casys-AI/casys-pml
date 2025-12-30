@@ -17,7 +17,9 @@ const VERSION = "0.1.0";
 export const main = new Command()
   .name("pml")
   .version(VERSION)
-  .description("PML - Procedural Memory Layer\n\nIntelligent MCP orchestration with learning capabilities.")
+  .description(
+    "PML - Procedural Memory Layer\n\nIntelligent MCP orchestration with learning capabilities.",
+  )
   .command("init", createInitCommand())
   .command("serve", createServeCommand());
 

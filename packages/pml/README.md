@@ -1,6 +1,7 @@
 # @casys/pml
 
-Lightweight CLI for [PML (Procedural Memory Layer)](https://pml.casys.ai) - intelligent MCP orchestration with learning capabilities.
+Lightweight CLI for [PML (Procedural Memory Layer)](https://pml.casys.ai) -
+intelligent MCP orchestration with learning capabilities.
 
 ## Installation
 
@@ -82,12 +83,12 @@ Display the package version.
 
 PML uses BYOK (Bring Your Own Keys) for API integrations:
 
-| Variable | Description |
-|----------|-------------|
-| `PML_API_KEY` | PML Cloud API key (optional) |
-| `TAVILY_API_KEY` | Tavily search API key |
-| `AIRTABLE_API_KEY` | Airtable API key |
-| `EXA_API_KEY` | Exa search API key |
+| Variable           | Description                  |
+| ------------------ | ---------------------------- |
+| `PML_API_KEY`      | PML Cloud API key (optional) |
+| `TAVILY_API_KEY`   | Tavily search API key        |
+| `AIRTABLE_API_KEY` | Airtable API key             |
+| `EXA_API_KEY`      | Exa search API key           |
 
 ## License
 

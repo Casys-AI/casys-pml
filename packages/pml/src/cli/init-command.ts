@@ -7,7 +7,7 @@
  */
 
 import { Command } from "@cliffy/command";
-import { colors } from "@std/fmt/colors";
+import * as colors from "@std/fmt/colors";
 import { initProject } from "../init/mod.ts";
 
 /**
@@ -19,7 +19,8 @@ import { initProject } from "../init/mod.ts";
  *   pml init --port 3003        # Custom port
  *   pml init --api-key <key>    # Set API key
  */
-export function createInitCommand(): Command {
+// deno-lint-ignore no-explicit-any
+export function createInitCommand(): Command<any> {
   return new Command()
     .name("init")
     .description("Initialize PML configuration in current directory")
