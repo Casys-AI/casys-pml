@@ -21,7 +21,7 @@ export const handler = {
    * Get admin analytics
    */
   async GET(ctx: FreshContext<AuthState>) {
-    const { user, isCloudMode } = ctx.state;
+    const { user } = ctx.state;
     const url = new URL(ctx.req.url);
 
     // Parse query parameters

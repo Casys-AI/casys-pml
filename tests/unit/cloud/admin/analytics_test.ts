@@ -9,7 +9,6 @@
 
 import { assert, assertEquals, assertGreater } from "@std/assert";
 import { PGliteClient } from "../../../../src/db/client.ts";
-import { getAllMigrations, MigrationRunner } from "../../../../src/db/migrations.ts";
 import {
   clearAnalyticsCache,
   getAdminAnalytics,
@@ -22,13 +21,87 @@ import {
   querySystemUsage,
   queryUserActivity,
 } from "../../../../src/cloud/admin/analytics-queries.ts";
-// Test setup helper
+// Test setup helper - creates minimal schema for analytics tests
 async function setupTestDb(): Promise<PGliteClient> {
   const db = new PGliteClient(":memory:");
   await db.connect();
 
-  const runner = new MigrationRunner(db);
-  await runner.runUp(getAllMigrations());
+  // Create minimal tables needed for analytics tests (skip full migrations due to vector extension)
+  await db.exec(`
+    -- Users table (cloud-only)
+    CREATE TABLE IF NOT EXISTS users (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      username TEXT UNIQUE NOT NULL,
+      email TEXT,
+      role TEXT DEFAULT 'user',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    -- Execution trace table
+    CREATE TABLE IF NOT EXISTS execution_trace (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id TEXT,
+      capability_id TEXT,
+      tool_name TEXT NOT NULL,
+      server_name TEXT,
+      input JSONB,
+      output JSONB,
+      success BOOLEAN DEFAULT true,
+      error_message TEXT,
+      latency_ms INTEGER,
+      executed_at TIMESTAMPTZ DEFAULT NOW(),
+      parent_trace_id UUID
+    );
+
+    -- Workflow pattern table (simplified without vector)
+    CREATE TABLE IF NOT EXISTS workflow_pattern (
+      pattern_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      pattern_hash TEXT UNIQUE NOT NULL,
+      dag_structure JSONB NOT NULL,
+      usage_count INTEGER DEFAULT 1,
+      success_count INTEGER DEFAULT 0,
+      last_used TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    -- MCP tool table
+    CREATE TABLE IF NOT EXISTS mcp_tool (
+      id SERIAL PRIMARY KEY,
+      server_id TEXT NOT NULL,
+      tool_name TEXT NOT NULL,
+      tool_schema JSONB NOT NULL DEFAULT '{}',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE (server_id, tool_name)
+    );
+
+    -- Tool edge table
+    CREATE TABLE IF NOT EXISTS tool_edge (
+      id SERIAL PRIMARY KEY,
+      source_tool_id INTEGER NOT NULL,
+      target_tool_id INTEGER NOT NULL,
+      confidence REAL DEFAULT 0.5,
+      observed_count INTEGER DEFAULT 1,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE (source_tool_id, target_tool_id)
+    );
+
+    -- SHGAT params table (for analytics)
+    CREATE TABLE IF NOT EXISTS shgat_params (
+      id SERIAL PRIMARY KEY,
+      version INTEGER NOT NULL,
+      params JSONB NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    -- Algorithm traces table (for analytics)
+    CREATE TABLE IF NOT EXISTS algorithm_traces (
+      id SERIAL PRIMARY KEY,
+      algorithm_name TEXT NOT NULL,
+      input JSONB,
+      output JSONB,
+      latency_ms INTEGER,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
 
   return db;
 }
@@ -46,44 +119,44 @@ async function seedTestData(db: PGliteClient): Promise<void> {
 
   // Create workflow patterns for capabilities
   await db.query(`
-    INSERT INTO workflow_pattern (pattern_id, hash, code, description)
+    INSERT INTO workflow_pattern (pattern_id, pattern_hash, dag_structure, usage_count, success_count)
     VALUES
-      (gen_random_uuid(), 'abc1', 'export function test1() {}', 'Test capability 1'),
-      (gen_random_uuid(), 'abc2', 'export function test2() {}', 'Test capability 2')
+      (gen_random_uuid(), 'hash1', '{"nodes": [], "edges": []}', 10, 8),
+      (gen_random_uuid(), 'hash2', '{"nodes": [], "edges": []}', 5, 4)
   `);
 
   // Create mcp_tool entries for graph nodes
   await db.query(`
-    INSERT INTO mcp_tool (id, tool_name, server_name)
+    INSERT INTO mcp_tool (tool_name, server_id, tool_schema)
     VALUES
-      (gen_random_uuid(), 'read_file', 'filesystem'),
-      (gen_random_uuid(), 'write_file', 'filesystem'),
-      (gen_random_uuid(), 'search', 'tavily')
+      ('read_file', 'filesystem', '{}'),
+      ('write_file', 'filesystem', '{}'),
+      ('search', 'tavily', '{}')
   `);
 
   // Create tool_edge entries for graph edges
-  const toolIds = await db.query<{ id: string }>(`SELECT id FROM mcp_tool LIMIT 2`);
+  const toolIds = await db.query<{ id: number }>(`SELECT id FROM mcp_tool LIMIT 2`);
   if (toolIds.length >= 2) {
     await db.query(`
-      INSERT INTO tool_edge (from_tool_id, to_tool_id, edge_type, weight)
-      VALUES ($1, $2, 'provides', 0.8)
+      INSERT INTO tool_edge (source_tool_id, target_tool_id, confidence, observed_count)
+      VALUES ($1, $2, 0.8, 5)
     `, [toolIds[0].id, toolIds[1].id]);
   }
 
   // Create execution traces with various timestamps
   await db.query(`
-    INSERT INTO execution_trace (id, user_id, success, duration_ms, executed_at)
+    INSERT INTO execution_trace (id, user_id, tool_name, success, latency_ms, executed_at)
     VALUES
       -- Today's executions
-      (gen_random_uuid(), 'admin_user', true, 100, NOW() - INTERVAL '1 hour'),
-      (gen_random_uuid(), 'admin_user', true, 150, NOW() - INTERVAL '2 hours'),
-      (gen_random_uuid(), 'normal_user', true, 200, NOW() - INTERVAL '3 hours'),
-      (gen_random_uuid(), 'normal_user', false, 50, NOW() - INTERVAL '4 hours'),
+      (gen_random_uuid(), 'admin_user', 'test_tool', true, 100, NOW() - INTERVAL '1 hour'),
+      (gen_random_uuid(), 'admin_user', 'test_tool', true, 150, NOW() - INTERVAL '2 hours'),
+      (gen_random_uuid(), 'normal_user', 'test_tool', true, 200, NOW() - INTERVAL '3 hours'),
+      (gen_random_uuid(), 'normal_user', 'test_tool', false, 50, NOW() - INTERVAL '4 hours'),
       -- Week old executions
-      (gen_random_uuid(), 'admin_user', true, 120, NOW() - INTERVAL '3 days'),
-      (gen_random_uuid(), 'normal_user', true, 180, NOW() - INTERVAL '5 days'),
+      (gen_random_uuid(), 'admin_user', 'test_tool', true, 120, NOW() - INTERVAL '3 days'),
+      (gen_random_uuid(), 'normal_user', 'test_tool', true, 180, NOW() - INTERVAL '5 days'),
       -- Older execution (for returning user calculation)
-      (gen_random_uuid(), 'admin_user', true, 100, NOW() - INTERVAL '15 days')
+      (gen_random_uuid(), 'admin_user', 'test_tool', true, 100, NOW() - INTERVAL '15 days')
   `);
 
   // Add error messages to failed executions

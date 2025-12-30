@@ -279,8 +279,9 @@ export async function handleEmergenceMetrics(
     );
 
     // Extract edge weights for entropy calculation
-    const snapshot = await ctx.graphEngine.getSnapshot();
-    const edgeWeights = snapshot.edges.map((e: { weight: number }) => e.weight || 1);
+    const snapshot = ctx.graphEngine.getGraphSnapshot();
+    // Use confidence as weight (edges have confidence, not weight)
+    const edgeWeights = snapshot.edges.map((e) => e.confidence || 1);
 
     // Compute emergence metrics
     const graphEntropy = computeGraphEntropy(edgeWeights);
@@ -290,8 +291,12 @@ export async function handleEmergenceMetrics(
     const currentCommunities = new Map<string, number>();
     if (snapshot.nodes && Array.isArray(snapshot.nodes)) {
       for (const node of snapshot.nodes) {
-        if (node.id && typeof node.community === "number") {
-          currentCommunities.set(node.id, node.community);
+        // communityId is string, convert to number for stability calculation
+        if (node.id && node.communityId) {
+          const communityNum = parseInt(node.communityId, 10);
+          if (!isNaN(communityNum)) {
+            currentCommunities.set(node.id, communityNum);
+          }
         }
       }
     }
@@ -307,9 +312,8 @@ export async function handleEmergenceMetrics(
     const speculationAccuracy = baseMetrics.algorithm?.acceptanceRate || 0;
     const thresholdConvergence = baseMetrics.current?.adaptiveAlpha || 0.5;
     // CR-7: TODO - Compute from workflow_executions table when available
-    const parallelizationRate = baseMetrics.period?.parallelWorkflows
-      ? baseMetrics.period.parallelWorkflows / (baseMetrics.period.totalWorkflows || 1)
-      : 0.3;
+    // Currently using default value until parallel workflow tracking is implemented
+    const parallelizationRate = 0.3;
 
     const currentMetrics = {
       graphEntropy,

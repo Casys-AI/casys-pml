@@ -5,6 +5,36 @@
  */
 
 /**
+ * PML Cloud configuration
+ */
+export interface PmlCloudConfig {
+  /** PML Cloud URL */
+  url: string;
+  /** API key (env var placeholder or actual key) */
+  apiKey: string;
+}
+
+/**
+ * PML Server configuration
+ */
+export interface PmlServerConfig {
+  /** Local server port */
+  port: number;
+}
+
+/**
+ * PML Permissions configuration (Claude Code style)
+ */
+export interface PmlPermissions {
+  /** Auto-approved tools (no prompt) */
+  allow: string[];
+  /** Always refused tools */
+  deny: string[];
+  /** Tools requiring user confirmation */
+  ask: string[];
+}
+
+/**
  * PML configuration file (.pml.json)
  */
 export interface PmlConfig {
@@ -12,12 +42,12 @@ export interface PmlConfig {
   version: string;
   /** Workspace root path */
   workspace: string;
-  /** PML Cloud URL */
-  cloudUrl: string;
-  /** Local server port */
-  port: number;
-  /** MCP registry pattern for dynamic server loading */
-  mcpRegistry?: string;
+  /** Cloud configuration */
+  cloud: PmlCloudConfig;
+  /** Server configuration */
+  server: PmlServerConfig;
+  /** Tool permissions (Claude Code style: allow/deny/ask) */
+  permissions: PmlPermissions;
 }
 
 /**

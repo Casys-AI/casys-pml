@@ -7,6 +7,15 @@
  * @module cloud/admin/types
  */
 
+/**
+ * Minimal database client interface for analytics queries.
+ * Only requires query/queryOne methods (subset of full DbClient).
+ */
+export interface QueryClient {
+  query<T>(sql: string, params?: unknown[]): Promise<T[]>;
+  queryOne<T>(sql: string, params?: unknown[]): Promise<T | null>;
+}
+
 /** Time range for analytics queries */
 export type TimeRange = "24h" | "7d" | "30d";
 

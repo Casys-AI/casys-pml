@@ -7,10 +7,10 @@
  * @module cloud/admin/analytics-service
  */
 
-import type { DbClient } from "../../db/types.ts";
 import type {
   AdminAnalytics,
   AnalyticsOptions,
+  QueryClient,
   TimeRange,
 } from "./types.ts";
 import {
@@ -51,7 +51,7 @@ function getCacheKey(options: AnalyticsOptions): string {
  * 3. users.role = "admin" in database
  */
 export async function isAdminUser(
-  db: DbClient,
+  db: QueryClient,
   userId: string,
   username?: string,
 ): Promise<boolean> {
@@ -81,7 +81,7 @@ export async function isAdminUser(
 
 /** Get admin analytics with caching */
 export async function getAdminAnalytics(
-  db: DbClient,
+  db: QueryClient,
   options: AnalyticsOptions = {},
 ): Promise<AdminAnalytics> {
   const timeRange: TimeRange = options.timeRange || "24h";

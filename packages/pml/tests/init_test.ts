@@ -61,10 +61,29 @@ Deno.test("init - .pml.json has correct structure", async () => {
     const content = await Deno.readTextFile(join(testDir, ".pml.json"));
     const config = JSON.parse(content);
 
+    // Basic structure
     assertEquals(config.version, "0.1.0");
-    assertEquals(config.port, 5000);
-    assertEquals(config.cloudUrl, "https://custom.pml.ai");
     assertEquals(config.workspace, testDir);
+
+    // Cloud config
+    assertEquals(config.cloud.url, "https://custom.pml.ai");
+    assertEquals(config.cloud.apiKey, "${PML_API_KEY}");
+
+    // Server config
+    assertEquals(config.server.port, 5000);
+
+    // Permissions (Claude Code style)
+    assertEquals(Array.isArray(config.permissions.allow), true);
+    assertEquals(Array.isArray(config.permissions.deny), true);
+    assertEquals(Array.isArray(config.permissions.ask), true);
+
+    // Safe tools in allow
+    assertEquals(config.permissions.allow.includes("json:*"), true);
+    assertEquals(config.permissions.allow.includes("math:*"), true);
+
+    // I/O tools in ask
+    assertEquals(config.permissions.ask.includes("filesystem:*"), true);
+    assertEquals(config.permissions.ask.includes("github:*"), true);
   } finally {
     Deno.chdir(originalCwd);
   }

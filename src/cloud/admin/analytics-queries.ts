@@ -7,7 +7,6 @@
  * @module cloud/admin/analytics-queries
  */
 
-import type { DbClient } from "../../db/types.ts";
 import type {
   AlgorithmMetrics,
   CapabilityRegistryMetrics,
@@ -15,6 +14,7 @@ import type {
   ErrorHealthMetrics,
   ErrorTypeCount,
   LatencyPercentiles,
+  QueryClient,
   ResourceMetrics,
   SHGATMetrics,
   SystemUsageMetrics,
@@ -49,7 +49,7 @@ function buildTimeFilter(column: string, timeRange: TimeRange): string {
 
 /** Query user activity metrics */
 export async function queryUserActivity(
-  db: DbClient,
+  db: QueryClient,
   timeRange: TimeRange,
   topUsersLimit = 10,
 ): Promise<UserActivityMetrics> {
@@ -84,12 +84,17 @@ export async function queryUserActivity(
     WHERE executed_at > NOW() - INTERVAL '30 days'
   `);
 
-  // New registrations
-  const newUsersResult = await db.queryOne<{ count: number }>(`
-    SELECT COUNT(*) as count
-    FROM users
-    WHERE ${userTimeFilter}
-  `);
+  // New registrations (users table may not exist in local mode)
+  let newUsersResult: { count: number } | null = null;
+  try {
+    newUsersResult = await db.queryOne<{ count: number }>(`
+      SELECT COUNT(*) as count
+      FROM users
+      WHERE ${userTimeFilter}
+    `);
+  } catch {
+    // users table doesn't exist in local mode
+  }
 
   // Returning users (had activity before time range AND during)
   const interval = getIntervalString(timeRange);
@@ -144,7 +149,7 @@ export async function queryUserActivity(
 
 /** Query system usage metrics */
 export async function querySystemUsage(
-  db: DbClient,
+  db: QueryClient,
   timeRange: TimeRange,
 ): Promise<SystemUsageMetrics> {
   const timeFilter = buildTimeFilter("executed_at", timeRange);
@@ -172,12 +177,12 @@ export async function querySystemUsage(
     AND capability_id IS NOT NULL
   `);
 
-  // DAG/workflow executions (multi-step executions with workflow_id or parent trace)
+  // DAG/workflow executions (multi-step executions with parent trace)
   const dagResult = await db.queryOne<{ count: number }>(`
     SELECT COUNT(*) as count
     FROM execution_trace
     WHERE ${timeFilter}
-    AND (workflow_id IS NOT NULL OR parent_trace_id IS NOT NULL)
+    AND parent_trace_id IS NOT NULL
   `);
 
   // Active users for avg calculation
@@ -220,7 +225,7 @@ export async function querySystemUsage(
 
 /** Query error and health metrics */
 export async function queryErrorHealth(
-  db: DbClient,
+  db: QueryClient,
   timeRange: TimeRange,
 ): Promise<ErrorHealthMetrics> {
   const timeFilter = buildTimeFilter("executed_at", timeRange);
@@ -241,6 +246,7 @@ export async function queryErrorHealth(
   const failed = Number(execResult?.failed || 0);
 
   // Errors by type (using error_message patterns)
+  // Note: GROUP BY 1 refers to the first SELECT column (the CASE expression)
   const errorRows = await db.query<{ error_type: string; count: number }>(`
     SELECT
       CASE
@@ -255,7 +261,7 @@ export async function queryErrorHealth(
     WHERE ${timeFilter}
     AND success = false
     AND error_message IS NOT NULL
-    GROUP BY error_type
+    GROUP BY 1
     ORDER BY count DESC
   `);
 
@@ -272,13 +278,13 @@ export async function queryErrorHealth(
     avg: number;
   }>(`
     SELECT
-      PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY duration_ms) as p50,
-      PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_ms) as p95,
-      PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY duration_ms) as p99,
-      AVG(duration_ms) as avg
+      PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY latency_ms) as p50,
+      PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY latency_ms) as p95,
+      PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY latency_ms) as p99,
+      AVG(latency_ms) as avg
     FROM execution_trace
     WHERE ${timeFilter}
-    AND duration_ms > 0
+    AND latency_ms > 0
   `);
 
   const latencyPercentiles: LatencyPercentiles = {
@@ -309,11 +315,16 @@ export async function queryErrorHealth(
 }
 
 /** Query resource metrics */
-export async function queryResources(db: DbClient): Promise<ResourceMetrics> {
-  // Total users
-  const usersResult = await db.queryOne<{ count: number }>(`
-    SELECT COUNT(*) as count FROM users
-  `);
+export async function queryResources(db: QueryClient): Promise<ResourceMetrics> {
+  // Total users (users table may not exist in local mode)
+  let usersResult: { count: number } | null = null;
+  try {
+    usersResult = await db.queryOne<{ count: number }>(`
+      SELECT COUNT(*) as count FROM users
+    `);
+  } catch {
+    // users table doesn't exist in local mode
+  }
 
   // Total capabilities (workflow_pattern)
   const capResult = await db.queryOne<{ count: number }>(`
@@ -346,7 +357,7 @@ export async function queryResources(db: DbClient): Promise<ResourceMetrics> {
 
 /** Query technical/ML metrics */
 export async function queryTechnical(
-  db: DbClient,
+  db: QueryClient,
   timeRange: TimeRange,
 ): Promise<TechnicalMetrics> {
   const timeFilter = buildTimeFilter("timestamp", timeRange);
@@ -362,7 +373,7 @@ export async function queryTechnical(
 }
 
 /** Query SHGAT model metrics */
-async function querySHGATMetrics(db: DbClient): Promise<SHGATMetrics> {
+async function querySHGATMetrics(db: QueryClient): Promise<SHGATMetrics> {
   // Check if shgat_params table exists and has data
   try {
     const result = await db.queryOne<{
@@ -392,7 +403,7 @@ async function querySHGATMetrics(db: DbClient): Promise<SHGATMetrics> {
 
 /** Query algorithm decision metrics */
 async function queryAlgorithmMetrics(
-  db: DbClient,
+  db: QueryClient,
   timeFilter: string,
 ): Promise<AlgorithmMetrics> {
   try {
@@ -471,7 +482,7 @@ async function queryAlgorithmMetrics(
 
 /** Query capability registry metrics */
 async function queryCapabilityRegistryMetrics(
-  db: DbClient,
+  db: QueryClient,
 ): Promise<CapabilityRegistryMetrics> {
   try {
     // Total and verified counts

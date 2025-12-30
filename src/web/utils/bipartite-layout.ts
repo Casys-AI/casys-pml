@@ -152,7 +152,7 @@ export function computeBipartitePositions(
         if (dist < minDist && dist > 0) {
           // Push apart
           const overlap = (minDist - dist) / 2;
-          const _nx = dx / dist;
+          // Note: nx = dx/dist would be used for horizontal movement, but we only move in Y
           const ny = dy / dist;
 
           // Only move in Y to preserve bipartite structure

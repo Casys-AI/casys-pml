@@ -8,7 +8,7 @@
 
 import { exists } from "@std/fs";
 import { join } from "@std/path";
-import { colors } from "@std/fmt/colors";
+import * as colors from "@std/fmt/colors";
 import type { InitOptions, InitResult, McpConfig, PmlConfig } from "../types.ts";
 
 const VERSION = "0.1.0";
@@ -90,7 +90,7 @@ export async function initProject(options: InitOptions = {}): Promise<InitResult
  * @returns "backup" | "overwrite" | "abort"
  */
 async function handleExistingConfig(
-  configPath: string,
+  _configPath: string,
   options: InitOptions,
 ): Promise<"backup" | "overwrite" | "abort"> {
   if (options.force) {
@@ -151,14 +151,58 @@ function generateMcpConfig(port: number, apiKey?: string): McpConfig {
 }
 
 /**
+ * Default safe tools (pure computation, no I/O)
+ */
+const DEFAULT_ALLOW_TOOLS = [
+  "json:*",
+  "math:*",
+  "datetime:*",
+  "crypto:*",
+  "collections:*",
+  "validation:*",
+  "format:*",
+  "transform:*",
+  "string:*",
+  "path:*",
+  "color:*",
+  "geo:*",
+  "algo:*",
+  "faker:*",
+];
+
+/**
+ * Default tools requiring confirmation (I/O, network, system)
+ */
+const DEFAULT_ASK_TOOLS = [
+  "filesystem:*",
+  "github:*",
+  "docker:*",
+  "database:*",
+  "ssh:*",
+  "process:*",
+  "cloud:*",
+  "network:*",
+  "kubernetes:*",
+];
+
+/**
  * Generate .pml.json configuration
  */
 function generatePmlConfig(workspace: string, port: number, cloudUrl: string): PmlConfig {
   return {
     version: VERSION,
     workspace,
-    cloudUrl,
-    port,
-    mcpRegistry: "jsr:@casys/pml-mcp-{name}",
+    cloud: {
+      url: cloudUrl,
+      apiKey: "${PML_API_KEY}",
+    },
+    server: {
+      port,
+    },
+    permissions: {
+      allow: DEFAULT_ALLOW_TOOLS,
+      deny: [],
+      ask: DEFAULT_ASK_TOOLS,
+    },
   };
 }

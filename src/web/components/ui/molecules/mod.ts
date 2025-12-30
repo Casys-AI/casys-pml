@@ -11,7 +11,6 @@ export { default as TraceTimeline } from "./TraceTimeline.tsx";
 export { default as GraphTooltip } from "./GraphTooltip.tsx";
 export {
   default as GraphLegendPanel,
-  type LayoutDirection,
   type ViewMode,
 } from "./GraphLegendPanel.tsx";
 export { default as NodeDetailsPanel } from "./NodeDetailsPanel.tsx";
