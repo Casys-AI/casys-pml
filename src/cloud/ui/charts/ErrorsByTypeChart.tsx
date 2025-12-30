@@ -1,11 +1,13 @@
 /**
  * ErrorsByTypeChart - ECharts pie chart for errors by type
  *
- * @module web/components/ui/molecules/charts/ErrorsByTypeChart
+ * Cloud-only: used by admin analytics dashboard.
+ *
+ * @module cloud/ui/charts/ErrorsByTypeChart
  */
 
 import { useEffect, useRef } from "preact/hooks";
-import type { ErrorTypeCount } from "../../../../../cloud/admin/types.ts";
+import type { ErrorTypeCount } from "../../admin/types.ts";
 
 // ECharts type declaration
 declare global {

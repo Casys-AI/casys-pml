@@ -12,7 +12,7 @@ import {
   ErrorsByTypeChart,
   ExecutionsByDayChart,
   LatencyGaugeChart,
-} from "../components/ui/molecules/charts/mod.ts";
+} from "../../cloud/ui/charts/mod.ts";
 
 interface AdminDashboardProps {
   analytics: AdminAnalytics;

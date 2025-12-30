@@ -1,11 +1,13 @@
 /**
  * ExecutionsByDayChart - ECharts bar chart for daily executions
  *
- * @module web/components/ui/molecules/charts/ExecutionsByDayChart
+ * Cloud-only: used by admin analytics dashboard.
+ *
+ * @module cloud/ui/charts/ExecutionsByDayChart
  */
 
 import { useEffect, useRef } from "preact/hooks";
-import type { DailyCount } from "../../../../../cloud/admin/types.ts";
+import type { DailyCount } from "../../admin/types.ts";
 
 // ECharts type declaration
 declare global {

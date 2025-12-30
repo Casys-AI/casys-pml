@@ -1,7 +1,9 @@
 /**
  * LatencyGaugeChart - ECharts gauge for latency percentiles
  *
- * @module web/components/ui/molecules/charts/LatencyGaugeChart
+ * Cloud-only: used by admin analytics dashboard.
+ *
+ * @module cloud/ui/charts/LatencyGaugeChart
  */
 
 import { useEffect, useRef } from "preact/hooks";

@@ -1,9 +1,9 @@
 /**
  * Charts barrel export
  *
- * ECharts-based visualization components for analytics dashboards.
+ * ECharts-based visualization components for cloud-only dashboards.
  *
- * @module web/components/ui/molecules/charts
+ * @module cloud/ui/charts
  */
 
 export { default as ExecutionsByDayChart } from "./ExecutionsByDayChart.tsx";
