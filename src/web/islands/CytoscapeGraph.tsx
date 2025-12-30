@@ -1123,7 +1123,9 @@ export default function CytoscapeGraph({
     try {
       // Story 11.4: Include traces for invocation mode
       console.log("[CytoscapeGraph] Fetching hypergraph data...");
-      const response = await fetch(`${apiBase}/api/graph/hypergraph?include_traces=true`);
+      const response = await fetch(`${apiBase}/api/graph/hypergraph?include_traces=true`, {
+        cache: "no-store", // Ensure fresh data after SSE refresh
+      });
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }

@@ -120,14 +120,17 @@ export default function CapabilityTimeline({
     [],
   );
 
-  // Fetch data
-  const loadData = useCallback(async () => {
-    setIsLoading(true);
+  // Fetch data (silent refresh skips loading indicator for smoother SSE updates)
+  const loadData = useCallback(async (silentRefresh = false) => {
+    if (!silentRefresh) {
+      setIsLoading(true);
+    }
     setError(null);
 
     try {
       const response = await fetch(
         `${apiBase}/api/graph/hypergraph?include_traces=true`,
+        { cache: "no-store" }, // Ensure fresh data after SSE refresh
       );
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
@@ -296,8 +299,14 @@ export default function CapabilityTimeline({
     }
   }, [apiBase, onServersDiscovered, onCapabilitiesLoaded]);
 
+  // Track if initial load is done for silent SSE refreshes
+  const initialLoadDone = useRef(false);
+
   useEffect(() => {
-    loadData();
+    // Silent refresh after initial load (SSE-triggered)
+    const isSilent = initialLoadDone.current && refreshKey > 0;
+    loadData(isSilent);
+    initialLoadDone.current = true;
   }, [loadData, refreshKey]);
 
   // Build children map
@@ -749,6 +758,7 @@ export default function CapabilityTimeline({
               key={cap.id}
               id={cap.id}
               name={cap.name}
+              description={cap.description}
               successRate={cap.successRate}
               usageCount={cap.usageCount}
               lastUsed={cap.lastUsed}
