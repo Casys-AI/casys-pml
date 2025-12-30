@@ -144,8 +144,15 @@ export class CapabilityRegistry {
    * @returns The record or null if not found
    */
   async getById(id: string): Promise<CapabilityRecord | null> {
+    // JOIN with workflow_pattern to get accurate usage_count/success_count
+    // (capability_records columns are never updated - bug found Dec 2024)
     const rows = await this.db.query(
-      `SELECT * FROM capability_records WHERE id = $1`,
+      `SELECT cr.*,
+              COALESCE(wp.usage_count, 0) as wp_usage_count,
+              COALESCE(wp.success_count, 0) as wp_success_count
+       FROM capability_records cr
+       LEFT JOIN workflow_pattern wp ON cr.workflow_pattern_id = wp.pattern_id
+       WHERE cr.id = $1`,
       [id],
     );
 
@@ -164,7 +171,12 @@ export class CapabilityRegistry {
    */
   async getByWorkflowPatternId(workflowPatternId: string): Promise<CapabilityRecord | null> {
     const rows = await this.db.query(
-      `SELECT * FROM capability_records WHERE workflow_pattern_id = $1`,
+      `SELECT cr.*,
+              COALESCE(wp.usage_count, 0) as wp_usage_count,
+              COALESCE(wp.success_count, 0) as wp_success_count
+       FROM capability_records cr
+       LEFT JOIN workflow_pattern wp ON cr.workflow_pattern_id = wp.pattern_id
+       WHERE cr.workflow_pattern_id = $1`,
       [workflowPatternId],
     );
 
@@ -193,8 +205,12 @@ export class CapabilityRegistry {
     hash: string,
   ): Promise<CapabilityRecord | null> {
     const rows = await this.db.query(
-      `SELECT * FROM capability_records
-       WHERE org = $1 AND project = $2 AND namespace = $3 AND action = $4 AND hash = $5`,
+      `SELECT cr.*,
+              COALESCE(wp.usage_count, 0) as wp_usage_count,
+              COALESCE(wp.success_count, 0) as wp_success_count
+       FROM capability_records cr
+       LEFT JOIN workflow_pattern wp ON cr.workflow_pattern_id = wp.pattern_id
+       WHERE cr.org = $1 AND cr.project = $2 AND cr.namespace = $3 AND cr.action = $4 AND cr.hash = $5`,
       [org, project, namespace, action, hash],
     );
 
@@ -221,6 +237,13 @@ export class CapabilityRegistry {
     name: string,
     scope: Scope,
   ): Promise<CapabilityRecord | null> {
+    // Common SELECT with JOIN for accurate usage counts
+    const selectCols = `cr.*,
+      COALESCE(wp.usage_count, 0) as wp_usage_count,
+      COALESCE(wp.success_count, 0) as wp_success_count`;
+    const joinClause = `FROM capability_records cr
+      LEFT JOIN workflow_pattern wp ON cr.workflow_pattern_id = wp.pattern_id`;
+
     // 1. Try namespace:action format
     const colonIndex = name.indexOf(":");
     if (colonIndex > 0) {
@@ -228,8 +251,8 @@ export class CapabilityRegistry {
       const action = name.substring(colonIndex + 1);
 
       const namespaceMatch = await this.db.query(
-        `SELECT * FROM capability_records
-         WHERE org = $1 AND project = $2 AND namespace = $3 AND action = $4`,
+        `SELECT ${selectCols} ${joinClause}
+         WHERE cr.org = $1 AND cr.project = $2 AND cr.namespace = $3 AND cr.action = $4`,
         [scope.org, scope.project, namespace, action],
       );
 
@@ -239,8 +262,8 @@ export class CapabilityRegistry {
     } else {
       // 2. Try action only (search across all namespaces in scope)
       const actionMatch = await this.db.query(
-        `SELECT * FROM capability_records
-         WHERE org = $1 AND project = $2 AND action = $3
+        `SELECT ${selectCols} ${joinClause}
+         WHERE cr.org = $1 AND cr.project = $2 AND cr.action = $3
          LIMIT 1`,
         [scope.org, scope.project, name],
       );
@@ -256,8 +279,8 @@ export class CapabilityRegistry {
       const action = name.substring(colonIndex + 1);
 
       const publicMatch = await this.db.query(
-        `SELECT * FROM capability_records
-         WHERE namespace = $1 AND action = $2 AND visibility = 'public'
+        `SELECT ${selectCols} ${joinClause}
+         WHERE cr.namespace = $1 AND cr.action = $2 AND cr.visibility = 'public'
          LIMIT 1`,
         [namespace, action],
       );
@@ -284,9 +307,13 @@ export class CapabilityRegistry {
     offset = 0,
   ): Promise<CapabilityRecord[]> {
     const rows = await this.db.query(
-      `SELECT * FROM capability_records
-       WHERE org = $1 AND project = $2
-       ORDER BY namespace ASC, action ASC
+      `SELECT cr.*,
+              COALESCE(wp.usage_count, 0) as wp_usage_count,
+              COALESCE(wp.success_count, 0) as wp_success_count
+       FROM capability_records cr
+       LEFT JOIN workflow_pattern wp ON cr.workflow_pattern_id = wp.pattern_id
+       WHERE cr.org = $1 AND cr.project = $2
+       ORDER BY cr.namespace ASC, cr.action ASC
        LIMIT $3 OFFSET $4`,
       [scope.org, scope.project, limit, offset],
     );
@@ -334,8 +361,20 @@ export class CapabilityRegistry {
 
   /**
    * Convert database row to CapabilityRecord
+   *
+   * NOTE: Prefer wp_usage_count/wp_success_count from workflow_pattern JOIN
+   * over capability_records columns (which were never updated - bug Dec 2024).
+   * TODO: Migration to drop unused columns from capability_records.
    */
   private rowToRecord(row: Record<string, unknown>): CapabilityRecord {
+    // Use workflow_pattern counts if available (from JOIN), else fallback
+    const usageCount = row.wp_usage_count !== undefined
+      ? (row.wp_usage_count as number)
+      : (row.usage_count as number);
+    const successCount = row.wp_success_count !== undefined
+      ? (row.wp_success_count as number)
+      : (row.success_count as number);
+
     return {
       id: row.id as string,
       org: row.org as string,
@@ -352,8 +391,8 @@ export class CapabilityRegistry {
       versionTag: row.version_tag as string | undefined,
       verified: row.verified as boolean,
       signature: row.signature as string | undefined,
-      usageCount: row.usage_count as number,
-      successCount: row.success_count as number,
+      usageCount,
+      successCount,
       totalLatencyMs: row.total_latency_ms as number,
       tags: (row.tags as string[]) || [],
       visibility: row.visibility as CapabilityVisibility,

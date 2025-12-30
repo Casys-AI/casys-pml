@@ -605,6 +605,8 @@ export class CapModule {
     const whereClause = conditions.join(" AND ");
 
     // Query with total count using window function
+    // NOTE: Read usage/success from workflow_pattern (where updateUsage writes)
+    // not from capability_records (which was never updated - bug fixed Dec 2024)
     const query = `
       SELECT
         cr.id,
@@ -613,14 +615,14 @@ export class CapModule {
         cr.namespace,
         cr.action,
         cr.hash,
-        cr.usage_count,
-        cr.success_count,
+        COALESCE(wp.usage_count, 0) as usage_count,
+        COALESCE(wp.success_count, 0) as success_count,
         wp.description,
         COUNT(*) OVER() as total
       FROM capability_records cr
       LEFT JOIN workflow_pattern wp ON cr.workflow_pattern_id = wp.pattern_id
       WHERE ${whereClause}
-      ORDER BY cr.usage_count DESC, cr.namespace ASC, cr.action ASC
+      ORDER BY COALESCE(wp.usage_count, 0) DESC, cr.namespace ASC, cr.action ASC
       LIMIT $${params.length + 1} OFFSET $${params.length + 2}
     `;
 
@@ -769,11 +771,11 @@ export class CapModule {
       // Get current description if not changing it
       let finalDescription = description;
       if (!descriptionChanged) {
-        const wpResult = await this.db.query<{ description: string | null }>(
+        const wpRows = (await this.db.query(
           `SELECT description FROM workflow_pattern WHERE pattern_id = $1`,
           [record.workflowPatternId],
-        );
-        finalDescription = wpResult.rows[0]?.description ?? undefined;
+        )) as unknown as { description: string | null }[];
+        finalDescription = wpRows[0]?.description ?? undefined;
       }
 
       if (this.embeddingModel) {
