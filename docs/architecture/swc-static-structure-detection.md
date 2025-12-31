@@ -75,7 +75,63 @@ extract control flow, MCP tool calls, and parallel execution patterns.
 | Variable reference: `{ path: filePath }`     | ✅ Extracted | `type: "reference"`                           |
 | Parameter: `{ path: args.path }`             | ✅ Extracted | `type: "parameter"`                           |
 | Previous output: `{ content: file.content }` | ✅ Extracted | `type: "reference"` with node ID substitution |
-| Template literal: `` `${x}` ``               | ✅ Extracted | `type: "reference"`                           |
+| Template literal (simple): `` `SELECT *` ``  | ✅ Extracted | `type: "literal"` (no interpolation)          |
+| Template literal (dynamic): `` `${x}` ``     | ✅ Extracted | `type: "reference"` (has interpolation)       |
+| Code template: `` `async (page) => {...}` `` | ✅ Extracted | Nested literals parameterized (Story 10.2f)   |
+
+### Nested Literal Extraction (Story 10.2f)
+
+**Status:** ✅ IMPLEMENTED (2025-12-31)
+
+**Problem:** Template literals containing code (e.g., Playwright browser code) weren't having their
+nested literals (URLs, numbers, strings) extracted for parameterization.
+
+```typescript
+// This code had hardcoded values that weren't parameterizable:
+mcp.playwright.browser_run_code({
+  code: `async (page) => {
+    await page.goto('http://localhost:8081/dashboard');  // ← Hardcoded URL
+    await page.waitForLoadState('networkidle');          // ← Hardcoded state
+    return texts.slice(0, 100).join(' | ');              // ← Hardcoded numbers
+  }`
+});
+```
+
+**Solution:** Code templates are detected via heuristics (contains `await`, `=>`, `page.`, etc.) and
+parsed recursively to extract nested literals.
+
+#### Implementation
+
+| File                                          | Change                                                          |
+| --------------------------------------------- | --------------------------------------------------------------- |
+| `src/capabilities/nested-literal-extractor.ts` | NEW: Parses code content and extracts parameterizable literals |
+| `src/capabilities/code-transformer.ts`         | Added `looksLikeCode()` heuristic and `codeTemplates` handling |
+
+#### How It Works
+
+```typescript
+// Input:
+mcp.playwright.browser_run_code({
+  code: `page.goto('http://localhost:8081'); texts.slice(0, 100);`
+});
+
+// After transformation:
+mcp.playwright.browser_run_code({
+  code: `page.goto('${args.url}'); texts.slice(${args.sliceStart}, ${args.sliceEnd});`
+});
+
+// Generated parameters:
+// - url: "http://localhost:8081"
+// - sliceStart: 0
+// - sliceEnd: 100
+```
+
+#### Parameter Naming
+
+- URLs detected by `http://` or `https://` prefix → `url`
+- Method context used: `goto(x)` → `url`, `slice(a, b)` → `sliceStart`, `sliceEnd`
+- Object property names used directly: `{ endpoint: "..." }` → `endpoint`
+- Conflicts resolved with numeric suffix: `url`, `url2`, `url3`
 
 ### Literal Bindings (Story 10.2b - Option B)
 
@@ -656,6 +712,10 @@ const result = numbers.filter(n => n > 2).map(n => n * 2).sort();
 
 ## Changelog
 
+- **2025-12-31:** Added nested literal extraction for code templates (Story 10.2f) - URLs, numbers,
+  and strings inside Playwright/code templates are now parameterized with `${args.xxx}` interpolations
+- **2025-12-31:** Template literals without interpolation now detected as `type: "literal"` (enables
+  SQL query parameterization via `args.query`)
 - **2025-12-28:** Added Method Chaining Support (Story 10.2c) - detects all operations in chained
   calls
 - **2025-12-28:** Added computed expression evaluation (a + b, -x, !flag, etc.) for literal bindings

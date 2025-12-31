@@ -20,6 +20,7 @@
 import { parse } from "https://deno.land/x/swc@0.2.1/mod.ts";
 import type { CapabilityRegistry, Scope } from "./capability-registry.ts";
 import { analyzeCode, WRAPPER_OFFSET } from "./swc-analyzer.ts";
+import { extractNestedLiterals } from "./nested-literal-extractor.ts";
 import type { JSONSchema } from "./types.ts";
 import type { JsonValue } from "./types.ts";
 import { getLogger } from "../telemetry/logger.ts";
@@ -222,6 +223,53 @@ interface InlineLiteralPosition {
 }
 
 /**
+ * Position of a template literal containing code with nested literals
+ * e.g., { code: `page.goto('http://localhost')` }
+ * The nested literals inside will be extracted and parameterized
+ */
+interface CodeTemplateLiteralPosition {
+  /** Property name (e.g., "code") */
+  propertyName: string;
+  /** The full template content */
+  templateContent: string;
+  /** Start position of the template content (after opening backtick) */
+  contentStart: number;
+  /** End position of the template content (before closing backtick) */
+  contentEnd: number;
+  /** Start position of the full template (including backtick) */
+  start: number;
+  /** End position of the full template (including backtick) */
+  end: number;
+}
+
+/**
+ * Check if a string looks like it contains code (heuristic)
+ */
+function looksLikeCode(content: string): boolean {
+  // Must be substantial (more than simple value)
+  if (content.length < 20) return false;
+
+  // Look for code patterns
+  const codePatterns = [
+    /\bawait\b/, // async/await
+    /\bfunction\b/, // function keyword
+    /\b=>\b/, // arrow functions
+    /\bpage\.\w+/, // Playwright page methods
+    /\bdocument\.\w+/, // DOM access
+    /\bwindow\.\w+/, // window access
+    /\bconsole\.\w+/, // console methods
+    /\breturn\b/, // return statement
+    /\bconst\b|\blet\b|\bvar\b/, // variable declarations
+    /\bif\s*\(/, // if statements
+    /\bfor\s*\(/, // for loops
+    /\bwhile\s*\(/, // while loops
+    /\.\w+\s*\(/, // method calls
+  ];
+
+  return codePatterns.some((pattern) => pattern.test(content));
+}
+
+/**
  * Transform literal bindings to args.xxx references
  *
  * Makes capabilities shareable in cloud mode by:
@@ -308,7 +356,7 @@ export async function transformLiteralsToArgs(
     }
   }
 
-  if (identifierPositions.length === 0 && inlineLiteralPositions.length === 0) {
+  if (identifierPositions.length === 0 && inlineLiteralPositions.length === 0 && mcpCallLiterals.codeTemplates.length === 0) {
     return {
       code,
       replacedCount: 0,
@@ -383,6 +431,46 @@ export async function transformLiteralsToArgs(
     const after = transformedCode.substring(end);
     transformedCode = before + `args.${pos.propertyName}` + after;
     replacedCount++;
+  }
+
+  // Story 10.2f: Process code template literals (extract nested literals)
+  // Sort by position descending to replace from end to start
+  const sortedCodeTemplates = [...mcpCallLiterals.codeTemplates].sort((a, b) => b.start - a.start);
+  for (const template of sortedCodeTemplates) {
+    const contentStart = template.contentStart - baseOffset;
+    const contentEnd = template.contentEnd - baseOffset;
+
+    // Skip if positions are invalid
+    if (contentStart < 0 || contentEnd > transformedCode.length) continue;
+
+    // Extract nested literals from the template content
+    const nestedResult = await extractNestedLiterals(template.templateContent);
+
+    if (nestedResult.count > 0) {
+      // Replace the template content with the transformed version (with interpolations)
+      const before = transformedCode.substring(0, contentStart);
+      const after = transformedCode.substring(contentEnd);
+      transformedCode = before + nestedResult.transformedCode + after;
+      replacedCount += nestedResult.count;
+
+      // Add extracted literals to our collection (with prefix to avoid conflicts)
+      for (const [name, value] of Object.entries(nestedResult.extractedLiterals)) {
+        // Use property-prefixed name if there might be conflicts
+        const paramName = `${template.propertyName}_${name}`;
+        if (!(paramName in extractedLiterals) && !(name in extractedLiterals)) {
+          // Prefer short name if no conflict
+          extractedLiterals[name] = value;
+        } else {
+          extractedLiterals[paramName] = value;
+        }
+      }
+
+      logger.debug("Extracted nested literals from code template", {
+        propertyName: template.propertyName,
+        nestedCount: nestedResult.count,
+        params: Object.keys(nestedResult.extractedLiterals),
+      });
+    }
   }
 
   // Clean up: remove empty lines and extra whitespace
@@ -627,6 +715,8 @@ function findInlineLiteralPositions(
 interface McpCallLiteralsResult {
   positions: InlineLiteralPosition[];
   discoveredLiterals: Record<string, JsonValue>;
+  /** Template literals containing code - need special handling for nested literals */
+  codeTemplates: CodeTemplateLiteralPosition[];
 }
 
 /**
@@ -650,7 +740,7 @@ interface McpCallLiteralsResult {
 function findMcpCallInlineLiterals(
   // deno-lint-ignore no-explicit-any
   node: any,
-  results: McpCallLiteralsResult = { positions: [], discoveredLiterals: {} },
+  results: McpCallLiteralsResult = { positions: [], discoveredLiterals: {}, codeTemplates: [] },
   processedSpans: Set<string> = new Set(),
   inMcpCallArg: boolean = false,
 ): McpCallLiteralsResult {
@@ -694,16 +784,44 @@ function findMcpCallInlineLiterals(
       } else if (valueNode.type === "BooleanLiteral") {
         literalValue = valueNode.value as boolean;
       } else if (valueNode.type === "TemplateLiteral") {
-        // Handle template literals like `SELECT * FROM users`
+        // Handle template literals like `SELECT * FROM users` or `async (page) => {...}`
         const quasis = valueNode.quasis as Array<Record<string, unknown>> | undefined;
-        if (quasis && quasis.length > 0) {
-          // For simple templates (no interpolation), get the raw content
-          // Note: cooked is directly a string, not { value: string }
+        const expressions = valueNode.expressions as Array<unknown> | undefined;
+
+        // Only handle simple templates (no interpolation)
+        if (quasis && quasis.length > 0 && (!expressions || expressions.length === 0)) {
           const templateContent = quasis
             .map((q) => (q.cooked as string) ?? "")
             .join("");
+
           if (templateContent.length > 0) {
-            literalValue = templateContent;
+            const start = valueNode.span?.start ?? 0;
+            const end = valueNode.span?.end ?? 0;
+            const spanKey = `${start}-${end}`;
+
+            // Check if this looks like code (needs nested literal extraction)
+            if (looksLikeCode(templateContent)) {
+              // Add to codeTemplates for special handling
+              if (!processedSpans.has(spanKey)) {
+                processedSpans.add(spanKey);
+                results.codeTemplates.push({
+                  propertyName: keyName,
+                  templateContent,
+                  contentStart: start + 1, // After opening backtick
+                  contentEnd: end - 1, // Before closing backtick
+                  start,
+                  end,
+                });
+                logger.debug("Found code template literal", {
+                  propertyName: keyName,
+                  contentLength: templateContent.length,
+                });
+              }
+              // Don't add to literalValue - will be handled separately
+            } else {
+              // Simple template (SQL, etc.) - treat as regular literal
+              literalValue = templateContent;
+            }
           }
         }
       } else if (valueNode.type === "ArrayExpression") {
