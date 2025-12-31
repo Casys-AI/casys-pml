@@ -737,6 +737,7 @@ export class PMLGatewayServer {
     }
 
     // Unified discover (Story 10.6)
+    // Uses SHGAT K-head for capability scoring (unified with pml:execute)
     if (name === "pml:discover") {
       return await handleDiscover(
         args,
@@ -745,6 +746,8 @@ export class PMLGatewayServer {
         this.dagSuggester,
         this.capabilityRegistry ?? undefined,
         new TelemetryAdapter(),
+        this.shgat ?? undefined,
+        this.embeddingModel ?? undefined,
       );
     }
 

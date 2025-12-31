@@ -24,7 +24,6 @@ import type { MCPErrorResponse, MCPToolResponse } from "../server/types.ts";
 import { formatMCPSuccess } from "../server/responses.ts";
 import { addBreadcrumb, captureError, startTransaction } from "../../telemetry/sentry.ts";
 import type { HybridSearchResult } from "../../graphrag/types.ts";
-import type { CapabilityMatch } from "../../capabilities/types.ts";
 import type { CapabilityRegistry } from "../../capabilities/capability-registry.ts";
 import {
   calculateReliabilityFactor,
@@ -33,6 +32,8 @@ import {
   type ReliabilityConfig,
 } from "../../graphrag/algorithms/unified-search.ts";
 import type { IDecisionLogger } from "../../telemetry/decision-logger.ts";
+import type { SHGAT } from "../../graphrag/algorithms/shgat.ts";
+import type { EmbeddingModel } from "../../embeddings/types.ts";
 
 /**
  * Discover request arguments
@@ -146,6 +147,8 @@ export async function handleDiscover(
   dagSuggester: DAGSuggester,
   capabilityRegistry?: CapabilityRegistry,
   decisionLogger?: IDecisionLogger,
+  shgat?: SHGAT,
+  embeddingModel?: EmbeddingModel,
 ): Promise<MCPToolResponse | MCPErrorResponse> {
   const transaction = startTransaction("mcp.discover", "mcp");
   const startTime = performance.now();
@@ -205,18 +208,24 @@ export async function handleDiscover(
     }
 
     // Search capabilities if filter allows
+    // Story 10.6: Use SHGAT K-head for capability scoring (unified with pml:execute)
     if (filterType === "all" || filterType === "capability") {
-      const capabilityResult = await searchCapability(
+      const capabilityResults = await searchCapabilities(
         intent,
         dagSuggester,
         capabilityRegistry,
         minScore,
         correlationId,
         decisionLogger,
+        shgat,
+        embeddingModel,
+        limit,
       );
-      if (capabilityResult && capabilityResult.score >= minScore) {
-        results.push(capabilityResult);
-        capabilitiesCount++;
+      for (const cap of capabilityResults) {
+        if (cap.score >= minScore) {
+          results.push(cap);
+          capabilitiesCount++;
+        }
       }
     }
 
@@ -345,31 +354,141 @@ async function searchTools(
 }
 
 /**
- * Search capabilities using CapabilityMatcher (AC12-13)
+ * Search capabilities using SHGAT K-head (unified with pml:execute)
  *
- * The CapabilityMatcher already applies the unified formula:
- * score = semanticScore × reliabilityFactor × transitiveReliability
+ * Story 10.6: Uses SHGAT.scoreAllCapabilities() like execute-handler.
+ * Fallback: If SHGAT unavailable, uses legacy CapabilityMatcher (cosine).
  *
- * Transitive reliability (ADR-042 §3) propagates through dependencies:
- * if A depends on B, A's reliability = min(A.successRate, B.successRate)
- *
- * We use match.score directly which includes all reliability factors.
+ * SHGAT K-head scores via multi-head attention + message passing,
+ * which provides better semantic + structural scoring than cosine alone.
  */
-async function searchCapability(
+async function searchCapabilities(
   intent: string,
   dagSuggester: DAGSuggester,
   capabilityRegistry?: CapabilityRegistry,
   minScore: number = 0,
   correlationId?: string,
   decisionLogger?: IDecisionLogger,
-): Promise<DiscoverResultItem | null> {
-  const match: CapabilityMatch | null = await dagSuggester.searchCapabilities(
-    intent,
-    correlationId,
-  );
+  shgat?: SHGAT,
+  embeddingModel?: EmbeddingModel,
+  limit: number = 5,
+): Promise<DiscoverResultItem[]> {
+  const results: DiscoverResultItem[] = [];
+
+  // Use SHGAT if available (like execute-handler)
+  if (shgat && embeddingModel) {
+    const intentEmbedding = await embeddingModel.encode(intent);
+    if (!intentEmbedding || intentEmbedding.length === 0) {
+      log.warn("[discover] Failed to generate intent embedding, falling back to legacy");
+    } else {
+      // Score capabilities with SHGAT K-head (same as execute-handler:1459)
+      const shgatResults = shgat.scoreAllCapabilities(intentEmbedding);
+
+      log.debug("[discover] SHGAT scored capabilities", {
+        count: shgatResults.length,
+        top3: shgatResults.slice(0, 3).map((r) => ({
+          id: r.capabilityId,
+          score: r.score.toFixed(3),
+        })),
+      });
+
+      // Get capability store for additional data
+      const capStore = dagSuggester.getCapabilityStore();
+
+      // Process top results up to limit
+      for (const shgatResult of shgatResults.slice(0, limit)) {
+        // Trace SHGAT scoring decision
+        decisionLogger?.logDecision({
+          algorithm: "SHGAT",
+          mode: "active_search",
+          targetType: "capability",
+          intent,
+          finalScore: shgatResult.score,
+          threshold: minScore,
+          decision: shgatResult.score >= minScore ? "accepted" : "rejected",
+          targetId: shgatResult.capabilityId,
+          correlationId,
+          signals: {
+            numHeads: shgatResult.headScores?.length ?? 0,
+            avgHeadScore: shgatResult.headScores
+              ? shgatResult.headScores.reduce((a, b) => a + b, 0) / shgatResult.headScores.length
+              : 0,
+          },
+        });
+
+        // Get capability details from store
+        const capability = await capStore?.findById(shgatResult.capabilityId);
+        if (!capability) continue;
+
+        // Get namespace:action from registry
+        let callName: string | undefined;
+        if (capabilityRegistry) {
+          const record = await capabilityRegistry.getByWorkflowPatternId(shgatResult.capabilityId);
+          if (record) {
+            callName = `${record.namespace}:${record.action}`;
+          }
+        } else if (capability.fqdn) {
+          const parts = capability.fqdn.split(".");
+          if (parts.length >= 5) {
+            callName = `${parts[2]}:${parts[3]}`;
+          }
+        }
+
+        // Parse $cap:uuid references for meta-capabilities
+        const calledCapabilities: Array<{
+          id: string;
+          call_name?: string;
+          input_schema?: Record<string, unknown>;
+        }> = [];
+
+        if (capability.codeSnippet && capabilityRegistry) {
+          const capRefPattern = /\$cap:([a-f0-9-]{36})/g;
+          let capMatch;
+          const seenIds = new Set<string>();
+
+          while ((capMatch = capRefPattern.exec(capability.codeSnippet)) !== null) {
+            const capUuid = capMatch[1];
+            if (seenIds.has(capUuid)) continue;
+            seenIds.add(capUuid);
+
+            const innerRecord = await capabilityRegistry.getByWorkflowPatternId(capUuid);
+            if (innerRecord) {
+              const innerCap = await capStore?.findById(capUuid);
+              calledCapabilities.push({
+                id: capUuid,
+                call_name: `${innerRecord.namespace}:${innerRecord.action}`,
+                input_schema: innerCap?.parametersSchema as Record<string, unknown> | undefined,
+              });
+            }
+          }
+        }
+
+        results.push({
+          type: "capability",
+          record_type: "capability",
+          id: shgatResult.capabilityId,
+          name: capability.name ?? shgatResult.capabilityId.substring(0, 8),
+          description: capability.description ?? "Learned capability",
+          score: shgatResult.score,
+          code_snippet: capability.codeSnippet,
+          success_rate: capability.successRate,
+          usage_count: capability.usageCount,
+          semantic_score: shgatResult.featureContributions?.semantic ?? shgatResult.score,
+          call_name: callName,
+          input_schema: capability.parametersSchema as Record<string, unknown> | undefined,
+          called_capabilities: calledCapabilities.length > 0 ? calledCapabilities : undefined,
+        });
+      }
+
+      return results;
+    }
+  }
+
+  // Fallback: Legacy CapabilityMatcher (cosine via pgvector)
+  log.debug("[discover] Using legacy CapabilityMatcher (SHGAT not available)");
+  const match = await dagSuggester.searchCapabilities(intent, correlationId);
 
   if (!match) {
-    // Trace no match found
     decisionLogger?.logDecision({
       algorithm: "CapabilityMatcher",
       mode: "active_search",
@@ -380,10 +499,9 @@ async function searchCapability(
       decision: "rejected",
       correlationId,
     });
-    return null;
+    return [];
   }
 
-  // Trace capability match decision
   decisionLogger?.logDecision({
     algorithm: "CapabilityMatcher",
     mode: "active_search",
@@ -398,18 +516,9 @@ async function searchCapability(
       semanticScore: match.semanticScore,
       successRate: match.capability.successRate,
     },
-    params: {
-      reliabilityFactor: match.capability.successRate ?? 1.0,
-    },
   });
 
-  // AC12-13: CapabilityMatcher.findMatch() already computes:
-  // score = semanticScore × reliabilityFactor × transitiveReliability
-  // See matcher.ts:187-188 and computeTransitiveReliability() for implementation
-
-  // Get namespace:action from capability_records via registry (preferred)
-  // Note: match.capability.id is workflow_pattern.pattern_id, not capability_records.id
-  // Fallback to parsing FQDN if registry not available
+  // Get callName
   let callName: string | undefined;
   if (capabilityRegistry) {
     const record = await capabilityRegistry.getByWorkflowPatternId(match.capability.id);
@@ -417,60 +526,28 @@ async function searchCapability(
       callName = `${record.namespace}:${record.action}`;
     }
   } else if (match.capability.fqdn) {
-    // Fallback: Extract from FQDN (format: org.project.namespace.action.hash)
     const parts = match.capability.fqdn.split(".");
     if (parts.length >= 5) {
       callName = `${parts[2]}:${parts[3]}`;
     }
   }
 
-  // Parse $cap:uuid references from code to find called capabilities
-  const calledCapabilities: Array<{
-    id: string;
-    call_name?: string;
-    input_schema?: Record<string, unknown>;
-  }> = [];
-
-  if (match.capability.codeSnippet && capabilityRegistry) {
-    // Find all $cap:uuid patterns in the code
-    const capRefPattern = /\$cap:([a-f0-9-]{36})/g;
-    let capMatch;
-    const seenIds = new Set<string>();
-
-    while ((capMatch = capRefPattern.exec(match.capability.codeSnippet)) !== null) {
-      const capUuid = capMatch[1];
-      if (seenIds.has(capUuid)) continue;
-      seenIds.add(capUuid);
-
-      // Look up the inner capability by its workflow_pattern_id
-      const innerRecord = await capabilityRegistry.getByWorkflowPatternId(capUuid);
-      if (innerRecord) {
-        // Get the capability's schema from the store
-        const innerCap = await dagSuggester.getCapabilityStore()?.findById(capUuid);
-        calledCapabilities.push({
-          id: capUuid,
-          call_name: `${innerRecord.namespace}:${innerRecord.action}`,
-          input_schema: innerCap?.parametersSchema as Record<string, unknown> | undefined,
-        });
-      }
-    }
-  }
-
-  return {
+  results.push({
     type: "capability",
-    record_type: "capability", // Story 13.8: pml_registry VIEW compatibility
+    record_type: "capability",
     id: match.capability.id,
     name: match.capability.name ?? match.capability.id.substring(0, 8),
     description: match.capability.description ?? "Learned capability",
-    score: match.score, // Already includes reliability + transitive
+    score: match.score,
     code_snippet: match.capability.codeSnippet,
     success_rate: match.capability.successRate,
     usage_count: match.capability.usageCount,
     semantic_score: match.semanticScore,
     call_name: callName,
     input_schema: match.parametersSchema as Record<string, unknown> | undefined,
-    called_capabilities: calledCapabilities.length > 0 ? calledCapabilities : undefined,
-  };
+  });
+
+  return results;
 }
 
 /**
