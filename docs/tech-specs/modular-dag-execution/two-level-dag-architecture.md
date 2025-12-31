@@ -11,6 +11,42 @@ maintenant la performance (groupement intelligent).
 
 ---
 
+## 🔄 **Loop Abstraction (Extension)**
+
+> Voir [loop-abstraction.md](./loop-abstraction.md) pour la documentation complète.
+
+### Problème des Boucles
+
+Les boucles créent des répétitions qui ne généralisent pas bien pour SHGAT :
+
+```typescript
+// 3 itérations = 6 nodes
+for (item of items) { click(item); fill(item); }
+// → click, fill, click, fill, click, fill
+```
+
+### Solution : Abstraction au Niveau Logique
+
+Contrairement à la fusion (niveau physique), les boucles sont abstraites au **niveau logique** :
+
+```
+loop_l1 (forOf: item of items)
+  ├── task_n1: click (parentScope: l1)
+  └── task_n2: fill (parentScope: l1)
+```
+
+SHGAT apprend : `loop:forOf → click → fill` (pattern universel)
+
+### Complémentarité
+
+| Optimisation | Niveau | But |
+|--------------|--------|-----|
+| **Loop Abstraction** | DAG Logique | Patterns généralisables pour SHGAT |
+| **Fusion Séquentielle** | DAG Physique | Moins de layers/HIL |
+| **Fork-Join Fusion** | DAG Physique | Parallélisation |
+
+---
+
 ## 🏗️ **Architecture Two-Level**
 
 ```

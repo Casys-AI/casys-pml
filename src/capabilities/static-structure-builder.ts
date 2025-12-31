@@ -84,6 +84,7 @@ export class StaticStructureBuilder {
     capability: 0,
     fork: 0,
     join: 0,
+    loop: 0,
   };
 
   /**
@@ -331,6 +332,7 @@ export class StaticStructureBuilder {
       capability: 0,
       fork: 0,
       join: 0,
+      loop: 0,
     };
     this.variableToNodeId.clear();
     this.literalBindings.clear();
@@ -348,6 +350,7 @@ export class StaticStructureBuilder {
       capability: "c",
       fork: "f",
       join: "j",
+      loop: "l",
     };
     return `${prefixes[type]}${this.nodeCounters[type]}`;
   }
@@ -564,9 +567,10 @@ export class StaticStructureBuilder {
           if (inputNode && inputNode.metadata) {
             (inputNode.metadata as NodeMetadata).executable = false;
             // Also update code to method-only (not full chain)
-            if (inputNode.code && inputNode.tool) {
-              const methodName = inputNode.tool.replace("code:", "");
-              const methodStart = inputNode.code.indexOf(methodName + "(");
+            // Type guard: only task nodes have code and tool properties
+            if (inputNode.type === "task" && inputNode.code && inputNode.tool) {
+              const inputMethodName = inputNode.tool.replace("code:", "");
+              const methodStart = inputNode.code.indexOf(inputMethodName + "(");
               if (methodStart > 0) {
                 inputNode.code = inputNode.code.substring(methodStart);
               }
@@ -652,9 +656,10 @@ export class StaticStructureBuilder {
           if (inputNode && inputNode.metadata) {
             (inputNode.metadata as NodeMetadata).executable = false;
             // Also update code to method-only (not full chain)
-            if (inputNode.code && inputNode.tool) {
-              const methodName = inputNode.tool.replace("code:", "");
-              const methodStart = inputNode.code.indexOf(methodName + "(");
+            // Type guard: only task nodes have code and tool properties
+            if (inputNode.type === "task" && inputNode.code && inputNode.tool) {
+              const inputMethodName = inputNode.tool.replace("code:", "");
+              const methodStart = inputNode.code.indexOf(inputMethodName + "(");
               if (methodStart > 0) {
                 inputNode.code = inputNode.code.substring(methodStart);
               }

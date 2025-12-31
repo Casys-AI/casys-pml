@@ -168,6 +168,40 @@ export function generateConditionalEdges(
 }
 
 /**
+ * Generate loop edges for iteration patterns
+ *
+ * Creates edges from loop node to the first node in its body.
+ * The body content is analyzed once (not per-iteration) for SHGAT pattern learning.
+ */
+export function generateLoopEdges(
+  nodes: InternalNode[],
+  edges: StaticStructureEdge[],
+): void {
+  const loopNodes = nodes.filter((n) => n.type === "loop");
+
+  for (const loop of loopNodes) {
+    // Find nodes inside this loop's body
+    const bodyNodes = nodes.filter((n) => n.parentScope === loop.id);
+
+    if (bodyNodes.length > 0) {
+      // Sort by position to get first node
+      const sortedBody = bodyNodes.sort((a, b) => a.position - b.position);
+      const firstNode = sortedBody[0];
+
+      // Connect loop to first node in body
+      edges.push({
+        from: loop.id,
+        to: firstNode.id,
+        type: "loop_body",
+      });
+
+      // Note: We don't create a back-edge because SHGAT sees the pattern once,
+      // not the iteration cycle. The "loop" node type indicates repetition semantically.
+    }
+  }
+}
+
+/**
  * Generate fork/join edges for parallel execution
  */
 export function generateForkJoinEdges(
@@ -364,6 +398,9 @@ export async function generateAllEdges(
 
   // Generate conditional edges (from decision nodes to their branches)
   generateConditionalEdges(sortedNodes, edges);
+
+  // Generate loop edges (from loop nodes to their body)
+  generateLoopEdges(sortedNodes, edges);
 
   // Generate fork/join edges
   generateForkJoinEdges(sortedNodes, edges);
