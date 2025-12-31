@@ -225,6 +225,124 @@ When **Phase 4: Per-Task HIL** is implemented (see `tech-spec-hil-permission-esc
 
 ---
 
+## Architectural Limitations of Loop Tracing
+
+### Current Architecture Summary
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    STATIC ANALYSIS                              │
+│  - Détecte les loops (for, while, for...of, etc.)              │
+│  - Crée un node "loop" avec condition (string, pas évaluée)    │
+│  - Crée un edge "loop_body" vers le PREMIER node du body       │
+│  - Assigne parentScope aux nodes internes                       │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                    DAG CONVERSION                               │
+│  - loopMembership map: nodeId → { loopId, loopType }           │
+│  - Task metadata enrichie avec loopId, loopType, loopCondition │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                    EXECUTION (WorkerBridge)                     │
+│  - Code JS exécuté NATIVEMENT (loop = code JS normal)          │
+│  - Chaque MCP call émet tool_start/tool_end traces             │
+│  - On COMPTE les traces pour inférer les itérations            │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Limitation 1: Comptage Global des Itérations
+
+**Problème** : Le comptage est par `toolName`, pas par `loopId`.
+
+```typescript
+// execute-handler.ts:629-633
+const toolCallCounts = new Map<string, number>();
+for (const trace of executorContext.traces) {
+  if (trace.type === "tool_start" && trace.tool) {
+    toolCallCounts.set(trace.tool, (toolCallCounts.get(trace.tool) || 0) + 1);
+  }
+}
+```
+
+**Conséquence** :
+```typescript
+for (const f of files) { read_file(f); }      // 3 itérations
+for (const x of others) { read_file(x); }     // 2 itérations
+// toolCallCounts.get("read_file") = 5 (global, pas par loop!)
+```
+
+**Fix potentiel** : Ajouter `loopId` dans les traces émises par WorkerBridge, mais cela nécessiterait de propager le contexte de loop dans le code exécuté.
+
+### Limitation 2: Pas de Contrôle des Itérations
+
+**Problème** : Les loops s'exécutent en code JS natif, on ne peut pas :
+- Pauser entre les itérations
+- Limiter le nombre d'itérations
+- Injecter de la logique HIL mid-loop
+
+**Architecture actuelle** (Option A du tech spec) :
+- DAG = pour learning/tracing
+- Exécution = code JS natif via WorkerBridge
+- Loops = gérées par le runtime JS, pas par le DAG
+
+**Alternative future** (Option B) :
+- DAG contrôle l'exécution, y compris les itérations
+- Permettrait pause mid-loop
+- Complexité significative (gestion d'état, performance)
+
+### Limitation 3: `loop_body` Edge Unique
+
+**Problème** : Un seul edge du loop vers le premier node du body.
+
+```typescript
+// edge-generators.ts:218-223
+edges.push({
+  from: loop.id,
+  to: firstNode.id,  // SEULEMENT le premier node
+  type: "loop_body",
+});
+```
+
+**Pourquoi** : SHGAT doit voir le pattern une fois, pas N fois.
+
+**Conséquence** : Les autres nodes du body n'ont pas d'edge direct depuis le loop. On utilise `parentScope` pour la membership.
+
+### Limitation 4: Condition Non Évaluée
+
+**Problème** : La condition de loop est un string, pas une expression évaluable.
+
+```typescript
+{
+  type: "loop",
+  condition: "for(file of files)",  // Juste du texte!
+  loopType: "forOf"
+}
+```
+
+On ne sait pas :
+- Combien d'itérations sont prévues
+- Quand la loop va terminer
+- Si la condition dépend d'un état mutable
+
+### Résumé des Limitations
+
+| Aspect | Status | Impact |
+|--------|--------|--------|
+| Comptage itérations par loop | ❌ Global | UI imprécise si plusieurs loops |
+| Pause mid-loop | ❌ Impossible | Pas de HIL granulaire |
+| Edge vers tous les body nodes | ❌ Premier seul | Graphe simplifié pour SHGAT |
+| Condition évaluable | ❌ String seul | Pas de prédiction d'itérations |
+
+### Recommandations
+
+1. **Court terme** : Accepter ces limitations, documenter clairement
+2. **Moyen terme** : Enrichir les traces avec `loopId` pour comptage précis
+3. **Long terme** : Considérer Option B (DAG contrôle exécution) si besoin de HIL mid-loop
+
+---
+
 ## Test Plan
 
 ### Unit Tests Needed
