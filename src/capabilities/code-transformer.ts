@@ -566,7 +566,11 @@ function findLiteralDeclarations(
 }
 
 /**
- * Pass 2: Find all usages of literal names (excluding declarations and args.xxx)
+ * Pass 2: Find all usages of literal names (excluding declarations, args.xxx, and shadowed variables)
+ *
+ * Handles variable shadowing correctly:
+ * - If a loop variable (for...of, for...in) shadows a literal name, usages inside the loop are excluded
+ * - If a function parameter shadows a literal name, usages inside the function are excluded
  */
 function findAllUsages(
   // deno-lint-ignore no-explicit-any
@@ -574,6 +578,7 @@ function findAllUsages(
   literalNames: Set<string>,
   declarationSpans: Set<string>,
   results: IdentifierPosition[] = [],
+  shadowedNames: Set<string> = new Set(),
 ): IdentifierPosition[] {
   if (!node || typeof node !== "object") return results;
 
@@ -585,10 +590,24 @@ function findAllUsages(
     }
   }
 
+  // Check for scope-creating nodes that might shadow variables
+  // ForOfStatement: for (const x of items) - x shadows any outer x
+  // ForInStatement: for (const x in obj) - x shadows any outer x
+  // ForStatement: for (let i = 0; ...) - i shadows any outer i
+  // ArrowFunctionExpression: (x) => ... - x shadows any outer x
+  // FunctionExpression/FunctionDeclaration: function(x) {...} - x shadows any outer x
+  const newShadowedNames = detectShadowedVariables(node, literalNames);
+  const effectiveShadowed = newShadowedNames.size > 0
+    ? new Set([...shadowedNames, ...newShadowedNames])
+    : shadowedNames;
+
   // Check for identifier usage
   if (node.type === "Identifier") {
     const name = node.value;
-    if (literalNames.has(name)) {
+    // Only process if:
+    // 1. Name is in literalNames (we want to parameterize it)
+    // 2. Name is NOT shadowed in current scope (it's a different variable)
+    if (literalNames.has(name) && !effectiveShadowed.has(name)) {
       const start = node.span?.start ?? 0;
       const end = node.span?.end ?? 0;
       const spanKey = `${start}-${end}`;
@@ -618,14 +637,109 @@ function findAllUsages(
     const value = node[key];
     if (Array.isArray(value)) {
       for (const item of value) {
-        findAllUsages(item, literalNames, declarationSpans, results);
+        findAllUsages(item, literalNames, declarationSpans, results, effectiveShadowed);
       }
     } else if (value && typeof value === "object") {
-      findAllUsages(value, literalNames, declarationSpans, results);
+      findAllUsages(value, literalNames, declarationSpans, results, effectiveShadowed);
     }
   }
 
   return results;
+}
+
+/**
+ * Detect variables that are shadowed by this node's declarations
+ *
+ * Returns the set of variable names that are declared in this scope and
+ * shadow names from literalNames.
+ */
+function detectShadowedVariables(
+  // deno-lint-ignore no-explicit-any
+  node: any,
+  literalNames: Set<string>,
+): Set<string> {
+  const shadowed = new Set<string>();
+
+  // ForOfStatement: for (const x of items)
+  if (node.type === "ForOfStatement" || node.type === "ForInStatement") {
+    const left = node.left;
+    if (left?.type === "VariableDeclaration") {
+      const declarations = left.declarations as Array<Record<string, unknown>> | undefined;
+      if (declarations) {
+        for (const decl of declarations) {
+          const id = decl.id as Record<string, unknown> | undefined;
+          if (id?.type === "Identifier") {
+            const name = id.value as string;
+            if (literalNames.has(name)) {
+              shadowed.add(name);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // ForStatement: for (let i = 0; ...)
+  if (node.type === "ForStatement") {
+    const init = node.init;
+    if (init?.type === "VariableDeclaration") {
+      const declarations = init.declarations as Array<Record<string, unknown>> | undefined;
+      if (declarations) {
+        for (const decl of declarations) {
+          const id = decl.id as Record<string, unknown> | undefined;
+          if (id?.type === "Identifier") {
+            const name = id.value as string;
+            if (literalNames.has(name)) {
+              shadowed.add(name);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // ArrowFunctionExpression: (x) => ...
+  // FunctionExpression/FunctionDeclaration: function(x) {...}
+  if (
+    node.type === "ArrowFunctionExpression" ||
+    node.type === "FunctionExpression" ||
+    node.type === "FunctionDeclaration"
+  ) {
+    const params = node.params as Array<Record<string, unknown>> | undefined;
+    if (params) {
+      for (const param of params) {
+        // Handle both simple identifiers and patterns
+        const paramNode = param as Record<string, unknown>;
+        if (paramNode.type === "Identifier") {
+          const name = paramNode.value as string;
+          if (literalNames.has(name)) {
+            shadowed.add(name);
+          }
+        } else if (paramNode.pat) {
+          const pat = paramNode.pat as Record<string, unknown>;
+          if (pat.type === "Identifier") {
+            const name = pat.value as string;
+            if (literalNames.has(name)) {
+              shadowed.add(name);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // CatchClause: catch (e) {...}
+  if (node.type === "CatchClause") {
+    const param = node.param;
+    if (param?.type === "Identifier") {
+      const name = param.value as string;
+      if (literalNames.has(name)) {
+        shadowed.add(name);
+      }
+    }
+  }
+
+  return shadowed;
 }
 
 /**
