@@ -97,6 +97,7 @@ import {
   SHGAT,
   type TrainingExample,
 } from "../graphrag/algorithms/shgat.ts";
+import { createHybridEmbeddings } from "../graphrag/hybrid-embeddings.ts";
 import { spawnSHGATTraining } from "../graphrag/algorithms/shgat/spawn-training.ts";
 import { buildDRDSPFromCapabilities, DRDSP } from "../graphrag/algorithms/dr-dsp.ts";
 import type { EmbeddingModelInterface } from "../vector/embeddings.ts";
@@ -1028,10 +1029,16 @@ export class PMLGatewayServer {
           parents: parentsMap.get(c.id),
         }));
 
+      // Apply hybrid embeddings (BGE + Node2Vec) for improved retrieval
+      // See benchmarks: +757% MRR vs BGE-only baseline
+      const hybridCapabilities = capabilitiesWithEmbeddings.length > 0
+        ? createHybridEmbeddings(capabilitiesWithEmbeddings)
+        : capabilitiesWithEmbeddings;
+
       // Always create SHGAT - even empty, capabilities added dynamically
-      this.shgat = createSHGATFromCapabilities(capabilitiesWithEmbeddings);
+      this.shgat = createSHGATFromCapabilities(hybridCapabilities);
       log.info(
-        `[Gateway] SHGAT initialized with ${capabilitiesWithEmbeddings.length} capabilities`,
+        `[Gateway] SHGAT initialized with ${hybridCapabilities.length} capabilities (hybrid embeddings)`,
       );
 
       // Cache hyperedges in KV for tensor-entropy and other consumers

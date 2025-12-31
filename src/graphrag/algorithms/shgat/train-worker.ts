@@ -22,6 +22,7 @@
  */
 
 import { createSHGATFromCapabilities, type TrainingExample } from "../shgat.ts";
+import { createHybridEmbeddings } from "../../hybrid-embeddings.ts";
 
 interface WorkerInput {
   capabilities: Array<{
@@ -62,8 +63,13 @@ async function main() {
   const input: WorkerInput = JSON.parse(inputJson);
 
   try {
+    // Apply hybrid embeddings (BGE + Node2Vec) for improved retrieval
+    const hybridCapabilities = input.capabilities.length > 0
+      ? createHybridEmbeddings(input.capabilities)
+      : input.capabilities;
+
     // Create SHGAT from capabilities
-    const shgat = createSHGATFromCapabilities(input.capabilities);
+    const shgat = createSHGATFromCapabilities(hybridCapabilities);
 
     // Import existing params for incremental training (live/PER mode)
     if (input.existingParams) {
