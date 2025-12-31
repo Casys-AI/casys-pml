@@ -743,7 +743,7 @@ export class PMLGatewayServer {
         this.graphEngine,
         this.dagSuggester,
         this.capabilityRegistry ?? undefined,
-        this.algorithmTracer ? new TelemetryAdapter(this.algorithmTracer) : undefined,
+        new TelemetryAdapter(),
       );
     }
 
