@@ -67,19 +67,22 @@ export function startAlgorithmSpan(
 /**
  * Record algorithm decision as a span (fire-and-forget)
  *
- * Creates a span, records attributes, and ends it immediately.
- * Useful for simple decision logging without async context.
+ * Uses startActiveSpan to properly link the span to the current trace context.
+ * This ensures algorithm spans appear as children of the HTTP request span
+ * and are correctly exported to Jaeger/OTLP.
  */
 export function recordAlgorithmDecision(
   name: string,
   attributes: AlgorithmSpanAttributes,
   success: boolean = true,
 ): void {
-  const span = startAlgorithmSpan(name, attributes);
-  span.setStatus({
-    code: success ? SpanStatusCode.OK : SpanStatusCode.ERROR,
+  const tracer = getAlgorithmTracer();
+  tracer.startActiveSpan(`algorithm.${name}`, { attributes }, (span) => {
+    span.setStatus({
+      code: success ? SpanStatusCode.OK : SpanStatusCode.ERROR,
+    });
+    span.end();
   });
-  span.end();
 }
 
 /**
