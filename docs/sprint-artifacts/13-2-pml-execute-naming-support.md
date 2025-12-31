@@ -1,11 +1,11 @@
-# Story 13.2: pml_execute Auto-FQDN & Call-by-Name
+# Story 13.2: pml_execute Auto-FQDN & Accept Suggestion
 
 Status: done
 
 ## Story
 
-As a **developer**, I want **capabilities to get auto-generated FQDNs and be callable by name**, So
-that **I can reuse capabilities without remembering code**.
+As a **developer**, I want **capabilities to get auto-generated FQDNs and be executable from suggestions**, So
+that **I can reuse capabilities discovered via Suggestion mode**.
 
 ## Acceptance Criteria
 
@@ -30,15 +30,19 @@ reused (usage_count incremented), no duplicate created
 **Given** pml_execute without explicit naming **When** executed successfully **Then** capability
 receives display_name like `unnamed_<hash>` or inferred from intent
 
-### AC6: Call by Name
+### AC6: Accept Suggestion (formerly Call-by-Name)
 
-**Given** existing capability `my-config-reader` **When**
-`pml_execute({ intent: "read config", capability: "my-config-reader", args: { path: "config.json" } })`
+**Given** a Suggestion mode response with `suggestedDag.tasks[0].callName = "fs:read_json"` **When**
+`pml_execute({ accept_suggestion: { callName: "fs:read_json", args: { path: "config.json" } } })`
 **Then** capability code is executed with args merged into context
+
+> **Note:** This replaces the former Call-by-Name mode which used `capability` and `args` as
+> top-level parameters. The new design treats execution of suggested capabilities as a **response
+> pattern** to a previous Suggestion mode response, not as a separate execution mode.
 
 ### AC7: Name Resolution
 
-**Given** capability name **When** lookup performed via `CapabilityRegistry.resolveByName()`
+**Given** callName from suggestedDag **When** lookup performed via `CapabilityRegistry.resolveByName()`
 **Then** resolves to full FQDN and retrieves `code_snippet` from `capability_records`
 
 ### AC8: Args Merging
@@ -49,21 +53,21 @@ receives display_name like `unnamed_<hash>` or inferred from intent
 
 ### AC9: Not Found Error
 
-**Given** non-existent capability name **When** pml_execute called with `capability: "non-existent"`
-**Then** returns error "Capability not found: non-existent"
+**Given** non-existent callName **When** pml_execute called with `accept_suggestion: { callName: "non-existent" }`
+**Then** returns error "Capability not found for callName: non-existent"
 
 ### AC10: Usage Tracking
 
-**Given** capability called successfully by name **When** execution completes **Then** `usage_count`
+**Given** capability executed via accept_suggestion **When** execution completes **Then** `usage_count`
 incremented in `capability_records` and `success_count` updated based on result
 
 ## Tasks / Subtasks
 
 - [x] Task 1: Extend ExecuteArgs Interface (AC: #6)
-  - [x] 1.1: Add `capability?: string` parameter for call-by-name mode
-  - [x] 1.2: Add `args?: Record<string, JsonValue>` parameter for capability execution
-  - [x] 1.3: Update JSDoc with examples for both modes
-  - Note: `name` param removed - naming done via cap:name API (Story 13.3). AC5 was removed.
+  - [x] 1.1: Add `accept_suggestion?: { callName: string; args?: Record<string, JsonValue> }` response pattern
+  - [x] 1.2: Add `continue_workflow?: { workflow_id: string; approved: boolean }` response pattern
+  - [x] 1.3: Update JSDoc with examples for suggestion → accept flow
+  - Note: Former Call-by-Name mode (`capability` + `args` params) replaced with `accept_suggestion` response pattern.
 
 - [x] Task 2: Extend ExecuteResponse Interface (AC: #3)
   - [x] 2.1: Add `capabilityName?: string` field (auto-generated)
@@ -77,9 +81,9 @@ incremented in `capability_records` and `success_count` updated based on result
   - [x] 3.4: Auto-generate FQDN: `{org}.{project}.{namespace}.exec_{hash}.{hash}`
   - [x] 3.5: Include `capabilityName` and `capabilityFqdn` in response
 
-- [x] Task 4: Implement Call-by-Name Mode (AC: #5, #6, #7, #8, #9)
-  - [x] 4.1: Detect call-by-name mode when `params.capability` is present
-  - [x] 4.2: Resolve name via `CapabilityRegistry.resolveByName(name, scope)`
+- [x] Task 4: Implement Accept Suggestion Response Pattern (AC: #6, #7, #8, #9)
+  - [x] 4.1: Detect accept_suggestion when `params.accept_suggestion` is present
+  - [x] 4.2: Resolve callName via `CapabilityRegistry.resolveByName(callName, scope)`
   - [x] 4.3: Fetch `code_snippet` and `parameters_schema` from resolved record
   - [x] 4.4: Merge `args` with defaults from `parameters_schema.default`
   - [x] 4.5: Execute capability code via existing DAG/WorkerBridge flow
@@ -126,39 +130,87 @@ Story 13.1 introduced `capability_records` as a **registry** alongside `workflow
 ### ExecuteArgs Extension
 
 ```typescript
-// src/mcp/handlers/execute-handler.ts:119
+// src/mcp/handlers/execute-handler.ts
 export interface ExecuteArgs {
-  /** Natural language description of the intent (REQUIRED) */
-  intent: string;
+  /** Natural language description of the intent (REQUIRED for Direct/Suggestion modes) */
+  intent?: string;
   /** TypeScript code to execute (OPTIONAL - triggers Mode Direct) */
   code?: string;
-  /** Call existing capability by name (AC6) - format: mcp__namespace__action */
-  capability?: string;
-  /** Arguments for capability execution (AC8) */
-  args?: Record<string, JsonValue>;
   /** Execution options */
   options?: {
     timeout?: number;
     per_layer_validation?: boolean;
   };
+
+  // === Response Patterns (to previous execute responses) ===
+
+  /** Accept a suggestion from suggestedDag */
+  accept_suggestion?: {
+    callName: string;  // From suggestedDag.tasks[n].callName
+    args?: Record<string, JsonValue>;
+  };
+
+  /** Continue a paused workflow */
+  continue_workflow?: {
+    workflow_id: string;
+    approved: boolean;
+  };
 }
-// Note: `name` param removed - naming done via cap:name API (Story 13.3)
 ```
 
-### Mode Detection Logic
+### Execution Flow
 
 ```typescript
 // In handleExecute()
-if (params.capability) {
-  // Mode: Call-by-Name - execute existing capability
-  return await executeByNameMode(intent, capabilityName, args, options, deps, startTime);
-} else if (params.code) {
-  // Mode: Direct - execute code, auto-generate FQDN (naming via cap:name API later)
+
+// Response Pattern: Continue Workflow
+if (params.continue_workflow) {
+  return await handleApprovalResponse(...);
+}
+
+// Response Pattern: Accept Suggestion
+if (params.accept_suggestion) {
+  return await executeAcceptedSuggestion(callName, args, options, deps, startTime);
+}
+
+// Primary Modes (require intent)
+if (params.code) {
+  // Mode: Direct - execute code, auto-generate FQDN
   return await executeDirectMode(intent, code, options, deps, startTime);
 } else {
-  // Mode: Suggestion - DR-DSP search (existing behavior)
+  // Mode: Suggestion - DR-DSP search → Return suggestions
   return await executeSuggestionMode(intent, options, deps, startTime);
 }
+```
+
+### Suggestion → Accept Flow
+
+```typescript
+// Step 1: Get suggestions
+pml_execute({ intent: "read JSON config" })
+// Response:
+// {
+//   status: "suggestions",
+//   suggestions: {
+//     suggestedDag: {
+//       tasks: [{
+//         callName: "fs:read_json",
+//         type: "capability",
+//         inputSchema: { properties: { path: { type: "string" } } }
+//       }]
+//     },
+//     confidence: 0.85
+//   }
+// }
+
+// Step 2: Accept the suggestion
+pml_execute({
+  accept_suggestion: {
+    callName: "fs:read_json",  // From suggestedDag
+    args: { path: "config.json" }  // Built according to inputSchema
+  }
+})
+// Response: { status: "success", result: {...}, mode: "accept_suggestion" }
 ```
 
 ### Scope Context
@@ -237,14 +289,14 @@ From `src/capabilities/types.ts`:
 ### Response Format Extension
 
 ```typescript
-// Extended response for named capabilities
+// Extended response for capabilities
 const response: ExecuteResponse = {
   status: "success",
   result: executionResult,
   capabilityId: capability.id, // UUID (existing)
-  capabilityName: record?.displayName, // NEW: "my-config-reader"
-  capabilityFqdn: record?.id, // NEW: "local.default.fs.read_json.a7f3"
-  mode: "direct",
+  capabilityName: record?.displayName, // "my-config-reader" or "unnamed_a7f3"
+  capabilityFqdn: record?.id, // "local.default.fs.read_json.a7f3"
+  mode: "direct" | "accept_suggestion", // Execution mode used
   executionTimeMs,
   dag: {/* existing */},
 };
@@ -270,18 +322,25 @@ Claude Opus 4.5
 
 ### Completion Notes List
 
-- Implemented 3-mode execution: Direct, Call-by-Name, Suggestion
-- Extended `ExecuteArgs` with `capability`, `args` parameters (no `name` - done via cap:name API)
+- Implemented 2 primary modes + 2 response patterns:
+  - Primary: Direct (intent + code), Suggestion (intent only)
+  - Response patterns: `accept_suggestion`, `continue_workflow`
+- Extended `ExecuteArgs` with response patterns (removed old `capability`, `args`, `resume`, `approved`)
 - Extended `ExecuteResponse` with `capabilityName`, `capabilityFqdn` fields
 - Auto-generate FQDN on execution: `{org}.{project}.{namespace}.exec_{hash}.{hash}`
 - Auto-generate displayName as `unnamed_<hash>` until renamed via cap:name
 - Deduplication by code_hash: same code = same capability (usage_count++)
-- Implemented `executeByNameMode()` for call-by-name execution
+- Implemented `executeAcceptedSuggestion()` for suggestion acceptance (replaces `executeByNameMode()`)
 - Added `mergeArgsWithDefaults()` for args merging with schema defaults
 - Wired `CapabilityRegistry` into gateway-server.ts
-- Added 4 unit tests for Story 13.2 (mutual exclusivity, registry required, not found, mode
-  priority)
-- 18 total tests passing
+
+**API Refactor (Response Patterns):**
+
+- Removed Call-by-Name as a separate mode - now a response pattern to Suggestion mode
+- `accept_suggestion: { callName, args }` replaces `capability` + `args` top-level params
+- `continue_workflow: { workflow_id, approved }` replaces `resume` + `approved` top-level params
+- Updated MCP schema in `definitions.ts` to reflect new structure
+- Flow: Suggestion → suggestedDag response → accept_suggestion → execution
 
 **Architecture Fix (Migration 022-023):**
 
@@ -290,14 +349,14 @@ Claude Opus 4.5
 - Migration 023: Added `workflow_pattern_id` FK to capability_records, removed duplicated columns
   (code_snippet, description, parameters_schema, tools_used)
 - Updated `CapabilityRegistry.create()` to use FK + hash instead of duplicating data
-- Updated `executeByNameMode()` to fetch code from workflow_pattern via FK
+- Updated `executeAcceptedSuggestion()` to fetch code from workflow_pattern via FK
 - Updated `data-service.ts` JOIN to use FK instead of hash-based join
 - Final architecture: capability_records = registry (naming), workflow_pattern = source of truth
   (code/stats)
 
 ### File List
 
-- `src/mcp/handlers/execute-handler.ts` - Main implementation (3-mode execution)
+- `src/mcp/handlers/execute-handler.ts` - Main implementation (2 modes + 2 response patterns)
 - `src/mcp/gateway-server.ts` - Registry wiring + TraceFeatureExtractor init
 - `src/capabilities/capability-registry.ts` - FK-based create()
 - `src/capabilities/capability-store.ts` - Updated for Story 13.2 integration
