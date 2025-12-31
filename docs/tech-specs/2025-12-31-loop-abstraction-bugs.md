@@ -36,7 +36,8 @@ Shadowed names are propagated down the AST and excluded from replacement.
 
 ### Status
 - [x] Fix implemented
-- [ ] Server restart needed to load new code
+- [x] Server restarted
+- [ ] **NOT RESOLVED** - Bug still occurs after restart, needs further investigation
 - [ ] Tests to verify fix in production
 
 ---
@@ -125,6 +126,33 @@ But when the capability executes, these args aren't passed because:
 - [ ] Verify extracted literals are stored with capability
 - [ ] Check if default args are injected at execution time
 - [ ] Review `WorkerBridge.execute()` context injection
+
+---
+
+## Bug 4: Missing `push` Operation in Trace
+
+### Symptom
+Execution trace shows only 2 tasks when there should be 3:
+```
+Layer 0: read_file (71ms)
+Layer 1: split (23ms)
+```
+
+Expected (for code with `results.push(...)`):
+```
+Layer 0: read_file (71ms)
+Layer 1: split (23ms)
+Layer 2: push (Xms)
+```
+
+### Root Cause
+The `push` operation on arrays is not being detected as a task node in static analysis, or it's being filtered out somewhere in the pipeline.
+
+### Investigation Points
+- [ ] Verify `handleCallExpression` in ast-handlers.ts detects `array.push()` calls
+- [ ] Check if `push` is classified as a code operation or filtered out
+- [ ] Verify `push` nodes appear in static structure before DAG conversion
+- [ ] Check if fusion is incorrectly absorbing the push operation
 
 ---
 
