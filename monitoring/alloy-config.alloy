@@ -1,0 +1,50 @@
+// Alloy config - converted from Promtail
+// https://grafana.com/docs/alloy/latest/
+
+local.file_match "agentcards" {
+	path_targets = [{
+		__address__ = "localhost",
+		__path__    = "/var/log/pml/*.log",
+		host        = env("HOSTNAME"),
+		job         = "agentcards",
+	}]
+}
+
+loki.source.file "agentcards" {
+	targets               = local.file_match.agentcards.targets
+	forward_to            = [loki.process.agentcards.receiver]
+	legacy_positions_file = "/tmp/positions.yaml"
+}
+
+loki.process "agentcards" {
+	forward_to = [loki.write.default.receiver]
+
+	stage.json {
+		expressions = {
+			level     = "level",
+			message   = "message",
+			timestamp = "timestamp",
+		}
+	}
+
+	stage.labels {
+		values = {
+			level = null,
+		}
+	}
+
+	stage.timestamp {
+		source = "timestamp"
+		format = "RFC3339"
+	}
+
+	stage.output {
+		source = "message"
+	}
+}
+
+loki.write "default" {
+	endpoint {
+		url = "http://loki:3100/loki/api/v1/push"
+	}
+}
