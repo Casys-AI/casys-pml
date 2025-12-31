@@ -1,0 +1,66 @@
+# Jaeger 2.x configuration with SPM (Service Performance Monitoring)
+# Uses OpenTelemetry Collector configuration format
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+connectors:
+  spanmetrics:
+    histogram:
+      explicit:
+        buckets: [1ms, 5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s, 2.5s, 5s, 10s]
+    dimensions:
+      - name: http.method
+      - name: http.status_code
+      # Algorithm decision dimensions (from pml.algorithms tracer)
+      - name: algorithm.name
+      - name: algorithm.mode
+      - name: algorithm.decision
+      - name: algorithm.target_type
+    exemplars:
+      enabled: true
+    dimensions_cache_size: 1000
+    aggregation_temporality: "AGGREGATION_TEMPORALITY_CUMULATIVE"
+
+exporters:
+  jaeger_storage_exporter:
+    trace_storage: memory_store
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    namespace: jaeger
+    const_labels:
+      source: spanmetrics
+
+extensions:
+  jaeger_storage:
+    backends:
+      memory_store:
+        memory:
+          max_traces: 50000
+    metric_backends:
+      prometheus_metrics:
+        prometheus:
+          endpoint: http://prometheus:9090
+          normalize_calls: true
+          normalize_duration: true
+  jaeger_query:
+    storage:
+      traces: memory_store
+      metrics: prometheus_metrics
+    ui:
+      config_file: /etc/jaeger/ui-config.json
+
+service:
+  extensions: [jaeger_storage, jaeger_query]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [spanmetrics, jaeger_storage_exporter]
+    metrics/spanmetrics:
+      receivers: [spanmetrics]
+      exporters: [prometheus]
