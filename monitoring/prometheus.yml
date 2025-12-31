@@ -15,11 +15,12 @@ scrape_configs:
     static_configs:
       - targets: ["localhost:9090"]
 
-  # Casys PML metrics (when we add exporter)
+  # Casys PML metrics - Algorithm decisions, tool calls, DAG executions
+  # Uses host.docker.internal (via extra_hosts in docker-compose)
   - job_name: "pml"
     static_configs:
-      - targets: ["host.docker.internal:9091"]
-    metrics_path: /metrics
+      - targets: ["host.docker.internal:3003"]
+    metrics_path: /api/metrics/prometheus
 
   # Node Exporter - System metrics (CPU, RAM, Disk, Network)
   - job_name: "node"
@@ -27,3 +28,9 @@ scrape_configs:
       - targets: ["node-exporter:9100"]
         labels:
           instance: "pml-host"
+
+  # Jaeger SPM - SpanMetrics for Service Performance Monitoring
+  - job_name: "jaeger-spanmetrics"
+    static_configs:
+      - targets: ["jaeger:8889"]
+    metrics_path: /metrics
