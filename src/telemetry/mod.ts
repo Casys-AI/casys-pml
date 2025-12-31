@@ -35,5 +35,14 @@ export {
 } from "./otel.ts";
 export type { AlgorithmSpanAttributes } from "./otel.ts";
 // Decision Logger (Clean Architecture adapter)
-export { NoOpDecisionLogger, TelemetryAdapter } from "./decision-logger.ts";
+export { getTelemetryAdapter, NoOpDecisionLogger, TelemetryAdapter } from "./decision-logger.ts";
 export type { AlgorithmDecision, IDecisionLogger } from "./decision-logger.ts";
+// EventBus Subscribers (algorithm.decision handlers)
+export {
+  AlgorithmDBSubscriber,
+  AlgorithmOTELSubscriber,
+  getDBSubscriber,
+  getOTELSubscriber,
+  initAlgorithmSubscribers,
+  stopAlgorithmSubscribers,
+} from "./subscribers/mod.ts";
