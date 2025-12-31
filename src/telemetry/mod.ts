@@ -26,3 +26,14 @@ export type {
   TraceOutcome,
   UserAction,
 } from "./algorithm-tracer.ts";
+// OTEL Integration (Deno native support)
+export {
+  getAlgorithmTracer,
+  isOtelEnabled,
+  recordAlgorithmDecision,
+  startAlgorithmSpan,
+} from "./otel.ts";
+export type { AlgorithmSpanAttributes } from "./otel.ts";
+// Decision Logger (Clean Architecture adapter)
+export { NoOpDecisionLogger, TelemetryAdapter } from "./decision-logger.ts";
+export type { AlgorithmDecision, IDecisionLogger } from "./decision-logger.ts";

@@ -19,8 +19,8 @@
   },
   "nodeModulesDir": "auto",
   "tasks": {
-    "dev": "deno run --allow-all scripts/backup-db.ts || true; deno run --watch --allow-all --env --unstable-worker-options --unstable-kv src/main.ts serve --port 3003 --config config/.mcp-servers.json",
-    "dev:api": "deno run --allow-all scripts/backup-db.ts || true; deno run --watch --allow-all --env --unstable-worker-options --unstable-broadcast-channel --unstable-kv src/main.ts serve --port 3003 --config config/.mcp-servers.json",
+    "dev": "deno run --allow-all scripts/backup-db.ts || true; deno run --watch --allow-all --env --unstable-worker-options --unstable-kv --unstable-otel src/main.ts serve --port 3003 --config config/.mcp-servers.json",
+    "dev:api": "deno run --allow-all scripts/backup-db.ts || true; deno run --watch --allow-all --env --unstable-worker-options --unstable-broadcast-channel --unstable-kv --unstable-otel src/main.ts serve --port 3003 --config config/.mcp-servers.json",
     "db:backup": "deno run --allow-all scripts/backup-db.ts",
     "db:backup:prod": "deno run --allow-all scripts/backup-db.ts .pml.db .pml.db.last",
     "dev:fresh": "cd src/web && deno run -A --env=../../.env --unstable-kv --node-modules-dir=auto npm:vite",
@@ -59,8 +59,8 @@
     "lint": "deno lint",
     "fmt": "deno fmt",
     "check": "deno check src/**/*.ts",
-    "cli": "deno run --allow-all --unstable-worker-options src/main.ts",
-    "mcp": "deno run --allow-all --env --unstable-worker-options --unstable-kv src/main.ts serve --config config/.mcp-servers.json",
+    "cli": "deno run --allow-all --unstable-worker-options --unstable-otel src/main.ts",
+    "mcp": "deno run --allow-all --env --unstable-worker-options --unstable-kv --unstable-otel src/main.ts serve --config config/.mcp-servers.json",
     "build": "deno compile --allow-all --output=pml src/main.ts",
     "mock:fs": "deno run --allow-all tests/mocks/filesystem-mock.ts",
     "mock:db": "deno run --allow-all tests/mocks/database-mock.ts",
@@ -156,7 +156,8 @@
     "hono": "jsr:@hono/hono@^4",
     "hono/": "jsr:@hono/hono@^4/",
     "diod": "npm:diod@^3.0.0",
-    "xstate": "npm:xstate@^5.19.2"
+    "xstate": "npm:xstate@^5.19.2",
+    "@opentelemetry/api": "npm:@opentelemetry/api@^1.9.0"
   },
   "compilerOptions": {
     "strict": true,
