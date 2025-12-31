@@ -133,6 +133,22 @@ services:
       - monitoring
     restart: unless-stopped
 
+  # Jaeger - Distributed tracing (OTEL backend)
+  # Receives traces from Deno --unstable-otel via OTLP HTTP
+  # UI: http://localhost:16686
+  jaeger:
+    image: jaegertracing/jaeger:2.2.0
+    container_name: pml-jaeger
+    ports:
+      - "16686:16686" # Jaeger UI
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP (Deno default)
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - monitoring
+    restart: unless-stopped
+
 networks:
   monitoring:
     driver: bridge
