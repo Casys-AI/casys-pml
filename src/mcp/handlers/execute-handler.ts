@@ -60,6 +60,7 @@ import { generateLogicalTrace } from "../../dag/trace-generator.ts";
 import { ControlledExecutor } from "../../dag/controlled-executor.ts";
 import type { CheckpointManager } from "../../dag/checkpoint-manager.ts";
 import { handleWorkflowExecution, requiresValidation } from "./workflow-execution-handler.ts";
+import { handleApprovalResponse } from "./control-commands-handler.ts";
 import type { WorkflowHandlerDependencies } from "./workflow-handler-types.ts";
 import { buildToolDefinitionsFromStaticStructure } from "./shared/tool-definitions.ts";
 
@@ -110,9 +111,7 @@ function buildSuggestionDeps(deps: ExecuteDependencies) {
     capabilityStore: deps.capabilityStore,
     graphEngine: deps.graphEngine,
     capabilityRegistry: deps.capabilityRegistry,
-    decisionLogger: deps.algorithmTracer
-      ? new TelemetryAdapter(deps.algorithmTracer)
-      : undefined,
+    decisionLogger: new TelemetryAdapter(),
   };
 }
 
@@ -170,6 +169,27 @@ export interface ExecuteArgs {
     timeout?: number;
     per_layer_validation?: boolean;
   };
+  /**
+   * Resume a paused workflow (Mode Resume)
+   *
+   * Workflow ID from a previous execution that returned status="approval_required"
+   * Use with `approved` to continue or abort the workflow.
+   *
+   * @example Resume with approval
+   * ```typescript
+   * pml_execute({ intent: "continue workflow", resume: "abc-123", approved: true })
+   * ```
+   */
+  resume?: string;
+  /**
+   * Approval decision for resume mode
+   *
+   * - `true`: Continue workflow execution
+   * - `false`: Abort workflow
+   *
+   * Required when `resume` is provided.
+   */
+  approved?: boolean;
 }
 
 /**
@@ -288,6 +308,36 @@ export async function handleExecute(
         "Cannot use both 'code' and 'capability' parameters. " +
           "Use 'code' for new execution or 'capability' to call existing.",
       );
+    }
+
+    // Mode Resume: Continue a paused workflow
+    if (params.resume) {
+      if (params.approved === undefined) {
+        transaction.finish();
+        return formatMCPToolError(
+          "Missing 'approved' parameter. When using 'resume', you must specify approved: true or false.",
+        );
+      }
+
+      if (!deps.workflowDeps) {
+        transaction.finish();
+        return formatMCPToolError("Resume mode requires workflowDeps configuration.");
+      }
+
+      log.info(`pml:execute: resuming workflow ${params.resume}, approved=${params.approved}`);
+      transaction.setData("mode", "resume");
+
+      // Delegate to existing approval handler
+      const result = await handleApprovalResponse(
+        {
+          workflow_id: params.resume,
+          checkpoint_id: deps.workflowDeps.activeWorkflows.get(params.resume)?.latestCheckpointId,
+          approved: params.approved,
+        },
+        deps.workflowDeps,
+      );
+      transaction.finish();
+      return result;
     }
 
     // Route to appropriate mode
@@ -521,6 +571,16 @@ async function executeDirectMode(
         // Extract tool calls from logical trace (for SHGAT learning)
         const toolsCalled = logicalTrace.executedPath;
 
+        // Loop Abstraction: Count actual tool calls from traces to determine iterations
+        // Tasks inside loops will have loopId set - we count how many times each tool was called
+        const toolCallCounts = new Map<string, number>();
+        for (const trace of executorContext.traces) {
+          if (trace.type === "tool_start" && trace.tool) {
+            const count = toolCallCounts.get(trace.tool) || 0;
+            toolCallCounts.set(trace.tool, count + 1);
+          }
+        }
+
         // Build task results for trace (using physical tasks with logical detail)
         // Phase 2a: Include fusion metadata for UI display
         const taskResults: TraceTaskResult[] = physicalResults.results.map((physicalResult) => {
@@ -541,9 +601,14 @@ async function executeDirectMode(
             });
           }
 
+          // Loop Abstraction: Get iteration count from actual tool call traces
+          const toolName = physicalTask?.tool || "unknown";
+          const loopId = physicalTask?.metadata?.loopId as string | undefined;
+          const loopIterations = loopId ? (toolCallCounts.get(toolName) || 1) : undefined;
+
           return {
             taskId: physicalResult.taskId,
-            tool: physicalTask?.tool || "unknown",
+            tool: toolName,
             args: {} as Record<string, JsonValue>,
             result: physicalResult.output as JsonValue ?? null,
             success: physicalResult.status === "success",
@@ -552,6 +617,11 @@ async function executeDirectMode(
             // Phase 2a: Fusion metadata
             isFused: fused,
             logicalOperations: logicalOps,
+            // Loop Abstraction: propagate loop info from task metadata + iteration count
+            loopId,
+            loopIteration: loopIterations, // Total iterations counted from traces
+            loopType: physicalTask?.metadata?.loopType as TraceTaskResult["loopType"],
+            loopCondition: physicalTask?.metadata?.loopCondition as string | undefined,
           };
         });
 
@@ -645,34 +715,53 @@ async function executeDirectMode(
         let autoDisplayName: string | undefined;
         if (deps.capabilityRegistry) {
           try {
-            // Infer namespace from first tool's server (e.g., "filesystem:read" -> "filesystem")
-            const firstTool = toolsCalled[0] ?? "misc";
-            const namespace = firstTool.includes(":") ? firstTool.split(":")[0] : "code";
-            // Auto-generate action from code hash
             const codeHash = capability.codeHash;
-            const action = `exec_${codeHash.substring(0, 8)}`;
-            // 4-char hash for FQDN
-            const hash = codeHash.substring(0, 4);
-            // Migration 028: displayName removed, use namespace:action instead
-            autoDisplayName = `${namespace}:${action}`;
 
-            const record = await deps.capabilityRegistry.create({
-              org: DEFAULT_SCOPE.org,
-              project: DEFAULT_SCOPE.project,
-              namespace,
-              action,
-              workflowPatternId: capability.id,
-              hash,
-              createdBy: "pml_execute",
-              toolsUsed: toolsCalled, // Story 13.9: routing inference
-            });
+            // Check if capability_records already exists for this code_hash in scope
+            // Prevents duplicates after rename (dedup by code_hash + scope)
+            const existingRecord = await deps.capabilityRegistry.getByCodeHash(
+              codeHash,
+              DEFAULT_SCOPE,
+            );
 
-            capabilityFqdn = record.id;
+            if (existingRecord) {
+              // Reuse existing capability_records (possibly renamed)
+              capabilityFqdn = existingRecord.id;
+              autoDisplayName = `${existingRecord.namespace}:${existingRecord.action}`;
+              log.info("[pml:execute] Reusing existing capability (dedup by code_hash)", {
+                name: autoDisplayName,
+                fqdn: capabilityFqdn,
+              });
+            } else {
+              // Create new capability_records
+              // Infer namespace from first tool's server (e.g., "filesystem:read" -> "filesystem")
+              const firstTool = toolsCalled[0] ?? "misc";
+              const namespace = firstTool.includes(":") ? firstTool.split(":")[0] : "code";
+              // Auto-generate action from code hash
+              const action = `exec_${codeHash.substring(0, 8)}`;
+              // 4-char hash for FQDN
+              const hash = codeHash.substring(0, 4);
+              // Migration 028: displayName removed, use namespace:action instead
+              autoDisplayName = `${namespace}:${action}`;
 
-            log.info("[pml:execute] Capability registered with auto FQDN", {
-              name: autoDisplayName,
-              fqdn: capabilityFqdn,
-            });
+              const record = await deps.capabilityRegistry.create({
+                org: DEFAULT_SCOPE.org,
+                project: DEFAULT_SCOPE.project,
+                namespace,
+                action,
+                workflowPatternId: capability.id,
+                hash,
+                createdBy: "pml_execute",
+                toolsUsed: toolsCalled, // Story 13.9: routing inference
+              });
+
+              capabilityFqdn = record.id;
+
+              log.info("[pml:execute] Capability registered with auto FQDN", {
+                name: autoDisplayName,
+                fqdn: capabilityFqdn,
+              });
+            }
           } catch (registryError) {
             // Log but don't fail - capability was still created
             log.warn("[pml:execute] Failed to register capability in registry", {

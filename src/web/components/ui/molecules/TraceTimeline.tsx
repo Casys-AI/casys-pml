@@ -2,10 +2,12 @@
  * TraceTimeline Molecule - Execution trace timeline grouped by DAG layer
  * Used for: Fan-in/fan-out visualization of parallel tasks (Story 11.4)
  * Phase 2a: Displays fused tasks with expandable logical operations
+ * Loop Abstraction: Groups loop iterations with nested visualization
  */
 
 import TaskCard from "../atoms/TaskCard.tsx";
 import FusedTaskCard from "../atoms/FusedTaskCard.tsx";
+import LoopTaskCard from "../atoms/LoopTaskCard.tsx";
 
 interface LogicalOperation {
   toolId: string;
@@ -21,6 +23,11 @@ interface TaskResult {
   // Phase 2a: Fusion metadata
   isFused?: boolean;
   logicalOperations?: LogicalOperation[];
+  // Loop abstraction metadata
+  loopId?: string;
+  loopIteration?: number;
+  loopType?: "for" | "while" | "forOf" | "forIn" | "doWhile";
+  loopCondition?: string;
 }
 
 interface ExecutionTrace {
@@ -37,6 +44,18 @@ interface TraceTimelineProps {
   getServerColor?: (server: string) => string;
 }
 
+/** Grouped loop with its iterations */
+interface LoopGroup {
+  loopId: string;
+  loopType: string;
+  loopCondition?: string;
+  iterations: number;
+  tasks: TaskResult[]; // All tasks across all iterations
+  uniqueTools: string[]; // Unique tools in the loop body (pattern)
+  totalDurationMs: number;
+  success: boolean;
+}
+
 const DEFAULT_COLORS = [
   "#22c55e", // emerald
   "#3b82f6", // blue
@@ -45,6 +64,56 @@ const DEFAULT_COLORS = [
   "#14b8a6", // teal
   "#ec4899", // pink
 ];
+
+/**
+ * Group tasks by loopId within a layer
+ * Returns: { loops: LoopGroup[], nonLoopTasks: TaskResult[] }
+ */
+function groupTasksByLoop(tasks: TaskResult[]): {
+  loops: LoopGroup[];
+  nonLoopTasks: TaskResult[];
+} {
+  const loopMap = new Map<string, TaskResult[]>();
+  const nonLoopTasks: TaskResult[] = [];
+
+  for (const task of tasks) {
+    if (task.loopId) {
+      if (!loopMap.has(task.loopId)) {
+        loopMap.set(task.loopId, []);
+      }
+      loopMap.get(task.loopId)!.push(task);
+    } else {
+      nonLoopTasks.push(task);
+    }
+  }
+
+  const loops: LoopGroup[] = [];
+  for (const [loopId, loopTasks] of loopMap) {
+    // Get max iteration number to know how many iterations
+    const iterations = Math.max(...loopTasks.map((t) => t.loopIteration ?? 1));
+    // Get unique tools (pattern per iteration)
+    const uniqueTools = [...new Set(loopTasks.map((t) => t.tool))];
+    // Total duration
+    const totalDurationMs = loopTasks.reduce((sum, t) => sum + t.durationMs, 0);
+    // Success if all tasks succeeded
+    const success = loopTasks.every((t) => t.success);
+    // Get loop metadata from first task
+    const firstTask = loopTasks[0];
+
+    loops.push({
+      loopId,
+      loopType: firstTask.loopType || "for",
+      loopCondition: firstTask.loopCondition,
+      iterations,
+      tasks: loopTasks,
+      uniqueTools,
+      totalDurationMs,
+      success,
+    });
+  }
+
+  return { loops, nonLoopTasks };
+}
 
 export default function TraceTimeline({
   trace,
@@ -139,7 +208,7 @@ export default function TraceTimeline({
                 Layer {layerIdx} {tasks.length > 1 ? `(${tasks.length} parallel)` : ""}
               </div>
 
-              {/* Tasks in this layer */}
+              {/* Tasks in this layer - grouped by loops */}
               <div
                 style={{
                   display: "flex",
@@ -147,37 +216,66 @@ export default function TraceTimeline({
                   gap: "8px",
                 }}
               >
-                {tasks.map((task, taskIdx) => {
-                  const [server = "unknown", ...nameParts] = task.tool.split(":");
-                  const toolName = nameParts.join(":") || task.tool;
-                  const color = getServerColor?.(server) ||
-                    DEFAULT_COLORS[server.charCodeAt(0) % DEFAULT_COLORS.length];
+                {(() => {
+                  const { loops, nonLoopTasks } = groupTasksByLoop(tasks);
 
-                  // Phase 2a: Render fused tasks with expandable logical operations
-                  if (task.isFused && task.logicalOperations) {
-                    return (
-                      <FusedTaskCard
-                        key={`${layerIdx}-${taskIdx}`}
-                        logicalOps={task.logicalOperations}
-                        durationMs={task.durationMs}
-                        success={task.success}
-                        color={color}
-                      />
-                    );
-                  }
-
-                  // Regular task card
                   return (
-                    <TaskCard
-                      key={`${layerIdx}-${taskIdx}`}
-                      toolName={toolName}
-                      server={server}
-                      durationMs={task.durationMs}
-                      success={task.success}
-                      color={color}
-                    />
+                    <>
+                      {/* Render loop groups */}
+                      {loops.map((loop) => {
+                        const color = "#a855f7"; // Purple for loops
+                        return (
+                          <LoopTaskCard
+                            key={`loop-${loop.loopId}`}
+                            loopType={loop.loopType}
+                            condition={loop.loopCondition}
+                            iterations={loop.iterations}
+                            nestedTasks={loop.uniqueTools.map((tool) => ({
+                              toolId: tool,
+                              durationMs: loop.totalDurationMs / loop.uniqueTools.length,
+                            }))}
+                            durationMs={loop.totalDurationMs}
+                            success={loop.success}
+                            color={color}
+                          />
+                        );
+                      })}
+
+                      {/* Render non-loop tasks */}
+                      {nonLoopTasks.map((task, taskIdx) => {
+                        const [server = "unknown", ...nameParts] = task.tool.split(":");
+                        const toolName = nameParts.join(":") || task.tool;
+                        const color = getServerColor?.(server) ||
+                          DEFAULT_COLORS[server.charCodeAt(0) % DEFAULT_COLORS.length];
+
+                        // Phase 2a: Render fused tasks with expandable logical operations
+                        if (task.isFused && task.logicalOperations) {
+                          return (
+                            <FusedTaskCard
+                              key={`${layerIdx}-fused-${taskIdx}`}
+                              logicalOps={task.logicalOperations}
+                              durationMs={task.durationMs}
+                              success={task.success}
+                              color={color}
+                            />
+                          );
+                        }
+
+                        // Regular task card
+                        return (
+                          <TaskCard
+                            key={`${layerIdx}-${taskIdx}`}
+                            toolName={toolName}
+                            server={server}
+                            durationMs={task.durationMs}
+                            success={task.success}
+                            color={color}
+                          />
+                        );
+                      })}
+                    </>
                   );
-                })}
+                })()}
               </div>
             </div>
           );

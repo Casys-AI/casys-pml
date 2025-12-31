@@ -55,6 +55,29 @@ export function generateChainedEdges(
 }
 
 /**
+ * Find the root of a method chain (first node in the chain)
+ * Traverses chainedFrom metadata backwards to find the chain root.
+ */
+function findChainRoot(
+  node: InternalNode,
+  allNodes: InternalNode[],
+): InternalNode {
+  if (node.type !== "task" || !node.metadata?.chainedFrom) {
+    return node;
+  }
+
+  const chainedFromId = node.metadata.chainedFrom as string;
+  const chainedFromNode = allNodes.find((n) => n.id === chainedFromId);
+
+  if (!chainedFromNode) {
+    return node;
+  }
+
+  // Recursively find the root
+  return findChainRoot(chainedFromNode, allNodes);
+}
+
+/**
  * Generate sequence edges between consecutive await statements
  */
 export function generateSequenceEdges(
@@ -91,13 +114,17 @@ export function generateSequenceEdges(
         continue;
       }
 
+      // Fix: If "to" has a chain, connect to the chain root instead
+      // This ensures dependencies flow to the first operation in the chain
+      const targetNode = findChainRoot(to, nodes);
+
       // Skip if already exists (e.g., from chained edges)
-      const edgeKey = `${from.id}->${to.id}:sequence`;
+      const edgeKey = `${from.id}->${targetNode.id}:sequence`;
       if (edgeSet.has(edgeKey)) continue;
 
       edges.push({
         from: from.id,
-        to: to.id,
+        to: targetNode.id,
         type: "sequence",
       });
       edgeSet.add(edgeKey);

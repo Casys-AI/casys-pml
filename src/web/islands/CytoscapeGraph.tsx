@@ -128,6 +128,11 @@ export interface TraceTaskResult {
   success: boolean;
   durationMs: number;
   layerIndex?: number;
+  // Loop abstraction: group tasks by parent loop
+  loopId?: string;
+  loopIteration?: number;
+  loopType?: "for" | "while" | "forOf" | "forIn" | "doWhile";
+  loopCondition?: string;
 }
 
 // Story 11.4: Execution trace for capability
@@ -212,6 +217,22 @@ export interface CapabilityData {
   lastUsedAt?: number;
   createdAt?: number;
   traces?: ExecutionTrace[]; // Story 11.4
+  /** Static structure for DAG visualization (loop abstraction) */
+  staticStructure?: {
+    nodes: Array<{
+      id: string;
+      type: "task" | "decision" | "capability" | "fork" | "join" | "loop";
+      tool?: string;
+      condition?: string;
+      loopType?: "for" | "while" | "forOf" | "forIn" | "doWhile";
+      capabilityId?: string;
+    }>;
+    edges: Array<{
+      from: string;
+      to: string;
+      type: "sequence" | "provides" | "conditional" | "contains" | "loop_body";
+    }>;
+  };
 }
 
 export interface ToolData {
