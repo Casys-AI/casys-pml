@@ -42,7 +42,7 @@ Shadowed names are propagated down the AST and excluded from replacement.
 
 ---
 
-## Bug 2: Loop Card Not Displaying
+## Bug 2: Loop Card Not Displaying ✅ FIXED
 
 ### Symptom
 Code with loops shows standard layer view, no `LoopTaskCard`:
@@ -57,28 +57,46 @@ Expected:
   └─ read_file
 ```
 
-### Investigation Points
+### Root Causes Identified
+1. **`parentScope` was stripped** in `static-structure-builder.ts:268-271`
+2. **Only one `loop_body` edge** created (to first body node only)
+3. **Incomplete propagation** of `loopMembership` via edge traversal
+
+### Fix Applied
+Instead of relying on `loop_body` edges for membership, use `parentScope` directly:
+
+1. **`src/capabilities/types/static-analysis.ts`**:
+   - Added `parentScope?: string` to all `StaticStructureNode` variants
+
+2. **`src/capabilities/static-structure-builder.ts`**:
+   - Stop stripping `parentScope` when converting to external nodes
+
+3. **`src/dag/static-to-dag-converter.ts`**:
+   - Phase 0 now uses `parentScope` for loop membership (not `loop_body` edges)
+   - Simpler and more accurate: `if (node.parentScope === loop.id)`
+
+### Investigation Points (completed)
 
 #### A. Static Structure - Loop Detection
 **File**: `src/capabilities/static-structure/ast-handlers.ts`
 
-- [ ] Verify `handleForOfStatement` creates loop node correctly
-- [ ] Check if `loopId` is passed to body processing via `ctx.findNodes(..., loopId)`
-- [ ] Verify nodes inside loop have `parentScope = loopId`
+- [x] Verify `handleForOfStatement` creates loop node correctly - OK
+- [x] Check if `loopId` is passed to body processing via `ctx.findNodes(..., loopId)` - OK
+- [x] Verify nodes inside loop have `parentScope = loopId` - OK
 
 #### B. Edge Generation
 **File**: `src/capabilities/static-structure/edge-generators.ts`
 
-- [ ] Verify `generateLoopEdges()` is called in `generateAllEdges()`
-- [ ] Check if `loop_body` edges are created: `{ from: loopId, to: firstBodyNode, type: "loop_body" }`
-- [ ] Verify `parentScope` isn't stripped before edge generation
+- [x] Verify `generateLoopEdges()` is called in `generateAllEdges()` - OK
+- [x] Check if `loop_body` edges are created - Only to first node (by design for SHGAT)
+- [x] Verify `parentScope` isn't stripped before edge generation - **WAS STRIPPED** → Fixed
 
 #### C. DAG Converter - Loop Membership
 **File**: `src/dag/static-to-dag-converter.ts`
 
-- [ ] Verify Phase 0 builds `loopMembership` map from `loop_body` edges
-- [ ] Check if `nodeToTask()` receives `loopInfo` parameter
-- [ ] Verify task metadata includes `loopId`, `loopType`, `loopCondition`
+- [x] Verify Phase 0 builds `loopMembership` map - **INCOMPLETE** → Fixed with `parentScope`
+- [x] Check if `nodeToTask()` receives `loopInfo` parameter - OK
+- [x] Verify task metadata includes `loopId`, `loopType`, `loopCondition` - OK
 
 #### D. Execute Handler - Iteration Counting
 **File**: `src/mcp/handlers/execute-handler.ts`
@@ -86,6 +104,7 @@ Expected:
 - [ ] Verify `toolCallCounts` is populated from `executorContext.traces`
 - [ ] Check if `loopIteration` is set on taskResults for tasks with `loopId`
 - [ ] Verify traces contain multiple `tool_start` events for loop iterations
+- Note: D section is frontend/runtime tracing, separate from the structural fix above
 
 #### E. Frontend - TraceTimeline
 **File**: `src/web/components/ui/molecules/TraceTimeline.tsx`
