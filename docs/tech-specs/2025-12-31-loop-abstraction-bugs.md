@@ -96,7 +96,7 @@ Expected:
 
 ---
 
-## Bug 3: args.xxx Undefined at Execution
+## Bug 3: args.xxx Undefined at Execution ✅ FIXED
 
 ### Symptom
 ```
@@ -121,11 +121,31 @@ But when the capability executes, these args aren't passed because:
 1. Direct mode execution doesn't provide args
 2. The extracted literals should be passed as default args
 
-### Investigation Points
-- [ ] Check `parametersSchema` generation in `transformLiteralsToArgs()`
-- [ ] Verify extracted literals are stored with capability
-- [ ] Check if default args are injected at execution time
-- [ ] Review `WorkerBridge.execute()` context injection
+### Fix Applied
+Added `setExecutionArgs()` method to `ControlledExecutor`:
+
+1. **`src/dag/controlled-executor.ts`**:
+   - Added `private executionArgs: Record<string, unknown> = {}`
+   - Added `setExecutionArgs(args)` setter method
+   - In `executeCodeTaskWithWorkerBridge()`, inject `args` into `executionContext`
+
+2. **`src/mcp/handlers/execute-handler.ts`**:
+   - In `executeAcceptedSuggestion()`, call `controlledExecutor.setExecutionArgs(mergedArgs)` before execution
+
+Now when code tasks execute, `args` is available:
+```typescript
+// executionContext.args = mergedArgs
+// In Worker: const args = {...}
+for (const f of args.files) {  // ✅ args.files = ["file1.txt", "file2.txt"]
+  await mcp.filesystem.read_file({ path: f });
+}
+```
+
+### Investigation Points (completed)
+- [x] Check `parametersSchema` generation in `transformLiteralsToArgs()` - OK
+- [x] Verify extracted literals are stored with capability - OK
+- [x] Check if default args are injected at execution time - **MISSING** → Fixed
+- [x] Review `WorkerBridge.execute()` context injection - OK (supports context)
 
 ---
 

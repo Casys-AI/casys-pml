@@ -1077,6 +1077,13 @@ async function executeAcceptedSuggestion(
         // Set WorkerBridge for code execution tracing (Story 10.5)
         controlledExecutor.setWorkerBridge(executorContext.bridge);
 
+        // Bug 3 fix: Inject merged args for parameterized capabilities
+        // When capability code has been transformed to use args.xxx references,
+        // the args need to be available in the execution context
+        if (Object.keys(mergedArgs).length > 0) {
+          controlledExecutor.setExecutionArgs(mergedArgs);
+        }
+
         // Per-layer validation check
         if (perLayerValidation && deps.workflowDeps) {
           return await handleWorkflowExecution(
