@@ -710,8 +710,245 @@ const result = numbers.filter(n => n > 2).map(n => n * 2).sort();
 
 ---
 
+## Variable Bindings & Semantic Hashing (Story 7.2c)
+
+**Status:** ✅ IMPLEMENTED (2025-12-31)
+
+### Problem
+
+Different variable names produced different code hashes despite identical semantics:
+
+```typescript
+// Code A:
+const result = await mcp.std.psql_query({ query: args.query });
+return result;
+
+// Code B (semantically identical):
+const data = await mcp.std.psql_query({ query: args.query });
+return data;
+
+// Before: hashCode(A) ≠ hashCode(B) ❌
+// After:  hashSemanticStructure(A) === hashSemanticStructure(B) ✅
+```
+
+### Solution: Static Structure as Canonical Form
+
+The **Static Structure** (not the DAG) is used for semantic hashing because:
+
+1. **Created directly from SWC parsing** - No execution context needed
+2. **Arguments already normalized** - `extractArguments()` converts `file.content` → `n1.content` in-place
+3. **Deterministic** - Same semantics → same structure → same hash
+
+**Key insight:** The normalization happens during AST traversal in `extractArguments()`, NOT during hashing.
+
+**Pipeline:**
+
+```
+Code → SWC Parse → extractArguments() → StaticStructure → hashSemanticStructure() → code_hash
+                          ↓                      ↓
+                   file.content → n1.content    nodes have normalized args
+```
+
+### Why Static Structure (not DAG)?
+
+| Aspect           | Static Structure              | Logical/Physical DAG              |
+| ---------------- | ----------------------------- | --------------------------------- |
+| **Created from** | SWC AST parsing               | Converted from static structure   |
+| **Variables**    | Already normalized to node IDs | May have execution-specific data |
+| **Determinism**  | Always deterministic          | May vary with execution context  |
+| **Use case**     | Hashing, deduplication        | Execution planning, runtime       |
+
+### Implementation
+
+#### 1. In-Place Argument Normalization (The Key Step)
+
+**File:** `src/capabilities/static-structure-builder.ts` (lines 1292-1300)
+
+During AST traversal, `extractArguments()` converts variable references to node IDs:
+
+```typescript
+// In extractValue() - called by extractArguments():
+
+// Story 10.5: Convert variable name to node ID if tracked
+// e.g., "file.content" → "n1.content" if file was assigned from node n1
+const variableName = chain[0];
+const nodeId = this.variableToNodeId.get(variableName);
+if (nodeId) {
+  const convertedChain = [nodeId, ...chain.slice(1)];
+  const expression = convertedChain.join(".");
+  return { type: "reference", expression };  // ← "n1.content" stored in node
+}
+```
+
+**Result:** Node arguments ALREADY contain `n1.content`, not `file.content`.
+
+#### 2. Variable Bindings (For Code Storage)
+
+**File:** `src/capabilities/static-structure-builder.ts`
+
+`variableBindings` is exported separately for normalizing stored code:
+
+```typescript
+// When we see: const result = await mcp.foo();
+// We track: "result" → "n1"
+public variableToNodeId = new Map<string, string>();
+
+// Output in buildStaticStructure():
+return {
+  nodes,   // ← Arguments already have node IDs
+  edges,
+  variableBindings: Object.fromEntries(this.variableToNodeId),  // ← For code normalization
+  // ...
+};
+```
+
+#### 3. Semantic Hashing
+
+**File:** `src/capabilities/hash.ts`
+
+```typescript
+/**
+ * Hash static structure for semantic deduplication.
+ * Variable names don't matter - only node IDs and edges.
+ */
+export async function hashSemanticStructure(structure: StaticStructure): Promise<string> {
+  const serializedNodes = structure.nodes.map(serializeNode).sort().join("|");
+  const serializedEdges = structure.edges.map(serializeEdge).sort().join("|");
+  const canonical = `nodes:${serializedNodes}||edges:${serializedEdges}`;
+
+  const encoder = new TextEncoder();
+  const data = encoder.encode(canonical);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+```
+
+**⚠️ DEPRECATED:** `hashCode()` - Does NOT normalize variables. Use `hashSemanticStructure()` instead.
+
+#### 3. Code Normalization for Storage
+
+**File:** `src/capabilities/code-transformer.ts`
+
+Before storing capability code, variable names are normalized:
+
+```typescript
+export function normalizeVariableNames(
+  code: string,
+  variableBindings: Record<string, string>,
+): NormalizeVariablesResult {
+  // Input:  "const result = await mcp.foo(); return result;"
+  // Output: "const _n1 = await mcp.foo(); return _n1;"
+
+  const renames: Record<string, string> = {};
+  for (const [varName, nodeId] of Object.entries(variableBindings)) {
+    renames[varName] = `_${nodeId}`;
+  }
+
+  // Use negative lookbehind to avoid replacing property accesses
+  // e.g., "file.content" should become "_n1.content", not "_n1._n1"
+  const pattern = new RegExp(`(?<!\\.)\\b${escapeRegExp(originalName)}\\b`, "g");
+  // ...
+}
+```
+
+#### 4. Storage Pipeline
+
+**File:** `src/capabilities/capability-store.ts`
+
+```typescript
+async store(input: SaveCapabilityInput): Promise<CapabilityStoreResult> {
+  // 1. Build static structure (nodes already have normalized arguments!)
+  const staticStructure = await structureBuilder.buildStaticStructure(code);
+  // staticStructure.nodes[0].arguments = { text: { type: "reference", expression: "n1.content" } }
+
+  // 2. Compute semantic hash from nodes (already normalized via extractArguments)
+  let codeHash: string;
+  if (staticStructure && staticStructure.nodes.length > 0) {
+    codeHash = await hashSemanticStructure(staticStructure);  // ← Hash comes from nodes
+  } else {
+    codeHash = await hashCode(code); // Fallback for code without MCP calls
+  }
+
+  // 3. Normalize code_snippet for storage (SEPARATE from hash!)
+  // Uses variableBindings to make stored code consistent
+  let normalizedCode = code;
+  if (staticStructure?.variableBindings) {
+    normalizedCode = normalizeVariableNames(code, staticStructure.variableBindings).code;
+  }
+  // "const file = ..." → "const _n1 = ..."
+
+  // 4. Store normalized code and semantic hash
+  // ...
+}
+```
+
+**Important:** The hash comes from static structure nodes (already normalized during AST traversal).
+The code normalization is for human-readable storage, NOT for hashing.
+
+### Tests
+
+**File:** `tests/unit/capabilities/hash.test.ts`
+
+- `hashSemanticStructure - same structure produces same hash`
+- `hashSemanticStructure - different tools produce different hash`
+- `hashSemanticStructure - different arguments produce different hash`
+- `hashSemanticStructure - multiple variables normalize correctly`
+
+**File:** `tests/unit/capabilities/normalize-variables.test.ts`
+
+- `normalizeVariableNames - single variable`
+- `normalizeVariableNames - multiple variables`
+- `normalizeVariableNames - respects word boundaries`
+- `normalizeVariableNames - handles variable in property access`
+- `normalizeVariableNames - integration: same semantics produce same code`
+- `normalizeVariableNames - integration: multiple MCP calls`
+
+### Example: Full Deduplication Flow
+
+```typescript
+// Two capabilities with different variable names:
+const code1 = `const file = await mcp.fs.read({ path: args.p });
+return mcp.json.parse({ text: file.content });`;
+
+const code2 = `const data = await mcp.fs.read({ path: args.p });
+return mcp.json.parse({ text: data.content });`;
+
+// 1. Build static structures:
+const struct1 = await builder.buildStaticStructure(code1);
+// → variableBindings: { file: "n1" }
+// → nodes[0].arguments: { path: { type: "parameter", parameterName: "p" } }
+// → nodes[1].arguments: { text: { type: "reference", expression: "n1.content" } }  ← ALREADY normalized!
+
+const struct2 = await builder.buildStaticStructure(code2);
+// → variableBindings: { data: "n1" }
+// → nodes[0].arguments: { path: { type: "parameter", parameterName: "p" } }
+// → nodes[1].arguments: { text: { type: "reference", expression: "n1.content" } }  ← SAME!
+
+// 2. Semantic hashes are IDENTICAL (nodes have same arguments):
+const hash1 = await hashSemanticStructure(struct1);
+const hash2 = await hashSemanticStructure(struct2);
+// hash1 === hash2 ✅ (because node arguments are identical)
+
+// 3. Normalized code for storage (optional, for readability):
+const norm1 = normalizeVariableNames(code1, struct1.variableBindings);
+const norm2 = normalizeVariableNames(code2, struct2.variableBindings);
+// norm1.code: "const _n1 = await mcp.fs.read(...); return mcp.json.parse({ text: _n1.content });"
+// norm2.code: same!
+
+// 4. Only ONE capability stored (deduplicated by code_hash)
+```
+
+**Key point:** The hash is identical because `extractArguments()` already converted
+`file.content` → `n1.content` and `data.content` → `n1.content` during AST traversal.
+
+---
+
 ## Changelog
 
+- **2025-12-31:** Added semantic hashing & variable normalization (Story 7.2c) - `hashSemanticStructure()`
+  produces same hash for semantically identical code regardless of variable names. `normalizeVariableNames()`
+  normalizes stored code. `hashCode()` deprecated for capability deduplication.
 - **2025-12-31:** Added nested literal extraction for code templates (Story 10.2f) - URLs, numbers,
   and strings inside Playwright/code templates are now parameterized with `${args.xxx}` interpolations
 - **2025-12-31:** Template literals without interpolation now detected as `type: "literal"` (enables

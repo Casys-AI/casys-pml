@@ -981,3 +981,74 @@ function generateSchemaFromLiterals(
     required: Object.keys(literals), // All extracted literals are required
   };
 }
+
+/**
+ * Result of variable name normalization
+ */
+export interface NormalizeVariablesResult {
+  /** Code with normalized variable names */
+  code: string;
+  /** Map of original name → normalized name */
+  renames: Record<string, string>;
+}
+
+/**
+ * Normalize variable names in code using variableBindings from static structure
+ *
+ * Replaces all variable declarations and usages with normalized names
+ * based on the node IDs from static analysis. This ensures that code
+ * with different variable names but identical semantics produces
+ * identical normalized code.
+ *
+ * @example
+ * ```typescript
+ * // Input:
+ * const result = await mcp.foo(); return result;
+ * // variableBindings: { "result": "n1" }
+ *
+ * // Output:
+ * const _n1 = await mcp.foo(); return _n1;
+ * ```
+ *
+ * @param code - Original code
+ * @param variableBindings - Map of variable names to node IDs from static structure
+ * @returns Normalized code and rename mapping
+ */
+export function normalizeVariableNames(
+  code: string,
+  variableBindings: Record<string, string>,
+): NormalizeVariablesResult {
+  if (!variableBindings || Object.keys(variableBindings).length === 0) {
+    return { code, renames: {} };
+  }
+
+  // Build rename map: original name → normalized name (using node ID)
+  const renames: Record<string, string> = {};
+  for (const [varName, nodeId] of Object.entries(variableBindings)) {
+    renames[varName] = `_${nodeId}`;
+  }
+
+  // Replace all occurrences using word boundaries
+  // Sort by length descending to avoid partial replacements
+  const sortedNames = Object.keys(renames).sort((a, b) => b.length - a.length);
+
+  let normalizedCode = code;
+  for (const originalName of sortedNames) {
+    const normalizedName = renames[originalName];
+    // Use negative lookbehind to avoid replacing property accesses
+    // e.g., "content" in "const content = ..." should be replaced
+    // but "content" in "file.content" should NOT be replaced (it's a property)
+    // (?<!\.) = not preceded by a dot
+    const pattern = new RegExp(`(?<!\\.)\\b${escapeRegExp(originalName)}\\b`, "g");
+    normalizedCode = normalizedCode.replace(pattern, normalizedName);
+  }
+
+  return { code: normalizedCode, renames };
+}
+
+/**
+ * Escape special regex characters in a string
+ */
+function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
