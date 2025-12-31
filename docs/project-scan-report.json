@@ -1,9 +1,9 @@
 {
   "workflow_version": "1.2.0",
   "timestamps": {
-    "started": "2025-12-21T10:00:00Z",
-    "last_updated": "2025-12-21T10:45:00Z",
-    "completed": "2025-12-21T10:45:00Z"
+    "started": "2025-12-31T10:00:00Z",
+    "last_updated": "2025-12-31T11:30:00Z",
+    "completed": "2025-12-31T11:30:00Z"
   },
   "mode": "full_rescan",
   "scan_level": "exhaustive",
@@ -13,126 +13,124 @@
   "completed_steps": [
     {
       "step": "step_1",
+      "name": "Detect structure and classify",
       "status": "completed",
-      "summary": "Classified as monolith hybrid (backend+web+cli+library), 19 src modules"
+      "summary": "Classified as monolith hybrid (backend+web+cli+library), 27 src modules, 409 TS files"
     },
     {
       "step": "step_2",
+      "name": "Discover existing documentation",
       "status": "completed",
-      "summary": "Found ~260 existing docs: PRD, 50 ADRs, 15 architecture, 12 tech-specs, 31 spikes, 10 epics"
+      "summary": "Found 365+ markdown files across ADRs, tech-specs, spikes, user-docs"
     },
     {
       "step": "step_3",
+      "name": "Analyze technology stack",
       "status": "completed",
-      "summary": "Tech stack: Deno 2.x, Fresh+Preact, PGlite+KV, GraphRAG, MCP SDK, Zero-permission sandbox with RPC tracing"
+      "summary": "Deno 2.5, Fresh, Preact, PostgreSQL/PGlite, GraphRAG, OTEL"
     },
     {
       "step": "step_4",
+      "name": "Conditional analysis",
       "status": "completed",
-      "summary": "248 TS files, 56K LOC, 8 MCP meta-tools, 15 islands, 203 tests"
+      "summary": "Analyzed MCP handlers, GraphRAG algorithms, DAG engine, Sandbox, UI Islands"
     },
     {
       "step": "step_5",
+      "name": "Generate annotated source tree",
       "status": "completed",
-      "summary": "Generated annotated source tree with all 19 modules"
+      "summary": "Created source-tree-analysis.md with 27 modules, Open Core model"
     },
     {
       "step": "step_6",
+      "name": "Extract dev and ops info",
       "status": "completed",
-      "summary": "Dev workflow: deno tasks, GitHub Actions CI, systemd deployment, Grafana monitoring"
+      "summary": "Created development-guide.md with 30+ tasks, Docker, CI/CD"
     },
     {
       "step": "step_7",
+      "name": "Detect integration architecture",
       "status": "completed",
-      "summary": "Integrations: GitHub OAuth, Smithery, HuggingFace BGE-M3, Sentry, 8 MCP servers configured"
+      "summary": "Created integration-architecture.md with MCP, Events, OTEL, DB connections"
     },
     {
       "step": "step_8",
+      "name": "Generate architecture documentation",
       "status": "completed",
-      "summary": "Updated project-overview.md with comprehensive architecture documentation"
+      "summary": "Created architecture-overview.md with 5 subsystems, data flows, ADRs"
     },
     {
       "step": "step_9",
+      "name": "Generate support documents",
       "status": "completed",
-      "summary": "Finalized scan report and supporting docs"
+      "summary": "Created glossary.md (60+ terms) and troubleshooting.md (10 issues)"
+    },
+    {
+      "step": "step_10",
+      "name": "Generate master index",
+      "status": "completed",
+      "summary": "Updated index.md with all new documents and navigation"
+    },
+    {
+      "step": "step_11",
+      "name": "Validate and review",
+      "status": "completed",
+      "summary": "All 7 documents validated: 2,276 total lines"
     }
   ],
+  "current_step": "completed",
   "findings": {
     "project_classification": {
       "name": "Casys PML (Procedural Memory Layer)",
       "package_name": "@casys/mcp-gateway",
       "repository_type": "monolith",
-      "primary_tech": "Deno 2.x + TypeScript",
-      "license": "AGPL-3.0",
+      "primary_tech": "Deno 2.5 + TypeScript",
+      "license": "AGPL-3.0 (Core), Proprietary (Cloud)",
+      "business_model": "Open Core",
       "parts_count": 1,
-      "module_count": 19
+      "module_count": 27
     },
-    "existing_docs": {
-      "total_files": 260,
-      "total_size_kb": 2800,
-      "categories": {
-        "prd": 2,
-        "architecture": 15,
-        "adrs": 50,
-        "epics": 10,
-        "tech_specs": 12,
-        "spikes": 31,
-        "sprint_artifacts": 113,
-        "user_docs": 20,
-        "research": 7
-      }
+    "metrics": {
+      "source_files": 409,
+      "test_files": 304,
+      "lib_files": 47,
+      "total_lines": 45000,
+      "documentation_files": 365,
+      "adrs": 56,
+      "tech_specs": 56,
+      "spikes": 37,
+      "migrations": 32,
+      "islands": 19
     },
-    "technology_stack": {
-      "runtime": "Deno 2.x",
-      "language": "TypeScript (strict)",
-      "frontend": "Fresh 2.0 + Preact 10.27 + Vite 7.1 + TailwindCSS 4.1",
-      "backend": "MCP SDK 1.15 + Smithery SDK 2.1 + Cliffy CLI",
-      "database": "PGlite 0.3.14 + Deno KV + Drizzle ORM (18 migrations)",
-      "graphrag": "Graphology + HuggingFace Transformers (BGE-M3 1024-dim)",
-      "sandbox": "Zero-permission Deno subprocess + RPC Bridge for full tracing",
-      "observability": "Sentry + @std/log + Grafana Stack"
-    },
-    "codebase_metrics": {
-      "ts_files": 248,
-      "lines_of_code": 56694,
-      "test_files": 203,
-      "mcp_meta_tools": 8,
-      "preact_islands": 15,
-      "db_migrations": 18,
-      "adrs": 50
-    },
+    "core_subsystems": [
+      "MCP Gateway (handlers, connections, registry)",
+      "GraphRAG Engine (SHGAT, DR-DSP, Thompson, Louvain)",
+      "DAG Execution (ControlledExecutor, Optimizer, Checkpoints)",
+      "Sandbox (WorkerBridge, SecurityValidator, PII)",
+      "Capability System (Store, Registry, StaticStructure)"
+    ],
     "integrations": {
-      "mcp_servers": [
-        "std",
-        "filesystem",
-        "memory",
-        "sequential-thinking",
-        "playwright",
-        "exa",
-        "magic",
-        "fetch",
-        "plots"
-      ],
-      "external": ["GitHub OAuth", "Smithery Registry", "HuggingFace Hub", "Sentry"],
-      "monitoring": ["Grafana", "Prometheus", "Loki", "Promtail"]
-    },
-    "issues_found": [
-      {
-        "type": "naming",
-        "severity": "low",
-        "description": "CLI name 'pml' should be renamed to 'pml'",
-        "files": ["src/main.ts", "deno.json"]
-      }
-    ]
+      "mcp_servers": 9,
+      "otel_port": 4318,
+      "monitoring": ["Grafana", "Prometheus", "Loki", "Tempo"],
+      "database_modes": ["PGlite (local)", "PostgreSQL (cloud)"]
+    }
   },
   "project_types": [
     { "part_id": "main", "project_type_id": "backend", "display_name": "MCP Gateway Server" },
     { "part_id": "main", "project_type_id": "web", "display_name": "Fresh Dashboard" },
     { "part_id": "main", "project_type_id": "cli", "display_name": "CLI Interface" },
-    { "part_id": "main", "project_type_id": "library", "display_name": "Exportable Modules" }
+    { "part_id": "main", "project_type_id": "library", "display_name": "Exportable Modules" },
+    { "part_id": "main", "project_type_id": "cloud", "display_name": "Open Core (Premium)" }
   ],
   "outputs_generated": [
     "project-scan-report.json",
-    "project-overview.md"
+    "index.md",
+    "architecture-overview.md",
+    "integration-architecture.md",
+    "source-tree-analysis.md",
+    "development-guide.md",
+    "glossary.md",
+    "troubleshooting.md"
   ]
 }
