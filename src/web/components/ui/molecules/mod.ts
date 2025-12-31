@@ -1,7 +1,7 @@
 // Molecules barrel export
 export { default as SearchBar } from "./SearchBar.tsx";
 export { default as FilterGroup } from "./FilterGroup.tsx";
-export { default as LegendItem } from "./LegendItem.tsx";
+export { default as EdgeLegendItem } from "./EdgeLegendItem.tsx";
 
 // Trace molecules (Story 11.4)
 export { default as TraceSelector } from "./TraceSelector.tsx";

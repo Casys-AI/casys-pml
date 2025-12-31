@@ -4,7 +4,7 @@
  */
 
 import SearchBar from "../ui/molecules/SearchBar.tsx";
-import LegendItem from "../ui/molecules/LegendItem.tsx";
+import EdgeLegendItem from "../ui/molecules/EdgeLegendItem.tsx";
 import Button from "../ui/atoms/Button.tsx";
 import Divider from "../ui/atoms/Divider.tsx";
 import Badge from "../ui/atoms/Badge.tsx";
@@ -147,7 +147,7 @@ export default function Sidebar({
           Edge Types
         </h3>
         {edgeTypes.map((item) => (
-          <LegendItem
+          <EdgeLegendItem
             key={item.id}
             label={item.label}
             color={item.color}
@@ -167,7 +167,7 @@ export default function Sidebar({
           Confidence
         </h3>
         {confidenceLevels.map((item) => (
-          <LegendItem
+          <EdgeLegendItem
             key={item.id}
             label={item.label}
             color={item.color}
