@@ -168,7 +168,7 @@ for (const f of args.files) {  // ✅ args.files = ["file1.txt", "file2.txt"]
 
 ---
 
-## Bug 4: Missing `push` Operation in Trace
+## Bug 4: Missing `push` Operation in Trace — BY DESIGN ✅
 
 ### Symptom
 Execution trace shows only 2 tasks when there should be 3:
@@ -184,14 +184,44 @@ Layer 1: split (23ms)
 Layer 2: push (Xms)
 ```
 
-### Root Cause
-The `push` operation on arrays is not being detected as a task node in static analysis, or it's being filtered out somewhere in the pipeline.
+### Root Cause Analysis
+`push` is intentionally NOT traced. In `static-structure-builder.ts:517-527`, only **pure** array methods are detected:
 
-### Investigation Points
-- [ ] Verify `handleCallExpression` in ast-handlers.ts detects `array.push()` calls
-- [ ] Check if `push` is classified as a code operation or filtered out
-- [ ] Verify `push` nodes appear in static structure before DAG conversion
-- [ ] Check if fusion is incorrectly absorbing the push operation
+```typescript
+const arrayOps = [
+  "filter", "map", "reduce", "flatMap", "find", "findIndex",
+  "some", "every", "sort", "reverse", "slice", "concat",
+  "join", "includes", "indexOf", "lastIndexOf"
+];
+```
+
+Mutating methods (`push`, `pop`, `shift`, `unshift`, `splice`) are excluded.
+
+### Why This is By Design
+
+1. **Consistency with `PURE_OPERATIONS`** (`pure-operations.ts`):
+   - Pure operations can bypass HIL validation (no side-effects)
+   - `push` mutates the array in-place → not pure
+
+2. **HIL Control Gap**:
+   - If we trace `push` as a DAG node, we'd show a "dangerous" mutation
+   - But we can't pause BEFORE it without **Phase 4: Per-Task HIL**
+   - Tracing something we can't control is inconsistent
+
+3. **Current Trace Semantics**:
+   - Trace shows data flow: input → transform → output
+   - Side-effects (mutations) are not part of the data flow model
+
+### Future Consideration
+
+When **Phase 4: Per-Task HIL** is implemented (see `tech-spec-hil-permission-escalation-fix.md`):
+- Tasks with `approvalMode: "hil"` can pause BEFORE execution
+- At that point, we could add `MUTATING_ARRAY_METHODS` to trace
+- And mark them as requiring approval before mutation
+
+### Status
+- [x] Investigated
+- [x] **BY DESIGN** - Mutating operations not traced until Per-Task HIL exists
 
 ---
 
