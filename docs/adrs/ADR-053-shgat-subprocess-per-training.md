@@ -58,6 +58,38 @@ Intent Embedding (1024d)
 apprend ses propres patterns via les matrices W_q et W_k entraînées sur les traces épisodiques.
 L'ancienne architecture avec features explicites (PageRank, Louvain, etc.) est dépréciée (V2/V3).
 
+### Adaptive K (nombre de heads)
+
+Le nombre de heads s'adapte automatiquement à la taille du graphe et au volume de traces :
+
+| Taille graphe | Traces | numHeads | hiddenDim |
+|---------------|--------|----------|-----------|
+| < 20 nodes    | < 50   | 4        | 64        |
+| < 100 nodes   | < 200  | 6-8      | 96-128    |
+| < 500 nodes   | < 500  | 8-12     | 128-192   |
+| < 2000 nodes  | > 500  | 12-14    | 192-224   |
+| ≥ 2000 nodes  | > 1000 | 16       | 256       |
+
+```typescript
+// shgat/initialization/parameters.ts:454-494
+function computeAdaptiveHeads(numCapabilities: number, numTools: number, traceCount: number) {
+  const totalNodes = numCapabilities + numTools;
+
+  // Base sur taille du graphe
+  let numHeads = totalNodes < 20 ? 4 : totalNodes < 100 ? 6 : totalNodes < 500 ? 8 : totalNodes < 2000 ? 12 : 16;
+
+  // Boost si beaucoup de traces (plus de données → plus de heads)
+  if (traceCount > 1000) numHeads = Math.min(16, numHeads + 2);
+  else if (traceCount > 500) numHeads = Math.min(16, numHeads + 1);
+
+  // hiddenDim = numHeads × headDim (headDim = 16 fixe)
+  return { numHeads, hiddenDim: numHeads * 16, headDim: 16 };
+}
+```
+
+**Rationale:** Plus le graphe est grand et plus on a de traces, plus on peut apprendre de patterns
+distincts via des heads supplémentaires. Le headDim reste fixe à 16 pour éviter l'overfitting.
+
 ### V1 K-head Scoring Formula
 
 ```typescript
