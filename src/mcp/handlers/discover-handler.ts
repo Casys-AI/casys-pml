@@ -188,6 +188,7 @@ export async function handleDiscover(
     let capabilitiesCount = 0;
 
     // Search tools if filter allows
+    // Story 10.6: Use SHGAT K-head for tool scoring (unified with capabilities)
     if (filterType === "all" || filterType === "tool") {
       const toolResults = await searchTools(
         intent,
@@ -198,6 +199,8 @@ export async function handleDiscover(
         minScore,
         correlationId,
         decisionLogger,
+        shgat,
+        embeddingModel,
       );
       for (const tool of toolResults) {
         if (tool.score >= minScore) {
@@ -275,13 +278,12 @@ export async function handleDiscover(
 }
 
 /**
- * Search tools using unified scoring (AC12-13)
+ * Search tools using SHGAT K-head (preferred) or hybrid search (fallback)
  *
- * For pml_discover (Active Search without context), we use simplified formula:
- * score = semanticScore × reliabilityFactor
+ * Story 10.6: Unified SHGAT scoring for tools and capabilities.
+ * Uses SHGAT.scoreAllTools() when available, falls back to HybridSearch.
  *
- * Tools default to successRate=1.0 (cold start favorable).
- * Graph relatedness is not used since contextNodes is empty.
+ * SHGAT K-head provides learned attention weights vs simple cosine/hybrid.
  */
 async function searchTools(
   intent: string,
@@ -292,7 +294,69 @@ async function searchTools(
   minScore: number,
   correlationId?: string,
   decisionLogger?: IDecisionLogger,
+  shgat?: SHGAT,
+  embeddingModel?: EmbeddingModel,
 ): Promise<DiscoverResultItem[]> {
+  const results: DiscoverResultItem[] = [];
+
+  // Use SHGAT if available (unified with capabilities scoring)
+  if (shgat && embeddingModel) {
+    const intentEmbedding = await embeddingModel.encode(intent);
+    if (intentEmbedding && intentEmbedding.length > 0) {
+      // Score tools with SHGAT K-head (same architecture as capabilities)
+      const shgatResults = shgat.scoreAllTools(intentEmbedding);
+
+      log.debug("[discover] SHGAT scored tools", {
+        count: shgatResults.length,
+        top3: shgatResults.slice(0, 3).map((r) => ({
+          id: r.toolId,
+          score: r.score.toFixed(3),
+        })),
+      });
+
+      // Process top results up to limit
+      for (const shgatResult of shgatResults.slice(0, limit)) {
+        // Trace SHGAT scoring decision
+        decisionLogger?.logDecision({
+          algorithm: "SHGAT",
+          mode: "active_search",
+          targetType: "tool",
+          intent,
+          finalScore: shgatResult.score,
+          threshold: minScore,
+          decision: shgatResult.score >= minScore ? "accepted" : "rejected",
+          targetId: shgatResult.toolId,
+          correlationId,
+          signals: {
+            numHeads: shgatResult.headScores?.length ?? 0,
+            avgHeadScore: shgatResult.headScores
+              ? shgatResult.headScores.reduce((a, b) => a + b, 0) / shgatResult.headScores.length
+              : 0,
+          },
+        });
+
+        // Extract server_id from toolId (format: "server:toolName")
+        const parts = shgatResult.toolId.split(":");
+        const serverId = parts.length > 1 ? parts[0] : undefined;
+
+        results.push({
+          type: "tool",
+          record_type: "mcp-tool",
+          id: shgatResult.toolId,
+          name: extractToolName(shgatResult.toolId),
+          description: shgatResult.toolId, // Fallback to ID, full metadata from registry
+          score: shgatResult.score,
+          server_id: serverId,
+        });
+      }
+
+      return results;
+    }
+    log.warn("[discover] Failed to generate intent embedding for tools, falling back to HybridSearch");
+  }
+
+  // Fallback: Legacy HybridSearch (semantic + graph)
+  log.debug("[discover] Using HybridSearch for tools (SHGAT not available)");
   const hybridResults: HybridSearchResult[] = await graphEngine.searchToolsHybrid(
     vectorSearch,
     intent,
@@ -303,7 +367,7 @@ async function searchTools(
     correlationId,
   );
 
-  return hybridResults.map((result) => {
+  for (const result of hybridResults) {
     // AC12: Apply unified formula: score = semantic × reliability
     // Tools don't have successRate yet, default to 1.0 (cold start favorable)
     const toolSuccessRate = 1.0;
@@ -349,8 +413,10 @@ async function searchTools(
       }));
     }
 
-    return item;
-  });
+    results.push(item);
+  }
+
+  return results;
 }
 
 /**
