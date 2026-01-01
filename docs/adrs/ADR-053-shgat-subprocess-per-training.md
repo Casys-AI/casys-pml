@@ -60,35 +60,39 @@ L'ancienne architecture avec features explicites (PageRank, Louvain, etc.) est d
 
 ### Adaptive K (nombre de heads)
 
-Le nombre de heads s'adapte automatiquement à la taille du graphe et au volume de traces :
+Le nombre de heads s'adapte **automatiquement** à la taille du graphe dans `createSHGATFromCapabilities()` :
 
-| Taille graphe | Traces | numHeads | hiddenDim |
-|---------------|--------|----------|-----------|
-| < 20 nodes    | < 50   | 4        | 64        |
-| < 100 nodes   | < 200  | 6-8      | 96-128    |
-| < 500 nodes   | < 500  | 8-12     | 128-192   |
-| < 2000 nodes  | > 500  | 12-14    | 192-224   |
-| ≥ 2000 nodes  | > 1000 | 16       | 256       |
+| Taille graphe | Hierarchy | numHeads | hiddenDim |
+|---------------|-----------|----------|-----------|
+| < 50 nodes    | L0        | 4        | 64        |
+| < 200 nodes   | L0        | 6        | 96        |
+| < 500 nodes   | L0-L1     | 8        | 128       |
+| < 1000 nodes  | L1+       | 12       | 192       |
+| ≥ 1000 nodes  | L2+       | 14-16    | 224-256   |
 
 ```typescript
-// shgat/initialization/parameters.ts:454-494
-function computeAdaptiveHeads(numCapabilities: number, numTools: number, traceCount: number) {
-  const totalNodes = numCapabilities + numTools;
+// shgat.ts - createSHGATFromCapabilities() appelle automatiquement:
+const adaptiveConfig = getAdaptiveHeadsByGraphSize(allTools.size, capabilities.length, maxLevel);
+
+// initialization/parameters.ts:456
+export function getAdaptiveHeadsByGraphSize(numTools, numCapabilities, maxLevel) {
+  const graphSize = numTools + numCapabilities;
 
   // Base sur taille du graphe
-  let numHeads = totalNodes < 20 ? 4 : totalNodes < 100 ? 6 : totalNodes < 500 ? 8 : totalNodes < 2000 ? 12 : 16;
+  let numHeads = graphSize < 50 ? 4 : graphSize < 200 ? 6 : graphSize < 500 ? 8 : graphSize < 1000 ? 12 : 16;
 
-  // Boost si beaucoup de traces (plus de données → plus de heads)
-  if (traceCount > 1000) numHeads = Math.min(16, numHeads + 2);
-  else if (traceCount > 500) numHeads = Math.min(16, numHeads + 1);
+  // Bonus si hiérarchie profonde (meta-capabilities)
+  if (maxLevel >= 3) numHeads = Math.min(16, numHeads + 2);
+  else if (maxLevel >= 2) numHeads = Math.min(16, numHeads + 1);
 
-  // hiddenDim = numHeads × headDim (headDim = 16 fixe)
-  return { numHeads, hiddenDim: numHeads * 16, headDim: 16 };
+  // hiddenDim = numHeads × headDim (headDim = 16 ou 32)
+  const headDim = graphSize < 200 ? 16 : 32;
+  return { numHeads, hiddenDim: numHeads * headDim, headDim };
 }
 ```
 
-**Rationale:** Plus le graphe est grand et plus on a de traces, plus on peut apprendre de patterns
-distincts via des heads supplémentaires. Le headDim reste fixe à 16 pour éviter l'overfitting.
+**Note:** L'ancienne fonction `getAdaptiveConfig(traceCount)` est dépréciée car le traceCount
+n'est pas disponible à l'init. `getAdaptiveHeadsByGraphSize()` est maintenant appelée automatiquement.
 
 ### V1 K-head Scoring Formula
 
