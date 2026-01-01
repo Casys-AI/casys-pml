@@ -314,6 +314,10 @@ async function searchTools(
         })),
       });
 
+      // Fetch tool metadata from DB for enrichment
+      const topToolIds = shgatResults.slice(0, limit).map((r) => r.toolId);
+      const toolsMetadata = await vectorSearch.getToolsById(topToolIds);
+
       // Process top results up to limit
       for (const shgatResult of shgatResults.slice(0, limit)) {
         // Trace SHGAT scoring decision
@@ -335,18 +339,18 @@ async function searchTools(
           },
         });
 
-        // Extract server_id from toolId (format: "server:toolName")
-        const parts = shgatResult.toolId.split(":");
-        const serverId = parts.length > 1 ? parts[0] : undefined;
+        // Get metadata from DB (or fallback to toolId)
+        const metadata = toolsMetadata.get(shgatResult.toolId);
 
         results.push({
           type: "tool",
           record_type: "mcp-tool",
           id: shgatResult.toolId,
           name: extractToolName(shgatResult.toolId),
-          description: shgatResult.toolId, // Fallback to ID, full metadata from registry
+          description: metadata?.description ?? shgatResult.toolId,
           score: shgatResult.score,
-          server_id: serverId,
+          server_id: metadata?.serverId,
+          input_schema: metadata?.inputSchema,
         });
       }
 

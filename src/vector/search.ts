@@ -237,4 +237,56 @@ export class VectorSearch {
           : row.schema_json) as MCPTool,
     }));
   }
+
+  /**
+   * Get tool metadata by IDs
+   *
+   * Fetches tool schema (name, description, inputSchema) for a list of tool IDs.
+   * Used to enrich SHGAT scoring results with full metadata.
+   *
+   * @param toolIds - Array of tool IDs to fetch
+   * @returns Map of toolId to metadata (description, inputSchema, serverId)
+   */
+  async getToolsById(toolIds: string[]): Promise<
+    Map<string, { description: string; inputSchema?: Record<string, unknown>; serverId: string }>
+  > {
+    if (toolIds.length === 0) {
+      return new Map();
+    }
+
+    try {
+      // Build parameterized query for IN clause
+      const placeholders = toolIds.map((_, i) => `$${i + 1}`).join(", ");
+
+      const results = await this.db.query(
+        `SELECT
+          te.tool_id,
+          te.server_id,
+          ts.description,
+          ts.input_schema
+        FROM tool_embedding te
+        JOIN tool_schema ts ON te.tool_id = ts.tool_id
+        WHERE te.tool_id IN (${placeholders})`,
+        toolIds,
+      );
+
+      const toolsMap = new Map<
+        string,
+        { description: string; inputSchema?: Record<string, unknown>; serverId: string }
+      >();
+
+      for (const row of results) {
+        toolsMap.set(row.tool_id as string, {
+          description: row.description as string,
+          inputSchema: row.input_schema as Record<string, unknown> | undefined,
+          serverId: row.server_id as string,
+        });
+      }
+
+      return toolsMap;
+    } catch (error) {
+      log.warn(`Failed to fetch tool metadata: ${error}`);
+      return new Map();
+    }
+  }
 }
