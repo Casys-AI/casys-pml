@@ -164,18 +164,116 @@ export function injectPriorPatterns(
 }
 ```
 
-## SHGAT Integration
+## V-V Co-occurrence Matrix (Tool-Tool)
 
-Prior patterns can also inform SHGAT K-head attention:
+### Current State
 
-1. **Co-occurrence matrix** from scraped patterns
-2. **Pre-train attention weights** on common sequences
-3. **Transfer learning** before local execution data
+| Component | What we have | What's missing |
+|-----------|--------------|----------------|
+| **BGE** | Semantic embeddings (1024D) | ✅ Done |
+| **Spectral** | Cluster ID only (`spectralCluster: number`) | Not a real embedding |
+| **Node2Vec** | Benchmarked (+757% MRR) | ❌ Not implemented |
+| **V-V matrix** | None | No tool co-occurrence data |
+
+### What Scraped Patterns Provide
+
+The scraped workflows build a **V-V co-occurrence matrix**:
 
 ```typescript
-// Pseudo-code
-const cooccurrence = buildCooccurrenceMatrix(scrapedPatterns);
-shgat.initializeAttentionFromPriors(cooccurrence);
+// Tool-Tool adjacency matrix from patterns
+type CooccurrenceMatrix = Map<string, Map<string, number>>;
+
+// Example:
+// cooccurrence["sheets:read"]["slack:post"] = 847
+// cooccurrence["sheets:read"]["notion:create"] = 234
+// cooccurrence["github:issue"]["slack:post"] = 156
+
+function buildCooccurrenceMatrix(patterns: ScrapedPattern[]): CooccurrenceMatrix {
+  const matrix = new Map<string, Map<string, number>>();
+
+  for (const pattern of patterns) {
+    if (!matrix.has(pattern.from)) {
+      matrix.set(pattern.from, new Map());
+    }
+    const current = matrix.get(pattern.from)!.get(pattern.to) ?? 0;
+    matrix.get(pattern.from)!.set(pattern.to, current + pattern.frequency);
+  }
+
+  return matrix;
+}
+```
+
+### Usage of V-V Matrix
+
+#### 1. DR-DSP Pathfinding (Immediate)
+```typescript
+// Convert co-occurrence to edges
+for (const [from, targets] of cooccurrence) {
+  for (const [to, count] of targets) {
+    drdsp.addHyperedge({
+      id: `prior:${from}-${to}`,
+      sources: [from],
+      targets: [to],
+      weight: 1 / Math.log(count + 1),
+    });
+  }
+}
+```
+
+#### 2. Direct Scoring Signal (Short-term, no Node2Vec)
+```typescript
+// In SHGAT scoring, use co-occurrence as structural signal
+function getStructuralSimilarity(toolA: string, toolB: string): number {
+  const count = cooccurrence.get(toolA)?.get(toolB) ?? 0;
+  return Math.min(1.0, count / 100);  // Normalize
+}
+```
+
+#### 3. Node2Vec Training (Future)
+```typescript
+// When Node2Vec is implemented
+const adjacencyMatrix = cooccurrenceToAdjacency(cooccurrence);
+const node2vecEmbeddings = trainNode2Vec(adjacencyMatrix, {
+  dimensions: 128,
+  walkLength: 80,
+  numWalks: 10,
+  p: 1,  // Return parameter
+  q: 1,  // In-out parameter
+});
+// → Each tool gets a 128D structural embedding
+```
+
+### Benchmark Reference (from spike 2026-01-01-node2vec)
+
+| Method | MRR | Improvement |
+|--------|-----|-------------|
+| BGE only | 0.041 | baseline |
+| BGE + Node2Vec | 0.355 | **+757%** |
+| BGE + Spectral | < 0.355 | worse than Node2Vec |
+
+Node2Vec captures **local co-occurrence patterns** (random walks) which is exactly what scraped workflows provide.
+
+## SHGAT Integration
+
+Prior patterns can inform SHGAT K-head attention:
+
+1. **V-V co-occurrence matrix** from scraped patterns
+2. **Direct signal** (short-term): use co-occurrence counts in scoring
+3. **Node2Vec embeddings** (future): structural embeddings for tools
+4. **Pre-train attention weights** on common sequences
+
+```typescript
+// Short-term: inject co-occurrence as feature
+interface ToolFeatures {
+  semanticEmbedding: number[];  // BGE (1024D)
+  cooccurrenceVector: number[]; // From V-V matrix (sparse)
+}
+
+// Future: full Node2Vec embeddings
+interface ToolFeatures {
+  semanticEmbedding: number[];  // BGE (1024D)
+  structuralEmbedding: number[]; // Node2Vec (128D)
+}
 ```
 
 ## Benefits
@@ -200,10 +298,15 @@ shgat.initializeAttentionFromPriors(cooccurrence);
 2. [ ] Build tool name mapping (Zapier names → MCP tool IDs)
 3. [ ] Implement `injectPriorPatterns()` in DR-DSP
 4. [ ] Create `workflow-patterns.json` with top 100 patterns
-5. [ ] Evaluate impact on pathfinding quality
+5. [ ] Build V-V co-occurrence matrix from patterns
+6. [ ] Add co-occurrence signal to SHGAT scoring (short-term, pre-Node2Vec)
+7. [ ] Implement Node2Vec on V-V matrix (future)
+8. [ ] Evaluate impact on pathfinding quality
 
 ## Open Questions
 
 1. Should prior patterns eventually "graduate" to real capabilities after local execution?
 2. How to handle pattern conflicts (different sources, different weights)?
 3. Should we expose pattern origin in `pml:discover` results?
+4. Should `pml:execute` suggest tools (not just capabilities) when using prior patterns?
+5. How to combine local execution co-occurrence with scraped co-occurrence?
