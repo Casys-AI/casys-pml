@@ -23,11 +23,12 @@ interface TaskResult {
   // Phase 2a: Fusion metadata
   isFused?: boolean;
   logicalOperations?: LogicalOperation[];
-  // Loop abstraction metadata
+  // Loop abstraction metadata (new format: single loop task with bodyTools)
   loopId?: string;
   loopIteration?: number;
   loopType?: "for" | "while" | "forOf" | "forIn" | "doWhile";
   loopCondition?: string;
+  bodyTools?: string[]; // New: tools inside the loop (from static DAG)
 }
 
 interface ExecutionTrace {
@@ -67,6 +68,9 @@ const DEFAULT_COLORS = [
 
 /**
  * Group tasks by loopId within a layer
+ * Handles two formats:
+ * - New format: single loop task with tool="loop:forOf" and bodyTools array
+ * - Legacy format: multiple tasks with same loopId
  * Returns: { loops: LoopGroup[], nonLoopTasks: TaskResult[] }
  */
 function groupTasksByLoop(tasks: TaskResult[]): {
@@ -74,10 +78,25 @@ function groupTasksByLoop(tasks: TaskResult[]): {
   nonLoopTasks: TaskResult[];
 } {
   const loopMap = new Map<string, TaskResult[]>();
+  const loops: LoopGroup[] = [];
   const nonLoopTasks: TaskResult[] = [];
 
   for (const task of tasks) {
-    if (task.loopId) {
+    // New format: task is a loop task itself (tool starts with "loop:")
+    if (task.tool.startsWith("loop:")) {
+      const loopType = task.tool.replace("loop:", "") as "for" | "while" | "forOf" | "forIn" | "doWhile";
+      loops.push({
+        loopId: task.loopId || task.taskId,
+        loopType: task.loopType || loopType,
+        loopCondition: task.loopCondition,
+        iterations: 1, // Not tracking iterations in new format (runtime count unknown)
+        tasks: [task],
+        uniqueTools: task.bodyTools || [], // Use bodyTools from static DAG
+        totalDurationMs: task.durationMs,
+        success: task.success,
+      });
+    } else if (task.loopId) {
+      // Legacy format: task is inside a loop, group by loopId
       if (!loopMap.has(task.loopId)) {
         loopMap.set(task.loopId, []);
       }
@@ -87,17 +106,12 @@ function groupTasksByLoop(tasks: TaskResult[]): {
     }
   }
 
-  const loops: LoopGroup[] = [];
+  // Process legacy format loop groups
   for (const [loopId, loopTasks] of loopMap) {
-    // Get max iteration number to know how many iterations
     const iterations = Math.max(...loopTasks.map((t) => t.loopIteration ?? 1));
-    // Get unique tools (pattern per iteration)
     const uniqueTools = [...new Set(loopTasks.map((t) => t.tool))];
-    // Total duration
     const totalDurationMs = loopTasks.reduce((sum, t) => sum + t.durationMs, 0);
-    // Success if all tasks succeeded
     const success = loopTasks.every((t) => t.success);
-    // Get loop metadata from first task
     const firstTask = loopTasks[0];
 
     loops.push({
@@ -119,6 +133,9 @@ export default function TraceTimeline({
   trace,
   getServerColor,
 }: TraceTimelineProps) {
+  // DEBUG: Log trace data to verify bodyTools
+  console.log("[TraceTimeline] trace.taskResults:", JSON.stringify(trace.taskResults, null, 2));
+
   // Group tasks by layerIndex for fan-in/fan-out visualization
   const tasksByLayer = new Map<number, TaskResult[]>();
   for (const task of trace.taskResults) {

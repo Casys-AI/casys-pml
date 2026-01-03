@@ -133,6 +133,8 @@ export interface TraceTaskResult {
   loopIteration?: number;
   loopType?: "for" | "while" | "forOf" | "forIn" | "doWhile";
   loopCondition?: string;
+  // Loop abstraction: tools inside the loop body for expansion
+  bodyTools?: string[];
 }
 
 // Story 11.4: Execution trace for capability
@@ -1153,6 +1155,12 @@ export default function CytoscapeGraph({
 
       const apiData: HypergraphApiResponse = await response.json();
 
+      // DEBUG: Log raw API traces to verify body_tools
+      const loopCap = apiData.nodes.find((n) => n.data.type === "capability" && n.data.traces?.some((t) => t.task_results?.some((r) => r.tool?.startsWith("loop:"))));
+      if (loopCap) {
+        console.log("[CytoscapeGraph] RAW API loop traces:", JSON.stringify(loopCap.data.traces, null, 2));
+      }
+
       // Transform API response (snake_case) to internal format (camelCase)
       const capabilities: CapabilityNode[] = [];
       const tools: ToolNode[] = [];
@@ -1189,6 +1197,11 @@ export default function CytoscapeGraph({
                 success: boolean;
                 duration_ms: number;
                 layer_index?: number;
+                // Loop Abstraction metadata (snake_case from API)
+                loop_id?: string;
+                loop_type?: "for" | "while" | "forOf" | "forIn" | "doWhile";
+                loop_condition?: string;
+                body_tools?: string[];
               }>;
             }) => ({
               id: t.id,
@@ -1206,6 +1219,11 @@ export default function CytoscapeGraph({
                 success: r.success,
                 durationMs: r.duration_ms,
                 layerIndex: r.layer_index,
+                // Loop Abstraction metadata (snake_case → camelCase)
+                loopId: r.loop_id,
+                loopType: r.loop_type,
+                loopCondition: r.loop_condition,
+                bodyTools: r.body_tools,
               })),
             }));
 

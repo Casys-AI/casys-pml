@@ -391,6 +391,11 @@ function mapNodeData(node: GraphNode): Record<string, unknown> {
             success: r.success,
             duration_ms: r.durationMs,
             layer_index: r.layerIndex,
+            // Loop Abstraction metadata (camelCase → snake_case)
+            loop_id: r.loopId,
+            loop_type: r.loopType,
+            loop_condition: r.loopCondition,
+            body_tools: r.bodyTools,
           })),
         })),
       },

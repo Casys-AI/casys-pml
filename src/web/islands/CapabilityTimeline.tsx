@@ -228,6 +228,11 @@ export default function CapabilityTimeline({
                 success: boolean;
                 duration_ms: number;
                 layer_index?: number;
+                // Loop Abstraction metadata
+                loop_id?: string;
+                loop_type?: "for" | "while" | "forOf" | "forIn" | "doWhile";
+                loop_condition?: string;
+                body_tools?: string[];
               }>;
             }) => ({
               id: t.id,
@@ -245,6 +250,11 @@ export default function CapabilityTimeline({
                 success: tr.success,
                 durationMs: tr.duration_ms,
                 layerIndex: tr.layer_index,
+                // Loop Abstraction metadata
+                loopId: tr.loop_id,
+                loopType: tr.loop_type,
+                loopCondition: tr.loop_condition,
+                bodyTools: tr.body_tools,
               })) ?? [],
             }),
           );
