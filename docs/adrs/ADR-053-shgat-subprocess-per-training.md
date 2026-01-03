@@ -18,30 +18,107 @@ L'entraînement SHGAT (SuperHyperGraph Attention Networks) bloquait le main even
 
 Pendant l'entraînement, le serveur MCP ne répondait plus aux requêtes.
 
-### Architecture SHGAT
+### Architecture SHGAT (V1 K-head)
 
 ```
 Intent Embedding (1024d)
          │
          ▼
-    ┌─────────────────────────────────────────┐
-    │           SHGAT Multi-Head              │
-    │  ┌─────────┬──────────┬──────────┐     │
-    │  │ HEAD 1  │  HEAD 2  │  HEAD 3  │     │
-    │  │Semantic │Structure │ Temporal │     │
-    │  │cosine   │PageRank  │recency   │     │
-    │  │         │Louvain   │cooccur   │     │
-    │  │         │AdamicAdar│          │     │
-    │  └────┬────┴────┬─────┴────┬─────┘     │
-    │       │         │          │           │
-    │       └────────┬───────────┘           │
-    │                ▼                       │
-    │         Attention Fusion               │
-    │                │                       │
-    │                ▼                       │
-    │         Capability Score               │
-    └─────────────────────────────────────────┘
+    projectIntent() → hiddenDim (64d)
+         │
+         ▼
+    ┌─────────────────────────────────────────────────────────┐
+    │              SHGAT V1 K-head Attention                  │
+    │                                                         │
+    │  1. Message Passing: V → E (tools → capabilities)       │
+    │     E_propagated = forward()                            │
+    │                                                         │
+    │  2. K-head Scoring (per capability):                    │
+    │     ┌─────────┬─────────┬─────────┐                    │
+    │     │ HEAD 0  │ HEAD 1  │ HEAD 2  │  (K=3 heads)       │
+    │     │         │         │         │                    │
+    │     │ Q = W_q @ intent                                 │
+    │     │ K = W_k @ E_propagated                           │
+    │     │ score_h = sigmoid(Q·K / √d)                      │
+    │     └────┬────┴────┬────┴────┬────┘                    │
+    │          │         │         │                          │
+    │          └─────────┼─────────┘                          │
+    │                    ▼                                    │
+    │          Fusion: avg(head_scores)                       │
+    │                    │                                    │
+    │                    ▼                                    │
+    │          × reliabilityMult (successRate)                │
+    │                    │                                    │
+    │                    ▼                                    │
+    │             Final Score                                 │
+    └─────────────────────────────────────────────────────────┘
 ```
+
+**Note importante:** Les heads n'ont pas de rôle fixe (semantic/structure/temporal). Chaque head
+apprend ses propres patterns via les matrices W_q et W_k entraînées sur les traces épisodiques.
+L'ancienne architecture avec features explicites (PageRank, Louvain, etc.) est dépréciée (V2/V3).
+
+### Adaptive K (nombre de heads)
+
+Le nombre de heads s'adapte **automatiquement** à la taille du graphe dans `createSHGATFromCapabilities()` :
+
+| Taille graphe | Hierarchy | numHeads | hiddenDim |
+|---------------|-----------|----------|-----------|
+| < 50 nodes    | L0        | 4        | 64        |
+| < 200 nodes   | L0        | 6        | 96        |
+| < 500 nodes   | L0-L1     | 8        | 128       |
+| < 1000 nodes  | L1+       | 12       | 192       |
+| ≥ 1000 nodes  | L2+       | 14-16    | 224-256   |
+
+```typescript
+// shgat.ts - createSHGATFromCapabilities() appelle automatiquement:
+const adaptiveConfig = getAdaptiveHeadsByGraphSize(allTools.size, capabilities.length, maxLevel);
+
+// initialization/parameters.ts:456
+export function getAdaptiveHeadsByGraphSize(numTools, numCapabilities, maxLevel) {
+  const graphSize = numTools + numCapabilities;
+
+  // Base sur taille du graphe
+  let numHeads = graphSize < 50 ? 4 : graphSize < 200 ? 6 : graphSize < 500 ? 8 : graphSize < 1000 ? 12 : 16;
+
+  // Bonus si hiérarchie profonde (meta-capabilities)
+  if (maxLevel >= 3) numHeads = Math.min(16, numHeads + 2);
+  else if (maxLevel >= 2) numHeads = Math.min(16, numHeads + 1);
+
+  // hiddenDim = numHeads × headDim (headDim = 16 ou 32)
+  const headDim = graphSize < 200 ? 16 : 32;
+  return { numHeads, hiddenDim: numHeads * headDim, headDim };
+}
+```
+
+**Note:** L'ancienne fonction `getAdaptiveConfig(traceCount)` est dépréciée car le traceCount
+n'est pas disponible à l'init. `getAdaptiveHeadsByGraphSize()` est maintenant appelée automatiquement.
+
+### V1 K-head Scoring Formula
+
+```typescript
+// shgat.ts:880 - computeHeadScoreV1()
+private computeHeadScoreV1(intentProjected: number[], capEmbedding: number[], headIdx: number): number {
+  const hp = this.params.headParams[headIdx];
+  const Q = new Array(hiddenDim).fill(0);
+  const K = new Array(hiddenDim).fill(0);
+
+  // Projections apprises
+  for (let i = 0; i < hiddenDim; i++) {
+    for (let j = 0; j < inputDim; j++) {
+      Q[i] += hp.W_q[i][j] * intentProjected[j];
+      K[i] += hp.W_k[i][j] * capEmbedding[j];
+    }
+  }
+
+  // Scaled dot-product attention (NOT cosine)
+  return sigmoid(dot(Q, K) / sqrt(hiddenDim));
+}
+```
+
+**Différence clé vs cosine:**
+- Cosine: `dot(a, b) / (||a|| × ||b||)` - normalise par les normes
+- V1 K-head: `sigmoid(Q·K / √d)` - projections apprises W_q/W_k + scaling par √dim
 
 ### PER (Prioritized Experience Replay)
 
