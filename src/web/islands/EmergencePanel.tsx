@@ -9,7 +9,7 @@
  * @module web/islands/EmergencePanel
  */
 
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import {
   GaugeChart,
   LegendItem,
@@ -18,6 +18,7 @@ import {
   SectionCard,
   TrendIndicator,
 } from "../components/ui/atoms/mod.ts";
+import { useSSE } from "../hooks/mod.ts";
 import {
   PhaseTransitionBanner,
   RecommendationsPanel,
@@ -65,47 +66,43 @@ export default function EmergencePanel({
   const stabilityChartRef = useRef<HTMLDivElement>(null);
   const chartInstances = useRef<Record<string, unknown>>({});
 
-  // Fetch metrics - Story 9.8: Add scope parameter
-  useEffect(() => {
-    const controller = new AbortController();
-
-    const fetchMetrics = async () => {
-      try {
-        setLoading(true);
-        const res = await fetch(
-          `${apiBase}/api/metrics/emergence?range=${timeRange}&scope=${scope}`,
-          { signal: controller.signal },
-        );
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        setMetrics(data);
-        setError(null);
-        setShowPhaseTransition(data.phaseTransition?.detected || false);
-      } catch (err) {
-        if (err instanceof Error && err.name === "AbortError") return;
-        setError(err instanceof Error ? err.message : "Failed to fetch");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchMetrics();
-
-    // SSE for real-time updates
-    let eventSource: EventSource | null = null;
+  // Fetch metrics function - Story 9.8: Add scope parameter
+  const fetchMetrics = useCallback(async () => {
     try {
-      eventSource = new EventSource(`${apiBase}/events/stream`);
-      eventSource.addEventListener("capability.learned", () => fetchMetrics());
-      eventSource.addEventListener("emergence.updated", () => fetchMetrics());
-    } catch {
-      // SSE not available
+      setLoading(true);
+      const res = await fetch(
+        `${apiBase}/api/metrics/emergence?range=${timeRange}&scope=${scope}`,
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setMetrics(data);
+      setError(null);
+      setShowPhaseTransition(data.phaseTransition?.detected || false);
+    } catch (err) {
+      if (err instanceof Error && err.name !== "AbortError") {
+        setError(err instanceof Error ? err.message : "Failed to fetch");
+      }
+    } finally {
+      setLoading(false);
     }
-
-    return () => {
-      controller.abort();
-      eventSource?.close();
-    };
   }, [apiBase, timeRange, scope]);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchMetrics();
+  }, [fetchMetrics]);
+
+  // SSE for real-time updates with robust reconnection
+  useSSE({
+    url: `${apiBase}/events/stream?filter=capability.*,emergence.*`,
+    events: {
+      "capability.learned": () => fetchMetrics(),
+      "emergence.updated": () => fetchMetrics(),
+    },
+    onOpen: () => {
+      console.log("[EmergencePanel] SSE connected");
+    },
+  });
 
   // Render ECharts
   useEffect(() => {

@@ -3,8 +3,9 @@
  * Story 6.3 - Refactored for modularity with expand/collapse and dashboard view
  */
 
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { MetricCard, ProgressBar, RankItem, SectionCard } from "../components/ui/atoms/mod.ts";
+import { useSSE } from "../hooks/mod.ts";
 
 interface MetricsPanelProps {
   apiBase: string;
@@ -107,88 +108,47 @@ export default function MetricsPanel({ apiBase: apiBaseProp }: MetricsPanelProps
   };
   const chartInstances = useRef<Record<string, any>>({});
 
-  // SSE ref to ensure cleanup even during HMR
-  const sseRef = useRef<EventSource | null>(null);
-
   useEffect(() => {
     if (typeof window !== "undefined") {
       localStorage.setItem("metrics-panel-mode", viewMode);
     }
   }, [viewMode]);
 
-  // Fetch metrics with abort controller for cleanup
-  useEffect(() => {
-    // Close any existing SSE connection first (handles HMR leaks)
-    if (sseRef.current) {
-      console.log("[MetricsPanel] Closing previous SSE connection (HMR cleanup)");
-      sseRef.current.close();
-      sseRef.current = null;
-    }
-
-    const abortController = new AbortController();
-    let isMounted = true;
-
-    const fetchMetrics = async () => {
-      try {
-        const res = await fetch(`${apiBase}/api/metrics?range=${dateRange}`, {
-          signal: abortController.signal,
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data: GraphMetricsResponse = await res.json();
-        if (isMounted) {
-          setMetrics(data);
-          setError(null);
-          setLoading(false);
-        }
-      } catch (err) {
-        // Ignore abort errors (component unmounted or dateRange changed)
-        if (err instanceof Error && err.name === "AbortError") {
-          return;
-        }
-        if (isMounted) {
-          setError(err instanceof Error ? err.message : "Failed");
-          setLoading(false);
-        }
-      }
-    };
-
-    // Initial fetch
-    fetchMetrics();
-
-    // SSE trigger for refresh (instead of polling)
+  // Fetch metrics function
+  const fetchMetrics = useCallback(async () => {
     try {
-      const eventSource = new EventSource(`${apiBase}/events/stream?filter=graph.*,workflow.*`);
-      sseRef.current = eventSource;
-
-      eventSource.onopen = () => {
-        console.log("[MetricsPanel] SSE connected");
-      };
-
-      // Refetch on graph or workflow events
-      const handleEvent = () => {
-        if (isMounted) fetchMetrics();
-      };
-
-      eventSource.addEventListener("graph.updated", handleEvent);
-      eventSource.addEventListener("workflow.completed", handleEvent);
-      eventSource.addEventListener("capability.learned", handleEvent);
-
-      eventSource.onerror = () => {
-        // Silent reconnect handled by browser
-      };
+      const res = await fetch(`${apiBase}/api/metrics?range=${dateRange}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data: GraphMetricsResponse = await res.json();
+      setMetrics(data);
+      setError(null);
+      setLoading(false);
     } catch (err) {
-      console.warn("[MetricsPanel] SSE not available:", err);
-    }
-
-    return () => {
-      isMounted = false;
-      if (sseRef.current) {
-        sseRef.current.close();
-        sseRef.current = null;
+      if (err instanceof Error && err.name !== "AbortError") {
+        setError(err instanceof Error ? err.message : "Failed");
+        setLoading(false);
       }
-      abortController.abort();
-    };
+    }
   }, [apiBase, dateRange]);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchMetrics();
+  }, [fetchMetrics]);
+
+  // SSE for real-time updates with robust reconnection
+  useSSE({
+    url: `${apiBase}/events/stream?filter=graph.*,workflow.*,capability.*`,
+    disabled: viewMode === "collapsed",
+    events: {
+      "graph.updated": () => fetchMetrics(),
+      "workflow.completed": () => fetchMetrics(),
+      "capability.learned": () => fetchMetrics(),
+    },
+    onOpen: () => {
+      console.log("[MetricsPanel] SSE connected");
+    },
+  });
 
   // Dashboard mode: render all charts with better config
   useEffect(() => {

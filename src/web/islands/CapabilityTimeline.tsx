@@ -591,7 +591,7 @@ export default function CapabilityTimeline({
           <div class="text-4xl mb-3">⚠️</div>
           <p style={{ color: "var(--text-muted)" }}>{error}</p>
           <button
-            onClick={loadData}
+            onClick={() => loadData()}
             class="mt-4 px-4 py-2 rounded-lg text-sm font-medium"
             style={{
               background: "var(--accent, #FFB86F)",

@@ -9,6 +9,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { createPortal } from "preact/compat";
+import { useSSE } from "../hooks/mod.ts";
 import CytoscapeGraph, {
   type CapabilityData,
   type ToolData,
@@ -130,9 +131,7 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchTimeoutRef = useRef<number | null>(null);
   const graphRef = useRef<HTMLDivElement>(null);
-
-  // SSE ref to ensure cleanup even during HMR
-  const sseRef = useRef<EventSource | null>(null);
+  const refreshTimeoutRef = useRef<number | null>(null);
 
   // Server color mapping
   const serverColorsRef = useRef<Map<string, string>>(new Map());
@@ -161,162 +160,38 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
     setServers(serverSet);
   }, []);
 
-  // SSE listener for incremental graph updates (Story 8.3)
-  // With debouncing to prevent rapid refresh loops
-  // Enhanced: exponential backoff reconnection, visibility handling, online detection
-  useEffect(() => {
-    // Close any existing connection first (handles HMR leaks)
-    if (sseRef.current) {
-      console.log("[SSE] Closing previous connection (HMR cleanup)");
-      sseRef.current.close();
-      sseRef.current = null;
+  // Debounced refresh handler for SSE events
+  const handleCapabilityEvent = useCallback(() => {
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
     }
+    refreshTimeoutRef.current = setTimeout(() => {
+      console.log("[GraphExplorer] SSE capability event, refreshing graph...");
+      setGraphRefreshKey((prev) => prev + 1);
+    }, 150) as unknown as number;
+  }, []);
 
-    let refreshTimeout: number | null = null;
-    let reconnectTimeout: number | null = null;
-    let reconnectAttempts = 0;
-    let isVisible = !document.hidden;
-    let intentionalClose = false;
-    const MAX_RECONNECT_ATTEMPTS = 30;
-    const BASE_RECONNECT_DELAY = 1000;
-    const MAX_RECONNECT_DELAY = 30000;
-
-    const closeConnection = () => {
-      if (sseRef.current) {
-        intentionalClose = true;
-        sseRef.current.close();
-        sseRef.current = null;
-        intentionalClose = false;
-      }
-    };
-
-    const connect = () => {
-      // Don't connect if offline or tab hidden
-      if (!navigator.onLine) {
-        console.log("[SSE] Offline, waiting for network...");
-        return;
-      }
-      if (document.hidden) {
-        console.log("[SSE] Tab hidden, deferring connection...");
-        return;
-      }
-
-      closeConnection();
-
-      const eventSource = new EventSource(`${apiBase}/events/stream`);
-      sseRef.current = eventSource;
-
-      eventSource.onopen = () => {
-        console.log("[SSE] Connected to events stream");
-        reconnectAttempts = 0;
-      };
-
-      const handleCapabilityEvent = () => {
-        if (refreshTimeout) {
-          clearTimeout(refreshTimeout);
-        }
-        refreshTimeout = setTimeout(() => {
-          console.log("[SSE] Capability event received, refreshing graph...");
-          setGraphRefreshKey((prev) => prev + 1);
-        }, 150) as unknown as number; // Reduced from 500ms for snappier UX
-      };
-
-      eventSource.addEventListener("capability.zone.created", handleCapabilityEvent);
-      eventSource.addEventListener("capability.zone.updated", handleCapabilityEvent);
-      eventSource.addEventListener("capability.learned", handleCapabilityEvent);
-
-      eventSource.onerror = () => {
-        eventSource.close();
-        if (sseRef.current === eventSource) {
-          sseRef.current = null;
-        }
-
-        // Don't reconnect if intentionally closed or offline
-        if (intentionalClose || !navigator.onLine || document.hidden) {
-          console.log("[SSE] Skipping reconnect (intentional close, offline, or hidden)");
-          return;
-        }
-
-        reconnectAttempts++;
-
-        if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-          console.warn("[SSE] Max reconnection attempts reached, stopping");
-        } else {
-          const delay = Math.min(
-            BASE_RECONNECT_DELAY * Math.pow(2, reconnectAttempts - 1),
-            MAX_RECONNECT_DELAY,
-          );
-          console.warn(
-            `[SSE] Connection error, reconnecting in ${
-              delay / 1000
-            }s (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`,
-          );
-          reconnectTimeout = setTimeout(connect, delay) as unknown as number;
-        }
-      };
-    };
-
-    // Handle tab visibility changes - close when hidden, reconnect when visible
-    const handleVisibilityChange = () => {
-      const wasVisible = isVisible;
-      isVisible = !document.hidden;
-
-      if (!isVisible && wasVisible) {
-        // Tab became hidden - close connection to free resources
-        console.log("[SSE] Tab hidden, closing connection");
-        if (reconnectTimeout) {
-          clearTimeout(reconnectTimeout);
-          reconnectTimeout = null;
-        }
-        closeConnection();
-      } else if (isVisible && !wasVisible) {
-        // Tab became visible - reconnect
-        console.log("[SSE] Tab visible, reconnecting...");
-        reconnectAttempts = 0; // Reset attempts on visibility restore
-        connect();
-      }
-    };
-
-    // Handle online/offline events
-    const handleOnline = () => {
-      console.log("[SSE] Network online, reconnecting...");
-      reconnectAttempts = 0;
-      connect();
-    };
-
-    const handleOffline = () => {
-      console.log("[SSE] Network offline, closing connection");
-      if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout);
-        reconnectTimeout = null;
-      }
-      closeConnection();
-    };
-
-    // Handle page unload - ensure clean disconnect
-    const handleBeforeUnload = () => {
-      closeConnection();
-    };
-
-    // Add event listeners
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    globalThis.addEventListener("online", handleOnline);
-    globalThis.addEventListener("offline", handleOffline);
-    globalThis.addEventListener("beforeunload", handleBeforeUnload);
-
-    // Initial connect
-    connect();
-
+  // Cleanup debounce timeout on unmount
+  useEffect(() => {
     return () => {
-      if (refreshTimeout) clearTimeout(refreshTimeout);
-      if (reconnectTimeout) clearTimeout(reconnectTimeout);
-      closeConnection();
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      globalThis.removeEventListener("online", handleOnline);
-      globalThis.removeEventListener("offline", handleOffline);
-      globalThis.removeEventListener("beforeunload", handleBeforeUnload);
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+      }
     };
-  }, [apiBase]);
+  }, []);
+
+  // SSE for real-time graph updates with robust reconnection
+  useSSE({
+    url: `${apiBase}/events/stream?filter=capability.*`,
+    events: {
+      "capability.zone.created": handleCapabilityEvent,
+      "capability.zone.updated": handleCapabilityEvent,
+      "capability.learned": handleCapabilityEvent,
+    },
+    onOpen: () => {
+      console.log("[GraphExplorer] SSE connected");
+    },
+  });
 
   // Handle toggling a pin on a specific badge (algo + node)
   // Collects ALL nodeIds that have this algorithm, not just the clicked one

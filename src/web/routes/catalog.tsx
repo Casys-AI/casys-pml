@@ -98,6 +98,8 @@ export default function CatalogPage({ data }: { data: CatalogData }) {
           href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
           rel="stylesheet"
         />
+        {/* Critical CSS to prevent white flash on navigation */}
+        <style>{`html,body{background:#0a0908;margin:0}`}</style>
       </Head>
 
       <CatalogPageIsland entries={entries} user={user} isCloudMode={isCloudMode} />

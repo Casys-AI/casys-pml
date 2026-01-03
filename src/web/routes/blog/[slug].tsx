@@ -59,6 +59,8 @@ export default function BlogPost({ data }: { data: { post: Post } }) {
           href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
           rel="stylesheet"
         />
+        {/* Critical CSS to prevent white flash on navigation */}
+        <style>{`html,body{background:#08080a;margin:0}`}</style>
         <style dangerouslySetInnerHTML={{ __html: PRISM_THEME_CSS }} />
       </Head>
 

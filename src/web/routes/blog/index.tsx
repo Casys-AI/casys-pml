@@ -62,6 +62,8 @@ export default function BlogIndex({ data }: { data: { posts: Post[] } }) {
           title="Casys PML Blog Feed"
           href="/blog/feed.xml"
         />
+        {/* Critical CSS to prevent white flash on navigation */}
+        <style>{`html,body{background:#08080a;margin:0}`}</style>
       </Head>
 
       <div class="page">

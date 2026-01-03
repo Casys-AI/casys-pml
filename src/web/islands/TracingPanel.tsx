@@ -7,6 +7,7 @@
  */
 
 import { useEffect, useRef, useState } from "preact/hooks";
+import { useSSE } from "../hooks/mod.ts";
 
 // API response format (snake_case)
 interface ApiTrace {
@@ -193,7 +194,6 @@ export default function TracingPanel({ apiBase }: TracingPanelProps) {
   const eventsContainerRef = useRef<HTMLDivElement>(null);
   const lastTimestampRef = useRef<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const sseRef = useRef<EventSource | null>(null);
 
   // Persist panel width
   useEffect(() => {
@@ -280,66 +280,20 @@ export default function TracingPanel({ apiBase }: TracingPanelProps) {
     fetchTraces().finally(() => setLoading(false));
   }, [collapsed, apiBase]);
 
-  // SSE for real-time updates
-  useEffect(() => {
-    if (typeof window === "undefined" || collapsed || paused) return;
-
-    // Close any existing connection first (handles HMR leaks)
-    if (sseRef.current) {
-      console.log("[TracingPanel] Closing previous SSE connection (HMR cleanup)");
-      sseRef.current.close();
-      sseRef.current = null;
-    }
-
-    let reconnectTimer: number | null = null;
-    const RECONNECT_DELAY_MS = 2000;
-
-    const connect = () => {
-      try {
-        if (sseRef.current) {
-          sseRef.current.close();
-        }
-
-        const eventSource = new EventSource(`${apiBase}/events/stream?filter=algorithm.*`);
-        sseRef.current = eventSource;
-
-        eventSource.onopen = () => {
-          console.log("[TracingPanel] SSE connected - real-time updates active");
-        };
-
-        eventSource.addEventListener("algorithm.scored", () => {
-          console.debug("[TracingPanel] SSE algorithm.scored received");
-          fetchTraces(lastTimestampRef.current || undefined);
-        });
-
-        eventSource.onerror = () => {
-          console.warn("[TracingPanel] SSE error, reconnecting in 2s...");
-          eventSource.close();
-          if (sseRef.current === eventSource) {
-            sseRef.current = null;
-          }
-          if (!reconnectTimer) {
-            reconnectTimer = setTimeout(() => {
-              reconnectTimer = null;
-              connect();
-            }, RECONNECT_DELAY_MS) as unknown as number;
-          }
-        };
-      } catch (err) {
-        console.error("[TracingPanel] SSE connection failed:", err);
-      }
-    };
-
-    connect();
-
-    return () => {
-      if (reconnectTimer) clearTimeout(reconnectTimer);
-      if (sseRef.current) {
-        sseRef.current.close();
-        sseRef.current = null;
-      }
-    };
-  }, [collapsed, paused, apiBase]);
+  // SSE for real-time updates with robust reconnection
+  useSSE({
+    url: `${apiBase}/events/stream?filter=algorithm.*`,
+    disabled: collapsed || paused,
+    events: {
+      "algorithm.scored": () => {
+        console.debug("[TracingPanel] SSE algorithm.scored received");
+        fetchTraces(lastTimestampRef.current || undefined);
+      },
+    },
+    onOpen: () => {
+      console.log("[TracingPanel] SSE connected - real-time updates active");
+    },
+  });
 
   // Auto-scroll to top on new events
   useEffect(() => {
