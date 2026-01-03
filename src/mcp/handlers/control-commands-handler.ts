@@ -388,12 +388,17 @@ export async function handleApprovalResponse(
   }
 
   // Send approval command to executor
+  log.debug(`[DEBUG] handleApprovalResponse: enqueueing command`, {
+    workflow_id: params.workflow_id,
+    approved: params.approved,
+  });
   activeWorkflow.executor.enqueueCommand({
     type: "approval_response",
     checkpointId: params.checkpoint_id,
     approved: params.approved,
     feedback: params.feedback,
   });
+  log.debug(`[DEBUG] handleApprovalResponse: command enqueued, calling processGeneratorUntilPause`);
 
   if (!params.approved) {
     // Rejected - abort workflow

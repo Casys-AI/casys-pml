@@ -414,6 +414,8 @@ async function executeStandardWorkflow(
     controlledExecutor.setLearningDependencies(deps.capabilityStore, deps.graphEngine);
     // Phase 1: Set WorkerBridge for code execution task tracing
     controlledExecutor.setWorkerBridge(context.bridge);
+    // Loop Fix: Set tool definitions for loop code that contains MCP calls
+    controlledExecutor.setToolDefinitions(toolDefs);
 
     const result = await controlledExecutor.execute(dag);
 
@@ -494,6 +496,10 @@ async function executeWithPerLayerValidation(
   controlledExecutor.setCheckpointManager(deps.db, true);
   controlledExecutor.setDAGSuggester(deps.dagSuggester);
   controlledExecutor.setLearningDependencies(deps.capabilityStore, deps.graphEngine);
+  // Loop Execution Fix: Set WorkerBridge for code_execution tasks (loops)
+  controlledExecutor.setWorkerBridge(context.bridge);
+  // Loop Fix: Set tool definitions for loop code that contains MCP calls
+  controlledExecutor.setToolDefinitions(toolDefs);
 
   // Start streaming execution
   const generator = controlledExecutor.executeStream(dag, workflowId);
@@ -538,7 +544,23 @@ export async function processGeneratorUntilPause(
   let totalLayers = 0;
   let latestCheckpointId: string | null = null;
 
-  for await (const event of generator) {
+  log.debug(`[DEBUG] processGeneratorUntilPause: starting`, {
+    workflowId,
+    expectedLayer,
+    hasInitialResults: !!initialResults,
+    initialResultsCount: initialResults?.length ?? 0,
+  });
+
+  // IMPORTANT: Use manual generator.next() instead of for-await-of
+  // for-await-of calls generator.return() on early return, closing the generator!
+  // We need the generator to stay open so we can resume it later.
+  while (true) {
+    const { value: event, done } = await generator.next();
+    if (done || !event) break;
+
+    log.debug(`[DEBUG] processGeneratorUntilPause: received event`, {
+      type: event.type,
+    });
     if (event.type === "workflow_start") {
       totalLayers = event.totalLayers ?? 0;
     }
@@ -577,6 +599,7 @@ export async function processGeneratorUntilPause(
         event.decisionType,
         event.description,
         event.context,
+        layerResults,
       );
     }
 
@@ -584,30 +607,37 @@ export async function processGeneratorUntilPause(
       latestCheckpointId = event.checkpointId ?? null;
       currentLayer = event.layerIndex ?? currentLayer;
 
-      // Update active workflow state
-      const activeWorkflow: ActiveWorkflow = {
-        workflowId,
-        executor,
-        generator,
-        dag,
-        currentLayer,
-        totalLayers,
-        layerResults: [...layerResults],
-        status: "paused",
-        createdAt: deps.activeWorkflows.get(workflowId)?.createdAt ?? new Date(),
-        lastActivityAt: new Date(),
-        latestCheckpointId,
-      };
-      deps.activeWorkflows.set(workflowId, activeWorkflow);
+      const hasMoreLayers = currentLayer + 1 < totalLayers;
 
-      return formatLayerComplete(
-        workflowId,
-        latestCheckpointId,
-        currentLayer,
-        totalLayers,
-        layerResults,
-        currentLayer + 1 < totalLayers,
-      );
+      // Only pause on checkpoint if there are more layers to process
+      // On the last layer, continue iterating to get workflow_complete
+      if (hasMoreLayers) {
+        // Update active workflow state
+        const activeWorkflow: ActiveWorkflow = {
+          workflowId,
+          executor,
+          generator,
+          dag,
+          currentLayer,
+          totalLayers,
+          layerResults: [...layerResults],
+          status: "paused",
+          createdAt: deps.activeWorkflows.get(workflowId)?.createdAt ?? new Date(),
+          lastActivityAt: new Date(),
+          latestCheckpointId,
+        };
+        deps.activeWorkflows.set(workflowId, activeWorkflow);
+
+        return formatLayerComplete(
+          workflowId,
+          latestCheckpointId,
+          currentLayer,
+          totalLayers,
+          layerResults,
+          hasMoreLayers,
+        );
+      }
+      // Last layer: don't pause, continue to workflow_complete
     }
 
     if (event.type === "workflow_complete") {
@@ -634,10 +664,26 @@ export async function processGeneratorUntilPause(
     }
   }
 
-  // Generator exhausted without workflow_complete (unexpected)
+  // Generator exhausted without workflow_complete = BUG
+  // This should never happen - if it does, something is wrong in ControlledExecutor
+  log.error(`[BUG] Generator exhausted without workflow_complete!`, {
+    workflowId,
+    layerResultsCount: layerResults.length,
+    currentLayer,
+  });
+
   // Story 10.5: Still cleanup WorkerBridge
   if (executorContext) {
     cleanupWorkerBridgeExecutor(executorContext);
   }
-  return formatMCPSuccess({ status: "complete", workflow_id: workflowId });
+
+  // Return error with partial results so caller knows something went wrong
+  return formatMCPToolError(
+    "Internal error: workflow completed unexpectedly without results",
+    {
+      workflow_id: workflowId,
+      partial_results: layerResults,
+      layers_completed: currentLayer,
+    },
+  );
 }
