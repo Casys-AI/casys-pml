@@ -300,18 +300,18 @@ development_status:
   15-R2-move-graph-types-to-core: done # Code Review APPROVED 2026-01-03, 28 tests passing (14 graph_types + 14 existing)
   15-R3-fix-layering-violation: done # Code Review APPROVED 2026-01-03 - 35 tests passing, 5 issues fixed (1 HIGH→M1-M4, 3 LOW→L1-L2)
   15-R4-create-workspace-cargo: done # Already implemented during R1-R3, workspace exists with 4 members
-  # Phase 1: Graph Data Science (CRITICAL)
-  15-1-node2vec-random-walks: backlog # RandomWalkGenerator with p/q parameters (8 pts)
-  15-2-skipgram-embedding-training: backlog # Skip-gram model for node embeddings (8 pts)
-  15-3-node2vec-api-gql-integration: backlog # Engine API + NAPI bindings (5 pts)
-  # Phase 2: Approximate Nearest Neighbors (CRITICAL)
-  15-4-hnsw-index-implementation: backlog # HNSW graph for fast kNN queries (8 pts)
-  15-5-hnsw-dynamic-updates: backlog # Insert/delete without full rebuild (5 pts)
-  15-6-hnsw-napi-bindings: backlog # TypeScript bindings for HNSW (3 pts)
-  # Phase 3: GQL Extensions (Medium)
-  15-7-delete-clause-support: backlog # DELETE and DETACH DELETE syntax (5 pts)
-  15-8-set-clause-support: backlog # SET n.prop = value syntax (5 pts)
-  # Phase 4: Integration (Medium)
+  # Phase 1: GQL Extensions (PREREQUISITE for embeddings/ANN)
+  15-1-set-clause-support: backlog # SET n.prop = value syntax (5 pts) - REQUIRED for updating embeddings
+  15-2-delete-clause-support: backlog # DELETE and DETACH DELETE syntax (5 pts)
+  # Phase 2: Graph Data Science
+  15-3-node2vec-random-walks: backlog # RandomWalkGenerator with p/q parameters (8 pts)
+  15-4-skipgram-embedding-training: backlog # Skip-gram model for node embeddings (8 pts)
+  15-5-node2vec-api-gql-integration: backlog # Engine API + NAPI bindings (5 pts)
+  # Phase 3: Approximate Nearest Neighbors
+  15-6-hnsw-index-implementation: backlog # HNSW graph for fast kNN queries (8 pts)
+  15-7-hnsw-dynamic-updates: backlog # Insert/delete without full rebuild (5 pts)
+  15-8-hnsw-napi-bindings: backlog # TypeScript bindings for HNSW (3 pts)
+  # Phase 4: Integration
   15-9-incremental-node2vec: backlog # Incremental embedding updates (8 pts)
   15-10-embedding-persistence: backlog # Store embeddings with graph data (5 pts)
   15-11-storage-adapters: deferred # pg/redis/s3 - deferred until GDS/ANN complete (21 pts)

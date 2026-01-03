@@ -320,6 +320,499 @@ loop_l1: for(row of rows)
 
 ---
 
+---
+
+## Implémentation Exécution Runtime (2026-01-03)
+
+### Problème Identifié
+
+L'architecture initiale supposait que les boucles seraient exécutées task par task dans le DAG. Cependant, cela causait des problèmes :
+
+1. **Variables de boucle non résolues** : `for (const file of files)` → `file` n'était pas défini car chaque itération était traitée comme une task séparée
+2. **Capability par itération** : Chaque appel MCP dans la boucle créait une capability séparée au lieu d'une seule pour le loop entier
+
+### Solution Implémentée
+
+**Principe** : Les boucles sont exécutées nativement via WorkerBridge comme une seule tâche `code_execution`.
+
+#### 1. Extraction du Code Complet (AST Handlers)
+
+Le span SWC est utilisé pour extraire le code complet de la boucle :
+
+```typescript
+// src/capabilities/static-structure/ast-handlers.ts
+const span = n.span as { start: number; end: number } | undefined;
+const code = ctx.extractCodeFromSpan(span);
+
+ctx.nodes.push({
+  id: loopId,
+  type: "loop",
+  condition,
+  loopType: "forOf",
+  code, // Full loop code for WorkerBridge execution
+  ...
+});
+```
+
+#### 2. Conversion DAG : Loop → code_execution Task
+
+```typescript
+// src/dag/static-to-dag-converter.ts
+case "loop":
+  return {
+    id: taskId,
+    tool: `loop:${node.loopType}`,  // "loop:forOf", "loop:while", etc.
+    type: "code_execution",
+    code: node.code,  // Full loop code
+    ...
+  };
+```
+
+**Important** : Les nodes INSIDE le loop sont skippés (ils sont exécutés par le code natif) :
+
+```typescript
+// Skip nodes inside loops - they execute as part of loop task
+if (loopMembership.has(node.id)) {
+  continue;
+}
+```
+
+#### 3. Injection ToolDefinitions pour MCP dans les Loops
+
+```typescript
+// src/dag/controlled-executor.ts
+controlledExecutor.setToolDefinitions(toolDefs);
+
+// Dans executeCodeTaskViaWorkerBridge:
+const result = await this.workerBridge!.executeCodeTask(
+  task.tool,
+  codeToExecute,
+  executionContext,
+  this.toolDefinitions,  // MCP tools disponibles dans le loop
+);
+```
+
+#### 4. Wrapper Return pour Capturer les Résultats
+
+Le code de boucle extrait ne contient pas de `return`. On wrappe :
+
+```typescript
+// src/dag/controlled-executor.ts
+if (task.tool?.startsWith("loop:")) {
+  const contextVars = Object.keys(executionContext).filter(
+    (k) => k !== "deps" && k !== "args",
+  );
+  codeToExecute = `${task.code}\nreturn { ${contextVars.join(", ")} };`;
+}
+```
+
+**Avant** (code extrait) :
+```javascript
+for (const x of items) {
+  const r = await mcp.std.datetime_now({});
+  out.push({ x, time: r });
+}
+```
+
+**Après** (code exécuté) :
+```javascript
+for (const x of items) {
+  const r = await mcp.std.datetime_now({});
+  out.push({ x, time: r });
+}
+return { items, out };
+```
+
+### Fichiers Modifiés
+
+| Fichier | Changement |
+|---------|------------|
+| `src/capabilities/types/static-analysis.ts` | Ajout `code?: string` au type loop |
+| `src/capabilities/static-structure/types.ts` | Ajout `code?: string` au type loop |
+| `src/capabilities/static-structure/ast-handlers.ts` | Extraction code via span pour tous les loop handlers |
+| `src/dag/static-to-dag-converter.ts` | Loop → `code_execution` task, skip nodes inside loop |
+| `src/dag/controlled-executor.ts` | `setToolDefinitions()`, wrapper return pour loops |
+| `src/mcp/handlers/execute-handler.ts` | Appel `setToolDefinitions()` |
+| `src/mcp/handlers/workflow-execution-handler.ts` | Appel `setToolDefinitions()` |
+
+### Résultat
+
+```
+Avant:
+- Loop avec 3 itérations → 3 tasks séparées → 3 capabilities créées
+- Variables de boucle → undefined
+- results.push() → non capturé
+
+Après:
+- Loop → 1 task "loop:forOf"
+- MCP calls dans le loop → fonctionnent via toolDefinitions
+- results → capturés via return wrappé
+```
+
+**Exemple de résultat** :
+```json
+{
+  "taskId": "task_l1",
+  "status": "success",
+  "output": {
+    "result": {
+      "items": ["a", "b"],
+      "out": [
+        {"x": "a", "time": "2026-01-03T07:40:06Z"},
+        {"x": "b", "time": "2026-01-03T07:40:06Z"}
+      ]
+    }
+  }
+}
+```
+
+---
+
+## Implémentation Capability & Frontend (2026-01-03)
+
+### Problème Identifié
+
+1. **executedPath incorrect** : Les MCP calls étaient tracés N fois (par itération), résultant en `["std:datetime_now", "std:datetime_now", "loop:forOf"]` au lieu du pattern dédupliqué
+2. **Pas de capability créée** : Le loop s'exécutait mais ne sauvegardait pas de capability (pas d'intent)
+3. **Frontend non adapté** : TraceTimeline attendait plusieurs tasks avec `loopId`, pas un seul loop task
+
+### Solution Implémentée
+
+#### 1. Calcul des bodyTools dans le DAG Statique
+
+```typescript
+// src/dag/static-to-dag-converter.ts
+// Phase 0b: Build loop body tools map for executedPath deduplication
+const loopBodyTools = new Map<string, string[]>();
+for (const [nodeId, loopInfo] of loopMembership) {
+  const node = structure.nodes.find((n) => n.id === nodeId);
+  if (node?.type === "task") {
+    // Deduplicate: only add if not already present
+    if (!tools.includes(taskNode.tool)) {
+      tools.push(taskNode.tool);
+    }
+  }
+}
+
+// Loop task metadata includes bodyTools
+metadata: {
+  loopId: node.id,
+  loopType: node.loopType,
+  loopCondition: node.condition,
+  bodyTools: bodyTools || [],  // Unique tools inside loop
+}
+```
+
+#### 2. Passage du loopMetadata à WorkerBridge
+
+```typescript
+// src/dag/controlled-executor.ts
+const loopMetadata = task.tool?.startsWith("loop:")
+  ? {
+      loopId: task.metadata?.loopId,
+      loopCondition: task.metadata?.loopCondition,
+      loopType: task.metadata?.loopType,
+      bodyTools: task.metadata?.bodyTools,
+    }
+  : undefined;
+
+const result = await this.workerBridge!.executeCodeTask(
+  task.tool,
+  codeToExecute,
+  executionContext,
+  this.toolDefinitions,
+  loopMetadata,  // NEW: Loop metadata for capability saving
+);
+```
+
+#### 3. Sauvegarde Capability avec executedPath Correct
+
+```typescript
+// src/sandbox/worker-bridge.ts - executeCodeTask()
+if (loopMetadata && toolName.startsWith("loop:") && result.success) {
+  // Build correct executedPath: [loop, ...bodyTools] (deduplicated!)
+  const executedPath = [toolName, ...(loopMetadata.bodyTools || [])];
+
+  // Generate intent from loop condition
+  const intent = loopMetadata.loopCondition
+    ? `Execute loop: ${loopMetadata.loopCondition}`
+    : `Execute ${toolName}`;
+
+  // Reconstruct complete code with variable declarations
+  const contextVars = context
+    ? Object.entries(context)
+        .filter(([k]) => k !== "deps" && k !== "args")
+        .map(([k, v]) => `const ${k} = ${JSON.stringify(v)};`)
+        .join("\n")
+    : "";
+  const completeCode = contextVars ? `${contextVars}\n${code}` : code;
+
+  await this.capabilityStore.saveCapability({
+    code: completeCode,
+    intent,
+    traceData: { executedPath, ... },
+  });
+}
+```
+
+#### 4. Traces avec Loop Metadata
+
+```typescript
+// src/sandbox/worker-bridge.ts - tool_start/tool_end traces
+this.traces.push({
+  type: "tool_end",
+  tool: toolName,
+  // ... autres champs ...
+  ...(loopMetadata ? {
+    loopId: loopMetadata.loopId,
+    loopType: loopMetadata.loopType,
+    loopCondition: loopMetadata.loopCondition,
+    bodyTools: loopMetadata.bodyTools,
+  } : {}),
+});
+```
+
+#### 5. Frontend TraceTimeline Adapté
+
+```typescript
+// src/web/components/ui/molecules/TraceTimeline.tsx
+function groupTasksByLoop(tasks: TaskResult[]) {
+  for (const task of tasks) {
+    // New format: task is a loop task itself (tool starts with "loop:")
+    if (task.tool.startsWith("loop:")) {
+      loops.push({
+        loopId: task.loopId || task.taskId,
+        loopType: task.loopType || loopType,
+        loopCondition: task.loopCondition,
+        uniqueTools: task.bodyTools || [],  // Use bodyTools from static DAG
+        // ...
+      });
+    }
+    // Legacy format handled separately...
+  }
+}
+```
+
+### Fichiers Modifiés
+
+| Fichier | Changement |
+|---------|------------|
+| `src/dag/static-to-dag-converter.ts` | Calcul `loopBodyTools`, ajout au metadata |
+| `src/graphrag/types/dag.ts` | Ajout `bodyTools?: string[]` au type Task.metadata |
+| `src/dag/controlled-executor.ts` | Extraction et passage loopMetadata à WorkerBridge |
+| `src/sandbox/worker-bridge.ts` | Sauvegarde capability avec executedPath dédupliqué, traces avec loop metadata |
+| `src/web/components/ui/molecules/TraceTimeline.tsx` | Support nouveau format loop task avec bodyTools |
+
+### Résultat
+
+**Avant :**
+```
+executedPath: ["std:datetime_now", "std:datetime_now", "loop:forOf"]
+capability: non créée
+frontend: affichage incorrect
+```
+
+**Après :**
+```
+executedPath: ["loop:forOf", "std:datetime_now"]  // Pattern dédupliqué!
+capability: créée avec intent "Execute loop: for(x of items)"
+frontend: LoopTaskCard avec badge 🔄 et bodyTools expandables
+```
+
+---
+
+## Fix Naming Capability (2026-01-03)
+
+### Problème
+
+Les capabilities loop n'avaient pas de nom correct dans le dashboard :
+- `name: "acf11e19"` (juste l'ID hash) au lieu de `loop:exec_XXXX`
+- `call_name` manquant
+- `description: "Execute loop: for(... of items)"` au lieu de l'intent réel
+
+Les capabilities normales créent un `capability_records` après `saveCapability` (dans execute-handler.ts), mais les loops ne faisaient pas cette étape.
+
+### Solution
+
+Ajout de la création du `capability_records` dans `worker-bridge.ts` :
+
+```typescript
+// Create capability_records for proper naming
+if (this.capabilityRegistry) {
+  const existingRecord = await this.capabilityRegistry.getByWorkflowPatternId(capability.id);
+
+  if (!existingRecord) {
+    // namespace: "loop" (from toolName like "loop:forOf")
+    const namespace = toolName.includes(":") ? toolName.split(":")[0] : "loop";
+    // action: exec_XXXX (from code hash)
+    const action = `exec_${capability.codeHash.substring(0, 8)}`;
+
+    await this.capabilityRegistry.create({
+      org: "local",
+      project: "default",
+      namespace,
+      action,
+      workflowPatternId: capability.id,
+      hash: capability.codeHash.substring(0, 4),
+      createdBy: "worker_bridge_loop",
+      toolsUsed: loopMetadata.bodyTools || [],
+    });
+  }
+}
+```
+
+### Résultat (Naming)
+
+Les loop capabilities affichent maintenant :
+- `name: "loop:exec_XXXX"` (comme les autres capabilities)
+- `call_name: "loop:exec_XXXX"`
+- `description` basé sur l'intent ou la condition de loop
+
+---
+
+## Fix TraceTimeline LoopTaskCard (2026-01-03)
+
+### Problème
+
+Le LoopTaskCard ne s'affichait pas dans le dashboard (colonne de droite, execution trace).
+
+**Cause**: On passait `taskResults: []` vide lors de la sauvegarde de la capability loop. Sans taskResults, TraceTimeline n'a rien à rendre.
+
+### Solution
+
+Créer un `taskResult` pour la loop elle-même avec les métadonnées nécessaires:
+
+```typescript
+// worker-bridge.ts - dans executeCodeTask() pour les loops
+const loopTaskResult = {
+  taskId: `task_loop_${Date.now()}`,
+  tool: toolName, // e.g., "loop:forOf"
+  args: {} as Record<string, JsonValue>,
+  result: (result.result ?? null) as JsonValue,
+  success: true,
+  durationMs,
+  layerIndex: 0,
+  // Loop metadata for TraceTimeline groupTasksByLoop()
+  loopId: loopMetadata.loopId,
+  loopType: loopMetadata.loopType,
+  loopCondition: loopMetadata.loopCondition,
+  bodyTools: loopMetadata.bodyTools,
+};
+
+// Passer ce taskResult dans traceData
+traceData: {
+  ...
+  taskResults: [loopTaskResult],
+}
+```
+
+### Comment TraceTimeline détecte les loops
+
+`groupTasksByLoop()` dans TraceTimeline.tsx détecte les loops de 2 façons:
+
+1. **Nouveau format**: `task.tool.startsWith("loop:")` → utilise `bodyTools` pour les nested tasks
+2. **Legacy format**: `task.loopId` → groupe les tasks par loopId
+
+Le nouveau format est plus simple car on a UNE seule task loop avec ses bodyTools, au lieu de N tasks groupées.
+
+---
+
 ## Conclusion
 
 L'abstraction des boucles au niveau du DAG Logique permet à SHGAT d'apprendre des **patterns généralisables** plutôt que des séquences d'opérations répétées. Cette approche est complémentaire à l'optimisation Two-Level DAG qui opère au niveau physique pour la performance d'exécution.
+
+L'implémentation complète (2026-01-03) couvre maintenant :
+1. ✅ Exécution native des boucles avec accès MCP
+2. ✅ Capture des résultats via return wrappé
+3. ✅ executedPath dédupliqué pour SHGAT learning
+4. ✅ Sauvegarde capability avec code complet et intent
+5. ✅ Frontend avec LoopTaskCard et bodyTools
+6. ✅ Création capability_records pour naming correct (loop:exec_XXXX)
+7. ✅ taskResults avec loop metadata pour TraceTimeline
+8. ✅ Sérialisation/désérialisation loop metadata dans execution_trace
+
+---
+
+## Fix LoopTaskCard Expansion (2026-01-03)
+
+### Problème
+
+Le LoopTaskCard s'affichait mais ne pouvait pas s'expandre pour montrer les `bodyTools`.
+
+**Cause**: Les champs `loop_id`, `loop_type`, `loop_condition`, `body_tools` n'étaient pas sérialisés/désérialisés dans `execution-trace-store.ts`.
+
+### Solution
+
+#### 1. Ajout du type `bodyTools` à `TraceTaskResult`
+
+```typescript
+// src/capabilities/types/execution.ts
+export interface TraceTaskResult {
+  // ... autres champs ...
+  bodyTools?: string[];  // Loop Abstraction: Tools inside the loop body
+}
+```
+
+#### 2. Sérialisation (camelCase → snake_case)
+
+```typescript
+// src/capabilities/execution-trace-store.ts - save()
+const sanitizedResults = trace.taskResults.map((r) => ({
+  // ... autres champs ...
+  // Loop Abstraction metadata
+  loop_id: r.loopId,
+  loop_type: r.loopType,
+  loop_condition: r.loopCondition,
+  body_tools: r.bodyTools,
+}));
+```
+
+#### 3. Désérialisation (snake_case → camelCase)
+
+```typescript
+// src/capabilities/execution-trace-store.ts - getById()
+taskResults = (rawResults as any[]).map((r: any) => ({
+  // ... autres champs ...
+  // Loop Abstraction metadata
+  loopId: r.loop_id,
+  loopType: r.loop_type,
+  loopCondition: r.loop_condition,
+  bodyTools: r.body_tools,
+}));
+```
+
+### Vérification
+
+Query PostgreSQL confirmant le stockage correct :
+```json
+{
+  "tool": "loop:forOf",
+  "loop_id": "l1",
+  "loop_type": "forOf",
+  "loop_condition": "for(... of numbers)",
+  "body_tools": ["code:multiply"]
+}
+```
+
+### Fichiers Modifiés
+
+| Fichier | Changement |
+|---------|------------|
+| `src/capabilities/types/execution.ts` | Ajout `bodyTools?: string[]` à `TraceTaskResult` |
+| `src/capabilities/execution-trace-store.ts` | Sérialisation et désérialisation des loop metadata |
+
+---
+
+## Conclusion
+
+L'abstraction des boucles au niveau du DAG Logique permet à SHGAT d'apprendre des **patterns généralisables** plutôt que des séquences d'opérations répétées. Cette approche est complémentaire à l'optimisation Two-Level DAG qui opère au niveau physique pour la performance d'exécution.
+
+L'implémentation complète (2026-01-03) couvre maintenant :
+1. ✅ Exécution native des boucles avec accès MCP
+2. ✅ Capture des résultats via return wrappé
+3. ✅ executedPath dédupliqué pour SHGAT learning
+4. ✅ Sauvegarde capability avec code complet et intent
+5. ✅ Frontend avec LoopTaskCard et bodyTools expandables
+6. ✅ Création capability_records pour naming correct (loop:exec_XXXX)
+7. ✅ taskResults avec loop metadata pour TraceTimeline
+8. ✅ Sérialisation/désérialisation loop metadata dans execution_trace
