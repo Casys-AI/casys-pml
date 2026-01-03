@@ -7,3 +7,4 @@
  */
 
 export * from "./loader.ts";
+export * from "./capability-inferrer.ts";

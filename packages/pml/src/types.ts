@@ -185,3 +185,49 @@ export interface PermissionLoadResult {
   /** Config file path (if loaded from config) */
   configPath?: string;
 }
+
+// ============================================================================
+// Capability Permission Types (Story 14.3)
+// ============================================================================
+
+/**
+ * Approval mode for capability execution.
+ *
+ * This is computed at RUNTIME, not stored in DB, because:
+ * - Each user has their own permissions in .pml.json
+ * - Users can change permissions at any time
+ * - Same capability may be "auto" for one user and "hil" for another
+ *
+ * @example
+ * ```ts
+ * if (approvalMode === "hil") {
+ *   // Trigger Human-in-the-Loop flow
+ * } else {
+ *   // Execute automatically
+ * }
+ * ```
+ */
+export type ApprovalMode = "hil" | "auto";
+
+/**
+ * Tool routing destination.
+ *
+ * Platform-defined (not user-configurable):
+ * - "local": Execute in user's sandbox (filesystem, shell, etc.)
+ * - "cloud": Forward to pml.casys.ai (API services, safe utilities)
+ */
+export type ToolRouting = "local" | "cloud";
+
+/**
+ * Result of checking capability permissions against user's allow/deny/ask lists.
+ */
+export interface CapabilityPermissionResult {
+  /** Whether the capability can execute (false if any tool is denied) */
+  canExecute: boolean;
+  /** Required approval mode (hil if any tool requires ask) */
+  approvalMode: ApprovalMode;
+  /** Tool that blocked execution (if canExecute is false) */
+  blockedTool?: string;
+  /** Human-readable reason (if blocked) */
+  reason?: string;
+}

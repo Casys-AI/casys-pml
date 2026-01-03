@@ -53,8 +53,26 @@ export {
   matchesPattern,
 } from "./src/permissions/mod.ts";
 
+// Capability Permission Inference (Story 14.3)
+export {
+  CapabilityBlockedError,
+  checkCapabilityPermissions,
+  inferCapabilityApprovalMode,
+} from "./src/permissions/mod.ts";
+
+// Routing (Story 14.3)
+export {
+  extractNamespace,
+  getCloudServers,
+  isCloudTool,
+  isLocalTool,
+  resolveToolRouting,
+} from "./src/routing/mod.ts";
+
 // Types
 export type {
+  ApprovalMode,
+  CapabilityPermissionResult,
   McpConfig,
   PathValidationError,
   PathValidationErrorCode,
@@ -63,6 +81,7 @@ export type {
   PermissionLoadResult,
   PmlConfig,
   PmlPermissions,
+  ToolRouting,
   WorkspaceConfig,
   WorkspaceSource,
 } from "./src/types.ts";
