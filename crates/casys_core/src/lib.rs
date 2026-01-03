@@ -1,7 +1,50 @@
+use std::collections::HashMap;
+
 pub type NodeId = u64;
 pub type EdgeId = u64;
 
-#[derive(Clone, Debug)]
+// -----------------------
+// Graph Domain Types (Node, Edge)
+// -----------------------
+
+/// A graph node with labels and properties
+#[derive(Debug, Clone)]
+pub struct Node {
+    pub id: NodeId,
+    pub labels: Vec<String>,
+    pub properties: HashMap<String, Value>,
+}
+
+/// A graph edge connecting two nodes
+#[derive(Debug, Clone)]
+pub struct Edge {
+    pub id: EdgeId,
+    pub from_node: NodeId,
+    pub to_node: NodeId,
+    pub edge_type: String,
+    pub properties: HashMap<String, Value>,
+}
+
+// -----------------------
+// Graph Storage Traits (Ports)
+// -----------------------
+
+/// Read-only graph storage interface
+pub trait GraphReadStore {
+    fn scan_all(&self) -> Result<Vec<Node>, EngineError>;
+    fn scan_by_label(&self, label: &str) -> Result<Vec<Node>, EngineError>;
+    fn get_node(&self, id: NodeId) -> Result<Option<Node>, EngineError>;
+    fn get_neighbors(&self, node_id: NodeId, edge_type: Option<&str>) -> Result<Vec<(Edge, Node)>, EngineError>;
+    fn get_neighbors_incoming(&self, node_id: NodeId, edge_type: Option<&str>) -> Result<Vec<(Edge, Node)>, EngineError>;
+}
+
+/// Write-capable storage interface (extends read)
+pub trait GraphWriteStore: GraphReadStore {
+    fn add_node(&mut self, labels: Vec<String>, properties: HashMap<String, Value>) -> Result<NodeId, EngineError>;
+    fn add_edge(&mut self, from: NodeId, to: NodeId, edge_type: String, properties: HashMap<String, Value>) -> Result<EdgeId, EngineError>;
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     Null,
     Bool(bool),
@@ -11,6 +54,7 @@ pub enum Value {
     Bytes(Vec<u8>),
     Array(Vec<Value>),
     Map(std::collections::BTreeMap<String, Value>),
+    NodeId(NodeId),
 }
 
 // -----------------------

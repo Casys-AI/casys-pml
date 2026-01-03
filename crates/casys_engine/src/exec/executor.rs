@@ -3,8 +3,11 @@
 use super::planner::{ExecutionPlan, PlanNode};
 use super::ast::{Expr, BinOp, UnOp, Literal, AggFunc, Pattern};
 use crate::types::{EngineError, QueryResult, ColumnMeta};
-use crate::index::{GraphReadStore, GraphWriteStore, NodeId};
+use crate::index::{GraphReadStore, GraphWriteStore};
 use std::collections::{HashMap, HashSet};
+
+// Re-export Value from casys_core (unified type across crates)
+pub use casys_core::Value;
 
 pub type Tuple = HashMap<String, Value>;
 
@@ -14,18 +17,15 @@ struct ExecCounters {
     expanded: u64,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum Value {
-    String(String),
-    Int(i64),
-    Float(f64),
-    Bool(bool),
-    Null,
-    NodeId(NodeId),
+/// Extension trait for Value to provide JSON conversion methods
+/// These methods are engine-specific and use serde_json which is not in casys_core
+pub trait ValueExt {
+    fn to_json(&self) -> serde_json::Value;
+    fn from_json(v: &serde_json::Value) -> Option<Value>;
 }
 
-impl Value {
-    pub fn to_json(&self) -> serde_json::Value {
+impl ValueExt for Value {
+    fn to_json(&self) -> serde_json::Value {
         match self {
             Value::String(s) => serde_json::Value::String(s.clone()),
             Value::Int(i) => serde_json::Value::Number((*i).into()),
@@ -35,10 +35,18 @@ impl Value {
             Value::Bool(b) => serde_json::Value::Bool(*b),
             Value::Null => serde_json::Value::Null,
             Value::NodeId(id) => serde_json::Value::Number((*id).into()),
+            // Handle additional casys_core::Value variants gracefully
+            Value::Bytes(b) => serde_json::Value::String(base64_encode(b)),
+            Value::Array(arr) => serde_json::Value::Array(
+                arr.iter().map(|v| v.to_json()).collect()
+            ),
+            Value::Map(map) => serde_json::Value::Object(
+                map.iter().map(|(k, v)| (k.clone(), v.to_json())).collect()
+            ),
         }
     }
 
-    pub fn from_json(v: &serde_json::Value) -> Option<Value> {
+    fn from_json(v: &serde_json::Value) -> Option<Value> {
         match v {
             serde_json::Value::String(s) => Some(Value::String(s.clone())),
             serde_json::Value::Number(n) => {
@@ -48,9 +56,47 @@ impl Value {
             }
             serde_json::Value::Bool(b) => Some(Value::Bool(*b)),
             serde_json::Value::Null => Some(Value::Null),
-            _ => None,
+            serde_json::Value::Array(arr) => {
+                let values: Option<Vec<Value>> = arr.iter().map(Value::from_json).collect();
+                values.map(Value::Array)
+            }
+            serde_json::Value::Object(obj) => {
+                let mut map = std::collections::BTreeMap::new();
+                for (k, v) in obj {
+                    if let Some(val) = Value::from_json(v) {
+                        map.insert(k.clone(), val);
+                    } else {
+                        return None;
+                    }
+                }
+                Some(Value::Map(map))
+            }
         }
     }
+}
+
+/// Simple base64 encoding for Bytes variant (no external dependency)
+fn base64_encode(data: &[u8]) -> String {
+    const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut result = String::new();
+    for chunk in data.chunks(3) {
+        let b0 = chunk[0] as usize;
+        let b1 = chunk.get(1).copied().unwrap_or(0) as usize;
+        let b2 = chunk.get(2).copied().unwrap_or(0) as usize;
+        result.push(ALPHABET[b0 >> 2] as char);
+        result.push(ALPHABET[((b0 & 0x03) << 4) | (b1 >> 4)] as char);
+        if chunk.len() > 1 {
+            result.push(ALPHABET[((b1 & 0x0f) << 2) | (b2 >> 6)] as char);
+        } else {
+            result.push('=');
+        }
+        if chunk.len() > 2 {
+            result.push(ALPHABET[b2 & 0x3f] as char);
+        } else {
+            result.push('=');
+        }
+    }
+    result
 }
 
 pub struct Executor<'a> {

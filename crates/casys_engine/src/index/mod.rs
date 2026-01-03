@@ -4,42 +4,14 @@
 pub mod persistence;
 
 use crate::types::EngineError;
-use crate::exec::executor::Value;
 use std::collections::HashMap;
 
-pub type NodeId = u64;
-pub type EdgeId = u64;
-
-#[derive(Debug, Clone)]
-pub struct Node {
-    pub id: NodeId,
-    pub labels: Vec<String>,
-    pub properties: HashMap<String, Value>,
-}
-
-#[derive(Debug, Clone)]
-pub struct Edge {
-    pub id: EdgeId,
-    pub from_node: NodeId,
-    pub to_node: NodeId,
-    pub edge_type: String,
-    pub properties: HashMap<String, Value>,
-}
-
-/// Read-only graph storage interface
-pub trait GraphReadStore {
-    fn scan_all(&self) -> Result<Vec<Node>, EngineError>;
-    fn scan_by_label(&self, label: &str) -> Result<Vec<Node>, EngineError>;
-    fn get_node(&self, id: NodeId) -> Result<Option<Node>, EngineError>;
-    fn get_neighbors(&self, node_id: NodeId, edge_type: Option<&str>) -> Result<Vec<(Edge, Node)>, EngineError>;
-    fn get_neighbors_incoming(&self, node_id: NodeId, edge_type: Option<&str>) -> Result<Vec<(Edge, Node)>, EngineError>;
-}
-
-/// Write-capable storage interface (extends read)
-pub trait GraphWriteStore: GraphReadStore {
-    fn add_node(&mut self, labels: Vec<String>, properties: HashMap<String, Value>) -> Result<NodeId, EngineError>;
-    fn add_edge(&mut self, from: NodeId, to: NodeId, edge_type: String, properties: HashMap<String, Value>) -> Result<EdgeId, EngineError>;
-}
+// Re-export graph types and traits from casys_core (AC5: backward compatibility)
+pub use casys_core::{
+    Value, NodeId, EdgeId,
+    Node, Edge,
+    GraphReadStore, GraphWriteStore,
+};
 
 /// In-memory graph store with indexes
 pub struct InMemoryGraphStore {

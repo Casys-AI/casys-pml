@@ -32,6 +32,9 @@ pub use types::{
     Timestamp,
 };
 
+// Re-export casys_core::Value as the canonical Value type
+pub use casys_core::Value;
+
 /// Engine is the embedded entrypoint. It owns the data directory and shared resources.
 pub struct Engine {
     data_dir: PathBuf,
@@ -250,7 +253,8 @@ impl Engine {
         gql: &GqlQuery,
         params: Option<std::collections::HashMap<String, serde_json::Value>>,
     ) -> Result<QueryResult, EngineError> {
-        use crate::exec::{parser, planner::Planner, executor::{Executor, Value as ExecValue}};
+        use crate::exec::{parser, planner::Planner, executor::{Executor, ValueExt}};
+        use casys_core::Value as ExecValue;
         use crate::index::{GraphReadStore, GraphWriteStore};
         use std::collections::HashMap;
 

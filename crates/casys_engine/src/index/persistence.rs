@@ -1,7 +1,8 @@
 //! Persistence: flush/load graph index depuis segments
 
-use super::{InMemoryGraphStore, Node, Edge, NodeId, EdgeId};
-use crate::exec::executor::Value;
+use super::{InMemoryGraphStore, Node, Edge, Value};
+use casys_core::{NodeId, EdgeId};
+use crate::exec::executor::ValueExt; // Import extension trait for to_json/from_json
 use crate::types::{EngineError, DatabaseName, BranchName};
 use casys_storage_fs::catalog;
 use std::collections::HashMap;
