@@ -288,3 +288,31 @@ development_status:
   14-8-e2e-integration-testing: backlog # Full flow tests,  offline mode, permission boundaries
   14-9-custom-mcp-servers-support: backlog # User's .mcp-servers.json - deferred until 14.1-14.8 complete
   epic-14-retrospective: optional
+
+  # Epic 15: CasysDB Native Engine (Rust)
+  # Epic: epic-15-casysdb-native-engine.md
+  # 14 stories (4 refactoring + 10 features), ~72 pts estimated
+  # Priority: GDS algorithms (Node2Vec, HNSW) > GQL extensions > Storage adapters
+  # Depends on: None (independent Rust workspace in crates/)
+  epic-15: in-progress
+  # Phase 0: Refactoring (Technical Debt) - HIGH priority, blocks other work
+  15-R1-unify-value-types: done # Code Review APPROVED 2026-01-03, 14 tests passing, 7 issues fixed
+  15-R2-move-graph-types-to-core: done # Code Review APPROVED 2026-01-03, 28 tests passing (14 graph_types + 14 existing)
+  15-R3-fix-layering-violation: backlog # Remove casys_storage_fs import from engine (5 pts)
+  15-R4-create-workspace-cargo: backlog # Create crates/Cargo.toml workspace (1 pt)
+  # Phase 1: Graph Data Science (CRITICAL)
+  15-1-node2vec-random-walks: backlog # RandomWalkGenerator with p/q parameters (8 pts)
+  15-2-skipgram-embedding-training: backlog # Skip-gram model for node embeddings (8 pts)
+  15-3-node2vec-api-gql-integration: backlog # Engine API + NAPI bindings (5 pts)
+  # Phase 2: Approximate Nearest Neighbors (CRITICAL)
+  15-4-hnsw-index-implementation: backlog # HNSW graph for fast kNN queries (8 pts)
+  15-5-hnsw-dynamic-updates: backlog # Insert/delete without full rebuild (5 pts)
+  15-6-hnsw-napi-bindings: backlog # TypeScript bindings for HNSW (3 pts)
+  # Phase 3: GQL Extensions (Medium)
+  15-7-delete-clause-support: backlog # DELETE and DETACH DELETE syntax (5 pts)
+  15-8-set-clause-support: backlog # SET n.prop = value syntax (5 pts)
+  # Phase 4: Integration (Medium)
+  15-9-incremental-node2vec: backlog # Incremental embedding updates (8 pts)
+  15-10-embedding-persistence: backlog # Store embeddings with graph data (5 pts)
+  15-11-storage-adapters: deferred # pg/redis/s3 - deferred until GDS/ANN complete (21 pts)
+  epic-15-retrospective: optional
