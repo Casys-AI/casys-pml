@@ -1,22 +1,29 @@
 /**
- * MCPCatalogCard - Card atom for MCP server display
+ * CatalogCard - Card molecule for registry entry display
  *
- * Cloud-only: used by the public MCP catalog page.
+ * Cloud-only: used by the public registry catalog page.
+ * Displays both MCP tools and capabilities from pml_registry VIEW.
  * Uses existing atoms: Badge for type indicator.
  *
- * @module cloud/ui/catalog/MCPCatalogCard
+ * @module cloud/ui/catalog/CatalogCard
  */
 
 import Badge from "../../../web/components/ui/atoms/Badge.tsx";
-import { type MCPCatalogEntry, TYPE_INFO } from "./types.ts";
+import { type CatalogEntry, RECORD_TYPE_INFO } from "./types.ts";
 
-interface MCPCatalogCardProps {
-  entry: MCPCatalogEntry;
+interface CatalogCardProps {
+  entry: CatalogEntry;
   onClick?: () => void;
 }
 
-export default function MCPCatalogCard({ entry, onClick }: MCPCatalogCardProps) {
-  const typeInfo = TYPE_INFO[entry.type];
+export default function CatalogCard({ entry, onClick }: CatalogCardProps) {
+  const typeInfo = RECORD_TYPE_INFO[entry.recordType];
+
+  // For capabilities, show namespace:action as subtitle
+  const subtitle =
+    entry.recordType === "capability" && entry.namespace && entry.action
+      ? `${entry.namespace}:${entry.action}`
+      : entry.serverId || entry.id;
 
   return (
     <div
@@ -38,41 +45,24 @@ export default function MCPCatalogCard({ entry, onClick }: MCPCatalogCardProps) 
       }}
     >
       <div class="p-4">
-        {/* Header: Icon + Name + Type */}
-        <div class="flex items-start gap-3 mb-2">
-          {/* Icon */}
-          {entry.icon && (
-            <div
-              class="w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0"
-              style={{
-                background: `${typeInfo.color}15`,
-                border: `1px solid ${typeInfo.color}30`,
-              }}
+        {/* Header: Name + Type Badge */}
+        <div class="flex items-start justify-between gap-2 mb-2">
+          <div class="min-w-0 flex-1">
+            <h3
+              class="font-semibold text-sm leading-tight truncate"
+              style={{ color: "var(--text)" }}
+              title={entry.name}
             >
-              {entry.icon}
-            </div>
-          )}
-
-          <div class="flex-1 min-w-0">
-            <div class="flex items-start justify-between gap-2">
-              <div class="min-w-0">
-                <h3
-                  class="font-semibold text-sm leading-tight truncate"
-                  style={{ color: "var(--text)" }}
-                  title={entry.name}
-                >
-                  {entry.name}
-                </h3>
-                <span
-                  class="text-[11px] font-mono truncate block"
-                  style={{ color: "var(--text-dim)" }}
-                >
-                  {entry.fqdn}
-                </span>
-              </div>
-              <Badge color={typeInfo.color} label={typeInfo.label} />
-            </div>
+              {entry.name}
+            </h3>
+            <span
+              class="text-[11px] font-mono truncate block"
+              style={{ color: "var(--text-dim)" }}
+            >
+              {subtitle}
+            </span>
           </div>
+          <Badge color={typeInfo.color} label={typeInfo.label} />
         </div>
 
         {/* Description */}
@@ -80,26 +70,36 @@ export default function MCPCatalogCard({ entry, onClick }: MCPCatalogCardProps) 
           class="text-xs leading-relaxed mb-3 line-clamp-2"
           style={{ color: "var(--text-muted)" }}
         >
-          {entry.description}
+          {entry.description || "No description available"}
         </p>
 
-        {/* Footer: optional metadata */}
+        {/* Footer: routing indicator */}
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
-            {entry.toolCount !== undefined && (
-              <span class="text-[11px] font-mono" style={{ color: "var(--text-dim)" }}>
-                {entry.toolCount} tools
+            {entry.routing === "cloud" && (
+              <span
+                class="text-[10px] font-semibold px-1.5 py-0.5 rounded flex items-center gap-1"
+                style={{ background: "rgba(96, 165, 250, 0.15)", color: "#60a5fa" }}
+              >
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeWidth="2"
+                    d="M3 15a4 4 0 0 0 4 4h9a5 5 0 1 0-.1-9.999 5.002 5.002 0 0 0-9.78 2.096A4.001 4.001 0 0 0 3 15z"
+                  />
+                </svg>
+                Cloud
               </span>
             )}
-          </div>
-
-          <div class="flex items-center gap-1">
-            {entry.isBuiltin && (
+            {entry.routing === "local" && (
               <span
-                class="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                class="text-[10px] font-semibold px-1.5 py-0.5 rounded flex items-center gap-1"
                 style={{ background: "rgba(74, 222, 128, 0.15)", color: "#4ade80" }}
               >
-                PML
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeWidth="2" d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                  <circle cx="12" cy="10" r="3" strokeWidth="2" />
+                </svg>
+                Local
               </span>
             )}
           </div>

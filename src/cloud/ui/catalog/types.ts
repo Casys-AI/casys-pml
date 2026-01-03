@@ -1,49 +1,37 @@
 /**
  * MCP Catalog Types
  *
- * Cloud-only: types for the public MCP catalog display.
+ * Cloud-only: types for the public registry catalog display.
+ * Aligned with pml_registry VIEW schema (Story 13.8).
  *
  * @module cloud/ui/catalog/types
  */
 
-/**
- * MCP Server type for transport/installation method
- */
-export type MCPServerType = "deno" | "stdio" | "cloud";
+import type { PmlRegistryRecordType } from "../../../capabilities/types/fqdn.ts";
 
 /**
- * MCP Server entry for catalog display
+ * Catalog entry from pml_registry VIEW
  *
- * Currently available fields:
- * - fqdn, name, description, type, icon
- *
- * Future additions (when metadata is available):
- * - toolCount, category, tags, docsUrl, requiresApiKey
+ * Displays both MCP tools and learned capabilities in a unified catalog.
+ * Uses record_type to distinguish between them.
  */
-export interface MCPCatalogEntry {
-  /** Fully qualified domain name (e.g., "std:json", "github:*") */
-  fqdn: string;
+export interface CatalogEntry {
+  /** Record type: 'mcp-tool' or 'capability' */
+  recordType: PmlRegistryRecordType;
+  /** Unique identifier (tool_id or capability UUID) */
+  id: string;
   /** Display name */
   name: string;
-  /** Short description */
-  description: string;
-  /** Server type (transport method) */
-  type: MCPServerType;
-  /** Icon URL or emoji (optional) */
-  icon?: string;
-
-  // === Future metadata (not yet available) ===
-
-  /** Number of tools provided (optional, computed from registry) */
-  toolCount?: number;
-  /** Whether BYOK (Bring Your Own Key) is required */
-  requiresApiKey?: boolean;
-  /** Whether this is a PML built-in */
-  isBuiltin?: boolean;
-  /** Tags for additional filtering */
-  tags?: string[];
-  /** Documentation URL */
-  docsUrl?: string;
+  /** Description */
+  description: string | null;
+  /** Execution routing: 'local' or 'cloud' */
+  routing: "local" | "cloud";
+  /** MCP server ID (for mcp-tool only) */
+  serverId: string | null;
+  /** Namespace (for capability only) */
+  namespace: string | null;
+  /** Action (for capability only) */
+  action: string | null;
 }
 
 /**
@@ -51,27 +39,29 @@ export interface MCPCatalogEntry {
  */
 export interface CatalogFilters {
   search: string;
-  types: MCPServerType[];
-  showBuiltinOnly: boolean;
+  recordTypes: PmlRegistryRecordType[];
 }
 
 /**
- * Server type display info
+ * Record type display info
  */
-export const TYPE_INFO: Record<MCPServerType, { label: string; color: string; description: string }> = {
-  deno: {
-    label: "Deno",
+export const RECORD_TYPE_INFO: Record<PmlRegistryRecordType, { label: string; color: string; description: string }> = {
+  "mcp-tool": {
+    label: "MCP Tool",
     color: "#FFB86F",
-    description: "Native Deno module, instant import",
+    description: "Tools from MCP servers",
   },
-  stdio: {
-    label: "Stdio",
+  capability: {
+    label: "Capability",
     color: "#4ade80",
-    description: "Local subprocess (npm/docker)",
-  },
-  cloud: {
-    label: "Cloud",
-    color: "#60a5fa",
-    description: "Remote API via PML proxy",
+    description: "Learned capabilities from workflows",
   },
 };
+
+// Legacy exports for backward compatibility during migration
+/** @deprecated Use CatalogEntry instead */
+export type MCPCatalogEntry = CatalogEntry;
+/** @deprecated Use PmlRegistryRecordType instead */
+export type MCPServerType = PmlRegistryRecordType;
+/** @deprecated Use RECORD_TYPE_INFO instead */
+export const TYPE_INFO = RECORD_TYPE_INFO;

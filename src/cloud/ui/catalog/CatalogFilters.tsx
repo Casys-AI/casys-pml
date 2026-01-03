@@ -1,16 +1,17 @@
 /**
- * CatalogFilters - Filter molecule for MCP catalog
+ * CatalogFilters - Filter molecule for registry catalog
  *
- * Cloud-only: used by the public MCP catalog page.
- * Uses atoms: ToggleChip, Checkbox, Button
+ * Cloud-only: used by the public registry catalog page.
+ * Filters by record type (MCP Tool vs Capability) and search text.
+ * Uses atoms: ToggleChip, Button
  *
  * @module cloud/ui/catalog/CatalogFilters
  */
 
 import Button from "../../../web/components/ui/atoms/Button.tsx";
-import Checkbox from "../../../web/components/ui/atoms/Checkbox.tsx";
 import ToggleChip from "../../../web/components/ui/atoms/ToggleChip.tsx";
-import { type CatalogFilters, type MCPServerType, TYPE_INFO } from "./types.ts";
+import { type CatalogFilters, RECORD_TYPE_INFO } from "./types.ts";
+import type { PmlRegistryRecordType } from "../../../capabilities/types/fqdn.ts";
 
 interface CatalogFiltersProps {
   filters: CatalogFilters;
@@ -29,23 +30,21 @@ export default function CatalogFiltersComponent({
     onFiltersChange({ ...filters, ...partial });
   };
 
-  const toggleType = (type: MCPServerType) => {
-    const types = filters.types.includes(type)
-      ? filters.types.filter((t) => t !== type)
-      : [...filters.types, type];
-    updateFilters({ types });
+  const toggleType = (type: PmlRegistryRecordType) => {
+    const recordTypes = filters.recordTypes.includes(type)
+      ? filters.recordTypes.filter((t) => t !== type)
+      : [...filters.recordTypes, type];
+    updateFilters({ recordTypes });
   };
 
   const clearFilters = () => {
     onFiltersChange({
       search: "",
-      types: [],
-      showBuiltinOnly: false,
+      recordTypes: [],
     });
   };
 
-  const hasActiveFilters =
-    filters.search || filters.types.length > 0 || filters.showBuiltinOnly;
+  const hasActiveFilters = filters.search || filters.recordTypes.length > 0;
 
   return (
     <div
@@ -68,7 +67,7 @@ export default function CatalogFiltersComponent({
             type="text"
             value={filters.search}
             onInput={(e) => updateFilters({ search: (e.target as HTMLInputElement).value })}
-            placeholder="Search MCPs..."
+            placeholder="Search registry..."
             class="w-full px-4 py-2.5 pl-10 rounded-lg text-sm transition-all outline-none"
             style={{
               background: "var(--bg-elevated)",
@@ -89,38 +88,28 @@ export default function CatalogFiltersComponent({
         </div>
       </div>
 
-      {/* Server Type */}
+      {/* Record Type (MCP Tool vs Capability) */}
       <div class="mb-5">
         <label
           class="block text-xs font-semibold uppercase tracking-widest mb-2"
           style={{ color: "var(--text-dim)" }}
         >
-          Server Type
+          Type
         </label>
         <div class="flex flex-wrap gap-2">
-          {(Object.keys(TYPE_INFO) as MCPServerType[]).map((type) => {
-            const info = TYPE_INFO[type];
+          {(Object.keys(RECORD_TYPE_INFO) as PmlRegistryRecordType[]).map((type) => {
+            const info = RECORD_TYPE_INFO[type];
             return (
               <ToggleChip
                 key={type}
                 label={info.label}
-                active={filters.types.includes(type)}
+                active={filters.recordTypes.includes(type)}
                 color={info.color}
                 onClick={() => toggleType(type)}
               />
             );
           })}
         </div>
-      </div>
-
-      {/* Quick filters */}
-      <div class="mb-4">
-        <Checkbox
-          checked={filters.showBuiltinOnly}
-          onChange={(checked) => updateFilters({ showBuiltinOnly: checked })}
-          label="PML Built-in only"
-          color="#4ade80"
-        />
       </div>
 
       {/* Results count + Clear */}
@@ -131,7 +120,7 @@ export default function CatalogFiltersComponent({
         <span class="text-sm" style={{ color: "var(--text-dim)" }}>
           Showing{" "}
           <span style={{ color: "var(--accent)" }}>{filteredCount}</span> of{" "}
-          {totalCount} MCPs
+          {totalCount} entries
         </span>
         {hasActiveFilters && (
           <Button variant="ghost" size="sm" onClick={clearFilters}>

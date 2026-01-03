@@ -1,5 +1,5 @@
 /**
- * MCPCatalogIsland - Island wrapper for the MCP Catalog
+ * MCPCatalogIsland - Island wrapper for the Registry Catalog
  *
  * Cloud-only: wraps the CatalogIsland component for Fresh island hydration.
  *
@@ -7,10 +7,10 @@
  */
 
 import CatalogIsland from "../../cloud/ui/catalog/CatalogIsland.tsx";
-import type { MCPCatalogEntry } from "../../cloud/ui/catalog/types.ts";
+import type { CatalogEntry } from "../../cloud/ui/catalog/types.ts";
 
 interface MCPCatalogIslandProps {
-  entries: MCPCatalogEntry[];
+  entries: CatalogEntry[];
 }
 
 export default function MCPCatalogIsland({ entries }: MCPCatalogIslandProps) {
