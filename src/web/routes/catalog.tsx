@@ -2,6 +2,7 @@
  * Registry Catalog Page
  *
  * Cloud-only: public catalog of available MCP tools and capabilities.
+ * Uses CatalogLayout with vitrine header and left sidebar filters.
  * Data loaded dynamically from pml_registry VIEW.
  *
  * @module web/routes/catalog
@@ -11,8 +12,7 @@ import { page } from "fresh";
 import type { FreshContext } from "fresh";
 import { Head } from "fresh/runtime";
 import type { CatalogEntry } from "../../cloud/ui/catalog/types.ts";
-import MCPCatalogIsland from "../islands/MCPCatalogIsland.tsx";
-import { BaseLayout } from "../components/layout/mod.ts";
+import CatalogPageIsland from "../islands/CatalogPageIsland.tsx";
 import type { AuthState } from "./_middleware.ts";
 import { getRawDb } from "../../server/auth/db.ts";
 
@@ -49,7 +49,7 @@ async function loadCatalogEntries(): Promise<CatalogEntry[]> {
         action
       FROM pml_registry
       ORDER BY record_type, name
-      LIMIT 100
+      LIMIT 500
     `);
 
     return rows.map((row) => ({
@@ -64,7 +64,6 @@ async function loadCatalogEntries(): Promise<CatalogEntry[]> {
     }));
   } catch (error) {
     console.error("Error loading catalog entries:", error);
-    // Return empty array on error - the UI will show "no entries"
     return [];
   }
 }
@@ -90,7 +89,7 @@ export default function CatalogPage({ data }: { data: CatalogData }) {
         <title>Registry Catalog - Casys PML</title>
         <meta
           name="description"
-          content="Browse available MCP tools and capabilities from the PML registry."
+          content="Browse available MCP tools and capabilities from the PML registry. Discover tools for AI agents."
         />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -101,25 +100,7 @@ export default function CatalogPage({ data }: { data: CatalogData }) {
         />
       </Head>
 
-      <BaseLayout user={user} isCloudMode={isCloudMode}>
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Header */}
-          <div class="mb-8">
-            <h1
-              class="text-3xl font-bold mb-2"
-              style={{ color: "var(--text)", fontFamily: "var(--font-display)" }}
-            >
-              Registry Catalog
-            </h1>
-            <p class="text-lg" style={{ color: "var(--text-muted)" }}>
-              Browse available MCP tools and learned capabilities from the PML registry.
-            </p>
-          </div>
-
-          {/* Catalog Island */}
-          <MCPCatalogIsland entries={entries} />
-        </div>
-      </BaseLayout>
+      <CatalogPageIsland entries={entries} user={user} isCloudMode={isCloudMode} />
     </>
   );
 }
