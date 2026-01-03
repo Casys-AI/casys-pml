@@ -6,4 +6,5 @@
  * @module cloud/ui
  */
 
+export * from "./catalog/mod.ts";
 export * from "./charts/mod.ts";

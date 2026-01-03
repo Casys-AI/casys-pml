@@ -247,39 +247,102 @@ following precedence applies:
 **Key Insight:** `routing` is platform-defined (stored in DB), `approval_mode` is user-specific
 (computed at runtime from `tools_used` + user's `.pml.json` permissions)
 
+**AC7-8 (NEW - "Always Approve" HIL Option):** `[VALIDATE]`
+
+**Given** a tool call triggers HIL (permission is `ask`) **When** the user is prompted **Then**
+the dialog offers three options: `[Yes]` `[Always]` `[No]` **And** "Always" adds the tool pattern
+to the user's `allow` list in `.pml.json`
+
+**Given** user selects "Always" for `serena:analyze` **When** the permission is persisted **Then**
+`.pml.json` is updated: `{ "permissions": { "allow": [..., "serena:analyze"] } }` **And** future
+calls to `serena:analyze` skip HIL **And** other `serena:*` tools still require approval
+
+**Technical Note:**
+> The "Always" option persists the specific tool (e.g., `serena:analyze`), not the namespace.
+> Users can manually edit `.pml.json` to use wildcards (`serena:*`) if they want broader approval.
+
 ---
 
-### Story 14.4: Dynamic MCP Loader from Unified Registry
+### Story 14.4: Dynamic MCP Gateway with On-Demand Installation
 
-As a developer, I want local MCPs and capabilities to be loaded from the unified PML registry, So
-that I get consistent MCP implementations whether they are native servers or learned capabilities.
+As a developer, I want all MCPs (Deno, npm/stdio, cloud) to load automatically when first used,
+So that I don't have to manually configure or install each MCP.
+
+**Vision:** `[VALIDATE]`
+
+PML acts as a **unified MCP gateway**. Claude Code connects to ONE MCP server (`pml`), and PML
+handles all routing, installation, and execution behind the scenes. Installation is invisible -
+it's just a side-effect of the first approved tool call.
+
+```
+Claude: serena:analyze(...)
+    │
+    ▼
+PML: Check permissions → "ask" → HIL prompt
+    │
+    ▼ (User approves)
+    │
+PML: (invisible) Check if installed → No → Install via registry metadata
+    │
+    ▼
+PML: Spawn subprocess / import module → Execute → Return result
+```
 
 **Acceptance Criteria:**
 
-**Given** a local MCP call (e.g., `filesystem:read_file`) **When** the MCP code is not yet cached
-**Then** the package fetches `code_url` from `pml_registry` via `pml.casys.ai/mcp/{fqdn}` **And**
-dynamically imports the module **And** Deno's module cache stores it for future use
+**AC1-2 (Multi-Type Registry Lookup):** `[VALIDATE]`
 
-**Given** a capability call (e.g., `fs:read_json`) **When** the code is requested **Then** the same
-endpoint `pml.casys.ai/mcp/{fqdn}` returns the capability code **And** external clients see standard
-MCP interface (internal `record_type` distinction is transparent)
+**Given** any tool call (e.g., `serena:analyze`, `filesystem:read`, `tavily:search`) **When** PML
+receives the call **Then** it fetches from `pml.casys.ai/mcp/{fqdn}` **And** handles the response
+based on content-type (TypeScript code for deno, JSON metadata for stdio/cloud)
 
-**Given** a previously cached MCP module **When** the same MCP is called again **Then** no network
-request is made **And** execution uses the cached version (HTTP cache headers respected)
+**Given** a Deno MCP (e.g., `filesystem`) **When** fetched from `pml.casys.ai/mcp/filesystem`
+**Then** the response is TypeScript code (content-type: application/typescript) **And** Deno
+dynamically imports it directly **And** caches via Deno's native HTTP cache
 
-**Given** the registry is unreachable **When** a local MCP is called with cached code **Then**
-execution proceeds using the cache **And** a warning is logged about offline mode
+**Given** a stdio MCP (e.g., `serena`) **When** fetched from `pml.casys.ai/mcp/serena` **Then**
+the response is JSON metadata (content-type: application/json) with `install` instructions **And**
+PML spawns the subprocess using the install command **And** manages the stdio connection
 
-**Given** the registry is unreachable **When** a local MCP is called without cached code **Then** an
-error is returned with instructions to restore connectivity **And** the error suggests pre-caching
-essential MCPs
+**Given** a cloud MCP (e.g., `tavily`) **When** fetched from `pml.casys.ai/mcp/tavily` **Then**
+the response is JSON metadata with `proxy_to` URL **And** PML proxies requests to cloud with BYOK
 
-**Technical Note:**
+**AC3-4 (Invisible Installation):**
 
-> This story uses `pml_registry` from Story 13.8. The registry stores both `mcp-server` and
-> `capability` records with their `code_url`. The `/mcp/{fqdn}` endpoint resolves the FQDN, looks up
-> the record, and serves the appropriate code. Clients don't need to know if it's a native MCP or a
-> learned capability.
+**Given** a tool call for an MCP not yet installed/loaded **When** the user approves the action
+(or it's in `allow` list) **Then** installation happens automatically before execution **And** no
+separate "install" prompt is shown **And** the user only sees the tool result
+
+**Given** an MCP requires environment variables (e.g., `ANTHROPIC_API_KEY` for Serena) **When**
+the variable is missing **Then** a clear error is shown: "serena requires ANTHROPIC_API_KEY"
+**And** instructions to set it are provided
+
+**AC5-6 (Process Management):**
+
+**Given** a stdio MCP subprocess is spawned **When** it's idle for >5 minutes **Then** PML may
+terminate it to save resources **And** respawns on next call (transparent to user)
+
+**Given** multiple concurrent calls to the same stdio MCP **When** processed **Then** they share
+the same subprocess connection **And** use JSON-RPC multiplexing (ADR-044 pattern)
+
+**AC7-8 (Caching & Offline):**
+
+**Given** a Deno MCP module was previously imported **When** called again **Then** no network
+request is made (Deno cache) **And** execution is instant
+
+**Given** registry is unreachable **When** a Deno MCP is cached locally **Then** execution proceeds
+offline **And** a warning is logged
+
+**Given** registry is unreachable **When** a stdio MCP needs installation **Then** an error is
+returned with instructions to restore connectivity
+
+**Technical Notes:**
+
+> This story transforms PML from a simple router to a **unified MCP gateway** that handles all
+> MCP types transparently. The registry (Story 14.7) provides metadata for each type. Installation
+> is never a user-facing action - it's an implementation detail of "making the tool work."
+>
+> **Key Insight:** Users don't "install MCPs" - they "use tools". Installation is invisible.
 
 ---
 
@@ -378,38 +441,105 @@ server **And** see `lib/README.md` "Agent Tools & MCP Sampling" section
 
 ---
 
-### Story 14.7: MCP Registry Endpoint (Server-Side)
+### Story 14.7: MCP Registry Endpoint with Multi-Type Support (Server-Side)
 
-As a platform operator, I want the PML cloud to expose a `/mcp/{fqdn}` endpoint that serves MCP code
-from the unified registry, So that the local package can dynamically load any MCP or capability.
+As a platform operator, I want the PML cloud to expose a unified `/mcp/{fqdn}` endpoint that
+serves both metadata and code for all MCP types, So that the local package can transparently
+load any MCP.
+
+**Vision:** `[VALIDATE]`
+
+Single endpoint, single request. The package calls `/mcp/{fqdn}` and gets everything it needs:
+- For Deno MCPs: Returns the module code directly (importable)
+- For stdio/cloud MCPs: Returns metadata with install instructions
+
+The package handles the response based on content-type or embedded metadata. No separate
+"metadata fetch then code fetch" - it's invisible.
 
 **Acceptance Criteria:**
 
-**Given** a request to `pml.casys.ai/mcp/filesystem` **When** the endpoint processes it **Then** it
-looks up `filesystem` in `pml_registry` **And** returns the MCP server code as a Deno module
+**AC1-3 (Unified Endpoint - Type Detection):** `[VALIDATE]`
 
-**Given** a request to `pml.casys.ai/mcp/fs:read_json` **When** the endpoint processes it **Then** it
-looks up the capability in `pml_registry` **And** returns the capability code wrapped as MCP
-interface **And** the response is indistinguishable from a native MCP server
+**Given** a request to `pml.casys.ai/mcp/filesystem` (type: deno) **When** the endpoint processes
+it **Then** it returns the Deno module code directly **And** the code exports metadata as comments
+or a `__meta__` export:
+```typescript
+// __meta__: { "type": "deno", "tools": ["filesystem:read_file", ...], "routing": "local" }
+export async function read_file(args: { path: string }) { ... }
+export async function write_file(args: { path: string, content: string }) { ... }
+```
 
-**Given** an unknown FQDN **When** requested **Then** a 404 error is returned with helpful message
+**Given** a request to `pml.casys.ai/mcp/serena` (type: stdio) **When** the endpoint processes it
+**Then** it returns JSON metadata (content-type: application/json):
+```json
+{
+  "fqdn": "serena",
+  "type": "stdio",
+  "description": "Code analysis and refactoring",
+  "install": {
+    "command": "npx",
+    "args": ["@anthropic/serena"],
+    "env_required": ["ANTHROPIC_API_KEY"]
+  },
+  "tools": ["serena:analyze", "serena:refactor", "serena:explain"],
+  "warnings": { "creates_dotfiles": [".serena"] },
+  "routing": "local"
+}
+```
+
+**Given** a request to `pml.casys.ai/mcp/tavily` (type: cloud) **When** the endpoint processes it
+**Then** it returns JSON metadata:
+```json
+{
+  "fqdn": "tavily",
+  "type": "cloud",
+  "description": "Web search API",
+  "proxy_to": "https://pml.casys.ai/mcp/proxy/tavily",
+  "tools": ["tavily:search"],
+  "env_required": ["TAVILY_API_KEY"],
+  "routing": "cloud"
+}
+```
+
+**AC4-5 (Capability Records & 404):**
+
+**Given** a request to `pml.casys.ai/mcp/fs:read_json` (learned capability) **When** the endpoint
+processes it **Then** it returns Deno module code (same as native MCP) **And** the capability is
+indistinguishable from a native MCP
+
+**Given** an unknown FQDN **When** requested **Then** a 404 JSON error is returned:
+`{ "error": "not_found", "message": "MCP 'unknown' not in registry" }`
+
+**AC6-7 (Caching & Content Negotiation):**
 
 **Given** any MCP request **When** served **Then** appropriate HTTP cache headers are set
-(`Cache-Control`, `ETag`) **And** Deno can cache the module locally
+(`Cache-Control`, `ETag`) **And** Deno can cache the response locally
 
-**Given** a capability with `routing: local` **When** code is served **Then** the code includes
-necessary sandbox-compatible imports **And** no cloud-only dependencies are included
+**Given** a Deno MCP **When** served **Then** content-type is `application/typescript` **And** the
+module is self-contained with `https://` imports
 
-**Technical Note:**
+**AC8 (Catalog Listing):**
 
-> This is the server-side complement to Story 14.4. The endpoint reads from `pml_registry` (Story
-> 13.8) and uses `routing` field (Story 13.9) to determine if additional metadata should be included.
-> Both MCP servers and capabilities are served through the same endpoint - the `record_type`
-> distinction is internal only.
+**Given** a request to `pml.casys.ai/mcp` (no fqdn) **When** processed **Then** it returns a
+paginated list of all available MCPs with `fqdn`, `type`, `description` for each
+
+**Technical Notes:**
+
+> Single endpoint simplifies the package - just `import()` or `fetch()` the same URL.
+> Content-type tells the package how to handle the response:
+> - `application/typescript` → Deno import
+> - `application/json` → Parse metadata, spawn subprocess or proxy
+>
+> **Schema Evolution:** The `pml_registry` table (Story 13.8) needs new columns:
+> - `type: "deno" | "stdio" | "cloud"`
+> - `install_command`, `install_args` (for stdio)
+> - `proxy_to` (for cloud)
+> - `env_required` (array of required env var names)
+> - `warnings` (JSON for dotfiles, etc.)
 
 **Dependencies:**
 
-- Story 13.8: Unified PML Registry (`pml_registry` table with `record_type`, `code_url`)
+- Story 13.8: Unified PML Registry (`pml_registry` table - needs schema extension)
 - Story 13.9: Routing Inheritance (`routing` field populated)
 
 ---
@@ -439,56 +569,77 @@ operation is blocked **And** security audit log captures the attempt
 
 ---
 
-### Story 14.9: Custom MCP Servers Support (User's `.mcp-servers.json`)
+### Story 14.9: Private/Custom MCP Registration `[VALIDATE]`
 
-As a power user, I want to add my own custom MCP servers to the PML ecosystem, So that I can use
-specialized tools not provided by the default registry.
+As a power user or enterprise, I want to register private MCP servers with PML, So that I can use
+internal tools through the same unified gateway without manual configuration.
 
-**Context:**
+**Context (Updated with new vision):**
 
-Currently (Stories 14.1-14.8), all MCP servers (filesystem, shell, sqlite, etc.) are provided by
-the PML registry via dynamic import from `pml.casys.ai/mcp/{fqdn}`. Users don't need to configure
-local MCP servers - they're automatically available.
+With Stories 14.1-14.8, PML acts as a **unified MCP gateway** where all MCPs are discovered from
+the registry and installed on-demand. This story extends that model to support private MCPs.
 
-However, power users may want to:
-- Add custom MCP servers (e.g., company-internal tools)
-- Override default MCP behavior with custom implementations
-- Use third-party MCP servers not in our registry
+**Key Principle:** Users don't configure MCPs manually - they register them (once) and then use
+them like any other MCP.
 
-**Current State (Stories 14.1-14.8):**
-- `.mcp-servers.json` is generated but NOT used
-- File is added to `.gitignore`
-- All MCPs come from PML registry
+**Options for Private MCPs:** `[VALIDATE]`
 
-**Acceptance Criteria:**
+| Option | Description | Effort |
+|--------|-------------|--------|
+| **A: Local Registry Override** | `.pml.json` can define private MCPs with same schema as registry | Low |
+| **B: Private Registry URL** | Enterprise can host their own registry at `mcp.company.com` | Medium |
+| **C: Submit to PML Registry** | Community MCPs go through PR/approval to main registry | Low (for us) |
 
-**Given** a user with a `.mcp-servers.json` file containing custom MCP definitions **When** `pml
-serve` starts **Then** custom MCPs are loaded alongside registry MCPs **And** custom MCPs are
-indexed in local capability store for discovery
+**Acceptance Criteria (Option A - Local Override):**
 
-**Given** a custom MCP with the same name as a registry MCP (e.g., `filesystem`) **When** tool
-routing is resolved **Then** a clear conflict resolution strategy is applied:
-- Option A: User's custom MCP takes precedence (override)
-- Option B: Error with clear message asking user to rename
-- Option C: Namespace prefix required (e.g., `custom:filesystem` vs `pml:filesystem`)
+**Given** a `.pml.json` with private MCP definitions:
+```json
+{
+  "permissions": { "allow": ["*"], "ask": [], "deny": [] },
+  "private_mcps": {
+    "internal-db": {
+      "type": "stdio",
+      "install": { "command": "npx", "args": ["@company/internal-db-mcp"] },
+      "tools": ["internal-db:query", "internal-db:migrate"]
+    }
+  }
+}
+```
+**When** `internal-db:query` is called **Then** PML uses the local definition **And** installs
+on-demand like registry MCPs
 
-**Given** a custom MCP server **When** it fails to connect **Then** PML continues with registry
-MCPs **And** a warning is logged about the unavailable custom server
+**Given** a private MCP name conflicts with a registry MCP **When** the tool is called **Then**
+the private MCP takes precedence (local override) **And** a debug log notes the override
 
-**Given** a custom MCP server **When** `pml:discover` is called **Then** custom MCPs appear in
-search results **And** they're clearly marked as "custom" vs "registry"
+**Given** a private MCP **When** permissions are checked **Then** the same `allow/ask/deny` rules
+apply **And** HIL works identically to registry MCPs
+
+**Acceptance Criteria (Option B - Private Registry, if needed):**
+
+**Given** a `.pml.json` with private registry URL:
+```json
+{
+  "registries": [
+    "https://pml.casys.ai/registry",
+    "https://mcp.company.internal/registry"
+  ]
+}
+```
+**When** an unknown MCP is called **Then** PML checks registries in order **And** uses first match
 
 **Technical Notes:**
 
-- Requires decision on conflict resolution strategy (override vs namespace vs error)
-- Custom MCPs should respect user's `.pml.json` permissions (allow/deny/ask)
-- Custom MCPs execute locally by default (user's machine, user's permissions)
-- May need `routing` field in `.mcp-servers.json` for cloud-hosted custom MCPs
+> This story is **lower priority** than 14.1-14.8. Most users will use registry MCPs. Private MCPs
+> are for enterprises with internal tools.
+>
+> **Recommendation:** Start with Option A (local override in `.pml.json`) - it's simple and covers
+> most use cases. Option B (private registry) can be added later for large enterprises.
+>
+> **No more `.mcp-servers.json`** - all configuration lives in `.pml.json` for simplicity.
 
 **Dependencies:**
 
 - Stories 14.1-14.8 (complete Epic 14 foundation)
-- Story 13.8: Unified PML Registry (for indexing strategy)
 
 ---
 
