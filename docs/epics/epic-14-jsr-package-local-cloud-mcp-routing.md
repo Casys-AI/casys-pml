@@ -254,13 +254,12 @@ the dialog offers three options: `[Yes]` `[Always]` `[No]` **And** "Always" adds
 to the user's `allow` list in `.pml.json`
 
 **Given** user selects "Always" for `serena:analyze` **When** the permission is persisted **Then**
-`.pml.json` is updated: `{ "permissions": { "allow": [..., "serena:*"] } }` **And** future calls
-to any `serena:*` tool skip HIL **And** a confirmation message is shown: "serena:* added to
-always-allow list"
+`.pml.json` is updated: `{ "permissions": { "allow": [..., "serena:analyze"] } }` **And** future
+calls to `serena:analyze` skip HIL **And** other `serena:*` tools still require approval
 
 **Technical Note:**
-> The "Always" option persists to `.pml.json` using the MCP namespace pattern (e.g., `serena:*`),
-> not the specific tool. This reduces HIL friction while maintaining per-MCP granularity.
+> The "Always" option persists the specific tool (e.g., `serena:analyze`), not the namespace.
+> Users can manually edit `.pml.json` to use wildcards (`serena:*`) if they want broader approval.
 
 ---
 
@@ -294,28 +293,19 @@ PML: Spawn subprocess / import module → Execute → Return result
 **AC1-2 (Multi-Type Registry Lookup):** `[VALIDATE]`
 
 **Given** any tool call (e.g., `serena:analyze`, `filesystem:read`, `tavily:search`) **When** PML
-receives the call **Then** it fetches metadata from `pml.casys.ai/registry/{fqdn}` **And** the
-metadata includes `type: "deno" | "stdio" | "cloud"` with type-specific installation info
+receives the call **Then** it fetches from `pml.casys.ai/mcp/{fqdn}` **And** handles the response
+based on content-type (TypeScript code for deno, JSON metadata for stdio/cloud)
 
-**Given** registry metadata for type `deno`:
-```json
-{ "fqdn": "filesystem", "type": "deno", "code_url": "https://pml.casys.ai/mcp/filesystem/mod.ts" }
-```
-**When** the MCP is needed **Then** Deno dynamically imports from `code_url` **And** caches via
-Deno's native HTTP cache
+**Given** a Deno MCP (e.g., `filesystem`) **When** fetched from `pml.casys.ai/mcp/filesystem`
+**Then** the response is TypeScript code (content-type: application/typescript) **And** Deno
+dynamically imports it directly **And** caches via Deno's native HTTP cache
 
-**Given** registry metadata for type `stdio`:
-```json
-{ "fqdn": "serena", "type": "stdio", "install": { "command": "npx", "args": ["@anthropic/serena"] } }
-```
-**When** the MCP is needed **And** not already running **Then** PML spawns the subprocess using
-`install.command` and `install.args` **And** manages the stdio connection
+**Given** a stdio MCP (e.g., `serena`) **When** fetched from `pml.casys.ai/mcp/serena` **Then**
+the response is JSON metadata (content-type: application/json) with `install` instructions **And**
+PML spawns the subprocess using the install command **And** manages the stdio connection
 
-**Given** registry metadata for type `cloud`:
-```json
-{ "fqdn": "tavily", "type": "cloud", "proxy_to": "https://pml.casys.ai/mcp/proxy/tavily" }
-```
-**When** the MCP is needed **Then** PML proxies the request to cloud with BYOK injection
+**Given** a cloud MCP (e.g., `tavily`) **When** fetched from `pml.casys.ai/mcp/tavily` **Then**
+the response is JSON metadata with `proxy_to` URL **And** PML proxies requests to cloud with BYOK
 
 **AC3-4 (Invisible Installation):**
 
@@ -451,39 +441,36 @@ server **And** see `lib/README.md` "Agent Tools & MCP Sampling" section
 
 ---
 
-### Story 14.7: MCP Registry Endpoint with Multi-Type Metadata (Server-Side)
+### Story 14.7: MCP Registry Endpoint with Multi-Type Support (Server-Side)
 
-As a platform operator, I want the PML cloud to expose a `/registry/{fqdn}` endpoint that serves
-MCP metadata for all types (Deno, stdio, cloud), So that the local package can dynamically load,
-install, or proxy any MCP transparently.
+As a platform operator, I want the PML cloud to expose a unified `/mcp/{fqdn}` endpoint that
+serves both metadata and code for all MCP types, So that the local package can transparently
+load any MCP.
 
 **Vision:** `[VALIDATE]`
 
-The registry is the **single source of truth** for all MCP metadata. It tells the PML package:
-- What type of MCP it is (Deno module, npm/stdio subprocess, cloud proxy)
-- How to install/load it
-- What tools it provides
-- What warnings to show users (dotfiles, required env vars)
+Single endpoint, single request. The package calls `/mcp/{fqdn}` and gets everything it needs:
+- For Deno MCPs: Returns the module code directly (importable)
+- For stdio/cloud MCPs: Returns metadata with install instructions
+
+The package handles the response based on content-type or embedded metadata. No separate
+"metadata fetch then code fetch" - it's invisible.
 
 **Acceptance Criteria:**
 
-**AC1-3 (Multi-Type Metadata Schema):** `[VALIDATE]`
+**AC1-3 (Unified Endpoint - Type Detection):** `[VALIDATE]`
 
-**Given** a request to `pml.casys.ai/registry/filesystem` (type: deno) **When** the endpoint
-processes it **Then** it returns:
-```json
-{
-  "fqdn": "filesystem",
-  "type": "deno",
-  "description": "File system operations",
-  "code_url": "https://pml.casys.ai/mcp/filesystem/mod.ts",
-  "tools": ["filesystem:read_file", "filesystem:write_file", "filesystem:list_directory"],
-  "routing": "local"
-}
+**Given** a request to `pml.casys.ai/mcp/filesystem` (type: deno) **When** the endpoint processes
+it **Then** it returns the Deno module code directly **And** the code exports metadata as comments
+or a `__meta__` export:
+```typescript
+// __meta__: { "type": "deno", "tools": ["filesystem:read_file", ...], "routing": "local" }
+export async function read_file(args: { path: string }) { ... }
+export async function write_file(args: { path: string, content: string }) { ... }
 ```
 
-**Given** a request to `pml.casys.ai/registry/serena` (type: stdio) **When** the endpoint
-processes it **Then** it returns:
+**Given** a request to `pml.casys.ai/mcp/serena` (type: stdio) **When** the endpoint processes it
+**Then** it returns JSON metadata (content-type: application/json):
 ```json
 {
   "fqdn": "serena",
@@ -495,16 +482,13 @@ processes it **Then** it returns:
     "env_required": ["ANTHROPIC_API_KEY"]
   },
   "tools": ["serena:analyze", "serena:refactor", "serena:explain"],
-  "warnings": {
-    "creates_dotfiles": [".serena"],
-    "creates_in": "workspace_root"
-  },
+  "warnings": { "creates_dotfiles": [".serena"] },
   "routing": "local"
 }
 ```
 
-**Given** a request to `pml.casys.ai/registry/tavily` (type: cloud) **When** the endpoint
-processes it **Then** it returns:
+**Given** a request to `pml.casys.ai/mcp/tavily` (type: cloud) **When** the endpoint processes it
+**Then** it returns JSON metadata:
 ```json
 {
   "fqdn": "tavily",
@@ -517,36 +501,34 @@ processes it **Then** it returns:
 }
 ```
 
-**AC4-5 (Capability Records):**
+**AC4-5 (Capability Records & 404):**
 
-**Given** a request to `pml.casys.ai/registry/fs:read_json` (learned capability) **When** the
-endpoint processes it **Then** it returns metadata with `type: "deno"` **And** `code_url` points
-to the capability code **And** the response is structurally identical to native MCP entries
+**Given** a request to `pml.casys.ai/mcp/fs:read_json` (learned capability) **When** the endpoint
+processes it **Then** it returns Deno module code (same as native MCP) **And** the capability is
+indistinguishable from a native MCP
 
-**Given** an unknown FQDN **When** requested **Then** a 404 error is returned with:
-`{ "error": "not_found", "message": "MCP 'unknown' not in registry", "suggestion": "Check pml.casys.ai/catalog" }`
+**Given** an unknown FQDN **When** requested **Then** a 404 JSON error is returned:
+`{ "error": "not_found", "message": "MCP 'unknown' not in registry" }`
 
-**AC6-7 (Code Serving for Deno Types):**
+**AC6-7 (Caching & Content Negotiation):**
 
-**Given** a request to `pml.casys.ai/mcp/filesystem/mod.ts` **When** fetched **Then** it returns
-the actual Deno module code **And** appropriate cache headers are set (`Cache-Control`, `ETag`)
+**Given** any MCP request **When** served **Then** appropriate HTTP cache headers are set
+(`Cache-Control`, `ETag`) **And** Deno can cache the response locally
 
-**Given** any Deno MCP code request **When** served **Then** the code is self-contained **And**
-imports use `https://` URLs (no bare specifiers) **And** is compatible with Deno's module cache
+**Given** a Deno MCP **When** served **Then** content-type is `application/typescript` **And** the
+module is self-contained with `https://` imports
 
 **AC8 (Catalog Listing):**
 
-**Given** a request to `pml.casys.ai/registry` (no fqdn) **When** processed **Then** it returns
-a paginated list of all available MCPs **And** includes `type`, `description`, `tools` for each
+**Given** a request to `pml.casys.ai/mcp` (no fqdn) **When** processed **Then** it returns a
+paginated list of all available MCPs with `fqdn`, `type`, `description` for each
 
 **Technical Notes:**
 
-> The registry now serves **metadata** at `/registry/{fqdn}` and **code** at `/mcp/{fqdn}/mod.ts`.
-> This separation allows the PML package to first check what type of MCP it's dealing with before
-> deciding how to load it.
->
-> For stdio MCPs (Serena, Playwright, etc.), we don't host the code - we just provide installation
-> instructions. The actual MCP code comes from npm/Docker.
+> Single endpoint simplifies the package - just `import()` or `fetch()` the same URL.
+> Content-type tells the package how to handle the response:
+> - `application/typescript` → Deno import
+> - `application/json` → Parse metadata, spawn subprocess or proxy
 >
 > **Schema Evolution:** The `pml_registry` table (Story 13.8) needs new columns:
 > - `type: "deno" | "stdio" | "cloud"`
