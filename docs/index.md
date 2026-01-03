@@ -1,6 +1,6 @@
 # Casys PML - Documentation
 
-_Updated: 2025-12-31_
+_Updated: 2026-01-03_
 
 **Procedural Memory Layer** — Une couche mémoire open source pour agents IA qui capture les workflows et les cristallise en compétences réutilisables.
 
@@ -141,6 +141,36 @@ _Updated: 2025-12-31_
 
 ---
 
+## Native Rust Engine (`crates/`)
+
+**CasysDB** - Native graph database engine with ISO GQL support.
+
+| Document | Description |
+|----------|-------------|
+| [Deep-Dive: Rust Crates](deep-dive-crates.md) | **NEW** - Architecture, API, data flow |
+
+### Crate Overview
+
+| Crate | Purpose | Status |
+|-------|---------|--------|
+| `casys_core` | Domain types, traits (ports), errors | Complete |
+| `casys_engine` | GQL parser, planner, executor | MVP Complete |
+| `casys_storage_fs` | Filesystem storage adapter | Complete |
+| `casys_storage_pg` | PostgreSQL adapter | Stub |
+| `casys_storage_redis` | Redis adapter | Stub |
+| `casys_storage_s3` | S3 adapter | Stub |
+| `casys_pyo3` | Python SDK bindings (PyO3) | Complete |
+| `casys_napi` | TypeScript SDK bindings (NAPI-RS) | Complete |
+
+### Key Features
+
+- **ISO GQL** - MATCH, CREATE, WHERE, RETURN, aggregates, variable-length paths
+- **Hexagonal Architecture** - Swappable storage adapters
+- **PITR** - Point-in-Time Recovery via WAL and manifests
+- **Multi-SDK** - Python + TypeScript native bindings
+
+---
+
 ## Technical Reference
 
 ### Tech Specs
@@ -264,7 +294,15 @@ docs/
 
 ---
 
-## Documents Generated (2025-12-31)
+## Documents Generated
+
+### 2026-01-03
+
+| Document | Description |
+|----------|-------------|
+| `deep-dive-crates.md` | **NEW** - Deep-dive Rust crates (CasysDB engine) |
+
+### 2025-12-31
 
 | Document | Description |
 |----------|-------------|
@@ -274,4 +312,4 @@ docs/
 | `development-guide.md` | Guide de développement complet |
 | `glossary.md` | Glossaire (60+ termes) |
 | `troubleshooting.md` | Guide de dépannage |
-| `index.md` | Cet index (mis à jour) |
+| `index.md` | Cet index |
