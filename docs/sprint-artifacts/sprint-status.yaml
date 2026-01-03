@@ -138,7 +138,7 @@ development_status:
   6-3-live-metrics-analytics-panel: done # Code Review APPROVED 2025-12-02, 23 tests passing, Quality Score: 95/100
   6-4-graph-explorer-search-interface: done # Code Review APPROVED 2025-12-04, 11 tests passing, all 11 ACs validated
   6-5-eventbus-broadcast-channel: done # Code review PASSED 2025-12-09, ADR-036, 43 tests
-  6-6-admin-analytics-dashboard: ready-for-dev # User activity, errors, system health - cloud-only (src/cloud/admin/)
+  6-6-admin-analytics-dashboard: done # User activity, errors, system health - cloud-only (src/cloud/admin/) - Story says done 2025-12-29
   epic-6-retrospective: optional
 
   # Epic 7: Emergent Capabilities & Learning System
@@ -298,8 +298,8 @@ development_status:
   # Phase 0: Refactoring (Technical Debt) - HIGH priority, blocks other work
   15-R1-unify-value-types: done # Code Review APPROVED 2026-01-03, 14 tests passing, 7 issues fixed
   15-R2-move-graph-types-to-core: done # Code Review APPROVED 2026-01-03, 28 tests passing (14 graph_types + 14 existing)
-  15-R3-fix-layering-violation: backlog # Remove casys_storage_fs import from engine (5 pts)
-  15-R4-create-workspace-cargo: backlog # Create crates/Cargo.toml workspace (1 pt)
+  15-R3-fix-layering-violation: done # Code Review APPROVED 2026-01-03 - 35 tests passing, 5 issues fixed (1 HIGH→M1-M4, 3 LOW→L1-L2)
+  15-R4-create-workspace-cargo: done # Already implemented during R1-R3, workspace exists with 4 members
   # Phase 1: Graph Data Science (CRITICAL)
   15-1-node2vec-random-walks: backlog # RandomWalkGenerator with p/q parameters (8 pts)
   15-2-skipgram-embedding-training: backlog # Skip-gram model for node embeddings (8 pts)

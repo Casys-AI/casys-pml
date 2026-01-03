@@ -215,7 +215,7 @@ impl Engine {
     /// Flush an in-memory store to on-disk segments for the given branch (requires `fs`).
     #[cfg(feature = "fs")]
     pub fn flush_branch(&self, db: &DbHandle, branch: &BranchHandle, store: &crate::index::InMemoryGraphStore) -> Result<(), EngineError> {
-        store.flush_to_segments(self.data_dir(), &db.name, &branch.name)
+        store.flush_to_fs(self.data_dir(), &db.name, &branch.name)
     }
 
     #[cfg(not(feature = "fs"))]
@@ -226,7 +226,7 @@ impl Engine {
     /// Load an in-memory store from on-disk segments for the given branch (requires `fs`).
     #[cfg(feature = "fs")]
     pub fn load_branch(&self, db: &DbHandle, branch: &BranchHandle) -> Result<crate::index::InMemoryGraphStore, EngineError> {
-        crate::index::InMemoryGraphStore::load_from_segments(self.data_dir(), &db.name, &branch.name)
+        crate::index::InMemoryGraphStore::load_from_fs(self.data_dir(), &db.name, &branch.name)
     }
 
     #[cfg(not(feature = "fs"))]

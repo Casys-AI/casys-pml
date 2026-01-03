@@ -1,6 +1,9 @@
 //! Indexes: labels, properties, adjacency (in-memory MVP)
+//!
+//! The persistence module provides trait-based storage abstraction.
+//! Core persistence (flush/load with SegmentStore trait) is always available.
+//! FS convenience methods (flush_to_fs/load_from_fs) require the `fs` feature.
 
-#[cfg(feature = "fs")]
 pub mod persistence;
 
 use crate::types::EngineError;

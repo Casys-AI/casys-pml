@@ -1,13 +1,15 @@
 //! Persistence: flush/load graph index depuis segments
+//!
+//! This module uses the SegmentStore trait from casys_core for hexagonal architecture.
+//! Storage adapters (FS, S3, etc.) implement SegmentStore and are injected by the caller.
 
 use super::{InMemoryGraphStore, Node, Edge, Value};
-use casys_core::{NodeId, EdgeId};
+use casys_core::{NodeId, EdgeId, SegmentId, SegmentStore};
 use crate::exec::executor::ValueExt; // Import extension trait for to_json/from_json
-use crate::types::{EngineError, DatabaseName, BranchName};
-use casys_storage_fs::catalog;
+use crate::types::{EngineError, DatabaseName};
+#[cfg(feature = "fs")]
+use crate::types::BranchName;
 use std::collections::HashMap;
-use std::fs::{self, File};
-use std::io::{Read, Write};
 use std::path::Path;
 
 /// WAL record pour mutations graph
@@ -57,10 +59,10 @@ impl WalRecord {
     pub fn from_bytes(data: &[u8]) -> Result<Self, EngineError> {
         let json: serde_json::Value = serde_json::from_slice(data)
             .map_err(|e| EngineError::StorageIo(format!("WAL record parse: {}", e)))?;
-        
+
         let rec_type = json["type"].as_str()
             .ok_or_else(|| EngineError::StorageIo("missing type".into()))?;
-        
+
         match rec_type {
             "add_node" => {
                 let id = json["id"].as_u64().unwrap_or(0);
@@ -102,29 +104,112 @@ fn deserialize_props(json: &serde_json::Value) -> Result<HashMap<String, Value>,
     Ok(props)
 }
 
+// Segment IDs for graph data
+const NODE_SEGMENT_ID: &str = "nodes";
+const EDGE_SEGMENT_ID: &str = "edges";
+
 impl InMemoryGraphStore {
-    /// Flush le graph vers des segments
-    pub fn flush_to_segments(&self, root: &Path, db: &DatabaseName, branch: &BranchName) -> Result<(), EngineError> {
-        let segments_dir = catalog::branch_dir(root, db, branch).join("segments");
-        fs::create_dir_all(&segments_dir)
-            .map_err(|e| EngineError::StorageIo(format!("create segments dir: {}", e)))?;
+    /// Flush the graph to segments using the provided SegmentStore.
+    ///
+    /// # Arguments
+    /// * `store` - A SegmentStore implementation (e.g., `FsBackend` from `casys_storage_fs`)
+    /// * `root` - The root path for storage (typically the segments directory)
+    /// * `db` - The database name
+    ///
+    /// # Errors
+    /// Returns `EngineError::StorageIo` if serialization or segment writing fails.
+    ///
+    /// # Hexagonal Architecture
+    /// This method depends only on the SegmentStore trait (port), not on any
+    /// concrete storage adapter. The caller is responsible for constructing
+    /// the appropriate SegmentStore implementation.
+    ///
+    /// For filesystem storage, use `flush_to_fs()` convenience method (requires `fs` feature),
+    /// or inject `casys_storage_fs::backend::FsBackend` which implements `SegmentStore`.
+    pub fn flush(
+        &self,
+        store: &dyn SegmentStore,
+        root: &Path,
+        db: &DatabaseName,
+    ) -> Result<(), EngineError> {
+        // Serialize and write nodes segment
+        let nodes_data = self.serialize_nodes()?;
+        let node_count = self.nodes.len() as u64;
+        store.write_segment(
+            root,
+            db,
+            &SegmentId(NODE_SEGMENT_ID.to_string()),
+            &nodes_data,
+            node_count,
+            0,
+        )?;
 
-        // Écrire nodes.seg
-        let nodes_path = segments_dir.join("nodes.seg");
-        self.write_nodes_segment(&nodes_path)?;
-
-        // Écrire edges.seg
-        let edges_path = segments_dir.join("edges.seg");
-        self.write_edges_segment(&edges_path)?;
+        // Serialize and write edges segment
+        let edges_data = self.serialize_edges()?;
+        let edge_count = self.edges.len() as u64;
+        store.write_segment(
+            root,
+            db,
+            &SegmentId(EDGE_SEGMENT_ID.to_string()),
+            &edges_data,
+            0,
+            edge_count,
+        )?;
 
         Ok(())
     }
 
-    fn write_nodes_segment(&self, path: &Path) -> Result<(), EngineError> {
-        let mut file = File::create(path)
-            .map_err(|e| EngineError::StorageIo(format!("create nodes.seg: {}", e)))?;
+    /// Load the graph from segments using the provided SegmentStore.
+    ///
+    /// # Arguments
+    /// * `store` - A SegmentStore implementation (e.g., `FsBackend` from `casys_storage_fs`)
+    /// * `root` - The root path for storage (typically the segments directory)
+    /// * `db` - The database name
+    ///
+    /// # Returns
+    /// A new InMemoryGraphStore populated with the loaded data, or an empty graph
+    /// if no segments exist yet.
+    ///
+    /// # Errors
+    /// Returns `EngineError::StorageIo` if segment reading or deserialization fails.
+    /// Note: `EngineError::NotFound` for missing segments is handled gracefully (empty graph).
+    ///
+    /// For filesystem storage, use `load_from_fs()` convenience method (requires `fs` feature),
+    /// or inject `casys_storage_fs::backend::FsBackend` which implements `SegmentStore`.
+    #[must_use = "load returns a new graph store that should be used"]
+    pub fn load(
+        store: &dyn SegmentStore,
+        root: &Path,
+        db: &DatabaseName,
+    ) -> Result<Self, EngineError> {
+        let mut graph = Self::new();
 
-        // Format simple: JSON array
+        // Load nodes segment (may not exist yet)
+        match store.read_segment(root, db, &SegmentId(NODE_SEGMENT_ID.to_string())) {
+            Ok((data, _node_count, _edge_count)) => {
+                graph.deserialize_nodes(&data)?;
+            }
+            Err(EngineError::NotFound(_)) => {
+                // No nodes segment yet - that's OK for a new graph
+            }
+            Err(e) => return Err(e),
+        }
+
+        // Load edges segment (may not exist yet)
+        match store.read_segment(root, db, &SegmentId(EDGE_SEGMENT_ID.to_string())) {
+            Ok((data, _node_count, _edge_count)) => {
+                graph.deserialize_edges(&data)?;
+            }
+            Err(EngineError::NotFound(_)) => {
+                // No edges segment yet - that's OK for a new graph
+            }
+            Err(e) => return Err(e),
+        }
+
+        Ok(graph)
+    }
+
+    fn serialize_nodes(&self) -> Result<Vec<u8>, EngineError> {
         let nodes: Vec<_> = self.nodes.values().collect();
         let json = serde_json::json!({
             "count": nodes.len(),
@@ -137,20 +222,11 @@ impl InMemoryGraphStore {
             }).collect::<Vec<_>>()
         });
 
-        let data = serde_json::to_vec(&json)
-            .map_err(|e| EngineError::StorageIo(format!("serialize nodes: {}", e)))?;
-        file.write_all(&data)
-            .map_err(|e| EngineError::StorageIo(format!("write nodes.seg: {}", e)))?;
-        file.sync_all()
-            .map_err(|e| EngineError::StorageIo(format!("fsync nodes.seg: {}", e)))?;
-
-        Ok(())
+        serde_json::to_vec(&json)
+            .map_err(|e| EngineError::StorageIo(format!("serialize nodes: {}", e)))
     }
 
-    fn write_edges_segment(&self, path: &Path) -> Result<(), EngineError> {
-        let mut file = File::create(path)
-            .map_err(|e| EngineError::StorageIo(format!("create edges.seg: {}", e)))?;
-
+    fn serialize_edges(&self) -> Result<Vec<u8>, EngineError> {
         let edges: Vec<_> = self.edges.values().collect();
         let json = serde_json::json!({
             "count": edges.len(),
@@ -165,46 +241,13 @@ impl InMemoryGraphStore {
             }).collect::<Vec<_>>()
         });
 
-        let data = serde_json::to_vec(&json)
-            .map_err(|e| EngineError::StorageIo(format!("serialize edges: {}", e)))?;
-        file.write_all(&data)
-            .map_err(|e| EngineError::StorageIo(format!("write edges.seg: {}", e)))?;
-        file.sync_all()
-            .map_err(|e| EngineError::StorageIo(format!("fsync edges.seg: {}", e)))?;
-
-        Ok(())
+        serde_json::to_vec(&json)
+            .map_err(|e| EngineError::StorageIo(format!("serialize edges: {}", e)))
     }
 
-    /// Load le graph depuis des segments
-    pub fn load_from_segments(root: &Path, db: &DatabaseName, branch: &BranchName) -> Result<Self, EngineError> {
-        let segments_dir = catalog::branch_dir(root, db, branch).join("segments");
-        
-        let mut store = Self::new();
-
-        // Charger nodes.seg si existe
-        let nodes_path = segments_dir.join("nodes.seg");
-        if nodes_path.exists() {
-            store.load_nodes_segment(&nodes_path)?;
-        }
-
-        // Charger edges.seg si existe
-        let edges_path = segments_dir.join("edges.seg");
-        if edges_path.exists() {
-            store.load_edges_segment(&edges_path)?;
-        }
-
-        Ok(store)
-    }
-
-    fn load_nodes_segment(&mut self, path: &Path) -> Result<(), EngineError> {
-        let mut file = File::open(path)
-            .map_err(|e| EngineError::StorageIo(format!("open nodes.seg: {}", e)))?;
-        let mut data = Vec::new();
-        file.read_to_end(&mut data)
-            .map_err(|e| EngineError::StorageIo(format!("read nodes.seg: {}", e)))?;
-
-        let json: serde_json::Value = serde_json::from_slice(&data)
-            .map_err(|e| EngineError::StorageIo(format!("parse nodes.seg: {}", e)))?;
+    fn deserialize_nodes(&mut self, data: &[u8]) -> Result<(), EngineError> {
+        let json: serde_json::Value = serde_json::from_slice(data)
+            .map_err(|e| EngineError::StorageIo(format!("parse nodes: {}", e)))?;
 
         if let Some(nodes_array) = json["nodes"].as_array() {
             for node_json in nodes_array {
@@ -231,15 +274,9 @@ impl InMemoryGraphStore {
         Ok(())
     }
 
-    fn load_edges_segment(&mut self, path: &Path) -> Result<(), EngineError> {
-        let mut file = File::open(path)
-            .map_err(|e| EngineError::StorageIo(format!("open edges.seg: {}", e)))?;
-        let mut data = Vec::new();
-        file.read_to_end(&mut data)
-            .map_err(|e| EngineError::StorageIo(format!("read edges.seg: {}", e)))?;
-
-        let json: serde_json::Value = serde_json::from_slice(&data)
-            .map_err(|e| EngineError::StorageIo(format!("parse edges.seg: {}", e)))?;
+    fn deserialize_edges(&mut self, data: &[u8]) -> Result<(), EngineError> {
+        let json: serde_json::Value = serde_json::from_slice(data)
+            .map_err(|e| EngineError::StorageIo(format!("parse edges: {}", e)))?;
 
         if let Some(edges_array) = json["edges"].as_array() {
             for edge_json in edges_array {
@@ -277,12 +314,12 @@ impl InMemoryGraphStore {
                         properties: properties.clone(),
                     };
                     self.nodes.insert(*id, node);
-                    
+
                     // Update indexes
                     for label in labels {
                         self.label_index.entry(label.clone()).or_insert_with(Vec::new).push(*id);
                     }
-                    
+
                     if *id >= self.next_node_id {
                         self.next_node_id = id + 1;
                     }
@@ -296,11 +333,11 @@ impl InMemoryGraphStore {
                         properties: properties.clone(),
                     };
                     self.edges.insert(*id, edge);
-                    
+
                     // Update adjacency
                     self.adjacency_out.entry(*from_node).or_insert_with(Vec::new).push(*id);
                     self.adjacency_in.entry(*to_node).or_insert_with(Vec::new).push(*id);
-                    
+
                     if *id >= self.next_edge_id {
                         self.next_edge_id = id + 1;
                     }
@@ -310,3 +347,94 @@ impl InMemoryGraphStore {
         Ok(())
     }
 }
+
+// =============================================================================
+// Optional FS convenience functions (only when `fs` feature is enabled)
+// =============================================================================
+//
+// These are convenience wrappers for filesystem storage. For custom storage
+// backends, use the trait-based `flush()` and `load()` methods directly with
+// any type implementing `SegmentStore` from `casys_core`.
+//
+// Example with FsBackend:
+// ```ignore
+// use casys_storage_fs::backend::FsBackend;
+// let backend = FsBackend::new();
+// graph.flush(&backend, &segments_root, &db)?;
+// ```
+
+#[cfg(feature = "fs")]
+mod fs_convenience {
+    use super::*;
+    use casys_storage_fs::catalog;
+
+    impl InMemoryGraphStore {
+        /// Convenience method to flush directly to filesystem.
+        ///
+        /// This is a helper that constructs the FsSegmentStore internally.
+        /// For more control, use `flush()` with a custom SegmentStore.
+        ///
+        /// # Arguments
+        /// * `root` - Storage root path
+        /// * `db` - Database name
+        /// * `branch` - Branch name (used to construct segments directory)
+        pub fn flush_to_fs(
+            &self,
+            root: &Path,
+            db: &DatabaseName,
+            branch: &BranchName,
+        ) -> Result<(), EngineError> {
+            let segments_root = catalog::branch_dir(root, db, branch);
+            let store = FsSegmentStoreImpl;
+            self.flush(&store, &segments_root, db)
+        }
+
+        /// Convenience method to load from filesystem.
+        ///
+        /// This is a helper that constructs the FsSegmentStore internally.
+        /// For more control, use `load()` with a custom SegmentStore.
+        pub fn load_from_fs(
+            root: &Path,
+            db: &DatabaseName,
+            branch: &BranchName,
+        ) -> Result<Self, EngineError> {
+            let segments_root = catalog::branch_dir(root, db, branch);
+            let store = FsSegmentStoreImpl;
+            Self::load(&store, &segments_root, db)
+        }
+    }
+
+    /// Filesystem SegmentStore implementation
+    struct FsSegmentStoreImpl;
+
+    impl SegmentStore for FsSegmentStoreImpl {
+        fn write_segment(
+            &self,
+            root: &Path,
+            db: &DatabaseName,
+            segment_id: &SegmentId,
+            data: &[u8],
+            node_count: u64,
+            edge_count: u64,
+        ) -> Result<(), EngineError> {
+            use casys_storage_fs::segments::{Segment, write_segment};
+            let seg = Segment::new(node_count, edge_count, data.to_vec());
+            write_segment(root, db, &segment_id.0, &seg)?;
+            Ok(())
+        }
+
+        fn read_segment(
+            &self,
+            root: &Path,
+            db: &DatabaseName,
+            segment_id: &SegmentId,
+        ) -> Result<(Vec<u8>, u64, u64), EngineError> {
+            use casys_storage_fs::segments::read_segment;
+            let seg = read_segment(root, db, &segment_id.0)?;
+            Ok((seg.data, seg.header.node_count, seg.header.edge_count))
+        }
+    }
+}
+
+// Note: fs_convenience module adds methods to InMemoryGraphStore via impl blocks.
+// No re-exports needed - methods are automatically available when the module is compiled.
