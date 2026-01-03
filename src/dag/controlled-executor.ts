@@ -141,6 +141,8 @@ export class ControlledExecutor extends ParallelExecutor {
   private permissionEscalationHandler: PermissionEscalationHandler | null = null;
   private _permissionAuditStore: PermissionAuditStore | null = null;
   private workerBridge: import("../sandbox/worker-bridge.ts").WorkerBridge | null = null;
+  /** Tool definitions for loop code execution (Loop Fix: MCP access in loops) */
+  private toolDefinitions: import("../sandbox/types.ts").ToolDefinition[] = [];
   /** Execution args for parameterized capabilities (Bug 3 fix: args.xxx injection) */
   private executionArgs: Record<string, unknown> = {};
 
@@ -188,6 +190,22 @@ export class ControlledExecutor extends ParallelExecutor {
   setWorkerBridge(workerBridge: import("../sandbox/worker-bridge.ts").WorkerBridge): void {
     this.workerBridge = workerBridge;
     log.debug("WorkerBridge set for code execution tracing");
+  }
+
+  /**
+   * Set tool definitions for loop code execution (Loop Fix)
+   *
+   * When loops contain MCP calls (e.g., mcp.std.psql_query inside a for-loop),
+   * the loop code is executed as a single code_execution task. This method
+   * provides the tool definitions so the loop code can access MCP tools.
+   *
+   * @param toolDefs Tool definitions from the execution context
+   */
+  setToolDefinitions(toolDefs: import("../sandbox/types.ts").ToolDefinition[]): void {
+    this.toolDefinitions = toolDefs;
+    log.debug("Tool definitions set for loop execution", {
+      toolCount: toolDefs.length,
+    });
   }
 
   /**
@@ -469,13 +487,16 @@ export class ControlledExecutor extends ParallelExecutor {
           },
         };
         await this.eventStream.emit(approvalEvent);
+        log.debug(`[DEBUG] executeStream: yielding decision_required`);
         yield approvalEvent;
 
         // Wait for user decision
+        log.debug(`[DEBUG] executeStream: waiting for decision command`);
         log.info(`[HIL] Waiting for approval before executing layer ${layerIdx}`, {
           hilTasks: hilTasks.map((t) => t.tool),
         });
         const cmd = await waitForDecisionCommand(this.commandQueue, "HIL", this.getTimeout("hil"));
+        log.debug(`[DEBUG] executeStream: got command`, { cmdType: cmd?.type ?? "null" });
 
         if (!cmd || cmd.type === "abort") {
           log.info(`[HIL] User aborted before execution`);
@@ -493,6 +514,7 @@ export class ControlledExecutor extends ParallelExecutor {
           await this.eventStream.close();
           return this.state!;
         }
+        log.debug(`[DEBUG] executeStream: user approved, continuing execution`);
         log.info(`[HIL] User approved, proceeding with execution`);
       }
 
@@ -560,7 +582,12 @@ export class ControlledExecutor extends ParallelExecutor {
       if (this.config.perLayerValidation && layerIdx < layers.length - 1) {
         log.debug(`[perLayerValidation] Waiting for continue command after layer ${layerIdx}`);
         const cmd = await waitForDecisionCommand(this.commandQueue, "HIL", this.getTimeout("hil"));
-        if (!cmd || cmd.type !== "continue") {
+        // Accept both "continue" and "approval_response" with approved=true as valid continue commands
+        const isValidContinue = cmd && (
+          cmd.type === "continue" ||
+          (cmd.type === "approval_response" && cmd.approved === true)
+        );
+        if (!isValidContinue) {
           log.warn(`[perLayerValidation] Unexpected command: ${cmd?.type}, treating as abort`);
           const abortEvent: ExecutionEvent = {
             type: "workflow_complete",
@@ -609,6 +636,7 @@ export class ControlledExecutor extends ParallelExecutor {
       failedTasks,
     };
     await this.eventStream.emit(completeEvent);
+    log.debug(`[DEBUG] executeStream: yielding workflow_complete`);
     yield completeEvent;
 
     // GraphRAG feedback
@@ -977,20 +1005,50 @@ export class ControlledExecutor extends ParallelExecutor {
       }
     }
 
+    // Loop Fix: For loop tasks, wrap code to return modified context
+    // The loop code extracted from span doesn't include "return", so we add it
+    let codeToExecute = task.code;
+    if (task.tool?.startsWith("loop:")) {
+      // Get all context variable names that might be modified
+      const contextVars = Object.keys(executionContext).filter(
+        (k) => k !== "deps" && k !== "args",
+      );
+      // Wrap loop code: execute loop, then return all context vars as object
+      codeToExecute = `${task.code}\nreturn { ${contextVars.join(", ")} };`;
+      log.debug("Wrapped loop code with return statement", {
+        contextVars,
+        codePreview: codeToExecute.substring(0, 300),
+      });
+    }
+
     log.debug(`Executing code task via WorkerBridge`, {
       taskId: task.id,
       tool: task.tool,
       hasDeps: task.dependsOn.length > 0,
       injectedVars: task.variableBindings ? Object.keys(task.variableBindings) : [],
       injectedLiterals: task.literalBindings ? Object.keys(task.literalBindings) : [],
+      codePreview: codeToExecute?.substring(0, 200),
+      toolDefsCount: this.toolDefinitions.length,
     });
 
     // Execute via WorkerBridge (emits tool_start/tool_end traces)
+    // Loop Fix: Pass toolDefinitions for loop code that contains MCP calls
+    // Loop Capability Fix: Pass loop metadata for correct executedPath building
+    const loopMetadata = task.tool?.startsWith("loop:")
+      ? {
+          loopId: task.metadata?.loopId as string | undefined,
+          loopCondition: task.metadata?.loopCondition as string | undefined,
+          loopType: task.metadata?.loopType as string | undefined,
+          bodyTools: task.metadata?.bodyTools as string[] | undefined,
+        }
+      : undefined;
+
     const result = await this.workerBridge!.executeCodeTask(
-      task.tool, // "code:filter", "code:map", etc.
-      task.code,
+      task.tool, // "code:filter", "code:map", "loop:forOf", etc.
+      codeToExecute,
       executionContext,
-      [], // No tool definitions needed for pure code execution
+      this.toolDefinitions, // Tool definitions for MCP access in loops
+      loopMetadata, // Loop metadata for executedPath deduplication
     );
 
     if (!result.success) {
