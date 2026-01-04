@@ -406,20 +406,36 @@ export class SHGAT {
     // Flatten E for backward compatibility with scoring
     // Order: level 0, then level 1, etc. (matches capabilityIndex order from graphBuilder)
     let E_flat = this.flattenEmbeddingsByCapabilityOrder(result.E);
+    let H_final = result.H;
 
     // PreserveDim: add residual connection to ORIGINAL embeddings
     // This preserves semantic similarity structure while injecting graph info
     // Benchmark showed residual≥0.2 gives MRR=1.000
     if (this.config.preserveDim) {
       const E_original = this.graphBuilder.getCapabilityEmbeddings();
+      const H_original = this.graphBuilder.getToolEmbeddings();
       const residual = this.config.preserveDimResidual ?? 0.3;
 
+      // Apply residual to capabilities (E)
       E_flat = E_flat.map((e, idx) => {
         const orig = E_original[idx];
         if (!orig || orig.length !== e.length) return e;
 
         // Mix: E_final = (1-r)*E_propagated + r*E_original
         const mixed = e.map((v, i) => (1 - residual) * v + residual * orig[i]);
+
+        // Normalize to unit vector
+        const norm = Math.sqrt(mixed.reduce((s, x) => s + x * x, 0));
+        return norm > 0 ? mixed.map(x => x / norm) : mixed;
+      });
+
+      // Apply residual to tools (H) - same treatment for consistent scoring
+      H_final = H_final.map((h, idx) => {
+        const orig = H_original[idx];
+        if (!orig || orig.length !== h.length) return h;
+
+        // Mix: H_final = (1-r)*H_propagated + r*H_original
+        const mixed = h.map((v, i) => (1 - residual) * v + residual * orig[i]);
 
         // Normalize to unit vector
         const norm = Math.sqrt(mixed.reduce((s, x) => s + x * x, 0));
@@ -1043,14 +1059,17 @@ export class SHGAT {
     const toolNodes = this.graphBuilder.getToolNodes();
     const { numHeads } = this.config;
 
-    // Project intent to match propagated embedding dimension (1024 → hiddenDim)
-    const intentProjected = this.projectIntent(intentEmbedding);
+    // PreserveDim mode: use raw intent (1024-dim) directly with W_q: [64][1024]
+    // Standard mode: project intent via W_intent (1024 → hiddenDim)
+    const intentForScoring = this.config.preserveDim
+      ? intentEmbedding
+      : this.projectIntent(intentEmbedding);
 
     for (const [toolId] of toolNodes) {
       const tIdx = this.graphBuilder.getToolIndex(toolId)!;
 
       // K-head attention scoring (reuse same method as capabilities)
-      const headScores = this.computeMultiHeadScoresV1(intentProjected, H[tIdx]);
+      const headScores = this.computeMultiHeadScoresV1(intentForScoring, H[tIdx]);
       const avgScore = headScores.reduce((a, b) => a + b, 0) / numHeads;
       const finalScore = Math.min(0.95, Math.max(0, avgScore));
 
