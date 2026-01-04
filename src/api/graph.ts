@@ -365,6 +365,8 @@ function mapNodeData(node: GraphNode): Record<string, unknown> {
         community_id: capNode.data.communityId,
         fqdn: capNode.data.fqdn,
         tools_used: capNode.data.toolsUsed,
+        // Story 10.1: Meta-capability hierarchy (0=leaf, 1+=meta)
+        hierarchy_level: capNode.data.hierarchyLevel ?? 0,
         tool_invocations: capNode.data.toolInvocations?.map((inv) => ({
           id: inv.id,
           tool: inv.tool,
