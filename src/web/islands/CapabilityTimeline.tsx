@@ -235,6 +235,9 @@ export default function CapabilityTimeline({
                 loop_type?: "for" | "while" | "forOf" | "forIn" | "doWhile";
                 loop_condition?: string;
                 body_tools?: string[];
+                // Story 10.1: Capability call metadata
+                is_capability_call?: boolean;
+                nested_tools?: string[];
               }>;
             }) => ({
               id: t.id,
@@ -257,6 +260,9 @@ export default function CapabilityTimeline({
                 loopType: tr.loop_type,
                 loopCondition: tr.loop_condition,
                 bodyTools: tr.body_tools,
+                // Story 10.1: Capability call metadata
+                isCapabilityCall: tr.is_capability_call,
+                nestedTools: tr.nested_tools,
               })) ?? [],
             }),
           );

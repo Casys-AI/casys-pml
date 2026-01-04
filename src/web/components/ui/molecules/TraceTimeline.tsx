@@ -8,6 +8,7 @@
 import TaskCard from "../atoms/TaskCard.tsx";
 import FusedTaskCard from "../atoms/FusedTaskCard.tsx";
 import LoopTaskCard from "../atoms/LoopTaskCard.tsx";
+import CapabilityTaskCard from "../atoms/CapabilityTaskCard.tsx";
 
 interface LogicalOperation {
   toolId: string;
@@ -17,6 +18,8 @@ interface LogicalOperation {
 interface TaskResult {
   taskId: string;
   tool: string;
+  /** Story 10.1: Resolved capability name for $cap:uuid references */
+  resolvedTool?: string;
   success: boolean;
   durationMs: number;
   layerIndex?: number;
@@ -29,6 +32,10 @@ interface TaskResult {
   loopType?: "for" | "while" | "forOf" | "forIn" | "doWhile";
   loopCondition?: string;
   bodyTools?: string[]; // New: tools inside the loop (from static DAG)
+  /** Story 10.1: Flag indicating this is a capability call (not a regular tool) */
+  isCapabilityCall?: boolean;
+  /** Story 10.1: Nested tools inside the called capability */
+  nestedTools?: string[];
 }
 
 interface ExecutionTrace {
@@ -260,6 +267,26 @@ export default function TraceTimeline({
 
                       {/* Render non-loop tasks */}
                       {nonLoopTasks.map((task, taskIdx) => {
+                        // Story 10.1: Check if this is a capability call (marked by backend)
+                        if (task.isCapabilityCall) {
+                          // tool is already the resolved name (e.g., "fake:person")
+                          // nestedTools contains the toolsUsed of this capability
+                          const nestedTasks = (task.nestedTools || []).map((toolId) => ({
+                            toolId,
+                            durationMs: task.durationMs / (task.nestedTools?.length || 1),
+                          }));
+                          return (
+                            <CapabilityTaskCard
+                              key={`${layerIdx}-cap-${taskIdx}`}
+                              capabilityId={task.tool}
+                              capabilityName={task.tool}
+                              nestedTasks={nestedTasks}
+                              durationMs={task.durationMs}
+                              success={task.success}
+                            />
+                          );
+                        }
+
                         const [server = "unknown", ...nameParts] = task.tool.split(":");
                         const toolName = nameParts.join(":") || task.tool;
                         const color = getServerColor?.(server) ||

@@ -62,6 +62,8 @@ interface ApiNodeData {
       success: boolean;
       duration_ms: number;
       layer_index?: number;
+      is_capability_call?: boolean;
+      nested_tools?: string[];
     }>;
   }>;
   // Tool fields
@@ -125,6 +127,8 @@ interface ToolInvocation {
 export interface TraceTaskResult {
   taskId: string;
   tool: string;
+  /** Story 10.1: Resolved capability name for $cap:uuid references */
+  resolvedTool?: string;
   args: Record<string, unknown>;
   result: unknown;
   success: boolean;
@@ -137,6 +141,8 @@ export interface TraceTaskResult {
   loopCondition?: string;
   // Loop abstraction: tools inside the loop body for expansion
   bodyTools?: string[];
+  /** Story 10.1: Flag indicating this is a capability call (not a regular tool) */
+  isCapabilityCall?: boolean;
 }
 
 // Story 11.4: Execution trace for capability
@@ -709,13 +715,13 @@ export default function CytoscapeGraph({
       },
     },
     // Capability hub nodes (for Graph mode - regular nodes, not compound)
-    // Simple capabilities: lighter amber
+    // Size = pagerank, Opacity = hierarchy level (orange/amber theme)
     {
       selector: 'node[type="capability_hub"]',
       style: {
-        "background-color": "#FFB86F", // Theme amber
-        "background-opacity": 0.6,
-        "border-color": "#E89B4F", // Darker amber border
+        "background-color": "#FFB86F", // Theme amber/orange
+        "background-opacity": "mapData(levelNorm, 0, 1, 0.4, 1.0)", // Brighter = higher hierarchy
+        "border-color": "#E89B4F",
         "border-width": 2,
         label: "data(label)",
         "text-valign": "bottom",
@@ -724,20 +730,9 @@ export default function CytoscapeGraph({
         "font-weight": "bold",
         color: "#92400E", // Dark amber text
         "text-margin-y": 6,
-        width: "mapData(levelNorm, 0, 1, 40, 70)",
-        height: "mapData(levelNorm, 0, 1, 40, 70)",
+        width: "mapData(pagerank, 0, 0.1, 35, 60)", // Size = pagerank
+        height: "mapData(pagerank, 0, 0.1, 35, 60)",
         shape: "ellipse",
-      },
-    },
-    // Meta-capabilities (level > 1) - richer orange, more prominent
-    {
-      selector: 'node[type="capability_hub"][level > 1]',
-      style: {
-        "background-color": "#FF9933", // Deeper orange
-        "background-opacity": 0.9,
-        "border-color": "#CC6600", // Dark burnt orange
-        "border-width": 3,
-        color: "#7C2D12", // Deep brown text
       },
     },
     // Tool nodes in Graph mode (pale/light colors)
@@ -1205,6 +1200,8 @@ export default function CytoscapeGraph({
                 loop_type?: "for" | "while" | "forOf" | "forIn" | "doWhile";
                 loop_condition?: string;
                 body_tools?: string[];
+                is_capability_call?: boolean;
+                nested_tools?: string[];
               }>;
             }) => ({
               id: t.id,
@@ -1227,6 +1224,9 @@ export default function CytoscapeGraph({
                 loopType: r.loop_type,
                 loopCondition: r.loop_condition,
                 bodyTools: r.body_tools,
+                // Story 10.1: Capability call flag and nested tools
+                isCapabilityCall: r.is_capability_call,
+                nestedTools: r.nested_tools,
               })),
             }));
 
