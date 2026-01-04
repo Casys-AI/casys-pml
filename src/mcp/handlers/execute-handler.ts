@@ -565,11 +565,17 @@ async function executeDirectMode(
           });
 
           // Delegate to handleWorkflowExecution with the physical DAG
+          // Pass learningContext so capability can be saved after HIL approval
           return await handleWorkflowExecution(
             {
               workflow: { tasks: optimizedDAG.tasks },
               intent,
               config: { per_layer_validation: true },
+              learningContext: {
+                code,
+                intent,
+                staticStructure,
+              },
             },
             deps.workflowDeps,
           );
@@ -591,11 +597,17 @@ async function executeDirectMode(
             );
           }
 
+          // Pass learningContext so capability can be saved after HIL approval
           return await handleWorkflowExecution(
             {
               workflow: { tasks: optimizedDAG.tasks },
               intent,
               config: { per_layer_validation: true },
+              learningContext: {
+                code,
+                intent,
+                staticStructure,
+              },
             },
             deps.workflowDeps,
           );

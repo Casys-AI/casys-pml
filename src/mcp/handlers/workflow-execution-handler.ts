@@ -12,6 +12,7 @@ import type { ExecutionEvent, TaskResult } from "../../dag/types.ts";
 import type { WorkflowState } from "../../dag/state.ts";
 import type {
   ActiveWorkflow,
+  LearningContext,
   MCPErrorResponse,
   MCPToolResponse,
   WorkflowExecutionArgs,
@@ -243,6 +244,7 @@ function createToolExecutorWithTracing(
     toolDefinitions: toolDefs,
     capabilityStore: deps.capabilityStore,
     graphRAG: deps.graphEngine,
+    capabilityRegistry: deps.capabilityRegistry,
   });
 
   return { executor, context };
@@ -305,6 +307,7 @@ export async function handleWorkflowExecution(
         workflowArgs.intent ?? "explicit_workflow",
         deps,
         userId,
+        workflowArgs.learningContext,
       );
     }
 
@@ -466,17 +469,21 @@ async function executeStandardWorkflow(
  * Execute workflow with per-layer validation (Story 2.5-4)
  *
  * Story 10.5 AC10: Uses WorkerBridge for 100% RPC traceability.
+ *
+ * @param learningContext - Optional context for capability saving after HIL approval
  */
 async function executeWithPerLayerValidation(
   dag: DAGStructure,
   intent: string,
   deps: WorkflowHandlerDependencies,
   userId?: string,
+  learningContext?: LearningContext,
 ): Promise<MCPToolResponse> {
   const workflowId = crypto.randomUUID();
 
   // Save DAG to database for stateless continuation
-  await saveWorkflowDAG(deps.db, workflowId, dag, intent);
+  // Include learningContext for capability saving after HIL approval
+  await saveWorkflowDAG(deps.db, workflowId, dag, intent, learningContext);
 
   // Build tool definitions for WorkerBridge context
   const toolDefs = await buildToolDefinitionsFromDAG(dag, deps);
@@ -508,6 +515,7 @@ async function executeWithPerLayerValidation(
     workflowId,
     tasksCount: dag.tasks.length,
     toolDefsCount: toolDefs.length,
+    hasLearningContext: !!learningContext,
   });
 
   // Process events until first layer completes
@@ -520,6 +528,8 @@ async function executeWithPerLayerValidation(
     0,
     deps,
     context,
+    undefined, // initialResults
+    learningContext,
   );
 }
 
@@ -527,6 +537,7 @@ async function executeWithPerLayerValidation(
  * Process generator events until next pause point or completion
  *
  * @param executorContext - Optional ExecutorContext for WorkerBridge cleanup (Story 10.5)
+ * @param learningContext - Optional context for capability saving after HIL approval
  */
 export async function processGeneratorUntilPause(
   workflowId: string,
@@ -537,6 +548,7 @@ export async function processGeneratorUntilPause(
   deps: WorkflowHandlerDependencies,
   executorContext?: ExecutorContext,
   initialResults?: TaskResult[],
+  learningContext?: LearningContext,
 ): Promise<MCPToolResponse> {
   // Accumulate results from previous layers when resuming
   const layerResults: TaskResult[] = initialResults ? [...initialResults] : [];
@@ -652,6 +664,64 @@ export async function processGeneratorUntilPause(
           workflowId,
           tracesCount: executorContext.traces.length,
         });
+      }
+
+      // HIL Learning Fix: Save capability after successful HIL approval
+      // Only save if we have learningContext (from pml:execute code path)
+      // and the workflow succeeded (no failed tasks)
+      if (learningContext && deps.capabilityStore && (event.failedTasks ?? 0) === 0) {
+        try {
+          // Extract tools used from layer results
+          const toolsUsed = layerResults
+            .filter((r) => r.status === "success")
+            .map((r) => {
+              // Find the matching task in the DAG to get the tool name
+              const task = dag.tasks.find((t) => t.id === r.taskId);
+              return task?.tool ?? r.taskId;
+            })
+            .filter((tool): tool is string => !!tool);
+
+          // Build task results for trace data (TraceTaskResult format)
+          const taskResults = layerResults.map((r) => {
+            const task = dag.tasks.find((t) => t.id === r.taskId);
+            return {
+              taskId: r.taskId,
+              tool: task?.tool ?? r.taskId,
+              args: (task?.arguments ?? {}) as Record<string, import("../../capabilities/types.ts").JsonValue>,
+              result: (r.output ?? null) as import("../../capabilities/types.ts").JsonValue,
+              success: r.status === "success",
+              durationMs: r.executionTimeMs ?? 0,
+            };
+          });
+
+          const { capability } = await deps.capabilityStore.saveCapability({
+            code: learningContext.code,
+            intent: learningContext.intent,
+            durationMs: Math.round(event.totalTimeMs ?? 0),
+            success: true,
+            toolsUsed,
+            traceData: {
+              executedPath: toolsUsed,
+              taskResults,
+              decisions: [],
+              initialContext: { intent: learningContext.intent },
+              intentEmbedding: learningContext.intentEmbedding,
+            },
+            staticStructure: learningContext.staticStructure,
+          });
+
+          log.info(`[HIL Learning] Capability saved after HIL approval`, {
+            workflowId,
+            capabilityId: capability.id,
+            toolsUsed,
+          });
+        } catch (saveError) {
+          // Log but don't fail the workflow - learning is non-critical
+          log.warn(`[HIL Learning] Failed to save capability after HIL approval`, {
+            workflowId,
+            error: saveError instanceof Error ? saveError.message : String(saveError),
+          });
+        }
       }
 
       return formatWorkflowComplete(
