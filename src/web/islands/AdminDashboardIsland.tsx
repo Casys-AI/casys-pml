@@ -377,11 +377,10 @@ export default function AdminDashboardIsland({
             <MetricCard
               label="Accept Rate"
               value={formatPercent(
-                technical.algorithms.byDecision.find((d) =>
+                (technical.algorithms.byDecision?.find((d) =>
                   d.decision === "accept"
-                )
-                    ?.count /
-                    Math.max(technical.algorithms.totalTraces, 1) || 0,
+                )?.count ?? 0) /
+                    Math.max(technical.algorithms.totalTraces, 1),
               )}
               color="green"
             />

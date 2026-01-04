@@ -176,44 +176,34 @@ export default function GraphLegendPanel({
             Hierarchy Level
           </h3>
           <div class="flex flex-col gap-2 mb-3">
-            {/* Level 0 - Tools */}
+            {/* Level 0 - Capabilities (leaf) */}
             <div class="flex items-center gap-2">
               <div
                 class="w-4 h-4 rounded-full"
-                style={{ background: "#8b5cf6", opacity: 0.35 }}
+                style={{ background: "#FFB86F", opacity: 0.4 }}
               />
               <span class="text-xs" style={{ color: "var(--text-muted)" }}>
-                Tools (level 0)
+                Leaf (level 0)
               </span>
             </div>
-            {/* Level 1 - Capabilities */}
+            {/* Level 1 - Meta-capabilities */}
             <div class="flex items-center gap-2">
               <div
                 class="w-4 h-4 rounded-full"
-                style={{ background: "#8b5cf6", opacity: 0.6 }}
+                style={{ background: "#FFB86F", opacity: 0.7 }}
               />
               <span class="text-xs" style={{ color: "var(--text-muted)" }}>
-                Capabilities (level 1)
+                Meta (level 1)
               </span>
             </div>
-            {/* Level 2 - Meta-capabilities */}
+            {/* Level 2+ - Deep meta */}
             <div class="flex items-center gap-2">
               <div
                 class="w-4 h-4 rounded-full"
-                style={{ background: "#8b5cf6", opacity: 0.8 }}
+                style={{ background: "#FFB86F", opacity: 1.0 }}
               />
               <span class="text-xs" style={{ color: "var(--text-muted)" }}>
-                Meta-caps (level 2)
-              </span>
-            </div>
-            {/* Level 3+ - Deep meta */}
-            <div class="flex items-center gap-2">
-              <div
-                class="w-4 h-4 rounded-full"
-                style={{ background: "#8b5cf6", opacity: 1.0 }}
-              />
-              <span class="text-xs" style={{ color: "var(--text-muted)" }}>
-                Deep meta (level 3+)
+                Deep meta (level 2+)
               </span>
             </div>
           </div>

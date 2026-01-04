@@ -1,7 +1,8 @@
 # Spike: Workflow Scraping & Tool Co-occurrence for DR-DSP
 
 **Date:** 2026-01-01
-**Status:** Draft
+**Updated:** 2026-01-04
+**Status:** MVP Implemented
 **Related:** DR-DSP, SHGAT, pml:discover, pml:execute
 
 ## Context
@@ -292,16 +293,139 @@ interface ToolFeatures {
 | Legal (ToS) | Focus on open source (n8n, Pipedream, Activepieces) |
 | Pollution | Flag `isPrior: true`, lower priority than local capabilities |
 
+## Implementation (2026-01-04)
+
+### Files Created
+
+```
+src/graphrag/workflow-patterns/
+├── types.ts          # Type definitions (N8nWorkflow, ScrapedPattern, PriorPattern, etc.)
+├── n8n-scraper.ts    # Fetches workflows from n8n API, extracts edges
+├── tool-mapper.ts    # Maps n8n node types → MCP tool IDs
+├── pattern-store.ts  # Persists patterns to JSON
+└── mod.ts            # Public exports
+
+src/cli/commands/workflows.ts  # Added 'scrape' subcommand
+config/workflow-patterns.json  # Output file (generated)
+```
+
+### n8n API Structure
+
+**Key discovery:** The API has nested structure:
+```typescript
+// GET /templates/workflows/{id}
+{
+  workflow: {           // Metadata (id, name, description, totalViews)
+    workflow: {         // Actual n8n workflow JSON
+      nodes: [...],
+      connections: {...}
+    }
+  }
+}
+```
+
+### MCP Tool Mapping
+
+Maps n8n nodes to **real MCP tool IDs** from official servers:
+
+| n8n Node | MCP Server | Tools |
+|----------|------------|-------|
+| `n8n-nodes-base.readWriteFile` | `@modelcontextprotocol/server-filesystem` | `read_text_file`, `write_file`, `list_directory` |
+| `n8n-nodes-base.httpRequest` | `@modelcontextprotocol/server-fetch` | `fetch` |
+| `n8n-nodes-base.git` | `@modelcontextprotocol/server-git` | `git_status`, `git_commit`, `git_log` |
+| `n8n-nodes-base.slack` | `@anthropic/slack-mcp` | `slack_post_message`, `slack_get_channel_history` |
+| `n8n-nodes-base.github` | `@anthropic/github-mcp` | `github_create_issue`, `github_get_file_contents` |
+
+### CLI Command
+
+```bash
+# Quick test (5 workflows)
+deno task cli workflows scrape --limit 5
+
+# Full scrape with options
+deno task cli workflows scrape \
+  --limit 100 \
+  --min-views 1000 \
+  --delay 200 \
+  --output config/workflow-patterns.json
+```
+
+### Test Results
+
+**Initial test (5 workflows):**
+```
+Workflows: 5 → Edges: 77 → Patterns: 39 → Mapped: 24 (61.5%)
+```
+
+**Full scrape (499 workflows):**
+```
+Workflows: 499
+Raw patterns: 1827
+Mapped (prior patterns): 294 (16%)
+```
+
+**Top patterns by frequency:**
+| From | To | Frequency |
+|------|-----|-----------|
+| `openai:chat` | `sequential-thinking:sequential_thinking` | 249 |
+| `fetch:fetch` | `fetch:fetch` | 202 |
+| `memory:create_entities` | `sequential-thinking:sequential_thinking` | 129 |
+| `transform:set` | `fetch:fetch` | 116 |
+| `fetch:fetch` | `code:execute` | 80 |
+| `google:chat` | `sequential-thinking:sequential_thinking` | 78 |
+| `code:execute` | `fetch:fetch` | 78 |
+
+### Weight Calculation (Implemented)
+
+```typescript
+function calculateWeight(frequency: number, mappingConfidence: number): number {
+  const BASE_PENALTY = 2.0;
+  const freqBoost = Math.log10(frequency + 1);
+  return BASE_PENALTY / (freqBoost * mappingConfidence);
+}
+```
+
+### Mapping Strategy: Pure Operations vs MCP Tools
+
+**Decision:** Prioritize `code:*` pure operations for data transformation nodes.
+
+| n8n Node Type | Mapping Target | Rationale |
+|---------------|----------------|-----------|
+| Code (JS) | `code:map` | Data transformation |
+| Set | `code:Object.assign` | Object manipulation |
+| Filter | `code:filter` | Array filtering |
+| Merge | `code:concat` | Array concatenation |
+| Sort | `code:sort` | Array sorting |
+| JSON parse | `code:JSON.parse` | JSON operations |
+| LLM nodes | `sampling:createMessage` | MCP sampling |
+| HTTP nodes | `http:http_*` | MCP tools |
+| Connectors | `github:*`, `slack:*` | MCP tools |
+
+**Benefits:**
+- Pure operations are traced automatically in sandbox
+- No external dependencies for data transformations
+- Deterministic, cacheable results
+- MCP tools reserved for actual side effects (I/O, network)
+
+### Known Limitations
+
+1. **Triggers:** `chatTrigger`, `telegramTrigger`, `webhookTrigger` - not mappable (input sources)
+2. **Wait/Delay:** `n8n-nodes-base.wait` - timer, not a tool operation
+3. **Third-party nodes:** `@blotato/*` and custom community nodes - skip
+4. **Smithery:** Connection issues prevent dynamic tool discovery (see spike 2026-01-04-smithery-connection-investigation.md)
+
 ## Next Steps
 
-1. [ ] Prototype n8n template scraper
-2. [ ] Build tool name mapping (Zapier names → MCP tool IDs)
+1. [x] Prototype n8n template scraper
+2. [x] Build tool name mapping (n8n names → MCP tool IDs)
 3. [ ] Implement `injectPriorPatterns()` in DR-DSP
-4. [ ] Create `workflow-patterns.json` with top 100 patterns
+4. [x] Create `workflow-patterns.json` with patterns
 5. [ ] Build V-V co-occurrence matrix from patterns
 6. [ ] Add co-occurrence signal to SHGAT scoring (short-term, pre-Node2Vec)
 7. [ ] Implement Node2Vec on V-V matrix (future)
 8. [ ] Evaluate impact on pathfinding quality
+9. [x] Add mappings for pure operations (code:*) - filter, map, Object.assign, JSON.parse, etc.
+10. [x] Scale scrape to 100 workflows (99 done, 679 patterns, 306 mapped = 45.1% coverage)
 
 ## Open Questions
 
