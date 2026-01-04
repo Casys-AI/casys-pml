@@ -17,7 +17,7 @@ import { addBreadcrumb, captureError, startTransaction } from "../../telemetry/s
 import type { CapabilityRegistry } from "../../capabilities/capability-registry.ts";
 import type { IDecisionLogger } from "../../telemetry/decision-logger.ts";
 import type { SHGAT } from "../../graphrag/algorithms/shgat.ts";
-import type { EmbeddingModel } from "../../embeddings/types.ts";
+import type { EmbeddingModelInterface } from "../../vector/embeddings.ts";
 import type { IToolStore } from "../../tools/types.ts";
 import {
   DiscoverToolsUseCase,
@@ -70,7 +70,7 @@ export interface DiscoverHandlerDeps {
   capabilityRegistry?: CapabilityRegistry;
   decisionLogger?: IDecisionLogger;
   shgat?: SHGAT;
-  embeddingModel?: EmbeddingModel;
+  embeddingModel?: EmbeddingModelInterface;
 }
 
 /**
@@ -225,7 +225,7 @@ export async function handleDiscoverLegacy(
   capabilityRegistry?: CapabilityRegistry,
   decisionLogger?: IDecisionLogger,
   shgat?: SHGAT,
-  embeddingModel?: EmbeddingModel,
+  embeddingModel?: EmbeddingModelInterface,
   toolStore?: IToolStore,
 ): Promise<MCPToolResponse | MCPErrorResponse> {
   // If no toolStore provided, create a minimal stub that returns empty

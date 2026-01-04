@@ -10,6 +10,7 @@ import type { DbClient } from "../../db/types.ts";
 import type { GraphRAGEngine } from "../../graphrag/graph-engine.ts";
 import type { DAGSuggester } from "../../graphrag/dag-suggester.ts";
 import type { CapabilityStore } from "../../capabilities/capability-store.ts";
+import type { CapabilityRegistry } from "../../capabilities/capability-registry.ts";
 import type { MCPClientBase } from "../types.ts";
 import type { ActiveWorkflow } from "../server/types.ts";
 import type { GatewayHandler } from "../gateway-handler.ts";
@@ -24,6 +25,8 @@ export interface WorkflowHandlerDependencies {
   graphEngine: GraphRAGEngine;
   dagSuggester: DAGSuggester;
   capabilityStore?: CapabilityStore;
+  /** Capability registry for routing to learned capabilities (meta-capabilities) */
+  capabilityRegistry?: CapabilityRegistry;
   mcpClients: Map<string, MCPClientBase>;
   gatewayHandler: GatewayHandler;
   checkpointManager: CheckpointManager | null;
