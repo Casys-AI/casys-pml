@@ -17,6 +17,48 @@ import { DEFAULT_FEATURE_WEIGHTS, DEFAULT_FUSION_WEIGHTS, NUM_TRACE_STATS } from
 import type { FeatureWeights, FusionWeights } from "../types.ts";
 
 // ============================================================================
+// Seeded PRNG for Reproducibility (mulberry32)
+// ============================================================================
+
+let rngState = Date.now(); // Default: use current time (non-reproducible)
+
+/**
+ * Seed the random number generator for reproducible initialization.
+ * Call this before creating SHGAT instances for deterministic results.
+ *
+ * @param seed Integer seed value
+ *
+ * @example
+ * ```typescript
+ * import { seedRng } from "./shgat/initialization/parameters.ts";
+ * seedRng(42); // Set seed for reproducibility
+ * const shgat = createSHGATFromCapabilities(caps);
+ * ```
+ */
+export function seedRng(seed: number): void {
+  rngState = seed | 0; // Ensure integer
+}
+
+/**
+ * Get current RNG state (for debugging/testing)
+ */
+export function getRngState(): number {
+  return rngState;
+}
+
+/**
+ * Seeded random number generator (mulberry32 algorithm)
+ * Returns value in [0, 1)
+ */
+export function random(): number {
+  rngState |= 0;
+  rngState = (rngState + 0x6D2B79F5) | 0;
+  let t = Math.imul(rngState ^ (rngState >>> 15), 1 | rngState);
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+
+// ============================================================================
 // Parameter Types
 // ============================================================================
 
@@ -104,7 +146,7 @@ export function initTensor3D(d1: number, d2: number, d3: number): number[][][] {
     () =>
       Array.from(
         { length: d2 },
-        () => Array.from({ length: d3 }, () => (Math.random() - 0.5) * 2 * scale),
+        () => Array.from({ length: d3 }, () => (random() - 0.5) * 2 * scale),
       ),
   );
 }
@@ -116,7 +158,7 @@ export function initMatrix(rows: number, cols: number): number[][] {
   const scale = Math.sqrt(2.0 / (rows + cols));
   return Array.from(
     { length: rows },
-    () => Array.from({ length: cols }, () => (Math.random() - 0.5) * 2 * scale),
+    () => Array.from({ length: cols }, () => (random() - 0.5) * 2 * scale),
   );
 }
 
@@ -132,7 +174,7 @@ export function initMatrixScaled(rows: number, cols: number, scaleFactor: number
   const scale = Math.sqrt(2.0 / (rows + cols)) * scaleFactor;
   return Array.from(
     { length: rows },
-    () => Array.from({ length: cols }, () => (Math.random() - 0.5) * 2 * scale),
+    () => Array.from({ length: cols }, () => (random() - 0.5) * 2 * scale),
   );
 }
 
@@ -141,7 +183,7 @@ export function initMatrixScaled(rows: number, cols: number, scaleFactor: number
  */
 export function initVector(size: number): number[] {
   const scale = Math.sqrt(1.0 / size);
-  return Array.from({ length: size }, () => (Math.random() - 0.5) * 2 * scale);
+  return Array.from({ length: size }, () => (random() - 0.5) * 2 * scale);
 }
 
 /**
@@ -187,20 +229,21 @@ export function initializeParameters(config: SHGATConfig): SHGATParams {
   }
 
   // Initialize head parameters
-  // W_q, W_k use scaled init (× 10) for K-head attention to escape sigmoid(0) = 0.5
+  // FIX: Use shared projection W_q = W_k to preserve cosine similarity structure
+  // Random different projections destroy discriminability (MRR 0.148 → 1.0 with shared)
   const headParams: HeadParams[] = [];
   for (let h = 0; h < numHeads; h++) {
+    const W_shared = initMatrixScaled(hiddenDim, embeddingDim, 10);
     headParams.push({
-      W_q: initMatrixScaled(hiddenDim, embeddingDim, 10),
-      W_k: initMatrixScaled(hiddenDim, embeddingDim, 10),
+      W_q: W_shared,
+      W_k: W_shared, // Same matrix as W_q - preserves similarity structure
       W_v: initMatrix(hiddenDim, embeddingDim),
       a: initVector(2 * hiddenDim),
     });
   }
 
-  // Initialize intent projection matrix
-  // propagatedDim = hiddenDim (NOT numHeads * hiddenDim!)
-  // This matches the output of message passing after concatHeads: numHeads * headDim = hiddenDim
+  // Initialize intent projection matrix (only used in standard mode)
+  // PreserveDim mode bypasses W_intent and uses raw intent (1024-dim) directly with W_q
   const propagatedDim = hiddenDim;
   const W_intent = initMatrix(propagatedDim, embeddingDim);
 
@@ -302,6 +345,11 @@ export function initializeLevelParameters(
   config: SHGATConfig,
   maxLevel: number,
 ): Map<number, LevelParams> {
+  // Use preserveDim mode if enabled
+  if (config.preserveDim) {
+    return initializeLevelParametersPreserveDim(config, maxLevel);
+  }
+
   const { numHeads, hiddenDim, embeddingDim } = config;
   const headDim = Math.floor(hiddenDim / numHeads);
 
@@ -325,6 +373,45 @@ export function initializeLevelParameters(
       a_upward: initMatrix(numHeads, 2 * headDim),
 
       // Attention vectors for downward pass: [numHeads][2*headDim]
+      a_downward: initMatrix(numHeads, 2 * headDim),
+    });
+  }
+
+  return levelParams;
+}
+
+/**
+ * Initialize level parameters with dimension preservation (1024→1024).
+ *
+ * Each head projects to embeddingDim/numHeads, then concat → embeddingDim.
+ * This preserves K-head attention while maintaining output dimension.
+ *
+ * Example with numHeads=4, embeddingDim=1024:
+ * - Each head: [256][1024] projection
+ * - Concat 4 heads → 1024-dim output
+ *
+ * @param config SHGAT configuration with preserveDim=true
+ * @param maxLevel Maximum hierarchy level
+ */
+export function initializeLevelParametersPreserveDim(
+  config: SHGATConfig,
+  maxLevel: number,
+): Map<number, LevelParams> {
+  const { numHeads, embeddingDim } = config;
+  // headDim such that numHeads * headDim = embeddingDim
+  const headDim = Math.floor(embeddingDim / numHeads);
+  const levelParams = new Map<number, LevelParams>();
+
+  for (let level = 0; level <= maxLevel; level++) {
+    // All levels use embeddingDim input (preserved throughout)
+    const inputDim = embeddingDim;
+
+    levelParams.set(level, {
+      // Each head: [headDim][inputDim] = [256][1024]
+      W_child: initTensor3D(numHeads, headDim, inputDim),
+      W_parent: initTensor3D(numHeads, headDim, inputDim),
+      // Attention vectors: [numHeads][2*headDim]
+      a_upward: initMatrix(numHeads, 2 * headDim),
       a_downward: initMatrix(numHeads, 2 * headDim),
     });
   }
@@ -457,6 +544,8 @@ export function getAdaptiveHeadsByGraphSize(
   numTools: number,
   numCapabilities: number,
   maxLevel: number = 0,
+  preserveDim: boolean = false,
+  embeddingDim: number = 1024,
 ): { numHeads: number; hiddenDim: number; headDim: number } {
   const graphSize = numTools + numCapabilities;
   const complexityFactor = maxLevel + 1; // More levels = more complex
@@ -487,7 +576,19 @@ export function getAdaptiveHeadsByGraphSize(
     numHeads += 1;
   }
 
-  // hiddenDim = numHeads * headDim (headDim typically 16 or 32)
+  // PreserveDim mode: numHeads must divide embeddingDim evenly
+  // Valid divisors of 1024: 4, 8, 16, 32, 64...
+  if (preserveDim) {
+    const validHeads = [4, 8, 16, 32].filter(h => embeddingDim % h === 0);
+    // Find closest valid numHeads
+    numHeads = validHeads.reduce((prev, curr) =>
+      Math.abs(curr - numHeads) < Math.abs(prev - numHeads) ? curr : prev
+    );
+    const headDim = embeddingDim / numHeads;
+    return { numHeads, hiddenDim: embeddingDim, headDim };
+  }
+
+  // Standard mode: hiddenDim = numHeads * headDim (headDim typically 16 or 32)
   const headDim = graphSize < 200 ? 16 : 32;
   const hiddenDim = numHeads * headDim;
 
