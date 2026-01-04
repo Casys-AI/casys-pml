@@ -11,10 +11,11 @@
 
 This epic covers the development and completion of the **CasysDB Native Engine** - a Rust-based graph database with ISO GQL support, designed to provide high-performance graph operations for the PML system.
 
-### Key Insight (from Node2Vec Spike)
+### Key Insight (from Node2Vec Spikes)
 
 > Node2Vec + BGE hybrid embeddings showed **+757% MRR improvement** over BGE-only.
-> The priority is **GDS algorithms** (Node2Vec, HNSW), not storage adapters.
+> **Node2Vec+ (edge-weight-aware) outperforms standard Node2Vec by +5.8% MRR.**
+> The priority is **GDS algorithms** (Node2Vec+, HNSW), not storage adapters.
 
 ### Current State (from Deep-Dive)
 
@@ -33,7 +34,7 @@ This epic covers the development and completion of the **CasysDB Native Engine**
 
 ### Goals
 
-1. **Graph Data Science (GDS)** - Node2Vec, random walks, embedding generation
+1. **Graph Data Science (GDS)** - Node2Vec+ (edge-weight-aware), random walks, embedding generation
 2. **Approximate Nearest Neighbors (ANN)** - HNSW index for fast kNN queries
 3. **GQL Extensions** - DELETE, SET for graph maintenance
 4. **NAPI Integration** - Expose GDS/ANN to TypeScript for local-alpha.ts
@@ -46,9 +47,9 @@ This epic covers the development and completion of the **CasysDB Native Engine**
 
 | ID | Requirement | Priority | Rationale |
 |----|-------------|----------|-----------|
-| **FR15-1** | System must compute Node2Vec embeddings for graph nodes | **Critical** | +757% MRR improvement |
+| **FR15-1** | System must compute **Node2Vec+** embeddings (edge-weight-aware) | **Critical** | +757% MRR (vs BGE) + 5.8% (vs Node2Vec) |
 | **FR15-2** | System must provide HNSW index for fast approximate kNN | **Critical** | O(log n) vs O(n) search |
-| **FR15-3** | Node2Vec must support incremental updates (new nodes) | High | Live learning requirement |
+| **FR15-3** | Node2Vec+ must support incremental updates (new nodes) | High | Live learning requirement |
 | **FR15-4** | HNSW must support dynamic insertion without full rebuild | High | Live learning requirement |
 | FR15-5 | System must support DELETE clause in GQL | Medium | Graph maintenance |
 | FR15-6 | System must support SET clause for property updates | Medium | Graph maintenance |
@@ -74,10 +75,10 @@ This epic covers the development and completion of the **CasysDB Native Engine**
 │                                                                  │
 │  BGE embeddings ──┐                                              │
 │  (semantic)       │     ┌──────────────────────────────────┐    │
-│                   ├────►│ SHGAT Scoring (K-head attention) │    │
-│  Node2Vec ────────┤     │                                  │    │
-│  (structural)     │     │ alpha = f(coherence)             │    │
-│                   │     └──────────────────────────────────┘    │
+│                   ├────►│ SHGAT V1 Scoring (K-head attn)   │    │
+│  Node2Vec+ ───────┤     │                                  │    │
+│  (structural,     │     │ alpha = f(coherence)             │    │
+│   edge-weight)    │     └──────────────────────────────────┘    │
 └───────────────────┼─────────────────────────────────────────────┘
                     │
                     ▼ NAPI bindings
@@ -87,9 +88,9 @@ This epic covers the development and completion of the **CasysDB Native Engine**
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
 │  │     GDS      │  │     ANN      │  │    Engine    │          │
 │  │              │  │              │  │              │          │
-│  │  Node2Vec    │  │    HNSW      │  │  GQL Parser  │          │
+│  │  Node2Vec+   │  │    HNSW      │  │  GQL Parser  │          │
 │  │  RandomWalk  │  │  kNN search  │  │  Planner     │          │
-│  │  Embeddings  │  │  Insert/Del  │  │  Executor    │          │
+│  │  EdgeWeights │  │  Insert/Del  │  │  Executor    │          │
 │  └──────────────┘  └──────────────┘  └──────────────┘          │
 │         │                 │                  │                   │
 │         └─────────────────┴──────────────────┘                  │
@@ -104,40 +105,105 @@ This epic covers the development and completion of the **CasysDB Native Engine**
 
 ### Phase 1: Graph Data Science (Critical)
 
-#### Story 15.1: Node2Vec Random Walks
+#### Story 15.1: Node2Vec+ Random Walks (Edge Weight-Aware)
 
 **Points:** 8
 **Priority:** Critical
 
 **Description:**
-Implement Node2Vec random walk generation in Rust. This is the foundation for structural embeddings that will replace spectral embeddings in local-alpha.ts.
+Implement **Node2Vec+** random walk generation in Rust. Node2Vec+ extends Node2Vec by properly incorporating edge weights into the biased random walk, providing +5.8% MRR improvement over standard Node2Vec. See [spike](../spikes/2026-01-04-node2vec-plus-edge-weights.md).
 
 **Acceptance Criteria:**
 
-- [ ] **AC1:** `RandomWalkGenerator::new(graph, p, q)` creates walker with return/in-out parameters
+- [ ] **AC1:** `Node2VecPlus::new(graph, config)` creates walker with p, q, gamma parameters
 - [ ] **AC2:** `generate_walks(node_id, walk_length, num_walks)` returns Vec<Vec<NodeId>>
-- [ ] **AC3:** Biased random walk follows Node2Vec algorithm (p=1, q=1 = DeepWalk)
-- [ ] **AC4:** Walks respect edge direction (configurable: directed/undirected)
-- [ ] **AC5:** Performance: 1000 walks of length 80 in < 100ms for 10K node graph
-- [ ] **AC6:** Unit tests with known graph structures
+- [ ] **AC3:** Biased random walk follows **Node2Vec+ algorithm** with edge weight normalization
+- [ ] **AC4:** Pre-compute node statistics (μ, σ) for normalized weight calculation
+- [ ] **AC5:** Walks respect edge weights via interpolated bias formula
+- [ ] **AC6:** Default parameters: **p=2.0, q=0.5** (DFS-like, optimal from benchmark)
+- [ ] **AC7:** Performance: 1000 walks of length 80 in < 100ms for 10K node graph
+- [ ] **AC8:** Unit tests with known graph structures and edge weights
 
-**Algorithm:**
+**Configuration:**
 ```rust
-// Node2Vec biased random walk
-fn next_step(&self, prev: NodeId, current: NodeId) -> NodeId {
-    let neighbors = self.graph.neighbors(current);
-    let weights: Vec<f64> = neighbors.iter().map(|n| {
-        if *n == prev {
-            1.0 / self.p  // Return to previous
-        } else if self.graph.has_edge(prev, *n) {
-            1.0           // Common neighbor (BFS-like)
-        } else {
-            1.0 / self.q  // Explore (DFS-like)
-        }
-    }).collect();
-    weighted_random_choice(&neighbors, &weights)
+pub struct Node2VecPlusConfig {
+    pub walk_length: usize,      // Default: 15
+    pub walks_per_node: usize,   // Default: 30
+    pub window_size: usize,      // Default: 5
+    pub embedding_dim: usize,    // Default: 32
+    pub p: f64,                  // Return parameter (default: 2.0 - low return)
+    pub q: f64,                  // In-out parameter (default: 0.5 - explore)
+    pub gamma: f64,              // Weight normalization (default: 1.0)
+    pub epsilon: f64,            // Division guard (default: 1e-6)
 }
 ```
+
+**Algorithm (Node2Vec+):**
+```rust
+impl Node2VecPlus {
+    /// Pre-compute node statistics for weight normalization
+    fn compute_node_stats(&mut self) {
+        for node in self.graph.nodes() {
+            let weights: Vec<f64> = self.graph.neighbors(node)
+                .map(|n| self.graph.edge_weight(node, n))
+                .collect();
+            let mean = weights.iter().sum::<f64>() / weights.len() as f64;
+            let variance = weights.iter().map(|w| (w - mean).powi(2)).sum::<f64>() / weights.len() as f64;
+            self.node_stats.insert(node, (mean, variance.sqrt()));
+        }
+    }
+
+    /// Normalized edge weight (Node2Vec+ formula)
+    fn normalized_weight(&self, v: NodeId, u: NodeId) -> f64 {
+        let weight = self.graph.edge_weight(v, u);
+        let (mean, std) = self.node_stats[&v];
+        weight / (mean + self.gamma * std).max(self.epsilon)
+    }
+
+    /// Node2Vec+ biased random walk with edge weight interpolation
+    fn compute_bias(&self, prev: NodeId, curr: NodeId, next: NodeId) -> f64 {
+        // Case 1: Return to previous node
+        if next == prev {
+            return 1.0 / self.p;
+        }
+
+        // Case 2: Check if prev-next are connected
+        if self.graph.has_edge(prev, next) {
+            let w_tilde = self.normalized_weight(prev, next);
+            if w_tilde >= 1.0 {
+                // Strongly connected - BFS-like (stay local)
+                1.0
+            } else {
+                // Weakly connected - Node2Vec+ interpolation
+                // bias = 1/q + (1 - 1/q) * w̃
+                1.0 / self.q + (1.0 - 1.0 / self.q) * w_tilde
+            }
+        } else {
+            // Case 3: Not connected - DFS-like (explore)
+            1.0 / self.q
+        }
+    }
+
+    fn next_step(&self, prev: NodeId, current: NodeId) -> NodeId {
+        let neighbors = self.graph.neighbors(current);
+        let weights: Vec<f64> = neighbors.iter().map(|n| {
+            let edge_weight = self.graph.edge_weight(current, *n);
+            let bias = self.compute_bias(prev, current, *n);
+            edge_weight * bias  // Final weight = edge_weight × bias
+        }).collect();
+        weighted_random_choice(&neighbors, &weights)
+    }
+}
+```
+
+**Why Node2Vec+ (from benchmark):**
+
+| Method | MRR | Hit@1 | Improvement |
+|--------|-----|-------|-------------|
+| Node2Vec (p=1, q=1) | 0.214 | 7.0% | baseline |
+| **Node2Vec+ (p=2, q=0.5)** | **0.227** | **9.3%** | **+5.8%** |
+
+The DFS-like configuration (p=2.0, q=0.5) with edge weight normalization captures longer-range structural patterns.
 
 ---
 
@@ -200,12 +266,14 @@ Expose Node2Vec via Engine API and optional GQL syntax. Enable TypeScript to cal
 **NAPI Example:**
 ```typescript
 // TypeScript usage via NAPI
-const embeddings = engine.computeNode2Vec({
-  p: 1.0,
-  q: 0.5,
-  walkLength: 80,
-  numWalks: 10,
-  embeddingDim: 128,
+const embeddings = engine.computeNode2VecPlus({
+  p: 2.0,           // DFS-like (optimal from benchmark)
+  q: 0.5,           // Explore
+  gamma: 1.0,       // Weight normalization
+  walkLength: 15,
+  numWalks: 30,
+  windowSize: 5,
+  embeddingDim: 32,
   epochs: 5
 });
 
@@ -528,8 +596,8 @@ No workspace `Cargo.toml` at `crates/` root. Each crate managed separately.
   ───────────────   ─────────────────────   ─────────────────   ─────────────────   ─────────────
 
   ┌─────────────┐   ┌─────────────────────┐ ┌─────────────────┐ ┌─────────────────┐ ┌─────────────┐
-  │ 15.R1 Unify │   │ 15.1 Node2Vec Walks │ │ 15.4 HNSW Index │ │ 15.7 DELETE     │ │ 15.9 Increm.│
-  │ Value (3pt) │   │     (8 pts)         │ │     (8 pts)     │ │     (5 pts)     │ │ N2V (8 pts) │
+  │ 15.R1 Unify │   │ 15.1 Node2Vec+      │ │ 15.4 HNSW Index │ │ 15.7 DELETE     │ │ 15.9 Increm.│
+  │ Value (3pt) │   │ Walks (8 pts)       │ │     (8 pts)     │ │     (5 pts)     │ │ N2V+ (8pts) │
   │    HIGH     │   │     CRITICAL        │ │     CRITICAL    │ │     Medium      │ │   Medium    │
   └─────────────┘   └─────────────────────┘ └─────────────────┘ └─────────────────┘ └─────────────┘
 
@@ -608,7 +676,10 @@ No workspace `Cargo.toml` at `crates/` root. Each crate managed separately.
 
 ## References
 
-- [Node2Vec Spike](../spikes/2026-01-01-node2vec-local-alpha-integration.md) - +757% MRR benchmark
+- [Node2Vec Spike](../spikes/2026-01-01-node2vec-local-alpha-integration.md) - +757% MRR benchmark (BGE+Node2Vec vs BGE-only)
+- [Node2Vec+ Spike](../spikes/2026-01-04-node2vec-plus-edge-weights.md) - +5.8% MRR improvement (Node2Vec+ vs Node2Vec)
+- [Node2Vec+ Paper](https://pmc.ncbi.nlm.nih.gov/articles/PMC9891245/) - Liu & Hirn (2023)
 - [Deep-Dive: Rust Crates](../deep-dive-crates.md) - Current architecture
 - [ADR-048: Local Adaptive Alpha](../adrs/adr-048-local-adaptive-alpha.md) - Integration target
+- [ADR-053: SHGAT V1 K-head](../adrs/ADR-053-shgat-subprocess-per-training.md) - Production SHGAT architecture
 - [local-alpha.ts](../../src/graphrag/local-alpha.ts) - TypeScript consumer
