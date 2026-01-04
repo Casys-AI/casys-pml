@@ -1,19 +1,24 @@
 ---
 stepsCompleted: [1, 2, 3, 4]
 inputDocuments:
-  - docs/PRD.md
-  - docs/epics.md
+  - _bmad-output/planning-artifacts/PRD.md
+  - _bmad-output/planning-artifacts/epics/
   - src/web/routes/index.tsx
+  - src/web/islands/
+  - src/web/components/
 workflowType: "ux-design"
 lastStep: 4
 project_name: "Casys PML"
 user_name: "Erwan"
 date: "2025-12-07"
+lastUpdated: "2026-01-04"
 ---
 
 # UX Design Specification - Casys PML
 
-**Author:** Erwan (avec Sally, UX Designer) **Date:** 2025-12-07
+**Author:** Erwan (avec Sally, UX Designer)
+**Created:** 2025-12-07
+**Last Updated:** 2026-01-04
 
 ---
 
@@ -265,26 +270,330 @@ gap: 3rem;
 
 ---
 
-## 6. Implementation Checklist
+## 6. Dashboard Components (Epic 6-9)
 
-### Landing Page (Done 2025-12-07)
+> **Updated:** 2026-01-04 - Reflects current implementation state
+
+### 6.1 Dashboard Layout
+
+**Route:** `/dashboard`
+
+**Layout Structure:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Header (DashboardLayout)                                    │
+├──────────────┬──────────────────────────────────────────────┤
+│  Sidebar     │  Main Content Area                           │
+│  (Navigation)│  ┌──────────────────────────────────────────┐│
+│              │  │  View Mode Tabs / Search                 ││
+│              │  ├──────────────────────────────────────────┤│
+│              │  │                                          ││
+│              │  │  Graph / Timeline / Explorer              ││
+│              │  │                                          ││
+│              │  └──────────────────────────────────────────┘│
+│              │                                              │
+└──────────────┴──────────────────────────────────────────────┘
+```
+
+**Components:**
+
+- `DashboardLayout.tsx` - Main layout wrapper
+- `Sidebar.tsx` - Navigation sidebar
+- `Header.tsx` - Top navigation with mode indicator
+
+### 6.2 Graph Explorer (Epic 8)
+
+**Component:** `GraphExplorer.tsx`
+
+**Features:**
+
+- Unified search for tools and capabilities
+- Cytoscape.js graph visualization
+- Three view modes: Capabilities, Emergence, Graph
+- Breadcrumb navigation for drill-down
+- Related tools sidebar with algorithm insights
+- Pinned sets for accumulating algorithm results
+
+**Sub-components:**
+
+| Component             | Purpose                                   |
+| --------------------- | ----------------------------------------- |
+| `CytoscapeGraph`      | Force-directed graph with compound nodes  |
+| `GraphLegendPanel`    | View mode toggle, filters, export buttons |
+| `GraphInsightsPanel`  | Algorithm results, pinned sets            |
+| `ExplorerSidebar`     | Search filters, density controls          |
+| `CodePanel`           | Code snippet display for capabilities     |
+
+**View Modes:**
+
+| Mode         | Icon   | Description                              |
+| ------------ | ------ | ---------------------------------------- |
+| Capabilities | Grid   | Compound nodes with tools inside         |
+| Emergence    | Spark  | CAS metrics dashboard                    |
+| Graph        | Network | Force-directed with deduplicated tools  |
+
+### 6.3 Capability Timeline
+
+**Component:** `CapabilityTimeline.tsx`
+
+**Features:**
+
+- Multi-mode timeline view for capabilities
+- Three density layouts: compact, normal, extended
+- Time period grouping (Today, This Week, This Month)
+- Real-time search filtering
+- Server color-coded tool badges
+
+**Layouts:**
+
+| Density  | Style                | Use Case            |
+| -------- | -------------------- | ------------------- |
+| Compact  | Terminal-style table | Power users         |
+| Normal   | Responsive card grid | Default exploration |
+| Extended | Tree explorer        | Detailed analysis   |
+
+**Data Model:**
+
+```typescript
+interface TimelineCapability {
+  id: string;
+  name: string;
+  description?: string;
+  successRate: number;
+  usageCount: number;
+  lastUsed?: string;
+  hierarchyLevel?: number; // 0=leaf, 1+=meta-capability
+  tools: Array<{ id: string; name: string; server: string }>;
+  traces?: ExecutionTrace[];
+  codeSnippet?: string;
+}
+```
+
+### 6.4 Tracing Panel (Epic 6)
+
+**Component:** `TracingPanel.tsx`
+
+**Features:**
+
+- Real-time algorithm scoring visualization
+- SSE-based live updates
+- Resizable panel with persistent state
+- Correlation group visualization with tree structure
+- Detailed trace inspection
+
+**Algorithm Color Coding:**
+
+| Algorithm            | Color  | Purpose                |
+| -------------------- | ------ | ---------------------- |
+| SHGAT                | Purple | Graph attention network|
+| DRDSP                | Pink   | Pathfinding algorithm  |
+| HybridSearch         | Blue   | Combined search        |
+| CapabilityMatcher    | Green  | Capability matching    |
+| DAGSuggester         | Orange | DAG recommendations    |
+| AlternativesPrediction | Yellow | Alternative suggestions |
+
+**Trace Display:**
+
+```
+┌─ Correlation Group Header ────────────────────────────┐
+│ ⬡ 5 traces · ✓ 3 / ✗ 2 · avg: 0.72 · SHGAT, DRDSP   │
+├─ ┌── Trace Row ──────────────────────────────────────┤
+│  │ Time | Algorithm | T | Target | Score | ✓        │
+│  ├──────────────────────────────────────────────────┤
+│  │ 14:32 | SHGAT   | C | fetch-user | 0.85 | ●      │
+│  │ └─ Details panel with K-head scores              │
+└──────────────────────────────────────────────────────┘
+```
+
+### 6.5 Admin Dashboard (Cloud Only)
+
+**Component:** `AdminDashboardIsland.tsx`
+
+**Features:**
+
+- Time range selector (24h, 7d, 30d)
+- User activity metrics (DAU, WAU, MAU)
+- System usage statistics
+- Error & health monitoring
+- Resource counts
+- Technical/ML metrics (SHGAT status, algorithm decisions)
+
+**Sections:**
+
+| Section           | Metrics                                    |
+| ----------------- | ------------------------------------------ |
+| User Activity     | Active users, registrations, top users     |
+| System Usage      | Executions, capabilities, DAGs             |
+| Errors & Health   | Error rate, latency percentiles (p50/p95/p99) |
+| Resources         | Users, capabilities, traces, graph nodes   |
+| Technical/ML      | SHGAT model status, algorithm decisions    |
+
+**Charts (ECharts):**
+
+- `ExecutionsByDayChart` - Bar chart for daily executions
+- `ErrorsByTypeChart` - Pie chart for error distribution
+- `LatencyGaugeChart` - Gauge for latency percentiles
+
+### 6.6 Settings Page
+
+**Component:** `SettingsIsland.tsx`
+
+**Features:**
+
+- API Key management with copy functionality
+- Mode indicator (Cloud/Local)
+- BYOK (Bring Your Own Key) configuration
+- Danger zone for account deletion
+
+---
+
+## 7. Component Library
+
+### 7.1 Atoms
+
+| Component          | Purpose                           |
+| ------------------ | --------------------------------- |
+| `Badge.tsx`        | Status indicators, server badges  |
+| `Button.tsx`       | Primary, ghost, danger variants   |
+| `Checkbox.tsx`     | Form input                        |
+| `Divider.tsx`      | Section separator                 |
+| `GaugeChart.tsx`   | Circular progress indicator       |
+| `GraphNode.tsx`    | SVG node for graph                |
+| `GraphEdge.tsx`    | SVG edge for graph                |
+| `Input.tsx`        | Text input field                  |
+| `Kbd.tsx`          | Keyboard shortcut display         |
+| `LegendItem.tsx`   | Legend entry for graphs           |
+| `MetricCard.tsx`   | Stat display with color coding    |
+| `MetricRow.tsx`    | Inline metric display             |
+| `ProgressBar.tsx`  | Linear progress indicator         |
+| `SectionCard.tsx`  | Collapsible section container     |
+| `Slider.tsx`       | Range input control               |
+| `TaskCard.tsx`     | DAG task visualization            |
+| `ToggleChip.tsx`   | Toggle button chip                |
+| `ToolDot.tsx`      | Server-colored tool indicator     |
+| `TrendIndicator.tsx` | Up/down trend arrow             |
+
+### 7.2 Molecules
+
+| Component             | Purpose                              |
+| --------------------- | ------------------------------------ |
+| `CapabilityCard.tsx`  | Capability display with tools        |
+| `EdgeLegendItem.tsx`  | Edge type legend entry               |
+| `FilterGroup.tsx`     | Filter controls group                |
+| `GraphLegendPanel.tsx`| Graph controls and legend            |
+| `GraphTooltip.tsx`    | Hover tooltip for graph nodes        |
+| `NodeDetailsPanel.tsx`| Detailed node information            |
+| `PhaseTransitionBanner.tsx` | Status phase indicator         |
+| `RecommendationsPanel.tsx` | Algorithm recommendations       |
+| `ScopeToggle.tsx`     | Scope selection toggle               |
+| `SearchBar.tsx`       | Search input with suggestions        |
+| `TraceSelector.tsx`   | Trace selection dropdown             |
+| `TraceTimeline.tsx`   | Trace execution timeline             |
+
+### 7.3 Islands (Interactive Components)
+
+| Island                 | Purpose                              |
+| ---------------------- | ------------------------------------ |
+| `AdminDashboardIsland` | Admin analytics dashboard            |
+| `CapabilityTimeline`   | Timeline view of capabilities        |
+| `CodePanel`            | Code snippet viewer                  |
+| `ConfigCopyButton`     | Copy configuration to clipboard      |
+| `CytoscapeGraph`       | Graph visualization                  |
+| `D3GraphVisualization` | D3-based graph (legacy)              |
+| `DangerZoneIsland`     | Account deletion controls            |
+| `DocsSidebar`          | Documentation navigation             |
+| `DocsToc`              | Table of contents                    |
+| `EmergencePanel`       | CAS emergence metrics                |
+| `ExplorerSidebar`      | Graph explorer sidebar               |
+| `GraphExplorer`        | Main graph exploration interface     |
+| `GraphInsightsPanel`   | Algorithm insights and pinned sets   |
+| `HeroRepl`             | Landing page interactive demo        |
+| `MCPCatalogIsland`     | MCP server catalog                   |
+| `MetricsPanel`         | System metrics display               |
+| `MobileMenu`           | Mobile navigation menu               |
+| `NeuralGraph`          | Neural network visualization         |
+| `ServerDetailIsland`   | MCP server detail view               |
+| `SettingsIsland`       | User settings                        |
+| `TracingPanel`         | Algorithm tracing panel              |
+
+---
+
+## 8. Implementation Checklist
+
+### Landing Page ✅ (Done 2025-12-07)
 
 - [x] Hero 2-column layout with code snippet
 - [x] "Show, Don't Tell" principle applied
 - [x] Propagation flow visualization
 - [x] Responsive breakpoints
+- [x] HeroRepl interactive demo
 
-### Dashboard (Epic 9)
+### Dashboard Core ✅ (Done 2026-01)
 
-- [ ] API Key section with copy functionality
-- [ ] Mode indicator (Cloud/Local)
-- [ ] Pattern discovery feed
-- [ ] Settings page
+- [x] DashboardLayout with sidebar navigation
+- [x] Mode indicator (Cloud/Local)
+- [x] Settings page with API Key management
+- [x] Danger zone for account operations
+
+### Graph Explorer ✅ (Epic 8 - Done)
+
+- [x] CytoscapeGraph with compound nodes
+- [x] Three view modes (Capabilities, Emergence, Graph)
+- [x] GraphLegendPanel with controls
+- [x] Highlight depth control
+- [x] Export JSON/PNG functionality
+- [x] Search with unified results (tools + capabilities)
+- [x] Breadcrumb navigation
+- [x] Related tools sidebar
+
+### Capability Timeline ✅ (Epic 7 - Done)
+
+- [x] Multi-mode timeline (compact, normal, extended)
+- [x] Time period grouping
+- [x] Server color coding
+- [x] Real-time search filtering
+- [x] Hierarchy level display (leaf vs meta-capability)
+- [x] Trace inspection
+
+### Tracing Panel ✅ (Epic 6 - Done)
+
+- [x] Real-time SSE updates
+- [x] Algorithm color coding
+- [x] Correlation group visualization
+- [x] Trace detail panel
+- [x] SHGAT K-head attention display
+- [x] Resizable panel with persistence
+- [x] Pause/Resume/Clear controls
+
+### Admin Dashboard ✅ (Epic 9 - Done, Cloud Only)
+
+- [x] Time range selector
+- [x] User activity metrics
+- [x] System usage with ECharts
+- [x] Error & health monitoring
+- [x] Technical/ML metrics
+- [x] Capability registry stats
+
+### MCP Catalog ✅ (Done)
+
+- [x] Server catalog listing
+- [x] Server detail pages
+- [x] Tool/prompt/resource display
+- [x] Routing badges
+
+### Documentation ⚠️ (Partial)
+
+- [x] DocsSidebar navigation
+- [x] DocsToc table of contents
+- [ ] API reference documentation
+- [ ] Component storybook
 
 ### Future Considerations
 
-- [ ] Hypergraph visualization (Epic 8)
-- [ ] Real-time pattern notifications
 - [ ] Team collaboration features
+- [ ] Real-time collaborative editing
+- [ ] Advanced DAG visualization editor
+- [ ] Mobile-optimized dashboard
 
 ---
