@@ -250,6 +250,32 @@ export class ControlledExecutor extends ParallelExecutor {
     log.debug("Episodic memory capture enabled");
   }
 
+  /**
+   * Capture speculation start event for episodic memory
+   *
+   * @param workflowId - Workflow ID for the event
+   * @param toolId - Tool being speculatively predicted
+   * @param confidence - Confidence score (0-1)
+   * @param reasoning - Why this tool was selected
+   * @returns Event ID if captured, null if episodic memory not set
+   */
+  captureSpeculationStart(
+    workflowId: string,
+    toolId: string,
+    confidence: number,
+    reasoning: string,
+  ): string | null {
+    if (!this.episodicMemory) return null;
+
+    const eventId = crypto.randomUUID();
+    const ctx = this.getCaptureContext();
+
+    // Capture the event (fire-and-forget for internal tracking)
+    captureSpeculationStart(ctx, workflowId, toolId, confidence, reasoning);
+
+    return eventId;
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   // Speculation Methods
   // ═══════════════════════════════════════════════════════════════════════════
@@ -468,7 +494,9 @@ export class ControlledExecutor extends ParallelExecutor {
 
       // Pre-execution HIL check: Ask approval BEFORE executing dangerous tasks
       const hilTasks = executableTasks.filter(taskRequiresHIL);
+      let layerHadHILCheck = false; // Track if HIL was done to avoid double-wait
       if (hilTasks.length > 0) {
+        layerHadHILCheck = true;
         const approvalEvent: ExecutionEvent = {
           type: "decision_required",
           timestamp: Date.now(),
@@ -579,7 +607,8 @@ export class ControlledExecutor extends ParallelExecutor {
       // Story 10.7c fix: Per-layer validation pause
       // When perLayerValidation is enabled, pause after checkpoint and wait for "continue" command
       // Skip pause on the last layer (workflow will complete anyway)
-      if (this.config.perLayerValidation && layerIdx < layers.length - 1) {
+      // Skip if layer already had HIL check (to avoid double-wait blocking bug)
+      if (this.config.perLayerValidation && layerIdx < layers.length - 1 && !layerHadHILCheck) {
         log.debug(`[perLayerValidation] Waiting for continue command after layer ${layerIdx}`);
         const cmd = await waitForDecisionCommand(this.commandQueue, "HIL", this.getTimeout("hil"));
         // Accept both "continue" and "approval_response" with approved=true as valid continue commands
