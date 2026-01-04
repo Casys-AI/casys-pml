@@ -1,7 +1,9 @@
-# SHGAT K-head Attention: Dimension Mismatch Investigation
+# ADR-055: SHGAT PreserveDim - Keep d=1024 Throughout Message Passing
 
-**Date**: 2025-01-04
-**Status**: ✅ ROOT CAUSE FIXED - Keep d=1024 throughout message passing
+**Status:** Accepted **Date:** 2025-01-04 **Related:**
+
+- ADR-038 (Scoring Algorithms Reference)
+- ADR-050 (SuperHyperGraph Edge Constraints)
 
 ## Problem
 
