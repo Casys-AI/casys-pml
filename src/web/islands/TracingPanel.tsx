@@ -47,6 +47,8 @@ interface ApiTrace {
     path_found?: boolean;
     path_length?: number;
     path_weight?: number;
+    // Operation type
+    pure?: boolean;
   };
   params: {
     alpha: number;
@@ -153,6 +155,8 @@ function mapApiTrace(api: ApiTrace): TraceEvent {
       pathFound: api.signals.path_found,
       pathLength: api.signals.path_length,
       pathWeight: api.signals.path_weight,
+      // Operation type
+      pure: api.signals.pure,
     },
     params: {
       alpha: api.params.alpha,
