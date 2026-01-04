@@ -4,15 +4,14 @@
 
 - 🛑 NEVER generate content without user input
 
-- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding
-  leads to incomplete decisions
-- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before
-  proceeding
+- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding leads to incomplete decisions
+- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before proceeding
 - ✅ ALWAYS treat this as collaborative discovery between architectural peers
 - 📋 YOU ARE A FACILITATOR, not a content generator
 - 💬 FOCUS on validating architectural coherence and completeness
 - ✅ VALIDATE all requirements are covered by architectural decisions
 - ⚠️ ABSOLUTELY NO TIME ESTIMATES - AI development speed has fundamentally changed
+- ✅ YOU MUST ALWAYS SPEAK OUTPUT In your Agent communication style with the config `{communication_language}`
 
 ## EXECUTION PROTOCOLS:
 
@@ -27,15 +26,14 @@
 
 This step will generate content and present choices:
 
-- **A (Advanced Elicitation)**: Use discovery protocols to address complex architectural issues
-  found during validation
+- **A (Advanced Elicitation)**: Use discovery protocols to address complex architectural issues found during validation
 - **P (Party Mode)**: Bring multiple perspectives to resolve validation concerns
 - **C (Continue)**: Save the validation results and complete the architecture
 
 ## PROTOCOL INTEGRATION:
 
-- When 'A' selected: Execute {project-root}/\_bmad/core/tasks/advanced-elicitation.xml
-- When 'P' selected: Execute {project-root}/\_bmad/core/workflows/party-mode/workflow.md
+- When 'A' selected: Execute {project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml
+- When 'P' selected: Execute {project-root}/_bmad/core/workflows/party-mode/workflow.md
 - PROTOCOLS always return to display this step's A/P/C menu after the A or P have completed
 - User accepts/rejects protocol changes before proceeding
 
@@ -48,8 +46,7 @@ This step will generate content and present choices:
 
 ## YOUR TASK:
 
-Validate the complete architecture for coherence, completeness, and readiness to guide AI agents
-through consistent implementation.
+Validate the complete architecture for coherence, completeness, and readiness to guide AI agents through consistent implementation.
 
 ## VALIDATION SEQUENCE:
 
@@ -157,20 +154,22 @@ Identify and document any missing elements:
 
 For any issues found, facilitate resolution:
 
-**Critical Issues:** "I found some issues that need to be addressed before implementation:
+**Critical Issues:**
+"I found some issues that need to be addressed before implementation:
 
 {{critical_issue_description}}
 
 These could cause implementation problems. How would you like to resolve this?"
 
-**Important Issues:** "I noticed a few areas that could be improved:
+**Important Issues:**
+"I noticed a few areas that could be improved:
 
 {{important_issue_description}}
 
-These aren't blocking, but addressing them would make implementation smoother. Should we work on
-these?"
+These aren't blocking, but addressing them would make implementation smoother. Should we work on these?"
 
-**Minor Issues:** "Here are some minor suggestions for improvement:
+**Minor Issues:**
+"Here are some minor suggestions for improvement:
 
 {{minor_issue_description}}
 
@@ -187,27 +186,36 @@ Prepare the content to append to the document:
 
 ### Coherence Validation ✅
 
-**Decision Compatibility:** {{assessment_of_how_all_decisions_work_together}}
+**Decision Compatibility:**
+{{assessment_of_how_all_decisions_work_together}}
 
-**Pattern Consistency:** {{verification_that_patterns_support_decisions}}
+**Pattern Consistency:**
+{{verification_that_patterns_support_decisions}}
 
-**Structure Alignment:** {{confirmation_that_structure_supports_architecture}}
+**Structure Alignment:**
+{{confirmation_that_structure_supports_architecture}}
 
 ### Requirements Coverage Validation ✅
 
-**Epic/Feature Coverage:** {{verification_that_all_epics_or_features_are_supported}}
+**Epic/Feature Coverage:**
+{{verification_that_all_epics_or_features_are_supported}}
 
-**Functional Requirements Coverage:** {{confirmation_that_all_FRs_are_architecturally_supported}}
+**Functional Requirements Coverage:**
+{{confirmation_that_all_FRs_are_architecturally_supported}}
 
-**Non-Functional Requirements Coverage:** {{verification_that_NFRs_are_addressed}}
+**Non-Functional Requirements Coverage:**
+{{verification_that_NFRs_are_addressed}}
 
 ### Implementation Readiness Validation ✅
 
-**Decision Completeness:** {{assessment_of_decision_documentation_completeness}}
+**Decision Completeness:**
+{{assessment_of_decision_documentation_completeness}}
 
-**Structure Completeness:** {{evaluation_of_project_structure_completeness}}
+**Structure Completeness:**
+{{evaluation_of_project_structure_completeness}}
 
-**Pattern Completeness:** {{verification_of_implementation_patterns_completeness}}
+**Pattern Completeness:**
+{{verification_of_implementation_patterns_completeness}}
 
 ### Gap Analysis Results
 
@@ -253,9 +261,11 @@ Prepare the content to append to the document:
 
 **Confidence Level:** {{high/medium/low}} based on validation results
 
-**Key Strengths:** {{list_of_architecture_strengths}}
+**Key Strengths:**
+{{list_of_architecture_strengths}}
 
-**Areas for Future Enhancement:** {{areas_that_could_be_improved_later}}
+**Areas for Future Enhancement:**
+{{areas_that_could_be_improved_later}}
 
 ### Implementation Handoff
 
@@ -266,7 +276,8 @@ Prepare the content to append to the document:
 - Respect project structure and boundaries
 - Refer to this document for all architectural questions
 
-**First Implementation Priority:** {{starter_template_command_or_first_architectural_step}}
+**First Implementation Priority:**
+{{starter_template_command_or_first_architectural_step}}
 ```
 
 ### 7. Present Content and Menu
@@ -285,15 +296,16 @@ Show the validation results and present choices:
 
 [Show the complete markdown content from step 6]
 
-**What would you like to do?** [A] Advanced Elicitation - Address any complex architectural concerns
-[P] Party Mode - Review validation from different implementation perspectives [C] Continue -
-Complete the architecture and finish workflow"
+**What would you like to do?**
+[A] Advanced Elicitation - Address any complex architectural concerns
+[P] Party Mode - Review validation from different implementation perspectives
+[C] Continue - Complete the architecture and finish workflow"
 
 ### 8. Handle Menu Selection
 
 #### If 'A' (Advanced Elicitation):
 
-- Execute {project-root}/\_bmad/core/tasks/advanced-elicitation.xml with validation issues
+- Execute {project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml with validation issues
 - Process enhanced solutions for complex concerns
 - Ask user: "Accept these architectural improvements? (y/n)"
 - If yes: Update content, then return to A/P/C menu
@@ -301,7 +313,7 @@ Complete the architecture and finish workflow"
 
 #### If 'P' (Party Mode):
 
-- Execute {project-root}/\_bmad/core/workflows/party-mode/workflow.md with validation context
+- Execute {project-root}/_bmad/core/workflows/party-mode/workflow.md with validation context
 - Process collaborative insights on implementation readiness
 - Ask user: "Accept these changes to the validation results? (y/n)"
 - If yes: Update content, then return to A/P/C menu
@@ -309,7 +321,7 @@ Complete the architecture and finish workflow"
 
 #### If 'C' (Continue):
 
-- Append the final content to `{output_folder}/architecture.md`
+- Append the final content to `{planning_artifacts}/architecture.md`
 - Update frontmatter: `stepsCompleted: [1, 2, 3, 4, 5, 6, 7]`
 - Load `./step-08-complete.md`
 
@@ -319,27 +331,29 @@ When user selects 'C', append the content directly to the document using the str
 
 ## SUCCESS METRICS:
 
-✅ All architectural decisions validated for coherence ✅ Complete requirements coverage verified ✅
-Implementation readiness confirmed ✅ All gaps identified and addressed ✅ Comprehensive validation
-checklist completed ✅ A/P/C menu presented and handled correctly ✅ Content properly appended to
-document when C selected
+✅ All architectural decisions validated for coherence
+✅ Complete requirements coverage verified
+✅ Implementation readiness confirmed
+✅ All gaps identified and addressed
+✅ Comprehensive validation checklist completed
+✅ A/P/C menu presented and handled correctly
+✅ Content properly appended to document when C selected
 
 ## FAILURE MODES:
 
-❌ Skipping validation of decision compatibility ❌ Not verifying all requirements are
-architecturally supported ❌ Missing potential implementation conflicts ❌ Not addressing gaps found
-during validation ❌ Providing incomplete validation checklist ❌ Not presenting A/P/C menu after
-content generation
+❌ Skipping validation of decision compatibility
+❌ Not verifying all requirements are architecturally supported
+❌ Missing potential implementation conflicts
+❌ Not addressing gaps found during validation
+❌ Providing incomplete validation checklist
+❌ Not presenting A/P/C menu after content generation
 
-❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor
-decisions ❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step
-file ❌ **CRITICAL**: Making decisions without complete understanding of step requirements and
-protocols
+❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
+❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step file
+❌ **CRITICAL**: Making decisions without complete understanding of step requirements and protocols
 
 ## NEXT STEP:
 
-After user selects 'C' and content is saved to document, load `./step-08-complete.md` to complete
-the workflow and provide implementation guidance.
+After user selects 'C' and content is saved to document, load `./step-08-complete.md` to complete the workflow and provide implementation guidance.
 
-Remember: Do NOT proceed to step-08 until user explicitly selects 'C' from the A/P/C menu and
-content is saved!
+Remember: Do NOT proceed to step-08 until user explicitly selects 'C' from the A/P/C menu and content is saved!

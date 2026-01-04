@@ -8,6 +8,7 @@
 - 💬 FOCUS on finalizing a lean, LLM-optimized project context
 - 🎯 ENSURE all critical rules are captured and actionable
 - ⚠️ ABSOLUTELY NO TIME ESTIMATES - AI development speed has fundamentally changed
+- ✅ YOU MUST ALWAYS SPEAK OUTPUT In your Agent communication style with the config `{communication_language}`
 
 ## EXECUTION PROTOCOLS:
 
@@ -25,8 +26,7 @@
 
 ## YOUR TASK:
 
-Complete the project context file, optimize it for LLM efficiency, and provide guidance for usage
-and maintenance.
+Complete the project context file, optimize it for LLM efficiency, and provide guidance for usage and maintenance.
 
 ## COMPLETION SEQUENCE:
 
@@ -73,8 +73,7 @@ Ensure the final structure follows this optimized format:
 ```markdown
 # Project Context for AI Agents
 
-_This file contains critical rules and patterns that AI agents must follow when implementing code in
-this project. Focus on unobvious details that agents might otherwise miss._
+_This file contains critical rules and patterns that AI agents must follow when implementing code in this project. Focus on unobvious details that agents might otherwise miss._
 
 ---
 
@@ -133,14 +132,15 @@ Last Updated: {{date}}
 
 Based on user skill level, present the completion:
 
-**Expert Mode:** "Project context complete. Optimized for LLM consumption with {{rule_count}}
-critical rules across {{section_count}} sections.
+**Expert Mode:**
+"Project context complete. Optimized for LLM consumption with {{rule_count}} critical rules across {{section_count}} sections.
 
 File saved to: `{output_folder}/project-context.md`
 
 Ready for AI agent integration."
 
-**Intermediate Mode:** "Your project context is complete and optimized for AI agents!
+**Intermediate Mode:**
+"Your project context is complete and optimized for AI agents!
 
 **What we created:**
 
@@ -162,10 +162,11 @@ Ready for AI agent integration."
 - Update as your project evolves
 - Review periodically for optimization"
 
-**Beginner Mode:** "Excellent! Your project context guide is ready! 🎉
+**Beginner Mode:**
+"Excellent! Your project context guide is ready! 🎉
 
-**What this does:** Think of this as a 'rules of the road' guide for AI agents working on your
-project. It ensures they all follow the same patterns and avoid common mistakes.
+**What this does:**
+Think of this as a 'rules of the road' guide for AI agents working on your project. It ensures they all follow the same patterns and avoid common mistakes.
 
 **What's included:**
 
@@ -174,8 +175,8 @@ project. It ensures they all follow the same patterns and avoid common mistakes.
 - Testing and quality standards
 - Workflow patterns to follow
 
-**How AI agents use it:** They read this file before writing any code, ensuring everything they
-create follows your project's standards perfectly.
+**How AI agents use it:**
+They read this file before writing any code, ensuring everything they create follows your project's standards perfectly.
 
 Your project context is saved and ready to help agents implement consistently!"
 
@@ -198,19 +199,27 @@ optimized_for_llm: true
 ---
 ```
 
-**Add Usage Section:** Append the usage guidelines from step 3 to complete the document.
+**Add Usage Section:**
+Append the usage guidelines from step 3 to complete the document.
 
 ### 6. Completion Validation
 
 Final checks before completion:
 
-**Content Validation:** ✅ All critical technology versions documented ✅ Language-specific rules
-are specific and actionable ✅ Framework rules cover project conventions ✅ Testing rules ensure
-consistency ✅ Code quality rules maintain standards ✅ Workflow rules prevent conflicts ✅
-Anti-pattern rules prevent common mistakes
+**Content Validation:**
+✅ All critical technology versions documented
+✅ Language-specific rules are specific and actionable
+✅ Framework rules cover project conventions
+✅ Testing rules ensure consistency
+✅ Code quality rules maintain standards
+✅ Workflow rules prevent conflicts
+✅ Anti-pattern rules prevent common mistakes
 
-**Format Validation:** ✅ Content is lean and optimized for LLMs ✅ Structure is logical and
-scannable ✅ No redundant or obvious information ✅ Consistent formatting throughout
+**Format Validation:**
+✅ Content is lean and optimized for LLMs
+✅ Structure is logical and scannable
+✅ No redundant or obvious information
+✅ Consistent formatting throughout
 
 ### 7. Completion Message
 
@@ -218,7 +227,8 @@ Present final completion to user:
 
 "✅ **Project Context Generation Complete!**
 
-Your optimized project context file is ready at: `{output_folder}/project-context.md`
+Your optimized project context file is ready at:
+`{output_folder}/project-context.md`
 
 **📊 Context Summary:**
 
@@ -240,27 +250,29 @@ Your optimized project context file is ready at: `{output_folder}/project-contex
 2. Update this file when your technology stack or patterns evolve
 3. Review quarterly to optimize and remove outdated rules
 
-Your project context will help ensure high-quality, consistent implementation across all development
-work. Great work capturing your project's critical implementation requirements!"
+Your project context will help ensure high-quality, consistent implementation across all development work. Great work capturing your project's critical implementation requirements!"
 
 ## SUCCESS METRICS:
 
-✅ Complete project context file with all critical rules ✅ Content optimized for LLM context
-efficiency ✅ All technology versions and patterns documented ✅ File structure is logical and
-scannable ✅ Usage guidelines included for agents and humans ✅ Frontmatter properly updated with
-completion status ✅ User provided with clear next steps and benefits
+✅ Complete project context file with all critical rules
+✅ Content optimized for LLM context efficiency
+✅ All technology versions and patterns documented
+✅ File structure is logical and scannable
+✅ Usage guidelines included for agents and humans
+✅ Frontmatter properly updated with completion status
+✅ User provided with clear next steps and benefits
 
 ## FAILURE MODES:
 
-❌ Final content is too verbose for LLM consumption ❌ Missing critical implementation rules or
-patterns ❌ Not optimizing content for agent readability ❌ Not providing clear usage guidelines ❌
-Frontmatter not properly updated ❌ Not validating file completion before ending
+❌ Final content is too verbose for LLM consumption
+❌ Missing critical implementation rules or patterns
+❌ Not optimizing content for agent readability
+❌ Not providing clear usage guidelines
+❌ Frontmatter not properly updated
+❌ Not validating file completion before ending
 
 ## WORKFLOW COMPLETE:
 
-This is the final step of the Generate Project Context workflow. The user now has a comprehensive,
-optimized project context file that will ensure consistent, high-quality implementation across all
-AI agents working on the project.
+This is the final step of the Generate Project Context workflow. The user now has a comprehensive, optimized project context file that will ensure consistent, high-quality implementation across all AI agents working on the project.
 
-The project context file serves as the critical "rules of the road" that agents need to implement
-code consistently with the project's standards and patterns.
+The project context file serves as the critical "rules of the road" that agents need to implement code consistently with the project's standards and patterns.

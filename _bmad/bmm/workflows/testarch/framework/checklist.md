@@ -1,7 +1,6 @@
 # Test Framework Setup - Validation Checklist
 
-This checklist ensures the framework workflow completes successfully and all deliverables meet
-quality standards.
+This checklist ensures the framework workflow completes successfully and all deliverables meet quality standards.
 
 ---
 
@@ -45,8 +44,7 @@ Before starting the workflow:
 - [ ] `tests/support/page-objects/` directory created (if applicable)
 - [ ] All directories have correct permissions
 
-**Note**: Test organization is flexible (e2e/, api/, integration/). The **support/** folder is the
-key pattern.
+**Note**: Test organization is flexible (e2e/, api/, integration/). The **support/** folder is the key pattern.
 
 ### Step 4: Configuration Files
 
@@ -317,5 +315,7 @@ If workflow fails and needs to be rolled back:
 
 **Checklist Complete**: Sign off when all items checked and validated.
 
-**Completed by:** {name} **Date:** {date} **Framework:** { Playwright / Cypress or something else}
+**Completed by:** {name}
+**Date:** {date}
+**Framework:** { Playwright / Cypress or something else}
 **Notes:** {notes}

@@ -1,7 +1,6 @@
 # ATDD Workflow Validation Checklist
 
-Use this checklist to validate that the ATDD workflow has been executed correctly and all
-deliverables meet quality standards.
+Use this checklist to validate that the ATDD workflow has been executed correctly and all deliverables meet quality standards.
 
 ## Prerequisites
 
@@ -185,6 +184,7 @@ Before starting this workflow, verify:
   - [ ] Red-green-refactor workflow
   - [ ] Execution commands
   - [ ] Next steps for DEV team
+- [ ] Output shared with DEV workflow (manual handoff; not auto-consumed)
 
 ### All Tests Verified to Fail (RED Phase)
 
@@ -365,12 +365,10 @@ All of the following must be true before marking this workflow as complete:
 
 ## Notes for TEA Agent
 
-- **Preflight halt is critical:** Do not proceed if story has no acceptance criteria or framework is
-  missing
+- **Preflight halt is critical:** Do not proceed if story has no acceptance criteria or framework is missing
 - **RED phase verification is mandatory:** Tests must fail before sharing with DEV team
 - **Network-first pattern:** Route interception BEFORE navigation prevents race conditions
 - **One assertion per test:** Atomic tests provide clear failure diagnosis
 - **Auto-cleanup is non-negotiable:** Every fixture must clean up data in teardown
-- **Use knowledge base:** Load relevant fragments (fixture-architecture, data-factories,
-  network-first, component-tdd, test-quality) for guidance
+- **Use knowledge base:** Load relevant fragments (fixture-architecture, data-factories, network-first, component-tdd, test-quality) for guidance
 - **Share with DEV agent:** ATDD checklist provides implementation roadmap from red to green

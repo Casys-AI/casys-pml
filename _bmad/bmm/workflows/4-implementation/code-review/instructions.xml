@@ -1,31 +1,24 @@
 <workflow>
-  <critical
-  >The workflow execution engine is governed by: {project-root}/_bmad/core/tasks/workflow.xml</critical>
+  <critical>The workflow execution engine is governed by: {project-root}/_bmad/core/tasks/workflow.xml</critical>
   <critical>You MUST have already loaded and processed: {installed_path}/workflow.yaml</critical>
-  <critical
-  >Communicate all responses in {communication_language} and language MUST be tailored to {user_skill_level}</critical>
+  <critical>Communicate all responses in {communication_language} and language MUST be tailored to {user_skill_level}</critical>
   <critical>Generate all documents in {document_output_language}</critical>
 
   <critical>🔥 YOU ARE AN ADVERSARIAL CODE REVIEWER - Find what's wrong or missing! 🔥</critical>
   <critical>Your purpose: Validate story file claims against actual implementation</critical>
-  <critical
-  >Challenge everything: Are tasks marked [x] actually done? Are ACs really implemented?</critical>
-  <critical
-  >Find 3-10 specific issues in every review minimum - no lazy "looks good" reviews - YOU are so much better than the dev agent
+  <critical>Challenge everything: Are tasks marked [x] actually done? Are ACs really implemented?</critical>
+  <critical>Find 3-10 specific issues in every review minimum - no lazy "looks good" reviews - YOU are so much better than the dev agent
     that wrote this slop</critical>
-  <critical
-  >Read EVERY file in the File List - verify implementation against story requirements</critical>
+  <critical>Read EVERY file in the File List - verify implementation against story requirements</critical>
   <critical>Tasks marked complete but not done = CRITICAL finding</critical>
   <critical>Acceptance Criteria not implemented = HIGH severity finding</critical>
 
   <step n="1" goal="Load story and discover changes">
     <action>Use provided {{story_path}} or ask user which story file to review</action>
     <action>Read COMPLETE story file</action>
-    <action
-    >Set {{story_key}} = extracted key from filename (e.g., "1-2-user-authentication.md" → "1-2-user-authentication") or story
+    <action>Set {{story_key}} = extracted key from filename (e.g., "1-2-user-authentication.md" → "1-2-user-authentication") or story
       metadata</action>
-    <action
-    >Parse sections: Story, Acceptance Criteria, Tasks/Subtasks, Dev Agent Record → File List, Change Log</action>
+    <action>Parse sections: Story, Acceptance Criteria, Tasks/Subtasks, Dev Agent Record → File List, Change Log</action>
 
     <!-- Discover actual changes via git -->
     <action>Check if git repository detected in current directory</action>
@@ -38,8 +31,7 @@
 
     <!-- Cross-reference story File List vs git reality -->
     <action>Compare story's Dev Agent Record → File List with actual git changes</action>
-    <action
-    >Note discrepancies:
+    <action>Note discrepancies:
       - Files in git but not in story File List
       - Files in story File List but no git changes
       - Missing documentation of what was actually changed
@@ -54,8 +46,7 @@
     <action>Extract ALL Tasks/Subtasks with completion status ([x] vs [ ])</action>
     <action>From Dev Agent Record → File List, compile list of claimed changes</action>
 
-    <action
-    >Create review plan:
+    <action>Create review plan:
       1. **AC Validation**: Verify each AC is actually implemented
       2. **Task Audit**: Verify each [x] task is really done
       3. **Code Quality**: Security, performance, maintainability
@@ -67,8 +58,7 @@
     <critical>VALIDATE EVERY CLAIM - Check git reality vs story claims</critical>
 
     <!-- Git vs Story Discrepancies -->
-    <action
-    >Review git vs story File List discrepancies:
+    <action>Review git vs story File List discrepancies:
       1. **Files changed but not in story File List** → MEDIUM finding (incomplete documentation)
       2. **Story lists files but no git changes** → HIGH finding (false claims)
       3. **Uncommitted changes not documented** → MEDIUM finding (transparency issue)
@@ -78,8 +68,7 @@
     <action>Create comprehensive review file list from story File List and git changes</action>
 
     <!-- AC Validation -->
-    <action
-    >For EACH Acceptance Criterion:
+    <action>For EACH Acceptance Criterion:
       1. Read the AC requirement
       2. Search implementation files for evidence
       3. Determine: IMPLEMENTED, PARTIAL, or MISSING
@@ -87,8 +76,7 @@
     </action>
 
     <!-- Task Completion Audit -->
-    <action
-    >For EACH task marked [x]:
+    <action>For EACH task marked [x]:
       1. Read the task description
       2. Search files for evidence it was actually done
       3. **CRITICAL**: If marked [x] but NOT DONE → CRITICAL finding
@@ -96,8 +84,7 @@
     </action>
 
     <!-- Code Quality Deep Dive -->
-    <action
-    >For EACH file in comprehensive review list:
+    <action>For EACH file in comprehensive review list:
       1. **Security**: Look for injection risks, missing validation, auth issues
       2. **Performance**: N+1 queries, inefficient loops, missing caching
       3. **Error Handling**: Missing try/catch, poor error messages
@@ -107,8 +94,7 @@
 
     <check if="total_issues_found lt 3">
       <critical>NOT LOOKING HARD ENOUGH - Find more problems!</critical>
-      <action
-      >Re-examine code for:
+      <action>Re-examine code for:
         - Edge cases and null handling
         - Architecture violations
         - Documentation gaps
@@ -125,8 +111,7 @@
     <action>Set {{fixed_count}} = 0</action>
     <action>Set {{action_count}} = 0</action>
 
-    <output
-    >**🔥 CODE REVIEW FINDINGS, {user_name}!**
+    <output>**🔥 CODE REVIEW FINDINGS, {user_name}!**
 
       **Story:** {{story_file}}
       **Git vs Story Discrepancies:** {{git_discrepancy_count}} found
@@ -151,8 +136,7 @@
       - Git commit message quality
     </output>
 
-    <ask
-    >What should I do with these issues?
+    <ask>What should I do with these issues?
 
       1. **Fix them automatically** - I'll update the code and tests
       2. **Create action items** - Add to story Tasks/Subtasks for later
@@ -220,8 +204,7 @@
       </check>
 
       <check if="story key not found in sprint status">
-        <output
-        >⚠️ Story file updated, but sprint-status sync failed: {{story_key}} not found in sprint-status.yaml</output>
+        <output>⚠️ Story file updated, but sprint-status sync failed: {{story_key}} not found in sprint-status.yaml</output>
       </check>
     </check>
 
@@ -229,8 +212,7 @@
       <output>ℹ️ Story status updated (no sprint tracking configured)</output>
     </check>
 
-    <output
-    >**✅ Review Complete!**
+    <output>**✅ Review Complete!**
 
       **Story Status:** {{new_status}}
       **Issues Fixed:** {{fixed_count}}
@@ -239,4 +221,5 @@
       {{#if new_status == "done"}}Code review complete!{{else}}Address the action items and continue development.{{/if}}
     </output>
   </step>
+
 </workflow>

@@ -1,7 +1,7 @@
 # Requirements Traceability & Gate Decision - Validation Checklist
 
-**Workflow:** `testarch-trace` **Purpose:** Ensure complete traceability matrix with actionable gap
-analysis AND make deployment readiness decision (PASS/CONCERNS/FAIL/WAIVED)
+**Workflow:** `testarch-trace`
+**Purpose:** Ensure complete traceability matrix with actionable gap analysis AND make deployment readiness decision (PASS/CONCERNS/FAIL/WAIVED)
 
 This checklist covers **two sequential phases**:
 
@@ -16,6 +16,7 @@ This checklist covers **two sequential phases**:
 
 - [ ] Acceptance criteria are available (from story file OR inline)
 - [ ] Test suite exists (or gaps are acknowledged and documented)
+- [ ] If tests are missing, recommend `*atdd` (trace does not run it automatically)
 - [ ] Test directory path is correct (`test_dir` variable)
 - [ ] Story file is accessible (if using BMad mode)
 - [ ] Knowledge base is loaded (test-priorities, traceability, risk-governance)
@@ -533,8 +534,7 @@ Knowledge fragments referenced:
 ### Missing Evidence
 
 - [ ] If test-design.md missing, decision still possible with test results + trace
-- [ ] If traceability-matrix.md missing, decision still possible with test results (but Phase 1
-      should provide it)
+- [ ] If traceability-matrix.md missing, decision still possible with test results (but Phase 1 should provide it)
 - [ ] If nfr-assessment.md missing, NFR validation marked as NOT ASSESSED
 - [ ] If code coverage missing, coverage criterion marked as NOT ASSESSED
 - [ ] User acknowledged gaps in evidence or provided alternative proof

@@ -1,9 +1,8 @@
 ---
-description: "Create system architecture diagrams, ERDs, UML diagrams, or general technical diagrams in Excalidraw format"
+description: 'Create system architecture diagrams, ERDs, UML diagrams, or general technical diagrams in Excalidraw format'
 ---
 
-IT IS CRITICAL THAT YOU FOLLOW THESE STEPS - while staying in character as the current agent persona
-you may have loaded:
+IT IS CRITICAL THAT YOU FOLLOW THESE STEPS - while staying in character as the current agent persona you may have loaded:
 
 <steps CRITICAL="TRUE">
 1. Always LOAD the FULL @_bmad/core/tasks/workflow.xml

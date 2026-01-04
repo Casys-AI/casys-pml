@@ -1,11 +1,12 @@
 # Test Quality Review - Validation Checklist
 
-Use this checklist to validate that the test quality review workflow completed successfully and all
-quality criteria were properly evaluated.
+Use this checklist to validate that the test quality review workflow completed successfully and all quality criteria were properly evaluated.
 
 ---
 
 ## Prerequisites
+
+Note: `test-review` is optional and only audits existing tests; it does not generate tests.
 
 ### Test File Discovery
 

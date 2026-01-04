@@ -1,14 +1,12 @@
 ---
 stepsCompleted: []
 inputDocuments: []
-workflowType: "architecture"
-lastStep: 0
-project_name: "{{project_name}}"
-user_name: "{{user_name}}"
-date: "{{date}}"
+workflowType: 'architecture'
+project_name: '{{project_name}}'
+user_name: '{{user_name}}'
+date: '{{date}}'
 ---
 
 # Architecture Decision Document
 
-_This document builds collaboratively through step-by-step discovery. Sections are appended as we
-work through each architectural decision together._
+_This document builds collaboratively through step-by-step discovery. Sections are appended as we work through each architectural decision together._

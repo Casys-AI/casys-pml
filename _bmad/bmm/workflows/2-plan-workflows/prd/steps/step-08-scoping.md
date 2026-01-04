@@ -1,19 +1,19 @@
 ---
-name: "step-08-scoping"
-description: "Define MVP boundaries and prioritize features across development phases"
+name: 'step-08-scoping'
+description: 'Define MVP boundaries and prioritize features across development phases'
 
 # Path Definitions
-workflow_path: "{project-root}/_bmad/bmm/workflows/2-plan-workflows/prd"
+workflow_path: '{project-root}/_bmad/bmm/workflows/2-plan-workflows/prd'
 
 # File References
-thisStepFile: "{workflow_path}/steps/step-08-scoping.md"
-nextStepFile: "{workflow_path}/steps/step-09-functional.md"
-workflowFile: "{workflow_path}/workflow.md"
-outputFile: "{output_folder}/prd.md"
+thisStepFile: '{workflow_path}/steps/step-08-scoping.md'
+nextStepFile: '{workflow_path}/steps/step-09-functional.md'
+workflowFile: '{workflow_path}/workflow.md'
+outputFile: '{planning_artifacts}/prd.md'
 
 # Task References
-advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
-partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
+advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
+partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 ---
 
 # Step 8: Scoping Exercise - MVP & Future Features
@@ -24,14 +24,13 @@ partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 
 - 🛑 NEVER generate content without user input
 
-- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding
-  leads to incomplete decisions
-- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before
-  proceeding
+- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding leads to incomplete decisions
+- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before proceeding
 - ✅ ALWAYS treat this as collaborative discovery between PM peers
 - 📋 YOU ARE A FACILITATOR, not a content generator
 - 💬 FOCUS on strategic scope decisions that keep projects viable
 - 🎯 EMPHASIZE lean MVP thinking while preserving long-term vision
+- ✅ YOU MUST ALWAYS SPEAK OUTPUT In your Agent communication style with the config `{communication_language}`
 
 ## EXECUTION PROTOCOLS:
 
@@ -52,8 +51,8 @@ This step will generate content and present choices:
 
 ## PROTOCOL INTEGRATION:
 
-- When 'A' selected: Execute {project-root}/\_bmad/core/tasks/advanced-elicitation.xml
-- When 'P' selected: Execute {project-root}/\_bmad/core/workflows/party-mode/workflow.md
+- When 'A' selected: Execute {project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml
+- When 'P' selected: Execute {project-root}/_bmad/core/workflows/party-mode/workflow.md
 - PROTOCOLS always return to display this step's A/P/C menu after the A or P have completed
 - User accepts/rejects protocol changes before proceeding
 
@@ -66,23 +65,25 @@ This step will generate content and present choices:
 
 ## YOUR TASK:
 
-Conduct comprehensive scoping exercise to define MVP boundaries and prioritize features across
-development phases.
+Conduct comprehensive scoping exercise to define MVP boundaries and prioritize features across development phases.
 
 ## SCOPING SEQUENCE:
 
 ### 1. Review Current PRD State
 
-Analyze everything documented so far: "I've reviewed your complete PRD so far. Here's what we've
-established:
+Analyze everything documented so far:
+"I've reviewed your complete PRD so far. Here's what we've established:
 
-**Product Vision & Success:** {{summary_of_vision_and_success_criteria}}
+**Product Vision & Success:**
+{{summary_of_vision_and_success_criteria}}
 
 **User Journeys:** {{number_of_journeys}} mapped with rich narratives
 
-**Domain & Innovation Focus:** {{summary_of_domain_requirements_and_innovation}}
+**Domain & Innovation Focus:**
+{{summary_of_domain_requirements_and_innovation}}
 
-**Current Scope Implications:** Based on everything we've documented, this looks like it could be:
+**Current Scope Implications:**
+Based on everything we've documented, this looks like it could be:
 
 - [ ] Simple MVP (small team, lean scope)
 - [ ] Medium scope (moderate team, balanced features)
@@ -115,19 +116,20 @@ Facilitate strategic MVP decisions:
 
 Use structured decision-making for scope:
 
-**Must-Have Analysis:** "Let's identify absolute MVP necessities. For each journey and success
-criterion, ask:
+**Must-Have Analysis:**
+"Let's identify absolute MVP necessities. For each journey and success criterion, ask:
 
 - **Without this, does the product fail?** (Y/N)
 - **Can this be manual initially?** (Y/N)
 - **Is this a deal-breaker for early adopters?** (Y/N)
 
-**Current Document Review:** Looking at your user journeys, what are the absolute core experiences
-that must work?
+**Current Document Review:**
+Looking at your user journeys, what are the absolute core experiences that must work?
 
 {{analyze_journeys_for_mvp_essentials}}"
 
-**Nice-to-Have Analysis:** "Let's also identify what could be added later:
+**Nice-to-Have Analysis:**
+"Let's also identify what could be added later:
 
 **Post-MVP Enhancements:**
 
@@ -167,7 +169,8 @@ Create phased development approach:
 
 Identify and mitigate scoping risks:
 
-**Technical Risks:** "Looking at your innovation and domain requirements:
+**Technical Risks:**
+"Looking at your innovation and domain requirements:
 
 - What's the most technically challenging aspect?
 - Could we simplify the initial implementation?
@@ -196,24 +199,30 @@ Prepare comprehensive scoping section:
 
 ### MVP Strategy & Philosophy
 
-**MVP Approach:** {{chosen_mvp_approach}} **Resource Requirements:** {{mvp_team_size_and_skills}}
+**MVP Approach:** {{chosen_mvp_approach}}
+**Resource Requirements:** {{mvp_team_size_and_skills}}
 
 ### MVP Feature Set (Phase 1)
 
-**Core User Journeys Supported:** {{essential_journeys_for_mvp}}
+**Core User Journeys Supported:**
+{{essential_journeys_for_mvp}}
 
-**Must-Have Capabilities:** {{list_of_essential_mvp_features}}
+**Must-Have Capabilities:**
+{{list_of_essential_mvp_features}}
 
 ### Post-MVP Features
 
-**Phase 2 (Post-MVP):** {{planned_growth_features}}
+**Phase 2 (Post-MVP):**
+{{planned_growth_features}}
 
-**Phase 3 (Expansion):** {{planned_expansion_features}}
+**Phase 3 (Expansion):**
+{{planned_expansion_features}}
 
 ### Risk Mitigation Strategy
 
-**Technical Risks:** {{mitigation_approach}} **Market Risks:** {{validation_approach}} **Resource
-Risks:** {{contingency_approach}}
+**Technical Risks:** {{mitigation_approach}}
+**Market Risks:** {{validation_approach}}
+**Resource Risks:** {{contingency_approach}}
 ```
 
 ### 7. Present Content and Menu
@@ -226,15 +235,16 @@ Show the scoping decisions and present choices:
 
 [Show the complete markdown content from step 6]
 
-**What would you like to do?** [A] Advanced Elicitation - Explore alternative scoping strategies [P]
-Party Mode - Bring different perspectives on MVP and roadmap decisions [C] Continue - Save scoping
-decisions and move to Functional Requirements (Step 9 of 11)"
+**What would you like to do?**
+[A] Advanced Elicitation - Explore alternative scoping strategies
+[P] Party Mode - Bring different perspectives on MVP and roadmap decisions
+[C] Continue - Save scoping decisions and move to Functional Requirements (Step 9 of 11)"
 
 ### 8. Handle Menu Selection
 
 #### If 'A' (Advanced Elicitation):
 
-- Execute {project-root}/\_bmad/core/tasks/advanced-elicitation.xml with current scoping analysis
+- Execute {project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml with current scoping analysis
 - Process enhanced scoping insights that come back
 - Ask user: "Accept these improvements to the scoping decisions? (y/n)"
 - If yes: Update content, then return to A/P/C menu
@@ -242,7 +252,7 @@ decisions and move to Functional Requirements (Step 9 of 11)"
 
 #### If 'P' (Party Mode):
 
-- Execute {project-root}/\_bmad/core/workflows/party-mode/workflow.md with scoping context
+- Execute {project-root}/_bmad/core/workflows/party-mode/workflow.md with scoping context
 - Process collaborative insights on MVP and roadmap decisions
 - Ask user: "Accept these changes to the scoping decisions? (y/n)"
 - If yes: Update content, then return to A/P/C menu
@@ -250,8 +260,8 @@ decisions and move to Functional Requirements (Step 9 of 11)"
 
 #### If 'C' (Continue):
 
-- Append the final content to `{output_folder}/prd.md`
-- Update frontmatter: `stepsCompleted: [1, 2, 3, 4, 5, 6, 7, 8]`
+- Append the final content to `{outputFile}`
+- Update frontmatter: add this step name to the end of the steps completed array
 - Load `./step-09-functional.md`
 
 ## APPEND TO DOCUMENT:
@@ -260,26 +270,30 @@ When user selects 'C', append the content directly to the document using the str
 
 ## SUCCESS METRICS:
 
-✅ Complete PRD document analyzed for scope implications ✅ Strategic MVP approach defined and
-justified ✅ Clear MVP feature boundaries established ✅ Phased development roadmap created ✅ Key
-risks identified and mitigation strategies defined ✅ User explicitly agrees to scope decisions ✅
-A/P/C menu presented and handled correctly ✅ Content properly appended to document when C selected
+✅ Complete PRD document analyzed for scope implications
+✅ Strategic MVP approach defined and justified
+✅ Clear MVP feature boundaries established
+✅ Phased development roadmap created
+✅ Key risks identified and mitigation strategies defined
+✅ User explicitly agrees to scope decisions
+✅ A/P/C menu presented and handled correctly
+✅ Content properly appended to document when C selected
 
 ## FAILURE MODES:
 
-❌ Not analyzing the complete PRD before making scoping decisions ❌ Making scope decisions without
-strategic rationale ❌ Not getting explicit user agreement on MVP boundaries ❌ Missing critical
-risk analysis ❌ Not creating clear phased development approach ❌ Not presenting A/P/C menu after
-content generation
+❌ Not analyzing the complete PRD before making scoping decisions
+❌ Making scope decisions without strategic rationale
+❌ Not getting explicit user agreement on MVP boundaries
+❌ Missing critical risk analysis
+❌ Not creating clear phased development approach
+❌ Not presenting A/P/C menu after content generation
 
-❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor
-decisions ❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step
-file ❌ **CRITICAL**: Making decisions without complete understanding of step requirements and
-protocols
+❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
+❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step file
+❌ **CRITICAL**: Making decisions without complete understanding of step requirements and protocols
 
 ## NEXT STEP:
 
 After user selects 'C' and content is saved to document, load `./step-09-functional.md`.
 
-Remember: Do NOT proceed to step-09 until user explicitly selects 'C' from the A/P/C menu and
-content is saved!
+Remember: Do NOT proceed to step-09 until user explicitly selects 'C' from the A/P/C menu and content is saved!

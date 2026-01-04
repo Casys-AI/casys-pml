@@ -16,8 +16,7 @@
 - [ ] Story markdown with acceptance criteria analyzed
 - [ ] Architecture documents reviewed (if available)
 - [ ] Existing test coverage analyzed
-- [ ] Knowledge base fragments loaded (risk-governance, probability-impact, test-levels,
-      test-priorities)
+- [ ] Knowledge base fragments loaded (risk-governance, probability-impact, test-levels, test-priorities)
 
 ### Step 2: Risk Assessment
 
@@ -153,7 +152,8 @@
 
 ### Workflow Dependencies
 
-- [ ] Can proceed to `atdd` workflow with P0 scenarios
+- [ ] Can proceed to `*atdd` workflow with P0 scenarios
+- [ ] `*atdd` is a separate workflow and must be run explicitly (not auto-run)
 - [ ] Can proceed to `automate` workflow with full coverage plan
 - [ ] Risk assessment informs `gate` workflow criteria
 - [ ] Integrates with `ci` workflow execution order
@@ -177,7 +177,7 @@
 1. [ ] Review risk assessment with team
 2. [ ] Prioritize mitigation for high-priority risks (score ≥6)
 3. [ ] Allocate resources per estimates
-4. [ ] Run `atdd` workflow to generate P0 tests
+4. [ ] Run `*atdd` workflow to generate P0 tests (separate workflow; not auto-run)
 5. [ ] Set up test data factories and fixtures
 6. [ ] Schedule team review of test design document
 
@@ -229,4 +229,7 @@ If workflow fails:
 
 **Checklist Complete**: Sign off when all items validated.
 
-**Completed by:** {name} **Date:** {date} **Epic:** {epic title} **Notes:** {additional notes}
+**Completed by:** {name}
+**Date:** {date}
+**Epic:** {epic title}
+**Notes:** {additional notes}

@@ -1,22 +1,21 @@
 ---
-name: "step-01b-continue"
-description: "Resume an interrupted PRD workflow from the last completed step"
+name: 'step-01b-continue'
+description: 'Resume an interrupted PRD workflow from the last completed step'
 
 # Path Definitions
-workflow_path: "{project-root}/_bmad/bmm/workflows/2-plan-workflows/prd"
+workflow_path: '{project-root}/_bmad/bmm/workflows/2-plan-workflows/prd'
 
 # File References
-thisStepFile: "{workflow_path}/steps/step-01b-continue.md"
-workflowFile: "{workflow_path}/workflow.md"
-outputFile: "{output_folder}/prd.md"
+thisStepFile: '{workflow_path}/steps/step-01b-continue.md'
+workflowFile: '{workflow_path}/workflow.md'
+outputFile: '{planning_artifacts}/prd.md'
 ---
 
 # Step 1B: Workflow Continuation
 
 ## STEP GOAL:
 
-Resume the PRD workflow from where it was left off, ensuring smooth continuation with full context
-restoration.
+Resume the PRD workflow from where it was left off, ensuring smooth continuation with full context restoration.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -26,6 +25,7 @@ restoration.
 - 📖 CRITICAL: Read the complete step file before taking any action
 - 🔄 CRITICAL: When loading next step with 'C', ensure entire file is read
 - 📋 YOU ARE A FACILITATOR, not a content generator
+- ✅ YOU MUST ALWAYS SPEAK OUTPUT In your Agent communication style with the config `{communication_language}`
 
 ### Role Reinforcement:
 
@@ -42,7 +42,7 @@ restoration.
 ## EXECUTION PROTOCOLS:
 
 - 🎯 Show your analysis of current state before taking action
-- 💾 Keep existing frontmatter `stepsCompleted` values
+- Update frontmatter: add this step name to the end of the steps completed array
 - 📖 Only load documents that were already tracked in `inputDocuments`
 - 🚫 FORBIDDEN to discover new input documents during continuation
 
@@ -57,7 +57,8 @@ restoration.
 
 ### 1. Analyze Current State
 
-**State Assessment:** Review the frontmatter to understand:
+**State Assessment:**
+Review the frontmatter to understand:
 
 - `stepsCompleted`: Which steps are already done
 - `lastStep`: The most recently completed step number
@@ -75,8 +76,8 @@ restoration.
 
 ### 3. Present Current Progress
 
-**Progress Report to User:** "Welcome back {{user_name}}! I'm resuming our PRD collaboration for
-{{project_name}}.
+**Progress Report to User:**
+"Welcome back {{user_name}}! I'm resuming our PRD collaboration for {{project_name}}.
 
 **Current Progress:**
 
@@ -93,7 +94,8 @@ Does this look right, or do you want to make any adjustments before we proceed?"
 
 ### 4. Determine Continuation Path
 
-**Next Step Logic:** Based on `lastStep` value, determine which step to load next:
+**Next Step Logic:**
+Based on `lastStep` value, determine which step to load next:
 
 - If `lastStep = 1` → Load `./step-02-discovery.md`
 - If `lastStep = 2` → Load `./step-03-success.md`
@@ -109,8 +111,8 @@ Does this look right, or do you want to make any adjustments before we proceed?"
 
 ### 5. Handle Workflow Completion
 
-**If workflow already complete (`lastStep = 11`):** "Great news! It looks like we've already
-completed the PRD workflow for {{project_name}}.
+**If workflow already complete (`lastStep = 11`):**
+"Great news! It looks like we've already completed the PRD workflow for {{project_name}}.
 
 The final document is ready at `{outputFile}` with all sections completed through step 11.
 
@@ -124,7 +126,8 @@ What would be most helpful?"
 
 ### 6. Present MENU OPTIONS
 
-**If workflow not complete:** Display: "Ready to continue with Step {nextStepNumber}?
+**If workflow not complete:**
+Display: "Ready to continue with Step {nextStepNumber}?
 
 **Select an Option:** [C] Continue to next step"
 
@@ -140,8 +143,7 @@ What would be most helpful?"
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN [C continue option] is selected and [current state confirmed], will you then load and read
-fully the appropriate next step file to resume the workflow.
+ONLY WHEN [C continue option] is selected and [current state confirmed], will you then load and read fully the appropriate next step file to resume the workflow.
 
 ---
 
@@ -161,5 +163,4 @@ fully the appropriate next step file to resume the workflow.
 - Loading wrong next step based on `lastStep` value
 - Proceeding without user confirmation of current state
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
-FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

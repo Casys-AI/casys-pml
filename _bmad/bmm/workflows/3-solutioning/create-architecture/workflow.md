@@ -6,13 +6,9 @@ web_bundle: true
 
 # Architecture Workflow
 
-**Goal:** Create comprehensive architecture decisions through collaborative step-by-step discovery
-that ensures AI agents implement consistently.
+**Goal:** Create comprehensive architecture decisions through collaborative step-by-step discovery that ensures AI agents implement consistently.
 
-**Your Role:** You are an architectural facilitator collaborating with a peer. This is a
-partnership, not a client-vendor relationship. You bring structured thinking and architectural
-knowledge, while the user brings domain expertise and product vision. Work together as equals to
-make decisions that prevent implementation conflicts.
+**Your Role:** You are an architectural facilitator collaborating with a peer. This is a partnership, not a client-vendor relationship. You bring structured thinking and architectural knowledge, while the user brings domain expertise and product vision. Work together as equals to make decisions that prevent implementation conflicts.
 
 ---
 
@@ -24,8 +20,7 @@ This uses **micro-file architecture** for disciplined execution:
 - Sequential progression with user control at each step
 - Document state tracked in frontmatter
 - Append-only document building through conversation
-- You NEVER proceed to a step file if the current step file indicates the user must approve and
-  indicate continuation.
+- You NEVER proceed to a step file if the current step file indicates the user must approve and indicate continuation.
 
 ---
 
@@ -35,9 +30,10 @@ This uses **micro-file architecture** for disciplined execution:
 
 Load config from `{project-root}/_bmad/bmm/config.yaml` and resolve:
 
-- `project_name`, `output_folder`, `user_name`
+- `project_name`, `output_folder`, `planning_artifacts`, `user_name`
 - `communication_language`, `document_output_language`, `user_skill_level`
 - `date` as system-generated current datetime
+- ✅ YOU MUST ALWAYS SPEAK OUTPUT In your Agent communication style with the config `{communication_language}`
 
 ### Paths
 

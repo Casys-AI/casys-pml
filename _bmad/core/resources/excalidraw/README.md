@@ -1,12 +1,10 @@
 # Core Excalidraw Resources
 
-Universal knowledge for creating Excalidraw diagrams. All agents that create Excalidraw files should
-reference these resources.
+Universal knowledge for creating Excalidraw diagrams. All agents that create Excalidraw files should reference these resources.
 
 ## Purpose
 
-Provides the **HOW** (universal knowledge) while agents provide the **WHAT** (domain-specific
-application).
+Provides the **HOW** (universal knowledge) while agents provide the **WHAT** (domain-specific application).
 
 **Core = "How to create Excalidraw elements"**
 
@@ -74,8 +72,8 @@ application).
 
 ```yaml
 # workflows/excalidraw-diagrams/create-flowchart/workflow.yaml
-helpers: "{project-root}/_bmad/core/resources/excalidraw/excalidraw-helpers.md"
-json_validation: "{project-root}/_bmad/core/resources/excalidraw/validate-json-instructions.md"
+helpers: '{project-root}/_bmad/core/resources/excalidraw/excalidraw-helpers.md'
+json_validation: '{project-root}/_bmad/core/resources/excalidraw/validate-json-instructions.md'
 ```
 
 **Domain-specific additions:**
@@ -101,8 +99,8 @@ flowchart:
 
 ```yaml
 # workflows/create-visual-metaphor/workflow.yaml
-helpers: "{project-root}/_bmad/core/resources/excalidraw/excalidraw-helpers.md"
-json_validation: "{project-root}/_bmad/core/resources/excalidraw/validate-json-instructions.md"
+helpers: '{project-root}/_bmad/core/resources/excalidraw/excalidraw-helpers.md'
+json_validation: '{project-root}/_bmad/core/resources/excalidraw/validate-json-instructions.md'
 ```
 
 **Domain-specific additions:**

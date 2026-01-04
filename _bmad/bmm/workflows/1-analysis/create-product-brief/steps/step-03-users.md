@@ -1,27 +1,26 @@
 ---
-name: "step-03-users"
-description: "Define target users with rich personas and map their key interactions with the product"
+name: 'step-03-users'
+description: 'Define target users with rich personas and map their key interactions with the product'
 
 # Path Definitions
-workflow_path: "{project-root}/_bmad/bmm/workflows/1-analysis/product-brief"
+workflow_path: '{project-root}/_bmad/bmm/workflows/1-analysis/create-product-brief'
 
 # File References
-thisStepFile: "{workflow_path}/steps/step-03-users.md"
-nextStepFile: "{workflow_path}/steps/step-04-metrics.md"
-workflowFile: "{workflow_path}/workflow.md"
-outputFile: "{output_folder}/analysis/product-brief-{{project_name}}-{{date}}.md"
+thisStepFile: '{workflow_path}/steps/step-03-users.md'
+nextStepFile: '{workflow_path}/steps/step-04-metrics.md'
+workflowFile: '{workflow_path}/workflow.md'
+outputFile: '{planning_artifacts}/product-brief-{{project_name}}-{{date}}.md'
 
 # Task References
-advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
-partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
+advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
+partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 ---
 
 # Step 3: Target Users Discovery
 
 ## STEP GOAL:
 
-Define target users with rich personas and map their key interactions with the product through
-collaborative user research and journey mapping.
+Define target users with rich personas and map their key interactions with the product through collaborative user research and journey mapping.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -31,15 +30,14 @@ collaborative user research and journey mapping.
 - 📖 CRITICAL: Read the complete step file before taking any action
 - 🔄 CRITICAL: When loading next step with 'C', ensure entire file is read
 - 📋 YOU ARE A FACILITATOR, not a content generator
+- ✅ YOU MUST ALWAYS SPEAK OUTPUT In your Agent communication style with the config `{communication_language}`
 
 ### Role Reinforcement:
 
 - ✅ You are a product-focused Business Analyst facilitator
-- ✅ If you already have been given a name, communication_style and persona, continue to use those
-  while playing this new role
+- ✅ If you already have been given a name, communication_style and persona, continue to use those while playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
-- ✅ You bring structured thinking and facilitation skills, while the user brings domain expertise
-  and product vision
+- ✅ You bring structured thinking and facilitation skills, while the user brings domain expertise and product vision
 - ✅ Maintain collaborative discovery tone throughout
 
 ### Step-Specific Rules:
@@ -58,8 +56,7 @@ collaborative user research and journey mapping.
 
 ## CONTEXT BOUNDARIES:
 
-- Available context: Current document and frontmatter from previous steps, product vision and
-  problem already defined
+- Available context: Current document and frontmatter from previous steps, product vision and problem already defined
 - Focus: Creating vivid, actionable user personas that align with product vision
 - Limits: Focus on users who directly experience the problem or benefit from the solution
 - Dependencies: Product vision and problem statement from step-02 must be complete
@@ -68,8 +65,8 @@ collaborative user research and journey mapping.
 
 ### 1. Begin User Discovery
 
-**Opening Exploration:** "Now that we understand what {{project_name}} does, let's define who it's
-for.
+**Opening Exploration:**
+"Now that we understand what {{project_name}} does, let's define who it's for.
 
 **User Discovery:**
 
@@ -82,7 +79,8 @@ Let's start by identifying the main user groups."
 
 ### 2. Primary User Segment Development
 
-**Persona Development Process:** For each primary user segment, create rich personas:
+**Persona Development Process:**
+For each primary user segment, create rich personas:
 
 **Name & Context:**
 
@@ -118,7 +116,8 @@ Let's start by identifying the main user groups."
 
 ### 4. User Journey Mapping
 
-**Journey Elements:** Map key interactions for each user segment:
+**Journey Elements:**
+Map key interactions for each user segment:
 
 - **Discovery:** How do they find out about the solution?
 - **Onboarding:** What's their first experience like?
@@ -134,7 +133,8 @@ Let's start by identifying the main user groups."
 
 ### 5. Generate Target Users Content
 
-**Content to Append:** Prepare the following structure for document append:
+**Content to Append:**
+Prepare the following structure for document append:
 
 ```markdown
 ## Target Users
@@ -154,36 +154,31 @@ Let's start by identifying the main user groups."
 
 ### 6. Present MENU OPTIONS
 
-**Content Presentation:** "I've mapped out who {{project_name}} serves and how they'll interact with
-it. This helps us ensure we're building something that real people will love to use.
+**Content Presentation:**
+"I've mapped out who {{project_name}} serves and how they'll interact with it. This helps us ensure we're building something that real people will love to use.
 
-**Here's what I'll add to the document:** [Show the complete markdown content from step 5]
+**Here's what I'll add to the document:**
+[Show the complete markdown content from step 5]
 
 **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Continue"
 
 #### Menu Handling Logic:
 
-- IF A: Execute {advancedElicitationTask} with current user content to dive deeper into personas and
-  journeys
+- IF A: Execute {advancedElicitationTask} with current user content to dive deeper into personas and journeys
 - IF P: Execute {partyModeWorkflow} to bring different perspectives to validate user understanding
-- IF C: Save content to {outputFile}, update frontmatter with stepsCompleted: [1, 2, 3], then only
-  then load, read entire file, then execute {nextStepFile}
-- IF Any other comments or queries: help user respond then
-  [Redisplay Menu Options](#6-present-menu-options)
+- IF C: Save content to {outputFile}, update frontmatter with stepsCompleted: [1, 2, 3], then only then load, read entire file, then execute {nextStepFile}
+- IF Any other comments or queries: help user respond then [Redisplay Menu Options](#6-present-menu-options)
 
 #### EXECUTION RULES:
 
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu with updated content
-- User can chat or ask questions - always respond and then end with display again of the menu
-  options
+- User can chat or ask questions - always respond and then end with display again of the menu options
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN [C continue option] is selected and [user personas finalized and saved to document with
-frontmatter updated], will you then load and read fully `{nextStepFile}` to execute and begin
-success metrics definition.
+ONLY WHEN [C continue option] is selected and [user personas finalized and saved to document with frontmatter updated], will you then load and read fully `{nextStepFile}` to execute and begin success metrics definition.
 
 ---
 
@@ -209,5 +204,4 @@ success metrics definition.
 - Appending content without user selecting 'C'
 - Not updating frontmatter properly
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
-FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

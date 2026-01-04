@@ -27,15 +27,14 @@ Will document how to use:
 ```yaml
 # Future workflow.yaml structure
 libraries:
-  - url: "https://libraries.excalidraw.com/libraries/..."
-    filter: ["aws", "cloud"]
-  - path: "{project-root}/_data/custom-library.excalidrawlib"
+  - url: 'https://libraries.excalidraw.com/libraries/...'
+    filter: ['aws', 'cloud']
+  - path: '{project-root}/_data/custom-library.excalidrawlib'
 ```
 
 ## Implementation Notes
 
-This will be developed when agents need to leverage the extensive library ecosystem available at
-<https://libraries.excalidraw.com>.
+This will be developed when agents need to leverage the extensive library ecosystem available at <https://libraries.excalidraw.com>.
 
 Hundreds of pre-built component libraries exist for:
 
@@ -48,5 +47,4 @@ Hundreds of pre-built component libraries exist for:
 
 ## User Configuration
 
-Future: Users will be able to configure favorite libraries in their BMAD config for automatic
-loading.
+Future: Users will be able to configure favorite libraries in their BMAD config for automatic loading.

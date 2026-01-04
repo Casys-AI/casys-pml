@@ -7,6 +7,7 @@
 - 📋 MAINTAIN CHARACTER CONSISTENCY using merged agent personalities
 - 🔍 ENABLE NATURAL CROSS-TALK between agents for dynamic conversation
 - 💬 INTEGRATE TTS for each agent response immediately after text
+- ✅ YOU MUST ALWAYS SPEAK OUTPUT In your Agent communication style with the config `{communication_language}`
 
 ## EXECUTION PROTOCOLS:
 
@@ -25,8 +26,7 @@
 
 ## YOUR TASK:
 
-Orchestrate dynamic multi-agent conversations with intelligent agent selection, natural cross-talk,
-and authentic character portrayal.
+Orchestrate dynamic multi-agent conversations with intelligent agent selection, natural cross-talk, and authentic character portrayal.
 
 ## DISCUSSION ORCHESTRATION SEQUENCE:
 
@@ -34,7 +34,8 @@ and authentic character portrayal.
 
 For each user message or topic:
 
-**Input Analysis Process:** "Analyzing your message for the perfect agent collaboration..."
+**Input Analysis Process:**
+"Analyzing your message for the perfect agent collaboration..."
 
 **Analysis Criteria:**
 
@@ -70,7 +71,8 @@ Generate authentic responses for each selected agent:
 - Draw from their identity and role for authentic expertise
 - Maintain their unique voice and personality traits
 
-**Response Structure:** [For each selected agent]:
+**Response Structure:**
+[For each selected agent]:
 
 "[Icon Emoji] **[Agent Name]**: [Authentic in-character response]
 
@@ -98,27 +100,33 @@ Enable dynamic agent-to-agent interactions:
 
 Manage different types of questions appropriately:
 
-**Direct Questions to User:** When an agent asks the user a specific question:
+**Direct Questions to User:**
+When an agent asks the user a specific question:
 
 - End that response round immediately after the question
 - Clearly highlight: **[Agent Name] asks: [Their question]**
 - Display: _[Awaiting user response...]_
 - WAIT for user input before continuing
 
-**Rhetorical Questions:** Agents can ask thinking-aloud questions without pausing conversation flow.
+**Rhetorical Questions:**
+Agents can ask thinking-aloud questions without pausing conversation flow.
 
-**Inter-Agent Questions:** Allow natural back-and-forth within the same response round for dynamic
-interaction.
+**Inter-Agent Questions:**
+Allow natural back-and-forth within the same response round for dynamic interaction.
 
 ### 6. Response Round Completion
 
 After generating all agent responses for the round:
 
-**Presentation Format:** [Agent 1 Response with TTS] [Empty line for readability] [Agent 2 Response
-with TTS, potentially referencing Agent 1] [Empty line for readability] [Agent 3 Response with TTS,
-building on or offering new perspective]
+**Presentation Format:**
+[Agent 1 Response with TTS]
+[Empty line for readability]
+[Agent 2 Response with TTS, potentially referencing Agent 1]
+[Empty line for readability]
+[Agent 3 Response with TTS, building on or offering new perspective]
 
-**Continue Option:** "[Agents have contributed their perspectives. Ready for more discussion?]
+**Continue Option:**
+"[Agents have contributed their perspectives. Ready for more discussion?]
 
 [E] Exit Party Mode - End the collaborative session"
 
@@ -147,18 +155,23 @@ Check for exit conditions before continuing:
 
 ## SUCCESS METRICS:
 
-✅ Intelligent agent selection based on topic analysis ✅ Authentic in-character responses
-maintained consistently ✅ Natural cross-talk and agent interactions enabled ✅ TTS integration
-working for all agent responses ✅ Question handling protocol followed correctly ✅ [E] exit option
-presented after each response round ✅ Conversation context and state maintained throughout ✅
-Graceful conversation flow without abrupt interruptions
+✅ Intelligent agent selection based on topic analysis
+✅ Authentic in-character responses maintained consistently
+✅ Natural cross-talk and agent interactions enabled
+✅ TTS integration working for all agent responses
+✅ Question handling protocol followed correctly
+✅ [E] exit option presented after each response round
+✅ Conversation context and state maintained throughout
+✅ Graceful conversation flow without abrupt interruptions
 
 ## FAILURE MODES:
 
-❌ Generic responses without character consistency ❌ Poor agent selection not matching topic
-expertise ❌ Missing TTS integration for agent responses ❌ Ignoring user questions or exit triggers
-❌ Not enabling natural agent cross-talk and interactions ❌ Continuing conversation without user
-input when questions asked
+❌ Generic responses without character consistency
+❌ Poor agent selection not matching topic expertise
+❌ Missing TTS integration for agent responses
+❌ Ignoring user questions or exit triggers
+❌ Not enabling natural agent cross-talk and interactions
+❌ Continuing conversation without user input when questions asked
 
 ## CONVERSATION ORCHESTRATION PROTOCOLS:
 
@@ -186,8 +199,6 @@ input when questions asked
 
 ## NEXT STEP:
 
-When user selects 'E' or exit conditions are met, load `./step-03-graceful-exit.md` to provide
-satisfying agent farewells and conclude the party mode session.
+When user selects 'E' or exit conditions are met, load `./step-03-graceful-exit.md` to provide satisfying agent farewells and conclude the party mode session.
 
-Remember: Orchestrate engaging, intelligent conversations while maintaining authentic agent
-personalities and natural interaction patterns!
+Remember: Orchestrate engaging, intelligent conversations while maintaining authentic agent personalities and natural interaction patterns!

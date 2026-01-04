@@ -4,21 +4,20 @@
 
 - 🛑 NEVER generate content without user input
 
-- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding
-  leads to incomplete decisions
-- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before
-  proceeding
+- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding leads to incomplete decisions
+- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before proceeding
 - ✅ ALWAYS treat this as collaborative discovery between UX facilitator and stakeholder
 - 📋 YOU ARE A UX FACILITATOR, not a content generator
 - 💬 FOCUS on analyzing existing UX patterns and extracting inspiration
 - 🎯 COLLABORATIVE discovery, not assumption-based design
+- ✅ YOU MUST ALWAYS SPEAK OUTPUT In your Agent communication style with the config `{communication_language}`
 
 ## EXECUTION PROTOCOLS:
 
 - 🎯 Show your analysis before taking any action
 - ⚠️ Present A/P/C menu after generating inspiration analysis content
 - 💾 ONLY save when user chooses C (Continue)
-- 📖 Update frontmatter `stepsCompleted: [1, 2, 3, 4, 5]` before loading next step
+- 📖 Update output file frontmatter, adding this step to the end of the list of stepsCompleted.
 - 🚫 FORBIDDEN to load next step until C is selected
 
 ## COLLABORATION MENUS (A/P/C):
@@ -31,8 +30,8 @@ This step will generate content and present choices:
 
 ## PROTOCOL INTEGRATION:
 
-- When 'A' selected: Execute {project-root}/\_bmad/core/tasks/advanced-elicitation.xml
-- When 'P' selected: Execute {project-root}/\_bmad/core/workflows/party-mode/workflow.md
+- When 'A' selected: Execute {project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml
+- When 'P' selected: Execute {project-root}/_bmad/core/workflows/party-mode/workflow.md
 - PROTOCOLS always return to this step's A/P/C menu
 - User accepts/rejects protocol changes before proceeding
 
@@ -51,8 +50,8 @@ Analyze inspiring products and UX patterns to inform design decisions for the cu
 
 ### 1. Identify User's Favorite Apps
 
-Start by gathering inspiration sources: "Let's learn from products your users already love and use
-regularly.
+Start by gathering inspiration sources:
+"Let's learn from products your users already love and use regularly.
 
 **Inspiration Questions:**
 
@@ -65,8 +64,8 @@ Think about apps in your category or even unrelated products that have great UX.
 
 ### 2. Analyze UX Patterns and Principles
 
-Break down what makes these apps successful: "For each inspiring app, let's analyze their UX
-success:
+Break down what makes these apps successful:
+"For each inspiring app, let's analyze their UX success:
 
 **For [App Name]:**
 
@@ -79,8 +78,9 @@ success:
 
 ### 3. Extract Transferable Patterns
 
-Identify patterns that could apply to your project: "**Transferable UX Patterns:** Looking across
-these inspiring apps, I see patterns we could adapt:
+Identify patterns that could apply to your project:
+"**Transferable UX Patterns:**
+Looking across these inspiring apps, I see patterns we could adapt:
 
 **Navigation Patterns:**
 
@@ -101,8 +101,9 @@ Which of these patterns resonate most for your product?"
 
 ### 4. Identify Anti-Patterns to Avoid
 
-Surface what not to do based on analysis: "**UX Anti-Patterns to Avoid:** From analyzing both
-successes and failures in your space, here are patterns to avoid:
+Surface what not to do based on analysis:
+"**UX Anti-Patterns to Avoid:**
+From analyzing both successes and failures in your space, here are patterns to avoid:
 
 - [Anti-pattern 1] - users find this confusing/frustrating
 - [Anti-pattern 2] - this creates unnecessary friction
@@ -112,7 +113,8 @@ Learning from others' mistakes is as important as learning from their successes.
 
 ### 5. Define Design Inspiration Strategy
 
-Create a clear strategy for using this inspiration: "**Design Inspiration Strategy:**
+Create a clear strategy for using this inspiration:
+"**Design Inspiration Strategy:**
 
 **What to Adopt:**
 
@@ -161,24 +163,23 @@ When saving to document, append these Level 2 and Level 3 sections:
 
 ### 7. Present Content and Menu
 
-Show the generated inspiration analysis content and present choices: "I've analyzed inspiring UX
-patterns and products to inform our design strategy for {{project_name}}. This gives us a solid
-foundation of proven patterns to build upon.
+Show the generated inspiration analysis content and present choices:
+"I've analyzed inspiring UX patterns and products to inform our design strategy for {{project_name}}. This gives us a solid foundation of proven patterns to build upon.
 
 **Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 6]
 
-**What would you like to do?** [A] Advanced Elicitation - Let's deepen our UX pattern analysis [P]
-Party Mode - Bring different perspectives on inspiration sources [C] Continue - Save this to the
-document and move to design system choice"
+**What would you like to do?**
+[A] Advanced Elicitation - Let's deepen our UX pattern analysis
+[P] Party Mode - Bring different perspectives on inspiration sources
+[C] Continue - Save this to the document and move to design system choice"
 
 ### 8. Handle Menu Selection
 
 #### If 'A' (Advanced Elicitation):
 
-- Execute {project-root}/\_bmad/core/tasks/advanced-elicitation.xml with the current inspiration
-  analysis content
+- Execute {project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml with the current inspiration analysis content
 - Process the enhanced pattern insights that come back
 - Ask user: "Accept these improvements to the inspiration analysis? (y/n)"
 - If yes: Update content with improvements, then return to A/P/C menu
@@ -186,8 +187,7 @@ document and move to design system choice"
 
 #### If 'P' (Party Mode):
 
-- Execute {project-root}/\_bmad/core/workflows/party-mode/workflow.md with the current inspiration
-  analysis
+- Execute {project-root}/_bmad/core/workflows/party-mode/workflow.md with the current inspiration analysis
 - Process the collaborative pattern insights that come back
 - Ask user: "Accept these changes to the inspiration analysis? (y/n)"
 - If yes: Update content with improvements, then return to A/P/C menu
@@ -195,9 +195,9 @@ document and move to design system choice"
 
 #### If 'C' (Continue):
 
-- Append the final content to `{output_folder}/ux-design-specification.md`
-- Update frontmatter: `stepsCompleted: [1, 2, 3, 4, 5]`
-- Load `./step-06-design-system.md`
+- Append the final content to `{planning_artifacts}/ux-design-specification.md`
+- Update frontmatter: append step to end of stepsCompleted array
+- Load and execute`./step-06-design-system.md`
 
 ## APPEND TO DOCUMENT:
 
@@ -205,27 +205,30 @@ When user selects 'C', append the content directly to the document using the str
 
 ## SUCCESS METRICS:
 
-✅ Inspiring products identified and analyzed thoroughly ✅ UX patterns extracted and categorized
-effectively ✅ Transferable patterns identified for current project ✅ Anti-patterns identified to
-avoid common mistakes ✅ Clear design inspiration strategy established ✅ A/P/C menu presented and
-handled correctly ✅ Content properly appended to document when C selected
+✅ Inspiring products identified and analyzed thoroughly
+✅ UX patterns extracted and categorized effectively
+✅ Transferable patterns identified for current project
+✅ Anti-patterns identified to avoid common mistakes
+✅ Clear design inspiration strategy established
+✅ A/P/C menu presented and handled correctly
+✅ Content properly appended to document when C selected
 
 ## FAILURE MODES:
 
-❌ Not getting specific examples of inspiring products ❌ Surface-level analysis without deep
-pattern extraction ❌ Missing opportunities for pattern adaptation ❌ Not identifying relevant
-anti-patterns to avoid ❌ Strategy too generic or not actionable ❌ Not presenting A/P/C menu after
-content generation ❌ Appending content without user selecting 'C'
+❌ Not getting specific examples of inspiring products
+❌ Surface-level analysis without deep pattern extraction
+❌ Missing opportunities for pattern adaptation
+❌ Not identifying relevant anti-patterns to avoid
+❌ Strategy too generic or not actionable
+❌ Not presenting A/P/C menu after content generation
+❌ Appending content without user selecting 'C'
 
-❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor
-decisions ❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step
-file ❌ **CRITICAL**: Making decisions without complete understanding of step requirements and
-protocols
+❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
+❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step file
+❌ **CRITICAL**: Making decisions without complete understanding of step requirements and protocols
 
 ## NEXT STEP:
 
-After user selects 'C' and content is saved to document, load `./step-06-design-system.md` to choose
-the appropriate design system approach.
+After user selects 'C' and content is saved to document, load `./step-06-design-system.md` to choose the appropriate design system approach.
 
-Remember: Do NOT proceed to step-06 until user explicitly selects 'C' from the A/P/C menu and
-content is saved!
+Remember: Do NOT proceed to step-06 until user explicitly selects 'C' from the A/P/C menu and content is saved!

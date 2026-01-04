@@ -4,15 +4,14 @@
 
 - 🛑 NEVER generate content without user input
 
-- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding
-  leads to incomplete decisions
-- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before
-  proceeding
+- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding leads to incomplete decisions
+- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before proceeding
 - ✅ ALWAYS treat this as collaborative discovery between architectural peers
 - 📋 YOU ARE A FACILITATOR, not a content generator
 - 💬 FOCUS on making critical architectural decisions collaboratively
 - 🌐 ALWAYS search the web to verify current technology versions
 - ⚠️ ABSOLUTELY NO TIME ESTIMATES - AI development speed has fundamentally changed
+- ✅ YOU MUST ALWAYS SPEAK OUTPUT In your Agent communication style with the config `{communication_language}`
 
 ## EXECUTION PROTOCOLS:
 
@@ -27,15 +26,14 @@
 
 This step will generate content and present choices for each decision category:
 
-- **A (Advanced Elicitation)**: Use discovery protocols to explore innovative approaches to specific
-  decisions
+- **A (Advanced Elicitation)**: Use discovery protocols to explore innovative approaches to specific decisions
 - **P (Party Mode)**: Bring multiple perspectives to evaluate decision trade-offs
 - **C (Continue)**: Save the current decisions and proceed to next decision category
 
 ## PROTOCOL INTEGRATION:
 
-- When 'A' selected: Execute {project-root}/\_bmad/core/tasks/advanced-elicitation.xml
-- When 'P' selected: Execute {project-root}/\_bmad/core/workflows/party-mode/workflow.md
+- When 'A' selected: Execute {project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml
+- When 'P' selected: Execute {project-root}/_bmad/core/workflows/party-mode/workflow.md
 - PROTOCOLS always return to display this step's A/P/C menu after the A or P have completed
 - User accepts/rejects protocol changes before proceeding
 
@@ -50,24 +48,26 @@ This step will generate content and present choices for each decision category:
 
 ## YOUR TASK:
 
-Facilitate collaborative architectural decision making, leveraging existing technical preferences
-and starter template decisions, focusing on remaining choices critical to the project's success.
+Facilitate collaborative architectural decision making, leveraging existing technical preferences and starter template decisions, focusing on remaining choices critical to the project's success.
 
 ## DECISION MAKING SEQUENCE:
 
 ### 1. Load Decision Framework & Check Existing Preferences
 
-**Review Technical Preferences from Step 3:** "Based on our technical preferences discussion in step
-3, let's build on those foundations:
+**Review Technical Preferences from Step 3:**
+"Based on our technical preferences discussion in step 3, let's build on those foundations:
 
-**Your Technical Preferences:** {{user_technical_preferences_from_step_3}}
+**Your Technical Preferences:**
+{{user_technical_preferences_from_step_3}}
 
-**Starter Template Decisions:** {{starter_template_decisions}}
+**Starter Template Decisions:**
+{{starter_template_decisions}}
 
-**Project Context Technical Rules:** {{project_context_technical_rules}}"
+**Project Context Technical Rules:**
+{{project_context_technical_rules}}"
 
-**Identify Remaining Decisions:** Based on technical preferences, starter template choice, and
-project context, identify remaining critical decisions:
+**Identify Remaining Decisions:**
+Based on technical preferences, starter template choice, and project context, identify remaining critical decisions:
 
 **Already Decided (Don't re-decide these):**
 
@@ -75,8 +75,9 @@ project context, identify remaining critical decisions:
 - {{user_technology_preferences}}
 - {{project_context_technical_rules}}
 
-**Critical Decisions:** Must be decided before implementation can proceed **Important Decisions:**
-Shape the architecture significantly **Nice-to-Have:** Can be deferred if needed
+**Critical Decisions:** Must be decided before implementation can proceed
+**Important Decisions:** Shape the architecture significantly
+**Nice-to-Have:** Can be deferred if needed
 
 ### 2. Decision Categories by Priority
 
@@ -124,35 +125,43 @@ Shape the architecture significantly **Nice-to-Have:** Can be deferred if needed
 
 For each category, facilitate collaborative decision making:
 
-**Present the Decision:** Based on user skill level and project context:
+**Present the Decision:**
+Based on user skill level and project context:
 
-**Expert Mode:** "{{Decision_Category}}: {{Specific_Decision}}
+**Expert Mode:**
+"{{Decision_Category}}: {{Specific_Decision}}
 
 Options: {{concise_option_list_with_tradeoffs}}
 
 What's your preference for this decision?"
 
-**Intermediate Mode:** "Next decision: {{Human_Friendly_Category}}
+**Intermediate Mode:**
+"Next decision: {{Human_Friendly_Category}}
 
 We need to choose {{Specific_Decision}}.
 
-Common options: {{option_list_with_brief_explanations}}
+Common options:
+{{option_list_with_brief_explanations}}
 
 For your project, I'd lean toward {{recommendation}} because {{reason}}. What are your thoughts?"
 
-**Beginner Mode:** "Let's talk about {{Human_Friendly_Category}}.
+**Beginner Mode:**
+"Let's talk about {{Human_Friendly_Category}}.
 
 {{Educational_Context_About_Why_This_Matters}}
 
 Think of it like {{real_world_analogy}}.
 
-Your main options: {{friendly_options_with_pros_cons}}
+Your main options:
+{{friendly_options_with_pros_cons}}
 
-My suggestion: {{recommendation}} This is good for you because {{beginner_friendly_reason}}.
+My suggestion: {{recommendation}}
+This is good for you because {{beginner_friendly_reason}}.
 
 What feels right to you?"
 
-**Verify Technology Versions:** If decision involves specific technology:
+**Verify Technology Versions:**
+If decision involves specific technology:
 
 ```
 Search the web: "{{technology}} latest stable version"
@@ -160,7 +169,8 @@ Search the web: "{{technology}} current LTS version"
 Search the web: "{{technology}} production readiness"
 ```
 
-**Get User Input:** "What's your preference? (or 'explain more' for details)"
+**Get User Input:**
+"What's your preference? (or 'explain more' for details)"
 
 **Handle User Response:**
 
@@ -197,11 +207,14 @@ After facilitating all decision categories, prepare the content to append:
 
 ### Decision Priority Analysis
 
-**Critical Decisions (Block Implementation):** {{critical_decisions_made}}
+**Critical Decisions (Block Implementation):**
+{{critical_decisions_made}}
 
-**Important Decisions (Shape Architecture):** {{important_decisions_made}}
+**Important Decisions (Shape Architecture):**
+{{important_decisions_made}}
 
-**Deferred Decisions (Post-MVP):** {{decisions_deferred_with_rationale}}
+**Deferred Decisions (Post-MVP):**
+{{decisions_deferred_with_rationale}}
 
 ### Data Architecture
 
@@ -225,9 +238,11 @@ After facilitating all decision categories, prepare the content to append:
 
 ### Decision Impact Analysis
 
-**Implementation Sequence:** {{ordered_list_of_decisions_for_implementation}}
+**Implementation Sequence:**
+{{ordered_list_of_decisions_for_implementation}}
 
-**Cross-Component Dependencies:** {{how_decisions_affect_each_other}}
+**Cross-Component Dependencies:**
+{{how_decisions_affect_each_other}}
 ```
 
 ### 6. Present Content and Menu
@@ -240,16 +255,16 @@ Show the generated decisions content and present choices:
 
 [Show the complete markdown content from step 5]
 
-**What would you like to do?** [A] Advanced Elicitation - Explore innovative approaches to any
-specific decisions [P] Party Mode - Review decisions from multiple perspectives [C] Continue - Save
-these decisions and move to implementation patterns"
+**What would you like to do?**
+[A] Advanced Elicitation - Explore innovative approaches to any specific decisions
+[P] Party Mode - Review decisions from multiple perspectives
+[C] Continue - Save these decisions and move to implementation patterns"
 
 ### 7. Handle Menu Selection
 
 #### If 'A' (Advanced Elicitation):
 
-- Execute {project-root}/\_bmad/core/tasks/advanced-elicitation.xml with specific decision
-  categories
+- Execute {project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml with specific decision categories
 - Process enhanced insights about particular decisions
 - Ask user: "Accept these enhancements to the architectural decisions? (y/n)"
 - If yes: Update content, then return to A/P/C menu
@@ -257,8 +272,7 @@ these decisions and move to implementation patterns"
 
 #### If 'P' (Party Mode):
 
-- Execute {project-root}/\_bmad/core/workflows/party-mode/workflow.md with architectural decisions
-  context
+- Execute {project-root}/_bmad/core/workflows/party-mode/workflow.md with architectural decisions context
 - Process collaborative insights about decision trade-offs
 - Ask user: "Accept these changes to the architectural decisions? (y/n)"
 - If yes: Update content, then return to A/P/C menu
@@ -266,7 +280,7 @@ these decisions and move to implementation patterns"
 
 #### If 'C' (Continue):
 
-- Append the final content to `{output_folder}/architecture.md`
+- Append the final content to `{planning_artifacts}/architecture.md`
 - Update frontmatter: `stepsCompleted: [1, 2, 3, 4]`
 - Load `./step-05-patterns.md`
 
@@ -276,27 +290,29 @@ When user selects 'C', append the content directly to the document using the str
 
 ## SUCCESS METRICS:
 
-✅ All critical architectural decisions made collaboratively ✅ Technology versions verified using
-web search ✅ Decision rationale clearly documented ✅ Cascading implications identified and
-addressed ✅ User provided appropriate level of explanation for skill level ✅ A/P/C menu presented
-and handled correctly for each category ✅ Content properly appended to document when C selected
+✅ All critical architectural decisions made collaboratively
+✅ Technology versions verified using web search
+✅ Decision rationale clearly documented
+✅ Cascading implications identified and addressed
+✅ User provided appropriate level of explanation for skill level
+✅ A/P/C menu presented and handled correctly for each category
+✅ Content properly appended to document when C selected
 
 ## FAILURE MODES:
 
-❌ Making recommendations instead of facilitating decisions ❌ Not verifying technology versions
-with web search ❌ Missing cascading implications between decisions ❌ Not adapting explanations to
-user skill level ❌ Forgetting to document decisions made by starter template ❌ Not presenting
-A/P/C menu after content generation
+❌ Making recommendations instead of facilitating decisions
+❌ Not verifying technology versions with web search
+❌ Missing cascading implications between decisions
+❌ Not adapting explanations to user skill level
+❌ Forgetting to document decisions made by starter template
+❌ Not presenting A/P/C menu after content generation
 
-❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor
-decisions ❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step
-file ❌ **CRITICAL**: Making decisions without complete understanding of step requirements and
-protocols
+❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
+❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step file
+❌ **CRITICAL**: Making decisions without complete understanding of step requirements and protocols
 
 ## NEXT STEP:
 
-After user selects 'C' and content is saved to document, load `./step-05-patterns.md` to define
-implementation patterns that ensure consistency across AI agents.
+After user selects 'C' and content is saved to document, load `./step-05-patterns.md` to define implementation patterns that ensure consistency across AI agents.
 
-Remember: Do NOT proceed to step-05 until user explicitly selects 'C' from the A/P/C menu and
-content is saved!
+Remember: Do NOT proceed to step-05 until user explicitly selects 'C' from the A/P/C menu and content is saved!

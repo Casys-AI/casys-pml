@@ -1,23 +1,23 @@
 ---
-name: "step-02-discovery"
-description: "Conduct project and domain discovery with data-driven classification"
+name: 'step-02-discovery'
+description: 'Conduct project and domain discovery with data-driven classification'
 
 # Path Definitions
-workflow_path: "{project-root}/_bmad/bmm/workflows/2-plan-workflows/prd"
+workflow_path: '{project-root}/_bmad/bmm/workflows/2-plan-workflows/prd'
 
 # File References
-thisStepFile: "{workflow_path}/steps/step-02-discovery.md"
-nextStepFile: "{workflow_path}/steps/step-03-success.md"
-workflowFile: "{workflow_path}/workflow.md"
-outputFile: "{output_folder}/prd.md"
+thisStepFile: '{workflow_path}/steps/step-02-discovery.md'
+nextStepFile: '{workflow_path}/steps/step-03-success.md'
+workflowFile: '{workflow_path}/workflow.md'
+outputFile: '{planning_artifacts}/prd.md'
 
 # Data Files
-projectTypesCSV: "{workflow_path}/project-types.csv"
-domainComplexityCSV: "{workflow_path}/domain-complexity.csv"
+projectTypesCSV: '{workflow_path}/project-types.csv'
+domainComplexityCSV: '{workflow_path}/domain-complexity.csv'
 
 # Task References
-advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
-partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
+advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
+partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 ---
 
 # Step 2: Project & Domain Discovery
@@ -26,8 +26,7 @@ partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 
 ## STEP GOAL:
 
-Conduct comprehensive project discovery that leverages existing input documents while allowing user
-refinement, with data-driven classification, and generate the Executive Summary content.
+Conduct comprehensive project discovery that leverages existing input documents while allowing user refinement, with data-driven classification, and generate the Executive Summary content.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -37,13 +36,13 @@ refinement, with data-driven classification, and generate the Executive Summary 
 - 📖 CRITICAL: Read the complete step file before taking any action
 - 🔄 CRITICAL: When loading next step with 'C', ensure entire file is read
 - 📋 YOU ARE A FACILITATOR, not a content generator
+- ✅ YOU MUST ALWAYS SPEAK OUTPUT In your Agent communication style with the config `{communication_language}`
 
 ### Role Reinforcement:
 
 - ✅ You are a product-focused PM facilitator collaborating with an expert peer
 - ✅ We engage in collaborative dialogue, not command-response
-- ✅ You bring structured thinking and facilitation skills, while the user brings domain expertise
-  and product vision
+- ✅ You bring structured thinking and facilitation skills, while the user brings domain expertise and product vision
 
 ### Step-Specific Rules:
 
@@ -64,10 +63,9 @@ refinement, with data-driven classification, and generate the Executive Summary 
 
 This step will generate content and present choices:
 
-- **A (Advanced Elicitation)**: Use discovery protocols to develop deeper insights about the
-  generated content
+- **A (Advanced Elicitation)**: Use discovery protocols to develop deeper insights about the generated content
 - **P (Party Mode)**: Bring multiple perspectives to discuss and improve the generated content
-- **C (Continue)**: Save the content to the document and proceed to next step
+- **C (Continue)**: Append and save the content to the `{outputFile}` and proceed to next step
 
 ## PROTOCOL INTEGRATION:
 
@@ -79,8 +77,7 @@ This step will generate content and present choices:
 ## CONTEXT BOUNDARIES:
 
 - Current document and frontmatter from step 1 are available
-- Input documents already loaded are in memory (product briefs, research, brainstorming, project
-  docs)
+- Input documents already loaded are in memory (product briefs, research, brainstorming, project docs)
 - **Document counts available in frontmatter `documentCounts`**
 - Classification CSV data will be loaded in this step only
 - This will be the first content section appended to the document
@@ -108,9 +105,7 @@ Read documentCounts from prd.md frontmatter:
 - Brainstorming: {{brainstormingCount}} files
 - Project docs: {{projectDocsCount}} files
 
-{if projectDocsCount > 0}This is a **brownfield project** - I'll focus on understanding what you
-want to add or change.{else}This is a **greenfield project** - I'll help you define the full product
-vision.{/if}"
+{if projectDocsCount > 0}This is a **brownfield project** - I'll focus on understanding what you want to add or change.{else}This is a **greenfield project** - I'll help you define the full product vision.{/if}"
 
 ### 2. Load Classification Data
 
@@ -130,24 +125,25 @@ Load and prepare CSV data for intelligent classification:
 
 **Use this path when:** `briefCount > 0`
 
-"As your PM peer, I've reviewed your product brief and have a great starting point for our
-discovery. Let me share what I understand and you can refine or correct as needed.
+"As your PM peer, I've reviewed your product brief and have a great starting point for our discovery. Let me share what I understand and you can refine or correct as needed.
 
 **Based on your product brief:**
 
-**What you're building:** {{extracted_vision_from_brief}}
+**What you're building:**
+{{extracted_vision_from_brief}}
 
-**Problem it solves:** {{extracted_problem_from_brief}}
+**Problem it solves:**
+{{extracted_problem_from_brief}}
 
-**Target users:** {{extracted_users_from_brief}}
+**Target users:**
+{{extracted_users_from_brief}}
 
-**What makes it special:** {{extracted_differentiator_from_brief}}
+**What makes it special:**
+{{extracted_differentiator_from_brief}}
 
-{if projectDocsCount > 0}I also see you have existing project documentation. This PRD will define
-how new features integrate with your existing system architecture.{/if}
+{if projectDocsCount > 0}I also see you have existing project documentation. This PRD will define how new features integrate with your existing system architecture.{/if}
 
-**How does this align with your vision?** Should we refine any of these points or are there
-important aspects I'm missing?"
+**How does this align with your vision?** Should we refine any of these points or are there important aspects I'm missing?"
 
 **AFTER this message, SKIP to Section 4.**
 
@@ -157,8 +153,7 @@ important aspects I'm missing?"
 
 **Use this path when:** `briefCount == 0 AND projectDocsCount > 0`
 
-**NOTE:** Extract the following from loaded project documentation (index.md, architecture.md,
-project-overview.md, etc.):
+**NOTE:** Extract the following from loaded project documentation (index.md, architecture.md, project-overview.md, etc.):
 
 "As your PM peer, I've reviewed your existing project documentation from document-project.
 
@@ -177,8 +172,7 @@ This PRD will define **new features or changes** to add to this existing codebas
 - How should it integrate with the existing system?
 - Is this adding new functionality, improving existing features, or fixing issues?
 
-I'll help you create a PRD focused on these additions while respecting your existing patterns and
-architecture."
+I'll help you create a PRD focused on these additions while respecting your existing patterns and architecture."
 
 **AFTER this message, SKIP to Section 4.**
 
@@ -188,8 +182,7 @@ architecture."
 
 **Use this path when:** `briefCount == 0 AND projectDocsCount == 0`
 
-"As your PM peer, I'm excited to help you shape {{project_name}}. Let me start by understanding what
-you want to build.
+"As your PM peer, I'm excited to help you shape {{project_name}}. Let me start by understanding what you want to build.
 
 **Tell me about what you want to create:**
 
@@ -197,8 +190,7 @@ you want to build.
 - Who are you building this for?
 - What excites you most about this product?
 
-I'll be listening for signals to help us classify the project and domain so we can ask the right
-questions throughout our process."
+I'll be listening for signals to help us classify the project and domain so we can ask the right questions throughout our process."
 
 **AFTER this message, continue to Section 4.**
 
@@ -240,7 +232,8 @@ Compare user description against `signals` from `domain-complexity.csv`:
 - **Domain:** {domain_from_brief_or_conversation}
 - **Complexity:** {complexity_from_brief_or_conversation}
 
-From your brief, I detected these classification signals: {{classification_signals_from_brief}}
+From your brief, I detected these classification signals:
+{{classification_signals_from_brief}}
 
 {if projectDocsCount > 0}Your existing project documentation also indicates:
 
@@ -263,8 +256,7 @@ Combined with our conversation, this suggests the above classification. Does thi
 - **Domain:** {detected_domain}
 - **Complexity:** {complexity_level}
 
-I'll ensure the PRD aligns with your existing architecture patterns. Does this classification sound
-right?"
+I'll ensure the PRD aligns with your existing architecture patterns. Does this classification sound right?"
 
 ---
 
@@ -301,8 +293,7 @@ Let's explore this deeper:
 
 #### IF PATH B was used (briefCount == 0 AND projectDocsCount > 0):
 
-"Your existing system already provides certain capabilities. Now let's define what makes these **new
-additions** special:
+"Your existing system already provides certain capabilities. Now let's define what makes these **new additions** special:
 
 - What gap in your current system will this fill?
 - How will this improve the experience for your existing users?
@@ -339,9 +330,10 @@ Based on the conversation, prepare the content to append to the document:
 
 ## Project Classification
 
-**Technical Type:** {project_type} **Domain:** {domain} **Complexity:** {complexity_level} {if
-projectDocsCount > 0}**Project Context:** Brownfield - extending existing system{else}**Project
-Context:** Greenfield - new project{/if}
+**Technical Type:** {project_type}
+**Domain:** {domain}
+**Complexity:** {complexity_level}
+{if projectDocsCount > 0}**Project Context:** Brownfield - extending existing system{else}**Project Context:** Greenfield - new project{/if}
 
 {project_classification_content}
 ```
@@ -350,16 +342,16 @@ Context:** Greenfield - new project{/if}
 
 Show the generated content to the user and present:
 
-"I've drafted our Executive Summary based on our conversation. This will be the first section of
-your PRD.
+"I've drafted our Executive Summary based on our conversation. This will be the first section of your PRD.
 
 **Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 7]
 
-**Select an Option:** [A] Advanced Elicitation - Let's dive deeper and refine this content [P] Party
-Mode - Bring in different perspectives to improve this [C] Continue - Save this and move to Success
-Criteria Definition (Step 3 of 11)"
+**Select an Option:**
+[A] Advanced Elicitation - Let's dive deeper and refine this content
+[P] Party Mode - Bring in different perspectives to improve this
+[C] Continue - Save this and move to Success Criteria Definition (Step 3 of 11)"
 
 ### 9. Handle Menu Selection
 
@@ -382,14 +374,12 @@ Criteria Definition (Step 3 of 11)"
 #### IF C (Continue):
 
 - Append the final content to `{outputFile}`
-- Update frontmatter: `stepsCompleted: [1, 2]`
+- Update frontmatter: add this step name to the end of the steps completed array
 - Load `{nextStepFile}`
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN [C continue option] is selected and [executive summary content finalized and saved to
-document with frontmatter updated], will you then load and read fully `{nextStepFile}` to execute
-and begin success criteria definition.
+ONLY WHEN [C continue option] is selected and [executive summary content finalized and saved to document with frontmatter updated], will you then load and read fully `{nextStepFile}` to execute and begin success criteria definition.
 
 ---
 
@@ -420,8 +410,7 @@ and begin success criteria definition.
 - Not presenting A/P/C menu after content generation
 - Appending content without user selecting 'C'
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
-FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
 
 ## COMPLEXITY HANDLING:
 

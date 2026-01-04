@@ -4,14 +4,13 @@
 
 - 🛑 NEVER generate content without web search verification
 
-- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding
-  leads to incomplete decisions
-- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before
-  proceeding
+- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding leads to incomplete decisions
+- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before proceeding
 - ✅ Search the web to verify and supplement your knowledge with current facts
 - 📋 YOU ARE AN IMPLEMENTATION ENGINEER, not content generator
 - 💬 FOCUS on implementation approaches and technology adoption
 - 🔍 WEB SEARCH REQUIRED - verify current facts against live sources
+- ✅ YOU MUST ALWAYS SPEAK OUTPUT In your Agent communication style with the config `{communication_language}`
 
 ## EXECUTION PROTOCOLS:
 
@@ -30,15 +29,14 @@
 
 ## YOUR TASK:
 
-Conduct comprehensive implementation research with emphasis on practical implementation approaches
-and technology adoption.
+Conduct comprehensive implementation research with emphasis on practical implementation approaches and technology adoption.
 
 ## IMPLEMENTATION RESEARCH SEQUENCE:
 
 ### 1. Begin Implementation Research
 
-Start with implementation research approach: "Now I'll complete our technical research with
-**implementation approaches and technology adoption** analysis.
+Start with implementation research approach:
+"Now I'll complete our technical research with **implementation approaches and technology adoption** analysis.
 
 **Implementation Research Focus:**
 
@@ -52,7 +50,8 @@ Start with implementation research approach: "Now I'll complete our technical re
 
 ### 2. Web Search for Technology Adoption
 
-Search for current adoption strategies: Search the web: "technology adoption strategies migration"
+Search for current adoption strategies:
+Search the web: "technology adoption strategies migration"
 
 **Adoption focus:**
 
@@ -63,7 +62,8 @@ Search for current adoption strategies: Search the web: "technology adoption str
 
 ### 3. Web Search for Development Workflows
 
-Search for current development practices: Search the web: "software development workflows tooling"
+Search for current development practices:
+Search the web: "software development workflows tooling"
 
 **Workflow focus:**
 
@@ -74,7 +74,8 @@ Search for current development practices: Search the web: "software development 
 
 ### 4. Web Search for Operational Excellence
 
-Search for current operational practices: Search the web: "DevOps operations best practices"
+Search for current operational practices:
+Search the web: "DevOps operations best practices"
 
 **Operations focus:**
 
@@ -96,31 +97,38 @@ When saving to document, append these Level 2 and Level 3 sections:
 
 ### Technology Adoption Strategies
 
-[Technology adoption analysis with source citations] _Source: [URL]_
+[Technology adoption analysis with source citations]
+_Source: [URL]_
 
 ### Development Workflows and Tooling
 
-[Development workflows analysis with source citations] _Source: [URL]_
+[Development workflows analysis with source citations]
+_Source: [URL]_
 
 ### Testing and Quality Assurance
 
-[Testing approaches analysis with source citations] _Source: [URL]_
+[Testing approaches analysis with source citations]
+_Source: [URL]_
 
 ### Deployment and Operations Practices
 
-[Deployment practices analysis with source citations] _Source: [URL]_
+[Deployment practices analysis with source citations]
+_Source: [URL]_
 
 ### Team Organization and Skills
 
-[Team organization analysis with source citations] _Source: [URL]_
+[Team organization analysis with source citations]
+_Source: [URL]_
 
 ### Cost Optimization and Resource Management
 
-[Cost optimization analysis with source citations] _Source: [URL]_
+[Cost optimization analysis with source citations]
+_Source: [URL]_
 
 ### Risk Assessment and Mitigation
 
-[Risk mitigation analysis with source citations] _Source: [URL]_
+[Risk mitigation analysis with source citations]
+_Source: [URL]_
 
 ## Technical Research Recommendations
 
@@ -143,9 +151,8 @@ When saving to document, append these Level 2 and Level 3 sections:
 
 ### 6. Present Analysis and Complete Option
 
-Show the generated implementation research and present complete option: "I've completed the
-**implementation research and technology adoption** analysis, finalizing our comprehensive technical
-research.
+Show the generated implementation research and present complete option:
+"I've completed the **implementation research and technology adoption** analysis, finalizing our comprehensive technical research.
 
 **Implementation Highlights:**
 
@@ -162,8 +169,8 @@ research.
 - Implementation approaches and technology adoption
 - Practical recommendations and implementation roadmap
 
-**Ready to complete the technical research report?** [C] Complete Research - Save final document and
-conclude
+**Ready to complete the technical research report?**
+[C] Complete Research - Save final document and conclude
 
 ### 7. Handle Complete Selection
 
@@ -175,29 +182,32 @@ conclude
 
 ## APPEND TO DOCUMENT:
 
-When user selects 'C', append the content directly to the research document using the structure from
-step 5.
+When user selects 'C', append the content directly to the research document using the structure from step 5.
 
 ## SUCCESS METRICS:
 
-✅ Technology adoption strategies identified with current citations ✅ Development workflows and
-tooling thoroughly analyzed ✅ Testing and deployment practices clearly documented ✅ Team
-organization and skill requirements mapped ✅ Cost optimization and risk mitigation strategies
-provided ✅ [C] complete option presented and handled correctly ✅ Content properly appended to
-document when C selected ✅ Technical research workflow completed successfully
+✅ Technology adoption strategies identified with current citations
+✅ Development workflows and tooling thoroughly analyzed
+✅ Testing and deployment practices clearly documented
+✅ Team organization and skill requirements mapped
+✅ Cost optimization and risk mitigation strategies provided
+✅ [C] complete option presented and handled correctly
+✅ Content properly appended to document when C selected
+✅ Technical research workflow completed successfully
 
 ## FAILURE MODES:
 
 ❌ Relying solely on training data without web verification for current facts
 
-❌ Missing critical technology adoption strategies ❌ Not providing practical implementation
-guidance ❌ Incomplete development workflows or operational practices analysis ❌ Not presenting
-completion option for research workflow ❌ Appending content without user selecting 'C'
+❌ Missing critical technology adoption strategies
+❌ Not providing practical implementation guidance
+❌ Incomplete development workflows or operational practices analysis
+❌ Not presenting completion option for research workflow
+❌ Appending content without user selecting 'C'
 
-❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor
-decisions ❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step
-file ❌ **CRITICAL**: Making decisions without complete understanding of step requirements and
-protocols
+❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
+❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step file
+❌ **CRITICAL**: Making decisions without complete understanding of step requirements and protocols
 
 ## IMPLEMENTATION RESEARCH PROTOCOLS:
 

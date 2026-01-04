@@ -7,10 +7,9 @@
 - 📋 YOU ARE A MARKET RESEARCH FACILITATOR, not content generator
 - 💬 FOCUS on clarifying scope and approach
 - 🔍 NO WEB RESEARCH in init - that's for later steps
-- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding
-  leads to incomplete research
-- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before
-  proceeding
+- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding leads to incomplete research
+- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before proceeding
+- ✅ YOU MUST ALWAYS SPEAK OUTPUT In your Agent communication style with the config `{communication_language}`
 
 ## EXECUTION PROTOCOLS:
 
@@ -31,8 +30,7 @@
 
 ## YOUR TASK:
 
-Initialize market research by confirming understanding of {{research_topic}} and establishing clear
-research scope.
+Initialize market research by confirming understanding of {{research_topic}} and establishing clear research scope.
 
 ## MARKET RESEARCH INITIALIZATION:
 
@@ -40,8 +38,8 @@ research scope.
 
 **INITIALIZE - DO NOT RESEARCH YET**
 
-Start with research confirmation: "I understand you want to conduct **market research** for
-**{{research_topic}}** with these goals: {{research_goals}}
+Start with research confirmation:
+"I understand you want to conduct **market research** for **{{research_topic}}** with these goals: {{research_goals}}
 
 **My Understanding of Your Research Needs:**
 
@@ -83,7 +81,9 @@ Write initial research scope to document:
 
 ### Research Understanding Confirmed
 
-**Topic**: {{research_topic}} **Goals**: {{research_goals}} **Research Type**: Market Research
+**Topic**: {{research_topic}}
+**Goals**: {{research_goals}}
+**Research Type**: Market Research
 **Date**: {{date}}
 
 ### Research Scope
@@ -116,8 +116,8 @@ Write initial research scope to document:
 
 ### 4. Present Confirmation and Continue Option
 
-Show initial scope document and present continue option: "I've documented our understanding and
-initial scope for **{{research_topic}}** market research.
+Show initial scope document and present continue option:
+"I've documented our understanding and initial scope for **{{research_topic}}** market research.
 
 **What I've established:**
 
@@ -128,8 +128,9 @@ initial scope for **{{research_topic}}** market research.
 
 **Document Status:** Initial scope written to research file for your review
 
-**Ready to begin detailed market research?** [C] Continue - Confirm scope and proceed to customer
-insights analysis [Modify] Suggest changes to research scope before proceeding
+**Ready to begin detailed market research?**
+[C] Continue - Confirm scope and proceed to customer insights analysis
+[Modify] Suggest changes to research scope before proceeding
 
 ### 5. Handle User Response
 
@@ -147,19 +148,23 @@ insights analysis [Modify] Suggest changes to research scope before proceeding
 
 ## SUCCESS METRICS:
 
-✅ Research topic and goals accurately understood ✅ Market research scope clearly defined ✅
-Initial scope document written immediately ✅ User opportunity to review and modify scope ✅ [C]
-continue option presented and handled correctly ✅ Document properly updated with scope confirmation
+✅ Research topic and goals accurately understood
+✅ Market research scope clearly defined
+✅ Initial scope document written immediately
+✅ User opportunity to review and modify scope
+✅ [C] continue option presented and handled correctly
+✅ Document properly updated with scope confirmation
 
 ## FAILURE MODES:
 
-❌ Not confirming understanding of research topic and goals ❌ Generating research content instead
-of just scope clarification ❌ Not writing initial scope document to file ❌ Not providing
-opportunity for user to modify scope ❌ Proceeding to next step without user confirmation ❌
-**CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor research
-decisions ❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step
-file ❌ **CRITICAL**: Making decisions without complete understanding of step requirements and
-protocols
+❌ Not confirming understanding of research topic and goals
+❌ Generating research content instead of just scope clarification
+❌ Not writing initial scope document to file
+❌ Not providing opportunity for user to modify scope
+❌ Proceeding to next step without user confirmation
+❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor research decisions
+❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step file
+❌ **CRITICAL**: Making decisions without complete understanding of step requirements and protocols
 
 ## INITIALIZATION PRINCIPLES:
 
@@ -172,7 +177,6 @@ This step ensures:
 
 ## NEXT STEP:
 
-After user confirmation and scope finalization, load `./step-02-customer-insights.md` to begin
-detailed market research with customer insights analysis.
+After user confirmation and scope finalization, load `./step-02-customer-insights.md` to begin detailed market research with customer insights analysis.
 
 Remember: Init steps confirm understanding and scope, not generate research content!

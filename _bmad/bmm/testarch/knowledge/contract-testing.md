@@ -2,20 +2,11 @@
 
 ## Principle
 
-Contract testing validates API contracts between consumer and provider services without requiring
-integrated end-to-end tests. Store consumer contracts alongside integration specs, version contracts
-semantically, and publish on every CI run. Provider verification before merge surfaces breaking
-changes immediately, while explicit fallback behavior (timeouts, retries, error payloads) captures
-resilience guarantees in contracts.
+Contract testing validates API contracts between consumer and provider services without requiring integrated end-to-end tests. Store consumer contracts alongside integration specs, version contracts semantically, and publish on every CI run. Provider verification before merge surfaces breaking changes immediately, while explicit fallback behavior (timeouts, retries, error payloads) captures resilience guarantees in contracts.
 
 ## Rationale
 
-Traditional integration testing requires running both consumer and provider simultaneously, creating
-slow, flaky tests with complex setup. Contract testing decouples services: consumers define
-expectations (pact files), providers verify against those expectations independently. This enables
-parallel development, catches breaking changes early, and documents API behavior as executable
-specifications. Pair contract tests with API smoke tests to validate data mapping and UI rendering
-in tandem.
+Traditional integration testing requires running both consumer and provider simultaneously, creating slow, flaky tests with complex setup. Contract testing decouples services: consumers define expectations (pact files), providers verify against those expectations independently. This enables parallel development, catches breaking changes early, and documents API behavior as executable specifications. Pair contract tests with API smoke tests to validate data mapping and UI rendering in tandem.
 
 ## Pattern Examples
 
@@ -27,8 +18,8 @@ in tandem.
 
 ```typescript
 // tests/contract/user-api.pact.spec.ts
-import { MatchersV3, PactV3 } from "@pact-foundation/pact";
-import { createUser, getUserById, User } from "@/api/user-service";
+import { PactV3, MatchersV3 } from '@pact-foundation/pact';
+import { getUserById, createUser, User } from '@/api/user-service';
 
 const { like, eachLike, string, integer } = MatchersV3;
 
@@ -40,114 +31,112 @@ const { like, eachLike, string, integer } = MatchersV3;
  */
 
 const provider = new PactV3({
-  consumer: "user-management-web",
-  provider: "user-api-service",
-  dir: "./pacts", // Output directory for pact files
-  logLevel: "warn",
+  consumer: 'user-management-web',
+  provider: 'user-api-service',
+  dir: './pacts', // Output directory for pact files
+  logLevel: 'warn',
 });
 
-describe("User API Contract", () => {
-  describe("GET /users/:id", () => {
-    it("should return user when user exists", async () => {
+describe('User API Contract', () => {
+  describe('GET /users/:id', () => {
+    it('should return user when user exists', async () => {
       // Arrange: Define expected interaction
       await provider
-        .given("user with id 1 exists") // Provider state
-        .uponReceiving("a request for user 1")
+        .given('user with id 1 exists') // Provider state
+        .uponReceiving('a request for user 1')
         .withRequest({
-          method: "GET",
-          path: "/users/1",
+          method: 'GET',
+          path: '/users/1',
           headers: {
-            Accept: "application/json",
-            Authorization: like("Bearer token123"), // Matcher: any string
+            Accept: 'application/json',
+            Authorization: like('Bearer token123'), // Matcher: any string
           },
         })
         .willRespondWith({
           status: 200,
           headers: {
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
           },
           body: like({
             id: integer(1),
-            name: string("John Doe"),
-            email: string("john@example.com"),
-            role: string("user"),
-            createdAt: string("2025-01-15T10:00:00Z"),
+            name: string('John Doe'),
+            email: string('john@example.com'),
+            role: string('user'),
+            createdAt: string('2025-01-15T10:00:00Z'),
           }),
         })
         .executeTest(async (mockServer) => {
           // Act: Call consumer code against mock server
           const user = await getUserById(1, {
             baseURL: mockServer.url,
-            headers: { Authorization: "Bearer token123" },
+            headers: { Authorization: 'Bearer token123' },
           });
 
           // Assert: Validate consumer behavior
           expect(user).toEqual(
             expect.objectContaining({
               id: 1,
-              name: "John Doe",
-              email: "john@example.com",
-              role: "user",
+              name: 'John Doe',
+              email: 'john@example.com',
+              role: 'user',
             }),
           );
         });
     });
 
-    it("should handle 404 when user does not exist", async () => {
+    it('should handle 404 when user does not exist', async () => {
       await provider
-        .given("user with id 999 does not exist")
-        .uponReceiving("a request for non-existent user")
+        .given('user with id 999 does not exist')
+        .uponReceiving('a request for non-existent user')
         .withRequest({
-          method: "GET",
-          path: "/users/999",
-          headers: { Accept: "application/json" },
+          method: 'GET',
+          path: '/users/999',
+          headers: { Accept: 'application/json' },
         })
         .willRespondWith({
           status: 404,
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
           body: {
-            error: "User not found",
-            code: "USER_NOT_FOUND",
+            error: 'User not found',
+            code: 'USER_NOT_FOUND',
           },
         })
         .executeTest(async (mockServer) => {
           // Act & Assert: Consumer handles 404 gracefully
-          await expect(getUserById(999, { baseURL: mockServer.url })).rejects.toThrow(
-            "User not found",
-          );
+          await expect(getUserById(999, { baseURL: mockServer.url })).rejects.toThrow('User not found');
         });
     });
   });
 
-  describe("POST /users", () => {
-    it("should create user and return 201", async () => {
-      const newUser: Omit<User, "id" | "createdAt"> = {
-        name: "Jane Smith",
-        email: "jane@example.com",
-        role: "admin",
+  describe('POST /users', () => {
+    it('should create user and return 201', async () => {
+      const newUser: Omit<User, 'id' | 'createdAt'> = {
+        name: 'Jane Smith',
+        email: 'jane@example.com',
+        role: 'admin',
       };
 
       await provider
-        .given("no users exist")
-        .uponReceiving("a request to create a user")
+        .given('no users exist')
+        .uponReceiving('a request to create a user')
         .withRequest({
-          method: "POST",
-          path: "/users",
+          method: 'POST',
+          path: '/users',
           headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
           },
           body: like(newUser),
         })
         .willRespondWith({
           status: 201,
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
           body: like({
             id: integer(2),
-            name: string("Jane Smith"),
-            email: string("jane@example.com"),
-            role: string("admin"),
-            createdAt: string("2025-01-15T11:00:00Z"),
+            name: string('Jane Smith'),
+            email: string('jane@example.com'),
+            role: string('admin'),
+            createdAt: string('2025-01-15T11:00:00Z'),
           }),
         })
         .executeTest(async (mockServer) => {
@@ -158,9 +147,9 @@ describe("User API Contract", () => {
           expect(createdUser).toEqual(
             expect.objectContaining({
               id: expect.any(Number),
-              name: "Jane Smith",
-              email: "jane@example.com",
-              role: "admin",
+              name: 'Jane Smith',
+              email: 'jane@example.com',
+              role: 'admin',
             }),
           );
         });
@@ -198,9 +187,9 @@ describe("User API Contract", () => {
 
 ```typescript
 // tests/contract/user-api.provider.spec.ts
-import { Verifier, VerifierOptions } from "@pact-foundation/pact";
-import { server } from "../../src/server"; // Your Express/Fastify app
-import { resetDatabase, seedDatabase } from "../support/db-helpers";
+import { Verifier, VerifierOptions } from '@pact-foundation/pact';
+import { server } from '../../src/server'; // Your Express/Fastify app
+import { seedDatabase, resetDatabase } from '../support/db-helpers';
 
 /**
  * Provider Verification Test
@@ -209,7 +198,7 @@ import { resetDatabase, seedDatabase } from "../support/db-helpers";
  * - Runs before merge to catch breaking changes
  */
 
-describe("Pact Provider Verification", () => {
+describe('Pact Provider Verification', () => {
   let serverInstance;
   const PORT = 3001;
 
@@ -224,52 +213,52 @@ describe("Pact Provider Verification", () => {
     await serverInstance.close();
   });
 
-  it("should verify pacts from all consumers", async () => {
+  it('should verify pacts from all consumers', async () => {
     const opts: VerifierOptions = {
       // Provider details
-      provider: "user-api-service",
+      provider: 'user-api-service',
       providerBaseUrl: `http://localhost:${PORT}`,
 
       // Pact Broker configuration
       pactBrokerUrl: process.env.PACT_BROKER_URL,
       pactBrokerToken: process.env.PACT_BROKER_TOKEN,
-      publishVerificationResult: process.env.CI === "true",
-      providerVersion: process.env.GIT_SHA || "dev",
+      publishVerificationResult: process.env.CI === 'true',
+      providerVersion: process.env.GIT_SHA || 'dev',
 
       // State handlers: Setup provider state for each interaction
       stateHandlers: {
-        "user with id 1 exists": async () => {
+        'user with id 1 exists': async () => {
           await seedDatabase({
             users: [
               {
                 id: 1,
-                name: "John Doe",
-                email: "john@example.com",
-                role: "user",
-                createdAt: "2025-01-15T10:00:00Z",
+                name: 'John Doe',
+                email: 'john@example.com',
+                role: 'user',
+                createdAt: '2025-01-15T10:00:00Z',
               },
             ],
           });
-          return "User seeded successfully";
+          return 'User seeded successfully';
         },
 
-        "user with id 999 does not exist": async () => {
+        'user with id 999 does not exist': async () => {
           // Ensure user doesn't exist
           await resetDatabase();
-          return "Database reset";
+          return 'Database reset';
         },
 
-        "no users exist": async () => {
+        'no users exist': async () => {
           await resetDatabase();
-          return "Database empty";
+          return 'Database empty';
         },
       },
 
       // Request filters: Add auth headers to all requests
       requestFilter: (req, res, next) => {
         // Mock authentication for verification
-        req.headers["x-user-id"] = "test-user";
-        req.headers["authorization"] = "Bearer valid-test-token";
+        req.headers['x-user-id'] = 'test-user';
+        req.headers['authorization'] = 'Bearer valid-test-token';
         next();
       },
 
@@ -302,7 +291,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version-file: ".nvmrc"
+          node-version-file: '.nvmrc'
 
       - name: Install dependencies
         run: npm ci
@@ -344,8 +333,7 @@ jobs:
 
 ### Example 3: Contract CI Integration (Consumer & Provider Workflow)
 
-**Context**: Complete CI/CD workflow coordinating consumer pact publishing and provider
-verification.
+**Context**: Complete CI/CD workflow coordinating consumer pact publishing and provider verification.
 
 **Implementation**:
 
@@ -366,7 +354,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version-file: ".nvmrc"
+          node-version-file: '.nvmrc'
 
       - name: Install dependencies
         run: npm ci
@@ -413,7 +401,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version-file: ".nvmrc"
+          node-version-file: '.nvmrc'
 
       - name: Install dependencies
         run: npm ci
@@ -503,37 +491,37 @@ jobs:
 
 ```typescript
 // tests/contract/user-api-resilience.pact.spec.ts
-import { MatchersV3, PactV3 } from "@pact-foundation/pact";
-import { ApiError, getUserById } from "@/api/user-service";
+import { PactV3, MatchersV3 } from '@pact-foundation/pact';
+import { getUserById, ApiError } from '@/api/user-service';
 
 const { like, string } = MatchersV3;
 
 const provider = new PactV3({
-  consumer: "user-management-web",
-  provider: "user-api-service",
-  dir: "./pacts",
+  consumer: 'user-management-web',
+  provider: 'user-api-service',
+  dir: './pacts',
 });
 
-describe("User API Resilience Contract", () => {
+describe('User API Resilience Contract', () => {
   /**
    * Test 500 error handling
    * Verifies consumer handles server errors gracefully
    */
-  it("should handle 500 errors with retry logic", async () => {
+  it('should handle 500 errors with retry logic', async () => {
     await provider
-      .given("server is experiencing errors")
-      .uponReceiving("a request that returns 500")
+      .given('server is experiencing errors')
+      .uponReceiving('a request that returns 500')
       .withRequest({
-        method: "GET",
-        path: "/users/1",
-        headers: { Accept: "application/json" },
+        method: 'GET',
+        path: '/users/1',
+        headers: { Accept: 'application/json' },
       })
       .willRespondWith({
         status: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
         body: {
-          error: "Internal server error",
-          code: "INTERNAL_ERROR",
+          error: 'Internal server error',
+          code: 'INTERNAL_ERROR',
           retryable: true,
         },
       })
@@ -545,10 +533,10 @@ describe("User API Resilience Contract", () => {
             retries: 3,
             retryDelay: 100,
           });
-          fail("Should have thrown error after retries");
+          fail('Should have thrown error after retries');
         } catch (error) {
           expect(error).toBeInstanceOf(ApiError);
-          expect((error as ApiError).code).toBe("INTERNAL_ERROR");
+          expect((error as ApiError).code).toBe('INTERNAL_ERROR');
           expect((error as ApiError).retryable).toBe(true);
         }
       });
@@ -558,23 +546,23 @@ describe("User API Resilience Contract", () => {
    * Test 429 rate limiting
    * Verifies consumer respects rate limits
    */
-  it("should handle 429 rate limit with backoff", async () => {
+  it('should handle 429 rate limit with backoff', async () => {
     await provider
-      .given("rate limit exceeded for user")
-      .uponReceiving("a request that is rate limited")
+      .given('rate limit exceeded for user')
+      .uponReceiving('a request that is rate limited')
       .withRequest({
-        method: "GET",
-        path: "/users/1",
+        method: 'GET',
+        path: '/users/1',
       })
       .willRespondWith({
         status: 429,
         headers: {
-          "Content-Type": "application/json",
-          "Retry-After": "60", // Retry after 60 seconds
+          'Content-Type': 'application/json',
+          'Retry-After': '60', // Retry after 60 seconds
         },
         body: {
-          error: "Too many requests",
-          code: "RATE_LIMIT_EXCEEDED",
+          error: 'Too many requests',
+          code: 'RATE_LIMIT_EXCEEDED',
         },
       })
       .executeTest(async (mockServer) => {
@@ -583,10 +571,10 @@ describe("User API Resilience Contract", () => {
             baseURL: mockServer.url,
             respectRateLimit: true,
           });
-          fail("Should have thrown rate limit error");
+          fail('Should have thrown rate limit error');
         } catch (error) {
           expect(error).toBeInstanceOf(ApiError);
-          expect((error as ApiError).code).toBe("RATE_LIMIT_EXCEEDED");
+          expect((error as ApiError).code).toBe('RATE_LIMIT_EXCEEDED');
           expect((error as ApiError).retryAfter).toBe(60);
         }
       });
@@ -596,18 +584,18 @@ describe("User API Resilience Contract", () => {
    * Test timeout handling
    * Verifies consumer has appropriate timeout configuration
    */
-  it("should timeout after 10 seconds", async () => {
+  it('should timeout after 10 seconds', async () => {
     await provider
-      .given("server is slow to respond")
-      .uponReceiving("a request that times out")
+      .given('server is slow to respond')
+      .uponReceiving('a request that times out')
       .withRequest({
-        method: "GET",
-        path: "/users/1",
+        method: 'GET',
+        path: '/users/1',
       })
       .willRespondWith({
         status: 200,
-        headers: { "Content-Type": "application/json" },
-        body: like({ id: 1, name: "John" }),
+        headers: { 'Content-Type': 'application/json' },
+        body: like({ id: 1, name: 'John' }),
       })
       .withDelay(15000) // Simulate 15 second delay
       .executeTest(async (mockServer) => {
@@ -616,10 +604,10 @@ describe("User API Resilience Contract", () => {
             baseURL: mockServer.url,
             timeout: 10000, // 10 second timeout
           });
-          fail("Should have timed out");
+          fail('Should have timed out');
         } catch (error) {
           expect(error).toBeInstanceOf(ApiError);
-          expect((error as ApiError).code).toBe("TIMEOUT");
+          expect((error as ApiError).code).toBe('TIMEOUT');
         }
       });
   });
@@ -628,21 +616,21 @@ describe("User API Resilience Contract", () => {
    * Test partial response (optional fields)
    * Verifies consumer handles missing optional data
    */
-  it("should handle response with missing optional fields", async () => {
+  it('should handle response with missing optional fields', async () => {
     await provider
-      .given("user exists with minimal data")
-      .uponReceiving("a request for user with partial data")
+      .given('user exists with minimal data')
+      .uponReceiving('a request for user with partial data')
       .withRequest({
-        method: "GET",
-        path: "/users/1",
+        method: 'GET',
+        path: '/users/1',
       })
       .willRespondWith({
         status: 200,
-        headers: { "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json' },
         body: {
           id: integer(1),
-          name: string("John Doe"),
-          email: string("john@example.com"),
+          name: string('John Doe'),
+          email: string('john@example.com'),
           // role, createdAt, etc. omitted (optional fields)
         },
       })
@@ -651,7 +639,7 @@ describe("User API Resilience Contract", () => {
 
         // Consumer handles missing optional fields gracefully
         expect(user.id).toBe(1);
-        expect(user.name).toBe("John Doe");
+        expect(user.name).toBe('John Doe');
         expect(user.role).toBeUndefined(); // Optional field
         expect(user.createdAt).toBeUndefined(); // Optional field
       });
@@ -663,7 +651,7 @@ describe("User API Resilience Contract", () => {
 
 ```typescript
 // src/api/user-service.ts
-import axios, { AxiosInstance, AxiosRequestConfig } from "axios";
+import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 
 export class ApiError extends Error {
   constructor(
@@ -681,11 +669,7 @@ export class ApiError extends Error {
  */
 export async function getUserById(
   id: number,
-  config?: AxiosRequestConfig & {
-    retries?: number;
-    retryDelay?: number;
-    respectRateLimit?: boolean;
-  },
+  config?: AxiosRequestConfig & { retries?: number; retryDelay?: number; respectRateLimit?: boolean },
 ): Promise<User> {
   const { retries = 3, retryDelay = 1000, respectRateLimit = true, ...axiosConfig } = config || {};
 
@@ -700,8 +684,8 @@ export async function getUserById(
 
       // Handle rate limiting
       if (error.response?.status === 429) {
-        const retryAfter = parseInt(error.response.headers["retry-after"] || "60");
-        throw new ApiError("Too many requests", "RATE_LIMIT_EXCEEDED", false, retryAfter);
+        const retryAfter = parseInt(error.response.headers['retry-after'] || '60');
+        throw new ApiError('Too many requests', 'RATE_LIMIT_EXCEEDED', false, retryAfter);
       }
 
       // Retry on 500 errors
@@ -712,19 +696,19 @@ export async function getUserById(
 
       // Handle 404
       if (error.response?.status === 404) {
-        throw new ApiError("User not found", "USER_NOT_FOUND", false);
+        throw new ApiError('User not found', 'USER_NOT_FOUND', false);
       }
 
       // Handle timeout
-      if (error.code === "ECONNABORTED") {
-        throw new ApiError("Request timeout", "TIMEOUT", true);
+      if (error.code === 'ECONNABORTED') {
+        throw new ApiError('Request timeout', 'TIMEOUT', true);
       }
 
       break;
     }
   }
 
-  throw new ApiError("Request failed after retries", "INTERNAL_ERROR", true);
+  throw new ApiError('Request failed after retries', 'INTERNAL_ERROR', true);
 }
 ```
 
@@ -753,16 +737,16 @@ export async function getUserById(
  * - Tag releases for environment tracking
  */
 
-import { execSync } from "child_process";
+import { execSync } from 'child_process';
 
 const PACT_BROKER_URL = process.env.PACT_BROKER_URL!;
 const PACT_BROKER_TOKEN = process.env.PACT_BROKER_TOKEN!;
-const PACTICIPANT = "user-api-service";
+const PACTICIPANT = 'user-api-service';
 
 /**
  * Tag release with environment
  */
-function tagRelease(version: string, environment: "staging" | "production") {
+function tagRelease(version: string, environment: 'staging' | 'production') {
   console.log(`🏷️  Tagging ${PACTICIPANT} v${version} as ${environment}`);
 
   execSync(
@@ -772,14 +756,14 @@ function tagRelease(version: string, environment: "staging" | "production") {
       --tag ${environment} \
       --broker-base-url ${PACT_BROKER_URL} \
       --broker-token ${PACT_BROKER_TOKEN}`,
-    { stdio: "inherit" },
+    { stdio: 'inherit' },
   );
 }
 
 /**
  * Record deployment to environment
  */
-function recordDeployment(version: string, environment: "staging" | "production") {
+function recordDeployment(version: string, environment: 'staging' | 'production') {
   console.log(`📝 Recording deployment of ${PACTICIPANT} v${version} to ${environment}`);
 
   execSync(
@@ -789,7 +773,7 @@ function recordDeployment(version: string, environment: "staging" | "production"
       --environment ${environment} \
       --broker-base-url ${PACT_BROKER_URL} \
       --broker-token ${PACT_BROKER_TOKEN}`,
-    { stdio: "inherit" },
+    { stdio: 'inherit' },
   );
 }
 
@@ -807,7 +791,7 @@ function cleanupOldPacts() {
       --broker-token ${PACT_BROKER_TOKEN} \
       --keep-latest-for-branch 1 \
       --keep-min-age 30`,
-    { stdio: "inherit" },
+    { stdio: 'inherit' },
   );
 }
 
@@ -827,7 +811,7 @@ function canIDeploy(version: string, toEnvironment: string): boolean {
         --broker-token ${PACT_BROKER_TOKEN} \
         --retry-while-unknown 6 \
         --retry-interval 10`,
-      { stdio: "inherit" },
+      { stdio: 'inherit' },
     );
     return true;
   } catch (error) {
@@ -842,29 +826,27 @@ function canIDeploy(version: string, toEnvironment: string): boolean {
 async function main() {
   const command = process.argv[2];
   const version = process.argv[3];
-  const environment = process.argv[4] as "staging" | "production";
+  const environment = process.argv[4] as 'staging' | 'production';
 
   switch (command) {
-    case "tag-release":
+    case 'tag-release':
       tagRelease(version, environment);
       break;
 
-    case "record-deployment":
+    case 'record-deployment':
       recordDeployment(version, environment);
       break;
 
-    case "can-i-deploy":
+    case 'can-i-deploy':
       const canDeploy = canIDeploy(version, environment);
       process.exit(canDeploy ? 0 : 1);
 
-    case "cleanup":
+    case 'cleanup':
       cleanupOldPacts();
       break;
 
     default:
-      console.error(
-        "Unknown command. Use: tag-release | record-deployment | can-i-deploy | cleanup",
-      );
+      console.error('Unknown command. Use: tag-release | record-deployment | can-i-deploy | cleanup');
       process.exit(1);
   }
 }
@@ -893,7 +875,7 @@ name: Deploy to Production
 on:
   push:
     tags:
-      - "v*"
+      - 'v*'
 
 jobs:
   verify-contracts:
@@ -928,7 +910,7 @@ jobs:
 name: Pact Broker Housekeeping
 on:
   schedule:
-    - cron: "0 2 * * 0" # Weekly on Sunday at 2 AM
+    - cron: '0 2 * * 0' # Weekly on Sunday at 2 AM
 
 jobs:
   cleanup:
@@ -972,5 +954,4 @@ Before implementing contract testing, verify:
 - Related fragments: `test-levels-framework.md`, `ci-burn-in.md`
 - Tools: Pact.js, Pact Broker (Pactflow or self-hosted), Pact CLI
 
-_Source: Pact consumer/provider sample repos, Murat contract testing blog, Pact official
-documentation_
+_Source: Pact consumer/provider sample repos, Murat contract testing blog, Pact official documentation_

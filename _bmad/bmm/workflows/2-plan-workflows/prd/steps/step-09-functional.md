@@ -1,19 +1,19 @@
 ---
-name: "step-09-functional"
-description: "Synthesize all discovery into comprehensive functional requirements"
+name: 'step-09-functional'
+description: 'Synthesize all discovery into comprehensive functional requirements'
 
 # Path Definitions
-workflow_path: "{project-root}/_bmad/bmm/workflows/2-plan-workflows/prd"
+workflow_path: '{project-root}/_bmad/bmm/workflows/2-plan-workflows/prd'
 
 # File References
-thisStepFile: "{workflow_path}/steps/step-09-functional.md"
-nextStepFile: "{workflow_path}/steps/step-10-nonfunctional.md"
-workflowFile: "{workflow_path}/workflow.md"
-outputFile: "{output_folder}/prd.md"
+thisStepFile: '{workflow_path}/steps/step-09-functional.md'
+nextStepFile: '{workflow_path}/steps/step-10-nonfunctional.md'
+workflowFile: '{workflow_path}/workflow.md'
+outputFile: '{planning_artifacts}/prd.md'
 
 # Task References
-advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
-partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
+advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
+partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 ---
 
 # Step 9: Functional Requirements Synthesis
@@ -24,14 +24,13 @@ partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 
 - 🛑 NEVER generate content without user input
 
-- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding
-  leads to incomplete decisions
-- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before
-  proceeding
+- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding leads to incomplete decisions
+- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before proceeding
 - ✅ ALWAYS treat this as collaborative discovery between PM peers
 - 📋 YOU ARE A FACILITATOR, not a content generator
 - 💬 FOCUS on creating comprehensive capability inventory for the product
 - 🎯 CRITICAL: This is THE CAPABILITY CONTRACT for all downstream work
+- ✅ YOU MUST ALWAYS SPEAK OUTPUT In your Agent communication style with the config `{communication_language}`
 
 ## EXECUTION PROTOCOLS:
 
@@ -51,16 +50,15 @@ This step will generate content and present choices:
 
 ## PROTOCOL INTEGRATION:
 
-- When 'A' selected: Execute {project-root}/\_bmad/core/tasks/advanced-elicitation.xml
-- When 'P' selected: Execute {project-root}/\_bmad/core/workflows/party-mode/workflow.md
+- When 'A' selected: Execute {project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml
+- When 'P' selected: Execute {project-root}/_bmad/core/workflows/party-mode/workflow.md
 - PROTOCOLS always return to this step's A/P/C menu
 - User accepts/rejects protocol changes before proceeding
 
 ## CONTEXT BOUNDARIES:
 
 - Current document and frontmatter from previous steps are available
-- ALL previous content (executive summary, success criteria, journeys, domain, innovation,
-  project-type) must be referenced
+- ALL previous content (executive summary, success criteria, journeys, domain, innovation, project-type) must be referenced
 - No additional data files needed for this step
 - Focus on capabilities, not implementation details
 
@@ -79,12 +77,15 @@ This step will generate content and present choices:
 
 Start by explaining the critical role of functional requirements:
 
-**Purpose:** FRs define WHAT capabilities the product must have. They are the complete inventory of
-user-facing and system capabilities that deliver the product vision.
+**Purpose:**
+FRs define WHAT capabilities the product must have. They are the complete inventory of user-facing and system capabilities that deliver the product vision.
 
-**Critical Properties:** ✅ Each FR is a testable capability ✅ Each FR is implementation-agnostic
-(could be built many ways) ✅ Each FR specifies WHO and WHAT, not HOW ✅ No UI details, no
-performance numbers, no technology choices ✅ Comprehensive coverage of capability areas
+**Critical Properties:**
+✅ Each FR is a testable capability
+✅ Each FR is implementation-agnostic (could be built many ways)
+✅ Each FR specifies WHO and WHAT, not HOW
+✅ No UI details, no performance numbers, no technology choices
+✅ Comprehensive coverage of capability areas
 
 **How They Will Be Used:**
 
@@ -127,7 +128,8 @@ Create complete functional requirements using this format:
 - Number sequentially (FR1, FR2, FR3...)
 - Aim for 20-50 FRs for typical projects
 
-**Altitude Check:** Each FR should answer "WHAT capability exists?" NOT "HOW it's implemented?"
+**Altitude Check:**
+Each FR should answer "WHAT capability exists?" NOT "HOW it's implemented?"
 
 **Examples:**
 
@@ -186,9 +188,8 @@ When saving to document, append these Level 2 and Level 3 sections:
 
 ### 7. Present Content and Menu
 
-Show the generated functional requirements and present choices: "I've synthesized all our
-discussions into comprehensive functional requirements. This becomes the capability contract that UX
-designers, architects, and developers will all work from.
+Show the generated functional requirements and present choices:
+"I've synthesized all our discussions into comprehensive functional requirements. This becomes the capability contract that UX designers, architects, and developers will all work from.
 
 **Here's what I'll add to the document:**
 
@@ -200,15 +201,16 @@ designers, architects, and developers will all work from.
 - UX designers will ONLY design interactions for these capabilities
 - Architects will ONLY build systems to support these capabilities
 
-**What would you like to do?** [A] Advanced Elicitation - Let's ensure we haven't missed any
-capabilities [P] Party Mode - Bring different perspectives to validate complete coverage [C]
-Continue - Save this and move to Non-Functional Requirements (Step 10 of 11)"
+**What would you like to do?**
+[A] Advanced Elicitation - Let's ensure we haven't missed any capabilities
+[P] Party Mode - Bring different perspectives to validate complete coverage
+[C] Continue - Save this and move to Non-Functional Requirements (Step 10 of 11)"
 
 ### 8. Handle Menu Selection
 
 #### If 'A' (Advanced Elicitation):
 
-- Execute {project-root}/\_bmad/core/tasks/advanced-elicitation.xml with the current FR list
+- Execute {project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml with the current FR list
 - Process the enhanced capability coverage that comes back
 - Ask user: "Accept these additions to the functional requirements? (y/n)"
 - If yes: Update content with improvements, then return to A/P/C menu
@@ -216,7 +218,7 @@ Continue - Save this and move to Non-Functional Requirements (Step 10 of 11)"
 
 #### If 'P' (Party Mode):
 
-- Execute {project-root}/\_bmad/core/workflows/party-mode/workflow.md with the current FR list
+- Execute {project-root}/_bmad/core/workflows/party-mode/workflow.md with the current FR list
 - Process the collaborative capability validation and additions
 - Ask user: "Accept these changes to the functional requirements? (y/n)"
 - If yes: Update content with improvements, then return to A/P/C menu
@@ -224,8 +226,8 @@ Continue - Save this and move to Non-Functional Requirements (Step 10 of 11)"
 
 #### If 'C' (Continue):
 
-- Append the final content to `{output_folder}/prd.md`
-- Update frontmatter: `stepsCompleted: [1, 2, 3, 4, 5, 6, 7, 8, 9]`
+- Append the final content to `{outputFile}`
+- Update frontmatter: add this step name to the end of the steps completed array
 - Load `{project-root}/_bmad/bmm/workflows/2-plan-workflows/prd/steps/step-10-nonfunctional.md`
 
 ## APPEND TO DOCUMENT:
@@ -234,35 +236,35 @@ When user selects 'C', append the content directly to the document using the str
 
 ## SUCCESS METRICS:
 
-✅ All previous discovery content synthesized into FRs ✅ FRs organized by capability areas (not
-technology) ✅ Each FR states WHAT capability exists, not HOW to implement ✅ Comprehensive coverage
-with 20-50 FRs typical ✅ Altitude validation ensures implementation-agnostic requirements ✅
-Completeness check validates coverage of all discussed capabilities ✅ A/P/C menu presented and
-handled correctly ✅ Content properly appended to document when C selected
+✅ All previous discovery content synthesized into FRs
+✅ FRs organized by capability areas (not technology)
+✅ Each FR states WHAT capability exists, not HOW to implement
+✅ Comprehensive coverage with 20-50 FRs typical
+✅ Altitude validation ensures implementation-agnostic requirements
+✅ Completeness check validates coverage of all discussed capabilities
+✅ A/P/C menu presented and handled correctly
+✅ Content properly appended to document when C selected
 
 ## FAILURE MODES:
 
-❌ Missing capabilities from previous discovery sections ❌ Organizing FRs by technology instead of
-capability areas ❌ Including implementation details or UI specifics in FRs ❌ Not achieving
-comprehensive coverage of discussed capabilities ❌ Using vague terms instead of testable
-capabilities ❌ Not presenting A/P/C menu after content generation ❌ Appending content without user
-selecting 'C'
+❌ Missing capabilities from previous discovery sections
+❌ Organizing FRs by technology instead of capability areas
+❌ Including implementation details or UI specifics in FRs
+❌ Not achieving comprehensive coverage of discussed capabilities
+❌ Using vague terms instead of testable capabilities
+❌ Not presenting A/P/C menu after content generation
+❌ Appending content without user selecting 'C'
 
-❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor
-decisions ❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step
-file ❌ **CRITICAL**: Making decisions without complete understanding of step requirements and
-protocols
+❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
+❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step file
+❌ **CRITICAL**: Making decisions without complete understanding of step requirements and protocols
 
 ## CAPABILITY CONTRACT REMINDER:
 
-Emphasize to user: "This FR list is now binding. Any feature not listed here will not exist in the
-final product unless we explicitly add it. This is why it's critical to ensure completeness now."
+Emphasize to user: "This FR list is now binding. Any feature not listed here will not exist in the final product unless we explicitly add it. This is why it's critical to ensure completeness now."
 
 ## NEXT STEP:
 
-After user selects 'C' and content is saved to document, load
-`{project-root}/_bmad/bmm/workflows/2-plan-workflows/prd/steps/step-10-nonfunctional.md` to define
-non-functional requirements.
+After user selects 'C' and content is saved to document, load `{project-root}/_bmad/bmm/workflows/2-plan-workflows/prd/steps/step-10-nonfunctional.md` to define non-functional requirements.
 
-Remember: Do NOT proceed to step-10 until user explicitly selects 'C' from the A/P/C menu and
-content is saved!
+Remember: Do NOT proceed to step-10 until user explicitly selects 'C' from the A/P/C menu and content is saved!

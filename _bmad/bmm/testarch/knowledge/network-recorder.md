@@ -2,9 +2,7 @@
 
 ## Principle
 
-Record network traffic to HAR files during test execution, then play back from disk for offline
-testing. Enables frontend tests to run in complete isolation from backend services with intelligent
-stateful CRUD detection for realistic API behavior.
+Record network traffic to HAR files during test execution, then play back from disk for offline testing. Enables frontend tests to run in complete isolation from backend services with intelligent stateful CRUD detection for realistic API behavior.
 
 ## Rationale
 
@@ -32,24 +30,24 @@ HAR-based recording/playback provides:
 **Implementation**:
 
 ```typescript
-import { test } from "@seontechnologies/playwright-utils/network-recorder/fixtures";
+import { test } from '@seontechnologies/playwright-utils/network-recorder/fixtures';
 
 // Set mode in test file (recommended)
-process.env.PW_NET_MODE = "playback"; // or 'record'
+process.env.PW_NET_MODE = 'playback'; // or 'record'
 
-test("CRUD operations work offline", async ({ page, context, networkRecorder }) => {
+test('CRUD operations work offline', async ({ page, context, networkRecorder }) => {
   // Setup recorder (records or plays back based on PW_NET_MODE)
   await networkRecorder.setup(context);
 
-  await page.goto("/");
+  await page.goto('/');
 
   // First time (record mode): Records all network traffic to HAR
   // Subsequent runs (playback mode): Plays back from HAR (no backend!)
-  await page.fill("#movie-name", "Inception");
-  await page.click("#add-movie");
+  await page.fill('#movie-name', 'Inception');
+  await page.click('#add-movie');
 
   // Intelligent CRUD detection makes this work offline!
-  await expect(page.getByText("Inception")).toBeVisible();
+  await expect(page.getByText('Inception')).toBeVisible();
 });
 ```
 
@@ -68,37 +66,37 @@ test("CRUD operations work offline", async ({ page, context, networkRecorder }) 
 **Implementation**:
 
 ```typescript
-process.env.PW_NET_MODE = "playback";
+process.env.PW_NET_MODE = 'playback';
 
-test.describe("Movie CRUD - offline with network recorder", () => {
+test.describe('Movie CRUD - offline with network recorder', () => {
   test.beforeEach(async ({ page, networkRecorder, context }) => {
     await networkRecorder.setup(context);
-    await page.goto("/");
+    await page.goto('/');
   });
 
-  test("should add, edit, delete movie browser-only", async ({ page, interceptNetworkCall }) => {
+  test('should add, edit, delete movie browser-only', async ({ page, interceptNetworkCall }) => {
     // Create
-    await page.fill("#movie-name", "Inception");
-    await page.fill("#year", "2010");
-    await page.click("#add-movie");
+    await page.fill('#movie-name', 'Inception');
+    await page.fill('#year', '2010');
+    await page.click('#add-movie');
 
     // Verify create (reads from stateful HAR)
-    await expect(page.getByText("Inception")).toBeVisible();
+    await expect(page.getByText('Inception')).toBeVisible();
 
     // Update
-    await page.getByText("Inception").click();
-    await page.fill("#movie-name", "Inception Director's Cut");
+    await page.getByText('Inception').click();
+    await page.fill('#movie-name', "Inception Director's Cut");
 
     const updateCall = interceptNetworkCall({
-      method: "PUT",
-      url: "/movies/*",
+      method: 'PUT',
+      url: '/movies/*',
     });
 
-    await page.click("#save");
+    await page.click('#save');
     await updateCall; // Wait for update
 
     // Verify update (HAR reflects state change!)
-    await page.click("#back");
+    await page.click('#back');
     await expect(page.getByText("Inception Director's Cut")).toBeVisible();
 
     // Delete
@@ -127,20 +125,20 @@ test.describe("Movie CRUD - offline with network recorder", () => {
 // playwright.config.ts - Map URLs for different environments
 export default defineConfig({
   use: {
-    baseURL: process.env.CI ? "https://app.ci.example.com" : "http://localhost:3000",
+    baseURL: process.env.CI ? 'https://app.ci.example.com' : 'http://localhost:3000',
   },
 });
 
 // Test works in both environments
-test("cross-environment playback", async ({ page, context, networkRecorder }) => {
+test('cross-environment playback', async ({ page, context, networkRecorder }) => {
   await networkRecorder.setup(context);
 
   // In dev: hits http://localhost:3000/api/movies
   // In CI: HAR replays with https://app.ci.example.com/api/movies
-  await page.goto("/movies");
+  await page.goto('/movies');
 
   // Network recorder auto-maps URLs
-  await expect(page.getByTestId("movie-list")).toBeVisible();
+  await expect(page.getByTestId('movie-list')).toBeVisible();
 });
 ```
 
@@ -199,24 +197,22 @@ test('auto mode', async ({ page, context, networkRecorder }) => {
 
 **The game-changer: Stateful CRUD detection**
 
-Native Playwright HAR playback is stateless - a POST create followed by GET list won't show the
-created item. This utility intelligently tracks CRUD operations in memory to reflect state changes,
-making offline tests behave like real APIs.
+Native Playwright HAR playback is stateless - a POST create followed by GET list won't show the created item. This utility intelligently tracks CRUD operations in memory to reflect state changes, making offline tests behave like real APIs.
 
 ## Integration with Other Utilities
 
 **With interceptNetworkCall** (deterministic waits):
 
 ```typescript
-test("use both utilities", async ({ page, context, networkRecorder, interceptNetworkCall }) => {
+test('use both utilities', async ({ page, context, networkRecorder, interceptNetworkCall }) => {
   await networkRecorder.setup(context);
 
   const createCall = interceptNetworkCall({
-    method: "POST",
-    url: "/api/movies",
+    method: 'POST',
+    url: '/api/movies',
   });
 
-  await page.click("#add-movie");
+  await page.click('#add-movie');
   await createCall; // Wait for create (works with HAR!)
 
   // Network recorder provides playback, intercept provides determinism
@@ -235,17 +231,17 @@ test("use both utilities", async ({ page, context, networkRecorder, interceptNet
 **❌ Mixing record and playback in same test:**
 
 ```typescript
-process.env.PW_NET_MODE = "record";
+process.env.PW_NET_MODE = 'record';
 // ... some test code ...
-process.env.PW_NET_MODE = "playback"; // Don't switch mid-test
+process.env.PW_NET_MODE = 'playback'; // Don't switch mid-test
 ```
 
 **✅ One mode per test:**
 
 ```typescript
-process.env.PW_NET_MODE = "playback"; // Set once at top
+process.env.PW_NET_MODE = 'playback'; // Set once at top
 
-test("my test", async ({ page, context, networkRecorder }) => {
+test('my test', async ({ page, context, networkRecorder }) => {
   await networkRecorder.setup(context);
   // Entire test uses playback mode
 });
@@ -254,16 +250,16 @@ test("my test", async ({ page, context, networkRecorder }) => {
 **❌ Forgetting to call setup:**
 
 ```typescript
-test("broken", async ({ page, networkRecorder }) => {
-  await page.goto("/"); // HAR not active!
+test('broken', async ({ page, networkRecorder }) => {
+  await page.goto('/'); // HAR not active!
 });
 ```
 
 **✅ Always call setup before navigation:**
 
 ```typescript
-test("correct", async ({ page, context, networkRecorder }) => {
+test('correct', async ({ page, context, networkRecorder }) => {
   await networkRecorder.setup(context); // Must setup first
-  await page.goto("/"); // Now HAR is active
+  await page.goto('/'); // Now HAR is active
 });
 ```

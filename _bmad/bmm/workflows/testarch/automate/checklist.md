@@ -1,7 +1,6 @@
 # Automate Workflow Validation Checklist
 
-Use this checklist to validate that the automate workflow has been executed correctly and all
-deliverables meet quality standards.
+Use this checklist to validate that the automate workflow has been executed correctly and all deliverables meet quality standards.
 
 ## Prerequisites
 
@@ -14,6 +13,7 @@ Before starting this workflow, verify:
 **Halt only if:** Framework scaffolding is completely missing (run `framework` workflow first)
 
 **Note:** BMad artifacts (story, tech-spec, PRD) are OPTIONAL - workflow can run without them
+**Note:** `automate` generates tests; it does not run `*atdd` or `*test-review`. If ATDD outputs exist, use them as input and avoid duplicate coverage.
 
 ---
 
@@ -275,8 +275,7 @@ Before starting this workflow, verify:
 
 ### Unfixable Tests Handling
 
-- [ ] Tests that couldn't be healed after 3 iterations marked with `test.fixme()` (if
-      `{mark_unhealable_as_fixme}` true)
+- [ ] Tests that couldn't be healed after 3 iterations marked with `test.fixme()` (if `{mark_unhealable_as_fixme}` true)
 - [ ] Detailed comment added to test.fixme() tests:
   - [ ] What failure occurred
   - [ ] What healing was attempted (3 iterations)
@@ -423,6 +422,7 @@ Before starting this workflow, verify:
 
 **With atdd Workflow:**
 
+- [ ] ATDD artifacts provided or located (manual handoff; `atdd` not auto-run)
 - [ ] Existing ATDD tests checked (if story had ATDD workflow run)
 - [ ] Expansion beyond ATDD planned (edge cases, negative paths)
 - [ ] No duplicate coverage with ATDD tests
@@ -455,8 +455,7 @@ All of the following must be true before marking this workflow as complete:
 - [ ] **Priority tags added** to all test names ([P0], [P1], [P2], [P3])
 - [ ] **data-testid selectors used** in E2E tests (not CSS classes)
 - [ ] **Network-first pattern applied** (route interception before navigation)
-- [ ] **Quality standards enforced** (no hard waits, no flaky patterns, self-cleaning,
-      deterministic)
+- [ ] **Quality standards enforced** (no hard waits, no flaky patterns, self-cleaning, deterministic)
 - [ ] **Test README updated** with execution instructions and patterns
 - [ ] **package.json scripts updated** with test execution commands
 - [ ] **Test suite run locally** (if run_tests_after_generation true)
@@ -496,16 +495,14 @@ All of the following must be true before marking this workflow as complete:
 
 ### Issue: No automation targets identified
 
-**Problem:** Neither story, target_feature, nor target_files specified, and auto-discover finds
-nothing.
+**Problem:** Neither story, target_feature, nor target_files specified, and auto-discover finds nothing.
 
 **Resolution:**
 
 - Check if source_dir variable is correct
 - Verify source code exists in project
 - Ask user to specify target_feature or target_files explicitly
-- Provide examples: `target_feature: "src/auth/"` or
-  `target_files: "src/auth/login.ts,src/auth/session.ts"`
+- Provide examples: `target_feature: "src/auth/"` or `target_files: "src/auth/login.ts,src/auth/session.ts"`
 
 ### Issue: Duplicate coverage detected
 
@@ -570,18 +567,15 @@ nothing.
 
 ## Notes for TEA Agent
 
-- **automate is flexible:** Can work with or without BMad artifacts (story, tech-spec, PRD are
-  OPTIONAL)
+- **automate is flexible:** Can work with or without BMad artifacts (story, tech-spec, PRD are OPTIONAL)
 - **Standalone mode is powerful:** Analyze any codebase and generate tests independently
 - **Auto-discover mode:** Scan codebase for features needing tests when no targets specified
 - **Framework is the ONLY hard requirement:** HALT if framework config missing, otherwise proceed
 - **Avoid duplicate coverage:** E2E for critical paths only, API/Component for variations
-- **Priority tagging enables selective execution:** P0 tests run on every commit, P1 on PR, P2
-  nightly
+- **Priority tagging enables selective execution:** P0 tests run on every commit, P1 on PR, P2 nightly
 - **Network-first pattern prevents race conditions:** Route interception BEFORE navigation
 - **No page objects:** Keep tests simple, direct, and maintainable
-- **Use knowledge base:** Load relevant fragments (test-levels, test-priorities,
-  fixture-architecture, data-factories, healing patterns) for guidance
+- **Use knowledge base:** Load relevant fragments (test-levels, test-priorities, fixture-architecture, data-factories, healing patterns) for guidance
 - **Deterministic tests only:** No hard waits, no conditional flow, no flaky patterns allowed
 - **Optional healing:** auto_heal_failures disabled by default (opt-in for automatic test healing)
 - **Graceful degradation:** Healing works without Playwright MCP (pattern-based fallback)

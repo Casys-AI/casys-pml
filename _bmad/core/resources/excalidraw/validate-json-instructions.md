@@ -2,8 +2,7 @@
 
 ## Purpose
 
-Validate Excalidraw JSON files after saving to catch syntax errors (missing commas, brackets,
-quotes).
+Validate Excalidraw JSON files after saving to catch syntax errors (missing commas, brackets, quotes).
 
 ## How to Validate
 
@@ -67,8 +66,7 @@ SyntaxError: Unexpected token
 After saving an Excalidraw file, run validation:
 
 1. Save the file
-2. Run:
-   `node -e "JSON.parse(require('fs').readFileSync('{{save_location}}', 'utf8')); console.log('✓ Valid JSON')"`
+2. Run: `node -e "JSON.parse(require('fs').readFileSync('{{save_location}}', 'utf8')); console.log('✓ Valid JSON')"`
 3. If validation fails:
    - Read the error message for line/position
    - Open the file at that location
@@ -78,5 +76,4 @@ After saving an Excalidraw file, run validation:
 
 ## Critical Rule
 
-**NEVER delete the file due to validation errors - always fix the syntax error at the reported
-location.**
+**NEVER delete the file due to validation errors - always fix the syntax error at the reported location.**

@@ -2,9 +2,7 @@
 
 ## Principle
 
-Use typed HTTP client with built-in schema validation and automatic retry for server errors. The
-utility handles URL resolution, header management, response parsing, and single-line response
-validation with proper TypeScript support.
+Use typed HTTP client with built-in schema validation and automatic retry for server errors. The utility handles URL resolution, header management, response parsing, and single-line response validation with proper TypeScript support.
 
 ## Rationale
 
@@ -33,17 +31,17 @@ The `apiRequest` utility provides:
 **Implementation**:
 
 ```typescript
-import { test } from "@seontechnologies/playwright-utils/api-request/fixtures";
+import { test } from '@seontechnologies/playwright-utils/api-request/fixtures';
 
-test("should fetch user data", async ({ apiRequest }) => {
+test('should fetch user data', async ({ apiRequest }) => {
   const { status, body } = await apiRequest<User>({
-    method: "GET",
-    path: "/api/users/123",
-    headers: { Authorization: "Bearer token" },
+    method: 'GET',
+    path: '/api/users/123',
+    headers: { Authorization: 'Bearer token' },
   });
 
   expect(status).toBe(200);
-  expect(body.name).toBe("John Doe"); // TypeScript knows body is User
+  expect(body.name).toBe('John Doe'); // TypeScript knows body is User
 });
 ```
 
@@ -112,17 +110,17 @@ test('should validate response schema', async ({ apiRequest }) => {
 **Implementation**:
 
 ```typescript
-test("should create user", async ({ apiRequest }) => {
+test('should create user', async ({ apiRequest }) => {
   const newUser = {
-    name: "Jane Doe",
-    email: "jane@example.com",
+    name: 'Jane Doe',
+    email: 'jane@example.com',
   };
 
   const { status, body } = await apiRequest({
-    method: "POST",
-    path: "/api/users",
+    method: 'POST',
+    path: '/api/users',
     body: newUser, // Automatically sent as JSON
-    headers: { Authorization: "Bearer token" },
+    headers: { Authorization: 'Bearer token' },
   });
 
   expect(status).toBe(201);
@@ -130,14 +128,14 @@ test("should create user", async ({ apiRequest }) => {
 });
 
 // Disable retry for error testing
-test("should handle 500 errors", async ({ apiRequest }) => {
+test('should handle 500 errors', async ({ apiRequest }) => {
   await expect(
     apiRequest({
-      method: "GET",
-      path: "/api/error",
+      method: 'GET',
+      path: '/api/error',
       retryConfig: { maxRetries: 0 }, // Disable retry
     }),
-  ).rejects.toThrow("Request failed with status 500");
+  ).rejects.toThrow('Request failed with status 500');
 });
 ```
 
@@ -157,20 +155,20 @@ test("should handle 500 errors", async ({ apiRequest }) => {
 ```typescript
 // Strategy 1: Explicit baseUrl (highest priority)
 await apiRequest({
-  method: "GET",
-  path: "/users",
-  baseUrl: "https://api.example.com", // Uses https://api.example.com/users
+  method: 'GET',
+  path: '/users',
+  baseUrl: 'https://api.example.com', // Uses https://api.example.com/users
 });
 
 // Strategy 2: Config baseURL (from fixture)
-import { test } from "@seontechnologies/playwright-utils/api-request/fixtures";
+import { test } from '@seontechnologies/playwright-utils/api-request/fixtures';
 
-test.use({ configBaseUrl: "https://staging-api.example.com" });
+test.use({ configBaseUrl: 'https://staging-api.example.com' });
 
-test("uses config baseURL", async ({ apiRequest }) => {
+test('uses config baseURL', async ({ apiRequest }) => {
   await apiRequest({
-    method: "GET",
-    path: "/users", // Uses https://staging-api.example.com/users
+    method: 'GET',
+    path: '/users', // Uses https://staging-api.example.com/users
   });
 });
 
@@ -178,21 +176,21 @@ test("uses config baseURL", async ({ apiRequest }) => {
 // playwright.config.ts
 export default defineConfig({
   use: {
-    baseURL: "https://api.example.com",
+    baseURL: 'https://api.example.com',
   },
 });
 
-test("uses Playwright baseURL", async ({ apiRequest }) => {
+test('uses Playwright baseURL', async ({ apiRequest }) => {
   await apiRequest({
-    method: "GET",
-    path: "/users", // Uses https://api.example.com/users
+    method: 'GET',
+    path: '/users', // Uses https://api.example.com/users
   });
 });
 
 // Strategy 4: Direct path (full URL)
 await apiRequest({
-  method: "GET",
-  path: "https://api.example.com/users", // Full URL works too
+  method: 'GET',
+  path: 'https://api.example.com/users', // Full URL works too
 });
 ```
 
@@ -209,22 +207,22 @@ await apiRequest({
 **Implementation**:
 
 ```typescript
-import { test } from "@seontechnologies/playwright-utils/fixtures";
+import { test } from '@seontechnologies/playwright-utils/fixtures';
 
-test("should poll until job completes", async ({ apiRequest, recurse }) => {
+test('should poll until job completes', async ({ apiRequest, recurse }) => {
   // Create job
   const { body } = await apiRequest({
-    method: "POST",
-    path: "/api/jobs",
-    body: { type: "export" },
+    method: 'POST',
+    path: '/api/jobs',
+    body: { type: 'export' },
   });
 
   const jobId = body.id;
 
   // Poll until ready
   const completedJob = await recurse(
-    () => apiRequest({ method: "GET", path: `/api/jobs/${jobId}` }),
-    (response) => response.body.status === "completed",
+    () => apiRequest({ method: 'GET', path: `/api/jobs/${jobId}` }),
+    (response) => response.body.status === 'completed',
     { timeout: 60000, interval: 2000 },
   );
 
@@ -279,7 +277,7 @@ test("should poll until job completes", async ({ apiRequest, recurse }) => {
 
 ```typescript
 try {
-  await apiRequest({ method: "GET", path: "/api/unstable" });
+  await apiRequest({ method: 'GET', path: '/api/unstable' });
 } catch {
   // Silent failure - loses retry information
 }
@@ -288,18 +286,18 @@ try {
 **✅ Let retries happen, handle final failure:**
 
 ```typescript
-await expect(apiRequest({ method: "GET", path: "/api/unstable" })).rejects.toThrow(); // Retries happen automatically, then final error caught
+await expect(apiRequest({ method: 'GET', path: '/api/unstable' })).rejects.toThrow(); // Retries happen automatically, then final error caught
 ```
 
 **❌ Disabling TypeScript benefits:**
 
 ```typescript
-const response: any = await apiRequest({ method: "GET", path: "/users" });
+const response: any = await apiRequest({ method: 'GET', path: '/users' });
 ```
 
 **✅ Use generic types:**
 
 ```typescript
-const { body } = await apiRequest<User[]>({ method: "GET", path: "/users" });
+const { body } = await apiRequest<User[]>({ method: 'GET', path: '/users' });
 // body is typed as User[]
 ```

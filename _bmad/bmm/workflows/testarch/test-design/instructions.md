@@ -2,14 +2,14 @@
 
 # Test Design and Risk Assessment
 
-**Workflow ID**: `_bmad/bmm/testarch/test-design` **Version**: 4.0 (BMad v6)
+**Workflow ID**: `_bmad/bmm/testarch/test-design`
+**Version**: 4.0 (BMad v6)
 
 ---
 
 ## Overview
 
-Plans comprehensive test coverage strategy with risk assessment, priority classification, and
-execution ordering. This workflow operates in **two modes**:
+Plans comprehensive test coverage strategy with risk assessment, priority classification, and execution ordering. This workflow operates in **two modes**:
 
 - **System-Level Mode (Phase 3)**: Testability review of architecture before solutioning gate check
 - **Epic-Level Mode (Phase 4)**: Per-epic test planning with risk assessment (current behavior)
@@ -30,8 +30,7 @@ The workflow auto-detects which mode to use based on project phase.
 
 2. **Check workflow-status.yaml**
    - Read `{output_folder}/bmm-workflow-status.yaml`
-   - If `implementation-readiness: required` or `implementation-readiness: recommended` →
-     **System-Level Mode** (Phase 3)
+   - If `implementation-readiness: required` or `implementation-readiness: recommended` → **System-Level Mode** (Phase 3)
    - Otherwise → **Epic-Level Mode** (Phase 4 without sprint status yet)
 
 3. **Mode-Specific Requirements**
@@ -49,8 +48,7 @@ The workflow auto-detects which mode to use based on project phase.
    - ✅ Requirements are clear and testable
    - ⚠️ Output: `{output_folder}/test-design-epic-{epic_num}.md`
 
-**Halt Condition:** If mode cannot be determined or required files missing, HALT and notify user
-with missing prerequisites.
+**Halt Condition:** If mode cannot be determined or required files missing, HALT and notify user with missing prerequisites.
 
 ---
 
@@ -72,14 +70,12 @@ with missing prerequisites.
 
    Read `{config_source}` and check `config.tea_use_playwright_utils`.
 
-   If true, note that `@seontechnologies/playwright-utils` provides utilities for test
-   implementation. Reference in test design where relevant.
+   If true, note that `@seontechnologies/playwright-utils` provides utilities for test implementation. Reference in test design where relevant.
 
 3. **Load Knowledge Base Fragments (System-Level)**
 
    **Critical:** Consult `{project-root}/_bmad/bmm/testarch/tea-index.csv` to load:
-   - `nfr-criteria.md` - NFR validation approach (security, performance, reliability,
-     maintainability)
+   - `nfr-criteria.md` - NFR validation approach (security, performance, reliability, maintainability)
    - `test-levels-framework.md` - Test levels strategy guidance
    - `risk-governance.md` - Testability risk identification
    - `test-quality.md` - Quality standards and Definition of Done
@@ -113,19 +109,12 @@ with missing prerequisites.
 4. **Load Knowledge Base Fragments (Epic-Level)**
 
    **Critical:** Consult `{project-root}/_bmad/bmm/testarch/tea-index.csv` to load:
-   - `risk-governance.md` - Risk classification framework (6 categories: TECH, SEC, PERF, DATA, BUS,
-     OPS), automated scoring, gate decision engine, owner tracking (625 lines, 4 examples)
-   - `probability-impact.md` - Risk scoring methodology (probability × impact matrix, automated
-     classification, dynamic re-assessment, gate integration, 604 lines, 4 examples)
-   - `test-levels-framework.md` - Test level selection guidance (E2E vs API vs Component vs Unit
-     with decision matrix, characteristics, when to use each, 467 lines, 4 examples)
-   - `test-priorities-matrix.md` - P0-P3 prioritization criteria (automated priority calculation,
-     risk-based mapping, tagging strategy, time budgets, 389 lines, 2 examples)
+   - `risk-governance.md` - Risk classification framework (6 categories: TECH, SEC, PERF, DATA, BUS, OPS), automated scoring, gate decision engine, owner tracking (625 lines, 4 examples)
+   - `probability-impact.md` - Risk scoring methodology (probability × impact matrix, automated classification, dynamic re-assessment, gate integration, 604 lines, 4 examples)
+   - `test-levels-framework.md` - Test level selection guidance (E2E vs API vs Component vs Unit with decision matrix, characteristics, when to use each, 467 lines, 4 examples)
+   - `test-priorities-matrix.md` - P0-P3 prioritization criteria (automated priority calculation, risk-based mapping, tagging strategy, time budgets, 389 lines, 2 examples)
 
-**Halt Condition (Epic-Level only):** If story data or acceptance criteria are missing, check if
-brownfield exploration is needed. If neither requirements NOR exploration possible, HALT with
-message: "Epic-level test design requires clear requirements, acceptance criteria, or brownfield app
-URL for exploration"
+**Halt Condition (Epic-Level only):** If story data or acceptance criteria are missing, check if brownfield exploration is needed. If neither requirements NOR exploration possible, HALT with message: "Epic-level test design requires clear requirements, acceptance criteria, or brownfield app URL for exploration"
 
 ---
 
@@ -158,8 +147,7 @@ URL for exploration"
 
    From PRD NFRs and architecture decisions, identify quality requirements that:
    - Drive architecture decisions (e.g., "Must handle 10K concurrent users" → caching architecture)
-   - Pose testability challenges (e.g., "Sub-second response time" → performance test
-     infrastructure)
+   - Pose testability challenges (e.g., "Sub-second response time" → performance test infrastructure)
    - Require special test environments (e.g., "Multi-region deployment" → regional test instances)
 
    Score each ASR using risk matrix (probability × impact).
@@ -169,17 +157,14 @@ URL for exploration"
    Based on architecture (mobile, web, API, microservices, monolith):
    - Recommend unit/integration/E2E split (e.g., 70/20/10 for API-heavy, 40/30/30 for UI-heavy)
    - Identify test environment needs (local, staging, ephemeral, production-like)
-   - Define testing approach per technology (Playwright for web, Maestro for mobile, k6 for
-     performance)
+   - Define testing approach per technology (Playwright for web, Maestro for mobile, k6 for performance)
 
 4. **Assess NFR Testing Approach**
 
    For each NFR category:
-   - **Security**: Auth/authz tests, OWASP validation, secret handling (Playwright E2E + security
-     tools)
+   - **Security**: Auth/authz tests, OWASP validation, secret handling (Playwright E2E + security tools)
    - **Performance**: Load/stress/spike testing with k6, SLO/SLA thresholds
-   - **Reliability**: Error handling, retries, circuit breakers, health checks (Playwright + API
-     tests)
+   - **Reliability**: Error handling, retries, circuit breakers, health checks (Playwright + API tests)
    - **Maintainability**: Coverage targets, code quality gates, observability validation
 
 5. **Flag Testability Concerns**
@@ -191,8 +176,7 @@ URL for exploration"
    - ❌ Missing observability (can't validate NFRs)
    - ❌ Stateful designs (can't parallelize tests)
 
-   **Critical:** If testability concerns are blockers (e.g., "Architecture makes performance testing
-   impossible"), document as CONCERNS or FAIL recommendation for gate check.
+   **Critical:** If testability concerns are blockers (e.g., "Architecture makes performance testing impossible"), document as CONCERNS or FAIL recommendation for gate check.
 
 6. **Output System-Level Test Design**
 
@@ -701,21 +685,15 @@ Examples:
 
 **Core Fragments (Auto-loaded in Step 1):**
 
-- `risk-governance.md` - Risk classification (6 categories), automated scoring, gate decision
-  engine, coverage traceability, owner tracking (625 lines, 4 examples)
-- `probability-impact.md` - Probability × impact matrix, automated classification thresholds,
-  dynamic re-assessment, gate integration (604 lines, 4 examples)
-- `test-levels-framework.md` - E2E vs API vs Component vs Unit decision framework with
-  characteristics matrix (467 lines, 4 examples)
-- `test-priorities-matrix.md` - P0-P3 automated priority calculation, risk-based mapping, tagging
-  strategy, time budgets (389 lines, 2 examples)
+- `risk-governance.md` - Risk classification (6 categories), automated scoring, gate decision engine, coverage traceability, owner tracking (625 lines, 4 examples)
+- `probability-impact.md` - Probability × impact matrix, automated classification thresholds, dynamic re-assessment, gate integration (604 lines, 4 examples)
+- `test-levels-framework.md` - E2E vs API vs Component vs Unit decision framework with characteristics matrix (467 lines, 4 examples)
+- `test-priorities-matrix.md` - P0-P3 automated priority calculation, risk-based mapping, tagging strategy, time budgets (389 lines, 2 examples)
 
 **Reference for Test Planning:**
 
-- `selective-testing.md` - Execution strategy: tag-based, spec filters, diff-based selection,
-  promotion rules (727 lines, 4 examples)
-- `fixture-architecture.md` - Data setup patterns: pure function → fixture → mergeTests,
-  auto-cleanup (406 lines, 5 examples)
+- `selective-testing.md` - Execution strategy: tag-based, spec filters, diff-based selection, promotion rules (727 lines, 4 examples)
+- `fixture-architecture.md` - Data setup patterns: pure function → fixture → mergeTests, auto-cleanup (406 lines, 5 examples)
 
 **Manual Reference (Optional):**
 
@@ -750,7 +728,8 @@ After completing this workflow, provide a summary:
 ```markdown
 ## Test Design Complete
 
-**Epic**: {epic_num} **Scope**: {design_level}
+**Epic**: {epic_num}
+**Scope**: {design_level}
 
 **Risk Assessment**:
 
@@ -785,7 +764,7 @@ After completing this workflow, provide a summary:
 
 1. Review risk assessment with team
 2. Prioritize mitigation for high-risk items (score ≥6)
-3. Run `atdd` workflow to generate failing tests for P0 scenarios
+3. Run `*atdd` to generate failing tests for P0 scenarios (separate workflow; not auto-run by `*test-design`)
 4. Allocate resources per effort estimates
 5. Set up test data factories and fixtures
 ```

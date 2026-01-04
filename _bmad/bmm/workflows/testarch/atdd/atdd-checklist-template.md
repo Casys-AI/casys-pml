@@ -1,6 +1,8 @@
 # ATDD Checklist - Epic {epic_num}, Story {story_num}: {story_title}
 
-**Date:** {date} **Author:** {user_name} **Primary Test Level:** {primary_level}
+**Date:** {date}
+**Author:** {user_name}
+**Primary Test Level:** {primary_level}
 
 ---
 
@@ -8,7 +10,9 @@
 
 {Brief 2-3 sentence summary of the user story}
 
-**As a** {user_role} **I want** {feature_description} **So that** {business_value}
+**As a** {user_role}
+**I want** {feature_description}
+**So that** {business_value}
 
 ---
 
@@ -72,7 +76,7 @@
 **Example Usage:**
 
 ```typescript
-const user = createUser({ email: "specific@example.com" });
+const user = createUser({ email: 'specific@example.com' });
 const users = createUsers(5); // Generate 5 random users
 ```
 
@@ -286,13 +290,14 @@ test('should do something', async ({ {fixtureName} }) => {
 
 ## Next Steps
 
-1. **Review this checklist** with team in standup or planning
-2. **Run failing tests** to confirm RED phase: `{test_command_all}`
-3. **Begin implementation** using implementation checklist as guide
-4. **Work one test at a time** (red → green for each)
-5. **Share progress** in daily standup
-6. **When all tests pass**, refactor code for quality
-7. **When refactoring complete**, manually update story status to 'done' in sprint-status.yaml
+1. **Share this checklist and failing tests** with the dev workflow (manual handoff)
+2. **Review this checklist** with team in standup or planning
+3. **Run failing tests** to confirm RED phase: `{test_command_all}`
+4. **Begin implementation** using implementation checklist as guide
+5. **Work one test at a time** (red → green for each)
+6. **Share progress** in daily standup
+7. **When all tests pass**, refactor code for quality
+8. **When refactoring complete**, manually update story status to 'done' in sprint-status.yaml
 
 ---
 
@@ -300,15 +305,11 @@ test('should do something', async ({ {fixtureName} }) => {
 
 This ATDD workflow consulted the following knowledge fragments:
 
-- **fixture-architecture.md** - Test fixture patterns with setup/teardown and auto-cleanup using
-  Playwright's `test.extend()`
-- **data-factories.md** - Factory patterns using `@faker-js/faker` for random test data generation
-  with overrides support
+- **fixture-architecture.md** - Test fixture patterns with setup/teardown and auto-cleanup using Playwright's `test.extend()`
+- **data-factories.md** - Factory patterns using `@faker-js/faker` for random test data generation with overrides support
 - **component-tdd.md** - Component test strategies using Playwright Component Testing
-- **network-first.md** - Route interception patterns (intercept BEFORE navigation to prevent race
-  conditions)
-- **test-quality.md** - Test design principles (Given-When-Then, one assertion per test,
-  determinism, isolation)
+- **network-first.md** - Route interception patterns (intercept BEFORE navigation to prevent race conditions)
+- **test-quality.md** - Test design principles (Given-When-Then, one assertion per test, determinism, isolation)
 - **test-levels-framework.md** - Test level selection framework (E2E vs API vs Component vs Unit)
 
 See `tea-index.csv` for complete knowledge fragment mapping.
@@ -334,7 +335,8 @@ See `tea-index.csv` for complete knowledge fragment mapping.
 - Failing: {total_test_count} (expected)
 - Status: ✅ RED phase verified
 
-**Expected Failure Messages:** {list_expected_failure_messages_for_each_test}
+**Expected Failure Messages:**
+{list_expected_failure_messages_for_each_test}
 
 ---
 

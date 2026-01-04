@@ -1,14 +1,14 @@
 ---
-name: "step-11-complete"
-description: "Complete the PRD workflow, update status files, and suggest next steps"
+name: 'step-11-complete'
+description: 'Complete the PRD workflow, update status files, and suggest next steps'
 
 # Path Definitions
-workflow_path: "{project-root}/_bmad/bmm/workflows/2-plan-workflows/prd"
+workflow_path: '{project-root}/_bmad/bmm/workflows/2-plan-workflows/prd'
 
 # File References
-thisStepFile: "{workflow_path}/steps/step-11-complete.md"
-workflowFile: "{workflow_path}/workflow.md"
-outputFile: "{output_folder}/prd.md"
+thisStepFile: '{workflow_path}/steps/step-11-complete.md'
+workflowFile: '{workflow_path}/workflow.md'
+outputFile: '{planning_artifacts}/prd.md'
 ---
 
 # Step 11: Workflow Completion
@@ -19,14 +19,13 @@ outputFile: "{output_folder}/prd.md"
 
 - ✅ THIS IS A FINAL STEP - Workflow completion required
 
-- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding
-  leads to incomplete decisions
-- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before
-  proceeding
+- 📖 CRITICAL: ALWAYS read the complete step file before taking any action - partial understanding leads to incomplete decisions
+- 🔄 CRITICAL: When loading next step with 'C', ensure the entire file is read and understood before proceeding
 - 🛑 NO content generation - this is a wrap-up step
 - 📋 FINALIZE document and update workflow status
 - 💬 FOCUS on completion, next steps, and suggestions
 - 🎯 UPDATE workflow status files with completion information
+- ✅ YOU MUST ALWAYS SPEAK OUTPUT In your Agent communication style with the config `{communication_language}`
 
 ## EXECUTION PROTOCOLS:
 
@@ -58,10 +57,10 @@ Complete the PRD workflow, update status files, and suggest next steps for the p
 
 ### 1. Announce Workflow Completion
 
-Inform user that the PRD is complete: "🎉 **PRD Complete, {{user_name}}!**
+Inform user that the PRD is complete:
+"🎉 **PRD Complete, {{user_name}}!**
 
-I've successfully collaborated with you to create a comprehensive Product Requirements Document for
-{{project_name}}.
+I've successfully collaborated with you to create a comprehensive Product Requirements Document for {{project_name}}.
 
 **What we've accomplished:**
 
@@ -74,13 +73,13 @@ I've successfully collaborated with you to create a comprehensive Product Requir
 - ✅ Comprehensive Functional Requirements (capability contract)
 - ✅ Non-Functional Requirements for quality attributes
 
-**The complete PRD is now available at:** `{output_folder}/prd.md`
+**The complete PRD is now available at:** `{outputFile}`
 
 This document is now ready to guide UX design, technical architecture, and development planning."
 
 ### 2. Workflow Status Update
 
-Update the main workflow status file:
+Update the main workflow status file if there is one:
 
 - Load `{status_file}` from workflow configuration (if exists)
 - Update workflow_status["prd"] = "{default_output_file}"
@@ -111,7 +110,6 @@ Provide guidance on logical next workflows:
 
 - UX design and architecture can happen in parallel
 - Epics/stories are richer when created after UX/architecture
-- Consider your team's capacity and priorities
 
 **What would be most valuable to tackle next?**
 
@@ -135,42 +133,29 @@ Perform final validation of the PRD:
 
 ### 5. Final Completion Confirmation
 
-Confirm completion with user: "**Your PRD for {{project_name}} is now complete and ready for the
-next phase!**
-
-The document contains everything needed to guide:
-
-- UX/UI design decisions
-- Technical architecture planning
-- Development prioritization and sprint planning
-
-**Ready to continue with:**
-
-- UX design workflow?
-- Architecture workflow?
-- Epic and story creation?
-
-**Or would you like to review the complete PRD first?**
-
-[Workflow Complete]"
+- Confirm completion with user and summarize what you have done.
+- Update frontmatter: add this final step name to the end of the steps completed array.
 
 ## SUCCESS METRICS:
 
-✅ PRD document contains all required sections ✅ All collaborative content properly saved to
-document ✅ Workflow status file updated with completion information ✅ Clear next step guidance
-provided to user ✅ Document quality validation completed ✅ User acknowledges completion and
-understands next options
+✅ PRD document contains all required sections
+✅ All collaborative content properly saved to document
+✅ Workflow status file updated with completion information
+✅ Clear next step guidance provided to user
+✅ Document quality validation completed
+✅ User acknowledges completion and understands next options
 
 ## FAILURE MODES:
 
-❌ Not updating workflow status file with completion information ❌ Missing clear next step guidance
-for user ❌ Not confirming document completeness with user ❌ Workflow not properly marked as
-complete in status tracking ❌ User unclear about what happens next
+❌ Not updating workflow status file with completion information
+❌ Missing clear next step guidance for user
+❌ Not confirming document completeness with user
+❌ Workflow not properly marked as complete in status tracking
+❌ User unclear about what happens next
 
-❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor
-decisions ❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step
-file ❌ **CRITICAL**: Making decisions without complete understanding of step requirements and
-protocols
+❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
+❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step file
+❌ **CRITICAL**: Making decisions without complete understanding of step requirements and protocols
 
 ## WORKFLOW COMPLETION CHECKLIST:
 
@@ -194,29 +179,8 @@ protocols
 - [ ] Workflow status file updated
 - [ ] Next steps clearly communicated
 
-## NEXT STEPS GUIDANCE:
-
-**Immediate Options:**
-
-1. **UX Design** - If product has UI components
-2. **Technical Architecture** - System design and technology choices
-3. **Epic Creation** - Break down FRs into implementable stories
-4. **Review** - Validate PRD with stakeholders before proceeding
-
-**Recommended Sequence:** For products with UI: UX → Architecture → Epics For API/backend products:
-Architecture → Epics Consider team capacity and timeline constraints
-
-## WORKFLOW FINALIZATION:
-
-- Set `lastStep = 11` in document frontmatter
-- Update workflow status file with completion timestamp
-- Provide completion summary to user
-- Do NOT load any additional steps
-
 ## FINAL REMINDER:
 
-This workflow is now complete. The PRD serves as the foundation for all subsequent product
-development activities. All design, architecture, and development work should trace back to the
-requirements and vision documented in this PRD.
+This workflow is now complete. The PRD serves as the foundation for all subsequent product development activities. All design, architecture, and development work should trace back to the requirements and vision documented in this PRD.
 
 **Congratulations on completing the Product Requirements Document for {{project_name}}!** 🎉

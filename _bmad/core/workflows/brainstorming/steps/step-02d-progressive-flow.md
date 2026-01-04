@@ -7,6 +7,7 @@
 - 📋 LOAD TECHNIQUES ON-DEMAND from brain-methods.csv for each phase
 - 🔍 MATCH TECHNIQUES to natural creative progression stages
 - 💬 CREATE CLEAR JOURNEY MAP with phase transitions
+- ✅ YOU MUST ALWAYS SPEAK OUTPUT In your Agent communication style with the `communication_language`
 
 ## EXECUTION PROTOCOLS:
 
@@ -25,8 +26,7 @@
 
 ## YOUR TASK:
 
-Design a progressive technique flow that takes users from expansive exploration through to
-actionable implementation planning.
+Design a progressive technique flow that takes users from expansive exploration through to actionable implementation planning.
 
 ## PROGRESSIVE FLOW SEQUENCE:
 
@@ -34,9 +34,7 @@ actionable implementation planning.
 
 Explain the value of systematic creative progression:
 
-"Excellent choice! Progressive Technique Flow is perfect for comprehensive idea development. This
-approach mirrors how natural creativity works - starting broad, exploring possibilities, then
-systematically refining toward actionable solutions.
+"Excellent choice! Progressive Technique Flow is perfect for comprehensive idea development. This approach mirrors how natural creativity works - starting broad, exploring possibilities, then systematically refining toward actionable solutions.
 
 **The Creative Journey We'll Take:**
 
@@ -69,8 +67,7 @@ systematically refining toward actionable solutions.
 **Load CSV and parse:**
 
 - Read `brain-methods.csv`
-- Parse: category, technique_name, description, facilitation_prompts, best_for, energy_level,
-  typical_duration
+- Parse: category, technique_name, description, facilitation_prompts, best_for, energy_level, typical_duration
 - Map techniques to each phase of the creative journey
 
 ### 2. Design Phase-Specific Technique Selection
@@ -79,8 +76,7 @@ Select optimal techniques for each progressive phase:
 
 **Phase 1: Expansive Exploration Techniques**
 
-"For **Expansive Exploration**, I'm selecting techniques that maximize creative breadth and wild
-thinking:
+"For **Expansive Exploration**, I'm selecting techniques that maximize creative breadth and wild thinking:
 
 **Recommended Technique: [Exploration Technique]**
 
@@ -93,8 +89,7 @@ thinking:
 
 **Phase 2: Pattern Recognition Techniques**
 
-"For **Pattern Recognition**, we need techniques that help organize and find meaning in the creative
-abundance:
+"For **Pattern Recognition**, we need techniques that help organize and find meaning in the creative abundance:
 
 **Recommended Technique: [Analysis Technique]**
 
@@ -133,8 +128,8 @@ Show the full progressive flow with timing and transitions:
 
 "**Your Complete Creative Journey Map:**
 
-**⏰ Total Journey Time:** [Combined duration] **🎯 Session Focus:** Systematic development from
-ideas to action
+**⏰ Total Journey Time:** [Combined duration]
+**🎯 Session Focus:** Systematic development from ideas to action
 
 **Phase 1: Expansive Exploration** ([duration])
 
@@ -175,9 +170,11 @@ ideas to action
 
 **Ready to embark on this systematic creative journey?**
 
-**Options:** [C] Continue - Begin the progressive technique flow [Customize] - I'd like to modify
-any phase techniques [Details] - Tell me more about any specific phase or technique [Back] - Return
-to approach selection
+**Options:**
+[C] Continue - Begin the progressive technique flow
+[Customize] - I'd like to modify any phase techniques
+[Details] - Tell me more about any specific phase or technique
+[Back] - Return to approach selection
 
 ### 4. Handle Customization Requests
 
@@ -219,8 +216,8 @@ stepsCompleted: [1, 2]
 ```markdown
 ## Technique Selection
 
-**Approach:** Progressive Technique Flow **Journey Design:** Systematic development from exploration
-to action
+**Approach:** Progressive Technique Flow
+**Journey Design:** Systematic development from exploration to action
 
 **Progressive Techniques:**
 
@@ -232,20 +229,25 @@ to action
 **Journey Rationale:** [Content based on session goals and progressive benefits]
 ```
 
-**Route to execution:** Load `./step-03-technique-execution.md`
+**Route to execution:**
+Load `./step-03-technique-execution.md`
 
 ## SUCCESS METRICS:
 
-✅ Progressive flow designed with natural creative progression ✅ Each phase matched to appropriate
-technique type and purpose ✅ Clear journey map with timing and transition points ✅ Customization
-options provided for user control ✅ Systematic benefits explained clearly ✅ Frontmatter updated
-with complete technique sequence
+✅ Progressive flow designed with natural creative progression
+✅ Each phase matched to appropriate technique type and purpose
+✅ Clear journey map with timing and transition points
+✅ Customization options provided for user control
+✅ Systematic benefits explained clearly
+✅ Frontmatter updated with complete technique sequence
 
 ## FAILURE MODES:
 
-❌ Techniques not properly matched to phase purposes ❌ Missing clear transitions between journey
-phases ❌ Not explaining the value of systematic progression ❌ No customization options for user
-preferences ❌ Techniques don't create natural flow from divergent to convergent
+❌ Techniques not properly matched to phase purposes
+❌ Missing clear transitions between journey phases
+❌ Not explaining the value of systematic progression
+❌ No customization options for user preferences
+❌ Techniques don't create natural flow from divergent to convergent
 
 ## PROGRESSIVE FLOW PROTOCOLS:
 
@@ -257,8 +259,6 @@ preferences ❌ Techniques don't create natural flow from divergent to convergen
 
 ## NEXT STEP:
 
-After user confirmation, load `./step-03-technique-execution.md` to begin facilitating the
-progressive technique flow with clear phase transitions and systematic development.
+After user confirmation, load `./step-03-technique-execution.md` to begin facilitating the progressive technique flow with clear phase transitions and systematic development.
 
-Remember: Progressive flow should feel like a guided creative journey - systematic, comprehensive,
-and naturally leading from wild ideas to actionable plans!
+Remember: Progressive flow should feel like a guided creative journey - systematic, comprehensive, and naturally leading from wild ideas to actionable plans!

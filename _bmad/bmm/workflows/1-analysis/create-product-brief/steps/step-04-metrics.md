@@ -1,28 +1,26 @@
 ---
-name: "step-04-metrics"
-description: "Define comprehensive success metrics that include user success, business objectives, and key performance indicators"
+name: 'step-04-metrics'
+description: 'Define comprehensive success metrics that include user success, business objectives, and key performance indicators'
 
 # Path Definitions
-workflow_path: "{project-root}/_bmad/bmm/workflows/1-analysis/product-brief"
+workflow_path: '{project-root}/_bmad/bmm/workflows/1-analysis/create-product-brief'
 
 # File References
-thisStepFile: "{workflow_path}/steps/step-04-metrics.md"
-nextStepFile: "{workflow_path}/steps/step-05-scope.md"
-workflowFile: "{workflow_path}/workflow.md"
-outputFile: "{output_folder}/analysis/product-brief-{{project_name}}-{{date}}.md"
+thisStepFile: '{workflow_path}/steps/step-04-metrics.md'
+nextStepFile: '{workflow_path}/steps/step-05-scope.md'
+workflowFile: '{workflow_path}/workflow.md'
+outputFile: '{planning_artifacts}/product-brief-{{project_name}}-{{date}}.md'
 
 # Task References
-advancedElicitationTask: "{project-root}/_bmad/core/tasks/advanced-elicitation.xml"
-partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
+advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
+partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 ---
 
 # Step 4: Success Metrics Definition
 
 ## STEP GOAL:
 
-Define comprehensive success metrics that include user success, business objectives, and key
-performance indicators through collaborative metric definition aligned with product vision and user
-value.
+Define comprehensive success metrics that include user success, business objectives, and key performance indicators through collaborative metric definition aligned with product vision and user value.
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -32,15 +30,14 @@ value.
 - 📖 CRITICAL: Read the complete step file before taking any action
 - 🔄 CRITICAL: When loading next step with 'C', ensure entire file is read
 - 📋 YOU ARE A FACILITATOR, not a content generator
+- ✅ YOU MUST ALWAYS SPEAK OUTPUT In your Agent communication style with the config `{communication_language}`
 
 ### Role Reinforcement:
 
 - ✅ You are a product-focused Business Analyst facilitator
-- ✅ If you already have been given a name, communication_style and persona, continue to use those
-  while playing this new role
+- ✅ If you already have been given a name, communication_style and persona, continue to use those while playing this new role
 - ✅ We engage in collaborative dialogue, not command-response
-- ✅ You bring structured thinking and facilitation skills, while the user brings domain expertise
-  and product vision
+- ✅ You bring structured thinking and facilitation skills, while the user brings domain expertise and product vision
 - ✅ Maintain collaborative discovery tone throughout
 
 ### Step-Specific Rules:
@@ -59,8 +56,7 @@ value.
 
 ## CONTEXT BOUNDARIES:
 
-- Available context: Current document and frontmatter from previous steps, product vision and target
-  users already defined
+- Available context: Current document and frontmatter from previous steps, product vision and target users already defined
 - Focus: Creating measurable, actionable success criteria that align with product strategy
 - Limits: Focus on metrics that drive decisions and demonstrate real value creation
 - Dependencies: Product vision and user personas from previous steps must be complete
@@ -69,8 +65,8 @@ value.
 
 ### 1. Begin Success Metrics Discovery
 
-**Opening Exploration:** "Now that we know who {{project_name}} serves and what problem it solves,
-let's define what success looks like.
+**Opening Exploration:**
+"Now that we know who {{project_name}} serves and what problem it solves, let's define what success looks like.
 
 **Success Discovery:**
 
@@ -82,14 +78,16 @@ Let's start with the user perspective."
 
 ### 2. User Success Metrics
 
-**User Success Questions:** Define success from the user's perspective:
+**User Success Questions:**
+Define success from the user's perspective:
 
 - "What outcome are users trying to achieve?"
 - "How will they know the product is working for them?"
 - "What's the moment where they realize this is solving their problem?"
 - "What behaviors indicate users are getting value?"
 
-**User Success Exploration:** Guide from vague to specific metrics:
+**User Success Exploration:**
+Guide from vague to specific metrics:
 
 - "Users are happy" → "Users complete [key action] within [timeframe]"
 - "Product is useful" → "Users return [frequency] and use [core feature]"
@@ -97,7 +95,8 @@ Let's start with the user perspective."
 
 ### 3. Business Objectives
 
-**Business Success Questions:** Define business success metrics:
+**Business Success Questions:**
+Define business success metrics:
 
 - "What does success look like for the business at 3 months? 12 months?"
 - "Are we measuring revenue, user growth, engagement, something else?"
@@ -113,7 +112,8 @@ Let's start with the user perspective."
 
 ### 4. Key Performance Indicators
 
-**KPI Development Process:** Define specific, measurable KPIs:
+**KPI Development Process:**
+Define specific, measurable KPIs:
 
 - Transform objectives into measurable indicators
 - Ensure each KPI has a clear measurement method
@@ -128,7 +128,8 @@ Let's start with the user perspective."
 
 ### 5. Connect Metrics to Strategy
 
-**Strategic Alignment:** Ensure metrics align with product vision and user needs:
+**Strategic Alignment:**
+Ensure metrics align with product vision and user needs:
 
 - Connect each metric back to the product vision
 - Ensure user success metrics drive business success
@@ -137,7 +138,8 @@ Let's start with the user perspective."
 
 ### 6. Generate Success Metrics Content
 
-**Content to Append:** Prepare the following structure for document append:
+**Content to Append:**
+Prepare the following structure for document append:
 
 ```markdown
 ## Success Metrics
@@ -155,37 +157,31 @@ Let's start with the user perspective."
 
 ### 7. Present MENU OPTIONS
 
-**Content Presentation:** "I've defined success metrics that will help us track whether
-{{project_name}} is creating real value for users and achieving business objectives.
+**Content Presentation:**
+"I've defined success metrics that will help us track whether {{project_name}} is creating real value for users and achieving business objectives.
 
-**Here's what I'll add to the document:** [Show the complete markdown content from step 6]
+**Here's what I'll add to the document:**
+[Show the complete markdown content from step 6]
 
 **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Continue"
 
 #### Menu Handling Logic:
 
-- IF A: Execute {advancedElicitationTask} with current metrics content to dive deeper into success
-  metric insights
-- IF P: Execute {partyModeWorkflow} to bring different perspectives to validate comprehensive
-  metrics
-- IF C: Save content to {outputFile}, update frontmatter with stepsCompleted: [1, 2, 3, 4], then
-  only then load, read entire file, then execute {nextStepFile}
-- IF Any other comments or queries: help user respond then
-  [Redisplay Menu Options](#7-present-menu-options)
+- IF A: Execute {advancedElicitationTask} with current metrics content to dive deeper into success metric insights
+- IF P: Execute {partyModeWorkflow} to bring different perspectives to validate comprehensive metrics
+- IF C: Save content to {outputFile}, update frontmatter with stepsCompleted: [1, 2, 3, 4], then only then load, read entire file, then execute {nextStepFile}
+- IF Any other comments or queries: help user respond then [Redisplay Menu Options](#7-present-menu-options)
 
 #### EXECUTION RULES:
 
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu with updated content
-- User can chat or ask questions - always respond and then end with display again of the menu
-  options
+- User can chat or ask questions - always respond and then end with display again of the menu options
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN [C continue option] is selected and [success metrics finalized and saved to document with
-frontmatter updated], will you then load and read fully `{nextStepFile}` to execute and begin MVP
-scope definition.
+ONLY WHEN [C continue option] is selected and [success metrics finalized and saved to document with frontmatter updated], will you then load and read fully `{nextStepFile}` to execute and begin MVP scope definition.
 
 ---
 
@@ -211,5 +207,4 @@ scope definition.
 - Appending content without user selecting 'C'
 - Not updating frontmatter properly
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is
-FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

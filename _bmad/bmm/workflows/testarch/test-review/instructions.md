@@ -1,17 +1,15 @@
 # Test Quality Review - Instructions v4.0
 
-**Workflow:** `testarch-test-review` **Purpose:** Review test quality using TEA's comprehensive
-knowledge base and validate against best practices for maintainability, determinism, isolation, and
-flakiness prevention **Agent:** Test Architect (TEA) **Format:** Pure Markdown v4.0 (no XML blocks)
+**Workflow:** `testarch-test-review`
+**Purpose:** Review test quality using TEA's comprehensive knowledge base and validate against best practices for maintainability, determinism, isolation, and flakiness prevention
+**Agent:** Test Architect (TEA)
+**Format:** Pure Markdown v4.0 (no XML blocks)
 
 ---
 
 ## Overview
 
-This workflow performs comprehensive test quality reviews using TEA's knowledge base of best
-practices. It validates tests against proven patterns for fixture architecture, network-first
-safeguards, data factories, determinism, isolation, and flakiness prevention. The review generates
-actionable feedback with quality scoring.
+This workflow performs comprehensive test quality reviews using TEA's knowledge base of best practices. It validates tests against proven patterns for fixture architecture, network-first safeguards, data factories, determinism, isolation, and flakiness prevention. The review generates actionable feedback with quality scoring.
 
 **Key Capabilities:**
 
@@ -57,20 +55,13 @@ actionable feedback with quality scoring.
 2. Load relevant knowledge fragments from `{project-root}/_bmad/bmm/testarch/tea-index.csv`:
 
    **Core Patterns (Always load):**
-   - `test-quality.md` - Definition of Done (deterministic tests, isolated with cleanup, explicit
-     assertions, <300 lines, <1.5 min, 658 lines, 5 examples)
-   - `data-factories.md` - Factory functions with faker: overrides, nested factories, API-first
-     setup (498 lines, 5 examples)
-   - `test-levels-framework.md` - E2E vs API vs Component vs Unit appropriateness with decision
-     matrix (467 lines, 4 examples)
-   - `selective-testing.md` - Duplicate coverage detection with tag-based, spec filter, diff-based
-     selection (727 lines, 4 examples)
-   - `test-healing-patterns.md` - Common failure patterns: stale selectors, race conditions, dynamic
-     data, network errors, hard waits (648 lines, 5 examples)
-   - `selector-resilience.md` - Selector best practices (data-testid > ARIA > text > CSS hierarchy,
-     anti-patterns, 541 lines, 4 examples)
-   - `timing-debugging.md` - Race condition prevention and async debugging techniques (370 lines, 3
-     examples)
+   - `test-quality.md` - Definition of Done (deterministic tests, isolated with cleanup, explicit assertions, <300 lines, <1.5 min, 658 lines, 5 examples)
+   - `data-factories.md` - Factory functions with faker: overrides, nested factories, API-first setup (498 lines, 5 examples)
+   - `test-levels-framework.md` - E2E vs API vs Component vs Unit appropriateness with decision matrix (467 lines, 4 examples)
+   - `selective-testing.md` - Duplicate coverage detection with tag-based, spec filter, diff-based selection (727 lines, 4 examples)
+   - `test-healing-patterns.md` - Common failure patterns: stale selectors, race conditions, dynamic data, network errors, hard waits (648 lines, 5 examples)
+   - `selector-resilience.md` - Selector best practices (data-testid > ARIA > text > CSS hierarchy, anti-patterns, 541 lines, 4 examples)
+   - `timing-debugging.md` - Race condition prevention and async debugging techniques (370 lines, 3 examples)
 
    **If `config.tea_use_playwright_utils: true` (All Utilities):**
    - `overview.md` - Playwright utils best practices
@@ -86,14 +77,10 @@ actionable feedback with quality scoring.
    - `fixtures-composition.md` - Validate mergeTests usage
 
    **If `config.tea_use_playwright_utils: false`:**
-   - `fixture-architecture.md` - Pure function → Fixture → mergeTests composition with auto-cleanup
-     (406 lines, 5 examples)
-   - `network-first.md` - Route intercept before navigate to prevent race conditions (489 lines, 5
-     examples)
-   - `playwright-config.md` - Environment-based configuration with fail-fast validation (722 lines,
-     5 examples)
-   - `component-tdd.md` - Red-Green-Refactor patterns with provider isolation (480 lines, 4
-     examples)
+   - `fixture-architecture.md` - Pure function → Fixture → mergeTests composition with auto-cleanup (406 lines, 5 examples)
+   - `network-first.md` - Route intercept before navigate to prevent race conditions (489 lines, 5 examples)
+   - `playwright-config.md` - Environment-based configuration with fail-fast validation (722 lines, 5 examples)
+   - `component-tdd.md` - Red-Green-Refactor patterns with provider isolation (480 lines, 4 examples)
    - `ci-burn-in.md` - Flaky test detection with 10-iteration burn-in loop (678 lines, 4 examples)
 
 3. Determine review scope:
@@ -348,8 +335,7 @@ For each test file, validate against quality criteria (configurable via workflow
 **Actions:**
 
 1. **Count violations** by severity:
-   - **Critical (P0)**: Hard waits without justification, no assertions, race conditions, shared
-     state
+   - **Critical (P0)**: Hard waits without justification, no assertions, race conditions, shared state
    - **High (P1)**: Missing test IDs, no BDD structure, hardcoded data, missing fixtures
    - **Medium (P2)**: Long test files (>300 lines), missing priorities, some conditionals
    - **Low (P3)**: Minor style issues, incomplete cleanup, verbose tests
@@ -492,13 +478,13 @@ Quality Score: max(0, min(100, Starting Score - Violations + Bonus))
 ````markdown
 # Test Quality Review: auth-login.spec.ts
 
-**Quality Score**: 78/100 (B - Acceptable) **Review Date**: 2025-10-14 **Recommendation**: Approve
-with Comments
+**Quality Score**: 78/100 (B - Acceptable)
+**Review Date**: 2025-10-14
+**Recommendation**: Approve with Comments
 
 ## Executive Summary
 
-Overall, the test demonstrates good structure and coverage of the login flow. However, there are
-several areas for improvement to enhance maintainability and prevent flakiness.
+Overall, the test demonstrates good structure and coverage of the login flow. However, there are several areas for improvement to enhance maintainability and prevent flakiness.
 
 **Strengths:**
 
@@ -512,16 +498,16 @@ several areas for improvement to enhance maintainability and prevent flakiness.
 - Hardcoded test data (email: 'test@example.com') - use factories instead
 - Missing fixture for common login setup - DRY violation
 
-**Recommendation**: Address critical issue (hard wait) before merging. Other improvements can be
-addressed in follow-up PR.
+**Recommendation**: Address critical issue (hard wait) before merging. Other improvements can be addressed in follow-up PR.
 
 ## Critical Issues (Must Fix)
 
 ### 1. Hard Wait Detected (Line 45)
 
-**Severity**: P0 (Critical) **Issue**: `await page.waitForTimeout(2000)` introduces flakiness
-**Fix**: Use explicit wait for element or network request instead **Knowledge**: See
-test-quality.md, network-first.md
+**Severity**: P0 (Critical)
+**Issue**: `await page.waitForTimeout(2000)` introduces flakiness
+**Fix**: Use explicit wait for element or network request instead
+**Knowledge**: See test-quality.md, network-first.md
 
 ```typescript
 // ❌ Bad (current)
@@ -537,21 +523,25 @@ await expect(page.locator('[data-testid="user-menu"]')).toBeVisible({ timeout: 1
 
 ### 1. Use Data Factory for Test User (Lines 23, 32, 41)
 
-**Severity**: P1 (High) **Issue**: Hardcoded email `test@example.com` - maintainability risk
-**Fix**: Create factory function for test users **Knowledge**: See data-factories.md
+**Severity**: P1 (High)
+**Issue**: Hardcoded email `test@example.com` - maintainability risk
+**Fix**: Create factory function for test users
+**Knowledge**: See data-factories.md
 
 ```typescript
 // ✅ Good (recommended)
-import { createTestUser } from "./factories/user-factory";
+import { createTestUser } from './factories/user-factory';
 
-const testUser = createTestUser({ role: "admin" });
+const testUser = createTestUser({ role: 'admin' });
 await loginPage.login(testUser.email, testUser.password);
 ```
 
 ### 2. Extract Login Setup to Fixture (Lines 18-28)
 
-**Severity**: P1 (High) **Issue**: Login setup repeated across tests - DRY violation **Fix**: Create
-fixture for authenticated state **Knowledge**: See fixture-architecture.md
+**Severity**: P1 (High)
+**Issue**: Login setup repeated across tests - DRY violation
+**Fix**: Create fixture for authenticated state
+**Knowledge**: See fixture-architecture.md
 
 ```typescript
 // ✅ Good (recommended)
@@ -563,7 +553,7 @@ const test = base.extend({
   },
 });
 
-test("user can access dashboard", async ({ authenticatedPage }) => {
+test('user can access dashboard', async ({ authenticatedPage }) => {
   // Test starts already logged in
 });
 ```
@@ -579,6 +569,7 @@ test("user can access dashboard", async ({ authenticatedPage }) => {
 - **Final Score**: 78/100 (B)
 
 ```
+
 ---
 
 ## Integration with Other Workflows

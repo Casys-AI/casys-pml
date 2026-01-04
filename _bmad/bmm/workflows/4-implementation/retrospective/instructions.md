@@ -1,16 +1,10 @@
 # Retrospective - Epic Completion Review Instructions
 
-<critical>The workflow execution engine is governed by:
-{project-root}/\_bmad/core/tasks/workflow.xml</critical>
-<critical>You MUST have already loaded and processed:
-{project-root}/\_bmad/bmm/workflows/4-implementation/retrospective/workflow.yaml</critical>
-<critical>Communicate all responses in {communication_language} and language MUST be tailored to
-{user_skill_level}</critical>
+<critical>The workflow execution engine is governed by: {project-root}/_bmad/core/tasks/workflow.xml</critical>
+<critical>You MUST have already loaded and processed: {project-root}/_bmad/bmm/workflows/4-implementation/retrospective/workflow.yaml</critical>
+<critical>Communicate all responses in {communication_language} and language MUST be tailored to {user_skill_level}</critical>
 <critical>Generate all documents in {document_output_language}</critical>
-<critical>⚠️ ABSOLUTELY NO TIME ESTIMATES - NEVER mention hours, days, weeks, months, or ANY
-time-based predictions. AI has fundamentally changed development speed - what once took teams
-weeks/months can now be done by one person in hours. DO NOT give ANY time estimates
-whatsoever.</critical>
+<critical>⚠️ ABSOLUTELY NO TIME ESTIMATES - NEVER mention hours, days, weeks, months, or ANY time-based predictions. AI has fundamentally changed development speed - what once took teams weeks/months can now be done by one person in hours. DO NOT give ANY time estimates whatsoever.</critical>
 
 <critical>
   DOCUMENT OUTPUT: Retrospective analysis. Concise insights, lessons learned, action items. User skill level ({user_skill_level}) affects conversation style ONLY, not retrospective content.
@@ -48,24 +42,23 @@ Bob (Scrum Master): "Welcome to the retrospective, {user_name}. Let me help you 
 <action>Load the FULL file: {sprint_status_file}</action>
 <action>Read ALL development_status entries</action>
 <action>Find the highest epic number with at least one story marked "done"</action>
-<action>Extract epic number from keys like "epic-X-retrospective" or story keys like
-"X-Y-story-name"</action>
+<action>Extract epic number from keys like "epic-X-retrospective" or story keys like "X-Y-story-name"</action>
 <action>Set {{detected_epic}} = highest epic number found with completed stories</action>
 
 <check if="{{detected_epic}} found">
   <action>Present finding to user with context</action>
 
-<output>
+  <output>
 Bob (Scrum Master): "Based on {sprint_status_file}, it looks like Epic {{detected_epic}} was recently completed. Is that the epic you want to review today, {user_name}?"
   </output>
 
 <action>WAIT for {user_name} to confirm or correct</action>
 
-<check if="{user_name} confirms">
+  <check if="{user_name} confirms">
     <action>Set {{epic_number}} = {{detected_epic}}</action>
   </check>
 
-<check if="{user_name} provides different epic number">
+  <check if="{user_name} provides different epic number">
     <action>Set {{epic_number}} = user-provided number</action>
     <output>
 Bob (Scrum Master): "Got it, we're reviewing Epic {{epic_number}}. Let me gather that information."
@@ -76,7 +69,7 @@ Bob (Scrum Master): "Got it, we're reviewing Epic {{epic_number}}. Let me gather
 <check if="{{detected_epic}} NOT found in sprint-status">
   <action>PRIORITY 2: Ask user directly</action>
 
-<output>
+  <output>
 Bob (Scrum Master): "I'm having trouble detecting the completed epic from {sprint_status_file}. {user_name}, which epic number did you just complete?"
   </output>
 
@@ -91,7 +84,7 @@ Bob (Scrum Master): "I'm having trouble detecting the completed epic from {sprin
 <action>Extract epic numbers from story filenames (pattern: epic-X-Y-story-name.md)</action>
 <action>Set {{detected_epic}} = highest epic number found</action>
 
-<output>
+  <output>
 Bob (Scrum Master): "I found stories for Epic {{detected_epic}} in the stories folder. Is that the epic we're reviewing, {user_name}?"
   </output>
 
@@ -125,10 +118,10 @@ Bob (Scrum Master): "Let me check... you're right, Alice."
 - Completed (Done): {{done_stories}}
 - Pending: {{pending_count}}
 
-**Pending Stories:** {{pending_story_list}}
+**Pending Stories:**
+{{pending_story_list}}
 
-Bob (Scrum Master): "{user_name}, we typically run retrospectives after all stories are done. What
-would you like to do?"
+Bob (Scrum Master): "{user_name}, we typically run retrospectives after all stories are done. What would you like to do?"
 
 **Options:**
 
@@ -139,7 +132,7 @@ would you like to do?"
 
 <ask if="{{non_interactive}} == false">Continue with incomplete epic? (yes/no)</ask>
 
-<check if="user says no">
+  <check if="user says no">
     <output>
 Bob (Scrum Master): "Smart call, {user_name}. Let's finish those stories first and then have a proper retrospective."
     </output>
@@ -147,11 +140,10 @@ Bob (Scrum Master): "Smart call, {user_name}. Let's finish those stories first a
   </check>
 
 <action if="user says yes">Set {{partial_retrospective}} = true</action>
-<output> Charlie (Senior Dev): "Just so everyone knows, this partial retro might miss some important
-lessons from those pending stories."
+<output>
+Charlie (Senior Dev): "Just so everyone knows, this partial retro might miss some important lessons from those pending stories."
 
-Bob (Scrum Master): "Good point, Charlie. {user_name}, we'll document what we can now, but we may
-want to revisit after everything's done."
+Bob (Scrum Master): "Good point, Charlie. {user_name}, we'll document what we can now, but we may want to revisit after everything's done."
 </output>
 </check>
 
@@ -159,8 +151,7 @@ want to revisit after everything's done."
   <output>
 Alice (Product Owner): "Excellent! All {{done_stories}} stories are marked done."
 
-Bob (Scrum Master): "Perfect. Epic {{epic_number}} is complete and ready for retrospective,
-{user_name}."
+Bob (Scrum Master): "Perfect. Epic {{epic_number}} is complete and ready for retrospective, {user_name}."
 </output>
 </check>
 
@@ -179,15 +170,13 @@ Bob (Scrum Master): "Before we start the team discussion, let me review all the 
 Charlie (Senior Dev): "Good idea - those dev notes always have gold in them."
 </output>
 
-<action>For each story in epic {{epic_number}}, read the complete story file from
-{story_directory}/{{epic_number}}-{{story_num}}-\*.md</action>
+<action>For each story in epic {{epic_number}}, read the complete story file from {story_directory}/{{epic_number}}-{{story_num}}-\*.md</action>
 
 <action>Extract and analyze from each story:</action>
 
 **Dev Notes and Struggles:**
 
-- Look for sections like "## Dev Notes", "## Implementation Notes", "## Challenges", "## Development
-  Log"
+- Look for sections like "## Dev Notes", "## Implementation Notes", "## Challenges", "## Development Log"
 - Identify where developers struggled or made mistakes
 - Note unexpected complexity or gotchas discovered
 - Record technical decisions that didn't work out as planned
@@ -227,8 +216,7 @@ Charlie (Senior Dev): "Good idea - those dev notes always have gold in them."
 
 **Common Struggles:**
 
-- Identify issues that appeared in 2+ stories (e.g., "3 out of 5 stories had API authentication
-  issues")
+- Identify issues that appeared in 2+ stories (e.g., "3 out of 5 stories had API authentication issues")
 - Note areas where team consistently struggled
 - Track where complexity was underestimated
 
@@ -263,8 +251,7 @@ Bob (Scrum Master): "Okay, I've reviewed all {{total_stories}} story records. I 
 
 Dana (QA Engineer): "I'm curious what you found, Bob. I noticed some things in my testing too."
 
-Bob (Scrum Master): "We'll get to all of it. But first, let me load the previous epic's retro to see
-if we learned from last time."
+Bob (Scrum Master): "We'll get to all of it. But first, let me load the previous epic's retro to see if we learned from last time."
 </output>
 
 </step>
@@ -276,7 +263,7 @@ if we learned from last time."
 <check if="{{prev_epic_num}} >= 1">
   <action>Search for previous retrospective using pattern: {retrospectives_folder}/epic-{{prev_epic_num}}-retro-*.md</action>
 
-<check if="previous retro found">
+  <check if="previous retro found">
     <output>
 Bob (Scrum Master): "I found our retrospective from Epic {{prev_epic_num}}. Let me see what we committed to back then..."
     </output>
@@ -327,27 +314,24 @@ Bob (Scrum Master): "I found our retrospective from Epic {{prev_epic_num}}. Let 
 
     <output>
 
-Bob (Scrum Master): "Interesting... in Epic {{prev_epic_num}}'s retro, we committed to
-{{action_count}} action items."
+Bob (Scrum Master): "Interesting... in Epic {{prev_epic_num}}'s retro, we committed to {{action_count}} action items."
 
 Alice (Product Owner): "How'd we do on those, Bob?"
 
-Bob (Scrum Master): "We completed {{completed_count}}, made progress on {{in_progress_count}}, but
-didn't address {{not_addressed_count}}."
+Bob (Scrum Master): "We completed {{completed_count}}, made progress on {{in_progress_count}}, but didn't address {{not_addressed_count}}."
 
 Charlie (Senior Dev): _looking concerned_ "Which ones didn't we address?"
 
-Bob (Scrum Master): "We'll discuss that in the retro. Some of them might explain challenges we had
-this epic."
+Bob (Scrum Master): "We'll discuss that in the retro. Some of them might explain challenges we had this epic."
 
 Elena (Junior Dev): "That's... actually pretty insightful."
 
 Bob (Scrum Master): "That's why we track this stuff. Pattern recognition helps us improve."
 </output>
 
-</check>
+  </check>
 
-<check if="no previous retro found">
+  <check if="no previous retro found">
     <output>
 Bob (Scrum Master): "I don't see a retrospective for Epic {{prev_epic_num}}. Either we skipped it, or this is your first retro."
 
@@ -381,18 +365,18 @@ Alice (Product Owner): "Good thinking - helps us connect what we learned to what
 <action>Attempt to load next epic using selective loading strategy:</action>
 
 **Try sharded first (more specific):**
-<action>Check if file exists: {output_folder}/epic\*/epic-{{next_epic_num}}.md</action>
+<action>Check if file exists: {planning_artifacts}/epic\*/epic-{{next_epic_num}}.md</action>
 
 <check if="sharded epic file found">
-  <action>Load {output_folder}/*epic*/epic-{{next_epic_num}}.md</action>
+  <action>Load {planning_artifacts}/*epic*/epic-{{next_epic_num}}.md</action>
   <action>Set {{next_epic_source}} = "sharded"</action>
 </check>
 
 **Fallback to whole document:**
 <check if="sharded epic not found">
-<action>Check if file exists: {output_folder}/epic\*.md</action>
+<action>Check if file exists: {planning_artifacts}/epic\*.md</action>
 
-<check if="whole epic file found">
+  <check if="whole epic file found">
     <action>Load entire epics document</action>
     <action>Extract Epic {{next_epic_num}} section</action>
     <action>Set {{next_epic_source}} = "whole"</action>
@@ -429,13 +413,11 @@ Alice (Product Owner): "Good thinking - helps us connect what we learned to what
 - Deployment or environment setup
 
   <output>
-
 Bob (Scrum Master): "Alright, I've reviewed Epic {{next_epic_num}}: '{{next_epic_title}}'"
 
 Alice (Product Owner): "What are we looking at?"
 
-Bob (Scrum Master): "{{next_epic_num}} stories planned, building on the {{dependency_description}}
-from Epic {{epic_number}}."
+Bob (Scrum Master): "{{next_epic_num}} stories planned, building on the {{dependency_description}} from Epic {{epic_number}}."
 
 Charlie (Senior Dev): "Dependencies concern me. Did we finish everything we need for that?"
 
@@ -449,11 +431,9 @@ Bob (Scrum Master): "Good question - that's exactly what we need to explore in t
   <output>
 Bob (Scrum Master): "Hmm, I don't see Epic {{next_epic_num}} defined yet."
 
-Alice (Product Owner): "We might be at the end of the roadmap, or we haven't planned that far ahead
-yet."
+Alice (Product Owner): "We might be at the end of the roadmap, or we haven't planned that far ahead yet."
 
-Bob (Scrum Master): "No problem. We'll still do a thorough retro on Epic {{epic_number}}. The
-lessons will be valuable whenever we plan the next work."
+Bob (Scrum Master): "No problem. We'll still do a thorough retro on Epic {{epic_number}}. The lessons will be valuable whenever we plan the next work."
 </output>
 
 <action>Set {{next_epic_exists}} = false</action>
@@ -465,14 +445,14 @@ lessons will be valuable whenever we plan the next work."
 
 <action>Load agent configurations from {agent_manifest}</action>
 <action>Identify which agents participated in Epic {{epic_number}} based on story records</action>
-<action>Ensure key roles present: Product Owner, Scrum Master (facilitating), Devs, Testing/QA,
-Architect</action>
+<action>Ensure key roles present: Product Owner, Scrum Master (facilitating), Devs, Testing/QA, Architect</action>
 
 <output>
 Bob (Scrum Master): "Alright team, everyone's here. Let me set the stage for our retrospective."
 
-═══════════════════════════════════════════════════════════ 🔄 TEAM RETROSPECTIVE - Epic
-{{epic_number}}: {{epic_title}} ═══════════════════════════════════════════════════════════
+═══════════════════════════════════════════════════════════
+🔄 TEAM RETROSPECTIVE - Epic {{epic_number}}: {{epic_title}}
+═══════════════════════════════════════════════════════════
 
 Bob (Scrum Master): "Here's what we accomplished together."
 
@@ -481,8 +461,7 @@ Bob (Scrum Master): "Here's what we accomplished together."
 Delivery Metrics:
 
 - Completed: {{completed_stories}}/{{total_stories}} stories ({{completion_percentage}}%)
-- Velocity: {{actual_points}} story points{{#if planned_points}} (planned:
-  {{planned_points}}){{/if}}
+- Velocity: {{actual_points}} story points{{#if planned_points}} (planned: {{planned_points}}){{/if}}
 - Duration: {{actual_sprints}} sprints{{#if planned_sprints}} (planned: {{planned_sprints}}){{/if}}
 - Average velocity: {{points_per_sprint}} points/sprint
 
@@ -499,32 +478,32 @@ Business Outcomes:
 - Success criteria: {{criteria_status}}
 - Stakeholder feedback: {{feedback_summary}}
 
-Alice (Product Owner): "Those numbers tell a good story. {{completion_percentage}}% completion is
-{{#if completion_percentage >= 90}}excellent{{else}}something we should discuss{{/if}}."
+Alice (Product Owner): "Those numbers tell a good story. {{completion_percentage}}% completion is {{#if completion_percentage >= 90}}excellent{{else}}something we should discuss{{/if}}."
 
-Charlie (Senior Dev): "I'm more interested in that technical debt number - {{debt_count}} items is
-{{#if debt_count > 10}}concerning{{else}}manageable{{/if}}."
+Charlie (Senior Dev): "I'm more interested in that technical debt number - {{debt_count}} items is {{#if debt_count > 10}}concerning{{else}}manageable{{/if}}."
 
-Dana (QA Engineer): "{{incident_count}} production incidents - {{#if incident_count == 0}}clean
-epic!{{else}}we should talk about those{{/if}}."
+Dana (QA Engineer): "{{incident_count}} production incidents - {{#if incident_count == 0}}clean epic!{{else}}we should talk about those{{/if}}."
 
-{{#if next_epic_exists}} ═══════════════════════════════════════════════════════════ **NEXT EPIC
-PREVIEW:** Epic {{next_epic_num}}: {{next_epic_title}}
+{{#if next_epic_exists}}
+═══════════════════════════════════════════════════════════
+**NEXT EPIC PREVIEW:** Epic {{next_epic_num}}: {{next_epic_title}}
 ═══════════════════════════════════════════════════════════
 
-Dependencies on Epic {{epic_number}}: {{list_dependencies}}
+Dependencies on Epic {{epic_number}}:
+{{list_dependencies}}
 
-Preparation Needed: {{list_preparation_gaps}}
+Preparation Needed:
+{{list_preparation_gaps}}
 
-Technical Prerequisites: {{list_technical_prereqs}}
+Technical Prerequisites:
+{{list_technical_prereqs}}
 
-Bob (Scrum Master): "And here's what's coming next. Epic {{next_epic_num}} builds on what we just
-finished."
+Bob (Scrum Master): "And here's what's coming next. Epic {{next_epic_num}} builds on what we just finished."
 
 Elena (Junior Dev): "Wow, that's a lot of dependencies on our work."
 
-Charlie (Senior Dev): "Which means we better make sure Epic {{epic_number}} is actually solid before
-moving on." {{/if}}
+Charlie (Senior Dev): "Which means we better make sure Epic {{epic_number}} is actually solid before moving on."
+{{/if}}
 
 ═══════════════════════════════════════════════════════════
 
@@ -532,22 +511,18 @@ Bob (Scrum Master): "Team assembled for this retrospective:"
 
 {{list_participating_agents}}
 
-Bob (Scrum Master): "{user_name}, you're joining us as Project Lead. Your perspective is crucial
-here."
+Bob (Scrum Master): "{user_name}, you're joining us as Project Lead. Your perspective is crucial here."
 
 {user_name} (Project Lead): [Participating in the retrospective]
 
 Bob (Scrum Master): "Our focus today:"
 
-1. Learning from Epic {{epic_number}} execution {{#if next_epic_exists}}2. Preparing for Epic
-   {{next_epic_num}} success{{/if}}
+1. Learning from Epic {{epic_number}} execution
+   {{#if next_epic_exists}}2. Preparing for Epic {{next_epic_num}} success{{/if}}
 
-Bob (Scrum Master): "Ground rules: psychological safety first. No blame, no judgment. We focus on
-systems and processes, not individuals. Everyone's voice matters. Specific examples are better than
-generalizations."
+Bob (Scrum Master): "Ground rules: psychological safety first. No blame, no judgment. We focus on systems and processes, not individuals. Everyone's voice matters. Specific examples are better than generalizations."
 
-Alice (Product Owner): "And everything shared here stays in this room - unless we decide together to
-escalate something."
+Alice (Product Owner): "And everything shared here stays in this room - unless we decide together to escalate something."
 
 Bob (Scrum Master): "Exactly. {user_name}, any questions before we dive in?"
 </output>
@@ -563,18 +538,13 @@ Bob (Scrum Master): "Let's start with the good stuff. What went well in Epic {{e
 
 Bob (Scrum Master): _pauses, creating space_
 
-Alice (Product Owner): "I'll start. The user authentication flow we delivered exceeded my
-expectations. The UX is smooth, and early user feedback has been really positive."
+Alice (Product Owner): "I'll start. The user authentication flow we delivered exceeded my expectations. The UX is smooth, and early user feedback has been really positive."
 
-Charlie (Senior Dev): "I'll add to that - the caching strategy we implemented in Story
-{{breakthrough_story_num}} was a game-changer. We cut API calls by 60% and it set the pattern for
-the rest of the epic."
+Charlie (Senior Dev): "I'll add to that - the caching strategy we implemented in Story {{breakthrough_story_num}} was a game-changer. We cut API calls by 60% and it set the pattern for the rest of the epic."
 
-Dana (QA Engineer): "From my side, testing went smoother than usual. The dev team's documentation
-was way better this epic - actually usable test plans!"
+Dana (QA Engineer): "From my side, testing went smoother than usual. The dev team's documentation was way better this epic - actually usable test plans!"
 
-Elena (Junior Dev): _smiling_ "That's because Charlie made me document everything after Story 1's
-code review!"
+Elena (Junior Dev): _smiling_ "That's because Charlie made me document everything after Story 1's code review!"
 
 Charlie (Senior Dev): _laughing_ "Tough love pays off."
 </output>
@@ -587,18 +557,15 @@ Bob (Scrum Master): "{user_name}, what stood out to you as going well in this ep
 
 <action>WAIT for {user_name} to respond - this is a KEY USER INTERACTION moment</action>
 
-<action>After {user_name} responds, have 1-2 team members react to or build on what {user_name}
-shared</action>
+<action>After {user_name} responds, have 1-2 team members react to or build on what {user_name} shared</action>
 
 <output>
 Alice (Product Owner): [Responds naturally to what {user_name} said, either agreeing, adding context, or offering a different perspective]
 
-Charlie (Senior Dev): [Builds on the discussion, perhaps adding technical details or connecting to
-specific stories]
+Charlie (Senior Dev): [Builds on the discussion, perhaps adding technical details or connecting to specific stories]
 </output>
 
-<action>Continue facilitating natural dialogue, periodically bringing {user_name} back into the
-conversation</action>
+<action>Continue facilitating natural dialogue, periodically bringing {user_name} back into the conversation</action>
 
 <action>After covering successes, guide the transition to challenges with care</action>
 
@@ -607,68 +574,51 @@ Bob (Scrum Master): "Okay, we've celebrated some real wins. Now let's talk about
 
 Bob (Scrum Master): _creates safe space with tone and pacing_
 
-Elena (Junior Dev): _hesitates_ "Well... I really struggled with the database migrations in Story
-{{difficult_story_num}}. The documentation wasn't clear, and I had to redo it three times. Lost
-almost a full sprint on that story alone."
+Elena (Junior Dev): _hesitates_ "Well... I really struggled with the database migrations in Story {{difficult_story_num}}. The documentation wasn't clear, and I had to redo it three times. Lost almost a full sprint on that story alone."
 
-Charlie (Senior Dev): _defensive_ "Hold on - I wrote those migration docs, and they were perfectly
-clear. The issue was that the requirements kept changing mid-story!"
+Charlie (Senior Dev): _defensive_ "Hold on - I wrote those migration docs, and they were perfectly clear. The issue was that the requirements kept changing mid-story!"
 
-Alice (Product Owner): _frustrated_ "That's not fair, Charlie. We only clarified requirements once,
-and that was because the technical team didn't ask the right questions during planning!"
+Alice (Product Owner): _frustrated_ "That's not fair, Charlie. We only clarified requirements once, and that was because the technical team didn't ask the right questions during planning!"
 
-Charlie (Senior Dev): _heat rising_ "We asked plenty of questions! You said the schema was
-finalized, then two days into development you wanted to add three new fields!"
+Charlie (Senior Dev): _heat rising_ "We asked plenty of questions! You said the schema was finalized, then two days into development you wanted to add three new fields!"
 
-Bob (Scrum Master): _intervening calmly_ "Let's take a breath here. This is exactly the kind of
-thing we need to unpack."
+Bob (Scrum Master): _intervening calmly_ "Let's take a breath here. This is exactly the kind of thing we need to unpack."
 
-Bob (Scrum Master): "Elena, you spent almost a full sprint on Story {{difficult_story_num}}.
-Charlie, you're saying requirements changed. Alice, you feel the right questions weren't asked up
-front."
+Bob (Scrum Master): "Elena, you spent almost a full sprint on Story {{difficult_story_num}}. Charlie, you're saying requirements changed. Alice, you feel the right questions weren't asked up front."
 
-Bob (Scrum Master): "{user_name}, you have visibility across the whole project. What's your take on
-this situation?"
+Bob (Scrum Master): "{user_name}, you have visibility across the whole project. What's your take on this situation?"
 </output>
 
 <action>WAIT for {user_name} to respond and help facilitate the conflict resolution</action>
 
-<action>Use {user_name}'s response to guide the discussion toward systemic understanding rather than
-blame</action>
+<action>Use {user_name}'s response to guide the discussion toward systemic understanding rather than blame</action>
 
 <output>
 Bob (Scrum Master): [Synthesizes {user_name}'s input with what the team shared] "So it sounds like the core issue was {{root_cause_based_on_discussion}}, not any individual person's fault."
 
-Elena (Junior Dev): "That makes sense. If we'd had {{preventive_measure}}, I probably could have
-avoided those redos."
+Elena (Junior Dev): "That makes sense. If we'd had {{preventive_measure}}, I probably could have avoided those redos."
 
-Charlie (Senior Dev): _softening_ "Yeah, and I could have been clearer about assumptions in the
-docs. Sorry for getting defensive, Alice."
+Charlie (Senior Dev): _softening_ "Yeah, and I could have been clearer about assumptions in the docs. Sorry for getting defensive, Alice."
 
-Alice (Product Owner): "I appreciate that. I could've been more proactive about flagging the schema
-additions earlier, too."
+Alice (Product Owner): "I appreciate that. I could've been more proactive about flagging the schema additions earlier, too."
 
 Bob (Scrum Master): "This is good. We're identifying systemic improvements, not assigning blame."
 </output>
 
-<action>Continue the discussion, weaving in patterns discovered from the deep story analysis
-(Step 2)</action>
+<action>Continue the discussion, weaving in patterns discovered from the deep story analysis (Step 2)</action>
 
 <output>
 Bob (Scrum Master): "Speaking of patterns, I noticed something when reviewing all the story records..."
 
-Bob (Scrum Master): "{{pattern_1_description}} - this showed up in {{pattern_1_count}} out of
-{{total_stories}} stories."
+Bob (Scrum Master): "{{pattern_1_description}} - this showed up in {{pattern_1_count}} out of {{total_stories}} stories."
 
 Dana (QA Engineer): "Oh wow, I didn't realize it was that widespread."
 
-Bob (Scrum Master): "Yeah. And there's more - {{pattern_2_description}} came up in almost every code
-review."
+Bob (Scrum Master): "Yeah. And there's more - {{pattern_2_description}} came up in almost every code review."
 
 Charlie (Senior Dev): "That's... actually embarrassing. We should've caught that pattern earlier."
 
-Bob (Scrum Master): "No shame, Charlie. Now we know, and we can improve. {user_name}, did you notice
-these patterns during the epic?"
+Bob (Scrum Master): "No shame, Charlie. Now we know, and we can improve. {user_name}, did you notice these patterns during the epic?"
 </output>
 
 <action>WAIT for {user_name} to share their observations</action>
@@ -690,36 +640,33 @@ Bob (Scrum Master): "We made some commitments in that retro. Let's see how we di
 
 Bob (Scrum Master): "Action item 1: {{prev_action_1}}. Status: {{prev_action_1_status}}"
 
-Alice (Product Owner): {{#if prev_action_1_status == "completed"}}"We nailed that
-one!"{{else}}"We... didn't do that one."{{/if}}
+Alice (Product Owner): {{#if prev_action_1_status == "completed"}}"We nailed that one!"{{else}}"We... didn't do that one."{{/if}}
 
-Charlie (Senior Dev): {{#if prev_action_1_status == "completed"}}"And it helped! I noticed
-{{evidence_of_impact}}"{{else}}"Yeah, and I think that's why we had {{consequence_of_not_doing_it}}
-this epic."{{/if}}
+Charlie (Senior Dev): {{#if prev_action_1_status == "completed"}}"And it helped! I noticed {{evidence_of_impact}}"{{else}}"Yeah, and I think that's why we had {{consequence_of_not_doing_it}} this epic."{{/if}}
 
 Bob (Scrum Master): "Action item 2: {{prev_action_2}}. Status: {{prev_action_2_status}}"
 
-Dana (QA Engineer): {{#if prev_action_2_status == "completed"}}"This one made testing so much easier
-this time."{{else}}"If we'd done this, I think testing would've gone faster."{{/if}}
+Dana (QA Engineer): {{#if prev_action_2_status == "completed"}}"This one made testing so much easier this time."{{else}}"If we'd done this, I think testing would've gone faster."{{/if}}
 
-Bob (Scrum Master): "{user_name}, looking at what we committed to last time and what we actually
-did - what's your reaction?"
+Bob (Scrum Master): "{user_name}, looking at what we committed to last time and what we actually did - what's your reaction?"
 </output>
 
 <action>WAIT for {user_name} to respond</action>
 
-<action>Use the previous retro follow-through as a learning moment about commitment and
-accountability</action>
+<action>Use the previous retro follow-through as a learning moment about commitment and accountability</action>
 </check>
 
 <output>
 Bob (Scrum Master): "Alright, we've covered a lot of ground. Let me summarize what I'm hearing..."
 
-Bob (Scrum Master): "**Successes:**" {{list_success_themes}}
+Bob (Scrum Master): "**Successes:**"
+{{list_success_themes}}
 
-Bob (Scrum Master): "**Challenges:**" {{list_challenge_themes}}
+Bob (Scrum Master): "**Challenges:**"
+{{list_challenge_themes}}
 
-Bob (Scrum Master): "**Key Insights:**" {{list_insight_themes}}
+Bob (Scrum Master): "**Key Insights:**"
+{{list_insight_themes}}
 
 Bob (Scrum Master): "Does that capture it? Anyone have something important we missed?"
 </output>
@@ -743,21 +690,15 @@ Bob (Scrum Master): "Now let's shift gears. Epic {{next_epic_num}} is coming up:
 
 Bob (Scrum Master): "The question is: are we ready? What do we need to prepare?"
 
-Alice (Product Owner): "From my perspective, we need to make sure {{dependency_concern_1}} from Epic
-{{epic_number}} is solid before we start building on it."
+Alice (Product Owner): "From my perspective, we need to make sure {{dependency_concern_1}} from Epic {{epic_number}} is solid before we start building on it."
 
-Charlie (Senior Dev): _concerned_ "I'm worried about {{technical_concern_1}}. We have
-{{technical_debt_item}} from this epic that'll blow up if we don't address it before Epic
-{{next_epic_num}}."
+Charlie (Senior Dev): _concerned_ "I'm worried about {{technical_concern_1}}. We have {{technical_debt_item}} from this epic that'll blow up if we don't address it before Epic {{next_epic_num}}."
 
-Dana (QA Engineer): "And I need {{testing_infrastructure_need}} in place, or we're going to have the
-same testing bottleneck we had in Story {{bottleneck_story_num}}."
+Dana (QA Engineer): "And I need {{testing_infrastructure_need}} in place, or we're going to have the same testing bottleneck we had in Story {{bottleneck_story_num}}."
 
-Elena (Junior Dev): "I'm less worried about infrastructure and more about knowledge. I don't
-understand {{knowledge_gap}} well enough to work on Epic {{next_epic_num}}'s stories."
+Elena (Junior Dev): "I'm less worried about infrastructure and more about knowledge. I don't understand {{knowledge_gap}} well enough to work on Epic {{next_epic_num}}'s stories."
 
-Bob (Scrum Master): "{user_name}, the team is surfacing some real concerns here. What's your sense
-of our readiness?"
+Bob (Scrum Master): "{user_name}, the team is surfacing some real concerns here. What's your sense of our readiness?"
 </output>
 
 <action>WAIT for {user_name} to share their assessment</action>
@@ -767,31 +708,25 @@ of our readiness?"
 <output>
 Alice (Product Owner): [Reacts to what {user_name} said] "I agree with {user_name} about {{point_of_agreement}}, but I'm still worried about {{lingering_concern}}."
 
-Charlie (Senior Dev): "Here's what I think we need technically before Epic {{next_epic_num}} can
-start..."
+Charlie (Senior Dev): "Here's what I think we need technically before Epic {{next_epic_num}} can start..."
 
-Charlie (Senior Dev): "1. {{tech_prep_item_1}} - estimated {{hours_1}} hours" Charlie (Senior Dev):
-"2. {{tech_prep_item_2}} - estimated {{hours_2}} hours" Charlie (Senior Dev): "3.
-{{tech_prep_item_3}} - estimated {{hours_3}} hours"
+Charlie (Senior Dev): "1. {{tech_prep_item_1}} - estimated {{hours_1}} hours"
+Charlie (Senior Dev): "2. {{tech_prep_item_2}} - estimated {{hours_2}} hours"
+Charlie (Senior Dev): "3. {{tech_prep_item_3}} - estimated {{hours_3}} hours"
 
 Elena (Junior Dev): "That's like {{total_hours}} hours! That's a full sprint of prep work!"
 
 Charlie (Senior Dev): "Exactly. We can't just jump into Epic {{next_epic_num}} on Monday."
 
-Alice (Product Owner): _frustrated_ "But we have stakeholder pressure to keep shipping features.
-They're not going to be happy about a 'prep sprint.'"
+Alice (Product Owner): _frustrated_ "But we have stakeholder pressure to keep shipping features. They're not going to be happy about a 'prep sprint.'"
 
-Bob (Scrum Master): "Let's think about this differently. What happens if we DON'T do this prep
-work?"
+Bob (Scrum Master): "Let's think about this differently. What happens if we DON'T do this prep work?"
 
-Dana (QA Engineer): "We'll hit blockers in the middle of Epic {{next_epic_num}}, velocity will tank,
-and we'll ship late anyway."
+Dana (QA Engineer): "We'll hit blockers in the middle of Epic {{next_epic_num}}, velocity will tank, and we'll ship late anyway."
 
-Charlie (Senior Dev): "Worse - we'll ship something built on top of {{technical_concern_1}}, and
-it'll be fragile."
+Charlie (Senior Dev): "Worse - we'll ship something built on top of {{technical_concern_1}}, and it'll be fragile."
 
-Bob (Scrum Master): "{user_name}, you're balancing stakeholder pressure against technical reality.
-How do you want to handle this?"
+Bob (Scrum Master): "{user_name}, you're balancing stakeholder pressure against technical reality. How do you want to handle this?"
 </output>
 
 <action>WAIT for {user_name} to provide direction on preparation approach</action>
@@ -801,32 +736,23 @@ How do you want to handle this?"
 <output>
 Alice (Product Owner): [Potentially disagrees with {user_name}'s approach] "I hear what you're saying, {user_name}, but from a business perspective, {{business_concern}}."
 
-Charlie (Senior Dev): [Potentially supports or challenges Alice's point] "The business perspective
-is valid, but {{technical_counter_argument}}."
+Charlie (Senior Dev): [Potentially supports or challenges Alice's point] "The business perspective is valid, but {{technical_counter_argument}}."
 
-Bob (Scrum Master): "We have healthy tension here between business needs and technical reality.
-That's good - it means we're being honest."
+Bob (Scrum Master): "We have healthy tension here between business needs and technical reality. That's good - it means we're being honest."
 
-Bob (Scrum Master): "Let's explore a middle ground. Charlie, which of your prep items are absolutely
-critical vs. nice-to-have?"
+Bob (Scrum Master): "Let's explore a middle ground. Charlie, which of your prep items are absolutely critical vs. nice-to-have?"
 
-Charlie (Senior Dev): "{{critical_prep_item_1}} and {{critical_prep_item_2}} are non-negotiable.
-{{nice_to_have_prep_item}} can wait."
+Charlie (Senior Dev): "{{critical_prep_item_1}} and {{critical_prep_item_2}} are non-negotiable. {{nice_to_have_prep_item}} can wait."
 
-Alice (Product Owner): "And can any of the critical prep happen in parallel with starting Epic
-{{next_epic_num}}?"
+Alice (Product Owner): "And can any of the critical prep happen in parallel with starting Epic {{next_epic_num}}?"
 
-Charlie (Senior Dev): _thinking_ "Maybe. If we tackle {{first_critical_item}} before the epic
-starts, we could do {{second_critical_item}} during the first sprint."
+Charlie (Senior Dev): _thinking_ "Maybe. If we tackle {{first_critical_item}} before the epic starts, we could do {{second_critical_item}} during the first sprint."
 
-Dana (QA Engineer): "But that means Story 1 of Epic {{next_epic_num}} can't depend on
-{{second_critical_item}}."
+Dana (QA Engineer): "But that means Story 1 of Epic {{next_epic_num}} can't depend on {{second_critical_item}}."
 
-Alice (Product Owner): _looking at epic plan_ "Actually, Stories 1 and 2 are about
-{{independent_work}}, so they don't depend on it. We could make that work."
+Alice (Product Owner): _looking at epic plan_ "Actually, Stories 1 and 2 are about {{independent_work}}, so they don't depend on it. We could make that work."
 
-Bob (Scrum Master): "{user_name}, the team is finding a workable compromise here. Does this approach
-make sense to you?"
+Bob (Scrum Master): "{user_name}, the team is finding a workable compromise here. Does this approach make sense to you?"
 </output>
 
 <action>WAIT for {user_name} to validate or adjust the preparation strategy</action>
@@ -860,7 +786,8 @@ Bob (Scrum Master): "I'm hearing a clear picture of what we need before Epic {{n
 **PARALLEL PREPARATION (Can happen during early stories):**
 {{list_parallel_prep_items_with_owners_and_estimates}}
 
-**NICE-TO-HAVE PREPARATION (Would help but not blocking):** {{list_nice_to_have_prep_items}}
+**NICE-TO-HAVE PREPARATION (Would help but not blocking):**
+{{list_nice_to_have_prep_items}}
 
 Bob (Scrum Master): "Total critical prep effort: {{critical_hours}} hours ({{critical_days}} days)"
 
@@ -881,8 +808,7 @@ Bob (Scrum Master): "Let's capture concrete action items from everything we've d
 Bob (Scrum Master): "I want specific, achievable actions with clear owners. Not vague aspirations."
 </output>
 
-<action>Synthesize themes from Epic {{epic_number}} review discussion into actionable
-improvements</action>
+<action>Synthesize themes from Epic {{epic_number}} review discussion into actionable improvements</action>
 
 <action>Create specific action items with:</action>
 
@@ -903,38 +829,47 @@ improvements</action>
 <output>
 Bob (Scrum Master): "Based on our discussion, here are the action items I'm proposing..."
 
-═══════════════════════════════════════════════════════════ 📝 EPIC {{epic_number}} ACTION ITEMS:
+═══════════════════════════════════════════════════════════
+📝 EPIC {{epic_number}} ACTION ITEMS:
 ═══════════════════════════════════════════════════════════
 
 **Process Improvements:**
 
-1. {{action_item_1}} Owner: {{agent_1}} Deadline: {{timeline_1}} Success criteria: {{criteria_1}}
+1. {{action_item_1}}
+   Owner: {{agent_1}}
+   Deadline: {{timeline_1}}
+   Success criteria: {{criteria_1}}
 
-2. {{action_item_2}} Owner: {{agent_2}} Deadline: {{timeline_2}} Success criteria: {{criteria_2}}
+2. {{action_item_2}}
+   Owner: {{agent_2}}
+   Deadline: {{timeline_2}}
+   Success criteria: {{criteria_2}}
 
-Charlie (Senior Dev): "I can own action item 1, but {{timeline_1}} is tight. Can we push it to
-{{alternative_timeline}}?"
+Charlie (Senior Dev): "I can own action item 1, but {{timeline_1}} is tight. Can we push it to {{alternative_timeline}}?"
 
 Bob (Scrum Master): "What do others think? Does that timing still work?"
 
-Alice (Product Owner): "{{alternative_timeline}} works for me, as long as it's done before Epic
-{{next_epic_num}} starts."
+Alice (Product Owner): "{{alternative_timeline}} works for me, as long as it's done before Epic {{next_epic_num}} starts."
 
 Bob (Scrum Master): "Agreed. Updated to {{alternative_timeline}}."
 
 **Technical Debt:**
 
-1. {{debt_item_1}} Owner: {{agent_3}} Priority: {{priority_1}} Estimated effort: {{effort_1}}
+1. {{debt_item_1}}
+   Owner: {{agent_3}}
+   Priority: {{priority_1}}
+   Estimated effort: {{effort_1}}
 
-2. {{debt_item_2}} Owner: {{agent_4}} Priority: {{priority_2}} Estimated effort: {{effort_2}}
+2. {{debt_item_2}}
+   Owner: {{agent_4}}
+   Priority: {{priority_2}}
+   Estimated effort: {{effort_2}}
 
-Dana (QA Engineer): "For debt item 1, can we prioritize that as high? It caused testing issues in
-three different stories."
+Dana (QA Engineer): "For debt item 1, can we prioritize that as high? It caused testing issues in three different stories."
 
 Charlie (Senior Dev): "I marked it medium because {{reasoning}}, but I hear your point."
 
-Bob (Scrum Master): "{user_name}, this is a priority call. Testing impact vs. {{reasoning}} - how do
-you want to prioritize it?"
+Bob (Scrum Master): "{user_name}, this is a priority call. Testing impact vs. {{reasoning}} - how do you want to prioritize it?"
 </output>
 
 <action>WAIT for {user_name} to help resolve priority discussions</action>
@@ -945,7 +880,9 @@ you want to prioritize it?"
    Owner: {{agent_5}}
    Deadline: {{timeline_3}}
 
-2. {{doc_need_2}} Owner: {{agent_6}} Deadline: {{timeline_4}}
+2. {{doc_need_2}}
+   Owner: {{agent_6}}
+   Deadline: {{timeline_4}}
 
 **Team Agreements:**
 
@@ -957,27 +894,44 @@ Bob (Scrum Master): "These agreements are how we're committing to work different
 
 Elena (Junior Dev): "I like agreement 2 - that would've saved me on Story {{difficult_story_num}}."
 
-═══════════════════════════════════════════════════════════ 🚀 EPIC {{next_epic_num}} PREPARATION
-TASKS: ═══════════════════════════════════════════════════════════
+═══════════════════════════════════════════════════════════
+🚀 EPIC {{next_epic_num}} PREPARATION TASKS:
+═══════════════════════════════════════════════════════════
 
-**Technical Setup:** [ ] {{setup_task_1}} Owner: {{owner_1}} Estimated: {{est_1}}
+**Technical Setup:**
+[ ] {{setup_task_1}}
+Owner: {{owner_1}}
+Estimated: {{est_1}}
 
-[ ] {{setup_task_2}} Owner: {{owner_2}} Estimated: {{est_2}}
+[ ] {{setup_task_2}}
+Owner: {{owner_2}}
+Estimated: {{est_2}}
 
-**Knowledge Development:** [ ] {{research_task_1}} Owner: {{owner_3}} Estimated: {{est_3}}
+**Knowledge Development:**
+[ ] {{research_task_1}}
+Owner: {{owner_3}}
+Estimated: {{est_3}}
 
-**Cleanup/Refactoring:** [ ] {{refactor_task_1}} Owner: {{owner_4}} Estimated: {{est_4}}
+**Cleanup/Refactoring:**
+[ ] {{refactor_task_1}}
+Owner: {{owner_4}}
+Estimated: {{est_4}}
 
 **Total Estimated Effort:** {{total_hours}} hours ({{total_days}} days)
 
-═══════════════════════════════════════════════════════════ ⚠️ CRITICAL PATH:
+═══════════════════════════════════════════════════════════
+⚠️ CRITICAL PATH:
 ═══════════════════════════════════════════════════════════
 
 **Blockers to Resolve Before Epic {{next_epic_num}}:**
 
-1. {{critical_item_1}} Owner: {{critical_owner_1}} Must complete by: {{critical_deadline_1}}
+1. {{critical_item_1}}
+   Owner: {{critical_owner_1}}
+   Must complete by: {{critical_deadline_1}}
 
-2. {{critical_item_2}} Owner: {{critical_owner_2}} Must complete by: {{critical_deadline_2}}
+2. {{critical_item_2}}
+   Owner: {{critical_owner_2}}
+   Must complete by: {{critical_deadline_2}}
    </output>
 
 <action>CRITICAL ANALYSIS - Detect if discoveries require epic updates</action>
@@ -998,27 +952,29 @@ TASKS: ════════════════════════�
 <check if="significant discoveries detected">
   <output>
 
-═══════════════════════════════════════════════════════════ 🚨 SIGNIFICANT DISCOVERY ALERT 🚨
+═══════════════════════════════════════════════════════════
+🚨 SIGNIFICANT DISCOVERY ALERT 🚨
 ═══════════════════════════════════════════════════════════
 
 Bob (Scrum Master): "{user_name}, we need to flag something important."
 
-Bob (Scrum Master): "During Epic {{epic_number}}, the team uncovered findings that may require
-updating the plan for Epic {{next_epic_num}}."
+Bob (Scrum Master): "During Epic {{epic_number}}, the team uncovered findings that may require updating the plan for Epic {{next_epic_num}}."
 
 **Significant Changes Identified:**
 
-1. {{significant_change_1}} Impact: {{impact_description_1}}
+1. {{significant_change_1}}
+   Impact: {{impact_description_1}}
 
-2. {{significant_change_2}} Impact: {{impact_description_2}}
+2. {{significant_change_2}}
+   Impact: {{impact_description_2}}
 
-{{#if significant_change_3}} 3. {{significant_change_3}} Impact: {{impact_description_3}} {{/if}}
+{{#if significant_change_3}} 3. {{significant_change_3}}
+Impact: {{impact_description_3}}
+{{/if}}
 
-Charlie (Senior Dev): "Yeah, when we discovered {{technical_discovery}}, it fundamentally changed
-our understanding of {{affected_area}}."
+Charlie (Senior Dev): "Yeah, when we discovered {{technical_discovery}}, it fundamentally changed our understanding of {{affected_area}}."
 
-Alice (Product Owner): "And from a product perspective, {{product_discovery}} means Epic
-{{next_epic_num}}'s stories are based on wrong assumptions."
+Alice (Product Owner): "And from a product perspective, {{product_discovery}} means Epic {{next_epic_num}}'s stories are based on wrong assumptions."
 
 Dana (QA Engineer): "If we start Epic {{next_epic_num}} as-is, we're going to hit walls fast."
 
@@ -1034,34 +990,32 @@ But Epic {{epic_number}} revealed:
 - {{actual_reality_1}}
 - {{actual_reality_2}}
 
-This means Epic {{next_epic_num}} likely needs: {{list_likely_changes_needed}}
+This means Epic {{next_epic_num}} likely needs:
+{{list_likely_changes_needed}}
 
 **RECOMMENDED ACTIONS:**
 
 1. Review and update Epic {{next_epic_num}} definition based on new learnings
 2. Update affected stories in Epic {{next_epic_num}} to reflect reality
 3. Consider updating architecture or technical specifications if applicable
-4. Hold alignment session with Product Owner before starting Epic {{next_epic_num}} {{#if
-   prd_update_needed}}5. Update PRD sections affected by new understanding{{/if}}
+4. Hold alignment session with Product Owner before starting Epic {{next_epic_num}}
+   {{#if prd_update_needed}}5. Update PRD sections affected by new understanding{{/if}}
 
 Bob (Scrum Master): "**Epic Update Required**: YES - Schedule epic planning review session"
 
-Bob (Scrum Master): "{user_name}, this is significant. We need to address this before committing to
-Epic {{next_epic_num}}'s current plan. How do you want to handle it?"
+Bob (Scrum Master): "{user_name}, this is significant. We need to address this before committing to Epic {{next_epic_num}}'s current plan. How do you want to handle it?"
 </output>
 
 <action>WAIT for {user_name} to decide on how to handle the significant changes</action>
 
 <action>Add epic review session to critical path if user agrees</action>
 
-<output>
+  <output>
 Alice (Product Owner): "I agree with {user_name}'s approach. Better to adjust the plan now than fail mid-epic."
 
-Charlie (Senior Dev): "This is why retrospectives matter. We caught this before it became a
-disaster."
+Charlie (Senior Dev): "This is why retrospectives matter. We caught this before it became a disaster."
 
-Bob (Scrum Master): "Adding to critical path: Epic {{next_epic_num}} planning review session before
-epic kickoff."
+Bob (Scrum Master): "Adding to critical path: Epic {{next_epic_num}} planning review session before epic kickoff."
 </output>
 </check>
 
@@ -1076,8 +1030,7 @@ Alice (Product Owner): "We learned a lot, but the direction is right."
 <output>
 Bob (Scrum Master): "Let me show you the complete action plan..."
 
-Bob (Scrum Master): "That's {{total_action_count}} action items, {{prep_task_count}} preparation
-tasks, and {{critical_count}} critical path items."
+Bob (Scrum Master): "That's {{total_action_count}} action items, {{prep_task_count}} preparation tasks, and {{critical_count}} critical path items."
 
 Bob (Scrum Master): "Everyone clear on what they own?"
 </output>
@@ -1093,13 +1046,11 @@ Bob (Scrum Master): "Everyone clear on what they own?"
 <output>
 Bob (Scrum Master): "Before we close, I want to do a final readiness check."
 
-Bob (Scrum Master): "Epic {{epic_number}} is marked complete in sprint-status, but is it REALLY
-done?"
+Bob (Scrum Master): "Epic {{epic_number}} is marked complete in sprint-status, but is it REALLY done?"
 
 Alice (Product Owner): "What do you mean, Bob?"
 
-Bob (Scrum Master): "I mean truly production-ready, stakeholders happy, no loose ends that'll bite
-us later."
+Bob (Scrum Master): "I mean truly production-ready, stakeholders happy, no loose ends that'll bite us later."
 
 Bob (Scrum Master): "{user_name}, let's walk through this together."
 </output>
@@ -1117,8 +1068,7 @@ Dana (QA Engineer): [Responds to what {user_name} shared] "I can add to that - {
 
 Dana (QA Engineer): "But honestly, {{testing_concern_if_any}}."
 
-Bob (Scrum Master): "{user_name}, are you confident Epic {{epic_number}} is production-ready from a
-quality perspective?"
+Bob (Scrum Master): "{user_name}, are you confident Epic {{epic_number}} is production-ready from a quality perspective?"
 </output>
 
 <action>WAIT for {user_name} to assess quality readiness</action>
@@ -1129,8 +1079,7 @@ Bob (Scrum Master): "Okay, let's capture that. What specific testing is still ne
 
 Dana (QA Engineer): "I can handle {{testing_work_needed}}, estimated {{testing_hours}} hours."
 
-Bob (Scrum Master): "Adding to critical path: Complete {{testing_work_needed}} before Epic
-{{next_epic_num}}."
+Bob (Scrum Master): "Adding to critical path: Complete {{testing_work_needed}} before Epic {{next_epic_num}}."
 </output>
 <action>Add testing completion to critical path</action>
 </check>
@@ -1147,8 +1096,7 @@ Bob (Scrum Master): "{user_name}, what's the deployment status for Epic {{epic_n
   <output>
 Charlie (Senior Dev): "If it's not deployed yet, we need to factor that into Epic {{next_epic_num}} timing."
 
-Bob (Scrum Master): "{user_name}, when is deployment planned? Does that timing work for starting
-Epic {{next_epic_num}}?"
+Bob (Scrum Master): "{user_name}, when is deployment planned? Does that timing work for starting Epic {{next_epic_num}}?"
 </output>
 
 <action>WAIT for {user_name} to clarify deployment timeline</action>
@@ -1161,8 +1109,7 @@ Epic {{next_epic_num}}?"
 <output>
 Bob (Scrum Master): "{user_name}, have stakeholders seen and accepted the Epic {{epic_number}} deliverables?"
 
-Alice (Product Owner): "This is important - I've seen 'done' epics get rejected by stakeholders and
-force rework."
+Alice (Product Owner): "This is important - I've seen 'done' epics get rejected by stakeholders and force rework."
 
 Bob (Scrum Master): "{user_name}, any feedback from stakeholders still pending?"
 </output>
@@ -1173,8 +1120,7 @@ Bob (Scrum Master): "{user_name}, any feedback from stakeholders still pending?"
   <output>
 Alice (Product Owner): "We should get formal acceptance before moving on. Otherwise Epic {{next_epic_num}} might get interrupted by rework."
 
-Bob (Scrum Master): "{user_name}, how do you want to handle stakeholder acceptance? Should we make
-it a critical path item?"
+Bob (Scrum Master): "{user_name}, how do you want to handle stakeholder acceptance? Should we make it a critical path item?"
 </output>
 
 <action>WAIT for {user_name} decision</action>
@@ -1200,14 +1146,11 @@ Charlie (Senior Dev): "Okay, let's dig into that. What's causing those concerns?
 
 Charlie (Senior Dev): [Helps {user_name} articulate technical concerns]
 
-Bob (Scrum Master): "What would it take to address these concerns and feel confident about
-stability?"
+Bob (Scrum Master): "What would it take to address these concerns and feel confident about stability?"
 
-Charlie (Senior Dev): "I'd say we need {{stability_work_needed}}, roughly {{stability_hours}}
-hours."
+Charlie (Senior Dev): "I'd say we need {{stability_work_needed}}, roughly {{stability_hours}} hours."
 
-Bob (Scrum Master): "{user_name}, is addressing this stability work worth doing before Epic
-{{next_epic_num}}?"
+Bob (Scrum Master): "{user_name}, is addressing this stability work worth doing before Epic {{next_epic_num}}?"
 </output>
 
 <action>WAIT for {user_name} decision</action>
@@ -1220,8 +1163,7 @@ Bob (Scrum Master): "{user_name}, is addressing this stability work worth doing 
 <output>
 Bob (Scrum Master): "{user_name}, are there any unresolved blockers or technical issues from Epic {{epic_number}} that we're carrying forward?"
 
-Dana (QA Engineer): "Things that might create problems for Epic {{next_epic_num}} if we don't deal
-with them?"
+Dana (QA Engineer): "Things that might create problems for Epic {{next_epic_num}} if we don't deal with them?"
 
 Bob (Scrum Master): "Nothing is off limits here. If there's a problem, we need to know."
 </output>
@@ -1232,13 +1174,11 @@ Bob (Scrum Master): "Nothing is off limits here. If there's a problem, we need t
   <output>
 Bob (Scrum Master): "Let's capture those blockers and figure out how they affect Epic {{next_epic_num}}."
 
-Charlie (Senior Dev): "For {{blocker_1}}, if we leave it unresolved, it'll
-{{impact_description_1}}."
+Charlie (Senior Dev): "For {{blocker_1}}, if we leave it unresolved, it'll {{impact_description_1}}."
 
 Alice (Product Owner): "That sounds critical. We need to address that before moving forward."
 
-Bob (Scrum Master): "Agreed. Adding to critical path: Resolve {{blocker_1}} before Epic
-{{next_epic_num}} kickoff."
+Bob (Scrum Master): "Agreed. Adding to critical path: Resolve {{blocker_1}} before Epic {{next_epic_num}} kickoff."
 
 Bob (Scrum Master): "Who owns that work?"
 </output>
@@ -1254,20 +1194,20 @@ Bob (Scrum Master): "Okay {user_name}, let me synthesize what we just uncovered.
 
 **EPIC {{epic_number}} READINESS ASSESSMENT:**
 
-Testing & Quality: {{quality_status}} {{#if quality_concerns}}⚠️ Action needed:
-{{quality_action_needed}}{{/if}}
+Testing & Quality: {{quality_status}}
+{{#if quality_concerns}}⚠️ Action needed: {{quality_action_needed}}{{/if}}
 
-Deployment: {{deployment_status}} {{#if deployment_pending}}⚠️ Scheduled for:
-{{deployment_date}}{{/if}}
+Deployment: {{deployment_status}}
+{{#if deployment_pending}}⚠️ Scheduled for: {{deployment_date}}{{/if}}
 
-Stakeholder Acceptance: {{acceptance_status}} {{#if acceptance_incomplete}}⚠️ Action needed:
-{{acceptance_action_needed}}{{/if}}
+Stakeholder Acceptance: {{acceptance_status}}
+{{#if acceptance_incomplete}}⚠️ Action needed: {{acceptance_action_needed}}{{/if}}
 
-Technical Health: {{stability_status}} {{#if stability_concerns}}⚠️ Action needed:
-{{stability_action_needed}}{{/if}}
+Technical Health: {{stability_status}}
+{{#if stability_concerns}}⚠️ Action needed: {{stability_action_needed}}{{/if}}
 
-Unresolved Blockers: {{blocker_status}} {{#if blockers_exist}}⚠️ Must resolve:
-{{blocker_list}}{{/if}}
+Unresolved Blockers: {{blocker_status}}
+{{#if blockers_exist}}⚠️ Must resolve: {{blocker_list}}{{/if}}
 
 Bob (Scrum Master): "{user_name}, does this assessment match your understanding?"
 </output>
@@ -1289,7 +1229,8 @@ Charlie (Senior Dev): "Better to catch this now than three stories into the next
 <output>
 Bob (Scrum Master): "We've covered a lot of ground today. Let me bring this retrospective to a close."
 
-═══════════════════════════════════════════════════════════ ✅ RETROSPECTIVE COMPLETE
+═══════════════════════════════════════════════════════════
+✅ RETROSPECTIVE COMPLETE
 ═══════════════════════════════════════════════════════════
 
 Bob (Scrum Master): "Epic {{epic_number}}: {{epic_title}} - REVIEWED"
@@ -1298,7 +1239,8 @@ Bob (Scrum Master): "Epic {{epic_number}}: {{epic_title}} - REVIEWED"
 
 1. {{key_lesson_1}}
 2. {{key_lesson_2}}
-3. {{key_lesson_3}} {{#if key_lesson_4}}4. {{key_lesson_4}}{{/if}}
+3. {{key_lesson_3}}
+   {{#if key_lesson_4}}4. {{key_lesson_4}}{{/if}}
 
 Alice (Product Owner): "That first takeaway is huge - {{impact_of_lesson_1}}."
 
@@ -1314,34 +1256,30 @@ Dana (QA Engineer): "That's a lot of commitments. We need to actually follow thr
 
 Bob (Scrum Master): "Agreed. Which is why we'll review these action items in our next standup."
 
-═══════════════════════════════════════════════════════════ 🎯 NEXT STEPS:
+═══════════════════════════════════════════════════════════
+🎯 NEXT STEPS:
 ═══════════════════════════════════════════════════════════
 
 1. Execute Preparation Sprint (Est: {{prep_days}} days)
 2. Complete Critical Path items before Epic {{next_epic_num}}
-3. Review action items in next standup {{#if epic_update_needed}}4. Hold Epic {{next_epic_num}}
-   planning review session{{else}}4. Begin Epic {{next_epic_num}} planning when preparation
-   complete{{/if}}
+3. Review action items in next standup
+   {{#if epic_update_needed}}4. Hold Epic {{next_epic_num}} planning review session{{else}}4. Begin Epic {{next_epic_num}} planning when preparation complete{{/if}}
 
 Elena (Junior Dev): "{{prep_days}} days of prep work is significant, but necessary."
 
-Alice (Product Owner): "I'll communicate the timeline to stakeholders. They'll understand if we
-frame it as 'ensuring Epic {{next_epic_num}} success.'"
+Alice (Product Owner): "I'll communicate the timeline to stakeholders. They'll understand if we frame it as 'ensuring Epic {{next_epic_num}} success.'"
 
 ═══════════════════════════════════════════════════════════
 
 Bob (Scrum Master): "Before we wrap, I want to take a moment to acknowledge the team."
 
-Bob (Scrum Master): "Epic {{epic_number}} delivered {{completed_stories}} stories with
-{{velocity_description}} velocity. We overcame {{blocker_count}} blockers. We learned a lot. That's
-real work by real people."
+Bob (Scrum Master): "Epic {{epic_number}} delivered {{completed_stories}} stories with {{velocity_description}} velocity. We overcame {{blocker_count}} blockers. We learned a lot. That's real work by real people."
 
 Charlie (Senior Dev): "Hear, hear."
 
 Alice (Product Owner): "I'm proud of what we shipped."
 
-Dana (QA Engineer): "And I'm excited about Epic {{next_epic_num}} - especially now that we're
-prepared for it."
+Dana (QA Engineer): "And I'm excited about Epic {{next_epic_num}} - especially now that we're prepared for it."
 
 Bob (Scrum Master): "{user_name}, any final thoughts before we close?"
 </output>
@@ -1351,8 +1289,7 @@ Bob (Scrum Master): "{user_name}, any final thoughts before we close?"
 <output>
 Bob (Scrum Master): [Acknowledges what {user_name} shared] "Thank you for that, {user_name}."
 
-Bob (Scrum Master): "Alright team - great work today. We learned a lot from Epic {{epic_number}}.
-Let's use these insights to make Epic {{next_epic_num}} even better."
+Bob (Scrum Master): "Alright team - great work today. We learned a lot from Epic {{epic_number}}. Let's use these insights to make Epic {{next_epic_num}} even better."
 
 Bob (Scrum Master): "See you all when prep work is done. Meeting adjourned!"
 
@@ -1404,7 +1341,8 @@ Bob (Scrum Master): "See you all when prep work is done. Meeting adjourned!"
   <output>
 ✅ Retrospective marked as completed in {sprint_status_file}
 
-Retrospective key: epic-{{epic_number}}-retrospective Status: {{previous_status}} → done
+Retrospective key: epic-{{epic_number}}-retrospective
+Status: {{previous_status}} → done
 </output>
 </check>
 
@@ -1454,20 +1392,21 @@ Retrospective document was saved successfully, but {sprint_status_file} may need
 - Significant discoveries from Epic {{epic_number}} require epic updates
 - Review and update affected stories
 - Align team on revised approach
-- Do NOT start Epic {{next_epic_num}} until review is complete {{else}}
+- Do NOT start Epic {{next_epic_num}} until review is complete
+  {{else}}
 
 4. **Begin Epic {{next_epic_num}} when ready**
    - Start creating stories with SM agent's `create-story`
    - Epic will be marked as `in-progress` automatically when first story is created
-   - Ensure all critical path items are done first {{/if}}
+   - Ensure all critical path items are done first
+     {{/if}}
 
-**Team Performance:** Epic {{epic_number}} delivered {{completed_stories}} stories with
-{{velocity_summary}}. The retrospective surfaced {{insight_count}} key insights and
-{{significant_discovery_count}} significant discoveries. The team is well-positioned for Epic
-{{next_epic_num}} success.
+**Team Performance:**
+Epic {{epic_number}} delivered {{completed_stories}} stories with {{velocity_summary}}. The retrospective surfaced {{insight_count}} key insights and {{significant_discovery_count}} significant discoveries. The team is well-positioned for Epic {{next_epic_num}} success.
 
-{{#if significant_discovery_count > 0}} ⚠️ **REMINDER**: Epic update required before starting Epic
-{{next_epic_num}} {{/if}}
+{{#if significant_discovery_count > 0}}
+⚠️ **REMINDER**: Epic update required before starting Epic {{next_epic_num}}
+{{/if}}
 
 ---
 
