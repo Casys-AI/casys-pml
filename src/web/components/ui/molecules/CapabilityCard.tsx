@@ -97,6 +97,8 @@ export interface CapabilityCardProps {
   communityId?: number;
   /** Description/intent of the capability (Extended mode) */
   description?: string;
+  /** Story 10.1: 0=leaf, 1+=meta-capability */
+  hierarchyLevel?: number;
 }
 
 // Format full date + time for last used display
@@ -422,6 +424,7 @@ function NormalCard({
   isNew,
   onClick,
   description,
+  hierarchyLevel = 0,
 }: CapabilityCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const hasChildren = children.length > 0;
@@ -472,6 +475,14 @@ function NormalCard({
             {name}
           </h4>
 
+          {hierarchyLevel > 0 && (
+            <span
+              class="text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide shrink-0"
+              style={{ background: "#8b5cf620", color: "#8b5cf6" }}
+            >
+              {hierarchyLevel}
+            </span>
+          )}
           <span
             class="text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide shrink-0"
             style={{ background: health.bg, color: health.color }}

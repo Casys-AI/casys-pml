@@ -58,6 +58,8 @@ export interface TimelineCapability {
   }>;
   traces?: ExecutionTrace[];
   codeSnippet?: string;
+  /** Story 10.1: 0=leaf (tools only), 1+=meta-capability */
+  hierarchyLevel?: number;
 }
 
 interface CapabilityTimelineProps {
@@ -273,6 +275,7 @@ export default function CapabilityTimeline({
             tools: capTools,
             traces,
             codeSnippet: node.data.code_snippet,
+            hierarchyLevel: node.data.hierarchy_level ?? 0, // Story 10.1
           });
         }
       }
@@ -696,6 +699,7 @@ export default function CapabilityTimeline({
                 onClick={() => handleCapabilityClick(cap)}
                 isNew={isNew}
                 density="compact"
+                hierarchyLevel={cap.hierarchyLevel}
               />
             );
           })}
@@ -741,6 +745,7 @@ export default function CapabilityTimeline({
                 fqdn={cap.fqdn}
                 pagerank={cap.pagerank}
                 communityId={cap.communityId}
+                hierarchyLevel={cap.hierarchyLevel}
               />
             );
           })}
@@ -781,6 +786,7 @@ export default function CapabilityTimeline({
               onClick={() => handleCapabilityClick(cap)}
               isNew={isNew}
               density="normal"
+              hierarchyLevel={cap.hierarchyLevel}
             />
           );
         })}

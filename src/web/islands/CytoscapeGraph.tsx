@@ -78,6 +78,8 @@ interface ApiNodeData {
   sequence_index?: number; // Sequence index within capability
   // Timeline fields
   last_used?: string; // ISO timestamp for timeline sorting
+  // Story 10.1: Meta-capability hierarchy
+  hierarchy_level?: number; // 0=leaf, 1+=meta-capability
 }
 
 interface ApiNode {
@@ -165,6 +167,7 @@ interface CapabilityNode {
   traces?: ExecutionTrace[]; // Story 11.4: Recent execution traces
   pagerank?: number; // Hypergraph pagerank for importance sizing
   lastUsed?: string; // ISO timestamp for timeline sorting
+  hierarchyLevel?: number; // Story 10.1: 0=leaf, 1+=meta-capability
 }
 
 interface ToolNode {
@@ -1248,6 +1251,7 @@ export default function CytoscapeGraph({
               traces, // Story 11.4
               pagerank: d.pagerank ?? 0, // Hypergraph pagerank for importance sizing
               lastUsed, // ISO timestamp for timeline sorting (from last_used or latest trace)
+              hierarchyLevel: d.hierarchy_level ?? 0, // Story 10.1: 0=leaf, 1+=meta
             });
           }
         } else if (d.type === "tool") {
@@ -1783,62 +1787,17 @@ export default function CytoscapeGraph({
     elements: Array<{ group: "nodes" | "edges"; data: Record<string, unknown> }>,
     data: TransformedData,
   ) => {
-    // Calculate hierarchy level for each capability
-    // Level 1 = calls only tools, Level 2+ = calls other capabilities
-    const capabilityIds = new Set(data.capabilities.map((c) => c.id));
-    const capabilityChildren = new Map<string, Set<string>>(); // cap -> child caps
-
-    // Build cap→cap relationships from edges
-    for (const edge of data.edges) {
-      if (capabilityIds.has(edge.source) && capabilityIds.has(edge.target)) {
-        if (!capabilityChildren.has(edge.source)) {
-          capabilityChildren.set(edge.source, new Set());
-        }
-        capabilityChildren.get(edge.source)!.add(edge.target);
-      }
-    }
-
-    // Calculate level for each capability (recursive)
-    const levelCache = new Map<string, number>();
-    const getCapabilityLevel = (capId: string, visited: Set<string> = new Set()): number => {
-      if (levelCache.has(capId)) return levelCache.get(capId)!;
-      if (visited.has(capId)) return 1; // Cycle protection
-
-      visited.add(capId);
-      const children = capabilityChildren.get(capId);
-
-      if (!children || children.size === 0) {
-        // No child capabilities = simple capability (level 1)
-        levelCache.set(capId, 1);
-        return 1;
-      }
-
-      // Has child capabilities = meta-capability (level = 1 + max child level)
-      let maxChildLevel = 0;
-      for (const childId of children) {
-        maxChildLevel = Math.max(maxChildLevel, getCapabilityLevel(childId, visited));
-      }
-      const level = 1 + maxChildLevel;
-      levelCache.set(capId, level);
-      return level;
-    };
-
-    // Compute all levels
-    for (const cap of data.capabilities) {
-      getCapabilityLevel(cap.id);
-    }
-    const maxLevel = Math.max(1, ...Array.from(levelCache.values()));
-
     // Base color for hierarchy gradient (same for all nodes in graph mode)
     const HIERARCHY_BASE_COLOR = "#8b5cf6"; // Violet base
 
-    // Add capability nodes with hierarchy level for color gradient
+    // Add capability nodes with hierarchy level from backend API
+    // hierarchy_level: 0=leaf (tools only), 1+=meta-capability
+    const maxLevel = Math.max(1, ...data.capabilities.map((c) => c.hierarchyLevel ?? 0));
     for (const cap of data.capabilities) {
       const shortName = cap.name.length > 12 ? cap.name.slice(0, 10) + "..." : cap.name;
-      const level = levelCache.get(cap.id) || 1;
-      // Normalize level: tools=0, caps start at 1, so we normalize including tools
-      // levelNorm goes from ~0.3 (level 1) to 1.0 (maxLevel)
-      const levelNorm = level / (maxLevel + 1);
+      const level = cap.hierarchyLevel ?? 0;
+      // Normalize level for sizing: 0=smallest, maxLevel=largest
+      const levelNorm = maxLevel > 0 ? level / maxLevel : 0;
 
       elements.push({
         group: "nodes",
