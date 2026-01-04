@@ -1407,13 +1407,28 @@ export class SHGAT {
   // ==========================================================================
 
   exportParams(): Record<string, unknown> {
-    return exportParamsHelper(this.config, this.params);
+    const base = exportParamsHelper(this.config, this.params);
+    // ADR-055: Also export levelParams for multi-level message passing
+    const levelParamsObj: Record<string, LevelParams> = {};
+    for (const [level, params] of this.levelParams) {
+      levelParamsObj[level.toString()] = params;
+    }
+    return { ...base, levelParams: levelParamsObj };
   }
 
   importParams(params: Record<string, unknown>): void {
     const result = importParamsHelper(params, this.params);
     if (result.config) this.config = result.config;
     this.params = result.params;
+
+    // ADR-055: Import levelParams for multi-level message passing
+    if (params.levelParams && typeof params.levelParams === 'object') {
+      const levelParamsObj = params.levelParams as Record<string, LevelParams>;
+      this.levelParams = new Map();
+      for (const [levelStr, lp] of Object.entries(levelParamsObj)) {
+        this.levelParams.set(parseInt(levelStr), lp);
+      }
+    }
   }
 
   getFusionWeights(): { semantic: number; structure: number; temporal: number } {
@@ -1512,8 +1527,9 @@ export function createSHGATFromCapabilities(
   const maxLevel = hasChildren ? 1 : 0; // Simple heuristic, actual level computed in rebuildHierarchy
 
   // Get embeddingDim and preserveDim from config
+  // ADR-055: preserveDim=true keeps d=1024 throughout message passing for discriminability
   const embeddingDim = capabilities[0]?.embedding.length || 1024;
-  const preserveDim = actualConfig?.preserveDim ?? false;
+  const preserveDim = actualConfig?.preserveDim ?? true;
 
   // Adaptive K based on graph size (ADR-053)
   // Pass preserveDim to get correct hiddenDim (= embeddingDim when preserveDim=true)

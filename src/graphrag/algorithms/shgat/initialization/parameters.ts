@@ -163,6 +163,42 @@ export function initMatrix(rows: number, cols: number): number[][] {
 }
 
 /**
+ * Initialize 3D tensor with identity-like structure for preserveDim mode.
+ *
+ * Each head extracts a non-overlapping slice of the input:
+ * - Head 0: dims [0, headDim)
+ * - Head 1: dims [headDim, 2*headDim)
+ * - etc.
+ *
+ * This preserves semantic structure while allowing gradient flow.
+ *
+ * @param numHeads Number of attention heads
+ * @param headDim Output dimension per head
+ * @param inputDim Input dimension (should equal numHeads * headDim)
+ * @returns [numHeads][headDim][inputDim] tensor with identity-like structure
+ */
+export function initTensor3DIdentityLike(
+  numHeads: number,
+  headDim: number,
+  inputDim: number,
+): number[][][] {
+  const noiseScale = 0.01;
+  return Array.from({ length: numHeads }, (_, head) =>
+    Array.from({ length: headDim }, (_, i) =>
+      Array.from({ length: inputDim }, (_, j) => {
+        // Identity: W[head][i][head*headDim + i] = 1.0
+        const targetJ = head * headDim + i;
+        if (j === targetJ) {
+          return 1.0;
+        }
+        // Small noise elsewhere for gradient flow
+        return (random() - 0.5) * noiseScale;
+      })
+    )
+  );
+}
+
+/**
  * Initialize 2D matrix with scaled Xavier initialization
  *
  * Used for K-head attention (W_q, W_k) where standard Xavier gives
@@ -408,8 +444,9 @@ export function initializeLevelParametersPreserveDim(
 
     levelParams.set(level, {
       // Each head: [headDim][inputDim] = [256][1024]
-      W_child: initTensor3D(numHeads, headDim, inputDim),
-      W_parent: initTensor3D(numHeads, headDim, inputDim),
+      // Use identity-like init to preserve semantic structure from BGE
+      W_child: initTensor3DIdentityLike(numHeads, headDim, inputDim),
+      W_parent: initTensor3DIdentityLike(numHeads, headDim, inputDim),
       // Attention vectors: [numHeads][2*headDim]
       a_upward: initMatrix(numHeads, 2 * headDim),
       a_downward: initMatrix(numHeads, 2 * headDim),
