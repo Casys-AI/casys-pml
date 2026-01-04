@@ -264,17 +264,23 @@ export function initializeParameters(config: SHGATConfig): SHGATParams {
     });
   }
 
-  // Initialize head parameters
+  // Initialize head parameters for K-head attention scoring
   // FIX: Use shared projection W_q = W_k to preserve cosine similarity structure
   // Random different projections destroy discriminability (MRR 0.148 → 1.0 with shared)
+  //
+  // IMPORTANT: scoringDim is FIXED at 64, independent of hiddenDim
+  // - preserveDim mode: hiddenDim=1024 (message passing), scoringDim=64 (K-head)
+  // - standard mode: hiddenDim=64, scoringDim=64
+  // W_q/W_k project 1024-dim embeddings to 64-dim Q/K for attention scoring
+  const scoringDim = 64;
   const headParams: HeadParams[] = [];
   for (let h = 0; h < numHeads; h++) {
-    const W_shared = initMatrixScaled(hiddenDim, embeddingDim, 10);
+    const W_shared = initMatrixScaled(scoringDim, embeddingDim, 10);
     headParams.push({
       W_q: W_shared,
       W_k: W_shared, // Same matrix as W_q - preserves similarity structure
-      W_v: initMatrix(hiddenDim, embeddingDim),
-      a: initVector(2 * hiddenDim),
+      W_v: initMatrix(scoringDim, embeddingDim),
+      a: initVector(2 * scoringDim),
     });
   }
 
