@@ -233,7 +233,7 @@ Output: [1024]            // Preserves discriminability
 1. **HGAT paper compliance**: Original paper specifies same dimension throughout
 2. **Information preservation**: 1024-dim → 1024-dim keeps all semantic info
 3. **Graph structure injection**: Message passing still aggregates neighbor info
-4. **K-head scoring works**: W_q/W_k [64][1024] can now use full 1024 columns
+4. **K-head scoring works**: W_q/W_k [hiddenDim][1024] can now use full 1024 columns
 
 ### Implementation Notes
 
@@ -279,22 +279,24 @@ The `preserveDim` mode is now fully implemented with these key components:
 ```typescript
 const shgat = createSHGATFromCapabilities(caps, new Map(), {
   preserveDim: true,       // Enable 1024-dim preservation
-  hiddenDim: 64,           // Keep K-head scoring at 64-dim (sqrt(64)=8 scale)
   preserveDimResidual: 0.3 // 30% original + 70% propagated (default)
 });
+// hiddenDim is now adaptive: numHeads * 16 (headDim=16 fixed)
 ```
 
 ### 2. Message passing keeps 1024-dim
 
 - `initializeLevelParametersPreserveDim()` creates W_child/W_parent with output=1024
-- After concat heads: numHeads × headDim = 4 × 256 = 1024
+- After concat heads: numHeads × headDim = numHeads × 256 = 1024
 
-### 3. K-head scoring projects 1024 → 64
+### 3. K-head scoring projects 1024 → hiddenDim (adaptive)
 
-- W_q/W_k: [64][1024] - projects 1024-dim to 64-dim
-- Q = W_q @ intent(1024) → 64-dim
-- K = W_k @ cap(1024) → 64-dim
-- score = sigmoid(Q·K / sqrt(64))
+- **hiddenDim = numHeads × 16** (headDim=16 is standard, fixed)
+- With 4 heads: hiddenDim=64, with 8 heads: hiddenDim=128, etc.
+- W_q/W_k: [hiddenDim][1024] - projects 1024-dim to hiddenDim
+- Q = W_q @ intent(1024) → hiddenDim
+- K = W_k @ cap(1024) → hiddenDim
+- score = sigmoid(Q·K / sqrt(hiddenDim))
 
 ### 4. Residual to original embeddings
 

@@ -209,13 +209,21 @@ export class CapabilityDataService {
         logger.warn("Failed to build $cap:uuid lookup", { error: err });
       }
 
-      // Helper to resolve $cap:uuid references in code_snippet
+      // Helper to resolve mcp["$cap:uuid"] references in code_snippet to mcp.namespace.action
       const resolveCapReferences = (codeSnippet: string): string => {
-        // Match $cap:uuid pattern (e.g., "$cap:9f597aff-9d41-4003-b957-41bf8656ed70")
-        return codeSnippet.replace(/\$cap:([0-9a-f-]{36})/gi, (_match, uuid) => {
-          const resolved = capUuidLookup.get(uuid);
-          return resolved || `$cap:${uuid}`; // Keep original if not found
-        });
+        // Match full mcp["$cap:uuid"] pattern and transform to mcp.namespace.action (dot notation)
+        return codeSnippet.replace(
+          /mcp\["\$cap:([0-9a-f-]{36})"\]/gi,
+          (_match, uuid) => {
+            const resolved = capUuidLookup.get(uuid);
+            if (resolved) {
+              // Transform "fake:person" → "mcp.fake.person"
+              const [namespace, action] = resolved.split(":");
+              return `mcp.${namespace}.${action}`;
+            }
+            return `mcp["$cap:${uuid}"]`; // Keep original if not found
+          },
+        );
       };
 
       // Map rows to response objects

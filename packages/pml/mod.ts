@@ -60,14 +60,8 @@ export {
   inferCapabilityApprovalMode,
 } from "./src/permissions/mod.ts";
 
-// Routing (Story 14.3)
-export {
-  extractNamespace,
-  getCloudServers,
-  isCloudTool,
-  isLocalTool,
-  resolveToolRouting,
-} from "./src/routing/mod.ts";
+// NOTE: Routing is handled server-side (cloud decides local vs cloud)
+// See src/capabilities/routing-resolver.ts in main codebase
 
 // Types
 export type {
@@ -81,7 +75,6 @@ export type {
   PermissionLoadResult,
   PmlConfig,
   PmlPermissions,
-  ToolRouting,
   WorkspaceConfig,
   WorkspaceSource,
 } from "./src/types.ts";

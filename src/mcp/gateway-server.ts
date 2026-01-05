@@ -1242,7 +1242,7 @@ export class PMLGatewayServer {
       const result = await spawnSHGATTraining({
         capabilities: capsForWorker,
         examples,
-        epochs: 3, // 3 epochs should suffice for InfoNCE contrastive training
+        epochs: 10, // 10 epochs for better logit separation with InfoNCE
         batchSize: 16,
       });
 

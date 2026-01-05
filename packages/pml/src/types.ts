@@ -209,14 +209,8 @@ export interface PermissionLoadResult {
  */
 export type ApprovalMode = "hil" | "auto";
 
-/**
- * Tool routing destination.
- *
- * Platform-defined (not user-configurable):
- * - "local": Execute in user's sandbox (filesystem, shell, etc.)
- * - "cloud": Forward to pml.casys.ai (API services, safe utilities)
- */
-export type ToolRouting = "local" | "cloud";
+// NOTE: ToolRouting is handled server-side (cloud decides local vs cloud)
+// See src/capabilities/routing-resolver.ts in main codebase
 
 /**
  * Result of checking capability permissions against user's allow/deny/ask lists.

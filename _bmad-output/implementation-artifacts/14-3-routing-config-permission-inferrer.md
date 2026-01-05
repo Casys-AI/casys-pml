@@ -1,6 +1,6 @@
 # Story 14.3: Routing Configuration & Permission Inferrer Integration
 
-Status: ready-for-dev
+Status: review
 
 > **Epic:** 14 - JSR Package Local/Cloud MCP Routing
 > **FR Coverage:** FR14-3 (Routing + Permission inference)
@@ -123,51 +123,44 @@ As a platform maintainer, I want MCP routing and permission decisions based on d
 
 ### Phase 1: Permission Inferrer for Capabilities (~1.5h)
 
-- [ ] Task 1: Create capability approval mode inferrer (AC: #1, #2)
-  - [ ] Create `packages/pml/src/permissions/capability-inferrer.ts`
-  - [ ] Implement `inferCapabilityApprovalMode(toolsUsed, permissions): ApprovalMode`
-  - [ ] Handle denied tools with clear error
-  - [ ] Return `"hil"` for any `ask` tool
-  - [ ] Return `"auto"` only if ALL tools are `allow`
-  - [ ] Default to `"hil"` for unknown tools (safe)
+- [x] Task 1: Create capability approval mode inferrer (AC: #1, #2)
+  - [x] Create `packages/pml/src/permissions/capability-inferrer.ts`
+  - [x] Implement `inferCapabilityApprovalMode(toolsUsed, permissions): ApprovalMode`
+  - [x] Handle denied tools with clear error
+  - [x] Return `"hil"` for any `ask` tool
+  - [x] Return `"auto"` only if ALL tools are `allow`
+  - [x] Default to `"hil"` for unknown tools (safe)
 
-- [ ] Task 2: Add types (AC: #4)
-  - [ ] Add `ApprovalMode = "hil" | "auto"` to `packages/pml/src/types.ts`
-  - [ ] Add `CapabilityPermissionResult` interface
-  - [ ] Export from module
+- [x] Task 2: Add types (AC: #4)
+  - [x] Add `ApprovalMode = "hil" | "auto"` to `packages/pml/src/types.ts`
+  - [x] Add `CapabilityPermissionResult` interface
+  - [x] Export from module
 
-### Phase 2: PML Routing Resolver (~1h)
+### Phase 2: PML Routing Resolver - REMOVED
 
-- [ ] Task 3: Create PML routing resolver (AC: #3)
-  - [ ] Create `packages/pml/src/routing/resolver.ts`
-  - [ ] Embed cloud list matching `config/mcp-routing.json`
-  - [ ] Implement `resolveToolRouting(tool): ToolRouting`
-  - [ ] Default to `"local"` for unknown tools
+> **Scope Change (2026-01-05):** Routing is handled server-side (cloud decides local vs cloud).
+> The package PML just sends requests to the cloud, and the cloud determines routing.
+> See `src/capabilities/routing-resolver.ts` in main codebase.
 
-- [ ] Task 4: Export modules (AC: #3, #4)
-  - [ ] Create `packages/pml/src/routing/mod.ts`
-  - [ ] Update `packages/pml/mod.ts` to re-export routing + permission inferrer
+- [N/A] Task 3: ~~Create PML routing resolver~~ - Cloud handles routing
+- [N/A] Task 4: ~~Export routing modules~~ - Not needed in package
 
 ### Phase 3: Integration (~30m)
 
-- [ ] Task 5: Wire to serve-command (AC: #5)
-  - [ ] Import routing resolver and permission inferrer
-  - [ ] Add execution flow comments for Story 14.5/14.6
-  - [ ] Log routing and approval decisions
+- [x] Task 5: Wire to serve-command (AC: #5)
+  - [x] Permission inferrer already imported and used
+  - [N/A] Routing handled by cloud, not package
 
 ### Phase 4: Tests (~1h)
 
-- [ ] Task 6: Unit tests for capability permission inferrer
-  - [ ] Test all tools allowed → `auto`
-  - [ ] Test any tool ask → `hil`
-  - [ ] Test any tool denied → error
-  - [ ] Test unknown tools → `hil`
-  - [ ] Test empty tools_used → `auto`
+- [x] Task 6: Unit tests for capability permission inferrer (20 tests passing)
+  - [x] Test all tools allowed → `auto`
+  - [x] Test any tool ask → `hil`
+  - [x] Test any tool denied → error
+  - [x] Test unknown tools → `hil`
+  - [x] Test empty tools_used → `auto`
 
-- [ ] Task 7: Unit tests for routing resolver
-  - [ ] Test local tools → `"local"`
-  - [ ] Test cloud tools → `"cloud"`
-  - [ ] Test unknown → `"local"`
+- [N/A] Task 7: ~~Unit tests for routing resolver~~ - Routing removed from package
 
 ---
 
@@ -550,4 +543,28 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Completion Notes List
 
+- ✅ Permission inferrer implemented with `inferCapabilityApprovalMode()` and `checkCapabilityPermissions()`
+- ✅ Types added: `ApprovalMode`, `CapabilityPermissionResult`
+- ✅ 20 unit tests passing for permission inference
+- ⚠️ **Scope Change:** Routing resolver removed from package - cloud handles routing decisions
+- ⚠️ Files deleted: `packages/pml/src/routing/`, `packages/pml/tests/routing_test.ts`
+
+### Change Log
+
+- 2026-01-05: Story completed with scope change - routing handled server-side
+
 ### File List
+
+**Created:**
+- `packages/pml/src/permissions/capability-inferrer.ts` - Capability approval mode inference
+- `packages/pml/tests/capability_inferrer_test.ts` - 20 unit tests
+
+**Modified:**
+- `packages/pml/src/types.ts` - Added ApprovalMode, CapabilityPermissionResult
+- `packages/pml/src/permissions/mod.ts` - Re-exports capability-inferrer
+- `packages/pml/mod.ts` - Exports permission inferrer (removed routing exports)
+
+**Deleted (scope change):**
+- `packages/pml/src/routing/resolver.ts` - Routing handled by cloud
+- `packages/pml/src/routing/mod.ts` - Not needed
+- `packages/pml/tests/routing_test.ts` - Not needed
