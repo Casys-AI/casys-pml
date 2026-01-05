@@ -3,13 +3,15 @@
  *
  * Split-pane layout:
  * - Left: capabilities list (searchable)
- * - Right: selected capability details (code viewer)
+ * - Right: selected capability details (code viewer + MCP tools)
  *
  * @module web/islands/NamespaceDetailIsland
  */
 
 import { useMemo, useState } from "preact/hooks";
 import CatalogLayout from "../components/layout/CatalogLayout.tsx";
+import CodeBlock from "../components/ui/atoms/CodeBlock.tsx";
+import ToolBadge from "../components/ui/atoms/ToolBadge.tsx";
 
 interface CapabilityEntry {
   id: string;
@@ -18,6 +20,7 @@ interface CapabilityEntry {
   description: string | null;
   routing: "local" | "cloud";
   code: string | null;
+  toolsUsed: string[];
 }
 
 interface NamespaceDetailIslandProps {
@@ -315,15 +318,28 @@ export default function NamespaceDetailIsland({
             </p>
           </div>
 
-          {/* Code viewer */}
-          <div class="cap-code-section">
-            <h2 class="cap-code-title">Implementation</h2>
-            {selectedCapability.code ? (
-              <pre class="cap-code">
-                <code>{selectedCapability.code}</code>
-              </pre>
-            ) : (
-              <div class="cap-code-empty">No code available</div>
+          {/* Content grid: code + tools */}
+          <div class="cap-content-grid">
+            {/* Code viewer */}
+            <div class="cap-code-section">
+              <h2 class="cap-section-title">Implementation</h2>
+              {selectedCapability.code ? (
+                <CodeBlock code={selectedCapability.code} />
+              ) : (
+                <div class="cap-code-empty">No code available</div>
+              )}
+            </div>
+
+            {/* Tools used */}
+            {selectedCapability.toolsUsed.length > 0 && (
+              <div class="cap-tools-section">
+                <h2 class="cap-section-title">MCP Tools Used</h2>
+                <div class="cap-tools-list">
+                  {selectedCapability.toolsUsed.map((tool) => (
+                    <ToolBadge key={tool} tool={tool} />
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -381,6 +397,18 @@ export default function NamespaceDetailIsland({
           color: #a8a29e;
         }
 
+        .cap-content-grid {
+          display: grid;
+          grid-template-columns: 1fr 280px;
+          gap: 1.5rem;
+        }
+
+        @media (max-width: 900px) {
+          .cap-content-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+
         .cap-code-section {
           background: #0f0f12;
           border: 1px solid rgba(74, 222, 128, 0.1);
@@ -388,31 +416,15 @@ export default function NamespaceDetailIsland({
           overflow: hidden;
         }
 
-        .cap-code-title {
-          font-size: 0.875rem;
+        .cap-section-title {
+          font-size: 0.75rem;
           font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 0.05em;
           color: #6b6560;
-          padding: 1rem 1.5rem;
+          padding: 0.875rem 1.25rem;
           border-bottom: 1px solid rgba(74, 222, 128, 0.08);
           margin: 0;
-        }
-
-        .cap-code {
-          margin: 0;
-          padding: 1.5rem;
-          overflow-x: auto;
-          font-family: 'Geist Mono', monospace;
-          font-size: 0.8125rem;
-          line-height: 1.6;
-          color: #a8a29e;
-          background: transparent;
-        }
-
-        .cap-code code {
-          white-space: pre-wrap;
-          word-break: break-word;
         }
 
         .cap-code-empty {
@@ -420,6 +432,24 @@ export default function NamespaceDetailIsland({
           text-align: center;
           color: #6b6560;
           font-size: 0.875rem;
+        }
+
+        .cap-tools-section {
+          background: #0f0f12;
+          border: 1px solid rgba(255, 184, 111, 0.1);
+          border-radius: 12px;
+          height: fit-content;
+        }
+
+        .cap-tools-section .cap-section-title {
+          border-color: rgba(255, 184, 111, 0.08);
+        }
+
+        .cap-tools-list {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+          padding: 1rem;
         }
 
         .cap-empty {

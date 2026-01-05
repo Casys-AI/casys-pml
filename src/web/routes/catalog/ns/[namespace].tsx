@@ -24,6 +24,7 @@ interface CapabilityEntry {
   description: string | null;
   routing: "local" | "cloud";
   code: string | null;
+  toolsUsed: string[];
 }
 
 interface NamespaceDetailData {
@@ -48,6 +49,7 @@ async function loadNamespaceCapabilities(namespace: string): Promise<CapabilityE
       description: string | null;
       routing: "local" | "cloud";
       code: string | null;
+      tools_used: string[] | null;
     }>(`
       SELECT
         pr.id,
@@ -55,7 +57,8 @@ async function loadNamespaceCapabilities(namespace: string): Promise<CapabilityE
         pr.action,
         pr.description,
         pr.routing,
-        wp.code_snippet as code
+        wp.code_snippet as code,
+        wp.dag_structure->'tools_used' as tools_used
       FROM pml_registry pr
       LEFT JOIN workflow_pattern wp ON pr.workflow_pattern_id = wp.pattern_id
       WHERE pr.record_type = 'capability'
@@ -71,6 +74,7 @@ async function loadNamespaceCapabilities(namespace: string): Promise<CapabilityE
       description: row.description,
       routing: row.routing,
       code: row.code,
+      toolsUsed: row.tools_used || [],
     }));
   } catch (error) {
     console.error("Error loading namespace capabilities:", error);
