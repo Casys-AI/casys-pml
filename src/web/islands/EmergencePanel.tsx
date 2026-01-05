@@ -102,6 +102,11 @@ export default function EmergencePanel({
     onOpen: () => {
       console.log("[EmergencePanel] SSE connected");
     },
+    onReconnected: () => {
+      // After reconnection, refresh metrics to catch missed events
+      console.log("[EmergencePanel] SSE reconnected - refreshing metrics");
+      fetchMetrics();
+    },
   });
 
   // Render ECharts

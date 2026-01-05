@@ -191,6 +191,11 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
     onOpen: () => {
       console.log("[GraphExplorer] SSE connected");
     },
+    onReconnected: () => {
+      // After reconnection, refresh graph data to catch missed events
+      console.log("[GraphExplorer] SSE reconnected - refreshing graph");
+      setGraphRefreshKey((prev) => prev + 1);
+    },
   });
 
   // Handle toggling a pin on a specific badge (algo + node)

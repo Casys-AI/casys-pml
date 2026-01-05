@@ -16,6 +16,7 @@ import type { ActiveWorkflow } from "../server/types.ts";
 import type { GatewayHandler } from "../gateway-handler.ts";
 import type { CheckpointManager } from "../../dag/checkpoint-manager.ts";
 import type { AdaptiveThresholdManager } from "../adaptive-threshold.ts";
+import type { AlgorithmTracer } from "../../telemetry/algorithm-tracer.ts";
 
 /**
  * Dependencies required for workflow handler
@@ -33,4 +34,6 @@ export interface WorkflowHandlerDependencies {
   activeWorkflows: Map<string, ActiveWorkflow>;
   /** Story 10.7c: Thompson Sampling threshold manager (optional) */
   adaptiveThresholdManager?: AdaptiveThresholdManager;
+  /** Story 7.6: Algorithm tracer for observability */
+  algorithmTracer?: AlgorithmTracer;
 }

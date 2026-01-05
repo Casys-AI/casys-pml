@@ -148,6 +148,11 @@ export default function MetricsPanel({ apiBase: apiBaseProp }: MetricsPanelProps
     onOpen: () => {
       console.log("[MetricsPanel] SSE connected");
     },
+    onReconnected: () => {
+      // After reconnection, refresh metrics to catch missed events
+      console.log("[MetricsPanel] SSE reconnected - refreshing metrics");
+      fetchMetrics();
+    },
   });
 
   // Dashboard mode: render all charts with better config

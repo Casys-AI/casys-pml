@@ -297,6 +297,12 @@ export default function TracingPanel({ apiBase }: TracingPanelProps) {
     onOpen: () => {
       console.log("[TracingPanel] SSE connected - real-time updates active");
     },
+    onReconnected: () => {
+      // After reconnection, do a full refresh to catch missed events
+      console.log("[TracingPanel] SSE reconnected - refreshing all traces");
+      lastTimestampRef.current = null;
+      fetchTraces();
+    },
   });
 
   // Auto-scroll to top on new events
