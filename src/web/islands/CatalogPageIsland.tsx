@@ -421,27 +421,27 @@ export default function CatalogPageIsland({
         </p>
       </div>
 
-      {/* MCP Servers Grid */}
-      {filteredCards.length > 0 && (
+      {/* Capabilities Section (first - more relevant) */}
+      {filteredCapabilities.length > 0 && (
         <>
-          <h2 class="catalog-section-title">MCP Servers</h2>
+          <h2 class="catalog-section-title">Learned Capabilities</h2>
           <div class="catalog-grid">
-            {filteredCards.map((card) => (
-              <ServerCard key={card.id} card={card} />
+            {filteredCapabilities.map((card) => (
+              <CapabilityCard key={card.namespace} card={card} />
             ))}
           </div>
         </>
       )}
 
-      {/* Capabilities Section */}
-      {filteredCapabilities.length > 0 && (
+      {/* MCP Servers Grid */}
+      {filteredCards.length > 0 && (
         <>
           <h2 class="catalog-section-title" style={{ marginTop: "2.5rem" }}>
-            Learned Capabilities
+            MCP Servers
           </h2>
           <div class="catalog-grid">
-            {filteredCapabilities.map((card) => (
-              <CapabilityCard key={card.namespace} card={card} />
+            {filteredCards.map((card) => (
+              <ServerCard key={card.id} card={card} />
             ))}
           </div>
         </>
@@ -730,73 +730,75 @@ function ServerCard({ card }: { card: ServerCardData }) {
   );
 }
 
-// Capability Card component
+// Capability Card component - now links to namespace detail page
 function CapabilityCard({ card }: { card: CapabilityCardData }) {
-  const [expanded, setExpanded] = useState(false);
+  // Get sample actions for preview
+  const sampleActions = card.capabilities.slice(0, 3).map((c) => c.action || c.name);
 
   return (
-    <div class="capability-card">
-      {/* Header */}
-      <button
-        type="button"
-        class="capability-card-header"
-        onClick={() => setExpanded(!expanded)}
-      >
-        <div class="capability-card-icon">
-          <span class="capability-card-emoji">⚡</span>
-        </div>
-        <div class="capability-card-info">
+    <a href={`/catalog/ns/${encodeURIComponent(card.namespace)}`} class="capability-card">
+      {/* Icon */}
+      <div class="capability-card-icon">
+        <span class="capability-card-emoji">⚡</span>
+      </div>
+
+      {/* Content */}
+      <div class="capability-card-content">
+        <div class="capability-card-header">
           <h3 class="capability-card-name">{card.namespace}</h3>
           <span class="capability-card-count">{card.count} capabilities</span>
         </div>
-        <svg
-          class={`capability-card-chevron ${expanded ? "expanded" : ""}`}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-        >
-          <path strokeWidth="2" strokeLinecap="round" d="M6 9l6 6 6-6" />
-        </svg>
-      </button>
 
-      {/* Expanded list */}
-      {expanded && (
-        <div class="capability-card-list">
-          {card.capabilities.map((cap) => (
-            <div key={cap.id} class="capability-item">
-              <span class="capability-item-action">{cap.action}</span>
-              <span class="capability-item-routing">
-                {cap.routing === "cloud" ? "☁️" : "💻"}
-              </span>
-            </div>
+        {/* Sample actions preview */}
+        <div class="capability-card-actions">
+          {sampleActions.map((action, i) => (
+            <span key={i} class="capability-card-action">{action}</span>
           ))}
+          {card.count > 3 && (
+            <span class="capability-card-more">+{card.count - 3}</span>
+          )}
         </div>
-      )}
+      </div>
+
+      {/* Arrow */}
+      <svg class="capability-card-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M9 18l6-6-6-6" />
+      </svg>
 
       <style>
         {`
         .capability-card {
+          display: flex;
+          align-items: flex-start;
+          gap: 1rem;
+          padding: 1.25rem;
           background: linear-gradient(135deg, #0f0f12 0%, #111114 100%);
           border: 1px solid rgba(74, 222, 128, 0.1);
           border-radius: 16px;
+          cursor: pointer;
+          text-decoration: none;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+          position: relative;
           overflow: hidden;
         }
 
-        .capability-card-header {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-          width: 100%;
-          padding: 1.25rem;
-          background: none;
-          border: none;
-          cursor: pointer;
-          text-align: left;
-          transition: background 0.2s;
+        .capability-card::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(135deg, rgba(74, 222, 128, 0.03) 0%, transparent 50%);
+          opacity: 0;
+          transition: opacity 0.25s;
         }
 
-        .capability-card-header:hover {
-          background: rgba(74, 222, 128, 0.03);
+        .capability-card:hover {
+          border-color: rgba(74, 222, 128, 0.25);
+          transform: translateY(-4px);
+          box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.4);
+        }
+
+        .capability-card:hover::before {
+          opacity: 1;
         }
 
         .capability-card-icon {
@@ -814,9 +816,16 @@ function CapabilityCard({ card }: { card: CapabilityCardData }) {
           font-size: 1.5rem;
         }
 
-        .capability-card-info {
+        .capability-card-content {
           flex: 1;
           min-width: 0;
+        }
+
+        .capability-card-header {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          margin-bottom: 0.5rem;
         }
 
         .capability-card-name {
@@ -824,54 +833,63 @@ function CapabilityCard({ card }: { card: CapabilityCardData }) {
           font-weight: 600;
           color: #f0ede8;
           font-family: 'Geist Mono', monospace;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
 
         .capability-card-count {
           font-size: 0.75rem;
+          font-family: 'Geist Mono', monospace;
           color: #4ade80;
+          background: rgba(74, 222, 128, 0.1);
+          padding: 0.125rem 0.5rem;
+          border-radius: 4px;
+          flex-shrink: 0;
         }
 
-        .capability-card-chevron {
+        .capability-card-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.375rem;
+        }
+
+        .capability-card-action {
+          font-size: 0.6875rem;
+          font-family: 'Geist Mono', monospace;
+          color: #6b6560;
+          background: rgba(255, 255, 255, 0.03);
+          padding: 0.125rem 0.375rem;
+          border-radius: 3px;
+          white-space: nowrap;
+        }
+
+        .capability-card-more {
+          font-size: 0.6875rem;
+          font-family: 'Geist Mono', monospace;
+          color: #4ade80;
+          padding: 0.125rem 0.375rem;
+        }
+
+        .capability-card-arrow {
+          position: absolute;
+          right: 1rem;
+          top: 50%;
+          transform: translateY(-50%);
           width: 20px;
           height: 20px;
           color: #6b6560;
-          transition: transform 0.2s;
+          opacity: 0;
+          transition: all 0.25s;
         }
 
-        .capability-card-chevron.expanded {
-          transform: rotate(180deg);
-        }
-
-        .capability-card-list {
-          border-top: 1px solid rgba(74, 222, 128, 0.08);
-          padding: 0.5rem;
-        }
-
-        .capability-item {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 0.5rem 0.75rem;
-          border-radius: 6px;
-          transition: background 0.15s;
-        }
-
-        .capability-item:hover {
-          background: rgba(74, 222, 128, 0.05);
-        }
-
-        .capability-item-action {
-          font-size: 0.8125rem;
-          font-family: 'Geist Mono', monospace;
-          color: #a8a29e;
-        }
-
-        .capability-item-routing {
-          font-size: 0.75rem;
-          opacity: 0.6;
+        .capability-card:hover .capability-card-arrow {
+          opacity: 1;
+          color: #4ade80;
+          transform: translateY(-50%) translateX(4px);
         }
         `}
       </style>
-    </div>
+    </a>
   );
 }

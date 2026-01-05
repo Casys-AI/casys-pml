@@ -48,6 +48,7 @@ async function loadCatalogEntries(): Promise<CatalogEntry[]> {
         namespace,
         action
       FROM pml_registry
+      WHERE visibility = 'public'
       ORDER BY record_type, name
       LIMIT 500
     `);
