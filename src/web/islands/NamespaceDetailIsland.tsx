@@ -56,6 +56,28 @@ export default function NamespaceDetailIsland({
     );
   }, [capabilities, search]);
 
+  // Group and deduplicate tools by server
+  const groupedTools = useMemo(() => {
+    if (!selectedCapability?.toolsUsed.length) return new Map<string, string[]>();
+
+    const groups = new Map<string, Set<string>>();
+    for (const tool of selectedCapability.toolsUsed) {
+      const [server, ...rest] = tool.split(":");
+      const action = rest.join(":") || tool;
+      if (!groups.has(server)) {
+        groups.set(server, new Set());
+      }
+      groups.get(server)!.add(action);
+    }
+
+    // Convert Sets to sorted arrays
+    const result = new Map<string, string[]>();
+    for (const [server, actions] of groups) {
+      result.set(server, [...actions].sort());
+    }
+    return result;
+  }, [selectedCapability]);
+
   // Sidebar: capabilities list
   const sidebar = (
     <div class="ns-sidebar">
@@ -330,13 +352,20 @@ export default function NamespaceDetailIsland({
               )}
             </div>
 
-            {/* Tools used */}
-            {selectedCapability.toolsUsed.length > 0 && (
+            {/* Tools used - grouped by server */}
+            {groupedTools.size > 0 && (
               <div class="cap-tools-section">
                 <h2 class="cap-section-title">MCP Tools Used</h2>
-                <div class="cap-tools-list">
-                  {selectedCapability.toolsUsed.map((tool) => (
-                    <ToolBadge key={tool} tool={tool} />
+                <div class="cap-tools-groups">
+                  {[...groupedTools.entries()].map(([server, actions]) => (
+                    <div key={server} class="cap-tools-group">
+                      <div class="cap-tools-server">{server}</div>
+                      <div class="cap-tools-list">
+                        {actions.map((action) => (
+                          <ToolBadge key={`${server}:${action}`} tool={`${server}:${action}`} />
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -445,11 +474,32 @@ export default function NamespaceDetailIsland({
           border-color: rgba(255, 184, 111, 0.08);
         }
 
+        .cap-tools-groups {
+          padding: 0.75rem;
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+
+        .cap-tools-group {
+          display: flex;
+          flex-direction: column;
+          gap: 0.375rem;
+        }
+
+        .cap-tools-server {
+          font-size: 0.6875rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: #6b6560;
+          padding-left: 0.25rem;
+        }
+
         .cap-tools-list {
           display: flex;
           flex-direction: column;
-          gap: 0.5rem;
-          padding: 1rem;
+          gap: 0.375rem;
         }
 
         .cap-empty {
