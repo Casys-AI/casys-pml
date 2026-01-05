@@ -97,6 +97,7 @@ user's local resources.
 | FR14-10 | Epic 14 | 14.4       | MCP code caching via Deno HTTP cache                  |
 | FR14-11 | Epic 14 | 14.1       | Local and Cloud mode support (via stdio)              |
 | FR14-12 | Epic 14 | 14.1       | Local API keys never stored on cloud                  |
+| FR14-13 | Epic 14 | 14.10      | Standalone capability distribution (add/run/remove)   |
 
 ## Epic List
 
@@ -139,6 +140,184 @@ pml stdio (jsr:@casys/pml)
 **Why stdio (not HTTP)?** Claude Code spawns MCP servers via stdio, not HTTP connections.
 The `pml stdio` command is the primary interface. `pml serve` (HTTP) remains available
 for debugging, dashboard integration, and non-Claude clients.
+
+---
+
+### Distribution Modes (Clarified 2025-01-05)
+
+PML supports two distinct usage modes:
+
+**Mode 1: PML Meta-Tools (Full Package)**
+```
+.mcp.json:
+{
+  "mcpServers": {
+    "pml": { "command": "pml", "args": ["stdio"] }
+  }
+}
+
+Claude sees:
+├── mcp.pml.discover()     ← Search capabilities
+├── mcp.pml.execute()      ← Run any capability 
+```
+**Use case:** Developers who want the full PML ecosystem - discovery, execution, creation.
+
+**Mode 2: Standalone Capability (Direct MCP)**
+```bash
+# CLI command (terminal)
+pml add namespace:action[@version]
+
+# Examples:
+pml add db:postgres_query           # latest par défaut
+pml add db:postgres_query@latest    # explicit
+pml add db:postgres_query@1.2.0     # version spécifique (future)
+```
+```
+.mcp.json (auto-modified):
+{
+  "mcpServers": {
+    "db:postgres_query": { "command": "pml", "args": ["run", "db:postgres_query"] }
+  }
+}
+
+Claude sees:
+├── mcp.db.postgres_query()     ← Direct call, no wrapper
+```
+**Use case:** Users who want ONE specific capability as a native MCP, without PML overhead.
+
+**Note:** Requires Claude Code restart to load new MCP server. Hot-reload TBD.
+
+**Comparison:**
+| Aspect | Mode 1 (Meta-Tools) | Mode 2 (Standalone) |
+|--------|---------------------|---------------------|
+| MCP servers | 1 ("pml") | N (one per capability) |
+| Call pattern | `mcp.pml.execute({cap: "X"})` | `mcp.X.run()` |
+| Discovery | Built-in | Not needed |
+| Target user | Developer/Power user | End user |
+| Analogy | Docker daemon | Docker container |
+
+---
+
+### Capability Bundling (Clarified 2025-01-05)
+
+**Key Insight:** All Deno capabilities are **bundled** before distribution.
+
+```
+Source (with deps)              →    Bundle (self-contained)
+─────────────────────────            ────────────────────────
+import { z } from "zod";             // All deps inlined
+import { Client } from "pg";         // Zero external imports
+                                     // Pure Deno/TypeScript
+export function query() {...}        export function query() {...}
+```
+
+**Why bundling matters:**
+- ✅ Dynamic `import()` works without dependency resolution
+- ✅ Deno caches the bundle natively (offline support)
+- ✅ Immutable (content hash = identity)
+- ✅ Fast loading (single file)
+
+**What CAN'T be bundled:**
+- Stdio MCP servers (e.g., `@modelcontextprotocol/server-memory`)
+- These require installation + subprocess spawn
+
+**Capability with stdio MCP deps:**
+```json
+{
+  "fqdn": "org:project:namespace.action",
+  "type": "deno",
+  "code_url": "https://pml.casys.ai/mcp/myCapability.ts",
+  "mcp_deps": [
+    {
+      "name": "memory",
+      "type": "stdio",
+      "install": "npx @modelcontextprotocol/server-memory@1.2.3",
+      "version": "1.2.3",
+      "integrity": "sha256-abc123..."
+    }
+  ]
+}
+```
+
+**Security:** Version pinned + integrity hash vérifié à l'installation (comme npm).
+
+**Installation flow (Story 14.4):**
+1. Check si dep installée avec bonne version
+2. Si non → HIL prompt: "Installer memory@1.2.3?"
+3. Install + verify integrity hash
+4. Execute capability
+
+**Cleanup:** Les hashes des deps plus utilisées doivent être nettoyés périodiquement
+(éviter le bloat). À gérer via `pml cleanup` ou automatiquement.
+
+---
+
+### Routing = WHERE to Execute (Clarified 2025-01-05)
+
+Routing determines **where** code executes, not just where to forward calls:
+
+```
+Capability: "smartSearch"       Capability: "localFileProcessor"
+Routing: "cloud"                Routing: "local"
+    │                               │
+    ▼                               ▼
+pml.casys.ai imports +          User's PML imports +
+executes on cloud               executes locally
+    │                               │
+    ▼                               ▼
+mcp.tavily → cloud API          mcp.filesystem → local files
+```
+
+**Same code, different execution context:**
+- Code is fetched from same URL (`pml.casys.ai/mcp/{namespace:action}`)
+- Routing decides: execute on cloud OR on user's machine
+- `mcp.*` calls resolve differently based on context
+
+---
+
+### API Keys & BYOK (Clarified 2025-01-05)
+
+**Two flows for API key management:**
+
+**1. Standalone (`pml add`) - Option B: Warning**
+```bash
+pml add notion
+# ⚠ notion requires:
+#   - NOTION_API_KEY
+# Add to .env before using.
+# ✓ notion added.
+```
+Simple warning at install, error at runtime if missing.
+
+**2. Execute (cloud PML toolkit) - HIL Pause**
+```
+mcp.pml.execute({ cap: "notion_search" })
+    │
+    ├─► notion_search needs NOTION_API_KEY
+    │
+    ├─► User has key configured on pml.casys.ai?
+    │       Yes → execute
+    │       No  → HIL PAUSE
+    │             "Configure your API key: pml.casys.ai/settings/keys"
+    │             [Continue] [Abort] [Replan]
+    │
+    │             User configures key online
+    │             User clicks [Continue]
+    │             │
+    │             ▼
+    └─► Resume execution (no retry needed)
+```
+
+**BYOK (Bring Your Own Key):**
+- Local execution: PML reads keys from `.env`
+- Cloud execution: Keys stored in user's cloud profile (pml.casys.ai/settings)
+  → Cloud uses key one-shot, never in logs
+
+**Stdio subprocess management (cloud):**
+- Many MCPs are stdio even with APIs (notion, google-sheets, serena)
+- Cloud must manage subprocess pool for concurrent calls
+- See ADR-044 (JSON-RPC multiplexer) for multiplexing pattern
+- Latency monitoring required
 
 **Unified Registry (Story 13.8):**
 
@@ -686,6 +865,111 @@ apply **And** HIL works identically to registry MCPs
 
 ---
 
+### Story 14.10: Standalone Capability Distribution (add/run/remove)
+
+As an end user, I want to install specific capabilities as native MCP servers for Claude,
+So that I can use them directly without the full PML meta-tools overhead.
+
+**Context:**
+
+This is the "Docker model" for capabilities:
+- `pml add <cap>` = install capability as standalone MCP server
+- `pml run <cap>` = start capability as MCP server (for .mcp.json)
+- `pml remove <cap>` = uninstall capability
+- `pml list` = list installed standalone capabilities
+
+**Acceptance Criteria:**
+
+**AC1-2 (Add Command):**
+
+**Given** a user runs `pml add smartSearch` **When** the capability exists in registry **Then**:
+1. Capability code is fetched and cached locally
+2. Stdio MCP deps (if any) are installed automatically
+3. `.mcp.json` is updated to add the capability as a server:
+```json
+{
+  "mcpServers": {
+    "smartSearch": {
+      "type": "stdio",
+      "command": "pml",
+      "args": ["run", "smartSearch"]
+    }
+  }
+}
+```
+4. Success message: "✓ smartSearch added. Restart Claude Code to use."
+
+**Given** a capability has stdio MCP dependencies **When** `pml add` is run **Then**:
+1. Dependencies are listed: "smartSearch requires: memory, filesystem"
+2. Each dep is installed (npx, pip, etc.)
+3. Missing env vars are reported: "⚠ Set ANTHROPIC_API_KEY for serena"
+
+**AC3-4 (Run Command):**
+
+**Given** a `.mcp.json` with `"args": ["run", "smartSearch"]` **When** Claude Code starts **Then**:
+1. PML spawns as stdio server for "smartSearch" capability
+2. Dynamic imports the capability code from cache (or fetches if needed)
+3. Exposes capability tools as native MCP tools
+4. Routes internal `mcp.*` calls to appropriate MCPs (local or cloud)
+
+**Given** `pml run smartSearch` is executed **When** capability has stdio deps **Then**:
+1. Required stdio MCPs are spawned as subprocesses
+2. `mcp.memory.create_entities()` calls route to memory subprocess
+3. Subprocess lifecycle is managed (spawn on first call, idle timeout)
+
+**AC5-6 (Remove & List Commands):**
+
+**Given** `pml remove smartSearch` is run **When** capability is installed **Then**:
+1. Entry is removed from `.mcp.json`
+2. Local cache is optionally cleaned (`--clean` flag)
+3. Stdio deps are NOT removed (might be used by other caps)
+
+**Given** `pml list` is run **Then** output shows:
+```
+Installed capabilities:
+  smartSearch     (cloud)    mcp.smartSearch.*
+  fileProcessor   (local)    mcp.fileProcessor.*
+
+PML meta-tools: enabled (mcp.pml.*)
+```
+
+**AC7-8 (Dynamic Import & Execution):**
+
+**Given** `pml run <cap>` starts **When** loading capability **Then**:
+```typescript
+// Dynamic import from registry (or cache)
+const cap = await import(`https://pml.casys.ai/mcp/${capName}.ts`);
+
+// Expose as MCP server
+server.addTool("run", cap.run);
+server.addTool("config", cap.config);
+```
+
+**Given** capability code calls `mcp.X.action()` **When** executed **Then**:
+1. PML intercepts the call
+2. Resolves X to appropriate MCP (local subprocess, cloud HTTP, or another capability)
+3. Returns result transparently
+
+**Technical Notes:**
+
+> **Standalone ≠ Isolated**: Standalone capabilities still need PML runtime for:
+> - Resolving `mcp.*` calls
+> - Managing stdio subprocess deps
+> - Routing to cloud MCPs
+>
+> "Standalone" means: exposed as native MCP to Claude, not wrapped in `pml.execute()`.
+>
+> **Analogy:**
+> - `docker run nginx` = standalone container, but needs Docker daemon
+> - `pml run smartSearch` = standalone capability, but needs PML runtime
+
+**Dependencies:**
+
+- Story 14.4: Dynamic import infrastructure
+- Story 14.7: Registry endpoint for capability code
+
+---
+
 ## Technical Notes
 
 ### Package Structure
@@ -823,7 +1107,7 @@ The `routing` field in `tool_schema` is set by **us** when we seed MCPs. Users c
 - Which MCPs are local vs cloud - platform decision
 - MCP code source - always from `pml.casys.ai/mcp/{fqdn}`
 
-### Cloud MCP Flow (BYOK)
+### Cloud MCP Flow (BYOK) ( I think we just defined a new way to do it with HIL)
 
 ```
 User calls tavily:search
