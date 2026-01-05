@@ -72,9 +72,11 @@ export interface McpServerConfig {
 
 /**
  * MCP configuration file (.mcp.json)
+ *
+ * Claude Code expects: { "mcpServers": { "server-name": {...} } }
  */
 export interface McpConfig {
-  [serverName: string]: McpServerConfig;
+  mcpServers: Record<string, McpServerConfig>;
 }
 
 /**

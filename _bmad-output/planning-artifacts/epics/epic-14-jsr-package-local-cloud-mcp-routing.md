@@ -87,16 +87,16 @@ user's local resources.
 | ------- | ------- | ---------- | ----------------------------------------------------- |
 | FR14-1  | Epic 14 | 14.1       | Package JSR installable via `deno install`            |
 | FR14-2  | Epic 14 | 14.2       | Workspace resolution (ENV → detection → CWD)          |
-| FR14-3  | Epic 14 | 14.3       | Routing based on `mcp-permissions.yaml`               |
+| FR14-3  | Epic 14 | 14.3       | Routing based on cloud config (cached locally)        |
 | FR14-4  | Epic 14 | 14.4, 14.7 | Dynamic MCP import from unified registry              |
 | FR14-5  | Epic 14 | 14.5       | Sandboxed local MCP execution                         |
-| FR14-6  | Epic 14 | 14.6       | Forward cloud MCPs via HTTP RPC                       |
-| FR14-7  | Epic 14 | 14.6       | HTTP Streamable server local                          |
-| FR14-8  | Epic 14 | 14.6       | BYOK support via local env vars                       |
-| FR14-9  | Epic 14 | 14.1       | `.mcp.json` generation via `pml init`                 |
+| FR14-6  | Epic 14 | 14.1       | Forward cloud MCPs via HTTP RPC (from stdio)          |
+| FR14-7  | Epic 14 | 14.6       | HTTP Streamable server (optional, for debug)          |
+| FR14-8  | Epic 14 | 14.1       | BYOK support via local env vars                       |
+| FR14-9  | Epic 14 | 14.1       | `.mcp.json` generation via `pml init` (stdio type)    |
 | FR14-10 | Epic 14 | 14.4       | MCP code caching via Deno HTTP cache                  |
-| FR14-11 | Epic 14 | 14.6       | Local and Cloud mode support                          |
-| FR14-12 | Epic 14 | 14.6       | Local API keys never stored on cloud                  |
+| FR14-11 | Epic 14 | 14.1       | Local and Cloud mode support (via stdio)              |
+| FR14-12 | Epic 14 | 14.1       | Local API keys never stored on cloud                  |
 
 ## Epic List
 
@@ -121,17 +121,24 @@ cloud PML intelligence while maintaining local data sovereignty.
 
 ```
 Claude Code
-    │ HTTP (localhost:PORT/mcp)
+    │ stdio (spawned automatically via .mcp.json)
     ▼
-jsr:@casys/pml (lightweight local package)
+pml stdio (jsr:@casys/pml)
+    │
+    ├─► Load permissions (.pml.json)
+    ├─► Check routing (cached from cloud)
     │
     ├─► Local MCPs (routing: local)
     │     └─► Sandboxed Deno execution with workspace-scoped permissions
     │     └─► Code loaded from: pml.casys.ai/mcp/{fqdn}
     │
     └─► Cloud MCPs (routing: cloud)
-          └─► HTTP RPC to pml.casys.ai/mcp + BYOK injection
+          └─► HTTP fetch to pml.casys.ai/mcp + BYOK injection
 ```
+
+**Why stdio (not HTTP)?** Claude Code spawns MCP servers via stdio, not HTTP connections.
+The `pml stdio` command is the primary interface. `pml serve` (HTTP) remains available
+for debugging, dashboard integration, and non-Claude clients.
 
 **Unified Registry (Story 13.8):**
 
@@ -154,23 +161,55 @@ External clients see only standard MCP - internal distinction is transparent.
 
 ---
 
-### Story 14.1: Package Scaffolding & CLI Init Command
+### Story 14.1: Package Scaffolding & CLI Commands (init, stdio)
 
 As a developer, I want to install the PML package with a single command and initialize my project,
 So that I can start using PML with minimal setup friction.
 
 **Acceptance Criteria:**
 
+**AC1-2 (Installation):**
+
 **Given** a developer with Deno installed **When** they run `deno install -A -n pml jsr:@casys/pml`
 **Then** the `pml` command is available globally **And** the package size is under 50KB
 
+**AC3-4 (Init Command):**
+
 **Given** a developer in their project directory **When** they run `pml init` **Then** they are
 prompted for their PML API key (or can skip for local-only mode) **And** a `.mcp.json` file is
-generated with the PML server configuration **And** a `.pml.json` config file is created with
-workspace and cloud URL settings
+generated with the PML server configuration (stdio type) **And** a `.pml.json` config file is
+created with workspace and cloud URL settings
 
 **Given** an existing `.mcp.json` file **When** running `pml init` **Then** the system asks for
 confirmation before modifying **And** backs up the original file to `.mcp.json.backup`
+
+**AC5-7 (Stdio Command - Primary Interface):**
+
+**Given** a `.mcp.json` configuration:
+```json
+{
+  "pml": {
+    "type": "stdio",
+    "command": "pml",
+    "args": ["stdio"],
+    "env": {
+      "PML_WORKSPACE": "${workspaceFolder}",
+      "TAVILY_API_KEY": "${TAVILY_API_KEY}"
+    }
+  }
+}
+```
+**When** Claude Code starts **Then** it spawns `pml stdio` as a subprocess **And** communicates
+via stdin/stdout JSON-RPC
+
+**Given** `pml stdio` is running **When** it receives a JSON-RPC request **Then** it:
+1. Loads permissions from `.pml.json`
+2. Checks routing (from cached cloud config)
+3. Routes to local sandbox OR forwards to cloud via HTTP
+4. Returns JSON-RPC response via stdout
+
+**Given** `pml stdio` is running **When** the cloud is unreachable **Then** local MCPs continue
+to work **And** cloud MCPs return clear offline error messages
 
 ---
 
@@ -380,11 +419,15 @@ with explicit `--allow-*` flags if Worker is insufficient
 
 ---
 
-### Story 14.6: MCP HTTP Streamable Server & BYOK Injection
+### Story 14.6: MCP HTTP Streamable Server & BYOK Injection (Optional/Debug)
 
-As a cloud mode user, I want PML to expose a local HTTP streamable MCP endpoint with BYOK support,
-So that Claude Code connects locally while the package routes to local sandbox or cloud with my API
-keys.
+As a developer or platform operator, I want PML to optionally expose an HTTP MCP endpoint,
+So that I can debug, test, or integrate with non-Claude clients (dashboards, scripts).
+
+**Note:** The primary interface is `pml stdio` (Story 14.1). This HTTP server is for:
+- Debugging and testing MCP calls
+- Dashboard/web UI integration
+- Non-Claude MCP clients that prefer HTTP
 
 **Acceptance Criteria:**
 

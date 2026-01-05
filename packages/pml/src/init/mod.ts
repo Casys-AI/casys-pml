@@ -177,8 +177,11 @@ async function backupConfig(configPath: string): Promise<string> {
 
 /**
  * Generate .mcp.json configuration
+ *
+ * Claude Code expects: { "mcpServers": { "pml": { ... } } }
+ * Primary transport is stdio (Claude Code spawns the process).
  */
-function generateMcpConfig(port: number, apiKey?: string): McpConfig {
+function generateMcpConfig(_port: number, apiKey?: string): McpConfig {
   const env = { ...DEFAULT_ENV_VARS };
 
   // If API key provided, set it directly
@@ -187,10 +190,13 @@ function generateMcpConfig(port: number, apiKey?: string): McpConfig {
   }
 
   return {
-    pml: {
-      type: "http",
-      url: `http://localhost:${port}/mcp`,
-      env,
+    mcpServers: {
+      pml: {
+        type: "stdio",
+        command: "pml",
+        args: ["stdio"],
+        env,
+      },
     },
   };
 }

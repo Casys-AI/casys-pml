@@ -40,10 +40,12 @@ Deno.test("init - .mcp.json has correct structure", async () => {
     const content = await Deno.readTextFile(join(testDir, ".mcp.json"));
     const config = JSON.parse(content);
 
-    assertEquals(config.pml.type, "http");
-    assertEquals(config.pml.url, "http://localhost:4000/mcp");
-    assertEquals(typeof config.pml.env, "object");
-    assertStringIncludes(config.pml.env.PML_API_KEY, "${PML_API_KEY}");
+    // Claude Code format: { mcpServers: { pml: {...} } }
+    assertEquals(config.mcpServers.pml.type, "stdio");
+    assertEquals(config.mcpServers.pml.command, "pml");
+    assertEquals(config.mcpServers.pml.args, ["stdio"]);
+    assertEquals(typeof config.mcpServers.pml.env, "object");
+    assertStringIncludes(config.mcpServers.pml.env.PML_API_KEY, "${PML_API_KEY}");
   } finally {
     Deno.chdir(originalCwd);
   }
@@ -157,7 +159,7 @@ Deno.test("init - sets API key when provided", async () => {
     const content = await Deno.readTextFile(join(testDir, ".mcp.json"));
     const config = JSON.parse(content);
 
-    assertEquals(config.pml.env.PML_API_KEY, "test-key-123");
+    assertEquals(config.mcpServers.pml.env.PML_API_KEY, "test-key-123");
   } finally {
     Deno.chdir(originalCwd);
   }

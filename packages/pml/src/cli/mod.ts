@@ -8,6 +8,7 @@
 import { Command } from "@cliffy/command";
 import { createInitCommand } from "./init-command.ts";
 import { createServeCommand } from "./serve-command.ts";
+import { createStdioCommand } from "./stdio-command.ts";
 
 const VERSION = "0.1.0";
 
@@ -21,6 +22,7 @@ export const main = new Command()
     "PML - Procedural Memory Layer\n\nIntelligent MCP orchestration with learning capabilities.",
   )
   .command("init", createInitCommand())
+  .command("stdio", createStdioCommand())
   .command("serve", createServeCommand());
 
 // Run if called directly

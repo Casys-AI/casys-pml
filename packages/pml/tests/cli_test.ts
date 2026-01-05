@@ -25,6 +25,20 @@ Deno.test("cli - has serve command", () => {
   assertEquals(serveCmd !== undefined, true);
 });
 
+Deno.test("cli - has stdio command (primary interface for Claude Code)", () => {
+  const commands = main.getCommands();
+  const stdioCmd = commands.find((c) => c.getName() === "stdio");
+  assertEquals(stdioCmd !== undefined, true);
+});
+
+Deno.test("cli - stdio command has correct description", () => {
+  const commands = main.getCommands();
+  const stdioCmd = commands.find((c) => c.getName() === "stdio");
+  const description = stdioCmd?.getDescription() ?? "";
+  assertStringIncludes(description, "stdio");
+  assertStringIncludes(description, "Claude Code");
+});
+
 Deno.test("cli - init command has expected options", () => {
   const commands = main.getCommands();
   const initCmd = commands.find((c) => c.getName() === "init");
