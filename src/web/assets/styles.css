@@ -67,6 +67,52 @@
   --font-display: "Instrument Serif", Georgia, serif;
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   CRITICAL: Mobile Menu - Hidden by default to prevent FOUC
+   These styles MUST load before the island hydrates
+═══════════════════════════════════════════════════════════════════ */
+.mobile-menu-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 999;
+  width: min(320px, 85vw);
+  height: 100vh;
+  height: 100dvh;
+  transform: translateX(100%);
+  visibility: hidden;
+}
+
+.mobile-menu-drawer--open {
+  transform: translateX(0);
+  visibility: visible;
+}
+
+.mobile-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 998;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.mobile-menu-backdrop--visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.mobile-menu-trigger {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobile-menu-trigger {
+    display: flex;
+  }
+}
+
 /* Keyframes */
 @keyframes slideUp {
   from {

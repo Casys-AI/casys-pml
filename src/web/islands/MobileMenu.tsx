@@ -55,12 +55,14 @@ export default function MobileMenu() {
         class={`mobile-menu-backdrop ${isOpen.value ? "mobile-menu-backdrop--visible" : ""}`}
         onClick={closeMenu}
         aria-hidden="true"
+        style={{ visibility: isOpen.value ? "visible" : "hidden", opacity: isOpen.value ? 1 : 0 }}
       />
 
       {/* Slide-out Drawer */}
       <nav
         class={`mobile-menu-drawer ${isOpen.value ? "mobile-menu-drawer--open" : ""}`}
         aria-hidden={!isOpen.value}
+        style={{ transform: isOpen.value ? "translateX(0)" : "translateX(100%)" }}
       >
         {/* Drawer Header */}
         <div class="mobile-menu-header">
