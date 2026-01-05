@@ -20,10 +20,10 @@ import { checkPermission } from "./loader.ts";
  * @example
  * ```ts
  * try {
- *   inferCapabilityApprovalMode(["ssh:connect"], permissions);
+ *   inferCapabilityApprovalMode(["ssh:connect"], permissions, "my-capability");
  * } catch (e) {
  *   if (e instanceof CapabilityBlockedError) {
- *     console.error(`Blocked: ${e.toolId}`);
+ *     console.error(`Capability "${e.capabilityId}" blocked by: ${e.toolId}`);
  *   }
  * }
  * ```
@@ -33,9 +33,46 @@ export class CapabilityBlockedError extends Error {
     public readonly toolId: string,
     public readonly capabilityId?: string,
   ) {
-    super(`Capability blocked: tool "${toolId}" is denied by user permissions`);
+    const capPart = capabilityId ? `Capability "${capabilityId}" blocked` : "Capability blocked";
+    super(`${capPart}: tool "${toolId}" is denied by user permissions`);
     this.name = "CapabilityBlockedError";
   }
+}
+
+/**
+ * Internal result from scanning tools against permissions.
+ * Used to share logic between throwing and non-throwing variants.
+ */
+interface ToolScanResult {
+  /** First denied tool found, if any */
+  deniedTool: string | null;
+  /** Whether any tool requires HIL */
+  requiresHil: boolean;
+}
+
+/**
+ * Scan tools against permissions to find denied tools and HIL requirements.
+ * Shared logic for both inferCapabilityApprovalMode and checkCapabilityPermissions.
+ */
+function scanToolsPermissions(
+  toolsUsed: string[],
+  permissions: PmlPermissions,
+): ToolScanResult {
+  let requiresHil = false;
+
+  for (const tool of toolsUsed) {
+    const result = checkPermission(tool, permissions);
+
+    if (result === "denied") {
+      return { deniedTool: tool, requiresHil };
+    }
+
+    if (result === "ask") {
+      requiresHil = true;
+    }
+  }
+
+  return { deniedTool: null, requiresHil };
 }
 
 /**
@@ -54,6 +91,7 @@ export class CapabilityBlockedError extends Error {
  *
  * @param toolsUsed - Array of tool IDs used by the capability
  * @param permissions - User's loaded permissions from .pml.json
+ * @param capabilityId - Optional capability identifier for better error messages
  * @returns "hil" or "auto"
  * @throws CapabilityBlockedError if any tool is denied
  *
@@ -61,7 +99,8 @@ export class CapabilityBlockedError extends Error {
  * ```ts
  * const approval = inferCapabilityApprovalMode(
  *   ["filesystem:read", "tavily:search"],
- *   { allow: ["tavily:*"], deny: [], ask: ["filesystem:*"] }
+ *   { allow: ["tavily:*"], deny: [], ask: ["filesystem:*"] },
+ *   "my-data-fetcher"
  * );
  * // Returns "hil" because filesystem:read requires ask
  * ```
@@ -69,29 +108,17 @@ export class CapabilityBlockedError extends Error {
 export function inferCapabilityApprovalMode(
   toolsUsed: string[],
   permissions: PmlPermissions,
+  capabilityId?: string,
 ): ApprovalMode {
   // Empty tools = pure compute = auto (safe)
   if (!toolsUsed || toolsUsed.length === 0) {
     return "auto";
   }
 
-  let requiresHil = false;
+  const { deniedTool, requiresHil } = scanToolsPermissions(toolsUsed, permissions);
 
-  for (const tool of toolsUsed) {
-    const result = checkPermission(tool, permissions);
-
-    switch (result) {
-      case "denied":
-        throw new CapabilityBlockedError(tool);
-
-      case "ask":
-        requiresHil = true;
-        break;
-
-      case "allowed":
-        // Continue checking other tools
-        break;
-    }
+  if (deniedTool) {
+    throw new CapabilityBlockedError(deniedTool, capabilityId);
   }
 
   return requiresHil ? "hil" : "auto";
@@ -105,13 +132,15 @@ export function inferCapabilityApprovalMode(
  *
  * @param toolsUsed - Tools used by capability
  * @param permissions - User permissions
+ * @param capabilityId - Optional capability identifier for better error messages
  * @returns Object with canExecute, approvalMode, and blockedTool if any
  *
  * @example
  * ```ts
  * const result = checkCapabilityPermissions(
  *   ["ssh:connect", "json:parse"],
- *   permissions
+ *   permissions,
+ *   "my-capability"
  * );
  * if (!result.canExecute) {
  *   console.error(`Blocked by: ${result.blockedTool}`);
@@ -121,29 +150,23 @@ export function inferCapabilityApprovalMode(
 export function checkCapabilityPermissions(
   toolsUsed: string[],
   permissions: PmlPermissions,
+  capabilityId?: string,
 ): CapabilityPermissionResult {
   // Empty tools = pure compute = auto (safe)
   if (!toolsUsed || toolsUsed.length === 0) {
     return { canExecute: true, approvalMode: "auto" };
   }
 
-  let requiresHil = false;
+  const { deniedTool, requiresHil } = scanToolsPermissions(toolsUsed, permissions);
 
-  for (const tool of toolsUsed) {
-    const result = checkPermission(tool, permissions);
-
-    if (result === "denied") {
-      return {
-        canExecute: false,
-        approvalMode: "hil", // Would be hil if it could execute
-        blockedTool: tool,
-        reason: `Tool "${tool}" is denied by user permissions`,
-      };
-    }
-
-    if (result === "ask") {
-      requiresHil = true;
-    }
+  if (deniedTool) {
+    const capPart = capabilityId ? `Capability "${capabilityId}" blocked` : "Capability blocked";
+    return {
+      canExecute: false,
+      approvalMode: "hil",
+      blockedTool: deniedTool,
+      reason: `${capPart}: tool "${deniedTool}" is denied by user permissions`,
+    };
   }
 
   return {

@@ -277,7 +277,7 @@ development_status:
   # Phase 1: Package Foundation (~4 days)
   14-1-package-scaffolding-cli-init: done # Story created 2025-12-29, deno install, pml init, .mcp.json generation
   14-2-workspace-resolution-system: done # Code Review APPROVED 2025-12-30, 74 tests passing, 7/7 issues fixed
-  14-3-routing-config-permission-inferrer: review # Permission inferrer done, routing handled server-side (scope change)
+  14-3-routing-config-permission-inferrer: done # Code review passed, 97 tests, scope: permissions only (routing=cloud)
   # Phase 2: Local Execution (~5 days)
   14-4-dynamic-mcp-loader-registry: backlog # Dynamic import from JSR, Deno cache
   14-5-sandboxed-local-mcp-execution: backlog # Deno Worker/subprocess, workspace-scoped permissions

@@ -60,8 +60,21 @@ export {
   inferCapabilityApprovalMode,
 } from "./src/permissions/mod.ts";
 
-// NOTE: Routing is handled server-side (cloud decides local vs cloud)
-// See src/capabilities/routing-resolver.ts in main codebase
+// Routing (Story 14.3) - Synced from cloud, cached locally
+export {
+  DEFAULT_ROUTING_CONFIG,
+  extractNamespace,
+  getCloudServers,
+  getRoutingConfig,
+  getRoutingVersion,
+  initializeRouting,
+  isCloudTool,
+  isLocalTool,
+  isRoutingInitialized,
+  resetRouting,
+  resolveToolRouting,
+  syncRoutingConfig,
+} from "./src/routing/mod.ts";
 
 // Types
 export type {
@@ -75,6 +88,10 @@ export type {
   PermissionLoadResult,
   PmlConfig,
   PmlPermissions,
+  RoutingCache,
+  RoutingConfig,
+  RoutingSyncResult,
+  ToolRouting,
   WorkspaceConfig,
   WorkspaceSource,
 } from "./src/types.ts";

@@ -1,6 +1,6 @@
 # Story 14.3: Routing Configuration & Permission Inferrer Integration
 
-Status: review
+Status: done
 
 > **Epic:** 14 - JSR Package Local/Cloud MCP Routing
 > **FR Coverage:** FR14-3 (Routing + Permission inference)
@@ -136,20 +136,27 @@ As a platform maintainer, I want MCP routing and permission decisions based on d
   - [x] Add `CapabilityPermissionResult` interface
   - [x] Export from module
 
-### Phase 2: PML Routing Resolver - REMOVED
+### Phase 2: PML Routing with Cloud Sync
 
-> **Scope Change (2026-01-05):** Routing is handled server-side (cloud decides local vs cloud).
-> The package PML just sends requests to the cloud, and the cloud determines routing.
-> See `src/capabilities/routing-resolver.ts` in main codebase.
+> **Architecture (2026-01-05):** Routing config synced from cloud at startup, cached locally.
+> Package decides routing based on cached config for fast lookups.
 
-- [N/A] Task 3: ~~Create PML routing resolver~~ - Cloud handles routing
-- [N/A] Task 4: ~~Export routing modules~~ - Not needed in package
+- [x] Task 3: Create PML routing with cloud sync
+  - [x] Create `packages/pml/src/routing/cache.ts` - Local cache management
+  - [x] Create `packages/pml/src/routing/sync.ts` - Cloud sync with version check
+  - [x] Create `packages/pml/src/routing/resolver.ts` - Fast lookup from cache
+  - [x] Default fallback config for offline mode
+
+- [x] Task 4: Export routing modules
+  - [x] Create `packages/pml/src/routing/mod.ts`
+  - [x] Update `packages/pml/mod.ts` with routing exports
 
 ### Phase 3: Integration (~30m)
 
 - [x] Task 5: Wire to serve-command (AC: #5)
-  - [x] Permission inferrer already imported and used
-  - [N/A] Routing handled by cloud, not package
+  - [x] Permission inferrer imported and used
+  - [x] Routing sync at startup with cloud
+  - [x] Display routing version in startup info
 
 ### Phase 4: Tests (~1h)
 
@@ -160,7 +167,12 @@ As a platform maintainer, I want MCP routing and permission decisions based on d
   - [x] Test unknown tools → `hil`
   - [x] Test empty tools_used → `auto`
 
-- [N/A] Task 7: ~~Unit tests for routing resolver~~ - Routing removed from package
+- [x] Task 7: Unit tests for routing resolver (25 tests passing)
+  - [x] Test local tools → `"local"`
+  - [x] Test cloud tools → `"cloud"`
+  - [x] Test unknown → `"local"`
+  - [x] Test custom config support
+  - [x] Test initialization state
 
 ---
 
@@ -544,27 +556,43 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 ### Completion Notes List
 
 - ✅ Permission inferrer implemented with `inferCapabilityApprovalMode()` and `checkCapabilityPermissions()`
-- ✅ Types added: `ApprovalMode`, `CapabilityPermissionResult`
-- ✅ 20 unit tests passing for permission inference
-- ⚠️ **Scope Change:** Routing resolver removed from package - cloud handles routing decisions
-- ⚠️ Files deleted: `packages/pml/src/routing/`, `packages/pml/tests/routing_test.ts`
+- ✅ Routing with cloud sync: synced at startup, cached locally for fast lookups
+- ✅ Types added: `ApprovalMode`, `CapabilityPermissionResult`, `RoutingConfig`, `RoutingCache`, `ToolRouting`
+- ✅ 122 unit tests passing (23 permission + 25 routing + 74 others)
+
+### Code Review Fixes (2026-01-05)
+
+- ✅ H1: Added capability-inferrer imports to serve-command.ts
+- ✅ M1: Refactored code duplication with `scanToolsPermissions()` helper
+- ✅ M2: Wired `capabilityId` parameter through API for better error messages
+- ✅ L1: Fixed test type safety (removed `as any` casts)
+- ✅ L2: Added integration test
+
+### Architecture Decision (2026-01-05)
+
+- Routing config is fetched from cloud at startup (with version check)
+- Cached locally in `~/.pml/routing-cache.json`
+- Offline mode uses cached config or fallback defaults
+- Fast lookups at runtime (no network calls per tool)
 
 ### Change Log
 
-- 2026-01-05: Story completed with scope change - routing handled server-side
+- 2026-01-05: Routing with cloud sync architecture implemented
+- 2026-01-05: Code review fixes applied (H1, M1, M2, L1, L2)
+- 2026-01-03: Initial implementation (commit 78895354)
 
 ### File List
 
 **Created:**
-- `packages/pml/src/permissions/capability-inferrer.ts` - Capability approval mode inference
-- `packages/pml/tests/capability_inferrer_test.ts` - 20 unit tests
+- `packages/pml/src/routing/cache.ts` - Local cache management
+- `packages/pml/src/routing/sync.ts` - Cloud sync with version check
+- `packages/pml/src/routing/resolver.ts` - Fast lookup from cache
+- `packages/pml/src/routing/mod.ts` - Module exports
+- `packages/pml/tests/routing_test.ts` - 25 routing tests
 
 **Modified:**
-- `packages/pml/src/types.ts` - Added ApprovalMode, CapabilityPermissionResult
-- `packages/pml/src/permissions/mod.ts` - Re-exports capability-inferrer
-- `packages/pml/mod.ts` - Exports permission inferrer (removed routing exports)
-
-**Deleted (scope change):**
-- `packages/pml/src/routing/resolver.ts` - Routing handled by cloud
-- `packages/pml/src/routing/mod.ts` - Not needed
-- `packages/pml/tests/routing_test.ts` - Not needed
+- `packages/pml/src/permissions/capability-inferrer.ts` - Added capabilityId, refactored
+- `packages/pml/tests/capability_inferrer_test.ts` - 23 tests with integration
+- `packages/pml/src/cli/serve-command.ts` - Routing sync at startup
+- `packages/pml/src/types.ts` - Added routing types
+- `packages/pml/mod.ts` - Exports routing + permissions

@@ -209,8 +209,53 @@ export interface PermissionLoadResult {
  */
 export type ApprovalMode = "hil" | "auto";
 
-// NOTE: ToolRouting is handled server-side (cloud decides local vs cloud)
-// See src/capabilities/routing-resolver.ts in main codebase
+/**
+ * Tool routing destination.
+ *
+ * Platform-defined (not user-configurable):
+ * - "local": Execute in user's sandbox (filesystem, shell, etc.)
+ * - "cloud": Forward to pml.casys.ai (API services, safe utilities)
+ */
+export type ToolRouting = "local" | "cloud";
+
+/**
+ * Routing configuration from cloud.
+ * Cached locally for fast lookup, synced at startup.
+ */
+export interface RoutingConfig {
+  /** Config version for change detection */
+  version: string;
+  /** Cloud server namespaces (everything else is local) */
+  cloudServers: string[];
+}
+
+/**
+ * Cached routing with metadata.
+ */
+export interface RoutingCache {
+  /** Routing configuration */
+  config: RoutingConfig;
+  /** Last sync timestamp (ISO string) */
+  lastSync: string;
+  /** Cloud endpoint used for sync */
+  cloudUrl: string;
+}
+
+/**
+ * Result of syncing routing config with cloud.
+ */
+export interface RoutingSyncResult {
+  /** Whether sync was successful */
+  success: boolean;
+  /** Whether config was updated */
+  updated: boolean;
+  /** Current config version */
+  version: string;
+  /** Error message if sync failed */
+  error?: string;
+  /** Whether running from cache (offline mode) */
+  fromCache: boolean;
+}
 
 /**
  * Result of checking capability permissions against user's allow/deny/ask lists.

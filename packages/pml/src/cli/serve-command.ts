@@ -20,6 +20,19 @@ import {
   getPermissionsSummary,
   loadUserPermissions,
 } from "../permissions/loader.ts";
+// Capability permission inference (Story 14.3)
+import {
+  checkCapabilityPermissions,
+  inferCapabilityApprovalMode,
+} from "../permissions/capability-inferrer.ts";
+// Routing - synced from cloud at startup (Story 14.3)
+import {
+  getRoutingVersion,
+  initializeRouting,
+  isRoutingInitialized,
+  resolveToolRouting,
+  syncRoutingConfig,
+} from "../routing/mod.ts";
 // Path validation ready for Story 14.6 (AC4: validate file operations within workspace)
 import { validatePath } from "../security/path-validator.ts";
 
@@ -91,6 +104,18 @@ export function createServeCommand(): Command<any> {
         silentLogger,
       );
 
+      // Step 3: Sync routing config from cloud
+      const cloudUrl = config.cloud?.url ?? "https://pml.casys.ai";
+      console.log(colors.dim("Syncing routing config..."));
+      const { result: syncResult, config: routingConfig } = await syncRoutingConfig(
+        cloudUrl,
+        {
+          info: (msg) => console.log(`  ${colors.dim(msg)}`),
+          warn: (msg) => console.log(`  ${colors.yellow(msg)}`),
+        },
+      );
+      initializeRouting(routingConfig);
+
       const port = options.port ?? config.server?.port ?? 3003;
 
       // Display startup info
@@ -103,7 +128,12 @@ export function createServeCommand(): Command<any> {
         }`,
       );
       console.log(
-        `  ${colors.dim("Cloud:")} ${config.cloud?.url ?? "not configured"}`,
+        `  ${colors.dim("Cloud:")} ${cloudUrl}`,
+      );
+      console.log(
+        `  ${colors.dim("Routing:")} v${getRoutingVersion()} (${
+          syncResult.fromCache ? "cached" : "synced"
+        })`,
       );
       console.log();
 
@@ -131,12 +161,26 @@ export function createServeCommand(): Command<any> {
       // TODO(Story 14.6): Full MCP HTTP server implementation
       // - Parse MCP JSON-RPC requests
       // - For file operations: await validatePath(requestedPath, workspace)
-      // - Check permissions: checkPermission(toolName, permissionResult.permissions)
-      // - Route to appropriate MCP handler
+      // - For capabilities: inferCapabilityApprovalMode(toolsUsed, permissions)
+      // - Route to cloud or execute locally based on cloud response
       const handler = async (_req: Request): Promise<Response> => {
+        // Example of how permission inference will be used (Story 14.3 AC5):
+        // const capabilityResult = checkCapabilityPermissions(
+        //   capability.toolsUsed,
+        //   permissionResult.permissions
+        // );
+        // if (!capabilityResult.canExecute) {
+        //   return new Response(JSON.stringify({
+        //     jsonrpc: "2.0",
+        //     error: { code: -32602, message: capabilityResult.reason }
+        //   }), { status: 403 });
+        // }
+        // if (capabilityResult.approvalMode === "hil") {
+        //   // Trigger HIL flow - wait for user approval
+        // }
+
         // Example of how path validation will be used in Story 14.6:
-        // const { path } = await req.json();
-        // const validation = await validatePath(path, workspace);
+        // const validation = await validatePath(requestedPath, workspace);
         // if (!validation.valid) {
         //   return new Response(JSON.stringify({
         //     jsonrpc: "2.0",
@@ -154,8 +198,14 @@ export function createServeCommand(): Command<any> {
               status: "stub",
               workspace,
               permissionSource: permissionResult.source,
-              // Expose validation function availability for testing
+              // Routing info (Story 14.3)
+              routingVersion: getRoutingVersion(),
+              routingInitialized: isRoutingInitialized(),
+              // Expose function availability for testing
               pathValidationReady: typeof validatePath === "function",
+              capabilityInferrerReady: typeof inferCapabilityApprovalMode === "function",
+              capabilityCheckerReady: typeof checkCapabilityPermissions === "function",
+              routingResolverReady: typeof resolveToolRouting === "function",
             },
           }),
           {
