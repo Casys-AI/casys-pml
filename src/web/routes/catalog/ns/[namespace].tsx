@@ -17,6 +17,16 @@ import type { AuthState } from "../../_middleware.ts";
 import { getRawDb } from "../../../../server/auth/db.ts";
 import NamespaceDetailIsland from "../../../islands/NamespaceDetailIsland.tsx";
 
+interface ParametersSchema {
+  type: string;
+  properties?: Record<string, {
+    type: string;
+    examples?: unknown[];
+    description?: string;
+  }>;
+  required?: string[];
+}
+
 interface CapabilityEntry {
   id: string;
   name: string;
@@ -25,6 +35,7 @@ interface CapabilityEntry {
   routing: "local" | "cloud";
   code: string | null;
   toolsUsed: string[];
+  inputSchema: ParametersSchema | null;
 }
 
 interface NamespaceDetailData {
@@ -50,6 +61,7 @@ async function loadNamespaceCapabilities(namespace: string): Promise<CapabilityE
       routing: "local" | "cloud";
       code: string | null;
       tools_used: string[] | null;
+      parameters_schema: ParametersSchema | null;
     }>(`
       SELECT
         pr.id,
@@ -58,7 +70,8 @@ async function loadNamespaceCapabilities(namespace: string): Promise<CapabilityE
         pr.description,
         pr.routing,
         wp.code_snippet as code,
-        wp.dag_structure->'tools_used' as tools_used
+        wp.dag_structure->'tools_used' as tools_used,
+        wp.parameters_schema
       FROM pml_registry pr
       LEFT JOIN workflow_pattern wp ON pr.workflow_pattern_id = wp.pattern_id
       WHERE pr.record_type = 'capability'
@@ -75,6 +88,7 @@ async function loadNamespaceCapabilities(namespace: string): Promise<CapabilityE
       routing: row.routing,
       code: row.code,
       toolsUsed: row.tools_used || [],
+      inputSchema: row.parameters_schema,
     }));
   } catch (error) {
     console.error("Error loading namespace capabilities:", error);

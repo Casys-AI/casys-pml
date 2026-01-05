@@ -11,7 +11,18 @@
 import { useMemo, useState } from "preact/hooks";
 import CatalogLayout from "../components/layout/CatalogLayout.tsx";
 import CodeBlock from "../components/ui/atoms/CodeBlock.tsx";
+import InputSchema from "../components/ui/atoms/InputSchema.tsx";
 import ToolBadge from "../components/ui/atoms/ToolBadge.tsx";
+
+interface ParametersSchema {
+  type: string;
+  properties?: Record<string, {
+    type: string;
+    examples?: unknown[];
+    description?: string;
+  }>;
+  required?: string[];
+}
 
 interface CapabilityEntry {
   id: string;
@@ -21,6 +32,7 @@ interface CapabilityEntry {
   routing: "local" | "cloud";
   code: string | null;
   toolsUsed: string[];
+  inputSchema: ParametersSchema | null;
 }
 
 interface NamespaceDetailIslandProps {
@@ -352,24 +364,35 @@ export default function NamespaceDetailIsland({
               )}
             </div>
 
-            {/* Tools used - grouped by server */}
-            {groupedTools.size > 0 && (
-              <div class="cap-tools-section">
-                <h2 class="cap-section-title">MCP Tools Used</h2>
-                <div class="cap-tools-groups">
-                  {[...groupedTools.entries()].map(([server, actions]) => (
-                    <div key={server} class="cap-tools-group">
-                      <div class="cap-tools-server">{server}</div>
-                      <div class="cap-tools-list">
-                        {actions.map((action) => (
-                          <ToolBadge key={`${server}:${action}`} tool={`${server}:${action}`} />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+            {/* Right column: input schema + tools */}
+            <div class="cap-right-column">
+              {/* Input parameters */}
+              {selectedCapability.inputSchema && (
+                <div class="cap-schema-section">
+                  <h2 class="cap-section-title">Input Parameters</h2>
+                  <InputSchema schema={selectedCapability.inputSchema} />
                 </div>
-              </div>
-            )}
+              )}
+
+              {/* Tools used - grouped by server */}
+              {groupedTools.size > 0 && (
+                <div class="cap-tools-section">
+                  <h2 class="cap-section-title">MCP Tools Used</h2>
+                  <div class="cap-tools-groups">
+                    {[...groupedTools.entries()].map(([server, actions]) => (
+                      <div key={server} class="cap-tools-group">
+                        <div class="cap-tools-server">{server}</div>
+                        <div class="cap-tools-list">
+                          {actions.map((action) => (
+                            <ToolBadge key={`${server}:${action}`} tool={`${server}:${action}`} />
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       ) : (
@@ -463,11 +486,22 @@ export default function NamespaceDetailIsland({
           font-size: 0.875rem;
         }
 
+        .cap-right-column {
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+
+        .cap-schema-section {
+          background: #0f0f12;
+          border: 1px solid rgba(74, 222, 128, 0.1);
+          border-radius: 12px;
+        }
+
         .cap-tools-section {
           background: #0f0f12;
           border: 1px solid rgba(255, 184, 111, 0.1);
           border-radius: 12px;
-          height: fit-content;
         }
 
         .cap-tools-section .cap-section-title {
