@@ -83,21 +83,22 @@ user's local resources.
 
 ### FR Coverage Map
 
-| FR      | Epic    | Story      | Description                                           |
-| ------- | ------- | ---------- | ----------------------------------------------------- |
-| FR14-1  | Epic 14 | 14.1       | Package JSR installable via `deno install`            |
-| FR14-2  | Epic 14 | 14.2       | Workspace resolution (ENV → detection → CWD)          |
-| FR14-3  | Epic 14 | 14.3       | Routing based on cloud config (cached locally)        |
-| FR14-4  | Epic 14 | 14.4, 14.7 | Dynamic MCP import from unified registry              |
-| FR14-5  | Epic 14 | 14.5       | Sandboxed local MCP execution                         |
-| FR14-6  | Epic 14 | 14.1       | Forward cloud MCPs via HTTP RPC (from stdio)          |
-| FR14-7  | Epic 14 | 14.6       | HTTP Streamable server (optional, for debug)          |
-| FR14-8  | Epic 14 | 14.1       | BYOK support via local env vars                       |
-| FR14-9  | Epic 14 | 14.1       | `.mcp.json` generation via `pml init` (stdio type)    |
-| FR14-10 | Epic 14 | 14.4       | MCP code caching via Deno HTTP cache                  |
-| FR14-11 | Epic 14 | 14.1       | Local and Cloud mode support (via stdio)              |
-| FR14-12 | Epic 14 | 14.1       | Local API keys never stored on cloud                  |
-| FR14-13 | Epic 14 | 14.10      | Standalone capability distribution (add/run/remove)   |
+| FR      | Epic    | Story       | Description                                           |
+| ------- | ------- | ----------- | ----------------------------------------------------- |
+| FR14-1  | Epic 14 | 14.1        | Package JSR installable via `deno install`            |
+| FR14-2  | Epic 14 | 14.2        | Workspace resolution (ENV → detection → CWD)          |
+| FR14-3  | Epic 14 | 14.3, 14.3b | Routing based on cloud config (cached locally)        |
+| FR14-4  | Epic 14 | 14.4, 14.7  | Dynamic MCP import from unified registry              |
+| FR14-5  | Epic 14 | 14.5        | Sandboxed local MCP execution                         |
+| FR14-6  | Epic 14 | 14.1        | Forward cloud MCPs via HTTP RPC (from stdio)          |
+| FR14-7  | Epic 14 | 14.6        | HTTP Streamable server (optional, for debug)          |
+| FR14-8  | Epic 14 | 14.1        | BYOK support via local env vars                       |
+| FR14-9  | Epic 14 | 14.1        | `.mcp.json` generation via `pml init` (stdio type)    |
+| FR14-10 | Epic 14 | 14.4        | MCP code caching via Deno HTTP cache                  |
+| FR14-11 | Epic 14 | 14.1        | Local and Cloud mode support (via stdio)              |
+| FR14-12 | Epic 14 | 14.1        | Local API keys never stored on cloud                  |
+| FR14-13 | Epic 14 | 14.10       | Standalone capability distribution (add/run/remove)   |
+| FR14-14 | Epic 14 | 14.3b       | HIL approval flow via MCP response (stdio compatible) |
 
 ## Epic List
 
@@ -546,6 +547,59 @@ calls to `serena:analyze` skip HIL **And** other `serena:*` tools still require 
 **Technical Note:**
 > The "Always" option persists the specific tool (e.g., `serena:analyze`), not the namespace.
 > Users can manually edit `.pml.json` to use wildcards (`serena:*`) if they want broader approval.
+
+---
+
+### Story 14.3b: HIL Approval Flow for Stdio Mode
+
+As a developer using PML via Claude Code, I want dependency installation approval to work
+seamlessly through Claude's native UI, So that I can approve, always-approve, or abort
+without breaking the JSON-RPC protocol.
+
+**Context (2026-01-06):**
+
+Story 14.4 implemented HIL as a blocking callback (`await hilCallback(prompt)`), but this
+doesn't work in stdio mode because stdin is used for JSON-RPC, not user input. This story
+implements the correct pattern: return `approval_required` in the MCP response, let Claude
+show [Continue] [Always] [Abort], then handle the `continue_workflow` callback.
+
+**Acceptance Criteria:**
+
+**AC1-2 (Approval Required Response):**
+
+**Given** a tool call for a capability with uninstalled dependencies **And** the tool
+permission is "ask" (not in allow list) **When** PML processes the request **Then** it
+returns an MCP response with `approval_required: true` and `approval_context` containing
+the dependency info and a unique `workflow_id` for continuation.
+
+**Given** Claude Code receives an `approval_required` response **Then** it shows the native
+[Continue] [Always] [Abort] UI to the user.
+
+**AC3-4 (Continue Workflow Handling):**
+
+**Given** user clicks [Continue] or [Always] **When** Claude calls back with
+`continue_workflow: { workflow_id, approved: true, always: boolean }` **Then** PML proceeds
+with dependency installation and executes the original tool call.
+
+**Given** `always: true` in the continue_workflow request **When** PML processes it **Then**
+it adds the tool to the user's `allow` list in `.pml.json` before proceeding.
+
+**AC5-6 (Auto-Approve for Allowed Tools):**
+
+**Given** a tool is in the user's `allow` list (e.g., `filesystem:*`) **When** it requires
+dependency installation **Then** installation proceeds automatically without
+`approval_required` response.
+
+**Given** a tool is in the user's `deny` list **When** called **Then** PML returns an error
+immediately without attempting installation.
+
+**AC7-8 (Workflow Expiration):**
+
+**Given** an `approval_required` response was sent **When** no `continue_workflow` is
+received within 5 minutes **Then** the workflow expires and subsequent continuation
+attempts return an error.
+
+**Implementation:** See `14-3b-hil-approval-flow.md` for detailed tasks and dev notes.
 
 ---
 
