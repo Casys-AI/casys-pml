@@ -1000,6 +1000,8 @@ This is the "Docker model" for capabilities:
 - `pml remove <cap>` = uninstall capability
 - `pml list` = list installed standalone capabilities
 
+**Note:** Standalone mode does NOT require `PML_API_KEY`. Capabilities are fetched once from registry during `pml add` and cached locally. Unlike `pml stdio` (cloud mode), standalone capabilities run fully offline after installation.
+
 **Acceptance Criteria:**
 
 **AC1-2 (Add Command):**
