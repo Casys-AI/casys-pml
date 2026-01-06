@@ -36,7 +36,7 @@ user's local resources.
 - **FR14-4:** The system must dynamically import MCP code from unified PML registry (`pml.casys.ai/mcp/{fqdn}`)
 - **FR14-5:** The system must execute local MCPs (filesystem, shell, sqlite) in Deno sandbox with
   scoped permissions
-- **FR14-6:** The system must forward cloud MCPs (pml:search, GraphRAG, tavily) via HTTP RPC to
+- **FR14-6:** The system must forward server MCPs (pml:search, GraphRAG, tavily) via HTTP RPC to
   `pml.casys.ai`
 - **FR14-7:** The system must expose an MCP HTTP Streamable server for Claude Code integration
 - **FR14-8:** The system must support BYOK (Bring Your Own Key) for third-party MCPs via local
@@ -166,18 +166,18 @@ Claude sees:
 **Mode B: Standalone Capability (Direct MCP)**
 ```bash
 # CLI command (terminal)
-pml add namespace:action[@version]
+pml add namespace.action[@version]
 
 # Examples:
-pml add db:postgres_query           # latest par défaut
-pml add db:postgres_query@latest    # explicit
-pml add db:postgres_query@1.2.0     # version spécifique (future)
+pml add db.postgres_query           # latest par défaut
+pml add db.postgres_query@latest    # explicit
+pml add db.postgres_query@1.2.0     # version spécifique (future)
 ```
 ```
 .mcp.json (auto-modified):
 {
   "mcpServers": {
-    "db_postgres_query": { "command": "pml", "args": ["run", "db:postgres_query"] }
+    "db_postgres_query": { "command": "pml", "args": ["run", "db.postgres_query"] }
   }
 }
 
@@ -260,9 +260,9 @@ export function query() {...}        export function query() {...}
 **Capability with stdio MCP deps:**
 ```json
 {
-  "fqdn": "org:project:namespace.action",
+  "fqdn": "casys.pml.myCapability",
   "type": "deno",
-  "code_url": "https://pml.casys.ai/mcp/myCapability.ts",
+  "code_url": "https://pml.casys.ai/mcp/casys.pml.myCapability",
   "mcp_deps": [
     {
       "name": "memory",
@@ -288,7 +288,28 @@ export function query() {...}        export function query() {...}
 
 ---
 
-### Routing = WHERE to Execute (Clarified 2025-01-06)
+### Naming Convention (Consolidated 2026-01-06)
+
+| Context | Format | Example |
+|---------|--------|---------|
+| **FQDN** (registry lookup) | org.project.namespace.action | `casys.pml.filesystem.read_file` |
+| **Tool name** (config, Claude sees) | namespace:action | `filesystem:read_file` |
+| **Code TS** (capability code) | mcp.namespace.action() | `mcp.filesystem.read_file()` |
+
+**Rules:**
+- FQDN = all dots (for registry URLs)
+- Tool names = colon (MCP standard, what Claude displays)
+- Code calls = dots with `mcp.` prefix (our internal DSL)
+
+**No difference between capabilities and MCP servers** - same naming applies to both.
+
+**Conversion:**
+- FQDN → Tool: `casys.pml.filesystem.read_file` → `filesystem:read_file`
+- Tool → Code: `filesystem:read_file` → `mcp.filesystem.read_file()`
+
+---
+
+### Routing = WHERE to Execute (Clarified 2026-01-06)
 
 **Terminology:**
 - `client` = runs on user's machine (dangerous tools: filesystem, docker, ssh)
@@ -305,11 +326,11 @@ pml.casys.ai imports +          User's PML imports +
 executes on server              executes on client
     │                               │
     ▼                               ▼
-mcp.tavily → server API         mcp.filesystem → local files
+mcp.tavily.search → server      mcp.filesystem.read_file → local
 ```
 
 **Same code, different execution context:**
-- Code is fetched from same URL (`pml.casys.ai/mcp/{namespace:action}`)
+- Code is fetched from same URL (`pml.casys.ai/mcp/{fqdn}`)
 - Routing decides: execute on server OR on user's machine (client)
 - `mcp.*` calls resolve differently based on context
 
@@ -681,7 +702,7 @@ supports MCP HTTP Streamable transport (ADR-025)
 shell) **Then** PML routes to sandboxed local execution **And** returns the result via HTTP
 streaming
 
-**Given** Claude Code sends a tool call via HTTP **When** the tool is a cloud MCP (pml:search,
+**Given** Claude Code sends a tool call via HTTP **When** the tool is a server MCP (pml:search,
 GraphRAG, tavily) **Then** PML forwards via HTTP to `pml.casys.ai/mcp` **And** injects BYOK API keys
 from local environment **And** returns the result via HTTP streaming
 
@@ -733,7 +754,7 @@ The package handles the response based on content-type or embedded metadata. No 
 it **Then** it returns the Deno module code directly **And** the code exports metadata as comments
 or a `__meta__` export:
 ```typescript
-// __meta__: { "type": "deno", "tools": ["filesystem:read_file", ...], "routing": "local" }
+// __meta__: { "type": "deno", "tools": ["filesystem:read_file", ...], "routing": "client" }
 export async function read_file(args: { path: string }) { ... }
 export async function write_file(args: { path: string, content: string }) { ... }
 ```
@@ -752,7 +773,7 @@ export async function write_file(args: { path: string, content: string }) { ... 
   },
   "tools": ["serena:analyze", "serena:refactor", "serena:explain"],
   "warnings": { "creates_dotfiles": [".serena"] },
-  "routing": "local"
+  "routing": "client"
 }
 ```
 
@@ -766,13 +787,13 @@ export async function write_file(args: { path: string, content: string }) { ... 
   "proxy_to": "https://pml.casys.ai/mcp/proxy/tavily",
   "tools": ["tavily:search"],
   "env_required": ["TAVILY_API_KEY"],
-  "routing": "cloud"
+  "routing": "server"
 }
 ```
 
 **AC4-5 (Capability Records & 404):**
 
-**Given** a request to `pml.casys.ai/mcp/fs:read_json` (learned capability) **When** the endpoint
+**Given** a request to `pml.casys.ai/mcp/casys.pml.fs.read_json` (learned capability) **When** the endpoint
 processes it **Then** it returns Deno module code (same as native MCP) **And** the capability is
 indistinguishable from a native MCP
 
@@ -827,7 +848,7 @@ MCPs are exercised
 **Given** a local filesystem MCP test **When** reading a file within workspace **Then** content is
 returned correctly **And** execution stays within sandbox permissions
 
-**Given** a cloud MCP test (e.g., `pml:search_tools`) **When** called via the local package **Then**
+**Given** a server MCP test (e.g., `pml:search_tools`) **When** called via the local package **Then**
 the request is forwarded to cloud **And** results are returned through HTTP
 
 **Given** offline mode simulation **When** cloud is unreachable but cache exists **Then** local MCPs
@@ -869,12 +890,12 @@ them like any other MCP.
     "internal-db": {
       "type": "stdio",
       "install": { "command": "npx", "args": ["@company/internal-db-mcp"] },
-      "tools": ["internal-db:query", "internal-db:migrate"]
+      "tools": ["internal_db:query", "internal_db:migrate"]
     }
   }
 }
 ```
-**When** `internal-db:query` is called **Then** PML uses the local definition **And** installs
+**When** `internal_db:query` is called **Then** PML uses the local definition **And** installs
 on-demand like registry MCPs
 
 **Given** a private MCP name conflicts with a registry MCP **When** the tool is called **Then**
@@ -1063,8 +1084,8 @@ pml.casys.ai/mcp/{fqdn}
 
 Examples:
   /mcp/filesystem        → Native MCP server code
-  /mcp/fs:read_json      → Learned capability (same MCP interface)
-  /mcp/data:transform    → Learned capability
+  /mcp/casys.pml.fs.read_json      → Learned capability (same MCP interface)
+  /mcp/casys.pml.data.transform    → Learned capability
 ```
 
 Internal distinction via `pml_registry.record_type`:
