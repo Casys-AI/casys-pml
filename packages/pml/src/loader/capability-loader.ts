@@ -11,15 +11,18 @@
  */
 
 import type {
+  ApprovalRequiredResult,
   CapabilityMetadata,
   CapabilityModule,
+  ContinueWorkflowParams,
   ExecutionContext,
-  HilCallback,
   LoadedCapability,
   McpDependency,
   McpProxy,
 } from "./types.ts";
 import { LoaderError } from "./types.ts";
+import { checkPermission } from "../permissions/loader.ts";
+import type { PmlPermissions } from "../types.ts";
 import { RegistryClient } from "./registry-client.ts";
 import { loadCapabilityModule } from "./deno-loader.ts";
 import { createDepState, DepState } from "./dep-state.ts";
@@ -27,21 +30,22 @@ import { DepInstaller } from "./dep-installer.ts";
 import { StdioManager } from "./stdio-manager.ts";
 import { validateEnvForDep } from "./env-checker.ts";
 import { resolveToolRouting } from "../routing/mod.ts";
+import * as log from "@std/log";
 
 /**
- * Log debug message if PML_DEBUG is enabled.
+ * Log debug message for loader operations.
  */
 function logDebug(message: string): void {
-  if (Deno.env.get("PML_DEBUG") === "1") {
-    console.error(`[pml:loader] ${message}`);
-  }
+  log.debug(`[pml:loader] ${message}`);
 }
 
 /**
- * Default HIL callback that always denies (for non-interactive use).
+ * Default permissions: ask for everything (safe defaults).
  */
-const defaultHilCallback: HilCallback = async (_prompt: string) => {
-  return false;
+const DEFAULT_PERMISSIONS: PmlPermissions = {
+  allow: [],
+  deny: [],
+  ask: ["*"],
 };
 
 /**
@@ -52,8 +56,8 @@ export interface CapabilityLoaderOptions {
   cloudUrl: string;
   /** Workspace root path */
   workspace: string;
-  /** HIL callback for user prompts */
-  hilCallback?: HilCallback;
+  /** User permissions (loaded from .pml.json) */
+  permissions?: PmlPermissions;
   /** Custom dep state path */
   depStatePath?: string;
   /** Idle timeout for stdio processes (ms) */
@@ -70,7 +74,7 @@ export class CapabilityLoader {
   private readonly depState: DepState;
   private readonly installer: DepInstaller;
   private readonly stdioManager: StdioManager;
-  private readonly hilCallback: HilCallback;
+  private readonly permissions: PmlPermissions;
   private readonly cloudUrl: string;
   private readonly workspace: string;
 
@@ -86,7 +90,7 @@ export class CapabilityLoader {
   ) {
     this.cloudUrl = options.cloudUrl;
     this.workspace = options.workspace;
-    this.hilCallback = options.hilCallback ?? defaultHilCallback;
+    this.permissions = options.permissions ?? DEFAULT_PERMISSIONS;
 
     this.registryClient = new RegistryClient({ cloudUrl: options.cloudUrl });
     this.depState = depState;
@@ -99,7 +103,9 @@ export class CapabilityLoader {
   /**
    * Create and initialize a capability loader.
    */
-  static async create(options: CapabilityLoaderOptions): Promise<CapabilityLoader> {
+  static async create(
+    options: CapabilityLoaderOptions,
+  ): Promise<CapabilityLoader> {
     const depState = await createDepState(options.depStatePath);
     return new CapabilityLoader(options, depState);
   }
@@ -107,10 +113,17 @@ export class CapabilityLoader {
   /**
    * Load a capability by namespace.
    *
+   * May return ApprovalRequiredResult if dependencies need user approval.
+   * Use loadWithApproval() to handle the stateless approval flow.
+   *
    * @param namespace - Tool namespace (e.g., "filesystem:read_file")
-   * @returns Loaded capability ready for execution
+   * @param continueWorkflow - Optional: approval from previous call
+   * @returns Loaded capability or approval required result
    */
-  async load(namespace: string): Promise<LoadedCapability> {
+  async load(
+    namespace: string,
+    continueWorkflow?: ContinueWorkflowParams,
+  ): Promise<LoadedCapability | ApprovalRequiredResult> {
     // Check cache
     const cached = this.loadedCapabilities.get(namespace);
     if (cached) {
@@ -124,7 +137,27 @@ export class CapabilityLoader {
     const { metadata } = await this.registryClient.fetch(namespace);
 
     // 2. Check and install dependencies
-    await this.ensureDependencies(metadata);
+    // If continueWorkflow.approved is true, force install (user approved)
+    const forceInstall = continueWorkflow?.approved === true;
+    const approvalResult = await this.ensureDependencies(
+      metadata,
+      forceInstall,
+    );
+
+    // If approval is required and not yet approved, return the approval request
+    if (approvalResult) {
+      if (continueWorkflow?.approved === false) {
+        throw new LoaderError(
+          "DEPENDENCY_NOT_APPROVED",
+          `Dependency ${approvalResult.dependency.name} was not approved by user`,
+          {
+            dep: approvalResult.dependency.name,
+            version: approvalResult.dependency.version,
+          },
+        );
+      }
+      return approvalResult;
+    }
 
     // 3. Dynamic import capability code
     const { module } = await loadCapabilityModule(metadata.codeUrl);
@@ -147,49 +180,97 @@ export class CapabilityLoader {
   }
 
   /**
+   * Check if result is an approval required response.
+   */
+  static isApprovalRequired(result: unknown): result is ApprovalRequiredResult {
+    return (
+      typeof result === "object" &&
+      result !== null &&
+      "approvalRequired" in result &&
+      (result as ApprovalRequiredResult).approvalRequired === true
+    );
+  }
+
+  /**
    * Call a tool directly without pre-loading.
    *
    * Convenience method that combines load() + call().
+   * May return ApprovalRequiredResult if dependencies need user approval.
    *
    * @param toolId - Full tool ID (e.g., "filesystem:read_file")
    * @param args - Tool arguments
-   * @returns Tool result
+   * @param continueWorkflow - Optional: approval from previous call
+   * @returns Tool result or ApprovalRequiredResult
    */
-  async call(toolId: string, args: unknown): Promise<unknown> {
+  async call(
+    toolId: string,
+    args: unknown,
+    continueWorkflow?: ContinueWorkflowParams,
+  ): Promise<unknown | ApprovalRequiredResult> {
     // Parse tool ID into namespace:action
     const parts = toolId.includes(":")
       ? toolId.split(":", 2)
       : [toolId, "default"];
     const action = parts[1];
 
-    // Load capability
-    const capability = await this.load(toolId);
+    // Load capability (may return ApprovalRequiredResult)
+    const loadResult = await this.load(toolId, continueWorkflow);
+
+    // If approval is required, return the approval request
+    if (CapabilityLoader.isApprovalRequired(loadResult)) {
+      return loadResult;
+    }
 
     // Call the action
-    return capability.call(action, args);
+    return loadResult.call(action, args);
   }
 
   /**
    * Ensure all dependencies are installed.
+   *
+   * Returns ApprovalRequiredResult if any dependency needs user approval.
+   * Returns null if all dependencies are satisfied.
+   *
+   * @param meta - Capability metadata
+   * @param forceInstall - If true, install without approval (after user approved)
    */
-  private async ensureDependencies(meta: CapabilityMetadata): Promise<void> {
+  private async ensureDependencies(
+    meta: CapabilityMetadata,
+    forceInstall = false,
+  ): Promise<ApprovalRequiredResult | null> {
     if (!meta.mcpDeps || meta.mcpDeps.length === 0) {
-      return;
+      return null;
     }
 
     for (const dep of meta.mcpDeps) {
-      await this.ensureDependency(dep);
+      const result = await this.ensureDependency(dep, forceInstall);
+      if (result) {
+        return result;
+      }
     }
+    return null;
   }
 
   /**
    * Ensure a single dependency is installed.
+   *
+   * Uses permission-based approval:
+   * - "allowed" (in allow list) → auto-install, no approval needed
+   * - "denied" (in deny list) → error
+   * - "ask" (default) → return ApprovalRequiredResult
+   *
+   * @param dep - The dependency to check/install
+   * @param forceInstall - If true, skip approval check and install
+   * @returns ApprovalRequiredResult if approval needed, null if installed
    */
-  private async ensureDependency(dep: McpDependency): Promise<void> {
+  private async ensureDependency(
+    dep: McpDependency,
+    forceInstall = false,
+  ): Promise<ApprovalRequiredResult | null> {
     // Check if already installed with correct version
     if (this.depState.isInstalled(dep.name, dep.version)) {
       logDebug(`Dependency ${dep.name}@${dep.version} already installed`);
-      return;
+      return null;
     }
 
     logDebug(`Dependency ${dep.name}@${dep.version} needs installation`);
@@ -207,32 +288,42 @@ export class CapabilityLoader {
       }
     }
 
-    // HIL prompt for approval - pass dep for config-based approval
-    const prompt = `Install ${dep.name}@${dep.version}?\n` +
-      `  Command: ${dep.install}\n` +
-      `  Type 'yes' to approve, 'no' to deny:`;
+    // Check permission for this dependency
+    const permission = checkPermission(dep.name, this.permissions);
 
-    const approved = await this.hilCallback(prompt, dep);
-
-    if (!approved) {
+    if (permission === "denied") {
       throw new LoaderError(
         "DEPENDENCY_NOT_APPROVED",
-        `Dependency ${dep.name} required but not approved by user`,
+        `Dependency ${dep.name} is in deny list`,
         { dep: dep.name, version: dep.version },
       );
     }
 
-    // Install the dependency
-    try {
-      await this.installer.install(dep);
-      logDebug(`Dependency ${dep.name}@${dep.version} installed`);
-    } catch (error) {
-      throw new LoaderError(
-        "DEPENDENCY_INSTALL_FAILED",
-        error instanceof Error ? error.message : String(error),
-        { dep: dep.name, version: dep.version },
-      );
+    // Auto-install if in allow list
+    if (permission === "allowed" || forceInstall) {
+      try {
+        await this.installer.install(dep);
+        logDebug(
+          `Dependency ${dep.name}@${dep.version} installed (auto-approved)`,
+        );
+        return null;
+      } catch (error) {
+        throw new LoaderError(
+          "DEPENDENCY_INSTALL_FAILED",
+          error instanceof Error ? error.message : String(error),
+          { dep: dep.name, version: dep.version },
+        );
+      }
     }
+
+    // Permission is "ask" - return approval_required (stateless HIL)
+    logDebug(`Dependency ${dep.name}@${dep.version} requires approval`);
+    return {
+      approvalRequired: true,
+      dependency: dep,
+      description:
+        `Install ${dep.name}@${dep.version} to execute this capability`,
+    };
   }
 
   /**
@@ -276,13 +367,16 @@ export class CapabilityLoader {
   private createMcpProxy(meta: CapabilityMetadata): McpProxy {
     return new Proxy({} as McpProxy, {
       get: (_target, namespace: string) => {
-        return new Proxy({} as Record<string, (args: unknown) => Promise<unknown>>, {
-          get: (_innerTarget, action: string) => {
-            return async (args: unknown): Promise<unknown> => {
-              return this.routeMcpCall(meta, namespace, action, args);
-            };
+        return new Proxy(
+          {} as Record<string, (args: unknown) => Promise<unknown>>,
+          {
+            get: (_innerTarget, action: string) => {
+              return async (args: unknown): Promise<unknown> => {
+                return this.routeMcpCall(meta, namespace, action, args);
+              };
+            },
           },
-        });
+        );
       },
     });
   }
@@ -355,11 +449,21 @@ export class CapabilityLoader {
   ): Promise<unknown> {
     logDebug(`Cloud call: ${toolId}`);
 
+    // PML_API_KEY is required for cloud calls
+    const apiKey = Deno.env.get("PML_API_KEY");
+    if (!apiKey) {
+      throw new LoaderError(
+        "ENV_VAR_MISSING",
+        "PML_API_KEY environment variable is required for cloud calls",
+        { required: ["PML_API_KEY"] },
+      );
+    }
+
     const response = await fetch(`${this.cloudUrl}/mcp/tools/call`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        // TODO: Add PML_API_KEY header
+        "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         jsonrpc: "2.0",

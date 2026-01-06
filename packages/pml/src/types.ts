@@ -282,16 +282,19 @@ export interface CapabilityPermissionResult {
 // ============================================================================
 
 export type {
+  ApprovalRequiredResult,
+  CapabilityLoadResult,
   CapabilityMetadata,
   CapabilityModule,
+  ContinueWorkflowParams,
   DepStateFile,
   ExecutionContext,
-  HilCallback,
   InstallResult,
   InstalledDep,
   IntegrityResult,
   LoadedCapability,
   LoaderErrorCode,
+  LoadSuccessResult,
   McpDependency,
   McpProxy,
   PendingRequest,

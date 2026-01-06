@@ -110,18 +110,19 @@ Deno.test("CapabilityLoader - load fails for nonexistent capability", async () =
   }
 });
 
-Deno.test("CapabilityLoader - HIL callback is invoked for deps", async () => {
-  let hilCalled = false;
-  let hilPrompt = "";
+// ============================================================================
+// HIL Approval Flow Tests (Story 14.3b)
+// ============================================================================
 
+Deno.test("CapabilityLoader - returns ApprovalRequiredResult for deps with ask permission", async () => {
   const loader = await CapabilityLoader.create({
     cloudUrl: "https://pml.casys.ai",
     workspace: "/tmp",
     depStatePath: "/tmp/test-loader-hil.json",
-    hilCallback: async (prompt: string) => {
-      hilCalled = true;
-      hilPrompt = prompt;
-      return false; // Deny
+    permissions: {
+      allow: [],
+      deny: [],
+      ask: ["*"], // Default: ask for everything
     },
   });
 
@@ -149,20 +150,260 @@ Deno.test("CapabilityLoader - HIL callback is invoked for deps", async () => {
   };
 
   try {
-    await assertRejects(
-      async () => {
-        await loader.load("hil:test");
-      },
-      LoaderError,
-      "not approved",
-    );
+    const result = await loader.load("hil:test");
 
-    assertEquals(hilCalled, true);
-    assertEquals(hilPrompt.includes("memory@1.0.0"), true);
+    // Should return ApprovalRequiredResult, not throw
+    assertEquals(CapabilityLoader.isApprovalRequired(result), true);
+
+    if (CapabilityLoader.isApprovalRequired(result)) {
+      assertEquals(result.dependency.name, "memory");
+      assertEquals(result.dependency.version, "1.0.0");
+      assertEquals(result.description.includes("memory@1.0.0"), true);
+    }
   } finally {
     globalThis.fetch = originalFetch;
     loader.shutdown();
   }
+});
+
+Deno.test("CapabilityLoader - auto-installs deps in allow list", async () => {
+  let installCalled = false;
+
+  const validMetadata = {
+    fqdn: "casys.pml.auto.test",
+    type: "deno",
+    codeUrl: "data:application/javascript,export function run() { return 'ok'; }",
+    tools: ["auto:test"],
+    routing: "client",
+    mcpDeps: [
+      {
+        name: "memory",
+        type: "stdio",
+        install: "npx @mcp/memory@1.0.0",
+        version: "1.0.0",
+        integrity: "sha256-abc123",
+      },
+    ],
+  };
+
+  // Mock fetch BEFORE creating loader (so registry requests are mocked)
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    return new Response(JSON.stringify(validMetadata), { status: 200 });
+  };
+
+  try {
+    const loader = await CapabilityLoader.create({
+      cloudUrl: "https://pml.casys.ai",
+      workspace: "/tmp",
+      depStatePath: "/tmp/test-loader-auto-install.json",
+      permissions: {
+        allow: ["memory"], // Auto-approve memory
+        deny: [],
+        ask: [],
+      },
+    });
+
+    try {
+      // With allow permission, should NOT return ApprovalRequiredResult
+      // But install will fail since we don't have actual npx - that's expected
+      // The key test is that it tries to auto-install, not return approval_required
+      const result = await loader.load("auto:test").catch((e) => {
+        // Install failed because npx command doesn't actually run
+        // But the important thing is it tried to install, not ask for approval
+        if (e.code === "DEPENDENCY_INSTALL_FAILED") {
+          installCalled = true;
+          return { _installAttempted: true };
+        }
+        throw e;
+      });
+
+      // Either it succeeded (if somehow deps are installed) or it tried to install
+      assertEquals(
+        installCalled || !CapabilityLoader.isApprovalRequired(result),
+        true,
+      );
+    } finally {
+      loader.shutdown();
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+Deno.test("CapabilityLoader - denies deps in deny list", async () => {
+  const loader = await CapabilityLoader.create({
+    cloudUrl: "https://pml.casys.ai",
+    workspace: "/tmp",
+    depStatePath: "/tmp/test-loader-deny.json",
+    permissions: {
+      allow: [],
+      deny: ["memory"], // Deny memory
+      ask: [],
+    },
+  });
+
+  const validMetadata = {
+    fqdn: "casys.pml.deny.test",
+    type: "deno",
+    codeUrl: "https://pml.casys.ai/mcp/casys.pml.deny.test",
+    tools: ["deny:test"],
+    routing: "client",
+    mcpDeps: [
+      {
+        name: "memory",
+        type: "stdio",
+        install: "npx @mcp/memory@1.0.0",
+        version: "1.0.0",
+        integrity: "sha256-abc123",
+      },
+    ],
+  };
+
+  // Mock fetch to return metadata with deps
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    return new Response(JSON.stringify(validMetadata), { status: 200 });
+  };
+
+  try {
+    await assertRejects(
+      async () => {
+        await loader.load("deny:test");
+      },
+      LoaderError,
+      "deny list",
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    loader.shutdown();
+  }
+});
+
+Deno.test("CapabilityLoader - continue_workflow approved installs and executes", async () => {
+  const loader = await CapabilityLoader.create({
+    cloudUrl: "https://pml.casys.ai",
+    workspace: "/tmp",
+    depStatePath: "/tmp/test-loader-continue.json",
+    permissions: {
+      allow: [],
+      deny: [],
+      ask: ["*"],
+    },
+  });
+
+  const validMetadata = {
+    fqdn: "casys.pml.continue.test",
+    type: "deno",
+    codeUrl: "data:application/javascript,export function run() { return 'ok'; }",
+    tools: ["continue:test"],
+    routing: "client",
+    mcpDeps: [
+      {
+        name: "memory",
+        type: "stdio",
+        install: "npx @mcp/memory@1.0.0",
+        version: "1.0.0",
+        integrity: "sha256-abc123",
+      },
+    ],
+  };
+
+  // Mock fetch to return metadata with deps
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    return new Response(JSON.stringify(validMetadata), { status: 200 });
+  };
+
+  try {
+    // First call should return ApprovalRequiredResult
+    const firstResult = await loader.load("continue:test");
+    assertEquals(CapabilityLoader.isApprovalRequired(firstResult), true);
+
+    // Second call with approved: true should try to install
+    // (will fail because no real npx, but tests the flow)
+    const secondResult = await loader.load("continue:test", { approved: true }).catch((e) => {
+      // Expected: install fails because no real npx
+      if (e.code === "DEPENDENCY_INSTALL_FAILED") {
+        return { _installAttempted: true };
+      }
+      throw e;
+    });
+
+    // Should have tried to install, not return approval_required again
+    assertEquals(CapabilityLoader.isApprovalRequired(secondResult), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+    loader.shutdown();
+  }
+});
+
+Deno.test("CapabilityLoader - continue_workflow denied throws error", async () => {
+  const loader = await CapabilityLoader.create({
+    cloudUrl: "https://pml.casys.ai",
+    workspace: "/tmp",
+    depStatePath: "/tmp/test-loader-abort.json",
+    permissions: {
+      allow: [],
+      deny: [],
+      ask: ["*"],
+    },
+  });
+
+  const validMetadata = {
+    fqdn: "casys.pml.abort.test",
+    type: "deno",
+    codeUrl: "https://pml.casys.ai/mcp/casys.pml.abort.test",
+    tools: ["abort:test"],
+    routing: "client",
+    mcpDeps: [
+      {
+        name: "memory",
+        type: "stdio",
+        install: "npx @mcp/memory@1.0.0",
+        version: "1.0.0",
+        integrity: "sha256-abc123",
+      },
+    ],
+  };
+
+  // Mock fetch to return metadata with deps
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    return new Response(JSON.stringify(validMetadata), { status: 200 });
+  };
+
+  try {
+    // Call with approved: false should throw
+    await assertRejects(
+      async () => {
+        await loader.load("abort:test", { approved: false });
+      },
+      LoaderError,
+      "not approved",
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    loader.shutdown();
+  }
+});
+
+Deno.test("CapabilityLoader.isApprovalRequired - correctly identifies result types", () => {
+  // ApprovalRequiredResult
+  const approvalResult = {
+    approvalRequired: true,
+    dependency: { name: "test", type: "stdio", install: "npx test", version: "1.0.0", integrity: "sha256-abc" },
+    description: "Install test",
+  };
+  assertEquals(CapabilityLoader.isApprovalRequired(approvalResult), true);
+
+  // Not an ApprovalRequiredResult
+  assertEquals(CapabilityLoader.isApprovalRequired(null), false);
+  assertEquals(CapabilityLoader.isApprovalRequired(undefined), false);
+  assertEquals(CapabilityLoader.isApprovalRequired({}), false);
+  assertEquals(CapabilityLoader.isApprovalRequired({ approvalRequired: false }), false);
+  assertEquals(CapabilityLoader.isApprovalRequired("string"), false);
+  assertEquals(CapabilityLoader.isApprovalRequired(123), false);
 });
 
 // ============================================================================

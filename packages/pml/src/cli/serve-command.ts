@@ -147,20 +147,16 @@ export function createServeCommand(): Command<any> {
       }
       console.log();
 
-      // Step 4: Initialize CapabilityLoader (Story 14.4)
+      // Step 4: Initialize CapabilityLoader (Story 14.4 + 14.3b)
       console.log(colors.dim("Initializing capability loader..."));
       let loader: CapabilityLoader | null = null;
       try {
         loader = await CapabilityLoader.create({
           cloudUrl,
           workspace,
-          hilCallback: async (prompt: string) => {
-            // HTTP mode HIL - will be implemented in Story 14.6
-            console.log(colors.yellow(`\n⚠️  HIL Prompt: ${prompt}`));
-            return false; // Deny by default until proper HIL is implemented
-          },
+          permissions: permissionResult.permissions,
         });
-        console.log(`  ${colors.green("✓")} Capability loader ready`);
+        console.log(`  ${colors.green("✓")} Capability loader ready (approval via MCP response)`);
       } catch (error) {
         console.log(`  ${colors.yellow("⚠")} Capability loader failed: ${error}`);
       }

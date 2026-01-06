@@ -9,19 +9,20 @@
 import { ensureDir } from "@std/fs";
 import { join } from "@std/path";
 import type { DepStateFile, InstalledDep, McpDependency } from "./types.ts";
+import * as log from "@std/log";
 
 /**
- * Default state file path.
+ * Get default state file path (lazy to avoid top-level env access).
  */
-const DEFAULT_STATE_PATH = join(Deno.env.get("HOME") ?? "~", ".pml", "deps.json");
+function getDefaultStatePath(): string {
+  return join(Deno.env.get("HOME") ?? "~", ".pml", "deps.json");
+}
 
 /**
- * Log debug message if PML_DEBUG is enabled.
+ * Log debug message for dep-state operations.
  */
 function logDebug(message: string): void {
-  if (Deno.env.get("PML_DEBUG") === "1") {
-    console.error(`[pml:dep-state] ${message}`);
-  }
+  log.debug(`[pml:dep-state] ${message}`);
 }
 
 /**
@@ -35,7 +36,7 @@ export class DepState {
   private dirty = false;
 
   constructor(statePath?: string) {
-    this.statePath = statePath ?? DEFAULT_STATE_PATH;
+    this.statePath = statePath ?? getDefaultStatePath();
   }
 
   /**
@@ -63,7 +64,9 @@ export class DepState {
       }
 
       this.state = data as DepStateFile;
-      logDebug(`Loaded ${Object.keys(this.state.installed).length} installed deps`);
+      logDebug(
+        `Loaded ${Object.keys(this.state.installed).length} installed deps`,
+      );
     } catch (error) {
       if (error instanceof Deno.errors.NotFound) {
         logDebug(`State file not found, using default`);
@@ -134,7 +137,11 @@ export class DepState {
   /**
    * Mark a dependency as installed.
    */
-  markInstalled(dep: McpDependency, integrity: string, installPath?: string): void {
+  markInstalled(
+    dep: McpDependency,
+    integrity: string,
+    installPath?: string,
+  ): void {
     this.ensureLoaded();
 
     this.state!.installed[dep.name] = {

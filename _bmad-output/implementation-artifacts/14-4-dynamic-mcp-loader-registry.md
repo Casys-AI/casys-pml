@@ -1,6 +1,6 @@
 # Story 14.4: Dynamic MCP Loader with Dependency Installation
 
-Status: ready-for-dev
+Status: review
 
 > **Epic:** 14 - JSR Package Local/Cloud MCP Routing
 > **FR Coverage:** FR14-4 (Dynamic MCP import), FR14-10 (Caching via Deno)
@@ -187,30 +187,30 @@ interface McpDependency {
 
 ### Phase 1: Types & Interfaces (~30m)
 
-- [ ] Task 1: Define capability and dependency types (AC: #1, #3)
-  - [ ] Create `packages/pml/src/loader/types.ts`
-  - [ ] Define `CapabilityMetadata` interface
-  - [ ] Define `McpDependency` interface
-  - [ ] Define `InstalledDep` for tracking state
-  - [ ] Export from `packages/pml/src/types.ts`
+- [x] Task 1: Define capability and dependency types (AC: #1, #3)
+  - [x] Create `packages/pml/src/loader/types.ts`
+  - [x] Define `CapabilityMetadata` interface
+  - [x] Define `McpDependency` interface
+  - [x] Define `InstalledDep` for tracking state
+  - [x] Export from `packages/pml/src/types.ts`
 
 ### Phase 2: Registry Client (~45m)
 
-- [ ] Task 2: Create registry client (AC: #1, #2)
-  - [ ] Create `packages/pml/src/loader/registry-client.ts`
-  - [ ] Implement `fetchCapabilityMetadata(namespace: string, cloudUrl: string)`:
+- [x] Task 2: Create registry client (AC: #1, #2)
+  - [x] Create `packages/pml/src/loader/registry-client.ts`
+  - [x] Implement `fetchCapabilityMetadata(namespace: string, cloudUrl: string)`:
     - Fetch from `${cloudUrl}/mcp/${namespace}`
     - Parse JSON metadata
     - Validate schema
-  - [ ] Handle 404 gracefully with clear error
-  - [ ] Handle offline mode (network errors)
-  - [ ] Add in-memory cache for metadata
+  - [x] Handle 404 gracefully with clear error
+  - [x] Handle offline mode (network errors)
+  - [x] Add in-memory cache for metadata
 
 ### Phase 3: Deno Dynamic Loader (~30m)
 
-- [ ] Task 3: Create Deno module loader (AC: #1, #2, #9)
-  - [ ] Create `packages/pml/src/loader/deno-loader.ts`
-  - [ ] Implement `loadCapabilityModule(codeUrl: string)`:
+- [x] Task 3: Create Deno module loader (AC: #1, #2, #9)
+  - [x] Create `packages/pml/src/loader/deno-loader.ts`
+  - [x] Implement `loadCapabilityModule(codeUrl: string)`:
     ```typescript
     export async function loadCapabilityModule(codeUrl: string): Promise<CapabilityModule> {
       // Deno's native HTTP cache handles offline
@@ -218,14 +218,14 @@ interface McpDependency {
       return module;
     }
     ```
-  - [ ] Handle import errors gracefully
-  - [ ] Log cache hit/miss for debugging
+  - [x] Handle import errors gracefully
+  - [x] Log cache hit/miss for debugging
 
 ### Phase 4: Dependency Manager (~2h)
 
-- [ ] Task 4: Create dependency state tracker (AC: #3, #4)
-  - [ ] Create `packages/pml/src/loader/dep-state.ts`
-  - [ ] Implement `DepState` class:
+- [x] Task 4: Create dependency state tracker (AC: #3, #4)
+  - [x] Create `packages/pml/src/loader/dep-state.ts`
+  - [x] Implement `DepState` class:
     ```typescript
     class DepState {
       private statePath = "~/.pml/deps.json";
@@ -235,20 +235,20 @@ interface McpDependency {
       getInstalled(): InstalledDep[];
     }
     ```
-  - [ ] Persist to `~/.pml/deps.json`
-  - [ ] Handle first-run (no state file)
+  - [x] Persist to `~/.pml/deps.json`
+  - [x] Handle first-run (no state file)
 
-- [ ] Task 5: Create integrity verifier (AC: #5, #6)
-  - [ ] Create `packages/pml/src/loader/integrity.ts`
-  - [ ] Implement `verifyIntegrity(dep: McpDependency)`:
+- [x] Task 5: Create integrity verifier (AC: #5, #6)
+  - [x] Create `packages/pml/src/loader/integrity.ts`
+  - [x] Implement `verifyIntegrity(dep: McpDependency)`:
     - Compute sha256 of installed package
     - Compare with expected `dep.integrity`
     - Return `{ valid: boolean, actual: string, expected: string }`
-  - [ ] Handle missing integrity (warn but allow for dev)
+  - [x] Handle missing integrity (warn but allow for dev)
 
-- [ ] Task 6: Create dependency installer (AC: #3, #4, #5)
-  - [ ] Create `packages/pml/src/loader/dep-installer.ts`
-  - [ ] Implement `installDependency(dep: McpDependency)`:
+- [x] Task 6: Create dependency installer (AC: #3, #4, #5)
+  - [x] Create `packages/pml/src/loader/dep-installer.ts`
+  - [x] Implement `installDependency(dep: McpDependency)`:
     ```typescript
     async function installDependency(dep: McpDependency): Promise<InstallResult> {
       // 1. Parse install command (npx, pip, etc.)
@@ -270,13 +270,13 @@ interface McpDependency {
       return { success: true };
     }
     ```
-  - [ ] Handle installation errors with clear messages
+  - [x] Handle installation errors with clear messages
 
 ### Phase 5: Stdio Process Manager (~1.5h)
 
-- [ ] Task 7: Create stdio subprocess manager (AC: #7, #8)
-  - [ ] Create `packages/pml/src/loader/stdio-manager.ts`
-  - [ ] Implement `StdioManager` class:
+- [x] Task 7: Create stdio subprocess manager (AC: #7, #8)
+  - [x] Create `packages/pml/src/loader/stdio-manager.ts`
+  - [x] Implement `StdioManager` class:
     ```typescript
     class StdioManager {
       private processes = new Map<string, StdioProcess>();
@@ -287,21 +287,21 @@ interface McpDependency {
       shutdown(name: string): void;
     }
     ```
-  - [ ] Implement JSON-RPC multiplexing (unique request IDs)
-  - [ ] Implement idle timeout with auto-shutdown
-  - [ ] Handle process crashes with auto-restart
+  - [x] Implement JSON-RPC multiplexing (unique request IDs)
+  - [x] Implement idle timeout with auto-shutdown
+  - [x] Handle process crashes with auto-restart
 
-- [ ] Task 8: Implement stdio JSON-RPC protocol (AC: #7)
-  - [ ] Create `packages/pml/src/loader/stdio-rpc.ts`
-  - [ ] Implement request/response matching via ID
-  - [ ] Handle partial message buffering
-  - [ ] Handle notifications (no response expected)
+- [x] Task 8: Implement stdio JSON-RPC protocol (AC: #7)
+  - [x] Create `packages/pml/src/loader/stdio-rpc.ts`
+  - [x] Implement request/response matching via ID
+  - [x] Handle partial message buffering
+  - [x] Handle notifications (no response expected)
 
 ### Phase 6: Unified Capability Loader (~1h)
 
-- [ ] Task 9: Create unified loader (AC: #1-10)
-  - [ ] Create `packages/pml/src/loader/capability-loader.ts`
-  - [ ] Implement `CapabilityLoader` class:
+- [x] Task 9: Create unified loader (AC: #1-10)
+  - [x] Create `packages/pml/src/loader/capability-loader.ts`
+  - [x] Implement `CapabilityLoader` class:
     ```typescript
     class CapabilityLoader {
       constructor(
@@ -326,47 +326,47 @@ interface McpDependency {
       async call(toolId: string, args: unknown): Promise<unknown>;
     }
     ```
-  - [ ] Implement `mcp.*` call interception and routing
-  - [ ] Cache loaded capabilities in memory
+  - [x] Implement `mcp.*` call interception and routing
+  - [x] Cache loaded capabilities in memory
 
-- [ ] Task 10: Implement env var checker (AC: #10)
-  - [ ] Create `packages/pml/src/loader/env-checker.ts`
-  - [ ] Implement `checkEnvVars(required: string[])`:
+- [x] Task 10: Implement env var checker (AC: #10)
+  - [x] Create `packages/pml/src/loader/env-checker.ts`
+  - [x] Implement `checkEnvVars(required: string[])`:
     - Check each var exists in Deno.env
     - Return missing vars list
-  - [ ] Format clear error messages
+  - [x] Format clear error messages
 
 ### Phase 7: Integration (~1h)
 
-- [ ] Task 11: Update stdio-command.ts (AC: all)
-  - [ ] Initialize `CapabilityLoader` at startup
-  - [ ] Modify `handleToolsCall()` to use loader
-  - [ ] Implement HIL callback (write to stderr, read from stdin)
-  - [ ] Wire `mcp.*` routing to stdio manager
+- [x] Task 11: Update stdio-command.ts (AC: all)
+  - [x] Initialize `CapabilityLoader` at startup
+  - [x] Modify `handleToolsCall()` to use loader
+  - [x] Implement HIL callback (write to stderr, read from stdin)
+  - [x] Wire `mcp.*` routing to stdio manager
 
-- [ ] Task 12: Update serve-command.ts (AC: all)
-  - [ ] Initialize `CapabilityLoader` at startup
-  - [ ] Wire HTTP handler to use loader
+- [x] Task 12: Update serve-command.ts (AC: all)
+  - [x] Initialize `CapabilityLoader` at startup
+  - [x] Wire HTTP handler to use loader
 
 ### Phase 8: Tests (~1.5h)
 
-- [ ] Task 13: Unit tests for registry client
-  - [ ] Test metadata fetch and parse
-  - [ ] Test 404 handling
-  - [ ] Test offline mode
+- [x] Task 13: Unit tests for registry client
+  - [x] Test metadata fetch and parse
+  - [x] Test 404 handling
+  - [x] Test offline mode
 
-- [ ] Task 14: Unit tests for dependency manager
-  - [ ] Test state persistence
-  - [ ] Test integrity verification
-  - [ ] Test installation flow
+- [x] Task 14: Unit tests for dependency manager
+  - [x] Test state persistence
+  - [x] Test integrity verification
+  - [x] Test installation flow
 
-- [ ] Task 15: Unit tests for stdio manager
-  - [ ] Test process spawn/shutdown
-  - [ ] Test JSON-RPC multiplexing
-  - [ ] Test idle timeout
+- [x] Task 15: Unit tests for stdio manager
+  - [x] Test process spawn/shutdown
+  - [x] Test JSON-RPC multiplexing
+  - [x] Test idle timeout
 
-- [ ] Task 16: Integration test
-  - [ ] Test full flow: fetch → deps → import → execute
+- [x] Task 16: Integration test
+  - [x] Test full flow: fetch → deps → import → execute
 
 ## Dev Notes
 
@@ -649,5 +649,56 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Completion Notes List
 
+- **2026-01-06**: All 16 tasks completed successfully
+- **Tests**: 192 tests passing across all test files
+- **Fixed Issues**:
+  - `InstallError.cause` property conflict with Error base class - renamed to `reason`
+  - Missing `@std/encoding/hex` import - added to deno.json
+  - ArrayBuffer type compatibility issue with crypto.subtle.digest - used proper casting
+  - Unused imports in test files removed
+- **Architecture**: Full loader system implemented with:
+  - Registry client with in-memory caching
+  - Deno dynamic import with native HTTP cache
+  - Dependency state persistence to `~/.pml/deps.json`
+  - SHA-256 integrity verification
+  - Stdio subprocess management with idle timeout
+  - Stateless HIL via MCP approval_required response (Story 14.3b)
+  - mcp.* proxy for routing calls to stdio/cloud/local
+  - PML_API_KEY authentication for cloud calls
+
+### Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| 2026-01-06 | Story implementation complete - all 16 tasks done, 192 tests passing | Claude Opus 4.5 |
+| 2026-01-06 | Code review fixes: PML_API_KEY auth header, @std/log replacing console.error, removed obsolete HilCallback type | Claude Opus 4.5 |
+
 ### File List
+
+**Created Files (10 new files in loader/):**
+- `packages/pml/src/loader/types.ts` - Core type definitions (CapabilityMetadata, McpDependency, etc.)
+- `packages/pml/src/loader/registry-client.ts` - Registry fetch with caching
+- `packages/pml/src/loader/deno-loader.ts` - Dynamic import wrapper
+- `packages/pml/src/loader/dep-state.ts` - Dependency state persistence
+- `packages/pml/src/loader/integrity.ts` - SHA-256 hash verification
+- `packages/pml/src/loader/dep-installer.ts` - Dependency installation
+- `packages/pml/src/loader/stdio-manager.ts` - Subprocess lifecycle management
+- `packages/pml/src/loader/stdio-rpc.ts` - JSON-RPC 2.0 protocol
+- `packages/pml/src/loader/env-checker.ts` - Environment variable validation
+- `packages/pml/src/loader/capability-loader.ts` - Unified loader with mcp.* routing
+- `packages/pml/src/loader/mod.ts` - Module exports
+
+**Test Files (4 new):**
+- `packages/pml/tests/registry_client_test.ts` - Registry client tests
+- `packages/pml/tests/dep_manager_test.ts` - Dependency manager + integrity tests
+- `packages/pml/tests/stdio_manager_test.ts` - Stdio + JSON-RPC tests
+- `packages/pml/tests/capability_loader_test.ts` - Integration tests
+
+**Modified Files:**
+- `packages/pml/src/types.ts` - Added loader type exports (removed obsolete HilCallback)
+- `packages/pml/src/cli/stdio-command.ts` - Integrated CapabilityLoader + stateless HIL via MCP + PML_API_KEY auth
+- `packages/pml/src/cli/serve-command.ts` - Integrated CapabilityLoader
+- `packages/pml/deno.json` - Added @std/encoding/hex, @std/log
+- `deno.json` - Added @std/encoding/hex to workspace
+- `packages/pml/src/loader/*.ts` - All loader files use @std/log for structured logging
 

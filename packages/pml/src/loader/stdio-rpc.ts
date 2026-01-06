@@ -115,7 +115,9 @@ export function createNotification(
 /**
  * Serialize JSON-RPC message for stdio.
  */
-export function serializeMessage(message: JsonRpcRequest | JsonRpcNotification): Uint8Array {
+export function serializeMessage(
+  message: JsonRpcRequest | JsonRpcNotification,
+): Uint8Array {
   const json = JSON.stringify(message);
   return new TextEncoder().encode(json + "\n");
 }

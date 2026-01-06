@@ -52,7 +52,10 @@ export function checkEnvVars(required: string[]): EnvCheckResult {
  * @param missing - List of missing variables
  * @returns Formatted error message
  */
-export function formatMissingEnvError(depName: string, missing: string[]): string {
+export function formatMissingEnvError(
+  depName: string,
+  missing: string[],
+): string {
   if (missing.length === 0) {
     return "";
   }
@@ -64,9 +67,7 @@ export function formatMissingEnvError(depName: string, missing: string[]): strin
     `${vars}\n\n` +
     `To set them:\n` +
     `  export ${missing[0]}=your_value_here\n` +
-    (missing.length > 1
-      ? `  (and ${missing.length - 1} more...)\n`
-      : "") +
+    (missing.length > 1 ? `  (and ${missing.length - 1} more...)\n` : "") +
     `\nOr add them to your .env file.`
   );
 }

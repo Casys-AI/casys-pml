@@ -10,6 +10,7 @@ import type { InstallResult, McpDependency } from "./types.ts";
 import { InstallError, IntegrityError } from "./types.ts";
 import type { DepState } from "./dep-state.ts";
 import { computeStringHash } from "./integrity.ts";
+import * as log from "@std/log";
 
 /**
  * Installation timeout (5 minutes).
@@ -17,12 +18,10 @@ import { computeStringHash } from "./integrity.ts";
 const INSTALL_TIMEOUT_MS = 5 * 60 * 1000;
 
 /**
- * Log debug message if PML_DEBUG is enabled.
+ * Log debug message for installer operations.
  */
 function logDebug(message: string): void {
-  if (Deno.env.get("PML_DEBUG") === "1") {
-    console.error(`[pml:installer] ${message}`);
-  }
+  log.debug(`[pml:installer] ${message}`);
 }
 
 /**
@@ -261,7 +260,9 @@ export class DepInstaller {
     } catch (error) {
       throw new InstallError(
         dep,
-        `Failed to fetch package info from npm: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to fetch package info from npm: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       );
     }
 
@@ -316,7 +317,9 @@ export class DepInstaller {
     } catch (error) {
       throw new InstallError(
         dep,
-        `Failed to fetch package info from npm: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to fetch package info from npm: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       );
     }
 
@@ -387,8 +390,8 @@ export class DepInstaller {
     args: string[],
   ): Promise<InstallResult> {
     // Warn that we can't verify integrity for generic commands
-    console.error(
-      `[pml:installer] WARNING: Cannot verify integrity for ${dep.name}@${dep.version} ` +
+    log.warn(
+      `[pml:installer] Cannot verify integrity for ${dep.name}@${dep.version} ` +
         `(no registry available for ${cmd}). Trusting declared hash.`,
     );
 

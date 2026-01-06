@@ -178,7 +178,9 @@ function validateMetadata(data: unknown): CapabilityMetadata {
     fqdn: obj.fqdn,
     type: "deno",
     codeUrl: obj.codeUrl,
-    description: typeof obj.description === "string" ? obj.description : undefined,
+    description: typeof obj.description === "string"
+      ? obj.description
+      : undefined,
     tools: obj.tools as string[],
     routing: obj.routing,
     mcpDeps: obj.mcpDeps as CapabilityMetadata["mcpDeps"],
@@ -313,7 +315,9 @@ export class RegistryClient {
       // Handle network errors
       throw new LoaderError(
         "METADATA_FETCH_FAILED",
-        `Network error: ${error instanceof Error ? error.message : String(error)}`,
+        `Network error: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
         { url, error: String(error) },
       );
     }

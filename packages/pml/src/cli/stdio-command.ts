@@ -22,7 +22,11 @@ import {
   resolveToolRouting,
   syncRoutingConfig,
 } from "../routing/mod.ts";
-import { CapabilityLoader } from "../loader/mod.ts";
+import {
+  type ApprovalRequiredResult,
+  CapabilityLoader,
+  type ContinueWorkflowParams,
+} from "../loader/mod.ts";
 import { exists } from "@std/fs";
 import { join } from "@std/path";
 
@@ -56,7 +60,11 @@ function sendResponse(response: unknown): void {
 /**
  * Send JSON-RPC error to stdout
  */
-function sendError(id: string | number | null, code: number, message: string): void {
+function sendError(
+  id: string | number | null,
+  code: number,
+  message: string,
+): void {
   sendResponse({
     jsonrpc: "2.0",
     id,
@@ -100,6 +108,77 @@ function handleToolsList(id: string | number): void {
 }
 
 /**
+ * Format approval_required MCP response.
+ *
+ * Uses the same pattern as main codebase (src/mcp/server/responses.ts).
+ * Stateless: No workflow state stored - capability metadata contains all info.
+ */
+function formatApprovalRequired(
+  toolName: string,
+  approvalResult: ApprovalRequiredResult,
+): {
+  content: Array<{ type: string; text: string }>;
+} {
+  const data = {
+    status: "approval_required",
+    workflow_id: crypto.randomUUID(),
+    description: approvalResult.description,
+    context: {
+      tool: toolName,
+      dependency: {
+        name: approvalResult.dependency.name,
+        version: approvalResult.dependency.version,
+        install: approvalResult.dependency.install,
+      },
+    },
+    options: ["continue", "abort", "replan"],
+  };
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(data, null, 2),
+      },
+    ],
+  };
+}
+
+/**
+ * Extract continue_workflow from args if present.
+ */
+function extractContinueWorkflow(
+  args: Record<string, unknown> | undefined,
+): {
+  continueWorkflow: ContinueWorkflowParams | undefined;
+  cleanArgs: Record<string, unknown>;
+} {
+  if (!args) {
+    return { continueWorkflow: undefined, cleanArgs: {} };
+  }
+
+  const { continue_workflow, ...cleanArgs } = args;
+
+  if (
+    continue_workflow &&
+    typeof continue_workflow === "object" &&
+    "approved" in continue_workflow
+  ) {
+    return {
+      continueWorkflow: {
+        approved: Boolean(
+          (continue_workflow as { approved: unknown }).approved,
+        ),
+        workflowId: (continue_workflow as { workflow_id?: string }).workflow_id,
+      },
+      cleanArgs,
+    };
+  }
+
+  return { continueWorkflow: undefined, cleanArgs: args };
+}
+
+/**
  * Handle MCP tools/call request with capability loader
  */
 async function handleToolsCall(
@@ -110,9 +189,16 @@ async function handleToolsCall(
 ): Promise<void> {
   const { name, arguments: args } = params;
 
+  // Extract continue_workflow if present (for approval flow)
+  const { continueWorkflow, cleanArgs } = extractContinueWorkflow(args);
+
   // Check routing
   const routing = resolveToolRouting(name);
-  logDebug(`Tool ${name} → ${routing}`);
+  logDebug(
+    `Tool ${name} → ${routing}${
+      continueWorkflow ? ` (continue: ${continueWorkflow.approved})` : ""
+    }`,
+  );
 
   if (routing === "client") {
     // Client-side execution via CapabilityLoader
@@ -122,7 +208,23 @@ async function handleToolsCall(
     }
 
     try {
-      const result = await loader.call(name, args ?? {});
+      // Call with continue_workflow if present (for approval flow)
+      const result = await loader.call(name, cleanArgs, continueWorkflow);
+
+      // Check if result is an approval_required response
+      if (CapabilityLoader.isApprovalRequired(result)) {
+        logDebug(
+          `Tool ${name} requires approval for dependency: ${result.dependency.name}`,
+        );
+        sendResponse({
+          jsonrpc: "2.0",
+          id,
+          result: formatApprovalRequired(name, result),
+        });
+        return;
+      }
+
+      // Normal result
       sendResponse({
         jsonrpc: "2.0",
         id,
@@ -130,7 +232,9 @@ async function handleToolsCall(
           content: [
             {
               type: "text",
-              text: typeof result === "string" ? result : JSON.stringify(result, null, 2),
+              text: typeof result === "string"
+                ? result
+                : JSON.stringify(result, null, 2),
             },
           ],
         },
@@ -145,11 +249,22 @@ async function handleToolsCall(
 
   // Server routing - forward to pml.casys.ai
   try {
+    // PML_API_KEY is required for cloud calls
+    const apiKey = Deno.env.get("PML_API_KEY");
+    if (!apiKey) {
+      sendError(
+        id,
+        -32603,
+        "PML_API_KEY environment variable is required for cloud calls. Set it with: export PML_API_KEY=your_key",
+      );
+      return;
+    }
+
     const response = await fetch(`${cloudUrl}/mcp/tools/call`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        // TODO: Add PML_API_KEY for authenticated calls
+        "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         jsonrpc: "2.0",
@@ -160,14 +275,24 @@ async function handleToolsCall(
     });
 
     if (!response.ok) {
-      sendError(id, -32603, `Cloud error: ${response.status} ${response.statusText}`);
+      sendError(
+        id,
+        -32603,
+        `Cloud error: ${response.status} ${response.statusText}`,
+      );
       return;
     }
 
     const result = await response.json();
     sendResponse(result);
   } catch (error) {
-    sendError(id, -32603, `Cloud unreachable: ${error instanceof Error ? error.message : String(error)}`);
+    sendError(
+      id,
+      -32603,
+      `Cloud unreachable: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
   }
 }
 
@@ -179,7 +304,12 @@ async function processRequest(
   loader: CapabilityLoader | null,
   cloudUrl: string,
 ): Promise<void> {
-  let request: { jsonrpc: string; id?: string | number; method: string; params?: unknown };
+  let request: {
+    jsonrpc: string;
+    id?: string | number;
+    method: string;
+    params?: unknown;
+  };
 
   try {
     request = JSON.parse(line);
@@ -264,6 +394,16 @@ export function createStdioCommand(): Command<any> {
     .name("stdio")
     .description("Start the PML MCP server in stdio mode (for Claude Code)")
     .action(async () => {
+      // Step 0: Verify PML_API_KEY is set (required for all operations)
+      const apiKey = Deno.env.get("PML_API_KEY");
+      if (!apiKey) {
+        console.error(
+          "[pml] ERROR: PML_API_KEY environment variable is required",
+        );
+        console.error("[pml] Set it with: export PML_API_KEY=your_key");
+        Deno.exit(1);
+      }
+
       // Step 1: Resolve workspace
       const workspaceResult = resolveWorkspaceWithDetails(silentLogger);
       const workspace = workspaceResult.path;
@@ -295,16 +435,30 @@ export function createStdioCommand(): Command<any> {
       }
 
       // Step 3: Load permissions
-      await loadUserPermissions(workspace, silentLogger);
+      const { permissions } = await loadUserPermissions(
+        workspace,
+        silentLogger,
+      );
 
       // Step 4: Sync routing config from cloud
       const cloudUrl = config.cloud?.url ?? "https://pml.casys.ai";
-      const { config: routingConfig } = await syncRoutingConfig(cloudUrl, silentLogger);
+      const { config: routingConfig } = await syncRoutingConfig(
+        cloudUrl,
+        silentLogger,
+      );
       initializeRouting(routingConfig);
 
-      logDebug(`Workspace: ${workspace} (${getWorkspaceSourceDescription(workspaceResult)})`);
+      logDebug(
+        `Workspace: ${workspace} (${
+          getWorkspaceSourceDescription(workspaceResult)
+        })`,
+      );
       logDebug(`Cloud: ${cloudUrl}`);
-      logDebug(`Routing: v${getRoutingVersion()} (${isRoutingInitialized() ? "ready" : "failed"})`);
+      logDebug(
+        `Routing: v${getRoutingVersion()} (${
+          isRoutingInitialized() ? "ready" : "failed"
+        })`,
+      );
 
       // Step 5: Initialize CapabilityLoader
       // Note: HIL (approval_required) is handled via MCP response, not callback
@@ -313,8 +467,9 @@ export function createStdioCommand(): Command<any> {
         loader = await CapabilityLoader.create({
           cloudUrl,
           workspace,
+          permissions,
         });
-        logDebug(`CapabilityLoader initialized`);
+        logDebug(`CapabilityLoader initialized with permissions`);
       } catch (error) {
         logDebug(`Failed to initialize CapabilityLoader: ${error}`);
         // Continue without loader - server-side calls will still work

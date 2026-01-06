@@ -9,6 +9,7 @@
 
 import type { CapabilityModule } from "./types.ts";
 import { LoaderError } from "./types.ts";
+import * as log from "@std/log";
 
 /**
  * Cache status for debugging.
@@ -34,12 +35,10 @@ export interface LoadResult {
 const moduleCache = new Map<string, CapabilityModule>();
 
 /**
- * Log debug message if PML_DEBUG is enabled.
+ * Log debug message for loader operations.
  */
 function logDebug(message: string): void {
-  if (Deno.env.get("PML_DEBUG") === "1") {
-    console.error(`[pml:loader] ${message}`);
-  }
+  log.debug(`[pml:deno-loader] ${message}`);
 }
 
 /**
@@ -53,7 +52,9 @@ function logDebug(message: string): void {
  * @param codeUrl - URL to load module from
  * @returns Loaded module with cache info
  */
-export async function loadCapabilityModule(codeUrl: string): Promise<LoadResult> {
+export async function loadCapabilityModule(
+  codeUrl: string,
+): Promise<LoadResult> {
   // Check in-memory cache first
   const cached = moduleCache.get(codeUrl);
   if (cached) {

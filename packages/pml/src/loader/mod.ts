@@ -8,16 +8,19 @@
 
 // Types
 export type {
+  ApprovalRequiredResult,
+  CapabilityLoadResult,
   CapabilityMetadata,
   CapabilityModule,
+  ContinueWorkflowParams,
   DepStateFile,
   ExecutionContext,
-  HilCallback,
-  InstallResult,
   InstalledDep,
+  InstallResult,
   IntegrityResult,
   LoadedCapability,
   LoaderErrorCode,
+  LoadSuccessResult,
   McpDependency,
   McpProxy,
   PendingRequest,
@@ -33,12 +36,12 @@ export { RegistryClient, toolNameToFqdn } from "./registry-client.ts";
 
 // Deno Loader
 export {
+  type CacheStatus,
   clearModuleCache,
   getCachedModule,
   getCachedUrls,
   isModuleCached,
   loadCapabilityModule,
-  type CacheStatus,
   type LoadResult,
 } from "./deno-loader.ts";
 
@@ -67,13 +70,13 @@ export {
   createRequest,
   extractResult,
   isErrorResponse,
-  JsonRpcErrorCodes,
-  parseResponse,
-  serializeMessage,
   type JsonRpcError,
+  JsonRpcErrorCodes,
   type JsonRpcNotification,
   type JsonRpcRequest,
   type JsonRpcResponse,
+  parseResponse,
+  serializeMessage,
 } from "./stdio-rpc.ts";
 
 // Stdio Manager
@@ -83,10 +86,10 @@ export { StdioManager } from "./stdio-manager.ts";
 export {
   checkEnvVars,
   CommonEnvVars,
+  type EnvCheckResult,
   formatMissingEnvError,
   getEnvStatus,
   validateEnvForDep,
-  type EnvCheckResult,
 } from "./env-checker.ts";
 
 // Capability Loader (main entry point)

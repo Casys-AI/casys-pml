@@ -245,15 +245,6 @@ export interface LoadedCapability {
 }
 
 /**
- * HIL (Human-in-the-Loop) callback for user prompts.
- *
- * @param prompt - The prompt to display
- * @param dep - Optional: The dependency being approved (for config-based approval)
- * @returns true if approved, false if denied
- */
-export type HilCallback = (prompt: string, dep?: McpDependency) => Promise<boolean>;
-
-/**
  * Loader error codes.
  */
 export type LoaderErrorCode =
@@ -334,6 +325,52 @@ export interface ExecutionContext {
   workspace: string;
   /** Logger for debugging */
   log: (message: string) => void;
+}
+
+// ============================================================================
+// Approval Flow Types (Story 14.3b)
+// ============================================================================
+
+/**
+ * Result of dependency check that may require approval.
+ *
+ * Used by CapabilityLoader to signal that HIL approval is needed
+ * instead of blocking on stdin (which breaks stdio mode).
+ */
+export interface ApprovalRequiredResult {
+  /** True when approval is required */
+  approvalRequired: true;
+  /** The dependency needing approval */
+  dependency: McpDependency;
+  /** Description for the user */
+  description: string;
+}
+
+/**
+ * Successful load result with capability.
+ */
+export interface LoadSuccessResult {
+  /** False when no approval is required */
+  approvalRequired: false;
+  /** The loaded capability */
+  capability: LoadedCapability;
+}
+
+/**
+ * Union type for capability load results.
+ *
+ * Either requires approval (stateless flow) or succeeds with capability.
+ */
+export type CapabilityLoadResult = ApprovalRequiredResult | LoadSuccessResult;
+
+/**
+ * Parameters for continuing a workflow after approval.
+ */
+export interface ContinueWorkflowParams {
+  /** Whether the user approved */
+  approved: boolean;
+  /** Optional workflow ID for tracking */
+  workflowId?: string;
 }
 
 // ============================================================================

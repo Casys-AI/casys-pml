@@ -8,14 +8,13 @@
 
 import { encodeHex } from "@std/encoding/hex";
 import type { IntegrityResult, McpDependency } from "./types.ts";
+import * as log from "@std/log";
 
 /**
- * Log debug message if PML_DEBUG is enabled.
+ * Log debug message for integrity operations.
  */
 function logDebug(message: string): void {
-  if (Deno.env.get("PML_DEBUG") === "1") {
-    console.error(`[pml:integrity] ${message}`);
-  }
+  log.debug(`[pml:integrity] ${message}`);
 }
 
 /**
@@ -73,7 +72,9 @@ export async function computePackageHash(packagePath: string): Promise<string> {
     return computeStringHash(keyFields);
   } catch (error) {
     logDebug(`Failed to compute package hash: ${error}`);
-    throw new Error(`Cannot compute hash for package at ${packagePath}: ${error}`);
+    throw new Error(
+      `Cannot compute hash for package at ${packagePath}: ${error}`,
+    );
   }
 }
 
@@ -96,7 +97,9 @@ export async function verifyIntegrity(
     const valid = actual === expected;
 
     if (!valid) {
-      logDebug(`Integrity mismatch for ${dep.name}: expected ${expected}, got ${actual}`);
+      logDebug(
+        `Integrity mismatch for ${dep.name}: expected ${expected}, got ${actual}`,
+      );
     } else {
       logDebug(`Integrity verified for ${dep.name}`);
     }
@@ -108,7 +111,9 @@ export async function verifyIntegrity(
     // Return invalid result on error
     return {
       valid: false,
-      actual: `error: ${error instanceof Error ? error.message : String(error)}`,
+      actual: `error: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
       expected: dep.integrity,
     };
   }

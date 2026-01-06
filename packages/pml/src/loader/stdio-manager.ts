@@ -14,6 +14,7 @@ import {
   parseResponse,
   serializeMessage,
 } from "./stdio-rpc.ts";
+import * as log from "@std/log";
 
 /**
  * Default idle timeout (5 minutes).
@@ -26,12 +27,10 @@ const DEFAULT_IDLE_TIMEOUT_MS = 5 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 30 * 1000;
 
 /**
- * Log debug message if PML_DEBUG is enabled.
+ * Log debug message for stdio operations.
  */
 function logDebug(message: string): void {
-  if (Deno.env.get("PML_DEBUG") === "1") {
-    console.error(`[pml:stdio] ${message}`);
-  }
+  log.debug(`[pml:stdio] ${message}`);
 }
 
 /**
@@ -141,7 +140,9 @@ export class StdioManager {
     } catch (error) {
       throw new LoaderError(
         "SUBPROCESS_SPAWN_FAILED",
-        `Failed to spawn ${dep.name}: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to spawn ${dep.name}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
         { dep: dep.name, error: String(error) },
       );
     }
@@ -201,7 +202,9 @@ export class StdioManager {
 
                 if (response.error) {
                   pending.reject(
-                    new Error(`${response.error.code}: ${response.error.message}`),
+                    new Error(
+                      `${response.error.code}: ${response.error.message}`,
+                    ),
                   );
                 } else {
                   pending.resolve(response.result);
