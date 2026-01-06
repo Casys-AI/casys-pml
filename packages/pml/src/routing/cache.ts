@@ -18,49 +18,17 @@ const DEFAULT_CACHE_DIR = ".pml";
 const CACHE_FILENAME = "routing-cache.json";
 
 /**
- * Default routing config when no cache exists and cloud is unreachable.
- * Conservative: only well-known safe cloud services.
+ * Empty routing config - NO FALLBACK.
+ *
+ * The server provides the real routing config.
+ * If server is unreachable AND no cache exists, routing will fail.
+ * This empty config exists only for type safety when testing.
  */
 export const DEFAULT_ROUTING_CONFIG: RoutingConfig = {
-  version: "0.0.0-fallback",
-  cloudServers: [
-    // Memory & Knowledge
-    "memory",
-    // Search services
-    "tavily",
-    "brave_search",
-    "exa",
-    // External APIs
-    "github",
-    "slack",
-    "api",
-    "http",
-    "fetch",
-    // AI services
-    "sequential-thinking",
-    "context7",
-    "magic",
-    // Utility modules (pure functions, no side effects)
-    "json",
-    "math",
-    "datetime",
-    "crypto",
-    "collections",
-    "validation",
-    "format",
-    "transform",
-    "algo",
-    "string",
-    "color",
-    "geo",
-    "resilience",
-    "schema",
-    "diff",
-    "state",
-    "plots",
-    // PML meta-tools
-    "pml",
-  ],
+  version: "0.0.0-empty",
+  clientTools: [],
+  serverTools: [],
+  defaultRouting: "client", // Safe default for unknown tools
 };
 
 /**
@@ -90,7 +58,11 @@ export async function loadRoutingCache(
     const cache: RoutingCache = JSON.parse(content);
 
     // Validate structure
-    if (!cache.config?.version || !Array.isArray(cache.config?.cloudServers)) {
+    if (
+      !cache.config?.version ||
+      !Array.isArray(cache.config?.clientTools) ||
+      !Array.isArray(cache.config?.serverTools)
+    ) {
       return null;
     }
 

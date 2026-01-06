@@ -215,10 +215,10 @@ export type ApprovalMode = "hil" | "auto";
  * Tool routing destination.
  *
  * Platform-defined (not user-configurable):
- * - "local": Execute in user's sandbox (filesystem, shell, etc.)
- * - "cloud": Forward to pml.casys.ai (API services, safe utilities)
+ * - "client": Execute on user's machine (filesystem, shell, docker, etc.)
+ * - "server": Forward to pml.casys.ai (stateless computation, external APIs)
  */
-export type ToolRouting = "local" | "cloud";
+export type ToolRouting = "client" | "server";
 
 /**
  * Routing configuration from cloud.
@@ -227,8 +227,12 @@ export type ToolRouting = "local" | "cloud";
 export interface RoutingConfig {
   /** Config version for change detection */
   version: string;
-  /** Cloud server namespaces (everything else is local) */
-  cloudServers: string[];
+  /** Client-side tool namespaces (run on user's machine) */
+  clientTools: string[];
+  /** Server-side tool namespaces (run on pml.casys.ai) */
+  serverTools: string[];
+  /** Default routing for unknown tools */
+  defaultRouting: ToolRouting;
 }
 
 /**

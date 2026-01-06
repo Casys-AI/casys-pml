@@ -87,7 +87,11 @@ async function fetchRoutingConfig(
     const config: RoutingConfig = await response.json();
 
     // Validate response structure
-    if (!config.version || !Array.isArray(config.cloudServers)) {
+    if (
+      !config.version ||
+      !Array.isArray(config.clientTools) ||
+      !Array.isArray(config.serverTools)
+    ) {
       return null;
     }
 
@@ -144,17 +148,17 @@ export async function syncRoutingConfig(
       };
     }
 
-    // No cache, use fallback
-    logger.warn("⚠ Cloud sync failed, no cache available - using fallback defaults");
+    // No cache, NO FALLBACK - fail
+    logger.warn("✗ Cloud sync failed, no cache available - ROUTING UNAVAILABLE");
     return {
       result: {
         success: false,
         updated: false,
-        version: DEFAULT_ROUTING_CONFIG.version,
-        error: "Cloud unreachable, no cache, using fallback",
+        version: "none",
+        error: "Cloud unreachable and no cache. Run 'pml init' or check network.",
         fromCache: false,
       },
-      config: DEFAULT_ROUTING_CONFIG,
+      config: DEFAULT_ROUTING_CONFIG, // Empty config - will fail on tool calls
     };
   }
 

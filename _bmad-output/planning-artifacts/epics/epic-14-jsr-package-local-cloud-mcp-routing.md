@@ -143,11 +143,11 @@ for debugging, dashboard integration, and non-Claude clients.
 
 ---
 
-### Distribution Modes (Clarified 2025-01-05)
+### Distribution Modes (Clarified 2025-01-06)
 
-PML supports two distinct usage modes:
+PML supports three distinct usage modes:
 
-**Mode 1: PML Meta-Tools (Full Package)**
+**Mode A: PML Toolkit (Meta-Tools Only)**
 ```
 .mcp.json:
 {
@@ -157,12 +157,13 @@ PML supports two distinct usage modes:
 }
 
 Claude sees:
-├── mcp.pml.discover()     ← Search capabilities
-├── mcp.pml.execute()      ← Run any capability 
+├── pml:discover      ← Search capabilities
+├── pml:execute       ← Run any capability
+├── pml:create        ← Create new workflows
 ```
-**Use case:** Developers who want the full PML ecosystem - discovery, execution, creation.
+**Use case:** Developers who want full control - discovery, execution, workflow creation.
 
-**Mode 2: Standalone Capability (Direct MCP)**
+**Mode B: Standalone Capability (Direct MCP)**
 ```bash
 # CLI command (terminal)
 pml add namespace:action[@version]
@@ -176,25 +177,60 @@ pml add db:postgres_query@1.2.0     # version spécifique (future)
 .mcp.json (auto-modified):
 {
   "mcpServers": {
-    "db:postgres_query": { "command": "pml", "args": ["run", "db:postgres_query"] }
+    "db_postgres_query": { "command": "pml", "args": ["run", "db:postgres_query"] }
   }
 }
 
 Claude sees:
-├── mcp.db.postgres_query()     ← Direct call, no wrapper
+├── db_postgres_query:run      ← Direct call, no wrapper
+├── db_postgres_query:config   ← Capability config
 ```
-**Use case:** Users who want ONE specific capability as a native MCP, without PML overhead.
+**Use case:** Users who want ONE specific capability as a native MCP, without meta-layer.
+**Note:** Requires Claude Code restart to load new capability.
 
-**Note:** Requires Claude Code restart to load new MCP server. Hot-reload TBD.
+**Mode C: Hybrid (Meta-Tools + Curated Caps) - TARGET END-USER MODE** ⚠️ BLOCKED
+```
+.mcp.json:
+{
+  "mcpServers": {
+    "pml": { "command": "pml", "args": ["stdio"] }
+  }
+}
+
+.pml.json:
+{
+  "expose_tools": {
+    "mode": "hybrid",
+    "curated_limit": 10
+  }
+}
+
+Claude sees (dynamic, no restart needed):
+├── pml:discover           ← Meta-tool
+├── pml:execute            ← Meta-tool
+├── pml:create             ← Meta-tool
+├── pml:smartSearch        ← Curated capability (dynamic)
+├── pml:db_query           ← Curated capability (dynamic)
+├── pml:fs_read_json       ← Curated capability (dynamic)
+```
+**Use case:** End users who want both meta-tools AND direct access to most-used caps.
+**Key advantage:** Curated list changes dynamically (via `tools/list_changed` notification).
+
+⚠️ **BLOCKED:** Claude Code doesn't support `notifications/tools/list_changed` yet.
+- See: [Issue #4118](https://github.com/anthropics/claude-code/issues/4118) (Open, no ETA)
+- VSCode and Cursor already support it
+- **Workaround:** Pre-load curated list at startup (requires restart for changes)
+- See: `spike-2025-01-06-dynamic-tool-injection.md`
 
 **Comparison:**
-| Aspect | Mode 1 (Meta-Tools) | Mode 2 (Standalone) |
-|--------|---------------------|---------------------|
-| MCP servers | 1 ("pml") | N (one per capability) |
-| Call pattern | `mcp.pml.execute({cap: "X"})` | `mcp.X.run()` |
-| Discovery | Built-in | Not needed |
-| Target user | Developer/Power user | End user |
-| Analogy | Docker daemon | Docker container |
+| Aspect | Mode A (Toolkit) | Mode B (Standalone) | Mode C (Hybrid) ⚠️ |
+|--------|------------------|---------------------|---------------------|
+| `.mcp.json` entries | 1 ("pml") | N (one per cap) | 1 ("pml") |
+| Meta-tools | ✅ Yes | ❌ No | ✅ Yes |
+| Direct cap access | ❌ Via execute | ✅ Native | ✅ Dynamic |
+| Restart needed | For config | Per capability | ❌ No (dynamic) |
+| Target user | Developer | Fixed workflow | End user |
+| **Status** | ✅ Ready | ✅ Ready | ⚠️ Blocked (#4118) |
 
 ---
 
@@ -252,26 +288,32 @@ export function query() {...}        export function query() {...}
 
 ---
 
-### Routing = WHERE to Execute (Clarified 2025-01-05)
+### Routing = WHERE to Execute (Clarified 2025-01-06)
 
-Routing determines **where** code executes, not just where to forward calls:
+**Terminology:**
+- `client` = runs on user's machine (dangerous tools: filesystem, docker, ssh)
+- `server` = runs on pml.casys.ai (safe tools: json, math, tavily)
+
+Routing determines **where** code executes:
 
 ```
-Capability: "smartSearch"       Capability: "localFileProcessor"
-Routing: "cloud"                Routing: "local"
+Capability: "smartSearch"       Capability: "fileProcessor"
+Routing: "server"               Routing: "client"
     │                               │
     ▼                               ▼
 pml.casys.ai imports +          User's PML imports +
-executes on cloud               executes locally
+executes on server              executes on client
     │                               │
     ▼                               ▼
-mcp.tavily → cloud API          mcp.filesystem → local files
+mcp.tavily → server API         mcp.filesystem → local files
 ```
 
 **Same code, different execution context:**
 - Code is fetched from same URL (`pml.casys.ai/mcp/{namespace:action}`)
-- Routing decides: execute on cloud OR on user's machine
+- Routing decides: execute on server OR on user's machine (client)
 - `mcp.*` calls resolve differently based on context
+
+**Config source:** `config/mcp-routing.json` (synced from server at startup)
 
 ---
 
@@ -431,11 +473,16 @@ focuses on PML package integration and capability permission inference.
 
 **Acceptance Criteria:**
 
-**AC1-3 (Routing - DONE via Story 13.9):**
+**AC1-3 (Routing - DONE via Story 13.9, Updated 2025-01-06):**
 
 ~~**Given** the existing `mcp-permissions.yaml` configuration **When** the schema is extended **Then**
-each MCP entry supports a `routing: local | cloud` field **And** the default is `cloud` if not
-specified~~ → **DONE:** `config/mcp-routing.json` exists with cloud list, default is local.
+each MCP entry supports a `routing: client | server` field **And** the default is `client` if not
+specified~~ → **DONE:** `config/mcp-routing.json` exists with explicit client/server lists.
+
+**Terminology (2025-01-06):**
+- `client` = runs on user's machine (filesystem, docker, ssh, etc.)
+- `server` = runs on pml.casys.ai (json, math, tavily, etc.)
+- `default: "client"` = unknown tools run on client (safe)
 
 ~~**Given** the PermissionInferrer module **When** a new function `getToolRouting(mcpName: string)` is
 called **Then** it returns the routing mode from configuration **And** caches the result for
@@ -447,7 +494,7 @@ according to its configuration~~ → **DONE:** `resolveRouting()` with cache + p
 **AC4-6 (NEW - PML Package Integration + Permission Inference):**
 
 **Given** the PML package (`packages/pml`) **When** it needs to determine routing **Then** it has an
-embedded routing resolver matching `config/mcp-routing.json` **And** returns `"local"` for unknown
+embedded routing resolver matching `config/mcp-routing.json` **And** returns `"client"` for unknown
 tools (security-first)
 
 **Given** a capability with `tools_used = ["filesystem:read", "tavily:search"]` **And** user's
@@ -979,24 +1026,27 @@ packages/pml/
 ├── deno.json           # JSR config
 ├── mod.ts              # Entry point
 ├── src/
-│   ├── server.ts       # MCP HTTP Streamable server
-│   ├── router.ts       # Local/Cloud routing
-│   ├── local/
-│   │   ├── executor.ts # Sandboxed execution
-│   │   └── loader.ts   # Dynamic import from registry
-│   ├── cloud/
-│   │   └── rpc.ts      # HTTP RPC client to pml.casys.ai
-│   └── workspace.ts    # Workspace resolution
+│   ├── cli/
+│   │   ├── mod.ts          # CLI entry (Cliffy)
+│   │   ├── stdio-command.ts # Primary interface for Claude Code
+│   │   └── serve-command.ts # HTTP server (debug/dashboard)
+│   ├── routing/
+│   │   ├── mod.ts          # Exports
+│   │   ├── resolver.ts     # Client/Server routing
+│   │   ├── cache.ts        # Local config cache
+│   │   └── sync.ts         # Sync config from server
+│   ├── permissions/        # User permission loading
+│   └── workspace.ts        # Workspace resolution
 └── README.md
 ```
 
 ### Key Dependencies
 
-- `@modelcontextprotocol/sdk` - MCP HTTP server implementation
+- `@cliffy/command` - CLI framework
 - Deno native `Worker` API - Sandbox isolation
-- Deno native `fetch` - Cloud RPC calls + registry fetching
+- Deno native `fetch` - Server RPC calls + registry fetching
 - Story 13.8 - `pml_registry` table for unified MCP/capability storage
-- Story 13.9 - `routing` field for local/cloud decisions
+- Story 13.9 - `routing` field for client/server decisions
 
 ### Related ADRs
 
@@ -1087,27 +1137,29 @@ The `record_type` field (`'mcp-tool'` | `'capability'`) directly tells us the ty
 
 The `routing` field in `tool_schema` is set by **us** when we seed MCPs. Users cannot change it.
 
-### Routing Rules
+### Routing Rules (Updated 2025-01-06)
 
 | Routing | Critère | Exemples |
 |---------|---------|----------|
-| **local** | MUST access user's workspace/files | `filesystem`, `shell`, `sqlite`, `git` |
-| **cloud** | API-based, can proxy or BYOK | `tavily`, `github`, `slack`, `pml:*` |
+| **client** | MUST access user's workspace/files | `filesystem`, `shell`, `docker`, `ssh`, `git` |
+| **server** | API-based, can proxy or BYOK | `tavily`, `github`, `slack`, `json`, `math`, `pml:*` |
+
+**Config source:** `config/mcp-routing.json` (synced from server, NO hardcoded fallback)
 
 ### What the user controls
 
 | User Config | Purpose |
 |-------------|---------|
 | `.pml.json` permissions | `allow/deny/ask` - HIL behavior |
-| `.env` API keys | BYOK for cloud MCPs (TAVILY_API_KEY, etc.) |
+| `.env` API keys | BYOK for server MCPs (TAVILY_API_KEY, etc.) |
 
 ### What the user does NOT control
 
 - `routing` field - fixed by platform
-- Which MCPs are local vs cloud - platform decision
+- Which MCPs are client vs server - platform decision
 - MCP code source - always from `pml.casys.ai/mcp/{fqdn}`
 
-### Cloud MCP Flow (BYOK) ( I think we just defined a new way to do it with HIL)
+### Server MCP Flow (BYOK)
 
 ```
 User calls tavily:search

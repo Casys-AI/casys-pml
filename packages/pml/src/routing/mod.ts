@@ -2,7 +2,7 @@
  * Routing Module
  *
  * Platform-defined routing for MCP tools.
- * Determines local vs cloud execution based on synced config.
+ * Determines client (user's machine) vs server (pml.casys.ai) execution.
  *
  * @module routing
  */
@@ -24,12 +24,13 @@ export type { SyncLogger } from "./sync.ts";
 // Routing resolver
 export {
   extractNamespace,
-  getCloudServers,
+  getClientTools,
   getRoutingVersion,
+  getServerTools,
   initializeRouting,
-  isCloudTool,
-  isLocalTool,
+  isClientTool,
   isRoutingInitialized,
+  isServerTool,
   resetRouting,
   resolveToolRouting,
 } from "./resolver.ts";

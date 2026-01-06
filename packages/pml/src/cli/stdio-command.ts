@@ -113,13 +113,13 @@ async function handleToolsCall(
   const routing = resolveToolRouting(name);
   logDebug(`Tool ${name} → ${routing}`);
 
-  if (routing === "local") {
-    // TODO: Story 14.5 - Sandboxed local execution
-    sendError(id, -32601, `Local tool execution not yet implemented: ${name}`);
+  if (routing === "client") {
+    // TODO: Story 14.5 - Sandboxed client-side execution
+    sendError(id, -32601, `Client-side tool execution not yet implemented: ${name}`);
     return;
   }
 
-  // Cloud routing - forward to pml.casys.ai
+  // Server routing - forward to pml.casys.ai
   try {
     const response = await fetch(`${cloudUrl}/mcp/tools/call`, {
       method: "POST",

@@ -1,10 +1,10 @@
 /**
  * PML Routing Resolver
  *
- * Determines where tools should execute: locally or via cloud.
+ * Determines where tools should execute: client (user's machine) or server (pml.casys.ai).
  * Uses cached routing config from cloud sync.
  *
- * Security principle: Default to LOCAL. Only explicit cloud servers route to cloud.
+ * Security principle: Default to CLIENT. Unknown tools run on user's machine.
  *
  * @module routing/resolver
  */
@@ -16,7 +16,8 @@ import type { RoutingConfig, ToolRouting } from "../types.ts";
  * Set by initializeRouting() at startup.
  */
 let activeConfig: RoutingConfig | null = null;
-let cloudServersSet: Set<string> | null = null;
+let clientToolsSet: Set<string> | null = null;
+let serverToolsSet: Set<string> | null = null;
 
 /**
  * Initialize routing resolver with config.
@@ -26,7 +27,8 @@ let cloudServersSet: Set<string> | null = null;
  */
 export function initializeRouting(config: RoutingConfig): void {
   activeConfig = config;
-  cloudServersSet = new Set(config.cloudServers);
+  clientToolsSet = new Set(config.clientTools);
+  serverToolsSet = new Set(config.serverTools);
 }
 
 /**
@@ -78,56 +80,79 @@ export function extractNamespace(toolId: string): string {
 /**
  * Resolve routing for a tool.
  *
- * DEFAULT IS LOCAL - only explicit cloud servers route to cloud.
- * This is a security-first approach: unknown tools stay local.
+ * Priority:
+ * 1. If explicitly in clientTools → "client"
+ * 2. If explicitly in serverTools → "server"
+ * 3. Otherwise → defaultRouting (usually "client" for safety)
  *
  * @param tool Tool ID (e.g., "filesystem:read_file", "tavily:search")
- * @returns "local" or "cloud"
+ * @returns "client" or "server"
  * @throws Error if routing not initialized
  *
  * @example
  * ```ts
- * resolveToolRouting("filesystem:read_file")  // "local"
- * resolveToolRouting("tavily:search")         // "cloud"
- * resolveToolRouting("unknown:tool")          // "local" (safe default)
+ * resolveToolRouting("filesystem:read_file")  // "client" (dangerous, local)
+ * resolveToolRouting("tavily:search")         // "server" (safe, pml.casys.ai)
+ * resolveToolRouting("unknown:tool")          // "client" (safe default)
  * ```
  */
 export function resolveToolRouting(tool: string): ToolRouting {
-  if (!cloudServersSet) {
+  if (!activeConfig || !clientToolsSet || !serverToolsSet) {
     throw new Error("Routing not initialized. Call initializeRouting() first.");
   }
 
   const namespace = extractNamespace(tool);
-  return cloudServersSet.has(namespace) ? "cloud" : "local";
+
+  // Explicit client tools run on user's machine
+  if (clientToolsSet.has(namespace)) {
+    return "client";
+  }
+
+  // Explicit server tools route to pml.casys.ai
+  if (serverToolsSet.has(namespace)) {
+    return "server";
+  }
+
+  // Default routing for unknown tools
+  return activeConfig.defaultRouting;
 }
 
 /**
- * Check if a tool executes locally.
+ * Check if a tool executes on user's machine.
  *
  * @param tool Tool ID
- * @returns true if the tool runs in user's local sandbox
+ * @returns true if the tool runs on user's machine
  */
-export function isLocalTool(tool: string): boolean {
-  return resolveToolRouting(tool) === "local";
+export function isClientTool(tool: string): boolean {
+  return resolveToolRouting(tool) === "client";
 }
 
 /**
- * Check if a tool executes in the cloud.
+ * Check if a tool executes on the server.
  *
  * @param tool Tool ID
  * @returns true if the tool routes to pml.casys.ai
  */
-export function isCloudTool(tool: string): boolean {
-  return resolveToolRouting(tool) === "cloud";
+export function isServerTool(tool: string): boolean {
+  return resolveToolRouting(tool) === "server";
 }
 
 /**
- * Get the list of cloud server namespaces.
+ * Get the list of client tool namespaces.
  *
- * @returns Array of cloud server namespaces or empty if not initialized
+ * @returns Array of client tool namespaces or empty if not initialized
  */
-export function getCloudServers(): string[] {
-  return activeConfig?.cloudServers ?? [];
+export function getClientTools(): string[] {
+  return activeConfig?.clientTools ?? [];
+}
+
+/**
+ * Get the list of server tool namespaces.
+ *
+ * @returns Array of server tool namespaces or empty if not initialized
+ */
+export function getServerTools(): string[] {
+  return activeConfig?.serverTools ?? [];
 }
 
 /**
@@ -135,5 +160,6 @@ export function getCloudServers(): string[] {
  */
 export function resetRouting(): void {
   activeConfig = null;
-  cloudServersSet = null;
+  clientToolsSet = null;
+  serverToolsSet = null;
 }
