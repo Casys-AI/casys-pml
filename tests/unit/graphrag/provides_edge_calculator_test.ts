@@ -227,26 +227,31 @@ Deno.test("createFieldMapping - semantic match content -> json", () => {
   assertEquals(mapping[0].typeCompatible, true);
 });
 
-Deno.test("createFieldMapping - semantic match text -> content", () => {
-  const providerOutput: JSONSchema = {
-    type: "object",
-    properties: {
-      text: { type: "string" },
-    },
-  };
+Deno.test({
+  name: "createFieldMapping - semantic match text -> content",
+  sanitizeOps: false,
+  sanitizeResources: false, // BroadcastChannel may leak from event bus
+  fn: () => {
+    const providerOutput: JSONSchema = {
+      type: "object",
+      properties: {
+        text: { type: "string" },
+      },
+    };
 
-  const consumerInput: JSONSchema = {
-    type: "object",
-    properties: {
-      content: { type: "string" },
-    },
-  };
+    const consumerInput: JSONSchema = {
+      type: "object",
+      properties: {
+        content: { type: "string" },
+      },
+    };
 
-  const mapping = createFieldMapping(providerOutput, consumerInput);
+    const mapping = createFieldMapping(providerOutput, consumerInput);
 
-  assertEquals(mapping.length, 1);
-  assertEquals(mapping[0].fromField, "text");
-  assertEquals(mapping[0].toField, "content");
+    assertEquals(mapping.length, 1);
+    assertEquals(mapping[0].fromField, "text");
+    assertEquals(mapping[0].toField, "content");
+  },
 });
 
 Deno.test("createFieldMapping - semantic match file -> path", () => {

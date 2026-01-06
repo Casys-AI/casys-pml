@@ -387,10 +387,10 @@ Deno.test("Thompson - requiresHIL returns true for unknown tools", () => {
 Deno.test("Thompson - getToolRiskCategory returns correct risk", () => {
   const manager = new AdaptiveThresholdManager();
 
-  // filesystem should be moderate (based on typical mcp-permissions.yaml)
-  // Unknown tools default to moderate
+  // Unknown tools now default to dangerous (mcp-standard scope)
+  // This is more secure: unknown tools get conservative treatment
   const unknownRisk = manager.getToolRiskCategory("totally_unknown:tool");
-  assertEquals(unknownRisk, "moderate", "Unknown tools should have moderate risk");
+  assertEquals(unknownRisk, "dangerous", "Unknown tools should have dangerous risk (conservative)");
 });
 
 Deno.test("getRiskFromScope - maps scopes correctly", () => {
@@ -435,9 +435,9 @@ Deno.test("calculateCapabilityRisk - returns safe for empty tools", () => {
 });
 
 Deno.test("calculateCapabilityRisk - returns max risk of tools", () => {
-  // Single unknown tool should be moderate
+  // Single unknown tool now returns dangerous (mcp-standard scope = conservative)
   const singleUnknown = calculateCapabilityRisk(["unknown:tool"]);
-  assertEquals(singleUnknown, "moderate");
+  assertEquals(singleUnknown, "dangerous");
 });
 
 Deno.test("Thompson - recordExecution with toolId updates Thompson", () => {

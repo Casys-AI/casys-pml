@@ -49,7 +49,54 @@ export function createRoutingClientServerMigration(): Migration {
       `);
       log.info("  ✓ Added new routing constraint (client/server)");
 
-      // 3. Update column comment
+      // 4. Update DEFAULT value to match new terminology
+      await db.exec(`
+        ALTER TABLE capability_records
+        ALTER COLUMN routing SET DEFAULT 'client'
+      `);
+      log.info("  ✓ Updated routing default to 'client'");
+
+      // 5. Update tool_schema routing (same treatment)
+      // Drop old constraint first
+      try {
+        await db.exec(`
+          ALTER TABLE tool_schema
+          DROP CONSTRAINT IF EXISTS tool_schema_routing_check
+        `);
+      } catch {
+        // Constraint may not exist
+      }
+
+      // Convert values
+      await db.exec(`
+        UPDATE tool_schema
+        SET routing = CASE
+          WHEN routing = 'local' THEN 'client'
+          WHEN routing = 'cloud' THEN 'server'
+          ELSE routing
+        END
+        WHERE routing IN ('local', 'cloud')
+      `);
+
+      // Add new constraint
+      try {
+        await db.exec(`
+          ALTER TABLE tool_schema
+          ADD CONSTRAINT tool_schema_routing_check
+          CHECK (routing IN ('client', 'server'))
+        `);
+      } catch {
+        // Constraint may already exist
+      }
+
+      // Update default
+      await db.exec(`
+        ALTER TABLE tool_schema
+        ALTER COLUMN routing SET DEFAULT 'client'
+      `);
+      log.info("  ✓ Updated tool_schema routing to client/server");
+
+      // 6. Update column comment
       try {
         await db.exec(`
           COMMENT ON COLUMN capability_records.routing IS
@@ -86,6 +133,42 @@ export function createRoutingClientServerMigration(): Migration {
         ALTER TABLE capability_records
         ADD CONSTRAINT capability_records_routing_check
         CHECK (routing IN ('local', 'cloud'))
+      `);
+
+      // Restore old default
+      await db.exec(`
+        ALTER TABLE capability_records
+        ALTER COLUMN routing SET DEFAULT 'local'
+      `);
+
+      // Rollback tool_schema too
+      await db.exec(`
+        UPDATE tool_schema
+        SET routing = CASE
+          WHEN routing = 'client' THEN 'local'
+          WHEN routing = 'server' THEN 'cloud'
+          ELSE routing
+        END
+        WHERE routing IN ('client', 'server')
+      `);
+
+      try {
+        await db.exec(`
+          ALTER TABLE tool_schema
+          DROP CONSTRAINT IF EXISTS tool_schema_routing_check
+        `);
+        await db.exec(`
+          ALTER TABLE tool_schema
+          ADD CONSTRAINT tool_schema_routing_check
+          CHECK (routing IN ('local', 'cloud'))
+        `);
+      } catch {
+        // Best effort
+      }
+
+      await db.exec(`
+        ALTER TABLE tool_schema
+        ALTER COLUMN routing SET DEFAULT 'local'
       `);
 
       log.info("Migration 037 rollback complete");
