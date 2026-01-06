@@ -47,11 +47,11 @@ export interface PmlConfig {
    */
   workspace?: string;
   /** Cloud configuration */
-  cloud: PmlCloudConfig;
+  cloud?: PmlCloudConfig;
   /** Server configuration */
-  server: PmlServerConfig;
+  server?: PmlServerConfig;
   /** Tool permissions (Claude Code style: allow/deny/ask) */
-  permissions: PmlPermissions;
+  permissions?: PmlPermissions;
 }
 
 /**
@@ -276,3 +276,32 @@ export interface CapabilityPermissionResult {
   /** Human-readable reason (if blocked) */
   reason?: string;
 }
+
+// ============================================================================
+// Re-export Loader Types (Story 14.4)
+// ============================================================================
+
+export type {
+  CapabilityMetadata,
+  CapabilityModule,
+  DepStateFile,
+  ExecutionContext,
+  HilCallback,
+  InstallResult,
+  InstalledDep,
+  IntegrityResult,
+  LoadedCapability,
+  LoaderErrorCode,
+  McpDependency,
+  McpProxy,
+  PendingRequest,
+  RegistryClientOptions,
+  RegistryFetchResult,
+  StdioProcess,
+} from "./loader/types.ts";
+
+export {
+  InstallError,
+  IntegrityError,
+  LoaderError,
+} from "./loader/types.ts";

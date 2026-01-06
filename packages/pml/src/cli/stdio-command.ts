@@ -22,6 +22,7 @@ import {
   resolveToolRouting,
   syncRoutingConfig,
 } from "../routing/mod.ts";
+import { CapabilityLoader } from "../loader/mod.ts";
 import { exists } from "@std/fs";
 import { join } from "@std/path";
 
@@ -88,7 +89,7 @@ function handleInitialize(id: string | number): void {
  */
 function handleToolsList(id: string | number): void {
   // For now, return an empty list - tools will be dynamically discovered
-  // TODO: Story 14.4 will populate this from registry
+  // Future: Could fetch available tools from registry
   sendResponse({
     jsonrpc: "2.0",
     id,
@@ -99,13 +100,13 @@ function handleToolsList(id: string | number): void {
 }
 
 /**
- * Handle MCP tools/call request
+ * Handle MCP tools/call request with capability loader
  */
 async function handleToolsCall(
   id: string | number,
   params: { name: string; arguments?: Record<string, unknown> },
+  loader: CapabilityLoader | null,
   cloudUrl: string,
-  _workspace: string,
 ): Promise<void> {
   const { name, arguments: args } = params;
 
@@ -114,8 +115,31 @@ async function handleToolsCall(
   logDebug(`Tool ${name} → ${routing}`);
 
   if (routing === "client") {
-    // TODO: Story 14.5 - Sandboxed client-side execution
-    sendError(id, -32601, `Client-side tool execution not yet implemented: ${name}`);
+    // Client-side execution via CapabilityLoader
+    if (!loader) {
+      sendError(id, -32603, "Capability loader not initialized");
+      return;
+    }
+
+    try {
+      const result = await loader.call(name, args ?? {});
+      sendResponse({
+        jsonrpc: "2.0",
+        id,
+        result: {
+          content: [
+            {
+              type: "text",
+              text: typeof result === "string" ? result : JSON.stringify(result, null, 2),
+            },
+          ],
+        },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logDebug(`Tool error: ${message}`);
+      sendError(id, -32603, `Tool execution failed: ${message}`);
+    }
     return;
   }
 
@@ -152,8 +176,8 @@ async function handleToolsCall(
  */
 async function processRequest(
   line: string,
+  loader: CapabilityLoader | null,
   cloudUrl: string,
-  workspace: string,
 ): Promise<void> {
   let request: { jsonrpc: string; id?: string | number; method: string; params?: unknown };
 
@@ -190,8 +214,8 @@ async function processRequest(
         await handleToolsCall(
           id,
           params as { name: string; arguments?: Record<string, unknown> },
+          loader,
           cloudUrl,
-          workspace,
         );
       }
       break;
@@ -205,7 +229,10 @@ async function processRequest(
 /**
  * Main stdio loop - reads from stdin, processes, writes to stdout
  */
-async function runStdioLoop(cloudUrl: string, workspace: string): Promise<void> {
+async function runStdioLoop(
+  loader: CapabilityLoader | null,
+  cloudUrl: string,
+): Promise<void> {
   const decoder = new TextDecoder();
   let buffer = "";
 
@@ -219,7 +246,7 @@ async function runStdioLoop(cloudUrl: string, workspace: string): Promise<void> 
       buffer = buffer.slice(newlineIndex + 1);
 
       if (line) {
-        await processRequest(line, cloudUrl, workspace);
+        await processRequest(line, loader, cloudUrl);
       }
     }
   }
@@ -279,7 +306,26 @@ export function createStdioCommand(): Command<any> {
       logDebug(`Cloud: ${cloudUrl}`);
       logDebug(`Routing: v${getRoutingVersion()} (${isRoutingInitialized() ? "ready" : "failed"})`);
 
-      // Step 5: Start stdio loop
-      await runStdioLoop(cloudUrl, workspace);
+      // Step 5: Initialize CapabilityLoader
+      // Note: HIL (approval_required) is handled via MCP response, not callback
+      let loader: CapabilityLoader | null = null;
+      try {
+        loader = await CapabilityLoader.create({
+          cloudUrl,
+          workspace,
+        });
+        logDebug(`CapabilityLoader initialized`);
+      } catch (error) {
+        logDebug(`Failed to initialize CapabilityLoader: ${error}`);
+        // Continue without loader - server-side calls will still work
+      }
+
+      // Step 6: Start stdio loop
+      try {
+        await runStdioLoop(loader, cloudUrl);
+      } finally {
+        // Cleanup on exit
+        loader?.shutdown();
+      }
     });
 }

@@ -35,6 +35,8 @@ import {
 } from "../routing/mod.ts";
 // Path validation ready for Story 14.6 (AC4: validate file operations within workspace)
 import { validatePath } from "../security/path-validator.ts";
+// Capability loader (Story 14.4)
+import { CapabilityLoader } from "../loader/mod.ts";
 
 const PML_CONFIG_FILE = ".pml.json";
 
@@ -145,6 +147,25 @@ export function createServeCommand(): Command<any> {
       }
       console.log();
 
+      // Step 4: Initialize CapabilityLoader (Story 14.4)
+      console.log(colors.dim("Initializing capability loader..."));
+      let loader: CapabilityLoader | null = null;
+      try {
+        loader = await CapabilityLoader.create({
+          cloudUrl,
+          workspace,
+          hilCallback: async (prompt: string) => {
+            // HTTP mode HIL - will be implemented in Story 14.6
+            console.log(colors.yellow(`\n⚠️  HIL Prompt: ${prompt}`));
+            return false; // Deny by default until proper HIL is implemented
+          },
+        });
+        console.log(`  ${colors.green("✓")} Capability loader ready`);
+      } catch (error) {
+        console.log(`  ${colors.yellow("⚠")} Capability loader failed: ${error}`);
+      }
+      console.log();
+
       // TODO: Story 14.6 - Full MCP HTTP server implementation
       // For now, just a stub that shows it would start
       console.log(
@@ -206,6 +227,8 @@ export function createServeCommand(): Command<any> {
               capabilityInferrerReady: typeof inferCapabilityApprovalMode === "function",
               capabilityCheckerReady: typeof checkCapabilityPermissions === "function",
               routingResolverReady: typeof resolveToolRouting === "function",
+              capabilityLoaderReady: loader !== null,
+              capabilityLoaderStatus: loader?.getStatus() ?? null,
             },
           }),
           {
