@@ -46,7 +46,7 @@ import { PmlStdServer } from "../../lib/std/cap.ts";
 import type { AlgorithmTracer } from "../telemetry/algorithm-tracer.ts";
 import { TelemetryAdapter } from "../telemetry/decision-logger.ts";
 import { eventBus } from "../events/mod.ts";
-import { AlgorithmInitializer } from "./algorithm-initializer.ts";
+import { AlgorithmInitializer } from "./algorithm-init/mod.ts";
 
 // Server types, constants, lifecycle, and HTTP server
 import {
