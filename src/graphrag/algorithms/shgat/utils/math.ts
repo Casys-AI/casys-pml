@@ -70,7 +70,11 @@ export function sigmoid(x: number): number {
 export function softmax(values: number[]): number[] {
   if (values.length === 0) return [];
 
-  const maxVal = Math.max(...values);
+  // Use loop instead of Math.max(...) to avoid stack overflow with large arrays
+  let maxVal = -Infinity;
+  for (const v of values) {
+    if (v > maxVal) maxVal = v;
+  }
   const exps = values.map((v) => Math.exp(v - maxVal));
   const sum = exps.reduce((a, b) => a + b, 0);
 
