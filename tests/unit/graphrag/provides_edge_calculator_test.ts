@@ -254,26 +254,31 @@ Deno.test({
   },
 });
 
-Deno.test("createFieldMapping - semantic match file -> path", () => {
-  const providerOutput: JSONSchema = {
-    type: "object",
-    properties: {
-      file: { type: "string" },
-    },
-  };
+Deno.test({
+  name: "createFieldMapping - semantic match file -> path",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: () => {
+    const providerOutput: JSONSchema = {
+      type: "object",
+      properties: {
+        file: { type: "string" },
+      },
+    };
 
-  const consumerInput: JSONSchema = {
-    type: "object",
-    properties: {
-      path: { type: "string" },
-    },
-  };
+    const consumerInput: JSONSchema = {
+      type: "object",
+      properties: {
+        path: { type: "string" },
+      },
+    };
 
-  const mapping = createFieldMapping(providerOutput, consumerInput);
+    const mapping = createFieldMapping(providerOutput, consumerInput);
 
-  assertEquals(mapping.length, 1);
-  assertEquals(mapping[0].fromField, "file");
-  assertEquals(mapping[0].toField, "path");
+    assertEquals(mapping.length, 1);
+    assertEquals(mapping[0].fromField, "file");
+    assertEquals(mapping[0].toField, "path");
+  },
 });
 
 Deno.test("createFieldMapping - type compatible when types match", () => {

@@ -345,19 +345,26 @@ Deno.test("Thompson - getThresholdForTool returns valid threshold", () => {
   assert(result.breakdown !== undefined, "Should include breakdown");
 });
 
-Deno.test("Thompson - different modes produce different thresholds", () => {
+Deno.test("Thompson - different modes produce different mode adjustments", () => {
   const manager = new AdaptiveThresholdManager();
 
   const active = manager.getThresholdForTool("filesystem:read_file", "active_search");
   const passive = manager.getThresholdForTool("filesystem:read_file", "passive_suggestion");
   const speculation = manager.getThresholdForTool("filesystem:read_file", "speculation");
 
-  // Active search should have lowest threshold (more exploration)
+  // Mode adjustments are deterministic (per ADR-049):
+  // - active_search: -0.10 (more permissive)
+  // - passive_suggestion: 0 (baseline)
+  // - speculation: +0.05 (more conservative)
+  // Note: Final thresholds include stochastic Thompson sampling so we test mode adjustments
   assert(
-    active.threshold <= passive.threshold,
-    "Active search should have lower or equal threshold",
+    active.breakdown!.modeAdjustment < passive.breakdown!.modeAdjustment,
+    `Active search mode adjustment (${active.breakdown!.modeAdjustment}) should be < passive (${passive.breakdown!.modeAdjustment})`,
   );
-  assert(passive.threshold <= speculation.threshold, "Speculation should have highest threshold");
+  assert(
+    passive.breakdown!.modeAdjustment < speculation.breakdown!.modeAdjustment,
+    `Passive mode adjustment (${passive.breakdown!.modeAdjustment}) should be < speculation (${speculation.breakdown!.modeAdjustment})`,
+  );
 });
 
 Deno.test("Thompson - recordToolOutcome updates sampler", () => {
