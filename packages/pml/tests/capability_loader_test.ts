@@ -415,6 +415,7 @@ Deno.test("CapabilityLoader - caches loaded capabilities", async () => {
     cloudUrl: "https://pml.casys.ai",
     workspace: "/tmp",
     depStatePath: "/tmp/test-loader-cache2.json",
+    sandboxEnabled: false, // Disable sandbox for this test to isolate caching behavior
   });
 
   const validMetadata = {
