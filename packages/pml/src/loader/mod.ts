@@ -45,6 +45,15 @@ export {
   type LoadResult,
 } from "./deno-loader.ts";
 
+// Code Fetcher (for sandboxed execution)
+export {
+  clearCodeCache,
+  type CodeFetchResult,
+  fetchCapabilityCode,
+  getCachedCode,
+  isCodeCached,
+} from "./code-fetcher.ts";
+
 // Dependency State
 export { createDepState, DepState } from "./dep-state.ts";
 

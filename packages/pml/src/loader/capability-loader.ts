@@ -25,11 +25,16 @@ import { checkPermission } from "../permissions/loader.ts";
 import type { PmlPermissions } from "../types.ts";
 import { RegistryClient } from "./registry-client.ts";
 import { loadCapabilityModule } from "./deno-loader.ts";
+import { fetchCapabilityCode } from "./code-fetcher.ts";
 import { createDepState, DepState } from "./dep-state.ts";
 import { DepInstaller } from "./dep-installer.ts";
 import { StdioManager } from "./stdio-manager.ts";
 import { validateEnvForDep } from "./env-checker.ts";
 import { resolveToolRouting } from "../routing/mod.ts";
+import { SandboxWorker } from "../sandbox/mod.ts";
+import type { SandboxResult } from "../sandbox/mod.ts";
+import { TraceCollector, TraceSyncer } from "../tracing/mod.ts";
+import type { TraceSyncConfig } from "../tracing/mod.ts";
 import * as log from "@std/log";
 
 /**
@@ -62,6 +67,23 @@ export interface CapabilityLoaderOptions {
   depStatePath?: string;
   /** Idle timeout for stdio processes (ms) */
   stdioIdleTimeoutMs?: number;
+  /**
+   * Enable sandboxed execution for capability code.
+   * When true, capability code from registry runs in isolated Worker.
+   * Default: true (secure by default)
+   */
+  sandboxEnabled?: boolean;
+  /**
+   * Enable execution tracing for SHGAT learning (Story 14.5b).
+   * When true, traces mcp.* calls and syncs to cloud.
+   * Default: true
+   */
+  tracingEnabled?: boolean;
+  /**
+   * Custom tracing sync config (overrides defaults).
+   * If not provided, uses cloudUrl for sync.
+   */
+  tracingConfig?: Partial<TraceSyncConfig>;
 }
 
 /**
@@ -77,9 +99,15 @@ export class CapabilityLoader {
   private readonly permissions: PmlPermissions;
   private readonly cloudUrl: string;
   private readonly workspace: string;
+  private readonly sandboxEnabled: boolean;
+  private readonly tracingEnabled: boolean;
+  private readonly traceSyncer: TraceSyncer;
 
   /** Cache of loaded capabilities */
   private readonly loadedCapabilities = new Map<string, LoadedCapability>();
+
+  /** Cache of capability code for sandboxed execution */
+  private readonly codeCache = new Map<string, string>();
 
   /** Whether initialization is complete */
   private initialized = false;
@@ -91,11 +119,20 @@ export class CapabilityLoader {
     this.cloudUrl = options.cloudUrl;
     this.workspace = options.workspace;
     this.permissions = options.permissions ?? DEFAULT_PERMISSIONS;
+    this.sandboxEnabled = options.sandboxEnabled ?? true; // Secure by default
+    this.tracingEnabled = options.tracingEnabled ?? true; // Enable tracing by default
 
     this.registryClient = new RegistryClient({ cloudUrl: options.cloudUrl });
     this.depState = depState;
     this.installer = new DepInstaller(depState);
     this.stdioManager = new StdioManager(options.stdioIdleTimeoutMs);
+
+    // Initialize trace syncer (Story 14.5b)
+    this.traceSyncer = new TraceSyncer({
+      cloudUrl: options.tracingConfig?.cloudUrl ?? options.cloudUrl,
+      apiKey: options.tracingConfig?.apiKey,
+      ...options.tracingConfig,
+    });
 
     this.initialized = true;
   }
@@ -159,15 +196,38 @@ export class CapabilityLoader {
       return approvalResult;
     }
 
-    // 3. Dynamic import capability code
-    const { module } = await loadCapabilityModule(metadata.codeUrl);
+    // 3. Load capability code (sandboxed or direct import)
+    let module: CapabilityModule | null = null;
+    let code: string | null = null;
+
+    if (this.sandboxEnabled) {
+      // Fetch raw code for sandboxed execution
+      const { code: fetchedCode } = await fetchCapabilityCode(metadata.codeUrl);
+      code = fetchedCode;
+      this.codeCache.set(namespace, code);
+      logDebug(`Capability code cached for sandbox: ${namespace}`);
+    } else {
+      // Legacy: direct import (not sandboxed)
+      const { module: loadedModule } = await loadCapabilityModule(metadata.codeUrl);
+      module = loadedModule;
+    }
 
     // 4. Create loaded capability with mcp.* routing
     const loaded: LoadedCapability = {
       meta: metadata,
-      module,
+      module: module ?? {}, // Empty module for sandboxed - code runs in Worker
       call: async (method: string, args: unknown) => {
-        return this.executeWithMcpRouting(metadata, module, method, args);
+        if (this.sandboxEnabled && code) {
+          return this.executeInSandbox(metadata, code, method, args);
+        } else if (module) {
+          return this.executeWithMcpRouting(metadata, module, method, args);
+        } else {
+          throw new LoaderError(
+            "METHOD_NOT_FOUND",
+            `No code or module available for ${namespace}`,
+            { namespace },
+          );
+        }
       },
     };
 
@@ -328,6 +388,7 @@ export class CapabilityLoader {
 
   /**
    * Execute a capability method with mcp.* routing.
+   * (Legacy: non-sandboxed execution)
    */
   private async executeWithMcpRouting(
     meta: CapabilityMetadata,
@@ -354,6 +415,110 @@ export class CapabilityLoader {
 
     // Execute
     return await fn(args, ctx);
+  }
+
+  /**
+   * Execute capability code in isolated sandbox.
+   *
+   * Creates a Deno Worker with `permissions: "none"` and executes
+   * the capability code inside it. All mcp.* calls from the sandbox
+   * are routed via RPC to the main thread.
+   *
+   * Story 14.5b: Traces mcp.* calls for SHGAT learning when tracingEnabled.
+   *
+   * @param meta - Capability metadata
+   * @param code - Raw capability code (fetched from registry)
+   * @param method - Method to call (currently ignored - code should export result)
+   * @param args - Arguments for the capability
+   * @returns Execution result
+   */
+  private async executeInSandbox(
+    meta: CapabilityMetadata,
+    code: string,
+    _method: string,
+    args: unknown,
+  ): Promise<unknown> {
+    logDebug(`Executing ${meta.fqdn} in sandbox`);
+
+    // Story 14.5b: Create trace collector if tracing is enabled
+    const traceCollector = this.tracingEnabled ? new TraceCollector() : null;
+
+    // Create sandbox with RPC handler that records mcp.* calls
+    const sandbox = new SandboxWorker({
+      onRpc: async (rpcMethod: string, rpcArgs: unknown) => {
+        // Route mcp.* calls through existing infrastructure
+        // rpcMethod format: "namespace:action"
+        const [namespace, action] = rpcMethod.split(":");
+
+        // Record call start time
+        const callStart = Date.now();
+        let callSuccess = true;
+        let callResult: unknown;
+
+        try {
+          callResult = await this.routeMcpCall(meta, namespace, action, rpcArgs);
+          return callResult;
+        } catch (error) {
+          callSuccess = false;
+          callResult = { error: error instanceof Error ? error.message : String(error) };
+          throw error;
+        } finally {
+          // Story 14.5b: Record the mcp.* call in trace collector
+          if (traceCollector) {
+            const callDuration = Date.now() - callStart;
+            traceCollector.recordMcpCall(
+              rpcMethod,
+              rpcArgs,
+              callResult,
+              callDuration,
+              callSuccess,
+            );
+          }
+        }
+      },
+    });
+
+    try {
+      // Execute code in sandbox
+      const result: SandboxResult = await sandbox.execute(code, args);
+
+      if (!result.success) {
+        // Story 14.5b: Finalize trace with failure
+        if (traceCollector) {
+          const trace = traceCollector.finalize(
+            meta.fqdn,
+            false,
+            result.error?.message,
+          );
+          this.traceSyncer.enqueue(trace);
+        }
+
+        // Convert sandbox error to LoaderError
+        const error = result.error;
+        throw new LoaderError(
+          "SUBPROCESS_CALL_FAILED",
+          error?.message ?? "Sandbox execution failed",
+          {
+            fqdn: meta.fqdn,
+            code: error?.code,
+            durationMs: result.durationMs,
+          },
+        );
+      }
+
+      // Story 14.5b: Finalize trace with success and enqueue for sync
+      if (traceCollector) {
+        const trace = traceCollector.finalize(meta.fqdn, true);
+        this.traceSyncer.enqueue(trace);
+        logDebug(`Trace collected: ${meta.fqdn} - ${trace.taskResults.length} mcp.* calls`);
+      }
+
+      logDebug(`Sandbox execution completed in ${result.durationMs}ms`);
+      return result.value;
+    } finally {
+      // Always clean up sandbox
+      sandbox.shutdown();
+    }
   }
 
   /**
@@ -522,7 +687,10 @@ export class CapabilityLoader {
   /**
    * Shutdown all resources.
    */
-  shutdown(): void {
+  async shutdown(): Promise<void> {
+    // Shutdown trace syncer first (flushes pending traces)
+    await this.traceSyncer.shutdown();
+
     this.stdioManager.shutdownAll();
     this.loadedCapabilities.clear();
   }
