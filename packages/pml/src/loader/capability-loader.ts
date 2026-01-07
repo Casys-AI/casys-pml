@@ -11,15 +11,16 @@
  */
 
 import type {
-  ApprovalRequiredResult,
   CapabilityMetadata,
   CapabilityModule,
   ContinueWorkflowParams,
+  DependencyApprovalRequired,
   ExecutionContext,
   LoadedCapability,
   McpDependency,
   McpProxy,
 } from "./types.ts";
+import type { ApprovalRequiredResult } from "./types.ts";
 import { LoaderError } from "./types.ts";
 import { checkPermission } from "../permissions/loader.ts";
 import type { PmlPermissions } from "../types.ts";
@@ -35,13 +36,24 @@ import { SandboxWorker } from "../sandbox/mod.ts";
 import type { SandboxResult } from "../sandbox/mod.ts";
 import { TraceCollector, TraceSyncer } from "../tracing/mod.ts";
 import type { TraceSyncConfig } from "../tracing/mod.ts";
+import { sanitize } from "../byok/sanitizer.ts";
+import {
+  checkKeys,
+  getRequiredKeys,
+  handleApiKeyContinue,
+  isApiKeyApprovalRequired,
+  pauseForMissingKeys,
+  reloadEnv,
+} from "../byok/mod.ts";
+import type { ApiKeyApprovalRequired } from "../byok/types.ts";
 import * as log from "@std/log";
 
 /**
  * Log debug message for loader operations.
+ * Automatically sanitizes messages to prevent API key exposure.
  */
 function logDebug(message: string): void {
-  log.debug(`[pml:loader] ${message}`);
+  log.debug(`[pml:loader] ${sanitize(message)}`);
 }
 
 /**
@@ -109,6 +121,9 @@ export class CapabilityLoader {
   /** Cache of capability code for sandboxed execution */
   private readonly codeCache = new Map<string, string>();
 
+  /** Pending API key approvals by workflow ID (Story 14.6) */
+  private readonly pendingApiKeyApprovals = new Map<string, ApiKeyApprovalRequired>();
+
   /** Whether initialization is complete */
   private initialized = false;
 
@@ -139,10 +154,21 @@ export class CapabilityLoader {
 
   /**
    * Create and initialize a capability loader.
+   *
+   * Story 14.6: Loads .env file from workspace at initialization.
    */
   static async create(
     options: CapabilityLoaderOptions,
   ): Promise<CapabilityLoader> {
+    // Story 14.6: Load .env file from workspace at startup
+    try {
+      await reloadEnv(options.workspace);
+      logDebug(`Loaded .env from ${options.workspace}`);
+    } catch (_error) {
+      // .env file may not exist - this is OK
+      logDebug(`No .env file found in ${options.workspace}`);
+    }
+
     const depState = await createDepState(options.depStatePath);
     return new CapabilityLoader(options, depState);
   }
@@ -255,7 +281,10 @@ export class CapabilityLoader {
    * Call a tool directly without pre-loading.
    *
    * Convenience method that combines load() + call().
-   * May return ApprovalRequiredResult if dependencies need user approval.
+   * May return ApprovalRequiredResult if dependencies or API keys need user action.
+   *
+   * **Story 14.6:** Checks required API keys before execution.
+   * If keys are missing, returns ApiKeyApprovalRequired instead of executing.
    *
    * @param toolId - Full tool ID (e.g., "filesystem:read_file")
    * @param args - Tool arguments
@@ -273,7 +302,61 @@ export class CapabilityLoader {
       : [toolId, "default"];
     const action = parts[1];
 
-    // Load capability (may return ApprovalRequiredResult)
+    // Story 14.6: Handle API key continuation
+    if (continueWorkflow?.workflowId) {
+      const pendingApproval = this.pendingApiKeyApprovals.get(
+        continueWorkflow.workflowId,
+      );
+      if (pendingApproval && isApiKeyApprovalRequired(pendingApproval)) {
+        // This is a continuation for API keys
+        const continueResult = await handleApiKeyContinue(
+          pendingApproval,
+          this.workspace,
+        );
+
+        if (!continueResult.success) {
+          // Still missing keys - return updated approval
+          logDebug(`API keys still missing: ${continueResult.remainingIssues.join(", ")}`);
+          return pauseForMissingKeys(
+            {
+              allValid: false,
+              missing: continueResult.remainingIssues.filter(
+                (k) => pendingApproval.missingKeys.includes(k),
+              ),
+              invalid: continueResult.remainingIssues.filter(
+                (k) => pendingApproval.invalidKeys.includes(k),
+              ),
+            },
+            continueWorkflow.workflowId, // Reuse same workflow ID
+          );
+        }
+
+        // Keys are now valid - clear pending and continue
+        this.pendingApiKeyApprovals.delete(continueWorkflow.workflowId);
+        logDebug(`API keys validated: ${continueResult.validKeys.join(", ")}`);
+      }
+    }
+
+    // Story 14.6: Check required API keys BEFORE execution (AC1)
+    const requiredKeys = getRequiredKeys(toolId);
+    if (requiredKeys.length > 0) {
+      const keyCheck = checkKeys(requiredKeys);
+
+      if (!keyCheck.allValid) {
+        // Missing or invalid keys - return HIL pause (AC2)
+        logDebug(`Missing API keys for ${toolId}: ${[...keyCheck.missing, ...keyCheck.invalid].join(", ")}`);
+        const approval = pauseForMissingKeys(keyCheck);
+
+        // Store for continuation handling
+        this.pendingApiKeyApprovals.set(approval.workflowId, approval);
+
+        return approval;
+      }
+
+      logDebug(`API keys verified for ${toolId}`);
+    }
+
+    // Load capability (may return ApprovalRequiredResult for dependencies)
     const loadResult = await this.load(toolId, continueWorkflow);
 
     // If approval is required, return the approval request
@@ -380,10 +463,11 @@ export class CapabilityLoader {
     logDebug(`Dependency ${dep.name}@${dep.version} requires approval`);
     return {
       approvalRequired: true,
+      approvalType: "dependency",
       dependency: dep,
       description:
         `Install ${dep.name}@${dep.version} to execute this capability`,
-    };
+    } satisfies DependencyApprovalRequired;
   }
 
   /**

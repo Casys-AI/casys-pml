@@ -282,11 +282,14 @@ export interface CapabilityPermissionResult {
 // ============================================================================
 
 export type {
+  ApiKeyApprovalRequired,
   ApprovalRequiredResult,
+  ApprovalType,
   CapabilityLoadResult,
   CapabilityMetadata,
   CapabilityModule,
   ContinueWorkflowParams,
+  DependencyApprovalRequired,
   DepStateFile,
   ExecutionContext,
   InstallResult,

@@ -328,8 +328,16 @@ export interface ExecutionContext {
 }
 
 // ============================================================================
-// Approval Flow Types (Story 14.3b)
+// Approval Flow Types (Story 14.3b, Story 14.6)
 // ============================================================================
+
+/**
+ * Approval type discriminant for different HIL flows.
+ *
+ * - "dependency": MCP dependency needs user approval to install
+ * - "api_key_required": API key missing, user needs to configure .env
+ */
+export type ApprovalType = "dependency" | "api_key_required";
 
 /**
  * Result of dependency check that may require approval.
@@ -337,14 +345,47 @@ export interface ExecutionContext {
  * Used by CapabilityLoader to signal that HIL approval is needed
  * instead of blocking on stdin (which breaks stdio mode).
  */
-export interface ApprovalRequiredResult {
+export interface DependencyApprovalRequired {
   /** True when approval is required */
   approvalRequired: true;
+  /** Discriminant for approval type */
+  approvalType: "dependency";
   /** The dependency needing approval */
   dependency: McpDependency;
   /** Description for the user */
   description: string;
 }
+
+/**
+ * Result of API key check that requires user action.
+ *
+ * User must add the missing keys to .env and click Continue.
+ * Story 14.6: BYOK API Key Management
+ */
+export interface ApiKeyApprovalRequired {
+  /** True when approval is required */
+  approvalRequired: true;
+  /** Discriminant for approval type */
+  approvalType: "api_key_required";
+  /** Workflow ID for continuation tracking */
+  workflowId: string;
+  /** Missing key names */
+  missingKeys: string[];
+  /** Keys with invalid/placeholder values */
+  invalidKeys: string[];
+  /** Human-readable instruction */
+  instruction: string;
+}
+
+/**
+ * Union of all approval-required results.
+ *
+ * @deprecated Use DependencyApprovalRequired or ApiKeyApprovalRequired directly.
+ * Kept for backwards compatibility.
+ */
+export type ApprovalRequiredResult =
+  | DependencyApprovalRequired
+  | ApiKeyApprovalRequired;
 
 /**
  * Successful load result with capability.
