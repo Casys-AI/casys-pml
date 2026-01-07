@@ -1037,8 +1037,10 @@ async function executeAcceptedSuggestion(
   const perLayerValidation = options?.per_layer_validation === true;
 
   // Step 1: Static analysis via SWC
-  const structureBuilder = new StaticStructureBuilder(deps.db);
-  const staticStructure = await structureBuilder.buildStaticStructure(codeSnippet);
+  // Phase 3.2: Use DI-injected codeAnalyzer when available
+  const staticStructure = deps.codeAnalyzer
+    ? await deps.codeAnalyzer.analyze(codeSnippet)
+    : await new StaticStructureBuilder(deps.db).buildStaticStructure(codeSnippet);
 
   // Step 2: Build tool definitions
   const toolDefs = await buildToolDefinitionsFromStaticStructure(staticStructure, deps);

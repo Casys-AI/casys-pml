@@ -351,7 +351,7 @@ export function createServeCommand() {
 
         // Phase 2.2: Bootstrap DI container with real implementations
         // Container available for future DI-aware components
-        const { container: _diContainer, mcpRegistry } = bootstrapDI({
+        const { container: _diContainer, mcpRegistry, codeAnalyzer } = bootstrapDI({
           db,
           embeddingModel,
           vectorSearch,
@@ -442,6 +442,9 @@ export function createServeCommand() {
 
         // ADR-008: Wire EpisodicMemoryStore to gateway for workflow learning
         gateway.setEpisodicMemoryStore(episodicMemory);
+
+        // Phase 3.2: Wire CodeAnalyzer to gateway for static structure analysis
+        gateway.setCodeAnalyzer(codeAnalyzer);
 
         // Connect gateway to tool tracking callback (Story 3.7)
         gatewayRef = gateway;

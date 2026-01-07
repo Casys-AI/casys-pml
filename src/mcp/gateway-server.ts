@@ -48,6 +48,7 @@ import { TelemetryAdapter } from "../telemetry/decision-logger.ts";
 import { eventBus } from "../events/mod.ts";
 import { AlgorithmInitializer } from "./algorithm-init/mod.ts";
 import type { EpisodicMemoryStore } from "../dag/episodic/store.ts";
+import type { ICodeAnalyzer } from "../domain/interfaces/code-analyzer.ts";
 
 // Server types, constants, lifecycle, and HTTP server
 import {
@@ -128,6 +129,7 @@ export class PMLGatewayServer {
   private algorithmTracer: AlgorithmTracer | null = null; // Story 7.6: Observability
   private algorithmInitializer: AlgorithmInitializer | null = null; // Algorithm lifecycle
   private episodicMemory: EpisodicMemoryStore | null = null; // ADR-008: Episodic memory
+  private codeAnalyzer: ICodeAnalyzer | null = null; // Phase 3.2: DI code analyzer
 
   constructor(
     // @ts-ignore: db kept for future use (direct queries)
@@ -293,6 +295,15 @@ export class PMLGatewayServer {
   setEpisodicMemoryStore(store: EpisodicMemoryStore): void {
     this.episodicMemory = store;
     log.debug("[Gateway] EpisodicMemoryStore configured for learning");
+  }
+
+  /**
+   * Set CodeAnalyzer for static structure analysis (Phase 3.2)
+   * Called from serve.ts after gateway construction.
+   */
+  setCodeAnalyzer(analyzer: ICodeAnalyzer): void {
+    this.codeAnalyzer = analyzer;
+    log.debug("[Gateway] CodeAnalyzer configured for static analysis");
   }
 
   /**
@@ -574,6 +585,7 @@ export class PMLGatewayServer {
       config: this.config,
       contextBuilder: this.contextBuilder,
       toolSchemaCache: this.toolSchemaCache,
+      codeAnalyzer: this.codeAnalyzer ?? undefined, // Phase 3.2: DI
     };
   }
 
@@ -602,6 +614,7 @@ export class PMLGatewayServer {
       traceStore: this.capabilityStore?.getTraceStore(), // Story 11.6: PER training
       onSHGATParamsUpdated: async () => { await this.algorithmInitializer?.saveSHGATParams(); }, // Save after PER training
       algorithmTracer: this.algorithmTracer ?? undefined, // Story 7.6: Observability
+      codeAnalyzer: this.codeAnalyzer ?? undefined, // Phase 3.2: DI
     };
   }
 

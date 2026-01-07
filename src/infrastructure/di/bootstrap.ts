@@ -22,6 +22,7 @@ import {
   GraphEngineAdapter,
   CapabilityRepositoryAdapter,
   MCPClientRegistryAdapter,
+  CodeAnalyzerAdapter,
 } from "./adapters/mod.ts";
 
 /**
@@ -38,6 +39,8 @@ export interface BootstrappedServices {
   capabilityStore: CapabilityStore;
   /** MCP client registry adapter with refreshTools() */
   mcpRegistry: MCPClientRegistryAdapter;
+  /** Code analyzer adapter for static structure analysis (Phase 3.2) */
+  codeAnalyzer: CodeAnalyzerAdapter;
 }
 
 /**
@@ -91,6 +94,7 @@ export function bootstrapDI(options: BootstrapOptions): BootstrappedServices {
   const graphEngineAdapter = new GraphEngineAdapter(graphEngine);
   const capabilityRepoAdapter = new CapabilityRepositoryAdapter(capabilityStore);
   const mcpRegistryAdapter = new MCPClientRegistryAdapter(mcpClients);
+  const codeAnalyzerAdapter = new CodeAnalyzerAdapter(db);
 
   // Build container with factory functions
   const container = buildContainer(
@@ -140,6 +144,9 @@ export function bootstrapDI(options: BootstrapOptions): BootstrappedServices {
       createGraphEngine: () => graphEngineAdapter,
       createCapabilityRepository: () => capabilityRepoAdapter,
       createMCPClientRegistry: () => mcpRegistryAdapter,
+
+      // Phase 3.2: Code analyzer adapter
+      createCodeAnalyzer: () => codeAnalyzerAdapter,
     },
   );
 
@@ -148,10 +155,16 @@ export function bootstrapDI(options: BootstrapOptions): BootstrappedServices {
     graphEngine,
     capabilityStore,
     mcpRegistry: mcpRegistryAdapter,
+    codeAnalyzer: codeAnalyzerAdapter,
   };
 }
 
 /**
  * Re-export container utilities
  */
-export { getCapabilityRepository, getGraphEngine, getMCPClientRegistry } from "./container.ts";
+export {
+  getCapabilityRepository,
+  getGraphEngine,
+  getMCPClientRegistry,
+  getCodeAnalyzer,
+} from "./container.ts";
