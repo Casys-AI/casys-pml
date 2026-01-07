@@ -32,6 +32,7 @@ import type {
 
 interface EmergencePanelProps {
   apiBase: string;
+  apiKey?: string | null;
   /** Story 9.8: Scope filter (default: "user") */
   scope?: Scope;
   /** Callback when scope changes */
@@ -46,6 +47,7 @@ type EmergenceMetrics = EmergenceMetricsResponse;
 
 export default function EmergencePanel({
   apiBase: apiBaseProp,
+  apiKey,
   scope: scopeProp = "user",
   onScopeChange,
   isLocalMode = false,
@@ -70,8 +72,13 @@ export default function EmergencePanel({
   const fetchMetrics = useCallback(async () => {
     try {
       setLoading(true);
+      const headers: HeadersInit = {};
+      if (apiKey) {
+        headers["x-api-key"] = apiKey;
+      }
       const res = await fetch(
         `${apiBase}/api/metrics/emergence?range=${timeRange}&scope=${scope}`,
+        { headers },
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
@@ -85,7 +92,7 @@ export default function EmergencePanel({
     } finally {
       setLoading(false);
     }
-  }, [apiBase, timeRange, scope]);
+  }, [apiBase, apiKey, timeRange, scope]);
 
   // Initial fetch
   useEffect(() => {

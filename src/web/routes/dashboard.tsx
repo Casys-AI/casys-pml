@@ -9,6 +9,7 @@ import type { AuthState } from "./_middleware.ts";
 
 interface DashboardData {
   apiBase: string;
+  apiKey: string | null;
   isCloudMode: boolean;
   user: AuthState["user"];
 }
@@ -17,8 +18,11 @@ export const handler = {
   GET(ctx: FreshContext<AuthState>) {
     // Read API base from env, default to localhost:3003 for dev
     const apiBase = Deno.env.get("API_BASE") || "http://localhost:3003";
+    // Pass API key for authenticated API calls (local dev only - production uses session tokens)
+    const apiKey = Deno.env.get("PML_API_KEY") || null;
     return page({
       apiBase,
+      apiKey,
       isCloudMode: ctx.state.isCloudMode,
       user: ctx.state.user,
     });
@@ -27,6 +31,7 @@ export const handler = {
 
 export default function Dashboard({ data }: { data: DashboardData }) {
   const apiBase = data?.apiBase || "http://localhost:3003";
+  const apiKey = data?.apiKey || null;
   const { isCloudMode, user } = data;
 
   return (
@@ -100,12 +105,12 @@ export default function Dashboard({ data }: { data: DashboardData }) {
         isCloudMode={isCloudMode}
         rightPanel={
           <>
-            <MetricsPanel apiBase={apiBase} position="sidebar" />
-            <TracingPanel apiBase={apiBase} />
+            <MetricsPanel apiBase={apiBase} apiKey={apiKey} position="sidebar" />
+            <TracingPanel apiBase={apiBase} apiKey={apiKey} />
           </>
         }
       >
-        <GraphExplorer apiBase={apiBase} />
+        <GraphExplorer apiBase={apiBase} apiKey={apiKey} />
       </DashboardLayout>
     </>
   );

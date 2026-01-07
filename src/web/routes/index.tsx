@@ -19,7 +19,7 @@ import { HeroRepl } from "../islands/HeroRepl.tsx";
 import MobileMenu from "../islands/MobileMenu.tsx";
 
 // Feature flag - set to true to show auth UI (Sign in, Dashboard links)
-const SHOW_AUTH = false;
+const SHOW_AUTH = true;
 
 interface LandingPageData {
   latestPosts: Post[];

@@ -171,13 +171,14 @@ function mapApiTrace(api: ApiTrace): TraceEvent {
 
 interface TracingPanelProps {
   apiBase: string;
+  apiKey?: string | null;
 }
 
 const MIN_WIDTH = 320;
 const MAX_WIDTH = 1200;
 const DEFAULT_WIDTH = 480;
 
-export default function TracingPanel({ apiBase }: TracingPanelProps) {
+export default function TracingPanel({ apiBase, apiKey: _apiKey }: TracingPanelProps) {
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === "undefined") return true;
     const saved = localStorage.getItem("tracing-panel-collapsed");

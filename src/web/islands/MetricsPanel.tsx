@@ -9,6 +9,7 @@ import { useSSE } from "../hooks/mod.ts";
 
 interface MetricsPanelProps {
   apiBase: string;
+  apiKey?: string | null;
   position?: "sidebar" | "overlay";
 }
 
@@ -83,7 +84,7 @@ interface GraphMetricsResponse {
 
 type GraphTypeTab = "graph" | "hypergraph";
 
-export default function MetricsPanel({ apiBase: apiBaseProp }: MetricsPanelProps) {
+export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPanelProps) {
   const apiBase = apiBaseProp || "http://localhost:3003";
 
   const [metrics, setMetrics] = useState<GraphMetricsResponse | null>(null);
@@ -117,7 +118,11 @@ export default function MetricsPanel({ apiBase: apiBaseProp }: MetricsPanelProps
   // Fetch metrics function
   const fetchMetrics = useCallback(async () => {
     try {
-      const res = await fetch(`${apiBase}/api/metrics?range=${dateRange}`);
+      const headers: HeadersInit = {};
+      if (apiKey) {
+        headers["x-api-key"] = apiKey;
+      }
+      const res = await fetch(`${apiBase}/api/metrics?range=${dateRange}`, { headers });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: GraphMetricsResponse = await res.json();
       setMetrics(data);
@@ -129,7 +134,7 @@ export default function MetricsPanel({ apiBase: apiBaseProp }: MetricsPanelProps
         setLoading(false);
       }
     }
-  }, [apiBase, dateRange]);
+  }, [apiBase, apiKey, dateRange]);
 
   // Initial fetch
   useEffect(() => {

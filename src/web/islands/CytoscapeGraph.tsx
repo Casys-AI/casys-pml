@@ -264,6 +264,7 @@ export type NodeMode = "definition" | "invocation";
 
 interface CytoscapeGraphProps {
   apiBase: string;
+  apiKey?: string | null;
   onCapabilitySelect?: (capability: CapabilityData | null) => void;
   onToolSelect?: (tool: ToolData | null) => void;
   onNodeSelect?: (
@@ -343,6 +344,7 @@ const COMMUNITY_COLORS = [
 
 export default function CytoscapeGraph({
   apiBase,
+  apiKey,
   onCapabilitySelect,
   onToolSelect,
   onNodeSelect,
@@ -1144,8 +1146,13 @@ export default function CytoscapeGraph({
     try {
       // Story 11.4: Include traces for invocation mode
       console.log("[CytoscapeGraph] Fetching hypergraph data...");
+      const headers: HeadersInit = {};
+      if (apiKey) {
+        headers["x-api-key"] = apiKey;
+      }
       const response = await fetch(`${apiBase}/api/graph/hypergraph?include_traces=true`, {
         cache: "no-store", // Ensure fresh data after SSE refresh
+        headers,
       });
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);

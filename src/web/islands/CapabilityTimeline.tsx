@@ -64,6 +64,7 @@ export interface TimelineCapability {
 
 interface CapabilityTimelineProps {
   apiBase: string;
+  apiKey?: string | null;
   onCapabilitySelect?: (capability: TimelineCapability | null) => void;
   onToolSelect?: (toolId: string | null) => void;
   refreshKey?: number;
@@ -83,6 +84,7 @@ interface TimeGroup {
 
 export default function CapabilityTimeline({
   apiBase,
+  apiKey,
   onCapabilitySelect,
   onToolSelect: _onToolSelect,
   refreshKey = 0,
@@ -130,9 +132,13 @@ export default function CapabilityTimeline({
     setError(null);
 
     try {
+      const headers: HeadersInit = {};
+      if (apiKey) {
+        headers["x-api-key"] = apiKey;
+      }
       const response = await fetch(
         `${apiBase}/api/graph/hypergraph?include_traces=true`,
-        { cache: "no-store" }, // Ensure fresh data after SSE refresh
+        { cache: "no-store", headers }, // Ensure fresh data after SSE refresh
       );
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
@@ -316,7 +322,7 @@ export default function CapabilityTimeline({
       setError(err instanceof Error ? err.message : "Failed to load");
       setIsLoading(false);
     }
-  }, [apiBase, onServersDiscovered, onCapabilitiesLoaded]);
+  }, [apiBase, apiKey, onServersDiscovered, onCapabilitiesLoaded]);
 
   // Track if initial load is done for silent SSE refreshes
   const initialLoadDone = useRef(false);

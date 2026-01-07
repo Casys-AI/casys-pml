@@ -76,10 +76,20 @@ interface BreadcrumbItem {
 
 interface GraphExplorerProps {
   apiBase?: string;
+  apiKey?: string | null;
 }
 
-export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerProps) {
+export default function GraphExplorer({ apiBase: apiBaseProp, apiKey }: GraphExplorerProps) {
   const apiBase = apiBaseProp || "http://localhost:3003";
+
+  // Helper for authenticated API calls
+  const apiFetch = (url: string, options?: RequestInit) => {
+    const headers: HeadersInit = { ...(options?.headers || {}) };
+    if (apiKey) {
+      (headers as Record<string, string>)["x-api-key"] = apiKey;
+    }
+    return fetch(url, { ...options, headers });
+  };
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<UnifiedSearchResult[]>([]);
@@ -433,7 +443,7 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
       if (viewMode !== "capabilities") {
         try {
           const url = `${apiBase}/api/tools/search?q=${encodeURIComponent(searchQuery)}&limit=8`;
-          const response = await fetch(url);
+          const response = await apiFetch(url);
           if (response.ok) {
             const data = await response.json();
             const toolResults = (data.results || []).map((t: ToolSearchResult) => ({
@@ -536,7 +546,7 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
 
     try {
       // Fetch unified insights from single endpoint
-      const response = await fetch(
+      const response = await apiFetch(
         `${apiBase}/api/graph/insights?node_id=${encodeURIComponent(node.id)}&limit=15`,
       );
       const insightsData = await response.json();
@@ -648,7 +658,7 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
     if (!pathFrom || !pathTo) return;
 
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `${apiBase}/api/graph/path?from=${encodeURIComponent(pathFrom)}&to=${
           encodeURIComponent(pathTo)
         }`,
@@ -1131,6 +1141,7 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
             /* Timeline view for capabilities (scrollable HTML) */
             <CapabilityTimeline
               apiBase={apiBase}
+              apiKey={apiKey}
               onCapabilitySelect={(cap) => {
                 if (cap) {
                   // Convert TimelineCapability to CapabilityData format
@@ -1162,12 +1173,13 @@ export default function GraphExplorer({ apiBase: apiBaseProp }: GraphExplorerPro
           )}
           {viewMode === "emergence" && (
             /* EmergencePanel for CAS metrics dashboard */
-            <EmergencePanel apiBase={apiBase} />
+            <EmergencePanel apiBase={apiBase} apiKey={apiKey} />
           )}
           {viewMode === "graph" && (
             /* Cytoscape graph for graph mode */
             <CytoscapeGraph
               apiBase={apiBase}
+              apiKey={apiKey}
               onNodeSelect={handleNodeSelect}
               onCapabilitySelect={handleCapabilitySelect}
               onToolSelect={handleToolSelect}
