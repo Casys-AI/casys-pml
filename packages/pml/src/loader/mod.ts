@@ -106,3 +106,7 @@ export {
   CapabilityLoader,
   type CapabilityLoaderOptions,
 } from "./capability-loader.ts";
+
+// Lockfile Types (Story 14.7 - re-export for convenience)
+export type { IntegrityApprovalRequired } from "../lockfile/types.ts";
+export { LockfileManager } from "../lockfile/mod.ts";

@@ -13,6 +13,8 @@ import type {
   RegistryFetchResult,
 } from "./types.ts";
 import { LoaderError } from "./types.ts";
+import type { LockfileManager } from "../lockfile/lockfile-manager.ts";
+import type { IntegrityApprovalRequired } from "../lockfile/types.ts";
 
 /**
  * Default timeout for registry requests (10 seconds).
@@ -362,5 +364,90 @@ export class RegistryClient {
       size: this.cache.size,
       maxSize: this.maxCacheSize,
     };
+  }
+
+  // =========================================================================
+  // Story 14.7: Integrity-aware fetch with lockfile support
+  // =========================================================================
+
+  /**
+   * Fetch with integrity validation (Story 14.7 AC11-AC14).
+   *
+   * Validates fetched metadata against lockfile.
+   * Returns approval required if hash has changed.
+   *
+   * @param namespace - Tool namespace or FQDN
+   * @param lockfileManager - Lockfile manager for integrity tracking
+   * @returns Fetch result or approval required
+   */
+  async fetchWithIntegrity(
+    namespace: string,
+    lockfileManager: LockfileManager,
+  ): Promise<RegistryFetchResult | IntegrityApprovalRequired> {
+    // Fetch metadata normally
+    const result = await this.fetch(namespace);
+    const { metadata } = result;
+
+    // Extract integrity from ETag or compute from content
+    // For now, we use the FQDN's hash as a proxy for integrity
+    const serverIntegrity = metadata.fqdn.split(".").pop() || "";
+
+    // Determine MCP type (currently only "deno" supported)
+    const mcpType = "deno" as const;
+
+    // Validate against lockfile
+    const validation = await lockfileManager.validateIntegrity(
+      metadata.fqdn,
+      serverIntegrity,
+      mcpType,
+    );
+
+    // If approval required, return that instead
+    if ("approvalRequired" in validation && validation.approvalRequired) {
+      return validation;
+    }
+
+    return result;
+  }
+
+  /**
+   * Continue fetch after user approval (Story 14.7 AC14).
+   *
+   * @param namespace - Tool namespace or FQDN
+   * @param lockfileManager - Lockfile manager
+   * @param approved - Whether user approved the change
+   * @returns Fetch result
+   * @throws LoaderError if user rejected
+   */
+  async continueFetchWithApproval(
+    namespace: string,
+    lockfileManager: LockfileManager,
+    approved: boolean,
+  ): Promise<RegistryFetchResult> {
+    if (!approved) {
+      const fqdn = toolNameToFqdn(namespace);
+      throw new LoaderError(
+        "DEPENDENCY_NOT_APPROVED",
+        `User rejected integrity change for ${fqdn}`,
+        { fqdn },
+      );
+    }
+
+    // Fetch again and update lockfile
+    const result = await this.fetch(namespace);
+    const { metadata } = result;
+
+    // Extract integrity
+    const serverIntegrity = metadata.fqdn.split(".").pop() || "";
+    const mcpType = "deno" as const;
+
+    // Update lockfile with new integrity
+    await lockfileManager.approveIntegrityChange(
+      metadata.fqdn,
+      serverIntegrity,
+      mcpType,
+    );
+
+    return result;
   }
 }

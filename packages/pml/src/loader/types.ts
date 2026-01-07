@@ -337,8 +337,9 @@ export interface ExecutionContext {
  *
  * - "dependency": MCP dependency needs user approval to install
  * - "api_key_required": API key missing, user needs to configure .env
+ * - "integrity": Integrity hash changed, user needs to approve update (Story 14.7)
  */
-export type ApprovalType = "dependency" | "api_key_required";
+export type ApprovalType = "dependency" | "api_key_required" | "integrity";
 
 /**
  * Result of dependency check that may require approval.
