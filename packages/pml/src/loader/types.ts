@@ -254,6 +254,7 @@ export type LoaderErrorCode =
   | "DEPENDENCY_INSTALL_FAILED"
   | "DEPENDENCY_INTEGRITY_FAILED"
   | "ENV_VAR_MISSING"
+  | "API_KEY_NOT_CONFIGURED" // Story 14.6: User aborted key configuration
   | "MODULE_IMPORT_FAILED"
   | "METHOD_NOT_FOUND"
   | "SUBPROCESS_SPAWN_FAILED"
@@ -369,10 +370,8 @@ export interface ApiKeyApprovalRequired {
   approvalType: "api_key_required";
   /** Workflow ID for continuation tracking */
   workflowId: string;
-  /** Missing key names */
+  /** Missing or invalid key names (combined list) */
   missingKeys: string[];
-  /** Keys with invalid/placeholder values */
-  invalidKeys: string[];
   /** Human-readable instruction */
   instruction: string;
 }

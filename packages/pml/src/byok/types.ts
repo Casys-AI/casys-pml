@@ -59,24 +59,8 @@ export const INVALID_KEY_PATTERNS: RegExp[] = [
 // HIL Approval Types
 // ============================================================================
 
-/**
- * HIL approval response for missing API keys.
- *
- * Returned when tool execution is blocked due to missing keys.
- * The user must add the keys to .env and continue the workflow.
- */
-export interface ApiKeyApprovalRequired {
-  /** Always true for approval responses */
-  approvalRequired: true;
-  /** Distinguishes from dependency approval */
-  approvalType: "api_key_required";
-  /** Workflow ID for continuation */
-  workflowId: string;
-  /** Missing key names */
-  missingKeys: string[];
-  /** Human-readable instruction */
-  instruction: string;
-}
+// Re-export ApiKeyApprovalRequired from loader/types.ts (canonical definition)
+export type { ApiKeyApprovalRequired } from "../loader/types.ts";
 
 /**
  * Result of reloading .env after user action.

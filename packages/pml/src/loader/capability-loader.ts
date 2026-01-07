@@ -30,7 +30,6 @@ import { fetchCapabilityCode } from "./code-fetcher.ts";
 import { createDepState, DepState } from "./dep-state.ts";
 import { DepInstaller } from "./dep-installer.ts";
 import { StdioManager } from "./stdio-manager.ts";
-import { validateEnvForDep } from "./env-checker.ts";
 import { resolveToolRouting } from "../routing/mod.ts";
 import { SandboxWorker } from "../sandbox/mod.ts";
 import type { SandboxResult } from "../sandbox/mod.ts";
@@ -210,14 +209,24 @@ export class CapabilityLoader {
     // If approval is required and not yet approved, return the approval request
     if (approvalResult) {
       if (continueWorkflow?.approved === false) {
-        throw new LoaderError(
-          "DEPENDENCY_NOT_APPROVED",
-          `Dependency ${approvalResult.dependency.name} was not approved by user`,
-          {
-            dep: approvalResult.dependency.name,
-            version: approvalResult.dependency.version,
-          },
-        );
+        // Handle denial based on approval type
+        if (approvalResult.approvalType === "dependency") {
+          throw new LoaderError(
+            "DEPENDENCY_NOT_APPROVED",
+            `Dependency ${approvalResult.dependency.name} was not approved by user`,
+            {
+              dep: approvalResult.dependency.name,
+              version: approvalResult.dependency.version,
+            },
+          );
+        } else {
+          // api_key_required - user aborted key configuration
+          throw new LoaderError(
+            "API_KEY_NOT_CONFIGURED",
+            `Required API keys were not configured: ${approvalResult.missingKeys.join(", ")}`,
+            { missingKeys: approvalResult.missingKeys },
+          );
+        }
       }
       return approvalResult;
     }
@@ -320,12 +329,8 @@ export class CapabilityLoader {
           return pauseForMissingKeys(
             {
               allValid: false,
-              missing: continueResult.remainingIssues.filter(
-                (k) => pendingApproval.missingKeys.includes(k),
-              ),
-              invalid: continueResult.remainingIssues.filter(
-                (k) => pendingApproval.invalidKeys.includes(k),
-              ),
+              missing: continueResult.remainingIssues,
+              invalid: [], // All issues are in remainingIssues now
             },
             continueWorkflow.workflowId, // Reuse same workflow ID
           );
@@ -371,7 +376,8 @@ export class CapabilityLoader {
   /**
    * Ensure all dependencies are installed.
    *
-   * Returns ApprovalRequiredResult if any dependency needs user approval.
+   * Returns ApprovalRequiredResult if any dependency needs user approval
+   * or if required env vars are missing.
    * Returns null if all dependencies are satisfied.
    *
    * @param meta - Capability metadata
@@ -400,7 +406,10 @@ export class CapabilityLoader {
    * Uses permission-based approval:
    * - "allowed" (in allow list) → auto-install, no approval needed
    * - "denied" (in deny list) → error
-   * - "ask" (default) → return ApprovalRequiredResult
+   * - "ask" (default) → return DependencyApprovalRequired
+   *
+   * Story 14.6: Also checks envRequired keys from registry metadata.
+   * If env vars are missing, returns ApiKeyApprovalRequired instead of error.
    *
    * @param dep - The dependency to check/install
    * @param forceInstall - If true, skip approval check and install
@@ -418,16 +427,23 @@ export class CapabilityLoader {
 
     logDebug(`Dependency ${dep.name}@${dep.version} needs installation`);
 
-    // Check environment variables first
+    // Story 14.6: Check required env vars from registry metadata (dynamic key detection)
     if (dep.envRequired && dep.envRequired.length > 0) {
-      try {
-        validateEnvForDep(dep.name, dep.envRequired);
-      } catch (error) {
-        throw new LoaderError(
-          "ENV_VAR_MISSING",
-          error instanceof Error ? error.message : String(error),
-          { dep: dep.name, required: dep.envRequired },
-        );
+      const requiredKeys = dep.envRequired.map((name) => ({
+        name,
+        requiredBy: dep.name,
+      }));
+      const keyCheck = checkKeys(requiredKeys);
+
+      if (!keyCheck.allValid) {
+        // Return HIL pause instead of throwing error
+        logDebug(`Missing env vars for ${dep.name}: ${[...keyCheck.missing, ...keyCheck.invalid].join(", ")}`);
+        const approval = pauseForMissingKeys(keyCheck);
+
+        // Store for continuation handling
+        this.pendingApiKeyApprovals.set(approval.workflowId, approval);
+
+        return approval;
       }
     }
 

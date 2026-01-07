@@ -7,7 +7,8 @@
  * @module byok/hil-integration
  */
 
-import type { ApiKeyApprovalRequired, KeyCheckResult } from "./types.ts";
+import type { ApiKeyApprovalRequired } from "../loader/types.ts";
+import type { KeyCheckResult } from "./types.ts";
 
 /**
  * Generate a unique workflow ID for tracking.
@@ -187,16 +188,13 @@ export async function handleApiKeyContinue(
     return {
       success: false,
       validKeys: [],
-      remainingIssues: [...originalApproval.missingKeys, ...originalApproval.invalidKeys],
+      remainingIssues: [...originalApproval.missingKeys],
       error: `Failed to reload .env: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
 
   // 2. Re-check the keys that were missing/invalid
-  const allKeys = [
-    ...originalApproval.missingKeys,
-    ...originalApproval.invalidKeys,
-  ];
+  const allKeys = [...originalApproval.missingKeys];
 
   const checkResult = checkKeys(
     allKeys.map((name) => ({ name, requiredBy: "continue_workflow" })),

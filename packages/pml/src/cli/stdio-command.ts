@@ -112,6 +112,8 @@ function handleToolsList(id: string | number): void {
  *
  * Uses the same pattern as main codebase (src/mcp/server/responses.ts).
  * Stateless: No workflow state stored - capability metadata contains all info.
+ *
+ * Story 14.6: Supports both dependency and API key approval types.
  */
 function formatApprovalRequired(
   toolName: string,
@@ -119,8 +121,34 @@ function formatApprovalRequired(
 ): {
   content: Array<{ type: string; text: string }>;
 } {
+  // Handle API key approval (Story 14.6)
+  if (approvalResult.approvalType === "api_key_required") {
+    const data = {
+      status: "approval_required",
+      approval_type: "api_key_required",
+      workflow_id: approvalResult.workflowId,
+      context: {
+        tool: toolName,
+        missing_keys: approvalResult.missingKeys,
+        instruction: approvalResult.instruction,
+      },
+      options: ["continue", "abort"],
+    };
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(data, null, 2),
+        },
+      ],
+    };
+  }
+
+  // Handle dependency approval
   const data = {
     status: "approval_required",
+    approval_type: "dependency",
     workflow_id: crypto.randomUUID(),
     description: approvalResult.description,
     context: {
@@ -213,9 +241,16 @@ async function handleToolsCall(
 
       // Check if result is an approval_required response
       if (CapabilityLoader.isApprovalRequired(result)) {
-        logDebug(
-          `Tool ${name} requires approval for dependency: ${result.dependency.name}`,
-        );
+        // Story 14.6: Handle both dependency and API key approvals
+        if (result.approvalType === "api_key_required") {
+          logDebug(
+            `Tool ${name} requires API keys: ${result.missingKeys.join(", ")}`,
+          );
+        } else {
+          logDebug(
+            `Tool ${name} requires approval for dependency: ${result.dependency.name}`,
+          );
+        }
         sendResponse({
           jsonrpc: "2.0",
           id,
