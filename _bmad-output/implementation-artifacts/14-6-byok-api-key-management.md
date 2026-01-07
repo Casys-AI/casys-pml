@@ -1,6 +1,6 @@
 # Story 14.6: BYOK API Key Management (MVP)
 
-Status: ready-for-dev
+Status: done
 
 > **Epic:** 14 - JSR Package Local/Cloud MCP Routing
 > **FR Coverage:** FR14-8 (BYOK), FR14-12 (Local API keys)
@@ -93,9 +93,9 @@ Tool call (tavily:search)
 
 ### Phase 1: Core Infrastructure (~1h)
 
-- [ ] Task 1: Create BYOK module structure
-  - [ ] Create `packages/pml/src/byok/mod.ts`
-  - [ ] Create `packages/pml/src/byok/types.ts`
+- [x] Task 1: Create BYOK module structure
+  - [x] Create `packages/pml/src/byok/mod.ts`
+  - [x] Create `packages/pml/src/byok/types.ts`
   ```typescript
   export interface RequiredKey {
     name: string;
@@ -109,8 +109,8 @@ Tool call (tavily:search)
   }
   ```
 
-- [ ] Task 2: Implement env loader with reload
-  - [ ] Create `packages/pml/src/byok/env-loader.ts`
+- [x] Task 2: Implement env loader with reload
+  - [x] Create `packages/pml/src/byok/env-loader.ts`
   ```typescript
   import { load } from "@std/dotenv";
 
@@ -125,13 +125,13 @@ Tool call (tavily:search)
 
 ### Phase 2: Key Detection & Validation (~1h)
 
-- [ ] Task 3: Implement key checker
-  - [ ] Create `packages/pml/src/byok/key-checker.ts`
-  - [ ] `checkKeys(required: RequiredKey[]): KeyCheckResult`
-  - [ ] Validate not empty, not placeholder
+- [x] Task 3: Implement key checker
+  - [x] Create `packages/pml/src/byok/key-checker.ts`
+  - [x] `checkKeys(required: RequiredKey[]): KeyCheckResult`
+  - [x] Validate not empty, not placeholder
 
-- [ ] Task 4: Define tool-to-key mapping
-  - [ ] Create `packages/pml/src/byok/key-requirements.ts`
+- [x] Task 4: Define tool-to-key mapping
+  - [x] Create `packages/pml/src/byok/key-requirements.ts`
   ```typescript
   // MVP: hardcoded mapping (later: from registry metadata)
   export const TOOL_REQUIRED_KEYS: Record<string, string[]> = {
@@ -145,25 +145,25 @@ Tool call (tavily:search)
 
 ### Phase 3: HIL Integration (~1h)
 
-- [ ] Task 5: Add api_key_required to HIL types
-  - [ ] Modify `packages/pml/src/permissions/types.ts`
-  - [ ] Add `approval_type: "api_key_required"`
-  - [ ] Add `missing_keys: string[]` to context
+- [x] Task 5: Add api_key_required to HIL types
+  - [x] Modify `packages/pml/src/loader/types.ts`
+  - [x] Add `approval_type: "api_key_required"`
+  - [x] Add `missing_keys: string[]` to context
 
-- [ ] Task 6: Implement HIL pause for missing keys
-  - [ ] Create `packages/pml/src/byok/hil-integration.ts`
-  - [ ] `pauseForMissingKeys(missing: string[], workflowId: string)`
-  - [ ] Format instruction message
+- [x] Task 6: Implement HIL pause for missing keys
+  - [x] Create `packages/pml/src/byok/hil-integration.ts`
+  - [x] `pauseForMissingKeys(missing: string[], workflowId: string)`
+  - [x] Format instruction message
 
-- [ ] Task 7: Handle continue_workflow with reload
-  - [ ] On continue, call `reloadEnv()`
-  - [ ] Re-run `checkKeys()`
-  - [ ] Return error if still missing
+- [x] Task 7: Handle continue_workflow with reload
+  - [x] On continue, call `reloadEnv()`
+  - [x] Re-run `checkKeys()`
+  - [x] Return error if still missing
 
 ### Phase 4: Sanitization (~45min)
 
-- [ ] Task 8: Implement key sanitizer
-  - [ ] Create `packages/pml/src/byok/sanitizer.ts`
+- [x] Task 8: Implement key sanitizer
+  - [x] Create `packages/pml/src/byok/sanitizer.ts`
   ```typescript
   const REDACT_PATTERNS = [
     /([A-Z_]+_API_KEY)=([^\s"']+)/gi,
@@ -181,26 +181,35 @@ Tool call (tavily:search)
   }
   ```
 
-- [ ] Task 9: Wrap logging with sanitizer
-  - [ ] Create sanitized logger wrapper
-  - [ ] Apply to error messages
+- [x] Task 9: Wrap logging with sanitizer
+  - [x] Create sanitized logger wrapper
+  - [x] Apply to error messages
 
 ### Phase 5: Integration (~45min)
 
-- [ ] Task 10: Wire into CapabilityLoader
-  - [ ] Modify `packages/pml/src/loader/capability-loader.ts`
-  - [ ] Add key check before `executeInSandbox()`
-  - [ ] Return HIL response if keys missing
+- [x] Task 10: Wire into CapabilityLoader
+  - [x] Modify `packages/pml/src/loader/capability-loader.ts`
+  - [x] Add key check before `executeInSandbox()`
+  - [x] Return HIL response if keys missing
+
+- [x] Task 13: Dynamic key detection from `mcpDeps[].envRequired`
+  - [x] Modify `ensureDependency()` to use `checkKeys()` for `dep.envRequired`
+  - [x] Return `ApiKeyApprovalRequired` HIL pause instead of throwing `LoaderError("ENV_VAR_MISSING")`
+  - [x] Add 3 new tests for dynamic envRequired key detection
 
 ### Phase 6: Tests (~1h)
 
-- [ ] Task 11: Unit tests
-  - [ ] Test key checking (valid, missing, placeholder)
-  - [ ] Test env reload
-  - [ ] Test sanitization patterns
+- [x] Task 11: Unit tests (92 passing)
+  - [x] Test key checking (valid, missing, placeholder) - 27 tests
+  - [x] Test env loader (reload, edge cases) - 17 tests
+  - [x] Test sanitization patterns - 22 tests
+  - [x] Test HIL integration - 14 tests
+  - [x] Test full integration flow (real .env file I/O) - 12 tests
 
-- [ ] Task 12: Integration test
-  - [ ] Full flow: missing → HIL → add to .env → continue → execute
+- [x] Task 12: Integration test
+  - [x] Capability loader tests (16 passing)
+  - [x] Full flow: missing → HIL → add to .env → continue → execute
+  - [x] Dynamic envRequired detection tests (3 new tests)
 
 ## Dev Notes
 
@@ -217,9 +226,12 @@ packages/pml/src/byok/
 └── sanitizer.ts        # Redact keys from logs
 
 packages/pml/tests/
-├── byok_checker_test.ts
-├── byok_sanitizer_test.ts
-└── byok_integration_test.ts
+├── byok_checker_test.ts       # 27 tests - key validation
+├── byok_env_loader_test.ts    # 17 tests - env reload, edge cases
+├── byok_hil_test.ts           # 14 tests - HIL flow
+├── byok_integration_test.ts   # 12 tests - full flow with real .env
+├── byok_sanitizer_test.ts     # 22 tests - key redaction
+└── capability_loader_test.ts  # 16 tests - includes 3 envRequired tests
 ```
 
 ### Placeholder Detection
@@ -236,22 +248,36 @@ const INVALID_PATTERNS = [
 ];
 ```
 
-### Integration Point
+### Integration Points
 
+**1. Hardcoded tool keys (MVP):**
 ```typescript
-// packages/pml/src/loader/capability-loader.ts
+// packages/pml/src/loader/capability-loader.ts - call()
 
 async call(toolId: string, args: unknown): Promise<unknown> {
-  // NEW: Check required keys
+  // Check required keys from hardcoded mapping
   const requiredKeys = getRequiredKeys(toolId);
+  const keyCheck = checkKeys(requiredKeys);
+```
+
+**2. Dynamic keys from registry metadata:**
+```typescript
+// packages/pml/src/loader/capability-loader.ts - ensureDependency()
+
+// Story 14.6: Check required env vars from registry metadata
+if (dep.envRequired && dep.envRequired.length > 0) {
+  const requiredKeys = dep.envRequired.map((name) => ({
+    name,
+    requiredBy: dep.name,
+  }));
   const keyCheck = checkKeys(requiredKeys);
 
   if (!keyCheck.allValid) {
-    return this.hilManager.pauseForApiKeys(keyCheck.missing);
+    // Return HIL pause instead of throwing error
+    const approval = pauseForMissingKeys(keyCheck);
+    this.pendingApiKeyApprovals.set(approval.workflowId, approval);
+    return approval;
   }
-
-  // Existing: sandbox execution
-  return await this.executeInSandbox(...);
 }
 ```
 
@@ -319,6 +345,9 @@ export async function reloadEnv(workspace: string): Promise<void> {
 | 2026-01-07 | Story created (original: HTTP server) | Claude Opus 4.5 |
 | 2026-01-07 | Rewrite #1: BYOK + security focus | Claude Opus 4.5 |
 | 2026-01-07 | Rewrite #2: MVP scope (.env only, no cloud) | Claude Opus 4.5 |
+| 2026-01-07 | Implementation complete - 76 tests passing | Claude Opus 4.5 |
+| 2026-01-07 | Added dynamic envRequired key detection - 79 tests passing | Claude Opus 4.5 |
+| 2026-01-07 | Code review: Fixed env-loader overwrite bug, added 108 tests total | Claude Opus 4.5 |
 
 ### File List
 
@@ -331,9 +360,11 @@ export async function reloadEnv(workspace: string): Promise<void> {
 - packages/pml/src/byok/hil-integration.ts
 - packages/pml/src/byok/sanitizer.ts
 - packages/pml/tests/byok_checker_test.ts
-- packages/pml/tests/byok_sanitizer_test.ts
+- packages/pml/tests/byok_env_loader_test.ts
+- packages/pml/tests/byok_hil_test.ts
 - packages/pml/tests/byok_integration_test.ts
+- packages/pml/tests/byok_sanitizer_test.ts
 
 **Modified Files:**
 - packages/pml/src/loader/capability-loader.ts
-- packages/pml/src/permissions/types.ts
+- packages/pml/src/loader/types.ts

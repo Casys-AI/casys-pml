@@ -33,7 +33,7 @@ export {
 } from "./types.ts";
 
 // Env loader
-export { getKey, reloadEnv } from "./env-loader.ts";
+export { envFileExists, getKey, reloadEnv } from "./env-loader.ts";
 
 // Key checker
 export { checkKeys, isValidKeyValue } from "./key-checker.ts";

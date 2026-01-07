@@ -51,11 +51,17 @@ export async function reloadEnv(
       return;
     }
 
-    // Load and export to Deno.env
-    await load({
+    // Load .env file - get the parsed values
+    const envVars = await load({
       envPath: fullPath,
-      export: true,
+      export: false, // Don't auto-export, we'll do it manually to force overwrite
     });
+
+    // Manually set each variable to ensure overwrites work
+    // @std/dotenv export:true doesn't overwrite existing vars
+    for (const [key, value] of Object.entries(envVars)) {
+      Deno.env.set(key, value);
+    }
   } catch (error) {
     // Re-throw with context
     throw new Error(
