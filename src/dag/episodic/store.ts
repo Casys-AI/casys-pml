@@ -10,11 +10,11 @@
  * - Context hash-based retrieval (MVP strategy)
  * - Automatic pruning (retention policy)
  *
- * @module learning/episodic-memory-store
+ * @module dag/episodic/store
  */
 
 import * as log from "@std/log";
-import type { DbClient } from "../db/types.ts";
+import type { DbClient } from "../../db/types.ts";
 import type {
   EpisodicEvent,
   EpisodicEventInput,

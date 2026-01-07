@@ -7,7 +7,7 @@
  * @module dag/episodic/capture
  */
 
-import type { EpisodicMemoryStore } from "../../learning/episodic-memory-store.ts";
+import type { EpisodicMemoryStore } from "./store.ts";
 import type { WorkflowState } from "../state.ts";
 import { getLogger } from "../../telemetry/logger.ts";
 

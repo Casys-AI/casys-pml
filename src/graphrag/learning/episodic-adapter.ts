@@ -10,12 +10,12 @@
 import * as log from "@std/log";
 import type { DagScoringConfig } from "../dag-scoring-config.ts";
 import type { WorkflowPredictionState } from "../types.ts";
-import type { EpisodicMemoryStore } from "../../learning/episodic-memory-store.ts";
+import type { EpisodicMemoryStore } from "../../dag/episodic/store.ts";
 import type { EpisodeStats, EpisodeStatsMap } from "../prediction/types.ts";
-import type { EpisodicEvent, PredictionData } from "../../learning/types.ts";
+import type { EpisodicEvent, PredictionData } from "../../dag/episodic/types.ts";
 
 // Re-export EpisodicEvent from canonical source (snake_case external convention)
-export type { EpisodicEvent } from "../../learning/types.ts";
+export type { EpisodicEvent } from "../../dag/episodic/types.ts";
 
 /**
  * Type guard for PredictionData in episodic events
