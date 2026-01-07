@@ -5,6 +5,16 @@
  * Handles retrieval and parsing of historical episodes for learning-enhanced predictions.
  *
  * @module graphrag/learning/episodic-adapter
+ *
+ * TODO(episodic-memory): LIMITED USAGE - This module is only used by:
+ * - DAGSuggester.predictNextNodes() → called by speculation system
+ * - NOT used by main execution flow (pml:execute → SHGAT.scoreAllCapabilities)
+ *
+ * The stats returned (EpisodeStatsMap) are per-TOOL, but SHGAT scores per-CAPABILITY.
+ * To fully leverage episodic memory, consider:
+ * 1. Add capability-level stats aggregation
+ * 2. Integrate with SHGAT scoring (context-aware success rates)
+ * 3. Use for Thompson Sampling priors (AdaptiveThresholdManager)
  */
 
 import * as log from "@std/log";
