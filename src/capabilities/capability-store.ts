@@ -997,6 +997,14 @@ export class CapabilityStore {
   }
 
   /**
+   * Update a dependency's observation count
+   * @deprecated Use getDependencyStore().updateDependency() for new code
+   */
+  async updateDependency(fromId: string, toId: string, incrementBy = 1): Promise<void> {
+    return this.dependencyStore.updateDependency(fromId, toId, incrementBy);
+  }
+
+  /**
    * Search capabilities by intent and include their dependencies
    */
   async searchByIntentWithDeps(
