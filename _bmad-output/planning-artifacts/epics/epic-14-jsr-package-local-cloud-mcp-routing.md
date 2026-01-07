@@ -1094,6 +1094,97 @@ server.addTool("config", cap.config);
 
 ---
 
+### Story 14.11: Binary Distribution via Deno Compile
+
+As an end user, I want to install PML as a standalone binary without any runtime dependencies,
+So that I can use it immediately without installing Deno, Node, or any other prerequisite.
+
+**Context:**
+
+`deno compile` bundles the Deno runtime into a single executable (~80-100MB). Users download one file and it works. No `deno install`, no `npm install`, no runtime version conflicts.
+
+**Distribution Channels:**
+- Direct download from `pml.casys.ai/install.sh`
+- GitHub Releases (Linux x64, macOS x64/arm64, Windows x64)
+- Homebrew tap (macOS): `brew install casys/tap/pml`
+
+**Acceptance Criteria:**
+
+**AC1-2 (Cross-Platform Compilation):**
+
+**Given** the PML source code
+**When** CI/CD runs on release
+**Then** it compiles binaries for:
+- `pml-linux-x64`
+- `pml-macos-x64`
+- `pml-macos-arm64`
+- `pml-windows-x64.exe`
+**And** each binary is self-contained (no external dependencies)
+
+**Given** a compiled binary
+**When** user runs `./pml --version`
+**Then** it shows version without requiring Deno installed
+
+**AC3-4 (Installation Script):**
+
+**Given** a user on Linux/macOS
+**When** they run `curl -fsSL https://pml.casys.ai/install.sh | sh`
+**Then** the script:
+1. Detects OS and architecture
+2. Downloads correct binary from GitHub Releases
+3. Installs to `~/.pml/bin/pml` (or `/usr/local/bin` with sudo)
+4. Adds to PATH if needed
+5. Prints success: "✓ PML installed. Run 'pml init' to get started."
+
+**Given** a Windows user
+**When** they download `pml-windows-x64.exe`
+**Then** they can run it directly or add to PATH manually
+
+**AC5-6 (Self-Update):**
+
+**Given** PML is installed
+**When** user runs `pml upgrade`
+**Then** it:
+1. Checks latest version from GitHub Releases API
+2. If newer, downloads new binary
+3. Replaces current binary atomically
+4. Prints: "✓ Upgraded from v1.0.0 to v1.1.0"
+
+**Given** PML is already latest version
+**When** user runs `pml upgrade`
+**Then** it prints: "✓ Already up to date (v1.1.0)"
+
+**AC7-8 (CI/CD Pipeline):**
+
+**Given** a git tag `v*` is pushed
+**When** GitHub Actions runs
+**Then** it:
+1. Runs `deno compile` for each platform
+2. Creates GitHub Release with all binaries
+3. Updates `install.sh` with latest version
+4. Optionally updates Homebrew formula
+
+**Technical Notes:**
+
+> **Binary size:** ~80-100MB is acceptable for dev tools (VS Code is 300MB+)
+>
+> **Compilation command:**
+> ```bash
+> deno compile --allow-all --target x86_64-unknown-linux-gnu --output dist/pml-linux-x64 src/cli/mod.ts
+> deno compile --allow-all --target x86_64-apple-darwin --output dist/pml-macos-x64 src/cli/mod.ts
+> deno compile --allow-all --target aarch64-apple-darwin --output dist/pml-macos-arm64 src/cli/mod.ts
+> deno compile --allow-all --target x86_64-pc-windows-msvc --output dist/pml-windows-x64.exe src/cli/mod.ts
+> ```
+>
+> **Worker sandbox still works:** The compiled binary includes Deno runtime, so Deno Worker with permissions works as expected.
+
+**Dependencies:**
+
+- Story 14.1: CLI structure and commands
+- Stories 14.1-14.8: Complete functionality to compile
+
+---
+
 ## Technical Notes
 
 ### Package Structure
