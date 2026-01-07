@@ -45,6 +45,8 @@ import {
   reloadEnv,
 } from "../byok/mod.ts";
 import type { ApiKeyApprovalRequired } from "../byok/types.ts";
+import { LockfileManager } from "../lockfile/mod.ts";
+import type { IntegrityApprovalRequired } from "../lockfile/types.ts";
 import * as log from "@std/log";
 
 /**
@@ -95,6 +97,12 @@ export interface CapabilityLoaderOptions {
    * If not provided, uses cloudUrl for sync.
    */
   tracingConfig?: Partial<TraceSyncConfig>;
+  /**
+   * Lockfile manager for integrity validation (Story 14.7).
+   * When provided, validates fetched capabilities against lockfile.
+   * If not provided, skips integrity validation.
+   */
+  lockfileManager?: LockfileManager;
 }
 
 /**
@@ -113,6 +121,7 @@ export class CapabilityLoader {
   private readonly sandboxEnabled: boolean;
   private readonly tracingEnabled: boolean;
   private readonly traceSyncer: TraceSyncer;
+  private readonly lockfileManager?: LockfileManager;
 
   /** Cache of loaded capabilities */
   private readonly loadedCapabilities = new Map<string, LoadedCapability>();
@@ -147,6 +156,9 @@ export class CapabilityLoader {
       apiKey: options.tracingConfig?.apiKey,
       ...options.tracingConfig,
     });
+
+    // Initialize lockfile manager (Story 14.7)
+    this.lockfileManager = options.lockfileManager;
 
     this.initialized = true;
   }
@@ -185,7 +197,7 @@ export class CapabilityLoader {
   async load(
     namespace: string,
     continueWorkflow?: ContinueWorkflowParams,
-  ): Promise<LoadedCapability | ApprovalRequiredResult> {
+  ): Promise<LoadedCapability | ApprovalRequiredResult | IntegrityApprovalRequired> {
     // Check cache
     const cached = this.loadedCapabilities.get(namespace);
     if (cached) {
@@ -195,8 +207,53 @@ export class CapabilityLoader {
 
     logDebug(`Loading capability: ${namespace}`);
 
-    // 1. Fetch metadata from registry
-    const { metadata } = await this.registryClient.fetch(namespace);
+    // 1. Fetch metadata from registry (with integrity validation if lockfile available)
+    let metadata: CapabilityMetadata;
+
+    if (this.lockfileManager) {
+      // Story 14.7: Use fetchWithIntegrity for lockfile validation
+      const fetchResult = await this.registryClient.fetchWithIntegrity(
+        namespace,
+        this.lockfileManager,
+      );
+
+      // Check if integrity approval is required
+      if ("approvalRequired" in fetchResult && fetchResult.approvalRequired) {
+        const integrityApproval = fetchResult as IntegrityApprovalRequired;
+
+        // Handle continueWorkflow for integrity approval
+        if (continueWorkflow?.approved === true) {
+          // User approved - continue fetch with approval
+          const approvedResult = await this.registryClient.continueFetchWithApproval(
+            namespace,
+            this.lockfileManager,
+            true,
+          );
+          metadata = approvedResult.metadata;
+        } else if (continueWorkflow?.approved === false) {
+          // User rejected - throw error
+          throw new LoaderError(
+            "DEPENDENCY_INTEGRITY_FAILED",
+            `User rejected integrity change for ${integrityApproval.fqdnBase}`,
+            {
+              fqdnBase: integrityApproval.fqdnBase,
+              oldHash: integrityApproval.oldHash,
+              newHash: integrityApproval.newHash,
+            },
+          );
+        } else {
+          // Return approval request (HIL pause)
+          return integrityApproval;
+        }
+      } else {
+        // No approval needed - extract metadata
+        metadata = (fetchResult as { metadata: CapabilityMetadata }).metadata;
+      }
+    } else {
+      // No lockfile manager - use simple fetch
+      const { metadata: fetchedMetadata } = await this.registryClient.fetch(namespace);
+      metadata = fetchedMetadata;
+    }
 
     // 2. Check and install dependencies
     // If continueWorkflow.approved is true, force install (user approved)
@@ -276,13 +333,16 @@ export class CapabilityLoader {
 
   /**
    * Check if result is an approval required response.
+   * Includes DependencyApprovalRequired, ApiKeyApprovalRequired, and IntegrityApprovalRequired.
    */
-  static isApprovalRequired(result: unknown): result is ApprovalRequiredResult {
+  static isApprovalRequired(
+    result: unknown,
+  ): result is ApprovalRequiredResult | IntegrityApprovalRequired {
     return (
       typeof result === "object" &&
       result !== null &&
       "approvalRequired" in result &&
-      (result as ApprovalRequiredResult).approvalRequired === true
+      (result as { approvalRequired: boolean }).approvalRequired === true
     );
   }
 
@@ -304,7 +364,7 @@ export class CapabilityLoader {
     toolId: string,
     args: unknown,
     continueWorkflow?: ContinueWorkflowParams,
-  ): Promise<unknown | ApprovalRequiredResult> {
+  ): Promise<unknown | ApprovalRequiredResult | IntegrityApprovalRequired> {
     // Parse tool ID into namespace:action
     const parts = toolId.includes(":")
       ? toolId.split(":", 2)

@@ -36,7 +36,7 @@ import {
 // Path validation ready for Story 14.6 (AC4: validate file operations within workspace)
 import { validatePath } from "../security/path-validator.ts";
 // Capability loader (Story 14.4)
-import { CapabilityLoader } from "../loader/mod.ts";
+import { CapabilityLoader, LockfileManager } from "../loader/mod.ts";
 
 const PML_CONFIG_FILE = ".pml.json";
 
@@ -147,16 +147,21 @@ export function createServeCommand(): Command<any> {
       }
       console.log();
 
-      // Step 4: Initialize CapabilityLoader (Story 14.4 + 14.3b)
+      // Step 4: Initialize CapabilityLoader (Story 14.4 + 14.3b + 14.7)
       console.log(colors.dim("Initializing capability loader..."));
       let loader: CapabilityLoader | null = null;
       try {
+        // Story 14.7: Initialize lockfile manager for integrity validation
+        const lockfileManager = new LockfileManager();
+        await lockfileManager.load();
+
         loader = await CapabilityLoader.create({
           cloudUrl,
           workspace,
           permissions: permissionResult.permissions,
+          lockfileManager, // Story 14.7: Enable integrity validation
         });
-        console.log(`  ${colors.green("✓")} Capability loader ready (approval via MCP response)`);
+        console.log(`  ${colors.green("✓")} Capability loader ready (integrity + approval via MCP)`);
       } catch (error) {
         console.log(`  ${colors.yellow("⚠")} Capability loader failed: ${error}`);
       }

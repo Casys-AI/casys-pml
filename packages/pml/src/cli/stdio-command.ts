@@ -26,6 +26,8 @@ import {
   type ApprovalRequiredResult,
   CapabilityLoader,
   type ContinueWorkflowParams,
+  type IntegrityApprovalRequired,
+  LockfileManager,
 } from "../loader/mod.ts";
 import { exists } from "@std/fs";
 import { join } from "@std/path";
@@ -113,11 +115,12 @@ function handleToolsList(id: string | number): void {
  * Uses the same pattern as main codebase (src/mcp/server/responses.ts).
  * Stateless: No workflow state stored - capability metadata contains all info.
  *
- * Story 14.6: Supports both dependency and API key approval types.
+ * Story 14.6: Supports dependency and API key approval types.
+ * Story 14.7: Supports integrity approval type.
  */
 function formatApprovalRequired(
   toolName: string,
-  approvalResult: ApprovalRequiredResult,
+  approvalResult: ApprovalRequiredResult | IntegrityApprovalRequired,
 ): {
   content: Array<{ type: string; text: string }>;
 } {
@@ -131,6 +134,33 @@ function formatApprovalRequired(
         tool: toolName,
         missing_keys: approvalResult.missingKeys,
         instruction: approvalResult.instruction,
+      },
+      options: ["continue", "abort"],
+    };
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(data, null, 2),
+        },
+      ],
+    };
+  }
+
+  // Handle integrity approval (Story 14.7)
+  if (approvalResult.approvalType === "integrity") {
+    const data = {
+      status: "approval_required",
+      approval_type: "integrity",
+      workflow_id: approvalResult.workflowId,
+      description: approvalResult.description,
+      context: {
+        tool: toolName,
+        fqdn_base: approvalResult.fqdnBase,
+        old_hash: approvalResult.oldHash,
+        new_hash: approvalResult.newHash,
+        old_fetched_at: approvalResult.oldFetchedAt,
       },
       options: ["continue", "abort"],
     };
@@ -241,12 +271,17 @@ async function handleToolsCall(
 
       // Check if result is an approval_required response
       if (CapabilityLoader.isApprovalRequired(result)) {
-        // Story 14.6: Handle both dependency and API key approvals
+        // Story 14.6 + 14.7: Handle dependency, API key, and integrity approvals
         if (result.approvalType === "api_key_required") {
           logDebug(
             `Tool ${name} requires API keys: ${result.missingKeys.join(", ")}`,
           );
+        } else if (result.approvalType === "integrity") {
+          logDebug(
+            `Tool ${name} requires integrity approval: ${result.fqdnBase} (${result.oldHash} → ${result.newHash})`,
+          );
         } else {
+          // dependency
           logDebug(
             `Tool ${name} requires approval for dependency: ${result.dependency.name}`,
           );
@@ -499,12 +534,17 @@ export function createStdioCommand(): Command<any> {
       // Note: HIL (approval_required) is handled via MCP response, not callback
       let loader: CapabilityLoader | null = null;
       try {
+        // Story 14.7: Initialize lockfile manager for integrity validation
+        const lockfileManager = new LockfileManager();
+        await lockfileManager.load(); // Create/load lockfile
+
         loader = await CapabilityLoader.create({
           cloudUrl,
           workspace,
           permissions,
+          lockfileManager, // Story 14.7: Enable integrity validation
         });
-        logDebug(`CapabilityLoader initialized with permissions`);
+        logDebug(`CapabilityLoader initialized with permissions + lockfile`);
       } catch (error) {
         logDebug(`Failed to initialize CapabilityLoader: ${error}`);
         // Continue without loader - server-side calls will still work
