@@ -43,6 +43,8 @@ export interface CapabilityMetadata {
   routing: "client" | "server";
   /** Dependencies on stdio MCP servers */
   mcpDeps?: McpDependency[];
+  /** Integrity hash for lockfile validation (sha256-...) */
+  integrity?: string;
 }
 
 /**

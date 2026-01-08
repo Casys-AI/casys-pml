@@ -95,16 +95,85 @@ function handleInitialize(id: string | number): void {
 }
 
 /**
+ * PML base tools - forwarded to cloud server.
+ * Names match src/mcp/tools/definitions.ts (pml:discover, pml:execute)
+ */
+const PML_TOOLS = [
+  {
+    name: "pml:discover",
+    description: "Search MCP tools and learned capabilities by intent. Returns ranked results.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        intent: {
+          type: "string",
+          description: "What do you want to accomplish? Natural language description.",
+        },
+        filter: {
+          type: "object",
+          properties: {
+            type: { type: "string", enum: ["tool", "capability", "all"] },
+            minScore: { type: "number" },
+          },
+        },
+        limit: {
+          type: "number",
+          description: "Maximum results (default: 1, max: 50)",
+        },
+      },
+      required: ["intent"],
+    },
+  },
+  {
+    name: "pml:execute",
+    description:
+      "Execute intent with optional code. With code: runs and learns. Without: returns suggestions.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        intent: {
+          type: "string",
+          description: "Natural language description of what you want to accomplish.",
+        },
+        code: {
+          type: "string",
+          description: "TypeScript code. MCP tools via mcp.server.tool(). Triggers Direct Mode.",
+        },
+        options: {
+          type: "object",
+          properties: {
+            timeout: { type: "number" },
+            per_layer_validation: { type: "boolean" },
+          },
+        },
+        accept_suggestion: {
+          type: "object",
+          properties: {
+            callName: { type: "string" },
+            args: { type: "object" },
+          },
+        },
+        continue_workflow: {
+          type: "object",
+          properties: {
+            workflow_id: { type: "string" },
+            approved: { type: "boolean" },
+          },
+        },
+      },
+    },
+  },
+];
+
+/**
  * Handle MCP tools/list request
  */
 function handleToolsList(id: string | number): void {
-  // For now, return an empty list - tools will be dynamically discovered
-  // Future: Could fetch available tools from registry
   sendResponse({
     jsonrpc: "2.0",
     id,
     result: {
-      tools: [],
+      tools: PML_TOOLS,
     },
   });
 }
@@ -237,6 +306,52 @@ function extractContinueWorkflow(
 }
 
 /**
+ * Forward a PML tool call to the cloud.
+ *
+ * Both pml_discover and pml_execute are handled by the cloud server
+ * which has SHGAT, GraphRAG, and full execution infrastructure.
+ */
+async function forwardToCloud(
+  id: string | number,
+  toolName: string,
+  args: Record<string, unknown>,
+  cloudUrl: string,
+): Promise<void> {
+  const apiKey = Deno.env.get("PML_API_KEY");
+  if (!apiKey) {
+    sendError(id, -32603, "PML_API_KEY required");
+    return;
+  }
+
+  try {
+    const response = await fetch(`${cloudUrl}/mcp`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id,
+        method: "tools/call",
+        params: { name: toolName, arguments: args },
+      }),
+    });
+
+    if (!response.ok) {
+      sendError(id, -32603, `Cloud error: ${response.status} ${response.statusText}`);
+      return;
+    }
+
+    const result = await response.json();
+    sendResponse(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    sendError(id, -32603, `Cloud unreachable: ${message}`);
+  }
+}
+
+/**
  * Handle MCP tools/call request with capability loader
  */
 async function handleToolsCall(
@@ -246,6 +361,12 @@ async function handleToolsCall(
   cloudUrl: string,
 ): Promise<void> {
   const { name, arguments: args } = params;
+
+  // Handle PML base tools - forward to cloud
+  if (name === "pml:discover" || name === "pml:execute") {
+    await forwardToCloud(id, name, args || {}, cloudUrl);
+    return;
+  }
 
   // Extract continue_workflow if present (for approval flow)
   const { continueWorkflow, cleanArgs } = extractContinueWorkflow(args);
@@ -330,11 +451,11 @@ async function handleToolsCall(
       return;
     }
 
-    const response = await fetch(`${cloudUrl}/mcp/tools/call`, {
+    const response = await fetch(`${cloudUrl}/mcp`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
+        "x-api-key": apiKey,
       },
       body: JSON.stringify({
         jsonrpc: "2.0",

@@ -26,13 +26,11 @@ const MCP_CONFIG_FILE = ".mcp.json";
 const PML_CONFIG_FILE = ".pml.json";
 
 /**
- * Default BYOK environment variable placeholders
+ * Minimal env for .mcp.json - just PML_API_KEY to start the server.
+ * Other API keys are stored in .pml.json and loaded incrementally.
  */
-const DEFAULT_ENV_VARS: Record<string, string> = {
+const MCP_ENV_VARS: Record<string, string> = {
   PML_API_KEY: "${PML_API_KEY}",
-  TAVILY_API_KEY: "${TAVILY_API_KEY}",
-  AIRTABLE_API_KEY: "${AIRTABLE_API_KEY}",
-  EXA_API_KEY: "${EXA_API_KEY}",
 };
 
 /**
@@ -182,7 +180,7 @@ async function backupConfig(configPath: string): Promise<string> {
  * Primary transport is stdio (Claude Code spawns the process).
  */
 function generateMcpConfig(_port: number, apiKey?: string): McpConfig {
-  const env = { ...DEFAULT_ENV_VARS };
+  const env = { ...MCP_ENV_VARS };
 
   // If API key provided, set it directly
   if (apiKey) {
@@ -202,49 +200,19 @@ function generateMcpConfig(_port: number, apiKey?: string): McpConfig {
 }
 
 /**
- * Default safe tools (pure computation, no I/O)
- */
-const DEFAULT_ALLOW_TOOLS = [
-  "json:*",
-  "math:*",
-  "datetime:*",
-  "crypto:*",
-  "collections:*",
-  "validation:*",
-  "format:*",
-  "transform:*",
-  "string:*",
-  "path:*",
-  "color:*",
-  "geo:*",
-  "algo:*",
-  "faker:*",
-];
-
-/**
- * Default tools requiring confirmation (I/O, network, system)
- */
-const DEFAULT_ASK_TOOLS = [
-  "filesystem:*",
-  "github:*",
-  "docker:*",
-  "database:*",
-  "ssh:*",
-  "process:*",
-  "cloud:*",
-  "network:*",
-  "kubernetes:*",
-];
-
-/**
  * Generate .pml.json configuration
  *
  * Note: workspace is stored as "." to indicate dynamic detection.
  * This makes the config portable (works after clone/move).
+ *
+ * Empty permissions = everything defaults to "ask".
+ * User can add patterns to allow/deny/ask as needed.
+ *
+ * Server section omitted - only needed for local dev with `pml serve`.
  */
 function generatePmlConfig(
   _workspace: string, // Unused - we store "." for portability
-  port: number,
+  _port: number, // Unused - server section omitted from template
   cloudUrl: string,
 ): PmlConfig {
   return {
@@ -254,13 +222,10 @@ function generatePmlConfig(
       url: cloudUrl,
       apiKey: "${PML_API_KEY}",
     },
-    server: {
-      port,
-    },
     permissions: {
-      allow: DEFAULT_ALLOW_TOOLS,
-      deny: [],
-      ask: DEFAULT_ASK_TOOLS,
+      allow: [], // Empty = nothing auto-approved
+      deny: [], // Empty = nothing blocked
+      ask: [], // Empty = implicit ask for everything
     },
   };
 }

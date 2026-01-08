@@ -21,7 +21,7 @@ function generateWorkflowId(): string {
  * Format instruction message for missing keys.
  *
  * Generates a clear, actionable message telling the user
- * exactly what to add to their .env file.
+ * to provide the API key value. The key will be saved to .pml.json.
  *
  * @param missingKeys - Keys that are not set
  * @param invalidKeys - Keys with placeholder values
@@ -30,30 +30,27 @@ function generateWorkflowId(): string {
  * @example
  * ```ts
  * formatKeyInstruction(["TAVILY_API_KEY"], []);
- * // "Add the following to your .env file:\nTAVILY_API_KEY=your-tavily-key"
+ * // "Please provide the following API key:\nTAVILY_API_KEY"
  * ```
  */
 export function formatKeyInstruction(
   missingKeys: string[],
   invalidKeys: string[],
 ): string {
+  const allKeys = [...missingKeys, ...invalidKeys];
   const lines: string[] = [];
 
-  if (missingKeys.length > 0) {
-    lines.push("Add the following to your .env file:");
-    for (const key of missingKeys) {
-      lines.push(`${key}=your-${formatKeyHint(key)}`);
+  if (allKeys.length === 1) {
+    lines.push(`This capability requires ${allKeys[0]}.`);
+    lines.push(`Please provide the API key value.`);
+    lines.push(`It will be saved to .pml.json for future use.`);
+  } else {
+    lines.push("This capability requires the following API keys:");
+    for (const key of allKeys) {
+      lines.push(`  - ${key}`);
     }
-  }
-
-  if (invalidKeys.length > 0) {
-    if (lines.length > 0) {
-      lines.push("");
-    }
-    lines.push("Replace the placeholder values for:");
-    for (const key of invalidKeys) {
-      lines.push(`${key} (currently has an invalid/placeholder value)`);
-    }
+    lines.push("");
+    lines.push("Please provide the values. They will be saved to .pml.json.");
   }
 
   return lines.join("\n");
@@ -151,56 +148,56 @@ export interface ApiKeyContinueResult {
 /**
  * Handle continue_workflow for API key approval.
  *
- * This function is called when the user clicks Continue after
- * adding keys to .env. It:
- * 1. Reloads the .env file
- * 2. Re-checks the previously missing/invalid keys
- * 3. Returns success if all valid, error if still missing
+ * This function is called when the user provides key values.
+ * It saves them to .pml.json and sets them in Deno.env.
  *
  * @param originalApproval - The original ApiKeyApprovalRequired response
- * @param workspace - Workspace root path (for .env location)
+ * @param workspace - Workspace root path (for .pml.json location)
+ * @param providedKeys - Key values provided by the user
  * @returns Result indicating success or remaining issues
  *
  * @example
  * ```ts
- * // User clicked Continue after adding keys
- * const result = await handleApiKeyContinue(originalApproval, workspace);
+ * // User provided key values
+ * const result = await handleApiKeyContinue(
+ *   originalApproval,
+ *   workspace,
+ *   { TAVILY_API_KEY: "tvly-xxx..." }
+ * );
  * if (result.success) {
- *   // Proceed with execution
- * } else {
- *   // Still missing keys
- *   console.log("Still missing:", result.remainingIssues);
+ *   // Proceed with execution - keys saved to .pml.json
  * }
  * ```
  */
 export async function handleApiKeyContinue(
   originalApproval: ApiKeyApprovalRequired,
   workspace: string,
+  providedKeys?: Record<string, string>,
 ): Promise<ApiKeyContinueResult> {
   // Dynamic import to avoid circular dependencies
-  const { reloadEnv } = await import("./env-loader.ts");
+  const { savePmlEnvKey, loadPmlEnv } = await import("./pml-env.ts");
   const { checkKeys } = await import("./key-checker.ts");
 
-  // 1. Reload .env file
-  try {
-    await reloadEnv(workspace);
-  } catch (error) {
-    return {
-      success: false,
-      validKeys: [],
-      remainingIssues: [...originalApproval.missingKeys],
-      error: `Failed to reload .env: ${error instanceof Error ? error.message : String(error)}`,
-    };
+  // 1. If keys were provided, save them to .pml.json
+  if (providedKeys) {
+    for (const [key, value] of Object.entries(providedKeys)) {
+      if (value && value.trim()) {
+        await savePmlEnvKey(workspace, key, value.trim());
+      }
+    }
   }
 
-  // 2. Re-check the keys that were missing/invalid
+  // 2. Reload env from .pml.json (in case user edited it manually)
+  await loadPmlEnv(workspace);
+
+  // 3. Re-check the keys that were missing/invalid
   const allKeys = [...originalApproval.missingKeys];
 
   const checkResult = checkKeys(
     allKeys.map((name) => ({ name, requiredBy: "continue_workflow" })),
   );
 
-  // 3. Determine which keys are now valid
+  // 4. Determine which keys are now valid
   const validKeys = allKeys.filter(
     (k) => !checkResult.missing.includes(k) && !checkResult.invalid.includes(k),
   );

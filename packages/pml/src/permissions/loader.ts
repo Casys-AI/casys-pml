@@ -34,14 +34,13 @@ const defaultLogger: PermissionLogger = {
 };
 
 /**
- * Default safe permissions when no config exists.
- *
- * Everything requires user confirmation by default.
+ * Empty permissions - everything defaults to "ask" implicitly.
+ * checkPermission() returns "ask" for anything not matched.
  */
-const SAFE_DEFAULTS: PmlPermissions = {
+const EMPTY_PERMISSIONS: PmlPermissions = {
   allow: [],
   deny: [],
-  ask: ["*"], // Everything requires user confirmation
+  ask: [],
 };
 
 /**
@@ -51,40 +50,28 @@ const SAFE_DEFAULTS: PmlPermissions = {
 function processConfig(
   config: PmlConfig,
   configPath: string,
-  logger: PermissionLogger,
+  _logger: PermissionLogger,
 ): PermissionLoadResult {
-  // Validate permissions structure
+  // No permissions section = implicit "ask for everything" (silent)
   if (!config.permissions) {
-    logger.warn(
-      `⚠ No permissions section in ${PML_CONFIG_FILE} - using safe defaults`,
-    );
-    return { permissions: SAFE_DEFAULTS, source: "defaults" };
+    return { permissions: EMPTY_PERMISSIONS, source: "config", configPath };
   }
 
   // User config is THE truth - no merging with defaults
   const permissions = normalizePermissions(config.permissions);
-  logger.info(`Loaded permissions from ${configPath}`);
   return { permissions, source: "config", configPath };
 }
 
 /**
- * Handle config loading error and return safe defaults.
+ * Handle config loading error - silent defaults.
  * Shared between async and sync versions.
  */
 function handleLoadError(
-  error: unknown,
-  logger: PermissionLogger,
+  _error: unknown,
+  _logger: PermissionLogger,
 ): PermissionLoadResult {
-  if (error instanceof Deno.errors.NotFound) {
-    logger.warn(
-      `⚠ No ${PML_CONFIG_FILE} found - using safe defaults (all tools require approval)`,
-    );
-  } else {
-    logger.warn(
-      `⚠ Failed to load ${PML_CONFIG_FILE}: ${error} - using safe defaults`,
-    );
-  }
-  return { permissions: SAFE_DEFAULTS, source: "defaults" };
+  // No config = implicit "ask for everything" (silent)
+  return { permissions: EMPTY_PERMISSIONS, source: "defaults" };
 }
 
 /**

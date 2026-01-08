@@ -32,8 +32,17 @@ export {
   REDACT_PATTERNS,
 } from "./types.ts";
 
-// Env loader
+// Env loader (.env file)
 export { envFileExists, getKey, reloadEnv } from "./env-loader.ts";
+
+// PML env manager (.pml.json)
+export {
+  getMissingEnvKeys,
+  getPmlEnvKey,
+  hasPmlEnvKey,
+  loadPmlEnv,
+  savePmlEnvKey,
+} from "./pml-env.ts";
 
 // Key checker
 export { checkKeys, isValidKeyValue } from "./key-checker.ts";

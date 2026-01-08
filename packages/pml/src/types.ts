@@ -52,6 +52,12 @@ export interface PmlConfig {
   server?: PmlServerConfig;
   /** Tool permissions (Claude Code style: allow/deny/ask) */
   permissions?: PmlPermissions;
+  /**
+   * Environment variables for BYOK (Bring Your Own Key).
+   * Incrementally populated as capabilities request API keys.
+   * Keys are saved after HIL approval for future use.
+   */
+  env?: Record<string, string>;
 }
 
 /**

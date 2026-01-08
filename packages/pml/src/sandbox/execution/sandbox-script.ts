@@ -1,3 +1,4 @@
+/// <reference lib="deno.worker" />
 /**
  * Sandbox Worker Script
  *

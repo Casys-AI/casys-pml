@@ -186,6 +186,7 @@ function validateMetadata(data: unknown): CapabilityMetadata {
     tools: obj.tools as string[],
     routing: obj.routing,
     mcpDeps: obj.mcpDeps as CapabilityMetadata["mcpDeps"],
+    integrity: typeof obj.integrity === "string" ? obj.integrity : undefined,
   };
 }
 
@@ -388,9 +389,9 @@ export class RegistryClient {
     const result = await this.fetch(namespace);
     const { metadata } = result;
 
-    // Extract integrity from ETag or compute from content
-    // For now, we use the FQDN's hash as a proxy for integrity
-    const serverIntegrity = metadata.fqdn.split(".").pop() || "";
+    // Use integrity from registry response
+    // Falls back to empty string if not provided (will trigger new entry creation)
+    const serverIntegrity = metadata.integrity ?? "";
 
     // Determine MCP type (currently only "deno" supported)
     const mcpType = "deno" as const;
@@ -437,8 +438,8 @@ export class RegistryClient {
     const result = await this.fetch(namespace);
     const { metadata } = result;
 
-    // Extract integrity
-    const serverIntegrity = metadata.fqdn.split(".").pop() || "";
+    // Use integrity from registry response
+    const serverIntegrity = metadata.integrity ?? "";
     const mcpType = "deno" as const;
 
     // Update lockfile with new integrity
