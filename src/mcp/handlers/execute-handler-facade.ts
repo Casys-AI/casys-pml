@@ -179,6 +179,22 @@ export class ExecuteHandlerFacade {
       };
     }
 
+    // Fail-fast: if we have confidence but no suggestedDag, that's an error state
+    if (result.data.confidence > 0 && !result.data.suggestedDag) {
+      log.error("[ExecuteHandlerFacade] Suggestion found capability but failed to build DAG", {
+        confidence: result.data.confidence,
+        bestCapability: result.data.bestCapability,
+      });
+      return {
+        status: "suggestions",
+        suggestions: {
+          confidence: 0,
+          error: "Found matching capability but failed to construct suggested DAG",
+        },
+        executionTimeMs: result.data.executionTimeMs,
+      };
+    }
+
     return {
       status: "suggestions",
       suggestions: {

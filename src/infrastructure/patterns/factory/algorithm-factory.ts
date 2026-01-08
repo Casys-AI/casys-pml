@@ -51,7 +51,9 @@ import {
 } from "../../../graphrag/algorithms/shgat.ts";
 import {
   buildDRDSPFromCapabilities,
+  buildDRDSPAligned,
   type DRDSP,
+  type AlignedToolInput,
 } from "../../../graphrag/algorithms/dr-dsp.ts";
 import { loadCooccurrenceData } from "../../../graphrag/algorithms/shgat/message-passing/index.ts";
 import {
@@ -173,7 +175,8 @@ export class AlgorithmFactory {
   }
 
   /**
-   * Create DR-DSP instance from capabilities
+   * Create DR-DSP instance from capabilities (legacy - tools only as nodes)
+   * @deprecated Use createDRDSPAligned for capabilities as nodes
    *
    * @param capabilities Array of capabilities (embeddings not required)
    * @returns DR-DSP instance
@@ -181,7 +184,44 @@ export class AlgorithmFactory {
   static createDRDSP(capabilities: DRDSPCapabilityInput[]): DRDSP {
     const drdsp = buildDRDSPFromCapabilities(capabilities);
     log.info(
-      `[AlgorithmFactory] DR-DSP initialized with ${capabilities.length} capabilities`,
+      `[AlgorithmFactory] DR-DSP (legacy) initialized with ${capabilities.length} capabilities`,
+    );
+    return drdsp;
+  }
+
+  /**
+   * Create DR-DSP aligned with SHGAT model
+   *
+   * Both tools AND capabilities are nodes in the hypergraph.
+   * This enables capability-to-capability pathfinding.
+   *
+   * @param tools Tool nodes to register
+   * @param capabilities Capability nodes with members
+   * @param cooccurrences Optional co-occurrence data for sequence edges
+   * @returns DR-DSP instance with aligned model
+   */
+  static createDRDSPAligned(
+    tools: AlignedToolInput[],
+    capabilities: AlgorithmCapabilityInput[],
+    cooccurrences?: Array<{ from: string; to: string; weight: number }>,
+  ): DRDSP {
+    const drdsp = buildDRDSPAligned(
+      tools,
+      capabilities.map((cap) => ({
+        id: cap.id,
+        toolsUsed: cap.toolsUsed,
+        children: cap.children,
+        parents: cap.parents,
+        hierarchyLevel: cap.children?.length ? 1 : 0,
+        successRate: cap.successRate,
+        embedding: cap.embedding,
+      })),
+      cooccurrences,
+    );
+
+    const stats = drdsp.getStats();
+    log.info(
+      `[AlgorithmFactory] DR-DSP (aligned) initialized: ${stats.nodeCount} nodes, ${stats.hyperedgeCount} hyperedges`,
     );
     return drdsp;
   }
@@ -189,7 +229,7 @@ export class AlgorithmFactory {
   /**
    * Create both SHGAT and DR-DSP from the same capabilities
    *
-   * Convenience method for initializing both algorithms together.
+   * Uses aligned DR-DSP model where capabilities are nodes.
    *
    * @param capabilities Capabilities with embeddings
    * @param options SHGAT options
@@ -202,9 +242,38 @@ export class AlgorithmFactory {
     shgat: SHGATFactoryResult;
     drdsp: DRDSP;
   }> {
+    // Extract unique tools from all capabilities
+    const toolSet = new Set<string>();
+    for (const cap of capabilities) {
+      for (const tool of cap.toolsUsed) {
+        toolSet.add(tool);
+      }
+    }
+    const tools: AlignedToolInput[] = Array.from(toolSet).map((id) => ({ id }));
+
+    // Load co-occurrence for both SHGAT and DR-DSP
+    let cooccurrences: Array<{ from: string; to: string; weight: number }> | undefined;
+    if (options.withCooccurrence) {
+      try {
+        // Create temporary tool index for co-occurrence loading
+        const toolIndex = new Map<string, number>();
+        tools.forEach((t, i) => toolIndex.set(t.id, i));
+        const coocData = await loadCooccurrenceData(toolIndex);
+        if (coocData.entries.length > 0) {
+          cooccurrences = coocData.entries.map((e) => ({
+            from: e.toolA,
+            to: e.toolB,
+            weight: 1 / (e.count + 1), // Convert count to weight (lower = better)
+          }));
+        }
+      } catch {
+        // Co-occurrence not available, continue without
+      }
+    }
+
     const [shgatResult, drdsp] = await Promise.all([
       this.createSHGAT(capabilities, options),
-      Promise.resolve(this.createDRDSP(capabilities)),
+      Promise.resolve(this.createDRDSPAligned(tools, capabilities, cooccurrences)),
     ]);
 
     return {

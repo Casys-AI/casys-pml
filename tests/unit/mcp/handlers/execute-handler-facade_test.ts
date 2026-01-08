@@ -305,10 +305,11 @@ Deno.test("ExecuteHandlerFacade - handles empty request", async () => {
 });
 
 // ============================================
-// Test: Triggers Training After Direct Execution
+// Test: Training is Event-Driven (not directly triggered)
+// Phase 3.2: Training moved to TrainingSubscriber via capability.learned events
 // ============================================
 
-Deno.test("ExecuteHandlerFacade - triggers training after successful direct execution", async () => {
+Deno.test("ExecuteHandlerFacade - does not directly trigger training (event-driven)", async () => {
   let trainCalled = false;
   const mockTrain = createMockTrainSHGATUC();
   mockTrain.execute = async () => {
@@ -339,10 +340,9 @@ Deno.test("ExecuteHandlerFacade - triggers training after successful direct exec
     intent: "Test training trigger",
   });
 
-  // Training is fire-and-forget, may need a small delay
-  await new Promise((resolve) => setTimeout(resolve, 10));
-
-  assertEquals(trainCalled, true, "Should trigger training");
+  // Phase 3.2: Training is now event-driven via TrainingSubscriber
+  // The facade no longer directly calls trainSHGATUC
+  assertEquals(trainCalled, false, "Facade should NOT directly trigger training (event-driven)");
 });
 
 // ============================================
@@ -376,4 +376,64 @@ Deno.test("ExecuteHandlerFacade - maps suggestion response correctly", async () 
   assertEquals(result.status, "suggestions");
   assertExists(result.suggestions);
   assertExists(result.suggestions?.confidence);
+});
+
+// ============================================
+// Test: Fail-fast when confidence > 0 but no suggestedDag
+// ============================================
+
+Deno.test("ExecuteHandlerFacade - fail-fast returns error when confidence > 0 but no suggestedDag", async () => {
+  // Mock that returns confidence but no suggestedDag (broken state)
+  const brokenMock = {
+    execute: async () => ({
+      success: true,
+      data: {
+        // No suggestedDag!
+        confidence: 0.85,
+        bestCapability: { id: "cap-123", score: 0.85 },
+        executionTimeMs: 50,
+      },
+    }),
+    setUserId: () => {},
+  } as unknown as ExecuteSuggestionUseCase;
+
+  const facade = new ExecuteHandlerFacade({
+    executeSuggestionUC: brokenMock,
+  });
+
+  const result = await facade.handle({
+    intent: "Test fail-fast",
+  });
+
+  // Should return error state, not partial result
+  assertEquals(result.status, "suggestions");
+  assertEquals(result.suggestions?.confidence, 0, "Should reset confidence to 0 on error");
+  assertExists(result.suggestions?.error, "Should include error message");
+});
+
+Deno.test("ExecuteHandlerFacade - allows zero confidence without suggestedDag", async () => {
+  // Mock that returns zero confidence (valid - no matches found)
+  const noMatchMock = {
+    execute: async () => ({
+      success: true,
+      data: {
+        confidence: 0,
+        executionTimeMs: 50,
+      },
+    }),
+    setUserId: () => {},
+  } as unknown as ExecuteSuggestionUseCase;
+
+  const facade = new ExecuteHandlerFacade({
+    executeSuggestionUC: noMatchMock,
+  });
+
+  const result = await facade.handle({
+    intent: "Test no matches",
+  });
+
+  // Should be valid - no error for zero confidence
+  assertEquals(result.status, "suggestions");
+  assertEquals(result.suggestions?.confidence, 0);
+  assertEquals(result.suggestions?.error, undefined, "No error for zero confidence");
 });

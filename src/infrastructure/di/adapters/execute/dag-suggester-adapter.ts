@@ -162,6 +162,21 @@ export class DAGSuggesterAdapter implements IDAGSuggester {
       // Fallback: build simple sequence from tools used
       if (!suggestedDag && capability.toolsUsed && capability.toolsUsed.length > 0) {
         suggestedDag = this.buildSequenceDAG(capability.toolsUsed);
+        log.debug("[DAGSuggesterAdapter] Built fallback sequence DAG", {
+          correlationId,
+          toolsCount: capability.toolsUsed.length,
+        });
+      }
+
+      // Fail-fast log if no DAG could be built
+      if (!suggestedDag) {
+        log.warn("[DAGSuggesterAdapter] Could not build suggestedDag", {
+          correlationId,
+          capabilityId: capability.id,
+          hasToolsUsed: !!capability.toolsUsed,
+          toolsUsedLength: capability.toolsUsed?.length ?? 0,
+          hasDRDSP: !!this.deps.drdsp,
+        });
       }
 
       // Determine if speculation is possible

@@ -371,6 +371,13 @@ export class SHGAT {
    * @returns H (tool embeddings), E (flattened cap embeddings), cache
    */
   forward(): { H: number[][]; E: number[][]; cache: ForwardCache } {
+    // Return cached result if graph hasn't changed (perf optimization)
+    if (!this.hierarchyDirty && this.lastCache) {
+      const H = this.lastCache.H[this.lastCache.H.length - 1] ?? [];
+      const E = this.lastCache.E[this.lastCache.E.length - 1] ?? [];
+      return { H, E, cache: this.lastCache };
+    }
+
     // Rebuild hierarchy if graph changed
     this.rebuildHierarchy();
 
