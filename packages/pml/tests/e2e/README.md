@@ -59,9 +59,13 @@ import { createMockServer } from "./mock-cloud-server.ts";
 const server = await createMockServer({ port: 3099 });
 
 // Set up mock capability response
-server.setMcpResponse("pml.std.json.parse", {
-  code: `export default async function(args) { return JSON.parse(args.input); }`,
-  metadata: { fqdn: "pml.std.json.parse", name: "parse", ... },
+// Note: code is function BODY format, not ES module
+server.setMcpResponse("casys.pml.json.parse", {
+  code: `return JSON.parse(args.input);`,  // Function body, not ES module
+  fqdn: "casys.pml.json.parse",
+  type: "deno",
+  tools: ["parse"],
+  routing: "client",
   integrity: "sha256-abc123",
 });
 
@@ -169,13 +173,14 @@ Deno.test("HIL approval", async () => {
 Deno.test("Lockfile integrity", async () => {
   // Pre-populate lockfile with old hash
   await lockfileManager.addEntry({
-    fqdn: "pml.std.cap.abc1",
+    fqdn: "casys.pml.cap",
     integrity: "sha256-oldHash",
     type: "deno",
   });
 
   // Mock returns different hash
-  mockServer.setMcpResponse("pml.std.cap", {
+  mockServer.setMcpResponse("casys.pml.cap", {
+    fqdn: "casys.pml.cap",
     integrity: "sha256-newHash", // Different!
   });
 
