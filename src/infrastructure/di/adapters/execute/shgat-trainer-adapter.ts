@@ -21,7 +21,13 @@ import type {
  */
 export interface SHGATLiveTrainerInfra {
   train(
-    traces: Array<{ type: string; tool?: string; success?: boolean }>,
+    input: {
+      traces: Array<{ type: string; tool?: string; success?: boolean }>;
+      intentEmbedding?: number[];
+      success: boolean;
+      executionTimeMs: number;
+      capabilityId?: string;
+    },
     config?: {
       minTraces?: number;
       maxTraces?: number;
@@ -107,7 +113,7 @@ export class SHGATTrainerAdapter implements ISHGATTrainer {
     }
 
     try {
-      const result = await this.deps.liveTrainer.train(input.traces, config);
+      const result = await this.deps.liveTrainer.train(input, config);
 
       return {
         trained: result.trained,

@@ -100,14 +100,20 @@ export class DAGSuggesterAdapter implements IDAGSuggester {
   /**
    * Generate DAG suggestion from natural language intent
    */
-  async suggest(intent: string, correlationId?: string): Promise<SuggestionResult> {
-    if (!this.deps.shgat || !this.deps.embeddingModel) {
+  async suggest(intent: string, correlationId?: string, precomputedEmbedding?: number[]): Promise<SuggestionResult> {
+    if (!this.deps.shgat) {
       return { confidence: 0 };
     }
 
     try {
-      // Generate intent embedding
-      const intentEmbedding = await this.deps.embeddingModel.encode(intent);
+      // Use pre-computed embedding if available, otherwise generate
+      let intentEmbedding = precomputedEmbedding;
+      if (!intentEmbedding) {
+        if (!this.deps.embeddingModel) {
+          return { confidence: 0 };
+        }
+        intentEmbedding = await this.deps.embeddingModel.encode(intent);
+      }
       if (!intentEmbedding || intentEmbedding.length === 0) {
         return { confidence: 0 };
       }
