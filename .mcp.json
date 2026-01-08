@@ -2,17 +2,13 @@
   "mcpServers": {
     "pml": {
       "type": "stdio",
-      "command": "/home/ubuntu/.deno/bin/deno",
-      "args": ["task", "mcp"],
-      "cwd": "/home/ubuntu/CascadeProjects/AgentCards"
-    },
-    "pml_http": {
-      "type": "http",
-      "url": "http://localhost:3003/mcp"
-    },
-    "playwright": {
-      "command": "npx",
-      "args": ["@playwright/mcp@latest"]
+      "command": "pml",
+      "args": [
+        "stdio"
+      ],
+      "env": {
+        "PML_API_KEY": "${PML_API_KEY}"
+      }
     }
   }
 }

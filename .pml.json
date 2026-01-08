@@ -1,0 +1,13 @@
+{
+  "version": "0.1.0",
+  "workspace": ".",
+  "cloud": {
+    "url": "http://localhost:3003",
+    "apiKey": "${PML_API_KEY}"
+  },
+  "permissions": {
+    "allow": [],
+    "deny": [],
+    "ask": []
+  }
+}
