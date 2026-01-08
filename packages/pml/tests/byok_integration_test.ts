@@ -3,8 +3,8 @@
  *
  * Story 14.6: BYOK API Key Management
  *
- * Tests the FULL flow including actual .env file operations:
- * - Missing key → HIL pause → User adds to .env → Continue → Execute
+ * Tests the FULL flow including actual .pml.json file operations:
+ * - Missing key → HIL pause → User adds to .pml.json → Continue → Execute
  *
  * These tests use real file I/O to verify the complete workflow.
  */
@@ -32,16 +32,49 @@ import type { ApiKeyApprovalRequired } from "../src/loader/types.ts";
 // Test Utilities
 // ============================================================================
 
+interface PmlConfig {
+  version: string;
+  env?: Record<string, string>;
+}
+
 /**
- * Create a temporary test workspace with optional .env file.
+ * Create a temporary test workspace with optional env vars.
+ * Writes to both .env (for reloadEnv) and .pml.json (for handleApiKeyContinue).
  */
 async function createTestWorkspace(
   envContent?: string,
 ): Promise<{ path: string; cleanup: () => Promise<void> }> {
   const tempDir = await Deno.makeTempDir({ prefix: "byok_test_" });
 
+  // If envContent provided, write to both .env and .pml.json
   if (envContent !== undefined) {
+    // Write .env file (for reloadEnv compatibility)
     await Deno.writeTextFile(join(tempDir, ".env"), envContent);
+
+    // Also parse and write to .pml.json (for handleApiKeyContinue)
+    if (envContent.trim() !== "") {
+      const config: PmlConfig = { version: "0.1.0", env: {} };
+      for (const line of envContent.split("\n")) {
+        const trimmed = line.trim();
+        if (trimmed && !trimmed.startsWith("#")) {
+          const eqIdx = trimmed.indexOf("=");
+          if (eqIdx > 0) {
+            const key = trimmed.substring(0, eqIdx);
+            let value = trimmed.substring(eqIdx + 1);
+            // Remove quotes if present
+            if ((value.startsWith('"') && value.endsWith('"')) ||
+                (value.startsWith("'") && value.endsWith("'"))) {
+              value = value.slice(1, -1);
+            }
+            config.env![key] = value;
+          }
+        }
+      }
+      await Deno.writeTextFile(
+        join(tempDir, ".pml.json"),
+        JSON.stringify(config, null, 2),
+      );
+    }
   }
 
   return {
@@ -57,19 +90,61 @@ async function createTestWorkspace(
 }
 
 /**
- * Write .env file to workspace (simulates user action).
+ * Write env vars to both .env and .pml.json (simulates user action).
+ * Takes KEY=VALUE format for compatibility.
  */
 async function writeEnvFile(workspace: string, content: string): Promise<void> {
-  await Deno.writeTextFile(join(workspace, ".env"), content);
+  // Write to .env file (for reloadEnv)
+  const envPath = join(workspace, ".env");
+  await Deno.writeTextFile(envPath, content);
+
+  // Also write to .pml.json (for handleApiKeyContinue)
+  const configPath = join(workspace, ".pml.json");
+
+  // Read existing config or create new one
+  let config: PmlConfig;
+  try {
+    const existing = await Deno.readTextFile(configPath);
+    config = JSON.parse(existing);
+  } catch {
+    config = { version: "0.1.0" };
+  }
+
+  if (!config.env) {
+    config.env = {};
+  }
+
+  // Parse KEY=VALUE format
+  for (const line of content.split("\n")) {
+    const trimmed = line.trim();
+    if (trimmed && !trimmed.startsWith("#")) {
+      const eqIdx = trimmed.indexOf("=");
+      if (eqIdx > 0) {
+        const key = trimmed.substring(0, eqIdx);
+        let value = trimmed.substring(eqIdx + 1);
+        // Remove quotes if present
+        if ((value.startsWith('"') && value.endsWith('"')) ||
+            (value.startsWith("'") && value.endsWith("'"))) {
+          value = value.slice(1, -1);
+        }
+        config.env[key] = value;
+        // Also set in Deno.env for immediate availability
+        Deno.env.set(key, value);
+      }
+    }
+  }
+
+  await Deno.writeTextFile(configPath, JSON.stringify(config, null, 2));
 }
 
 /**
- * Append to .env file (simulates user adding a key).
+ * Append env vars to .env and .pml.json (simulates user adding a key).
  */
 async function appendToEnvFile(
   workspace: string,
   content: string,
 ): Promise<void> {
+  // Append to .env file
   const envPath = join(workspace, ".env");
   let existing = "";
   try {
@@ -78,6 +153,40 @@ async function appendToEnvFile(
     // File doesn't exist yet
   }
   await Deno.writeTextFile(envPath, existing + "\n" + content);
+
+  // Also update .pml.json (writeEnvFile handles merge)
+  const configPath = join(workspace, ".pml.json");
+  let config: PmlConfig;
+  try {
+    const existingConfig = await Deno.readTextFile(configPath);
+    config = JSON.parse(existingConfig);
+  } catch {
+    config = { version: "0.1.0" };
+  }
+
+  if (!config.env) {
+    config.env = {};
+  }
+
+  // Parse the new content
+  for (const line of content.split("\n")) {
+    const trimmed = line.trim();
+    if (trimmed && !trimmed.startsWith("#")) {
+      const eqIdx = trimmed.indexOf("=");
+      if (eqIdx > 0) {
+        const key = trimmed.substring(0, eqIdx);
+        let value = trimmed.substring(eqIdx + 1);
+        if ((value.startsWith('"') && value.endsWith('"')) ||
+            (value.startsWith("'") && value.endsWith("'"))) {
+          value = value.slice(1, -1);
+        }
+        config.env[key] = value;
+        Deno.env.set(key, value);
+      }
+    }
+  }
+
+  await Deno.writeTextFile(configPath, JSON.stringify(config, null, 2));
 }
 
 // ============================================================================
@@ -206,7 +315,8 @@ Deno.test("Integration: Full flow - placeholder value rejected, then fixed", asy
 
     // 3. Create HIL pause
     const hilPause = pauseForMissingKeys(check1);
-    assertStringIncludes(hilPause.instruction, "placeholder");
+    // Instruction mentions the key that needs to be provided
+    assertStringIncludes(hilPause.instruction, "OPENAI_API_KEY");
 
     // 4. User fixes the value
     await writeEnvFile(
@@ -301,9 +411,9 @@ Deno.test("Integration: Sanitization in error flow", async () => {
 Deno.test("Integration: formatKeyInstruction provides actionable guidance", () => {
   // Test that instructions are helpful for different key types
   const tavilyInstruction = formatKeyInstruction(["TAVILY_API_KEY"], []);
-  assertStringIncludes(tavilyInstruction, ".env");
-  assertStringIncludes(tavilyInstruction, "TAVILY_API_KEY=");
-  assertStringIncludes(tavilyInstruction.toLowerCase(), "tavily");
+  assertStringIncludes(tavilyInstruction, ".pml.json"); // Keys saved to .pml.json
+  assertStringIncludes(tavilyInstruction, "TAVILY_API_KEY");
+  assertStringIncludes(tavilyInstruction, "requires"); // "This capability requires..."
 
   const multiInstruction = formatKeyInstruction(
     ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"],
@@ -313,7 +423,8 @@ Deno.test("Integration: formatKeyInstruction provides actionable guidance", () =
   assertStringIncludes(multiInstruction, "OPENAI_API_KEY");
 
   const invalidInstruction = formatKeyInstruction([], ["BAD_KEY"]);
-  assertStringIncludes(invalidInstruction.toLowerCase(), "placeholder");
+  // Invalid keys are listed the same as missing - need to provide value
+  assertStringIncludes(invalidInstruction, "BAD_KEY");
 });
 
 // ============================================================================

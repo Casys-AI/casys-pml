@@ -83,14 +83,15 @@ Deno.test("formatKeyInstruction - missing keys only", () => {
   const instruction = formatKeyInstruction(["TAVILY_API_KEY"], []);
 
   assertEquals(instruction.includes("TAVILY_API_KEY"), true);
-  assertEquals(instruction.includes(".env"), true);
+  assertEquals(instruction.includes(".pml.json"), true); // Keys saved to .pml.json
 });
 
 Deno.test("formatKeyInstruction - invalid keys only", () => {
   const instruction = formatKeyInstruction([], ["EXA_API_KEY"]);
 
   assertEquals(instruction.includes("EXA_API_KEY"), true);
-  assertEquals(instruction.includes("placeholder"), true);
+  // Invalid keys are treated same as missing - just listed for user to provide
+  assertEquals(instruction.includes("API key"), true);
 });
 
 Deno.test("formatKeyInstruction - both missing and invalid", () => {
@@ -103,8 +104,9 @@ Deno.test("formatKeyInstruction - both missing and invalid", () => {
 Deno.test("formatKeyInstruction - provides helpful hints", () => {
   const instruction = formatKeyInstruction(["TAVILY_API_KEY"], []);
 
-  // Should include a hint about what kind of key
-  assertEquals(instruction.includes("tavily"), true);
+  // Should mention it requires the key and will save to .pml.json
+  assertEquals(instruction.includes("requires"), true);
+  assertEquals(instruction.includes(".pml.json"), true);
 });
 
 // ============================================================================

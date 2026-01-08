@@ -145,9 +145,10 @@ Deno.test("permissions - loadUserPermissions returns defaults when no config", a
     const result = await loadUserPermissions(testDir, silentLogger);
 
     assertEquals(result.source, "defaults");
+    // Empty arrays = implicit "ask for everything" via checkPermission() default
     assertEquals(result.permissions.allow, []);
     assertEquals(result.permissions.deny, []);
-    assertEquals(result.permissions.ask, ["*"]);
+    assertEquals(result.permissions.ask, []);
   } finally {
     await Deno.remove(testDir, { recursive: true });
   }
@@ -261,9 +262,10 @@ Deno.test("permissions - loadUserPermissions handles missing permissions section
   try {
     const result = await loadUserPermissions(testDir, silentLogger);
 
-    // Should fall back to safe defaults
-    assertEquals(result.source, "defaults");
-    assertEquals(result.permissions.ask, ["*"]);
+    // Config exists but no permissions = use config source with empty permissions
+    // (checkPermission defaults to "ask" for unmatched tools)
+    assertEquals(result.source, "config");
+    assertEquals(result.permissions.ask, []);
   } finally {
     await Deno.remove(testDir, { recursive: true });
   }
@@ -279,8 +281,9 @@ Deno.test("permissions - loadUserPermissions handles invalid JSON", async () => 
     const result = await loadUserPermissions(testDir, silentLogger);
 
     // Should fall back to safe defaults on parse error
+    // Empty arrays = implicit "ask for everything" via checkPermission() default
     assertEquals(result.source, "defaults");
-    assertEquals(result.permissions.ask, ["*"]);
+    assertEquals(result.permissions.ask, []);
   } finally {
     await Deno.remove(testDir, { recursive: true });
   }

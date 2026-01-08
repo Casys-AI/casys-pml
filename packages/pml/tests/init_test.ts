@@ -75,21 +75,19 @@ Deno.test("init - .pml.json has correct structure", async () => {
     assertEquals(config.cloud.url, "https://custom.pml.ai");
     assertEquals(config.cloud.apiKey, "${PML_API_KEY}");
 
-    // Server config
-    assertEquals(config.server.port, 5000);
+    // Server config - NOT included in .pml.json (only used for `pml serve`)
+    // Port is passed to .mcp.json args instead
+    assertEquals(config.server, undefined);
 
-    // Permissions (Claude Code style)
+    // Permissions - empty arrays (checkPermission defaults to "ask" for unmatched)
     assertEquals(Array.isArray(config.permissions.allow), true);
     assertEquals(Array.isArray(config.permissions.deny), true);
     assertEquals(Array.isArray(config.permissions.ask), true);
 
-    // Safe tools in allow
-    assertEquals(config.permissions.allow.includes("json:*"), true);
-    assertEquals(config.permissions.allow.includes("math:*"), true);
-
-    // I/O tools in ask
-    assertEquals(config.permissions.ask.includes("filesystem:*"), true);
-    assertEquals(config.permissions.ask.includes("github:*"), true);
+    // All empty - implicit "ask for everything" behavior
+    assertEquals(config.permissions.allow.length, 0);
+    assertEquals(config.permissions.deny.length, 0);
+    assertEquals(config.permissions.ask.length, 0);
   } finally {
     Deno.chdir(originalCwd);
   }
