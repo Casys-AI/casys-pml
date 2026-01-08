@@ -80,8 +80,8 @@ function createMockCapabilityRepository(): ICapabilityRepository {
       toCapabilityId: "",
       observedCount: 0,
       confidenceScore: 0,
-      edgeType: "co_occurrence" as const,
-      edgeSource: "execution" as const,
+      edgeType: "dependency" as const,
+      edgeSource: "observed" as const,
       lastObserved: new Date(),
       createdAt: new Date(),
     }),
@@ -115,12 +115,15 @@ function createMockDAGConverter(): IDAGConverter {
         { id: "task_1", tool: "code:parse_json", arguments: {}, dependsOn: ["task_0"] },
       ],
     }),
-    optimizeDAG: (dag) => ({
-      tasks: dag.tasks.map((t) => ({
-        id: t.id,
-        tool: t.tool,
-        metadata: t.metadata as { loopId?: string; loopType?: string; loopCondition?: string } | undefined,
-      })),
+    optimizeDAG: (dag: { tasks: unknown[] }) => ({
+      tasks: dag.tasks.map((t) => {
+        const task = t as { id: string; tool: string; metadata?: Record<string, unknown> };
+        return {
+          id: task.id,
+          tool: task.tool,
+          metadata: task.metadata as { loopId?: string; loopType?: string; loopCondition?: string } | undefined,
+        };
+      }),
       physicalToLogical: new Map([
         ["task_0", ["task_0"]],
         ["task_1", ["task_1"]],
