@@ -83,6 +83,8 @@ export interface ExecuteSuggestionRequest {
   options?: {
     timeout?: number;
   };
+  /** User ID for multi-tenant isolation (Story 9.8) */
+  userId?: string;
 }
 
 /**
