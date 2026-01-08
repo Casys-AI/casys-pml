@@ -1,294 +1,214 @@
 # MCP Tools Reference
 
+PML exposes its features via the MCP (Model Context Protocol). This reference documents the available tools.
+
+---
+
 ## Overview
 
-PML (Procedural Memory Layer) exposes its features via the MCP (Model Context Protocol). This
-reference documents all available tools.
+PML can be used in two ways:
 
-**Version:** 1.0.0
+**Cloud Mode (pml.casys.ai)**
 
-**Available transports:**
+Hosted service, no installation required.
 
-| Transport           | Command                              | Features                               |
-| ------------------- | ------------------------------------ | -------------------------------------- |
-| **stdio**           | `pml serve --config ...`             | MCP protocol, console logs             |
-| **Streamable HTTP** | `pml serve --config ... --port 3001` | MCP on `/mcp` + Dashboard + Events SSE |
+**Local Mode (open source)**
 
-> **Note:** stdio mode is recommended for Claude Code. Streamable HTTP mode (MCP spec 2025-03-26)
-> enables the Fresh dashboard and real-time events.
+| Transport | Command | Usage |
+|-----------|---------|-------|
+| **stdio** | `pml serve --config <mcp-servers.json>` | Claude Code integration |
+| **HTTP** | `pml serve --config <mcp-servers.json> --port 3003` | Local dashboard |
 
 ---
 
 ## Tool Architecture
 
-PML exposes two types of tools:
+PML exposes **meta-tools** via the `pml:*` pattern:
 
-| Type              | Pattern             | Description                                                |
-| ----------------- | ------------------- | ---------------------------------------------------------- |
-| **Meta-tools**    | `pml:*`             | PML intelligent tools (search, capabilities, DAG, sandbox) |
-| **Proxied tools** | `serverId:toolName` | Tools from underlying MCP servers (filesystem, github...)  |
+| Tool | Description |
+|------|-------------|
+| `pml:discover` | Search tools and capabilities by intent |
+| `pml:execute` | Execute code with MCP tool access |
+| `pml:abort` | Stop a running workflow |
 
-> **Note:** By default, only meta-tools are listed to minimize context usage (ADR-013). Underlying
-> tools are discovered via `search_tools` or used directly if their name is known.
+MCP tools (filesystem, github, etc.) are accessible inside `pml:execute` code via `mcp.server.tool()`.
 
 ---
 
 ## PML Meta-Tools
 
-### pml:search_tools
+### pml:discover
 
-Semantic search and recommendations based on the usage graph.
-
-**Parameters:**
-
-| Name              | Type     | Required | Description                                         |
-| ----------------- | -------- | -------- | --------------------------------------------------- |
-| `query`           | string   | Yes      | Natural language description of what you want to do |
-| `limit`           | number   | No       | Max number of tools to return (default: 5)          |
-| `include_related` | boolean  | No       | Include related tools from graph (default: false)   |
-| `context_tools`   | string[] | No       | Already used tools - boosts related tools           |
-
-**Request example:**
-
-```typescript
-await callTool("pml:search_tools", {
-  query: "read and parse JSON files",
-  limit: 5,
-  include_related: true,
-});
-```
-
-**Response example:**
-
-```json
-{
-  "content": [{
-    "type": "text",
-    "text": "{\"tools\":[{\"name\":\"filesystem:read_file\",\"score\":0.92,\"description\":\"Read file contents\"},{\"name\":\"filesystem:read_directory\",\"score\":0.85,\"related\":false},{\"name\":\"memory:search_nodes\",\"score\":0.72,\"related\":true}]}"
-  }]
-}
-```
-
----
-
-### pml:search_capabilities
-
-Search for proven code patterns learned from successful executions.
+Search MCP tools and learned capabilities by intent. Returns ranked results.
 
 **Parameters:**
 
-| Name                  | Type    | Required | Description                                                |
-| --------------------- | ------- | -------- | ---------------------------------------------------------- |
-| `intent`              | string  | Yes      | What you want to accomplish - finds similar past successes |
-| `include_suggestions` | boolean | No       | Also show related capabilities (default: false)            |
-
-**Request example:**
-
-```typescript
-await callTool("pml:search_capabilities", {
-  intent: "parse JSON from API and store in database",
-  include_suggestions: true,
-});
-```
-
-**Response example:**
-
-```json
-{
-  "content": [{
-    "type": "text",
-    "text": "{\"capabilities\":[{\"id\":\"cap_abc123\",\"intent\":\"fetch API data and insert to DB\",\"match_score\":0.94,\"success_rate\":0.95,\"reuse_count\":12,\"tools_used\":[\"fetch:get\",\"json:parse\",\"db:insert\"],\"code\":\"const data = await fetch...\"}]}"
-  }]
-}
-```
-
-**When to use:**
-
-| Tool                  | Purpose                                      |
-| --------------------- | -------------------------------------------- |
-| `search_tools`        | Find MCP tools by capability description     |
-| `search_capabilities` | Find proven code patterns that worked before |
-
-> **Tip:** Use `search_capabilities` when you want to reuse existing patterns instead of building
-> from scratch. The returned code can be executed directly via `execute_code`.
-
----
-
-### pml:execute_dag
-
-Execute a multi-tool DAG (Directed Acyclic Graph) workflow.
-
-**Usage modes:**
-
-- **Intent:** Provide `intent` → PML suggests and executes the optimal DAG
-- **Explicit:** Provide `workflow` → Executes the explicitly defined DAG
-
-> Provide **either** `intent` **or** `workflow`, not both.
-
-**Parameters:**
-
-| Name                   | Type    | Required | Description                                              |
-| ---------------------- | ------- | -------- | -------------------------------------------------------- |
-| `intent`               | string  | No*      | Natural description of the goal (suggestion mode)        |
-| `workflow`             | object  | No*      | Explicit DAG structure (explicit mode)                   |
-| `per_layer_validation` | boolean | No       | Pause between each layer for validation (default: false) |
-
-*At least one of the two is required.
-
-**Workflow structure (explicit mode):**
-
-```typescript
-{
-  workflow: {
-    tasks: [
-      {
-        id: string,           // Unique task identifier
-        tool: string,         // Tool name (serverId:toolName)
-        arguments: object,    // Tool arguments
-        dependsOn?: string[] // IDs of dependent tasks
-      }
-    ]
-  }
-}
-```
-
-**Example - Intent Mode:**
-
-```typescript
-await callTool("pml:execute_dag", {
-  intent: "Read config.json and create a memory entity with its content",
-});
-```
-
-**Example - Explicit Mode with parallelization:**
-
-```typescript
-await callTool("pml:execute_dag", {
-  workflow: {
-    tasks: [
-      { id: "t1", tool: "filesystem:read_file", arguments: { path: "config.json" } },
-      { id: "t2", tool: "filesystem:read_file", arguments: { path: "package.json" } },
-      {
-        id: "t3",
-        tool: "memory:create_entities",
-        arguments: { entities: [{ name: "config", content: "$t1.result" }] },
-        dependsOn: ["t1"],
-      },
-    ],
-  },
-});
-// t1 and t2 execute in parallel, t3 waits for t1
-```
-
-**Response example (success):**
-
-```json
-{
-  "content": [{
-    "type": "text",
-    "text": "{\"status\":\"complete\",\"results\":{\"t1\":{\"content\":\"...\"},\"t2\":{\"content\":\"...\"},\"t3\":{\"success\":true}},\"metrics\":{\"total_time_ms\":1823,\"parallel_branches\":2}}"
-  }]
-}
-```
-
-**Response example (per-layer validation):**
-
-```json
-{
-  "content": [{
-    "type": "text",
-    "text": "{\"status\":\"layer_complete\",\"workflow_id\":\"wf_abc123\",\"current_layer\":1,\"total_layers\":3,\"layer_results\":[...],\"next_action\":\"Use pml:continue to proceed\"}"
-  }]
-}
-```
-
----
-
-### pml:execute_code
-
-Execute TypeScript/JavaScript code in an isolated Deno sandbox.
-
-**Parameters:**
-
-| Name             | Type   | Required | Description                              |
-| ---------------- | ------ | -------- | ---------------------------------------- |
-| `code`           | string | Yes      | TypeScript code to execute               |
-| `intent`         | string | No       | Description for automatic tool discovery |
-| `context`        | object | No       | Data/context to inject into the sandbox  |
-| `sandbox_config` | object | No       | Sandbox configuration                    |
-
-**sandbox_config options:**
-
-| Option             | Type     | Default | Description                   |
-| ------------------ | -------- | ------- | ----------------------------- |
-| `timeout`          | number   | 30000   | Timeout in milliseconds       |
-| `memoryLimit`      | number   | 512     | Heap memory limit in MB       |
-| `allowedReadPaths` | string[] | []      | Additional allowed read paths |
-
-**REPL behavior:**
-
-- Simple expressions → auto-return (`2 + 2` returns `4`)
-- Multi-statements → explicit `return` required
-
-**Example - Data processing:**
-
-```typescript
-await callTool("pml:execute_code", {
-  code: `
-    const items = context.data;
-    const filtered = items.filter(x => x.active);
-    return {
-      total: filtered.length,
-      summary: filtered.slice(0, 5)
-    };
-  `,
-  context: { data: largeDataset },
-});
-```
-
-**Example - With tool discovery:**
-
-```typescript
-await callTool("pml:execute_code", {
-  intent: "Analyze GitHub commits",
-  code: `
-    // 'github' injected automatically thanks to intent
-    const commits = await github.listCommits({ limit: 100 });
-    return commits.filter(c => c.author === "alice").length;
-  `,
-});
-```
-
-**Response example:**
-
-```json
-{
-  "content": [{
-    "type": "text",
-    "text": "{\"result\":42,\"logs\":[],\"metrics\":{\"execution_time_ms\":127,\"memory_used_mb\":45}}"
-  }]
-}
-```
-
----
-
-### pml:continue
-
-Continue execution of a paused workflow (after per-layer validation).
-
-**Parameters:**
-
-| Name          | Type   | Required | Description                           |
-| ------------- | ------ | -------- | ------------------------------------- |
-| `workflow_id` | string | Yes      | Workflow ID (returned by execute_dag) |
-| `reason`      | string | No       | Reason for continuation               |
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `intent` | string | Yes | What do you want to accomplish? Natural language description. |
+| `filter` | object | No | Optional filters for results |
+| `filter.type` | string | No | `"tool"`, `"capability"`, or `"all"` (default) |
+| `filter.minScore` | number | No | Minimum score threshold 0-1 (default: 0.0) |
+| `limit` | number | No | Maximum results to return (default: 1, max: 50) |
+| `include_related` | boolean | No | Include related tools from usage patterns (default: false) |
 
 **Example:**
 
 ```typescript
-await callTool("pml:continue", {
-  workflow_id: "wf_abc123",
-  reason: "Layer 1 validated, continue",
+await callTool("pml:discover", {
+  intent: "read and parse JSON files",
+  limit: 5,
+  include_related: true
+});
+```
+
+**Response:**
+
+```json
+{
+  "results": [
+    {
+      "type": "tool",
+      "record_type": "mcp-tool",
+      "id": "filesystem:read_file",
+      "name": "read_file",
+      "description": "Read file contents",
+      "score": 0.92,
+      "server_id": "filesystem",
+      "input_schema": { "type": "object", "properties": { "path": { "type": "string" } } },
+      "related_tools": [
+        { "tool_id": "filesystem:write_file", "relation": "often_after", "score": 0.8 }
+      ]
+    }
+  ],
+  "meta": {
+    "query": "read and parse JSON files",
+    "filter_type": "all",
+    "total_found": 5,
+    "returned_count": 5,
+    "tools_count": 3,
+    "capabilities_count": 2
+  }
+}
+```
+
+---
+
+### pml:execute
+
+Execute code with MCP tool access. Creates a learned capability on success.
+
+**Modes:**
+
+| Mode | Parameters | Behavior |
+|------|------------|----------|
+| **Direct** | `intent` + `code` | Execute code, learn capability |
+| **Continue** | `continue_workflow` | Resume paused workflow |
+
+#### Direct Mode
+
+Execute TypeScript code with automatic MCP tool injection.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `intent` | string | Yes | Natural language description of the goal |
+| `code` | string | Yes | TypeScript code to execute |
+| `options.timeout` | number | No | Max execution time in ms (default: 30000) |
+| `options.per_layer_validation` | boolean | No | Pause between layers for validation (default: false) |
+
+**MCP Tool Access:**
+
+Tools are available via `mcp.server.tool()` pattern:
+
+```typescript
+// Read a file
+const content = await mcp.filesystem.read_file({ path: "config.json" });
+
+// Create a GitHub issue
+await mcp.github.create_issue({ repo: "owner/repo", title: "Bug" });
+
+// Query memory
+const nodes = await mcp.memory.search_nodes({ query: "config" });
+```
+
+**Example:**
+
+```typescript
+await callTool("pml:execute", {
+  intent: "Read package.json and extract dependencies",
+  code: `
+    const content = await mcp.filesystem.read_file({ path: "package.json" });
+    const pkg = JSON.parse(content);
+    return {
+      name: pkg.name,
+      dependencies: Object.keys(pkg.dependencies || {})
+    };
+  `
+});
+```
+
+**Response (success):**
+
+```json
+{
+  "status": "success",
+  "result": {
+    "name": "my-project",
+    "dependencies": ["express", "lodash"]
+  },
+  "capabilityId": "cap_abc123",
+  "capabilityName": "extract_dependencies",
+  "capabilityFqdn": "local.default.pkg.extract_dependencies.a7f3",
+  "mode": "direct",
+  "executionTimeMs": 127
+}
+```
+
+**Response (approval required):**
+
+When `per_layer_validation: true` or a dangerous operation is detected:
+
+```json
+{
+  "status": "approval_required",
+  "workflowId": "wf_xyz789",
+  "checkpointId": "cp_abc123",
+  "pendingLayer": 2
+}
+```
+
+#### Continue Mode
+
+Resume a paused workflow after approval.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `continue_workflow.workflow_id` | string | Yes | Workflow ID from previous response |
+| `continue_workflow.approved` | boolean | Yes | `true` to continue, `false` to abort |
+
+**Example - Approve and continue:**
+
+```typescript
+await callTool("pml:execute", {
+  continue_workflow: {
+    workflow_id: "wf_xyz789",
+    approved: true
+  }
+});
+```
+
+**Example - Reject and abort:**
+
+```typescript
+await callTool("pml:execute", {
+  continue_workflow: {
+    workflow_id: "wf_xyz789",
+    approved: false
+  }
 });
 ```
 
@@ -296,244 +216,111 @@ await callTool("pml:continue", {
 
 ### pml:abort
 
-Stop a running workflow.
+Stop a running workflow immediately. Use this for proactive cancellation.
 
 **Parameters:**
 
-| Name          | Type   | Required | Description         |
-| ------------- | ------ | -------- | ------------------- |
-| `workflow_id` | string | Yes      | Workflow ID to stop |
-| `reason`      | string | Yes      | Reason for stopping |
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `workflow_id` | string | Yes | Workflow ID to stop |
+| `reason` | string | Yes | Why you're aborting (for audit trail) |
 
 **Example:**
 
 ```typescript
 await callTool("pml:abort", {
-  workflow_id: "wf_abc123",
-  reason: "Error detected in layer 1 results",
+  workflow_id: "wf_xyz789",
+  reason: "User requested cancellation"
 });
 ```
 
----
+**Response:**
 
-### pml:replan
-
-Re-plan a DAG with new requirements (discovered during execution).
-
-**Parameters:**
-
-| Name                | Type   | Required | Description                           |
-| ------------------- | ------ | -------- | ------------------------------------- |
-| `workflow_id`       | string | Yes      | Workflow ID to replan                 |
-| `new_requirement`   | string | Yes      | Description of what needs to be added |
-| `available_context` | object | No       | Context for replanning                |
-
-**Example:**
-
-```typescript
-// After discovering unexpected XML files
-await callTool("pml:replan", {
-  workflow_id: "wf_abc123",
-  new_requirement: "Parse discovered XML files",
-  available_context: {
-    discovered_files: ["config.xml", "data.xml"],
-  },
-});
-```
-
----
-
-### pml:approval_response
-
-Respond to a Human-in-the-Loop (HIL) approval checkpoint.
-
-**Parameters:**
-
-| Name            | Type    | Required | Description                          |
-| --------------- | ------- | -------- | ------------------------------------ |
-| `workflow_id`   | string  | Yes      | Workflow ID                          |
-| `checkpoint_id` | string  | Yes      | Checkpoint ID (returned by workflow) |
-| `approved`      | boolean | Yes      | `true` to approve, `false` to reject |
-| `feedback`      | string  | No       | Comment or reason for the decision   |
-
-**Example:**
-
-```typescript
-await callTool("pml:approval_response", {
-  workflow_id: "wf_abc123",
-  checkpoint_id: "cp_xyz789",
-  approved: true,
-  feedback: "Operation validated, proceed with deployment",
-});
-```
-
----
-
-## Proxied Tools
-
-Tools from underlying MCP servers are accessible via the `serverId:toolName` pattern.
-
-**Examples:**
-
-```typescript
-// File reading via filesystem server
-await callTool("filesystem:read_file", { path: "/path/to/file.txt" });
-
-// GitHub issue creation
-await callTool("github:create_issue", {
-  repo: "owner/repo",
-  title: "Bug report",
-  body: "Description...",
-});
-
-// Memory search
-await callTool("memory:search_nodes", { query: "configuration" });
-```
-
-> **Discovery:** Use `pml:search_tools` to find available tools by intent.
-
----
-
-## Data Types
-
-### DAGStructure
-
-Structure of a DAG workflow.
-
-```typescript
-interface DAGStructure {
-  tasks: DAGTask[];
-}
-
-interface DAGTask {
-  id: string; // Unique identifier
-  tool: string; // "serverId:toolName"
-  type?: "mcp_tool" | "code_execution";
-  arguments: Record<string, unknown>;
-  dependsOn?: string[]; // Dependency IDs (camelCase, not snake_case)
-  code?: string; // For type: "code_execution"
+```json
+{
+  "status": "aborted",
+  "workflowId": "wf_xyz789",
+  "reason": "User requested cancellation"
 }
 ```
 
-### TaskResult
-
-Task execution result.
-
-```typescript
-interface TaskResult {
-  taskId: string;
-  status: "success" | "error" | "skipped";
-  result?: unknown;
-  error?: string;
-  duration_ms: number;
-}
-```
-
-### WorkflowStatus
-
-Workflow status.
-
-```typescript
-type WorkflowStatus =
-  | "running" // Currently executing
-  | "paused" // Waiting for validation/approval
-  | "complete" // Completed successfully
-  | "aborted" // Stopped by user
-  | "error"; // Failed
-```
+> **Note:** Use `pml:abort` for proactive cancellation. Use `continue_workflow.approved = false` to reject a specific checkpoint.
 
 ---
 
 ## Error Codes
 
-| Code   | Name             | Description        | Resolution                                 |
-| ------ | ---------------- | ------------------ | ------------------------------------------ |
-| -32700 | PARSE_ERROR      | Invalid JSON       | Check request format                       |
-| -32600 | INVALID_REQUEST  | Malformed request  | Check MCP structure                        |
-| -32601 | METHOD_NOT_FOUND | Unknown method     | Use tools/list, tools/call, or prompts/get |
-| -32602 | INVALID_PARAMS   | Invalid parameters | Check required parameters                  |
-| -32603 | INTERNAL_ERROR   | Internal error     | Check logs, retry                          |
+**Standard MCP errors:**
+
+| Code | Name | Description |
+|------|------|-------------|
+| -32700 | PARSE_ERROR | Invalid JSON |
+| -32600 | INVALID_REQUEST | Malformed request |
+| -32601 | METHOD_NOT_FOUND | Unknown method |
+| -32602 | INVALID_PARAMS | Invalid parameters |
+| -32603 | INTERNAL_ERROR | Internal error |
 
 **PML specific errors:**
 
-| Error                | Description                 | Resolution                            |
-| -------------------- | --------------------------- | ------------------------------------- |
-| `WORKFLOW_NOT_FOUND` | Non-existent workflow ID    | Check ID, workflow may have expired   |
-| `TOOL_NOT_FOUND`     | Unknown tool                | Use search_tools to discover tools    |
-| `SANDBOX_TIMEOUT`    | Code execution timeout      | Reduce complexity or increase timeout |
-| `SANDBOX_MEMORY`     | Sandbox memory exceeded     | Reduce data or increase memoryLimit   |
-| `MCP_SERVER_ERROR`   | Underlying MCP server error | Check MCP server connection           |
+| Error | Description | Resolution |
+|-------|-------------|------------|
+| `WORKFLOW_NOT_FOUND` | Unknown workflow ID | Check ID, workflow may have expired |
+| `EXECUTION_ERROR` | Code execution failed | Check code syntax and MCP tool calls |
+| `TIMEOUT_ERROR` | Operation timed out | Increase timeout or simplify operation |
+| `DAG_EXECUTION_ERROR` | Workflow task failed | Check task dependencies |
+| `MCP_SERVER_ERROR` | MCP server unreachable | Check server configuration |
 
 ---
 
 ## Limits
 
-| Resource            | Limit  | Configurable                       |
-| ------------------- | ------ | ---------------------------------- |
-| Per-tool timeout    | 30s    | Yes (`sandbox_config.timeout`)     |
-| Sandbox memory      | 512MB  | Yes (`sandbox_config.memoryLimit`) |
-| Code size           | 100KB  | No                                 |
-| Active workflows    | 100    | No                                 |
-| Paused workflow TTL | 1 hour | No                                 |
-| Cache entries       | 100    | Yes (`--no-cache` to disable)      |
+| Resource | Limit | Configurable |
+|----------|-------|--------------|
+| Execution timeout | 30s | Yes (`options.timeout`) |
+| Sandbox memory | 512MB | No |
+| Code size | 100KB | No |
+| Paused workflow TTL | 1 hour | No |
 
 ---
 
-## Complete Examples
-
-### Project Analysis Workflow
+## Complete Example
 
 ```typescript
 // 1. Discover relevant tools
-const tools = await callTool("pml:search_tools", {
-  query: "read files and analyze project structure",
-  include_related: true,
+const discovery = await callTool("pml:discover", {
+  intent: "read files and analyze project structure",
+  limit: 5
 });
 
-// 2. Execute a DAG workflow
-const result = await callTool("pml:execute_dag", {
-  intent: "Read all TypeScript files in src/ and count lines",
-});
-
-// 3. Post-process with sandbox
-const analysis = await callTool("pml:execute_code", {
+// 2. Execute with code
+const result = await callTool("pml:execute", {
+  intent: "Analyze TypeScript files in src/",
   code: `
-    const files = context.files;
+    const files = await mcp.filesystem.list_directory({ path: "src" });
+    const tsFiles = files.filter(f => f.endsWith(".ts"));
+
+    let totalLines = 0;
+    for (const file of tsFiles) {
+      const content = await mcp.filesystem.read_file({ path: "src/" + file });
+      totalLines += content.split("\\n").length;
+    }
+
     return {
-      totalFiles: files.length,
-      totalLines: files.reduce((sum, f) => sum + f.lines, 0),
-      avgLinesPerFile: Math.round(files.reduce((sum, f) => sum + f.lines, 0) / files.length)
+      fileCount: tsFiles.length,
+      totalLines,
+      avgLinesPerFile: Math.round(totalLines / tsFiles.length)
     };
-  `,
-  context: { files: result.results },
-});
-```
-
-### Workflow with Human Validation
-
-```typescript
-// 1. Start with per-layer validation
-const workflow = await callTool("pml:execute_dag", {
-  intent: "Deploy new version to production",
-  per_layer_validation: true,
+  `
 });
 
-// 2. Examine layer results
-console.log(workflow.layer_results);
-
-// 3. Approve and continue
-await callTool("pml:continue", {
-  workflow_id: workflow.workflow_id,
-  reason: "Tests passed, approved for deployment",
-});
+console.log(result);
+// { fileCount: 42, totalLines: 3500, avgLinesPerFile: 83 }
 ```
 
 ---
 
 ## See Also
 
-- [Installation](../getting-started/01-installation.md) - Installation and setup
-- [User Guide](../guides/overview.md) - Detailed usage
-- [Concepts](../concepts/index.md) - How PML works
+- [Installation](../getting-started/01-installation.md) - Setup guide
 - [Configuration](./02-configuration.md) - Configuration files
 - [CLI Reference](./03-cli.md) - Command-line interface
