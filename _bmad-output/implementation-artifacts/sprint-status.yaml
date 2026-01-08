@@ -286,7 +286,7 @@ development_status:
   14-6-byok-api-key-management: done # Implementation complete 2026-01-07 - 76 tests (63 BYOK + 13 loader)
   14-7-mcp-source-resolution: done # Code Review PASSED 2026-01-07: 8 issues fixed, 22 tests, Task 4 deferred (MiniTools bundled)
   # Phase 4: Quality (~3 days)
-  14-8-e2e-integration-testing: ready-for-dev # Full flow tests, offline mode, permission boundaries
+  14-8-e2e-integration-testing: in-progress # Full flow tests, offline mode, permission boundaries
   14-9-custom-mcp-servers-support: backlog # User's .mcp-servers.json - deferred until 14.1-14.8 complete
   14-10-standalone-capability-distribution: backlog # pml add/run/remove/list for standalone caps
   # Phase 5: Distribution (~2 days)
