@@ -12,7 +12,6 @@
  * @module mcp/gateway-server
  */
 
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import {
   type CallToolRequest,
   CallToolRequestSchema,
@@ -44,7 +43,7 @@ import { CheckpointManager } from "../dag/checkpoint-manager.ts";
 import { EventsStreamManager } from "../server/events-stream.ts";
 import { PmlStdServer } from "../../lib/std/cap.ts";
 import type { AlgorithmTracer } from "../telemetry/algorithm-tracer.ts";
-import { TelemetryAdapter } from "../telemetry/decision-logger.ts";
+import { getTelemetryAdapter } from "../telemetry/decision-logger.ts";
 import { eventBus } from "../events/mod.ts";
 import { AlgorithmInitializer } from "./algorithm-init/mod.ts";
 import type { EpisodicMemoryStore } from "../dag/episodic/store.ts";
@@ -61,6 +60,7 @@ import {
   type HttpServerDependencies,
   type HttpServerState,
   MCPErrorCodes,
+  type McpServerInstance,
   type ResolvedGatewayConfig,
   ServerDefaults,
   // HTTP server functions
@@ -78,14 +78,20 @@ import {
   handleAbort,
   handleApprovalResponse,
   handleContinue,
-  handleDiscover,
   handleExecuteCode,
   handleReplan,
   handleSearchCapabilities,
   handleSearchTools,
   handleWorkflowExecution,
   type WorkflowHandlerDependencies,
+  DiscoverHandlerFacade,
 } from "./handlers/mod.ts";
+
+// Phase 3.2: Discover use cases (for facade initialization)
+import {
+  DiscoverToolsUseCase,
+  DiscoverCapabilitiesUseCase,
+} from "../application/use-cases/discover/mod.ts";
 import type { SHGAT } from "../graphrag/algorithms/shgat.ts";
 import type { DRDSP } from "../graphrag/algorithms/dr-dsp.ts";
 import type { EmbeddingModelInterface } from "../vector/embeddings.ts";
@@ -102,6 +108,12 @@ import {
   TrainSHGATUseCase,
 } from "../application/use-cases/execute/mod.ts";
 import type { BootstrappedServices } from "../infrastructure/di/bootstrap.ts";
+
+// Phase 3.2: Embedding cache for SHGAT training
+import { getKv } from "../cache/kv.ts";
+
+// Phase 3.2: Post-execution service for learning
+import { PostExecutionService } from "../application/services/mod.ts";
 
 /** Type alias for execute adapters from bootstrap */
 type ExecuteAdapters = BootstrappedServices["executeAdapters"];
@@ -120,7 +132,7 @@ export type { GatewayServerConfig };
  * Claude Code sees all tools from all MCP servers + workflow execution capability.
  */
 export class PMLGatewayServer {
-  private server: Server;
+  private server: McpServerInstance;
   private gatewayHandler: GatewayHandler;
   private healthChecker: HealthChecker;
   private config: ResolvedGatewayConfig;
@@ -143,6 +155,8 @@ export class PMLGatewayServer {
   private codeAnalyzer: ICodeAnalyzer | null = null; // Phase 3.2: DI code analyzer
   private executeHandlerFacade: ExecuteHandlerFacade | null = null; // Phase 3.1: Use case facade
   private executeAdapters: ExecuteAdapters | null = null; // Phase 3.1: DI execute adapters
+  private discoverHandlerFacade: DiscoverHandlerFacade | null = null; // Phase 3.2: Discover optimization
+  private toolStore: ToolStore | null = null; // Phase 3.2: Singleton ToolStore
 
   constructor(
     // @ts-ignore: db kept for future use (direct queries)
@@ -240,6 +254,9 @@ export class PMLGatewayServer {
 
     log.info("[Gateway] PmlStdServer initialized (Story 13.5)");
 
+    // Phase 3.2: Initialize singleton ToolStore
+    this.toolStore = new ToolStore(this.db);
+
     // Story 13.3: Initialize CapabilityMCPServer for capability-as-tool execution
     if (this.capabilityStore && this.capabilityRegistry) {
       const workerBridge = new WorkerBridge(this.mcpClients, {
@@ -273,6 +290,8 @@ export class PMLGatewayServer {
     // Update adapters with algorithms (setters added in Phase 3.1)
     if (this.shgat) {
       this.executeAdapters.dagSuggester.setSHGAT(this.shgat);
+      // Note: Live training removed - PostExecutionService.runPERBatchTraining() handles
+      // proper PER batch training with subprocess (non-blocking, 50+ traces)
     }
     if (this.drdsp) {
       this.executeAdapters.dagSuggester.setDRDSP(this.drdsp);
@@ -280,9 +299,6 @@ export class PMLGatewayServer {
     if (this.embeddingModel) {
       this.executeAdapters.dagSuggester.setEmbeddingModel(this.embeddingModel);
     }
-
-    // Note: SHGAT training is handled by AlgorithmInitializer.trainOnTraces()
-    // The SHGATTrainerAdapter will work without a live trainer (graceful no-op)
 
     log.debug("[Gateway] Execute adapters updated with algorithms");
   }
@@ -313,6 +329,29 @@ export class PMLGatewayServer {
       workerBridgeFactory,
     } = this.executeAdapters;
 
+    // Phase 3.2: Create embedding cache adapter for KV
+    const embeddingCacheAdapter = {
+      set: async (key: string[], value: number[], options?: { expireIn?: number }) => {
+        const kv = await getKv();
+        await kv.set(key, value, options);
+      },
+    };
+
+    // Phase 3.2: Create PostExecutionService for learning tasks
+    // Handles updateDRDSP, registerSHGATNodes, learnFromTaskResults, runPERBatchTraining, updateThompsonSampling
+    const postExecutionService = new PostExecutionService({
+      drdsp: this.drdsp ?? undefined,
+      shgat: this.shgat ?? undefined,
+      graphEngine: this.graphEngine,
+      embeddingModel: this.embeddingModel ?? undefined,
+      traceStore: this.capabilityStore?.getTraceStore(),
+      db: this.db,
+      adaptiveThresholdManager: this.adaptiveThresholdManager,
+      onSHGATParamsUpdated: async () => {
+        await this.algorithmInitializer?.saveSHGATParams();
+      },
+    });
+
     // Create use cases
     const executeDirectUC = new ExecuteDirectUseCase({
       capabilityRepo,
@@ -337,6 +376,11 @@ export class PMLGatewayServer {
       workerBridgeFactory: workerBridgeFactory as unknown as ExecuteDirectUseCase["deps"]["workerBridgeFactory"],
       embeddingModel: this.embeddingModel ?? undefined,
       capabilityRegistry: this.capabilityRegistry ?? undefined,
+      // Phase 3.2: Event-driven training (cast needed for interface compatibility)
+      eventBus: eventBus as ExecuteDirectUseCase["deps"]["eventBus"],
+      embeddingCache: embeddingCacheAdapter,
+      // Phase 3.2: Post-execution learning (DR-DSP, SHGAT, PER training)
+      postExecutionService,
     });
 
     const executeSuggestionUC = new ExecuteSuggestionUseCase({
@@ -375,6 +419,48 @@ export class PMLGatewayServer {
     });
 
     log.info("[Gateway] ExecuteHandlerFacade initialized (Phase 3.1)");
+  }
+
+  // TrainingSubscriber removed - PostExecutionService.runPERBatchTraining() handles
+  // proper PER batch training with subprocess (non-blocking, 50+ traces)
+
+  /**
+   * Initialize DiscoverHandlerFacade with use cases
+   * Phase 3.2: Discover performance optimization
+   */
+  private initializeDiscoverHandlerFacade(): void {
+    if (!this.toolStore) {
+      log.warn("[Gateway] ToolStore not available, DiscoverHandlerFacade disabled");
+      return;
+    }
+
+    // Create use cases with singleton dependencies
+    const toolsUseCase = new DiscoverToolsUseCase({
+      toolStore: this.toolStore,
+      shgat: this.shgat ?? undefined,
+      embeddingModel: this.embeddingModel ?? undefined,
+      graphEngine: this.graphEngine,
+      vectorSearch: this.vectorSearch,
+      decisionLogger: getTelemetryAdapter(),
+    });
+
+    const capabilitiesUseCase = new DiscoverCapabilitiesUseCase({
+      capabilityMatcher: this.dagSuggester,
+      capabilityRegistry: this.capabilityRegistry ?? undefined,
+      shgat: this.shgat ?? undefined,
+      embeddingModel: this.embeddingModel ?? undefined,
+      decisionLogger: getTelemetryAdapter(),
+    });
+
+    // Create facade with shared embedding model
+    this.discoverHandlerFacade = new DiscoverHandlerFacade({
+      toolsUseCase,
+      capabilitiesUseCase,
+      embeddingModel: this.embeddingModel ?? undefined,
+      decisionLogger: getTelemetryAdapter(),
+    });
+
+    log.info("[Gateway] DiscoverHandlerFacade initialized (Phase 3.2)");
   }
 
   /**
@@ -568,6 +654,7 @@ export class PMLGatewayServer {
     // Story 9.8: Set userId on components for multi-tenant trace isolation
     this.dagSuggester?.setUserId(userId ?? null);
     this.graphEngine?.setUserId(userId ?? null);
+    getTelemetryAdapter().setUserId(userId ?? null);
 
     // DAG execution
     if (name === "pml:execute_dag") {
@@ -605,19 +692,13 @@ export class PMLGatewayServer {
       return await handleSearchCapabilities(args, this.dagSuggester);
     }
 
-    // Unified discover (Story 10.6)
-    // Uses SHGAT K-head for capability scoring (unified with pml:execute)
+    // Unified discover (Story 10.6, Phase 3.2 optimization)
+    // Uses SHGAT K-head with shared embedding generation
     if (name === "pml:discover") {
-      return await handleDiscover(args, {
-        vectorSearch: this.vectorSearch,
-        graphEngine: this.graphEngine,
-        dagSuggester: this.dagSuggester,
-        toolStore: new ToolStore(this.db),
-        capabilityRegistry: this.capabilityRegistry ?? undefined,
-        decisionLogger: new TelemetryAdapter(),
-        shgat: this.shgat ?? undefined,
-        embeddingModel: this.embeddingModel ?? undefined,
-      });
+      if (!this.discoverHandlerFacade) {
+        throw new Error("[Gateway] DiscoverHandlerFacade not initialized");
+      }
+      return await this.discoverHandlerFacade.handle(args);
     }
 
     // Unified execute (Story 10.7)
@@ -830,6 +911,7 @@ export class PMLGatewayServer {
     // Phase 3.1: Initialize facade after algorithms are loaded (shgat/drdsp available)
     this.updateExecuteAdaptersWithAlgorithms();
     this.initializeExecuteHandlerFacade();
+    this.initializeDiscoverHandlerFacade(); // Phase 3.2
 
     await this.healthChecker.initialHealthCheck();
     this.healthChecker.startPeriodicChecks();
@@ -846,6 +928,7 @@ export class PMLGatewayServer {
     // Phase 3.1: Initialize facade after algorithms are loaded (shgat/drdsp available)
     this.updateExecuteAdaptersWithAlgorithms();
     this.initializeExecuteHandlerFacade();
+    this.initializeDiscoverHandlerFacade(); // Phase 3.2
 
     const deps: HttpServerDependencies = {
       config: this.config,

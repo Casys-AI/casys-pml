@@ -126,12 +126,8 @@ export class ExecuteHandlerFacade {
       },
     });
 
-    // Trigger SHGAT training in background (fire and forget)
-    if (result.success && result.data?.traces && this.deps.trainSHGATUC) {
-      this.triggerTraining(result.data.traces, result.data.success, result.data.executionTimeMs).catch(
-        (err) => log.warn(`[ExecuteHandlerFacade] Training trigger failed: ${err}`),
-      );
-    }
+    // Phase 3.2: Training is now event-driven via capability.learned events
+    // See TrainingSubscriber in telemetry/subscribers/training-subscriber.ts
 
     if (!result.success) {
       return {
@@ -251,24 +247,6 @@ export class ExecuteHandlerFacade {
     };
   }
 
-  private async triggerTraining(
-    traces: unknown[],
-    success: boolean,
-    executionTimeMs: number,
-  ): Promise<void> {
-    if (!this.deps.trainSHGATUC) return;
-
-    await this.deps.trainSHGATUC.execute({
-      taskResults: traces as Array<{
-        taskId: string;
-        tool: string;
-        args: Record<string, JsonValue>;
-        result: JsonValue | null;
-        success: boolean;
-        durationMs: number;
-      }>,
-      success,
-      executionTimeMs,
-    });
-  }
+  // Phase 3.2: triggerTraining removed - training is now event-driven
+  // See TrainingSubscriber in telemetry/subscribers/training-subscriber.ts
 }

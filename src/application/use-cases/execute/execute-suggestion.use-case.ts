@@ -204,8 +204,7 @@ export class ExecuteSuggestionUseCase {
         log.warn("[ExecuteSuggestionUseCase] Best capability not found", {
           id: bestMatch.capabilityId,
         });
-        // Still return the suggestion using DR-DSP if available
-        const suggestion = await this.buildSuggestion(intent, bestMatch, correlationId);
+        // Still return the suggestion using DR-DSP if available        const suggestion = await this.buildSuggestion(intent, bestMatch, correlationId, intentEmbedding);
         return {
           success: true,
           data: {
@@ -252,8 +251,8 @@ export class ExecuteSuggestionUseCase {
         canSpeculate,
       });
 
-      // Step 6: Build suggestion using DR-DSP
-      const suggestion = await this.buildSuggestion(intent, bestMatch, correlationId);
+      // Step 6: Build suggestion using DR-DSP (pass embedding to avoid regeneration)
+      const suggestion = await this.buildSuggestion(intent, bestMatch, correlationId, intentEmbedding);
 
       return {
         success: true,
@@ -284,10 +283,11 @@ export class ExecuteSuggestionUseCase {
     intent: string,
     bestMatch: CapabilityMatch,
     correlationId: string,
+    intentEmbedding?: number[],
   ): Promise<SuggestionResult> {
-    // Delegate to DAG suggester if available
+    // Delegate to DAG suggester if available (pass embedding to avoid regeneration)
     if (this.deps.dagSuggester) {
-      return await this.deps.dagSuggester.suggest(intent, correlationId);
+      return await this.deps.dagSuggester.suggest(intent, correlationId, intentEmbedding);
     }
 
     // Fallback: return best match as single capability

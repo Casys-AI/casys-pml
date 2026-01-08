@@ -67,6 +67,8 @@ export interface ExecuteDirectResult {
   traces?: TraceTaskResult[];
   /** Static structure from code analysis */
   staticStructure?: StaticStructure;
+  /** Intent embedding for SHGAT training (Phase 3.2) */
+  intentEmbedding?: number[];
 }
 
 // ============================================================================

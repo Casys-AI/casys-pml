@@ -105,6 +105,52 @@ export interface IEmbeddingModel {
 }
 
 /**
+ * Event bus interface for capability.learned events (Phase 3.2)
+ * Uses generic emit to be compatible with the real EventBus
+ */
+export interface IEventBus {
+  emit<T extends string = string>(event: {
+    type: T;
+    source: string;
+    payload: Record<string, unknown>;
+    timestamp?: number;
+  }): void;
+}
+
+/**
+ * Embedding cache interface for SHGAT training (Phase 3.2)
+ */
+export interface IEmbeddingCache {
+  set(key: string[], value: number[], options?: { expireIn?: number }): Promise<void>;
+}
+
+/**
+ * Post-execution service interface (Phase 3.2)
+ *
+ * Handles all learning tasks after successful execution:
+ * - updateDRDSP: Add hyperedges for capability routing
+ * - registerSHGATNodes: Register capability/tool nodes in SHGAT
+ * - learnFromTaskResults: Learn fan-in/fan-out edges
+ * - runPERBatchTraining: PER training with traceStore
+ */
+export interface IPostExecutionService {
+  process(input: {
+    capability: {
+      id: string;
+      successRate: number;
+      toolsUsed?: string[];
+      children?: string[];
+      parents?: string[];
+      hierarchyLevel?: number;
+    };
+    staticStructure: StaticStructure;
+    toolsCalled: string[];
+    taskResults: TraceTaskResult[];
+    intent: string;
+  }): Promise<void>;
+}
+
+/**
  * Dependencies for ExecuteDirectUseCase
  */
 export interface ExecuteDirectDependencies {
@@ -116,6 +162,12 @@ export interface ExecuteDirectDependencies {
   workerBridgeFactory: IWorkerBridgeFactory;
   capabilityRegistry?: ICapabilityRegistry;
   embeddingModel?: IEmbeddingModel;
+  /** Event bus for capability.learned events (Phase 3.2) */
+  eventBus?: IEventBus;
+  /** Embedding cache for SHGAT training (Phase 3.2) */
+  embeddingCache?: IEmbeddingCache;
+  /** Post-execution service for learning tasks (Phase 3.2) */
+  postExecutionService?: IPostExecutionService;
   /** Max code size in bytes */
   maxCodeSizeBytes?: number;
   /** Default execution timeout */
@@ -269,7 +321,8 @@ export class ExecuteDirectUseCase {
           };
         }
 
-        // Step 8: Save capability
+        // Step 8: Save capability and emit learning event
+        const correlationId = crypto.randomUUID();
         const { capability, capabilityFqdn, capabilityName } = await this.saveCapability(
           code,
           intent,
@@ -277,7 +330,28 @@ export class ExecuteDirectUseCase {
           toolsCalled,
           taskResults,
           staticStructure,
+          correlationId,
         );
+
+        // Step 9: Post-execution learning (DR-DSP, SHGAT nodes, PER training)
+        // Runs in background (non-blocking) to not delay response
+        if (this.deps.postExecutionService) {
+          this.deps.postExecutionService.process({
+            capability: {
+              id: capability.id,
+              successRate: 1.0, // New capability starts at 100%
+              toolsUsed: toolsCalled,
+            },
+            staticStructure,
+            toolsCalled,
+            taskResults,
+            intent,
+          }).catch((err) => {
+            log.warn("[ExecuteDirectUseCase] Post-execution processing failed", {
+              error: String(err),
+            });
+          });
+        }
 
         // Build response
         const successOutputs = extractSuccessOutputs(physicalResults.results);
@@ -344,6 +418,7 @@ export class ExecuteDirectUseCase {
     toolsCalled: string[],
     taskResults: TraceTaskResult[],
     staticStructure: StaticStructure,
+    correlationId: string,
   ): Promise<{
     capability: { id: string; codeHash: string; name?: string };
     capabilityFqdn?: string;
@@ -354,6 +429,16 @@ export class ExecuteDirectUseCase {
     if (this.deps.embeddingModel) {
       try {
         intentEmbedding = await this.deps.embeddingModel.encode(intent);
+
+        // Phase 3.2: Cache embedding for SHGAT training subscriber
+        if (intentEmbedding && this.deps.embeddingCache) {
+          await this.deps.embeddingCache.set(
+            ["pml", "embedding", correlationId],
+            intentEmbedding,
+            { expireIn: 5 * 60 * 1000 }, // 5 minutes TTL
+          );
+          log.debug("[ExecuteDirectUseCase] Cached embedding for training", { correlationId });
+        }
       } catch (err) {
         log.warn("[ExecuteDirectUseCase] Failed to generate embedding", { error: String(err) });
       }
@@ -420,6 +505,23 @@ export class ExecuteDirectUseCase {
         }
       } catch (err) {
         log.warn("[ExecuteDirectUseCase] Failed to register in registry", { error: String(err) });
+      }
+    }
+
+    // Phase 3.2: Cache embedding with capabilityId for training after SHGAT registration
+    // TrainingSubscriber listens to capability.zone.created (after SHGAT registers the cap)
+    if (intentEmbedding && this.deps.embeddingCache) {
+      try {
+        await this.deps.embeddingCache.set(
+          ["pml", "embedding", "cap", capability.id],
+          intentEmbedding,
+          { expireIn: 5 * 60 * 1000 }, // 5 minutes TTL
+        );
+        log.debug("[ExecuteDirectUseCase] Cached embedding for training (by capabilityId)", {
+          capabilityId: capability.id,
+        });
+      } catch (err) {
+        log.warn("[ExecuteDirectUseCase] Failed to cache embedding by capabilityId", { error: String(err) });
       }
     }
 
