@@ -275,6 +275,7 @@ export default function D3GraphVisualization({
   const loadRadialData = async () => {
     const response = await fetch(`${apiBase}/api/graph/hypergraph`, {
       cache: "no-store", // Ensure fresh data after SSE refresh
+      credentials: "include",
     });
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);

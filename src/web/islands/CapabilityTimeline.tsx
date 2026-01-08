@@ -138,7 +138,7 @@ export default function CapabilityTimeline({
       }
       const response = await fetch(
         `${apiBase}/api/graph/hypergraph?include_traces=true`,
-        { cache: "no-store", headers }, // Ensure fresh data after SSE refresh
+        { cache: "no-store", headers, credentials: "include" }, // Ensure fresh data after SSE refresh
       );
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 

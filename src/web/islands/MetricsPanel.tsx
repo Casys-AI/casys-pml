@@ -122,7 +122,7 @@ export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPa
       if (apiKey) {
         headers["x-api-key"] = apiKey;
       }
-      const res = await fetch(`${apiBase}/api/metrics?range=${dateRange}`, { headers });
+      const res = await fetch(`${apiBase}/api/metrics?range=${dateRange}`, { headers, credentials: "include" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: GraphMetricsResponse = await res.json();
       setMetrics(data);

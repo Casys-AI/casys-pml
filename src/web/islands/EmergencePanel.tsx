@@ -78,7 +78,7 @@ export default function EmergencePanel({
       }
       const res = await fetch(
         `${apiBase}/api/metrics/emergence?range=${timeRange}&scope=${scope}`,
-        { headers },
+        { headers, credentials: "include" },
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();

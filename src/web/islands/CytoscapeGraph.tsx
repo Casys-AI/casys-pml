@@ -1153,6 +1153,7 @@ export default function CytoscapeGraph({
       const response = await fetch(`${apiBase}/api/graph/hypergraph?include_traces=true`, {
         cache: "no-store", // Ensure fresh data after SSE refresh
         headers,
+        credentials: "include",
       });
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);

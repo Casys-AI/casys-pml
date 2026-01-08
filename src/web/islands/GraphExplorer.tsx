@@ -88,7 +88,7 @@ export default function GraphExplorer({ apiBase: apiBaseProp, apiKey }: GraphExp
     if (apiKey) {
       (headers as Record<string, string>)["x-api-key"] = apiKey;
     }
-    return fetch(url, { ...options, headers });
+    return fetch(url, { ...options, headers, credentials: "include" });
   };
 
   const [searchQuery, setSearchQuery] = useState("");

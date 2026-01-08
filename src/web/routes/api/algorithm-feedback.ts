@@ -85,7 +85,9 @@ export const handler = {
         const sinceParam = url.searchParams.get("since");
         const limit = limitParam ? Math.min(parseInt(limitParam, 10), 100) : 50;
 
-        const result = await getRecentTraces(limit, sinceParam || undefined);
+        // Story 9.8: Filter by user ID for multi-tenant isolation
+        const userId = isCloudMode && user ? user.id : undefined;
+        const result = await getRecentTraces(limit, sinceParam || undefined, userId);
         return json(result);
       }
 
