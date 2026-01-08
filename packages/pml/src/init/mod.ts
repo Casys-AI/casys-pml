@@ -25,13 +25,8 @@ const VERSION = "0.1.0";
 const MCP_CONFIG_FILE = ".mcp.json";
 const PML_CONFIG_FILE = ".pml.json";
 
-/**
- * Minimal env for .mcp.json - just PML_API_KEY to start the server.
- * Other API keys are stored in .pml.json and loaded incrementally.
- */
-const MCP_ENV_VARS: Record<string, string> = {
-  PML_API_KEY: "${PML_API_KEY}",
-};
+// Note: PML_API_KEY is no longer passed via .mcp.json env
+// The pml stdio command auto-loads it from .env in the workspace
 
 /**
  * Silent logger for init (we display our own messages)
@@ -178,23 +173,26 @@ async function backupConfig(configPath: string): Promise<string> {
  *
  * Claude Code expects: { "mcpServers": { "pml": { ... } } }
  * Primary transport is stdio (Claude Code spawns the process).
+ *
+ * Note: PML_API_KEY is NOT passed via env - the pml stdio command
+ * auto-loads it from .env in the workspace. This avoids the
+ * "Missing environment variables" warning in Claude Code.
  */
 function generateMcpConfig(_port: number, apiKey?: string): McpConfig {
-  const env = { ...MCP_ENV_VARS };
+  const serverConfig: McpConfig["mcpServers"]["pml"] = {
+    type: "stdio",
+    command: "pml",
+    args: ["stdio"],
+  };
 
-  // If API key provided, set it directly
+  // Only add env if API key explicitly provided (e.g., for CI/CD)
   if (apiKey) {
-    env.PML_API_KEY = apiKey;
+    serverConfig.env = { PML_API_KEY: apiKey };
   }
 
   return {
     mcpServers: {
-      pml: {
-        type: "stdio",
-        command: "pml",
-        args: ["stdio"],
-        env,
-      },
+      pml: serverConfig,
     },
   };
 }

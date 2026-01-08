@@ -31,6 +31,7 @@ import {
 } from "../loader/mod.ts";
 import { exists } from "@std/fs";
 import { join } from "@std/path";
+import { reloadEnv } from "../byok/env-loader.ts";
 
 const PML_CONFIG_FILE = ".pml.json";
 
@@ -585,19 +586,32 @@ export function createStdioCommand(): Command<any> {
     .name("stdio")
     .description("Start the PML MCP server in stdio mode (for Claude Code)")
     .action(async () => {
-      // Step 0: Verify PML_API_KEY is set (required for all operations)
+      // Step 1: Resolve workspace FIRST (needed for .env lookup)
+      const workspaceResult = resolveWorkspaceWithDetails(silentLogger);
+      const workspace = workspaceResult.path;
+
+      // Step 2: Auto-load .env from workspace if PML_API_KEY not already set
+      if (!Deno.env.get("PML_API_KEY")) {
+        try {
+          await reloadEnv(workspace);
+          if (Deno.env.get("PML_API_KEY")) {
+            logDebug(`Loaded PML_API_KEY from workspace .env`);
+          }
+        } catch (error) {
+          logDebug(`Failed to load .env: ${error}`);
+        }
+      }
+
+      // Step 3: Verify PML_API_KEY is set (required for all operations)
       const apiKey = Deno.env.get("PML_API_KEY");
       if (!apiKey) {
         console.error(
           "[pml] ERROR: PML_API_KEY environment variable is required",
         );
         console.error("[pml] Set it with: export PML_API_KEY=your_key");
+        console.error("[pml] Or add PML_API_KEY=your_key to .env in your project");
         Deno.exit(1);
       }
-
-      // Step 1: Resolve workspace
-      const workspaceResult = resolveWorkspaceWithDetails(silentLogger);
-      const workspace = workspaceResult.path;
 
       if (!isValidWorkspace(workspace)) {
         logDebug(`Invalid workspace: ${workspace}`);

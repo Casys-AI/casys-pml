@@ -41,13 +41,15 @@ export function formatKeyInstruction(
   const lines: string[] = [];
 
   if (allKeys.length === 1) {
+    const hint = formatKeyHint(allKeys[0]);
     lines.push(`This capability requires ${allKeys[0]}.`);
-    lines.push(`Please provide the API key value.`);
+    lines.push(`Please provide the API key value (format: ${hint}).`);
     lines.push(`It will be saved to .pml.json for future use.`);
   } else {
     lines.push("This capability requires the following API keys:");
     for (const key of allKeys) {
-      lines.push(`  - ${key}`);
+      const hint = formatKeyHint(key);
+      lines.push(`  - ${key} (format: ${hint})`);
     }
     lines.push("");
     lines.push("Please provide the values. They will be saved to .pml.json.");

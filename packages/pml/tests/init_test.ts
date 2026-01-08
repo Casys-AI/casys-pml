@@ -4,7 +4,7 @@
  * @module tests/init
  */
 
-import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
+import { assertEquals } from "jsr:@std/assert@1";
 import { join } from "@std/path";
 import { exists } from "@std/fs";
 import { initProject } from "../src/init/mod.ts";
@@ -44,8 +44,8 @@ Deno.test("init - .mcp.json has correct structure", async () => {
     assertEquals(config.mcpServers.pml.type, "stdio");
     assertEquals(config.mcpServers.pml.command, "pml");
     assertEquals(config.mcpServers.pml.args, ["stdio"]);
-    assertEquals(typeof config.mcpServers.pml.env, "object");
-    assertStringIncludes(config.mcpServers.pml.env.PML_API_KEY, "${PML_API_KEY}");
+    // Note: env is NOT included by default - pml stdio auto-loads from .env
+    assertEquals(config.mcpServers.pml.env, undefined);
   } finally {
     Deno.chdir(originalCwd);
   }
