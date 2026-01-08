@@ -47,7 +47,7 @@ export class DiscoverToolsUseCase {
    * Execute tool discovery
    */
   async execute(request: DiscoverRequest): Promise<UseCaseResult<DiscoverToolsResult>> {
-    const { intent, limit = 5, minScore = 0, correlationId } = request;
+    const { intent, limit = 5, minScore = 0, includeRelated = false, correlationId } = request;
 
     if (!intent || intent.trim().length === 0) {
       return {
@@ -65,7 +65,7 @@ export class DiscoverToolsUseCase {
 
       // Fallback to HybridSearch
       if (this.deps.graphEngine && this.deps.vectorSearch) {
-        const result = await this.discoverWithHybridSearch(intent, limit, minScore, correlationId);
+        const result = await this.discoverWithHybridSearch(intent, limit, minScore, includeRelated, correlationId);
         return { success: true, data: result };
       }
 
@@ -159,6 +159,7 @@ export class DiscoverToolsUseCase {
     intent: string,
     limit: number,
     minScore: number,
+    includeRelated: boolean,
     correlationId?: string,
   ): Promise<DiscoverToolsResult> {
     const { graphEngine, vectorSearch, decisionLogger } = this.deps;
@@ -173,7 +174,7 @@ export class DiscoverToolsUseCase {
       intent,
       limit,
       [], // contextTools - empty for discover
-      false, // includeRelated
+      includeRelated,
       undefined,
       correlationId,
     );
