@@ -16,8 +16,8 @@
  * @module web/routes/_middleware
  */
 
-import type { FreshContext } from "fresh";
-import { isCloudMode } from "../../lib/auth.ts";
+import type {Context } from "fresh";
+import { isCloudMode, validateApiKeyFromDb } from "../../lib/auth.ts";
 import { getSessionFromRequest } from "../../server/auth/session.ts";
 import { isProtectedRoute, isPublicRoute } from "../route-guards.ts";
 
@@ -42,7 +42,7 @@ export interface AuthState {
  * Note: Fresh 2.x uses single argument ctx with ctx.req
  */
 export async function handler(
-  ctx: FreshContext<AuthState>,
+  ctx: Context<AuthState>,
 ): Promise<Response> {
   const url = new URL(ctx.req.url);
   const pathname = url.pathname;
@@ -61,7 +61,27 @@ export async function handler(
     return ctx.next();
   }
 
-  // Cloud mode: check session for protected routes
+  // Cloud mode: check API key first, then session
+  // API key auth (x-api-key header) - for programmatic access (PML CLI, curl, etc.)
+  const apiKey = ctx.req.headers.get("x-api-key");
+  if (apiKey) {
+    const authResult = await validateApiKeyFromDb(apiKey);
+    if (authResult) {
+      ctx.state.user = {
+        id: authResult.user_id,
+        username: authResult.username ?? "unknown",
+        avatarUrl: undefined,
+      };
+      return ctx.next();
+    }
+    // Invalid API key - don't fall through, return 401
+    return new Response(JSON.stringify({ error: "Invalid API key" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  // Session auth (cookie) - for dashboard/browser access
   if (isProtectedRoute(pathname)) {
     const session = await getSessionFromRequest(ctx.req);
 
