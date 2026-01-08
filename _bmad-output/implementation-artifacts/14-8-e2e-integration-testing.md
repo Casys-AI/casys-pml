@@ -1,6 +1,6 @@
 # Story 14.8: E2E Integration Testing
 
-Status: ready-for-dev
+Status: done
 
 > **Epic:** 14 - JSR Package Local/Cloud MCP Routing
 > **FR Coverage:** FR14-4 (Dynamic MCP import), FR14-5 (Sandboxed execution), FR14-6 (HTTP RPC forwarding), FR14-10 (Code caching)
