@@ -10,8 +10,6 @@
 export { GraphEngineAdapter } from "./graph-engine-adapter.ts";
 export { CapabilityRepositoryAdapter } from "./capability-repository-adapter.ts";
 export { MCPClientRegistryAdapter } from "./mcp-client-registry-adapter.ts";
-export { DecisionStrategyAdapter } from "./decision-strategy-adapter.ts";
-export { StreamOrchestratorAdapter } from "./stream-orchestrator-adapter.ts";
 
 // Phase 3.2: Code analyzer
 export { CodeAnalyzerAdapter } from "./code-analyzer-adapter.ts";
