@@ -5,10 +5,11 @@
       "command": "pml",
       "args": [
         "stdio"
-      ],
-      "env": {
-        "PML_API_KEY": "${PML_API_KEY}"
-      }
+      ]
+    },
+        "pml_http": {
+      "type": "http",
+      "url": "http://localhost:3003/mcp"
     }
   }
 }
