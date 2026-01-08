@@ -99,12 +99,13 @@ Deno.test("ExecuteHandlerFacade - class instantiation", () => {
 Deno.test("ExecuteHandlerFacade - routes to direct mode when code provided", async () => {
   let directCalled = false;
   const mockDirect = createMockExecuteDirectUC();
-  mockDirect.execute = async (req) => {
+  mockDirect.execute = async (_req) => {
     directCalled = true;
     return {
       success: true,
       data: {
         success: true,
+        mode: "direct" as const,
         result: 42,
         executionTimeMs: 100,
         toolFailures: [],
@@ -171,7 +172,8 @@ Deno.test("ExecuteHandlerFacade - routes to continue workflow", async () => {
     return {
       success: true,
       data: {
-        status: req.approved ? "completed" : "rejected",
+        success: true,
+        status: req.approved ? "completed" as const : "aborted" as const,
         result: { done: true },
         executionTimeMs: 30,
       },
@@ -184,7 +186,7 @@ Deno.test("ExecuteHandlerFacade - routes to continue workflow", async () => {
     continueWorkflowUC: mockContinue,
   });
 
-  const result = await facade.handle({
+  await facade.handle({
     continue_workflow: {
       workflow_id: "wf-123",
       approved: true,
@@ -205,13 +207,13 @@ Deno.test("ExecuteHandlerFacade - continue_workflow takes priority over code", a
   const mockContinue = createMockContinueWorkflowUC();
   mockContinue.execute = async () => {
     continueCalled = true;
-    return { success: true, data: { status: "completed", executionTimeMs: 30 } };
+    return { success: true, data: { success: true, status: "completed" as const, executionTimeMs: 30 } };
   };
 
   const mockDirect = createMockExecuteDirectUC();
   mockDirect.execute = async () => {
     directCalled = true;
-    return { success: true, data: { success: true, executionTimeMs: 100, toolFailures: [], traces: [] } };
+    return { success: true, data: { success: true, mode: "direct" as const, executionTimeMs: 100, toolFailures: [], traces: [] } };
   };
 
   const facade = new ExecuteHandlerFacade({
@@ -319,9 +321,10 @@ Deno.test("ExecuteHandlerFacade - triggers training after successful direct exec
     success: true,
     data: {
       success: true,
+      mode: "direct" as const,
       result: 42,
       executionTimeMs: 100,
-      traces: [{ type: "task", tool: "std:echo" }],
+      traces: [{ taskId: "task_0", tool: "std:echo", args: {}, result: "ok", success: true, durationMs: 10 }],
       toolFailures: [],
     },
   });
