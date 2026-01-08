@@ -68,6 +68,15 @@ export class ExecuteHandlerFacade {
   constructor(private readonly deps: ExecuteHandlerFacadeDeps) {}
 
   /**
+   * Set user ID for multi-tenant trace isolation (Story 9.8)
+   * Called per-request before handle()
+   */
+  setUserId(userId: string | null): void {
+    this.deps.executeSuggestionUC?.setUserId(userId);
+    // ExecuteDirectUseCase doesn't have tracing, so no setUserId needed
+  }
+
+  /**
    * Handle execute request
    */
   async handle(request: ExecuteRequest): Promise<ExecuteResponse> {
@@ -149,7 +158,12 @@ export class ExecuteHandlerFacade {
 
   private async handleSuggestion(request: ExecuteRequest): Promise<ExecuteResponse> {
     if (!this.deps.executeSuggestionUC) {
-      return this.notConfiguredError("ExecuteSuggestionUseCase not configured");
+      log.warn("[ExecuteHandlerFacade] ExecuteSuggestionUseCase not configured");
+      return {
+        status: "suggestions",
+        suggestions: { confidence: 0 },
+        executionTimeMs: 0,
+      };
     }
 
     const result = await this.deps.executeSuggestionUC.execute({

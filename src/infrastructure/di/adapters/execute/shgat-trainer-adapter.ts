@@ -59,7 +59,25 @@ export interface SHGATTrainerAdapterDeps {
  * Adapts SHGATLiveTrainer to ISHGATTrainer interface
  */
 export class SHGATTrainerAdapter implements ISHGATTrainer {
-  constructor(private readonly deps: SHGATTrainerAdapterDeps) {}
+  private deps: SHGATTrainerAdapterDeps;
+
+  constructor(deps: SHGATTrainerAdapterDeps) {
+    this.deps = deps;
+  }
+
+  /**
+   * Set live trainer (lazy initialization after algorithms are loaded)
+   */
+  setLiveTrainer(liveTrainer: SHGATLiveTrainerInfra): void {
+    this.deps = { ...this.deps, liveTrainer };
+  }
+
+  /**
+   * Set Thompson sampling (lazy initialization)
+   */
+  setThompsonSampling(thompsonSampling: ThompsonSamplingInfra): void {
+    this.deps = { ...this.deps, thompsonSampling };
+  }
 
   /**
    * Check if training should be triggered

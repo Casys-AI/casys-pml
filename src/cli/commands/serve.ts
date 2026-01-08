@@ -350,14 +350,15 @@ export function createServeCommand() {
         log.info("✓ Episodic memory enabled (ADR-008)");
 
         // Phase 2.2: Bootstrap DI container with real implementations
-        // Container available for future DI-aware components
-        const { container: _diContainer, mcpRegistry, codeAnalyzer } = bootstrapDI({
+        // Phase 3.1: Also creates execute adapters for use cases
+        const { container: _diContainer, mcpRegistry, codeAnalyzer, executeAdapters } = bootstrapDI({
           db,
           embeddingModel,
           vectorSearch,
           graphEngine,
           capabilityStore,
           mcpClients,
+          // Note: shgat/drdsp not available yet, will be set via setters after gateway.start()
         });
         await mcpRegistry.refreshTools();
         log.info(`✓ DI container initialized (${mcpRegistry.getAllTools().length} tools registered)`);
@@ -445,6 +446,9 @@ export function createServeCommand() {
 
         // Phase 3.2: Wire CodeAnalyzer to gateway for static structure analysis
         gateway.setCodeAnalyzer(codeAnalyzer);
+
+        // Phase 3.1: Wire execute adapters for use cases (DI)
+        gateway.setExecuteAdapters(executeAdapters);
 
         // Connect gateway to tool tracking callback (Story 3.7)
         gatewayRef = gateway;

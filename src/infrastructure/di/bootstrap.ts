@@ -5,17 +5,22 @@
  * Used by serve.ts to wire up the application.
  *
  * Phase 2.2: Progressive DI migration
+ * Phase 3.1: Execute use cases integration
  *
  * @module infrastructure/di/bootstrap
  */
 
 import type { Container } from "diod";
 import type { DbClient } from "../../db/types.ts";
-import type { EmbeddingModel } from "../../vector/embeddings.ts";
+import type { EmbeddingModel, EmbeddingModelInterface } from "../../vector/embeddings.ts";
 import type { VectorSearch as VectorSearchImpl } from "../../vector/search.ts";
 import type { GraphRAGEngine } from "../../graphrag/graph-engine.ts";
 import type { CapabilityStore } from "../../capabilities/capability-store.ts";
 import type { MCPClientBase } from "../../mcp/types.ts";
+import type { SHGAT } from "../../graphrag/algorithms/shgat.ts";
+import type { DRDSP } from "../../graphrag/algorithms/dr-dsp.ts";
+import type { CheckpointManager } from "../../dag/checkpoint-manager.ts";
+import type { CapabilityRegistry } from "../../capabilities/capability-registry.ts";
 
 import { buildContainer, type AppConfig } from "./container.ts";
 import {
@@ -24,6 +29,16 @@ import {
   MCPClientRegistryAdapter,
   CodeAnalyzerAdapter,
 } from "./adapters/mod.ts";
+
+// Phase 3.1: Execute adapters
+import {
+  DAGSuggesterAdapter as ExecuteDAGSuggesterAdapter,
+  WorkflowRepositoryAdapter,
+  SHGATTrainerAdapter,
+  ToolDefinitionsBuilderAdapter,
+  DAGConverterAdapter,
+  WorkerBridgeFactoryAdapter,
+} from "./adapters/execute/mod.ts";
 
 /**
  * Services created during bootstrap that may need direct access.
@@ -41,6 +56,18 @@ export interface BootstrappedServices {
   mcpRegistry: MCPClientRegistryAdapter;
   /** Code analyzer adapter for static structure analysis (Phase 3.2) */
   codeAnalyzer: CodeAnalyzerAdapter;
+
+  // Phase 3.1: Execute adapters (for use cases)
+  /** Execute-specific adapters for use cases */
+  executeAdapters: {
+    dagSuggester: ExecuteDAGSuggesterAdapter;
+    workflowRepo: WorkflowRepositoryAdapter;
+    shgatTrainer: SHGATTrainerAdapter;
+    toolDefsBuilder: ToolDefinitionsBuilderAdapter;
+    dagConverter: DAGConverterAdapter;
+    workerBridgeFactory: WorkerBridgeFactoryAdapter;
+    capabilityRepo: CapabilityRepositoryAdapter;
+  };
 }
 
 /**
@@ -54,6 +81,16 @@ export interface BootstrapOptions {
   capabilityStore: CapabilityStore;
   mcpClients: Map<string, MCPClientBase>;
   config?: Partial<AppConfig>;
+
+  // Phase 3.1: Optional execute dependencies
+  /** SHGAT scorer for capability matching */
+  shgat?: SHGAT;
+  /** DR-DSP for hyperpath finding */
+  drdsp?: DRDSP;
+  /** Checkpoint manager for workflow persistence */
+  checkpointManager?: CheckpointManager;
+  /** Capability registry for tool definitions */
+  capabilityRegistry?: CapabilityRegistry;
 }
 
 /**
@@ -83,18 +120,55 @@ export interface BootstrapOptions {
 export function bootstrapDI(options: BootstrapOptions): BootstrappedServices {
   const {
     db,
+    embeddingModel,
     vectorSearch,
     graphEngine,
     capabilityStore,
     mcpClients,
     config = {},
+    // Phase 3.1: Execute dependencies
+    shgat,
+    drdsp,
+    checkpointManager,
+    capabilityRegistry,
   } = options;
 
-  // Create adapters
+  // Create core adapters
   const graphEngineAdapter = new GraphEngineAdapter(graphEngine);
   const capabilityRepoAdapter = new CapabilityRepositoryAdapter(capabilityStore);
   const mcpRegistryAdapter = new MCPClientRegistryAdapter(mcpClients);
   const codeAnalyzerAdapter = new CodeAnalyzerAdapter(db);
+
+  // Phase 3.1: Create execute adapters
+  const executeDAGSuggester = new ExecuteDAGSuggesterAdapter({
+    shgat,
+    drdsp,
+    embeddingModel: embeddingModel as EmbeddingModelInterface,
+    capabilityRepo: capabilityRepoAdapter,
+  });
+
+  const workflowRepo = new WorkflowRepositoryAdapter({
+    checkpointManager,
+  });
+
+  const shgatTrainer = new SHGATTrainerAdapter({
+    // liveTrainer will be set later via setLiveTrainer if needed
+  });
+
+  const toolDefsBuilder = new ToolDefinitionsBuilderAdapter({
+    mcpClients,
+    capabilityRegistry,
+    capabilityStore,
+  });
+
+  const dagConverter = new DAGConverterAdapter();
+
+  const workerBridgeFactory = new WorkerBridgeFactoryAdapter({
+    mcpClients,
+    capabilityStore,
+    capabilityRegistry,
+    graphRAG: graphEngine,
+  });
 
   // Build container with factory functions
   const container = buildContainer(
@@ -156,6 +230,16 @@ export function bootstrapDI(options: BootstrapOptions): BootstrappedServices {
     capabilityStore,
     mcpRegistry: mcpRegistryAdapter,
     codeAnalyzer: codeAnalyzerAdapter,
+    // Phase 3.1: Execute adapters
+    executeAdapters: {
+      dagSuggester: executeDAGSuggester,
+      workflowRepo,
+      shgatTrainer,
+      toolDefsBuilder,
+      dagConverter,
+      workerBridgeFactory,
+      capabilityRepo: capabilityRepoAdapter,
+    },
   };
 }
 

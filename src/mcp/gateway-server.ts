@@ -75,12 +75,10 @@ import { getMetaTools } from "./tools/mod.ts";
 // Handlers
 import {
   type CodeExecutionDependencies,
-  type ExecuteDependencies,
   handleAbort,
   handleApprovalResponse,
   handleContinue,
   handleDiscover,
-  handleExecute,
   handleExecuteCode,
   handleReplan,
   handleSearchCapabilities,
@@ -94,6 +92,19 @@ import type { EmbeddingModelInterface } from "../vector/embeddings.ts";
 
 // Sampling Relay for agent tools
 import { samplingRelay } from "./sampling/mod.ts";
+
+// Phase 3.1: Execute Handler Facade and Use Cases
+import { ExecuteHandlerFacade } from "./handlers/execute-handler-facade.ts";
+import {
+  ExecuteDirectUseCase,
+  ExecuteSuggestionUseCase,
+  ContinueWorkflowUseCase,
+  TrainSHGATUseCase,
+} from "../application/use-cases/execute/mod.ts";
+import type { BootstrappedServices } from "../infrastructure/di/bootstrap.ts";
+
+/** Type alias for execute adapters from bootstrap */
+type ExecuteAdapters = BootstrappedServices["executeAdapters"];
 
 // Re-export for backward compatibility
 export type { GatewayServerConfig };
@@ -130,6 +141,8 @@ export class PMLGatewayServer {
   private algorithmInitializer: AlgorithmInitializer | null = null; // Algorithm lifecycle
   private episodicMemory: EpisodicMemoryStore | null = null; // ADR-008: Episodic memory
   private codeAnalyzer: ICodeAnalyzer | null = null; // Phase 3.2: DI code analyzer
+  private executeHandlerFacade: ExecuteHandlerFacade | null = null; // Phase 3.1: Use case facade
+  private executeAdapters: ExecuteAdapters | null = null; // Phase 3.1: DI execute adapters
 
   constructor(
     // @ts-ignore: db kept for future use (direct queries)
@@ -242,8 +255,126 @@ export class PMLGatewayServer {
       log.info("[Gateway] CapabilityMCPServer initialized (Story 13.3)");
     }
 
+    // Phase 3.1: ExecuteHandlerFacade is initialized in start() after algorithms are loaded
+
     this.setupHandlers();
     this.setupSamplingRelay();
+  }
+
+  /**
+   * Update DI execute adapters with algorithms after they are loaded
+   * Phase 3.1: Lazy initialization pattern for SHGAT/DR-DSP
+   */
+  private updateExecuteAdaptersWithAlgorithms(): void {
+    if (!this.executeAdapters) {
+      return;
+    }
+
+    // Update adapters with algorithms (setters added in Phase 3.1)
+    if (this.shgat) {
+      this.executeAdapters.dagSuggester.setSHGAT(this.shgat);
+    }
+    if (this.drdsp) {
+      this.executeAdapters.dagSuggester.setDRDSP(this.drdsp);
+    }
+    if (this.embeddingModel) {
+      this.executeAdapters.dagSuggester.setEmbeddingModel(this.embeddingModel);
+    }
+
+    // Note: SHGAT training is handled by AlgorithmInitializer.trainOnTraces()
+    // The SHGATTrainerAdapter will work without a live trainer (graceful no-op)
+
+    log.debug("[Gateway] Execute adapters updated with algorithms");
+  }
+
+  /**
+   * Initialize ExecuteHandlerFacade with all use cases and adapters
+   * Phase 3.1: Execute Handler → Use Cases refactoring
+   * Requires DI adapters from bootstrap (fail-fast if not available)
+   */
+  private initializeExecuteHandlerFacade(): void {
+    if (!this.capabilityStore) {
+      log.warn("[Gateway] CapabilityStore not available, ExecuteHandlerFacade disabled");
+      return;
+    }
+
+    if (!this.executeAdapters) {
+      throw new Error("[Gateway] Execute adapters not configured. Call setExecuteAdapters() before start().");
+    }
+
+    // Use DI adapters (fail-fast)
+    const {
+      capabilityRepo,
+      workflowRepo,
+      dagSuggester: dagSuggesterAdapter,
+      shgatTrainer: shgatTrainerAdapter,
+      toolDefsBuilder,
+      dagConverter,
+      workerBridgeFactory,
+    } = this.executeAdapters;
+
+    // Create use cases
+    const executeDirectUC = new ExecuteDirectUseCase({
+      capabilityRepo,
+      staticStructureBuilder: {
+        buildStaticStructure: async (code: string) => {
+          if (this.codeAnalyzer) {
+            return await this.codeAnalyzer.analyze(code);
+          }
+          // Fallback: import dynamically
+          const { StaticStructureBuilder } = await import("../capabilities/static-structure-builder.ts");
+          const builder = new StaticStructureBuilder(this.db);
+          return await builder.buildStaticStructure(code);
+        },
+        inferDecisions: (_structure, _executedPath) => {
+          // Simple inference - decisions based on executed path
+          return [];
+        },
+      },
+      toolDefinitionsBuilder: toolDefsBuilder,
+      // Cast adapters to use case interfaces (minor type differences)
+      dagConverter: dagConverter as unknown as ExecuteDirectUseCase["deps"]["dagConverter"],
+      workerBridgeFactory: workerBridgeFactory as unknown as ExecuteDirectUseCase["deps"]["workerBridgeFactory"],
+      embeddingModel: this.embeddingModel ?? undefined,
+      capabilityRegistry: this.capabilityRegistry ?? undefined,
+    });
+
+    const executeSuggestionUC = new ExecuteSuggestionUseCase({
+      shgat: this.shgat ?? undefined,
+      drdsp: this.drdsp ?? undefined,
+      dagSuggester: dagSuggesterAdapter,
+      capabilityRepo,
+      embeddingModel: this.embeddingModel ?? undefined,
+      // Cast algorithmTracer to use case interface (minor type differences)
+      algorithmTracer: this.algorithmTracer as unknown as ExecuteSuggestionUseCase["deps"]["algorithmTracer"],
+      thresholdManager: this.adaptiveThresholdManager ?? undefined,
+    });
+
+    const continueWorkflowUC = new ContinueWorkflowUseCase({
+      workflowRepo,
+      capabilityRepo,
+      eventBus,
+      // Cast to use case interface (ActiveWorkflow has minor differences)
+      getActiveWorkflow: ((workflowId: string) => this.activeWorkflows.get(workflowId)) as ContinueWorkflowUseCase["deps"]["getActiveWorkflow"],
+    });
+
+    const trainSHGATUC = new TrainSHGATUseCase({
+      shgatTrainer: shgatTrainerAdapter,
+      thresholdManager: this.adaptiveThresholdManager ?? undefined,
+      onTrainingComplete: async () => {
+        await this.algorithmInitializer?.saveSHGATParams();
+      },
+    });
+
+    // Create facade
+    this.executeHandlerFacade = new ExecuteHandlerFacade({
+      executeDirectUC,
+      executeSuggestionUC,
+      continueWorkflowUC,
+      trainSHGATUC,
+    });
+
+    log.info("[Gateway] ExecuteHandlerFacade initialized (Phase 3.1)");
   }
 
   /**
@@ -304,6 +435,16 @@ export class PMLGatewayServer {
   setCodeAnalyzer(analyzer: ICodeAnalyzer): void {
     this.codeAnalyzer = analyzer;
     log.debug("[Gateway] CodeAnalyzer configured for static analysis");
+  }
+
+  /**
+   * Set execute adapters from DI bootstrap (Phase 3.1)
+   * Called from serve.ts after gateway construction.
+   * These adapters will be used by initializeExecuteHandlerFacade.
+   */
+  setExecuteAdapters(adapters: ExecuteAdapters): void {
+    this.executeAdapters = adapters;
+    log.debug("[Gateway] Execute adapters configured from DI bootstrap");
   }
 
   /**
@@ -424,6 +565,10 @@ export class PMLGatewayServer {
       error: { code: number; message: string; data?: unknown };
     }
   > {
+    // Story 9.8: Set userId on components for multi-tenant trace isolation
+    this.dagSuggester?.setUserId(userId ?? null);
+    this.graphEngine?.setUserId(userId ?? null);
+
     // DAG execution
     if (name === "pml:execute_dag") {
       return await handleWorkflowExecution(args, this.getWorkflowDeps(), userId);
@@ -476,8 +621,29 @@ export class PMLGatewayServer {
     }
 
     // Unified execute (Story 10.7)
+    // Phase 3.1: Use ExecuteHandlerFacade (fail-fast, no legacy fallback)
     if (name === "pml:execute") {
-      return await handleExecute(args, this.getExecuteDeps());
+      if (!this.executeHandlerFacade) {
+        throw new Error("[Gateway] ExecuteHandlerFacade not initialized. Ensure setExecuteAdapters() was called.");
+      }
+
+      // Story 9.8: Set userId for multi-tenant trace isolation
+      this.executeHandlerFacade.setUserId(userId ?? null);
+
+      const executeArgs = args as {
+        code?: string;
+        intent?: string;
+        continue_workflow?: {
+          workflow_id: string;
+          approved: boolean;
+          checkpoint_id?: string;
+        };
+        options?: { timeout?: number; per_layer_validation?: boolean };
+      };
+      const result = await this.executeHandlerFacade.handle(executeArgs);
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
     }
 
     // Story 13.3: Capability tool execution (mcp__namespace__action format)
@@ -589,34 +755,7 @@ export class PMLGatewayServer {
     };
   }
 
-  /**
-   * Get execute handler dependencies (Story 10.7 + Story 13.2)
-   * Uses SHGAT + DR-DSP for capability matching (not CapabilityMatcher)
-   * Includes CapabilityRegistry for naming support
-   */
-  private getExecuteDeps(): ExecuteDependencies {
-    return {
-      vectorSearch: this.vectorSearch,
-      graphEngine: this.graphEngine,
-      mcpClients: this.mcpClients,
-      capabilityStore: this.capabilityStore!,
-      adaptiveThresholdManager: this.adaptiveThresholdManager,
-      config: this.config,
-      contextBuilder: this.contextBuilder,
-      toolSchemaCache: this.toolSchemaCache,
-      db: this.db,
-      drdsp: this.drdsp ?? undefined,
-      shgat: this.shgat ?? undefined,
-      embeddingModel: this.embeddingModel ?? undefined,
-      checkpointManager: this.checkpointManager ?? undefined,
-      workflowDeps: this.getWorkflowDeps(),
-      capabilityRegistry: this.capabilityRegistry ?? undefined, // Story 13.2
-      traceStore: this.capabilityStore?.getTraceStore(), // Story 11.6: PER training
-      onSHGATParamsUpdated: async () => { await this.algorithmInitializer?.saveSHGATParams(); }, // Save after PER training
-      algorithmTracer: this.algorithmTracer ?? undefined, // Story 7.6: Observability
-      codeAnalyzer: this.codeAnalyzer ?? undefined, // Phase 3.2: DI
-    };
-  }
+  // Phase 3.1: getExecuteDeps removed - ExecuteHandlerFacade uses DI adapters directly
 
   /**
    * Handler: prompts/get
@@ -687,6 +826,11 @@ export class PMLGatewayServer {
   async start(): Promise<void> {
     await initMcpPermissions(); // Load mcp-permissions.yaml for HIL detection
     await this.initializeAlgorithms();
+
+    // Phase 3.1: Initialize facade after algorithms are loaded (shgat/drdsp available)
+    this.updateExecuteAdaptersWithAlgorithms();
+    this.initializeExecuteHandlerFacade();
+
     await this.healthChecker.initialHealthCheck();
     this.healthChecker.startPeriodicChecks();
     await startStdioServer(this.server, this.config, this.mcpClients);
@@ -698,6 +842,10 @@ export class PMLGatewayServer {
   async startHttp(port: number): Promise<void> {
     await initMcpPermissions();
     await this.initializeAlgorithms();
+
+    // Phase 3.1: Initialize facade after algorithms are loaded (shgat/drdsp available)
+    this.updateExecuteAdaptersWithAlgorithms();
+    this.initializeExecuteHandlerFacade();
 
     const deps: HttpServerDependencies = {
       config: this.config,

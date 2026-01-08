@@ -70,7 +70,32 @@ export interface DAGSuggesterAdapterDeps {
  * Adapts SHGAT + DR-DSP to IDAGSuggester interface
  */
 export class DAGSuggesterAdapter implements IDAGSuggester {
-  constructor(private readonly deps: DAGSuggesterAdapterDeps) {}
+  private deps: DAGSuggesterAdapterDeps;
+
+  constructor(deps: DAGSuggesterAdapterDeps) {
+    this.deps = deps;
+  }
+
+  /**
+   * Set SHGAT scorer (lazy initialization after algorithms are loaded)
+   */
+  setSHGAT(shgat: SHGATScorerInfra): void {
+    this.deps = { ...this.deps, shgat };
+  }
+
+  /**
+   * Set DR-DSP pathfinder (lazy initialization after algorithms are loaded)
+   */
+  setDRDSP(drdsp: DRDSPInfra): void {
+    this.deps = { ...this.deps, drdsp };
+  }
+
+  /**
+   * Set embedding model (lazy initialization)
+   */
+  setEmbeddingModel(embeddingModel: EmbeddingModelInfra): void {
+    this.deps = { ...this.deps, embeddingModel };
+  }
 
   /**
    * Generate DAG suggestion from natural language intent
