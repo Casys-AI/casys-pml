@@ -9,7 +9,10 @@
 export { handleSearchCapabilities, handleSearchTools } from "./search-handler.ts";
 export { type DiscoverArgs, handleDiscover } from "./discover-handler.ts";
 export { type CodeExecutionDependencies, handleExecuteCode } from "./code-execution-handler.ts";
-export { type ExecuteArgs, type ExecuteDependencies, handleExecute, trainingLock } from "./execute-handler.ts";
+
+// Phase 3.1: Execute handler facade + Use Cases
+export { ExecuteHandlerFacade, type ExecuteRequest } from "./execute-handler-facade.ts";
+
 export {
   handleAbort,
   handleApprovalResponse,
