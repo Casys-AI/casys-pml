@@ -260,11 +260,18 @@ export class AlgorithmFactory {
         tools.forEach((t, i) => toolIndex.set(t.id, i));
         const coocData = await loadCooccurrenceData(toolIndex);
         if (coocData.entries.length > 0) {
-          cooccurrences = coocData.entries.map((e) => ({
-            from: e.toolA,
-            to: e.toolB,
-            weight: 1 / (e.count + 1), // Convert count to weight (lower = better)
-          }));
+          // CooccurrenceEntry has: from (index), to (index), weight
+          // We need to convert indices back to tool IDs
+          const indexToTool = new Map<number, string>();
+          toolIndex.forEach((idx, id) => indexToTool.set(idx, id));
+
+          cooccurrences = coocData.entries
+            .filter((e) => indexToTool.has(e.from) && indexToTool.has(e.to))
+            .map((e) => ({
+              from: indexToTool.get(e.from)!,
+              to: indexToTool.get(e.to)!,
+              weight: e.weight,
+            }));
         }
       } catch {
         // Co-occurrence not available, continue without

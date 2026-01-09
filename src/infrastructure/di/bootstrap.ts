@@ -145,6 +145,7 @@ export function bootstrapDI(options: BootstrapOptions): BootstrappedServices {
     drdsp,
     embeddingModel: embeddingModel as EmbeddingModelInterface,
     capabilityRepo: capabilityRepoAdapter,
+    capabilityRegistry,
   });
 
   const workflowRepo = new WorkflowRepositoryAdapter({

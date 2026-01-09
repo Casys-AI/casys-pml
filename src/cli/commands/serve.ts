@@ -28,6 +28,7 @@ import type { MCPClientBase, MCPServer } from "../../mcp/types.ts";
 import type { ToolExecutor } from "../../dag/types.ts";
 import { CapabilityMatcher } from "../../capabilities/matcher.ts";
 import { CapabilityStore } from "../../capabilities/capability-store.ts";
+import { CapabilityRegistry } from "../../capabilities/capability-registry.ts";
 import { SchemaInferrer } from "../../capabilities/schema-inferrer.ts";
 import { checkAndSyncRouting } from "../../capabilities/routing-resolver.ts";
 import { StaticStructureBuilder } from "../../capabilities/static-structure-builder.ts";
@@ -349,6 +350,9 @@ export function createServeCommand() {
         dagSuggester.setEpisodicMemoryStore(episodicMemory);
         log.info("✓ Episodic memory enabled (ADR-008)");
 
+        // Create CapabilityRegistry for namespace:action resolution
+        const capabilityRegistry = new CapabilityRegistry(db);
+
         // Phase 2.2: Bootstrap DI container with real implementations
         // Phase 3.1: Also creates execute adapters for use cases
         const { container: _diContainer, mcpRegistry, codeAnalyzer, executeAdapters } = bootstrapDI({
@@ -358,6 +362,7 @@ export function createServeCommand() {
           graphEngine,
           capabilityStore,
           mcpClients,
+          capabilityRegistry,
           // Note: shgat/drdsp not available yet, will be set via setters after gateway.start()
         });
         await mcpRegistry.refreshTools();

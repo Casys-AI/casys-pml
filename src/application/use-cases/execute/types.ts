@@ -258,6 +258,8 @@ export interface ExecuteResponse {
   suggestions?: {
     suggestedDag?: SuggestedDag;
     confidence: number;
+    /** Error message when suggestion failed (fail-fast) */
+    error?: string;
   };
   toolFailures?: Array<{ tool: string; error: string }>;
   dag?: {

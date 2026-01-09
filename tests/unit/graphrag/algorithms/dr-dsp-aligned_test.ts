@@ -7,7 +7,7 @@
  */
 
 import { assertEquals, assertExists } from "@std/assert";
-import { buildDRDSPAligned, type DRDSP } from "../../../../src/graphrag/algorithms/dr-dsp.ts";
+import { buildDRDSPAligned } from "../../../../src/graphrag/algorithms/dr-dsp.ts";
 
 // Test data: tools and capabilities
 const testTools = [

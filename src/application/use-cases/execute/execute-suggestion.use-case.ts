@@ -204,7 +204,8 @@ export class ExecuteSuggestionUseCase {
         log.warn("[ExecuteSuggestionUseCase] Best capability not found", {
           id: bestMatch.capabilityId,
         });
-        // Still return the suggestion using DR-DSP if available        const suggestion = await this.buildSuggestion(intent, bestMatch, correlationId, intentEmbedding);
+        // Still return the suggestion using DR-DSP if available
+        const suggestion = await this.buildSuggestion(intent, bestMatch, correlationId, intentEmbedding);
         return {
           success: true,
           data: {

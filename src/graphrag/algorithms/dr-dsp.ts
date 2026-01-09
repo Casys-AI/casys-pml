@@ -491,6 +491,7 @@ export class DRDSP {
       avgHyperedgeSize: this.hyperedges.size > 0 ? totalSize / this.hyperedges.size : 0,
     };
   }
+
 }
 
 // ============================================================================
