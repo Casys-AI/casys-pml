@@ -1,7 +1,7 @@
 /**
  * Dependency State Tracker
  *
- * Manages installed dependency state persisted to ~/.pml/deps.json.
+ * Manages installed dependency state persisted to ${workspace}/.pml/deps.json.
  *
  * @module loader/dep-state
  */
@@ -12,9 +12,24 @@ import type { DepStateFile, InstalledDep, McpDependency } from "./types.ts";
 import * as log from "@std/log";
 
 /**
- * Get default state file path (lazy to avoid top-level env access).
+ * Options for DepState.
  */
-function getDefaultStatePath(): string {
+export interface DepStateOptions {
+  /** Workspace root path (for per-project state) */
+  workspace?: string;
+  /** Explicit state file path (overrides workspace) */
+  statePath?: string;
+}
+
+/**
+ * Get state file path for workspace.
+ * Uses ${workspace}/.pml/deps.json for per-project state.
+ */
+function getStatePath(workspace?: string): string {
+  if (workspace) {
+    return join(workspace, ".pml", "deps.json");
+  }
+  // Fallback to home directory if no workspace provided
   return join(Deno.env.get("HOME") ?? "~", ".pml", "deps.json");
 }
 
@@ -35,8 +50,15 @@ export class DepState {
   private state: DepStateFile | null = null;
   private dirty = false;
 
-  constructor(statePath?: string) {
-    this.statePath = statePath ?? getDefaultStatePath();
+  constructor(options?: DepStateOptions | string) {
+    // Support both old string API and new options API for backwards compat
+    if (typeof options === "string") {
+      this.statePath = options;
+    } else if (options?.statePath) {
+      this.statePath = options.statePath;
+    } else {
+      this.statePath = getStatePath(options?.workspace);
+    }
   }
 
   /**
@@ -222,8 +244,10 @@ export class DepState {
 /**
  * Create and load a new DepState instance.
  */
-export async function createDepState(statePath?: string): Promise<DepState> {
-  const state = new DepState(statePath);
+export async function createDepState(
+  options?: DepStateOptions | string,
+): Promise<DepState> {
+  const state = new DepState(options);
   await state.load();
   return state;
 }

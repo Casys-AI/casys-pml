@@ -2,7 +2,7 @@
  * Lockfile Manager (Story 14.7)
  *
  * Manages the MCP lockfile for integrity tracking.
- * Lockfile stored at ~/.pml/mcp.lock
+ * Lockfile stored at ${workspace}/.pml/mcp.lock (per-project)
  *
  * @module lockfile/lockfile-manager
  */
@@ -19,9 +19,14 @@ import type {
 } from "./types.ts";
 
 /**
- * Default lockfile path: ~/.pml/mcp.lock
+ * Get lockfile path for workspace.
+ * Uses ${workspace}/.pml/mcp.lock for per-project lockfile.
  */
-function getDefaultLockfilePath(): string {
+function getLockfilePath(workspace?: string): string {
+  if (workspace) {
+    return join(workspace, ".pml", "mcp.lock");
+  }
+  // Fallback to home directory if no workspace provided
   const home = Deno.env.get("HOME") || Deno.env.get("USERPROFILE") || ".";
   return join(home, ".pml", "mcp.lock");
 }
@@ -57,7 +62,7 @@ export class LockfileManager {
   private lockfile: Lockfile | null = null;
 
   constructor(options: LockfileManagerOptions = {}) {
-    this.lockfilePath = options.lockfilePath || getDefaultLockfilePath();
+    this.lockfilePath = options.lockfilePath || getLockfilePath(options.workspace);
     this.autoCreate = options.autoCreate ?? true;
     this.autoApproveNew = options.autoApproveNew ?? true;
   }
@@ -182,7 +187,7 @@ export class LockfileManager {
   async validateIntegrity(
     fqdn: string,
     serverIntegrity: string,
-    type: "deno" | "stdio" | "http",
+    type: "deno" | "stdio",
   ): Promise<IntegrityValidationResult | IntegrityApprovalRequired> {
     const base = fqdnBase(fqdn);
     const entry = await this.getEntry(base);
@@ -237,7 +242,7 @@ export class LockfileManager {
   async approveIntegrityChange(
     fqdn: string,
     newIntegrity: string,
-    type: "deno" | "stdio" | "http",
+    type: "deno" | "stdio",
   ): Promise<LockfileEntry> {
     return await this.addEntry({
       fqdn,

@@ -2,7 +2,7 @@
  * Lockfile Types (Story 14.7)
  *
  * Types for client-side MCP integrity tracking.
- * Lockfile stored at ~/.pml/mcp.lock
+ * Lockfile stored at ${workspace}/.pml/mcp.lock (per-project)
  *
  * @module lockfile/types
  */
@@ -29,15 +29,15 @@ export interface LockfileEntry {
   /** ISO timestamp of last validation */
   lastValidated: string;
 
-  /** MCP type at time of fetch */
-  type: "deno" | "stdio" | "http";
+  /** MCP type at time of fetch (only client-routed types need lockfile) */
+  type: "deno" | "stdio";
 
   /** Whether user approved this entry */
   approved: boolean;
 }
 
 /**
- * Lockfile structure stored at ~/.pml/mcp.lock
+ * Lockfile structure stored at ${workspace}/.pml/mcp.lock
  */
 export interface Lockfile {
   /** Schema version for migrations */
@@ -108,7 +108,10 @@ export interface IntegrityApprovalRequired {
  * Options for LockfileManager.
  */
 export interface LockfileManagerOptions {
-  /** Path to lockfile (default: ~/.pml/mcp.lock) */
+  /** Workspace root path (required for per-project lockfile) */
+  workspace?: string;
+
+  /** Path to lockfile (default: ${workspace}/.pml/mcp.lock) */
   lockfilePath?: string;
 
   /** Whether to auto-create lockfile if missing */
@@ -128,8 +131,8 @@ export interface AddEntryOptions {
   /** Full SHA-256 integrity hash */
   integrity: string;
 
-  /** MCP type */
-  type: "deno" | "stdio" | "http";
+  /** MCP type (only client-routed types: deno, stdio) */
+  type: "deno" | "stdio";
 
   /** Whether user approved this entry */
   approved?: boolean;

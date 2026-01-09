@@ -104,6 +104,9 @@ export async function initProject(
     );
     console.log(`  ${colors.green("✓")} Created ${PML_CONFIG_FILE}`);
 
+    // Update .gitignore with PML entries
+    await updateGitignore(workspace);
+
     return {
       success: true,
       mcpConfigPath,
@@ -195,6 +198,59 @@ function generateMcpConfig(_port: number, apiKey?: string): McpConfig {
       pml: serverConfig,
     },
   };
+}
+
+/**
+ * PML entries to add to .gitignore
+ *
+ * These are user-specific and should not be committed:
+ * - .pml.json: User permissions and config
+ * - .pml/: Per-project state (lockfile, deps, client-id)
+ */
+const GITIGNORE_ENTRIES = [
+  "",
+  "# PML (per-project config and state)",
+  ".pml.json",
+  ".pml/",
+];
+
+/**
+ * Update .gitignore with PML entries
+ *
+ * Adds entries if they don't exist, creates .gitignore if missing.
+ */
+async function updateGitignore(workspace: string): Promise<void> {
+  const gitignorePath = join(workspace, ".gitignore");
+
+  let content = "";
+  try {
+    content = await Deno.readTextFile(gitignorePath);
+  } catch {
+    // File doesn't exist - will create it
+  }
+
+  // Check which entries are missing
+  const missingEntries: string[] = [];
+  for (const entry of GITIGNORE_ENTRIES) {
+    // Skip empty lines and comments for checking
+    if (entry === "" || entry.startsWith("#")) continue;
+    if (!content.includes(entry)) {
+      missingEntries.push(entry);
+    }
+  }
+
+  // Add missing entries
+  if (missingEntries.length > 0) {
+    const toAdd = GITIGNORE_ENTRIES.join("\n");
+    const newContent = content.endsWith("\n") || content === ""
+      ? content + toAdd + "\n"
+      : content + "\n" + toAdd + "\n";
+
+    await Deno.writeTextFile(gitignorePath, newContent);
+    console.log(`  ${colors.green("✓")} Updated .gitignore with PML entries`);
+  } else {
+    console.log(`  ${colors.dim("•")} .gitignore already has PML entries`);
+  }
 }
 
 /**
