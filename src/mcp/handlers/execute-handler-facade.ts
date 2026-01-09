@@ -73,7 +73,7 @@ export class ExecuteHandlerFacade {
    */
   setUserId(userId: string | null): void {
     this.deps.executeSuggestionUC?.setUserId(userId);
-    // ExecuteDirectUseCase doesn't have tracing, so no setUserId needed
+    this.deps.executeDirectUC?.setUserId(userId);
   }
 
   /**

@@ -122,3 +122,6 @@ playground/
 tests/debug-*.ts
 coverage_data/
 src/web/.vite/
+
+# Prometheus auth token
+monitoring/pml_token

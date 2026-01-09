@@ -21,6 +21,9 @@ scrape_configs:
     static_configs:
       - targets: ["host.docker.internal:3003"]
     metrics_path: /api/metrics/prometheus
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/pml_token
 
   # Node Exporter - System metrics (CPU, RAM, Disk, Network)
   - job_name: "node"

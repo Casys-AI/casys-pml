@@ -187,7 +187,17 @@ const DEFAULT_SCOPE = { org: "local", project: "default" };
  * Executes TypeScript code and creates a capability from successful execution.
  */
 export class ExecuteDirectUseCase {
+  private userId: string | null = null;
+
   constructor(private readonly deps: ExecuteDirectDependencies) {}
+
+  /**
+   * Set user ID for multi-tenant trace isolation (Story 9.8)
+   * Called per-request before execute()
+   */
+  setUserId(userId: string | null): void {
+    this.userId = userId;
+  }
 
   /**
    * Execute the use case
@@ -463,6 +473,7 @@ export class ExecuteDirectUseCase {
         decisions: inferredDecisions,
         initialContext: { intent },
         intentEmbedding,
+        userId: this.userId ?? undefined,
       },
       staticStructure,
     });

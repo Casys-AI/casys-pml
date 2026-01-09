@@ -17,7 +17,12 @@ import { validateRequest } from "../../lib/auth.ts";
 import { RateLimiter } from "../../utils/rate-limiter.ts";
 import { getRateLimitKey } from "../../lib/rate-limiter-helpers.ts";
 import type { EventsStreamManager } from "../../server/events-stream.ts";
-import { isPublicRoute, buildCorsHeaders } from "../routing/middleware.ts";
+import {
+  isPublicRoute,
+  buildCorsHeaders,
+  PROMETHEUS_ROUTE,
+  validatePrometheusToken,
+} from "../routing/middleware.ts";
 
 // Import REST API route handlers
 import {
@@ -98,6 +103,20 @@ export function createApp(deps: HonoAppDependencies, allowedOrigins: string[]): 
         userId: undefined,
       });
       return next();
+    }
+
+    // Prometheus endpoint: special token-based auth (no user filtering)
+    if (pathname === PROMETHEUS_ROUTE) {
+      if (validatePrometheusToken(c.req.raw)) {
+        c.set("corsHeaders", corsHeaders);
+        c.set("routeCtx", {
+          ...deps.routeContext,
+          eventsStream: deps.eventsStream,
+          userId: undefined, // No user filtering for Prometheus
+        });
+        return next();
+      }
+      return c.json({ error: "Unauthorized - Invalid Prometheus token" }, 401);
     }
 
     // Validate auth
