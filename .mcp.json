@@ -6,10 +6,6 @@
       "args": [
         "stdio"
       ]
-    },
-        "pml_http": {
-      "type": "http",
-      "url": "http://localhost:3003/mcp"
     }
   }
 }
