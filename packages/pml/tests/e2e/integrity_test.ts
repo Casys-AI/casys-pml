@@ -78,10 +78,10 @@ Deno.test({
     });
 
     try {
-      mockServer.setMcpResponse("casys.pml.new.capability", {
-        fqdn: "casys.pml.new.capability",
+      mockServer.setMcpResponse("pml.mcp.new.capability", {
+        fqdn: "pml.mcp.new.capability",
         type: "deno",
-        codeUrl: `${mockServer.getUrl()}/code/casys.pml.new.capability.ts`,
+        codeUrl: `${mockServer.getUrl()}/code/pml.mcp.new.capability.ts`,
         tools: ["capability"],
         routing: "client",
         description: "New capability",
@@ -100,7 +100,7 @@ Deno.test({
       assertEquals((result as { new: boolean }).new, true);
 
       // Verify lockfile has entry
-      const entry = await lockfileManager.getEntry("casys.pml.new.capability");
+      const entry = await lockfileManager.getEntry("pml.mcp.new.capability");
       assertExists(entry);
       assertEquals(entry?.integrity, "sha256-newCapabilityHash123");
       assertEquals(entry?.approved, true);
@@ -131,16 +131,16 @@ Deno.test({
     try {
       // Pre-populate lockfile with old hash (FQDN must match what loader will use)
       await lockfileManager.addEntry({
-        fqdn: "casys.pml.updated.capability",
+        fqdn: "pml.mcp.updated.capability",
         integrity: "sha256-oldHashValue",
         type: "deno",
       });
 
       // Mock returns different hash (simulating update)
-      mockServer.setMcpResponse("casys.pml.updated.capability", {
-        fqdn: "casys.pml.updated.capability",
+      mockServer.setMcpResponse("pml.mcp.updated.capability", {
+        fqdn: "pml.mcp.updated.capability",
         type: "deno",
-        codeUrl: `${mockServer.getUrl()}/code/casys.pml.updated.capability.ts`,
+        codeUrl: `${mockServer.getUrl()}/code/pml.mcp.updated.capability.ts`,
         tools: ["capability"],
         routing: "client",
         description: "Updated capability",
@@ -160,7 +160,7 @@ Deno.test({
       assertEquals(isIntegrityApproval(result), true);
       if (isIntegrityApproval(result)) {
         assertEquals(result.approvalType, "integrity");
-        assertEquals(result.fqdnBase, "casys.pml.updated.capability");
+        assertEquals(result.fqdnBase, "pml.mcp.updated.capability");
         assertExists(result.workflowId);
         assertExists(result.description);
       }
@@ -191,16 +191,16 @@ Deno.test({
     try {
       // Pre-populate lockfile (FQDN must match what loader will use)
       await lockfileManager.addEntry({
-        fqdn: "casys.pml.approve.test",
+        fqdn: "pml.mcp.approve.test",
         integrity: "sha256-originalHash",
         type: "deno",
       });
 
       // Mock returns updated hash
-      mockServer.setMcpResponse("casys.pml.approve.test", {
-        fqdn: "casys.pml.approve.test",
+      mockServer.setMcpResponse("pml.mcp.approve.test", {
+        fqdn: "pml.mcp.approve.test",
         type: "deno",
-        codeUrl: `${mockServer.getUrl()}/code/casys.pml.approve.test.ts`,
+        codeUrl: `${mockServer.getUrl()}/code/pml.mcp.approve.test.ts`,
         tools: ["test"],
         routing: "client",
         description: "Approve test",
@@ -223,7 +223,7 @@ Deno.test({
       assertEquals(isIntegrityApproval(result2), false);
 
       // Verify lockfile was updated
-      const entry = await lockfileManager.getEntry("casys.pml.approve.test");
+      const entry = await lockfileManager.getEntry("pml.mcp.approve.test");
       assertExists(entry);
       assertEquals(entry?.integrity, "sha256-updatedHash");
       assertEquals(entry?.approved, true);
@@ -254,16 +254,16 @@ Deno.test({
     try {
       // Pre-populate lockfile (FQDN must match what loader will use)
       await lockfileManager.addEntry({
-        fqdn: "casys.pml.reject.test",
+        fqdn: "pml.mcp.reject.test",
         integrity: "sha256-safeHash",
         type: "deno",
       });
 
       // Mock returns suspicious hash
-      mockServer.setMcpResponse("casys.pml.reject.test", {
-        fqdn: "casys.pml.reject.test",
+      mockServer.setMcpResponse("pml.mcp.reject.test", {
+        fqdn: "pml.mcp.reject.test",
         type: "deno",
-        codeUrl: `${mockServer.getUrl()}/code/casys.pml.reject.test.ts`,
+        codeUrl: `${mockServer.getUrl()}/code/pml.mcp.reject.test.ts`,
         tools: ["test"],
         routing: "client",
         description: "Reject test",
@@ -297,7 +297,7 @@ Deno.test({
       }
 
       // Lockfile should still have old hash
-      const entry = await lockfileManager.getEntry("casys.pml.reject.test");
+      const entry = await lockfileManager.getEntry("pml.mcp.reject.test");
       assertExists(entry);
       assertEquals(entry?.integrity, "sha256-safeHash");
 
@@ -329,16 +329,16 @@ Deno.test({
 
       // Pre-populate lockfile with hash (FQDN must match what loader will use)
       await lockfileManager.addEntry({
-        fqdn: "casys.pml.unchanged.cap",
+        fqdn: "pml.mcp.unchanged.cap",
         integrity: sameHash,
         type: "deno",
       });
 
       // Mock returns same hash
-      mockServer.setMcpResponse("casys.pml.unchanged.cap", {
-        fqdn: "casys.pml.unchanged.cap",
+      mockServer.setMcpResponse("pml.mcp.unchanged.cap", {
+        fqdn: "pml.mcp.unchanged.cap",
         type: "deno",
-        codeUrl: `${mockServer.getUrl()}/code/casys.pml.unchanged.cap.ts`,
+        codeUrl: `${mockServer.getUrl()}/code/pml.mcp.unchanged.cap.ts`,
         tools: ["cap"],
         routing: "client",
         description: "Unchanged",

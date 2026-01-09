@@ -10,7 +10,7 @@
  * @module tests/e2e/local_flow_test
  */
 
-import { assertEquals, assertStringIncludes } from "@std/assert";
+import { assertEquals } from "@std/assert";
 import {
   setupE2EContext,
   teardownE2EContext,
@@ -56,8 +56,8 @@ Deno.test({
 
     try {
       // Set up mock capability that uses mcp.* proxy
-      // RegistryClient converts "json:parse" to FQDN "casys.pml.json.parse"
-      const fqdn = "casys.pml.json.parse";
+      // RegistryClient converts "json:parse" to FQDN "pml.mcp.json.parse"
+      const fqdn = "pml.mcp.json.parse";
       mockServer.setMcpResponse(fqdn, {
         fqdn,
         type: "deno",

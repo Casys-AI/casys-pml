@@ -12,7 +12,7 @@
 import { assertEquals, assertExists, assertStringIncludes } from "@std/assert";
 import { join } from "@std/path";
 import {
-  appendEnvVar,
+
   setupE2EContext,
   teardownE2EContext,
   type E2ETestContext,
@@ -72,10 +72,10 @@ Deno.test({
 
     try {
       // Set up capability with dependency
-      mockServer.setMcpResponse("casys.pml.dangerous.action", {
-        fqdn: "casys.pml.dangerous.action",
+      mockServer.setMcpResponse("pml.mcp.dangerous.action", {
+        fqdn: "pml.mcp.dangerous.action",
         type: "deno",
-        codeUrl: `${mockServer.getUrl()}/code/casys.pml.dangerous.action.ts`,
+        codeUrl: `${mockServer.getUrl()}/code/pml.mcp.dangerous.action.ts`,
         tools: ["dangerous:action"],
         routing: "client",
         description: "Dangerous action",
@@ -122,10 +122,10 @@ Deno.test({
     const mockServer = await createMockServer({ port: 3088 });
 
     try {
-      mockServer.setMcpResponse("casys.pml.needs.approval", {
-        fqdn: "casys.pml.needs.approval",
+      mockServer.setMcpResponse("pml.mcp.needs.approval", {
+        fqdn: "pml.mcp.needs.approval",
         type: "deno",
-        codeUrl: `${mockServer.getUrl()}/code/casys.pml.needs.approval.ts`,
+        codeUrl: `${mockServer.getUrl()}/code/pml.mcp.needs.approval.ts`,
         tools: ["needs:approval"],
         routing: "client",
         description: "Needs approval",
@@ -173,10 +173,10 @@ Deno.test({
     const mockServer = await createMockServer({ port: 3087 });
 
     try {
-      mockServer.setMcpResponse("casys.pml.deny.test", {
-        fqdn: "casys.pml.deny.test",
+      mockServer.setMcpResponse("pml.mcp.deny.test", {
+        fqdn: "pml.mcp.deny.test",
         type: "deno",
-        codeUrl: `${mockServer.getUrl()}/code/casys.pml.deny.test.ts`,
+        codeUrl: `${mockServer.getUrl()}/code/pml.mcp.deny.test.ts`,
         tools: ["deny:test"],
         routing: "client",
         description: "Deny test",
@@ -229,10 +229,10 @@ Deno.test({
 
     try {
       // Set up capability that requires a custom API key (not set in env)
-      mockServer.setMcpResponse("casys.pml.custom.api", {
-        fqdn: "casys.pml.custom.api",
+      mockServer.setMcpResponse("pml.mcp.custom.api", {
+        fqdn: "pml.mcp.custom.api",
         type: "deno",
-        codeUrl: `${mockServer.getUrl()}/code/casys.pml.custom.api.ts`,
+        codeUrl: `${mockServer.getUrl()}/code/pml.mcp.custom.api.ts`,
         tools: ["custom:api"],
         routing: "client",
         description: "Custom API",
@@ -288,10 +288,10 @@ Deno.test({
     const mockServer = await createMockServer({ port: 3085 });
 
     try {
-      mockServer.setMcpResponse("casys.pml.allowed.dep", {
-        fqdn: "casys.pml.allowed.dep",
+      mockServer.setMcpResponse("pml.mcp.allowed.dep", {
+        fqdn: "pml.mcp.allowed.dep",
         type: "deno",
-        codeUrl: `${mockServer.getUrl()}/code/casys.pml.allowed.dep.ts`,
+        codeUrl: `${mockServer.getUrl()}/code/pml.mcp.allowed.dep.ts`,
         tools: ["allowed:dep"],
         routing: "client",
         description: "Allowed dep",
@@ -336,10 +336,10 @@ Deno.test({
     const mockServer = await createMockServer({ port: 3084 });
 
     try {
-      mockServer.setMcpResponse("casys.pml.denied.dep", {
-        fqdn: "casys.pml.denied.dep",
+      mockServer.setMcpResponse("pml.mcp.denied.dep", {
+        fqdn: "pml.mcp.denied.dep",
         type: "deno",
-        codeUrl: `${mockServer.getUrl()}/code/casys.pml.denied.dep.ts`,
+        codeUrl: `${mockServer.getUrl()}/code/pml.mcp.denied.dep.ts`,
         tools: ["denied:dep"],
         routing: "client",
         description: "Denied dep",
@@ -396,10 +396,10 @@ Deno.test({
     const mockServer = await createMockServer({ port: 3083 });
 
     try {
-      mockServer.setMcpResponse("casys.pml.needs.key", {
-        fqdn: "casys.pml.needs.key",
+      mockServer.setMcpResponse("pml.mcp.needs.key", {
+        fqdn: "pml.mcp.needs.key",
         type: "deno",
-        codeUrl: `${mockServer.getUrl()}/code/casys.pml.needs.key.ts`,
+        codeUrl: `${mockServer.getUrl()}/code/pml.mcp.needs.key.ts`,
         tools: ["needs:key"],
         routing: "client",
         description: "Needs key",
@@ -447,10 +447,10 @@ Deno.test({
     const mockServer = await createMockServer({ port: 3082 });
 
     try {
-      mockServer.setMcpResponse("casys.pml.cached.dep", {
-        fqdn: "casys.pml.cached.dep",
+      mockServer.setMcpResponse("pml.mcp.cached.dep", {
+        fqdn: "pml.mcp.cached.dep",
         type: "deno",
-        codeUrl: `${mockServer.getUrl()}/code/casys.pml.cached.dep.ts`,
+        codeUrl: `${mockServer.getUrl()}/code/pml.mcp.cached.dep.ts`,
         tools: ["cached:dep"],
         routing: "client",
         description: "Cached dep",
@@ -483,7 +483,7 @@ Deno.test({
       assertEquals((result3 as { call: number }).call, 3);
 
       // Registry should only have been called once for metadata
-      const metaRequests = mockServer.getRequestsTo("/mcp/casys.pml.cached.dep");
+      const metaRequests = mockServer.getRequestsTo("/api/registry/pml.mcp.cached.dep");
       assertEquals(metaRequests.length, 1);
 
       await loader.shutdown();

@@ -232,11 +232,11 @@ Deno.test({
     const mockServer = await createMockServer({ port: 3073 });
 
     try {
-      // Note: loader.call("flaky:cap") converts to FQDN "casys.pml.flaky.cap"
-      mockServer.setMcpResponse("casys.pml.flaky.cap", {
-        fqdn: "casys.pml.flaky.cap",
+      // Note: loader.call("flaky:cap") converts to FQDN "pml.mcp.flaky.cap"
+      mockServer.setMcpResponse("pml.mcp.flaky.cap", {
+        fqdn: "pml.mcp.flaky.cap",
         type: "deno",
-        codeUrl: `${mockServer.getUrl()}/code/casys.pml.flaky.cap.ts`,
+        codeUrl: `${mockServer.getUrl()}/code/pml.mcp.flaky.cap.ts`,
         tools: ["cap"],
         routing: "client",
         description: "Flaky capability",
@@ -291,8 +291,8 @@ Deno.test({
 
     try {
       // Set up error response for registry
-      // Note: loader.call("not:found") converts to FQDN "casys.pml.not.found"
-      mockServer.setMcpResponse("casys.pml.not.found", {
+      // Note: loader.call("not:found") converts to FQDN "pml.mcp.not.found"
+      mockServer.setMcpResponse("pml.mcp.not.found", {
         error: { code: 404, message: "Capability not found in registry" },
       });
 
@@ -329,11 +329,11 @@ Deno.test({
     const mockServer = await createMockServer({ port: 3071 });
 
     try {
-      // Note: loader.call("mem:test") converts to FQDN "casys.pml.mem.test"
-      mockServer.setMcpResponse("casys.pml.mem.test", {
-        fqdn: "casys.pml.mem.test",
+      // Note: loader.call("mem:test") converts to FQDN "pml.mcp.mem.test"
+      mockServer.setMcpResponse("pml.mcp.mem.test", {
+        fqdn: "pml.mcp.mem.test",
         type: "deno",
-        codeUrl: `${mockServer.getUrl()}/code/casys.pml.mem.test.ts`,
+        codeUrl: `${mockServer.getUrl()}/code/pml.mcp.mem.test.ts`,
         tools: ["test"],
         routing: "client",
         description: "Memory test",
@@ -379,11 +379,11 @@ Deno.test({
     const mockServer = await createMockServer({ port: 3070 });
 
     try {
-      // Note: loader.call("mixed:cap") converts to FQDN "casys.pml.mixed.cap"
-      mockServer.setMcpResponse("casys.pml.mixed.cap", {
-        fqdn: "casys.pml.mixed.cap",
+      // Note: loader.call("mixed:cap") converts to FQDN "pml.mcp.mixed.cap"
+      mockServer.setMcpResponse("pml.mcp.mixed.cap", {
+        fqdn: "pml.mcp.mixed.cap",
         type: "deno",
-        codeUrl: `${mockServer.getUrl()}/code/casys.pml.mixed.cap.ts`,
+        codeUrl: `${mockServer.getUrl()}/code/pml.mcp.mixed.cap.ts`,
         tools: ["cap"],
         routing: "client",
         description: "Mixed results",
@@ -401,7 +401,7 @@ Deno.test({
 
       for (let i = 1; i <= 9; i++) {
         try {
-          const result = await loader.call("mixed:cap", { id: i });
+          await loader.call("mixed:cap", { id: i });
           results.push({ id: i, success: true });
         } catch {
           results.push({ id: i, success: false });

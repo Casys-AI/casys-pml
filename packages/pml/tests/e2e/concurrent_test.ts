@@ -102,11 +102,11 @@ Deno.test({
 
     try {
       // Set up capability that echoes input with delay
-      // Note: RegistryClient converts "echo:delayed" to FQDN "casys.pml.echo.delayed"
-      mockServer.setMcpResponse("casys.pml.echo.delayed", {
-        fqdn: "casys.pml.echo.delayed",
+      // Note: RegistryClient converts "echo:delayed" to FQDN "pml.mcp.echo.delayed"
+      mockServer.setMcpResponse("pml.mcp.echo.delayed", {
+        fqdn: "pml.mcp.echo.delayed",
         type: "deno",
-        codeUrl: `${mockServer.getUrl()}/code/casys.pml.echo.delayed.ts`,
+        codeUrl: `${mockServer.getUrl()}/code/pml.mcp.echo.delayed.ts`,
         tools: ["delayed"],
         routing: "client",
         description: "Echo with delay",
@@ -250,11 +250,11 @@ Deno.test({
     const mockServer = await createMockServer({ port: 3075 });
 
     try {
-      // Note: RegistryClient converts "cached:cap" to FQDN "casys.pml.cached.cap"
-      mockServer.setMcpResponse("casys.pml.cached.cap", {
-        fqdn: "casys.pml.cached.cap",
+      // Note: RegistryClient converts "cached:cap" to FQDN "pml.mcp.cached.cap"
+      mockServer.setMcpResponse("pml.mcp.cached.cap", {
+        fqdn: "pml.mcp.cached.cap",
         type: "deno",
-        codeUrl: `${mockServer.getUrl()}/code/casys.pml.cached.cap.ts`,
+        codeUrl: `${mockServer.getUrl()}/code/pml.mcp.cached.cap.ts`,
         tools: ["cap"],
         routing: "client",
         description: "Cached",
@@ -285,7 +285,7 @@ Deno.test({
       }
 
       // Registry should not be hit again (capability already cached)
-      const metaRequests = mockServer.getRequestsTo("/mcp/casys.pml.cached.cap");
+      const metaRequests = mockServer.getRequestsTo("/api/registry/pml.mcp.cached.cap");
       assertEquals(
         metaRequests.length,
         0,
@@ -310,12 +310,12 @@ Deno.test({
 
     try {
       // Set up multiple capabilities
-      // Note: RegistryClient converts "cap1", "cap2", "cap3" to FQDNs "casys.pml.cap1", etc.
+      // Note: RegistryClient converts "cap1", "cap2", "cap3" to FQDNs "pml.mcp.cap1", etc.
       for (let i = 1; i <= 3; i++) {
-        mockServer.setMcpResponse(`casys.pml.cap${i}`, {
-          fqdn: `casys.pml.cap${i}`,
+        mockServer.setMcpResponse(`pml.mcp.cap${i}`, {
+          fqdn: `pml.mcp.cap${i}`,
           type: "deno",
-          codeUrl: `${mockServer.getUrl()}/code/casys.pml.cap${i}.ts`,
+          codeUrl: `${mockServer.getUrl()}/code/pml.mcp.cap${i}.ts`,
           tools: [`cap${i}`],
           routing: "client",
           description: `Capability ${i}`,
