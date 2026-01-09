@@ -60,6 +60,7 @@ import {
   buildHyperedgesFromSHGAT,
   cacheHyperedges,
 } from "../../../cache/hyperedge-cache.ts";
+import { initBlasAcceleration } from "../../../graphrag/algorithms/shgat/utils/math.ts";
 
 /**
  * Capability data for algorithm initialization
@@ -109,6 +110,32 @@ export interface SHGATFactoryResult {
  * capability matching and DAG suggestion.
  */
 export class AlgorithmFactory {
+  /** Track if BLAS has been initialized */
+  private static blasInitialized = false;
+
+  /**
+   * Initialize BLAS acceleration (called once, idempotent)
+   *
+   * Loads OpenBLAS via FFI for ~15x speedup on matrix operations.
+   * Falls back to JS implementation if BLAS is unavailable.
+   */
+  private static async initBlas(): Promise<void> {
+    if (this.blasInitialized) return;
+
+    try {
+      const available = await initBlasAcceleration();
+      this.blasInitialized = true;
+      if (available) {
+        log.info("[AlgorithmFactory] BLAS acceleration enabled (OpenBLAS)");
+      } else {
+        log.debug("[AlgorithmFactory] BLAS not available, using JS fallback");
+      }
+    } catch (e) {
+      log.debug(`[AlgorithmFactory] BLAS init failed: ${e}`);
+      this.blasInitialized = true; // Don't retry
+    }
+  }
+
   /**
    * Create SHGAT instance from capabilities
    *
@@ -120,6 +147,9 @@ export class AlgorithmFactory {
     capabilities: AlgorithmCapabilityInput[],
     options: SHGATFactoryOptions = {},
   ): Promise<SHGATFactoryResult> {
+    // Initialize BLAS for matrix acceleration (ADR-058)
+    await this.initBlas();
+
     // Create SHGAT with capabilities
     const shgat = createSHGATFromCapabilities(capabilities);
     log.info(
@@ -168,7 +198,10 @@ export class AlgorithmFactory {
    *
    * Capabilities can be added dynamically via shgat.registerCapability()
    */
-  static createEmptySHGAT(): SHGAT {
+  static async createEmptySHGAT(): Promise<SHGAT> {
+    // Initialize BLAS for matrix acceleration (ADR-058)
+    await this.initBlas();
+
     const shgat = createSHGATFromCapabilities([]);
     log.info(`[AlgorithmFactory] Empty SHGAT initialized`);
     return shgat;
