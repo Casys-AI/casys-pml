@@ -32,6 +32,8 @@ export interface ExecuteDirectRequest {
   options?: {
     timeout?: number;
     perLayerValidation?: boolean;
+    /** Whether the client is a registered PML package (can execute locally) */
+    isPackageClient?: boolean;
   };
 }
 
@@ -50,7 +52,7 @@ export interface ExecuteDirectResult {
   /** Full FQDN of capability */
   capabilityFqdn?: string;
   /** Execution mode */
-  mode: "direct";
+  mode: "direct" | "execute_locally";
   /** Execution time in milliseconds */
   executionTimeMs: number;
   /** DAG execution metadata */
@@ -69,6 +71,14 @@ export interface ExecuteDirectResult {
   staticStructure?: StaticStructure;
   /** Intent embedding for SHGAT training (Phase 3.2) */
   intentEmbedding?: number[];
+
+  // ---- Execute Locally fields (hybrid routing) ----
+  /** Original code to execute locally (when mode="execute_locally") */
+  code?: string;
+  /** All tools/capabilities used in the code */
+  toolsUsed?: string[];
+  /** Tools that require client-side execution */
+  clientTools?: string[];
 }
 
 // ============================================================================
@@ -244,12 +254,12 @@ export interface TrainSHGATResult {
  * Execute response format (for handler facade)
  */
 export interface ExecuteResponse {
-  status: "success" | "approval_required" | "suggestions";
+  status: "success" | "approval_required" | "suggestions" | "execute_locally";
   result?: JsonValue;
   capabilityId?: string;
   capabilityName?: string;
   capabilityFqdn?: string;
-  mode?: "direct" | "speculation" | "accept_suggestion";
+  mode?: "direct" | "speculation" | "accept_suggestion" | "execute_locally";
   executionTimeMs?: number;
   workflowId?: string;
   checkpointId?: string;
@@ -262,6 +272,17 @@ export interface ExecuteResponse {
     error?: string;
   };
   toolFailures?: Array<{ tool: string; error: string }>;
+  /** Error message when execution failed */
+  error?: string;
+  // execute_locally fields (hybrid routing)
+  /** Original code to execute locally */
+  code?: string;
+  /** All tools/capabilities used in the code */
+  tools_used?: string[];
+  /** Tools that require client-side execution */
+  client_tools?: string[];
+  /** Error code for client tools without package */
+  error_code?: string;
   dag?: {
     mode: "dag" | "sandbox";
     tasksCount?: number;

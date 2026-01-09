@@ -24,6 +24,7 @@ import {
 } from "./shared/result-mapper.ts";
 import { countToolCalls } from "./shared/execution-context.ts";
 import type { StaticStructure, TraceTaskResult } from "../../../capabilities/types/mod.ts";
+import { resolveRouting, getToolRouting } from "../../../capabilities/routing-resolver.ts";
 
 // ============================================================================
 // Interfaces (Clean Architecture - no concrete imports)
@@ -273,6 +274,61 @@ export class ExecuteDirectUseCase {
         physicalTasks: optimizedDAG.tasks.length,
         fusionRate: Math.round((1 - optimizedDAG.tasks.length / logicalDAG.tasks.length) * 100),
       });
+
+      // Step 5.5: Hybrid routing check (Story 14 - PML Execute Hybrid Routing)
+      // Extract all tools/capabilities from tasks (exclude pseudo-tools like code:add)
+      const toolsUsed = optimizedDAG.tasks
+        .map((t) => (t as { tool?: string }).tool)
+        .filter((t): t is string => !!t && !t.startsWith("code:"));
+
+      if (toolsUsed.length > 0) {
+        const routing = resolveRouting(toolsUsed);
+
+        if (routing === "client") {
+          const clientTools = toolsUsed.filter((t) => getToolRouting(t) === "client");
+          const isPackageClient = options.isPackageClient ?? false;
+
+          log.info("[ExecuteDirectUseCase] Routing check: client tools detected", {
+            toolsUsed,
+            clientTools,
+            isPackageClient,
+          });
+
+          if (isPackageClient) {
+            // Package client: return execute_locally response
+            return {
+              success: true,
+              data: {
+                success: true,
+                mode: "execute_locally",
+                code,
+                toolsUsed,
+                clientTools,
+                executionTimeMs: performance.now() - startTime,
+                dag: {
+                  mode: "dag",
+                  tasksCount: logicalDAG.tasks.length,
+                  layersCount: 0,
+                  toolsDiscovered: toolsUsed,
+                },
+              },
+            };
+          } else {
+            // Non-package client: error - they need to install the package
+            return {
+              success: false,
+              error: {
+                code: "CLIENT_TOOLS_REQUIRE_PACKAGE",
+                message: "Code contains client-side tools that cannot be executed on the server. Install PML package: deno install -Agf jsr:@anthropic/pml",
+                details: {
+                  clientTools,
+                  toolsUsed,
+                },
+              },
+            };
+          }
+        }
+      }
 
       // Step 6: Create executor and execute
       const [executor, executorContext] = this.deps.workerBridgeFactory.create({
