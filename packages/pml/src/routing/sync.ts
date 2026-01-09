@@ -47,17 +47,24 @@ const defaultLogger: SyncLogger = {
  *
  * @param cloudUrl Cloud base URL (e.g., "https://pml.casys.ai")
  * @param currentVersion Current cached version for If-None-Match
+ * @param apiKey API key for authentication
  * @returns Routing config or null if not modified/error
  */
 async function fetchRoutingConfig(
   cloudUrl: string,
   currentVersion?: string,
+  apiKey?: string,
 ): Promise<{ config: RoutingConfig; notModified: boolean } | null> {
   const url = `${cloudUrl}${DEFAULT_ROUTING_ENDPOINT}`;
 
   const headers: HeadersInit = {
     Accept: "application/json",
   };
+
+  // Auth header
+  if (apiKey) {
+    headers["x-api-key"] = apiKey;
+  }
 
   // Use version for conditional fetch
   if (currentVersion) {
@@ -115,20 +122,23 @@ async function fetchRoutingConfig(
  * @param cloudUrl Cloud base URL
  * @param logger Optional logger
  * @param cachePath Optional cache file path (for testing)
+ * @param apiKey Optional API key for authentication
  * @returns Sync result with current config
  */
 export async function syncRoutingConfig(
   cloudUrl: string,
   logger: SyncLogger = defaultLogger,
   cachePath?: string,
+  apiKey?: string,
 ): Promise<{ result: RoutingSyncResult; config: RoutingConfig }> {
   // Step 1: Load existing cache
   const existingCache = await loadRoutingCache(cachePath);
 
-  // Step 2: Try to fetch from cloud
+  // Step 2: Try to fetch from cloud (with auth)
   const fetchResult = await fetchRoutingConfig(
     cloudUrl,
     existingCache?.config.version,
+    apiKey ?? Deno.env.get("PML_API_KEY"),
   );
 
   // Step 3: Handle fetch result

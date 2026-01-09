@@ -289,6 +289,8 @@ export interface RegistryClientOptions {
   cloudUrl: string;
   /** Optional timeout in ms (default: 10000) */
   timeout?: number;
+  /** API key for authentication */
+  apiKey?: string;
 }
 
 /**

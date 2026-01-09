@@ -24,7 +24,7 @@
   },
   "tasks": {
     "dev": "deno run -A src/cli/mod.ts",
-    "compile": "deno compile -A --unstable-worker-options --no-check -o ~/.deno/bin/pml ./src/cli/mod.ts",
+    "compile": "deno compile -A --unstable-worker-options --no-check --include=./src/sandbox/execution/sandbox-script.ts -o ~/.deno/bin/pml ./src/cli/mod.ts",
     "install": "deno task compile",
     "test": "deno test -A --unstable-worker-options --unstable-broadcast-channel tests/",
     "test:unit": "deno test -A --unstable-worker-options --unstable-broadcast-channel tests/*.ts",
