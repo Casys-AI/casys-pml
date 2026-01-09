@@ -105,7 +105,7 @@ Deno.test("LockfileManager - removeEntry deletes entry", async () => {
   await manager.addEntry({
     fqdn: "pml.mcp.tavily.server.d7e8",
     integrity: "sha256-ghi789",
-    type: "http",
+    type: "stdio", // Note: http type not tracked in lockfile, use stdio for test
   });
 
   assertEquals(await manager.hasEntry("pml.mcp.tavily.server"), true);
@@ -158,14 +158,14 @@ Deno.test("LockfileManager - validateIntegrity returns approval required for has
   await manager.addEntry({
     fqdn: "pml.mcp.tavily.server.d7e8",
     integrity: "sha256-oldHash",
-    type: "http",
+    type: "stdio", // Note: http type not tracked in lockfile, use stdio for test
   });
 
   // Validate with different hash
   const result = await manager.validateIntegrity(
     "pml.mcp.tavily.server.f9a0",
     "sha256-newHash",
-    "http",
+    "stdio",
   );
 
   // Should require approval

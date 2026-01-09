@@ -15,9 +15,13 @@ import {
   teardownE2EContext,
   type E2ETestContext,
 } from "./test-harness.ts";
-import { createMockServer, MockCloudServer } from "./mock-cloud-server.ts";
+import { createMockServer } from "./mock-cloud-server.ts";
 import { CapabilityLoader } from "../../src/loader/capability-loader.ts";
-import { initializeRouting } from "../../src/routing/mod.ts";
+import {
+  initializeRouting,
+  resetRouting,
+  resolveToolRouting,
+} from "../../src/routing/mod.ts";
 
 // ============================================================================
 // Test Utilities
@@ -30,13 +34,22 @@ async function createCloudTestLoader(
   ctx: E2ETestContext,
   cloudUrl: string,
 ): Promise<CapabilityLoader> {
-  // Initialize routing with cloud tools
+  // Reset and initialize routing with cloud tools
+  resetRouting();
   initializeRouting({
     version: "1.0.0",
     clientTools: ["filesystem"],
     serverTools: ["tavily", "cloud"],
     defaultRouting: "client",
   });
+
+  // Verify routing is correctly set (guards against race conditions)
+  const tavilyRouting = resolveToolRouting("tavily:search");
+  if (tavilyRouting !== "server") {
+    throw new Error(
+      `Routing race condition detected: tavily:search should be 'server' but got '${tavilyRouting}'`,
+    );
+  }
 
   return await CapabilityLoader.create({
     cloudUrl,
@@ -59,16 +72,19 @@ Deno.test({
   name: "E2E AC2: Server-routed tool call forwards to cloud",
   async fn() {
     const ctx = await setupE2EContext({
-      envVars: { PML_API_KEY: "test-api-key-123" },
+      envVars: {
+        PML_API_KEY: "test-api-key-123",
+        TAVILY_API_KEY: "tvly-test-key-for-e2e", // Required for tavily:* tools
+      },
     });
     const mockServer = await createMockServer({ port: 3097 });
 
     try {
       // Set up capability that calls mcp.tavily.search() - which gets routed to cloud
-      mockServer.setMcpResponse("casys.pml.tavily.search", {
-        fqdn: "casys.pml.tavily.search",
+      mockServer.setMcpResponse("pml.mcp.tavily.search", {
+        fqdn: "pml.mcp.tavily.search",
         type: "deno",
-        codeUrl: `${mockServer.getUrl()}/code/casys.pml.tavily.search.ts`,
+        codeUrl: `${mockServer.getUrl()}/code/pml.mcp.tavily.search.ts`,
         tools: ["search"],
         routing: "client", // Capability runs locally, but mcp.tavily.* is server-routed
         description: "Tavily search wrapper",
@@ -99,7 +115,7 @@ Deno.test({
       const loader = await createCloudTestLoader(ctx, mockServer.getUrl());
 
       // Call cloud tool
-      const result = await loader.call("tavily:search", {
+      await loader.call("tavily:search", {
         query: "test search",
       });
 
@@ -131,10 +147,10 @@ Deno.test({
 
     try {
       // Set up capability that calls mcp.tavily.search()
-      mockServer.setMcpResponse("casys.pml.tavily.search", {
-        fqdn: "casys.pml.tavily.search",
+      mockServer.setMcpResponse("pml.mcp.tavily.search", {
+        fqdn: "pml.mcp.tavily.search",
         type: "deno",
-        codeUrl: `${mockServer.getUrl()}/code/casys.pml.tavily.search.ts`,
+        codeUrl: `${mockServer.getUrl()}/code/pml.mcp.tavily.search.ts`,
         tools: ["search"],
         routing: "client",
         description: "Tavily search wrapper",
@@ -188,10 +204,10 @@ Deno.test({
       };
 
       // Set up capability that calls mcp.cloud.search() and parses the MCP response
-      mockServer.setMcpResponse("casys.pml.cloud.search", {
-        fqdn: "casys.pml.cloud.search",
+      mockServer.setMcpResponse("pml.mcp.cloud.search", {
+        fqdn: "pml.mcp.cloud.search",
         type: "deno",
-        codeUrl: `${mockServer.getUrl()}/code/casys.pml.cloud.search.ts`,
+        codeUrl: `${mockServer.getUrl()}/code/pml.mcp.cloud.search.ts`,
         tools: ["search"],
         routing: "client",
         description: "Cloud search wrapper",
@@ -285,10 +301,10 @@ Deno.test({
 
     try {
       // Set up local capability code before going offline
-      mockServer.setMcpResponse("casys.pml.json.stringify", {
-        fqdn: "casys.pml.json.stringify",
+      mockServer.setMcpResponse("pml.mcp.json.stringify", {
+        fqdn: "pml.mcp.json.stringify",
         type: "deno",
-        codeUrl: `${mockServer.getUrl()}/code/casys.pml.json.stringify.ts`,
+        codeUrl: `${mockServer.getUrl()}/code/pml.mcp.json.stringify.ts`,
         tools: ["stringify"],
         routing: "client",
         description: "Stringify JSON",
@@ -339,6 +355,7 @@ Deno.test({
     });
 
     // Start with routing initialized but no server
+    resetRouting();
     initializeRouting({
       version: "1.0.0",
       clientTools: [],
@@ -407,7 +424,8 @@ Deno.test({
         result: { content: [{ type: "text", text: "too slow" }] },
       });
 
-      initializeRouting({
+      resetRouting();
+    initializeRouting({
         version: "1.0.0",
         clientTools: [],
         serverTools: ["cloud"],
@@ -464,10 +482,10 @@ Deno.test({
 
     try {
       // Set up local capability
-      mockServer.setMcpResponse("casys.pml.math.add", {
-        fqdn: "casys.pml.math.add",
+      mockServer.setMcpResponse("pml.mcp.math.add", {
+        fqdn: "pml.mcp.math.add",
         type: "deno",
-        codeUrl: `${mockServer.getUrl()}/code/casys.pml.math.add.ts`,
+        codeUrl: `${mockServer.getUrl()}/code/pml.mcp.math.add.ts`,
         tools: ["add"],
         routing: "client",
         description: "Add numbers",
@@ -481,7 +499,8 @@ Deno.test({
         },
       });
 
-      initializeRouting({
+      resetRouting();
+    initializeRouting({
         version: "1.0.0",
         clientTools: [],
         serverTools: ["cloud"],

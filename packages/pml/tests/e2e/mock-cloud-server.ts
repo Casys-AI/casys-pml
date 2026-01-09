@@ -26,7 +26,7 @@
  * - mcpDeps?: array (optional)
  */
 export interface MockCapabilityResponse {
-  /** FQDN for the capability (e.g., "casys.pml.json.parse") */
+  /** FQDN for the capability (e.g., "pml.mcp.json.parse") */
   fqdn?: string;
   /** Type of capability (must be "deno") */
   type?: "deno";
@@ -288,6 +288,11 @@ export class MockCloudServer {
       return this.handleToolsCall(req);
     }
 
+    // Registry endpoint: /api/registry/{fqdn} (new) or /mcp/{fqdn} (legacy)
+    if (path.startsWith("/api/registry/")) {
+      return this.handleMcpRegistry(path.replace("/api/registry/", "/mcp/"));
+    }
+
     if (path.startsWith("/mcp/")) {
       return this.handleMcpRegistry(path);
     }
@@ -320,7 +325,7 @@ export class MockCloudServer {
    * - mcpDeps?: array
    */
   private handleMcpRegistry(path: string): Response {
-    // Extract FQDN from path: /mcp/casys.pml.filesystem.read_file
+    // Extract FQDN from path: /mcp/pml.mcp.filesystem.read_file
     const fqdn = path.replace("/mcp/", "");
 
     // Check for mock response
@@ -365,7 +370,7 @@ export class MockCloudServer {
    * Note: Sandbox expects function BODY, not ES module with export.
    */
   private handleCodeRequest(path: string): Response {
-    // Extract FQDN from path: /code/casys.pml.json.parse.ts
+    // Extract FQDN from path: /code/pml.mcp.json.parse.ts
     const fqdn = path.replace("/code/", "").replace(".ts", "");
 
     // Check for mock response
