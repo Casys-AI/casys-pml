@@ -11,40 +11,91 @@
 // ============================================================================
 
 /**
+ * MCP type discriminant.
+ *
+ * - "deno": Capability with TypeScript code (executed in sandbox)
+ * - "stdio": External MCP server via subprocess (e.g., filesystem, shell, git)
+ * - "http": Proxy to HTTP endpoint (e.g., tavily, memory cloud)
+ */
+export type McpType = "deno" | "stdio" | "http";
+
+/**
+ * Installation info for stdio MCP servers.
+ */
+export interface McpInstallInfo {
+  /** Command to run (e.g., "npx", "deno") */
+  command: string;
+  /** Command arguments */
+  args: string[];
+  /** Required environment variables */
+  envRequired?: string[];
+}
+
+/**
  * Capability metadata from PML registry.
  *
  * Fetched from: pml.casys.ai/mcp/{fqdn}
  *
- * @example
+ * Supports 3 MCP types:
+ * - **deno**: Capability code (requires codeUrl)
+ * - **stdio**: External MCP server via subprocess (requires install)
+ * - **http**: Proxy to HTTP endpoint (uses proxyTo for server routing)
+ *
+ * @example deno type
  * ```json
  * {
- *   "fqdn": "casys.pml.filesystem.read_file",
+ *   "fqdn": "casys.pml.filesystem.read_file.abc1",
  *   "type": "deno",
- *   "codeUrl": "https://pml.casys.ai/mcp/casys.pml.filesystem.read_file",
- *   "description": "Read file contents",
- *   "tools": ["filesystem:read_file"],
+ *   "codeUrl": "https://pml.casys.ai/mcp/code/abc1",
+ *   "routing": "client"
+ * }
+ * ```
+ *
+ * @example stdio type
+ * ```json
+ * {
+ *   "fqdn": "pml.mcp.filesystem.read_file.7b92",
+ *   "type": "stdio",
  *   "routing": "client",
- *   "mcpDeps": [...]
+ *   "install": {
+ *     "command": "npx",
+ *     "args": ["-y", "@anthropic-ai/mcp-server-filesystem"],
+ *     "envRequired": []
+ *   }
+ * }
+ * ```
+ *
+ * @example http type
+ * ```json
+ * {
+ *   "fqdn": "pml.mcp.tavily.search.f3a2",
+ *   "type": "http",
+ *   "routing": "server",
+ *   "proxyTo": "https://mcp.tavily.com"
  * }
  * ```
  */
 export interface CapabilityMetadata {
-  /** Fully qualified domain name (all dots): casys.pml.filesystem.read_file */
+  /** Fully qualified domain name (5-part with hash): org.project.namespace.action.hash */
   fqdn: string;
-  /** Execution type - always "deno" for capabilities */
-  type: "deno";
-  /** URL to fetch capability code from */
-  codeUrl: string;
+  /** MCP type: "deno" (code), "stdio" (subprocess), "http" (proxy) */
+  type: McpType;
+  /** URL to fetch capability code from (required for deno type) */
+  codeUrl?: string;
   /** Human-readable description */
   description?: string;
   /** Exposed tool names (colon format): ["filesystem:read_file", ...] */
   tools: string[];
-  /** Execution routing: "client" or "server" */
+  /** Execution routing: "client" (local) or "server" (cloud) */
   routing: "client" | "server";
-  /** Dependencies on stdio MCP servers */
+  /** Dependencies on stdio MCP servers (for deno type capabilities) */
   mcpDeps?: McpDependency[];
   /** Integrity hash for lockfile validation (sha256-...) */
   integrity?: string;
+  /** Installation info for stdio type */
+  install?: McpInstallInfo;
+  /** Proxy URL for http type (server-side) */
+  proxyTo?: string;
 }
 
 /**

@@ -180,7 +180,12 @@ export class CapabilityLoader {
       logDebug(`No .env file found in ${options.workspace}`);
     }
 
-    const depState = await createDepState(options.depStatePath);
+    // Use per-project deps.json (in workspace/.pml/)
+    const depState = await createDepState(
+      options.depStatePath
+        ? { statePath: options.depStatePath }
+        : { workspace: options.workspace },
+    );
     return new CapabilityLoader(options, depState);
   }
 
@@ -288,28 +293,84 @@ export class CapabilityLoader {
       return approvalResult;
     }
 
-    // 3. Load capability code (sandboxed or direct import)
+    // 3. Load capability code (only for deno type - stdio/http don't have code)
     let module: CapabilityModule | null = null;
     let code: string | null = null;
 
-    if (this.sandboxEnabled) {
-      // Fetch raw code for sandboxed execution
-      const { code: fetchedCode } = await fetchCapabilityCode(metadata.codeUrl);
-      code = fetchedCode;
-      this.codeCache.set(namespace, code);
-      logDebug(`Capability code cached for sandbox: ${namespace}`);
+    if (metadata.type === "deno") {
+      // Deno capabilities have code to fetch
+      if (!metadata.codeUrl) {
+        throw new LoaderError(
+          "MODULE_IMPORT_FAILED",
+          `Deno capability ${namespace} missing codeUrl`,
+          { namespace },
+        );
+      }
+
+      if (this.sandboxEnabled) {
+        // Fetch raw code for sandboxed execution
+        const { code: fetchedCode } = await fetchCapabilityCode(metadata.codeUrl);
+        code = fetchedCode;
+        this.codeCache.set(namespace, code);
+        logDebug(`Capability code cached for sandbox: ${namespace}`);
+      } else {
+        // Legacy: direct import (not sandboxed)
+        const { module: loadedModule } = await loadCapabilityModule(metadata.codeUrl);
+        module = loadedModule;
+      }
+    } else if (metadata.type === "stdio") {
+      // Stdio types are executed via subprocess - no code to load
+      logDebug(`Stdio capability registered: ${namespace} (subprocess)`);
     } else {
-      // Legacy: direct import (not sandboxed)
-      const { module: loadedModule } = await loadCapabilityModule(metadata.codeUrl);
-      module = loadedModule;
+      // http types should never reach here (server-routed)
+      logDebug(`HTTP capability registered: ${namespace} (should be server-routed)`);
     }
 
-    // 4. Create loaded capability with mcp.* routing
+    // 4. For client-routed stdio types, build the dependency object for approval/install checks
+    // All client-routed tools need local installation. For stdio, the MCP itself must be installed.
+    // For deno, mcpDeps are already checked via ensureDependencies() above.
+    let stdioDep: McpDependency | null = null;
+    if (metadata.routing === "client" && metadata.type === "stdio" && metadata.install) {
+      stdioDep = {
+        name: namespace.split(":")[0],
+        type: "stdio" as const,
+        install: `${metadata.install.command} ${metadata.install.args.join(" ")}`,
+        version: "latest",
+        integrity: metadata.integrity ?? "",
+        command: metadata.install.command,
+        args: metadata.install.args,
+      };
+
+      // Check if this stdio MCP needs approval to install
+      // Skip if continueWorkflow.approved (user already approved)
+      if (!continueWorkflow?.approved) {
+        const stdioApproval = await this.ensureDependency(stdioDep, false);
+        if (stdioApproval) {
+          logDebug(`Stdio MCP ${namespace} requires approval to install`);
+          return stdioApproval;
+        }
+      } else {
+        // User approved - ensure it's installed
+        await this.ensureDependency(stdioDep, true);
+      }
+    }
+
+    // 5. Create loaded capability with mcp.* routing
     const loaded: LoadedCapability = {
       meta: metadata,
-      module: module ?? {}, // Empty module for sandboxed - code runs in Worker
+      module: module ?? {}, // Empty module for sandboxed/stdio - code runs elsewhere
       call: async (method: string, args: unknown) => {
-        if (this.sandboxEnabled && code) {
+        if (metadata.type === "stdio") {
+          if (!stdioDep) {
+            throw new LoaderError(
+              "SUBPROCESS_SPAWN_FAILED",
+              `Stdio capability ${namespace} missing install info`,
+              { namespace },
+            );
+          }
+
+          return this.callStdio(stdioDep, namespace.split(":")[0], method, args);
+        } else if (this.sandboxEnabled && code) {
           return this.executeInSandbox(metadata, code, method, args);
         } else if (module) {
           return this.executeWithMcpRouting(metadata, module, method, args);

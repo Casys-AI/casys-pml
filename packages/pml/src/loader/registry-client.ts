@@ -83,18 +83,21 @@ function validateMetadata(data: unknown): CapabilityMetadata {
     );
   }
 
-  if (obj.type !== "deno") {
+  // Accept deno, stdio, http types
+  const validTypes = ["deno", "stdio", "http"];
+  if (!validTypes.includes(obj.type as string)) {
     throw new LoaderError(
       "METADATA_PARSE_ERROR",
-      `Invalid type: expected "deno", got "${obj.type}"`,
+      `Invalid type: expected one of ${validTypes.join(", ")}, got "${obj.type}"`,
       { data },
     );
   }
 
-  if (typeof obj.codeUrl !== "string" || !obj.codeUrl) {
+  // codeUrl required only for deno type
+  if (obj.type === "deno" && (typeof obj.codeUrl !== "string" || !obj.codeUrl)) {
     throw new LoaderError(
       "METADATA_PARSE_ERROR",
-      "Missing required field: codeUrl",
+      "Missing required field: codeUrl (required for deno type)",
       { data },
     );
   }
@@ -107,7 +110,9 @@ function validateMetadata(data: unknown): CapabilityMetadata {
     );
   }
 
-  if (obj.routing !== "client" && obj.routing !== "server") {
+  // Normalize routing: "local" → "client" for backwards compat
+  const routing = obj.routing === "local" ? "client" : obj.routing;
+  if (routing !== "client" && routing !== "server") {
     throw new LoaderError(
       "METADATA_PARSE_ERROR",
       `Invalid routing: expected "client" or "server", got "${obj.routing}"`,
@@ -179,15 +184,17 @@ function validateMetadata(data: unknown): CapabilityMetadata {
 
   return {
     fqdn: obj.fqdn,
-    type: "deno",
-    codeUrl: obj.codeUrl,
+    type: obj.type as "deno" | "stdio" | "http",
+    codeUrl: obj.codeUrl as string | undefined,
     description: typeof obj.description === "string"
       ? obj.description
       : undefined,
     tools: obj.tools as string[],
-    routing: obj.routing,
+    routing: routing as "client" | "server",
     mcpDeps: obj.mcpDeps as CapabilityMetadata["mcpDeps"],
     integrity: typeof obj.integrity === "string" ? obj.integrity : undefined,
+    // Include install info for stdio/http types
+    install: obj.install as CapabilityMetadata["install"],
   };
 }
 
@@ -401,8 +408,9 @@ export class RegistryClient {
     // Falls back to empty string if not provided (will trigger new entry creation)
     const serverIntegrity = metadata.integrity ?? "";
 
-    // Determine MCP type (currently only "deno" supported)
-    const mcpType = "deno" as const;
+    // Determine MCP type for lockfile (only client-routed types: deno, stdio)
+    // http types are server-routed and never reach this code path
+    const mcpType = metadata.type === "http" ? "deno" : metadata.type;
 
     // Validate against lockfile
     const validation = await lockfileManager.validateIntegrity(
@@ -448,7 +456,8 @@ export class RegistryClient {
 
     // Use integrity from registry response
     const serverIntegrity = metadata.integrity ?? "";
-    const mcpType = "deno" as const;
+    // http types are server-routed and never reach this code path
+    const mcpType = metadata.type === "http" ? "deno" : metadata.type;
 
     // Update lockfile with new integrity
     await lockfileManager.approveIntegrityChange(
