@@ -22,6 +22,7 @@ import type {
   McpListOptions,
   McpRegistryEntry,
   McpRouting,
+  McpType,
   PmlRegistryRow,
   ServerConnectionInfo,
 } from "./types.ts";
@@ -33,6 +34,29 @@ import {
   deriveMcpType,
   extractShortHash,
 } from "./hash-utils.ts";
+
+// Cached server config from .mcp-servers.json
+let cachedServerConfig: Record<string, ServerConnectionInfo> | null = null;
+
+/**
+ * Load MCP server config from config/.mcp-servers.json
+ */
+async function loadServerConfigFromFile(): Promise<Record<string, ServerConnectionInfo>> {
+  if (cachedServerConfig !== null) return cachedServerConfig;
+
+  try {
+    const content = await Deno.readTextFile("config/.mcp-servers.json");
+    const parsed = JSON.parse(content);
+    // Handle { mcpServers: { ... } } format
+    cachedServerConfig = parsed.mcpServers || parsed;
+    log.debug("[McpRegistry] Loaded server config from config/.mcp-servers.json");
+  } catch {
+    log.debug("[McpRegistry] No .mcp-servers.json found");
+    cachedServerConfig = {};
+  }
+
+  return cachedServerConfig!;
+}
 
 /**
  * MCP Registry Service
@@ -197,15 +221,23 @@ export class McpRegistryService {
       return null;
     }
 
-    // For capabilities: fetch from code_url
-    if (entry.codeUrl) {
+    // For capabilities: get code_snippet from workflow_pattern via capability_records
+    if (entry.recordType === "capability") {
       try {
-        const response = await fetch(entry.codeUrl);
-        if (response.ok) {
-          return await response.text();
+        const result = await this.db.query(
+          `SELECT wp.code_snippet
+           FROM capability_records cr
+           JOIN workflow_pattern wp ON cr.workflow_pattern_id = wp.pattern_id
+           WHERE cr.namespace = $1 AND cr.action = $2
+           LIMIT 1`,
+          [fqdn.split(".")[2], fqdn.split(".")[3]?.split(".")[0]], // namespace, action from FQDN
+        );
+
+        if (result.length > 0 && result[0].code_snippet) {
+          return result[0].code_snippet as string;
         }
       } catch (e) {
-        log.warn(`[McpRegistry] Failed to fetch code from ${entry.codeUrl}: ${e}`);
+        log.warn(`[McpRegistry] Failed to get code for ${fqdn}: ${e}`);
       }
     }
 
@@ -242,14 +274,14 @@ export class McpRegistryService {
       if (capResult.length > 0) {
         row = capResult[0] as unknown as PmlRegistryRow;
       } else {
-        // Try MCP tool lookup by name pattern
-        // Format: "server:tool" where server = parts.project, tool = parts.action
-        const toolName = `${parts.namespace}:${parts.action}`;
+        // Try MCP tool lookup by server_id + name
+        // DB: server_id = "filesystem", name = "read_file"
+        // FQDN pml.mcp.filesystem.read_file → namespace=filesystem, action=read_file
         const toolResult = await this.db.query(
           `SELECT * FROM pml_registry
-           WHERE name = $1 OR name = $2
+           WHERE server_id = $1 AND name = $2
            LIMIT 1`,
-          [toolName, `${parts.project}:${parts.action}`],
+          [parts.namespace, parts.action],
         );
 
         if (toolResult.length > 0) {
@@ -273,11 +305,18 @@ export class McpRegistryService {
    */
   private async enrichRow(row: PmlRegistryRow): Promise<McpRegistryEntry | null> {
     try {
-      // Get server connection info
+      // Get server connection info from config file
       const config = await this.getServerConfig(row.server_id);
 
-      // Derive type from config
-      const type = deriveMcpType(config);
+      // Derive type from config or row
+      let type: McpType;
+      if (config) {
+        type = deriveMcpType(config);
+      } else if (row.record_type === "capability" || row.server_id === "std") {
+        type = "deno"; // Capabilities and MiniTools are built-in
+      } else {
+        type = "stdio"; // Default for unknown external servers
+      }
 
       // Derive routing (from row or default based on type)
       const routing: McpRouting = (row.routing as McpRouting) || (type === "http" ? "server" : "client");
@@ -355,24 +394,12 @@ export class McpRegistryService {
   }
 
   /**
-   * Get server connection info from mcp_server table.
+   * Get server connection info from config/.mcp-servers.json
    */
   private async getServerConfig(serverId: string | null): Promise<ServerConnectionInfo | null> {
     if (!serverId) return null;
 
-    try {
-      const result = await this.db.query(
-        `SELECT connection_info FROM mcp_server WHERE server_id = $1 LIMIT 1`,
-        [serverId],
-      );
-
-      if (result.length > 0 && result[0].connection_info) {
-        return result[0].connection_info as ServerConnectionInfo;
-      }
-    } catch (e) {
-      log.debug(`[McpRegistry] Error fetching server config for ${serverId}: ${e}`);
-    }
-
-    return null;
+    const configs = await loadServerConfigFromFile();
+    return configs[serverId] || null;
   }
 }

@@ -11,19 +11,19 @@ import { LoaderError } from "../src/loader/types.ts";
 Deno.test("toolNameToFqdn - converts colon format to FQDN", () => {
   assertEquals(
     toolNameToFqdn("filesystem:read_file"),
-    "casys.pml.filesystem.read_file",
+    "pml.mcp.filesystem.read_file",
   );
 });
 
 Deno.test("toolNameToFqdn - preserves existing FQDN", () => {
   assertEquals(
-    toolNameToFqdn("casys.pml.filesystem.read_file"),
-    "casys.pml.filesystem.read_file",
+    toolNameToFqdn("pml.mcp.filesystem.read_file"),
+    "pml.mcp.filesystem.read_file",
   );
 });
 
 Deno.test("toolNameToFqdn - handles simple namespace", () => {
-  assertEquals(toolNameToFqdn("memory:create"), "casys.pml.memory.create");
+  assertEquals(toolNameToFqdn("memory:create"), "pml.mcp.memory.create");
 });
 
 Deno.test("RegistryClient - creates with default timeout", () => {

@@ -39,10 +39,10 @@ interface CacheEntry {
  * Convert tool name to FQDN format.
  *
  * Tool names use colon (e.g., "filesystem:read_file")
- * FQDNs use dots (e.g., "casys.pml.filesystem.read_file")
+ * FQDNs use dots (e.g., "pml.mcp.filesystem.read_file")
  *
  * @param toolName - Tool name in colon format
- * @returns FQDN in dot format
+ * @returns FQDN in dot format (4-part without hash)
  */
 export function toolNameToFqdn(toolName: string): string {
   // Already a FQDN (has multiple dots)
@@ -50,9 +50,10 @@ export function toolNameToFqdn(toolName: string): string {
     return toolName;
   }
 
-  // Convert colon to dot and prefix with casys.pml
+  // Convert colon to dot and prefix with pml.mcp
+  // Server uses: org=pml, project=mcp for MCP tools
   const normalized = toolName.replace(/:/g, ".");
-  return `casys.pml.${normalized}`;
+  return `pml.mcp.${normalized}`;
 }
 
 /**
@@ -199,12 +200,14 @@ export class RegistryClient {
   private readonly cloudUrl: string;
   private readonly timeout: number;
   private readonly maxCacheSize: number;
+  private readonly apiKey?: string;
   private readonly cache = new Map<string, CacheEntry>();
 
   constructor(options: RegistryClientOptions & { maxCacheSize?: number }) {
     this.cloudUrl = options.cloudUrl.replace(/\/$/, ""); // Remove trailing slash
     this.timeout = options.timeout ?? DEFAULT_TIMEOUT_MS;
     this.maxCacheSize = options.maxCacheSize ?? DEFAULT_MAX_CACHE_SIZE;
+    this.apiKey = options.apiKey ?? Deno.env.get("PML_API_KEY");
   }
 
   /**
@@ -253,17 +256,22 @@ export class RegistryClient {
     }
 
     // Fetch from registry
-    const url = `${this.cloudUrl}/mcp/${fqdn}`;
+    const url = `${this.cloudUrl}/api/registry/${fqdn}`;
 
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
+      const headers: Record<string, string> = {
+        "Accept": "application/json",
+      };
+      if (this.apiKey) {
+        headers["x-api-key"] = this.apiKey;
+      }
+
       const response = await fetch(url, {
         method: "GET",
-        headers: {
-          "Accept": "application/json",
-        },
+        headers,
         signal: controller.signal,
       });
 
