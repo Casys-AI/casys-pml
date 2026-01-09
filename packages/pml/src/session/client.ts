@@ -51,8 +51,9 @@ export interface SessionClientOptions {
 
 /**
  * Persistent client ID storage path.
+ * Stored in .pml/ folder alongside lockfile and deps.
  */
-const CLIENT_ID_FILE = ".pml-client-id";
+const CLIENT_ID_FILE = ".pml/client-id";
 
 /**
  * Default fetch timeout in milliseconds.
@@ -71,6 +72,7 @@ function createTimeoutSignal(ms: number): AbortSignal {
  */
 async function getOrCreateClientId(workspace: string): Promise<string> {
   const { join } = await import("@std/path");
+  const { ensureDir } = await import("@std/fs");
   const clientIdPath = join(workspace, CLIENT_ID_FILE);
 
   try {
@@ -84,6 +86,8 @@ async function getOrCreateClientId(workspace: string): Promise<string> {
 
   const newId = crypto.randomUUID();
   try {
+    // Ensure .pml directory exists
+    await ensureDir(join(workspace, ".pml"));
     await Deno.writeTextFile(clientIdPath, newId);
   } catch {
     // Couldn't persist, that's OK

@@ -29,9 +29,17 @@ import {
   type IntegrityApprovalRequired,
   LockfileManager,
 } from "../loader/mod.ts";
+import { SandboxExecutor } from "../execution/mod.ts";
+import { SessionClient } from "../session/mod.ts";
 import { exists } from "@std/fs";
 import { join } from "@std/path";
 import { reloadEnv } from "../byok/env-loader.ts";
+
+/** Package version for registration */
+const PACKAGE_VERSION = "0.2.0";
+
+/** Active session client (initialized at startup) */
+let sessionClient: SessionClient | null = null;
 
 const PML_CONFIG_FILE = ".pml.json";
 
@@ -311,26 +319,34 @@ function extractContinueWorkflow(
  *
  * Both pml_discover and pml_execute are handled by the cloud server
  * which has SHGAT, GraphRAG, and full execution infrastructure.
+ *
+ * Uses session header if registered, otherwise falls back to x-api-key detection.
+ *
+ * Returns the parsed JSON response for further processing.
  */
 async function forwardToCloud(
   id: string | number,
   toolName: string,
   args: Record<string, unknown>,
   cloudUrl: string,
-): Promise<void> {
+): Promise<{ ok: boolean; response?: unknown; error?: string }> {
   const apiKey = Deno.env.get("PML_API_KEY");
   if (!apiKey) {
-    sendError(id, -32603, "PML_API_KEY required");
-    return;
+    return { ok: false, error: "PML_API_KEY required" };
   }
+
+  // Build headers - use session header if registered
+  const headers: Record<string, string> = sessionClient?.isRegistered
+    ? sessionClient.getHeaders()
+    : {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+      };
 
   try {
     const response = await fetch(`${cloudUrl}/mcp`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-      },
+      headers,
       body: JSON.stringify({
         jsonrpc: "2.0",
         id,
@@ -340,15 +356,138 @@ async function forwardToCloud(
     });
 
     if (!response.ok) {
-      sendError(id, -32603, `Cloud error: ${response.status} ${response.statusText}`);
-      return;
+      return { ok: false, error: `Cloud error: ${response.status} ${response.statusText}` };
     }
 
     const result = await response.json();
-    sendResponse(result);
+    return { ok: true, response: result };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    sendError(id, -32603, `Cloud unreachable: ${message}`);
+    return { ok: false, error: `Cloud unreachable: ${message}` };
+  }
+}
+
+/**
+ * Result of local code execution.
+ *
+ * Can be:
+ * - Success with result
+ * - Error with message
+ * - Approval required (HIL pause for dependency/API key/integrity)
+ */
+type LocalExecutionResult =
+  | { status: "success"; result: unknown }
+  | { status: "error"; error: string }
+  | { status: "approval_required"; approval: ApprovalRequiredResult | IntegrityApprovalRequired; toolId: string };
+
+/**
+ * Execute code locally via SandboxExecutor (hybrid routing).
+ *
+ * Called when server returns execute_locally response.
+ *
+ * @param code - Code to execute in sandbox
+ * @param loader - CapabilityLoader for client tool routing
+ * @param cloudUrl - Cloud URL for server tool routing
+ * @param continueWorkflow - Optional: approval from previous HIL pause
+ * @returns Execution result, error, or approval_required for HIL
+ */
+async function executeLocalCode(
+  code: string,
+  loader: CapabilityLoader | null,
+  cloudUrl: string,
+  continueWorkflow?: ContinueWorkflowParams,
+): Promise<LocalExecutionResult> {
+  const apiKey = Deno.env.get("PML_API_KEY");
+
+  const executor = new SandboxExecutor({
+    cloudUrl,
+    apiKey,
+  });
+
+  // Track if we hit an approval_required during execution
+  // Use object wrapper to allow mutation tracking from closure
+  type PendingApprovalType = { approval: ApprovalRequiredResult | IntegrityApprovalRequired; toolId: string };
+  const state: { pendingApproval: PendingApprovalType | null } = { pendingApproval: null };
+
+  try {
+    const result = await executor.execute(
+      code,
+      {},
+      // Client tool handler - routes through CapabilityLoader
+      async (toolId: string, args: unknown) => {
+        if (!loader) {
+          throw new Error("Capability loader not initialized for client tools");
+        }
+        logDebug(`Local tool call: ${toolId}${continueWorkflow ? " (with continue_workflow)" : ""}`);
+        // Pass continueWorkflow to loader.call() for approval flow
+        const callResult = await loader.call(toolId, args, continueWorkflow);
+
+        // Check if it's an approval_required response (HIL pause)
+        if (CapabilityLoader.isApprovalRequired(callResult)) {
+          logDebug(`Tool ${toolId} requires approval - pausing for HIL`);
+          // Store the approval and throw to stop sandbox execution
+          state.pendingApproval = { approval: callResult, toolId };
+          throw new Error(`__APPROVAL_REQUIRED__:${toolId}`);
+        }
+
+        return callResult;
+      },
+    );
+
+    if (!result.success) {
+      // Check if the error was our approval marker
+      if (state.pendingApproval && result.error?.message?.startsWith("__APPROVAL_REQUIRED__:")) {
+        return {
+          status: "approval_required",
+          approval: state.pendingApproval.approval,
+          toolId: state.pendingApproval.toolId,
+        };
+      }
+
+      return {
+        status: "error",
+        error: result.error?.message ?? "Sandbox execution failed",
+      };
+    }
+
+    return {
+      status: "success",
+      result: result.value,
+    };
+  } catch (error) {
+    // Check if this was an approval_required that bubbled up
+    if (state.pendingApproval) {
+      return {
+        status: "approval_required",
+        approval: state.pendingApproval.approval,
+        toolId: state.pendingApproval.toolId,
+      };
+    }
+
+    return {
+      status: "error",
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+/**
+ * Parse execute_locally response from server.
+ *
+ * @param content - Text content from MCP response
+ * @returns Parsed execute_locally data or null if not execute_locally
+ */
+function parseExecuteLocallyResponse(
+  content: string,
+): { status: string; code: string; client_tools: string[] } | null {
+  try {
+    const parsed = JSON.parse(content);
+    if (parsed.status === "execute_locally" && parsed.code) {
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
   }
 }
 
@@ -363,9 +502,113 @@ async function handleToolsCall(
 ): Promise<void> {
   const { name, arguments: args } = params;
 
-  // Handle PML base tools - forward to cloud
-  if (name === "pml:discover" || name === "pml:execute") {
-    await forwardToCloud(id, name, args || {}, cloudUrl);
+  // Handle pml:discover - always forward to cloud
+  if (name === "pml:discover") {
+    const cloudResult = await forwardToCloud(id, name, args || {}, cloudUrl);
+    if (!cloudResult.ok) {
+      sendError(id, -32603, cloudResult.error ?? "Cloud call failed");
+      return;
+    }
+    sendResponse(cloudResult.response);
+    return;
+  }
+
+  // Handle pml:execute with hybrid routing support
+  if (name === "pml:execute") {
+    // Extract continue_workflow for HIL approval flow
+    const { continueWorkflow: execContinueWorkflow, cleanArgs: execCleanArgs } =
+      extractContinueWorkflow(args);
+
+    if (execContinueWorkflow) {
+      logDebug(`pml:execute with continue_workflow: approved=${execContinueWorkflow.approved}`);
+    }
+
+    const cloudResult = await forwardToCloud(id, name, execCleanArgs || {}, cloudUrl);
+
+    if (!cloudResult.ok) {
+      sendError(id, -32603, cloudResult.error ?? "Cloud call failed");
+      return;
+    }
+
+    // Check if server returned execute_locally
+    const response = cloudResult.response as {
+      result?: { content?: Array<{ type: string; text: string }> };
+    };
+    const content = response?.result?.content?.[0]?.text;
+
+    if (content) {
+      const executeLocally = parseExecuteLocallyResponse(content);
+
+      if (executeLocally) {
+        // Server says execute locally - code contains client tools
+        logDebug(
+          `execute_locally received - client tools: ${executeLocally.client_tools.join(", ")}`,
+        );
+
+        const localResult = await executeLocalCode(
+          executeLocally.code,
+          loader,
+          cloudUrl,
+          execContinueWorkflow, // Pass continue_workflow for HIL approval
+        );
+
+        // Handle approval_required (HIL pause for dependency/API key/integrity)
+        if (localResult.status === "approval_required") {
+          logDebug(
+            `Local execution paused - tool ${localResult.toolId} requires approval`,
+          );
+          sendResponse({
+            jsonrpc: "2.0",
+            id,
+            result: formatApprovalRequired(localResult.toolId, localResult.approval),
+          });
+          return;
+        }
+
+        // Handle error
+        if (localResult.status === "error") {
+          sendResponse({
+            jsonrpc: "2.0",
+            id,
+            result: {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify({
+                    status: "error",
+                    error: localResult.error,
+                    executed_locally: true,
+                  }, null, 2),
+                },
+              ],
+            },
+          });
+          return;
+        }
+
+        // Return successful local execution result
+        sendResponse({
+          jsonrpc: "2.0",
+          id,
+          result: {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  status: "success",
+                  result: localResult.result,
+                  executed_locally: true,
+                }, null, 2),
+              },
+            ],
+          },
+        });
+        return;
+      }
+    }
+
+    // Not execute_locally - return server response as-is
+    sendResponse(cloudResult.response);
     return;
   }
 
@@ -646,12 +889,29 @@ export function createStdioCommand(): Command<any> {
       );
 
       // Step 4: Sync routing config from cloud
-      const cloudUrl = config.cloud?.url ?? "https://pml.casys.ai";
+      // Env var override for testing/development
+      const cloudUrl = Deno.env.get("PML_CLOUD_URL") ?? config.cloud?.url ?? "https://pml.casys.ai";
       const { config: routingConfig } = await syncRoutingConfig(
         cloudUrl,
         silentLogger,
       );
       initializeRouting(routingConfig);
+
+      // Step 5: Register session with server (handshake)
+      try {
+        sessionClient = new SessionClient({
+          cloudUrl,
+          apiKey,
+          version: PACKAGE_VERSION,
+          workspace,
+        });
+        await sessionClient.register();
+        logDebug(`Session registered: ${sessionClient.sessionId?.slice(0, 8)}`);
+      } catch (error) {
+        // Registration failure is not fatal - fallback to x-api-key detection
+        logDebug(`Session registration failed (non-fatal): ${error}`);
+        sessionClient = null;
+      }
 
       logDebug(
         `Workspace: ${workspace} (${
@@ -669,8 +929,8 @@ export function createStdioCommand(): Command<any> {
       // Note: HIL (approval_required) is handled via MCP response, not callback
       let loader: CapabilityLoader | null = null;
       try {
-        // Story 14.7: Initialize lockfile manager for integrity validation
-        const lockfileManager = new LockfileManager();
+        // Story 14.7: Initialize lockfile manager for integrity validation (per-project)
+        const lockfileManager = new LockfileManager({ workspace });
         await lockfileManager.load(); // Create/load lockfile
 
         loader = await CapabilityLoader.create({
@@ -685,12 +945,17 @@ export function createStdioCommand(): Command<any> {
         // Continue without loader - server-side calls will still work
       }
 
-      // Step 6: Start stdio loop
+      // Step 7: Start stdio loop
       try {
         await runStdioLoop(loader, cloudUrl);
       } finally {
         // Cleanup on exit
         loader?.shutdown();
+        // Graceful session unregister
+        if (sessionClient) {
+          await sessionClient.shutdown();
+          logDebug("Session unregistered");
+        }
       }
     });
 }

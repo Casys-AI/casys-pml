@@ -151,8 +151,8 @@ export function createServeCommand(): Command<any> {
       console.log(colors.dim("Initializing capability loader..."));
       let loader: CapabilityLoader | null = null;
       try {
-        // Story 14.7: Initialize lockfile manager for integrity validation
-        const lockfileManager = new LockfileManager();
+        // Story 14.7: Initialize lockfile manager for integrity validation (per-project)
+        const lockfileManager = new LockfileManager({ workspace });
         await lockfileManager.load();
 
         loader = await CapabilityLoader.create({
