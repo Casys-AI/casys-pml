@@ -35,15 +35,15 @@ jobs:
 
       - name: Sync lib/ folder
         run: |
-          # Clean EVERYTHING in public repo (except .git)
-          cd public-repo
-          find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
-          cd ..
+          # Only remove lib/ related files (preserve .github, etc.)
+          rm -rf public-repo/std/
+          rm -rf public-repo/mcp-tools.ts
+          rm -rf public-repo/mcp-tools-server.ts
 
-          # Copy entire lib/ contents to root of public repo
+          # Copy lib/ contents to root of public repo
           cp -r lib/* public-repo/
 
-          # Add LICENSE at root
+          # Update LICENSE and README
           cp LICENSE public-repo/LICENSE
 
       - name: Commit and push to public
