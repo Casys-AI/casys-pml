@@ -40,42 +40,10 @@ jobs:
           find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
           cd ..
 
-          # Copy only lib/std/ as std/
-          cp -r lib/std/ public-repo/std/
+          # Copy lib/std/ contents to root (not as std/ subfolder)
+          cp -r lib/std/* public-repo/
 
-          # Copy LICENSE
-          cp LICENSE public-repo/LICENSE
-
-          # Create minimal README for public repo
-          cat > public-repo/README.md << 'EOF'
-# PML Standard Library
-
-MCP-compatible utility tools (~318 tools across 21 categories).
-
-## Installation
-
-```typescript
-import { tools } from "jsr:@casys/pml-std";
-```
-
-## Categories
-
-| Category | Examples |
-|----------|----------|
-| text | split, join, regex, case, template, slugify |
-| format | yaml, json, toml, markdown, csv, sql |
-| crypto | hash, uuid, base64, jwt, hmac, totp |
-| math | calculate, convert, statistics |
-| datetime | parse, format, timezone, cron |
-| network | dns, ip, url, http |
-| docker | build, run, compose, logs |
-| git | status, diff, log, branch |
-| ... | and many more |
-
-## License
-
-MIT - See LICENSE
-EOF
+          # README.md and LICENSE are already in lib/std/
 
       - name: Commit and push to public
         run: |
