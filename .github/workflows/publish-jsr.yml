@@ -1,0 +1,44 @@
+name: Publish to JSR
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  publish-pml:
+    name: Publish @casys/pml
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Publish to JSR
+        working-directory: packages/pml
+        run: deno publish --allow-dirty
+
+  publish-mcp-std:
+    name: Publish @casys/mcp-std
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Publish to JSR
+        working-directory: lib
+        run: deno publish --allow-dirty
