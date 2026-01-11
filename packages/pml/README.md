@@ -1,9 +1,26 @@
-# @casys/pml
+# PML CLI
 
 Lightweight CLI for [PML (Procedural Memory Layer)](https://pml.casys.ai) -
 intelligent MCP orchestration with learning capabilities.
 
 ## Installation
+
+### Quick Install (Linux/macOS)
+
+```bash
+curl -fsSL https://github.com/Casys-AI/casys-pml/releases/latest/download/install.sh | sh
+```
+
+### Manual Download
+
+Download the binary for your platform from [Releases](https://github.com/Casys-AI/casys-pml/releases):
+
+- **Linux x64**: `pml-linux-x64`
+- **macOS Intel**: `pml-macos-x64`
+- **macOS Apple Silicon**: `pml-macos-arm64`
+- **Windows**: `pml-windows-x64.exe`
+
+### From Source (Deno)
 
 ```bash
 deno install -A -n pml jsr:@casys/pml
@@ -44,6 +61,16 @@ Start the PML MCP HTTP server.
 ```bash
 pml serve                   # Start with config defaults
 pml serve --port 3003       # Custom port
+```
+
+### `pml upgrade`
+
+Self-update PML to the latest version.
+
+```bash
+pml upgrade                 # Upgrade to latest
+pml upgrade --check         # Check for updates without installing
+pml upgrade --force         # Force reinstall current version
 ```
 
 ### `pml --version`
