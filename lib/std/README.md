@@ -8,13 +8,13 @@ The official MCP-compatible utility library for [PML](https://pml.casys.ai) - Pr
 
 - **Website:** https://pml.casys.ai
 - **Documentation:** https://docs.pml.casys.ai
-- **GitHub:** https://github.com/Casys-AI/casys-pml
-- **CLI Download:** https://github.com/Casys-AI/casys-pml/releases
+- **GitHub:** https://github.com/Casys-AI/pml-std
+- **CLI Download:** https://github.com/Casys-AI/pml-std/releases
 
 ## Quick Install
 
 ```bash
-curl -fsSL https://github.com/Casys-AI/casys-pml/releases/latest/download/install.sh | sh
+curl -fsSL https://github.com/Casys-AI/pml-std/releases/latest/download/install.sh | sh
 ```
 
 ## Categories

@@ -29,7 +29,7 @@ jobs:
 
       - name: Clone public repo
         run: |
-          git clone https://x-access-token:${{ secrets.PUBLIC_REPO_PAT }}@github.com/Casys-AI/casys-pml.git public-repo
+          git clone https://x-access-token:${{ secrets.PUBLIC_REPO_PAT }}@github.com/Casys-AI/pml-std.git public-repo
           cd public-repo
           git checkout main || git checkout -b main
 
