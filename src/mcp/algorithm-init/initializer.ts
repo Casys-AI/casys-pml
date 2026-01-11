@@ -749,7 +749,7 @@ export class AlgorithmInitializer {
       const result = await spawnSHGATTraining({
         capabilities: capsForWorker,
         examples,
-        epochs: 20,
+        epochs: 40,
         batchSize: 32,
         additionalTools, // Tools from examples not in any capability
       });

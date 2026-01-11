@@ -304,7 +304,7 @@ async function main() {
       // Update priorities based on TD errors from this epoch
       perBuffer.updatePriorities(allIndices, allTdErrors);
       // Decay priorities toward mean (prevents starvation of easy examples, allows high priorities to decrease)
-      perBuffer.decayPriorities(0.9);
+      perBuffer.decayPriorities(0.95);
       const stats = perBuffer.getStats();
 
       finalLoss = epochLoss / epochBatches;

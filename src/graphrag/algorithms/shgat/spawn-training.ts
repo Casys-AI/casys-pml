@@ -74,7 +74,7 @@ export async function spawnSHGATTraining(
     capabilities: input.capabilities,
     examples: input.examples,
     config: {
-      epochs: input.epochs ?? 20,
+      epochs: input.epochs ?? 40,
       batchSize: input.batchSize ?? 32,
     },
     existingParams: input.existingParams,

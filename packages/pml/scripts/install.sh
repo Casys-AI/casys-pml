@@ -8,7 +8,7 @@
 set -e
 
 # Configuration - Public repo for releases
-GITHUB_REPO="Casys-AI/pml-std"
+GITHUB_REPO="Casys-AI/mcp-std"
 INSTALL_DIR="$HOME/.pml/bin"
 BINARY_NAME="pml"
 
