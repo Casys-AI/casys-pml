@@ -231,12 +231,14 @@ export class AlgorithmFactory {
    * @param tools Tool nodes to register
    * @param capabilities Capability nodes with members
    * @param cooccurrences Optional co-occurrence data for sequence edges
+   * @param providesEdges Optional provides edges (tool_A.output → tool_B.input)
    * @returns DR-DSP instance with aligned model
    */
   static createDRDSPAligned(
     tools: AlignedToolInput[],
     capabilities: AlgorithmCapabilityInput[],
     cooccurrences?: Array<{ from: string; to: string; weight: number }>,
+    providesEdges?: Array<{ from: string; to: string; type: "provides"; weight: number }>,
   ): DRDSP {
     const drdsp = buildDRDSPAligned(
       tools,
@@ -250,11 +252,13 @@ export class AlgorithmFactory {
         embedding: cap.embedding,
       })),
       cooccurrences,
+      providesEdges,
     );
 
     const stats = drdsp.getStats();
     log.info(
-      `[AlgorithmFactory] DR-DSP (aligned) initialized: ${stats.nodeCount} nodes, ${stats.hyperedgeCount} hyperedges`,
+      `[AlgorithmFactory] DR-DSP (aligned) initialized: ${stats.nodeCount} nodes, ${stats.hyperedgeCount} hyperedges` +
+      (providesEdges ? `, ${providesEdges.length} provides edges` : ""),
     );
     return drdsp;
   }
@@ -266,11 +270,13 @@ export class AlgorithmFactory {
    *
    * @param capabilities Capabilities with embeddings
    * @param options SHGAT options
+   * @param providesEdges Optional provides edges (tool→tool or cap→cap)
    * @returns Both algorithm instances
    */
   static async createBoth(
     capabilities: AlgorithmCapabilityInput[],
     options: SHGATFactoryOptions = {},
+    providesEdges?: Array<{ from: string; to: string; type: "provides"; weight: number }>,
   ): Promise<{
     shgat: SHGATFactoryResult;
     drdsp: DRDSP;
@@ -313,7 +319,7 @@ export class AlgorithmFactory {
 
     const [shgatResult, drdsp] = await Promise.all([
       this.createSHGAT(capabilities, options),
-      Promise.resolve(this.createDRDSPAligned(tools, capabilities, cooccurrences)),
+      Promise.resolve(this.createDRDSPAligned(tools, capabilities, cooccurrences, providesEdges)),
     ]);
 
     return {

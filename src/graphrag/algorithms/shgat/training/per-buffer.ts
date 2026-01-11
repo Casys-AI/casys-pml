@@ -116,8 +116,15 @@ export class PERBuffer<T> {
     for (let i = 0; i < indices.length; i++) {
       const idx = indices[i];
       const tdError = Math.abs(tdErrors[i]);
-      // Priority = |TD error| + ε, clamped to max
-      this.priorities[idx] = Math.min(tdError + epsilon, maxPriority);
+      const newPriority = Math.min(tdError + epsilon, maxPriority);
+
+      if (newPriority > this.priorities[idx]) {
+        // Hard example → direct growth (allows high end to increase)
+        this.priorities[idx] = newPriority;
+      } else {
+        // Easy example → gradual decay (prevents brutal drops)
+        this.priorities[idx] = 0.7 * this.priorities[idx] + 0.3 * newPriority;
+      }
     }
 
     // Update max priority for future new examples
@@ -142,16 +149,19 @@ export class PERBuffer<T> {
 
   /**
    * Decay priorities toward mean to prevent starvation.
-   * Call once per epoch to ensure "easy" examples get re-evaluated periodically.
+   * Only decays priorities ABOVE mean (high priorities can't stay forever).
+   * Priorities below mean stay low (easy examples remain easy).
    *
-   * p_i = p_i * decay + mean * (1 - decay)
-   *
-   * @param decay Decay factor (0.9 = slow decay, 0.5 = fast decay). Default: 0.95
+   * @param decay Decay factor (0.9 = slow decay, 0.5 = fast decay). Default: 0.9
    */
-  decayPriorities(decay: number = 0.95): void {
+  decayPriorities(decay: number = 0.9): void {
     const mean = this.priorities.reduce((a, b) => a + b, 0) / this.priorities.length;
     for (let i = 0; i < this.priorities.length; i++) {
-      this.priorities[i] = this.priorities[i] * decay + mean * (1 - decay);
+      if (this.priorities[i] > mean) {
+        // Decay only above-mean (prevents high priorities from staying forever)
+        this.priorities[i] = this.priorities[i] * decay + mean * (1 - decay);
+      }
+      // Below mean: no decay (easy examples stay low, maintaining range)
     }
   }
 

@@ -31,6 +31,7 @@ import {
 } from "../loader/mod.ts";
 import { SandboxExecutor } from "../execution/mod.ts";
 import { SessionClient } from "../session/mod.ts";
+import { PendingWorkflowStore } from "../workflow/mod.ts";
 import { exists } from "@std/fs";
 import { join } from "@std/path";
 import { reloadEnv } from "../byok/env-loader.ts";
@@ -40,6 +41,9 @@ const PACKAGE_VERSION = "0.2.0";
 
 /** Active session client (initialized at startup) */
 let sessionClient: SessionClient | null = null;
+
+/** Pending workflow store for local approval flows (Story 14.4) */
+const pendingWorkflowStore = new PendingWorkflowStore();
 
 const PML_CONFIG_FILE = ".pml.json";
 
@@ -191,23 +195,34 @@ function handleToolsList(id: string | number): void {
  * Format approval_required MCP response.
  *
  * Uses the same pattern as main codebase (src/mcp/server/responses.ts).
- * Stateless: No workflow state stored - capability metadata contains all info.
  *
+ * For dependency approvals, stores the workflow in pendingWorkflowStore
+ * so we can retrieve the code when continue_workflow arrives.
+ *
+ * Story 14.4: Dependency installation with stateful workflow tracking.
  * Story 14.6: Supports dependency and API key approval types.
  * Story 14.7: Supports integrity approval type.
  */
 function formatApprovalRequired(
   toolName: string,
   approvalResult: ApprovalRequiredResult | IntegrityApprovalRequired,
+  /** Original code for dependency approvals (stored for re-execution) */
+  originalCode?: string,
 ): {
   content: Array<{ type: string; text: string }>;
 } {
   // Handle API key approval (Story 14.6)
+  // Store in pending workflow store so we can re-execute after user adds keys
   if (approvalResult.approvalType === "api_key_required") {
+    // Store workflow for later re-execution (use existing workflowId or create new)
+    const workflowId = originalCode
+      ? pendingWorkflowStore.create(originalCode, toolName, "api_key_required")
+      : approvalResult.workflowId;
+
     const data = {
       status: "approval_required",
       approval_type: "api_key_required",
-      workflow_id: approvalResult.workflowId,
+      workflow_id: workflowId,
       context: {
         tool: toolName,
         missing_keys: approvalResult.missingKeys,
@@ -227,11 +242,16 @@ function formatApprovalRequired(
   }
 
   // Handle integrity approval (Story 14.7)
+  // Store in pending workflow store so we can re-execute after user approves update
   if (approvalResult.approvalType === "integrity") {
+    const workflowId = originalCode
+      ? pendingWorkflowStore.create(originalCode, toolName, "integrity")
+      : approvalResult.workflowId;
+
     const data = {
       status: "approval_required",
       approval_type: "integrity",
-      workflow_id: approvalResult.workflowId,
+      workflow_id: workflowId,
       description: approvalResult.description,
       context: {
         tool: toolName,
@@ -253,11 +273,16 @@ function formatApprovalRequired(
     };
   }
 
-  // Handle dependency approval
+  // Handle dependency approval - store in pending workflow store for later retrieval
+  // Story 14.4: Use stateful store instead of random UUID
+  const workflowId = originalCode
+    ? pendingWorkflowStore.create(originalCode, toolName, "dependency", approvalResult.dependency)
+    : crypto.randomUUID(); // Fallback if no code provided
+
   const data = {
     status: "approval_required",
     approval_type: "dependency",
-    workflow_id: crypto.randomUUID(),
+    workflow_id: workflowId,
     description: approvalResult.description,
     context: {
       tool: toolName,
@@ -521,6 +546,99 @@ async function handleToolsCall(
 
     if (execContinueWorkflow) {
       logDebug(`pml:execute with continue_workflow: approved=${execContinueWorkflow.approved}`);
+
+      // Check if this is a LOCAL workflow (stored in our pending store)
+      // If so, handle it locally instead of forwarding to cloud
+      const pendingWorkflow = execContinueWorkflow.workflowId
+        ? pendingWorkflowStore.get(execContinueWorkflow.workflowId)
+        : null;
+
+      if (pendingWorkflow) {
+        logDebug(`Found local pending workflow: ${execContinueWorkflow.workflowId}`);
+
+        if (!execContinueWorkflow.approved) {
+          // User rejected - clean up and return
+          pendingWorkflowStore.delete(execContinueWorkflow.workflowId!);
+          sendResponse({
+            jsonrpc: "2.0",
+            id,
+            result: {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify({
+                    status: "aborted",
+                    reason: "User rejected approval",
+                  }, null, 2),
+                },
+              ],
+            },
+          });
+          return;
+        }
+
+        // User approved - re-execute the code with approval flag
+        logDebug(`Re-executing code after approval for: ${pendingWorkflow.approvalType}`);
+
+        const localResult = await executeLocalCode(
+          pendingWorkflow.code,
+          loader,
+          cloudUrl,
+          { approved: true, workflowId: execContinueWorkflow.workflowId },
+        );
+
+        // Clean up the pending workflow
+        pendingWorkflowStore.delete(execContinueWorkflow.workflowId!);
+
+        // Handle result (may trigger another approval if multiple deps needed)
+        if (localResult.status === "approval_required") {
+          sendResponse({
+            jsonrpc: "2.0",
+            id,
+            result: formatApprovalRequired(localResult.toolId, localResult.approval, pendingWorkflow.code),
+          });
+          return;
+        }
+
+        if (localResult.status === "error") {
+          sendResponse({
+            jsonrpc: "2.0",
+            id,
+            result: {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify({
+                    status: "error",
+                    error: localResult.error,
+                    executed_locally: true,
+                  }, null, 2),
+                },
+              ],
+            },
+          });
+          return;
+        }
+
+        // Success!
+        sendResponse({
+          jsonrpc: "2.0",
+          id,
+          result: {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  status: "success",
+                  result: localResult.result,
+                  executed_locally: true,
+                }, null, 2),
+              },
+            ],
+          },
+        });
+        return;
+      }
     }
 
     const cloudResult = await forwardToCloud(id, name, execCleanArgs || {}, cloudUrl);
@@ -560,7 +678,8 @@ async function handleToolsCall(
           sendResponse({
             jsonrpc: "2.0",
             id,
-            result: formatApprovalRequired(localResult.toolId, localResult.approval),
+            // Pass original code for storage in pending workflow store
+            result: formatApprovalRequired(localResult.toolId, localResult.approval, executeLocally.code),
           });
           return;
         }

@@ -258,7 +258,7 @@ export const DEFAULT_SHGAT_CONFIG: SHGATConfig = {
   preserveDimResidual: 0.3, // 30% original + 70% propagated
 
   // Training
-  learningRate: 0.01,  // Increased 10x for InfoNCE contrastive training
+  learningRate: 0.05,  // Increased 5x for InfoNCE with fixed τ=0.07 (CLIP-style)
   batchSize: 32,
   maxContextLength: 5,
 

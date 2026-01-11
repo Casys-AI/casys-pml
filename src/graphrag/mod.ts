@@ -45,6 +45,7 @@ export {
   findDirectProvidesEdge,
   getToolProvidesEdges,
   getToolProvidesEdgesFull,
+  loadAllProvidesEdges,
   persistProvidesEdges,
   syncAllProvidesEdges,
   syncProvidesEdgesForTool,

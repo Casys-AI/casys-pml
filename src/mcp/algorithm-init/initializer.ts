@@ -35,6 +35,7 @@ import {
   AlgorithmFactory,
   type AlgorithmCapabilityInput,
 } from "../../infrastructure/patterns/factory/algorithm-factory.ts";
+import { loadAllProvidesEdges } from "../../graphrag/provides-edge-calculator.ts";
 
 // ==========================================================================
 // Types
@@ -132,11 +133,23 @@ export class AlgorithmInitializer {
       const containsEdges = await this.loadContainsEdges();
       this.capabilities = this.parseCapabilities(rows, containsEdges);
 
-      // 2. Create SHGAT and DR-DSP via AlgorithmFactory (centralized creation)
-      // Factory handles: algorithm creation, co-occurrence loading
+      // 2. Load provides edges (tool→tool or cap→cap schema matching)
+      let providesEdges: Array<{ from: string; to: string; type: "provides"; weight: number }> | undefined;
+      try {
+        providesEdges = await loadAllProvidesEdges(this.deps.db);
+        if (providesEdges.length > 0) {
+          log.info(`[AlgorithmInitializer] Loaded ${providesEdges.length} provides edges for DR-DSP`);
+        }
+      } catch (e) {
+        log.debug(`[AlgorithmInitializer] Could not load provides edges: ${e}`);
+      }
+
+      // 3. Create SHGAT and DR-DSP via AlgorithmFactory (centralized creation)
+      // Factory handles: algorithm creation, co-occurrence loading, provides edges
       const { shgat: shgatResult, drdsp } = await AlgorithmFactory.createBoth(
         this.capabilities,
         { withCooccurrence: true },
+        providesEdges,
       );
 
       this.shgat = shgatResult.shgat;
@@ -146,7 +159,7 @@ export class AlgorithmInitializer {
         `${shgatResult.cooccurrenceEdges ?? 0} co-occurrence edges`,
       );
 
-      // 3. Start GraphSyncController for incremental updates
+      // 4. Start GraphSyncController for incremental updates
       this.graphSyncController = new GraphSyncController(
         this.deps.graphEngine,
         this.deps.db,
@@ -154,13 +167,13 @@ export class AlgorithmInitializer {
       );
       this.graphSyncController.start();
 
-      // 4. Load persisted SHGAT params
+      // 5. Load persisted SHGAT params
       const { loaded: paramsLoaded } = await this.loadSHGATParams();
 
-      // 5. Populate tool features from graph
+      // 6. Populate tool features from graph
       await this.populateToolFeatures();
 
-      // 6. Background training if needed
+      // 7. Background training if needed
       if (this.capabilities.length > 0 && !paramsLoaded) {
         log.info(`[AlgorithmInitializer] Starting background SHGAT training`);
         this.trainOnTraces().catch((err) =>

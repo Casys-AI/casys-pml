@@ -2,6 +2,8 @@
 
 Status: done
 
+> **CORRECTION (2026-01-11):** The "stateless approval" architecture described below was found to be incorrect during testing. The client **must** store the original code to re-execute after approval. See **ADR-062: Client-Server Workflow State Separation** for the corrected architecture using `PendingWorkflowStore`.
+
 > **Epic:** 14 - JSR Package Local/Cloud MCP Routing
 > **Extends:** Story 14.3 (Permission Inference)
 > **Fixes:** Story 14.4 (HIL callback blocks stdio)

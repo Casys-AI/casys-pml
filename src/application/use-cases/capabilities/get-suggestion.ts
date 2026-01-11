@@ -30,7 +30,11 @@ export interface IDRDSP {
     nodeSequence: string[];
     found: boolean;
   };
+  hasNode(id: string): boolean;
 }
+
+/** Default threshold below which we try tool composition */
+const DEFAULT_COMPOSITION_THRESHOLD = 0.5;
 
 /**
  * Capability store interface
@@ -96,7 +100,20 @@ export class GetSuggestionUseCase {
   async execute(
     request: GetSuggestionRequest,
   ): Promise<UseCaseResult<GetSuggestionResult>> {
-    const { intent, bestCapability, correlationId } = request;
+    const { intent, bestCapability, discoveredItems, correlationId } = request;
+    const compositionThreshold = request.compositionThreshold ?? DEFAULT_COMPOSITION_THRESHOLD;
+
+    // Check if we should try item composition instead of using single capability
+    const shouldTryComposition = !bestCapability || bestCapability.score < compositionThreshold;
+
+    if (shouldTryComposition && discoveredItems && discoveredItems.length > 1 && this.drdsp) {
+      log.info(`[GetSuggestionUseCase] Trying item composition (capScore=${bestCapability?.score?.toFixed(2) ?? 'none'}, threshold=${compositionThreshold}, items=${discoveredItems.length})`);
+      const composedResult = await this.composeItemsViaProvides(discoveredItems, intent, correlationId);
+      if (composedResult) {
+        return composedResult;
+      }
+      // Fall through to capability-based suggestion if composition failed
+    }
 
     // No capability = no suggestion
     if (!bestCapability) {
@@ -161,9 +178,13 @@ export class GetSuggestionUseCase {
         const hyperedge = pathResult.hyperedges[i];
 
         if (hyperedge) {
-          // This is a capability
-          const task = await this.buildTaskFromCapability(hyperedge.id, taskId, dependsOn);
-          if (task) tasks.push(task);
+          // This is a capability - extract the actual capability ID from hyperedge
+          // Hyperedge IDs are like "invokes:UUID" or "contains:UUID" - extract the UUID
+          const capabilityId = hyperedge.targets?.[0] ?? hyperedge.id.split(":").pop();
+          if (capabilityId && !capabilityId.includes(":")) {
+            const task = await this.buildTaskFromCapability(capabilityId, taskId, dependsOn);
+            if (task) tasks.push(task);
+          }
         } else {
           // This is a tool
           const task = await this.buildTaskFromTool(nodeId, taskId, dependsOn);
@@ -253,6 +274,12 @@ export class GetSuggestionUseCase {
     taskId: string,
     dependsOn: string[],
   ): Promise<SuggestedTask | null> {
+    // Defensive check: reject hyperedge IDs (they contain colons like "invokes:uuid")
+    if (capabilityId.includes(":") && !capabilityId.match(/^[0-9a-f]{8}-/i)) {
+      log.warn(`GetSuggestionUseCase: rejecting invalid capabilityId (looks like hyperedge): ${capabilityId}`);
+      return null;
+    }
+
     const cap = await this.capabilityStore.findById(capabilityId);
     if (!cap) {
       log.warn(`GetSuggestionUseCase: capability not found: ${capabilityId}`);
@@ -311,6 +338,153 @@ export class GetSuggestionUseCase {
       );
       if (task) tasks.push(task);
     }
+
+    return {
+      success: true,
+      data: {
+        suggestedDag: { tasks },
+        confidence,
+      },
+    };
+  }
+
+  /**
+   * Compose items (tools + capabilities) via DR-DSP provides edges
+   *
+   * Tries to find connected paths between discovered items using
+   * provides edges (output → input schema matching).
+   */
+  private async composeItemsViaProvides(
+    items: Array<{ id: string; score: number; type: "tool" | "capability" }>,
+    intent: string,
+    correlationId?: string,
+  ): Promise<UseCaseResult<GetSuggestionResult> | null> {
+    if (!this.drdsp || items.length < 2) return null;
+
+    // Sort items by score descending
+    const sortedItems = [...items].sort((a, b) => b.score - a.score);
+
+    // Find connected item pairs via provides edges
+    const connectedPairs: Array<{ from: string; to: string; fromType: string; toType: string; weight: number }> = [];
+
+    for (let i = 0; i < sortedItems.length; i++) {
+      for (let j = 0; j < sortedItems.length; j++) {
+        if (i === j) continue;
+
+        const fromItem = sortedItems[i];
+        const toItem = sortedItems[j];
+
+        // Check if both items are registered in DR-DSP
+        if (!this.drdsp.hasNode(fromItem.id) || !this.drdsp.hasNode(toItem.id)) continue;
+
+        // Try to find path via provides edges
+        const pathResult = this.drdsp.findShortestHyperpath(fromItem.id, toItem.id);
+        if (pathResult.found && pathResult.totalWeight < Infinity) {
+          connectedPairs.push({
+            from: fromItem.id,
+            to: toItem.id,
+            fromType: fromItem.type,
+            toType: toItem.type,
+            weight: pathResult.totalWeight,
+          });
+        }
+      }
+    }
+
+    if (connectedPairs.length === 0) {
+      log.debug("[GetSuggestionUseCase] No connected item pairs found via provides edges");
+      return null;
+    }
+
+    // Build DAG from connected pairs
+    // Strategy: take the best scoring pair, then extend with other connected items
+    connectedPairs.sort((a, b) => a.weight - b.weight); // Best path first
+    const bestPair = connectedPairs[0];
+
+    // Find the full path for the best pair
+    const pathResult = this.drdsp.findShortestHyperpath(bestPair.from, bestPair.to);
+    if (!pathResult.found) return null;
+
+    // Build tasks from path - determine type from original items or hyperedges
+    const tasks: SuggestedTask[] = [];
+    const addedItems = new Set<string>();
+    const itemTypeMap = new Map(sortedItems.map(i => [i.id, i.type]));
+
+    // Helper to check if a node ID is a hyperedge (not a tool/capability)
+    const isHyperedgeId = (id: string) =>
+      id.startsWith("seq:") || id.startsWith("contains:") || id.startsWith("provides:") || id.startsWith("invokes:");
+
+    for (let i = 0; i < pathResult.nodeSequence.length; i++) {
+      const nodeId = pathResult.nodeSequence[i];
+
+      // Skip hyperedge IDs - they're not tools or capabilities
+      if (isHyperedgeId(nodeId)) continue;
+
+      if (addedItems.has(nodeId)) continue;
+      addedItems.add(nodeId);
+
+      const taskId = `task_${tasks.length}`;
+      const dependsOn = tasks.length > 0 ? [`task_${tasks.length - 1}`] : [];
+
+      // Determine if this node is a tool or capability from our discovered items
+      const itemType = itemTypeMap.get(nodeId);
+
+      // Skip nodes not in our discovered items (they might be intermediate nodes)
+      if (!itemType) {
+        log.debug(`[GetSuggestionUseCase] Skipping unknown node in path: ${nodeId}`);
+        continue;
+      }
+
+      let task: SuggestedTask | null = null;
+      if (itemType === "capability") {
+        task = await this.buildTaskFromCapability(nodeId, taskId, dependsOn);
+      } else {
+        task = await this.buildTaskFromTool(nodeId, taskId, dependsOn);
+      }
+
+      if (task) tasks.push(task);
+    }
+
+    if (tasks.length < 2) {
+      log.debug("[GetSuggestionUseCase] Composition resulted in < 2 tasks");
+      return null;
+    }
+
+    // Calculate confidence from item scores and path weight
+    const avgItemScore = sortedItems.slice(0, tasks.length).reduce((sum, t) => sum + t.score, 0) / tasks.length;
+    const pathPenalty = Math.exp(-pathResult.totalWeight / 10); // Penalize long paths
+    const confidence = avgItemScore * pathPenalty;
+
+    const toolCount = tasks.filter(t => t.type === "tool").length;
+    const capCount = tasks.filter(t => t.type === "capability").length;
+
+    log.info(`[GetSuggestionUseCase] Composed DAG from ${tasks.length} items (${toolCount} tools, ${capCount} caps) via provides edges`, {
+      items: tasks.map(t => `${t.callName}[${t.type}]`),
+      pathWeight: pathResult.totalWeight,
+      confidence: confidence.toFixed(3),
+    });
+
+    // Log composition decision
+    this.decisionLogger?.logDecision({
+      algorithm: "DRDSP",
+      mode: "passive_suggestion",
+      targetType: "capability", // Mixed composition logged as capability
+      intent,
+      finalScore: confidence,
+      threshold: DEFAULT_COMPOSITION_THRESHOLD,
+      decision: "accepted",
+      targetId: tasks.map(t => t.callName).join(" → "),
+      targetName: `${tasks.length}-item DAG (${toolCount}T/${capCount}C)`,
+      correlationId,
+      signals: {
+        pathFound: true,
+        pathLength: tasks.length,
+        pathWeight: pathResult.totalWeight,
+      },
+      params: {
+        reliabilityFactor: pathPenalty,
+      },
+    });
 
     return {
       success: true,

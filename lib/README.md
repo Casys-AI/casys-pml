@@ -1,6 +1,21 @@
-# MCP Libraries
+# PML Standard Library
 
-This folder contains MCP-compatible libraries and their server bootstraps.
+MCP-compatible utility tools for [PML](https://pml.casys.ai) - Procedural Memory Layer.
+
+**318+ tools** across 21 categories for text processing, data transformation, cryptography, and more.
+
+| | |
+|---|---|
+| **Website** | https://pml.casys.ai |
+| **Docs** | https://docs.pml.casys.ai |
+| **GitHub** | https://github.com/Casys-AI/pml-std |
+| **Releases** | https://github.com/Casys-AI/pml-std/releases |
+
+## Quick Install
+
+```bash
+curl -fsSL https://github.com/Casys-AI/pml-std/releases/latest/download/install.sh | sh
+```
 
 ## Architecture
 

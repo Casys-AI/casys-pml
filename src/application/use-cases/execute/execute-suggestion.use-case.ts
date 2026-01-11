@@ -14,6 +14,7 @@ import type { IDAGSuggester, CapabilityMatch, SuggestionResult } from "../../../
 import type { ICapabilityRepository } from "../../../domain/interfaces/capability-repository.ts";
 import type { UseCaseResult } from "../shared/types.ts";
 import type { ExecuteSuggestionRequest, ExecuteSuggestionResult } from "./types.ts";
+import type { DiscoveredItemForComposition } from "../capabilities/types.ts";
 
 // ============================================================================
 // Interfaces (Clean Architecture - no concrete imports)
@@ -196,8 +197,36 @@ export class ExecuteSuggestionUseCase {
         };
       }
 
-      // Step 3: Get best match
+      // Step 3: Always try composition first (covers both multi-step and single-step)
       const bestMatch = shgatCapabilities[0];
+
+      if (this.deps.drdsp) {
+        log.info(`[ExecuteSuggestionUseCase] Trying composition (best single score: ${bestMatch.score.toFixed(2)})`);
+
+        const composedResult = await this.tryItemComposition(
+          shgatCapabilities,
+          intent,
+          correlationId,
+        );
+
+        if (composedResult?.suggestedDag) {
+          const taskCount = composedResult.suggestedDag.tasks.length;
+          log.info(`[ExecuteSuggestionUseCase] Composition returned ${taskCount} task(s)`);
+
+          return {
+            success: true,
+            data: {
+              suggestedDag: composedResult.suggestedDag,
+              confidence: composedResult.confidence,
+              bestCapability: { id: bestMatch.capabilityId, score: bestMatch.score },
+              executionTimeMs: performance.now() - startTime,
+            },
+          };
+        }
+        // Fall through to single capability if composition found nothing
+      }
+
+      // Step 4: Fallback to single capability match
       const capability = await this.deps.capabilityRepo.findById(bestMatch.capabilityId);
 
       if (!capability) {
@@ -383,5 +412,158 @@ export class ExecuteSuggestionUseCase {
       decision: pathResult.found ? "accepted" : "rejected_by_threshold",
       userId: this.userId ?? this.deps.userId, // Story 9.8: Multi-tenant isolation
     });
+  }
+
+  /**
+   * Compose items (tools + capabilities) via DR-DSP provides edges
+   *
+   * Always called to find the best DAG (single or multi-step).
+   * Inlines composition logic (no dependency on GetSuggestionUseCase).
+   */
+  private async tryItemComposition(
+    shgatCapabilities: CapabilityMatch[],
+    _intent: string,
+    _correlationId: string,
+  ): Promise<{ suggestedDag?: { tasks: Array<{ id: string; callName: string; type: "tool" | "capability"; inputSchema?: unknown; dependsOn: string[] }> }; confidence: number } | null> {
+    if (!this.deps.drdsp) return null;
+
+    // Convert SHGAT capabilities to items
+    const items: DiscoveredItemForComposition[] = [];
+
+    for (const cap of shgatCapabilities.slice(0, 10)) {
+      items.push({
+        id: cap.capabilityId,
+        score: cap.score,
+        type: "capability",
+      });
+
+      // Extract tools from capabilities
+      const capInfo = await this.deps.capabilityRepo.findById(cap.capabilityId);
+      if (capInfo?.toolsUsed) {
+        for (const toolId of capInfo.toolsUsed) {
+          if (!items.some(d => d.id === toolId)) {
+            items.push({
+              id: toolId,
+              score: cap.score * 0.9,
+              type: "tool",
+            });
+          }
+        }
+      }
+    }
+
+    if (items.length < 2) {
+      log.debug("[ExecuteSuggestionUseCase] Not enough items for composition");
+      return null;
+    }
+
+    // Sort by score
+    const sortedItems = [...items].sort((a, b) => b.score - a.score);
+    const itemTypeMap = new Map(sortedItems.map(i => [i.id, i.type]));
+
+    // Get DR-DSP interface
+    const drdsp = this.deps.drdsp as unknown as {
+      findShortestHyperpath: (from: string, to: string) => { found: boolean; nodeSequence: string[]; totalWeight: number };
+      hasNode: (id: string) => boolean;
+    };
+
+    // Find connected pairs via provides edges
+    const connectedPairs: Array<{ from: string; to: string; weight: number }> = [];
+
+    for (let i = 0; i < sortedItems.length; i++) {
+      for (let j = 0; j < sortedItems.length; j++) {
+        if (i === j) continue;
+
+        const fromItem = sortedItems[i];
+        const toItem = sortedItems[j];
+
+        if (!drdsp.hasNode(fromItem.id) || !drdsp.hasNode(toItem.id)) continue;
+
+        const pathResult = drdsp.findShortestHyperpath(fromItem.id, toItem.id);
+        if (pathResult.found && pathResult.totalWeight < Infinity) {
+          connectedPairs.push({
+            from: fromItem.id,
+            to: toItem.id,
+            weight: pathResult.totalWeight,
+          });
+        }
+      }
+    }
+
+    if (connectedPairs.length === 0) {
+      log.debug("[ExecuteSuggestionUseCase] No connected item pairs found");
+      return null;
+    }
+
+    // Get best path
+    connectedPairs.sort((a, b) => a.weight - b.weight);
+    const bestPair = connectedPairs[0];
+    const pathResult = drdsp.findShortestHyperpath(bestPair.from, bestPair.to);
+    if (!pathResult.found) return null;
+
+    // Build tasks from path
+    const tasks: Array<{ id: string; callName: string; type: "tool" | "capability"; inputSchema?: unknown; dependsOn: string[] }> = [];
+    const addedItems = new Set<string>();
+
+    // Helper to check if ID is a hyperedge (not a real node)
+    const isHyperedgeId = (id: string) =>
+      id.startsWith("seq:") || id.startsWith("contains:") || id.startsWith("provides:") ||
+      id.startsWith("invokes:") || id.startsWith("child:");
+
+    for (const nodeId of pathResult.nodeSequence) {
+      if (isHyperedgeId(nodeId)) continue;
+      if (addedItems.has(nodeId)) continue;
+
+      const itemType = itemTypeMap.get(nodeId);
+      if (!itemType) {
+        log.debug(`[ExecuteSuggestionUseCase] Skipping unknown node: ${nodeId}`);
+        continue;
+      }
+
+      addedItems.add(nodeId);
+      const taskId = `task_${tasks.length}`;
+      const dependsOn = tasks.length > 0 ? [`task_${tasks.length - 1}`] : [];
+
+      if (itemType === "capability") {
+        const cap = await this.deps.capabilityRepo.findById(nodeId);
+        if (cap) {
+          tasks.push({
+            id: taskId,
+            callName: cap.name ?? nodeId.substring(0, 8),
+            type: "capability",
+            inputSchema: cap.parametersSchema,
+            dependsOn,
+          });
+        }
+      } else {
+        // Tool
+        tasks.push({
+          id: taskId,
+          callName: nodeId,
+          type: "tool",
+          dependsOn,
+        });
+      }
+    }
+
+    if (tasks.length < 1) {
+      log.debug("[ExecuteSuggestionUseCase] Composition produced no tasks");
+      return null;
+    }
+
+    // Calculate confidence
+    const avgScore = sortedItems.slice(0, tasks.length).reduce((sum, t) => sum + t.score, 0) / tasks.length;
+    const pathPenalty = Math.exp(-pathResult.totalWeight / 10);
+    const confidence = avgScore * pathPenalty;
+
+    log.info(`[ExecuteSuggestionUseCase] Composed ${tasks.length} task(s)`, {
+      tasks: tasks.map(t => `${t.callName}[${t.type}]`),
+      confidence: confidence.toFixed(3),
+    });
+
+    return {
+      suggestedDag: { tasks },
+      confidence,
+    };
   }
 }

@@ -1719,7 +1719,13 @@ export class SHGAT {
         const softmax = expScores.map((e) => e / sumExp);
 
         totalLoss += -Math.log(softmax[0] + 1e-7) * isWeight; // Weighted loss
-        tdErrors.push(1 - softmax[0]); // TD error not weighted (used for priority update)
+
+        // Margin-based TD error for PER (wider range than softmax-based)
+        // margin = posLogit - max(negLogits), clipped to [-3, +3]
+        // tdError = exp(-margin), range [0.05, 20] for better priority differentiation
+        const margin1 = negLogits.length > 0 ? posLogit - Math.max(...negLogits) : 3;
+        const clippedMargin1 = Math.max(-3, Math.min(3, margin1));
+        tdErrors.push(Math.exp(-clippedMargin1));
 
         if (negLogits.length === 0 || posLogit > Math.max(...negLogits)) correct++;
 
@@ -1860,12 +1866,14 @@ export class SHGAT {
    * @param examples Training examples
    * @param isWeights Importance sampling weights for PER (default: uniform)
    * @param evaluateOnly If true, compute loss/accuracy but skip gradient updates (for health check)
+   * @param temperature InfoNCE temperature (default: 0.1, can be annealed 0.2→0.05)
    * @returns Training result with loss, accuracy, tdErrors, gradNorm
    */
   trainBatchV1KHeadBatched(
     examples: TrainingExample[],
     isWeights?: number[],
     evaluateOnly: boolean = false,
+    temperature: number = 0.1,
   ): { loss: number; accuracy: number; tdErrors: number[]; gradNorm: number } {
     if (examples.length === 0) {
       return { loss: 0, accuracy: 0, tdErrors: [], gradNorm: 0 };
@@ -1965,7 +1973,8 @@ export class SHGAT {
     );
 
     // === COMPUTE LOSS AND BACKWARD ===
-    const TEMPERATURE = 0.1;
+    // Temperature is passed as parameter (can be annealed: 0.2 → 0.05)
+    const TEMPERATURE = temperature;
     const tdErrors: number[] = [];
     let totalLoss = 0;
     let correct = 0;
@@ -2016,7 +2025,13 @@ export class SHGAT {
         const softmax = expScores.map((e) => e / sumExp);
 
         totalLoss += -Math.log(softmax[0] + 1e-7) * isWeight;
-        tdErrors.push(1 - softmax[0]);
+
+        // Margin-based TD error for PER (wider range than softmax-based)
+        // margin = posLogit - max(negLogits), clipped to [-3, +3]
+        // tdError = exp(-margin), range [0.05, 20] for better priority differentiation
+        const margin2 = negLogits.length > 0 ? posLogit - Math.max(...negLogits) : 3;
+        const clippedMargin2 = Math.max(-3, Math.min(3, margin2));
+        tdErrors.push(Math.exp(-clippedMargin2));
 
         if (negLogits.length === 0 || posLogit > Math.max(...negLogits)) correct++;
 

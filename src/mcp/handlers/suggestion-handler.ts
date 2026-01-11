@@ -43,13 +43,24 @@ export interface BestCapability {
 }
 
 /**
+ * Discovered item (tool or capability) for composition fallback
+ */
+export interface DiscoveredItem {
+  id: string;
+  score: number;
+  type: "tool" | "capability";
+}
+
+/**
  * Get workflow suggestion (thin handler)
  *
  * Delegates to GetSuggestionUseCase and handles errors.
+ * When no good capability match, tries to compose items via provides edges.
  *
  * @param deps - Handler dependencies
  * @param intent - Natural language intent
  * @param bestCapability - Best match from SHGAT
+ * @param discoveredItems - Items (tools + capabilities) for composition fallback
  * @param correlationId - Optional correlation ID
  * @returns Suggestion result
  */
@@ -57,6 +68,7 @@ export async function getSuggestion(
   deps: SuggestionDependencies,
   intent: string,
   bestCapability?: BestCapability,
+  discoveredItems?: DiscoveredItem[],
   correlationId?: string,
 ): Promise<GetSuggestionResult> {
   // Build use case with dependencies
@@ -72,6 +84,7 @@ export async function getSuggestion(
   const request: GetSuggestionRequest = {
     intent,
     bestCapability,
+    discoveredItems,
     correlationId,
   };
 

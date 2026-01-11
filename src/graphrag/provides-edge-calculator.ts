@@ -760,3 +760,40 @@ export async function findDirectProvidesEdge(
     weight: EDGE_TYPE_WEIGHTS.provides,
   };
 }
+
+/**
+ * Load all provides edges from the database
+ *
+ * Lightweight version that returns only edge structure (from/to/weight),
+ * suitable for graph algorithms like DR-DSP.
+ *
+ * @param db - Database client
+ * @returns Array of provides edges with from, to, type, weight
+ */
+export async function loadAllProvidesEdges(
+  db: DbClient,
+): Promise<Array<{ from: string; to: string; type: "provides"; weight: number }>> {
+  const startTime = performance.now();
+
+  const rows = await db.query(
+    `SELECT from_tool_id, to_tool_id, confidence_score
+     FROM tool_dependency
+     WHERE edge_type = 'provides'
+     ORDER BY confidence_score DESC`,
+  ) as unknown as StoredProvidesEdge[];
+
+  const edges = rows.map((row) => ({
+    from: row.from_tool_id,
+    to: row.to_tool_id,
+    type: "provides" as const,
+    weight: EDGE_TYPE_WEIGHTS.provides * (1 / row.confidence_score), // Lower weight = better path
+  }));
+
+  const elapsedMs = performance.now() - startTime;
+  logger.info("Loaded all provides edges from database", {
+    edgesLoaded: edges.length,
+    elapsedMs: Math.round(elapsedMs),
+  });
+
+  return edges;
+}

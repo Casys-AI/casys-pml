@@ -150,6 +150,15 @@ export interface SuggestedDag {
 }
 
 /**
+ * Discovered item for composition fallback (tool or capability)
+ */
+export interface DiscoveredItemForComposition {
+  id: string;
+  score: number;
+  type: "tool" | "capability";
+}
+
+/**
  * Request to get workflow suggestion
  */
 export interface GetSuggestionRequest {
@@ -160,6 +169,10 @@ export interface GetSuggestionRequest {
     id: string;
     score: number;
   };
+  /** Discovered items (tools + capabilities) for composition fallback */
+  discoveredItems?: DiscoveredItemForComposition[];
+  /** Minimum score threshold to accept capability (below = try composition) */
+  compositionThreshold?: number;
   /** Correlation ID for tracing */
   correlationId?: string;
 }

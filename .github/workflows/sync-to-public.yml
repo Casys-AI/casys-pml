@@ -1,5 +1,5 @@
 # Sync MiniTools library to public repository
-# Only syncs lib/std/ (the open source MiniTools)
+# Syncs entire lib/ folder (std tools + MCP server)
 # Everything else stays private
 
 name: Sync to Public Repo
@@ -8,7 +8,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "lib/std/**"
+      - "lib/**"
 
   # Allow manual trigger
   workflow_dispatch:
@@ -33,20 +33,18 @@ jobs:
           cd public-repo
           git checkout main || git checkout -b main
 
-      - name: Sync std/ only
+      - name: Sync lib/ folder
         run: |
           # Clean EVERYTHING in public repo (except .git)
           cd public-repo
           find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
           cd ..
 
-          # Copy lib/std/ as lib/ in public repo
-          mkdir -p public-repo/lib
-          cp -r lib/std/* public-repo/lib/
+          # Copy entire lib/ contents to root of public repo
+          cp -r lib/* public-repo/
 
-          # Copy README and LICENSE to root
-          cp lib/std/README.md public-repo/README.md
-          cp lib/std/LICENSE public-repo/LICENSE
+          # Add LICENSE at root
+          cp LICENSE public-repo/LICENSE
 
       - name: Commit and push to public
         run: |

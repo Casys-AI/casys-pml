@@ -199,10 +199,13 @@ async function main() {
     const numBatchesPerEpoch = Math.ceil(trainSet.length / batchSize);
 
     // Initialize PER buffer with training examples only
+    // α=0.4 for balanced coverage (sees all difficulties)
+    // maxPriority=25 to match margin-based TD error range [0.05, 20]
     const perBuffer = new PERBuffer(trainSet, {
-      alpha: 0.6,    // Priority exponent (0=uniform, 1=full prioritization)
-      beta: 0.4,     // IS weight exponent (annealed to 1.0)
-      epsilon: 0.01, // Minimum priority floor (prevents starvation of easy examples)
+      alpha: 0.4,       // Priority exponent (lower = more uniform sampling for coverage)
+      beta: 0.4,        // IS weight exponent (annealed to 1.0)
+      epsilon: 0.01,    // Minimum priority floor (prevents starvation of easy examples)
+      maxPriority: 25,  // Match margin-based TD error range exp(3) ≈ 20
     });
 
     let finalLoss = 0;
@@ -220,13 +223,16 @@ async function main() {
       // Anneal beta from 0.4 to 1.0 over training (reduces bias correction over time)
       const beta = annealBeta(epoch, epochs, 0.4);
 
+      // Fixed temperature τ=0.07 (CLIP-style) - ablation showed this beats annealing
+      const temperature = 0.07;
+
       // Curriculum learning on negatives: sample from dynamic tier based on accuracy
       // allNegativesSorted is sorted descending by similarity (hard → easy)
-      // accuracy < 0.35: easy negatives (last third)
-      // accuracy > 0.55: hard negatives (first third)
+      // accuracy < 0.60: easy negatives (last third)
+      // accuracy > 0.75: hard negatives (first third)
       // else: medium negatives (middle third)
-      const prevAccuracy = epoch === 0 ? 0.5 : finalAccuracy; // Start with medium
-      const difficulty = prevAccuracy < 0.35 ? "easy" : (prevAccuracy > 0.55 ? "hard" : "medium");
+      const prevAccuracy = epoch === 0 ? 0.55 : finalAccuracy; // Start with easy
+      const difficulty = prevAccuracy < 0.60 ? "easy" : (prevAccuracy > 0.75 ? "hard" : "medium");
 
       // Fisher-Yates shuffle helper
       const shuffle = <T>(arr: T[]): T[] => {
@@ -248,11 +254,11 @@ async function main() {
           tierSize = Math.floor(total / 3);
           totalNegs = total;
 
-          // Select tier based on accuracy
+          // Select tier based on accuracy (thresholds match line 235)
           let tierStart: number;
-          if (prevAccuracy < 0.35) {
+          if (prevAccuracy < 0.60) {
             tierStart = tierSize * 2; // Easy: last third
-          } else if (prevAccuracy > 0.55) {
+          } else if (prevAccuracy > 0.75) {
             tierStart = 0; // Hard: first third
           } else {
             tierStart = tierSize; // Medium: middle third
@@ -283,7 +289,8 @@ async function main() {
         const { items: batch, indices, weights: isWeights } = perBuffer.sample(batchSize, beta);
 
         // Train on batch with IS weight correction (BATCHED version - single forward pass)
-        const result = shgat.trainBatchV1KHeadBatched(batch, isWeights);
+        // Pass annealed temperature for InfoNCE loss (τ: 0.2 → 0.05)
+        const result = shgat.trainBatchV1KHeadBatched(batch, isWeights, false, temperature);
         epochLoss += result.loss;
         epochAccuracy += result.accuracy;
         epochTdErrors.push(...result.tdErrors);
@@ -306,12 +313,12 @@ async function main() {
 
       logInfo(
         `[SHGAT Worker] Epoch ${epoch}: loss=${finalLoss.toFixed(4)}, acc=${finalAccuracy.toFixed(2)}, ` +
-        `priority=[${stats.min.toFixed(3)}-${stats.max.toFixed(3)}], β=${beta.toFixed(2)}`
+        `priority=[${stats.min.toFixed(3)}-${stats.max.toFixed(3)}], β=${beta.toFixed(2)}, τ=${temperature.toFixed(3)}`
       );
 
       // Health check: evaluate on held-out test set
       if (testSet.length > 0) {
-        const testResult = shgat.trainBatchV1KHeadBatched(testSet, testSet.map(() => 1.0), false); // evaluate only, no gradient
+        const testResult = shgat.trainBatchV1KHeadBatched(testSet, testSet.map(() => 1.0), true, temperature); // evaluate only, no gradient
         const testAccuracy = testResult.accuracy;
 
         if (epoch === 0) {

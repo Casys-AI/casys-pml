@@ -343,6 +343,9 @@ export class DRDSP {
     const hyperedges: Hyperedge[] = [];
     const nodeSequence: string[] = [source];
 
+    // Helper to check if an ID is an actual node (not a hyperedge ID)
+    const isActualNode = (id: string) => this.nodes.has(id);
+
     let current = source;
     const visited = new Set<string>();
 
@@ -365,7 +368,10 @@ export class DRDSP {
               if (tNode && tNode.distance < (this.bTree.get(current)?.distance ?? Infinity)) {
                 path.push(edgeId);
                 hyperedges.push(edge);
-                nodeSequence.push(t);
+                // Only add actual nodes to nodeSequence (not hyperedge IDs)
+                if (isActualNode(t)) {
+                  nodeSequence.push(t);
+                }
                 current = t;
                 break;
               }
@@ -389,7 +395,10 @@ export class DRDSP {
             nextNode = parent;
           }
         }
-        nodeSequence.push(nextNode);
+        // Only add actual nodes to nodeSequence (not hyperedge IDs)
+        if (isActualNode(nextNode)) {
+          nodeSequence.push(nextNode);
+        }
         current = nextNode;
       }
     }
@@ -612,11 +621,13 @@ export interface AlignedToolInput {
  * - Capability nodes (level 1+)
  * - "contains" hyperedges: capability → tools/sub-capabilities
  * - "sequence" hyperedges: based on co-occurrence patterns
+ * - "provides" hyperedges: tool_A.output → tool_B.input (schema matching)
  */
 export function buildDRDSPAligned(
   tools: AlignedToolInput[],
   capabilities: AlignedCapabilityInput[],
   cooccurrences?: Array<{ from: string; to: string; weight: number }>,
+  providesEdges?: Array<{ from: string; to: string; type: "provides"; weight: number }>,
 ): DRDSP {
   const drdsp = new DRDSP();
 
@@ -684,7 +695,24 @@ export function buildDRDSPAligned(
     }
   }
 
-  // 5. Create parent→child edges for meta-capabilities
+  // 5. Create "provides" hyperedges from schema-based tool relationships
+  // These edges represent tool_A.output → tool_B.input type matching
+  if (providesEdges) {
+    for (const edge of providesEdges) {
+      // Only add if both tools are registered
+      if (drdsp.hasNode(edge.from) && drdsp.hasNode(edge.to)) {
+        drdsp.addHyperedge({
+          id: `provides:${edge.from}:${edge.to}`,
+          sources: [edge.from],
+          targets: [edge.to],
+          weight: edge.weight,
+          edgeType: "provides",
+        });
+      }
+    }
+  }
+
+  // 6. Create parent→child edges for meta-capabilities
   for (const cap of capabilities) {
     if (cap.parents) {
       for (const parentId of cap.parents) {
