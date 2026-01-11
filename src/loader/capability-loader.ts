@@ -1,0 +1,935 @@
+/**
+ * Unified Capability Loader
+ *
+ * Orchestrates the full capability loading flow:
+ * 1. Fetch metadata from registry
+ * 2. Check and install mcp_deps (with HIL)
+ * 3. Dynamic import capability code
+ * 4. Create mcp.* proxy for tool routing
+ *
+ * @module loader/capability-loader
+ */
+
+import type {
+  CapabilityMetadata,
+  CapabilityModule,
+  ContinueWorkflowParams,
+  DependencyApprovalRequired,
+  ExecutionContext,
+  LoadedCapability,
+  McpDependency,
+  McpProxy,
+} from "./types.ts";
+import type { ApprovalRequiredResult } from "./types.ts";
+import { LoaderError } from "./types.ts";
+import { checkPermission } from "../permissions/loader.ts";
+import type { PmlPermissions } from "../types.ts";
+import { RegistryClient } from "./registry-client.ts";
+import { loadCapabilityModule } from "./deno-loader.ts";
+import { fetchCapabilityCode } from "./code-fetcher.ts";
+import { createDepState, DepState } from "./dep-state.ts";
+import { DepInstaller } from "./dep-installer.ts";
+import { StdioManager } from "./stdio-manager.ts";
+import { resolveToolRouting } from "../routing/mod.ts";
+import { SandboxWorker } from "../sandbox/mod.ts";
+import type { SandboxResult } from "../sandbox/mod.ts";
+import { TraceCollector, TraceSyncer } from "../tracing/mod.ts";
+import type { TraceSyncConfig } from "../tracing/mod.ts";
+import { sanitize } from "../byok/sanitizer.ts";
+import {
+  checkKeys,
+  getRequiredKeys,
+  handleApiKeyContinue,
+  isApiKeyApprovalRequired,
+  pauseForMissingKeys,
+  reloadEnv,
+} from "../byok/mod.ts";
+import type { ApiKeyApprovalRequired } from "../byok/types.ts";
+import { LockfileManager } from "../lockfile/mod.ts";
+import type { IntegrityApprovalRequired } from "../lockfile/types.ts";
+import * as log from "@std/log";
+
+/**
+ * Log debug message for loader operations.
+ * Automatically sanitizes messages to prevent API key exposure.
+ */
+function logDebug(message: string): void {
+  log.debug(`[pml:loader] ${sanitize(message)}`);
+}
+
+/**
+ * Default permissions: ask for everything (safe defaults).
+ */
+const DEFAULT_PERMISSIONS: PmlPermissions = {
+  allow: [],
+  deny: [],
+  ask: ["*"],
+};
+
+/**
+ * Options for creating a capability loader.
+ */
+export interface CapabilityLoaderOptions {
+  /** Cloud URL for registry */
+  cloudUrl: string;
+  /** Workspace root path */
+  workspace: string;
+  /** User permissions (loaded from .pml.json) */
+  permissions?: PmlPermissions;
+  /** Custom dep state path */
+  depStatePath?: string;
+  /** Idle timeout for stdio processes (ms) */
+  stdioIdleTimeoutMs?: number;
+  /**
+   * Enable sandboxed execution for capability code.
+   * When true, capability code from registry runs in isolated Worker.
+   * Default: true (secure by default)
+   */
+  sandboxEnabled?: boolean;
+  /**
+   * Enable execution tracing for SHGAT learning (Story 14.5b).
+   * When true, traces mcp.* calls and syncs to cloud.
+   * Default: true
+   */
+  tracingEnabled?: boolean;
+  /**
+   * Custom tracing sync config (overrides defaults).
+   * If not provided, uses cloudUrl for sync.
+   */
+  tracingConfig?: Partial<TraceSyncConfig>;
+  /**
+   * Lockfile manager for integrity validation (Story 14.7).
+   * When provided, validates fetched capabilities against lockfile.
+   * If not provided, skips integrity validation.
+   */
+  lockfileManager?: LockfileManager;
+}
+
+/**
+ * Unified capability loader.
+ *
+ * Handles the complete flow from tool request to execution.
+ */
+export class CapabilityLoader {
+  private readonly registryClient: RegistryClient;
+  private readonly depState: DepState;
+  private readonly installer: DepInstaller;
+  private readonly stdioManager: StdioManager;
+  private readonly permissions: PmlPermissions;
+  private readonly cloudUrl: string;
+  private readonly workspace: string;
+  private readonly sandboxEnabled: boolean;
+  private readonly tracingEnabled: boolean;
+  private readonly traceSyncer: TraceSyncer;
+  private readonly lockfileManager?: LockfileManager;
+
+  /** Cache of loaded capabilities */
+  private readonly loadedCapabilities = new Map<string, LoadedCapability>();
+
+  /** Cache of capability code for sandboxed execution */
+  private readonly codeCache = new Map<string, string>();
+
+  /** Pending API key approvals by workflow ID (Story 14.6) */
+  private readonly pendingApiKeyApprovals = new Map<string, ApiKeyApprovalRequired>();
+
+  /** Whether initialization is complete */
+  private initialized = false;
+
+  private constructor(
+    options: CapabilityLoaderOptions,
+    depState: DepState,
+  ) {
+    this.cloudUrl = options.cloudUrl;
+    this.workspace = options.workspace;
+    this.permissions = options.permissions ?? DEFAULT_PERMISSIONS;
+    this.sandboxEnabled = options.sandboxEnabled ?? true; // Secure by default
+    this.tracingEnabled = options.tracingEnabled ?? true; // Enable tracing by default
+
+    this.registryClient = new RegistryClient({ cloudUrl: options.cloudUrl });
+    this.depState = depState;
+    this.installer = new DepInstaller(depState);
+    this.stdioManager = new StdioManager(options.stdioIdleTimeoutMs);
+
+    // Initialize trace syncer (Story 14.5b)
+    this.traceSyncer = new TraceSyncer({
+      cloudUrl: options.tracingConfig?.cloudUrl ?? options.cloudUrl,
+      apiKey: options.tracingConfig?.apiKey,
+      ...options.tracingConfig,
+    });
+
+    // Initialize lockfile manager (Story 14.7)
+    this.lockfileManager = options.lockfileManager;
+
+    this.initialized = true;
+  }
+
+  /**
+   * Create and initialize a capability loader.
+   *
+   * Story 14.6: Loads .env file from workspace at initialization.
+   */
+  static async create(
+    options: CapabilityLoaderOptions,
+  ): Promise<CapabilityLoader> {
+    // Story 14.6: Load .env file from workspace at startup
+    try {
+      await reloadEnv(options.workspace);
+      logDebug(`Loaded .env from ${options.workspace}`);
+    } catch (_error) {
+      // .env file may not exist - this is OK
+      logDebug(`No .env file found in ${options.workspace}`);
+    }
+
+    // Use per-project deps.json (in workspace/.pml/)
+    const depState = await createDepState(
+      options.depStatePath
+        ? { statePath: options.depStatePath }
+        : { workspace: options.workspace },
+    );
+    return new CapabilityLoader(options, depState);
+  }
+
+  /**
+   * Load a capability by namespace.
+   *
+   * May return ApprovalRequiredResult if dependencies need user approval.
+   * Use loadWithApproval() to handle the stateless approval flow.
+   *
+   * @param namespace - Tool namespace (e.g., "filesystem:read_file")
+   * @param continueWorkflow - Optional: approval from previous call
+   * @returns Loaded capability or approval required result
+   */
+  async load(
+    namespace: string,
+    continueWorkflow?: ContinueWorkflowParams,
+  ): Promise<LoadedCapability | ApprovalRequiredResult | IntegrityApprovalRequired> {
+    // Check cache
+    const cached = this.loadedCapabilities.get(namespace);
+    if (cached) {
+      logDebug(`Capability cache hit: ${namespace}`);
+      return cached;
+    }
+
+    logDebug(`Loading capability: ${namespace}`);
+
+    // 1. Fetch metadata from registry (with integrity validation if lockfile available)
+    let metadata: CapabilityMetadata;
+
+    if (this.lockfileManager) {
+      // Story 14.7: Use fetchWithIntegrity for lockfile validation
+      const fetchResult = await this.registryClient.fetchWithIntegrity(
+        namespace,
+        this.lockfileManager,
+      );
+
+      // Check if integrity approval is required
+      if ("approvalRequired" in fetchResult && fetchResult.approvalRequired) {
+        const integrityApproval = fetchResult as IntegrityApprovalRequired;
+
+        // Handle continueWorkflow for integrity approval
+        if (continueWorkflow?.approved === true) {
+          // User approved - continue fetch with approval
+          const approvedResult = await this.registryClient.continueFetchWithApproval(
+            namespace,
+            this.lockfileManager,
+            true,
+          );
+          metadata = approvedResult.metadata;
+        } else if (continueWorkflow?.approved === false) {
+          // User rejected - throw error
+          throw new LoaderError(
+            "DEPENDENCY_INTEGRITY_FAILED",
+            `User rejected integrity change for ${integrityApproval.fqdnBase}`,
+            {
+              fqdnBase: integrityApproval.fqdnBase,
+              oldHash: integrityApproval.oldHash,
+              newHash: integrityApproval.newHash,
+            },
+          );
+        } else {
+          // Return approval request (HIL pause)
+          return integrityApproval;
+        }
+      } else {
+        // No approval needed - extract metadata
+        metadata = (fetchResult as { metadata: CapabilityMetadata }).metadata;
+      }
+    } else {
+      // No lockfile manager - use simple fetch
+      const { metadata: fetchedMetadata } = await this.registryClient.fetch(namespace);
+      metadata = fetchedMetadata;
+    }
+
+    // 2. Check and install dependencies
+    // If continueWorkflow.approved is true, force install (user approved)
+    const forceInstall = continueWorkflow?.approved === true;
+    const approvalResult = await this.ensureDependencies(
+      metadata,
+      forceInstall,
+    );
+
+    // If approval is required and not yet approved, return the approval request
+    if (approvalResult) {
+      if (continueWorkflow?.approved === false) {
+        // Handle denial based on approval type
+        if (approvalResult.approvalType === "dependency") {
+          throw new LoaderError(
+            "DEPENDENCY_NOT_APPROVED",
+            `Dependency ${approvalResult.dependency.name} was not approved by user`,
+            {
+              dep: approvalResult.dependency.name,
+              version: approvalResult.dependency.version,
+            },
+          );
+        } else {
+          // api_key_required - user aborted key configuration
+          throw new LoaderError(
+            "API_KEY_NOT_CONFIGURED",
+            `Required API keys were not configured: ${approvalResult.missingKeys.join(", ")}`,
+            { missingKeys: approvalResult.missingKeys },
+          );
+        }
+      }
+      return approvalResult;
+    }
+
+    // 3. Load capability code (only for deno type - stdio/http don't have code)
+    let module: CapabilityModule | null = null;
+    let code: string | null = null;
+
+    if (metadata.type === "deno") {
+      // Deno capabilities have code to fetch
+      if (!metadata.codeUrl) {
+        throw new LoaderError(
+          "MODULE_IMPORT_FAILED",
+          `Deno capability ${namespace} missing codeUrl`,
+          { namespace },
+        );
+      }
+
+      if (this.sandboxEnabled) {
+        // Fetch raw code for sandboxed execution
+        const { code: fetchedCode } = await fetchCapabilityCode(metadata.codeUrl);
+        code = fetchedCode;
+        this.codeCache.set(namespace, code);
+        logDebug(`Capability code cached for sandbox: ${namespace}`);
+      } else {
+        // Legacy: direct import (not sandboxed)
+        const { module: loadedModule } = await loadCapabilityModule(metadata.codeUrl);
+        module = loadedModule;
+      }
+    } else if (metadata.type === "stdio") {
+      // Stdio types are executed via subprocess - no code to load
+      logDebug(`Stdio capability registered: ${namespace} (subprocess)`);
+    } else {
+      // http types should never reach here (server-routed)
+      logDebug(`HTTP capability registered: ${namespace} (should be server-routed)`);
+    }
+
+    // 4. For client-routed stdio types, build the dependency object for approval/install checks
+    // All client-routed tools need local installation. For stdio, the MCP itself must be installed.
+    // For deno, mcpDeps are already checked via ensureDependencies() above.
+    let stdioDep: McpDependency | null = null;
+    if (metadata.routing === "client" && metadata.type === "stdio" && metadata.install) {
+      stdioDep = {
+        name: namespace.split(":")[0],
+        type: "stdio" as const,
+        install: `${metadata.install.command} ${metadata.install.args.join(" ")}`,
+        version: "latest",
+        integrity: metadata.integrity ?? "",
+        command: metadata.install.command,
+        args: metadata.install.args,
+      };
+
+      // Check if this stdio MCP needs approval to install
+      // Skip if continueWorkflow.approved (user already approved)
+      if (!continueWorkflow?.approved) {
+        const stdioApproval = await this.ensureDependency(stdioDep, false);
+        if (stdioApproval) {
+          logDebug(`Stdio MCP ${namespace} requires approval to install`);
+          return stdioApproval;
+        }
+      } else {
+        // User approved - ensure it's installed
+        await this.ensureDependency(stdioDep, true);
+      }
+    }
+
+    // 5. Create loaded capability with mcp.* routing
+    const loaded: LoadedCapability = {
+      meta: metadata,
+      module: module ?? {}, // Empty module for sandboxed/stdio - code runs elsewhere
+      call: async (method: string, args: unknown) => {
+        if (metadata.type === "stdio") {
+          if (!stdioDep) {
+            throw new LoaderError(
+              "SUBPROCESS_SPAWN_FAILED",
+              `Stdio capability ${namespace} missing install info`,
+              { namespace },
+            );
+          }
+
+          return this.callStdio(stdioDep, namespace.split(":")[0], method, args);
+        } else if (this.sandboxEnabled && code) {
+          return this.executeInSandbox(metadata, code, method, args);
+        } else if (module) {
+          return this.executeWithMcpRouting(metadata, module, method, args);
+        } else {
+          throw new LoaderError(
+            "METHOD_NOT_FOUND",
+            `No code or module available for ${namespace}`,
+            { namespace },
+          );
+        }
+      },
+    };
+
+    // Cache it
+    this.loadedCapabilities.set(namespace, loaded);
+
+    logDebug(`Capability loaded: ${namespace}`);
+
+    return loaded;
+  }
+
+  /**
+   * Check if result is an approval required response.
+   * Includes DependencyApprovalRequired, ApiKeyApprovalRequired, and IntegrityApprovalRequired.
+   */
+  static isApprovalRequired(
+    result: unknown,
+  ): result is ApprovalRequiredResult | IntegrityApprovalRequired {
+    return (
+      typeof result === "object" &&
+      result !== null &&
+      "approvalRequired" in result &&
+      (result as { approvalRequired: boolean }).approvalRequired === true
+    );
+  }
+
+  /**
+   * Call a tool directly without pre-loading.
+   *
+   * Convenience method that combines load() + call().
+   * May return ApprovalRequiredResult if dependencies or API keys need user action.
+   *
+   * **Story 14.6:** Checks required API keys before execution.
+   * If keys are missing, returns ApiKeyApprovalRequired instead of executing.
+   *
+   * @param toolId - Full tool ID (e.g., "filesystem:read_file")
+   * @param args - Tool arguments
+   * @param continueWorkflow - Optional: approval from previous call
+   * @returns Tool result or ApprovalRequiredResult
+   */
+  async call(
+    toolId: string,
+    args: unknown,
+    continueWorkflow?: ContinueWorkflowParams,
+  ): Promise<unknown | ApprovalRequiredResult | IntegrityApprovalRequired> {
+    // Parse tool ID into namespace:action
+    const parts = toolId.includes(":")
+      ? toolId.split(":", 2)
+      : [toolId, "default"];
+    const action = parts[1];
+
+    // Story 14.6: Handle API key continuation
+    if (continueWorkflow?.workflowId) {
+      const pendingApproval = this.pendingApiKeyApprovals.get(
+        continueWorkflow.workflowId,
+      );
+      if (pendingApproval && isApiKeyApprovalRequired(pendingApproval)) {
+        // This is a continuation for API keys
+        const continueResult = await handleApiKeyContinue(
+          pendingApproval,
+          this.workspace,
+        );
+
+        if (!continueResult.success) {
+          // Still missing keys - return updated approval
+          logDebug(`API keys still missing: ${continueResult.remainingIssues.join(", ")}`);
+          return pauseForMissingKeys(
+            {
+              allValid: false,
+              missing: continueResult.remainingIssues,
+              invalid: [], // All issues are in remainingIssues now
+            },
+            continueWorkflow.workflowId, // Reuse same workflow ID
+          );
+        }
+
+        // Keys are now valid - clear pending and continue
+        this.pendingApiKeyApprovals.delete(continueWorkflow.workflowId);
+        logDebug(`API keys validated: ${continueResult.validKeys.join(", ")}`);
+      }
+    }
+
+    // Story 14.6: Check required API keys BEFORE execution (AC1)
+    const requiredKeys = getRequiredKeys(toolId);
+    if (requiredKeys.length > 0) {
+      const keyCheck = checkKeys(requiredKeys);
+
+      if (!keyCheck.allValid) {
+        // Missing or invalid keys - return HIL pause (AC2)
+        logDebug(`Missing API keys for ${toolId}: ${[...keyCheck.missing, ...keyCheck.invalid].join(", ")}`);
+        const approval = pauseForMissingKeys(keyCheck);
+
+        // Store for continuation handling
+        this.pendingApiKeyApprovals.set(approval.workflowId, approval);
+
+        return approval;
+      }
+
+      logDebug(`API keys verified for ${toolId}`);
+    }
+
+    // Load capability (may return ApprovalRequiredResult for dependencies)
+    const loadResult = await this.load(toolId, continueWorkflow);
+
+    // If approval is required, return the approval request
+    if (CapabilityLoader.isApprovalRequired(loadResult)) {
+      return loadResult;
+    }
+
+    // Call the action
+    return loadResult.call(action, args);
+  }
+
+  /**
+   * Ensure all dependencies are installed.
+   *
+   * Returns ApprovalRequiredResult if any dependency needs user approval
+   * or if required env vars are missing.
+   * Returns null if all dependencies are satisfied.
+   *
+   * @param meta - Capability metadata
+   * @param forceInstall - If true, install without approval (after user approved)
+   */
+  private async ensureDependencies(
+    meta: CapabilityMetadata,
+    forceInstall = false,
+  ): Promise<ApprovalRequiredResult | null> {
+    if (!meta.mcpDeps || meta.mcpDeps.length === 0) {
+      return null;
+    }
+
+    for (const dep of meta.mcpDeps) {
+      const result = await this.ensureDependency(dep, forceInstall);
+      if (result) {
+        return result;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Ensure a single dependency is installed.
+   *
+   * Uses permission-based approval:
+   * - "allowed" (in allow list) → auto-install, no approval needed
+   * - "denied" (in deny list) → error
+   * - "ask" (default) → return DependencyApprovalRequired
+   *
+   * Story 14.6: Also checks envRequired keys from registry metadata.
+   * If env vars are missing, returns ApiKeyApprovalRequired instead of error.
+   *
+   * @param dep - The dependency to check/install
+   * @param forceInstall - If true, skip approval check and install
+   * @returns ApprovalRequiredResult if approval needed, null if installed
+   */
+  private async ensureDependency(
+    dep: McpDependency,
+    forceInstall = false,
+  ): Promise<ApprovalRequiredResult | null> {
+    // Check if already installed with correct version
+    if (this.depState.isInstalled(dep.name, dep.version)) {
+      logDebug(`Dependency ${dep.name}@${dep.version} already installed`);
+      return null;
+    }
+
+    logDebug(`Dependency ${dep.name}@${dep.version} needs installation`);
+
+    // Story 14.6: Check required env vars from registry metadata (dynamic key detection)
+    if (dep.envRequired && dep.envRequired.length > 0) {
+      const requiredKeys = dep.envRequired.map((name) => ({
+        name,
+        requiredBy: dep.name,
+      }));
+      const keyCheck = checkKeys(requiredKeys);
+
+      if (!keyCheck.allValid) {
+        // Return HIL pause instead of throwing error
+        logDebug(`Missing env vars for ${dep.name}: ${[...keyCheck.missing, ...keyCheck.invalid].join(", ")}`);
+        const approval = pauseForMissingKeys(keyCheck);
+
+        // Store for continuation handling
+        this.pendingApiKeyApprovals.set(approval.workflowId, approval);
+
+        return approval;
+      }
+    }
+
+    // Check permission for this dependency
+    const permission = checkPermission(dep.name, this.permissions);
+
+    if (permission === "denied") {
+      throw new LoaderError(
+        "DEPENDENCY_NOT_APPROVED",
+        `Dependency ${dep.name} is in deny list`,
+        { dep: dep.name, version: dep.version },
+      );
+    }
+
+    // Auto-install if in allow list
+    if (permission === "allowed" || forceInstall) {
+      try {
+        await this.installer.install(dep);
+        logDebug(
+          `Dependency ${dep.name}@${dep.version} installed (auto-approved)`,
+        );
+        return null;
+      } catch (error) {
+        throw new LoaderError(
+          "DEPENDENCY_INSTALL_FAILED",
+          error instanceof Error ? error.message : String(error),
+          { dep: dep.name, version: dep.version },
+        );
+      }
+    }
+
+    // Permission is "ask" - return approval_required (stateless HIL)
+    logDebug(`Dependency ${dep.name}@${dep.version} requires approval`);
+    return {
+      approvalRequired: true,
+      approvalType: "dependency",
+      dependency: dep,
+      description:
+        `Install ${dep.name}@${dep.version} to execute this capability`,
+    } satisfies DependencyApprovalRequired;
+  }
+
+  /**
+   * Execute a capability method with mcp.* routing.
+   * (Legacy: non-sandboxed execution)
+   */
+  private async executeWithMcpRouting(
+    meta: CapabilityMetadata,
+    module: CapabilityModule,
+    method: string,
+    args: unknown,
+  ): Promise<unknown> {
+    // Find the method
+    const fn = module[method];
+    if (typeof fn !== "function") {
+      throw new LoaderError(
+        "METHOD_NOT_FOUND",
+        `Method '${method}' not found in capability '${meta.fqdn}'`,
+        { fqdn: meta.fqdn, method, availableMethods: Object.keys(module) },
+      );
+    }
+
+    // Create execution context with mcp.* proxy
+    const ctx: ExecutionContext = {
+      mcp: this.createMcpProxy(meta),
+      workspace: this.workspace,
+      log: (message: string) => logDebug(`[${meta.fqdn}] ${message}`),
+    };
+
+    // Execute
+    return await fn(args, ctx);
+  }
+
+  /**
+   * Execute capability code in isolated sandbox.
+   *
+   * Creates a Deno Worker with `permissions: "none"` and executes
+   * the capability code inside it. All mcp.* calls from the sandbox
+   * are routed via RPC to the main thread.
+   *
+   * Story 14.5b: Traces mcp.* calls for SHGAT learning when tracingEnabled.
+   *
+   * @param meta - Capability metadata
+   * @param code - Raw capability code (fetched from registry)
+   * @param method - Method to call (currently ignored - code should export result)
+   * @param args - Arguments for the capability
+   * @returns Execution result
+   */
+  private async executeInSandbox(
+    meta: CapabilityMetadata,
+    code: string,
+    _method: string,
+    args: unknown,
+  ): Promise<unknown> {
+    logDebug(`Executing ${meta.fqdn} in sandbox`);
+
+    // Story 14.5b: Create trace collector if tracing is enabled
+    const traceCollector = this.tracingEnabled ? new TraceCollector() : null;
+
+    // Create sandbox with RPC handler that records mcp.* calls
+    const sandbox = new SandboxWorker({
+      onRpc: async (rpcMethod: string, rpcArgs: unknown) => {
+        // Route mcp.* calls through existing infrastructure
+        // rpcMethod format: "namespace:action"
+        const [namespace, action] = rpcMethod.split(":");
+
+        // Record call start time
+        const callStart = Date.now();
+        let callSuccess = true;
+        let callResult: unknown;
+
+        try {
+          callResult = await this.routeMcpCall(meta, namespace, action, rpcArgs);
+          return callResult;
+        } catch (error) {
+          callSuccess = false;
+          callResult = { error: error instanceof Error ? error.message : String(error) };
+          throw error;
+        } finally {
+          // Story 14.5b: Record the mcp.* call in trace collector
+          if (traceCollector) {
+            const callDuration = Date.now() - callStart;
+            traceCollector.recordMcpCall(
+              rpcMethod,
+              rpcArgs,
+              callResult,
+              callDuration,
+              callSuccess,
+            );
+          }
+        }
+      },
+    });
+
+    try {
+      // Execute code in sandbox
+      const result: SandboxResult = await sandbox.execute(code, args);
+
+      if (!result.success) {
+        // Story 14.5b: Finalize trace with failure
+        if (traceCollector) {
+          const trace = traceCollector.finalize(
+            meta.fqdn,
+            false,
+            result.error?.message,
+          );
+          this.traceSyncer.enqueue(trace);
+        }
+
+        // Convert sandbox error to LoaderError
+        const error = result.error;
+        throw new LoaderError(
+          "SUBPROCESS_CALL_FAILED",
+          error?.message ?? "Sandbox execution failed",
+          {
+            fqdn: meta.fqdn,
+            code: error?.code,
+            durationMs: result.durationMs,
+          },
+        );
+      }
+
+      // Story 14.5b: Finalize trace with success and enqueue for sync
+      if (traceCollector) {
+        const trace = traceCollector.finalize(meta.fqdn, true);
+        this.traceSyncer.enqueue(trace);
+        logDebug(`Trace collected: ${meta.fqdn} - ${trace.taskResults.length} mcp.* calls`);
+      }
+
+      logDebug(`Sandbox execution completed in ${result.durationMs}ms`);
+      return result.value;
+    } finally {
+      // Always clean up sandbox
+      sandbox.shutdown();
+    }
+  }
+
+  /**
+   * Create mcp.* proxy for tool routing.
+   *
+   * Intercepts mcp.namespace.action() calls and routes them appropriately:
+   * - stdio deps → subprocess
+   * - cloud tools → HTTP forward
+   * - local capabilities → recursive load
+   */
+  private createMcpProxy(meta: CapabilityMetadata): McpProxy {
+    return new Proxy({} as McpProxy, {
+      get: (_target, namespace: string) => {
+        return new Proxy(
+          {} as Record<string, (args: unknown) => Promise<unknown>>,
+          {
+            get: (_innerTarget, action: string) => {
+              return async (args: unknown): Promise<unknown> => {
+                return this.routeMcpCall(meta, namespace, action, args);
+              };
+            },
+          },
+        );
+      },
+    });
+  }
+
+  /**
+   * Route an mcp.namespace.action() call.
+   */
+  private async routeMcpCall(
+    meta: CapabilityMetadata,
+    namespace: string,
+    action: string,
+    args: unknown,
+  ): Promise<unknown> {
+    const toolId = `${namespace}:${action}`;
+
+    logDebug(`Routing mcp.${namespace}.${action}()`);
+
+    // Check if it's a declared stdio dependency
+    const dep = meta.mcpDeps?.find((d) => d.name === namespace);
+    if (dep && dep.type === "stdio") {
+      // Route to stdio subprocess
+      return this.callStdio(dep, namespace, action, args);
+    }
+
+    // Check routing configuration
+    const routing = resolveToolRouting(toolId);
+
+    if (routing === "server") {
+      // Forward to cloud
+      return this.callCloud(toolId, args);
+    }
+
+    // Local execution - recursive load
+    // This handles capabilities calling other capabilities
+    return this.call(toolId, args);
+  }
+
+  /**
+   * Call a stdio subprocess.
+   *
+   * Note: MCP servers expose tools by their simple name (e.g., "create_entities"),
+   * not with namespace prefix. The namespace is only used by PML to route
+   * to the correct subprocess.
+   */
+  private async callStdio(
+    dep: McpDependency,
+    namespace: string,
+    action: string,
+    args: unknown,
+  ): Promise<unknown> {
+    // Ensure process is running
+    await this.stdioManager.getOrSpawn(dep);
+
+    // Make the call - use action only, not namespace:action
+    // MCP servers expose tools by simple name (e.g., "create_entities")
+    const result = await this.stdioManager.call(namespace, "tools/call", {
+      name: action,
+      arguments: args,
+    });
+
+    return result;
+  }
+
+  /**
+   * Forward call to cloud.
+   */
+  private async callCloud(
+    toolId: string,
+    args: unknown,
+  ): Promise<unknown> {
+    logDebug(`Cloud call: ${toolId}`);
+
+    // PML_API_KEY is required for cloud calls
+    const apiKey = Deno.env.get("PML_API_KEY");
+    if (!apiKey) {
+      throw new LoaderError(
+        "ENV_VAR_MISSING",
+        "PML_API_KEY environment variable is required for cloud calls",
+        { required: ["PML_API_KEY"] },
+      );
+    }
+
+    const response = await fetch(`${this.cloudUrl}/mcp/tools/call`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: Date.now(),
+        method: "tools/call",
+        params: {
+          name: toolId,
+          arguments: args,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      throw new LoaderError(
+        "SUBPROCESS_CALL_FAILED",
+        `Cloud error: ${response.status} ${response.statusText}`,
+        { toolId, status: response.status },
+      );
+    }
+
+    const data = await response.json();
+
+    if (data.error) {
+      throw new LoaderError(
+        "SUBPROCESS_CALL_FAILED",
+        `Cloud RPC error: ${data.error.message}`,
+        { toolId, error: data.error },
+      );
+    }
+
+    return data.result;
+  }
+
+  /**
+   * Check if a capability is loaded.
+   */
+  isLoaded(namespace: string): boolean {
+    return this.loadedCapabilities.has(namespace);
+  }
+
+  /**
+   * Get all loaded capability namespaces.
+   */
+  getLoadedCapabilities(): string[] {
+    return Array.from(this.loadedCapabilities.keys());
+  }
+
+  /**
+   * Clear capability cache.
+   */
+  clearCache(): void {
+    this.loadedCapabilities.clear();
+    this.registryClient.clearCache();
+  }
+
+  /**
+   * Shutdown all resources.
+   */
+  async shutdown(): Promise<void> {
+    // Shutdown trace syncer first (flushes pending traces)
+    await this.traceSyncer.shutdown();
+
+    this.stdioManager.shutdownAll();
+    this.loadedCapabilities.clear();
+  }
+
+  /**
+   * Get loader status for debugging.
+   */
+  getStatus(): {
+    initialized: boolean;
+    loadedCapabilities: number;
+    runningProcesses: string[];
+    cloudUrl: string;
+  } {
+    return {
+      initialized: this.initialized,
+      loadedCapabilities: this.loadedCapabilities.size,
+      runningProcesses: this.stdioManager.getRunningProcesses(),
+      cloudUrl: this.cloudUrl,
+    };
+  }
+}
