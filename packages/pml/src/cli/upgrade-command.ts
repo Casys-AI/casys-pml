@@ -10,7 +10,7 @@ import { Command } from "@cliffy/command";
 import { bold, green, red, yellow } from "@std/fmt/colors";
 
 /** GitHub repository for releases (public repo) */
-const GITHUB_REPO = "Casys-AI/mcp-std";
+const GITHUB_REPO = "Casys-AI/casys-pml";
 
 /** Current version (must match deno.json) */
 const CURRENT_VERSION = "0.1.0";

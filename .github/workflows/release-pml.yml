@@ -90,7 +90,7 @@ jobs:
       - name: Create GitHub Release on Public Repo
         uses: softprops/action-gh-release@v1
         with:
-          repository: Casys-AI/mcp-std
+          repository: Casys-AI/casys-pml
           token: ${{ secrets.PUBLIC_REPO_PAT }}
           tag_name: ${{ steps.version.outputs.version }}
           name: PML ${{ steps.version.outputs.version }}
@@ -108,7 +108,7 @@ jobs:
 
             ### Quick Install (Linux/macOS)
             ```bash
-            curl -fsSL https://github.com/Casys-AI/mcp-std/releases/download/${{ steps.version.outputs.version }}/install.sh | sh
+            curl -fsSL https://github.com/Casys-AI/casys-pml/releases/download/${{ steps.version.outputs.version }}/install.sh | sh
             ```
 
             ### Manual Download

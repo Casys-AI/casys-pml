@@ -1,0 +1,82 @@
+# Sync PML CLI package to public repository
+# Syncs packages/pml/ to Casys-AI/casys-pml
+
+name: Sync PML Package
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/pml/**"
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout private repo
+        uses: actions/checkout@v4
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+
+      - name: Clone public repo
+        run: |
+          git clone https://x-access-token:${{ secrets.PUBLIC_REPO_PAT }}@github.com/Casys-AI/casys-pml.git public-repo
+          cd public-repo
+          git checkout main || git checkout -b main
+
+      - name: Sync packages/pml/
+        run: |
+          # Remove old source files (preserve .github, etc.)
+          rm -rf public-repo/src/
+          rm -rf public-repo/tests/
+          rm -rf public-repo/scripts/
+          rm -f public-repo/deno.json
+          rm -f public-repo/deno.lock
+          rm -f public-repo/mod.ts
+          rm -f public-repo/README.md
+
+          # Copy packages/pml/ contents
+          cp -r packages/pml/* public-repo/
+
+          # Add LICENSE
+          cat > public-repo/LICENSE << 'EOF'
+MIT License
+
+Copyright (c) 2024-2026 Casys AI
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+EOF
+
+      - name: Commit and push to public
+        run: |
+          cd public-repo
+          git add -A
+
+          if git diff --staged --quiet; then
+            echo "No changes to sync"
+            exit 0
+          fi
+
+          COMMIT_MSG=$(git log -1 --format="%s" ${{ github.sha }} 2>/dev/null || echo "Sync from pml-cloud")
+          git commit -m "$COMMIT_MSG" -m "Synced from pml-cloud"
+          git push origin main
