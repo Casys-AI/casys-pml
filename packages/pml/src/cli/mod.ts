@@ -10,6 +10,7 @@ import { Command } from "@cliffy/command";
 import { createInitCommand } from "./init-command.ts";
 import { createServeCommand } from "./serve-command.ts";
 import { createStdioCommand } from "./stdio-command.ts";
+import { createUpgradeCommand } from "./upgrade-command.ts";
 
 // Load .env file if present (won't override existing env vars)
 try {
@@ -31,7 +32,8 @@ export const main = new Command()
   )
   .command("init", createInitCommand())
   .command("stdio", createStdioCommand())
-  .command("serve", createServeCommand());
+  .command("serve", createServeCommand())
+  .command("upgrade", createUpgradeCommand());
 
 // Run if called directly
 if (import.meta.main) {

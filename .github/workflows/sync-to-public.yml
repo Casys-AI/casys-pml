@@ -1,6 +1,6 @@
-# Sync Core code to public repository
-# Triggered on push to main when core/shared/docs files change
-# Excludes cloud-only code and secrets
+# Sync MiniTools library to public repository
+# Only syncs lib/std/ (the open source MiniTools)
+# Everything else stays private
 
 name: Sync to Public Repo
 
@@ -8,16 +8,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "src/**"
-      - "!src/web/**"
-      - "lib/**"
-      - "config/**"
-      - "README.md"
-      - "LICENSE"
-      - "deno.json"
-      - "deno.lock"
-      - "tests/**"
-      - "scripts/**"
+      - "lib/std/**"
 
   # Allow manual trigger
   workflow_dispatch:
@@ -42,44 +33,49 @@ jobs:
           cd public-repo
           git checkout main || git checkout -b main
 
-      - name: Sync files (excluding cloud-only)
+      - name: Sync std/ only
         run: |
-          # Remove old files in public repo (except .git)
+          # Clean EVERYTHING in public repo (except .git)
           cd public-repo
           find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
           cd ..
 
-          # Copy files, excluding private/cloud-only content
-          rsync -av --exclude='.git' \
-            --exclude='src/cloud/' \
-            --exclude='packages/' \
-            --exclude='.github/workflows/sync-to-public.yml' \
-            --exclude='.github/SYNC_SETUP.md' \
-            --exclude='.env' \
-            --exclude='.env.local' \
-            --exclude='.env.production' \
-            --exclude='.env.example' \
-            --exclude='secrets/' \
-            --exclude='.dev.vars' \
-            --exclude='*.local' \
-            --exclude='node_modules/' \
-            --exclude='.wrangler/' \
-            --exclude='playground/.env' \
-            --exclude='.bmad-user-memory/' \
-            --exclude='.claude/' \
-            --exclude='.agent/' \
-            --exclude='.windsurf/' \
-            --exclude='bmad-custom-src/' \
-            --exclude='_bmad/' \
-            --exclude='bmad-custom/' \
-            --exclude='.bmad*' \
-            --exclude='.devcontainer/' \
-            --exclude='playground/' \
-            --exclude='monitoring/' \
-            --exclude='drizzle/' \
-            --exclude='src/web/' \
-            --exclude='docs/' \
-            ./ public-repo/
+          # Copy only lib/std/ as std/
+          cp -r lib/std/ public-repo/std/
+
+          # Copy LICENSE
+          cp LICENSE public-repo/LICENSE
+
+          # Create minimal README for public repo
+          cat > public-repo/README.md << 'EOF'
+# PML Standard Library
+
+MCP-compatible utility tools (~318 tools across 21 categories).
+
+## Installation
+
+```typescript
+import { tools } from "jsr:@casys/pml-std";
+```
+
+## Categories
+
+| Category | Examples |
+|----------|----------|
+| text | split, join, regex, case, template, slugify |
+| format | yaml, json, toml, markdown, csv, sql |
+| crypto | hash, uuid, base64, jwt, hmac, totp |
+| math | calculate, convert, statistics |
+| datetime | parse, format, timezone, cron |
+| network | dns, ip, url, http |
+| docker | build, run, compose, logs |
+| git | status, diff, log, branch |
+| ... | and many more |
+
+## License
+
+MIT - See LICENSE
+EOF
 
       - name: Commit and push to public
         run: |
@@ -93,7 +89,7 @@ jobs:
           fi
 
           # Get the commit message from the triggering commit
-          COMMIT_MSG=$(git log -1 --format="%s" ${{ github.sha }} 2>/dev/null || echo "Sync from private repo")
+          COMMIT_MSG=$(git log -1 --format="%s" ${{ github.sha }} 2>/dev/null || echo "Sync lib/ from private repo")
 
-          git commit -m "$COMMIT_MSG" -m "Synced from casys-pml-cloud"
+          git commit -m "$COMMIT_MSG" -m "Synced from pml-cloud"
           git push origin main
