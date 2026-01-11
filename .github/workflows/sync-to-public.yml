@@ -37,13 +37,15 @@ jobs:
         run: |
           # Only remove lib/ related files (preserve .github, etc.)
           rm -rf public-repo/std/
-          rm -rf public-repo/mcp-tools.ts
-          rm -rf public-repo/mcp-tools-server.ts
+          rm -f public-repo/mcp-tools.ts
+          rm -f public-repo/mcp-tools-server.ts
+          rm -f public-repo/deno.json
+          rm -f public-repo/README.md
 
           # Copy lib/ contents to root of public repo
           cp -r lib/* public-repo/
 
-          # Update LICENSE and README
+          # Add LICENSE
           cp LICENSE public-repo/LICENSE
 
       - name: Commit and push to public
