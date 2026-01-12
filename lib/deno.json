@@ -38,6 +38,7 @@
     "diff": "npm:diff@^7.0.0",
     "jsondiffpatch": "npm:jsondiffpatch@^0.6.0",
     "mnemonist": "npm:mnemonist@^0.39.8",
-    "uuid": "npm:uuid@^11.0.5"
+    "uuid": "npm:uuid@^11.0.5",
+    "postgres": "npm:postgres@^3.4.5"
   }
 }

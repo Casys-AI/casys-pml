@@ -11,7 +11,8 @@
       "ssh:*",
       "database:*",
       "sqlite:*",
-      "postgres:*"
+      "postgres:*",
+      "std:agent_*"
     ],
     "server": [
       "std:*",
@@ -50,6 +51,7 @@
   "_comments": {
     "client": "Runs on user's machine - filesystem, process, network access",
     "server": "Runs on pml.casys.ai - stateless computation, external APIs",
-    "default": "Unknown tools route to client (safe fallback)"
+    "default": "Unknown tools route to client (safe fallback)",
+    "agent_tools": "std:agent_* routed to client for BYOK (user provides OPENAI_API_KEY or ANTHROPIC_API_KEY)"
   }
 }
