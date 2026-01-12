@@ -91,6 +91,8 @@ export interface BootstrapOptions {
   checkpointManager?: CheckpointManager;
   /** Capability registry for tool definitions */
   capabilityRegistry?: CapabilityRegistry;
+  /** CapModule for cap_* tool routing */
+  capModule?: import("../../mcp/handlers/cap-handler.ts").CapModule;
 }
 
 /**
@@ -169,6 +171,7 @@ export function bootstrapDI(options: BootstrapOptions): BootstrappedServices {
     capabilityStore,
     capabilityRegistry,
     graphRAG: graphEngine,
+    capModule: options.capModule,
   });
 
   // Build container with factory functions

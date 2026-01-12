@@ -455,6 +455,13 @@ export function createServeCommand() {
         // Phase 3.1: Wire execute adapters for use cases (DI)
         gateway.setExecuteAdapters(executeAdapters);
 
+        // Story 13.5: Wire CapModule to WorkerBridgeFactory for cap_* tool routing
+        const capModule = gateway.getCapModule();
+        if (capModule) {
+          executeAdapters.workerBridgeFactory.setCapModule(capModule);
+          log.info("✓ CapModule wired to WorkerBridgeFactory for cap_* tools");
+        }
+
         // Connect gateway to tool tracking callback (Story 3.7)
         gatewayRef = gateway;
 

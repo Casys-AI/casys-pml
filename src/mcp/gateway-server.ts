@@ -539,6 +539,14 @@ export class PMLGatewayServer {
   }
 
   /**
+   * Get CapModule for cap_* tool routing
+   * Used to wire DI adapters after gateway construction.
+   */
+  getCapModule(): import("./handlers/cap-handler.ts").CapModule | undefined {
+    return this.pmlStdServer?.getCapModule();
+  }
+
+  /**
    * Setup MCP protocol handlers
    */
   private setupHandlers(): void {

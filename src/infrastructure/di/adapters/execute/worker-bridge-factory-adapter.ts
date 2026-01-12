@@ -71,13 +71,27 @@ export interface WorkerBridgeFactoryAdapterDeps {
   createExecutor?: () => ControlledExecutor;
   /** Execution timeout in ms (default: 30000) */
   timeout?: number;
+  /** CapModule for cap_* tool routing */
+  capModule?: import("../../../../mcp/handlers/cap-handler.ts").CapModule;
 }
 
 /**
  * Adapts WorkerBridge factory functions to IWorkerBridgeFactory interface
  */
 export class WorkerBridgeFactoryAdapter implements IWorkerBridgeFactory {
-  constructor(private readonly deps: WorkerBridgeFactoryAdapterDeps) {}
+  private capModule?: import("../../../../mcp/handlers/cap-handler.ts").CapModule;
+
+  constructor(private readonly deps: WorkerBridgeFactoryAdapterDeps) {
+    this.capModule = deps.capModule;
+  }
+
+  /**
+   * Set CapModule for cap_* tool routing (late binding)
+   * Called after GatewayServer creates PmlStdServer
+   */
+  setCapModule(capModule: import("../../../../mcp/handlers/cap-handler.ts").CapModule): void {
+    this.capModule = capModule;
+  }
 
   /**
    * Create a DAG executor with worker bridge
@@ -95,6 +109,7 @@ export class WorkerBridgeFactoryAdapter implements IWorkerBridgeFactory {
       capabilityStore: this.deps.capabilityStore,
       capabilityRegistry: this.deps.capabilityRegistry,
       graphRAG: this.deps.graphRAG,
+      capModule: this.capModule,
       timeout: this.deps.timeout ?? 30000,
     });
 
