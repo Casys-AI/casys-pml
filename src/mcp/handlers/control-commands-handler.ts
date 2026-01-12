@@ -69,6 +69,7 @@ function createToolExecutorWithTracing(
     capabilityStore: deps.capabilityStore,
     graphRAG: deps.graphEngine,
     capabilityRegistry: deps.capabilityRegistry,
+    capModule: deps.capModule,
   });
 
   return { executor, context };

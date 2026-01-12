@@ -49,14 +49,14 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
   // === Baseline (current production config) ===
   {
     name: "baseline_production",
-    description: "Current production config: PER + curriculum + τ annealing",
+    description: "Current production config: PER α=0.4 + curriculum + τ cosine 0.10→0.06",
     usePER: true,
-    perAlpha: 0.6,
+    perAlpha: 0.4,
     perBetaStart: 0.4,
     perBetaEnd: 1.0,
     temperature: "anneal",
-    tempStart: 0.2,
-    tempEnd: 0.07,
+    tempStart: 0.10,
+    tempEnd: 0.06,
     useCurriculum: true,
     learningRate: 0.05,
     epochs: 10,
@@ -72,8 +72,8 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     perBetaStart: 1.0,
     perBetaEnd: 1.0,
     temperature: "anneal",
-    tempStart: 0.2,
-    tempEnd: 0.07,
+    tempStart: 0.10,
+    tempEnd: 0.06,
     useCurriculum: true,
     learningRate: 0.05,
     epochs: 10,
@@ -87,8 +87,8 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     perBetaStart: 0.4,
     perBetaEnd: 1.0,
     temperature: "anneal",
-    tempStart: 0.2,
-    tempEnd: 0.07,
+    tempStart: 0.10,
+    tempEnd: 0.06,
     useCurriculum: true,
     learningRate: 0.05,
     epochs: 10,
@@ -96,14 +96,14 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
   },
   {
     name: "per_high_alpha",
-    description: "PER with high priority (α=0.9)",
+    description: "PER with high priority (α=0.7)",
     usePER: true,
-    perAlpha: 0.9,
+    perAlpha: 0.7,
     perBetaStart: 0.4,
     perBetaEnd: 1.0,
     temperature: "anneal",
-    tempStart: 0.2,
-    tempEnd: 0.07,
+    tempStart: 0.10,
+    tempEnd: 0.06,
     useCurriculum: true,
     learningRate: 0.05,
     epochs: 10,
@@ -115,7 +115,7 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     name: "temp_fixed_007",
     description: "Fixed temperature τ=0.07 (CLIP)",
     usePER: true,
-    perAlpha: 0.6,
+    perAlpha: 0.4,
     perBetaStart: 0.4,
     perBetaEnd: 1.0,
     temperature: 0.07,
@@ -128,7 +128,7 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     name: "temp_fixed_010",
     description: "Fixed temperature τ=0.1 (SimCLR/SupCon)",
     usePER: true,
-    perAlpha: 0.6,
+    perAlpha: 0.4,
     perBetaStart: 0.4,
     perBetaEnd: 1.0,
     temperature: 0.1,
@@ -141,7 +141,7 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     name: "temp_fixed_020",
     description: "Fixed temperature τ=0.2 (MoCo)",
     usePER: true,
-    perAlpha: 0.6,
+    perAlpha: 0.4,
     perBetaStart: 0.4,
     perBetaEnd: 1.0,
     temperature: 0.2,
@@ -156,12 +156,12 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     name: "no_curriculum",
     description: "Random negatives (no curriculum)",
     usePER: true,
-    perAlpha: 0.6,
+    perAlpha: 0.4,
     perBetaStart: 0.4,
     perBetaEnd: 1.0,
     temperature: "anneal",
-    tempStart: 0.2,
-    tempEnd: 0.07,
+    tempStart: 0.10,
+    tempEnd: 0.06,
     useCurriculum: false,
     learningRate: 0.05,
     epochs: 10,
@@ -173,12 +173,12 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     name: "lr_001",
     description: "Low learning rate (0.01)",
     usePER: true,
-    perAlpha: 0.6,
+    perAlpha: 0.4,
     perBetaStart: 0.4,
     perBetaEnd: 1.0,
     temperature: "anneal",
-    tempStart: 0.2,
-    tempEnd: 0.07,
+    tempStart: 0.10,
+    tempEnd: 0.06,
     useCurriculum: true,
     learningRate: 0.01,
     epochs: 10,
@@ -188,12 +188,12 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     name: "lr_003",
     description: "Medium learning rate (0.03)",
     usePER: true,
-    perAlpha: 0.6,
+    perAlpha: 0.4,
     perBetaStart: 0.4,
     perBetaEnd: 1.0,
     temperature: "anneal",
-    tempStart: 0.2,
-    tempEnd: 0.07,
+    tempStart: 0.10,
+    tempEnd: 0.06,
     useCurriculum: true,
     learningRate: 0.03,
     epochs: 10,
@@ -203,12 +203,12 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     name: "lr_010",
     description: "High learning rate (0.10)",
     usePER: true,
-    perAlpha: 0.6,
+    perAlpha: 0.4,
     perBetaStart: 0.4,
     perBetaEnd: 1.0,
     temperature: "anneal",
-    tempStart: 0.2,
-    tempEnd: 0.07,
+    tempStart: 0.10,
+    tempEnd: 0.06,
     useCurriculum: true,
     learningRate: 0.10,
     epochs: 10,
@@ -335,6 +335,155 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     curriculumHardThreshold: 0.75,
     learningRate: 0.05,
     epochs: 10,
+    batchSize: 16,
+  },
+];
+
+/**
+ * Live Learning Configs (3 epochs) - for incremental updates after capability execution
+ * These test what works best for quick fine-tuning on new data
+ */
+export const LIVE_ABLATION_CONFIGS: TrainingAblationConfig[] = [
+  // === Live Baseline ===
+  {
+    name: "live_baseline",
+    description: "Live baseline: current prod settings with 3 epochs",
+    usePER: true,
+    perAlpha: 0.4,
+    perBetaStart: 0.4,
+    perBetaEnd: 1.0,
+    temperature: "anneal",
+    tempStart: 0.10,
+    tempEnd: 0.06,
+    useCurriculum: true,
+    learningRate: 0.05,
+    epochs: 3,
+    batchSize: 16,
+  },
+  // === Temperature for Live ===
+  {
+    name: "live_temp_fixed_07",
+    description: "Live: fixed τ=0.07 (no annealing)",
+    usePER: true,
+    perAlpha: 0.4,
+    perBetaStart: 0.4,
+    perBetaEnd: 1.0,
+    temperature: 0.07,
+    useCurriculum: true,
+    learningRate: 0.05,
+    epochs: 3,
+    batchSize: 16,
+  },
+  {
+    name: "live_temp_fixed_08",
+    description: "Live: fixed τ=0.08 (slightly softer)",
+    usePER: true,
+    perAlpha: 0.4,
+    perBetaStart: 0.4,
+    perBetaEnd: 1.0,
+    temperature: 0.08,
+    useCurriculum: true,
+    learningRate: 0.05,
+    epochs: 3,
+    batchSize: 16,
+  },
+  // === Learning Rate for Live ===
+  {
+    name: "live_lr_002",
+    description: "Live: conservative LR=0.02 (less aggressive)",
+    usePER: true,
+    perAlpha: 0.4,
+    perBetaStart: 0.8,
+    perBetaEnd: 1.0,
+    temperature: 0.07,
+    useCurriculum: false,
+    learningRate: 0.02,
+    epochs: 3,
+    batchSize: 16,
+  },
+  {
+    name: "live_lr_003",
+    description: "Live: moderate LR=0.03",
+    usePER: true,
+    perAlpha: 0.4,
+    perBetaStart: 0.8,
+    perBetaEnd: 1.0,
+    temperature: 0.07,
+    useCurriculum: false,
+    learningRate: 0.03,
+    epochs: 3,
+    batchSize: 16,
+  },
+  // === Beta for Live (less IS correction) ===
+  {
+    name: "live_beta_high",
+    description: "Live: high β=0.9 fixed (minimal IS correction)",
+    usePER: true,
+    perAlpha: 0.4,
+    perBetaStart: 0.9,
+    perBetaEnd: 1.0,
+    temperature: 0.07,
+    useCurriculum: false,
+    learningRate: 0.05,
+    epochs: 3,
+    batchSize: 16,
+  },
+  // === No PER for Live ===
+  {
+    name: "live_no_per",
+    description: "Live: uniform sampling (no PER)",
+    usePER: false,
+    perAlpha: 0,
+    perBetaStart: 1.0,
+    perBetaEnd: 1.0,
+    temperature: 0.07,
+    useCurriculum: false,
+    learningRate: 0.05,
+    epochs: 3,
+    batchSize: 16,
+  },
+  // === No Curriculum for Live ===
+  {
+    name: "live_no_curriculum",
+    description: "Live: PER but no curriculum (random tier)",
+    usePER: true,
+    perAlpha: 0.4,
+    perBetaStart: 0.8,
+    perBetaEnd: 1.0,
+    temperature: 0.07,
+    useCurriculum: false,
+    learningRate: 0.05,
+    epochs: 3,
+    batchSize: 16,
+  },
+  // === Hard Only for Live ===
+  {
+    name: "live_hard_only",
+    description: "Live: curriculum stuck on hard tier",
+    usePER: true,
+    perAlpha: 0.4,
+    perBetaStart: 0.8,
+    perBetaEnd: 1.0,
+    temperature: 0.07,
+    useCurriculum: true,
+    curriculumEasyThreshold: 0.0,  // Always above → hard tier
+    curriculumHardThreshold: 0.0,
+    learningRate: 0.05,
+    epochs: 3,
+    batchSize: 16,
+  },
+  // === Minimal Live ===
+  {
+    name: "live_minimal",
+    description: "Live: simplest config (no PER, no curriculum, fixed τ)",
+    usePER: false,
+    perAlpha: 0,
+    perBetaStart: 1.0,
+    perBetaEnd: 1.0,
+    temperature: 0.08,
+    useCurriculum: false,
+    learningRate: 0.03,
+    epochs: 3,
     batchSize: 16,
   },
 ];
@@ -804,21 +953,36 @@ if (import.meta.main) {
   // Parse args
   const args = Deno.args;
   const isQuick = args.includes("--quick") || Deno.env.get("ABLATION_QUICK") === "1";
+  const isLive = args.includes("--live") || Deno.env.get("ABLATION_LIVE") === "1";
   const numRuns = parseInt(Deno.env.get("ABLATION_RUNS") || (isQuick ? "1" : "3"));
 
-  const configs = isQuick ? QUICK_ABLATION_CONFIGS : TRAINING_ABLATION_CONFIGS;
-  const mode = isQuick ? "QUICK" : "FULL";
+  // Select config set based on mode
+  let configs: TrainingAblationConfig[];
+  let mode: string;
+  if (isLive) {
+    configs = LIVE_ABLATION_CONFIGS;
+    mode = "LIVE";
+  } else if (isQuick) {
+    configs = QUICK_ABLATION_CONFIGS;
+    mode = "QUICK";
+  } else {
+    configs = TRAINING_ABLATION_CONFIGS;
+    mode = "FULL";
+  }
 
   console.log("╔════════════════════════════════════════════════════════════════════════════════╗");
   console.log(`║           SHGAT TRAINING ABLATION STUDY (${mode.padEnd(5)})                          ║`);
   console.log("╚════════════════════════════════════════════════════════════════════════════════╝\n");
 
   console.log(`Mode: ${mode} (${configs.length} configs, ${numRuns} run${numRuns > 1 ? "s" : ""} each)`);
-  if (isQuick) {
+  if (isLive) {
+    console.log("  Testing live learning configs (3 epochs each)");
+    console.log("  Use --quick for quick ablation, or no flag for full ablation\n");
+  } else if (isQuick) {
     console.log("  Configs: baseline_production, no_per, temp_fixed_007, no_curriculum, minimal");
-    console.log("  Use without --quick for full ablation (12 configs, 10 epochs)\n");
+    console.log("  Use --live for live learning ablation (3 epochs)\n");
   } else {
-    console.log("  Use --quick for fast ablation (5 configs, 5 epochs, ~2 min)\n");
+    console.log("  Use --quick for fast ablation, --live for live learning ablation\n");
   }
 
   const results = await runAblationStudy(configs, numRuns);
@@ -827,7 +991,7 @@ if (import.meta.main) {
   console.log("\n" + report);
 
   // Save report to file
-  const suffix = isQuick ? "-quick" : "";
+  const suffix = isLive ? "-live" : (isQuick ? "-quick" : "");
   const reportPath = `tests/benchmarks/reports/training-ablation${suffix}-${new Date().toISOString().split("T")[0]}.md`;
   try {
     await Deno.mkdir("tests/benchmarks/reports", { recursive: true });

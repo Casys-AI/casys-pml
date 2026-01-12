@@ -76,6 +76,8 @@ export interface CodeExecutionDependencies {
    * Used for hybrid routing - if true and client tools detected, return execute_locally.
    */
   isPackageClient?: boolean;
+  /** CapModule for cap_* tool routing */
+  capModule?: import("./cap-handler.ts").CapModule;
 }
 
 /**
@@ -278,6 +280,7 @@ async function tryDagExecution(
       capabilityStore: deps.capabilityStore,
       graphRAG: deps.graphEngine,
       capabilityRegistry: deps.capabilityRegistry,
+      capModule: deps.capModule,
     });
 
     try {

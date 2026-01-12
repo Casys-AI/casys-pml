@@ -39,4 +39,6 @@ export interface WorkflowHandlerDependencies {
   algorithmTracer?: AlgorithmTracer;
   /** ADR-008: Episodic memory for learning from workflow executions */
   episodicMemory?: EpisodicMemoryStore;
+  /** Story 13.5: CapModule for cap_* tool routing */
+  capModule?: import("./cap-handler.ts").CapModule;
 }

@@ -647,8 +647,16 @@ interface CapabilityForTraining {
 export interface SubprocessPEROptions extends PERTrainingOptions {
   /** Capabilities with embeddings for SHGAT initialization */
   capabilities: CapabilityForTraining[];
-  /** Number of epochs (default: 3 for live with PER curriculum, 5+ for batch) */
+  /** Number of epochs (default: 1 for live, 40 for batch) */
   epochs?: number;
+  /** Fixed temperature for InfoNCE (default: uses cosine annealing for batch) */
+  temperature?: number;
+  /** Use PER sampling (default: true for batch, false for live) */
+  usePER?: boolean;
+  /** Use curriculum learning (default: true for batch, false for live) */
+  useCurriculum?: boolean;
+  /** Learning rate (default: 0.05 for batch, 0.03 for live) */
+  learningRate?: number;
 }
 
 /**

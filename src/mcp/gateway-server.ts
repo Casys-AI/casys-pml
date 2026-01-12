@@ -831,6 +831,7 @@ export class PMLGatewayServer {
       adaptiveThresholdManager: this.adaptiveThresholdManager, // Story 10.7c
       algorithmTracer: this.algorithmTracer ?? undefined, // Story 7.6
       episodicMemory: this.episodicMemory ?? undefined, // ADR-008
+      capModule: this.pmlStdServer?.getCapModule(), // Story 13.5: cap_* tool routing
     };
   }
 
@@ -851,6 +852,7 @@ export class PMLGatewayServer {
       toolSchemaCache: this.toolSchemaCache,
       codeAnalyzer: this.codeAnalyzer ?? undefined, // Phase 3.2: DI
       isPackageClient, // Hybrid routing: determines execute_locally response
+      capModule: this.pmlStdServer?.getCapModule(), // Story 13.5: cap_* tool routing
     };
   }
 

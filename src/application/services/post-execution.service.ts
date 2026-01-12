@@ -435,7 +435,11 @@ export class PostExecutionService {
           minTraces: 1,
           maxTraces: 50,
           batchSize: 16,
-          epochs: 3, // Live mode: 3 epochs for PER curriculum learning (ADR-060)
+          epochs: 1,           // Live: 1 epoch for fast updates
+          temperature: 0.07,   // Live: fixed τ (no annealing)
+          usePER: false,       // Live: no PER (overhead not worth 1 epoch)
+          useCurriculum: false, // Live: no curriculum (no time)
+          learningRate: 0.03,  // Live: conservative LR
         },
       );
 

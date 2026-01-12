@@ -63,6 +63,14 @@ export interface SHGATTrainingConfig {
   batchSize?: number;
   /** Number of epochs per training run */
   epochs?: number;
+  /** Fixed temperature for InfoNCE loss (default: uses annealing) */
+  temperature?: number;
+  /** Use PER (Prioritized Experience Replay) - default true for batch, false for live */
+  usePER?: boolean;
+  /** Use curriculum learning - default true for batch, false for live */
+  useCurriculum?: boolean;
+  /** Learning rate - default 0.05 for batch, 0.03 for live */
+  learningRate?: number;
 }
 
 /**

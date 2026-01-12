@@ -215,3 +215,26 @@ export function annealBeta(epoch: number, totalEpochs: number, betaStart: number
   const progress = Math.min(epoch / Math.max(totalEpochs - 1, 1), 1.0);
   return betaStart + progress * (1.0 - betaStart);
 }
+
+/**
+ * Cosine annealing for temperature τ (InfoNCE contrastive learning).
+ * Starts high (soft probabilities, exploration) → ends low (sharp, focus on hard distinctions).
+ *
+ * τ(t) = τ_end + (τ_start - τ_end) * 0.5 * (1 + cos(π * t / T))
+ *
+ * @param epoch Current epoch (0-indexed)
+ * @param totalEpochs Total number of epochs
+ * @param tauStart Starting temperature (default 0.10 - soft, exploratory)
+ * @param tauEnd Ending temperature (default 0.06 - sharp, discriminative)
+ * @returns Annealed temperature value
+ */
+export function annealTemperature(
+  epoch: number,
+  totalEpochs: number,
+  tauStart: number = 0.10,
+  tauEnd: number = 0.06
+): number {
+  const progress = Math.min(epoch / Math.max(totalEpochs - 1, 1), 1.0);
+  // Cosine annealing: smooth descent, slows down toward the end
+  return tauEnd + (tauStart - tauEnd) * 0.5 * (1 + Math.cos(Math.PI * progress));
+}

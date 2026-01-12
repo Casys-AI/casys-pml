@@ -26,6 +26,14 @@ interface SpawnTrainingInput {
   databaseUrl?: string;
   /** Additional tools to register (from examples' contextTools not in any capability) */
   additionalTools?: string[];
+  /** Fixed temperature for InfoNCE (omit for cosine annealing) */
+  temperature?: number;
+  /** Use PER sampling (default: true) */
+  usePER?: boolean;
+  /** Use curriculum learning (default: true) */
+  useCurriculum?: boolean;
+  /** Learning rate (default: 0.05) */
+  learningRate?: number;
 }
 
 interface SpawnTrainingResult {
@@ -76,6 +84,10 @@ export async function spawnSHGATTraining(
     config: {
       epochs: input.epochs ?? 40,
       batchSize: input.batchSize ?? 32,
+      temperature: input.temperature,      // undefined = use annealing
+      usePER: input.usePER ?? true,
+      useCurriculum: input.useCurriculum ?? true,
+      learningRate: input.learningRate ?? 0.05,
     },
     existingParams: input.existingParams,
     databaseUrl, // Worker saves params directly to DB

@@ -26,7 +26,7 @@
 import { createSHGATFromCapabilities, generateDefaultToolEmbedding, type TrainingExample } from "../shgat.ts";
 import { NUM_NEGATIVES } from "./types.ts";
 import { initBlasAcceleration } from "./utils/math.ts";
-import { PERBuffer, annealBeta } from "./training/per-buffer.ts";
+import { PERBuffer, annealBeta, annealTemperature } from "./training/per-buffer.ts";
 import { getLogger, setupLogger } from "../../../telemetry/logger.ts";
 import postgres from "postgres";
 
@@ -58,6 +58,10 @@ interface WorkerInput {
   config: {
     epochs: number;
     batchSize: number;
+    temperature?: number;    // Fixed τ (undefined = use annealing)
+    usePER?: boolean;        // Use PER sampling (default: true)
+    useCurriculum?: boolean; // Use curriculum learning (default: true)
+    learningRate?: number;   // Learning rate (default: 0.05)
   };
   /** Optional: import existing params before training (for live updates) */
   existingParams?: Record<string, unknown>;
@@ -181,12 +185,25 @@ async function main() {
       shgat.importParams(input.existingParams);
     }
 
-    // Train with PER: prioritized sampling based on TD errors
-    const { epochs, batchSize } = input.config;
+    // Extract config with defaults
+    const {
+      epochs,
+      batchSize,
+      temperature: fixedTemperature,      // undefined = use annealing
+      usePER = true,
+      useCurriculum = true,
+      learningRate = 0.05,
+    } = input.config;
+
+    const mode = usePER ? "PER" : "uniform";
     logInfo(
-      `[SHGAT Worker] Starting PER training: ${input.examples.length} examples, ${epochs} epochs, ` +
-      `batch_size=${batchSize}, ${input.capabilities.length} capabilities`
+      `[SHGAT Worker] Starting ${mode} training: ${input.examples.length} examples, ${epochs} epochs, ` +
+      `batch_size=${batchSize}, ${input.capabilities.length} caps, ` +
+      `τ=${fixedTemperature ?? "anneal"}, curriculum=${useCurriculum}, lr=${learningRate}`
     );
+
+    // Apply custom learning rate
+    shgat.setLearningRate(learningRate);
 
     // Split examples: 80% train, 20% held-out test set for health check
     const shuffled = [...input.examples].sort(() => Math.random() - 0.5);
@@ -198,15 +215,15 @@ async function main() {
 
     const numBatchesPerEpoch = Math.ceil(trainSet.length / batchSize);
 
-    // Initialize PER buffer with training examples only
+    // Initialize PER buffer only if usePER is true
     // α=0.4 for balanced coverage (sees all difficulties)
     // maxPriority=25 to match margin-based TD error range [0.05, 20]
-    const perBuffer = new PERBuffer(trainSet, {
+    const perBuffer = usePER ? new PERBuffer(trainSet, {
       alpha: 0.4,       // Priority exponent (lower = more uniform sampling for coverage)
       beta: 0.4,        // IS weight exponent (annealed to 1.0)
       epsilon: 0.01,    // Minimum priority floor (prevents starvation of easy examples)
       maxPriority: 25,  // Match margin-based TD error range exp(3) ≈ 20
-    });
+    }) : null;
 
     let finalLoss = 0;
     let finalAccuracy = 0;
@@ -221,18 +238,20 @@ async function main() {
 
     for (let epoch = 0; epoch < epochs; epoch++) {
       // Anneal beta from 0.4 to 1.0 over training (reduces bias correction over time)
-      const beta = annealBeta(epoch, epochs, 0.4);
+      const beta = usePER ? annealBeta(epoch, epochs, 0.4) : 1.0;
 
-      // Fixed temperature τ=0.07 (CLIP-style) - ablation showed this beats annealing
-      const temperature = 0.07;
+      // Temperature: use fixed value or cosine annealing (0.10 → 0.06)
+      const temperature = fixedTemperature ?? annealTemperature(epoch, epochs);
 
-      // Curriculum learning on negatives: sample from dynamic tier based on accuracy
+      // Curriculum learning on negatives (only if enabled)
       // allNegativesSorted is sorted descending by similarity (hard → easy)
       // accuracy < 0.60: easy negatives (last third)
       // accuracy > 0.75: hard negatives (first third)
       // else: medium negatives (middle third)
-      const prevAccuracy = epoch === 0 ? 0.55 : finalAccuracy; // Start with easy
-      const difficulty = prevAccuracy < 0.60 ? "easy" : (prevAccuracy > 0.75 ? "hard" : "medium");
+      const prevAccuracy = epoch === 0 ? 0.55 : finalAccuracy;
+      const difficulty = useCurriculum
+        ? (prevAccuracy < 0.60 ? "easy" : (prevAccuracy > 0.75 ? "hard" : "medium"))
+        : "random"; // No curriculum = random tier
 
       // Fisher-Yates shuffle helper
       const shuffle = <T>(arr: T[]): T[] => {
@@ -254,23 +273,27 @@ async function main() {
           tierSize = Math.floor(total / 3);
           totalNegs = total;
 
-          // Select tier based on accuracy (thresholds match line 235)
-          let tierStart: number;
-          if (prevAccuracy < 0.60) {
-            tierStart = tierSize * 2; // Easy: last third
-          } else if (prevAccuracy > 0.75) {
-            tierStart = 0; // Hard: first third
+          if (useCurriculum) {
+            // Select tier based on accuracy (thresholds match curriculum config)
+            let tierStart: number;
+            if (prevAccuracy < 0.60) {
+              tierStart = tierSize * 2; // Easy: last third
+            } else if (prevAccuracy > 0.75) {
+              tierStart = 0; // Hard: first third
+            } else {
+              tierStart = tierSize; // Medium: middle third
+            }
+            // Extract tier and shuffle-sample NUM_NEGATIVES from it
+            const tier = ex.allNegativesSorted.slice(tierStart, tierStart + tierSize);
+            ex.negativeCapIds = shuffle(tier).slice(0, NUM_NEGATIVES);
           } else {
-            tierStart = tierSize; // Medium: middle third
+            // No curriculum: random sample from all negatives
+            ex.negativeCapIds = shuffle(ex.allNegativesSorted).slice(0, NUM_NEGATIVES);
           }
-
-          // Extract tier and shuffle-sample NUM_NEGATIVES from it
-          const tier = ex.allNegativesSorted.slice(tierStart, tierStart + tierSize);
-          ex.negativeCapIds = shuffle(tier).slice(0, NUM_NEGATIVES);
           curriculumUpdated++;
         }
       }
-      if (curriculumUpdated > 0) {
+      if (curriculumUpdated > 0 && useCurriculum) {
         logInfo(
           `[SHGAT Worker] Curriculum epoch ${epoch}: ${difficulty} tier (${tierSize}/${totalNegs} negs), ` +
           `sampled ${NUM_NEGATIVES}, updated ${curriculumUpdated}/${trainSet.length}, prevAcc=${prevAccuracy.toFixed(2)}`
@@ -285,36 +308,57 @@ async function main() {
       const allTdErrors: number[] = [];
 
       for (let b = 0; b < numBatchesPerEpoch; b++) {
-        // Sample batch using PER (prioritized by TD error magnitude)
-        const { items: batch, indices, weights: isWeights } = perBuffer.sample(batchSize, beta);
+        let batch: TrainingExample[];
+        let isWeights: number[];
 
-        // Train on batch with IS weight correction (BATCHED version - single forward pass)
-        // Pass annealed temperature for InfoNCE loss (τ: 0.2 → 0.05)
+        if (perBuffer) {
+          // PER: sample batch prioritized by TD error magnitude
+          const sample = perBuffer.sample(batchSize, beta);
+          batch = sample.items;
+          isWeights = sample.weights;
+          allIndices.push(...sample.indices);
+        } else {
+          // Uniform: random batch with equal weights
+          const startIdx = b * batchSize;
+          batch = trainSet.slice(startIdx, startIdx + batchSize);
+          isWeights = batch.map(() => 1.0);
+        }
+
+        // Train on batch (with IS weight correction if PER)
         const result = shgat.trainBatchV1KHeadBatched(batch, isWeights, false, temperature);
         epochLoss += result.loss;
         epochAccuracy += result.accuracy;
         epochTdErrors.push(...result.tdErrors);
         epochBatches++;
 
-        // Collect indices and TD errors for priority update
-        allIndices.push(...indices);
-        allTdErrors.push(...result.tdErrors);
+        // Collect TD errors for priority update (PER only)
+        if (perBuffer) {
+          allTdErrors.push(...result.tdErrors);
+        }
       }
 
-      // Update priorities based on TD errors from this epoch
-      perBuffer.updatePriorities(allIndices, allTdErrors);
-      // Decay priorities toward mean (prevents starvation of easy examples, allows high priorities to decrease)
-      perBuffer.decayPriorities(0.95);
-      const stats = perBuffer.getStats();
+      // Update priorities based on TD errors from this epoch (PER only)
+      if (perBuffer) {
+        perBuffer.updatePriorities(allIndices, allTdErrors);
+        perBuffer.decayPriorities(0.95);
+      }
 
       finalLoss = epochLoss / epochBatches;
       finalAccuracy = epochAccuracy / epochBatches;
       lastEpochTdErrors = epochTdErrors;
 
-      logInfo(
-        `[SHGAT Worker] Epoch ${epoch}: loss=${finalLoss.toFixed(4)}, acc=${finalAccuracy.toFixed(2)}, ` +
-        `priority=[${stats.min.toFixed(3)}-${stats.max.toFixed(3)}], β=${beta.toFixed(2)}, τ=${temperature.toFixed(3)}`
-      );
+      // Log epoch results
+      if (perBuffer) {
+        const stats = perBuffer.getStats();
+        logInfo(
+          `[SHGAT Worker] Epoch ${epoch}: loss=${finalLoss.toFixed(4)}, acc=${finalAccuracy.toFixed(2)}, ` +
+          `priority=[${stats.min.toFixed(3)}-${stats.max.toFixed(3)}], β=${beta.toFixed(2)}, τ=${temperature.toFixed(3)}`
+        );
+      } else {
+        logInfo(
+          `[SHGAT Worker] Epoch ${epoch}: loss=${finalLoss.toFixed(4)}, acc=${finalAccuracy.toFixed(2)}, τ=${temperature.toFixed(3)}`
+        );
+      }
 
       // Health check: evaluate on held-out test set
       if (testSet.length > 0) {

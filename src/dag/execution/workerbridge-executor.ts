@@ -34,6 +34,8 @@ export interface WorkerBridgeExecutorConfig {
   graphRAG?: WorkerBridgeConfig["graphRAG"];
   /** Optional CapabilityRegistry for routing to capabilities when MCP server not found */
   capabilityRegistry?: WorkerBridgeConfig["capabilityRegistry"];
+  /** Optional CapModule for cap_* tool routing */
+  capModule?: WorkerBridgeConfig["capModule"];
   /** Execution timeout in ms (default: 30000) */
   timeout?: number;
 }
@@ -81,6 +83,7 @@ export function createToolExecutorViaWorker(
     capabilityStore,
     graphRAG,
     capabilityRegistry,
+    capModule,
     timeout = 30000,
   } = config;
 
@@ -90,6 +93,7 @@ export function createToolExecutorViaWorker(
     capabilityStore,
     graphRAG,
     capabilityRegistry,
+    capModule,
   });
 
   const context: ExecutorContext = {
@@ -135,6 +139,7 @@ export function createToolExecutorViaWorker(
       capabilityStore,
       graphRAG,
       capabilityRegistry,
+      capModule,
     });
 
     try {

@@ -94,12 +94,16 @@ export class TrainSHGATUseCase {
         timestamp: Date.now(),
       }));
 
-      // Run training
+      // Run training - Live mode config (fast incremental updates)
       const config: SHGATTrainingConfig = {
         minTraces: 1,
         maxTraces: 50,
         batchSize: 16,
-        epochs: 3, // Live mode: 3 epochs for PER curriculum learning (ADR-060)
+        epochs: 1,           // Live: 1 epoch for fast updates
+        temperature: 0.07,   // Live: fixed τ (no annealing - too short)
+        usePER: false,       // Live: no PER (overhead not worth it for 1 epoch)
+        useCurriculum: false, // Live: no curriculum (no time to progress)
+        learningRate: 0.03,  // Live: conservative LR to not disturb weights
       };
 
       const result = await this.deps.shgatTrainer.train(
