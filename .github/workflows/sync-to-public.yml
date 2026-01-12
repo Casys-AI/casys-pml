@@ -35,15 +35,17 @@ jobs:
 
       - name: Sync lib/ folder
         run: |
-          # Only remove lib/ related files (preserve .github, etc.)
+          # Remove lib/ related files
           rm -rf public-repo/std/
+          rm -rf public-repo/.github/
           rm -f public-repo/mcp-tools.ts
           rm -f public-repo/mcp-tools-server.ts
           rm -f public-repo/deno.json
           rm -f public-repo/README.md
 
-          # Copy lib/ contents to root of public repo
+          # Copy lib/ contents to root of public repo (including .github/)
           cp -r lib/* public-repo/
+          cp -r lib/.github public-repo/
 
           # Add LICENSE
           cp LICENSE public-repo/LICENSE
