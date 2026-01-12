@@ -2,49 +2,10 @@
   "$schema": "./mcp-routing.schema.json",
   "routing": {
     "client": [
-      "filesystem:*",
-      "git:*",
-      "shell:*",
-      "process:*",
-      "docker:*",
-      "kubernetes:*",
-      "ssh:*",
-      "database:*",
-      "sqlite:*",
-      "postgres:*",
       "std:agent_*"
     ],
     "server": [
-      "std:*",
-      "memory:*",
-      "tavily:*",
-      "brave_search:*",
-      "exa:*",
-      "slack:*",
-      "api:*",
-      "http:*",
-      "fetch:*",
-      "sequential-thinking:*",
-      "context7:*",
-      "magic:*",
-      "json:*",
-      "math:*",
-      "datetime:*",
-      "crypto:*",
-      "collections:*",
-      "validation:*",
-      "format:*",
-      "transform:*",
-      "algo:*",
-      "string:*",
-      "color:*",
-      "geo:*",
-      "resilience:*",
-      "schema:*",
-      "diff:*",
-      "state:*",
-      "plots:*",
-      "pml:*"
+      "fetch:*"
     ]
   },
   "default": "client",
@@ -52,6 +13,7 @@
     "client": "Runs on user's machine - filesystem, process, network access",
     "server": "Runs on pml.casys.ai - stateless computation, external APIs",
     "default": "Unknown tools route to client (safe fallback)",
-    "agent_tools": "std:agent_* routed to client for BYOK (user provides OPENAI_API_KEY or ANTHROPIC_API_KEY)"
+    "agent_tools": "std:agent_* routed to client for BYOK (user provides OPENAI_API_KEY or ANTHROPIC_API_KEY)",
+    "specificity": "More specific patterns win (std:agent_* beats std:* for std:agent_delegate)"
   }
 }

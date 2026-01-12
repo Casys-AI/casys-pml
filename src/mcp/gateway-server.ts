@@ -386,6 +386,8 @@ export class PMLGatewayServer {
       embeddingCache: embeddingCacheAdapter,
       // Phase 3.2: Post-execution learning (DR-DSP, SHGAT, PER training)
       postExecutionService,
+      // Story 14.3: DB-based routing for capabilities from pml_registry
+      routingDb: this.db,
     });
 
     const executeSuggestionUC = new ExecuteSuggestionUseCase({

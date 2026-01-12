@@ -1,11 +1,11 @@
 /**
  * Routing Resolver (Story 13.9)
  *
- * Infers capability routing (client/server) from tools_used.
- * Config loaded from config/mcp-routing.json.
+ * Resolves tool/capability routing from pml_registry database.
+ * Falls back to config/mcp-routing.json for tools not in DB.
  *
- * DEFAULT IS CLIENT - only servers explicitly listed in 'server' array
- * can execute remotely. This is for security: client servers have
+ * DEFAULT IS CLIENT - only tools explicitly marked as 'server' in DB
+ * can execute remotely. This is for security: client tools have
  * filesystem/process access that must NOT run on server.
  *
  * Terminology:
@@ -146,29 +146,76 @@ function getRoutingConfig(): McpRoutingJson {
 /**
  * Check if a tool matches a pattern (supports wildcards)
  * e.g., "filesystem:read" matches "filesystem:*"
+ * Returns the specificity score (length of prefix before wildcard, or full length if exact match)
+ * Returns -1 if no match
  */
-function matchesPattern(toolId: string, pattern: string): boolean {
-  if (!toolId || !pattern) return false;
+function matchesPatternWithSpecificity(toolId: string, pattern: string): number {
+  if (!toolId || !pattern) return -1;
 
   if (pattern.endsWith(":*")) {
     const prefix = pattern.slice(0, -2);
-    return toolId.startsWith(prefix + ":") || toolId === prefix;
+    if (toolId.startsWith(prefix + ":") || toolId === prefix) {
+      return prefix.length; // Specificity = prefix length
+    }
+    return -1;
   }
-  return toolId === pattern;
+  // Exact match has highest specificity
+  return toolId === pattern ? pattern.length + 1000 : -1;
 }
 
 /**
- * Check if tool/server is in the server list (can run on pml.casys.ai)
+ * Find the best matching pattern and its routing from both client and server lists
+ * Returns the routing of the most specific pattern that matches
  */
-function isInServerList(toolId: string): boolean {
-  if (!toolId || typeof toolId !== "string") return false;
+function resolveToolRoutingFromConfig(toolId: string): CapabilityRouting {
+  if (!toolId || typeof toolId !== "string") return "client";
 
   const config = getRoutingConfig();
   const serverName = extractServerName(toolId);
 
-  return config.routing.server.some((pattern) =>
-    matchesPattern(toolId, pattern) || matchesPattern(serverName, pattern)
-  );
+  let bestSpecificity = -1;
+  let bestRouting: CapabilityRouting = "client"; // Default
+
+  // Check client patterns
+  const clientPatterns = config.routing.client || [];
+  for (const pattern of clientPatterns) {
+    const spec = Math.max(
+      matchesPatternWithSpecificity(toolId, pattern),
+      matchesPatternWithSpecificity(serverName, pattern)
+    );
+    if (spec > bestSpecificity) {
+      bestSpecificity = spec;
+      bestRouting = "client";
+    }
+  }
+
+  // Check server patterns
+  for (const pattern of config.routing.server) {
+    const spec = Math.max(
+      matchesPatternWithSpecificity(toolId, pattern),
+      matchesPatternWithSpecificity(serverName, pattern)
+    );
+    if (spec > bestSpecificity) {
+      bestSpecificity = spec;
+      bestRouting = "server";
+    }
+  }
+
+  logger.debug("Resolved routing from config", {
+    toolId,
+    routing: bestRouting,
+    specificity: bestSpecificity,
+  });
+
+  return bestRouting;
+}
+
+/**
+ * Check if tool/server is in the server list (can run on pml.casys.ai)
+ * Now uses specificity-based resolution
+ */
+function isInServerList(toolId: string): boolean {
+  return resolveToolRoutingFromConfig(toolId) === "server";
 }
 
 /**
@@ -367,10 +414,115 @@ function parseToolsUsedFromDb(raw: unknown): string[] | null {
 }
 
 /**
- * Get routing for a single tool
+ * Get routing for a single tool (sync - uses config file only)
+ * @deprecated Use getToolRoutingFromDb for accurate routing from pml_registry
  */
 export function getToolRouting(toolId: string): CapabilityRouting {
   return isInServerList(toolId) ? "server" : "client";
+}
+
+/**
+ * Database client interface for routing queries
+ * Compatible with DbClient from src/db/types.ts
+ */
+export interface RoutingDbClient {
+  query: (sql: string, params?: unknown[]) => Promise<Record<string, unknown>[]>;
+}
+
+/**
+ * Normalize routing value from DB (handles legacy 'local'/'cloud' values)
+ */
+function normalizeRouting(routing: string | null | undefined): CapabilityRouting {
+  if (!routing) return "client";
+  if (routing === "local") return "client";
+  if (routing === "cloud") return "server";
+  if (routing === "server" || routing === "client") return routing;
+  return "client";
+}
+
+/**
+ * Get routing for a single tool from pml_registry database
+ * Falls back to config file if not found in DB
+ *
+ * @param db - Database client
+ * @param toolId - Tool ID (e.g., "filesystem:read_file" or "startup:fullProfile")
+ * @returns 'client' or 'server'
+ */
+export async function getToolRoutingFromDb(
+  db: RoutingDbClient,
+  toolId: string,
+): Promise<CapabilityRouting> {
+  if (!toolId || typeof toolId !== "string") return "client";
+
+  try {
+    // Query pml_registry for routing - check by id (for mcp-tools) or name (for capabilities)
+    const rows = await db.query(
+      `SELECT routing FROM pml_registry WHERE id = $1 OR name = $1 LIMIT 1`,
+      [toolId],
+    );
+
+    if (rows.length > 0 && rows[0].routing) {
+      const routing = normalizeRouting(rows[0].routing as string);
+      logger.debug("Routing from DB", { toolId, routing });
+      return routing;
+    }
+
+    // Fallback to config file
+    logger.debug("Tool not in DB, using config fallback", { toolId });
+    return isInServerList(toolId) ? "server" : "client";
+  } catch (error) {
+    logger.warn("Error querying routing from DB, using config fallback", {
+      toolId,
+      error: String(error),
+    });
+    return isInServerList(toolId) ? "server" : "client";
+  }
+}
+
+/**
+ * Resolve routing for a list of tools from pml_registry database
+ * Returns 'client' if ANY tool requires client execution
+ *
+ * @param db - Database client
+ * @param toolsUsed - Array of tool IDs
+ * @param explicitOverride - Optional explicit routing override
+ * @returns 'client' or 'server'
+ */
+export async function resolveRoutingFromDb(
+  db: RoutingDbClient,
+  toolsUsed: string[],
+  explicitOverride?: CapabilityRouting,
+): Promise<CapabilityRouting> {
+  // 1. Explicit override takes precedence
+  if (explicitOverride) {
+    return explicitOverride;
+  }
+
+  // 2. No tools = pure compute = server safe
+  if (!toolsUsed || toolsUsed.length === 0) {
+    return "server";
+  }
+
+  // 3. Filter valid tools
+  const validTools = toolsUsed.filter((t) => t && typeof t === "string");
+  if (validTools.length === 0) {
+    return "server";
+  }
+
+  // 4. Check each tool - any client-only = result is client
+  for (const tool of validTools) {
+    const routing = await getToolRoutingFromDb(db, tool);
+    if (routing === "client") {
+      logger.debug("Routing requires client (tool not server-routed)", {
+        tool,
+        toolsUsed: validTools,
+      });
+      return "client";
+    }
+  }
+
+  // 5. All tools are server-routed
+  return "server";
 }
 
 /**

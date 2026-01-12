@@ -24,7 +24,13 @@ import {
 } from "./shared/result-mapper.ts";
 import { countToolCalls } from "./shared/execution-context.ts";
 import type { StaticStructure, TraceTaskResult } from "../../../capabilities/types/mod.ts";
-import { resolveRouting, getToolRouting } from "../../../capabilities/routing-resolver.ts";
+import {
+  resolveRouting,
+  getToolRouting,
+  resolveRoutingFromDb,
+  getToolRoutingFromDb,
+  type RoutingDbClient,
+} from "../../../capabilities/routing-resolver.ts";
 
 // ============================================================================
 // Interfaces (Clean Architecture - no concrete imports)
@@ -173,6 +179,8 @@ export interface ExecuteDirectDependencies {
   maxCodeSizeBytes?: number;
   /** Default execution timeout */
   defaultTimeout?: number;
+  /** Database client for routing queries from pml_registry */
+  routingDb?: RoutingDbClient;
 }
 
 // ============================================================================
@@ -282,16 +290,31 @@ export class ExecuteDirectUseCase {
         .filter((t): t is string => !!t && !t.startsWith("code:"));
 
       if (toolsUsed.length > 0) {
-        const routing = resolveRouting(toolsUsed);
+        // Use DB-based routing if available (checks pml_registry for capabilities)
+        // Falls back to config file routing if routingDb not provided
+        const routing = this.deps.routingDb
+          ? await resolveRoutingFromDb(this.deps.routingDb, toolsUsed)
+          : resolveRouting(toolsUsed);
 
         if (routing === "client") {
-          const clientTools = toolsUsed.filter((t) => getToolRouting(t) === "client");
+          // Get client tools using DB or config fallback
+          const clientTools: string[] = [];
+          for (const t of toolsUsed) {
+            const toolRouting = this.deps.routingDb
+              ? await getToolRoutingFromDb(this.deps.routingDb, t)
+              : getToolRouting(t);
+            if (toolRouting === "client") {
+              clientTools.push(t);
+            }
+          }
+
           const isPackageClient = options.isPackageClient ?? false;
 
           log.info("[ExecuteDirectUseCase] Routing check: client tools detected", {
             toolsUsed,
             clientTools,
             isPackageClient,
+            routingSource: this.deps.routingDb ? "db" : "config",
           });
 
           if (isPackageClient) {

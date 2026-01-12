@@ -43,10 +43,12 @@ const codeCache = new Map<string, string>();
  * Caches results in memory.
  *
  * @param codeUrl - URL to fetch code from
+ * @param apiKey - Optional API key for authenticated endpoints
  * @returns Raw code string with cache info
  */
 export async function fetchCapabilityCode(
   codeUrl: string,
+  apiKey?: string,
 ): Promise<CodeFetchResult> {
   // Check cache first
   const cached = codeCache.get(codeUrl);
@@ -62,7 +64,12 @@ export async function fetchCapabilityCode(
   logDebug(`Fetching code: ${codeUrl}`);
 
   try {
-    const response = await fetch(codeUrl);
+    const headers: Record<string, string> = {};
+    const key = apiKey ?? Deno.env.get("PML_API_KEY");
+    if (key) {
+      headers["x-api-key"] = key;
+    }
+    const response = await fetch(codeUrl, { headers });
 
     if (!response.ok) {
       throw new LoaderError(

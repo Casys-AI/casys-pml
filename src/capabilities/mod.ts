@@ -26,13 +26,16 @@ export {
   checkAndSyncRouting,
   extractServerName,
   getToolRouting,
+  getToolRoutingFromDb,
   initRoutingConfig,
   isCloudServer,
   isLocalServer,
   reloadRoutingConfig,
   resolveRouting,
+  resolveRoutingFromDb,
   syncCapabilityRouting,
 } from "./routing-resolver.ts";
+export type { RoutingDbClient } from "./routing-resolver.ts";
 export { CapabilityCodeGenerator } from "./code-generator.ts";
 // Story 7.2c: Variable name normalization for semantic deduplication
 export { normalizeVariableNames } from "./code-transformer.ts";
