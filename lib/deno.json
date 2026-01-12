@@ -1,16 +1,18 @@
 {
   "name": "@casys/mcp-std",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "exports": {
     ".": "./mcp-tools.ts",
     "./server": "./mcp-tools-server.ts",
-    "./std": "./std/mod.ts"
+    "./std": "./std/mod.ts",
+    "./framework": "./server/mod.ts"
   },
   "publish": {
     "include": [
       "mcp-tools.ts",
       "mcp-tools-server.ts",
       "std/**/*.ts",
+      "server/**/*.ts",
       "README.md",
       "LICENSE"
     ],

@@ -36,6 +36,114 @@ Add to your `.mcp.json`:
 
 ---
 
+## Building Custom MCP Servers
+
+> **NEW in v0.2.0:** Use the ConcurrentMCPServer framework to build your own high-performance MCP servers.
+
+MCP std now includes a production-ready server framework with built-in concurrency control, backpressure, and sampling support. Perfect for building custom MCP servers with your own tools.
+
+### Quick Example
+
+```typescript
+import { ConcurrentMCPServer } from "jsr:@casys/mcp-std/framework";
+
+// Define your custom tools
+const myTools = [
+  {
+    name: "my_tool",
+    description: "My custom tool",
+    inputSchema: {
+      type: "object",
+      properties: {
+        input: { type: "string", description: "Input data" }
+      },
+      required: ["input"]
+    }
+  }
+];
+
+// Create handlers
+const handlers = new Map([
+  ["my_tool", async (args) => {
+    return `Processed: ${args.input}`;
+  }]
+]);
+
+// Create server with concurrency control
+const server = new ConcurrentMCPServer({
+  name: "my-server",
+  version: "1.0.0",
+  maxConcurrent: 5,                    // Max 5 concurrent requests
+  backpressureStrategy: 'queue'        // Queue excess requests
+});
+
+server.registerTools(myTools, handlers);
+await server.start();
+```
+
+### Framework Features
+
+- **Wraps Official SDK**: Built on `@modelcontextprotocol/sdk` for full protocol compatibility
+- **Concurrency Control**: Limit concurrent requests (default: 10)
+- **Backpressure Strategies**:
+  - `'sleep'` - Busy-wait when at capacity (default)
+  - `'queue'` - FIFO queue for pending requests
+  - `'reject'` - Fail fast when at capacity
+- **Sampling Support**: Optional bidirectional LLM delegation
+- **Metrics**: Monitor in-flight and queued requests
+- **Production-Ready**: Used by mcp-std (428 tools)
+
+### Configuration Options
+
+```typescript
+interface ConcurrentServerOptions {
+  name: string;                       // Server name
+  version: string;                    // Server version
+  maxConcurrent?: number;             // Default: 10
+  backpressureStrategy?: 'sleep' | 'queue' | 'reject';
+  backpressureSleepMs?: number;       // Default: 10ms (for 'sleep' strategy)
+  enableSampling?: boolean;           // Enable LLM sampling
+  samplingClient?: SamplingClient;    // Custom sampling implementation
+  logger?: (msg: string) => void;     // Custom logger
+}
+```
+
+### Advanced Usage
+
+```typescript
+import {
+  ConcurrentMCPServer,
+  RequestQueue,
+  SamplingBridge
+} from "jsr:@casys/mcp-std/framework";
+
+// Custom queue configuration
+const queue = new RequestQueue({
+  maxConcurrent: 15,
+  strategy: 'queue',
+  sleepMs: 10
+});
+
+// Get metrics
+const metrics = queue.getMetrics();
+console.log(`In-flight: ${metrics.inFlight}, Queued: ${metrics.queued}`);
+
+// Sampling for agentic tools
+const server = new ConcurrentMCPServer({
+  name: "agentic-server",
+  version: "1.0.0",
+  enableSampling: true,
+  samplingClient: myCustomSamplingClient
+});
+
+const bridge = server.getSamplingBridge();
+const result = await bridge.requestSampling({
+  messages: [{ role: 'user', content: 'Analyze this data...' }]
+});
+```
+
+---
+
 ## Agent Tools (Sampling)
 
 > **Agentic MCP tools that delegate work to LLMs via the sampling protocol.**
