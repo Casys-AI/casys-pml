@@ -329,7 +329,7 @@ export interface CapToolResult {
  * Configuration for the MCP HTTP client
  */
 interface McpClientConfig {
-  /** Base URL for the PML API (default: http://localhost:3003) */
+  /** Base URL for the PML API (default: https://pml.casys.ai) */
   baseUrl: string;
   /** API key for authentication (required for cloud endpoints) */
   apiKey?: string;
@@ -339,7 +339,7 @@ interface McpClientConfig {
  * Get MCP client configuration from environment
  */
 function getClientConfig(): McpClientConfig {
-  const baseUrl = Deno.env.get("PML_API_URL") || "http://localhost:3003";
+  const baseUrl = Deno.env.get("PML_API_URL") || "https://pml.casys.ai";
   const apiKey = Deno.env.get("PML_API_KEY");
   return { baseUrl, apiKey };
 }
@@ -405,7 +405,7 @@ async function mcpCall(tool: string, args: unknown): Promise<unknown> {
 
   let response: Response;
   try {
-    response = await fetch(`${config.baseUrl}/api/mcp`, {
+    response = await fetch(`${config.baseUrl}/mcp`, {
       method: "POST",
       headers,
       body: JSON.stringify({

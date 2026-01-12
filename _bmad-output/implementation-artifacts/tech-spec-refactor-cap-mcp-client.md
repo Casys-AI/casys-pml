@@ -113,7 +113,7 @@ if (name.startsWith("std:cap_") && this.pmlStdServer) {
 ### Technical Decisions
 
 **TD-1: Client MCP HTTP avec authentification**
-- **Decision:** Client HTTP (fetch vers `http://localhost:3003/api/mcp`) avec API key
+- **Decision:** Client HTTP (fetch vers `https://pml.casys.ai/mcp` par défaut) avec API key
 - **Rationale:** Le package `@casys/mcp-std` sera utilisé par des agents externes. HTTP permet:
   - Configuration simple via env vars `PML_API_URL` + `PML_API_KEY`
   - Pas de gestion subprocess/stdio
@@ -181,7 +181,7 @@ if (name.startsWith("std:cap_") && this.pmlStdServer) {
     6. Refactorer `pmlTools` handlers pour appeler HTTP avec auth:
     ```typescript
     async function mcpCall(tool: string, args: unknown): Promise<unknown> {
-      const baseUrl = Deno.env.get("PML_API_URL") || "http://localhost:3003";
+      const baseUrl = Deno.env.get("PML_API_URL") || "https://pml.casys.ai";
       const apiKey = Deno.env.get("PML_API_KEY");
 
       // Require API key for cloud endpoints
@@ -195,7 +195,7 @@ if (name.startsWith("std:cap_") && this.pmlStdServer) {
         headers["x-api-key"] = apiKey;
       }
 
-      const response = await fetch(`${baseUrl}/api/mcp`, {
+      const response = await fetch(`${baseUrl}/mcp`, {
         method: "POST",
         headers,
         body: JSON.stringify({
@@ -242,7 +242,7 @@ if (name.startsWith("std:cap_") && this.pmlStdServer) {
 - [x] **AC1:** Given lib/std/cap.ts, when I check imports, then there are NO imports from `../../src/*`
 - [ ] **AC2:** Given the PML server running on port 3003, when I call `cap_list` via the MCP client in lib/std, then I receive a valid CapListResponse *(requires server running)*
 - [ ] **AC3:** Given a capability exists, when I call `cap_rename` with valid namespace/action, then the capability is renamed and embeddings are regenerated *(requires server running)*
-- [x] **AC4:** Given `PML_API_URL` is not set, when the client calls a cap tool, then it defaults to `http://localhost:3003` *(implemented in mcpCall)*
+- [x] **AC4:** Given `PML_API_URL` is not set, when the client calls a cap tool, then it defaults to `https://pml.casys.ai` *(implemented in mcpCall)*
 - [x] **AC5:** Given `PML_API_URL=https://pml.casys.ai` and `PML_API_KEY` is set, when the client calls a cap tool, then it uses the cloud endpoint with `x-api-key` header *(implemented in mcpCall)*
 - [x] **AC9:** Given `PML_API_URL=https://pml.casys.ai` but `PML_API_KEY` is NOT set, when the client calls a cap tool, then it throws "PML_API_KEY required for cloud access" *(implemented in mcpCall)*
 - [x] **AC10:** Given an invalid `PML_API_KEY`, when the server returns 401, then the client throws "Invalid API key" with link to settings *(implemented in mcpCall)*
@@ -257,10 +257,11 @@ if (name.startsWith("std:cap_") && this.pmlStdServer) {
 ### Dependencies
 
 - **Runtime:** Serveur PML doit être démarré pour que les appels HTTP fonctionnent
-- **Endpoint:** `/api/mcp` doit accepter les requêtes JSON-RPC pour `tools/call`
+- **Endpoint:** `/mcp` doit accepter les requêtes JSON-RPC pour `tools/call`
 - **Variables env:**
-  - `PML_API_URL` (optionnel, default `http://localhost:3003`)
+  - `PML_API_URL` (optionnel, default `https://pml.casys.ai`)
   - `PML_API_KEY` (requis pour cloud, obtenu sur pml.casys.ai/settings)
+  - Pour utiliser en local: `PML_API_URL=http://localhost:3003`
 
 ### Testing Strategy
 
@@ -275,7 +276,7 @@ if (name.startsWith("std:cap_") && this.pmlStdServer) {
 1. Démarrer le serveur: `deno task dev`
 2. Tester via curl:
 ```bash
-curl -X POST http://localhost:3003/api/mcp \
+curl -X POST http://localhost:3003/mcp \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"cap:list","arguments":{}}}'
 ```
