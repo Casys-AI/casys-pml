@@ -1,8 +1,9 @@
 # Spike: Agent Recursive PML Execution
 
 **Date:** 2026-01-12
-**Status:** Draft
+**Status:** Implemented ✅
 **Author:** Erwan + Claude
+**Implementation:** `lib/mcp-tools-server.ts`
 
 ## Objective
 
@@ -170,9 +171,64 @@ agent_delegate({ goal: "Analyze config files and summarize" })
 - [ ] allowedTools filter fonctionne
 - [ ] Performance < 30s pour 3 iterations typiques
 
+## Implementation Summary
+
+The agentic loop has been implemented in `lib/std/agent.ts` (logic) + `lib/mcp-tools-server.ts` (bootstrap):
+
+### Key Changes
+
+**`lib/std/agent.ts`:**
+1. **`pmlExecuteTool` definition**: Single tool exposed to LLM
+2. **`executePmlTool()` function**: HTTP call to PML API with `x-api-key` header
+3. **`runAnthropicAgenticLoop()`**: Full Anthropic agentic loop
+4. **`runOpenAIAgenticLoop()`**: Full OpenAI agentic loop (tool_calls format)
+5. **`createAgenticSamplingClient()`**: Factory function exported for use by mcp-tools-server
+
+**`lib/mcp-tools-server.ts`:**
+- Simplified to just call `createAgenticSamplingClient()` at init
+
+### Configuration
+
+| Env Var | Description | Default |
+|---------|-------------|---------|
+| `PML_API_URL` | PML server URL | `http://localhost:3003` |
+| `PML_API_KEY` | API key for PML auth (cloud mode) | - |
+| `ANTHROPIC_API_KEY` | Anthropic API key | - |
+| `ANTHROPIC_MODEL` | Anthropic model | `claude-sonnet-4-20250514` |
+| `OPENAI_API_KEY` | OpenAI API key (fallback) | - |
+| `OPENAI_MODEL` | OpenAI model | `gpt-4.1` |
+
+**Note:** Uses Anthropic if `ANTHROPIC_API_KEY` is set, otherwise falls back to OpenAI.
+
+### Flow
+
+```
+agent_delegate({ goal: "..." })
+    ↓
+createAgenticSamplingClient().createMessage()
+    ↓
+┌─────────────────────────────────────────────────┐
+│  Agentic Loop (max 5 iterations)                │
+│                                                 │
+│  Anthropic: tool_use blocks                     │
+│  OpenAI: tool_calls in message                  │
+│                                                 │
+│  1. Call LLM API with pml_execute tool          │
+│  2. If end_turn/stop → return                   │
+│  3. If tool_use/tool_calls:                     │
+│     - Parse tool call                           │
+│     - HTTP POST to PML /api/mcp with x-api-key  │
+│     - Add tool_result to messages               │
+│     - Continue loop                             │
+└─────────────────────────────────────────────────┘
+    ↓
+Return final text content
+```
+
 ## Next Steps
 
-1. Implémenter le prototype dans `callLLMDirectly()`
-2. Tester avec `agent_delegate`
-3. Mesurer et itérer
-4. Si OK → créer tech-spec pour implémentation complète
+1. ~~Implémenter le prototype~~ ✅ DONE
+2. ~~Support OpenAI~~ ✅ DONE
+3. ~~Auth avec x-api-key~~ ✅ DONE
+4. Tester avec `agent_delegate` sur le serveur PML actif
+5. Mesurer latence et coûts
