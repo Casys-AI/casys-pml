@@ -24,7 +24,8 @@ const VERSION = "0.1.0";
 /**
  * Main CLI command
  */
-export const main = new Command()
+// deno-lint-ignore no-explicit-any
+export const main: Command<any, any, any, any, any> = new Command()
   .name("pml")
   .version(VERSION)
   .description(
