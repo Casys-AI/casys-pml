@@ -8,7 +8,7 @@ intelligent MCP orchestration with learning capabilities.
 ### Quick Install (Linux/macOS)
 
 ```bash
-curl -fsSL https://github.com/Casys-AI/casys-pml/releases/latest/download/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/Casys-AI/casys-pml/main/scripts/install.sh | sh
 ```
 
 ### Manual Download
@@ -23,8 +23,10 @@ Download the binary for your platform from [Releases](https://github.com/Casys-A
 ### From Source (Deno)
 
 ```bash
-deno install -A -n pml jsr:@casys/pml
+deno install -A -n pml jsr:@casys/pml/cli
 ```
+
+> **Note**: `jsr:@casys/pml` exports the library modules. Use `jsr:@casys/pml/cli` for the CLI entrypoint.
 
 ## Quick Start
 
