@@ -41,7 +41,7 @@ import { CapabilityMCPServer } from "./capability-server/mod.ts";
 // TraceFeatureExtractor removed - V1 uses message passing, not TraceFeatures
 import { CheckpointManager } from "../dag/checkpoint-manager.ts";
 import { EventsStreamManager } from "../server/events-stream.ts";
-import { PmlStdServer } from "../../lib/std/cap.ts";
+import { PmlStdServer } from "./handlers/cap-handler.ts";
 import type { AlgorithmTracer } from "../telemetry/algorithm-tracer.ts";
 import { getTelemetryAdapter } from "../telemetry/decision-logger.ts";
 import { eventBus } from "../events/mod.ts";
@@ -267,6 +267,7 @@ export class PMLGatewayServer {
         capabilityStore: this.capabilityStore,
         graphRAG: this.graphEngine,
         capabilityRegistry: this.capabilityRegistry,
+        capModule: this.pmlStdServer?.getCapModule(),
       });
       this.capabilityMCPServer = new CapabilityMCPServer(
         this.capabilityStore,

@@ -18,7 +18,7 @@ import type { CapabilityRegistry } from "../capabilities/capability-registry.ts"
 import type { GraphRAGEngine } from "../graphrag/graph-engine.ts";
 import type { JsonValue } from "../capabilities/types.ts";
 import type { ToolDefinition } from "./types.ts";
-import { getCapModule } from "../../lib/std/cap.ts";
+import type { CapModule } from "../mcp/handlers/cap-handler.ts";
 import { getCapabilityFqdn } from "../capabilities/capability-registry.ts";
 import { getLogger } from "../telemetry/logger.ts";
 
@@ -43,6 +43,7 @@ export interface RpcRouterConfig {
   capabilityStore?: CapabilityStore;
   capabilityRegistry?: CapabilityRegistry;
   graphRAG?: GraphRAGEngine;
+  capModule?: CapModule;
   timeout: number;
 }
 
@@ -66,6 +67,7 @@ export type WorkerBridgeFactory = (config: {
   capabilityStore?: CapabilityStore;
   graphRAG?: GraphRAGEngine;
   capabilityRegistry?: CapabilityRegistry;
+  capModule?: CapModule;
 }) => WorkerBridgeExecutor;
 
 /**
@@ -123,7 +125,15 @@ export class RpcRouter {
     tool: string,
     args: Record<string, unknown>,
   ): Promise<RpcRouteResult> {
-    const capModule = getCapModule();
+    const capModule = this.config.capModule;
+    if (!capModule) {
+      // F8: Use error field consistently (not result)
+      return {
+        success: false,
+        error: "CapModule not configured for RpcRouter",
+        routeType: "cap_module",
+      };
+    }
     const capToolName = "cap:" + tool.slice(4); // "cap_list" → "cap:list"
 
     logger.debug("Routing cap tool to CapModule", { tool, capToolName });

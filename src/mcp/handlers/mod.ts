@@ -24,3 +24,22 @@ export {
   processGeneratorUntilPause,
   type WorkflowHandlerDependencies,
 } from "./workflow-handler.ts";
+
+// Story 13.5: cap:* management tools (moved from lib/std/cap.ts)
+export { buildEmbeddingText, CapModule, globToSqlLike, PmlStdServer } from "./cap-handler.ts";
+export type {
+  CapListItem,
+  CapListOptions,
+  CapListResponse,
+  CapLookupOptions,
+  CapLookupResponse,
+  CapMergeOptions,
+  CapMergeResponse,
+  CapRenameOptions,
+  CapRenameResponse,
+  CapTool,
+  CapToolResult,
+  CapWhoisOptions,
+  CapWhoisResponse,
+  OnCapabilityMerged,
+} from "./cap-handler.ts";

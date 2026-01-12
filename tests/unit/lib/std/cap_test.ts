@@ -11,7 +11,9 @@
  */
 
 import { assertEquals, assertStringIncludes } from "@std/assert";
-import { CapModule, globToSqlLike, PmlStdServer } from "../../../../lib/std/cap.ts";
+// CapModule and PmlStdServer moved to src/mcp/handlers/cap-handler.ts
+// lib/std/cap.ts is now an HTTP client for standalone package use
+import { CapModule, globToSqlLike, PmlStdServer } from "../../../../src/mcp/handlers/cap-handler.ts";
 
 // =============================================================================
 // globToSqlLike Tests

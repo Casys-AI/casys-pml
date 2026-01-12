@@ -76,7 +76,7 @@ export const pgliteTools: MiniTool[] = [
         },
         dbPath: {
           type: "string",
-          description: "Database path (optional, defaults to AGENTCARDS_DB_PATH)",
+          description: "Database path (optional, defaults to PGLITE_PATH env or ./data/pglite)",
         },
       },
       required: ["query"],
@@ -120,7 +120,7 @@ export const pgliteTools: MiniTool[] = [
       properties: {
         dbPath: {
           type: "string",
-          description: "Database path (optional, defaults to AGENTCARDS_DB_PATH)",
+          description: "Database path (optional, defaults to PGLITE_PATH env or ./data/pglite)",
         },
         includeRowCounts: {
           type: "boolean",
@@ -280,7 +280,7 @@ export const pgliteTools: MiniTool[] = [
         totalRows,
         topTables,
         extensions: extensionsResult.rows,
-        dbPath: dbPath || getAgentCardsDatabasePath(),
+        dbPath: dbPath || "./data/pglite",
       };
     },
   },

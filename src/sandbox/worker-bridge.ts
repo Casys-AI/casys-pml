@@ -89,8 +89,9 @@ export interface WorkerBridgeConfig {
   graphRAG?: GraphRAGEngine;
   /** Optional CapabilityRegistry for routing to capabilities when MCP server not found */
   capabilityRegistry?: import("../capabilities/capability-registry.ts").CapabilityRegistry;
+  /** Optional CapModule for cap:* tool routing (Story 13.5) */
+  capModule?: import("../mcp/handlers/cap-handler.ts").CapModule;
   // Note: permissionSet removed - Worker always uses "none" permissions.
-  // Note: cap_* tools use global CapModule via getCapModule() (Story 13.5)
   // All I/O goes through MCP RPC for complete tracing. See WORKER_PERMISSIONS.
 }
 
@@ -138,7 +139,7 @@ const DEFAULTS = {
 export class WorkerBridge {
   private config: Omit<
     Required<WorkerBridgeConfig>,
-    "capabilityStore" | "graphRAG" | "capabilityRegistry"
+    "capabilityStore" | "graphRAG" | "capabilityRegistry" | "capModule"
   >;
   private capabilityStore?: CapabilityStore;
   private graphRAG?: GraphRAGEngine;
@@ -184,10 +185,11 @@ export class WorkerBridge {
         capabilityStore: this.capabilityStore,
         capabilityRegistry: this.capabilityRegistry,
         graphRAG: this.graphRAG,
+        capModule: config?.capModule,
         timeout: this.config.timeout,
       },
       // Factory creates new WorkerBridge for nested capability execution
-      (cfg) => new WorkerBridge(this.mcpClients, cfg),
+      (cfg) => new WorkerBridge(this.mcpClients, { ...cfg, capModule: config?.capModule }),
     );
 
     // Story 7.3b: Setup BroadcastChannel for capability traces
