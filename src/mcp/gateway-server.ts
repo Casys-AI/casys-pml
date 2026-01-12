@@ -151,6 +151,7 @@ export class PMLGatewayServer {
   private checkpointManager: CheckpointManager | null = null;
   private eventsStream: EventsStreamManager | null = null;
   private requestQueue: RequestQueue; // Concurrency control for tool calls
+  private metricsLogInterval: number | null = null; // Periodic metrics logging
   private capabilityDataService: CapabilityDataService;
   private shgat: SHGAT | null = null;
   private drdsp: DRDSP | null = null;
@@ -572,6 +573,34 @@ export class PMLGatewayServer {
   }
 
   /**
+   * Start periodic metrics logging (every 60 seconds)
+   * Logs concurrency metrics only when there's activity
+   */
+  private startMetricsLogging(): void {
+    this.metricsLogInterval = setInterval(() => {
+      const metrics = this.getConcurrencyMetrics();
+      if (metrics.inFlight > 0 || metrics.queued > 0) {
+        log.info(
+          `[Gateway] Concurrency metrics: ${metrics.inFlight} in-flight, ${metrics.queued} queued`,
+        );
+      }
+    }, 60000); // Log every 60 seconds
+
+    log.debug("[Gateway] Metrics logging started (interval: 60s)");
+  }
+
+  /**
+   * Stop periodic metrics logging
+   */
+  private stopMetricsLogging(): void {
+    if (this.metricsLogInterval !== null) {
+      clearInterval(this.metricsLogInterval);
+      this.metricsLogInterval = null;
+      log.debug("[Gateway] Metrics logging stopped");
+    }
+  }
+
+  /**
    * Setup MCP protocol handlers
    */
   private setupHandlers(): void {
@@ -976,6 +1005,10 @@ export class PMLGatewayServer {
 
     await this.healthChecker.initialHealthCheck();
     this.healthChecker.startPeriodicChecks();
+
+    // Start periodic metrics logging (every 60 seconds)
+    this.startMetricsLogging();
+
     await startStdioServer(this.server, this.config, this.mcpClients);
   }
 
@@ -1018,6 +1051,9 @@ export class PMLGatewayServer {
       startPeriodicChecks: () => this.healthChecker.startPeriodicChecks(),
     });
 
+    // Start periodic metrics logging (every 60 seconds)
+    this.startMetricsLogging();
+
     this.eventsStream = state.eventsStream;
   }
 
@@ -1025,6 +1061,9 @@ export class PMLGatewayServer {
    * Graceful shutdown
    */
   async stop(): Promise<void> {
+    // Stop metrics logging first
+    this.stopMetricsLogging();
+
     // Log concurrency metrics before shutdown
     const metrics = this.requestQueue.getMetrics();
     if (metrics.inFlight > 0 || metrics.queued > 0) {
