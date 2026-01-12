@@ -30,17 +30,19 @@ jobs:
 
       - name: Sync packages/pml/
         run: |
-          # Remove old source files (preserve .github, etc.)
+          # Remove old source files
           rm -rf public-repo/src/
           rm -rf public-repo/tests/
           rm -rf public-repo/scripts/
+          rm -rf public-repo/.github/
           rm -f public-repo/deno.json
           rm -f public-repo/deno.lock
           rm -f public-repo/mod.ts
           rm -f public-repo/README.md
 
-          # Copy packages/pml/ contents
+          # Copy packages/pml/ contents (including .github/)
           cp -r packages/pml/* public-repo/
+          cp -r packages/pml/.github public-repo/
 
           # Add LICENSE from root
           cp LICENSE public-repo/LICENSE
