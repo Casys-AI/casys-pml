@@ -42,8 +42,9 @@ jobs:
           rm -f public-repo/deno.json
           rm -f public-repo/README.md
 
-          # Copy lib/ contents to root of public repo
+          # Copy lib/ contents to root of public repo (excluding internal tools)
           cp -r lib/* public-repo/
+          rm -f public-repo/std/cap.ts
 
           # Add LICENSE
           cp LICENSE public-repo/LICENSE

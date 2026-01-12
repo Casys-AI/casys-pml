@@ -10,17 +10,23 @@
 import type { MiniTool } from "./common.ts";
 import { PGlite } from "@electric-sql/pglite";
 import { vector } from "@electric-sql/pglite/vector";
-import { getAgentCardsDatabasePath } from "../../src/cli/utils.ts";
 
 // Singleton database connection
 let db: PGlite | null = null;
 let dbPath: string | null = null;
 
 /**
+ * Get default PGlite database path
+ */
+function getDefaultDbPath(): string {
+  return Deno.env.get("PGLITE_PATH") || "./data/pglite";
+}
+
+/**
  * Get or create database connection
  */
 async function getDb(path?: string): Promise<PGlite> {
-  const targetPath = path || getAgentCardsDatabasePath();
+  const targetPath = path || getDefaultDbPath();
 
   // Return existing connection if path matches
   if (db && dbPath === targetPath) {

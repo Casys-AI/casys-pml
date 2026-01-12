@@ -124,7 +124,7 @@
     "validator": "npm:validator@13.15.22",
     "@sentry/deno": "npm:@sentry/deno@^10.8.0",
     "@std/front-matter": "jsr:@std/front-matter@^1",
-    "@std/path": "jsr:@std/path@^1",
+    "@std/path": "jsr:@std/path@^1.1.4",
     "@std/encoding/hex": "jsr:@std/encoding@^1/hex",
     "@deno/gfm": "jsr:@deno/gfm@^0.11.0",
     "pako": "npm:pako@^2.1.0",
