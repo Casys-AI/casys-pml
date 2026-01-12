@@ -103,6 +103,10 @@ import type { EmbeddingModelInterface } from "../vector/embeddings.ts";
 // Sampling Relay for agent tools
 import { samplingRelay } from "./sampling/mod.ts";
 
+// Concurrency framework from lib/server
+import { RequestQueue } from "../../lib/server/request-queue.ts";
+import type { QueueMetrics } from "../../lib/server/types.ts";
+
 // Phase 3.1: Execute Handler Facade and Use Cases
 import { ExecuteHandlerFacade } from "./handlers/execute-handler-facade.ts";
 import {
@@ -146,6 +150,7 @@ export class PMLGatewayServer {
   private activeWorkflows: Map<string, ActiveWorkflow> = new Map();
   private checkpointManager: CheckpointManager | null = null;
   private eventsStream: EventsStreamManager | null = null;
+  private requestQueue: RequestQueue; // Concurrency control for tool calls
   private capabilityDataService: CapabilityDataService;
   private shgat: SHGAT | null = null;
   private drdsp: DRDSP | null = null;
@@ -276,6 +281,16 @@ export class PMLGatewayServer {
       );
       log.info("[Gateway] CapabilityMCPServer initialized (Story 13.3)");
     }
+
+    // Initialize RequestQueue for concurrency control
+    // Higher limit than MCP Std (20 vs 10) due to complex DAG operations
+    this.requestQueue = new RequestQueue({
+      maxConcurrent: 20,
+      strategy: "queue", // Queue requests instead of sleep (better for long operations)
+      sleepMs: 10,
+    });
+
+    log.info(`[Gateway] RequestQueue initialized (maxConcurrent: 20, strategy: queue)`);
 
     // Phase 3.1: ExecuteHandlerFacade is initialized in start() after algorithms are loaded
 
@@ -549,6 +564,14 @@ export class PMLGatewayServer {
   }
 
   /**
+   * Get concurrency metrics for monitoring
+   * Returns current queue state: in-flight requests, queued requests
+   */
+  getConcurrencyMetrics(): QueueMetrics {
+    return this.requestQueue.getMetrics();
+  }
+
+  /**
    * Setup MCP protocol handlers
    */
   private setupHandlers(): void {
@@ -559,7 +582,15 @@ export class PMLGatewayServer {
 
     this.server.setRequestHandler(
       CallToolRequestSchema,
-      async (request: CallToolRequest) => await this.handleCallTool(request),
+      async (request: CallToolRequest) => {
+        // Apply concurrency control
+        await this.requestQueue.acquire();
+        try {
+          return await this.handleCallTool(request);
+        } finally {
+          this.requestQueue.release();
+        }
+      },
     );
 
     this.server.setRequestHandler(
@@ -994,6 +1025,24 @@ export class PMLGatewayServer {
    * Graceful shutdown
    */
   async stop(): Promise<void> {
+    // Log concurrency metrics before shutdown
+    const metrics = this.requestQueue.getMetrics();
+    if (metrics.inFlight > 0 || metrics.queued > 0) {
+      log.info(
+        `[Gateway] Shutting down with ${metrics.inFlight} in-flight and ${metrics.queued} queued requests`,
+      );
+      // Wait a bit for in-flight requests to complete (max 5 seconds)
+      const maxWait = 5000;
+      const startTime = Date.now();
+      while (this.requestQueue.getMetrics().inFlight > 0 && Date.now() - startTime < maxWait) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      const finalMetrics = this.requestQueue.getMetrics();
+      if (finalMetrics.inFlight > 0) {
+        log.warn(`[Gateway] Forced shutdown with ${finalMetrics.inFlight} requests still in-flight`);
+      }
+    }
+
     // Save SHGAT params via initializer
     if (this.algorithmInitializer) {
       await this.algorithmInitializer.saveSHGATParams();
