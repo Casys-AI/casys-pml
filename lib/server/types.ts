@@ -57,47 +57,50 @@ export type ToolHandler = (args: Record<string, unknown>) => Promise<unknown> | 
 
 /**
  * Sampling client interface for bidirectional LLM delegation
+ * Compatible with the agentic sampling protocol (SEP-1577)
  */
 export interface SamplingClient {
   /**
    * Request LLM completion from the client
-   * @param params - Sampling parameters (messages, model, etc.)
-   * @returns Completion result
+   * @param params - Sampling parameters (messages, tools, etc.)
+   * @returns Completion result with content and stop reason
    */
   createMessage(params: SamplingParams): Promise<SamplingResult>;
 }
 
 /**
  * Parameters for sampling request
+ * Compatible with MCP sampling protocol
  */
 export interface SamplingParams {
-  messages: Array<{ role: string; content: string }>;
-  modelPreferences?: {
-    hints?: Array<{ name: string }>;
-    costPriority?: number;
-    speedPriority?: number;
-    intelligencePriority?: number;
-  };
-  systemPrompt?: string;
-  includeContext?: string;
-  temperature?: number;
+  messages: Array<{ role: "user" | "assistant"; content: string }>;
+  /** Tools available for the agent to use. Client handles execution. */
+  tools?: Array<{
+    name: string;
+    description: string;
+    inputSchema: Record<string, unknown>;
+  }>;
+  /** "auto" = LLM decides, "required" = must use tool, "none" = no tools */
+  toolChoice?: "auto" | "required" | "none";
   maxTokens?: number;
-  stopSequences?: string[];
-  metadata?: Record<string, unknown>;
+  /** Hint for client: max agentic loop iterations */
+  maxIterations?: number;
+  /** Tool name patterns to filter (e.g., ['git_*', 'vfs_*']) */
+  allowedToolPatterns?: string[];
 }
 
 /**
  * Result from sampling request
+ * Compatible with MCP sampling protocol
  */
 export interface SamplingResult {
-  model: string;
-  stopReason?: string;
-  role: string;
-  content: {
+  content: Array<{
     type: string;
     text?: string;
-    [key: string]: unknown;
-  };
+    name?: string;
+    input?: Record<string, unknown>;
+  }>;
+  stopReason: "end_turn" | "tool_use" | "max_tokens";
 }
 
 /**

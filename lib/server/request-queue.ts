@@ -59,20 +59,26 @@ export class RequestQueue {
       if (this.inFlight >= this.maxConcurrent) {
         throw new Error(`Server at capacity (${this.maxConcurrent} concurrent requests)`);
       }
-    } else if (this.strategy === 'queue') {
+      this.inFlight++;
+      return;
+    }
+
+    if (this.strategy === 'queue') {
       // Queue-based backpressure - wait in FIFO queue
+      // Must re-check condition after waking up (another waiter might have taken the slot)
       while (this.inFlight >= this.maxConcurrent) {
         await new Promise<void>((resolve) => {
           this.waitQueue.push(resolve);
         });
       }
-    } else {
-      // Sleep-based backpressure (default) - busy-wait with sleep
-      while (this.inFlight >= this.maxConcurrent) {
-        await new Promise((resolve) => setTimeout(resolve, this.sleepMs));
-      }
+      this.inFlight++;
+      return;
     }
 
+    // Sleep-based backpressure (default) - busy-wait with sleep
+    while (this.inFlight >= this.maxConcurrent) {
+      await new Promise((resolve) => setTimeout(resolve, this.sleepMs));
+    }
     this.inFlight++;
   }
 

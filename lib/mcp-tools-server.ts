@@ -20,7 +20,7 @@
  * @module lib/mcp-tools-server
  */
 
-import { ConcurrentMCPServer } from "./server/mod.ts";
+import { ConcurrentMCPServer, SamplingBridge } from "./server/mod.ts";
 import { MiniToolsClient } from "./mcp-tools.ts";
 import { createAgenticSamplingClient, setSamplingClient } from "./std/mod.ts";
 
@@ -37,12 +37,19 @@ async function main() {
     categories ? { categories } : undefined,
   );
 
-  // Create agentic sampling client
-  const samplingClient = createAgenticSamplingClient();
-  setSamplingClient(samplingClient);
+  // Create agentic sampling client and wrap with SamplingBridge
+  // The bridge adds timeout handling, request tracking, and cancellation support
+  const underlyingSamplingClient = createAgenticSamplingClient();
+  const samplingBridge = new SamplingBridge(underlyingSamplingClient, {
+    timeout: 120000, // 2 minute timeout for agentic loops
+  });
+
+  // Use the bridge as the sampling client - it implements createMessage()
+  // This routes all sampling through the bridge for better lifecycle management
+  setSamplingClient(samplingBridge);
 
   console.error(
-    "[mcp-std] Agentic sampling client initialized (Anthropic + OpenAI support)",
+    "[mcp-std] Sampling bridge initialized (timeout: 120s, tracking enabled)",
   );
 
   // Create concurrent MCP server with framework
@@ -52,7 +59,7 @@ async function main() {
     maxConcurrent: 10,
     backpressureStrategy: "sleep",
     enableSampling: true,
-    samplingClient,
+    samplingClient: samplingBridge,
     logger: (msg) => console.error(`[mcp-std] ${msg}`),
   });
 

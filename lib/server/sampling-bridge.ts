@@ -48,7 +48,7 @@ export class SamplingBridge {
    * @param params - Sampling parameters (messages, model preferences, etc.)
    * @param timeout - Override default timeout (ms)
    * @returns Promise that resolves with sampling result
-   * @throws {Error} If request times out
+   * @throws {Error} If request times out or client fails
    */
   async requestSampling(
     params: SamplingParams,
@@ -57,26 +57,48 @@ export class SamplingBridge {
     const id = this.nextId++;
     const timeoutMs = timeout ?? this.defaultTimeout;
 
-    const promise = new Promise<SamplingResult>((resolve, reject) => {
-      this.pendingRequests.set(id, { resolve, reject });
-
-      // Set timeout for pending request
-      setTimeout(() => {
-        if (this.pendingRequests.has(id)) {
-          this.pendingRequests.delete(id);
-          reject(new Error(`Sampling request ${id} timed out after ${timeoutMs}ms`));
-        }
+    // Create timeout promise for race condition
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => {
+        this.pendingRequests.delete(id);
+        reject(new Error(`Sampling request ${id} timed out after ${timeoutMs}ms`));
       }, timeoutMs);
     });
 
-    // Delegate to sampling client (handles stdio communication)
+    // Track pending request for potential external response handling
+    const resultPromise = new Promise<SamplingResult>((resolve, reject) => {
+      this.pendingRequests.set(id, { resolve, reject });
+    });
+
     try {
-      const result = await this.samplingClient.createMessage(params);
+      // Race between client response and timeout
+      // Also race with external response via handleResponse()
+      const clientPromise = this.samplingClient.createMessage(params);
+      const result = await Promise.race([
+        clientPromise.then(r => {
+          // Resolve the pending request tracker as well
+          const pending = this.pendingRequests.get(id);
+          if (pending) {
+            pending.resolve(r);
+          }
+          return r;
+        }),
+        timeoutPromise,
+        resultPromise, // Allow external handleResponse() to resolve
+      ]);
       return result;
     } catch (error) {
       // Clean up pending request on error
       this.pendingRequests.delete(id);
       throw error;
+    } finally {
+      // Always clear timeout to prevent memory leak
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      // Clean up pending request
+      this.pendingRequests.delete(id);
     }
   }
 
@@ -141,5 +163,16 @@ export class SamplingBridge {
    */
   getClient(): SamplingClient {
     return this.samplingClient;
+  }
+
+  /**
+   * Alias for requestSampling() - implements SamplingClient interface
+   * This allows the bridge to be used as a drop-in replacement for SamplingClient
+   *
+   * @param params - Sampling parameters
+   * @returns Sampling result
+   */
+  createMessage(params: SamplingParams): Promise<SamplingResult> {
+    return this.requestSampling(params);
   }
 }
