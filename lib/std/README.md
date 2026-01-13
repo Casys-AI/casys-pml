@@ -45,7 +45,7 @@ MCP std now includes a production-ready server framework with built-in concurren
 ### Quick Example
 
 ```typescript
-import { ConcurrentMCPServer } from "jsr:@casys/mcp-std/framework";
+import { ConcurrentMCPServer } from "jsr:@casys/mcp-server";
 
 // Define your custom tools
 const myTools = [
@@ -115,7 +115,7 @@ import {
   ConcurrentMCPServer,
   RequestQueue,
   SamplingBridge
-} from "jsr:@casys/mcp-std/framework";
+} from "jsr:@casys/mcp-server";
 
 // Custom queue configuration
 const queue = new RequestQueue({
