@@ -455,7 +455,7 @@ export class CapabilityLoader {
         continueWorkflow.workflowId,
       );
       if (pendingApproval && isApiKeyApprovalRequired(pendingApproval)) {
-        // This is a continuation for API keys
+        // This is a continuation for API keys - reloads .env and .pml.json
         const continueResult = await handleApiKeyContinue(
           pendingApproval,
           this.workspace,
