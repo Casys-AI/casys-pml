@@ -20,9 +20,9 @@
  * @module lib/mcp-tools-server
  */
 
-import { ConcurrentMCPServer, SamplingBridge } from "./server/mod.ts";
+import { ConcurrentMCPServer, SamplingBridge } from "@casys/mcp-server";
 import { MiniToolsClient } from "./mcp-tools.ts";
-import { createAgenticSamplingClient, setSamplingClient } from "./std/mod.ts";
+import { createAgenticSamplingClient, setSamplingClient } from "./agent.ts";
 
 async function main() {
   // Parse command line arguments for category filtering

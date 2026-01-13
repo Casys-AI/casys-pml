@@ -7,12 +7,12 @@
  */
 
 import { assertEquals, assertRejects } from "jsr:@std/assert@1";
-import { SamplingBridge } from "../../../../lib/server/sampling-bridge.ts";
+import { SamplingBridge } from "../../../../lib/server/src/sampling-bridge.ts";
 import type {
   SamplingClient,
   SamplingParams,
   SamplingResult,
-} from "../../../../lib/server/types.ts";
+} from "../../../../lib/server/src/types.ts";
 
 /**
  * Create a mock sampling client with proper cleanup support

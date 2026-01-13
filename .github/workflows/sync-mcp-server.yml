@@ -1,13 +1,13 @@
-# Sync MCP Std library to public repository
-# Syncs lib/std/ folder to @casys/mcp-std package
+# Sync MCP Server framework to public repository
+# Syncs lib/server/ folder to @casys/mcp-server package
 
-name: Sync MCP Std
+name: Sync MCP Server
 
 on:
   push:
     branches: [main]
     paths:
-      - "lib/std/**"
+      - "lib/server/**"
 
   # Allow manual trigger
   workflow_dispatch:
@@ -26,26 +26,26 @@ jobs:
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
 
-      - name: Clone mcp-std repo
+      - name: Clone mcp-server repo
         run: |
-          git clone https://x-access-token:${{ secrets.PUBLIC_REPO_PAT }}@github.com/Casys-AI/mcp-std.git mcp-std-repo
-          cd mcp-std-repo
+          git clone https://x-access-token:${{ secrets.PUBLIC_REPO_PAT }}@github.com/Casys-AI/mcp-server.git mcp-server-repo
+          cd mcp-server-repo
           git checkout main || git checkout -b main
 
-      - name: Sync lib/std/ folder
+      - name: Sync lib/server/ folder
         run: |
           # Remove existing files (except .git)
-          find mcp-std-repo -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+          find mcp-server-repo -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
 
-          # Copy lib/std/ contents to root of public repo
-          cp -r lib/std/* mcp-std-repo/
+          # Copy lib/server/ contents to root of public repo
+          cp -r lib/server/* mcp-server-repo/
 
           # Add LICENSE
-          cp LICENSE mcp-std-repo/LICENSE
+          cp LICENSE mcp-server-repo/LICENSE
 
       - name: Commit and push
         run: |
-          cd mcp-std-repo
+          cd mcp-server-repo
           git add -A
 
           # Check if there are changes to commit

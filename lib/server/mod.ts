@@ -9,7 +9,7 @@
  *
  * @example
  * ```typescript
- * import { ConcurrentMCPServer } from "@casys/mcp-std/framework";
+ * import { ConcurrentMCPServer } from "@casys/mcp-server";
  *
  * const server = new ConcurrentMCPServer({
  *   name: "my-server",
@@ -34,17 +34,17 @@
  * await server.start();
  * ```
  *
- * @module lib/server
+ * @module @casys/mcp-server
  */
 
 // Main server class
-export { ConcurrentMCPServer } from "./concurrent-server.ts";
+export { ConcurrentMCPServer } from "./src/concurrent-server.ts";
 
 // Concurrency primitives
-export { RequestQueue } from "./request-queue.ts";
+export { RequestQueue } from "./src/request-queue.ts";
 
 // Sampling support
-export { SamplingBridge } from "./sampling-bridge.ts";
+export { SamplingBridge } from "./src/sampling-bridge.ts";
 
 // Type exports
 export type {
@@ -57,4 +57,4 @@ export type {
   QueueMetrics,
   PromiseResolver,
   QueueOptions,
-} from "./types.ts";
+} from "./src/types.ts";

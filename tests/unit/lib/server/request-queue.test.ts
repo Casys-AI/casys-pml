@@ -7,7 +7,7 @@
  */
 
 import { assertEquals, assertRejects } from "jsr:@std/assert@1";
-import { RequestQueue } from "../../../../lib/server/request-queue.ts";
+import { RequestQueue } from "../../../../lib/server/src/request-queue.ts";
 
 Deno.test("RequestQueue - Basic Operations", async (t) => {
   await t.step("acquire() increments inFlight counter", async () => {
