@@ -29,6 +29,7 @@ import {
   getToolRouting,
   resolveRoutingFromDb,
   getToolRoutingFromDb,
+  normalizeToolId,
   type RoutingDbClient,
 } from "../../../capabilities/routing-resolver.ts";
 import { getUserScope } from "../../../lib/user.ts";
@@ -286,9 +287,11 @@ export class ExecuteDirectUseCase {
 
       // Step 5.5: Hybrid routing check (Story 14 - PML Execute Hybrid Routing)
       // Extract all tools/capabilities from tasks (exclude pseudo-tools like code:add)
+      // Normalize tool IDs: mcp.server.action -> server:action for routing lookup
       const toolsUsed = optimizedDAG.tasks
         .map((t) => (t as { tool?: string }).tool)
-        .filter((t): t is string => !!t && !t.startsWith("code:"));
+        .filter((t): t is string => !!t && !t.startsWith("code:"))
+        .map(normalizeToolId);
 
       if (toolsUsed.length > 0) {
         // Use DB-based routing if available (checks pml_registry for capabilities)

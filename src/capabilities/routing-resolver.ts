@@ -219,30 +219,73 @@ function isInServerList(toolId: string): boolean {
 }
 
 /**
+ * Normalize tool ID to canonical format: server:action
+ *
+ * Handles multiple input formats:
+ * - mcp.server.action (JavaScript dot notation from sandbox)
+ * - mcp__server__action (double underscore internal format)
+ * - server:action (already canonical)
+ *
+ * @example
+ * normalizeToolId("mcp.std.fetch_url") // "std:fetch_url"
+ * normalizeToolId("mcp.filesystem.read_file") // "filesystem:read_file"
+ * normalizeToolId("mcp__code__analyze") // "code:analyze"
+ * normalizeToolId("fetch:fetch") // "fetch:fetch"
+ * normalizeToolId("memory") // "memory"
+ */
+export function normalizeToolId(toolId: string): string {
+  if (!toolId || typeof toolId !== "string") return "";
+
+  // Handle mcp.server.action format (JavaScript dot notation from sandbox code)
+  if (toolId.startsWith("mcp.")) {
+    const parts = toolId.split(".");
+    if (parts.length >= 3) {
+      // mcp.server.action -> server:action
+      const server = parts[1];
+      const action = parts.slice(2).join("_"); // Handle nested actions like read_file
+      return `${server}:${action}`;
+    }
+    // mcp.server -> server (no action)
+    return parts[1] || toolId;
+  }
+
+  // Handle mcp__server__action format (internal capability format)
+  if (toolId.startsWith("mcp__")) {
+    const parts = toolId.split("__");
+    if (parts.length >= 3) {
+      // mcp__server__action -> server:action
+      return `${parts[1]}:${parts[2]}`;
+    }
+    return parts[1] || toolId;
+  }
+
+  // Already in canonical format or bare server name
+  return toolId;
+}
+
+/**
  * Extract server name from tool ID
  *
  * @example
  * extractServerName("filesystem:read_file") // "filesystem"
  * extractServerName("mcp__code__analyze") // "code"
+ * extractServerName("mcp.std.fetch_url") // "std"
  * extractServerName("memory") // "memory"
  * extractServerName("") // ""
  */
 export function extractServerName(toolId: string): string {
   if (!toolId || typeof toolId !== "string") return "";
 
-  // Handle mcp__namespace__action format (capability tools)
-  if (toolId.startsWith("mcp__")) {
-    const parts = toolId.split("__");
-    return parts[1] || "";
-  }
+  // Normalize first, then extract server
+  const normalized = normalizeToolId(toolId);
 
   // Handle standard format: server:action
-  const colonIndex = toolId.indexOf(":");
+  const colonIndex = normalized.indexOf(":");
   if (colonIndex > 0) {
-    return toolId.slice(0, colonIndex);
+    return normalized.slice(0, colonIndex);
   }
 
-  return toolId;
+  return normalized;
 }
 
 /**
