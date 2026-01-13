@@ -130,12 +130,13 @@ export class ExecutionTraceStore {
     // Note: intent_text and intent_embedding are no longer stored in execution_trace
     // They are retrieved via JOIN on workflow_pattern (migration 030)
 
+    // Migration 039: created_by column removed, user_id is now UUID FK
     const result = await this.db.query(
       `INSERT INTO execution_trace (
         capability_id, initial_context, success, duration_ms,
-        error_message, user_id, created_by, executed_path, decisions,
+        error_message, user_id, executed_path, decisions,
         task_results, priority, parent_trace_id
-      ) VALUES ($1, $2::jsonb, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11, $12)
+      ) VALUES ($1, $2::jsonb, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10, $11)
       RETURNING *`,
       [
         trace.capabilityId ?? null,
@@ -143,8 +144,7 @@ export class ExecutionTraceStore {
         trace.success,
         Math.round(trace.durationMs),
         trace.errorMessage ?? null,
-        trace.userId ?? "local",
-        trace.createdBy ?? "local",
+        trace.userId ?? null,  // UUID FK or null for anonymous
         trace.executedPath ?? [],
         trace.decisions, // postgres.js auto-serializes to JSONB
         sanitizedResults, // postgres.js auto-serializes to JSONB
@@ -265,9 +265,10 @@ export class ExecutionTraceStore {
     // Clamp priority to valid range
     const clampedPriority = Math.max(0, Math.min(1, priority));
 
+    // Migration 039: updated_by column removed
     await this.db.query(
       `UPDATE execution_trace
-       SET priority = $1, updated_by = 'td_error'
+       SET priority = $1
        WHERE id = $2`,
       [clampedPriority, traceId],
     );
@@ -472,9 +473,10 @@ export class ExecutionTraceStore {
    * @returns Traces for the user
    */
   async getTracesByUser(userId: string, limit = 50): Promise<ExecutionTrace[]> {
+    // Migration 039: user_id is now UUID FK
     const result = await this.db.query(
       `${SELECT_TRACE_WITH_INTENT}
-       WHERE et.user_id = $1
+       WHERE et.user_id = $1::uuid
        ORDER BY et.executed_at DESC
        LIMIT $2`,
       [userId, limit],
@@ -507,18 +509,20 @@ export class ExecutionTraceStore {
   /**
    * Anonymize traces for a user (GDPR compliance)
    *
+   * Migration 039: user_id is now UUID FK, set to NULL for anonymization
+   * (created_by and updated_by columns removed)
+   *
    * @param userId - User ID to anonymize
    * @returns Number of anonymized traces
    */
   async anonymizeUserTraces(userId: string): Promise<number> {
     // Note: intent_text column removed in migration 030 (now from workflow_pattern via JOIN)
+    // Migration 039: user_id is now UUID FK
     const result = await this.db.query(
       `UPDATE execution_trace
-       SET user_id = 'anonymized',
-           created_by = 'anonymized',
-           updated_by = 'anonymized',
+       SET user_id = NULL,
            initial_context = '{}'::jsonb
-       WHERE user_id = $1
+       WHERE user_id = $1::uuid
        RETURNING id`,
       [userId],
     );
@@ -684,8 +688,8 @@ export class ExecutionTraceStore {
       taskResults,
       priority: (row.priority as number) ?? DEFAULT_TRACE_PRIORITY,
       parentTraceId: (row.parent_trace_id as string) || undefined,
+      // Migration 039: user_id is now UUID FK, createdBy column removed
       userId: (row.user_id as string) || undefined,
-      createdBy: (row.created_by as string) || undefined,
     };
   }
 }

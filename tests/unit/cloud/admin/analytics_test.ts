@@ -173,19 +173,23 @@ async function seedTestData(db: TestDbClient): Promise<void> {
   `);
 
   // Create execution traces with various timestamps
+  // Migration 039: user_id is now UUID, use generated UUIDs
+  // Use fixed UUIDs to simulate two distinct users (admin_user and normal_user)
+  const adminUserUuid = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+  const normalUserUuid = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
   await db.query(`
     INSERT INTO execution_trace (id, user_id, tool_name, success, duration_ms, executed_at)
     VALUES
       -- Today's executions
-      (gen_random_uuid(), 'admin_user', 'test_tool', true, 100, NOW() - INTERVAL '1 hour'),
-      (gen_random_uuid(), 'admin_user', 'test_tool', true, 150, NOW() - INTERVAL '2 hours'),
-      (gen_random_uuid(), 'normal_user', 'test_tool', true, 200, NOW() - INTERVAL '3 hours'),
-      (gen_random_uuid(), 'normal_user', 'test_tool', false, 50, NOW() - INTERVAL '4 hours'),
+      (gen_random_uuid(), '${adminUserUuid}'::uuid, 'test_tool', true, 100, NOW() - INTERVAL '1 hour'),
+      (gen_random_uuid(), '${adminUserUuid}'::uuid, 'test_tool', true, 150, NOW() - INTERVAL '2 hours'),
+      (gen_random_uuid(), '${normalUserUuid}'::uuid, 'test_tool', true, 200, NOW() - INTERVAL '3 hours'),
+      (gen_random_uuid(), '${normalUserUuid}'::uuid, 'test_tool', false, 50, NOW() - INTERVAL '4 hours'),
       -- Week old executions
-      (gen_random_uuid(), 'admin_user', 'test_tool', true, 120, NOW() - INTERVAL '3 days'),
-      (gen_random_uuid(), 'normal_user', 'test_tool', true, 180, NOW() - INTERVAL '5 days'),
+      (gen_random_uuid(), '${adminUserUuid}'::uuid, 'test_tool', true, 120, NOW() - INTERVAL '3 days'),
+      (gen_random_uuid(), '${normalUserUuid}'::uuid, 'test_tool', true, 180, NOW() - INTERVAL '5 days'),
       -- Older execution (for returning user calculation)
-      (gen_random_uuid(), 'admin_user', 'test_tool', true, 100, NOW() - INTERVAL '15 days')
+      (gen_random_uuid(), '${adminUserUuid}'::uuid, 'test_tool', true, 100, NOW() - INTERVAL '15 days')
   `);
 
   // Add error messages to failed executions

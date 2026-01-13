@@ -566,7 +566,7 @@ Deno.test("CapabilityStore - listWithSchemas() joins with capability_records", a
   await db.query(
     `
     INSERT INTO capability_records (
-      id, org, project, namespace, action, hash, workflow_pattern_id, visibility, created_by
+      id, org, project, namespace, action, hash, workflow_pattern_id, visibility, user_id
     ) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8)
   `,
     [
@@ -577,7 +577,7 @@ Deno.test("CapabilityStore - listWithSchemas() joins with capability_records", a
       "abcd",
       capId,
       "public",
-      "test-user",
+      null, // Migration 039: user_id is UUID, use null for tests
     ],
   );
 
@@ -603,7 +603,7 @@ Deno.test("CapabilityStore - listWithSchemas() respects visibility filter", asyn
 
   // Create capability_records with different visibility (note: display_name dropped in migration 028)
   await db.query(
-    `INSERT INTO capability_records (id, org, project, namespace, action, hash, workflow_pattern_id, visibility, created_by)
+    `INSERT INTO capability_records (id, org, project, namespace, action, hash, workflow_pattern_id, visibility, user_id)
      VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8)`,
     [
       "org",
@@ -613,11 +613,11 @@ Deno.test("CapabilityStore - listWithSchemas() respects visibility filter", asyn
       "ab12",
       cap1,
       "public",
-      "user",
+      null, // Migration 039: user_id is UUID
     ],
   );
   await db.query(
-    `INSERT INTO capability_records (id, org, project, namespace, action, hash, workflow_pattern_id, visibility, created_by)
+    `INSERT INTO capability_records (id, org, project, namespace, action, hash, workflow_pattern_id, visibility, user_id)
      VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8)`,
     [
       "org",
@@ -627,7 +627,7 @@ Deno.test("CapabilityStore - listWithSchemas() respects visibility filter", asyn
       "cd34",
       cap2,
       "private",
-      "user",
+      null, // Migration 039: user_id is UUID
     ],
   );
 
@@ -658,7 +658,7 @@ Deno.test("CapabilityStore - listWithSchemas() respects limit", async () => {
     const capId = await createTestCapability(store, `const x${i} = ${i};`, `Cap ${i}`);
     const hash = `a${i}${i}${i}`;
     await db.query(
-      `INSERT INTO capability_records (id, org, project, namespace, action, hash, workflow_pattern_id, visibility, created_by)
+      `INSERT INTO capability_records (id, org, project, namespace, action, hash, workflow_pattern_id, visibility, user_id)
        VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8)`,
       [
         "org",
@@ -668,7 +668,7 @@ Deno.test("CapabilityStore - listWithSchemas() respects limit", async () => {
         hash,
         capId,
         "public",
-        "user",
+        null, // Migration 039: user_id is UUID
       ],
     );
   }
@@ -706,7 +706,7 @@ Deno.test("CapabilityStore - listWithSchemas() orders by usageCount", async () =
 
   // Create records (note: display_name dropped in migration 028)
   await db.query(
-    `INSERT INTO capability_records (id, org, project, namespace, action, hash, workflow_pattern_id, visibility, created_by)
+    `INSERT INTO capability_records (id, org, project, namespace, action, hash, workflow_pattern_id, visibility, user_id)
      VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8)`,
     [
       "org",
@@ -716,11 +716,11 @@ Deno.test("CapabilityStore - listWithSchemas() orders by usageCount", async () =
       "1111",
       cap1.id,
       "public",
-      "user",
+      null, // Migration 039: user_id is UUID
     ],
   );
   await db.query(
-    `INSERT INTO capability_records (id, org, project, namespace, action, hash, workflow_pattern_id, visibility, created_by)
+    `INSERT INTO capability_records (id, org, project, namespace, action, hash, workflow_pattern_id, visibility, user_id)
      VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8)`,
     [
       "org",
@@ -730,7 +730,7 @@ Deno.test("CapabilityStore - listWithSchemas() orders by usageCount", async () =
       "2222",
       cap2.id,
       "public",
-      "user",
+      null, // Migration 039: user_id is UUID
     ],
   );
 

@@ -255,9 +255,10 @@ export function validateAuthConfig(serverName: string): void {
 /**
  * User filter for data isolation queries
  * Story 9.5: Multi-tenant data isolation
+ * Migration 039: user_id is now UUID FK
  */
 export interface UserFilter {
-  /** WHERE clause fragment (e.g., "user_id = $1"), null if no filtering */
+  /** WHERE clause fragment (e.g., "user_id = $1::uuid"), null if no filtering */
   where: string | null;
   /** Parameters for WHERE clause */
   params: string[];
@@ -266,8 +267,10 @@ export interface UserFilter {
 /**
  * Build WHERE clause filter for user_id isolation (Story 9.5)
  *
- * Cloud mode: Returns SQL filter `user_id = $1` with user_id param
+ * Cloud mode: Returns SQL filter `user_id = $1::uuid` with user_id param
  * Local mode: Returns null (no filtering, all data visible)
+ *
+ * Migration 039: user_id is now UUID FK, requires ::uuid cast
  *
  * @param authResult - Authentication result (null if unauthenticated)
  * @returns UserFilter object with where clause and params
@@ -276,7 +279,7 @@ export interface UserFilter {
  * ```typescript
  * // Cloud mode
  * const filter = buildUserFilter({ user_id: "uuid-123", username: "alice" });
- * // filter.where = "user_id = $1"
+ * // filter.where = "user_id = $1::uuid"
  * // filter.params = ["uuid-123"]
  *
  * // Local mode
@@ -291,9 +294,9 @@ export function buildUserFilter(authResult: AuthResult | null): UserFilter {
     return { where: null, params: [] };
   }
 
-  // Cloud mode: filter by user_id
+  // Cloud mode: filter by user_id (Migration 039: UUID FK)
   return {
-    where: "user_id = $1",
+    where: "user_id = $1::uuid",
     params: [authResult.user_id],
   };
 }

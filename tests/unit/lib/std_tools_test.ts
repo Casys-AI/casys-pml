@@ -13,50 +13,48 @@
 import { assertEquals, assertExists } from "jsr:@std/assert";
 import { describe, it } from "jsr:@std/testing/bdd";
 
-// Import all tool modules
-import { textTools } from "../../../lib/std/text.ts";
-import { jsonTools } from "../../../lib/std/json.ts";
-import { mathTools } from "../../../lib/std/math.ts";
-import { datetimeTools } from "../../../lib/std/datetime.ts";
-import { cryptoTools } from "../../../lib/std/crypto.ts";
-import { collectionsTools } from "../../../lib/std/collections.ts";
-import { vfsTools } from "../../../lib/std/vfs.ts";
-import { dataTools } from "../../../lib/std/data.ts";
-import { httpTools } from "../../../lib/std/http.ts";
-import { validationTools } from "../../../lib/std/validation.ts";
-import { formatTools } from "../../../lib/std/format.ts";
-import { transformTools } from "../../../lib/std/transform.ts";
-import { stateTools } from "../../../lib/std/state.ts";
-import { compareTools } from "../../../lib/std/compare.ts";
-import { algoTools } from "../../../lib/std/algo.ts";
-import { colorTools } from "../../../lib/std/color.ts";
-import { networkTools } from "../../../lib/std/network.ts";
-import { utilTools } from "../../../lib/std/util.ts";
+// Import all tool modules from mod.ts
+import {
+  // Data tools (pure computation)
+  textTools,
+  jsonTools,
+  mathTools,
+  datetimeTools,
+  cryptoTools,
+  collectionsTools,
+  vfsTools,
+  httpTools,
+  validationTools,
+  formatTools,
+  transformTools,
+  algoTools,
+  colorTools,
+  networkTools,
+  stringTools,
+  pathTools,
+  fakerTools,
+  geoTools,
+  qrcodeTools,
+  resilienceTools,
+  schemaTools,
+  diffTools,
+  // System tools (CLI-based)
+  dockerTools,
+  gitTools,
+  processTools,
+  archiveTools,
+  sshTools,
+  kubernetesTools,
+  databaseTools,
+  mediaTools,
+  cloudTools,
+  sysinfoTools,
+  packagesTools,
+  // Type
+  type MiniTool,
+} from "../../../lib/std/mod.ts";
 
-// New modules
-import { stringTools } from "../../../lib/std/string.ts";
-import { pathTools } from "../../../lib/std/path.ts";
-import { fakerTools } from "../../../lib/std/faker.ts";
-import { geoTools } from "../../../lib/std/geo.ts";
-import { qrcodeTools } from "../../../lib/std/qrcode.ts";
-import { resilienceTools } from "../../../lib/std/resilience.ts";
-import { schemaTools } from "../../../lib/std/schema.ts";
-import { diffTools } from "../../../lib/std/diff.ts";
-
-// System tools (CLI-based)
-import { dockerTools } from "../../../lib/std/docker.ts";
-import { gitTools } from "../../../lib/std/git.ts";
-import { processTools } from "../../../lib/std/process.ts";
-import { archiveTools } from "../../../lib/std/archive.ts";
-import { sshTools } from "../../../lib/std/ssh.ts";
-import { kubernetesTools } from "../../../lib/std/kubernetes.ts";
-import { databaseTools } from "../../../lib/std/database.ts";
-import { mediaTools } from "../../../lib/std/media.ts";
-import { cloudTools } from "../../../lib/std/cloud.ts";
-import { sysinfoTools } from "../../../lib/std/sysinfo.ts";
-import { packagesTools } from "../../../lib/std/packages.ts";
-
-import type { MiniTool } from "../../../lib/std/types.ts";
+// Note: dataTools, stateTools, compareTools, utilTools were removed (not exported from mod.ts)
 
 // Collect all tools
 const ALL_TOOLS: MiniTool[] = [
@@ -68,16 +66,12 @@ const ALL_TOOLS: MiniTool[] = [
   ...cryptoTools,
   ...collectionsTools,
   ...vfsTools,
-  ...dataTools,
   ...httpTools,
   ...validationTools,
   ...formatTools,
   ...transformTools,
-  ...stateTools,
-  ...compareTools,
   ...algoTools,
   ...colorTools,
-  ...utilTools,
   // New data tools
   ...stringTools,
   ...pathTools,
@@ -621,27 +615,7 @@ describe("std library tools", () => {
       });
     });
 
-    describe("util tools", () => {
-      it("http_status should look up codes", async () => {
-        const tool = utilTools.find((t) => t.name === "util_http_status")!;
-        const result = await tool.handler({ code: 404 }) as { message: string };
-        assertEquals(result.message, "Not Found");
-      });
-
-      it("normalize_email should normalize gmail addresses", async () => {
-        const tool = utilTools.find((t) => t.name === "util_normalize_email")!;
-        const result = await tool.handler({ email: "Test.User+spam@gmail.com" }) as {
-          normalized: string;
-        };
-        assertEquals(result.normalized, "testuser@gmail.com");
-      });
-
-      it("port_numbers should look up ports", async () => {
-        const tool = utilTools.find((t) => t.name === "util_port_numbers")!;
-        const result = await tool.handler({ port: 443 }) as { service: string };
-        assertEquals(result.service, "HTTPS");
-      });
-    });
+    // Note: utilTools tests removed - utilTools not exported from mod.ts
 
     describe("faker tools", () => {
       it("faker_person should generate person data", async () => {

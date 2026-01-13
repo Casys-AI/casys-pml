@@ -99,6 +99,10 @@ export function createCapabilityUuidPkMigration(): Migration {
       // 6. Drop display_name column (redundant)
       // ============================================
       try {
+        // First drop the index that uses display_name (required by PGlite)
+        await db.exec(`DROP INDEX IF EXISTS idx_capability_records_name`);
+        log.info("  ✓ Dropped idx_capability_records_name index");
+
         await db.exec(`
           ALTER TABLE capability_records
           DROP COLUMN IF EXISTS display_name

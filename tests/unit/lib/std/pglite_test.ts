@@ -5,7 +5,7 @@
  */
 
 import { assertEquals, assertExists } from "@std/assert";
-import { closePgliteConnection, pgliteTools } from "../../../../lib/std/pglite.ts";
+import { closePgliteConnection, pgliteTools } from "../../../../lib/std/mod.ts";
 
 // Helper to find tool by name
 function getTool(name: string) {

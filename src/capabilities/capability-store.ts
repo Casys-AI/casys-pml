@@ -35,6 +35,7 @@ import type { CapabilityRegistry } from "./capability-registry.ts";
 import { normalizeVariableNames, transformCapabilityRefs, transformLiteralsToArgs } from "./code-transformer.ts";
 import { eventBus } from "../events/mod.ts";
 import { calculateCapabilityRisk } from "../mcp/adaptive-threshold.ts";
+import { getUserScope } from "../lib/user.ts";
 
 const logger = getLogger("default");
 
@@ -135,7 +136,9 @@ export class CapabilityStore {
     let code = originalCode;
     if (this.capabilityRegistry) {
       try {
-        const transformResult = await transformCapabilityRefs(code, this.capabilityRegistry);
+        // Multi-tenant: use user scope for capability resolution
+        const scope = await getUserScope(traceData?.userId ?? null);
+        const transformResult = await transformCapabilityRefs(code, this.capabilityRegistry, scope);
         if (transformResult.replacedCount > 0) {
           code = transformResult.code;
           logger.info("Transformed capability refs to FQDNs", {
@@ -552,8 +555,8 @@ export class CapabilityStore {
           taskResults: traceData.taskResults ?? [],
           priority: DEFAULT_TRACE_PRIORITY,
           parentTraceId: traceData.parentTraceId,
+          // Migration 039: createdBy removed, use userId (UUID FK)
           userId: traceData.userId,
-          createdBy: traceData.userId ?? "local",
         });
         logger.debug("Execution trace saved with capability", {
           capabilityId: capability.id,
@@ -1199,7 +1202,7 @@ export class CapabilityStore {
   ): Promise<CapabilityWithSchema[]> {
     const {
       visibility = ["public", "org", "project", "private"],
-      createdBy,
+      userId,
       limit = 100,
       orderBy = "usageCount",
     } = options;
@@ -1221,6 +1224,7 @@ export class CapabilityStore {
 
     // Build query with JOIN
     // Migration 028: display_name removed, computed as namespace:action
+    // Migration 039: created_by → user_id (UUID FK)
     const query = `
       SELECT
         wp.pattern_id as id,
@@ -1232,12 +1236,12 @@ export class CapabilityStore {
       FROM capability_records cr
       INNER JOIN workflow_pattern wp ON cr.workflow_pattern_id = wp.pattern_id
       WHERE cr.visibility = ANY($1::text[])
-        ${createdBy ? "AND cr.created_by = $2" : ""}
+        ${userId ? "AND cr.user_id = $2::uuid" : ""}
       ORDER BY ${orderClause}
-      LIMIT ${createdBy ? "$3" : "$2"}
+      LIMIT ${userId ? "$3" : "$2"}
     `;
 
-    const params = createdBy ? [visibility, createdBy, limit] : [visibility, limit];
+    const params = userId ? [visibility, userId, limit] : [visibility, limit];
 
     const result = await this.db.query(query, params);
 

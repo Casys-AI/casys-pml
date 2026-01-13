@@ -286,8 +286,8 @@ async function fetchRealTimeseries(
   const startDate = new Date(Date.now() - intervalHours * 60 * 60 * 1000);
 
   try {
-    // Story 9.8: Filter by user scope
-    const userFilter = scope === "user" ? "AND user_id = $3" : "";
+    // Story 9.8: Filter by user scope (Migration 039: UUID FK)
+    const userFilter = scope === "user" ? "AND user_id = $3::uuid" : "";
     const velocityParams = scope === "user"
       ? [bucketMinutes, startDate.toISOString(), userId]
       : [bucketMinutes, startDate.toISOString()];

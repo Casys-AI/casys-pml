@@ -57,12 +57,13 @@ export async function getExecutedToolIds(
     // Get tool_keys from task_results JSONB array for this user
     // Use subquery to ensure WHERE filter applies BEFORE jsonb_array_elements
     // (PostgreSQL can evaluate set-returning functions before WHERE otherwise)
+    // Migration 039: user_id is now UUID FK
     rows = await db.query(
       `SELECT DISTINCT elem->>'tool' AS tool_key
        FROM (
          SELECT task_results
          FROM execution_trace
-         WHERE user_id = $1
+         WHERE user_id = $1::uuid
            AND task_results IS NOT NULL
            AND jsonb_typeof(task_results) = 'array'
            AND jsonb_array_length(task_results) > 0
@@ -147,13 +148,14 @@ export function filterSnapshotByExecution(
  * Get capabilities for current user only (AC #5)
  *
  * Returns capabilities that the user either:
- * - Created (created_by = userId)
+ * - Created (user_id = userId)
  * - Used (appears in execution_trace.capability_id for this user)
  *
  * This is always filtered by user - no "system" scope toggle for capabilities.
+ * Migration 039: created_by → user_id (UUID FK)
  *
  * @param db - Database client
- * @param userId - User identifier
+ * @param userId - User identifier (UUID)
  * @returns Array of capability records
  */
 export async function getUserCapabilities(
@@ -162,11 +164,11 @@ export async function getUserCapabilities(
 ): Promise<unknown[]> {
   return db.query(
     `SELECT * FROM workflow_pattern
-     WHERE created_by = $1
+     WHERE user_id = $1::uuid
         OR pattern_id IN (
           SELECT DISTINCT capability_id
           FROM execution_trace
-          WHERE user_id = $1 AND capability_id IS NOT NULL
+          WHERE user_id = $1::uuid AND capability_id IS NOT NULL
         )
      ORDER BY created_at DESC`,
     [userId],
