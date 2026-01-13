@@ -309,16 +309,14 @@ export class McpRegistryService {
       const config = await this.getServerConfig(row.server_id);
 
       // Derive type from config or row
-      // IMPORTANT: "std" server (MiniTools) is ALWAYS "deno" (built-in)
-      // even if config/.mcp-servers.json has a local config for it.
-      // The server config is for local development only, not for client distribution.
+      // Capabilities are "deno" (have code to fetch), MCP tools are "stdio" (spawn process)
       let type: McpType;
-      if (row.server_id === "std" || row.record_type === "capability") {
-        type = "deno"; // MiniTools and capabilities are built-in
+      if (row.record_type === "capability") {
+        type = "deno"; // Capabilities have code to fetch
       } else if (config) {
         type = deriveMcpType(config);
       } else {
-        type = "stdio"; // Default for unknown external servers
+        type = "stdio"; // Default for MCP tools
       }
 
       // Derive routing (from row or default based on type)
