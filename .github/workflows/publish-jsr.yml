@@ -42,3 +42,21 @@ jobs:
       - name: Publish to JSR
         working-directory: lib/std
         run: deno publish --allow-dirty
+
+  publish-mcp-server:
+    name: Publish @casys/mcp-server
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Publish to JSR
+        working-directory: lib/server
+        run: deno publish --allow-dirty
