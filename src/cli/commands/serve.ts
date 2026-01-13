@@ -490,12 +490,13 @@ export function createServeCommand() {
           }, 10000);
 
           // Attempt graceful shutdown
+          // Phase 1: Stop services that need DB access (save SHGAT params, flush events)
           Promise.all([
             gateway.stop(),
-            stopAlgorithmSubscribers(),
+            stopAlgorithmSubscribers(), // Must complete before db.close()
             episodicMemory.shutdown(), // ADR-008: Flush pending events
-            db.close(),
           ])
+            .then(() => db.close()) // Phase 2: Close DB after services are stopped
             .then(() => {
               clearTimeout(forceExitTimer);
               log.info("✓ Shutdown complete");
@@ -508,8 +509,14 @@ export function createServeCommand() {
             });
         };
 
-        Deno.addSignalListener("SIGINT", shutdown);
-        Deno.addSignalListener("SIGTERM", shutdown);
+        Deno.addSignalListener("SIGINT", () => {
+          log.info("[Shutdown] Received SIGINT (Ctrl+C)");
+          shutdown();
+        });
+        Deno.addSignalListener("SIGTERM", () => {
+          log.info("[Shutdown] Received SIGTERM (external kill)");
+          shutdown();
+        });
 
         // Keep process alive
         await new Promise(() => {}); // Run forever
