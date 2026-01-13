@@ -82,7 +82,7 @@ export async function spawnSHGATTraining(
     capabilities: input.capabilities,
     examples: input.examples,
     config: {
-      epochs: input.epochs ?? 40,
+      epochs: input.epochs ?? 25, // 25 optimal: test acc peaks at 18-21, overfits after
       batchSize: input.batchSize ?? 32,
       temperature: input.temperature,      // undefined = use annealing
       usePER: input.usePER ?? true,

@@ -1,0 +1,30 @@
+{
+  "name": "@pml/shgat",
+  "version": "0.1.0",
+  "exports": "./mod.ts",
+  "publish": {
+    "include": [
+      "mod.ts",
+      "shgat.ts",
+      "logger.ts",
+      "types.ts",
+      "graph/**/*.ts",
+      "initialization/**/*.ts",
+      "message-passing/**/*.ts",
+      "scoring/**/*.ts",
+      "training/**/*.ts",
+      "utils/**/*.ts",
+      "core/**/*.ts",
+      "README.md",
+      "LICENSE"
+    ],
+    "exclude": [
+      "**/*_test.ts",
+      "**/*.bench.ts"
+    ]
+  },
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true
+  }
+}

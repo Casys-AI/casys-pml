@@ -232,13 +232,18 @@ export class AlgorithmInitializer {
 
     try {
       const params = this.shgat.exportParams();
+      // Global model - only one row, use upsert by checking if any row exists
       await this.deps.db.query(
-        `INSERT INTO shgat_params (user_id, params, updated_at)
-         VALUES ($1, $2::jsonb, NOW())
-         ON CONFLICT (user_id) DO UPDATE SET
-           params = EXCLUDED.params,
-           updated_at = NOW()`,
-        ["local", params],
+        `INSERT INTO shgat_params (params, updated_at)
+         SELECT $1::jsonb, NOW()
+         WHERE NOT EXISTS (SELECT 1 FROM shgat_params)
+         ON CONFLICT DO NOTHING`,
+        [params],
+      );
+      // Update if row already exists
+      await this.deps.db.query(
+        `UPDATE shgat_params SET params = $1::jsonb, updated_at = NOW()`,
+        [params],
       );
       log.info("[AlgorithmInitializer] SHGAT params saved to DB");
     } catch (error) {
@@ -253,9 +258,9 @@ export class AlgorithmInitializer {
     if (!this.shgat) return { loaded: false };
 
     try {
+      // Global model - only one row exists
       const rows = (await this.deps.db.query(
-        `SELECT params, updated_at FROM shgat_params WHERE user_id = $1 LIMIT 1`,
-        ["local"],
+        `SELECT params, updated_at FROM shgat_params LIMIT 1`,
       )) as unknown as SHGATParamsRow[];
 
       if (rows.length > 0 && rows[0].params) {
@@ -749,7 +754,7 @@ export class AlgorithmInitializer {
       const result = await spawnSHGATTraining({
         capabilities: capsForWorker,
         examples,
-        epochs: 40,
+        epochs: 25, // 25 optimal: test acc peaks at 18-21, overfits after
         batchSize: 32,
         additionalTools, // Tools from examples not in any capability
       });

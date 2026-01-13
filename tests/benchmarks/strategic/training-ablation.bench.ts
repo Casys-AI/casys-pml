@@ -49,9 +49,9 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
   // === Baseline (current production config) ===
   {
     name: "baseline_production",
-    description: "Current production config: PER α=0.4 + curriculum + τ cosine 0.10→0.06",
+    description: "Current production config: PER α=0.6 + curriculum + τ cosine 0.10→0.06",
     usePER: true,
-    perAlpha: 0.4,
+    perAlpha: 0.6,
     perBetaStart: 0.4,
     perBetaEnd: 1.0,
     temperature: "anneal",

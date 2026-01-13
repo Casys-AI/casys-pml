@@ -44,6 +44,7 @@ import { createWorkflowPatternCreatedByMigration } from "./migrations/033_workfl
 import { up as dropCapUsageCols034Up, down as dropCapUsageCols034Down } from "./migrations/034_drop_capability_records_usage_columns.ts";
 import { createRoutingClientServerMigration } from "./migrations/037_routing_client_server.ts";
 import { createAlgorithmTracesUserIdMigration } from "./migrations/038_algorithm_traces_user_id.ts";
+import { createUserFqdnMultiTenantMigration } from "./migrations/039_user_fqdn_multi_tenant.ts";
 
 /**
  * Migration definition
@@ -441,5 +442,6 @@ export function getAllMigrations(): Migration[] {
     createPmlRegistryVisibilityMigration(), // Catalog: Expose visibility in pml_registry VIEW
     createRoutingClientServerMigration(), // Story 13.9: Align DB constraint with client/server terminology
     createAlgorithmTracesUserIdMigration(), // Story 9.8: Multi-tenant algorithm traces
+    createUserFqdnMultiTenantMigration(), // User FQDN Multi-Tenant: TEXT user_id → UUID FK
   ];
 }

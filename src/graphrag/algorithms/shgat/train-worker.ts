@@ -107,12 +107,15 @@ async function saveParamsToDb(
     // Type error is false positive - same param used twice confuses TS inference
     // deno-lint-ignore no-explicit-any
     const p = params as any;
+
+    // Global model - only one row, insert if empty then update
     await sql`
-      INSERT INTO shgat_params (user_id, params, updated_at)
-      VALUES ('local', ${p}::jsonb, NOW())
-      ON CONFLICT (user_id) DO UPDATE SET
-        params = ${p}::jsonb,
-        updated_at = NOW()
+      INSERT INTO shgat_params (params, updated_at)
+      SELECT ${p}::jsonb, NOW()
+      WHERE NOT EXISTS (SELECT 1 FROM shgat_params)
+    `;
+    await sql`
+      UPDATE shgat_params SET params = ${p}::jsonb, updated_at = NOW()
     `;
 
     return true;
@@ -216,10 +219,10 @@ async function main() {
     const numBatchesPerEpoch = Math.ceil(trainSet.length / batchSize);
 
     // Initialize PER buffer only if usePER is true
-    // α=0.4 for balanced coverage (sees all difficulties)
+    // α=0.6 optimal per benchmark (per-analysis-2026-01-12: +3.5% vs uniform)
     // maxPriority=25 to match margin-based TD error range [0.05, 20]
     const perBuffer = usePER ? new PERBuffer(trainSet, {
-      alpha: 0.4,       // Priority exponent (lower = more uniform sampling for coverage)
+      alpha: 0.6,       // Priority exponent (0.6 optimal, 0.4 too uniform, 0.8 too aggressive)
       beta: 0.4,        // IS weight exponent (annealed to 1.0)
       epsilon: 0.01,    // Minimum priority floor (prevents starvation of easy examples)
       maxPriority: 25,  // Match margin-based TD error range exp(3) ≈ 20

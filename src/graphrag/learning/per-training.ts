@@ -686,6 +686,11 @@ export async function trainSHGATOnPathTracesSubprocess(
     capabilityId,
     capabilities,
     epochs = 1,
+    // Live learning config (Story 11.6)
+    temperature,      // undefined = use annealing
+    usePER,           // undefined = default true
+    useCurriculum,    // undefined = default true
+    learningRate,     // undefined = default 0.05
   } = options;
 
   const startTime = performance.now();
@@ -809,6 +814,11 @@ export async function trainSHGATOnPathTracesSubprocess(
     epochs,
     batchSize,
     existingParams: shgat.exportParams(),
+    // Live learning config (Story 11.6)
+    temperature,      // undefined = use annealing
+    usePER,           // undefined = default true
+    useCurriculum,    // undefined = default true
+    learningRate,     // undefined = default 0.05
   });
 
   if (!result.success) {
