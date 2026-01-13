@@ -19,19 +19,50 @@ inputDocuments:
 This document provides the complete epic and story breakdown for Epic 12: Speculative Execution with
 Arguments, decomposing the requirements from the spike document into implementable stories.
 
-### Clarification Terminologique (2025-12-22)
+### Clarification Terminologique (2025-12-22, mise à jour 2026-01-13)
 
-| Concept         | Fonction               | Quand          | Algo              | Ce que c'est                                 |
-| --------------- | ---------------------- | -------------- | ----------------- | -------------------------------------------- |
-| **Speculation** | `speculateNextLayer()` | Intra-workflow | Aucun (DAG connu) | Pré-exécuter les tasks connues du DAG        |
-| **Prediction**  | `predictNextNode()`    | Post-workflow  | SHGAT + DR-DSP    | Prédire la prochaine action de l'utilisateur |
+| Concept         | Fonction               | Quand             | Algo              | Ce que c'est                                      |
+| --------------- | ---------------------- | ----------------- | ----------------- | ------------------------------------------------- |
+| **Speculation** | `speculateNextLayer()` | Intra-workflow    | Aucun (DAG connu) | Pré-exécuter les tasks connues du DAG             |
+| **Prediction**  | `predictNextNode()`    | Post-workflow     | SHGAT + DR-DSP    | Prédire la prochaine action de l'utilisateur      |
+| **Exploration** | `explorePath()`        | Intent inconnu    | DR-DSP + Dry-Run  | Tester des chemins hypothétiques non encore tracés |
 
 **Distinction clé:**
 
-- **Intra-workflow**: Le DAG est déjà défini (`static_structure`). On ne "prédit" rien, on
+- **Intra-workflow (Speculation)**: Le DAG est déjà défini (`static_structure`). On ne "prédit" rien, on
   pré-exécute les tasks connues pour gagner du temps.
-- **Post-workflow**: L'utilisateur a terminé un workflow. Que va-t-il faire ensuite? ICI on a besoin
+- **Post-workflow (Prediction)**: L'utilisateur a terminé un workflow. Que va-t-il faire ensuite? ICI on a besoin
   de vraie prédiction (SHGAT + DR-DSP).
+- **Exploration (NEW)**: L'intent ne match pas de capability existante. DR-DSP trouve un chemin hypothétique
+  à travers le graphe, et on le teste via dry-run hybride (exécution réelle des safe tools + mock des unsafe).
+
+### Vision Étendue (2026-01-13)
+
+L'Epic 12 évolue d'un système de **speculation passive** (pré-exécuter ce qu'on connaît) vers un système
+d'**exploration active** (découvrir de nouveaux chemins). L'objectif final est de permettre au système
+d'**inférer sur des cas nouveaux** sans attendre qu'un utilisateur trace le chemin.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           EPIC 12 PROGRESSION                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Phase 1: Foundation          Phase 2: Execution      Phase 3: Exploration  │
+│  ───────────────────          ──────────────────      ─────────────────────  │
+│                                                                              │
+│  ┌─────────────────┐         ┌─────────────────┐     ┌─────────────────────┐│
+│  │ 12.1 Context    │         │ 12.4 Hybrid     │     │ 12.8 Exploratory    ││
+│  │ 12.2 Resolver   │────────▶│ 12.5 Cache      │────▶│      Dry-Run        ││
+│  │ 12.3 Security   │         │ 12.6 Per-Layer  │     │                     ││
+│  └─────────────────┘         │ 12.7 Learning   │     │ DR-DSP + Dry-Run    ││
+│                              └─────────────────┘     │ = World Model       ││
+│                                                      └─────────────────────┘│
+│                                                                              │
+│  Chemins CONNUS ──────────────────────────────────▶ Chemins HYPOTHÉTIQUES   │
+│  (performance)                                       (découverte)           │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
 ## Requirements Inventory
 
@@ -55,6 +86,18 @@ NFR1: Speculative execution must not cause side effects (read-only tools only) N
 cache should have configurable TTL (default 5 minutes) NFR3: Speculation should add minimal latency
 to standard execution path NFR4: Security: If `requiresValidation()` returns true, NO speculation
 allowed NFR5: Speculation results must be JSON-serializable for caching
+
+### Exploration Requirements (NEW - 2026-01-13)
+
+FR12: DR-DSP can find hypothetical paths for intents that don't match existing capabilities
+FR13: Hybrid execution engine executes safe tools for real, mocks unsafe tools
+FR14: Mock responses are configurable per tool or use schema-based defaults
+FR15: Exploration traces are marked as `exploratory: true` and used for learning
+FR16: Successful explorations can be promoted to validated capabilities
+FR17: Failed explorations provide learning signal to SHGAT (negative examples)
+
+NFR6: Exploration should be throttled to avoid resource exhaustion (max N concurrent explorations)
+NFR7: Mock responses must be deterministic for reproducible testing
 
 ### Additional Requirements
 
@@ -82,19 +125,25 @@ allowed NFR5: Speculation results must be JSON-serializable for caching
 
 ### FR Coverage Map
 
-| FR   | Epic    | Description                              |
-| ---- | ------- | ---------------------------------------- |
-| FR1  | Epic 12 | Initialize context with initial args     |
-| FR2  | Epic 12 | Accumulate task results in context       |
-| FR3  | Epic 12 | Resolve static args to runtime values    |
-| FR4  | Epic 12 | Generate real MCP tool calls             |
-| FR5  | Epic 12 | Security guards (canSpeculate)           |
-| FR6  | Epic 12 | ProvidesEdge field mappings              |
-| FR7  | Epic 12 | Post-workflow prefetching                |
-| FR8  | Epic 12 | per_layer speculation                    |
-| FR9  | Epic 12 | Skip when args unresolved                |
-| FR10 | Epic 12 | Cache hit/miss validation                |
-| FR11 | Epic 12 | Pass toolExecutor to SpeculativeExecutor |
+| FR   | Story   | Description                                          |
+| ---- | ------- | ---------------------------------------------------- |
+| FR1  | 12.1    | Initialize context with initial args                 |
+| FR2  | 12.1    | Accumulate task results in context                   |
+| FR3  | 12.2    | Resolve static args to runtime values                |
+| FR4  | 12.4    | Generate real MCP tool calls                         |
+| FR5  | 12.3    | Security guards (canSpeculate)                       |
+| FR6  | 12.2    | ProvidesEdge field mappings                          |
+| FR7  | 12.4    | Post-workflow prefetching                            |
+| FR8  | 12.6    | per_layer speculation                                |
+| FR9  | 12.2    | Skip when args unresolved                            |
+| FR10 | 12.5    | Cache hit/miss validation                            |
+| FR11 | 12.4    | Pass toolExecutor to SpeculativeExecutor             |
+| FR12 | 12.8    | DR-DSP hypothetical path finding                     |
+| FR13 | 12.8    | Hybrid execution (real safe + mock unsafe)           |
+| FR14 | 12.8    | Configurable mock responses                          |
+| FR15 | 12.8    | Exploratory traces for learning                      |
+| FR16 | 12.8    | Promote explorations to validated capabilities       |
+| FR17 | 12.8    | Failed explorations as negative learning signals     |
 
 ## Epic List
 
@@ -544,6 +593,476 @@ function extractArgumentFeatures(args: Record<string, JsonValue>): ArgumentPatte
 
 ---
 
+### Story 12.8: Exploratory Dry-Run (Capstone)
+
+**As a** PML system, **I want** to explore hypothetical capability paths via DR-DSP and validate them
+using hybrid dry-run execution (real safe tools + mocked unsafe tools), **So that** I can infer on
+new cases without waiting for a user to trace the path first.
+
+**FRs covered:** FR12, FR13, FR14, FR15, FR16, FR17
+**NFRs addressed:** NFR1, NFR6, NFR7
+
+**Context:** Cette story est le point culminant de l'Epic 12 - elle transforme PML d'un système
+réactif (qui apprend des traces passées) en un système proactif (qui explore de nouvelles possibilités).
+
+**Acceptance Criteria:**
+
+**--- Path Discovery ---**
+
+**Given** an intent that doesn't match any existing capability with high confidence
+**When** `explorePath(intent)` is called
+**Then** DR-DSP finds hypothetical paths through the tool/capability graph
+**And** returns candidate paths ranked by estimated viability
+
+**Given** DR-DSP returns multiple candidate paths
+**When** selecting paths to explore
+**Then** prioritize paths with:
+  - More safe (speculatable) tools
+  - Higher historical success rate for similar tools
+  - Shorter path length (Occam's razor)
+
+**--- Hybrid Execution ---**
+
+**Given** a candidate path with mixed safe/unsafe tools
+**When** executing in dry-run mode
+**Then** safe tools (`canSpeculate() = true`) execute for real via WorkerBridge
+**And** unsafe tools (`canSpeculate() = false`) return mock responses
+**And** execution flow continues through the entire path
+
+**Given** a tool marked as unsafe
+**When** generating mock response
+**Then** use configured mock if available in `dryRunMocks[toolId]`
+**Or** generate schema-based mock from tool's output schema
+**Or** return `{ _mocked: true, toolId, reason: "unsafe" }`
+
+**Given** exploration execution completes
+**When** generating trace
+**Then** trace is marked with `exploratory: true`
+**And** each task result indicates `mocked: boolean`
+**And** trace is stored for learning
+
+**--- Validation & Learning ---**
+
+**Given** exploration completes without errors
+**When** evaluating path viability
+**Then** path is marked as `viable: true`
+**And** confidence score is computed based on:
+  - % of real vs mocked executions
+  - Success of real tool calls
+  - Coherence of data flow between tools
+
+**Given** exploration fails (error in real tool or invalid data flow)
+**When** evaluating path
+**Then** path is marked as `viable: false`
+**And** failure point is recorded for SHGAT negative learning
+
+**Given** a viable exploration path
+**When** user later requests similar intent
+**Then** SHGAT can score this path higher (learned from exploration)
+**And** system can suggest the explored path with confidence
+
+**Given** repeated successful explorations of a path
+**When** confidence exceeds threshold
+**Then** path can be promoted to a "validated capability"
+**And** available for direct suggestion without dry-run
+
+**--- API ---**
+
+```typescript
+interface ExploreResult {
+  intent: string;
+  pathsExplored: number;
+  viablePaths: Array<{
+    path: string[];           // tool/capability IDs
+    confidence: number;       // 0-1
+    realExecutions: number;   // count of real tool calls
+    mockedExecutions: number; // count of mocked calls
+    result: JsonValue;        // final output (may contain mocked data)
+  }>;
+  failedPaths: Array<{
+    path: string[];
+    failurePoint: string;     // tool ID where it failed
+    error: string;
+  }>;
+  trace: ExecutionTrace;      // full trace for learning
+}
+
+// API call
+const result = await pml_explore({
+  intent: "Convert CSV to JSON and validate schema",
+  maxPaths: 3,              // max paths to explore
+  maxDepth: 5,              // max path length
+  mockConfig: {             // optional custom mocks
+    "write_file": { success: true, path: "/mock/output.json" }
+  }
+});
+```
+
+**--- Throttling & Safety ---**
+
+**Given** multiple exploration requests
+**When** system is under load
+**Then** explorations are queued with max concurrency (default: 2)
+**And** exploration timeout applies (default: 30s per path)
+
+**Given** exploration detects infinite loop or circular dependency
+**When** path exceeds maxDepth
+**Then** exploration is aborted for that path
+**And** partial results are returned
+
+**Dependencies:**
+
+- Story 12.3 (Security Guard) - `canSpeculate()` determines safe vs unsafe
+- Story 12.4 (Real Speculative Execution) - execution infrastructure
+- Story 12.5 (Speculation Cache) - cache real tool results
+- DR-DSP algorithm (existing) - path finding
+
+**Files to create:**
+
+- `src/exploration/explorer.ts` - Main exploration orchestrator (~200 LOC)
+- `src/exploration/mock-engine.ts` - Mock response generator (~100 LOC)
+- `src/exploration/path-evaluator.ts` - Viability scoring (~80 LOC)
+
+**Files to modify:**
+
+- `src/graphrag/algorithms/dr-dsp.ts` - Add `findHypotheticalPaths()` mode
+- `src/mcp/handlers/pml-handler.ts` - Add `pml_explore` endpoint
+- `src/graphrag/learning/per-training.ts` - Learn from exploratory traces
+
+**Implementation notes:**
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        EXPLORATORY DRY-RUN FLOW                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Intent ──▶ DR-DSP ──▶ Candidate Paths ──▶ For each path:                   │
+│                              │                                               │
+│                              ▼                                               │
+│                    ┌─────────────────────┐                                   │
+│                    │   For each tool:    │                                   │
+│                    │                     │                                   │
+│                    │  canSpeculate()?    │                                   │
+│                    │     │       │       │                                   │
+│                    │    YES     NO       │                                   │
+│                    │     │       │       │                                   │
+│                    │     ▼       ▼       │                                   │
+│                    │   REAL    MOCK      │                                   │
+│                    │  execute  response  │                                   │
+│                    │     │       │       │                                   │
+│                    │     └───┬───┘       │                                   │
+│                    │         │           │                                   │
+│                    │    Next tool        │                                   │
+│                    └─────────────────────┘                                   │
+│                              │                                               │
+│                              ▼                                               │
+│                    ┌─────────────────────┐                                   │
+│                    │  Evaluate viability │                                   │
+│                    │  - % real vs mock   │                                   │
+│                    │  - errors?          │                                   │
+│                    │  - data flow ok?    │                                   │
+│                    └─────────────────────┘                                   │
+│                              │                                               │
+│                              ▼                                               │
+│                    ┌─────────────────────┐                                   │
+│                    │  Store trace        │                                   │
+│                    │  Learn from result  │                                   │
+│                    │  Return to user     │                                   │
+│                    └─────────────────────┘                                   │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Relation to World Models / JEPA:**
+
+Cette story transforme PML en un système qui peut "imaginer" des exécutions:
+- **World Model analogy**: DR-DSP = planning, Hybrid execution = simulation
+- **JEPA analogy**: On prédit les représentations intermédiaires (outputs de chaque tool)
+  et on valide la cohérence du chemin sans nécessairement tout exécuter pour de vrai
+
+La différence clé: on ne génère pas les outputs via un modèle génératif, on utilise
+soit l'exécution réelle (safe tools) soit des mocks basés sur les schemas.
+
+**Estimation:** 4-5 jours
+
+---
+
+### Story 12.9: Mock Registry & Exploration Learning (Research)
+
+**As a** learning system, **I want** to maintain a registry of realistic mocks curated automatically
+from execution outcomes, **So that** exploratory dry-runs use high-quality mocks and SHGAT learns
+effectively from exploration traces.
+
+**FRs covered:** FR14 (extended), FR15, FR17
+**NFRs addressed:** NFR7
+
+> **⚠️ REQUIRES INVESTIGATION**
+>
+> Cette story nécessite une phase de spike/investigation avant implémentation.
+> L'apprentissage via chemins explorés avec mocks est un sujet non étudié.
+
+**Context:** Story 12.8 génère des traces "exploratoires" avec un mix d'exécutions réelles (safe
+tools) et de mocks (unsafe tools). Cette story traite:
+1. Comment stocker et curer les mocks de manière persistante
+2. Comment SHGAT apprend des traces partiellement mockées
+3. Comment auto-déprécier les mauvais mocks via les error types
+
+**Investigation Areas:**
+
+**1. Mock Registry Architecture**
+
+Remplacer le cache temporaire par un registre persistant:
+
+```
+Questions ouvertes:
+- Table DB dédiée `mock_registry` ou extension de `capability_cache`?
+- Granularité: par tool exact ou par pattern d'arguments?
+- Versioning des mocks quand le tool évolue?
+```
+
+**2. Auto-Curation via Error Types**
+
+Réutiliser l'infrastructure existante (migration 024, trace-feature-extractor):
+
+```
+Pistes:
+- error_type = VALIDATION → mock a mauvaise shape → déprécier fortement
+- error_type = NOT_FOUND → mock référence ressource stale → marquer obsolète
+- error_type = NETWORK/TIMEOUT/PERMISSION → pas la faute du mock → ignorer
+
+Existant à connecter:
+- classifyErrorType() dans migration 024
+- queryErrorTypeAffinity() dans trace-feature-extractor.ts
+- errorRecoveryRate déjà calculé par tool
+```
+
+**3. Learning from Exploration Traces**
+
+Comment SHGAT traite les traces avec mocks:
+
+```
+Questions ouvertes:
+- Pondération: trace 100% réelle vs trace 50% mockée?
+- Les mocks introduisent-ils du bruit dans l'embedding?
+- Faut-il un flag séparé dans TrainingExample pour `mockRatio`?
+- Seuil minimum de % réel pour considérer la trace valide?
+
+Hypothèses à tester:
+- H1: Traces avec >70% réel donnent un bon signal
+- H2: Mocks canonical (validés) n'ajoutent pas de bruit
+- H3: Error-based curation améliore la qualité du learning
+```
+
+**4. Promotion Workflow**
+
+Quand un mock devient "canonical" (référence):
+
+```
+Pistes:
+- successCount >= N && failureCount == 0 → promote
+- Ou: successRate > 0.9 avec minSamples >= 5
+- Canonical mocks pourraient avoir poids 1.0 dans learning
+- Non-canonical mocks auraient poids réduit (0.5?)
+```
+
+**Acceptance Criteria (Post-Investigation):**
+
+À définir après le spike. Critères probables:
+1. Mock Registry persiste les résultats réels pour réutilisation
+2. Auto-curation basée sur downstream error_type
+3. SHGAT training accepte `mockRatio` comme feature/weight
+4. Métriques: mock hit rate, curation accuracy, learning impact
+
+**Dependencies:**
+
+- Story 12.5 (Speculation Cache) - base infrastructure
+- Story 12.8 (Exploratory Dry-Run) - génère les traces
+- Migration 024 (error_type) - classification erreurs
+- trace-feature-extractor.ts - errorTypeAffinity existant
+
+**Spike Deliverables:**
+
+1. ADR documentant l'architecture choisie
+2. Benchmark comparant learning avec/sans mocks
+3. Prototype de la curation automatique
+
+**Estimation:** 3-4 jours (spike) + 3-4 jours (implémentation) = ~7 jours
+
+---
+
+### Story 12.10: Exploration Results & LLM Selection
+
+**As a** PML system, **I want** to return ranked exploration results with sufficient context for an
+LLM (Claude) to make an informed path selection, **So that** the final decision leverages both
+PML's exploration data and Claude's semantic understanding.
+
+**FRs covered:** (extension FR12, FR16)
+**NFRs addressed:** NFR3
+
+> **⚠️ RESPONSE FORMAT TBD**
+>
+> Le format exact de la réponse à Claude sera défini lors de l'implémentation.
+> Cette story pose le cadre architectural.
+
+**Context:** Story 12.8 explore plusieurs chemins hypothétiques. Le problème: comment choisir
+le meilleur chemin quand les unsafe tools sont mockés ? On ne peut pas vraiment évaluer la
+qualité du résultat final.
+
+**Solution:** Ne pas choisir automatiquement. Retourner les résultats d'exploration à Claude
+avec suffisamment de contexte pour qu'il décide.
+
+**Acceptance Criteria:**
+
+**--- Response Structure ---**
+
+**Given** `pml_explore()` finds multiple viable paths
+**When** returning results
+**Then** each path includes:
+  - Path composition (tool/capability IDs)
+  - Real vs mocked execution breakdown
+  - Actual outputs from real tool executions (les vrais résultats intermédiaires)
+  - Mock outputs clearly marked
+  - Historical success rates per tool
+  - Computed confidence score
+  - Any warnings or partial failures
+
+**Given** exploration returns paths to Claude
+**When** Claude evaluates options
+**Then** Claude has access to:
+  - Les données réelles produites par les safe tools
+  - Le contexte sémantique de l'intent original
+  - Les métriques de fiabilité historique
+
+**--- Selection Flow ---**
+
+**Given** Claude selects a path from exploration results
+**When** confirming execution
+**Then** `pml_execute({ explorePath: pathId, confirm: true })` triggers full real execution
+**And** the previously mocked tools are now executed for real
+**And** results are cached and traced
+
+**Given** Claude rejects all paths
+**When** no suitable path found
+**Then** Claude can request more exploration with different parameters
+**Or** inform user that no viable path exists
+
+**--- Learning from Selection ---**
+
+**Given** Claude selects path A over path B
+**When** tracking the decision
+**Then** selection is recorded as implicit feedback
+**And** SHGAT can learn that path A was preferred for this intent type
+
+**Given** selected path execution succeeds
+**When** updating learning
+**Then** path confidence is boosted for similar intents
+
+**Given** selected path execution fails
+**When** updating learning
+**Then** exploration was misleading → investigate why (mock quality? tool changed?)
+
+**Investigation Areas:**
+
+```
+Questions ouvertes (à définir lors de l'implémentation):
+
+1. Format de réponse
+   - JSON structuré vs markdown pour Claude?
+   - Niveau de détail des outputs intermédiaires?
+   - Truncation pour les gros payloads?
+
+2. Quels outputs inclure
+   - Tous les outputs réels ou résumé?
+   - Schema des outputs pour contexte?
+   - Diff entre paths si outputs similaires?
+
+3. Métriques de ranking
+   - Score composite ou métriques séparées?
+   - Comment présenter le mockRatio?
+   - Historique de succès: granularité?
+
+4. Confirmation flow
+   - Re-exécuter tout ou juste les mocked?
+   - Utiliser le cache des real executions?
+   - Timeout/expiration des explorations?
+```
+
+**Dependencies:**
+
+- Story 12.8 (Exploratory Dry-Run) - génère les paths
+- Story 12.9 (Mock Registry) - qualité des mocks
+
+**Files to modify:**
+
+- `src/exploration/explorer.ts` - Structure de retour enrichie
+- `src/mcp/handlers/pml-handler.ts` - Endpoint avec format LLM-friendly
+
+**Estimation:** 2-3 jours
+
+---
+
+## Epic 12 Summary (Updated)
+
+| Story | Titre                                        | FRs                 | Phase       | Estimation |
+| ----- | -------------------------------------------- | ------------------- | ----------- | ---------- |
+| 12.1  | Context Initialization & Result Accumulation | FR1, FR2            | Foundation  | 1.5j       |
+| 12.2  | Argument Resolver                            | FR3, FR6, FR9       | Foundation  | 2j         |
+| 12.3  | Security Guard (canSpeculate)                | FR5                 | Foundation  | 1j         |
+| 12.4  | Real Speculative Execution                   | FR4, FR7, FR11      | Execution   | 3j         |
+| 12.5  | Speculation Cache & Validation               | FR10                | Execution   | 2j         |
+| 12.6  | Per-Layer Speculation                        | FR8                 | Execution   | 2j         |
+| 12.7  | Argument-Aware Learning                      | (ext FR2)           | Learning    | 2-3j       |
+| 12.8  | **Exploratory Dry-Run (Capstone)**           | FR12-17             | Exploration | 4-5j       |
+| 12.9  | **Mock Registry & Exploration Learning** ⚠️  | FR14-15, FR17       | Research    | ~7j        |
+| 12.10 | **Exploration Results & LLM Selection**      | (ext FR12, FR16)    | Integration | 2-3j       |
+
+**Total Epic 12: ~28-30 jours**
+
+> ⚠️ Story 12.9 requiert un spike avant implémentation
+> ⚠️ Story 12.10 format de réponse TBD
+
+**Dependency Graph (Updated):**
+
+```
+Epic 10.2 (Static Argument Extraction) ──┐
+Epic 10.3 (ProvidesEdge) ────────────────┼──→ 12.1 → 12.2 → 12.3 ──┐
+Epic 10.5 (Architecture Unifiée) ────────┤                         │
+Epic 11.2 (execution_trace) ─────────────┘                         ▼
+                                                            12.4 → 12.5
+                                                              │      │
+                                                              ▼      │
+                                                            12.6 ◄───┘
+                                                              │
+                                                              ▼
+                                                            12.7
+                                                              │
+                                                              ▼
+                                                    ┌─────────────────┐
+                                                    │ 12.8 Exploratory│
+DR-DSP (existing) ─────────────────────────────────▶│    Dry-Run      │
+                                                    │   (Capstone)    │
+                                                    └────────┬────────┘
+                                                             │
+                                                             ▼
+Migration 024 (error_type) ───────────────┐       ┌─────────────────┐
+trace-feature-extractor.ts ───────────────┼──────▶│ 12.9 Mock Reg.  │
+                                          │       │  & Exploration  │
+                                          │       │   Learning ⚠️   │
+                                          │       └────────┬────────┘
+                                          │                │
+                                          │                ▼
+                                          │       ┌─────────────────┐
+                                          └──────▶│ 12.10 Results   │
+                                                  │  & LLM Select   │
+                                                  └─────────────────┘
+                                                         │
+                                                         ▼
+                                                  Claude choisit
+                                                  le meilleur path
+```
+
+---
+
 ## Epic 11 Updates Required
 
 Pour supporter Epic 12 (post-workflow speculation), Epic 11.2 doit inclure:
@@ -637,3 +1156,68 @@ task_results: [
 - Sensitive data: Redact patterns (API keys, tokens)
 - Large payloads: Truncate > 10KB
 - Non-JSON types: Serialize properly
+
+### ADR-12.7: Exploratory Dry-Run Architecture (NEW - 2026-01-13)
+
+**Decision:** Hybrid execution model - real execution for safe tools, mocks for unsafe tools.
+
+**Context:** Le système doit pouvoir explorer des chemins hypothétiques (non encore tracés) pour
+faire de l'inférence sur des cas nouveaux. Deux approches possibles:
+
+1. **Full Mock**: Tout mocker, rapide mais données fictives
+2. **Full Real**: Tout exécuter, données réelles mais side-effects possibles
+3. **Hybrid**: Real pour safe, mock pour unsafe ← **CHOIX**
+
+**Rationale:**
+
+- Maximise les données réelles (meilleur apprentissage)
+- Zéro side-effects garantis (réutilise `canSpeculate()`)
+- Traces exploratoires utilisables pour SHGAT
+- Permet de valider la viabilité réelle d'un chemin
+
+**Alternatives considérées:**
+
+| Approche     | Données     | Sécurité    | Apprentissage | Complexité |
+| ------------ | ----------- | ----------- | ------------- | ---------- |
+| Full Mock    | Fictives    | ✅ Safe     | ❌ Limité     | Faible     |
+| Full Real    | Réelles     | ❌ Risqué   | ✅ Optimal    | Faible     |
+| **Hybrid**   | **Mixtes**  | **✅ Safe** | **✅ Bon**    | Moyenne    |
+
+**Conséquences:**
+
+- Les traces exploratoires doivent marquer `mocked: boolean` par task
+- SHGAT doit pondérer différemment les exemples avec mocks
+- La confidence d'un chemin dépend du ratio real/mock
+- Mocks doivent être déterministes pour reproductibilité
+
+### ADR-12.8: Mock Response Strategy
+
+**Decision:** Cascade de mock sources: configured → schema-based → minimal.
+
+**Rationale:**
+
+```
+1. dryRunMocks[toolId]     → Mock configuré par l'utilisateur (prioritaire)
+2. tool.outputSchema       → Génère mock depuis le JSON Schema
+3. { _mocked: true, ... }  → Fallback minimal
+```
+
+- Permet aux utilisateurs de fournir des mocks réalistes
+- Fallback automatique basé sur les schemas MCP
+- Toujours un résultat, jamais de blocage
+
+### ADR-12.9: Exploration as Learning Signal
+
+**Decision:** Les explorations (succès ET échecs) alimentent SHGAT.
+
+**Rationale:**
+
+- **Succès**: Chemin viable, booste le score pour intents similaires
+- **Échec**: Chemin non-viable, signal négatif pour SHGAT
+- Permet l'apprentissage proactif sans attendre les utilisateurs
+
+**Implications pour SHGAT:**
+
+- Nouveau champ `trace.exploratory: boolean`
+- Poids réduit pour exemples avec beaucoup de mocks
+- Exemples exploratoires marqués distinctement dans training

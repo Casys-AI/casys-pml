@@ -221,16 +221,19 @@ development_status:
   11-2-execution-trace-table: done # 33 tests passing, decisions[] inference implemented via StaticStructureBuilder.inferDecisions()
   11-3-td-error-per-priority: done # Code Review APPROVED 2025-12-23: 17 tests (12 unit + 5 E2E), all issues resolved
   11-4-definition-invocation-views: done # Story created 2025-12-23, toggle UI exists, needs API + wiring
-  11-5-dry-run-mode: backlog
+  11-5-dry-run-mode: moved-to-12.8 # 2026-01-13: Moved to Epic 12.8 (Exploratory Dry-Run)
   11-6-shgat-training-per-sampling: done # Code Review APPROVED 2025-12-24: 19 tests passing, AC8/AC9/AC10 tests added
   epic-11-retrospective: optional
 
   # Epic 12: Speculative Execution with Arguments
   # Epic: epic-12-speculative-execution-arguments.md
   # Spike: spikes/2025-12-18-speculative-execution-arguments.md
-  # 6 stories, ~11.5 jours
-  # Pre-execute tools/capabilities with real arguments for ~0ms cache hit latency
-  # Depends on: Epic 10.2, 10.3, 10.5, Epic 11.2
+  # 10 stories (updated 2026-01-13), ~28-30 jours
+  # Pre-execute known paths (speculation) + explore hypothetical paths (exploration)
+  # Story 12.8: Exploratory Dry-Run - capstone story for World Model capabilities
+  # Story 12.9: Mock Registry & Exploration Learning - ⚠️ requires spike
+  # Story 12.10: Exploration Results & LLM Selection - Claude choisit le path
+  # Depends on: Epic 10.2, 10.3, 10.5, Epic 11.2, Migration 024
   epic-12: backlog
   12-1-context-initialization-result-accumulation: backlog # FR1, FR2 - Initialize context, accumulate task results
   12-2-argument-resolver: backlog # FR3, FR6, FR9 - Resolve static args (literal/reference/parameter)
@@ -239,6 +242,9 @@ development_status:
   12-5-speculation-cache-validation: backlog # FR10 - Cache with TTL, hit/miss validation
   12-6-per-layer-speculation: backlog # FR8 - Speculate during per_layer validation pauses
   12-7-argument-aware-learning: backlog # Argument patterns → SHGAT learning (dépend 12.1, 12.2)
+  12-8-exploratory-dry-run: backlog # FR12-17 - Capstone: DR-DSP + hybrid execution (real safe + mock unsafe) for path discovery
+  12-9-mock-registry-exploration-learning: backlog # ⚠️ SPIKE REQUIRED - Mock curation via error_type, learning from mocked traces
+  12-10-exploration-results-llm-selection: backlog # Return ranked paths to Claude for selection, response format TBD
   epic-12-retrospective: optional
 
   # Epic 13: Capability Naming & Curation System

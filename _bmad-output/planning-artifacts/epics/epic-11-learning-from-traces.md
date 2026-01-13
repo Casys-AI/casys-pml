@@ -745,33 +745,21 @@ that I can understand both the capability structure and its execution patterns.
 
 ### Story 11.5: Dry Run Mode (Optional)
 
-As a developer, I want to dry-run a capability without side effects, So that I can test and debug
-workflows before real execution.
+> **⚠️ MOVED TO EPIC 12 (2026-01-13)**
+>
+> Cette story a été déplacée vers Epic 12 comme **Story 12.8: Exploratory Dry-Run**.
+>
+> **Raison:** Le dry-run fait partie de la vision "Speculative Execution" de l'Epic 12,
+> et bénéficie de l'infrastructure `canSpeculate()`, du cache, et de l'argument resolver.
+>
+> La nouvelle story étend le concept original:
+> - Dry-run utilisateur → devient exploration système
+> - Mock simple → hybrid execution (real safe + mock unsafe)
+> - Debugging → apprentissage et découverte de nouveaux chemins
+>
+> **Voir:** `epic-12-speculative-execution-arguments.md#story-128-exploratory-dry-run-capstone`
 
-**Context:**
-
-Exécute la capability avec des mocks pour les tools à effets de bord. Utile pour debugging de
-workflows avec MCP connecteurs externes.
-
-**Acceptance Criteria:**
-
-1. `pml_execute({ ..., dryRun: true })` option
-2. Mode dry-run:
-   - Tools marqués `sideEffect: true` → mock response
-   - Tools read-only → exécution réelle
-   - Traces générées normalement (marquées `dryRun: true`)
-3. Mock responses configurables:
-   - Default: `{ success: true, mocked: true }`
-   - Custom via `dryRunMocks: { "github:createIssue": {...} }`
-4. Tests: dry-run avec side-effect tool → pas d'appel réel
-5. Tests: dry-run avec read-only tool → appel réel
-6. Tests: traces générées avec flag dryRun
-
-**Prerequisites:** Epic 10 complete, Story 11.1 (result tracing)
-
-**Estimation:** 3-4 jours
-
-**Status:** Optional (post-MVP)
+**Status:** MOVED to Epic 12.8
 
 ---
 
