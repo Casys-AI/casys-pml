@@ -138,7 +138,7 @@ Deno.test("BinaryResolver.isCached returns false for non-existent binary", async
 
 Deno.test({
   name: "BinaryResolver.resolve downloads and caches binary",
-  ignore: true, // TODO: Enable when binaries are published to mcp-std releases
+  ignore: Deno.env.get("CI") === "true", // Skip in CI, run locally
   sanitizeOps: false,
   sanitizeResources: false,
 }, async () => {
@@ -195,7 +195,7 @@ Deno.test("BinaryResolver.resolve throws on invalid repo/version", async () => {
 
 Deno.test({
   name: "BinaryResolver full flow: resolve returns executable path",
-  ignore: true, // TODO: Enable when binaries are published to mcp-std releases
+  ignore: Deno.env.get("CI") === "true", // Skip in CI, run locally
   sanitizeOps: false,
   sanitizeResources: false,
 }, async () => {

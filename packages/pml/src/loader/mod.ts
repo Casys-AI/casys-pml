@@ -91,6 +91,16 @@ export {
 // Stdio Manager
 export { StdioManager } from "./stdio-manager.ts";
 
+// Binary Resolver (for mcp-std)
+export {
+  type BinaryConfig,
+  BinaryResolver,
+  createStdBinaryResolver,
+  getBinaryAssetName,
+  getCachePath,
+  getOsArch,
+} from "./binary-resolver.ts";
+
 // Environment Checker
 export {
   checkEnvVars,

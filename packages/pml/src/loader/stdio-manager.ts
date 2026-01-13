@@ -14,6 +14,7 @@ import {
   parseResponse,
   serializeMessage,
 } from "./stdio-rpc.ts";
+import { createStdBinaryResolver } from "./binary-resolver.ts";
 import * as log from "@std/log";
 
 /**
@@ -34,6 +35,38 @@ function logDebug(message: string): void {
 }
 
 /**
+ * Check if dependency is mcp-std (uses jsr:@casys/mcp-std).
+ */
+function isMcpStd(dep: McpDependency): boolean {
+  // Check args for jsr:@casys/mcp-std
+  if (dep.args?.some((arg) => arg.includes("@casys/mcp-std"))) {
+    return true;
+  }
+  // Check install command
+  if (dep.install?.includes("@casys/mcp-std")) {
+    return true;
+  }
+  // Check by name
+  if (dep.name === "std" || dep.name === "mcp-std") {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Extract version from mcp-std dependency.
+ */
+function extractMcpStdVersion(dep: McpDependency): string {
+  // Try to extract version from args like jsr:@casys/mcp-std@0.2.1/server
+  const versionMatch = dep.args?.join(" ").match(/@casys\/mcp-std@([0-9.]+)/);
+  if (versionMatch) {
+    return versionMatch[1];
+  }
+  // Default to dep.version or latest
+  return dep.version || "0.2.1";
+}
+
+/**
  * Parse install command to get executable and args.
  */
 function parseCommand(dep: McpDependency): { cmd: string; args: string[] } {
@@ -50,6 +83,25 @@ function parseCommand(dep: McpDependency): { cmd: string; args: string[] } {
   return {
     cmd: parts[0],
     args: parts.slice(1),
+  };
+}
+
+/**
+ * Resolve command for mcp-std to binary.
+ * Downloads binary if not cached.
+ */
+async function resolveStdBinary(dep: McpDependency): Promise<{ cmd: string; args: string[] }> {
+  const version = extractMcpStdVersion(dep);
+  logDebug(`Resolving mcp-std binary for version ${version}`);
+
+  const resolver = createStdBinaryResolver(version);
+  const binaryPath = await resolver.resolve();
+
+  logDebug(`Resolved mcp-std to binary: ${binaryPath}`);
+
+  return {
+    cmd: binaryPath,
+    args: [], // Binary is standalone, no args needed
   };
 }
 
@@ -88,7 +140,19 @@ export class StdioManager {
    * Spawn a new subprocess.
    */
   private async spawn(dep: McpDependency): Promise<StdioProcess> {
-    const { cmd, args } = parseCommand(dep);
+    // For mcp-std, resolve to binary (downloads if needed)
+    let cmd: string;
+    let args: string[];
+
+    if (isMcpStd(dep)) {
+      const resolved = await resolveStdBinary(dep);
+      cmd = resolved.cmd;
+      args = resolved.args;
+    } else {
+      const parsed = parseCommand(dep);
+      cmd = parsed.cmd;
+      args = parsed.args;
+    }
 
     logDebug(`Spawning ${dep.name}: ${cmd} ${args.join(" ")}`);
 
