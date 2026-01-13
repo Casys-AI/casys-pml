@@ -14,7 +14,7 @@ import * as log from "@std/log";
 
 import type { RouteContext } from "../routing/types.ts";
 import { validateRequest } from "../../lib/auth.ts";
-import { RateLimiter } from "../../utils/rate-limiter.ts";
+import { RateLimiter } from "@casys/mcp-server";
 import { getRateLimitKey } from "../../lib/rate-limiter-helpers.ts";
 import type { EventsStreamManager } from "../../server/events-stream.ts";
 import {
@@ -42,6 +42,9 @@ import {
   type HeartbeatRequest,
   type UnregisterRequest,
 } from "../sessions/mod.ts";
+
+// User helpers for scope resolution
+import { getUserScope } from "../../lib/user.ts";
 
 
 // Types for Hono context
@@ -74,8 +77,8 @@ export function createApp(deps: HonoAppDependencies, allowedOrigins: string[]): 
 
   // Rate limiters
   const rateLimiters = {
-    mcp: new RateLimiter(100, 60000),
-    api: new RateLimiter(200, 60000),
+    mcp: new RateLimiter({ maxRequests: 100, windowMs: 60000 }),
+    api: new RateLimiter({ maxRequests: 200, windowMs: 60000 }),
   };
 
   // Build CORS headers for responses (use centralized middleware)
@@ -149,7 +152,7 @@ export function createApp(deps: HonoAppDependencies, allowedOrigins: string[]): 
       limiter = rateLimiters.api;
     }
 
-    if (limiter && !(await limiter.checkLimit(rateLimitKey))) {
+    if (limiter && !limiter.checkLimit(rateLimitKey)) {
       log.warn(`Rate limit exceeded for ${rateLimitKey} on ${pathname}`);
       return c.json({ error: "Too Many Requests" }, 429);
     }
@@ -201,10 +204,13 @@ export function createApp(deps: HonoAppDependencies, allowedOrigins: string[]): 
         return c.json({ error: "Missing clientId or version" }, 400);
       }
 
-      const sessionStore = getSessionStore();
-      const response = sessionStore.register(body, userId);
+      // Resolve user scope for FQDN generation
+      const scope = await getUserScope(userId);
 
-      log.info(`[PML] Package registered: ${body.clientId.slice(0, 8)} v${body.version}`);
+      const sessionStore = getSessionStore();
+      const response = sessionStore.register(body, userId, scope);
+
+      log.info(`[PML] Package registered: ${body.clientId.slice(0, 8)} v${body.version} scope=${scope.org}.${scope.project}`);
       return c.json(response);
     } catch (error) {
       log.error(`[PML] Register failed: ${error}`);

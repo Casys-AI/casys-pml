@@ -6,7 +6,6 @@
  * @module utils
  */
 
-export { RateLimiter } from "./rate-limiter.ts";
 export { withTimeout } from "./timeout.ts";
 export {
   containsSensitiveData,

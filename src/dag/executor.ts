@@ -17,7 +17,7 @@ import type {
 } from "./types.ts";
 import { getLogger } from "../telemetry/logger.ts";
 import { DAGExecutionError, TimeoutError } from "../errors/error-types.ts";
-import { RateLimiter } from "../utils/rate-limiter.ts";
+import { RateLimiter } from "@casys/mcp-server";
 // Story 6.5: EventBus integration (ADR-036)
 import { eventBus } from "../events/mod.ts";
 
@@ -62,7 +62,7 @@ export class ParallelExecutor {
       perLayerValidation: config.perLayerValidation ?? false,
     };
     // Initialize rate limiter: 10 requests per second per server
-    this.rateLimiter = new RateLimiter(10, 1000);
+    this.rateLimiter = new RateLimiter({ maxRequests: 10, windowMs: 1000 });
   }
 
   /**
