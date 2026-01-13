@@ -40,6 +40,11 @@ jobs:
           # Copy lib/server/ contents to root of public repo
           cp -r lib/server/* mcp-server-repo/
 
+          # Copy .github workflows (hidden files not included in *)
+          if [ -d "lib/server/.github" ]; then
+            cp -r lib/server/.github mcp-server-repo/
+          fi
+
           # Add LICENSE
           cp LICENSE mcp-server-repo/LICENSE
 
