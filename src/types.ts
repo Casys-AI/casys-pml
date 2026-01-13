@@ -10,8 +10,8 @@
 export interface PmlCloudConfig {
   /** PML Cloud URL */
   url: string;
-  /** API key (env var placeholder or actual key) */
-  apiKey: string;
+  /** @deprecated API key is now loaded from .env via Deno.env.get("PML_API_KEY") */
+  apiKey?: string;
 }
 
 /**

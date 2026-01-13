@@ -1033,7 +1033,7 @@ export function createStdioCommand(): Command<any> {
       const defaultConfig: PmlConfig = {
         version: "0.1.0",
         workspace,
-        cloud: { url: "https://pml.casys.ai", apiKey: "${PML_API_KEY}" },
+        cloud: { url: "https://pml.casys.ai" },
         server: { port: 3003 },
         permissions: { allow: [], deny: [], ask: ["*"] },
       };
