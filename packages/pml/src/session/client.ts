@@ -20,6 +20,14 @@ export interface PackageCapabilities {
 }
 
 /**
+ * User scope for FQDN generation (multi-tenant)
+ */
+export interface UserScope {
+  org: string;
+  project: string;
+}
+
+/**
  * Registration response from server.
  *
  * Note: routingConfig is NOT included - package syncs it separately
@@ -33,6 +41,8 @@ export interface RegisterResponse {
     hybridRouting: boolean;
     tracing: boolean;
   };
+  /** User scope for FQDN generation */
+  scope: UserScope;
 }
 
 /**
@@ -130,6 +140,9 @@ export class SessionClient {
   /** Current session ID (set after register) */
   private _sessionId: string | null = null;
 
+  /** User scope for FQDN generation (set after register) */
+  private _scope: UserScope | null = null;
+
   /** Heartbeat interval timer */
   private heartbeatTimer: number | null = null;
 
@@ -151,6 +164,14 @@ export class SessionClient {
    */
   get sessionId(): string | null {
     return this._sessionId;
+  }
+
+  /**
+   * Get user scope for FQDN generation.
+   * Returns null if not registered yet.
+   */
+  get scope(): UserScope | null {
+    return this._scope;
   }
 
   /**
@@ -197,9 +218,10 @@ export class SessionClient {
     const result = await response.json() as RegisterResponse;
 
     this._sessionId = result.sessionId;
+    this._scope = result.scope;
     this._isRegistered = true;
 
-    logDebug(`Registered: session=${result.sessionId.slice(0, 8)}, heartbeat=${result.heartbeatIntervalMs}ms`);
+    logDebug(`Registered: session=${result.sessionId.slice(0, 8)}, scope=${result.scope.org}.${result.scope.project}, heartbeat=${result.heartbeatIntervalMs}ms`);
 
     // Start heartbeat
     this.startHeartbeat(result.heartbeatIntervalMs);
@@ -278,6 +300,7 @@ export class SessionClient {
       logDebug(`Unregister error: ${error}`);
     } finally {
       this._sessionId = null;
+      this._scope = null;
       this._isRegistered = false;
     }
   }
