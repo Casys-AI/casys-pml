@@ -81,7 +81,7 @@ export interface AlgorithmInitializerDeps {
   db: DbClient;
   graphEngine: GraphRAGEngine;
   capabilityStore?: CapabilityStore;
-  embeddingModel?: EmbeddingModelInterface;
+  embeddingModel: EmbeddingModelInterface; // Required - no random fallback
 }
 
 /**
@@ -384,9 +384,7 @@ export class AlgorithmInitializer {
           embedding = toolNode.embedding;
         } else {
           const description = toolNode?.description ?? toolId.replace(":", " ");
-          embedding = this.deps.embeddingModel
-            ? await this.deps.embeddingModel.encode(description)
-            : new Array(1024).fill(0).map(() => Math.random() - 0.5);
+          embedding = await this.deps.embeddingModel.encode(description);
         }
 
         const wasExisting = this.shgat.hasToolNode(toolId);
@@ -527,7 +525,7 @@ export class AlgorithmInitializer {
   // ==========================================================================
 
   private async trainOnTraces(): Promise<void> {
-    if (!this.shgat || !this.deps.embeddingModel) return;
+    if (!this.shgat) return;
 
     if (!trainingLock.acquire("BATCH")) {
       log.info(`[AlgorithmInitializer] Skipping training - another in progress`);

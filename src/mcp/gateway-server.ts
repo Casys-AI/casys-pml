@@ -982,11 +982,16 @@ export class PMLGatewayServer {
    * Initialize algorithms via AlgorithmInitializer (Story 10.7)
    */
   private async initializeAlgorithms(): Promise<void> {
+    if (!this.embeddingModel) {
+      log.warn("[Gateway] No embedding model - SHGAT/DR-DSP disabled, discover/suggestions degraded");
+      return;
+    }
+
     this.algorithmInitializer = new AlgorithmInitializer({
       db: this.db,
       graphEngine: this.graphEngine,
       capabilityStore: this.capabilityStore,
-      embeddingModel: this.embeddingModel ?? undefined,
+      embeddingModel: this.embeddingModel,
     });
 
     const result = await this.algorithmInitializer.initialize();
