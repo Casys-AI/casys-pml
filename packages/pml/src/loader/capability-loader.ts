@@ -329,29 +329,46 @@ export class CapabilityLoader {
     // 4. For client-routed stdio types, build the dependency object for approval/install checks
     // All client-routed tools need local installation. For stdio, the MCP itself must be installed.
     // For deno, mcpDeps are already checked via ensureDependencies() above.
+    // Special case: "std" uses binary distribution - no install approval needed
     let stdioDep: McpDependency | null = null;
-    if (metadata.routing === "client" && metadata.type === "stdio" && metadata.install) {
-      stdioDep = {
-        name: namespace.split(":")[0],
-        type: "stdio" as const,
-        install: `${metadata.install.command} ${metadata.install.args.join(" ")}`,
-        version: "latest",
-        integrity: metadata.integrity ?? "",
-        command: metadata.install.command,
-        args: metadata.install.args,
-      };
+    const serverName = namespace.split(":")[0];
 
-      // Check if this stdio MCP needs approval to install
-      // Skip if continueWorkflow.approved (user already approved)
-      if (!continueWorkflow?.approved) {
-        const stdioApproval = await this.ensureDependency(stdioDep, false);
-        if (stdioApproval) {
-          logDebug(`Stdio MCP ${namespace} requires approval to install`);
-          return stdioApproval;
+    if (metadata.routing === "client" && metadata.type === "stdio") {
+      if (serverName === "std") {
+        // std uses binary distribution - create dep without install command
+        // stdio-manager's binary-resolver will download the binary automatically
+        stdioDep = {
+          name: "std",
+          type: "stdio" as const,
+          install: "", // Not used - binary-resolver handles this
+          version: "latest",
+          integrity: metadata.integrity ?? "",
+        };
+        logDebug(`std uses binary distribution - no install approval needed`);
+      } else if (metadata.install) {
+        // Other stdio servers use standard install flow
+        stdioDep = {
+          name: serverName,
+          type: "stdio" as const,
+          install: `${metadata.install.command} ${metadata.install.args.join(" ")}`,
+          version: "latest",
+          integrity: metadata.integrity ?? "",
+          command: metadata.install.command,
+          args: metadata.install.args,
+        };
+
+        // Check if this stdio MCP needs approval to install
+        // Skip if continueWorkflow.approved (user already approved)
+        if (!continueWorkflow?.approved) {
+          const stdioApproval = await this.ensureDependency(stdioDep, false);
+          if (stdioApproval) {
+            logDebug(`Stdio MCP ${namespace} requires approval to install`);
+            return stdioApproval;
+          }
+        } else {
+          // User approved - ensure it's installed
+          await this.ensureDependency(stdioDep, true);
         }
-      } else {
-        // User approved - ensure it's installed
-        await this.ensureDependency(stdioDep, true);
       }
     }
 
