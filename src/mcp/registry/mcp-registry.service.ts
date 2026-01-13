@@ -392,7 +392,9 @@ export class McpRegistryService {
       };
 
       // Add type-specific fields
-      if (type === "stdio" && config) {
+      // Note: "std" uses binary distribution - client downloads from GitHub releases
+      // No install info needed as client's binary-resolver handles it
+      if (type === "stdio" && config && row.server_id !== "std") {
         entry.install = {
           command: config.command || "",
           args: config.args || [],

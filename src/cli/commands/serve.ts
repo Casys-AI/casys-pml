@@ -35,7 +35,7 @@ import { StaticStructureBuilder } from "../../capabilities/static-structure-buil
 import { AdaptiveThresholdManager } from "../../mcp/adaptive-threshold.ts";
 import { AlgorithmTracer } from "../../telemetry/algorithm-tracer.ts";
 import { initAlgorithmSubscribers, stopAlgorithmSubscribers } from "../../telemetry/mod.ts";
-import { ensureStdBundle } from "../../lib/std-loader.ts";
+// Note: Std bundle no longer needed - using MCP stdio server approach
 import { bootstrapDI } from "../../infrastructure/di/mod.ts";
 import { GatewayBuilder } from "../../infrastructure/patterns/mod.ts";
 import { EpisodicMemoryStore } from "../../dag/episodic/store.ts";
@@ -223,9 +223,6 @@ export function createServeCommand() {
     .action(async (options) => {
       try {
         log.info("🚀 Starting Casys PML MCP Gateway...\n");
-
-        // 0. Ensure std bundle is up-to-date (for sandbox)
-        await ensureStdBundle();
 
         // 1. Find and load config
         log.info("Step 1/7: Loading configuration...");

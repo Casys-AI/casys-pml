@@ -73,6 +73,14 @@ async function needsRebuild(): Promise<boolean> {
  * Run the build script
  */
 async function runBuild(): Promise<boolean> {
+  // Check if build script exists - skip if using MCP stdio approach
+  try {
+    await Deno.stat(BUILD_SCRIPT);
+  } catch {
+    log.debug("Std build script not found - using MCP stdio server instead");
+    return true; // Not an error, just a different approach
+  }
+
   log.info("🔨 Building std bundle...");
 
   const command = new Deno.Command("deno", {
