@@ -103,8 +103,8 @@ import type { EmbeddingModelInterface } from "../vector/embeddings.ts";
 // Sampling Relay for agent tools
 import { samplingRelay } from "./sampling/mod.ts";
 
-// Concurrency framework from lib/server
-import { RequestQueue, type QueueMetrics } from "../../lib/server/mod.ts";
+// Concurrency framework from @casys/mcp-server
+import { RequestQueue, type QueueMetrics } from "@casys/mcp-server";
 
 // Phase 3.1: Execute Handler Facade and Use Cases
 import { ExecuteHandlerFacade } from "./handlers/execute-handler-facade.ts";

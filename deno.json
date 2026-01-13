@@ -118,6 +118,7 @@
     "graphology-metrics": "npm:graphology-metrics@^2.2.0",
     "graphology-shortest-path": "npm:graphology-shortest-path@^2.0.2",
     "graphology-communities-louvain": "npm:graphology-communities-louvain@^2.0.1",
+    "@casys/mcp-server": "jsr:@casys/mcp-server@^0.1.0",
     "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.15.1",
     "@smithery/sdk": "npm:@smithery/sdk@^2.1.0",
     "@smithery/sdk/shared/config.js": "npm:@smithery/sdk/shared/config.js",
