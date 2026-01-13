@@ -21,7 +21,7 @@ function generateWorkflowId(): string {
  * Format instruction message for missing keys.
  *
  * Generates a clear, actionable message telling the user
- * to provide the API key value. The key will be saved to .pml.json.
+ * to add the API key to their .env file.
  *
  * @param missingKeys - Keys that are not set
  * @param invalidKeys - Keys with placeholder values
@@ -30,7 +30,7 @@ function generateWorkflowId(): string {
  * @example
  * ```ts
  * formatKeyInstruction(["TAVILY_API_KEY"], []);
- * // "Please provide the following API key:\nTAVILY_API_KEY"
+ * // "This capability requires TAVILY_API_KEY.\nPlease add it to your .env file..."
  * ```
  */
 export function formatKeyInstruction(
@@ -43,16 +43,16 @@ export function formatKeyInstruction(
   if (allKeys.length === 1) {
     const hint = formatKeyHint(allKeys[0]);
     lines.push(`This capability requires ${allKeys[0]}.`);
-    lines.push(`Please provide the API key value (format: ${hint}).`);
-    lines.push(`It will be saved to .pml.json for future use.`);
+    lines.push(`Please add it to your .env file: ${allKeys[0]}=${hint}`);
+    lines.push(`Then click "continue" to retry.`);
   } else {
     lines.push("This capability requires the following API keys:");
     for (const key of allKeys) {
       const hint = formatKeyHint(key);
-      lines.push(`  - ${key} (format: ${hint})`);
+      lines.push(`  - ${key}=${hint}`);
     }
     lines.push("");
-    lines.push("Please provide the values. They will be saved to .pml.json.");
+    lines.push("Please add them to your .env file, then click \"continue\" to retry.");
   }
 
   return lines.join("\n");
@@ -67,17 +67,17 @@ export function formatKeyInstruction(
 function formatKeyHint(keyName: string): string {
   const name = keyName.toLowerCase();
 
-  if (name.includes("tavily")) return "tavily-key";
-  if (name.includes("exa")) return "exa-key";
-  if (name.includes("anthropic")) return "anthropic-key";
-  if (name.includes("openai")) return "openai-key";
-  if (name.includes("firecrawl")) return "firecrawl-key";
-  if (name.includes("brave")) return "brave-key";
-  if (name.includes("serper")) return "serper-key";
-  if (name.includes("github")) return "github-token";
+  if (name.includes("tavily")) return "tvly-xxx...";
+  if (name.includes("exa")) return "exa-xxx...";
+  if (name.includes("anthropic")) return "sk-ant-xxx...";
+  if (name.includes("openai")) return "sk-xxx...";
+  if (name.includes("firecrawl")) return "fc-xxx...";
+  if (name.includes("brave")) return "BSA-xxx...";
+  if (name.includes("serper")) return "xxx...";
+  if (name.includes("github")) return "ghp_xxx...";
 
   // Generic fallback
-  return "api-key";
+  return "your-api-key";
 }
 
 /**
@@ -85,7 +85,7 @@ function formatKeyHint(keyName: string): string {
  *
  * This function returns an `ApiKeyApprovalRequired` object that
  * signals to the caller that execution should pause until the
- * user configures the required keys.
+ * user configures the required keys in .env.
  *
  * @param checkResult - Result from checkKeys()
  * @param workflowId - Optional: existing workflow ID for continuation
@@ -133,44 +133,29 @@ export function isApiKeyApprovalRequired(
   );
 }
 
-/**
- * Result of handling continue_workflow for API keys.
- */
+// =============================================================================
+// DEPRECATED - handleApiKeyContinue
+// =============================================================================
+//
+// This function is no longer used. The continuation flow is now handled
+// directly in stdio-command.ts:
+//
+// 1. User adds key to .env manually
+// 2. User clicks "continue"
+// 3. stdio-command.ts calls reloadEnv(workspace) to load from .env
+// 4. Code re-executes with key available
+//
+// The providedKeys parameter was never used in the MCP flow because
+// we don't want to pass API keys in clear text through the protocol.
+
+/*
 export interface ApiKeyContinueResult {
-  /** Whether all keys are now valid */
   success: boolean;
-  /** Keys that are now valid */
   validKeys: string[];
-  /** Keys that are still missing or invalid */
   remainingIssues: string[];
-  /** Error message if still failing */
   error?: string;
 }
 
-/**
- * Handle continue_workflow for API key approval.
- *
- * This function is called when the user provides key values.
- * It saves them to .pml.json and sets them in Deno.env.
- *
- * @param originalApproval - The original ApiKeyApprovalRequired response
- * @param workspace - Workspace root path (for .pml.json location)
- * @param providedKeys - Key values provided by the user
- * @returns Result indicating success or remaining issues
- *
- * @example
- * ```ts
- * // User provided key values
- * const result = await handleApiKeyContinue(
- *   originalApproval,
- *   workspace,
- *   { TAVILY_API_KEY: "tvly-xxx..." }
- * );
- * if (result.success) {
- *   // Proceed with execution - keys saved to .pml.json
- * }
- * ```
- */
 export async function handleApiKeyContinue(
   originalApproval: ApiKeyApprovalRequired,
   workspace: string,
@@ -223,3 +208,4 @@ export async function handleApiKeyContinue(
     error: formatKeyInstruction(checkResult.missing, checkResult.invalid),
   };
 }
+*/

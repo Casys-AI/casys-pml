@@ -3,10 +3,17 @@
  *
  * Story 14.6: BYOK API Key Management
  *
- * Tests the FULL flow including actual .pml.json file operations:
- * - Missing key → HIL pause → User adds to .pml.json → Continue → Execute
+ * Tests the FULL flow:
+ * - Missing key → HIL pause → User adds to .env → reloadEnv → Execute
  *
  * These tests use real file I/O to verify the complete workflow.
+ *
+ * Note: handleApiKeyContinue is deprecated. The continuation flow is now:
+ * 1. User adds key to .env manually
+ * 2. User clicks "continue"
+ * 3. stdio-command.ts calls reloadEnv(workspace)
+ * 4. checkKeys() verifies keys are now valid
+ * 5. Code re-executes
  */
 
 import {
@@ -20,7 +27,6 @@ import {
   checkKeys,
   formatKeyInstruction,
   getRequiredKeys,
-  handleApiKeyContinue,
   isApiKeyApprovalRequired,
   pauseForMissingKeys,
   reloadEnv,
@@ -32,49 +38,17 @@ import type { ApiKeyApprovalRequired } from "../src/loader/types.ts";
 // Test Utilities
 // ============================================================================
 
-interface PmlConfig {
-  version: string;
-  env?: Record<string, string>;
-}
-
 /**
  * Create a temporary test workspace with optional env vars.
- * Writes to both .env (for reloadEnv) and .pml.json (for handleApiKeyContinue).
  */
 async function createTestWorkspace(
   envContent?: string,
 ): Promise<{ path: string; cleanup: () => Promise<void> }> {
   const tempDir = await Deno.makeTempDir({ prefix: "byok_test_" });
 
-  // If envContent provided, write to both .env and .pml.json
-  if (envContent !== undefined) {
-    // Write .env file (for reloadEnv compatibility)
+  // If envContent provided, write to .env
+  if (envContent !== undefined && envContent.trim() !== "") {
     await Deno.writeTextFile(join(tempDir, ".env"), envContent);
-
-    // Also parse and write to .pml.json (for handleApiKeyContinue)
-    if (envContent.trim() !== "") {
-      const config: PmlConfig = { version: "0.1.0", env: {} };
-      for (const line of envContent.split("\n")) {
-        const trimmed = line.trim();
-        if (trimmed && !trimmed.startsWith("#")) {
-          const eqIdx = trimmed.indexOf("=");
-          if (eqIdx > 0) {
-            const key = trimmed.substring(0, eqIdx);
-            let value = trimmed.substring(eqIdx + 1);
-            // Remove quotes if present
-            if ((value.startsWith('"') && value.endsWith('"')) ||
-                (value.startsWith("'") && value.endsWith("'"))) {
-              value = value.slice(1, -1);
-            }
-            config.env![key] = value;
-          }
-        }
-      }
-      await Deno.writeTextFile(
-        join(tempDir, ".pml.json"),
-        JSON.stringify(config, null, 2),
-      );
-    }
   }
 
   return {
@@ -90,61 +64,20 @@ async function createTestWorkspace(
 }
 
 /**
- * Write env vars to both .env and .pml.json (simulates user action).
- * Takes KEY=VALUE format for compatibility.
+ * Write env vars to .env file (simulates user action).
  */
 async function writeEnvFile(workspace: string, content: string): Promise<void> {
-  // Write to .env file (for reloadEnv)
   const envPath = join(workspace, ".env");
   await Deno.writeTextFile(envPath, content);
-
-  // Also write to .pml.json (for handleApiKeyContinue)
-  const configPath = join(workspace, ".pml.json");
-
-  // Read existing config or create new one
-  let config: PmlConfig;
-  try {
-    const existing = await Deno.readTextFile(configPath);
-    config = JSON.parse(existing);
-  } catch {
-    config = { version: "0.1.0" };
-  }
-
-  if (!config.env) {
-    config.env = {};
-  }
-
-  // Parse KEY=VALUE format
-  for (const line of content.split("\n")) {
-    const trimmed = line.trim();
-    if (trimmed && !trimmed.startsWith("#")) {
-      const eqIdx = trimmed.indexOf("=");
-      if (eqIdx > 0) {
-        const key = trimmed.substring(0, eqIdx);
-        let value = trimmed.substring(eqIdx + 1);
-        // Remove quotes if present
-        if ((value.startsWith('"') && value.endsWith('"')) ||
-            (value.startsWith("'") && value.endsWith("'"))) {
-          value = value.slice(1, -1);
-        }
-        config.env[key] = value;
-        // Also set in Deno.env for immediate availability
-        Deno.env.set(key, value);
-      }
-    }
-  }
-
-  await Deno.writeTextFile(configPath, JSON.stringify(config, null, 2));
 }
 
 /**
- * Append env vars to .env and .pml.json (simulates user adding a key).
+ * Append env vars to .env (simulates user adding a key).
  */
 async function appendToEnvFile(
   workspace: string,
   content: string,
 ): Promise<void> {
-  // Append to .env file
   const envPath = join(workspace, ".env");
   let existing = "";
   try {
@@ -153,47 +86,13 @@ async function appendToEnvFile(
     // File doesn't exist yet
   }
   await Deno.writeTextFile(envPath, existing + "\n" + content);
-
-  // Also update .pml.json (writeEnvFile handles merge)
-  const configPath = join(workspace, ".pml.json");
-  let config: PmlConfig;
-  try {
-    const existingConfig = await Deno.readTextFile(configPath);
-    config = JSON.parse(existingConfig);
-  } catch {
-    config = { version: "0.1.0" };
-  }
-
-  if (!config.env) {
-    config.env = {};
-  }
-
-  // Parse the new content
-  for (const line of content.split("\n")) {
-    const trimmed = line.trim();
-    if (trimmed && !trimmed.startsWith("#")) {
-      const eqIdx = trimmed.indexOf("=");
-      if (eqIdx > 0) {
-        const key = trimmed.substring(0, eqIdx);
-        let value = trimmed.substring(eqIdx + 1);
-        if ((value.startsWith('"') && value.endsWith('"')) ||
-            (value.startsWith("'") && value.endsWith("'"))) {
-          value = value.slice(1, -1);
-        }
-        config.env[key] = value;
-        Deno.env.set(key, value);
-      }
-    }
-  }
-
-  await Deno.writeTextFile(configPath, JSON.stringify(config, null, 2));
 }
 
 // ============================================================================
 // Full Flow Integration Tests
 // ============================================================================
 
-Deno.test("Integration: Full flow - missing key → HIL → add to .env → continue → success", async () => {
+Deno.test("Integration: Full flow - missing key → HIL → add to .env → reloadEnv → success", async () => {
   // 1. Create workspace WITHOUT the required key
   const workspace = await createTestWorkspace("");
 
@@ -223,13 +122,12 @@ Deno.test("Integration: Full flow - missing key → HIL → add to .env → cont
     // 5. Simulate user adding key to .env file
     await writeEnvFile(workspace.path, "TAVILY_API_KEY=tvly-real-key-12345");
 
-    // 6. Handle continue workflow (reloads .env and re-checks)
-    const continueResult = await handleApiKeyContinue(hilPause, workspace.path);
+    // 6. Reload env (simulates what stdio-command.ts does on continue)
+    await reloadEnv(workspace.path);
 
-    // 7. Should now succeed
-    assertEquals(continueResult.success, true);
-    assertEquals(continueResult.validKeys, ["TAVILY_API_KEY"]);
-    assertEquals(continueResult.remainingIssues, []);
+    // 7. Re-check keys - should now pass
+    const finalCheck = checkKeys(requiredKeys);
+    assertEquals(finalCheck.allValid, true);
 
     // 8. Verify the key is now in Deno.env
     assertEquals(Deno.env.get("TAVILY_API_KEY"), "tvly-real-key-12345");
@@ -265,28 +163,20 @@ Deno.test("Integration: Full flow - multiple keys, partial fix, then complete", 
 
     // 3. User adds only ONE key
     await writeEnvFile(workspace.path, "TAVILY_API_KEY=tvly-key-abc123");
+    await reloadEnv(workspace.path);
 
-    // 4. Continue - should still fail (EXA missing)
-    const partialResult = await handleApiKeyContinue(hilPause, workspace.path);
-
-    assertFalse(partialResult.success);
-    assertEquals(partialResult.validKeys, ["TAVILY_API_KEY"]);
-    assertEquals(partialResult.remainingIssues, ["EXA_API_KEY"]);
+    // 4. Re-check - should still fail (EXA missing)
+    const partialCheck = checkKeys(requiredKeys);
+    assertFalse(partialCheck.allValid);
+    assertEquals(partialCheck.missing, ["EXA_API_KEY"]);
 
     // 5. User adds second key
     await appendToEnvFile(workspace.path, "EXA_API_KEY=exa-key-xyz789");
+    await reloadEnv(workspace.path);
 
-    // 6. Continue again - should succeed
-    const finalResult = await handleApiKeyContinue(
-      {
-        ...hilPause,
-        missingKeys: ["EXA_API_KEY"], // Only remaining key
-      },
-      workspace.path,
-    );
-
-    assertEquals(finalResult.success, true);
-    assertEquals(finalResult.validKeys, ["EXA_API_KEY"]);
+    // 6. Re-check - should succeed
+    const finalCheck = checkKeys(requiredKeys);
+    assertEquals(finalCheck.allValid, true);
   } finally {
     await workspace.cleanup();
     Deno.env.delete("TAVILY_API_KEY");
@@ -323,11 +213,13 @@ Deno.test("Integration: Full flow - placeholder value rejected, then fixed", asy
       workspace.path,
       "OPENAI_API_KEY=sk-real-openai-key-1234567890abcdef",
     );
+    await reloadEnv(workspace.path);
 
-    // 5. Continue - should succeed
-    const result = await handleApiKeyContinue(hilPause, workspace.path);
-
-    assertEquals(result.success, true);
+    // 5. Re-check - should succeed
+    const check2 = checkKeys([
+      { name: "OPENAI_API_KEY", requiredBy: "openai:chat" },
+    ]);
+    assertEquals(check2.allValid, true);
   } finally {
     await workspace.cleanup();
     Deno.env.delete("OPENAI_API_KEY");
@@ -411,7 +303,7 @@ Deno.test("Integration: Sanitization in error flow", async () => {
 Deno.test("Integration: formatKeyInstruction provides actionable guidance", () => {
   // Test that instructions are helpful for different key types
   const tavilyInstruction = formatKeyInstruction(["TAVILY_API_KEY"], []);
-  assertStringIncludes(tavilyInstruction, ".pml.json"); // Keys saved to .pml.json
+  assertStringIncludes(tavilyInstruction, ".env"); // Keys added to .env
   assertStringIncludes(tavilyInstruction, "TAVILY_API_KEY");
   assertStringIncludes(tavilyInstruction, "requires"); // "This capability requires..."
 
@@ -496,7 +388,7 @@ SINGLE_QUOTED='another value'
   }
 });
 
-Deno.test("Integration: Workflow ID tracking across continue calls", async () => {
+Deno.test("Integration: Workflow ID tracking in HIL pause", async () => {
   const workspace = await createTestWorkspace("");
 
   try {
@@ -505,21 +397,14 @@ Deno.test("Integration: Workflow ID tracking across continue calls", async () =>
     const check = checkKeys([{ name: "TRACKED_KEY", requiredBy: "tracked:tool" }]);
     const hilPause = pauseForMissingKeys(check);
 
-    // Workflow ID should be preserved
-    const originalWorkflowId = hilPause.workflowId;
-    assertExists(originalWorkflowId);
-    assertStringIncludes(originalWorkflowId, "wf-byok-");
+    // Workflow ID should be present and properly formatted
+    const workflowId = hilPause.workflowId;
+    assertExists(workflowId);
+    assertStringIncludes(workflowId, "wf-byok-");
 
-    // First continue - still missing
-    const result1 = await handleApiKeyContinue(hilPause, workspace.path);
-    assertFalse(result1.success);
-
-    // Add key
-    await writeEnvFile(workspace.path, "TRACKED_KEY=finally-added");
-
-    // Second continue - success
-    const result2 = await handleApiKeyContinue(hilPause, workspace.path);
-    assertEquals(result2.success, true);
+    // Can provide custom workflow ID
+    const customPause = pauseForMissingKeys(check, "custom-wf-123");
+    assertEquals(customPause.workflowId, "custom-wf-123");
   } finally {
     await workspace.cleanup();
     Deno.env.delete("TRACKED_KEY");

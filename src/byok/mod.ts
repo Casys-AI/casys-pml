@@ -35,14 +35,18 @@ export {
 // Env loader (.env file)
 export { envFileExists, getKey, reloadEnv } from "./env-loader.ts";
 
-// PML env manager (.pml.json)
-export {
-  getMissingEnvKeys,
-  getPmlEnvKey,
-  hasPmlEnvKey,
-  loadPmlEnv,
-  savePmlEnvKey,
-} from "./pml-env.ts";
+// PML env manager (.pml.json) - DEPRECATED
+// These functions are no longer used. API keys are now managed
+// exclusively via .env file and reloadEnv().
+// See pml-env.ts for details.
+//
+// export {
+//   getMissingEnvKeys,
+//   getPmlEnvKey,
+//   hasPmlEnvKey,
+//   loadPmlEnv,
+//   savePmlEnvKey,
+// } from "./pml-env.ts";
 
 // Key checker
 export { checkKeys, isValidKeyValue } from "./key-checker.ts";
@@ -57,11 +61,14 @@ export {
 // HIL integration
 export {
   formatKeyInstruction,
-  handleApiKeyContinue,
   isApiKeyApprovalRequired,
   pauseForMissingKeys,
 } from "./hil-integration.ts";
-export type { ApiKeyContinueResult } from "./hil-integration.ts";
+
+// DEPRECATED - handleApiKeyContinue is no longer used
+// The continuation flow is handled in stdio-command.ts via reloadEnv()
+// export { handleApiKeyContinue } from "./hil-integration.ts";
+// export type { ApiKeyContinueResult } from "./hil-integration.ts";
 
 // Sanitizer
 export {

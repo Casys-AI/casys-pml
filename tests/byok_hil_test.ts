@@ -8,7 +8,6 @@
 import { assertEquals, assertExists, assertFalse } from "@std/assert";
 import {
   formatKeyInstruction,
-  handleApiKeyContinue,
   isApiKeyApprovalRequired,
   pauseForMissingKeys,
 } from "../src/byok/mod.ts";
@@ -83,15 +82,15 @@ Deno.test("formatKeyInstruction - missing keys only", () => {
   const instruction = formatKeyInstruction(["TAVILY_API_KEY"], []);
 
   assertEquals(instruction.includes("TAVILY_API_KEY"), true);
-  assertEquals(instruction.includes(".pml.json"), true); // Keys saved to .pml.json
+  assertEquals(instruction.includes(".env"), true); // Keys should be added to .env
 });
 
 Deno.test("formatKeyInstruction - invalid keys only", () => {
   const instruction = formatKeyInstruction([], ["EXA_API_KEY"]);
 
   assertEquals(instruction.includes("EXA_API_KEY"), true);
-  // Invalid keys are treated same as missing - just listed for user to provide
-  assertEquals(instruction.includes("API key"), true);
+  // Should mention .env file
+  assertEquals(instruction.includes(".env"), true);
 });
 
 Deno.test("formatKeyInstruction - both missing and invalid", () => {
@@ -104,9 +103,9 @@ Deno.test("formatKeyInstruction - both missing and invalid", () => {
 Deno.test("formatKeyInstruction - provides helpful hints", () => {
   const instruction = formatKeyInstruction(["TAVILY_API_KEY"], []);
 
-  // Should mention it requires the key and will save to .pml.json
+  // Should mention it requires the key and to add to .env
   assertEquals(instruction.includes("requires"), true);
-  assertEquals(instruction.includes(".pml.json"), true);
+  assertEquals(instruction.includes(".env"), true);
 });
 
 // ============================================================================
@@ -144,9 +143,20 @@ Deno.test("isApiKeyApprovalRequired - returns false for non-approval objects", (
 });
 
 // ============================================================================
-// handleApiKeyContinue Tests (AC3)
+// handleApiKeyContinue Tests - DEPRECATED
 // ============================================================================
+//
+// handleApiKeyContinue is no longer used. The continuation flow is now
+// handled directly in stdio-command.ts:
+//
+// 1. User adds key to .env manually
+// 2. User clicks "continue"
+// 3. stdio-command.ts calls reloadEnv(workspace) to load from .env
+// 4. Code re-executes with key available
+//
+// The tests below are kept for reference but commented out.
 
+/*
 Deno.test("handleApiKeyContinue - success when keys are now present", async () => {
   // Set up test key
   Deno.env.set("TEST_CONTINUE_KEY", "valid-key-value");
@@ -214,3 +224,4 @@ Deno.test("handleApiKeyContinue - partial success", async () => {
   // Cleanup
   Deno.env.delete("KEY_A");
 });
+*/
