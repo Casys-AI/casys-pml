@@ -1,19 +1,13 @@
 {
   "$schema": "./mcp-routing.schema.json",
   "routing": {
-    "client": [
-      "std:agent_*"
-    ],
-    "server": [
-      "fetch:*"
-    ]
+    "client": [],
+    "server": []
   },
   "default": "client",
   "_comments": {
-    "client": "Runs on user's machine - filesystem, process, network access",
-    "server": "Runs on pml.casys.ai - stateless computation, external APIs",
-    "default": "Unknown tools route to client (safe fallback)",
-    "agent_tools": "std:agent_* routed to client for BYOK (user provides OPENAI_API_KEY or ANTHROPIC_API_KEY)",
-    "specificity": "More specific patterns win (std:agent_* beats std:* for std:agent_delegate)"
+    "client": "Runs on user's machine - all tools execute locally for security/privacy",
+    "server": "Empty - no server-side execution",
+    "default": "All tools route to client (local execution)"
   }
 }
