@@ -119,6 +119,7 @@
     "graphology-shortest-path": "npm:graphology-shortest-path@^2.0.2",
     "graphology-communities-louvain": "npm:graphology-communities-louvain@^2.0.1",
     "@casys/mcp-server": "./lib/server/mod.ts",
+    "ajv": "npm:ajv@^8.17.1",
     "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.15.1",
     "@smithery/sdk": "npm:@smithery/sdk@^2.1.0",
     "@smithery/sdk/shared/config.js": "npm:@smithery/sdk/shared/config.js",
