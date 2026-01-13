@@ -71,9 +71,9 @@ Deno.test("init - .pml.json has correct structure", async () => {
     assertEquals(config.version, "0.1.0");
     assertEquals(config.workspace, "."); // Portable - dynamic detection via resolveWorkspace()
 
-    // Cloud config
+    // Cloud config - apiKey removed (loaded from .env directly)
     assertEquals(config.cloud.url, "https://custom.pml.ai");
-    assertEquals(config.cloud.apiKey, "${PML_API_KEY}");
+    assertEquals(config.cloud.apiKey, undefined);
 
     // Server config - NOT included in .pml.json (only used for `pml serve`)
     // Port is passed to .mcp.json args instead

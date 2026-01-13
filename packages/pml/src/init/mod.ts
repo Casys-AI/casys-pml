@@ -274,7 +274,7 @@ function generatePmlConfig(
     workspace: ".", // Dynamic detection via resolveWorkspace() - portable!
     cloud: {
       url: cloudUrl,
-      apiKey: "${PML_API_KEY}",
+      // Note: PML_API_KEY is loaded from .env, not stored here
     },
     permissions: {
       allow: [], // Empty = nothing auto-approved
