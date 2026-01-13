@@ -8,6 +8,7 @@
  */
 
 import * as log from "@std/log";
+import { encodeHex } from "@std/encoding/hex";
 import type { RouteContext } from "../mcp/routing/types.ts";
 import { jsonResponse } from "../mcp/routing/types.ts";
 
@@ -15,7 +16,19 @@ import { jsonResponse } from "../mcp/routing/types.ts";
  * Cached routing config (loaded once)
  */
 let cachedConfig: RoutingResponse | null = null;
-let configVersion = "1.0.0";
+let configVersion: string | null = null;
+
+/**
+ * Compute SHA-256 hash of config content for versioning.
+ * Version changes automatically when config changes.
+ */
+async function computeConfigHash(content: string): Promise<string> {
+  const data = new TextEncoder().encode(content);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashHex = encodeHex(new Uint8Array(hashBuffer));
+  // Use first 8 chars for readable version
+  return `1.0.0-${hashHex.slice(0, 8)}`;
+}
 
 /**
  * Package-expected routing config format
@@ -31,12 +44,16 @@ interface RoutingResponse {
  * Load and transform routing config from config/mcp-routing.json
  */
 async function loadRoutingConfig(): Promise<RoutingResponse> {
-  if (cachedConfig) {
+  if (cachedConfig && configVersion) {
     return cachedConfig;
   }
 
   try {
     const configContent = await Deno.readTextFile("./config/mcp-routing.json");
+
+    // Compute version from config hash - changes when config changes
+    configVersion = await computeConfigHash(configContent);
+
     const config = JSON.parse(configContent) as {
       routing: { client?: string[]; server: string[] };
       default?: string;
@@ -51,6 +68,7 @@ async function loadRoutingConfig(): Promise<RoutingResponse> {
     };
 
     log.info("Routing config loaded", {
+      version: configVersion,
       clientTools: cachedConfig.clientTools.length,
       serverTools: cachedConfig.serverTools.length,
     });
@@ -114,8 +132,9 @@ export function handleRoutingRoutes(
 }
 
 /**
- * Reset cached config (for testing)
+ * Reset cached config (for testing or hot-reload)
  */
 export function resetRoutingCache(): void {
   cachedConfig = null;
+  configVersion = null;
 }

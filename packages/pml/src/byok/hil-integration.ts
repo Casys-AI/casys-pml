@@ -178,6 +178,7 @@ export async function handleApiKeyContinue(
 ): Promise<ApiKeyContinueResult> {
   // Dynamic import to avoid circular dependencies
   const { savePmlEnvKey, loadPmlEnv } = await import("./pml-env.ts");
+  const { reloadEnv } = await import("./env-loader.ts");
   const { checkKeys } = await import("./key-checker.ts");
 
   // 1. If keys were provided, save them to .pml.json
@@ -189,8 +190,9 @@ export async function handleApiKeyContinue(
     }
   }
 
-  // 2. Reload env from .pml.json (in case user edited it manually)
+  // 2. Reload env from both .pml.json and .env (user may have edited either)
   await loadPmlEnv(workspace);
+  await reloadEnv(workspace);
 
   // 3. Re-check the keys that were missing/invalid
   const allKeys = [...originalApproval.missingKeys];
