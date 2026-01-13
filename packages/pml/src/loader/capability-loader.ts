@@ -39,12 +39,9 @@ import { sanitize } from "../byok/sanitizer.ts";
 import {
   checkKeys,
   getRequiredKeys,
-  handleApiKeyContinue,
-  isApiKeyApprovalRequired,
   pauseForMissingKeys,
   reloadEnv,
 } from "../byok/mod.ts";
-import type { ApiKeyApprovalRequired } from "../byok/types.ts";
 import { LockfileManager } from "../lockfile/mod.ts";
 import type { IntegrityApprovalRequired } from "../lockfile/types.ts";
 import * as log from "@std/log";
@@ -128,9 +125,6 @@ export class CapabilityLoader {
 
   /** Cache of capability code for sandboxed execution */
   private readonly codeCache = new Map<string, string>();
-
-  /** Pending API key approvals by workflow ID (Story 14.6) */
-  private readonly pendingApiKeyApprovals = new Map<string, ApiKeyApprovalRequired>();
 
   /** Whether initialization is complete */
   private initialized = false;
@@ -433,6 +427,9 @@ export class CapabilityLoader {
    * **Story 14.6:** Checks required API keys before execution.
    * If keys are missing, returns ApiKeyApprovalRequired instead of executing.
    *
+   * **Note:** Continuation handling (reloadEnv, etc.) is now managed by
+   * stdio-command.ts via PendingWorkflowStore for unified workflow tracking.
+   *
    * @param toolId - Full tool ID (e.g., "filesystem:read_file")
    * @param args - Tool arguments
    * @param continueWorkflow - Optional: approval from previous call
@@ -449,38 +446,8 @@ export class CapabilityLoader {
       : [toolId, "default"];
     const action = parts[1];
 
-    // Story 14.6: Handle API key continuation
-    if (continueWorkflow?.workflowId) {
-      const pendingApproval = this.pendingApiKeyApprovals.get(
-        continueWorkflow.workflowId,
-      );
-      if (pendingApproval && isApiKeyApprovalRequired(pendingApproval)) {
-        // This is a continuation for API keys - reloads .env and .pml.json
-        const continueResult = await handleApiKeyContinue(
-          pendingApproval,
-          this.workspace,
-        );
-
-        if (!continueResult.success) {
-          // Still missing keys - return updated approval
-          logDebug(`API keys still missing: ${continueResult.remainingIssues.join(", ")}`);
-          return pauseForMissingKeys(
-            {
-              allValid: false,
-              missing: continueResult.remainingIssues,
-              invalid: [], // All issues are in remainingIssues now
-            },
-            continueWorkflow.workflowId, // Reuse same workflow ID
-          );
-        }
-
-        // Keys are now valid - clear pending and continue
-        this.pendingApiKeyApprovals.delete(continueWorkflow.workflowId);
-        logDebug(`API keys validated: ${continueResult.validKeys.join(", ")}`);
-      }
-    }
-
     // Story 14.6: Check required API keys BEFORE execution (AC1)
+    // Note: reloadEnv() is now called by stdio-command.ts before re-execution
     const requiredKeys = getRequiredKeys(toolId);
     if (requiredKeys.length > 0) {
       const keyCheck = checkKeys(requiredKeys);
@@ -489,10 +456,6 @@ export class CapabilityLoader {
         // Missing or invalid keys - return HIL pause (AC2)
         logDebug(`Missing API keys for ${toolId}: ${[...keyCheck.missing, ...keyCheck.invalid].join(", ")}`);
         const approval = pauseForMissingKeys(keyCheck);
-
-        // Store for continuation handling
-        this.pendingApiKeyApprovals.set(approval.workflowId, approval);
-
         return approval;
       }
 
@@ -575,12 +538,9 @@ export class CapabilityLoader {
 
       if (!keyCheck.allValid) {
         // Return HIL pause instead of throwing error
+        // Note: Continuation handling is now managed by stdio-command.ts
         logDebug(`Missing env vars for ${dep.name}: ${[...keyCheck.missing, ...keyCheck.invalid].join(", ")}`);
         const approval = pauseForMissingKeys(keyCheck);
-
-        // Store for continuation handling
-        this.pendingApiKeyApprovals.set(approval.workflowId, approval);
-
         return approval;
       }
     }
@@ -618,6 +578,7 @@ export class CapabilityLoader {
     return {
       approvalRequired: true,
       approvalType: "dependency",
+      workflowId: crypto.randomUUID(),
       dependency: dep,
       description:
         `Install ${dep.name}@${dep.version} to execute this capability`,

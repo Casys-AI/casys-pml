@@ -37,10 +37,20 @@ export interface PendingWorkflow {
   toolId: string;
   /** Type of approval required */
   approvalType: ApprovalType;
-  /** Dependency info (for dependency approvals) */
-  dependency?: McpDependency;
   /** Timestamp when workflow was created */
   createdAt: number;
+
+  // Type-specific data
+  /** Dependency info (for "dependency" approvals) */
+  dependency?: McpDependency;
+  /** Missing API keys (for "api_key_required" approvals) */
+  missingKeys?: string[];
+  /** Integrity info (for "integrity" approvals) */
+  integrityInfo?: {
+    fqdnBase: string;
+    newHash: string;
+    oldHash: string;
+  };
 }
 
 // =============================================================================
@@ -92,14 +102,18 @@ export class PendingWorkflowStore {
    * @param code - Original code that triggered the approval
    * @param toolId - Tool ID that triggered the approval
    * @param approvalType - Type of approval required
-   * @param dependency - Dependency to install (for dependency approvals)
+   * @param options - Type-specific options (dependency, missingKeys, integrityInfo)
    * @returns Unique workflow ID (UUID)
    */
   create(
     code: string,
     toolId: string,
     approvalType: ApprovalType,
-    dependency?: McpDependency,
+    options?: {
+      dependency?: McpDependency;
+      missingKeys?: string[];
+      integrityInfo?: { fqdnBase: string; newHash: string; oldHash: string };
+    },
   ): string {
     // Clean up expired workflows on each create
     this.cleanup();
@@ -109,11 +123,50 @@ export class PendingWorkflowStore {
       code,
       toolId,
       approvalType,
-      dependency,
       createdAt: Date.now(),
+      dependency: options?.dependency,
+      missingKeys: options?.missingKeys,
+      integrityInfo: options?.integrityInfo,
     });
 
     return id;
+  }
+
+  /**
+   * Store a workflow with a specific ID.
+   *
+   * Use this when you need to reuse an existing workflow ID
+   * (e.g., from an approval response) instead of generating a new one.
+   *
+   * @param id - Workflow ID to use
+   * @param code - Original code that triggered the approval
+   * @param toolId - Tool ID that triggered the approval
+   * @param approvalType - Type of approval required
+   * @param options - Type-specific options
+   */
+  setWithId(
+    id: string,
+    code: string,
+    toolId: string,
+    approvalType: ApprovalType,
+    options?: {
+      dependency?: McpDependency;
+      missingKeys?: string[];
+      integrityInfo?: { fqdnBase: string; newHash: string; oldHash: string };
+    },
+  ): void {
+    // Clean up expired workflows
+    this.cleanup();
+
+    this.workflows.set(id, {
+      code,
+      toolId,
+      approvalType,
+      createdAt: Date.now(),
+      dependency: options?.dependency,
+      missingKeys: options?.missingKeys,
+      integrityInfo: options?.integrityInfo,
+    });
   }
 
   /**

@@ -1,30 +1,41 @@
 /**
  * PML Environment Manager
  *
- * Loads and saves environment variables from/to .pml.json.
- * Supports incremental updates - new keys are added as capabilities request them.
+ * DEPRECATED: This module is no longer used.
  *
- * Flow:
+ * API keys are now managed exclusively via .env file:
  * 1. Capability requests envRequired: ["TAVILY_API_KEY"]
- * 2. Check .pml.json env section → not found
- * 3. HIL asks user for the key
- * 4. User provides key → saved to .pml.json
- * 5. Next time → key is already there, no HIL
+ * 2. HIL tells user to add key to .env
+ * 3. User adds key to .env and clicks "continue"
+ * 4. reloadEnv() loads from .env
+ *
+ * The .pml.json file is only used for:
+ * - version, workspace, cloud config, permissions
+ *
+ * These functions are kept (commented) for potential future use
+ * if we need placeholder resolution (e.g., ${KEY} in .pml.json → .env value).
  *
  * @module byok/pml-env
+ * @deprecated Use reloadEnv() from env-loader.ts instead
  */
 
-import { join } from "@std/path";
-import type { PmlConfig } from "../types.ts";
+// import { join } from "@std/path";
+// import type { PmlConfig } from "../types.ts";
 
-const PML_CONFIG_FILE = ".pml.json";
+// const PML_CONFIG_FILE = ".pml.json";
 
-/**
+// =============================================================================
+// DEPRECATED FUNCTIONS - Kept for reference
+// =============================================================================
+
+/*
  * Load environment variables from .pml.json and export to Deno.env.
+ *
+ * @deprecated Not used - keys are loaded from .env via reloadEnv()
  *
  * @param workspace - Workspace root path
  * @returns Record of loaded env vars (empty if none)
- */
+ *
 export async function loadPmlEnv(
   workspace: string,
 ): Promise<Record<string, string>> {
@@ -51,14 +62,17 @@ export async function loadPmlEnv(
     return {};
   }
 }
+*/
 
-/**
+/*
  * Get an environment variable from .pml.json config.
+ *
+ * @deprecated Not used - keys are loaded from .env via reloadEnv()
  *
  * @param workspace - Workspace root path
  * @param key - Environment variable name
  * @returns Value or undefined if not set
- */
+ *
 export async function getPmlEnvKey(
   workspace: string,
   key: string,
@@ -73,16 +87,19 @@ export async function getPmlEnvKey(
     return undefined;
   }
 }
+*/
 
-/**
+/*
  * Save an environment variable to .pml.json.
  * Creates env section if it doesn't exist.
  * Preserves existing config and adds the new key.
  *
+ * @deprecated Not used - keys should be added to .env manually
+ *
  * @param workspace - Workspace root path
  * @param key - Environment variable name
  * @param value - Environment variable value
- */
+ *
 export async function savePmlEnvKey(
   workspace: string,
   key: string,
@@ -115,15 +132,18 @@ export async function savePmlEnvKey(
     JSON.stringify(config, null, 2) + "\n",
   );
 }
+*/
 
-/**
+/*
  * Check if an environment variable is available.
  * Checks both Deno.env and .pml.json.
+ *
+ * @deprecated Not used - use Deno.env.get() directly
  *
  * @param workspace - Workspace root path
  * @param key - Environment variable name
  * @returns true if key is available
- */
+ *
 export async function hasPmlEnvKey(
   workspace: string,
   key: string,
@@ -137,14 +157,17 @@ export async function hasPmlEnvKey(
   const pmlValue = await getPmlEnvKey(workspace, key);
   return pmlValue !== undefined;
 }
+*/
 
-/**
+/*
  * Get missing environment variables from a list of required keys.
+ *
+ * @deprecated Not used - use checkKeys() from key-checker.ts instead
  *
  * @param workspace - Workspace root path
  * @param required - List of required env var names
  * @returns List of missing keys
- */
+ *
 export async function getMissingEnvKeys(
   workspace: string,
   required: string[],
@@ -160,3 +183,4 @@ export async function getMissingEnvKeys(
 
   return missing;
 }
+*/

@@ -393,10 +393,11 @@ Deno.test("CapabilityLoader - continue_workflow denied throws error", async () =
 });
 
 Deno.test("CapabilityLoader.isApprovalRequired - correctly identifies result types", () => {
-  // DependencyApprovalRequired (Story 14.6: with approvalType)
+  // DependencyApprovalRequired (Story 14.6: with approvalType and workflowId)
   const dependencyApproval = {
     approvalRequired: true,
     approvalType: "dependency",
+    workflowId: "wf-dep-test-456",
     dependency: { name: "test", type: "stdio", install: "npx test", version: "1.0.0", integrity: "sha256-abc" },
     description: "Install test",
   };

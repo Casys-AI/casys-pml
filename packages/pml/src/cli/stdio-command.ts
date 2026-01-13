@@ -206,18 +206,22 @@ function handleToolsList(id: string | number): void {
 function formatApprovalRequired(
   toolName: string,
   approvalResult: ApprovalRequiredResult | IntegrityApprovalRequired,
-  /** Original code for dependency approvals (stored for re-execution) */
+  /** Original code for approvals (stored for re-execution) */
   originalCode?: string,
 ): {
   content: Array<{ type: string; text: string }>;
 } {
   // Handle API key approval (Story 14.6)
-  // Store in pending workflow store so we can re-execute after user adds keys
+  // Use workflowId from approval and store code for re-execution
   if (approvalResult.approvalType === "api_key_required") {
-    // Store workflow for later re-execution (use existing workflowId or create new)
-    const workflowId = originalCode
-      ? pendingWorkflowStore.create(originalCode, toolName, "api_key_required")
-      : approvalResult.workflowId;
+    const workflowId = approvalResult.workflowId;
+
+    // Store workflow with the SAME workflowId for unified tracking
+    if (originalCode) {
+      pendingWorkflowStore.setWithId(workflowId, originalCode, toolName, "api_key_required", {
+        missingKeys: approvalResult.missingKeys,
+      });
+    }
 
     const data = {
       status: "approval_required",
@@ -242,11 +246,20 @@ function formatApprovalRequired(
   }
 
   // Handle integrity approval (Story 14.7)
-  // Store in pending workflow store so we can re-execute after user approves update
+  // Use workflowId from approval and store code for re-execution
   if (approvalResult.approvalType === "integrity") {
-    const workflowId = originalCode
-      ? pendingWorkflowStore.create(originalCode, toolName, "integrity")
-      : approvalResult.workflowId;
+    const workflowId = approvalResult.workflowId;
+
+    // Store workflow with the SAME workflowId for unified tracking
+    if (originalCode) {
+      pendingWorkflowStore.setWithId(workflowId, originalCode, toolName, "integrity", {
+        integrityInfo: {
+          fqdnBase: approvalResult.fqdnBase,
+          newHash: approvalResult.newHash,
+          oldHash: approvalResult.oldHash,
+        },
+      });
+    }
 
     const data = {
       status: "approval_required",
@@ -273,11 +286,15 @@ function formatApprovalRequired(
     };
   }
 
-  // Handle dependency approval - store in pending workflow store for later retrieval
-  // Story 14.4: Use stateful store instead of random UUID
-  const workflowId = originalCode
-    ? pendingWorkflowStore.create(originalCode, toolName, "dependency", approvalResult.dependency)
-    : crypto.randomUUID(); // Fallback if no code provided
+  // Handle dependency approval - use workflowId from approval
+  const workflowId = approvalResult.workflowId;
+
+  // Store workflow with the SAME workflowId for unified tracking
+  if (originalCode) {
+    pendingWorkflowStore.setWithId(workflowId, originalCode, toolName, "dependency", {
+      dependency: approvalResult.dependency,
+    });
+  }
 
   const data = {
     status: "approval_required",
@@ -524,6 +541,8 @@ async function handleToolsCall(
   params: { name: string; arguments?: Record<string, unknown> },
   loader: CapabilityLoader | null,
   cloudUrl: string,
+  workspace: string,
+  lockfileManager: LockfileManager | null,
 ): Promise<void> {
   const { name, arguments: args } = params;
 
@@ -577,8 +596,30 @@ async function handleToolsCall(
           return;
         }
 
-        // User approved - re-execute the code with approval flag
+        // User approved - perform pre-continuation actions based on approval type
         logDebug(`Re-executing code after approval for: ${pendingWorkflow.approvalType}`);
+
+        // Pre-continuation actions for each approval type
+        switch (pendingWorkflow.approvalType) {
+          case "api_key_required":
+            // Reload environment variables from .env (user added keys there)
+            logDebug(`Reloading environment for API key approval`);
+            await reloadEnv(workspace);
+            break;
+
+          case "integrity":
+            // Update lockfile with new hash (user approved the integrity change)
+            if (lockfileManager && pendingWorkflow.integrityInfo) {
+              logDebug(`Approving integrity update: ${pendingWorkflow.integrityInfo.fqdnBase}`);
+              // The lockfile update happens in the loader when approved: true is passed
+            }
+            break;
+
+          case "dependency":
+            // Dependency installation happens in the loader when approved: true is passed
+            logDebug(`Proceeding with dependency installation`);
+            break;
+        }
 
         const localResult = await executeLocalCode(
           pendingWorkflow.code,
@@ -857,6 +898,8 @@ async function processRequest(
   line: string,
   loader: CapabilityLoader | null,
   cloudUrl: string,
+  workspace: string,
+  lockfileManager: LockfileManager | null,
 ): Promise<void> {
   let request: {
     jsonrpc: string;
@@ -900,6 +943,8 @@ async function processRequest(
           params as { name: string; arguments?: Record<string, unknown> },
           loader,
           cloudUrl,
+          workspace,
+          lockfileManager,
         );
       }
       break;
@@ -916,6 +961,8 @@ async function processRequest(
 async function runStdioLoop(
   loader: CapabilityLoader | null,
   cloudUrl: string,
+  workspace: string,
+  lockfileManager: LockfileManager | null,
 ): Promise<void> {
   const decoder = new TextDecoder();
   let buffer = "";
@@ -930,7 +977,7 @@ async function runStdioLoop(
       buffer = buffer.slice(newlineIndex + 1);
 
       if (line) {
-        await processRequest(line, loader, cloudUrl);
+        await processRequest(line, loader, cloudUrl, workspace, lockfileManager);
       }
     }
   }
@@ -1047,9 +1094,10 @@ export function createStdioCommand(): Command<any> {
       // Step 5: Initialize CapabilityLoader
       // Note: HIL (approval_required) is handled via MCP response, not callback
       let loader: CapabilityLoader | null = null;
+      let lockfileManager: LockfileManager | null = null;
       try {
         // Story 14.7: Initialize lockfile manager for integrity validation (per-project)
-        const lockfileManager = new LockfileManager({ workspace });
+        lockfileManager = new LockfileManager({ workspace });
         await lockfileManager.load(); // Create/load lockfile
 
         loader = await CapabilityLoader.create({
@@ -1066,7 +1114,7 @@ export function createStdioCommand(): Command<any> {
 
       // Step 7: Start stdio loop
       try {
-        await runStdioLoop(loader, cloudUrl);
+        await runStdioLoop(loader, cloudUrl, workspace, lockfileManager);
       } finally {
         // Cleanup on exit
         loader?.shutdown();

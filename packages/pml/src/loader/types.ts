@@ -407,6 +407,8 @@ export interface DependencyApprovalRequired {
   approvalRequired: true;
   /** Discriminant for approval type */
   approvalType: "dependency";
+  /** Workflow ID for continuation tracking */
+  workflowId: string;
   /** The dependency needing approval */
   dependency: McpDependency;
   /** Description for the user */
