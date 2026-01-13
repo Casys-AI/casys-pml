@@ -62,8 +62,8 @@ function extractMcpStdVersion(dep: McpDependency): string {
   if (versionMatch) {
     return versionMatch[1];
   }
-  // Default to dep.version or latest
-  return dep.version || "0.2.1";
+  // Use dep.version if specified, otherwise "latest"
+  return dep.version && dep.version !== "latest" ? dep.version : "latest";
 }
 
 /**
@@ -94,7 +94,7 @@ async function resolveStdBinary(dep: McpDependency): Promise<{ cmd: string; args
   const version = extractMcpStdVersion(dep);
   logDebug(`Resolving mcp-std binary for version ${version}`);
 
-  const resolver = createStdBinaryResolver(version);
+  const resolver = await createStdBinaryResolver(version);
   const binaryPath = await resolver.resolve();
 
   logDebug(`Resolved mcp-std to binary: ${binaryPath}`);

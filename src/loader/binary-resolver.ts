@@ -192,13 +192,50 @@ export class BinaryResolver {
   }
 }
 
+/** Cached latest version to avoid repeated API calls */
+let cachedLatestVersion: string | null = null;
+
+/**
+ * Get latest release version from GitHub.
+ */
+async function getLatestVersion(repo: string): Promise<string> {
+  if (cachedLatestVersion) {
+    return cachedLatestVersion;
+  }
+
+  const response = await fetch(
+    `https://api.github.com/repos/${repo}/releases/latest`,
+    { headers: { "Accept": "application/vnd.github.v3+json" } }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch latest version: ${response.status}`);
+  }
+
+  const data = await response.json();
+  // tag_name is like "v0.2.1", strip the "v"
+  const version = data.tag_name?.replace(/^v/, "");
+  if (!version) {
+    throw new Error("No version found in latest release");
+  }
+
+  cachedLatestVersion = version;
+  logDebug(`Latest version for ${repo}: ${version}`);
+  return version;
+}
+
 /**
  * Create a binary resolver for mcp-std.
+ * If version is "latest", fetches the latest release version from GitHub.
  */
-export function createStdBinaryResolver(version: string): BinaryResolver {
+export async function createStdBinaryResolver(version: string): Promise<BinaryResolver> {
+  const resolvedVersion = version === "latest"
+    ? await getLatestVersion("Casys-AI/mcp-std")
+    : version;
+
   return new BinaryResolver({
     name: "mcp-std",
-    version,
+    version: resolvedVersion,
     repo: "Casys-AI/mcp-std",
   });
 }
