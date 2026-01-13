@@ -104,8 +104,7 @@ import type { EmbeddingModelInterface } from "../vector/embeddings.ts";
 import { samplingRelay } from "./sampling/mod.ts";
 
 // Concurrency framework from lib/server
-import { RequestQueue } from "../../lib/server/request-queue.ts";
-import type { QueueMetrics } from "../../lib/server/types.ts";
+import { RequestQueue, type QueueMetrics } from "../../lib/server/mod.ts";
 
 // Phase 3.1: Execute Handler Facade and Use Cases
 import { ExecuteHandlerFacade } from "./handlers/execute-handler-facade.ts";
@@ -818,6 +817,7 @@ export class PMLGatewayServer {
       const result = await this.capabilityMCPServer.handleCallTool(
         name,
         args as Record<string, unknown>,
+        userId,  // Multi-tenant: pass userId for scope resolution
       );
       if (result.success) {
         return {
