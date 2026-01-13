@@ -40,5 +40,78 @@ jobs:
           deno-version: v2.x
 
       - name: Publish to JSR
-        working-directory: lib
+        working-directory: lib/std
         run: deno publish --allow-dirty
+
+  build-mcp-std-binaries:
+    name: Build mcp-std (${{ matrix.output }})
+    needs: publish-mcp-std
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            output: mcp-std-linux-x64
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            output: mcp-std-linux-arm64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            output: mcp-std-darwin-x64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            output: mcp-std-darwin-arm64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            output: mcp-std-windows-x64.exe
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Compile binary
+        working-directory: lib/std
+        run: |
+          deno compile \
+            --allow-all \
+            --target ${{ matrix.target }} \
+            --output ${{ matrix.output }} \
+            server.ts
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.output }}
+          path: lib/std/${{ matrix.output }}
+
+  release-binaries:
+    name: Create Release with Binaries
+    needs: build-mcp-std-binaries
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: binaries
+          merge-multiple: true
+
+      - name: List binaries
+        run: ls -la binaries/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: binaries/*
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
