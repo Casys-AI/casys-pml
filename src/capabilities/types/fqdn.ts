@@ -116,12 +116,10 @@ export interface CapabilityRecord {
   workflowPatternId?: string;
 
   // Provenance
-  /** Who created this record */
-  createdBy: string;
+  /** User who owns this capability record (UUID FK to users, null for legacy/system records) */
+  userId?: string;
   /** When created */
   createdAt: Date;
-  /** Who last updated (null if never updated) */
-  updatedBy?: string;
   /** When last updated (null if never updated) */
   updatedAt?: Date;
 
@@ -232,8 +230,8 @@ export interface CapabilityWithSchema {
 export interface ListWithSchemasOptions {
   /** Filter by visibility levels (default: all) */
   visibility?: Array<"public" | "org" | "project" | "private">;
-  /** Filter by creator */
-  createdBy?: string;
+  /** Filter by owner user ID (UUID FK to users) */
+  userId?: string;
   /** Maximum results (default: 100) */
   limit?: number;
   /** Order by field (default: usageCount) */

@@ -15,13 +15,9 @@ import type { CapabilityStore } from "../../../capabilities/capability-store.ts"
 import type { CapabilityRegistry } from "../../../capabilities/capability-registry.ts";
 import type { WorkerBridge } from "../../../sandbox/worker-bridge.ts";
 import { getLogger } from "../../../telemetry/logger.ts";
+import { getUserScope } from "../../../lib/user.ts";
 
 const logger = getLogger("default");
-
-/**
- * Default scope for capability resolution
- */
-const DEFAULT_SCOPE = { org: "local", project: "default" };
 
 /**
  * CapabilityExecutorService
@@ -59,11 +55,13 @@ export class CapabilityExecutorService implements CapabilityExecutor {
    *
    * @param toolName - MCP tool name (e.g., `mcp__code__analyze`)
    * @param args - Tool arguments
+   * @param userId - User ID for multi-tenant scope resolution
    * @returns Execution result with success/error and latency
    */
   async execute(
     toolName: string,
     args: Record<string, unknown>,
+    userId?: string,
   ): Promise<ExecuteResult> {
     const startTime = Date.now();
 
@@ -89,10 +87,11 @@ export class CapabilityExecutorService implements CapabilityExecutor {
       displayName,
     });
 
-    // 2. Resolve capability via registry
+    // 2. Resolve capability via registry (multi-tenant: use user scope)
+    const scope = await getUserScope(userId ?? null);
     const record = await this.capabilityRegistry.resolveByName(
       displayName,
-      DEFAULT_SCOPE,
+      scope,
     );
 
     if (!record) {

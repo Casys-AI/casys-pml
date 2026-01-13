@@ -34,6 +34,16 @@ export interface RegisterRequest {
 }
 
 /**
+ * User scope for FQDN generation
+ */
+export interface UserScope {
+  /** Organization (username for user capabilities, "pml" for MCP tools) */
+  org: string;
+  /** Project namespace (default: "default") */
+  project: string;
+}
+
+/**
  * Registration response from server to package.
  *
  * Note: routingConfig is NOT included - package syncs it separately
@@ -51,6 +61,8 @@ export interface RegisterResponse {
     hybridRouting: boolean;
     tracing: boolean;
   };
+  /** User scope for FQDN generation (multi-tenant) */
+  scope: UserScope;
 }
 
 /**

@@ -372,8 +372,9 @@ export async function persistCapabilityDependency(
 /**
  * Persist workflow execution to database
  *
- * Story 9.5: Includes user_id and created_by for multi-tenant isolation
+ * Story 9.5: user_id for multi-tenant isolation
  * Story 11.2: Now writes to execution_trace table (replaces workflow_execution)
+ * Migration 039: created_by column removed, user_id is now UUID FK
  *
  * @param db - PGlite database client
  * @param execution - Workflow execution data
@@ -394,7 +395,8 @@ export async function persistWorkflowExecution(
     parentTraceId?: string;
   },
 ): Promise<string | undefined> {
-  const userId = execution.userId || "local";
+  // Migration 039: user_id is UUID FK, null for anonymous/local
+  const userId = execution.userId || null;
 
   // Story 11.2: Write to execution_trace table
   // AC11: Sanitize sensitive data before storage
@@ -402,18 +404,18 @@ export async function persistWorkflowExecution(
   const sanitizedTaskResults = sanitizeForStorage(execution.taskResults || []);
 
   // Note: intent_text column removed in migration 030 (now from workflow_pattern via JOIN)
+  // Migration 039: created_by column removed
   const result = await db.query(
     `INSERT INTO execution_trace
-     (success, duration_ms, error_message, user_id, created_by,
+     (success, duration_ms, error_message, user_id,
       capability_id, decisions, task_results, executed_path, parent_trace_id,
       initial_context, priority)
-     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9, $10, $11::jsonb, $12)
+     VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9, $10::jsonb, $11)
      RETURNING id`,
     [
       execution.success,
       Math.round(execution.executionTimeMs),
       execution.errorMessage || null,
-      userId,
       userId,
       execution.capabilityId || null,
       sanitizedDecisions, // postgres.js auto-serializes to JSONB

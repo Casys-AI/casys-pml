@@ -21,6 +21,7 @@ import type { ToolDefinition } from "./types.ts";
 import type { CapModule } from "../mcp/handlers/cap-handler.ts";
 import { getCapabilityFqdn } from "../capabilities/capability-registry.ts";
 import { getLogger } from "../telemetry/logger.ts";
+import { getUserScope } from "../lib/user.ts";
 
 const logger = getLogger("default");
 
@@ -45,6 +46,8 @@ export interface RpcRouterConfig {
   graphRAG?: GraphRAGEngine;
   capModule?: CapModule;
   timeout: number;
+  /** User ID for multi-tenant scope resolution */
+  userId?: string;
 }
 
 /**
@@ -68,6 +71,7 @@ export type WorkerBridgeFactory = (config: {
   graphRAG?: GraphRAGEngine;
   capabilityRegistry?: CapabilityRegistry;
   capModule?: CapModule;
+  userId?: string;
 }) => WorkerBridgeExecutor;
 
 /**
@@ -200,10 +204,12 @@ export class RpcRouter {
       return null;
     }
 
+    // Multi-tenant: resolve scope from userId
+    const scope = await getUserScope(this.config.userId ?? null);
     const capabilityName = `${server}:${tool}`;
     const record = await this.config.capabilityRegistry.resolveByName(
       capabilityName,
-      { org: "local", project: "default" },
+      scope,
     );
 
     if (!record || !record.workflowPatternId) {

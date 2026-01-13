@@ -259,8 +259,9 @@ export interface CapabilityFilters {
   order?: "asc" | "desc";
   /**
    * Story 9.8: Filter by user who created or used the capability
-   * When set, only returns capabilities where created_by = userId
+   * When set, only returns capabilities where user_id = userId
    * OR the capability has been executed by this user
+   * Migration 039: created_by → user_id (UUID FK)
    */
   userId?: string;
 }

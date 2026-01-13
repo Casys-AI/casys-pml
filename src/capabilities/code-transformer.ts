@@ -24,13 +24,9 @@ import { extractNestedLiterals } from "./nested-literal-extractor.ts";
 import type { JSONSchema } from "./types.ts";
 import type { JsonValue } from "./types.ts";
 import { getLogger } from "../telemetry/logger.ts";
+import { DEFAULT_SCOPE } from "../lib/user.ts";
 
 const logger = getLogger("default");
-
-/**
- * Default scope for capability resolution
- */
-const DEFAULT_SCOPE: Scope = { org: "local", project: "default" };
 
 /**
  * Result of code transformation

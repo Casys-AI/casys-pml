@@ -178,8 +178,7 @@ function mapIncomingToSaveInput(
     taskResults,
     decisions,
     priority: 0.5, // Default priority - TD-Error will update later
-    userId: userId ?? incoming.userId ?? "pml-client",
-    createdBy: "pml-client",
+    userId: userId ?? incoming.userId ?? undefined, // Migration 039: createdBy removed, use userId (UUID FK or null)
     executedAt,
   };
 }

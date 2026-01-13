@@ -191,8 +191,7 @@ export interface ExecutionTrace {
   priority: number;
   /** Parent trace ID for hierarchical traces (ADR-041) */
   parentTraceId?: string;
-  /** User who triggered this execution (multi-tenancy) */
+  /** User who triggered this execution (UUID FK to users, multi-tenancy) */
   userId?: string;
-  /** Who created this record (migration, system, user) */
-  createdBy?: string;
+  // Note: createdBy removed in migration 039 - use userId instead
 }

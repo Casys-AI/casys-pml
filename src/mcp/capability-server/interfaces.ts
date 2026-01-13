@@ -54,11 +54,13 @@ export interface CapabilityExecutor {
    *
    * @param toolName - MCP tool name (e.g., `mcp__code__analyze`)
    * @param args - Tool arguments
+   * @param userId - User ID for multi-tenant scope resolution
    * @returns Execution result with success/error and latency
    */
   execute(
     toolName: string,
     args: Record<string, unknown>,
+    userId?: string,
   ): Promise<ExecuteResult>;
 }
 

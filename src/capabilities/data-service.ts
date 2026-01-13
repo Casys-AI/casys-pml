@@ -130,15 +130,16 @@ export class CapabilityDataService {
       conditions.push(`wp.usage_count >= $${paramIndex++}`);
       params.push(minUsage);
 
-      // Story 9.8 AC #5: Filter by userId (created_by OR executed by user)
+      // Story 9.8 AC #5: Filter by userId (created OR executed by user)
+      // Migration 039: wp.created_by → wp.user_id, et.user_id now UUID FK
       if (userId) {
-        const createdByParam = paramIndex++;
-        const userIdParam = paramIndex++;
+        const wpUserIdParam = paramIndex++;
+        const etUserIdParam = paramIndex++;
         conditions.push(`(
-          wp.created_by = $${createdByParam}::text
+          wp.user_id = $${wpUserIdParam}::uuid
           OR wp.pattern_id IN (
             SELECT DISTINCT capability_id FROM execution_trace
-            WHERE user_id = $${userIdParam}::text AND capability_id IS NOT NULL
+            WHERE user_id = $${etUserIdParam}::uuid AND capability_id IS NOT NULL
           )
         )`);
         params.push(userId, userId);

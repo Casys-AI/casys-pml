@@ -23,6 +23,7 @@ import type { CapabilityStore } from "../../capabilities/capability-store.ts";
 import type { CapabilityRegistry } from "../../capabilities/capability-registry.ts";
 import type { WorkerBridge } from "../../sandbox/worker-bridge.ts";
 import { getLogger } from "../../telemetry/logger.ts";
+import { getUserScope } from "../../lib/user.ts";
 
 const logger = getLogger("default");
 
@@ -116,11 +117,13 @@ export class CapabilityMCPServer {
    *
    * @param toolName - MCP tool name (e.g., `mcp__code__analyze`)
    * @param args - Tool arguments
+   * @param userId - User ID for multi-tenant scope resolution
    * @returns Execution result
    */
   async handleCallTool(
     toolName: string,
     args: Record<string, unknown>,
+    userId?: string,
   ): Promise<ExecuteResult> {
     const startTime = Date.now();
 
@@ -130,11 +133,11 @@ export class CapabilityMCPServer {
     });
 
     try {
-      const result = await this.executor.execute(toolName, args);
+      const result = await this.executor.execute(toolName, args, userId);
 
       // AC5: Record usage metrics
       if (this.trackUsage) {
-        await this.recordUsage(toolName, result);
+        await this.recordUsage(toolName, result, userId);
       }
 
       return result;
@@ -162,19 +165,22 @@ export class CapabilityMCPServer {
    *
    * @param toolName - MCP tool name
    * @param result - Execution result
+   * @param userId - User ID for multi-tenant scope resolution
    */
   private async recordUsage(
     toolName: string,
     result: ExecuteResult,
+    userId?: string,
   ): Promise<void> {
     try {
       const parsed = parseToolName(toolName);
       if (!parsed) return;
 
       const displayName = `${parsed.namespace}:${parsed.action}`;
+      const scope = await getUserScope(userId ?? null);
       const record = await this.capabilityRegistry.resolveByName(
         displayName,
-        { org: "local", project: "default" },
+        scope,
       );
 
       if (record) {

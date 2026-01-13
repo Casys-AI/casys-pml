@@ -32,7 +32,7 @@ import { getTaskType } from "../../dag/execution/task-router.ts";
 import type { CapabilityStore } from "../../capabilities/capability-store.ts";
 import { getToolPermissionConfig } from "../../capabilities/permission-inferrer.ts";
 import { type AdaptiveThresholdManager, type ThresholdMode, updateThompsonSampling } from "../adaptive-threshold.ts";
-import { DEFAULT_SCOPE } from "../../capabilities/types/fqdn.ts";
+import { getUserScope } from "../../lib/user.ts";
 // Story 10.5 AC10: WorkerBridge-based executor for 100% traceability
 import {
   cleanupWorkerBridgeExecutor,
@@ -539,6 +539,7 @@ async function executeWithPerLayerValidation(
     context,
     undefined, // initialResults
     learningContext,
+    userId,
   );
 }
 
@@ -546,7 +547,9 @@ async function executeWithPerLayerValidation(
  * Process generator events until next pause point or completion
  *
  * @param executorContext - Optional ExecutorContext for WorkerBridge cleanup (Story 10.5)
+ * @param initialResults - Results from previous layers when resuming
  * @param learningContext - Optional context for capability saving after HIL approval
+ * @param userId - Optional user ID for multi-tenant scope resolution
  */
 export async function processGeneratorUntilPause(
   workflowId: string,
@@ -558,6 +561,7 @@ export async function processGeneratorUntilPause(
   executorContext?: ExecutorContext,
   initialResults?: TaskResult[],
   learningContext?: LearningContext,
+  userId?: string,
 ): Promise<MCPToolResponse> {
   // Accumulate results from previous layers when resuming
   const layerResults: TaskResult[] = initialResults ? [...initialResults] : [];
@@ -729,10 +733,12 @@ export async function processGeneratorUntilPause(
           // This links the workflow_pattern to capability_records for discovery
           if (deps.capabilityRegistry) {
             try {
+              // Get user scope for multi-tenant isolation
+              const scope = await getUserScope(userId ?? null);
               const codeHash = capability.codeHash;
               const existingRecord = await deps.capabilityRegistry.getByCodeHash(
                 codeHash,
-                DEFAULT_SCOPE,
+                scope,
               );
 
               if (!existingRecord) {
@@ -743,13 +749,13 @@ export async function processGeneratorUntilPause(
                 const hash = codeHash.substring(0, 4);
 
                 const record = await deps.capabilityRegistry.create({
-                  org: DEFAULT_SCOPE.org,
-                  project: DEFAULT_SCOPE.project,
+                  org: scope.org,
+                  project: scope.project,
                   namespace,
                   action,
                   workflowPatternId: capability.id,
                   hash,
-                  createdBy: "pml_execute_hil",
+                  userId: userId ?? undefined,  // null for local/anonymous
                   toolsUsed,
                 });
 

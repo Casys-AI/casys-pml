@@ -116,32 +116,31 @@ async function setupTestCapability(
   // Insert capability_records with FK to workflow_pattern
   const capabilityId = `local.default.code.analyze.${uniqueId}`;
 
+  // Migration 028: display_name dropped, Migration 039: created_by → user_id
   await db.query(
     `
     INSERT INTO capability_records (
       id,
-      display_name,
       org,
       project,
       namespace,
       action,
       hash,
       workflow_pattern_id,
-      created_by,
+      user_id,
       created_at,
       visibility,
       routing,
       tags
     ) VALUES (
       $2,
-      'code:analyze',
       'local',
       'default',
       'code',
       'analyze',
       $3,
       $1,
-      'test',
+      NULL,
       NOW(),
       'private',
       'local',

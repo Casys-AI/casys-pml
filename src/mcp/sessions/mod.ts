@@ -15,6 +15,7 @@ export type {
   RegisterRequest,
   RegisterResponse,
   UnregisterRequest,
+  UserScope,
 } from "./types.ts";
 
 // Store

@@ -12,6 +12,7 @@ import type {
   PackageSession,
   RegisterRequest,
   RegisterResponse,
+  UserScope,
 } from "./types.ts";
 
 /** Default session TTL: 5 minutes */
@@ -22,6 +23,12 @@ const HEARTBEAT_INTERVAL_MS = 60 * 1000;
 
 /** Cleanup interval: 1 minute */
 const CLEANUP_INTERVAL_MS = 60 * 1000;
+
+/** Default scope for local mode */
+const DEFAULT_SCOPE: UserScope = {
+  org: "local",
+  project: "default",
+};
 
 /**
  * Session store for package connections.
@@ -78,11 +85,13 @@ export class SessionStore {
    *
    * @param request - Registration request from package
    * @param userId - User ID from auth
-   * @returns Registration response with session ID
+   * @param scope - User scope for FQDN generation (optional, defaults to local)
+   * @returns Registration response with session ID and scope
    */
   register(
     request: RegisterRequest,
     userId: string,
+    scope?: UserScope,
   ): RegisterResponse {
     const sessionId = crypto.randomUUID();
     const now = new Date();
@@ -114,6 +123,7 @@ export class SessionStore {
       clientId: request.clientId.slice(0, 8),
       userId,
       version: request.version,
+      scope: scope ?? DEFAULT_SCOPE,
     });
 
     return {
@@ -124,6 +134,7 @@ export class SessionStore {
         hybridRouting: true,
         tracing: true,
       },
+      scope: scope ?? DEFAULT_SCOPE,
     };
   }
 

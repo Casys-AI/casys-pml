@@ -80,13 +80,14 @@ export const handler = {
 
       // Story 9.5 AC #5, #8: Anonymize workflow_execution BEFORE deleting user
       // Preserves execution history for analytics while removing user linkage
+      // Migration 039: updated_by column removed, user_id is now UUID FK (ON DELETE SET NULL)
       try {
         const mainDb = await getMainDb();
         await mainDb.query(
           `UPDATE workflow_execution
-           SET user_id = $1, updated_by = $1
-           WHERE user_id = $2`,
-          [anonymizedId, user.id],
+           SET user_id = NULL
+           WHERE user_id = $1::uuid`,
+          [user.id],
         );
       } catch (error) {
         console.error("Error anonymizing workflow_execution:", error);
@@ -94,14 +95,14 @@ export const handler = {
       }
 
       // Story 11.2: Anonymize execution_trace table (new trace table)
-      // Note: intent_text column removed in migration 030 (now from workflow_pattern via JOIN)
+      // Migration 039: created_by and updated_by columns removed, user_id is now UUID FK
       try {
         const mainDb = await getMainDb();
         await mainDb.query(
           `UPDATE execution_trace
-           SET user_id = $1, created_by = $1, updated_by = $1, initial_context = '{}'::jsonb
-           WHERE user_id = $2`,
-          [anonymizedId, user.id],
+           SET user_id = NULL, initial_context = '{}'::jsonb
+           WHERE user_id = $1::uuid`,
+          [user.id],
         );
       } catch (error) {
         console.error("Error anonymizing execution_trace:", error);

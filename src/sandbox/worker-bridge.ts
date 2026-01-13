@@ -40,6 +40,7 @@ import { CapabilityCodeGenerator } from "../capabilities/code-generator.ts";
 import { getLogger } from "../telemetry/logger.ts";
 import { eventBus } from "../events/mod.ts";
 import { RpcRouter } from "./rpc-router.ts";
+import { getUserScope } from "../lib/user.ts";
 
 const logger = getLogger("default");
 
@@ -91,6 +92,8 @@ export interface WorkerBridgeConfig {
   capabilityRegistry?: import("../capabilities/capability-registry.ts").CapabilityRegistry;
   /** Optional CapModule for cap:* tool routing (Story 13.5) */
   capModule?: import("../mcp/handlers/cap-handler.ts").CapModule;
+  /** User ID for multi-tenant scope resolution */
+  userId?: string;
   // Note: permissionSet removed - Worker always uses "none" permissions.
   // All I/O goes through MCP RPC for complete tracing. See WORKER_PERMISSIONS.
 }
@@ -139,11 +142,12 @@ const DEFAULTS = {
 export class WorkerBridge {
   private config: Omit<
     Required<WorkerBridgeConfig>,
-    "capabilityStore" | "graphRAG" | "capabilityRegistry" | "capModule"
+    "capabilityStore" | "graphRAG" | "capabilityRegistry" | "capModule" | "userId"
   >;
   private capabilityStore?: CapabilityStore;
   private graphRAG?: GraphRAGEngine;
   private capabilityRegistry?: import("../capabilities/capability-registry.ts").CapabilityRegistry;
+  private userId?: string;
   private worker: Worker | null = null;
   private traces: TraceEvent[] = [];
   private pendingRPCs: Map<string, {
@@ -177,6 +181,7 @@ export class WorkerBridge {
     this.capabilityStore = config?.capabilityStore;
     this.graphRAG = config?.graphRAG;
     this.capabilityRegistry = config?.capabilityRegistry;
+    this.userId = config?.userId;
 
     // Initialize RPC router with bridge factory for capability execution
     this.rpcRouter = new RpcRouter(
@@ -187,9 +192,10 @@ export class WorkerBridge {
         graphRAG: this.graphRAG,
         capModule: config?.capModule,
         timeout: this.config.timeout,
+        userId: this.userId,  // Multi-tenant: pass userId for scope resolution
       },
       // Factory creates new WorkerBridge for nested capability execution
-      (cfg) => new WorkerBridge(this.mcpClients, { ...cfg, capModule: config?.capModule }),
+      (cfg) => new WorkerBridge(this.mcpClients, { ...cfg, capModule: config?.capModule, userId: this.userId }),
     );
 
     // Story 7.3b: Setup BroadcastChannel for capability traces
@@ -674,14 +680,17 @@ export class WorkerBridge {
                 // 4-char hash for FQDN
                 const hash = capability.codeHash.substring(0, 4);
 
+                // Multi-tenant: use user scope for org/project
+                const scope = await getUserScope(this.userId ?? null);
+
                 await this.capabilityRegistry.create({
-                  org: "local",
-                  project: "default",
+                  org: scope.org,
+                  project: scope.project,
                   namespace,
                   action,
                   workflowPatternId: capability.id,
                   hash,
-                  createdBy: "worker_bridge_loop",
+                  userId: this.userId,  // Multi-tenant: associate capability with user
                   toolsUsed: loopMetadata.bodyTools || [],
                 });
 

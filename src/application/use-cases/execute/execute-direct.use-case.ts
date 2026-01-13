@@ -31,6 +31,7 @@ import {
   getToolRoutingFromDb,
   type RoutingDbClient,
 } from "../../../capabilities/routing-resolver.ts";
+import { getUserScope } from "../../../lib/user.ts";
 
 // ============================================================================
 // Interfaces (Clean Architecture - no concrete imports)
@@ -99,7 +100,7 @@ export interface ICapabilityRegistry {
     action: string;
     workflowPatternId: string;
     hash: string;
-    createdBy: string;
+    userId?: string;  // UUID FK to users (null for local/anonymous)
     toolsUsed: string[];
   }): Promise<{ id: string }>;
 }
@@ -188,7 +189,7 @@ export interface ExecuteDirectDependencies {
 // ============================================================================
 
 const DEFAULT_MAX_CODE_SIZE = 100 * 1024; // 100KB
-const DEFAULT_SCOPE = { org: "local", project: "default" };
+// Note: DEFAULT_SCOPE removed - use getUserScope() for dynamic multi-tenant scopes
 
 /**
  * Execute Direct Use Case
@@ -563,9 +564,12 @@ export class ExecuteDirectUseCase {
 
     if (this.deps.capabilityRegistry) {
       try {
+        // Get user scope for multi-tenant isolation
+        const scope = await getUserScope(this.userId);
+
         const existing = await this.deps.capabilityRegistry.getByCodeHash(
           capability.codeHash,
-          DEFAULT_SCOPE,
+          scope,
         );
 
         if (existing) {
@@ -581,13 +585,13 @@ export class ExecuteDirectUseCase {
           capabilityName = `${namespace}:${action}`;
 
           const record = await this.deps.capabilityRegistry.create({
-            org: DEFAULT_SCOPE.org,
-            project: DEFAULT_SCOPE.project,
+            org: scope.org,
+            project: scope.project,
             namespace,
             action,
             workflowPatternId: capability.id,
             hash,
-            createdBy: "pml_execute",
+            userId: this.userId ?? undefined,  // null for local/anonymous
             toolsUsed: toolsCalled,
           });
 

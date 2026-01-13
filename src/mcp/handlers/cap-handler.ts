@@ -22,6 +22,7 @@ import { parseFQDN } from "../../capabilities/fqdn.ts";
 import { eventBus } from "../../events/mod.ts";
 import * as log from "@std/log";
 import { z } from "zod";
+import { getUserScope } from "../../lib/user.ts";
 
 // =============================================================================
 // Types (duplicated from lib/std/cap.ts to avoid circular imports)
@@ -139,9 +140,9 @@ export interface CapWhoisResponse {
   action: string;
   hash: string;
   workflowPatternId: string | null;
-  createdBy: string;
+  /** User ID who owns this capability (UUID FK, null for legacy/system records) */
+  userId: string | null;
   createdAt: string;
-  updatedBy: string | null;
   updatedAt: string | null;
   version: number;
   versionTag: string | null;
@@ -282,14 +283,7 @@ export function buildEmbeddingText(name: string, description?: string | null): s
 // Constants
 // =============================================================================
 
-/**
- * Default scope for capability operations
- *
- * MVP LIMITATION: All cap:* tools operate on this hardcoded scope.
- * Multi-tenant support (org/project parameters) deferred to future story.
- * See: Epic 14 (JSR Package Local/Cloud MCP Routing) for multi-scope design.
- */
-const DEFAULT_SCOPE: Scope = { org: "local", project: "default" };
+// Note: DEFAULT_SCOPE is now imported from lib/user.ts for multi-tenant support
 
 /** Default pagination limit */
 const DEFAULT_LIMIT = 50;
@@ -350,10 +344,18 @@ export class CapModule {
 
   /**
    * Set the authenticated user ID for multi-tenant filtering
-   * Mutations (rename, merge) are filtered by created_by = userId
+   * Mutations (rename, merge) are filtered by record.userId
    */
   setUserId(userId: string | null): void {
     this.userId = userId;
+  }
+
+  /**
+   * Get the scope for capability operations based on authenticated user
+   * Uses username as org for multi-tenant isolation
+   */
+  private async getScope(): Promise<Scope> {
+    return await getUserScope(this.userId);
   }
 
   /**
@@ -517,13 +519,14 @@ export class CapModule {
   private async handleList(options: CapListOptions): Promise<CapToolResult> {
     const limit = Math.min(options.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
     const offset = options.offset ?? 0;
+    const scope = await this.getScope();
 
     // Build WHERE clauses
     const conditions: string[] = [
       "cr.org = $1",
       "cr.project = $2",
     ];
-    const params: (string | number | boolean)[] = [DEFAULT_SCOPE.org, DEFAULT_SCOPE.project];
+    const params: (string | number | boolean)[] = [scope.org, scope.project];
 
     // AC2: Pattern filter (now matches namespace:action)
     if (options.pattern) {
@@ -631,8 +634,11 @@ export class CapModule {
       }
     }
 
+    // Get scope for this user
+    const scope = await this.getScope();
+
     // Resolve the capability by name (namespace:action) or UUID
-    let record = await this.registry.resolveByName(name, DEFAULT_SCOPE);
+    let record = await this.registry.resolveByName(name, scope);
     if (!record) {
       // Try by UUID
       record = await this.registry.getById(name);
@@ -642,7 +648,8 @@ export class CapModule {
     }
 
     // Multi-tenant check: only allow mutations on user's own capabilities
-    if (this.userId && record.createdBy !== this.userId && record.createdBy !== "system") {
+    // userId=null means legacy/system record (accessible to all)
+    if (this.userId && record.userId && record.userId !== this.userId) {
       // Return same error as "not found" to avoid information leakage
       return this.errorResult(`Capability not found: ${name}`);
     }
@@ -671,14 +678,12 @@ export class CapModule {
       params.push(visibility);
     }
 
-    // Always update updated_at
+    // Always update updated_at (updated_by removed in migration 039)
     updates.push(`updated_at = NOW()`);
-    updates.push(`updated_by = $${paramIndex++}`);
-    params.push(this.userId ?? "system");
 
     // Execute capability_records update if we have fields to update
-    if (updates.length > 2) {
-      // More than just updated_at and updated_by
+    if (updates.length > 1) {
+      // More than just updated_at
       params.push(record.id);
       await this.db.query(
         `UPDATE capability_records
@@ -777,9 +782,10 @@ export class CapModule {
    */
   private async handleLookup(options: CapLookupOptions): Promise<CapToolResult> {
     const { name } = options;
+    const scope = await this.getScope();
 
     // Resolve by name (namespace:action format)
-    const record = await this.registry.resolveByName(name, DEFAULT_SCOPE);
+    const record = await this.registry.resolveByName(name, scope);
 
     if (!record) {
       return this.errorResult(`Capability not found: ${name}`);
@@ -888,9 +894,8 @@ export class CapModule {
       action: record.action,
       hash: record.hash,
       workflowPatternId: record.workflowPatternId ?? null,
-      createdBy: record.createdBy,
+      userId: record.userId ?? null,
       createdAt: record.createdAt.toISOString(),
-      updatedBy: record.updatedBy ?? null,
       updatedAt: record.updatedAt?.toISOString() ?? null,
       version: record.version,
       versionTag: record.versionTag ?? null,
@@ -934,8 +939,11 @@ export class CapModule {
       return this.errorResult("Cannot merge capability into itself");
     }
 
+    // Get scope for this user
+    const scope = await this.getScope();
+
     // Resolve source capability
-    let sourceRecord = await this.registry.resolveByName(source, DEFAULT_SCOPE);
+    let sourceRecord = await this.registry.resolveByName(source, scope);
     if (!sourceRecord) {
       sourceRecord = await this.registry.getById(source);
     }
@@ -944,7 +952,7 @@ export class CapModule {
     }
 
     // Resolve target capability
-    let targetRecord = await this.registry.resolveByName(target, DEFAULT_SCOPE);
+    let targetRecord = await this.registry.resolveByName(target, scope);
     if (!targetRecord) {
       targetRecord = await this.registry.getById(target);
     }
@@ -953,11 +961,12 @@ export class CapModule {
     }
 
     // Multi-tenant check: only allow mutations on user's own capabilities
+    // userId=null means legacy/system record (accessible to all)
     if (this.userId) {
-      if (sourceRecord.createdBy !== this.userId && sourceRecord.createdBy !== "system") {
+      if (sourceRecord.userId && sourceRecord.userId !== this.userId) {
         return this.errorResult(`Source capability not found: ${source}`);
       }
-      if (targetRecord.createdBy !== this.userId && targetRecord.createdBy !== "system") {
+      if (targetRecord.userId && targetRecord.userId !== this.userId) {
         return this.errorResult(`Target capability not found: ${target}`);
       }
     }
@@ -1055,12 +1064,9 @@ export class CapModule {
         );
       }
 
-      // Update capability_records metadata only
+      // Update capability_records metadata only (updated_by removed in migration 039)
       await tx.exec(
-        `UPDATE capability_records SET
-          updated_at = NOW(),
-          updated_by = 'cap:merge'
-        WHERE id = $1`,
+        `UPDATE capability_records SET updated_at = NOW() WHERE id = $1`,
         [targetRecord.id],
       );
 
