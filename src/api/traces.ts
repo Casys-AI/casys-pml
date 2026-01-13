@@ -18,6 +18,8 @@ import { CapabilityRegistry } from "../capabilities/capability-registry.ts";
 import { isValidFQDN, parseFQDN } from "../capabilities/fqdn.ts";
 import type { DbClient } from "../db/types.ts";
 import { getLogger } from "../telemetry/logger.ts";
+import { getWorkflowStateRecord, deleteWorkflowState } from "../cache/workflow-state-cache.ts";
+import { ExecutionCaptureService } from "../application/services/execution-capture.service.ts";
 
 const logger = getLogger("default");
 
@@ -92,6 +94,8 @@ async function resolveCapabilityId(
  * Field names match packages/pml/src/tracing/types.ts for JSON compatibility.
  */
 interface IncomingTrace {
+  /** Workflow ID for pending capability finalization (client-routed execution) */
+  workflowId?: string;
   capabilityId: string;
   success: boolean;
   error?: string;
@@ -260,7 +264,64 @@ export async function handleTracesPost(
 
   for (const incoming of body.traces) {
     try {
-      // Validate required fields
+      // Handle client-routed capability finalization via workflowId
+      if (incoming.workflowId && incoming.success) {
+        const workflowRecord = await getWorkflowStateRecord(incoming.workflowId);
+
+        if (workflowRecord?.learningContext) {
+          // Create capability from stored learning context + client execution trace
+          // Use context's capabilityStore if available (avoids re-creating embedding model)
+          if (!ctx.capabilityStore) {
+            logger.error("CapabilityStore not available in context for workflow finalization");
+            errors.push(`CapabilityStore not available for workflowId: ${incoming.workflowId}`);
+            continue;
+          }
+          const capabilityRegistry = new CapabilityRegistry(ctx.db);
+
+          const captureService = new ExecutionCaptureService({
+            capabilityStore: ctx.capabilityStore,
+            capabilityRegistry,
+          });
+
+          // Map incoming taskResults to TraceTaskResult format
+          const taskResults: TraceTaskResult[] = incoming.taskResults.map((tr) => ({
+            taskId: tr.taskId,
+            tool: tr.tool,
+            args: tr.args as Record<string, JsonValue>,
+            result: tr.result as JsonValue,
+            success: tr.success,
+            durationMs: tr.durationMs,
+          }));
+
+          const captureResult = await captureService.capture({
+            learningContext: workflowRecord.learningContext,
+            durationMs: incoming.durationMs,
+            taskResults,
+            userId: workflowRecord.learningContext.userId,
+          });
+
+          // Cleanup from KV
+          await deleteWorkflowState(incoming.workflowId);
+
+          if (captureResult) {
+            logger.info("Capability captured from client execution", {
+              workflowId: incoming.workflowId,
+              capabilityId: captureResult.capability.id,
+              fqdn: captureResult.fqdn,
+              created: captureResult.created,
+            });
+            stored++;
+          }
+        } else {
+          logger.warn("Learning context not found for workflowId", {
+            workflowId: incoming.workflowId,
+          });
+          errors.push(`Learning context not found for workflowId: ${incoming.workflowId}`);
+        }
+        continue; // Skip normal trace processing for workflow finalization
+      }
+
+      // Validate required fields for normal traces
       if (!incoming.capabilityId || typeof incoming.success !== "boolean") {
         errors.push(`Invalid trace: missing capabilityId or success`);
         continue;

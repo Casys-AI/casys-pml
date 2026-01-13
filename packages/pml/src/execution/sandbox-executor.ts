@@ -19,6 +19,7 @@ import type {
   SandboxExecutionResult,
   SandboxExecutorOptions,
   ToolCallHandler,
+  ToolCallRecord,
 } from "./types.ts";
 
 /**
@@ -80,13 +81,32 @@ export class SandboxExecutor {
     logDebug(`Executing code in sandbox (${code.length} chars)`);
 
     const toolsCalled: string[] = [];
+    const toolCallRecords: ToolCallRecord[] = [];
     const startTime = Date.now();
 
     // Create sandbox with hybrid RPC handler
     const sandbox = new SandboxWorker({
       onRpc: async (method: string, args: unknown) => {
         toolsCalled.push(method);
-        return this.routeToolCall(method, args, clientToolHandler);
+        const callStart = Date.now();
+        let result: unknown;
+        let success = true;
+        try {
+          result = await this.routeToolCall(method, args, clientToolHandler);
+        } catch (error) {
+          success = false;
+          result = error instanceof Error ? error.message : String(error);
+          throw error; // Re-throw to propagate the error
+        } finally {
+          toolCallRecords.push({
+            tool: method,
+            args,
+            result,
+            success,
+            durationMs: Date.now() - callStart,
+          });
+        }
+        return result;
       },
       executionTimeoutMs: this.executionTimeoutMs,
       rpcTimeoutMs: this.rpcTimeoutMs,
@@ -104,6 +124,7 @@ export class SandboxExecutor {
           error: result.error,
           durationMs,
           toolsCalled,
+          toolCallRecords,
         };
       }
 
@@ -113,6 +134,7 @@ export class SandboxExecutor {
         value: result.value,
         durationMs,
         toolsCalled,
+        toolCallRecords,
       };
     } finally {
       sandbox.shutdown();

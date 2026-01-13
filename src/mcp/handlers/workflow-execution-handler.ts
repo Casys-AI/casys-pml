@@ -32,7 +32,7 @@ import { getTaskType } from "../../dag/execution/task-router.ts";
 import type { CapabilityStore } from "../../capabilities/capability-store.ts";
 import { getToolPermissionConfig } from "../../capabilities/permission-inferrer.ts";
 import { type AdaptiveThresholdManager, type ThresholdMode, updateThompsonSampling } from "../adaptive-threshold.ts";
-import { getUserScope } from "../../lib/user.ts";
+import { ExecutionCaptureService } from "../../application/services/execution-capture.service.ts";
 // Story 10.5 AC10: WorkerBridge-based executor for 100% traceability
 import {
   cleanupWorkerBridgeExecutor,
@@ -679,21 +679,11 @@ export async function processGeneratorUntilPause(
         });
       }
 
-      // HIL Learning Fix: Save capability after successful HIL approval
-      // Only save if we have learningContext (from pml:execute code path)
+      // HIL Learning: Capture successful execution as capability
+      // Only capture if we have learningContext (from pml:execute code path)
       // and the workflow succeeded (no failed tasks)
       if (learningContext && deps.capabilityStore && (event.failedTasks ?? 0) === 0) {
         try {
-          // Extract tools used from layer results
-          const toolsUsed = layerResults
-            .filter((r) => r.status === "success")
-            .map((r) => {
-              // Find the matching task in the DAG to get the tool name
-              const task = dag.tasks.find((t) => t.id === r.taskId);
-              return task?.tool ?? r.taskId;
-            })
-            .filter((tool): tool is string => !!tool);
-
           // Build task results for trace data (TraceTaskResult format)
           const taskResults = layerResults.map((r) => {
             const task = dag.tasks.find((t) => t.id === r.taskId);
@@ -707,74 +697,32 @@ export async function processGeneratorUntilPause(
             };
           });
 
-          const { capability } = await deps.capabilityStore.saveCapability({
-            code: learningContext.code,
-            intent: learningContext.intent,
-            durationMs: Math.round(event.totalTimeMs ?? 0),
-            success: true,
-            toolsUsed,
-            traceData: {
-              executedPath: toolsUsed,
-              taskResults,
-              decisions: [],
-              initialContext: { intent: learningContext.intent },
-              intentEmbedding: learningContext.intentEmbedding,
-            },
-            staticStructure: learningContext.staticStructure,
+          // Use ExecutionCaptureService to save capability + registry
+          const captureService = new ExecutionCaptureService({
+            capabilityStore: deps.capabilityStore,
+            capabilityRegistry: deps.capabilityRegistry,
           });
 
-          log.info(`[HIL Learning] Capability saved after HIL approval`, {
-            workflowId,
-            capabilityId: capability.id,
-            toolsUsed,
+          const result = await captureService.capture({
+            learningContext,
+            durationMs: event.totalTimeMs ?? 0,
+            taskResults,
+            userId,
           });
 
-          // HIL Learning Fix: Also create capability_record (like direct mode does)
-          // This links the workflow_pattern to capability_records for discovery
-          if (deps.capabilityRegistry) {
-            try {
-              // Get user scope for multi-tenant isolation
-              const scope = await getUserScope(userId ?? null);
-              const codeHash = capability.codeHash;
-              const existingRecord = await deps.capabilityRegistry.getByCodeHash(
-                codeHash,
-                scope,
-              );
-
-              if (!existingRecord) {
-                // Infer namespace from first tool (e.g., "fake:person" -> "fake")
-                const firstTool = toolsUsed[0] ?? "misc";
-                const namespace = firstTool.includes(":") ? firstTool.split(":")[0] : "code";
-                const action = `exec_${codeHash.substring(0, 8)}`;
-                const hash = codeHash.substring(0, 4);
-
-                const record = await deps.capabilityRegistry.create({
-                  org: scope.org,
-                  project: scope.project,
-                  namespace,
-                  action,
-                  workflowPatternId: capability.id,
-                  hash,
-                  userId: userId ?? undefined,  // null for local/anonymous
-                  toolsUsed,
-                });
-
-                log.info(`[HIL Learning] Capability record created`, {
-                  name: `${namespace}:${action}`,
-                  fqdn: record.id,
-                });
-              }
-            } catch (registryError) {
-              log.warn(`[HIL Learning] Failed to create capability record`, {
-                error: String(registryError),
-              });
-            }
+          if (result) {
+            log.info("[HIL Learning] Capability captured", {
+              workflowId,
+              capabilityId: result.capability.id,
+              fqdn: result.fqdn,
+              created: result.created,
+            });
           }
-        } catch (saveError) {
+        } catch (captureError) {
           // Log but don't fail the workflow - learning is non-critical
-          log.warn(`[HIL Learning] Failed to save capability after HIL approval`, {
+          log.warn("[HIL Learning] Failed to capture capability", {
             workflowId,
-            error: saveError instanceof Error ? saveError.message : String(saveError),
+            error: captureError instanceof Error ? captureError.message : String(captureError),
           });
         }
       }

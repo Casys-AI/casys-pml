@@ -79,6 +79,8 @@ export interface ExecuteDirectResult {
   toolsUsed?: string[];
   /** Tools that require client-side execution */
   clientTools?: string[];
+  /** Workflow ID for correlating client execution with server capability creation */
+  workflowId?: string;
 }
 
 // ============================================================================

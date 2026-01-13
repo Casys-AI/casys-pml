@@ -15,26 +15,16 @@
 import { getKv } from "./kv.ts";
 import type { DAGStructure } from "../graphrag/types.ts";
 import * as log from "@std/log";
+import type { LearningContext } from "./types.ts";
+
+// Re-export for backwards compatibility
+export type { LearningContext } from "./types.ts";
 
 /** TTL for workflow state: 1 hour in milliseconds */
 const WORKFLOW_TTL_MS = 3600_000;
 
 /** KV key prefix for workflow state */
 const WORKFLOW_KEY_PREFIX = ["workflow"] as const;
-
-/**
- * Learning context for capability saving after HIL approval
- */
-export interface LearningContext {
-  /** Original TypeScript code */
-  code: string;
-  /** Original intent text */
-  intent: string;
-  /** Static structure from SWC analysis */
-  staticStructure: import("../capabilities/types.ts").StaticStructure;
-  /** Pre-computed intent embedding for similarity search */
-  intentEmbedding?: number[];
-}
 
 /**
  * Workflow state record stored in KV

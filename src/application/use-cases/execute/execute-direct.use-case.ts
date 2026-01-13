@@ -33,6 +33,8 @@ import {
   type RoutingDbClient,
 } from "../../../capabilities/routing-resolver.ts";
 import { getUserScope } from "../../../lib/user.ts";
+import { saveWorkflowState } from "../../../cache/workflow-state-cache.ts";
+import type { LearningContext } from "../../../cache/types.ts";
 
 // ============================================================================
 // Interfaces (Clean Architecture - no concrete imports)
@@ -322,7 +324,32 @@ export class ExecuteDirectUseCase {
           });
 
           if (isPackageClient) {
-            // Package client: return execute_locally response
+            // Package client: store LearningContext and return execute_locally response
+            // Client will execute locally and send trace with workflowId for capability creation
+            const workflowId = crypto.randomUUID();
+
+            // Build LearningContext for capability creation when trace is received
+            const learningContext: LearningContext = {
+              code,
+              intent,
+              staticStructure,
+              toolsUsed,
+              userId: this.userId ?? undefined,
+            };
+
+            // Store in Deno KV with 1-hour TTL for correlation when client sends trace
+            await saveWorkflowState(
+              workflowId,
+              logicalDAG as import("../../../graphrag/types.ts").DAGStructure,
+              intent,
+              learningContext,
+            );
+
+            log.info("[ExecuteDirectUseCase] Stored LearningContext for client-routed execution", {
+              workflowId,
+              toolsUsed,
+            });
+
             return {
               success: true,
               data: {
@@ -331,6 +358,7 @@ export class ExecuteDirectUseCase {
                 code,
                 toolsUsed,
                 clientTools,
+                workflowId,
                 executionTimeMs: performance.now() - startTime,
                 dag: {
                   mode: "dag",

@@ -88,6 +88,9 @@ export interface BranchDecision {
  * - decisions → decisions (JSONB)
  */
 export interface LocalExecutionTrace {
+  /** Workflow ID for pending capability finalization (client-routed execution) */
+  workflowId?: string;
+
   /** FQDN of the executed capability (e.g., "casys.tools.fake:person") */
   capabilityId: string;
 

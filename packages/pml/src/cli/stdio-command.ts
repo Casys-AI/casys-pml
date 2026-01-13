@@ -32,6 +32,8 @@ import {
 import { SandboxExecutor } from "../execution/mod.ts";
 import { SessionClient } from "../session/mod.ts";
 import { PendingWorkflowStore } from "../workflow/mod.ts";
+import { TraceSyncer, type LocalExecutionTrace, type JsonValue } from "../tracing/mod.ts";
+import type { ToolCallRecord } from "../execution/types.ts";
 import { exists } from "@std/fs";
 import { join } from "@std/path";
 import { reloadEnv } from "../byok/env-loader.ts";
@@ -41,6 +43,9 @@ const PACKAGE_VERSION = "0.2.0";
 
 /** Active session client (initialized at startup) */
 let sessionClient: SessionClient | null = null;
+
+/** Trace syncer for sending execution traces to cloud */
+let traceSyncer: TraceSyncer | null = null;
 
 /** Pending workflow store for local approval flows (Story 14.4) */
 const pendingWorkflowStore = new PendingWorkflowStore();
@@ -418,7 +423,7 @@ async function forwardToCloud(
  * - Approval required (HIL pause for dependency/API key/integrity)
  */
 type LocalExecutionResult =
-  | { status: "success"; result: unknown }
+  | { status: "success"; result: unknown; durationMs: number; toolCallRecords: ToolCallRecord[] }
   | { status: "error"; error: string }
   | { status: "approval_required"; approval: ApprovalRequiredResult | IntegrityApprovalRequired; toolId: string };
 
@@ -495,6 +500,8 @@ async function executeLocalCode(
     return {
       status: "success",
       result: result.value,
+      durationMs: result.durationMs,
+      toolCallRecords: result.toolCallRecords ?? [],
     };
   } catch (error) {
     // Check if this was an approval_required that bubbled up
@@ -521,11 +528,16 @@ async function executeLocalCode(
  */
 function parseExecuteLocallyResponse(
   content: string,
-): { status: string; code: string; client_tools: string[] } | null {
+): { status: string; code: string; client_tools: string[]; workflowId?: string } | null {
   try {
     const parsed = JSON.parse(content);
     if (parsed.status === "execute_locally" && parsed.code) {
-      return parsed;
+      return {
+        status: parsed.status,
+        code: parsed.code,
+        client_tools: parsed.client_tools ?? parsed.clientTools ?? [],
+        workflowId: parsed.workflowId ?? parsed.workflow_id,
+      };
     }
     return null;
   } catch {
@@ -744,6 +756,29 @@ async function handleToolsCall(
             },
           });
           return;
+        }
+
+        // Send trace to finalize capability creation if workflowId present
+        if (executeLocally.workflowId && traceSyncer) {
+          const trace: LocalExecutionTrace = {
+            workflowId: executeLocally.workflowId,
+            capabilityId: "", // Will be created server-side
+            success: true,
+            durationMs: localResult.durationMs,
+            taskResults: localResult.toolCallRecords.map((record, i) => ({
+              taskId: `task_${i}`,
+              tool: record.tool,
+              args: (record.args ?? {}) as Record<string, JsonValue>,
+              result: (record.result ?? null) as JsonValue,
+              success: record.success,
+              durationMs: record.durationMs,
+              timestamp: new Date().toISOString(),
+            })),
+            decisions: [],
+            timestamp: new Date().toISOString(),
+          };
+          traceSyncer.enqueue(trace);
+          logDebug(`Trace queued for capability finalization: ${executeLocally.workflowId}`);
         }
 
         // Return successful local execution result
@@ -1112,12 +1147,27 @@ export function createStdioCommand(): Command<any> {
         // Continue without loader - server-side calls will still work
       }
 
+      // Step 6: Initialize TraceSyncer for sending execution traces
+      traceSyncer = new TraceSyncer({
+        cloudUrl,
+        apiKey,
+        batchSize: 10,
+        flushIntervalMs: 5000,
+        maxRetries: 3,
+      });
+      logDebug(`TraceSyncer initialized`);
+
       // Step 7: Start stdio loop
       try {
         await runStdioLoop(loader, cloudUrl, workspace, lockfileManager);
       } finally {
         // Cleanup on exit
         loader?.shutdown();
+        // Flush and shutdown trace syncer
+        if (traceSyncer) {
+          await traceSyncer.shutdown();
+          logDebug("TraceSyncer shutdown");
+        }
         // Graceful session unregister
         if (sessionClient) {
           await sessionClient.shutdown();

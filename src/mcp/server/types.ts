@@ -104,19 +104,11 @@ export interface JsonRpcRequest {
 }
 
 /**
- * Learning context for capability saving after HIL approval
- * Contains all data needed to call saveCapability when workflow completes.
+ * Learning context for capability saving after HIL approval or client-routed execution.
+ * Re-exported from cache/types.ts for single source of truth.
  */
-export interface LearningContext {
-  /** Original TypeScript code */
-  code: string;
-  /** Original intent text */
-  intent: string;
-  /** Static structure from SWC analysis */
-  staticStructure: import("../../capabilities/types.ts").StaticStructure;
-  /** Pre-computed intent embedding for similarity search */
-  intentEmbedding?: number[];
-}
+import type { LearningContext } from "../../cache/types.ts";
+export type { LearningContext };
 
 /**
  * Workflow execution arguments
