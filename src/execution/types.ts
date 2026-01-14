@@ -9,6 +9,22 @@
 import type { SandboxError } from "../sandbox/mod.ts";
 
 /**
+ * Record of a single tool call during execution.
+ */
+export interface ToolCallRecord {
+  /** Tool identifier (e.g., "std:echo") */
+  tool: string;
+  /** Arguments passed to the tool */
+  args: unknown;
+  /** Result returned by the tool */
+  result: unknown;
+  /** Whether the call succeeded */
+  success: boolean;
+  /** Call duration in milliseconds */
+  durationMs: number;
+}
+
+/**
  * Result from sandbox code execution.
  */
 export interface SandboxExecutionResult {
@@ -22,6 +38,8 @@ export interface SandboxExecutionResult {
   durationMs: number;
   /** Tools called during execution (for tracing) */
   toolsCalled?: string[];
+  /** Detailed records of each tool call */
+  toolCallRecords?: ToolCallRecord[];
 }
 
 /**

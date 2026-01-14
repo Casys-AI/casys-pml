@@ -26,12 +26,15 @@ import { join } from "@std/path";
 import {
   checkKeys,
   formatKeyInstruction,
-  getRequiredKeys,
   isApiKeyApprovalRequired,
   pauseForMissingKeys,
   reloadEnv,
   sanitize,
 } from "../src/byok/mod.ts";
+import type { RequiredKey } from "../src/byok/types.ts";
+
+// Note: getRequiredKeys removed - using inline test data instead
+// API key requirements now come from registry metadata (envRequired)
 import type { ApiKeyApprovalRequired } from "../src/loader/types.ts";
 
 // ============================================================================
@@ -104,7 +107,8 @@ Deno.test("Integration: Full flow - missing key → HIL → add to .env → relo
     await reloadEnv(workspace.path);
 
     // 3. Check keys - should fail
-    const requiredKeys = getRequiredKeys("tavily:search");
+    // Note: In production, requiredKeys comes from registry metadata (envRequired)
+    const requiredKeys: RequiredKey[] = [{ name: "TAVILY_API_KEY", requiredBy: "tavily:search" }];
     const initialCheck = checkKeys(requiredKeys);
 
     assertFalse(initialCheck.allValid);

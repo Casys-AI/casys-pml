@@ -38,10 +38,10 @@ import type { TraceSyncConfig } from "../tracing/mod.ts";
 import { sanitize } from "../byok/sanitizer.ts";
 import {
   checkKeys,
-  getRequiredKeys,
   pauseForMissingKeys,
   reloadEnv,
 } from "../byok/mod.ts";
+// Note: getRequiredKeys removed - now using metadata.install.envRequired from registry
 import { LockfileManager } from "../lockfile/mod.ts";
 import type { IntegrityApprovalRequired } from "../lockfile/types.ts";
 import * as log from "@std/log";
@@ -349,6 +349,8 @@ export class CapabilityLoader {
           integrity: metadata.integrity ?? "",
           command: metadata.install.command,
           args: metadata.install.args,
+          // Story 14.6: envRequired from registry metadata (dynamic key detection)
+          envRequired: metadata.install.envRequired,
         };
 
         // Check if this stdio MCP needs approval to install
@@ -424,8 +426,8 @@ export class CapabilityLoader {
    * Convenience method that combines load() + call().
    * May return ApprovalRequiredResult if dependencies or API keys need user action.
    *
-   * **Story 14.6:** Checks required API keys before execution.
-   * If keys are missing, returns ApiKeyApprovalRequired instead of executing.
+   * **Story 14.6:** API key requirements come from registry metadata (envRequired).
+   * The hardcoded key-requirements.ts is deprecated - keys are now dynamic.
    *
    * **Note:** Continuation handling (reloadEnv, etc.) is now managed by
    * stdio-command.ts via PendingWorkflowStore for unified workflow tracking.
@@ -446,23 +448,11 @@ export class CapabilityLoader {
       : [toolId, "default"];
     const action = parts[1];
 
-    // Story 14.6: Check required API keys BEFORE execution (AC1)
-    // Note: reloadEnv() is now called by stdio-command.ts before re-execution
-    const requiredKeys = getRequiredKeys(toolId);
-    if (requiredKeys.length > 0) {
-      const keyCheck = checkKeys(requiredKeys);
+    // Story 14.6: API keys are now checked in load() via metadata.install.envRequired
+    // This allows dynamic key detection from registry instead of hardcoded mapping.
+    // The check happens in ensureDependency() when processing stdio MCP install.
 
-      if (!keyCheck.allValid) {
-        // Missing or invalid keys - return HIL pause (AC2)
-        logDebug(`Missing API keys for ${toolId}: ${[...keyCheck.missing, ...keyCheck.invalid].join(", ")}`);
-        const approval = pauseForMissingKeys(keyCheck);
-        return approval;
-      }
-
-      logDebug(`API keys verified for ${toolId}`);
-    }
-
-    // Load capability (may return ApprovalRequiredResult for dependencies)
+    // Load capability (may return ApprovalRequiredResult for dependencies or API keys)
     const loadResult = await this.load(toolId, continueWorkflow);
 
     // If approval is required, return the approval request
