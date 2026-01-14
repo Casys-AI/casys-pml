@@ -358,15 +358,17 @@ export class CapabilityLoader {
 
         // Check if this stdio MCP needs approval to install
         // Skip if continueWorkflow.approved (user already approved)
+        // Use serverName:* as toolId for permission matching (not FQDN namespace)
+        const toolIdForPermission = `${serverName}:*`;
         if (!continueWorkflow?.approved) {
-          const stdioApproval = await this.ensureDependency(stdioDep, false, namespace);
+          const stdioApproval = await this.ensureDependency(stdioDep, false, toolIdForPermission);
           if (stdioApproval) {
             logDebug(`Stdio MCP ${namespace} requires approval to install`);
             return stdioApproval;
           }
         } else {
           // User approved - ensure it's installed
-          await this.ensureDependency(stdioDep, true, namespace);
+          await this.ensureDependency(stdioDep, true, toolIdForPermission);
         }
       }
     }
