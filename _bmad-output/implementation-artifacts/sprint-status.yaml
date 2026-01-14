@@ -296,7 +296,7 @@ development_status:
   14-9-custom-mcp-servers-support: backlog # User's .mcp-servers.json - deferred until 14.1-14.8 complete
   14-10-standalone-capability-distribution: backlog # pml add/run/remove/list for standalone caps
   # Phase 5: Distribution (~2 days)
-  14-11-binary-distribution-deno-compile: backlog # deno compile for Linux/macOS/Windows, install.sh, pml upgrade
+  14-11-binary-distribution-deno-compile: done # deno compile for Linux/macOS/Windows, install.sh, pml upgrade
   epic-14-retrospective: optional
 
   # Epic 15: CasysDB Native Engine (Rust)

@@ -415,3 +415,180 @@ function isMcpTool(name: string): boolean {
 6. **Chaîne d'appels multi-tenant**: Gateway → CapabilityMCPServer → CapabilityExecutor, tous passent `userId`
 7. **RpcRouter et WorkerBridge**: Ajout de `userId` dans les configs pour scope dynamique
 8. **DEFAULT_SCOPE centralisé**: Importé depuis `lib/user.ts` au lieu de définitions locales
+
+---
+
+## FQDN Resolution in execute_locally Response (2026-01-14)
+
+### Problème
+
+Le client PML ne peut pas distinguer un MCP tool (`pml.mcp.std.git_status`) d'une capability utilisateur (`alice.default.fs.listDirectory`) sans liste hardcodée de namespaces.
+
+Quand le serveur retourne `execute_locally`, le client doit fetcher les métadonnées depuis le registry, mais il ne sait pas quel FQDN utiliser.
+
+### Solution
+
+Le serveur résout les FQDNs **pendant l'analyse** et les retourne dans la réponse `execute_locally`.
+
+**Avant :**
+```json
+{
+  "status": "execute_locally",
+  "code": "...",
+  "tools_used": ["fs:listDirectory", "std:git_status"],
+  "client_tools": ["fs:listDirectory", "std:git_status"]
+}
+```
+
+**Après :**
+```json
+{
+  "status": "execute_locally",
+  "code": "...",
+  "tools_used": [
+    { "id": "fs:listDirectory", "fqdn": "alice.default.fs.listDirectory" },
+    { "id": "std:git_status", "fqdn": "pml.mcp.std.git_status" }
+  ],
+  "client_tools": ["fs:listDirectory", "std:git_status"]
+}
+```
+
+### Algorithme de résolution (serveur)
+
+Pour chaque tool extrait de l'analyse (`namespace:action`) :
+
+1. Chercher dans `capability_records` avec le scope de l'utilisateur :
+   ```sql
+   SELECT * FROM capability_records
+   WHERE org = $user_org AND project = $user_project
+     AND namespace = $namespace AND action = $action
+   ```
+2. Si trouvé → FQDN = `{user_org}.{user_project}.{namespace}.{action}.{hash}`
+3. Si pas trouvé → FQDN = `pml.mcp.{namespace}.{action}` (MCP tool public)
+
+### Fichiers modifiés
+
+#### Serveur
+
+| Fichier | Changement |
+|---------|------------|
+| `src/mcp/handlers/code-execution-handler.ts` | Ajouter `resolveToolFqdns()` + modifier réponse `execute_locally` |
+| `src/mcp/gateway-server.ts` | Passer `userId` à `getCodeExecutionDeps()` |
+
+#### Client (Package PML)
+
+| Fichier | Changement |
+|---------|------------|
+| `packages/pml/src/cli/stdio-command.ts` | Parser `tools_used` et créer map `id → fqdn` |
+| `packages/pml/src/loader/capability-loader.ts` | Accepter `fqdnOverrides` map dans `call()` |
+
+### Implémentation Client
+
+#### 1. Parser tools_used dans parseExecuteLocallyResponse
+
+```typescript
+// stdio-command.ts
+interface ResolvedTool {
+  id: string;   // "fs:listDirectory"
+  fqdn: string; // "alice.default.fs.listDirectory.a1b2"
+}
+
+function parseExecuteLocallyResponse(content: string): {
+  status: string;
+  code: string;
+  client_tools: string[];
+  tools_used: ResolvedTool[];  // Nouveau
+  workflowId?: string;
+} | null {
+  const parsed = JSON.parse(content);
+  if (parsed.status === "execute_locally" && parsed.code) {
+    return {
+      status: parsed.status,
+      code: parsed.code,
+      client_tools: parsed.client_tools ?? [],
+      tools_used: parsed.tools_used ?? [],  // Nouveau: FQDNs du serveur
+      workflowId: parsed.workflowId,
+    };
+  }
+  return null;
+}
+```
+
+#### 2. Créer map FQDN et passer à executeLocalCode
+
+```typescript
+// stdio-command.ts
+const executeLocally = parseExecuteLocallyResponse(content);
+if (executeLocally) {
+  // Créer map id → fqdn
+  const fqdnMap = new Map<string, string>();
+  for (const tool of executeLocally.tools_used) {
+    fqdnMap.set(tool.id, tool.fqdn);
+  }
+
+  const localResult = await executeLocalCode(
+    executeLocally.code,
+    loader,
+    cloudUrl,
+    fqdnMap,  // Nouveau paramètre
+    continueWorkflow,
+  );
+}
+```
+
+#### 3. Utiliser fqdnMap dans le handler de tools
+
+```typescript
+// stdio-command.ts - executeLocalCode()
+async function executeLocalCode(
+  code: string,
+  loader: CapabilityLoader | null,
+  cloudUrl: string,
+  fqdnMap: Map<string, string>,  // Nouveau
+  continueWorkflow?: ContinueWorkflowParams,
+): Promise<LocalExecutionResult> {
+  const executor = new SandboxExecutor({ cloudUrl, apiKey });
+
+  const result = await executor.execute(
+    code,
+    {},
+    async (toolId: string, args: unknown) => {
+      // Utiliser le FQDN du serveur si disponible
+      const fqdn = fqdnMap.get(toolId);
+      if (fqdn) {
+        // Fetch directement avec le FQDN résolu par le serveur
+        return await loader.callWithFqdn(fqdn, args, continueWorkflow);
+      }
+      // Fallback: laisser le loader résoudre (legacy)
+      return await loader.call(toolId, args, continueWorkflow);
+    },
+  );
+}
+```
+
+#### 4. Ajouter callWithFqdn au CapabilityLoader
+
+```typescript
+// capability-loader.ts
+/**
+ * Call a capability using its full FQDN (resolved by server).
+ * Skips local FQDN construction - uses server-provided FQDN directly.
+ */
+async callWithFqdn(
+  fqdn: string,
+  args: unknown,
+  continueWorkflow?: ContinueWorkflowParams,
+): Promise<unknown | ApprovalRequiredResult> {
+  // Fetch directement avec le FQDN
+  const { metadata } = await this.registryClient.fetchByFqdn(fqdn);
+  // ... reste du flow identique à call()
+}
+```
+
+### Avantages
+
+1. **Pas de hardcoding** : Le client n'a pas besoin de connaître les namespaces MCP
+2. **Pas de fallback** : Le serveur résout une seule fois, pas de double lookup
+3. **Multi-tenant correct** : Le serveur connaît le scope de l'utilisateur
+4. **Extensible** : Supporte capabilities publiques d'autres utilisateurs
+5. **Backward compatible** : Le `call()` existant reste pour les cas legacy
