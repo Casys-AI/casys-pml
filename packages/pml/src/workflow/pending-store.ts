@@ -51,6 +51,8 @@ export interface PendingWorkflow {
     newHash: string;
     oldHash: string;
   };
+  /** FQDN map for multi-tenant tool resolution (server-provided) */
+  fqdnMap?: Record<string, string>;
 }
 
 // =============================================================================
@@ -153,6 +155,7 @@ export class PendingWorkflowStore {
       dependency?: McpDependency;
       missingKeys?: string[];
       integrityInfo?: { fqdnBase: string; newHash: string; oldHash: string };
+      fqdnMap?: Record<string, string>;
     },
   ): void {
     // Clean up expired workflows
@@ -166,6 +169,7 @@ export class PendingWorkflowStore {
       dependency: options?.dependency,
       missingKeys: options?.missingKeys,
       integrityInfo: options?.integrityInfo,
+      fqdnMap: options?.fqdnMap,
     });
   }
 

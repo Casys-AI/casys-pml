@@ -50,6 +50,9 @@ import { buildToolDefinitionsFromDAG } from "./shared/tool-definitions.ts";
 import type { ICodeAnalyzer } from "../../domain/interfaces/code-analyzer.ts";
 // Hybrid routing support
 import { resolveRouting, getToolRouting } from "../../capabilities/routing-resolver.ts";
+// Multi-tenant FQDN resolution
+import { getUserScope } from "../../lib/user.ts";
+import { getCapabilityFqdn } from "../../capabilities/capability-registry.ts";
 
 /**
  * Dependencies required for code execution handler
@@ -78,6 +81,8 @@ export interface CodeExecutionDependencies {
   isPackageClient?: boolean;
   /** CapModule for cap_* tool routing */
   capModule?: import("./cap-handler.ts").CapModule;
+  /** User ID for multi-tenant FQDN resolution */
+  userId?: string;
 }
 
 /**
@@ -104,6 +109,67 @@ export interface DAGExecutionMetadata {
   speedup?: number;
   /** Tools discovered in the code */
   toolsDiscovered?: string[];
+}
+
+/**
+ * Resolved tool with ID and FQDN
+ */
+export interface ResolvedTool {
+  /** Tool call name (e.g., "fs:listDirectory") */
+  id: string;
+  /** Fully qualified domain name (e.g., "alice.default.fs.listDirectory.a1b2") */
+  fqdn: string;
+}
+
+/**
+ * Resolve tool IDs to FQDNs for execute_locally response.
+ *
+ * Resolution order:
+ * 1. User's scope (private capabilities)
+ * 2. Public capabilities (visibility = 'public', includes other users' public caps)
+ * 3. MCP tool from tool_schema (pml.mcp.{namespace}.{action})
+ *
+ * @param toolIds - Tool IDs in "namespace:action" format
+ * @param deps - Handler dependencies (capabilityRegistry, userId)
+ * @returns Resolved tools with FQDNs
+ */
+async function resolveToolFqdns(
+  toolIds: string[],
+  deps: CodeExecutionDependencies,
+): Promise<ResolvedTool[]> {
+  const results: ResolvedTool[] = [];
+  const { capabilityRegistry, userId } = deps;
+
+  // Get user scope
+  const scope = await getUserScope(userId ?? null);
+
+  for (const toolId of toolIds) {
+    const colonIndex = toolId.indexOf(":");
+    if (colonIndex === -1) {
+      // No colon - invalid format, skip
+      log.warn(`[FQDN Resolution] Invalid tool ID format: ${toolId}`);
+      results.push({ id: toolId, fqdn: `pml.mcp.${toolId}.${toolId}` });
+      continue;
+    }
+
+    const namespace = toolId.substring(0, colonIndex);
+    const action = toolId.substring(colonIndex + 1);
+
+    // 1. Try capability registry (user scope + public)
+    // resolveByName does: user scope first, then public capabilities
+    if (capabilityRegistry) {
+      const record = await capabilityRegistry.resolveByName(toolId, scope);
+      if (record) {
+        results.push({ id: toolId, fqdn: getCapabilityFqdn(record) });
+        continue;
+      }
+    }
+
+    // 2. Fallback to MCP tool (from tool_schema via pml_registry)
+    results.push({ id: toolId, fqdn: `pml.mcp.${namespace}.${action}` });
+  }
+
+  return results;
 }
 
 /**
@@ -236,10 +302,14 @@ async function tryDagExecution(
       const clientTools = toolsUsed.filter((t) => getToolRouting(t) === "client");
 
       if (deps.isPackageClient) {
+        // Resolve tool IDs to FQDNs (user scope → public → pml.mcp)
+        const resolvedTools = await resolveToolFqdns(toolsUsed, deps);
+
         // Package can execute locally - return execute_locally response
         log.info("[Hybrid Routing] Returning execute_locally for client tools", {
           clientTools,
           totalTools: toolsUsed.length,
+          resolvedFqdns: resolvedTools.map((t) => t.fqdn),
         });
 
         return {
@@ -249,7 +319,7 @@ async function tryDagExecution(
               status: "execute_locally",
               code: request.code,
               dag: { tasks: optimizedDAG.tasks },
-              tools_used: toolsUsed,
+              tools_used: resolvedTools,
               client_tools: clientTools,
             }),
           }],

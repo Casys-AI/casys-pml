@@ -759,7 +759,7 @@ export class PMLGatewayServer {
 
     // Code execution
     if (name === "pml:execute_code") {
-      return await handleExecuteCode(args, this.getCodeExecutionDeps(isPackageClient));
+      return await handleExecuteCode(args, this.getCodeExecutionDeps(isPackageClient, userId));
     }
 
     // Search tools
@@ -908,8 +908,9 @@ export class PMLGatewayServer {
   /**
    * Get code execution handler dependencies
    * @param isPackageClient - True if request came from PML package (x-api-key auth)
+   * @param userId - User ID for multi-tenant FQDN resolution
    */
-  private getCodeExecutionDeps(isPackageClient?: boolean): CodeExecutionDependencies {
+  private getCodeExecutionDeps(isPackageClient?: boolean, userId?: string): CodeExecutionDependencies {
     return {
       vectorSearch: this.vectorSearch,
       graphEngine: this.graphEngine,
@@ -923,6 +924,7 @@ export class PMLGatewayServer {
       codeAnalyzer: this.codeAnalyzer ?? undefined, // Phase 3.2: DI
       isPackageClient, // Hybrid routing: determines execute_locally response
       capModule: this.pmlStdServer?.getCapModule(), // Story 13.5: cap_* tool routing
+      userId, // Multi-tenant: FQDN resolution for execute_locally
     };
   }
 

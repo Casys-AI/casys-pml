@@ -310,6 +310,7 @@ export type LoaderErrorCode =
   | "API_KEY_NOT_CONFIGURED" // Story 14.6: User aborted key configuration
   | "MODULE_IMPORT_FAILED"
   | "METHOD_NOT_FOUND"
+  | "INVALID_FQDN" // Invalid FQDN format (expected org.project.namespace.action)
   | "SUBPROCESS_SPAWN_FAILED"
   | "SUBPROCESS_CALL_FAILED"
   | "SUBPROCESS_TIMEOUT";

@@ -213,6 +213,8 @@ function formatApprovalRequired(
   approvalResult: ApprovalRequiredResult | IntegrityApprovalRequired,
   /** Original code for approvals (stored for re-execution) */
   originalCode?: string,
+  /** Server-resolved FQDNs for tools used in this code */
+  fqdnMap?: Record<string, string>,
 ): {
   content: Array<{ type: string; text: string }>;
 } {
@@ -225,6 +227,7 @@ function formatApprovalRequired(
     if (originalCode) {
       pendingWorkflowStore.setWithId(workflowId, originalCode, toolName, "api_key_required", {
         missingKeys: approvalResult.missingKeys,
+        fqdnMap,
       });
     }
 
@@ -263,6 +266,7 @@ function formatApprovalRequired(
           newHash: approvalResult.newHash,
           oldHash: approvalResult.oldHash,
         },
+        fqdnMap,
       });
     }
 
@@ -298,6 +302,7 @@ function formatApprovalRequired(
   if (originalCode) {
     pendingWorkflowStore.setWithId(workflowId, originalCode, toolName, "dependency", {
       dependency: approvalResult.dependency,
+      fqdnMap,
     });
   }
 
@@ -435,6 +440,7 @@ type LocalExecutionResult =
  * @param code - Code to execute in sandbox
  * @param loader - CapabilityLoader for client tool routing
  * @param cloudUrl - Cloud URL for server tool routing
+ * @param fqdnMap - Map of tool ID to FQDN (resolved by server for multi-tenant)
  * @param continueWorkflow - Optional: approval from previous HIL pause
  * @returns Execution result, error, or approval_required for HIL
  */
@@ -442,6 +448,7 @@ async function executeLocalCode(
   code: string,
   loader: CapabilityLoader | null,
   cloudUrl: string,
+  fqdnMap: Map<string, string>,
   continueWorkflow?: ContinueWorkflowParams,
 ): Promise<LocalExecutionResult> {
   const apiKey = Deno.env.get("PML_API_KEY");
@@ -465,9 +472,15 @@ async function executeLocalCode(
         if (!loader) {
           throw new Error("Capability loader not initialized for client tools");
         }
-        logDebug(`Local tool call: ${toolId}${continueWorkflow ? " (with continue_workflow)" : ""}`);
-        // Pass continueWorkflow to loader.call() for approval flow
-        const callResult = await loader.call(toolId, args, continueWorkflow);
+
+        // Use server-resolved FQDN (multi-tenant support)
+        const fqdn = fqdnMap.get(toolId);
+        if (!fqdn) {
+          throw new Error(`No FQDN resolved for tool ${toolId} - server should have provided it`);
+        }
+        logDebug(`Local tool call: ${toolId} → ${fqdn}${continueWorkflow ? " (with continue_workflow)" : ""}`);
+
+        const callResult = await loader.callWithFqdn(fqdn, args, continueWorkflow);
 
         // Check if it's an approval_required response (HIL pause)
         if (CapabilityLoader.isApprovalRequired(callResult)) {
@@ -521,6 +534,28 @@ async function executeLocalCode(
 }
 
 /**
+ * Resolved tool from server (id + FQDN).
+ */
+interface ResolvedTool {
+  /** Tool call name (e.g., "fs:listDirectory") */
+  id: string;
+  /** Fully qualified domain name (e.g., "alice.default.fs.listDirectory.a1b2") */
+  fqdn: string;
+}
+
+/**
+ * Parsed execute_locally response from server.
+ */
+interface ExecuteLocallyResponse {
+  status: string;
+  code: string;
+  client_tools: string[];
+  /** Resolved tools with FQDNs from server (multi-tenant) */
+  tools_used: ResolvedTool[];
+  workflowId?: string;
+}
+
+/**
  * Parse execute_locally response from server.
  *
  * @param content - Text content from MCP response
@@ -528,7 +563,7 @@ async function executeLocalCode(
  */
 function parseExecuteLocallyResponse(
   content: string,
-): { status: string; code: string; client_tools: string[]; workflowId?: string } | null {
+): ExecuteLocallyResponse | null {
   try {
     const parsed = JSON.parse(content);
     if (parsed.status === "execute_locally" && parsed.code) {
@@ -536,6 +571,7 @@ function parseExecuteLocallyResponse(
         status: parsed.status,
         code: parsed.code,
         client_tools: parsed.client_tools ?? parsed.clientTools ?? [],
+        tools_used: parsed.tools_used ?? [],
         workflowId: parsed.workflowId ?? parsed.workflow_id,
       };
     }
@@ -633,10 +669,15 @@ async function handleToolsCall(
             break;
         }
 
+        // Restore fqdnMap from stored workflow (server resolved these during initial request)
+        const storedFqdnMap = new Map<string, string>(
+          Object.entries(pendingWorkflow.fqdnMap ?? {}),
+        );
         const localResult = await executeLocalCode(
           pendingWorkflow.code,
           loader,
           cloudUrl,
+          storedFqdnMap,
           { approved: true, workflowId: execContinueWorkflow.workflowId },
         );
 
@@ -648,7 +689,12 @@ async function handleToolsCall(
           sendResponse({
             jsonrpc: "2.0",
             id,
-            result: formatApprovalRequired(localResult.toolId, localResult.approval, pendingWorkflow.code),
+            result: formatApprovalRequired(
+              localResult.toolId,
+              localResult.approval,
+              pendingWorkflow.code,
+              pendingWorkflow.fqdnMap,  // Pass stored FQDNs for next approval
+            ),
           });
           return;
         }
@@ -716,10 +762,18 @@ async function handleToolsCall(
           `execute_locally received - client tools: ${executeLocally.client_tools.join(", ")}`,
         );
 
+        // Create FQDN map from server-resolved tools
+        const fqdnMap = new Map<string, string>();
+        for (const tool of executeLocally.tools_used) {
+          fqdnMap.set(tool.id, tool.fqdn);
+        }
+        logDebug(`FQDN map: ${JSON.stringify(Object.fromEntries(fqdnMap))}`);
+
         const localResult = await executeLocalCode(
           executeLocally.code,
           loader,
           cloudUrl,
+          fqdnMap,
           execContinueWorkflow, // Pass continue_workflow for HIL approval
         );
 
@@ -731,8 +785,13 @@ async function handleToolsCall(
           sendResponse({
             jsonrpc: "2.0",
             id,
-            // Pass original code for storage in pending workflow store
-            result: formatApprovalRequired(localResult.toolId, localResult.approval, executeLocally.code),
+            // Pass original code and FQDNs for storage in pending workflow store
+            result: formatApprovalRequired(
+              localResult.toolId,
+              localResult.approval,
+              executeLocally.code,
+              Object.fromEntries(fqdnMap),  // Convert Map to Record for storage
+            ),
           });
           return;
         }

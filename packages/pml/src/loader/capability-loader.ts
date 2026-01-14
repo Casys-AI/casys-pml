@@ -465,6 +465,195 @@ export class CapabilityLoader {
   }
 
   /**
+   * Call a capability using its fully-qualified domain name.
+   *
+   * Use this when the server has resolved the FQDN (e.g., from execute_locally response).
+   * Skips local FQDN construction - uses server-provided FQDN directly.
+   *
+   * @param fqdn - Full FQDN (e.g., "alice.default.fs.listDirectory")
+   * @param args - Tool arguments
+   * @param continueWorkflow - Optional: approval from previous call
+   * @returns Tool result or ApprovalRequiredResult
+   */
+  async callWithFqdn(
+    fqdn: string,
+    args: unknown,
+    continueWorkflow?: ContinueWorkflowParams,
+  ): Promise<unknown | ApprovalRequiredResult | IntegrityApprovalRequired> {
+    // Extract action from FQDN: org.project.namespace.action[.hash]
+    const parts = fqdn.split(".");
+    if (parts.length < 4) {
+      throw new LoaderError(
+        "INVALID_FQDN",
+        `Invalid FQDN format: ${fqdn} (expected org.project.namespace.action)`,
+        { fqdn },
+      );
+    }
+    const action = parts[3]; // 4th segment is the action
+
+    // Load capability by FQDN
+    const loadResult = await this.loadByFqdn(fqdn, continueWorkflow);
+
+    if (CapabilityLoader.isApprovalRequired(loadResult)) {
+      return loadResult;
+    }
+
+    return loadResult.call(action, args);
+  }
+
+  /**
+   * Load a capability by its fully-qualified domain name.
+   *
+   * Unlike load(), this skips FQDN construction and integrity checking
+   * (the server already resolved and validated the FQDN).
+   *
+   * @param fqdn - Full FQDN (e.g., "alice.default.fs.listDirectory")
+   * @param continueWorkflow - Optional: approval from previous call
+   * @returns Loaded capability or approval required result
+   */
+  private async loadByFqdn(
+    fqdn: string,
+    continueWorkflow?: ContinueWorkflowParams,
+  ): Promise<LoadedCapability | ApprovalRequiredResult | IntegrityApprovalRequired> {
+    // Check cache (using FQDN as key)
+    const cached = this.loadedCapabilities.get(fqdn);
+    if (cached) {
+      logDebug(`Capability cache hit (FQDN): ${fqdn}`);
+      return cached;
+    }
+
+    logDebug(`Loading capability by FQDN: ${fqdn}`);
+
+    // Fetch metadata directly by FQDN (no conversion, no integrity check)
+    // Server already resolved this FQDN, we trust it
+    const { metadata } = await this.registryClient.fetchByFqdn(fqdn);
+
+    // Check and install dependencies
+    const forceInstall = continueWorkflow?.approved === true;
+    const approvalResult = await this.ensureDependencies(metadata, forceInstall);
+
+    if (approvalResult) {
+      if (continueWorkflow?.approved === false) {
+        if (approvalResult.approvalType === "dependency") {
+          throw new LoaderError(
+            "DEPENDENCY_NOT_APPROVED",
+            `Dependency ${approvalResult.dependency.name} was not approved by user`,
+            { dep: approvalResult.dependency.name, version: approvalResult.dependency.version },
+          );
+        } else {
+          throw new LoaderError(
+            "API_KEY_NOT_CONFIGURED",
+            `Required API keys were not configured: ${approvalResult.missingKeys.join(", ")}`,
+            { missingKeys: approvalResult.missingKeys },
+          );
+        }
+      }
+      return approvalResult;
+    }
+
+    // Load capability code (for deno type)
+    let module: CapabilityModule | null = null;
+    let code: string | null = null;
+
+    if (metadata.type === "deno") {
+      if (!metadata.codeUrl) {
+        throw new LoaderError(
+          "MODULE_IMPORT_FAILED",
+          `Deno capability ${fqdn} missing codeUrl`,
+          { fqdn },
+        );
+      }
+
+      if (this.sandboxEnabled) {
+        const { code: fetchedCode } = await fetchCapabilityCode(metadata.codeUrl);
+        code = fetchedCode;
+        this.codeCache.set(fqdn, code);
+        logDebug(`Capability code cached for sandbox (FQDN): ${fqdn}`);
+      } else {
+        const { module: loadedModule } = await loadCapabilityModule(metadata.codeUrl);
+        module = loadedModule;
+      }
+    } else if (metadata.type === "stdio") {
+      logDebug(`Stdio capability loaded (FQDN): ${fqdn}`);
+    } else if (metadata.type === "http") {
+      logDebug(`HTTP capability loaded (FQDN): ${fqdn}`);
+    }
+
+    // Extract namespace from FQDN for stdio: org.project.namespace.action → namespace
+    const fqdnParts = fqdn.split(".");
+    const namespace = fqdnParts.length >= 3 ? fqdnParts[2] : fqdn;
+
+    // Build stdioDep for stdio types (same logic as load())
+    let stdioDep: McpDependency | null = null;
+
+    if (metadata.routing === "client" && metadata.type === "stdio") {
+      if (namespace === "std") {
+        stdioDep = {
+          name: "std",
+          type: "stdio" as const,
+          install: "",
+          version: "latest",
+          integrity: metadata.integrity ?? "",
+        };
+      } else if (metadata.install) {
+        stdioDep = {
+          name: namespace,
+          type: "stdio" as const,
+          install: `${metadata.install.command} ${metadata.install.args.join(" ")}`,
+          version: "latest",
+          integrity: metadata.integrity ?? "",
+          command: metadata.install.command,
+          args: metadata.install.args,
+          envRequired: metadata.install.envRequired,
+        };
+
+        if (!continueWorkflow?.approved) {
+          const stdioApproval = await this.ensureDependency(stdioDep, false);
+          if (stdioApproval) {
+            logDebug(`Stdio MCP ${fqdn} requires approval to install`);
+            return stdioApproval;
+          }
+        } else {
+          await this.ensureDependency(stdioDep, true);
+        }
+      }
+    }
+
+    // Create loaded capability
+    const loaded: LoadedCapability = {
+      meta: metadata,
+      module: module ?? {},
+      call: async (method: string, args: unknown) => {
+        if (metadata.type === "stdio") {
+          if (!stdioDep) {
+            throw new LoaderError(
+              "SUBPROCESS_SPAWN_FAILED",
+              `Stdio capability ${fqdn} missing install info`,
+              { fqdn },
+            );
+          }
+          return this.callStdio(stdioDep, namespace, method, args);
+        } else if (this.sandboxEnabled && code) {
+          return this.executeInSandbox(metadata, code, method, args);
+        } else if (module) {
+          return this.executeWithMcpRouting(metadata, module, method, args);
+        } else {
+          throw new LoaderError(
+            "METHOD_NOT_FOUND",
+            `No code or module available for ${fqdn}`,
+            { fqdn },
+          );
+        }
+      },
+    };
+
+    this.loadedCapabilities.set(fqdn, loaded);
+    logDebug(`Capability loaded (FQDN): ${fqdn}`);
+
+    return loaded;
+  }
+
+  /**
    * Ensure all dependencies are installed.
    *
    * Returns ApprovalRequiredResult if any dependency needs user approval
