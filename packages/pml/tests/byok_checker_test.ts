@@ -9,11 +9,11 @@ import { assertEquals, assertFalse } from "@std/assert";
 import {
   checkKeys,
   getKey,
-  getRequiredKeys,
-  getRequiredKeysForTool,
   isValidKeyValue,
-  TOOL_REQUIRED_KEYS,
 } from "../src/byok/mod.ts";
+
+// Note: getRequiredKeys, getRequiredKeysForTool, TOOL_REQUIRED_KEYS removed
+// API key requirements now come from registry metadata (envRequired)
 
 // ============================================================================
 // isValidKeyValue Tests (AC5)
@@ -163,57 +163,11 @@ Deno.test("checkKeys - AC4: multiple keys upfront", () => {
 });
 
 // ============================================================================
-// getRequiredKeysForTool Tests
+// DEPRECATED: getRequiredKeysForTool, getRequiredKeys, TOOL_REQUIRED_KEYS
 // ============================================================================
-
-Deno.test("getRequiredKeysForTool - known tool", () => {
-  const keys = getRequiredKeysForTool("tavily:search");
-  assertEquals(keys, ["TAVILY_API_KEY"]);
-});
-
-Deno.test("getRequiredKeysForTool - namespace fallback", () => {
-  // Tool not explicitly listed but namespace is
-  const keys = getRequiredKeysForTool("tavily:new_action");
-  assertEquals(keys, ["TAVILY_API_KEY"]);
-});
-
-Deno.test("getRequiredKeysForTool - unknown tool", () => {
-  const keys = getRequiredKeysForTool("unknown:tool");
-  assertEquals(keys, []);
-});
-
-Deno.test("getRequiredKeysForTool - local tool (no key needed)", () => {
-  const keys = getRequiredKeysForTool("math:sum");
-  assertEquals(keys, []);
-});
-
-// ============================================================================
-// getRequiredKeys Tests
-// ============================================================================
-
-Deno.test("getRequiredKeys - returns RequiredKey objects", () => {
-  const keys = getRequiredKeys("tavily:search");
-  assertEquals(keys.length, 1);
-  assertEquals(keys[0].name, "TAVILY_API_KEY");
-  assertEquals(keys[0].requiredBy, "tavily:search");
-});
-
-Deno.test("getRequiredKeys - empty for unknown tool", () => {
-  const keys = getRequiredKeys("filesystem:read_file");
-  assertEquals(keys, []);
-});
-
-// ============================================================================
-// TOOL_REQUIRED_KEYS mapping Tests
-// ============================================================================
-
-Deno.test("TOOL_REQUIRED_KEYS - contains expected mappings", () => {
-  // Verify a few key mappings exist
-  assertEquals(TOOL_REQUIRED_KEYS["tavily:search"], ["TAVILY_API_KEY"]);
-  assertEquals(TOOL_REQUIRED_KEYS["exa:search"], ["EXA_API_KEY"]);
-  assertEquals(TOOL_REQUIRED_KEYS["anthropic:message"], ["ANTHROPIC_API_KEY"]);
-  assertEquals(TOOL_REQUIRED_KEYS["openai:chat"], ["OPENAI_API_KEY"]);
-});
+// These tests have been removed as the hardcoded key-requirements mapping
+// is deprecated. API key requirements now come from registry metadata
+// (metadata.install.envRequired). See capability-loader.ts ensureDependency().
 
 // ============================================================================
 // getKey Tests

@@ -51,12 +51,10 @@ export { envFileExists, getKey, reloadEnv } from "./env-loader.ts";
 // Key checker
 export { checkKeys, isValidKeyValue } from "./key-checker.ts";
 
-// Key requirements mapping
-export {
-  getRequiredKeys,
-  getRequiredKeysForTool,
-  TOOL_REQUIRED_KEYS,
-} from "./key-requirements.ts";
+// Key requirements mapping - DEPRECATED
+// API key requirements now come from registry metadata (envRequired).
+// See: loader/capability-loader.ts ensureDependency()
+// The hardcoded mapping has been removed.
 
 // HIL integration
 export {

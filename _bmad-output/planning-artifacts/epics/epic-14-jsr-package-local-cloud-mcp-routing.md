@@ -783,6 +783,24 @@ server **And** see `lib/README.md` "Agent Tools & MCP Sampling" section
 > keys) rather than relying on MCP protocol relay. See `src/mcp/sampling/` for the stdio relay
 > implementation (works for stdio connections only).
 
+**Technical Note (2025-01-14) - Dynamic envRequired from Registry:**
+
+> API key requirements are now dynamic, fetched from registry metadata instead of hardcoded.
+>
+> **Server-side (`.mcp-servers.json`):**
+> - Use placeholders: `"EXA_API_KEY": "${EXA_API_KEY}"`
+> - `deriveEnvRequired()` returns all keys with placeholder syntax
+> - Registry returns `metadata.install.envRequired: ["EXA_API_KEY"]`
+>
+> **Client-side (PML package):**
+> - `CapabilityLoader.load()` fetches metadata from registry
+> - `metadata.install.envRequired` is copied to `stdioDep.envRequired`
+> - `ensureDependency()` checks these keys via `checkKeys()`
+> - If missing → returns `api_key_required` HIL pause
+>
+> **Deprecated:** `packages/pml/src/byok/key-requirements.ts` hardcoded mapping is deprecated.
+> Use registry metadata instead.
+
 ---
 
 ### Story 14.7: MCP Registry Endpoint with Multi-Type Support (Server-Side)
