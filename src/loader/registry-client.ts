@@ -342,6 +342,98 @@ export class RegistryClient {
   }
 
   /**
+   * Fetch capability metadata using a fully-qualified domain name.
+   *
+   * Unlike fetch(), this method does NOT convert the input - it uses the FQDN directly.
+   * Use this when you have a server-resolved FQDN (e.g., from execute_locally response).
+   *
+   * @param fqdn - Full FQDN (e.g., "alice.default.fs.listDirectory")
+   * @returns Metadata with cache info
+   */
+  async fetchByFqdn(fqdn: string): Promise<RegistryFetchResult> {
+    // Check cache first
+    const cached = this.cache.get(fqdn);
+    if (cached) {
+      cached.lastAccessed = new Date();
+      return {
+        metadata: cached.metadata,
+        fromCache: true,
+        fetchedAt: cached.fetchedAt,
+      };
+    }
+
+    // Fetch from registry
+    const url = `${this.cloudUrl}/api/registry/${fqdn}`;
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+      const headers: Record<string, string> = {
+        "Accept": "application/json",
+      };
+      if (this.apiKey) {
+        headers["x-api-key"] = this.apiKey;
+      }
+
+      const response = await fetch(url, {
+        method: "GET",
+        headers,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (response.status === 404) {
+        throw new LoaderError(
+          "METADATA_FETCH_FAILED",
+          `Capability not found: ${fqdn}`,
+          { url, status: 404 },
+        );
+      }
+
+      if (!response.ok) {
+        throw new LoaderError(
+          "METADATA_FETCH_FAILED",
+          `Registry error: ${response.status} ${response.statusText}`,
+          { url, status: response.status },
+        );
+      }
+
+      const data = await response.json();
+      const metadata = validateMetadata(data);
+      const now = new Date();
+
+      this.evictIfNeeded();
+      this.cache.set(fqdn, { metadata, fetchedAt: now, lastAccessed: now });
+
+      return {
+        metadata,
+        fromCache: false,
+        fetchedAt: now,
+      };
+    } catch (error) {
+      if (error instanceof LoaderError) {
+        throw error;
+      }
+
+      if (error instanceof DOMException && error.name === "AbortError") {
+        throw new LoaderError(
+          "METADATA_FETCH_FAILED",
+          `Registry request timed out after ${this.timeout}ms`,
+          { url, timeout: this.timeout },
+        );
+      }
+
+      throw new LoaderError(
+        "METADATA_FETCH_FAILED",
+        `Network error: ${error instanceof Error ? error.message : String(error)}`,
+        { url, error: String(error) },
+      );
+    }
+  }
+
+  /**
    * Get cached metadata if available (for offline mode).
    *
    * @param namespace - Tool namespace

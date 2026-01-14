@@ -161,3 +161,89 @@ Deno.test("RegistryClient - uses cache on second fetch", async () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+// =============================================================================
+// fetchByFqdn Tests (Story: FQDN resolution in execute_locally)
+// =============================================================================
+
+Deno.test("RegistryClient - fetchByFqdn uses FQDN directly (no conversion)", async () => {
+  const client = new RegistryClient({ cloudUrl: "https://pml.casys.ai" });
+  client.clearCache();
+
+  const validMetadata = {
+    fqdn: "alice.default.fs.listDirectory",
+    type: "deno",
+    codeUrl: "https://pml.casys.ai/mcp/alice.default.fs.listDirectory",
+    tools: ["fs:listDirectory"],
+    routing: "client",
+  };
+
+  let capturedUrl = "";
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    capturedUrl = input.toString();
+    return new Response(JSON.stringify(validMetadata), { status: 200 });
+  }) as typeof fetch;
+
+  try {
+    const result = await client.fetchByFqdn("alice.default.fs.listDirectory");
+    assertEquals(result.metadata.fqdn, "alice.default.fs.listDirectory");
+    // Verify FQDN was used directly (not converted)
+    assertEquals(capturedUrl.includes("alice.default.fs.listDirectory"), true);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+Deno.test("RegistryClient - fetchByFqdn handles 404", async () => {
+  const client = new RegistryClient({ cloudUrl: "https://pml.casys.ai" });
+  client.clearCache();
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    return new Response("Not found", { status: 404 });
+  };
+
+  try {
+    await client.fetchByFqdn("nonexistent.default.test.tool");
+    throw new Error("Should have thrown");
+  } catch (error) {
+    assertEquals(error instanceof LoaderError, true);
+    assertEquals((error as LoaderError).code, "METADATA_FETCH_FAILED");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+Deno.test("RegistryClient - fetchByFqdn uses cache", async () => {
+  const client = new RegistryClient({ cloudUrl: "https://pml.casys.ai" });
+  client.clearCache();
+
+  const validMetadata = {
+    fqdn: "bob.default.db.query",
+    type: "stdio",
+    tools: ["db:query"],
+    routing: "client",
+  };
+
+  let fetchCount = 0;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    fetchCount++;
+    return new Response(JSON.stringify(validMetadata), { status: 200 });
+  };
+
+  try {
+    // First fetch
+    const result1 = await client.fetchByFqdn("bob.default.db.query");
+    assertEquals(result1.fromCache, false);
+    assertEquals(fetchCount, 1);
+
+    // Second fetch should use cache
+    const result2 = await client.fetchByFqdn("bob.default.db.query");
+    assertEquals(result2.fromCache, true);
+    assertEquals(fetchCount, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
