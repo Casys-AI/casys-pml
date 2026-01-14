@@ -162,9 +162,9 @@ export class TraceSyncer {
       "Content-Type": "application/json",
     };
 
-    // Add API key if configured
+    // Add API key if configured (server expects x-api-key header)
     if (this.config.apiKey) {
-      headers["Authorization"] = `Bearer ${this.config.apiKey}`;
+      headers["x-api-key"] = this.config.apiKey;
     }
 
     const response = await fetch(url, {
