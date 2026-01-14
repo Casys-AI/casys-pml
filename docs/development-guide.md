@@ -1,6 +1,6 @@
 # Development Guide - Casys PML
 
-_Generated: 2025-12-31_
+_Updated: 2026-01-14_
 
 ## Prerequisites
 
@@ -290,4 +290,54 @@ deno task mcp
 deno task cli init
 deno task cli serve
 deno task cli status
+```
+
+---
+
+## packages/pml - Distributable CLI Package
+
+**Current Version: v0.2.5**
+
+The `packages/pml` directory contains the distributable PML CLI package published to JSR.
+
+### Installation
+
+```bash
+# Install from JSR
+deno install -A jsr:@casys/pml
+```
+
+### Features (v0.2.5)
+
+| Feature | Description |
+|---------|-------------|
+| Dynamic envRequired | API key requirements loaded from registry metadata |
+| ExecutionCaptureService | Client-routed capability creation |
+| ToolCallRecords | Trace tool calls for capability learning |
+| Sandbox Execution | Isolated TypeScript execution |
+
+### Package Structure
+
+```
+packages/pml/
+├── mod.ts                    # Entry point
+├── src/
+│   ├── cli/                  # CLI commands (init, serve, stdio)
+│   ├── loader/               # Capability loading
+│   ├── byok/                 # Bring-Your-Own-Keys
+│   ├── sandbox/              # Sandbox execution
+│   ├── tracing/              # Trace collection
+│   └── permissions/          # Permission management
+└── tests/                    # Package tests
+```
+
+### Development
+
+```bash
+# Run package tests
+cd packages/pml
+deno test --allow-all
+
+# Test CLI locally
+deno run -A mod.ts serve
 ```

@@ -1,15 +1,17 @@
 # Casys PML - Documentation
 
-_Updated: 2026-01-03_
+_Updated: 2026-01-14_
 
 **Procedural Memory Layer** — Une couche mémoire open source pour agents IA qui capture les workflows et les cristallise en compétences réutilisables.
 
 | Metric | Value |
 |--------|-------|
-| Source Files | 409 |
-| Test Files | 304 |
-| Documentation | 365+ files |
-| ADRs | 56 |
+| Source Files | 598 |
+| Test Files | 353 |
+| Lib Files | 96 |
+| Rust Files | 39 |
+| Migrations | 36 |
+| Islands | 23 |
 
 ---
 
@@ -98,6 +100,9 @@ _Updated: 2026-01-03_
 | [ADR-038](adrs/adr-038-active-search.md) | DR-DSP Hypergraph Pathfinding | Accepted |
 | [ADR-042](adrs/adr-042-unified-scoring.md) | SHGAT Capability Scoring | Accepted |
 | [ADR-043](adrs/adr-043-thompson-sampling.md) | Thompson Sampling Thresholds | Accepted |
+| [ADR-053](adrs/adr-053-adaptive-k-head.md) | Adaptive K-head Sizing | Accepted |
+| [ADR-054](adrs/adr-054-decision-logger.md) | IDecisionLogger Abstraction | Accepted |
+| [ADR-055](adrs/adr-055-shgat-preservedim.md) | SHGAT preserveDim Mode | Accepted |
 
 [→ All ADRs (56)](adrs/)
 
@@ -296,6 +301,54 @@ docs/
 
 ## Documents Generated
 
+### 2026-01-14 (284 commits)
+
+#### Epic 14: PML Package Distribution (v0.2.0 → v0.2.5)
+
+| Feature | Description |
+|---------|-------------|
+| **JSR Publishing** | @casys/pml et @casys/mcp-std sur JSR |
+| **Hybrid Routing** | Mode client/server avec session management |
+| **BYOK** | Bring Your Own API Key support |
+| **Stdio Command** | Intégration Claude Code via stdio |
+| **Lockfile Integrity** | Validation d'intégrité des dépendances |
+
+#### Epic 15: CasysDB Native Engine
+
+| Feature | Description |
+|---------|-------------|
+| **Rust Engine** | Moteur graph natif (crates/casys_*) |
+| **ISO GQL** | MATCH, CREATE, WHERE, RETURN support |
+| **Multi-SDK** | Python (PyO3) + TypeScript (NAPI-RS) bindings |
+
+#### Clean Architecture Phase 3
+
+| Change | Description |
+|--------|-------------|
+| **Use Cases** | execute, discover, capabilities, workflows |
+| **DI Adapters** | Algorithm injection patterns |
+| **Legacy Removal** | -2598 lignes (execute-handler.ts) |
+| **New Services** | DiscoverHandlerFacade, PostExecutionService, ExecutionCaptureService |
+
+#### lib/shgat Extraction
+
+| Feature | Description |
+|---------|-------------|
+| **Standalone Library** | Extrait dans lib/shgat/ |
+| **16 K-heads** | Adaptive sizing based on graph |
+| **BLAS Optimization** | Backward pass optimizations |
+| **PER Training** | Prioritized Experience Replay |
+| **V→V Co-occurrence** | Message passing from n8n patterns |
+
+#### Infrastructure
+
+| Change | Description |
+|--------|-------------|
+| **Gateway** | RequestQueue, periodic metrics |
+| **Monitoring** | OTEL native, IDecisionLogger |
+| **Logging** | Promtail → Alloy migration |
+| **Multi-tenant** | Migration 039, user context propagation |
+
 ### 2026-01-03
 
 | Document | Description |
@@ -313,3 +366,43 @@ docs/
 | `glossary.md` | Glossaire (60+ termes) |
 | `troubleshooting.md` | Guide de dépannage |
 | `index.md` | Cet index |
+
+---
+
+## Documentation Verification (2026-01-14)
+
+All recent ADRs, tech specs, and spikes have been verified against the actual implementation.
+
+### ADRs Verified (11 ADRs)
+
+| ADR | Status | Implementation |
+|-----|--------|----------------|
+| ADR-053 | IMPLEMENTED | Subprocess training + PER buffer |
+| ADR-054 | IMPLEMENTED | IDecisionLogger Clean Architecture |
+| ADR-055 | IMPLEMENTED | PreserveDim 1024 with residual 0.3 |
+| ADR-056 | IMPLEMENTED | InfoNCE temperature annealing |
+| ADR-057 | IMPLEMENTED | Message passing backward training |
+| ADR-058 | IMPLEMENTED | BLAS FFI with JS fallback |
+| ADR-059 | IMPLEMENTED | Hybrid routing server→client |
+| ADR-060 | IMPLEMENTED | Hard negative mining curriculum |
+| ADR-061 | IMPLEMENTED | Output schema inference |
+| ADR-062 | IMPLEMENTED | Client-server workflow separation |
+| ADR-063 | IMPLEMENTED | Open source distribution |
+
+### Tech Specs Verified
+
+| Tech Spec | Status | Notes |
+|-----------|--------|-------|
+| user-fqdn-multi-tenant | IMPLEMENTED | Migration 039 complete, 7 tables |
+| user-fk-refactor | IMPLEMENTED | UUID FK with ON DELETE SET NULL |
+
+### Spikes Verified
+
+| Spike | Status | Notes |
+|-------|--------|-------|
+| client-routed-capability-creation | IMPLEMENTED | ExecutionCaptureService + TraceSyncer |
+
+### Minor Discrepancies (Non-Blocking)
+
+- ADR-058: Training defaults tuned (epochs 20→25, batchSize 64→32) - improvement
+- DEFAULT_SCOPE defined in multiple files (consolidation possible)

@@ -1,16 +1,19 @@
 # Source Tree Analysis - Casys PML
 
-_Generated: 2025-12-31_
+_Updated: 2026-01-14_
 
 ## Overview
 
 | Metric | Value |
 |--------|-------|
-| Source Files (src/) | 409 |
-| Library Files (lib/) | 47 |
-| Test Files (tests/) | 304 |
-| Total Lines of Code | ~45,000 |
-| Modules | 27 |
+| Source Files (src/) | 598 |
+| Library Files (lib/) | 96 |
+| Test Files (tests/) | 353 |
+| Rust Files (crates/) | 39 |
+| Migrations | 36 |
+| Islands | 23 |
+| Total Lines of Code | ~55,000 |
+| Modules | ~35 |
 
 ---
 
@@ -22,8 +25,18 @@ casys-pml/
 ├── src/
 │   ├── main.ts                     # 🚀 CLI entry point (Cliffy)
 │   │
-│   ├── application/                # 🎯 Use Cases (Clean Architecture)
+│   ├── application/                # 🎯 Use Cases (Clean Architecture Phase 3)
+│   │   ├── services/               # Application Services (NEW)
+│   │   │   ├── execution-capture.service.ts  # Capability creation from traces
+│   │   │   ├── post-execution.service.ts     # Learning tasks after execution
+│   │   │   └── mod.ts
 │   │   └── use-cases/
+│   │       ├── execute/            # Execute use cases (NEW structure)
+│   │       │   ├── execute-direct.use-case.ts
+│   │       │   ├── execute-workflow.use-case.ts
+│   │       │   └── shared/         # Shared execution utilities
+│   │       ├── discover/           # Discovery use cases (NEW)
+│   │       │   └── discover-tools.use-case.ts
 │   │       ├── workflows/          # Workflow execution use cases
 │   │       ├── code/               # Code execution use cases
 │   │       ├── capabilities/       # Capability management
@@ -128,7 +141,7 @@ casys-pml/
 │   │   ├── client.ts               # Database client (PGlite/Postgres)
 │   │   ├── types.ts                # Database types
 │   │   ├── migrations.ts           # Migration runner
-│   │   ├── migrations/             # 32 migration files
+│   │   ├── migrations/             # 36 migration files
 │   │   └── schema/                 # Drizzle schemas
 │   │       ├── mod.ts              # Schema exports
 │   │       └── users.ts            # User schema
@@ -161,7 +174,7 @@ casys-pml/
 │   │   │   ├── docs/               # Documentation routes
 │   │   │   ├── blog/               # Blog routes
 │   │   │   └── og/                 # Open Graph images
-│   │   ├── islands/                # 🏝️ Preact Islands (19)
+│   │   ├── islands/                # 🏝️ Preact Islands (23)
 │   │   │   ├── AdminDashboardIsland.tsx
 │   │   │   ├── CytoscapeGraph.tsx
 │   │   │   ├── D3GraphVisualization.tsx
@@ -243,11 +256,70 @@ casys-pml/
 │   └── lib/                        # 📚 Internal Libraries
 │       └── mod.ts                  # Library exports
 │
-├── lib/                            # 📦 External Libraries
-│   ├── std/                        # Standard library extensions
-│   │   ├── cap.ts                  # Capability helpers
-│   │   └── build.ts                # Build script
-│   └── mcp-tools-server.ts         # MCP tools server
+├── lib/                            # 📦 External Libraries (96 files)
+│   ├── shgat/                      # 🧠 SHGAT Standalone Library (NEW)
+│   │   ├── mod.ts                  # Entry point
+│   │   └── src/
+│   │       ├── attention/          # Attention mechanisms
+│   │       │   ├── khead-scorer.ts # K-head attention scorer
+│   │       │   ├── multi-level-scorer.ts
+│   │       │   └── v1-scorer.ts
+│   │       ├── core/               # Core SHGAT logic
+│   │       │   ├── shgat.ts        # Main SHGAT class
+│   │       │   ├── factory.ts      # Algorithm factory
+│   │       │   ├── forward-helpers.ts
+│   │       │   ├── scoring-helpers.ts
+│   │       │   ├── serialization.ts
+│   │       │   └── types.ts
+│   │       ├── graph/              # Graph builders
+│   │       ├── initialization/     # Parameter init
+│   │       ├── message-passing/    # V→V, V→E, E→V, E→E
+│   │       ├── training/           # PER, BLAS, curriculum
+│   │       └── utils/              # BLAS FFI, math
+│   │
+│   ├── server/                     # @casys/mcp-server (JSR)
+│   │   ├── mod.ts                  # Server entry
+│   │   ├── server.ts               # MCP server implementation
+│   │   ├── types.ts                # Server types
+│   │   └── rate-limiter.ts         # Rate limiting
+│   │
+│   └── std/                        # @casys/mcp-std (JSR)
+│       ├── mod.ts                  # Entry point
+│       ├── tools/                  # 120+ tools (cap, fs, git, db...)
+│       ├── agent/                  # Agent tools
+│       └── build.ts                # Binary build script
+│
+├── crates/                         # 🦀 CasysDB Rust Engine (NEW - Epic 15)
+│   ├── casys_core/                 # Core types & traits
+│   │   └── src/lib.rs
+│   ├── casys_engine/               # Main engine
+│   │   └── src/
+│   │       ├── ann/                # ANN index
+│   │       ├── exec/               # Query execution
+│   │       ├── gds/                # Graph data structures
+│   │       ├── index/              # Indexing
+│   │       ├── storage/            # Storage abstraction
+│   │       └── txn/                # Transactions
+│   ├── casys_storage_fs/           # Filesystem storage
+│   ├── casys_storage_mem/          # In-memory storage
+│   ├── casys_storage_pg/           # PostgreSQL storage
+│   ├── casys_storage_redis/        # Redis storage
+│   ├── casys_storage_s3/           # S3 storage
+│   ├── casys_napi/                 # Node.js bindings (NAPI-RS)
+│   └── casys_pyo3/                 # Python bindings (PyO3)
+│
+├── packages/                       # 📦 Monorepo Packages
+│   └── pml/                        # @casys/pml CLI (v0.2.5)
+│       ├── mod.ts                  # Entry point
+│       └── src/
+│           ├── cli/                # init, serve, stdio commands
+│           ├── loader/             # Capability loading
+│           ├── byok/               # Bring Your Own Key
+│           ├── sandbox/            # Sandbox execution
+│           ├── routing/            # Hybrid routing
+│           ├── tracing/            # Trace collection
+│           ├── permissions/        # Permission management
+│           └── lockfile/           # Integrity validation
 │
 ├── tests/                          # 🧪 Test Suite
 │   ├── unit/                       # Unit tests (by module)
@@ -262,7 +334,7 @@ casys-pml/
 ├── drizzle/                        # 🗄️ Drizzle Output
 │   └── migrations/                 # Generated migrations
 │
-├── docs/                           # 📖 Documentation (365 files)
+├── docs/                           # 📖 Documentation
 │   ├── architecture/               # Architecture docs
 │   ├── adrs/                       # ADRs (56)
 │   ├── sprint-artifacts/           # Sprint artifacts (110)

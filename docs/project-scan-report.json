@@ -2,10 +2,10 @@
   "workflow_version": "1.2.0",
   "timestamps": {
     "started": "2025-12-31T10:00:00Z",
-    "last_updated": "2025-12-31T11:30:00Z",
-    "completed": "2025-12-31T11:30:00Z"
+    "last_updated": "2026-01-14T12:00:00Z",
+    "completed": "2026-01-14T12:00:00Z"
   },
-  "mode": "full_rescan",
+  "mode": "incremental_update",
   "scan_level": "exhaustive",
   "status": "completed",
   "project_root": "/home/ubuntu/CascadeProjects/AgentCards",
@@ -91,16 +91,88 @@
       "module_count": 27
     },
     "metrics": {
-      "source_files": 409,
-      "test_files": 304,
-      "lib_files": 47,
-      "total_lines": 45000,
-      "documentation_files": 365,
+      "source_files": 598,
+      "test_files": 353,
+      "lib_files": 96,
+      "rust_files": 39,
+      "total_lines": 55000,
+      "documentation_files": 68,
       "adrs": 56,
       "tech_specs": 56,
       "spikes": 37,
-      "migrations": 32,
-      "islands": 19
+      "migrations": 36,
+      "islands": 23
+    },
+    "recent_changes": {
+      "date": "2026-01-14",
+      "commits_since_last_scan": 284,
+      "summary": "Major release: Epic 14 (PML distribution), Epic 15 (CasysDB), Clean Architecture Phase 3",
+      "epics_completed": {
+        "epic_14": {
+          "name": "PML Package Distribution",
+          "version": "v0.2.0 → v0.2.5",
+          "features": [
+            "Binary distribution via JSR (@casys/pml, @casys/mcp-std)",
+            "Hybrid routing (client/server mode)",
+            "BYOK (Bring Your Own API Key)",
+            "Stdio command for Claude Code integration",
+            "Session management with workspace/.pml/",
+            "Lockfile integrity validation",
+            "Dynamic envRequired from registry metadata"
+          ]
+        },
+        "epic_15": {
+          "name": "CasysDB Native Engine",
+          "features": [
+            "Rust native graph database engine (crates/casys_*)",
+            "ISO GQL support (MATCH, CREATE, WHERE, RETURN)",
+            "Hexagonal architecture with swappable storage adapters",
+            "Python + TypeScript SDK bindings (PyO3, NAPI-RS)"
+          ]
+        },
+        "epic_12": {
+          "name": "Exploratory Capabilities",
+          "features": [
+            "Dry-run and world model capabilities"
+          ]
+        }
+      },
+      "architecture_changes": {
+        "clean_architecture_phase_3": [
+          "Use cases extraction (execute, discover, capabilities, workflows)",
+          "DI adapters with algorithm injection",
+          "Removed 2598-line legacy execute-handler.ts",
+          "DiscoverHandlerFacade, PostExecutionService, ExecutionCaptureService"
+        ],
+        "lib_shgat_extraction": [
+          "Extracted to standalone library (lib/shgat/)",
+          "16 K-heads with adaptive sizing based on graph size",
+          "BLAS optimization for backward pass",
+          "PER (Prioritized Experience Replay) training",
+          "V→V co-occurrence message passing from n8n patterns",
+          "Curriculum learning and evaluateOnly mode"
+        ],
+        "multi_tenant_system": [
+          "Migration 039: user_fqdn_multi_tenant.ts (742 lines)",
+          "User context propagation through execute pipeline",
+          "FQDN generation for capability namespacing",
+          "Whitelist support for multi-tenant auth"
+        ]
+      },
+      "infrastructure_changes": [
+        "Gateway: RequestQueue concurrency control, periodic metrics logging",
+        "Server: JSON Schema validation with ajv, rate limiting",
+        "Monitoring: OTEL native support, IDecisionLogger abstraction",
+        "Logging: Promtail → Alloy migration",
+        "CI/CD: JSR auto-publish workflows for @casys/pml and @casys/mcp-std"
+      ],
+      "ui_changes": [
+        "MCP Catalog page with atomic design",
+        "Server catalog with detail pages",
+        "CapabilityTaskCard for trace visualization",
+        "SSE reconnection improvements",
+        "Loop visualization and iteration counting"
+      ]
     },
     "core_subsystems": [
       "MCP Gateway (handlers, connections, registry)",
@@ -132,5 +204,42 @@
     "development-guide.md",
     "glossary.md",
     "troubleshooting.md"
-  ]
+  ],
+  "architecture_docs_updated": [
+    "architecture/index.md",
+    "architecture/security-architecture.md",
+    "architecture/deployment-architecture.md",
+    "architecture/technology-stack-details.md",
+    "architecture/data-architecture.md",
+    "architecture/ml-pipeline-architecture.md",
+    "architecture/patterns/07-shgat-architecture.md"
+  ],
+  "verification_report": {
+    "date": "2026-01-14",
+    "status": "ALL_VERIFIED",
+    "adrs_verified": {
+      "ADR-053": "IMPLEMENTED - Subprocess training with PER buffer",
+      "ADR-054": "IMPLEMENTED - IDecisionLogger Clean Architecture",
+      "ADR-055": "IMPLEMENTED - PreserveDim 1024 with residual 0.3",
+      "ADR-056": "IMPLEMENTED - InfoNCE with temperature annealing",
+      "ADR-057": "IMPLEMENTED - Message passing backward training",
+      "ADR-058": "IMPLEMENTED - BLAS FFI with JS fallback",
+      "ADR-059": "IMPLEMENTED - Hybrid routing server analysis",
+      "ADR-060": "IMPLEMENTED - Hard negative mining curriculum",
+      "ADR-061": "IMPLEMENTED - Output schema inference 3 phases",
+      "ADR-062": "IMPLEMENTED - Client-server workflow separation",
+      "ADR-063": "IMPLEMENTED - Open source distribution workflows"
+    },
+    "tech_specs_verified": {
+      "user-fqdn-multi-tenant": "IMPLEMENTED - Migration 039 complete",
+      "user-fk-refactor": "IMPLEMENTED - 7 tables converted to UUID FK"
+    },
+    "spikes_verified": {
+      "client-routed-capability-creation": "IMPLEMENTED - ExecutionCaptureService complete"
+    },
+    "minor_discrepancies": [
+      "ADR-058: epochs tuned 20→25, batchSize 64→32 (improvement)",
+      "DEFAULT_SCOPE defined in multiple files (consolidation possible)"
+    ]
+  }
 }
