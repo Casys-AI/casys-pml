@@ -44,14 +44,14 @@ import {
 // Note: getRequiredKeys removed - now using metadata.install.envRequired from registry
 import { LockfileManager } from "../lockfile/mod.ts";
 import type { IntegrityApprovalRequired } from "../lockfile/types.ts";
-import * as log from "@std/log";
+import { loaderLog } from "../logging.ts";
 
 /**
  * Log debug message for loader operations.
  * Automatically sanitizes messages to prevent API key exposure.
  */
 function logDebug(message: string): void {
-  log.debug(`[pml:loader] ${sanitize(message)}`);
+  loaderLog.debug(sanitize(message));
 }
 
 /**
@@ -734,13 +734,14 @@ export class CapabilityLoader {
       return null;
     }
 
-    logDebug(`Dependency ${dep.name}@${dep.version} needs installation`);
+    loaderLog.step(`Dependency ${dep.name}@${dep.version} needs installation`);
 
     // Build toolId if not provided (for backwards compatibility)
     const effectiveToolId = toolId ?? `${dep.name}:*`;
 
     // Check permission for this tool/dependency
     const permission = checkPermission(effectiveToolId, this.permissions);
+    loaderLog.debug(`Permission check: ${effectiveToolId} → ${permission}`);
 
     if (permission === "denied") {
       throw new LoaderError(
@@ -770,7 +771,7 @@ export class CapabilityLoader {
     }
 
     // Permission is "ask" - return unified tool_permission approval
-    logDebug(`Tool ${effectiveToolId} requires approval (will install ${dep.name}@${dep.version})`);
+    loaderLog.info(`⏸ APPROVAL_REQUIRED: ${effectiveToolId} (install ${dep.name}@${dep.version})`);
     return {
       approvalRequired: true,
       approvalType: "tool_permission",

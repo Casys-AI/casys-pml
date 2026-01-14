@@ -38,6 +38,7 @@ import type { ToolCallRecord } from "../execution/types.ts";
 import { exists } from "@std/fs";
 import { join } from "@std/path";
 import { reloadEnv } from "../byok/env-loader.ts";
+import { stdioLog } from "../logging.ts";
 
 /** Package version for registration */
 const PACKAGE_VERSION = "0.2.0";
@@ -60,15 +61,6 @@ const silentLogger = {
   info: () => {},
   warn: () => {},
 };
-
-/**
- * Log to stderr (doesn't interfere with stdio JSON-RPC)
- */
-function logDebug(message: string): void {
-  if (Deno.env.get("PML_DEBUG") === "1") {
-    console.error(`[pml] ${message}`);
-  }
-}
 
 /**
  * Send JSON-RPC response to stdout
@@ -525,13 +517,13 @@ async function executeLocalCode(
         if (!fqdn) {
           throw new Error(`No FQDN resolved for tool ${toolId} - server should have provided it`);
         }
-        logDebug(`Local tool call: ${toolId} → ${fqdn}${continueWorkflow ? " (with continue_workflow)" : ""}`);
+        stdioLog.debug(`Local tool call: ${toolId} → ${fqdn}${continueWorkflow ? " (with continue_workflow)" : ""}`);
 
         const callResult = await loader.callWithFqdn(fqdn, args, continueWorkflow);
 
         // Check if it's an approval_required response (HIL pause)
         if (CapabilityLoader.isApprovalRequired(callResult)) {
-          logDebug(`Tool ${toolId} requires approval - pausing for HIL`);
+          stdioLog.debug(`Tool ${toolId} requires approval - pausing for HIL`);
           // Store the approval and throw to stop sandbox execution
           state.pendingApproval = { approval: callResult, toolId };
           throw new Error(`__APPROVAL_REQUIRED__:${toolId}`);
@@ -659,7 +651,7 @@ async function handleToolsCall(
       extractContinueWorkflow(args);
 
     if (execContinueWorkflow) {
-      logDebug(`pml:execute with continue_workflow: approved=${execContinueWorkflow.approved}`);
+      stdioLog.debug(`pml:execute with continue_workflow: approved=${execContinueWorkflow.approved}`);
 
       // Check if this is a LOCAL workflow (stored in our pending store)
       // If so, handle it locally instead of forwarding to cloud
@@ -668,7 +660,7 @@ async function handleToolsCall(
         : null;
 
       if (pendingWorkflow) {
-        logDebug(`Found local pending workflow: ${execContinueWorkflow.workflowId}`);
+        stdioLog.debug(`Found local pending workflow: ${execContinueWorkflow.workflowId}`);
 
         if (!execContinueWorkflow.approved) {
           // User rejected - clean up and return
@@ -692,35 +684,35 @@ async function handleToolsCall(
         }
 
         // User approved - perform pre-continuation actions based on approval type
-        logDebug(`Re-executing code after approval for: ${pendingWorkflow.approvalType}`);
+        stdioLog.debug(`Re-executing code after approval for: ${pendingWorkflow.approvalType}`);
 
         // Pre-continuation actions for each approval type
         switch (pendingWorkflow.approvalType) {
           case "tool_permission":
             // User approved tool - add to session's approved set
             if (loader && pendingWorkflow.toolId) {
-              logDebug(`Approving tool for session: ${pendingWorkflow.toolId}`);
+              stdioLog.debug(`Approving tool for session: ${pendingWorkflow.toolId}`);
               loader.approveToolForSession(pendingWorkflow.toolId);
             }
             break;
 
           case "api_key_required":
             // Reload environment variables from .env (user added keys there)
-            logDebug(`Reloading environment for API key approval`);
+            stdioLog.debug(`Reloading environment for API key approval`);
             await reloadEnv(workspace);
             break;
 
           case "integrity":
             // Update lockfile with new hash (user approved the integrity change)
             if (lockfileManager && pendingWorkflow.integrityInfo) {
-              logDebug(`Approving integrity update: ${pendingWorkflow.integrityInfo.fqdnBase}`);
+              stdioLog.debug(`Approving integrity update: ${pendingWorkflow.integrityInfo.fqdnBase}`);
               // The lockfile update happens in the loader when approved: true is passed
             }
             break;
 
           case "dependency":
             // Dependency installation happens in the loader when approved: true is passed
-            logDebug(`Proceeding with dependency installation`);
+            stdioLog.debug(`Proceeding with dependency installation`);
             break;
         }
 
@@ -813,7 +805,7 @@ async function handleToolsCall(
 
       if (executeLocally) {
         // Server says execute locally - code contains client tools
-        logDebug(
+        stdioLog.debug(
           `execute_locally received - client tools: ${executeLocally.client_tools.join(", ")}`,
         );
 
@@ -822,7 +814,7 @@ async function handleToolsCall(
         for (const tool of executeLocally.tools_used) {
           fqdnMap.set(tool.id, tool.fqdn);
         }
-        logDebug(`FQDN map: ${JSON.stringify(Object.fromEntries(fqdnMap))}`);
+        stdioLog.debug(`FQDN map: ${JSON.stringify(Object.fromEntries(fqdnMap))}`);
 
         const localResult = await executeLocalCode(
           executeLocally.code,
@@ -834,7 +826,7 @@ async function handleToolsCall(
 
         // Handle approval_required (HIL pause for dependency/API key/integrity)
         if (localResult.status === "approval_required") {
-          logDebug(
+          stdioLog.debug(
             `Local execution paused - tool ${localResult.toolId} requires approval`,
           );
           sendResponse({
@@ -892,7 +884,7 @@ async function handleToolsCall(
             timestamp: new Date().toISOString(),
           };
           traceSyncer.enqueue(trace);
-          logDebug(`Trace queued for capability finalization: ${executeLocally.workflowId}`);
+          stdioLog.debug(`Trace queued for capability finalization: ${executeLocally.workflowId}`);
         }
 
         // Return successful local execution result
@@ -926,7 +918,7 @@ async function handleToolsCall(
 
   // Check routing
   const routing = resolveToolRouting(name);
-  logDebug(
+  stdioLog.debug(
     `Tool ${name} → ${routing}${
       continueWorkflow ? ` (continue: ${continueWorkflow.approved})` : ""
     }`,
@@ -947,19 +939,19 @@ async function handleToolsCall(
       if (CapabilityLoader.isApprovalRequired(result)) {
         // Handle all approval types: tool_permission, dependency, API key, integrity
         if (result.approvalType === "tool_permission") {
-          logDebug(
+          stdioLog.debug(
             `Tool ${name} requires permission: ${result.toolId}${result.needsInstallation ? " (will install)" : ""}`,
           );
         } else if (result.approvalType === "api_key_required") {
-          logDebug(
+          stdioLog.debug(
             `Tool ${name} requires API keys: ${result.missingKeys.join(", ")}`,
           );
         } else if (result.approvalType === "integrity") {
-          logDebug(
+          stdioLog.debug(
             `Tool ${name} requires integrity approval: ${result.fqdnBase} (${result.oldHash} → ${result.newHash})`,
           );
         } else if (result.approvalType === "dependency") {
-          logDebug(
+          stdioLog.debug(
             `Tool ${name} requires approval for dependency: ${result.dependency.name}`,
           );
         }
@@ -988,7 +980,7 @@ async function handleToolsCall(
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      logDebug(`Tool error: ${message}`);
+      stdioLog.debug(`Tool error: ${message}`);
       sendError(id, -32603, `Tool execution failed: ${message}`);
     }
     return;
@@ -1076,7 +1068,7 @@ async function processRequest(
   const method = request.method;
   const params = request.params as Record<string, unknown> | undefined;
 
-  logDebug(`← ${method}`);
+  stdioLog.debug(`← ${method}`);
 
   switch (method) {
     case "initialize":
@@ -1156,10 +1148,10 @@ export function createStdioCommand(): Command<any> {
         try {
           await reloadEnv(workspace);
           if (Deno.env.get("PML_API_KEY")) {
-            logDebug(`Loaded PML_API_KEY from workspace .env`);
+            stdioLog.debug(`Loaded PML_API_KEY from workspace .env`);
           }
         } catch (error) {
-          logDebug(`Failed to load .env: ${error}`);
+          stdioLog.debug(`Failed to load .env: ${error}`);
         }
       }
 
@@ -1175,7 +1167,7 @@ export function createStdioCommand(): Command<any> {
       }
 
       if (!isValidWorkspace(workspace)) {
-        logDebug(`Invalid workspace: ${workspace}`);
+        stdioLog.debug(`Invalid workspace: ${workspace}`);
         Deno.exit(1);
       }
 
@@ -1196,7 +1188,7 @@ export function createStdioCommand(): Command<any> {
           const content = await Deno.readTextFile(configPath);
           config = { ...defaultConfig, ...JSON.parse(content) };
         } catch (error) {
-          logDebug(`Failed to load config: ${error}`);
+          stdioLog.debug(`Failed to load config: ${error}`);
         }
       }
 
@@ -1224,20 +1216,20 @@ export function createStdioCommand(): Command<any> {
           workspace,
         });
         await sessionClient.register();
-        logDebug(`Session registered: ${sessionClient.sessionId?.slice(0, 8)}`);
+        stdioLog.debug(`Session registered: ${sessionClient.sessionId?.slice(0, 8)}`);
       } catch (error) {
         // Registration failure is not fatal - fallback to x-api-key detection
-        logDebug(`Session registration failed (non-fatal): ${error}`);
+        stdioLog.debug(`Session registration failed (non-fatal): ${error}`);
         sessionClient = null;
       }
 
-      logDebug(
+      stdioLog.debug(
         `Workspace: ${workspace} (${
           getWorkspaceSourceDescription(workspaceResult)
         })`,
       );
-      logDebug(`Cloud: ${cloudUrl}`);
-      logDebug(
+      stdioLog.debug(`Cloud: ${cloudUrl}`);
+      stdioLog.debug(
         `Routing: v${getRoutingVersion()} (${
           isRoutingInitialized() ? "ready" : "failed"
         })`,
@@ -1258,9 +1250,9 @@ export function createStdioCommand(): Command<any> {
           permissions,
           lockfileManager, // Story 14.7: Enable integrity validation
         });
-        logDebug(`CapabilityLoader initialized with permissions + lockfile`);
+        stdioLog.debug(`CapabilityLoader initialized with permissions + lockfile`);
       } catch (error) {
-        logDebug(`Failed to initialize CapabilityLoader: ${error}`);
+        stdioLog.debug(`Failed to initialize CapabilityLoader: ${error}`);
         // Continue without loader - server-side calls will still work
       }
 
@@ -1272,7 +1264,7 @@ export function createStdioCommand(): Command<any> {
         flushIntervalMs: 5000,
         maxRetries: 3,
       });
-      logDebug(`TraceSyncer initialized`);
+      stdioLog.debug(`TraceSyncer initialized`);
 
       // Step 7: Start stdio loop
       try {
@@ -1283,12 +1275,12 @@ export function createStdioCommand(): Command<any> {
         // Flush and shutdown trace syncer
         if (traceSyncer) {
           await traceSyncer.shutdown();
-          logDebug("TraceSyncer shutdown");
+          stdioLog.debug("TraceSyncer shutdown");
         }
         // Graceful session unregister
         if (sessionClient) {
           await sessionClient.shutdown();
-          logDebug("Session unregistered");
+          stdioLog.debug("Session unregistered");
         }
       }
     });
