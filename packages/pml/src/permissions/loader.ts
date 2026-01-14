@@ -196,6 +196,7 @@ export function checkPermission(
  * Pattern formats:
  * - "*" - matches all tools
  * - "namespace:*" - matches all tools in namespace (e.g., "filesystem:*")
+ * - "namespace" - matches namespace:* (convenience shorthand)
  * - "exact:name" - matches exact tool name
  *
  * @param tool Tool name to check
@@ -213,6 +214,13 @@ export function matchesPattern(tool: string, patterns: string[]): boolean {
     if (pattern.endsWith(":*")) {
       const namespace = pattern.slice(0, -2);
       return tool.startsWith(namespace + ":");
+    }
+
+    // Convenience: "memory" matches "memory:*" or "memory:anything"
+    // (pattern without colon matches namespace wildcard)
+    if (!pattern.includes(":") && tool.includes(":")) {
+      const toolNamespace = tool.split(":")[0];
+      return pattern === toolNamespace;
     }
 
     // Exact match

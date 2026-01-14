@@ -105,13 +105,13 @@ async function getOrCreateClientId(workspace: string): Promise<string> {
   return newId;
 }
 
+import { sessionLog } from "../logging.ts";
+
 /**
  * Log debug message for session operations.
  */
 function logDebug(message: string): void {
-  if (Deno.env.get("PML_DEBUG") === "1") {
-    console.error(`[pml:session] ${message}`);
-  }
+  sessionLog.debug(message);
 }
 
 /**
@@ -189,7 +189,7 @@ export class SessionClient {
   async register(): Promise<RegisterResponse> {
     const clientId = await getOrCreateClientId(this.workspace);
 
-    logDebug(`Registering with server: ${clientId.slice(0, 8)}`);
+    sessionLog.step(`Register → ${this.cloudUrl}/pml/register (client=${clientId.slice(0, 8)})`);
 
     const response = await fetch(`${this.cloudUrl}/pml/register`, {
       method: "POST",

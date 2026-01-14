@@ -1,7 +1,8 @@
 /**
  * Serve Command
  *
- * Starts the PML MCP HTTP server with workspace-scoped security.
+ * Starts the PML MCP HTTP server for debugging and testing.
+ * Same logic as stdio-command but with HTTP instead of stdin/stdout.
  *
  * @module cli/serve-command
  */
@@ -16,226 +17,551 @@ import {
   isValidWorkspace,
   resolveWorkspaceWithDetails,
 } from "../workspace.ts";
-import {
-  getPermissionsSummary,
-  loadUserPermissions,
-} from "../permissions/loader.ts";
-// Capability permission inference (Story 14.3)
-import {
-  checkCapabilityPermissions,
-  inferCapabilityApprovalMode,
-} from "../permissions/capability-inferrer.ts";
-// Routing - synced from cloud at startup (Story 14.3)
+import { loadUserPermissions } from "../permissions/loader.ts";
 import {
   getRoutingVersion,
   initializeRouting,
   isRoutingInitialized,
-  resolveToolRouting,
   syncRoutingConfig,
 } from "../routing/mod.ts";
-// Path validation ready for Story 14.6 (AC4: validate file operations within workspace)
-import { validatePath } from "../security/path-validator.ts";
-// Capability loader (Story 14.4)
-import { CapabilityLoader, LockfileManager } from "../loader/mod.ts";
+import {
+  type ApprovalRequiredResult,
+  CapabilityLoader,
+  type ContinueWorkflowParams,
+  type IntegrityApprovalRequired,
+  type ToolPermissionApprovalRequired,
+  LockfileManager,
+} from "../loader/mod.ts";
+import { SandboxExecutor } from "../execution/mod.ts";
+import { SessionClient } from "../session/mod.ts";
+import { PendingWorkflowStore } from "../workflow/mod.ts";
+import type { ToolCallRecord } from "../execution/types.ts";
+import { reloadEnv } from "../byok/env-loader.ts";
 
 const PML_CONFIG_FILE = ".pml.json";
+const PACKAGE_VERSION = "0.2.0";
+
+// Serve mode = debug mode - always enable logs
+Deno.env.set("PML_DEBUG", "1");
+
+/** Active session client */
+let sessionClient: SessionClient | null = null;
+
+/** Pending workflow store for HIL flows */
+const pendingWorkflowStore = new PendingWorkflowStore();
+
+const silentLogger = { info: () => {}, warn: () => {} };
+
+function log(message: string): void {
+  console.log(`${colors.dim(new Date().toISOString())} ${message}`);
+}
 
 /**
- * Silent logger for workspace resolution (avoids duplicate output)
+ * Format approval_required response (same as stdio-command.ts)
  */
-const silentLogger = {
-  info: () => {},
-  warn: () => {},
-};
+function formatApprovalRequired(
+  toolName: string,
+  approvalResult: ApprovalRequiredResult | IntegrityApprovalRequired | ToolPermissionApprovalRequired,
+  originalCode?: string,
+  fqdnMap?: Record<string, string>,
+): { content: Array<{ type: string; text: string }> } {
+  // Handle tool permission approval
+  if (approvalResult.approvalType === "tool_permission") {
+    const workflowId = approvalResult.workflowId;
+    if (originalCode) {
+      pendingWorkflowStore.setWithId(workflowId, originalCode, approvalResult.toolId, "tool_permission", {
+        namespace: approvalResult.namespace,
+        needsInstallation: approvalResult.needsInstallation,
+        dependency: approvalResult.dependency,
+        fqdnMap,
+      });
+    }
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          status: "approval_required",
+          approval_type: "tool_permission",
+          workflow_id: workflowId,
+          description: approvalResult.description,
+          context: {
+            tool: toolName,
+            tool_id: approvalResult.toolId,
+            namespace: approvalResult.namespace,
+            needs_installation: approvalResult.needsInstallation,
+            dependency: approvalResult.dependency ? {
+              name: approvalResult.dependency.name,
+              version: approvalResult.dependency.version,
+              install: approvalResult.dependency.install,
+            } : undefined,
+          },
+          options: ["continue", "abort"],
+        }, null, 2),
+      }],
+    };
+  }
+
+  // Handle API key approval
+  if (approvalResult.approvalType === "api_key_required") {
+    const workflowId = approvalResult.workflowId;
+    if (originalCode) {
+      pendingWorkflowStore.setWithId(workflowId, originalCode, toolName, "api_key_required", {
+        missingKeys: approvalResult.missingKeys,
+        fqdnMap,
+      });
+    }
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          status: "approval_required",
+          approval_type: "api_key_required",
+          workflow_id: workflowId,
+          context: {
+            tool: toolName,
+            missing_keys: approvalResult.missingKeys,
+            instruction: approvalResult.instruction,
+          },
+          options: ["continue", "abort"],
+        }, null, 2),
+      }],
+    };
+  }
+
+  // Handle integrity approval
+  if (approvalResult.approvalType === "integrity") {
+    const workflowId = approvalResult.workflowId;
+    if (originalCode) {
+      pendingWorkflowStore.setWithId(workflowId, originalCode, toolName, "integrity", {
+        integrityInfo: {
+          fqdnBase: approvalResult.fqdnBase,
+          newHash: approvalResult.newHash,
+          oldHash: approvalResult.oldHash,
+        },
+        fqdnMap,
+      });
+    }
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          status: "approval_required",
+          approval_type: "integrity",
+          workflow_id: workflowId,
+          description: approvalResult.description,
+          context: {
+            tool: toolName,
+            fqdn_base: approvalResult.fqdnBase,
+            old_hash: approvalResult.oldHash,
+            new_hash: approvalResult.newHash,
+          },
+          options: ["continue", "abort"],
+        }, null, 2),
+      }],
+    };
+  }
+
+  // Handle dependency approval (legacy)
+  const workflowId = approvalResult.workflowId;
+  if (originalCode) {
+    pendingWorkflowStore.setWithId(workflowId, originalCode, toolName, "dependency", {
+      dependency: approvalResult.dependency,
+      fqdnMap,
+    });
+  }
+  return {
+    content: [{
+      type: "text",
+      text: JSON.stringify({
+        status: "approval_required",
+        approval_type: "dependency",
+        workflow_id: workflowId,
+        description: approvalResult.description,
+        context: {
+          tool: toolName,
+          dependency: {
+            name: approvalResult.dependency.name,
+            version: approvalResult.dependency.version,
+            install: approvalResult.dependency.install,
+          },
+        },
+        options: ["continue", "abort", "replan"],
+      }, null, 2),
+    }],
+  };
+}
 
 /**
- * Create serve command
- *
- * Usage:
- *   pml serve                   # Start server with config defaults
- *   pml serve --port 3003       # Custom port
+ * Extract continue_workflow from args
  */
+function extractContinueWorkflow(args: Record<string, unknown> | undefined): {
+  continueWorkflow: ContinueWorkflowParams | undefined;
+  cleanArgs: Record<string, unknown>;
+} {
+  if (!args) return { continueWorkflow: undefined, cleanArgs: {} };
+  const { continue_workflow, ...cleanArgs } = args;
+  if (continue_workflow && typeof continue_workflow === "object" && "approved" in continue_workflow) {
+    return {
+      continueWorkflow: {
+        approved: Boolean((continue_workflow as { approved: unknown }).approved),
+        workflowId: (continue_workflow as { workflow_id?: string }).workflow_id,
+      },
+      cleanArgs,
+    };
+  }
+  return { continueWorkflow: undefined, cleanArgs: args };
+}
+
+/**
+ * Forward to cloud server
+ */
+async function forwardToCloud(
+  toolName: string,
+  args: Record<string, unknown>,
+  cloudUrl: string,
+): Promise<{ ok: boolean; response?: unknown; error?: string }> {
+  const apiKey = Deno.env.get("PML_API_KEY");
+  if (!apiKey) return { ok: false, error: "PML_API_KEY required" };
+
+  const headers: Record<string, string> = sessionClient?.isRegistered
+    ? sessionClient.getHeaders()
+    : { "Content-Type": "application/json", "x-api-key": apiKey };
+
+  try {
+    const response = await fetch(`${cloudUrl}/mcp`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: { name: toolName, arguments: args },
+      }),
+    });
+    if (!response.ok) {
+      return { ok: false, error: `Cloud error: ${response.status}` };
+    }
+    return { ok: true, response: await response.json() };
+  } catch (error) {
+    return { ok: false, error: `Cloud unreachable: ${error}` };
+  }
+}
+
+/**
+ * Execute code locally
+ */
+type LocalExecutionResult =
+  | { status: "success"; result: unknown; durationMs: number; toolCallRecords: ToolCallRecord[] }
+  | { status: "error"; error: string }
+  | { status: "approval_required"; approval: ApprovalRequiredResult | IntegrityApprovalRequired; toolId: string };
+
+async function executeLocalCode(
+  code: string,
+  loader: CapabilityLoader | null,
+  cloudUrl: string,
+  fqdnMap: Map<string, string>,
+  continueWorkflow?: ContinueWorkflowParams,
+): Promise<LocalExecutionResult> {
+  const apiKey = Deno.env.get("PML_API_KEY");
+  const executor = new SandboxExecutor({ cloudUrl, apiKey });
+
+  type PendingApprovalType = { approval: ApprovalRequiredResult | IntegrityApprovalRequired; toolId: string };
+  const state: { pendingApproval: PendingApprovalType | null } = { pendingApproval: null };
+
+  try {
+    const result = await executor.execute(
+      code,
+      {},
+      async (toolId: string, args: unknown) => {
+        if (!loader) throw new Error("Capability loader not initialized");
+        const fqdn = fqdnMap.get(toolId);
+        if (!fqdn) throw new Error(`No FQDN for ${toolId}`);
+
+        log(`  → ${toolId} (${fqdn})`);
+        const callResult = await loader.callWithFqdn(fqdn, args, continueWorkflow);
+
+        if (CapabilityLoader.isApprovalRequired(callResult)) {
+          state.pendingApproval = { approval: callResult, toolId };
+          throw new Error(`__APPROVAL_REQUIRED__:${toolId}`);
+        }
+        return callResult;
+      },
+    );
+
+    if (!result.success) {
+      if (state.pendingApproval && result.error?.message?.startsWith("__APPROVAL_REQUIRED__:")) {
+        return { status: "approval_required", approval: state.pendingApproval.approval, toolId: state.pendingApproval.toolId };
+      }
+      return { status: "error", error: result.error?.message ?? "Execution failed" };
+    }
+    return { status: "success", result: result.value, durationMs: result.durationMs, toolCallRecords: result.toolCallRecords ?? [] };
+  } catch (error) {
+    if (state.pendingApproval) {
+      return { status: "approval_required", approval: state.pendingApproval.approval, toolId: state.pendingApproval.toolId };
+    }
+    return { status: "error", error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+/**
+ * Parse execute_locally response
+ */
+function parseExecuteLocallyResponse(content: string): {
+  status: string;
+  code: string;
+  client_tools: string[];
+  tools_used: Array<{ id: string; fqdn: string }>;
+  workflowId?: string;
+} | null {
+  try {
+    const parsed = JSON.parse(content);
+    if (parsed.status === "execute_locally" && parsed.code) {
+      return {
+        status: parsed.status,
+        code: parsed.code,
+        client_tools: parsed.client_tools ?? [],
+        tools_used: parsed.tools_used ?? [],
+        workflowId: parsed.workflowId ?? parsed.workflow_id,
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 // deno-lint-ignore no-explicit-any
 export function createServeCommand(): Command<any> {
   return new Command()
     .name("serve")
-    .description("Start the PML MCP HTTP server")
-    .option(
-      "-p, --port <port:number>",
-      "Server port (overrides config)",
-    )
+    .description("Start the PML MCP HTTP server (for debugging)")
+    .option("-p, --port <port:number>", "Server port", { default: 3004 })
     .action(async (options) => {
-      // Step 1: Resolve workspace using priority system
       const workspaceResult = resolveWorkspaceWithDetails(silentLogger);
       const workspace = workspaceResult.path;
 
-      // Validate workspace exists and is accessible
-      if (!isValidWorkspace(workspace)) {
-        console.error(colors.red(`\n✗ Invalid workspace: ${workspace}`));
-        console.error(
-          colors.dim(`  Set PML_WORKSPACE or run from a project directory.\n`),
-        );
+      // Load .env
+      if (!Deno.env.get("PML_API_KEY")) {
+        try {
+          await reloadEnv(workspace);
+        } catch { /* ignore */ }
+      }
+
+      const apiKey = Deno.env.get("PML_API_KEY");
+      if (!apiKey) {
+        console.error(colors.red("ERROR: PML_API_KEY required"));
         Deno.exit(1);
       }
 
-      const configPath = join(workspace, PML_CONFIG_FILE);
-
-      // Check for config file
-      if (!await exists(configPath)) {
-        console.error(
-          colors.red(`\n✗ No ${PML_CONFIG_FILE} found in workspace.`),
-        );
-        console.error(colors.dim(`  Workspace: ${workspace}`));
-        console.error(colors.dim(`  Run 'pml init' first to configure.\n`));
+      if (!isValidWorkspace(workspace)) {
+        console.error(colors.red(`Invalid workspace: ${workspace}`));
         Deno.exit(1);
       }
 
       // Load config
-      let config: PmlConfig;
-      try {
-        const content = await Deno.readTextFile(configPath);
-        config = JSON.parse(content);
-      } catch (error) {
-        console.error(colors.red(`\n✗ Failed to load config: ${error}\n`));
-        Deno.exit(1);
+      const configPath = join(workspace, PML_CONFIG_FILE);
+      let config: PmlConfig = {
+        version: "0.1.0",
+        workspace,
+        cloud: { url: "https://pml.casys.ai" },
+        permissions: { allow: [], deny: [], ask: ["*"] },
+      };
+      if (await exists(configPath)) {
+        try {
+          config = { ...config, ...JSON.parse(await Deno.readTextFile(configPath)) };
+        } catch { /* ignore */ }
       }
 
-      // Step 2: Load user permissions (user config is THE source of truth)
-      const permissionResult = await loadUserPermissions(
-        workspace,
-        silentLogger,
-      );
+      // Load permissions
+      const { permissions } = await loadUserPermissions(workspace, silentLogger);
 
-      // Step 3: Sync routing config from cloud
-      const cloudUrl = config.cloud?.url ?? "https://pml.casys.ai";
-      console.log(colors.dim("Syncing routing config..."));
-      const { result: syncResult, config: routingConfig } = await syncRoutingConfig(
-        cloudUrl,
-        {
-          info: (msg) => console.log(`  ${colors.dim(msg)}`),
-          warn: (msg) => console.log(`  ${colors.yellow(msg)}`),
-        },
-      );
+      // Sync routing
+      const cloudUrl = Deno.env.get("PML_CLOUD_URL") ?? config.cloud?.url ?? "https://pml.casys.ai";
+      const { config: routingConfig } = await syncRoutingConfig(cloudUrl, silentLogger);
       initializeRouting(routingConfig);
 
-      const port = options.port ?? config.server?.port ?? 3003;
+      // Register session
+      try {
+        sessionClient = new SessionClient({ cloudUrl, apiKey, version: PACKAGE_VERSION, workspace });
+        await sessionClient.register();
+        log(`${colors.green("✓")} Session registered: ${sessionClient.sessionId?.slice(0, 8)}`);
+      } catch (error) {
+        log(`${colors.yellow("⚠")} Session registration failed: ${error}`);
+        sessionClient = null;
+      }
 
-      // Display startup info
-      console.log(colors.bold(colors.cyan("\n🚀 PML Server\n")));
+      // Initialize loader
+      let loader: CapabilityLoader | null = null;
+      let lockfileManager: LockfileManager | null = null;
+      try {
+        lockfileManager = new LockfileManager({ workspace });
+        await lockfileManager.load();
+        loader = await CapabilityLoader.create({ cloudUrl, workspace, permissions, lockfileManager });
+        log(`${colors.green("✓")} CapabilityLoader ready`);
+      } catch (error) {
+        log(`${colors.yellow("⚠")} CapabilityLoader failed: ${error}`);
+      }
+
+      const port = options.port;
+
+      console.log(colors.bold(colors.cyan("\n🚀 PML HTTP Server\n")));
       console.log(`  ${colors.dim("Port:")} ${port}`);
       console.log(`  ${colors.dim("Workspace:")} ${workspace}`);
-      console.log(
-        `  ${colors.dim("Resolved via:")} ${
-          getWorkspaceSourceDescription(workspaceResult)
-        }`,
-      );
-      console.log(
-        `  ${colors.dim("Cloud:")} ${cloudUrl}`,
-      );
-      console.log(
-        `  ${colors.dim("Routing:")} v${getRoutingVersion()} (${
-          syncResult.fromCache ? "cached" : "synced"
-        })`,
-      );
+      console.log(`  ${colors.dim("Cloud:")} ${cloudUrl}`);
+      console.log(`  ${colors.dim("Routing:")} v${getRoutingVersion()} (${isRoutingInitialized() ? "ready" : "failed"})`);
+      console.log(`  ${colors.dim("Session:")} ${sessionClient?.sessionId?.slice(0, 8) ?? "none"}`);
       console.log();
 
-      // Show permission summary
-      console.log(colors.dim("Permissions:"));
-      const permSummary = getPermissionsSummary(permissionResult.permissions);
-      for (const line of permSummary.split("\n")) {
-        console.log(`  ${colors.dim(line)}`);
-      }
-      console.log();
+      const handler = async (req: Request): Promise<Response> => {
+        const url = new URL(req.url);
 
-      // Step 4: Initialize CapabilityLoader (Story 14.4 + 14.3b + 14.7)
-      console.log(colors.dim("Initializing capability loader..."));
-      let loader: CapabilityLoader | null = null;
-      try {
-        // Story 14.7: Initialize lockfile manager for integrity validation (per-project)
-        const lockfileManager = new LockfileManager({ workspace });
-        await lockfileManager.load();
+        // Health check
+        if (url.pathname === "/health") {
+          return Response.json({ status: "ok" });
+        }
 
-        loader = await CapabilityLoader.create({
-          cloudUrl,
-          workspace,
-          permissions: permissionResult.permissions,
-          lockfileManager, // Story 14.7: Enable integrity validation
-        });
-        console.log(`  ${colors.green("✓")} Capability loader ready (integrity + approval via MCP)`);
-      } catch (error) {
-        console.log(`  ${colors.yellow("⚠")} Capability loader failed: ${error}`);
-      }
-      console.log();
+        // MCP endpoint
+        if (url.pathname === "/mcp" && req.method === "POST") {
+          try {
+            const body = await req.json();
+            const { id, method, params } = body;
 
-      // TODO: Story 14.6 - Full MCP HTTP server implementation
-      // For now, just a stub that shows it would start
-      console.log(
-        colors.yellow("⚠ Server stub - full implementation in Story 14.6\n"),
-      );
-      console.log(colors.dim("The server would start at:"));
-      console.log(colors.cyan(`  http://localhost:${port}/mcp\n`));
+            log(`← ${method} ${params?.name ?? ""}`);
 
-      // Keep process alive for demo purposes
-      // In real implementation, this would be the HTTP server
-      console.log(colors.dim("Press Ctrl+C to stop.\n"));
+            // Initialize
+            if (method === "initialize") {
+              return Response.json({
+                jsonrpc: "2.0",
+                id,
+                result: {
+                  protocolVersion: "2024-11-05",
+                  capabilities: { tools: {} },
+                  serverInfo: { name: "pml", version: PACKAGE_VERSION },
+                },
+              });
+            }
 
-      // Simple HTTP server stub to show it works
-      // TODO(Story 14.6): Full MCP HTTP server implementation
-      // - Parse MCP JSON-RPC requests
-      // - For file operations: await validatePath(requestedPath, workspace)
-      // - For capabilities: inferCapabilityApprovalMode(toolsUsed, permissions)
-      // - Route to cloud or execute locally based on cloud response
-      const handler = async (_req: Request): Promise<Response> => {
-        // Example of how permission inference will be used (Story 14.3 AC5):
-        // const capabilityResult = checkCapabilityPermissions(
-        //   capability.toolsUsed,
-        //   permissionResult.permissions
-        // );
-        // if (!capabilityResult.canExecute) {
-        //   return new Response(JSON.stringify({
-        //     jsonrpc: "2.0",
-        //     error: { code: -32602, message: capabilityResult.reason }
-        //   }), { status: 403 });
-        // }
-        // if (capabilityResult.approvalMode === "hil") {
-        //   // Trigger HIL flow - wait for user approval
-        // }
+            // Tools list
+            if (method === "tools/list") {
+              return Response.json({
+                jsonrpc: "2.0",
+                id,
+                result: {
+                  tools: [
+                    { name: "pml:discover", description: "Search tools", inputSchema: { type: "object", properties: { intent: { type: "string" } }, required: ["intent"] } },
+                    { name: "pml:execute", description: "Execute code", inputSchema: { type: "object", properties: { intent: { type: "string" }, code: { type: "string" } } } },
+                  ],
+                },
+              });
+            }
 
-        // Example of how path validation will be used in Story 14.6:
-        // const validation = await validatePath(requestedPath, workspace);
-        // if (!validation.valid) {
-        //   return new Response(JSON.stringify({
-        //     jsonrpc: "2.0",
-        //     error: { code: -32602, message: validation.error?.message }
-        //   }), { status: 403 });
-        // }
+            // Tools call
+            if (method === "tools/call" && params?.name) {
+              const { name, arguments: args } = params;
+              const { continueWorkflow, cleanArgs } = extractContinueWorkflow(args);
 
-        // Stub response for now
-        return new Response(
-          JSON.stringify({
-            jsonrpc: "2.0",
-            result: {
-              name: "pml",
-              version: "0.1.0",
-              status: "stub",
-              workspace,
-              permissionSource: permissionResult.source,
-              // Routing info (Story 14.3)
-              routingVersion: getRoutingVersion(),
-              routingInitialized: isRoutingInitialized(),
-              // Expose function availability for testing
-              pathValidationReady: typeof validatePath === "function",
-              capabilityInferrerReady: typeof inferCapabilityApprovalMode === "function",
-              capabilityCheckerReady: typeof checkCapabilityPermissions === "function",
-              routingResolverReady: typeof resolveToolRouting === "function",
-              capabilityLoaderReady: loader !== null,
-              capabilityLoaderStatus: loader?.getStatus() ?? null,
-            },
-          }),
-          {
-            headers: { "Content-Type": "application/json" },
-          },
-        );
+              // Handle continue_workflow for local pending workflows
+              if (continueWorkflow?.workflowId) {
+                const pending = pendingWorkflowStore.get(continueWorkflow.workflowId);
+                if (pending) {
+                  log(`  Continuing workflow: ${continueWorkflow.workflowId.slice(0, 8)}`);
+
+                  if (!continueWorkflow.approved) {
+                    pendingWorkflowStore.delete(continueWorkflow.workflowId);
+                    return Response.json({
+                      jsonrpc: "2.0",
+                      id,
+                      result: { content: [{ type: "text", text: JSON.stringify({ status: "aborted" }) }] },
+                    });
+                  }
+
+                  // Pre-continuation actions
+                  if (pending.approvalType === "tool_permission" && loader && pending.toolId) {
+                    loader.approveToolForSession(pending.toolId);
+                  } else if (pending.approvalType === "api_key_required") {
+                    await reloadEnv(workspace);
+                  }
+
+                  const fqdnMap = new Map(Object.entries(pending.fqdnMap ?? {}));
+                  const result = await executeLocalCode(pending.code, loader, cloudUrl, fqdnMap, { approved: true, workflowId: continueWorkflow.workflowId });
+                  pendingWorkflowStore.delete(continueWorkflow.workflowId);
+
+                  if (result.status === "approval_required") {
+                    return Response.json({
+                      jsonrpc: "2.0",
+                      id,
+                      result: formatApprovalRequired(result.toolId, result.approval, pending.code, pending.fqdnMap),
+                    });
+                  }
+                  if (result.status === "error") {
+                    return Response.json({
+                      jsonrpc: "2.0",
+                      id,
+                      result: { content: [{ type: "text", text: JSON.stringify({ status: "error", error: result.error }) }] },
+                    });
+                  }
+                  return Response.json({
+                    jsonrpc: "2.0",
+                    id,
+                    result: { content: [{ type: "text", text: JSON.stringify({ status: "success", result: result.result }) }] },
+                  });
+                }
+              }
+
+              // Forward to cloud
+              const cloudResult = await forwardToCloud(name, cleanArgs, cloudUrl);
+              if (!cloudResult.ok) {
+                return Response.json({ jsonrpc: "2.0", id, error: { code: -32603, message: cloudResult.error } });
+              }
+
+              // Check for execute_locally
+              const response = cloudResult.response as { result?: { content?: Array<{ text: string }> } };
+              const content = response?.result?.content?.[0]?.text;
+              if (content) {
+                const executeLocally = parseExecuteLocallyResponse(content);
+                if (executeLocally) {
+                  log(`  execute_locally: ${executeLocally.client_tools.join(", ")}`);
+
+                  const fqdnMap = new Map(executeLocally.tools_used.map(t => [t.id, t.fqdn]));
+                  const result = await executeLocalCode(executeLocally.code, loader, cloudUrl, fqdnMap, continueWorkflow);
+
+                  if (result.status === "approval_required") {
+                    log(`  ${colors.yellow("⏸")} approval_required: ${result.toolId}`);
+                    return Response.json({
+                      jsonrpc: "2.0",
+                      id,
+                      result: formatApprovalRequired(result.toolId, result.approval, executeLocally.code, Object.fromEntries(fqdnMap)),
+                    });
+                  }
+                  if (result.status === "error") {
+                    log(`  ${colors.red("✗")} error: ${result.error}`);
+                    return Response.json({
+                      jsonrpc: "2.0",
+                      id,
+                      result: { content: [{ type: "text", text: JSON.stringify({ status: "error", error: result.error, executed_locally: true }) }] },
+                    });
+                  }
+                  log(`  ${colors.green("✓")} success (${result.durationMs}ms)`);
+                  return Response.json({
+                    jsonrpc: "2.0",
+                    id,
+                    result: { content: [{ type: "text", text: JSON.stringify({ status: "success", result: result.result, executed_locally: true }) }] },
+                  });
+                }
+              }
+
+              // Return cloud response as-is
+              return Response.json(cloudResult.response);
+            }
+
+            return Response.json({ jsonrpc: "2.0", id, error: { code: -32601, message: `Method not found: ${method}` } });
+          } catch (error) {
+            log(`${colors.red("✗")} Error: ${error}`);
+            return Response.json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } });
+          }
+        }
+
+        return new Response("Not found", { status: 404 });
       };
 
       Deno.serve({ port }, handler);
