@@ -510,15 +510,8 @@ export class CapabilityLoader {
     dep: McpDependency,
     forceInstall = false,
   ): Promise<ApprovalRequiredResult | null> {
-    // Check if already installed with correct version
-    if (this.depState.isInstalled(dep.name, dep.version)) {
-      logDebug(`Dependency ${dep.name}@${dep.version} already installed`);
-      return null;
-    }
-
-    logDebug(`Dependency ${dep.name}@${dep.version} needs installation`);
-
-    // Story 14.6: Check required env vars from registry metadata (dynamic key detection)
+    // Story 14.6: ALWAYS check required env vars, even if dependency is installed
+    // Keys can become invalid/missing after installation (user removes from .env)
     if (dep.envRequired && dep.envRequired.length > 0) {
       const requiredKeys = dep.envRequired.map((name) => ({
         name,
@@ -534,6 +527,14 @@ export class CapabilityLoader {
         return approval;
       }
     }
+
+    // Check if already installed with correct version
+    if (this.depState.isInstalled(dep.name, dep.version)) {
+      logDebug(`Dependency ${dep.name}@${dep.version} already installed`);
+      return null;
+    }
+
+    logDebug(`Dependency ${dep.name}@${dep.version} needs installation`);
 
     // Check permission for this dependency
     const permission = checkPermission(dep.name, this.permissions);
