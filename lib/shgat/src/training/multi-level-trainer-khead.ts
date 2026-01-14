@@ -13,7 +13,7 @@
  * @since v1 refactor
  */
 
-import type { LevelParams, SHGATConfig } from "../types.ts";
+import type { LevelParams, SHGATConfig } from "../core/types.ts";
 import type { HeadParams } from "../initialization/parameters.ts";
 import { zerosLike2D } from "../initialization/parameters.ts";
 import * as math from "../utils/math.ts";

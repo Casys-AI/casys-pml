@@ -59,7 +59,7 @@ export interface PERTrainingOptions {
   minTraces?: number;
   /** Maximum traces to process (default: 100) */
   maxTraces?: number;
-  /** Batch size for SHGAT.trainBatch() (default: 32) */
+  /** Batch size for SHGAT.trainBatchV1KHeadBatched() (default: 32) */
   batchSize?: number;
   /** Minimum priority threshold (default: 0.1) */
   minPriority?: number;
@@ -325,7 +325,7 @@ export async function trainSHGATOnPathTraces(
   for (let i = 0; i < allExamples.length; i += batchSize) {
     const batch = allExamples.slice(i, i + batchSize);
     const batchWeights = exampleWeights.slice(i, i + batchSize);
-    const result = shgat.trainBatch(batch, batchWeights);
+    const result = shgat.trainBatchV1KHeadBatched(batch, batchWeights);
     totalLoss += result.loss;
     totalAccuracy += result.accuracy;
     allTdErrors.push(...result.tdErrors);

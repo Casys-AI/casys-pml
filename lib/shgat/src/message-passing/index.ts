@@ -37,4 +37,4 @@ export type {
 } from "./vertex-to-vertex-phase.ts";
 
 // Re-export multi-level types from main types for convenience
-export type { LevelParams, MultiLevelEmbeddings, MultiLevelForwardCache } from "../types.ts";
+export type { LevelParams, MultiLevelEmbeddings, MultiLevelForwardCache } from "../core/types.ts";

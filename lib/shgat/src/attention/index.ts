@@ -15,6 +15,19 @@ export {
   type MultiLevelScorerDependencies,
 } from "./multi-level-scorer.ts";
 
+// K-head scoring functions (extracted from shgat.ts)
+export {
+  batchComputeKForAllHeads,
+  batchComputeScores,
+  computeHeadScoreV1,
+  computeMultiHeadScoresWithPrecomputedQ,
+  precomputeQForAllHeads,
+  predictPathSuccess,
+  projectIntent,
+  scoreAllCapabilities as scoreAllCapabilitiesKHead,
+  scoreAllTools as scoreAllToolsKHead,
+} from "./khead-scorer.ts";
+
 // Re-export types from shgat-types for convenience
 export type {
   AttentionResult,
@@ -27,7 +40,7 @@ export type {
   ToolNode,
   TraceFeatures,
   TraceStats,
-} from "../types.ts";
+} from "../core/types.ts";
 
 export {
   DEFAULT_FEATURE_WEIGHTS,
@@ -37,7 +50,7 @@ export {
   DEFAULT_TOOL_GRAPH_FEATURES,
   DEFAULT_TRACE_STATS,
   NUM_TRACE_STATS,
-} from "../types.ts";
+} from "../core/types.ts";
 
 /**
  * Common interface for all SHGAT scorers
@@ -74,4 +87,4 @@ export enum ScorerVersion {
 }
 
 // Import AttentionResult for interface definition
-import type { AttentionResult } from "../types.ts";
+import type { AttentionResult } from "../core/types.ts";

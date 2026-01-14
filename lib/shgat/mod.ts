@@ -35,7 +35,7 @@ export {
   trainSHGATOnEpisodes,
   trainSHGATOnEpisodesKHead,
   trainSHGATOnExecution,
-} from "./shgat.ts";
+} from "./src/core/shgat.ts";
 
 // Re-export from shgat.ts (types and utilities)
 export {
@@ -60,10 +60,10 @@ export {
   type TraceFeatures,
   type TraceStats,
   type TrainingExample,
-} from "./shgat.ts";
+} from "./src/core/shgat.ts";
 
 // Additional types from types.ts
-export type { LevelParams, Member } from "./types.ts";
+export type { LevelParams, Member } from "./src/core/types.ts";
 
 // Graph construction
 export {
@@ -74,7 +74,7 @@ export {
   HierarchyCycleError,
   type HierarchyResult,
   type MultiLevelIncidence,
-} from "./graph/mod.ts";
+} from "./src/graph/mod.ts";
 
 // Parameter initialization
 export {
@@ -84,7 +84,7 @@ export {
   initializeParameters,
   seedRng,
   type SHGATParams,
-} from "./initialization/index.ts";
+} from "./src/initialization/index.ts";
 
 // Message passing
 export {
@@ -94,16 +94,16 @@ export {
   type MultiLevelBackwardCache,
   type MultiLevelGradients,
   type V2VParams,
-} from "./message-passing/index.ts";
+} from "./src/message-passing/index.ts";
 
-// Scoring
-export * from "./scoring/index.ts";
+// Attention (K-head scoring)
+export * from "./src/attention/index.ts";
 
 // Training
-export * from "./training/index.ts";
+export * from "./src/training/index.ts";
 
 // Math utilities
-export * as math from "./utils/math.ts";
+export * as math from "./src/utils/math.ts";
 
 // Logger adapter
-export { getLogger, resetLogger, setLogger, type Logger } from "./logger.ts";
+export { getLogger, resetLogger, setLogger, type Logger } from "./src/core/logger.ts";

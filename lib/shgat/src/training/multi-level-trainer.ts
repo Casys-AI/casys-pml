@@ -12,7 +12,7 @@
  * @see 07-training.md
  */
 
-import type { LevelParams, MultiLevelForwardCache, SHGATConfig } from "../types.ts";
+import type { LevelParams, MultiLevelForwardCache, SHGATConfig } from "../core/types.ts";
 import { zerosLike3D } from "../initialization/parameters.ts";
 import * as math from "../utils/math.ts";
 

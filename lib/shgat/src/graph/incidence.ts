@@ -13,8 +13,8 @@
  * @see 03-incidence-structure.md
  */
 
-import type { CapabilityNode } from "../types.ts";
-import { getDirectCapabilities, getDirectTools } from "../types.ts";
+import type { CapabilityNode } from "../core/types.ts";
+import { getDirectCapabilities, getDirectTools } from "../core/types.ts";
 import type { HierarchyResult } from "./hierarchy.ts";
 
 /**

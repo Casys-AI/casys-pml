@@ -16,7 +16,7 @@
  */
 
 import type { HeadParams } from "../initialization/parameters.ts";
-import type { SHGATConfig } from "../types.ts";
+import type { SHGATConfig } from "../core/types.ts";
 import * as math from "../utils/math.ts";
 import type { KHeadGradientAccumulators } from "./multi-level-trainer-khead.ts";
 

@@ -2534,6 +2534,9 @@ export function createSHGATFromCapabilities(
   return shgat;
 }
 
+/**
+ * @deprecated Use trainSHGATOnEpisodesKHead instead (K-head architecture)
+ */
 export async function trainSHGATOnEpisodes(
   shgat: SHGAT,
   episodes: TrainingExample[],
@@ -2544,7 +2547,8 @@ export async function trainSHGATOnEpisodes(
     onEpoch?: (epoch: number, loss: number, accuracy: number) => void;
   } = {},
 ): Promise<{ finalLoss: number; finalAccuracy: number }> {
-  return trainOnEpisodes((batch) => shgat.trainBatch(batch), episodes, options);
+  // Migrated to batched K-head training (was: trainBatch with fusion weights)
+  return trainOnEpisodes((batch) => shgat.trainBatchV1KHeadBatched(batch), episodes, options);
 }
 
 /**
@@ -2579,7 +2583,8 @@ export async function trainSHGATOnEpisodesKHead(
   }
 
   try {
-    return await trainOnEpisodes((batch) => shgat.trainBatchV1KHead(batch), episodes, options);
+    // Use batched K-head training for ~10x speedup
+    return await trainOnEpisodes((batch) => shgat.trainBatchV1KHeadBatched(batch), episodes, options);
   } finally {
     // Restore original learning rate
     shgat.setLearningRate(originalLr);
@@ -2633,9 +2638,9 @@ export async function trainSHGATOnExecution(
     outcome: execution.outcome,
   };
 
-  // Train on single example using V1 K-head architecture
+  // Train on single example using V1 K-head architecture (batched for consistency)
   // This trains W_q, W_k (K-head attention) + levelParams + W_intent
-  const result = shgat.trainBatchV1KHead([example]);
+  const result = shgat.trainBatchV1KHeadBatched([example]);
 
   return {
     loss: result.loss,

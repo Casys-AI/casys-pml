@@ -21,7 +21,7 @@ import type {
   FusionWeights,
   SHGATConfig,
   TrainingExample,
-} from "../types.ts";
+} from "../core/types.ts";
 import type { HeadParams, LayerParams } from "../initialization/parameters.ts";
 import { random, zerosLike3D } from "../initialization/parameters.ts";
 import * as math from "../utils/math.ts";

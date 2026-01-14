@@ -12,9 +12,9 @@
  * @module graphrag/algorithms/shgat/initialization/parameters
  */
 
-import type { LevelParams, SHGATConfig } from "../types.ts";
-import { DEFAULT_FEATURE_WEIGHTS, DEFAULT_FUSION_WEIGHTS, NUM_TRACE_STATS } from "../types.ts";
-import type { FeatureWeights, FusionWeights } from "../types.ts";
+import type { LevelParams, SHGATConfig } from "../core/types.ts";
+import { DEFAULT_FEATURE_WEIGHTS, DEFAULT_FUSION_WEIGHTS, NUM_TRACE_STATS } from "../core/types.ts";
+import type { FeatureWeights, FusionWeights } from "../core/types.ts";
 
 // ============================================================================
 // Seeded PRNG for Reproducibility (mulberry32)

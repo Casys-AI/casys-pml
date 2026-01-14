@@ -13,7 +13,7 @@
 
 import * as math from "../utils/math.ts";
 import type { PhaseParameters } from "./phase-interface.ts";
-import type { LevelParams, MultiLevelEmbeddings, MultiLevelForwardCache } from "../types.ts";
+import type { LevelParams, MultiLevelEmbeddings, MultiLevelForwardCache } from "../core/types.ts";
 import { VertexToEdgePhase, type VEForwardCache } from "./vertex-to-edge-phase.ts";
 import { EdgeToVertexPhase, type EVForwardCache } from "./edge-to-vertex-phase.ts";
 import { EdgeToEdgePhase, type EEForwardCache } from "./edge-to-edge-phase.ts";

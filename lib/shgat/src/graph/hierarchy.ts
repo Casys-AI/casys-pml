@@ -11,8 +11,8 @@
  * @see 02-hierarchy-computation.md
  */
 
-import type { CapabilityNode } from "../types.ts";
-import { getDirectCapabilities } from "../types.ts";
+import type { CapabilityNode } from "../core/types.ts";
+import { getDirectCapabilities } from "../core/types.ts";
 
 /**
  * Result of hierarchy computation
