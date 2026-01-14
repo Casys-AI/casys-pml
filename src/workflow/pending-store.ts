@@ -6,6 +6,7 @@
  * duration of the Claude Code session.
  *
  * Used for:
+ * - Tool permission approvals (Unified Permission Model)
  * - Dependency installation approvals (Story 14.4)
  * - API key configuration approvals (Story 14.6)
  * - Integrity update approvals (Story 14.7)
@@ -22,18 +23,18 @@ import type { McpDependency } from "../loader/types.ts";
 /**
  * Type of approval required.
  */
-export type ApprovalType = "dependency" | "api_key_required" | "integrity";
+export type ApprovalType = "tool_permission" | "dependency" | "api_key_required" | "integrity";
 
 /**
  * A pending workflow awaiting user approval.
  *
  * Stores the original code and context needed to re-execute after approval.
- * Works for all approval types: dependency, api_key, integrity.
+ * Works for all approval types: tool_permission, dependency, api_key, integrity.
  */
 export interface PendingWorkflow {
   /** Original code that triggered the approval */
   code: string;
-  /** Tool ID that triggered the approval */
+  /** Tool ID that triggered the approval (e.g., "memory:create_entities") */
   toolId: string;
   /** Type of approval required */
   approvalType: ApprovalType;
@@ -41,7 +42,12 @@ export interface PendingWorkflow {
   createdAt: number;
 
   // Type-specific data
-  /** Dependency info (for "dependency" approvals) */
+
+  /** Namespace (for "tool_permission" approvals) */
+  namespace?: string;
+  /** Whether installation is needed after approval (for "tool_permission" approvals) */
+  needsInstallation?: boolean;
+  /** Dependency info (for "dependency" and "tool_permission" approvals) */
   dependency?: McpDependency;
   /** Missing API keys (for "api_key_required" approvals) */
   missingKeys?: string[];
@@ -104,7 +110,7 @@ export class PendingWorkflowStore {
    * @param code - Original code that triggered the approval
    * @param toolId - Tool ID that triggered the approval
    * @param approvalType - Type of approval required
-   * @param options - Type-specific options (dependency, missingKeys, integrityInfo)
+   * @param options - Type-specific options
    * @returns Unique workflow ID (UUID)
    */
   create(
@@ -112,6 +118,8 @@ export class PendingWorkflowStore {
     toolId: string,
     approvalType: ApprovalType,
     options?: {
+      namespace?: string;
+      needsInstallation?: boolean;
       dependency?: McpDependency;
       missingKeys?: string[];
       integrityInfo?: { fqdnBase: string; newHash: string; oldHash: string };
@@ -126,6 +134,8 @@ export class PendingWorkflowStore {
       toolId,
       approvalType,
       createdAt: Date.now(),
+      namespace: options?.namespace,
+      needsInstallation: options?.needsInstallation,
       dependency: options?.dependency,
       missingKeys: options?.missingKeys,
       integrityInfo: options?.integrityInfo,
@@ -152,6 +162,8 @@ export class PendingWorkflowStore {
     toolId: string,
     approvalType: ApprovalType,
     options?: {
+      namespace?: string;
+      needsInstallation?: boolean;
       dependency?: McpDependency;
       missingKeys?: string[];
       integrityInfo?: { fqdnBase: string; newHash: string; oldHash: string };
@@ -166,6 +178,8 @@ export class PendingWorkflowStore {
       toolId,
       approvalType,
       createdAt: Date.now(),
+      namespace: options?.namespace,
+      needsInstallation: options?.needsInstallation,
       dependency: options?.dependency,
       missingKeys: options?.missingKeys,
       integrityInfo: options?.integrityInfo,

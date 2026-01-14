@@ -14,11 +14,11 @@ import type {
   CapabilityMetadata,
   CapabilityModule,
   ContinueWorkflowParams,
-  DependencyApprovalRequired,
   ExecutionContext,
   LoadedCapability,
   McpDependency,
   McpProxy,
+  ToolPermissionApprovalRequired,
 } from "./types.ts";
 import type { ApprovalRequiredResult } from "./types.ts";
 import { LoaderError } from "./types.ts";
@@ -125,6 +125,13 @@ export class CapabilityLoader {
 
   /** Cache of capability code for sandboxed execution */
   private readonly codeCache = new Map<string, string>();
+
+  /**
+   * Tools approved for this session (permission "ask" granted by user).
+   * Key format: "namespace:action" (e.g., "memory:create_entities")
+   * Approval is per-tool, not per-namespace.
+   */
+  private readonly approvedTools = new Set<string>();
 
   /** Whether initialization is complete */
   private initialized = false;
@@ -266,17 +273,13 @@ export class CapabilityLoader {
     if (approvalResult) {
       if (continueWorkflow?.approved === false) {
         // Handle denial based on approval type
-        if (approvalResult.approvalType === "dependency") {
+        if (approvalResult.approvalType === "tool_permission") {
           throw new LoaderError(
-            "DEPENDENCY_NOT_APPROVED",
-            `Dependency ${approvalResult.dependency.name} was not approved by user`,
-            {
-              dep: approvalResult.dependency.name,
-              version: approvalResult.dependency.version,
-            },
+            "PERMISSION_DENIED",
+            `Tool ${approvalResult.toolId} was not approved by user`,
+            { toolId: approvalResult.toolId },
           );
-        } else {
-          // api_key_required - user aborted key configuration
+        } else if (approvalResult.approvalType === "api_key_required") {
           throw new LoaderError(
             "API_KEY_NOT_CONFIGURED",
             `Required API keys were not configured: ${approvalResult.missingKeys.join(", ")}`,
@@ -356,14 +359,14 @@ export class CapabilityLoader {
         // Check if this stdio MCP needs approval to install
         // Skip if continueWorkflow.approved (user already approved)
         if (!continueWorkflow?.approved) {
-          const stdioApproval = await this.ensureDependency(stdioDep, false);
+          const stdioApproval = await this.ensureDependency(stdioDep, false, namespace);
           if (stdioApproval) {
             logDebug(`Stdio MCP ${namespace} requires approval to install`);
             return stdioApproval;
           }
         } else {
           // User approved - ensure it's installed
-          await this.ensureDependency(stdioDep, true);
+          await this.ensureDependency(stdioDep, true, namespace);
         }
       }
     }
@@ -534,13 +537,13 @@ export class CapabilityLoader {
 
     if (approvalResult) {
       if (continueWorkflow?.approved === false) {
-        if (approvalResult.approvalType === "dependency") {
+        if (approvalResult.approvalType === "tool_permission") {
           throw new LoaderError(
-            "DEPENDENCY_NOT_APPROVED",
-            `Dependency ${approvalResult.dependency.name} was not approved by user`,
-            { dep: approvalResult.dependency.name, version: approvalResult.dependency.version },
+            "PERMISSION_DENIED",
+            `Tool ${approvalResult.toolId} was not approved by user`,
+            { toolId: approvalResult.toolId },
           );
-        } else {
+        } else if (approvalResult.approvalType === "api_key_required") {
           throw new LoaderError(
             "API_KEY_NOT_CONFIGURED",
             `Required API keys were not configured: ${approvalResult.missingKeys.join(", ")}`,
@@ -579,9 +582,11 @@ export class CapabilityLoader {
       logDebug(`HTTP capability loaded (FQDN): ${fqdn}`);
     }
 
-    // Extract namespace from FQDN for stdio: org.project.namespace.action → namespace
+    // Extract namespace and action from FQDN: org.project.namespace.action[.hash]
     const fqdnParts = fqdn.split(".");
     const namespace = fqdnParts.length >= 3 ? fqdnParts[2] : fqdn;
+    const action = fqdnParts.length >= 4 ? fqdnParts[3] : "default";
+    const toolId = `${namespace}:${action}`;
 
     // Build stdioDep for stdio types (same logic as load())
     let stdioDep: McpDependency | null = null;
@@ -608,13 +613,13 @@ export class CapabilityLoader {
         };
 
         if (!continueWorkflow?.approved) {
-          const stdioApproval = await this.ensureDependency(stdioDep, false);
+          const stdioApproval = await this.ensureDependency(stdioDep, false, toolId);
           if (stdioApproval) {
             logDebug(`Stdio MCP ${fqdn} requires approval to install`);
             return stdioApproval;
           }
         } else {
-          await this.ensureDependency(stdioDep, true);
+          await this.ensureDependency(stdioDep, true, toolId);
         }
       }
     }
@@ -672,7 +677,9 @@ export class CapabilityLoader {
     }
 
     for (const dep of meta.mcpDeps) {
-      const result = await this.ensureDependency(dep, forceInstall);
+      // Construct toolId from dep name (namespace:*)
+      const toolId = `${dep.name}:*`;
+      const result = await this.ensureDependency(dep, forceInstall, toolId);
       if (result) {
         return result;
       }
@@ -683,21 +690,23 @@ export class CapabilityLoader {
   /**
    * Ensure a single dependency is installed.
    *
-   * Uses permission-based approval:
+   * Unified Permission Model:
    * - "allowed" (in allow list) → auto-install, no approval needed
    * - "denied" (in deny list) → error
-   * - "ask" (default) → return DependencyApprovalRequired
+   * - "ask" (default) → return ToolPermissionApprovalRequired
    *
    * Story 14.6: Also checks envRequired keys from registry metadata.
    * If env vars are missing, returns ApiKeyApprovalRequired instead of error.
    *
    * @param dep - The dependency to check/install
    * @param forceInstall - If true, skip approval check and install
+   * @param toolId - Optional tool ID for unified permission response
    * @returns ApprovalRequiredResult if approval needed, null if installed
    */
   private async ensureDependency(
     dep: McpDependency,
     forceInstall = false,
+    toolId?: string,
   ): Promise<ApprovalRequiredResult | null> {
     // Story 14.6: ALWAYS check required env vars, even if dependency is installed
     // Keys can become invalid/missing after installation (user removes from .env)
@@ -725,14 +734,17 @@ export class CapabilityLoader {
 
     logDebug(`Dependency ${dep.name}@${dep.version} needs installation`);
 
-    // Check permission for this dependency
-    const permission = checkPermission(dep.name, this.permissions);
+    // Build toolId if not provided (for backwards compatibility)
+    const effectiveToolId = toolId ?? `${dep.name}:*`;
+
+    // Check permission for this tool/dependency
+    const permission = checkPermission(effectiveToolId, this.permissions);
 
     if (permission === "denied") {
       throw new LoaderError(
-        "DEPENDENCY_NOT_APPROVED",
-        `Dependency ${dep.name} is in deny list`,
-        { dep: dep.name, version: dep.version },
+        "PERMISSION_DENIED",
+        `Tool ${effectiveToolId} is in deny list`,
+        { toolId: effectiveToolId },
       );
     }
 
@@ -743,6 +755,8 @@ export class CapabilityLoader {
         logDebug(
           `Dependency ${dep.name}@${dep.version} installed (auto-approved)`,
         );
+        // Add to approved tools for session
+        this.approvedTools.add(effectiveToolId);
         return null;
       } catch (error) {
         throw new LoaderError(
@@ -753,16 +767,18 @@ export class CapabilityLoader {
       }
     }
 
-    // Permission is "ask" - return approval_required (stateless HIL)
-    logDebug(`Dependency ${dep.name}@${dep.version} requires approval`);
+    // Permission is "ask" - return unified tool_permission approval
+    logDebug(`Tool ${effectiveToolId} requires approval (will install ${dep.name}@${dep.version})`);
     return {
       approvalRequired: true,
-      approvalType: "dependency",
+      approvalType: "tool_permission",
       workflowId: crypto.randomUUID(),
+      toolId: effectiveToolId,
+      namespace: dep.name,
+      needsInstallation: true,
       dependency: dep,
-      description:
-        `Install ${dep.name}@${dep.version} to execute this capability`,
-    } satisfies DependencyApprovalRequired;
+      description: `Allow ${effectiveToolId}? (will install ${dep.name}@${dep.version})`,
+    } satisfies ToolPermissionApprovalRequired;
   }
 
   /**
@@ -927,21 +943,72 @@ export class CapabilityLoader {
 
   /**
    * Route an mcp.namespace.action() call.
+   *
+   * Unified permission model:
+   * 1. Check if tool is already approved in this session
+   * 2. If not, check permission (allow/deny/ask)
+   * 3. If "ask", return approval_required (includes installation info if needed)
+   * 4. After approval, installation happens automatically
+   * 5. Tool is added to approvedTools for session (per-tool, not per-namespace)
    */
   private async routeMcpCall(
     meta: CapabilityMetadata,
     namespace: string,
     action: string,
     args: unknown,
-  ): Promise<unknown> {
+  ): Promise<unknown | ToolPermissionApprovalRequired> {
     const toolId = `${namespace}:${action}`;
 
     logDebug(`Routing mcp.${namespace}.${action}()`);
 
-    // Check if it's a declared stdio dependency
+    // Check if it's a declared stdio dependency (for installation info)
     const dep = meta.mcpDeps?.find((d) => d.name === namespace);
+
+    // Check if already approved in this session (per-tool)
+    if (!this.approvedTools.has(toolId)) {
+      const permission = checkPermission(toolId, this.permissions);
+
+      if (permission === "denied") {
+        throw new LoaderError(
+          "PERMISSION_DENIED",
+          `Tool ${toolId} is in deny list`,
+          { toolId },
+        );
+      }
+
+      if (permission === "ask") {
+        // Check if installation is needed
+        const needsInstallation = dep?.type === "stdio" &&
+          !this.depState.isInstalled(dep.name, dep.version);
+
+        logDebug(`Tool ${toolId} requires approval (needsInstallation: ${needsInstallation})`);
+
+        return {
+          approvalRequired: true,
+          approvalType: "tool_permission",
+          workflowId: crypto.randomUUID(),
+          toolId,
+          namespace,
+          needsInstallation,
+          dependency: needsInstallation ? dep : undefined,
+          description: needsInstallation
+            ? `Allow ${toolId}? (will install ${dep?.name}@${dep?.version})`
+            : `Allow ${toolId}?`,
+        } satisfies ToolPermissionApprovalRequired;
+      }
+
+      // Permission is "allowed" - add to approved set
+      this.approvedTools.add(toolId);
+      logDebug(`Tool ${toolId} auto-approved (in allow list)`);
+    }
+
+    // Execute the tool
     if (dep && dep.type === "stdio") {
-      // Route to stdio subprocess
+      // Ensure installed before calling (silent install after approval)
+      if (!this.depState.isInstalled(dep.name, dep.version)) {
+        logDebug(`Installing ${dep.name}@${dep.version} after approval`);
+        await this.installer.install(dep);
+      }
       return this.callStdio(dep, namespace, action, args);
     }
 
@@ -956,6 +1023,17 @@ export class CapabilityLoader {
     // Local execution - recursive load
     // This handles capabilities calling other capabilities
     return this.call(toolId, args);
+  }
+
+  /**
+   * Approve a specific tool for this session.
+   * Called after user approves via continue_workflow.
+   *
+   * @param toolId - Full tool ID (e.g., "memory:create_entities")
+   */
+  approveToolForSession(toolId: string): void {
+    this.approvedTools.add(toolId);
+    logDebug(`Approved ${toolId} for session`);
   }
 
   /**
