@@ -308,6 +308,7 @@ export type LoaderErrorCode =
   | "DEPENDENCY_INTEGRITY_FAILED"
   | "ENV_VAR_MISSING"
   | "API_KEY_NOT_CONFIGURED" // Story 14.6: User aborted key configuration
+  | "PERMISSION_DENIED" // Unified Permission Model: Tool in deny list
   | "MODULE_IMPORT_FAILED"
   | "METHOD_NOT_FOUND"
   | "INVALID_FQDN" // Invalid FQDN format (expected org.project.namespace.action)
@@ -391,17 +392,46 @@ export interface ExecutionContext {
 /**
  * Approval type discriminant for different HIL flows.
  *
- * - "dependency": MCP dependency needs user approval to install
+ * - "tool_permission": Tool needs user approval to execute (unified permission model)
+ * - "dependency": MCP dependency needs user approval to install (deprecated, use tool_permission)
  * - "api_key_required": API key missing, user needs to configure .env
  * - "integrity": Integrity hash changed, user needs to approve update (Story 14.7)
  */
-export type ApprovalType = "dependency" | "api_key_required" | "integrity";
+export type ApprovalType = "tool_permission" | "dependency" | "api_key_required" | "integrity";
+
+/**
+ * Result when a tool requires user permission to execute.
+ *
+ * Unified permission model: user approves tool usage, and installation
+ * (if needed) happens automatically after approval.
+ *
+ * Once approved, the tool is added to the session's approvedTools set
+ * and can be called without further approval for the rest of the session.
+ */
+export interface ToolPermissionApprovalRequired {
+  /** True when approval is required */
+  approvalRequired: true;
+  /** Discriminant for approval type */
+  approvalType: "tool_permission";
+  /** Workflow ID for continuation tracking */
+  workflowId: string;
+  /** Tool ID requesting permission (e.g., "memory:create_entities") */
+  toolId: string;
+  /** Namespace for namespace-level approval (e.g., "memory") */
+  namespace: string;
+  /** Whether installation is needed after approval */
+  needsInstallation: boolean;
+  /** Dependency info if installation is needed */
+  dependency?: McpDependency;
+  /** Description for the user */
+  description: string;
+}
 
 /**
  * Result of dependency check that may require approval.
  *
- * Used by CapabilityLoader to signal that HIL approval is needed
- * instead of blocking on stdin (which breaks stdio mode).
+ * @deprecated Use ToolPermissionApprovalRequired for unified permission flow.
+ * Kept for backwards compatibility.
  */
 export interface DependencyApprovalRequired {
   /** True when approval is required */
@@ -437,11 +467,9 @@ export interface ApiKeyApprovalRequired {
 
 /**
  * Union of all approval-required results.
- *
- * @deprecated Use DependencyApprovalRequired or ApiKeyApprovalRequired directly.
- * Kept for backwards compatibility.
  */
 export type ApprovalRequiredResult =
+  | ToolPermissionApprovalRequired
   | DependencyApprovalRequired
   | ApiKeyApprovalRequired;
 

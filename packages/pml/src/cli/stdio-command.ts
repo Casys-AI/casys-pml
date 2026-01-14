@@ -27,6 +27,7 @@ import {
   CapabilityLoader,
   type ContinueWorkflowParams,
   type IntegrityApprovalRequired,
+  type ToolPermissionApprovalRequired,
   LockfileManager,
 } from "../loader/mod.ts";
 import { SandboxExecutor } from "../execution/mod.ts";
@@ -207,10 +208,11 @@ function handleToolsList(id: string | number): void {
  * Story 14.4: Dependency installation with stateful workflow tracking.
  * Story 14.6: Supports dependency and API key approval types.
  * Story 14.7: Supports integrity approval type.
+ * Unified Permission Model: Supports tool_permission approval type.
  */
 function formatApprovalRequired(
   toolName: string,
-  approvalResult: ApprovalRequiredResult | IntegrityApprovalRequired,
+  approvalResult: ApprovalRequiredResult | IntegrityApprovalRequired | ToolPermissionApprovalRequired,
   /** Original code for approvals (stored for re-execution) */
   originalCode?: string,
   /** Server-resolved FQDNs for tools used in this code */
@@ -218,6 +220,51 @@ function formatApprovalRequired(
 ): {
   content: Array<{ type: string; text: string }>;
 } {
+  // Handle tool permission approval (Unified Permission Model)
+  // Use workflowId from approval and store code for re-execution
+  if (approvalResult.approvalType === "tool_permission") {
+    const workflowId = approvalResult.workflowId;
+
+    // Store workflow with the SAME workflowId for unified tracking
+    // Note: toolId passed as parameter to setWithId, also store in fqdnMap for later retrieval
+    if (originalCode) {
+      pendingWorkflowStore.setWithId(workflowId, originalCode, approvalResult.toolId, "tool_permission", {
+        namespace: approvalResult.namespace,
+        needsInstallation: approvalResult.needsInstallation,
+        dependency: approvalResult.dependency,
+        fqdnMap,
+      });
+    }
+
+    const data = {
+      status: "approval_required",
+      approval_type: "tool_permission",
+      workflow_id: workflowId,
+      description: approvalResult.description,
+      context: {
+        tool: toolName,
+        tool_id: approvalResult.toolId,
+        namespace: approvalResult.namespace,
+        needs_installation: approvalResult.needsInstallation,
+        dependency: approvalResult.dependency ? {
+          name: approvalResult.dependency.name,
+          version: approvalResult.dependency.version,
+          install: approvalResult.dependency.install,
+        } : undefined,
+      },
+      options: ["continue", "abort"],
+    };
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(data, null, 2),
+        },
+      ],
+    };
+  }
+
   // Handle API key approval (Story 14.6)
   // Use workflowId from approval and store code for re-execution
   if (approvalResult.approvalType === "api_key_required") {
@@ -649,6 +696,14 @@ async function handleToolsCall(
 
         // Pre-continuation actions for each approval type
         switch (pendingWorkflow.approvalType) {
+          case "tool_permission":
+            // User approved tool - add to session's approved set
+            if (loader && pendingWorkflow.toolId) {
+              logDebug(`Approving tool for session: ${pendingWorkflow.toolId}`);
+              loader.approveToolForSession(pendingWorkflow.toolId);
+            }
+            break;
+
           case "api_key_required":
             // Reload environment variables from .env (user added keys there)
             logDebug(`Reloading environment for API key approval`);
@@ -890,8 +945,12 @@ async function handleToolsCall(
 
       // Check if result is an approval_required response
       if (CapabilityLoader.isApprovalRequired(result)) {
-        // Story 14.6 + 14.7: Handle dependency, API key, and integrity approvals
-        if (result.approvalType === "api_key_required") {
+        // Handle all approval types: tool_permission, dependency, API key, integrity
+        if (result.approvalType === "tool_permission") {
+          logDebug(
+            `Tool ${name} requires permission: ${result.toolId}${result.needsInstallation ? " (will install)" : ""}`,
+          );
+        } else if (result.approvalType === "api_key_required") {
           logDebug(
             `Tool ${name} requires API keys: ${result.missingKeys.join(", ")}`,
           );
@@ -899,8 +958,7 @@ async function handleToolsCall(
           logDebug(
             `Tool ${name} requires integrity approval: ${result.fqdnBase} (${result.oldHash} → ${result.newHash})`,
           );
-        } else {
-          // dependency
+        } else if (result.approvalType === "dependency") {
           logDebug(
             `Tool ${name} requires approval for dependency: ${result.dependency.name}`,
           );

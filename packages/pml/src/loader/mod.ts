@@ -27,6 +27,7 @@ export type {
   RegistryClientOptions,
   RegistryFetchResult,
   StdioProcess,
+  ToolPermissionApprovalRequired,
 } from "./types.ts";
 
 export { InstallError, IntegrityError, LoaderError } from "./types.ts";
