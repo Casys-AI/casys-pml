@@ -1,5 +1,5 @@
 import { page } from "fresh";
-import type { FreshContext } from "fresh";
+import type { Context } from "fresh";
 import { Head } from "fresh/runtime";
 import GraphExplorer from "../islands/GraphExplorer.tsx";
 import MetricsPanel from "../islands/MetricsPanel.tsx";
@@ -15,9 +15,9 @@ interface DashboardData {
 }
 
 export const handler = {
-  GET(ctx: FreshContext<AuthState>) {
+  GET(ctx: Context<AuthState>) {
     // Read API base from env, default to localhost:3003 for dev
-    const apiBase = Deno.env.get("API_BASE") || "http://localhost:3003";
+    const apiBase = Deno.env.get("API_BASE") ?? "http://localhost:3003";
     // Pass API key for authenticated API calls (local dev only - production uses session tokens)
     const apiKey = Deno.env.get("PML_API_KEY") || null;
     return page({
@@ -30,7 +30,7 @@ export const handler = {
 };
 
 export default function Dashboard({ data }: { data: DashboardData }) {
-  const apiBase = data?.apiBase || "http://localhost:3003";
+  const apiBase = data?.apiBase ?? "http://localhost:3003";
   const apiKey = data?.apiKey || null;
   const { isCloudMode, user } = data;
 

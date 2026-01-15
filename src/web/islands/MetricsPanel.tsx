@@ -85,7 +85,7 @@ interface GraphMetricsResponse {
 type GraphTypeTab = "graph" | "hypergraph";
 
 export default function MetricsPanel({ apiBase: apiBaseProp, apiKey }: MetricsPanelProps) {
-  const apiBase = apiBaseProp || "http://localhost:3003";
+  const apiBase = apiBaseProp ?? "";
 
   const [metrics, setMetrics] = useState<GraphMetricsResponse | null>(null);
   const [dateRange, setDateRange] = useState<MetricsTimeRange>("24h");

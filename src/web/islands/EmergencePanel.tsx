@@ -52,7 +52,7 @@ export default function EmergencePanel({
   onScopeChange,
   isLocalMode = false,
 }: EmergencePanelProps) {
-  const apiBase = apiBaseProp || "http://localhost:3003";
+  const apiBase = apiBaseProp ?? "";
 
   const [metrics, setMetrics] = useState<EmergenceMetrics | null>(null);
   const [loading, setLoading] = useState(true);

@@ -87,7 +87,7 @@ export default function D3GraphVisualization({
   onToolSelect,
   highlightedNodeId,
 }: D3GraphVisualizationProps) {
-  const apiBase = apiBaseProp || "http://localhost:3003";
+  const apiBase = apiBaseProp ?? "";
 
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);

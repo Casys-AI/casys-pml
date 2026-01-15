@@ -80,7 +80,7 @@ interface GraphExplorerProps {
 }
 
 export default function GraphExplorer({ apiBase: apiBaseProp, apiKey }: GraphExplorerProps) {
-  const apiBase = apiBaseProp || "http://localhost:3003";
+  const apiBase = apiBaseProp ?? "";
 
   // Helper for authenticated API calls
   const apiFetch = (url: string, options?: RequestInit) => {
