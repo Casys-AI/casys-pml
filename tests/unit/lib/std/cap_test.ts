@@ -114,9 +114,8 @@ interface MockCapRecord {
   action: string;
   hash: string;
   workflowPatternId?: string;
-  createdBy: string;
+  userId?: string;  // Migration 039: replaces createdBy
   createdAt: Date;
-  updatedBy?: string;
   updatedAt?: Date;
   version: number;
   versionTag?: string;
@@ -168,7 +167,7 @@ function createMockCapability(overrides: Partial<MockCapRecord> = {}): MockCapRe
     action: "read_json",
     hash: "a7f3",
     workflowPatternId: "pattern-123",
-    createdBy: "test",
+    userId: null,
     createdAt: new Date("2025-01-01"),
     version: 1,
     verified: false,

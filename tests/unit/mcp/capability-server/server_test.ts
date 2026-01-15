@@ -120,7 +120,7 @@ function createTestSetup() {
     action: "analyze",
     hash: "a1b2",
     workflowPatternId: "pattern-123",
-    createdBy: "local",
+    userId: null,
     createdAt: new Date(),
     version: 1,
     verified: false,

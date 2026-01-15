@@ -21,6 +21,8 @@
  */
 
 import { loadScenario } from "../fixtures/scenario-loader.ts";
+import { createSHGATFromCapabilities } from "../../../src/graphrag/algorithms/shgat.ts";
+import type { TrainingExample as ProdTrainingExample } from "../../../src/graphrag/algorithms/shgat.ts";
 
 // ============================================================================
 // Types
@@ -343,6 +345,7 @@ class AblationSHGAT {
   private readonly connectivity: number[][];
   private readonly embDim: number;
   private readonly headDim: number;
+  private readonly scoreDim: number; // Dimension for scoring (matches E_new output)
 
   constructor(
     capabilities: CapabilityData[],
@@ -385,9 +388,12 @@ class AblationSHGAT {
     // Initialize layer - use headDim from config
     this.layer = new ConfigurableMessagePassingLayer(embDim, this.headDim, config);
 
-    // Intent projection - output dim = numHeads × headDim for multi-head concat
+    // Score dimension depends on whether we aggregate projected or unprojected embeddings
+    // - aggregateProjected=true: E_new has outputDim (numHeads × headDim)
+    // - aggregateProjected=false: E_new has embDim (original embedding dimension)
     const outputDim = config.numHeads * this.headDim;
-    this.W_intent = initMatrix(outputDim, embDim);
+    this.scoreDim = config.aggregateProjected ? outputDim : embDim;
+    this.W_intent = initMatrix(this.scoreDim, embDim);
   }
 
   scoreAllCapabilities(intentEmbedding: number[]): Array<{ capabilityId: string; score: number }> {
@@ -408,10 +414,9 @@ class AblationSHGAT {
     // Forward pass
     const { E_new } = this.layer.forward(H, E, this.connectivity);
 
-    // Project intent to match output dimension
-    const outputDim = this.config.numHeads * this.headDim;
-    const intentProj = Array(outputDim).fill(0);
-    for (let i = 0; i < outputDim; i++) {
+    // Project intent to match E_new dimension (scoreDim)
+    const intentProj = Array(this.scoreDim).fill(0);
+    for (let i = 0; i < this.scoreDim; i++) {
       for (let j = 0; j < this.embDim; j++) {
         intentProj[i] += this.W_intent[i][j] * intentEmbedding[j];
       }
@@ -420,7 +425,7 @@ class AblationSHGAT {
     // Score each capability
     const results: Array<{ capabilityId: string; score: number }> = [];
     for (let i = 0; i < E_new.length; i++) {
-      const score = dot(intentProj, E_new[i]) / Math.sqrt(outputDim);
+      const score = dot(intentProj, E_new[i]) / Math.sqrt(this.scoreDim);
       results.push({ capabilityId: capIds[i], score });
     }
 
@@ -471,7 +476,7 @@ class AblationSHGAT {
         // Update W_intent towards positive embedding
         const posEmb = this.capabilities.get(ex.candidateId)?.embedding;
         if (posEmb) {
-          for (let i = 0; i < this.headDim; i++) {
+          for (let i = 0; i < this.scoreDim; i++) {
             for (let j = 0; j < this.embDim; j++) {
               this.W_intent[i][j] += gradScale * ex.intentEmbedding[j] * 0.001;
             }
@@ -532,6 +537,89 @@ async function runAblation(
     loss: finalLoss,
     mrr: totalReciprocal / testExamples.length,
     convergenceEpoch,
+    timeMs: endTime - startTime,
+  };
+}
+
+// ============================================================================
+// OURS Config Runner (uses real production SHGAT code)
+// ============================================================================
+
+async function runOursWithProdCode(
+  configName: string,
+  capabilities: CapabilityData[],
+  toolEmbeddings: Map<string, number[]>,
+  trainExamples: TrainingExample[],
+  testExamples: TrainingExample[],
+  epochs: number = 25,
+): Promise<AblationResult> {
+  const startTime = performance.now();
+
+  // Convert to prod format
+  const prodCaps = capabilities.map((c) => ({
+    id: c.id,
+    embedding: c.embedding,
+    toolsUsed: c.toolsUsed,
+    successRate: c.successRate,
+  }));
+
+  // Create real SHGAT model
+  const shgat = createSHGATFromCapabilities(prodCaps, toolEmbeddings);
+
+  // Convert training examples to prod format
+  const prodExamples: ProdTrainingExample[] = trainExamples.map((ex) => ({
+    intentEmbedding: ex.intentEmbedding,
+    contextTools: ex.contextTools,
+    candidateId: ex.candidateId,
+    outcome: ex.outcome,
+    negativeCapIds: ex.negativeCapIds,
+  }));
+
+  // Train using real production code
+  const batchSize = 16;
+  const temperature = 0.07;
+  let finalLoss = 0;
+  let finalAccuracy = 0;
+
+  for (let epoch = 0; epoch < epochs; epoch++) {
+    let epochLoss = 0;
+    let epochAcc = 0;
+    let batches = 0;
+
+    for (let i = 0; i < prodExamples.length; i += batchSize) {
+      const batch = prodExamples.slice(i, i + batchSize);
+      const weights = batch.map(() => 1.0);
+      const result = shgat.trainBatchV1KHeadBatched(batch, weights, false, temperature);
+      epochLoss += result.loss;
+      epochAcc += result.accuracy;
+      batches++;
+    }
+
+    finalLoss = epochLoss / batches;
+    finalAccuracy = epochAcc / batches;
+  }
+
+  // Evaluate on test set
+  let testCorrect = 0;
+  let totalReciprocal = 0;
+
+  for (const ex of testExamples) {
+    const results = shgat.scoreAllCapabilities(ex.intentEmbedding);
+    const rank = results.findIndex((r) => r.capabilityId === ex.candidateId) + 1;
+
+    if (rank === 1) testCorrect++;
+    if (rank > 0) totalReciprocal += 1 / rank;
+  }
+
+  const endTime = performance.now();
+
+  return {
+    config: configName,
+    trainAccuracy: finalAccuracy,
+    testAccuracy: testCorrect / testExamples.length,
+    loss: finalLoss,
+    mrr: totalReciprocal / testExamples.length,
+    convergenceEpoch: epochs, // Not tracked for prod code
     timeMs: endTime - startTime,
   };
 }
@@ -723,6 +811,11 @@ if (import.meta.main) {
 
   console.log(`Running ${configs.length} configurations × ${NUM_SEEDS} seeds...\n`);
 
+  // Print header for live results
+  console.log("┌" + "─".repeat(42) + "┬" + "─".repeat(10) + "┬" + "─".repeat(10) + "┬" + "─".repeat(10) + "┬" + "─".repeat(10) + "┐");
+  console.log("│ " + "Config".padEnd(40) + " │ " + "Seed".padEnd(8) + " │ " + "Test Acc".padEnd(8) + " │ " + "MRR".padEnd(8) + " │ " + "Time".padEnd(8) + " │");
+  console.log("├" + "─".repeat(42) + "┼" + "─".repeat(10) + "┼" + "─".repeat(10) + "┼" + "─".repeat(10) + "┼" + "─".repeat(10) + "┤");
+
   const allResults: Map<string, AblationResult[]> = new Map();
 
   for (const config of configs) {
@@ -732,22 +825,56 @@ if (import.meta.main) {
       // Reset random seed (approximation)
       Math.random();
 
-      const result = await runAblation(
-        config,
-        capabilities,
-        toolEmbeddings,
-        trainExamples,
-        testExamples,
-        EPOCHS,
-      );
+      // Use real production code for "OURS" configs, ablation code for others
+      const result = config.name.startsWith("OURS")
+        ? await runOursWithProdCode(
+            config.name,
+            capabilities,
+            toolEmbeddings,
+            trainExamples,
+            testExamples,
+            EPOCHS,
+          )
+        : await runAblation(
+            config,
+            capabilities,
+            toolEmbeddings,
+            trainExamples,
+            testExamples,
+            EPOCHS,
+          );
       configResults.push(result);
 
-      process.stdout.write(".");
+      // Print result immediately
+      const testAcc = `${(result.testAccuracy * 100).toFixed(1)}%`;
+      const mrr = result.mrr.toFixed(3);
+      const time = `${(result.timeMs / 1000).toFixed(1)}s`;
+      console.log(
+        "│ " + config.name.padEnd(40) + " │ " +
+        `#${seed + 1}`.padEnd(8) + " │ " +
+        testAcc.padEnd(8) + " │ " +
+        mrr.padEnd(8) + " │ " +
+        time.padEnd(8) + " │"
+      );
     }
 
+    // Print mean for this config
+    const meanAcc = configResults.reduce((a, b) => a + b.testAccuracy, 0) / configResults.length;
+    const meanMrr = configResults.reduce((a, b) => a + b.mrr, 0) / configResults.length;
+    const meanTime = configResults.reduce((a, b) => a + b.timeMs, 0) / configResults.length;
+    console.log(
+      "│ " + `  ↳ MEAN`.padEnd(40) + " │ " +
+      ``.padEnd(8) + " │ " +
+      `${(meanAcc * 100).toFixed(1)}%`.padEnd(8) + " │ " +
+      meanMrr.toFixed(3).padEnd(8) + " │ " +
+      `${(meanTime / 1000).toFixed(1)}s`.padEnd(8) + " │"
+    );
+    console.log("├" + "─".repeat(42) + "┼" + "─".repeat(10) + "┼" + "─".repeat(10) + "┼" + "─".repeat(10) + "┼" + "─".repeat(10) + "┤");
+
     allResults.set(config.name, configResults);
-    console.log(` ${config.name}`);
   }
+
+  console.log("└" + "─".repeat(42) + "┴" + "─".repeat(10) + "┴" + "─".repeat(10) + "┴" + "─".repeat(10) + "┴" + "─".repeat(10) + "┘");
 
   // Compute statistics
   interface AggregatedResult {

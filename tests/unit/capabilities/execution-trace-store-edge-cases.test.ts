@@ -83,7 +83,6 @@ function createTestTraceInput(overrides?: Partial<SaveTraceInput>): SaveTraceInp
     priority: 0.5,
     parentTraceId: undefined,
     userId: "test-user",
-    createdBy: "test-agent",
     ...overrides,
   };
 }
@@ -210,7 +209,6 @@ Deno.test("ExecutionTraceStore - buildHierarchy() treats orphan trace as root (m
     priority: 0.5,
     parentTraceId: "non-existent-parent-id", // Parent not in input
     userId: "test-user",
-    createdBy: "test-agent",
   };
 
   const roots = store.buildHierarchy([orphanTrace]);
@@ -445,7 +443,6 @@ Deno.test("ExecutionTraceStore - handles undefined optional fields", async () =>
     priority: 0.5,
     parentTraceId: undefined,
     userId: undefined,
-    createdBy: undefined,
   });
 
   const retrieved = await store.getTraceById(trace.id);

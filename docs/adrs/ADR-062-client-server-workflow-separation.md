@@ -153,10 +153,109 @@ MCP's stateful connection (persistent stdio process) makes in-memory storage saf
   - Store workflow on `approval_required`
   - Intercept local `continue_workflow` before forwarding to cloud
 
+## Capability Learning After Client Execution
+
+When code executes locally via `execute_locally` (ADR-059), capabilities must still be created.
+This requires a **correlation mechanism** using `workflowId` and `LearningContext`.
+
+### Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  SERVER                              │  CLIENT                     │
+├──────────────────────────────────────┼─────────────────────────────┤
+│                                      │                             │
+│  1. Analyze code (SWC → DAG)         │                             │
+│     → staticStructure                │                             │
+│     → toolsUsed                      │                             │
+│                                      │                             │
+│  2. Generate workflowId (UUID)       │                             │
+│                                      │                             │
+│  3. Store LearningContext in KV:     │                             │
+│     key: workflow_state:{workflowId} │                             │
+│     value: {                         │                             │
+│       code, intent,                  │                             │
+│       staticStructure,               │                             │
+│       toolsUsed, userId              │                             │
+│     }                                │                             │
+│     TTL: 1 hour                      │                             │
+│                                      │                             │
+│  4. Return execute_locally ──────────┼──► 5. Parse workflowId      │
+│     + workflowId (REQUIRED)          │                             │
+│                                      │  6. Execute code locally    │
+│                                      │     → taskResults           │
+│                                      │     → durationMs            │
+│                                      │     → success               │
+│                                      │                             │
+│  8. POST /api/traces receives ◄──────┼─── 7. TraceSyncer.enqueue() │
+│     trace with workflowId            │       { workflowId,         │
+│                                      │         success,            │
+│                                      │         durationMs,         │
+│                                      │         taskResults }       │
+│                                      │                             │
+│  9. If success && workflowId:        │                             │
+│     - getWorkflowStateRecord()       │                             │
+│     - saveCapability()               │                             │
+│     - capabilityRegistry.create()    │                             │
+│     - deleteWorkflowState()          │                             │
+│                                      │                             │
+└──────────────────────────────────────┴─────────────────────────────┘
+```
+
+### Critical Implementation Notes
+
+1. **workflowId MUST be included** in `execute_locally` response
+   - Generated in `execute-direct.use-case.ts`
+   - Passed through `execute-handler-facade.ts` (**do not drop!**)
+   - Used by client to correlate trace back to server
+
+2. **LearningContext** stores everything needed for capability creation:
+   - `code`, `intent`, `staticStructure` - from analysis
+   - `toolsUsed` - for FQDN namespace derivation
+   - `userId` - for multi-tenant isolation (Story 9.8)
+
+3. **Trace sync** happens asynchronously via `TraceSyncer`
+   - Client enqueues trace after successful execution
+   - Batch sync to `/api/traces` endpoint
+   - Server creates capability when trace arrives
+
+### Files Involved
+
+| File | Responsibility |
+|------|----------------|
+| `src/application/use-cases/execute/execute-direct.use-case.ts` | Generates workflowId, stores LearningContext |
+| `src/mcp/handlers/execute-handler-facade.ts` | **MUST pass workflowId in response** |
+| `src/cache/workflow-state-cache.ts` | Deno KV storage for LearningContext |
+| `packages/pml/src/cli/stdio-command.ts` | Parses workflowId, sends trace after execution |
+| `src/api/traces.ts` | Receives trace, creates capability |
+
+### Why Server-Side Storage?
+
+Unlike HIL approval workflows (PendingWorkflowStore in-memory on client), capability learning
+requires **server-side storage** because:
+
+1. **Trace arrives asynchronously** - Client may batch traces, delay sync
+2. **Persistence needed** - If server restarts, learning context must survive
+3. **Multi-tenant isolation** - `userId` must be validated server-side
+4. **Rich context** - `staticStructure`, `intentEmbedding` are too large for trace payload
+
+### Edge Cases
+
+| Case | Handling |
+|------|----------|
+| LearningContext expires (1h TTL) | Log warning, trace stored but no capability created |
+| Execution fails on client | Trace with `success: false`, no capability created |
+| Duplicate traces (same workflowId) | First creates capability, second logs warning (hash-based UPSERT prevents duplicates) |
+| Missing workflowId in response | **BUG** - facade dropped it, client can't correlate trace |
+
+**See also:** `docs/spikes/2026-01-13-client-routed-capability-creation.md` for implementation details
+
 ## Related
 
 - **Epic 14:** JSR Package Local/Cloud MCP Routing
 - **Story 14.3b:** HIL Approval Flow (superseded assumption)
 - **Story 14.4:** Dynamic MCP Loader
+- **Story 9.8:** Multi-tenant capability isolation
 - **ADR-059:** Hybrid Routing Server Analysis Package Execution
 - **Spike:** `_bmad-output/spikes/2026-01-11-spike-client-workflow-state.md`
+- **Spike:** `docs/spikes/2026-01-13-client-routed-capability-creation.md`

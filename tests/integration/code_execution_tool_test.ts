@@ -97,10 +97,13 @@ Deno.test({
   async fn() {
     const gateway = await createTestGateway();
 
-    // Execute simple code
-    const handleExecuteCode = (gateway as any).handleExecuteCode.bind(gateway);
-    const result = await handleExecuteCode({
-      code: "return 1 + 1;",
+    // Execute simple code via handleCallTool
+    const handleCallTool = (gateway as any).handleCallTool.bind(gateway);
+    const result = await handleCallTool({
+      params: {
+        name: "pml:execute_code",
+        arguments: { code: "return 1 + 1;" },
+      },
     });
 
     // Verify result structure
@@ -120,10 +123,13 @@ Deno.test({
   async fn() {
     const gateway = await createTestGateway();
 
-    // Execute invalid code
-    const handleExecuteCode = (gateway as any).handleExecuteCode.bind(gateway);
-    const result = await handleExecuteCode({
-      code: "return 1 +;", // Syntax error
+    // Execute invalid code via handleCallTool
+    const handleCallTool = (gateway as any).handleCallTool.bind(gateway);
+    const result = await handleCallTool({
+      params: {
+        name: "pml:execute_code",
+        arguments: { code: "return 1 +;" }, // Syntax error
+      },
     });
 
     // Verify error response
@@ -143,12 +149,15 @@ Deno.test({
   async fn() {
     const gateway = await createTestGateway();
 
-    // Execute code that times out
-    const handleExecuteCode = (gateway as any).handleExecuteCode.bind(gateway);
-    const result = await handleExecuteCode({
-      code: "while (true) { /* infinite loop */ }",
-      sandbox_config: {
-        timeout: 100, // 100ms timeout
+    // Execute code that times out via handleCallTool
+    const handleCallTool = (gateway as any).handleCallTool.bind(gateway);
+    const result = await handleCallTool({
+      params: {
+        name: "pml:execute_code",
+        arguments: {
+          code: "while (true) { /* infinite loop */ }",
+          sandbox_config: { timeout: 100 }, // 100ms timeout
+        },
       },
     });
 
@@ -164,12 +173,15 @@ Deno.test({
   async fn() {
     const gateway = await createTestGateway();
 
-    // Execute with custom context
-    const handleExecuteCode = (gateway as any).handleExecuteCode.bind(gateway);
-    const result = await handleExecuteCode({
-      code: "return { sum: data.a + data.b };",
-      context: {
-        data: { a: 10, b: 20 },
+    // Execute with custom context via handleCallTool
+    const handleCallTool = (gateway as any).handleCallTool.bind(gateway);
+    const result = await handleCallTool({
+      params: {
+        name: "pml:execute_code",
+        arguments: {
+          code: "return { sum: data.a + data.b };",
+          context: { data: { a: 10, b: 20 } },
+        },
       },
     });
 
@@ -190,9 +202,12 @@ Deno.test({
     // Generate code larger than 100KB
     const largeCode = "return 1;" + " ".repeat(101 * 1024);
 
-    const handleExecuteCode = (gateway as any).handleExecuteCode.bind(gateway);
-    const result = await handleExecuteCode({
-      code: largeCode,
+    const handleCallTool = (gateway as any).handleCallTool.bind(gateway);
+    const result = await handleCallTool({
+      params: {
+        name: "pml:execute_code",
+        arguments: { code: largeCode },
+      },
     });
 
     // Verify validation error

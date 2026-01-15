@@ -43,7 +43,7 @@ class MockCapabilityRegistry implements Partial<CapabilityRegistry> {
       hash: "xxxx",
       usageCount: 1,
       visibility: "public",
-      createdBy: "test",
+      userId: null,
       createdAt: new Date(),
       updatedAt: new Date(),
       version: 1,

@@ -95,7 +95,6 @@ function createTestTraceInput(overrides?: Partial<SaveTraceInput>): SaveTraceInp
     priority: 0.5,
     parentTraceId: undefined,
     userId: "test-user",
-    createdBy: "test-agent",
     ...overrides,
   };
 }
@@ -117,7 +116,6 @@ Deno.test("ExecutionTraceStore - saveTrace() inserts with auto-generated id", as
   assertEquals(trace.durationMs, 100);
   assertEquals(trace.intentText, "Test intent");
   assertEquals(trace.userId, "test-user");
-  assertEquals(trace.createdBy, "test-agent");
 
   await db.close();
 });

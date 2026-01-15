@@ -155,78 +155,8 @@ it ALWAYS runs in the sandbox with `permissions: "none"`. The sandbox provides:
 3. **Single analysis point** - SWC/DAG logic stays on server
 4. **Clear separation** - Server = analysis, Package = client execution
 
-### Capability Learning After Hybrid Execution
-
-When code executes locally via `execute_locally`, capabilities must still be created.
-This requires a **correlation mechanism** using `workflowId`.
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│  SERVER                              │  CLIENT                     │
-├──────────────────────────────────────┼─────────────────────────────┤
-│                                      │                             │
-│  1. Analyze code (SWC → DAG)         │                             │
-│     → staticStructure                │                             │
-│     → toolsUsed                      │                             │
-│                                      │                             │
-│  2. Generate workflowId (UUID)       │                             │
-│                                      │                             │
-│  3. Store LearningContext in KV:     │                             │
-│     key: workflow_state:{workflowId} │                             │
-│     value: {                         │                             │
-│       code, intent,                  │                             │
-│       staticStructure,               │                             │
-│       toolsUsed, userId              │                             │
-│     }                                │                             │
-│     TTL: 1 hour                      │                             │
-│                                      │                             │
-│  4. Return execute_locally ──────────┼──► 5. Parse workflowId      │
-│     + workflowId (REQUIRED)          │                             │
-│                                      │  6. Execute code locally    │
-│                                      │     → taskResults           │
-│                                      │     → durationMs            │
-│                                      │     → success               │
-│                                      │                             │
-│  8. POST /api/traces receives ◄──────┼─── 7. TraceSyncer.enqueue() │
-│     trace with workflowId            │       { workflowId,         │
-│                                      │         success,            │
-│                                      │         durationMs,         │
-│                                      │         taskResults }       │
-│                                      │                             │
-│  9. If success && workflowId:        │                             │
-│     - getWorkflowStateRecord()       │                             │
-│     - saveCapability()               │                             │
-│     - capabilityRegistry.create()    │                             │
-│     - deleteWorkflowState()          │                             │
-│                                      │                             │
-└──────────────────────────────────────┴─────────────────────────────┘
-```
-
-**Critical Implementation Notes:**
-
-1. **workflowId MUST be included** in `execute_locally` response
-   - Generated in `execute-direct.use-case.ts`
-   - Passed through `execute-handler-facade.ts` (do not drop!)
-   - Used by client to correlate trace back to server
-
-2. **LearningContext** stores everything needed for capability creation:
-   - `code`, `intent`, `staticStructure` - from analysis
-   - `toolsUsed` - for FQDN namespace derivation
-   - `userId` - for multi-tenant isolation
-
-3. **Trace sync** happens asynchronously via `TraceSyncer`
-   - Client enqueues trace after successful execution
-   - Batch sync to `/api/traces` endpoint
-   - Server creates capability when trace arrives
-
-4. **Files involved:**
-   - `src/application/use-cases/execute/execute-direct.use-case.ts` - generates workflowId, stores LearningContext
-   - `src/mcp/handlers/execute-handler-facade.ts` - MUST pass workflowId in response
-   - `src/cache/workflow-state-cache.ts` - Deno KV storage for LearningContext
-   - `packages/pml/src/cli/stdio-command.ts` - parses workflowId, sends trace
-   - `src/api/traces.ts` - receives trace, creates capability
-
-**See also:** `docs/spikes/2026-01-13-client-routed-capability-creation.md` for detailed implementation
+**Note:** The `workflowId` in `execute_locally` response is required for capability creation.
+See **ADR-062 § Capability Learning After Client Execution** for the complete flow.
 
 ## Implementation
 
