@@ -10,7 +10,8 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { TimelineSeparator, WelcomeEmptyState } from "../components/ui/atoms/mod.ts";
+import { TimelineSeparator } from "../components/ui/atoms/TimelineSeparator.tsx";
+import { WelcomeEmptyState } from "../components/ui/atoms/mod.ts";
 import {
   CapabilityCard,
   CardDensity,
