@@ -333,8 +333,12 @@ async function fetchRealTimeseries(
     // Entropy: fetch from entropy_history table
     // Story 9.8: Filter by user if scope is "user"
     // Story 6.6: Now includes semantic and dual entropy timeseries
+    // Calculate appropriate limit based on range
+    // ~60 records/day, so: 1h=10, 24h=100, 7d=500, 30d=2000
+    const entropyLimit = range === "1h" ? 50 : range === "24h" ? 200 : range === "7d" ? 1000 : 3000;
+
     const entropyHistory = await getEntropyHistory(db, {
-      limit: 100,
+      limit: entropyLimit,
       userId: scope === "user" ? userId : undefined,
       since: startDate,
     });
