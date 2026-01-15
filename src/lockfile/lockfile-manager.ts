@@ -79,10 +79,14 @@ export class LockfileManager {
 
     try {
       const content = await Deno.readTextFile(this.lockfilePath);
+      // Handle empty file as if not found
+      if (!content.trim()) {
+        throw new Deno.errors.NotFound("Lockfile is empty");
+      }
       this.lockfile = JSON.parse(content) as Lockfile;
       return this.lockfile;
     } catch (e) {
-      if (e instanceof Deno.errors.NotFound && this.autoCreate) {
+      if ((e instanceof Deno.errors.NotFound || e instanceof SyntaxError) && this.autoCreate) {
         // Create empty lockfile
         this.lockfile = {
           version: 1,
