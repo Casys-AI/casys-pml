@@ -2,16 +2,24 @@
  * SHGAT Graph Builder Module
  *
  * Handles graph construction and management for SHGAT:
- * - Tool node registration (vertices)
- * - Capability node registration (hyperedges)
+ * - Unified node registration
+ * - Tool node registration (vertices) - legacy
+ * - Capability node registration (hyperedges) - legacy
  * - Incidence matrix construction with transitive closure
  * - Index management
  *
  * @module graphrag/algorithms/shgat/graph/graph-builder
  */
 
-import type { CapabilityNode, HypergraphFeatures, ToolGraphFeatures, ToolNode } from "../core/types.ts";
+import type {
+  CapabilityNode,
+  HypergraphFeatures,
+  Node,
+  ToolGraphFeatures,
+  ToolNode,
+} from "../core/types.ts";
 import {
+  computeAllLevels,
   createMembersFromLegacy,
   DEFAULT_HYPERGRAPH_FEATURES,
   DEFAULT_TOOL_GRAPH_FEATURES,
@@ -36,11 +44,16 @@ export interface GraphBuildData {
  * Manages the hypergraph structure for SHGAT
  *
  * Handles:
- * - Tool nodes (vertices in hypergraph)
- * - Capability nodes (hyperedges)
+ * - Unified nodes (new API)
+ * - Tool nodes (vertices in hypergraph) - legacy
+ * - Capability nodes (hyperedges) - legacy
  * - Incidence matrix with transitive closure for hierarchical capabilities
  */
 export class GraphBuilder {
+  // Unified node storage (new API)
+  private nodes: Map<string, Node> = new Map();
+
+  // Legacy node storage (maintained for backward compatibility)
   private toolNodes: Map<string, ToolNode> = new Map();
   private capabilityNodes: Map<string, CapabilityNode> = new Map();
   private toolIndex: Map<string, number> = new Map();
@@ -48,11 +61,94 @@ export class GraphBuilder {
   private incidenceMatrix: number[][] = [];
 
   // =========================================================================
-  // Node Registration
+  // Unified Node API (new)
+  // =========================================================================
+
+  /**
+   * Register a unified node
+   *
+   * @param node Node to register
+   */
+  registerNode(node: Node): void {
+    this.nodes.set(node.id, node);
+    // Recompute levels for all nodes when graph changes
+    computeAllLevels(this.nodes);
+  }
+
+  /**
+   * Get a unified node by ID
+   */
+  getNode(id: string): Node | undefined {
+    return this.nodes.get(id);
+  }
+
+  /**
+   * Get all unified nodes
+   */
+  getNodes(): Map<string, Node> {
+    return this.nodes;
+  }
+
+  /**
+   * Get nodes at a specific hierarchy level
+   */
+  getNodesByLevel(level: number): Node[] {
+    return Array.from(this.nodes.values()).filter((n) => n.level === level);
+  }
+
+  /**
+   * Get all descendant IDs of a node (transitive)
+   */
+  getDescendants(id: string, visited = new Set<string>()): string[] {
+    if (visited.has(id)) return [];
+    visited.add(id);
+
+    const node = this.nodes.get(id);
+    if (!node) return [];
+
+    const descendants: string[] = [];
+    for (const childId of node.children) {
+      descendants.push(childId);
+      descendants.push(...this.getDescendants(childId, visited));
+    }
+    return descendants;
+  }
+
+  /**
+   * Check if a unified node exists
+   */
+  hasNode(id: string): boolean {
+    return this.nodes.has(id);
+  }
+
+  /**
+   * Get the number of unified nodes
+   */
+  getNodeCount(): number {
+    return this.nodes.size;
+  }
+
+  /**
+   * Get all unified node IDs
+   */
+  getNodeIds(): string[] {
+    return Array.from(this.nodes.keys());
+  }
+
+  /**
+   * Clear all unified nodes
+   */
+  clearNodes(): void {
+    this.nodes.clear();
+  }
+
+  // =========================================================================
+  // Legacy Node Registration (maintained for backward compatibility)
   // =========================================================================
 
   /**
    * Register a tool (vertex)
+   * @deprecated Use registerNode() with children: [] instead
    */
   registerTool(node: ToolNode): void {
     this.toolNodes.set(node.id, node);
@@ -61,6 +157,7 @@ export class GraphBuilder {
 
   /**
    * Register a capability (hyperedge)
+   * @deprecated Use registerNode() with children: [...] instead
    */
   registerCapability(node: CapabilityNode): void {
     this.capabilityNodes.set(node.id, node);

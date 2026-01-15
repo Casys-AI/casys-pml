@@ -1,11 +1,8 @@
 {
   "mcpServers": {
     "pml": {
-      "type": "stdio",
-      "command": "pml",
-      "args": [
-        "stdio"
-      ]
+      "type": "http",
+      "url": "http://localhost:3004"
     }
   }
 }

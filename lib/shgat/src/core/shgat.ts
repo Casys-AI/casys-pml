@@ -80,7 +80,9 @@ import { computeStats, type SHGATStats } from "./stats.ts";
 // Re-export all types from ./shgat/types.ts for backward compatibility
 export {
   type AttentionResult,
+  buildGraph,
   type CapabilityNode,
+  computeAllLevels,
   createDefaultTraceFeatures,
   DEFAULT_FEATURE_WEIGHTS,
   DEFAULT_FUSION_WEIGHTS,
@@ -93,6 +95,7 @@ export {
   type FusionWeights,
   getAdaptiveConfig,
   type HypergraphFeatures,
+  type Node,
   NUM_TRACE_STATS,
   type SHGATConfig,
   type ToolGraphFeatures,
@@ -117,6 +120,7 @@ import {
   type FusionWeights,
   type HypergraphFeatures,
   type LevelParams,
+  type Node,
   type SHGATConfig,
   type ToolGraphFeatures,
   type ToolNode,
@@ -169,11 +173,29 @@ export class SHGAT {
   // Graph Management (delegated to GraphBuilder)
   // ==========================================================================
 
+  /**
+   * Register a unified node
+   *
+   * @param node Node to register
+   */
+  registerNode(node: Node): void {
+    this.graphBuilder.registerNode(node);
+    this.hierarchyDirty = true;
+  }
+
+  /**
+   * Register a tool (vertex)
+   * @deprecated Use registerNode() with children: [] instead
+   */
   registerTool(node: ToolNode): void {
     this.graphBuilder.registerTool(node);
     this.hierarchyDirty = true;
   }
 
+  /**
+   * Register a capability (hyperedge)
+   * @deprecated Use registerNode() with children: [...] instead
+   */
   registerCapability(node: CapabilityNode): void {
     this.graphBuilder.registerCapability(node);
     this.hierarchyDirty = true;
@@ -470,6 +492,7 @@ export class SHGAT {
 // ============================================================================
 
 export {
+  createSHGAT,
   createSHGATFromCapabilities,
   trainSHGATOnEpisodes,
   trainSHGATOnEpisodesKHead,

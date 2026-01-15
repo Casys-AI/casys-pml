@@ -30,6 +30,7 @@
 
 // Main SHGAT class and factory functions
 export {
+  createSHGAT,
   createSHGATFromCapabilities,
   SHGAT,
   trainSHGATOnEpisodes,
@@ -63,7 +64,8 @@ export {
 } from "./src/core/shgat.ts";
 
 // Additional types from types.ts
-export type { LevelParams, Member } from "./src/core/types.ts";
+export type { LevelParams, Member, Node } from "./src/core/types.ts";
+export { buildGraph, computeAllLevels } from "./src/core/types.ts";
 
 // Graph construction
 export {

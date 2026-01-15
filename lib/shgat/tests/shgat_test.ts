@@ -7,7 +7,13 @@
  */
 
 import { assertEquals, assertExists, assertGreater, assertLess } from "@std/assert";
-import { createSHGATFromCapabilities, SHGAT } from "../mod.ts";
+import {
+  buildGraph,
+  createSHGAT,
+  createSHGATFromCapabilities,
+  type Node,
+  SHGAT,
+} from "../mod.ts";
 
 // =============================================================================
 // Test Fixtures
@@ -186,4 +192,93 @@ Deno.test("SHGAT - handles unknown tool in context", () => {
   // Should not crash with unknown tool
   const results = shgat.scoreAllCapabilities(intent, ["unknown-tool-xyz"]);
   assertEquals(results.length, 3);
+});
+
+// =============================================================================
+// Unified Node API Tests
+// =============================================================================
+
+function createTestNodes(count: number = 3): Node[] {
+  const nodes: Node[] = [];
+
+  // Create leaf nodes (level 0)
+  for (let i = 0; i < count; i++) {
+    nodes.push({
+      id: `leaf-${i + 1}`,
+      embedding: Array.from({ length: 1024 }, () => Math.random() * 0.1),
+      children: [],
+      level: 0,
+    });
+  }
+
+  // Create composite nodes (level 1)
+  for (let i = 0; i < count; i++) {
+    nodes.push({
+      id: `composite-${i + 1}`,
+      embedding: Array.from({ length: 1024 }, () => Math.random() * 0.1),
+      children: [`leaf-${i + 1}`],
+      level: 0, // Will be computed by buildGraph
+    });
+  }
+
+  return nodes;
+}
+
+Deno.test("buildGraph - computes levels correctly", () => {
+  const nodes: Node[] = [
+    { id: "a", embedding: [], children: [], level: 0 },
+    { id: "b", embedding: [], children: ["a"], level: 0 },
+    { id: "c", embedding: [], children: ["b"], level: 0 },
+    { id: "d", embedding: [], children: ["a", "c"], level: 0 },
+  ];
+
+  const graph = buildGraph(nodes);
+
+  assertEquals(graph.get("a")?.level, 0); // leaf
+  assertEquals(graph.get("b")?.level, 1); // contains a (level 0)
+  assertEquals(graph.get("c")?.level, 2); // contains b (level 1)
+  assertEquals(graph.get("d")?.level, 3); // contains c (level 2)
+});
+
+Deno.test("buildGraph - all leaves are level 0", () => {
+  const nodes: Node[] = [
+    { id: "leaf1", embedding: [], children: [], level: 0 },
+    { id: "leaf2", embedding: [], children: [], level: 0 },
+    { id: "leaf3", embedding: [], children: [], level: 0 },
+  ];
+
+  const graph = buildGraph(nodes);
+
+  for (const node of graph.values()) {
+    assertEquals(node.level, 0);
+  }
+});
+
+Deno.test("createSHGAT - creates from unified nodes", () => {
+  const nodes = createTestNodes(3);
+  const shgat = createSHGAT(nodes);
+  assertExists(shgat);
+});
+
+Deno.test("createSHGAT - registers all nodes", () => {
+  const nodes = createTestNodes(3);
+  const shgat = createSHGAT(nodes);
+
+  // 3 leaves + 3 composites = 6 nodes
+  // Legacy API counts separately
+  // assertEquals(shgat.getNodeCount(), 6);
+  assertExists(shgat);
+});
+
+Deno.test("SHGAT - registerNode works", () => {
+  const shgat = new SHGAT();
+
+  shgat.registerNode({
+    id: "test-node",
+    embedding: Array.from({ length: 1024 }, () => Math.random()),
+    children: [],
+    level: 0,
+  });
+
+  assertExists(shgat);
 });

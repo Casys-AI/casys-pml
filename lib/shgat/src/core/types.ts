@@ -404,16 +404,91 @@ export const DEFAULT_TOOL_GRAPH_FEATURES: ToolGraphFeatures = {
 };
 
 // ============================================================================
-// Node Types
+// Unified Node Type
+// ============================================================================
+
+/**
+ * Unified node type for n-SuperHyperGraph
+ *
+ * Replaces separate ToolNode and CapabilityNode types with a single unified type.
+ * The hierarchy is implicit from structure:
+ * - children.length === 0 → leaf node (level 0)
+ * - children.length > 0 → composite node (level = 1 + max child level)
+ *
+ * @since Unified Node refactor
+ */
+export interface Node {
+  /** Unique identifier */
+  id: string;
+  /** Embedding vector (e.g., BGE-M3 1024-dim) */
+  embedding: number[];
+  /** Child node IDs. Empty array = leaf node (level 0) */
+  children: string[];
+  /** Hierarchy level. Computed at graph construction time. */
+  level: number;
+}
+
+/**
+ * Build a graph from an array of nodes, computing levels via DFS
+ *
+ * @param nodes Array of nodes (level field will be computed)
+ * @returns Map of node ID to Node with computed levels
+ */
+export function buildGraph(nodes: Node[]): Map<string, Node> {
+  const graph = new Map(nodes.map((n) => [n.id, { ...n, level: 0 }]));
+  computeAllLevels(graph);
+  return graph;
+}
+
+/**
+ * Compute levels for all nodes in a graph using DFS with memoization
+ *
+ * @param nodes Map of node ID to Node (mutates level field)
+ */
+export function computeAllLevels(nodes: Map<string, Node>): void {
+  const cache = new Map<string, number>();
+  for (const id of nodes.keys()) {
+    computeLevel(id, nodes, cache);
+  }
+}
+
+/**
+ * Compute level for a single node recursively
+ *
+ * @param id Node ID to compute level for
+ * @param nodes Map of all nodes
+ * @param cache Memoization cache
+ * @returns Computed level
+ */
+function computeLevel(
+  id: string,
+  nodes: Map<string, Node>,
+  cache: Map<string, number>,
+): number {
+  if (cache.has(id)) return cache.get(id)!;
+  const node = nodes.get(id);
+  if (!node || node.children.length === 0) {
+    cache.set(id, 0);
+    if (node) node.level = 0;
+    return 0;
+  }
+  const maxChildLevel = Math.max(
+    ...node.children.map((c) => computeLevel(c, nodes, cache)),
+  );
+  const level = 1 + maxChildLevel;
+  cache.set(id, level);
+  node.level = level;
+  return level;
+}
+
+// ============================================================================
+// Legacy Node Types (kept for backward compatibility during migration)
 // ============================================================================
 
 /**
  * Member of a capability (tool OR capability)
  *
- * This enables P^n(V₀) structure where capabilities at level k
- * can contain capabilities from level k-1 OR tools from V₀.
- *
- * @since v1 refactor (n-SuperHyperGraph multi-level message passing)
+ * @deprecated Use Node.children instead
  */
 export type Member =
   | { type: "tool"; id: string }
@@ -421,6 +496,8 @@ export type Member =
 
 /**
  * Tool node (vertex in hypergraph)
+ *
+ * @deprecated Use Node with children: [] instead
  */
 export interface ToolNode {
   id: string;
@@ -433,10 +510,7 @@ export interface ToolNode {
 /**
  * Capability node (hyperedge in n-SuperHyperGraph)
  *
- * Supports n-SuperHyperGraph structure where capabilities can contain
- * both tools (V₀) and other capabilities (P^k).
- *
- * @see 01-data-model.md for spec details
+ * @deprecated Use Node with children: [...] instead
  */
 export interface CapabilityNode {
   id: string;
@@ -445,26 +519,13 @@ export interface CapabilityNode {
 
   /**
    * Members: tools (V₀) OR capabilities (P^k, k < level)
-   *
-   * This is the unified representation for n-SuperHyperGraph.
-   * Use getDirectTools() and getDirectCapabilities() helpers for typed access.
-   *
-   * REQUIRED for new code. Use migrateCapabilityNode() to convert legacy nodes.
-   *
-   * @since v1 refactor
+   * @deprecated Use Node.children instead
    */
   members: Member[];
 
   /**
    * Hierarchy level (computed via topological sort)
-   *
-   * - level(c) = 0 if c contains only tools
-   * - level(c) = 1 + max{level(c') | c' ∈ c.members} otherwise
-   *
-   * Computed by computeHierarchyLevels(), not set manually.
-   *
-   * @since v1 refactor
-   * @default 0
+   * @deprecated Use Node.level instead
    */
   hierarchyLevel: number;
 

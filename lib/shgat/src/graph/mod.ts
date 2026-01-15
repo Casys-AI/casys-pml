@@ -15,11 +15,15 @@ export {
 // Hierarchy computation (n-SuperHyperGraph)
 export {
   computeHierarchyLevels,
+  computeNodeHierarchyLevels,
   getCapabilitiesAtLevel,
+  getNodesAtLevel,
   getSortedLevels,
   HierarchyCycleError,
   type HierarchyResult,
+  type NodeHierarchyResult,
   validateAcyclic,
+  validateNodeAcyclic,
 } from "./hierarchy.ts";
 
 // Multi-level incidence structure (n-SuperHyperGraph)
