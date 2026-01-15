@@ -25,7 +25,6 @@
 import { load } from "@std/dotenv";
 import { getDb, isCloudMode } from "../src/db/mod.ts";
 import { ExecutionTraceStore } from "../src/capabilities/execution-trace-store.ts";
-import { EmbeddingModel } from "../src/vector/embeddings.ts";
 
 // Load environment
 await load({ export: true });
@@ -128,44 +127,44 @@ for (const capId of capabilityIds) {
 
 console.log(`   Found: ${capabilities.length} capabilities`);
 
-// Extract unique tools
-const toolIds = new Set<string>();
+// Load ALL tools from tool_embedding table (includes unused tools for better SHGAT context)
+console.log("\n🧮 Loading tool embeddings from database...");
+const toolEmbeddings = new Map<string, number[]>();
+
+const toolRows = await db.query(
+  `SELECT tool_id, embedding::text FROM tool_embedding ORDER BY tool_id`,
+);
+
+for (const row of toolRows) {
+  const toolId = row.tool_id as string;
+  const embeddingStr = row.embedding as string;
+  try {
+    const embedding = JSON.parse(embeddingStr);
+    if (Array.isArray(embedding)) {
+      toolEmbeddings.set(toolId, embedding);
+    }
+  } catch {
+    // Skip malformed embeddings
+  }
+}
+
+console.log(`   Loaded ${toolEmbeddings.size} tool embeddings from DB`);
+
+// Also track which tools are used by capabilities (for reference)
+const usedToolIds = new Set<string>();
 for (const cap of capabilities) {
   for (const tool of cap.toolsUsed) {
-    toolIds.add(tool);
+    usedToolIds.add(tool);
   }
 }
 for (const trace of tracesWithEmbeddings) {
   for (const task of trace.taskResults) {
     if (task.tool) {
-      toolIds.add(task.tool);
+      usedToolIds.add(task.tool);
     }
   }
 }
-
-console.log(`   Found: ${toolIds.size} unique tools`);
-
-// Generate tool embeddings using BGE-M3
-console.log("\n🧮 Generating tool embeddings...");
-const embeddingModel = new EmbeddingModel();
-await embeddingModel.load();
-
-const toolEmbeddings = new Map<string, number[]>();
-const toolList = Array.from(toolIds);
-
-for (let i = 0; i < toolList.length; i++) {
-  const toolId = toolList[i];
-  // Use tool ID as text for embedding (e.g., "std:psql_query" -> "psql query")
-  const toolText = toolId.replace(/[_:]/g, " ").replace(/std\s+/g, "");
-  const embedding = await embeddingModel.encode(toolText);
-  toolEmbeddings.set(toolId, embedding);
-
-  if ((i + 1) % 10 === 0 || i === toolList.length - 1) {
-    console.log(`   Processed ${i + 1}/${toolList.length} tools`);
-  }
-}
-
-console.log(`   Generated embeddings for ${toolEmbeddings.size} tools`);
+console.log(`   Tools used by capabilities: ${usedToolIds.size}`);
 
 // Build training examples from traces
 console.log("\n🎓 Building training examples...");
@@ -230,7 +229,8 @@ const output = {
       totalTraces: allTraces.length,
       tracesWithEmbeddings: tracesWithEmbeddings.length,
       capabilities: capabilities.length,
-      tools: toolIds.size,
+      tools: toolEmbeddings.size,
+      toolsUsedByCapabilities: usedToolIds.size,
       trainingExamples: trainingExamples.length,
       testQueries: testQueries.length,
     },
@@ -243,9 +243,10 @@ const output = {
       successRate: c.successRate,
       description: c.description,
     })),
-    tools: Array.from(toolIds).map((id) => ({
+    // Include ALL tools from DB (not just used ones) for better SHGAT context
+    tools: Array.from(toolEmbeddings.entries()).map(([id, embedding]) => ({
       id,
-      embedding: toolEmbeddings.get(id),
+      embedding,
     })),
   },
   episodicEvents: trainingExamples.map((ex, i) => ({
