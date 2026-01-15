@@ -44,7 +44,6 @@ import {
   formatApprovalRequired,
   executeLocalCode,
   type AnyApprovalResult,
-  type ContinueWorkflowParams,
 } from "./shared/mod.ts";
 
 /** Active session client (initialized at startup) */
@@ -125,6 +124,39 @@ async function handleToolsCall(
 
   // Handle pml:discover - always forward to cloud
   if (name === "pml:discover") {
+    const cloudResult = await forwardToCloud(id, name, args || {}, cloudUrl, sessionClient);
+    if (!cloudResult.ok) {
+      sendError(id, -32603, cloudResult.error ?? "Cloud call failed");
+      return;
+    }
+    sendResponse(cloudResult.response);
+    return;
+  }
+
+  // Handle pml:admin - always forward to cloud (MCP Tools Consolidation)
+  if (name === "pml:admin") {
+    const cloudResult = await forwardToCloud(id, name, args || {}, cloudUrl, sessionClient);
+    if (!cloudResult.ok) {
+      sendError(id, -32603, cloudResult.error ?? "Cloud call failed");
+      return;
+    }
+    sendResponse(cloudResult.response);
+    return;
+  }
+
+  // Handle pml:abort - always forward to cloud
+  if (name === "pml:abort") {
+    const cloudResult = await forwardToCloud(id, name, args || {}, cloudUrl, sessionClient);
+    if (!cloudResult.ok) {
+      sendError(id, -32603, cloudResult.error ?? "Cloud call failed");
+      return;
+    }
+    sendResponse(cloudResult.response);
+    return;
+  }
+
+  // Handle pml:replan - always forward to cloud
+  if (name === "pml:replan") {
     const cloudResult = await forwardToCloud(id, name, args || {}, cloudUrl, sessionClient);
     if (!cloudResult.ok) {
       sendError(id, -32603, cloudResult.error ?? "Cloud call failed");
