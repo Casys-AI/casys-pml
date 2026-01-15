@@ -16,6 +16,7 @@
 import { createSHGATFromCapabilities, type TrainingExample } from "../../../src/graphrag/algorithms/shgat.ts";
 import { NUM_NEGATIVES } from "../../../src/graphrag/algorithms/shgat/types.ts";
 import { PERBuffer, annealBeta } from "../../../src/graphrag/algorithms/shgat/training/per-buffer.ts";
+import { initBlasAcceleration } from "../../../src/graphrag/algorithms/shgat/utils/math.ts";
 import { mean, stdDev, welchTTest } from "../utils/metrics.ts";
 
 // ============================================================================
@@ -337,6 +338,161 @@ export const TRAINING_ABLATION_CONFIGS: TrainingAblationConfig[] = [
     epochs: 10,
     batchSize: 32,
   },
+
+  // === COMBO CONFIGS (best features combined) ===
+  {
+    name: "combo_lr010_temp007",
+    description: "Combo: lr=0.10 + τ=0.07 fixed",
+    usePER: true,
+    perAlpha: 0.4,
+    perBetaStart: 0.4,
+    perBetaEnd: 1.0,
+    temperature: 0.07,
+    useCurriculum: true,
+    curriculumEasyThreshold: 0.50,
+    curriculumHardThreshold: 0.70,
+    learningRate: 0.10,
+    epochs: 10,
+    batchSize: 32,
+  },
+  {
+    name: "combo_lr010_alpha07",
+    description: "Combo: lr=0.10 + α=0.7",
+    usePER: true,
+    perAlpha: 0.7,
+    perBetaStart: 0.4,
+    perBetaEnd: 1.0,
+    temperature: "anneal",
+    tempStart: 0.10,
+    tempEnd: 0.06,
+    useCurriculum: true,
+    learningRate: 0.10,
+    epochs: 10,
+    batchSize: 32,
+  },
+  {
+    name: "combo_lr010_alpha07_temp007",
+    description: "Combo: lr=0.10 + α=0.7 + τ=0.07",
+    usePER: true,
+    perAlpha: 0.7,
+    perBetaStart: 0.4,
+    perBetaEnd: 1.0,
+    temperature: 0.07,
+    useCurriculum: true,
+    curriculumEasyThreshold: 0.50,
+    curriculumHardThreshold: 0.70,
+    learningRate: 0.10,
+    epochs: 10,
+    batchSize: 32,
+  },
+
+  // === LEARNING RATE HIGHER ===
+  {
+    name: "lr_015",
+    description: "Very high learning rate (0.15)",
+    usePER: true,
+    perAlpha: 0.4,
+    perBetaStart: 0.4,
+    perBetaEnd: 1.0,
+    temperature: 0.07,
+    useCurriculum: true,
+    learningRate: 0.15,
+    epochs: 10,
+    batchSize: 32,
+  },
+  {
+    name: "lr_020",
+    description: "Very high learning rate (0.20)",
+    usePER: true,
+    perAlpha: 0.4,
+    perBetaStart: 0.4,
+    perBetaEnd: 1.0,
+    temperature: 0.07,
+    useCurriculum: true,
+    learningRate: 0.20,
+    epochs: 10,
+    batchSize: 32,
+  },
+
+  // === BATCH SIZE ABLATION (all use lr=0.10, τ=0.07 as best combo) ===
+  {
+    name: "batch_4",
+    description: "Tiny batch size (4)",
+    usePER: true,
+    perAlpha: 0.4,
+    perBetaStart: 0.4,
+    perBetaEnd: 1.0,
+    temperature: 0.07,
+    useCurriculum: true,
+    learningRate: 0.10,
+    epochs: 10,
+    batchSize: 4,
+  },
+  {
+    name: "batch_8",
+    description: "Small batch size (8)",
+    usePER: true,
+    perAlpha: 0.4,
+    perBetaStart: 0.4,
+    perBetaEnd: 1.0,
+    temperature: 0.07,
+    useCurriculum: true,
+    learningRate: 0.10,
+    epochs: 10,
+    batchSize: 8,
+  },
+  {
+    name: "batch_16",
+    description: "Medium batch size (16)",
+    usePER: true,
+    perAlpha: 0.4,
+    perBetaStart: 0.4,
+    perBetaEnd: 1.0,
+    temperature: 0.07,
+    useCurriculum: true,
+    learningRate: 0.10,
+    epochs: 10,
+    batchSize: 16,
+  },
+  {
+    name: "batch_32",
+    description: "Default batch size (32) - baseline",
+    usePER: true,
+    perAlpha: 0.4,
+    perBetaStart: 0.4,
+    perBetaEnd: 1.0,
+    temperature: 0.07,
+    useCurriculum: true,
+    learningRate: 0.10,
+    epochs: 10,
+    batchSize: 32,
+  },
+  {
+    name: "batch_64",
+    description: "Large batch size (64)",
+    usePER: true,
+    perAlpha: 0.4,
+    perBetaStart: 0.4,
+    perBetaEnd: 1.0,
+    temperature: 0.07,
+    useCurriculum: true,
+    learningRate: 0.10,
+    epochs: 10,
+    batchSize: 64,
+  },
+  {
+    name: "batch_128",
+    description: "Very large batch size (128)",
+    usePER: true,
+    perAlpha: 0.4,
+    perBetaStart: 0.4,
+    perBetaEnd: 1.0,
+    temperature: 0.07,
+    useCurriculum: true,
+    learningRate: 0.10,
+    epochs: 10,
+    batchSize: 128,
+  },
 ];
 
 /**
@@ -493,12 +649,17 @@ export const LIVE_ABLATION_CONFIGS: TrainingAblationConfig[] = [
  * ~2-3 min instead of ~20-30 min
  */
 export const QUICK_ABLATION_CONFIGS: TrainingAblationConfig[] = [
+  // Baseline (our current production config)
   TRAINING_ABLATION_CONFIGS.find((c) => c.name === "baseline_production")!,
-  TRAINING_ABLATION_CONFIGS.find((c) => c.name === "no_per")!,
+  // Learning rate variations (most impactful hyperparameter)
+  TRAINING_ABLATION_CONFIGS.find((c) => c.name === "lr_003")!,
+  TRAINING_ABLATION_CONFIGS.find((c) => c.name === "lr_010")!,
+  // Temperature variations
   TRAINING_ABLATION_CONFIGS.find((c) => c.name === "temp_fixed_007")!,
-  TRAINING_ABLATION_CONFIGS.find((c) => c.name === "no_curriculum")!,
-  TRAINING_ABLATION_CONFIGS.find((c) => c.name === "minimal")!,
-].map((c) => ({ ...c, epochs: 5 })); // Reduce epochs for quick mode
+  // Batch size variations
+  TRAINING_ABLATION_CONFIGS.find((c) => c.name === "batch_16")!,
+  TRAINING_ABLATION_CONFIGS.find((c) => c.name === "batch_64")!,
+].map((c) => ({ ...c, epochs: 10 })); // 10 epochs (optimal from testing)
 
 // ============================================================================
 // Types
@@ -865,6 +1026,10 @@ async function runAblationStudy(
   numRuns: number = 3,
   headConfigs: number[] = [4, 16], // Run both 4 and 16 heads
 ): Promise<Map<number, AblationResult[]>> {
+  // Initialize BLAS acceleration (critical for performance)
+  const blasEnabled = await initBlasAcceleration();
+  console.log(`BLAS acceleration: ${blasEnabled ? "enabled (OpenBLAS)" : "disabled (JS fallback)"}\n`);
+
   console.log("Loading production data from fixture...");
   const { capabilities, tools, trainExamples, testExamples } = await loadProductionData();
 
@@ -893,10 +1058,16 @@ async function runAblationStudy(
       const runs: AblationRunResult[] = [];
 
       for (let run = 0; run < numRuns; run++) {
+        // Deep copy train examples to avoid mutation between runs (curriculum modifies negativeCapIds)
+        const trainExamplesCopy = trainExamples.map(ex => ({
+          ...ex,
+          negativeCapIds: [...ex.negativeCapIds],
+          allNegativesSorted: ex.allNegativesSorted ? [...ex.allNegativesSorted] : undefined,
+        }));
         const result = runTrainingAblation(
           config,
           capabilities,
-          [...trainExamples],
+          trainExamplesCopy,
           testExamples,
           toolEmbeddings,
           numHeads,
@@ -1091,14 +1262,14 @@ if (import.meta.main) {
     console.log("  Testing live learning configs (3 epochs each)");
     console.log("  Use --quick for quick ablation, or no flag for full ablation\n");
   } else if (isQuick) {
-    console.log("  Configs: baseline_production, no_per, temp_fixed_007, no_curriculum, minimal");
+    console.log("  Configs: baseline, lr_003, lr_010, temp_007, batch_16, batch_64");
     console.log("  Use --live for live learning ablation (3 epochs)\n");
   } else {
     console.log("  Use --quick for fast ablation, --live for live learning ablation\n");
   }
 
-  // Run with both 4 and 16 heads (or just 16 in quick mode)
-  const headConfigs = isQuick ? [16] : [4, 16];
+  // Run with 16 heads only (16 × 64 = 1024 dims = BGE-M3)
+  const headConfigs = [16];
   const allResults = await runAblationStudy(configs, numRuns, headConfigs);
 
   // Generate and save reports for each head config
