@@ -114,7 +114,7 @@ export async function savePmlEnvKey(
     config = JSON.parse(content);
   } catch {
     // No config exists - create minimal one
-    config = { version: "0.2.9" };
+    config = { version: PACKAGE_VERSION };
   }
 
   // Add/update env key
