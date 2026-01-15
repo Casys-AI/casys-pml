@@ -8251,233 +8251,305 @@
   ],
   "priorPatterns": [
     {
-      "from": "sampling:createMessage",
-      "to": "sampling:createMessage",
-      "weight": 1.3,
-      "frequency": 45,
-      "mappingConfidence": 0.925,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_post",
-      "to": "http:http_post",
-      "weight": 1.34,
-      "frequency": 36,
-      "mappingConfidence": 0.95,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:Object.assign",
+      "from": "code:filter",
       "to": "code:Object.assign",
-      "weight": 1.37,
-      "frequency": 41,
+      "weight": 1.39,
+      "frequency": 39,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "memory:create_entities",
+      "to": "std:agent_generate",
+      "weight": 1.43,
+      "frequency": 35,
       "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
       "from": "code:JSON.parse",
-      "to": "sampling:createMessage",
-      "weight": 1.61,
-      "frequency": 23,
+      "to": "std:agent_generate",
+      "weight": 1.49,
+      "frequency": 30,
       "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
       "from": "code:Object.assign",
-      "to": "sampling:createMessage",
-      "weight": 1.61,
-      "frequency": 23,
-      "mappingConfidence": 0.9,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "sampling:createMessage",
-      "weight": 1.66,
-      "frequency": 19,
-      "mappingConfidence": 0.925,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "memory:create_entities",
-      "to": "sampling:createMessage",
-      "weight": 1.73,
-      "frequency": 27,
-      "mappingConfidence": 0.8,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:Object.assign",
-      "to": "http:http_post",
-      "weight": 1.76,
-      "frequency": 16,
-      "mappingConfidence": 0.925,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "code:Object.assign",
-      "weight": 1.79,
+      "to": "std:agent_generate",
+      "weight": 1.59,
       "frequency": 24,
-      "mappingConfidence": 0.8,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
-      "from": "http:http_request",
-      "to": "code:filter",
-      "weight": 1.92,
-      "frequency": 19,
-      "mappingConfidence": 0.8,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_get",
-      "to": "sampling:createMessage",
-      "weight": 1.94,
-      "frequency": 14,
-      "mappingConfidence": 0.875,
+      "from": "std:agent_generate",
+      "to": "code:Object.assign",
+      "weight": 1.59,
+      "frequency": 24,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
       "from": "code:filter",
       "to": "telegram:SEND_MESSAGE",
-      "weight": 1.95,
+      "weight": 1.63,
+      "frequency": 22,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "std:http_request",
+      "to": "code:filter",
+      "weight": 1.63,
+      "frequency": 22,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "std:agent_generate",
+      "to": "code:map",
+      "weight": 1.68,
       "frequency": 20,
-      "mappingConfidence": 0.7749999999999999,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "std:http_get",
+      "to": "std:agent_generate",
+      "weight": 1.68,
+      "frequency": 20,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:map",
+      "to": "std:agent_generate",
+      "weight": 1.68,
+      "frequency": 20,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
       "from": "code:filter",
-      "to": "code:Object.assign",
-      "weight": 1.95,
+      "to": "std:http_request",
+      "weight": 1.71,
+      "frequency": 19,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "std:http_request",
+      "to": "std:agent_generate",
+      "weight": 1.77,
+      "frequency": 17,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:Object.assign",
+      "to": "std:http_post",
+      "weight": 1.81,
+      "frequency": 16,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "std:agent_generate",
+      "to": "google-sheets:sheets_update_values",
+      "weight": 1.85,
       "frequency": 15,
-      "mappingConfidence": 0.8500000000000001,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "std:http_request",
+      "to": "std:http_post",
+      "weight": 1.89,
+      "frequency": 14,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "std:agent_generate",
+      "to": "memory:create_entities",
+      "weight": 1.89,
+      "frequency": 14,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:Object.assign",
+      "to": "code:filter",
+      "weight": 1.89,
+      "frequency": 14,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
       "from": "code:filter",
-      "to": "http:http_request",
-      "weight": 1.96,
-      "frequency": 18,
-      "mappingConfidence": 0.8,
+      "to": "std:agent_generate",
+      "weight": 1.89,
+      "frequency": 14,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
-      "from": "http:http_request",
-      "to": "http:http_post",
-      "weight": 1.99,
+      "from": "code:map",
+      "to": "std:http_post",
+      "weight": 1.94,
       "frequency": 13,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "sampling:createMessage",
-      "weight": 2.05,
-      "frequency": 12,
-      "mappingConfidence": 0.875,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
       "from": "code:Object.assign",
       "to": "code:concat",
-      "weight": 2.05,
+      "weight": 1.99,
       "frequency": 12,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "code:map",
-      "weight": 2.08,
-      "frequency": 15,
-      "mappingConfidence": 0.8,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "sampling:createMessage",
-      "weight": 2.08,
-      "frequency": 10,
-      "mappingConfidence": 0.925,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:map",
-      "to": "http:http_post",
-      "weight": 2.12,
-      "frequency": 13,
-      "mappingConfidence": 0.825,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_post",
-      "to": "http:http_request",
-      "weight": 2.12,
-      "frequency": 11,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "sampling:createMessage",
-      "weight": 2.13,
-      "frequency": 10,
       "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
-      "from": "sampling:createMessage",
-      "to": "sampling:createMessage",
-      "weight": 2.27,
-      "frequency": 8,
-      "mappingConfidence": 0.925,
+      "from": "std:http_request",
+      "to": "code:map",
+      "weight": 1.99,
+      "frequency": 12,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
-      "from": "code:Object.assign",
-      "to": "http:http_request",
-      "weight": 2.35,
-      "frequency": 9,
-      "mappingConfidence": 0.8500000000000001,
+      "from": "std:http_post",
+      "to": "std:http_request",
+      "weight": 1.99,
+      "frequency": 12,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
       "from": "code:map",
-      "to": "code:map",
-      "weight": 2.37,
-      "frequency": 15,
-      "mappingConfidence": 0.7,
+      "to": "code:filter",
+      "weight": 1.99,
+      "frequency": 12,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
-      "from": "code:JSON.parse",
-      "to": "sampling:createMessage",
+      "from": "std:agent_generate",
+      "to": "std:http_post",
+      "weight": 1.99,
+      "frequency": 12,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:map",
+      "to": "google-sheets:sheets_update_values",
+      "weight": 2.06,
+      "frequency": 11,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "google-sheets:sheets_get_values",
+      "to": "code:map",
+      "weight": 2.22,
+      "frequency": 9,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:Object.assign",
+      "to": "std:http_request",
+      "weight": 2.22,
+      "frequency": 9,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:filter",
+      "to": "code:map",
+      "weight": 2.22,
+      "frequency": 9,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:filter",
+      "to": "google-sheets:sheets_update_values",
+      "weight": 2.22,
+      "frequency": 9,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:map",
+      "to": "code:Object.assign",
+      "weight": 2.33,
+      "frequency": 8,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:split",
+      "to": "filesystem:read_text_file",
+      "weight": 2.33,
+      "frequency": 8,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "std:agent_generate",
+      "to": "code:concat",
+      "weight": 2.33,
+      "frequency": 8,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "std:http_request",
+      "to": "google-sheets:sheets_update_values",
+      "weight": 2.33,
+      "frequency": 8,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "std:http_post",
+      "to": "code:map",
       "weight": 2.46,
       "frequency": 7,
       "mappingConfidence": 0.9,
@@ -8485,809 +8557,449 @@
       "isOfficial": false
     },
     {
-      "from": "http:http_request",
-      "to": "code:map",
-      "weight": 2.47,
-      "frequency": 11,
-      "mappingConfidence": 0.75,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "code:Object.assign",
-      "weight": 2.52,
-      "frequency": 7,
-      "mappingConfidence": 0.8775,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "sampling:createMessage",
-      "weight": 2.56,
-      "frequency": 6,
-      "mappingConfidence": 0.925,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:Object.assign",
-      "to": "code:filter",
-      "weight": 2.61,
-      "frequency": 7,
-      "mappingConfidence": 0.8500000000000001,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:map",
-      "to": "code:Object.assign",
-      "weight": 2.62,
-      "frequency": 8,
-      "mappingConfidence": 0.8,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_request",
-      "to": "http:http_request",
-      "weight": 2.62,
-      "frequency": 8,
-      "mappingConfidence": 0.8,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_post",
-      "to": "code:map",
-      "weight": 2.68,
-      "frequency": 7,
-      "mappingConfidence": 0.825,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:map",
-      "to": "sampling:createMessage",
-      "weight": 2.68,
-      "frequency": 7,
-      "mappingConfidence": 0.825,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:split",
-      "to": "filesystem:read_text_file",
-      "weight": 2.7,
-      "frequency": 8,
-      "mappingConfidence": 0.7749999999999999,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "memory:create_entities",
-      "weight": 2.7,
-      "frequency": 8,
-      "mappingConfidence": 0.775,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_request",
-      "to": "sampling:createMessage",
-      "weight": 2.7,
-      "frequency": 6,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "http:http_post",
-      "weight": 2.71,
-      "frequency": 5,
-      "mappingConfidence": 0.95,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "http:http_post",
-      "weight": 2.78,
-      "frequency": 5,
-      "mappingConfidence": 0.925,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_get",
-      "to": "sampling:createMessage",
-      "weight": 2.84,
-      "frequency": 6,
-      "mappingConfidence": 0.8325,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:map",
-      "to": "sampling:createMessage",
-      "weight": 2.85,
-      "frequency": 7,
-      "mappingConfidence": 0.7775,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "google-sheets:sheets_get_values",
-      "to": "code:map",
-      "weight": 2.86,
-      "frequency": 9,
-      "mappingConfidence": 0.7,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
       "from": "telegram:SEND_MESSAGE",
       "to": "code:map",
-      "weight": 2.86,
+      "weight": 2.46,
       "frequency": 7,
-      "mappingConfidence": 0.7749999999999999,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "google-sheets:sheets_update_values",
-      "weight": 2.86,
-      "frequency": 5,
       "mappingConfidence": 0.9,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "code:Object.assign",
-      "weight": 2.86,
-      "frequency": 5,
-      "mappingConfidence": 0.9,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:slice",
-      "to": "http:http_post",
-      "weight": 2.86,
-      "frequency": 5,
-      "mappingConfidence": 0.8999999999999999,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "memory:create_entities",
-      "to": "sampling:createMessage",
-      "weight": 2.87,
-      "frequency": 6,
-      "mappingConfidence": 0.825,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:map",
-      "to": "code:filter",
-      "weight": 2.95,
-      "frequency": 7,
-      "mappingConfidence": 0.75,
       "source": "n8n",
       "isOfficial": false
     },
     {
       "from": "fetch:fetch",
-      "to": "sampling:createMessage",
-      "weight": 2.96,
-      "frequency": 6,
-      "mappingConfidence": 0.8,
+      "to": "std:agent_generate",
+      "weight": 2.46,
+      "frequency": 7,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "std:http_request",
+      "to": "code:Object.assign",
+      "weight": 2.46,
+      "frequency": 7,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "std:http_post",
+      "to": "google-sheets:sheets_update_values",
+      "weight": 2.46,
+      "frequency": 7,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "google-sheets:sheets_update_values",
+      "to": "telegram:SEND_MESSAGE",
+      "weight": 2.46,
+      "frequency": 7,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
       "from": "google-sheets:sheets_get_values",
       "to": "code:Object.assign",
-      "weight": 2.96,
+      "weight": 2.63,
       "frequency": 6,
-      "mappingConfidence": 0.8,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_post",
-      "to": "google-sheets:sheets_update_values",
-      "weight": 3.01,
-      "frequency": 4,
-      "mappingConfidence": 0.95,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_request",
-      "to": "code:Object.assign",
-      "weight": 3.02,
-      "frequency": 5,
-      "mappingConfidence": 0.8500000000000001,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
       "from": "code:map",
       "to": "code:slice",
-      "weight": 3.05,
+      "weight": 2.63,
       "frequency": 6,
-      "mappingConfidence": 0.7749999999999999,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "sampling:createMessage",
-      "weight": 3.09,
-      "frequency": 4,
-      "mappingConfidence": 0.925,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "code:Object.assign",
-      "weight": 3.09,
-      "frequency": 4,
-      "mappingConfidence": 0.925,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "code:concat",
-      "weight": 3.12,
-      "frequency": 5,
-      "mappingConfidence": 0.825,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:Object.assign",
-      "to": "code:flatMap",
-      "weight": 3.18,
-      "frequency": 4,
       "mappingConfidence": 0.9,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_post",
-      "to": "code:concat",
-      "weight": 3.18,
-      "frequency": 4,
-      "mappingConfidence": 0.8999999999999999,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:map",
-      "to": "sampling:createMessage",
-      "weight": 3.21,
-      "frequency": 5,
-      "mappingConfidence": 0.8,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "code:filter",
-      "weight": 3.21,
-      "frequency": 5,
-      "mappingConfidence": 0.8,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "code:concat",
-      "weight": 3.27,
-      "frequency": 4,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "google-sheets:sheets_update_values",
-      "weight": 3.27,
-      "frequency": 4,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:concat",
-      "to": "code:map",
-      "weight": 3.32,
-      "frequency": 5,
-      "mappingConfidence": 0.7749999999999999,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "sampling:createMessage",
-      "weight": 3.37,
-      "frequency": 4,
-      "mappingConfidence": 0.8500000000000001,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "telegram:SEND_MESSAGE",
-      "weight": 3.37,
-      "frequency": 4,
-      "mappingConfidence": 0.8500000000000001,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "code:map",
-      "weight": 3.43,
-      "frequency": 5,
-      "mappingConfidence": 0.75,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:map",
-      "to": "http:http_request",
-      "weight": 3.43,
-      "frequency": 5,
-      "mappingConfidence": 0.75,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_request",
-      "to": "sampling:createMessage",
-      "weight": 3.46,
-      "frequency": 4,
-      "mappingConfidence": 0.8275,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "google-sheets:sheets_get_values",
-      "to": "code:filter",
-      "weight": 3.47,
-      "frequency": 4,
-      "mappingConfidence": 0.825,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "google-sheets:sheets_update_values",
-      "weight": 3.5,
-      "frequency": 3,
-      "mappingConfidence": 0.95,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:Object.assign",
-      "to": "code:map",
-      "weight": 3.58,
-      "frequency": 4,
-      "mappingConfidence": 0.8,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:map",
-      "to": "google-sheets:sheets_update_values",
-      "weight": 3.58,
-      "frequency": 4,
-      "mappingConfidence": 0.8,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "google-sheets:sheets_update_values",
-      "weight": 3.59,
-      "frequency": 3,
-      "mappingConfidence": 0.925,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "code:reduce",
-      "weight": 3.59,
-      "frequency": 3,
-      "mappingConfidence": 0.925,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_post",
-      "to": "code:flatMap",
-      "weight": 3.59,
-      "frequency": 3,
-      "mappingConfidence": 0.925,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:map",
-      "to": "code:concat",
-      "weight": 3.69,
-      "frequency": 4,
-      "mappingConfidence": 0.7749999999999999,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:map",
-      "to": "google-sheets:sheets_update_values",
-      "weight": 3.69,
-      "frequency": 4,
-      "mappingConfidence": 0.7749999999999999,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "google-sheets:sheets_update_values",
-      "to": "sampling:createMessage",
-      "weight": 3.69,
-      "frequency": 3,
-      "mappingConfidence": 0.9,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:flatMap",
-      "to": "code:Object.assign",
-      "weight": 3.69,
-      "frequency": 3,
-      "mappingConfidence": 0.9,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:reduce",
-      "to": "code:Object.assign",
-      "weight": 3.69,
-      "frequency": 3,
-      "mappingConfidence": 0.9,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:reduce",
-      "to": "sampling:createMessage",
-      "weight": 3.69,
-      "frequency": 3,
-      "mappingConfidence": 0.9,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "code:flatMap",
-      "weight": 3.69,
-      "frequency": 3,
-      "mappingConfidence": 0.9,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "sampling:createMessage",
-      "weight": 3.79,
-      "frequency": 3,
-      "mappingConfidence": 0.8775,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_request",
-      "to": "google-sheets:sheets_update_values",
-      "weight": 3.8,
-      "frequency": 3,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "http:http_request",
-      "weight": 3.8,
-      "frequency": 3,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:flatMap",
-      "to": "code:filter",
-      "weight": 3.8,
-      "frequency": 3,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "http:http_post",
-      "weight": 3.8,
-      "frequency": 3,
-      "mappingConfidence": 0.875,
       "source": "n8n",
       "isOfficial": false
     },
     {
       "from": "code:slice",
-      "to": "code:Object.assign",
-      "weight": 3.8,
-      "frequency": 3,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:concat",
-      "to": "code:Object.assign",
-      "weight": 3.8,
-      "frequency": 3,
-      "mappingConfidence": 0.875,
+      "to": "std:http_post",
+      "weight": 2.63,
+      "frequency": 6,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
       "from": "code:filter",
-      "to": "code:filter",
-      "weight": 3.8,
-      "frequency": 3,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:map",
-      "to": "telegram:SEND_MESSAGE",
-      "weight": 3.82,
-      "frequency": 4,
-      "mappingConfidence": 0.75,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
       "to": "code:concat",
-      "weight": 3.9,
-      "frequency": 3,
-      "mappingConfidence": 0.8525,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "telegram:SEND_MESSAGE",
-      "to": "sampling:createMessage",
-      "weight": 3.9,
-      "frequency": 3,
-      "mappingConfidence": 0.8525,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:concat",
-      "to": "google-sheets:sheets_update_values",
-      "weight": 3.91,
-      "frequency": 3,
-      "mappingConfidence": 0.85,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "telegram:SEND_MESSAGE",
-      "to": "telegram:SEND_MESSAGE",
-      "weight": 3.91,
-      "frequency": 3,
-      "mappingConfidence": 0.8500000000000001,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_request",
-      "to": "google-sheets:sheets_update_values",
-      "weight": 3.91,
-      "frequency": 3,
-      "mappingConfidence": 0.8500000000000001,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "code:filter",
-      "weight": 3.91,
-      "frequency": 3,
-      "mappingConfidence": 0.8500000000000001,
+      "weight": 2.63,
+      "frequency": 6,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
       "from": "filesystem:read_text_file",
       "to": "memory:create_entities",
-      "weight": 3.95,
-      "frequency": 4,
-      "mappingConfidence": 0.725,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "google-sheets:sheets_update_values",
-      "to": "telegram:SEND_MESSAGE",
-      "weight": 4.03,
-      "frequency": 3,
-      "mappingConfidence": 0.825,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:map",
-      "to": "google-sheets:sheets_update_values",
-      "weight": 4.03,
-      "frequency": 3,
-      "mappingConfidence": 0.825,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:map",
-      "to": "code:filter",
-      "weight": 4.03,
-      "frequency": 3,
-      "mappingConfidence": 0.825,
+      "weight": 2.63,
+      "frequency": 6,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
       "from": "google-sheets:sheets_get_values",
-      "to": "google-sheets:sheets_update_values",
-      "weight": 4.03,
-      "frequency": 3,
-      "mappingConfidence": 0.825,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "google-sheets:sheets_update_values",
-      "to": "code:map",
-      "weight": 4.29,
-      "frequency": 3,
-      "mappingConfidence": 0.7749999999999999,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:slice",
-      "to": "code:map",
-      "weight": 4.29,
-      "frequency": 3,
-      "mappingConfidence": 0.7749999999999999,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_post",
       "to": "code:filter",
-      "weight": 4.41,
-      "frequency": 2,
-      "mappingConfidence": 0.95,
+      "weight": 2.63,
+      "frequency": 6,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
-      "from": "http:http_request",
-      "to": "google-sheets:sheets_get_values",
-      "weight": 4.43,
-      "frequency": 3,
-      "mappingConfidence": 0.75,
+      "from": "std:agent_generate",
+      "to": "code:flatMap",
+      "weight": 2.63,
+      "frequency": 6,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
-      "from": "sampling:createMessage",
-      "to": "sampling:createMessage",
-      "weight": 4.53,
-      "frequency": 2,
-      "mappingConfidence": 0.925,
+      "from": "code:concat",
+      "to": "code:map",
+      "weight": 2.86,
+      "frequency": 5,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
-      "from": "google-sheets:sheets_update_values",
-      "to": "http:http_post",
-      "weight": 4.53,
-      "frequency": 2,
-      "mappingConfidence": 0.925,
+      "from": "code:map",
+      "to": "std:http_request",
+      "weight": 2.86,
+      "frequency": 5,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
-      "from": "http:http_post",
-      "to": "code:Object.assign",
-      "weight": 4.53,
-      "frequency": 2,
-      "mappingConfidence": 0.925,
+      "from": "std:agent_generate",
+      "to": "telegram:SEND_MESSAGE",
+      "weight": 2.86,
+      "frequency": 5,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
-      "from": "sampling:createMessage",
-      "to": "sampling:createMessage",
-      "weight": 4.53,
-      "frequency": 2,
-      "mappingConfidence": 0.925,
+      "from": "code:flatMap",
+      "to": "code:filter",
+      "weight": 2.86,
+      "frequency": 5,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
-      "from": "http:http_post",
-      "to": "code:reduce",
-      "weight": 4.53,
-      "frequency": 2,
-      "mappingConfidence": 0.925,
+      "from": "code:filter",
+      "to": "std:http_post",
+      "weight": 2.86,
+      "frequency": 5,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
-      "from": "sampling:createMessage",
-      "to": "sampling:createMessage",
-      "weight": 4.64,
-      "frequency": 2,
-      "mappingConfidence": 0.9025,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "telegram:SEND_MESSAGE",
-      "to": "http:http_post",
-      "weight": 4.66,
-      "frequency": 2,
-      "mappingConfidence": 0.8999999999999999,
+      "from": "code:reduce",
+      "to": "std:agent_generate",
+      "weight": 2.86,
+      "frequency": 5,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
       "from": "code:filter",
       "to": "code:slice",
-      "weight": 4.66,
-      "frequency": 2,
-      "mappingConfidence": 0.8999999999999999,
+      "weight": 2.86,
+      "frequency": 5,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:Object.assign",
+      "to": "code:map",
+      "weight": 3.18,
+      "frequency": 4,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:map",
+      "to": "telegram:SEND_MESSAGE",
+      "weight": 3.18,
+      "frequency": 4,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:map",
+      "to": "code:concat",
+      "weight": 3.18,
+      "frequency": 4,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:Object.assign",
+      "to": "code:flatMap",
+      "weight": 3.18,
+      "frequency": 4,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "std:http_post",
+      "to": "code:concat",
+      "weight": 3.18,
+      "frequency": 4,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:concat",
+      "to": "google-sheets:sheets_update_values",
+      "weight": 3.18,
+      "frequency": 4,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "google-sheets:sheets_update_values",
+      "to": "std:agent_generate",
+      "weight": 3.18,
+      "frequency": 4,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "std:agent_generate",
+      "to": "std:http_request",
+      "weight": 3.18,
+      "frequency": 4,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "std:http_request",
+      "to": "google-sheets:sheets_get_values",
+      "weight": 3.18,
+      "frequency": 4,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "google-sheets:sheets_get_values",
+      "to": "google-sheets:sheets_update_values",
+      "weight": 3.18,
+      "frequency": 4,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "google-sheets:sheets_get_values",
+      "to": "code:slice",
+      "weight": 3.18,
+      "frequency": 4,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:slice",
+      "to": "std:http_request",
+      "weight": 3.18,
+      "frequency": 4,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "google-sheets:sheets_update_values",
+      "to": "code:slice",
+      "weight": 3.18,
+      "frequency": 4,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:Object.assign",
+      "to": "telegram:SEND_MESSAGE",
+      "weight": 3.18,
+      "frequency": 4,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:flatMap",
+      "to": "code:Object.assign",
+      "weight": 3.69,
+      "frequency": 3,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "google-sheets:sheets_update_values",
+      "to": "code:map",
+      "weight": 3.69,
+      "frequency": 3,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:reduce",
+      "to": "code:Object.assign",
+      "weight": 3.69,
+      "frequency": 3,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
       "from": "code:filter",
-      "to": "code:filter",
-      "weight": 4.66,
-      "frequency": 2,
-      "mappingConfidence": 0.8999999999999999,
+      "to": "code:reduce",
+      "weight": 3.69,
+      "frequency": 3,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
-      "from": "sampling:createMessage",
-      "to": "sampling:createMessage",
+      "from": "code:slice",
+      "to": "code:Object.assign",
+      "weight": 3.69,
+      "frequency": 3,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "std:http_post",
+      "to": "code:flatMap",
+      "weight": 3.69,
+      "frequency": 3,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:concat",
+      "to": "code:Object.assign",
+      "weight": 3.69,
+      "frequency": 3,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "telegram:SEND_MESSAGE",
+      "to": "std:agent_generate",
+      "weight": 3.69,
+      "frequency": 3,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:slice",
+      "to": "code:map",
+      "weight": 3.69,
+      "frequency": 3,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "std:agent_generate",
+      "to": "code:filter",
+      "weight": 3.69,
+      "frequency": 3,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "std:http_post",
+      "to": "code:filter",
+      "weight": 3.69,
+      "frequency": 3,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:flatMap",
+      "to": "google-sheets:sheets_update_values",
+      "weight": 3.69,
+      "frequency": 3,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "google-sheets:sheets_update_values",
+      "to": "code:Object.assign",
+      "weight": 3.69,
+      "frequency": 3,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "std:redis_cli",
+      "to": "code:Object.assign",
+      "weight": 3.69,
+      "frequency": 3,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "google-sheets:sheets_update_values",
+      "to": "google-sheets:sheets_get_values",
+      "weight": 3.69,
+      "frequency": 3,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "google-sheets:sheets_get_values",
+      "to": "std:agent_generate",
+      "weight": 3.69,
+      "frequency": 3,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "telegram:SEND_MESSAGE",
+      "to": "std:http_post",
       "weight": 4.66,
       "frequency": 2,
       "mappingConfidence": 0.9,
@@ -9295,17 +9007,35 @@
       "isOfficial": false
     },
     {
-      "from": "http:http_post",
-      "to": "google-sheets:sheets_update_values",
+      "from": "google-sheets:sheets_get_values",
+      "to": "code:concat",
       "weight": 4.66,
       "frequency": 2,
-      "mappingConfidence": 0.8999999999999999,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
       "from": "code:Object.assign",
       "to": "google-sheets:sheets_update_values",
+      "weight": 4.66,
+      "frequency": 2,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "google-sheets:sheets_update_values",
+      "to": "std:http_post",
+      "weight": 4.66,
+      "frequency": 2,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "std:http_post",
+      "to": "code:Object.assign",
       "weight": 4.66,
       "frequency": 2,
       "mappingConfidence": 0.9,
@@ -9314,10 +9044,10 @@
     },
     {
       "from": "code:concat",
-      "to": "http:http_post",
+      "to": "std:http_post",
       "weight": 4.66,
       "frequency": 2,
-      "mappingConfidence": 0.8999999999999999,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
@@ -9331,16 +9061,25 @@
       "isOfficial": false
     },
     {
-      "from": "google-sheets:sheets_update_values",
-      "to": "code:slice",
+      "from": "code:concat",
+      "to": "code:reduce",
       "weight": 4.66,
       "frequency": 2,
-      "mappingConfidence": 0.8999999999999999,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
-      "from": "sampling:createMessage",
+      "from": "std:http_post",
+      "to": "code:reduce",
+      "weight": 4.66,
+      "frequency": 2,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:map",
       "to": "code:flatMap",
       "weight": 4.66,
       "frequency": 2,
@@ -9349,8 +9088,53 @@
       "isOfficial": false
     },
     {
-      "from": "code:reduce",
-      "to": "sampling:createMessage",
+      "from": "code:map",
+      "to": "google-sheets:sheets_get_values",
+      "weight": 4.66,
+      "frequency": 2,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "std:http_post",
+      "to": "telegram:SEND_MESSAGE",
+      "weight": 4.66,
+      "frequency": 2,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:filter",
+      "to": "std:psql_query",
+      "weight": 4.66,
+      "frequency": 2,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "google-sheets:sheets_update_values",
+      "to": "std:http_request",
+      "weight": 4.66,
+      "frequency": 2,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:filter",
+      "to": "memory:create_entities",
+      "weight": 4.66,
+      "frequency": 2,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "telegram:SEND_MESSAGE",
+      "to": "code:Object.assign",
       "weight": 4.66,
       "frequency": 2,
       "mappingConfidence": 0.9,
@@ -9359,595 +9143,145 @@
     },
     {
       "from": "code:flatMap",
-      "to": "google-sheets:sheets_update_values",
+      "to": "std:agent_generate",
       "weight": 4.66,
       "frequency": 2,
       "mappingConfidence": 0.9,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "google-sheets:sheets_update_values",
-      "to": "code:Object.assign",
-      "weight": 4.66,
-      "frequency": 2,
-      "mappingConfidence": 0.9,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "code:Object.assign",
-      "weight": 4.66,
-      "frequency": 2,
-      "mappingConfidence": 0.9,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "code:Object.assign",
-      "weight": 4.78,
-      "frequency": 2,
-      "mappingConfidence": 0.8775,
       "source": "n8n",
       "isOfficial": false
     },
     {
       "from": "code:concat",
-      "to": "code:reduce",
-      "weight": 4.79,
+      "to": "code:filter",
+      "weight": 4.66,
       "frequency": 2,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "google-sheets:sheets_update_values",
-      "to": "code:slice",
-      "weight": 4.79,
-      "frequency": 2,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_post",
-      "to": "telegram:SEND_MESSAGE",
-      "weight": 4.79,
-      "frequency": 2,
-      "mappingConfidence": 0.875,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
       "from": "code:filter",
-      "to": "database:psql_query",
-      "weight": 4.79,
+      "to": "code:flatMap",
+      "weight": 4.66,
       "frequency": 2,
-      "mappingConfidence": 0.875,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
-      "from": "database:redis_cli",
-      "to": "code:Object.assign",
-      "weight": 4.9,
+      "from": "std:agent_generate",
+      "to": "code:JSON.parse",
+      "weight": 4.66,
       "frequency": 2,
-      "mappingConfidence": 0.855,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "std:http_request",
+      "to": "code:concat",
+      "weight": 4.66,
+      "frequency": 2,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:concat",
+      "to": "std:agent_generate",
+      "weight": 4.66,
+      "frequency": 2,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "telegram:SEND_MESSAGE",
+      "to": "code:concat",
+      "weight": 4.66,
+      "frequency": 2,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:filter",
+      "to": "std:redis_cli",
+      "weight": 4.66,
+      "frequency": 2,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:flatMap",
+      "to": "code:map",
+      "weight": 7.38,
+      "frequency": 1,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "std:http_post",
+      "to": "std:agent_generate",
+      "weight": 7.38,
+      "frequency": 1,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:reduce",
+      "to": "std:http_post",
+      "weight": 7.38,
+      "frequency": 1,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "std:http_request",
+      "to": "telegram:SEND_MESSAGE",
+      "weight": 7.38,
+      "frequency": 1,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:slice",
+      "to": "memory:create_entities",
+      "weight": 7.38,
+      "frequency": 1,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:map",
+      "to": "memory:create_entities",
+      "weight": 7.38,
+      "frequency": 1,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
       "from": "memory:create_entities",
-      "to": "sampling:createMessage",
-      "weight": 4.93,
-      "frequency": 2,
-      "mappingConfidence": 0.8500000000000001,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "google-sheets:sheets_update_values",
-      "to": "telegram:SEND_MESSAGE",
-      "weight": 4.93,
-      "frequency": 2,
-      "mappingConfidence": 0.8500000000000001,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_request",
-      "to": "sampling:createMessage",
-      "weight": 4.93,
-      "frequency": 2,
-      "mappingConfidence": 0.8500000000000001,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "google-sheets:sheets_update_values",
-      "weight": 4.93,
-      "frequency": 2,
-      "mappingConfidence": 0.8500000000000001,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:Object.assign",
-      "to": "telegram:SEND_MESSAGE",
-      "weight": 4.93,
-      "frequency": 2,
-      "mappingConfidence": 0.8500000000000001,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:slice",
-      "to": "http:http_request",
-      "weight": 4.93,
-      "frequency": 2,
-      "mappingConfidence": 0.8500000000000001,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:Object.assign",
-      "to": "code:filter",
-      "weight": 5.04,
-      "frequency": 2,
-      "mappingConfidence": 0.8325,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_request",
-      "to": "sampling:createMessage",
-      "weight": 5.07,
-      "frequency": 2,
-      "mappingConfidence": 0.8275,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_request",
-      "to": "google-sheets:sheets_update_values",
-      "weight": 5.08,
-      "frequency": 2,
-      "mappingConfidence": 0.825,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:slice",
-      "to": "http:http_request",
-      "weight": 5.08,
-      "frequency": 2,
-      "mappingConfidence": 0.825,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
       "to": "code:slice",
-      "weight": 5.08,
-      "frequency": 2,
-      "mappingConfidence": 0.825,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "code:map",
-      "weight": 5.08,
-      "frequency": 2,
-      "mappingConfidence": 0.825,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:Object.assign",
-      "to": "code:filter",
-      "weight": 5.24,
-      "frequency": 2,
-      "mappingConfidence": 0.8,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "memory:create_entities",
-      "weight": 5.24,
-      "frequency": 2,
-      "mappingConfidence": 0.8,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "memory:create_entities",
-      "weight": 5.24,
-      "frequency": 2,
-      "mappingConfidence": 0.8,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:map",
-      "to": "code:flatMap",
-      "weight": 5.24,
-      "frequency": 2,
-      "mappingConfidence": 0.8,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "code:map",
-      "weight": 5.24,
-      "frequency": 2,
-      "mappingConfidence": 0.8,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "google-sheets:sheets_get_values",
-      "to": "code:slice",
-      "weight": 5.24,
-      "frequency": 2,
-      "mappingConfidence": 0.8,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "google-sheets:sheets_get_values",
-      "to": "code:concat",
-      "weight": 5.41,
-      "frequency": 2,
-      "mappingConfidence": 0.7749999999999999,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "memory:create_entities",
-      "weight": 5.41,
-      "frequency": 2,
-      "mappingConfidence": 0.775,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "google-sheets:sheets_get_values",
-      "to": "code:slice",
-      "weight": 5.41,
-      "frequency": 2,
-      "mappingConfidence": 0.7749999999999999,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "google-sheets:sheets_get_values",
-      "to": "code:filter",
-      "weight": 5.59,
-      "frequency": 2,
-      "mappingConfidence": 0.75,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "filesystem:read_text_file",
-      "to": "memory:create_entities",
-      "weight": 5.59,
-      "frequency": 2,
-      "mappingConfidence": 0.75,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_request",
-      "to": "code:Object.assign",
-      "weight": 5.59,
-      "frequency": 2,
-      "mappingConfidence": 0.75,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "code:filter",
-      "weight": 5.59,
-      "frequency": 2,
-      "mappingConfidence": 0.75,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:map",
-      "to": "code:filter",
-      "weight": 5.99,
-      "frequency": 2,
-      "mappingConfidence": 0.7,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_request",
-      "to": "code:filter",
-      "weight": 5.99,
-      "frequency": 2,
-      "mappingConfidence": 0.7,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:map",
-      "to": "google-sheets:sheets_get_values",
-      "weight": 5.99,
-      "frequency": 2,
-      "mappingConfidence": 0.7,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "database:psql_query",
-      "to": "database:psql_query",
-      "weight": 6.99,
+      "weight": 7.38,
       "frequency": 1,
-      "mappingConfidence": 0.95,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "http:http_post",
-      "weight": 6.99,
-      "frequency": 1,
-      "mappingConfidence": 0.95,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "sampling:createMessage",
-      "weight": 6.99,
-      "frequency": 1,
-      "mappingConfidence": 0.95,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "sampling:createMessage",
-      "weight": 7.18,
-      "frequency": 1,
-      "mappingConfidence": 0.925,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_request",
-      "to": "http:http_post",
-      "weight": 7.18,
-      "frequency": 1,
-      "mappingConfidence": 0.925,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_post",
-      "to": "http:http_request",
-      "weight": 7.18,
-      "frequency": 1,
-      "mappingConfidence": 0.925,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "google-sheets:sheets_update_values",
-      "weight": 7.18,
-      "frequency": 1,
-      "mappingConfidence": 0.925,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
       "from": "code:reduce",
-      "to": "http:http_post",
-      "weight": 7.18,
-      "frequency": 1,
-      "mappingConfidence": 0.925,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:flatMap",
-      "to": "sampling:createMessage",
-      "weight": 7.18,
-      "frequency": 1,
-      "mappingConfidence": 0.925,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "code:Object.assign",
-      "weight": 7.18,
-      "frequency": 1,
-      "mappingConfidence": 0.925,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:flatMap",
-      "to": "google-sheets:sheets_update_values",
-      "weight": 7.18,
-      "frequency": 1,
-      "mappingConfidence": 0.925,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:slice",
-      "to": "http:http_post",
-      "weight": 7.18,
-      "frequency": 1,
-      "mappingConfidence": 0.925,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "sampling:createMessage",
-      "weight": 7.18,
-      "frequency": 1,
-      "mappingConfidence": 0.925,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_post",
-      "to": "google-sheets:sheets_update_values",
-      "weight": 7.18,
-      "frequency": 1,
-      "mappingConfidence": 0.925,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "code:JSON.parse",
-      "weight": 7.18,
-      "frequency": 1,
-      "mappingConfidence": 0.925,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "code:flatMap",
-      "weight": 7.18,
-      "frequency": 1,
-      "mappingConfidence": 0.925,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "sampling:createMessage",
-      "weight": 7.18,
-      "frequency": 1,
-      "mappingConfidence": 0.925,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "http:http_post",
-      "weight": 7.18,
-      "frequency": 1,
-      "mappingConfidence": 0.925,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:flatMap",
-      "to": "code:filter",
-      "weight": 7.18,
-      "frequency": 1,
-      "mappingConfidence": 0.925,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "code:JSON.parse",
-      "weight": 7.18,
-      "frequency": 1,
-      "mappingConfidence": 0.925,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:Object.assign",
-      "to": "code:filter",
-      "weight": 7.18,
-      "frequency": 1,
-      "mappingConfidence": 0.925,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_post",
-      "to": "sampling:createMessage",
-      "weight": 7.36,
-      "frequency": 1,
-      "mappingConfidence": 0.9025,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "http:http_post",
-      "weight": 7.36,
-      "frequency": 1,
-      "mappingConfidence": 0.9025,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "google-sheets:sheets_update_values",
-      "to": "telegram:SEND_MESSAGE",
-      "weight": 7.38,
-      "frequency": 1,
-      "mappingConfidence": 0.9,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "sampling:createMessage",
-      "weight": 7.38,
-      "frequency": 1,
-      "mappingConfidence": 0.9,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "telegram:SEND_MESSAGE",
-      "to": "code:Object.assign",
-      "weight": 7.38,
-      "frequency": 1,
-      "mappingConfidence": 0.9,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
       "to": "code:concat",
       "weight": 7.38,
       "frequency": 1,
-      "mappingConfidence": 0.8999999999999999,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:Object.assign",
-      "to": "sampling:createMessage",
-      "weight": 7.38,
-      "frequency": 1,
       "mappingConfidence": 0.9,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "google-sheets:sheets_update_values",
-      "to": "google-sheets:sheets_update_values",
-      "weight": 7.38,
-      "frequency": 1,
-      "mappingConfidence": 0.8999999999999999,
       "source": "n8n",
       "isOfficial": false
     },
@@ -9956,1051 +9290,178 @@
       "to": "google-sheets:sheets_update_values",
       "weight": 7.38,
       "frequency": 1,
-      "mappingConfidence": 0.8999999999999999,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "google-sheets:sheets_update_values",
-      "weight": 7.38,
-      "frequency": 1,
-      "mappingConfidence": 0.8999999999999999,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:flatMap",
-      "to": "code:slice",
-      "weight": 7.38,
-      "frequency": 1,
       "mappingConfidence": 0.9,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:flatMap",
-      "to": "telegram:SEND_MESSAGE",
-      "weight": 7.38,
-      "frequency": 1,
-      "mappingConfidence": 0.9,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:flatMap",
-      "to": "http:http_request",
-      "weight": 7.38,
-      "frequency": 1,
-      "mappingConfidence": 0.9,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "code:filter",
-      "weight": 7.38,
-      "frequency": 1,
-      "mappingConfidence": 0.8999999999999999,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:flatMap",
-      "to": "sampling:createMessage",
-      "weight": 7.38,
-      "frequency": 1,
-      "mappingConfidence": 0.9,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "google-sheets:sheets_update_values",
-      "to": "google-sheets:sheets_update_values",
-      "weight": 7.38,
-      "frequency": 1,
-      "mappingConfidence": 0.9,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "telegram:SEND_MESSAGE",
-      "to": "code:Object.assign",
-      "weight": 7.38,
-      "frequency": 1,
-      "mappingConfidence": 0.9,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "sampling:createMessage",
-      "weight": 7.38,
-      "frequency": 1,
-      "mappingConfidence": 0.8999999999999999,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "sampling:createMessage",
-      "weight": 7.38,
-      "frequency": 1,
-      "mappingConfidence": 0.8999999999999999,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:slice",
-      "to": "sampling:createMessage",
-      "weight": 7.38,
-      "frequency": 1,
-      "mappingConfidence": 0.8999999999999999,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:Object.assign",
-      "to": "code:slice",
-      "weight": 7.38,
-      "frequency": 1,
-      "mappingConfidence": 0.9,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "sampling:createMessage",
-      "weight": 7.57,
-      "frequency": 1,
-      "mappingConfidence": 0.8775,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "sampling:createMessage",
-      "weight": 7.57,
-      "frequency": 1,
-      "mappingConfidence": 0.8775,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "sampling:createMessage",
-      "weight": 7.57,
-      "frequency": 1,
-      "mappingConfidence": 0.8775,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "code:flatMap",
-      "weight": 7.57,
-      "frequency": 1,
-      "mappingConfidence": 0.8775,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "code:Object.assign",
-      "weight": 7.57,
-      "frequency": 1,
-      "mappingConfidence": 0.8775,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "telegram:SEND_MESSAGE",
-      "weight": 7.57,
-      "frequency": 1,
-      "mappingConfidence": 0.8775,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "code:Object.assign",
-      "weight": 7.57,
-      "frequency": 1,
-      "mappingConfidence": 0.8775,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "database:psql_query",
-      "weight": 7.57,
-      "frequency": 1,
-      "mappingConfidence": 0.8775,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:Object.assign",
-      "to": "telegram:SEND_MESSAGE",
-      "weight": 7.59,
-      "frequency": 1,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "google-sheets:sheets_update_values",
-      "to": "http:http_request",
-      "weight": 7.59,
-      "frequency": 1,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "google-sheets:sheets_update_values",
-      "weight": 7.59,
-      "frequency": 1,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "google-sheets:sheets_update_values",
-      "to": "telegram:SEND_MESSAGE",
-      "weight": 7.59,
-      "frequency": 1,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_request",
-      "to": "sampling:createMessage",
-      "weight": 7.59,
-      "frequency": 1,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_post",
-      "to": "code:filter",
-      "weight": 7.59,
-      "frequency": 1,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:reduce",
-      "to": "code:concat",
-      "weight": 7.59,
-      "frequency": 1,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "google-sheets:sheets_update_values",
-      "to": "code:Object.assign",
-      "weight": 7.59,
-      "frequency": 1,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "google-sheets:sheets_update_values",
-      "to": "sampling:createMessage",
-      "weight": 7.59,
-      "frequency": 1,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "sampling:createMessage",
-      "weight": 7.59,
-      "frequency": 1,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:Object.assign",
-      "to": "code:filter",
-      "weight": 7.59,
-      "frequency": 1,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_request",
-      "to": "code:concat",
-      "weight": 7.59,
-      "frequency": 1,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:concat",
-      "to": "google-sheets:sheets_update_values",
-      "weight": 7.59,
-      "frequency": 1,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:slice",
-      "to": "code:slice",
-      "weight": 7.59,
-      "frequency": 1,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "code:slice",
-      "weight": 7.59,
-      "frequency": 1,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "google-sheets:sheets_update_values",
-      "weight": 7.59,
-      "frequency": 1,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:flatMap",
-      "to": "code:concat",
-      "weight": 7.59,
-      "frequency": 1,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "code:filter",
-      "weight": 7.59,
-      "frequency": 1,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:concat",
-      "to": "sampling:createMessage",
-      "weight": 7.59,
-      "frequency": 1,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "sampling:createMessage",
-      "weight": 7.59,
-      "frequency": 1,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "code:Object.assign",
-      "weight": 7.59,
-      "frequency": 1,
-      "mappingConfidence": 0.875,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "database:redis_cli",
-      "to": "code:Object.assign",
-      "weight": 7.77,
-      "frequency": 1,
-      "mappingConfidence": 0.855,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:Object.assign",
-      "to": "database:redis_cli",
-      "weight": 7.77,
-      "frequency": 1,
-      "mappingConfidence": 0.855,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "google-sheets:sheets_update_values",
-      "weight": 7.79,
-      "frequency": 1,
-      "mappingConfidence": 0.8525,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:concat",
-      "to": "sampling:createMessage",
-      "weight": 7.79,
-      "frequency": 1,
-      "mappingConfidence": 0.8525,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_request",
-      "to": "telegram:SEND_MESSAGE",
-      "weight": 7.82,
-      "frequency": 1,
-      "mappingConfidence": 0.8500000000000001,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "google-sheets:sheets_update_values",
-      "to": "http:http_request",
-      "weight": 7.82,
-      "frequency": 1,
-      "mappingConfidence": 0.8500000000000001,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:flatMap",
-      "to": "code:filter",
-      "weight": 7.82,
-      "frequency": 1,
-      "mappingConfidence": 0.8500000000000001,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "code:flatMap",
-      "weight": 7.82,
-      "frequency": 1,
-      "mappingConfidence": 0.8500000000000001,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "code:concat",
-      "weight": 7.82,
-      "frequency": 1,
-      "mappingConfidence": 0.85,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "google-sheets:sheets_update_values",
-      "to": "slack:post_message",
-      "weight": 7.82,
-      "frequency": 1,
-      "mappingConfidence": 0.8500000000000001,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:concat",
-      "to": "code:concat",
-      "weight": 7.82,
-      "frequency": 1,
-      "mappingConfidence": 0.85,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "telegram:SEND_MESSAGE",
-      "to": "code:concat",
-      "weight": 7.82,
-      "frequency": 1,
-      "mappingConfidence": 0.85,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "sampling:createMessage",
-      "weight": 7.82,
-      "frequency": 1,
-      "mappingConfidence": 0.8500000000000001,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "http:http_request",
-      "weight": 7.82,
-      "frequency": 1,
-      "mappingConfidence": 0.8500000000000001,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:map",
-      "to": "sampling:createMessage",
-      "weight": 7.82,
-      "frequency": 1,
-      "mappingConfidence": 0.8500000000000001,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:slice",
-      "to": "telegram:SEND_MESSAGE",
-      "weight": 7.82,
-      "frequency": 1,
-      "mappingConfidence": 0.8500000000000001,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "code:filter",
-      "weight": 7.82,
-      "frequency": 1,
-      "mappingConfidence": 0.85,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_request",
-      "to": "sampling:createMessage",
-      "weight": 8.03,
-      "frequency": 1,
-      "mappingConfidence": 0.8275,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "sampling:createMessage",
-      "weight": 8.03,
-      "frequency": 1,
-      "mappingConfidence": 0.8275,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "sampling:createMessage",
-      "weight": 8.03,
-      "frequency": 1,
-      "mappingConfidence": 0.8275,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "google-sheets:sheets_update_values",
-      "to": "google-sheets:sheets_get_values",
-      "weight": 8.05,
-      "frequency": 1,
-      "mappingConfidence": 0.825,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "code:filter",
-      "weight": 8.05,
-      "frequency": 1,
-      "mappingConfidence": 0.825,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "code:map",
-      "weight": 8.05,
-      "frequency": 1,
-      "mappingConfidence": 0.825,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:concat",
-      "to": "code:filter",
-      "weight": 8.05,
-      "frequency": 1,
-      "mappingConfidence": 0.825,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "google-sheets:sheets_update_values",
-      "weight": 8.05,
-      "frequency": 1,
-      "mappingConfidence": 0.825,
       "source": "n8n",
       "isOfficial": false
     },
     {
       "from": "code:sort",
       "to": "code:map",
-      "weight": 8.05,
+      "weight": 7.38,
       "frequency": 1,
-      "mappingConfidence": 0.825,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
       "from": "code:map",
       "to": "code:sort",
-      "weight": 8.05,
+      "weight": 7.38,
       "frequency": 1,
-      "mappingConfidence": 0.825,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "telegram:SEND_MESSAGE",
-      "weight": 8.05,
-      "frequency": 1,
-      "mappingConfidence": 0.825,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:Object.assign",
-      "to": "code:filter",
-      "weight": 8.05,
-      "frequency": 1,
-      "mappingConfidence": 0.825,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "sampling:createMessage",
-      "weight": 8.05,
-      "frequency": 1,
-      "mappingConfidence": 0.825,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "http:http_post",
-      "weight": 8.05,
-      "frequency": 1,
-      "mappingConfidence": 0.825,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "telegram:SEND_MESSAGE",
-      "to": "telegram:SEND_MESSAGE",
-      "weight": 8.05,
-      "frequency": 1,
-      "mappingConfidence": 0.825,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_post",
-      "to": "google-sheets:sheets_get_values",
-      "weight": 8.05,
-      "frequency": 1,
-      "mappingConfidence": 0.825,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "google-sheets:sheets_get_values",
-      "to": "sampling:createMessage",
-      "weight": 8.05,
-      "frequency": 1,
-      "mappingConfidence": 0.825,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "google-sheets:sheets_get_values",
-      "to": "http:http_post",
-      "weight": 8.05,
-      "frequency": 1,
-      "mappingConfidence": 0.825,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_request",
-      "to": "code:concat",
-      "weight": 8.05,
-      "frequency": 1,
-      "mappingConfidence": 0.825,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "google-sheets:sheets_update_values",
-      "weight": 8.05,
-      "frequency": 1,
-      "mappingConfidence": 0.825,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:Object.assign",
-      "to": "telegram:SEND_MESSAGE",
-      "weight": 8.2,
-      "frequency": 1,
-      "mappingConfidence": 0.81,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "database:redis_cli",
-      "weight": 8.25,
-      "frequency": 1,
-      "mappingConfidence": 0.805,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "database:redis_cli",
-      "weight": 8.25,
-      "frequency": 1,
-      "mappingConfidence": 0.805,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "database:psql_query",
-      "to": "code:filter",
-      "weight": 8.28,
-      "frequency": 1,
-      "mappingConfidence": 0.8025,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "sampling:createMessage",
-      "weight": 8.3,
-      "frequency": 1,
-      "mappingConfidence": 0.8,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "google-sheets:sheets_get_values",
-      "to": "sampling:createMessage",
-      "weight": 8.3,
-      "frequency": 1,
-      "mappingConfidence": 0.8,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
       "from": "code:flatMap",
-      "to": "code:map",
-      "weight": 8.3,
+      "to": "code:slice",
+      "weight": 7.38,
       "frequency": 1,
-      "mappingConfidence": 0.8,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:flatMap",
+      "to": "telegram:SEND_MESSAGE",
+      "weight": 7.38,
+      "frequency": 1,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "google-sheets:sheets_update_values",
+      "to": "slack:slack_post_message",
+      "weight": 7.38,
+      "frequency": 1,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "google-sheets:sheets_get_values",
+      "to": "std:http_request",
+      "weight": 7.38,
+      "frequency": 1,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:flatMap",
+      "to": "std:http_request",
+      "weight": 7.38,
+      "frequency": 1,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:flatMap",
+      "to": "code:concat",
+      "weight": 7.38,
+      "frequency": 1,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "std:http_post",
+      "to": "google-sheets:sheets_get_values",
+      "weight": 7.38,
+      "frequency": 1,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "std:psql_query",
+      "to": "code:map",
+      "weight": 7.38,
+      "frequency": 1,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "google-sheets:sheets_get_values",
+      "to": "std:http_post",
+      "weight": 7.38,
+      "frequency": 1,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:filter",
+      "to": "google-sheets:sheets_get_values",
+      "weight": 7.38,
+      "frequency": 1,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "std:redis_cli",
+      "to": "code:filter",
+      "weight": 7.38,
+      "frequency": 1,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:Object.assign",
+      "to": "std:redis_cli",
+      "weight": 7.38,
+      "frequency": 1,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
       "from": "code:slice",
-      "to": "memory:create_entities",
-      "weight": 8.3,
+      "to": "std:agent_generate",
+      "weight": 7.38,
       "frequency": 1,
-      "mappingConfidence": 0.8,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
-      "from": "memory:create_entities",
-      "to": "code:slice",
-      "weight": 8.3,
-      "frequency": 1,
-      "mappingConfidence": 0.8,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "google-sheets:sheets_update_values",
-      "to": "google-sheets:sheets_get_values",
-      "weight": 8.3,
-      "frequency": 1,
-      "mappingConfidence": 0.8,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "code:map",
-      "weight": 8.3,
-      "frequency": 1,
-      "mappingConfidence": 0.8,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_request",
-      "to": "code:map",
-      "weight": 8.3,
-      "frequency": 1,
-      "mappingConfidence": 0.8,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "google-sheets:sheets_get_values",
-      "to": "sampling:createMessage",
-      "weight": 8.3,
-      "frequency": 1,
-      "mappingConfidence": 0.8,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "sampling:createMessage",
-      "weight": 8.3,
-      "frequency": 1,
-      "mappingConfidence": 0.8,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "telegram:SEND_MESSAGE",
-      "to": "code:concat",
-      "weight": 8.46,
-      "frequency": 1,
-      "mappingConfidence": 0.785,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "memory:create_entities",
-      "weight": 8.49,
-      "frequency": 1,
-      "mappingConfidence": 0.7825,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "code:map",
-      "weight": 8.55,
-      "frequency": 1,
-      "mappingConfidence": 0.7775,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "database:psql_query",
-      "to": "code:map",
-      "weight": 8.55,
-      "frequency": 1,
-      "mappingConfidence": 0.7775,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "sampling:createMessage",
-      "to": "code:map",
-      "weight": 8.55,
-      "frequency": 1,
-      "mappingConfidence": 0.7775,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "sampling:createMessage",
-      "weight": 8.55,
-      "frequency": 1,
-      "mappingConfidence": 0.7775,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "sampling:createMessage",
-      "weight": 8.55,
-      "frequency": 1,
-      "mappingConfidence": 0.7775,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:concat",
-      "to": "code:filter",
-      "weight": 8.57,
-      "frequency": 1,
-      "mappingConfidence": 0.7749999999999999,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "google-sheets:sheets_update_values",
-      "to": "google-sheets:sheets_get_values",
-      "weight": 8.57,
-      "frequency": 1,
-      "mappingConfidence": 0.7749999999999999,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "google-sheets:sheets_get_values",
-      "to": "google-sheets:sheets_update_values",
-      "weight": 8.57,
-      "frequency": 1,
-      "mappingConfidence": 0.7749999999999999,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "memory:create_entities",
-      "weight": 8.77,
-      "frequency": 1,
-      "mappingConfidence": 0.7575000000000001,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "database:redis_cli",
-      "to": "code:filter",
-      "weight": 8.8,
-      "frequency": 1,
-      "mappingConfidence": 0.755,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "fetch:fetch",
-      "to": "sampling:createMessage",
-      "weight": 8.86,
-      "frequency": 1,
-      "mappingConfidence": 0.75,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
+      "from": "code:slice",
       "to": "telegram:SEND_MESSAGE",
-      "weight": 8.86,
+      "weight": 7.38,
       "frequency": 1,
-      "mappingConfidence": 0.75,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     },
     {
-      "from": "code:filter",
+      "from": "std:agent_generate",
+      "to": "std:psql_query",
+      "weight": 7.38,
+      "frequency": 1,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "code:Object.assign",
+      "to": "code:slice",
+      "weight": 7.38,
+      "frequency": 1,
+      "mappingConfidence": 0.9,
+      "source": "n8n",
+      "isOfficial": false
+    },
+    {
+      "from": "std:psql_query",
       "to": "code:filter",
-      "weight": 8.86,
+      "weight": 7.38,
       "frequency": 1,
-      "mappingConfidence": 0.75,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_request",
-      "to": "sampling:createMessage",
-      "weight": 8.86,
-      "frequency": 1,
-      "mappingConfidence": 0.75,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "google-sheets:sheets_get_values",
-      "to": "http:http_request",
-      "weight": 8.86,
-      "frequency": 1,
-      "mappingConfidence": 0.75,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "http:http_request",
-      "weight": 8.86,
-      "frequency": 1,
-      "mappingConfidence": 0.75,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_request",
-      "to": "code:filter",
-      "weight": 8.86,
-      "frequency": 1,
-      "mappingConfidence": 0.75,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "google-sheets:sheets_get_values",
-      "weight": 8.86,
-      "frequency": 1,
-      "mappingConfidence": 0.75,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:map",
-      "to": "memory:create_entities",
-      "weight": 9.16,
-      "frequency": 1,
-      "mappingConfidence": 0.725,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "google-sheets:sheets_get_values",
-      "to": "google-sheets:sheets_get_values",
-      "weight": 9.49,
-      "frequency": 1,
-      "mappingConfidence": 0.7,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "code:filter",
-      "to": "code:map",
-      "weight": 9.49,
-      "frequency": 1,
-      "mappingConfidence": 0.7,
-      "source": "n8n",
-      "isOfficial": false
-    },
-    {
-      "from": "http:http_request",
-      "to": "google-sheets:sheets_get_values",
-      "weight": 10.22,
-      "frequency": 1,
-      "mappingConfidence": 0.6499999999999999,
+      "mappingConfidence": 0.9,
       "source": "n8n",
       "isOfficial": false
     }
@@ -11010,5 +9471,6 @@
     "uniquePatterns": 679,
     "mappedPatterns": 306,
     "unmappedPatterns": 373
-  }
+  },
+  "migratedAt": "2026-01-14T11:45:15.353Z"
 }

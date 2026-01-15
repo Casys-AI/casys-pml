@@ -22,6 +22,7 @@ import { DAGSuggester } from "../../graphrag/dag-suggester.ts";
 import { ParallelExecutor } from "../../dag/executor.ts";
 import { PMLGatewayServer } from "../../mcp/gateway-server.ts";
 import { WorkflowSyncService } from "../../graphrag/workflow-sync.ts";
+import { CodeOperationSyncService } from "../../graphrag/code-operation-sync.ts";
 import { getWorkflowTemplatesPath } from "../utils.ts";
 import { autoInitIfConfigChanged } from "../auto-init.ts";
 import type { MCPClientBase, MCPServer } from "../../mcp/types.ts";
@@ -293,6 +294,14 @@ export function createServeCommand() {
         );
         if (bootstrapped) {
           log.info("✓ Graph bootstrapped from workflow-templates.yaml");
+        }
+
+        // Sync code operation embeddings (code:filter, code:map, etc.)
+        // These are JS operations traced during capability execution
+        const codeOpSyncService = new CodeOperationSyncService(db);
+        const codeOpBootstrapped = await codeOpSyncService.bootstrapIfEmpty();
+        if (codeOpBootstrapped) {
+          log.info("✓ Code operation embeddings synced");
         }
 
         const graphEngine = new GraphRAGEngine(db);
