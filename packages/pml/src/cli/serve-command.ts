@@ -29,6 +29,7 @@ import {
 import { CapabilityLoader, LockfileManager } from "../loader/mod.ts";
 import { SessionClient } from "../session/mod.ts";
 import { PendingWorkflowStore } from "../workflow/mod.ts";
+import { TraceSyncer, type LocalExecutionTrace, type JsonValue } from "../tracing/mod.ts";
 import { reloadEnv } from "../byok/env-loader.ts";
 
 // Shared utilities
@@ -50,6 +51,9 @@ Deno.env.set("PML_DEBUG", "1");
 
 /** Active session client */
 let sessionClient: SessionClient | null = null;
+
+/** Trace syncer for sending execution traces to cloud */
+let traceSyncer: TraceSyncer | null = null;
 
 /** Pending workflow store for HIL flows */
 const pendingWorkflowStore = new PendingWorkflowStore();
@@ -135,6 +139,16 @@ export function createServeCommand(): Command<any> {
       } catch (error) {
         log(`${colors.yellow("⚠")} CapabilityLoader failed: ${error}`);
       }
+
+      // Initialize TraceSyncer for capability creation after local execution
+      traceSyncer = new TraceSyncer({
+        cloudUrl,
+        apiKey,
+        batchSize: 10,
+        flushIntervalMs: 5000,
+        maxRetries: 3,
+      });
+      log(`${colors.green("✓")} TraceSyncer ready`);
 
       const port = options.port;
 
@@ -318,6 +332,29 @@ export function createServeCommand(): Command<any> {
                     result: { content: [{ type: "text", text: JSON.stringify({ status: "error", error: result.error, executed_locally: true }) }] },
                   });
                 }
+                // Send trace to finalize capability creation if workflowId present
+                if (execLocally.workflowId && traceSyncer) {
+                  const trace: LocalExecutionTrace = {
+                    workflowId: execLocally.workflowId,
+                    capabilityId: "",
+                    success: true,
+                    durationMs: result.durationMs,
+                    taskResults: result.toolCallRecords.map((record, i) => ({
+                      taskId: `task_${i}`,
+                      tool: record.tool,
+                      args: (record.args ?? {}) as Record<string, JsonValue>,
+                      result: (record.result ?? null) as JsonValue,
+                      success: record.success,
+                      durationMs: record.durationMs,
+                      timestamp: new Date().toISOString(),
+                    })),
+                    decisions: [],
+                    timestamp: new Date().toISOString(),
+                  };
+                  traceSyncer.enqueue(trace);
+                  log(`  Trace queued: ${execLocally.workflowId.slice(0, 8)}`);
+                }
+
                 log(`  ${colors.green("✓")} success (${result.durationMs}ms)`);
                 return c.json({
                   jsonrpc: "2.0",
@@ -350,6 +387,11 @@ export function createServeCommand(): Command<any> {
         if (loader) {
           await loader.shutdown();
           log(`${colors.dim("✓")} CapabilityLoader shutdown`);
+        }
+
+        if (traceSyncer) {
+          await traceSyncer.shutdown();
+          log(`${colors.dim("✓")} TraceSyncer shutdown`);
         }
 
         if (sessionClient) {
