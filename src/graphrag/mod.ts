@@ -26,6 +26,8 @@ export type {
 } from "./workflow-loader.ts";
 export { WorkflowSyncService } from "./workflow-sync.ts";
 export type { EmbeddingModelFactory, IEmbeddingModel, SyncResult } from "./workflow-sync.ts";
+export { CodeOperationSyncService } from "./code-operation-sync.ts";
+export type { CodeOperationSyncResult } from "./code-operation-sync.ts";
 
 // Spectral clustering
 export { SpectralClusteringManager } from "./spectral-clustering.ts";
