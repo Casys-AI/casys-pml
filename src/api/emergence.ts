@@ -515,9 +515,9 @@ export async function handleEmergenceMetrics(
         const embeddings = new Map<string, number[]>();
         const nodeIds = snapshot.nodes.map((n) => n.id);
 
-        // 1. Fetch tool embeddings
+        // 1. Fetch tool embeddings (cast vector to real[] for JS compatibility)
         const toolEmbeddings = await ctx.db.query(
-          `SELECT tool_id, embedding
+          `SELECT tool_id, embedding::real[] as embedding
            FROM tool_embedding
            WHERE tool_id = ANY($1)
            AND embedding IS NOT NULL`,
@@ -527,10 +527,11 @@ export async function handleEmergenceMetrics(
         for (const row of toolEmbeddings) {
           const toolId = row.tool_id as string;
           let embedding = row.embedding;
+          // Handle different formats: string (JSON), pgvector string "[0.1,0.2]", or array
           if (typeof embedding === "string") {
             try { embedding = JSON.parse(embedding); } catch { continue; }
           }
-          if (Array.isArray(embedding)) {
+          if (Array.isArray(embedding) && embedding.length > 0) {
             embeddings.set(toolId, embedding);
           }
         }
@@ -544,7 +545,7 @@ export async function handleEmergenceMetrics(
 
         if (capabilityIds.length > 0) {
           const capEmbeddings = await ctx.db.query(
-            `SELECT cr.id as capability_id, wp.intent_embedding
+            `SELECT cr.id as capability_id, wp.intent_embedding::real[] as intent_embedding
              FROM capability_records cr
              JOIN workflow_pattern wp ON cr.workflow_pattern_id = wp.pattern_id
              WHERE cr.id = ANY($1::uuid[])
@@ -555,18 +556,21 @@ export async function handleEmergenceMetrics(
           for (const row of capEmbeddings) {
             const capId = `capability:${row.capability_id as string}`;
             let embedding = row.intent_embedding;
+            // Handle different formats: string (JSON), pgvector string "[0.1,0.2]", or array
             if (typeof embedding === "string") {
               try { embedding = JSON.parse(embedding); } catch { continue; }
             }
-            if (Array.isArray(embedding)) {
+            if (Array.isArray(embedding) && embedding.length > 0) {
               embeddings.set(capId, embedding);
             }
           }
         }
 
+        log.info(`[emergence] Embeddings collected: ${embeddings.size} (need >= 2 for semantic entropy)`);
+
         if (embeddings.size >= 2) {
           semanticEntropyResult = computeSemanticEntropy(embeddings);
-          log.debug(
+          log.info(
             `[emergence] Semantic entropy: ${semanticEntropyResult.semanticEntropy.toFixed(3)}, ` +
             `diversity=${semanticEntropyResult.semanticDiversity.toFixed(3)}, ` +
             `embeddings=${embeddings.size}/${snapshot.nodes.length} (tools+caps)`,
