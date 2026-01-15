@@ -162,6 +162,8 @@ export class StdioManager {
         stdin: "piped",
         stdout: "piped",
         stderr: "piped",
+        // Pass current env vars including those loaded from .env via reloadEnv()
+        env: Deno.env.toObject(),
       });
 
       const process = command.spawn();
