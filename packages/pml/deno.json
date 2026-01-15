@@ -22,10 +22,12 @@
     "@std/encoding/hex": "jsr:@std/encoding@^1/hex",
     "@std/log": "jsr:@std/log@0.224.14",
     "@std/dotenv": "jsr:@std/dotenv@^0.225.0",
-    "@std/testing": "jsr:@std/testing@^1.0.16"
+    "@std/testing": "jsr:@std/testing@^1.0.16",
+    "hono": "jsr:@hono/hono@^4",
+    "hono/cors": "jsr:@hono/hono@^4/cors"
   },
   "tasks": {
-    "dev": "deno run -A src/cli/mod.ts",
+    "dev": "deno run --watch -A --env-file=.env --unstable-worker-options src/cli/mod.ts serve",
     "serve": "deno run -A --unstable-worker-options src/cli/mod.ts serve",
     "stdio": "deno run -A --unstable-worker-options src/cli/mod.ts stdio",
     "compile": "deno compile -A --unstable-worker-options --no-check --include=./src/sandbox/execution/sandbox-script.ts -o ~/.deno/bin/pml ./src/cli/mod.ts",

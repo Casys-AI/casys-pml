@@ -11,6 +11,8 @@ import { Command } from "@cliffy/command";
 import * as colors from "@std/fmt/colors";
 import { exists } from "@std/fs";
 import { join } from "@std/path";
+import { Hono } from "hono";
+import { cors } from "hono/cors";
 import type { PmlConfig } from "../types.ts";
 import {
   getWorkspaceSourceDescription,
@@ -216,6 +218,7 @@ function extractContinueWorkflow(args: Record<string, unknown> | undefined): {
  * Forward to cloud server
  */
 async function forwardToCloud(
+  id: string | number,
   toolName: string,
   args: Record<string, unknown>,
   cloudUrl: string,
@@ -233,7 +236,7 @@ async function forwardToCloud(
       headers,
       body: JSON.stringify({
         jsonrpc: "2.0",
-        id: 1,
+        id,
         method: "tools/call",
         params: { name: toolName, arguments: args },
       }),
@@ -412,25 +415,40 @@ export function createServeCommand(): Command<any> {
       console.log(`  ${colors.dim("Session:")} ${sessionClient?.sessionId?.slice(0, 8) ?? "none"}`);
       console.log();
 
-      const handler = async (req: Request): Promise<Response> => {
-        const url = new URL(req.url);
+      // Create Hono app
+      const app = new Hono();
 
-        // Health check
-        if (url.pathname === "/health") {
-          return Response.json({ status: "ok" });
-        }
+      // CORS middleware (same as main server)
+      app.use("*", cors({
+        origin: "*",
+        allowMethods: ["GET", "POST", "OPTIONS"],
+        allowHeaders: ["Content-Type", "Accept", "mcp-protocol-version"],
+        exposeHeaders: ["Content-Length"],
+        maxAge: 600,
+      }));
 
-        // MCP endpoint
-        if (url.pathname === "/mcp" && req.method === "POST") {
+      // Health check
+      app.get("/health", (c) => c.json({ status: "ok" }));
+
+      // MCP endpoint - GET returns 405 (Streamable HTTP spec: server doesn't support inbound streams)
+      app.get("/mcp", (c) => c.text("", 405));
+      app.get("/", (c) => c.text("", 405));
+
+      // MCP endpoint - POST handles JSON-RPC
+      // deno-lint-ignore no-explicit-any
+      const handleMcpPost = async (c: any) => {
           try {
-            const body = await req.json();
+            const body = await c.req.json();
             const { id, method, params } = body;
 
-            log(`← ${method} ${params?.name ?? ""}`);
+            // Log non-tools/call methods only (tools/call logged below with reqId)
+            if (method !== "tools/call") {
+              log(`← ${method} ${params?.name ?? ""}`);
+            }
 
             // Initialize
             if (method === "initialize") {
-              return Response.json({
+              return c.json({
                 jsonrpc: "2.0",
                 id,
                 result: {
@@ -443,13 +461,14 @@ export function createServeCommand(): Command<any> {
 
             // Tools list
             if (method === "tools/list") {
-              return Response.json({
+              return c.json({
                 jsonrpc: "2.0",
                 id,
                 result: {
                   tools: [
                     { name: "pml:discover", description: "Search tools", inputSchema: { type: "object", properties: { intent: { type: "string" } }, required: ["intent"] } },
-                    { name: "pml:execute", description: "Execute code", inputSchema: { type: "object", properties: { intent: { type: "string" }, code: { type: "string" } } } },
+                    { name: "pml:execute", description: "Execute code", inputSchema: { type: "object", properties: { intent: { type: "string" }, code: { type: "string" }, continue_workflow: { type: "object", properties: { approved: { type: "boolean" }, workflow_id: { type: "string" } } } } } },
+                    { name: "pml:test", description: "Test instant response", inputSchema: { type: "object", properties: { delay: { type: "number", description: "Delay in ms" } } } },
                   ],
                 },
               });
@@ -457,7 +476,25 @@ export function createServeCommand(): Command<any> {
 
             // Tools call
             if (method === "tools/call" && params?.name) {
+              const reqId = Math.random().toString(36).slice(2, 8);
+              log(`← tools/call ${params.name} [${reqId}]`);
+
               const { name, arguments: args } = params;
+
+              // DEBUG: Test response with configurable delay
+              if (name === "pml:test") {
+                const delayMs = (args as { delay?: number })?.delay ?? 0;
+                log(`  → test response (delay=${delayMs}ms)`);
+                if (delayMs > 0) {
+                  await new Promise(r => setTimeout(r, delayMs));
+                }
+                log(`  → sending test response`);
+                return c.json({
+                  jsonrpc: "2.0",
+                  id,
+                  result: { content: [{ type: "text", text: JSON.stringify({ test: "ok", time: Date.now(), delay: delayMs }) }] },
+                });
+              }
               const { continueWorkflow, cleanArgs } = extractContinueWorkflow(args);
 
               // Handle continue_workflow for local pending workflows
@@ -468,7 +505,7 @@ export function createServeCommand(): Command<any> {
 
                   if (!continueWorkflow.approved) {
                     pendingWorkflowStore.delete(continueWorkflow.workflowId);
-                    return Response.json({
+                    return c.json({
                       jsonrpc: "2.0",
                       id,
                       result: { content: [{ type: "text", text: JSON.stringify({ status: "aborted" }) }] },
@@ -487,20 +524,20 @@ export function createServeCommand(): Command<any> {
                   pendingWorkflowStore.delete(continueWorkflow.workflowId);
 
                   if (result.status === "approval_required") {
-                    return Response.json({
+                    return c.json({
                       jsonrpc: "2.0",
                       id,
                       result: formatApprovalRequired(result.toolId, result.approval, pending.code, pending.fqdnMap),
                     });
                   }
                   if (result.status === "error") {
-                    return Response.json({
+                    return c.json({
                       jsonrpc: "2.0",
                       id,
                       result: { content: [{ type: "text", text: JSON.stringify({ status: "error", error: result.error }) }] },
                     });
                   }
-                  return Response.json({
+                  return c.json({
                     jsonrpc: "2.0",
                     id,
                     result: { content: [{ type: "text", text: JSON.stringify({ status: "success", result: result.result }) }] },
@@ -509,9 +546,12 @@ export function createServeCommand(): Command<any> {
               }
 
               // Forward to cloud
-              const cloudResult = await forwardToCloud(name, cleanArgs, cloudUrl);
+              log(`  → forwarding to cloud...`);
+              const t0 = Date.now();
+              const cloudResult = await forwardToCloud(id, name, cleanArgs, cloudUrl);
+              log(`  ← cloud responded in ${Date.now() - t0}ms`);
               if (!cloudResult.ok) {
-                return Response.json({ jsonrpc: "2.0", id, error: { code: -32603, message: cloudResult.error } });
+                return c.json({ jsonrpc: "2.0", id, error: { code: -32603, message: cloudResult.error } });
               }
 
               // Check for execute_locally
@@ -527,7 +567,7 @@ export function createServeCommand(): Command<any> {
 
                   if (result.status === "approval_required") {
                     log(`  ${colors.yellow("⏸")} approval_required: ${result.toolId}`);
-                    return Response.json({
+                    return c.json({
                       jsonrpc: "2.0",
                       id,
                       result: formatApprovalRequired(result.toolId, result.approval, executeLocally.code, Object.fromEntries(fqdnMap)),
@@ -535,14 +575,14 @@ export function createServeCommand(): Command<any> {
                   }
                   if (result.status === "error") {
                     log(`  ${colors.red("✗")} error: ${result.error}`);
-                    return Response.json({
+                    return c.json({
                       jsonrpc: "2.0",
                       id,
                       result: { content: [{ type: "text", text: JSON.stringify({ status: "error", error: result.error, executed_locally: true }) }] },
                     });
                   }
                   log(`  ${colors.green("✓")} success (${result.durationMs}ms)`);
-                  return Response.json({
+                  return c.json({
                     jsonrpc: "2.0",
                     id,
                     result: { content: [{ type: "text", text: JSON.stringify({ status: "success", result: result.result, executed_locally: true }) }] },
@@ -550,20 +590,46 @@ export function createServeCommand(): Command<any> {
                 }
               }
 
-              // Return cloud response as-is
-              return Response.json(cloudResult.response);
+              // Return cloud response as-is using Hono
+              log(`  → returning cloud response`);
+              return c.json(cloudResult.response);
             }
 
-            return Response.json({ jsonrpc: "2.0", id, error: { code: -32601, message: `Method not found: ${method}` } });
+            return c.json({ jsonrpc: "2.0", id, error: { code: -32601, message: `Method not found: ${method}` } });
           } catch (error) {
             log(`${colors.red("✗")} Error: ${error}`);
-            return Response.json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } });
+            return c.json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } });
           }
-        }
-
-        return new Response("Not found", { status: 404 });
       };
 
-      Deno.serve({ port }, handler);
+      // Register POST routes for MCP
+      app.post("/mcp", handleMcpPost);
+      app.post("/", handleMcpPost);
+
+      // Graceful shutdown handler
+      const shutdown = async () => {
+        log(`${colors.yellow("⚠")} Shutting down...`);
+
+        // Shutdown loader (kills spawned mcp-std processes)
+        if (loader) {
+          await loader.shutdown();
+          log(`${colors.dim("✓")} CapabilityLoader shutdown`);
+        }
+
+        // Shutdown session
+        if (sessionClient) {
+          await sessionClient.shutdown();
+          log(`${colors.dim("✓")} Session unregistered`);
+        }
+
+        log(`${colors.green("✓")} Cleanup complete`);
+        Deno.exit(0);
+      };
+
+      // Register signal handlers
+      Deno.addSignalListener("SIGTERM", shutdown);
+      Deno.addSignalListener("SIGINT", shutdown);
+
+      Deno.serve({ port }, app.fetch);
     });
 }

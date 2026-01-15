@@ -917,6 +917,11 @@ async function handleToolsCall(
   const { continueWorkflow, cleanArgs } = extractContinueWorkflow(args);
 
   // Check routing
+  // NOTE: This path is effectively dead code in normal Claude usage.
+  // Claude only sees pml:discover and pml:execute via tools/list.
+  // Direct tool calls (std:docker_ps, etc.) are handled via pml:execute
+  // which goes through server resolution and returns execute_locally.
+  // This path exists for backwards compatibility and direct MCP client testing.
   const routing = resolveToolRouting(name);
   stdioLog.debug(
     `Tool ${name} → ${routing}${
@@ -925,7 +930,7 @@ async function handleToolsCall(
   );
 
   if (routing === "client") {
-    // Client-side execution via CapabilityLoader
+    // Client-side execution via CapabilityLoader (deprecated path)
     if (!loader) {
       sendError(id, -32603, "Capability loader not initialized");
       return;
