@@ -221,22 +221,22 @@ export class MergeCapabilitiesUseCase {
         if (sourceRecord.workflowPatternId && targetRecord.workflowPatternId) {
           // Redirect outgoing edges
           await tx.exec(
-            `UPDATE capability_dependency SET from_capability_id = $1
-             WHERE from_capability_id = $2
+            `UPDATE capability_dependency SET from_capability_id = $1::uuid
+             WHERE from_capability_id = $2::uuid
              AND NOT EXISTS (
                SELECT 1 FROM capability_dependency cd2
-               WHERE cd2.from_capability_id = $1 AND cd2.to_capability_id = capability_dependency.to_capability_id
+               WHERE cd2.from_capability_id = $1::uuid AND cd2.to_capability_id = capability_dependency.to_capability_id
              )`,
             [targetRecord.workflowPatternId, sourceRecord.workflowPatternId],
           );
 
           // Redirect incoming edges
           await tx.exec(
-            `UPDATE capability_dependency SET to_capability_id = $1
-             WHERE to_capability_id = $2
+            `UPDATE capability_dependency SET to_capability_id = $1::uuid
+             WHERE to_capability_id = $2::uuid
              AND NOT EXISTS (
                SELECT 1 FROM capability_dependency cd2
-               WHERE cd2.from_capability_id = capability_dependency.from_capability_id AND cd2.to_capability_id = $1
+               WHERE cd2.from_capability_id = capability_dependency.from_capability_id AND cd2.to_capability_id = $1::uuid
              )`,
             [targetRecord.workflowPatternId, sourceRecord.workflowPatternId],
           );
@@ -244,13 +244,13 @@ export class MergeCapabilitiesUseCase {
           // Delete remaining edges to/from source
           await tx.exec(
             `DELETE FROM capability_dependency
-             WHERE from_capability_id = $1 OR to_capability_id = $1`,
+             WHERE from_capability_id = $1::uuid OR to_capability_id = $1::uuid`,
             [sourceRecord.workflowPatternId],
           );
 
           // Delete source workflow_pattern
           await tx.exec(
-            `DELETE FROM workflow_pattern WHERE pattern_id = $1`,
+            `DELETE FROM workflow_pattern WHERE pattern_id = $1::uuid`,
             [sourceRecord.workflowPatternId],
           );
         }
