@@ -347,16 +347,16 @@ export class CapabilityLoader {
         };
 
         // std still needs tool_permission approval before first use
+        // Always check return - env vars may still be missing after approval
         const toolIdForPermission = `${serverName}:*`;
-        if (!continueWorkflow?.approved) {
-          const stdApproval = await this.ensureDependency(stdioDep, false, toolIdForPermission);
-          if (stdApproval) {
-            logDebug(`std binary requires approval before download`);
-            return stdApproval;
-          }
-        } else {
-          // User approved - ensure it's installed
-          await this.ensureDependency(stdioDep, true, toolIdForPermission);
+        const stdApproval = await this.ensureDependency(
+          stdioDep,
+          continueWorkflow?.approved ?? false,
+          toolIdForPermission,
+        );
+        if (stdApproval) {
+          logDebug(`std binary requires approval before download`);
+          return stdApproval;
         }
       } else if (metadata.install) {
         // Other stdio servers use standard install flow
@@ -373,18 +373,17 @@ export class CapabilityLoader {
         };
 
         // Check if this stdio MCP needs approval to install
-        // Skip if continueWorkflow.approved (user already approved)
+        // Always check return - env vars may still be missing after approval
         // Use serverName:* as toolId for permission matching (not FQDN namespace)
         const toolIdForPermission = `${serverName}:*`;
-        if (!continueWorkflow?.approved) {
-          const stdioApproval = await this.ensureDependency(stdioDep, false, toolIdForPermission);
-          if (stdioApproval) {
-            logDebug(`Stdio MCP ${namespace} requires approval to install`);
-            return stdioApproval;
-          }
-        } else {
-          // User approved - ensure it's installed
-          await this.ensureDependency(stdioDep, true, toolIdForPermission);
+        const stdioApproval = await this.ensureDependency(
+          stdioDep,
+          continueWorkflow?.approved ?? false,
+          toolIdForPermission,
+        );
+        if (stdioApproval) {
+          logDebug(`Stdio MCP ${namespace} requires approval to install`);
+          return stdioApproval;
         }
       }
     }
@@ -628,16 +627,16 @@ export class CapabilityLoader {
         };
 
         // std still needs tool_permission approval before first use (same as load())
+        // Always check return - env vars may still be missing after approval
         const toolIdForPermission = `${namespace}:*`;
-        if (!continueWorkflow?.approved) {
-          const stdApproval = await this.ensureDependency(stdioDep, false, toolIdForPermission);
-          if (stdApproval) {
-            logDebug(`std binary requires approval before download (FQDN: ${fqdn})`);
-            return stdApproval;
-          }
-        } else {
-          // User approved - ensure it's installed
-          await this.ensureDependency(stdioDep, true, toolIdForPermission);
+        const stdApproval = await this.ensureDependency(
+          stdioDep,
+          continueWorkflow?.approved ?? false,
+          toolIdForPermission,
+        );
+        if (stdApproval) {
+          logDebug(`std binary requires approval before download (FQDN: ${fqdn})`);
+          return stdApproval;
         }
       } else if (metadata.install) {
         stdioDep = {
@@ -651,14 +650,16 @@ export class CapabilityLoader {
           envRequired: metadata.install.envRequired,
         };
 
-        if (!continueWorkflow?.approved) {
-          const stdioApproval = await this.ensureDependency(stdioDep, false, toolId);
-          if (stdioApproval) {
-            logDebug(`Stdio MCP ${fqdn} requires approval to install`);
-            return stdioApproval;
-          }
-        } else {
-          await this.ensureDependency(stdioDep, true, toolId);
+        // Always check ensureDependency return - even after approval,
+        // env vars may still be missing (user didn't add key to .env)
+        const stdioApproval = await this.ensureDependency(
+          stdioDep,
+          continueWorkflow?.approved ?? false,
+          toolId,
+        );
+        if (stdioApproval) {
+          logDebug(`Stdio MCP ${fqdn} requires approval to install`);
+          return stdioApproval;
         }
       }
     }
