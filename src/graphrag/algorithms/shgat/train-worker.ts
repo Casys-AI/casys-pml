@@ -426,12 +426,12 @@ async function main() {
         if (epoch === 0) {
           baselineTestAccuracy = testAccuracy;
           lastTestAccuracy = testAccuracy;
-          logDebug(`[SHGAT Worker] Health check baseline: testAcc=${testAccuracy.toFixed(2)}`);
+          logInfo(`[SHGAT Worker] Health check baseline: testAcc=${testAccuracy.toFixed(2)}`);
         } else {
           const dropFromBaseline = baselineTestAccuracy - testAccuracy;
           const dropFromLast = lastTestAccuracy - testAccuracy;
 
-          logDebug(
+          logInfo(
             `[SHGAT Worker] Health check epoch ${epoch}: testAcc=${testAccuracy.toFixed(2)}, ` +
             `Δbaseline=${(-dropFromBaseline * 100).toFixed(1)}%, Δlast=${(-dropFromLast * 100).toFixed(1)}%`
           );
