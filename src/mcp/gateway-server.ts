@@ -48,6 +48,7 @@ import { eventBus } from "../events/mod.ts";
 import { AlgorithmInitializer } from "./algorithm-init/mod.ts";
 import type { EpisodicMemoryStore } from "../dag/episodic/store.ts";
 import type { ICodeAnalyzer } from "../domain/interfaces/code-analyzer.ts";
+import { McpRegistryService } from "./registry/mcp-registry.service.ts";
 
 // Server types, constants, lifecycle, and HTTP server
 import {
@@ -156,6 +157,7 @@ export class PMLGatewayServer {
   private drdsp: DRDSP | null = null;
   private embeddingModel: EmbeddingModelInterface | null = null;
   private capabilityRegistry: CapabilityRegistry | null = null; // Story 13.2
+  private mcpRegistry: McpRegistryService | null = null; // FQDN resolution for MCP tools
   private capabilityMCPServer: CapabilityMCPServer | null = null; // Story 13.3
   private pmlStdServer: PmlStdServer | null = null; // Story 13.5: cap:* management tools
   private algorithmTracer: AlgorithmTracer | null = null; // Story 7.6: Observability
@@ -229,6 +231,9 @@ export class PMLGatewayServer {
 
     // Initialize CapabilityRegistry for naming support (Story 13.2)
     this.capabilityRegistry = new CapabilityRegistry(this.db);
+
+    // Initialize McpRegistryService for MCP standard tools FQDN resolution
+    this.mcpRegistry = new McpRegistryService(this.db);
 
     // Wire registry to store for code transformation (display_name → FQDN)
     if (this.capabilityStore) {
@@ -396,6 +401,7 @@ export class PMLGatewayServer {
       workerBridgeFactory: workerBridgeFactory as unknown as ExecuteDirectUseCase["deps"]["workerBridgeFactory"],
       embeddingModel: this.embeddingModel ?? undefined,
       capabilityRegistry: this.capabilityRegistry ?? undefined,
+      mcpRegistry: this.mcpRegistry ?? undefined,
       // Phase 3.2: Event-driven training (cast needed for interface compatibility)
       eventBus: eventBus as ExecuteDirectUseCase["deps"]["eventBus"],
       embeddingCache: embeddingCacheAdapter,

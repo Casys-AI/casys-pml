@@ -51,8 +51,7 @@ import type { ICodeAnalyzer } from "../../domain/interfaces/code-analyzer.ts";
 // Hybrid routing support
 import { resolveRouting, getToolRouting } from "../../capabilities/routing-resolver.ts";
 // Multi-tenant FQDN resolution
-import { getUserScope } from "../../lib/user.ts";
-import { getCapabilityFqdn } from "../../capabilities/capability-registry.ts";
+import { getUserScope, resolveToolFqdn } from "../../lib/user.ts";
 
 /**
  * Dependencies required for code execution handler
@@ -83,6 +82,8 @@ export interface CodeExecutionDependencies {
   capModule?: import("./cap-handler.ts").CapModule;
   /** User ID for multi-tenant FQDN resolution */
   userId?: string;
+  /** MCP Registry for tool FQDN lookup */
+  mcpRegistry?: import("../registry/mcp-registry.service.ts").McpRegistryService;
 }
 
 /**
@@ -137,39 +138,25 @@ async function resolveToolFqdns(
   toolIds: string[],
   deps: CodeExecutionDependencies,
 ): Promise<ResolvedTool[]> {
-  const results: ResolvedTool[] = [];
-  const { capabilityRegistry, userId } = deps;
+  const { capabilityRegistry, mcpRegistry, userId } = deps;
 
   // Get user scope
   const scope = await getUserScope(userId ?? null);
 
-  for (const toolId of toolIds) {
-    const colonIndex = toolId.indexOf(":");
-    if (colonIndex === -1) {
-      // No colon - invalid format, skip
-      log.warn(`[FQDN Resolution] Invalid tool ID format: ${toolId}`);
-      results.push({ id: toolId, fqdn: `pml.mcp.${toolId}.${toolId}` });
-      continue;
-    }
-
-    const namespace = toolId.substring(0, colonIndex);
-    const action = toolId.substring(colonIndex + 1);
-
-    // 1. Try capability registry (user scope + public)
-    // resolveByName does: user scope first, then public capabilities
-    if (capabilityRegistry) {
-      const record = await capabilityRegistry.resolveByName(toolId, scope);
-      if (record) {
-        results.push({ id: toolId, fqdn: getCapabilityFqdn(record) });
-        continue;
-      }
-    }
-
-    // 2. Fallback to MCP tool (from tool_schema via pml_registry)
-    results.push({ id: toolId, fqdn: `pml.mcp.${namespace}.${action}` });
-  }
-
-  return results;
+  // Use unified resolveToolFqdn for consistent FQDN resolution
+  return Promise.all(
+    toolIds.map(async (toolId) => ({
+      id: toolId,
+      fqdn: await resolveToolFqdn(toolId, scope, {
+        lookupCapability: capabilityRegistry
+          ? async (id, s) => await capabilityRegistry.resolveByName(id, s)
+          : undefined,
+        lookupMcpTool: mcpRegistry
+          ? async (fqdn) => await mcpRegistry.getByFqdnWithoutHash(fqdn)
+          : undefined,
+      }),
+    })),
+  );
 }
 
 /**

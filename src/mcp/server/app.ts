@@ -33,6 +33,7 @@ import {
   handleMetricsRoutes,
   handleRoutingRoutes,
   handleToolsRoutes,
+  handleTracesRoutes,
 } from "../../api/mod.ts";
 
 // Package session management
@@ -288,6 +289,9 @@ export function createApp(deps: HonoAppDependencies, allowedOrigins: string[]): 
       const sessionStore = getSessionStore();
       const isPackageClient = sessionStore.isPackageClient(sessionId);
 
+      // DEBUG: Log session header
+      log.info(`[MCP] POST /mcp sessionId=${sessionId?.slice(0, 8) ?? "none"} isPackageClient=${isPackageClient}`);
+
       const response = await deps.handleJsonRpc(body, userId, isPackageClient);
       return c.json(response);
     } catch (error) {
@@ -399,6 +403,15 @@ export function createApp(deps: HonoAppDependencies, allowedOrigins: string[]): 
     const corsHdrs = c.get("corsHeaders");
     const url = new URL(c.req.raw.url);
     const response = handleToolsRoutes(c.req.raw, url, routeCtx, corsHdrs);
+    return response || c.json({ error: "Not found" }, 404);
+  });
+
+  // Traces API (Story 14.5b: Client-routed capability creation)
+  app.post("/api/traces", async (c) => {
+    const routeCtx = c.get("routeCtx");
+    const corsHdrs = c.get("corsHeaders");
+    const url = new URL(c.req.raw.url);
+    const response = await handleTracesRoutes(c.req.raw, url, routeCtx, corsHdrs);
     return response || c.json({ error: "Not found" }, 404);
   });
 

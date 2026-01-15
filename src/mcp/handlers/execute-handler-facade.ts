@@ -154,7 +154,8 @@ export class ExecuteHandlerFacade {
           executionTimeMs: 0,
           error_code: "CLIENT_TOOLS_REQUIRE_PACKAGE",
           client_tools: result.error?.details?.clientTools as string[] ?? [],
-          tools_used: result.error?.details?.toolsUsed as string[] ?? [],
+          // tools_used omitted - error case only has raw IDs, not resolved FQDNs
+          error: result.error?.message,
         };
       }
 
@@ -177,6 +178,7 @@ export class ExecuteHandlerFacade {
         code: result.data.code,
         tools_used: result.data.toolsUsed,
         client_tools: result.data.clientTools,
+        workflowId: result.data.workflowId,  // Required for client to send trace back
         mode: "execute_locally",
         executionTimeMs: result.data.executionTimeMs ?? 0,
         dag: result.data.dag,
