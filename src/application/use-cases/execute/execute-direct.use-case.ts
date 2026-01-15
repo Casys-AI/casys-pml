@@ -32,7 +32,7 @@ import {
   normalizeToolId,
   type RoutingDbClient,
 } from "../../../capabilities/routing-resolver.ts";
-import { getUserScope } from "../../../lib/user.ts";
+import { getUserScope, resolveToolFqdn } from "../../../lib/user.ts";
 import { saveWorkflowState } from "../../../cache/workflow-state-cache.ts";
 import type { LearningContext } from "../../../cache/types.ts";
 
@@ -106,6 +106,19 @@ export interface ICapabilityRegistry {
     userId?: string;  // UUID FK to users (null for local/anonymous)
     toolsUsed: string[];
   }): Promise<{ id: string }>;
+  /** Resolve tool name to capability record (for FQDN resolution) */
+  resolveByName?(
+    name: string,
+    scope: { org: string; project: string },
+  ): Promise<{ org: string; project: string; namespace: string; action: string; hash: string } | null>;
+}
+
+/**
+ * MCP Registry interface for tool lookup
+ */
+export interface IMcpRegistry {
+  /** Get MCP tool by FQDN without hash (e.g., "pml.mcp.std.fs_list") */
+  getByFqdnWithoutHash(fqdnWithoutHash: string): Promise<{ fqdn: string } | null>;
 }
 
 /**
@@ -185,6 +198,8 @@ export interface ExecuteDirectDependencies {
   defaultTimeout?: number;
   /** Database client for routing queries from pml_registry */
   routingDb?: RoutingDbClient;
+  /** MCP Registry for tool FQDN lookup */
+  mcpRegistry?: IMcpRegistry;
 }
 
 // ============================================================================
@@ -328,6 +343,27 @@ export class ExecuteDirectUseCase {
             // Client will execute locally and send trace with workflowId for capability creation
             const workflowId = crypto.randomUUID();
 
+            // Get user scope for FQDN generation (multi-tenant support)
+            const scope = await getUserScope(this.userId ?? null);
+
+            // Build FQDN for each tool with proper fallback logic:
+            // 1. Check capability registry (user scope + public)
+            // 2. Fallback to pml.mcp.{namespace}.{action} for MCP standard tools
+            // Client needs FQDNs to call tools via CapabilityLoader.callWithFqdn()
+            const toolsWithFqdn = await Promise.all(
+              toolsUsed.map(async (toolId) => ({
+                id: toolId,
+                fqdn: await resolveToolFqdn(toolId, scope, {
+                  lookupCapability: this.deps.capabilityRegistry?.resolveByName
+                    ? async (id, s) => await this.deps.capabilityRegistry!.resolveByName!(id, s)
+                    : undefined,
+                  lookupMcpTool: this.deps.mcpRegistry
+                    ? async (fqdn) => await this.deps.mcpRegistry!.getByFqdnWithoutHash(fqdn)
+                    : undefined,
+                }),
+              })),
+            );
+
             // Build LearningContext for capability creation when trace is received
             const learningContext: LearningContext = {
               code,
@@ -347,7 +383,7 @@ export class ExecuteDirectUseCase {
 
             log.info("[ExecuteDirectUseCase] Stored LearningContext for client-routed execution", {
               workflowId,
-              toolsUsed,
+              toolsUsed: toolsWithFqdn,
             });
 
             return {
@@ -356,7 +392,7 @@ export class ExecuteDirectUseCase {
                 success: true,
                 mode: "execute_locally",
                 code,
-                toolsUsed,
+                toolsUsed: toolsWithFqdn,  // Array of { id, fqdn } for client FQDN resolution
                 clientTools,
                 workflowId,
                 executionTimeMs: performance.now() - startTime,

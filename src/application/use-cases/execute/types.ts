@@ -75,8 +75,8 @@ export interface ExecuteDirectResult {
   // ---- Execute Locally fields (hybrid routing) ----
   /** Original code to execute locally (when mode="execute_locally") */
   code?: string;
-  /** All tools/capabilities used in the code */
-  toolsUsed?: string[];
+  /** All tools/capabilities used in the code with their resolved FQDNs */
+  toolsUsed?: Array<{ id: string; fqdn: string }>;
   /** Tools that require client-side execution */
   clientTools?: string[];
   /** Workflow ID for correlating client execution with server capability creation */
@@ -279,8 +279,8 @@ export interface ExecuteResponse {
   // execute_locally fields (hybrid routing)
   /** Original code to execute locally */
   code?: string;
-  /** All tools/capabilities used in the code */
-  tools_used?: string[];
+  /** All tools/capabilities used in the code with their resolved FQDNs */
+  tools_used?: Array<{ id: string; fqdn: string }>;
   /** Tools that require client-side execution */
   client_tools?: string[];
   /** Error code for client tools without package */
