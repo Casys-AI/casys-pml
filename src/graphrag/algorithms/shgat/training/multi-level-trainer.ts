@@ -608,6 +608,7 @@ export function applyLevelGradients(
 ): void {
   const lr = config.learningRate / batchSize;
   const l2 = config.l2Lambda;
+  const maxGrad = 1.0; // Gradient clipping threshold
 
   for (const [level, params] of levelParams) {
     const levelGrads = grads.levelGradients.get(level);
@@ -617,8 +618,9 @@ export function applyLevelGradients(
     for (let h = 0; h < config.numHeads; h++) {
       for (let i = 0; i < (params.W_child[h]?.length ?? 0); i++) {
         for (let j = 0; j < (params.W_child[h]?.[i]?.length ?? 0); j++) {
-          const grad = (levelGrads.dW_child[h]?.[i]?.[j] ?? 0) +
+          let grad = (levelGrads.dW_child[h]?.[i]?.[j] ?? 0) +
             l2 * (params.W_child[h][i][j] ?? 0);
+          grad = Math.max(-maxGrad, Math.min(maxGrad, grad)); // Clip gradient
           params.W_child[h][i][j] -= lr * grad;
         }
       }
@@ -626,21 +628,24 @@ export function applyLevelGradients(
       // Update W_parent
       for (let i = 0; i < (params.W_parent[h]?.length ?? 0); i++) {
         for (let j = 0; j < (params.W_parent[h]?.[i]?.length ?? 0); j++) {
-          const grad = (levelGrads.dW_parent[h]?.[i]?.[j] ?? 0) +
+          let grad = (levelGrads.dW_parent[h]?.[i]?.[j] ?? 0) +
             l2 * (params.W_parent[h][i][j] ?? 0);
+          grad = Math.max(-maxGrad, Math.min(maxGrad, grad)); // Clip gradient
           params.W_parent[h][i][j] -= lr * grad;
         }
       }
 
       // Update a_upward
       for (let d = 0; d < (params.a_upward[h]?.length ?? 0); d++) {
-        const grad = (levelGrads.da_upward[h]?.[d] ?? 0) + l2 * (params.a_upward[h][d] ?? 0);
+        let grad = (levelGrads.da_upward[h]?.[d] ?? 0) + l2 * (params.a_upward[h][d] ?? 0);
+        grad = Math.max(-maxGrad, Math.min(maxGrad, grad)); // Clip gradient
         params.a_upward[h][d] -= lr * grad;
       }
 
       // Update a_downward
       for (let d = 0; d < (params.a_downward[h]?.length ?? 0); d++) {
-        const grad = (levelGrads.da_downward[h]?.[d] ?? 0) + l2 * (params.a_downward[h][d] ?? 0);
+        let grad = (levelGrads.da_downward[h]?.[d] ?? 0) + l2 * (params.a_downward[h][d] ?? 0);
+        grad = Math.max(-maxGrad, Math.min(maxGrad, grad)); // Clip gradient
         params.a_downward[h][d] -= lr * grad;
       }
     }

@@ -25,6 +25,7 @@ import {
 import { extractPathLevelFeatures, type PathLevelFeatures } from "./path-level-features.ts";
 import { spawnSHGATTraining } from "../algorithms/shgat/spawn-training.ts";
 import { getLogger } from "../../telemetry/logger.ts";
+import type { DbClient } from "../../db/types.ts";
 
 const log = getLogger("default");
 
@@ -676,6 +677,7 @@ export async function trainSHGATOnPathTracesSubprocess(
   traceStore: ExecutionTraceStore,
   _embeddingProvider: EmbeddingProvider, // Unused since migration 030 (embeddings from JOIN)
   options: SubprocessPEROptions,
+  dbClient?: DbClient, // Optional: for loading real tool embeddings
 ): Promise<PERTrainingResult> {
   const {
     minTraces = DEFAULT_MIN_TRACES,
@@ -791,18 +793,56 @@ export async function trainSHGATOnPathTracesSubprocess(
     };
   }
 
-  // Step 5: Collect all tools from examples for subprocess SHGAT
-  const allToolsFromExamples = new Set<string>();
-  for (const ex of allExamples) {
-    for (const tool of ex.contextTools) {
-      allToolsFromExamples.add(tool);
+  // Step 5: Find additional tools from examples not in any capability
+  const toolsInCaps = new Set<string>();
+  for (const cap of capabilities) {
+    for (const tool of cap.toolsUsed) {
+      toolsInCaps.add(tool);
     }
   }
 
-  // Ensure first capability includes all tools
-  const capsForWorker = capabilities.map((c, i) => ({
-    ...c,
-    toolsUsed: i === 0 ? [...new Set([...c.toolsUsed, ...allToolsFromExamples])] : c.toolsUsed,
+  const additionalToolIds: string[] = [];
+  for (const ex of allExamples) {
+    for (const tool of ex.contextTools) {
+      if (!toolsInCaps.has(tool) && !additionalToolIds.includes(tool)) {
+        additionalToolIds.push(tool);
+      }
+    }
+  }
+
+  // Load real embeddings for additional tools if dbClient available
+  const toolEmbeddingsMap = new Map<string, number[]>();
+  if (dbClient && additionalToolIds.length > 0) {
+    try {
+      const rows = await dbClient.query(
+        `SELECT tool_id, embedding::float8[] as embedding
+         FROM tool_embedding
+         WHERE tool_id = ANY($1)`,
+        [additionalToolIds],
+      ) as Array<{ tool_id: string; embedding: number[] }>;
+      for (const row of rows) {
+        toolEmbeddingsMap.set(row.tool_id, row.embedding);
+      }
+      log.info(
+        `[PER-Subprocess] Loaded ${toolEmbeddingsMap.size}/${additionalToolIds.length} tool embeddings from DB`,
+      );
+    } catch (e) {
+      log.warn(`[PER-Subprocess] Failed to load tool embeddings: ${e}`);
+    }
+  }
+
+  // Build additional tools with embeddings (real if available, null for fallback)
+  const additionalToolsWithEmbeddings = additionalToolIds.map((id) => ({
+    id,
+    embedding: toolEmbeddingsMap.get(id) ?? null,
+  }));
+
+  // Capabilities keep their original toolsUsed (no hack)
+  const capsForWorker = capabilities.map((c) => ({
+    id: c.id,
+    embedding: c.embedding,
+    toolsUsed: c.toolsUsed,
+    successRate: c.successRate,
   }));
 
   // Step 6: Train in subprocess
@@ -814,6 +854,7 @@ export async function trainSHGATOnPathTracesSubprocess(
     epochs,
     batchSize,
     existingParams: shgat.exportParams(),
+    additionalToolsWithEmbeddings, // Real embeddings when available
     // Live learning config (Story 11.6)
     temperature,      // undefined = use annealing
     usePER,           // undefined = default true

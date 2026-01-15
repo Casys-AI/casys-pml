@@ -802,14 +802,41 @@ export class AlgorithmInitializer {
       }
 
       // Find additional tools from examples not in any capability
-      const additionalTools: string[] = [];
+      const additionalToolIds: string[] = [];
       for (const ex of examples) {
         for (const tool of ex.contextTools) {
-          if (!toolsInCaps.has(tool) && !additionalTools.includes(tool)) {
-            additionalTools.push(tool);
+          if (!toolsInCaps.has(tool) && !additionalToolIds.includes(tool)) {
+            additionalToolIds.push(tool);
           }
         }
       }
+
+      // Load real embeddings for additional tools from tool_embedding table
+      const toolEmbeddingsMap = new Map<string, number[]>();
+      if (additionalToolIds.length > 0) {
+        try {
+          const rows = await this.deps.db.query(
+            `SELECT tool_id, embedding::float8[] as embedding
+             FROM tool_embedding
+             WHERE tool_id = ANY($1)`,
+            [additionalToolIds],
+          ) as Array<{ tool_id: string; embedding: number[] }>;
+          for (const row of rows) {
+            toolEmbeddingsMap.set(row.tool_id, row.embedding);
+          }
+          log.info(
+            `[AlgorithmInitializer] Loaded ${toolEmbeddingsMap.size}/${additionalToolIds.length} tool embeddings from DB`,
+          );
+        } catch (e) {
+          log.warn(`[AlgorithmInitializer] Failed to load tool embeddings: ${e}`);
+        }
+      }
+
+      // Build additional tools with embeddings (real if available, null for fallback)
+      const additionalToolsWithEmbeddings = additionalToolIds.map((id) => ({
+        id,
+        embedding: toolEmbeddingsMap.get(id) ?? null, // null = worker will generate
+      }));
 
       // Each capability keeps its own toolsUsed (no hack needed)
       const capsForWorker = this.capabilities.map((c) => ({
@@ -824,7 +851,7 @@ export class AlgorithmInitializer {
         examples,
         epochs: 25, // 25 optimal: test acc peaks at 18-21, overfits after
         batchSize: 32,
-        additionalTools, // Tools from examples not in any capability
+        additionalToolsWithEmbeddings, // Tools with real embeddings when available
       });
 
       if (result.success && this.shgat) {

@@ -10,7 +10,11 @@
 import { createSHGATFromCapabilities, type TrainingExample } from "../src/graphrag/algorithms/shgat.ts";
 import { SHGAT } from "../src/graphrag/algorithms/shgat.ts";
 import { NUM_NEGATIVES } from "../src/graphrag/algorithms/shgat/types.ts";
-import { generateDefaultToolEmbedding } from "../src/graphrag/algorithms/shgat/graph/mod.ts";
+import { initBlasAcceleration } from "../src/graphrag/algorithms/shgat/utils/math.ts";
+
+// Initialize BLAS for fast matrix ops
+const blasAvailable = await initBlasAcceleration();
+console.log(`BLAS: ${blasAvailable ? "enabled (OpenBLAS)" : "disabled (JS fallback)"}`);
 
 // Load production data
 const data = JSON.parse(await Deno.readTextFile("tests/benchmarks/fixtures/scenarios/production-traces.json"));
@@ -28,17 +32,7 @@ const allToolsFromFixture = data.nodes.tools.map((t: any) => ({
   embedding: t.embedding,
 }));
 
-// Simulate additional tools (like in prod: 700+ tools)
-const EXTRA_TOOLS_COUNT = 600;
-const extraTools: Array<{ id: string; embedding: number[] }> = [];
-for (let i = 0; i < EXTRA_TOOLS_COUNT; i++) {
-  extraTools.push({
-    id: `simulated:tool_${i}`,
-    embedding: generateDefaultToolEmbedding(`simulated:tool_${i}`, 1024),
-  });
-}
-
-const allToolsWithExtras = [...allToolsFromFixture, ...extraTools];
+// Use real tools from fixture only (no simulation needed)
 
 function cosineSimilarity(a: number[], b: number[]): number {
   let dot = 0, normA = 0, normB = 0;
@@ -150,19 +144,7 @@ for (const tool of allToolsFromFixture) {
     shgat2.registerTool({ id: tool.id, embedding: tool.embedding });
   }
 }
-const result2 = await runBenchmark("All fixture tools (66 tools)", shgat2);
-
-// Version 3: All tools + simulated extras (like prod)
-console.log("\n─── Version 3: All tools + 600 simulated (like prod) ───");
-const allToolsMap = new Map(allToolsWithExtras.map(t => [t.id, t.embedding]));
-const shgat3 = createSHGATFromCapabilities(capabilities, allToolsMap, { numHeads: 16, hiddenDim: 1024, headDim: 64 });
-// Register all extra tools
-for (const tool of allToolsWithExtras) {
-  if (!shgat3.hasToolNode(tool.id)) {
-    shgat3.registerTool({ id: tool.id, embedding: tool.embedding });
-  }
-}
-const result3 = await runBenchmark("All tools + simulated (666 tools)", shgat3);
+const result2 = await runBenchmark(`All fixture tools (${allToolsFromFixture.length} tools)`, shgat2);
 
 // Summary
 console.log("\n╔═══════════════════════════════════════════════════════════════╗");
@@ -171,12 +153,11 @@ console.log("╚═════════════════════�
 console.log("");
 console.log("| Config                  | Tools | Time/epoch | Final Test Acc |");
 console.log("|-------------------------|-------|------------|----------------|");
-console.log(`| Current (cap-ref only)  |    65 | ${result1.avgTimePerEpoch.toFixed(0).padStart(7)}ms | ${(result1.finalTestAcc*100).toFixed(1).padStart(13)}% |`);
-console.log(`| All fixture tools       |    66 | ${result2.avgTimePerEpoch.toFixed(0).padStart(7)}ms | ${(result2.finalTestAcc*100).toFixed(1).padStart(13)}% |`);
-console.log(`| All + 600 simulated     |   666 | ${result3.avgTimePerEpoch.toFixed(0).padStart(7)}ms | ${(result3.finalTestAcc*100).toFixed(1).padStart(13)}% |`);
+console.log(`| Cap-referenced only     | ${String(shgat1.getToolCount()).padStart(5)} | ${result1.avgTimePerEpoch.toFixed(0).padStart(7)}ms | ${(result1.finalTestAcc*100).toFixed(1).padStart(13)}% |`);
+console.log(`| All fixture tools       | ${String(allToolsFromFixture.length).padStart(5)} | ${result2.avgTimePerEpoch.toFixed(0).padStart(7)}ms | ${(result2.finalTestAcc*100).toFixed(1).padStart(13)}% |`);
 console.log("");
 
-const slowdown = result3.avgTimePerEpoch / result1.avgTimePerEpoch;
-const accDiff = (result3.finalTestAcc - result1.finalTestAcc) * 100;
-console.log(`Slowdown with 666 tools: ${slowdown.toFixed(1)}x`);
+const slowdown = result2.avgTimePerEpoch / result1.avgTimePerEpoch;
+const accDiff = (result2.finalTestAcc - result1.finalTestAcc) * 100;
+console.log(`Slowdown with all tools: ${slowdown.toFixed(1)}x`);
 console.log(`Accuracy difference: ${accDiff > 0 ? '+' : ''}${accDiff.toFixed(1)}%`);

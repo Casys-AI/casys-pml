@@ -426,7 +426,7 @@ export function backpropWIntent(
 // ============================================================================
 
 /**
- * Apply K-head gradients with L2 regularization
+ * Apply K-head gradients with L2 regularization and gradient clipping
  */
 export function applyKHeadGradients(
   grads: KHeadGradientAccumulators,
@@ -436,6 +436,7 @@ export function applyKHeadGradients(
 ): void {
   const lr = config.learningRate / batchSize;
   const l2 = config.l2Lambda;
+  const maxGrad = 1.0; // Gradient clipping threshold
 
   for (let h = 0; h < config.numHeads; h++) {
     const hp = headParams[h];
@@ -443,7 +444,8 @@ export function applyKHeadGradients(
     // Update W_q
     for (let i = 0; i < hp.W_q.length; i++) {
       for (let j = 0; j < (hp.W_q[i]?.length ?? 0); j++) {
-        const grad = (grads.dW_q[h]?.[i]?.[j] ?? 0) + l2 * (hp.W_q[i][j] ?? 0);
+        let grad = (grads.dW_q[h]?.[i]?.[j] ?? 0) + l2 * (hp.W_q[i][j] ?? 0);
+        grad = Math.max(-maxGrad, Math.min(maxGrad, grad)); // Clip gradient
         hp.W_q[i][j] -= lr * grad;
       }
     }
@@ -451,7 +453,8 @@ export function applyKHeadGradients(
     // Update W_k
     for (let i = 0; i < hp.W_k.length; i++) {
       for (let j = 0; j < (hp.W_k[i]?.length ?? 0); j++) {
-        const grad = (grads.dW_k[h]?.[i]?.[j] ?? 0) + l2 * (hp.W_k[i][j] ?? 0);
+        let grad = (grads.dW_k[h]?.[i]?.[j] ?? 0) + l2 * (hp.W_k[i][j] ?? 0);
+        grad = Math.max(-maxGrad, Math.min(maxGrad, grad)); // Clip gradient
         hp.W_k[i][j] -= lr * grad;
       }
     }
@@ -459,7 +462,7 @@ export function applyKHeadGradients(
 }
 
 /**
- * Apply W_intent gradients with L2 regularization
+ * Apply W_intent gradients with L2 regularization and gradient clipping
  */
 export function applyWIntentGradients(
   grads: MultiLevelKHeadGradientAccumulators,
@@ -469,10 +472,12 @@ export function applyWIntentGradients(
 ): void {
   const lr = config.learningRate / batchSize;
   const l2 = config.l2Lambda;
+  const maxGrad = 1.0; // Gradient clipping threshold
 
   for (let i = 0; i < W_intent.length; i++) {
     for (let j = 0; j < (W_intent[i]?.length ?? 0); j++) {
-      const grad = (grads.dW_intent[i]?.[j] ?? 0) + l2 * (W_intent[i][j] ?? 0);
+      let grad = (grads.dW_intent[i]?.[j] ?? 0) + l2 * (W_intent[i][j] ?? 0);
+      grad = Math.max(-maxGrad, Math.min(maxGrad, grad)); // Clip gradient
       W_intent[i][j] -= lr * grad;
     }
   }

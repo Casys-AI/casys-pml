@@ -24,8 +24,8 @@ interface SpawnTrainingInput {
   existingParams?: Record<string, unknown>;
   /** Database URL for saving params directly (avoids stdout size limits) */
   databaseUrl?: string;
-  /** Additional tools to register (from examples' contextTools not in any capability) */
-  additionalTools?: string[];
+  /** Additional tools with embeddings (from examples' contextTools not in any capability) */
+  additionalToolsWithEmbeddings?: Array<{ id: string; embedding: number[] | null }>;
   /** Fixed temperature for InfoNCE (omit for cosine annealing) */
   temperature?: number;
   /** Use PER sampling (default: true) */
@@ -81,7 +81,7 @@ export async function spawnSHGATTraining(
     },
     existingParams: input.existingParams,
     databaseUrl,
-    additionalTools: input.additionalTools,
+    additionalToolsWithEmbeddings: input.additionalToolsWithEmbeddings,
   };
 
   // Use temp file for IPC - KV has 64KB limit, pipes block with large data

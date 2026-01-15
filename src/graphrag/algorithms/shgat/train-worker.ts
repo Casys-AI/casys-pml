@@ -69,8 +69,8 @@ interface WorkerInput {
   existingParams?: Record<string, unknown>;
   /** Database URL for saving params directly (avoids stdout size limits) */
   databaseUrl?: string;
-  /** Additional tools to register (from examples' contextTools not in any capability) */
-  additionalTools?: string[];
+  /** Additional tools with embeddings (from examples' contextTools not in any capability) */
+  additionalToolsWithEmbeddings?: Array<{ id: string; embedding: number[] | null }>;
 }
 
 interface WorkerOutput {
@@ -210,16 +210,20 @@ async function main() {
     logDebug(`[SHGAT Worker] SHGAT created in ${Date.now() - startCreate}ms`);
 
     // Register additional tools from examples (not in any capability's toolsUsed)
-    if (input.additionalTools && input.additionalTools.length > 0) {
+    if (input.additionalToolsWithEmbeddings && input.additionalToolsWithEmbeddings.length > 0) {
       const embeddingDim = input.capabilities[0]?.embedding.length || 1024;
-      for (const toolId of input.additionalTools) {
-        if (!shgat.hasToolNode(toolId)) {
-          shgat.registerTool({
-            id: toolId,
-            embedding: generateDefaultToolEmbedding(toolId, embeddingDim),
-          });
+      let realCount = 0;
+      let generatedCount = 0;
+      for (const tool of input.additionalToolsWithEmbeddings) {
+        if (!shgat.hasToolNode(tool.id)) {
+          // Use real embedding if available, otherwise generate fallback
+          const embedding = tool.embedding ?? generateDefaultToolEmbedding(tool.id, embeddingDim);
+          shgat.registerTool({ id: tool.id, embedding });
+          if (tool.embedding) realCount++;
+          else generatedCount++;
         }
       }
+      logDebug(`[SHGAT Worker] Registered ${realCount} tools with real embeddings, ${generatedCount} with generated`);
     }
 
     // Import existing params for incremental training (live/PER mode)

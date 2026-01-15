@@ -441,6 +441,7 @@ export class PostExecutionService {
           useCurriculum: false, // Live: no curriculum (no time)
           learningRate: 0.03,  // Live: conservative LR
         },
+        this.deps.db, // For loading real tool embeddings
       );
 
       if (!result.fallback && result.tracesProcessed > 0) {
