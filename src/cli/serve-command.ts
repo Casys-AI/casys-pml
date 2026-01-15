@@ -99,7 +99,7 @@ export function createServeCommand(): Command<any> {
       // Load config
       const configPath = join(workspace, PML_CONFIG_FILE);
       let config: PmlConfig = {
-        version: "0.1.0",
+        version: PACKAGE_VERSION,
         workspace,
         cloud: { url: "https://pml.casys.ai" },
         permissions: { allow: [], deny: [], ask: ["*"] },

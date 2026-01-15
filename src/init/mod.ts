@@ -20,8 +20,7 @@ import {
   getWorkspaceSourceDescription,
   resolveWorkspaceWithDetails,
 } from "../workspace.ts";
-
-const VERSION = "0.1.0";
+import { PACKAGE_VERSION } from "../cli/shared/constants.ts";
 const MCP_CONFIG_FILE = ".mcp.json";
 const PML_CONFIG_FILE = ".pml.json";
 
@@ -270,7 +269,7 @@ function generatePmlConfig(
   cloudUrl: string,
 ): PmlConfig {
   return {
-    version: VERSION,
+    version: PACKAGE_VERSION,
     workspace: ".", // Dynamic detection via resolveWorkspace() - portable!
     cloud: {
       url: cloudUrl,

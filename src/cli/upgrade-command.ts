@@ -8,12 +8,10 @@
 
 import { Command } from "@cliffy/command";
 import { bold, green, red, yellow } from "@std/fmt/colors";
+import { PACKAGE_VERSION } from "./shared/constants.ts";
 
 /** GitHub repository for releases (public repo) */
 const GITHUB_REPO = "Casys-AI/casys-pml";
-
-/** Current version (must match deno.json) */
-const CURRENT_VERSION = "0.1.0";
 
 /** Release info from GitHub API */
 interface GitHubRelease {
@@ -166,12 +164,12 @@ export function createUpgradeCommand(): Command<any> {
         const release = await fetchLatestRelease();
         const latestVersion = release.tag_name.replace(/^v/, "");
 
-        console.log(`Current version: ${CURRENT_VERSION}`);
+        console.log(`Current version: ${PACKAGE_VERSION}`);
         console.log(`Latest version:  ${latestVersion}`);
         console.log();
 
         // Compare versions
-        const comparison = compareVersions(latestVersion, CURRENT_VERSION);
+        const comparison = compareVersions(latestVersion, PACKAGE_VERSION);
 
         if (comparison === 0 && !options.force) {
           console.log(green("✓ Already up to date!"));
@@ -187,7 +185,7 @@ export function createUpgradeCommand(): Command<any> {
         // Check only mode
         if (options.check) {
           if (comparison > 0) {
-            console.log(yellow(`Update available: ${CURRENT_VERSION} → ${latestVersion}`));
+            console.log(yellow(`Update available: ${PACKAGE_VERSION} → ${latestVersion}`));
             console.log("Run 'pml upgrade' to install.");
           }
           return;
@@ -216,7 +214,7 @@ export function createUpgradeCommand(): Command<any> {
           await replaceBinary(tempPath);
 
           console.log();
-          console.log(green(`✓ Upgraded from ${CURRENT_VERSION} to ${latestVersion}`));
+          console.log(green(`✓ Upgraded from ${PACKAGE_VERSION} to ${latestVersion}`));
           console.log();
           console.log("Restart your terminal to use the new version.");
         } finally {

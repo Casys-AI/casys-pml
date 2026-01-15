@@ -15,6 +15,7 @@ import {
   serializeMessage,
 } from "./stdio-rpc.ts";
 import { createStdBinaryResolver } from "./binary-resolver.ts";
+import { PACKAGE_VERSION } from "../cli/shared/constants.ts";
 import * as log from "@std/log";
 
 /**
@@ -224,7 +225,7 @@ export class StdioManager {
       capabilities: {},
       clientInfo: {
         name: "pml-loader",
-        version: "0.1.0",
+        version: PACKAGE_VERSION,
       },
     });
 

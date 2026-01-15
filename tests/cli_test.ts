@@ -6,11 +6,12 @@
 
 import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 import { main } from "../src/cli/mod.ts";
+import { PACKAGE_VERSION } from "../src/cli/shared/constants.ts";
 
 Deno.test("cli - version flag works", async () => {
   // Capture the version output by checking the command configuration
   const versionMatch = main.getVersion();
-  assertEquals(versionMatch, "0.1.0");
+  assertEquals(versionMatch, PACKAGE_VERSION);
 });
 
 Deno.test("cli - has init command", () => {
