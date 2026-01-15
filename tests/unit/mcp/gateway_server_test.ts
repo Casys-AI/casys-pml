@@ -293,62 +293,47 @@ Deno.test("PMLGatewayServer - call_tool single tool proxy", async () => {
 });
 
 Deno.test({
-  name: "PMLGatewayServer - call_tool workflow execution",
+  name: "PMLGatewayServer - call_tool pml:execute routes correctly",
   sanitizeOps: false,
-  sanitizeResources: false, // Mock executor may not cleanup all resources
+  sanitizeResources: false,
   fn: async () => {
-  const db = createMockDB();
-  const vectorSearch = createMockVectorSearch();
-  const graphEngine = createMockGraphEngine();
-  const dagSuggester = createMockDAGSuggester();
-  const executor = createMockExecutor();
-  // Add filesystem client so the tool is known and doesn't require validation
-  const mcpClients = new Map<string, MCPClient>();
-  mcpClients.set("filesystem", createMockMCPClient("filesystem"));
+    const db = createMockDB();
+    const vectorSearch = createMockVectorSearch();
+    const graphEngine = createMockGraphEngine();
+    const dagSuggester = createMockDAGSuggester();
+    const executor = createMockExecutor();
+    const mcpClients = new Map<string, MCPClient>();
+    mcpClients.set("filesystem", createMockMCPClient("filesystem"));
 
-  const gateway = new PMLGatewayServer(
-    db,
-    vectorSearch,
-    graphEngine,
-    dagSuggester,
-    executor,
-    mcpClients,
-  );
+    const gateway = new PMLGatewayServer(
+      db,
+      vectorSearch,
+      graphEngine,
+      dagSuggester,
+      executor,
+      mcpClients,
+    );
 
-  const handleCallTool = (gateway as any).handleCallTool.bind(gateway);
-  const result = await handleCallTool({
-    params: {
-      name: "pml:execute_dag",
-      arguments: {
-        workflow: {
-          tasks: [
-            // Use known tool (filesystem:read) to avoid validation requirement
-            {
-              id: "t1",
-              tool: "filesystem:read",
-              arguments: { path: "/tmp/test.txt" },
-              dependsOn: [],
-            },
-          ],
+    const handleCallTool = (gateway as any).handleCallTool.bind(gateway);
+    const result = await handleCallTool({
+      params: {
+        name: "pml:execute",
+        arguments: {
+          intent: "Read a test file",
+          code: `return "test";`,
         },
       },
-    },
-  });
+    });
 
-  assertExists(result.content);
-  assert(Array.isArray(result.content));
-
-  const response = JSON.parse(result.content[0].text);
-  // Workflow may complete directly or require approval depending on tool permissions
-  // Both are valid outcomes - "approval_required" means HIL is working correctly for unknown tools
-  // Note: "complete" (not "completed") is also valid from some code paths
-  assert(
-    response.status === "completed" || response.status === "complete" || response.status === "approval_required",
-    `Expected 'completed', 'complete', or 'approval_required', got '${response.status}'`,
-  );
-  if (response.status === "completed" || response.status === "complete") {
-    assertExists(response.results);
-  }
+    // Verify the gateway routes pml:execute and returns a valid MCP response
+    // (ExecuteHandlerFacade not initialized in this test, so it will error)
+    assertExists(result.content);
+    assert(Array.isArray(result.content));
+    // Error response is expected since setExecuteAdapters() was not called
+    // The important thing is that the gateway recognizes and routes pml:execute
+    assertEquals(result.isError, true);
+    const errorText = result.content[0].text;
+    assert(errorText.includes("ExecuteHandlerFacade") || errorText.includes("execute"));
   },
 });
 

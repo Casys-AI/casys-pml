@@ -137,27 +137,53 @@ const META_CAPABILITIES = [
 // ============================================================================
 
 function buildSimpleDRDSP(): DRDSP {
-  const hyperedges = SIMPLE_CAPABILITIES.map((cap) =>
-    capabilityToHyperedge(cap.id, cap.tools, cap.staticEdges, cap.successRate)
-  );
-  return new DRDSP(hyperedges);
+  const drdsp = new DRDSP();
+
+  // Register all tools as nodes first
+  for (const cap of SIMPLE_CAPABILITIES) {
+    for (const tool of cap.tools) {
+      drdsp.registerTool(tool);
+    }
+  }
+
+  // Then add hyperedges
+  for (const cap of SIMPLE_CAPABILITIES) {
+    const hyperedge = capabilityToHyperedge(cap.id, cap.tools, cap.staticEdges, cap.successRate);
+    drdsp.addHyperedge(hyperedge);
+  }
+
+  return drdsp;
 }
 
 function buildDRDSPWithMetaCapabilities(): DRDSP {
-  const hyperedges: Hyperedge[] = [];
+  const drdsp = new DRDSP();
+
+  // Register all tools as nodes first
+  for (const cap of CAPABILITIES_WITH_HIERARCHY) {
+    for (const tool of cap.tools) {
+      drdsp.registerTool(tool);
+    }
+  }
+
+  // Register meta-capabilities as nodes
+  for (const meta of META_CAPABILITIES) {
+    drdsp.registerCapability(meta.id, {
+      hierarchyLevel: meta.parent ? 1 : 2,
+      successRate: meta.successRate,
+    });
+  }
 
   // Add base capability hyperedges
   for (const cap of CAPABILITIES_WITH_HIERARCHY) {
-    hyperedges.push(
-      capabilityToHyperedge(cap.id, cap.tools, cap.staticEdges, cap.successRate),
-    );
+    const hyperedge = capabilityToHyperedge(cap.id, cap.tools, cap.staticEdges, cap.successRate);
+    drdsp.addHyperedge(hyperedge);
   }
 
   // Add meta-capability hyperedges
   for (const meta of META_CAPABILITIES) {
     // Meta-capabilities as bridge hyperedges connecting all aggregated tools
     if (meta.toolsAggregated.length >= 2) {
-      hyperedges.push({
+      drdsp.addHyperedge({
         id: meta.id,
         sources: [meta.toolsAggregated[0]],
         targets: meta.toolsAggregated.slice(1),
@@ -171,7 +197,7 @@ function buildDRDSPWithMetaCapabilities(): DRDSP {
     }
   }
 
-  return new DRDSP(hyperedges);
+  return drdsp;
 }
 
 // ============================================================================

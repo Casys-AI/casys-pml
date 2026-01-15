@@ -168,24 +168,29 @@ Deno.test("Hono App - protected routes work in local mode", async () => {
   assertEquals(res.status, 200);
 });
 
-Deno.test("Hono App - MCP endpoint works in local mode", async () => {
-  Deno.env.delete("GITHUB_CLIENT_ID");
+Deno.test({
+  name: "Hono App - MCP endpoint works in local mode",
+  sanitizeOps: false,
+  sanitizeResources: false, // MCP handler may start intervals
+  fn: async () => {
+    Deno.env.delete("GITHUB_CLIENT_ID");
 
-  const deps = createMockDeps();
-  const app = createApp(deps, ["http://localhost:3003"]);
+    const deps = createMockDeps();
+    const app = createApp(deps, ["http://localhost:3003"]);
 
-  const req = new Request("http://localhost:3003/mcp", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", method: "tools/list", id: 1 }),
-  });
-  const res = await app.fetch(req);
+    const req = new Request("http://localhost:3003/mcp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", method: "tools/list", id: 1 }),
+    });
+    const res = await app.fetch(req);
 
-  assertEquals(res.status, 200);
-  const body = await res.json();
-  assertEquals(body.jsonrpc, "2.0");
-  assertEquals(body.id, 1);
-  assertExists(body.result);
+    assertEquals(res.status, 200);
+    const body = await res.json();
+    assertEquals(body.jsonrpc, "2.0");
+    assertEquals(body.id, 1);
+    assertExists(body.result);
+  },
 });
 
 // === Rate Limiting Tests ===

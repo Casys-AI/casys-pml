@@ -616,6 +616,11 @@ try {
     if (testAccMatch) {
       testAccuracies.push(parseFloat(testAccMatch[1]));
     }
+
+    // Debug: print any line with DB, error, fail, save, export
+    if (/DB|error|Error|fail|Fail|save|Save|export|Export/i.test(line)) {
+      console.error(`[DEBUG] ${line}`);
+    }
   };
 
   // =========================================================================
