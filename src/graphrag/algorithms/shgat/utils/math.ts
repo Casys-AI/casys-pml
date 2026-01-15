@@ -328,8 +328,8 @@ export function transpose(M: number[][]): number[][] {
  * @returns Vector [m]
  */
 export function matVecBlas(A: number[][], x: number[]): number[] {
-  // Use BLAS for larger matrices (high threshold to avoid FFI overhead)
-  if (isBlasReady() && A.length >= 256) {
+  // Use BLAS when product exceeds threshold (64×1024=65K benefits from BLAS)
+  if (isBlasReady() && A.length * (A[0]?.length || 0) >= 8192) {
     return blasModule!.blasMatVec(A, x);
   }
   return matVec(A, x);
@@ -344,8 +344,8 @@ export function matVecBlas(A: number[][], x: number[]): number[] {
  * @returns Vector [n]
  */
 export function matVecTransposeBlas(A: number[][], x: number[]): number[] {
-  // Use BLAS for larger matrices (high threshold to avoid FFI overhead)
-  if (isBlasReady() && A.length >= 256) {
+  // Use BLAS when product exceeds threshold (64×1024=65K benefits from BLAS)
+  if (isBlasReady() && A.length * (A[0]?.length || 0) >= 8192) {
     return blasModule!.blasMatVecTranspose(A, x);
   }
   // JS fallback: transpose then multiply
@@ -371,8 +371,9 @@ export function matVecTransposeBlas(A: number[][], x: number[]): number[] {
  * @returns Modified matrix A
  */
 export function outerProductAdd(A: number[][], x: number[], y: number[], alpha: number = 1.0): number[][] {
-  // Use BLAS for larger dimensions (high threshold to avoid FFI overhead for small ops)
-  if (isBlasReady() && x.length >= 256 && y.length >= 256) {
+  // Use BLAS when product exceeds threshold (avoids FFI overhead for tiny ops)
+  // 64×1024=65536 ops benefits from BLAS, while 16×16=256 doesn't
+  if (isBlasReady() && x.length * y.length >= 8192) {
     return blasModule!.blasOuterProduct(A, x, y, alpha);
   }
   // JS fallback

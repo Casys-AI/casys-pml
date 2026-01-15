@@ -67,36 +67,36 @@ export async function spawnSHGATTraining(
   // Get database URL from env or input
   const databaseUrl = input.databaseUrl || Deno.env.get("DATABASE_URL");
 
-  const command = new Deno.Command(Deno.execPath(), {
-    args: ["run", "--allow-all", "--unstable-ffi", workerPath],
-    stdin: "piped",
-    stdout: "piped",
-    stderr: "piped",
-  });
-
-  const process = command.spawn();
-
-  // Send input to worker (with database URL for direct save)
-  const encoder = new TextEncoder();
-  const inputJson = JSON.stringify({
+  // Prepare input data
+  const inputData = {
     capabilities: input.capabilities,
     examples: input.examples,
     config: {
-      epochs: input.epochs ?? 25, // 25 optimal: test acc peaks at 18-21, overfits after
+      epochs: input.epochs ?? 25,
       batchSize: input.batchSize ?? 32,
-      temperature: input.temperature,      // undefined = use annealing
+      temperature: input.temperature,
       usePER: input.usePER ?? true,
       useCurriculum: input.useCurriculum ?? true,
       learningRate: input.learningRate ?? 0.05,
     },
     existingParams: input.existingParams,
-    databaseUrl, // Worker saves params directly to DB
+    databaseUrl,
     additionalTools: input.additionalTools,
+  };
+
+  // Use temp file for IPC - KV has 64KB limit, pipes block with large data
+  const tempFile = await Deno.makeTempFile({ prefix: "shgat-", suffix: ".json" });
+  await Deno.writeTextFile(tempFile, JSON.stringify(inputData));
+  log.info(`[SHGAT] Wrote training data to ${tempFile}`);
+
+  const command = new Deno.Command(Deno.execPath(), {
+    args: ["run", "--allow-all", "--unstable-ffi", workerPath, tempFile],
+    stdin: "null",
+    stdout: "piped",
+    stderr: "piped",
   });
 
-  const writer = process.stdin.getWriter();
-  await writer.write(encoder.encode(inputJson));
-  await writer.close();
+  const process = command.spawn();
 
   // Collect stdout and stderr manually (process.output() conflicts with getReader())
   const decoder = new TextDecoder();
@@ -127,11 +127,9 @@ export async function spawnSHGATTraining(
         stderrChunks.push(value);
         const text = decoder.decode(value).trim();
         if (text) {
-          // Show epoch summaries at INFO level, rest at DEBUG
-          if (text.includes("Epoch") && text.includes("priority")) {
-            log.info(text);
-          } else {
-            log.debug(text);
+          // Show all worker logs at INFO level for visibility
+          for (const line of text.split("\n")) {
+            if (line.trim()) log.info(`[Worker] ${line.trim()}`);
           }
         }
       }
@@ -224,7 +222,6 @@ export async function spawnSHGATTraining(
       finalAccuracy: statusResult.finalAccuracy,
       tdErrors: statusResult.tdErrors,
       savedToDb: statusResult.savedToDb,
-      // params not included - they're in the DB
     };
   } catch (e) {
     log.error(`[SHGAT] Failed to parse training result: ${e}`);

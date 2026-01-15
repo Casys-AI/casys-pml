@@ -175,28 +175,25 @@ async function main() {
   const blasAvailable = await initBlasAcceleration();
   logInfo(`[SHGAT Worker] BLAS: ${blasAvailable ? "enabled (OpenBLAS)" : "disabled (JS fallback)"}`);
 
-  // Read input from stdin
-  logInfo(`[SHGAT Worker] Reading input from stdin...`);
-  const decoder = new TextDecoder();
-  const chunks: Uint8Array[] = [];
-
-  for await (const chunk of Deno.stdin.readable) {
-    chunks.push(chunk);
+  // Read input from temp file (path passed as CLI arg)
+  const inputFile = Deno.args[0];
+  if (!inputFile) {
+    throw new Error("Input file path required as first argument");
   }
 
-  // Concatenate chunks efficiently without intermediate array explosion
-  const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
-  logInfo(`[SHGAT Worker] Received ${(totalLength / 1024 / 1024).toFixed(2)} MB input`);
-  const combined = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const chunk of chunks) {
-    combined.set(chunk, offset);
-    offset += chunk.length;
+  logInfo(`[SHGAT Worker] Reading from ${inputFile}`);
+  const inputJson = await Deno.readTextFile(inputFile);
+  logInfo(`[SHGAT Worker] Read ${(inputJson.length / 1024 / 1024).toFixed(2)} MB`);
+
+  // Cleanup temp file
+  try {
+    await Deno.remove(inputFile);
+  } catch {
+    // Ignore
   }
-  const inputJson = decoder.decode(combined);
-  logInfo(`[SHGAT Worker] Parsing JSON...`);
+
   const input: WorkerInput = JSON.parse(inputJson);
-  logInfo(`[SHGAT Worker] Parsed: ${input.capabilities?.length} caps, ${input.examples?.length} examples`);
+  logInfo(`[SHGAT Worker] Loaded: ${input.capabilities?.length} caps, ${input.examples?.length} examples`);
 
   try {
     // Validate input
@@ -355,7 +352,11 @@ async function main() {
       const allIndices: number[] = [];
       const allTdErrors: number[] = [];
 
+      const epochStartTime = Date.now();
       for (let b = 0; b < numBatchesPerEpoch; b++) {
+        if (epoch === 0 && b === 0) {
+          logInfo(`[SHGAT Worker] Processing batch 1/${numBatchesPerEpoch}...`);
+        }
         let batch: TrainingExample[];
         let isWeights: number[];
 
@@ -373,7 +374,11 @@ async function main() {
         }
 
         // Train on batch (with IS weight correction if PER)
+        const batchStart = Date.now();
         const result = shgat.trainBatchV1KHeadBatched(batch, isWeights, false, temperature);
+        if (epoch === 0 && b === 0) {
+          logInfo(`[SHGAT Worker] First batch took ${Date.now() - batchStart}ms`);
+        }
         epochLoss += result.loss;
         epochAccuracy += result.accuracy;
         epochTdErrors.push(...result.tdErrors);
@@ -395,12 +400,14 @@ async function main() {
       finalAccuracy = epochAccuracy / epochBatches;
       lastEpochTdErrors = epochTdErrors;
 
+      const epochDuration = Date.now() - epochStartTime;
+
       // Log epoch results
       if (perBuffer) {
         const stats = perBuffer.getStats();
         logInfo(
           `[SHGAT Worker] Epoch ${epoch}: loss=${finalLoss.toFixed(4)}, acc=${finalAccuracy.toFixed(2)}, ` +
-          `priority=[${stats.min.toFixed(3)}-${stats.max.toFixed(3)}], β=${beta.toFixed(2)}, τ=${temperature.toFixed(3)}`
+          `priority=[${stats.min.toFixed(3)}-${stats.max.toFixed(3)}], β=${beta.toFixed(2)}, τ=${temperature.toFixed(3)}, ${epochDuration}ms`
         );
       } else {
         logInfo(
