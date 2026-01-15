@@ -218,6 +218,7 @@ export interface PmlRegistryRow {
   project: string | null;
   namespace: string | null;
   action: string | null;
+  hash: string | null;
 }
 
 /**

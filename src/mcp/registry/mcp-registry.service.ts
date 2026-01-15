@@ -324,21 +324,28 @@ export class McpRegistryService {
 
       // Compute integrity hash based on type
       let integrity: string;
-      let hashContent: string;
+      let shortHash: string;
 
-      if (type === "stdio" && config) {
-        hashContent = buildStdioHashContent(config);
+      // For capabilities, use stored hash from DB (don't recompute!)
+      // This fixes the bug where recomputed hash didn't match stored hash
+      if (row.record_type === "capability" && row.hash) {
+        shortHash = row.hash;
+        // Build a placeholder integrity - actual integrity comes from codeUrl fetch
+        integrity = `capability:${row.hash}`;
+      } else if (type === "stdio" && config) {
+        const hashContent = buildStdioHashContent(config);
+        integrity = await computeIntegrity(type, hashContent);
+        shortHash = extractShortHash(integrity);
       } else if (type === "http" && config) {
-        hashContent = buildHttpHashContent(config);
+        const hashContent = buildHttpHashContent(config);
+        integrity = await computeIntegrity(type, hashContent);
+        shortHash = extractShortHash(integrity);
       } else {
-        // deno - use description + name as proxy for hash
-        // NOTE: For capabilities, the actual code hash is computed when code is fetched via codeUrl.
-        // This hash is for catalog/listing purposes only. Client lockfile uses ETag from actual fetch.
-        hashContent = `${row.name}:${row.description || ""}`;
+        // Fallback for MCP tools without stored hash
+        const hashContent = `${row.name}:${row.description || ""}`;
+        integrity = await computeIntegrity(type, hashContent);
+        shortHash = extractShortHash(integrity);
       }
-
-      integrity = await computeIntegrity(type, hashContent);
-      const shortHash = extractShortHash(integrity);
 
       // Build FQDN
       let fqdn: string;
