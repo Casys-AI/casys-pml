@@ -36,6 +36,7 @@ import {
   type AlgorithmCapabilityInput,
 } from "../../infrastructure/patterns/factory/algorithm-factory.ts";
 import { loadAllProvidesEdges } from "../../graphrag/provides-edge-calculator.ts";
+import pako from "pako";
 
 // ==========================================================================
 // Types
@@ -173,14 +174,11 @@ export class AlgorithmInitializer {
       // 6. Populate tool features from graph
       await this.populateToolFeatures();
 
-      // 7. Background training if needed
-      if (this.capabilities.length > 0 && !paramsLoaded) {
-        log.info(`[AlgorithmInitializer] Starting background SHGAT training`);
-        this.trainOnTraces().catch((err) =>
-          log.warn(`[AlgorithmInitializer] Background training failed: ${err}`)
-        );
-      } else if (paramsLoaded) {
-        log.info(`[AlgorithmInitializer] SHGAT params loaded - skipping batch training`);
+      // 7. Background training disabled - use `deno task train` instead
+      if (paramsLoaded) {
+        log.info(`[AlgorithmInitializer] SHGAT params loaded from DB`);
+      } else {
+        log.info(`[AlgorithmInitializer] No SHGAT params - run 'deno task train' to train`);
       }
 
       return {
@@ -252,6 +250,18 @@ export class AlgorithmInitializer {
   }
 
   /**
+   * Decode base64 to bytes
+   */
+  private base64ToBytes(base64: string): Uint8Array {
+    const binaryStr = atob(base64);
+    const bytes = new Uint8Array(binaryStr.length);
+    for (let i = 0; i < binaryStr.length; i++) {
+      bytes[i] = binaryStr.charCodeAt(i);
+    }
+    return bytes;
+  }
+
+  /**
    * Load persisted SHGAT params from database
    */
   async loadSHGATParams(): Promise<{ loaded: boolean; updatedAt?: Date }> {
@@ -264,7 +274,19 @@ export class AlgorithmInitializer {
       )) as unknown as SHGATParamsRow[];
 
       if (rows.length > 0 && rows[0].params) {
-        this.shgat.importParams(rows[0].params);
+        let params = rows[0].params;
+
+        // Check if params are compressed (new format)
+        if (params.compressed && params.format === "gzip+base64" && params.data) {
+          log.info(`[AlgorithmInitializer] Decompressing SHGAT params (${(params.compressedSize / 1024 / 1024).toFixed(2)} MB)...`);
+          const compressed = this.base64ToBytes(params.data);
+          const decompressed = pako.ungzip(compressed);
+          const jsonStr = new TextDecoder().decode(decompressed);
+          params = JSON.parse(jsonStr);
+          log.info(`[AlgorithmInitializer] Decompressed to ${(params.compressedSize ? decompressed.length : JSON.stringify(params).length) / 1024 / 1024} MB`);
+        }
+
+        this.shgat.importParams(params);
         const updatedAt = new Date(rows[0].updated_at);
         log.info(
           `[AlgorithmInitializer] SHGAT params loaded (saved: ${rows[0].updated_at})`,

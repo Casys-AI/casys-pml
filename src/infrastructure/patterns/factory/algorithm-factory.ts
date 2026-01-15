@@ -61,6 +61,7 @@ import {
   cacheHyperedges,
 } from "../../../cache/hyperedge-cache.ts";
 import { initBlasAcceleration } from "../../../graphrag/algorithms/shgat/utils/math.ts";
+import { getDb } from "../../../db/mod.ts";
 
 /**
  * Capability data for algorithm initialization
@@ -113,6 +114,9 @@ export class AlgorithmFactory {
   /** Track if BLAS has been initialized */
   private static blasInitialized = false;
 
+  /** Cached tool embeddings from DB */
+  private static toolEmbeddingsCache: Map<string, number[]> | null = null;
+
   /**
    * Initialize BLAS acceleration (called once, idempotent)
    *
@@ -137,6 +141,60 @@ export class AlgorithmFactory {
   }
 
   /**
+   * Load tool embeddings from the database (tool_embedding table)
+   *
+   * Loads real BGE-M3 embeddings for tools and code operations.
+   * Cached after first load for performance.
+   *
+   * TODO: Add embeddings for loop:* and decision:* node types
+   * (currently only tools and code operations have embeddings)
+   *
+   * @returns Map of toolId → embedding vector
+   */
+  private static async loadToolEmbeddingsFromDB(): Promise<Map<string, number[]>> {
+    // Return cached if available
+    if (this.toolEmbeddingsCache) {
+      return this.toolEmbeddingsCache;
+    }
+
+    const embeddings = new Map<string, number[]>();
+
+    try {
+      const db = await getDb();
+      const rows = await db.query(
+        `SELECT tool_id, embedding::text FROM tool_embedding`,
+      );
+
+      for (const row of rows) {
+        const toolId = row.tool_id as string;
+        const embeddingStr = row.embedding as string;
+
+        // Parse the vector string format: "[0.1, 0.2, ...]"
+        try {
+          const parsed = JSON.parse(embeddingStr);
+          if (Array.isArray(parsed)) {
+            embeddings.set(toolId, parsed);
+          }
+        } catch {
+          // Skip malformed embeddings
+          log.debug(`[AlgorithmFactory] Skipping malformed embedding for ${toolId}`);
+        }
+      }
+
+      await db.close();
+      log.info(`[AlgorithmFactory] Loaded ${embeddings.size} tool embeddings from DB`);
+
+      // Cache for subsequent calls
+      this.toolEmbeddingsCache = embeddings;
+    } catch (e) {
+      log.warn(`[AlgorithmFactory] Failed to load tool embeddings from DB: ${e}`);
+      // Return empty map - SHGAT will use hash-based fallback
+    }
+
+    return embeddings;
+  }
+
+  /**
    * Create SHGAT instance from capabilities
    *
    * @param capabilities Array of capabilities with embeddings
@@ -150,10 +208,13 @@ export class AlgorithmFactory {
     // Initialize BLAS for matrix acceleration (ADR-058)
     await this.initBlas();
 
-    // Create SHGAT with capabilities
-    const shgat = createSHGATFromCapabilities(capabilities);
+    // Load real tool embeddings from DB (BGE-M3 vectors)
+    const toolEmbeddings = await this.loadToolEmbeddingsFromDB();
+
+    // Create SHGAT with capabilities and tool embeddings
+    const shgat = createSHGATFromCapabilities(capabilities, toolEmbeddings);
     log.info(
-      `[AlgorithmFactory] SHGAT initialized with ${capabilities.length} capabilities`,
+      `[AlgorithmFactory] SHGAT initialized with ${capabilities.length} capabilities, ${toolEmbeddings.size} tool embeddings`,
     );
 
     const result: SHGATFactoryResult = {
@@ -202,8 +263,11 @@ export class AlgorithmFactory {
     // Initialize BLAS for matrix acceleration (ADR-058)
     await this.initBlas();
 
-    const shgat = createSHGATFromCapabilities([]);
-    log.info(`[AlgorithmFactory] Empty SHGAT initialized`);
+    // Load real tool embeddings from DB (BGE-M3 vectors)
+    const toolEmbeddings = await this.loadToolEmbeddingsFromDB();
+
+    const shgat = createSHGATFromCapabilities([], toolEmbeddings);
+    log.info(`[AlgorithmFactory] Empty SHGAT initialized with ${toolEmbeddings.size} tool embeddings`);
     return shgat;
   }
 
