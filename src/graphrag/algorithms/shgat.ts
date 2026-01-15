@@ -80,9 +80,10 @@ import {
 } from "./shgat/training/multi-level-trainer-khead.ts";
 import {
   batchedKHeadForward,
-  batchedBackpropKHeadLogit,
   batchedBackpropWIntent,
   batchProjectIntents,
+  batchedBackwardAllHeads,
+  type BackwardEntry,
 } from "./shgat/training/batched-khead.ts";
 import {
   applyLevelGradients,
@@ -1879,6 +1880,8 @@ export class SHGAT {
       return { loss: 0, accuracy: 0, tdErrors: [], gradNorm: 0 };
     }
 
+    const t0 = Date.now();
+
     this.trainingMode = true;
     this.orchestrator = new MultiLevelOrchestrator(true);
 
@@ -1887,6 +1890,7 @@ export class SHGAT {
 
     // Rebuild hierarchy
     this.rebuildHierarchy();
+    const t1 = Date.now();
 
     // Initialize gradients
     const grads = initMultiLevelKHeadGradients(
@@ -1925,6 +1929,7 @@ export class SHGAT {
     // Build matrices
     const toolToCapMatrix = this.buildToolToCapMatrix();
     const capToCapMatrices = this.buildCapToCapMatrices();
+    const t2 = Date.now();
 
     // Forward with cache (pass v2vParams for trainable V→V)
     const { result, cache: mpCache } = this.orchestrator.forwardMultiLevelWithCache(
@@ -1941,6 +1946,7 @@ export class SHGAT {
       },
       this.v2vParams,
     );
+    const t3 = Date.now();
 
     // Flatten E for K-head scoring
     const E_flat = this.flattenEmbeddingsByCapabilityOrder(result.E);
@@ -1971,6 +1977,7 @@ export class SHGAT {
       this.params.headParams,
       this.config,
     );
+    const t4 = Date.now();
 
     // === COMPUTE LOSS AND BACKWARD ===
     // Temperature is passed as parameter (can be annealed: 0.2 → 0.05)
@@ -1985,8 +1992,10 @@ export class SHGAT {
       dE_accum.set(level, new Map());
     }
 
-    // Accumulate dIntentsBatched for W_intent backprop
-    const dIntentsBatched: number[][] = [];
+    // === BATCHED BACKWARD: Collect all entries, then process in ONE batched call ===
+    // This replaces 576 separate outer products with 16 matmuls (one per head)
+    const backwardEntries: BackwardEntry[] = [];
+    const bceEntries: { exIdx: number; posCapIdx: number; dLogit: number }[] = []; // Legacy BCE path
 
     for (let exIdx = 0; exIdx < examples.length; exIdx++) {
       const example = examples[exIdx];
@@ -1996,17 +2005,16 @@ export class SHGAT {
       const posCapIdx = this.graphBuilder.getCapabilityIndex(example.candidateId);
       if (posCapIdx === undefined) {
         tdErrors.push(0);
-        dIntentsBatched.push(new Array(this.config.hiddenDim).fill(0));
         continue;
       }
 
       const posLogit = allLogits.get(example.candidateId)?.[exIdx] ?? 0;
 
       if (example.negativeCapIds && example.negativeCapIds.length > 0) {
-        // === CONTRASTIVE (InfoNCE) ===
+        // === CONTRASTIVE (InfoNCE) - collect entries for batched backward ===
         const negLogits: number[] = [];
         const negCapIndices: number[] = [];
-        const validNegCapIds: string[] = []; // Track which negCapIds were actually used
+        const validNegCapIds: string[] = [];
 
         for (const negCapId of example.negativeCapIds) {
           const negCapIdx = this.graphBuilder.getCapabilityIndex(negCapId);
@@ -2016,7 +2024,7 @@ export class SHGAT {
           validNegCapIds.push(negCapId);
         }
 
-        // InfoNCE loss
+        // InfoNCE loss computation
         const allLogitsEx = [posLogit, ...negLogits];
         const scaledScores = allLogitsEx.map((s) => s / TEMPERATURE);
         const maxScore = Math.max(...scaledScores);
@@ -2026,77 +2034,35 @@ export class SHGAT {
 
         totalLoss += -Math.log(softmax[0] + 1e-7) * isWeight;
 
-        // Margin-based TD error for PER (wider range than softmax-based)
-        // margin = posLogit - max(negLogits), clipped to [-3, +3]
-        // tdError = exp(-margin), range [0.05, 20] for better priority differentiation
+        // TD error for PER
         const margin2 = negLogits.length > 0 ? posLogit - Math.max(...negLogits) : 3;
         const clippedMargin2 = Math.max(-3, Math.min(3, margin2));
         tdErrors.push(Math.exp(-clippedMargin2));
 
         if (negLogits.length === 0 || posLogit > Math.max(...negLogits)) correct++;
 
-        // === BACKWARD ===
-        let dIntentAccum = new Array(this.config.hiddenDim).fill(0);
-
-        // Positive cap gradient
+        // Collect backward entries (instead of processing immediately)
+        // Positive cap entry
         const dLossPos = (softmax[0] - 1) / TEMPERATURE * isWeight;
-        const posKCaps = kheadCache.K_caps.get(example.candidateId);
-        const posCapEmb = capEmbeddings.get(example.candidateId);
-        if (posKCaps && posCapEmb) {
-          for (let h = 0; h < this.config.numHeads; h++) {
-            const Q = kheadCache.Q_batches[h][exIdx];
-            const K = posKCaps[h];
-            if (!K) continue;
-            const { dIntentsBatched: dI, dCapEmbedding: dCap } = batchedBackpropKHeadLogit(
-              [dLossPos / this.config.numHeads],
-              [Q],
-              K,
-              [intentsBatched[exIdx]],
-              posCapEmb,
-              this.params.headParams[h],
-              grads.khead,
-              h,
-            );
-            for (let j = 0; j < dIntentAccum.length; j++) {
-              dIntentAccum[j] += dI[0]?.[j] ?? 0;
-            }
-            this.accumulateDCapGradient(dE_accum, posCapIdx, dCap, capIndexToLevel);
-          }
-        }
+        backwardEntries.push({
+          dLogit: dLossPos,
+          exIdx,
+          capId: example.candidateId,
+          capIdx: posCapIdx,
+        });
 
-        // Negative caps gradients
+        // Negative caps entries
         for (let i = 0; i < negLogits.length; i++) {
           const dLossNeg = softmax[i + 1] / TEMPERATURE * isWeight;
-          const negCapId = validNegCapIds[i];
-          const negCapIdx = negCapIndices[i];
-          const negKCaps = kheadCache.K_caps.get(negCapId);
-          const negCapEmb = capEmbeddings.get(negCapId);
-          if (!negKCaps || !negCapEmb) continue;
-
-          for (let h = 0; h < this.config.numHeads; h++) {
-            const Q = kheadCache.Q_batches[h][exIdx];
-            const K = negKCaps[h];
-            if (!K) continue;
-            const { dIntentsBatched: dI, dCapEmbedding: dCap } = batchedBackpropKHeadLogit(
-              [dLossNeg / this.config.numHeads],
-              [Q],
-              K,
-              [intentsBatched[exIdx]],
-              negCapEmb,
-              this.params.headParams[h],
-              grads.khead,
-              h,
-            );
-            for (let j = 0; j < dIntentAccum.length; j++) {
-              dIntentAccum[j] += dI[0]?.[j] ?? 0;
-            }
-            this.accumulateDCapGradient(dE_accum, negCapIdx, dCap, capIndexToLevel);
-          }
+          backwardEntries.push({
+            dLogit: dLossNeg,
+            exIdx,
+            capId: validNegCapIds[i],
+            capIdx: negCapIndices[i],
+          });
         }
-
-        dIntentsBatched.push(dIntentAccum);
       } else {
-        // === LEGACY BCE ===
+        // === LEGACY BCE - keep old path (rarely used) ===
         const posScore = allScores.get(example.candidateId)?.[exIdx] ?? 0.5;
         const predScore = Math.min(0.95, Math.max(0.05, posScore));
         totalLoss += math.binaryCrossEntropy(predScore, example.outcome) * isWeight;
@@ -2104,42 +2070,57 @@ export class SHGAT {
 
         if ((predScore > 0.5 ? 1 : 0) === example.outcome) correct++;
 
-        // BCE backward (simplified - just track dIntent)
+        // BCE uses different gradient formula, handle separately
         const dLossRaw = example.outcome === 1 ? -1 / (predScore + 1e-7) : 1 / (1 - predScore + 1e-7);
         const dLoss = dLossRaw * isWeight;
-        let dIntentAccum = new Array(this.config.hiddenDim).fill(0);
+        const score = posScore;
+        const scoringDim = this.params.headParams[0]?.W_q.length ?? 64;
+        const scale = Math.sqrt(scoringDim);
+        const dLogitBCE = dLoss * score * (1 - score) / scale;
 
-        const bceKCaps = kheadCache.K_caps.get(example.candidateId);
-        const bceCapEmb = capEmbeddings.get(example.candidateId);
-        if (bceKCaps && bceCapEmb) {
-          for (let h = 0; h < this.config.numHeads; h++) {
-            const Q = kheadCache.Q_batches[h][exIdx];
-            const K = bceKCaps[h];
-            if (!K) continue;
-            const score = allScores.get(example.candidateId)?.[exIdx] ?? 0.5;
-            const scoringDim = K.length;
-            const scale = Math.sqrt(scoringDim);
-            const dDotQK = dLoss * score * (1 - score) / scale / this.config.numHeads;
-
-            const dQ = K.map((k) => dDotQK * k);
-            const dK = Q.map((q) => dDotQK * q);
-
-            math.outerProductAdd(grads.khead.dW_q[h], dQ, intentsBatched[exIdx]);
-            math.outerProductAdd(grads.khead.dW_k[h], dK, bceCapEmb);
-
-            const dIntent = math.matVecTransposeBlas(this.params.headParams[h].W_q, dQ);
-            for (let j = 0; j < dIntentAccum.length; j++) {
-              dIntentAccum[j] += dIntent[j] ?? 0;
-            }
-
-            const dCap = math.matVecTransposeBlas(this.params.headParams[h].W_k, dK);
-            this.accumulateDCapGradient(dE_accum, posCapIdx, dCap, capIndexToLevel);
-          }
-        }
-
-        dIntentsBatched.push(dIntentAccum);
+        bceEntries.push({ exIdx, posCapIdx, dLogit: dLogitBCE });
       }
     }
+
+    // === BATCHED BACKWARD CALL ===
+    // Process all InfoNCE entries with batched matmuls (16 matmuls instead of 576 outer products)
+    const { dIntentsAccum, dCapEmbeddings: batchedDCapEmbs } = batchedBackwardAllHeads(
+      backwardEntries,
+      kheadCache,
+      intentsBatched,
+      capEmbeddings,
+      this.params.headParams,
+      grads.khead,
+      this.config,
+    );
+
+    // Route dCapEmbeddings to dE_accum for message passing backward
+    for (const [capIdx, dCap] of batchedDCapEmbs) {
+      this.accumulateDCapGradient(dE_accum, capIdx, dCap, capIndexToLevel);
+    }
+
+    // Handle BCE entries with old path (typically empty)
+    for (const bce of bceEntries) {
+      const bceCapEmb = capEmbeddings.get(examples[bce.exIdx].candidateId);
+      if (!bceCapEmb) continue;
+      for (let h = 0; h < this.config.numHeads; h++) {
+        const Q = kheadCache.Q_batches[h][bce.exIdx];
+        const K = kheadCache.K_caps.get(examples[bce.exIdx].candidateId)?.[h];
+        if (!Q || !K) continue;
+        const dDotQK = bce.dLogit / this.config.numHeads;
+        const dQ = K.map((k) => dDotQK * k);
+        const dK = Q.map((q) => dDotQK * q);
+        math.outerProductAdd(grads.khead.dW_q[h], dQ, intentsBatched[bce.exIdx]);
+        math.outerProductAdd(grads.khead.dW_k[h], dK, bceCapEmb);
+        const dCap = math.matVecTransposeBlas(this.params.headParams[h].W_k, dK);
+        this.accumulateDCapGradient(dE_accum, bce.posCapIdx, dCap, capIndexToLevel);
+      }
+    }
+
+    // Build dIntentsBatched from accumulated results
+    const dIntentsBatched = dIntentsAccum;
+
+    const t5 = Date.now();
 
     // === BACKWARD: W_intent ===
     batchedBackpropWIntent(dIntentsBatched, intents, grads.dW_intent);
@@ -2187,6 +2168,17 @@ export class SHGAT {
     if (!evaluateOnly) {
       applyKHeadGradients(grads.khead, this.params.headParams, this.config, examples.length);
       applyWIntentGradients(grads, this.params.W_intent, this.config, examples.length);
+    }
+
+    const t6 = Date.now();
+
+    // Log timing breakdown (only for first few batches to avoid log spam)
+    if (t6 - t0 > 1000) {
+      console.error(
+        `[SHGAT] Slow batch (${t6 - t0}ms): ` +
+        `hierarchy=${t1 - t0}ms, matrices=${t2 - t1}ms, forward=${t3 - t2}ms, ` +
+        `khead=${t4 - t3}ms, backward-loop=${t5 - t4}ms, backward-mp=${t6 - t5}ms`
+      );
     }
 
     this.trainingMode = false;

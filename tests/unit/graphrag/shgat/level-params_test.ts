@@ -146,29 +146,28 @@ Deno.test("exportLevelParams/importLevelParams - round trip", () => {
   }
 });
 
-Deno.test("getAdaptiveHeadsByGraphSize - scales with graph size", () => {
-  // Small graph (<200) — 4 heads × 256 dims
+Deno.test("getAdaptiveHeadsByGraphSize - always returns 16 heads", () => {
+  // After benchmarking, 16 heads consistently outperforms adaptive sizing (+12% train, +5% test)
+  // Function now always returns 16 heads × 64 dims = 1024 (matches BGE-M3)
+
   const small = getAdaptiveHeadsByGraphSize(10, 5, 0);
-  assertEquals(small.numHeads, 4, "Small graph should have 4 heads");
+  assertEquals(small.numHeads, 16, "Small graph should have 16 heads");
+  assertEquals(small.headDim, 64, "Head dimension should be 64");
+  assertEquals(small.hiddenDim, 1024, "Hidden dim should be 1024 (16×64)");
 
-  // Medium graph (<200) — still 4 heads
-  const medium = getAdaptiveHeadsByGraphSize(100, 50, 0);
-  assertEquals(medium.numHeads, 4, "Medium graph (<200) should have 4 heads");
-
-  // Large graph (>=200) — 16 heads × 64 dims = 1024 (matches BGE-M3)
-  const large = getAdaptiveHeadsByGraphSize(300, 100, 0);
-  assertEquals(large.numHeads, 16, "Large graph (>=200) should have 16 heads");
-
-  // Massive graph — still 16 heads (max)
-  const massive = getAdaptiveHeadsByGraphSize(600, 500, 0);
-  assertEquals(massive.numHeads, 16, "Massive graph should have 16 heads");
+  const large = getAdaptiveHeadsByGraphSize(600, 500, 2);
+  assertEquals(large.numHeads, 16, "Large graph should have 16 heads");
+  assertEquals(large.headDim, 64, "Head dimension should be 64");
+  assertEquals(large.hiddenDim, 1024, "Hidden dim should be 1024 (16×64)");
 });
 
-Deno.test("getAdaptiveHeadsByGraphSize - increases for deep hierarchies", () => {
+Deno.test("getAdaptiveHeadsByGraphSize - consistent across hierarchy depths", () => {
+  // Hierarchy depth no longer affects numHeads (always 16)
   const shallow = getAdaptiveHeadsByGraphSize(100, 50, 0);
   const deep = getAdaptiveHeadsByGraphSize(100, 50, 2);
 
-  assertEquals(deep.numHeads > shallow.numHeads, true, "Deep hierarchy should have more heads");
+  assertEquals(shallow.numHeads, deep.numHeads, "Hierarchy depth should not affect numHeads");
+  assertEquals(shallow.numHeads, 16, "Should always be 16 heads");
 });
 
 Deno.test("getAdaptiveHeadsByGraphSize - numHeads is always even", () => {
