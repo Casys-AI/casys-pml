@@ -40,7 +40,8 @@ jobs:
           # Copy lib/std/ contents to root of public repo
           cp -r lib/std/* mcp-std-repo/
 
-          # Note: .github workflows are NOT copied - all publishing is centralized in pml-cloud
+          # Copy .github workflows (for JSR publish)
+          cp -r lib/std/.github mcp-std-repo/
 
           # Add LICENSE
           cp LICENSE mcp-std-repo/LICENSE
