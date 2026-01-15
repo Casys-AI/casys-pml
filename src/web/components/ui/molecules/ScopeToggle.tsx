@@ -59,7 +59,7 @@ export default function ScopeToggle({
             key={option.value}
             type="button"
             onClick={() => onChange(option.value)}
-            class="px-3 py-1.5 text-xs font-medium transition-all duration-200"
+            class="px-3 py-1.5 text-xs font-medium transition-all duration-200 cursor-pointer hover:brightness-110"
             style={{
               background: scope === option.value
                 ? "var(--accent-dim, rgba(255, 184, 111, 0.1))"

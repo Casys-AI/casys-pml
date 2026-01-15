@@ -100,46 +100,48 @@ async function connectToMCPServers(
       `(${stdioServers.length} stdio, ${httpServers.length} HTTP)...`,
   );
 
-  // Connect to stdio servers
-  for (const server of stdioServers) {
-    try {
-      const client = new MCPClient(server, 10000);
-      await client.connect();
-      clients.set(server.id, client);
-      log.info(`  ✓ Connected (stdio): ${server.id}`);
-    } catch (error) {
-      log.error(`  ✗ Failed to connect to ${server.id}: ${error}`);
-      // Continue with other servers (gateway is resilient to individual failures)
-    }
-  }
+  // DISABLED: Server-side spawning - MCP processes are now controlled by PML package (client)
+  // The server only stores metadata in DB for discovery. Client handles:
+  // - Permission checks, installation HIL, API key validation
+  // - Spawning via StdioManager when tool is actually called
+  //
+  // // Connect to stdio servers
+  // for (const server of stdioServers) {
+  //   try {
+  //     const client = new MCPClient(server, 10000);
+  //     await client.connect();
+  //     clients.set(server.id, client);
+  //     log.info(`  ✓ Connected (stdio): ${server.id}`);
+  //   } catch (error) {
+  //     log.error(`  ✗ Failed to connect to ${server.id}: ${error}`);
+  //   }
+  // }
+  //
+  // // Connect to HTTP Streamable (Smithery) servers
+  // if (httpServers.length > 0) {
+  //   if (!smitheryApiKey) {
+  //     log.warn(
+  //       `  ⚠ ${httpServers.length} HTTP server(s) skipped: SMITHERY_API_KEY not set`,
+  //     );
+  //   } else {
+  //     for (const server of httpServers) {
+  //       try {
+  //         const client = new SmitheryMCPClient(server, {
+  //           apiKey: smitheryApiKey,
+  //           timeoutMs: 30000,
+  //         });
+  //         await client.connect();
+  //         clients.set(server.id, client);
+  //         log.info(`  ✓ Connected (HTTP): ${server.id}`);
+  //       } catch (error) {
+  //         log.error(`  ✗ Failed to connect to Smithery ${server.id}: ${error}`);
+  //       }
+  //     }
+  //   }
+  // }
 
-  // Connect to HTTP Streamable (Smithery) servers
-  if (httpServers.length > 0) {
-    if (!smitheryApiKey) {
-      log.warn(
-        `  ⚠ ${httpServers.length} HTTP server(s) skipped: SMITHERY_API_KEY not set`,
-      );
-    } else {
-      for (const server of httpServers) {
-        try {
-          const client = new SmitheryMCPClient(server, {
-            apiKey: smitheryApiKey,
-            timeoutMs: 30000,
-          });
-          await client.connect();
-          clients.set(server.id, client);
-          log.info(`  ✓ Connected (HTTP): ${server.id}`);
-        } catch (error) {
-          log.error(`  ✗ Failed to connect to Smithery ${server.id}: ${error}`);
-          // Continue with other servers
-        }
-      }
-    }
-  }
-
-  if (clients.size === 0) {
-    throw new Error("Failed to connect to any MCP servers");
-  }
+  log.info(`  ⏸ Server-side spawning disabled (controlled by PML client)`);
+  log.info(`    Configured: ${stdioServers.length} stdio, ${httpServers.length} HTTP`)
 
   return clients;
 }

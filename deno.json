@@ -57,6 +57,7 @@
     "bench": "deno bench --allow-all --unstable-ffi",
     "bench:shgat": "deno run --allow-all --unstable-ffi tests/benchmarks/strategic/shgat.bench.ts",
     "train": "deno run --allow-all --unstable-ffi tools/train-shgat-standalone.ts",
+    "train:prod": "DATABASE_URL=${DATABASE_URL_PROD:-postgres://casys:${POSTGRES_PASSWORD}@localhost:5432/casys_pml_prod} deno run --allow-all --unstable-ffi tools/train-shgat-standalone.ts",
     "build:std": "deno run --allow-read --allow-write --allow-env --allow-run lib/std/build.ts",
     "lint": "deno lint",
     "fmt": "deno fmt",
