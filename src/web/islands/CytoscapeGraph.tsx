@@ -2684,6 +2684,7 @@ export default function CytoscapeGraph({
           <p style={{ color: "var(--text-muted)" }}>{error}</p>
         </div>
       )}
+
     </div>
   );
 }

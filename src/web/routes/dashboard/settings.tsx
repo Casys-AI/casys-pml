@@ -20,7 +20,6 @@ import { peekFlashApiKey } from "../../../server/auth/session.ts";
 import { getSessionId } from "../../../server/auth/oauth.ts";
 import { getKv } from "../../../server/auth/kv.ts";
 import SettingsIsland from "../../islands/SettingsIsland.tsx";
-import ConfigCopyButton from "../../islands/ConfigCopyButton.tsx";
 import DangerZoneIsland from "../../islands/DangerZoneIsland.tsx";
 
 interface SettingsData {
@@ -79,30 +78,6 @@ export const handler = {
 
 export default function SettingsPage({ data }: { data: SettingsData }) {
   const { user, isCloudMode, apiKeyPrefix, flashApiKey } = data;
-
-  // MCP configuration based on mode
-  const mcpConfigCloud = {
-    mcpServers: {
-      "mcp-gateway": {
-        type: "http",
-        url: "https://pml.casys.ai/mcp",
-        headers: {
-          "x-api-key": "${CAI_API_KEY}",
-        },
-      },
-    },
-  };
-
-  const mcpConfigLocal = {
-    mcpServers: {
-      "mcp-gateway": {
-        type: "stdio",
-        command: "deno",
-        args: ["task", "mcp"],
-        cwd: "/path/to/casys-pml",
-      },
-    },
-  };
 
   return (
     <>
@@ -190,108 +165,16 @@ export default function SettingsPage({ data }: { data: SettingsData }) {
                   flashApiKey={flashApiKey}
                   apiKeyPrefix={apiKeyPrefix}
                 />
+
+                <div class="setup-instructions">
+                  <h3>Setup</h3>
+                  <p>Set your API key as an environment variable:</p>
+                  <pre><code>export PML_API_KEY="your_api_key_here"</code></pre>
+                </div>
               </div>
             </section>
           )}
 
-          {/* MCP Gateway Configuration */}
-          <section class="settings-section">
-            <h2 class="section-title">
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-                <path d="M8 21h8M12 17v4" />
-              </svg>
-              MCP Gateway Configuration
-            </h2>
-            <div class="section-content">
-              <p class="config-description">
-                {isCloudMode
-                  ? "Add this configuration to your Claude Code or Windsurf setup:"
-                  : "Add this configuration to run Casys PML locally:"}
-              </p>
-
-              <div class="config-block">
-                <div class="config-header">
-                  <span class="config-label">
-                    {isCloudMode ? "Claude Code / Windsurf (HTTP)" : "Local Mode (stdio)"}
-                  </span>
-                  <ConfigCopyButton
-                    config={JSON.stringify(isCloudMode ? mcpConfigCloud : mcpConfigLocal, null, 2)}
-                  />
-                </div>
-                <pre class="config-code"><code>{JSON.stringify(isCloudMode ? mcpConfigCloud : mcpConfigLocal, null, 2)}</code></pre>
-              </div>
-
-              {isCloudMode && (
-                <div class="config-instructions">
-                  <h3>Setup Instructions</h3>
-                  <ol>
-                    <li>Copy the configuration above</li>
-                    <li>
-                      Add it to <code>.mcp.json</code> (project scope) or{" "}
-                      <code>~/.claude.json</code> (user scope)
-                    </li>
-                    <li>
-                      Set your API key as an environment variable:
-                      <pre><code>export CAI_API_KEY="your_api_key_here"</code></pre>
-                    </li>
-                    <li>Restart Claude Code / Windsurf</li>
-                  </ol>
-                  <p class="security-note">
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                    </svg>
-                    Security: The API key is never stored in plain text. Use{" "}
-                    <code>$&#123;CAI_API_KEY&#125;</code> for environment variable expansion.
-                  </p>
-                </div>
-              )}
-
-              {!isCloudMode && (
-                <div class="config-instructions">
-                  <h3>Setup Instructions</h3>
-                  <ol>
-                    <li>Copy the configuration above</li>
-                    <li>
-                      Update the <code>cwd</code> path to your Casys PML installation directory
-                    </li>
-                    <li>
-                      Add it to <code>.mcp.json</code>
-                    </li>
-                    <li>Restart Claude Code / Windsurf</li>
-                  </ol>
-                  <p class="local-note">
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                      <circle cx="12" cy="10" r="3" />
-                    </svg>
-                    No API key required in local mode.
-                  </p>
-                </div>
-              )}
-            </div>
-          </section>
 
           {/* Danger Zone (Cloud Mode Only) */}
           {isCloudMode && (
@@ -514,6 +397,40 @@ export default function SettingsPage({ data }: { data: SettingsData }) {
           .api-key-note {
             font-size: 0.8rem;
             color: var(--text-dim);
+          }
+
+          .setup-instructions {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+          }
+
+          .setup-instructions h3 {
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+          }
+
+          .setup-instructions p {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+          }
+
+          .setup-instructions pre {
+            margin: 0;
+            padding: 0.5rem 0.75rem;
+            background: var(--bg-elevated);
+            border-radius: 4px;
+            overflow-x: auto;
+          }
+
+          .setup-instructions code {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--accent);
           }
 
           .flash-key-alert {

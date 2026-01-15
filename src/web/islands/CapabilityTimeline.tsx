@@ -635,16 +635,45 @@ export default function CapabilityTimeline({
     return (
       <div class="w-full h-full flex items-center justify-center p-6">
         <div
-          class="text-center p-6 rounded-xl max-w-md"
+          class="text-center p-8 rounded-xl max-w-md"
           style={{
             background: "var(--bg-elevated, #12110f)",
             border: "1px solid var(--border)",
           }}
         >
-          <div class="text-4xl mb-3">📭</div>
-          <p style={{ color: "var(--text-muted)" }}>
-            Aucune capability trouvée
+          <div class="text-5xl mb-4">🚀</div>
+          <h3
+            class="text-xl font-semibold mb-2"
+            style={{ color: "var(--text)" }}
+          >
+            Welcome to Casys PML!
+          </h3>
+          <p
+            class="mb-6"
+            style={{ color: "var(--text-muted)", lineHeight: "1.6" }}
+          >
+            No capabilities yet. Get your API key to start discovering and creating capabilities.
           </p>
+          <a
+            href="/dashboard/settings"
+            class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold transition-all hover:brightness-110"
+            style={{
+              background: "var(--accent, #FFB86F)",
+              color: "var(--bg, #08080a)",
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
+            </svg>
+            Get your API Key
+          </a>
         </div>
       </div>
     );

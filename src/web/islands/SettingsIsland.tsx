@@ -36,24 +36,28 @@ export default function SettingsIsland({
   };
 
   const handleCopy = async () => {
-    const keyToCopy = flashApiKey || apiKeyPrefix;
-    if (keyToCopy) {
-      try {
-        await navigator.clipboard.writeText(flashApiKey || keyToCopy);
-        copied.value = true;
-        toastMessage.value = flashApiKey
-          ? "Full API key copied!"
-          : "API key prefix copied (full key not available)";
-        setTimeout(() => {
-          copied.value = false;
-          toastMessage.value = null;
-        }, 3000);
-      } catch {
-        toastMessage.value = "Failed to copy to clipboard";
-        setTimeout(() => {
-          toastMessage.value = null;
-        }, 3000);
-      }
+    // Only copy if full key is available
+    if (!flashApiKey) {
+      toastMessage.value = "Full key not available - regenerate to copy";
+      setTimeout(() => {
+        toastMessage.value = null;
+      }, 3000);
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(flashApiKey);
+      copied.value = true;
+      toastMessage.value = "API key copied!";
+      setTimeout(() => {
+        copied.value = false;
+        toastMessage.value = null;
+      }, 3000);
+    } catch {
+      toastMessage.value = "Failed to copy to clipboard";
+      setTimeout(() => {
+        toastMessage.value = null;
+      }, 3000);
     }
   };
 
@@ -133,7 +137,8 @@ export default function SettingsIsland({
             type="button"
             class="btn-sm"
             onClick={handleCopy}
-            disabled={!apiKeyPrefix && !flashApiKey}
+            disabled={!flashApiKey}
+            title={!flashApiKey ? "Regenerate key to copy" : "Copy API key"}
           >
             <svg
               width="14"
