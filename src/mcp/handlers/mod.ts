@@ -12,8 +12,11 @@ export { type CodeExecutionDependencies, handleExecuteCode } from "./code-execut
 // Phase 3.1: Execute handler facade + Use Cases
 export { ExecuteHandlerFacade, type ExecuteRequest } from "./execute-handler-facade.ts";
 
-// Phase 3.2: Discover handler facade
+// Phase 3.2: Discover handler facade (extended with MCP Tools Consolidation)
 export { DiscoverHandlerFacade, type DiscoverHandlerFacadeDeps, type DiscoverArgs } from "./discover-handler-facade.ts";
+
+// MCP Tools Consolidation: Admin handler facade
+export { AdminHandlerFacade, type AdminHandlerFacadeDeps, type AdminArgs } from "./admin-handler-facade.ts";
 
 export {
   handleAbort,

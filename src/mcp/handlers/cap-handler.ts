@@ -7,6 +7,13 @@
  * package @casys/mcp-std distribution. The lib/std/cap.ts now contains
  * only the HTTP client that calls these handlers via the gateway.
  *
+ * @deprecated MCP Tools Consolidation: cap:* tools are being replaced by:
+ * - pml:discover (pattern, name, id modes) - replaces cap:list, cap:lookup, cap:whois
+ * - pml:admin (rename, merge actions) - replaces cap:rename, cap:merge
+ *
+ * This module is kept for backward compatibility with lib/std cap tools.
+ * New code should use pml:discover and pml:admin instead.
+ *
  * @module mcp/handlers/cap-handler
  */
 

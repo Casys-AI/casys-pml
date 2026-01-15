@@ -86,6 +86,7 @@ import {
   handleWorkflowExecution,
   type WorkflowHandlerDependencies,
   DiscoverHandlerFacade,
+  AdminHandlerFacade,
 } from "./handlers/mod.ts";
 
 // Hybrid routing (Story 14 - package/server handshake)
@@ -96,7 +97,16 @@ import {
 import {
   DiscoverToolsUseCase,
   DiscoverCapabilitiesUseCase,
+  ListCapabilitiesUseCase,
+  LookupUseCase,
+  GetDetailsUseCase,
 } from "../application/use-cases/discover/mod.ts";
+
+// MCP Tools Consolidation: Admin use cases
+import {
+  RenameCapabilityUseCase,
+  MergeCapabilitiesUseCase,
+} from "../application/use-cases/admin/mod.ts";
 import type { SHGAT } from "../graphrag/algorithms/shgat.ts";
 import type { DRDSP } from "../graphrag/algorithms/dr-dsp.ts";
 import type { EmbeddingModelInterface } from "../vector/embeddings.ts";
@@ -167,6 +177,7 @@ export class PMLGatewayServer {
   private executeHandlerFacade: ExecuteHandlerFacade | null = null; // Phase 3.1: Use case facade
   private executeAdapters: ExecuteAdapters | null = null; // Phase 3.1: DI execute adapters
   private discoverHandlerFacade: DiscoverHandlerFacade | null = null; // Phase 3.2: Discover optimization
+  private adminHandlerFacade: AdminHandlerFacade | null = null; // MCP Tools Consolidation: Admin operations
   private toolStore: ToolStore | null = null; // Phase 3.2: Singleton ToolStore
 
   constructor(
@@ -455,6 +466,7 @@ export class PMLGatewayServer {
   /**
    * Initialize DiscoverHandlerFacade with use cases
    * Phase 3.2: Discover performance optimization
+   * MCP Tools Consolidation: Extended with list, lookup, details modes
    */
   private initializeDiscoverHandlerFacade(): void {
     if (!this.toolStore) {
@@ -462,7 +474,7 @@ export class PMLGatewayServer {
       return;
     }
 
-    // Create use cases with singleton dependencies
+    // Create core use cases with singleton dependencies
     const toolsUseCase = new DiscoverToolsUseCase({
       toolStore: this.toolStore,
       shgat: this.shgat ?? undefined,
@@ -480,15 +492,89 @@ export class PMLGatewayServer {
       decisionLogger: getTelemetryAdapter(),
     });
 
-    // Create facade with shared embedding model
+    // MCP Tools Consolidation: Create extended use cases
+    const listCapabilitiesUseCase = new ListCapabilitiesUseCase({
+      db: this.db,
+    });
+
+    let lookupUseCase: LookupUseCase | undefined;
+    let getDetailsUseCase: GetDetailsUseCase | undefined;
+
+    if (this.capabilityRegistry) {
+      lookupUseCase = new LookupUseCase({
+        capabilityRegistry: this.capabilityRegistry,
+        toolRepository: this.toolStore,
+        db: this.db,
+      });
+
+      getDetailsUseCase = new GetDetailsUseCase({
+        capabilityRegistry: this.capabilityRegistry,
+        toolRepository: this.toolStore,
+        db: this.db,
+      });
+    }
+
+    // Create facade with shared embedding model and all use cases
     this.discoverHandlerFacade = new DiscoverHandlerFacade({
       toolsUseCase,
       capabilitiesUseCase,
+      listCapabilitiesUseCase,
+      lookupUseCase,
+      getDetailsUseCase,
       embeddingModel: this.embeddingModel ?? undefined,
       decisionLogger: getTelemetryAdapter(),
+      db: this.db, // For scope filtering in search mode
     });
 
-    log.info("[Gateway] DiscoverHandlerFacade initialized (Phase 3.2)");
+    log.info("[Gateway] DiscoverHandlerFacade initialized (Phase 3.2 + MCP Consolidation)");
+  }
+
+  /**
+   * Initialize AdminHandlerFacade with use cases
+   * MCP Tools Consolidation: Admin operations (rename, merge)
+   */
+  private initializeAdminHandlerFacade(): void {
+    if (!this.capabilityRegistry) {
+      log.warn("[Gateway] CapabilityRegistry not available, AdminHandlerFacade disabled");
+      return;
+    }
+
+    // Create admin use cases
+    const renameCapabilityUseCase = new RenameCapabilityUseCase({
+      capabilityRegistry: this.capabilityRegistry,
+      db: this.db,
+      embeddingModel: this.embeddingModel ?? undefined,
+    });
+
+    const mergeCapabilitiesUseCase = new MergeCapabilitiesUseCase({
+      capabilityRegistry: this.capabilityRegistry,
+      db: this.db,
+      onMergedCallback: (response) => {
+        // Emit capability.merged event for graph invalidation
+        eventBus.emit({
+          type: "capability.merged",
+          source: "pml:admin",
+          timestamp: Date.now(),
+          payload: {
+            sourceId: response.deletedSourceId,
+            sourceName: response.deletedSourceName,
+            sourcePatternId: response.deletedSourcePatternId,
+            targetId: response.targetId,
+            targetName: response.targetDisplayName,
+            targetPatternId: response.targetPatternId,
+            mergedUsageCount: response.mergedStats.usageCount,
+          },
+        });
+      },
+    });
+
+    // Create facade
+    this.adminHandlerFacade = new AdminHandlerFacade({
+      renameCapabilityUseCase,
+      mergeCapabilitiesUseCase,
+    });
+
+    log.info("[Gateway] AdminHandlerFacade initialized (MCP Tools Consolidation)");
   }
 
   /**
@@ -779,11 +865,21 @@ export class PMLGatewayServer {
 
     // Unified discover (Story 10.6, Phase 3.2 optimization)
     // Uses SHGAT K-head with shared embedding generation
+    // MCP Tools Consolidation: Extended with pattern, name, id modes
     if (name === "pml:discover") {
       if (!this.discoverHandlerFacade) {
         throw new Error("[Gateway] DiscoverHandlerFacade not initialized");
       }
-      return await this.discoverHandlerFacade.handle(args);
+      return await this.discoverHandlerFacade.handle(args, userId);
+    }
+
+    // Admin operations (MCP Tools Consolidation)
+    // Handles rename, merge capability operations
+    if (name === "pml:admin") {
+      if (!this.adminHandlerFacade) {
+        throw new Error("[Gateway] AdminHandlerFacade not initialized");
+      }
+      return await this.adminHandlerFacade.handle(args, userId);
     }
 
     // Unified execute (Story 10.7)
@@ -1015,6 +1111,7 @@ export class PMLGatewayServer {
     this.updateExecuteAdaptersWithAlgorithms();
     this.initializeExecuteHandlerFacade();
     this.initializeDiscoverHandlerFacade(); // Phase 3.2
+    this.initializeAdminHandlerFacade(); // MCP Tools Consolidation
 
     await this.healthChecker.initialHealthCheck();
     this.healthChecker.startPeriodicChecks();
@@ -1036,6 +1133,7 @@ export class PMLGatewayServer {
     this.updateExecuteAdaptersWithAlgorithms();
     this.initializeExecuteHandlerFacade();
     this.initializeDiscoverHandlerFacade(); // Phase 3.2
+    this.initializeAdminHandlerFacade(); // MCP Tools Consolidation
 
     const deps: HttpServerDependencies = {
       config: this.config,

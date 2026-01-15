@@ -257,24 +257,57 @@ export const approvalResponseTool: MCPTool = {
 };
 
 /**
- * Discover tool (pml:discover) - Story 10.6
+ * Discover tool (pml:discover) - Story 10.6, Extended for MCP Tools Consolidation
  *
  * Unified discovery API for tools and capabilities.
- * Replaces pml:search_tools and pml:search_capabilities.
+ * Supports multiple modes:
+ * - Semantic search: intent parameter (original behavior)
+ * - List: pattern parameter (glob-based listing)
+ * - Lookup: name parameter (exact name resolution)
+ * - Details: id parameter (whois-style full metadata)
  */
 export const discoverTool: MCPTool = {
   name: "pml:discover",
-  description: "Search MCP tools and learned capabilities by intent. Returns ranked results.",
+  description:
+    "Search, list, lookup, or get details for MCP tools and learned capabilities. Supports semantic search (intent), glob listing (pattern), exact lookup (name), and full metadata (id).",
   inputSchema: {
     type: "object",
     properties: {
+      // Semantic search mode (original)
       intent: {
         type: "string",
-        description: "What do you want to accomplish? Natural language description of your goal.",
+        description:
+          "Semantic search mode: Natural language description of what you want to accomplish.",
       },
+      // List mode (new)
+      pattern: {
+        type: "string",
+        description: "List mode: Glob pattern for listing capabilities (e.g., 'auth:*', 'fs:read_*').",
+      },
+      // Lookup mode (new)
+      name: {
+        type: "string",
+        description:
+          "Lookup mode: Exact name to look up (namespace:action for capabilities, server:tool for tools).",
+      },
+      // Details mode (new)
+      id: {
+        type: "string",
+        description: "Details mode: UUID or FQDN for detailed metadata lookup (whois-style).",
+      },
+      // Details options
+      details: {
+        oneOf: [
+          { type: "boolean" },
+          { type: "array", items: { type: "string" } },
+        ],
+        description:
+          "Return detailed metadata. true = all fields, array = specific fields. Used with 'id' parameter.",
+      },
+      // Filters (for semantic search mode)
       filter: {
         type: "object",
-        description: "Optional filters for results",
+        description: "Optional filters for semantic search results",
         properties: {
           type: {
             type: "string",
@@ -287,17 +320,83 @@ export const discoverTool: MCPTool = {
           },
         },
       },
+      // Pagination
       limit: {
         type: "number",
-        description: "Maximum results to return (default: 1, max: 50)",
+        description: "Maximum results to return (default: 1 for search, 50 for list, max: 500)",
       },
+      offset: {
+        type: "number",
+        description: "Pagination offset (for pattern listing mode).",
+      },
+      // Related tools
       include_related: {
         type: "boolean",
         description:
           "Include related tools for each tool result (from usage patterns). Default: false",
       },
     },
-    required: ["intent"],
+    // Note: At least one of intent, pattern, name, or id is required
+    // This is validated in the handler, not in the schema
+  },
+};
+
+/**
+ * Admin tool (pml:admin) - MCP Tools Consolidation
+ *
+ * Administrative operations for capability management:
+ * - rename: Update namespace, action, description, tags, visibility
+ * - merge: Combine duplicate capabilities into one
+ */
+export const adminTool: MCPTool = {
+  name: "pml:admin",
+  description: "Manage capabilities: rename, merge. Administrative operations.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      action: {
+        type: "string",
+        enum: ["rename", "merge"],
+        description: "The admin action to perform.",
+      },
+      // For rename
+      target: {
+        type: "string",
+        description: "Capability name (namespace:action) or UUID to modify.",
+      },
+      namespace: {
+        type: "string",
+        description: "New namespace for the capability.",
+      },
+      action_name: {
+        type: "string",
+        description: "New action name for the capability.",
+      },
+      description: {
+        type: "string",
+        description: "New description for the capability.",
+      },
+      tags: {
+        type: "array",
+        items: { type: "string" },
+        description: "New tags for the capability.",
+      },
+      visibility: {
+        type: "string",
+        enum: ["private", "project", "org", "public"],
+        description: "New visibility level for the capability.",
+      },
+      // For merge
+      source: {
+        type: "string",
+        description: "Source capability (name, UUID, or FQDN) - will be deleted after merge.",
+      },
+      prefer_source_code: {
+        type: "boolean",
+        description: "If true, use source's code_snippet even if older. Default: use newest.",
+      },
+    },
+    required: ["action"],
   },
 };
 
@@ -394,7 +493,7 @@ export function getMetaTools(): Array<{
   const tools = [
     executeTool, // Primary API (Story 10.7)
     discoverTool,
-    // Legacy tools removed - use pml:execute instead
+    adminTool, // MCP Tools Consolidation
     abortTool,
     replanTool,
   ];

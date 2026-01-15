@@ -59,6 +59,12 @@ export interface CapabilityMatch {
 }
 
 /**
+ * Scope filter function type
+ * Filters capability IDs by user scope (multi-tenant isolation)
+ */
+export type ScopeFilterFn = (capabilityIds: string[]) => Promise<Set<string>>;
+
+/**
  * Dependencies for DiscoverCapabilitiesUseCase
  */
 export interface DiscoverCapabilitiesDeps {
@@ -75,6 +81,8 @@ export interface DiscoverCapabilitiesDeps {
 export interface DiscoverCapabilitiesRequest extends DiscoverRequest {
   /** Pre-computed intent embedding (avoids duplicate encoding) */
   intentEmbedding?: number[];
+  /** Optional scope filter function for multi-tenant isolation */
+  scopeFilter?: ScopeFilterFn;
 }
 
 /**
@@ -89,7 +97,7 @@ export class DiscoverCapabilitiesUseCase {
    * Execute capability discovery
    */
   async execute(request: DiscoverCapabilitiesRequest): Promise<UseCaseResult<DiscoverCapabilitiesResult>> {
-    const { intent, limit = 5, minScore = 0, correlationId, intentEmbedding } = request;
+    const { intent, limit = 5, minScore = 0, correlationId, intentEmbedding, scopeFilter } = request;
 
     if (!intent || intent.trim().length === 0) {
       return {
@@ -101,7 +109,7 @@ export class DiscoverCapabilitiesUseCase {
     try {
       // Try SHGAT first (unified scoring)
       if (this.deps.shgat && (intentEmbedding || this.deps.embeddingModel)) {
-        const result = await this.discoverWithSHGAT(intent, limit, minScore, correlationId, intentEmbedding);
+        const result = await this.discoverWithSHGAT(intent, limit, minScore, correlationId, intentEmbedding, scopeFilter);
         if (result) return { success: true, data: result };
       }
 
@@ -126,6 +134,7 @@ export class DiscoverCapabilitiesUseCase {
     minScore: number,
     correlationId?: string,
     precomputedEmbedding?: number[],
+    scopeFilter?: ScopeFilterFn,
   ): Promise<DiscoverCapabilitiesResult | null> {
     const { shgat, embeddingModel, capabilityMatcher, decisionLogger } = this.deps;
     if (!shgat) return null;
@@ -142,13 +151,22 @@ export class DiscoverCapabilitiesUseCase {
     }
 
     // Score capabilities with SHGAT K-head
-    const shgatResults = shgat.scoreAllCapabilities(embedding);
+    let shgatResults = shgat.scoreAllCapabilities(embedding);
     const capStore = capabilityMatcher.getCapabilityStore();
 
     log.debug("[DiscoverCapabilities] SHGAT scored", {
       count: shgatResults.length,
       top3: shgatResults.slice(0, 3).map((r) => ({ id: r.capabilityId, score: r.score.toFixed(3) })),
     });
+
+    // Apply scope filter if provided (multi-tenant isolation)
+    if (scopeFilter) {
+      const allIds = shgatResults.map((r) => r.capabilityId);
+      const allowedIds = await scopeFilter(allIds);
+      const beforeCount = shgatResults.length;
+      shgatResults = shgatResults.filter((r) => allowedIds.has(r.capabilityId));
+      log.info(`[DiscoverCapabilities] Scope filter: ${beforeCount} → ${shgatResults.length} capabilities`);
+    }
 
     // Build results
     const capabilities: DiscoveredCapability[] = [];
