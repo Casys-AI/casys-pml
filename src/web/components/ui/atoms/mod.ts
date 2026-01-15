@@ -19,6 +19,9 @@ export { TrendIndicator } from "./TrendIndicator.tsx";
 export { GaugeChart } from "./GaugeChart.tsx";
 export { LegendItem } from "./LegendItem.tsx";
 
+// Empty state
+export { EmptyState, WelcomeEmptyState } from "./EmptyState.tsx";
+
 // Trace atoms
 export { default as TaskCard } from "./TaskCard.tsx";
 

@@ -17,6 +17,7 @@ import {
   ProgressBar,
   SectionCard,
   TrendIndicator,
+  WelcomeEmptyState,
 } from "../components/ui/atoms/mod.ts";
 import { useSSE } from "../hooks/mod.ts";
 import {
@@ -375,6 +376,11 @@ export default function EmergencePanel({
   if (!metrics) return null;
 
   const { current, trends, thresholds, phaseTransition, recommendations } = metrics;
+
+  // Empty state - no capabilities yet
+  if (current.capabilityCount === 0) {
+    return <WelcomeEmptyState />;
+  }
 
   return (
     <div
