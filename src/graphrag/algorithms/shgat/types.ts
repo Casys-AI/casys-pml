@@ -227,6 +227,22 @@ export interface SHGATConfig {
    */
   preserveDimResidual?: number;
 
+  // === Attention & Activation (Fujita ablation) ===
+  /**
+   * Attention mechanism type:
+   * - "gat_concat": GAT-style a^T · LeakyReLU([H || E]) (default, OURS)
+   * - "dot_product": Simple dot product H · E (Fujita's n-SuHGAT)
+   * @default "gat_concat"
+   */
+  attentionType?: "gat_concat" | "dot_product";
+  /**
+   * Aggregation activation function:
+   * - "elu": ELU activation (default, OURS)
+   * - "none": No activation (Fujita's approach)
+   * @default "elu"
+   */
+  aggregationActivation?: "elu" | "none";
+
   // === Legacy (kept for backward compatibility) ===
   /** @deprecated Which heads are active - all heads active in v2 */
   activeHeads?: number[];
@@ -271,6 +287,10 @@ export const DEFAULT_SHGAT_CONFIG: SHGATConfig = {
   l2Lambda: 0.0001,
   leakyReluSlope: 0.2,
   depthDecay: 0.8,
+
+  // Attention & Activation (OURS defaults)
+  attentionType: "gat_concat",
+  aggregationActivation: "elu",
 };
 
 /**

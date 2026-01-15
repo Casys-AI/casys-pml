@@ -40,6 +40,10 @@ export interface VEForwardCache {
   connectivity: number[][];
   /** LeakyReLU slope */
   leakyReluSlope: number;
+  /** Attention type for backward pass */
+  attentionType: "gat_concat" | "dot_product";
+  /** Aggregation activation for backward pass */
+  aggregationActivation: "elu" | "none";
 }
 
 /**
@@ -78,7 +82,11 @@ export class VertexToEdgePhase implements MessagePassingPhase {
     E: number[][],
     connectivity: number[][],
     params: PhaseParameters,
-    config: { leakyReluSlope: number },
+    config: {
+      leakyReluSlope: number;
+      attentionType?: "gat_concat" | "dot_product";
+      aggregationActivation?: "elu" | "none";
+    },
   ): PhaseResult {
     const result = this.forwardWithCache(H, E, connectivity, params, config);
     return { embeddings: result.embeddings, attention: result.attention };
@@ -92,7 +100,11 @@ export class VertexToEdgePhase implements MessagePassingPhase {
     E: number[][],
     connectivity: number[][],
     params: PhaseParameters,
-    config: { leakyReluSlope: number },
+    config: {
+      leakyReluSlope: number;
+      attentionType?: "gat_concat" | "dot_product";
+      aggregationActivation?: "elu" | "none";
+    },
   ): VEPhaseResultWithCache {
     const numTools = H.length;
     const numCaps = E.length;
@@ -110,14 +122,21 @@ export class VertexToEdgePhase implements MessagePassingPhase {
       () => Array(numCaps).fill(-Infinity),
     );
 
+    const attentionType = config.attentionType ?? "gat_concat";
+
     for (let t = 0; t < numTools; t++) {
       for (let c = 0; c < numCaps; c++) {
         if (connectivity[t][c] === 1) {
-          // Concatenate projected embeddings
-          const concat = [...H_proj[t], ...E_proj[c]];
-          concatPreAct.set(`${t}:${c}`, concat); // Cache pre-activation
-          const activated = concat.map((x) => math.leakyRelu(x, config.leakyReluSlope));
-          attentionScores[t][c] = math.dot(params.a_attention, activated);
+          if (attentionType === "dot_product") {
+            // Fujita's approach: simple dot product attention
+            attentionScores[t][c] = math.dot(H_proj[t], E_proj[c]);
+          } else {
+            // OURS (gat_concat): GAT-style a^T · LeakyReLU([H || E])
+            const concat = [...H_proj[t], ...E_proj[c]];
+            concatPreAct.set(`${t}:${c}`, concat); // Cache pre-activation
+            const activated = concat.map((x) => math.leakyRelu(x, config.leakyReluSlope));
+            attentionScores[t][c] = math.dot(params.a_attention, activated);
+          }
         }
       }
     }
@@ -163,8 +182,13 @@ export class VertexToEdgePhase implements MessagePassingPhase {
       }
 
       aggregated.push(agg);
-      // Apply ELU activation
-      E_new.push(agg.map((x) => math.elu(x)));
+      // Apply activation (ELU for OURS, none for Fujita)
+      const aggActivation = config.aggregationActivation ?? "elu";
+      if (aggActivation === "none") {
+        E_new.push([...agg]); // No activation
+      } else {
+        E_new.push(agg.map((x) => math.elu(x))); // ELU activation
+      }
     }
 
     const cache: VEForwardCache = {
@@ -177,6 +201,8 @@ export class VertexToEdgePhase implements MessagePassingPhase {
       attention: attentionVE,
       connectivity,
       leakyReluSlope: config.leakyReluSlope,
+      attentionType: config.attentionType ?? "gat_concat",
+      aggregationActivation: config.aggregationActivation ?? "elu",
     };
 
     return { embeddings: E_new, attention: attentionVE, cache };
@@ -195,7 +221,7 @@ export class VertexToEdgePhase implements MessagePassingPhase {
     cache: VEForwardCache,
     params: PhaseParameters,
   ): VEGradients {
-    const { H, E, H_proj, concatPreAct, aggregated, attention, connectivity, leakyReluSlope } = cache;
+    const { H, E, H_proj, concatPreAct, aggregated, attention, connectivity, leakyReluSlope, attentionType, aggregationActivation } = cache;
     const numTools = H.length;
     const numCaps = E.length;
     const headDim = H_proj[0]?.length ?? 0;
@@ -212,17 +238,23 @@ export class VertexToEdgePhase implements MessagePassingPhase {
     const dH_proj: number[][] = Array.from({ length: numTools }, () => Array(headDim).fill(0));
     const dE_proj: number[][] = Array.from({ length: numCaps }, () => Array(headDim).fill(0));
 
-    // Step 1: Through ELU activation
-    // dAggregated[c][d] = dE_new[c][d] * ELU'(aggregated[c][d])
+    // Step 1: Through activation (ELU or none)
+    // dAggregated[c][d] = dE_new[c][d] * activation'(aggregated[c][d])
     const dAggregated: number[][] = [];
     for (let c = 0; c < numCaps; c++) {
-      const dAgg = dE_new[c].map((grad, d) => {
-        const x = aggregated[c][d];
-        // ELU'(x) = 1 if x >= 0, else exp(x)
-        const eluDeriv = x >= 0 ? 1 : Math.exp(x);
-        return grad * eluDeriv;
-      });
-      dAggregated.push(dAgg);
+      if (aggregationActivation === "none") {
+        // No activation: derivative is 1
+        dAggregated.push([...dE_new[c]]);
+      } else {
+        // ELU activation
+        const dAgg = dE_new[c].map((grad, d) => {
+          const x = aggregated[c][d];
+          // ELU'(x) = 1 if x >= 0, else exp(x)
+          const eluDeriv = x >= 0 ? 1 : Math.exp(x);
+          return grad * eluDeriv;
+        });
+        dAggregated.push(dAgg);
+      }
     }
 
     // Step 2: Through aggregation
@@ -272,41 +304,50 @@ export class VertexToEdgePhase implements MessagePassingPhase {
       }
     }
 
-    // Step 4 & 5: Through attention computation and LeakyReLU
-    // score[t][c] = a · LeakyReLU(concat)
-    // → dActivated = dScore * a (element-wise contribution)
-    // → dConcat = dActivated * LeakyReLU'
-    // → da_attention += activated * dScore
+    // Step 4 & 5: Through attention computation
+    // For GAT: score[t][c] = a · LeakyReLU(concat)
+    // For dot_product: score[t][c] = H_proj[t] · E_proj[c]
 
     for (let t = 0; t < numTools; t++) {
       for (let c = 0; c < numCaps; c++) {
         if (connectivity[t][c] !== 1) continue;
 
-        const concat = concatPreAct.get(`${t}:${c}`);
-        if (!concat) continue;
-
         const score_grad = dScore[t][c];
 
-        // Compute activated values (for da_attention)
-        const activated = concat.map((x) => math.leakyRelu(x, leakyReluSlope));
+        if (attentionType === "dot_product") {
+          // Dot product attention: score = H_proj · E_proj
+          // → dH_proj[t] += dScore[t][c] * E_proj[c]
+          // → dE_proj[c] += dScore[t][c] * H_proj[t]
+          for (let d = 0; d < headDim; d++) {
+            dH_proj[t][d] += score_grad * cache.E_proj[c][d];
+            dE_proj[c][d] += score_grad * H_proj[t][d];
+          }
+        } else {
+          // GAT attention: score = a · LeakyReLU([H_proj || E_proj])
+          const concat = concatPreAct.get(`${t}:${c}`);
+          if (!concat) continue;
 
-        // da_attention += activated * dScore
-        for (let i = 0; i < activated.length; i++) {
-          da_attention[i] += activated[i] * score_grad;
-        }
+          // Compute activated values (for da_attention)
+          const activated = concat.map((x) => math.leakyRelu(x, leakyReluSlope));
 
-        // dActivated = dScore * a_attention
-        // dConcat = dActivated * LeakyReLU'(concat)
-        const dConcat = concat.map((x, i) => {
-          const leakyDeriv = x > 0 ? 1 : leakyReluSlope;
-          return score_grad * params.a_attention[i] * leakyDeriv;
-        });
+          // da_attention += activated * dScore
+          for (let i = 0; i < activated.length; i++) {
+            da_attention[i] += activated[i] * score_grad;
+          }
 
-        // Split dConcat into dH_proj_attn and dE_proj
-        // dConcat = [dH_proj_attn, dE_proj_attn]
-        for (let d = 0; d < headDim; d++) {
-          dH_proj[t][d] += dConcat[d];
-          dE_proj[c][d] += dConcat[headDim + d];
+          // dActivated = dScore * a_attention
+          // dConcat = dActivated * LeakyReLU'(concat)
+          const dConcat = concat.map((x, i) => {
+            const leakyDeriv = x > 0 ? 1 : leakyReluSlope;
+            return score_grad * params.a_attention[i] * leakyDeriv;
+          });
+
+          // Split dConcat into dH_proj_attn and dE_proj
+          // dConcat = [dH_proj_attn, dE_proj_attn]
+          for (let d = 0; d < headDim; d++) {
+            dH_proj[t][d] += dConcat[d];
+            dE_proj[c][d] += dConcat[headDim + d];
+          }
         }
       }
     }
