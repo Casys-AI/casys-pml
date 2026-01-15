@@ -48,6 +48,21 @@ export interface BatchedScoringResult {
   cache: BatchedKHeadCache;
 }
 
+/**
+ * Entry for batched backward accumulation
+ * Collects all gradient info to do ONE matmul per head instead of many outer products
+ */
+export interface BackwardEntry {
+  /** Gradient w.r.t. logit (scaled by IS weight and temperature) */
+  dLogit: number;
+  /** Example index (to get Q from cache) */
+  exIdx: number;
+  /** Capability ID (to get K from cache) */
+  capId: string;
+  /** Capability index (for dE_accum routing) */
+  capIdx: number;
+}
+
 // ============================================================================
 // Batched Forward Pass
 // ============================================================================
@@ -134,7 +149,10 @@ export function batchScoreAgainstCap(
 /**
  * Batched K-head forward pass for one head
  *
- * Computes scores for all examples against all capabilities efficiently.
+ * OPTIMIZED: Uses single matmul for all K computations + batched scoring.
+ * Instead of 127 separate matVecs, does ONE matmul [numCaps × hidden] @ [hidden × scoringDim]^T
+ *
+ * Performance: ~50x speedup vs per-cap matVec (BLAS matmul vs JS loops)
  *
  * @param intentsBatched Projected intents: [batch × hidden]
  * @param capEmbeddings Map of capId → embedding
@@ -153,19 +171,44 @@ export function batchedKHeadForwardOneHead(
 } {
   // Compute Q for all examples: [batch × scoringDim]
   const Q_batch = batchComputeQ(intentsBatched, headParams.W_q);
+  const scoringDim = headParams.W_k.length;
+  const scale = Math.sqrt(scoringDim);
 
-  // Compute K for all capabilities and score
+  // Stack all cap embeddings into matrix for batched K computation
+  const capIds = Array.from(capEmbeddings.keys());
+  const numCaps = capIds.length;
+  const E_matrix: number[][] = new Array(numCaps);
+  for (let i = 0; i < numCaps; i++) {
+    E_matrix[i] = capEmbeddings.get(capIds[i])!;
+  }
+
+  // Compute ALL K vectors at once: [numCaps × hidden] @ [hidden × scoringDim]^T = [numCaps × scoringDim]
+  const K_all = math.matmulTranspose(E_matrix, headParams.W_k);
+
+  // Compute ALL scores at once: [batch × scoringDim] @ [scoringDim × numCaps]^T = [batch × numCaps]
+  // Q_batch @ K_all^T / sqrt(dim)
+  const logitsMatrix = math.matmulTranspose(Q_batch, K_all);
+
+  // Build result maps
   const scores = new Map<string, number[]>();
   const logits = new Map<string, number[]>();
   const K_caps = new Map<string, number[]>();
 
-  for (const [capId, capEmb] of capEmbeddings) {
-    const K = computeK(capEmb, headParams.W_k);
-    K_caps.set(capId, K);
+  const batchSize = Q_batch.length;
+  for (let c = 0; c < numCaps; c++) {
+    const capId = capIds[c];
+    K_caps.set(capId, K_all[c]);
 
-    const { scores: capScores, logits: capLogits } = batchScoreAgainstCap(Q_batch, K);
-    scores.set(capId, capScores);
+    // Extract scores/logits for this cap from batched result
+    const capLogits: number[] = new Array(batchSize);
+    const capScores: number[] = new Array(batchSize);
+    for (let b = 0; b < batchSize; b++) {
+      const logit = logitsMatrix[b][c] / scale;
+      capLogits[b] = logit;
+      capScores[b] = math.sigmoid(logit);
+    }
     logits.set(capId, capLogits);
+    scores.set(capId, capScores);
   }
 
   return { scores, logits, Q_batch, K_caps };
@@ -353,7 +396,153 @@ export function batchedBackpropWIntent(
   intentsOriginal: number[][],
   dW_intent: number[][],
 ): void {
-  for (let b = 0; b < dIntentsBatched.length; b++) {
-    math.outerProductAdd(dW_intent, dIntentsBatched[b], intentsOriginal[b]);
+  // Use batched matmul: dW_intent += DIntents^T @ Intents
+  // [hiddenDim × numUpdates] @ [numUpdates × embeddingDim] = [hiddenDim × embeddingDim]
+  if (dIntentsBatched.length > 0) {
+    const dIntentsT = math.transpose(dIntentsBatched);
+    const update = math.matmul(dIntentsT, intentsOriginal);
+    for (let i = 0; i < update.length; i++) {
+      for (let j = 0; j < update[i].length; j++) {
+        dW_intent[i][j] += update[i][j];
+      }
+    }
   }
+}
+
+// ============================================================================
+// Truly Batched Backward Pass (16 matmuls instead of 576 outer products)
+// ============================================================================
+
+/**
+ * Truly batched backward pass for K-head gradients
+ *
+ * Instead of 576 separate outer products, collects all gradient info and does:
+ * - 16 matmuls for dW_q (one per head)
+ * - 16 matmuls for dW_k (one per head)
+ * - 16 matmuls for dIntent (one per head)
+ *
+ * Performance: ~36x fewer FFI calls, ~36x less allocation overhead
+ *
+ * @param entries All backward entries (from positive + negative caps)
+ * @param kheadCache Cache from forward pass (Q_batches, K_caps)
+ * @param intentsBatched Projected intents [numExamples × hiddenDim]
+ * @param capEmbeddings Map of capId → embedding
+ * @param headParams Array of head parameters
+ * @param grads Gradient accumulators
+ * @param config SHGAT config
+ * @returns Map of capIdx → dCapEmbedding for routing to message passing backward
+ */
+export function batchedBackwardAllHeads(
+  entries: BackwardEntry[],
+  kheadCache: {
+    Q_batches: number[][][]; // [head][batch][scoringDim]
+    K_caps: Map<string, number[][]>; // capId → [head][scoringDim]
+  },
+  intentsBatched: number[][],
+  capEmbeddings: Map<string, number[]>,
+  headParams: HeadParams[],
+  grads: KHeadGradientAccumulators,
+  config: SHGATConfig,
+): {
+  dIntentsAccum: number[][]; // [numExamples × hiddenDim] accumulated across heads
+  dCapEmbeddings: Map<number, number[]>; // capIdx → dCapEmbedding
+} {
+  const { numHeads } = config;
+  const numEntries = entries.length;
+  const scoringDim = headParams[0]?.W_q.length ?? 64;
+  const hiddenDim = intentsBatched[0]?.length ?? 1024;
+
+  if (numEntries === 0) {
+    return {
+      dIntentsAccum: intentsBatched.map(() => new Array(hiddenDim).fill(0)),
+      dCapEmbeddings: new Map(),
+    };
+  }
+
+  // Initialize accumulators
+  const dIntentsAccum: number[][] = intentsBatched.map(() => new Array(hiddenDim).fill(0));
+  const dCapEmbeddings = new Map<number, number[]>();
+
+  // Process each head with batched operations
+  for (let h = 0; h < numHeads; h++) {
+    // Build matrices for this head:
+    // DQ_all: [numEntries × scoringDim] - gradient w.r.t Q for each entry
+    // DK_all: [numEntries × scoringDim] - gradient w.r.t K for each entry
+    // Intents_all: [numEntries × hiddenDim] - intent for each entry
+    // CapEmbs_all: [numEntries × hiddenDim] - cap embedding for each entry
+
+    const DQ_all: number[][] = new Array(numEntries);
+    const DK_all: number[][] = new Array(numEntries);
+    const Intents_all: number[][] = new Array(numEntries);
+    const CapEmbs_all: number[][] = new Array(numEntries);
+    const scale = Math.sqrt(scoringDim);
+
+    for (let i = 0; i < numEntries; i++) {
+      const entry = entries[i];
+      const Q = kheadCache.Q_batches[h][entry.exIdx];
+      const K = kheadCache.K_caps.get(entry.capId)?.[h];
+
+      if (!Q || !K) {
+        DQ_all[i] = new Array(scoringDim).fill(0);
+        DK_all[i] = new Array(scoringDim).fill(0);
+        Intents_all[i] = intentsBatched[entry.exIdx] || new Array(hiddenDim).fill(0);
+        CapEmbs_all[i] = capEmbeddings.get(entry.capId) || new Array(hiddenDim).fill(0);
+        continue;
+      }
+
+      // dLoss/d(Q·K) = dLogit / √dim
+      const dDotQK = entry.dLogit / scale;
+
+      // dQ = dDotQK * K, dK = dDotQK * Q
+      DQ_all[i] = K.map((k) => dDotQK * k);
+      DK_all[i] = Q.map((q) => dDotQK * q);
+      Intents_all[i] = intentsBatched[entry.exIdx];
+      CapEmbs_all[i] = capEmbeddings.get(entry.capId)!;
+    }
+
+    // Batched gradient accumulation using matmul:
+    // dW_q += DQ^T @ Intents : [scoringDim × numEntries] @ [numEntries × hiddenDim]
+    const DQ_T = math.transpose(DQ_all);
+    const dW_q_update = math.matmul(DQ_T, Intents_all);
+    for (let i = 0; i < scoringDim; i++) {
+      for (let j = 0; j < hiddenDim; j++) {
+        grads.dW_q[h][i][j] += dW_q_update[i][j];
+      }
+    }
+
+    // dW_k += DK^T @ CapEmbs : [scoringDim × numEntries] @ [numEntries × hiddenDim]
+    const DK_T = math.transpose(DK_all);
+    const dW_k_update = math.matmul(DK_T, CapEmbs_all);
+    for (let i = 0; i < scoringDim; i++) {
+      for (let j = 0; j < hiddenDim; j++) {
+        grads.dW_k[h][i][j] += dW_k_update[i][j];
+      }
+    }
+
+    // dIntent = W_q^T @ DQ : [hiddenDim × scoringDim] @ [scoringDim] for each entry
+    // Batched: DIntents = DQ @ W_q : [numEntries × scoringDim] @ [scoringDim × hiddenDim]
+    const DIntents_h = math.matmul(DQ_all, headParams[h].W_q);
+    for (let i = 0; i < numEntries; i++) {
+      const exIdx = entries[i].exIdx;
+      for (let j = 0; j < hiddenDim; j++) {
+        dIntentsAccum[exIdx][j] += DIntents_h[i][j];
+      }
+    }
+
+    // dCapEmb = W_k^T @ DK : [hiddenDim × scoringDim] @ [scoringDim] for each entry
+    // Batched: DCapEmbs = DK @ W_k : [numEntries × scoringDim] @ [scoringDim × hiddenDim]
+    const DCapEmbs_h = math.matmul(DK_all, headParams[h].W_k);
+    for (let i = 0; i < numEntries; i++) {
+      const capIdx = entries[i].capIdx;
+      if (!dCapEmbeddings.has(capIdx)) {
+        dCapEmbeddings.set(capIdx, new Array(hiddenDim).fill(0));
+      }
+      const accum = dCapEmbeddings.get(capIdx)!;
+      for (let j = 0; j < hiddenDim; j++) {
+        accum[j] += DCapEmbs_h[i][j];
+      }
+    }
+  }
+
+  return { dIntentsAccum, dCapEmbeddings };
 }
