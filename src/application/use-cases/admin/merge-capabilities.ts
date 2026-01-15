@@ -195,12 +195,12 @@ export class MergeCapabilitiesUseCase {
         if (targetRecord.workflowPatternId) {
           await tx.exec(
             `UPDATE workflow_pattern SET
-              usage_count = $1,
-              success_count = $2,
-              success_rate = CASE WHEN $1 > 0 THEN $2::real / $1::real ELSE 0 END,
-              created_at = LEAST(created_at, $3),
+              usage_count = $1::integer,
+              success_count = $2::integer,
+              success_rate = CASE WHEN $1::integer > 0 THEN $2::real / $1::real ELSE 0 END,
+              created_at = LEAST(created_at, $3::timestamptz),
               code_snippet = COALESCE($4, code_snippet)
-            WHERE pattern_id = $5`,
+            WHERE pattern_id = $5::uuid`,
             [
               mergedUsageCount,
               mergedSuccessCount,
@@ -213,7 +213,7 @@ export class MergeCapabilitiesUseCase {
 
         // Update capability_records metadata
         await tx.exec(
-          `UPDATE capability_records SET updated_at = NOW() WHERE id = $1`,
+          `UPDATE capability_records SET updated_at = NOW() WHERE id = $1::uuid`,
           [targetRecord.id],
         );
 
@@ -256,7 +256,7 @@ export class MergeCapabilitiesUseCase {
         }
 
         // Delete source capability_records
-        await tx.exec(`DELETE FROM capability_records WHERE id = $1`, [
+        await tx.exec(`DELETE FROM capability_records WHERE id = $1::uuid`, [
           sourceRecord.id,
         ]);
       });
